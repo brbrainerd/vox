@@ -1,0 +1,14 @@
+fix(populi): serialize JSON body for middleware requests and add retry logic
+scale: ~131 lines across 1 files [M]
+
+- `crates/vox-populi/src/http_client.rs`:
+  - Changed `PopuliHttpClient` to use `reqwest_middleware::ClientWithMiddleware` instead of `reqwest::Client`.
+  - Implemented a custom `Debug` trait for `PopuliHttpClient` to redact sensitive `bearer` token information.
+  - Introduced a `populi_retry_transient_from_env` function to determine if transient retries should be enabled based on an environment variable.
+  - Modified the client initialization to use `vox_reqwest_defaults::populi_control_plane_client` for middleware integration and retry logic.
+  - Added a new `post_json` helper function to explicitly serialize JSON bodies and set the `Content-Type` header for POST requests, addressing the lack of a `.json()` method on `reqwest-middleware` request builders.
+  - Updated `post_json_no_auth` to use the new `post_json` helper.
+  - Updated `get_json` to use `reqwest_middleware` client.
+  - Updated `post_json_with_auth` to use the new `post_json` helper.
+
+--- audit: original='fix(populi): serialize JSON body for middleware requests' | actual=131L across 1 files | derived=full ---
