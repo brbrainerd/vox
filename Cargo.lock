@@ -15252,6 +15252,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-mcp-llm-bridge"
+version = "0.6.0"
+dependencies = [
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-mcp-registry"
 version = "0.6.0"
 dependencies = [
