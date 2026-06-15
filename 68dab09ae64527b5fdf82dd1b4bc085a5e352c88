@@ -1,0 +1,16 @@
+feat(rule-pack): introduce `vox-rule-pack` crate for YAML rule loading and benchmarking
+scale: ~713 lines across 11 files [L]
+
+- `crates/vox-rule-pack`: New crate providing a declarative YAML rule-pack loader.
+- `crates/vox-rule-pack/src/pack.rs`: Implements `RulePack` for loading and compiling rules from YAML, including `CompiledRule` with pre-compiled regex.
+- `crates/vox-rule-pack/src/bench.rs`: Adds `run_bench` function and associated types (`BenchReport`, `RuleBenchResult`) for authoring-time rule benchmarking against fixture files.
+- `crates/vox-rule-pack/src/schema.rs`: Defines the deserialization schema for `rules.v1.yaml`, including `RuleFile`, `RuleSpec`, `MatchSpec`, `MatchKind`, `SkipScope`, and `FixtureSpec`.
+- `crates/vox-rule-pack/src/types.rs`: Introduces public enum types `RuleSeverity`, `RuleConfidence`, and `RuleLanguage` for rule metadata.
+- `crates/vox-rule-pack/src/error.rs`: Defines `RulePackError` and `RulePackResult` for error handling during rule pack loading and compilation.
+- `crates/vox-rule-pack/examples/load_rules.rs`: Provides an example demonstrating how to load a rule pack from a path and print rule details.
+- `crates/vox-rule-pack/src/lib.rs`: Sets up the crate's public API, re-exporting core modules and types.
+- `crates/vox-rule-pack/Cargo.toml`: Adds the new crate's manifest.
+- `Cargo.toml`: Adds `vox-rule-pack` to the workspace.
+- `docs/src/architecture/where-things-live.md`: Updates the architecture documentation to include the new `vox-rule-pack` crate.
+
+--- audit: original='feat(rule-pack): new vox-rule-pack crate — YAML rule loader, types, schema, bench scorer' | actual=713L across 11 files | derived=full ---
