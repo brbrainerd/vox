@@ -1,0 +1,8 @@
+refactor(typeck): remove workflow-related fields and methods from TypeEnv
+scale: ~37 lines across 1 files [S]
+
+- `TypeEnv`: Removed the `workflows` field (a `HashMap<String, WorkflowSig>`).
+- `TypeEnv`: Removed the `register_workflow` and `lookup_workflow` methods.
+- `WorkflowSig`: Deleted the `WorkflowSig` struct definition.
+
+--- audit: original='refactor(compiler): TASK-2.6 Path B — retire actor/workflow/activity HIR' | actual=37L across 1 files | derived=full ---
