@@ -1,0 +1,6 @@
+fix(docs): update readiness snapshot category to "Architecture SSOTs"
+scale: ~2 lines across 1 files [XS]
+
+- `docs/src/architecture/2026-05-22-v1-readiness-snapshot.md`: Changed the `category` frontmatter value from `architecture` to `"Architecture SSOTs"`.
+
+--- audit: original='fix(docs): update readiness-snapshot category to "Architecture SSOTs"' | actual=2L across 1 files | derived=full ---
