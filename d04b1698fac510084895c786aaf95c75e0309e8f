@@ -1,0 +1,10 @@
+feat(mental-tracker): Implement append-only delete via tombstones
+scale: ~82 lines across 1 files [M]
+
+- `record_deletion` mutation function added: appends a `_deleted` sentinel event whose `correction_of` points to the event being deleted. This reuses `record_health_event` for on-device mutation.
+- `_is_effective` predicate function added: determines if a `HealthEventLog` row should be displayed. A row is effective if its `event_kind` is not `_deleted` and it is not superseded by another event. This hides both the deleted event and the tombstone itself.
+- `timeline_events_json`, `weekly_summary_json`, `export_health_csv`, and `row_count` now filter events using `_is_effective` to exclude deleted items from views and exports.
+- `_mk_test_event` helper function added for creating `HealthEventLog` values in unit tests, simplifying test setup for event ID, kind, and correction_of.
+- Three new `@test` functions added to cover scenarios involving plain, deleted, and corrected rows, verifying the `_is_effective` logic.
+
+--- audit: original='feat(mental-tracker): Slice 0 — append-only delete via tombstones' | actual=82L across 1 files | derived=full ---
