@@ -1,0 +1,8 @@
+feat(vox-claim-extractor): scaffold new L2 crate for claim extraction pipeline
+scale: ~40 lines across 3 files [S]
+
+- `crates/vox-claim-extractor/Cargo.toml`: Added new `Cargo.toml` for the `vox-claim-extractor` crate, defining its package metadata, workspace dependencies (serde, tokio, tracing, thiserror, vox-research-events, vox-constrained-gen, workspace-hack), and dev dependencies (tokio with "full" feature, serde_json).
+- `crates/vox-claim-extractor/src/lib.rs`: Created `lib.rs` for the `vox-claim-extractor` crate, declaring modules for `atomic`, `constrained`, `minicheck`, `pipeline`, `span`, `types`, and `veriscore`, and re-exporting key types and structs from `pipeline` and `types`.
+- `Cargo.toml`: Added `vox-claim-extractor` to the workspace members.
+
+--- audit: original='feat(scientia): scaffold vox-claim-extractor L2 crate (Phase 1 Task 1)' | actual=40L across 3 files | derived=full ---
