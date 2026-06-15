@@ -1,0 +1,7 @@
+feat(quantize): add sharded model e2e test and ADR-043 for on-disk format
+scale: ~51 lines across 2 files [M]
+
+- `crates/vox-quantize/src/engine.rs`: Added a new end-to-end test `quantizes_sharded_model` to verify the quantization process for sharded models, including saving and loading multiple safetensors files and an index.json.
+- `docs/src/architecture/adr-043-quantized-safetensors-ondisk-format.md`: Introduced a new Architecture Decision Record (ADR-043) detailing the on-disk format for quantized safetensors, specifying the use of `u8` SafeTensors for raw GGML block bytes and a `quant-metadata.json` sidecar for tensor metadata.
+
+--- audit: original='feat(quantize): sharded e2e test + ADR-043 on-disk format' | actual=51L across 2 files | derived=full ---
