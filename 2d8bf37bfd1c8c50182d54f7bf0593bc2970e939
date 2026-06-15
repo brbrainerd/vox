@@ -1,0 +1,8 @@
+fix(tests): unblock vox-corpus/vox-compiler test builds; docs: add semantic coverage status
+scale: ~90 lines across 3 files [M]
+
+- `crates/vox-compiler/src/semcov_wave17_tests.rs`: Added `auth: None` to two `HirEndpointFn` literals to resolve a compilation error after the struct gained an `auth` field.
+- `crates/vox-corpus/src/ast_mutator.rs`: Added `use vox_compiler::ast::span::Span;` to the `semcov_wave2_tests` module to resolve a compilation error.
+- `docs/src/architecture/semantic-coverage-status-2026-06-15.md`: Added a new document detailing the semantic coverage status as of 2026-06-15, including statistics on proven, reached-but-unproven, and untested symbols, and identifying key coverage gaps and priorities.
+
+--- audit: original='fix(tests)+docs: unblock vox-corpus/vox-compiler test builds; add honest coverage status' | actual=90L across 3 files | derived=full ---
