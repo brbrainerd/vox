@@ -1,0 +1,10 @@
+fix(vox-gui): terminate PTY child process on close to prevent resource leaks
+scale: ~15 lines across 1 files [S]
+
+- `crates/vox-gui/src/commands/pty.rs`:
+    - Modified `PtySession` struct to store the `Child` process.
+    - Updated `pty_spawn` to store the spawned `child` process in the `PtySession`.
+    - Modified `pty_close` to retrieve the `PtySession`, kill the associated `child` process, and then remove the session, ensuring the shell process, its reader thread, and the master FD are properly terminated.
+    - Added `Child` to the `portable_pty` import.
+
+--- audit: original='fix(vox-gui): kill PTY child on close to avoid leaking shell + reader thread' | actual=15L across 1 files | derived=full ---
