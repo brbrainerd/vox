@@ -1,0 +1,12 @@
+chore(scripts): update workspace health audit script
+scale: ~73 lines across 1 files [M]
+
+- Update `scripts/quality/audit-workspace-health.vox` to reflect the current date in the audit message.
+- Refactor policy loading in `audit-workspace-health.vox` to separate reading file content from parsing JSON.
+- Modify regression audit command in `audit-workspace-health.vox` to explicitly cast `reg_threshold` to a string.
+- Remove unused `path` and `env` imports from `audit-workspace-health.vox`.
+- Remove a redundant `process.run` probe command from `audit-workspace-health.vox`.
+- Simplify regression reporting logic in `audit-workspace-health.vox` by removing unnecessary null and length checks for regressions.
+- Adjust regression output formatting in `audit-workspace-health.vox` to directly print regression details.
+
+--- audit: original='chore(stabilization): finalize workspace integrity and audit infrastructure' | actual=73L across 1 files | derived=full ---
