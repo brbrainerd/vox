@@ -1,0 +1,11 @@
+fix(ci): remove spurious `--` from `vox ci` invocations in workflows
+scale: ~28 lines across 6 files [M]
+
+- `.github/workflows/docs-quality.yml`: Removed `--` before `ci` in `cargo run -p vox-cli` commands for `doctest-md`, `check-links`, `canonical-map-verify`, `sync-ignore-files`, and `command-sync` steps.
+- `.github/workflows/compile-matrix.yml`: Removed `--` before `ci` in `cargo run -p vox-cli ci compile-matrix` commands across three jobs.
+- `.github/workflows/coolify-eval-sync.yml`: Removed `--` before `ci` in `cargo run -p vox-cli --quiet ci coolify-eval discover` and `cargo run -p vox-cli --quiet ci coolify-eval sync-compose` commands.
+- `.github/workflows/vox-mental-tracker.yml`: Removed `--` before `ci` in `cargo run -p vox-cli --quiet ci json-parse-check` and `cargo run -p vox-cli --quiet ci yaml-parse-check` commands.
+- `.github/workflows/pm-provenance-verify.yml`: Removed `--` before `ci` in `cargo run --locked -p vox-cli ci pm-provenance` command.
+- `.github/workflows/release-binaries.yml`: Removed `--` before `ci` in `cargo run --locked -p vox-cli ci release-build` command.
+
+--- audit: original="fix(ci): drop spurious '--' before 'ci' in vox invocations (#277)" | actual=28L across 6 files | derived=full ---
