@@ -1,0 +1,12 @@
+feat(web_ir): add layer validation for tier-inversion and occlusion escape hatches
+scale: ~350 lines across 5 files [L]
+
+- **crates/vox-codegen/src/web_ir/validate_layer.rs**: New module `validate_layer` added to implement GA-26 rules 1, 2, and 4. This module walks the DOM arena to build a surface tree, identifying and reporting `vox/layer/tier-inversion` (stronger surface under weaker), `vox/layer/leaf-surface` (surface under Toast/Popover), and `vox/layer/absolute-in-partition`, `raw-z-index`, `raw-class-occlusion` (A10 escape hatches used outside a surface parent).
+- **crates/vox-compiler/src/hir/nodes/layer.rs**:
+    - `LayerTier::default_for_primitive` now includes lowercase web primitive tags like "modal", "drawer", and "toast" to assign appropriate `LayerTier` values.
+    - Added `LayerTier::may_parent_surfaces` method, which returns `false` for `Toast` and `Popover` tiers, enforcing that these are leaf surfaces and cannot parent other surfaces.
+- **crates/vox-codegen/src/web_ir/lower.rs**: Modified `inject_primitive_dom_markers` to mirror occlusion-bearing attributes (`position`, `top`, `bottom`, `left`, `right`, `inset`, `z`, `raw_class`) into `data-vox-*-raw` shadow attributes. This allows the `validate_layer` module to detect misuse of these properties (A10 checks).
+- **crates/vox-codegen/src/web_ir/mod.rs**: Added `validate_layer` module to the `web_ir` module.
+- **crates/vox-codegen/src/web_ir/validate.rs**: Integrated `super::validate_layer::validate_layer` into the `validate_web_ir_full` function to run the new layer validation checks.
+
+--- audit: original='feat(web_ir): wire tier-inversion + occlusion-escape-hatch checks (GA-26 rules 1/2/4)' | actual=350L across 5 files | derived=full ---
