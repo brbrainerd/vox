@@ -1,0 +1,17 @@
+feat(webview2-com-sys): update to 0.38.2 and add build/interface definitions
+scale: ~45192 lines across 85 files [XL]
+
+- `patches/webview2-com-sys-0.38.2`: Added new files for `webview2-com-sys` version 0.38.2, including bindings, declared interfaces, build script, and library definitions, totaling over 43k new lines.
+- `crates/vox-orchestrator`: Refactored confidence fusion weights and inputs, replacing `source_diversity`, `contradiction_penalty`, and `entropy_score` with `logprob_entropy`, `sep_estimate`, and `self_consistency`. Also introduced `TenantTierLimit` and `global_limits` to `BudgetGateConfig`.
+- `crates/vox-gamify`: Modified agent telemetry database interactions.
+- `crates/vox-orchestrator-mcp`: Adjusted memory tools parameters and handler session logic, and updated DEI tools and training tools.
+- `crates/vox-db`: Updated writer raw facade, ops agents store, and added a new writer actor.
+- `contracts/orchestration`: Added a new `tenant-budgets.v1.yaml` contract and updated `socrates-fusion.v1.yaml`.
+- `crates/vox-orchestrator/tests`: Updated scaling, timer, and stress tests, and added a new `populi_single_owner` test.
+- `crates/vox-orchestrator/src/orchestrator`: Modified task dispatch for submission and completion, updated core module, and adjusted persistence and replay logic.
+- `crates/vox-orchestrator/src/session`: Updated manager tests, mutations, and persistence/load logic.
+- `crates/vox-orchestrator/src/orch_daemon`: Added DEI dispatch.
+- `crates/vox-integration-tests`: Modified orchestrator E2E tests.
+- `Cargo.lock`: Updated dependencies.
+
+--- audit: original='chore: stabilize diagnostics, orchestrator deadlocks, and cross-platform tests' | actual=45192L across 85 files | derived=sampled ---
