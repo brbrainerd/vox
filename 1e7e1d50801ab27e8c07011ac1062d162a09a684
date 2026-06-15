@@ -1,0 +1,41 @@
+feat(coverage-graph): Add phase 2 behavior maps for 35 tail crates
+scale: ~1556 lines across 35 files [XL]
+
+- **`vox-cli-tests`**: Added semantic behavior map detailing codegen-shape verification harness, covering for-loop/list rendering, `@form` declarations, and `routes` to Expo Router. Highlights happy-path string/shape assertions and lack of error path proofs.
+- **`vox-wasm-engine`**: Added semantic behavior map for WASM host, covering `WasmHost::new`, `WasmHost::with_fuel`, and `WasmHost::execute`. Emphasizes happy-path functionality and the single error-path proof for fuel exhaustion.
+- **`vox-openclaw-runtime`**: Added semantic behavior map for OpenClaw runtime, covering `clamp_ttl`, `derive_default_well_known_url`, `fallback_endpoints`, `InboundFrame`, and `GatewayRequest`. Notes happy-path proofs and lack of error-path coverage.
+- **`vox-package`**: Added semantic behavior map for package management, covering `ArtifactCache.lookup()`, `CacheLookup::Hit`, `ArtifactCache.compute_input_hash()`, and `ArtifactCache.prune()`. Details happy-path round-trips and hash determinism invariants.
+- **`vox-plugin-api`**: Added semantic behavior map for plugin API, covering `abi_compatible()` and `LogLevel`. Highlights ABI compatibility predicate coverage and `LogLevel` serde round-trip invariant.
+- **`vox-plugin-speech`**: Added semantic behavior map for speech plugin, covering `merge_adjacent_transcripts()`, single-window Whisper inference, and silent-PCM audio handling. Notes happy-path and invariant proofs, and lack of error-path coverage.
+- **`vox-openclaw-client`**: Added semantic behavior map.
+- **`vox-skill-runtime`**: Added semantic behavior map.
+- **`vox-test-harness`**: Added semantic behavior map.
+- **`vox-foundation`**: Added semantic behavior map.
+- **`vox-http-client`**: Added semantic behavior map.
+- **`vox-mesh-policy`**: Added semantic behavior map.
+- **`vox-openai`**: Added semantic behavior map.
+- **`vox-project-scaffold`**: Added semantic behavior map.
+- **`vox-eval`**: Added semantic behavior map.
+- **`vox-capability-registry`**: Added semantic behavior map.
+- **`vox-bounded-fs`**: Added semantic behavior map.
+- **`vox-tauri-codegen`**: Added semantic behavior map.
+- **`voxup`**: Added semantic behavior map.
+- **`vox-journal`**: Added semantic behavior map.
+- **`vox-plugin-test-harness`**: Added semantic behavior map.
+- **`vox-populi-types`**: Added semantic behavior map.
+- **`vox-identity`**: Added semantic behavior map.
+- **`vox-ast`**: Added semantic behavior map.
+- **`vox-plugin-populi-mesh`**: Added semantic behavior map.
+- **`vox-doc-pipeline`**: Added semantic behavior map.
+- **`vox-plugin-types`**: Added semantic behavior map.
+- **`vox-forge`**: Added semantic behavior map.
+- **`vox-mcp-registry`**: Added semantic behavior map.
+- **`vox-nanopub`**: Added semantic behavior map.
+- **`vox-distributed-training`**: Added semantic behavior map.
+- **`vox-plugin-sdk`**: Added semantic behavior map.
+- **`vox-db-types`**: Added semantic behavior map.
+- **`vox-doc-inventory`**: Added semantic behavior map.
+- **`vox-tauri-stt`**: Added semantic behavior map.
+- **`vox-jsonschema-util`**: Added semantic behavior map.
+
+--- audit: original='feat(coverage-graph): Phase 2 behavior maps for 35 tail crates' | actual=1556L across 35 files | derived=full ---
