@@ -1,0 +1,6 @@
+docs(reference): regenerate `mens-train-defaults.generated.md`
+scale: ~0 lines across 1 files [XS]
+
+- Regenerated `docs/src/reference/mens-train-defaults.generated.md` to update the default model ID from `Qwen3.5-4B` to `Qwen2.5-Coder-7B-Instruct`, resolving a drift detected by `vox ci command-compliance`.
+
+--- audit: original='chore(docs): regenerate stale mens-train-defaults.generated.md' | actual=0L across 1 files | derived=full ---
