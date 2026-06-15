@@ -1,0 +1,13 @@
+feat(ci): add BOM check and remove BOMs from 44 files
+scale: ~143 lines across 48 files [L]
+
+- `crates/vox-cli-ci`: Added a new `check_bom` function to scan git-tracked files for UTF-8 BOMs.
+- `crates/vox-cli`: Added a new `bom-check` subcommand to the CI tool, which utilizes the `check_bom` function.
+- `.github/workflows`: Integrated the `bom-check` into the CI workflow.
+- `crates/vox-compiler`: Removed BOMs from 2 files.
+- `crates/vox-orchestrator-mcp`: Removed BOMs from 33 files across various modules (e.g., `attention_policy`, `chat_model_resolve`, `codex_tools`, `dei_ipc`, `dei_tools`, `exec_time_tools`, `grammar_tools`, `introspection_tools`, `journey_envelope`, `llm_bridge`, `mcp_client`, `memory_tools`, `persistence_tools`, `populi_startup`, `project_init_tools`, `reliability_tools`, `repo_index`, `scientia_tools`, `scope_guard`, `session_identity`, `trace_tools`, `trust_tools`, `vcs_tools`).
+- `crates/vox-orchestrator`: Removed BOM from 1 file.
+- `crates/vox-publisher`: Removed BOMs from 9 files across various modules (e.g., `adapters`, `openreview_api_types`, `publication`, `scholarly`, `scholarly_remote_status`, `scientia_worthiness_enrich`, `social_retry`, `zenodo_api_types`).
+- `docs`: Removed BOM from 1 file.
+
+--- audit: original='fix(encoding): strip UTF-8 BOMs from 44 tracked files + add bom-check CI gate' | actual=143L across 48 files | derived=full ---
