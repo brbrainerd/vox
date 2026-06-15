@@ -1,0 +1,9 @@
+style: rustfmt wrapping in vox-compiler, vox-gui, and vox-cli-tests
+scale: ~21 lines across 4 files [S]
+
+- `crates/vox-gui/src/commands/action_manifest.rs`: Applied rustfmt wrapping to a multi-line `assert!` statement within the `tests` module.
+- `crates/vox-cli-tests/tests/build_e2e.rs`: Applied rustfmt wrapping to the `vox_compiler::pipeline::run_frontend_str` call.
+- `crates/vox-compiler/src/app_contract.rs`: Applied rustfmt wrapping to a multi-line `assert_eq!` statement within the `tests` module.
+- `crates/vox-compiler/src/required_capabilities.rs`: Applied rustfmt wrapping to the `crate::pipeline::run_frontend_str` call within the `tests` module.
+
+--- audit: original='style: rustfmt wrapping for vox-compiler/gui/cli-tests edits' | actual=21L across 4 files | derived=full ---
