@@ -1,0 +1,13 @@
+fix(browser,cli,ml-cli,publisher): resolve multibyte panics, ANSI width, and ORCID encoding
+scale: ~312 lines across 7 files [L]
+
+- `vox-plugin-browser`: `visible_text_summary` now truncates text by character count instead of byte length to prevent panics on multibyte UTF-8 characters. The ellipsis is budgeted into `max_chars`.
+- `vox-cli`: `summarize_text` now truncates text by character count instead of byte length to prevent incorrect truncation of multibyte UTF-8 characters. The ellipsis is budgeted into `max_chars`.
+- `vox-ml-cli`: `status.rs` now uses `comfy-table` for status panels, resolving an ANSI-width alignment bug caused by invisible ANSI escape codes. This replaces hand-drawn box panels and the three codex-gated DB tables.
+- `vox-ml-cli`: `status.rs` now truncates run and session IDs using `chars().take(10)` to be character-safe, preventing panics on multibyte boundaries.
+- `vox-ml-cli`: `status.rs` corrects VRAM total calculation by removing an erroneous `/1024` division, ensuring used/total VRAM are consistently in MB.
+- `vox-publisher`: Replaced hand-rolled `base64url-no-pad` and percent-encode implementations with `base64::engine::general_purpose::URL_SAFE_NO_PAD.encode` and `urlencoding::encode` respectively for ORCID PKCE flow, reducing ~51 LoC.
+- `Cargo.toml`: Added `base64` and `urlencoding` to `vox-publisher` dependencies.
+- `Cargo.toml`: Added `comfy-table` to `vox-ml-cli` dependencies.
+
+--- audit: original='Consolidation follow-up: fix multibyte panic + ANSI-width bug, ORCID encoding crates (#267)' | actual=312L across 7 files | derived=full ---
