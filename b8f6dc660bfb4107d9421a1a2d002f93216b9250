@@ -1,0 +1,11 @@
+docs(scientia): Implement Phase 2 plan for `vox-prereg` crate
+scale: ~1607 lines across 1 files [XL]
+
+- Create `docs/superpowers/plans/2026-05-09-scientia-phase-2-prereg.md` detailing the implementation plan for the `vox-prereg` L2 crate.
+- The plan outlines the goal, architecture, and tech stack for `vox-prereg`, which will handle signing and verifying `PreregistrationV1` records using Trusty URIs and Ed25519.
+- It includes provisions for analysis-plan integrity via a deviation detector, symbolic verifiers, a Bayesian stopping rule, and a campaign gate.
+- The document specifies the file structure for the `vox-prereg` crate, including modules for `trusty_uri`, `preregistration`, `deviation_detector`, `symbolic_verifier`, `bayesian_stopping_rule`, and `prereg_gate`.
+- It details the implementation steps for each module, including data structures, traits, functions, and error handling.
+- The plan also covers integration with `vox-research-events` and `vox-crypto`, and the creation of unit tests and integration tests.
+
+--- audit: original='docs(scientia): Phase 2 implementation plan — vox-prereg (prereg signing + symbolic verifiers)' | actual=1607L across 1 files | derived=full ---
