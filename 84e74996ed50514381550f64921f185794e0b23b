@@ -1,0 +1,12 @@
+feat(lefthook): add pre-commit hooks for generator drift prevention
+scale: ~55 lines across 3 files [M]
+
+- `lefthook.yml`: Adds a new configuration file for lefthook, defining three pre-commit hooks:
+    - `sync-ignore-files`: Runs `vox ci sync-ignore-files` when `.voxignore` changes.
+    - `command-sync`: Runs `vox ci command-sync` when CLI command source files change.
+    - `plugin-catalog-docs`: Runs `vox ci generate-plugin-catalog-docs` when `catalog.toml` changes.
+    All hooks use `stage_fixed: true` to automatically stage regenerated files.
+- `scripts/install-hooks.vox`: Adds a new script to install lefthook pre-commit hooks, including instructions for installing lefthook on different operating systems.
+- `CONTRIBUTING.md`: Updates the contributing guide with a new section on pre-commit hooks, instructing contributors to run `vox run scripts/install-hooks.vox` after cloning and detailing lefthook installation requirements.
+
+--- audit: original='feat(hooks): add lefthook pre-commit config for generator drift prevention' | actual=55L across 3 files | derived=full ---
