@@ -1,0 +1,19 @@
+feat(scientia): Implement real semantic prior-art similarity with LLM embeddings
+scale: ~397 lines across 15 files [L]
+
+- `crates/vox-db`:
+    - Added `scientia_embedding_cache` table to store LLM embedding vectors, keyed by `sha256(model+text)`.
+    - Implemented `get_cached_embedding` and `upsert_cached_embedding` operations for the new cache table.
+    - Updated `baseline-version-policy.yaml` and `schema/manifest.rs` for the new DB schema.
+- `crates/vox-publisher`:
+    - Introduced `scientia_semantic.rs` with `cosine_similarity` and `embed_cache_key` functions.
+    - Defined an `Embedder` trait for async embedding providers.
+    - Removed `semantic_proxy` function from `scientia_prior_art.rs`.
+    - Modified `fetch_prior_art_federated`, `openalex_hits`, `crossref_hits`, and `s2_hits` in `scientia_prior_art.rs` to accept an optional `Embedder` and set `semantic_score` to `None` by default, removing the lexical-derived proxy.
+- `crates/vox-cli`:
+    - Added `embedder.rs` to provide a `CachedLlmEmbedder` implementation of the `Embedder` trait, utilizing `vox-db` for caching and `vox-actor-runtime::llm::llm_embed` for LLM calls.
+    - Modified `publication/decision.rs` and `publication/discovery.rs` to instantiate and pass the `CachedLlmEmbedder` to `fetch_prior_art_federated`.
+- `crates/vox-orchestrator-mcp`:
+    - Updated `scientia_tools/novelty.rs` to reflect changes in `fetch_prior_art_federated` signature.
+
+--- audit: original='feat(scientia): real semantic prior-art similarity via llm_embed with vox-db cache' | actual=397L across 15 files | derived=full ---
