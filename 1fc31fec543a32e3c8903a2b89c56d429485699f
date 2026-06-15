@@ -1,0 +1,16 @@
+feat(ci-orchestrator): dev-loop audit, stress guards, contracts sync
+scale: ~12772 lines across 129 files [XL]
+
+- `crates/vox-cli`: Add `dev_loop_audit` command to check Cargo incremental cache fragmentation and expensive verification loops. Extend `pre_push` command with `--report-json` for timing summaries and `VOX_PREPUSH_AUDIT_LOG` for tracking full runs.
+- `crates/vox-orchestrator`: Remove `dei_shim/selection/resolve.rs`. Refine autonomous research gating in `socrates.rs` to only trigger when policies consume results, preventing unnecessary integration test overhead. Update stress tests to include `PROPTEST_ASYNC_TIMEOUT` and add `VOX_ORCHESTRATOR_STRESS_DEBUG` for local debugging.
+- `crates/vox-scientia-jsonschema-codegen`: Add new crate to generate Rust types from Scientia JSON schemas, outputting to `crates/vox-research-events/src/schema_types.generated.rs`.
+- `crates/vox-research-events`: Update `schema_types.generated.rs` with new types from Scientia JSON schemas.
+- `contracts`: Add `env-vars.v1.yaml`, `index.yaml`, `pre-push-report.v1.schema.json`, `dev-loop-audit.v1.schema.json`, `tool-wire-aliases.v1.yaml`, `documentation/docs-sidebar-section-order.v1.json`, `operations/catalog.v1.yaml`, `cli/command-registry.yaml`, `telemetry/events.v1.yaml`, `documentation/canonical-map.v1.yaml`. Update `scientia/research-snapshot.v1.schema.json`, `scientia/operator-status-surface.v1.schema.json`. Modify `secrets/managed-env-names.v1.json` and `secrets/secret-capabilities.v1.json`. Remove `scientia/worthiness-signals.v2.schema.json`.
+- `apps/vox-mental-tracker`: Replace `scripts/release_check.sh` with `scripts/release_gates.vox`.
+- `docs`: Add new architecture documents: `legacy-tombstone-remediation-ledger-2026.md`, `ai-dev-loop-overhead-2026.md`, `canonical-runtime-names.md`, `contracts-non-indexed-classification-2026.md`, `cli-compilerd-params-ssot.md`. Update `contributors/coding-agents.md`, `ci/runner-contract.md`, `reference/env-vars.md`, `architecture/where-things-live.md`, `architecture/frontend-convergence-findings-2026.md`, `architecture/wire-format-v1-ssot.md`, `ci/build-timings/README.md`. Remove `docs-astro/src/utils/sidebar.mjs` entries.
+- `crates/vox-tracing-init`: Add new crate for tracing initialization.
+- `crates/vox-orchestrator-mcp`: Add `build.rs` and remove `src/tool_aliases.rs`.
+- `crates/vox-codegen`: Add note to `codegen_ts/emitter.rs`.
+- `.gitignore`: Ignore ephemeral `.tmp_metadata.json`.
+
+--- audit: original='feat(ci-orchestrator): dev-loop audit, stress guards, contracts sync' | actual=12772L across 129 files | derived=sampled ---
