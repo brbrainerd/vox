@@ -1,0 +1,6 @@
+docs(plan): Detail LLM/AI settings SSOT Band A implementation (Phases 0-5)
+scale: ~901 lines across 1 files [L]
+
+- docs/superpowers/plans/2026-06-15-llm-ai-settings-ssot-band-a.md: Add a new plan document outlining the implementation for a Single Source of Truth (SSOT) for LLM/AI settings, covering Phases 0-5. This plan details the architecture, tech stack, and scope for Band A, focusing on a declarative registry in `vox-config`, GUI catalog and operator registry as views, a sealed egress chokepoint, reactive change surfacing, and a snapshot-cached resolver. It also specifies per-phase close procedures and mentions Band B (orchestrator knobs) as a follow-on plan.
+
+--- audit: original='docs(plan): Band A implementation plan — LLM/AI settings SSOT (Phases 0-5)' | actual=901L across 1 files | derived=full ---
