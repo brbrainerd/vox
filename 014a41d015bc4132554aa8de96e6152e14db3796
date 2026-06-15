@@ -1,0 +1,32 @@
+feat(docs): migrate to Cloudflare Pages and overhaul sidebar categories
+scale: ~15301 lines across 758 files [XL]
+
+- docs-astro/: Add Playwright for smoke tests and baseline capture, update Astro config for new canonical URL, and configure Playwright for CI.
+- .github/workflows/: Wire Cloudflare Pages deployment to CI, retaining GitHub Pages deploy for cutover.
+- scripts/: Introduce `fix-doc-categories.vox` script to automate frontmatter category realignment.
+- docs/src/: Bulk update frontmatter `category` values in 438 files to align with new SSOT display labels, fixing the broken sidebar. Manually update 9 architecture files.
+- docs/superpowers/plans/: Add a detailed implementation plan for the Cloudflare Pages migration and docs overhaul.
+- docs/superpowers/specs/: Add a design specification for the Cloudflare Pages migration and docs overhaul, including audit corrections.
+- contracts/documentation/: Update `docs-sidebar-section-order.v1.json` to reflect new sidebar sections and remove deprecated ones.
+- crates/vox-doc-pipeline/: Update `VALID_CATEGORIES` to use canonical display labels from the SSOT, ensuring linter consistency with the sidebar.
+- docs/agents/: Regenerate `doc-inventory.json` after the category overhaul.
+- .lycheeignore: Ignore `nature.com` due to cookie-auth redirect false positives.
+- docs/src/archive/: Add minimal frontmatter to archive files to pass content collection validation.
+- contracts/config/: Register Cloudflare API token and account ID, and add rotation guidance to `.env.example`.
+- docs/src/architecture/: Add new architecture documents and update existing ones.
+- docs/src/adr/: Add new ADRs and update existing ones.
+- docs/src/api/: Update API documentation.
+- docs/src/contributors/: Update contributor documentation.
+- docs/src/explanation/: Update explanation documentation.
+- docs/src/getting-started/: Update getting started documentation.
+- docs/src/how-to/: Update how-to guides.
+- docs/src/language-reference/: Update language reference documentation.
+- docs/src/reference/: Update reference documentation.
+- docs/src/tutorials/: Update tutorial documentation.
+- docs/src/concepts/: Update concepts documentation.
+- docs/src/examples/: Update examples documentation.
+- docs/src/operations/: Update operations documentation.
+- docs/src/quality/: Update quality documentation.
+- docs/src/ci/: Update CI documentation.
+
+--- audit: original='feat(docs): voxlang.org Cloudflare Pages migration + sidebar category overhaul' | actual=15301L across 758 files | derived=sampled ---
