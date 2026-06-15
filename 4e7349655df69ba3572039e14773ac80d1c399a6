@@ -1,0 +1,10 @@
+feat(codegen): add WebIR and AppContract endpoint parity test
+scale: ~125 lines across 1 files [M]
+
+- **`crates/vox-codegen/tests/webir_contract_parity_test.rs`**: New file containing a test to ensure `web_ir::lower_hir_to_web_ir` and `app_contract::project_app_contract` derive the same set of endpoint names from `HirModule.endpoint_fns`.
+  - Defines `endpoint_names_from_web_ir` to extract server function and mutation contract names from WebIR.
+  - Defines `endpoint_names_from_contract` to extract server function, query function, and mutation function names from the application contract.
+  - Includes `MIXED_ENDPOINT_SRC` for testing various endpoint types.
+  - Adds `webir_contract_parity_test` to assert that the endpoint name sets derived by both methods are identical for a given source.
+
+--- audit: original='test(codegen): Task 5B — WebIR↔AppContract endpoint parity CI gate' | actual=125L across 1 files | derived=full ---
