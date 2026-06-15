@@ -1,0 +1,16 @@
+feat(vox-gui): implement a11y primitives, perf optimizations, and pilot features
+scale: ~4806 lines across 40 files [XL]
+
+- **docs/superpowers/plans**: Added extensive documentation for Phase 0C accessibility primitives, Phase 0D performance, and Wave 1 pilot features.
+- **docs/src/architecture**: Added a new document detailing GUI performance conventions.
+- **crates/vox-gui/ui**:
+    - **New components**: Introduced `Async` for handling asynchronous states (loading, error, empty, success), `Dialog` (Radix-based) for modal interactions, `Skeleton` for loading placeholders, and `Button` with accessibility improvements.
+    - **Accessibility**: Implemented global `focus-visible` ring, `prefers-reduced-motion` support, `Toasts` with `aria-live` regions, and `ErrorBoundary` retry accessibility.
+    - **Performance**: Integrated `@tanstack/react-virtual` for virtualized lists, specifically applying it to `TasksView` and `MemoryView` to improve rendering performance for large datasets.
+    - **Pilot Features (Wave 1)**: Enhanced accessibility and functionality for `Dashboard`, `App Shell`, `SettingsView`, and `TopHud`.
+    - **Dependencies**: Added `@radix-ui/{react-dialog,react-slot,react-tooltip}`, `@tanstack/react-virtual`, and `@testing-library/{jest-dom,user-event}`.
+    - **Testing**: Added comprehensive unit tests for new and modified components, including `Async`, `Dialog`, `Skeleton`, `Button`, `Toasts`, `Dashboard`, `AgentRow`, `StreamCard`, `MemoryView`, `TasksView`, `SettingsView`, `App`, and `useVirtualList`.
+    - **Styling**: Updated `index.css` and `tailwind.config.js` to support new components and global styles.
+    - **Build/Config**: Updated `pnpm-lock.yaml`, `package.json`, and `vitest.config.ts`.
+
+--- audit: original='feat(vox-gui): land Phase 0C a11y + 0D perf + Wave 1 pilots onto main' | actual=4806L across 40 files | derived=full ---
