@@ -18,7 +18,7 @@ on:
       - ".github/workflows/compile-matrix.yml"
 
 concurrency:
-  group: selfhosted-secondary-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:

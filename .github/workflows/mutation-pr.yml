@@ -10,7 +10,7 @@ on:
       - "crates/vox-codegen/**"
 
 concurrency:
-  group: selfhosted-secondary-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
