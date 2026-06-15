@@ -1,0 +1,12 @@
+feat(gui): Add Keys & Secrets management surface
+scale: ~488 lines across 7 files [L]
+
+- `crates/vox-gui/ui/src/components/surfaces/Settings/SettingsView.tsx`: Add "Keys & Secrets" section to SettingsView, displaying secret status, allowing setting and removing secrets, and handling UI state for drafts and busy states.
+- `crates/vox-gui/src/commands/secrets.rs`: New module defining Tauri commands `list_secret_status`, `set_secret`, and `remove_secret` for GUI interaction with secrets, ensuring no raw secret values are returned to the UI. Introduces `SecretStatusDto` for safe data transfer.
+- `crates/vox-secrets/src/backend/vox_vault.rs`: Implement `delete_secret` function to permanently remove secrets, their versions, and profile overrides from the Clavis vault, and record an audit log entry.
+- `crates/vox-secrets/src/sources/auth_json.rs`: Implement `remove_registry_token` to delete registry tokens from the keyring and `auth.json`, including a new test case.
+- `crates/vox-secrets/src/lib.rs`: Add `remove_registry_token` re-export and introduce `SecretStatusRow` struct and `list_secret_status` function for redaction-safe secret status summaries.
+- `crates/vox-gui/src/main.rs`: Register new Tauri commands for secrets management (`list_secret_status`, `set_secret`, `remove_secret`).
+- `crates/vox-gui/src/commands/mod.rs`: Add `secrets` module to the commands.
+
+--- audit: original='@ feat(gui): Vox Secrets / Clavis key-management surface (safe by construction)' | actual=488L across 7 files | derived=full ---
