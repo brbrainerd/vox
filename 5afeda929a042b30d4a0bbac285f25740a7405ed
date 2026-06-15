@@ -1,0 +1,52 @@
+feat(cli): enhance command discoverability and add publication management
+scale: ~3353 lines across 76 files [XL]
+
+- **cli**:
+    - Introduce `command_catalog.rs` to build and render a catalog of CLI commands, supporting text and JSON formats, and categorizing commands by tier (recommended, advanced, feature-gated).
+    - Add new `db publication-prepare` command to upsert publication manifests from markdown files, including title, author, abstract, and citations.
+    - Add new `scientia publication-prepare`, `publication-approve`, `publication-submit-local`, and `publication-status` commands for managing scientific publications.
+    - Update `ci/command_compliance.rs` to use the new command catalog for compliance checks.
+    - Update `ci/release_build.rs` to reflect changes.
+    - Update `lib.rs` and `main.rs` to integrate new commands and catalog functionality.
+    - Update `Cargo.toml` with new dependencies.
+- **db**:
+    - Add `ops_publication.rs` for database operations related to publication manifests, including `upsert_publication_manifest`, `get_publication_manifest`, `approve_publication_manifest`, and `get_publication_status`.
+    - Add `publication_flow_tests.rs` for testing publication workflows.
+    - Update `types.rs` to include `PublicationManifestParams` and `PublicationStatus` enums.
+    - Add `schema_cutover.rs` to manage schema migrations for publication manifests.
+    - Add `schema/domains/publication.rs` to define the publication manifest schema.
+    - Update `ops_ludus.rs`, `ops_news.rs`, `lib.rs`, `schema/mod.rs`, `store/mod.rs`, `schema/domains/agents.rs`, `schema/manifest.rs`, `schema/v6.rs`, `schema/domains/news.rs`, `store/open.rs`, `tests/news_approval_tests.rs`, `tests/ops_ludus_tests.rs`, `tests/schema_contract_tests.rs` to support new publication features and schema changes.
+- **mcp**:
+    - Add `scientia_tools.rs` with `vox_scientia_publication_prepare` function to prepare publication manifests via the MCP.
+    - Update `news_tools.rs` to reflect changes.
+    - Update `mod.rs` to include new scientia tools.
+    - Update `a2a.rs`, `input_schemas.rs`, `dei_tools.rs`, `tests/mcp_streaming_test.rs` to integrate new tools and schema changes.
+- **bootstrap**:
+    - Refactor `engine.rs` to resolve the Vox repository root for source installations and improve binary installation logic.
+- **orchestrator**:
+    - Update `session.rs` to clarify session persistence, making `agent_sessions` and `agent_session_events` in Codex the durable SSOT, and JSONL an optional export.
+    - Add `add_turn_at` to `Session` for explicit timestamping of conversation turns.
+    - Update `services/news.rs`, `planning/types.rs`, `tests/news_service_test.rs`, `tests/routing_tests.rs`, `a2a.rs` to reflect changes.
+- **publisher**:
+    - Add `publication.rs` to define `PublicationManifest` structure and its content hashing.
+    - Add `scholarly.rs` to define `ScholarlyAdapter` and `LocalLedgerAdapter` for scholarly publication interactions.
+    - Add `gate.rs` and update `lib.rs` to support publication features.
+- **vscode**:
+    - Add `commandCatalog.ts` to integrate the new command catalog.
+    - Update `package.json` and `extension.ts` to reflect new commands.
+- **docs**:
+    - Add `adr/011-scientia-publication-ssot.md` documenting the Scientia publication SSOT.
+    - Add `how-to/how-to-scientia-publication.md` for guidance on Scientia publications.
+    - Add `ci/binary-release-contract.md` for binary release contracts.
+    - Update `README.md`, `crates/vox-cli/README.md`, `reference/cli.md`, `tutorials/tut-getting-started.md`, `how-to/how-to-setup.md`, `explanation/faq.md`, `adr/004-codex-arca-turso-ssot.md`, `api/vox-bootstrap.md`, `architecture/news_syndication_security.md`, `SUMMARY.md`, `ci/github-hosted-exceptions.md`, `ci/workflow-enumeration.md`, `reference/command-compliance.md`, `reference/env-vars.md`, `adr/README.md` to reflect new features and updated documentation.
+    - Remove `agents/database-nomenclature.md`.
+- **corpus**:
+    - Update `arca_replay.rs` to reflect changes.
+- **ludus**:
+    - Update `db.rs` and `schema.rs` to reflect changes.
+- **github**:
+    - Update `workflows/release-binaries.yml` for release process changes.
+- **contracts**:
+    - Add `cli/command-registry.yaml`.
+
+--- audit: original='feat(cli): enhance command discoverability and add publication management features' | actual=3353L across 76 files | derived=full ---
