@@ -1,0 +1,17 @@
+feat(mcp): inject pinned skill body into system prompt
+scale: ~45 lines across 4 files [S]
+
+- `crates/vox-orchestrator-mcp/src/chat_tools/mod.rs`:
+    - Added `build_system_prompt_with_skill` function to inject the full `SKILL.md` body of a specified skill (by ID or name) into the system prompt.
+    - Modified `build_system_prompt` to delegate to `build_system_prompt_with_skill` with no pinned skill.
+    - Implemented logic within `build_system_prompt_with_skill` to look up the pinned skill in the orchestrator's skill registry, retrieve its body, and append it to the prompt using `render_pinned_skill`.
+    - Added tracing for `skill_activated` when a pinned skill is found and `warn` when not found.
+- `crates/vox-orchestrator-mcp/src/chat_tools/params.rs`:
+    - Added `skill: Option<String>` field to `ChatMessageParams` to represent a user-pinned skill, with a `serde` alias `active_skill`.
+- `crates/vox-orchestrator-mcp/src/chat_tools/chat/message.rs`:
+    - Updated `chat_message` to use `build_system_prompt_with_skill` and pass `params.skill.as_deref()` for pinned skill injection.
+    - Changed import from `build_system_prompt` to `build_system_prompt_with_skill`.
+- `crates/vox-orchestrator-mcp/src/chat_tools/skill_catalog.rs`:
+    - Removed `#[allow(dead_code)]` from `render_pinned_skill` as it is now used.
+
+--- audit: original='feat(mcp): pinned-skill body injection — skills work on prompt-only MENS' | actual=45L across 4 files | derived=full ---
