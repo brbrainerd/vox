@@ -1,0 +1,9 @@
+fix(ci): improve `ExecSpec` default, add `ts_default_value` test, update CI docs
+scale: ~52 lines across 4 files [M]
+
+- `crates/vox-populi/src/mens/tensor/finetune_contract.rs`: Replace `ExecSpec`'s derived `Default` with a manual implementation that provides runnable default values (epochs 1, seq_len 512, lr 1e-4, etc.) instead of zero-values.
+- `crates/vox-codegen/src/codegen_ts/component.rs`: Restore the doc comment for `map_vox_type_to_ts` to its correct position and add a `#[cfg(test)] mod tests` block for `ts_default_value` to ensure test coverage for the public API.
+- `crates/vox-populi/tests/non_qwen_smoke.rs`: Remove the unused `plan` binding from the `plan_llama_model` test, retaining the `planner.plan` call as a smoke check.
+- `docs/src/ci/github-hosted-exceptions.md`: Add an entry for `setup-e2e.yml` to the GitHub-hosted exceptions table, explaining its need for all three host OSes (Linux, Windows, macOS) for clean-room E2E testing, as the self-hosted pool is Linux-x64 only.
+
+--- audit: original='fix(review): address CodeRabbit — exceptions doc, ts_default_value test, doc placement, ExecSpec Default' | actual=52L across 4 files | derived=full ---
