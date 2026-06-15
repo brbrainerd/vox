@@ -1,0 +1,6 @@
+fix(ci): update GitLab CI to use `toestub-scoped --mode enforce-warn`
+scale: ~2 lines across 1 files [XS]
+
+- `.gitlab-ci.yml`: Changed the `toestub-scoped` command from `--mode legacy` to `--mode enforce-warn` in the `vox-ci-guards` job. This aligns the GitLab CI configuration with other CI surfaces (GitHub CI, pre-push) that already use the `enforce-warn` mode, retiring the deprecated `legacy` mode.
+
+--- audit: original='fix(quality): retire TOESTUB legacy mode in GitLab CI' | actual=2L across 1 files | derived=full ---
