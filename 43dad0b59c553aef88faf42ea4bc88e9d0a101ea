@@ -1,0 +1,12 @@
+feat(mcp): implement `vox_tool_search` for progressive tool disclosure
+scale: ~142 lines across 7 files [M]
+
+- `crates/vox-orchestrator-mcp/src/tool_search.rs`: Add `rank_tools` function to rank tools by keyword query, scoring by exact name segment match (8), name substring (4), and description hit (1). Implement `vox_tool_search` handler returning name, description, and input schema for ranked tools.
+- `contracts/operations/catalog.v1.yaml`: Add `tool.search` operation with `vox_tool_search` as its MCP canonical name.
+- `crates/vox-orchestrator-mcp/src/params.rs`: Define `ToolSearchParams` struct for `vox_tool_search` with `query` and optional `limit` fields.
+- `contracts/mcp/tool-registry.canonical.yaml`: Add `vox_tool_search` to the canonical tool registry.
+- `crates/vox-orchestrator-mcp/src/dispatch.rs`: Add dispatch arm for `vox_tool_search`.
+- `crates/vox-orchestrator-mcp/src/lib.rs`: Add `tool_search` module with documentation.
+- `crates/vox-orchestrator-mcp/src/input_schemas.rs`: Add derived input schema for `vox_tool_search`.
+
+--- audit: original='feat(mcp): vox_tool_search — progressive tool disclosure' | actual=142L across 7 files | derived=full ---
