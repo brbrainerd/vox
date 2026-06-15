@@ -1,0 +1,21 @@
+refactor(vox-db): migrate Arca SQL storage and consolidate CodeStore
+scale: ~12388 lines across 201 files [XL]
+
+- `vox-db`: Migrated all Arca SQL storage logic and schema definitions from `vox-pm` into `vox-db`, introducing new modules like `arca_store/ops_ludus.rs`, `arca_store/ops_orchestrator.rs`, and `training_run.rs`. This also involved significant refactoring of existing `arca_store` modules and schema definitions.
+- `vox-ludus`: Updated to use the new `VoxDb` API for gamification data, removing direct SQL queries and reducing file size by over 50%.
+- `vox-populi`: Removed `burn_hf_load.rs` and `backend_burn_lora.rs`, indicating a shift away from Burn-based HF model loading and LoRA training. Added `checkpoint_state.rs` and `candle_model_qwen.rs` for new model handling.
+- `vox-corpus`: Added new synthetic generation capabilities for routing decisions, negative preferences, error recovery, multi-agent conversations, and telemetry interpretation.
+- `vox-cli`: Refactored commands related to `generate`, `status`, `ai/serve/worker`, `populi/merge_weights`, `tree`, `ai/workflow`, `remove`, `db`, and `populi/eval_local` to align with the new `VoxDb` API and removed `workflow.rs`.
+- `vox-orchestrator`: Updated `policy.rs`, `lsp.rs`, `a2a.rs`, `oplog.rs`, `heartbeat.rs`, `memory.rs`, and `orchestrator/vcs_ops.rs` to use the new `VoxDb` API.
+- `vox-mcp`: Refactored `tools/chat_tools.rs` and `memory.rs`, and updated tests.
+- `vox-runtime`: Refactored `store.rs`.
+- `vox-parser`: Added new tests for workflow recovery and expression recovery.
+- `vox-skills`: Added new tests for skill registry.
+- `vox-lsp`: Added new diagnostic and hover tests, and refactored `lib.rs`.
+- `vox-pm`: Significantly reduced in size, indicating the migration of SQL logic out of this crate.
+- `docs`: Added new documentation for database nomenclature and Populi architecture.
+- `patches`: Updated `qlora-rs` and `candle-kernels` patches.
+- `crates/vox-db`: Hardened encapsulation by replacing direct private field access with public getters across many modules.
+- Many smaller files across the workspace were updated to fix compilation errors and test failures resulting from the refactor.
+
+--- audit: original='refactor: migrate and consolidate Arca storage into vox-db' | actual=12388L across 201 files | derived=sampled ---
