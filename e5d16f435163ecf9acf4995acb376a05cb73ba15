@@ -1,0 +1,11 @@
+feat(coverage-graph): add script to merge behavior claims into semantic graph
+scale: ~136 lines across 2 files [M]
+
+- `scripts/coverage-graph/merge_behaviors_to_graph.py`: New script to process workflow journals, extract behavior claims, and inject them as nodes and edges into the coverage graph.
+  - Adds `Behavior` nodes for distinct claims.
+  - Creates `Test --proves--> Behavior` edges where `Test` nodes exist.
+  - Creates `Behavior --about--> Symbol` edges for same-crate label resolution.
+  - Takes `graph.coverage.json` as input and outputs `graph.semantic.json`.
+- `.gitignore`: Added `graphify-out/graph.semantic.json` and `graphify-out/_our_journals.txt` to ignore generated graph and journal list files.
+
+--- audit: original='feat(coverage-graph): merge Behavior layer into queryable semantic graph' | actual=136L across 2 files | derived=full ---
