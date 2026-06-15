@@ -1,0 +1,8 @@
+fix(orchestrator): parse StrengthTag using `parse` method instead of `from_str`
+scale: ~3 lines across 1 files [XS]
+
+- `crates/vox-orchestrator/src/models/registry.rs`:
+    - Removed the `std::str::FromStr` import.
+    - Changed the parsing of `kind_str` to `crate::models::StrengthTag` from `from_str(&kind_str)` to `kind_str.parse::<crate::models::StrengthTag>()`.
+
+--- audit: original='fix(orchestrator): parse StrengthTag without cfg-only FromStr import' | actual=3L across 1 files | derived=full ---
