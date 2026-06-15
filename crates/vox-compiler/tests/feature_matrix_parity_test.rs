@@ -9,10 +9,10 @@
 //! and only pin the stable codes from `codes::PARITY_*`.
 
 use vox_compiler::ast::span::Span;
-use vox_compiler::eval::{EvalError, Interpreter};
 use vox_compiler::eval::expr::eval_expr;
-use vox_compiler::hir::{HirExpr, HirJsxElement, HirWorkflowVersion};
 use vox_compiler::eval::value::VoxValue;
+use vox_compiler::eval::{EvalError, Interpreter};
+use vox_compiler::hir::{HirExpr, HirJsxElement, HirWorkflowVersion};
 use vox_compiler::typeck::diagnostics::codes;
 
 // ── helpers ─────────────────────────────────────────────────────────────────
@@ -103,7 +103,7 @@ fn workflow_version_rust_emitter_produces_parity_code() {
 #[test]
 fn workflow_version_ts_emitter_produces_parity_code() {
     use std::collections::HashSet;
-    use vox_codegen_ts::codegen_ts::hir_emit::{emit_hir_expr, EmitCtx};
+    use vox_codegen_ts::codegen_ts::hir_emit::{EmitCtx, emit_hir_expr};
 
     let wv = HirExpr::WorkflowVersion(HirWorkflowVersion {
         change_id: "v1".to_string(),
