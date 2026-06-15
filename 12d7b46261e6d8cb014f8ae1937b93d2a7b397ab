@@ -1,0 +1,8 @@
+fix(config): reject non-positive/NaN values in budget, fuel, and timeout resolvers
+scale: ~52 lines across 3 files [M]
+
+- `crates/vox-scaling-policy/src/cost_defense.rs`: Modified `CostDefenseConfig::from_env_values` to filter parsed daily and monthly budget values, ensuring they are finite and greater than 0. Added new unit tests for negative, zero, and NaN budget inputs to confirm they fall back to default values.
+- `crates/vox-actor-runtime/src/llm/timeout.rs`: Updated `request_timeout` to only use `LlmConfig.timeout_ms` if it's a positive value; otherwise, it falls back to `vox_config::timeouts::HTTP_REQUEST`. Added a unit test to verify that a zero timeout falls back to the default.
+- `crates/vox-plugin-runtime-wasm/src/runtime.rs`: Added a filter to `resolve_fuel` to ensure the parsed fuel value is greater than 0, falling back to `DEFAULT_WASM_SKILL_FUEL` if not. Added a unit test for zero fuel input.
+
+--- audit: original='fix(config): reject 0/negative/NaN in budget, fuel, and timeout resolvers (HC follow-up)' | actual=52L across 3 files | derived=full ---
