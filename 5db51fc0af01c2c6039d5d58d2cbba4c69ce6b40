@@ -1,0 +1,25 @@
+feat(compiler): Add `@reactive` decorator and cross-call dependency inference
+scale: ~246 lines across 8 files [M]
+
+- **`crates/vox-compiler/src/codegen_ts/hir_emit/state_deps.rs`**:
+    - Introduced `extract_state_deps_with_callees` to enable cross-call dependency tracking for `@reactive` functions.
+    - Modified `extract_state_deps` to call the new function with an empty callee map, preserving existing behavior.
+    - Added documentation for cross-call dependency tracking, including bounding rules (single-level recursion, `visited` set, `@reactive` opt-in).
+- **`crates/vox-compiler/src/ast/decl/fundecl.rs`**:
+    - Added `is_reactive: bool` field to `FnDecl` to store the presence of the `@reactive` decorator.
+- **`crates/vox-compiler/src/lexer/token.rs`**:
+    - Added `Token::AtReactive` for the `@reactive` decorator.
+    - Implemented `Display` for `Token::AtReactive`.
+- **`crates/vox-compiler/src/parser/descent/decl/head.rs`**:
+    - Modified function parsing to recognize and set `is_reactive` based on the `@reactive` token.
+- **`crates/vox-compiler/src/hir/lower/decl.rs`**:
+    - Updated `LowerCtx` to propagate the `is_reactive` flag from `FnDecl` to `HirFn`.
+    - Initialized `is_reactive` to `false` in various `HirFn` construction sites.
+- **`crates/vox-compiler/src/hir/nodes/decl.rs`**:
+    - Added `is_reactive: bool` field to `HirFn` with documentation.
+- **`crates/vox-compiler/src/parser/descent/mod.rs`**:
+    - Initialized `is_reactive` to `false` in the synthetic main wrapper's `FnDecl` construction.
+- **`crates/vox-test-harness/src/hir_builders.rs`**:
+    - Initialized `is_reactive` to `false` in the `hir_fn` builder.
+
+--- audit: original='feat(compiler): add @reactive decorator + cross-call dep inference (Phase E)' | actual=246L across 8 files | derived=full ---
