@@ -1,0 +1,19 @@
+feat(routing): implement unified login, capability routing v2, and model CLI
+scale: ~5574 lines across 82 files [XL]
+
+- `crates/vox-orchestrator`: Implemented new routing policy engine with Thompson sampling, capability inference, and model selection logic, including budget constraints and Clavis overrides. Refactored model resolution to use the new engine and added support for capability-based model pinning.
+- `contracts/operations`: Updated catalog with new operations.
+- `contracts/capability`: Added a new capability registry.
+- `contracts/clavis`: Synchronized Clavis secrets for `VOX_CAPABILITY_*` and `VOX_ROUTING_*` with environment variables and contracts, and updated managed environment names.
+- `crates/vox-cli`: Introduced a shared login command, new `model` subcommands (`list`, `show`, `preferences`), and a `doctor llm_routing` check. Removed `auth` and `ci/data_storage_guard` commands.
+- `contracts/orchestration`: Updated model routing YAML to v3, including intents, capability inference, and codegen.
+- `crates/vox-clavis`: Added new LLM-related secret specifications for OpenRouter and Hugging Face models and dedicated endpoints.
+- `crates/vox-dashboard`: Regenerated numerous dashboard components, indicating broad UI updates.
+- `crates/vox-db`: Added `list_model_arm_stats` and `outcome_recorder` wiring.
+- `scripts`: Added `smoke-llm.vox` script.
+- `contracts/config`: Updated environment variables.
+- `crates/vox-config`: Added routing migration and policy configurations.
+- `crates/vox-compiler`: Updated workflow codegen.
+- `docs`: Updated CLI reference documentation.
+
+--- audit: original='feat: unified login, capability routing v2, and model CLI' | actual=5574L across 82 files | derived=full ---
