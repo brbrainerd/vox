@@ -22,6 +22,7 @@ pub const DEFAULT_WASM_SKILL_FUEL: u64 = 1_000_000_000;
 /// Resolve the fuel budget from a raw env override, falling back to the default.
 pub fn resolve_fuel(raw: Option<&str>) -> u64 {
     raw.and_then(|s| s.trim().parse::<u64>().ok())
+        .filter(|&v| v > 0)
         .unwrap_or(DEFAULT_WASM_SKILL_FUEL)
 }
 
@@ -162,6 +163,12 @@ mod fuel_tests {
     #[test]
     fn unparseable_env_keeps_default() {
         assert_eq!(resolve_fuel(Some("lots")), DEFAULT_WASM_SKILL_FUEL);
+    }
+
+    #[test]
+    fn zero_fuel_keeps_default() {
+        // A parsed `0` traps every skill immediately; treat it as invalid.
+        assert_eq!(resolve_fuel(Some("0")), DEFAULT_WASM_SKILL_FUEL);
     }
 }
 
