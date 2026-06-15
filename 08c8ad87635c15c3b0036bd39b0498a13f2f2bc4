@@ -1,0 +1,8 @@
+docs(architecture): add GUI-native roadmap execution status tracker
+scale: ~101 lines across 1 files [M]
+
+- Create `docs/src/architecture/gui-native-roadmap-status-2026.md` to track the execution status of the GUI-native language roadmap.
+- The document includes a table detailing tasks, their completion status, associated commit hashes, and notes for Phase 0 (Dashboard Safety).
+- Tasks covered include ADR 024, token authentication, origin/host allowlist middleware, security headers (CSP, X-Frame-Options, Referrer-Policy, CORS), and `vox dashboard` CLI detachment/readiness polling.
+
+--- audit: original='docs: add GUI-native roadmap execution status tracker' | actual=101L across 1 files | derived=full ---
