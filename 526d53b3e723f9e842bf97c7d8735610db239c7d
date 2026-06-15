@@ -1,0 +1,13 @@
+feat(vox-gui): implement console input editor, discovery rail, terminal, and agent strip
+scale: ~437 lines across 8 files [L]
+
+- `InputEditor.tsx`: Adds a console prompt component with ghost text for catalog suggestions, allowing Tab/Right Arrow to accept and Enter to submit. It debounces user input to fetch suggestions via `discoverySuggest`.
+- `TerminalTab.tsx`: Implements a PTY-backed terminal using xterm.js. It spawns a PTY on mount, streams output, and forwards interactive keystrokes and parent-submitted lines to the backend via `ptySpawn`, `ptyWrite`, `listenPtyOutput`, and `listenPtyExit`.
+- `DiscoveryRail.tsx`: Creates a right-hand rail that resolves the active action ID to its help text using `discoveryHelp` and records a "seen" exposure with dwell via `discoveryRecord`.
+- `AgentStrip.tsx`: Introduces a persistent strip displaying live agent chips, with data mapped from `vox://orch-status`. Clicking a chip triggers an `onOpen` event.
+- `TerminalTab.test.tsx`: Adds Vitest tests for `TerminalTab`, verifying PTY spawning and line writing.
+- `DiscoveryRail.test.tsx`: Adds Vitest tests for `DiscoveryRail`, confirming help rendering and "seen" exposure recording.
+- `InputEditor.test.tsx`: Adds Vitest tests for `InputEditor`.
+- `AgentStrip.test.tsx`: Adds Vitest tests for `AgentStrip`.
+
+--- audit: original='feat(vox-gui): console input editor, discovery rail, terminal tab, agent strip' | actual=437L across 8 files | derived=full ---
