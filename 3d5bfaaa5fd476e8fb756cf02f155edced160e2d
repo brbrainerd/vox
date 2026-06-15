@@ -1,0 +1,6 @@
+fix(peft-rs): coerce candle reshape error into PeftError
+scale: ~0 lines across 0 files [XS]
+
+- The commit is empty, indicating no actual changes were made. This suggests the original commit was reverted or squashed, or it was a placeholder.
+
+--- audit: original='fix(peft-rs): coerce candle 0.10 reshape error into PeftError (Ok(...?)) (#310)' | actual=0L across 0 files | derived=full ---
