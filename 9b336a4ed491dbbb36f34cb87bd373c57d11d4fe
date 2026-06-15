@@ -1,0 +1,11 @@
+docs(superpowers): Add Telemetry Phase A implementation plan
+scale: ~1298 lines across 1 files [XL]
+
+- Add new plan document `docs/superpowers/plans/2026-05-09-telemetry-phase-a.md` detailing the implementation of the `vox-telemetry` facade crate.
+- The plan outlines the creation of a new L1 `vox-telemetry` crate to host canonical metric-type constants and the `TelemetryRecorder` trait.
+- It describes moving telemetry components from `vox-db::research_metrics_contract` and wiring two dormant sinks (ResearchMetricsSink, SpoolSink) at CLI startup without semantic changes to existing telemetry emission.
+- The architecture section details the crate's structure, including `TelemetryEvent`, `METRIC_TYPE_*` constants, `TelemetryWriteOptions`, `validate_research_metric_row`, `TelemetryRecorder` trait, a global handle, and a `record_event!` no-op macro.
+- The plan specifies the tech stack (Rust 2024, serde, thiserror, tokio, tracing, uuid, OnceLock) and references the `telemetry-unification-design-2026.md` specification.
+- It includes a detailed file map for the planned changes across `vox-telemetry`, `vox-db`, and `vox-cli` crates.
+
+--- audit: original='docs(plans): add telemetry Phase A implementation plan' | actual=1298L across 1 files | derived=full ---
