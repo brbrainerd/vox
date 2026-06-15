@@ -1,0 +1,10 @@
+feat(scientia): add `LivingReviewManifest` for versioned DOIs
+scale: ~156 lines across 1 files [M]
+
+- `crates/vox-prereg/src/living_review.rs`: Add new module `living_review` containing `DoiVersion` and `LivingReviewManifest` structs.
+  - `DoiVersion`: Represents an immutable snapshot of a published version with fields for DOI, version number, publication timestamp, canonical URL, and description.
+  - `LivingReviewManifest`: Manages a living review's version history, including its title, a canonical URL pointing to the latest version, the latest DOI, and a vector of `DoiVersion`s.
+  - Implement `new` and `add_version` methods for `LivingReviewManifest` to initialize an empty manifest and append new versions, respectively.
+  - Implement `get_latest_version` and `get_version_by_number` methods for `LivingReviewManifest` to retrieve specific versions.
+
+--- audit: original='feat(scientia): living-review versioned DOI manifest (Phase 3 Task 3)' | actual=156L across 1 files | derived=full ---
