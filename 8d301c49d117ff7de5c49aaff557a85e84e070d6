@@ -1,0 +1,20 @@
+feat(dei_shim): activate research pipeline stubs and refactor dependencies
+scale: ~1383 lines across 22 files [XL]
+
+- Add `pub mod research` to `dei_shim/mod.rs` to expose the new research pipeline.
+- Create `dei_shim/research/mod.rs` as the module index for the research pipeline.
+- Introduce `dei_shim/research/types.rs` defining core data structures for research queries, plans, hits, diagnostics, citations, and results.
+- Add `dei_shim/research/claims.rs` with a `Claim` struct and a stub for `extract_claims_with_model`.
+- Implement `dei_shim/research/verifier.rs` with `VerifierConfig`, `Verdict`, `SpanType`, `EvidenceSpan`, `ClaimVerdict`, and a stub for `verify_claims_with_config`.
+- Create `dei_shim/research/provider.rs` including `ProviderRegistry`, `CrawledPage`, and `ExtractedChunk` stubs.
+- Add `dei_shim/research/gate.rs` with `GateConfig`, `RoutingThresholds`, `GateInput`, `ConfidenceSignal`, and a stub for `score_with_config`.
+- Implement `dei_shim/research/planner.rs` with a stub for `decompose_query_with_config` and `plan_to_json`.
+- Create `dei_shim/research/persistence.rs` with `slug_from_query` and `write_research_doc` stubs.
+- Add `dei_shim/research/config.rs` as a re-export shim for research configuration.
+- Refactor `dei_shim/research/model_select.rs` to remove `crate::mode` and `crate::selection` dependencies, replacing them with local stub types for `InferenceConfig` and `QualityLevel`.
+- Stub out `vox_db` method calls in `dei_shim/research/orchestrator/pipeline.rs`, `web_gather.rs`, and `pipeline_cache.rs` due to missing API methods.
+- Update `dei_shim/research/orchestrator/config.rs` to use the new `model_select::InferenceConfig`.
+- Add 7 new test files (`scientia_phase_0a_*.rs`) to cover the newly introduced research pipeline components.
+- Adjust `vox_secrets::resolve_secret` call to handle its new `ResolvedSecret` return type.
+
+--- audit: original='feat(scientia): activate dei_shim::research + land Phase 0a stubs (Tasks 1-9)' | actual=1383L across 22 files | derived=full ---
