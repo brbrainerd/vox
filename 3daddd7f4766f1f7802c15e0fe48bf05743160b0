@@ -1,0 +1,8 @@
+docs(pagefind): Exclude archive content from search indexing via route middleware
+scale: ~38 lines across 3 files [S]
+
+- docs-astro/src/routeData.ts: Add new Starlight route middleware to inject `<meta name="robots" content="noindex">` into the head of pages with slugs starting with "archive/" or exactly "summary", preventing Pagefind from indexing them.
+- docs-astro/astro.config.mjs: Configure Starlight to use the new `routeData.ts` as route middleware.
+- docs-astro/pagefind.yml: Add new Pagefind configuration file, specifying the `dist` directory as the site, a glob for HTML files, and `exclude_selectors` for `[data-pagefind-ignore]`.
+
+--- audit: original='docs: Pagefind archive exclusion via routeMiddleware, no per-file editing' | actual=38L across 3 files | derived=full ---
