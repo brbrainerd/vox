@@ -1,0 +1,8 @@
+feat(scientia): mark Phase 0b complete and add `vox-research-events` to workspace
+scale: ~4 lines across 3 files [S]
+
+- `docs/src/architecture/scientia-self-publication-finalization-plan-2026.md`: Updated the Scientia Self-Publication Finalization Plan to mark Phase 0b, "vox-research-events L1 crate," as complete and linked to its plan document.
+- `Cargo.toml`: Added `vox-research-events` crate to the workspace.
+- `docs/src/architecture/layers.toml`: Added `vox-research-events` to the architecture layers as a Layer 1 crate for the SCIENTIA typed event bus (Phase 0b).
+
+--- audit: original='feat(scientia): wire vox-research-events into workspace + mark Phase 0b Complete' | actual=4L across 3 files | derived=full ---
