@@ -1,0 +1,5 @@
+refactor(deps): reformat `vox-plugin-webhook` http_listener import
+scale: ~4 lines across 1 files [XS]
+- Reordered and wrapped `vox_plugin_api::extensions::http_listener` imports in `crates/vox-plugin-webhook/src/lib.rs` to comply with rustfmt.
+
+--- audit: original='chore(fmt): rustfmt vox-plugin-webhook http_listener import' | actual=4L across 1 files | derived=full ---
