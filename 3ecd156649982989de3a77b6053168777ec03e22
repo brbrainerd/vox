@@ -1,0 +1,6 @@
+docs(ci): update category to "CI & Quality" in shared-compile-cache.md
+scale: ~2 lines across 1 files [XS]
+
+- docs/src/ci/shared-compile-cache.md: Changed the `category` frontmatter from `ci` to `"CI & Quality"`.
+
+--- audit: original="docs(ci): fix category to canonical 'CI & Quality' in shared-compile-cache.md" | actual=2L across 1 files | derived=full ---
