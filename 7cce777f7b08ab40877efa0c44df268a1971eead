@@ -1,0 +1,9 @@
+feat(scripts/show): add initial Raw Nerve content automation scripts
+scale: ~374 lines across 4 files [L]
+
+- `scripts/show/script.vox`: New script to draft 3-act outlines from Whisper transcripts of recorded development work. It processes media files, transcribes them, concatenates transcripts, and sends them to an LLM to generate an outline.
+- `scripts/show/topic-suggest.vox`: New script to suggest 3 ranked episode candidates by analyzing repository signals (commits, closed issues, merged PRs, and documentation changes).
+- `scripts/show/title-workshop.vox`: New script to generate 10 ranked title candidates for an episode based on an outline or summary, including predicted CTR and brand-match scores.
+- `scripts/show/README.md`: New README file documenting the purpose, usage, and future additions for the Raw Nerve content automation scripts.
+
+--- audit: original='feat(scripts/show): add Raw Nerve content automation skeletons' | actual=374L across 4 files | derived=full ---
