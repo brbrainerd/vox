@@ -1,0 +1,17 @@
+feat(orchestrator): implement Populi remote lease watchdog and add configuration
+scale: ~108 lines across 12 files [M]
+
+- `crates/vox-orchestrator/src/orchestrator/lease_watchdog.rs`: Add new module for `Populi` remote lease watchdog, including `tick_populi_remote_lease_watchdog` to identify and recover expired remote leases.
+- `crates/vox-orchestrator/src/config/defaults.rs`: Add `default_populi_remote_lease_timeout_ms` with a default of 300,000 ms (5 minutes).
+- `crates/vox-orchestrator/src/config/orchestrator_fields.rs`: Add `populi_remote_lease_timeout_ms` field to `OrchestratorConfig`.
+- `crates/vox-orchestrator/src/config/impl_default.rs`: Initialize `populi_remote_lease_timeout_ms` in `OrchestratorConfig`'s `Default` implementation.
+- `crates/vox-orchestrator/src/orchestrator/scaling.rs`: Integrate the `tick_populi_remote_lease_watchdog` call into the orchestrator's scaling tick.
+- `crates/vox-orchestrator/src/orchestrator.rs`: Declare the new `lease_watchdog` module.
+- `crates/vox-runtime/src/model_resolution.rs`: Add `PopuliMesh` as a `ChatRouteBackend` and `ChatProviderRouteKind`, and update `chat_route_to_llm_config` to handle it.
+- `crates/vox-orchestrator/src/models/spec.rs`: Add `PopuliMesh` to `ProviderType` and `ModelRouteBackend`, and update `route_backend_for_model` and `llm_usage_key` accordingly.
+- `crates/vox-mcp/src/llm_bridge/model_route_policy/resolve.rs`: Add `PopuliMesh` to `mcp_provider_telemetry_labels`.
+- `crates/vox-mcp/src/llm_bridge/model_route_policy/tests.rs`: Add `PopuliMesh` to the orchestrator route backend matching tests.
+- `crates/vox-populi/src/node_registry.rs`: Add `loaded_llm_models` field to `NodeRecord`.
+- `crates/vox-populi/src/lib.rs`: Initialize `loaded_llm_models` as `None` in `node_record_for_current_process`.
+
+--- audit: original='feat: implement Populi remote lease watchdog and add orchestrator configuration defaults and model specification types' | actual=108L across 12 files | derived=full ---
