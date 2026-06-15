@@ -1,0 +1,12 @@
+feat(compiler): add integration tests for GA-01, GA-05, GA-19, GA-20, GA-26 boilerplate grafts
+scale: ~142 lines across 1 files [M]
+
+- Add `crates/vox-compiler/tests/ga_boilerplate_grafts_test.rs` with 7 new integration tests:
+  - Verify `@tokens` block parses without error.
+  - Confirm `vox/tokens/contrast-violation` diagnostic is produced for low-contrast color pairs in `@tokens`.
+  - Test `@uses(net)` and `@uses(net, fs)` decorators populate `FnDecl::effects` correctly.
+  - Check that `<Dialog>` without `label=` triggers `vox/a11y/dialog-missing-label`.
+  - Ensure `<Dialog>` with `label=` is clean (no diagnostics).
+  - Smoke test parsing of multiple decorators: `@auth/@cors/@rate_limit/@webhook/@layer`.
+
+--- audit: original='test(compiler): add GA-01/GA-05/GA-19/GA-20 integration tests' | actual=142L across 1 files | derived=full ---
