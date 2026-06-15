@@ -1,0 +1,10 @@
+feat(share): implement duration-based auto-shutdown and countdown display
+scale: ~256 lines across 5 files [L]
+
+- `crates/vox-share/src/lifecycle.rs`: New module added to manage session duration, including `run_countdown` to signal session end and `run_countdown_printer` to display remaining time to stdout.
+- `crates/vox-share/src/coordinator.rs`: Modified `ShareSession` to integrate duration-based shutdown. Replaced `duration_timer` with `duration_done_rx` (an `mpsc::Receiver`) to receive shutdown signals. Spawns `run_countdown` and `run_countdown_printer` tasks when a duration is configured.
+- `crates/vox-share/tests/lifecycle_test.rs`: New test file added for `lifecycle` module, including tests for `format_duration`, `run_countdown` functionality, and `ShareSession` auto-shutdown behavior.
+- `crates/vox-cli/src/commands/share.rs`: Updated `run` function to use `session.wait().await` for handling session lifecycle, which now incorporates the duration-based shutdown. Removed previous manual `tokio::select!` logic for duration and Ctrl+C. Prints initial auto-shutdown duration if configured.
+- `crates/vox-share/src/lib.rs`: Added `lifecycle` module to the crate's public interface.
+
+--- audit: original='feat(share): duration auto-shutdown + countdown (S7)' | actual=256L across 5 files | derived=full ---
