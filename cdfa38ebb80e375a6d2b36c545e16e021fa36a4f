@@ -1,0 +1,10 @@
+feat(ci): measure and warn on CI job run-times exceeding 10 minutes
+scale: ~395 lines across 6 files [L]
+
+- `crates/vox-cli/src/commands/ci/job_timings.rs`: Add new `job_timings` command to `vox ci`. This command measures CI job execution time (`completed_at - started_at`), sorts jobs by run time, and warns if any job exceeds `SLOW_JOB_THRESHOLD_SECS` (600 seconds). It supports `--run-id` to analyze specific workflow runs, `--threshold-mins` to set a custom budget, `--limit` for recent run scanning, `--json` for JSON output, `--annotate` to emit GitHub `::warning::` annotations, and `--strict` to exit non-zero on over-budget jobs.
+- `.github/workflows/ci-timings.yml`: Add a new GitHub Actions workflow that runs on `workflow_run` completion of main CI workflows. It uses `gh api` and `jq` to measure job run times, emits GitHub `::warning::` annotations for jobs exceeding the 600-second threshold, and generates a step-summary table.
+- `crates/vox-cli/src/commands/ci/cmd_enums.rs`: Extend `CiCmd` enum with the new `JobTimings` variant, including its arguments.
+- `crates/vox-cli/src/commands/ci/run_body.rs`: Add a match arm to `run` function to dispatch the `JobTimings` command to its handler.
+- `crates/vox-cli/src/commands/ci/mod.rs`: Declare `job_timings` as a module.
+
+--- audit: original='feat(ci): measure CI job run-time and warn on jobs over the 10-minute budget (#160)' | actual=395L across 6 files | derived=full ---
