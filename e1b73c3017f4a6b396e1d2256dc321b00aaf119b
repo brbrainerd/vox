@@ -1,0 +1,7 @@
+refactor(orchestrator): apply rustfmt to reliability and persistence observation services
+scale: ~63 lines across 2 files [M]
+
+- `crates/vox-orchestrator/src/services/reliability.rs`: Adjusted line wrapping for `if let Err(e) = self.store.record_endpoint_observation(...)` and `if let Err(e) = self.store.record_task_reliability_observat(...)` chains to conform to rustfmt 2024-edition style. Also reordered `use vox_db::VoxDb;` statement.
+- `crates/vox-orchestrator/src/services/persistence_obs.rs`: Adjusted line wrapping in the `log_persistence_failure_emits_structured_error_event` test.
+
+--- audit: original='style(orchestrator): apply rustfmt to Batch A files' | actual=63L across 2 files | derived=full ---
