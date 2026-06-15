@@ -1,0 +1,7 @@
+docs(arch): Register `vox-effort-audit` in architecture documentation
+scale: ~2 lines across 2 files [S]
+
+- `docs/src/architecture/layers.toml`: Add `vox-effort-audit` to layer 2 with `library` kind and `max_loc` of 4000.
+- `docs/src/architecture/where-things-live.md`: Add `vox-effort-audit` to the grouped map of top-level trees with its description.
+
+--- audit: original='docs(arch): register vox-effort-audit in layers + WTL (A2)' | actual=2L across 2 files | derived=full ---
