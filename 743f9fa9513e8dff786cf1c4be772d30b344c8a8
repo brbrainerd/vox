@@ -1,0 +1,15 @@
+ci(docs): Migrate docs-deploy workflow from mdBook to Astro Starlight
+scale: ~106 lines across 1 files [M]
+
+- .github/workflows/docs-deploy.yml:
+    - Update `on.paths` to include `docs-astro/**` for Astro Starlight documentation.
+    - Remove `MDBOOK_SITEMAP_DOMAIN` environment variable.
+    - Remove installation steps for `mdBook`, `mdbook-metadata`, and `mdbook-sitemap-generator`.
+    - Remove `continue-on-error` from the "Run Docs Pipeline" step.
+    - Remove `MDBOOK_ROOT` environment variable.
+    - Remove `mdbook build` command.
+    - Add `npm install` and `npm run build` commands for Astro Starlight.
+    - Update `actions/upload-pages-artifact` to upload the `docs-astro/dist` directory.
+- Remove `mdBook` related steps and configurations, replacing them with `Astro Starlight` build steps.
+
+--- audit: original='docs: Update docs-deploy workflow for Astro Starlight' | actual=106L across 1 files | derived=full ---
