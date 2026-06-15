@@ -1,0 +1,63 @@
+feat(ci, cli, contracts, docs, orchestrator, mcp, db): introduce mens scorecard, openclaw search, and trust telemetry
+scale: ~25626 lines across 377 files [XL]
+
+- **ci**: Add new `mens_scorecard` command for model-vs-model evaluation and decision gates, including schema validation.
+- **cli**:
+    - Introduce `openclaw search-remote` command to search for remote OpenClaw skills.
+    - Enhance `openclaw validate` with `ws_url` option.
+    - Add `ci openclaw_contract` command for OpenClaw contract verification.
+    - Update `ci command_compliance` validators.
+    - Refactor `dispatch` module.
+    - Introduce `process_supervision` module.
+    - Add `ci/cmd_enums` module.
+- **contracts**:
+    - Introduce new JSON schemas: `mens-scorecard.schema.json`, `mens-scorecard-summary.schema.json`, `mens-scorecard-event.schema.json`, `external-serving-handoff.schema.json`, `runtime-generation-kpi.schema.json`, `scientia/arxiv-handoff.schema.json`.
+    - Update `command-registry.yaml` and `index.yaml`.
+    - Modify `scientia/distribution.schema.json`.
+- **docs**:
+    - Add new architecture documents: `vox-docker-dotvox-portability-research-2026.md`, `mens-lane-segmentation-research.md`, `vox-bell-curve-strategy.md`, `trust-reliability-layer.md`, `feature-growth-boundaries.md`, `openclaw-discovery-sidecar-ssot.md`, `interop-tier-policy.md`, `maintainability-hotspot-matrix.md`, `adr/013-openclaw-ws-native-strategy.md`.
+    - Add new reference documents: `mens-measurement-gap-analysis.md`, `mens-external-tech-options.md`, `mens-laziness-accuracy-audit.md`, `mens-strategy-inputs-checklist.md`.
+    - Update `AGENTS.md` (doc-inventory.json) with new references for product lanes and interop tiers.
+    - Update `index.md` and `feed.xml`.
+    - Add custom CSS to the theme.
+    - Update `how-to-scientia-publication.md`.
+    - Modify `explanation/expl-architecture.md`.
+    - Remove `README.md` content.
+- **orchestrator**:
+    - Enhance `complete_task` to support completion attestation and `toestub-gate` feature.
+    - Introduce `reconstruction` module.
+    - Add `campaigns` module.
+    - Update `runtime` module.
+    - Introduce `planning/quality_gate` and `memory/manager` modules.
+    - Update `services/policy` and `services/routing`.
+    - Modify `planning/synthesizer` and `planning/replan`.
+    - Update `validation` and `types/tasks`.
+- **mcp**:
+    - Introduce `openclaw_tools.rs` for OpenClaw runtime adapter integration.
+    - Introduce `trust_tools.rs` for trust rollup inspection.
+    - Update `compiler_tools.rs` and `task_tools.rs`.
+    - Modify `input_schemas.rs`, `params.rs`, `scientia_tools/lifecycle.rs`, `scientia_tools/preflight.rs`, and `text_normalization.rs`.
+- **db**:
+    - Introduce `trust_telemetry.rs` for unified trust observation and rollup persistence.
+    - Introduce `trust_propagation.rs` and `trust_drift.rs`.
+    - Add `mens_scorecard_trust.rs`.
+    - Introduce `socrates_telemetry.rs`.
+    - Update `store/ops_codex/codex_metrics_packages.rs`.
+- **compiler**:
+    - Introduce `app_contract.rs` and `generated_vox.rs`.
+    - Add `builtin_registry.rs`.
+    - Update `hir/db_op_walk.rs` and `hir/nodes/decl.rs`.
+    - Modify `codegen_rust/emit/tables/projections.rs`, `codegen_rust/emit/http.rs`, `codegen_rust/emit/stmt_expr.rs`, and `codegen_rust/emit/workflow.rs`.
+    - Update `typeck/builtins.rs` and `typeck/ty.rs`.
+    - Add `codegen_ts/component.rs`.
+    - Add new tests: `projection_parity.rs` and `with_expression_typecheck.rs`.
+    - Remove `ast/fundecl.rs`, `ast/ui.rs`, `ast/logic.rs`, `ast/typedef.rs`, `ast/db.rs`, and `ast/config.rs`.
+    - Modify `hir/lower/db_select_normalize.rs`.
+- **publisher**:
+    - Introduce `scientia_evidence.rs`.
+    - Update `publication_preflight.rs`, `scholarly_external_jobs.rs`, `submission_package.rs`, and `switching.rs`.
+    - Modify `scholarly/openreview.rs`.
+- **ars**:
+    - Introduce `openclaw_discovery.rs`,
+
+--- audit: original='feat(ci, contracts, cli): update CI workflows, enhance documentation, and introduce new schemas' | actual=25626L across 377 files | derived=sampled ---
