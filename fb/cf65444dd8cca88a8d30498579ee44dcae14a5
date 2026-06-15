@@ -1,0 +1,7 @@
+feat(routing): add CodeEffortJudge task category
+scale: ~11 lines across 2 files [S]
+
+- `contracts/orchestration/model-routing.v1.yaml`: Added `CodeEffortJudge` to the list of `task_categories`.
+- `crates/vox-orchestrator-types/tests/routing_and_ids_smoke.rs`: Added a new test `code_effort_judge_category_present` to verify that `TaskCategory::from_str("CodeEffortJudge")` correctly parses to `TaskCategory::CodeEffortJudge`.
+
+--- audit: original='feat(routing): add CodeEffortJudge task category (A3)' | actual=11L across 2 files | derived=full ---
