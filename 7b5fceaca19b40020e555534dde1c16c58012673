@@ -1,0 +1,6 @@
+docs(plan): detail config guardrails implementation
+scale: ~962 lines across 1 files [L]
+
+- docs/superpowers/plans: Add a new plan document outlining the implementation of config guardrails. This plan details three phases: refactoring existing defective config, implementing a `vox ci config-hygiene` gate, and establishing a single source of truth config registry. It also covers the goal, architecture, tech stack, and rationale for this plan preceding the main "full configurability" plan.
+
+--- audit: original='docs(plan): config guardrails — refactor defects + config-hygiene gate + registry' | actual=962L across 1 files | derived=full ---
