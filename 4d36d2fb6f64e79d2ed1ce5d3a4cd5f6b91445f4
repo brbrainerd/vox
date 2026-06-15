@@ -1,0 +1,10 @@
+chore(coverage): update semantic-coverage baseline to 20.1%
+scale: ~8 lines across 1 files [XS]
+
+- `contracts/reports/semantic-coverage.v1.json`:
+    - Updated `source_commit` from `315409b15d4ac3ee08b7b3e7c06c795a3882bab2` to `95b1d9c62b98549d9203ed65856a1587d129718d`.
+    - Increased global `proven` definitions from 1432 to 1441.
+    - Increased global `proven_pct` from 20.0% to 20.1%.
+    - Increased `vox-orchestrator` proven definitions from 228 to 237.
+
+--- audit: original='chore(coverage): ratchet semantic-coverage baseline after Wave 1 batch (20.0->20.1%)' | actual=8L across 1 files | derived=full ---
