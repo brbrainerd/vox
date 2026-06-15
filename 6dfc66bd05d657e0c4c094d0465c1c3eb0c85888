@@ -1,0 +1,10 @@
+fix(typeck,codegen): correct `json_as` codegen and type-checking for JSON objects
+scale: ~34 lines across 3 files [S]
+
+- `crates/vox-compiler/src/typeck/checker/expr.rs`:
+    - `HirExpr::Call`: Unify the declared return type with the expected type before checking arguments to correctly propagate generic type variables (e.g., `Result[T]`).
+    - `HirExpr::ObjectLit`: Added a fast-path to type-check object literals as `Named("Json")` or `Named("JsonBody")` when the expected type is `Json` or `JsonBody`, checking field values against `Json`.
+- `crates/vox-compiler/src/hir/lower/json_as.rs`: Changed `expr_err` to use the `Error` builtin constructor instead of `Err`, aligning with the Vox language's `Error(message: str)` signature.
+- `scripts/quality/generate-matrix-doc.vox`: Replaced `.get("field").and_then(...).unwrap_or(...)` calls with direct field access (e.g., `prod.id`, `prod.name`, `feat.name`, `feat.importance_1_to_5`) after `unwrap()` on a typed struct, leveraging the corrected type inference.
+
+--- audit: original='fix: @json_as codegen and typeck — 53/53 scripts now pass vox check' | actual=34L across 3 files | derived=full ---
