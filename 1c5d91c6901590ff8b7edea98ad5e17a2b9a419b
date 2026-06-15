@@ -1,0 +1,12 @@
+feat(docs-astro): replace SUMMARY.md sidebar with direct frontmatter scan
+scale: ~1071 lines across 12 files [XL]
+
+- `docs-astro/src/utils/sidebar.mjs`: Rewrote sidebar generation to directly scan `docs/src/` for Markdown files, read their frontmatter using `gray-matter`, and build the sidebar based on `SECTION_ORDER`, excluding `archive` and `.well-known` directories. This replaces the previous `SUMMARY.md` parsing.
+- `docs/src/SUMMARY.md`: Removed the `SUMMARY.md` file, which is no longer needed for sidebar generation.
+- `docs-astro/src/content.config.ts`: Updated `docsLoader` to exclude `archive/**` and `SUMMARY.md` from the content collection.
+- `docs/src/architecture/*.md`: Added minimal frontmatter (title, description, category, status, training eligibility) to six architecture documents that previously lacked it, enabling them to be processed by the new sidebar generation.
+- `.gitignore`: Added `docs/src/SUMMARY.md` to prevent it from being tracked.
+- `docs-astro/package.json`: Added `gray-matter` as a dependency.
+- `docs-astro/pnpm-lock.yaml`: Updated pnpm lockfile to reflect the new dependency.
+
+--- audit: original='feat(docs-astro): replace SUMMARY.md sidebar with direct frontmatter scanner' | actual=1071L across 12 files | derived=full ---
