@@ -1,0 +1,15 @@
+feat(ci): add cargo-deny to CI and register 6 new check targets
+scale: ~65 lines across 2 files [M]
+
+- **.github/workflows/ci.yml**:
+    - Added steps to install `cargo-deny` and run `cargo deny check` in the `guards-fast` CI job.
+- **contracts/ci/check-targets.v1.yaml**:
+    - Registered six new check targets:
+        - `deny`: for `cargo deny check` (license allowlist, security advisories, banned crates).
+        - `biome-ts-lint`: for `npx @biomejs/biome@1.9.4 lint` (TypeScript/TSX/JSX linting).
+        - `sync-ignore-files`: for `vox ci sync-ignore-files --verify` (generated ignore-file drift check).
+        - `plugin-catalog-docs`: for `vox ci generate-plugin-catalog-docs --check` (plugin catalog doc drift check).
+        - `command-sync`: for `vox ci command-sync --check` (CLI command surface doc drift check).
+        - `link-checker`: for `lychee` (link checker for docs and markdown files).
+
+--- audit: original='feat(quality): add cargo-deny gate + expand check-targets manifest' | actual=65L across 2 files | derived=full ---
