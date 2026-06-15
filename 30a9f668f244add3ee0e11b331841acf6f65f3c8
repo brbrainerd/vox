@@ -1,0 +1,11 @@
+feat(populi): GET /v1/populi/resources/summary endpoint for mesh resource summary
+scale: ~136 lines across 3 files [M]
+
+- `crates/vox-populi/src/transport/handlers/nodes.rs`:
+    - Added `MeshResourceSummary` and `MeshResourceNode` structs to represent aggregated mesh capacity and per-node details.
+    - Implemented `aggregate_resources` function to calculate the summary, including total GPU, allocatable GPU, free memory, average CPU usage, and counts of all/eligible nodes.
+    - Implemented `resources_summary` handler to expose this data.
+- `crates/vox-populi/src/transport/handlers/mod.rs`: Exported the new `resources_summary` handler.
+- `crates/vox-populi/src/transport/router.rs`: Added a GET route for `/v1/populi/resources/summary` to the router, mapping it to the `resources_summary` handler.
+
+--- audit: original='feat(populi): GET /v1/populi/resources/summary — aggregated mesh capacity' | actual=136L across 3 files | derived=full ---
