@@ -1,0 +1,16 @@
+docs(starlight): migrate landing page, update LLM index, and configure redirects
+scale: ~2005 lines across 384 files [XL]
+
+- docs-astro/:
+  - Add `pnpm-lock.yaml` for dependency management.
+  - Update `astro.config.mjs` to set `site` for sitemap and Open Graph.
+  - Consolidate content collection schema in `src/content.config.ts` to extend `docsSchema` with custom fields like `last_updated` as a string, addressing Astro Zod schema requirements.
+  - Add `public/_redirects` for Cloudflare Pages/Netlify to map legacy mdBook HTML URLs and `/book/*` paths to new Starlight slug format.
+- docs/src/:
+  - Replace `index.md` with `index.mdx` to implement a Starlight splash template for the landing page.
+  - Create `architecture/starlight-site-strategy-2026.md` detailing research, gap analysis, and execution roadmap for the Starlight site.
+  - Update `llms-full.txt` and `llms.txt` in `.well-known/` to correct `vox.foundation` to `vox-lang.org` and update URLs to Starlight slug format.
+  - Batch-fix 375 markdown files by changing `last_updated: YYYY-MM-DD` YAML dates to quoted strings (`"YYYY-MM-DD"`) to comply with the Astro Zod schema.
+  - Modify numerous ADR, architecture, CI, explanation, how-to, operations, reference, and tutorial markdown files (264+ files) with minor changes, likely related to the `last_updated` YAML date fix and URL updates.
+
+--- audit: original='docs: Starlight site strategy — landing page, llms.txt, redirects, plugin' | actual=2005L across 384 files | derived=full ---
