@@ -1,0 +1,20 @@
+feat(orchestrator, cli, runtime): route policy SSOT, deploy artifact gates, CI backend-tests
+scale: ~1256 lines across 49 files [XL]
+
+- `crates/vox-orchestrator`: Implemented `VOX_ROUTE_*` policy integration for model routing, including new tests for restricted routes and updates to `populi` test server setup.
+- `crates/vox-cli`: Added `deploy` command artifact gates for SBOM/signing, new CI guards for routing SSOT and provider secret parity, and updated `ci run_body` for backend tests.
+- `crates/vox-runtime`: Introduced `RouteCapabilityPolicySnapshot` for SSOT of `VOX_ROUTE_*` policy knobs and updated model resolution to use it.
+- `contracts/orchestration`: Updated `model-routing.v1.schema.json` and `model-routing.v1.yaml` to reflect new routing policy, and `providers.v1.yaml` for provider definitions.
+- `crates/vox-mens`: Refactored `populi_cli` token resolution to use Clavis and config, and made minor adjustments to `corpus/stats`.
+- `contracts/capability`: Added `capability-registry.yaml`.
+- `contracts/operations`: Added `catalog.v1.yaml` and updated `reports/operations-catalog-inventory.v1.json`.
+- `contracts/config`: Updated `env-vars.v1.yaml`.
+- `crates/vox-config`: Added `paths` helper for backend artifacts and updated `lib.rs`.
+- `docs`: Added new documentation for portability SSOT, CI runner contract, telemetry, and updated CLI reference and changelog.
+- `contracts/cli`: Added `command-registry.yaml`.
+- `crates/vox-db`: Added `research_metrics_contract.rs`.
+- `crates/vox-audio-ingress`: Made minor fixes.
+- `contracts/clavis`: Minor updates to `managed-env-names.v1.json` and `secret-capabilities.v1.json`.
+- Many other small changes across various crates and contracts for consistency and alignment.
+
+--- audit: original='feat: route policy SSOT, deploy artifact gates, CI backend-tests' | actual=1256L across 49 files | derived=full ---
