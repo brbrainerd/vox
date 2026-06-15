@@ -1,0 +1,10 @@
+chore(baselines): refresh `silent-drop` and `weak-test` baselines
+scale: ~182 lines across 2 files [M]
+
+- `contracts/toestub/weak-test-baseline.v1.json`:
+    - Added new `weak_test` entries for `import_cycles.rs`, `assets/mod.rs`, `feature_matrix.rs`, and `parser/renames.rs`.
+    - Updated line numbers for existing `weak_test` entries in `json_as.rs` and `decl.rs`.
+- `contracts/toestub/silent-drop-baseline.v1.json`:
+    - Updated line numbers for existing `silent_drop` entries across multiple files, including `hir_emit/mod.rs`, `decl.rs`, `docker.rs`, `cmd_enums.rs`.
+
+--- audit: original='chore(audit): refresh silent-drop + weak-test baselines after origin/main merge' | actual=182L across 2 files | derived=full ---
