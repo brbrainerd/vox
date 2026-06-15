@@ -73,7 +73,7 @@ pub async fn run_train(
             use vox_populi::mens::cloud::{CloudJobSpec, CloudResolver};
             let config = vox_populi::mens::cloud::CloudProviderConfig::default();
             let mut spec = CloudJobSpec::new_train(&config);
-            spec.model_id = model.unwrap_or_else(|| vox_populi::mens::DEFAULT_MODEL_ID.to_string());
+            spec.model_id = model.unwrap_or_else(vox_populi::mens::default_model_id);
             spec.train_data_hf = _train_data_hf;
             spec.adapter_upload_hf = _adapter_upload_hf;
             spec.max_budget_usd = _max_budget;
@@ -264,9 +264,8 @@ pub async fn run_train(
             .unwrap_or(false);
         if device_is_cuda {
             use vox_populi::mens::tensor::memory_budget;
-            let model_hint = effective_model
-                .as_deref()
-                .unwrap_or(vox_populi::mens::DEFAULT_MODEL_ID);
+            let default_model = vox_populi::mens::default_model_id();
+            let model_hint = effective_model.as_deref().unwrap_or(&default_model);
             let requested_b = memory_budget::params_b_from_model_hint(model_hint).unwrap_or(4.0);
             if let Some(vram_gb) = vox_populi::mens::tensor::vram_autodetect::get_system_vram_gb() {
                 let vram = vram_gb as f64;
