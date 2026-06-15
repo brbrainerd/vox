@@ -1,0 +1,33 @@
+feat(scaling): introduce `vox-scaling-policy` and enhance CI workflows
+scale: ~242005 lines across 647 files [XL]
+
+DIVERGENCE: original subject claimed 'feat(scaling): introduce `vox-scaling-policy` and enhance CI workflows' but this commit actually changed ~242005 lines across 647 files. Top areas:
+crates: 134562 lines, 576 files
+contracts: 79076 lines, 52 files
+docs: 17209 lines, 12 files
+mens: 11135 lines, 2 files
+(root): 16 lines, 3 files
+.github: 7 lines, 2 files
+
+- **contracts/reports/scaling-audit**: Added new scaling audit reports, including `findings-latest.json`, `findings-scaling-latest.json`, and `rollup/INDEX.yaml`, significantly increasing the number of files in this directory.
+- **crates/vox-compiler**: Refactored compiler components, deleting numerous files related to parser descent, Rust code generation, type checking, and AST declarations, while adding new files for callable AST declarations, printer formatting, and detailed parser tests.
+- **crates/vox-cli**: Major refactoring and reorganization of CLI commands, deleting many existing command modules (mens, ci, corpus, review, ludus, ars, island, gamify, runtime, schola, db_research_impl, templates) and introducing new, more granular command files, especially for `mens/populi` and `corpus/generate`.
+- **crates/vox-populi**: Significant changes in `mens/tensor`, deleting `candle_qlora_train.rs` and `lora.rs` and replacing them with a new `candle_qlora_train` module containing `training_loop.rs` and new `lora` parts for GPU tests and attention.
+- **crates/vox-db**: Extensive refactoring of database operations, deleting `ops_ludus.rs`, `schema_digest.rs`, and `types.rs`, and adding new, more specific files for `ops_ludus` (gamify_world, gamify_extended, gamify_activity), `ops_codex` (codex_metrics_packages), and `schema_digest/helpers.rs`.
+- **crates/vox-ludus**: Substantial refactoring of ludus components, deleting `achievement.rs`, `quest.rs`, `ai.rs`, `db.rs`, and `periodic_reward.rs`, and introducing new, more modular files for `achievement/defaults`, `quest/templates.rs`, `ai/client/transport.rs`, and `db/process_rewards.rs`.
+- **crates/vox-orchestrator**: Extensive refactoring of orchestrator components, deleting many files related to config, session, task dispatch, types, models, a2a, oplog, and queue, and adding new, more granular files for `memory/manager.rs`, `config/impl_env.rs`, `types/messages.rs`, `types/tasks.rs`, `models/registry.rs`, `a2a/bus/message_bus.rs`, and `orchestrator/task_dispatch/complete.rs`.
+- **crates/vox-corpus**: Major refactoring of corpus generation, deleting `synthetic_gen.rs`, `codegen_vox.rs`, and `corpus` components, and adding new, more specific files for `synthetic_gen/_routing_body.rs`, `codegen_vox/part_01.rs`, `codegen_vox/part_02.rs`, and `corpus/preflight` parts.
+- **crates/vox-mcp**: Significant refactoring of `tools` and `llm_bridge` components, deleting `tools.rs`, `chat_tools.rs`, `vcs_tools.rs`, `memory.rs`, `dei_tools.rs`, `llm_bridge/providers.rs`, and `llm_bridge/model_route_policy.rs`, and adding new, more specific files for `tools/dispatch.rs` and `tools/chat_tools/chat/message.rs`.
+- **crates/vox-dei**: Refactored research orchestrator, deleting `orchestrator.rs` and `selection.rs`, and adding new files for `research/orchestrator/pipeline.rs` and `research/orchestrator/stages.rs`.
+- **crates/vox-integration-tests**: Modified `orchestrator_e2e.rs` with a net increase in lines, indicating updates to orchestrator end-to-end tests.
+- **crates/vox-doc-pipeline**: Modified `main.rs` with a net decrease in lines.
+- **crates/vox-workflow-runtime**: Modified `lib.rs` with a net decrease in lines.
+- **crates/vox-doc-inventory**: Modified `lib.rs` with a net decrease in lines.
+- **crates/vox-config**: Modified `config/impl_ops.rs` with a net decrease in lines.
+- **crates/vox-toestub**: Added `detectors/scaling.rs`, introducing new scaling detection logic.
+- **docs/agents**: Modified `doc-inventory.json` with a significant net decrease in lines, indicating documentation updates.
+- **mens/runs/latest**: Added `checkpoint_state.json`, suggesting new checkpointing functionality for `mens` runs.
+- **.gitignore**: Updated to exclude specific training manifest files.
+- Many other files across various crates (`vox-tensor`, `vox-pm`, `vox-runtime`) were deleted or modified with a net decrease in lines, indicating widespread refactoring and cleanup.
+
+--- audit: original='feat(scaling): introduce `vox-scaling-policy` and enhance CI workflows' | actual=242005L across 647 files | derived=stat-only ---
