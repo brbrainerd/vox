@@ -1,0 +1,17 @@
+refactor(arch): rename vox-runtime to vox-actor-runtime
+scale: ~582 lines across 119 files [XL]
+
+- Renamed the `vox-runtime` crate to `vox-actor-runtime` to clarify its purpose of holding actor/process primitives (mailboxes, supervision, scheduling).
+- Updated `Cargo.toml` and `Cargo.lock` to reflect the crate rename and its dependencies.
+- Modified `crates/vox-compiler` to update references to the renamed runtime crate, specifically in `builtin_registry.rs` for runtime function symbols.
+- Updated `crates/vox-orchestrator` to use the new `vox-actor-runtime` name, affecting `src/runtime.rs`, `src/models/registry.rs`, and task dispatch logic in `src/orchestrator/task_dispatch/submit/goal.rs`, `dei_plan_materialize.rs`, `batch.rs`, and `task_submit.rs`.
+- Adjusted `crates/vox-orchestrator-mcp` to reference `vox-actor-runtime` in `src/llm_bridge/model_route_policy/tests.rs` and `src/params.rs`.
+- Updated `crates/vox-codegen` to reflect the runtime crate rename in `src/codegen_rust/emit/with_emit.rs`, `pipeline.rs`, and `http.rs`.
+- Modified `crates/vox-cli` to update references to the runtime crate in various command files and test utilities.
+- Updated `crates/vox-ml-cli` to use the new crate name in `src/commands/populi_cli.rs`.
+- Adjusted `crates/vox-integration-tests` to use the new crate name in `tests/actor_gc_sandbox_test.rs`.
+- Updated various contract and configuration files (`contracts/reports/scaling-audit/rollup/INDEX.yaml`, `contracts/config/env-vars.v1.yaml`, `contracts/communication/protocol-catalog.yaml`, `contracts/rust/ecosystem-support.yaml`) to reflect the name change.
+- Updated `docs/src/architecture/layers.toml` to reflect the new crate name.
+- This rename affects 119 files, primarily updating `vox_runtime` to `vox_actor_runtime` in Rust code and configuration.
+
+--- audit: original='refactor(arch): rename vox-runtime → vox-actor-runtime (P-A3.8)' | actual=582L across 119 files | derived=full ---
