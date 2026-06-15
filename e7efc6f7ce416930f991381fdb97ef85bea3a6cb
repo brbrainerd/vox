@@ -1,0 +1,10 @@
+docs(tracker): expand release checklist with mobile-specific gates
+scale: ~23 lines across 1 files [S]
+
+- `apps/vox-mental-tracker/RELEASE_CHECKLIST.md`:
+    - Updated existing checklist items to be more concise (e.g., "Vitest passes" instead of "G1 — Vitest: `<N>` tests passed").
+    - Added new manual gates for mobile readiness, including Android APK installation, iOS TestFlight upload, privacy manifest review, icon/splash rendering, deep linking, push notification registration, and offline-first service worker behavior.
+    - Removed previous manual gates related to Android debug build, iOS simulator build, and `docs/architecture/failure-modes-research-2026.md` audit.
+    - Added new automated gates for `tsc --noEmit` and Android/iOS E2E lanes on emulators/simulators.
+
+--- audit: original='docs(tracker): expand release checklist for mobile readiness' | actual=23L across 1 files | derived=full ---
