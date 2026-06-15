@@ -1,0 +1,16 @@
+feat(code-audit): add 25 new rules and multiline regex matching
+scale: ~533 lines across 59 files [L]
+
+- **contracts/code-audit/rules.v1.yaml**: Expanded rule definitions from 4 to 29, adding new rule groups:
+  - `ai-laziness/*` (7 rules): `placeholder-return`, `implement-later-comment`, `mock-named-fn`, `custom-type-default-return`, `conditional-stub`, `assertion-only-body`, `early-return-only`.
+  - `stub/*` (7 rules): `todo`, `unimplemented`, `panic-not-impl`, `not-implemented-error`, `throw-not-implemented`, `placeholder`, `todo-comment`.
+  - `deprecated-usage` and `raw-jsx-leakage`.
+  - `rust/unwrap-call`.
+  - `stringly-typed-enum`.
+  - `security/hardcoded-secret/*` (3 rules): `generic`, `aws-key`, `jwt`.
+  - `magic-value/*` (4 rules): `port`, `ip`, `path`, `db-conn`.
+- **crates/vox-rule-pack/src/pack.rs**: Added `CompiledRule::matches_in_content()` to support multiline regex matching, returning 1-indexed line numbers.
+- **crates/vox-rule-pack/tests/canonical_rules.rs**: Updated assertion to expect at least 29 rules and added checks for several new rule IDs.
+- **contracts/code-audit/fixtures/**: Added 55 new fixture files (positive and negative cases) to cover all 25 newly introduced rules.
+
+--- audit: original='feat(code-audit): wave-2 rules — ai-laziness, stub, deprecated, unwrap, stringly, secrets, magic-value' | actual=533L across 59 files | derived=full ---
