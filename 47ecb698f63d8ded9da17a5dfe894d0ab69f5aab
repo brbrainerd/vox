@@ -1,0 +1,6 @@
+build(ci): add `vox-vcs` to the all-features matrix in CI workflow
+scale: ~1 lines across 1 files [XS]
+
+- `.github/workflows/ci.yml`: Added `vox-vcs` to the list of crates for the `all-features` build matrix.
+
+--- audit: original='build(ci): add vox-vcs to the all-features matrix (#188)' | actual=1L across 1 files | derived=full ---
