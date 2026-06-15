@@ -1,0 +1,13 @@
+docs(arch): add entries for task RPCs, LLM throttle, and more to "where things live"
+scale: ~7 lines across 1 files [XS]
+
+- docs/src/architecture/where-things-live.md: Added new rows to the "where things live" table, detailing the locations for:
+    - Listing, editing, canceling, and reprioritizing queued tasks (Daemon RPCs, Tauri wrappers, GUI surface).
+    - Tuning LLM/OpenRouter concurrency (VoxConfig, AIMD throttle).
+    - Querying aggregated mesh resources (Populi handler).
+    - Making scaling honor local CPU/RAM (orchestrator services).
+    - Near-duplicate task detection (orchestrator similarity service).
+    - Multi-tab chat sessions (GUI sessions, components).
+    - Omni-search the palette (GUI palette sources, settings index, docs index).
+
+--- audit: original='docs(arch): where-things-live rows for task RPCs, LLM throttle, mesh resources, sessions, omni-search (H1)' | actual=7L across 1 files | derived=full ---
