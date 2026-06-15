@@ -1,0 +1,13 @@
+feat(config): add `try_parse_csv` for routing axes; bump env-vars version
+scale: ~53 lines across 3 files [M]
+
+- `crates/vox-config/src/routing_policy.rs`:
+    - Added `AutoRoutingPriority::try_parse_csv` which returns `None` if no axes are successfully parsed from the input string, allowing callers to distinguish between valid default preferences and wholly malformed input.
+    - Modified `AutoRoutingPriority::parse_csv` to be a wrapper around `try_parse_csv`, returning `Default` on `None`.
+    - Added unit tests for `try_parse_csv` to verify its behavior with valid, empty, and malformed inputs.
+- `crates/vox-orchestrator-d/src/bin/vox_orchestrator_d.rs`:
+    - Switched from `AutoRoutingPriority::parse_csv` to `AutoRoutingPriority::try_parse_csv` when processing persisted routing priority preferences.
+    - If `try_parse_csv` returns `None` (meaning no axes were parsed), the orchestrator now logs a warning and skips installing the preference, leaving the scorer's default unchanged.
+- `contracts/config/env-vars.v1.yaml`: Incremented `x-vox-version` from 1 to 2. This is an additive change for `VOX_POPULI_PERSIST_LOCAL_REGISTRY` and is non-breaking.
+
+--- audit: original='fix(review): bump env-vars x-vox-version; add try_parse_csv for routing axes' | actual=53L across 3 files | derived=full ---
