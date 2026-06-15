@@ -1,0 +1,19 @@
+feat(codegen): default screen edge-padding, opt-out with `bleed`
+scale: ~176 lines across 13 files [M]
+
+- `crates/vox-codegen/src/codegen_ts/mod.rs`: Added `screen_root_component_names` helper to identify screen root components based on routes or the first component in a route-less app.
+- `crates/vox-codegen/src/codegen_ts/rn/component.rs`:
+    - Introduced `root_view_bleeds` helper to check for `bleed=true` attribute on a view.
+    - Modified `emit_rn_component` to wrap screen root components in a `<View style={styles.screen}>` with `paddingHorizontal: 16` unless `bleed=true` is present.
+    - Added `screen: { flex: 1, paddingHorizontal: 16 }` to the `emit_styles_block` for RN.
+- `crates/vox-codegen/src/codegen_ts/reactive.rs`: Modified `generate_reactive_component` to wrap screen root components in a `<div className="px-4">` (16px padding) unless `bleed=true` is present.
+- `crates/vox-codegen/src/codegen_ts/rn/mod.rs`: Passed the `screen_root_names` to `emit_rn_component`.
+- `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`: Added "bleed" to `HIR_PRIMITIVE_CONSUMED_PROPS`.
+- `crates/vox-codegen/src/codegen_ts/jsx.rs`: Added "bleed" to `PRIMITIVE_CONSUMED_PROPS`.
+- `crates/vox-codegen/tests/rn_lifecycle_test.rs`: Added three new tests for RN:
+    - `rn_screen_root_gets_default_edge_padding`: Verifies screen root components get default padding.
+    - `rn_nested_component_is_not_screen_padded`: Verifies nested components do not get screen padding.
+    - `rn_bleed_opts_out_of_screen_padding`: Verifies `bleed=true` opts out of padding.
+- `crates/vox-codegen/tests/snapshots/*`: Refreshed golden snapshots to reflect the new `px-4` class on web screen roots.
+
+--- audit: original='codegen: default screen edge-padding, opt-out with bleed (both targets)' | actual=176L across 13 files | derived=full ---
