@@ -1,0 +1,8 @@
+refactor(effort-audit): replace nested if-let with let-chains and simplify string split
+scale: ~21 lines across 3 files [S]
+
+- `crates/vox-effort-audit/src/output/jsonl.rs`: Replaced nested `if let Some(...) { if !... { ... } }` with a single `if let Some(...) && !... { ... }` let-chain.
+- `crates/vox-effort-audit/src/output/manifest.rs`: Replaced nested `if let Some(...) { if !... { ... } }` with a single `if let Some(...) && !... { ... }` let-chain.
+- `crates/vox-effort-audit/src/shape.rs`: Simplified the `split` pattern for `parse_commit_kind` from a closure `|c: char| c == ':' || c == '(' || c == '!'` to a character array `[':', '(', '!']`.
+
+--- audit: original='style(effort-audit): clear latent clippy warnings' | actual=21L across 3 files | derived=full ---
