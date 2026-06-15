@@ -1,0 +1,12 @@
+feat(parser): implement `when {}` view production for `Async[T]`
+scale: ~223 lines across 9 files [M]
+
+- Introduce `Expr::AsyncView` to `vox-ast` for the `when` expression.
+- Add `parse_when_view` to `pratt_match.rs` to parse `when <expr> { fetching => … empty => … error e => … ok x => … }` expressions.
+- Implement HIR lowering for `Expr::AsyncView` in `lower/expr.rs`.
+- Add `async_view_parse_test.rs` with four acceptance tests for parsing and HIR lowering of `when` expressions, including partial arms and arbitrary source expressions.
+- Add `async_view.vox` golden file demonstrating a full `when` expression.
+- Update `ast_decl_lints.rs`, `with_registry.rs`, and `react_bridge.rs` to handle the new `Expr::AsyncView` in exhaustive matches.
+- Modify `jsx.rs` in `vox-codegen-ts` to emit a placeholder comment for `Expr::AsyncView`, indicating it requires the web runtime.
+
+--- audit: original='feat(parser): implement Async[T] when{} view production (fetching/empty/error/ok)' | actual=223L across 9 files | derived=full ---
