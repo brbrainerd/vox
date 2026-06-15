@@ -1,0 +1,6 @@
+feat(docker): copy contracts directory to builder stage
+scale: ~1 lines across 1 files [XS]
+
+- Dockerfile: Added a `COPY` instruction to transfer the `contracts/` directory into the builder stage.
+
+--- audit: original='fix(docker): copy contracts directory to builder stage' | actual=1L across 1 files | derived=full ---
