@@ -1,0 +1,6 @@
+ci(link-checker): Exclude TanStack links from validation
+scale: ~2 lines across 1 files [XS]
+
+- Excluded `.*tanstack\.com/.*` from the `lychee-action` link validation arguments in `.github/workflows/link_checker.yml`.
+
+--- audit: original='feat: add GitHub Action workflow to validate markdown links using lychee' | actual=2L across 1 files | derived=full ---
