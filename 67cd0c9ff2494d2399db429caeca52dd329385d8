@@ -1,0 +1,6 @@
+docs: remove dead link to aiproductivity.ai
+scale: ~2 lines across 1 files [XS]
+
+- docs/src/architecture/claude-code-beloved-features-research-2026-06-07.md: Removed a broken link to `https://aiproductivity.ai/news/pragmatic-engineer-survey-ai-tooling-2026/` which was causing a 404 error.
+
+--- audit: original='docs: remove dead aiproductivity.ai link (404 in check-links)' | actual=2L across 1 files | derived=full ---
