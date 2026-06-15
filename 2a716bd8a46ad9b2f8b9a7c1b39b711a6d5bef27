@@ -1,0 +1,8 @@
+feat(atlas): Implement COPE-aligned retraction workflow
+scale: ~169 lines across 1 files [M]
+
+- Introduce `crates/vox-publisher/src/atlas/retraction.rs` to define a COPE-aligned retraction workflow for Atlas findings.
+- Add `CopeRetractionReason` enum with variants like `DataError`, `AnalysisError`, `EthicsViolation`, `Superseded`, `Fabrication`, and `Other`.
+- Implement `as_str` and `cope_explanation` methods for `CopeRetractionReason` to provide string representations and detailed explanations for each retraction type.
+
+--- audit: original='feat(scientia): Phase 10 — COPE-aligned retraction workflow' | actual=169L across 1 files | derived=full ---
