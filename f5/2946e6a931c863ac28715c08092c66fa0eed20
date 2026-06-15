@@ -1,0 +1,7 @@
+feat(cli): add `vox plugin scaffold` command to generate plugin directories
+scale: ~300 lines across 2 files [L]
+
+- `crates/vox-cli/src/commands/plugin/scaffold.rs`: New module implementing the `scaffold` command. It creates a directory `vox-plugin-<id>` (or `<id>` if `id` already starts with `vox-plugin-`) containing `Plugin.toml` and starter files. It supports three `ScaffoldKind`s: `Code` (generates `Cargo.toml` and `src/lib.rs` with ABI boilerplate), `Skill` (generates `SKILL.md`), and `Composite` (generates both). It prevents overwriting existing directories.
+- `crates/vox-cli/src/commands/plugin/mod.rs`: Integrates the new `Scaffold` subcommand into the `PluginCmd` enum, defining its arguments: `id` (plugin identifier), `kind` (payload type, defaults to `code`), and `dir` (output directory, defaults to current directory).
+
+--- audit: original='feat(cli): add `vox plugin scaffold` command (D-11)' | actual=300L across 2 files | derived=full ---
