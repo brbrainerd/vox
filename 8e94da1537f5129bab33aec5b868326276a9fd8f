@@ -1,0 +1,7 @@
+refactor(clippy): satisfy `len_zero` and `manual_is_multiple_of` lints
+scale: ~6 lines across 2 files [S]
+
+- `crates/vox-audit/src/subcommands/regression_budget.rs`: Replaced modulo operator with `is_multiple_of` for checking evenness of `slashes` in `strip_line_comment` and `strip_string_literals` functions.
+- `crates/vox-codegen/src/codegen_rust/emit/method_emit.rs`: Replaced `arg_exprs.len() >= 1` with `!arg_exprs.is_empty()` in `try_emit_list_method` for `slice_list` method.
+
+--- audit: original='fix(clippy): satisfy len_zero and manual_is_multiple_of after main merge' | actual=6L across 2 files | derived=full ---
