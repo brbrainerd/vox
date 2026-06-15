@@ -202,7 +202,7 @@ fn org_policy_path() -> std::path::PathBuf {
         let base = std::env::var_os("ProgramData")
             .map(std::path::PathBuf::from)
             // vox-arch-check: allow abs-path
-        .unwrap_or_else(|| std::path::PathBuf::from(r"C:\ProgramData"));
+            .unwrap_or_else(|| std::path::PathBuf::from(r"C:\ProgramData"));
         base.join("vox").join("telemetry-policy.toml")
     }
     #[cfg(not(windows))]
