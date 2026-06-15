@@ -1,0 +1,8 @@
+docs: Update generated documentation files
+scale: ~6 lines across 3 files [S]
+
+- `docs/src/SUMMARY.md`: Regenerated table of contents.
+- `docs/src/architecture/architecture-index.md`: Regenerated architecture index.
+- `docs/src/feed.xml`: Regenerated RSS feed.
+
+--- audit: original='docs: Sync doc pipeline after merge' | actual=6L across 3 files | derived=full ---
