@@ -1,0 +1,20 @@
+feat(audit, ci, docs): add untested-pub-api rule, PR mutation CI, snapshot discipline
+scale: ~443 lines across 4 files [L]
+
+- **crates/vox-code-audit/src/detectors/untested_pub_api.rs**: Add `UntestedPubApiDetector` to identify Rust library files with public functions but no `#[test]` blocks.
+  - Uses `syn` to parse AST and detect `pub fn` and `#[test]` attributes.
+  - Excludes `main.rs`, `bin/`, `tests/` paths, `build.rs`, and files under 30 non-blank lines.
+  - Emits an `Info` severity finding per file, listing up to 3 public function names.
+- **crates/vox-code-audit/src/detectors/mod.rs**: Integrate `UntestedPubApiDetector` into `all_rules()` and increment `rule_count` from 22 to 23.
+- **.github/workflows/mutation-pr.yml**: Introduce a new GitHub Actions workflow for PR-triggered mutation testing.
+  - Triggers on PRs affecting `crates/vox-compiler/**` or `crates/vox-codegen/**`.
+  - Uses a matrix strategy with one job per crate, skipping if the crate is unchanged.
+  - Configured with `continue-on-error: true` to be non-blocking.
+  - Uploads mutation reports as a workflow artifact with 14-day retention.
+- **docs/src/contributors/coding-agents.md**: Add a new section on "Snapshot discipline".
+  - Provides guidance on reviewing, accepting, and committing `.snap` files with the same commit as the code changes.
+  - Outlines a workflow using `cargo test`, `cargo insta review`, and `git add snapshots`.
+  - Emphasizes not to blind-accept snapshots without reviewing the diff to prevent regressions.
+  - Cross-references `contribution-loop.md` for orphan snapshot checks.
+
+--- audit: original='feat(tdd): items 2, 5, 6 — untested-pub-api rule, PR mutation CI, snapshot discipline' | actual=443L across 4 files | derived=full ---
