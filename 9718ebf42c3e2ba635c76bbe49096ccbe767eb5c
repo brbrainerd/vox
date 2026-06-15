@@ -1,0 +1,7 @@
+feat(docs): embed interactive Vox playground on landing page
+scale: ~180 lines across 3 files [M]
+
+- `docs-astro/src/components/VoxPlayground.astro`: Add new Astro component for an interactive Vox code editor and runner, including styling for the editor, action buttons, and output display.
+- `docs/src/index.mdx`: Import and integrate the `VoxPlayground` component into the landing page, adding a "Try it live" section with an example Vox code snippet.
+
+--- audit: original='feat(docs): embed interactive Vox playground island on landing page' | actual=180L across 3 files | derived=full ---
