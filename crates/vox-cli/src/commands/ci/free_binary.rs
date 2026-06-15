@@ -11,13 +11,34 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use sysinfo::System;
 
-/// Decide whether the process with executable `exe`, pid `pid`, should be
-/// reaped so a build can relink binaries under `target_dir`. `current_pid` is
-/// the reaper's own pid (never reap self).
-fn should_reap(exe: &Path, target_dir: &Path, pid: u32, current_pid: u32) -> bool {
+/// Decide whether the process with executable `exe`, pid `pid`, and command
+/// line `cmdline`, should be reaped so a build can relink binaries under
+/// `target_dir`. `current_pid` is the reaper's own pid (never reap self).
+///
+/// Safety guards (in order):
+/// 1. Never reap self.
+/// 2. Never reap a running `vox serve` — killing the server would be
+///    catastrophic and is never the intent of this command.
+/// 3. The exe must live inside `target_dir/` — this is the primary scope
+///    narrowing that prevents touching any process not owned by this worktree.
+/// 4. Only `vox` / `vox.exe` / `vox-*` managed siblings are eligible;
+///    build scripts (`*-build`) are excluded.
+fn should_reap(exe: &Path, cmdline: &[String], target_dir: &Path, pid: u32, current_pid: u32) -> bool {
+    // Guard 1: never reap self.
     if pid == current_pid {
         return false;
     }
+
+    // Guard 2: never reap a live `vox serve` process.  The cmdline is checked
+    // rather than the exe name alone because the binary is always `vox` but
+    // the subcommand is what distinguishes a long-lived server from a build
+    // tool invocation.
+    let is_serve = cmdline.iter().any(|arg| arg == "serve");
+    if is_serve {
+        return false;
+    }
+
+    // Guard 3: exe must reside under the target dir of THIS worktree.
     // Normalize both sides to lowercase string compare — robust on Windows
     // (case-insensitive FS, mixed separators) without canonicalize() (which
     // fails on a locked/transient path).
@@ -27,7 +48,9 @@ fn should_reap(exe: &Path, target_dir: &Path, pid: u32, current_pid: u32) -> boo
     if !exe_s.starts_with(&format!("{target_s}/")) {
         return false;
     }
-    // Only `vox` and its managed siblings (vox-orchestrator-d, …) are reapable.
+
+    // Guard 4: only `vox` and its managed siblings (vox-orchestrator-d, ...)
+    // are reapable; build scripts are excluded.
     let file = exe
         .file_name()
         .map(|n| n.to_string_lossy().to_lowercase())
@@ -50,7 +73,13 @@ fn scan_locking_pids(target_dir: &Path) -> Vec<LockingProc> {
     for (pid, proc_) in sys.processes() {
         let Some(exe) = proc_.exe() else { continue };
         let pid_u = pid.as_u32();
-        if should_reap(exe, target_dir, pid_u, current) {
+        // Collect the command-line args for the serve-guard check.
+        let cmdline: Vec<String> = proc_
+            .cmd()
+            .iter()
+            .map(|s| s.to_string_lossy().into_owned())
+            .collect();
+        if should_reap(exe, &cmdline, target_dir, pid_u, current) {
             out.push(LockingProc {
                 pid: pid_u,
                 exe: exe.to_path_buf(),
@@ -60,12 +89,27 @@ fn scan_locking_pids(target_dir: &Path) -> Vec<LockingProc> {
     out
 }
 
-/// Kill the given pid. Best-effort: a process may already be gone.
-fn kill_pid(pid: u32) -> bool {
+/// Kill the given pid, but only after re-verifying that the process still
+/// exists AND its exe path still matches `expected_exe`.  This closes the
+/// TOCTOU window between scanning PIDs and sending SIGKILL: if the original
+/// process died and a new, unrelated process recycled the PID, the exe path
+/// will not match and we skip silently.
+fn kill_pid(pid: u32, expected_exe: &Path) -> bool {
     let sys = System::new_all();
-    sys.process(sysinfo::Pid::from_u32(pid))
-        .map(|p| p.kill())
-        .unwrap_or(false)
+    let Some(proc_) = sys.process(sysinfo::Pid::from_u32(pid)) else {
+        // Process already gone -- nothing to kill.
+        return false;
+    };
+
+    // TOCTOU guard: re-verify the exe before sending the signal.
+    let norm = |p: &Path| p.to_string_lossy().to_lowercase().replace('\\', "/");
+    match proc_.exe() {
+        Some(live_exe) if norm(live_exe) == norm(expected_exe) => proc_.kill(),
+        _ => {
+            // exe changed or unavailable -- PID was recycled or process vanished.
+            false
+        }
+    }
 }
 
 /// `vox ci free-binary` entry. `target` defaults to `<root>/target`.
@@ -82,7 +126,7 @@ pub fn run(root: &Path, target: Option<PathBuf>, apply: bool) -> Result<()> {
     }
     for lp in &locking {
         if apply {
-            let ok = kill_pid(lp.pid);
+            let ok = kill_pid(lp.pid, &lp.exe);
             println!(
                 "free-binary: {} pid={} exe={}",
                 if ok { "killed" } else { "could-not-kill" },
@@ -109,22 +153,29 @@ mod tests {
         PathBuf::from(s)
     }
 
+    /// Empty cmdline -- helper for tests that do not exercise the serve-guard.
+    fn no_cmd() -> Vec<String> {
+        vec![]
+    }
+
     #[test]
     fn reaps_vox_exe_under_target() {
         let target = p("/repo/target");
         assert!(should_reap(
             &p("/repo/target/debug/vox.exe"),
+            &no_cmd(),
             &target,
             100,
             1
         ));
         assert!(should_reap(
             &p("/repo/target/debug/vox-orchestrator-d"),
+            &no_cmd(),
             &target,
             100,
             1
         ));
-        assert!(should_reap(&p("/repo/target/release/vox"), &target, 100, 1));
+        assert!(should_reap(&p("/repo/target/release/vox"), &no_cmd(), &target, 100, 1));
     }
 
     #[test]
@@ -132,6 +183,7 @@ mod tests {
         let target = p("/repo/target");
         assert!(!should_reap(
             &p("/repo/target/debug/vox.exe"),
+            &no_cmd(),
             &target,
             1,
             1
@@ -143,11 +195,12 @@ mod tests {
         let target = p("/repo/target");
         assert!(!should_reap(
             &p("/other-wt/target/debug/vox.exe"),
+            &no_cmd(),
             &target,
             100,
             1
         ));
-        assert!(!should_reap(&p("/home/u/.vox/bin/vox"), &target, 100, 1));
+        assert!(!should_reap(&p("/home/u/.vox/bin/vox"), &no_cmd(), &target, 100, 1));
     }
 
     #[test]
@@ -155,12 +208,52 @@ mod tests {
         let target = p("/repo/target");
         assert!(!should_reap(
             &p("/repo/target/debug/build-script-build"),
+            &no_cmd(),
             &target,
             100,
             1
         ));
         assert!(!should_reap(
             &p("/repo/target/debug/some-test-bin"),
+            &no_cmd(),
+            &target,
+            100,
+            1
+        ));
+    }
+
+    #[test]
+    fn never_reaps_vox_serve() {
+        let target = p("/repo/target");
+        // A vox process whose cmdline contains "serve" must never be reaped.
+        let serve_cmd = vec!["vox".to_string(), "serve".to_string()];
+        assert!(!should_reap(
+            &p("/repo/target/debug/vox"),
+            &serve_cmd,
+            &target,
+            100,
+            1
+        ));
+        // Variant: serve with extra flags must also be excluded.
+        let serve_cmd2 = vec![
+            "vox".to_string(),
+            "--quiet".to_string(),
+            "serve".to_string(),
+            "--port".to_string(),
+            "8080".to_string(),
+        ];
+        assert!(!should_reap(
+            &p("/repo/target/debug/vox"),
+            &serve_cmd2,
+            &target,
+            100,
+            1
+        ));
+        // A non-serve invocation with the same binary is still reapable.
+        let build_cmd = vec!["vox".to_string(), "build".to_string()];
+        assert!(should_reap(
+            &p("/repo/target/debug/vox"),
+            &build_cmd,
             &target,
             100,
             1
@@ -179,12 +272,14 @@ mod tests {
         let target = p("C:\\repo\\target");
         assert!(should_reap(
             &p("C:\\repo\\target\\debug\\vox.exe"),
+            &no_cmd(),
             &target,
             100,
             1
         ));
         assert!(!should_reap(
             &p("C:\\other\\target\\debug\\vox.exe"),
+            &no_cmd(),
             &target,
             100,
             1
