@@ -346,6 +346,7 @@ impl Parser {
                 body: script_stmts,
                 is_async: false,
                 is_deprecated: false,
+                deprecated_reason: None,
                 is_pure: false,
                 is_reactive: false,
                 is_versioned: false,

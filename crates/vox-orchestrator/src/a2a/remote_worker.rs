@@ -3,6 +3,8 @@
 use std::sync::Arc;
 use std::sync::Mutex;
 
+use crate::process_util::quiet_command;
+
 use tracing::Instrument as _;
 
 use super::envelope::{
@@ -238,7 +240,7 @@ fn run_dispatched_source(
     // Use the always-available interpreter (`--mode interp`) rather than
     // `--mode script` (which requires a `script-execution` feature build), so a
     // worker can run dispatched source without a specially-built `vox` binary.
-    let mut cmd = std::process::Command::new("vox");
+    let mut cmd = quiet_command("vox");
     cmd.arg("run").arg("--mode").arg("interp").arg(&tmp_file);
     harden_dispatch_env(&mut cmd, secret_env);
     let output = cmd.output();
@@ -402,7 +404,7 @@ fn run_dispatched_bundle(
                 ),
                 None => Vec::new(),
             };
-            let mut cmd = std::process::Command::new("vox");
+            let mut cmd = quiet_command("vox");
             cmd.arg("wasm").arg("run").arg(&tmp_file);
             for (k, v) in &wasm_secrets {
                 cmd.arg("--env").arg(format!("{k}={v}"));
@@ -413,7 +415,7 @@ fn run_dispatched_bundle(
         // Native binary — BareMetal (no isolation): execute directly, forward
         // nothing (env hardened, no secrets).
         BundleKind::Native => {
-            let mut cmd = std::process::Command::new(&tmp_file);
+            let mut cmd = quiet_command(&tmp_file);
             harden_dispatch_env(&mut cmd, &[]);
             cmd.output()
         }

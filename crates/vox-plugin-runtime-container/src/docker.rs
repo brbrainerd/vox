@@ -98,6 +98,10 @@ impl ContainerRuntime for DockerRuntime {
             cmd.arg(arg);
         }
 
+        for arg in opts.resource_args() {
+            cmd.arg(arg);
+        }
+
         cmd.arg(&opts.image);
 
         vox_container::log_exec_risk(&opts.image);

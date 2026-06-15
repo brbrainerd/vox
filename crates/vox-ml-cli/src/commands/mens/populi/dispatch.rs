@@ -324,8 +324,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                         anyhow::anyhow!("--max-runtime-secs is REQUIRED for cloud serve")
                     })?;
                     let mut spec = CloudJobSpec::new_serve(&config, rt);
-                    spec.model_id =
-                        _model_hf.unwrap_or_else(|| vox_populi::mens::DEFAULT_MODEL_ID.to_string());
+                    spec.model_id = _model_hf.unwrap_or_else(vox_populi::mens::default_model_id);
                     spec.max_budget_usd = _max_budget;
                     spec.serve_port = port;
                     spec.persistent = _persistent;

@@ -41,15 +41,18 @@ pub mod discovery_publish;
 /// trainer cannot train (it is rejected up front by the vox-hf-layout VL guard).
 pub const DEFAULT_MODEL_ID: &str = "Qwen/Qwen2.5-Coder-7B-Instruct";
 
-/// Resolve the effective default MENS model ID.
-///
-/// Returns `VOX_MENS_DEFAULT_MODEL` (trimmed) when non-empty, otherwise falls
-/// back to the compile-time [`DEFAULT_MODEL_ID`] constant.
-pub fn resolve_default_model_id(raw: Option<&str>) -> std::borrow::Cow<'static, str> {
-    match raw.map(str::trim).filter(|s| !s.is_empty()) {
-        Some(v) => std::borrow::Cow::Owned(v.to_string()),
-        None => std::borrow::Cow::Borrowed(DEFAULT_MODEL_ID),
+/// Resolve the default training/inference base model id from a raw env override,
+/// falling back to [`DEFAULT_MODEL_ID`]. Blank/whitespace overrides fall back.
+pub fn resolve_default_model_id(raw: Option<&str>) -> String {
+    match raw.map(str::trim) {
+        Some(s) if !s.is_empty() => s.to_string(),
+        _ => DEFAULT_MODEL_ID.to_string(),
     }
+}
+
+/// Convenience: resolve from the `VOX_MENS_DEFAULT_MODEL` process env.
+pub fn default_model_id() -> String {
+    resolve_default_model_id(std::env::var("VOX_MENS_DEFAULT_MODEL").ok().as_deref())
 }
 
 pub use tensor::{
@@ -74,30 +77,29 @@ pub use tensor::{
 };
 
 #[cfg(test)]
-mod model_id_tests {
+mod default_model_tests {
     use super::*;
 
     #[test]
-    fn default_when_none() {
-        let result = resolve_default_model_id(None);
-        assert_eq!(result.as_ref(), DEFAULT_MODEL_ID);
+    fn falls_back_to_const() {
+        assert_eq!(resolve_default_model_id(None), DEFAULT_MODEL_ID);
     }
 
     #[test]
-    fn env_override_used() {
-        let result = resolve_default_model_id(Some("my-org/my-model"));
-        assert_eq!(result.as_ref(), "my-org/my-model");
+    fn env_override_wins() {
+        assert_eq!(
+            resolve_default_model_id(Some("org/My-Model")),
+            "org/My-Model"
+        );
+    }
+
+    #[test]
+    fn blank_env_falls_back() {
+        assert_eq!(resolve_default_model_id(Some("   ")), DEFAULT_MODEL_ID);
     }
 
     #[test]
     fn empty_string_keeps_default() {
-        let result = resolve_default_model_id(Some(""));
-        assert_eq!(result.as_ref(), DEFAULT_MODEL_ID);
-    }
-
-    #[test]
-    fn whitespace_only_keeps_default() {
-        let result = resolve_default_model_id(Some("   "));
-        assert_eq!(result.as_ref(), DEFAULT_MODEL_ID);
+        assert_eq!(resolve_default_model_id(Some("")), DEFAULT_MODEL_ID);
     }
 }

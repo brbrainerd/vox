@@ -589,6 +589,22 @@ mod semcov_wave41_tests {
         );
     }
 
+    #[test]
+    fn secure_hash_blake3_known_answer() {
+        // Known-answer vector: plain unkeyed BLAKE3 of the empty input. secure_hash is
+        // blake3::Hasher::new() + update(data) + finalize() with no keying/prefix/domain,
+        // so the official BLAKE3 empty-message vector applies directly.
+        let expected =
+            hex::decode("af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262")
+                .unwrap();
+        let got = secure_hash(&[]);
+        assert_eq!(
+            got.as_ref(),
+            expected.as_slice(),
+            "BLAKE3 empty-input known vector mismatch"
+        );
+    }
+
     // ── compliance_hash ───────────────────────────────────────────────────────
 
     #[test]
@@ -629,6 +645,17 @@ mod semcov_wave41_tests {
         let h1 = fast_hash(b"aaa");
         let h2 = fast_hash(b"aab");
         assert_ne!(h1, h2);
+    }
+
+    #[test]
+    fn fast_hash_xxh3_known_answer() {
+        // Known-answer vector: XXH3-64 of the empty input with the default seed (0).
+        // fast_hash is a bare xxh3_64(data) call, so the upstream xxHash "" seed-0 value applies.
+        let got = fast_hash(&[]);
+        assert_eq!(
+            got, 0x2D06800538D394C2,
+            "XXH3-64 empty-input known vector (seed 0) mismatch"
+        );
     }
 
     // ── keyed_hash ────────────────────────────────────────────────────────────

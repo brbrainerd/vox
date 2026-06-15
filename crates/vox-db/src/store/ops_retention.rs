@@ -123,11 +123,18 @@ impl crate::VoxDb {
         time_ms_column: &str,
         days: u32,
     ) -> Result<u64, StoreError> {
+        const RETENTION_SWEEP_CHUNK_ROWS: u64 = 100_000;
+        const RETENTION_SWEEP_MAX_PASSES: u32 = 10_000;
         let cutoff = Self::retention_cutoff_ms_exclusive_for_days(days);
         let mut total: u64 = 0;
-        for _ in 0..10_000 {
+        for _ in 0..RETENTION_SWEEP_MAX_PASSES {
             let n = self
-                .retention_delete_ms_older_than_chunk(table, time_ms_column, cutoff, 100_000)
+                .retention_delete_ms_older_than_chunk(
+                    table,
+                    time_ms_column,
+                    cutoff,
+                    RETENTION_SWEEP_CHUNK_ROWS,
+                )
                 .await?;
             total = total.saturating_add(n);
             if n == 0 {

@@ -276,6 +276,13 @@ mod tests {
     }
 
     #[test]
+    fn runtime_version_is_semver_triple() {
+        let parts: Vec<&str> = VOX_RUNTIME_NPM_VERSION.split('.').collect();
+        assert_eq!(parts.len(), 3, "expected MAJOR.MINOR.PATCH");
+        assert!(parts.iter().all(|p| p.parse::<u32>().is_ok()));
+    }
+
+    #[test]
     fn slugify_handles_spaces_case_and_symbols() {
         assert_eq!(slugify("Vox Mental Tracker"), "vox-mental-tracker");
         assert_eq!(slugify("already-slugged"), "already-slugged");

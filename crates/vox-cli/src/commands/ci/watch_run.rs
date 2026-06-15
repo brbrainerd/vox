@@ -11,7 +11,7 @@ use anyhow::{Context, Result};
 use serde_json::Value;
 use std::time::{Duration, Instant};
 
-const GITHUB_REPO: &str = "vox-foundation/vox";
+use super::constants::REPO_SLUG as GITHUB_REPO;
 const POLL_INTERVAL_SECS: u64 = 15;
 const DEFAULT_TIMEOUT_SECS: u64 = 600; // 10 minutes
 

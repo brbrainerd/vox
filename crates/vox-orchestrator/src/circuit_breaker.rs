@@ -95,6 +95,7 @@ impl CircuitBreakerConfig {
     /// Parse thresholds from contract YAML text, overlaying onto `Default`.
     /// Unspecified keys retain their default. SSOT: `contracts/orchestration/circuit-breaker.v1.yaml`.
     pub fn from_contract_str(yaml: &str) -> Result<Self, serde_yaml::Error> {
+        // Overlay field names track the contract YAML keys, not CircuitBreakerConfig field names.
         #[derive(serde::Deserialize, Default)]
         struct TripThresholds {
             no_progress_loops: Option<u32>,
@@ -176,8 +177,14 @@ impl CircuitBreakerConfig {
     /// Load thresholds from the contract file if it exists; otherwise `Default`.
     pub fn from_contract_file(path: &std::path::Path) -> Self {
         match std::fs::read_to_string(path) {
-            Ok(text) => Self::from_contract_str(&text).unwrap_or_default(),
-            Err(_) => Self::default(),
+            Ok(text) => Self::from_contract_str(&text).unwrap_or_else(|e| {
+                tracing::warn!(target: "orch.circuit_breaker", error = %e, path = %path.display(), "circuit-breaker contract parse failed; using defaults");
+                Self::default()
+            }),
+            Err(e) => {
+                tracing::debug!(target: "orch.circuit_breaker", error = %e, path = %path.display(), "circuit-breaker contract not read; using defaults");
+                Self::default()
+            }
         }
     }
 }
@@ -321,28 +328,61 @@ graduated_alarms:
     }
 
     #[test]
-    fn real_contract_file_loads_and_matches_default() {
-        // The shipped contract mirrors Default; loading it must reproduce Default
-        // exactly, proving the nested schema is actually consumed (not ignored).
+    fn real_contract_parses_and_stays_default_compatible() {
+        // Drift guard: the shipped contract must (1) parse under the nested schema
+        // and (2) stay Default-compatible. This does NOT by itself prove the schema
+        // is consumed (from_contract_file falls back to Default on any error, and the
+        // contract mirrors Default) — that binding proof is in
+        // `from_contract_str_overrides_defaults`. This test catches the contract
+        // drifting away from Default or becoming unparseable.
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../contracts/orchestration/circuit-breaker.v1.yaml");
-        let from_file = CircuitBreakerConfig::from_contract_file(&path);
+        let text = std::fs::read_to_string(&path).expect("contract file must exist");
+        // The real contract text must parse under the nested overlay schema.
+        let parsed = CircuitBreakerConfig::from_contract_str(&text)
+            .expect("shipped contract must parse under the nested schema");
         let def = CircuitBreakerConfig::default();
-        assert_eq!(from_file.no_progress_threshold, def.no_progress_threshold);
-        assert_eq!(from_file.same_error_threshold, def.same_error_threshold);
-        assert_eq!(from_file.tool_thrash_threshold, def.tool_thrash_threshold);
-        assert_eq!(
-            from_file.ngram_overlap_threshold,
-            def.ngram_overlap_threshold
+        assert_eq!(parsed.no_progress_threshold, def.no_progress_threshold);
+        assert_eq!(parsed.same_error_threshold, def.same_error_threshold);
+        assert_eq!(parsed.tool_thrash_threshold, def.tool_thrash_threshold);
+        assert_eq!(parsed.ngram_overlap_threshold, def.ngram_overlap_threshold);
+        assert_eq!(parsed.semantic_drift_sigma, def.semantic_drift_sigma);
+        assert_eq!(parsed.caution_no_progress, def.caution_no_progress);
+        assert_eq!(parsed.caution_same_error, def.caution_same_error);
+        assert_eq!(parsed.caution_tool_thrash, def.caution_tool_thrash);
+        assert_eq!(parsed.warning_no_progress, def.warning_no_progress);
+        assert_eq!(parsed.warning_same_error, def.warning_same_error);
+        assert_eq!(parsed.warning_tool_thrash, def.warning_tool_thrash);
+        assert_eq!(parsed.replan_limit, def.replan_limit);
+    }
+
+    #[test]
+    fn real_contract_value_change_flows_through() {
+        // Strong consumption proof: take the REAL shipped contract, mutate one value
+        // in its text, and confirm the change reaches CircuitBreakerConfig. If the
+        // overlay silently ignored the contract (the original flat-schema bug), the
+        // parsed value would stay at the default 3 and the assert_ne!/assert_eq! below
+        // would fail. `no_progress_loops: 3` is unique to `trip_thresholds` in the
+        // shipped contract (caution=1, warning=2), so the replace targets exactly it.
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../contracts/orchestration/circuit-breaker.v1.yaml");
+        let text = std::fs::read_to_string(&path).expect("contract file must exist");
+        assert!(
+            text.contains("no_progress_loops: 3"),
+            "contract shape changed; update this test's mutation target"
         );
-        assert_eq!(from_file.semantic_drift_sigma, def.semantic_drift_sigma);
-        assert_eq!(from_file.caution_no_progress, def.caution_no_progress);
-        assert_eq!(from_file.caution_same_error, def.caution_same_error);
-        assert_eq!(from_file.caution_tool_thrash, def.caution_tool_thrash);
-        assert_eq!(from_file.warning_no_progress, def.warning_no_progress);
-        assert_eq!(from_file.warning_same_error, def.warning_same_error);
-        assert_eq!(from_file.warning_tool_thrash, def.warning_tool_thrash);
-        assert_eq!(from_file.replan_limit, def.replan_limit);
+        let mutated = text.replace("no_progress_loops: 3", "no_progress_loops: 11");
+        let parsed = CircuitBreakerConfig::from_contract_str(&mutated)
+            .expect("mutated contract must still parse");
+        let def = CircuitBreakerConfig::default();
+        // The mutated trip threshold flows through...
+        assert_eq!(parsed.no_progress_threshold, 11);
+        assert_ne!(parsed.no_progress_threshold, def.no_progress_threshold);
+        // ...while an untouched sibling key keeps its contract (== default) value.
+        assert_eq!(parsed.tool_thrash_threshold, 15);
+        // ...and the graduated-alarm siblings (value 1/2, not 3) are unaffected.
+        assert_eq!(parsed.caution_no_progress, def.caution_no_progress);
+        assert_eq!(parsed.warning_no_progress, def.warning_no_progress);
     }
 
     #[test]

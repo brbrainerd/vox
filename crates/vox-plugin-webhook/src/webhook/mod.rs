@@ -7,6 +7,8 @@
 pub mod bridge;
 /// Channel adapters (Discord, Slack, …).
 pub mod channel;
+/// Operational configuration defaults and resolvers.
+pub mod config;
 /// Outbound webhook delivery and retries.
 pub mod delivery;
 /// Inbound payload types and handler trait.
@@ -22,6 +24,11 @@ pub use bridge::{InboxItemKind, OrchestratorInboxItem, WebhookOrchestratorBridge
 pub use sink::WebhookEventSink;
 
 pub use channel::{Channel, ChannelEvent, ChannelKind, ChannelManager};
+pub use config::{
+    DEFAULT_WEBHOOK_BIND, DEFAULT_WEBHOOK_CHANNEL_CAP, DEFAULT_WEBHOOK_RETRY_BACKOFF_MS,
+    DEFAULT_WEBHOOK_RETRY_MAX, resolve_bind_addr, resolve_channel_cap, resolve_retry_backoff_ms,
+    resolve_retry_max,
+};
 pub use delivery::{OutboundWebhook, WebhookDelivery, WebhookDeliveryResult};
 pub use handler::{InboundPayload, WebhookEvent, WebhookHandler};
 pub use router::{WebhookState, build_router, serve};

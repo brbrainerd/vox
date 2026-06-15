@@ -751,6 +751,21 @@ pub mod codes {
     /// runtime wired in. The decorator is stored on the AST/HIR but silently dropped.
     pub const EMBED_UNIMPLEMENTED: &str = "vox/codegen/embed-unimplemented";
 
+    /// Parity: a feature that only the frontend (TypeScript) emitter implements — the
+    /// interpreter and Rust backend targets declare it unsupported (e.g. JSX, async views).
+    /// Declared in the parity matrix (`crate::feature_matrix`); see the pipeline-parity SSOT.
+    pub const PARITY_FRONTEND_ONLY: &str = "vox/parity/frontend-only-feature";
+
+    /// Parity: a feature that only the Rust backend implements — the interpreter and the
+    /// TypeScript frontend declare it unsupported (e.g. bare `spawn`). Declared in the
+    /// parity matrix (`crate::feature_matrix`).
+    pub const PARITY_BACKEND_ONLY: &str = "vox/parity/backend-only-feature";
+
+    /// Parity: a feature with no implemented backing on the named target yet (declared
+    /// unsupported rather than silently dropped). Declared in the parity matrix
+    /// (`crate::feature_matrix`); the parity test reconciles these against real emitters.
+    pub const PARITY_UNIMPLEMENTED: &str = "vox/parity/unimplemented";
+
     /// All Phase-1 codes registered for stability, used by the namespace guard test.
     pub const ALL_PHASE_1: &[&str] = &[
         // Core type errors (v0.6, LLM-target CR-L criteria)
@@ -873,6 +888,9 @@ pub mod codes {
         TYPECK_PUBLIC_AUTH_CONFLICT,
         PII_UNIMPLEMENTED,
         EMBED_UNIMPLEMENTED,
+        PARITY_FRONTEND_ONLY,
+        PARITY_BACKEND_ONLY,
+        PARITY_UNIMPLEMENTED,
     ];
 
     #[cfg(test)]

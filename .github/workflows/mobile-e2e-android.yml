@@ -1,5 +1,6 @@
 name: Mobile E2E - Android
 on:
+  merge_group:
   push:
     paths:
       - 'apps/vox-mental-tracker/**'
@@ -24,6 +25,8 @@ env:
 
 jobs:
   android-e2e:
+    # Tier: heavy (GitHub-hosted macOS). merge_group + 'full-ci' label only; skip routine PR pushes.
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
     runs-on: macos-13
     steps:
       - uses: actions/checkout@v6

@@ -78,11 +78,11 @@ fn hourly_task() {
 - **Usage**: `@pure fn compute_hash(data: str) to str { return data }`
 
 ### `@deprecated`
-> [!NOTE]
-> Planned — not yet parseable.
-- **Goal**: Marks a function or type as pending removal.
-- **Effect**: Emits compiler warnings when used.
-- **Usage**: `@deprecated("Use new_function instead")`
+- **Goal**: Marks a function as pending removal.
+- **Effect**: Emits a `typecheck.deprecated_ident` warning at every call site. With a reason argument, the reason is appended to the warning message.
+- **Usage**:
+  - Bare: `@deprecated fn old() to int { return 0 }` → warning: `'old' is deprecated`
+  - With reason: `@deprecated("Use new_function instead") fn old() to int { return 0 }` → warning: `'old' is deprecated: Use new_function instead`
 
 ## Data Modeling
 

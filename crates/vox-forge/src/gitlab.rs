@@ -42,7 +42,7 @@ impl GitLabProvider {
              it will be removed in a future release. Migrate to GitHub."
         );
         let client = vox_http_client::client_builder()
-            .user_agent("vox-forge/0.1 (https://github.com/vox-lang/vox)")
+            .user_agent(crate::FORGE_USER_AGENT)
             .build()
             .map_err(|e| ForgeError::Network(e.to_string()))?;
         Ok(Self {
