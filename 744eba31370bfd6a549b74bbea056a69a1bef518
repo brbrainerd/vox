@@ -1,0 +1,14 @@
+feat(corpus): migrate complex golden UI fixtures to VUV
+scale: ~76 lines across 3 files [M]
+
+- `examples/golden/mobile_camera.vox`:
+  - Rewrote JSX `div` elements to `column` components.
+  - Converted JSX `button` elements with `onclick` lambdas to VUV `button` components with `on_click` attributes.
+  - Transformed JSX `img` and `div` elements within a `match` expression to VUV `image` and `column` components.
+- `examples/golden/index_showcase.vox`:
+  - Replaced JSX `div` and `label` elements containing `input type="checkbox"` with a `column` component containing `button` elements.
+  - Added a comment explaining the limitation of not being able to express `input type="checkbox"` directly in VUV due to keyword collision.
+- `examples/golden/mobile_test.vox`:
+  - Converted a JSX `button` element with an `onclick` lambda to a VUV `button` component with an `on_click` attribute.
+
+--- audit: original='feat(corpus): VUV-7 — migrate complex golden UI fixtures (match arms, lambdas)' | actual=76L across 3 files | derived=full ---
