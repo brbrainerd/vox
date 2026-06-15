@@ -1,0 +1,9 @@
+feat(vox-mental-tracker): add release readiness gates and checklist
+scale: ~173 lines across 4 files [M]
+
+- `apps/vox-mental-tracker/scripts/release_check.sh`: Add new script to automate programmatic release gates G1-G4, including Vitest, Playwright (with `BASE_URL` skip detection), `vox check`, and contract JSON/YAML parsing.
+- `apps/vox-mental-tracker/docs/how-to/release.md`: Add new documentation detailing all release gates (G1-G8), including programmatic and manual steps, evidence pointers, and rollback notes.
+- `apps/vox-mental-tracker/RELEASE_CHECKLIST.md`: Add a new per-release template for GitHub releases, outlining programmatic and manual gates, and rollout steps.
+- `apps/vox-mental-tracker/README.md`: Update the "Releasing" section to point to the new release checklist and gate documentation, and provide instructions for running the programmatic checks.
+
+--- audit: original='feat(vox-mental-tracker): release-readiness gate (Phase 6)' | actual=173L across 4 files | derived=full ---
