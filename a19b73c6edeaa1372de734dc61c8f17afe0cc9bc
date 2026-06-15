@@ -1,0 +1,16 @@
+fix(ci): Prioritize Coolify Deploy API, tolerate HTML webhook bodies
+scale: ~99 lines across 2 files [M]
+
+- `.github/workflows/deploy-hetzner.yml`:
+  - Implemented a new deployment trigger order:
+    1. Attempt `GET /api/v1/deploy?uuid=` first, which supports Deploy-scoped API tokens.
+    2. Fallback to `GET /api/v1/applications/{uuid}/start?instant_deploy=true` for Write-scoped tokens.
+    3. Fallback to `COOLIFY_WEBHOOK_URL` (unauthenticated then authenticated).
+    4. Fallback to listing deployments via `GET /api/v1/applications/{uuid}/deployments` and taking the latest.
+  - Enhanced `json_deploy_uuid` and added `json_first_list_uuid` functions to robustly parse deployment UUIDs from JSON responses, specifically ignoring non-JSON (e.g., HTML login pages) to prevent `jq` errors and allow fallbacks.
+  - Modified `json_deploy_uuid` to also check `deployments[0].deployment_uuid` for the new `/deploy` endpoint.
+- `docs/src/ci/deploy-contract.md`:
+  - Updated the documentation to reflect the new Coolify API trigger order and the different API endpoints used based on token scope.
+  - Clarified that webhook and login HTML responses are ignored for JSON parsing.
+
+--- audit: original='fix(ci): Coolify Deploy API first; tolerate HTML webhook bodies' | actual=99L across 2 files | derived=full ---
