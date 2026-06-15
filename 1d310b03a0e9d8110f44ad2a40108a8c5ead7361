@@ -1,0 +1,6 @@
+fix(ci): create output directory for cargo-mutants in PR workflow
+scale: ~1 lines across 1 files [XS]
+
+- `.github/workflows/mutation-pr.yml`: Added `mkdir -p mutants-out/${{ matrix.crate }}` before running `cargo mutants` to ensure the output directory exists. This addresses a change in `cargo-mutants` where it no longer automatically creates parent output directories, specifically unblocking the `vox-codegen` matrix leg on self-hosted runners.
+
+--- audit: original='fix(ci): create mutants-out dir before cargo-mutants PR job' | actual=1L across 1 files | derived=full ---
