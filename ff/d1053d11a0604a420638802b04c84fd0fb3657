@@ -1,0 +1,16 @@
+feat(drift): add `ExtractedFeatures` vocabulary types and associated structs
+scale: ~133 lines across 1 files [M]
+
+- `crates/vox-drift-check/src/features.rs`:
+    - Define `Loc` struct for 1-indexed line and 0-indexed column.
+    - Define `LiteralContext` enum for code, test, doc, and const declaration contexts.
+    - Define `UnitHint` enum for common units like milliseconds, seconds, bytes, count, and bare.
+    - Define `LiteralLoc` struct to store a string literal's value, location, and context.
+    - Define `NumericLoc` struct to store a numeric literal's value, optional unit, and location.
+    - Define `CallSite` struct to store a function call's path, arity, and location.
+    - Define `BodySignature` struct to store a function body's hash, line count, parent function name, and location.
+    - Define `ImportLoc` struct to store an import's path, optional symbol, and location.
+    - Define `FnDef` struct to store a function definition's name, body hash, signature hash, and location.
+    - Define `ExtractedFeatures` struct to aggregate extracted features including file path, language, crate name, and vectors of `LiteralLoc`, `NumericLoc`, `CallSite`, `BodySignature`, `ImportLoc`, and `FnDef`.
+
+--- audit: original='feat(drift): add ExtractedFeatures vocabulary types' | actual=133L across 1 files | derived=full ---
