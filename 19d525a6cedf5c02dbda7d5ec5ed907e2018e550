@@ -1,0 +1,11 @@
+feat(docs): add FableForge implementation details and publish gate documentation
+scale: ~623 lines across 6 files [L]
+
+- docs/src/architecture/fableforge-impl/publish-gate.ts: Add new documentation for the FableForge Publish Gate and Cloud Saves, including Convex actions, mutations, and queries for publishing drafts, managing cloud saves, and implementing a publish checklist and playtest guard.
+- docs/src/architecture/fableforge-impl/HANDOFF.md: Add a new developer handoff brief for FableForge, detailing the contents of the folder, the tasks addressed by each file, and their target destinations in the FableForge repository.
+- crates/vox-cli/src/commands/dashboard.rs: Modify the dashboard launcher to support opening URLs in app mode for Windows, macOS, and Linux, using platform-specific commands like `chrome --app=` or `open -a "Google Chrome" --args --app=`.
+- docs/src/feed.xml: Update the feed XML, likely to include the new documentation.
+- docs/src/SUMMARY.md: Add an entry to the documentation summary for the new FableForge implementation details.
+- docs/src/architecture/architecture-index.md: Add an entry to the architecture index for the new FableForge implementation details.
+
+--- audit: original='fix(docs): add frontmatter to HANDOFF.md' | actual=623L across 6 files | derived=full ---
