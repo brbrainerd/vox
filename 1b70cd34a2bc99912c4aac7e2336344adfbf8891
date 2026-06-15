@@ -1,0 +1,14 @@
+feat(effort-route): configure cluster threshold and judge output tokens
+scale: ~24 lines across 2 files [S]
+
+- `crates/vox-effort-route/src/config.rs`:
+    - Added `cluster_distance_threshold: f64` to `EffortRouteConfig` with a default of `0.30`.
+    - Added `judge_max_output_tokens: u64` to `RouteJudgeConfig` with a default of `2048`.
+    - Added `default_cluster_distance_threshold()` and `default_judge_max_output_tokens()` functions.
+    - Updated `EffortRouteConfig::default()` and `RouteJudgeConfig::default()` to use the new defaults.
+- `crates/vox-effort-route/src/cluster.rs`:
+    - Modified `maybe_split` function to accept `cluster_distance_threshold: f64` as a parameter.
+    - Replaced the hardcoded `0.30` distance threshold in `agglomerative_cosine` with the new `cluster_distance_threshold` parameter.
+    - Updated test calls to `maybe_split` to include the new `cluster_distance_threshold` argument.
+
+--- audit: original='refactor(effort-route): config-ize cluster threshold and judge output tokens' | actual=24L across 2 files | derived=full ---
