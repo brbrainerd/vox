@@ -1,0 +1,7 @@
+fix(typeck): add `regex.find` to `RegexModule` methods map
+scale: ~38 lines across 2 files [S]
+
+- `crates/vox-compiler/src/typeck/builtins.rs`: Added `find` method with signature `Fn(Str, Str) → Option[Str]` to `regex_module_methods` to correctly type-check direct calls to `regex.find`.
+- `crates/vox-compiler/tests/eval_typeck_parity_test.rs`: Added two new test cases, `regex_find_dispatch` and `regex_captures_dispatch`, to verify the evaluation and type-checking parity for `regex.find` and `regex.captures`.
+
+--- audit: original='fix(typeck): add regex.find to RegexModule methods map, close eval/typeck parity gap' | actual=38L across 2 files | derived=full ---
