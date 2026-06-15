@@ -1,0 +1,17 @@
+feat(orchestrator): implement time awareness and A2A messaging
+scale: ~6170 lines across 74 files [XL]
+
+- `vox-orchestrator`: Implemented time awareness, A2A messaging with persistence, and updated core components like locks, oplog, heartbeat, and types for new functionalities. Removed `capability_probe` and `contract` modules.
+- `vox-pm`: Refactored `store/ops.rs` by removing most CRUD operations, likely moving them to specialized submodules. The `registry.rs` module was completely rewritten, suggesting a new approach to package management.
+- `vox-mcp`: Significant changes in `tools/chat_tools.rs` to remove regex-based parsing for tasks and summaries, indicating a shift towards structured JSON decoding. Added `ChatHistoryParams` and `session_id` to `ChatMessageParams`.
+- `vox-gamify`: The entire `schema.rs` was rewritten, suggesting a complete overhaul of the gamification database schema.
+- `vox-runtime`: The `auth.rs` module was completely rewritten, indicating changes to authentication mechanisms.
+- `vox-cli`: Added new commands for `db_research_impl`, `corpus`, `db_cli`, `scientia`, `ci`, `share_cli`, `snippet_cli`, and `run`. Modified `logout` and `login` commands.
+- `vox-repository`: Updated `capabilities.rs` and `lib.rs`, and `Cargo.toml`.
+- `vox-mesh`: Modified `http_client.rs`, `transport.rs`, `lib.rs`, and `http_lifecycle.rs`, suggesting updates to mesh networking and transport.
+- `vox-db`: Added `eval_params.rs` and `socrates_telemetry.rs`, and updated `lib.rs` and `config.rs`.
+- `vox-dei`: Updated `research/orchestrator.rs`.
+- `vox-codex`: Removed `lib.rs` and `Cargo.toml`, indicating the removal or relocation of the codex module.
+- `Cargo.lock` and `Cargo.toml`: Updated dependencies across the project.
+
+--- audit: original='feat: implement orchestrator time awareness' | actual=6170L across 74 files | derived=full ---
