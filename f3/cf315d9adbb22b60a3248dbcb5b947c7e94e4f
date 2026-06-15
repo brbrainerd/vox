@@ -1,0 +1,9 @@
+feat(arch-check): enforce rename registry consistency for primitives
+scale: ~83 lines across 4 files [M]
+
+- `crates/vox-arch-check/tests/rename_consistency_test.rs`: Add a new integration test `registry_from_names_are_not_canonical_primitives` that fails if any `from` entry of kind `Primitive` in the rename registry is still a canonical primitive in the compiler. Includes a `synthetic_violation_would_fail` test to confirm the check's effectiveness.
+- `crates/vox-compiler/src/lowering_shared/primitive_tags.rs`: Add `all_primitives()` function to return all canonical primitive tag names, serving as the source of truth for the new arch-check rule.
+- `crates/vox-arch-check/Cargo.toml`: Add `vox-compiler` as a dev-dependency to enable the new test.
+- `Cargo.lock`: Update lock file due to dependency changes.
+
+--- audit: original='feat(arch-check): enforce rename-registry consistency (VUV-9 task 8)' | actual=83L across 4 files | derived=full ---
