@@ -1,0 +1,8 @@
+docs(arch): Add Session-13 breadcrumb for pipeline test restoration
+scale: ~34 lines across 1 files [S]
+
+- Add a new section "9. Session-13 (2026-05-25) breadcrumb" to document the restoration of pipeline tests.
+- Detail the root cause of 39 `vox-integration-tests` pipeline failures as `ENV_MUTEX` poisoning due to route-only test sources panicking in `with_web_ir_validate_cleared` without matching component stubs.
+- Describe the fixes implemented: adding `fn` stubs to route-only sources, updating `codegen_server_has_express_route_with_await` to reflect Express server decommissioning and deleting a stale snapshot, and making `web_ir_validate.a11y.*` codes advisory.
+
+--- audit: original='docs(arch): Session-13 breadcrumb — pipeline test restoration' | actual=34L across 1 files | derived=full ---
