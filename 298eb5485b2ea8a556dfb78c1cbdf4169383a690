@@ -1,0 +1,6 @@
+refactor(clippy): remove redundant `#[must_use]` attributes from guard helpers
+scale: ~5 lines across 1 files [XS]
+
+- `crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs`: Removed `#[must_use]` attribute from `sql_surface_contains_raw_connection_api`, `source_contains_sqlx_path_prefix`, `source_contains_query_all_call_site`, `source_contains_turso_path_prefix`, and `se` functions. This unblocks the `gate/clippy double_must_use` check on Rust 1.96 for these SQL guard functions, as `Result` already implies `must_use`.
+
+--- audit: original='fix(clippy): drop redundant must_use on Result guard helpers' | actual=5L across 1 files | derived=full ---
