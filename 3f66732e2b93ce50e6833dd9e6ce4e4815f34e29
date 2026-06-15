@@ -1,0 +1,10 @@
+feat(codegen,interp): Improve diagnostics for native-only namespaces and expand rate limiting
+scale: ~211 lines across 5 files [M]
+
+- `crates/vox-codegen/src/codegen_rust/emit/http.rs`: Added `emit_user_id_rate_limit_prelude` and `emit_api_key_rate_limit_prelude` functions to generate rate limiting middleware for `UserId` and `ApiKey` variants, respectively. The `wrap_method_router` now supports all three `RateLimitBy` variants.
+- `crates/vox-compiler/tests/native_namespace_interp_test.rs`: Added new test cases to verify that `OpenClaw` and `Scrape` calls in the interpreter produce the expected CR-F4 diagnostic about requiring a compiled backend.
+- `crates/vox-codegen/tests/rate_limit_emit_test.rs`: Added a new test to ensure the `RateLimitBy` enum variants (`Ip`, `UserId`, `ApiKey`) are exhaustive and distinguishable, implicitly testing the compilation of the new rate limit emission logic.
+- `crates/vox-compiler/src/eval/expr.rs`: Extended the CR-F4 diagnostic guard in the interpreter to cover `OpenClaw` and two-level namespaces like `std.mobile` and `std.crypto`, ensuring they surface actionable "use compiled backend" errors instead of `UndefinedVariable`.
+- `crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs`: Modified `try_emit_namespace_call` to emit a `compile_error!()` for `std.mobile` and `std.crypto` namespaces when targeting the Rust server, providing a clear diagnostic instead of invalid Rust code.
+
+--- audit: original='fix(interp,codegen): OpenClaw/std.mobile CR-F4 diagnostics + rate_limit UserId/ApiKey emission' | actual=211L across 5 files | derived=full ---
