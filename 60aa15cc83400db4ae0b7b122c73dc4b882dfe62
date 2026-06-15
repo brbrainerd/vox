@@ -1,0 +1,17 @@
+docs(arch): update workspace reorg outcome and build-time log
+scale: ~409 lines across 2 files [L]
+
+- `docs/src/architecture/build-time-log.md`:
+    - Updated build-time log for Phase 0 and Phase 1.
+    - Removed "vs baseline" column from Phase 0 table.
+    - Revised description for Phase 1, clarifying the plugin-host inversion fix.
+    - Added a new row for "L0 leaf (vox-orchestrator-types)" with a time of 0.36s in Phase 0.
+    - Updated "Orchestrator incremental (lib.rs)" time to 6.24s (+0.65s, ~12%) in Phase 1.
+    - Updated "CLI incremental" time to 7.60s (-19.16s, -72%) in Phase 1.
+- `docs/src/architecture/2026-05-08-workspace-reorg-outcome.md`:
+    - Updated the count of delivered phases from 3 to 5.
+    - Revised descriptions for Phase 0 and Phase 1 to reflect delivered outcomes.
+    - Clarified the purpose and contents of `crates/vox-layer-check/` and `docs/src/architecture/layers.toml` in Phase 0.
+    - Detailed the contents of `vox-plugin-types` and its impact on `vox-plugin-host` in Phase 1.
+
+--- audit: original='docs(arch): update reorg outcome — 5 of 10 phases delivered' | actual=409L across 2 files | derived=full ---
