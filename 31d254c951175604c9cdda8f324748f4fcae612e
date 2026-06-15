@@ -1,0 +1,18 @@
+fix(clippy): resolve 14 `collapsible_if` and 1 `redundant_closure` lints
+scale: ~178 lines across 7 files [M]
+
+- `vox-publisher`:
+    - `scientia_autofill`: Replaced 5 nested `if let` statements with `&& let` chains.
+    - `zenodo_metadata`: Replaced 4 nested `if let` statements with `&& let` chains.
+    - `scientia_novelty_assess`: Replaced a `map(|v1| derive_polarity(v1))` closure with `map(derive_polarity)`.
+- `vox-rn-codegen`:
+    - `component`: Replaced 2 nested `if let` statements with `&& let` chains.
+    - `form`: Replaced 1 nested `if let` statement with `&& let` chains.
+- `vox-scientia`:
+    - `inspect_bridge/novelty`: Replaced 1 nested `if let` statement with `&& let` chains.
+- `vox-langtool`:
+    - `commands/run`: Replaced 1 nested `if let` statement with `&& let` chains.
+
+These changes were auto-fixed by `cargo clippy --fix` after `let-chains` were stabilized in Clippy 1.96.
+
+--- audit: original='fix(clippy): resolve 14 pre-existing collapsible_if + 1 redundant_closure lints' | actual=178L across 7 files | derived=full ---
