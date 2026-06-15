@@ -11,7 +11,7 @@
 //! (e.g. introduced by Phase-3 coverage waves), not the grandfathered suite.
 //! Run from the repo root: `cargo run -q -p vox-audit --bin coverage-gates`.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use vox_audit::core_gates::{run_silent_drop_gate, run_weak_test_gate};
 
@@ -53,7 +53,7 @@ fn main() -> ExitCode {
     }
 }
 
-fn baseline_if_exists(root: &PathBuf, rel: &str) -> Option<PathBuf> {
+fn baseline_if_exists(root: &Path, rel: &str) -> Option<PathBuf> {
     let p = root.join(rel);
     if p.is_file() {
         Some(p)
