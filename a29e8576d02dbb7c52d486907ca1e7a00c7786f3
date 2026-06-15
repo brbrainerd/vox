@@ -1,0 +1,12 @@
+build(deps): bump jj-lib to 0.42.0; refactor arch-check rules
+scale: ~368 lines across 4 files [L]
+
+- `Cargo.toml`: Updated `jj-lib` dependency from `0.27.0` to `0.42.0`.
+- `Cargo.lock`: Updated `jj-lib` and its transitive dependencies to reflect the version bump.
+- `docs/src/architecture/layers.toml`:
+    - Added `vox-vcs` to layer 3 with `max_loc = 20_000` and `orphan_exempt = true`.
+    - Removed `crates/vox-vcs-git/src/git_exec.rs` from the `git-exec` forbidden pattern exemptions.
+    - Added a new `jj-lib-confined` forbidden pattern to restrict `jj_lib::` calls to `crates/vox-vcs/src/lib.rs` and `crates/vox-vcs/src/jj_backend.rs`.
+- `docs/src/architecture/where-things-live.md`: Added a description for `vox-vcs` to the top-level trees map.
+
+--- audit: original='build(vox-vcs): bump jj-lib 0.42, arch-check rows, drop stale exempt path' | actual=368L across 4 files | derived=full ---
