@@ -1,0 +1,12 @@
+feat(arch): rename vox-layer-check to vox-arch-check and add 4 new rules
+scale: ~776 lines across 7 files [L]
+
+- `crates/vox-arch-check/src/main.rs`: New file implementing the `vox-arch-check` binary. This includes the existing layer ordering check and adds four new architectural rules: fan-in tracking, LoC budgeting, orphan detection, and docstring linting. It also introduces configuration for rule strictness via `[guards]` in `layers.toml`.
+- `crates/vox-layer-check/src/main.rs`: Deleted the old `vox-layer-check` binary.
+- `docs/src/architecture/layers.toml`: Updated the TOML schema to include `kind`, `max_dependents`, and `max_loc` fields for crates, and added a `[guards]` section to configure strictness for the new rules (`fan_in`, `loc_budget`, `orphan`, `docstring`). Renamed `vox-layer-check` to `vox-arch-check` and set its `kind` to "binary".
+- `.github/workflows/ci.yml`: Updated the CI workflow to call `cargo run -p vox-arch-check` instead of `vox-layer-check`, and updated the comment to reflect the new checks.
+- `Cargo.lock`: Updated to reflect the binary rename and new dependencies.
+- `.config/hakari.toml`: Updated `workspace-members` to reference `vox-arch-check` instead of `vox-layer-check`.
+- `crates/vox-arch-check/Cargo.toml`: New file defining the package for `vox-arch-check`, including its dependencies (`cargo_metadata`, `toml`, `serde`, `anyhow`).
+
+--- audit: original='feat(arch): vox-layer-check → vox-arch-check + 4 new architectural rules (P-B)' | actual=776L across 7 files | derived=full ---
