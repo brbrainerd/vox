@@ -1,0 +1,8 @@
+fix(codegen): remove unreachable `HirType` arm and spurious `mut` from closures
+scale: ~5 lines across 3 files [S]
+
+- `crates/vox-codegen/src/codegen_ts/rn/component.rs`: Removed the unreachable `_ => "any"` arm from the `match` statement in `hir_type_to_ts` as `Named`, `Generic`, `Function`, `Tuple`, `Unit`, and `Decimal` variants of `HirType` are exhaustive.
+- `crates/vox-codegen/src/codegen_ts/reactive.rs`: Removed the spurious `mut` keyword from the `visit` closure definition in `collect_component_import_refs`.
+- `crates/vox-codegen/src/codegen_ts/vox_client.rs`: Removed the spurious `mut` keyword from the `note_ty` closure definition in `referenced_table_names`.
+
+--- audit: original='@ fix(codegen): clear 3 warnings (unreachable HirType arm, 2 spurious closure muts)' | actual=5L across 3 files | derived=full ---
