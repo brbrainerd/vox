@@ -1,0 +1,28 @@
+feat(vox-gui): implement design token pipeline, WCAG contrast, CSP, high-contrast theme
+scale: ~2058 lines across 25 files [XL]
+
+- **crates/vox-gui/ui/pnpm-lock.yaml**: Updated pnpm lockfile to reflect dependency changes, including `style-dictionary` from `^4.4.0` to `^5.4.4` (addressing a prototype pollution CVE).
+- **docs/superpowers/plans/2026-06-14-vox-gui-phase0b-ipc-query.md**: Added a new plan document for Phase 0B, focusing on IPC and query mechanisms.
+- **crates/vox-gui/ui/src/styles/tokens.generated.ts**: Generated TypeScript design tokens from `style-dictionary`.
+- **crates/vox-gui/ui/style-dictionary.config.mjs**: Added configuration for `style-dictionary` to process design tokens.
+- **crates/vox-gui/ui/src/styles/tokens.contrast.generated.css**: Generated CSS for high-contrast theme tokens.
+- **crates/vox-gui/ui/src/styles/tokens.generated.css**: Generated CSS for standard design tokens.
+- **crates/vox-gui/ui/src/transport.test.ts**: Added tests for new `voxTransport` methods: `logFrontend`, `getGuiPreference`, `setGuiPreference`, and `openLocator`.
+- **crates/vox-gui/ui/src/hooks/useVoxQuery.test.ts**: Added tests for `useVoxQuery` and `useVoxMutation` hooks, verifying data fetching and error handling.
+- **crates/vox-gui/ui/tokens/primitive.json**: Added primitive design tokens.
+- **crates/vox-gui/ui/src/lib/contrast.test.ts**: Added tests for `contrastRatio` and WCAG AA compliance checks for token pairs.
+- **crates/vox-gui/ui/src/hooks/useVoxQuery.ts**: Implemented `useVoxQuery` and `useVoxMutation` hooks using `@tanstack/react-query`.
+- **crates/vox-gui/ui/src/lib/contrast.ts**: Implemented `hexToRgb`, `channelLuminance`, `relativeLuminance`, and `contrastRatio` functions for WCAG contrast calculations.
+- **crates/vox-gui/ui/src/lib/theme.test.ts**: Added tests for `normalizeTheme` function, including handling of 'high-contrast' and defaulting to 'arcane'.
+- **crates/vox-gui/ui/src/transport.ts**: Added new `logFrontend`, `getGuiPreference`, `setGuiPreference`, and `openLocator` methods to `VoxTransport`.
+- **crates/vox-gui/ui/src/lib/cn.test.ts**: Added tests for the `cn` utility function, verifying class name joining and Tailwind class merging.
+- **crates/vox-gui/ui/tailwind.config.js**: Extended Tailwind CSS configuration to include semantic design tokens (e.g., `bg-base`, `text-primary`, `border-subtle`) from `tokens.generated.css`.
+- **crates/vox-gui/ui/src/components/ui/Glass.tsx**: Refactored to use the new `cn` utility from `src/lib/cn.ts`.
+- **crates/vox-gui/ui/src/components/ui/Pill.tsx**: Refactored to use the new `cn` utility from `src/lib/cn.ts`.
+- **crates/vox-gui/ui/src/lib/cn.ts**: Added a new utility function `cn` for conditionally joining and merging Tailwind CSS classes.
+- **crates/vox-gui/ui/package.json**: Updated dependencies, including `style-dictionary` and `@tanstack/react-query`.
+- **crates/vox-gui/ui/src/lib/theme.ts**: Modified `normalizeTheme` to accept 'high-contrast' as a valid theme.
+- **crates/vox-gui/tauri.conf.json**: Updated Tauri configuration, likely related to Content Security Policy (CSP) changes.
+- **crates/vox-gui/ui/src/index.css**: Added import for `tokens.generated.css` to integrate design tokens.
+
+--- audit: original='feat(vox-gui): Phase 0A — design-token pipeline, WCAG contrast, CSP, high-contrast theme' | actual=2058L across 25 files | derived=full ---
