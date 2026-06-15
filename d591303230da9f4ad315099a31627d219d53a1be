@@ -1,0 +1,14 @@
+feat(gui): Implement interactive HITL approvals for dangerous MCP tools
+scale: ~464 lines across 9 files [L]
+
+- `crates/vox-gui/ui/src/components/surfaces/Approvals/ApprovalsView.tsx`: Add new React component `ApprovalsView` to display pending approvals, poll for updates using `vox_pending_approvals`, and allow approval/rejection via `vox_resolve_approval`.
+- `crates/vox-orchestrator-mcp/src/pending_approvals.rs`: Introduce `PendingApprovals` registry to manage in-memory pending approvals, including `register`, `resolve`, `cancel`, and `list` operations. Defines `ApprovalId` and `PendingApprovalInfo` types.
+- `crates/vox-orchestrator-mcp/tests/pending_approvals_tests.rs`: Add unit tests for `PendingApprovals` registry functionality (register, resolve, cancel) and an end-to-end test for the dangerous tool gate.
+- `crates/vox-orchestrator-mcp/src/dispatch.rs`: Modify `handle_tool_call` to intercept dangerous MCP tool calls without `user_approval: true`. Instead of outright rejection, it now registers a pending approval, awaits a human decision with a 300s timeout, and proceeds or errors based on the `ApprovalOutcome`.
+- `crates/vox-orchestrator-mcp/src/server_state.rs`: Add `Arc<PendingApprovals>` to `ServerState` struct and initialize it in all `ServerState` constructors.
+- `crates/vox-gui/ui/src/App.tsx`: Update `App` component to include 'approvals' in the list of valid views and render `ApprovalsView` when 'approvals' is the active view.
+- `crates/vox-gui/ui/src/components/layout/Sidebar.tsx`: Add a new navigation item for "Approvals" to the sidebar.
+- `crates/vox-orchestrator-mcp/src/lib.rs`: Add `mod pending_approvals;` declaration.
+- `docs/src/architecture/vox-gui-harness-buildout-plan-2026.md`: Update architecture documentation to reflect the new interactive HITL approvals.
+
+--- audit: original='@ feat(gui): B3 interactive HITL approvals — awaitable gate + Approvals surface' | actual=464L across 9 files | derived=full ---
