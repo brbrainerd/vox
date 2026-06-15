@@ -1,0 +1,9 @@
+docs(roadmap): update 2026 GUI native roadmap status
+scale: ~16 lines across 1 files [S]
+
+- docs/src/architecture/gui-native-roadmap-status-2026.md:
+    - Updated provenance date to 2026-04-25 and referenced commit `fa350de8`.
+    - Clarified canonical roadmap source to `VOX_GUI_NATIVE_ROADMAP_2026.md`.
+    - Updated status of TASK-0.6 to reflect "Bearer attached, basic reconnect present. Still need: explicit `connectionStatus`/`authStatus` event union, exponential backoff with cap, 4401 close-code handling, UI banner wiring."
+
+--- audit: original='docs(roadmap): audit refresh against HEAD fa350de8 (2026-04-25)' | actual=16L across 1 files | derived=full ---
