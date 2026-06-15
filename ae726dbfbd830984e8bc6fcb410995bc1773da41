@@ -1,0 +1,48 @@
+feat(orchestrator): implement core orchestrator, MCP registry, and documentation frameworks
+scale: ~59335 lines across 1227 files [XL]
+
+DIVERGENCE: original subject claimed 'feat: implement core orchestrator, MCP registry, and documentation architecture frameworks' but this commit actually changed ~59335 lines across 1227 files. Top areas:
+crates: 40733 lines, 619 files
+docs: 11934 lines, 524 files
+contracts: 3453 lines, 28 files
+(root): 2432 lines, 21 files
+vox-vscode: 312 lines, 11 files
+examples: 251 lines, 14 files
+.github: 109 lines, 3 files
+docker: 55 lines, 2 files
+.config: 27 lines, 1 files
+mens: 15 lines, 2 files
+scripts: 11 lines, 1 files
+scratch: 3 lines, 1 files
+
+- `crates/vox-clavis`: Refactored `spec.rs` and `lib.rs` for improved specification handling, and updated `backend/vox_vault.rs`.
+- `crates/vox-orchestrator`: Implemented core orchestrator logic, task dispatch mechanisms (complete/fail/success, research, submit), planning components (adequacy, orient, test decision), budget management, observer, and new daemon dispatch. Significantly refactored and added new tests.
+- `docs/src/architecture`: Added extensive new architectural documentation covering Scientia pipeline, gap analysis, LLM output mediation, diagnostic questioning, multi-repo context isolation, Socrates unification, multi-platform ranking, RAG, orchestrator symphony, and AI-augmented testing. Also updated migration plan and GUI vision.
+- `contracts/clavis`: Added new managed environment names JSON and Markdown files.
+- `crates/vox-mcp`: Refactored tool dispatch tests, added new phase B tests, and updated `tool_dispatch.rs` and `chat_tools/plan.rs`.
+- `crates/vox-socrates-policy`: Refactored `lib.rs` and added `confidence_policy.rs` and `policy_types.rs`.
+- `crates/vox-tensor`: Added new `grpo.rs` and `replay.rs` modules.
+- `crates/vox-db`: Added new writer actor, store operations for external intelligence, execution time, planning, and ludus gamification. Also added research and schema for Scientia domains.
+- `crates/vox-constrained-gen`: Added new `earley.rs`, `pda.rs`, `deadlock.rs`, and `revision.rs` modules.
+- `crates/vox-cli`: Added new commands for CI (guards, docs, syntax_k, retired_symbol_check), clavis, catalog, repo init, research eval, and updated oratio command.
+- `crates/vox-grammar-export`: Added new `compact_prompt.rs` and `ebnf.rs`, and updated `json_schema.rs` and tests.
+- `crates/vox-search`: Refactored policy, added web dispatcher and Tavily integration.
+- `crates/vox-publisher`: Refactored `lib.rs` and added `distribution_compile.rs`.
+- `crates/vox-compiler`: Refactored type checking (ast_decl_lints, registration, checker, diagnostics), parser descent, and added ast evaluation and pipeline.
+- `crates/vox-config`: Added `operator_registry.rs` and removed `policy/mod.rs`.
+- `crates/vox-runtime`: Refactored builtins and added new tests.
+- `crates/vox-dei`: Added `doubt_resolution.rs`.
+- `crates/vox-eval`: Added `lib.rs`.
+- `crates/vox-schola`: Added `curator.rs`.
+- `crates/vox-toestub`: Added `detectors/workspace_drift.rs`.
+- `docs`: Updated `SUMMARY.md`, `feed.xml`, `index.md`, and added `seo_postprocess.py` script.
+- `contracts/capability`: Updated `capability-registry.yaml` and added `json-schema-draft-07-meta.json`.
+- `contracts/operations`: Updated `catalog.v1.yaml`.
+- `crates/vox-scaling-policy`: Added `cost_defense.rs`.
+- `crates/vox-ludus`: Refactored `periodic_reward/evaluate.rs`.
+- `crates/workspace-hack`: Updated `Cargo.toml`.
+- Added new scratch files: `scratch_env_vars.txt`, `scratch_test.vox-ir.json`, `snapshot_failure.txt`.
+- Updated `Cargo.lock` and `README.md`.
+- Added `.voxignore`.
+
+--- audit: original='feat: implement core orchestrator, MCP registry, and documentation architecture frameworks' | actual=59335L across 1227 files | derived=stat-only ---
