@@ -1,0 +1,13 @@
+test(model_route_policy): fix flaky and broken tests
+scale: ~67 lines across 1 files [M]
+
+- `crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/tests.rs`:
+    - Made `INFERENCE_PROFILE_TEST_LOCK` poison-tolerant by using `unwrap_or_else(std::sync::PoisonError::into_inner)` when acquiring the lock in `sticky_ollama_rejected_when_inference_profile_disallows` and `enforce_free_tier_only_fails_when_only_ollama_free_under_cloud_profile` tests, preventing panicking tests from poisoning the mutex and causing subsequent tests to fail.
+    - Added `capabilities_for_any_task` helper function to create `ModelCapabilities` that satisfy any task requirement.
+    - Modified the `vox_local_not_preferred_for_non_code_tasks` test:
+        - Updated the `cloud_model` to have `pricing_source: Telemetry`, `capabilities: capabilities_for_any_task()`, and `strength: Research(1.0)` to make it eligible for Research tasks.
+        - Updated the `vox_local_model` to have `pricing_source: Bootstrap` and `strength: Codegen(1.0)` to ensure it's only preferred for Codegen tasks.
+    - Added `model_strength_for_codegen_only` helper function to create `ModelStrength` for Codegen tasks.
+    - Added `model_strength_for_research_only` helper function to create `ModelStrength` for Research tasks.
+
+--- audit: original='test(models): fix flaky + broken model_route_policy tests' | actual=67L across 1 files | derived=full ---
