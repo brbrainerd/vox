@@ -1,0 +1,9 @@
+feat(audit): add CR-E2 marquee bundle-size measurement binary
+scale: ~374 lines across 4 files [L]
+
+- `crates/vox-audit/src/bin/cr-e2.rs`: New binary to measure gzipped source bundle size of marquee apps. It reads `contracts/marquee/manifest.v1.yaml` to find apps, walks their source directories (excluding lockfiles, build artifacts, `node_modules`), gzips each source file individually, sums the gzipped bytes, and compares against an 800 KB gzip threshold.
+- `contracts/reports/perf/cr-e2/2026-05-22.json`: New report file containing the first measurement results for CR-E2, showing all three real marquee apps (marquee-app, marquee-todo-auth, marquee-chat) are well under the 800 KB gzip budget.
+- `contracts/reports/evidence-ledger.v1.json`: Updated to add an entry for `perf.cr_e2.bundle_800kb`, moving it from a blocked claim to an active artifact with details on its measurement method and initial results.
+- `crates/vox-audit/Cargo.toml`: Added `flate2` dependency and registered the new `cr-e2` binary.
+
+--- audit: original='feat(audit): CR-E2 marquee bundle-size measurement binary' | actual=374L across 4 files | derived=full ---
