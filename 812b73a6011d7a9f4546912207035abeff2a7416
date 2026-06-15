@@ -1,0 +1,21 @@
+feat(ml-cli, publisher, browser, cli): improve text truncation, ORCID encoding, and CLI table display
+scale: ~312 lines across 7 files [L]
+
+- **ml-cli**:
+    - Replaced hand-drawn box panels in `mens status` with `comfy-table` for correct ANSI-width alignment, fixing misalignment when `owo-colors` styling was applied.
+    - Updated `mens status` to use `comfy-table` for corpus quality, GRPO steps, and mesh telemetry tables.
+    - Changed `run_id` and `sid` truncation in `status.rs` to be character-boundary safe using `chars().take(10)`.
+    - Corrected VRAM total calculation in `status.rs` by removing an erroneous `/1024` division, ensuring consistency with MB labels.
+    - Added `comfy-table` dependency.
+- **publisher**:
+    - Replaced custom `base64url_no_pad` implementation with `base64::engine::general_purpose::URL_SAFE_NO_PAD.encode`.
+    - Replaced custom `percent_encode` implementation with `urlencoding::encode`.
+    - Added `base64` and `urlencoding` dependencies.
+- **browser**:
+    - Modified `visible_text_summary` to truncate text by character count instead of byte length, preventing panics on multibyte UTF-8 characters.
+    - Adjusted `visible_text_summary` to budget the ellipsis into `max_chars` using `saturating_sub(1)`.
+- **cli**:
+    - Modified `summarize_text` to truncate text by character count instead of byte length.
+    - Adjusted `summarize_text` to budget the ellipsis into `max_chars` using `saturating_sub(3)`.
+
+--- audit: original='Consolidation follow-up: fix multibyte panic + ANSI-width bug, ORCID encoding crates (#267)' | actual=312L across 7 files | derived=full ---
