@@ -1,0 +1,9 @@
+feat(clients/runtime-web): add contract test for Tauri runtime implementation
+scale: ~96 lines across 4 files [M]
+
+- `clients/runtime-web/tests/contract.test.ts`: New file containing a TypeScript contract test for the `@vox/runtime` (Tauri implementation). It verifies that the `voxRuntime` export conforms to the `VoxRuntime` interface and that its methods return the expected types (e.g., `Unsubscribe` for lifecycle methods, `Promise<void>` or `Promise<string>` for mobile primitives, and correct handle types for Vox-runtime methods).
+- `clients/runtime-web/tests/ambient.d.ts`: New file providing ambient declarations for the `@tauri-apps/api/event` and `@tauri-apps/api/core` modules, allowing the contract test to type-check without requiring a full installation of the Tauri API.
+- `clients/runtime-web/tsconfig.test.json`: New TypeScript configuration file for the contract test. It extends `tsconfig.json`, disables declaration emission, relaxes `rootDir`, and includes `src` and `tests` directories.
+- `crates/vox-cli-tests/tests/runtime_packages.rs`: Added a new test `runtime_web_satisfies_vox_runtime_contract` to run the TypeScript contract test for `clients/runtime-web`, mirroring the existing test for `clients/runtime-rn`.
+
+--- audit: original='test(clients/runtime-web): symmetric contract gate for the Tauri impl' | actual=96L across 4 files | derived=full ---
