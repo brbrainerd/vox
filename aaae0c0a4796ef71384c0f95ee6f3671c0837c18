@@ -1,0 +1,6 @@
+docs(policy): update frontmatter status to 'research' in shell-fluency eval design
+scale: ~2 lines across 1 files [XS]
+
+- `docs/src/architecture/agent-shell-fluency-eval-design-2026.md`: Changed the `status` frontmatter field from "design" to "research" to align with allowed enum values for the `vox-doc-pipeline` pre-push lint.
+
+--- audit: original='docs(policy): fix frontmatter status on shell-fluency eval design' | actual=2L across 1 files | derived=full ---
