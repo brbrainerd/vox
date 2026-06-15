@@ -1,0 +1,6 @@
+chore(git): Remove accidentally committed temporary .vox file
+scale: ~18 lines across 1 files [S]
+
+- Removed `C:UsersOwnerAppDataLocalTemptest_classify.vox`, a temporary Vox program file that was inadvertently added to the repository.
+
+--- audit: original='chore: remove stray temp file accidentally committed in #223' | actual=18L across 1 files | derived=full ---
