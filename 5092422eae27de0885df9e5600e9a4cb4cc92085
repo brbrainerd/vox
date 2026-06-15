@@ -1,0 +1,7 @@
+docs(agents): require YAML frontmatter for authored docs/src markdown files
+scale: ~22 lines across 2 files [S]
+
+- AGENTS.md: Added a new "Authored Markdown Frontmatter (Required)" section, detailing the mandatory YAML frontmatter block for new or substantially authored markdown files under `docs/src/`. This section specifies minimum required keys (title, description, category), provides a template, and outlines rules for writing frontmatter, including when to use `// vox:skip` for fenced `vox` code blocks.
+- CLAUDE.md: Added a bullet point to the Claude overlay, reinforcing the requirement for YAML frontmatter in any `.md` file created under `docs/src/`, referencing the new section in `AGENTS.md` and `documentation-governance.md`.
+
+--- audit: original='docs(agents): require YAML frontmatter on all authored docs/src markdown' | actual=22L across 2 files | derived=full ---
