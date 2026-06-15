@@ -1,0 +1,10 @@
+feat(parser, corpus): support `_` wildcard in for-in loops and update corpus to use `range()`
+scale: ~51 lines across 10 files [M]
+
+- **parser**: Allow `_` as a binding in `for _ in <iter>` and `for _, _ in <iter>` constructs.
+- **corpus**:
+    - Refactor `001-fizzbuzz` and `002-factorial` problems to use `for i in range(...)` loops instead of `while` loops.
+    - Refactor `022-repeat-str` and `030-power` problems to use `for _ in range(0, n)` idiom.
+- **manifest**: Update `corpus_hash` to reflect changes in the four problem files.
+
+--- audit: original='feat(parser+corpus): support _ wildcard in for-in + idiomatic range() patterns' | actual=51L across 10 files | derived=full ---
