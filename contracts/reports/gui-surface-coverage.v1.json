@@ -729,6 +729,7 @@
     "spawn_agent_event_stream",
     "spawn_browser_frame_stream",
     "spawn_llm_config_bridge",
+    "spawn_orchestrator_config_watch",
     "spawn_orchestrator_status_stream",
     "spawn_scientia_queue_stream",
     "start_gui_run",
