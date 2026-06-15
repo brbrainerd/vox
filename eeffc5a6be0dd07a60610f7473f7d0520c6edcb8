@@ -1,0 +1,8 @@
+fix(recovery): re-land gui-build/setup migrations + codegen snapshot
+scale: ~239 lines across 3 files [M]
+
+- `scripts/setup.vox`: Migrated to strict-Option/Result discipline, replacing `exec` with `process.run`, handling `null` results, and using `.code` instead of `.exit_code`.
+- `scripts/gui-build.vox`: Migrated to strict-Option/Result discipline, replacing `std.process.run` with `process.run_ex`, handling `Result` types with `.is_err()` and `.unwrap()`, and using `log.error` for failure paths. Introduced a new `run_in` helper function.
+- `crates/vox-integration-tests/tests/snapshots/codegen_rust_test__with_all_options_output.snap`: Updated the snapshot to remove a `.clone()` call on a moved return value in the `f()` function.
+
+--- audit: original='recover: re-land gui-build/setup migrations + codegen_with_all_options snapshot' | actual=239L across 3 files | derived=full ---
