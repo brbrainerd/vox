@@ -1,0 +1,16 @@
+ci(codegen-ts): Add `tsc --noEmit` gate for golden TypeScript fixtures
+scale: ~507 lines across 9 files [L]
+
+- ci: New `ts-emit-noemit.yml` workflow added to run the typecheck test.
+- crates/vox-integration-tests: Added `ts_emit_typecheck_test.rs` integration test to compile `.vox` files to TypeScript and run `tsc --noEmit`.
+- crates/vox-integration-tests/ts-noemit-scratch:
+  - Added `pnpm-lock.yaml` with dependencies for TypeScript typechecking.
+  - Added `tsconfig.json` for `tsc --noEmit` configuration.
+  - Added `package.json` with `react`, `react-dom`, `@types/react`, `@types/react-dom`, `@tanstack/react-router`, `@tanstack/react-query`, `zod`, and `typescript` dependencies.
+  - Added `.gitignore` to ignore `node_modules/` and `__emit_test__/`.
+- examples/golden-ts: Added three new `.vox` fixture files:
+  - `endpoint_call_in_handler.vox`: Demonstrates an endpoint call within a component handler.
+  - `component_state.vox`: Exercises component state with an increment/decrement counter.
+  - `simple_fn.vox`: Contains basic function definitions (`greet`, `add`).
+
+--- audit: original='ci(codegen-ts): tsc --noEmit gate over golden fixtures' | actual=507L across 9 files | derived=full ---
