@@ -1,0 +1,12 @@
+feat(vox-effort-route): implement decide and refute prompt generation
+scale: ~239 lines across 3 files [M]
+
+- `crates/vox-effort-route/src/route/prompt.rs`:
+    - Added `allowed_forms` function to determine available artifact forms based on `vox_capable` flag.
+    - Implemented `build_decide_messages` function to construct LLM messages for the "decide" pass, including cluster details, allowed forms, member commit information, and representative diffs.
+    - Implemented `build_refute_messages` function to construct LLM messages for the "refute" pass, including cluster details, proposed remediation, and member commit information.
+    - Updated the module-level documentation.
+- `crates/vox-effort-route/src/route/decide_system.md`: Added a new system prompt file for the "decide" pass, instructing the model to choose a remediation artifact form and draft its body.
+- `crates/vox-effort-route/src/route/refute_system.md`: Added a new system prompt file for the "refute" pass, instructing the model to evaluate and potentially refute a proposed fix.
+
+--- audit: original='feat(vox-effort-route): decide + refute prompts (B2)' | actual=239L across 3 files | derived=full ---
