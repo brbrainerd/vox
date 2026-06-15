@@ -1,0 +1,62 @@
+feat(ci): update trusted-signing-action to v2 and add workflow_dispatch
+scale: ~1968295 lines across 7595 files [XL]
+
+DIVERGENCE: original subject claimed 'fix(ci): migrate trusted-signing-action to v2 (input rename) + add workflow_dispatch (#287)' but this commit actually changed ~1968295 lines across 7595 files. Top areas:
+crates: 1148460 lines, 4058 files
+docs: 326629 lines, 1072 files
+contracts: 163144 lines, 1289 files
+.vox: 111881 lines, 117 files
+patches: 68996 lines, 110 files
+apps: 47029 lines, 150 files
+assets: 28639 lines, 125 files
+(root): 23202 lines, 48 files
+graphify-out: 16113 lines, 108 files
+scripts: 7679 lines, 87 files
+docs-astro: 6177 lines, 39 files
+examples: 5121 lines, 131 files
+.github: 5077 lines, 42 files
+clients: 3249 lines, 27 files
+tests: 2011 lines, 109 files
+tree-sitter-vox: 1235 lines, 14 files
+mens: 1100 lines, 24 files
+tools: 1037 lines, 1 files
+infra: 557 lines, 8 files
+.cursor: 392 lines, 20 files
+.config: 135 lines, 3 files
+docker: 121 lines, 3 files
+ci: 117 lines, 2 files
+.cargo: 89 lines, 3 files
+.agents: 62 lines, 2 files
+.devcontainer: 29 lines, 1 files
+.vscode: 13 lines, 1 files
+.claude: 1 lines, 1 files
+
+- chore(ci): Updated `azure/trusted-signing-action` from `v0.3.1` to `v2` in `.github/workflows/release-gui.yml`.
+- fix(ci): Renamed `code-signing-account-name` to `signing-account-name` in `.github/workflows/release-gui.yml` to match `trusted-signing-action` v2 API.
+- feat(ci): Added `workflow_dispatch` trigger to `.github/workflows/release-gui.yml` for on-demand GUI build and Azure signing verification.
+- chore(deps): Updated `Cargo.lock` due to dependency changes.
+- docs: Added numerous new documentation files across `docs/agents`, `docs/superpowers`, `docs/src/architecture`, and `docs/archive`, including plans for mental tracker, async chat, tooling, mesh phases, and various architectural roadmaps.
+- chore(audit): Added new audit findings and related documentation under `.vox/audit/2026-05-11-hardcoded-values` and `.vox/audit/latest`, covering hardcoded values, brittle patterns, and more.
+- feat(contracts): Added new contract definitions and reports under `contracts/reports`, `contracts/operations`, `contracts/capability`, `contracts/secrets`, `contracts/config`, `contracts/cli`, `contracts/policy`, `contracts/eval`, and `contracts/mcp`.
+- feat(kernels): Added new `.ptx` kernel files for `quantized`, `binary`, `unary`, `indexing`, `conv`, `reduce`, `cast`, `ternary`, `sort`, `fill`, and `affine` operations in `crates/vox-populi/src/mens/kernels`.
+- chore(patches): Updated `patches/webview2-com-sys-0.38.2/src/bindings.rs` and `patches/candle-kernels-0.9.2/src/quantized.cu`, `patches/candle-kernels-0.9.2/src/moe/gguf.cuh`, and `patches/qlora-rs-1.0.5/src/training.rs`.
+- chore(deps): Updated `package-lock.json` files for `apps/editor/vox-vscode`, `apps/experimental/visualizer`, `apps/vox-mental-tracker`, and `crates/vox-cli-tests`.
+- chore(deps): Updated `pnpm-lock.yaml` files for `docs-astro`, `crates/vox-gui/ui`, `apps/experimental/visualizer`, and `apps/vox-mental-tracker`.
+- feat(compiler): Modified `crates/vox-compiler/src/eval/builtins.rs`, `crates/vox-compiler/tests/web_ir_lower_emit_test.rs`, `crates/vox-compiler/src/typeck/builtins.rs`, and `crates/vox-compiler/src/builtin_registry.rs`.
+- feat(codegen): Modified `crates/vox-codegen-ts/src/hir_emit/mod.rs` and `crates/vox-rn-codegen/src/component.rs`.
+- feat(cli): Modified `crates/vox-cli/src/commands/ci/pre_push.rs` and `crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs`.
+- feat(gui): Updated schema files `crates/vox-gui/gen/schemas/desktop-schema.json` and `crates/vox-gui/gen/schemas/windows-schema.json`.
+- feat(orchestrator): Modified `crates/vox-orchestrator/src/orchestrator/tests/populi_single_owner.rs` and `crates/vox-orchestrator-mcp/src/dispatch.rs`.
+- feat(secrets): Modified `crates/vox-secrets/src/spec/registry/missing.rs`.
+- feat(actor-runtime): Modified `crates/vox-actor-runtime/src/builtins/mod.rs`.
+- feat(ml-cli): Modified `crates/vox-ml-cli/src/commands/populi_cli.rs`.
+- feat(telemetry): Modified `crates/vox-telemetry/src/types.rs`.
+- feat(arch-check): Modified `crates/vox-arch-check/src/main.rs`.
+- chore(graphify): Added new graphify output files `graphify-out/COVERAGE_BEHAVIORS_vox-compiler.md` and `graphify-out/COVERAGE_BEHAVIORS_vox-orchestrator.md`.
+
+Unblocks Dependabot #241. Live Azure signing still requires the workflow to run on a Windows runner with the AZURE_* secrets (now triggerable via workflow_dispatch).
+
+Co-authored-by: AI Assistant <ai@example.com>
+Co-authored-by: Claude Opus 4.8 <noreply@anthropic.com>
+
+--- audit: original='fix(ci): migrate trusted-signing-action to v2 (input rename) + add workflow_dispatch (#287)' | actual=1968295L across 7595 files | derived=stat-only ---
