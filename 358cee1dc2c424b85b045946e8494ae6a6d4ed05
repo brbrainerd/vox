@@ -1,0 +1,28 @@
+feat(stdlib): Add structured shell-tier stdlib, ACI shell_backend from MCP args
+scale: ~1385 lines across 24 files [XL]
+
+- `crates/vox-compiler/src/eval/builtins.rs`: Integrate new `shell_stdlib` functions for CSV, TOML, YAML parsing/rendering, `fs` detailed listing/stat, `io` open/save, and `process` capture.
+- `crates/vox-compiler/src/eval/shell_stdlib.rs`: New module providing interpreter-only implementations for `std.fs.list_dir_detailed`, `std.fs.stat`, `std.io.open`, `std.io.save`, `std.csv.parse`, `std.csv.parse_records`, `std.csv.render`, `std.toml.parse`, `std.toml.render`, `std.yaml.parse`, `std.yaml.render`, `std.process.run_capture_json`, and `std.process.run_capture_lines`.
+- `crates/vox-actor-runtime/src/builtins/mod.rs`: Add runtime implementations for `vox_fs_list_dir_detailed`, `vox_fs_stat`, `vox_io_open`, `vox_io_save`, `vox_csv_parse`, `vox_csv_parse_records`, `vox_csv_render`, `vox_toml_parse`, `vox_toml_render`, `vox_yaml_parse`, `vox_yaml_render`, `vox_process_run_capture_json`, and `vox_process_run_capture_lines`.
+- `crates/vox-compiler/src/builtin_registry.rs`: Register new `std.csv`, `std.toml`, `std.yaml`, `std.io`, and `std.agentos` namespaces, and `std.fs.list_dir_detailed`/`stat` methods with their types.
+- `docs/src/architecture/vox-shell-stdlib-ssot-2026.md`: Add new documentation for the Vox Shell Standard Library Single Source of Truth.
+- `crates/vox-orchestrator-mcp/src/aci/envelope.rs`: Modify `aci_shell_backend_for_tool` to accept `tool_args` and extract the `backend` argument for `vox_run_shell`, supporting `nushell` and `powershell`.
+- `crates/vox-compiler/src/typeck/checker/expr_field.rs`: Add type checking for new `std.agentos`, `std.csv`, `std.toml`, `std.yaml`, and `std.io` namespaces.
+- `crates/vox-compiler/src/eval/mod.rs`: Update `mod.rs` to include the new `shell_stdlib` module.
+- `crates/vox-actor-runtime/src/builtins/tests.rs`: Add tests for `vox_fs_list_dir_detailed` and `vox_fs_stat`.
+- `examples/golden/format_conversion.vox`: Add golden example for format conversion.
+- `examples/golden/io_polymorphic.vox`: Add golden example for polymorphic I/O.
+- `examples/golden/tabular_subprocess.vox`: Add golden example for tabular subprocess output.
+- `examples/golden/structured_shell_listings.vox`: Add golden example for structured shell listings.
+- `crates/vox-orchestrator-mcp/src/dispatch.rs`: Update `dispatch.rs` to pass `tool_args` to `attach_aci_envelope`.
+- `crates/vox-compiler/src/typeck/checker/expr.rs`: Update type checking for expressions.
+- `crates/vox-actor-runtime/Cargo.toml`: Update Cargo.toml for `vox-actor-runtime`.
+- `crates/vox-compiler/Cargo.toml`: Update Cargo.toml for `vox-compiler`.
+- `docs/src/architecture/where-things-live.md`: Update architecture documentation.
+- `AGENTS.md`: Update AGENTS documentation.
+- `Cargo.toml`: Update root Cargo.toml.
+- `docs/src/architecture/agentos-ssot-2026.md`: Update AgentOS SSOT documentation.
+- `crates/vox-integration-tests/tests/agentos_aci_bench.rs`: Update ACI benchmark tests.
+- `docs/src/architecture/research-index.md`: Update research index documentation.
+
+--- audit: original='feat(stdlib): shell-tier SSOT, structured formats, ACI shell_backend from MCP args' | actual=1385L across 24 files | derived=full ---
