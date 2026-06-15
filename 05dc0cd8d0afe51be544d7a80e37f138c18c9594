@@ -1,0 +1,18 @@
+feat(dashboard): add live chat island; fix compiler void-IIFE codegen
+scale: ~431 lines across 17 files [L]
+
+- **compiler**:
+  - `codegen_ts/hir_emit/mod.rs`: Generalize `extract_single_jsx_expr` to inline any single-expression block (not just JSX/If) into JSX attributes/children, preventing void IIFEs and improving TSX type checking.
+- **dashboard**:
+  - `src/components/islands/SpeakIsland.tsx`: Add a fully interactive live chat UI component with message bubbles, connection status, and input.
+  - `src/hooks/useVoxChat.ts`: Implement a React hook for `voxTransport.callTool("vox_chat_message")`, handling session ID, result unwrapping, and error states.
+  - `src/components/islands/AppShellLive.tsx`: Create a new top-level shell to integrate `SpeakIsland` with existing generated tabs (`CommandTab`, `NetworkTab`, `ForgeTab`).
+  - `src/App.tsx`: Update the main entry point to use `AppShellLive` and remove an unused React import.
+  - `src/index.css`: Add Tailwind CSS rules for `.tab-btn` and `.tab-btn-active` used by the new shell.
+  - `src/vox-elements.d.ts`: Declare global JSX intrinsic elements for Vox layout primitives (column, row, panel, text, heading, etc.) for `src` consumers.
+  - `app/src/generated/vox-intrinsic-elements.d.ts`: Augment React's `JSX.IntrinsicElements` with Vox layout primitives.
+  - `tsconfig.json`: Include the `app/src/generated` directory and exclude the `tanstack` dependency.
+  - **Generated TSX files (`app/src/generated/*.tsx`)**: Regenerated to reflect the compiler fix, removing void IIFEs for single expressions in `DiagnosticRow.tsx`, `ChatMessage.tsx`, `TaskDispatch.tsx`, `NodeBadge.tsx`, `PipelineStage.tsx`, `ComposerPanel.tsx`, and `WorkflowScrubber.tsx`.
+- **.gitignore**: Add `crates/vox-dashboard/app/src/generated/vox-intrinsic-elements.d.ts` to ignore.
+
+--- audit: original='feat(task-7.2): transport bridge — SpeakIsland live chat + compiler void-IIFE fix' | actual=431L across 17 files | derived=full ---
