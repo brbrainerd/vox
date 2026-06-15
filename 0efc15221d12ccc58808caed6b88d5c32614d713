@@ -1,0 +1,11 @@
+docs(spec): v0.6.0 release design for `@endpoint` retirement and changelog audit
+scale: ~111 lines across 1 files [M]
+
+- docs/superpowers/specs/2026-05-26-v0.6.0-release-design.md: Add new design specification document detailing the v0.6.0 release plan, including:
+    - Hard removal of `@endpoint` without deprecation.
+    - Folding `[Unreleased]` changelog content into `[0.6.0]`.
+    - Creation of a `docs/src/reference/migration-0.5-to-0.6.md` document for syntactic differences.
+    - Contextual information on the current state of the repository, `CHANGELOG.md`, and `@endpoint` surface.
+    - References to outstanding tasks like #46 (Phase H execution) and T-FIN-1 (XS documentation).
+
+--- audit: original='docs(spec): v0.6.0 release design — @endpoint retirement, changelog audit, tag' | actual=111L across 1 files | derived=full ---
