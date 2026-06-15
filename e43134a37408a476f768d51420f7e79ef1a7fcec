@@ -1,0 +1,17 @@
+feat(skill-runtime): Add MicroVm tier and mock MicroVmRuntime
+scale: ~184 lines across 5 files [M]
+
+- `crates/vox-skill-runtime/tests/microvm_tier.rs`: Add integration tests for `MicroVmRuntime` and `plan_for_min_tier` with `Tier::MicroVm`.
+- `crates/vox-skill-runtime/src/microvm.rs`: Introduce `MicroVmRuntime` as a mock implementation of `SkillRuntime` for micro-VMs (Firecracker/Kata Containers). It always returns `Err(NotImplemented)` in this phase.
+- `crates/vox-skill-runtime/src/detect.rs`:
+    - Add `plan_for_min_tier` function to choose the best available `RuntimeChoice` based on a minimum `Tier`.
+    - Update `detect.rs` to import `Tier` from `runtime.rs`.
+- `crates/vox-skill-runtime/src/runtime.rs`:
+    - Define `Tier` enum representing sandbox isolation levels: `BareMetal`, `Wasm`, `Container`, and `MicroVm`.
+    - Add a `tier()` method to the `SkillRuntime` trait, defaulting to `Tier::Container`.
+    - Update documentation for `SkillRuntime` to include `MicroVm`.
+- `crates/vox-skill-runtime/src/lib.rs`:
+    - Export `MicroVmRuntime`, `Tier`, and `plan_for_min_tier`.
+    - Import `microvm` module.
+
+--- audit: original='feat(skill-runtime): P6-T3 Tier::MicroVm seam + mock MicroVmRuntime' | actual=184L across 5 files | derived=full ---
