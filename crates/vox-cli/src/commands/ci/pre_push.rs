@@ -500,6 +500,16 @@ fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
             scope: None,
             run: Box::new(step_canonical_map_verify),
         },
+        OwnedStep {
+            label: "vox ci config-hygiene".into(),
+            scope: None,
+            run: Box::new(|_root| super::config_hygiene::run(false)),
+        },
+        OwnedStep {
+            label: "vox ci config-registry-parity".into(),
+            scope: None,
+            run: Box::new(|_root| super::config_registry_parity::run(false)),
+        },
     ];
 
     if run_complete_static(opts) {

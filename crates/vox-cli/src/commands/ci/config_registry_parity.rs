@@ -54,11 +54,47 @@ fn scan_env_uses(root: &Path) -> BTreeSet<String> {
     used
 }
 
+/// The unified set of registered knob names — union of three sources:
+///
+/// 1. **`contracts/config/registry.v1.yaml`** — human-authored YAML registry (Check D SSOT).
+/// 2. **`vox_secrets::managed_secret_env_names()`** — Clavis-managed secret env vars.
+/// 3. **`vox_config::config_registry::CONFIG_KEYS`** — typed Rust CONFIG_KEYS registry.
+///
+/// Using the union means any name recognized by *either* gate is considered registered, so
+/// the two gates converge on one recognition surface and don't contradict each other.
+pub fn unified_registered_set(root: &Path) -> BTreeSet<String> {
+    let mut set = BTreeSet::new();
+
+    // Source 1: YAML registry (same source as config-hygiene Check D).
+    let registry_path = root.join("contracts/config/registry.v1.yaml");
+    if let Ok(rows) = super::config_hygiene::parse_registry_file(&registry_path) {
+        for row in rows {
+            if !row.env_var.is_empty() && row.env_var != "null" {
+                set.insert(row.env_var);
+            }
+        }
+    }
+
+    // Source 2: Clavis-managed secret env names.
+    for name in vox_secrets::managed_secret_env_names() {
+        set.insert(name.to_string());
+    }
+
+    // Source 3: typed Rust CONFIG_KEYS registry.
+    for key in vox_config::config_registry::registered_keys() {
+        set.insert(key.to_string());
+    }
+
+    set
+}
+
 /// The set of registered knob names from the federated config registry SSOT.
+///
+/// Delegates to [`unified_registered_set`] using the current working directory as the
+/// repo root. Kept for backward-compatibility with callers that do not have a `root` ref.
 fn registered_set() -> BTreeSet<String> {
-    vox_config::config_registry::registered_keys()
-        .map(|k| k.to_string())
-        .collect()
+    let root = std::env::current_dir().unwrap_or_default();
+    unified_registered_set(&root)
 }
 
 /// Path to the registration-backlog baseline, relative to repo root.
