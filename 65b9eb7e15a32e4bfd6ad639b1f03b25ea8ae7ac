@@ -1,0 +1,7 @@
+feat(quantize): introduce typed `QuantizeError` enum
+scale: ~34 lines across 2 files [S]
+
+- `crates/vox-quantize/src/error.rs`: Replaced placeholder content with a new `QuantizeError` enum, deriving `thiserror::Error` and `Debug`. This enum defines specific error variants for quantization operations, including `ReadModel`, `UnsupportedDtype`, `ShardIndex`, `Quantize` (from `candle_core::Error`), `Write`, `VerifyFailed` (with `tensor` and `mse` fields), and `Io` (transparently from `std::io::Error`). Also added a test to ensure display messages are human-readable.
+- `crates/vox-quantize/src/lib.rs`: Exported the new `QuantizeError` from the `error` module.
+
+--- audit: original='feat(quantize): typed QuantizeError' | actual=34L across 2 files | derived=full ---
