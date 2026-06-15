@@ -1,0 +1,28 @@
+feat(compiler): implement `@example` decorator for reference demonstrations
+scale: ~148 lines across 18 files [M]
+
+- **`@example` decorator implementation:**
+    - `ast/decl/fundecl.rs`: Added `ExampleDecl { label, func }` struct.
+    - `ast/decl/types.rs`: Added `Decl::Example(ExampleDecl)` variant and `span()` arm.
+    - `parser/descent/decl/head.rs`: Implemented `parse_example()` to parse `@example` declarations, mirroring `parse_test`.
+    - `parser/descent/mod.rs`: Routed `Token::AtExample` to `parse_example()` in look-ahead and dispatch lists.
+    - `hir/nodes/decl.rs`: Added `examples: Vec<HirFn>` field to `HirModule` with `#[serde(default)]` for backward compatibility.
+    - `hir/lower/mod.rs`: Lowered `Decl::Example` into `HirModule::examples` and propagated async flags analysis to example functions.
+    - `typeck/mod.rs`: Chained `hir.examples` into the AI-fixture lint pass.
+    - `fmt/printer.rs`: Added `Decl::Example` arm for pretty-printing.
+    - `language_surface.rs`: Added `@example` to `DECORATOR_DOCS` and `LEXER_DECORATORS`.
+- **Drift check improvements:**
+    - `vox-http-client/src/lib.rs`: Added `bearer_auth_header()` and `bearer_auth_header_string()` SSOT helpers for bearer tokens, and introduced named constants `CONNECT_TIMEOUT` and `POOL_IDLE_TIMEOUT`. Updated `client_builder` to use these constants and changed the default user agent string.
+    - `vox-drift-check/src/rules/bearer_header.rs`: Added self-exemption for `vox-drift-check` and updated the suggestion message to reference `vox-http-client`.
+    - `vox-drift-check/src/rules/reqwest_bypass.rs`: Renamed `ALLOWED_CRATES` entry from `vox-reqwest-defaults` to `vox-http-client` and updated diagnostic messages.
+    - `vox-drift-check/src/rules/vox_path_literal.rs`: Added `vox-drift-check` to `ALLOWED_CRATES` for self-exemption.
+- **Schema drift fixes:**
+    - `hir/lower/mod.rs`: Added `primary_key: None` to a `TableDecl` test initializer.
+    - `typeck/effect_check.rs`: Removed stale `stream_interval: None` from a `HirEndpointFn` test.
+    - `examples/examples.ssot.v1.yaml`: Registered `examples/cli-tour/` as a sandbox root.
+- **Snapshot updates:**
+    - `crates/vox-compiler/tests/snapshots/diagnostic_snapshots__rust_import_dup_diagnostic_payload_snapshot.snap`: Updated.
+    - `crates/vox-compiler/tests/snapshots/axum_emit_contract_test__mutation_with_schema_main_rs_emit.snap`: Updated.
+- `Cargo.lock`: Updated due to changes.
+
+--- audit: original='feat(compiler): implement @example decorator (AST → parser → HIR → typeck)' | actual=148L across 18 files | derived=full ---
