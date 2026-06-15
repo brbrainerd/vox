@@ -1,0 +1,10 @@
+fix(vox-cli): reassign Landlock ruleset when adding rules
+scale: ~11 lines across 1 files [S]
+
+- `crates/vox-cli/src/commands/runtime/run/sandbox.rs`:
+    - Changed `ruleset` from an immutable binding to a mutable one (`let mut ruleset`).
+    - Modified the loop that adds Landlock rules to reassign `ruleset = ruleset.add_rule(...)` instead of discarding the result with `let _ = ...`.
+    - Added error handling to the `add_rule` call within the loop, mapping `landlock::Error` to `std::io::Error` and propagating the error.
+    - Added a comment explaining why the ruleset needs to be reassigned and the fail-closed approach.
+
+--- audit: original='fix(vox-cli): reassign Landlock ruleset through consuming add_rule (0.4 API)' | actual=11L across 1 files | derived=full ---
