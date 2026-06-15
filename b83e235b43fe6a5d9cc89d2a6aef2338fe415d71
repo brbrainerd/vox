@@ -1,0 +1,9 @@
+fix(compiler): implement `std.time.now_ms` in the interpreter
+scale: ~47 lines across 1 files [S]
+
+- `crates/vox-compiler/src/eval/builtins.rs`:
+    - Added a `Some("time")` arm to `call_builtin_method` to handle `std.time.now_ms()`.
+    - `std.time.now_ms()` now returns the current UNIX epoch time in milliseconds as an `i64`.
+    - Added a new test `std_time_now_ms_dispatches_in_interpreter` to verify the dispatch of `std.time.now_ms()` in the interpreter.
+
+--- audit: original='fix(compiler): implement std.time.now_ms in the interpreter (codegen parity)' | actual=47L across 1 files | derived=full ---
