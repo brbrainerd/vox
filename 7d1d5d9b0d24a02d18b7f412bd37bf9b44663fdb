@@ -1,0 +1,11 @@
+docs(architecture): Update CR-F2 parity status for `main` return fix
+scale: ~16 lines across 1 files [S]
+
+- `docs/src/architecture/cr-f2-arm-parity-reality-2026-06-05.md`:
+    - Updated the `--mode script` parity status from "0 / 10 — *none compile*" to "1 / 10" due to the fix for `mesh/noop`.
+    - Marked backlog item #1, "fn main() to <T> return type not handled", as fixed on 2026-06-05.
+    - Explained that the fix allows non-unit `main` functions to compile and print their result, mirroring the interpreter.
+    - Noted that `mesh/noop.vox` now compiles, runs, and prints `0`, ratcheting CR-F2 from 0/10 to 1/10.
+    - Clarified that other value-returning `main` programs now fail on separate body bugs, not the `main` return error.
+
+--- audit: original='docs(v1): CR-F2 ratchet 0->1/10 (main-return fix); mark backlog #1 fixed' | actual=16L across 1 files | derived=full ---
