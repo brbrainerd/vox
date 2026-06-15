@@ -1,0 +1,9 @@
+docs(architecture): update frontmatter and skip illustrative code snippets
+scale: ~28 lines across 4 files [S]
+
+- `docs/src/architecture/http-runtime-extraction-2026.md`: Added full YAML frontmatter including `title`, `description`, `last_updated`, `category: "Architecture SSOTs"`, and `status: research`.
+- `docs/src/architecture/json-ergonomics-rfc-2026-05-23.md`: Changed `status: ratified` to `status: approved` and added `category: "Architecture SSOTs"`. Added `// vox:skip` comments to five illustrative code snippets that reference out-of-scope variables (`data`, `input`, `process`, `log`) to prevent doctest compilation.
+- `docs/src/architecture/intra-project-imports-rfc-2026-05-23.md`: Changed `category: "architecture"` to `category: "Architecture SSOTs"` and `status: "rfc"` to `status: "research"`. Added `// vox:skip` comments to two illustrative code snippets that reference non-existent helper files.
+- `docs/src/architecture/json-as-rfc-2026-05-24.md`: Changed `status: ratified` to `status: approved` and added `category: "Architecture SSOTs"`. Added `// vox:skip` comments to three code snippets that use the `@json_as` decorator, as it is a proposed feature and not yet implemented.
+
+--- audit: original='docs(pipeline): fix frontmatter + skip illustrative code snippets' | actual=28L across 4 files | derived=full ---
