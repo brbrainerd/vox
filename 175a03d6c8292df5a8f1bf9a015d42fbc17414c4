@@ -1,0 +1,32 @@
+feat(routing): Implement free-by-default and Fast/Free model tiers
+scale: ~1067 lines across 20 files [XL]
+
+- **`vox-dei-shim/src/selection`**:
+    - Re-activated model selection logic by restoring `scorer.rs`, `tests.rs`, `free_tier.rs`, `virtual_models.rs`, `task_routing.rs`, `weights.rs`, and `mod.rs` from git history.
+    - Implemented `ModelScorer` for selecting the best model based on task and cost preference.
+    - Introduced `FreeTierRouter` for intelligent free-tier model selection with capability constraints.
+    - Defined `virtual_models` including `openrouter/auto` and `openrouter/free`.
+    - Added `task_and_flags_to_profile` for mapping task categories and flags to `RoutingProfile`.
+    - Updated `mk_spec` helpers in tests to align with new model structures.
+    - Fixed 4 stale `crate::dei_shim::research::` references in `cfg(test)` blocks.
+    - Added `jsonschema` and `tempfile` as dev-dependencies.
+- **`vox-orchestrator/src/types/routing.rs`**:
+    - Created `RoutingProfile` enum with 7 variants (`General`, `Research`, `Vision`, `StrictJson`, `Planning`, `VoxComposer`, `RustLangdev`) to specialize scoring and filter models based on high-level intent.
+- **`vox-orchestrator/src/models/spec.rs`**:
+    - Added `supports_file_input` and `supports_jsonl` fields to `ModelCapabilities`.
+    - Added convenience methods `supports_web_search()`, `supports_file_input()`, and `supports_jsonl()` to `ModelSpec`.
+- **`contracts/orchestration/model-routing.v1.yaml`**:
+    - Added `Free` and `Fast` to the `ModelTier` enum.
+- **`crates/vox-orchestrator/src/config/enums.rs`**:
+    - Added `#[derive(Default)]` and `#[default]` to `CostPreference::Economy`.
+- **`crates/vox-orchestrator/src/config/defaults.rs`**:
+    - Changed `default_cost_preference()` from `Performance` to `Economy`, establishing free-by-default behavior.
+- **`crates/vox-dei-shim/src/lib.rs`**:
+    - Updated `crate::` imports to `vox_orchestrator::` to reflect crate renaming.
+    - Added `_` arms to non-exhaustive `ModelTier` matches.
+- **`crates/vox-dei-shim/Cargo.toml`**:
+    - Added `jsonschema` and `tempfile` as dev-dependencies.
+- **`crates/vox-dei-shim/src/research/*`**:
+    - Updated `pipeline_cache.rs`, `web_gather.rs`, `planner.rs`, and `verifier.rs` to reflect `vox_orchestrator` imports.
+
+--- audit: original='feat(routing): land free-by-default + Fast/Free model tiers (F-F + F-G)' | actual=1067L across 20 files | derived=full ---
