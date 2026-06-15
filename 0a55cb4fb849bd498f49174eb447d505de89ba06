@@ -1,0 +1,10 @@
+refactor(config): de-literalize magic numbers and strings
+scale: ~26 lines across 5 files [S]
+
+- `crates/vox-forge/src/lib.rs`: Define `FORGE_USER_AGENT` constant using `CARGO_PKG_VERSION` for dynamic versioning.
+- `crates/vox-forge/src/github.rs`: Use `FORGE_USER_AGENT` constant for GitHub client's user agent.
+- `crates/vox-forge/src/gitlab.rs`: Use `FORGE_USER_AGENT` constant for GitLab client's user agent.
+- `crates/vox-workflow-runtime/src/workflow/run.rs`: Define `DEFAULT_DEDUP_WINDOW_MS` constant and use it for `dedup_window_ms` default.
+- `crates/vox-plugin-browser/src/engine.rs`: Define `MIN_TEXT_SUMMARY_CHARS` constant and use it as the lower clamp for `max_chars` in `visible_text_summary`.
+
+--- audit: original='refactor(config): de-literalize low-severity lt-svc findings' | actual=26L across 5 files | derived=full ---
