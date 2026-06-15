@@ -1,0 +1,4 @@
+fix(parser,dashboard,
+scale: ~515 lines across 22 files [L]
+
+--- audit: original='fix(parser,corpus): tighten view-call brace sugar + restore route reachability' | actual=515L across 22 files | derived=full ---
