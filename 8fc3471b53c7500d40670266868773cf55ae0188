@@ -1,0 +1,55 @@
+feat(mens): implement comprehensive training, corpus extraction, and orchestrator infrastructure
+scale: ~4347 lines across 176 files [XL]
+
+- **vox-compiler**:
+  - `codegen_ts/reactive.rs`: Refactored React import scanning in HIR expressions for better readability and maintainability.
+  - `typeck/infer.rs`: Updated type inference logic.
+  - `typeck/checker/mod.rs`, `typeck/checker/expr.rs`, `typeck/checker/expr_field.rs`: Enhanced type checking for expressions and fields.
+  - `typeck/unify.rs`: Improved type unification.
+  - `parser/descent/decl/mid.rs`, `parser/descent/mod.rs`, `parser/descent/tests.rs`: Adjusted parser descent for declarations.
+  - `web_ir/lower.rs`: Modified Web IR lowering.
+  - `codegen_ts/hir_emit/mod.rs`, `codegen_ts/emitter.rs`, `codegen_ts/component.rs`, `codegen_ts/route_manifest.rs`, `codegen_ts/mod.rs`: Updated TypeScript code generation.
+  - `language_surface.rs`: Minor adjustments to language surface definitions.
+  - `hir/lower/mod.rs`: Modified HIR lowering.
+  - `typeck/env.rs`: Updated type checking environment.
+  - `typeck/checker/match_exhaust.rs`: Improved match exhaustiveness checking.
+- **vox-cli**:
+  - `commands/corpus/validate.rs`: Added comprehensive validation for corpus records, including compiler recheck logic for Vox source code and extraction of fenced Vox blocks.
+  - `commands/corpus/mod.rs`, `commands/corpus/stats.rs`: Expanded corpus commands and statistics.
+  - `commands/attention.rs`: Updated attention-related commands.
+  - `commands/ci/run_body_helpers/guards.rs`, `commands/ci/run_body_helpers/corpus_decl_coverage.rs`, `commands/ci/run_body.rs`: Enhanced CI run body helpers, including corpus declaration coverage.
+  - `commands/review/coderabbit/semantic_planner/rules.rs`, `commands/review/coderabbit/semantic_planner/mod.rs`, `commands/review/coderabbit/historical_planner.rs`: Refined CodeRabbit review planning rules.
+  - `commands/mens/eval_local_prompt.rs`: Added command for evaluating local MENS prompts.
+  - `commands/schola/merge_qlora.rs`: Introduced command for merging QLoRA models.
+  - `commands/migrate/mod.rs`: Updated migration commands.
+  - `commands/ci/attention_ledger_parity.rs`: Added CI command for attention ledger parity.
+  - `commands/mens/pipeline.rs`, `commands/mens/eval_gate/check_run.rs`: Updated MENS pipeline and evaluation gate check run commands.
+  - `commands/mod.rs`: General updates to CLI commands.
+  - `frontend.rs`: Minor adjustments to CLI frontend.
+  - `templates/mobile_pwa.rs`: Updated mobile PWA templates.
+  - `tests/full_stack_minimal_build.rs`, `tests/scaffold_spa_manifest_idempotent.rs`, `tests/migrate_web_smoke.rs`: Updated CLI integration tests.
+- **vox-schola**:
+  - `serve.rs`: Expanded serving capabilities to include Ollama-shaped API endpoints (`/api/chat`, `/api/tags`, `/api/generate`, `/api/version`) in addition to OpenAI-compatible chat completions.
+  - `merge.rs`: Added merge functionality.
+  - `train.rs`: Updated training logic.
+- **vox-db**:
+  - `store/ops_mens_intelligence.rs`: Refactored MENS intelligence operations, including `upsert_corpus_quality_report`, `upsert_test_decision`, and `upsert_victory_verdict` for improved data handling and error reporting.
+  - `store/ops_lineage.rs`: Updated lineage operations.
+  - `store/mod.rs`: General updates to store operations.
+  - `lib.rs`: Minor adjustments to library.
+  - `tests/ops_clavis_cloudless_tests.rs`: Updated cloudless Clavis operations tests.
+  - `workspace_journey_store.rs`: Updated workspace journey store.
+  - `codex_chat.rs`: Updated codex chat functionality.
+  - `store/ops_learning.rs`, `store/ops_agents.rs`: Modified learning and agent operations.
+- **vox-orchestrator**:
+  - `config/impl_env.rs`: Added support for `VOX_ORCHESTRATOR_POPULI_INFERENCE_BASE_URL` environment variable and refined parsing of TLX weights.
+  - `config/tests.rs`: Updated configuration tests.
+  - `runtime.rs`: Updated orchestrator runtime.
+  - `orchestrator/task_dispatch/complete.rs`: Updated task dispatch completion logic.
+  - `jj_backend.rs`: Updated JJ backend.
+  - `orchestrator/core.rs`: Updated orchestrator core.
+  - `gate.rs`: Updated gate functionality.
+  - `orchestrator/observer_loop.rs`: Updated observer loop.
+  - `memory/manager.rs`: Updated memory manager.
+
+--- audit: original='feat: implement comprehensive mens training, corpus extraction, and orchestrator infrastructure with expanded CLI and compiler support' | actual=4347L across 176 files | derived=full ---
