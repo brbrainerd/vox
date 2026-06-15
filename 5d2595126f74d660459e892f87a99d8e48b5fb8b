@@ -1,0 +1,9 @@
+feat(hir): lower Decl::Const into HirModule.consts
+scale: ~70 lines across 5 files [M]
+
+- `crates/vox-compiler/src/hir`: Introduced `HirConst` struct to represent top-level constant bindings and added a `consts: Vec<HirConst>` field to `HirModule` for storing these, ensuring `serde(default)` for round-trip safety.
+- `crates/vox-compiler/src/hir/lower`: Implemented `lower_const` helper and updated the `lower()` match arm to route `Decl::Const` (including top-level `let` bindings) into `HirModule.consts`, moving them out of `legacy_ast_nodes`.
+- `crates/vox-compiler/tests`: Added new test cases in `const_lowering_test.rs` to verify that top-level `let` declarations are correctly lowered into `HirModule::consts` and not caught by `legacy_ast_nodes`.
+- `crates/vox-compiler/tests/snapshots`: Updated the `axum_emit_contract_test__mutation_with_schema_main_rs_emit.snap` snapshot to reflect the new JSON field in `HirModule`.
+
+--- audit: original='feat(hir): lower Decl::Const (incl. top-level let) into HirModule.consts' | actual=70L across 5 files | derived=full ---
