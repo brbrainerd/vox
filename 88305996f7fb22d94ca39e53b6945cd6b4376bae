@@ -1,0 +1,14 @@
+feat(codegen-ts): add `safe_area` kwarg for CSS `env(safe-area-inset-*)` styles
+scale: ~86 lines across 4 files [M]
+
+- `crates/vox-codegen/tests/safe_area_test.rs`: Add new test file with two tests for `safe_area` kwarg: `safe_area_top_emits_env_padding` and `safe_area_all_emits_four_paddings`.
+- `crates/vox-codegen/src/web_ir/primitives/mod.rs`:
+    - Add `safe_area` to `UNIVERSAL_STYLE_KWARGS`.
+    - Add `safe_area_to_style_props` function to map `safe_area` kwarg values ("top", "bottom", "left", "right", "all", "horizontal", "vertical") to inline React style object fragment strings using CSS `env(safe-area-inset-*)` variables.
+- `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`:
+    - Modify `emit_hir_expr` to include `style` attribute for `ViewCallHir` when `style_expr` is present.
+    - Add `style_expr: Option<String>` field to `ViewCallHir` struct to store inline React style object expressions.
+    - In `transform_hir_view_kwargs`, process `safe_area` kwarg by calling `safe_area_to_style_props` and storing the result in `safe_area_style`.
+- `crates/vox-codegen/src/web_ir/lower.rs`: Modify `fold_primitive_web_ir_element` to add a `style` attribute to the element's attributes if `view.style_expr` is present.
+
+--- audit: original='feat(codegen-ts): safe_area kwarg → CSS env(safe-area-inset-*)' | actual=86L across 4 files | derived=full ---
