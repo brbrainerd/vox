@@ -1,0 +1,12 @@
+feat(dashboard): implement initial dashboard surfaces, APIs, and compiler fixes
+scale: ~9599 lines across 135 files [XL]
+
+- `crates/vox-dashboard`: Introduced the core dashboard application with `app.vox` orchestrating 7 new surfaces (`mesh.vox`, `runs.vox`, `forge.vox`, `code.vox`, `settings.vox`, `models.vox`, `speak.vox`) and a new `lib/chrome.vox` shell. Added `lib/primitives.vox` for shared UI components and `lib/transport.vox` for API communication. Implemented new REST APIs for mesh and runs data (`api/mesh.rs`, `api/runs.rs`) with fixture data, and updated `api/settings.rs` and `api/models.rs`. Added E2E tests for mesh and runs surfaces.
+- `crates/vox-compiler`: Added extensive golden tests for dashboard components, chrome, and surfaces. Enhanced the typechecker to support `any`-type field access, iteration, and state initialization. Updated the import parser for `/` separators and destructured `as { Name1, Name2 }` forms. Improved SVG tag normalization and attribute handling (`std_deviation` to `stdDeviation`, `filter` to known tags). Resolved 18 conflicts and adopted VUV-9 view-call syntax across many files. Updated `state_deps.rs` and `component.rs` for `HirExpr::For` and `emit_jsx_fragment`.
+- `docs`: Added new architecture and design brief documents for the Vox Dashboard. Updated existing documentation to be compiler-compatible.
+- `crates/vox-orchestrator`: Added new event bus variants and updated HTTP gateway and service routes.
+- `crates/vox-populi`: Updated router and transport modules.
+- `crates/vox-cli`: Modified `db/query_plans.rs`.
+- `.lycheeignore`: Added new entries for bot-blocked or transiently unavailable links.
+
+--- audit: original='Vox Dashboard Phase 1–3: surfaces + APIs + compiler typeck/import fixes' | actual=9599L across 135 files | derived=full ---
