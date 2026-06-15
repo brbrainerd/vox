@@ -1,0 +1,8 @@
+docs(coverage-graph): Add vox-db semantic behavior coverage map
+scale: ~42 lines across 1 files [S]
+
+- Add `COVERAGE_BEHAVIORS_vox-db.md` detailing 293 behavior claims for the `vox-db` crate.
+- Summarize coverage, highlighting well-covered security/validation surfaces and identifying semantic gaps in error/boundary path testing for other persistence and telemetry methods.
+- Document per-symbol behaviors, including `validate_identifier`, `collection_ddl`, `collection_index_ddl`, and `record_review_decision`.
+
+--- audit: original='feat(coverage-graph): Phase 2 behavior map for vox-db (LLM pilot)' | actual=42L across 1 files | derived=full ---
