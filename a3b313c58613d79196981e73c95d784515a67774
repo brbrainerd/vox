@@ -1,0 +1,17 @@
+feat(vox-gui/memory): Improve accessibility of MemoryView components
+scale: ~54 lines across 2 files [M]
+
+- `MemoryView.tsx`:
+  - Added `type="button"` to all interactive buttons for explicit semantic meaning.
+  - Added `aria-pressed` to `CorpusChip` and `Auto-recall` toggle buttons to indicate their state.
+  - Added `aria-label` to `CorpusChip` buttons for better screen reader context.
+  - Added `aria-hidden="true"` to decorative icons within buttons to prevent screen readers from announcing them.
+  - Added `aria-label="Recall query"` to the recall search input.
+  - Added `aria-live="polite"` and `aria-label="Recall citations"` to the citations region.
+- `MemoryView.test.tsx`:
+  - Added tests to verify `type="button"` is present on all buttons.
+  - Added tests to verify the recall search input has an accessible label.
+  - Added tests to verify the `Auto-recall` toggle uses `aria-pressed`.
+  - Added tests to verify the citations region is marked as a polite live region.
+
+--- audit: original='feat(vox-gui/wave5): MemoryView a11y (Wave 5)' | actual=54L across 2 files | derived=full ---
