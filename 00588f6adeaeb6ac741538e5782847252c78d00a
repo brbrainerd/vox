@@ -1,0 +1,36 @@
+feat(vox-compiler): Decommission Path B components and unify endpoint declarations
+scale: ~1450 lines across 58 files [XL]
+
+- refactor(hir): Remove `HirLoweringMigrationFlags` and `HirComponent` from `HirModule`.
+- refactor(hir): Unify `server_fns`, `query_fns`, and `mutation_fns` into a single `endpoint_fns` vector in `HirModule`.
+- refactor(hir): Update `lower` function to populate `endpoint_fns` instead of separate server/query/mutation function vectors.
+- refactor(hir): Remove `reactive_components` from `HirModule`, consolidating component handling.
+- refactor(web_ir): Update `fn_signature_for_contract` and `mutation_payload_type` to use `HirEndpointFn`.
+- refactor(web_ir): Remove `lower_routes` function and related `RouteNode` logic.
+- refactor(web_ir): Remove `lower_styles_from_classic_components` as Path B components are decommissioned.
+- refactor(codegen_ts): Remove `validate_manifest_symbols` from `route_manifest.rs` due to changes in component and endpoint handling.
+- refactor(codegen_ts): Remove `generate_component` and `generate_component_from_web_ir` from `emitter.rs`.
+- refactor(codegen_ts): Update `emitter.rs` to generate reactive components from `hir.components` directly, implying a unification of component types.
+- refactor(codegen_rust): Update `emit_main` in `http.rs` to iterate over `endpoint_fns` for determining `needs_get` and `needs_post` flags.
+- refactor(codegen_rust): Update `emit_main` in `http.rs` to use `endpoint_fns` for route generation.
+- refactor(codegen_rust): Update `pipeline.rs` to reflect the removal of `HirLoweringMigrationFlags`.
+- refactor(codegen_ts): Update `routes.rs` to reflect changes in route and endpoint handling.
+- refactor(hir): Update `validate.rs` to remove validation logic for decommissioned component paths and endpoint types.
+- refactor(app_contract): Update `app_contract.rs` to reflect changes in endpoint and component structures.
+- refactor(typeck): Update `checker/mod.rs` and `registration.rs` to align with unified endpoint declarations.
+- refactor(hir): Remove `dead_code.rs` related to old component structures.
+- refactor(codegen_rust): Update `client.rs` to reflect changes in component and endpoint handling.
+- feat(ast): Add `fundecl.rs` for function declaration AST nodes.
+- refactor(codegen_ts): Update `vox_client.rs` to reflect changes in endpoint and component handling.
+- refactor(parser): Update `descent/decl/head.rs` to parse new unified component and endpoint declarations.
+- refactor(parser): Update `descent/tests.rs` to reflect changes in parsing.
+- refactor(vox_ir): Update `mod.rs` and `lower.rs` to align with the new HIR structure.
+- refactor(lexer): Update `cursor.rs` and `token.rs` to reflect minor changes.
+- refactor(ast): Add `types.rs` for type declaration AST nodes.
+- docs: Update comments in `hir/lower/mod.rs` to reflect the new lowering buckets.
+- test: Update `web_ir_lower_emit_test.rs` to reflect changes in WebIR lowering and emission.
+- test: Update `axum_emit_contract_test.rs`, `ir_emission_test.rs`, `golden_vox_examples_test.rs`, `reactive_smoke_test.rs` to align with new HIR and codegen.
+- test: Update `crates/vox-integration-tests` to reflect changes in pipeline and includes.
+- examples: Update various `golden/*.vox` examples to reflect the new component and endpoint syntax.
+
+--- audit: original='feat(vox-compiler): TASK-2.1 & TASK-2.2 — Path B decommission and @endpoint unification' | actual=1450L across 58 files | derived=full ---
