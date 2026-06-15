@@ -2,6 +2,9 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
+  // Only Playwright specs end in .spec.ts; e2e/lib/*.test.ts are vitest unit tests
+  // (they import 'vitest') and must NOT be collected by the Playwright runner.
+  testMatch: '**/*.spec.ts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
