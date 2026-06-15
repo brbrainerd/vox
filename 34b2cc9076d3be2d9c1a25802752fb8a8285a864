@@ -1,0 +1,45 @@
+feat(policy): implement unified policy governance surface (Phase 1)
+scale: ~15970 lines across 43 files [XL]
+
+- **`contracts`**:
+    - Define `policy-registry.v1.yaml` for the unified policy catalog schema.
+    - Add `policy-registry.v1.schema.json` for schema enforcement.
+    - Register the new policy contract in `contracts/index.yaml`.
+    - Update `gui/surface-registry.v1.yaml` for the new GUI surface.
+- **`vox-config`**:
+    - Implement `policy::registry` module for the policy registry model and loader.
+    - Implement `policy::status` module for the per-branch policy run-status model and reader.
+    - Re-export policy registry API and loader.
+- **`vox-cli`**:
+    - Introduce `vox policy` subcommand with `list`, `show`, `domains`, `groups`, and `status` operations.
+    - Implement policy registry bootstrap generator for `code-audit` domain (feature-gated).
+    - Implement policy-registry and policy-registry-parity CI gates.
+    - Add enumerators for `audit-check`, `ci-gate`, `arch-rule`, and `crl-gate` policies.
+    - Implement per-domain policy-registry parity and full catalog regeneration.
+    - Implement `status_writer.rs` for merging and writing per-branch policy run-status.
+    - Integrate per-gate policy status capture wrapper around CI dispatch.
+    - Implement per-rule code-audit status emission into the policy store.
+    - Gate policy-registry generator items behind `completion-toestub` feature to avoid default-build warnings.
+    - Correct `code-audit` group prefixes and merge all policy domains into the registry.
+    - Fix `vox policy domain` filter for new policy domains.
+    - Update `run_body.rs` to integrate policy status capture and ensure failing gates record `Fail`.
+    - Set `RUST_MIN_STACK=8MiB` in `.cargo/config.toml` to prevent stack overflow on Windows tests.
+- **`vox-arch-check`**:
+    - Add `--json` per-rule output for policy-status overlay.
+- **`vox-gui`**:
+    - Register "Policies" surface and rename "Matrix" navigation label to "Routing".
+    - Implement IPC handlers (`policy_list`, `policy_show`, `policy_status`, `list_branches`) for the GUI.
+    - Develop `policyTree.ts` and `policyTree.test.ts` for building policy group trees and status roll-ups.
+    - Create `PoliciesView.tsx` for the detail-dominant, read-only Policies surface.
+    - Implement master sidebar badge for policies, displaying worst status and count.
+    - Fix master policy badge to show a bare dot when nothing has run.
+    - Regenerate `gui-surface-coverage` report.
+- **`docs`**:
+    - Add design specifications for unified policy registry and governance surface.
+    - Include verification addendum for policy-registry design.
+    - Detail implementation plans for Phase 1a (catalog foundation), 1b (all domains), 1c (status overlay), and 1d (GUI).
+    - Add "where-things-live" rows for policy catalog and policy status overlay.
+    - Regenerate `doc-inventory.json`.
+- **`.gitignore`**: Add `.superpowers/` scratch directory.
+
+--- audit: original='Unified policy governance surface (Phase 1): readable per-branch catalog of all CI/CD gates, language rules & audits in CLI + GUI (#197)' | actual=15970L across 43 files | derived=sampled ---
