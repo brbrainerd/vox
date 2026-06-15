@@ -1,0 +1,7 @@
+feat(codegen-web): emit `runtime-install.ts` browser shims
+scale: ~143 lines across 2 files [M]
+
+- `crates/vox-codegen/src/codegen_ts/web_entry.rs`: Added `RUNTIME_INSTALL_FILENAME` constant and `emit_runtime_install` function to generate the `runtime-install.ts` file. This file contains TypeScript declarations and JavaScript implementations for browser-global shims like `str`, `len`, `Speech` (via Web Speech API), `std` (with `time.now_ms`, `crypto.uuid`, `crypto.hash_secure` using `crypto.subtle`, `json.parse`, `regex.compile`), and `mobile`. It also includes a `__VOX_TEST_TRANSCRIPT__` test hook.
+- `crates/vox-codegen/src/codegen_ts/emitter.rs`: Modified `generate_with_options` to call `emit_runtime_install` and add the generated `runtime-install.ts` file to the output files when targeting web.
+
+--- audit: original='feat(codegen-web): emit runtime-install.ts browser shims (Stage 2)' | actual=143L across 2 files | derived=full ---
