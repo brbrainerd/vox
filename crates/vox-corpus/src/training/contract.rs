@@ -47,6 +47,7 @@ mod tests {
     #[test]
     fn normalize_absolute_is_unchanged_with_workspace() {
         let ws = PathBuf::from("/repo");
+        // vox-arch-check: allow abs-path
         let abs = PathBuf::from(if cfg!(windows) {
             r"C:\abs\train"
         } else {
@@ -58,6 +59,7 @@ mod tests {
 
     #[test]
     fn normalize_relative_joins_workspace() {
+        // vox-arch-check: allow abs-path
         let ws = PathBuf::from(if cfg!(windows) {
             r"C:\repo\vox"
         } else {

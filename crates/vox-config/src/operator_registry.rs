@@ -842,6 +842,7 @@ pub const OPERATOR_TUNING_ENVS: &[OperatorEnvSpec] = &[
     OperatorEnvSpec {
         name: "USERPROFILE",
         description: "Standard Windows user profile directory.",
+        // vox-arch-check: allow abs-path
         defaults: "C:\\Users\\Default",
 
         config_class: ConfigClass::NodeLocal,

@@ -10,6 +10,8 @@ use std::process::Command;
 const EXT_LF: &[&str] = &[
     "rs", "toml", "lock", "md", "yml", "yaml", "json", "ts", "tsx", "js", "jsx", "mjs", "mts",
     "py", "vox", "gd", "css", "html", "svg", "sh",
+    // Golden / snapshot / fixture formats (were undeclared → CRLF-on-Windows risk).
+    "snap", "txt", "jsonl", "sql", "xml",
 ];
 
 /// Run the line-ending check. Forward-only: only files changed since merge-base unless `all` is set.
@@ -205,6 +207,54 @@ fn list_changed_policy_paths(
         }
     }
     Ok(out)
+}
+
+/// Scan all git-tracked files for byte-order marks (UTF-8 BOM = 0xEF 0xBB 0xBF).
+/// Returns an error string listing violating files, or Ok(()) if clean.
+pub fn check_bom(repo_root: &Path) -> anyhow::Result<()> {
+    let output = std::process::Command::new("git")
+        .args(["ls-files", "-z"])
+        .current_dir(repo_root)
+        .output()
+        .context("git ls-files failed")?;
+
+    if !output.status.success() {
+        return Err(anyhow::anyhow!(
+            "git ls-files failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+
+    let bom: &[u8] = &[0xEF, 0xBB, 0xBF];
+    let mut violations: Vec<String> = Vec::new();
+
+    for file in output.stdout.split(|&b| b == 0).filter(|s| !s.is_empty()) {
+        let path_str = match std::str::from_utf8(file) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+        let full_path = repo_root.join(path_str);
+        // Read only the first 3 bytes to avoid loading large files.
+        let mut buf = [0u8; 3];
+        if let Ok(mut f) = std::fs::File::open(&full_path) {
+            use std::io::Read;
+            let n = f.read(&mut buf).unwrap_or(0);
+            if n == 3 && buf == *bom {
+                violations.push(path_str.to_string());
+            }
+        }
+    }
+
+    if violations.is_empty() {
+        println!("bom-check OK (no UTF-8 byte-order marks in tracked files)");
+        Ok(())
+    } else {
+        Err(anyhow::anyhow!(
+            "BOM violations ({} file(s)) — strip with `python -c \"import sys; open(f,'wb').write(open(f,'rb').read()[3:])\" <file>`:\n{}",
+            violations.len(),
+            violations.join("\n")
+        ))
+    }
 }
 
 #[cfg(test)]

@@ -15340,6 +15340,7 @@ dependencies = [
  "dialoguer",
  "hex",
  "hound",
+ "libc",
  "owo-colors 4.3.0",
  "regex",
  "reqwest 0.12.28",

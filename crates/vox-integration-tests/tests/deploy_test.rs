@@ -43,6 +43,7 @@ fn deploy_dockerfile_from_spec_smoke_test() {
 fn deploy_bare_metal_systemd_template_population() {
     let app_name = "test-app";
     let user = "vox";
+    // vox-arch-check: allow abs-path
     const HOME_PREFIX: &str = "/home/";
     let workdir = format!("{HOME_PREFIX}{user}/app");
     let cmd = "./my-binary --port 3000";

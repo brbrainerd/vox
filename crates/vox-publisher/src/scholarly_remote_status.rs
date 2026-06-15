@@ -1,4 +1,4 @@
-﻿//! Normalize adapter remote status strings into `external_submission_jobs.status` values.
+//! Normalize adapter remote status strings into `external_submission_jobs.status` values.
 
 use serde::Serialize;
 

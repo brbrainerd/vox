@@ -177,6 +177,7 @@ mod tests {
 
     #[test]
     fn declared_siblings_are_tolerated() {
+        // vox-arch-check: allow abs-path
         let layers = LayersManifest::load_from_file(std::path::Path::new("/tmp/none.toml"));
         // Manually compose a manifest by parsing inline TOML to keep the test hermetic.
         let layers = {

@@ -67,6 +67,10 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::PolicyRegistryParity => {
             super::policy_registry::run_parity(&root).map_err(|e| anyhow!(e))
         }
+        CiCmd::ConfigHygiene { update_baseline } => super::config_hygiene::run(update_baseline),
+        CiCmd::ConfigRegistryParity { update_baseline } => {
+            super::config_registry_parity::run(update_baseline)
+        }
         CiCmd::CheckDocsSsot => check_docs_ssot(&root),
         CiCmd::CheckFrozen => vox_cli_ci::frozen_crates::check_frozen_crates(&root),
         CiCmd::GuiCatalogParity => super::gui_catalog_parity::run(&root),
@@ -262,6 +266,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::LineEndings { all, base, autofix } => {
             vox_cli_ci::line_endings::run(&root, all, base, autofix)
         }
+        CiCmd::BomCheck => vox_cli_ci::line_endings::check_bom(&root),
         CiCmd::ParseStatus { write } => parse_status::run(&root, write),
         CiCmd::MeshGate {
             profile,
@@ -621,7 +626,6 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::PluginCatalogSync { write } => super::plugin_catalog_sync::run(&root, write),
         CiCmd::PluginSkillParity { write } => super::plugin_skill_parity::run(write),
         CiCmd::AgentSkillsCompliance => super::agentskills_compliance::run(),
-        CiCmd::ConfigHygiene => super::config_hygiene::run(false),
         CiCmd::CoolifyEval { cmd } => super::coolify_eval::run(cmd).await,
         CiCmd::WatchRun {
             sha,

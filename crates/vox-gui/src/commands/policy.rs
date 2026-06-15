@@ -397,6 +397,7 @@ branch refs/heads/cc/foo-bar
         assert_eq!(branches[0].branch, "main");
         assert!(branches[0].is_current); // first entry = main worktree
         assert_eq!(branches[1].branch, "cc/foo-bar");
+        // vox-arch-check: allow abs-path
         assert_eq!(branches[1].path, "/home/u/vox/.claude/worktrees/foo");
     }
 

@@ -8,6 +8,8 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Shipped circuit-breaker contract, compiled into the binary (path relative to
+/// THIS file → repo-root `contracts/`). Embedded = always live, never inert.
 const EMBEDDED_CIRCUIT_BREAKER_YAML: &str =
     include_str!("../../../contracts/orchestration/circuit-breaker.v1.yaml");
 
@@ -177,13 +179,14 @@ impl CircuitBreakerConfig {
         Ok(c)
     }
 
-    /// Return the config parsed from the embedded contract YAML.
+    /// Parse the compile-time-embedded contract.
     pub fn embedded() -> Self {
         Self::from_contract_str(EMBEDDED_CIRCUIT_BREAKER_YAML)
             .expect("embedded circuit-breaker.v1.yaml must parse")
     }
 
-    /// Resolve config: check `VOX_CIRCUIT_BREAKER_CONTRACT` env var, fall back to embedded.
+    /// Resolve the live config: explicit override file (env) wins when present and
+    /// parseable; otherwise the embedded contract. Never silently inert.
     pub fn resolve() -> Self {
         if let Ok(p) = std::env::var("VOX_CIRCUIT_BREAKER_CONTRACT") {
             let path = std::path::PathBuf::from(p);

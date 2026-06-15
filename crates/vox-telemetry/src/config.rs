@@ -201,11 +201,13 @@ fn org_policy_path() -> std::path::PathBuf {
         // %ProgramData% typically resolves to C:\ProgramData
         let base = std::env::var_os("ProgramData")
             .map(std::path::PathBuf::from)
+            // vox-arch-check: allow abs-path
             .unwrap_or_else(|| std::path::PathBuf::from(r"C:\ProgramData"));
         base.join("vox").join("telemetry-policy.toml")
     }
     #[cfg(not(windows))]
     {
+        // vox-arch-check: allow abs-path
         std::path::PathBuf::from("/etc/vox/telemetry-policy.toml")
     }
 }
@@ -262,6 +264,7 @@ fn user_config_path() -> std::path::PathBuf {
                 .join("vox")
                 .join("config.toml");
         }
+        // vox-arch-check: allow abs-path
         std::path::PathBuf::from(r"C:\Users\Default\AppData\Roaming\vox\config.toml")
     }
     #[cfg(not(windows))]
@@ -277,6 +280,7 @@ fn user_config_path() -> std::path::PathBuf {
                 .join("vox")
                 .join("config.toml");
         }
+        // vox-arch-check: allow abs-path
         std::path::PathBuf::from("/etc/vox/config.toml")
     }
 }

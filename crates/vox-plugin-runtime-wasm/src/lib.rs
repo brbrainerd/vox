@@ -113,6 +113,7 @@ mod semcov_wave5_tests {
 
     // Helper: build a minimal valid RunOpts JSON pointing to a non-existent artifact.
     fn missing_artifact_json() -> String {
+        // vox-arch-check: allow abs-path
         r#"{"artifact_path":"/tmp/nonexistent_skill.wasm","ports":[],"env":[],"volumes":[],"detach":false,"name":null,"rm":true,"cpu_limit_fuel":null}"#.to_string()
     }
 
@@ -178,6 +179,7 @@ mod semcov_wave5_tests {
         // Point artifact at a path that does not exist so the error comes from
         // execution, not JSON parsing — which proves the name-injection branch
         // was reached (otherwise JSON parse would short-circuit before name is touched).
+        // vox-arch-check: allow abs-path
         let json = run_opts_json_with_name("/tmp/not_a_real_skill.wasm", None);
         let result = invoke_wasm_skill("injected-name", &json);
         // We expect an error (artifact missing) but NOT a JSON parse error,

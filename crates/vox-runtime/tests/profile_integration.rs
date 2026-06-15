@@ -28,6 +28,7 @@ fn desktop_config_has_eager_models_and_periodic_journal() {
 
 #[test]
 fn mobile_config_has_lazy_models_and_on_lifecycle_journal() {
+    // vox-arch-check: allow abs-path
     let cfg = VoxConfig::mobile(PathBuf::from("/tmp/vox-mobile-it"));
     assert_eq!(cfg.profile, RuntimeProfile::Mobile);
     let p = cfg.profile;

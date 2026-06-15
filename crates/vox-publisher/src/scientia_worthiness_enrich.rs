@@ -1,4 +1,4 @@
-﻿//! Merge live Socrates + repo sidecar JSON into `metadata_json` before worthiness preflight.
+//! Merge live Socrates + repo sidecar JSON into `metadata_json` before worthiness preflight.
 //! Mirrors `vox-cli` `scientia_worthiness_enrich` minus eval-gate **run directory** checks (those stay CLI-only until shared).
 
 use std::path::Path;

@@ -1,4 +1,4 @@
-﻿//! MCP tools: episodic memory, knowledge graph queries, and session-scoped recall.
+//! MCP tools: episodic memory, knowledge graph queries, and session-scoped recall.
 //!
 //! **Agents calling these tools:** Use stable, namespaced `key` strings for writes; pair
 //! `MemoryStoreParams::agent_id` with the orchestrator’s agent id when available. Cap graph

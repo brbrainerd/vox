@@ -24,6 +24,7 @@ The repository defaults to **self-hosted** runners for CI (see [runner contract]
 | `ci-fallback-hosted.yml` | `ubuntu-latest`, `windows-latest` | **Manual only** (`workflow_dispatch`). Portable smoke when the self-hosted fleet is down. |
 | `setup-e2e.yml` | `ubuntu-latest`, `windows-latest`, `macos-latest` (matrix) | Clean-room `scripts/setup.vox` on all three host OSes; **nightly + path-filtered main pushes only** (not per-PR). |
 | `cross-platform-check.yml` | matrix (`ubuntu-latest`, `windows-latest`, `macos-latest`) | Genuinely needs win/mac/linux compile paths the Linux Docker fleet cannot emulate. |
+| `gui-cross-build.yml` | matrix (`ubuntu-latest`, `windows-latest`, `macos-latest`) | Tauri GUI compilation requires native host tooling (WebKitGTK on Linux, Xcode on macOS, MSVC on Windows). |
 | `compile-matrix.yml` | `windows-latest`, `macos-latest` | Windows/macOS compile smoke (Linux lane is self-hosted). |
 | `mobile-e2e-android.yml` | `macos-13` | Android emulator E2E requires macOS host tooling. |
 | `mobile-e2e-ios.yml` | `macos-latest` | iOS simulator E2E requires macOS host. |

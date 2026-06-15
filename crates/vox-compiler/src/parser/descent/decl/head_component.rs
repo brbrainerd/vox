@@ -1,4 +1,4 @@
-﻿// Reactive component / fragment / module-scope reactive parsing.
+// Reactive component / fragment / module-scope reactive parsing.
 
 use super::super::Parser;
 use crate::ast::decl::{

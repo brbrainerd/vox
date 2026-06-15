@@ -1528,6 +1528,7 @@ mod path_url_tests {
 
     #[test]
     fn posix_absolute_path_uses_double_slash_authority() {
+        // vox-arch-check: allow abs-path
         assert_eq!(
             path_to_vault_file_url("/home/user/.vox/clavis_vault.db"),
             "file:///home/user/.vox/clavis_vault.db"
@@ -1537,6 +1538,7 @@ mod path_url_tests {
     #[test]
     fn windows_absolute_path_uses_triple_slash_authority() {
         // Forward-slash form (already normalized).
+        // vox-arch-check: allow abs-path
         assert_eq!(
             path_to_vault_file_url("C:/Users/Owner/.vox/clavis_vault.db"),
             "file:///C:/Users/Owner/.vox/clavis_vault.db",
@@ -1544,6 +1546,7 @@ mod path_url_tests {
              as part of the filename and fail with `I/O error: invalid filename`"
         );
         // Backslash form (caller may pass either; we normalize).
+        // vox-arch-check: allow abs-path
         assert_eq!(
             path_to_vault_file_url(r"C:\Users\Owner\.vox\clavis_vault.db"),
             "file:///C:/Users/Owner/.vox/clavis_vault.db"

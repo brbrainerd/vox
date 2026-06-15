@@ -121,97 +121,62 @@ impl FreeAiClient {
         })
     }
 
-    /// OpenRouter chat completions with `stream: true` (SSE `data:` lines).
-    ///
-    /// Kept as a documented local egress (not routed through `vox-llm-egress`) because the
-    /// core's `stream_once` does not surface the per-call `x-response-cost` header that this
-    /// path feeds to `cost_reporter`. Listed as a facade-coverage gap in the egress design
-    /// spec; exempted in the Phase 6 arch-check seal pending an egress streaming-cost extension.
-    // vox-arch-check: allow llm-egress
+    /// OpenRouter streaming chat completions, routed through the sanctioned egress core
+    /// (`vox_llm_egress::stream_once`). The provider's response cost (now surfaced by the
+    /// core) is forwarded to `cost_reporter`; gamify keeps its own key + attribution headers.
     pub(crate) fn stream_openrouter(
-        http: &reqwest::Client,
+        // The wire goes through the egress core (which owns its client); kept for signature compat.
+        _http: &reqwest::Client,
         api_key: &str,
         model: &str,
         prompt: &str,
         cost_reporter: Option<super::CostReportFn>,
     ) -> Pin<Box<dyn Stream<Item = Result<String, AiError>> + Send>> {
-        let http = http.clone();
         let model = model.to_string();
         let prompt = prompt.to_string();
         let api_key = api_key.to_string();
         Box::pin(async_stream::try_stream! {
-            let resolved_key = if api_key.is_empty() {
-                vox_config::openrouter_api_key().unwrap_or_default()
-            } else {
-                api_key
-            };
+            let resolved_key = resolve_openrouter_key(&api_key);
             if resolved_key.is_empty() {
                 Err(AiError::AllProvidersFailed(
-                    "OPENROUTER_API_KEY not set".to_string(),
+                    "OpenRouter API key not set (configure Clavis or OPENROUTER_API_KEY)".to_string(),
                 ))?;
             }
-            let body = serde_json::json!({
-                "model": &model,
-                "messages": [{ "role": "user", "content": &prompt }],
-                "max_tokens": 512u32,
-                "stream": true,
-            });
-            let resp = http
-                .post(openrouter_base())
-                .header("Authorization", format!("Bearer {}", resolved_key))
-                .header("HTTP-Referer", "https://github.com/vox-foundation/vox")
-                .header("X-Title", "Vox Gamify")
-                .header(reqwest::header::ACCEPT, "text/event-stream")
-                .json(&body)
-                .send()
-                .await
-                .map_err(AiError::Http)?;
-            let status = resp.status();
-            if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
-                Err(AiError::RateLimited {
-                    provider: format!("openrouter:{}", model),
-                    retry_after_secs: vox_http_client::parse_retry_after(resp.headers()),
-                })?;
-            }
-            if let Some(ref reporter) = cost_reporter {
-                if let Some(cost_val) = resp.headers()
-                    .get("x-response-cost")
-                    .and_then(|h| h.to_str().ok())
-                    .and_then(|s| s.parse::<f64>().ok()) {
-                    reporter(cost_val);
-                }
-            }
-            let mut bytes_stream = if status.is_success() {
-                resp.bytes_stream()
-            } else {
-                let body_txt = resp.text().await.unwrap_or_default();
-                Err(AiError::AllProvidersFailed(format!(
-                    "OpenRouter stream HTTP {} {}",
-                    status, body_txt
-                )))?
+            let ereq = vox_llm_egress::EgressRequest {
+                base_url: vox_config::openrouter_chat_completions_url(),
+                api_key: resolved_key,
+                model: model.clone(),
+                headers: vec![
+                    (
+                        "HTTP-Referer".to_string(),
+                        "https://github.com/vox-foundation/vox".to_string(),
+                    ),
+                    ("X-Title".to_string(), "Vox Gamify".to_string()),
+                ],
+                throttle_key: "openrouter".to_string(),
+                max_concurrent: 8,
+                timeout_ms: None,
             };
-            use vox_openai::sse::{Utf8LineBuffer, sse_data_line_delta};
-            let mut line_buf = Utf8LineBuffer::new();
-            while let Some(item) = bytes_stream.next().await {
-                let chunk: Bytes = item.map_err(AiError::Http)?;
-                let mut emitted: Vec<String> = Vec::new();
-                line_buf.push_lossy_bytes(&chunk, |line| {
-                    if let Some(t) = sse_data_line_delta(line) {
-                        emitted.push(t);
-                    }
-                });
-                for t in emitted {
-                    yield t;
-                }
+            let msgs = [vox_llm_egress::ChatMessage {
+                role: "user".to_string(),
+                content: prompt,
+            }];
+            let params = vox_llm_egress::ChatParams { max_tokens: Some(512), ..Default::default() };
+            let (mut inner, cost) = vox_llm_egress::stream_once(&ereq, &msgs, &params)
+                .await
+                .map_err(|e| match e {
+                    vox_llm_egress::EgressError::RateLimited { retry_after } => AiError::RateLimited {
+                        provider: format!("openrouter:{}", model),
+                        retry_after_secs: retry_after.map(|d| d.as_secs()),
+                    },
+                    other => AiError::AllProvidersFailed(other.to_string()),
+                })?;
+            if let (Some(reporter), Some(c)) = (cost_reporter.as_ref(), cost) {
+                reporter(c);
             }
-            let mut tail_emit: Vec<String> = Vec::new();
-            line_buf.flush_trailing(|line| {
-                if let Some(t) = sse_data_line_delta(line) {
-                    tail_emit.push(t);
-                }
-            });
-            for t in tail_emit {
-                yield t;
+            while let Some(item) = inner.next().await {
+                let chunk = item.map_err(|e| AiError::AllProvidersFailed(e.to_string()))?;
+                yield chunk;
             }
         })
     }

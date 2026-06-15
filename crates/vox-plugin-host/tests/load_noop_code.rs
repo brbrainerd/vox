@@ -14,10 +14,13 @@ fn workspace_root() -> PathBuf {
 
 fn dylib_filename(crate_name: &str) -> String {
     if cfg!(target_os = "windows") {
+        // vox-arch-check: allow dynlib-ext
         format!("{}.dll", crate_name.replace('-', "_"))
     } else if cfg!(target_os = "macos") {
+        // vox-arch-check: allow dynlib-ext
         format!("lib{}.dylib", crate_name.replace('-', "_"))
     } else {
+        // vox-arch-check: allow dynlib-ext
         format!("lib{}.so", crate_name.replace('-', "_"))
     }
 }

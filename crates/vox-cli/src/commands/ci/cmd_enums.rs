@@ -142,6 +142,21 @@ pub enum CiCmd {
     /// Fail if the policy registry has drifted from the live detector set.
     #[command(name = "policy-registry-parity")]
     PolicyRegistryParity,
+    /// Config hygiene: no cwd-relative contract paths, no env reads in protected
+    /// (never-configure) modules. Run before the configurability plan.
+    #[command(name = "config-hygiene")]
+    ConfigHygiene {
+        /// Regenerate the grandfathered-violations baseline file.
+        #[arg(long)]
+        update_baseline: bool,
+    },
+    /// Every operational VOX_* env knob read in code must be in the config registry.
+    #[command(name = "config-registry-parity")]
+    ConfigRegistryParity {
+        /// Regenerate the registration-backlog baseline.
+        #[arg(long)]
+        update_baseline: bool,
+    },
     /// Run documentation + Codex + command-compliance + contracts-index guards in one shot.
     #[command(name = "ssot-drift")]
     SsotDrift,
@@ -323,6 +338,10 @@ pub enum CiCmd {
         #[arg(long)]
         autofix: bool,
     },
+    /// Fail if any git-tracked file begins with a UTF-8 byte-order mark (0xEF 0xBB 0xBF).
+    /// BOMs corrupt `include_str!()` output and break JSON parsing.
+    #[command(name = "bom-check")]
+    BomCheck,
     /// Regenerate or verify `examples/PARSE_STATUS.md` from `examples/golden/*.vox`.
     #[command(name = "parse-status")]
     ParseStatus {
@@ -943,9 +962,6 @@ pub enum CiCmd {
     /// Walk crates/vox-plugin-* for *.skill.md files and enforce AgentSkills frontmatter contract (name, description, format, directory match).
     #[command(name = "agentskills-compliance")]
     AgentSkillsCompliance,
-    /// Machine guardrails: no cwd-relative contract paths, protected-module env-read guard, and more.
-    #[command(name = "config-hygiene")]
-    ConfigHygiene,
     /// Poll GitHub Actions checks for the current HEAD (or a specific SHA) and print failures.
     #[command(name = "watch-run")]
     WatchRun {
@@ -984,6 +1000,7 @@ impl CiCmd {
             CiCmd::CommandCompliance => Some("ci-gate/ci.command-compliance"),
             CiCmd::RepoGuards => Some("ci-gate/ci.repo-guards"),
             CiCmd::LineEndings { .. } => Some("ci-gate/ci.line-endings"),
+            CiCmd::BomCheck => Some("ci-gate/ci.bom-check"),
             CiCmd::DataSsotGuards => Some("ci-gate/ci.data-ssot-guards"),
             CiCmd::FeatureMatrix => Some("ci-gate/ci.feature-matrix"),
             CiCmd::CompileMatrix => Some("ci-gate/ci.compile-matrix"),

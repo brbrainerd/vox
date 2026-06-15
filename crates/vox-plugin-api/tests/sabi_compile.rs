@@ -9,6 +9,7 @@ use vox_plugin_api::host::{SabiLogLevel, VoxHost, VoxHost_TO};
 struct DummyHost;
 impl VoxHost for DummyHost {
     fn data_dir(&self) -> RString {
+        // vox-arch-check: allow abs-path
         RString::from("/tmp")
     }
     fn log(&self, _level: SabiLogLevel, _msg: RStr<'_>) {}

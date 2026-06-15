@@ -612,12 +612,14 @@ mod tests {
             Some("ghcr.io/test"),
             None,
             &[("FOO".into(), "bar".into())],
+            // vox-arch-check: allow abs-path
             Path::new("/tmp"),
         );
 
         assert_eq!(t.image_tag, "myapp:prod");
         assert_eq!(t.registry_tag.as_deref(), Some("ghcr.io/test/myapp:prod"));
         assert_eq!(t.registry_host.as_deref(), Some("ghcr.io"));
+        // vox-arch-check: allow abs-path
         assert_eq!(t.context_dir, Path::new("/tmp"));
         assert_eq!(t.build_args, vec![("FOO".into(), "bar".into())]);
     }

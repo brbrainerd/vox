@@ -1,4 +1,4 @@
-﻿use vox_orchestrator::json_vcs_facade;
+use vox_orchestrator::json_vcs_facade;
 
 use crate::params::ToolResult;
 use crate::server_state::ServerState;

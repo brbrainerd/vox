@@ -51,10 +51,15 @@ pub async fn run(action: ContainerAction) -> Result<()> {
                 .parse::<vox_container::detect::RuntimePreference>()
                 .map_err(|e| anyhow::anyhow!("{e}"))?;
 
+            // Start from safe-by-default resource limits; explicit flags override.
             let mut opts = vox_container::RunOpts::sandboxed();
             opts.image = image;
             opts.ports = port.map(|p| vec![(p, p)]).unwrap_or_default();
-            // Explicit flags override the sandboxed defaults:
+            opts.env = vec![];
+            opts.volumes = vec![];
+            opts.detach = false;
+            opts.name = None;
+            opts.rm = true;
             if let Some(c) = cpus {
                 opts.cpus = Some(c);
             }

@@ -1,4 +1,4 @@
-﻿//! Lightweight repository file index for MCP (path counts + optional JSON cache).
+//! Lightweight repository file index for MCP (path counts + optional JSON cache).
 
 use serde::Serialize;
 use std::fs;

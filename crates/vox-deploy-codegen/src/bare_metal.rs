@@ -46,6 +46,7 @@ mod tests {
     fn test_generate_systemd_unit_minimal() {
         let spec = EnvironmentSpec {
             base_image: "bare-metal".to_string(),
+            // vox-arch-check: allow abs-path
             workdir: Some("/opt/my-app".to_string()),
             env_vars: vec![("PORT".to_string(), "8080".to_string())],
             cmd: vec![

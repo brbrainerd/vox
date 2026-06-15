@@ -180,3 +180,140 @@ fn ml_workflow_grammar_drift_and_eval_stay_native() {
         "do not use inline Python in ml_data_extraction.yml; use Vox/Rust CLI output"
     );
 }
+
+#[test]
+fn cross_platform_gate_is_required_three_os_matrix() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/cross-platform-check.yml"
+    ));
+    // Must run on PRs and merge-queue batches, not only weekly cron.
+    assert!(
+        yml.contains("pull_request:"),
+        "cross-platform gate must trigger on pull_request"
+    );
+    assert!(
+        yml.contains("merge_group:"),
+        "cross-platform gate must trigger on merge_group"
+    );
+    // All three target OSes must be present.
+    assert!(yml.contains("windows-latest"), "must cover Windows");
+    assert!(yml.contains("macos-latest"), "must cover macOS");
+    assert!(
+        yml.contains("ubuntu-latest"),
+        "must cover Ubuntu (gate name claims cross-platform)"
+    );
+    // Compilation must be proven on every PR (cheap `cargo check`).
+    assert!(
+        yml.contains("cargo check --workspace"),
+        "per-PR depth must `cargo check --workspace`"
+    );
+    // Expensive depth (clippy + full nextest) deferred to merge_group to bound hosted-runner cost.
+    assert!(
+        yml.contains("clippy"),
+        "must run clippy -D warnings (merge_group leg)"
+    );
+    assert!(yml.contains("nextest"), "must run nextest");
+    assert!(
+        yml.contains("github.event_name == 'merge_group'"),
+        "expensive legs must be merge_group-gated"
+    );
+}
+
+#[test]
+fn cross_platform_gate_has_stable_required_job_name() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/cross-platform-check.yml"
+    ));
+    // Branch protection pins the *job-level* `name:` field (under `jobs.<id>.name:`),
+    // not the workflow-level `name:` on line 1. The job-level name is indented with
+    // 4 spaces in standard GitHub Actions YAML. We assert the indented form so that
+    // renaming the workflow-level name does not produce a false-positive, and so that
+    // swapping the job name to match the workflow-level name is caught immediately.
+    assert!(
+        yml.contains("    name: Cross-Platform (Win/macOS/Ubuntu)"),
+        "cross-check job must carry the stable job-level name branch-protection requires \
+         (indented 4 spaces, under jobs.<id>:, not the top-level workflow name:)"
+    );
+}
+
+#[test]
+fn vox_ml_cli_cargo_toml_libc_is_target_gated() {
+    // Regression guard for the original Linux build break: `libc` must only
+    // appear under `[target.'cfg(unix)'.dependencies]`, never as a bare
+    // top-level `[dependencies]` entry. If someone reverts the target-gate or
+    // re-adds a bare `libc` dep, this test catches it before cross-platform CI.
+    let cargo_toml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../crates/vox-ml-cli/Cargo.toml"
+    ));
+
+    // (a) The cfg(unix)-gated section must include libc.
+    assert!(
+        cargo_toml.contains("[target.'cfg(unix)'.dependencies]") && {
+            // Find the cfg(unix) section and verify libc appears after it.
+            let after_unix = cargo_toml
+                .find("[target.'cfg(unix)'.dependencies]")
+                .map(|pos| &cargo_toml[pos..])
+                .unwrap_or("");
+            // libc must appear before the next section header (or end of file).
+            let section_end = after_unix[1..]
+                .find("\n[")
+                .map(|p| p + 1)
+                .unwrap_or(after_unix.len());
+            after_unix[..section_end].contains("libc")
+        },
+        "vox-ml-cli Cargo.toml must declare libc under [target.'cfg(unix)'.dependencies]"
+    );
+
+    // (b) libc must NOT appear in the top-level [dependencies] section.
+    let deps_section_start = cargo_toml.find("\n[dependencies]");
+    if let Some(start) = deps_section_start {
+        let after_deps = &cargo_toml[start..];
+        // Narrow to just this section (up to the next `[` header).
+        let section_end = after_deps[1..]
+            .find("\n[")
+            .map(|p| p + 1)
+            .unwrap_or(after_deps.len());
+        let deps_body = &after_deps[..section_end];
+        assert!(
+            !deps_body.contains("\nlibc"),
+            "vox-ml-cli must NOT have a bare `libc` entry in [dependencies]; it must be target-gated"
+        );
+    }
+}
+
+#[test]
+fn gui_cross_build_covers_three_os_with_webkit() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/gui-cross-build.yml"
+    ));
+    assert!(
+        yml.contains("windows-latest")
+            && yml.contains("macos-latest")
+            && yml.contains("ubuntu-latest")
+    );
+    assert!(
+        yml.contains("libwebkit2gtk-4.1-dev"),
+        "Linux GUI build needs WebKitGTK"
+    );
+    assert!(
+        yml.contains("cargo build -p vox-gui"),
+        "must actually compile the GUI crate"
+    );
+    // The workflow file itself must be in the `paths:` filter so that changes to
+    // gui-cross-build.yml re-trigger the build (prevents the filter from being
+    // tightened to only src/ and silently excluding workflow-file changes).
+    assert!(
+        yml.contains(".github/workflows/gui-cross-build.yml"),
+        "gui-cross-build.yml must self-trigger on workflow file changes (paths: filter)"
+    );
+    // merge_group: must be present WITHOUT a paths: restriction so the workflow
+    // always runs at merge time regardless of which files changed.
+    assert!(
+        yml.contains("merge_group:"),
+        "gui-cross-build must run on merge_group (no paths filter at merge time)"
+    );
+}

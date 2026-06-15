@@ -1,4 +1,4 @@
-﻿//! Deterministic idempotency keys aligned with `external_submission_jobs.idempotency_key`.
+//! Deterministic idempotency keys aligned with `external_submission_jobs.idempotency_key`.
 
 /// Stable idempotency material for outbound scholarly operations.
 ///

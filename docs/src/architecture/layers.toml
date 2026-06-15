@@ -54,6 +54,16 @@ staleness         = "warn"
 generated_file_drift = "warn"
 # Rule 10: strict — crates must not directly depend on any of their listed forbidden deps.
 forbidden_deps    = "error"
+# NOTE: This key is a single global guard that covers ALL [[forbidden_pattern]] rules
+# simultaneously (raw-git-exec, jj-lib-confined, raw-jj-exec,
+# projection-bundle-ts-emit-boundary, projection-bundle-rust-emit-boundary,
+# crate-allow-unsafe-code, no-capacitor-*, no-axum-*, no-rust-embed-*,
+# no-hardcoded-shell-spawn, no-hardcoded-abs-path, no-hardcoded-dynlib-ext).
+# It was promoted to "error" after a full tree sweep confirmed zero open
+# violations for every rule (see Task 4.2 in the cross-platform parity plan).
+# Adding a new [[forbidden_pattern]] rule with open violations while this is
+# "error" will cause CI to fail immediately for that rule.
+forbidden_pattern = "error"
 
 # ── Rule 10: Forbidden direct dependencies ────────────────────────────────────
 # vox-rule-pack and vox-code-audit must never directly depend on heavy search/
@@ -258,6 +268,7 @@ exempt_files     = [
     "crates/vox-orchestrator-mcp/src/git_exec.rs",
     "crates/vox-build-meta/src/lib.rs",
     "crates/vox-cli/src/commands/ci/data_storage_guard.rs",
+    "crates/vox-cli/src/commands/ci/install_hooks.rs",  # uses vox_git::read_only(); pattern match hits the comment only
     "crates/vox-cli/src/commands/ci/line_endings.rs",
     "crates/vox-cli/src/commands/ci/pre_push.rs",
     "crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs",
@@ -386,6 +397,48 @@ pattern          = '"@capacitor/'
 file_glob        = "apps/**/package.json"
 allow_annotation = "// vox-arch-check: allow capacitor-app-dep"
 reason           = "Application package manifests use @tauri-apps/* per ADR 037."
+
+# ── Cross-platform parity rules (warn until tree is clean — see
+#    cross-platform-guarantees-audit-and-enforcement-2026-06-15.md, then promote in [guards]) ──
+[[forbidden_pattern]]
+name             = "no-hardcoded-shell-spawn"
+pattern          = 'Command::new\(\s*"(cmd|cmd\.exe|powershell|pwsh|sh|bash)"'
+file_glob        = "crates/**/*.rs"
+exempt_files     = [
+    "crates/vox-cli-core/src/fs_utils.rs",
+    "crates/vox-cli/src/fs_utils.rs",
+    "crates/vox-scientia/src/replay/sandbox.rs",
+    "crates/vox-ml-cli/src/commands/mens/plugin_heal.rs",
+]
+allow_annotation = "// vox-arch-check: allow shell-spawn"
+reason           = "Shell/PowerShell spawns must be cfg(windows)-gated or resolved via which::which(pwsh|powershell)."
+
+[[forbidden_pattern]]
+name             = "no-hardcoded-abs-path"
+pattern          = '"(/(tmp|usr|etc|var|home|opt|bin|root)\b|[A-Za-z]:\\)'
+file_glob        = "crates/**/*.rs"
+exempt_files     = [
+    # Vox DSL formatter golden — annotations inside raw-string Vox source would alter
+    # the round-trip assertion; suppress via exempt_files instead.
+    "crates/vox-compiler/src/fmt/mod.rs",
+    # TOML test fixture — /etc paths are in raw-string TOML content, not Rust code.
+    "crates/vox-repository/src/populi_toml.rs",
+    # Code-audit detector files: these contain example/documentation path strings inside
+    # Rust string literals (minimal_repro() methods). Using exempt_files here is
+    # intentional — do NOT rely on annotation-in-string suppression for these files,
+    # as that technique works only by coincidence of proximity and is misleading.
+    "crates/vox-code-audit/src/detectors/magic_value.rs",
+    "crates/vox-code-audit/src/detectors/scaling.rs",
+]
+allow_annotation = "// vox-arch-check: allow abs-path"
+reason           = "Hardcoded absolute paths break across OSes; use std::env::temp_dir()/dirs/Path::join."
+
+[[forbidden_pattern]]
+name             = "no-hardcoded-dynlib-ext"
+pattern          = '"[^"]*\.(so|dll|dylib)"'
+file_glob        = "crates/**/*.rs"
+allow_annotation = "// vox-arch-check: allow dynlib-ext"
+reason           = "Shared-lib suffix differs per OS (.so/.dll/.dylib); derive it from target, do not hardcode."
 
 # ── Planned crates (in-flight design docs; not yet on disk) ──────────────────
 # Rule 12 (WTL parity check) consults this table before flagging a

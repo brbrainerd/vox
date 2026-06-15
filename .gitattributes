@@ -1,5 +1,5 @@
 # Default: let Git classify text vs binary; normalize line endings per rules below.
-* text=auto
+* text=auto eol=lf
 
 # Bash must stay LF (Windows Git Bash / CI).
 *.sh text eol=lf

@@ -33,10 +33,12 @@ fn wasm_run_outcome_helpers() {
 
 #[test]
 fn preopen_builders_and_modes() {
+    // vox-arch-check: allow abs-path
     let ro = Preopen::read_only(PathBuf::from("/tmp"), "/guest");
     assert_eq!(ro.mode, PreopenMode::ReadOnly);
     assert_eq!(ro.guest, "/guest");
 
+    // vox-arch-check: allow abs-path
     let rw = Preopen::read_write("/var/data", ".");
     assert_eq!(rw.mode, PreopenMode::ReadWrite);
 }

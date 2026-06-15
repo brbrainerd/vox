@@ -13,6 +13,7 @@
 //!
 //! let toml = CodeManifestBuilder::new("test-plugin")
 //!     .extension_point("MlBackend")
+//!     // vox-arch-check: allow dynlib-ext
 //!     .artifact("linux-x86_64", "libtest.so")
 //!     .build();
 //!
@@ -36,6 +37,7 @@ mod tests {
         let toml = CodeManifestBuilder::new("my-plugin")
             .name("My Plugin")
             .extension_point("MlBackend")
+            // vox-arch-check: allow dynlib-ext
             .artifact("linux-x86_64", "libmy.so")
             .build();
         let dir = PluginDir::from_toml(&toml).expect("valid");
@@ -56,11 +58,14 @@ mod tests {
 
     #[test]
     fn plugin_dir_touch() {
+        // vox-arch-check: allow dynlib-ext
         let toml = CodeManifestBuilder::new("touch-test")
             .artifact("linux-x86_64", "libtouch.so")
             .build();
         let dir = PluginDir::from_toml(&toml).expect("valid");
+        // vox-arch-check: allow dynlib-ext
         dir.touch("libtouch.so").expect("touch");
+        // vox-arch-check: allow dynlib-ext
         assert!(dir.path().join("libtouch.so").exists());
     }
 }

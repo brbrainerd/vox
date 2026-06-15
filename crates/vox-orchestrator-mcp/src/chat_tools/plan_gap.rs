@@ -1,4 +1,4 @@
-﻿//! Bridge to orchestrator-native [`PlanRefinementReport`] (gap + adequacy) for MCP `PlanTask` rows.
+//! Bridge to orchestrator-native [`PlanRefinementReport`] (gap + adequacy) for MCP `PlanTask` rows.
 
 use super::params::{PlanDepth, PlanTask};
 pub use vox_orchestrator::planning::PlanRefinementReport;

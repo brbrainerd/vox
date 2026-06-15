@@ -1,4 +1,4 @@
-﻿/// Normalize optional session ids by trimming whitespace and removing empty values.
+/// Normalize optional session ids by trimming whitespace and removing empty values.
 #[must_use]
 pub(crate) fn normalize_optional_session_id(raw: Option<&str>) -> Option<String> {
     raw.map(str::trim)

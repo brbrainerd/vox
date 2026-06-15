@@ -115,9 +115,10 @@ pub struct EconomyConfig {
 }
 
 impl EconomyConfig {
-    /// Return the economy config parsed from the compile-time embedded contract.
+    /// Parse the compile-time-embedded shipped contract.
     pub fn embedded() -> Self {
-        parse_economy(EMBEDDED_ECONOMY_YAML).expect("embedded economy.v1.yaml must parse")
+        parse_economy(EMBEDDED_ECONOMY_YAML)
+            .expect("embedded economy.v1.yaml must parse (guarded by config-registry-parity)")
     }
 
     /// Resolve the effective base reward for an event, applying any reward-table
@@ -268,11 +269,25 @@ pub fn parse_economy(text: &str) -> anyhow::Result<EconomyConfig> {
     Ok(cfg)
 }
 
-/// Resolve the live [`EconomyConfig`] from an optional override path, using the
-/// provided `exists` predicate to test path presence (injectable for testing).
-///
-/// Falls back to the compile-time embedded contract when no override is given or
-/// the override path cannot be loaded.
+/// Repo-relative path to the shipped economy contract, resolved from this crate.
+pub const SHIPPED_CONTRACT_RELPATH: &str = "../../contracts/gamify/economy.v1.yaml";
+
+/// Resolve the live [`EconomyConfig`]. A runtime override path (env
+/// `VOX_GAMIFY_ECONOMY_PATH`) layers on top of the compile-time-embedded contract;
+/// when absent or unparseable, the embedded contract is used (never a bare
+/// `Default`).
+pub fn resolve_economy() -> EconomyConfig {
+    resolve_economy_from(
+        std::env::var("VOX_GAMIFY_ECONOMY_PATH")
+            .ok()
+            .map(std::path::PathBuf::from),
+        |p| p.exists(),
+    )
+}
+
+/// Testable core: an explicit override path (if any) wins when it exists and
+/// parses; otherwise the COMPILE-TIME-EMBEDDED contract is used (never a bare
+/// `Default`). `exists` is injected so tests don't depend on the filesystem.
 pub(crate) fn resolve_economy_from(
     override_path: Option<std::path::PathBuf>,
     exists: impl Fn(&std::path::Path) -> bool,
@@ -281,33 +296,15 @@ pub(crate) fn resolve_economy_from(
         if exists(&p) {
             match load_economy(&p) {
                 Ok(cfg) => {
-                    tracing::debug!("loaded gamify economy contract from {}", p.display());
+                    tracing::debug!("loaded gamify economy override from {}", p.display());
                     return cfg;
                 }
-                Err(e) => {
-                    tracing::warn!(
-                        error = %e,
-                        "economy override failed; using embedded"
-                    );
-                }
+                Err(e) => tracing::warn!(error = %e, path = %p.display(),
+                    "gamify economy override failed to parse; using embedded contract"),
             }
         }
     }
     EconomyConfig::embedded()
-}
-
-/// Resolve the live [`EconomyConfig`].
-///
-/// Checks `VOX_GAMIFY_ECONOMY_PATH` for an operator override, then falls back to
-/// the compile-time embedded contract — which is always present in production
-/// binaries.
-pub fn resolve_economy() -> EconomyConfig {
-    resolve_economy_from(
-        std::env::var("VOX_GAMIFY_ECONOMY_PATH")
-            .ok()
-            .map(std::path::PathBuf::from),
-        |p| p.exists(),
-    )
 }
 
 #[cfg(test)]

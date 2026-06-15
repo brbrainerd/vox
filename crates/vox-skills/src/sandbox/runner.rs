@@ -115,6 +115,7 @@ impl SandboxedSkillRunner {
         cmd.arg("--network").arg(limits.network.docker_flag());
 
         // Filesystem isolation
+        // vox-arch-check: allow abs-path
         cmd.args(["--read-only", "--tmpfs", "/tmp"]);
 
         // User and capability hardening

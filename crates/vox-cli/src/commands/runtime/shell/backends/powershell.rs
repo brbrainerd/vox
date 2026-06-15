@@ -4,6 +4,7 @@ use std::process::Command;
 
 /// Runs a PowerShell script fragment with `-NoProfile`. Returns (stdout, stderr, exit_code).
 pub fn run_pwsh_capture(script: &str) -> std::io::Result<(String, String, Option<i32>)> {
+    // vox-arch-check: allow shell-spawn
     let output = Command::new("pwsh")
         .args(["-NoProfile", "-NonInteractive", "-Command", script])
         .output()?;
@@ -21,6 +22,7 @@ mod tests {
 
     #[test]
     fn pwsh_json_probe_smoke() {
+        // vox-arch-check: allow shell-spawn
         if Command::new("pwsh").arg("-v").status().is_err() {
             return;
         }

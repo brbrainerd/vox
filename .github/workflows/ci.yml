@@ -278,6 +278,9 @@ jobs:
       - name: Line endings (forward-only)
         run: ./target/debug/vox --quiet ci line-endings
 
+      - name: BOM check (no UTF-8 byte-order marks in tracked files)
+        run: ./target/debug/vox --quiet ci bom-check
+
       - name: Workspace manifest resolves (fix-forward guard)
         run: ./target/debug/vox --quiet ci manifest
 
@@ -406,6 +409,9 @@ jobs:
 
       - name: Workflow scripts allowlist
         run: ./target/debug/vox --quiet ci workflow-scripts
+
+      - name: Script hygiene (.vox-only automation)
+        run: ./target/debug/vox --quiet ci script-hygiene
 
       - name: Doc inventory matches generator (Rust)
         run: ./target/debug/vox --quiet ci doc-inventory verify
