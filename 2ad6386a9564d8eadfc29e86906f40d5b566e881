@@ -1,0 +1,14 @@
+feat(vox-workflow-runtime): gate SQL tracker and DB scheduler behind `sql` feature
+scale: ~64 lines across 4 files [M]
+
+- `crates/vox-cli-tests/tests/workflow_runtime_no_db.rs`: Added a new test to ensure `vox-workflow-runtime` builds successfully with `--no-default-features`, verifying the `sql` feature gate.
+- `crates/vox-workflow-runtime/Cargo.toml`:
+    - Introduced a new `sql` feature, which depends on `vox-db`.
+    - Modified the `default` features to include `mens` and `sql`.
+    - Made `vox-db` an optional dependency.
+- `crates/vox-workflow-runtime/src/lib.rs`:
+    - Applied `#[cfg(feature = "sql")]` to `pub mod db_tracker;` and `pub mod scheduled;`.
+    - Applied `#[cfg(feature = "sql")]` to `pub use db_tracker::VoxDbTracker;`.
+- `crates/vox-workflow-runtime/src/workflow/types.rs`: Replaced `vox_db::hash::content_hash` with `blake3::hash(...).to_hex()` in `compute_structural_arg_hash` to remove the direct `vox-db` dependency from this hot path.
+
+--- audit: original='feat(vox-workflow-runtime): gate SQL tracker + DB scheduler behind `sql` feature' | actual=64L across 4 files | derived=full ---
