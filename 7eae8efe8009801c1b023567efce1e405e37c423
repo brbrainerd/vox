@@ -1,0 +1,6 @@
+docs(ci): normalize category frontmatter to lowercase 'ci'
+scale: ~2 lines across 1 files [XS]
+
+- `docs/src/ci/shared-compile-cache.md`: Changed `category: CI` to `category: ci` in frontmatter.
+
+--- audit: original='docs(ci): fix category frontmatter case in shared-compile-cache.md' | actual=2L across 1 files | derived=full ---
