@@ -1,0 +1,8 @@
+ci(arch-check): Unify architecture check invocation in GitHub and GitLab CI
+scale: ~41 lines across 3 files [S]
+
+- `scripts/arch-check.vox`: Add new Vox script to encapsulate the `cargo run -p vox-arch-check --quiet` command and handle its exit status. This script serves as the single source of truth for the architecture check.
+- `.github/workflows/ci.yml`: Update the "Arch-check" job to invoke `vox run scripts/arch-check.vox` instead of directly running `cargo run -p vox-arch-check --quiet`.
+- `.gitlab-ci.yml`: Add a new step to the `vox-ci-guards` stage that invokes `vox run scripts/arch-check.vox`, introducing architecture layer ordering enforcement to GitLab CI.
+
+--- audit: original='ci: SSOT arch-check via scripts/arch-check.vox in both GitHub and GitLab CI' | actual=41L across 3 files | derived=full ---
