@@ -1,0 +1,27 @@
+feat(cli): add new commands and deprecate old ones
+scale: ~279 lines across 22 files [L]
+
+- `crates/vox-cli/src/lib.rs`: Added `Doctor`, `Architect`, `StubCheck`, `Share`, `Snippet`, and `Skill` commands. Deprecated `Login`, `Logout`, and `Train` commands.
+- `crates/vox-cli/src/cli_dispatch/mod.rs`: Added dispatch logic for new commands and updated for deprecated commands.
+- `docs/src/architecture/feature-growth-boundaries.md`: Added new documentation for feature growth boundaries.
+- `docs/src/reference/cli.md`: Added new documentation for the CLI.
+- `crates/vox-cli/src/commands/ci/command_compliance/validators.rs`: Removed checks for `vox-bootstrap` install policy and updated allowed paths for operator docs.
+- `crates/vox-cli/src/commands/ci/command_compliance/tests.rs`: Updated test names and paths to reflect `vox-orchestrator` instead of `vox-mcp`.
+- `crates/vox-mens/src/main.rs`: Changed `action` and `cmd` fields in `MensSubcommand` enum to `Box<T>` and updated their usage.
+- `crates/vox-cli/src/commands/ci/operations_catalog.rs`: Updated paths from `vox-mcp` to `vox-orchestrator` for input schemas and dispatch.
+- `contracts/capability/capability-registry.yaml`: Added new entries to the capability registry.
+- `contracts/cli/command-registry.yaml`: Updated command registry.
+- `contracts/operations/catalog.v1.yaml`: Updated operations catalog.
+- `crates/vox-oratio/src/backends/candle_whisper.rs`: Modified `candle_whisper` backend.
+- `contracts/reports/operations-catalog-inventory.v1.json`: Updated operations catalog inventory.
+- `README.md`: Updated README.
+- `crates/vox-cli/Cargo.toml`: Added new dependencies.
+- `crates/vox-populi/src/mens/cloud/local_provider.rs`: Modified local cloud provider.
+- `crates/vox-orchestrator/src/mcp_tools/input_schemas.rs`: Added new input schemas.
+- `.cargo/config.toml`: Modified cargo configuration.
+- `crates/vox-mens/Cargo.toml`: Modified `vox-mens` Cargo.toml.
+- `crates/vox-schola/src/main.rs`: Modified `vox-schola` main.
+- `Cargo.lock`: Updated Cargo lock file.
+- `crates/vox-populi/src/mens/cloud/mod.rs`: Added new module.
+
+--- audit: original='chore: stabilize CLI infrastructure and documentation for full compliance' | actual=279L across 22 files | derived=full ---
