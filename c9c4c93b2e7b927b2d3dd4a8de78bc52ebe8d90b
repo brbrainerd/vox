@@ -1,0 +1,10 @@
+feat(kudos): Add `gpu_compute_ms_from_attestation` and reconciliation tests
+scale: ~69 lines across 2 files [M]
+
+- `crates/vox-mesh-types/src/kudos.rs`: Add `gpu_compute_ms_from_attestation` helper function to convert `Attestation.gpu_seconds` (f64) to `u64` milliseconds by multiplying by 1000.0 and saturating at `u64::MAX`.
+- `crates/vox-orchestrator/tests/kudos_reconciliation.rs`: Add new test file with three reconciliation tests for `gpu_compute_ms_from_attestation`:
+    - `gpu_compute_ms_sum_matches_expected`: Verifies the sum of 10 attestations with GPU seconds from 1 to 10 (total 55000ms).
+    - `gpu_compute_ms_conversion_is_correct`: Tests individual conversions for 2.5s (2500ms), 0.001s (1ms), and 0.0s (0ms).
+    - `gpu_compute_ms_batch_of_ten_sums_correctly`: Checks the sum of 10 attestations, each with 3.7 GPU seconds.
+
+--- audit: original='feat(mesh-types): GpuComputeMs kudos projection [P5-T7]' | actual=69L across 2 files | derived=full ---
