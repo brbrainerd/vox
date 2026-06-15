@@ -1,0 +1,7 @@
+feat(vox-gui/ludus): Add accessibility to LudusHud XP progress bar
+scale: ~43 lines across 2 files [S]
+
+- `crates/vox-gui/ui/src/components/surfaces/Gamify/LudusHud.test.tsx`: Add new test file for LudusHud component.
+- `crates/vox-gui/ui/src/components/surfaces/Gamify/LudusHud.tsx`: Add `role="progressbar"`, `aria-label`, `aria-valuenow`, `aria-valuemin`, and `aria-valuemax` attributes to the XP progress bar div for accessibility.
+
+--- audit: original='feat(vox-gui/wave6): LudusHud a11y + checklist (Wave 6)' | actual=43L across 2 files | derived=full ---
