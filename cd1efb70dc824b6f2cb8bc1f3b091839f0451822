@@ -1,0 +1,29 @@
+feat(compiler,codegen): implement auth guard middleware and WebIR improvements
+scale: ~486 lines across 30 files [L]
+
+- `vox-codegen`:
+    - Implement `HirAuth` struct and `@auth` decorator lowering to Rust codegen auth guard middleware for HTTP endpoints.
+    - Improve `emit_const` to infer types from literal kind and handle `&'static str` for string constants, emitting `compile_error!` for non-const initializers.
+    - Increment `expr_fallback_count` in WebIR lowering when if-branch contains non-expression statements to prevent silently-wrong output (R15).
+    - Update `spawn_workflow_emit_test.rs` snapshots.
+- `vox-codegen-ts`:
+    - Refactor `scaffold.rs` to use `serde_json` for `package.json` generation, including npm packages from `HirImport`s, and remove standalone feature guard.
+    - Adjust `emitter.rs` to emit component files and CSS into a `components/` subdirectory when in Library mode.
+    - Remove standalone feature guards from `hir_emit/mod.rs` for `AsyncView` expressions.
+- `vox-compiler`:
+    - Drain `lower_warnings` into the diagnostic stream in `typecheck_hir_module_with_path`.
+    - Fix `@public` prefix parser in `descent/mod.rs` to set `is_auth_exempt=true` for correct type checking.
+    - Refactor `eval/expr.rs` to fix collapsible-if clippy lint with a let-chain.
+    - Add `HirAuth` struct to `hir/nodes/decl.rs`.
+    - Update `decl_lowering_test.rs` snapshots.
+- `vox-ast`: Add `HirAuth` struct to `decl/fundecl.rs`.
+- `vox-cli`: Update `build.rs`.
+- `docs`:
+    - Add `vox-langtool` and `vox-mesh-policy` to `layers.toml`.
+    - Mark `vox-codegen-ts` as `orphan_exempt = true`.
+    - Add 5 missing crate entries to `where-things-live.md`.
+- `apps/vox-mental-tracker`: Remove stale `vox-tauri-stt-guest` entry from `pnpm-lock.yaml`.
+- `examples/forbidden`: Add `public_and_auth_conflict.vox` for `@public` + `@auth` conflict testing.
+- Update various snapshots for `main_boot`, `mobile_camera`, and `mutation_with_schema`.
+
+--- audit: original='fix(compiler,codegen): adversarial review remediation R1-R15 + arch-check gaps' | actual=486L across 30 files | derived=full ---
