@@ -1,0 +1,8 @@
+chore(docs): regenerate doc-inventory.json
+scale: ~475 lines across 1 files [L]
+
+- Regenerated `docs/agents/doc-inventory.json` to update `generated_at` timestamp.
+- Updated file paths and associated metadata for several markdown documents, including `docs/src/archive/research-2026-q1/comprehensive-audit-findings-2026.md`, `docs/src/ci/alternatives-and-local-mirroring.md`, and `docs/superpowers/plans/handoff/2026-05-08-handoff-path-c-vox-owns-toolchain.md`.
+- Adjusted `lines_total` and `lines_other_doc_signal` for some markdown entries.
+
+--- audit: original='chore(docs): regenerate doc-inventory after merging main' | actual=475L across 1 files | derived=full ---
