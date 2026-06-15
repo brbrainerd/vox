@@ -27,6 +27,10 @@ use serde::Serialize;
 use tokio::sync::Mutex;
 use tracing::debug;
 
+/// Lower clamp on `visible_text_summary`'s `max_chars` argument: requests below
+/// this are raised to it so the returned summary is never trivially short.
+const MIN_TEXT_SUMMARY_CHARS: usize = 256;
+
 struct HostInner {
     _handler_task: tokio::task::JoinHandle<()>,
     browser: Browser,
@@ -593,7 +597,7 @@ impl BrowserEngine {
         let page = self.page_ref(page_id).await?;
         let html = page.content().await.map_err(Self::map_page_err)?;
         let stripped = strip_html_tags(&html);
-        let max_chars = max_chars.max(256);
+        let max_chars = max_chars.max(MIN_TEXT_SUMMARY_CHARS);
         if stripped.chars().count() <= max_chars {
             Ok(stripped)
         } else {

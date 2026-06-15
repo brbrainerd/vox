@@ -18,6 +18,15 @@
 //! ## Platform independence
 //! All internal Vox code uses `ChangeRequest` instead of "PR" or "MR".
 
+/// Outbound HTTP `User-Agent` for all forge clients. Tracks the crate version
+/// (`CARGO_PKG_VERSION`) so it never drifts from a hand-pinned literal.
+#[cfg(any(feature = "github", feature = "gitlab"))]
+pub(crate) const FORGE_USER_AGENT: &str = concat!(
+    "vox-forge/",
+    env!("CARGO_PKG_VERSION"),
+    " (https://github.com/vox-lang/vox)"
+);
+
 /// Error types for forge HTTP/auth/parse failures.
 pub mod error;
 /// [`GitForgeProvider`](provider::GitForgeProvider) trait and registry.
