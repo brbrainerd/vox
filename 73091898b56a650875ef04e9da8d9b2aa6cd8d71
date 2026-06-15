@@ -1,0 +1,10 @@
+docs(adr): defer ADR-041 §6(c) HTTP-runtime extraction; record design constraints
+scale: ~205 lines across 5 files [M]
+
+- **docs/src/architecture/http-runtime-extraction-2026.md**: Added a new architectural design document detailing the constraints and a two-phase plan for extracting the HTTP runtime, leading to the deferral of ADR-041 §6(c).
+- **crates/vox-codegen/src/codegen_rust/emit/main_boot.rs**: Updated the `emit_main_boot` function's comments to reflect the deferral of HTTP server boot, referencing the new design document and clarifying that `emit_main` handles HTTP serving in production. The `TODO(phase5-followup)` comment was replaced with a `DEFERRED` status.
+- **docs/src/adr/041-durable-functions-completion-2026.md**: Updated the ADR to mark §6(c) (HTTP server boot in `emit_main_boot`) as deferred, linking to the new design document.
+- **crates/vox-codegen/tests/snapshots/main_boot_snapshot__main_boot_scheduled_actor_server.snap**: Updated the snapshot to reflect the changed comments in `emit_main_boot.rs` regarding the deferred HTTP server boot.
+- **crates/vox-codegen/tests/snapshots/main_boot_snapshot__main_boot_no_scheduled_no_endpoints.snap**: Updated the snapshot to reflect the changed comments in `emit_main_boot.rs` regarding the deferred HTTP server boot.
+
+--- audit: original='docs(adr): defer ADR-041 §6(c) HTTP-runtime extraction; record design constraints (P8.c)' | actual=205L across 5 files | derived=full ---
