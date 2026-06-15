@@ -1,0 +1,33 @@
+refactor(workspace): hygiene, extract ars_shim, rename wasm-host, update ABI
+scale: ~50933 lines across 134 files [XL]
+
+DIVERGENCE: original subject claimed 'refactor(workspace): plugin/host hygiene + extract ars_shim to vox-ars-runtime' but this commit actually changed ~50933 lines across 134 files. Top areas:
+contracts: 50252 lines, 49 files
+crates: 587 lines, 75 files
+(root): 75 lines, 3 files
+.claude: 11 lines, 1 files
+docs: 4 lines, 4 files
+.cursor: 2 lines, 1 files
+.github: 2 lines, 1 files
+
+- **contracts/reports/scaling-audit**: Regenerated scaling audit reports after `vox-ars` deletion, adding 42 new per-crate reports and updating `findings-latest.json` (37773 lines added, 5657 deleted) and `rollup/INDEX.yaml` (2454 lines added, 594 deleted).
+- **crates/vox-ars-runtime**: New crate created (52 lines added) to extract ~1650 LoC of OpenClaw and ARS runtime code from `vox-skills::ars_shim`. This includes `Cargo.toml` (34 lines added) and several source files (e.g., `openclaw.rs`, `openclaw_adapter.rs`, `openclaw_discovery.rs`, `domain.rs`, `runtime.rs`, `executor.rs`, `openclaw_gateway_ws.rs`, `openclaw_protocol.rs`).
+- **crates/vox-skills**: `ars_shim` module deleted (33 lines deleted), reducing dependencies by 8. `Cargo.toml` updated (1 line added, 8 deleted). Test files `openclaw_fallback_test.rs` and `domain_test.rs` were modified.
+- **crates/vox-ars**: Crate deleted, removing `src/lib.rs` (66 lines deleted) and `Cargo.toml` (14 lines deleted).
+- **crates/vox-cli**: Updated to consume `vox-ars-runtime` instead of `vox-skills::ars_shim`. This involved changes in `Cargo.toml` (11 lines added, 5 deleted) and several command files (e.g., `db/publication/ingest.rs`, `extras/ars/run_skill.rs`, `openclaw.rs`, `extras/ars/eval_promote.rs`, `ci/nomenclature_guard.rs`, `extras/ars/context.rs`, `extras/ars/skills_crud.rs`, `runtime/run/backend/wasi.rs`).
+- **crates/vox-plugin-api**: Added `Publication` extension trait (34 lines added) and bumped `VOX_PLUGIN_ABI_VERSION` from 11 to 12 in `abi.rs` (7 lines added).
+- **crates/vox-plugin-publication**: Dropped `vox-runtime` dependency, re-exporting `LlmConfig` via `vox-search`. `src/lib.rs` (41 lines added) and `src/ingest.rs` (4 lines added, 2 deleted) were updated. `Cargo.toml` was also modified (3 lines added, 1 deleted).
+- **crates/vox-search**: Added `LlmConfig` re-export (5 lines added).
+- **crates/vox-plugin-host**: Moved test-fixture plugins (`noop-code`, `noop-code-bad-abi`) into `crates/vox-plugin-host/tests/fixtures/`. This involved modifying `load_noop_code.rs` and `abi_mismatch.rs`, and updating `Cargo.toml` and `Plugin.toml` for the moved fixtures.
+- **crates/vox-wasm-engine**: Renamed from `vox-wasm-host` to clarify its role as a wasmtime engine, not a plugin host. `Cargo.toml` and `src/lib.rs` were updated.
+- **Plugin.toml manifests**: 13 `Plugin.toml` manifests were synced across various `vox-plugin-*` crates to reflect the ABI version bump.
+- **contracts/documentation**: Updated `retired-symbols.v1.yaml` (3 lines added, 3 deleted) and `contracts/proximity/retired-surfaces.v1.json` (1 line added, 1 deleted).
+- **Documentation**: Updated `AGENTS.md`, `.cursor/rules/retired-surfaces.mdc`, and `.github/copilot-instructions.md` to reflect retired surfaces.
+- **Cargo.lock**: Updated (30 lines added, 35 deleted) due to dependency changes.
+- **Cargo.toml**: Workspace `Cargo.toml` updated (4 lines added, 4 deleted).
+- **contracts/reports/toestub-remediation**: `promotion-metrics.json` (63 lines added, 21 deleted) and `board.md` (20 lines added, 20 deleted) were updated.
+- **crates/vox-orchestrator**: `Cargo.toml` and `src/mcp_tools/openclaw_tools.rs` were modified.
+- **crates/vox-runtime**: `Cargo.toml` and `src/builtins/mod.rs` were modified.
+- **crates/vox-plugin-catalog**: `catalog.toml` was deleted (16 lines deleted).
+
+--- audit: original='refactor(workspace): plugin/host hygiene + extract ars_shim to vox-ars-runtime' | actual=50933L across 134 files | derived=stat-only ---
