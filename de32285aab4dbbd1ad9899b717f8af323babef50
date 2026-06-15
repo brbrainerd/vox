@@ -1,0 +1,4 @@
+docs(
+scale: ~10 lines across 4 files [S]
+
+--- audit: original='docs: fix frontmatter category/status for doc-pipeline lint' | actual=10L across 4 files | derived=full ---
