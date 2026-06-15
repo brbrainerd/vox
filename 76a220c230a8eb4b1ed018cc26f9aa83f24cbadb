@@ -1,0 +1,6 @@
+feat(golden): add interpreter test harness with gap allowlist
+scale: ~241 lines across 1 files [M]
+
+- `crates/vox-compiler/tests/golden_interp_test.rs`: New test harness to execute `examples/golden/**/*.vox` files containing `fn main` under the interpreter. It skips files listed in `KNOWN_INTERP_GAPS` due to platform-specific features (web, mobile, actor, database, mesh, LLM) and asserts that the remaining files execute without errors.
+
+--- audit: original='test(golden): execute the golden corpus under --mode interp with a tracked gap allowlist' | actual=241L across 1 files | derived=full ---
