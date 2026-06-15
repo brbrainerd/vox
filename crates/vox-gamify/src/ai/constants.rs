@@ -10,10 +10,6 @@ pub(crate) const GEMINI_ENDPOINT_TEMPLATE: &str =
     "https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent?key={KEY}";
 pub(crate) const HTTP_TIMEOUT_SECS: u64 = 15;
 pub(crate) const OLLAMA_PROBE_TIMEOUT_SECS: u64 = 2;
-/// OpenRouter chat-completions endpoint (config-aware: honors a custom `OPENROUTER_BASE_URL`).
-pub(crate) fn openrouter_base() -> String {
-    vox_config::openrouter_chat_completions_url()
-}
 
 /// Free-tier OpenRouter models tried in order (most capable first).
 /// All end with `:free` to guarantee zero cost.

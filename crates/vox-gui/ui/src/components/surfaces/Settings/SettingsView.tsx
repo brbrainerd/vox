@@ -708,9 +708,19 @@ interface UserConfigFieldDto {
 
 const RUNTIME_GROUP_ORDER = ['General', 'Models & endpoints', 'Tuning', 'Training'];
 
+/** Recorded LLM spend vs budget caps, mirrors Rust `LlmSpendDto`. */
+interface LlmSpendDto {
+  sessionUsd: number;
+  dayUsd: number;
+  totalUsd: number;
+  dailyBudgetUsd: number;
+  perSessionBudgetUsd: number;
+}
+
 function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
   const [fields, setFields] = useState<UserConfigFieldDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [spend, setSpend] = useState<LlmSpendDto | null>(null);
   // In-flight edits keyed by config key; cleared on reload.
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
@@ -725,6 +735,12 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
       pushToast({ tone: 'warn', title: 'Could not load runtime config', body: String(err) });
     } finally {
       setLoading(false);
+    }
+    // Recorded spend vs budget (single SSOT aggregate); best-effort, never blocks config.
+    try {
+      setSpend(await invoke<LlmSpendDto>('get_llm_spend', {}));
+    } catch {
+      /* store may be unavailable on a fresh install — leave spend hidden */
     }
   }, [pushToast]);
 
@@ -816,6 +832,16 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
       <p className="mt-0.5 text-[11px] text-zinc-500">
         Core user config persisted to your Vox user config (effective values: ENV &gt; Vox.toml &gt; global &gt; defaults)
       </p>
+      {spend && (
+        <div className="mt-3 rounded border border-white/10 bg-black/20 p-3" data-testid="llm-spend">
+          <div className="font-mono text-[10px] uppercase tracking-wide text-zinc-500">LLM spend (recorded actuals)</div>
+          <div className="mt-1 flex flex-wrap gap-x-6 gap-y-1 font-mono text-[11px] text-zinc-300">
+            <span>session ${spend.sessionUsd.toFixed(4)} / ${spend.perSessionBudgetUsd.toFixed(2)}</span>
+            <span>today ${spend.dayUsd.toFixed(4)} / ${spend.dailyBudgetUsd.toFixed(2)}</span>
+            <span>total ${spend.totalUsd.toFixed(4)}</span>
+          </div>
+        </div>
+      )}
       {loading ? (
         <div className="mt-4 text-[12px] text-zinc-500">Loading…</div>
       ) : (

@@ -154,7 +154,7 @@ async fn stream_once_assembles_sse_deltas() {
         .mount(&server)
         .await;
     let r = req(format!("{}/chat/completions", server.uri()));
-    let mut s = stream_once(&r, &[], &ChatParams::default())
+    let (mut s, _cost) = stream_once(&r, &[], &ChatParams::default())
         .await
         .expect("stream");
     let mut got = String::new();
@@ -162,6 +162,35 @@ async fn stream_once_assembles_sse_deltas() {
         got.push_str(&chunk.expect("chunk"));
     }
     assert_eq!(got, "ab");
+}
+
+#[tokio::test]
+async fn stream_once_surfaces_response_cost_header() {
+    let server = MockServer::start().await;
+    let sse = "data: {\"choices\":[{\"delta\":{\"content\":\"a\"}}]}\n\ndata: [DONE]\n\n";
+    Mock::given(method("POST"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "text/event-stream")
+                .insert_header("x-response-cost", "0.0034")
+                .set_body_string(sse),
+        )
+        .mount(&server)
+        .await;
+    let r = req(format!("{}/chat/completions", server.uri()));
+    let (mut s, cost) = stream_once(&r, &[], &ChatParams::default())
+        .await
+        .expect("stream");
+    assert_eq!(
+        cost,
+        Some(0.0034),
+        "streaming response cost must be surfaced"
+    );
+    let mut got = String::new();
+    while let Some(c) = s.next().await {
+        got.push_str(&c.expect("chunk"));
+    }
+    assert_eq!(got, "a");
 }
 
 #[tokio::test]

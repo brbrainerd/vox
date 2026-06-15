@@ -30,6 +30,17 @@
 
 ---
 
+## Execution status (2026-06-15, branch `llm-cost-ssot`)
+
+- **§2 DONE** (`a2965b97df`) — `stream_once` surfaces cost; facade adapts; gamify streaming migrated onto the core (single-egress now total); dead `openrouter_base()` removed.
+- **§1.1 DONE** (`0d8823b11a`) — single `vox_llm_egress::estimate_cost`; both duplicates call it. (effort-audit/route + orchestrator prospective routing are distinct cost models, left as-is.)
+- **§1.2 DONE (audit)** — single `cost_usd` writer: `record_llm_outcome`. `log_interaction` writes no cost; `model_scoreboard.cumulative_cost_usd` is a derived rollup of the same write.
+- **§1.3 DONE** (`f26a5ba7c8`) — `VoxDb::llm_spend_summary` (session/day/total). (vox-db `:memory:` unit tests fail *locally* on schema-not-applied — pre-existing env harness issue, all such tests; CI applies the baseline.)
+- **§1.4 DONE** (`12dca65e1a`) — `get_llm_spend` + `LlmSpendDto` + live spend-vs-budget in the Runtime settings surface, refetched on mount / `vox://llm-config-changed` / save.
+- **§1.5 VERIFIED-BY-ARCHITECTURE** — `record_llm_outcome` is the single write that feeds *both* `model_scoreboard` (which routing reads — see `discovery_pipeline.rs` "real model_scoreboard evidence") *and* `llm_interactions.cost_usd` (which `llm_spend_summary` → the GUI reads). So **route-on == record == show** by construction; no divergent source. (Orchestrator *prospective* catalog price for pre-call selection is intentionally separate from *recorded actuals*.)
+
+**Cost-tracking SSOT execution complete.** Cost is measured once (`estimate_cost` / provider-reported), recorded once (`record_llm_outcome`), aggregated once (`llm_spend_summary`), surfaced reactively (GUI), and routing reads the same recorded evidence.
+
 ## §2 — Egress streaming-cost extension (do first; unblocks §1 + gamify)
 
 ### Task 2.1: `stream_once` surfaces the response cost

@@ -45,7 +45,9 @@ pub async fn llm_stream(
         tool_choice: config.tool_choice.as_ref(),
     };
 
-    let inner = vox_llm_egress::stream_once(&ereq, &wire_msgs, &params)
+    // Streaming cost is gamify's concern (it has the cost_reporter); the facade records
+    // cost via its non-streaming telemetry path, so it ignores the surfaced cost here.
+    let (inner, _cost_usd) = vox_llm_egress::stream_once(&ereq, &wire_msgs, &params)
         .await
         .map_err(|e| e.to_string())?;
     // Map the core's structured error item type to the facade's String error.

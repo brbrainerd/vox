@@ -257,6 +257,36 @@ impl crate::VoxDb {
             .await
     }
 
+    /// Aggregate LLM spend (USD) from recorded `llm_interactions.cost_usd` — the single
+    /// recorded cost source. Returns total, today, and (optionally) the given session.
+    /// This is the SSOT for "actual spend" surfaced to the GUI / cost displays.
+    pub async fn llm_spend_summary(
+        &self,
+        session_id: Option<&str>,
+    ) -> Result<LlmSpendSummary, StoreError> {
+        let session = session_id.unwrap_or("");
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT
+                    COALESCE(SUM(cost_usd), 0.0)                                            AS total,
+                    COALESCE(SUM(cost_usd) FILTER (WHERE created_at >= date('now')), 0.0)   AS day,
+                    COALESCE(SUM(cost_usd) FILTER (WHERE session_id = ?1), 0.0)             AS session
+                 FROM llm_interactions",
+                params![session],
+            )
+            .await?;
+        if let Some(r) = rows.next().await? {
+            Ok(LlmSpendSummary {
+                total_usd: r.get::<f64>(0).unwrap_or(0.0),
+                day_usd: r.get::<f64>(1).unwrap_or(0.0),
+                session_usd: r.get::<f64>(2).unwrap_or(0.0),
+            })
+        } else {
+            Ok(LlmSpendSummary::default())
+        }
+    }
+
     // ── LLM Feedback (llm_feedback) ───────────────────────────────────────────
 
     /// Append a `llm_feedback` row linked to an `llm_interactions` rowid.
@@ -638,5 +668,77 @@ impl crate::VoxDb {
                 Ok(conn.last_insert_rowid())
             })
             .await
+    }
+}
+
+/// Aggregated LLM spend (USD), the SSOT for actual-cost displays. Budgets (caps) are
+/// read separately from `VoxConfig`; this is the recorded actuals from `llm_interactions`.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct LlmSpendSummary {
+    /// Total recorded spend across all sessions.
+    pub total_usd: f64,
+    /// Spend recorded today (since local midnight).
+    pub day_usd: f64,
+    /// Spend recorded for the queried session (0 when no session was given).
+    pub session_usd: f64,
+}
+
+#[cfg(test)]
+mod spend_tests {
+    use crate::store::types::ModelOutcome;
+    use crate::{DbConfig, VoxDb};
+
+    fn outcome<'a>(session: &'a str, cost: f64) -> ModelOutcome<'a> {
+        ModelOutcome {
+            session_id: session,
+            user_id: None,
+            tenant_id: None,
+            prompt: "p",
+            response: "r",
+            model_id: "m",
+            provider: "openrouter",
+            task_category: "general",
+            strength_tag: "generalist",
+            latency_ms: Some(10),
+            input_tokens: Some(5),
+            output_tokens: Some(5),
+            cache_read_tokens: Some(0),
+            trace_id: None,
+            context_utilization_pct: None,
+            success: true,
+            cost_usd: Some(cost),
+            quality_score: Some(1.0),
+        }
+    }
+
+    #[tokio::test]
+    async fn llm_spend_summary_sums_recorded_costs() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+        db.record_llm_outcome(outcome("sess-1", 0.01))
+            .await
+            .expect("rec 1");
+        db.record_llm_outcome(outcome("sess-1", 0.02))
+            .await
+            .expect("rec 2");
+        db.record_llm_outcome(outcome("sess-2", 0.04))
+            .await
+            .expect("rec 3");
+
+        let all = db.llm_spend_summary(None).await.expect("summary");
+        assert!(
+            (all.total_usd - 0.07).abs() < 1e-9,
+            "total: {}",
+            all.total_usd
+        );
+        assert!((all.day_usd - 0.07).abs() < 1e-9, "day: {}", all.day_usd);
+        assert_eq!(all.session_usd, 0.0, "no session given");
+
+        let s1 = db.llm_spend_summary(Some("sess-1")).await.expect("summary");
+        assert!(
+            (s1.session_usd - 0.03).abs() < 1e-9,
+            "session: {}",
+            s1.session_usd
+        );
+        assert!((s1.total_usd - 0.07).abs() < 1e-9, "total still all");
     }
 }

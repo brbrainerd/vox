@@ -165,7 +165,7 @@ pub async fn stream_once(
     req: &EgressRequest,
     messages: &[ChatMessage],
     params: &ChatParams<'_>,
-) -> Result<ChatStream, EgressError> {
+) -> Result<(ChatStream, Option<f64>), EgressError> {
     use async_stream::stream;
     use futures_util::StreamExt;
 
@@ -207,6 +207,13 @@ pub async fn stream_once(
     }
     throttle::on_success(&req.throttle_key);
 
+    // Provider-reported cost from the response header (available before the body streams).
+    let cost_usd = res
+        .headers()
+        .get("x-response-cost")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.parse::<f64>().ok());
+
     let byte_stream = res.bytes_stream();
     let out = stream! {
         // Keep the throttle permit alive for the duration of the stream.
@@ -243,7 +250,7 @@ pub async fn stream_once(
             yield Ok(s);
         }
     };
-    Ok(Box::pin(out))
+    Ok((Box::pin(out), cost_usd))
 }
 
 #[derive(Serialize)]
