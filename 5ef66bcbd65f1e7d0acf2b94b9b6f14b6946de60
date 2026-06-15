@@ -1,0 +1,10 @@
+feat(dashboard): introduce `RunRowDrawer` component for run details
+scale: ~61 lines across 1 files [M]
+
+- `crates/vox-dashboard/app/src/lib/run_row_drawer.vox`: Add new `RunRowDrawer` component to display workflow run details.
+  - Fetches and displays the full event tree for a given `run_id`.
+  - Shows the `trace_id` and provides a "Copy deep-link" button to copy `vox://trace/{trace_id}` to the clipboard.
+  - Includes a `PrivacyBadge` to indicate the run's privacy class.
+  - Displays a "Loading…" message while event data is being fetched.
+
+--- audit: original='feat(dashboard): run-row drawer with event tree and trace_id deep-link (P4-T9)' | actual=61L across 1 files | derived=full ---
