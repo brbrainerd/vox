@@ -1,0 +1,9 @@
+feat(cli): ingest external skills from standard roots into registry
+scale: ~67 lines across 1 files [M]
+
+- `crates/vox-cli/src/commands/extras/ars/registry.rs`:
+    - Added `install_external_skills` function to discover and install skills from standard interop roots (`.vox`, `.agents`, `.claude` skill directories in workspace and home).
+    - Modified `make_registry` to call `install_external_skills` after `install_builtins`, ensuring built-in skills take precedence in case of ID collision.
+    - Added a test `install_external_skills_ingests_standard_roots` to verify the ingestion of external skills from a temporary `.agents/skills` directory.
+
+--- audit: original='feat(cli): vox skill registry ingests standard external skill roots' | actual=67L across 1 files | derived=full ---
