@@ -1,0 +1,22 @@
+feat(coverage-graph): add duplicate code, split-brain, and OS compatibility scans
+scale: ~940 lines across 4 files [L]
+
+- **scripts/coverage-graph/dup_and_wiring.py**: New script to analyze Rust code for:
+    - Exact and structural duplicate function bodies using normalized hashing.
+    - Split-brain candidates (same symbol name defined in multiple crates).
+    - Advisory zero-inbound nodes (potential dead code).
+- **scripts/coverage-graph/os_compat.py**: New script to identify platform compatibility issues in Rust code, including:
+    - Hardcoded Unix/Windows paths, tilde home paths, and dynamic library extensions.
+    - OS-specific shell commands, environment variable usage (HOME vs USERPROFILE), and path separators.
+    - Unix/Windows-only APIs and CRLF literals.
+    - Findings are graded by confidence and whether they are gated by `#[cfg(...)]`.
+- **graphify-out/DUPLICATION_AND_WIRING.md**: Generated report detailing findings from `dup_and_wiring.py`, including:
+    - 435 exact duplicate function body clusters.
+    - 21 structural near-duplicate clusters.
+    - 270 split-brain name candidates.
+    - 3607 zero-inbound-edge nodes.
+- **graphify-out/OS_COMPATIBILITY.md**: Generated report detailing findings from `os_compat.py`, including:
+    - A summary of 168 un-gated portability findings across various categories (e.g., `abs-unix-path`, `dynlib-ext`, `shell-command`).
+    - A list of 31 asymmetric `cfg` files.
+
+--- audit: original='feat(coverage-graph): duplicate-code, split-brain, and OS-compat scans' | actual=940L across 4 files | derived=full ---
