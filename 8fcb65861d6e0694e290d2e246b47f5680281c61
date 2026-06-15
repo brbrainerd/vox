@@ -1,0 +1,29 @@
+docs: overhaul documentation structure and content
+scale: ~1915 lines across 119 files [XL]
+
+- docs: Refactor `SUMMARY.md` to remove old content and add new sections for architecture, API, explanation, how-to guides, journeys, operations, reference, and tutorials.
+- docs: Add new reference documentation for built-in standard library functions.
+- docs: Update `index.md` with new content and structure.
+- docs: Add new how-to guides for examples corpus, unit testing, error handling, database interactions, troubleshooting, and scaling actors.
+- docs: Add new API documentation for decorators.
+- docs: Update reference documentation for decorators, syntax, and the standard library.
+- docs: Add new architecture documentation for language testing pipeline.
+- docs: Update explanation documentation for actors and workflows, and add a new `DOC_GAPS.md`.
+- docs: Update tutorials for getting started and actor basics.
+- docs: Update various architecture, explanation, how-to, journeys, operations, and reference documents with minor changes.
+- crates/vox-compiler: Remove `Action` declaration type and related logic from AST callable declarations, codegen, and parser.
+- crates/vox-compiler: Update `build.rs` to use `npx v0 add` for component generation, removing custom prompt/image logic.
+- crates/vox-compiler: Refactor `parse_v0_component` to use a single `v0_id` string literal instead of prompt/image path.
+- crates/vox-compiler: Remove `is_llm`, `llm_model`, `is_layout`, `is_metric`, `metric_name`, and `is_health` fields from function declarations.
+- crates/vox-compiler: Remove `Action` related code from `codegen_ts/voxdb.rs`.
+- crates/vox-compiler: Remove `fundecl.rs` and update `types.rs` in `ast/decl`.
+- crates/vox-compiler: Make minor changes to `parser/descent` modules (`tail.rs`, `head.rs`, `tests.rs`, `mid.rs`, `expr/pratt_match.rs`, `expr/pratt_jsx.rs`).
+- crates/vox-compiler: Make minor changes to `lexer` modules (`cursor.rs`, `token.rs`, `compact.rs`).
+- crates/vox-db: Remove `Action` related code from `schema_digest/api.rs`.
+- crates/vox-db: Make minor changes to `data_flow.rs`, `schema_digest/helpers.rs`, `schema_digest/digest_types.rs`, `error_enrichment.rs`, and `schema/spec/mod.rs`.
+- crates/vox-cli: Make minor changes to `build.rs` and `training/core.rs`.
+- crates/vox-lsp: Make minor changes to `grammar.rs`.
+- mens: Add new configuration files `mix-research.yaml` and `mix-rocks.yaml`.
+- examples: Make minor changes to various golden and parser-inventory examples.
+
+--- audit: original='docs: establish comprehensive project documentation, architecture ADRs, and compiler implementation modules' | actual=1915L across 119 files | derived=full ---
