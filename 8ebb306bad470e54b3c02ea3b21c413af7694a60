@@ -1,0 +1,8 @@
+ci(lychee): whitelist additional broken file links
+scale: ~3 lines across 1 files [XS]
+
+- Whitelisted `file://.*vox-vscode/.*` to ignore broken links within the `vox-vscode` documentation.
+- Whitelisted `file://.*docs/theme/.*` to ignore broken links within the documentation theme files.
+- Whitelisted `file://.*docs/src/index\.md` to ignore a broken link in the main documentation index file.
+
+--- audit: original='ci: whitelist remaining broken file links in lycheeignore' | actual=3L across 1 files | derived=full ---
