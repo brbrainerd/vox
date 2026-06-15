@@ -1,0 +1,12 @@
+feat(telemetry/C2): add TaskRootSummaryEvent and handler
+scale: ~62 lines across 3 files [M]
+
+- `crates/vox-telemetry/src/types.rs`:
+    - Add `TaskRootSummaryEvent` struct with fields for `task_id`, `trace_id`, `repository_id`, `outcome`, `wall_time_ms`, `total_input_tokens`, `total_output_tokens`, `total_cost_usd`, `child_call_count`, `max_span_depth`, and `subagent_fanout`.
+    - Add `TaskRootSummary` variant to `TelemetryEvent` enum.
+- `crates/vox-telemetry/src/lib.rs`: Export `TaskRootSummaryEvent`.
+- `crates/vox-db/src/telemetry_sink.rs`:
+    - Add `METRIC_TYPE_TASK_ROOT_SUMMARY` constant.
+    - Implement handling for `TelemetryEvent::TaskRootSummary` in `ResearchMetricsSink`, persisting it as a research metric with `metric_type=task.root_summary` and serializing the event as metadata.
+
+--- audit: original='feat(telemetry/C2): add TaskRootSummaryEvent + sink handler' | actual=62L across 3 files | derived=full ---
