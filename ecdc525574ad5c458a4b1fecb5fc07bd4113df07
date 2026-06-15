@@ -1,0 +1,22 @@
+feat(vox-db, vox-workflow-runtime): implement activity result cache and dedup short-circuit
+scale: ~207 lines across 9 files [M]
+
+- `vox-db`:
+  - Bump `BASELINE_VERSION` from 62 to 63.
+  - Add `activity_result_cache` table with `activity_id`, `arg_hash`, `result_json`, `produced_at_unix_ms`, `dedup_window_ms`, and `dedup_window_until` columns to the `vox_mesh` domain.
+  - Add a primary key on `(activity_id, arg_hash)` and an index on `dedup_window_until` for efficient sweeps.
+  - Introduce `ddl::activity_result_cache` module with `UPSERT_SQL`, `LOOKUP_SQL`, and `SWEEP_SQL` constants.
+- `vox-workflow-runtime::workflow::tracker`:
+  - Extend `WorkflowTracker` trait with `load_cached_activity_result` and `record_cached_activity_result` methods, providing no-op default implementations.
+- `vox-workflow-runtime::workflow::run`:
+  - Integrate cache lookup before journal replay and cache recording after successful activity execution within `interpret_workflow_durable`.
+  - Introduce `ActivityCacheHit` event to the journal.
+- `vox-workflow-runtime::workflow::types`:
+  - Add `arguments: Vec<serde_json::Value>` and `dedup_window_ms: Option<u64>` fields to `PlannedActivity`.
+  - Implement `compute_structural_arg_hash` helper function to derive a hex SHA3-512 hash from canonicalized arguments.
+- `vox-workflow-runtime::workflow::plan`:
+  - Initialize new `arguments` and `dedup_window_ms` fields for `PlannedActivity` in `collect_from_expr`.
+- `vox-workflow-runtime::tests`:
+  - Add `activity_result_cache.rs` with two acceptance tests for `MemTracker`: `second_run_with_same_args_hits_cache` and `miss_on_distinct_arg_hash`.
+
+--- audit: original='feat(vox-db, vox-workflow-runtime): P2-T5 activity_result_cache + dedup short-circuit' | actual=207L across 9 files | derived=full ---
