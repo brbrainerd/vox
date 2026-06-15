@@ -1,0 +1,10 @@
+feat(codegen): Add external React/RN library support for CSS imports and provider guidance
+scale: ~343 lines across 5 files [L]
+
+- `crates/vox-codegen/src/codegen_ts/external_libs.rs`: New file defining a Single Source of Truth (SSOT) for external React/React Native component libraries. This includes `LibTarget` (Web, Rn, Both), `Styling` (Emotion, CssInJs, CssFile, Tailwind, None), and `ExternalLib` structs. It contains a `KNOWN_EXTERNAL_LIBS` array with details for libraries like Mantine, Chakra UI, Radix UI, React Native Paper, and Tamagui, specifying their styling, required CSS imports, mandatory providers, peer dependencies, and target platforms. It also provides `lookup` and `valid_for_target` functions.
+- `crates/vox-codegen/src/codegen_ts/reactive.rs`: Added `emit_external_lib_support` function to generate required CSS imports and provider guidance for known external libraries based on `HirImport`s and the target platform (web vs. RN).
+- `crates/vox-codegen/tests/rn_lifecycle_test.rs`: Added a new test `rn_paper_import_emits_provider_guidance` to verify that importing `react-native-paper` on the RN target correctly emits guidance for `<PaperProvider>`.
+- `crates/vox-codegen/src/codegen_ts/rn/component.rs`: Integrated the `emit_external_lib_support` function to inject mandatory-provider guidance for known RN libraries (e.g., Paper, Tamagui) into the generated React Native component code.
+- `crates/vox-codegen/src/codegen_ts/mod.rs`: Added a `pub mod external_libs` declaration to expose the new external libraries module.
+
+--- audit: original='feat(interop): S3/S4 — per-library SSOT + auto CSS imports & provider guidance' | actual=343L across 5 files | derived=full ---
