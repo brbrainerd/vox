@@ -1,0 +1,11 @@
+feat(codegen): catch-guard fire-and-forget endpoint calls in React Native
+scale: ~77 lines across 2 files [M]
+
+- `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`:
+    - Introduced `floating_endpoint_call_name` to identify `vox-client` endpoint calls that are emitted without `await` (fire-and-forget promises).
+    - Added `emit_floating_endpoint_call` to wrap such calls with `void Promise.resolve(...).catch(...)` to prevent unhandled promise rejections.
+    - Modified `emit_hir_stmt` to use these new functions when processing discarded `let _ = <call>` or bare `<call>;` statements that are fire-and-forget endpoint calls. This ensures that failed background requests log an error instead of becoming unhandled rejections.
+- `crates/vox-codegen/tests/rn_lifecycle_test.rs`:
+    - Added `rn_fire_and_forget_endpoint_call_is_catch_guarded` test case to verify that discarded, un-awaited endpoint calls in React Native handlers are correctly wrapped with a `.catch` block.
+
+--- audit: original='codegen: catch-guard fire-and-forget endpoint calls (fixes RN tap crash)' | actual=77L across 2 files | derived=full ---
