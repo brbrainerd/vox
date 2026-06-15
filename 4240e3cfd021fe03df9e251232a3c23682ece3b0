@@ -1,0 +1,23 @@
+fix(grammar): improve tokenization, policy checks, and transport reconnection
+scale: ~129 lines across 7 files [M]
+
+- **`crates/vox-exec-grammar/src/ast.rs`**:
+  - Preserve empty quoted arguments (`""` or `''`) as distinct tokens during tokenization.
+  - Add `||` (OR) as a recognized command separator.
+  - Correctly handle redirection (`>`) and pipe (`|`) operators by ensuring preceding empty quoted tokens are preserved.
+- **`crates/vox-exec-grammar/src/policy.rs`**:
+  - Update blocked-parameter checks to use case-insensitive matching for command scopes.
+  - Iterate directly over `self.blocked_parameters` to simplify scope application logic.
+- **`crates/vox-dashboard/src/transport.ts`**:
+  - Fix reconnect attempt cap off-by-one error by changing the condition from `>=` to `>`.
+- **`docs/src/reference/cli.md`**:
+  - Document the new `--search` flag for `vox commands`, including example usage.
+- **`docs/src/architecture/warp-research-findings-2026.md`**:
+  - Update `status` frontmatter to `research`.
+  - Add `last_updated` frontmatter with the date `2026-04-29`.
+- **`docs/src/adr/026-third-party-code-provenance.md`**:
+  - Add `last_updated` and `training_eligible: true` frontmatter.
+- **`contracts/terminal/exec-policy.test-corpus.yaml`**:
+  - Add a test case for compound commands using `||` (OR) to ensure the second segment is checked.
+
+--- audit: original='fix(review): address 9 CodeRabbit findings on PR #45' | actual=129L across 7 files | derived=full ---
