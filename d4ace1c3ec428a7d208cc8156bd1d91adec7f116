@@ -1,0 +1,23 @@
+feat(workflow-runtime): profile-driven journal flush and suspend/resume
+scale: ~403 lines across 4 files [L]
+
+- `crates/vox-workflow-runtime/src/file_journal.rs`:
+    - Introduced `PeriodicFlusher` struct and its `spawn` method to manage a background thread for periodic journal syncing, used for `JournalFlushStrategy::Periodic` (desktop profile).
+    - Implemented `Suspendable` for `FileJournalTracker` to flush the journal on suspend.
+    - Implemented `Resumable` for `FileJournalTracker` to resume operations.
+    - Modified `FileJournalTracker::open` to accept a `RuntimeProfile` and `JournalFlushStrategy` to determine journal durability.
+    - Updated `JournalEntry` enum to include `WorkflowStarted` and `WorkflowCompleted` variants.
+    - Added `JournalFlushStrategy` enum to `vox_runtime` crate.
+- `crates/vox-journal/src/file.rs`:
+    - Introduced `AppendDurability` enum (`SyncEachAppend`, `Deferred`) to control when journal appends are synced to disk.
+    - Modified `FileJournal::open` to use `AppendDurability::SyncEachAppend` by default.
+    - Added `FileJournal::open_with_durability` to allow specifying `AppendDurability`.
+    - Moved `FileJournal::sync` method from a bounded `impl` to an unbounded `impl` to allow flushing regardless of entry type.
+    - Added `durability` field to `FileJournal` struct.
+- `crates/vox-journal/src/lib.rs`:
+    - Exported `AppendDurability` enum.
+    - Updated crate-level documentation to reflect the new `AppendDurability` options and their use in mobile profiles.
+- `docs/src/architecture/where-things-live.md`:
+    - Updated description for `vox-journal` to mention deferred-to-lifecycle sync for mobile profiles.
+
+--- audit: original='feat(workflow-runtime): profile-driven journal flush + Suspendable (mobile Phase 2)' | actual=403L across 4 files | derived=full ---
