@@ -120,6 +120,38 @@ pub fn run_silent_drop_gate(root: &Path, baseline: Option<PathBuf>) -> CoreGateR
     }
 }
 
+/// Run ONLY the `weak_test` detector (touch-test anti-patterns) over the workspace,
+/// including test trees, and fail if any finding survives the optional grandfather
+/// baseline. Like the silent-drop gate this is count-based and severity-neutral: it
+/// guards against NEW touch-tests (e.g. in Phase-3 coverage waves) without forcing a
+/// rewrite of the grandfathered existing suite. (Task 2.6 sibling / weak_test gate.)
+pub fn run_weak_test_gate(root: &Path, baseline: Option<PathBuf>) -> CoreGateResult {
+    let config = ToestubConfig {
+        roots: vec![root.to_path_buf()],
+        min_severity: Severity::Info,
+        run_mode: ToestubRunMode::Audit,
+        rule_filter: Some(vec!["weak_test".to_string()]),
+        tests_mode: vox_code_audit::run_context::ToestubTestsMode::Include,
+        suppression_path: baseline,
+        format: OutputFormat::Json,
+        ..ToestubConfig::default()
+    };
+    let engine = ToestubEngine::new(config);
+    let (result, _) = engine.run_and_report();
+    let remaining = result
+        .findings
+        .iter()
+        .filter(|f| f.rule_id == "weak_test")
+        .count();
+    let ok = remaining == 0;
+    CoreGateResult {
+        gate: "weak-test",
+        ok,
+        exit_code: if ok { 0 } else { 1 },
+        detail: Some(format!("{remaining} weak-test finding(s) beyond baseline")),
+    }
+}
+
 /// Run CR-L6 retirement parity via the existing registry subcommand.
 pub fn run_retirement_gate() -> CoreGateResult {
     let args = CommonArgs {
