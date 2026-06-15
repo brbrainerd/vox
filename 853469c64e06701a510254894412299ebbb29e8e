@@ -1,0 +1,7 @@
+test(e2e): add regression test for `@scheduled` jobs in Tauri app codegen
+scale: ~54 lines across 3 files [M]
+
+- `crates/vox-cli-tests/tests/build_e2e.rs`: Add `tauri_desktop_target_wires_scheduled_jobs` test to verify that the generated `src-tauri/src/main.rs` for a Tauri app includes registration and startup logic for `@scheduled` jobs. This test directly invokes `vox_codegen::codegen_rust::generate` with `RustAppShell::TauriApp` and asserts on the presence of "vox_workflow_runtime::scheduled::register" in the generated `main.rs` content.
+- `crates/vox-cli-tests/Cargo.toml`: Add `vox-codegen` and `vox-compiler` as dependencies to enable direct testing of the codegen pipeline.
+
+--- audit: original='test(e2e): generated Tauri app wires @scheduled jobs' | actual=54L across 3 files | derived=full ---
