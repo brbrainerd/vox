@@ -1,0 +1,9 @@
+feat(scaling-policy): add CostDefenseConfig::from_env_values for budget overrides
+scale: ~41 lines across 1 files [S]
+
+- `crates/vox-scaling-policy/src/cost_defense.rs`:
+    - Added `CostDefenseConfig::from_env_values(daily: Option<&str>, monthly: Option<&str>)` to overlay daily/monthly USD budget ceilings from string values onto the default configuration.
+    - Unparseable or absent string values for daily/monthly budgets will retain the default values.
+    - Added unit tests for `from_env_values` covering successful overrides, missing values retaining defaults, and unparseable values retaining defaults.
+
+--- audit: original='feat(scaling-policy): resolve cost-defense budgets from env (HC-G01-01)' | actual=41L across 1 files | derived=full ---
