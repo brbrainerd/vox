@@ -1,0 +1,9 @@
+feat(drift): add LanguageExtractor trait and crate_name_from_path function
+scale: ~41 lines across 1 files [S]
+
+- `crates/vox-drift-check/src/extractor.rs`:
+    - Added `LanguageExtractor` trait with an `extract` method.
+    - Added `crate_name_from_path` function to extract crate names from file paths.
+    - Added unit tests for `crate_name_from_path`.
+
+--- audit: original='feat(drift): add LanguageExtractor trait and crate_name resolver' | actual=41L across 1 files | derived=full ---
