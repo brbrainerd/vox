@@ -1,0 +1,22 @@
+feat(compiler): segment-aware route conflict detection in Express emit
+scale: ~97 lines across 2 files [M]
+
+- `crates/vox-compiler/tests/route_express_emit_test.rs`:
+    - Added 4 new integration tests for route conflict detection:
+        - `validate_rejects_two_param_routes_with_same_method_and_arity`: tests ambiguity for `/:a/:b` vs `/:x/:y`.
+        - `validate_allows_literal_shadowing_param_route`: tests allowing `/users/me` shadowing `/users/:id`.
+        - `validate_allows_cross_method_overlap`: tests allowing `GET /users/:id` and `POST /users/:id`.
+        - `validate_allows_disjoint_literal_prefixes`: tests allowing `/users` and `/products`.
+    - Updated `validate_rejects_duplicate_http_routes_same_method_path` to assert for "ambiguous" instead of "duplicate", reflecting the new overlap classification.
+    - Added a helper function `route` for creating `HirRoute` instances in tests.
+- `crates/vox-compiler/src/codegen_ts/routes.rs`:
+    - Integrated `RoutePattern` utility for segment-aware route overlap analysis in `validate_express_route_emit_input`.
+    - Replaced `HashSet<(Method, String)>` exact-match check with pairwise `RoutePattern` overlap analysis.
+    - Implemented new conflict policy:
+        - Empty path: remains an error.
+        - Same method, `Overlap::Ambiguous` (e.g., identical literals or `/:a/:b` vs `/:x/:y`): results in an error.
+        - Same method, `Overlap::Shadowed` (e.g., `/users/me` and `/users/:id`): allowed, with the more specific route winning by source order. No diagnostic is currently surfaced.
+        - Different methods: no conflict.
+    - Updated documentation for `validate_express_route_emit_input` to reflect the extended conflict policy and integration of `route_pattern`.
+
+--- audit: original='feat(compiler): segment-aware route conflict detection in Express emit' | actual=97L across 2 files | derived=full ---
