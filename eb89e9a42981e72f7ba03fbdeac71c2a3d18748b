@@ -1,0 +1,14 @@
+fix(orchestrator): Anthropic native adapter returns capability gap for tool calls
+scale: ~129 lines across 9 files [M]
+
+- `crates/vox-orchestrator/src/mcp_tools/llm_bridge/provider_adapter.rs`: Introduced `anthropic_tools_guard` function to check for tool calls in `InferRequest` and return a `capability_gap` error if found, preventing AnthropicNative from attempting to handle them. This guard is now called within the `AnthropicNativeAdapter`'s `infer` method.
+- `crates/vox-orchestrator/src/mcp_tools/llm_bridge/error.rs`: Added `is_capability_gap` boolean field to `HttpInferError` to distinguish between genuine errors and capability mismatches. Implemented `new` and `capability_gap` constructors for `HttpInferError` to set this flag appropriately.
+- `crates/vox-orchestrator/src/mcp_tools/llm_bridge/providers/probe.rs`: Updated `HttpInferError` instantiations in `probe_vox_local_health` and `probe_ollama_tags` to explicitly set `is_capability_gap: false`.
+- `crates/vox-orchestrator/src/mcp_tools/llm_bridge/providers/anthropic.rs`: Updated `HttpInferError` instantiations in `http_anthropic_direct` to explicitly set `is_capability_gap: false`.
+- `crates/vox-orchestrator/src/mcp_tools/llm_bridge/providers/gemini.rs`: Updated `HttpInferError` instantiations in `http_gemini_with_metadata` to explicitly set `is_capability_gap: false`.
+- `crates/vox-orchestrator/src/mcp_tools/llm_bridge/providers/ollama_chat.rs`: Updated `HttpInferError` instantiations in `http_ollama_with_metadata` to explicitly set `is_capability_gap: false`.
+- `crates/vox-orchestrator/src/mcp_tools/llm_bridge/providers/openai.rs`: Updated `HttpInferError` instantiations in `http_openai_compatible_with_headers` to explicitly set `is_capability_gap: false`.
+- `crates/vox-orchestrator/src/mcp_tools/llm_bridge/provider_auth.rs`: Updated `HttpInferError` instantiations in `required_secret` and `bearer_for` to explicitly set `is_capability_gap: false`.
+- `crates/vox-orchestrator/src/mcp_tools/llm_bridge/provider_endpoints.rs`: Updated `HttpInferError` instantiations in `endpoint_for` to explicitly set `is_capability_gap: false`.
+
+--- audit: original='fix(orchestrator): Anthropic native adapter returns capability gap for tool calls; routing retries via OpenAI-compat (M8/CC-21)' | actual=129L across 9 files | derived=full ---
