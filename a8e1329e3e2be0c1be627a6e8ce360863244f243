@@ -1,0 +1,39 @@
+feat(llm): introduce `vox-protocol` crate and refactor LLM inference
+scale: ~5505 lines across 194 files [XL]
+
+- `vox-protocol`: New crate added for LLM-related protocol definitions.
+- `vox-mcp`:
+    - Refactored LLM inference logic to use a new `provider_adapter` module, replacing direct provider calls.
+    - Introduced `provider_adapter` module to abstract LLM provider interactions (GoogleDirect, Ollama, OpenAI-compatible).
+    - Updated `infer.rs` to use `infer_via_provider_adapter` and removed direct `http_gemini`, `http_ollama`, `http_openai_compatible` calls.
+    - Enhanced `model_route_policy.rs` with budget matching, quality scoring, and new routing priorities (`AutoRoutingPriority`, `GeminiRoutePolicy`).
+    - Added `provider_auth.rs` and `provider_endpoints.rs` for managing LLM provider authentication and endpoints.
+    - Removed `dei_ipc.rs` and related `dei` functionality.
+    - Added new compiler and database tools.
+- `vox-config`: Introduced `routing_policy.rs` for `AutoModelStrategy` and `AutoRoutingPriority` to standardize LLM routing.
+- `vox-orchestrator`:
+    - Updated `models.rs` to remove hardcoded premium model aliases and integrate with new routing policies.
+    - Modified `usage.rs` to support new usage tracking and budget management.
+    - Added `usage_policy.rs` for defining LLM usage policies.
+    - Updated `a2a.rs` and `gate.rs` with changes related to LLM integration.
+- `vox-mens`:
+    - Updated `candle_qlora_train.rs` to modify `QLoraTrainingConfig` initialization and checkpoint loading logic.
+    - Modified `finetune_contract.rs` and `manifest.rs` for tensor operations.
+    - Adjusted `execution_planner.rs` and `device.rs`.
+- `vox-cli`:
+    - Updated `commands/mens/mod.rs` and `commands/mens/pipeline.rs` for LLM-related commands.
+    - Modified `commands/ci/build_timings.rs` and `commands/ci/eval_matrix.rs`.
+    - Removed `dispatch_protocol.rs`.
+    - Updated `commands/dei.rs` and `commands/oratio_cmd.rs`.
+    - Adjusted `commands/review/coderabbit` modules for new LLM integration.
+- `vox-oratio`:
+    - Updated `runtime_config.rs` and `routing.rs` for LLM integration.
+    - Modified `lib.rs` and `session.rs`.
+- `vox-populi`: Updated `transport.rs` and `http_client.rs` for new LLM communication.
+- `vox-repository`: Updated `capabilities.rs`.
+- `vox-corpus`: Updated `extract_docs.rs` and `build.rs`.
+- `Cargo.toml` and `Cargo.lock`: Added `vox-protocol` crate and updated dependencies across the workspace.
+- `docs`: Added `runner-contract.md`.
+- `clippy.toml`: Added new clippy configuration.
+
+--- audit: original='feat(dependencies): add `vox-protocol` crate and update Cargo configuration' | actual=5505L across 194 files | derived=full ---
