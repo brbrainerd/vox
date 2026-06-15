@@ -1,0 +1,9 @@
+docs(telemetry): document 39 metric types and 4 blind spots in events.v1.yaml
+scale: ~275 lines across 1 files [L]
+
+- **contracts/telemetry/events.v1.yaml**:
+    - Added a new `metric_types` section documenting 39 `METRIC_TYPE_*` constants from `crates/vox-telemetry/src/types.rs`.
+    - Each metric type entry includes its `id`, `constant` name, `owner_crate`, `sensitivity` (S0, S1, or S2), and a one-line `description` from the Rust docstring.
+    - Added a new `blind_spots` section to track four telemetry events that should be emitted but are not yet: `plugin_load_failure`, `sandbox_timeout`, `cache_miss`, and `task_cancellation`, each with a proposed `metric_type`.
+
+--- audit: original='docs(telemetry): extend events.v1.yaml with all 39 metric types + 4 blind spots' | actual=275L across 1 files | derived=full ---
