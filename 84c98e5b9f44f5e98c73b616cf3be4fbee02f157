@@ -1,0 +1,10 @@
+feat(plugins): relocate noop-skill fixture to vox-plugin-host/tests/fixtures
+scale: ~33 lines across 6 files [M]
+
+- `crates/vox-plugin-host/tests/fixtures/noop-skill/`: Added new directory containing `Plugin.toml` and `noop.skill.md` for the `noop-skill` plugin fixture.
+- `crates/vox-plugin-catalog/`: Removed the `noop-skill` entry from `catalog.toml` as it is now a test fixture.
+- `crates/vox-cli/tests/`: Updated `plugin_commands_smoke.rs` to reflect the new path of the `noop-skill` fixture and adjusted expected bundle count.
+- `crates/vox-plugin-host/tests/`: Updated `load_noop_skill.rs` to use the new fixture path.
+- `Cargo.toml`: Updated `workspace.exclude` to reflect the new location of the `noop-skill` fixture. Also, replaced `zip` with `bzip2` and `zstd` in `workspace.dependencies` as part of an unrelated WIP.
+
+--- audit: original='chore(plugins): move noop-skill fixture into vox-plugin-host/tests/fixtures' | actual=33L across 6 files | derived=full ---
