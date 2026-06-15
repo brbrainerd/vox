@@ -1,0 +1,14 @@
+feat(vox-mental-tracker): implement per-kind weekly summary and timeline events endpoint
+scale: ~52 lines across 2 files [M]
+
+- `apps/vox-mental-tracker/src/main.vox`:
+    - Modified `weekly_summary_json` endpoint to calculate and return per-event-kind counts (mood, meal, sleep_started, sleep_ended, exercise, note) by iterating over `HealthEventLog` rows.
+    - Added logic to `weekly_summary_json` to filter out events with a non-empty `correction_of` field.
+    - Renamed the `weekly_summary_json` endpoint's internal note from `counts_total_only_until_row_projection` to `per_kind_unfiltered_uncollapsed_corrections`.
+    - Added a new `@endpoint(kind: query) fn timeline_events_json()` that returns a JSON array of `HealthEventLog` records, with `payload_json` escaped as a JSON string, suitable for consumption by `src/ts/materializer.ts`.
+- `apps/vox-mental-tracker/docs/architecture/data-model-ssot.md`:
+    - Updated documentation to reflect that the Vox compiler supports row iteration and typed field access.
+    - Clarified the functionality of the `weekly_summary_json` endpoint, noting its per-kind counts and `correction_of` filtering.
+    - Documented the new `timeline_events_json` endpoint and its purpose for feeding into the TypeScript materializer.
+
+--- audit: original='feat(vox-mental-tracker): per-kind weekly summary + timeline_events_json endpoint' | actual=52L across 2 files | derived=full ---
