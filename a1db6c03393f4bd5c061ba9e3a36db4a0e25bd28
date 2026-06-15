@@ -1,0 +1,9 @@
+feat(plugin-mesh): port Ed25519 envelope and trust-ledger auth
+scale: ~237 lines across 4 files [M]
+
+- `crates/vox-plugin-populi-mesh/src/transport/envelope.rs`: Added new module for Ed25519-signed A2A wire envelopes, including `SignedA2AEnvelope` struct, `sign()`, `verify_self_signed()`, and `check_clock_skew()` methods, and related error types. This module defines the wire format and cryptographic verification for messages.
+- `crates/vox-plugin-populi-mesh/src/transport/auth_ed25519.rs`: Added new module for trust-ledger-backed verification of Ed25519-signed A2A envelopes. This includes `NodeAuthContext`, `VerifyTrustError`, and the `verify_against_trust()` function, which integrates with `TrustedNodeRegistry`.
+- `crates/vox-plugin-populi-mesh/src/transport/mod.rs`: Exported the new `auth_ed25519` and `envelope` modules as public.
+- `crates/vox-plugin-populi-mesh/Cargo.toml`: Added `vox-identity` as a dependency, required by `auth_ed25519` for `TrustedNodeRegistry`.
+
+--- audit: original='feat(mesh): port envelope + auth_ed25519 to plugin transport (D-7-rescope step 1)' | actual=237L across 4 files | derived=full ---
