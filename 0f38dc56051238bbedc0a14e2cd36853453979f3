@@ -1,0 +1,9 @@
+docs: archive React interop spec and remove 'islands' references
+scale: ~13 lines across 4 files [S]
+
+- docs/src/explanation/expl-architecture.md: Removed "islands" from the description of `App Contract` and `app_contract::project_app_contract` inputs.
+- docs/src/archive/phase5-react-interop-spec-2026.md: Added a new archived document for the "Phase 5: Bidirectional Vox↔React Interop Spec (2026)", marked as superseded and noting the retirement of islands.
+- docs/src/explanation/expl-compiler-lowering.md: Removed "islands" from the list of artifacts produced by `app_contract::project_app_contract`.
+- .claude/settings.local.json: Added new `Bash` commands for `git rm`, `git commit`, and `git mv` to the `allowed_commands` list.
+
+--- audit: original='docs: archive phase5-react-interop-spec and scrub islands from explanation docs' | actual=13L across 4 files | derived=full ---
