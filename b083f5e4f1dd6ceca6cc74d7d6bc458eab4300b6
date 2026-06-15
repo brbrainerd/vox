@@ -1,0 +1,6 @@
+docs(readme): update inference path in AI/ML Engine table
+scale: ~2 lines across 1 files [XS]
+
+- Update the `Inference (Mens)` row in the `AI/ML Engine` table to reflect the new path for `Candle/Burn` inference.
+
+--- audit: original='wip: README snapshot' | actual=2L across 1 files | derived=full ---
