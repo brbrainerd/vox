@@ -3,6 +3,22 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type { ActionManifest } from './types/actionManifest';
 import type { CommandCatalog, OrchestratorStatus, RoutingSummary } from './types/tauri';
 
+/**
+ * A locator the Rust `open_locator` command can act on. Mirrors the backend
+ * `OpenLocatorDto { kind, value }` (see `crates/vox-gui/src/commands/search.rs`).
+ * `kind` selects the handler (file → editor, web → browser); other kinds are no-ops.
+ */
+export interface OpenLocator {
+  kind: 'file' | 'web' | 'memory' | 'chat' | 'command' | 'none';
+  value: string;
+}
+
+/** Outcome of an `open_locator` call. Mirrors the backend `OpenOutcomeDto`. */
+export interface OpenOutcome {
+  /** "spawned" (launched an external app) or "opened". */
+  action: string;
+}
+
 /** Tauri event name carrying the orchestrator status snapshot (see B1 daemon stream). */
 export const ORCH_STATUS_EVENT = 'vox://orch-status';
 
@@ -348,8 +364,8 @@ class VoxTransport {
     return invoke('set_gui_preference', { key, value });
   }
 
-  openLocator(locator: string): Promise<void> {
-    return invoke('open_locator', { locator });
+  openLocator(locator: OpenLocator): Promise<OpenOutcome> {
+    return invoke<OpenOutcome>('open_locator', { locator });
   }
 }
 

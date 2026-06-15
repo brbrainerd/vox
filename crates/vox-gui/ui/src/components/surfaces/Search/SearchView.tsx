@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { voxTransport } from '../../../transport';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
 import { EmptyState } from '../../ui/EmptyState';
@@ -362,7 +363,7 @@ export function SearchView({ pushToast }: SurfaceDecoratorProps) {
   const openHit = useCallback(async (hit: UnifiedHit) => {
     if (hit.locator.kind === 'file' || hit.locator.kind === 'web') {
       try {
-        await invoke('open_locator', { locator: hit.locator });
+        await voxTransport.openLocator(hit.locator);
       } catch (err) {
         pushToast({ tone: 'warn', title: 'Could not open', body: String(err) });
       }
