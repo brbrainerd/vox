@@ -1,0 +1,12 @@
+docs: add Grammar Unification rule to AGENTS.md
+scale: ~34 lines across 1 files [S]
+
+- AGENTS.md:
+  - Added a new "Grammar Unification (Vox Source Syntax)" section.
+  - Documented the core rule: "Bare-keyword blocks declare scope. Decorators modify declarations."
+  - Listed current bare-keyword blocks (`type`, `fn`, `component`, `state_machine`, `routes`, `module`, `actor`, `workflow`, `activity`) and decorators (`@table`, `@endpoint`, `@pure`, `@deprecated`, `@require`, `@mcp.tool`, `@durable`, `@v0`, `@test`, `@scheduled`) with examples.
+  - Stated the rule against introducing new bare keywords for behavior expressible as a decorator.
+  - Noted the tombstone status of `actor`, `workflow`, and `activity` keywords, linking to TASK-2.6 for their unification into decorator sugar.
+  - Linked to the `gui-native-roadmap-status-2026.md` document.
+
+--- audit: original='docs: TASK-3.1 — add Grammar Unification rule to AGENTS.md; fix 1.2/1.3 status' | actual=34L across 1 files | derived=full ---
