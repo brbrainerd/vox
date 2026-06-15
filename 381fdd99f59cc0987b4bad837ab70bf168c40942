@@ -1,0 +1,7 @@
+fix(vscode): bump typescript-eslint to ^8.60.1 to support TypeScript 6
+scale: ~384 lines across 2 files [L]
+
+- `apps/editor/vox-vscode/package.json`: Updated the `typescript-eslint` dev dependency from `^8.57.2` to `^8.60.1`.
+- `apps/editor/vox-vscode/package-lock.json`: Regenerated to reflect the `typescript-eslint` version bump and its transitive dependencies. This resolves `npm ERESOLVE` errors in CI caused by `typescript-eslint@8.57.2` not supporting `typescript@^6.0.3`.
+
+--- audit: original='fix(vscode): bump typescript-eslint to ^8.60.1 (accept TypeScript 6) — fixes npm ERESOLVE (#194)' | actual=384L across 2 files | derived=full ---
