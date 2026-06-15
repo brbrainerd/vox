@@ -1869,6 +1869,33 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: false
+- id: ci.build-bench
+  title: Ci Build-bench
+  description: CLI operation `vox ci build-bench`
+  description_human: Reproducible wall-clock build scenarios with a committed baseline; --compare emits a phase delta report.
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - build-bench
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
 - id: ci.build-timings
   title: Ci Build-timings
   description: CLI operation `vox ci build-timings`
@@ -2429,6 +2456,33 @@ operations:
     path:
     - ci
     - db-schema-coverage
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
+- id: ci.dep-cycles
+  title: Ci Dep-cycles
+  description: CLI operation `vox ci dep-cycles`
+  description_human: Detect dependency cycles (HARD on normal-dep cycles) and inventory dev-dep back-edges using Tarjan SCC over cargo metadata.
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - dep-cycles
     status: active
     latin_ns: null
     handler_rust: null

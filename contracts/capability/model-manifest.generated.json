@@ -224,6 +224,17 @@
       "title": "Ci Backend-tests"
     },
     {
+      "capability_id": "cli.ci.build-bench",
+      "cli_path": [
+        "ci",
+        "build-bench"
+      ],
+      "curated": true,
+      "description_model": "Reproducible wall-clock build scenarios with a committed baseline; --compare emits a phase delta report.",
+      "implicit": false,
+      "title": "Ci Build-bench"
+    },
+    {
       "capability_id": "cli.ci.build-docs",
       "cli_path": [
         "ci",
@@ -464,6 +475,17 @@
       "description_model": "Verify every CREATE TABLE in the workspace is owned by a crate in tiers.a_relational.owners.",
       "implicit": false,
       "title": "Ci Db-schema-coverage"
+    },
+    {
+      "capability_id": "cli.ci.dep-cycles",
+      "cli_path": [
+        "ci",
+        "dep-cycles"
+      ],
+      "curated": true,
+      "description_model": "Detect dependency cycles (HARD on normal-dep cycles) and inventory dev-dep back-edges using Tarjan SCC over cargo metadata.",
+      "implicit": false,
+      "title": "Ci Dep-cycles"
     },
     {
       "capability_id": "cli.ci.dev-loop-audit",

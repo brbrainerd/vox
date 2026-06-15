@@ -250,6 +250,18 @@ operations:
 - surface: vox-cli
   path:
   - ci
+  - build-bench
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
   - build-docs
   status: active
   latin_ns: null
@@ -503,6 +515,18 @@ operations:
   path:
   - ci
   - db-schema-coverage
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - dep-cycles
   status: active
   latin_ns: null
   product_lane: platform

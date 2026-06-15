@@ -374,6 +374,24 @@ curated:
   - ci
   - backend-tests
   parameters: null
+- id: cli.ci.build-bench
+  title: Ci Build-bench
+  description_human: Reproducible wall-clock build scenarios with a committed baseline; --compare emits a phase delta report.
+  description_model: null
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - build-bench
+  parameters: null
 - id: cli.ci.build-docs
   title: Ci Build-docs
   description_human: null
@@ -769,6 +787,24 @@ curated:
   cli_path:
   - ci
   - db-schema-coverage
+  parameters: null
+- id: cli.ci.dep-cycles
+  title: Ci Dep-cycles
+  description_human: Detect dependency cycles (HARD on normal-dep cycles) and inventory dev-dep back-edges using Tarjan SCC over cargo metadata.
+  description_model: null
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - dep-cycles
   parameters: null
 - id: cli.ci.dev-loop-audit
   title: Ci Dev-loop-audit
