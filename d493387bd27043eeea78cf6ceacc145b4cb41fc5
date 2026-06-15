@@ -1,0 +1,12 @@
+feat(orchestrator): add behavioral gate config and interop audit doc
+scale: ~403 lines across 7 files [L]
+
+- `crates/vox-orchestrator/src/config/orchestrator_fields.rs`: Add `behavioral_gate_on_complete` field to `OrchestratorConfig` to control behavioral gate execution.
+- `crates/vox-orchestrator/src/orchestrator/task_dispatch/complete/success/mod.rs`: Update `BehavioralGate` instantiation to use the new `behavioral_gate_on_complete` configuration.
+- `crates/vox-orchestrator/src/config/tests.rs`: Add tests for `behavioral_gate_on_complete` in default and testing configurations.
+- `crates/vox-orchestrator/src/config/impl_default.rs`: Set `behavioral_gate_on_complete` to `true` by default in `OrchestratorConfig`.
+- `crates/vox-orchestrator/src/config/impl_env.rs`: Set `behavioral_gate_on_complete` to `false` in the `for_testing` configuration.
+- `docs/src/architecture/vox-react-backend-interop-audit-2026.md`: Add a new architecture audit document for Vox-React backend interoperability.
+- `docs/src/architecture/research-index.md`: Add an entry for the new Vox-React backend interop audit document.
+
+--- audit: original='chore(orchestrator): persist behavioral gate config and interop audit note' | actual=403L across 7 files | derived=full ---
