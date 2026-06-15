@@ -1,0 +1,21 @@
+feat(grafts): Add HIR, typecheck, codegen, and runtime foundations for boilerplate-reduction grafts
+scale: ~2068 lines across 14 files [XL]
+
+- **compiler(hir):** Introduce new HIR nodes for boilerplate grafts:
+    - `HirCapabilityRequirement`, `HirAuthDecl`, `HirUsesDecl`, `HirEffectClass`, `RetryPolicy`, `HirPiiMarker`, `PiiClass`, `HirRouteId`, `HirUploadType`, `HirChannelType`, `HirWebhookDecl`, `WebhookProvider`, `HirPaginatedType`, `HirAiStructuredOutput`, `HirVectorType`, `HirEmbedDecl`, `HirOfflineCapableDecl`, `OfflineStrategy`, `HirCollaborativeDecl`, `CrdtBackend` in `boilerplate_grafts.rs`.
+    - `HirCorsPolicy`, `HirRateLimitPolicy`, `RateLimitBy` in `http_ergonomics.rs`.
+- **compiler(typeck):** Implement new type-checking passes:
+    - `boilerplate_grafts.rs`: Checks for capability leaks, pure violations, missing effect declarations, PII leaks, vector dimension mismatches, AI return shape, upload zero bytes/empty MIME, webhook replay window, and missing webhook secret variables.
+    - `semantic_ui.rs`: P0 accessibility checks for dialog, menu, listbox, combobox, and tabs missing labels.
+    - `form_check.rs`: P0 check for missing labels on visible form fields.
+- **codegen(web_ir):** Add new emit modules:
+    - `href_emit.rs`: Emits typed `RouteId` module, `hrefOf()` lookup, analytics slugs, and `sitemap.xml` based on route declarations.
+    - `paginated_emit.rs`: Emits `paginated_module` and `cursor_codec_rs` for server-side HMAC-SHA256 cursor encoding/decoding.
+    - `semantic_ui_emit.rs`: Emits accessibility-correct TSX for `Dialog`, `Menu`, and `Tabs` primitives.
+- **actor-runtime:** Introduce new runtime modules:
+    - `durable_scheduler.rs`: Provides schedule spec parsing (`@hourly`, `@daily`, `@weekly`, 5-field cron), `MissedRunPolicy` enum (`RunNow`, `Skip`, `CatchUp`), `startup_fires()` decision function, `DurableJobStore` trait, and `missed_buckets_since()` time math.
+    - `presence.rs`: Implements `PresenceMap` with stale-eviction-on-snapshot, `PresenceSnapshot`, `CursorPosition`, and `SelectionRange` types.
+    - `notify.rs`: Defines `Recipient` enum (Email, Sms, WebPush) where the variant dictates the channel, `NotifyDispatcher` trait, and `Arc`-backed `NotifyRegistry` for per-channel routing.
+- Add 54 new unit tests across compiler, codegen, and runtime crates.
+
+--- audit: original='feat(language): GA-03/04/05/06/09a/11/12/13/14/15/16/17/19/21/23/24/25 — foundation grafts' | actual=2068L across 14 files | derived=full ---
