@@ -1,0 +1,11 @@
+feat(layers): register 5 new SCIENTIA crates in layers.toml
+scale: ~5 lines across 1 files [XS]
+
+- `docs/src/architecture/layers.toml`:
+    - Added `vox-claim-extractor` with `layer = 2` and `max_loc = 20_000` (SCIENTIA Phase 1)
+    - Added `vox-nanopub` with `layer = 2` and `max_loc = 10_000` (SCIENTIA Phase 4)
+    - Added `vox-prereg` with `layer = 2` and `max_loc = 8_000` (SCIENTIA Phase 2)
+    - Added `vox-ro-crate` with `layer = 2` and `max_loc = 12_000` (SCIENTIA Phase 4)
+    - Added `vox-inspect-bridge` with `layer = 3` and `max_loc = 15_000` (SCIENTIA Phase 5)
+
+--- audit: original='feat(scientia): register 5 planned SCIENTIA crates in layers.toml (Phase 0f)' | actual=5L across 1 files | derived=full ---
