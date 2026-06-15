@@ -1,0 +1,16 @@
+fix(compiler,cli): purge orphaned actor/workflow/activity refs; fix `mens` help
+scale: ~781 lines across 10 files [L]
+
+- compiler: Removed `HirActor`, `HirWorkflow`, and `HirActivity` structs and their references from `HirModule` fields.
+- compiler(ast): Removed `Decl::Workflow`, `Decl::Activity`, and `Decl::Actor` match arms from `ast/decl/callable.rs`.
+- compiler(fmt): Removed `Decl::Workflow`, `Decl::Activity`, and `Decl::Actor` match arms from `fmt/printer.rs`.
+- compiler(typeck): Removed `check_actor`, `check_workflow`, `check_activity` methods and associated loops from `typeck/checker/mod.rs`.
+- compiler(hir): Removed name-empty validation loops for actors, workflows, and activities from `hir/validate.rs`.
+- compiler(hir): Removed actor, workflow, and activity statement walkers (immutable and mutable) from `hir/db_op_walk.rs`.
+- compiler(codegen_rust): Removed WASI guardrail blocks for actors, workflows, and activities from `codegen_rust/pipeline.rs`.
+- compiler(codegen_rust): Removed `emit_actor`, `emit_workflow`, `emit_workflow_dispatch`, `emit_activity` functions and a test block from `codegen_rust/emit/workflow.rs`.
+- compiler(codegen_rust): Removed `HirActor` and `HirWorkflow` imports and three dead WASI guardrail tests from `codegen_rust/mod.rs`.
+- compiler(codegen_ts): Removed `generate_activity_hir` (which took a `HirActivity` parameter) from `codegen_ts/activity.rs`.
+- cli: Added `long_about` to the `vox mens` subcommand in `vox-cli/src/lib.rs` to correctly render help for `vox mens train`.
+
+--- audit: original='fix(compiler,cli): purge orphaned actor/workflow/activity refs; fix mens help' | actual=781L across 10 files | derived=full ---
