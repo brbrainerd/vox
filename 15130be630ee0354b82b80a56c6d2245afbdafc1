@@ -1,0 +1,13 @@
+feat(compiler): Deprecate Future[T]/Promise[T] with DurablePromise rewrite
+scale: ~163 lines across 3 files [M]
+
+- `crates/vox-compiler/src/typeck/ast_decl_lints.rs`:
+    - Added a new lint pass to `lint_ast_declarations` that checks function return types and parameter annotations for `Future[T]` and `Promise[T]`.
+    - Introduced `check_deprecated_type_aliases` function to emit `vox/types/future-deprecated` and `vox/types/promise-deprecated` diagnostics.
+    - Diagnostics include a `DiagnosticFix` suggesting replacement with `DurablePromise[T]`.
+    - Added `type_expr_to_str` helper function to convert `TypeExpr` to a string for fix replacements.
+    - Imported `DiagnosticFix` from `crate::typeck::diagnostics`.
+- `crates/vox-compiler/tests/future_promise_deprecation.rs`: Added a new test file with an acceptance suite for the deprecation warnings and the `DurablePromise` rewrite fix.
+- `crates/vox-codegen/src/codegen_rust/emit/types.rs`: Modified `emit_type` to alias `Future<T>` and `Promise<T>` to `DurablePromise<T>` during Rust code generation.
+
+--- audit: original='feat(compiler): P1-T2 deprecate Future[T]/Promise[T] with DurablePromise rewrite' | actual=163L across 3 files | derived=full ---
