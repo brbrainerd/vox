@@ -1,0 +1,12 @@
+feat(codegen_rust): emit module-level constants from HirModule
+scale: ~75 lines across 4 files [M]
+
+- `crates/vox-codegen/tests/const_emit_test.rs`: Added a new test file to verify the emission of Rust `const` declarations from `HirConst` nodes. This includes tests for integer and string constants, asserting the presence of `const NAME` and the literal value in the generated output.
+- `crates/vox-codegen/src/codegen_rust/emit/workflow.rs`:
+    - Implemented `emit_const` function to generate Rust `const` declarations from `HirConst` nodes.
+    - `emit_const` handles visibility (`pub`), type annotation (special-casing `str` to `&'static str`), and value emission using `emit_expr`.
+    - Integrated the emission of module-level constants into `emit_lib` by iterating over `module.consts`.
+- `crates/vox-codegen/tests/snapshots/main_boot_snapshot__main_boot_no_scheduled_no_endpoints.snap`: Updated snapshot to reflect the inclusion of the `consts` field in the embedded HIR JSON.
+- `crates/vox-codegen/tests/snapshots/main_boot_snapshot__main_boot_scheduled_actor_server.snap`: Updated snapshot to reflect the inclusion of the `consts` field in the embedded HIR JSON.
+
+--- audit: original='feat(codegen_rust): emit module-level consts from HirModule.consts' | actual=75L across 4 files | derived=full ---
