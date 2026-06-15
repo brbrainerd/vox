@@ -1,0 +1,8 @@
+feat(vox-gui/e2e): add screenshot manifest helpers and SHA256 utility
+scale: ~61 lines across 3 files [M]
+
+- `crates/vox-gui/ui/e2e/lib/screenshotManifest.ts`: New file defining `ManifestEntry` and `Manifest` interfaces, and functions `sha256Png`, `buildManifest`, and `writeManifest` for creating and managing screenshot manifests.
+- `crates/vox-gui/ui/e2e/lib/screenshotManifest.test.ts`: New file with unit tests for `sha256Png` and `buildManifest` functions, ensuring deterministic hashing and correct manifest structure.
+- `crates/vox-gui/ui/vitest.config.ts`: Updated Vitest configuration to include `e2e/lib/**/*.test.ts` files for testing, while explicitly excluding `e2e/*.spec.ts` files.
+
+--- audit: original='feat(vox-gui/e2e): add sha256 screenshot-manifest helpers (TDD)' | actual=61L across 3 files | derived=full ---
