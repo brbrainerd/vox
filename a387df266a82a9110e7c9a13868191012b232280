@@ -1,0 +1,6 @@
+fix(integration-tests): Add `is_remote` and `generated_hash` to `HirFn` initialization
+scale: ~2 lines across 1 files [XS]
+
+- `crates/vox-integration-tests/tests/metamorphic_axiom_test.rs`: Added `is_remote: false` and `generated_hash: None` to the `HirFn` struct initialization within the `prop_sort_idempotent` test function. This resolves a compile failure due to missing fields.
+
+--- audit: original='fix(integration-tests): add missing HirFn fields is_remote + generated_hash' | actual=2L across 1 files | derived=full ---
