@@ -1,0 +1,16 @@
+feat(orchestrator): add `SpotCheckSampler` with BLAKE3-based deterministic sampling
+scale: ~107 lines across 6 files [M]
+
+- `crates/vox-orchestrator/src/spot_check/sampler.rs`: Add `SpotCheckSampler` struct and `should_check` method. This method uses the first 4 bytes of a BLAKE3 hash of the `task_id` to deterministically decide if a task should be spot-checked based on a given probability.
+- `crates/vox-orchestrator/src/spot_check/mod.rs`: Create new module `spot_check` and export `SpotCheckSampler`.
+- `crates/vox-orchestrator/src/lib.rs`: Add `spot_check` module to the crate root.
+- `crates/vox-orchestrator/tests/spot_check.rs`: Add comprehensive tests for `SpotCheckSampler`, including:
+    - `prob_zero_never_checks`: Verifies that a probability of 0.0 never triggers a check.
+    - `prob_one_always_checks`: Verifies that a probability of 1.0 always triggers a check.
+    - `prob_five_pct_within_tolerance_over_ten_thousand_samples`: Checks that a 5% probability yields results within a 3-7% range over 10,000 samples.
+    - `sampling_is_deterministic`: Ensures that the same `task_id` always produces the same sampling decision.
+    - `prob_half_approximately_balanced`: Verifies that a 50% probability yields results within a 45-55% range over 10,000 samples.
+- `crates/vox-populi/src/pairing/github_attestation.rs`: Gate `base64` and `reqwest`-related functions and `AttestationManifest` methods (`new_signed`, `verify`) and `fetch_and_verify` function with `#[cfg(feature = "transport")]` to allow compilation without the "transport" feature.
+- `crates/vox-populi/src/pairing/mod.rs`: Gate `device_flow` module with `#[cfg(feature = "transport")]`.
+
+--- audit: original='feat(orchestrator): spot-check sampler [P5-T5]' | actual=107L across 6 files | derived=full ---
