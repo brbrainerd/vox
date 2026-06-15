@@ -1,0 +1,12 @@
+feat(web_ir): Lower `For` and `If` expressions to structured `DomNode` variants
+scale: ~152 lines across 2 files [M]
+
+- `crates/vox-codegen/src/web_ir/lower.rs`:
+    - `HirExpr::For` now lowers to `DomNode::Loop`, embedding the iterator variable name and index into the iterator expression.
+    - `HirExpr::If` now lowers to `DomNode::Conditional` when its branches contain `HirStmt::Expr` statements.
+    - `HirExpr::Match` expressions are not yet lowered to a structured `DomNode` variant and continue to fall back to `DomNode::Expr`.
+- `crates/vox-codegen/tests/web_ir_control_flow_test.rs`: Added new test file `web_ir_control_flow_test.rs` with two tests:
+    - `for_expr_in_view_produces_loop_node`: Verifies that `HirExpr::For` in a component view lowers to `DomNode::Loop`.
+    - `if_expr_in_view_is_not_a_loop`: Verifies that `HirExpr::If` does not produce `DomNode::Loop`.
+
+--- audit: original='feat(web_ir): Task 8B — lower For/If/Match in render position to DomNode::Loop/Conditional' | actual=152L across 2 files | derived=full ---
