@@ -1,0 +1,6 @@
+chore(reports): update gui-surface-coverage.v1.json
+scale: ~0 lines across 1 files [XS]
+
+- contracts/reports/gui-surface-coverage.v1.json: Regenerated the binary report file.
+
+--- audit: original='chore(scientia): regenerate gui-surface-coverage report for new Scientia surfaces' | actual=0L across 1 files | derived=full ---
