@@ -1,0 +1,11 @@
+feat(vox-cli): add `dispatch preview` command for routing decision projection
+scale: ~108 lines across 6 files [M]
+
+- `crates/vox-cli/tests/dispatch_preview.rs`: Add three acceptance tests for `dispatch preview` command parsing (with and without arguments) and `RoutingDecision` enum serialization/deserialization.
+- `crates/vox-cli/src/commands/dispatch/preview.rs`: Implement the `preview` subcommand, including `PreviewArgs` for parsing workflow path and arguments, and the `RoutingDecision` enum (Local, Remote, Cached) with `serde` support. The `run` function is stubbed to print arguments.
+- `crates/vox-cli/src/commands/dispatch/mod.rs`: Introduce the `dispatch` module with `DispatchCmd` enum to encapsulate the `preview` subcommand and its `run` handler.
+- `crates/vox-cli/src/lib.rs`: Extend the main `Cli` enum to include the new `Dispatch` subcommand.
+- `crates/vox-cli/src/cli_dispatch/mod.rs`: Add a match arm to `dispatch_cli` to handle the new `Cli::Dispatch` command.
+- `crates/vox-cli/src/commands/mod.rs`: Declare the new `dispatch` module.
+
+--- audit: original='feat(vox-cli): P2-T6 vox dispatch preview command' | actual=108L across 6 files | derived=full ---
