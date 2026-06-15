@@ -1,5 +1,5 @@
 use super::metadata::HttpCallMetadata;
-use crate::llm_bridge::error::HttpInferError;
+use crate::error::HttpInferError;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize)]

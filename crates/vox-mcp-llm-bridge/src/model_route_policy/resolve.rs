@@ -12,7 +12,7 @@ use vox_orchestrator::types::TaskCategory;
 use super::super::MCP_GLOBAL_LLM_AGENT;
 use super::policy::{apply_gemini_policy, enforce_free_tier_if_needed, mcp_local_model_allowed};
 use super::types::McpChatModelResolution;
-use crate::server_state::ServerState;
+use crate::context::McpServerContext;
 
 fn provider_allowed_by_route_policy(model: &ModelSpec) -> bool {
     route_policy_allows_model(model)
@@ -183,9 +183,9 @@ fn resolve_mcp_chat_model_sync_inner(
     res: McpChatModelResolution,
     rationale_out: &mut Option<String>,
 ) -> Result<(ModelSpec, bool), String> {
-    if crate::llm_bridge::infer_test_stub::infer_stub_env_active() {
+    if crate::infer_test_stub::infer_stub_env_active() {
         return Ok((
-            crate::llm_bridge::infer_test_stub::stub_plan_model_spec(),
+            crate::infer_test_stub::stub_plan_model_spec(),
             true,
         ));
     }
@@ -364,24 +364,24 @@ fn resolve_mcp_chat_model_sync_inner(
 
 /// Async resolver that includes per-user provider availability when DB is attached.
 pub async fn resolve_mcp_chat_model(
-    state: &ServerState,
+    state: &dyn McpServerContext,
     user_prompt: &str,
     pref: Option<&str>,
     res: McpChatModelResolution,
     _user_id: Option<&str>,
 ) -> Result<(ModelSpec, bool), String> {
-    resolve_mcp_chat_model_sync(&state.orchestrator, user_prompt, pref, res)
+    resolve_mcp_chat_model_sync(state.orchestrator(), user_prompt, pref, res)
 }
 
 /// Async resolver that also surfaces the selection rationale (for telemetry).
 pub async fn resolve_mcp_chat_model_with_rationale(
-    state: &ServerState,
+    state: &dyn McpServerContext,
     user_prompt: &str,
     pref: Option<&str>,
     res: McpChatModelResolution,
     _user_id: Option<&str>,
 ) -> Result<McpModelChoice, String> {
-    resolve_mcp_chat_model_sync_with_rationale(&state.orchestrator, user_prompt, pref, res)
+    resolve_mcp_chat_model_sync_with_rationale(state.orchestrator(), user_prompt, pref, res)
 }
 
 /// Telemetry `(provider_family, route_choice)` — delegates to [`vox_actor_runtime::model_resolution::backend_telemetry_labels`]

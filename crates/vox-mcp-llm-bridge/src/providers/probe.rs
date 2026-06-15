@@ -2,8 +2,8 @@ use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
 use super::metadata::ollama_base_url;
-use crate::llm_bridge::error::HttpInferError;
-use crate::llm_bridge::limits::{
+use crate::error::HttpInferError;
+use crate::limits::{
     OLLAMA_PROBE_CACHE_TTL_SECS, OLLAMA_PROBE_TIMEOUT_SECS, VOX_LOCAL_PROBE_CACHE_TTL_SECS,
     VOX_LOCAL_PROBE_TIMEOUT_SECS,
 };

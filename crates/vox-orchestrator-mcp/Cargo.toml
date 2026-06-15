@@ -24,6 +24,7 @@ oratio-rerank = ["dep:vox-speech"]
 [dependencies]
 vox-orchestrator-driver = { workspace = true }
 vox-orchestrator = { path = "../vox-orchestrator", default-features = false, features = ["runtime"] }
+vox-mcp-llm-bridge = { path = "../vox-mcp-llm-bridge" }
 vox-research-shim = { workspace = true }
 
 # MCP-stack deps (always compiled when this crate is in the build)

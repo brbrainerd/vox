@@ -12,7 +12,7 @@ use vox_orchestrator::models::{ModelSpec, ProviderType};
 use vox_orchestrator::usage::UsageTracker;
 use vox_orchestrator::{AgentEventKind, BudgetGate, GateResult};
 
-use crate::server_state::ServerState;
+use crate::context::McpServerContext;
 
 use super::MCP_GLOBAL_LLM_AGENT;
 use super::limits::HTTP_MAX_OUTPUT_TOKENS_CAP;
@@ -42,7 +42,7 @@ pub struct McpInferRouting<'a> {
 }
 
 /// Whether to emit [`vox_orchestrator::AgentEventKind::CostIncurred`] after LLM success (see module docs for `VOX_MCP_LLM_COST_EVENTS` precedence).
-fn should_emit_llm_cost_events(state: &ServerState) -> bool {
+fn should_emit_llm_cost_events(state: &dyn McpServerContext) -> bool {
     if !vox_telemetry::is_master_enabled() {
         return false;
     }
@@ -55,9 +55,9 @@ fn should_emit_llm_cost_events(state: &ServerState) -> bool {
             if v == "1" || v.eq_ignore_ascii_case("true") {
                 return true;
             }
-            state.db.is_none()
+            state.db().is_none()
         }
-        None => state.db.is_none(),
+        None => state.db().is_none(),
     }
 }
 
@@ -103,11 +103,11 @@ fn estimated_cost_usd(
 }
 
 /// Prefer larger context, then stable id (registry list order is arbitrary).
-async fn best_ollama_model(state: &ServerState) -> Option<ModelSpec> {
+async fn best_ollama_model(state: &dyn McpServerContext) -> Option<ModelSpec> {
     if !inference_profile_allows_local_ollama_http() {
         return None;
     }
-    let orch = &state.orchestrator;
+    let orch = state.orchestrator();
     let mut v: Vec<ModelSpec> = vox_orchestrator::sync_lock::rw_read(&*orch.models_handle())
         .list_models()
         .into_iter()
@@ -122,10 +122,10 @@ async fn best_ollama_model(state: &ServerState) -> Option<ModelSpec> {
 }
 
 async fn best_non_ollama_model_except(
-    state: &ServerState,
+    state: &dyn McpServerContext,
     exclude_model_id: &str,
 ) -> Option<ModelSpec> {
-    let orch = &state.orchestrator;
+    let orch = state.orchestrator();
     let mut v: Vec<ModelSpec> = vox_orchestrator::sync_lock::rw_read(&*orch.models_handle())
         .list_models()
         .into_iter()
@@ -162,7 +162,7 @@ fn is_openrouter_gemini_model(model: &ModelSpec) -> bool {
 }
 
 fn google_direct_fallback_for_gemini(
-    state: &ServerState,
+    state: &dyn McpServerContext,
     current: &ModelSpec,
 ) -> Option<ModelSpec> {
     if !is_openrouter_gemini_model(current) {
@@ -176,7 +176,7 @@ fn google_direct_fallback_for_gemini(
         .filter(|s| !s.trim().is_empty())?;
     let targets = vox_config::gemini_route_targets_from_env();
     vox_orchestrator::sync_lock::rw_read::<vox_orchestrator::models::ModelRegistry>(
-        &*state.orchestrator.models_handle(),
+        &*state.orchestrator().models_handle(),
     )
     .get(&targets.google_direct_model)
 }
@@ -254,7 +254,7 @@ fn emit_llm_error_event(
 
 /// Dispatch a chat completion for MCP tools (inline edit, ghost text, etc.).
 pub async fn mcp_infer_completion(
-    state: &ServerState,
+    state: &dyn McpServerContext,
     model: ModelSpec,
     tool: &str,
     system_prompt: &str,
@@ -287,7 +287,7 @@ pub async fn mcp_infer_completion(
 /// Dispatch a chat completion for MCP tools (inline edit, ghost text, etc.) with explicit tools/tool_choice.
 #[allow(clippy::too_many_arguments)]
 pub async fn mcp_infer_tool_completion(
-    state: &ServerState,
+    state: &dyn McpServerContext,
     mut model: ModelSpec,
     tool: &str,
     system_prompt: &str,
@@ -309,7 +309,7 @@ pub async fn mcp_infer_tool_completion(
     }
 
     let max_t = super::clamp_http_max_output_tokens(max_tokens);
-    let client = &state.http_client;
+    let client = state.http_client();
     let allow_ollama_fallback =
         routing.allow_cloud_ollama_fallback && inference_profile_allows_local_ollama_http();
     let mut tried_local_fallback = false;
@@ -361,8 +361,8 @@ pub async fn mcp_infer_tool_completion(
             }
         }
 
-        if let Some(db) = state.db.as_ref() {
-            let orch_arc = state.orchestrator.budget_manager_handle();
+        if let Some(db) = state.db() {
+            let orch_arc = state.orchestrator().budget_manager_handle();
             let orch_attention = {
                 let g = vox_orchestrator::sync_lock::rw_read(&*orch_arc);
                 g.attention_snapshot()
@@ -373,9 +373,9 @@ pub async fn mcp_infer_tool_completion(
                 UsageTracker::new_ref(db.as_ref())
             };
             let gate = BudgetGate::new(
-                state.budget_manager.as_ref(),
+                state.budget_manager().as_ref(),
                 &tracker,
-                &state.orchestrator_config,
+                state.orchestrator_config(),
             );
             match gate
                 .allow_with_pilot_attention(
@@ -449,7 +449,7 @@ pub async fn mcp_infer_tool_completion(
             }
         }
 
-        let chatml_collapsed: Option<String> = if state.orchestrator_config.chatml_strict {
+        let chatml_collapsed: Option<String> = if state.orchestrator_config().chatml_strict {
             Some(format!(
                 "<|im_start|>system\n{}<|im_end|>\n<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n",
                 vox_config::sanitize_chatml(system_prompt),
@@ -467,7 +467,7 @@ pub async fn mcp_infer_tool_completion(
 
         let mut user_parts = vec![vox_openai::ChatMessagePart::Text { text: final_user }];
         if let Some(ref manifest) = attachment_manifest {
-            if let Some(db) = state.db.as_ref() {
+            if let Some(db) = state.db() {
                 for attachment in &manifest.attachments {
                     if attachment.mime_type.starts_with("image/") {
                         match db.get(&attachment.sha256).await {
@@ -617,16 +617,16 @@ pub async fn mcp_infer_tool_completion(
                     &trace_ctx.trace_id.to_string(),
                 );
 
-                if let Some(db) = state.db.as_ref() {
+                if let Some(db) = state.db() {
                     let tracker = if let Some(user_id) = routing.user_id {
                         UsageTracker::with_user(db.as_ref(), user_id)
                     } else {
                         UsageTracker::new_ref(db.as_ref())
                     };
                     let gate = BudgetGate::new(
-                        state.budget_manager.as_ref(),
+                        state.budget_manager().as_ref(),
                         &tracker,
-                        &state.orchestrator_config,
+                        state.orchestrator_config(),
                     );
                     gate.record_usage_detailed(
                         MCP_GLOBAL_LLM_AGENT,
@@ -645,7 +645,7 @@ pub async fn mcp_infer_tool_completion(
                 }
 
                 if should_emit_llm_cost_events(state) {
-                    let orch = &state.orchestrator;
+                    let orch = state.orchestrator();
                     orch.event_bus().emit(AgentEventKind::CostIncurred {
                         agent_id: MCP_GLOBAL_LLM_AGENT,
                         provider: usage.provider.clone(),
@@ -665,7 +665,7 @@ pub async fn mcp_infer_tool_completion(
                 }
 
                 if matches!(model.provider_type, ProviderType::PopuliMesh) {
-                    if let Some(db) = state.db.as_ref() {
+                    if let Some(db) = state.db() {
                         let parts: Vec<&str> = model.id.split('/').collect();
                         if parts.len() >= 2 {
                             let node_id = parts[1];
@@ -678,7 +678,7 @@ pub async fn mcp_infer_tool_completion(
             }
             Err(e) => {
                 if matches!(model.provider_type, ProviderType::PopuliMesh) {
-                    if let Some(db) = state.db.as_ref() {
+                    if let Some(db) = state.db() {
                         let parts: Vec<&str> = model.id.split('/').collect();
                         if parts.len() >= 2 {
                             let node_id = parts[1];
@@ -697,7 +697,7 @@ pub async fn mcp_infer_tool_completion(
 
                 // Persist rate-limit state for budget tracking (unchanged).
                 if e.status == 429 {
-                    if let Some(db) = state.db.as_ref() {
+                    if let Some(db) = state.db() {
                         let tracker = if let Some(user_id) = routing.user_id {
                             UsageTracker::with_user(db.as_ref(), user_id)
                         } else {
@@ -794,7 +794,7 @@ pub async fn mcp_infer_tool_completion(
 
 /// High-level chat used by `vox_chat_message`.
 pub async fn call_llm(
-    state: &ServerState,
+    state: &dyn McpServerContext,
     system_prompt: &str,
     user_prompt: &str,
     user_id: Option<&str>,
@@ -802,15 +802,9 @@ pub async fn call_llm(
     top_p_override: Option<f32>,
     attachment_manifest: Option<vox_orchestrator::attachment_manifest::AttachmentManifest>,
 ) -> Result<(String, String, u64), String> {
-    let pref = match crate::sync_poison::poison_rw_read(
-        state.mcp_chat_model_override.read(),
-        "mcp_chat_model_override",
-    ) {
-        Ok(g) => g.clone(),
-        Err(e) => return Err(e.to_string()),
-    };
+    let pref = state.mcp_chat_model_override();
     let (model, free_only, resolution_template, selection_rationale) = {
-        let orch = &state.orchestrator;
+        let orch = state.orchestrator();
         let context_fill_ratio = super::model_route_policy::mcp_global_llm_context_fill_ratio(orch);
         let resolution_template = McpChatModelResolution {
             allow_cheapest_fallback: true,

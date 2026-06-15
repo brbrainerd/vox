@@ -3,6 +3,7 @@
 
 use vox_orchestrator::types::AgentId;
 
+pub mod context;
 mod error;
 mod infer;
 pub mod infer_test_stub;
@@ -12,6 +13,8 @@ mod provider_adapter;
 mod provider_auth;
 mod provider_endpoints;
 mod providers;
+
+pub use context::McpServerContext;
 
 /// Single agent id for MCP-hosted LLM usage accounting (not per-tool agents).
 pub(crate) const MCP_GLOBAL_LLM_AGENT: AgentId = AgentId(0);

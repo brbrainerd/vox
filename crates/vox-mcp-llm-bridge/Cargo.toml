@@ -1,0 +1,55 @@
+[package]
+name = "vox-mcp-llm-bridge"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "MCP LLM inference bridge — provider routing, free-tier policy, and per-vendor HTTP adapters."
+
+[features]
+default = []
+toestub-gate = ["vox-orchestrator/toestub-gate"]
+
+[dependencies]
+# Core orchestrator types
+vox-orchestrator = { path = "../vox-orchestrator", default-features = false, features = ["runtime"] }
+vox-orchestrator-types = { workspace = true }
+
+# LLM routing
+vox-actor-runtime = { workspace = true }
+vox-research-shim = { workspace = true }
+vox-openai = { workspace = true }
+
+# Config / secrets / telemetry
+vox-config = { workspace = true }
+vox-secrets = { workspace = true }
+vox-telemetry = { workspace = true }
+
+# Database for budget tracking
+vox-db = { workspace = true }
+
+# HTTP
+vox-http-client = { workspace = true }
+reqwest = { workspace = true, features = ["json"] }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Async
+tokio = { workspace = true }
+async-trait = { workspace = true }
+
+# Utilities
+tracing = { workspace = true }
+base64 = { workspace = true }
+parking_lot = { workspace = true }
+
+workspace-hack = { workspace = true }
+
+[lints.rust]
+unsafe_code = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+collapsible_if = "allow"
+collapsible_match = "allow"

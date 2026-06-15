@@ -3,8 +3,8 @@ use super::types::{
     GeminiCandidate, GeminiContent, GeminiGenCfg, GeminiGenerateBody, GeminiPart, GeminiPartOut,
     GeminiResponse, GeminiSys, GeminiTurn,
 };
-use crate::llm_bridge::error::HttpInferError;
-use crate::llm_bridge::providers::types::GeminiInlineData;
+use crate::error::HttpInferError;
+use crate::providers::types::GeminiInlineData;
 
 pub(crate) async fn http_gemini_with_metadata(
     client: &reqwest::Client,

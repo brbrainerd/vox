@@ -14,6 +14,7 @@ pub mod server_state;
 
 pub mod aci;
 mod agentos_telemetry;
+mod llm_bridge_context_impl;
 pub(crate) mod attention_policy;
 /// Benchmark telemetry query tools (`research_metrics`).
 pub mod benchmark_tools;
@@ -45,7 +46,8 @@ pub mod grammar_tools;
 pub mod input_schemas;
 /// Introspection tools for language visualization (AST, surface, pipeline).
 pub mod introspection_tools;
-pub mod llm_bridge;
+/// LLM inference bridge — re-exported from `vox-mcp-llm-bridge`.
+pub use vox_mcp_llm_bridge as llm_bridge;
 pub(crate) mod lock_guard;
 /// Unified News Publishing System tools
 #[cfg(feature = "news-publish")]

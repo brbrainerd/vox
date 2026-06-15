@@ -15252,6 +15252,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-mcp-llm-bridge"
+version = "0.6.0"
+dependencies = [
+ "async-trait",
+ "base64 0.22.1",
+ "parking_lot 0.12.5",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "vox-actor-runtime",
+ "vox-config",
+ "vox-db",
+ "vox-http-client",
+ "vox-openai",
+ "vox-orchestrator",
+ "vox-orchestrator-types",
+ "vox-research-shim",
+ "vox-secrets",
+ "vox-telemetry",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-mcp-registry"
 version = "0.6.0"
 dependencies = [
@@ -15555,6 +15580,7 @@ dependencies = [
  "vox-http-client",
  "vox-jsonschema-util",
  "vox-lsp",
+ "vox-mcp-llm-bridge",
  "vox-mcp-registry",
  "vox-mesh-types",
  "vox-openai",

@@ -2,7 +2,7 @@ use super::metadata::{HttpCallMetadata, ollama_base_url};
 use super::types::{
     OllamaChatMsg, OllamaChatRequest, OllamaChatResponse, OllamaMsg, OllamaOptions,
 };
-use crate::llm_bridge::error::HttpInferError;
+use crate::error::HttpInferError;
 
 pub(crate) async fn http_ollama_with_metadata(
     client: &reqwest::Client,

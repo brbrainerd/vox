@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use super::metadata::HttpCallMetadata;
-use crate::llm_bridge::error::HttpInferError;
+use crate::error::HttpInferError;
 use vox_openai::{
     ChatCompletionRequest as OpenAiChatRequest, ChatCompletionResponse as OpenAiChatResponse,
     ChatMessageTurn as OpenAiMsg,
