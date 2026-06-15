@@ -1,0 +1,19 @@
+fix(ci): resolve all Clippy -D warnings across workspace
+scale: ~1358 lines across 93 files [XL]
+
+- `vox-compiler`: Convert numerous range loops to iterator style, allow `large_enum_variant` for `Expr` and `Stmt` types, and rename `from_str` to `parse_json` in `with_registry.rs`.
+- `vox-plugin-mens-candle-cuda`: Refactor conditional logic for context filtering to use `is_some_and` and `if let` guards, improving readability and conciseness.
+- `vox-plugin-populi-mesh`: Simplify conditional logic for donation policy checks in `a2a.rs` by using `if let` guards.
+- `vox-code-audit`: Convert range loops to `enumerate()` for iterating over lines in `state_machine_unreachable.rs` and `secret_span.rs`, and refactor conditional checks in `ai_laziness.rs`.
+- `vox-integration-tests`: Refactor conditional checks for parsing markdown Vox blocks in `docs_syntax_verify_test.rs` to use `if let` guards.
+- `vox-share`: Refactor conditional logic for SSE detection and backend fallback in `coordinator.rs` to use `if let` guards.
+- `vox-drift-check`: Convert range loops to `enumerate()` for iterating over lines in `rust.rs` and `typescript.rs`.
+- `vox-plugin-host`: Allow `result_large_err` for plugin error types.
+- `vox-arch-check`: Use struct literal initializer for `field_reassign_with_default` in `main.rs`.
+- `vox-orchestrator-queue`: Add `is_empty()` alongside `len()` for resource locks.
+- `vox-plugin-oratio`: Remove redundant closure (eta reduction) in `candle_whisper.rs`.
+- `vox-cli`: Use `&Path` instead of `&PathBuf` and fix doc list indentation in `db_schema_coverage.rs` and `list.rs`.
+- `vox-actor-runtime`: Implement `Display` instead of inherent `to_string` for built-in types.
+- Many other crates: Apply `cargo clippy --fix` for `collapsible_if` and `redundant_closure` warnings, touching numerous files with minor changes.
+
+--- audit: original='fix(ci): resolve all clippy -D warnings failures across workspace' | actual=1358L across 93 files | derived=full ---
