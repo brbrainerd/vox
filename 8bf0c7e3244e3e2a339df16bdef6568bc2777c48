@@ -1,0 +1,8 @@
+feat(contracts): update BrowserAutomation extension point with new methods
+scale: ~15 lines across 1 files [S]
+
+- contracts/plugin/extension-points.v1.yaml:
+    - Updated the `BrowserAutomation` extension point's revision from 1 to 3.
+    - Added new methods: `back`, `click_xy`, `forward`, `list_pages`, `page_info`, `press`, `reload`, `screencast_frame`, `screenshot_viewport_bytes`, `scroll`, `set_viewport`, `stop`, and `type_text`.
+
+--- audit: original='chore(contracts): sync plugin extension points' | actual=15L across 1 files | derived=full ---
