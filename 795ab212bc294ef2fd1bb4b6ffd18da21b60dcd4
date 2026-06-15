@@ -1,0 +1,13 @@
+feat(codegen-web): emit `entry.tsx` and `app-hooks.tsx` for web target
+scale: ~144 lines across 5 files [M]
+
+- `crates/vox-codegen`:
+  - Added `emit_web_entry()` to generate `entry.tsx`, which mounts `<VoxApp/>` to `#root` and delegates app-specific glue to `app-hooks.tsx`.
+  - Added `emit_app_hooks_default()` to generate a no-op `app-hooks.tsx` by default, ensuring `entry.tsx`'s import always resolves.
+  - Updated `emitter.rs` to call these new functions, emitting both `entry.tsx` and the default `app-hooks.tsx` for web builds.
+- `apps/vox-mental-tracker`:
+  - Created `src/app-hooks.tsx` to provide app-specific glue, including `wrapApp` (with `ErrorBoundary`) and `onBoot` (to register a service worker).
+  - Modified `scripts/postbuild-fixup.mjs` to override the default `dist/app-hooks.tsx` with a re-export of `src/app-hooks.tsx`, preserving source-relative imports.
+  - Updated `index.html` to load `/dist/entry.tsx` instead of `/src/main.tsx`.
+
+--- audit: original='feat(codegen-web): emit entry.tsx + repoint mental-tracker to it (Stage 3)' | actual=144L across 5 files | derived=full ---
