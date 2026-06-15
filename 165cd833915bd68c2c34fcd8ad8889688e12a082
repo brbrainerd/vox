@@ -1,0 +1,8 @@
+feat(coderabbit): store semantic manifest inside .coderabbit directory
+scale: ~4 lines across 1 files [XS]
+
+- `crates/vox-cli/src/commands/review/coderabbit/semantic_planner.rs`:
+  - Changed the path for the semantic manifest from `.coderabbit-semantic-manifest.json` in the repository root to `.coderabbit/semantic-manifest.json`.
+  - Added creation of the `.coderabbit` directory if it does not exist.
+
+--- audit: original='fix(coderabbit): move semantic manifest inside .coderabbit directory to bypass editor locks' | actual=4L across 1 files | derived=full ---
