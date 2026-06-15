@@ -1,0 +1,7 @@
+docs(interop): Add `@island` retirement checklist and update how-to banner
+scale: ~17 lines across 2 files [S]
+
+- docs/src/architecture/phase5-react-interop-spec-2026.md: Add a new section "4.4 Retirement deletion checklist" detailing the surfaces to be deleted once `vox migrate drop-island` is stable, including CLI commands, TS emitter, templates, examples, and the Islands how-to guide.
+- docs/src/how-to/how-to-islands-and-pages.md: Replace the introductory banner with a notice about `@island`'s scheduled retirement in Phase 5, directing users to the interop spec for the full timeline and migration path. Remove a contradictory note about the legacy `@island` decorator.
+
+--- audit: original='docs(interop): add @island retirement checklist; fix contradictory how-to banner' | actual=17L across 2 files | derived=full ---
