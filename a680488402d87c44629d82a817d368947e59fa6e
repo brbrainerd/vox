@@ -1,0 +1,6 @@
+build(ci): regenerate gui-surface-coverage report
+scale: ~0 lines across 1 files [XS]
+
+- contracts/reports/gui-surface-coverage.v1.json: updated binary content (likely due to A1/A5 reconciliation)
+
+--- audit: original='chore(ci): regenerate gui-surface-coverage report for review surface (A1/A5 reconcile)' | actual=0L across 1 files | derived=full ---
