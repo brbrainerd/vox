@@ -1,0 +1,7 @@
+docs(architecture): Add pipeline parity SSOT and enforcement plan
+scale: ~550 lines across 2 files [L]
+
+- docs/superpowers/plans/2026-06-14-pipeline-parity-enforcement.md: New document outlining a 10-task, 3-wave plan to enforce pipeline parity, including goals, architecture (Target enum, Feature support matrix, hard build gate), tech stack, and Windows constraints.
+- docs/src/architecture/pipeline-parity-ssot-2026-06-14.md: New architecture SSOT document defining end-to-end pipeline parity, detailing the current state of divergence across IRs and emit targets, and proposing a `Target` enum and `Feature` support matrix model to ensure consistent feature implementation.
+
+--- audit: original='docs(architecture): add end-to-end pipeline parity SSOT + enforcement plan' | actual=550L across 2 files | derived=full ---
