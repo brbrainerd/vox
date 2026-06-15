@@ -1,0 +1,23 @@
+feat(orchestrator): add comprehensive testing, schemas, and CUDA kernel patches
+scale: ~52866 lines across 182 files [XL]
+
+DIVERGENCE: original subject claimed 'chore: add missing workspace tests, schemas, configurations, and patch dependencies' but this commit actually changed ~52866 lines across 182 files. Top areas:
+docs: 24170 lines, 15 files
+patches: 11335 lines, 38 files
+vox-vscode: 7552 lines, 5 files
+crates: 5314 lines, 80 files
+(root): 2348 lines, 9 files
+.opencode: 931 lines, 4 files
+tree-sitter-vox: 513 lines, 7 files
+dist: 512 lines, 17 files
+contracts: 70 lines, 1 files
+populi: 65 lines, 3 files
+packages: 26 lines, 1 files
+script: 24 lines, 1 files
+.vscode: 6 lines, 1 files
+
+- chore(deps): update `vox-vscode` and `.opencode` `package-lock.json` files
+- feat(docs): add new agent documentation, API schemas, and font licenses
+- feat(patches): introduce extensive CUDA kernel patches for `candle-
+
+--- audit: original='chore: add missing workspace tests, schemas, configurations, and patch dependencies' | actual=52866L across 182 files | derived=stat-only ---
