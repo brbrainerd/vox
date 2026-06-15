@@ -1,0 +1,18 @@
+refactor(ludus, orchestrator, cli): improve code formatting, add type safety, and update build processes
+scale: ~1937 lines across 79 files [XL]
+
+- `crates/vox-ludus`: Refactored reward policy calculations, dispute handling, and simulation logic for clarity and consistency. Updated gamification integration tests.
+- `crates/vox-orchestrator`: Enhanced model registry with improved pricing catalog injection and caching. Refactored telemetry and task dispatch.
+- `crates/vox-cli`: Improved full-stack build tests, updated CI run body helpers, and refactored various commands including `clavis`, `model`, and `db_cli`.
+- `crates/vox-orchestrator-types`: Updated build script to generate provider types from YAML, improving type safety and maintainability.
+- `crates/vox-mens`: Refactored `populi_cli` commands, particularly identity-related operations, to improve error handling and clarity.
+- `crates/vox-compiler`: Refactored statement evaluation, built-in functions, and expression parsing for improved code structure.
+- `crates/vox-populi`: Updated transport layer, HTTP client, and cloud provider integrations (Vast, Runpod, Local) for better modularity.
+- `crates/vox-db`: Modified schema extensions and store operations for `scientia` and `agents`.
+- `crates/vox-cli-core`: Updated benchmark telemetry, workflow journal, and diagnostics.
+- `docs`: Minor updates to `feed.xml`.
+- `crates/vox-config`: Minor adjustments to configuration handling.
+- `crates/vox-mesh-types`: Minor updates to various type definitions.
+- `crates/vox-corpus`: Minor update to `dogfood` corpus.
+
+--- audit: original='feat(ci): implement M-01 data storage CI guard' | actual=1937L across 79 files | derived=full ---
