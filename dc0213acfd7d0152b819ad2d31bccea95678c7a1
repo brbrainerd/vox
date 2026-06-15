@@ -1,0 +1,34 @@
+fix(audit): resolve P0/P1 bugs found in 2026 spring codebase audit
+scale: ~813 lines across 38 files [L]
+
+- **Security**:
+    - `vox-db`: Extract `validate_identifier()` to new `sql_util` module for SSOT.
+    - `vox-db/collection`: Validate collection names against SQL injection using `validate_identifier`.
+    - `vox-cli`: Guard `sample()` table argument against SQL injection via `validate_identifier`.
+    - `vox-db/codex_legacy`: Validate column names on legacy JSONL import.
+    - `vox-webhook`: Implement replay-attack protection by rejecting timestamps older than 5 minutes.
+    - `vox-crypto`: Add `checked_nonce` to prevent panics from invalid nonce lengths in ChaCha20Poly1305.
+- **Correctness**:
+    - `vox-db/codex_legacy`: Rollback before FK-pragma restore when commit fails.
+    - `vox-db/codex_legacy`: Add `mesh_*` tables to `LEGACY_EXPORT_SKIP_TABLES`.
+    - `vox-orchestrator/registry`: Propagate `cost_per_1k` for catalog-routed LLM calls.
+    - `vox-orchestrator/stages`: Replace `unwrap()` on endpoint/api_key with `?`-propagation.
+    - `vox-orchestrator/fatigue_monitor`: Replace `UNIX_EPOCH` `duration_since` unwrap.
+    - `vox-mens/corpus`: Replace `expect()` panics with `anyhow` context in async `run()`.
+    - `vox-mens/oratio_cmd`: Replace `unwrap()` on JSONL fields with `ok_or_else()`.
+    - `vox-mens/hub`: Propagate `tokio::runtime::Runtime::new` error through mpsc channel.
+    - `vox-runtime/llm/types`: Fix stale test assertion for `allow_env_in_strict`.
+- **Supervisor infrastructure**:
+    - `vox-runtime`: Add `spawn_supervised` and `spawn_supervised_infallible` helpers.
+    - `vox-orchestrator/mcp_tools`: Migrate 10 bare `tokio::spawn` calls to `spawn_supervised*`.
+- **SSOT / deduplication**:
+    - `vox-clavis/spec/registry/platform`: Consolidate `TavilyProject` and `TavilyProjectId` secret specs.
+    - `vox-clavis/spec/registry/platform`: Remove deprecated `V0ApiKey` and `OpenClawToken` secret specs.
+    - `vox-orchestrator/model_select`: Re-export model IDs from `vox-config` constants.
+    - `vox-orchestrator/workspace`: Gate supervisor import under `jj-backend` feature.
+- **CI**:
+    - `.gitlab-ci.yml`: Pin to `rust:1.92-slim-bookworm` and remove `rustup update` calls.
+- **Docs**:
+    - `docs/adr`: Renumber ADR 024 to 029 to resolve collision; regenerate `SUMMARY`/`feed`/`index`.
+
+--- audit: original='fix(audit): resolve P0/P1 bugs found in 2026 spring codebase audit' | actual=813L across 38 files | derived=full ---
