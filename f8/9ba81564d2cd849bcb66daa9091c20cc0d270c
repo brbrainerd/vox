@@ -1,0 +1,18 @@
+feat(codegen-ts): add golden snapshot tests for five features
+scale: ~798 lines across 13 files [L]
+
+- `crates/vox-codegen/tests/golden_ts_test.rs`: Add a new test file `golden_ts_test.rs` to generate TypeScript code from `.vox` fixture files and assert against golden snapshots using `insta`.
+- `crates/vox-codegen/tests/snapshots/golden_ts_test__golden_ts_emit@form_basic.snap`: Add snapshot for `form_basic.vox` demonstrating form generation with validation and submission logic.
+- `crates/vox-codegen/tests/snapshots/golden_ts_test__golden_ts_emit@endpoint_call_in_handler.snap`: Add snapshot for `endpoint_call_in_handler.vox` showing endpoint calls within component handlers.
+- `crates/vox-codegen/tests/snapshots/golden_ts_test__golden_ts_emit@back_button.snap`: Add snapshot for `back_button.vox` demonstrating Capacitor back button integration.
+- `crates/vox-codegen/tests/snapshots/golden_ts_test__golden_ts_emit@component_state.snap`: Add snapshot for `component_state.vox` illustrating component state management with `useState`.
+- `crates/vox-codegen/tests/snapshots/golden_ts_test__golden_ts_emit@safe_area.snap`: Add snapshot for `safe_area.vox` demonstrating safe area handling in views.
+- `crates/vox-codegen/tests/snapshots/golden_ts_test__golden_ts_emit@simple_fn.snap`: Add snapshot for `simple_fn.vox` (not explicitly mentioned in original, but present in diff) showing basic function generation.
+- `examples/golden-ts/form_basic.vox`: Add a new `.vox` fixture file for a basic form with an endpoint submission.
+- `examples/golden-ts/safe_area.vox`: Add a new `.vox` fixture file for a component using `safe_area`.
+- `examples/golden-ts/back_button.vox`: Add a new `.vox` fixture file for a back button component with an `on_press` endpoint.
+- `crates/vox-codegen/Cargo.toml`: Update `Cargo.toml` for `vox-codegen`.
+- `Cargo.lock`: Update `Cargo.lock` due to dependency changes.
+- `apps/vox-mental-tracker/package.json`: Update `package.json` for `vox-mental-tracker`.
+
+--- audit: original='test(codegen-ts): per-feature golden snapshot suite' | actual=798L across 13 files | derived=full ---
