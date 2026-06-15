@@ -1,0 +1,15 @@
+fix(codegen, eval, ci): correct str+numeric codegen, interpreter scope, and CI GTK deps
+scale: ~341 lines across 8 files [L]
+
+- `crates/vox-codegen`:
+  - `stmt_expr.rs`: Changed string concatenation for `+` operator to use `format!("{}{}", l, r)` instead of direct `+` operator. This correctly handles `str + str` and `str + <numeric>` by displaying both operands, aligning with interpreter semantics. Removed special handling for numeric `+ - * /` borrows, as they are now purely numeric.
+  - `binary_op_emit.rs`: Updated tests to reflect the new `format!` emission for string concatenation and to ensure numeric operations do not borrow the RHS. Added `typecheck_hir_module` call to populate `inferred_types` for codegen.
+  - `emit_compile_harness.rs`: Added a new test `str_plus_numeric_compiles` to verify that `str + <numeric>` expressions compile correctly with the new `format!` emission.
+- `crates/vox-compiler/src/eval`:
+  - `expr.rs`, `mod.rs`: Wrapped function/closure body execution in an immediately-invoked closure to ensure interpreter scope is restored on both success and `EvalError` paths, preventing scope state leaks.
+  - `env.rs`: Added `Scope::depth()` method to track active frames, used for testing scope restoration.
+- `crates/vox-compiler/tests`: Added `eval_scope_restore_test.rs` with new tests to assert that `Scope::depth()` returns to baseline after an `EvalError` in a function body and that subsequent calls evaluate correctly.
+- `Dockerfile.ci-runner`: Added GTK/glib build dependencies (`libglib2.0-dev`, `libgtk-3-dev`, `libwebkit2gtk-4.1-dev`, `libsoup-3.0-dev`, `librsvg2-dev`) to the CI runner image to resolve `pkg-config` errors for desktop-shell crates.
+- `vox ci plugin-abi-parity`: Added `--build` flag to discover and build all code/composite plugins before loading, and wired this into the `guards-fast` CI job to ensure plugin ABI compatibility is checked in CI.
+
+--- audit: original='Fix str+numeric codegen miscompile + interpreter scope-restore on error + runner GTK deps (#189)' | actual=341L across 8 files | derived=full ---
