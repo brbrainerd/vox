@@ -1,0 +1,14 @@
+feat(plugins): wire SkillRuntime accessor in runtime-container and runtime-wasm
+scale: ~105 lines across 5 files [M]
+
+- `crates/vox-skill-runtime`: Derived `Serialize` and `Deserialize` for `RunOpts` and `RunOutcome` structs, enabling them to be used directly as JSON request/response bodies for skill invocation.
+- `crates/vox-plugin-runtime-container`:
+    - Implemented `vox_plugin_api::extensions::skill_runtime::SkillRuntime` for `RuntimeContainerPlugin`.
+    - Added `as_skill_runtime` method to `impl VoxPlugin for RuntimeContainerPlugin` to expose the `SkillRuntime` extension.
+    - Updated `Plugin.toml` to declare `SkillRuntime` in `extension-points`.
+- `crates/vox-plugin-runtime-wasm`:
+    - Implemented `vox_plugin_api::extensions::skill_runtime::SkillRuntime` for `RuntimeWasmPlugin`.
+    - Added `as_skill_runtime` method to `impl VoxPlugin for RuntimeWasmPlugin` to expose the `SkillRuntime` extension.
+    - Updated `Plugin.toml` to declare `SkillRuntime` in `extension-points`.
+
+--- audit: original='feat(plugins): wire SkillRuntime accessor in runtime-container + runtime-wasm (#209)' | actual=105L across 5 files | derived=full ---
