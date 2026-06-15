@@ -1,0 +1,10 @@
+fix(security): Limit eval endpoint code payload to 64 KiB
+scale: ~36 lines across 1 files [S]
+
+- `crates/vox-orchestrator/src/mcp_tools/http_gateway/eval.rs`:
+  - Added `MAX_EVAL_CODE_BYTES` constant set to 65,536 bytes.
+  - Implemented `validate_eval_request` function to check if the `code` field in `EvalRequest` exceeds `MAX_EVAL_CODE_BYTES`, returning `PAYLOAD_TOO_LARGE` (HTTP 413) if it does.
+  - Integrated `validate_eval_request` into `http_eval` to perform the size check before further processing.
+  - Added unit tests for `validate_eval_request` to verify rejection of oversized code and acceptance of normal-sized code.
+
+--- audit: original='fix(security): 64 KiB size guard on eval endpoint (FIX-K-03)' | actual=36L across 1 files | derived=full ---
