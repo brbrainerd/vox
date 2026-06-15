@@ -1,0 +1,20 @@
+feat(compiler+corpus): Wire up Phase K codegen; fix Phase L.6/L.7 scripts; update audit doc
+scale: ~219 lines across 13 files [M]
+
+- `crates/vox-compiler/src/builtin_registry.rs`:
+    - Added 11 new dispatch entries for `path.parent`, `path.file_name`, `path.stem`, `path.is_absolute`, `path.resolve`, `env.args`, `env.set`, `regex.replace`, and `regex.find` to `std_namespace_runtime_call` for `--mode script` lowering.
+    - Added matching type-checking signatures for these 11 functions, aligning `--mode interp` and `--mode script` surfaces.
+- `scripts/scientia/acceptance-matrix.vox`: Rewrote script to use `unwrap_or()` for `process.which` and `process.run` results, treating `process.run` as returning `Option[Record]` instead of `Int`. Introduced `run_step` helper function.
+- `scripts/ci/test.vox`: Modified `print` calls to explicitly convert boolean results of `list.contains` to strings using `str()`.
+- `crates/vox-compiler/src/typeck/determinism_lint.rs`, `crates/vox-compiler/src/typeck/checker/mod.rs`, `crates/vox-compiler/src/typeck/checker/expr.rs`: Removed stale references and logic related to `HirExpr::StringInterp` and `HirStringPart` as string interpolation is now lowered to `Binary(Add, ...)` chains.
+- `scripts/ci/gui-registry-check.vox`: Wrapped `std.fs.read_to_string` with `is_err()` check and `unwrap()` for error handling.
+- `scripts/fix-doc-categories.vox`: Updated list subscript access from `parts[i]` to `parts.get(i).unwrap_or("")` and `len(parts)` to `parts.len()` due to typed-list-subscript changes.
+- `scripts/quality/doc-policy-lint.vox`: Updated list subscript access from `parts[n - 1]` to `parts.get(n - 1).unwrap_or(file_path)`.
+- `crates/vox-compiler/Cargo.toml`: Added `tempfile` as a dev-dependency.
+- `crates/vox-search/Cargo.toml`: Removed `default-features = false` override.
+- `contracts/reports/scripts-pass-baseline.txt`: Refreshed baseline to reflect 49/59 passing scripts.
+- `docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md`:
+    - Added a note for Phase K confirming codegen wire-up landed on 2026-05-24.
+    - Updated Phase L progress, marking L.3, L.4, L.5, L.6, and L.7 as complete, L.1 as partial, and annotating typed-subscript and raw-strings.
+
+--- audit: original='feat(compiler+corpus): Phase K codegen wire-up + Phase L L.6/L.7 fixes + audit-doc progress' | actual=219L across 13 files | derived=full ---
