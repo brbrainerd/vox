@@ -142,6 +142,10 @@ pub enum CiCmd {
     /// Fail if the policy registry has drifted from the live detector set.
     #[command(name = "policy-registry-parity")]
     PolicyRegistryParity,
+    /// Config hygiene: no cwd-relative contract paths, no env reads in protected
+    /// (never-configure) modules. Run before the configurability plan.
+    #[command(name = "config-hygiene")]
+    ConfigHygiene,
     /// Run documentation + Codex + command-compliance + contracts-index guards in one shot.
     #[command(name = "ssot-drift")]
     SsotDrift,
