@@ -1,0 +1,27 @@
+feat(workspace-audit): rename vox-mesh to vox-mesh-policy, codegen, docs, and CI updates
+scale: ~245 lines across 25 files [L]
+
+- **Crate Rename:**
+  - Renamed `vox-mesh` to `vox-mesh-policy` to reflect its policy-only responsibility, moving its source layout.
+  - Updated `Cargo.toml` and `Cargo.lock` for the rename.
+  - Updated `crates/vox-cli/src/commands/ci/cmd_enums.rs` to mark `check-frozen` as a no-op, superseded by `layers.toml` and `contracts/db/data-storage-policy.v1.yaml`.
+  - Updated `crates/vox-cli/src/commands/ci/frozen_crates.rs` to remove the `check_frozen_crates` function, aligning with the deprecation of `_frozen.md`.
+  - Created new files for `vox-mesh-policy` crate: `src/lib.rs`, `src/models.rs`, `src/models/registry.rs`, `src/models/types.rs`, `src/parse.rs`, `src/print.rs`.
+- **Codegen:**
+  - Added `crates/vox-codegen/tests/emit_main_includes_durable_boot.rs` to test the durable-functions boot prelude in `emit_main`.
+  - Modified `crates/vox-codegen/src/codegen_rust/emit/main_boot.rs` to update `emit_durable_boot_prelude` to use `DbConfig::resolve_canonical()` for database connection.
+  - Updated `crates/vox-codegen/src/codegen_rust/emit/mod.rs` to add `vox-compiler` and `vox-workflow-runtime` dependencies for the durable boot prelude.
+  - Updated snapshots `main_boot_snapshot__main_boot_no_scheduled_no_endpoints.snap` and `main_boot_snapshot__main_boot_scheduled_actor_server.snap` to reflect codegen changes.
+- **Workspace & CI:**
+  - Added `_bundle_ai_fixture_*` to `.gitignore`.
+  - Adjusted coverage gate thresholds in `.config/coverage-gates.toml`.
+- **Plugin Catalog & Contracts:**
+  - Updated `crates/vox-plugin-catalog/catalog.toml` with new catalog entries.
+  - Modified `contracts/db/data-storage-policy.v1.yaml` for data-storage policy alignment.
+- **Documentation:**
+  - Updated `docs/src/architecture/crate-audit-and-plan-2026.md` to reflect rename and codegen progress.
+  - Made minor consistency fixes in `docs/src/architecture/data-storage-ssot-2026.md`.
+  - Registered `vox-mesh-policy` in `docs/src/architecture/layers.toml` and `docs/src/architecture/where-things-live.md`.
+  - Fixed a cross-reference in `docs/src/architecture/v1-release-criteria.md`.
+
+--- audit: original='chore(workspace-audit): second snapshot — vox-mesh→vox-mesh-policy + codegen+docs sweeps' | actual=245L across 25 files | derived=full ---
