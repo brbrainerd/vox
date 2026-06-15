@@ -1,0 +1,14 @@
+refactor(workspace): split vox-compiler-emit from vox-compiler
+scale: ~808 lines across 111 files [XL]
+
+- **crates/vox-compiler-emit**: New crate created to house codegen (Rust and TypeScript), WebIR, and vox_ir modules.
+- **crates/vox-compiler**: Removed codegen, WebIR, and vox_ir related modules and their imports. Updated tests to use `vox-compiler-emit`.
+- **crates/vox-cli**: Updated imports for codegen and WebIR related modules to point to `vox-compiler-emit`.
+- **crates/vox-integration-tests**: Updated imports for codegen and WebIR related modules to point to `vox-compiler-emit`.
+- **crates/vox-test-harness**: Updated imports for codegen related modules to point to `vox-compiler-emit`.
+- **crates/vox-db**: Updated imports for `syntax_k` to point to `vox-compiler-emit`.
+- **Cargo.toml**: Added `vox-compiler-emit` as a new crate. Updated dependencies for `vox-cli`, `vox-compiler`, `vox-db`, `vox-integration-tests`, and `vox-test-harness` to reflect the split.
+- **Visibility changes**: `hir::db_op_walk` module and its functions `for_each_hir_expr_in_module{,_mut}`, and `web_migration_env` module with `web_ir_validate_gate_enabled` and `web_ir_emit_reactive_views_enabled` had their visibility widened from `pub(crate)` to `pub`.
+- **Build-time optimization**: Analysis-side changes no longer trigger codegen rebuilds, and analysis-only consumers avoid the emit compile cost.
+
+--- audit: original='refactor(workspace): split vox-compiler-emit from vox-compiler' | actual=808L across 111 files | derived=full ---
