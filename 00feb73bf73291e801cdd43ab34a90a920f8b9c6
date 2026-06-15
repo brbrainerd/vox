@@ -1,0 +1,6 @@
+fix(mesh-policy): add missing redundancy field to WorkerDonationPolicy initializer
+scale: ~1 lines across 1 files [XS]
+
+- `crates/vox-mesh-policy/src/parse.rs`: Added `redundancy: None` to the `WorkerDonationPolicy` struct initialization.
+
+--- audit: original='fix(mesh-policy): add missing redundancy field in WorkerDonationPolicy initializer' | actual=1L across 1 files | derived=full ---
