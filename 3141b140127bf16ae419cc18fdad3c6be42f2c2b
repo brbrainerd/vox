@@ -1,0 +1,12 @@
+feat(telemetry): emit `plugin.load_failure` ResearchMetric events
+scale: ~154 lines across 7 files [M]
+
+- `crates/vox-plugin-host/tests/telemetry_load_failure.rs`: Add new integration test to verify `plugin.load_failure` and `plugin.abi_mismatch` emit `ResearchMetric` events with `METRIC_TYPE_PLUGIN_LOAD_FAILURE`.
+- `crates/vox-plugin-host/src/telemetry.rs`: Update `load_failed` and `abi_mismatch` functions to emit `ResearchMetricEvent` with `METRIC_TYPE_PLUGIN_LOAD_FAILURE` alongside existing tracing info.
+- `crates/vox-telemetry/src/types.rs`: Add `METRIC_TYPE_PLUGIN_LOAD_FAILURE` constant and documentation. Also add `METRIC_TYPE_SANDBOX_TIMEOUT_KILL`, `METRIC_TYPE_ORCH_CACHE_MISS`, and `METRIC_TYPE_ORCH_TASK_CANCELLED` constants and documentation.
+- `contracts/telemetry/events.v1.yaml`: Move `plugin.load_failure` from `blind_spots` to `metric_types` and add its definition, including `id`, `constant`, `owner_crate`, `sensitivity`, and `description`. Remove the `plugin_load_failure` entry from `blind_spots`.
+- `crates/vox-telemetry/src/lib.rs`: Re-export `METRIC_TYPE_PLUGIN_LOAD_FAILURE`, `METRIC_TYPE_ORCH_CACHE_MISS`, `METRIC_TYPE_ORCH_TASK_CANCELLED`, and `METRIC_TYPE_SANDBOX_TIMEOUT_KILL`.
+- `crates/vox-plugin-host/Cargo.toml`: Add `vox-telemetry` as a dependency.
+- `Cargo.lock`: Update lockfile to reflect new dependency.
+
+--- audit: original='feat(telemetry): wire plugin.load_failure events from vox-plugin-host' | actual=154L across 7 files | derived=full ---
