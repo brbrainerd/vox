@@ -1,0 +1,14 @@
+feat(scientia): Add `publication-archive-code` command for Software Heritage
+scale: ~470 lines across 10 files [L]
+
+- `crates/vox-publisher/src/scholarly/software_heritage.rs`: New module for Software Heritage "Save Code Now" client, including URL building, JSON parsing for save status, and async request/poll functions.
+- `crates/vox-cli/src/commands/db/publication/archive_code.rs`: New command implementation to archive a publication's code repository via Software Heritage. It resolves the origin URL, makes the save request, optionally polls for completion, and updates the manifest with `scientia.swh_save` and `scientia.swhid`.
+- `crates/vox-cli-core/src/scientia.rs`: Adds `PublicationArchiveCode` variant to `ScientiaCmd` enum, defining its arguments (`publication_id`, `origin_url`, `wait`) and documentation.
+- `crates/vox-cli/src/commands/db_cli/publication_subcommands.rs`: Adds `PublicationArchiveCode` variant to `DbCliPublication` enum, defining its arguments and documentation.
+- `crates/vox-cli/src/commands/scientia.rs`: Maps the new `ScientiaCmd::PublicationArchiveCode` to the corresponding `DbCliPublication` variant.
+- `crates/vox-cli/src/commands/db_cli/mod.rs`: Integrates the new `PublicationArchiveCode` command into the `DbCli` runner, calling the `db::publication_archive_code` function.
+- `crates/vox-cli/src/commands/db/publication/mod.rs`: Exports the new `archive_code` module.
+- `crates/vox-publisher/src/scholarly/mod.rs`: Makes the new `software_heritage` module public.
+- `crates/vox-publisher/src/scientia_autofill.rs`: Adds a `use` statement for `ReproducibilityAttestation` and `ScientificAuthor` in the test module.
+
+--- audit: original='feat(scientia): Software Heritage save-code-now adapter — publication-archive-code' | actual=470L across 10 files | derived=full ---
