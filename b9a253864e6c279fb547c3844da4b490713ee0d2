@@ -1,0 +1,33 @@
+feat(ci): complete governance runtime/test surface and lock sync
+scale: ~4993 lines across 100 files [XL]
+
+- refactor(vox-hf-layout): extract `HfTransformerLayout` and related types from `vox-populi` and `vox-plugin-mens-candle-cuda` into a new `vox-hf-layout` crate, making it the single source of truth for Hugging Face `config.json` parsing. This involved deleting the duplicated code from the original crates and updating them to use the new crate.
+- chore(vox-ml-cli): remove `process_supervision.rs`, `dispatch.rs`, and `dispatch_protocol.rs`, indicating a refactoring or removal of process management and IPC dispatching functionalities.
+- feat(vox-db): add `local_cli_introspection.rs` and `store/ops_external_review.rs`, along with new test files `ops_external_review_tests.rs` and `ops_codex_tests.rs`, suggesting new database introspection and external review operations.
+- feat(vox-test-harness): add `env_scratch.rs`, `workspace_paths.rs`, and `temp_root.rs`, indicating new utilities for managing test environments and temporary files.
+- feat(vox-orchestrator-types): add `routing_and_ids_smoke.rs` and `providers_and_routes.rs` tests, suggesting new routing and ID management features.
+- feat(vox-openai-wire): add `chat_completion_multipart_tools_usage.rs` and `chat_completion_wire.rs` tests, indicating new features for OpenAI chat completion with multipart tools.
+- feat(vox-wasm-engine): add `wasm_fuel_integration.rs`, `wasm_engine_smoke.rs`, and `wasm_exec_smoke.rs` tests, suggesting new WebAssembly engine functionalities and fuel integration.
+- feat(vox-protocol): add `dei_method_and_remaining_payloads.rs` and `dispatch_roundtrip.rs`, `dispatch_wire_roundtrip.rs` tests, indicating new protocol features for dispatch and payload handling.
+- feat(vox-tensor): add `jsonl_and_replay_smoke.rs` and `tokenizer_chatml_smoke.rs` tests, suggesting new tensor processing features for JSONL and ChatML tokenization.
+- feat(vox-telemetry): add `recorder_integration.rs`, `trace_context_smoke.rs`, and `metric_validation_integration.rs` tests, indicating new telemetry recording, tracing, and metric validation features.
+- feat(vox-config): add `cross_module_smoke.rs` and `config_cross_module.rs` tests, suggesting new cross-module configuration features.
+- feat(vox-reqwest-defaults): add `lib.rs` and tests `client_builder_chaining.rs`, `client_builder_smoke.rs`, indicating new default reqwest client configurations.
+- feat(vox-mcp-registry): add `tool_registry_smoke.rs` test, suggesting new tool registry features.
+- feat(vox-scientia-ingest): add `ingest_async_integration.rs` and `ingest_smoke.rs` tests, indicating new asynchronous and smoke testing for data ingestion.
+- feat(vox-search): add `a2a_contract_smoke.rs` and `policy_default_smoke.rs` tests, suggesting new search contract and policy features.
+- feat(vox-crypto): add `facades_integration.rs` test, indicating new crypto facade integrations.
+- feat(vox-orchestrator-queue): add `leader_election.rs` test, suggesting new leader election features.
+- feat(vox-orchestrator-mcp): add `tool_aliases.rs`, indicating new tool aliasing features.
+- feat(vox-cli): update `test_governance.rs` with new tests, and modify `ci` commands (`test_inventory.rs`, `run_body.rs`, `mod.rs`, `retired_symbol_check.rs`, `test_runtime_report.rs`, `test_governance.rs`), suggesting an expansion of CI governance and testing capabilities.
+- chore(Cargo.lock): update `Cargo.lock` to reflect dependency changes.
+- chore(Cargo.toml): update `Cargo.toml` for `vox-hf-layout`, `vox-ml-cli`, `vox-populi`, `vox-wasm-engine`, `vox-openai-wire`, `vox-protocol`, `vox-reqwest-defaults`, `vox-codegen`, `vox-db`, `vox-config`, `vox-integration-tests`, `vox-plugin-mens-candle-cuda`, `vox-search`, `vox-test-harness`, `vox-scientia-ingest`, `vox-orchestrator-mcp`, `vox-orchestrator`, `vox-identity`, `vox-orchestrator-queue`, `vox-plugin-populi-mesh`, `vox-share` crates.
+- chore(vox-ml-cli): modify `corpus/generate.rs`, `ai/workflow.rs`, `lib.rs`, `ai/generate.rs`, indicating changes in ML CLI commands and library structure.
+- chore(vox-codegen): modify `codegen_rust/emit/mod.rs`, suggesting changes in Rust code generation.
+- chore(vox-plugin-oratio): modify `oratio_internals/mod.rs`, indicating changes in plugin internals.
+- chore(vox-orchestrator-mcp): modify `input_schemas.rs`, `dispatch.rs`, `dei_ipc.rs`, `http_gateway/mod.rs`, `chat_tools/params.rs`, `chat_tools/plan.rs`, suggesting changes in orchestrator MCP schemas, dispatch, IPC, and chat tools.
+- chore(vox-doc-inventory): modify `constants.rs`, indicating changes in documentation inventory constants.
+- chore(apps/editor/vox-vscode): modify `mcpToolRegistry.generated.ts` and `scripts/generate-mcp-tool-registry.mjs`, suggesting updates to the VSCode extension's MCP tool registry generation.
+- chore(vox-dashboard): modify `UnifiedDashboard.tsx` and `app/src/generated/routes.manifest.ts`, indicating changes in the dashboard UI and route manifest.
+
+--- audit: original='feat(ci): complete governance runtime/test surface and lock sync' | actual=4993L across 100 files | derived=full ---
