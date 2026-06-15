@@ -1,0 +1,14 @@
+feat(codegen-ts,cli): Add `mobile` build target for React Native + Expo
+scale: ~1187 lines across 8 files [XL]
+
+- **`crates/vox-codegen/src/codegen_ts/rn/` (new module):**
+  - **`mod.rs`:** Implements `generate_rn(hir, options)` for React Native + Expo lowering. Reuses existing `vox-client`, schemas/types, state machine, OpenAPI, app-contract, and mobile-primitive emits.
+  - **`component.rs`:** Translates VUV view tree (e.g., `column`, `text`, `button`) from React-DOM-flavored HIR into an abstract `RnNode` tree (`View`, `Text`, `Pressable`, `Image`, `TextInput`), then emits RN TSX with a `StyleSheet.create` block. Includes handler unwrapping for `onPress` and state mutation rewrite. Unsupported view tags produce `vox/codegen/rn-unsupported-tag` diagnostics and `<View>` fallbacks.
+  - **`scaffold.rs`:** Provides functions to emit the Expo project skeleton files: `app.json`, `babel.config.js`, `metro.config.js`, `eas.json`, `tsconfig.json`, `package.json`, and `App.tsx`.
+- **`crates/vox-cli/src/commands/build.rs`:** Adds a new branch to `run` for `BuildTarget::Mobile` that invokes `codegen_ts::rn::generate_rn`. Writes generated files to `out_dir`, with a "scaffold-once" behavior for project-level files (e.g., `app.json`, `App.tsx`) to preserve user edits, while overwriting per-component `.tsx` files.
+- **`crates/vox-cli/src/cli_args.rs`:** Adds `BuildTargetArg::Mobile` to the `--target` CLI argument, allowing "mobile" as a valid build target.
+- **`crates/vox-cli/src/commands/run.rs`:** Updates `resolve_has_frontend` to treat `BuildTarget::Mobile` as having a frontend, ensuring consistent dev-proxy plumbing.
+- **`crates/vox-config/src/config/gamify_web.rs`:** Adds `BuildTarget::Mobile` variant. `FromStr` now accepts "mobile", "rn", or "expo". `as_config_str` returns "mobile".
+- **`crates/vox-codegen/src/codegen_ts/mod.rs`:** Adds `rn` module to `codegen_ts`.
+
+--- audit: original='feat(codegen-ts,cli): BuildTarget::Mobile with codegen_ts/rn lowering' | actual=1187L across 8 files | derived=full ---
