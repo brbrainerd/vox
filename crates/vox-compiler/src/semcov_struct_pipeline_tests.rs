@@ -14,7 +14,7 @@
 mod semcov_struct_pipeline_tests {
     use crate::ast::decl::Decl;
     use crate::hir::lower::lower_module;
-    use crate::hir::nodes::HirExpr;
+    use crate::hir::nodes::{HirExpr, HirStmt};
     use crate::lexer::cursor::lex;
     use crate::parser::parse;
 
@@ -117,6 +117,71 @@ mod semcov_struct_pipeline_tests {
             matches!(hir.consts[0].value, HirExpr::StringLit(ref s, _) if s == "hi"),
             "string initializer must survive lowering, got {:?}",
             hir.consts[0].value
+        );
+    }
+
+    // ── Pattern #5: half-wired `when {}` blocks ─────────────────────────────
+    // A Vox `when src { fetching => … empty => … error e => … ok x => … }`
+    // parses to `Expr::AsyncView` (4 distinct Option arm slots) and lowers via
+    // independent `.map(...)` lines in hir/lower/expr.rs. Dropping or mis-wiring
+    // any single arm during a refactor would silently lose that branch with NO
+    // parse error — exactly the "half-wired" gap. This pins all four arms.
+
+    fn lower_when_view() -> crate::hir::nodes::HirAsyncView {
+        let hir = lower(
+            "fn render(data: Async[Int]) -> Int {\n\
+             when data {\n\
+             fetching => 0\n\
+             empty => 1\n\
+             error e => 2\n\
+             ok x => 3\n\
+             }\n\
+             }",
+        );
+        let f = hir
+            .functions
+            .iter()
+            .find(|f| f.name == "render")
+            .expect("render fn must lower");
+        f.body
+            .iter()
+            .find_map(|s| match s {
+                HirStmt::Expr {
+                    expr: HirExpr::AsyncView(v),
+                    ..
+                } => Some((**v).clone()),
+                _ => None,
+            })
+            .expect("when{} must lower to HirExpr::AsyncView in the fn body")
+    }
+
+    #[test]
+    fn when_block_all_four_arms_survive_lowering() {
+        // Catches: a refactor dropping or mis-routing one of the four `when` arms'
+        // `.map(self.lower_expr)` lines in hir/lower/expr.rs — the branch vanishes
+        // with no parse error (half-wired when{}).
+        let view = lower_when_view();
+        assert!(
+            view.missing_arms().is_empty(),
+            "no when-arm may be dropped in lowering; missing: {:?}",
+            view.missing_arms()
+        );
+    }
+
+    #[test]
+    fn when_block_error_and_ok_bindings_survive_lowering() {
+        // Catches: the `error e` / `ok x` arm BODY surviving while its binding name
+        // is dropped — the arm would lower but reference an unbound variable.
+        let view = lower_when_view();
+        assert_eq!(
+            view.error_binding.as_deref(),
+            Some("e"),
+            "error-arm binding must survive lowering"
+        );
+        assert_eq!(
+            view.ok_binding.as_deref(),
+            Some("x"),
+            "ok-arm binding must survive lowering"
         );
     }
 }
