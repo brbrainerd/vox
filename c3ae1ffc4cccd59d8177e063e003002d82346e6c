@@ -1,0 +1,20 @@
+feat(vox-rename-registry): extract rename registry and primitive tags
+scale: ~185 lines across 10 files [M]
+
+- **crates/vox-rename-registry**:
+    - New crate created at `crates/vox-rename-registry` (L0).
+    - `src/renames.rs`: Added `RenameKind`, `RenameEntry`, `RenameRegistry`, and `RegistryError` types, along with `parse_json` and `load_from_file` functions for managing renames.
+    - `src/primitive_tags.rs`: Added `PRIMITIVE_TAGS` constant, `is_primitive`, and `all_primitives` functions for primitive tag lookup.
+    - `src/lib.rs`: Defined the module structure for the new crate.
+    - `Cargo.toml`: Configured the new crate with dependencies on `serde`, `serde_json`, and `thiserror`.
+- **crates/vox-arch-check**:
+    - `Cargo.toml`: Changed `vox-arch-check`'s dev-dependency from `vox-compiler` to `vox-rename-registry`.
+    - `tests/rename_consistency_test.rs`: Updated imports to use `vox_rename_registry::primitive_tags` and `vox_rename_registry::renames` instead of `vox_compiler` paths.
+- **docs/src/architecture**:
+    - `layers.toml`: Added `vox-rename-registry` to layer 0 with `staleness_exempt = true`.
+    - `layers.toml`: Removed the `known_inversions` entry for `vox-arch-check` to `vox-compiler`.
+    - `where-things-live.md`: Added an entry for `vox-rename-registry` describing its purpose and layer.
+- **Cargo.toml**: Added `vox-rename-registry` to the workspace members.
+- **Cargo.lock**: Updated to reflect the new crate and dependency changes.
+
+--- audit: original='refactor(arch-check): extract vox-rename-registry (L0), remove known_inversion' | actual=185L across 10 files | derived=full ---
