@@ -25,6 +25,31 @@ pub enum ScopeEnforcement {
     Disabled,
 }
 
+/// Lenient field deserializer for `OrchestratorConfig::scope_enforcement`.
+///
+/// An unrecognized value maps to the default instead of failing the parse. Because
+/// `OrchestratorConfig` is `#[serde(deny_unknown_fields, default)]` and loaded as one
+/// whole `[orchestrator]` section, a strict enum parse of a single bad value fails the
+/// entire section — and `snapshot()` then silently falls back to all-defaults, discarding
+/// every other persisted setting (concurrency, budgets, scaling, trust). The GUI has
+/// historically written runtime-isolation labels (`"Wasm"`/`"Container"`/`"Native"`) into
+/// this key, so tolerating an unknown value here contains the blast radius to this one
+/// field rather than wiping the user's whole orchestrator config.
+pub fn deserialize_scope_enforcement_lenient<'de, D>(
+    deserializer: D,
+) -> Result<ScopeEnforcement, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let raw = Option::<String>::deserialize(deserializer)?;
+    Ok(match raw.as_deref().map(str::trim) {
+        Some("strict") => ScopeEnforcement::Strict,
+        Some("warn") => ScopeEnforcement::Warn,
+        Some("disabled") => ScopeEnforcement::Disabled,
+        _ => ScopeEnforcement::default(),
+    })
+}
+
 /// Result of a scope check.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ScopeCheckResult {

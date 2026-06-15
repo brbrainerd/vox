@@ -107,7 +107,14 @@ pub struct OrchestratorConfig {
     #[serde(default = "default_max_auto_continuations")]
     pub max_auto_continuations: u32,
     /// How strictly to enforce agent scope boundaries (default: Warn).
-    #[serde(default)]
+    ///
+    /// Deserialized leniently: an unknown string falls back to the default instead of
+    /// failing the whole `[orchestrator]` section parse (which would discard every other
+    /// persisted setting). See [`crate::scope::deserialize_scope_enforcement_lenient`].
+    #[serde(
+        default,
+        deserialize_with = "crate::scope::deserialize_scope_enforcement_lenient"
+    )]
     pub scope_enforcement: ScopeEnforcement,
     /// Default multi-agent isolation strategy (spec §5.1). Default: SharedBranch.
     #[serde(default)]
@@ -1559,6 +1566,28 @@ mod isolation_config_tests {
         assert_eq!(
             back.isolation_strategy_default,
             crate::isolation::IsolationStrategy::SeparateBranches
+        );
+    }
+
+    #[test]
+    fn unknown_scope_enforcement_does_not_wipe_whole_section() {
+        // Regression (PR #349 audit): the GUI wrote runtime-isolation labels
+        // ("Wasm"/"Container"/"Native") into scope_enforcement. With a strict enum parse
+        // plus deny_unknown_fields, one bad value failed the entire [orchestrator] section,
+        // so snapshot() silently reset EVERY setting to defaults. The lenient field
+        // deserializer must contain the damage to scope_enforcement alone and preserve
+        // unrelated persisted settings.
+        let section = "max_auto_continuations = 99\nscope_enforcement = \"Wasm\"\n";
+        let cfg: OrchestratorConfig =
+            toml::from_str(section).expect("section must still parse with an unknown enum value");
+        assert_eq!(
+            cfg.max_auto_continuations, 99,
+            "an unrelated setting must survive a bad scope_enforcement value"
+        );
+        assert_eq!(
+            cfg.scope_enforcement,
+            crate::scope::ScopeEnforcement::default(),
+            "an unknown scope_enforcement value falls back to default"
         );
     }
 }
