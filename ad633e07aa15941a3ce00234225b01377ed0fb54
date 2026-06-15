@@ -1,0 +1,13 @@
+feat(gui): add per-session task filtering in TasksView
+scale: ~63 lines across 3 files [M]
+
+- `TasksView.tsx`:
+    - Implemented session filtering for tasks, allowing users to view tasks associated with a specific session.
+    - Added a `sessionFilter` state variable and UI elements (chips) to display and select session filters.
+    - Introduced `loadSessionTitles` to retrieve session titles from `localStorage` for display.
+    - Displayed session filter chips only when tasks span more than one session.
+    - Integrated `filterBySession` helper to filter tasks before grouping.
+- `tasksHelpers.ts`: Added `filterBySession` helper function to filter tasks based on a given session ID.
+- `tasksHelpers.test.ts`: Added unit tests for the new `filterBySession` helper function.
+
+--- audit: original='feat(gui): per-session task filter in TasksView (I3)' | actual=63L across 3 files | derived=full ---
