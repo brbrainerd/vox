@@ -1,0 +1,51 @@
+refactor(docs, crates): Consolidate MCP meta, update docs, fix retired forms
+scale: ~559 lines across 70 files [L]
+
+- docs/src/architecture/where-things-live.md: Expanded to cover all 83 workspace crates by layer, adding canonical descriptions for 19 previously undescribed crates.
+- crates/vox-mcp-meta: Removed crate entirely, merging its contents into `vox-mcp-registry`.
+- crates/vox-mcp-registry: Incorporated `A2A_MESSAGE_TYPES`, `SKILL_TOOLS`, and `ORCHESTRATOR_TOOLS` constants from `vox-mcp-meta`.
+- contracts/proximity/retired-surfaces.v1.json: Updated references to retired forms (vox-pm, vox-mens, @server fn, vox-dei, ResolutionAgent).
+- docs/src/reference/ref-decorators.md: Replaced `@server`, `@query`, and `@mutation` decorators with a unified `@endpoint(kind: server|query|mutation)` decorator.
+- docs/src/reference/cli.md: Updated to reflect the decoupling of specialized domains like ML/AI training (`vox mens`) into separate binaries.
+- docs/agents/cli-toolchain.md: Updated references to reflect changes in CLI toolchain structure.
+- docs/src/reference/env-vars.md: Updated environment variable documentation.
+- docs/agents/database-nomenclature.md: Updated database nomenclature documentation.
+- crates/vox-corpus/src/lib.rs: Rewrote docstring to accurately reflect the crate's actual scope as an aggregator of training data and corpora.
+- docs/src/architecture/layers.toml: Added a binary-tool exception note.
+- .github/PULL_REQUEST_TEMPLATE.md: Updated pull request template.
+- crates/vox-corpus/build.rs: Updated build script to reference `vox-mcp-registry` instead of `vox-mcp-meta`.
+- crates/vox-corpus/src/synthetic_gen/mod.rs: Updated imports to use `vox-mcp-registry` for `ORCHESTRATOR_TOOLS` and `SKILL_TOOLS`.
+- docs/src/reference/vox-db-language-surface.md: Updated documentation for Vox DB language surface.
+- docs/src/reference/vox-fullstack-artifacts.md: Updated documentation for Vox fullstack artifacts.
+- .aiexclude, .aiignore, .cursorignore: Updated AI exclusion and ignore lists.
+- README.md: Updated project README.
+- docs/agents/orchestrator.md: Updated orchestrator documentation.
+- docs/src/contributors/toestub-contributor-guide.md: Updated contributor guide.
+- docs/src/reference/hitl-and-doubt.md: Updated documentation for HITL and doubt.
+- docs/src/reference/ref-syntax.md: Updated reference syntax documentation.
+- docs/src/reference/vox-portability-ssot.md: Updated Vox portability SSOT documentation.
+- .cursor/rules/retired-surfaces.mdc: Updated Cursor rules for retired surfaces.
+- .github/copilot-instructions.md: Updated Copilot instructions.
+- AGENTS.md: Updated AGENTS documentation.
+- crates/vox-corpus/src/mcp_meta/mod.rs: Updated module docstring to reflect its role as local MCP metadata types for `vox-corpus`.
+- crates/vox-corpus/src/synthetic_search_gen.rs: Updated synthetic search generator to reference `vox-mcp-registry`.
+- crates/vox-db/README.md: Updated `vox-db` README.
+- crates/vox-gamify/README.md: Fixed inverted gamify/ludus directives.
+- crates/vox-orchestrator/Cargo.toml: Updated `vox-orchestrator` Cargo.toml.
+- docs/agents/governance.md: Updated governance documentation.
+- docs/src/.well-known/llms-full.txt: Updated LLMs full list.
+- docs/src/adr/004-codex-arca-turso-ssot.md: Updated ADR 004.
+- docs/src/adr/015-vox-docker-oci-portability-ssot.md: Updated ADR 015.
+- docs/src/architecture/2026-05-08-naming-and-guards-design.md: Updated naming and guards design document.
+- docs/src/architecture/2026-05-08-workspace-reorg-outcome.md: Updated workspace reorganization outcome document.
+- docs/src/ci/rust-modernization-baseline.md: Updated Rust modernization baseline.
+- docs/src/contributors/coding-agents.md: Updated coding agents documentation.
+- docs/src/feed.xml: Updated feed.xml.
+- docs/src/reference/agent-quick-reference.md: Updated agent quick reference.
+- docs/src/reference/changelog.md: Updated changelog.
+- docs/src/reference/clavis-ssot.md: Updated Clavis SSOT documentation.
+- docs/src/reference/mens-serving-ssot.md: Updated Mens serving SSOT documentation.
+- docs/src/reference/orchestration-unified.md: Updated orchestration unified documentation.
+- docs/src/reference/ref-type-system.md:
+
+--- audit: original='refactor(docs+crates): SSOT/discoverability fixes + crate descriptions + vox-mcp-meta merge' | actual=559L across 70 files | derived=full ---
