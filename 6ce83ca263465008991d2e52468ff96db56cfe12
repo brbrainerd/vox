@@ -1,0 +1,7 @@
+feat(mcp): add input schemas for browser tools and update tool registry
+scale: ~96 lines across 2 files [M]
+
+- `crates/vox-orchestrator-mcp/src/input_schemas.rs`: Add input schema definitions for various browser tools, including `vox_browser_back`, `vox_browser_forward`, `vox_browser_reload`, `vox_browser_stop`, `vox_browser_page_info`, `vox_browser_screenshot_viewport`, `vox_browser_screencast_frame`, `vox_browser_click_xy`, `vox_browser_scroll`, `vox_browser_press`, `vox_browser_type`, `vox_browser_set_viewport`, `vox_browser_set_control_lock`, and `vox_browser_list_pages`.
+- `contracts/mcp/tool-registry.canonical.yaml`: Reorder and add entries for `vox_browser_back`, `vox_browser_forward`, `vox_browser_reload`, `vox_browser_stop`, `vox_browser_page_info`, `vox_browser_screenshot_viewport`, `vox_browser_screencast_frame`, `vox_browser_click_xy`, `vox_browser_scroll`, `vox_browser_press`, `vox_browser_type`, `vox_browser_set_viewport`, `vox_browser_set_control_lock`, and `vox_browser_list_pages` tools. Remove `vox_browser_open` and `vox_browser_page_info` entries from their previous locations.
+
+--- audit: original='fix(mcp): add browser tool input schemas and sync registry from operations catalog' | actual=96L across 2 files | derived=full ---
