@@ -1,0 +1,6 @@
+refactor(rustfmt): reformat train_arm.rs for edition-2024 compliance
+scale: ~37 lines across 1 files [S]
+
+- `crates/vox-ml-cli/src/commands/mens/populi/train_arm.rs`: Reformatted several `resolve_training_sizing` function calls to use a single line for arguments, improving readability and aligning with `rustfmt` edition-2024 rules.
+
+--- audit: original='chore(fmt): rustfmt edition-2024 train_arm.rs to satisfy pre-push gate' | actual=37L across 1 files | derived=full ---
