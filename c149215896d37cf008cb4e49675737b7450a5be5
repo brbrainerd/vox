@@ -1,0 +1,8 @@
+test(report): add LlmJson format tests for schema, diagnostics, and parsing
+scale: ~20 lines across 1 files [S]
+
+- `crates/vox-code-audit/src/report.rs`:
+    - Added `llm_json_format_has_schema_and_diagnostics` test to verify that `OutputFormat::LlmJson` output contains the correct schema (`vox.lint.llm-report.v1`) and a diagnostics array with expected structure.
+    - Added `parse_format_accepts_llm_json_variants` test to ensure `OutputFormat::parse_format` correctly parses "llm-json", "llm_json", and "for-llm" into `OutputFormat::LlmJson`.
+
+--- audit: original='test(audit): add LlmJson format tests — schema, diagnostics array, parse_format variants' | actual=20L across 1 files | derived=full ---
