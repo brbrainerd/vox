@@ -1,0 +1,15 @@
+feat(plugin-host): discover bare SKILL.md skill directories
+scale: ~144 lines across 2 files [M]
+
+- `crates/vox-plugin-host/src/external_skills.rs`: Add new module for discovering external skills based on the `SKILL.md` layout. This includes:
+    - Defining `ExternalSkill` struct to hold the path and parsed `VoxSkillBundle`.
+    - Implementing `discover_external_skills` function to:
+        - Iterate through provided root directories.
+        - Read immediate subdirectories and look for `SKILL.md`.
+        - Parse `SKILL.md` using `parse_skill_md`.
+        - Deduplicate skills by manifest ID, with the first seen skill winning.
+        - Skip missing roots or unparseable `SKILL.md` files with warnings.
+        - Warn about directory name mismatches but still load the skill.
+- `crates/vox-plugin-host/src/lib.rs`: Expose the new `external_skills` module.
+
+--- audit: original='feat(plugin-host): discover bare SKILL.md skill dirs (agentskills.io layout)' | actual=144L across 2 files | derived=full ---
