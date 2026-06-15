@@ -1,0 +1,6 @@
+refactor(vox-cli): pre-push hook delegates to `ci pre-push`
+scale: ~32 lines across 1 files [S]
+
+- `crates/vox-cli/src/commands/ci/install_hooks.rs`: Replaced the hardcoded pre-push hook logic with a delegation to `vox ci pre-push`. This significantly reduced the hook's size from 29 lines to 3 lines by removing direct checks for doc pipeline lint and integration test compilation. The new hook now executes `cargo run -q -p vox-cli -- ci pre-push "$@"`.
+
+--- audit: original='refactor(vox-cli): pre-push hook delegates to ci pre-push aggregate' | actual=32L across 1 files | derived=full ---
