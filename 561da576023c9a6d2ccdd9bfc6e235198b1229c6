@@ -1,0 +1,6 @@
+style(vox-audit): rustfmt `product_binary_descriptors` in `ga.rs`
+scale: ~67 lines across 1 files [M]
+
+- Applied rustfmt to the `product_binary_descriptors` function in `crates/vox-audit/src/ga.rs` to improve code formatting and readability.
+
+--- audit: original='style(vox-audit): rustfmt ga.rs (was committed unformatted)' | actual=67L across 1 files | derived=full ---
