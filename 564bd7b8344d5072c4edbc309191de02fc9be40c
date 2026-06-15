@@ -1,0 +1,13 @@
+feat(vox-vcs): implement real undo checkout and per-operation actor timeout
+scale: ~104 lines across 2 files [M]
+
+- `jj_backend.rs`:
+    - Modified `JjBackend::undo` to perform a real checkout of the restored operation's tree to disk.
+    - This involves resolving the working-copy commit of the restored operation and calling `Workspace::check_out` to materialize its content.
+    - If no working-copy commit is found for the restored operation, it falls back to just re-pointing the working-copy operation ID.
+- `jj_actor.rs`:
+    - Introduced `OP_TIMEOUT` constant (120 seconds) for `jj` operations.
+    - Added `with_op_timeout` async function to wrap `jj` operations, dropping the future and returning `VcsError::Unavailable` if the timeout elapses.
+    - Modified the `guarded!` macro to use `with_op_timeout` for all `block_on` calls, ensuring `jj` operations within the actor are subject to a timeout.
+
+--- audit: original='feat(vox-vcs): real undo checkout + per-op actor timeout (jj robustness) (#219)' | actual=104L across 2 files | derived=full ---
