@@ -196,8 +196,18 @@ pub fn run(update_baseline: bool) -> anyhow::Result<()> {
 
     // Load registry for Check D (env-var parity).
     let registry_path = root.join("contracts/config/registry.v1.yaml");
-    let registry_yaml = std::fs::read_to_string(&registry_path).unwrap_or_default();
-    let registered_env_vars = load_registered_env_vars(&registry_yaml);
+    let registered_env_vars: std::collections::HashSet<String> =
+        match parse_registry_file(&registry_path) {
+            Ok(rows) => rows
+                .into_iter()
+                .filter(|r| !r.env_var.is_empty() && r.env_var != "null")
+                .map(|r| r.env_var)
+                .collect(),
+            Err(_) => {
+                // Registry file absent or unreadable — treat as empty (Check D becomes no-op).
+                std::collections::HashSet::new()
+            }
+        };
 
     let mut violations = Vec::new();
     collect_rs_files(&root.join("crates"), &mut |path, src| {
@@ -268,8 +278,44 @@ pub fn run(update_baseline: bool) -> anyhow::Result<()> {
     )
 }
 
-/// Load registered env vars from the config registry YAML.
-/// Returns a set of env_var names that are registered (non-null).
+// ---------------------------------------------------------------------------
+// Serde structs for registry.v1.yaml (Phase 1 — replaces fragile line grep)
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, serde::Deserialize)]
+struct RegistryFile {
+    #[serde(default)]
+    #[allow(dead_code)]
+    schema_version: String,
+    #[serde(default)]
+    knobs: Vec<KnobRow>,
+}
+
+/// A single row from the config registry YAML.
+#[derive(Debug, serde::Deserialize, Clone)]
+pub struct KnobRow {
+    pub env_var: String,
+    #[serde(default)]
+    pub description: String,
+    #[serde(default)]
+    pub status: String,
+}
+
+/// Parse a registry YAML file. Returns `Err` if the file is malformed — never
+/// silently returns an empty set and swallows parse errors.
+pub fn parse_registry_file(path: &std::path::Path) -> Result<Vec<KnobRow>, String> {
+    let text = std::fs::read_to_string(path)
+        .map_err(|e| format!("cannot read registry {}: {e}", path.display()))?;
+    let file: RegistryFile =
+        serde_yaml::from_str(&text).map_err(|e| format!("registry YAML parse error: {e}"))?;
+    Ok(file.knobs)
+}
+
+/// Load registered env vars from the config registry YAML text.
+///
+/// Kept for unit-test compatibility (accepts raw YAML text).
+/// For production use, prefer [`parse_registry_file`] which uses serde and propagates
+/// parse errors instead of silently returning an empty set.
 pub fn load_registered_env_vars(registry_yaml: &str) -> std::collections::HashSet<String> {
     let mut vars = std::collections::HashSet::new();
     for line in registry_yaml.lines() {
