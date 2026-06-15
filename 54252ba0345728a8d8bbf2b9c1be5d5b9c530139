@@ -1,0 +1,30 @@
+feat(gui): harden daemon control plane and CI gates
+scale: ~6261 lines across 1166 files [XL]
+
+- `crates/vox-gui`: Implemented new `action_manifest` and `models` commands for GUI, routing orchestrator actions and model selection through daemon IPC. Removed `ludus` command.
+- `crates/vox-cli`: Added new CI commands `gui_catalog_parity`, `gui_surface_coverage`, and `gui_version_sync` to validate GUI action manifests, surface coverage, and version synchronization. Updated `model/discover` and `model/shadow` commands.
+- `crates/vox-orchestrator`: Introduced new model selection logic and DTOs in `models/select.rs` and updated `catalog_refresh` and `orch_daemon`.
+- `crates/vox-drift-check`: Added `layers_manifest` for parsing architecture layers, and updated sweep and rule definitions for `body_hash`, `numeric_dedup`, `timeout_literal`, `vox_path_literal`, `bearer_header`, `reqwest_bypass`, and `literal_dedup`.
+- `crates/vox-gui/ui`: Refactored `App.tsx` and `transport.ts` for new IPC, updated various surface views (`RunsView`, `ModelsView`, `HarnessView`, `RepositoryView`, `MeshView`, `GamifyView`, `SettingsView`, `Loquela.tsx`), and removed `MemoryView` and `Catalog.tsx`.
+- `contracts`: Added `action-manifest.v1.schema.json` and `action-manifest.v1.yaml` for GUI action validation.
+- `docs`: Added `architecture/vox-gui-capability-audit-2026.md` and updated `architecture/layers.toml` and `architecture/research-index.md`.
+- `crates/vox-orchestrator-mcp`: Updated `http_gateway/dashboard_api.rs` and `llm_bridge/model_route_policy/resolve.rs`.
+- `crates/vox-actor-runtime`: Updated `model_resolution.rs` and minor changes to `activity.rs`, `resilient_http.rs`, `durable_scheduler.rs`, `presence.rs`, `subscription.rs`.
+- `crates/vox-dei-shim`: Updated `research/model_select.rs`.
+- `crates/vox-config`: Added `model_routing.rs`, `timeouts.rs`, and updated `paths.rs`.
+- `crates/vox-foundation`: Updated `protocol.rs` and `primitives/backoff.rs`.
+- `crates/vox-gui/src/commands`: Added new command modules for `action_manifest`, `models`, `control_plane`, `runs`, `build_info`, and `execute`. Removed `ludus.rs`.
+- `crates/vox-cli/src/commands/ci`: Added new CI commands and updated `cmd_enums.rs`, `run_body_helpers/docs.rs`, `run_body.rs`.
+- `crates/vox-orchestrator/src/models`: Added new model selection structures and updated `registry.rs`.
+- `crates/vox-orchestrator/src/routing`: Updated `engine.rs`.
+- `crates/vox-populi`: Minor changes to `mens/hardware/registry.rs` and tests.
+- `crates/vox-publisher`: Minor changes to tests.
+- `crates/vox-audit`: Minor changes to `panel.rs`.
+- `crates/vox-db`: Minor changes to tests.
+- `crates/vox-integration-tests`: Minor changes to tests.
+- `crates/vox-orchestrator-queue`: Minor changes to tests.
+- `crates/vox-cli/src`: Minor changes to `compilerd.rs`, `progress.rs`, `frontend.rs`.
+- `crates/vox-cli/src/utils/share`: Minor changes to `coordinator.rs`, `sse_detect.rs`.
+- `crates/vox-cli/src/commands`: Minor changes to `diagnostics/doctor/checks_standard/tail.rs`, `research/mod.rs`, `share.rs`, `status.rs`, `test.rs`.
+
+--- audit: original='feat(gui): harden daemon control plane and GUI CI gates' | actual=6261L across 1166 files | derived=full ---
