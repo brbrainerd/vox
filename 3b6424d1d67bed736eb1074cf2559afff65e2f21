@@ -1,0 +1,12 @@
+feat(examples): add tagged-enum ADT to json_as_typed golden example
+scale: ~31 lines across 1 files [S]
+
+- `examples/golden/json_as_typed.vox`:
+    - Added a new section "5. Tagged-enum ADT (tag: "kind")" to the example.
+    - Defined `ToolCall` as a tagged enum ADT with `Search { query: str }` and `Fetch { url: str }` variants, using `@json_as(ToolCall, tag: "kind")`.
+    - Implemented `parse_tool(raw: str) to str` function to parse and dispatch on `ToolCall` variants, extracting `query` or `url`.
+    - Updated `main()` to include a demonstration of `parse_tool` with a `Search` variant and append its result to the return string.
+    - Updated comment for section 4 from "from_json error on missing required field" to "defaults: true (missing field uses zero value)".
+    - Updated comment for section 5 from "to_json round-trip" to "Tagged-enum ADT (tag: "kind") dispatch".
+
+--- audit: original='docs(examples): add §5 tagged-enum ADT to json_as_typed golden example' | actual=31L across 1 files | derived=full ---
