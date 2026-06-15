@@ -1,0 +1,6 @@
+feat(typeck): validate `db.select(...)` projection columns
+scale: ~15 lines across 1 files [S]
+
+- `crates/vox-compiler`: Wires `check_db_select_projection` into the typed query-plan branch to validate columns in `db.select(...)` projections. This ensures unknown or duplicate column names are reported and rejects empty column lists. The validation fires once per chain on the `.select` node and is guarded by a resolved field set, skipping unresolvable receivers.
+
+--- audit: original='feat(typeck): validate db .select(...) projection columns' | actual=15L across 1 files | derived=full ---
