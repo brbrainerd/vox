@@ -1,0 +1,9 @@
+docs(vuv): Mark VUV-9 as done and resolve research question Q6
+scale: ~15 lines across 4 files [S]
+
+- `docs/src/feed.xml`: Updated RSS feed to reflect changes.
+- `docs/src/architecture/gradio-streamlit-research-2026.md`: Resolved research question Q6 regarding migration corpus discipline by referencing VUV-9 and the new Naming Policy.
+- `docs/superpowers/plans/2026-05-08-vuv-improvement-roadmap.md`: Updated the status of the VUV Naming Policy document from "policy" to "current".
+- `docs/src/architecture/gui-authoring-syntax-2026.md`: Marked VUV-9 (Naming policy + codemod) as "Done" in the VUV phasing table, including details about the policy, registry, and codemod.
+
+--- audit: original='docs(vuv): mark VUV-9 done; resolve research-doc Q6 (VUV-9 task 9)' | actual=15L across 4 files | derived=full ---
