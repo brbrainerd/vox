@@ -1,0 +1,12 @@
+feat(vox-claim-extractor): Add VeriScore heuristic verifiability gate
+scale: ~174 lines across 1 files [M]
+
+- Introduce `VeriScoreResult` struct to hold a score and `VerifiabilityClass`.
+- Introduce `VeriScoreConfig` struct with a `min_score` for configuration.
+- Introduce `VeriScoreGate` struct to encapsulate the scoring logic and configuration.
+- Implement `score_sentence` method within `VeriScoreGate` to calculate a verifiability score based on heuristic phrase matching (hedges, future-oriented, motivation, opinion, certainty, evidence, and numerical phrases).
+- Define various arrays of phrases for heuristic scoring, including `hedge_phrases`, `future_phrases`, `motivation_phrases`, `opinion_phrases`, `certainty_phrases`, `evidence_phrases`, and `numerical_phrases`.
+- Implement `calculate_score` method to combine phrase counts into a final score.
+- Implement `get_verifiability_class` method to classify the sentence based on the calculated score and configured `min_score`.
+
+--- audit: original='feat(scientia): VeriScore heuristic verifiability gate (Phase 1 Task 3)' | actual=174L across 1 files | derived=full ---
