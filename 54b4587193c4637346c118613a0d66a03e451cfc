@@ -1,0 +1,16 @@
+refactor(typeck, codegen): extract sub-functions to reduce complexity
+scale: ~881 lines across 4 files [L]
+
+- `crates/vox-compiler/src/typeck/checker/expr.rs`:
+    - Extracted `check_call_expr` to handle `HirExpr::Call` arm, including `try_check_subscribe_actor_call` for `B3` special cases.
+    - Extracted `check_object_lit_expr` to handle `HirExpr::ObjectLit` arm.
+    - Extracted `populate_object_lit_expected` to resolve expected types for object literals (Record, Table, Collection, Map, Named struct).
+- `crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs`:
+    - Extracted `try_emit_namespace_call` to handle nested `if-let` dispatch for `std.fn`, `std.ns.fn`, `OpenClaw.X`, `Browser.X`, and `fs.X` call shapes.
+    - Extracted `emit_call_args_with_borrow_inference` to manage per-argument borrow inference for namespace calls.
+- `crates/vox-codegen/src/codegen_rust/emit/stmt_expr_tail.rs`:
+    - Extracted `emit_block_tail` to handle the `HirExpr::Block` statement loop.
+    - Extracted `emit_if_tail` to handle `HirExpr::If` emission with optional `else` blocks.
+- `contracts/reports/arch/cr-a1/2026-05-23.json`: Added a new architectural report for CR-A1 complexity, reflecting the reduced complexity of `check_expr` (53→36), `emit_expr_with` (removed from over-budget list), and `try_emit_expr_tail` (28→24).
+
+--- audit: original='refactor: CR-A1 pass 5 — check_expr 53→36, emit_expr_with off the list, try_emit_expr_tail 28→24' | actual=881L across 4 files | derived=full ---
