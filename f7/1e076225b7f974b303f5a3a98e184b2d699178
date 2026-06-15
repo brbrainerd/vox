@@ -1,0 +1,7 @@
+feat(compiler): add token registry validation and expand example tokens
+scale: ~92 lines across 2 files [M]
+
+- crates/vox-compiler/src/tokens/validate.rs: New file `validate.rs` added, containing `TokenValidationDiagnostic` struct and `validate_token_registry` function. This function performs consistency checks on a `TokenRegistry`, including warnings for empty registries and invalid token keys (containing whitespace).
+- vox.tokens.json: Added new spacing tokens (`s0`, `s1`, `s2`, `s4`, `s8`) to the example design token file.
+
+--- audit: original='feat(compiler): TASK-4.4 — design-token registry + Web IR TokenRef validation' | actual=92L across 2 files | derived=full ---
