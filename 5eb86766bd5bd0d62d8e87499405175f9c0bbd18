@@ -1,0 +1,25 @@
+feat(audit): Implement CR-L1, CR-L3, and CR-L4 panel modes
+scale: ~1139 lines across 9 files [XL]
+
+- **`crates/vox-audit/src/subcommands/plan_fidelity.rs`**:
+  - Added `run_panel_mode` for LLM-driven plan generation and `vox check` scoring.
+  - Implemented `same_day_canonical_with_panel` guard to prevent clobbering existing panel artifacts.
+  - Introduced `extract_vox_code` utility.
+  - Added `TypeckSeverity` import.
+- **`crates/vox-audit/src/subcommands/repair_corpus.rs`**:
+  - Implemented `run_panel_mode` for LLM-driven code repair and `vox check` scoring.
+  - Added `same_day_canonical_with_panel` guard to prevent clobbering existing panel artifacts.
+  - Introduced `extract_vox_code` utility.
+- **`crates/vox-audit/src/subcommands/humaneval.rs`**:
+  - Refactored panel client initialization to use `std::thread::scope` for `reqwest::blocking` client management.
+  - Updated panel client wrapping to `CachingPanelClient` -> `ProtectedPanelClient` -> `OpenRouterPanelClient`.
+  - Added `same_day_canonical_with_panel` guard to prevent clobbering existing panel artifacts.
+  - Updated imports for new panel client types and `PerLlmResult`.
+- **`contracts/reports/humaneval/2026-05-21.json`**: Added a new audit report for humaneval panel mode.
+- **`contracts/reports/humaneval/2026-05-22.json`**: Added a new audit report for humaneval panel mode.
+- **`contracts/reports/plan-fidelity/2026-05-21.json`**: Added a new audit report for plan-fidelity panel mode.
+- **`contracts/reports/plan-fidelity/2026-05-22.json`**: Added a new audit report for plan-fidelity panel mode.
+- **`contracts/reports/repair-corpus/2026-05-21.json`**: Added a new audit report for repair-corpus panel mode.
+- **`contracts/reports/repair-corpus/2026-05-22.json`**: Added a new audit report for repair-corpus panel mode.
+
+--- audit: original='feat(audit): CR-L1/L3/L4 panel modes — humaneval, repair-corpus, plan-fidelity' | actual=1139L across 9 files | derived=full ---
