@@ -1,0 +1,8 @@
+fix(command-sync): use canonical 'Language Reference' category for generated docs
+scale: ~4 lines across 3 files [S]
+
+- `crates/vox-cli/src/commands/ci/command_sync.rs`: Updated the `render_generated_md` and `render_mens_train_defaults_md` functions to change the hardcoded `category` from "reference" to "Language Reference" in the front matter of the generated Markdown files.
+- `docs/src/reference/cli-command-surface.generated.md`: Regenerated this file with the updated category.
+- `docs/src/reference/mens-train-defaults.generated.md`: Regenerated this file with the updated category.
+
+--- audit: original="fix(command-sync): use canonical 'Language Reference' category" | actual=4L across 3 files | derived=full ---
