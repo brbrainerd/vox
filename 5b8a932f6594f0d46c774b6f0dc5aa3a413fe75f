@@ -1,0 +1,9 @@
+release: bump workspace to v0.6.0 and enable ACI envelope by default
+scale: ~199 lines across 5 files [M]
+
+- chore(deps): Update workspace version from 0.5.0 to 0.6.0 in `Cargo.toml` and `Cargo.lock`.
+- feat(orchestrator): Enable `agentos_aci_envelope_enabled` by default in `OrchestratorConfig` by changing `default_false()` to `default_true()` in `crates/vox-orchestrator/src/config/impl_default.rs`.
+- feat(orchestrator): Set `vox.orchestrator.agentos.aci_envelope.enabled` to `true` in `contracts/orchestration/feature-flags.v1.yaml`.
+- docs(changelog): Add a new `0.6.0` entry to `CHANGELOG.md` detailing the release theme, unified task hopper (Hp-T1..T4), `PrioritySource` typed partial order (Hp-T3), `DeveloperOverride` capability token (Hp-T4), intra-project imports (P1-T1), and JSON ergonomics (P1-T2).
+
+--- audit: original='release: bump workspace to v0.6.0, enable ACI envelope by default (CR-L5)' | actual=199L across 5 files | derived=full ---
