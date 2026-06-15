@@ -1,0 +1,21 @@
+feat(rn): overlay-family primitives get React Native representation
+scale: ~140 lines across 5 files [M]
+
+- `crates/vox-codegen/src/codegen_ts/rn/component.rs`:
+  - Added `RnNode::RnModal` variant to represent React Native `<Modal>` components.
+  - Implemented lowering for `modal` and `drawer` tier primitives to `RnNode::RnModal`, mapping the `open` kwarg to the `visible` prop and setting `animation` to "slide" for `drawer` and "fade" for `modal`.
+  - Implemented lowering for the `overlay` tier primitive to `RnNode::View`.
+  - Implemented lowering for the `toast` tier primitive to an absolutely-positioned `RnNode::View`.
+- `crates/vox-cli-tests/tests/build_e2e.rs`:
+  - Repurposed the `build_mobile_hard_errors_on_unsupported_tier_primitive` test to `build_mobile_modal_emits_react_native_modal`.
+  - Modified the test to assert that a mobile build with a `modal` primitive now succeeds, emits a `<Modal>` component in `Home.tsx`, and imports `Modal` from "react-native".
+  - Removed assertions for build failure and the `rn-unsupported-tier-primitive` error.
+- `crates/vox-cli/src/commands/build.rs`:
+  - Removed the hard-error gate for `rn-unsupported-tier-primitive` diagnostics, allowing mobile builds to succeed even if such diagnostics are present (they are now warnings).
+- `crates/vox-codegen/tests/rn_lifecycle_test.rs`:
+  - Updated the expected React Native import statement to include `Modal`.
+- `crates/vox-cli-tests/tests/fixtures/mobile_modal_unsupported/expected_files.toml`:
+  - Removed `expect_failure = true`.
+  - Added `Home.tsx` to `required` files.
+
+--- audit: original='feat(rn): overlay-family primitives get real RN representation (B4)' | actual=140L across 5 files | derived=full ---
