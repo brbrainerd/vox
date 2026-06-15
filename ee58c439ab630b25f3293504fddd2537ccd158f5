@@ -1,0 +1,6 @@
+docs(architecture): scope Mobile Phase 2 completion for Android, iOS, and Expo upgrade
+scale: ~139 lines across 1 files [M]
+
+- **docs/src/architecture/mobile-phase2-completion-scoping-2026-06-12.md**: Add new architecture document detailing the scoping for Mobile Phase 2 completion, including the cross-compile pipeline, iOS path, and upgrading `apps/vox-mental-tracker` to Expo. The document outlines the verified current state of various components like `vox build --target=mobile`, uniffi TS binding generation, `cargo-ndk` integration, Expo config plugin, and `eas-cli` usage. It also identifies gaps, makes recommendations for dual-targeting and packaging, and lists maintainer decisions.
+
+--- audit: original='docs(mobile): scope Phase 2 completion — Android artifact pipeline, iOS via EAS, mental-tracker Expo upgrade' | actual=139L across 1 files | derived=full ---
