@@ -1,0 +1,32 @@
+feat(publisher): add adapter health checks and improve syndication robustness
+scale: ~8813 lines across 190 files [XL]
+
+- `crates/vox-clavis`: Introduce `missing.rs` for new secret specifications and add new social platform secrets for Twitter, LinkedIn, and Reddit API bases, and Twitter bearer token.
+- `docs`: Add extensive new documentation for architecture, publication pipeline, and endpoints, including new assets.
+- `crates/vox-publisher`:
+    - Implement `adapter_health.rs` for reporting health status of syndication adapters, including canary probes.
+    - Introduce `canary.rs` for live API probing of Mastodon, Bluesky, Discord, Twitter, LinkedIn, Reddit, and OpenCollective.
+    - Refactor `publisher/mod.rs` to use adapter-specific constants for text limits, improving modularity and removing `contract.rs`.
+    - Enhance Bluesky adapter with session caching, new constants for API paths, and improved session management.
+    - Update Mastodon adapter to use `VOX_SOCIAL_MASTODON_API_BASE` secret and improve error handling.
+    - Update LinkedIn adapter to use `VOX_SOCIAL_LINKEDIN_API_BASE` secret.
+    - Update Reddit adapter to use `VOX_SOCIAL_REDDIT_API_BASE` secret and improve error handling.
+    - Update Twitter adapter to use `VOX_SOCIAL_TWITTER_API_BASE` and `VOX_NEWS_TWITTER_BEARER` secrets.
+    - Update Discord adapter to use `VOX_SOCIAL_DISCORD_WEBHOOK` secret.
+    - Update OpenCollective adapter to use `VOX_SOCIAL_OPENCOLLECTIVE_API_BASE` secret.
+    - Update `types.rs` with new `SyndicationOutcome` and `SyndicationDecision` enums, and `SyndicationAttempt` struct.
+    - Remove `contract.rs` and integrate its constants directly into adapter modules.
+    - Add `syndication_outcome.rs` for detailed syndication results.
+    - Add `publication_preflight/mod.rs` for pre-publication checks.
+    - Add `researchgate.rs` adapter.
+    - Update `distribution_compile.rs` and `publisher/heuristics.rs` with minor changes.
+    - Add new test files for various adapters (Reddit, OpenCollective, Mastodon, Twitter, Bluesky, LinkedIn, Discord).
+- `crates/vox-cli`: Add `scientia.rs` command.
+- `crates/vox-db`: Update `schema/domains/publish_cloud.rs`.
+- `README.md`: Significantly reduce content, likely moving it to `docs`.
+- `crates/vox-orchestrator`: Minor changes across many files, likely related to secret resolution or configuration.
+- `crates/vox-clavis/src/spec/ids.rs`: Update secret IDs.
+- `crates/vox-publisher/tests`: Update `route_simulation_golden.json` and `route_simulation_golden.rs`.
+- `Cargo.toml`: Minor dependency updates across several crates.
+
+--- audit: original='Hardening Vox Syndication Adapters' | actual=8813L across 190 files | derived=full ---
