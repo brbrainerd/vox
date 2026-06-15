@@ -1,0 +1,8 @@
+chore(deps-dev): bump @vitejs/plugin-react from 6.0.1 to 6.0.2
+scale: ~540 lines across 3 files [L]
+
+- `apps/experimental/visualizer/package.json`: Updated `@vitejs/plugin-react` development dependency from `^6.0.1` to `^6.0.2`.
+- `apps/experimental/visualizer/package-lock.json`: Updated lockfile to reflect the `@vitejs/plugin-react` version bump.
+- `apps/experimental/visualizer/pnpm-lock.yaml`: Updated lockfile to reflect the `@vitejs/plugin-react` version bump.
+
+--- audit: original='chore(deps-dev): bump @vitejs/plugin-react (#114)' | actual=540L across 3 files | derived=full ---
