@@ -1,0 +1,7 @@
+feat(scientia): scaffold `vox-research-events` L1 crate
+scale: ~36 lines across 2 files [S]
+
+- `crates/vox-research-events/Cargo.toml`: Added new `Cargo.toml` for the `vox-research-events` crate, defining package metadata and dependencies including `serde`, `serde_json`, `uuid`, `chrono`, `thiserror`, and `workspace-hack`.
+- `crates/vox-research-events/src/lib.rs`: Created `lib.rs` for the `vox-research-events` crate, defining modules for `emitter`, `events`, and `preregistration`, and re-exporting key types like `ResearchEventEmitter`, `ResearchEvent`, `PreregistrationV1`, and related enums/structs.
+
+--- audit: original='feat(scientia): scaffold vox-research-events L1 crate (Phase 0b Task 1)' | actual=36L across 2 files | derived=full ---
