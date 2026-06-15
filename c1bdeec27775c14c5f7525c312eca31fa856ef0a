@@ -1,0 +1,7 @@
+fix(interp): bind `Unit` literal to `VoxValue::Null` in interpreter scope
+scale: ~19 lines across 2 files [S]
+
+- `crates/vox-compiler/src/eval/mod.rs`: Bind `Unit` to `VoxValue::Null` in both the interpreter's current scope and module scope. This allows `Unit` to be used as a value (e.g., `Ok(Unit)`) without resolving to `UndefinedVariable("Unit")`.
+- `examples/golden/error_propagation.vox`: Add a test case `test_onboard_user` to verify the success path of `onboard_user("user@example.com")`, which now correctly returns `Ok("onboarded")` due to `send_welcome`'s `Ok(Unit)` succeeding.
+
+--- audit: original='fix(interp): bind `Unit` literal so Result[Unit]/Ok(Unit) success paths run (#222)' | actual=19L across 2 files | derived=full ---
