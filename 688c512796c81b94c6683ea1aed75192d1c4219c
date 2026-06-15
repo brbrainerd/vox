@@ -1,0 +1,7 @@
+chore(audit): Refresh daily audit artifacts and update Cargo.lock
+scale: ~73 lines across 9 files [M]
+
+- contracts/reports/: Updated `measured_at` timestamps in 8 daily audit JSON files across various subdirectories (e.g., `_snapshot`, `audit-all`, `aci-default`, `corpus-feedback`, `deploy`, `mens-on-distribution`, `retirement`). This reflects a re-run of `vox audit --gate all --strict-block-ga`.
+- Cargo.lock: Added `flate2` dependency, likely pulled in for the `cr-e2` bundle measurement binary.
+
+--- audit: original='chore: refresh daily audit artifacts + Cargo.lock from fix-all session' | actual=73L across 9 files | derived=full ---
