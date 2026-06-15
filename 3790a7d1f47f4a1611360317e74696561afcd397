@@ -1,0 +1,11 @@
+feat(tdd): enforce @test-first policy for Vox golden examples
+scale: ~335 lines across 6 files [L]
+
+- docs/src/contributors/contribution-loop.md: Added `@test-first` as a named verification gate (Red -> Green -> Refactor -> Ingest loop) for new `.vox` capabilities, updated the training-eligibility table to include `@test` blocks for new `.vox` capabilities, and added missing `@test` for new exported `.vox` functions to the negative example pool list.
+- docs/src/contributors/coding-agents.md: Added a new "Task brief format: failing test first" section with Rust and Vox examples, updated the TOESTUB rule table with the new `skeleton/no-test-for-pub-fn` rule, and linked the corpus quality signal section to the `@test-first` gate.
+- docs/src/contributors/toestub-contributor-guide.md: Added a fix guide for `skeleton/no-test-for-pub-fn` with before/after examples and suppression guidance, and updated the `last_updated` date.
+- crates/vox-code-audit/src/detectors/no_test_for_pub_fn.rs: Added a new `NoTestForPubFnDetector` to detect exported `fn` declarations in `examples/golden/` Vox files that are not called from any `@test` block in the same file.
+- crates/vox-code-audit/src/detectors/mod.rs: Exported the new `no_test_for_pub_fn` module, added `NoTestForPubFnDetector` to `all_rules()`, and incremented the `rule_count` from 21 to 22.
+- .claude/settings.local.json: Added a new Bash command to the `allowed_bash_commands` list.
+
+--- audit: original='feat(tdd): apply TDD findings codebase-wide — @test-first policy + TOESTUB rule' | actual=335L across 6 files | derived=full ---
