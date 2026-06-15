@@ -1,0 +1,17 @@
+feat(audit): implement CR-L1 HumanEval real harness
+scale: ~460 lines across 12 files [L]
+
+- `crates/vox-audit/src/subcommands/humaneval.rs`: Add new `HumanEvalSubcommand` to implement the CR-L1 HumanEval gate. This subcommand reads a manifest, runs `vox check` on `reference.vox` and `tests.vox` for each fixture, and reports pass rates. It includes logic for binary discovery (`target/debug/vox`, `target/release/vox`, `PATH`), dry-run support, and canonical report writing.
+- `crates/vox-audit/src/lib.rs`: Replace `HumanEvalStub` with the new `HumanEvalSubcommand` in the registry. Apply `cargo fmt` to reformat `emit_audit_run_event` and `CrlGate::all` test.
+- `crates/vox-audit/src/subcommands/stubs.rs`: Remove the `HumanEvalStub` implementation. Reformat `corpus_stub_outcome` calls for other stubs.
+- `crates/vox-audit/src/aggregator.rs`: Apply `cargo fmt` to reformat `event_repository_key` and `counts_lint_findings_per_rule` test.
+- `crates/vox-audit/src/subcommands/corpus_feedback.rs`: Apply `cargo fmt` to reformat `build_outcome` call and `tests` module imports and assertions.
+- `crates/vox-audit/src/recorder.rs`: Apply `cargo fmt` to reformat `JsonlFileRecorder::record` and `load_events_from_jsonl` test.
+- `crates/vox-audit/src/subcommands/retirement.rs`: Apply `cargo fmt` to reformat `check_parity` call.
+- `crates/vox-audit/src/subcommands/aci_default.rs`: Apply `cargo fmt` to reformat `check_parity` call.
+- `crates/vox-audit/src/subcommands/mod.rs`: Add `humaneval` module to the subcommand exports.
+- `crates/vox-audit/src/report.rs`: Apply `cargo fmt` to reformat `AuditReport::write_json` method.
+- `crates/vox-audit/src/main.rs`: Apply `cargo fmt` to reformat `main` function.
+- `crates/vox-audit/src/subcommands/stdlib_coverage.rs`: Apply `cargo fmt` to reformat `check_parity` call.
+
+--- audit: original='feat(audit): implement CR-L1 humaneval real harness (P2.3)' | actual=460L across 12 files | derived=full ---
