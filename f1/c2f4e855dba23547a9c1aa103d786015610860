@@ -1,0 +1,6 @@
+fix(arch-check): exclude dev and build dependencies from layer inversion check
+scale: ~5 lines across 1 files [XS]
+
+- `crates/vox-arch-check/src/main.rs`: Added a check to skip layer inversion analysis for dependencies that are not of `Normal` kind (i.e., `dev-dependencies` and `build-dependencies`), as they do not affect the production binary's layer purity.
+
+--- audit: original='fix(arch-check): exclude dev-deps and build-deps from layer-inversion check' | actual=5L across 1 files | derived=full ---
