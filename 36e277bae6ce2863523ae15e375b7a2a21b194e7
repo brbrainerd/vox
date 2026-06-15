@@ -1,0 +1,10 @@
+feat(web): route Z-tier surfaces through createPortal and strip analysis-only attributes
+scale: ~106 lines across 2 files [M]
+
+- `crates/vox-codegen/src/web_ir/emit_tsx.rs`:
+    - Implemented `is_analysis_only_attr` function to identify attributes used solely for validation (e.g., `data-vox-color`, `data-vox-z-raw`).
+    - Modified `emit_node` to filter out these analysis-only attributes from being rendered in the final DOM output.
+- `crates/vox-codegen/src/codegen_ts/reactive.rs`:
+    - Added logic to `generate_reactive_component` to inject `createPortal` and `voxResolveLayerRoot` imports into the generated TypeScript code if the view uses `createPortal`.
+
+--- audit: original='feat(web): route Z-tier surfaces through createPortal + strip analysis-only attrs (A11 pt2)' | actual=106L across 2 files | derived=full ---
