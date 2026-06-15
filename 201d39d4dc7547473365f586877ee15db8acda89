@@ -1,0 +1,7 @@
+feat(stdlib-gap): lock 53/53 script corpus baseline, completing Phases E and F
+scale: ~76 lines across 2 files [M]
+
+- `contracts/reports/scripts-pass-baseline.txt`: Updated the baseline to include all 53 scripts, adding `scripts/ci-proximity-drift.vox`, `scripts/gui-build.vox`, `scripts/mens/full-pipeline.vox`, `scripts/mens/gate_safe.vox`, `scripts/mens/run_4080_cycles.vox`, `scripts/mens/train_dogfood.vox`, `scripts/mens/train_watch.vox`, and `scripts/setup.vox`.
+- `docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md`: Removed the "Phase E — corpus triage finish" section, indicating its completion. This included removing details about failing scripts, closure blockers, Rust-syntax authoring issues, and Bucket-B mechanical issues, as well as the remaining items for Bucket-B fixes and moving closure-needing scripts.
+
+--- audit: original='feat(phase-ef): lock 53/53 script corpus baseline; Phase E+F complete' | actual=76L across 2 files | derived=full ---
