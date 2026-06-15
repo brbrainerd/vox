@@ -1,0 +1,15 @@
+feat(scientia): add `assess_novelty` entry point for comprehensive novelty assessment
+scale: ~441 lines across 5 files [L]
+
+- `crates/vox-publisher/src/scientia_novelty_assess.rs`: New module `scientia_novelty_assess` introduced, containing the `assess_novelty` function. This function orchestrates the novelty assessment process by:
+    - Applying a `ChronoFilter` to exclude future-dated prior art.
+    - Scoring with `AtomicNoveltyScorer`.
+    - Detecting conflicts with `EvidenceConflictDetector`.
+    - Emitting an explainable `NoveltySignalBreakdown` (including max semantic/lexical similarity, near-hit count, top-hit citations, and sources succeeded).
+    - Defining `NoveltySignalBreakdown` and `NoveltyAssessment` structs.
+- `crates/vox-cli/src/commands/db/publication/discovery.rs`: Modified `publication_novelty_fetch` to call `assess_novelty` and include the `novelty_assessment` in the JSON output, alongside the original bundle.
+- `crates/vox-cli/src/commands/db/publication/decision.rs`: Modified `publication_novelty_happy_path` to call `assess_novelty` and include the `novelty_assessment` in the JSON output.
+- `crates/vox-publisher/src/lib.rs`: Added `pub mod scientia_novelty_assess;` to expose the new module.
+- `crates/vox-publisher/Cargo.toml`: Added `vox-research-events` as a dependency.
+
+--- audit: original='feat(scientia): assess_novelty() seam — chrono-filter + conflict detection + signal breakdown' | actual=441L across 5 files | derived=full ---
