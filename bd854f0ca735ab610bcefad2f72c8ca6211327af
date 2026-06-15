@@ -1,0 +1,6 @@
+fix(vox-compiler): remove unnecessary `mut` keyword in `versioned_fn_value_carries_flag` test
+scale: ~2 lines across 1 files [XS]
+
+- `crates/vox-compiler/tests/versioned_decorator.rs`: Removed `mut` from `interp` variable declaration in `versioned_fn_value_carries_flag` test function.
+
+--- audit: original='fix(vox-compiler): drop unused mut in versioned_decorator test (P5; clippy -D warnings gate)' | actual=2L across 1 files | derived=full ---
