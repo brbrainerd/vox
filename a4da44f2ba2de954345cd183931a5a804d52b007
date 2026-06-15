@@ -1,0 +1,20 @@
+feat(lsp/release): gate vox-lsp db deps and add SBOM step to release-binaries
+scale: ~57 lines across 4 files [M]
+
+- `crates/vox-lsp/Cargo.toml`:
+  - Added a `db` feature, enabled by default, which makes `vox-db` and `vox-gamify` optional dependencies.
+  - This allows `vox-lsp` to be built without database dependencies using `--no-default-features`.
+- `crates/vox-lsp/src/main.rs`:
+  - Conditioned `Arc` and `OnceLock` imports on the `db` feature.
+  - Gated `LUDUS_PROJECT_DB`, `ludus_lsp_events_disabled`, and `cached_project_db` functions with `#[cfg(feature = "db")]`.
+  - Applied `#[cfg(feature = "db")]` to the `err_n` and `warn_n` diagnostic counts and the subsequent telemetry block.
+- `.github/workflows/release-binaries.yml`:
+  - Added a new step to generate an SPDX SBOM using `anchore/sbom-action@v0` for the published artifacts.
+  - Configured the SBOM generation with `continue-on-error: true` and `fail_on_unmatched_files: false` to prevent release blocking.
+  - Included `release-artifacts/sbom.spdx.json` in the assets uploaded to the GitHub release.
+- `docs/plans/INSTALL-RELEASE-AUDIT.md`:
+  - Updated the status of "Phase 4.1b (gate `vox-lsp`)" to "✅" and provided details on the `db` feature implementation and verification.
+  - Updated the status of "Release-workflow extension (SBOM)" to "🟡" and described the added SBOM step, including its non-blocking nature and unverified status.
+  - Added a note about a "⏭️ Optional follow-on" to add an `lsp` subcommand to `vox-langtool`.
+
+--- audit: original='feat(lsp/release): gate vox-lsp db deps (Phase 4.1b) + SBOM step in release-binaries' | actual=57L across 4 files | derived=full ---
