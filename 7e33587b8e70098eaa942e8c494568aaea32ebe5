@@ -1,0 +1,9 @@
+docs(architecture): delete auto-generated architecture-index.md
+scale: ~154 lines across 4 files [M]
+
+- `docs/src/architecture/architecture-index.md`: Deleted the auto-generated architecture index file, as its information is now surfaced by the sidebar's architecture sections.
+- `AGENTS.md`: Updated the "Never edit them by hand" section to reflect that `docs/src/SUMMARY.md` and `docs/src/feed.xml` are no longer committed, and clarified their new generation methods. Removed the entry for `docs/src/architecture/architecture-index.md`.
+- `.gitignore`: Added `docs/src/architecture/architecture-index.md` to the ignore list.
+- `.github/workflows/docs-quality.yml`: Removed `docs/src/architecture/architecture-index.md` from the `markdownlint-cli2` command.
+
+--- audit: original='feat(docs): delete auto-generated architecture-index.md' | actual=154L across 4 files | derived=full ---
