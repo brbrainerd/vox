@@ -48,7 +48,9 @@ impl EnvScratch {
 
 impl Drop for EnvScratch {
     fn drop(&mut self) {
-        for (k, prev) in std::mem::take(&mut self.prev) {
+        let map = std::mem::take(&mut self.prev);
+        let keys: Vec<String> = map.keys().cloned().collect();
+        for (k, prev) in map {
             match prev {
                 Some(v) => unsafe {
                     env::set_var(&k, v);
@@ -57,6 +59,12 @@ impl Drop for EnvScratch {
                     env::remove_var(&k);
                 },
             }
+        }
+        // Invalidate snapshot caches so any accessor that read a key we mutated
+        // will re-read from the now-restored environment on the next call.
+        if !keys.is_empty() {
+            let key_refs: Vec<&str> = keys.iter().map(String::as_str).collect();
+            vox_config::snapshot::bump(&key_refs);
         }
     }
 }
