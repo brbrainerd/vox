@@ -1,0 +1,14 @@
+docs(plans): add 2026-05-08 mobile GUI correctness and tracker ship plan
+scale: ~3391 lines across 1 files [XL]
+
+- Add a new plan document for shipping the vox-mental-tracker app on web, iOS, and Android.
+- The plan outlines six independently shippable tracks:
+    - A. Codegen correctness (async/await)
+    - B. GUI guardrails (five compile-time guardrails)
+    - C. Typed forms (first-class typed forms)
+    - D. Mobile primitives (lifting Capacitor wiring into the language)
+    - E. Mental-tracker mobile productionization (icons, signing, store, offline)
+    - F. Test infrastructure (E2E, unit, snapshot tests)
+- The plan details the tech stack including Rust 2024, TypeScript + React 19, TanStack Router 6, Tailwind 3, Capacitor 6, Kotlin, Swift, Playwright, Vitest, and `insta`.
+
+--- audit: original='docs(plans): add 2026-05-08 mobile-gui-correctness-and-tracker-ship plan' | actual=3391L across 1 files | derived=full ---
