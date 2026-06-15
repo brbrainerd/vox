@@ -1,0 +1,7 @@
+feat(ci): add SSoT gate for dashboard generated files
+scale: ~168 lines across 2 files [M]
+
+- `scripts/check_dashboard_ssot.vox`: New Vox script to enforce Single Source of Truth (SSoT) for `crates/vox-dashboard/app/src/generated/*.tsx` files. It checks if the most recent git commit for each `.tsx` file also touched a `.vox` source file, failing if not. Includes error handling for missing directories and git unavailability.
+- `.github/workflows/ssot-drift.yml`: Add a new `check-dashboard-ssot` job. This job runs the `check_dashboard_ssot.vox` script if the `vox` CLI is available. It includes a shell fallback that performs a `git log` check to identify `.tsx` files in `generated/` whose last commit did not also modify a `.vox` file. The job uses `fetch-depth: 0` to ensure full commit history is available for the check.
+
+--- audit: original='feat(ci): dashboard generated/ SSoT gate (Phase 3)' | actual=168L across 2 files | derived=full ---
