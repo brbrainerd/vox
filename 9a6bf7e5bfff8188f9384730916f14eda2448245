@@ -1,0 +1,7 @@
+feat(compiler): add interpreter return shape parity test and fix path methods
+scale: ~157 lines across 2 files [M]
+
+- `crates/vox-compiler/src/builtin_registry.rs`: Add `interpreter_return_shape_matches_typecheck` test function to verify that the interpreter's return value shape matches the type-checked return type for built-in methods. This function includes a `shape_matches` helper to compare `Ty` and `VoxValue` for various types (Result, Option, Int, Str, Bool, List, Record, Named Regex/Match).
+- `crates/vox-compiler/src/eval/builtins.rs`: Correct the return type of `std.path.parent`, `std.path.file_name`, and `std.path.stem` methods in the interpreter from `Str` to `Option[str]` to match their type-checked and codegen definitions. This fixes a shape mismatch that caused crashes when `unwrap()` was called on the `Option` type.
+
+--- audit: original='feat(compiler): behavioral shape-parity test + fix path.parent/file_name/stem shape' | actual=157L across 2 files | derived=full ---
