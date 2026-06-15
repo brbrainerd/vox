@@ -1,0 +1,14 @@
+feat(deps): upgrade safetensors to 0.7 and normalize candle dependencies
+scale: ~72 lines across 7 files [M]
+
+- `Cargo.toml`:
+  - Upgraded `safetensors` from `0.4` to `0.7`.
+  - Added `candle-transformers = { version = "0.9", default-features = false }` to workspace dependencies.
+- `crates/vox-ml-cli/src/commands/mens/populi/gpu_tests_body.rs`: Updated 4 calls to `safetensors::serialize` to pass `None` instead of `&None` for the metadata parameter, aligning with the `safetensors` 0.7 API change.
+- `crates/vox-plugin-mens-candle-cuda/src/merge.rs`: Updated 3 calls to `safetensors::serialize` to pass `None` instead of `&None` for the metadata parameter.
+- `crates/vox-plugin-mens-candle-cuda/src/qlora_preflight.rs`: Updated 2 calls to `safetensors::serialize_to_file` to pass `None` instead of `&None` for the metadata parameter.
+- `crates/vox-oratio/Cargo.toml`: Switched `candle-core`, `candle-nn`, `candle-transformers`, and `tokenizers` from inline version pins (`0.9.1` or `0.21`) to `{ workspace = true }`.
+- `crates/vox-plugin-oratio/Cargo.toml`: Switched `candle-core`, `candle-nn`, and `candle-transformers` from inline version pins (`0.9.1`) to `{ workspace = true }`.
+- `Cargo.lock`: Updated `safetensors` to `0.7` and adjusted other dependencies due to the changes.
+
+--- audit: original='chore(deps): upgrade safetensors to 0.7 (latest stable) and normalize candle deps' | actual=72L across 7 files | derived=full ---
