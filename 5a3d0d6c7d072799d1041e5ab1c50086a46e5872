@@ -1,0 +1,11 @@
+docs(orchestration): update placement observability status and add VRAM reason code
+scale: ~13 lines across 1 files [S]
+
+- `docs/src/reference/orchestration-unified.md`:
+    - Updated the "Placement and lease observability" section heading to remove "(roadmap contract)".
+    - Changed the description of placement and lease observability from "roadmap contract" to "Implemented", detailing that `task_id`, `agent_id`, and `placement_reason` are emitted as structured tracing fields, and `lease_id` is carried in `PopuliRemoteDelegate`.
+    - Removed the "Documentation contract" introductory text.
+    - Added `local_queue_fallback_insufficient_vram` to the list of placement reason codes.
+    - Modified the description for `lease_id` to reflect its carriage in `PopuliRemoteDelegate.exec_lease_id`.
+
+--- audit: original='docs(orchestration): mark placement observability as implemented, add VRAM reason code' | actual=13L across 1 files | derived=full ---
