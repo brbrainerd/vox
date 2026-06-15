@@ -1,0 +1,16 @@
+feat(codegen): conditionally emit STT plugin based on microphone capability
+scale: ~127 lines across 2 files [M]
+
+- `crates/vox-codegen/src/codegen_rust/emit/mod.rs`:
+    - Introduced `needs_stt` boolean derived from the module's `microphone` capability.
+    - Modified `generate_tauri_workspace` to pass `needs_stt` to `emit_cargo_toml_tauri_app`, `emit_tauri_build_rs`, `emit_tauri_main_rs`, and `emit_tauri_default_capability_json`.
+    - Updated `emit_cargo_toml_tauri_app` to conditionally include `vox-tauri-stt` as a dependency.
+    - Updated `emit_tauri_build_rs` to conditionally include `tauri-plugin-speech` build script ACL.
+    - Updated `emit_tauri_main_rs` to conditionally initialize `vox_tauri_stt::plugin`.
+    - Updated `emit_tauri_default_capability_json` to conditionally include `speech:default` capability.
+- `crates/vox-codegen/src/codegen_rust/mod.rs`:
+    - Removed an assertion for STT plugin registration in `tauri_emit_generates_main_rs` test.
+    - Modified `tauri_emit_registers_sherpa_acl_in_build_rs` test to use a module that explicitly uses `Speech.transcribe_microphone()`.
+    - Added `tauri_emits_stt_only_when_speech_used` test to verify conditional emission of STT-related code and configurations.
+
+--- audit: original='fix(codegen): emit STT plugin only when the module uses speech' | actual=127L across 2 files | derived=full ---
