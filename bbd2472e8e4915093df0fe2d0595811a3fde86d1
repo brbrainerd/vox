@@ -1,0 +1,8 @@
+fix(hir): omit empty `HirDbQueryPlan` fields from serialization
+scale: ~4 lines across 1 files [XS]
+
+- `crates/vox-compiler/src/hir/nodes/stmt_expr.rs`:
+    - Added `skip_serializing_if = "Vec::is_empty"` to `predicate_args` field of `HirDbQueryPlan` to omit empty vectors during serialization.
+    - Added `skip_serializing_if = "Option::is_none"` to `limit_value` field of `HirDbQueryPlan` to omit `None` values during serialization.
+
+--- audit: original='fix(hir): omit empty db-plan fields from serialized HIR' | actual=4L across 1 files | derived=full ---
