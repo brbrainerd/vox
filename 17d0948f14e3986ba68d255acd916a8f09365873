@@ -1,0 +1,6 @@
+fix(ci): skip `vox-dei-shim` lines for `vox-dei-old-crate` retired symbol check
+scale: ~6 lines across 1 files [XS]
+
+- `crates/vox-cli/src/commands/ci/retired_symbol_check.rs`: Added a `continue` statement to skip lines containing "vox-dei-shim" when checking for the `vox-dei-old-crate` retired symbol, preventing false positives for the current HITL crate.
+
+--- audit: original='fix(ci): retired-symbol-check: skip vox-dei-shim lines for vox-dei-old-crate rule' | actual=6L across 1 files | derived=full ---
