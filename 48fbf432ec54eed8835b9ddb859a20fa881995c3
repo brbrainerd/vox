@@ -1,0 +1,6 @@
+docs(scientia): mark Phase 1 of self-publication finalization plan as complete
+scale: ~5 lines across 1 files [XS]
+
+- docs/src/architecture/scientia-self-publication-finalization-plan-2026.md: Updated the "Phase 1 — The extractor" section to mark it as "Complete" as of 2026-05-09, noting the shipment of `vox-claim-extractor` and its F1 score on the SciFact-Open mini-split.
+
+--- audit: original='feat(scientia): wire vox-claim-extractor into workspace + mark Phase 1 Complete' | actual=5L across 1 files | derived=full ---
