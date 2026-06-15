@@ -1,0 +1,6 @@
+docs(arch): Add comprehensive work-loss forensic audit and handoff document
+scale: ~371 lines across 1 files [L]
+
+- docs/src/architecture/work-loss-audit-and-handoff-2026-05-24.md: New document detailing a forensic audit of reported work loss, concluding no commits were destroyed and explaining "missing" work as unmerged branches. It includes audit methodology, an inventory of unmerged work on specific branches (jovial-buck, voxlang-org-cf, dashboard-vuv, naughty-dirac), an explanation of the "destructive reset" as a fast-forward pull, the state of push-gating on local main, and action items for the merge sequence.
+
+--- audit: original='docs(arch): add comprehensive work-loss forensic audit (2026-05-24)' | actual=371L across 1 files | derived=full ---
