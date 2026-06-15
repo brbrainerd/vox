@@ -59,6 +59,12 @@ pub const DEFAULT_IDLE_REAP_SECS: i64 = 300;
 /// Idle runners to keep registered for instant dispatch (0 = pure
 /// scale-to-zero). Override: `VOX_RUNNER_WARM_POOL`.
 pub const DEFAULT_WARM_POOL: u32 = 1;
+/// Grace window before a phantom offline registration is deregistered from
+/// GitHub. An offline runner with no backing container is assumed to be a
+/// crashed ephemeral that never self-deregistered; after this window the
+/// autoscaler removes its registration even when the fleet is busy.
+/// Override: `VOX_RUNNER_PHANTOM_GRACE_SECS`.
+pub const DEFAULT_PHANTOM_GRACE_SECS: i64 = 120;
 
 /// Cap on workflow runs inspected per status when counting queued jobs.
 const DEMAND_RUNS_PER_STATUS: u32 = 20;
@@ -91,6 +97,10 @@ fn idle_reap_secs() -> i64 {
 
 fn warm_pool() -> u32 {
     env_u32("VOX_RUNNER_WARM_POOL", DEFAULT_WARM_POOL)
+}
+
+fn phantom_grace_secs() -> i64 {
+    env_i64("VOX_RUNNER_PHANTOM_GRACE_SECS", DEFAULT_PHANTOM_GRACE_SECS)
 }
 
 // ---------------------------------------------------------------------------
@@ -159,11 +169,19 @@ pub fn count_matching_queued_jobs(label_lines: &str, runner_labels: &str) -> u32
 pub type RunnerRow = (String, String, bool);
 
 /// Managed GitHub runner registrations that are **offline**, not busy, and have
-/// no backing container — stale leftovers from crashed ephemeral runners.
-pub fn stale_offline_registrations<'a>(
+/// no backing container, and whose first-seen-offline timestamp is older than
+/// `grace_secs`. Returns `(name, first_seen)` pairs.
+///
+/// Unlike the old `stale_offline_registrations`, this function is *not*
+/// gated on whether the fleet is busy — a phantom blocks a registration slot
+/// regardless of load and must be pruned unconditionally once past grace.
+pub fn phantom_offline_registrations<'a>(
     rows: &'a [RunnerRow],
     containers: &HashSet<String>,
-) -> Vec<&'a str> {
+    phantom_seen: &HashMap<String, i64>,
+    now: i64,
+    grace_secs: i64,
+) -> Vec<(&'a str, i64)> {
     rows.iter()
         .filter(|(name, status, busy)| {
             name.starts_with(MANAGED_PREFIX)
@@ -171,7 +189,14 @@ pub fn stale_offline_registrations<'a>(
                 && !busy
                 && !containers.contains(name)
         })
-        .map(|(name, _, _)| name.as_str())
+        .filter_map(|(name, _, _)| {
+            let first_seen = *phantom_seen.get(name.as_str()).unwrap_or(&now);
+            if now - first_seen >= grace_secs {
+                Some((name.as_str(), first_seen))
+            } else {
+                None
+            }
+        })
         .collect()
 }
 
@@ -482,6 +507,31 @@ fn write_state(state: &HashMap<String, i64>) {
     }
 }
 
+// --- phantom-seen persistence -----------------------------------------------
+
+fn phantom_state_path() -> PathBuf {
+    crate::fs_utils::user_home_dir()
+        .join(".vox")
+        .join("ci-runner-phantom.json")
+}
+
+fn read_phantom_seen() -> HashMap<String, i64> {
+    std::fs::read_to_string(phantom_state_path())
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
+fn write_phantom_seen(seen: &HashMap<String, i64>) {
+    let p = phantom_state_path();
+    if let Some(parent) = p.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    if let Ok(s) = serde_json::to_string_pretty(seen) {
+        let _ = std::fs::write(p, s);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Reconcile
 // ---------------------------------------------------------------------------
@@ -495,15 +545,19 @@ pub fn run_scale(apply: bool) -> Result<()> {
     let max = max_runners();
     let reap_secs = idle_reap_secs();
     let warm = warm_pool();
+    let phantom_grace = phantom_grace_secs();
     let prev = read_state();
+    let mut phantom_seen = read_phantom_seen();
     let rows = runner_rows().unwrap_or_default();
     let busy_map = managed_busy_map(&rows);
 
     // 1. Remove exited managed containers — the primary despawn path now that
-    //    ephemeral runners exit after their single job.
+    //    ephemeral runners exit after their single job. Deregister from GitHub
+    //    first so the registration slot is freed before the container is removed.
     let mut dead = 0u32;
     for name in managed_containers("exited") {
         if !dry_run {
+            deregister(&name);
             let _ = docker(&["rm", "-f", &name]);
         }
         dead += 1;
@@ -562,19 +616,48 @@ pub fn run_scale(apply: bool) -> Result<()> {
         }
     }
 
-    // 3. Prune stale offline GitHub registrations with no backing container —
+    // 3. Prune phantom offline GitHub registrations with no backing container —
     //    leftovers from crashed ephemeral runners that never self-deregistered.
+    //    Unlike the old stale-offline check, phantoms are pruned regardless of
+    //    fleet-busy state once the grace window has elapsed: a phantom blocks a
+    //    registration slot no matter how loaded the fleet is.
     let mut containers: HashSet<String> = running.iter().cloned().collect();
     containers.extend(managed_containers("exited"));
+
+    // Record first-seen timestamp for newly-detected offline phantoms.
+    for (name, status, busy) in &rows {
+        if name.starts_with(MANAGED_PREFIX)
+            && status == "offline"
+            && !busy
+            && !containers.contains(name)
+        {
+            phantom_seen.entry(name.clone()).or_insert(now);
+        }
+    }
+    // Evict entries that have a backing container again (container restarted etc.).
+    phantom_seen.retain(|name, _| !containers.contains(name));
+
     let mut pruned = 0u32;
-    for name in stale_offline_registrations(&rows, &containers) {
+    let mut pruned_names: Vec<String> = Vec::new();
+    for (name, _first_seen) in
+        phantom_offline_registrations(&rows, &containers, &phantom_seen, now, phantom_grace)
+    {
         if dry_run {
-            println!("[dry-run] would prune stale offline registration {name}");
+            println!("[dry-run] would prune phantom offline registration {name}");
         } else {
-            eprintln!("[prune] stale offline registration {name}");
+            eprintln!("[prune] phantom offline registration {name}");
             deregister(name);
         }
+        pruned_names.push(name.to_string());
         pruned += 1;
+    }
+    // Remove pruned entries from phantom_seen so they don't linger.
+    for name in &pruned_names {
+        phantom_seen.remove(name);
+    }
+
+    if !dry_run {
+        write_phantom_seen(&phantom_seen);
     }
 
     // 4. Scale up toward queued-job demand (plus warm pool).
@@ -692,22 +775,41 @@ mod tests {
     }
 
     #[test]
-    fn stale_offline_registrations_detected() {
+    fn phantom_pruned_after_grace_regardless_of_busy() {
         let rows: Vec<RunnerRow> = vec![
-            // offline, no container → stale
+            // offline, no container, past grace → prune
             ("vox-runner-auto-aaa-0".into(), "offline".into(), false),
-            // offline but container still exists (starting/restarting) → keep
+            // offline but container still exists → not a phantom
             ("vox-runner-auto-bbb-0".into(), "offline".into(), false),
-            // online → never stale
+            // online → never pruned
             ("vox-runner-auto-ccc-0".into(), "online".into(), false),
-            // busy is never pruned, even if reported offline mid-transition
+            // busy → never pruned even if reported offline mid-transition
             ("vox-runner-auto-ddd-0".into(), "offline".into(), true),
             // unmanaged names are never touched
             ("vox-runner-1".into(), "offline".into(), false),
         ];
         let containers: HashSet<String> = ["vox-runner-auto-bbb-0".to_string()].into();
-        let stale = stale_offline_registrations(&rows, &containers);
-        assert_eq!(stale, vec!["vox-runner-auto-aaa-0"]);
+        let now = 1_000_000i64;
+        let grace = 120i64;
+        // aaa-0 was first seen 200s ago (past grace)
+        let mut phantom_seen: HashMap<String, i64> = HashMap::new();
+        phantom_seen.insert("vox-runner-auto-aaa-0".to_string(), now - 200);
+        let to_prune = phantom_offline_registrations(&rows, &containers, &phantom_seen, now, grace);
+        let names: Vec<&str> = to_prune.iter().map(|(n, _)| *n).collect();
+        assert_eq!(names, vec!["vox-runner-auto-aaa-0"]);
+    }
+
+    #[test]
+    fn phantom_held_one_tick_within_grace() {
+        let rows: Vec<RunnerRow> = vec![("vox-runner-auto-aaa-0".into(), "offline".into(), false)];
+        let containers: HashSet<String> = HashSet::new();
+        let now = 1_000_000i64;
+        let grace = 120i64;
+        // aaa-0 was first seen only 60s ago (within grace)
+        let mut phantom_seen: HashMap<String, i64> = HashMap::new();
+        phantom_seen.insert("vox-runner-auto-aaa-0".to_string(), now - 60);
+        let to_prune = phantom_offline_registrations(&rows, &containers, &phantom_seen, now, grace);
+        assert!(to_prune.is_empty(), "within grace: should not prune yet");
     }
 
     #[test]
