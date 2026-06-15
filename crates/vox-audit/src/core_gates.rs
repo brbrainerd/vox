@@ -83,6 +83,43 @@ pub fn run_code_gate(root: &Path) -> CoreGateResult {
     }
 }
 
+/// Run ONLY the silent-drop detectors (catch-all-swallow + cross-crate-dup) over the
+/// workspace and fail if ANY of their findings survive the optional grandfather
+/// baseline. Severity stays Info (the human `vox audit code` report is unchanged); the
+/// gate is count-based (no severity bump). Pass a committed
+/// `contracts/toestub/silent-drop-baseline.v1.json` as `baseline` to grandfather
+/// pre-existing sites so only NEW silent-drops trip the gate. Findings are filtered to
+/// the two rule ids explicitly, so unrelated batch detectors cannot pollute the count.
+/// (Task 2.6 / R9.)
+pub fn run_silent_drop_gate(root: &Path, baseline: Option<PathBuf>) -> CoreGateResult {
+    const RULES: [&str; 2] = ["vox/catch-all-swallow", "arch/cross-crate-dup"];
+    let config = ToestubConfig {
+        roots: vec![root.to_path_buf()],
+        min_severity: Severity::Info,
+        run_mode: ToestubRunMode::Audit,
+        rule_filter: Some(RULES.iter().map(|s| s.to_string()).collect()),
+        suppression_path: baseline,
+        format: OutputFormat::Json,
+        ..ToestubConfig::default()
+    };
+    let engine = ToestubEngine::new(config);
+    let (result, _) = engine.run_and_report();
+    let remaining = result
+        .findings
+        .iter()
+        .filter(|f| RULES.contains(&f.rule_id.as_str()))
+        .count();
+    let ok = remaining == 0;
+    CoreGateResult {
+        gate: "silent-drop",
+        ok,
+        exit_code: if ok { 0 } else { 1 },
+        detail: Some(format!(
+            "{remaining} silent-drop finding(s) beyond baseline"
+        )),
+    }
+}
+
 /// Run CR-L6 retirement parity via the existing registry subcommand.
 pub fn run_retirement_gate() -> CoreGateResult {
     let args = CommonArgs {
