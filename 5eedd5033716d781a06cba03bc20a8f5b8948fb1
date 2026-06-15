@@ -1,0 +1,18 @@
+chore(fmt): format Rust crates for #97 merge
+scale: ~980 lines across 50 files [L]
+
+- `crates/vox-codegen`: Apply `cargo fmt` to `codegen_ts/rn` components, `codegen_ts/vox_client`, `codegen_ts/web_ir`, `codegen_ts/reactive`, `codegen_ts/rn/form`, `codegen_ts/rn/mobile_utils`, `codegen_ts/emitter`, `codegen_ts/rn/mod.rs`, `codegen_ts/mod.rs`, `codegen_ts/rn/scaffold`, `codegen_ts/mobile_emit`, and `codegen_ts/hir_emit`. This includes rewrapping long lines, adjusting indentation, and spacing.
+- `crates/vox-gui`: Apply `cargo fmt` to `commands/memory.rs`, `commands/models.rs`, `commands/action_manifest.rs`, `commands/control_plane.rs`, `commands/preferences.rs`, `commands/build_info.rs`, and `commands/runs.rs`. This primarily involved reordering `use` statements and rewrapping lines.
+- `crates/vox-orchestrator-mcp`: Apply `cargo fmt` to `http_gateway/dashboard_api.rs` and `llm_bridge/model_route_policy/resolve.rs`, reordering `use` statements and rewrapping lines.
+- `crates/vox-orchestrator`: Apply `cargo fmt` to `models/select.rs`, `catalog.rs`, `orchestrator/catalog_refresh.rs`, `models/mod.rs`, `routing/engine.rs`, and `models/scoring.rs`. This involved rewrapping long lines and adjusting spacing.
+- `crates/vox-journal`: Apply `cargo fmt` to `file.rs`, rewrapping lines and adjusting spacing.
+- `crates/vox-cli-tests`: Apply `cargo fmt` to `tests/build_e2e.rs`, `tests/mobile_cross_compile.rs`, `src/lib.rs`, and `tests/runtime_packages.rs`, rewrapping lines and adjusting spacing.
+- `crates/vox-cli`: Apply `cargo fmt` to `commands/ci/gui_surface_coverage.rs`, `commands/ci/gui_catalog_parity.rs`, `commands/ci/gui_version_sync.rs`, and `commands/ci/mod.rs`, rewrapping lines and adjusting spacing.
+- `crates/vox-workflow-runtime`: Apply `cargo fmt` to `file_journal.rs`, rewrapping lines.
+- `crates/vox-drift-check`: Apply `cargo fmt` to `sweep/body_hash.rs`, `sweep/numeric_dedup.rs`, `rules/timeout_literal.rs`, `extractor.rs`, and `rules/vox_path_literal.rs`, rewrapping lines and adjusting spacing.
+- `crates/vox-dei-shim`: Apply `cargo fmt` to `research/model_select.rs`, rewrapping lines.
+- `crates/vox-runtime`: Apply `cargo fmt` to `config.rs`, `profile.rs`, `tests/profile_integration.rs`, and `lib.rs`, rewrapping lines and adjusting spacing.
+- `crates/vox-runtime-rn`: Apply `cargo fmt` to `lib.rs` and `tests/bridge_integration.rs`, rewrapping lines.
+- This commit applies `cargo fmt` across 50 files in 12 crates to resolve formatting drift accumulated before a pre-push hook was enabled, ensuring consistency for PR #97. No functional changes were made.
+
+--- audit: original='chore: fmt mobile-foundation crates for clean #97 merge' | actual=980L across 50 files | derived=full ---
