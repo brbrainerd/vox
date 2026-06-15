@@ -1,0 +1,10 @@
+refactor(populi): remove distributed_training module, consume vox-distributed-training crate
+scale: ~476 lines across 12 files [L]
+
+- Remove `crates/vox-populi/src/distributed_training` module and its submodules (`checkpoint`, `gradient`, `mesh_env`, `session`, `strategy`, `telemetry`, `data_parallel`). This code is now provided by the `vox-distributed-training` crate.
+- Update `crates/vox-populi/src/lib.rs` to remove the `distributed_training` module declaration.
+- Update `crates/vox-populi/Cargo.toml` to add `vox-distributed-training` as a dependency.
+- Update `Cargo.lock` to reflect the new dependency.
+- Modify `crates/vox-populi/src/mens/tensor/mod.rs` to remove a commented-out line.
+
+--- audit: original='refactor(populi): consume vox-distributed-training crate, delete byte-identical fork (B2)' | actual=476L across 12 files | derived=full ---
