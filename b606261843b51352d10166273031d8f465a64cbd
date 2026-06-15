@@ -1,0 +1,17 @@
+feat(plugin-catalog): Introduce `ci plugin-catalog-sync` command
+scale: ~260 lines across 13 files [L]
+
+- **`crates/vox-cli/src/commands/ci/plugin_catalog_sync.rs`**: New command `vox ci plugin-catalog-sync` added to derive plugin catalog entries from `Plugin.toml` manifests. It synchronizes `description`, `status`, `payload-kind`, `extension-points`, and `exposes-tools` fields, preserving other fields and comments using `toml_edit`.
+- **`crates/vox-plugin-catalog/build.rs`**: Relaxed validation for `code` and `composite` plugins, allowing `extension-points` to be an empty list.
+- **`crates/vox-cli/src/commands/ci/cmd_enums.rs`**: Added `PluginCatalogSync` enum variant to `CiCmd` with a `write` flag.
+- **`crates/vox-cli/src/commands/ci/plugin_catalog_parity.rs`**: Fixed a bug by adding a check to skip `tests/` fixtures when scanning for plugin manifests, aligning with other plugin gates.
+- **`crates/vox-cli/src/commands/ci/mod.rs`**: Registered the new `plugin_catalog_sync` module.
+- **`crates/vox-cli/src/commands/ci/run_body.rs`**: Integrated `PluginCatalogSync` into the `ci` command's `run` function.
+- **`crates/vox-cli/src/commands/ci/run_body_helpers/docs.rs`**: Added `plugin_catalog_sync` to the `run_ssot_drift` function for verification.
+- **`crates/vox-plugin-catalog/catalog.toml`**: Updated descriptions and `extension-points` for `nvml-probe`, `oratio`, `cloud`, `populi-mesh`, and `webhook` plugins to reflect manifest data. Specifically, `webhook`'s `extension-points` changed from `["HttpListener"]` to `[]`.
+- **`crates/workspace-hack/Cargo.toml`**: Added `toml_edit` as a workspace dependency and removed `gix-hash`.
+- **`Cargo.toml`**: Added `toml_edit` as a top-level dependency.
+- **`crates/vox-cli/Cargo.toml`**: Added `toml_edit` as a dependency.
+- **`Cargo.lock`**: Updated due to dependency changes.
+
+--- audit: original='feat(plugin-ssot): PS-5 — generate plugin catalog rows from manifests (#215)' | actual=260L across 13 files | derived=full ---
