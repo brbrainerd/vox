@@ -1,0 +1,30 @@
+fix: address CodeRabbit review feedback
+scale: ~212 lines across 25 files [L]
+
+- `crates/vox-orchestrator/src/mcp_tools/http_gateway/origin_guard.rs`: Hardened `is_origin_allowed` against subdomain spoofing (e.g., `localhost.evil.com`, `127.0.0.1.attacker.org`) by introducing `is_loopback_host` to precisely check for loopback names (`127.0.0.1`, `localhost`, `[::1]`) and stripping scheme/port for accurate host comparison.
+- `crates/vox-compiler/src/typeck/checker/mod.rs`: Added `check_reactive_component` to perform a minimal typecheck pass on reactive components, ensuring expressions within `state`, `derived`, `effect`, `on_mount`, `on_cleanup`, and `view` are checked for typing errors.
+- `crates/vox-compiler/src/hir/db_op_walk.rs`: Extended `for_each_hir_expr_in_module` and `for_each_hir_expr_in_module_mut` to walk expressions within reactive components' members (state, derived, effect, on_mount, on_cleanup, stmt) and their view.
+- `examples/golden/ref_actors.vox`: Updated the `run` function to directly call `Counter_increment(0)` instead of using `spawn(Counter).increment(0)`, aligning with current HIR type-checking limitations and adding a comment explaining the change.
+- `crates/vox-orchestrator/src/mcp_tools/http_gateway/mod.rs`: Enhanced debug logging in `http_gateway_enabled` to include the resolved status and source of the `VOX_MCP_HTTP_ENABLED` secret.
+- `examples/golden/crud_api.vox`: Updated frontmatter metadata, removing `http` and `filter` from `constructs` and adding `fn`, and adjusted the `@training_prompt` to reflect these changes.
+- `crates/vox-compiler/src/codegen_rust/emit/tables/projections.rs`: Renamed a test case from `collects_select_projections_from_reactive_members` to `collects_select_projections_from_endpoint_fn_body` to accurately reflect its purpose.
+- `crates/vox-compiler/src/hir/dead_code.rs`: Removed the `HirExpr::Binary(crate::hir::HirBinOp::Pipe, ...)` arm from `visit_expr`, effectively pruning unreachable pipe arms.
+- `crates/vox-compiler/src/hir/validate.rs`: Added validation for reactive component names and parameters within `validate_module`.
+- `crates/vox-compiler/src/typeck/checker/expr.rs`: Corrected the span used for diagnostics in `HirExpr::Binary(HirBinOp::Pipe, ...)` to use the expression's own span instead of an internal `_span`.
+- `examples/golden/checkout_workflow.vox`: Updated frontmatter metadata, specifically the `last_validated` date.
+- `crates/vox-dashboard/Cargo.toml`: Added `serial_test` dependency with `dev` feature for dashboard authentication tests.
+- `crates/vox-dashboard/tests/auth.rs`: Gated dashboard authentication tests with `#[serial]` to ensure `env::set_var` safety.
+- `crates/vox-compiler/src/codegen_ts/activity.rs`: Updated `last_validated` date in frontmatter.
+- `crates/vox-compiler/src/codegen_ts/emitter.rs`: Removed unused `_island_names` parameter from `emit_module`.
+- `crates/vox-compiler/tests/return_type_inference_test.rs`: Updated `last_validated` date in frontmatter.
+- `crates/vox-compiler/tests/web_ir_lower_emit_test.rs`: Updated `last_validated` date in frontmatter and regenerated grammar artifact.
+- `crates/vox-compiler/tests/with_expression_typecheck_test.rs`: Updated `last_validated` date in frontmatter.
+- `docs/src/architecture/gui-native-roadmap-status-2026.md`: Updated `last_validated` date in frontmatter.
+- `examples/golden/agent_pipeline.vox`: Updated `last_validated` date in frontmatter.
+- `examples/golden/counter_actor.vox`: Updated `last_validated` date in frontmatter.
+- `examples/golden/error_propagation.vox`: Updated `last_validated` date in frontmatter.
+- `examples/golden/inventory_rosetta_platform.vox`: Updated `last_validated` date in frontmatter.
+- `examples/golden/iot_telemetry.vox`: Updated `last_validated` date in frontmatter.
+- `contracts/speech-to-code/vox_grammar_artifact.json`: Regenerated grammar artifact, resulting in a BOM strip.
+
+--- audit: original='fix: address CodeRabbit review feedback (27 items)' | actual=212L across 25 files | derived=full ---
