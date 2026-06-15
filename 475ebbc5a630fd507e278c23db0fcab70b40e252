@@ -1,0 +1,7 @@
+docs(architecture): exempt `vox-vcs/src/lib.rs` from `jj_lib` confinement
+scale: ~3 lines across 2 files [S]
+
+- `crates/vox-vcs/src/lib.rs`: Reworded doc comment to clarify that `jj-lib` calls are confined to the crate, not just `jj_lib::` calls.
+- `docs/src/architecture/layers.toml`: Removed `crates/vox-vcs/src/lib.rs` from the `jj_lib::` confinement exemption list.
+
+--- audit: original='chore(vox-vcs): reword doc comment so jj-lib-confined exempts only real call sites' | actual=3L across 2 files | derived=full ---
