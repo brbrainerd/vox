@@ -1,0 +1,6 @@
+fix(web_ir): `insufficient_contrast` diagnostic now blocks builds
+scale: ~40 lines across 1 files [S]
+
+- `crates/vox-codegen/src/web_ir/validate.rs`: Modified `is_advisory_diagnostic` to exclude `web_ir_validate.a11y.insufficient_contrast` from the advisory diagnostics, ensuring it blocks builds. Added a new test `insufficient_contrast_is_not_advisory` to verify this behavior, confirming that `low_contrast` and other a11y diagnostics remain advisory.
+
+--- audit: original='feat(web_ir): insufficient_contrast now blocks builds (advisory carve-out)' | actual=40L across 1 files | derived=full ---
