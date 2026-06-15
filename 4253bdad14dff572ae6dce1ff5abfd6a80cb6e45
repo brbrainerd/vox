@@ -1,0 +1,15 @@
+feat(telemetry): Handle ModelCall events in ResearchMetricsSink and add roundtrip test
+scale: ~143 lines across 2 files [M]
+
+- `crates/vox-db/src/telemetry_sink.rs`:
+    - Modified `ResearchMetricsSink` to process `TelemetryEvent::ModelCall` variants.
+    - For `ModelCallEvent`, it now persists a `research_metrics` row using `METRIC_TYPE_MODEL_CALL_EVENT`.
+    - The `cost_usd` field of `ModelCallEvent` is stored as `metric_value`.
+    - The serialized `ModelCallEvent` is stored as `metadata_json`.
+    - Updated module-level documentation to reflect handling of `ModelCall` events.
+- `crates/vox-db/tests/model_call_event_roundtrip.rs`:
+    - Added a new integration test file to verify the roundtrip persistence of `ModelCallEvent`s.
+    - Includes a test `model_call_event_serializes_and_persists` to check DB persistence and data integrity.
+    - Includes a test `model_call_event_json_has_expected_fields` to verify the JSON serialization shape.
+
+--- audit: original='feat(telemetry/B5-B6): handle ModelCall in ResearchMetricsSink + roundtrip test' | actual=143L across 2 files | derived=full ---
