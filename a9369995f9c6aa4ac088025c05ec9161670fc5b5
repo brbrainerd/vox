@@ -1,0 +1,12 @@
+feat(tauri): Accept desktop-only ADR, remove mobile STT code, update docs
+scale: ~215 lines across 8 files [M]
+
+- docs(architecture): Update `adr-NNN-scope-tauri-desktop-only.md` status from "Proposed" to "Accepted", detailing the verification of all four acceptance preconditions.
+- chore(vox-tauri-stt): Delete `ios/AppleSpeechBackend.swift` (82 lines) and `android/src/main/java/app/vox/tauri/sherpa/SpeechRecognizerBridge.kt` (68 lines) as Tauri is now desktop-only.
+- refactor(vox-tauri-stt): Simplify `src/plugin.rs` by removing the `#[cfg(any(target_os = "android", target_os = "ios"))]` conditional compilation block in `transcribe()`. The function now returns a single error message indicating that on-device transcription is not wired for desktop Tauri builds and directs mobile apps to the React Native target.
+- docs(vox-tauri-stt): Update `README.md` to reflect the desktop-only scope of Tauri, explicitly stating the removal of Android and iOS sources and directing mobile transcription to the React Native target.
+- docs(vox-tauri-stt): Update `src/lib.rs` crate-level documentation to specify that `vox-tauri-stt` is for **desktop** Tauri 2 apps and explain the removal of mobile sources.
+- chore(vox-tauri-stt): Update `Cargo.toml` description to clarify that the crate is for desktop Tauri apps and that mobile uses the React Native target.
+- docs(vox-tauri-codegen): Update `src/lib.rs` generated guidance to specify "desktop installers only" and clarify that mobile apps use `vox build --target=mobile` (React Native + Expo).
+
+--- audit: original='chore(tauri): Phase 3 hygiene — delete dead mobile native code, accept desktop-only ADR' | actual=215L across 8 files | derived=full ---
