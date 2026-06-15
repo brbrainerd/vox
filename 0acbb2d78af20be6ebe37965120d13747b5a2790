@@ -1,0 +1,9 @@
+fix(scientia): improve sentence splitting to handle decimals, versions, and abbreviations
+scale: ~60 lines across 1 files [M]
+
+- `crates/vox-scientia/src/claim_extractor/pipeline.rs`:
+    - Modified `split_sentences` to prevent splitting sentences at periods within decimal numbers (e.g., "12.5ms"), version numbers (e.g., "v0.6.2"), or common abbreviations (e.g., "e.g.", "i.e.", "etc.", "vs.").
+    - A period now only terminates a sentence if it's followed by an uppercase character (after optional whitespace) or if it's the end of the text.
+    - Added `NON_TERMINAL_SUFFIXES` constant to define abbreviations that do not end a sentence.
+
+--- audit: original='fix(scientia): sentence splitter no longer breaks decimals, versions, or abbreviations' | actual=60L across 1 files | derived=full ---
