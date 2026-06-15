@@ -1,0 +1,10 @@
+feat(vox-gui): implement theme switching for accent palette
+scale: ~72 lines across 5 files [M]
+
+- `crates/vox-gui/ui/src/lib/theme.ts`: Added `ThemeId` type, `KNOWN` themes set, `normalizeTheme` to validate theme IDs, and `applyTheme` to set `data-theme` on `<html>`.
+- `crates/vox-gui/ui/src/main.tsx`: Integrated `applyTheme` to set the initial theme based on persisted `gui.theme` preference at application bootstrap.
+- `crates/vox-gui/ui/src/components/surfaces/Settings/SettingsView.tsx`: Modified `RangeInline` component to use `rgb(var(--brass))` for the slider gradient. Added a call to `applyTheme` when the theme setting is changed to immediately update the UI.
+- `crates/vox-gui/ui/tailwind.config.js`: Updated `brass`, `amber-glow`, and `primary` color definitions to use `rgb(var(--brass) / <alpha-value>)` for theme-aware accent colors.
+- `crates/vox-gui/ui/src/index.css`: Defined `--brass` CSS variables for `arcane`, `void`, and `glacier` themes, switched by `data-theme` on `<html>`. Updated slider thumb `border` and `box-shadow` to use `rgb(var(--brass))`.
+
+--- audit: original='feat(vox-gui): make Settings theme selector actually switch the accent palette' | actual=72L across 5 files | derived=full ---
