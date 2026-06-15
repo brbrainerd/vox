@@ -1,0 +1,8 @@
+docs(backlog): mark M-02 as landed in data storage migration backlog
+scale: ~4 lines across 1 files [XS]
+
+- docs/src/architecture/data-storage-migration-backlog-2026.md:
+  - Updated the verification step for M-02 to check if `cat .cursor/rules/data-storage-policy.mdc` is non-empty, replacing the previous `rg` command.
+  - Added a "Landed" note with the commit hash `df8fdb32` and date `2026-04-22` for M-02.
+
+--- audit: original='M-02: chore(backlog): mark M-02 landed' | actual=4L across 1 files | derived=full ---
