@@ -1,0 +1,7 @@
+feat(coverage-graph): Ingest LCOV `reached` data and document pipeline
+scale: ~183 lines across 2 files [M]
+
+- **scripts/coverage-graph/ingest_reaches.py**: New script to parse LCOV `FNDA` records, identify functions that were executed (`reached`), and annotate code nodes in the semantic graph. It computes the `REACHED_VS_PROVEN` keystone set (executed but unasserted symbols).
+- **scripts/coverage-graph/README.md**: New documentation detailing the "Semantic Test-Coverage Toolchain" pipeline, including the `reached`, `targeted`, and `proven` coverage strengths, their meanings, and sources. It outlines the steps for building the base graph, static overlay, LLM behavior extraction, and making the data queryable.
+
+--- audit: original='feat(coverage-graph): Phase 0 reached-layer ingester + pipeline README' | actual=183L across 2 files | derived=full ---
