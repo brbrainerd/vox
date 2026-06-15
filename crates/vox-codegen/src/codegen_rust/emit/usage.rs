@@ -111,3 +111,29 @@ impl UsageTracker {
         self.last_use.get(name).is_some_and(|s| *s == span)
     }
 }
+
+#[cfg(test)]
+mod semcov_behavior_tests {
+    use super::*;
+    use vox_compiler::hir::lower_module;
+    use vox_compiler::lexer::lex;
+    use vox_compiler::parser::parse_script;
+
+    fn first_fn_body(src: &str) -> Vec<HirStmt> {
+        let module = parse_script(lex(src)).expect("parse");
+        let hir = lower_module(&module);
+        hir.functions.first().expect("one function").body.clone()
+    }
+
+    #[test]
+    fn is_last_use_true_for_recorded_span_false_for_other() {
+        // Catches: is_last_use() comparing the wrong field or always true/false.
+        let body = first_fn_body("fn f(s: str) to Unit { std.print(s)\n std.log(s) }");
+        let tracker = UsageTracker::build(&body);
+        let recorded = *tracker.last_use.get("s").expect("s tracked");
+        assert!(tracker.is_last_use("s", recorded));
+        let bogus = Span::new(recorded.start + 1, recorded.end + 1);
+        assert!(!tracker.is_last_use("s", bogus));
+        assert!(!tracker.is_last_use("nonexistent", recorded));
+    }
+}

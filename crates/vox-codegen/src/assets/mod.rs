@@ -134,6 +134,45 @@ mod tests {
         m.stage_under(&stage).expect("stage");
         assert!(stage.join("app-icon.png").is_file());
     }
+
+    #[test]
+    fn from_bundle_fragment_then_preflight_fails_naming_missing_splash() {
+        // Catches: from_bundle_fragment() dropping the splash arg, or
+        // validate_preflight() not surfacing the missing path.
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::File::create(dir.path().join("icon.png")).expect("touch icon");
+        let err = AssetManifest::from_bundle_fragment(
+            dir.path(),
+            Some("icon.png"),
+            Some("splash.png"),
+            None,
+            None,
+            None,
+        )
+        .validate_preflight()
+        .expect_err("missing splash must fail preflight");
+        assert!(
+            err.to_string().contains("splash.png"),
+            "error must name the missing path, got: {err}"
+        );
+    }
+
+    #[test]
+    fn validate_preflight_ok_when_all_present() {
+        // Catches: validate_preflight() spuriously failing when all assets exist.
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::File::create(dir.path().join("a.png")).expect("touch a");
+        std::fs::File::create(dir.path().join("b.png")).expect("touch b");
+        let m = AssetManifest::from_bundle_fragment(
+            dir.path(),
+            Some("a.png"),
+            Some("b.png"),
+            None,
+            None,
+            None,
+        );
+        assert!(m.validate_preflight().is_ok());
+    }
 }
 
 #[cfg(test)]
