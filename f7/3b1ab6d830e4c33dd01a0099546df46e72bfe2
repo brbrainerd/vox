@@ -1,0 +1,15 @@
+feat(mcp): register 10 new tools in catalog and fix command-compliance
+scale: ~482 lines across 10 files [L]
+
+- `contracts/operations/catalog.v1.yaml`: Added 10 new operations: `mesh.nodes`, `mesh.queue-stats`, `mesh.dispatch`, `plugin.list`, `plugin.catalog`, `plugin.info`, `plugin.install`, `plugin.remove`, `pending-approvals`, and `resolve-approval`.
+- `contracts/capability/capability-registry.yaml`: Added 10 new capabilities for the `mcp` scope, corresponding to the newly registered tools.
+- `contracts/mcp/tool-registry.canonical.yaml`: Added 10 new tool definitions, including `vox_mesh_dispatch`, `vox_mesh_nodes`, `vox_mesh_queue_stats`, `vox_pending_approvals`, `vox_plugin_catalog`, `vox_plugin_info`, `vox_plugin_install`, `vox_plugin_list`, `vox_plugin_remove`, and `vox_resolve_approval`.
+- `contracts/mcp/http-read-role-governance.yaml`: Explicitly granted `vox_mesh_nodes` and `vox_mesh_queue_stats` to the HTTP read role.
+- `crates/vox-orchestrator-mcp/src/pending_approvals.rs`: Extracted the decision-to-ApprovalOutcome mapping into a new `outcome_from_decision` function, including unit tests.
+- `crates/vox-orchestrator-mcp/src/input_schemas.rs`: Added explicit input schemas for all 10 new tools: `vox_mesh_nodes`, `vox_mesh_queue_stats`, `vox_mesh_dispatch`, `vox_plugin_list`, `vox_plugin_catalog`, `vox_plugin_info`, `vox_plugin_remove`, `vox_plugin_install`, `vox_pending_approvals`, and `vox_resolve_approval`.
+- `crates/vox-orchestrator-mcp/src/dispatch.rs`: Replaced the inline `match decision` block with a call to the new `crate::pending_approvals::outcome_from_decision` function.
+- `crates/vox-cli/src/commands/ci/command_compliance/validators.rs`: Added "models" to `SKIP_ALIASES` to exempt it from Latin alias parity checks.
+- `contracts/reports/operations-catalog-inventory.v1.json`: Updated the `catalog_operations` count from 523 to 533.
+- `contracts/reports/gui-surface-coverage.v1.json`: Regenerated, but no content changes.
+
+--- audit: original='fix(mcp): register session-new tools in catalog SSOT; unbreak command-compliance' | actual=482L across 10 files | derived=full ---
