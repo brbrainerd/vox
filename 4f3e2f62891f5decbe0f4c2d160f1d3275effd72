@@ -1,0 +1,9 @@
+feat(vox-config): add config-aware embedding URLs and numeric coercion tests
+scale: ~113 lines across 4 files [M]
+
+- `crates/vox-config/src/env_parse.rs`: Add new tests for `resolve_config_opt_f32` and `resolve_config_opt_i32` to cover TOML float-to-integer truncation, integer-to-float widening, and string-coerced numerics.
+- `crates/vox-config/src/inference.rs`: Modify `openrouter_base_url()` and `openai_compatible_base_url()` to trim trailing slashes from their resolved base URLs, preventing double slashes when joining paths. Add a test case for this behavior.
+- `crates/vox-config/src/toml_config.rs`: Introduce `test_support::set_user_config_typed` to allow inserting typed TOML values into the config cache for testing numeric coercion.
+- `crates/vox-search/src/embedding_env.rs`: Update `embedding_config_from_env` to use `vox_config::openai_embeddings_url()` and `vox_config::openrouter_embeddings_url()` instead of direct constants, making embedding base URLs configurable.
+
+--- audit: original='fix(vox-config): review fixups — config-aware embeddings endpoints, trailing-slash hardening, coercion tests' | actual=113L across 4 files | derived=full ---
