@@ -1,0 +1,10 @@
+feat(vox-gui/runs): add accessibility improvements and tests for RunsView
+scale: ~52 lines across 2 files [M]
+
+- `crates/vox-gui/ui/src/components/surfaces/Runs/RunsView.test.tsx`: Add new test file for `RunsView` component, including tests for rendering, button type attributes, and `aria-pressed` state for selected runs.
+- `crates/vox-gui/ui/src/components/surfaces/Runs/RunsView.tsx`:
+  - Add `type="button"` to run selection buttons.
+  - Add `aria-pressed` attribute to run selection buttons to indicate their selection state.
+  - Add `aria-live="polite"` to the `Glass` component containing "Recent Activity" to announce dynamic content changes.
+
+--- audit: original='feat(vox-gui/wave6): Runs a11y + checklist (Wave 6)' | actual=52L across 2 files | derived=full ---
