@@ -1,0 +1,10 @@
+feat(llm): apply configured timeout to unary chat/embed requests
+scale: ~57 lines across 5 files [M]
+
+- `crates/vox-actor-runtime/src/llm/timeout.rs`: New module `timeout` added to resolve the per-request LLM HTTP timeout. It prioritizes `LlmConfig.timeout_ms` if set, otherwise falls back to `vox_config::timeouts::HTTP_REQUEST`. Includes unit tests for both scenarios.
+- `crates/vox-actor-runtime/src/llm/chat.rs`: Applied the resolved timeout to unary chat requests using `req.timeout()`.
+- `crates/vox-actor-runtime/src/llm/embed.rs`: Applied the resolved timeout to unary embed requests using `req.timeout()`.
+- `crates/vox-actor-runtime/src/llm/stream.rs`: Added a comment explicitly noting that a whole-request timeout is not applied to streaming requests to avoid cutting off long SSE streams.
+- `crates/vox-actor-runtime/src/llm/mod.rs`: Added `mod timeout;` to include the new timeout module.
+
+--- audit: original='fix(llm): apply configured timeout_ms to unary chat/embed requests (HC-G04-09)' | actual=57L across 5 files | derived=full ---
