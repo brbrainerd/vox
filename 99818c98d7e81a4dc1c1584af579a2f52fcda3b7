@@ -1,0 +1,24 @@
+feat(coderabbit): implement semantic planner configuration and baseline testing
+scale: ~337 lines across 19 files [L]
+
+- `crates/vox-cli/src/commands/review/coderabbit/github/reviews/baseline.rs`: Add comprehensive unit tests for `push_baseline_from_origin` covering empty baseline commits, ensuring correct tree and parent HEAD.
+- `crates/vox-cli/src/commands/review/coderabbit/semantic_planner/types.rs`: Introduce `allow_markdown_prefixes` to `SemanticPlanner` to override markdown/text file exclusion, and refactor `is_ignored` and `ignored_reason` to `is_ignored_with` and `ignored_reason_with` to support this new configuration.
+- `crates/vox-cli/src/commands/review/coderabbit/semantic_planner/submit.rs`: Update `run_semantic_submit` to merge `exclude_prefixes` from `Vox.toml` and CLI arguments, and modify `summarize_ignored_reasons` to use the `SemanticPlanner`'s `path_ignored_reason` method, supporting the new markdown allow-list. Add `maybe_write_ignored_paths_json` for outputting ignored paths.
+- `crates/vox-cli/src/commands/review/coderabbit/semantic_planner/mod.rs`: Update tests for `is_ignored` to reflect changes in markdown/text file exclusion and add new tests for `allow_markdown_prefix_rescues_md_and_txt`.
+- `crates/vox-cli/src/commands/review/coderabbit/config.rs`: Add `allow_markdown_prefixes` to `CodeRabbitConfig` and `CoderabbitTomlSection`, enabling configuration of markdown/text file inclusion via `Vox.toml`. Add unit tests for loading this new configuration.
+- `crates/vox-cli/src/commands/review/coderabbit/mod.rs`: Add `extra_exclude_prefix` and `write_ignored_paths` arguments to the `submit` subcommand for more flexible exclusion and debugging.
+- `docs/agents/database-nomenclature.md`: Minor content updates.
+- `vox-vscode/webview-ui/src/components/UnifiedDashboard.tsx`: Minor content updates.
+- `vox-vscode/webview-ui/src/components/AttentionPanel.tsx`: Minor content updates.
+- `crates/vox-cli/src/commands/review/coderabbit/historical_planner.rs`: Minor content updates.
+- `crates/vox-cli/src/commands/review/coderabbit/semantic_planner/groups.rs`: Minor content updates.
+- `docs/src/reference/cli.md`: Minor content updates.
+- `vox-vscode/src/McpAgentConnection.ts`: Minor content updates.
+- `vox-vscode/src/SidebarProvider.ts`: Minor content updates.
+- `.github/workflows/link_checker.yml`: Minor content updates.
+- `docs/src/architecture/legacy-retirement-roadmap.md`: Minor content updates.
+- `docs/src/architecture/ludus-schema-inventory.md`: Minor content updates.
+- `vox-vscode/src/agents/AgentController.ts`: Minor content updates.
+- `vox-vscode/webview-ui/src/components/EngineeringDiagnostics.tsx`: Minor content updates.
+
+--- audit: original='feat: implement CodeRabbit review integration, add MCP agent connection, and introduce new CLI and architectural documentation.' | actual=337L across 19 files | derived=full ---
