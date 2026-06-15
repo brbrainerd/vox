@@ -1,0 +1,15 @@
+docs(release): finalize v0.6.0 changelog; add T-FIN-1 collision discipline note
+scale: ~38 lines across 2 files [S]
+
+- **CHANGELOG.md**:
+    - Folded the `[Unreleased]` section into `[0.6.0]`.
+    - Updated the `[0.6.0]` heading date from 2026-05-25 to 2026-05-26.
+    - Added a "Language surface changes" subsection with a link to the v0.5 → v0.6 migration guide.
+    - Added a "Removed" subsection documenting the deletion of the `AtEndpoint` token, `parse_endpoint` function, and `AtEndpoint` dispatch arms, while clarifying what was not removed.
+    - Bumped the frontmatter `last_updated` field to 2026-05-26.
+- **docs/src/architecture/session-handoff-2026-05-24-lost-work-audit.md**:
+    - Added a T-FIN-1 addendum under §4.3, noting that parallel-commit sweep risk applies to test-fix work.
+    - Documented two concrete collision instances: a golden rebless collision and an MCP JSON-format compatibility fix collision.
+    - Added a rule-of-thumb to immediately push green test runs that were not green at session start.
+
+--- audit: original='docs(release): finalize v0.6.0 changelog; T-FIN-1 collision-discipline note' | actual=38L across 2 files | derived=full ---
