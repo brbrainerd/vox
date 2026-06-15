@@ -1,0 +1,13 @@
+feat(gamify): embed economy contract at compile time and add `embedded` constructor
+scale: ~92 lines across 1 files [M]
+
+- `EconomyConfig`:
+    - Added a new `embedded()` constructor that parses the compile-time-embedded `EMBEDDED_ECONOMY_YAML`.
+    - Removed the `resolve_live_economy_config` function, which previously handled loading the shipped contract at runtime or falling back to defaults.
+- `economy.rs`:
+    - Introduced `EMBEDDED_ECONOMY_YAML` constant, which uses `include_str!` to embed the `contracts/gamify/economy.v1.yaml` file directly into the binary.
+    - Removed `SHIPPED_CONTRACT_RELPATH` and `CONTRACT_WORKSPACE_RELPATH` constants, as the contract is now embedded.
+    - Updated the documentation for the new embedding approach, emphasizing that the contract is always live and there's a single source of truth.
+    - Modified the `resolve_live_economy_config` function to prioritize an environment variable override (`VOX_GAMIFY_ECONOMY_PATH`) over the embedded contract, and removed the fallback to `EconomyConfig::default()`.
+
+--- audit: original='fix(gamify): embed economy contract at compile time so it is never inert in production' | actual=92L across 1 files | derived=full ---
