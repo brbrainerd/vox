@@ -1,0 +1,13 @@
+feat(eval): implement `?` operator for error propagation in interpreter
+scale: ~131 lines across 3 files [M]
+
+- `eval/expr.rs`: Add `HirExpr::Try` arm to `eval_expr` to implement the `?` operator. It unwraps `Ok` or `Some` values, and returns `_Return(Result(Err))` or `_Return(Option(None))` to signal early exit for `Err` or `None` values, respectively.
+- `eval/expr.rs`: Introduce `normalize_constructor` helper function. This converts zero-argument constructor `VoxValue::Constructor("None")` into `VoxValue::Option(None)` for correct runtime representation.
+- `eval/stmt.rs`: Apply `normalize_constructor` in `HirStmt::Return` to ensure `return None` produces a proper `Option(None)` value.
+- `eval/stmt.rs`: Propagate `_Return` values from the right-hand side expressions of `HirStmt::Let` and `HirStmt::Assign` to correctly handle the `?` operator within assignments and let bindings.
+- `crates/vox-compiler/tests/eval_typeck_parity_test.rs`: Add three new tests for the `?` operator:
+  - `try_operator_on_result_propagates_err_and_unwraps_ok`: Verifies `?` unwraps `Ok` and propagates `Err`.
+  - `try_operator_on_err_causes_early_return`: Confirms `?` on `Err` triggers an early return.
+  - `try_operator_on_none_causes_early_return`: Confirms `?` on `None` triggers an early return.
+
+--- audit: original='feat(eval): implement ? operator (HirExpr::Try) in the interpreter' | actual=131L across 3 files | derived=full ---
