@@ -1,0 +1,39 @@
+feat(ci): enhance pre-push with coverage, `since` and arch-check profiling
+scale: ~2508 lines across 26 files [XL]
+
+- `vox-cli`:
+  - `ci pre-push`: add `--with-coverage` and `--since <ref>` flags for `full` profile.
+  - `ci pre-push`: update pre-push report schema to v3, adding `with_coverage` and new profile values.
+  - `ci pre-push`: improve documentation for `full` profile extended flags.
+  - `ci pre_push.rs`: refactor `run_body` to support new flags.
+  - `ci_pre_push.rs`: update tests for schema v3 and new coverage flag.
+- `vox-arch-check`:
+  - `main.rs`: add profiling for rule execution and use `--no-deps` for `cargo metadata` to improve performance.
+  - `forbidden_patterns.rs`: refactor `scan` to `scan_all` for batched processing of multiple rules, improving performance.
+  - `tests/helpers/fixture.rs`: add new helper module for creating synthetic workspaces for integration tests.
+  - `tests/helpers/mod.rs`: add module declaration for `fixture`.
+  - `integration.rs`: replace `arch_check_smoke_test` with `arch_check_smoke_fixture` using the new fixture.
+  - `integration.rs`: add `arch_check_description_rule_fixture` test.
+- `vox-codegen`:
+  - `golden_ts_test.rs`: update golden TS test.
+  - `ai_fixture_bundle_compiles.rs`: update AI fixture bundle compilation test.
+  - `golden_ts_test__golden_ts_emit@form_basic.snap`: update snapshot.
+  - `examples/golden-ts/form_basic.vox`: update example.
+- `vox-scientia`:
+  - `replay/sandbox.rs`: minor 3-line change.
+- `docs`:
+  - `architecture/mobile-target-evaluation-2026.md`: add new document for mobile target evaluation.
+  - `architecture/mobile-rn-expo-architecture-and-migration-2026.md`: add new document for mobile RN/Expo architecture and migration.
+  - `architecture/_screenshots/mobile-bakeoff-2026/research-sources.md`: add new document for mobile bakeoff research sources.
+- `contracts/reports`:
+  - `test-inventory.v1.json`: update test inventory.
+  - `retirement/2026-05-28.json`: add new retirement report.
+  - `pre-push-report.v1.schema.json`: update schema for pre-push reports.
+- `workflow/config`:
+  - `.config/nextest.toml`: add new nextest configuration.
+  - `.github/workflows/ci.yml`: update CI workflow.
+- `Cargo.lock`: update due to workspace dependency churn.
+- `.claude/settings.local.json`: update local Claude settings.
+- `.claude/scheduled_tasks.lock`: add scheduled tasks lock file.
+
+--- audit: original='chore(snapshot): capture parallel-session WIP (2026-05-27 22:25 EDT)' | actual=2508L across 26 files | derived=full ---
