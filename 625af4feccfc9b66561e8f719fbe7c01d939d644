@@ -1,0 +1,12 @@
+feat(populi): add rustls TLS termination option for HTTP plane
+scale: ~318 lines across 7 files [L]
+
+- **crates/vox-populi/src/tls.rs**: New module `tls` with `TlsError`, `TlsOptions`, `TlsMinVersion` enums and `build_acceptor` function to load PEM certificate/key and configure a `rustls::ServerConfig` for `tokio_rustls::TlsAcceptor`.
+- **crates/vox-populi/tests/tls_smoke.rs**: New test `rustls_acceptor_accepts_https_handshake` to verify TLS acceptance using a self-signed certificate generated with `rcgen` and a client configured to skip certificate verification.
+- **docs/src/reference/populi.md**: Added "Appendix: TLS / WireGuard transport (P0-T5)" section documenting `[mesh.transport]` configuration, instructions for generating self-signed certificates with `mkcert` and `step`, and guidance on using Tailscale Funnel with `wireguard_endpoint`.
+- **crates/vox-repository/src/populi_toml.rs**: Added `VoxMeshTransport` struct with `tls_cert_path`, `tls_key_path`, `tls_min_version`, and `wireguard_endpoint` fields. Updated `VoxMeshToml` to include an optional `transport` field and modified `is_empty_mesh` to check for `transport` emptiness. Added a test for reading the `[mesh.transport]` section.
+- **crates/vox-populi/Cargo.toml**: Added `tls` feature gating `rustls`, `rustls-pemfile`, and `tokio-rustls` dependencies. Added `rcgen` dependency for TLS smoke tests.
+- **Cargo.toml**: Added workspace dependencies for `rustls` (v0.23, `ring` feature), `rustls-pemfile` (v2), and `tokio-rustls` (v0.26, `ring` feature).
+- **crates/vox-populi/src/lib.rs**: Exported the new `tls` module under the `tls` feature flag.
+
+--- audit: original='feat(populi): rustls TLS option on HTTP plane (P0-T5)' | actual=318L across 7 files | derived=full ---
