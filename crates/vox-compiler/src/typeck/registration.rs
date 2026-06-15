@@ -399,7 +399,7 @@ pub fn register_hir_function(env: &mut TypeEnv, f: &HirFn, mut uf: Option<&mut I
             ty: Ty::Fn(param_tys, Box::new(ret_ty)),
             mutable: false,
             kind: BindingKind::Function,
-            is_deprecated: false,
+            is_deprecated: f.is_deprecated,
         },
     );
 }
