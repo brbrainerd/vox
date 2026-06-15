@@ -1,0 +1,38 @@
+feat(llm): establish single source of truth for LLM/AI configuration and egress
+scale: ~4775 lines across 45 files [XL]
+
+- **docs(spec)**: Added `llm-config-key-manifest.md` for Phase 0 LLM/AI config-key inventory, `vox-llm-egress-design.md` for the shared single-egress core, and `llm-ssot-remaining-roadmap-and-cost.md` for future design passes.
+- **docs(plan)**: Added `vox-llm-egress.md` for the implementation plan of the egress core (Phases 1-6) and `cost-tracking-ssot.md` for the cost-tracking SSOT implementation plan.
+- **crates/vox-llm-config**: New layer-0 crate `vox-llm-config` created as the single source of truth for LLM/AI setting keys, including `LlmConfigKey` and `LLM_CONFIG_KEYS`. It defines metadata like `env`, `default`, `kind`, `group`, `class`, `label`, `hint`, and `options`.
+- **crates/vox-config**:
+    - `operator_registry.rs`: `llm_operator_envs()` now derives non-secret env-shaped keys from `vox-llm-config`, and `operator_tuning_envs()` merges static infra knobs with this registry view.
+    - `resolve_egress.rs`: New module `resolve_egress` created as the single resolver for LLM provider egress, mapping provider+model to `vox_llm_egress::EgressRequest`. It includes `EgressResolveInput` and functions to resolve API keys, base URLs, and attribution headers.
+    - `snapshot.rs`: Added `bump()` and `on_change()` callback registry for reactive config change notifications.
+    - `toml_config.rs`: Modified to support reactive config changes.
+    - `lib.rs`: Updated to reflect new dependencies and features.
+    - `tests/llm_registry_parity.rs`: New test file to assert parity between `vox-config` accessors and the `vox-llm-config` registry.
+    - `tests/llm_registry_view.rs`: New test file for `vox-config`'s view over the LLM registry.
+- **crates/vox-llm-egress**: New layer-2 crate `vox-llm-egress` created as the core for OpenAI-compatible chat, streaming, and embeddings egress.
+    - `lib.rs`: Defines core types like `EgressRequest`, `ChatParams`, `EgressChatResponse`, and `EgressError`.
+    - `wire.rs`: Implements `chat_once`, `stream_once`, and `embed_once` for handling provider wire interactions, including usage and cost parsing.
+    - `throttle.rs`: Moved per-provider AIMD throttle from `vox-actor-runtime/llm/throttle.rs`.
+    - `Cargo.toml`: Added new crate to workspace.
+    - `tests/wire_mock.rs`: New test file for wiremock tests.
+- **crates/vox-actor-runtime**:
+    - `llm/chat.rs`: `llm_chat` now delegates wire calls to `vox_llm_egress::chat_once` after resolving the request via `vox_config::resolve_egress`. Removed previous API key resolution and base URL logic.
+    - `llm/stream.rs`: `llm_stream` now delegates to `vox_llm_egress::stream_once`.
+    - `llm/embed.rs`: `llm_embed` now delegates to `vox_llm_egress::embed_once`.
+    - `llm/wire.rs`: Deleted, as its functionality was moved to `vox-config::resolve_egress` and `vox-llm-egress::wire`.
+    - `llm/throttle.rs`: Deleted, as its functionality was moved to `vox-llm-egress::throttle`.
+    - `llm/types.rs`: Removed redundant tool serialization test and unused imports.
+    - `llm/mod.rs`: Updated module structure.
+    - `semcov_wave28_tests.rs`: Minor adjustments.
+- **crates/vox-code-audit**:
+    - `detectors/unregistered_llm_env.rs`: New detector to flag `env::var` reads of non-secret LLM-shaped environment variables not declared in `vox-llm-config`.
+    - `detectors/llm_provider_call.rs`: Upgraded to recognize method-style egress and `vox-config` base-url accessors. The allowlist now sanctions `crates/vox-llm-egress/` as the sole egress home. Added support for `#[allow(llm_egress_local)]` annotation.
+    - `review/client.rs`: `call_chat_completions` now routes through `vox_llm_egress::chat_once`.
+    - `detectors/mod.rs`: Updated to include new detectors.
+- **crates/vox-gui**:
+    - `src/commands/user_config.rs`: `get_user_config` now iterates `vox_llm_config::gui_fields()` to derive the runtime settings catalog, ensuring it aligns with the SSOT. Added VoxConfig-tier keys to the registry.
+
+--- audit: original='LLM/AI single-source-of-truth: vox-llm-egress core + enforced single egress (#322)' | actual=4775L across 45 files | derived=full ---
