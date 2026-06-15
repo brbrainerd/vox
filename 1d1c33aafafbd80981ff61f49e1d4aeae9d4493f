@@ -1,0 +1,47 @@
+feat(contracts): Add new and update existing contract definitions
+scale: ~254146 lines across 1036 files [XL]
+
+DIVERGENCE: original subject claimed 'Rebuild main tip after local object corruption recovery' but this commit actually changed ~254146 lines across 1036 files. Top areas:
+mens: 129027 lines, 25 files
+crates: 60454 lines, 655 files
+contracts: 35370 lines, 67 files
+docs: 22094 lines, 212 files
+vox-vscode: 3566 lines, 32 files
+(root): 2839 lines, 13 files
+schemas: 319 lines, 1 files
+scripts: 221 lines, 7 files
+.github: 128 lines, 3 files
+.vox: 39 lines, 12 files
+.agents: 37 lines, 1 files
+examples: 25 lines, 3 files
+.vscode: 15 lines, 1 files
+.cursor: 9 lines, 2 files
+docker: 2 lines, 1 files
+.cargo: 1 lines, 1 files
+
+- **contracts**: Introduce new contract definitions for `operations/catalog.v1.yaml`, `capability/capability-registry.yaml`, `reports/completion-task-ledger.v1.json`, `capability/model-manifest.generated.json`, `communication/context-envelope.schema.json`, `workflow/workflow-journal.v1.schema.json`, `communication/protocol-catalog.yaml`, and `orchestration/agent-harness.schema.json`. Update `cli/command-registry.yaml`, `mcp/tool-registry.canonical.yaml`, `index.yaml`, and `populi/control-plane.openapi.yaml`.
+- **docs**: Significant updates and additions to documentation, including new architecture documents for context management, AI IDE features, Populi GPU mesh, telemetry, and protocol convergence. Updates to agent documentation and removal of `vox-dei.md` and `vox-gamify.md`.
+- **crates/vox-orchestrator**: Extensive additions and modifications across various modules, including `orchestrator/tests.rs`, `orchestrator/task_dispatch/complete.rs`, `persistence_outbox.rs`, `grounding.rs`, `planning/plan_adequacy.rs`, `context_lifecycle.rs`, `harness.rs`, `context_envelope.rs`, `a2a/remote_worker.rs`, `orch_daemon/mod.rs`, `orchestrator/task_dispatch/submit/task_submit.rs`, `orchestrator/agent_lifecycle.rs`, `mesh_federation_poll.rs`, `orchestrator/task_dispatch/submit/goal.rs`, `attention/interruption_policy.rs`, `a2a/dispatch.rs`, `handoff.rs`, `planning/content_blocks.rs`, and `socrates.rs`.
+- **crates/vox-mcp**: Substantial changes and additions, including `tests/tool_dispatch_tests.rs`, `http_gateway.rs`, `server/lifecycle.rs`, `tools/task_tools.rs`, `a2a.rs`, `tools/scientia_tools/novelty.rs`, `tests/populi_mcp_http_join_startup.rs`, `tools/chat_tools/plan.rs`, `memory/retrieval.rs`, `tools/chat_socrates_meta.rs`, `tools/compiler_tools.rs`, `tools/scientia_tools/discovery.rs`, `tools/chat_tools/plan_loop.rs`, `tools/attention_policy.rs`, `tools/browser_tools.rs`, `tools/chat_tools/plan_gap.rs`, `tools/input_schemas.rs`, and `tools/speech_pipeline_tools.rs`.
+- **crates/vox-cli**: Numerous additions and updates, including `commands/ci/operations_catalog.rs`, `commands/ci/completion_quality.rs`, `commands/db/publication.rs`, `commands/ci/workspace_artifacts/mod.rs`, `commands/runtime/shell/check_terminal.rs`, `render.rs`, `commands/dei.rs`, `commands/ci/workspace_artifacts/retention.rs`, `commands/repo.rs`, `commands/mens/populi/train_arm.rs`, and removal of `commands/init.rs`.
+- **crates/vox-publisher**: New files and updates for scientia-related modules: `scientia_discovery.rs`, `scientia_prior_art.rs`, `scientia_evidence.rs`, `scientia_finding_ledger.rs`, `scientia_heuristics.rs`, and `publication_preflight.rs`.
+- **crates/vox-workflow-runtime**: Updates to `tests/workflow_tracker_tests.rs`, `workflow/run.rs`, `db_tracker.rs`, and `workflow/plan.rs`.
+- **vox-vscode**: Modifications to `webview-ui/src/index.tsx`, `src/SidebarProvider.ts`, `src/speech/registerOratioSpeechCommands.ts`, `src/core/mcpToolRegistry.generated.ts`, and `src/core/VoxMcpClient.ts`.
+- **crates/vox-populi**: Updates to `tests/http_control_plane.rs`, `src/transport/handlers.rs`, and `src/http_client.rs`.
+- **crates/vox-oratio**: Updates to `src/backends/logit_processors.rs` and `src/backends/candle_whisper.rs`.
+- **crates/vox-repository**: Additions and updates to `repo_catalog/query.rs`, `repo_catalog/catalog.rs`, and `repo_catalog/types.rs`.
+- **crates/vox-compiler**: New files `builtin_registry.rs`, `rust_interop_support.rs`, `codegen_shared/route_ir.rs`, and `tests/rust_ecosystem_support_parity.rs`.
+- **crates/vox-db**: Updates to `facade/workflow.rs`, `retrieval.rs`, and `codex_chat.rs`.
+- **crates/vox-toestub**: New files `detectors/hollow_fn.rs` and `detectors/hollow_fn_rust.rs.draft`.
+- **crates/vox-audio-ingress**: New file `src/main.rs`.
+- **crates/vox-browser**: New file `src/engine.rs`.
+- **crates/vox-project-scaffold**: New file `src/lib.rs`.
+- **crates/vox-runtime**: New file `src/builtins.rs`.
+- **crates/vox-schola**: New file `src/forward.rs`.
+- **crates/vox-search**: New file `src/execution.rs`.
+- **Cargo.lock**: Updated due to dependency changes.
+- **audit.json**: New file.
+- **README.md**: Updated.
+- **mens/runs**: Removal of checkpoint state files.
+
+--- audit: original='Rebuild main tip after local object corruption recovery' | actual=254146L across 1036 files | derived=stat-only ---
