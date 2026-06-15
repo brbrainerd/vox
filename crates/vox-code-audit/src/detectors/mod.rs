@@ -97,6 +97,8 @@ pub mod training_eligible;
 pub mod crypto_ban;
 /// `env.get(...)` with secret-shaped argument names (KEY, SECRET, TOKEN, …).
 pub mod env_secret_shape;
+/// LLM/AI env vars not declared in the vox-llm-config SSOT.
+pub mod unregistered_llm_env;
 /// Direct HTTP calls to known LLM provider hostnames, bypassing `populi.*`.
 pub mod llm_provider_call;
 
@@ -177,6 +179,7 @@ pub fn all_rules(schema_path: Option<std::path::PathBuf>) -> Vec<Box<dyn Detecti
         // Phase 2 security detectors (Error severity)
         Box::new(llm_provider_call::LlmProviderCallDetector::new()),
         Box::new(env_secret_shape::EnvSecretShapeDetector::new()),
+        Box::new(unregistered_llm_env::UnregisteredLlmEnvDetector::new()),
         Box::new(crypto_ban::CryptoBanDetector::new()),
         // Phase 2 style / quality detectors
         Box::new(duplicate_prefix::DuplicatePrefixDetector::new()),
