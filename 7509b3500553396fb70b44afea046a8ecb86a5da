@@ -1,0 +1,6 @@
+feat(coverage-gates): add floor for vox-effort-audit
+scale: ~1 lines across 1 files [XS]
+
+- `.config/coverage-gates.toml`: Added a new coverage gate entry for `vox-effort-audit` with a floor of 70.0.
+
+--- audit: original='chore(coverage-gates): floor for vox-effort-audit (F3)' | actual=1L across 1 files | derived=full ---
