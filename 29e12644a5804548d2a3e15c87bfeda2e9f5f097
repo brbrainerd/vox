@@ -1,0 +1,8 @@
+feat(a2a): add `build_exec_source_fields` for dispatching executable `.vox` source
+scale: ~71 lines across 3 files [M]
+
+- `crates/vox-orchestrator/src/a2a/exec_source.rs`: New module `exec_source` added, containing the `build_exec_source_fields` function. This function takes a `.vox` source string, encodes it to base64, and computes its BLAKE3 hash, returning both for integrity-paired dispatch. Includes two unit tests: one for byte/hash round-trip and another for distinct sources producing distinct hashes.
+- `crates/vox-orchestrator/src/a2a/remote_worker.rs`: Added an end-to-end test `built_exec_source_fields_round_trip_to_real_execution` that verifies `build_exec_source_fields` correctly prepares source for `run_dispatched_source`, including BLAKE3 re-verification and execution, asserting expected stdout. This test is skipped if `vox` is not on the PATH.
+- `crates/vox-orchestrator/src/a2a/mod.rs`: Exported the new `exec_source` module and the `build_exec_source_fields` function.
+
+--- audit: original='feat(mesh): script-dispatch sender helper for executable .vox source (Track B)' | actual=71L across 3 files | derived=full ---
