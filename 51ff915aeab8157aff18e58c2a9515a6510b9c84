@@ -1,0 +1,10 @@
+refactor(secrets): introduce DEFAULT_HISTORY_DEPTH constant
+scale: ~17 lines across 2 files [S]
+
+- `crates/vox-secrets/src/backend/vox_vault.rs`:
+    - Defined `DEFAULT_HISTORY_DEPTH` constant with a value of `10` and a doc comment explaining its purpose.
+    - Replaced the literal `10` with `DEFAULT_HISTORY_DEPTH` in the `VoxCloudBackend::write_secret` method call to `write_secret_v2`.
+- `crates/vox-secrets/src/lib.rs`:
+    - Replaced the literal `10` with `backend::vox_vault::DEFAULT_HISTORY_DEPTH` in the `store_secret` function call to `backend.write_secret_v2`.
+
+--- audit: original='refactor(config): de-literalize low-severity lt-llmcore findings' | actual=17L across 2 files | derived=full ---
