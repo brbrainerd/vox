@@ -1,0 +1,7 @@
+feat(clients/runtime-rn): Implement Expo-backed `@vox/runtime-rn` package
+scale: ~556 lines across 8 files [L]
+
+- `clients/runtime-rn/src/runtime.ts`: Add `ExpoVoxRuntime` class implementing `VoxRuntime` interface with Expo SDK integrations for mobile primitives:
+  - `onAppStateChange`: Uses `react-native`'s `AppState.addEventListener("change", ...)` and normalizes status to a portable `AppState` enum.
+
+--- audit: original='feat(clients/runtime-rn): Expo-backed @vox/runtime-rn package' | actual=556L across 8 files | derived=full ---
