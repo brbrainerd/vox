@@ -1,0 +1,9 @@
+feat(research-events): Introduce `ResearchEventEmitter` trait and `NoopEmitter`
+scale: ~57 lines across 1 files [M]
+
+- Introduce `ResearchEventEmitter` trait for emitting research lifecycle events, requiring `Send + Sync` for `Arc` compatibility.
+- Implement `emit` and `emit_batch` methods for the `ResearchEventEmitter` trait.
+- Add `NoopEmitter` struct that implements `ResearchEventEmitter` and silently drops all events.
+- Include unit tests for `NoopEmitter` to verify it accepts events without panicking.
+
+--- audit: original='feat(scientia): ResearchEventEmitter trait + NoopEmitter (Phase 0b Task 4)' | actual=57L across 1 files | derived=full ---
