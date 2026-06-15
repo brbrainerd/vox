@@ -1,0 +1,34 @@
+feat(plugin-system): redesign with runtime-loadable plugins and skill marketplace
+scale: ~46429 lines across 481 files [XL]
+
+- **`vox-plugin-api`**: Introduced `PluginManifest` for code/skill/composite payloads, `VoxHost`/`VoxPlugin` sabi traits, `LoadedSkill`/`SkillManifest` types, and `MlBackend`, `HardwareProbe`, `MeshDriver`, `TensorBackend`, `AudioCapture`, `CloudSync`, `ScriptExecutor`, `BrowserAutomation`, `SpeechToText` traits. Bumped `VOX_PLUGIN_ABI_VERSION` from 1 to 11 across multiple commits.
+- **`vox-plugin-host`**: Implemented plugin discovery, loading (using `abi_stable` and `libloading`), and a `Registry`/`SkillRegistry`. Ported `SkillManifest`, `VoxSkillBundle`, and `parse_skill_md` from `vox-skills`. Added `load_code_plugin_by_id` and `cached_code_plugin` helpers.
+- **`vox-plugin-catalog`**: Scaffolded the crate, defined `PluginCatalogEntry`/`BundleEntry` schemas, added `catalog.toml` seed data, and implemented `bundle_resolved` logic. Added markdown renderers for documentation.
+- **`vox-cli`**: Added `vox ci generate-plugin-catalog-docs`, `vox ci plugin-catalog-parity`, `vox ci plugin-abi-parity`, `vox ci plugin-skill-parity`, and `vox ci agentskills-compliance` commands. Implemented `vox plugin` and `vox bundle` subcommand groups for listing, installing, removing, and verifying plugins/bundles.
+- **`vox-build-meta`**: Converted API to deprecation shims pointing at `vox plugin install`, then deleted the entire crate.
+- **`vox-plugin-cuda-spike`**: Added a minimal `cdylib` depending on `candle-core` with `cuda` feature for initial validation, then archived it after the pattern was proven.
+- **`vox-plugin-mens-candle-cuda`**: Scaffolded the `cdylib` crate, ported `Qwen3.5` transformer blocks, `LoraTrainingConfig`, `CheckpointState`, `QloraEmbedBundle`, `qlora_preflight`, and the full `candle_qlora_train` training loop from `vox-populi`. Implemented `MlBackend` methods (`run_full_training`, `run_inference`, `merge_adapter`). Made CUDA an opt-in feature.
+- **`vox-plugin-skill-compiler`**: Extracted the `vox.compiler` skill into a standalone directory plugin.
+- **`vox-orchestrator`**: Bridged plugin-host discovered skills into the `vox-skills` registry at startup. Refactored `browser_tools` and `visus_tools` to dispatch through `vox-plugin-host`. `cfg-gate`d `populi-transport` callsites.
+- **`vox-populi`**: Rewired `mens` training to dispatch through `vox-plugin-host`. Deleted extracted `candle` training code, `peft-rs`, `memmap2` dependencies, `candle_model_qwen`, `candle_inference_serve`, `nvml.rs`, `candle_qlora_merge.rs`, and `adapter_schema_v3.rs`. Burn-related modules were also removed.
+- **`vox-plugin-nvml-probe`**: Scaffolded `cdylib` and ported NVML probe code from `vox-repository`.
+- **`vox-plugin-populi-mesh`**: Scaffolded a composite plugin, ported `vox-populi` transport code (~4990 LOC), and implemented `MeshDriver` methods.
+- **`vox-skills`**: Extracted 7 remaining builtin skills as standalone plugins, emptying `BUILTIN_SKILLS`. Migrated `SKILL.md` files to `AgentSkills`-compliant frontmatter. Parser now reads `metadata.vox-*` with fallback to legacy fields. Retired manifest/bundle/parser modules, now re-exporting from `vox-plugin-host`.
+- **`vox-plugin-browser`**: Scaffolded `cdylib` and ported `chromiumoxide` code from `vox-browser`.
+- **`vox-plugin-oratio`**: Ported `candle Whisper` backend from `vox-oratio`.
+- **`vox-plugin-publication`**: Created a new plugin consolidating RSS ingest and Reddit/YouTube publish functionality.
+- **`vox-plugin-webhook`**: Extracted `vox-webhook` into a plugin with an HTTP listener.
+- **`vox-plugin-grammar-export`**: Exposed grammar export as an installable plugin.
+- **`vox-plugin-runtime-container`**: Extracted Docker/Podman `SkillRuntime` implementations into a plugin.
+- **`vox-plugin-runtime-wasm`**: Scaffolded a `wasmtime SkillRuntime` plugin.
+- **`vox-wasm-host`**: Created as a single-source-of-truth for `Wasmtime` engine and `WASI` context.
+- **`vox-container`**: Refactored to delegate container runtime detection and execution to plugins.
+- **`vox-deploy-codegen`**: Extracted deployment-artifact codegen from `vox-container`.
+- **`vox-ars`**: Created as a facade crate over `vox_skills::ars_shim`.
+- **`vox-clavis`**: Added `OpenClawApiKey` secret spec.
+- **`vox-mens`**: Rewrote `schola merge-qlora` to dispatch via `cached_code_plugin`.
+- **`vox-tensor`**: Deleted Burn-based modules; crate is now pure-CPU data utilities.
+- **`docs`**: Added extensive documentation for the plugin system redesign, implementation plans, migration guides, and audits.
+- **`build system`**: Eliminated `nvcc`/`cl.exe`/MSVC dependency from `candle-kernels` build, removed `onig_sys`, `libz-sys`, and `cc` from `blake3`/`tokenizers`/`flate2` dependencies, and added a `dist` profile for slim distribution binaries.
+
+--- audit: original='feat: plugin system redesign — runtime-loadable plugins + skill marketplace + slim core foundation (#65)' | actual=46429L across 481 files | derived=sampled ---
