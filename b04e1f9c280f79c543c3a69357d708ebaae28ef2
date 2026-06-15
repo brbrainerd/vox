@@ -1,0 +1,12 @@
+feat(eval): Coolify sandbox integration, plain /health, and Gate 3 body check
+scale: ~783 lines across 24 files [L]
+
+- crates/vox-cli: Add `ci coolify-eval` subcommand with `discover` and `sync-compose` operations to interact with the Coolify API for application discovery and Docker Compose synchronization.
+- crates/vox-orchestrator: Change `/health` endpoint to return plain "ok" text for strict health probes.
+- docs: Add new architecture document `eval-sandbox-deployment.md` detailing the eval sandbox deployment on Coolify, including compose, image, and DNS. Update `ci/deploy-contract.md` to reference the new eval sandbox documentation and the `coolify-eval` CLI command. Update `SUMMARY.md`, `architecture-index.md`, `research-index.md`, and `reference/cli.md` to include new documentation and CLI command.
+- .github/workflows: Add `coolify-eval-sync.yml` workflow for Coolify eval sandbox synchronization. Modify `deploy-hetzner.yml` to adjust health check logic. Update `docker-eval.yml` to include `curl` in the Dockerfile.
+- docker: Update `vox-eval.compose.yml` and `docker/vox-eval.compose.yml` to include a `curl` healthcheck.
+- Dockerfile: Add `curl` package installation for health checks.
+- contracts: Update `catalog.v1.yaml`, `capability-registry.yaml`, `command-registry.yaml`, and `operations-catalog-inventory.v1.json` to reflect new CLI commands and operations.
+
+--- audit: original='fix(eval): Coolify eval sandbox, plain /health ok, Gate 3 body check' | actual=783L across 24 files | derived=full ---
