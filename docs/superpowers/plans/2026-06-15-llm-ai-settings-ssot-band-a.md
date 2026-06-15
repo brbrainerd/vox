@@ -35,6 +35,18 @@
 
 ---
 
+## Phase 1 REVISION (post-Phase-0, supersedes the original Phase 1 below)
+
+Phase 0 found a **fourth, richest registry**: `vox-secrets/src/spec/registry/llm.rs` (~70 keys via `SecretId`). User decision (2026-06-15): the SSOT lives in a **new low-layer crate `vox-llm-config`** that `vox-secrets`, `vox-config`, and `vox-gui` all depend on. So:
+
+- **Task 1.1 (revised):** create crate `crates/vox-llm-config` (layer below `vox-secrets`/`vox-config`); it owns `LlmConfigKey` + `LLM_CONFIG_KEYS` (key data + display metadata, env-name keyed — NO secret *values*, only `secret: bool` + classification). Register in workspace `Cargo.toml` + add a `layers.toml` row + `where-things-live.md` row.
+- **Task 1.2 (revised):** `vox-secrets` parity-maps `SecretId`→env names against the registry; `vox-config` accessors become thin views; `operator_registry` is a view. Parity: `registry ⊇ {accessors} ⊇ {gui_fields}` and `{secret registry keys} == {SecretId LLM keys}`.
+- **Task 1.4 (revised):** `unregistered_llm_env` detector covers **non-secret** LLM knobs only (`EnvSecretShapeDetector` already owns secret-shaped reads — no double-flag).
+- **Phase 4 (revised):** egress already funnels through `vox_http_client::client()`; lead with the arch-check `[[forbidden_pattern]]` seal (provider hostname / `reqwest` outside `crates/vox-actor-runtime/src/llm/`, with `exempt_files`); the `trybuild` sealed-constructor is optional hardening. Gamify routes **only Gemini + OpenRouter** through the facade; Pollinations + deterministic + Ollama-probe stay as local pre-cascade fallbacks.
+- **Band B** deferred to its own plan after Band A lands.
+
+Original Phase-1 bodies below remain valid as code templates; substitute `crates/vox-llm-config/src/` for `crates/vox-config/src/llm_config_registry`.
+
 ## Phase 0 — Inventory (parallel subagent fan-out, no code change)
 
 **Goal:** Produce `docs/superpowers/specs/llm-config-key-manifest.md` — every LLM/AI setting key in the workspace, so the registry table is seeded from reality, not guesswork.

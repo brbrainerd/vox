@@ -14701,6 +14701,7 @@ dependencies = [
  "tempfile",
  "toml 0.8.23",
  "tracing",
+ "vox-llm-config",
  "vox-secrets",
  "workspace-hack",
 ]
@@ -15229,6 +15230,13 @@ dependencies = [
  "vox-codegen",
  "vox-compiler",
  "vox-foundation",
+]
+
+[[package]]
+name = "vox-llm-config"
+version = "0.6.0"
+dependencies = [
+ "workspace-hack",
 ]
 
 [[package]]
@@ -16232,6 +16240,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "tracing",
+ "vox-config",
 ]
 
 [[package]]
@@ -16535,6 +16544,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
+ "vox-config",
  "workspace-hack",
 ]
 

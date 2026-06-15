@@ -73,6 +73,7 @@ vox-scientia = { layer = 3, staleness_exempt = true, max_loc = 15_000 }  # umbre
 
 # ── L0 — pure types ───────────────────────────────────────────────────────────
 vox-orchestrator-types = { layer = 0 }
+vox-llm-config         = { layer = 0, staleness_exempt = true }   # SSOT for LLM/AI setting-key metadata; pure-data, zero workspace deps; vox-secrets/vox-config/vox-gui are views
 
 vox-db-types           = { layer = 0 }
 vox-mesh-types         = { layer = 0 }
