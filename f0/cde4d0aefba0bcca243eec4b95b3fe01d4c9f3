@@ -1,0 +1,9 @@
+feat(gui): implement near-duplicate confirmation flow for chat submissions
+scale: ~85 lines across 4 files [M]
+
+- `crates/vox-gui/ui/src/App.tsx`: Implemented a near-duplicate confirmation flow for chat submissions. The app now submits tasks with `allow_duplicate=false` initially. If a near-duplicate is detected (indicated by `duplicate_of` in the response), a confirmation dialog prompts the user to either "add anyway" (resubmitting with `allow_duplicate=true`) or "skip" (failing the pending bubble).
+- `crates/vox-gui/src/commands/control_plane.rs`: Added `allow_duplicate` field to `SubmitTaskInput` to control near-duplicate handling. Added `duplicate_of` field to `ControlPlaneResult` to indicate an existing near-duplicate task. Modified `submit_orchestrator_task` to respect `allow_duplicate` and return `duplicate_of` when a near-duplicate is found.
+- `crates/vox-gui/ui/src/lib/chatCorrelation.test.ts`: Added a test case for the new `failRun` reducer action, verifying that it correctly marks an assistant bubble as failed with the given error.
+- `crates/vox-gui/ui/src/lib/chatCorrelation.ts`: Added a new `failRun` action to the `ChatAction` type and implemented its reducer logic to mark an assistant message as failed with a specified error.
+
+--- audit: original='feat(gui): near-duplicate confirm flow on chat submit (J2-Step4)' | actual=85L across 4 files | derived=full ---
