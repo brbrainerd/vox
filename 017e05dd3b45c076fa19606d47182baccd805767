@@ -1,0 +1,42 @@
+build(workspace-hack): regenerate hakari config after dependency changes
+scale: ~250 lines across 1 files [L]
+
+- Updated `crates/workspace-hack/Cargo.toml` to reflect dependency changes:
+  - Added `anyhow` as a direct dependency.
+  - Added `bit-vec` as a direct dependency.
+  - Added `axum-multipart` feature to `axum`.
+  - Removed `tower-lsp-server` from the always-on floor by making it optional.
+  - Updated `console` to use two distinct versions (`0.15` and `0.16`) with different feature sets.
+  - Removed `extern_crate_alloc` feature from `bytemuck`.
+  - Removed `console` version `0.16` without specific features.
+  - Updated `futures-util` to version `0.3` with `io` and `sink` features.
+  - Updated `indexmap` to version `2` with `serde` feature.
+  - Updated `itertools` to version `0.12`.
+  - Updated `memchr` to version `2`.
+  - Updated `miniz_oxide` to version `0.7`.
+  - Updated `once_cell` to version `1` with `parking_lot` feature.
+  - Updated `parking_lot` to version `0.12`.
+  - Updated `pin-project-lite` to version `0.2`.
+  - Updated `proc-macro2` to version `1` with `span-locations` feature.
+  - Updated `regex` to version `1` with `std` feature.
+  - Updated `rustc-hash` to version `1`.
+  - Updated `serde_json` to version `1` with `std` feature.
+  - Updated `syn` to version `2` with `extra-traits`, `full`, `parsing`, `printing`, and `proc-macro` features.
+  - Updated `tokio` to version `1` with `macros`, `net`, `rt-multi-thread`, `sync`, `time`, and `tracing` features.
+  - Updated `tokio-tungstenite` to version `0.21`.
+  - Updated `toml` to version `0.8` with `serde` feature.
+  - Updated `tracing` to version `0.1` with `attributes` and `log` features.
+  - Updated `tracing-subscriber` to version `0.3` with `env-filter` and `fmt` features.
+  - Updated `unicode-ident` to version `1`.
+  - Updated `url` to version `2` with `serde` feature.
+  - Updated `uuid` to version `1` with `serde` and `v4` features.
+  - Updated `walkdir` to version `2`.
+  - Updated `webpki` to version `0.22`.
+  - Updated `windows-sys` to version `0.52` with `Win32_Foundation`, `Win32_Networking_WinSock`, `Win32_Security`, `Win32_Security_Cryptography`, and `Win32_System_IO` features.
+  - Updated `windows_targets` to version `0.48`.
+  - Updated `zerofrom` to version `0.1`.
+  - Updated `zstd` to version `0.12`.
+  - Updated `zstd-safe` to version `6`.
+  - Updated `zstd-sys` to version `2`.
+
+--- audit: original='build(workspace-hack): B-3.5 hakari regenerate after B-1/B-2/B-3-trim/B-6/B-9' | actual=250L across 1 files | derived=full ---
