@@ -1,0 +1,7 @@
+fix(docs): correct `vox-gamify` crate name in documentation
+scale: ~4 lines across 2 files [S]
+
+- docs/src/architecture/classification-ssot-2026.md: Replaced `vox-ludus` with `vox-gamify` in the "Game/Combat" row of the classification table.
+- docs/src/reference/secrets-ssot.md: Updated references from `vox-ludus` to `vox-gamify` in the section discussing free-tier AI API key resolution.
+
+--- audit: original='fix(docs): correct vox-gamify crate name (revert erroneous vox-ludus rename)' | actual=4L across 2 files | derived=full ---
