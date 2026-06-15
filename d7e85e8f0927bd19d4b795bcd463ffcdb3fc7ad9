@@ -1,0 +1,62 @@
+feat(corpus): add 50 HumanEval-Vox problems with reference solutions and tests
+scale: ~2951 lines across 151 files [XL]
+
+- **contracts/eval/humaneval-vox/manifest.v1.yaml**: Updated manifest to reflect 50 problems, with 10 marked as held-out, and changed status from 'stub' to 'minimum-viable'.
+- **contracts/eval/humaneval-vox/problems/**:
+    - Added 50 new problems (001-050), each including:
+        - `spec.toml`: Problem specifications.
+        - `reference.vox`: Reference solutions in Vox.
+        - `tests.vox`: Test cases for the problem.
+    - Specifically, new problems cover a range of algorithms and data structures, including:
+        - `045-caesar-shift`: Caesar cipher implementation.
+        - `049-merge-sorted`: Merging two sorted lists.
+        - `050-selection-sort`: Selection sort algorithm.
+        - `018-rotate-left`: Rotating elements in a list.
+        - `041-nth-prime`: Finding the Nth prime number.
+        - `024-is-balanced-parens`: Checking for balanced parentheses.
+        - `011-word-count`: Counting words in a string.
+        - `023-longest-word`: Finding the longest word in a string.
+        - `004-is-palindrome`: Checking if a string is a palindrome.
+        - `012-max-of-list`: Finding the maximum element in a list.
+        - `034-list-to-str`: Converting a list to a string.
+        - `001-fizzbuzz`: FizzBuzz problem.
+        - `025-min-of-list`: Finding the minimum element in a list.
+        - `039-zip-sums`: Zipping two lists and summing elements.
+        - `044-digital-root`: Calculating the digital root of a number.
+        - `019-alternating-sum`: Calculating the alternating sum of a list.
+        - `005-count-vowels`: Counting vowels in a string.
+        - `046-count-primes-up-to`: Counting primes up to a given number.
+        - `031-count-chars`: Counting character occurrences in a string.
+        - `003-fibonacci`: Fibonacci sequence generation.
+        - `006-reverse-string`: Reversing a string.
+        - `008-is-prime`: Checking if a number is prime.
+        - `029-lcm`: Calculating the least common multiple.
+        - `042-reverse-list`: Reversing a list.
+        - `048-collatz-length`: Calculating the Collatz sequence length.
+        - `021-starts-with-capital`: Checking if a string starts with a capital letter.
+        - `047-partition-by-sign`: Partitioning a list by element sign.
+        - `007-sum-digits`: Summing digits of a number.
+        - `009-gcd`: Calculating the greatest common divisor.
+        - `014-remove-duplicates`: Removing duplicates from a list.
+        - `017-is-sorted`: Checking if a list is sorted.
+        - `002-factorial`: Calculating factorial.
+        - `015-count-occurrences`: Counting occurrences of an element in a list.
+        - `016-running-total`: Calculating running total of a list.
+        - `020-flatten-one-level`: Flattening a nested list one level.
+        - `022-repeat-str`: Repeating a string.
+        - `027-clamp`: Clamping a number within a range.
+        - `030-power`: Calculating power of a number.
+        - `033-filter-evens`: Filtering even numbers from a list.
+        - `037-nth-element`: Getting the Nth element of a list.
+        - `040-count-negatives`: Counting negative numbers in a list.
+        - `013-sum-list`: Summing elements of a list.
+        - `036-double-list`: Doubling elements in a list.
+        - `038-product-list`: Calculating product of elements in a list.
+        - `026-average`: Calculating average of a list.
+        - `028-abs-val`: Calculating absolute value.
+        - `032-is-even`: Checking if a number is even.
+        - `043-triangle-valid`: Checking if a triangle is valid.
+        - `010-celsius-to-fahrenheit`: Converting Celsius to Fahrenheit.
+        - `035-str-length`: Getting string length.
+
+--- audit: original='feat(corpus): land HumanEval-Vox minimum-viable corpus (CR-L1)' | actual=2951L across 151 files | derived=full ---
