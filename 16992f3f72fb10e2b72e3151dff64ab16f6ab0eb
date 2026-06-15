@@ -1,0 +1,7 @@
+feat(orchestrator): add `tool_search` module for progressive tool disclosure
+scale: ~65 lines across 2 files [M]
+
+- `crates/vox-orchestrator-mcp/src/tool_search.rs`: Add new module `tool_search` to implement progressive tool disclosure, mirroring Claude Code's MCP tool search. This includes `rank_tools` for keyword matching over `TOOL_REGISTRY` and tests for ranking exact name terms, finding tools by description, handling empty queries, gibberish, and respecting limits.
+- `README.md`: Update path for inference documentation from `crates/vox-inference/` to `crates/vox-populi/src/inference/`.
+
+--- audit: original='wip: snapshot tool_search.rs before worktree consolidation (2026-06-11)' | actual=65L across 2 files | derived=full ---
