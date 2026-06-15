@@ -1,0 +1,12 @@
+feat(vuv): Support `@layer(tier:)` decorator on component declarations
+scale: ~158 lines across 7 files [M]
+
+- `crates/vox-compiler/src/parser/descent/mod.rs`: Added `atlayer_precedes_component` for lookahead and `parse_layer_decorator` to parse `@layer` decorators, allowing them to precede component declarations.
+- `crates/vox-compiler/tests/ga_boilerplate_grafts_test.rs`: Added new tests to verify `@layer(tier: chrome)` attaches correctly to a component declaration and that components without the decorator have no layer.
+- `crates/vox-codegen/src/web_ir/lower.rs`: Modified `lower_hir_to_web_ir_with_summary` to stamp `data-vox-layer` attribute on the root element of a component if an `@layer` decorator is present.
+- `crates/vox-compiler/src/hir/lower/decl.rs`: Updated `LowerCtx::lower_reactive_component_decl` to lower the `AstLayerSpec` into a `HirLayerDecl`, converting the tier string to `LayerTier`.
+- `crates/vox-ast/src/decl/ui.rs`: Added an `Option<AstLayerSpec>` field named `layer` to `ReactiveComponentDecl` to store the parsed layer decorator.
+- `crates/vox-compiler/src/hir/nodes/decl.rs`: Added an `Option<HirLayerDecl>` field named `layer` to `HirReactiveComponent` to store the lowered layer declaration.
+- `crates/vox-compiler/src/parser/descent/decl/head.rs`: Initialized the `layer` field to `None` when parsing `ReactiveComponentDecl`.
+
+--- audit: original='feat(vuv): @layer(tier:) on component decls (full parser->HIR->emit wiring)' | actual=158L across 7 files | derived=full ---
