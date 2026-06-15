@@ -1,0 +1,14 @@
+docs(architecture), chore(deps): update v1 readiness snapshot and remove unused PathBuf imports
+scale: ~146 lines across 3 files [M]
+
+- docs/src/architecture/2026-05-22-v1-readiness-snapshot.md:
+  - Updated the document to revision 2, reflecting changes from a 7-commit fix-all session.
+  - Changed the `description` metadata to include CR-E2, CR-D3, and CR-L4(60%) closure.
+  - Updated `captured_at` timestamp from `2026-05-22T00:59:09Z` to `2026-05-22T03:00:00Z`.
+  - Updated `HEAD` reference from `5f4f19e84` to `688c51279`.
+  - Updated "Cumulative ahead of upstream `main`" from 48 to 58 commits.
+  - Added a "Revision history" section detailing the changes in this revision, including CR-E2 (new), CR-D3 (11.8% -> 100%), CR-L4 (40% -> 60%), 12 malformed JSON schema repairs, vox-mesh test fix, and a second CR-A1 refactor pass.
+- crates/vox-audit/src/bin/cr-a1.rs: Removed unused `PathBuf` import from `std::path`.
+- crates/vox-audit/src/bin/cr-e1.rs: Removed unused `PathBuf` import from `std::path`.
+
+--- audit: original='chore: snapshot doc rev 2 + drop unused PathBuf imports in cr-e1/cr-a1' | actual=146L across 3 files | derived=full ---
