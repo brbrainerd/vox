@@ -1,0 +1,18 @@
+feat(orchestrator): Implement daemon event stream for GUI harness
+scale: ~247 lines across 7 files [M]
+
+- `crates/vox-orchestrator/src/orch_daemon/mod.rs`:
+    - Added `SUBSCRIBE_POLL_INTERVAL` constant for status re-sampling.
+    - Implemented `write_frame` helper to write newline-delimited `DispatchResponse` frames.
+    - Implemented `stream_status_events` to push `DispatchPayload::Event` frames with orchestrator status snapshots, re-emitting on change every 500ms until disconnection.
+    - Modified `handle_connection` and `run_stdio_server` to special-case `orch.subscribe` for streaming.
+- `crates/vox-orchestrator/tests/orchestrator_daemon_tcp.rs`: Added `orchestrator_daemon_subscribe_streams_status_event` test to verify the subscription stream.
+- `crates/vox-orchestrator/src/orch_daemon/client.rs`: Implemented `OrchDaemonClient::subscribe` to open a long-lived stream and forward `DispatchPayload::Event` values to an `mpsc::Sender`.
+- `crates/vox-foundation/src/protocol.rs`:
+    - Added `orch_daemon_method::SUBSCRIBE` constant.
+    - Added `DispatchPayload::Event` variant for non-terminal structured event frames.
+- `crates/vox-cli-core/src/daemon_ipc/dispatch.rs`: Modified `call_daemon` and `call_daemon_streaming` to ignore `DispatchPayload::Event` frames as they are handled by the dedicated subscribe path.
+- `crates/vox-ml-cli/src/dei_daemon.rs`: Modified `call` to ignore `DispatchPayload::Event` frames.
+- `docs/src/architecture/vox-gui-harness-buildout-plan-2026.md`: Added a B1 implementation log detailing the design decisions and changes for the event stream.
+
+--- audit: original='@ feat(orchestrator): B1 daemon event stream (orch.subscribe) for the GUI harness' | actual=247L across 7 files | derived=full ---
