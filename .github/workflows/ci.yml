@@ -626,6 +626,12 @@ jobs:
         # to derive a code+message from the parity matrix. See §3.3 of the SSOT.
         run: cargo nextest run -p vox-compiler --test parity_grep_gate
 
+      - name: Pipeline parity empirical smoke test (matrix cells vs real emitters)
+        # Drives HIR nodes through the real eval/codegen_rust/codegen_ts paths and
+        # verifies the 5 accurately-seeded matrix cells (JSX, AsyncView, Spawn,
+        # With, WorkflowVersion) match actual emitter behavior.
+        run: cargo nextest run -p vox-compiler --test feature_matrix_parity_test
+
       - name: Golden examples strict-parse gate (A.13 — all examples/*.vox must parse)
         # A.13: VOX_EXAMPLES_STRICT_PARSE=1 must be the default in CI.
         # Uses the vox-compiler test suite which already has a strict-parse integration test.
