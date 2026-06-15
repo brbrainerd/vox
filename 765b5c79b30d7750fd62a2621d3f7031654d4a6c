@@ -1,0 +1,7 @@
+fix(vox-gui/scientia): Set explicit button type for Auto-fill button
+scale: ~11 lines across 2 files [S]
+
+- `crates/vox-gui/ui/src/components/surfaces/Scientia/ArchivePanel.test.tsx`: Add a new test case to verify that all buttons within the `ArchivePanel` have an explicit `type` attribute, either `button` or `submit`. Specifically checks that the "Auto-fill" button has `type="button"`.
+- `crates/vox-gui/ui/src/components/surfaces/Scientia/ArchivePanel.tsx`: Explicitly set `type="button"` on the "Auto-fill" button to prevent it from implicitly acting as a form submit button.
+
+--- audit: original='feat(vox-gui/wave4): ArchivePanel a11y + checklist (Wave 4)' | actual=11L across 2 files | derived=full ---
