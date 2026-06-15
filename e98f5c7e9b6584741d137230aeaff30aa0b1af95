@@ -1,0 +1,17 @@
+feat(visus-review): add vision model selection with config and registry fallback
+scale: ~214 lines across 2 files [M]
+
+- `crates/vox-orchestrator-mcp/src/visus_review/mod.rs`:
+    - Add `parse_verdict` function to extract JSON verdict from model responses, tolerating markdown fences.
+    - Add unit tests for `parse_verdict`.
+    - Introduce `model_select`, `prompt`, and `vision_call` modules.
+    - Define a `default_config` function for `VisualReviewConfig` with preferred vision models and escalation model.
+- `crates/vox-orchestrator-mcp/src/visus_review/model_select.rs`:
+    - New module to select a vision-capable model.
+    - Define `VisionCatalog` trait with `supports_vision` method.
+    - Implement `choose_vision_model` function to select a model based on preference and catalog support, with a fallback.
+    - Implement `NullCatalog` for cases where the registry is unavailable.
+    - Implement `RegistryCatalog` to query `vox_orchestrator::models::ModelRegistry` for vision capability.
+    - Add unit tests for `choose_vision_model` using a fake catalog.
+
+--- audit: original='feat(visus-review): config+registry vision-model selection with fallback (TDD)' | actual=214L across 2 files | derived=full ---
