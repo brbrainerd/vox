@@ -1,0 +1,8 @@
+feat(scientia): Add `ResearchEvent` enum for the full T0-T4 signal ladder
+scale: ~223 lines across 1 files [M]
+
+- Add `crates/vox-research-events/src/events.rs` defining the `ResearchEvent` enum, its `ResearchEventKind` helper enum, and all associated structs for events across the T0-T4 signal ladder.
+- Implement `serde` serialization/deserialization for all event types and the main enum.
+- Document the purpose of the `ResearchEvent` enum as the typed event bus for the SCIENTIA signal ladder, including a mapping of event kinds to signal ladder stages.
+
+--- audit: original='feat(scientia): ResearchEvent enum covering full T0-T4 signal ladder (Phase 0b Task 3)' | actual=223L across 1 files | derived=full ---
