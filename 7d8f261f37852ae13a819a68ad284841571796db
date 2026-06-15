@@ -1,0 +1,8 @@
+fix(db): update baseline-version-policy to version 60
+scale: ~4 lines across 1 files [XS]
+
+- `contracts/db/baseline-version-policy.yaml`:
+    - Updated `repository_baseline_integer` from 59 to 60.
+    - Updated `repository_baseline_digest_hex` to reflect the new baseline SQL digest.
+
+--- audit: original='fix(db): sync baseline-version-policy with BASELINE_VERSION 60' | actual=4L across 1 files | derived=full ---
