@@ -1,0 +1,6 @@
+fix(codegen-rust): Make `@test` functions callable from `main` in script mode
+scale: ~11 lines across 1 files [S]
+
+- `crates/vox-codegen/src/codegen_rust/pipeline.rs`: In script mode, moved `@test` functions from `script_module.tests` to `script_module.functions` and set their `is_pub` field to `true` to make them accessible from `main.rs`. This ensures that functions originally marked with `#[test]` are emitted as plain `pub fn`s, preventing "cannot find function" errors when called directly from the user's `main` function.
+
+--- audit: original='fix(codegen-rust): @test fns callable from main in script mode (CR-F2 #helper)' | actual=11L across 1 files | derived=full ---
