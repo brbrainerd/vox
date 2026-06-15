@@ -1,0 +1,14 @@
+refactor(vox-gamify): consolidate gamification SQL into vox-gamify
+scale: ~5725 lines across 32 files [XL]
+
+- Deleted `ops_ludus` module from `vox-db`, removing ~3200 lines of gamification-related `impl VoxDb` methods across 9 files.
+- Deleted `ops_ludus_tests.rs` from `vox-db` tests, moving gamify test concerns to `vox-gamify`.
+- Created `crates/vox-db/src/store/ops_a2a.rs` to house non-gamify coordination operations (A2A, OpLog, actor state, locks, heartbeats) extracted from `vox-db`.
+- Rewrote `vox-gamify/src/db/*.rs` files to directly inline SQL queries, removing dependencies on `vox-db`'s gamify methods. This involved significant changes to `quest_battle.rs`, `agent_telemetry.rs`, `companion.rs`, `profile.rs`, `kpi.rs`, `disputes.rs`, `notifications.rs`, `collegium.rs`, `arena.rs`, `teaching.rs`, `periodic.rs`, `leaderboards.rs`, `counters.rs`, `feedback.rs`, `hint_telemetry.rs`, and `dedupe.rs`.
+- Rewrote `crates/vox-gamify/src/periodic_reward/evaluate.rs` to use direct SQL.
+- Rewrote `crates/vox-gamify/src/db_ext.rs` to use direct SQL.
+- Rewrote `crates/vox-gamify/src/combo.rs` to use direct SQL.
+- Updated `crates/vox-db/tests/schema_contract_tests.rs` to use raw SQL instead of deleted methods.
+- Removed `mod.rs` entries for `ops_ludus` in `vox-db`.
+
+--- audit: original='refactor(vox-gamify): consolidate ops_ludus SQL into vox-gamify (Tasks 21-23)' | actual=5725L across 32 files | derived=full ---
