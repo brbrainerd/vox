@@ -1,0 +1,9 @@
+fix(retired-symbols): scope vox-ml-cli pattern to literal -standalone suffix
+scale: ~6 lines across 1 files [XS]
+
+- `contracts/documentation/retired-symbols.v1.yaml`:
+    - Updated the `vox-ml-cli-standalone` entry's `pattern` from `\bvox-ml-cli\b` to `\bvox-ml-cli-standalone\b` to match only the literal old name.
+    - Changed the `replacement` for `vox-ml-cli-standalone` from `vox-populi` to `vox-ml-cli`.
+    - Revised the `rationale` for `vox-ml-cli-standalone` to clarify that the `-standalone` suffix is retired and the canonical crate name is `vox-ml-cli`.
+
+--- audit: original='fix(retired-symbols): scope vox-ml-cli pattern to literal -standalone suffix' | actual=6L across 1 files | derived=full ---
