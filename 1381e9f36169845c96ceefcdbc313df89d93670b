@@ -1,0 +1,42 @@
+feat(mens): Implement MENS training pipeline and candle-based QLoRA training
+scale: ~8987 lines across 40 files [XL]
+
+- `mens/runs/logs`: Add new error logs for `train_20260414T044859.log.err`, `train_20260414T050831.log.err`, and `train_20260414T050531.log.err`.
+- `scripts`: Add `mens-full-pipeline.ps1` for MENS full pipeline execution.
+- `crates/vox-orchestrator`: Refactor `FlywheelMonitor` to support multiple domain-specific `FlywheelState` instances, initialize states for "vox-lang", "rust-expert", and "agents" domains, and add `DomainProfilesConfig` and `DomainProfile` structs for future configuration.
+- `crates/vox-cli`:
+    - `src/commands/db/local.rs`: Implement `mens_runs` to list historical MENS training runs and `mens_metrics` to list MENS-specific telemetry from `research_metrics`. Update `exec_history` documentation.
+    - `src/commands/populi_cli.rs`: Adjust CLI commands, likely related to the new training pipeline.
+    - `src/commands/db_cli/core_subcommands.rs`: Add new core subcommands for the database CLI.
+    - `src/commands/schola/train/gpu.rs`: Modify GPU training command.
+    - `src/commands/db_cli/mod.rs`: Update database CLI module.
+    - `src/commands/mens/populi/train_arm.rs`: Add new command for MENS Populi ARM training.
+    - `src/commands/mens/pipeline.rs`: Add new command for MENS pipeline.
+    - `src/commands/mens/populi/dispatch.rs`: Add new command for MENS Populi dispatch.
+    - `Cargo.toml`: Update dependencies.
+- `mens/data`: Update `train_mixed_vox_lang.mix_report.json`.
+- `crates/vox-populi`:
+    - `src/mens/tensor/candle_qlora_train/training_loop/mod.rs`: Refactor training loop, including ETA calculation logic, adding `rand::SeedableRng`, and introducing `apply_checkpoint_resume` and `preflight_masked_ce_finite` exports. Rename `telemetry` module to `telem_helpers`.
+    - `src/mens/tensor/device.rs`: Enhance GPU probing on Windows by prioritizing `nvidia-smi` for accurate VRAM detection and improving `probe_gpu_wmic` parsing.
+    - `src/mens/tensor/qlora_preflight.rs`: Modify QLoRA preflight logic.
+    - `src/mens/tensor/candle_qlora_train/mod.rs`: Add new module for candle QLoRA training.
+    - `src/mens/tensor/candle_qlora_weights.rs`: Modify candle QLoRA weights.
+    - `src/mens/tensor/candle_qlora_train/training_loop/encoding.rs`: Modify encoding logic.
+    - `src/mens/tensor/candle_qlora_train/training_loop/telem_helpers.rs`: Add new telemetry helpers module.
+    - `Cargo.toml`: Update dependencies.
+- `scratch`: Add `debug_preflight.rs` for debugging preflight tokenization and cross-entropy calculation.
+- `mens/config`:
+    - `mix.yaml`: Update mix configuration.
+    - `mix-rust.yaml`: Add new mix configuration for Rust.
+    - `flywheel.yaml`: Add new flywheel configuration.
+    - `training_contract.yaml`: Update training contract configuration.
+    - `domain-profiles.yaml`: Update domain profiles configuration.
+- `crates/vox-corpus`:
+    - `src/flywheel.rs`: Extend `FlywheelConfig` with `snapshot_retention` and domain-specific overrides, and add `for_domain` method to resolve effective configurations.
+    - `src/codegen_vox/part_01.rs`, `part_02.rs`, `part_03.rs`: Modify codegen parts.
+- `README.md`: Update documentation.
+- `crates/vox-build-meta`: Update `Cargo.toml`.
+- `mens/runs/latest`: Update `eval_results.json` and `training-preflight.json`.
+- `Cargo.lock`, `Cargo.toml`: Update project dependencies.
+
+--- audit: original='feat: implement MENS training pipeline and add support for candle-based QLoRA training' | actual=8987L across 40 files | derived=full ---
