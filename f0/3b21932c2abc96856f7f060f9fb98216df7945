@@ -1,0 +1,8 @@
+fix(clippy): resolve `identical_if_blocks`, `field_reassign_with_default`, and `for_kv_map` warnings
+scale: ~19 lines across 3 files [S]
+
+- `crates/vox-cli/src/commands/compile.rs`: Refactored `if backend.cache_label().contains("wasi")` block to a single `format!("{app_name}.wasm")` assignment to resolve `identical_if_blocks` clippy warning. The original behavior of always emitting `.wasm` is preserved.
+- `crates/vox-cli/src/commands/runtime/run/script.rs`: Initialized `PipelineOptions` using struct update syntax `..Default::default()` to resolve `field_reassign_with_default` clippy warning.
+- `crates/vox-cli/src/commands/ci/workspace_artifacts/worktree_gc.rs`: Changed iteration over `sys.processes()` from `for (_pid, p)` to `for p in sys.processes().values()` to resolve `for_kv_map` clippy warning.
+
+--- audit: original='fix(clippy): green 3 post-merge stragglers (for_kv_map, identical-if, field-reassign)' | actual=19L across 3 files | derived=full ---
