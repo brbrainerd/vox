@@ -1,0 +1,7 @@
+feat(cli): deprecate `vox compile --target mobile-{android,ios}` and update init template
+scale: ~18 lines across 2 files [S]
+
+- `crates/vox-cli/src/commands/compile.rs`: Add a deprecation warning to `vox compile --target mobile-{android,ios}`, advising users to use `vox build --target mobile` for native mobile (React Native + Expo) and clarifying that Tauri is for desktop packaging only, per ADR "scope-tauri-desktop-only".
+- `crates/vox-cli/src/commands/init.rs`: Update the "next steps" message for the `tauri-mobile/mobile-pwa` template to guide users towards `vox build --target mobile` for native mobile and remove the previous, unwired `vox compile --target mobile-android` instruction.
+
+--- audit: original='chore(tauri): deprecate Tauri-mobile compile path per desktop-only ADR (B5)' | actual=18L across 2 files | derived=full ---
