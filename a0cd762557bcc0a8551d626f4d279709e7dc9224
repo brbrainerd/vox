@@ -1,0 +1,8 @@
+feat(marquee): Land chat app fixture for slot 3
+scale: ~177 lines across 3 files [M]
+
+- `apps/marquee/chat/src/main.vox`: Add new Vox actor `ChatRoom` with `on join`, `on leave`, and `on send_msg` handlers. Implement companion `@endpoint`s `list_presence` (query) and `send_message` (mutation) with `@auth(scheme: bearer)`. Include internal pure helper functions for message validation, presence labeling, and rendering acknowledgements. Add 9 `@test` functions and 2 `@example` blocks.
+- `apps/marquee/chat/Vox.toml`: Add new package manifest for `marquee-chat` application, defining package metadata and an empty dependency list.
+- `contracts/marquee/manifest.v1.yaml`: Update `marquee-chat` entry status from `archetype-approved` to `real`. Add `vox_toml`, `entry`, `features_shipped`, `features_deferred`, and `test_coverage_status` fields to the manifest entry.
+
+--- audit: original='feat(marquee): Slot 3 (chat) seed fixture lands (CR-P1, CR-L0, CR-L7)' | actual=177L across 3 files | derived=full ---
