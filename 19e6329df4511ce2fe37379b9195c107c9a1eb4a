@@ -1,0 +1,13 @@
+feat(orchestrator): implement early doom-loop and token budget gates
+scale: ~95 lines across 6 files [M]
+
+- `crates/vox-orchestrator/src/orchestrator/task_dispatch/submit/task_submit.rs`:
+  - Moved doom-loop and token budget checks to occur before Socrates research, rejecting tasks from agents in a doom loop or over budget to avoid incurring autonomous-research costs.
+  - Added a `TODO` comment flagging a Time-of-Check-to-Time-of-Use (TOCTOU) race condition between `would_exceed_token_budget` read and queue admission, deferring a fix to a future check-and-reserve API.
+- `crates/vox-orchestrator/src/budget/mod.rs`: Added a new test case `test_doom_loop_cost_check_does_not_fire_at_exact_threshold` to document the strict-`>` contract for doom-loop cost checks, ensuring they do not fire when cost exactly equals the threshold.
+- `crates/vox-orchestrator/src/mcp_tools/llm_bridge/infer.rs`: Added a comment to the `GateResult::DoomLoop` arm in `mcp_infer_tool_completion` to clarify its current exhaustiveness-only role and potential future use if doom-loop checking is added at LLM-call granularity.
+- `docs/superpowers/plans/2026-05-02-orchestrator-reliability-block1.md`: Corrected the `doom_loop_threshold_usd` encoding from micro-dollars (`u64`) to `f64::to_bits()` to match `drift_cost_threshold_usd`, and documented why `2_000_000u64` would silently disable the threshold due to `f64::from_bits` interpretation.
+- `docs/src/architecture/web-app-archetype-coverage-2026.md`: Added a `last_updated` frontmatter field with the current date.
+- `docs/src/feed.xml`: Regenerated the feed XML.
+
+--- audit: original='fix(orchestrator): address CodeRabbit review feedback on PR #61' | actual=95L across 6 files | derived=full ---
