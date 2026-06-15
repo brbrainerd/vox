@@ -159,9 +159,7 @@ pub struct OrchestratorPolicyConfig {
 impl Default for OrchestratorPolicyConfig {
     fn default() -> Self {
         Self {
-            circuit_breaker: CircuitBreakerConfig::from_contract_file(std::path::Path::new(
-                "contracts/orchestration/circuit-breaker.v1.yaml",
-            )),
+            circuit_breaker: CircuitBreakerConfig::resolve(),
             fusion: FusionConfig::default(),
             tier_cascade: TierCascadeConfig::default(),
             plan_mode_trigger: PlanModeTriggerConfig::default(),
