@@ -1,0 +1,10 @@
+feat(vox-effort-audit): implement pipeline composition and e2e smoke test
+scale: ~260 lines across 5 files [L]
+
+- `crates/vox-effort-audit/src/pipeline.rs`: Implemented the `run` function, which orchestrates the entire audit pipeline. This includes resolving the commit range, walking commits to compute diffs and shape features, resolving hybrid measured cost, calling the judge, and emitting `FindingRow` lines. Also added `RunSummary` struct for caller feedback.
+- `crates/vox-effort-audit/tests/e2e_smoke.rs`: Added a new end-to-end smoke test that runs the audit pipeline against a fixture git repository using a `MockJudge` and asserts on the existence and content of the generated output files (`findings.jsonl`, `report.md`, `manifest.json`).
+- `crates/vox-effort-audit/src/lib.rs`: Exported the `pipeline::run` function.
+- `crates/vox-effort-audit/Cargo.toml`: Added `anyhow` as a dependency.
+- `Cargo.lock`: Updated to reflect the new dependency.
+
+--- audit: original='feat(vox-effort-audit): pipeline composition + e2e smoke (E2)' | actual=260L across 5 files | derived=full ---
