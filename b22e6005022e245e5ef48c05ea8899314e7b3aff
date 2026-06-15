@@ -1,0 +1,8 @@
+fix(arch): reclassify `vox-effort-audit` and `vox-effort-route` as L3
+scale: ~19 lines across 3 files [S]
+
+- docs/src/architecture/layers.toml: Changed `vox-effort-audit` and `vox-effort-route` from layer 2 to layer 3, adding a comment explaining the reclassification due to their dependency on `vox-actor-runtime` (L3) LLM facade.
+- docs/superpowers/plans/2026-05-30-effort-route.md: Updated the "Architecture" section to reflect `vox-effort-route` as a new L3 crate (heavy-runtime consumer of `vox-actor-runtime`) instead of L2.
+- docs/superpowers/specs/2026-05-30-effort-route-design.md: Updated the crate description and "Layer placement" section to classify `vox-effort-route` as an L3 crate, providing detailed justification for the change based on its dependency on `vox-actor-runtime`.
+
+--- audit: original='fix(arch): reclassify effort-audit + effort-route as L3 (resolve layer inversion)' | actual=19L across 3 files | derived=full ---
