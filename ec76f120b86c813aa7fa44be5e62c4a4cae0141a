@@ -1,0 +1,8 @@
+feat(docs-astro): link docs/src into Starlight content collection
+scale: ~40 lines across 3 files [S]
+
+- **docs-astro/scripts/setup-content.mjs**: Added a new script to create a symlink (or junction on Windows) from `docs-astro/src/content/docs` to `docs/src`. This script ensures the Starlight content collection points to the actual documentation source files.
+- **docs-astro/src/content/config.ts**: Deleted this file, as it contained stale Astro v4 configuration that was no longer needed and was shadowed by the v5 `content.config.ts`.
+- **docs-astro/package.json**: Modified the `scripts` section to include `predev` and `prebuild` hooks. These hooks execute `node scripts/setup-content.mjs` before `pnpm dev` and `pnpm build` respectively, automating the content linking process.
+
+--- audit: original='fix(docs-astro): complete Phase 3 — link docs/src into Starlight content collection' | actual=40L across 3 files | derived=full ---
