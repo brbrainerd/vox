@@ -1,0 +1,10 @@
+refactor: format code to adhere to `cargo fmt` standards
+scale: ~473 lines across 22 files [L]
+
+- `vox-codegen`: Apply formatting to `codegen_ts/rn/component.rs`, `codegen_ts/emitter.rs`, `codegen_ts/mod.rs`, `codegen_ts/rn/scaffold.rs`, and `codegen_ts/mobile_emit.rs`.
+- `vox-gui`: Apply formatting to `commands/memory.rs`, `commands/models.rs`, `commands/action_manifest.rs`, `commands/control_plane.rs`, `commands/preferences.rs`, `commands/build_info.rs`, and `commands/runs.rs`.
+- `vox-orchestrator-mcp`: Apply formatting to `http_gateway/dashboard_api.rs`, `llm_bridge/model_route_policy/tests.rs`, and `llm_bridge/model_route_policy/resolve.rs`.
+- `vox-cli-tests`: Apply formatting to `lib.rs` and `tests/build_e2e.rs`.
+- `vox-drift-check`: Apply formatting to `sweep/body_hash.rs`, `sweep/numeric_dedup.rs`, `rules/timeout_literal.rs`, `extractor.rs`, and `rules/vox_path_literal.rs`.
+
+--- audit: original='chore: fmt pre-existing workspace drift surfaced by the new pre-push hook' | actual=473L across 22 files | derived=full ---
