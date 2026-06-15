@@ -1,0 +1,9 @@
+feat(vox-runtime-rn): introduce uniffi-bridged Rust crate for React Native
+scale: ~389 lines across 4 files [L]
+
+- `crates/vox-runtime-rn/src/lib.rs`: Added new crate exposing `vox-runtime` foundation types (`RuntimeProfile`, `VoxConfig`, `VoxRuntimeHandle`, `VoxRnError`) via `uniffi` proc-macros for React Native. Includes `From` implementations for `PathBuf` conversion, `log` method for `tracing` events, and `default_desktop_config`/`default_mobile_config` free functions.
+- `crates/vox-runtime-rn/tests/bridge_integration.rs`: Added integration tests for `vox-runtime-rn` covering mobile lifecycle, desktop configuration, and custom config overrides.
+- `crates/vox-runtime-rn/Cargo.toml`: Added new `Cargo.toml` defining the `vox-runtime-rn` crate with `rlib`, `cdylib`, and `staticlib` crate types for cross-compilation, and dependencies on `vox-runtime`, `uniffi`, `thiserror`, `tracing`, and `workspace-hack`.
+- `crates/vox-runtime-rn/build.rs`: Added an empty `build.rs` file, noting that `uniffi` proc-macro mode handles FFI glue at macro expansion time, and this file is a placeholder for future cross-compile/`uniffi-bindgen-react-native` integration.
+
+--- audit: original='feat(vox-runtime-rn): uniffi-bridged Rust crate exposing vox-runtime to JS' | actual=389L across 4 files | derived=full ---
