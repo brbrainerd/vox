@@ -1,0 +1,11 @@
+feat(orchestrator): add CAS bundle seeding for mesh dispatch
+scale: ~204 lines across 6 files [M]
+
+- `crates/vox-orchestrator/src/a2a/envelope.rs`: Extend `RemoteTaskEnvelope` with optional `bundle_ref` and `bundle_inline_b64` fields to support content-addressed bundle seeding.
+- `crates/vox-mesh-types/src/bundle.rs`: Introduce new A2A wire types `BundleRequest` and `BundleResponse` for requesting and responding with content-addressed bundles.
+- `crates/vox-orchestrator/src/a2a/dispatch/bundle_fetch.rs`: Add new module with `ship_decision` to determine if a bundle should be inlined (up to 1 MiB) or requested, `resolve_local` to check the local bundle store, and `decode_inline` to reconstruct bundles from base64-encoded inline data.
+- `crates/vox-orchestrator/src/a2a/dispatch/mod.rs`: Integrate the new `bundle_fetch` module into the dispatch system.
+- `crates/vox-mesh-types/src/lib.rs`: Export the new `bundle` module.
+- `crates/vox-orchestrator/tests/bundle_fetch.rs`: Add 6 acceptance tests covering `RemoteTaskEnvelope` round-trip serialization/deserialization with bundle fields, legacy compatibility, bundle size threshold for inlining, decoding recovery from inline data, and local store miss scenarios.
+
+--- audit: original='feat(P2-T4): CAS bundle seeding for mesh dispatch' | actual=204L across 6 files | derived=full ---
