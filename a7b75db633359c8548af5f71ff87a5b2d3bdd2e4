@@ -1,0 +1,6 @@
+fix(codegen_rust): replace `unreachable!()` with `compile_error!()` for unimplemented HIR expressions
+scale: ~27 lines across 1 files [S]
+
+- `crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs`: Replaced a catch-all `unreachable!()` in `emit_expr_with` with specific `compile_error!()` macros for `HirExpr` variants that are either frontend-only (JSX, AsyncView) or not yet implemented for Rust emission (Spawn, WorkflowVersion, With). This provides clearer compile-time errors instead of runtime panics.
+
+--- audit: original='fix(codegen_rust): replace unreachable!() expr catch-all with compile_error! for frontend/unimplemented constructs' | actual=27L across 1 files | derived=full ---
