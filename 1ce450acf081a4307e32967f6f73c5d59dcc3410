@@ -1,0 +1,6 @@
+feat(audit): bootstrap 2026-Q2 corpus-feedback report with baseline metrics
+scale: ~17 lines across 1 files [S]
+
+- `contracts/reports/corpus-feedback/2026-Q2.json`: Add new report file with initial zeroed metrics for `total_lint_findings`, `total_autofix_observations`, `total_repair_sessions`, `top_50_diagnostics`, and `repair_outcomes` (success, partial, abandoned, infra_error, other, total_sessions). Includes `schema_version` and `measured_at` timestamp.
+
+--- audit: original='feat(audit): bootstrap CR-L8 corpus-feedback 2026-Q2 report' | actual=17L across 1 files | derived=full ---
