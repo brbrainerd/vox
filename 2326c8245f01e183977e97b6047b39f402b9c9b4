@@ -1,0 +1,10 @@
+docs(architecture, marquee): mark Phases E, F, G, J complete; update manifest endpoint syntax
+scale: ~52 lines across 2 files [M]
+
+- docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md:
+  - Marked Phase G (Bucket-A language features, including closures and Option/Result methods) as complete, specifying the `fn(...)` closure form and listing implemented methods.
+  - Marked Phase J (intra-project Vox-file imports) as fully complete for both bare-form and alias-form imports (eval, typecheck, CLI).
+  - Implicitly marked Phase E (53/53 scripts pass vox check) and Phase F (CI baseline locked at 53 scripts) as complete by updating related sections.
+- contracts/marquee/manifest.v1.yaml: Replaced `@endpoint(kind: query|mutation)` and `@endpoint(kind: stream)` references with `@query`, `@mutation`, and `@server streaming endpoint` respectively, reflecting v0.6.0 surface syntax.
+
+--- audit: original='docs(ssot): mark Phase G, J, E, F complete; update marquee manifest' | actual=52L across 2 files | derived=full ---
