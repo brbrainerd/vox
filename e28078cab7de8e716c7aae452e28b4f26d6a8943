@@ -1,0 +1,24 @@
+refactor(cr-a1): extract functions to reduce cyclomatic complexity to ≤15
+scale: ~3374 lines across 19 files [XL]
+
+- `crates/vox-codegen/src/codegen_rust/emit/ai_fixture/llm.rs`: Extracted `emit_llm_function_body` helpers for "memory" and "web" search dispatch, significantly reducing its complexity.
+- `crates/vox-codegen/src/codegen_rust/emit/method_emit.rs`: Removed `emit_predicate_sql` function, likely inlined or moved.
+- `crates/vox-compiler/src/typeck/checker/expr.rs`: Refactored `check_expr` by extracting logic for `HirExpr::Ident` and other expression types into new helper functions.
+- `crates/vox-compiler/src/hir/lower/mod.rs`: Extracted `lower_import_paths` and `lower_endpoint_decl` from the main `lower` function, simplifying `Decl::Import` and `Decl::Endpoint` handling.
+- `crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs`: Extracted `emit_return_stmt` logic from `emit_stmt`, particularly for actor and route contexts, including `route_json_shortcut`.
+- `crates/vox-compiler/src/hir/lower/expr.rs`: Refactored `lower_expr` by extracting database query chain processing into `super::expr_db::extract_db_query_chain` and `make_db_plan_from_chain`.
+- `contracts/reports/arch/cr-a1/2026-05-23.json`: Updated the CR-A1 cyclomatic complexity report, reflecting the threshold being met.
+- `crates/vox-codegen/src/codegen_rust/emit/http.rs`: Extracted `emit_route_registrations` and `emit_endpoint_handlers` from `emit_http_server_main`.
+- `crates/vox-codegen/src/codegen_rust/emit/client.rs`: Extracted `emit_ident_expr` and other helpers from `emit_client_method_body`.
+- `crates/vox-compiler/src/typeck/checker/match_exhaust.rs`: Refactored `check_match_exhaustiveness` by extracting helper functions for pattern binding.
+- `crates/vox-compiler/src/typeck/checker/expr_ops.rs`: Extracted `bind_constructor_pattern` from `bind_pattern`.
+- `crates/vox-codegen/src/codegen_rust/emit/workflow.rs`: Extracted `emit_workflow_dispatch_block` from `emit_workflow_main`.
+- `crates/vox-codegen/src/codegen_rust/emit/state_machine.rs`: Extracted `push_actor_loop_prelude` from `emit_state_machine_main`.
+- `crates/vox-compiler/src/typeck/checker/expr_field.rs`: Extracted `check_single_str_field` to simplify `check_expr_field_access` by collapsing `JsonBody` and `KeyboardEvent` inner match arms.
+- `crates/vox-compiler/src/typeck/checker/mod.rs`: Extracted `check_reactive_members_second_pass` from `check_reactive_component`.
+- `crates/vox-codegen/src/codegen_rust/emit/tables/codegen.rs`: Refactored `emit_binary_expr` and other codegen helpers.
+- `contracts/reports/repair-corpus/2026-05-23.json`: Updated repair corpus report.
+- `crates/vox-codegen/src/codegen_rust/emit/stmt_expr_tail.rs`: Added new file, likely containing extracted statement/expression tail emission logic.
+- `contracts/reports/evidence-ledger.v1.json`: Updated evidence ledger to mark `arch.cr_a1.cyclomatic_measured` as `threshold.met=true`.
+
+--- audit: original='refactor(cr-a1): drop all 3 lowering paths to ≤15 CC (threshold.met=true)' | actual=3374L across 19 files | derived=full ---
