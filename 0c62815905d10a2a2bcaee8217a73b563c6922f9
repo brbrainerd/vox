@@ -1,0 +1,41 @@
+feat(release): add automated release binaries workflow and enhance CLI installation
+scale: ~11963 lines across 250 files [XL]
+
+- **.github/workflows/release-binaries.yml**: Added a new GitHub Actions workflow for automating the release of binaries upon tagging, including steps for building, packaging, and publishing artifacts for multiple target platforms.
+- **crates/vox-cli/src/commands/ci/release_build.rs**: Introduced a new `release-build` command to the CLI.
+- **crates/vox-cli/src/commands/ci/mod.rs**: Updated the CI command registry to include the new `release-build` command.
+- **crates/vox-corpus/src/codegen_vox.rs**: Refactored `Rng` methods for `usize` and `coin` to use block expressions for clarity and updated `NOUNS` and `VERBS` arrays to use block expressions for better formatting.
+- **crates/vox-corpus/src/synthetic_gen.rs**: Refactored `example_args_for_tool` to use block expressions for tool names for better readability and updated `vox_mcp_meta` imports.
+- **crates/vox-corpus/src/corpus/preflight.rs**: Significant changes, likely related to preflight checks for corpus generation.
+- **crates/vox-corpus/src/corpus/extract_vox.rs**: Significant changes, likely related to extracting vox data from the corpus.
+- **crates/vox-corpus/src/synthetic_search_gen.rs**: Significant changes, likely related to synthetic search generation.
+- **crates/vox-corpus/src/corpus/augment.rs**: Significant changes, likely related to corpus augmentation.
+- **crates/vox-corpus/src/arca_replay.rs**: Significant changes, likely related to Arca replay functionality.
+- **crates/vox-corpus/src/corpus/extract_docs.rs**: Significant changes, likely related to extracting documentation from the corpus.
+- **crates/vox-corpus/src/corpus/coverage.rs**: Significant changes, likely related to corpus coverage.
+- **crates/vox-corpus/src/corpus/extract_rs.rs**: Significant changes, likely related to extracting Rust code from the corpus.
+- **crates/vox-corpus/build.rs**: Significant changes, likely related to the build process for the corpus crate.
+- **crates/vox-corpus/tests/synthetic_gen_test.rs**: Significant changes, likely related to synthetic generation tests.
+- **crates/vox-db/src/store/ops_ludus.rs**: Refactored database operations for `gamify_profiles` and `gamify_achievements` to use block expressions for `execute` calls and improved formatting for `vals` collection.
+- **crates/vox-db/src/lib.rs**: Significant changes, likely related to the core database library.
+- **crates/vox-db/src/store/ops_build.rs**: Significant changes, likely related to build operations in the database store.
+- **crates/vox-db/src/store/ops_mens_cloud.rs**: Significant changes, likely related to mens cloud operations in the database store.
+- **crates/vox-db/src/store/ops_codex.rs**: Significant changes, likely related to codex operations in the database store.
+- **crates/vox-db/src/training_run.rs**: Significant changes, likely related to training run management in the database.
+- **crates/vox-db/src/codex_conversation_graph.rs**: Significant changes, likely related to the codex conversation graph.
+- **crates/vox-db/src/store/ops_orchestrator.rs**: Significant changes, likely related to orchestrator operations in the database store.
+- **crates/vox-db/src/store/ops_agents.rs**: Significant changes, likely related to agent operations in the database store.
+- **crates/vox-db/src/codex_chat.rs**: Significant changes, likely related to codex chat functionality.
+- **crates/vox-db/src/store/mod.rs**: Significant changes, likely related to the database store module.
+- **crates/vox-db/src/schema_digest.rs**: Significant changes, likely related to schema digest functionality.
+- **crates/vox-db/src/store/ops_cas.rs**: Significant changes, likely related to CAS operations in the database store.
+- **crates/vox-db/tests/ops_ludus_tests.rs**: Significant changes, likely related to tests for Ludus operations.
+- **crates/vox-db/tests/ops_agents_tests.rs**: Significant changes, likely related to tests for agent operations.
+- **crates/vox-db/tests/ops_workflow_tests.rs**: Significant changes, likely related to tests for workflow operations.
+- **crates/vox-db/tests/ops_memory_tests.rs**: Significant changes, likely related to tests for memory operations.
+- **crates/vox-db/tests/ops_codex_tests.rs**: Significant changes, likely related to tests for codex operations.
+- **crates/vox-db/tests/ops_skill_tests.rs**: Significant changes, likely related to tests for skill operations.
+- **crates/vox-db/tests/db_connection_tests.rs**: Significant changes, likely related to database connection tests.
+- **crates/vox-db/tests/migration_tests.rs**: Significant changes, likely related to database migration tests.
+
+--- audit: original='feat(release): add automated release binaries workflow and enhance CLI installation options' | actual=11963L across 250 files | derived=full ---
