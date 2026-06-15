@@ -1,0 +1,10 @@
+fix(vox-cli): update query syntax, add 'bapp' alias, update mcp_tools path
+scale: ~31 lines across 5 files [S]
+
+- `crates/vox-cli/src/commands/db/mod.rs`: Update test source strings from `@query` to `@endpoint(kind: query)` to reflect parser changes.
+- `crates/vox-cli/src/commands/ci/command_compliance/validators.rs`: Add "bapp" to `SKIP_ALIASES` to prevent false positives in `latin_alias_parity_with_catalog` guard, as "bapp" is a shorthand for "bundle-app".
+- `crates/vox-cli/src/commands/ci/command_compliance/mod.rs`: Update paths for `mcp_mod`, `mcp_dispatch`, and `mcp_tool_aliases` from `crates/vox-orchestrator/src/mcp_tools/` to `crates/vox-orchestrator-mcp/src/` following crate extraction.
+- `crates/vox-cli/src/commands/ci/command_compliance/tests.rs`: Update paths and associated comments for `mcp_mod`, `dispatch`, and `aliases` within the `mcp_extract_matches_workspace_vox_orchestrator_mcp_tools_mod_rs` test to reflect the `vox-orchestrator-mcp` crate extraction.
+- `crates/vox-cli/tests/fixtures/command_catalog_paths_baseline.txt`: Regenerate baseline file due to path changes.
+
+--- audit: original='fix(vox-cli): update @query→@endpoint syntax, add bapp alias, update mcp_tools path' | actual=31L across 5 files | derived=full ---
