@@ -1,0 +1,6 @@
+fix(tests): Add `is_reactive: false` to `HirFn` literal in `metamorphic_axiom_test.rs`
+scale: ~1 lines across 1 files [XS]
+
+- `crates/vox-integration-tests/tests/metamorphic_axiom_test.rs`: Added `is_reactive: false` to the `HirFn` literal within the `prop_sort_idempotent` test function.
+
+--- audit: original='fix(tests): add is_reactive: false to metamorphic_axiom_test HirFn' | actual=1L across 1 files | derived=full ---
