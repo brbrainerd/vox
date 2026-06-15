@@ -1,0 +1,7 @@
+feat(atlas): Add `MeasurementCampaign` and `AcademicCoauthor` with CRediT roles
+scale: ~165 lines across 2 files [M]
+
+- `crates/vox-publisher/src/atlas/coauthor.rs`: Add `CreditRole` enum with all CRediT taxonomy roles and a method to get their corresponding URIs.
+- `crates/vox-publisher/src/atlas/campaign.rs`: Add `MeasurementCampaign` struct with fields for campaign details, `inspect_task_id`, `prereg_id`, and `started_at`. Implement `is_preregistered` and `to_inspect_bridge_config` methods, including a test for the latter.
+
+--- audit: original='feat(scientia): Phase 9 — MeasurementCampaign + AcademicCoauthor (CRediT roles)' | actual=165L across 2 files | derived=full ---
