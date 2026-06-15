@@ -1,0 +1,13 @@
+feat(ci): add test inventory, governance gates, and `act` dry-run improvements
+scale: ~3421 lines across 14 files [XL]
+
+- `contracts/reports`: Add `test-inventory.v1.json` for CI drift checks and update `operations-catalog-inventory.v1.json`.
+- `docs`: Add new architecture documentation for workspace test inventory, update CI runner contract with nextest profile details and doctest information, and expand telemetry metric contract with new event types.
+- `crates/vox-cli`: Enhance `pre_push` command with `act` dry-run functionality, improve `act` binary location logic, and add new CI commands for `ignored-test-age`, `flake-budget`, and `runtime-regress` governance gates.
+- `.github/workflows`: Update `ci.yml` to integrate new CI checks and `ts-emit-noemit.yml` with minor changes.
+- `contracts/capability`: Update `capability-registry.yaml` with new entries.
+- `contracts/operations`: Update `catalog.v1.yaml` with new operations.
+- `crates/vox-cli/tests`: Add new test for `pre_push` dry-run `act` workflow listing.
+- `contracts/cli`: Update `command-registry.yaml` with new commands.
+
+--- audit: original='test: add inventory, governance gates, and suite stabilization' | actual=3421L across 14 files | derived=full ---
