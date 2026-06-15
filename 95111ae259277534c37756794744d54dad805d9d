@@ -1,0 +1,12 @@
+fix(vox-cli): recompile when script-cache stamp has no binary
+scale: ~82 lines across 2 files [M]
+
+- `crates/vox-cli/src/commands/runtime/run/script.rs`:
+  - Introduced `cache_artifact_reusable` function to check for both `.compiled` stamp and binary existence for cache hits.
+  - Modified `compile` function to use `cache_artifact_reusable` for determining if a cached artifact is reusable, ensuring recompilation if the binary is missing.
+  - Extracted binary name determination logic to a separate block.
+- `crates/vox-cli/src/commands/runtime/run/backend/native.rs`:
+  - Added context to `std::fs::copy` error for better diagnostics, including source and destination paths.
+  - Added context to `cmd.spawn()` and `cmd.status()` errors to include the script binary path, preventing bare "os error 3" on Windows.
+
+--- audit: original='fix(vox-cli): recompile when script-cache stamp has no binary (Windows os error 3)' | actual=82L across 2 files | derived=full ---
