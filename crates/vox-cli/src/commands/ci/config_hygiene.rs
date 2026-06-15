@@ -11,12 +11,22 @@ pub struct Violation {
     pub file: String,
     pub line: usize,
     pub message: String,
+    /// For `env-var-not-in-registry` violations, the specific env var name.
+    /// Other checks leave this as `None` and use file-level granularity.
+    pub env_var: Option<String>,
 }
 
-/// Baseline key for a violation: `check|file` (coarse-but-robust ratchet — new
-/// files/crates introducing the anti-pattern fail; pre-existing dirty files are
-/// grandfathered until the backlog is burned down).
+/// Baseline key for a violation.
+///
+/// - `env-var-not-in-registry`: fine-grained `check|file|env_var` so that a
+///   new unregistered var in a pre-existing dirty file is still caught.
+/// - All other checks: coarse `check|file` (pre-existing ratchet behaviour).
 pub fn baseline_key(v: &Violation) -> String {
+    if v.check == "env-var-not-in-registry" {
+        if let Some(ref var) = v.env_var {
+            return format!("{}|{}|{}", v.check, v.file.replace('\\', "/"), var);
+        }
+    }
     format!("{}|{}", v.check, v.file.replace('\\', "/"))
 }
 
@@ -70,6 +80,7 @@ pub fn check_no_cwd_relative_contract_paths(source: &str, file: &str) -> Vec<Vio
                 message: "cwd-relative \"contracts/...\" path is inert in deployed binaries; \
                           embed the contract with include_str! (see config-guardrails Phase 0)"
                     .to_string(),
+                env_var: None,
             });
         }
     }
@@ -107,6 +118,7 @@ pub fn check_protected_modules_have_no_env_reads(source: &str, file: &str) -> Ve
                 message: "protected never-configure module must not read env; if this value truly \
                           needs configuring, move it out of the protected path and register it"
                     .to_string(),
+                env_var: None,
             });
         }
     }
@@ -131,6 +143,7 @@ pub fn check_unwired_config(
             message: format!(
                 "config resolver `{sym}` has no non-test caller — wire it or delete it (YAGNI)"
             ),
+            env_var: None,
         })
         .collect()
 }
@@ -358,6 +371,7 @@ pub fn check_env_reads_registered(
                         "VOX_* env var `{var_name}` is not in contracts/config/registry.v1.yaml \
                          — add an entry with status: active or declared"
                     ),
+                    env_var: Some(var_name.to_string()),
                 });
             }
         }
@@ -415,12 +429,14 @@ mod tests {
             file: "crates/a.rs".into(),
             line: 5,
             message: "x".into(),
+            env_var: None,
         };
         let fresh = Violation {
             check: "no-cwd-relative-contract-path",
             file: "crates/b.rs".into(),
             line: 9,
             message: "x".into(),
+            env_var: None,
         };
         let mut base = std::collections::BTreeSet::new();
         base.insert(baseline_key(&grand));
