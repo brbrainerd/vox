@@ -1,0 +1,13 @@
+docs(plan): async chat, task-list GUI, resource scaling, and omni-search implementation
+scale: ~3055 lines across 1 files [XL]
+
+- Add a detailed implementation plan for several core features:
+    - **Async Chat:** Ensure chat remains responsive.
+    - **Task-List GUI:** Provide full visibility and control over queued orchestrator work (list, add, edit, remove, reprioritize tasks) via a GUI. This involves extending `Orchestrator` with `list_tasks` and `edit_task` RPCs and Tauri wrappers.
+    - **Resource-Aware Scaling:** Extend `ScalingService` to scale agents based on local CPU/RAM (using `sysinfo`) and mesh resource broadcasts (`remote_populi_routing_hints`), including a new `GET /v1/populi/resources/summary` endpoint.
+    - **Omni-Search:** Transform the Cmd+K palette into a comprehensive search tool for commands, agents, skills, settings, surfaces/windows, documentation, and backend corpora, with a sidebar filter.
+    - **LLM Concurrency Throttling:** Implement an AIMD throttle in `vox-actor-runtime::llm`, configurable via a new `[llm]` section in `Vox.toml`.
+- Address existing bugs in audited settings, chat, and search.
+- Ensure all settings flow through the existing SSOT (`Vox.toml`, `~/.vox/config.toml`, GUI DB preferences).
+
+--- audit: original='docs(plan): async chat + task-list GUI + resource-aware scaling + omni-search implementation plan' | actual=3055L across 1 files | derived=full ---
