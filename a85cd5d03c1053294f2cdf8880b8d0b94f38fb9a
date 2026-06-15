@@ -1,0 +1,34 @@
+feat(json): introduce strict-Option JSON API and intra-project imports
+scale: ~5642 lines across 50 files [XL]
+
+- `crates/vox-actor-runtime`: Implemented `VoxJson::get` and `VoxJson::at` for object key and array index access, returning `Option<VoxJson>`.
+- `crates/vox-compiler`:
+    - `src/eval/builtins.rs`: Added `as_str`, `as_int`, `as_float`, `as_bool` methods to `VoxValue` for JSON leaf coercion, returning `Option`.
+    - `src/eval/mod.rs`: Updated `Json::pointer` to return `Option<Json>`.
+    - `tests/json_ergonomics_test.rs`: Added a new integration test for the strict-Option JSON API, covering `parse`, navigation, and leaf coercion.
+    - `tests/intra_project_imports_test.rs`: Added a new integration test for intra-project Vox-file imports, verifying `pub fn` visibility, aliasing, cycle detection, and typecheck visibility.
+    - `src/typeck/checker/expr.rs`: Modified type checking for `Json::get` and `Json::at` to handle `Option` return types.
+    - `src/parser/descent/decl/head.rs`: Added support for `import` statements in the parser.
+    - `src/hir/lower/mod.rs`: Implemented lowering for `import` statements.
+    - `src/hir/nodes/decl.rs`: Added `ImportDecl` to HIR nodes.
+    - `src/ast/decl/types.rs`: Added `ImportDecl` to AST declarations.
+    - `src/lexer/token.rs`: Added `IMPORT` keyword token.
+- `crates/vox-workflow-runtime`:
+    - `src/duration_literal.rs`: Added a new module for shared `@scheduled` / `workflow_wait` duration-literal parsing, providing a single source of truth and `DurationParseError`.
+    - `src/workflow/plan.rs`: Delegated `parse_duration_ms_str` to the new `duration_literal` parser.
+    - `src/lib.rs`: Exported `duration_literal` module.
+- `scripts/quality`: Updated `audit-workspace-health.vox`, `generate-matrix-doc.vox`, and `audit-dependency-layers.vox` to use the new strict-Option JSON API.
+- `scripts`: Many small scripts (`fix-doc-categories.vox`, `generate-grammars.vox`, `migrate-corpus.vox`, `ci/corpus_prep.vox`, `mens-corpus/*`, `migrations/*`) were updated to reflect API changes or new helper functions.
+- `docs/superpowers/plans`: Restored `2026-05-23-durable-functions-completion.md` (66KB, 1866 lines) from git history.
+- `docs/src/architecture`: Added new RFCs `json-ergonomics-rfc-2026-05-23.md`, `intra-project-imports-rfc-2026-05-23.md`, and `vox-stdlib-gap-audit-2026-05-23.md`.
+- `crates/vox-codegen`:
+    - `src/codegen_rust/emit/main_boot.rs`: Replaced inline `parse_duration_literal` with a call to the runtime parser, using `unwrap_or_else(panic!)` for error handling.
+    - `tests/ai_structured_output_emit.rs`: Updated five `emit_fn` callsites to the 3-argument signature.
+    - `src/web_ir/validate_overlay.rs`: Updated `overlay_unique_z_no_warning` test to use named Z-tiers instead of numeric z-indexes to avoid `loose_z_index` warning.
+    - `tests/snapshots`: Regenerated `main_boot_snapshot` to reflect new emit shape. Removed `main_boot_no_scheduled_no_endpoints.snap`.
+- `.gitignore`: Added `**/*.snap.new` rule.
+- `examples/golden`: Updated `json_stdlib.vox`.
+- `examples/aspirational`: Added `regex-heavy/README.md`.
+- `contracts/reports`: Added `scripts-pass-baseline.txt`.
+
+--- audit: original='fix: ADR-041 minor cleanups (M-3, M-7) + restore plan doc + overlay/test fixes' | actual=5642L across 50 files | derived=full ---
