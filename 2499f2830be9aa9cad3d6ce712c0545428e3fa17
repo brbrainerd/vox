@@ -1,0 +1,14 @@
+feat(vox-gui/browser): Improve accessibility of BrowserView tabs and buttons
+scale: ~41 lines across 2 files [S]
+
+- `BrowserView.tsx`:
+  - Added `role="tablist"` and `aria-label="Browser view"` to the tab container.
+  - Added `role="tab"` and `aria-selected` attributes to the "Preview" and "Agent" tab buttons.
+  - Added `aria-pressed` attribute to the control mode toggle button.
+- `BrowserView.test.tsx`:
+  - Added a test to verify the tablist and `aria-selected` attribute on the "Preview" tab.
+  - Added a test to ensure all buttons explicitly have `type="button"`.
+  - Updated `vitest-environment` to `jsdom`.
+  - Added mocks for `@tauri-apps/api/core` and `transport`.
+
+--- audit: original='feat(vox-gui/wave6): BrowserView a11y + checklist (Wave 6)' | actual=41L across 2 files | derived=full ---
