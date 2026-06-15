@@ -1,0 +1,12 @@
+docs(mobile-cross-compile): document and gate pending iOS cross-compile
+scale: ~74 lines across 2 files [M]
+
+- docs/src/architecture/vox-runtime-rn-mobile-cross-compile.md:
+  - Added a "Platform status" table to summarize Android and iOS cross-compile status.
+  - Added a `TODO(ios-cross-compile)` box detailing the pending iOS cross-compile status, its dependencies (macOS host), and a runbook for verification.
+- crates/vox-cli-tests/tests/mobile_cross_compile.rs:
+  - Added an `#[ignore]`d test `vox_runtime_rn_cross_compiles_to_aarch64_ios` to track the pending iOS cross-compile for `vox-runtime-rn`.
+  - The test includes a conditional check for `target_os = "macos"` and an `eprintln` message if not on macOS.
+  - The test attempts to build `vox-runtime-rn` for `aarch64-apple-ios` using `cargo build`.
+
+--- audit: original='docs: track iOS cross-compile as PENDING (no macOS host) — discoverably' | actual=74L across 2 files | derived=full ---
