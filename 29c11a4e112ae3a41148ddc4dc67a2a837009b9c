@@ -1,0 +1,11 @@
+docs: update frontmatter statuses for doc-pipeline checks
+scale: ~14 lines across 6 files [M]
+
+- `docs/src/archive/research-2026-q1/vox-oratio-speech-to-code-findings-2026.md`: Changed `category` from "research" to "architecture" and `status` from "current" to "legacy".
+- `docs/src/architecture/data-storage-lint-and-ci-spec-2026.md`: Changed `status` from "proposed" to "roadmap".
+- `docs/src/architecture/data-storage-migration-backlog-2026.md`: Changed `status` from "proposed" to "roadmap".
+- `docs/src/architecture/data-storage-ssot-2026.md`: Changed `status` from "proposed" to "roadmap".
+- `docs/src/archive/research-2026-q1/README.md`: Changed `status` from "archived" to "legacy".
+- `docs/src/archive/research-2026-q1/visus-implementation-plan-2026.md`: Changed `status` from "archived" to "legacy".
+
+--- audit: original='chore: fix frontmatter statuses for doc-pipeline checks' | actual=14L across 6 files | derived=full ---
