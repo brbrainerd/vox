@@ -1,0 +1,10 @@
+refactor(config): de-literalize various constants into named constants
+scale: ~59 lines across 5 files [M]
+
+- `crates/vox-search/src/memory_hybrid.rs`: Extracted magic numbers for temporal decay half-life, decay floor, hybrid candidate overfetch, and status boost values into named constants and a `status_boost` function.
+- `crates/vox-db/src/store/ops_retention.rs`: Replaced literal values for retention sweep chunk rows and max passes with `RETENTION_SWEEP_CHUNK_ROWS` and `RETENTION_SWEEP_MAX_PASSES` constants.
+- `crates/vox-research-shim/src/research/orchestrator/web_gather.rs`: Defined `CRAG_STOP_QUALITY` constant for the CRAG multi-hop stop condition.
+- `crates/vox-git/src/bridge.rs`: Introduced `DEFAULT_SHALLOW_DEPTH` constant for the default shallow git operation depth and used it in `GitBridgeConfig::default`.
+- `crates/vox-corpus/src/corpus/mix/mod.rs`: Replaced the literal chunk size with `MIX_STREAM_CHUNK_LINES` constant.
+
+--- audit: original='refactor(config): de-literalize low-severity lt-data findings (retention/shallow-depth/CRAG/memory-decay)' | actual=59L across 5 files | derived=full ---
