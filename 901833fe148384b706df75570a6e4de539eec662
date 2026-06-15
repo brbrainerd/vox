@@ -1,0 +1,35 @@
+feat(ci): Introduce `vox ci` subcommands, Node 24, and action version bumps
+scale: ~1261 lines across 21 files [XL]
+
+- **`crates/vox-cli`**:
+    - Add `ci toestub-budget` subcommand to enforce `rust_parse_failures` cap from stdin, replacing Python script in `ci.yml`.
+    - Add `ci json-parse-check` and `ci yaml-parse-check` subcommands to validate JSON/YAML files, replacing Python scripts in `vox-mental-tracker.yml`.
+    - Enhance `ci pre-push` with an `--act` option to run GitHub-hosted exception workflows locally via `nektos/act`.
+    - Update `ci/cmd_enums.rs` to include new `ci` subcommands and the `pre-push --act` option.
+    - Update `ci/run_body.rs` to dispatch to the new `ci` subcommands.
+- **`.github/workflows`**:
+    - Pin Node.js version to 24 across `ci.yml`, `mobile-e2e-android.yml`, `ts-emit-noemit.yml`, and `vox-mental-tracker.yml`.
+    - Update `actions/checkout` from v4 to v6.
+    - Update `actions/cache` from v4 to v5.
+    - Update `actions/upload-artifact` from v4 to v7.
+    - Update `pnpm/action-setup` from v3/v4 to v6.
+    - Update `actions/setup-node` from v4 to v6.
+    - Update `docker/setup-buildx-action` and `login-action` from v3 to v4.
+    - Update `docker/metadata-action` from v5 to v6.
+    - Update `docker/build-push-action` from v6 to v7.
+    - Replace `cargo install cargo-wix/cargo-deb` with `taiki-e/install-action@v2` in `release-installers.yml`.
+    - Remove Python-based JSON/YAML parse checks from `vox-mental-tracker.yml`.
+    - Remove Python-based JSON budget check from `ci.yml`.
+    - Add `publish-ci-runner.yml` workflow to build and push the `Dockerfile.ci-runner` image to GHCR.
+- **`Dockerfile.ci-runner`**: Add new Dockerfile for a self-hosted CI runner with Node 24, Rust 1.92.0, and pnpm 9.
+- **`.actrc`**: Add configuration file for local GitHub Actions runner (`nektos/act`).
+- **`docs/src/architecture`**:
+    - Add `dependency-consolidation-plan-2026.md` outlining a strategy for unifying dependency management.
+    - Add `where-things-live.md` (minor update).
+- **`docs/src/ci`**:
+    - Add `alternatives-and-local-mirroring.md` documenting CI alternatives and local Docker-based mirroring.
+    - Add `github-hosted-exceptions.md` (minor update).
+- **`docs/src/contributors`**: Update `local-ci-pre-push.md` to include documentation for the new `--act` mode.
+- **`.gitignore`**: Add `act_output/` to ignore local `act` runner output.
+
+--- audit: original='chore(ci): Phase 0 — action version sweep, Node 24, python3 elimination' | actual=1261L across 21 files | derived=full ---
