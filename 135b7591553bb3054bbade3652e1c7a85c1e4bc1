@@ -1,0 +1,15 @@
+feat(corpus): migrate docs to new fn-based actor/workflow/activity/http syntax
+scale: ~742 lines across 10 files [L]
+
+- **scripts/migrate-corpus.vox**: Add new verification script to detect tombstoned syntax using the Vox parser.
+- **scripts/vox_system_prompt.txt**: Update examples for `activity`, `actor`, `workflow`, `http_route`, and `@component` to use current function-based equivalents and component syntax. Replace `return` with `ret` in examples.
+- **docs/src/explanation/expl-actors-workflows.md**: Rewrite all code examples for actors, workflows, and activities to use the new function-based patterns (e.g., `fn ActorName_HandlerName`). Remove `vox:skip` directives. Update description to reflect `fn` declarations for concurrency primitives.
+- **docs/src/tutorials/tut-ui-integration.md**: Replace `http get` route with `component` and `routes` block. Update `@island` function syntax to `component` with a `view` block. Remove `vox:skip` directives.
+- **docs/src/tutorials/tut-actor-basics.md**: Replace `actor` definition, `spawn`, and `send` patterns with the `ActorName_Handler` function convention. Remove `vox:skip` directives.
+- **docs/src/reference/ref-syntax.md**: Update actor `Counter` block to use function-based syntax. Replace `return` with `ret` throughout code examples. Correct the tombstoned-syntax callout.
+- **docs/src/explanation/expl-rosetta-inventory.md**: Update actor, workflow, and activity blocks to use the function pattern. Change match arms from `->` to `=>`.
+- **docs/src/how-to/how-to-scale-actors.md**: Replace the `actor SessionManager` block with the `fn SessionManager_Login` convention.
+- **docs/src/explanation/glossary.md**: Update Actor, Workflow, and MCP entries to reflect current syntax. Fix a stray `->` typo in the Durable Execution definition.
+- **docs/src/journeys/durable-workflows.md**: Replace activity and workflow blocks with `fn` + `ret` syntax. Remove `vox:skip` directives.
+
+--- audit: original='chore(corpus): TASK-8.1 — atomic corpus migration for tombstoned actor/workflow/activity/http syntax' | actual=742L across 10 files | derived=full ---
