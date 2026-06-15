@@ -1,0 +1,9 @@
+feat(vox-gui/console): improve accessibility of AgentStrip and AgentTab
+scale: ~24 lines across 4 files [S]
+
+- `AgentStrip.test.tsx`: Add test for `aria-label` and `type` attribute on agent chips.
+- `AgentStrip.tsx`: Replace `button` with `Button` component, add `aria-label` to agent chips, and update styling.
+- `AgentTab.test.tsx`: Add test for `aria-live` region on the event log.
+- `AgentTab.tsx`: Add `role="log"` and `aria-live="polite"` to the agent events container, and apply `text-text-muted` class to the "waiting for events" message.
+
+--- audit: original='feat(vox-gui/wave2): AgentStrip a11y + checklist (Wave 2)' | actual=24L across 4 files | derived=full ---
