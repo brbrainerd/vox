@@ -1,0 +1,9 @@
+docs(plan): Detail Phase 1 cross-arm parity implementation plan
+scale: ~133 lines across 1 files [M]
+
+- Create `docs/superpowers/plans/2026-06-06-phase1-cross-arm-parity.md` outlining the plan to achieve byte-identical stdout parity across interpreter, codegen-rust, and codegen-ts for executable golden files.
+- Define the goal as CR-F2, requiring ≥ 8/10 parity with documented, non-growing allowlists.
+- Describe the architecture: build a codegen-ts Node execution harness, stand up a ratcheting 3-arm parity gate, then fix codegen-rust and codegen-ts bug classes.
+- Specify the tech stack: Rust for `vox-codegen` and `vox-integration-tests`, Node/`tsc`/`tsx` for TS execution, and `vox audit` for the parity gate.
+
+--- audit: original='docs(plan): Phase 1 cross-arm parity sub-plan (codegen-ts harness + ratcheting 3-arm gate)' | actual=133L across 1 files | derived=full ---
