@@ -1,0 +1,7 @@
+feat(vox-effort-audit): add judge response parsing and retry message generation
+scale: ~79 lines across 2 files [M]
+
+- `crates/vox-effort-audit/src/judge/parse.rs`: Add new module for robust parsing of judge JSON responses, including stripping LLM artifacts, schema validation, and generating corrective retry messages.
+- `crates/vox-effort-audit/src/judge/mod.rs`: Export the new `parse` module.
+
+--- audit: original='feat(vox-effort-audit): judge response parse + retry message (B3)' | actual=79L across 2 files | derived=full ---
