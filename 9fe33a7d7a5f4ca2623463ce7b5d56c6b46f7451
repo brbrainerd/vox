@@ -1,0 +1,9 @@
+fix(ci): Migrate documentation build from mdbook to Astro
+scale: ~73 lines across 6 files [M]
+
+- ci: Replace `mdbook build docs` and `mdbook-sitemap-generator` with `pnpm run build` in `docs-astro` directory for documentation builds.
+- vox-integration-tests: Update `full_stack_minimal.vox` fixture to v0.4 syntax, removing `PingMsg` type, `n` state, and `http get` route, and changing `@server` to `@endpoint(kind: server)`.
+- vox-compiler: Modify `try_emit_route_manifest_from_web_ir` and `try_emit_route_manifest_json_from_web_ir` to return `Ok(None)` instead of an error string when manifest emission fails.
+- docs: Update `feed.xml` (likely a version bump or minor change due to 1+/1-).
+
+--- audit: original='Fix Vite integration test and routes.manifest panic' | actual=73L across 6 files | derived=full ---
