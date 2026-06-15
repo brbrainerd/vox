@@ -1,0 +1,10 @@
+feat(vox-gui/agent-flow): Add keyboard navigation and accessibility for AgentFlow
+scale: ~67 lines across 2 files [M]
+
+- `crates/vox-gui/ui/src/components/surfaces/Flow/AgentFlow.test.tsx`: Add new test file with tests for keyboard operability, selection via Enter key, and progress bar accessibility.
+- `crates/vox-gui/ui/src/components/surfaces/Flow/AgentFlow.tsx`:
+    - Implement keyboard navigation for agent nodes using `tabIndex`, `aria-label`, `aria-pressed`, and `onKeyDown` handlers for 'Enter' and 'Space' keys.
+    - Add a focus-visible outline style for agent nodes.
+    - Enhance the agent inspector's progress bar with `role="progressbar"`, `aria-label`, `aria-valuenow`, `aria-valuemin`, and `aria-valuemax` attributes for accessibility.
+
+--- audit: original='feat(vox-gui/wave6): AgentFlow a11y + checklist (Wave 6)' | actual=67L across 2 files | derived=full ---
