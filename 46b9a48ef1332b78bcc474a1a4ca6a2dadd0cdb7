@@ -1,0 +1,13 @@
+feat(codegen-rn): map `link` and `<a>` to `expo-router` `<Link>` component
+scale: ~125 lines across 2 files [M]
+
+- `crates/vox-codegen/src/codegen_ts/rn/component.rs`:
+    - Added `RnNode::Link` variant to represent `expo-router` `<Link>` components.
+    - Implemented `jsx_to_rn` mapping for `link` and `a` tags to `RnNode::Link`, extracting `href` attribute.
+    - Modified `emit_rn_node` to render `RnNode::Link` as `<Link href={...}>...</Link>`, wrapping bare string/expression children in `<Text>`.
+    - Updated `collect_used_styles` and `clone_rn_node` to handle the new `RnNode::Link` variant.
+    - Introduced `component_uses_link` function to detect usage of `link` or `a` tags within a component's view, triggering `import { Link } from "expo-router"` when true.
+- `crates/vox-codegen/tests/rn_lifecycle_test.rs`:
+    - Added `rn_link_emits_expo_router_link` test case to verify correct generation of `expo-router` `<Link>` components and the necessary import.
+
+--- audit: original='codegen(rn): map link(href) to expo-router <Link> (navigation was inert)' | actual=125L across 2 files | derived=full ---
