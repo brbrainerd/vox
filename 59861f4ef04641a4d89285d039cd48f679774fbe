@@ -1,0 +1,22 @@
+feat(mcp, populi, cli): introduce `vox-mcp-registry` and refactor tool definitions
+scale: ~21225 lines across 203 files [XL]
+
+- `crates/vox-mcp`: Removed hardcoded `TOOL_REGISTRY` and `TOOL_ALIASES`, now dynamically loaded from `vox-mcp-registry`. Refactored memory management to support new retrieval modes and telemetry. Updated chat tools to use new retrieval mechanisms and Socrates telemetry.
+- `crates/vox-populi`: Introduced `candle_qlora_train.rs` for native QLoRA training with NF4 quantization, including device mapping, causal masks, GQA, and integration with VoxDB for checkpointing.
+- `crates/vox-cli`: Added `populi_lifecycle.rs` for managing Populi daemon lifecycle, including connectivity modes and overlay providers.
+- `crates/vox-mcp-meta`: Removed the hardcoded `TOOL_REGISTRY`, now relying on `vox-mcp-registry`.
+- `contracts`: Added `mcp/tool-registry.canonical.yaml` for tool definitions and new report contracts.
+- `docs`: Updated documentation for agents, architecture, and CLI to reflect new tool registry and lifecycle changes.
+- `crates/vox-orchestrator`: Updated scaling, Socrates, config, and task dispatch services, including new runtime and federation logic.
+- `crates/vox-schola`: Modified serve and CLI configurations, and updated training and probing logic.
+- `crates/vox-db`: Added `paths.rs` and updated `socrates_telemetry.rs`.
+- `crates/vox-corpus`: Updated `mcp_meta.rs` and `augment.rs`.
+- `crates/vox-mcp-registry`: New crate introduced to manage the tool registry, including `build.rs` and `lib.rs`.
+- `Cargo.toml` and `Cargo.lock`: Updated dependencies to remove `vox-mens` and add `vox-mcp-registry`.
+- `mens/runs/latest`: Removed `checkpoint_state.json` and `training_manifest.json`.
+- `crates/vox-mens`: Removed the entire crate.
+- `scripts`: Added `extract_mcp_tool_registry.py` and updated `populi/gates.yaml`.
+- `patches`: Updated `qlora-rs` and `candle-kernels` patches.
+- Many other files across various crates were updated to reflect the removal of `vox-mens` and the integration of `vox-mcp-registry` and new lifecycle management.
+
+--- audit: original='feat(dependencies): remove `vox-mens` and add `vox-mcp-registry`' | actual=21225L across 203 files | derived=sampled ---
