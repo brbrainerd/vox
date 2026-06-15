@@ -1,0 +1,14 @@
+feat(qwen): Implement quantized Qwen forward pass with `QMatMul`
+scale: ~752 lines across 3 files [L]
+
+- **`crates/vox-inference/src/qwen_forward.rs`**: Add new module for the quantized Qwen3.5/Qwen2.5 forward pass. This includes:
+    - Faithful port of the forward pass from `vox-plugin-mens-candle-cuda/src/model.rs`.
+    - Replacement of `qlora_rs::QuantizedLinear` with `candle_core::quantized::QMatMul` for linear projections.
+    - Implementation of both full-attention (GQA + RoPE) and linear-attention (gated delta-net) paths.
+    - Inclusion of pure-math helper functions (`rotate_half`, `apply_rotary_emb`, causal depthwise conv + SiLU, L2-norm, gated delta-net recurrence).
+    - Definition of `ForwardError` enum for error handling.
+    - Initial CPU shape and finiteness tests for both attention paths.
+- **`crates/vox-inference/src/lib.rs`**: Export the new `qwen_forward` module.
+- **`crates/vox-inference/Cargo.toml`**: Add `candle-nn` and `vox-hf-layout` dependencies.
+
+--- audit: original='feat(inference): quantized Qwen forward over QMatMul (full + linear attention)' | actual=752L across 3 files | derived=full ---
