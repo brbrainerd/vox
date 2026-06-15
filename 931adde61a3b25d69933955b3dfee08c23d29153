@@ -1,0 +1,11 @@
+fix(ci,docs): update allowlists and GUI roadmap status
+scale: ~7 lines across 3 files [S]
+
+- `docs/agents/query-all-allowlist.txt`: Added `crates/vox-clavis/` to the allowlist.
+- `docs/agents/sql-connection-api-allowlist.txt`: Added `crates/vox-clavis/` to the allowlist.
+- `docs/src/architecture/gui-native-roadmap-status-2026.md`:
+  - Updated TASK-0.4 status from "Partial" to "Done" and revised its description to reflect `CorsLayer` installation in `d152d272`.
+  - Updated "Phase 0 verdict" from "6 complete, 1 partial" to "7 complete, 0 partial".
+  - Removed a stale entry for TASK-5.1 from "Immediate Next Tasks".
+
+--- audit: original='fix(ci,docs): add vox-clavis to guard allowlists; mark TASK-0.4 done' | actual=7L across 3 files | derived=full ---
