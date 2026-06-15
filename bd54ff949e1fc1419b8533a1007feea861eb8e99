@@ -1,0 +1,14 @@
+docs(vox-schema): update crate roles with detailed descriptions
+scale: ~108 lines across 1 files [M]
+
+- `vox-schema.json`: Replaced generic "Workspace member" role descriptions for various crates with specific, descriptive summaries of their functionality.
+  - `vox-audio-ingress`: Now describes its role as "Minimal HTTP ingress for Oratio STT/status endpoints".
+  - `vox-bootstrap`: Now describes its role as "Host toolchain bootstrap and install plan (rustup, clang for Turso)".
+  - `vox-bounded-fs`: Now describes its role as "UTF-8 file reads capped by vox-scaling-policy max_file_bytes_hint".
+  - `vox-browser`: Now describes its role as "Chromium CDP automation backend (chromiumoxide session API)".
+  - `vox-build-meta`: Now describes its role as "Build-time metadata for feature capability manifest".
+  - `vox-capability-registry`: Now describes its role as "Transport-independent capability registry YAML + Mens chat tool descriptors".
+  - `vox-checksum-manifest`: Now describes its role as "SHA-256 release asset verification against checksums.txt manifests".
+  - `vox-clavis`: Now describes its role as "Central secret resolution and compatibility adapters for Vox".
+
+--- audit: original='docs: polish vox-schema.json crate roles (replace workspace-member stubs)' | actual=108L across 1 files | derived=full ---
