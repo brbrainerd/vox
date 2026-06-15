@@ -1,0 +1,10 @@
+feat(tasks): display A2A remote delegation in task list
+scale: ~25 lines across 5 files [S]
+
+- `orch_daemon`: Added `remote_node` field to the task JSON emitted by `LIST_TASKS`, containing the `claimer_node_id` from `populi_remote_delegate` for A2A delegated tasks, or null for local tasks.
+- `control_plane`: Added `remote_node: Option<String>` to `TaskRowDto` to carry the remote node ID.
+- `TasksView.tsx`: Added a cyan 'mesh: <node>' badge to display the `remote_node` for remotely claimed tasks.
+- `tasksHelpers.ts`: Added `remote_node: string | null` to the `TaskRow` interface.
+- `tasksHelpers.test.ts`: Updated test helper to include `remote_node: null` in default `TaskRow` creation.
+
+--- audit: original='feat: surface A2A remote delegation (claimer node) in the task list (K1)' | actual=25L across 5 files | derived=full ---
