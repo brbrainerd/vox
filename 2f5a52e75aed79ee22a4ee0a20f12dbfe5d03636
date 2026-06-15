@@ -1,0 +1,9 @@
+refactor(vox-orchestrator): use struct-init for `OrchestratorConfig` in tests
+scale: ~12 lines across 2 files [S]
+
+- `crates/vox-orchestrator/src/config/orchestrator_fields.rs`: Replaced `OrchestratorConfig::default()` followed by field reassignment with a struct-init form for `isolation_strategy_default` in `isolation_strategy_roundtrips_through_serde` test.
+- `crates/vox-orchestrator/src/orchestrator/core/mod.rs`: Replaced `OrchestratorConfig::default()` followed by field reassignment with a struct-init form for `isolation_strategy_default` in `isolation_policy_seeds_from_config_default` test.
+
+This change addresses a `clippy::field_reassign_with_default` lint (Rust 1.96).
+
+--- audit: original='fix(vox-orchestrator): struct-init in two config tests (clippy field_reassign_with_default, 1.96)' | actual=12L across 2 files | derived=full ---
