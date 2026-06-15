@@ -1,0 +1,7 @@
+feat(vox-orchestrator): Extract origin guard middleware into dedicated module
+scale: ~153 lines across 2 files [M]
+
+- `crates/vox-orchestrator/src/mcp_tools/http_gateway/origin_guard.rs`: New module created containing the `is_origin_allowed` function and `check_origin_allowlist` middleware.
+- `crates/vox-orchestrator/src/mcp_tools/http_gateway/mod.rs`: The `check_origin_allowlist` middleware function was moved to the new `origin_guard` module, and the module is now imported.
+
+--- audit: original='feat(vox-orchestrator): TASK-0.3 - Extract origin guard into dedicated module with tests' | actual=153L across 2 files | derived=full ---
