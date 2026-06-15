@@ -1,0 +1,7 @@
+chore(contracts): regenerate capability model manifest and update operations inventory
+scale: ~118 lines across 2 files [M]
+
+- Regenerate `contracts/capability/model-manifest.generated.json` with updated capability models.
+- Update `contracts/reports/operations-catalog-inventory.v1.json` to reflect an increase in `catalog_operations` from 533 to 547, `mcp_only_operations` from 255 to 269, and `mcp_tool_count` from 266 to 280.
+
+--- audit: original='chore(contracts): regenerate capability manifest and operations inventory' | actual=118L across 2 files | derived=full ---
