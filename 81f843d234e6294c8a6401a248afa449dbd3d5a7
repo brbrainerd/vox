@@ -1,0 +1,6 @@
+refactor(codegen): remove temporary `stmt_expr.rs.tmp` file
+scale: ~1195 lines across 1 files [XL]
+
+- Delete `crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs.tmp`, which was a temporary editor artifact.
+
+--- audit: original='chore(codegen): remove stray editor artifact stmt_expr.rs.tmp' | actual=1195L across 1 files | derived=full ---
