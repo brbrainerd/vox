@@ -1,0 +1,7 @@
+feat(vox-claim-extractor): introduce core claim types for extraction and verification
+scale: ~104 lines across 1 files [M]
+
+- Add `crates/vox-claim-extractor/src/types.rs` defining `VerifiabilityClass`, `SpanBound`, `SciClaimTuple`, `AtomicClaim`, `VerifierOutput`, `ClaimVerdict`, and `ExtractionResult` structs and enums.
+- Implement `is_supported` and `is_promotable` methods for `ClaimVerdict`.
+
+--- audit: original='feat(scientia): core claim types (AtomicClaim, ClaimVerdict, ExtractionResult) (Phase 1 Task 2)' | actual=104L across 1 files | derived=full ---
