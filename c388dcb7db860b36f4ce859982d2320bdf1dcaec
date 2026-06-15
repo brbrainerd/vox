@@ -1,0 +1,7 @@
+feat(codegen-ts): emit module-level constants to `consts.ts`
+scale: ~92 lines across 2 files [M]
+
+- `crates/vox-codegen-ts/src`: Added logic to `generate_with_options` to create a `consts.ts` file when `HirModule.consts` is not empty. Public constants are emitted with `export const`, while private constants use `const`.
+- `crates/vox-codegen-ts/tests`: Added a new test file `const_ts_emit_test.rs` with three integration tests to verify the correct emission of public, private, and empty-module constant cases in `consts.ts`.
+
+--- audit: original='feat(codegen-ts): emit module-level consts from HirModule.consts' | actual=92L across 2 files | derived=full ---
