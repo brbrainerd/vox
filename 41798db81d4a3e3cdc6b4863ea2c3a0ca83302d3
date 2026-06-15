@@ -1,0 +1,17 @@
+feat(vox-telemetry): add BuildSummaryEvent and ErrorEvent types and sink arms
+scale: ~101 lines across 3 files [M]
+
+- `crates/vox-telemetry/src/types.rs`:
+  - Added `BuildSummaryEvent` struct with fields for `build_id`, `outcome`, `wall_time_ms`, `crates_compiled`, `error_count`, and `invocation_context`.
+  - Added `ErrorEvent` struct with fields for `subsystem`, `kind`, `message`, `error_code`, `is_retryable`, and `retry_count`.
+  - Added `BuildSummary(BuildSummaryEvent)` and `Error(ErrorEvent)` variants to the `TelemetryEvent` enum.
+- `crates/vox-db/src/telemetry_sink.rs`:
+  - Updated the module-level documentation to include `BuildSummary` and `Error` variants.
+  - Added `BuildSummaryEvent` and `ErrorEvent` to the `use vox_telemetry` statement.
+  - Added `METRIC_TYPE_BUILD_SUMMARY_EVENT` and `METRIC_TYPE_ERROR_EVENT` constants.
+  - Added a `match` arm for `TelemetryEvent::BuildSummary` to `ResearchMetricsSink::record_event`, which appends a research metric with `build:` prefix and `METRIC_TYPE_BUILD_SUMMARY_EVENT`.
+  - Added a `match` arm for `TelemetryEvent::Error` to `ResearchMetricsSink::record_event`, which appends a research metric with `error:` prefix and `METRIC_TYPE_ERROR_EVENT`.
+- `crates/vox-telemetry/src/lib.rs`:
+  - Exported `BuildSummaryEvent` and `ErrorEvent` from the `types` module.
+
+--- audit: original='feat(vox-telemetry): add BuildSummaryEvent and ErrorEvent types + sink arms' | actual=101L across 3 files | derived=full ---
