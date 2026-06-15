@@ -1,0 +1,16 @@
+feat(vox-compiler): add `explain_url` to `VoxCompilerDiagnosticPayload`
+scale: ~88 lines across 1 files [M]
+
+- `crates/vox-compiler/src/typeck/diagnostics.rs`:
+    - Added `explain_url: Option<String>` field to `VoxCompilerDiagnosticPayload`, serialized with `#[serde(default, skip_serializing_if = "Option::is_none")]`.
+    - Populated `explain_url` in `VoxCompilerDiagnosticPayload::from_diagnostic` for diagnostic codes starting with "vox/", using the format `https://vox-lang.org/diag/{error_code}`.
+    - Set `explain_url` to `None` for legacy numeric error codes (e.g., `E0001`, `W092`).
+    - Added a new `explain_url_tests` module with five unit tests covering:
+        - Happy path for `vox/` codes.
+        - Fallback to `None` for numeric codes.
+        - Handling of legacy lint codes.
+        - Behavior when the diagnostic code is missing.
+        - Correct URL format generation.
+    - Updated the `error_code` field initialization to use a local variable.
+
+--- audit: original='feat(vox-compiler): add explain_url to VoxCompilerDiagnosticPayload (Phase 2 --for-llm)' | actual=88L across 1 files | derived=full ---
