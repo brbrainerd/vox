@@ -410,6 +410,9 @@ jobs:
       - name: Workflow scripts allowlist
         run: ./target/debug/vox --quiet ci workflow-scripts
 
+      - name: Script hygiene (.vox-only automation)
+        run: ./target/debug/vox --quiet ci script-hygiene
+
       - name: Doc inventory matches generator (Rust)
         run: ./target/debug/vox --quiet ci doc-inventory verify
 
