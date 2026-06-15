@@ -1,0 +1,6 @@
+fix(vox-mental-tracker): NavBar wraps instead of scroll-clipping
+scale: ~2 lines across 1 files [XS]
+
+- `apps/vox-mental-tracker/src/main.vox`: Removed `scroll="horizontal"` from the `NavBar` component's `row` view, causing it to wrap content onto a second line on narrow screens instead of horizontally scrolling and clipping.
+
+--- audit: original='vox-mental-tracker: NavBar wraps instead of scroll-clipping' | actual=2L across 1 files | derived=full ---
