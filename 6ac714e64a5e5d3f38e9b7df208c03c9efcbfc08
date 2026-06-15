@@ -1,0 +1,14 @@
+fix(ci): Improve Coolify deployment error handling and polling
+scale: ~24 lines across 1 files [S]
+
+- `.github/workflows/deploy-hetzner.yml`:
+    - Modified the handling of HTTP 403 errors during Coolify deployment status polling:
+        - Changed the error message from `::error::` to `::warning::` when the `COOLIFY_TOKEN` lacks read permissions.
+        - The workflow now skips polling and exits with `0` (success) instead of `1` (failure) in this scenario, relying on the public `/health` probe for verification.
+        - Added a new output `deploy_status=skipped_poll_no_read` to indicate this behavior.
+    - Modified the handling of Coolify application API health checks (`GET /api/v1/applications/{uuid}`):
+        - Added a specific warning for HTTP 403 errors, indicating that the token lacks read permissions and that the public `/health` probe will be authoritative.
+        - Added a success message for HTTP 200 responses.
+        - The check now only exits with an error for non-200/403 HTTP statuses.
+
+--- audit: original='fix(ci): Coolify deploy without Read token + trim /health body gate' | actual=24L across 1 files | derived=full ---
