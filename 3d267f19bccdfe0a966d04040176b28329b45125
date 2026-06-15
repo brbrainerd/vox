@@ -1,0 +1,28 @@
+refactor(arch): rename `vox-mens` crate to `vox-ml-cli`
+scale: ~252 lines across 104 files [XL]
+
+- Renamed the `vox-mens` crate to `vox-ml-cli` across the codebase.
+- Updated references to `vox-mens` in `crates/vox-cli/src/commands/ci/release_build.rs` to `vox-ml-cli`, including `ReleasePackage` enum variants, plugin executable name resolution, and build/package functions.
+- Modified `crates/vox-cli/src/commands/ext.rs` to reflect the `vox-ml-cli` rename in command descriptions for `Mens`, `Oratio`, `Schola`, `Populi`, and `Train` subcommands.
+- Updated `crates/vox-cli/src/lib.rs` to use `vox-ml-cli` in the `long_about` descriptions for `Mens`, `Populi`, and `Oratio` CLI commands.
+- Changed the delegation target from `vox-mens` to `vox-ml-cli` in `crates/vox-cli/src/main.rs` for ML-related commands like `train`.
+- Created `crates/vox-ml-cli/src/main.rs` with the `VoxMensRoot` CLI structure, defining `MensSubcommand` for `mens`, `oratio`, and `populi` actions, and handling command dispatch.
+- Updated `crates/vox-ml-cli/src/commands/ai/serve/handlers.rs` to reflect the new `vox-ml-cli` service name in health checks.
+- Modified `crates/vox-populi/src/mens/tensor/mod.rs` to update comments referencing `vox-mens` to `vox-ml-cli` for `eval-local` and `merge_qlora` implementations.
+- Updated `crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs` to include `crates/vox-ml-cli/` in the allowed paths for secret guards.
+- Adjusted `crates/vox-ml-cli/Cargo.toml` to reflect the crate name change and updated dependencies.
+- Modified `Cargo.lock` to reflect the crate name change and updated dependencies.
+- Updated `contracts/reports/scaling-audit/rollup/INDEX.yaml` and `contracts/config/env-vars.v1.yaml` to reflect the `vox-ml-cli` name.
+- Updated `.github/workflows/release-binaries.yml` and `ci.yml` to reflect the `vox-ml-cli` name in build and release processes.
+- Renamed `crates/vox-ml-cli/src/commands/mens/eval_local.rs` to reflect the new crate name.
+- Updated `crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/tests.rs` to reflect the new crate name.
+- Modified `crates/vox-populi/Cargo.toml` to update references to the renamed crate.
+- Updated `crates/vox-populi/src/mens/cloud/mod.rs` and `crates/vox-populi/src/mens/cloud/vast.rs` to reflect the new crate name.
+- Updated `crates/vox-cli/src/commands/ci/dep_sprawl.rs`, `nomenclature_guard.rs`, `run_body_helpers/data_ssot_guards.rs`, `docs.rs`, and `diagnostics/doctor/checks_standard/gpu_hardware.rs` to reflect the new crate name.
+- Updated `crates/vox-ml-cli/src/commands/ai/serve/mod.rs` and `dei_daemon.rs` to reflect the new crate name.
+- Modified `crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/db_thread.rs` to reflect the new crate name.
+- Updated `crates/vox-tensor/src/lib.rs` and `docs/src/architecture/layers.toml` to reflect the new crate name.
+- Updated `contracts/documentation/canonical-map.v1.yaml` and `retired-symbols.v1.yaml` to reflect the new crate name.
+- Updated `contracts/cli/command-registry.yaml` to reflect the new crate name.
+
+--- audit: original='refactor(arch): rename vox-mens → vox-ml-cli (P-A1.4)' | actual=252L across 104 files | derived=full ---
