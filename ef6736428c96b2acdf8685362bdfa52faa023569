@@ -1,0 +1,17 @@
+feat(vscode): implement Unified Dashboard UI and refactor webview components
+scale: ~3760 lines across 12 files [XL]
+
+- **vox-vscode/package-lock.json**: Updated dependencies, likely due to new UI libraries or tooling.
+- **docs/src/architecture/vscode-extension-redesign-research-2026.md**: Added a new architectural research document detailing the VS Code extension redesign.
+- **vox-vscode/webview-ui/src/components/UnifiedDashboard.tsx**: Significantly refactored and enhanced the `UnifiedDashboard` component, including UI layout changes, new status indicators (idle state, active agents, queue depth, budget), and updated styling with new color variables and fonts.
+- **vox-vscode/webview-ui/src/components/EngineeringDiagnostics.tsx**: Refactored the `EngineeringDiagnostics` component to introduce a tabbed interface for different diagnostic views (Flow, Chronicle, Intentions, AST, Context, Tools, Mens ML) using `useState` and `lucide-react` icons.
+- **vox-vscode/webview-ui/src/index.tsx**: Refactored the main `App` component to introduce new tab IDs (`speak`, `command`, `network`, `forge`) replacing old ones (`dashboard`, `chat`, `diagnostics`), updated tab icons with `lucide-react`, and integrated the `MeshTopology` component directly. Removed `index.css` import, suggesting a move to Tailwind.
+- **vox-vscode/webview-ui/src/components/MeshTopology.tsx**: Simplified the `MeshTopology` component, removing custom node rendering logic and reducing overall complexity, likely in favor of a more generic or external rendering approach.
+- **vox-vscode/webview-ui/src/input.css**: Added a new CSS file, likely for Tailwind CSS directives or global styles.
+- **vox-vscode/webview-ui/src/components/ComposerPanel.tsx**: Updated styling for the `ComposerPanel` component, applying new Tailwind CSS classes for background, borders, text, and input fields, and changing icon colors.
+- **vox-vscode/tailwind.config.js**: Added a new Tailwind CSS configuration file, defining custom color palettes, border radii, and content paths for the webview UI.
+- **vox-vscode/package.json**: Updated dependencies, likely adding Tailwind CSS and related packages.
+- **vox-vscode/src/SidebarProvider.ts**: Added new message types for webview communication, specifically `WebviewMessage.setMeshStatus`.
+- **vox-vscode/src/protocol/webviewMessages.ts**: Updated the `WebviewMessage` protocol to include `setMeshStatus` for mesh topology data.
+
+--- audit: original='feat: implement UnifiedDashboard UI and supporting infrastructure for real-time orchestrator monitoring' | actual=3760L across 12 files | derived=full ---
