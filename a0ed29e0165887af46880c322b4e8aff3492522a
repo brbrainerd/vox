@@ -1,0 +1,7 @@
+docs(architecture): add `vox-ml-cli` to where-things-live architecture documentation
+scale: ~1 lines across 1 files [XS]
+
+- Add a new row to the "Grouped map of top-level trees" table for `vox-ml-cli`.
+- Describe `vox-ml-cli` as the "ML / Mens / telemetry CLI" with training and GPU features gated by crate features.
+
+--- audit: original='docs(architecture): add vox-ml-cli to where-things-live (arch-check)' | actual=1L across 1 files | derived=full ---
