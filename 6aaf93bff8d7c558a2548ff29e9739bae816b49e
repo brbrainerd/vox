@@ -1,0 +1,12 @@
+fix(codegen): Lower `null` literal, `is/isnt null`, and statement-position namespace calls
+scale: ~196 lines across 5 files [M]
+
+- `crates/vox-codegen/tests/null_and_namespace_lowering.rs`: Add new test file to verify correct lowering of `null` literal, `is null`, `isnt null`, and statement-position namespace calls.
+- `crates/vox-compiler/src/builtin_registry.rs`: Corrected the error arm in `std_namespace_runtime_call` from `Error(m)` to `Err(m)` for all affected runtime calls (process, fs, json, http, csv, toml, yaml, io, regex).
+- `crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs`:
+    - Implement lowering for `x is null` and `x isnt null` expressions to `.is_none()` and `.is_some()` respectively.
+    - Lower the bare `null` identifier in expression position to Rust `None`.
+- `crates/vox-codegen/src/codegen_rust/emit/method_emit.rs`: Route statement-position namespace method calls (e.g., `process.exit(1)`) through `std_namespace_runtime_call` to ensure proper lowering of the receiver.
+- `crates/vox-codegen/src/codegen_rust/emit/stmt_expr_tail.rs`: Change `is_vox_namespace_ident` visibility to `pub(super)` to allow access from `method_emit.rs`.
+
+--- audit: original='fix(vox-codegen): lower statement-position namespace calls, the typed null literal, and the Err error arm' | actual=196L across 5 files | derived=full ---
