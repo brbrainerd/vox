@@ -1,0 +1,11 @@
+feat(docs): disable Vox playground live execution on static deployment
+scale: ~19 lines across 1 files [S]
+
+- `docs-astro/src/components/VoxPlayground.astro`:
+    - Added a `notice-banner` div to inform users that live execution is disabled on static deployments, with a message about a pending sandbox backend.
+    - Disabled the "Run Code" button and added a `title` attribute explaining it's pending backend deployment.
+    - Changed the `status-msg` text from an empty string to "Execution Offline".
+    - Changed the initial `output-display` text from "Ready." to "Waiting for backend...".
+    - Added CSS styles for the new `.notice-banner` class, including background color, text color, padding, font size, border, and flexbox properties.
+
+--- audit: original='feat(docs): disable playground live execution on static deployment' | actual=19L across 1 files | derived=full ---
