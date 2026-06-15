@@ -1,0 +1,19 @@
+feat(automation,clavis): Migrate Vox Automation Pipelines Wave 2 and fix Clavis
+scale: ~79302 lines across 467 files [XL]
+
+DIVERGENCE: original subject claimed 'Hardening Vox Automation Pipelines: Wave 2 Migration, Capabilities and Clavis fixes' but this commit actually changed ~79302 lines across 467 files. Top areas:
+docs: 49668 lines, 84 files
+(root): 15327 lines, 14 files
+crates: 6754 lines, 313 files
+contracts: 6682 lines, 10 files
+scripts: 302 lines, 4 files
+.github: 146 lines, 11 files
+scratch: 120 lines, 9 files
+.cursor: 96 lines, 7 files
+examples: 86 lines, 3 files
+mens: 75 lines, 8 files
+vox-vscode: 46 lines, 4 files
+
+- docs
+
+--- audit: original='Hardening Vox Automation Pipelines: Wave 2 Migration, Capabilities and Clavis fixes' | actual=79302L across 467 files | derived=stat-only ---
