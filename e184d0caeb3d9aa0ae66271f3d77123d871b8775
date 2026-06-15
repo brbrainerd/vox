@@ -1,0 +1,18 @@
+docs(rustdoc): Resolve ~70 broken intra-doc links workspace-wide
+scale: ~194 lines across 65 files [L]
+
+- `crates/vox-orchestrator`: Corrected intra-doc links in `policy.rs` to use full paths or backticks for types and functions.
+- `crates/vox-code-audit`: Updated intra-doc links in `engine.rs` and `detectors/import_cycles.rs` to use `Self::` or full paths for methods and functions.
+- `crates/vox-orchestrator-mcp`: Changed intra-doc links in `populi_tools.rs` to use backticks for function names and crate names.
+- `crates/vox-cli`: Updated documentation in `cli_args.rs` and `commands/add_component.rs` to use backticks for code snippets and function names.
+- `crates/vox-effort-audit`: Clarified documentation for `parse_duration` in `range.rs` by using backticks for format strings.
+- `crates/vox-audit`: Corrected intra-doc links in `subcommands/stdlib_coverage.rs` to use backticks for type names.
+- `crates/vox-codegen`: Updated documentation in `codegen_ts/component.rs` to use backticks for function names.
+- `crates/vox-db`: Corrected intra-doc link in `store/ops_publication/manifest.rs` for `ApproverRole::AuditedLLMCritic`.
+- `crates/vox-plugin-webhook`: Corrected intra-doc link in `lib.rs` for `WebhookPlugin`.
+- `crates/vox-populi-types`: Corrected intra-doc links in `lib.rs` for `NodeRecord` and `NodeRecord::id`.
+- `crates/vox-workflow-runtime`: Corrected intra-doc link in `duration_literal.rs` for `DurationLiteral`.
+- `crates/vox-scientia`: Added `gix` sha1 feature to `Cargo.toml`.
+- Many other crates (`vox-arch-check`, `vox-cli-core`, `vox-compiler`, `vox-effort-route`, `vox-git`, `vox-inference`, `vox-plugin-host`, `vox-publisher`, `vox-research-shim`, `vox-tauri-stt`, `vox-telemetry`, `vox-test-harness`, `vox-vcs`) had minor intra-doc link fixes in single files.
+
+--- audit: original='fix(docs): resolve ~70 broken intra-doc links workspace-wide (Rust 1.96 rustdoc -D warnings) + gix sha1 feature for vox-scientia' | actual=194L across 65 files | derived=full ---
