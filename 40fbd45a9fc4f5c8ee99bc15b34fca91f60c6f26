@@ -1,0 +1,6 @@
+docs(share): clarify cache key scope for single-file apps in `build_or_reuse_bundle`
+scale: ~4 lines across 1 files [XS]
+
+- `crates/vox-cli/src/commands/share.rs`: Added a detailed comment explaining that the cache key is based on the SHA-256 of the entry-point file's contents, noting its suitability for single-file apps and future extension for multi-file projects.
+
+--- audit: original='docs(share): clarify single-file cache-key scope in S8' | actual=4L across 1 files | derived=full ---
