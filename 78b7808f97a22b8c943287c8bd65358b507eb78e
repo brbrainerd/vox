@@ -1,0 +1,8 @@
+fix(compiler): clean up unused imports and unreachable pattern matching
+scale: ~7 lines across 3 files [S]
+
+- `crates/vox-compiler/src/codegen_ts/state_machine_emit.rs`: Remove unused `HirSmState` import and unreachable `_ => "unknown".to_string()` pattern from `hir_type_to_ts` function.
+- `crates/vox-compiler/src/parser/descent/decl/mid.rs`: Remove unused `SmField` and `SmFromPattern` imports.
+- `crates/vox-compiler/src/typeck/state_machine_check.rs`: Remove unused `TypeckSeverity` import.
+
+--- audit: original='fix(compiler): clean up unused imports and unreachable pattern in TASK-4.1 files' | actual=7L across 3 files | derived=full ---
