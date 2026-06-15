@@ -1,0 +1,12 @@
+fix(codegen-rust): Correct Result variant, escape strings, emit function types, and empty match arms
+scale: ~40 lines across 3 files [S]
+
+- `crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs`:
+    - In `emit_pattern`, rewrite `Result::Error` to `Result::Err` when matching on variants to align with Rust's convention and fix E0531.
+    - In `emit_expr_with` for string literals, escape backslashes first (`\`) before other characters (`"`, `\n`, `\t`) to correctly handle regex patterns and prevent "unknown character escape" errors.
+- `crates/vox-codegen/src/codegen_rust/emit/types.rs`:
+    - In `emit_type`, correctly emit `HirType::Function` as `Box<dyn Fn(...) -> ...>` instead of `serde_json::Value` to support function types and fix E0282/E0308.
+- `crates/vox-codegen/src/codegen_rust/emit/stmt_expr_tail.rs`:
+    - In `emit_match`, for empty match arm bodies (parsed as empty object literals), emit an empty block `{}` (which evaluates to `()`) instead of `serde_json::json!({})` to prevent type mismatches (E0308) with other arms.
+
+--- audit: original='fix(codegen-rust): 4 first-layer CR-F2a fixes (regex escape, Error->Err, fn-type, empty match arm)' | actual=40L across 3 files | derived=full ---
