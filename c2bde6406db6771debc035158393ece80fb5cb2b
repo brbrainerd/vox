@@ -1,0 +1,15 @@
+fix(gui): migrate vox-gui/ui to React 19 and Vite 6
+scale: ~1311 lines across 2 files [XL]
+
+- `crates/vox-gui/ui/package.json`:
+    - Updated `react` from `^18.2.0` to `^19.1.0`
+    - Updated `react-dom` from `^18.2.0` to `^19.1.0`
+    - Updated `@types/react` from `^18.2.15` to `^19.1.2`
+    - Updated `@types/react-dom` from `^18.2.7` to `^19.1.2`
+    - Updated `vite` from `^4.4.5` to `^6.3.3`
+    - Updated `@vitejs/plugin-react` from `^4.0.3` to `^4.4.1`
+    - Updated `vitest` from `^0.34.6` to `^2.1.9`
+    - Updated `lucide-react` from `^0.378.0` to `^0.468.0`
+- `crates/vox-gui/ui/pnpm-lock.yaml`: Regenerated to reflect updated dependencies.
+
+--- audit: original='fix(gui): migrate vox-gui/ui to React 19 + Vite 6 (frontend dependency policy)' | actual=1311L across 2 files | derived=full ---
