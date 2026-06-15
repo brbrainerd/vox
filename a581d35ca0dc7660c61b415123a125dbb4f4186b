@@ -1,0 +1,8 @@
+feat(actor-runtime): add OpenRouter attribution headers to LLM facade
+scale: ~85 lines across 3 files [M]
+
+- `crates/vox-actor-runtime/src/llm/wire.rs`: Add `openrouter_extra_headers` function to generate `HTTP-Referer`, `X-Title`, and `X-OpenRouter-Provider-Preferences` headers for OpenRouter requests, mirroring the orchestrator bridge.
+- `crates/vox-actor-runtime/src/llm/stream.rs`: Integrate `openrouter_extra_headers` into `llm_stream` to include OpenRouter attribution headers for streaming requests.
+- `crates/vox-actor-runtime/src/llm/chat.rs`: Integrate `openrouter_extra_headers` into `llm_chat` to include OpenRouter attribution headers for non-streaming requests.
+
+--- audit: original='@ fix(actor-runtime): send OpenRouter attribution headers on the facade path' | actual=85L across 3 files | derived=full ---
