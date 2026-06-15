@@ -1,0 +1,9 @@
+docs(architecture): Add AI Laziness Remediation Plan 2026
+scale: ~10286 lines across 108 files [XL]
+
+- docs/src/architecture/ai-laziness-remediation-plan-2026.md: Add a new architecture document outlining the AI Laziness Remediation Plan for 2026.
+- crates/vox-integration-tests: Remove the entire `vox-integration-tests` crate, including all its tests, fixtures, snapshots, and configuration files. This crate contained various integration tests for pipeline, orchestrator, type checking, code generation, workflow, and other Vox features.
+- Cargo.lock: Update lockfile to reflect the removal of the `vox-integration-tests` crate.
+- Cargo.toml: Update workspace Cargo.toml to remove the `vox-integration-tests` crate from the members list.
+
+--- audit: original='chore: retire vox-integration-tests (empty 4-LoC harness, 0 callers)' | actual=10286L across 108 files | derived=full ---
