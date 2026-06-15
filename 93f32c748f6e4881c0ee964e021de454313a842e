@@ -1,0 +1,6 @@
+ci(deps): bump aquasecurity/trivy-action from 0.28.0 to 0.36.0
+scale: ~2 lines across 1 files [XS]
+
+- .github/workflows/docker-eval.yml: Update Trivy GitHub Action to v0.36.0 for vulnerability scanning.
+
+--- audit: original='chore(deps): bump aquasecurity/trivy-action from 0.28.0 to 0.36.0 (#122)' | actual=2L across 1 files | derived=full ---
