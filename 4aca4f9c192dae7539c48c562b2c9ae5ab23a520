@@ -1,0 +1,8 @@
+docs(how-to): Add Grand Network Quickstart guide for Vox volunteer compute
+scale: ~136 lines across 1 files [M]
+
+- Add `docs/src/how-to/grand-network-quickstart.md` detailing how to join or host a federated Vox volunteer compute node.
+- Explain using `vox populi join` and `vox populi attest` for identity generation, manifest publishing, and peer registration.
+- Outline prerequisites, anti-goals, and steps for setting up a node.
+
+--- audit: original='feat(populi): P6-T7 vox populi join + grand-network quickstart docs' | actual=136L across 1 files | derived=full ---
