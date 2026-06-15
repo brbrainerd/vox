@@ -1,0 +1,11 @@
+docs(superpowers): add v1.0 completion plan outlining remaining objectives
+scale: ~241 lines across 1 files [M]
+
+- **docs/superpowers/specs/2026-05-18-v1-completion-plan.md**: New document detailing the v1.0 completion plan, including:
+    - Current state snapshot of CR-L audit runners, marquee slots, golden corpus, and other features.
+    - Five prioritized P-blocks (P1-P5) with estimated effort and acceptance criteria.
+    - Failure-class taxonomy for remaining golden examples.
+    - Recommended sequencing and decision asks for each P-block.
+    - Contextual links to related architecture and implementation plans.
+
+--- audit: original='docs(specs): v1.0 completion plan — high-value remaining objectives' | actual=241L across 1 files | derived=full ---
