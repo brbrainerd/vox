@@ -1,0 +1,6 @@
+docs(backlog): mark M-20 as landed in data storage migration backlog
+scale: ~2 lines across 1 files [XS]
+
+- docs/src/architecture/data-storage-migration-backlog-2026.md: Added a "Landed" note for M-20, including the commit hash and date, and verification status.
+
+--- audit: original='M-20: chore(backlog): mark M-20 landed' | actual=2L across 1 files | derived=full ---
