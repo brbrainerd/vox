@@ -1,0 +1,12 @@
+feat(vox-cli): Add worktree-aware build artifact garbage collector
+scale: ~882 lines across 7 files [L]
+
+- `crates/vox-cli/src/commands/ci/workspace_artifacts/worktree_gc.rs`: New module implementing worktree-aware build artifact garbage collection. It enumerates worktrees, identifies active builds, git-locked worktrees, and worktrees with uncommitted source to prevent accidental deletion. It provides functions to decide whether to clean a target directory or remove an entire stale worktree, separating decision logic from I/O.
+- `scripts/target-gc.vox`: New VoxScript for scheduled execution of the artifact garbage collector, translating environment variables into `artifact-prune` CLI flags.
+- `crates/vox-cli/src/commands/ci/workspace_artifacts/mod.rs`: Integrates `worktree_gc` module, adds `WorktreeGcOpts` export, and modifies `run_audit` to include worktree-related artifacts when `include_worktrees` is true.
+- `crates/vox-cli/src/commands/ci/workspace_artifacts/retention.rs`: Adds `WorktreeTargetsPolicy` and `StaleWorktreesPolicy` structs to define retention policies for per-worktree target directories and stale worktrees, respectively. These policies include `max_age_days` and `protect_dirty` settings.
+- `crates/vox-cli/src/commands/ci/run_body.rs`: Updates `CiCmd::ArtifactAudit` and `CiCmd::ArtifactPrune` to accept new worktree-related options, passing them to the underlying `run_audit` and `run_prune` functions.
+- `crates/vox-cli/src/commands/ci/cmd_enums.rs`: Extends `CiCmd::ArtifactAudit` with an `include_worktrees` flag and `CiCmd::ArtifactPrune` with `include_worktrees`, `remove_stale_worktrees`, `include_dirty_targets`, `incremental_only`, and `max_age_days` flags.
+- `contracts/operations/workspace-artifact-retention.v1.yaml`: Adds new sections for `worktree_targets` and `stale_worktrees` policies, defining default retention periods for these artifact types.
+
+--- audit: original='feat(vox-cli): worktree-aware build-artifact garbage collector (#151)' | actual=882L across 7 files | derived=full ---
