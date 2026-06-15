@@ -1,0 +1,13 @@
+feat(cli): add `vox workflow preview` command for dry-run schedule projection
+scale: ~283 lines across 8 files [L]
+
+- `crates/vox-cli/src/commands/workflow/preview.rs`: New module implementing `vox workflow preview` command. It parses a target workflow, lowers it to HIR, and projects a list of `PreviewedActivity` instances, including remote calls, side effects, and durability. It supports both human-readable and JSON output.
+- `crates/vox-cli/tests/workflow_preview.rs`: New test suite for `vox workflow preview`, including tests for simple two-step workflows, remote function identification, and synthesized side-effect activities.
+- `crates/vox-cli/src/commands/workflow.rs`: New module defining the `workflow` subcommand, which currently only includes `preview`.
+- `tests/fixtures/workflow_preview/simple_two_step.vox`: New fixture file for testing a workflow with two steps, one remote and one local.
+- `crates/vox-cli/src/lib.rs`: Added `Workflow` subcommand to the main `Cli` enum.
+- `tests/fixtures/workflow_preview/with_side_effect.vox`: New fixture file for testing a workflow that includes a side effect.
+- `crates/vox-cli/src/cli_dispatch/mod.rs`: Added dispatch logic for the new `Cli::Workflow` command.
+- `crates/vox-cli/src/commands/mod.rs`: Declared the new `workflow` module.
+
+--- audit: original='feat(cli): vox workflow preview dry-run projector (P1-T8)' | actual=283L across 8 files | derived=full ---
