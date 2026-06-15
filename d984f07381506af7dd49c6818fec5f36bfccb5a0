@@ -1,0 +1,23 @@
+feat(compiler, dashboard): Implement app.vox shell and fix HirExpr::If ternary codegen
+scale: ~599 lines across 20 files [L]
+
+- **compiler(codegen_ts/hir_emit):**
+    - Add `extract_single_jsx_expr` helper to detect single JSX expressions or nested `HirExpr::If` within blocks.
+    - Modify `emit_hir_expr` for `HirExpr::Block` to inline single JSX/if blocks as ternaries instead of void IIFEs.
+- **compiler(codegen_ts/jsx):**
+    - Implement `jsx_branch_to_ternary_str` to extract single JSX expressions or nested ternaries from if-else branches.
+    - Modify `emit_jsx_child` to emit `Expr::If` as ternary expressions in JSX children context.
+- **compiler(codegen_ts/emitter):** Restore reactive component generation loop.
+- **dashboard(app/src/app.vox):** Create `app.vox` with `AppShell` component, including tab switching logic using Phase 6 primitives (column/row/panel/text/button) and placeholder content for `SpeakTab`, `CommandTab`, `NetworkTab`, and `ForgeTab`.
+- **dashboard(app/src/generated/AppShell.tsx):** Generate `AppShell.tsx` with clean nested ternary for tab switching.
+- **dashboard(app/src/generated/App.tsx):** Generate `App.tsx` to integrate `AppShell` with `@tanstack/react-router`.
+- **dashboard(app/src/generated/vox-tanstack-query.tsx):** Generate `vox-tanstack-query.tsx` with `VoxQueryProvider` and `useVoxServerQuery` helpers.
+- **dashboard(app/src/generated/*.tsx):** Generate stub components for `CommandTab`, `ForgeTab`, `NetworkTab`, and `SpeakTab`.
+- **dashboard(app/src/generated/vox-app-contract.json):** Generate `vox-app-contract.json`.
+- **dashboard(app/src/generated/tokens.ts):** Generate `tokens.ts`.
+- **dashboard(app/src/generated/vox-tokens.css):** Generate `vox-tokens.css`.
+- **dashboard(app/src/tabs/*.vox):** Create stub `.vox` files for `command`, `forge`, `network`, and `speak` tabs.
+- **dashboard(build.rs):** Update `build.rs` to invoke `vox build` for `.vox` files into `app/src/generated/` as part of the Cargo build pipeline, with rerun-if-changed directives.
+- **docs(architecture/gui-native-roadmap-status-2026.md):** Update roadmap status document.
+
+--- audit: original='feat(compiler, dashboard): TASK-7.1 — app.vox shell + fix HirExpr::If ternary codegen' | actual=599L across 20 files | derived=full ---
