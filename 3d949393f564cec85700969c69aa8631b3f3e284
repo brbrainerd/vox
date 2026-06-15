@@ -1,0 +1,8 @@
+feat(vox-effort-audit): add Markdown report renderer and snapshot test
+scale: ~200 lines across 3 files [M]
+
+- `crates/vox-effort-audit/src/output/markdown.rs`: Implement `render` function to generate a Markdown report including run summary, top commits by waste score, waste category breakdown, and remediation kinds.
+- `crates/vox-effort-audit/src/output/mod.rs`: Add `markdown` module to the output module.
+- `crates/vox-effort-audit/src/output/snapshots/vox_effort_audit__output__markdown__tests__report_snapshot.snap`: Add a snapshot test for the Markdown report renderer.
+
+--- audit: original='feat(vox-effort-audit): markdown report renderer + snapshot (D3)' | actual=200L across 3 files | derived=full ---
