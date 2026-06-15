@@ -1,0 +1,4 @@
+feat(scientia): implement analysis-plan deviation detector (Phase 2 Task 3)
+scale: ~0 lines across 0 files [XS]
+
+--- audit: original='feat(scientia): analysis-plan deviation detector (Phase 2 Task 3)' | actual=0L across 0 files | derived=full ---
