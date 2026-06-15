@@ -18,7 +18,9 @@ mod state_deps;
 use async_walker::stmt_has_async_call;
 use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
+use vox_compiler::feature_matrix::{ExprFeature, Feature, unsupported_diagnostic};
 use vox_compiler::hir::*;
+use vox_compiler::target::Target;
 
 use super::builtin_registry::{BuiltinLowering, BuiltinRegistry};
 pub use compat::{map_hir_type_to_ts, map_jsx_attr_name, map_jsx_tag, ts_string_literal};
@@ -874,8 +876,17 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
                 &ok_tsx,
             )
         }
-        // WorkflowVersion is not representable as a TS expression in this emit path
-        HirExpr::WorkflowVersion(_) => String::new(),
+        // WorkflowVersion has no TS expression backing yet. Emit `undefined as never`
+        // so TypeScript's type-checker surfaces the unsupported construct as a type
+        // error rather than silently producing broken output. Code comes from the
+        // parity matrix so it stays in sync with the other emitters.
+        HirExpr::WorkflowVersion(_) => {
+            let cell = unsupported_diagnostic(Feature::Expr(ExprFeature::WorkflowVersion), Target::TypeScript);
+            format!(
+                r#"(undefined /* {}: {} */ as never)"#,
+                cell.code, cell.message
+            )
+        }
     }
 }
 
@@ -2156,5 +2167,49 @@ mod inject_key_tests {
         let jsx = "items.map((item) => item.name)".to_string();
         let result = inject_key_into_jsx(jsx.clone(), " key={x}");
         assert_eq!(result, jsx);
+    }
+}
+
+#[cfg(test)]
+mod ts_emit_exhaustiveness_tests {
+    use super::*;
+    use vox_compiler::feature_matrix::{ExprFeature, Feature, unsupported_diagnostic};
+    use vox_compiler::target::Target;
+    use vox_compiler::typeck::diagnostics::codes;
+
+    #[test]
+    fn workflow_version_ts_emits_type_error_expression() {
+        let cell = unsupported_diagnostic(Feature::Expr(ExprFeature::WorkflowVersion), Target::TypeScript);
+        // Confirm matrix agrees: WorkflowVersion is none_yet on TS.
+        assert_eq!(cell.code, codes::PARITY_UNIMPLEMENTED);
+        // The generated expression must be a visible type-error, not empty.
+        let rendered = format!(
+            r#"(undefined /* {}: {} */ as never)"#,
+            cell.code, cell.message
+        );
+        assert!(!rendered.is_empty());
+        assert!(rendered.contains("undefined"), "must emit 'undefined as never' type-error marker");
+        assert!(rendered.contains(codes::PARITY_UNIMPLEMENTED));
+    }
+
+    #[test]
+    fn jsx_is_implemented_on_typescript_target() {
+        // TypeScript IS the frontend emitter — JSX must be implemented.
+        use vox_compiler::feature_matrix::Support;
+        use vox_compiler::feature_matrix::support;
+        assert_eq!(
+            support(Feature::Expr(ExprFeature::Jsx), Target::TypeScript),
+            Support::Implemented,
+        );
+    }
+
+    #[test]
+    fn spawn_is_unsupported_on_typescript_target() {
+        use vox_compiler::feature_matrix::Support;
+        use vox_compiler::feature_matrix::support;
+        assert!(matches!(
+            support(Feature::Expr(ExprFeature::Spawn), Target::TypeScript),
+            Support::Unsupported(_)
+        ));
     }
 }
