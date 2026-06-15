@@ -1,0 +1,19 @@
+chore: Consolidate workspace crates and align dependencies
+scale: ~1978 lines across 68 files [XL]
+
+- `crates/vox-share`: Deleted all test files, including `auth_test.rs`, `binary_cache_test.rs`, `cloudflare_backend_test.rs`, `consent_test.rs`, `sse_detect_test.rs`, `lifecycle_test.rs`, `fallback_test.rs`, `cloudflared_checksum_consistency_test.rs`, `coordinator_test.rs`, `tailscale_backend_test.rs`, `lan_backend_test.rs`, `proxy_test.rs`, `localhost_run_backend_test.rs`, and `backend_trait_test.rs`. Also deleted `RESEARCH.md` and modified `Cargo.toml`.
+- `crates/vox-exec-grammar`: Deleted `tests/proptest_tokeniser.rs` and `Cargo.toml`.
+- `crates/vox-cli`: Modified `Cargo.toml`, `src/utils/share/auth.rs`, `src/utils/share/coordinator.rs`, `src/commands/compile.rs`, `src/commands/toolchain_upgrade.rs`, `src/commands/ci/command_compliance/validators.rs`, `src/commands/ci/release_build.rs`, `src/commands/share.rs`, `src/commands/runtime/shell/check_terminal.rs`, `src/utils/share/backend.rs`, `src/utils/share/backends/cloudflare.rs`, `src/utils/mod.rs`, `src/commands/build.rs`, `src/commands/repo_upgrade.rs`, `src/utils/share/backends/lan.rs`, `src/utils/share/backends/localhost_run.rs`, `src/utils/share/backends/tailscale.rs`, `src/utils/share/consent.rs`, `src/commands/openclaw.rs`, `src/lib.rs`, `src/utils/share/binary_cache.rs`, `src/utils/share/proxy.rs`, and `src/utils/share/state.rs`.
+- `crates/vox-container`: Modified `src/lib.rs`, `src/exec_grammar/policy.rs`, `src/exec_grammar/risk.rs`, `Cargo.toml`, and `src/exec_grammar/mod.rs`.
+- `crates/vox-codegen`: Added `Cargo.toml` and `src/lib.rs`.
+- `crates/vox-assets`: Deleted `Cargo.toml`.
+- `crates/vox-checksum-manifest`: Deleted `Cargo.toml`.
+- `crates/vox-release-artifacts`: Deleted `Cargo.toml`.
+- `crates/vox-ssg`: Deleted `Cargo.toml`.
+- `crates/vox-install-policy`: Deleted `Cargo.toml`.
+- `crates/vox-gui`: Modified `Cargo.toml`.
+- `Cargo.lock`: Updated dependencies.
+- `Cargo.toml`: Updated workspace members and dependencies.
+- `docs/src/architecture/layers.toml`: Modified content.
+
+--- audit: original='chore: Consolidate workspace crates and align dependencies' | actual=1978L across 68 files | derived=full ---
