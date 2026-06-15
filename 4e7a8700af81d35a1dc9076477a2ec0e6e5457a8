@@ -1,0 +1,11 @@
+fix(ci): pin Rust toolchain and address CodeRabbit feedback
+scale: ~49 lines across 7 files [M]
+
+- `crates/vox-mens/src/commands/oratio_cmd.rs`: Add record index to JSONL parse and field error messages for easier debugging of malformed entries.
+- `crates/vox-webhook/src/router.rs`: Log the timestamp value when a `TimestampOutOfWindow` error occurs for improved operator observability, without exposing it in the HTTP response.
+- `crates/vox-db/src/collection.rs`: Move `validate_identifier` import to the top-level and remove a redundant mid-file comment and import fragment.
+- `crates/vox-runtime/src/supervisor.rs`: Clarify docstring for `supervisor.rs` to explain that the returned `JoinHandle` controls only the monitor task, not the inner future, and advise using `CancellationToken` for inner future cancellation.
+- `crates/vox-orchestrator/src/dei_shim/research/model_select.rs`: Narrow the visibility of re-exported `vox-config` symbols from `pub` to `pub(crate)` as all consumers are internal to the crate, preventing external leakage.
+- `.gitlab-ci.yml`, `Dockerfile`: Pin the Rust toolchain to `rust:1.92.0-slim-bookworm` for fully immutable CI and build images, ensuring consistency.
+
+--- audit: original='fix(review): address CodeRabbit feedback on PR #60' | actual=49L across 7 files | derived=full ---
