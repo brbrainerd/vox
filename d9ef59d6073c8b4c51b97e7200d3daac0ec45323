@@ -1,0 +1,6 @@
+chore(deps): update `Cargo.lock` with in-range dependency bumps
+scale: ~550 lines across 1 files [L]
+
+- `Cargo.lock`: Updated numerous in-range dependencies to their latest versions, resulting in 270 additions and 280 deletions in the lock file. This update supersedes the intent of #139.
+
+--- audit: original='chore(deps): update in-range dependencies to latest [supersedes #139]' | actual=550L across 1 files | derived=full ---
