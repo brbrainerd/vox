@@ -1,0 +1,16 @@
+feat(compiler): Surface dep_inference.over_track hints for unannotated calls
+scale: ~247 lines across 3 files [M]
+
+- `crates/vox-compiler/src/codegen_ts/hir_emit/state_deps.rs`:
+  - Introduced `DepAnalysis` struct to return both `deps` and `unannotated_calls`.
+  - Added `extract_state_deps_with_diagnostics` function to identify unannotated in-module function calls.
+  - Modified `extract_state_deps_with_callees` to use `extract_state_deps_with_diagnostics` internally.
+  - Refactored internal dependency collection into a single recursive walker, `collect_deps_and_calls`, removing a compatibility shim.
+- `crates/vox-compiler/src/codegen_ts/reactive.rs`:
+  - Added `emit_dep_inference_hints` function to generate `// dep_inference.over_track` comments for `useMemo`/`useEffect` when unannotated calls are detected.
+  - Updated `generate_reactive_component` to use `extract_state_deps_with_diagnostics` for both `derived` and `effect` dependency analysis.
+  - Populated `visible_fn_names` from `hir.functions` to enable cross-call analysis.
+- `crates/vox-compiler/src/codegen_ts/hir_emit/mod.rs`:
+  - Exported `extract_state_deps_with_diagnostics`.
+
+--- audit: original='feat(compiler): Phase E tier-2 — dep_inference.over_track hint surface' | actual=247L across 3 files | derived=full ---
