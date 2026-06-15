@@ -209,18 +209,24 @@ pub fn run(update_baseline: bool) -> anyhow::Result<()> {
 
     // Load registry for Check D (env-var parity).
     let registry_path = root.join("contracts/config/registry.v1.yaml");
-    let registered_env_vars: std::collections::HashSet<String> =
-        match parse_registry_file(&registry_path) {
-            Ok(rows) => rows
-                .into_iter()
-                .filter(|r| !r.env_var.is_empty() && r.env_var != "null")
-                .map(|r| r.env_var)
-                .collect(),
-            Err(_) => {
-                // Registry file absent or unreadable — treat as empty (Check D becomes no-op).
-                std::collections::HashSet::new()
-            }
-        };
+    let yaml_vars: std::collections::HashSet<String> = match parse_registry_file(&registry_path) {
+        Ok(rows) => rows
+            .into_iter()
+            .filter(|r| !r.env_var.is_empty() && r.env_var != "null")
+            .map(|r| r.env_var)
+            .collect(),
+        Err(_) => {
+            // Registry file absent or unreadable — treat as empty (Check D becomes no-op).
+            std::collections::HashSet::new()
+        }
+    };
+    // Union in Clavis-managed secrets so credentials don't need manual YAML rows.
+    let mut registered_env_vars = yaml_vars;
+    registered_env_vars.extend(
+        vox_secrets::spec::managed_secret_env_names()
+            .into_iter()
+            .map(|s| s.to_string()),
+    );
 
     let mut violations = Vec::new();
     collect_rs_files(&root.join("crates"), &mut |path, src| {
@@ -341,6 +347,22 @@ pub fn load_registered_env_vars(registry_yaml: &str) -> std::collections::HashSe
         }
     }
     vars
+}
+
+/// Build the full recognized-env-var set for Check D.
+///
+/// Unions YAML-registry rows with Clavis-managed secret env names so that
+/// credentials like `GEMINI_API_KEY` and `VAULT_TOKEN` are auto-recognized
+/// without needing manual rows in `contracts/config/registry.v1.yaml`.
+pub fn build_recognized_env_vars(registry_yaml: &str) -> std::collections::HashSet<String> {
+    let mut recognized = load_registered_env_vars(registry_yaml);
+    // Fold in Clavis-managed secrets so credentials don't need manual YAML rows.
+    recognized.extend(
+        vox_secrets::spec::managed_secret_env_names()
+            .into_iter()
+            .map(|s| s.to_string()),
+    );
+    recognized
 }
 
 /// Check D: scan source for VOX_* env reads that are NOT in the registry.
