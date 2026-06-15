@@ -1,0 +1,10 @@
+fix(lower): Emit warning for unlowered Decl kinds instead of silent drop
+scale: ~129 lines across 5 files [M]
+
+- `crates/vox-ast/src/decl/types.rs`: Added `Decl::kind_name()` method to provide a static label for each declaration kind, used in diagnostics.
+- `crates/vox-compiler/src/hir/lower/mod.rs`: Modified the `LowerCtx`'s catch-all arm for `Decl` lowering to push a `vox.lower.unlowered_decl` warning into `HirModule::lower_warnings` when a declaration kind has no specific HIR lowering arm. The declaration is still added to `legacy_ast_nodes`.
+- `crates/vox-compiler/src/hir/nodes/decl.rs`: Added a `lower_warnings: Vec<String>` field to `HirModule` to store warnings generated during HIR lowering, marked as `MigrationOnly`.
+- `crates/vox-compiler/tests/decl_lowering_test.rs`: Added a new test case `unlowered_decl_emits_lower_warning` to verify that an unlowered `HttpRouteDecl` now correctly generates a `vox.lower.unlowered_decl` warning and is present in `lower_warnings`. Also added a test `const_decl_no_longer_falls_in` to ensure `Decl::Const` does not hit the catch-all.
+- `crates/vox-compiler/tests/snapshots/axum_emit_contract_test__mutation_with_schema_main_rs_emit.snap`: Updated snapshot to reflect the new `lower_warnings` field in `HirModule`.
+
+--- audit: original='fix(lower): emit vox.lower.unlowered_decl warning instead of silently dropping to legacy_ast_nodes' | actual=129L across 5 files | derived=full ---
