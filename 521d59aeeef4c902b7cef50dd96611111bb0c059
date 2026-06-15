@@ -1,0 +1,16 @@
+feat(compiler): add contrast ratio validation for text elements
+scale: ~224 lines across 2 files [M]
+
+- `crates/vox-compiler/src/web_ir/validate_a11y.rs`:
+    - Implemented `validate_a11y_with_registry` to perform a depth-first search from each view root.
+    - This function tracks the current foreground/background surface pair based on `data-vox-surface` attributes.
+    - For `<p>`, `<h1>`–`<h6>` elements within a surface context, it looks up resolved hex color values from the `TokenRegistry`.
+    - It then computes the WCAG 2.1 contrast ratio.
+    - Emits `web_ir_validate.a11y.insufficient_contrast` error if contrast is below 3:1 for all text sizes.
+    - Emits `web_ir_validate.a11y.low_contrast` warning if contrast is below 4.5:1 for body text (`<p>`, `<h4>`–`<h6>`).
+    - Added a new `walk_contrast` helper function to recursively traverse the DOM.
+    - Updated module-level documentation to reflect the new contrast checking.
+- `crates/vox-compiler/src/web_ir/validate.rs`:
+    - Integrated `validate_a11y_with_registry` into `validate_web_ir_full` when a `TokenRegistry` is present.
+
+--- audit: original='feat(compiler): TASK-6.5 -- contrast ratio along ancestor chain' | actual=224L across 2 files | derived=full ---
