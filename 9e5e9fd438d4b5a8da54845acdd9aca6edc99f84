@@ -1,0 +1,6 @@
+refactor(compiler): remove redundant `String::into()` calls in `eval_expr`
+scale: ~49 lines across 1 files [S]
+
+- `crates/vox-compiler/src/eval/expr.rs`: Removed `String::into()` calls from `EvalError::AssertionFailed` messages, as `format!` already returns a `String` which can be directly used. This applies to error messages for `HirExpr::Jsx`, `HirExpr::JsxSelfClosing`, `HirExpr::JsxFragment`, `HirExpr::AsyncView`, `HirExpr::JsxText`, `HirExpr::JsxSpread`, and `HirExpr::JsxAttribute`.
+
+--- audit: original='fix(compiler): remove 7 useless String->String conversions in eval/expr.rs (pre-existing clippy lint from #308)' | actual=49L across 1 files | derived=full ---
