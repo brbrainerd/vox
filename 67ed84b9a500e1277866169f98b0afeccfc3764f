@@ -1,0 +1,6 @@
+fix(ci): Increase `setup` job timeout to 40 minutes in `ci.yml`
+scale: ~4 lines across 1 files [XS]
+
+- `.github/workflows/ci.yml`: Increased the `timeout-minutes` for the `Cache warmup + path filter` job from 20 to 40 minutes. This change addresses cold `cargo build -p vox-cli` operations on ephemeral self-hosted runners, which frequently exceed the previous 20-minute timeout due to a lack of `actions/cache` hits.
+
+--- audit: original='fix(ci): raise setup job timeout for cold self-hosted cache warmup' | actual=4L across 1 files | derived=full ---
