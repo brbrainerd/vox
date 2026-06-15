@@ -1,0 +1,7 @@
+build(reports): regenerate GUI surface SSOT reports
+scale: ~0 lines across 2 files [S]
+
+- contracts/reports/gui-surface-coverage.v1.json: Updated binary content.
+- contracts/reports/gui-surface-registry.v1.json: Updated binary content.
+
+--- audit: original='fix(#273): regenerate gui-surface SSOT reports after merge' | actual=0L across 2 files | derived=full ---
