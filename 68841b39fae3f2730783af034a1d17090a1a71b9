@@ -1,0 +1,14 @@
+feat(vox-audit): implement HumanEvalRunner and add 18 seed fixtures
+scale: ~1407 lines across 63 files [XL]
+
+- `crates/vox-audit/src/subcommands/humaneval.rs`: New subcommand `HumanEvalRunner` added to replace `HumanEvalStub`. This runner performs corpus-validity checks by compiling `reference.vox` and `tests.vox` for each problem using `vox_compiler::pipeline::check_file`. It also includes a placeholder for LLM-panel pass-rate measurement, returning `ExitCode::InvalidInput` if `--llm-panel` is used.
+- `crates/vox-audit/src/subcommands/stubs.rs`: Removed the `HumanEvalStub` struct and its associated implementation.
+- `crates/vox-audit/src/lib.rs`: Updated the subcommand registry to use `HumanEvalRunner` instead of `HumanEvalStub`.
+- `crates/vox-audit/src/subcommands/mod.rs`: Registered the new `humaneval` subcommand.
+- `crates/vox-audit/Cargo.toml`: Added `vox-compiler` and `toml` dependencies.
+- `contracts/eval/humaneval-vox/manifest.v1.yaml`: Updated `count_current` from 0 to 18, `held_out_current` from 0 to 10, added a real `corpus_hash`, set `status` to `seed`, and included a `corpus_validity_measurement` block in the CI policy.
+- `contracts/eval/humaneval-vox/README.md`: Updated to reflect the new per-problem directory layout and updated the status section.
+- `contracts/eval/humaneval-vox/problems/<001..018>/`: Added 18 new HumanEval-Vox problem fixtures, each including `spec.toml`, `reference.vox`, and `tests.vox` files. These fixtures cover various programming concepts like pure functions, control flow, Option, Result, string operations, and arithmetic.
+- `docs/superpowers/specs/2026-05-17-humaneval-runner-design.md`: New design document detailing the `humaneval` runner's architecture and rationale.
+
+--- audit: original='feat(vox-audit): real HumanEvalRunner + 18 seed fixtures (CR-L1)' | actual=1407L across 63 files | derived=full ---
