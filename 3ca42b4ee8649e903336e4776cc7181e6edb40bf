@@ -1,0 +1,8 @@
+chore(claude): expand Bash and PowerShell permissions in settings.local.json
+scale: ~104 lines across 1 files [M]
+
+- **.claude/settings.local.json**:
+    - Added numerous new `Bash` patterns to the `permissions.allowlist` for various `git` operations (`reflog`, `ls-tree`, `fsck`, `check-ignore`, `ls-files`), `cargo` commands (`insta`, `test`), `awk` filtering, `cp`, `xargs`, and `tasklist` process management.
+    - Added new `PowerShell` patterns for process introspection (`Get-Process`) and filesystem introspection (`Get-ChildItem` for specific Vox-related paths).
+
+--- audit: original='chore(claude): expand permissions allowlist accumulated across sessions 6-8' | actual=104L across 1 files | derived=full ---
