@@ -1,0 +1,6 @@
+docs(deployment): clarify Gate 3 scheduling when smoke CI is skipped in deploy workflow
+scale: ~2 lines across 1 files [XS]
+
+- docs/src/architecture/eval-sandbox-deployment.md: Add a note to the "eval sandbox deployment" documentation explaining that the public `curl` probe (Gate 3) must still run even when Gate 1 (smoke CI) is skipped in the `deploy-hetzner.yml` workflow. Provide guidance on configuring the health-check job's `needs` and `if` conditions to ensure the HTTPS verifier executes regardless of smoke CI's execution status.
+
+--- audit: original='docs: note Gate 3 scheduling when smoke CI skipped on deploy workflow' | actual=2L across 1 files | derived=full ---
