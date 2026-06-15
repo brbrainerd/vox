@@ -1,0 +1,6 @@
+feat(codegen-rust): port `emit_bare_lambda` from #231 into `stmt_expr.rs`
+scale: ~25 lines across 1 files [S]
+
+- `crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs`: Add a new public helper function `emit_bare_lambda` to generate Rust closures for bare Vox lambdas. This function handles parameter formatting, including optional type annotations, and wraps the body emission.
+
+--- audit: original="fix(#231): port net-new emit_bare_lambda into main's stmt_expr.rs (kept main's canonical codegen-rust core; #231's arm-parity gates + emit modules are the net-new value)" | actual=25L across 1 files | derived=full ---
