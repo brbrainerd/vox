@@ -6,7 +6,10 @@
 //! the target dir we are about to relink AND it is not the caller. Because each
 //! worktree has its own `target/`, this never touches a sibling agent's procs.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+use anyhow::Result;
+use sysinfo::System;
 
 /// Decide whether the process with executable `exe`, pid `pid`, should be
 /// reaped so a build can relink binaries under `target_dir`. `current_pid` is
@@ -30,6 +33,68 @@ fn should_reap(exe: &Path, target_dir: &Path, pid: u32, current_pid: u32) -> boo
         .map(|n| n.to_string_lossy().to_lowercase())
         .unwrap_or_default();
     file == "vox" || file == "vox.exe" || (file.starts_with("vox-") && !file.ends_with("-build"))
+}
+
+/// One stale process holding `target/`.
+struct LockingProc {
+    pid: u32,
+    exe: PathBuf,
+}
+
+/// Scan all processes and return those whose executable lives under `target_dir`
+/// and is reapable (`should_reap`), excluding the current process.
+fn scan_locking_pids(target_dir: &Path) -> Vec<LockingProc> {
+    let current = std::process::id();
+    let sys = System::new_all();
+    let mut out = Vec::new();
+    for (pid, proc_) in sys.processes() {
+        let Some(exe) = proc_.exe() else { continue };
+        let pid_u = pid.as_u32();
+        if should_reap(exe, target_dir, pid_u, current) {
+            out.push(LockingProc {
+                pid: pid_u,
+                exe: exe.to_path_buf(),
+            });
+        }
+    }
+    out
+}
+
+/// Kill the given pid. Best-effort: a process may already be gone.
+fn kill_pid(pid: u32) -> bool {
+    let sys = System::new_all();
+    sys.process(sysinfo::Pid::from_u32(pid))
+        .map(|p| p.kill())
+        .unwrap_or(false)
+}
+
+/// `vox ci free-binary` entry. `target` defaults to `<root>/target`.
+/// Dry-run by default; `apply` kills the stale lockers.
+pub fn run(root: &Path, target: Option<PathBuf>, apply: bool) -> Result<()> {
+    let target_dir = target.unwrap_or_else(|| root.join("target"));
+    let locking = scan_locking_pids(&target_dir);
+    if locking.is_empty() {
+        println!("free-binary: no stale vox processes hold {}", target_dir.display());
+        return Ok(());
+    }
+    for lp in &locking {
+        if apply {
+            let ok = kill_pid(lp.pid);
+            println!(
+                "free-binary: {} pid={} exe={}",
+                if ok { "killed" } else { "could-not-kill" },
+                lp.pid,
+                lp.exe.display()
+            );
+        } else {
+            println!(
+                "free-binary: [dry-run] would kill pid={} exe={}",
+                lp.pid,
+                lp.exe.display()
+            );
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -97,6 +162,13 @@ mod tests {
             100,
             1
         ));
+    }
+
+    #[test]
+    fn scan_returns_empty_for_nonexistent_target() {
+        // A target dir that cannot contain live procs yields no reap candidates.
+        let report = scan_locking_pids(&p("/definitely/not/a/real/target/xyz123abc"));
+        assert!(report.is_empty());
     }
 
     #[test]
