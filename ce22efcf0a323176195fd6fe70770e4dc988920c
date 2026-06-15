@@ -1,0 +1,48 @@
+refactor(secrets): complete clavis→secrets rename and LLM content cleanup
+scale: ~62151 lines across 234 files [XL]
+
+DIVERGENCE: original subject claimed 'refactor(secrets+docs): complete clavis→secrets rename and LLM content cleanup' but this commit actually changed ~62151 lines across 234 files. Top areas:
+docs: 60090 lines, 104 files
+crates: 1471 lines, 102 files
+contracts: 515 lines, 12 files
+(root): 31 lines, 5 files
+.cursor: 14 lines, 3 files
+.github: 12 lines, 2 files
+docs-astro: 10 lines, 2 files
+scripts: 6 lines, 3 files
+vox-vscode: 2 lines, 1 files
+
+- **CLI**: `vox clavis` renamed to `vox secrets` (primary), `clavis` kept as alias. `ClavisCmd` → `SecretsCmd`, `ClavisSyncEnvelope` → `SecretsSyncEnvelope`.
+- **Env vars**: `VOX_CLAVIS_*` → `VOX_SECRETS_*` with `.or_else` fallbacks for rollout safety.
+- **Crate API**: `vox_config::clavis_str` → `secrets_str`; `OPERATOR_CLAVIS_*` → `OPERATOR_SECRETS_*` constants.
+- **File renames**: `commands/clavis.rs` → `secrets.rs`, `vox-config/clavis.rs` → `secrets.rs`, and many other files across `contracts/`, `docs/`, `crates/vox-cli/`, `crates/vox-db/`, `crates/vox-secrets/`.
+- **Configuration**: `vox-schema.json`, suppressions, frozen crate list, MCP tool registry, CI workflow env vars, command/capability registries updated.
+- **Docs**: All non-archive docs now show "retired 2026-05-03" for `@island` content.
+- **Docs**: `@server`, `@query`, `@mutation` upgraded to `@endpoint(kind: …)` across ~35 doc files.
+- **Docs**: Fixed ~22 doc files with deprecated `->` syntax in Vox code examples; `ref-decorators.md` code blocks upgraded.
+- **Docs**: New `docs/src/architecture/phase-numbering-index.md` added to disambiguate phase sequences.
+- **Docs**: Phase-numbering banners added to `external-frontend-interop-plan-2026`, `vox-gui-native-roadmap-2026`, `workspace-reorg-design`.
+- **Docs**: ADR 027, ADR 012, phase5 spec, research 2026-q1 react-interop plan marked `SUPERSEDED` and `training_eligible: false`.
+- **Docs**: `how-to-islands-and-pages.md` archived and retirement date corrected.
+- **Cleanup**: Deleted orphaned compiler snapshot files, `clavis-cutover-audit.v1.json`, `crates/vox-secrets/test.rs`, and `docs/agents/doc-inventory-index.json`.
+- **Codebase**: Ambiguous "Phase X" comments in orchestrator, queue, integration-test, and codegen source replaced with descriptive language.
+- **Docs pipeline**: `SUMMARY.md`, `architecture-index.md`, `feed.xml`, `docs/agents/doc-inventory.json` updated.
+- **CI**: `.cursorignore`, `.aiignore`, `.aiexclude` updated for `vox ci sync-ignore-files`.
+- **crates/vox-config**: `env_parse` updated.
+- **crates/vox-actor-runtime**: `builtins::vox_hash_fast` updated.
+- **crates/vox-codegen**: Express-server comment updated.
+- **crates/vox-cli**: `cli_args` two-mode framing updated.
+- **crates/vox-orchestrator**: Configuration and workspace updates.
+- **crates/vox-publisher**: Publication preflight updates.
+- **contracts**: `catalog.v1.yaml`, `capability-registry.yaml`, `model-manifest.generated.json`, `env-vars.v1.yaml`, `command-registry.yaml`, `managed-env-names.md`, `managed-env-names.v1.json` updated.
+- **crates/vox-db**: `config.rs` and `schema/domains/secrets_cloudless.rs` updated.
+- **crates/vox-secrets**: `lib.rs`, `backend/vox_vault.rs`, `spec/registry/llm.rs`, `sources/auth_json.rs` updated.
+- **crates/vox-compiler**: `typeck/builtins.rs`, `eval/builtins.rs`, `eval/mod.rs` updated.
+- **crates/vox-code-audit**: `review/providers.rs`, `ai_analyze.rs` updated.
+- **crates/vox-orchestrator-mcp**: `llm_bridge/model_route_policy/resolve.rs`, `openclaw_tools.rs` updated.
+- **crates/vox-orchestrator-queue**: `lib.rs` updated.
+- **crates/vox-ml-cli**: `commands/populi_cli.rs` updated.
+- **Tests**: Numerous integration and unit tests across `vox-cli`, `vox-publisher`, `vox-secrets` updated.
+- **Note**: SQLite tables (`clavis_*`) and vault DB path (`.vox/clavis_vault.db`) intentionally not renamed to avoid breaking live operator data.
+
+--- audit: original='refactor(secrets+docs): complete clavis→secrets rename and LLM content cleanup' | actual=62151L across 234 files | derived=stat-only ---
