@@ -1,0 +1,7 @@
+docs(architecture): Report CR-F2 arm-parity reality and update release criteria
+scale: ~116 lines across 2 files [M]
+
+- docs/src/architecture/cr-f2-arm-parity-reality-2026-06-05.md: Add new document detailing the measured cross-arm parity for CR-F2. It reports that the interpreter runs all 10 `main()`-goldens, while the `codegen-rust` arm compiles none, including the trivial `fn main() to int { return 0 }`. It identifies 7 distinct `codegen-rust` bug classes and states that CR-F2 is blocked until this backlog is addressed.
+- docs/src/architecture/v1-release-criteria.md: Update the status of CR-F2 to reflect the measured reality, linking to the new `cr-f2-arm-parity-reality-2026-06-05.md` document.
+
+--- audit: original='docs(v1): CR-F2 arm-parity measured — codegen-rust 0/10, interp 10/10' | actual=116L across 2 files | derived=full ---
