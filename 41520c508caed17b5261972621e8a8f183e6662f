@@ -1,0 +1,8 @@
+docs(SUMMARY): Regenerate and update architecture index
+scale: ~166 lines across 3 files [M]
+
+- `docs/src/feed.xml`: Regenerate the Atom feed.
+- `docs/src/SUMMARY.md`: Add a link to the new `architecture-index.md` under the "Architecture" section.
+- `docs/src/architecture/architecture-index.md`: Add a new file for the architecture index.
+
+--- audit: original='chore(docs): regenerate SUMMARY.md after merge of cleanup branch' | actual=166L across 3 files | derived=full ---
