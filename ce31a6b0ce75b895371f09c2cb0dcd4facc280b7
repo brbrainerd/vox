@@ -1,0 +1,6 @@
+fix(ci): set default-run for vox-audit to restore CI gates
+scale: ~4 lines across 1 files [XS]
+
+- `crates/vox-audit/Cargo.toml`: Added `default-run = "vox-audit"` to specify the default binary for `cargo run -p vox-audit`. This resolves an ambiguity when running `cargo run -p vox-audit` without `--bin` due to multiple binaries in the crate, which was causing CI gates like `stdlib-coverage` and `corpus-feedback` to fail.
+
+--- audit: original='fix(ci): restore stdlib-coverage + corpus-feedback gates via vox-audit default-run (#143)' | actual=4L across 1 files | derived=full ---
