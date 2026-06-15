@@ -1,0 +1,14 @@
+refactor(inference): delete `vox-populi` inference stub; tether `vox-cli` to `vox-inference`
+scale: ~310 lines across 9 files [L]
+
+- `crates/vox-populi/src/inference/backend.rs`: Deleted the `backend.rs` module, which defined traits and types for inference backends (e.g., `InferenceBackend`, `BackendId`, `Quantization`, `PromptInput`, `SamplingParams`, `InferenceError`).
+- `crates/vox-populi/src/inference/dispatcher.rs`: Deleted the `dispatcher.rs` module, which contained `InferenceDispatcher` for selecting and using inference backends.
+- `crates/vox-populi/src/inference/stubs.rs`: Deleted the `stubs.rs` module, which provided placeholder stub implementations for various inference backends (e.g., `CandleCpuStub`).
+- `crates/vox-populi/src/inference/swarm.rs`: Deleted the `swarm.rs` module, which contained a placeholder for swarm inference routing.
+- `crates/vox-populi/src/inference/mod.rs`: Deleted the `mod.rs` file, removing the entire `inference` module from `vox-populi`.
+- `crates/vox-populi/src/lib.rs`: Removed the `pub mod inference;` declaration, fully decoupling `vox-populi` from the inference logic.
+- `crates/vox-cli/src/commands/model/cas.rs`: Updated the `cas.rs` command to instantiate `vox_inference::CandleCpuBackend::new()` instead of `vox_populi::inference::CandleCpuStub`, and updated comments to reflect the use of the real `vox-inference` crate.
+- `crates/vox-cli/Cargo.toml`: Added `vox-inference = { workspace = true }` as a dependency.
+- `Cargo.lock`: Updated lockfile to reflect the new dependency.
+
+--- audit: original='refactor(populi): delete orphaned inference stub fork; tether vox-cli to real vox-inference (B1)' | actual=310L across 9 files | derived=full ---
