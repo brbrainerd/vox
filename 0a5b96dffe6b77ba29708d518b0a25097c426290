@@ -1,0 +1,8 @@
+test(cli): add end-to-end migrate fixture with VOX_RENAMES_PATH override
+scale: ~139 lines across 3 files [M]
+
+- `crates/vox-cli/tests/migrate_codemod_test.rs`: Add new end-to-end tests for the `vox migrate names` command. These tests spawn the real `vox` binary, use a temporary directory for file operations, and override the rename registry path via the `VOX_RENAMES_PATH` environment variable. Includes helper functions for running the CLI and writing a test rename registry.
+- `crates/vox-cli/tests/fixtures/migrate/after/sample.vox`: Add a new fixture file representing the expected output after a `Box` to `panel` rename.
+- `crates/vox-cli/tests/fixtures/migrate/before/sample.vox`: Add a new fixture file representing the input for a `Box` to `panel` rename.
+
+--- audit: original='test(cli): end-to-end migrate fixture + VOX_RENAMES_PATH override (VUV-9 task 7)' | actual=139L across 3 files | derived=full ---
