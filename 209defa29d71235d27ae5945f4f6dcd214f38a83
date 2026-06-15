@@ -1,0 +1,10 @@
+feat(coverage-graph): credit cross-crate integration-test assertions via `use` imports
+scale: ~134 lines across 2 files [M]
+
+- `scripts/coverage-graph/overlay_tests.py`:
+    - Add `parse_imported_crates` function to extract workspace crate names from `use` statements in test files.
+    - Integrate `parse_imported_crates` into `run_overlay` to build a mapping of test files to their imported crates.
+    - Remove unused `USE_FIRST_SEG_RE` and `_NON_CRATE_USE_ROOTS` regex/set from global scope.
+- `scripts/coverage-graph/test_overlay_tests.py`: Add `TestCrossCrateImportResolution` class with new test cases for cross-crate assertion crediting using `use` imports.
+
+--- audit: original='fix(coverage-graph): credit cross-crate integration-test assertions via use-imports (Wave 0 Task 0.3)' | actual=134L across 2 files | derived=full ---
