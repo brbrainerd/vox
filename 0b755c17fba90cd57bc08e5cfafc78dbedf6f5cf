@@ -1,0 +1,24 @@
+feat(vox-cli): split script-execution into native and WASI features
+scale: ~64 lines across 6 files [M]
+
+- `crates/vox-cli/Cargo.toml`:
+  - Made `script-execution` (native script execution) a default-on feature.
+  - Created a new `script-wasi` feature for WASI isolation (Wasmtime, vox-wasm-engine), which is opt-in and depends on `script-execution`.
+  - Moved `vox-wasm-engine`, `wasmtime`, and `wasmtime-wasi` dependencies from `script-execution` to `script-wasi`.
+  - Moved `landlock` and `win32job` dependencies from `script-execution` to `script-execution` (now default-on).
+- `crates/vox-cli/src/commands/runtime/run/script.rs`:
+  - Conditionally imported `WasiBackend` based on the `script-wasi` feature.
+  - Added a compile-time error message if `--isolation wasm` is requested without the `script-wasi` feature enabled.
+- `crates/vox-cli/src/cli_dispatch/mod.rs`:
+  - Changed the `Cli::Wasm` and `Cli::WasmStub` conditional compilation from `script-execution` to `script-wasi`.
+  - Updated error messages and install hints to reference `script-wasi` instead of `script-execution` for WASI functionality.
+- `crates/vox-cli/src/commands/mod.rs`:
+  - Changed the conditional compilation for the `wasm` module from `script-execution` to `script-wasi`.
+  - Updated comments to reflect that `script-wasi` gates the heavy Wasmtime stack.
+- `crates/vox-cli/src/lib.rs`:
+  - Changed the conditional compilation for the `Cli::Wasm` and `Cli::WasmStub` enum variants from `script-execution` to `script-wasi`.
+  - Updated the help message for `WasmStub` to suggest `--features script-wasi`.
+- `crates/vox-cli/src/commands/runtime/run/backend/mod.rs`:
+  - Conditionally compiled the `wasi` module and exported `WasiBackend` based on the `script-wasi` feature.
+
+--- audit: original='refactor(vox-cli): native script default-on; split heavy Wasmtime into script-wasi' | actual=64L across 6 files | derived=full ---
