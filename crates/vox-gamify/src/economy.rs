@@ -21,6 +21,8 @@ use crate::reward_policy::{BaseReward, EventConfigOverrides};
 use std::collections::HashMap;
 use std::path::Path;
 
+const EMBEDDED_ECONOMY_YAML: &str = include_str!("../../../contracts/gamify/economy.v1.yaml");
+
 /// Scalar tuning constants. Defaults mirror the `reward_policy`/`streak` constants.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Tuning {
@@ -113,6 +115,11 @@ pub struct EconomyConfig {
 }
 
 impl EconomyConfig {
+    /// Return the economy config parsed from the compile-time embedded contract.
+    pub fn embedded() -> Self {
+        parse_economy(EMBEDDED_ECONOMY_YAML).expect("embedded economy.v1.yaml must parse")
+    }
+
     /// Resolve the effective base reward for an event, applying any reward-table
     /// override on top of the hard-coded [`crate::reward_policy::base_reward`].
     pub fn base_reward(&self, event_type: &str) -> BaseReward {
@@ -261,64 +268,76 @@ pub fn parse_economy(text: &str) -> anyhow::Result<EconomyConfig> {
     Ok(cfg)
 }
 
-/// Repo-relative path to the shipped economy contract, resolved from this crate.
-pub const SHIPPED_CONTRACT_RELPATH: &str = "../../contracts/gamify/economy.v1.yaml";
-
-/// Workspace-root-relative path to the shipped economy contract.
-pub const CONTRACT_WORKSPACE_RELPATH: &str = "contracts/gamify/economy.v1.yaml";
-
-/// Resolve the live [`EconomyConfig`], loading the shipped economy contract if it
-/// can be found, and otherwise falling back to [`EconomyConfig::default`].
+/// Resolve the live [`EconomyConfig`] from an optional override path, using the
+/// provided `exists` predicate to test path presence (injectable for testing).
 ///
-/// This is the safe runtime entry point: a missing or unparseable contract never
-/// fails the caller — it logs and returns the in-code defaults, which are
-/// behavior-identical to the shipped contract.
-pub fn resolve_economy() -> EconomyConfig {
-    // Candidate locations, in priority order:
-    //  1. Explicit override via env var (deployment / tests).
-    //  2. Current working directory (workspace root when running from repo).
-    //  3. Compile-time crate-relative path (covers `cargo test`/dev runs).
-    let mut candidates: Vec<std::path::PathBuf> = Vec::new();
-    if let Ok(p) = std::env::var("VOX_GAMIFY_ECONOMY_PATH") {
-        candidates.push(p.into());
-    }
-    candidates.push(std::path::PathBuf::from(CONTRACT_WORKSPACE_RELPATH));
-    candidates
-        .push(std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(SHIPPED_CONTRACT_RELPATH));
-
-    for path in candidates {
-        if path.exists() {
-            match load_economy(&path) {
+/// Falls back to the compile-time embedded contract when no override is given or
+/// the override path cannot be loaded.
+pub(crate) fn resolve_economy_from(
+    override_path: Option<std::path::PathBuf>,
+    exists: impl Fn(&std::path::Path) -> bool,
+) -> EconomyConfig {
+    if let Some(p) = override_path {
+        if exists(&p) {
+            match load_economy(&p) {
                 Ok(cfg) => {
-                    tracing::debug!("loaded gamify economy contract from {}", path.display());
+                    tracing::debug!("loaded gamify economy contract from {}", p.display());
                     return cfg;
                 }
                 Err(e) => {
                     tracing::warn!(
-                        "failed to load gamify economy contract {}: {e}; falling back to defaults",
-                        path.display()
+                        error = %e,
+                        "economy override failed; using embedded"
                     );
-                    return EconomyConfig::default();
                 }
             }
         }
     }
-    tracing::debug!("no gamify economy contract found; using in-code defaults");
-    EconomyConfig::default()
+    EconomyConfig::embedded()
+}
+
+/// Resolve the live [`EconomyConfig`].
+///
+/// Checks `VOX_GAMIFY_ECONOMY_PATH` for an operator override, then falls back to
+/// the compile-time embedded contract — which is always present in production
+/// binaries.
+pub fn resolve_economy() -> EconomyConfig {
+    resolve_economy_from(
+        std::env::var("VOX_GAMIFY_ECONOMY_PATH")
+            .ok()
+            .map(std::path::PathBuf::from),
+        |p| p.exists(),
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::profile::TrustTier;
-    use std::path::PathBuf;
-
-    fn shipped_path() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(SHIPPED_CONTRACT_RELPATH)
-    }
 
     fn shipped() -> EconomyConfig {
-        load_economy(shipped_path()).expect("shipped economy contract loads")
+        EconomyConfig::embedded()
+    }
+
+    #[test]
+    fn embedded_contract_parses_and_is_canonical_default() {
+        let embedded = EconomyConfig::embedded();
+        let def = EconomyConfig::default();
+        assert_eq!(embedded.tuning.novelty_factor, def.tuning.novelty_factor);
+        assert_eq!(embedded.trust_tier_multipliers, def.trust_tier_multipliers);
+        assert!(
+            !embedded.rewards.is_empty(),
+            "embedded contract must carry rewards"
+        );
+    }
+
+    #[test]
+    fn resolve_uses_embedded_when_no_override() {
+        let cfg = resolve_economy_from(None, |_p| false);
+        assert!(
+            !cfg.rewards.is_empty(),
+            "must fall back to embedded, not empty Default"
+        );
     }
 
     /// Behavior preservation: the shipped contract's scalar tuning EQUALS the
