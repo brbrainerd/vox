@@ -1,0 +1,25 @@
+refactor(compiler): restore Path C components and remove Path B references
+scale: ~652 lines across 51 files [L]
+
+- `crates/vox-compiler/src/typeck/checker`: Restore `check_reactive_component` and `HirExpr::Pipe` type checking, while removing references to `module.components` from the main module check.
+- `crates/vox-compiler/src/codegen_ts/emitter`: Remove `generate_reactive_component` and related Web IR projection logic, indicating a shift away from Path B's reactive component generation.
+- `crates/vox-compiler/src/hir/db_op_walk`: Remove reactive component-related expression walking from both mutable and immutable walkers.
+- `crates/vox-compiler/src/hir/lower`: Restore `lower_reactive_component` and related lowering logic for reactive components.
+- `crates/vox-compiler/src/hir`: Restore `HirReactiveComponent` and `HirReactiveMember` definitions, and remove `HirExpr::Pipe` from `hir_expr_span`.
+- `examples/golden`: Update several golden examples (`tensor_gc_computation.vox`, `inventory_rosetta_platform.vox`, `ref_agents.vox`, `iot_telemetry.vox`, `ref_actors.vox`, `background_jobs.vox`, `saga_compensation.vox`, `ref_orchestrator.vox`, `agent_pipeline.vox`, `counter_actor.vox`, `error_propagation.vox`, `auth_patterns.vox`, `checkout_workflow.vox`, `crud_api.vox`, `getting_started.vox`, `http_error_mapping.vox`) to reflect changes in actor and component syntax, primarily converting `actor` and `component` definitions to `fn` and removing `on` handlers.
+- `crates/vox-compiler/tests`: Restore reactive component-related tests (`reactive_smoke_test`, `web_ir_environment_gates_test`, `web_ir_lower_emit_test`) and update `projection_parity_test.rs` and `runtime_projection_smoke_test.rs`. Remove several LLM fixture tests.
+- `crates/vox-compiler/src/codegen_rust`: Update `emit/tables/projections.rs` and `emit/stmt_expr_tail.rs`.
+- `docs/src/architecture`: Update `gui-native-roadmap-status-2026.md`.
+- `crates/vox-compiler/src/vox-ir.v1.schema.json` and `docs/src/reference/vox-ir.schema.json`: Update schema definitions.
+- `crates/vox-compiler/src/codegen_ts/hir_emit`: Update `mod.rs` and `state_deps.rs`.
+- `crates/vox-compiler/src/codegen_ts/reactive.rs`: Update reactive component generation logic.
+- `crates/vox-compiler/src/hir/dead_code.rs`: Update dead code analysis.
+- `crates/vox-compiler/src/hir/lower/async_flags.rs` and `crates/vox-compiler/src/hir/lower/contracts.rs`: Update lowering logic.
+- `crates/vox-compiler/src/web_ir/lower.rs`: Remove web IR lowering.
+- `crates/vox-compiler/src/hir/nodes`: Remove `stmt_expr.rs` and `decl.rs`.
+- `crates/vox-cli/src/commands/db/query_plans.rs`: Remove query plan logic.
+- `crates/vox-workflow-runtime/src/workflow/plan.rs`: Remove workflow plan logic.
+- `contracts/speech-to-code/vox_grammar_artifact.json`: Update grammar artifact.
+- `Cargo.lock`: Update dependencies.
+
+--- audit: original='refactor(compiler): finish TASK-2.1 Path B decommission' | actual=652L across 51 files | derived=full ---
