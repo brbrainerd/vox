@@ -1,0 +1,24 @@
+feat(training): integrate QLoRA training pipeline, visualizer, and tools
+scale: ~13525 lines across 129 files [XL]
+
+- `crates/vox-populi`: Refactor QLoRA training for Qwen2 models, including GQA, causal masks, and RoPE. Update `candle_qlora_train.rs` with detailed training loop properties and `candle_model_qwen.rs` with causal mask and GQA helpers.
+- `crates/vox-train`: Add new `train.rs` and `serve.rs` modules for the QLoRA training pipeline, including CLI argument parsing and environment setup.
+- `tools/visualizer`: Introduce a new React-based visualizer application with `package-lock.json`, `App.css`, `App.tsx`, `Dashboard.tsx`, `AstView.tsx`, `AgentFlow.tsx`, `PipelineView.tsx`, and other configuration files.
+- `vox-vscode`: Update `VoxMcpClient.ts` for MCP client communication, refactor `webview-ui/src/index.tsx` for the new visualizer components, and update `src/types/index.ts` with new interfaces.
+- `crates/vox-cli`: Add new commands for `review/coderabbit` including `historical_planner.rs`, `ingest.rs`, `mod.rs`, `git.rs`, `semantic_planner.rs`, `stack_planner.rs`, and `tasks.rs`.
+- `crates/vox-lsp`: Add `completions.rs`, `main.rs`, and `symbols.rs` for LSP features, and refactor `grammar.rs`.
+- `docs`: Update `SUMMARY.md` and add new API documentation for `vox-ludus`, `vox-bootstrap`, `vox-dei`, and `vox-wasm`.
+- `crates/vox-mcp`: Add `introspection_tools.rs` and `mod.rs` for MCP tooling.
+- `crates/vox-doc-pipeline`: Refactor `main.rs`.
+- `vox-vscode/webview-ui`: Add new components `Dashboard.tsx`, `AstView.tsx`, `AgentFlow.tsx`, and `PipelineView.tsx` for the visualizer.
+- `crates/vox-ast`: Refactor various declaration files (`fundecl.rs`, `ui.rs`, `logic.rs`, `db.rs`, `mod.rs`, `typedef.rs`, `config.rs`) and `expr.rs`, `pattern.rs`, `stmt.rs`, `types.rs`.
+- `tree-sitter-vox`: Add `GRAMMAR_SSOT.md` and update `grammar.js`.
+- `crates/vox-orchestrator`: Update `accessors.rs` and `queue.rs`.
+- `crates/vox-integration-tests`: Add `orchestrator_e2e.rs`.
+- `patches`: Update `qlora-rs-1.0.5/src/training.rs` and `quantization.rs`.
+- `crates/vox-db`: Update `lib.rs`.
+- `crates/vox-populi`: Update `Cargo.toml` and `lib.rs`.
+- `.github/workflows`: Remove `docs-deploy.yml`.
+- `packages/vox-ui`: Remove `index.tsx` and `package.json`.
+
+--- audit: original='chore: integrate training pipeline, visualizer, tools and docs' | actual=13525L across 129 files | derived=sampled ---
