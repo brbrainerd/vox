@@ -1,0 +1,8 @@
+fix(coverage): update semantic coverage stats to reproducible 5793 unproven
+scale: ~396 lines across 3 files [L]
+
+- docs/architecture: Updated semantic coverage status document to reflect the reproducible `reached_not_proven` figure of 5793 (down from 7950), clarifying its provenance and superseding previous directional figures.
+- contracts/reports: Updated the `semantic-coverage.v1.json` artifact to reflect the new `reached_not_proven` value (5793), updated the `reach_source` note to detail the full-workspace llvm-cov run and resolution of the `peft-rs` blocker, and added a `top_unproven_crates` list.
+- contracts/reports: Updated the `reached-vs-proven-2026-06-14.md` report with the new total of 5793 reached-but-unproven symbols and revised the detailed per-crate breakdown to reflect the updated counts.
+
+--- audit: original='fix(coverage): reproducible reach number — 5793 reached-but-unproven (supersedes 7950)' | actual=396L across 3 files | derived=full ---
