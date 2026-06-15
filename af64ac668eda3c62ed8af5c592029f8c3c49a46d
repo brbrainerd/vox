@@ -1,0 +1,10 @@
+docs(adr): draft ADR-033 for typed parametric fragment primitive
+scale: ~244 lines across 5 files [M]
+
+- **docs/src/adr/033-typed-fragment-primitive.md**: Add new Architecture Decision Record (ADR-033) detailing the design for a `fragment` bare-keyword scope, including its syntax, type system (`Fragment[(T1, T2, …)]`), render shape (`<RenderFragment />`), and lowering to React function components. It also documents alternatives considered and open questions.
+- **docs/src/feed.xml**: Update the RSS feed to include the new ADR-033.
+- **docs/src/architecture/svelte-mineable-features-implementation-plan-2026.md**: Update Phase F entry to reflect that ADR-033 for the typed parametric fragment primitive has been drafted, with implementation still deferred.
+- **docs/src/SUMMARY.md**: Add ADR-033 to the documentation summary.
+- **docs/src/adr/index.md**: Add ADR-033 to the index of Architecture Decision Records.
+
+--- audit: original='docs(adr): draft ADR-033 typed parametric fragment primitive (Phase F)' | actual=244L across 5 files | derived=full ---
