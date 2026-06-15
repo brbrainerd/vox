@@ -1,0 +1,13 @@
+feat(compiler): introduce surface primitive for fg/bg token pairs
+scale: ~655 lines across 8 files [L]
+
+- `crates/vox-compiler/src/tokens/mod.rs`: Add `TokenRegistry` module with `SurfacePairEntry` struct to store foreground/background token keys. Implement `walk_surface_pairs()` to parse `$surface_pair: true` entries from `vox.tokens.json` and populate `surface_pairs` HashMap.
+- `crates/vox-compiler/src/tokens/contrast.rs`: Add new module for WCAG 2.1 relative luminance and contrast ratio computation, including `ContrastPair` and `TextRole` enums.
+- `crates/vox-compiler/src/lib.rs`: Expose the new `tokens` module.
+- `crates/vox-compiler/src/web_ir/primitives/mod.rs`: Add `surface_ref: Option<String>` to `PrimitiveEmission` to store the surface name extracted from the `surface` attribute during primitive resolution.
+- `crates/vox-compiler/src/web_ir/lower.rs`: In `apply_primitive_emission()`, inject `data-vox-surface="name"` attribute and `style="--fg: var(--vox-surface-NAME-fg); --bg: var(--vox-surface-NAME-bg)"` CSS variables when `surface_ref` is present.
+- `crates/vox-compiler/src/web_ir/validate.rs`: Implement `validate_surface_refs()` to walk the DOM for `data-vox-surface` attributes and emit `web_ir_validate.surface.unknown_surface` diagnostics for unknown surface names against the `TokenRegistry`.
+- `crates/vox-compiler/tests/web_ir_lower_emit_test.rs`: Add four integration tests covering known/unknown surface names, CSS variable lowering, and no-registry passthrough scenarios.
+- `vox.tokens.json`: Add `surface.default`, `surface.primary`, and `surface.secondary` entries with `$surface_pair: true` and `fg`/`bg` token path references.
+
+--- audit: original='feat(compiler): TASK-6.3 -- surface pair primitive (named fg/bg token pairs, CSS vars, validation)' | actual=655L across 8 files | derived=full ---
