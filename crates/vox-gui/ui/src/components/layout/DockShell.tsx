@@ -7,7 +7,7 @@ import {
 } from 'dockview';
 import 'dockview/dist/styles/dockview.css';
 import '../../styles/dockview-vox.css';
-import { invoke } from '@tauri-apps/api/core';
+import { voxTransport } from '../../transport';
 import { LAYOUT_PERSIST_DEBOUNCE_MS } from '../../config/constants';
 
 interface DockShellProps {
@@ -38,7 +38,7 @@ export function DockShell({
       persistTimer.current = setTimeout(() => {
         try {
           const json = JSON.stringify(api.toJSON());
-          invoke('set_gui_preference', { key: layoutKey, value: json }).catch(() => {});
+          voxTransport.setGuiPreference(layoutKey, json).catch(() => {});
         } catch {
           // ignore serialization errors
         }
@@ -50,7 +50,7 @@ export function DockShell({
   const onReady = useCallback(
     (event: DockviewReadyEvent) => {
       apiRef.current = event.api;
-      invoke<string | null>('get_gui_preference', { key: layoutKey })
+      voxTransport.getGuiPreference(layoutKey)
         .then(raw => {
           if (raw) {
             try {

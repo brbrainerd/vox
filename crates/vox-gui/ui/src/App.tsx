@@ -6,7 +6,8 @@ import { Sidebar, SidebarMode } from './components/layout/Sidebar';
 import { TopHud, type HudMode } from './components/layout/TopHud';
 import { DockShell } from './components/layout/DockShell';
 import { renderSurfaceView } from './components/layout/surfaceComponents';
-import { resolveNavigation } from './lib/navigation';
+import { resolveNavigation, parseViewFromLocation, syncViewToLocation } from './lib/navigation';
+import { BreadcrumbBar } from './components/layout/BreadcrumbBar';
 import { CommandPalette } from './components/layout/CommandPalette';
 import { Toasts, ToastItem } from './components/ui/Toasts';
 import { SurfaceErrorBoundary } from './components/ui/ErrorBoundary';
@@ -104,35 +105,7 @@ const LEGACY_VIEWS: string[] = [
 ];
 
 // Single source of truth for valid view ids (deep-link validation + initial-view).
-const KNOWN_VIEWS: string[] = [
-  'dashboard',
-  'flow',
-  'catalog',
-  'matrix',
-  'memory',
-  'models',
-  'runs',
-  'repository',
-  'mesh',
-  'gamify',
-  'harness',
-  'scientia',
-  'discovery-review',
-  'discovery-inbox',
-  'archive-panel',
-  'claims',
-  'mens',
-  'populi',
-  'research',
-  'oratio',
-  'approvals',
-  'policies',
-  'skills',
-  'settings',
-  'coverage',
-  'publications',
-  'search',
-];
+const KNOWN_VIEWS: string[] = LEGACY_VIEWS;
 
 function isKnownView(v: unknown): v is View {
   return typeof v === 'string' && KNOWN_VIEWS.includes(v);
@@ -348,8 +321,15 @@ export default function App() {
       .catch(() => setAppVersion('unknown'));
 
     invoke<string>('get_initial_view').then((view) => {
+      const fromHash = parseViewFromLocation(window.location);
+      if (fromHash && LEGACY_VIEWS.includes(fromHash)) {
+        setActiveView(fromHash as View);
+        syncViewToLocation(fromHash);
+        return;
+      }
       if (view && LEGACY_VIEWS.includes(view)) {
         setActiveView(view as View);
+        syncViewToLocation(view);
       }
     }).catch(() => {});
 
@@ -561,6 +541,25 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── Navigation (hash-synced) ─────────────────────────────────────────────
+  const navigateTo = useCallback((viewKey: string) => {
+    const { child } = resolveNavigation(viewKey);
+    setActiveView(child as View);
+    syncViewToLocation(child);
+  }, [setActiveView]);
+
+  useEffect(() => {
+    const onHashChange = () => {
+      const fromHash = parseViewFromLocation(window.location);
+      if (fromHash && LEGACY_VIEWS.includes(fromHash)) {
+        const { child } = resolveNavigation(fromHash);
+        setActiveView(child as View);
+      }
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, [setActiveView]);
+
   // ── Cross-surface deep-link: a surface may request navigation to another
   // surface (optionally seeding a value) by dispatching a `vox://navigate-surface`
   // CustomEvent. Used by the Discovery Inbox "Open review" action to jump to the
@@ -574,18 +573,11 @@ export default function App() {
           window.localStorage.setItem('vox_discovery_review_seed', detail.publicationId);
         } catch { /* localStorage unavailable — surface still switches */ }
       }
-      setActiveView(detail.view);
+      navigateTo(detail.view);
     };
     window.addEventListener('vox://navigate-surface', onNavigate as EventListener);
     return () => window.removeEventListener('vox://navigate-surface', onNavigate as EventListener);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ── Action handlers ───────────────────────────────────────────────────────
-  const navigateTo = useCallback((viewKey: string) => {
-    const { child } = resolveNavigation(viewKey);
-    setActiveView(child as View);
-  }, [setActiveView]);
+  }, [navigateTo]);
 
   const hydrateChatSession = useCallback(async (sessionId: string) => {
     if (!sessionId) return;
@@ -969,7 +961,7 @@ export default function App() {
       navigateTo('console');
     },
     activeChild: nav.child,
-    onChildChange: (vk: string) => setActiveView(vk as View),
+    onChildChange: (vk: string) => navigateTo(vk),
     activeSessionId,
     onSessionChange: setActiveSessionId,
     chatMessages: activeChatMessages,
@@ -985,7 +977,7 @@ export default function App() {
 
       <Sidebar
         view={activeView}
-        setView={(v) => setActiveView(resolveNavigation(v).child as View)}
+        setView={(v) => navigateTo(v)}
         agentsCount={data.agents.filter(a => a.phase !== 'Idle').length}
         data={data}
         mode={sidebarMode}
@@ -1008,6 +1000,7 @@ export default function App() {
             hudMode={hudMode}
             setHudMode={setHudMode}
           />
+          <BreadcrumbBar viewKey={activeView} onNavigate={navigateTo} />
         </div>
 
         <div className="flex-1 min-h-0 overflow-hidden p-5 pb-[180px]">

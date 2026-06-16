@@ -53,4 +53,20 @@ describe('VoxTransport new methods', () => {
     await voxTransport.openLocator(locator);
     expect(mockInvoke).toHaveBeenCalledWith('open_locator', { locator });
   });
+
+  it('voxDocsIndex calls vox_docs_index', async () => {
+    mockInvoke.mockResolvedValue([]);
+    await voxTransport.voxDocsIndex();
+    expect(mockInvoke).toHaveBeenCalledWith('vox_docs_index');
+  });
+
+  it('voxSearchQuery calls vox_search_query with scope', async () => {
+    mockInvoke.mockResolvedValue({ hits: [], total: 0 });
+    await voxTransport.voxSearchQuery('foo', 10, ['repo']);
+    expect(mockInvoke).toHaveBeenCalledWith('vox_search_query', {
+      query: 'foo',
+      limit: 10,
+      scope: ['repo'],
+    });
+  });
 });

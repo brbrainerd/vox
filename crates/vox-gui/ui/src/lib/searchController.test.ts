@@ -3,6 +3,8 @@ import {
   ALL_USER_SCOPES,
   backendScopesFromUserScopes,
   filterCommandCatalogHits,
+  searchReducer,
+  initialSearchState,
   userScopeToBackend,
 } from './searchController';
 
@@ -35,5 +37,15 @@ describe('searchController', () => {
     expect(hits).toHaveLength(1);
     expect(hits[0].path).toBe('vox ci pre-push');
     expect(hits[0].source).toBe('commands');
+  });
+
+  it('setScopes bumps requestToken to discard stale hits', () => {
+    const withHits = searchReducer(
+      { ...initialSearchState, requestToken: 2, hits: [{ id: 1 }] },
+      { type: 'setScopes', scopes: ['memory'] },
+    );
+    expect(withHits.requestToken).toBe(3);
+    const stale = searchReducer(withHits, { type: 'setHits', hits: [{ id: 99 }], token: 2 });
+    expect(stale.hits).toEqual([{ id: 1 }]);
   });
 });

@@ -361,6 +361,21 @@ class VoxTransport {
   openLocator(locator: OpenLocator): Promise<OpenOutcome> {
     return invoke<OpenOutcome>('open_locator', { locator });
   }
+
+  voxDocsIndex(): Promise<{ title: string; description: string; path: string }[]> {
+    return invoke('vox_docs_index');
+  }
+
+  voxSearchQuery(query: string, limit: number, scope: string[]): Promise<{
+    hits: unknown[];
+    facets_by_source: { value: string; count: number }[];
+    facets_by_kind: { value: string; count: number }[];
+    total: number;
+    next_cursor: number | null;
+    corpora: string[];
+  }> {
+    return invoke('vox_search_query', { query, limit, scope });
+  }
 }
 
 export const voxTransport = new VoxTransport();

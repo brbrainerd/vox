@@ -71,7 +71,7 @@ export function searchReducer(
     case 'setQuery':
       return { ...state, query: action.query, requestToken: state.requestToken + 1 };
     case 'setScopes':
-      return { ...state, scopes: action.scopes };
+      return { ...state, scopes: action.scopes, requestToken: state.requestToken + 1 };
     case 'setHits':
       if (action.token !== state.requestToken) return state;
       return { ...state, hits: action.hits, loading: false };

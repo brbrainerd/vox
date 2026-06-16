@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Glass } from '../../ui/Glass';
 import { Pill, PHASE_TONE, PhaseKind } from '../../ui/Pill';
 import { Agent } from '../../../types/dashboard';
+import { phaseStroke, viz } from '../../../lib/visualTokens';
 
 interface GraphNode {
   id: string;
@@ -143,19 +144,6 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
   const selectedNode = nodeAt(sel);
   const selectedAgent = agents.find(a => a.id === sel);
 
-  const phaseStroke = (phase: string): string => {
-    const map: Record<string, string> = {
-      Verifying: '#a78bfa',
-      Executing: 'rgb(var(--brass))',
-      Planning:  '#22d3ee',
-      Paused:    '#71717a',
-      Root:      '#ffffff',
-      Validated: '#34d399',
-      Doubted:   '#fbbf24',
-    };
-    return map[phase] ?? '#71717a';
-  };
-
   return (
     <Glass className="relative overflow-hidden p-0">
       <div className="flex items-center justify-between border-b border-white/5 px-5 py-3">
@@ -188,10 +176,10 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
           <defs>
             <linearGradient id="ag-edge-grad" x1="0" x2="1">
               <stop offset="0" stopColor="rgb(var(--brass) / 0.7)" />
-              <stop offset="1" stopColor="#22d3ee" stopOpacity="0.7" />
+              <stop offset="1" stopColor={viz.cyan400} stopOpacity="0.7" />
             </linearGradient>
             <radialGradient id="ag-root-glow" cx="0.5" cy="0.5" r="0.5">
-              <stop offset="0%"   stopColor="#fff"    stopOpacity="0.9" />
+              <stop offset="0%"   stopColor={viz.white}    stopOpacity="0.9" />
               <stop offset="60%"  stopColor="rgb(var(--brass) / 0.3)" />
               <stop offset="100%" stopColor="rgb(var(--brass) / 0)" />
             </radialGradient>
@@ -258,7 +246,7 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
                 />
                 <circle
                   cx={x} cy={y} r={r}
-                  fill="#0b0b0d"
+                  fill={viz.void}
                   stroke={stroke}
                   strokeOpacity={isSel ? 1 : 0.6}
                   strokeWidth={isSel ? 2 : 1.25}
@@ -275,7 +263,7 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
                 <text
                   x={x} y={y - 2}
                   textAnchor="middle"
-                  fill="#f4f4f5"
+                  fill={viz.zinc100}
                   fontSize={isRoot ? 13 : 11}
                   fontWeight="600"
                   fontFamily="'Space Grotesk', sans-serif"

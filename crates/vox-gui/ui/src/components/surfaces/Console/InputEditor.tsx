@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { viz } from '../../../lib/visualTokens';
 import { discoverySuggest, type Suggestion } from '../../../transport';
 
 interface Props {
@@ -75,7 +76,7 @@ export function InputEditor({ onSubmit, onActiveSuggestion }: Props) {
     <div style={{ position: 'relative', fontFamily: 'monospace' }}>
       <span
         aria-hidden
-        style={{ position: 'absolute', left: 0, color: '#9ca3af', pointerEvents: 'none' }}
+        style={{ position: 'absolute', left: 0, color: viz.gray400, pointerEvents: 'none' }}
       >
         {value}
         <span data-testid="ghost">{ghost}</span>

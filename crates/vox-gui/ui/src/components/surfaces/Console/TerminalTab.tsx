@@ -8,6 +8,7 @@ import {
   listenPtyOutput,
   listenPtyExit,
 } from '../../../transport';
+import { terminalExitColor } from '../../../lib/visualTokens';
 import { createBlockReducer, type Block, type Osc633Kind } from './osc633';
 
 /** A line the parent wants written to this PTY. `seq` changes each submit so the
@@ -150,8 +151,7 @@ function paintStatusDot(term: Terminal, block: Block, sink: IDisposable[]): void
     // registerMarker takes an offset relative to the cursor's current line.
     const marker = term.registerMarker(block.startLine - cursorAbs);
     if (!marker) return;
-    const color =
-      block.exitCode === null ? '#9ca3af' : block.exitCode === 0 ? '#22c55e' : '#ef4444';
+    const color = terminalExitColor(block.exitCode);
     const dec = term.registerDecoration({ marker, width: 1 });
     if (!dec) {
       sink.push(marker);

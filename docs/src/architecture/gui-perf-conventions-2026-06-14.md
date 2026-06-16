@@ -14,10 +14,11 @@ RAIL is Google's model for user-centric performance. The following budgets apply
 
 | Phase | Budget | Notes |
 |-------|--------|-------|
-| **Response** (user action → visual feedback) | < 100 ms total; < 50 ms JS processing | Button clicks, keyboard shortcuts, UI state toggles |
+| **Response** (user action → visual feedback) | < 100 ms total; < 50 ms JS processing | Button clicks, keyboard shortcuts, UI state toggles; aligns with INP "input delay" target |
 | **Animation** (each frame) | < 10 ms JS work per frame | Remaining 6 ms budget is for the browser's compositor |
 | **Idle** (deferred work) | ≤ 50 ms chunks | Use `requestIdleCallback` or `setTimeout(fn, 0)` for background parsing |
 | **Load** (shell to interactive) | < 1 000 ms on target hardware | Tauri webview startup + JS parse + first render |
+| **INP** (Interaction to Next Paint) | < 200 ms (p75) | Operator-console target; investigate with Chrome Performance panel when exceeded |
 
 ### Why 50 ms?
 
@@ -80,7 +81,7 @@ const filtered = await invoke<Item[]>('filter_items_by_score', { threshold });
 |---------|------|--------|
 | `TasksView` | `inProgress`, `queued` | Virtualized (Phase 0D) |
 | `MemoryView` | `recent_recalls` | Virtualized (Phase 0D) |
-| `MemoryView` | `shards` | Scroll-capped at 700 px (Phase 0D) |
+| `MemoryView` | `shards` | Virtualized by row (Phase 0D) |
 | `RunsView` | runs | Hard-bounded at 40 — no virtualization needed |
 | `SearchView` | search hits | Hard-bounded at 30 — no virtualization needed |
 

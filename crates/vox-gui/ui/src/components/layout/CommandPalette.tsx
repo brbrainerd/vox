@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import { voxTransport } from '../../transport';
 import { Icon } from '../ui/Icons';
 import { CommandCatalogEntry } from '../../types/catalog';
@@ -42,7 +41,7 @@ export function CommandPalette({ open, onClose, onAction, agents, skills }: Comm
   // Lazy-load the docs index once the palette first opens (frontmatter walk).
   useEffect(() => {
     if (!open || docs.length > 0) return;
-    invoke<DocEntryLike[]>('vox_docs_index')
+    voxTransport.voxDocsIndex()
       .then(setDocs)
       .catch(() => setDocs([]));
   }, [open, docs.length]);
@@ -86,11 +85,11 @@ export function CommandPalette({ open, onClose, onAction, agents, skills }: Comm
     debounceRef.current = setTimeout(async () => {
       setBackendLoading(true);
       try {
-        const res = await invoke<SearchResponse>('vox_search_query', {
-          query: q,
-          limit: PALETTE_PREVIEW_LIMIT,
-          scope: backendScopesFromUserScopes(initialSearchState.scopes),
-        });
+        const res = await voxTransport.voxSearchQuery(
+          q,
+          PALETTE_PREVIEW_LIMIT,
+          backendScopesFromUserScopes(initialSearchState.scopes),
+        );
         setBackendHits(res.hits);
         setSelectedRowIdx(-1);
       } catch {
