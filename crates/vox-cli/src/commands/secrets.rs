@@ -212,20 +212,26 @@ pub async fn run(cmd: SecretsCmd) -> Result<()> {
         SecretsCmd::BackendStatus => {
             let mode = vox_secrets::BackendMode::from_env();
             println!("secrets backend mode: {mode:?}");
-            for spec in vox_secrets::all_specs() {
-                let res = vox_secrets::resolve_secret(spec.id);
-                if matches!(
-                    res.status,
-                    vox_secrets::ResolutionStatus::BackendUnavailable
-                ) {
-                    println!(
-                        "backend status: unavailable ({})",
-                        res.detail.unwrap_or_else(|| "no detail".to_string())
-                    );
-                    return Ok(());
-                }
+            println!("vault env: {}", vox_secrets::cloudless_vault_env_diagnostic());
+            match vox_secrets::backend::vox_vault::VoxCloudBackend::new() {
+                Ok(backend) => match vox_secrets::probe_vault_health(&backend) {
+                    Ok(h) => {
+                        println!(
+                            "vault health: keyring={}; master_fp={}; rows={}; can_decrypt={}",
+                            h.keyring_entry_present, h.master_fingerprint, h.row_count, h.can_decrypt
+                        );
+                        if !h.can_decrypt {
+                            if let Some(err) = h.decrypt_error {
+                                println!("backend status: unavailable ({err})");
+                                return Ok(());
+                            }
+                        }
+                        println!("backend status: available");
+                    }
+                    Err(e) => println!("vault health probe failed: {e}"),
+                },
+                Err(e) => println!("vault backend init failed: {e}"),
             }
-            println!("backend status: available or env-only fallback");
             Ok(())
         }
         SecretsCmd::MigrateAuthStore => {
