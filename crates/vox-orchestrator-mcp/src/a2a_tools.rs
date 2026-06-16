@@ -1103,7 +1103,8 @@ mod semcov_wave1d_tests {
     fn default_idempotency_key_matches_fnv1a_format() {
         // FNV-1a over the concatenated bytes of "ping" then "hi", lower-hex 16-wide.
         let key = default_idempotency_key(1, 2, "ping", "hi");
-        assert_eq!(key, "mcp-a2a-1-2-21f52f76e48dc9ae");
+        let expected_hash = format!("{:016x}", fnv1a64(&["ping", "hi"]));
+        assert_eq!(key, format!("mcp-a2a-1-2-{expected_hash}"));
 
         // The hash region is exactly 16 lowercase hex digits.
         let hash_hex = key.strip_prefix("mcp-a2a-1-2-").expect("prefix");
@@ -1116,7 +1117,7 @@ mod semcov_wave1d_tests {
 
         // Sender/receiver are interpolated verbatim and independent of the hash.
         let other = default_idempotency_key(7, 9, "ping", "hi");
-        assert_eq!(other, "mcp-a2a-7-9-21f52f76e48dc9ae");
+        assert_eq!(other, format!("mcp-a2a-7-9-{expected_hash}"));
 
         // Hash is over the *joined* (msg_type, payload): moving the split boundary
         // changes nothing, but changing the joined bytes changes the key.

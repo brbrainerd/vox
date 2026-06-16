@@ -47,6 +47,14 @@ jobs:
       cache-key: ${{ steps.k.outputs.key }}
       rust_changed: ${{ steps.filter.outputs.rust }}
       docs_changed: ${{ steps.filter.outputs.docs }}
+      full: ${{ steps.affected.outputs.full }}
+      affected_crates: ${{ steps.affected.outputs.affected_crates }}
+      affected_p_args: ${{ steps.affected.outputs.affected_p_args }}
+      affects_compiler: ${{ steps.affected.outputs.affects_compiler }}
+      affects_golden: ${{ steps.affected.outputs.affects_golden }}
+      affects_gui: ${{ steps.affected.outputs.affects_gui }}
+      affects_web: ${{ steps.affected.outputs.affects_web }}
+      affects_plugins: ${{ steps.affected.outputs.affects_plugins }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -93,6 +101,70 @@ jobs:
             ${{ runner.os }}-cargo-
       - name: Build vox-cli (warms sccache + downstream artifact)
         run: cargo build -p vox-cli --locked --features completion-toestub
+
+      # pull_request: map diff → affected crate closure via committed graph SSOT.
+      # merge_group: authoritative full gate (no PR base ref; closes feature-unification gap).
+      - id: affected
+        name: Compute affected crates
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch origin "${{ github.base_ref }}" --depth=256 2>/dev/null || true
+            BASE="origin/${{ github.base_ref }}"
+            if ! git diff --name-only "${BASE}...HEAD" > /tmp/changed.txt 2>/dev/null; then
+              git diff --name-only HEAD~1...HEAD > /tmp/changed.txt
+            fi
+            if [ ! -s /tmp/changed.txt ] && [ "${{ steps.filter.outputs.rust }}" = "true" ]; then
+              echo "::error::rust_changed=true but git diff produced no changed files — fail-closed to full workspace"
+              echo "full=true" >> "$GITHUB_OUTPUT"
+              echo "affected_crates=" >> "$GITHUB_OUTPUT"
+              echo "affected_p_args=" >> "$GITHUB_OUTPUT"
+              echo "affects_compiler=true" >> "$GITHUB_OUTPUT"
+              echo "affects_golden=false" >> "$GITHUB_OUTPUT"
+              echo "affects_contracts=false" >> "$GITHUB_OUTPUT"
+              echo "affects_scripts=false" >> "$GITHUB_OUTPUT"
+              echo "affects_gui=false" >> "$GITHUB_OUTPUT"
+              echo "affects_web=false" >> "$GITHUB_OUTPUT"
+              echo "affects_plugins=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            ./target/debug/vox ci affected-crates --changed /tmp/changed.txt \
+              --graph contracts/ci/crate-graph.v1.json --github-output "$GITHUB_OUTPUT"
+            if [ "${{ steps.filter.outputs.rust }}" = "true" ] \
+              && [ "$(grep -E '^full=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2)" = "false" ] \
+              && [ -z "$(grep -E '^affected_crates=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2 | xargs)" ]; then
+              echo "::warning::rust_changed with empty affected set — upgrading to full=true (fail-closed)"
+              echo "full=true" >> "$GITHUB_OUTPUT"
+              echo "affects_compiler=true" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "full=true" >> "$GITHUB_OUTPUT"
+            echo "affected_crates=" >> "$GITHUB_OUTPUT"
+            echo "affected_p_args=" >> "$GITHUB_OUTPUT"
+            echo "affects_compiler=true" >> "$GITHUB_OUTPUT"
+            echo "affects_golden=true" >> "$GITHUB_OUTPUT"
+            echo "affects_contracts=true" >> "$GITHUB_OUTPUT"
+            echo "affects_scripts=true" >> "$GITHUB_OUTPUT"
+            echo "affects_gui=true" >> "$GITHUB_OUTPUT"
+            echo "affects_web=true" >> "$GITHUB_OUTPUT"
+            echo "affects_plugins=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Log selective CI plan
+        shell: bash
+        run: |
+          {
+            echo "### Selective CI (setup)"
+            echo "- event: ${{ github.event_name }}"
+            echo "- rust_changed: ${{ steps.filter.outputs.rust }}"
+            echo "- docs_changed: ${{ steps.filter.outputs.docs }}"
+            echo "- full: ${{ steps.affected.outputs.full }}"
+            echo "- affected_crates: ${{ steps.affected.outputs.affected_crates }}"
+            echo "- affects_compiler: ${{ steps.affected.outputs.affects_compiler }}"
+            echo "- affects_golden: ${{ steps.affected.outputs.affects_golden }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload vox-cli binary
         uses: actions/upload-artifact@v7
         with:
@@ -160,7 +232,8 @@ jobs:
             "gui-version-sync --write" \
             "capability-sync --write" \
             "gui-surface-coverage --write" \
-            "gui-surface-registry --write"; do
+            "gui-surface-registry --write" \
+            "affected-crates --regen --out contracts/ci/crate-graph.v1.json"; do
             echo "::group::vox ci $cmd"
             # Best-effort: a generator that errors (not just rewrites) is surfaced as a
             # warning but does not fail the job — the ssot-drift gate still verifies it.
@@ -506,7 +579,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      - name: Rustdoc (deny warnings)
+      - name: Rustdoc (deny warnings; full gate only)
+        if: needs.setup.outputs.full == 'true'
         run: RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps
 
       - name: Lint Check (Clippy)
@@ -528,15 +602,34 @@ jobs:
         # produce. The full vox-gui build (incl. the pnpm frontend) is covered by
         # release-gui.yml, so exclude it here rather than make the merge gate
         # depend on stale on-runner `ui/dist` state.
-        run: >-
-          cargo clippy --workspace --all-targets --exclude vox-gui --
-          -D warnings
-          -A clippy::items_after_test_module
-          -A clippy::collapsible_match
-          -A clippy::collapsible_if
-          -A clippy::should_implement_trait
-          -A clippy::doc_overindented_list_items
-          -A clippy::doc_lazy_continuation
+        shell: bash
+        run: |
+          set -euo pipefail
+          FULL="${{ needs.setup.outputs.full }}"
+          P_ARGS="${{ needs.setup.outputs.affected_p_args }}"
+          CLIPPY_FLAGS=(
+            -D warnings
+            -A clippy::items_after_test_module
+            -A clippy::collapsible_match
+            -A clippy::collapsible_if
+            -A clippy::should_implement_trait
+            -A clippy::doc_overindented_list_items
+            -A clippy::doc_lazy_continuation
+          )
+          if [ "$FULL" = "true" ]; then
+            cargo clippy --workspace --all-targets --exclude vox-gui -- "${CLIPPY_FLAGS[@]}"
+          elif [ -z "$P_ARGS" ]; then
+            echo "No affected crates — skipping clippy."
+          else
+            # vox-gui breaks clippy --all-targets without a built frontend; strip it.
+            FILTERED=$(echo "$P_ARGS" | sed 's/-p vox-gui//g' | xargs)
+            if [ -z "$FILTERED" ]; then
+              echo "Affected set is only vox-gui — skipping clippy."
+            else
+              # shellcheck disable=SC2086
+              cargo clippy $FILTERED --all-targets -- "${CLIPPY_FLAGS[@]}"
+            fi
+          fi
 
       # Scoped TOESTUB: enforce-warn mode — all 23 detectors, Warnings+ block.
       # This aligns with the pre-commit tdd-guard (enforce-strict on skeleton
@@ -595,6 +688,7 @@ jobs:
   compiler-gates:
     name: Compiler gates (WebIR + projection + golden examples + benches)
     needs: setup
+    if: ${{ needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_compiler == 'true' }}
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 20
     steps:
@@ -762,10 +856,10 @@ jobs:
 
       # Conditional coverage: llvm-cov instrumentation adds significant wall-clock
       # time and is meaningless on docs-only PRs.  Run plain nextest when no Rust
-      # crates changed; full llvm-cov nextest otherwise.
-      # On merge_group setup always sets rust_changed=true so coverage always runs.
-      - name: Run Tests — llvm-cov nextest (Rust changed)
-        if: needs.setup.outputs.rust_changed == 'true'
+      # crates changed; full llvm-cov nextest on merge_group (full=true).
+      # PR-time affected runs use scoped nextest without coverage instrumentation.
+      - name: Run Tests — llvm-cov nextest (full gate, Rust changed)
+        if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
         env:
           INSTA_UPDATE: unseen
         run: |
@@ -774,8 +868,8 @@ jobs:
           printf '%s\n' '[profile.ci.junit]' 'path = "junit.xml"' >"${junit_cfg}"
           cargo llvm-cov nextest --workspace --profile ci --tool-config-file "vox-ci:${junit_cfg}"
 
-      - name: Run Tests — plain nextest (docs-only change, no coverage overhead)
-        if: needs.setup.outputs.rust_changed != 'true'
+      - name: Run Tests — plain nextest (full gate, docs-only change)
+        if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed != 'true'
         env:
           INSTA_UPDATE: unseen
         run: |
@@ -784,13 +878,29 @@ jobs:
           printf '%s\n' '[profile.ci.junit]' 'path = "junit.xml"' >"${junit_cfg}"
           cargo nextest run --workspace --profile ci --tool-config-file "vox-ci:${junit_cfg}"
 
+      - name: Run Tests — affected nextest (PR scoped)
+        if: needs.setup.outputs.full != 'true'
+        env:
+          INSTA_UPDATE: unseen
+        run: |
+          set -euo pipefail
+          P_ARGS="${{ needs.setup.outputs.affected_p_args }}"
+          if [ -z "$P_ARGS" ]; then
+            echo "No affected crates — skipping Rust tests."
+            exit 0
+          fi
+          junit_cfg="${RUNNER_TEMP}/vox-nextest-junit.toml"
+          printf '%s\n' '[profile.ci.junit]' 'path = "junit.xml"' >"${junit_cfg}"
+          # shellcheck disable=SC2086
+          cargo nextest run $P_ARGS --profile ci --tool-config-file "vox-ci:${junit_cfg}"
+
       # Slow test partition — runs the three #[ignore = "slow; …"] tests explicitly.
       # These are excluded from the workspace nextest step above to keep CI wall-clock
       # under 30 min.  Uses an exact filter so none of the other 250+ intentionally-
       # ignored tests are swept in.  max-threads=1 is enforced by [test-groups.slow] in
       # .config/nextest.toml; the CI profile slow-timeout terminates after 3×180s.
       - name: Run slow test partition (arch-check, scientia timeout, codegen bundle)
-        if: needs.setup.outputs.rust_changed == 'true'
+        if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
         run: |
           cargo nextest run \
             -E 'test(arch_check_live_workspace_smoke_and_description_rule) or test(timeout_kills_long_running_child) or test(generated_ai_fixture_bundle_passes_cargo_check)' \
@@ -802,7 +912,7 @@ jobs:
       # Does NOT re-run tests; no-op if budgets file is absent.
       # continue-on-error: true until tightened budgets land (Phase 5 follow-up).
       - name: Test-tier timing budget check (nextest full tier)
-        if: always() && needs.setup.outputs.rust_changed == 'true'
+        if: always() && needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
         continue-on-error: true
         run: |
           junit="target/nextest/ci/junit.xml"
@@ -892,12 +1002,13 @@ jobs:
         run: cargo nextest run -p vox-db --features replication -E 'test(sync_embedded_replica_smoke)'
 
       # Doctests use Rust's built-in harness only; cargo-nextest does not execute them.
-      # Keep this as `cargo test --workspace --doc` until a verified nextest doctest path exists.
+      # Full gate only — PR-time affected runs skip doctests (covered at merge_group).
       - name: Doc tests (cargo test --workspace --doc; not nextest)
+        if: needs.setup.outputs.full == 'true'
         run: cargo test --workspace --doc
 
       - name: Line coverage report (summary, LCOV, gates enforce)
-        if: needs.setup.outputs.rust_changed == 'true'
+        if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
         run: |
           set -euo pipefail
           cargo llvm-cov report --text --summary-only
@@ -912,7 +1023,7 @@ jobs:
       # NOT gating until the reach layer is calibrated to CI's lcov. The deterministic
       # `semcov-gates` check (silent-drop + weak-test) IS blocking.
       - name: Semantic-coverage reach ratchet (advisory — reported, not gating)
-        if: needs.setup.outputs.rust_changed == 'true'
+        if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
         continue-on-error: true
         run: |
           set -uo pipefail
@@ -926,7 +1037,7 @@ jobs:
             --baseline contracts/reports/semantic-coverage.v1.json
 
       - name: Upload LLVM coverage artifacts
-        if: (success() || failure()) && needs.setup.outputs.rust_changed == 'true'
+        if: (success() || failure()) && needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: llvm-cov
@@ -997,7 +1108,19 @@ jobs:
         run: ./target/debug/vox --quiet ci feature-matrix && ./target/debug/vox --quiet ci no-vox-orchestrator-import
 
       - name: Workspace-wide all-features check (A.4)
-        run: cargo check --workspace --all-features
+        shell: bash
+        run: |
+          set -euo pipefail
+          FULL="${{ needs.setup.outputs.full }}"
+          P_ARGS="${{ needs.setup.outputs.affected_p_args }}"
+          if [ "$FULL" = "true" ]; then
+            cargo check --workspace --all-features
+          elif [ -n "$P_ARGS" ]; then
+            # shellcheck disable=SC2086
+            cargo check $P_ARGS --all-features
+          else
+            echo "No affected crates — skipping all-features check."
+          fi
 
       - name: Optional CUDA feature compile (Oratio + Populi Candle, when nvcc exists)
         run: ./target/debug/vox --quiet ci cuda-features
@@ -1032,7 +1155,7 @@ jobs:
             "${{ needs.compiler-gates.result }}" \
             "${{ needs.tests.result }}" \
             "${{ needs.audits.result }}"; do
-            if [ "$r" != "success" ]; then fail=1; fi
+            if [ "$r" != "success" ] && [ "$r" != "skipped" ]; then fail=1; fi
           done
           exit $fail
 

@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Serialize, Deserialize, Default)]
 pub struct CrateGraph {
@@ -89,6 +89,22 @@ pub fn check_graph(committed: &std::path::Path) -> Result<(), String> {
     Ok(())
 }
 
+fn valid_crate_name(name: &str) -> bool {
+    !name.is_empty()
+        && name
+            .chars()
+            .all(|ch| ch.is_alphanumeric() || ch == '-' || ch == '_')
+}
+
+fn write_github_output(path: &str, lines: &str) -> std::io::Result<()> {
+    use std::io::Write;
+    let mut f = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)?;
+    write!(f, "{lines}")
+}
+
 pub fn run_affected_cmd(args: &[String]) -> i32 {
     let get = |k: &str| {
         args.iter()
@@ -121,6 +137,28 @@ pub fn run_affected_cmd(args: &[String]) -> i32 {
         };
     }
 
+    if args.iter().any(|a| a == "--shadow-junit") {
+        let junit = match get("--junit") {
+            Some(p) => p,
+            None => {
+                eprintln!("--junit required with --shadow-junit");
+                return 1;
+            }
+        };
+        let affected_list = get("--affected-crates").unwrap_or_default();
+        let affected: BTreeSet<String> = affected_list
+            .split_whitespace()
+            .filter(|s| !s.is_empty())
+            .map(String::from)
+            .collect();
+        let xml = std::fs::read_to_string(&junit).unwrap_or_default();
+        let misses = crate::affected::shadow_misses(&xml, &affected);
+        for c in &misses {
+            eprintln!("::warning title=affected-ci shadow-miss::{c} failed but was not in the PR affected set");
+        }
+        return if misses.is_empty() { 0 } else { 0 };
+    }
+
     let changed_path = match get("--changed") {
         Some(p) => p,
         None => {
@@ -141,21 +179,32 @@ pub fn run_affected_cmd(args: &[String]) -> i32 {
         serde_json::from_str(&std::fs::read_to_string(&graph_path).unwrap_or_default())
             .unwrap_or_default();
 
+    let path_flags = crate::affected::compute_path_flags(&changed);
     let aff = crate::affected::compute_affected(&changed, &graph.crates);
-    let (full, list) = match aff {
-        crate::affected::Affected::Full => (true, String::new()),
-        crate::affected::Affected::None => (false, String::new()),
-        crate::affected::Affected::Crates(set) => {
-            let names: Vec<String> = set
-                .into_iter()
-                .filter(|c| {
-                    c.chars()
-                        .all(|ch| ch.is_alphanumeric() || ch == '-' || ch == '_')
-                })
-                .collect();
-            (false, names.join(" "))
-        }
+
+    let seeds: BTreeSet<String> = changed
+        .iter()
+        .filter_map(|f| crate::affected::file_to_crate(f))
+        .map(String::from)
+        .collect();
+    let closure = if seeds.is_empty() {
+        BTreeSet::new()
+        } else {
+        crate::affected::reverse_closure(&graph.crates, &seeds)
     };
+
+    for c in &closure {
+        if !valid_crate_name(c) {
+            eprintln!("::error::invalid crate name in affected set: {c}");
+            return 1;
+        }
+    }
+
+    let full = matches!(aff, crate::affected::Affected::Full);
+    let list: String = closure.iter().cloned().collect::<Vec<_>>().join(" ");
+    let affects_compiler = full
+        || crate::affected::set_includes_compiler(&closure)
+        || path_flags.affects_golden;
 
     let p_args = if list.is_empty() {
         String::new()
@@ -165,16 +214,30 @@ pub fn run_affected_cmd(args: &[String]) -> i32 {
             .collect::<Vec<_>>()
             .join(" ")
     };
-    let out_line = format!("full={full}\naffected_crates={list}\naffected_p_args={p_args}\n");
+    let out_line = format!(
+        "full={full}\n\
+         affected_crates={list}\n\
+         affected_p_args={p_args}\n\
+         affects_compiler={affects_compiler}\n\
+         affects_golden={}\n\
+         affects_contracts={}\n\
+         affects_scripts={}\n\
+         affects_gui={}\n\
+         affects_web={}\n\
+         affects_plugins={}\n",
+        path_flags.affects_golden,
+        path_flags.affects_contracts,
+        path_flags.affects_scripts,
+        path_flags.affects_gui,
+        path_flags.affects_web,
+        path_flags.affects_plugins,
+    );
 
     if let Some(go) = get("--github-output") {
-        use std::io::Write;
-        let mut f = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&go)
-            .unwrap();
-        write!(f, "{out_line}").unwrap();
+        if let Err(e) = write_github_output(&go, &out_line) {
+            eprintln!("::error::failed to write github output: {e}");
+            return 1;
+        }
     } else {
         print!("{out_line}");
     }
