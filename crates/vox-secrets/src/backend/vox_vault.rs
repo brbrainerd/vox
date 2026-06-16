@@ -832,6 +832,43 @@ fn is_windows_absolute_path(normalized: &str) -> bool {
     bytes.len() >= 3 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' && bytes[2] == b'/'
 }
 
+/// Turso `Builder::new_local` expects a native filesystem path, not a `file:` URL.
+fn file_url_to_local_path(file_url: &str) -> Result<String, SecretError> {
+    let trimmed = file_url.trim();
+    let rest = trimmed.strip_prefix("file:").ok_or_else(|| {
+        SecretError::BackendMisconfigured(format!(
+            "expected file: URL for local vault, got: {trimmed}"
+        ))
+    })?;
+    let decoded = if let Some(path) = rest.strip_prefix("//") {
+        // `file:///C:/…` decodes to `/C:/…`; strip the leading slash before `C:`.
+        if path.len() >= 3
+            && path.as_bytes()[0] == b'/'
+            && path.as_bytes()[1].is_ascii_alphabetic()
+            && path.as_bytes()[2] == b':'
+        {
+            path[1..].to_string()
+        } else {
+            path.to_string()
+        }
+    } else {
+        rest.to_string()
+    };
+    Ok(normalize_turso_local_path(&decoded))
+}
+
+/// Normalize separators for Turso/libSQL (native `\` on Windows drive-letter paths).
+fn normalize_turso_local_path(decoded: &str) -> String {
+    #[cfg(windows)]
+    {
+        let norm = decoded.replace('\\', "/");
+        if is_windows_absolute_path(&norm) {
+            return norm.replace('/', "\\");
+        }
+    }
+    decoded.to_string()
+}
+
 fn resolve_cloudless_db_url() -> String {
     if let Ok(p) = std::env::var("VOX_SECRETS_VAULT_PATH") {
         let t = p.trim();
@@ -955,7 +992,8 @@ pub fn cloudless_vault_env_diagnostic() -> String {
 async fn open_cloudless_connection() -> Result<turso::Connection, SecretError> {
     let db_url = resolve_cloudless_db_url();
     if db_url.starts_with("file:") {
-        let db = turso::Builder::new_local(&db_url)
+        let local_path = file_url_to_local_path(&db_url)?;
+        let db = turso::Builder::new_local(&local_path)
             .build()
             .await
             .map_err(|e| SecretError::BackendMisconfigured(e.to_string()))?;
@@ -976,11 +1014,8 @@ async fn open_cloudless_connection() -> Result<turso::Connection, SecretError> {
 }
 
 async fn ensure_schema(conn: &turso::Connection) -> Result<(), SecretError> {
-    if resolve_cloudless_db_url().starts_with("file:") {
-        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;")
-            .await
-            .map_err(|e| SecretError::BackendMisconfigured(e.to_string()))?;
-    }
+    // Turso 0.6 `execute` / `execute_batch` error on PRAGMA journal_mode (result row).
+    // Default journal mode is sufficient for the local Clavis vault file.
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS clavis_account_secrets (
             account_id TEXT NOT NULL,
@@ -1217,6 +1252,17 @@ fn derive_master_key() -> Result<[u8; 32], SecretError> {
         }
     };
     Ok(secure_hash(password.as_bytes()))
+}
+
+/// Non-secret diagnostic: first 8 bytes of `secure_hash(b"vox-vault-master-fp:" + key)` as hex.
+pub(crate) fn master_key_fingerprint(master_key: &[u8; 32]) -> String {
+    let mut data = b"vox-vault-master-fp:".to_vec();
+    data.extend_from_slice(master_key);
+    let hash = secure_hash(&data);
+    hash.iter()
+        .take(8)
+        .map(|b| format!("{b:02x}"))
+        .collect()
 }
 
 fn derive_kek(master_key: &[u8; 32], kek_ref: &str, kek_version: i64) -> [u8; 32] {
@@ -1498,6 +1544,81 @@ mod semcov_wave2_tests {
 #[cfg(test)]
 mod path_url_tests {
     use super::*;
+    #[test]
+    fn file_url_to_local_path_decodes_turso_paths() {
+        assert_eq!(
+            file_url_to_local_path("file:.vox/clavis_vault.db").expect("rel"),
+            ".vox/clavis_vault.db"
+        );
+        #[cfg(windows)]
+        assert_eq!(
+            file_url_to_local_path("file:///C:/Users/Owner/.vox/clavis_vault.db").expect("win"),
+            r"C:\Users\Owner\.vox\clavis_vault.db"
+        );
+        #[cfg(not(windows))]
+        assert_eq!(
+            file_url_to_local_path("file:///C:/Users/Owner/.vox/clavis_vault.db").expect("win"),
+            "C:/Users/Owner/.vox/clavis_vault.db"
+        );
+        assert_eq!(
+            file_url_to_local_path("file:///home/user/.vox/clavis_vault.db").expect("posix"),
+            "/home/user/.vox/clavis_vault.db"
+        );
+    }
+
+    #[test]
+    fn path_to_file_url_round_trip_preserves_native_absolute_path() {
+        let tmp_dir = tempfile::tempdir().expect("tempdir");
+        let db_path = tmp_dir.path().join("abs_vault.db");
+        let native = db_path.to_string_lossy().to_string();
+        let file_url = path_to_vault_file_url(&native);
+        let local = file_url_to_local_path(&file_url).expect("decode");
+        assert_eq!(
+            local, native,
+            "round-trip must preserve the native absolute path Turso can open"
+        );
+    }
+
+    #[test]
+    #[allow(unsafe_code)]
+    fn absolute_vault_path_opens_with_turso() {
+        use std::sync::Mutex;
+        static ENV_LOCK: Mutex<()> = Mutex::new(());
+        let _g = ENV_LOCK.lock().expect("env lock");
+
+        let tmp_dir = tempfile::tempdir().expect("tempdir");
+        let db_path = tmp_dir.path().join("turso_abs_vault.db");
+
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .expect("tokio rt");
+
+        for vault_path in [
+            db_path.to_string_lossy().to_string(),
+            db_path.to_string_lossy().replace('\\', "/"),
+        ] {
+            unsafe {
+                std::env::set_var("VOX_SECRETS_VAULT_PATH", &vault_path);
+            }
+            let open_result = rt.block_on(async {
+                open_cloudless_connection().await.map(|conn| {
+                    run_secrets_future(async {
+                        conn.execute("SELECT 1", ())
+                            .await
+                            .map_err(|e| SecretError::BackendMisconfigured(e.to_string()))
+                    })
+                })
+            });
+            unsafe {
+                std::env::remove_var("VOX_SECRETS_VAULT_PATH");
+            }
+            let _ = open_result.unwrap_or_else(|e| {
+                panic!("Turso must open absolute VOX_SECRETS_VAULT_PATH={vault_path:?}: {e}")
+            });
+        }
+    }
 
     #[test]
     fn already_file_url_passes_through() {
@@ -1623,5 +1744,24 @@ mod path_url_tests {
         assert!(!is_windows_absolute_path("foo/bar"));
         assert!(!is_windows_absolute_path("1:/foo"), "first char not alpha");
         assert!(!is_windows_absolute_path(""));
+    }
+}
+
+#[cfg(test)]
+mod vault_health_tests {
+    #[test]
+    fn master_key_fingerprint_is_stable_for_same_input() {
+        let key = [7_u8; 32];
+        let a = super::master_key_fingerprint(&key);
+        let b = super::master_key_fingerprint(&key);
+        assert_eq!(a, b);
+        assert_eq!(a.len(), 16, "fingerprint is 16 hex chars (64-bit prefix)");
+    }
+
+    #[test]
+    fn master_key_fingerprint_differs_for_different_keys() {
+        let a = super::master_key_fingerprint(&[1_u8; 32]);
+        let b = super::master_key_fingerprint(&[2_u8; 32]);
+        assert_ne!(a, b);
     }
 }
