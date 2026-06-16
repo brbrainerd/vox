@@ -2,72 +2,166 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Close the 69-surface `representation_tier: none` gap by generating runtime manifests from the CLI catalog and rendering `GenericCommandForm` for the top 20 operator commands.
+**Goal:** Promote top 20 CLI surfaces to `generic_form` tier with a reusable `GenericCommandForm` component.
 
-**Architecture:** Contract: `contracts/gui/action-manifest.v1.yaml`. Generator: clap catalog + `contracts/operations/catalog.v1.yaml` → runtime JSON via `get_action_manifest` Tauri command. React: `GenericCommandForm` with typed args, safety class, confirmation, output viewer.
+**Architecture:** Runtime manifest from `get_action_manifest` Tauri command (schema: `contracts/gui/action-manifest.v1.yaml`). React form renders `arguments[]` with safety class + confirmation policy. Catalog surface groups by `source_group` with badges.
 
-**Tech Stack:** Rust codegen, React Hook Form or controlled inputs, `vox ci gui-surface-registry`.
-
-> **References:** `docs/src/architecture/cli-gui-surface-coverage-map-2026.md`, `contracts/gui/surface-registry.v1.yaml`.
+**Tech Stack:** React 19, vitest, `vox ci gui-surface-registry`.
 
 ---
 
-## Task 1: Generator parity gate
+## Task 1: `GenericCommandForm` component
 
 **Files:**
-- Read: `crates/vox-gui/src/commands/action_manifest.rs`
-- Modify: `crates/vox-cli/src/commands/ci/` (gui gates)
+- Create: `crates/vox-gui/ui/src/components/ui/GenericCommandForm.tsx`
+- Create: `crates/vox-gui/ui/src/components/ui/GenericCommandForm.test.tsx`
 
-- [ ] **Step 1:** Ensure `vox ci gui-catalog-parity` validates manifest schema against contract
-- [ ] **Step 2:** Fail when clap path missing from manifest for `generic_form` tier surfaces
-- [ ] **Step 3:** Document regen: `vox ci config-gui-codegen --write`
+- [ ] **Step 1: Define manifest entry type** (mirror contract)
+
+```typescript
+export interface ManifestArgument {
+  name: string;
+  help: string;
+  required: boolean;
+  takes_value: boolean;
+}
+
+export interface ManifestAction {
+  id: string;
+  title: string;
+  command: string;
+  safety_class: 'read_only' | 'mutating' | 'destructive' | 'unknown';
+  confirmation_policy: 'none' | 'recommended' | 'required';
+  arguments: ManifestArgument[];
+}
+```
+
+- [ ] **Step 2: Failing test — renders required string arg**
+
+```typescript
+it('renders text input for required string argument', () => {
+  const action: ManifestAction = {
+    id: 'ci.check',
+    title: 'vox ci check',
+    command: 'vox ci check',
+    safety_class: 'read_only',
+    confirmation_policy: 'none',
+    arguments: [{ name: 'paths', help: 'Paths to check', required: false, takes_value: true }],
+  };
+  render(<GenericCommandForm action={action} onSubmit={vi.fn()} />);
+  expect(screen.getByLabelText(/paths/i)).toBeDefined();
+});
+```
+
+- [ ] **Step 3: Implement minimal form**
+
+- String/bool args only in v1
+- Submit calls `onSubmit(argv: string[])`
+- Destructive + `confirmation_policy: required` → Radix `Dialog` confirm before submit
+
+- [ ] **Step 4: Safety badge**
+
+```tsx
+<span className={cn('text-[9px] uppercase', safetyClassTone[action.safety_class])}>
+  {action.safety_class}
+</span>
+```
+
+- [ ] **Step 5: Commit**
 
 ---
 
-## Task 2: `GenericCommandForm` component
+## Task 2: `OutputViewer` for execute results
 
 **Files:**
-- Create: `ui/src/components/ui/GenericCommandForm.tsx`
-- Create: `ui/src/components/ui/GenericCommandForm.test.tsx`
+- Create: `crates/vox-gui/ui/src/components/ui/OutputViewer.tsx`
+- Create: `crates/vox-gui/ui/src/components/ui/OutputViewer.test.tsx`
 
-- [ ] **Step 1:** Render args from manifest entry (string, bool, enum, path)
-- [ ] **Step 2:** Safety badges: `read_only` | `mutating` | `destructive`
-- [ ] **Step 3:** Required confirmation for `destructive` + `confirmation_policy: required`
-- [ ] **Step 4:** Submit via `voxTransport.executeCommand`; show stdout/stderr in `<OutputViewer>`
+- [ ] **Step 1: Failing test**
+
+```typescript
+it('shows stdout and stderr in separate regions', () => {
+  render(<OutputViewer result={{ exit_code: 1, stdout: 'ok', stderr: 'warn' }} />);
+  expect(screen.getByText('ok')).toBeDefined();
+  expect(screen.getByText('warn')).toBeDefined();
+});
+```
+
+- [ ] **Step 2: Implement** — monospace scroll regions, `aria-label="Command output"`
+
+- [ ] **Step 3: Wire Catalog** — on form submit:
+
+```typescript
+const res = await voxTransport.executeCommand(argv.join(' '));
+setOutput(res);
+```
+
+- [ ] **Step 4: Commit**
 
 ---
 
-## Task 3: Promote top 20 surfaces
+## Task 3: Promote 20 surfaces in registry
 
 **Files:**
 - Modify: `contracts/gui/surface-registry.v1.yaml`
 
-Priority groups (by operator frequency):
-1. `ci` — check, pre-push, ssot-drift
-2. `doctor`
-3. `run` / `check`
-4. `secrets` doctor/parity
-5. `audit` code/arch
+- [ ] **Step 1: Pick 20** (minimum set):
 
-- [ ] **Step 1:** Set `representation_tier: generic_form` for 20 entries
-- [ ] **Step 2:** Run `vox ci gui-surface-registry --write`
-- [ ] **Step 3:** Wire Catalog surface to render forms instead of raw command strings
+| Surface id | CLI group |
+|------------|-----------|
+| `ci-check` | `vox ci check` |
+| `ci-pre-push` | `vox ci pre-push` |
+| `ci-ssot-drift` | `vox ci ssot-drift` |
+| `doctor` | `vox doctor` |
+| `run-check` | `vox check` |
+| `secrets-doctor` | `vox secrets doctor` |
+| `audit-code` | `vox audit code` |
+| … | (12 more from catalog `source_group: core`) |
+
+- [ ] **Step 2: Set** `representation_tier: generic_form` for each
+
+- [ ] **Step 3: Regenerate**
+
+```bash
+cargo run -q -p vox-cli -- ci gui-surface-registry --write
+```
+
+- [ ] **Step 4: Verify**
+
+```bash
+cargo run -q -p vox-cli -- ci gui-surface-registry
+cargo run -q -p vox-cli -- ci gui-catalog-parity
+```
+
+- [ ] **Step 5: Commit**
 
 ---
 
-## Task 4: Catalog surface UX
+## Task 4: Catalog UX — stop labeling CLI as Skills
 
 **Files:**
-- Modify: `ui/src/components/surfaces/Catalog/Catalog.tsx`
+- Modify: `crates/vox-gui/ui/src/components/surfaces/Catalog/Catalog.tsx`
+- Modify: `crates/vox-gui/ui/src/components/surfaces/Catalog/Catalog.test.tsx`
 
-- [ ] **Step 1:** Stop labeling CLI entries as "Skills"
-- [ ] **Step 2:** Group by `source_group` with safety badges
-- [ ] **Step 3:** Vitest: Catalog renders form for `ci check` mock manifest entry
+- [ ] **Step 1: Failing test**
+
+```typescript
+it('groups entries under Commands not Skills', () => {
+  render(<Catalog pushToast={vi.fn()} skills={mockCatalog} />);
+  expect(screen.queryByText(/^Skills$/i)).toBeNull();
+  expect(screen.getByText(/Commands/i)).toBeDefined();
+});
+```
+
+- [ ] **Step 2: Rename section headers; show `GenericCommandForm` when entry has manifest match**
+
+- [ ] **Step 3: Commit**
 
 ---
 
 ## Exit criteria
 
-- `vox ci gui-surface-registry` passes with ≥20 `generic_form` tiers
-- Catalog runs `ci`, `doctor`, `check` with generated forms + validation
-- Manifest schema version bumped only via contract workflow
+- [ ] `GenericCommandForm` + `OutputViewer` tested
+- [ ] ≥20 `generic_form` tiers in registry; gates green
+- [ ] Catalog runs `vox ci check` via form with validation
+- [ ] No "Skills" label on CLI catalog section

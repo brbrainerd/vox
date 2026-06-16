@@ -1,97 +1,154 @@
 # vox-gui Deploy and Packaging Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Ship signed Tauri 2 installers from CI with correct bundle paths, a VoxScript-first build entrypoint, and documented fresh-clone bootstrap.
+**Goal:** Ship signed Tauri 2 installers from CI with VoxScript-first build, documented bootstrap, and Playwright in merge CI.
 
-**Architecture:** Tauri project root is `crates/vox-gui/` (no `src-tauri/`). Frontend builds via `pnpm build` in `crates/vox-gui/ui/`. Release workflow uses `tauri-apps/tauri-action` with `projectPath: ./crates/vox-gui`. Cross-build PR workflow compiles sidecar + `cargo build -p vox-gui` but does not yet run full `cargo tauri build`.
+**Architecture:** Tauri root is `crates/vox-gui/` (no `src-tauri/`). `scripts/gui-build.vox` orchestrates `pnpm build` + sidecar copy + `cargo tauri build`. `release-gui.yml` uses `tauri-action` with `projectPath: ./crates/vox-gui`.
 
-**Tech Stack:** Tauri 2, Vite 6, pnpm, GitHub Actions, `scripts/gui-build.vox`.
-
-> **Source of truth:** Master roadmap Track 2; audit items A1–A25.
-
-> **Commands:** `vox run scripts/gui-build.vox` (repo root); `pnpm build` from `crates/vox-gui/ui/`.
+**Tech Stack:** Tauri 2, pnpm, GitHub Actions, `vox run scripts/gui-build.vox`.
 
 ---
 
-## Scope
-
-**In scope:**
-- Fix `release-gui.yml` artifact paths if bundle output drifts from Tauri 2 layout
-- Add one matrix leg in `gui-cross-build.yml` running `cargo tauri build` (Linux self-hosted or documented GitHub-hosted exception)
-- Chain `scripts/gui-build.vox` into release workflow
-- Document bootstrap in `docs/src/reference/gui-navigation.md`
-- Enable Playwright in CI post-merge (`VOX_GUI_PLAYWRIGHT=1` in `ci.yml` gui job)
-
-**Out of scope:** Mobile android/ios targets, native menu/tray (principles §7 post-v1).
-
----
-
-## Task 1: Verify Tauri 2 bundle output paths
+## Task 1: Local bundle smoke
 
 **Files:**
 - Read: `crates/vox-gui/tauri.conf.json`
-- Modify: `.github/workflows/release-gui.yml` (if artifact glob wrong)
+- Read: `scripts/gui-build.vox`
 
-- [ ] **Step 1:** Local smoke: `cd crates/vox-gui/ui && pnpm build && cd .. && cargo tauri build` on one OS
-- [ ] **Step 2:** Confirm bundles land under `crates/vox-gui/target/release/bundle/` (not `src-tauri/target`)
-- [ ] **Step 3:** Update `tauri-action` `args` / artifact upload globs if mismatch
+- [ ] **Step 1: Run local build**
+
+```bash
+cd c:/Users/Owner/vox
+vox run scripts/gui-build.vox
+```
+
+Expected: `pnpm build` succeeds; Rust GUI crate builds.
+
+- [ ] **Step 2: Full bundle (one OS)**
+
+```bash
+cd crates/vox-gui
+cargo tauri build
+```
+
+Expected: artifacts under `crates/vox-gui/target/release/bundle/` (msi/dmg/deb/appimage per OS).
+
+- [ ] **Step 3: Record actual paths** in this plan's Task 2 if `tauri-action` glob differs.
 
 ---
 
-## Task 2: Full bundle leg in gui-cross-build
+## Task 2: `gui-cross-build.yml` bundle leg
 
 **Files:**
 - Modify: `.github/workflows/gui-cross-build.yml`
 
-- [ ] **Step 1:** Add optional job `gui-tauri-bundle` on `[self-hosted, linux, x64, docker]` (or registered exception)
-- [ ] **Step 2:** Run `pnpm build` + `cargo tauri build --bundles appimage` after sidecar staging
-- [ ] **Step 3:** Upload bundle artifact with 7-day retention for manual QA
+- [ ] **Step 1: Add job `gui-tauri-bundle-linux`**
+
+```yaml
+  gui-tauri-bundle-linux:
+    name: GUI Tauri bundle (Linux)
+    runs-on: [self-hosted, linux, x64, docker]
+    needs: gui-cross-build
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build via VoxScript
+        run: vox run scripts/gui-build.vox
+      - name: Bundle AppImage
+        working-directory: crates/vox-gui
+        run: cargo tauri build --bundles appimage
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vox-gui-appimage
+          path: crates/vox-gui/target/release/bundle/appimage/*.AppImage
+          retention-days: 7
+```
+
+- [ ] **Step 2: Register exception** in `docs/src/ci/github-hosted-exceptions.md` if using `ubuntu-latest` instead of self-hosted.
+
+- [ ] **Step 3: Dry-run** via `workflow_dispatch`
+
+- [ ] **Step 4: Commit** `ci(gui): add Linux tauri bundle job`
 
 ---
 
-## Task 3: VoxScript build entrypoint in release
+## Task 3: Release workflow uses gui-build.vox
 
 **Files:**
 - Modify: `.github/workflows/release-gui.yml`
-- Read: `scripts/gui-build.vox`
 
-- [ ] **Step 1:** Replace ad-hoc `pnpm build` + manual cargo steps with `vox run scripts/gui-build.vox --release`
-- [ ] **Step 2:** Ensure script invokes frontend build, sidecar copy, and `cargo tauri build` in order
-- [ ] **Step 3:** Document env vars (`VOX_REPO_ROOT`, signing secrets) in script header comment
+- [ ] **Step 1: Replace duplicate pnpm steps**
+
+Before `tauri-apps/tauri-action`, add:
+
+```yaml
+      - name: Install vox CLI
+        run: cargo install --locked --path crates/vox-cli --force
+      - name: GUI build (VoxScript)
+        run: vox run scripts/gui-build.vox
+```
+
+Remove redundant `pnpm install` / `pnpm build` if fully covered by script.
+
+- [ ] **Step 2: Verify `projectPath: ./crates/vox-gui`** unchanged
+
+- [ ] **Step 3: Tag dry-run** on test tag `v0.6.0-test.1` (draft release)
+
+- [ ] **Step 4: Commit**
 
 ---
 
-## Task 4: Fresh-clone bootstrap docs
+## Task 4: Playwright in CI
+
+**Files:**
+- Modify: `.github/workflows/ci.yml` (gui job section)
+
+- [ ] **Step 1: Locate gui vitest job** — add env `VOX_GUI_PLAYWRIGHT: "1"`
+
+- [ ] **Step 2: After vitest**
+
+```yaml
+      - name: Playwright e2e
+        if: env.VOX_GUI_PLAYWRIGHT == '1'
+        working-directory: crates/vox-gui/ui
+        run: |
+          pnpm exec playwright install chromium --with-deps
+          pnpm exec playwright test e2e/
+```
+
+- [ ] **Step 3: Upload report on failure** (`playwright-report/`)
+
+- [ ] **Step 4: Commit**
+
+---
+
+## Task 5: Bootstrap docs
 
 **Files:**
 - Modify: `docs/src/reference/gui-navigation.md`
 
-- [ ] **Step 1:** Add **Developer bootstrap** section:
-  ```text
-  vox ci gui-surface-registry --write
-  vox ci config-gui-codegen --write
-  cd crates/vox-gui/ui && pnpm install && pnpm build
-  cargo run -p vox-gui
-  ```
-- [ ] **Step 2:** Link to `vox ci gui-smoke` as verification gate
-- [ ] **Step 3:** Run scoped doc lint on the file
+- [ ] **Step 1: Add frontmatter** if file lacks required keys (run doc-pipeline lint)
 
----
+- [ ] **Step 2: Add section** (see navigation plan Task 5)
 
-## Task 5: Playwright in CI
+- [ ] **Step 3:** `cargo run -q -p vox-doc-pipeline -- --lint-only --paths docs/src/reference/gui-navigation.md`
 
-**Files:**
-- Modify: `.github/workflows/ci.yml` (gui job)
-
-- [ ] **Step 1:** Set `VOX_GUI_PLAYWRIGHT=1` when gui-ui job runs on merge to default branch
-- [ ] **Step 2:** Run `pnpm exec playwright test` from `crates/vox-gui/ui/e2e/` after vitest
-- [ ] **Step 3:** Store HTML report as artifact on failure
+- [ ] **Step 4: Commit**
 
 ---
 
 ## Exit criteria
 
-- Tagged release produces MSI/DMG/AppImage via `release-gui.yml`
-- Cross-build CI exercises full `cargo tauri build` on at least one OS
-- Bootstrap docs committed; `vox ci gui-smoke` documented as local gate
+- [ ] `cargo tauri build` succeeds locally on at least one OS
+- [ ] CI bundle artifact uploaded from Linux job
+- [ ] `release-gui.yml` calls `vox run scripts/gui-build.vox`
+- [ ] Playwright runs on main CI gui job
+- [ ] Bootstrap docs lint-clean
