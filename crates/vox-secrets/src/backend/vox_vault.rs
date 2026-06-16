@@ -675,6 +675,120 @@ impl VoxCloudBackend {
             Ok(None)
         })
     }
+
+    fn count_account_secrets(&self) -> Result<u64, SecretError> {
+        let account_id = self.account_id.clone();
+        let conn = self.conn.lock().expect("vox vault mutex");
+        run_secrets_future(async {
+            let mut rows = conn
+                .query(
+                    "SELECT COUNT(*) FROM clavis_account_secrets WHERE account_id = ?1",
+                    params![account_id],
+                )
+                .await
+                .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?;
+            let Some(row) = rows
+                .next()
+                .await
+                .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?
+            else {
+                return Ok(0);
+            };
+            row.get(0)
+                .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))
+        })
+    }
+
+    fn get_first_account_secret(&self) -> Result<Option<CloudlessSecretRecord>, SecretError> {
+        let account_id = self.account_id.clone();
+        let conn = self.conn.lock().expect("vox vault mutex");
+        run_secrets_future(async {
+            let mut rows = conn
+                .query(
+                    "SELECT account_id, secret_id, ciphertext, nonce, cipher_version, dek_wrapped,
+                            kek_ref, kek_version, aad_hash, updated_at_ms, rotation_epoch,
+                            rotated_at_ms, consistency_origin, consistency_version, checksum_hash
+                     FROM clavis_account_secrets
+                     WHERE account_id = ?1
+                     ORDER BY secret_id ASC
+                     LIMIT 1",
+                    params![account_id],
+                )
+                .await
+                .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?;
+            if let Some(row) = rows
+                .next()
+                .await
+                .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?
+            {
+                return row_to_record(row).map(Some);
+            }
+            Ok(None)
+        })
+    }
+
+    fn try_decrypt_canary(&self) -> Result<(), SecretError> {
+        let row_count = self.count_account_secrets()?;
+        if row_count == 0 {
+            return Ok(());
+        }
+        let Some(row) = self.get_first_account_secret()? else {
+            return Ok(());
+        };
+        if !verify_record_checksum(&row) {
+            return Err(SecretError::BackendQueryFailed(format!(
+                "checksum mismatch for account_id={} secret_id={}",
+                row.account_id, row.secret_id
+            )));
+        }
+        let dek = self.unwrap_dek(&row.dek_wrapped, &row.kek_ref, row.kek_version)?;
+        decrypt_vault(&dek, &row.nonce, &row.ciphertext)?;
+        Ok(())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_master_key_for_test(mut self, key: [u8; 32]) -> Self {
+        self.master_key = key;
+        self
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VaultHealth {
+    pub vault_path_display: String,
+    pub keyring_entry_present: bool,
+    pub master_fingerprint: String,
+    pub account_id: String,
+    pub kek_ref: String,
+    pub kek_version: i64,
+    pub row_count: u64,
+    pub can_decrypt: bool,
+    pub decrypt_error: Option<String>,
+}
+
+pub fn probe_vault_health(backend: &VoxCloudBackend) -> Result<VaultHealth, SecretError> {
+    let vault_path_display = cloudless_vault_env_diagnostic();
+    let keyring_entry_present = keyring::Entry::new("vox-secrets-vault", "master")
+        .ok()
+        .and_then(|e| e.get_password().ok())
+        .is_some_and(|p| !p.is_empty());
+    let master_fingerprint = master_key_fingerprint(&backend.master_key);
+    let row_count = backend.count_account_secrets()?;
+    let (can_decrypt, decrypt_error) = match backend.try_decrypt_canary() {
+        Ok(()) => (true, None),
+        Err(e) => (false, Some(e.to_string())),
+    };
+    Ok(VaultHealth {
+        vault_path_display,
+        keyring_entry_present,
+        master_fingerprint,
+        account_id: backend.account_id.clone(),
+        kek_ref: backend.kek_ref.clone(),
+        kek_version: backend.kek_version,
+        row_count,
+        can_decrypt,
+        decrypt_error,
+    })
 }
 
 impl SecretBackend for VoxCloudBackend {
@@ -1259,10 +1373,7 @@ pub(crate) fn master_key_fingerprint(master_key: &[u8; 32]) -> String {
     let mut data = b"vox-vault-master-fp:".to_vec();
     data.extend_from_slice(master_key);
     let hash = secure_hash(&data);
-    hash.iter()
-        .take(8)
-        .map(|b| format!("{b:02x}"))
-        .collect()
+    hash.iter().take(8).map(|b| format!("{b:02x}")).collect()
 }
 
 fn derive_kek(master_key: &[u8; 32], kek_ref: &str, kek_version: i64) -> [u8; 32] {
@@ -1287,8 +1398,18 @@ fn decrypt_vault(
     nonce: &[u8],
     ciphertext: &[u8],
 ) -> Result<Vec<u8>, SecretError> {
-    decrypt_with_nonce(&SymKey(*key_bytes), nonce, ciphertext)
-        .map_err(|e| SecretError::BackendQueryFailed(format!("decryption failed: {e}")))
+    decrypt_with_nonce(&SymKey(*key_bytes), nonce, ciphertext).map_err(|e| {
+        let msg = e.to_string();
+        if msg.to_lowercase().contains("aead") {
+            SecretError::BackendQueryFailed(format!(
+                "decryption failed (master key mismatch?): {msg}. \
+                 Remediation: backup and delete the vault file, ensure OS keyring entry \
+                 vox-secrets-vault/master is stable, then re-run `vox secrets import-env`."
+            ))
+        } else {
+            SecretError::BackendQueryFailed(format!("decryption failed: {msg}"))
+        }
+    })
 }
 
 fn now_ms() -> i64 {
@@ -1763,5 +1884,70 @@ mod vault_health_tests {
         let a = super::master_key_fingerprint(&[1_u8; 32]);
         let b = super::master_key_fingerprint(&[2_u8; 32]);
         assert_ne!(a, b);
+    }
+
+    #[test]
+    #[allow(unsafe_code)]
+    fn probe_vault_health_reports_empty_vault_as_ok() {
+        static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        let _g = ENV_LOCK.lock().expect("env lock");
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let db_path = tmp.path().join("health_empty.db");
+        unsafe {
+            std::env::set_var("VOX_SECRETS_VAULT_PATH", &db_path);
+            std::env::set_var("VOX_ACCOUNT_ID", "health-test-account");
+        }
+        let health = match super::VoxCloudBackend::new().and_then(|b| super::probe_vault_health(&b))
+        {
+            Ok(h) => h,
+            Err(e) => {
+                let msg = e.to_string().to_lowercase();
+                if msg.contains("keyring") || msg.contains("misconfigured") {
+                    return;
+                }
+                panic!("unexpected init failure: {e}");
+            }
+        };
+        unsafe {
+            std::env::remove_var("VOX_SECRETS_VAULT_PATH");
+            std::env::remove_var("VOX_ACCOUNT_ID");
+        }
+        assert!(health.can_decrypt, "empty vault should probe OK");
+        assert_eq!(health.row_count, 0);
+    }
+
+    #[test]
+    #[allow(unsafe_code)]
+    fn probe_vault_health_fails_after_simulated_master_drift() {
+        static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        let _g = ENV_LOCK.lock().expect("env lock");
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let db_path = tmp.path().join("health_drift.db");
+        unsafe {
+            std::env::set_var("VOX_SECRETS_VAULT_PATH", &db_path);
+            std::env::set_var("VOX_ACCOUNT_ID", "drift-test-account");
+        }
+        let backend = match super::VoxCloudBackend::new() {
+            Ok(b) => b,
+            Err(_) => {
+                unsafe {
+                    std::env::remove_var("VOX_SECRETS_VAULT_PATH");
+                    std::env::remove_var("VOX_ACCOUNT_ID");
+                }
+                return;
+            }
+        };
+        backend
+            .write_secret("PROBE_CANARY", "canary-value-0123456789")
+            .expect("write canary");
+        let drifted = backend.with_master_key_for_test([0_u8; 32]);
+        let health = super::probe_vault_health(&drifted).expect("probe returns struct");
+        unsafe {
+            std::env::remove_var("VOX_SECRETS_VAULT_PATH");
+            std::env::remove_var("VOX_ACCOUNT_ID");
+        }
+        assert!(!health.can_decrypt);
+        assert!(health.decrypt_error.is_some());
+        assert!(health.row_count >= 1);
     }
 }
