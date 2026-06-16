@@ -152,11 +152,21 @@ pub fn run_affected_cmd(args: &[String]) -> i32 {
             .map(String::from)
             .collect();
         let xml = std::fs::read_to_string(&junit).unwrap_or_default();
+        if affected.is_empty()
+            && (xml.contains("<failure") || xml.contains("<error"))
+        {
+            eprintln!(
+                "::warning title=affected-ci shadow::junit has failures but affected set is empty — \
+                 shadow comparison skipped (check merge_group setup / affected_crates output)"
+            );
+        }
         let misses = crate::affected::shadow_misses(&xml, &affected);
         for c in &misses {
-            eprintln!("::warning title=affected-ci shadow-miss::{c} failed but was not in the PR affected set");
+            eprintln!(
+                "::warning title=affected-ci shadow-miss::{c} failed but was not in the PR affected set"
+            );
         }
-        return if misses.is_empty() { 0 } else { 0 };
+        return if misses.is_empty() { 0 } else { 1 };
     }
 
     let changed_path = match get("--changed") {
@@ -189,7 +199,7 @@ pub fn run_affected_cmd(args: &[String]) -> i32 {
         .collect();
     let closure = if seeds.is_empty() {
         BTreeSet::new()
-        } else {
+    } else {
         crate::affected::reverse_closure(&graph.crates, &seeds)
     };
 
@@ -202,9 +212,8 @@ pub fn run_affected_cmd(args: &[String]) -> i32 {
 
     let full = matches!(aff, crate::affected::Affected::Full);
     let list: String = closure.iter().cloned().collect::<Vec<_>>().join(" ");
-    let affects_compiler = full
-        || crate::affected::set_includes_compiler(&closure)
-        || path_flags.affects_golden;
+    let affects_compiler =
+        full || crate::affected::set_includes_compiler(&closure) || path_flags.affects_golden;
 
     let p_args = if list.is_empty() {
         String::new()
@@ -242,4 +251,69 @@ pub fn run_affected_cmd(args: &[String]) -> i32 {
         print!("{out_line}");
     }
     0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::run_affected_cmd;
+
+    #[test]
+    fn shadow_junit_exits_nonzero_when_failure_outside_affected_set() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let junit = dir.path().join("junit.xml");
+        std::fs::write(
+            &junit,
+            r#"<testcase classname="vox-compiler::tests::foo" name="bar"><failure message="boom"/></testcase>"#,
+        )
+        .expect("write junit");
+        let code = run_affected_cmd(&[
+            "affected-crates".into(),
+            "--shadow-junit".into(),
+            "--junit".into(),
+            junit.to_string_lossy().into_owned(),
+            "--affected-crates".into(),
+            "vox-db".into(),
+        ]);
+        assert_eq!(code, 1, "shadow miss must exit non-zero");
+    }
+
+    #[test]
+    fn shadow_junit_exits_zero_when_failure_inside_affected_set() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let junit = dir.path().join("junit.xml");
+        std::fs::write(
+            &junit,
+            r#"<testcase classname="vox-compiler::tests::foo" name="bar"><failure message="boom"/></testcase>"#,
+        )
+        .expect("write junit");
+        let code = run_affected_cmd(&[
+            "affected-crates".into(),
+            "--shadow-junit".into(),
+            "--junit".into(),
+            junit.to_string_lossy().into_owned(),
+            "--affected-crates".into(),
+            "vox-compiler vox-db".into(),
+        ]);
+        assert_eq!(code, 0);
+    }
+
+    #[test]
+    fn shadow_junit_exits_zero_when_affected_set_empty() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let junit = dir.path().join("junit.xml");
+        std::fs::write(
+            &junit,
+            r#"<testcase classname="vox-compiler::t" name="x"><failure/></testcase>"#,
+        )
+        .expect("write junit");
+        let code = run_affected_cmd(&[
+            "affected-crates".into(),
+            "--shadow-junit".into(),
+            "--junit".into(),
+            junit.to_string_lossy().into_owned(),
+            "--affected-crates".into(),
+            String::new(),
+        ]);
+        assert_eq!(code, 0);
+    }
 }

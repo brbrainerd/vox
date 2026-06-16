@@ -19,19 +19,15 @@ pub fn is_sentinel(path: &str) -> bool {
 
 /// Non-graph `contracts/**` edits can change SSOT surfaces workspace-wide; force a full PR gate.
 pub fn contracts_outside_graph_force_full(changed_files: &[String]) -> bool {
-    changed_files.iter().any(|f| {
-        f.starts_with("contracts/") && f != CRATE_GRAPH_SENTINEL
-    })
+    changed_files
+        .iter()
+        .any(|f| f.starts_with("contracts/") && f != CRATE_GRAPH_SENTINEL)
 }
 
 pub fn file_to_crate(path: &str) -> Option<&str> {
     let rest = path.strip_prefix("crates/")?;
     let name = rest.split('/').next()?;
-    if name.is_empty() {
-        None
-    } else {
-        Some(name)
-    }
+    if name.is_empty() { None } else { Some(name) }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -110,8 +106,7 @@ pub fn reverse_closure(
 }
 
 pub fn set_includes_compiler(set: &BTreeSet<String>) -> bool {
-    set.iter()
-        .any(|c| COMPILER_CRATES.contains(&c.as_str()))
+    set.iter().any(|c| COMPILER_CRATES.contains(&c.as_str()))
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -263,7 +258,10 @@ mod tests {
     #[test]
     fn contracts_outside_graph_in_compute_affected() {
         assert_eq!(
-            compute_affected(&["contracts/config/env-vars.v1.yaml".into()], &BTreeMap::new()),
+            compute_affected(
+                &["contracts/config/env-vars.v1.yaml".into()],
+                &BTreeMap::new()
+            ),
             Affected::Full
         );
     }
@@ -288,10 +286,7 @@ mod tests {
     fn unknown_seed_still_in_closure() {
         let g = BTreeMap::from([("vox-new".into(), vec![])]);
         let aff = compute_affected(&["crates/vox-new/src/lib.rs".into()], &g);
-        assert_eq!(
-            aff,
-            Affected::Crates(BTreeSet::from(["vox-new".into()]))
-        );
+        assert_eq!(aff, Affected::Crates(BTreeSet::from(["vox-new".into()])));
     }
 
     fn g() -> BTreeMap<String, Vec<String>> {

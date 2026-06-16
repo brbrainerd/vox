@@ -9,6 +9,8 @@ schema_version: 1
 #   blocking    — whether a failure blocks merge
 #   runs_on     — stages where the check applies: pre-commit | pre-push | ci
 #   rust_only   — when true the check is skipped if rust_changed=false (path filter)
+#   pr_scope    — selective CI lane on pull_request (merge_group always runs full):
+#                 global | affected | path | merge_only | nightly
 #   command     — exact argv executed by `vox audit`
 
 checks:
@@ -20,6 +22,7 @@ checks:
       - pre-push
       - ci
     rust_only: true
+    pr_scope: affected
     command: ["cargo", "fmt", "--all", "--", "--check"]
 
   - id: line-endings
@@ -154,6 +157,7 @@ checks:
       - pre-push
       - ci
     rust_only: true
+    pr_scope: affected
     command: ["cargo", "clippy", "--workspace", "--all-targets", "--", "-D", "warnings"]
 
   - id: toestub-scoped
@@ -164,6 +168,7 @@ checks:
       - pre-push
       - ci
     rust_only: false
+    pr_scope: affected
     command: ["cargo", "run", "-q", "-p", "vox-cli", "--", "ci", "toestub-scoped", "--mode", "enforce-warn"]
 
   - id: arch-check
@@ -173,6 +178,7 @@ checks:
     runs_on:
       - ci
     rust_only: true
+    pr_scope: path
     command: ["cargo", "run", "-p", "vox-arch-check"]
 
   - id: ai-fixtures-coverage
@@ -192,6 +198,7 @@ checks:
     runs_on:
       - ci
     rust_only: true
+    pr_scope: merge_only
     command: ["cargo", "llvm-cov", "--workspace", "--lcov", "--output-path", "lcov.info"]
 
   - id: mutation-compiler
@@ -201,6 +208,7 @@ checks:
     runs_on:
       - ci
     rust_only: true
+    pr_scope: nightly
     command: ["cargo", "mutants", "-p", "vox-compiler", "--no-shuffle", "-j", "2"]
 
   - id: mutation-codegen
@@ -210,6 +218,7 @@ checks:
     runs_on:
       - ci
     rust_only: true
+    pr_scope: nightly
     command: ["cargo", "mutants", "-p", "vox-codegen", "--no-shuffle", "-j", "2"]
 
   - id: markdownlint

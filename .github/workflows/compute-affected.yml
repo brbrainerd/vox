@@ -1,0 +1,134 @@
+# Reusable: compute affected crate closure + path flags for selective CI consumers.
+name: Compute affected crates
+
+on:
+  workflow_call:
+    outputs:
+      rust_changed:
+        value: ${{ jobs.compute.outputs.rust_changed }}
+      docs_changed:
+        value: ${{ jobs.compute.outputs.docs_changed }}
+      full:
+        value: ${{ jobs.compute.outputs.full }}
+      affected_crates:
+        value: ${{ jobs.compute.outputs.affected_crates }}
+      affected_p_args:
+        value: ${{ jobs.compute.outputs.affected_p_args }}
+      affects_compiler:
+        value: ${{ jobs.compute.outputs.affects_compiler }}
+      affects_golden:
+        value: ${{ jobs.compute.outputs.affects_golden }}
+      affects_contracts:
+        value: ${{ jobs.compute.outputs.affects_contracts }}
+      affects_scripts:
+        value: ${{ jobs.compute.outputs.affects_scripts }}
+      affects_gui:
+        value: ${{ jobs.compute.outputs.affects_gui }}
+      affects_web:
+        value: ${{ jobs.compute.outputs.affects_web }}
+      affects_plugins:
+        value: ${{ jobs.compute.outputs.affects_plugins }}
+
+jobs:
+  compute:
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 40
+    outputs:
+      rust_changed: ${{ steps.filter.outputs.rust }}
+      docs_changed: ${{ steps.filter.outputs.docs }}
+      full: ${{ steps.affected.outputs.full }}
+      affected_crates: ${{ steps.affected.outputs.affected_crates }}
+      affected_p_args: ${{ steps.affected.outputs.affected_p_args }}
+      affects_compiler: ${{ steps.affected.outputs.affects_compiler }}
+      affects_golden: ${{ steps.affected.outputs.affects_golden }}
+      affects_contracts: ${{ steps.affected.outputs.affects_contracts }}
+      affects_scripts: ${{ steps.affected.outputs.affects_scripts }}
+      affects_gui: ${{ steps.affected.outputs.affects_gui }}
+      affects_web: ${{ steps.affected.outputs.affects_web }}
+      affects_plugins: ${{ steps.affected.outputs.affects_plugins }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "merge_group" ]; then
+            echo "rust=true"  >> "$GITHUB_OUTPUT"
+            echo "docs=true"  >> "$GITHUB_OUTPUT"
+          else
+            git fetch origin "${{ github.base_ref }}" --depth=256 2>/dev/null || true
+            BASE="origin/${{ github.base_ref }}"
+            CHANGED=$(git diff --name-only "${BASE}...HEAD" 2>/dev/null || git diff --name-only HEAD~1...HEAD)
+            if echo "$CHANGED" | grep -qE '^(crates/|Cargo\.(toml|lock)|\.cargo/)'; then
+              echo "rust=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "rust=false" >> "$GITHUB_OUTPUT"
+            fi
+            if echo "$CHANGED" | grep -qE '^(docs/|contracts/|AGENTS\.md|CONTRIBUTING\.md|README\.md)'; then
+              echo "docs=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "docs=false" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build vox-cli
+        run: cargo build -p vox-cli --locked --features completion-toestub
+
+      - id: affected
+        shell: bash
+        run: |
+          set -euo pipefail
+          emit_fail_closed() {
+            echo "full=true" >> "$GITHUB_OUTPUT"
+            echo "affected_crates=" >> "$GITHUB_OUTPUT"
+            echo "affected_p_args=" >> "$GITHUB_OUTPUT"
+            echo "affects_compiler=true" >> "$GITHUB_OUTPUT"
+            echo "affects_golden=false" >> "$GITHUB_OUTPUT"
+            echo "affects_contracts=false" >> "$GITHUB_OUTPUT"
+            echo "affects_scripts=false" >> "$GITHUB_OUTPUT"
+            echo "affects_gui=false" >> "$GITHUB_OUTPUT"
+            echo "affects_web=false" >> "$GITHUB_OUTPUT"
+            echo "affects_plugins=false" >> "$GITHUB_OUTPUT"
+          }
+          if [ "${{ github.event_name }}" = "merge_group" ]; then
+            echo "full=true" >> "$GITHUB_OUTPUT"
+            echo "affects_compiler=true" >> "$GITHUB_OUTPUT"
+            echo "affects_golden=true" >> "$GITHUB_OUTPUT"
+            echo "affects_contracts=true" >> "$GITHUB_OUTPUT"
+            echo "affects_scripts=true" >> "$GITHUB_OUTPUT"
+            echo "affects_gui=true" >> "$GITHUB_OUTPUT"
+            echo "affects_web=true" >> "$GITHUB_OUTPUT"
+            echo "affects_plugins=true" >> "$GITHUB_OUTPUT"
+            if git diff --name-only HEAD~1...HEAD > /tmp/changed.txt 2>/dev/null \
+              && [ -s /tmp/changed.txt ]; then
+              OUT=$(./target/debug/vox ci affected-crates --changed /tmp/changed.txt \
+                --graph contracts/ci/crate-graph.v1.json)
+              echo "$OUT" | grep -E '^affected_crates=' | tail -1 >> "$GITHUB_OUTPUT"
+              echo "$OUT" | grep -E '^affected_p_args=' | tail -1 >> "$GITHUB_OUTPUT"
+            else
+              echo "affected_crates=" >> "$GITHUB_OUTPUT"
+              echo "affected_p_args=" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            git fetch origin "${{ github.base_ref }}" --depth=256 2>/dev/null || true
+            BASE="origin/${{ github.base_ref }}"
+            if ! git diff --name-only "${BASE}...HEAD" > /tmp/changed.txt 2>/dev/null; then
+              git diff --name-only HEAD~1...HEAD > /tmp/changed.txt
+            fi
+            if [ ! -s /tmp/changed.txt ] && [ "${{ steps.filter.outputs.rust }}" = "true" ]; then
+              emit_fail_closed
+              exit 0
+            fi
+            ./target/debug/vox ci affected-crates --changed /tmp/changed.txt \
+              --graph contracts/ci/crate-graph.v1.json --github-output "$GITHUB_OUTPUT"
+            if [ "${{ steps.filter.outputs.rust }}" = "true" ] \
+              && [ "$(grep -E '^full=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2)" = "false" ] \
+              && [ -z "$(grep -E '^affected_crates=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2 | xargs)" ]; then
+              echo "full=true" >> "$GITHUB_OUTPUT"
+              echo "affects_compiler=true" >> "$GITHUB_OUTPUT"
+            fi
+          fi
