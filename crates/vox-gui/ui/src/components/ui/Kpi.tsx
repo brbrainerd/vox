@@ -23,6 +23,7 @@ export interface KpiProps extends React.HTMLAttributes<HTMLDivElement> {
   icon?: React.ReactNode;
   onClick?: () => void;
   children?: React.ReactNode;
+  as?: React.ElementType;
 }
 
 export function Kpi({
@@ -37,12 +38,15 @@ export function Kpi({
   onClick,
   className,
   children,
+  as,
   ...props
 }: KpiProps) {
   const isClickable = !!onClick;
+  const Comp = as || (isClickable ? 'button' : 'div');
   
   return (
     <Glass
+      as={Comp}
       size="sm"
       interactive={isClickable}
       onClick={onClick}

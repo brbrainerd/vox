@@ -43,8 +43,8 @@ describe('ApprovalsView', () => {
     await waitFor(() => {
       expect(screen.getByText('rm -rf')).toBeDefined();
     });
-    const region = screen.getByRole('list', { name: /pending approvals/i });
-    expect(region.getAttribute('aria-live')).toBe('polite');
+    const region = screen.getByText('rm -rf').closest('[aria-live="polite"]');
+    expect(region).not.toBeNull();
   });
 
   it('gives the approve/reject buttons accessible labels and explicit type', async () => {

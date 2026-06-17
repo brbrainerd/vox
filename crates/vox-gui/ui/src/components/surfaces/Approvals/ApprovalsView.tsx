@@ -174,7 +174,7 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
         </Button>
       </div>
 
-      <div role="list" aria-label="Pending approvals" aria-live="polite">
+      <div aria-live="polite">
         <DataTable
           rows={approvals}
           columns={columns}

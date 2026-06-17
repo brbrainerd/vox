@@ -23,13 +23,18 @@ export function Glass({
   children, 
   ...rest 
 }: GlassProps) {
+  const isButton = Comp === 'button';
+  const buttonProps = isButton ? { type: 'button' as const } : {};
+
   return (
     <Comp
+      {...buttonProps}
       {...rest}
       className={cn(
         "relative border border-white/[0.06] bg-white/[0.025] backdrop-blur-2xl shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_24px_60px_-30px_rgba(0,0,0,0.9)]",
+        isButton && "text-left bg-transparent border-0 p-0 outline-none w-full",
         SIZE_PADDING[size],
-        interactive && "hover:border-white/[0.12] hover:bg-white/[0.04] cursor-pointer transition-all duration-150 active:scale-[0.99]",
+        interactive && "hover:border-white/[0.12] hover:bg-white/[0.04] cursor-pointer transition-all duration-150 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brass/40",
         className
       )}
     >

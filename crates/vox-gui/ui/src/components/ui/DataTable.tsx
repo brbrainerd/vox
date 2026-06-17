@@ -117,6 +117,7 @@ export function DataTable<T>({
                   checked={selectedIds.size === rows.length && rows.length > 0}
                   onChange={toggleSelectAll}
                   className="rounded border-white/10 bg-zinc-900 text-brass focus:ring-brass/40"
+                  aria-label="Select all rows"
                 />
               </th>
             )}
@@ -143,6 +144,7 @@ export function DataTable<T>({
                         type="button"
                         onClick={() => toggleGroup(groupName)}
                         className="flex items-center gap-1.5 font-mono text-[10px] tracking-widest uppercase text-zinc-400 hover:text-zinc-200"
+                        aria-expanded={!isCollapsed}
                       >
                         <span>{isCollapsed ? '▶' : '▼'}</span>
                         <span>{groupName} ({groupRows.length})</span>
@@ -168,6 +170,7 @@ export function DataTable<T>({
                             checked={isSelected}
                             onChange={() => toggleSelectRow(id)}
                             className="rounded border-brass/40 bg-zinc-950 text-brass focus:ring-brass/40"
+                            aria-label={`Select row ${id}`}
                           />
                         </td>
                       )}

@@ -123,6 +123,7 @@ export function TasksView({
           type="button"
           onClick={() => reprioritize(r)}
           className="focus:outline-none focus:ring-1 focus:ring-brass/40 rounded"
+          aria-label={`Cycle priority for task ${r.id}, current priority: ${r.priority}`}
         >
           <StatusPill
             tone={r.priority === 'urgent' ? 'fail' : r.priority === 'background' ? 'neutral' : 'warn'}
@@ -158,16 +159,18 @@ export function TasksView({
                 autoFocus
               />
             ) : (
-              <span
+              <button
+                type="button"
                 onClick={() => {
                   setEditingId(r.id);
                   setDraft(r.description);
                 }}
-                className="hover:text-brass cursor-pointer truncate text-[13px] text-zinc-200"
+                className="hover:text-brass cursor-pointer truncate text-[13px] text-zinc-200 bg-transparent border-0 p-0 text-left w-full outline-none focus-visible:ring-1 focus-visible:ring-brass"
                 title={r.description}
+                aria-label={`Edit task description: ${r.description}`}
               >
                 {r.description}
-              </span>
+              </button>
             )}
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -291,9 +294,10 @@ export function TasksView({
       {error && (
         <div
           role="alert"
-          className="rounded-lg border border-red-400/20 bg-red-400/5 px-3 py-2 text-[11px] text-red-300"
+          className="flex items-center gap-1.5 rounded-lg border border-red-400/20 bg-red-400/5 px-3 py-2 text-[11px] text-red-300"
         >
-          {error}
+          <span className="font-bold">Error:</span>
+          <span>{error}</span>
         </div>
       )}
 
