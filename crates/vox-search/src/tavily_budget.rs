@@ -21,7 +21,7 @@ impl TavilySessionBudget {
     pub fn try_consume(&self, cost: usize) -> bool {
         let mut current = self.remaining.load(Ordering::SeqCst);
         loop {
-            if current < cost {
+            if current == 0 || current < cost {
                 return false;
             }
             match self.remaining.compare_exchange_weak(

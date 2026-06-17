@@ -164,7 +164,18 @@ impl Default for SearchPolicy {
             .expose()
             .filter(|s| !s.trim().is_empty())
             .map(std::path::PathBuf::from),
-            prefer_rrf_merge: parse_truthy_env(vox_secrets::SecretId::VoxSearchPreferRrf),
+            prefer_rrf_merge: match vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchPreferRrf)
+                .expose()
+            {
+                Some(v) => {
+                    let v = v.trim();
+                    v == "1"
+                        || v.eq_ignore_ascii_case("true")
+                        || v.eq_ignore_ascii_case("yes")
+                        || v.eq_ignore_ascii_case("on")
+                }
+                None => true, // default ON
+            },
             tavily_enabled: parse_truthy_env(vox_secrets::SecretId::VoxSearchTavilyEnabled),
             tavily_search_depth: vox_secrets::resolve_secret(
                 vox_secrets::SecretId::VoxSearchTavilyDepth,
@@ -570,5 +581,25 @@ mod tests {
         );
         assert!(adjusted.web_search_max_hops > policy.web_search_max_hops);
         assert!(!adjusted.tavily_enabled);
+    }
+
+    #[test]
+    fn rrf_is_enabled_by_default_when_env_unset() {
+        // This test modifies env which is process-global — run tests with --test-threads=1
+        // if env collision becomes a flake.
+        unsafe { std::env::remove_var("VOX_SEARCH_PREFER_RRF"); }
+        let policy = SearchPolicy::from_env();
+        assert!(
+            policy.prefer_rrf_merge,
+            "prefer_rrf_merge must default to true; operators set VOX_SEARCH_PREFER_RRF=false to disable"
+        );
+    }
+
+    #[test]
+    fn rrf_disabled_when_env_set_to_false() {
+        unsafe { std::env::set_var("VOX_SEARCH_PREFER_RRF", "false"); }
+        let policy = SearchPolicy::from_env();
+        assert!(!policy.prefer_rrf_merge, "VOX_SEARCH_PREFER_RRF=false must disable RRF");
+        unsafe { std::env::remove_var("VOX_SEARCH_PREFER_RRF"); }
     }
 }
