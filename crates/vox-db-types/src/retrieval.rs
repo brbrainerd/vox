@@ -289,6 +289,7 @@ pub fn heuristic_search_plan(
         SearchCorpus::KnowledgeGraph,
         SearchCorpus::DocumentChunks,
         SearchCorpus::RepoInventory,
+        SearchCorpus::SymbolProximity,
         SearchCorpus::WebResearch,
     ];
     plan.preferred_backends = vec![
@@ -298,6 +299,7 @@ pub fn heuristic_search_plan(
         SearchBackend::ChunkFts,
         SearchBackend::ChunkVector,
         SearchBackend::RepoPath,
+        SearchBackend::SymbolProximity,
         SearchBackend::Web,
     ];
     plan.notes
@@ -616,5 +618,34 @@ mod semcov_wave1b_tests {
 
         // All-delimiter input yields an empty vec.
         assert!(normalized_query_tokens("!!! ???").is_empty());
+    }
+
+    #[test]
+    fn broad_research_plan_includes_symbol_proximity() {
+        let plan = heuristic_search_plan("tell me about the database schema design and layout in detail", false, None);
+        assert_eq!(plan.intent, SearchIntent::BroadResearch);
+        assert!(
+            plan.corpora.contains(&SearchCorpus::SymbolProximity),
+            "BroadResearch plan must include SymbolProximity; got: {:?}",
+            plan.corpora
+        );
+    }
+
+    #[test]
+    fn factual_lookup_plan_includes_symbol_proximity() {
+        let plan = heuristic_search_plan("database schema", false, None);
+        assert_eq!(plan.intent, SearchIntent::FactualLookup);
+        assert!(
+            plan.corpora.contains(&SearchCorpus::SymbolProximity),
+            "FactualLookup plan must include SymbolProximity; got: {:?}",
+            plan.corpora
+        );
+    }
+
+    #[test]
+    fn code_navigation_plan_still_includes_symbol_proximity() {
+        let plan = heuristic_search_plan("struct SearchPolicy", false, None);
+        assert_eq!(plan.intent, SearchIntent::CodeNavigation);
+        assert!(plan.corpora.contains(&SearchCorpus::SymbolProximity));
     }
 }
