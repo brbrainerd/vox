@@ -184,7 +184,9 @@ pub async fn run(
             }
             PipelineStage::HealToDpo => {
                 if !dry_run {
-                    let input = PathBuf::from("~/.vox/corpus/heal_pairs.jsonl");
+                    let input = dirs::home_dir()
+                        .map(|h| h.join(".vox/corpus/heal_pairs.jsonl"))
+                        .unwrap_or_else(|| PathBuf::from("heal_pairs.jsonl"));
                     crate::commands::corpus::run(
                         crate::commands::corpus::CorpusAction::HealToDpo {
                             input: Some(input),
@@ -382,3 +384,17 @@ pub async fn run(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_heal_pairs_path_has_no_tilde() {
+        let input = dirs::home_dir()
+            .map(|h| h.join(".vox/corpus/heal_pairs.jsonl"))
+            .unwrap_or_else(|| PathBuf::from("heal_pairs.jsonl"));
+        assert!(!input.to_string_lossy().starts_with('~'));
+    }
+}
+
