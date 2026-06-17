@@ -976,10 +976,11 @@ pub fn run_candle_qlora_train(
                 .to_dtype(DType::F32)?
         };
         let final_norm = candle_nn::RmsNorm::new(fnorm_w, 1e-6);
-        // LM head is tied to the embeddings; build it at the activation/compute dtype so
-        // its base matmul matches the BF16 activation stream. `Qwen35Model::forward` casts
-        // the resulting logits back to F32 before the cross-entropy loss.
-        let w_lm = wte.to_dtype(compute_dtype)?;
+        // LM head is tied to the embeddings; build it from the F32 weight so the
+        // QuantizedLinear builder can quantize it. It is cached internally in
+        // the compute_dtype (BF16). `Qwen35Model::forward` casts the resulting
+        // logits back to F32 before the cross-entropy loss.
+        let w_lm = wte.to_dtype(DType::F32)?;
         let lm_label = "lm_head".to_string();
         let lm_base = bundle.embed_key.clone();
         let lm_head = QuantizedLinear::from_weight_with_varbuilder(
