@@ -1,9 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { listen } from '@tauri-apps/api/event';
 import { Icon } from '../../ui/Icons';
-import { TaskRow, groupTasks, cyclePriority, filterBySession, findWriteOverlaps } from './tasksHelpers';
-import { useVirtualList } from '../../../hooks/useVirtualList';
+import { Button } from '../../ui/Button';
+import { EmptyState } from '../../ui/EmptyState';
+import { StatusPill } from '../../ui/StatusPill';
+import { DataTable } from '../../ui/DataTable';
+import { TaskRow, cyclePriority, filterBySession, findWriteOverlaps } from './tasksHelpers';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 
 interface StoredSession { id: string; title: string }
@@ -17,27 +20,6 @@ function loadSessionTitles(): Record<string, string> {
   } catch {
     return {};
   }
-}
-
-
-const PRIORITY_STYLE: Record<string, string> = {
-  urgent: 'text-red-300 border-red-400/30 bg-red-400/10',
-  normal: 'text-zinc-300 border-white/10 bg-white/[0.03]',
-  background: 'text-zinc-500 border-white/5 bg-transparent',
-};
-
-function PriorityChip({ value, onCycle }: { value: string; onCycle: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onCycle}
-      aria-label={`Priority: ${value}. Click to cycle priority`}
-      title="Click to cycle priority (urgent → background → normal)"
-      className={`shrink-0 rounded border px-1.5 py-px font-mono text-[9px] uppercase tracking-widest transition focus:outline-none focus:ring-1 focus:ring-brass/40 ${PRIORITY_STYLE[value] ?? PRIORITY_STYLE.normal}`}
-    >
-      {value}
-    </button>
-  );
 }
 
 export function TasksView({
@@ -74,13 +56,9 @@ export function TasksView({
   useEffect(() => {
     mounted.current = true;
     refresh();
-
-    // Subscribe to push events from the backend instead of polling.
-    // The backend emits "vox://tasks-changed" after any task mutation.
     const sub = listen<void>('vox://tasks-changed', () => {
       refresh();
     });
-
     return () => {
       mounted.current = false;
       sub.then((fn) => fn());
@@ -99,7 +77,7 @@ export function TasksView({
         setBusy(false);
       }
     },
-    [refresh],
+    [refresh]
   );
 
   const addTask = () => {
@@ -125,123 +103,130 @@ export function TasksView({
 
   const reprioritize = (t: TaskRow) =>
     act(() =>
-      invoke('reorder_orchestrator_task', { taskId: t.id, priority: cyclePriority(t.priority) }),
+      invoke('reorder_orchestrator_task', { taskId: t.id, priority: cyclePriority(t.priority) })
     );
 
   const sessionTitles = loadSessionTitles();
   const presentSessions = Array.from(
-    new Set(rows.map(r => r.session_id).filter((s): s is string => !!s)),
+    new Set(rows.map(r => r.session_id).filter((s): s is string => !!s))
   );
   const overlaps = findWriteOverlaps(rows);
-  const { inProgress, queued } = groupTasks(filterBySession(rows, sessionFilter));
+  const filteredRows = filterBySession(rows, sessionFilter);
 
-  const inProgressRef = useRef<HTMLDivElement>(null);
-  const queuedRef = useRef<HTMLDivElement>(null);
-
-  const ITEM_HEIGHT = 64; // px — estimated row height
-  const GAP = 6;          // px — space-y-1.5 = 6px
-
-  const inProgressVL = useVirtualList({
-    containerRef: inProgressRef,
-    count: inProgress.length,
-    estimateSize: () => ITEM_HEIGHT,
-    overscan: 3,
-  });
-
-  const queuedVL = useVirtualList({
-    containerRef: queuedRef,
-    count: queued.length,
-    estimateSize: () => ITEM_HEIGHT,
-    overscan: 3,
-  });
-
-  const renderRow = (t: TaskRow, editable: boolean) => (
-    <div
-      key={t.id}
-      className="group flex items-center gap-2 rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2"
-    >
-      <PriorityChip value={t.priority} onCycle={() => editable && reprioritize(t)} />
-      <div className="min-w-0 flex-1">
-        {editingId === t.id ? (
-          <input
-            autoFocus
-            value={draft}
-            onChange={e => setDraft(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter') saveEdit(t.id);
-              if (e.key === 'Escape') setEditingId(null);
-            }}
-            onBlur={() => saveEdit(t.id)}
-            className="w-full bg-transparent text-[13px] text-zinc-100 outline-none border-b border-brass/40"
+  const columns = [
+    {
+      key: 'priority',
+      header: 'Priority',
+      width: 100,
+      render: (r: TaskRow) => (
+        <button
+          type="button"
+          onClick={() => reprioritize(r)}
+          className="focus:outline-none focus:ring-1 focus:ring-brass/40 rounded"
+        >
+          <StatusPill
+            tone={r.priority === 'urgent' ? 'fail' : r.priority === 'background' ? 'neutral' : 'warn'}
+            label={r.priority}
+            size="xs"
           />
-        ) : (
-          <span className="block truncate text-[13px] text-zinc-200" title={t.description}>
-            {t.description}
-          </span>
-        )}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-600">
-            #{t.id}
-            {t.agent_id != null ? ` · agent ${t.agent_id}` : ''}
-            {' · '}
-            {t.lifecycle}
-          </span>
-          {t.depends_on.length > 0 && (
-            <span
-              title="Runs after the listed task(s) complete"
-              className="rounded border border-white/10 bg-white/[0.03] px-1 font-mono text-[9px] text-zinc-400"
-            >
-              → after #{t.depends_on.join(', #')}
+        </button>
+      ),
+    },
+    {
+      key: 'id',
+      header: 'Task ID',
+      width: 80,
+      render: (r: TaskRow) => <span className="font-mono text-zinc-400">#{r.id}</span>,
+    },
+    {
+      key: 'description',
+      header: 'Description',
+      render: (r: TaskRow) => (
+        <div className="flex flex-col gap-1 min-w-0">
+          <div className="flex items-center gap-2">
+            {editingId === r.id ? (
+              <input
+                type="text"
+                value={draft}
+                onChange={e => setDraft(e.target.value)}
+                onBlur={() => saveEdit(r.id)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') saveEdit(r.id);
+                  if (e.key === 'Escape') setEditingId(null);
+                }}
+                className="bg-zinc-950 border border-white/10 rounded px-2 py-1 text-zinc-100 w-full outline-none focus:border-brass text-[13px]"
+                autoFocus
+              />
+            ) : (
+              <span
+                onClick={() => {
+                  setEditingId(r.id);
+                  setDraft(r.description);
+                }}
+                className="hover:text-brass cursor-pointer truncate text-[13px] text-zinc-200"
+                title={r.description}
+              >
+                {r.description}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-600">
+              #{r.id}
+              {r.agent_id != null ? ` · agent ${r.agent_id}` : ''}
+              {' · '}
+              {r.lifecycle}
             </span>
-          )}
-          {(overlaps.get(t.id)?.length ?? 0) > 0 && (
-            <span
-              title="These tasks write the same files — the orchestrator serializes them via file locks and may split VCS changes"
-              className="rounded border border-amber-400/30 bg-amber-400/10 px-1 font-mono text-[9px] text-amber-300"
-            >
-              ⚠ overlaps #{overlaps.get(t.id)!.join(', #')}
-            </span>
-          )}
-          {t.remote_node && (
-            <span
-              title="Executing remotely on a mesh node via A2A lease"
-              className="rounded border border-cyan-400/30 bg-cyan-400/10 px-1 font-mono text-[9px] text-cyan-300"
-            >
-              mesh: {t.remote_node}
-            </span>
-          )}
+            {r.depends_on.length > 0 && (
+              <span
+                title="Runs after the listed task(s) complete"
+                className="rounded border border-white/10 bg-white/[0.03] px-1 font-mono text-[9px] text-zinc-400"
+              >
+                → after #{r.depends_on.join(', #')}
+              </span>
+            )}
+            {(overlaps.get(r.id)?.length ?? 0) > 0 && (
+              <span
+                title="These tasks write the same files — the orchestrator serializes them via file locks and may split VCS changes"
+                className="rounded border border-amber-400/30 bg-amber-400/10 px-1 font-mono text-[9px] text-amber-300"
+              >
+                ⚠ overlaps #{overlaps.get(r.id)!.join(', #')}
+              </span>
+            )}
+            {r.remote_node && (
+              <span
+                title="Executing remotely on a mesh node via A2A lease"
+                className="rounded border border-cyan-400/30 bg-cyan-400/10 px-1 font-mono text-[9px] text-cyan-300"
+              >
+                mesh: {r.remote_node}
+              </span>
+            )}
+          </div>
         </div>
-      </div>
-      {editable && (
-        <div className="flex shrink-0 items-center gap-1 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
-          <button
-            type="button"
-            title="Edit task text"
-            aria-label={`Edit task #${t.id}`}
-            onClick={() => {
-              setEditingId(t.id);
-              setDraft(t.description);
-            }}
-            className="rounded p-1 text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-brass/40"
+      ),
+    },
+    {
+      key: 'actions',
+      header: '',
+      width: 50,
+      render: (r: TaskRow) => (
+        <div className="flex justify-end">
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={() => remove(r.id)}
+            disabled={busy}
+            title="Cancel task"
           >
-            <Icon.edit className="size-3.5" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            title="Remove task"
-            aria-label={`Remove task #${t.id}`}
-            onClick={() => remove(t.id)}
-            className="rounded p-1 text-zinc-400 hover:bg-red-400/10 hover:text-red-300 focus:outline-none focus:ring-1 focus:ring-red-400/40"
-          >
-            <Icon.trash className="size-3.5" aria-hidden="true" />
-          </button>
+            <Icon.x className="size-3.5 text-zinc-400 hover:text-red-400 transition" />
+          </Button>
         </div>
-      )}
-    </div>
-  );
+      ),
+    },
+  ];
 
   return (
-    <div className="flex h-full flex-col gap-4 p-6">
+    <div className="flex flex-col gap-4 p-6 h-full overflow-auto">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-[15px] font-medium text-zinc-100">Tasks</h1>
@@ -249,35 +234,34 @@ export function TasksView({
             Everything queued or running across the agent fleet. Chat submissions land here.
           </p>
         </div>
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={refresh}
-          title="Refresh"
           aria-label="Refresh tasks"
-          className="rounded-lg border border-white/10 p-1.5 text-zinc-400 hover:bg-white/[0.05] focus:outline-none focus:ring-1 focus:ring-brass/40"
+          title="Refresh"
+          className="border border-white/10 text-zinc-400 hover:bg-white/[0.05]"
         >
-          <Icon.refresh className="size-4" aria-hidden="true" />
-        </button>
+          <Icon.refresh className="size-4" />
+        </Button>
       </div>
 
       <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2">
-        <Icon.plus className="size-4 text-brass" aria-hidden="true" />
+        <Icon.plus className="size-4 text-brass" />
         <input
+          type="text"
           value={newTask}
           onChange={e => setNewTask(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && addTask()}
           placeholder="Add a task…"
           aria-label="Add a task"
+          onKeyDown={e => {
+            if (e.key === 'Enter') addTask();
+          }}
           className="flex-1 bg-transparent text-[13px] text-zinc-100 placeholder:text-zinc-600 outline-none"
         />
-        <button
-          type="button"
-          onClick={addTask}
-          disabled={busy || !newTask.trim()}
-          className="rounded-lg border border-brass/30 bg-brass/10 px-2.5 py-1 text-[11px] text-brass disabled:opacity-40 focus:outline-none focus:ring-1 focus:ring-brass/40"
-        >
+        <Button variant="primary" size="sm" onClick={addTask} disabled={busy || !newTask.trim()}>
           Add
-        </button>
+        </Button>
       </div>
 
       {presentSessions.length > 1 && (
@@ -305,66 +289,29 @@ export function TasksView({
       )}
 
       {error && (
-        <div role="alert" className="rounded-lg border border-red-400/20 bg-red-400/5 px-3 py-2 text-[11px] text-red-300">
+        <div
+          role="alert"
+          className="rounded-lg border border-red-400/20 bg-red-400/5 px-3 py-2 text-[11px] text-red-300"
+        >
           {error}
         </div>
       )}
 
-      <div className="flex-1 space-y-5 overflow-auto custom-scrollbar">
-        <section>
-          <h2 className="mb-2 px-1 text-[10px] uppercase tracking-widest text-zinc-500">
-            In progress ({inProgress.length})
-          </h2>
-          <div
-            ref={inProgressRef}
-            style={{ height: Math.min(Math.max(inProgress.length, 1) * (ITEM_HEIGHT + GAP), 320), overflow: 'auto' }}
-            className="custom-scrollbar"
-          >
-            <div style={{ height: inProgressVL.totalSize, position: 'relative' }}>
-              {inProgressVL.virtualItems.map(vItem => (
-                <div
-                  key={String(vItem.key)}
-                  ref={inProgressVL.virtualizer.measureElement}
-                  data-index={vItem.index}
-                  style={{ position: 'absolute', top: 0, transform: `translateY(${vItem.start}px)`, width: '100%', paddingBottom: GAP }}
-                >
-                  {renderRow(inProgress[vItem.index], false)}
-                </div>
-              ))}
-            </div>
-            {inProgress.length === 0 && !loading && (
-              <p className="px-1 text-[11px] text-zinc-600">Nothing running.</p>
-            )}
-          </div>
-        </section>
-        <section>
-          <h2 className="mb-2 px-1 text-[10px] uppercase tracking-widest text-zinc-500">
-            Queued ({queued.length})
-          </h2>
-          <div
-            ref={queuedRef}
-            style={{ height: Math.min(Math.max(queued.length, 1) * (ITEM_HEIGHT + GAP), 320), overflow: 'auto' }}
-            className="custom-scrollbar"
-          >
-            <div style={{ height: queuedVL.totalSize, position: 'relative' }}>
-              {queuedVL.virtualItems.map(vItem => (
-                <div
-                  key={String(vItem.key)}
-                  ref={queuedVL.virtualizer.measureElement}
-                  data-index={vItem.index}
-                  style={{ position: 'absolute', top: 0, transform: `translateY(${vItem.start}px)`, width: '100%', paddingBottom: GAP }}
-                >
-                  {renderRow(queued[vItem.index], true)}
-                </div>
-              ))}
-            </div>
-            {queued.length === 0 && !loading && (
-              <p className="px-1 text-[11px] text-zinc-600">
-                Queue is empty — the agent is all yours.
-              </p>
-            )}
-          </div>
-        </section>
+      <div className="flex-1 overflow-auto custom-scrollbar">
+        <DataTable
+          rows={filteredRows}
+          columns={columns}
+          getRowId={r => String(r.id)}
+          groupBy={r => (r.lifecycle === 'in_progress' ? 'In progress' : 'Queued')}
+          loading={loading}
+          emptyState={
+            <EmptyState
+              variant="no-data"
+              title="No tasks in this workspace"
+              description="Create a new task at the top to instruct the background agent."
+            />
+          }
+        />
       </div>
     </div>
   );
