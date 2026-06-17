@@ -392,7 +392,7 @@ pub async fn run_research_with_context_and_session(
     };
     let gate_input = GateInput {
         claims: &draft_claims,
-        citation_count: all_hits.len().min(3),
+        citation_count: all_hits.len(),
         supported_claim_count,
         distinct_domain_count,
         no_retrieval_hits: all_hits.is_empty(),

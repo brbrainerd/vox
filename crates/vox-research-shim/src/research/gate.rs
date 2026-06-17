@@ -60,7 +60,7 @@ impl ConfidenceSignal {
             RoutingTier::Direct
         } else if self.score >= light {
             RoutingTier::Light
-        } else if self.score == 0.0 {
+        } else if self.score < f32::EPSILON {
             // PHASE_0a_STUB: exact-zero check is valid only while score_with_config
             // produces an integer-derived float (citation_count / 5.0). Phase 2
             // multi-signal fusion may produce non-zero scores with no retrieval hits;
@@ -83,8 +83,8 @@ pub fn score_with_config(input: &GateInput<'_>, config: &GateConfig) -> Confiden
     if input.no_retrieval_hits {
         return ConfidenceSignal { score: 0.0 };
     }
-    let min_cit = config.min_citations_for_full_score.unwrap_or(5) as f32;
-    let min_dom = config.min_domains_for_full_score.unwrap_or(4) as f32;
+    let min_cit = (config.min_citations_for_full_score.unwrap_or(5) as f32).max(1.0);
+    let min_dom = (config.min_domains_for_full_score.unwrap_or(4) as f32).max(1.0);
     let citation_score = (input.citation_count as f32 / min_cit).clamp(0.0, 1.0);
     let claim_support_score = if input.claims.is_empty() {
         0.5
