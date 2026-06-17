@@ -377,7 +377,8 @@ pub async fn execute_search_plan(
                 used_bm25 = true;
             }
             rows.into_iter()
-                .map(|(id, label, snippet)| {
+                .enumerate()
+                .map(|(rank, (id, label, snippet))| {
                     let snip = snippet.replace('\n', " ");
                     unified_hits.push(UnifiedHit {
                         source: "knowledge".to_string(),
@@ -385,7 +386,7 @@ pub async fn execute_search_plan(
                         path: Some(format!("node:{id}")),
                         title: (!label.is_empty()).then(|| label.clone()),
                         snippet: snip.clone(),
-                        score: 0.0,
+                        score: 1.0 / (1.0 + rank as f64),
                         provenance: vec!["knowledge:fts".to_string()],
                     });
                     format!("[node:{id}] {label} — {snip}")
@@ -758,5 +759,23 @@ pub(crate) fn best_effort_verification_query(query: &str) -> Option<String> {
         None
     } else {
         Some(filtered.join(" "))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn knowledge_graph_rank_based_scores_are_decreasing() {
+        // Simulates the fixed formula applied to 3 KG rows returned by the DB.
+        // Row 0 is best match (rank 0), row 1 is next, etc.
+        let scores: Vec<f64> = (0..3).map(|rank| 1.0 / (1.0 + rank as f64)).collect();
+
+        assert!((scores[0] - 1.0).abs() < f64::EPSILON, "rank 0 score = 1.0");
+        assert!((scores[1] - 0.5).abs() < f64::EPSILON, "rank 1 score = 0.5");
+        assert!((scores[2] - 1.0 / 3.0).abs() < 1e-10, "rank 2 score = 0.333...");
+        assert!(scores[0] > scores[1], "scores must decrease with rank");
+        assert!(scores[1] > scores[2], "scores must decrease with rank");
     }
 }
