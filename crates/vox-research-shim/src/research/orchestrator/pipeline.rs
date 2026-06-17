@@ -2,14 +2,13 @@ use std::time::Instant;
 
 use anyhow::Result;
 use vox_db::Codex;
-use vox_research_events::schema_types::FindingCandidateConfidence;
-use vox_research_events::{
-    DiscoverySignal, DiscoverySignalFamily, DiscoverySignalStrength, FindingCandidateClass,
-    FindingCandidateV1, ResearchEvent, SignalProvenance,
-};
+use vox_research_events::ResearchEvent;
 use vox_search::{SearchPolicy, SearchRuntimeContext};
 
 use super::super::claims::extract_claims_with_model;
+use super::super::discovery_bridge::{
+    finding_candidate_from_research_result, persist_finding_candidate_from_research,
+};
 use super::super::gate::{GateInput, score_with_config};
 use super::super::planner::{decompose_query_with_config, plan_to_json};
 use super::super::provider::ProviderRegistry;
@@ -21,9 +20,10 @@ use super::super::types::{
 use super::super::verifier::verify_claims_with_config;
 use super::config::ResearchConfig;
 use super::helpers::{fnv1a_hash, verifier_config_for_research_run};
-use super::pipeline_cache::research_cache_short_circuit;
+use super::pipeline_cache::{research_cache_short_circuit, research_cache_store};
 use super::stages::{
-    JudgeParams, SynthesisParams, judge_quality, run_self_verification, synthesize_answer_with_llm,
+    JudgeParams, SynthesisParams, evaluate_citation_diversity, judge_quality,
+    run_self_verification, synthesize_answer_with_llm,
 };
 use super::web_gather::{gather_local_hits_for_plan, gather_web_hits_for_plan};
 
@@ -149,6 +149,7 @@ pub async fn run_research_with_context_and_session(
         subqueries: vec![query.query.clone()],
         scope: query.scope.clone(),
         max_sources_per_subquery: query.max_sources,
+        planner_degraded: true,
     });
     emit_research_event(
         config,
@@ -240,6 +241,8 @@ pub async fn run_research_with_context_and_session(
     } else {
         subqueries_with_hits as f64 / plan.subqueries.len() as f64
     };
+    let (distinct_domain_count, citation_diversity_below_threshold) =
+        evaluate_citation_diversity(&all_hits, config.min_distinct_domains);
     let diagnostics = RetrievalDiagnostics {
         coverage_pct,
         subquery_coverage_pct,
@@ -251,6 +254,8 @@ pub async fn run_research_with_context_and_session(
         } else {
             (all_hits.len() as f64 / total_sources_attempted as f64).min(1.0)
         },
+        distinct_domain_count,
+        citation_diversity_below_threshold,
     };
     emit_research_event(
         config,
@@ -304,27 +309,11 @@ pub async fn run_research_with_context_and_session(
         claims
     };
 
-    let gate_input = GateInput {
-        claims: &draft_claims,
-        citation_count: all_hits.len().min(3),
-        no_retrieval_hits: all_hits.is_empty(),
-        answer_is_empty: false,
-    };
-    let confidence_signal = score_with_config(&gate_input, &config.gate);
-    let routing_tier = confidence_signal.routing_tier_for(
-        config.routing_thresholds.direct,
-        config.routing_thresholds.light,
-        config.routing_thresholds.deep,
-    );
-
     // ── (f) Claim verification ────────────────────────────────────────────────
     // Set status → verifying_claims before NLI classification.
     set_session_stage(db, session_id, ResearchStage::VerifyingClaims).await;
     report_progress("Verifying research claims...".to_string(), Some(0.60));
-    let claim_verdicts = if query.verify_claims
-        && matches!(routing_tier, RoutingTier::DeepResearch)
-        && !draft_claims.is_empty()
-    {
+    let claim_verdicts = if query.verify_claims && !draft_claims.is_empty() {
         verify_claims_with_config(
             &draft_claims,
             &query.query,
@@ -335,8 +324,6 @@ pub async fn run_research_with_context_and_session(
             config.api_key.as_deref(),
         )
         .await
-        // PHASE_0a_STUB: claim/verdict persistence not yet wired to vox_db.
-        // Phase 1 re-enables after vox_db gains store_claim / store_claim_verdict / store_evidence_span.
     } else {
         vec![]
     };
@@ -387,6 +374,36 @@ pub async fn run_research_with_context_and_session(
             );
         }
     }
+
+    // ── (e) Confidence gate → routing decision ────────────────────────────────
+    let supported_claim_count = claim_verdicts
+        .iter()
+        .filter(|v| matches!(v.verdict, super::super::verifier::Verdict::Supported))
+        .count();
+    let distinct_domain_count = {
+        use std::collections::HashSet;
+        let mut domains = HashSet::<String>::new();
+        for hit in &all_hits {
+            if let Some(host) = super::stages::registrable_domain(&hit.url) {
+                domains.insert(host);
+            }
+        }
+        domains.len()
+    };
+    let gate_input = GateInput {
+        claims: &draft_claims,
+        citation_count: all_hits.len().min(3),
+        supported_claim_count,
+        distinct_domain_count,
+        no_retrieval_hits: all_hits.is_empty(),
+        answer_is_empty: false,
+    };
+    let confidence_signal = score_with_config(&gate_input, &config.gate);
+    let routing_tier = confidence_signal.routing_tier_for(
+        config.routing_thresholds.direct,
+        config.routing_thresholds.light,
+        config.routing_thresholds.deep,
+    );
 
     // ── (h) Build citations ───────────────────────────────────────────────────
     let citations: Vec<Citation> = all_hits
@@ -507,27 +524,19 @@ pub async fn run_research_with_context_and_session(
         })
         .map(|verdict| verdict.claim.claim_id)
         .collect();
-    if quality_score >= 70 && supported_claim_ids.len() >= 3 {
-        let finding_candidate = finding_candidate_from_research_run(
-            session_id,
-            &query,
-            &answer,
-            quality_score,
-            &supported_claim_ids,
-        );
-        let finding_id = finding_candidate.candidate_id.clone();
-        let _ = serde_json::to_value(&finding_candidate);
-        emit_research_event(
-            config,
-            db,
-            ResearchEvent::FindingCandidateProposed {
-                finding_id,
-                claim_ids: supported_claim_ids,
-                worthiness_score: (quality_score as f64 / 100.0).clamp(0.0, 1.0),
-                session_id: session_id.to_string(),
-            },
-        );
-    }
+    let meets_high_bar = quality_score >= 70 && supported_claim_ids.len() >= 3;
+    let meets_low_bar = quality_score >= 50 && !supported_claim_ids.is_empty();
+    emit_research_event(
+        config,
+        db,
+        ResearchEvent::TelemetryObservation {
+            provider: "vox-research".to_string(),
+            metric_type: "research_session_completed".to_string(),
+            value: (quality_score as f64 / 100.0).clamp(0.0, 1.0),
+            session_id: session_id.to_string(),
+            recorded_at_ms: now_ms_i64(),
+        },
+    );
     let citation_audit = audit_citations(&citations, &claim_verdicts);
     emit_research_event(
         config,
@@ -571,6 +580,7 @@ pub async fn run_research_with_context_and_session(
         claim_verdicts: claim_verdicts.clone(),
         retrieval_diagnostics: diagnostics,
         quality_score,
+        planner_degraded: plan.planner_degraded,
         competence,
         self_verification,
         citation_audit: Some(citation_audit),
@@ -582,6 +592,28 @@ pub async fn run_research_with_context_and_session(
         citations,
         research_metadata: metadata,
     };
+
+    if meets_high_bar || meets_low_bar {
+        let finding_candidate = finding_candidate_from_research_result(&result);
+        let finding_id = finding_candidate.candidate_id.clone();
+        let finding_candidate_json = serde_json::to_value(&finding_candidate).ok();
+        emit_research_event(
+            config,
+            db,
+            ResearchEvent::FindingCandidateProposed {
+                finding_id,
+                claim_ids: supported_claim_ids,
+                worthiness_score: (quality_score as f64 / 100.0).clamp(0.0, 1.0),
+                session_id: session_id.to_string(),
+                finding_candidate: finding_candidate_json,
+            },
+        );
+        if let Some(db) = db
+            && let Err(e) = persist_finding_candidate_from_research(&result, db).await
+        {
+            tracing::warn!(session_id, error = %e, "discovery_bridge_persist_failed");
+        }
+    }
 
     // Set status → persisting_artifact before artifact store.
     set_session_stage(db, session_id, ResearchStage::PersistingArtifact).await;
@@ -605,6 +637,13 @@ pub async fn run_research_with_context_and_session(
 
     // Set status → completed after all work is done.
     set_session_stage(db, session_id, ResearchStage::Completed).await;
+
+    if persist_enabled
+        && session_id > 0
+        && let Some(db) = db
+    {
+        research_cache_store(&query, &result, db, config).await;
+    }
 
     Ok(result)
 }
@@ -726,52 +765,6 @@ fn now_ms_i64() -> i64 {
         .unwrap_or(0)
 }
 
-fn finding_candidate_from_research_run(
-    session_id: i64,
-    query: &ResearchQuery,
-    answer: &str,
-    quality_score: i32,
-    supported_claim_ids: &[u64],
-) -> FindingCandidateV1 {
-    let now_ms = now_ms_i64();
-    let signal = DiscoverySignal {
-        code: "research_pipeline.supported_claims".to_string(),
-        summary: format!(
-            "{} supported claims from research run {}",
-            supported_claim_ids.len(),
-            session_id
-        ),
-        strength: DiscoverySignalStrength::Supporting,
-        family: DiscoverySignalFamily::FindingCandidateSignal,
-        source_ref: Some(format!("research-session:{session_id}")),
-        provenance: SignalProvenance {
-            origin: Some("vox-orchestrator.research_pipeline".to_string()),
-            repo_path: None,
-            metric_type: Some("supported_claims".to_string()),
-            run_id: Some(session_id.to_string()),
-            recorded_at_ms: Some(now_ms),
-            digest: Some(format!("{:016x}", fnv1a_hash(answer))),
-        },
-    };
-    FindingCandidateV1 {
-        schema_version: 1,
-        candidate_id: format!("finding-{session_id}-{:016x}", fnv1a_hash(answer)),
-        candidate_class: FindingCandidateClass::Other,
-        internal_signals: vec![signal],
-        created_at_ms: now_ms,
-        publication_id: None,
-        title_hint: Some(query.query.chars().take(120).collect()),
-        novelty_evidence_bundle_id: None,
-        worthiness_decision_ref: Some(format!("research-quality-score:{quality_score}")),
-        confidence: Some(FindingCandidateConfidence {
-            signal_strength: Some((quality_score as f64 / 100.0).clamp(0.0, 1.0)),
-            contradiction_risk: None,
-            reproducibility_support: Some((supported_claim_ids.len() as f64 / 10.0).min(1.0)),
-        }),
-        updated_at_ms: None,
-    }
-}
-
 fn render_research_report_markdown(
     query: &ResearchQuery,
     plan: &ResearchPlan,
@@ -845,28 +838,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn finding_candidate_matches_scientia_schema() {
-        let query = ResearchQuery {
-            query: "schema validation smoke".to_string(),
-            scope: ResearchScope::Local,
-            max_sources: 3,
-            persist_to_docs: false,
-            verify_claims: true,
-            site_scope: None,
-        };
-        let candidate =
-            finding_candidate_from_research_run(7, &query, "answer text", 84, &[1, 2, 3]);
-        let schema: serde_json::Value = serde_json::from_str(include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../contracts/scientia/finding-candidate.v1.schema.json"
-        )))
-        .expect("schema parses");
-        let value = serde_json::to_value(candidate).expect("candidate serializes");
-        let validator = jsonschema::validator_for(&schema).expect("schema compiles");
-        validator.validate(&value).expect("candidate validates");
-    }
-
-    #[test]
     fn research_run_artifact_matches_report_schema() {
         let query = ResearchQuery {
             query: "artifact schema smoke".to_string(),
@@ -881,6 +852,7 @@ mod tests {
             subqueries: vec![query.query.clone()],
             scope: ResearchScope::Local,
             max_sources_per_subquery: 3,
+            planner_degraded: false,
         };
         let result = ResearchResult {
             answer: "A concise answer.".to_string(),
@@ -897,6 +869,7 @@ mod tests {
                 claim_verdicts: vec![],
                 retrieval_diagnostics: RetrievalDiagnostics::default(),
                 quality_score: 50,
+                planner_degraded: false,
                 competence: None,
                 self_verification: None,
                 citation_audit: None,
