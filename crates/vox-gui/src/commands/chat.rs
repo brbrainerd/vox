@@ -111,8 +111,8 @@ pub struct ChatAppendInput {
 }
 
 #[tauri::command]
-pub async fn chat_append_message(
-    app_handle: tauri::AppHandle,
+pub async fn chat_append_message<R: tauri::Runtime>(
+    app_handle: tauri::AppHandle<R>,
     input: ChatAppendInput,
 ) -> Result<i64, String> {
     if input.session_id.trim().is_empty() {
@@ -136,9 +136,7 @@ pub async fn chat_append_message(
 
     // Secretary: detect actionable intent in user messages and submit to hopper.
     // Fire-and-forget — errors here must never fail the chat message save.
-    if let Some(classified) =
-        vox_orchestrator::secretary::classify(&input.role, &input.content)
-    {
+    if let Some(classified) = vox_orchestrator::secretary::classify(&input.role, &input.content) {
         let session_id = input.session_id.clone();
         let app_handle_clone = app_handle.clone();
         tokio::spawn(async move {
@@ -155,7 +153,14 @@ pub async fn chat_append_message(
                 "dry_run": null,
                 "active_skill": null,
             });
-            match call_daemon("vox-orchestrator-d", orch_daemon_method::SUBMIT_TASK, params, false).await {
+            match call_daemon(
+                "vox-orchestrator-d",
+                orch_daemon_method::SUBMIT_TASK,
+                params,
+                false,
+            )
+            .await
+            {
                 Ok(raw) => {
                     let item_id = raw
                         .get("task_id")
@@ -224,7 +229,9 @@ mod tests {
             content: "hi".to_string(),
             task_id: None,
         };
-        let err = chat_append_message(app.handle().clone(), input).await.expect_err("empty session");
+        let err = chat_append_message(app.handle().clone(), input)
+            .await
+            .expect_err("empty session");
         assert!(err.contains("session_id"));
     }
 
@@ -262,4 +269,3 @@ mod tests {
         assert!(result.is_some());
     }
 }
-

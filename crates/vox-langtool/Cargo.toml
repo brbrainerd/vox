@@ -18,8 +18,10 @@ vox-codegen = { workspace = true }
 # `db` feature: this keeps the binary free of vox-db/vox-gamify/vox-repository
 # without flipping the workspace-wide default or touching other consumers.
 vox-cli-core = { path = "../vox-cli-core", default-features = false }
+vox-lsp = { path = "../vox-lsp", default-features = false }
 vox-foundation = { workspace = true }
 anyhow = { workspace = true }
+tokio = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 miette = { workspace = true }
 

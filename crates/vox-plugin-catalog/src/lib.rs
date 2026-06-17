@@ -5,7 +5,7 @@
 pub mod docs;
 pub mod schema;
 
-use schema::{BundleEntry, Component, PluginCatalogEntry};
+use schema::{BundleEntry, Component, PluginCatalogEntry, SkillBundleEntry};
 use serde::Deserialize;
 use std::sync::OnceLock;
 
@@ -20,6 +20,8 @@ struct CatalogFile {
     bundles: Vec<BundleEntry>,
     #[serde(default, rename = "component")]
     components: Vec<Component>,
+    #[serde(default, rename = "skill-bundle")]
+    skill_bundles: Vec<SkillBundleEntry>,
 }
 
 fn parsed() -> &'static CatalogFile {
@@ -45,6 +47,11 @@ pub fn all_bundles() -> &'static [BundleEntry] {
 /// standalone executables installed on demand and never built for CLI-only users.
 pub fn all_components() -> &'static [Component] {
     &parsed().components
+}
+
+/// All bundled interop skills declared in `catalog.toml` (`[[skill-bundle]]`).
+pub fn all_skill_bundles() -> &'static [SkillBundleEntry] {
+    &parsed().skill_bundles
 }
 
 use thiserror::Error;

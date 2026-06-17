@@ -86,6 +86,37 @@ pub struct BundleEntry {
     pub plugins: Vec<String>,
 }
 
+/// One bundled interop skill directory under `assets/skills/<id>/SKILL.md`.
+///
+/// These are agentskills.io-native YAML skills (not TOML plugin skills). Provenance
+/// is recorded in `assets/skills/SOURCES.toml`; this table is the catalog SSOT
+/// for license, upstream pin, and on-disk path parity.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct SkillBundleEntry {
+    /// Skill name; must match the directory name under `bundle-path`.
+    pub id: String,
+
+    /// One-line description (mirrors SKILL.md frontmatter `description`).
+    pub description: String,
+
+    /// Lifecycle stage. Defaults to `stable` when absent.
+    #[serde(default)]
+    pub status: CatalogStatus,
+
+    /// SPDX license identifier verified at vendoring time.
+    pub license: String,
+
+    /// Upstream repository URL from `SOURCES.toml`.
+    pub source: String,
+
+    /// Git commit SHA pinned in `SOURCES.toml`.
+    pub pin: String,
+
+    /// Repo-relative path to the skill directory (contains `SKILL.md`).
+    pub bundle_path: String,
+}
+
 /// One installable *component*: a first-party Vox binary that is NOT a cdylib
 /// plugin (it implements no extension-point trait and is not loaded by the
 /// plugin host). Components are optional companion executables — currently just

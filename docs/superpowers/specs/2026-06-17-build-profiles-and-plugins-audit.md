@@ -33,7 +33,7 @@ We define four standard distribution builds:
 * **Architecture**: 
   - The TypeScript codegen outputs native-compatible TSX.
   - Due to OS-level sandboxing (especially iOS App Store rules), **dynamic loading of native libraries (`dlopen`) is prohibited**. Therefore, mobile capabilities cannot use native code plugins. All mobile capability extensions must be statically compiled React Native native modules or implemented entirely in JS/TS.
-  - Local database is SQLite rather than PostgreSQL/MySQL.
+  - Local database is SQLite local storage (server databases like PostgreSQL/MySQL are not supported or used in Vox).
 
 ### C. Desktop Build
 * **Target Application**: Tauri desktop app (`vox-gui`) bundling the `vox-cli` binary.
@@ -50,7 +50,7 @@ We define four standard distribution builds:
 
 ## 3. Plugin Boundaries (What is a Plugin vs. Core)
 
-To maintain clean architecture, features are categorized into one of three tiers:
+To maintain clean architecture, features are categorized into one of four packaging types:
 
 | Component | Packaging Type | Reason |
 |-----------|----------------|--------|
@@ -66,6 +66,6 @@ To maintain clean architecture, features are categorized into one of three tiers
 
 ## 4. Recommendations & Code Cleanup
 
-1. **Retire Unused References**: Keep the `catalog.toml` clean of references to retired binaries (`vox-bootstrap`, `vox-schola`).
+1. **Verify that retired references remain absent**: Keep the `catalog.toml` clean of references to retired binaries (`vox-bootstrap`, `vox-schola`).
 2. **Align `vox-mobile` Bundle**: Update the `vox-mobile` bundle definition in `catalog.toml` to specify Expo/React Native as the target platform rather than Tauri Mobile.
 3. **Keep `vox-langtool` Lean**: Ensure that future additions to `vox-langtool` do not transitively import database or orchestrator crates.

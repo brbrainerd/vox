@@ -20,6 +20,7 @@ pub mod diagnostics;
 pub mod fs_utils;
 #[cfg(feature = "db")]
 pub mod gamify_shim;
+#[cfg(feature = "orchestrator")]
 pub mod orchestrator_driver;
 pub mod scientia;
 #[cfg(feature = "db")]

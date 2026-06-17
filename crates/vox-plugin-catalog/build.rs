@@ -30,11 +30,24 @@ struct BundleEntry {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "kebab-case")]
+struct SkillBundleEntry {
+    id: String,
+    description: String,
+    license: String,
+    source: String,
+    pin: String,
+    bundle_path: String,
+}
+
+#[derive(Deserialize)]
 struct CatalogFile {
     #[serde(default, rename = "plugin")]
     plugins: Vec<PluginEntry>,
     #[serde(default, rename = "bundle")]
     bundles: Vec<BundleEntry>,
+    #[serde(default, rename = "skill-bundle")]
+    skill_bundles: Vec<SkillBundleEntry>,
 }
 
 fn resolve_bundle(
@@ -84,6 +97,47 @@ fn main() {
     for b in &cat.bundles {
         if !bundle_ids.insert(b.id.clone()) {
             errors.push(format!("duplicate bundle id: {}", b.id));
+        }
+    }
+    let mut skill_bundle_ids = HashSet::new();
+    for sb in &cat.skill_bundles {
+        if !skill_bundle_ids.insert(sb.id.clone()) {
+            errors.push(format!("duplicate skill-bundle id: {}", sb.id));
+        }
+        if sb.description.is_empty() {
+            errors.push(format!("skill-bundle '{}' has empty description", sb.id));
+        }
+        if sb.description.is_empty() {
+            errors.push(format!("skill-bundle '{}' has empty description", sb.id));
+        }
+        if sb.license.is_empty() {
+            errors.push(format!("skill-bundle '{}' has empty license", sb.id));
+        }
+        if sb.source.is_empty() {
+            errors.push(format!("skill-bundle '{}' has empty source", sb.id));
+        }
+        if sb.pin.is_empty() {
+            errors.push(format!("skill-bundle '{}' has empty pin", sb.id));
+        }
+        if sb.bundle_path.is_empty() {
+            errors.push(format!("skill-bundle '{}' has empty bundle-path", sb.id));
+        } else {
+            let skill_md = std::path::Path::new("../..")
+                .join(&sb.bundle_path)
+                .join("SKILL.md");
+            if !skill_md.is_file() {
+                errors.push(format!(
+                    "skill-bundle '{}' bundle-path '{}' missing SKILL.md",
+                    sb.id, sb.bundle_path
+                ));
+            }
+            let expected_suffix = format!("assets/skills/{}", sb.id);
+            if sb.bundle_path != expected_suffix {
+                errors.push(format!(
+                    "skill-bundle '{}' bundle-path must be '{}', got '{}'",
+                    sb.id, expected_suffix, sb.bundle_path
+                ));
+            }
         }
     }
 
