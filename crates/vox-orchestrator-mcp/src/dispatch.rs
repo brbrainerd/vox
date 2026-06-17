@@ -8,11 +8,13 @@
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
 
+#[cfg(feature = "heavy-browser")]
+use crate::browser_tools;
 #[cfg(feature = "gui-visual-review")]
 use crate::visus_tools;
 use crate::{
-    benchmark_tools, browser_tools, chat_tools, code_validator, codex_tools, compiler_tools,
-    db_tools, exec_time_tools, git_tools, grammar_tools, introspection_tools, openclaw_tools,
+    benchmark_tools, chat_tools, code_validator, codex_tools, compiler_tools, db_tools,
+    exec_time_tools, git_tools, grammar_tools, introspection_tools, openclaw_tools,
     persistence_tools, populi_tools, project_init_tools, questioning_tools, rag_tools,
     repo_catalog_tools, repo_index, secrets_tools, task_tools, toestub_tools, tool_aliases,
     training_tools, trust_tools, vcs_tools,
@@ -89,6 +91,14 @@ pub async fn handle_tool_call(
     }
 
     if let Some(rejection) = crate::lock_guard::check_lock(state, name_canonical, &args) {
+        return Ok(crate::params::ToolResult::<()>::err(rejection).to_json_compact());
+    }
+
+    if let Some(rejection) = crate::skill_permissions::check_skill_tool_permission(
+        &state.skill_registry,
+        state.active_skill_id.read().as_deref(),
+        name_canonical,
+    ) {
         return Ok(crate::params::ToolResult::<()>::err(rejection).to_json_compact());
     }
 
@@ -342,6 +352,16 @@ async fn handle_tool_call_inner(
     name: &str,
     args: serde_json::Value,
 ) -> Result<String, anyhow::Error> {
+    {
+        let ws = state.workspace_mcp.read();
+        if ws.tool_by_name(name).is_some() {
+            return match crate::workspace_mcp::dispatch_workspace_tool(&ws, name, &args) {
+                Ok(json) => Ok(json),
+                Err(e) => Ok(ToolResult::<()>::err(e).to_json()),
+            };
+        }
+    }
+
     match name {
         "vox_visual_rag_query" => {
             Ok(rag_tools::visual_rag_query(state, serde_json::from_value(args)?).await)
@@ -514,6 +534,12 @@ async fn handle_tool_call_inner(
             Ok(visus_tools::vox_visus_baseline(state, serde_json::from_value(args)?).await)
         }
         "vox_repo_status" => Ok(repo_catalog_tools::repo_status(state).await),
+        "vox_graphify_status" => {
+            Ok(crate::graphify_tools::graphify_status(state, serde_json::from_value(args)?).await)
+        }
+        "vox_graphify_search" => {
+            Ok(crate::graphify_tools::graphify_search(state, serde_json::from_value(args)?).await)
+        }
         "vox_project_init" => Ok(project_init_tools::project_init(state, args).await),
         "vox_repo_catalog_list" => Ok(repo_catalog_tools::repo_catalog_list(state).await),
         "vox_repo_catalog_refresh" => Ok(repo_catalog_tools::repo_catalog_refresh(state).await),
@@ -1175,7 +1201,51 @@ async fn handle_tool_call_inner(
             state,
             serde_json::from_value(args)?,
         )),
+        "vox_skill_run" => Ok(crate::skills::skill_run(state, serde_json::from_value(args)?).await),
         "vox_skill_discover" => Ok(crate::skills::skill_discover(state)),
+
+        "vox_workspace_mcp_refresh" => {
+            let root = state
+                .workspace_root
+                .clone()
+                .unwrap_or_else(|| state.repository.root.clone());
+            let config = crate::workspace_mcp::load_scan_config(&root);
+            let load = crate::workspace_mcp::WorkspaceMcpLoader::load_repo(&root, &config)
+                .map_err(|e| anyhow::anyhow!(e))?;
+            for err in &load.errors {
+                tracing::warn!(
+                    path = %err.path.display(),
+                    error = %err.message,
+                    "workspace MCP scan skipped file"
+                );
+            }
+            if !load.surface.shadowed.is_empty() {
+                tracing::warn!(
+                    shadowed = ?load.surface.shadowed,
+                    "workspace MCP tools shadowed by static catalog"
+                );
+            }
+            *state.workspace_mcp.write() = load.surface.clone();
+            let errors: Vec<serde_json::Value> = load
+                .errors
+                .iter()
+                .map(|e| {
+                    serde_json::json!({
+                        "path": e.path.display().to_string(),
+                        "message": e.message,
+                    })
+                })
+                .collect();
+            Ok(ToolResult::ok(serde_json::json!({
+                "tool_count": load.surface.tool_count(),
+                "resource_count": load.surface.resource_count(),
+                "shadowed": load.surface.shadowed,
+                "duplicate_tools": load.surface.duplicate_tools,
+                "duplicate_resources": load.surface.duplicate_resources,
+                "errors": errors,
+            }))
+            .to_json())
+        }
 
         "vox_plugin_list" => Ok(crate::plugins::plugin_list(state).await),
         "vox_plugin_catalog" => Ok(crate::plugins::plugin_catalog()),
@@ -1223,81 +1293,107 @@ async fn handle_tool_call_inner(
         "vox_mesh_queue_stats" => Ok(populi_tools::mesh_queue_stats(state, args).await?),
         "vox_mesh_dispatch" => Ok(populi_tools::mesh_dispatch(state, args).await?),
 
+        #[cfg(feature = "heavy-browser")]
         "vox_browser_open" => {
             Ok(browser_tools::browser_open(state, serde_json::from_value(args)?).await)
         }
+        #[cfg(feature = "heavy-browser")]
         "vox_browser_list_pages" => Ok(browser_tools::browser_list_pages(state, args).await),
+        #[cfg(feature = "heavy-browser")]
         "vox_browser_page_info" => {
             Ok(browser_tools::browser_page_info(state, serde_json::from_value(args)?).await)
         }
+        #[cfg(feature = "heavy-browser")]
         "vox_browser_close" => {
             Ok(browser_tools::browser_close(state, serde_json::from_value(args)?).await)
         }
+        #[cfg(feature = "heavy-browser")]
         "vox_browser_back" => {
             Ok(browser_tools::browser_back(state, serde_json::from_value(args)?).await)
         }
+        #[cfg(feature = "heavy-browser")]
         "vox_browser_forward" => {
             Ok(browser_tools::browser_forward(state, serde_json::from_value(args)?).await)
         }
+        #[cfg(feature = "heavy-browser")]
         "vox_browser_reload" => {
             Ok(browser_tools::browser_reload(state, serde_json::from_value(args)?).await)
         }
+        #[cfg(feature = "heavy-browser")]
         "vox_browser_stop" => {
             Ok(browser_tools::browser_stop(state, serde_json::from_value(args)?).await)
         }
+        #[cfg(feature = "heavy-browser")]
         "vox_browser_goto" => {
             Ok(browser_tools::browser_goto(state, serde_json::from_value(args)?).await)
         }
+        #[cfg(feature = "heavy-browser")]
         "vox_browser_click" => {
             Ok(browser_tools::browser_click(state, serde_json::from_value(args)?).await)
         }
+        #[cfg(feature = "heavy-browser")]
         "vox_browser_click_xy" => {
             Ok(browser_tools::browser_click_xy(state, serde_json::from_value(args)?).await)
         }
+        #[cfg(feature = "heavy-browser")]
         "vox_browser_fill" => {
             Ok(browser_tools::browser_fill(state, serde_json::from_value(args)?).await)
         }
+        #[cfg(feature = "heavy-browser")]
         "vox_browser_scroll" => {
             Ok(browser_tools::browser_scroll(state, serde_json::from_value(args)?).await)
         }
+        #[cfg(feature = "heavy-browser")]
         "vox_browser_press" => {
             Ok(browser_tools::browser_press(state, serde_json::from_value(args)?).await)
         }
+        #[cfg(feature = "heavy-browser")]
         "vox_browser_type" => {
             Ok(browser_tools::browser_type(state, serde_json::from_value(args)?).await)
         }
+        #[cfg(feature = "heavy-browser")]
         "vox_browser_set_viewport" => {
             Ok(browser_tools::browser_set_viewport(state, serde_json::from_value(args)?).await)
         }
+        #[cfg(feature = "heavy-browser")]
         "vox_browser_set_control_lock" => {
             Ok(browser_tools::browser_set_control_lock(state, serde_json::from_value(args)?).await)
         }
+        #[cfg(feature = "heavy-browser")]
         "vox_browser_wait_for" => {
             Ok(browser_tools::browser_wait_for(state, serde_json::from_value(args)?).await)
         }
+        #[cfg(feature = "heavy-browser")]
         "vox_browser_text" => {
             Ok(browser_tools::browser_text(state, serde_json::from_value(args)?).await)
         }
+        #[cfg(feature = "heavy-browser")]
         "vox_browser_html" => {
             Ok(browser_tools::browser_html(state, serde_json::from_value(args)?).await)
         }
+        #[cfg(feature = "heavy-browser")]
         "vox_browser_screenshot" => {
             Ok(browser_tools::browser_screenshot(state, serde_json::from_value(args)?).await)
         }
+        #[cfg(feature = "heavy-browser")]
         "vox_browser_screenshot_viewport" => Ok(browser_tools::browser_screenshot_viewport(
             state,
             serde_json::from_value(args)?,
         )
         .await),
+        #[cfg(feature = "heavy-browser")]
         "vox_browser_screencast_frame" => {
             Ok(browser_tools::browser_screencast_frame(state, serde_json::from_value(args)?).await)
         }
+        #[cfg(feature = "heavy-browser")]
         "vox_browser_extract" => {
             Ok(browser_tools::browser_extract(state, serde_json::from_value(args)?).await)
         }
+        #[cfg(feature = "heavy-browser")]
         "vox_browser_extract_json" => {
             Ok(browser_tools::browser_extract_json(state, serde_json::from_value(args)?).await)
         }
+        #[cfg(feature = "heavy-browser")]
         "vox_browser_act" => {
             Ok(browser_tools::browser_act(state, serde_json::from_value(args)?).await)
         }
