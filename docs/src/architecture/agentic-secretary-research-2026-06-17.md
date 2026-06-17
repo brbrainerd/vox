@@ -1,7 +1,7 @@
 ---
 title: "Agentic Secretary: Research Synthesis for Dynamic Task Management, Memory Transparency, and Chat-Driven Orchestration (2026-06-17)"
 description: "Comprehensive research synthesis (20+ sources) covering 2026 best practices for AI-driven dynamic task lists, persistent memory management with rolling context compaction, always-listening chat interfaces, codebase knowledge gap detection, and transparent GUI representation — all scoped to the Vox orchestrator, GUI, and OpenRouter integration."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Establishes research baseline for the Vox Agentic Secretary capability — the canonical reference for the secretary agent design, task hopper evolution, context-window visualization, and memory GUI authoring decisions. All implementation plans deriving from this feature area should cite this document."

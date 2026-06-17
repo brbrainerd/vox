@@ -1,7 +1,7 @@
 ---
 title: "Graphify Integration Research (2026-06-16)"
 description: "Audit of Vox graphify-out usage, Graphify (graphifyy) architecture, Rust-native feasibility, agent-search integration plan, cache freshness, and multi-map comparison."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: true
 training_rationale: "Agents need a single SSOT for how graphify maps relate to vox-search, MCP, and CI artifacts before wiring retrieval."
