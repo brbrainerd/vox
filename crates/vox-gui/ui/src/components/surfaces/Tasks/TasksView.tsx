@@ -77,16 +77,13 @@ export function TasksView({
 
     // Subscribe to push events from the backend instead of polling.
     // The backend emits "vox://tasks-changed" after any task mutation.
-    let unlisten: UnlistenFn | undefined;
-    listen<void>('vox://tasks-changed', () => {
+    const sub = listen<void>('vox://tasks-changed', () => {
       refresh();
-    }).then((fn) => {
-      unlisten = fn;
     });
 
     return () => {
       mounted.current = false;
-      unlisten?.();
+      sub.then((fn) => fn());
     };
   }, [refresh]);
 

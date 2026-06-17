@@ -77,7 +77,7 @@ describe('TasksView', () => {
     const { unmount } = render(<TasksView />);
     await waitFor(() => expect(mockListen).toHaveBeenCalled());
     unmount();
-    expect(mockUnlisten).toHaveBeenCalled();
+    await waitFor(() => expect(mockUnlisten).toHaveBeenCalled());
   });
 
   it('does NOT set a polling interval', async () => {

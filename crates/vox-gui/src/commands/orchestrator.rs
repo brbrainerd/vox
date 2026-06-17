@@ -584,26 +584,10 @@ pub struct ContextBudgetPayload {
 
 /// Return the active context-window budget from the current compaction config.
 ///
-/// Falls back to `CompactionConfig::default()` values if the daemon is unavailable
-/// — so the UI always has something reasonable to display.
+/// Reads directly from the local in-memory config snapshot.
 #[tauri::command]
 pub async fn get_context_budget() -> Result<ContextBudgetPayload, String> {
-    use vox_orchestrator::compaction::CompactionConfig;
-
-    // Try to read live config from daemon; fall back to defaults on any error.
-    let cfg: CompactionConfig = call_daemon(
-        "vox-orchestrator-d",
-        vox_foundation::protocol::orch_daemon_method::GET_CONFIG,
-        serde_json::json!({}),
-        false,
-    )
-    .await
-    .ok()
-    .and_then(|v| {
-        v.get("compaction")
-            .and_then(|c| serde_json::from_value(c.clone()).ok())
-    })
-    .unwrap_or_default();
+    let cfg = vox_orchestrator::config::OrchestratorConfig::snapshot().compaction;
 
     Ok(ContextBudgetPayload {
         max_context_tokens: cfg.max_context_tokens,

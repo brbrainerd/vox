@@ -82,14 +82,11 @@ export function ChatSurface({
   }, [activeId, onHydrateSession]);
 
   useEffect(() => {
-    let unlisten: UnlistenFn | undefined;
-    listenSecretaryProposed((payload) => {
+    const sub = listenSecretaryProposed((payload) => {
       setSecretaryToast(payload);
-    }).then((fn) => {
-      unlisten = fn;
     });
     return () => {
-      unlisten?.();
+      sub.then((fn) => fn());
     };
   }, []);
 

@@ -155,13 +155,13 @@ pub async fn chat_append_message(
                 "dry_run": null,
                 "active_skill": null,
             });
-            match call_daemon("vox-orchestrator-d", orch_daemon_method::ENQUEUE, params, false).await {
+            match call_daemon("vox-orchestrator-d", orch_daemon_method::SUBMIT_TASK, params, false).await {
                 Ok(raw) => {
                     let item_id = raw
                         .get("task_id")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("unknown")
-                        .to_string();
+                        .and_then(|v| v.as_u64())
+                        .map(|v| v.to_string())
+                        .unwrap_or_else(|| "unknown".to_string());
                     crate::commands::orchestrator::emit_secretary_proposed(
                         &app_handle_clone,
                         crate::commands::orchestrator::SecretaryProposedPayload {
