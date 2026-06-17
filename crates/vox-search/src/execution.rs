@@ -774,7 +774,10 @@ mod tests {
 
         assert!((scores[0] - 1.0).abs() < f64::EPSILON, "rank 0 score = 1.0");
         assert!((scores[1] - 0.5).abs() < f64::EPSILON, "rank 1 score = 0.5");
-        assert!((scores[2] - 1.0 / 3.0).abs() < 1e-10, "rank 2 score = 0.333...");
+        assert!(
+            (scores[2] - 1.0 / 3.0).abs() < 1e-10,
+            "rank 2 score = 0.333..."
+        );
         assert!(scores[0] > scores[1], "scores must decrease with rank");
         assert!(scores[1] > scores[2], "scores must decrease with rank");
     }

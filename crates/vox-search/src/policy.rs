@@ -164,8 +164,10 @@ impl Default for SearchPolicy {
             .expose()
             .filter(|s| !s.trim().is_empty())
             .map(std::path::PathBuf::from),
-            prefer_rrf_merge: match vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchPreferRrf)
-                .expose()
+            prefer_rrf_merge: match vox_secrets::resolve_secret(
+                vox_secrets::SecretId::VoxSearchPreferRrf,
+            )
+            .expose()
             {
                 Some(v) => {
                     let v = v.trim();
@@ -587,7 +589,9 @@ mod tests {
     fn rrf_is_enabled_by_default_when_env_unset() {
         // This test modifies env which is process-global — run tests with --test-threads=1
         // if env collision becomes a flake.
-        unsafe { std::env::remove_var("VOX_SEARCH_PREFER_RRF"); }
+        unsafe {
+            std::env::remove_var("VOX_SEARCH_PREFER_RRF");
+        }
         let policy = SearchPolicy::from_env();
         assert!(
             policy.prefer_rrf_merge,
@@ -597,9 +601,16 @@ mod tests {
 
     #[test]
     fn rrf_disabled_when_env_set_to_false() {
-        unsafe { std::env::set_var("VOX_SEARCH_PREFER_RRF", "false"); }
+        unsafe {
+            std::env::set_var("VOX_SEARCH_PREFER_RRF", "false");
+        }
         let policy = SearchPolicy::from_env();
-        assert!(!policy.prefer_rrf_merge, "VOX_SEARCH_PREFER_RRF=false must disable RRF");
-        unsafe { std::env::remove_var("VOX_SEARCH_PREFER_RRF"); }
+        assert!(
+            !policy.prefer_rrf_merge,
+            "VOX_SEARCH_PREFER_RRF=false must disable RRF"
+        );
+        unsafe {
+            std::env::remove_var("VOX_SEARCH_PREFER_RRF");
+        }
     }
 }

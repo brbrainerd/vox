@@ -76,6 +76,7 @@
       "vox-mesh-types",
       "vox-orchestrator",
       "vox-orchestrator-driver",
+      "vox-orchestrator-mcp",
       "vox-package",
       "vox-plugin-api",
       "vox-plugin-catalog",
@@ -163,6 +164,7 @@
       "vox-repository",
       "vox-secrets",
       "vox-shell-stdlib-types",
+      "vox-telemetry",
       "vox-test-harness",
       "workspace-hack"
     ],
@@ -258,6 +260,7 @@
       "vox-db",
       "vox-http-client",
       "vox-llm-egress",
+      "vox-mesh-types",
       "vox-openai",
       "vox-secrets",
       "workspace-hack"
@@ -311,6 +314,7 @@
       "vox-lsp",
       "vox-orchestrator",
       "vox-orchestrator-mcp",
+      "vox-plugin-api",
       "vox-repository",
       "vox-scaling-policy",
       "vox-secrets",
@@ -330,7 +334,8 @@
       "vox-cli-core",
       "vox-codegen",
       "vox-compiler",
-      "vox-foundation"
+      "vox-foundation",
+      "vox-lsp"
     ],
     "vox-llm-config": [
       "workspace-hack"
@@ -460,6 +465,7 @@
       "vox-orchestrator-driver",
       "vox-orchestrator-types",
       "vox-package",
+      "vox-plugin-api",
       "vox-plugin-catalog",
       "vox-plugin-host",
       "vox-plugin-types",
@@ -653,9 +659,11 @@
       "vox-actor-runtime",
       "vox-config",
       "vox-db",
+      "vox-gamify",
       "vox-orchestrator",
       "vox-orchestrator-types",
       "vox-research-events",
+      "vox-scientia",
       "vox-search",
       "vox-secrets",
       "workspace-hack"

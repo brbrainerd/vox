@@ -137,7 +137,7 @@ Extends: `vox-fullstack`
 
 ### `vox-mobile`
 
-Mobile-optimized deployment: lightweight skill runtime for iOS/Android (Tauri Mobile). Planned for v0.8.
+Mobile-optimized deployment: lightweight skill runtime for iOS/Android (React Native / Expo). Planned for v0.8.
 
 Extends: `vox-base`
 
