@@ -159,7 +159,7 @@ pub fn repo_path_search(
         })
         .filter_map(Result::ok)
         .filter(|e| e.file_type().is_file())
-        .take(policy.repo_inventory_max_files + 1)
+        .take(policy.repo_inventory_max_files.saturating_add(1))
         .collect();
 
     let truncated = all_entries.len() > policy.repo_inventory_max_files;

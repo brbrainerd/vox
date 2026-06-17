@@ -122,7 +122,13 @@ where
             } else {
                 let mut is_json_or_record = false;
                 if let Some(inferred) = inferred_types {
+                    eprintln!(
+                        "DEBUGLOG: FieldAccess obj={:?} span={:?}",
+                        obj,
+                        hir_expr_span(obj)
+                    );
                     if let Some(obj_ty) = inferred.get(&hir_expr_span(obj)) {
+                        eprintln!("DEBUGLOG: Found obj_ty: {:?}", obj_ty);
                         if let HirType::Named(n) = obj_ty {
                             if n == "Json"
                                 || n == "Value"
@@ -131,6 +137,11 @@ where
                                 is_json_or_record = true;
                             }
                         }
+                    } else {
+                        eprintln!(
+                            "DEBUGLOG: obj_ty NOT found in inferred map! Map size = {}",
+                            inferred.len()
+                        );
                     }
                 }
 

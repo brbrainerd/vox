@@ -622,7 +622,11 @@ mod semcov_wave1b_tests {
 
     #[test]
     fn broad_research_plan_includes_symbol_proximity() {
-        let plan = heuristic_search_plan("tell me about the database schema design and layout in detail", false, None);
+        let plan = heuristic_search_plan(
+            "tell me about the database schema design and layout in detail",
+            false,
+            None,
+        );
         assert_eq!(plan.intent, SearchIntent::BroadResearch);
         assert!(
             plan.corpora.contains(&SearchCorpus::SymbolProximity),
