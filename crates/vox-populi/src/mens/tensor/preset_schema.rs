@@ -151,6 +151,10 @@ fn normalize_preset_name(name: &str) -> &str {
         "qwen_small_8g" => "safe",
         "qwen_rtx3090_24g" => "4080",
         "qwen_a100_80g" => "a100",
+        // Prosumer presets aligned with gpu-specs.yaml SSOT
+        "prosumer_16g" => "qwen_4080_16g",
+        "prosumer_24g" => "4080",
+        "prosumer_12g" => "safe",
         // Historical generic alias kept as the 4080-class default.
         "default" => "4080",
         other => other,
@@ -450,5 +454,15 @@ mod preset_tests {
         assert_eq!(p.batch_size, 1);
         assert!(p.seq_len <= 512);
         assert!(p.rank <= 32);
+    }
+
+    #[test]
+    fn test_prosumer_16g_preset_resolves() {
+        let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384);
+        let profile =
+            resolve_effective_profile(Some("prosumer_16g"), dev, None, CliOverrides::default());
+        assert_eq!(profile.seq_len, 384);
+        assert_eq!(profile.batch_size, 1);
+        assert_eq!(profile.grad_accum, 8);
     }
 }

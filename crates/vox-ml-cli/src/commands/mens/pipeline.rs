@@ -290,7 +290,7 @@ pub async fn run(
                     {
                         let device = device.clone().unwrap_or_else(|| "best".into());
                         let target_model = model.clone();
-                        let target_preset = preset.clone().or_else(|| Some("qwen_4080_16g".into()));
+                        let target_preset = preset.clone().or_else(|| Some("prosumer_16g".into()));
 
                         // SAFETY: CLI process; no concurrent `getenv` readers rely on these during this block.
                         #[allow(unsafe_code)]
@@ -397,4 +397,3 @@ mod tests {
         assert!(!input.to_string_lossy().starts_with('~'));
     }
 }
-
