@@ -115,12 +115,71 @@ pub fn run_frontend_str_with_options(
 ) -> Result<FrontendResult> {
     let file_path = file.to_string_lossy();
     match vox_compiler::pipeline::run_frontend_str_with_options(source, &file_path, options) {
-        Ok(res) => Ok(FrontendResult {
-            module: res.module,
-            hir: res.hir,
-            diagnostics: res.diagnostics,
-            source: res.source,
-        }),
+        Ok(res) => {
+            // Check for gamified features if compile succeeded and there are no typeck/HIR errors
+            if !res
+                .diagnostics
+                .iter()
+                .any(|d| d.severity == vox_compiler::typeck::diagnostics::TypeckSeverity::Error)
+            {
+                #[cfg(feature = "vox-gamify")]
+                {
+                    let source_str = source.to_string();
+                    let trigger_milestones = move || {
+                        let keywords = [
+                            ("@remote", "@remote"),
+                            ("@durable", "@durable"),
+                            ("actor", "actor"),
+                        ];
+                        for &(kw, feature_name) in &keywords {
+                            if source_str.contains(kw) {
+                                match tokio::runtime::Handle::try_current() {
+                                    Ok(handle) => {
+                                        handle.spawn(async move {
+                                            if let Ok(db) = vox_db::Codex::connect_default().await {
+                                                let ev = serde_json::json!({
+                                                    "type": "vox_feature_milestone",
+                                                    "source": "vox-compiler",
+                                                    "payload": { "feature": feature_name },
+                                                });
+                                                let _ = vox_gamify::event_router::route_event_auto_user(&db, &ev).await;
+                                            }
+                                        });
+                                    }
+                                    Err(_) => {
+                                        std::thread::spawn(move || {
+                                            if let Ok(rt) =
+                                                tokio::runtime::Builder::new_current_thread()
+                                                    .enable_all()
+                                                    .build()
+                                            {
+                                                rt.block_on(async {
+                                                    if let Ok(db) = vox_db::Codex::connect_default().await {
+                                                        let ev = serde_json::json!({
+                                                            "type": "vox_feature_milestone",
+                                                            "source": "vox-compiler",
+                                                            "payload": { "feature": feature_name },
+                                                        });
+                                                        let _ = vox_gamify::event_router::route_event_auto_user(&db, &ev).await;
+                                                    }
+                                                });
+                                            }
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    };
+                    trigger_milestones();
+                }
+            }
+            Ok(FrontendResult {
+                module: res.module,
+                hir: res.hir,
+                diagnostics: res.diagnostics,
+                source: res.source,
+            })
+        }
         Err(e) => {
             if json {
                 let diagnostics = vox_compiler::pipeline::check_file(source, &file_path);

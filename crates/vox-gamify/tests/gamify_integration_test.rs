@@ -438,3 +438,20 @@ async fn test_telemetry_shared_event_routing() {
     assert_eq!(rw.xp, 15);
     assert_eq!(rw.crystals, 3);
 }
+
+#[tokio::test]
+async fn test_vox_feature_milestone_event_routing() {
+    let db = vox_db::VoxDb::open_memory().await.expect("db");
+    vox_gamify::db::apply_ludus_migrations(&db)
+        .await
+        .expect("migrations");
+    let ev = serde_json::json!({
+        "type": "vox_feature_milestone",
+        "source": "vox-compiler",
+        "payload": { "feature": "actor" },
+    });
+    let res = vox_gamify::event_router::route_event_auto_user(&db, &ev).await.expect("route");
+    let rw = res.reward.expect("reward");
+    assert_eq!(rw.xp, 31);
+    assert_eq!(rw.crystals, 6);
+}
