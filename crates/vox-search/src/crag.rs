@@ -95,6 +95,28 @@ impl CragRouter {
         refined_queries
     }
 
+    /// Use LLM-generated queries when available; fall back to heuristic.
+    /// Caps output at 4 queries. Pass `None` or `Some(&[])` to use heuristic.
+    #[must_use]
+    pub fn expand_queries_with_llm_or_heuristic(
+        original_query: &str,
+        hits: &[HybridSearchHit],
+        llm_queries: Option<&[String]>,
+    ) -> Vec<String> {
+        let provided: Vec<String> = llm_queries
+            .unwrap_or(&[])
+            .iter()
+            .filter(|q| !q.trim().is_empty())
+            .cloned()
+            .collect();
+        if !provided.is_empty() {
+            let mut out = provided;
+            out.truncate(4);
+            return out;
+        }
+        CragRouter::expand_queries_from_partial_evidence(original_query, hits)
+    }
+
     /// Determines if a research pass should continue based on quality score.
     pub fn should_continue(current_quality: f64, target_quality: f64, hops_remaining: u8) -> bool {
         hops_remaining > 0 && current_quality < target_quality
@@ -147,5 +169,40 @@ mod tests {
                 .iter()
                 .any(|q| q.contains("conflicting evidence source comparison"))
         );
+    }
+    #[test]
+    fn expand_with_llm_uses_llm_when_nonempty() {
+        let llm = vec!["RAG NLI 2025".to_string(), "evidence grounding".to_string()];
+        let result = CragRouter::expand_queries_with_llm_or_heuristic(
+            "deep research",
+            &[hit(0.2, "weak", false)],
+            Some(&llm),
+        );
+        assert_eq!(result, llm);
+    }
+
+    #[test]
+    fn expand_with_llm_falls_back_when_empty() {
+        let result = CragRouter::expand_queries_with_llm_or_heuristic(
+            "deep research citation grounding",
+            &[hit(0.2, "small weak snippet", false)],
+            Some(&[]),
+        );
+        assert!(!result.is_empty());
+        assert!(result.iter().any(|q| q.contains("primary source evidence")));
+    }
+
+    #[test]
+    fn expand_with_llm_caps_at_four() {
+        let many: Vec<String> = (0..10).map(|i| format!("q{i}")).collect();
+        let result = CragRouter::expand_queries_with_llm_or_heuristic("test", &[], Some(&many));
+        assert!(result.len() <= 4);
+    }
+
+    #[test]
+    fn expand_with_llm_filters_blank_entries() {
+        let queries = vec!["".to_string(), "  ".to_string(), "valid".to_string()];
+        let result = CragRouter::expand_queries_with_llm_or_heuristic("test", &[], Some(&queries));
+        assert_eq!(result, vec!["valid"]);
     }
 }

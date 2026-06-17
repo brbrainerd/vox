@@ -203,9 +203,16 @@ pub async fn run_research_with_context_and_session(
     }
 
     if do_web {
-        let (h, s, d, t) =
-            gather_web_hits_for_plan(db, session_id, &query, &plan, &registry, &search_policy)
-                .await;
+        let (h, s, d, t) = gather_web_hits_for_plan(
+            db,
+            session_id,
+            &query,
+            &plan,
+            &registry,
+            &search_policy,
+            config,
+        )
+        .await;
         subqueries_with_hits += s;
         total_dropped_count += d;
         total_sources_attempted += t;
