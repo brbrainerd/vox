@@ -35,6 +35,9 @@ fn default_persist_web_hits() -> bool {
     true
 }
 
+#[inline]
+fn default_novelty_min_score() -> f64 { 0.15 }
+
 /// Tunable retrieval weights and safety rails (replaces ad hoc literals in tool surfaces).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SearchPolicy {
@@ -109,6 +112,10 @@ pub struct SearchPolicy {
     /// When true, web-retrieval hits are mirrored into `search_documents` (async best-effort).
     #[serde(default = "default_persist_web_hits")]
     pub persist_web_hits: bool,
+    /// Minimum novelty score (0.0-1.0) for a hit to appear in synthesis context.
+    /// Env: `VOX_SEARCH_NOVELTY_MIN_SCORE`. Default: 0.15.
+    #[serde(default = "default_novelty_min_score")]
+    pub novelty_min_score: f64,
 }
 
 /// Aggregated SCIENTIA observations that can tune retrieval policy for a run.
@@ -272,6 +279,13 @@ impl Default for SearchPolicy {
             persist_web_hits: !parse_truthy_env(
                 vox_secrets::SecretId::VoxSearchPersistWebHitsDisabled,
             ),
+            novelty_min_score: vox_secrets::resolve_secret(
+                vox_secrets::SecretId::VoxSearchNoveltyMinScore,
+            )
+            .expose()
+            .and_then(|v| v.parse::<f64>().ok())
+            .filter(|x| x.is_finite() && *x >= 0.0 && *x <= 1.0)
+            .unwrap_or_else(default_novelty_min_score),
         }
     }
 }
@@ -394,6 +408,15 @@ impl SearchPolicy {
         {
             p.persist_web_hits =
                 !parse_truthy_env(vox_secrets::SecretId::VoxSearchPersistWebHitsDisabled);
+        }
+        if let Some(v) =
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchNoveltyMinScore).expose()
+            && let Ok(x) = v.parse::<f64>()
+            && x.is_finite()
+            && x >= 0.0
+            && x <= 1.0
+        {
+            p.novelty_min_score = x;
         }
         if let Some(v) =
             vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchSearxngEngines).expose()

@@ -378,6 +378,9 @@ pub enum SecretId {
     VoxSearchMaxHops,
     /// When truthy, skip persisting SearXNG/DDG/Tavily web hits into `search_documents`.
     VoxSearchPersistWebHitsDisabled,
+    VoxSearchNoveltyMinScore,
+    VoxResearchFreeTier,
+    VoxResearchFreeTierModels,
     /// Embedding model id (`VOX_EMBEDDING_MODEL`); non-secret config surfaced via secrets resolver for parity.
     VoxEmbeddingModel,
     VoxSocialWorthinessEnforce,
