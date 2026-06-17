@@ -152,3 +152,29 @@ describe('SearchView accessibility', () => {
     expect(liveRegion).not.toBeNull();
   });
 });
+
+import { scoreToPct } from './searchHelpers';
+
+describe('scoreToPct', () => {
+  it('clamps BM25 scores above 1.0 to 100', () => {
+    expect(scoreToPct(1.5)).toBe('100.00%');
+    expect(scoreToPct(99.9)).toBe('100.00%');
+  });
+
+  it('clamps negative scores to 0', () => {
+    expect(scoreToPct(-0.1)).toBe('0.00%');
+    expect(scoreToPct(-100)).toBe('0.00%');
+  });
+
+  it('maps 0.75 to 75', () => {
+    expect(scoreToPct(0.75)).toBe('75.00%');
+  });
+
+  it('maps 1.0 to 100', () => {
+    expect(scoreToPct(1.0)).toBe('100.00%');
+  });
+
+  it('maps 0.0 to 0', () => {
+    expect(scoreToPct(0.0)).toBe('0.00%');
+  });
+});
