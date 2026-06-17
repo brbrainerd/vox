@@ -27,6 +27,7 @@ struct DeviceSummary {
     vram_total_mb: u64,
     vram_free_mb: u64,
     vram_used_mb: u64,
+    compute_capability: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -78,12 +79,17 @@ pub fn probe_summary() -> Result<String, ProbeError> {
             ),
             Err(_) => (0, 0, 0),
         };
+        let compute_capability = device
+            .cuda_compute_capability()
+            .ok()
+            .map(|cc| format!("{}.{}", cc.major, cc.minor));
         devices.push(DeviceSummary {
             index: idx,
             name,
             vram_total_mb: total_mb,
             vram_free_mb: free_mb,
             vram_used_mb: used_mb,
+            compute_capability,
         });
     }
 
@@ -171,4 +177,17 @@ pub fn device_metrics() -> Result<String, ProbeError> {
 
     let report = DeviceMetricsReport { metrics };
     Ok(serde_json::to_string(&report)?)
+}
+
+#[cfg(test)]
+mod tests_cc {
+    use super::*;
+
+    #[test]
+    fn test_summary_has_compute_capability() {
+        let s = probe_summary().unwrap_or_default();
+        if !s.is_empty() {
+            assert!(s.contains("compute_capability"));
+        }
+    }
 }
