@@ -21,7 +21,7 @@ vox-git = { workspace = true }
 vox-foundation = { workspace = true }
 vox-orchestrator = { workspace = true }
 # Shipping MCP server: keep the full default tool surface (news/scientia/visus).
-vox-orchestrator-mcp = { workspace = true, features = ["news-publish", "gui-visual-review"] }
+vox-orchestrator-mcp = { workspace = true, features = ["news-publish", "gui-visual-review", "heavy-browser"] }
 vox-repository = { workspace = true }
 vox-package-types = { workspace = true }
 vox-config = { workspace = true }
@@ -34,7 +34,7 @@ chrono = { workspace = true }
 vox-actor-runtime = { workspace = true }
 vox-identity = { workspace = true }
 vox-crypto = { workspace = true }
-vox-search = { workspace = true }
+vox-search = { workspace = true, features = ["web-scrape"] }
 vox-ml-cli = { workspace = true, optional = true, features = ["oratio-mic"] }
 vox-plugin-host = { workspace = true, optional = true }
 vox-speech = { workspace = true, features = ["stt-candle"] }
