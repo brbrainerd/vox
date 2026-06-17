@@ -9,6 +9,7 @@ export interface EmptyStateProps {
   description?: string;
   primaryAction?: { label: string; onClick: () => void };
   secondaryAction?: { label: string; onClick: () => void };
+  action?: { label: string; onClick: () => void };
   children?: React.ReactNode;
 }
 
@@ -27,8 +28,11 @@ export function EmptyState({
   description, 
   primaryAction, 
   secondaryAction,
+  action,
   children
 }: EmptyStateProps) {
+  const actualPrimary = primaryAction || action;
+
   return (
     <div
       className="flex flex-col items-center justify-center gap-3 py-16 px-4 text-center max-w-lg mx-auto"
@@ -43,16 +47,16 @@ export function EmptyState({
       
       {children}
 
-      {(primaryAction || secondaryAction) && (
+      {(actualPrimary || secondaryAction) && (
         <div className="flex items-center justify-center gap-3 mt-3">
           {secondaryAction && (
             <Button variant="ghost" size="sm" onClick={secondaryAction.onClick}>
               {secondaryAction.label}
             </Button>
           )}
-          {primaryAction && (
-            <Button variant="primary" size="sm" onClick={primaryAction.onClick}>
-              {primaryAction.label}
+          {actualPrimary && (
+            <Button variant="primary" size="sm" onClick={actualPrimary.onClick}>
+              {actualPrimary.label}
             </Button>
           )}
         </div>

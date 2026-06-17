@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Glass } from '../../ui/Glass';
+import { Kpi } from '../../ui/Kpi';
 import { useLocalStorage } from '../../../hooks/useLocalStorage';
 import { ContextWindowMeter } from './ContextWindowMeter';
 import { getContextBudget, type ContextBudgetPayload } from '../../../transport';
@@ -168,17 +169,21 @@ export function ChatExecutionRail({
         )}
 
         <section aria-label="Resource strip" className="flex flex-col gap-1 border-t border-white/[0.06] pt-3">
-          <Segment
-            testId="execution-rail-agents"
+          <Kpi
+            data-testid="execution-rail-agents"
             label="Agents"
-            value={String(kpis.activeAgents.value)}
+            value={kpis.activeAgents.value}
+            accent="cyan"
             onClick={() => onNavigate('agents')}
+            className="cursor-pointer mb-2"
           />
-          <Segment
-            testId="execution-rail-queue"
+          <Kpi
+            data-testid="execution-rail-queue"
             label="Queue"
-            value={String(kpis.queueDepth.value)}
+            value={kpis.queueDepth.value}
+            accent="amber"
             onClick={() => onNavigate('runs')}
+            className="cursor-pointer mb-2"
           />
           <Segment
             testId="execution-rail-mesh"
