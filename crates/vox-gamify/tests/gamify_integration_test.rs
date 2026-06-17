@@ -419,3 +419,22 @@ fn quest_engine_archetype_differs_by_user() {
         "different users should get varied archetypes"
     );
 }
+
+#[tokio::test]
+async fn test_telemetry_shared_event_routing() {
+    let db = vox_db::VoxDb::open_memory().await.expect("db");
+    vox_gamify::db::apply_ludus_migrations(&db)
+        .await
+        .expect("migrations");
+    let ev = serde_json::json!({
+        "type": "telemetry_shared",
+        "source": "vox-telemetry",
+        "payload": { "bytes_shared": 1024 },
+    });
+    let res = vox_gamify::event_router::route_event_auto_user(&db, &ev)
+        .await
+        .expect("route");
+    let rw = res.reward.expect("reward");
+    assert_eq!(rw.xp, 15);
+    assert_eq!(rw.crystals, 3);
+}
