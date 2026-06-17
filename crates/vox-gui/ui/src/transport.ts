@@ -155,6 +155,25 @@ export function listenPreviewAvailable(
   return listen<PreviewAvailablePayload>(PREVIEW_AVAILABLE_EVENT, (event) => onPreview(event.payload));
 }
 
+/** Tauri event name emitted when the secretary auto-submits a task from chat. */
+export const SECRETARY_PROPOSED_EVENT = 'vox://secretary-proposed-task';
+
+export interface SecretaryProposedPayload {
+  item_id: string;
+  intent: string;
+  confidence_pct: number;
+}
+
+/**
+ * Subscribe to the secretary proposed task event.
+ */
+export function listenSecretaryProposed(
+  onProposed: (payload: SecretaryProposedPayload) => void,
+): Promise<UnlistenFn> {
+  return listen<SecretaryProposedPayload>(SECRETARY_PROPOSED_EVENT, (event) => onProposed(event.payload));
+}
+
+
 export interface ExecuteOutput {
   exit_code: number;
   stdout: string;

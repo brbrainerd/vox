@@ -107,6 +107,27 @@ pub fn emit_tasks_changed(app_handle: &tauri::AppHandle) {
     let _ = app_handle.emit(TASKS_CHANGED_EVENT, ());
 }
 
+/// Tauri event emitted when the secretary auto-submits a task from chat.
+/// Payload: `SecretaryProposedPayload`.
+pub const SECRETARY_PROPOSED_EVENT: &str = "vox://secretary-proposed-task";
+
+/// Payload for the [`SECRETARY_PROPOSED_EVENT`] Tauri event.
+#[derive(Debug, serde::Serialize, Clone)]
+pub struct SecretaryProposedPayload {
+    /// Hopper item ID assigned to the submitted task.
+    pub item_id: String,
+    /// Cleaned intent text that was submitted as the task description.
+    pub intent: String,
+    /// Classifier confidence 0–100 (for UI display only; not a guarantee).
+    pub confidence_pct: u8,
+}
+
+/// Emit [`SECRETARY_PROPOSED_EVENT`] to all webview windows.
+pub fn emit_secretary_proposed(app_handle: &tauri::AppHandle, payload: SecretaryProposedPayload) {
+    let _ = app_handle.emit(SECRETARY_PROPOSED_EVENT, payload);
+}
+
+
 
 #[derive(Debug, serde::Serialize)]
 pub struct GuiAgentSummary {
@@ -622,4 +643,22 @@ mod budget_tests {
         assert_eq!(cfg.usable_budget(), 118_000);
     }
 }
+
+#[cfg(test)]
+mod secretary_tests {
+    use super::*;
+
+    #[test]
+    fn secretary_proposed_payload_serializes() {
+        let payload = SecretaryProposedPayload {
+            item_id: "abc123".to_string(),
+            intent: "Fix the auth bug in login module".to_string(),
+            confidence_pct: 85,
+        };
+        let json = serde_json::to_value(&payload).expect("serialize");
+        assert_eq!(json["item_id"], "abc123");
+        assert_eq!(json["confidence_pct"], 85);
+    }
+}
+
 
