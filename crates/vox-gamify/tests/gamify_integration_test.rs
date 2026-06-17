@@ -470,3 +470,19 @@ async fn test_skill_published_event_routing() {
     assert_eq!(rw.xp, 77);
     assert_eq!(rw.crystals, 15);
 }
+
+#[tokio::test]
+async fn test_skill_gossiped_event_routing() {
+    let db = vox_db::VoxDb::open_memory().await.expect("db");
+    vox_gamify::db::apply_ludus_migrations(&db).await.expect("migrations");
+    let ev = serde_json::json!({
+        "type": "skill_gossiped",
+        "source": "vox-populi",
+        "payload": { "peer_id": "peer-node-1" },
+    });
+    let res = vox_gamify::event_router::route_event_auto_user(&db, &ev).await.expect("route");
+    let rw = res.reward.expect("reward");
+    assert_eq!(rw.xp, 115);
+    assert_eq!(rw.crystals, 23);
+    assert_eq!(rw.lumens, 15);
+}
