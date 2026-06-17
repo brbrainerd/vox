@@ -1,0 +1,133 @@
+//! Graphify corpus registry + freshness assessment (`vox-config::graphify`).
+
+use std::fs;
+use std::path::Path;
+
+use chrono::{TimeZone, Utc};
+use vox_config::graphify::{
+    GraphifyCorporaRegistry, assess_corpus_status, graph_stats_from_json, load_graphify_corpora,
+};
+
+fn write_minimal_registry(repo: &Path) {
+    let dir = repo.join("contracts/retrieval");
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(
+        dir.join("graphify-corpora.v1.yaml"),
+        include_str!("../../../contracts/retrieval/graphify-corpora.v1.yaml"),
+    )
+    .unwrap();
+}
+
+fn corpus_by_id<'a>(
+    reg: &'a GraphifyCorporaRegistry,
+    id: &str,
+) -> &'a vox_config::graphify::GraphifyCorpus {
+    reg.corpora
+        .iter()
+        .find(|c| c.id == id)
+        .unwrap_or_else(|| panic!("corpus {id}"))
+}
+
+#[test]
+fn load_graphify_corpora_reads_workspace_contract() {
+    let tmp = tempfile::tempdir().unwrap();
+    write_minimal_registry(tmp.path());
+    let reg = load_graphify_corpora(tmp.path()).expect("load");
+    assert_eq!(reg.default_corpus_id, "repo-code-graph");
+    assert_eq!(reg.ttl_days_default, 30);
+    assert_eq!(reg.corpora.len(), 3);
+    assert!(reg.corpora.iter().any(|c| c.id == "vox-gui-surface"));
+}
+
+#[test]
+fn assess_reports_graph_missing_when_file_absent() {
+    let tmp = tempfile::tempdir().unwrap();
+    write_minimal_registry(tmp.path());
+    let reg = load_graphify_corpora(tmp.path()).unwrap();
+    let corpus = corpus_by_id(&reg, "repo-code-graph");
+    let status = assess_corpus_status(
+        tmp.path(),
+        corpus,
+        Some("deadbeef"),
+        Utc.with_ymd_and_hms(2026, 6, 16, 12, 0, 0).unwrap(),
+        30,
+    );
+    assert!(!status.graph_exists);
+    assert!(!status.is_fresh);
+    assert!(status.stale_reasons.iter().any(|r| r == "graph_missing"));
+}
+
+#[test]
+fn assess_fresh_when_graph_present_and_git_sha_matches() {
+    let tmp = tempfile::tempdir().unwrap();
+    write_minimal_registry(tmp.path());
+    let graph_dir = tmp.path().join("graphify-out");
+    fs::create_dir_all(&graph_dir).unwrap();
+    fs::write(
+        graph_dir.join("graph.json"),
+        r#"{"nodes":[{"id":"a"}],"links":[{"source":"a","target":"b"}]}"#,
+    )
+    .unwrap();
+    let built_at = "2026-06-15T10:00:00Z";
+    fs::write(
+        graph_dir.join(".graphify_manifest.v1.json"),
+        format!(
+            r#"{{"corpus_id":"repo-code-graph","built_at":"{built_at}","git_sha":"abc123","node_count":1,"edge_count":1}}"#
+        ),
+    )
+    .unwrap();
+    let reg = load_graphify_corpora(tmp.path()).unwrap();
+    let corpus = corpus_by_id(&reg, "repo-code-graph");
+    let status = assess_corpus_status(
+        tmp.path(),
+        corpus,
+        Some("abc123"),
+        Utc.with_ymd_and_hms(2026, 6, 16, 12, 0, 0).unwrap(),
+        30,
+    );
+    assert!(status.graph_exists);
+    assert!(
+        status.is_fresh,
+        "stale={:?} warn={:?}",
+        status.stale_reasons, status.warnings
+    );
+    assert_eq!(status.node_count, Some(1));
+    assert_eq!(status.edge_count, Some(1));
+}
+
+#[test]
+fn assess_stale_on_git_drift() {
+    let tmp = tempfile::tempdir().unwrap();
+    write_minimal_registry(tmp.path());
+    let graph_dir = tmp.path().join("graphify-out");
+    fs::create_dir_all(&graph_dir).unwrap();
+    fs::write(graph_dir.join("graph.json"), r#"{"nodes":[],"links":[]}"#).unwrap();
+    fs::write(
+        graph_dir.join(".graphify_manifest.v1.json"),
+        r#"{"corpus_id":"repo-code-graph","built_at":"2026-06-15T10:00:00Z","git_sha":"oldsha"}"#,
+    )
+    .unwrap();
+    let reg = load_graphify_corpora(tmp.path()).unwrap();
+    let corpus = corpus_by_id(&reg, "repo-code-graph");
+    let status = assess_corpus_status(
+        tmp.path(),
+        corpus,
+        Some("newsha"),
+        Utc.with_ymd_and_hms(2026, 6, 16, 12, 0, 0).unwrap(),
+        30,
+    );
+    assert!(!status.is_fresh);
+    assert!(status.stale_reasons.iter().any(|r| r == "git_drift"));
+}
+
+#[test]
+fn graph_stats_accepts_links_or_edges_key() {
+    let with_links = serde_json::json!({"nodes": [{}, {}], "links": [{}]});
+    let (n, e) = graph_stats_from_json(&with_links).unwrap();
+    assert_eq!(n, 2);
+    assert_eq!(e, 1);
+    let with_edges = serde_json::json!({"nodes": [{}], "edges": [{}, {}]});
+    let (n2, e2) = graph_stats_from_json(&with_edges).unwrap();
+    assert_eq!(n2, 1);
+    assert_eq!(e2, 2);
+}

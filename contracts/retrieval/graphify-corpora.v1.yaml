@@ -1,0 +1,37 @@
+x-vox-version: 1
+schema_version: 1
+
+# Named Graphify knowledge-graph corpora for agent retrieval and freshness gates.
+# See docs/src/architecture/graphify-integration-research-2026-06-16.md
+
+default_corpus_id: repo-code-graph
+ttl_days_default: 30
+
+corpora:
+  - id: repo-code-graph
+    title: Repository code graph (legacy graphify-out)
+    scope_path: "."
+    graph_path: graphify-out/graph.json
+    manifest_path: graphify-out/.graphify_manifest.v1.json
+    extraction_mode: structural
+    default_for_intents:
+      - code_navigation
+      - repo_structure
+
+  - id: vox-gui-surface
+    title: vox-gui surface map
+    scope_path: crates/vox-gui
+    graph_path: crates/vox-gui/graphify-out/graph.json
+    manifest_path: crates/vox-gui/graphify-out/.graphify_manifest.v1.json
+    extraction_mode: structural
+    default_for_intents:
+      - gui_surface
+
+  - id: config-audit
+    title: Config hardcoded-values audit graph
+    scope_path: "."
+    graph_path: graphify-out/config-audit-graph/graph.json
+    manifest_path: graphify-out/config-audit-graph/.graphify_manifest.v1.json
+    extraction_mode: audit
+    default_for_intents:
+      - config_audit

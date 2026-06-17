@@ -18,6 +18,8 @@ from graphify.build import build_from_json
 from graphify.cluster import cluster
 from graphify.export import to_json
 
+from manifest_writer import maybe_write_graphify_manifest
+
 
 def main() -> int:
     repo_root = Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()
@@ -43,8 +45,17 @@ def main() -> int:
         flush=True,
     )
 
-    to_json(G, communities, out_path, force=True)
-    print(f"wrote {out_path}", flush=True)
+    out = Path(out_path)
+    if not out.is_absolute():
+        out = repo_root / out
+
+    to_json(G, communities, str(out), force=True)
+    print(f"wrote {out}", flush=True)
+
+    manifest_path = maybe_write_graphify_manifest(repo_root, out)
+    if manifest_path is not None:
+        print(f"wrote {manifest_path.relative_to(repo_root)}", flush=True)
+
     return 0
 
 

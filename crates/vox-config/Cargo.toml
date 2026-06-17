@@ -6,6 +6,7 @@ license.workspace = true
 description = "Centralized configuration and env/default resolution for Vox tooling"
 
 [dependencies]
+tokio       = { workspace = true, features = ["sync"] }
 serde       = { workspace = true, features = ["derive"] }
 toml.workspace = true
 serde_json  = { workspace = true }
@@ -16,6 +17,7 @@ vox-llm-egress = { workspace = true }
 workspace-hack = { workspace = true }
 serde_yaml = { workspace = true }
 dirs = { workspace = true }
+chrono = { workspace = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }
