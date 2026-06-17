@@ -86,6 +86,12 @@ pub struct ChatMessageParams {
     /// models (MENS) follow it without a tool round-trip.
     #[serde(default, alias = "active_skill")]
     pub skill: Option<String>,
+    /// Optional override to force trigger autonomous research (true/false)
+    #[serde(default)]
+    pub force_research: Option<bool>,
+    /// Optional research scope override ("local", "web", or "both")
+    #[serde(default)]
+    pub research_scope: Option<String>,
 }
 
 fn default_chat_history_session_id() -> String {
@@ -428,5 +434,22 @@ mod chat_history_params_tests {
                 .expect("deserialize");
         assert_eq!(p.session_id, "vscode-sidebar");
         assert_eq!(p.trace_id.as_deref(), Some("t1"));
+    }
+}
+
+#[cfg(test)]
+mod chat_params_tests {
+    use super::*;
+
+    #[test]
+    fn parses_research_params_from_json() {
+        let json = r#"{
+            "prompt": "explain quantum computing",
+            "force_research": true,
+            "research_scope": "web"
+        }"#;
+        let p: ChatMessageParams = serde_json::from_str(json).unwrap();
+        assert_eq!(p.force_research, Some(true));
+        assert_eq!(p.research_scope, Some("web".to_string()));
     }
 }
