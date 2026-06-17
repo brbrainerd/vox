@@ -159,7 +159,10 @@ pub async fn run(
                 }
             }
             PipelineStage::Validate => {
-                if !dry_run && validated.is_file() {
+                if !dry_run {
+                    if !validated.is_file() {
+                        anyhow::bail!("Validate stage: missing input file '{}'. Make sure Extract stage ran successfully.", validated.display());
+                    }
                     crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Validate {
                         input: validated.clone(),
                         output: Some(validated.clone()),
@@ -246,7 +249,10 @@ pub async fn run(
                 }
             }
             PipelineStage::Pairs => {
-                if !dry_run && validated.is_file() {
+                if !dry_run {
+                    if !validated.is_file() {
+                        anyhow::bail!("Pairs stage: missing input file '{}'. Make sure Extract/Validate stage ran successfully.", validated.display());
+                    }
                     crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Pairs {
                         input: validated.clone(),
                         output: train_jsonl.clone(),
@@ -256,7 +262,10 @@ pub async fn run(
                 }
             }
             PipelineStage::Eval => {
-                if !dry_run && train_jsonl.is_file() {
+                if !dry_run {
+                    if !train_jsonl.is_file() {
+                        anyhow::bail!("Eval stage: missing input file '{}'. Make sure Pairs stage ran successfully.", train_jsonl.display());
+                    }
                     crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Eval {
                         input: train_jsonl.clone(),
                         output: eval_out.clone(),
@@ -395,5 +404,31 @@ mod tests {
             .map(|h| h.join(".vox/corpus/heal_pairs.jsonl"))
             .unwrap_or_else(|| PathBuf::from("heal_pairs.jsonl"));
         assert!(!input.to_string_lossy().starts_with('~'));
+    }
+
+    #[tokio::test]
+    async fn test_empty_validated_fails_closed() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let data_dir = temp_dir.path().join("data");
+        let output_dir = temp_dir.path().join("output");
+
+        let res = run(
+            data_dir,
+            output_dir,
+            true, // skip_train
+            false, // strict_gate
+            None,
+            None,
+            None,
+            None,
+            Some("validate,pairs,eval".to_string()),
+            false,
+            false,
+        )
+        .await;
+
+        assert!(res.is_err());
+        let err_msg = res.unwrap_err().to_string();
+        assert!(err_msg.contains("missing input file") || err_msg.contains("produced no validated.jsonl"));
     }
 }
