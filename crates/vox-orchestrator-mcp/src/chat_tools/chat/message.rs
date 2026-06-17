@@ -12,7 +12,9 @@ use crate::chat_socrates_meta::{
 };
 use crate::journey_envelope;
 use crate::llm_bridge::{McpChatModelResolution, McpInferRouting, call_llm};
-use crate::memory::{RetrievalTriggerMode, run_retrieval_bundle};
+use crate::memory::{
+    RetrievalTriggerMode, run_retrieval_bundle, should_trigger_autonomous_research,
+};
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
 use crate::session_identity::normalize_chat_session_id;
@@ -195,7 +197,43 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                     .join("\n");
                 context_parts.push(format!("[AUTONOMOUS RESEARCH — REPOSITORY]:\n{formatted}"));
             }
-            retrieval_evidence = Some(bundle.evidence);
+            retrieval_evidence = Some(bundle.evidence.clone());
+
+            // Check if autonomous deep research should be triggered
+            if should_trigger_autonomous_research(&expanded_prompt, &bundle, params.force_research)
+            {
+                tracing::info!("Triggering autonomous research for additional context");
+                let scope = params.research_scope.as_deref().unwrap_or("both");
+
+                // Spawn autonomous research execution
+                let queries = vec![expanded_prompt.clone()];
+                let trigger_reason = format!(
+                    "Chat context injection (forced: {:?}, scope: {})",
+                    params.force_research, scope
+                );
+
+                match state
+                    .orchestrator
+                    .perform_autonomous_research(None, None, queries, &trigger_reason)
+                    .await
+                {
+                    Ok(results) => {
+                        if !results.is_empty() {
+                            let formatted = results.join("\n");
+                            context_parts.push(format!(
+                                "[AUTONOMOUS RESEARCH — SYNTHESIS SUMMARY]:\n{formatted}"
+                            ));
+                            tracing::info!(
+                                count = results.len(),
+                                "Autonomous research results injected successfully"
+                            );
+                        }
+                    }
+                    Err(err) => {
+                        tracing::warn!(error = %err, "Autonomous research execution failed");
+                    }
+                }
+            }
         }
         Err(e) => {
             tracing::debug!(
