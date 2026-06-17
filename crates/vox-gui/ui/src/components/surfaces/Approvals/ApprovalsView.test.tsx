@@ -59,4 +59,17 @@ describe('ApprovalsView', () => {
     expect(approve.getAttribute('type')).toBe('button');
     expect(reject.getAttribute('type')).toBe('button');
   });
+
+  it('renders ApprovalsView columns with appropriate headers', async () => {
+    invokeMock.mockResolvedValue(
+      envelope([
+        { approval_id: 'ap-1', tool: 'shell', summary: 'do thing', requested_at_ms: Date.now() },
+      ]),
+    );
+    render(<ApprovalsView pushToast={vi.fn()} />);
+    await waitFor(() => {
+      expect(screen.getByText('Request ID')).toBeDefined();
+      expect(screen.getByText('Action Description')).toBeDefined();
+    });
+  });
 });
