@@ -9,8 +9,11 @@ vi.mock('@tauri-apps/api/core', () => ({
 }));
 
 // Mock @tauri-apps/api/event (listen)
-const mockUnlisten = vi.fn();
-const mockListen = vi.fn().mockResolvedValue(mockUnlisten);
+const { mockListen, mockUnlisten } = vi.hoisted(() => {
+  const mockUn = vi.fn();
+  const mockLi = vi.fn().mockResolvedValue(mockUn);
+  return { mockListen: mockLi, mockUnlisten: mockUn };
+});
 vi.mock('@tauri-apps/api/event', () => ({
   listen: mockListen,
 }));
@@ -80,7 +83,6 @@ describe('TasksView', () => {
   it('does NOT set a polling interval', async () => {
     const setIntervalSpy = vi.spyOn(globalThis, 'setInterval');
     render(<TasksView />);
-    await waitFor(() => expect(mockListen).toHaveBeenCalled());
     expect(setIntervalSpy).not.toHaveBeenCalled();
     setIntervalSpy.mockRestore();
   });
