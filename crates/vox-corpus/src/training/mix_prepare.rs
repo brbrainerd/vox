@@ -348,4 +348,21 @@ mod tests {
         let got = std::fs::read_to_string(&train).expect("read");
         assert!(got.contains("\"y\":2"));
     }
+
+    #[test]
+    fn test_mix_config_paths_valid() {
+        let ws = crate::training::contract::find_workspace_root().unwrap();
+        let mix_yaml = resolve_mix_config_path(Some(&ws));
+        let config = crate::corpus::MixConfigSchema::load(&mix_yaml).unwrap();
+        for source in config.sources {
+            if !source.optional {
+                assert!(
+                    ws.join(&source.path).is_file()
+                        || source.path.contains("validated_mixed.jsonl"),
+                    "Source path {} must exist if not optional",
+                    source.path
+                );
+            }
+        }
+    }
 }
