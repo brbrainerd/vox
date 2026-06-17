@@ -124,53 +124,81 @@ pub fn run_frontend_str_with_options(
             {
                 #[cfg(feature = "vox-gamify")]
                 {
-                    let source_str = source.to_string();
-                    let trigger_milestones = move || {
-                        let keywords = [
-                            ("@remote", "@remote"),
-                            ("@durable", "@durable"),
-                            ("actor", "actor"),
-                        ];
-                        for &(kw, feature_name) in &keywords {
-                            if source_str.contains(kw) {
-                                match tokio::runtime::Handle::try_current() {
-                                    Ok(handle) => {
-                                        handle.spawn(async move {
-                                            if let Ok(db) = vox_db::Codex::connect_default().await {
-                                                let ev = serde_json::json!({
-                                                    "type": "vox_feature_milestone",
-                                                    "source": "vox-compiler",
-                                                    "payload": { "feature": feature_name },
-                                                });
-                                                let _ = vox_gamify::event_router::route_event_auto_user(&db, &ev).await;
-                                            }
-                                        });
-                                    }
-                                    Err(_) => {
-                                        std::thread::spawn(move || {
-                                            if let Ok(rt) =
-                                                tokio::runtime::Builder::new_current_thread()
-                                                    .enable_all()
-                                                    .build()
-                                            {
-                                                rt.block_on(async {
-                                                    if let Ok(db) = vox_db::Codex::connect_default().await {
-                                                        let ev = serde_json::json!({
-                                                            "type": "vox_feature_milestone",
-                                                            "source": "vox-compiler",
-                                                            "payload": { "feature": feature_name },
-                                                        });
-                                                        let _ = vox_gamify::event_router::route_event_auto_user(&db, &ev).await;
-                                                    }
-                                                });
-                                            }
-                                        });
-                                    }
+                    let mut has_remote = false;
+                    let mut has_durable = false;
+                    let mut has_actor = false;
+
+                    for f in &res.hir.functions {
+                        if f.is_remote {
+                            has_remote = true;
+                        }
+                        if let Some(kind) = f.durability {
+                            match kind {
+                                vox_compiler::hir::DurabilityKind::Workflow
+                                | vox_compiler::hir::DurabilityKind::Activity => {
+                                    has_durable = true;
+                                }
+                                vox_compiler::hir::DurabilityKind::Actor => {
+                                    has_actor = true;
                                 }
                             }
                         }
-                    };
-                    trigger_milestones();
+                    }
+
+                    let mut features = Vec::new();
+                    if has_remote {
+                        features.push("@remote");
+                    }
+                    if has_durable {
+                        features.push("@durable");
+                    }
+                    if has_actor {
+                        features.push("actor");
+                    }
+
+                    if !features.is_empty() {
+                        let trigger_milestones = move || {
+                            match tokio::runtime::Handle::try_current() {
+                                Ok(handle) => {
+                                    handle.spawn(async move {
+                                        if let Ok(db) = vox_db::Codex::connect_default().await {
+                                            for feature in features {
+                                                let ev = serde_json::json!({
+                                                    "type": "vox_feature_milestone",
+                                                    "source": "vox-compiler",
+                                                    "payload": { "feature": feature },
+                                                });
+                                                let _ = vox_gamify::event_router::route_event_auto_user(&db, &ev).await;
+                                            }
+                                        }
+                                    });
+                                }
+                                Err(_) => {
+                                    static COMPILER_EVENT_RT: std::sync::OnceLock<tokio::runtime::Runtime> = std::sync::OnceLock::new();
+                                    let rt = COMPILER_EVENT_RT.get_or_init(|| {
+                                        tokio::runtime::Builder::new_multi_thread()
+                                            .worker_threads(1)
+                                            .enable_all()
+                                            .build()
+                                            .expect("failed to build compiler event runtime")
+                                    });
+                                    rt.spawn(async move {
+                                        if let Ok(db) = vox_db::Codex::connect_default().await {
+                                            for feature in features {
+                                                let ev = serde_json::json!({
+                                                    "type": "vox_feature_milestone",
+                                                    "source": "vox-compiler",
+                                                    "payload": { "feature": feature },
+                                                });
+                                                let _ = vox_gamify::event_router::route_event_auto_user(&db, &ev).await;
+                                            }
+                                        }
+                                    });
+                                }
+                            }
+                        };
+                        trigger_milestones();
+                    }
                 }
             }
             Ok(FrontendResult {
