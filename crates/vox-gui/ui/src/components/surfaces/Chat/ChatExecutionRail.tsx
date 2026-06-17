@@ -1,0 +1,219 @@
+import React, { useEffect, useState } from 'react';
+import { Glass } from '../../ui/Glass';
+import { useLocalStorage } from '../../../hooks/useLocalStorage';
+import { ContextWindowMeter } from './ContextWindowMeter';
+import { getContextBudget, type ContextBudgetPayload } from '../../../transport';
+
+
+
+export interface ChatExecutionTask {
+  id: string;
+  title: string;
+  status?: string;
+}
+
+export interface ChatExecutionRailKpis {
+  activeAgents: { value: number };
+  queueDepth: { value: number };
+  mesh: { peers: number };
+}
+
+export interface ChatExecutionRailProps {
+  tasks: ChatExecutionTask[];
+  kpis: ChatExecutionRailKpis;
+  intents?: string[];
+  activeModel?: string | null;
+  openrouterSpendUsd?: number | null;
+  onNavigate: (viewKey: string) => void;
+}
+
+function formatOpenRouterSpend(usd: number): string {
+  return `$${usd.toFixed(2)}`;
+}
+
+function Segment({
+  testId,
+  label,
+  value,
+  onClick,
+}: {
+  testId: string;
+  label: string;
+  value: string;
+  onClick?: () => void;
+}) {
+  const className =
+    'inline-flex w-full items-center justify-between gap-2 rounded px-2 py-1 text-[10px] text-zinc-400 transition hover:bg-white/[0.04] hover:text-zinc-200';
+
+  if (onClick) {
+    return (
+      <button type="button" data-testid={testId} onClick={onClick} className={className}>
+        <span className="uppercase tracking-[0.14em] text-zinc-500">{label}</span>
+        <span className="font-mono tabular-nums text-zinc-200">{value}</span>
+      </button>
+    );
+  }
+
+  return (
+    <div data-testid={testId} className={className}>
+      <span className="uppercase tracking-[0.14em] text-zinc-500">{label}</span>
+      <span className="font-mono tabular-nums text-zinc-200">{value}</span>
+    </div>
+  );
+}
+
+const EXECUTION_RAIL_COLLAPSED_KEY = 'gui.chat.execution_rail_collapsed.v1';
+
+export function ChatExecutionRail({
+  tasks,
+  kpis,
+  intents,
+  activeModel,
+  openrouterSpendUsd,
+  onNavigate,
+}: ChatExecutionRailProps) {
+  const [collapsed, setCollapsed] = useLocalStorage<boolean>(EXECUTION_RAIL_COLLAPSED_KEY, false);
+  const [budget, setBudget] = useState<ContextBudgetPayload | null>(null);
+
+  useEffect(() => {
+    getContextBudget()
+      .then(setBudget)
+      .catch(() => {/* daemon unavailable; meter stays hidden */});
+  }, []);
+
+  const peerLabel = kpis.mesh.peers === 1 ? '1 peer' : `${kpis.mesh.peers} peers`;
+
+  if (collapsed) {
+    return (
+      <aside className="shrink-0">
+        <Glass className="flex flex-col items-center gap-2 p-2">
+          <button
+            type="button"
+            aria-label="Expand execution rail"
+            aria-expanded={false}
+            onClick={() => setCollapsed(false)}
+            className="rounded-lg border border-border-subtle p-2 text-text-muted hover:border-brass/40 hover:text-brass transition"
+          >
+            <span className="font-mono text-sm" aria-hidden="true">
+              »
+            </span>
+          </button>
+        </Glass>
+      </aside>
+    );
+  }
+
+  return (
+    <aside className="w-56 shrink-0">
+      <Glass className="flex h-full flex-col gap-3 p-3">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-[10px] uppercase tracking-[0.18em] text-brass">Execution</h2>
+          <button
+            type="button"
+            aria-label="Collapse execution rail"
+            aria-expanded={true}
+            onClick={() => setCollapsed(true)}
+            className="rounded p-1 text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-300 transition"
+          >
+            <span className="font-mono text-xs" aria-hidden="true">
+              «
+            </span>
+          </button>
+        </div>
+
+        <section
+          role="region"
+          aria-label="Active tasks"
+          className="flex min-h-0 flex-1 flex-col gap-2"
+        >
+          {tasks.length === 0 ? (
+            <p className="text-[11px] text-zinc-500">No active tasks for this session.</p>
+          ) : (
+            <ul className="flex flex-col gap-1.5 overflow-y-auto custom-scrollbar">
+              {tasks.map(task => (
+                <li
+                  key={task.id}
+                  className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-2"
+                >
+                  <p className="text-xs text-zinc-200 leading-snug">{task.title}</p>
+                  {task.status && (
+                    <p className="mt-0.5 text-[10px] uppercase tracking-[0.12em] text-zinc-500">
+                      {task.status}
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {intents != null && intents.length > 0 && (
+          <section
+            role="region"
+            aria-label="Intent map"
+            className="flex flex-col gap-1 border-t border-white/[0.06] pt-3"
+          >
+            {intents.slice(0, 3).map(intent => (
+              <button
+                key={intent}
+                type="button"
+                aria-label={intent}
+                onClick={() => onNavigate('matrix')}
+                className="rounded px-2 py-1 text-left text-[11px] text-zinc-300 transition hover:bg-white/[0.04] hover:text-brass"
+              >
+                {intent}
+              </button>
+            ))}
+          </section>
+        )}
+
+        <section aria-label="Resource strip" className="flex flex-col gap-1 border-t border-white/[0.06] pt-3">
+          <Segment
+            testId="execution-rail-agents"
+            label="Agents"
+            value={String(kpis.activeAgents.value)}
+            onClick={() => onNavigate('agents')}
+          />
+          <Segment
+            testId="execution-rail-queue"
+            label="Queue"
+            value={String(kpis.queueDepth.value)}
+            onClick={() => onNavigate('runs')}
+          />
+          <Segment
+            testId="execution-rail-mesh"
+            label="Mesh"
+            value={peerLabel}
+            onClick={() => onNavigate('compute')}
+          />
+          {activeModel != null && activeModel !== '' && (
+            <Segment
+              testId="execution-rail-model"
+              label="Model"
+              value={activeModel}
+              onClick={() => onNavigate('models')}
+            />
+          )}
+          {openrouterSpendUsd != null && !Number.isNaN(openrouterSpendUsd) && (
+            <Segment
+              testId="execution-rail-openrouter"
+              label="OpenRouter"
+              value={formatOpenRouterSpend(openrouterSpendUsd)}
+              onClick={() => onNavigate('settings')}
+            />
+          )}
+        </section>
+
+        {budget && (
+          <ContextWindowMeter
+            usedTokens={0}
+            maxTokens={budget.max_context_tokens}
+            thresholdTokens={budget.threshold_tokens}
+            strategy={budget.strategy}
+          />
+        )}
+      </Glass>
+    </aside>
+  );
+}
+

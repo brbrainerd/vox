@@ -8,6 +8,7 @@ import type {
   OrchestratorStatus,
   RoutingSummary,
 } from './types/tauri';
+import type { TaskRow } from './components/surfaces/Tasks/tasksHelpers';
 
 // `OpenLocator` / `OpenOutcome` (the `open_locator` IPC DTOs) live in ./types/tauri
 // alongside the other Tauri command types; re-exported here for callers of the hub.
@@ -79,6 +80,32 @@ export function listenScientiaQueue(
   return listen<ScientiaQueuePing>(SCIENTIA_QUEUE_EVENT, (event) => onChange(event.payload));
 }
 
+/** Tauri event for one newly-surfaced discovery inbox row (mirrors `scientia.discovery.surfaced`). */
+export const SCIENTIA_DISCOVERY_SURFACED_EVENT = 'vox://scientia-discovery-surfaced';
+
+/** One discovery inbox row pushed when a candidate surfaces. */
+export interface DiscoverySurfacedPayload {
+  id: number;
+  publication_id: string;
+  surfaced_at_ms: number;
+  intake_tier: string;
+  signal_codes: string[];
+  /** `research` when signal codes include `research_pipeline.*`, else `commit_watcher`. */
+  origin: string;
+}
+
+/**
+ * Subscribe to newly-surfaced discovery candidates. Each emission is one inbox row;
+ * refetch or merge locally on receipt. Rejects outside Tauri (interval fallback).
+ */
+export function listenDiscoverySurfaced(
+  onRow: (row: DiscoverySurfacedPayload) => void,
+): Promise<UnlistenFn> {
+  return listen<DiscoverySurfacedPayload>(SCIENTIA_DISCOVERY_SURFACED_EVENT, (event) =>
+    onRow(event.payload),
+  );
+}
+
 /** Tauri event name carrying browser live-view PNG frames (CDP mirror). */
 export const BROWSER_FRAME_EVENT = 'vox://browser-frame';
 export const PREVIEW_AVAILABLE_EVENT = 'vox://preview-available';
@@ -132,6 +159,33 @@ export interface ExecuteOutput {
   exit_code: number;
   stdout: string;
   stderr: string;
+}
+
+/** Mirrors Rust `IdentitySummaryDto` from `commands/identity.rs`. */
+export interface IdentitySummary {
+  display_name: string;
+  os_user?: string | null;
+}
+
+/** Mirrors Rust `LlmSpendDto` from `commands/user_config.rs` (camelCase on wire). */
+export interface LlmSpendDto {
+  sessionUsd: number;
+  dayUsd: number;
+  totalUsd: number;
+  dailyBudgetUsd: number;
+  perSessionBudgetUsd: number;
+}
+
+export interface GamifySettingsDto {
+  enabled: boolean;
+  mode: string;
+}
+
+/** Wire DTO returned by `record_gui_event` (camelCase on the Tauri bridge). */
+export interface GuiEventResultDto {
+  xpGranted: number;
+  lumensGranted: number;
+  achievementTitle?: string | null;
 }
 
 export interface CommandMetadata {
@@ -260,6 +314,10 @@ class VoxTransport {
     return invoke<RoutingSummary>('get_routing_summary_live');
   }
 
+  async listOrchestratorTasks(): Promise<TaskRow[]> {
+    return invoke<TaskRow[]>('list_orchestrator_tasks');
+  }
+
   async setRoutingPriority(priority: {
     efficiency: number;
     precision: number;
@@ -358,12 +416,27 @@ class VoxTransport {
     return invoke('set_gui_preference', { key, value });
   }
 
+  invokeMcpTool(
+    tool: string,
+    args: Record<string, unknown> = {},
+  ): Promise<{ is_error?: boolean; result?: unknown }> {
+    return invoke('invoke_mcp_tool', { tool, args });
+  }
+
   openLocator(locator: OpenLocator): Promise<OpenOutcome> {
     return invoke<OpenOutcome>('open_locator', { locator });
   }
 
   voxDocsIndex(): Promise<{ title: string; description: string; path: string }[]> {
     return invoke('vox_docs_index');
+  }
+
+  /** Policy catalog rows for federated OmniSearch (see policy_list IPC). */
+  listPolicies(): Promise<{ name: string; status?: string }[]> {
+    return invoke<{ id: string }[]>('policy_list', { domain: null, group: null }).then(rows => {
+      if (!Array.isArray(rows)) return [];
+      return rows.map(r => ({ name: r.id }));
+    });
   }
 
   voxSearchQuery(query: string, limit: number, scope: string[]): Promise<{
@@ -375,6 +448,33 @@ class VoxTransport {
     corpora: string[];
   }> {
     return invoke('vox_search_query', { query, limit, scope });
+  }
+
+  /** Raw MessagePack orchestrator snapshot (same payload as `get_orchestrator_status`). */
+  getOrchestratorStatusBin(): Promise<Uint8Array> {
+    return invoke<Uint8Array>('get_orchestrator_status_bin');
+  }
+
+  getIdentitySummary(): Promise<IdentitySummary> {
+    return invoke<IdentitySummary>('get_identity_summary');
+  }
+
+  getLlmSpend(sessionId?: string | null): Promise<LlmSpendDto> {
+    return invoke<LlmSpendDto>('get_llm_spend', sessionId != null ? { sessionId } : {});
+  }
+
+  getGamifySettings(): Promise<GamifySettingsDto> {
+    return invoke<GamifySettingsDto>('get_gamify_settings');
+  }
+
+  recordGuiEvent(
+    eventType: string,
+    metadata?: Record<string, unknown>,
+  ): Promise<GuiEventResultDto> {
+    return invoke<GuiEventResultDto>('record_gui_event', {
+      eventType,
+      metadata: metadata ?? null,
+    });
   }
 }
 
@@ -445,3 +545,16 @@ export function listenPtyExit(onExit: (tabId: string) => void): Promise<Unlisten
 export function sendToAgent(agentId: string, body: string): Promise<string> {
   return invoke<string>('send_to_agent', { agentId, body });
 }
+
+export interface ContextBudgetPayload {
+  max_context_tokens: number;
+  reserved_tokens: number;
+  threshold_tokens: number;
+  usable_tokens: number;
+  strategy: string;
+}
+
+export function getContextBudget(): Promise<ContextBudgetPayload> {
+  return invoke<ContextBudgetPayload>('get_context_budget');
+}
+

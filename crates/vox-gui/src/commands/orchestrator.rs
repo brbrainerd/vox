@@ -545,3 +545,81 @@ pub async fn get_orchestrator_config() -> Result<serde_json::Value, String> {
         "scaleMemFloorMb": cfg.scale_mem_floor_mb,
     }))
 }
+
+/// Token budget snapshot returned to the frontend.
+#[derive(Debug, serde::Serialize)]
+pub struct ContextBudgetPayload {
+    /// Maximum tokens the model's context can hold (from `CompactionConfig`).
+    pub max_context_tokens: usize,
+    /// Tokens reserved for the model's response (subtracted from usable budget).
+    pub reserved_tokens: usize,
+    /// Token count at which compaction triggers (`max * compaction_threshold`).
+    pub threshold_tokens: usize,
+    /// Usable token budget (`max - reserved`).
+    pub usable_tokens: usize,
+    /// Human-readable compaction strategy name: "aggressive", "balanced", or "conservative".
+    pub strategy: String,
+}
+
+/// Return the active context-window budget from the current compaction config.
+///
+/// Falls back to `CompactionConfig::default()` values if the daemon is unavailable
+/// — so the UI always has something reasonable to display.
+#[tauri::command]
+pub async fn get_context_budget() -> Result<ContextBudgetPayload, String> {
+    use vox_orchestrator::compaction::CompactionConfig;
+
+    // Try to read live config from daemon; fall back to defaults on any error.
+    let cfg: CompactionConfig = call_daemon(
+        "vox-orchestrator-d",
+        vox_foundation::protocol::orch_daemon_method::GET_CONFIG,
+        serde_json::json!({}),
+        false,
+    )
+    .await
+    .ok()
+    .and_then(|v| {
+        v.get("compaction")
+            .and_then(|c| serde_json::from_value(c.clone()).ok())
+    })
+    .unwrap_or_default();
+
+    Ok(ContextBudgetPayload {
+        max_context_tokens: cfg.max_context_tokens,
+        reserved_tokens: cfg.reserved_tokens,
+        threshold_tokens: cfg.trigger_at(),
+        usable_tokens: cfg.usable_budget(),
+        strategy: cfg.strategy.to_string(),
+    })
+}
+
+#[cfg(test)]
+
+mod budget_tests {
+    use super::*;
+
+    #[test]
+    fn context_budget_payload_serializes() {
+        let payload = ContextBudgetPayload {
+            max_context_tokens: 128_000,
+            reserved_tokens: 10_000,
+            threshold_tokens: 102_400,
+            usable_tokens: 118_000,
+            strategy: "balanced".to_string(),
+        };
+        let json = serde_json::to_value(&payload).expect("serialize");
+        assert_eq!(json["max_context_tokens"], 128_000);
+        assert_eq!(json["strategy"], "balanced");
+        assert_eq!(json["threshold_tokens"], 102_400);
+    }
+
+    #[test]
+    fn threshold_tokens_matches_trigger_at() {
+        // CompactionConfig::trigger_at() = max * threshold_fraction
+        // Default: 128_000 * 0.80 = 102_400
+        let cfg = vox_orchestrator::compaction::CompactionConfig::default();
+        assert_eq!(cfg.trigger_at(), 102_400);
+        assert_eq!(cfg.usable_budget(), 118_000);
+    }
+}
+
