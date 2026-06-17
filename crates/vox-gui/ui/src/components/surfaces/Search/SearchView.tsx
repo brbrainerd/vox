@@ -4,16 +4,18 @@ import { voxTransport } from '../../../transport';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
 import { EmptyState } from '../../ui/EmptyState';
+import { Skeleton } from '../../ui/Skeleton';
 import { SurfaceDecoratorProps } from '../decoratorRegistry';
-import { SEARCH_TOP_K } from '../../../config/constants';
+import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import {
   ALL_USER_SCOPES,
-  backendScopesFromUserScopes,
   filterCommandCatalogHits,
+  filterSettingsIndexHits,
   initialSearchState,
   USER_SCOPE_LABELS,
   type UserScope,
 } from '../../../lib/searchController';
+import { useSearchController } from '../../../hooks/useSearchController';
 import type { CommandCatalog } from '../../../types/catalog';
 import {
   scoreToPct,
@@ -29,6 +31,72 @@ import {
 export { scoreToPct, groupBySource } from './searchHelpers';
 
 const SEARCH_SEED_KEY = 'vox_search_seed';
+const SETTINGS_SEED_KEY = 'vox_settings_seed';
+
+function facetCounts(hits: UnifiedHit[], field: 'source' | 'kind'): FacetCount[] {
+  const counts = new Map<string, number>();
+  for (const hit of hits) {
+    const value = field === 'source' ? hit.source : hit.kind;
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  }
+  return [...counts.entries()].map(([value, count]) => ({ value, count }));
+}
+
+/**
+ * Match `path` against a glob pattern.
+ *
+ * Rules:
+ * - `**` matches any sequence of characters including path separators (`/`)
+ * - `*`  matches any sequence of characters NOT including path separators
+ * - `?`  matches exactly one character that is not a path separator
+ * - All other characters match literally (dot, plus, parens, etc. are NOT regex wildcards here)
+ *
+ * Exported so unit tests can import it directly from this module.
+ */
+export function pathMatchesGlob(path: string | null, glob: string): boolean {
+  const pattern = glob.trim();
+  if (!pattern) return true;
+  if (!path) return false;
+
+  // Build regex source by processing ** and * in separate passes.
+  //
+  // We split on '**' first (double-star = match anything including '/'),
+  // then within each segment we split on '*' (single-star = match non-slash chars).
+  // Between steps we regex-escape any literal special characters.
+  const escapeLiteral = (s: string) => s.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+
+  const regexSource = pattern
+    .split('**')
+    .map(segment =>
+      segment
+        .split('*')
+        .map(part => escapeLiteral(part))
+        .join('[^/]*')    // single * → zero-or-more non-separator chars
+    )
+    .join('.*');          // double ** → zero-or-more of anything (including /)
+
+  // Replace ? placeholders with [^/] (one non-separator char)
+  const finalSource = regexSource.replace(/\?/g, '[^/]');
+
+  try {
+    return new RegExp(`^${finalSource}$`).test(path);
+  } catch {
+    // Malformed pattern — fall back to safe substring match
+    return path.includes(pattern);
+  }
+}
+
+function SearchResultsSkeleton() {
+  return (
+    <Glass className="p-4 flex flex-col gap-2" role="status" aria-label="Searching">
+      {[0, 1, 2].map(i => (
+        <div key={i} data-testid="search-skeleton">
+          <Skeleton className="h-16 w-full" />
+        </div>
+      ))}
+    </Glass>
+  );
+}
 
 function ScopeChip({
   scope,
@@ -222,7 +290,8 @@ function HitRow({
   );
 }
 
-export function SearchView({ pushToast }: SurfaceDecoratorProps) {
+export function SearchView({ pushToast, gamifyEnabled = false }: SurfaceDecoratorProps) {
+  const lastRecordedQueryRef = useRef('');
   // Seed from CommandPalette navigation.
   const seedQuery = (() => {
     try {
@@ -234,25 +303,26 @@ export function SearchView({ pushToast }: SurfaceDecoratorProps) {
     }
   })();
 
-  const [query, setQuery] = useState(seedQuery);
-  const [debouncedQuery, setDebouncedQuery] = useState(seedQuery);
+  const { state: searchState, setQuery: setSearchQuery, setScopes: setSearchScopes } =
+    useSearchController();
+
   const [selectedUserScopes, setSelectedUserScopes] = useState<UserScope[]>([]);
   const [selectedSourceFacets, setSelectedSourceFacets] = useState<string[]>([]);
   const [selectedKinds, setSelectedKinds] = useState<string[]>([]);
   const [pathGlob, setPathGlob] = useState('');
   const [debouncedPathGlob, setDebouncedPathGlob] = useState('');
-  const [topK] = useState(SEARCH_TOP_K);
-  const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<SearchResponse | null>(null);
   const [allHits, setAllHits] = useState<UnifiedHit[]>([]);
   const [selectedIdx, setSelectedIdx] = useState<number>(-1);
-  const seqRef = useRef(0);
 
-  // Debounce query.
   useEffect(() => {
-    const id = setTimeout(() => setDebouncedQuery(query), 250);
-    return () => clearTimeout(id);
-  }, [query]);
+    if (seedQuery) setSearchQuery(seedQuery);
+  }, [seedQuery, setSearchQuery]);
+
+  useEffect(() => {
+    const scopes = selectedUserScopes.length > 0 ? selectedUserScopes : initialSearchState.scopes;
+    setSearchScopes(scopes);
+  }, [selectedUserScopes, setSearchScopes]);
 
   // Debounce pathGlob.
   useEffect(() => {
@@ -278,85 +348,69 @@ export function SearchView({ pushToast }: SurfaceDecoratorProps) {
     );
   }, []);
 
-  // Reset accumulated hits + selectedIdx whenever the primary search params change.
+  // Reset selectedIdx whenever the primary search params change.
   useEffect(() => {
     setAllHits([]);
     setSelectedIdx(-1);
-  }, [debouncedQuery, selectedUserScopes, selectedKinds, debouncedPathGlob]);
+  }, [searchState.query, selectedUserScopes, selectedKinds, debouncedPathGlob]);
 
-  const doSearch = useCallback(async (
-    q: string,
-    userScopes: UserScope[],
-    kinds: string[],
-    glob: string,
-    limit: number,
-    offset: number,
-    append: boolean,
-  ) => {
-    if (!q.trim()) {
+  useEffect(() => {
+    let cancelled = false;
+    const q = searchState.query.trim();
+    if (!q) {
       setResponse(null);
       setAllHits([]);
       return;
     }
-    const effectiveUserScopes =
-      userScopes.length > 0 ? userScopes : initialSearchState.scopes;
-    const backendScope = backendScopesFromUserScopes(effectiveUserScopes);
-    const wantsCommands = effectiveUserScopes.includes('commands');
-    const seq = ++seqRef.current;
-    setLoading(true);
-    try {
-      const res = await invoke<SearchResponse>('vox_search_query', {
-        query: q,
-        scope: backendScope.length > 0 ? backendScope : null,
-        kinds: kinds.length > 0 ? kinds : null,
-        pathGlob: glob.trim() || null,
-        limit,
-        offset,
-      });
-      let mergedHits = res.hits;
-      if (wantsCommands && !append) {
+
+    async function mergeHits() {
+      let merged = searchState.hits as UnifiedHit[];
+      const scopes = selectedUserScopes.length > 0 ? selectedUserScopes : initialSearchState.scopes;
+      if (scopes.includes('commands') && !searchState.loading) {
         try {
           const catalog = await invoke<CommandCatalog>('get_command_catalog');
           const cmdHits = filterCommandCatalogHits(catalog.entries ?? [], q) as UnifiedHit[];
-          mergedHits = [...cmdHits, ...mergedHits];
+          merged = [...cmdHits, ...merged];
         } catch {
           // catalog unavailable — backend hits only
         }
       }
-      if (seq === seqRef.current) {
-        setResponse(res);
-        if (append) {
-          setAllHits(prev => [...prev, ...mergedHits]);
-        } else {
-          setAllHits(mergedHits);
-        }
+      if (scopes.includes('settings') && !searchState.loading) {
+        const settingsHits = filterSettingsIndexHits(q) as UnifiedHit[];
+        merged = [...settingsHits, ...merged];
       }
-    } catch (err) {
-      if (seq === seqRef.current) {
-        pushToast({ tone: 'warn', title: 'Search failed', body: String(err) });
-        setResponse(null);
-        if (!append) setAllHits([]);
-      }
-    } finally {
-      if (seq === seqRef.current) {
-        setLoading(false);
-      }
+      if (cancelled) return;
+      setAllHits(merged);
+      setResponse({
+        hits: merged,
+        facets_by_source: facetCounts(merged, 'source'),
+        facets_by_kind: facetCounts(merged, 'kind'),
+        total: merged.length,
+        next_cursor: null,
+        corpora: [...new Set(merged.map(h => h.source))],
+      });
     }
-  }, [pushToast]);
 
-  // Fire initial / filter-changed search (offset=0, replace).
+    void mergeHits();
+    return () => {
+      cancelled = true;
+    };
+  }, [searchState.hits, searchState.query, searchState.loading, selectedUserScopes]);
+
   useEffect(() => {
-    doSearch(debouncedQuery, selectedUserScopes, selectedKinds, debouncedPathGlob, topK, 0, false);
-  }, [debouncedQuery, selectedUserScopes, selectedKinds, debouncedPathGlob, topK, doSearch]);
+    const q = searchState.query.trim();
+    if (!q || searchState.loading) return;
+    if (lastRecordedQueryRef.current === q) return;
+    lastRecordedQueryRef.current = q;
+    recordGamifyGuiEvent('search_query_executed', { query: q }, { enabled: gamifyEnabled });
+  }, [searchState.query, searchState.loading, gamifyEnabled]);
 
-  const loadMore = useCallback(() => {
-    if (!response?.next_cursor) return;
-    doSearch(debouncedQuery, selectedUserScopes, selectedKinds, debouncedPathGlob, topK, response.next_cursor, true);
-  }, [response, debouncedQuery, selectedUserScopes, selectedKinds, debouncedPathGlob, topK, doSearch]);
-
+  const loading = searchState.loading;
+  const query = searchState.query;
   const displayHits = allHits.filter(h => {
     if (selectedSourceFacets.length > 0 && !selectedSourceFacets.includes(h.source)) return false;
     if (selectedKinds.length > 0 && !selectedKinds.includes(h.kind)) return false;
+    if (!pathMatchesGlob(h.path, debouncedPathGlob)) return false;
     return true;
   });
 
@@ -381,6 +435,14 @@ export function SearchView({ pushToast }: SurfaceDecoratorProps) {
       } catch {
         pushToast({ tone: 'info', title: 'Command', body: hit.path ?? hit.title ?? '' });
       }
+    } else if (hit.locator.kind === 'setting' || hit.kind === 'setting') {
+      try {
+        localStorage.setItem(SETTINGS_SEED_KEY, hit.locator.value);
+        window.dispatchEvent(new Event('vox-settings-seed'));
+      } catch {
+        /* ignore */
+      }
+      pushToast({ tone: 'info', title: 'Settings', body: 'Open Settings from the sidebar' });
     } else if (hit.path) {
       try {
         await navigator.clipboard.writeText(hit.path);
@@ -446,7 +508,7 @@ export function SearchView({ pushToast }: SurfaceDecoratorProps) {
             autoFocus
             type="text"
             value={query}
-            onChange={e => setQuery(e.target.value)}
+            onChange={e => setSearchQuery(e.target.value)}
             placeholder="Search everything…"
             aria-label="Search query"
             className="flex-1 bg-transparent text-[14px] text-zinc-100 placeholder:text-zinc-600 outline-none"
@@ -459,8 +521,7 @@ export function SearchView({ pushToast }: SurfaceDecoratorProps) {
               type="button"
               aria-label="Clear search"
               onClick={() => {
-                setQuery('');
-                setDebouncedQuery('');
+                setSearchQuery('');
                 setResponse(null);
                 setAllHits([]);
               }}
@@ -544,9 +605,7 @@ export function SearchView({ pushToast }: SurfaceDecoratorProps) {
             </Glass>
           )}
 
-          {query.trim() && loading && displayHits.length === 0 && (
-            <Glass className="p-8 text-center text-zinc-500 text-sm">Searching…</Glass>
-          )}
+          {query.trim() && loading && displayHits.length === 0 && <SearchResultsSkeleton />}
 
           {query.trim() && !loading && response && displayHits.length === 0 && (
             <Glass className="p-4">
@@ -581,7 +640,7 @@ export function SearchView({ pushToast }: SurfaceDecoratorProps) {
                         <HitRow
                           key={`${source}-${i}`}
                           hit={hit}
-                          query={debouncedQuery}
+                          query={query}
                           selected={globalIdx === selectedIdx}
                           onOpen={() => openHit(hit)}
                           pushToast={pushToast}
@@ -591,20 +650,6 @@ export function SearchView({ pushToast }: SurfaceDecoratorProps) {
                   </div>
                 </section>
               ))}
-            </div>
-          )}
-
-          {/* Load more */}
-          {response?.next_cursor != null && (
-            <div className="flex justify-center">
-              <button
-                type="button"
-                onClick={loadMore}
-                disabled={loading}
-                className="rounded-lg border border-white/10 bg-white/[0.04] px-5 py-2 font-mono text-[11px] text-zinc-300 hover:border-brass/30 hover:text-brass transition disabled:opacity-50"
-              >
-                {loading ? 'Loading…' : 'Load more'}
-              </button>
             </div>
           )}
         </div>
