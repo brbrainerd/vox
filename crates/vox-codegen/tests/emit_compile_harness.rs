@@ -55,21 +55,42 @@ fn runtime_path() -> PathBuf {
 
 /// Standalone script crates built outside the workspace need the same
 /// `[patch.crates-io]` entries as the repo root (pure-rust `aegis` on Windows).
+/// Also normalize the generated `turso` dep to match workspace 0.6 + sync.
 fn inject_workspace_patches(project_dir: &Path) {
     let cargo_path = project_dir.join("Cargo.toml");
     let Ok(mut toml) = std::fs::read_to_string(&cargo_path) else {
         return;
     };
-    if toml.contains("[patch.crates-io]") {
-        return;
+    const CANON_TURSO: &str =
+        "turso = { version = \"0.6\", default-features = false, features = [\"sync\"] }";
+    if toml.contains("vox-db") {
+        if let Some(start) = toml.find("turso = {") {
+            if let Some(line_end) = toml[start..].find('\n') {
+                let end = start + line_end;
+                toml.replace_range(start..end, CANON_TURSO);
+            }
+        } else if let Some(idx) = toml.find("[dependencies]") {
+            let insert_at = toml[idx..]
+                .find('\n')
+                .map(|off| idx + off + 1)
+                .unwrap_or(toml.len());
+            toml.insert_str(insert_at, &format!("{CANON_TURSO}\n"));
+        }
     }
     let aegis_path = repo_root()
         .join("patches/aegis-0.9.8")
         .to_string_lossy()
         .replace('\\', "/");
-    toml.push_str(&format!(
-        "\n[patch.crates-io]\naegis = {{ path = \"{aegis_path}\" }}\n"
-    ));
+    if !toml.contains("[patch.crates-io]") {
+        toml.push_str(&format!(
+            "\n[patch.crates-io]\naegis = {{ path = \"{aegis_path}\" }}\n"
+        ));
+    } else if !toml.contains("aegis = ") {
+        toml = toml.replace(
+            "[patch.crates-io]\n",
+            &format!("[patch.crates-io]\naegis = {{ path = \"{aegis_path}\" }}\n"),
+        );
+    }
     let _ = std::fs::write(cargo_path, toml);
 }
 
@@ -411,12 +432,59 @@ fn golden_error_propagation_compiles() {
     assert_golden_compiles("error_propagation.vox");
 }
 
+// ── Canonical ladder (required gate subset) ─────────────────────────────────
+// These mirror `contracts/pipeline/canonical-ladder.v1.yaml` rust-script entries.
+
+#[test]
+fn ladder_hello_golden_compiles() {
+    assert_golden_compiles("hello.vox");
+}
+
+#[test]
+fn ladder_crud_api_golden_compiles() {
+    assert_golden_compiles("crud_api.vox");
+}
+
+#[test]
+fn ladder_durable_workflow_real_golden_compiles() {
+    assert_golden_compiles("durable_workflow_real.vox");
+}
+
+#[test]
+fn ladder_scheduled_tick_golden_compiles() {
+    assert_golden_compiles("scheduled_tick.vox");
+}
+
+#[test]
+fn ladder_db_native_ir_golden_compiles() {
+    assert_golden_compiles("db_native_ir.vox");
+}
+
+#[test]
+fn ladder_web_routing_fullstack_golden_compiles() {
+    assert_golden_compiles("web_routing_fullstack.vox");
+}
+
+#[test]
+fn ladder_auth_patterns_golden_compiles() {
+    assert_golden_compiles("auth_patterns.vox");
+}
+
+#[test]
+fn ladder_mcp_tools_golden_compiles() {
+    assert_golden_compiles("mcp_tools.vox");
+}
+
+#[test]
+fn ladder_json_as_typed_golden_compiles() {
+    assert_golden_compiles("json_as_typed.vox");
+}
+
 #[test]
 fn golden_closures_hof_compiles() {
     assert_golden_compiles("closures_hof.vox");
 }
 #[test]
-#[ignore = "option_type.vox uses @table: pre-existing turso IntoParams/From trait-bound errors in DB codegen (unrelated to Option type support)"]
 fn golden_option_type_compiles() {
     assert_golden_compiles("option_type.vox");
 }

@@ -9,6 +9,7 @@ use super::tables::{emit_index_ddl, emit_schema_drift_verify, emit_table_ddl};
 thread_local! {
     static SCRIPT_DB_EMIT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     static SCRIPT_ASYNC_FNS: std::cell::RefCell<HashSet<String>> = std::cell::RefCell::new(HashSet::new());
+    static ACTIVITY_JOURNAL_INNER: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
 /// True while emitting a script lib so `db.*` lowers to `VOX_SCRIPT_DB`.
@@ -23,6 +24,19 @@ pub(crate) fn script_async_call(name: &str) -> bool {
 
 pub(crate) fn with_script_db_emit_mode<R>(f: impl FnOnce() -> R) -> R {
     SCRIPT_DB_EMIT.with(|c| {
+        c.set(true);
+        let out = f();
+        c.set(false);
+        out
+    })
+}
+
+pub(crate) fn activity_journal_inner() -> bool {
+    ACTIVITY_JOURNAL_INNER.with(|c| c.get())
+}
+
+pub(crate) fn with_activity_journal_inner<R>(f: impl FnOnce() -> R) -> R {
+    ACTIVITY_JOURNAL_INNER.with(|c| {
         c.set(true);
         let out = f();
         c.set(false);
@@ -221,6 +235,15 @@ fn expr_calls_async(expr: &HirExpr, async_names: &HashSet<String>) -> bool {
 
 /// Promote callers of async fns so script emission can append `.await`.
 pub(crate) fn mark_transitive_async(functions: &mut [HirFn]) {
+    use vox_compiler::hir::DurabilityKind;
+    for f in functions.iter_mut() {
+        if matches!(
+            f.durability,
+            Some(DurabilityKind::Workflow | DurabilityKind::Activity)
+        ) {
+            f.is_async = true;
+        }
+    }
     loop {
         let async_names: HashSet<String> = functions
             .iter()

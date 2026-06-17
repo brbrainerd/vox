@@ -10,7 +10,10 @@ use vox_compiler::required_capabilities::{
 };
 use vox_compiler::runtime_projection::{RuntimeProjectionModule, project_runtime_from_hir};
 use vox_compiler::shell_projection::{ShellProjectionModule, project_shell_from_hir};
+use vox_compiler::target::Target;
+use vox_compiler::tokens::TokenRegistry;
 
+use crate::emission_profile::{EmissionProfile, ProfileDiagnostic, hard_profile_errors};
 use crate::web_ir::WebIrModule;
 use crate::web_ir::lower::lower_hir_to_web_ir;
 
@@ -33,5 +36,30 @@ pub fn project_bundle_from_hir(hir: &HirModule) -> ProjectionBundle {
         runtime: project_runtime_from_hir(hir),
         shell: project_shell_from_hir(hir),
         capabilities: project_required_capabilities(hir),
+    }
+}
+
+/// Project from HIR and run the unified [`EmissionProfile`] validate gate for `target`.
+pub fn project_and_validate(
+    hir: &HirModule,
+    target: Target,
+) -> Result<ProjectionBundle, Vec<ProfileDiagnostic>> {
+    project_and_validate_with_registry(hir, target, None)
+}
+
+/// Project and validate with optional token registry (palette / contrast on web targets).
+pub fn project_and_validate_with_registry(
+    hir: &HirModule,
+    target: Target,
+    registry: Option<&TokenRegistry>,
+) -> Result<ProjectionBundle, Vec<ProfileDiagnostic>> {
+    let bundle = project_bundle_from_hir(hir);
+    let diags =
+        EmissionProfile::for_target(target).validate_bundle_with_registry(&bundle, registry);
+    let hard = hard_profile_errors(&diags);
+    if hard.is_empty() {
+        Ok(bundle)
+    } else {
+        Err(hard)
     }
 }

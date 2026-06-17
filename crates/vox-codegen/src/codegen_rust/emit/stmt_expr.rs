@@ -357,7 +357,18 @@ fn emit_return_stmt(
         } else {
             let wrapped =
                 super::types::wrap_vox_json_return_value(&expr_str, enclosing_return_type);
-            format!("{pad}return {wrapped};\n")
+            if super::script_db::activity_journal_inner() {
+                if let Some(payload) = wrapped
+                    .strip_prefix("Err(")
+                    .and_then(|s| s.strip_suffix(')'))
+                {
+                    format!("{pad}return Err(anyhow::anyhow!({payload}));\n")
+                } else {
+                    format!("{pad}return {wrapped};\n")
+                }
+            } else {
+                format!("{pad}return {wrapped};\n")
+            }
         }
     } else if is_route {
         format!("{pad}return Ok(Json(serde_json::Value::Null));\n")
@@ -499,12 +510,20 @@ where
     // is handled above, and typeck restricts `- * / %` to numeric operands. Plain
     // infix with no borrow: `i64 + i64`, `f64 * f64`, `Decimal - Decimal` all work
     // by value (this also removes the old spurious `1 + &2` unused-borrow).
-    format!(
-        "({} {} {})",
-        emit(l, OwnershipMode::Owned),
-        op_str,
-        emit(r, OwnershipMode::Owned)
-    )
+    //
+    // Comparisons wrap each side so `expr as i64 < n` lowers to
+    // `(expr as i64) < n` — otherwise rustc parses `<` as the start of generic
+    // arguments on the cast type (E0433-style parse error on script builds).
+    let l = emit(l, OwnershipMode::Owned);
+    let r = emit(r, OwnershipMode::Owned);
+    if matches!(
+        op,
+        HirBinOp::Lt | HirBinOp::Gt | HirBinOp::Lte | HirBinOp::Gte
+    ) {
+        format!("({} {} {})", format!("({l})"), op_str, format!("({r})"))
+    } else {
+        format!("({l} {op_str} {r})")
+    }
 }
 
 /// Emit an identifier reference, applying ownership mode and copy/move heuristics.
@@ -524,6 +543,9 @@ fn emit_ident_expr(
     // `emit_binary_expr` (→ `.is_none()` / `.is_some()`).
     if n == "null" {
         return "None".to_string();
+    }
+    if n == "Unit" {
+        return "()".to_string();
     }
     // These identifiers are always passed bare — no `.clone()` or `.as_str()`.
     if n == "request"
@@ -1065,8 +1087,9 @@ where
             emit(&args[0].value, OwnershipMode::Owned)
         )),
         // len works on Vec / String / &str (db.Table.all() lowers to Vec).
+        // Rust `.len()` is `usize`; Vox `int` is `i64`.
         ("len", 1) => Some(format!(
-            "({}).len()",
+            "({}).len() as i64",
             emit(&args[0].value, OwnershipMode::Owned)
         )),
         // Vox `Error(VariantName(payload))` is the Result-error

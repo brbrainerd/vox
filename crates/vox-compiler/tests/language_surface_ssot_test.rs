@@ -21,6 +21,43 @@ fn retired_decorators_not_in_lsp_list() {
 }
 
 #[test]
+fn decorator_feature_count_matches_lexer_at_tokens() {
+    use vox_compiler::feature_matrix::DecoratorFeature;
+    assert_eq!(
+        DecoratorFeature::ALL.len(),
+        language_surface::LEXER_AT_DECORATORS.len(),
+        "feature_matrix decorators must mirror lexer At* decorator tokens"
+    );
+}
+
+#[test]
+fn decorator_feature_names_match_lexer_at_decorators() {
+    use std::collections::BTreeSet;
+
+    use vox_compiler::feature_matrix::DecoratorFeature;
+
+    let matrix: BTreeSet<_> = DecoratorFeature::ALL
+        .iter()
+        .map(|&d| d.lexer_spelling())
+        .collect();
+    let lexer: BTreeSet<_> = language_surface::LEXER_AT_DECORATORS
+        .iter()
+        .copied()
+        .collect();
+
+    assert_eq!(
+        matrix, lexer,
+        "feature_matrix decorator spellings must match LEXER_AT_DECORATORS membership \
+         (count-only checks miss same-length drift)"
+    );
+    assert!(
+        language_surface::decorator_feature_lexer_parity_mismatch().is_none(),
+        "parity helper should agree with set equality: {:?}",
+        language_surface::decorator_feature_lexer_parity_mismatch()
+    );
+}
+
+#[test]
 fn deprecated_keywords_not_in_lexer_list() {
     // ret is deprecated; must not appear in main keyword list
     assert!(

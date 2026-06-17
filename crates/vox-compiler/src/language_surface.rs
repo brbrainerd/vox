@@ -207,6 +207,93 @@ pub const LEXER_DECORATORS: &[&str] = &[
     "@ai",
 ];
 
+/// Every `@` decorator with a dedicated lexer `Token::At*` variant (56 — mirrors [`DecoratorFeature::ALL`]).
+pub const LEXER_AT_DECORATORS: &[&str] = &[
+    "@component",
+    "@tool",
+    "@mcp.tool",
+    "@resource",
+    "@mcp.resource",
+    "@test",
+    "@example",
+    "@query",
+    "@mutation",
+    "@server",
+    "@json_as",
+    "@field_name",
+    "@default",
+    "@skip_if_none",
+    "@table",
+    "@index",
+    "@native",
+    "@loading",
+    "@require",
+    "@ensure",
+    "@invariant",
+    "@forall",
+    "@fuzz",
+    "@pure",
+    "@reactive",
+    "@versioned",
+    "@tracked",
+    "@scheduled",
+    "@deprecated",
+    "@v0",
+    "@ai",
+    "@prompt",
+    "@subagent",
+    "@search",
+    "@hole",
+    "@cancellable",
+    "@form",
+    "@back_button",
+    "@deep_link",
+    "@push",
+    "@tokens",
+    "@cors",
+    "@rate_limit",
+    "@uses",
+    "@pii",
+    "@embed",
+    "@webhook",
+    "@public",
+    "@auth",
+    "@offline_capable",
+    "@collaborative",
+    "@layer",
+    "@remote",
+    "@inference",
+    "@training_step",
+    "@distributed_train",
+];
+
+/// Returns a drift description when [`crate::feature_matrix::DecoratorFeature::ALL`]
+/// and [`LEXER_AT_DECORATORS`] disagree on membership (not just count).
+#[must_use]
+pub fn decorator_feature_lexer_parity_mismatch() -> Option<String> {
+    use std::collections::BTreeSet;
+
+    use crate::feature_matrix::DecoratorFeature;
+
+    let matrix: BTreeSet<_> = DecoratorFeature::ALL
+        .iter()
+        .map(|&d| d.lexer_spelling())
+        .collect();
+    let lexer: BTreeSet<_> = LEXER_AT_DECORATORS.iter().copied().collect();
+    if matrix == lexer {
+        return None;
+    }
+
+    let only_matrix: Vec<_> = matrix.difference(&lexer).copied().collect();
+    let only_lexer: Vec<_> = lexer.difference(&matrix).copied().collect();
+    Some(format!(
+        "feature_matrix has {m} decorators, LEXER_AT_DECORATORS has {l} — \
+         only in feature_matrix: {only_matrix:?}; only in LEXER_AT_DECORATORS: {only_lexer:?}",
+        m = matrix.len(),
+        l = lexer.len(),
+    ))
+}
+
 /// Keywords that are deprecated and will be removed in a future version.
 /// LSP and introspection tools should avoid suggesting these.
 pub const LEXER_DEPRECATED_KEYWORDS: &[&str] = &["ret", "isnt", "environment"];

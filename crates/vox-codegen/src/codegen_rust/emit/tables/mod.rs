@@ -3,6 +3,7 @@
 mod codegen;
 mod projections;
 
+pub(crate) use codegen::emit_turso_positional_binds;
 pub use codegen::{
     emit_db_setup, emit_index_ddl, emit_schema_drift_verify, emit_table_ddl, emit_table_struct,
 };

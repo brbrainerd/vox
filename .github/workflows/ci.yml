@@ -80,7 +80,7 @@ jobs:
             git fetch origin "${{ github.base_ref }}" --depth=256 2>/dev/null || true
             BASE="origin/${{ github.base_ref }}"
             CHANGED=$(git diff --name-only "${BASE}...HEAD" 2>/dev/null || git diff --name-only HEAD~1...HEAD)
-            if echo "$CHANGED" | grep -qE '^(crates/|Cargo\.(toml|lock)|\.cargo/)'; then
+            if echo "$CHANGED" | grep -qE '^(crates/|Cargo\.(toml|lock)|\.cargo/|\.github/workflows/)'; then
               echo "rust=true" >> "$GITHUB_OUTPUT"
             else
               echo "rust=false" >> "$GITHUB_OUTPUT"
@@ -139,6 +139,12 @@ jobs:
               echo "::warning::rust_changed with empty affected set — upgrading to full=true (fail-closed)"
               echo "full=true" >> "$GITHUB_OUTPUT"
               echo "affects_compiler=true" >> "$GITHUB_OUTPUT"
+            fi
+            if [ "${{ steps.filter.outputs.docs }}" = "true" ] \
+              && [ "$(grep -E '^full=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2)" = "false" ] \
+              && [ -z "$(grep -E '^affected_crates=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2 | xargs)" ]; then
+              echo "::warning::docs_changed with empty affected set — upgrading to full=true (fail-closed)"
+              echo "full=true" >> "$GITHUB_OUTPUT"
             fi
           else
             echo "full=true" >> "$GITHUB_OUTPUT"
@@ -675,7 +681,8 @@ jobs:
           if [ "$FULL" = "true" ]; then
             ./target/debug/vox --quiet ci toestub-scoped --mode enforce-warn
           elif [ -z "$CRATES" ]; then
-            echo "No affected crates — skipping TOESTUB scoped."
+            echo "No affected crates — running TOESTUB on minimal default scope (crates/vox-repository)."
+            ./target/debug/vox --quiet ci toestub-scoped --mode enforce-warn crates/vox-repository
           else
             ROOTS=()
             for c in $CRATES; do

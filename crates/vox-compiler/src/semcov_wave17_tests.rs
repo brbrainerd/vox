@@ -10,6 +10,7 @@
 
 #[cfg(test)]
 mod semcov_wave17_tests {
+    #![allow(clippy::module_inception)]
     use crate::hir::lower::{LowerConfig, lower_module, lower_module_with_config};
     use crate::hir::nodes::effect::HirEffectKind;
     use crate::hir::{HirCapability, validate_module};

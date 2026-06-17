@@ -3,7 +3,8 @@
 //! This is the *breadth* axis of the pipeline-parity contract
 //! ([`docs/src/architecture/pipeline-parity-ssot-2026-06-14.md`]). Every Vox
 //! language feature (decorator, expr/stmt kind, decl kind) has a declared
-//! [`Support`] for every [`Target`]: `Implemented`, or `Unsupported(code)` with
+//! [`Support`] for every [`Target`]: `Implemented`, `Unverified` (declared but
+//! not yet proven by the canonical golden ladder), or `Unsupported(code)` with
 //! a stable diagnostic code. There is no third state and **no `_` catch-all** —
 //! so adding a `Feature` *or* a `Target` variant fails to compile until every new
 //! cell is filled in. That compile-time exhaustiveness is the cheapest half of the
@@ -29,6 +30,8 @@ use crate::typeck::diagnostics::codes;
 pub enum Support {
     /// The target emits / executes this feature.
     Implemented,
+    /// Declared in the language surface but not yet proven by the canonical golden ladder.
+    Unverified,
     /// The target explicitly does not implement this feature; the `&str` is a
     /// stable code from [`codes::ALL_COMPILER_DIAGNOSTIC_CODES`].
     Unsupported(&'static str),
@@ -75,6 +78,38 @@ const fn all_targets() -> Row {
         rust_tauri: Support::Implemented,
         typescript: Support::Implemented,
     }
+}
+
+/// Ladder-unproven: declared but not yet emission-proven.
+const fn unverified() -> Row {
+    Row {
+        interpreter: Support::Unverified,
+        rust_axum: Support::Unverified,
+        rust_tauri: Support::Unverified,
+        typescript: Support::Unverified,
+    }
+}
+
+/// Decorators explicitly proven by [`contracts/pipeline/canonical-ladder.v1.yaml`].
+const fn is_ladder_proven_decorator(d: DecoratorFeature) -> bool {
+    use DecoratorFeature::*;
+    matches!(
+        d,
+        Query
+            | Mutation
+            | Server
+            | Table
+            | Index
+            | Component
+            | Reactive
+            | Scheduled
+            | Auth
+            | McpTool
+            | Tool
+            | JsonAs
+            | Tokens
+            | Layer
+    )
 }
 
 /// Implemented only by the TypeScript frontend emitter; unsupported elsewhere.
@@ -280,6 +315,70 @@ pub enum Feature {
 }
 
 impl DecoratorFeature {
+    /// Lexer `@` spelling for this decorator (mirrors [`crate::lexer::token::Token`] `At*` tokens).
+    #[must_use]
+    pub const fn lexer_spelling(self) -> &'static str {
+        use DecoratorFeature::*;
+        match self {
+            Component => "@component",
+            Tool => "@tool",
+            McpTool => "@mcp.tool",
+            Resource => "@resource",
+            McpResource => "@mcp.resource",
+            Test => "@test",
+            Example => "@example",
+            Query => "@query",
+            Mutation => "@mutation",
+            Server => "@server",
+            JsonAs => "@json_as",
+            FieldName => "@field_name",
+            Default => "@default",
+            SkipIfNone => "@skip_if_none",
+            Table => "@table",
+            Index => "@index",
+            Native => "@native",
+            Loading => "@loading",
+            Require => "@require",
+            Ensure => "@ensure",
+            Invariant => "@invariant",
+            Forall => "@forall",
+            Fuzz => "@fuzz",
+            Pure => "@pure",
+            Reactive => "@reactive",
+            Versioned => "@versioned",
+            Tracked => "@tracked",
+            Scheduled => "@scheduled",
+            Deprecated => "@deprecated",
+            V0 => "@v0",
+            Ai => "@ai",
+            Prompt => "@prompt",
+            Subagent => "@subagent",
+            Search => "@search",
+            Hole => "@hole",
+            Cancellable => "@cancellable",
+            Form => "@form",
+            BackButton => "@back_button",
+            DeepLink => "@deep_link",
+            Push => "@push",
+            Tokens => "@tokens",
+            Cors => "@cors",
+            RateLimit => "@rate_limit",
+            Uses => "@uses",
+            Pii => "@pii",
+            Embed => "@embed",
+            Webhook => "@webhook",
+            Public => "@public",
+            Auth => "@auth",
+            OfflineCapable => "@offline_capable",
+            Collaborative => "@collaborative",
+            Layer => "@layer",
+            Remote => "@remote",
+            Inference => "@inference",
+            TrainingStep => "@training_step",
+            DistributedTrain => "@distributed_train",
+        }
+    }
+
     /// Every decorator feature.
     pub const ALL: [DecoratorFeature; 56] = {
         use DecoratorFeature::*;
@@ -463,13 +562,8 @@ fn decorator_row(d: DecoratorFeature) -> Row {
         }
         Pii => none_yet(codes::PII_UNIMPLEMENTED),
         Embed => none_yet(codes::EMBED_UNIMPLEMENTED),
-        // First-pass: every other decorator believed wired on all targets. Task 8 reconciles.
-        Component | Tool | McpTool | Resource | McpResource | Test | Example | Query | Mutation
-        | Server | JsonAs | FieldName | Default | SkipIfNone | Table | Index | Native | Loading
-        | Require | Ensure | Invariant | Forall | Fuzz | Pure | Reactive | Versioned | Tracked
-        | Scheduled | Deprecated | V0 | Ai | Prompt | Subagent | Search | Hole | Cancellable
-        | Form | BackButton | DeepLink | Push | Tokens | Cors | RateLimit | Uses | Webhook
-        | Public | Auth | OfflineCapable | Collaborative | Layer => all_targets(),
+        d if is_ladder_proven_decorator(d) => all_targets(),
+        _ => unverified(),
     }
 }
 
@@ -547,6 +641,13 @@ pub fn unsupported_diagnostic(feature: Feature, target: Target) -> UnsupportedCe
             code,
             message: format!("{feature:?} is not supported by the {} target", target.id()),
         },
+        Support::Unverified => UnsupportedCell {
+            code: codes::PARITY_UNVERIFIED,
+            message: format!(
+                "{feature:?} is declared but not yet proven by the canonical golden ladder on the {} target",
+                target.id()
+            ),
+        },
         Support::Implemented => {
             unreachable!(
                 "unsupported_diagnostic called for an Implemented ({feature:?}, {target:?}) cell"
@@ -584,14 +685,45 @@ mod tests {
     fn every_unsupported_code_is_registered() {
         for f in Feature::all() {
             for t in Target::ALL {
-                if let Support::Unsupported(code) = support(f, t) {
-                    assert!(
-                        ALL_COMPILER_DIAGNOSTIC_CODES.contains(&code),
-                        "{f:?}/{t:?} declares unregistered code {code}"
-                    );
+                match support(f, t) {
+                    Support::Unsupported(code) => {
+                        assert!(
+                            ALL_COMPILER_DIAGNOSTIC_CODES.contains(&code),
+                            "{f:?}/{t:?} declares unregistered code {code}"
+                        );
+                    }
+                    Support::Unverified => {
+                        assert!(
+                            ALL_COMPILER_DIAGNOSTIC_CODES.contains(&codes::PARITY_UNVERIFIED),
+                            "PARITY_UNVERIFIED must be registered"
+                        );
+                    }
+                    Support::Implemented => {}
                 }
             }
         }
+    }
+
+    #[test]
+    fn offline_capable_is_unverified_until_ladder_proves_it() {
+        assert_eq!(
+            support(
+                Feature::Decorator(DecoratorFeature::OfflineCapable),
+                Target::TypeScript
+            ),
+            Support::Unverified
+        );
+    }
+
+    #[test]
+    fn query_is_ladder_proven_implemented() {
+        assert_eq!(
+            support(
+                Feature::Decorator(DecoratorFeature::Query),
+                Target::RustAxum
+            ),
+            Support::Implemented
+        );
     }
 
     #[test]

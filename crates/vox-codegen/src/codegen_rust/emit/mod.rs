@@ -588,7 +588,7 @@ reqwest = {{ version = "0.12", default-features = false, features = ["rustls-tls
 vox-http-client = {{ path = "../../../crates/vox-http-client" }}
 tracing = "0.1"
 tracing-subscriber = "0.3"
-turso = {{ version = "0.4", default-features = false }}
+turso = {{ version = "0.6", default-features = false, features = ["sync"] }}
 vox-db = {{ path = "../../../crates/vox-db" }}
 vox-actor-runtime = {{ path = "../../../crates/vox-actor-runtime" }}
 vox-orchestrator = {{ path = "../../../crates/vox-orchestrator" }}
@@ -697,7 +697,7 @@ reqwest = {{ version = "0.12", default-features = false, features = ["rustls-tls
 vox-http-client = {{ path = "../../crates/vox-http-client" }}
 tracing = "0.1"
 tracing-subscriber = "0.3"
-turso = {{ version = "0.4", default-features = false }}
+turso = {{ version = "0.6", default-features = false, features = ["sync"] }}
 vox-db = {{ path = "../../crates/vox-db" }}
 vox-actor-runtime = {{ path = "../../crates/vox-actor-runtime" }}
 vox-orchestrator = {{ path = "../../crates/vox-orchestrator" }}

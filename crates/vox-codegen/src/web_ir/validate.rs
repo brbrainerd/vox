@@ -8,7 +8,8 @@
 //! - **Interop** — non-empty fields on [`crate::web_ir::InteropNode`] (ADR 012).
 //!
 //! Diagnostic **codes** use dotted prefixes (`web_ir_validate.dom.*`, `web_ir_validate.route.*`, …)
-//! for dashboards (OP-0092).
+//! for dashboards (OP-0092). Prefer calling through [`crate::emission_profile::EmissionProfile`]
+//! for target-aware validation rather than invoking this module directly from emit paths.
 //!
 //! **Serializability + interop enforcement (OP-S063 / S109 / S135 / S157 / S187):** every
 //! `web_ir_validate.*` code should be stable for CI dashboards; [`super::WebIrModule`] JSON round-trips
@@ -849,6 +850,72 @@ pub fn validate_web_ir_with_registry(
 #[must_use]
 pub fn validate_web_ir(module: &WebIrModule) -> Vec<WebIrDiagnostic> {
     validate_web_ir_with_metrics(module).0
+}
+
+/// Stable WebIR validator codes (registered in `ALL_COMPILER_DIAGNOSTIC_CODES`).
+pub const WEB_IR_VALIDATE_REGISTERED_CODES: &[&str] = &[
+    "web_ir_validate.route.duplicate_contract_id",
+    "web_ir_validate.dom.id_oob",
+    "web_ir_validate.dom.arena_too_large",
+    "web_ir_validate.route.duplicate_loader_id",
+    "web_ir_validate.route.empty_loader_id",
+    "web_ir_validate.route.empty_loader_contract",
+    "web_ir_validate.route.empty_server_fn_name",
+    "web_ir_validate.route.empty_server_export_path",
+    "web_ir_validate.route.empty_server_signature",
+    "web_ir_validate.route.empty_mutation_name",
+    "web_ir_validate.route.empty_mutation_payload_type",
+    "web_ir_validate.behavior.required_state_without_initial",
+    "web_ir_validate.style.raw_css_escape",
+    "web_ir_validate.style.empty_declarations",
+    "web_ir_validate.style.empty_property",
+    "web_ir_validate.style.duplicate_property_in_rule",
+    "web_ir_validate.style.unknown_property",
+    "web_ir_validate.style.specificity_conflict",
+    "web_ir_validate.style.token_contrast_warning",
+    "web_ir_validate.style.token_contrast_error",
+    "web_ir_validate.route.missing_component",
+    "web_ir_validate.route.broken_link",
+    "web_ir_validate.route.unreachable",
+    "web_ir_validate.style.literal_color_value",
+    "web_ir_validate.style.literal_dimension_value",
+    "web_ir_validate.style.unknown_token",
+    "web_ir_validate.style.raw_color_value",
+    "web_ir_validate.scheduled.empty_name",
+    "web_ir_validate.scheduled.empty_interval",
+    "web_ir_validate.interop.empty_component",
+    "web_ir_validate.interop.empty_import_source",
+    "web_ir_validate.interop.empty_external_specifier",
+    "web_ir_validate.interop.empty_escape_expr",
+    "web_ir_validate.interop.empty_escape_reason",
+    "web_ir_validate.surface.unknown_surface",
+    "web_ir_validate.a11y.insufficient_contrast",
+    "web_ir_validate.a11y.low_contrast",
+    "web_ir_validate.a11y.img_missing_alt",
+    "web_ir_validate.overlay.duplicate_z",
+    "web_ir_validate.overlay.position_conflict",
+    "web_ir_validate.a11y.input_missing_label",
+    "web_ir_validate.a11y.button_missing_name",
+    "web_ir_validate.a11y.anchor_missing_name",
+    "web_ir_validate.a11y.anchor_missing_href",
+    "web_ir_validate.a11y.role_button_missing_keyboard",
+];
+
+#[cfg(test)]
+mod web_ir_registry_tests {
+    use vox_compiler::typeck::diagnostics::codes::ALL_COMPILER_DIAGNOSTIC_CODES;
+
+    use super::WEB_IR_VALIDATE_REGISTERED_CODES;
+
+    #[test]
+    fn web_ir_validate_codes_are_registered() {
+        for code in WEB_IR_VALIDATE_REGISTERED_CODES {
+            assert!(
+                ALL_COMPILER_DIAGNOSTIC_CODES.contains(code),
+                "missing WebIR code in ALL_COMPILER_DIAGNOSTIC_CODES: {code}"
+            );
+        }
+    }
 }
 
 /// Returns true for diagnostics that are advisory (soft warnings, not build blockers).
