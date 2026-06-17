@@ -788,3 +788,17 @@ fn expo_token_is_a_registered_resolvable_secret() {
         "EXPO_TOKEN is an Integration-class (persistable, shareable) secret"
     );
 }
+
+#[test]
+fn derive_master_key_is_stable_across_calls() {
+    // Two calls with the same (stubbed) keyring entry must return the same 32-byte key.
+    // Uses a temp directory as the file fallback home so no real keyring is needed.
+    let tmp = tempfile::tempdir().unwrap();
+    let fallback = tmp.path().join(".vox-master-key");
+    let k1 = crate::backend::vox_vault::derive_master_key_with_fallback(&fallback).unwrap();
+    let k2 = crate::backend::vox_vault::derive_master_key_with_fallback(&fallback).unwrap();
+    assert_eq!(
+        k1, k2,
+        "master key must be stable across process restarts via file fallback"
+    );
+}

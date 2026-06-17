@@ -1876,6 +1876,17 @@ pub const SPECS_MISSING_TAIL: &[SecretSpec] = &[
         scope_description: "",
     },
     SecretSpec {
+        id: SecretId::VoxTavilyResearch,
+        canonical_env: "VOX_TAVILY_RESEARCH",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Enable Tavily /research deep-research tier in vox-search web_gather",
+        scope_description: "",
+    },
+    SecretSpec {
         id: SecretId::VoxSearchSearxngUrl,
         canonical_env: "VOX_SEARCH_SEARXNG_URL",
         aliases: &[],

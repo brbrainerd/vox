@@ -115,8 +115,11 @@ pub enum SecretId {
     VoxSocialRedditSelfpostSummaryMax,
     VoxSocialHnMode,
     VoxSocialYoutubeDefaultCategoryId,
-    VoxSyndicationTemplateProfileEnabled,
     TavilyProject,
+    /// Enable Tavily `/research` deep-research tier (`VOX_TAVILY_RESEARCH`).
+    VoxTavilyResearch,
+    /// Sonatype Guide MCP / dependency intelligence API token.
+    SonatypeGuideToken,
     VoxNewsSiteBaseUrl,
     VoxNewsRssFeedPath,
     VoxNewsPublishArmed,
@@ -609,6 +612,8 @@ impl SecretId {
             | SecretId::VoxDataCiteRepository
             | SecretId::TavilyApiKey
             | SecretId::TavilyProject
+            | SecretId::VoxTavilyResearch
+            | SecretId::SonatypeGuideToken
             | SecretId::VoxDataCitePassword
             | SecretId::VoxOpenAlexEmail
             | SecretId::VoxSemanticScholarApiKey

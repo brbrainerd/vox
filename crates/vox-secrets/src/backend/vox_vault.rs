@@ -100,9 +100,12 @@ impl VoxCloudBackend {
             .and_then(|v| v.parse::<i64>().ok())
             .filter(|v| *v > 0)
             .unwrap_or(1);
+        let fallback_path = crate::sources::auth_json::vox_dir().join(".vox-master-key");
+        let master_key = derive_master_key_with_fallback(&fallback_path)?;
+
         Ok(Self {
             conn: Mutex::new(conn),
-            master_key: derive_master_key()?,
+            master_key,
             account_id,
             kek_ref,
             kek_version,
@@ -1345,27 +1348,55 @@ fn compute_account_secret_checksum(
         .collect::<String>()
 }
 
-fn derive_master_key() -> Result<[u8; 32], SecretError> {
-    let entry = keyring::Entry::new("vox-secrets-vault", "master")
-        .map_err(|e| SecretError::BackendMisconfigured(e.to_string()))?;
-    let password = match entry.get_password() {
-        Ok(value) if !value.is_empty() => value,
-        _ => {
-            let mut bootstrap = [0_u8; 32];
-            rand::thread_rng().fill_bytes(&mut bootstrap);
-            let generated = bootstrap
-                .iter()
-                .map(|b| format!("{b:02x}"))
-                .collect::<String>();
-            entry.set_password(&generated).map_err(|e| {
-                SecretError::BackendMisconfigured(format!(
-                    "failed to initialize keyring master key: {e}"
-                ))
-            })?;
-            generated
+fn hash_master_password(pw: &str) -> [u8; 32] {
+    if pw.len() == 64 {
+        if let Ok(bytes) = hex::decode(pw) {
+            if let Ok(arr) = bytes.try_into() {
+                return arr;
+            }
         }
-    };
-    Ok(secure_hash(password.as_bytes()))
+    }
+    secure_hash(pw.as_bytes())
+}
+
+pub(crate) fn derive_master_key_with_fallback(
+    fallback_path: &std::path::Path,
+) -> Result<[u8; 32], SecretError> {
+    use keyring::Entry;
+    // 1. Try the OS keyring first (happy path in interactive shells).
+    let entry = Entry::new("vox-secrets-vault", "master")
+        .map_err(|e| SecretError::BackendMisconfigured(e.to_string()))?;
+    match entry.get_password() {
+        Ok(pw) if !pw.is_empty() => {
+            return Ok(hash_master_password(&pw));
+        }
+        _ => {}
+    }
+    // 2. File fallback: read existing key bytes or generate + persist.
+    if fallback_path.exists() {
+        let raw = std::fs::read(fallback_path).map_err(|e| SecretError::Io(e.to_string()))?;
+        if raw.len() == 32 {
+            let mut key = [0u8; 32];
+            key.copy_from_slice(&raw);
+            // Best-effort: write into keyring so next interactive shell finds it.
+            let _ = entry.set_password(&hex::encode(key));
+            return Ok(key);
+        }
+    }
+    // 3. Generate a new key and persist to both stores.
+    let mut key = [0u8; 32];
+    rand::thread_rng().fill_bytes(&mut key);
+    if let Some(parent) = fallback_path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| SecretError::Io(e.to_string()))?;
+    }
+    std::fs::write(fallback_path, &key).map_err(|e| SecretError::Io(e.to_string()))?;
+    let _ = entry.set_password(&hex::encode(key));
+    Ok(key)
+}
+
+fn derive_master_key() -> Result<[u8; 32], SecretError> {
+    let fallback_path = crate::sources::auth_json::vox_dir().join(".vox-master-key");
+    derive_master_key_with_fallback(&fallback_path)
 }
 
 /// Non-secret diagnostic: first 8 bytes of `secure_hash(b"vox-vault-master-fp:" + key)` as hex.
