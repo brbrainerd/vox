@@ -375,6 +375,12 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             derived_tool_schema!(crate::params::VoxVisualRagQueryParams)
         }
         "vox_repo_status" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
+        "vox_graphify_status" => parse_obj(
+            r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id from contracts/retrieval/graphify-corpora.v1.yaml; omit for all corpora"}},"additionalProperties":false}"#,
+        ),
+        "vox_graphify_search" => parse_obj(
+            r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id from contracts/retrieval/graphify-corpora.v1.yaml; omit for default corpus"},"query":{"type":"string","minLength":1,"description":"Lexical search query matched against node labels"},"limit":{"type":"integer","minimum":1,"description":"Maximum hits to return (default 10)"}},"required":["query"],"additionalProperties":false}"#,
+        ),
         "vox_project_init" => parse_obj(
             r#"{"type":"object","properties":{"project_name":{"type":"string","minLength":1,"description":"Project / package name"},"package_kind":{"type":"string","description":"e.g. application, skill, agent, workflow, chatbot, library"},"template":{"type":"string","description":"Optional application template: chatbot, dashboard, api"},"target_subdir":{"type":"string","description":"Repo-relative directory for the scaffold (no `..`); default is workspace root"}},"required":["project_name"],"additionalProperties":false}"#,
         ),
@@ -472,7 +478,12 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         ),
 
         // ── Skills ───────────────────────────────────────────────────────────
-        "vox_skill_uninstall" | "vox_skill_info" | "vox_skill_use" | "vox_skill_parse" => {
+        "vox_skill_uninstall"
+        | "vox_skill_info"
+        | "vox_skill_use"
+        | "vox_skill_parse"
+        | "vox_skill_run"
+        | "vox_workspace_mcp_refresh" => {
             parse_obj(r#"{"type":"object","additionalProperties":true}"#)
         }
         "vox_skill_search" => parse_obj(
@@ -746,6 +757,9 @@ mod tests {
         let mut missing = Vec::new();
         for e in TOOL_REGISTRY {
             let name = e.name;
+            if !crate::registry::dispatchable_under_features(name) {
+                continue;
+            }
             if tool_input_schema(name).is_empty() {
                 missing.push(name);
             }

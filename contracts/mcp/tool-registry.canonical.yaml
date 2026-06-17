@@ -578,6 +578,16 @@ tools:
   product_lane: app
   http_read_role_eligible: true
   tier: core
+- name: vox_graphify_search
+  description: Lexically search a graphify corpus graph on disk (read-only).
+  product_lane: platform
+  http_read_role_eligible: true
+  tier: core
+- name: vox_graphify_status
+  description: Report graphify corpus freshness (read-only; `--strict` fails when stale).
+  product_lane: platform
+  http_read_role_eligible: true
+  tier: core
 - name: vox_handoff_context
   description: Handoff summarized context from one agent to another.
   product_lane: ai
@@ -1283,6 +1293,11 @@ tools:
   product_lane: interop
   http_read_role_eligible: false
   tier: core
+- name: vox_skill_run
+  description: Execute a skill script in the sandbox (parity with CLI `vox skill run`).
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
 - name: vox_skill_search
   description: Search installed skills by keyword.
   product_lane: interop
@@ -1401,6 +1416,11 @@ tools:
 - name: vox_workspace_create
   description: Create an isolated workspace for an agent.
   product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_workspace_mcp_refresh
+  description: Reloads/refreshes the workspace MCP registry and scan config.
+  product_lane: interop
   http_read_role_eligible: false
   tier: core
 - name: vox_workspace_merge

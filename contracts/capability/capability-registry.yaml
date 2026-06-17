@@ -1302,6 +1302,24 @@ curated:
   - ci
   - parse-status
   parameters: null
+- id: cli.ci.pipeline-parity
+  title: Ci Pipeline-parity
+  description_human: null
+  description_model: CLI operation `vox ci pipeline-parity` — umbrella gate for script→emission SSOT (grammar parity, canonical ladder, feature matrix, k-budget)
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - pipeline-parity
+  parameters: null
 - id: cli.ci.pm-provenance
   title: Ci Pm-provenance
   description_human: null
@@ -2521,6 +2539,25 @@ curated:
   cli_path:
   - gamify
   - hud
+  parameters: null
+- id: cli.graphify
+  title: Graphify
+  description_human: null
+  description_model: CLI operation `vox graphify`
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - graphify
   parameters: null
 - id: cli.init
   title: Init
@@ -6894,6 +6931,42 @@ curated:
   mcp_tool: vox_git_status
   cli_path: null
   parameters: null
+- id: mcp.vox_graphify_search
+  title: Graphify Search
+  description_human: null
+  description_model: Lexically search a graphify corpus graph on disk (read-only).
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: vox_graphify_search
+  cli_path: null
+  parameters: null
+- id: mcp.vox_graphify_status
+  title: Graphify Status
+  description_human: null
+  description_model: Report graphify corpus freshness (read-only; `--strict` fails when stale).
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: vox_graphify_status
+  cli_path: null
+  parameters: null
 - id: mcp.vox_handoff_context
   title: Handoff Context
   description_human: null
@@ -9168,6 +9241,22 @@ curated:
   mcp_tool: vox_skill_parse
   cli_path: null
   parameters: null
+- id: mcp.vox_skill_run
+  title: Skill Run
+  description_human: null
+  description_model: Execute a skill script in the sandbox (parity with CLI `vox skill run`).
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_skill_run
+  cli_path: null
+  parameters: null
 - id: mcp.vox_skill_search
   title: Skill Search
   description_human: null
@@ -9563,6 +9652,22 @@ curated:
   human_takeover_friendly: true
   mens_planner_visible: true
   mcp_tool: vox_workspace_create
+  cli_path: null
+  parameters: null
+- id: mcp.vox_workspace_mcp_refresh
+  title: Workspace MCP Refresh
+  description_human: null
+  description_model: Reloads/refreshes the workspace MCP registry and scan config.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_workspace_mcp_refresh
   cli_path: null
   parameters: null
 - id: mcp.vox_workspace_merge
