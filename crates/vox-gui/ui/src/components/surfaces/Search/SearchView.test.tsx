@@ -138,3 +138,17 @@ describe('pathMatchesGlob', () => {
     expect(pathMatchesGlob('src/main_rs', '**/*.rs')).toBe(false); // underscore not a dot
   });
 });
+
+describe('SearchView accessibility', () => {
+  it('result count has aria-live="polite" for screen reader announcements', () => {
+    render(<SearchView pushToast={vi.fn()} />);
+    const liveRegion = document.querySelector('[aria-live="polite"]');
+    expect(liveRegion).not.toBeNull();
+  });
+
+  it('result count has aria-atomic="true"', () => {
+    render(<SearchView pushToast={vi.fn()} />);
+    const liveRegion = document.querySelector('[aria-atomic="true"]');
+    expect(liveRegion).not.toBeNull();
+  });
+});

@@ -481,7 +481,11 @@ export function SearchView({ pushToast, gamifyEnabled = false }: SurfaceDecorato
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div>
             <div className="font-display text-sm tracking-widest text-zinc-200 uppercase">Unified Search</div>
-            <div className="text-xs text-zinc-500 mt-1">
+            <div
+              className="text-xs text-zinc-500 mt-1"
+              aria-live="polite"
+              aria-atomic="true"
+            >
               {response
                 ? `${response.total} result${response.total !== 1 ? 's' : ''} across ${response.corpora.join(', ')}`
                 : 'Search across memory, knowledge, repo, and web'}
