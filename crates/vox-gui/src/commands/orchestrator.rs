@@ -102,7 +102,7 @@ pub const TASKS_CHANGED_EVENT: &str = "vox://tasks-changed";
 /// Call this after any mutation to orchestrator task state. The frontend
 /// `TasksView` subscribes to this event to refresh its task list without
 /// polling.
-pub fn emit_tasks_changed(app_handle: &tauri::AppHandle) {
+pub fn emit_tasks_changed<R: tauri::Runtime>(app_handle: &tauri::AppHandle<R>) {
     // `emit` broadcasts to all windows. A unit payload `()` serialises to `null`.
     let _ = app_handle.emit(TASKS_CHANGED_EVENT, ());
 }
@@ -123,11 +123,12 @@ pub struct SecretaryProposedPayload {
 }
 
 /// Emit [`SECRETARY_PROPOSED_EVENT`] to all webview windows.
-pub fn emit_secretary_proposed(app_handle: &tauri::AppHandle, payload: SecretaryProposedPayload) {
+pub fn emit_secretary_proposed<R: tauri::Runtime>(
+    app_handle: &tauri::AppHandle<R>,
+    payload: SecretaryProposedPayload,
+) {
     let _ = app_handle.emit(SECRETARY_PROPOSED_EVENT, payload);
 }
-
-
 
 #[derive(Debug, serde::Serialize)]
 pub struct GuiAgentSummary {
@@ -644,5 +645,3 @@ mod secretary_tests {
         assert_eq!(json["confidence_pct"], 85);
     }
 }
-
-
