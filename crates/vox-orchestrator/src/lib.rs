@@ -380,3 +380,5 @@ pub use orchestrator_policy::{
 };
 
 pub mod preregistration;
+pub mod secretary;
+
