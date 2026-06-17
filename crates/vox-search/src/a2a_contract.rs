@@ -120,6 +120,7 @@ mod tests {
             evidence_quality: 0.5,
             citation_coverage: 0.5,
             recommended_next_action: None,
+            repo_truncated: false,
         };
         let r = A2ARetrievalResponse::from_search_pass(
             "r1",

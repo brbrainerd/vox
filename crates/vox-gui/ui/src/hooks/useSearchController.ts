@@ -30,16 +30,16 @@ export function useSearchController(options: UseSearchControllerOptions = {}) {
   const runSearch = useCallback(async (query: string, scopes: UserScope[], token: number) => {
     const q = query.trim();
     if (!q) {
-      dispatch({ type: 'setHits', hits: [], token });
+      dispatch({ type: 'setHits', hits: [], repoTruncated: false, token });
       return;
     }
     dispatch({ type: 'setLoading', loading: true, token });
     try {
       const backendScopes = backendScopesFromUserScopes(scopes);
       const res = await voxTransport.voxSearchQuery(q, 30, backendScopes);
-      dispatch({ type: 'setHits', hits: res.hits ?? [], token });
+      dispatch({ type: 'setHits', hits: res.hits ?? [], repoTruncated: res.repo_truncated ?? false, token });
     } catch {
-      dispatch({ type: 'setHits', hits: [], token });
+      dispatch({ type: 'setHits', hits: [], repoTruncated: false, token });
     }
   }, []);
 

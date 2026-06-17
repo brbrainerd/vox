@@ -3,6 +3,7 @@ import {
   ALL_USER_SCOPES,
   backendScopesFromUserScopes,
   filterCommandCatalogHits,
+  filterSettingsIndexHits,
   searchReducer,
   initialSearchState,
   userScopeToBackend,
@@ -26,6 +27,11 @@ describe('searchController', () => {
     expect(ALL_USER_SCOPES).toContain('settings');
   });
 
+  it('maps settings scope to no backend corpora (client-federated only)', () => {
+    expect(userScopeToBackend('settings')).toEqual([]);
+    expect(backendScopesFromUserScopes(['settings'])).toEqual([]);
+  });
+
   it('filters command catalog entries by command or about text', () => {
     const hits = filterCommandCatalogHits(
       [
@@ -39,13 +45,24 @@ describe('searchController', () => {
     expect(hits[0].source).toBe('commands');
   });
 
+  it('maps SETTINGS_INDEX rows to unified hits for settings scope merge', () => {
+    const hits = filterSettingsIndexHits('openrouter');
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits.every(h => h.source === 'settings' && h.kind === 'setting')).toBe(true);
+    expect(hits[0].locator).toEqual({
+      kind: 'setting',
+      value: expect.stringContaining('settingId'),
+    });
+    expect(hits.some(h => h.title === 'OpenRouter override')).toBe(true);
+  });
+
   it('setScopes bumps requestToken to discard stale hits', () => {
     const withHits = searchReducer(
       { ...initialSearchState, requestToken: 2, hits: [{ id: 1 }] },
       { type: 'setScopes', scopes: ['memory'] },
     );
     expect(withHits.requestToken).toBe(3);
-    const stale = searchReducer(withHits, { type: 'setHits', hits: [{ id: 99 }], token: 2 });
+    const stale = searchReducer(withHits, { type: 'setHits', hits: [{ id: 99 }], repoTruncated: false, token: 2 });
     expect(stale.hits).toEqual([{ id: 1 }]);
   });
 });

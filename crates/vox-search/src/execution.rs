@@ -67,6 +67,7 @@ pub struct SearchExecution {
     pub evidence_quality: f64,
     pub citation_coverage: f64,
     pub recommended_next_action: Option<SearchRefinementAction>,
+    pub repo_truncated: bool,
 }
 
 /// Distinct corpus buckets that can contribute evidence (aligned with `execute_search_plan` corpora).
@@ -137,10 +138,10 @@ pub fn repo_path_search(
     query: &str,
     limit: usize,
     policy: &SearchPolicy,
-) -> Vec<RetrievalResult> {
+) -> (Vec<RetrievalResult>, bool) {
     let tokens = query_tokens(query);
     if tokens.is_empty() {
-        return Vec::new();
+        return (Vec::new(), false);
     }
     let skip: std::collections::HashSet<&str> = policy
         .repo_inventory_skip_dirs
@@ -148,7 +149,8 @@ pub fn repo_path_search(
         .map(|s| s.as_str())
         .collect();
     let mut out = Vec::new();
-    for entry in WalkDir::new(repo_root)
+
+    let all_entries: Vec<_> = WalkDir::new(repo_root)
         .follow_links(false)
         .into_iter()
         .filter_entry(|e| {
@@ -157,8 +159,17 @@ pub fn repo_path_search(
         })
         .filter_map(Result::ok)
         .filter(|e| e.file_type().is_file())
-        .take(policy.repo_inventory_max_files)
-    {
+        .take(policy.repo_inventory_max_files + 1)
+        .collect();
+
+    let truncated = all_entries.len() > policy.repo_inventory_max_files;
+    let entries = if truncated {
+        &all_entries[..policy.repo_inventory_max_files]
+    } else {
+        &all_entries[..]
+    };
+
+    for entry in entries {
         let rel = entry
             .path()
             .strip_prefix(repo_root)
@@ -199,7 +210,7 @@ pub fn repo_path_search(
             .unwrap_or(std::cmp::Ordering::Equal)
     });
     out.truncate(limit);
-    out
+    (out, truncated)
 }
 
 #[cfg(feature = "tantivy-lexical")]
@@ -459,10 +470,10 @@ pub async fn execute_search_plan(
             .or(chunk_diagnostics.initial_top_score);
     }
 
-    let repo_hits = if plan.corpora.contains(&SearchCorpus::RepoInventory) {
+    let (repo_hits, repo_truncated) = if plan.corpora.contains(&SearchCorpus::RepoInventory) {
         repo_path_search(&ctx.repo_root, query, limit, policy)
     } else {
-        Vec::new()
+        (Vec::new(), false)
     };
     if !repo_hits.is_empty() {
         backend_mix.push(SearchBackend::RepoPath);
@@ -729,6 +740,7 @@ pub async fn execute_search_plan(
         evidence_quality,
         citation_coverage,
         recommended_next_action,
+        repo_truncated,
     })
 }
 

@@ -388,7 +388,16 @@ export function SearchView({ pushToast, gamifyEnabled = false }: SurfaceDecorato
         total: merged.length,
         next_cursor: null,
         corpora: [...new Set(merged.map(h => h.source))],
+        repo_truncated: searchState.repoTruncated,
       });
+
+      if (searchState.repoTruncated) {
+        pushToast({
+          tone: 'warn',
+          title: 'Repo scan truncated',
+          body: `Results show the first ${(20_000).toLocaleString()} repo files. Narrow your search or use a path glob to find files in deep directories.`,
+        });
+      }
     }
 
     void mergeHits();

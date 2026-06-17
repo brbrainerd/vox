@@ -55,6 +55,8 @@ pub struct SearchResponseDto {
     pub next_cursor: Option<usize>,
     /// Names of the `SearchPlan` corpora that were consulted.
     pub corpora: Vec<String>,
+    /// True when the WalkDir file scan capped at `repo_inventory_max_files`.
+    pub repo_truncated: bool,
 }
 
 /// Outcome of an open_locator call.
@@ -254,6 +256,7 @@ pub async fn vox_search_query(
     });
 
     let chats_only = is_chats_only_scope(&scope_tags);
+    let mut repo_truncated = false;
 
     // ── Execute search ────────────────────────────────────────────────────────
     let (mut all_hits, corpora) = if chats_only {
@@ -265,6 +268,7 @@ pub async fn vox_search_query(
         let execution = execute_search_plan(&ctx, &query, &plan, engine_limit, &policy, None)
             .await
             .map_err(|e| format!("search failed: {e}"))?;
+        repo_truncated = execution.repo_truncated;
         let names = plan
             .corpora
             .iter()
@@ -290,6 +294,7 @@ pub async fn vox_search_query(
         )
         .await
         .map_err(|e| format!("search failed: {e}"))?;
+        repo_truncated = execution.repo_truncated;
         let names = plan
             .corpora
             .iter()
@@ -388,6 +393,7 @@ pub async fn vox_search_query(
         total,
         next_cursor,
         corpora,
+        repo_truncated,
     })
 }
 
