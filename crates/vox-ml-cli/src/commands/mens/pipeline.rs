@@ -350,8 +350,8 @@ pub async fn run(
                             false, // force_restart
                             curriculum,
                             vox_populi::mens::OptimizerExperimentMode::Off,
-                            false,              // require_gpu
-                            true,               // allow_cpu_fallback
+                            true,               // require_gpu
+                            false,              // allow_cpu_fallback
                             None,               // base_model_family
                             None,               // upstream_model_id
                             None,               // license_class
