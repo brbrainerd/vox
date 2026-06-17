@@ -2850,7 +2850,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ccc2776f0c61eca1ca32528f85548abd1a4be8fb53d1b21c013e4f18da1e7090"
 dependencies = [
  "data-encoding",
- "syn 2.0.117",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -4842,7 +4842,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "19753d40da53d0ec41604750eeb969097a90fb2d7f7992730d904541c04e2c19"
 dependencies = [
  "bstr",
- "hashbrown 0.17.1",
+ "hashbrown 0.15.5",
 ]
 
 [[package]]
@@ -14424,7 +14424,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "toml 0.8.23",
- "toml_edit 0.22.27",
+ "toml_edit 0.25.12+spec-1.1.0",
  "tracing",
  "tracing-subscriber",
  "turso",
@@ -18482,7 +18482,7 @@ dependencies = [
  "tokio-util",
  "toml 0.8.23",
  "toml_datetime 1.1.1+spec-1.1.0",
- "toml_edit 0.22.27",
+ "toml_edit 0.25.12+spec-1.1.0",
  "toml_parser",
  "toml_writer",
  "tower",
