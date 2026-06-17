@@ -109,7 +109,7 @@ mod tests {
 
     #[test]
     fn intent_is_capped_at_200_chars() {
-        let long = format!("fix the thing {}", "x".repeat(300));
+        let long = format!("fix the thing that is currently broken and causing the server to crash repeatedly {}", "x".repeat(300));
         let result = classify("user", &long).unwrap();
         assert!(result.intent.len() <= 200);
     }
