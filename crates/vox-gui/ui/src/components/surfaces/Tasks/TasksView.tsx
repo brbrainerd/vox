@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { Icon } from '../../ui/Icons';
 import { TaskRow, groupTasks, cyclePriority, filterBySession, findWriteOverlaps } from './tasksHelpers';
 import { useVirtualList } from '../../../hooks/useVirtualList';
+import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 
 interface StoredSession { id: string; title: string }
 
@@ -17,7 +19,6 @@ function loadSessionTitles(): Record<string, string> {
   }
 }
 
-const POLL_MS = 4000;
 
 const PRIORITY_STYLE: Record<string, string> = {
   urgent: 'text-red-300 border-red-400/30 bg-red-400/10',
@@ -39,7 +40,13 @@ function PriorityChip({ value, onCycle }: { value: string; onCycle: () => void }
   );
 }
 
-export function TasksView(_props: { pushToast?: (t: unknown) => void }) {
+export function TasksView({
+  pushToast: _pushToast,
+  gamifyEnabled = false,
+}: {
+  pushToast?: (t: unknown) => void;
+  gamifyEnabled?: boolean;
+}) {
   const [rows, setRows] = useState<TaskRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,10 +74,19 @@ export function TasksView(_props: { pushToast?: (t: unknown) => void }) {
   useEffect(() => {
     mounted.current = true;
     refresh();
-    const t = setInterval(refresh, POLL_MS);
+
+    // Subscribe to push events from the backend instead of polling.
+    // The backend emits "vox://tasks-changed" after any task mutation.
+    let unlisten: UnlistenFn | undefined;
+    listen<void>('vox://tasks-changed', () => {
+      refresh();
+    }).then((fn) => {
+      unlisten = fn;
+    });
+
     return () => {
       mounted.current = false;
-      clearInterval(t);
+      unlisten?.();
     };
   }, [refresh]);
 
@@ -93,11 +109,12 @@ export function TasksView(_props: { pushToast?: (t: unknown) => void }) {
     const description = newTask.trim();
     if (!description) return;
     setNewTask('');
-    act(() =>
-      invoke('submit_orchestrator_task', {
+    act(async () => {
+      await invoke('submit_orchestrator_task', {
         input: { description, files: [], priority: null, session_id: null },
-      }),
-    );
+      });
+      void recordGamifyGuiEvent('task_submitted', { description }, { enabled: gamifyEnabled });
+    });
   };
 
   const saveEdit = (id: number) => {

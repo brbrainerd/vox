@@ -43,6 +43,7 @@ async fn call_orchestrator_daemon(
 
 #[tauri::command]
 pub async fn submit_orchestrator_task(
+    app_handle: tauri::AppHandle,
     input: SubmitTaskInput,
 ) -> Result<ControlPlaneResult, String> {
     let file_manifest: Vec<FileAffinity> = input.files.iter().map(FileAffinity::write).collect();
@@ -89,7 +90,7 @@ pub async fn submit_orchestrator_task(
         .get("duplicate_of")
         .and_then(|v| v.as_u64())
         .map(|v| v.to_string());
-    Ok(ControlPlaneResult {
+    let result = Ok(ControlPlaneResult {
         ok: true,
         message: if task_id.is_some() {
             "task submitted".to_string()
@@ -98,7 +99,9 @@ pub async fn submit_orchestrator_task(
         },
         task_id,
         duplicate_of,
-    })
+    });
+    crate::commands::orchestrator::emit_tasks_changed(&app_handle);
+    result
 }
 
 #[tauri::command]
@@ -265,6 +268,7 @@ pub async fn list_orchestrator_tasks() -> Result<Vec<TaskRowDto>, String> {
 
 #[tauri::command]
 pub async fn edit_orchestrator_task(
+    app_handle: tauri::AppHandle,
     task_id: u64,
     description: String,
 ) -> Result<ControlPlaneResult, String> {
@@ -273,31 +277,39 @@ pub async fn edit_orchestrator_task(
         serde_json::json!({ "task_id": task_id, "description": description }),
     )
     .await?;
-    Ok(ControlPlaneResult {
+    let result = Ok(ControlPlaneResult {
         ok: true,
         message: format!("task {task_id} updated"),
         task_id: Some(task_id.to_string()),
         duplicate_of: None,
-    })
+    });
+    crate::commands::orchestrator::emit_tasks_changed(&app_handle);
+    result
 }
 
 #[tauri::command]
-pub async fn cancel_orchestrator_task(task_id: u64) -> Result<ControlPlaneResult, String> {
+pub async fn cancel_orchestrator_task(
+    app_handle: tauri::AppHandle,
+    task_id: u64,
+) -> Result<ControlPlaneResult, String> {
     call_orchestrator_daemon(
         orch_daemon_method::CANCEL_TASK,
         serde_json::json!({ "task_id": task_id }),
     )
     .await?;
-    Ok(ControlPlaneResult {
+    let result = Ok(ControlPlaneResult {
         ok: true,
         message: format!("task {task_id} cancelled"),
         task_id: Some(task_id.to_string()),
         duplicate_of: None,
-    })
+    });
+    crate::commands::orchestrator::emit_tasks_changed(&app_handle);
+    result
 }
 
 #[tauri::command]
 pub async fn reorder_orchestrator_task(
+    app_handle: tauri::AppHandle,
     task_id: u64,
     priority: String,
 ) -> Result<ControlPlaneResult, String> {
@@ -306,10 +318,25 @@ pub async fn reorder_orchestrator_task(
         serde_json::json!({ "task_id": task_id, "priority": priority }),
     )
     .await?;
-    Ok(ControlPlaneResult {
+    let result = Ok(ControlPlaneResult {
         ok: true,
         message: format!("task {task_id} → {priority}"),
         task_id: Some(task_id.to_string()),
         duplicate_of: None,
-    })
+    });
+    crate::commands::orchestrator::emit_tasks_changed(&app_handle);
+    result
 }
+
+#[cfg(test)]
+mod tests {
+    // Verify the module imports compile cleanly.
+    use super::*;
+    #[test]
+    fn smoke_imports() {
+        // If this test compiles, our imports are correct.
+        let _ = std::mem::size_of::<SubmitTaskInput>();
+        let _ = std::mem::size_of::<ControlPlaneResult>();
+    }
+}
+

@@ -92,6 +92,22 @@ pub fn spawn_agent_event_stream(app_handle: tauri::AppHandle, daemon: Arc<Persis
     });
 }
 
+/// Tauri event emitted every time any orchestrator task changes state
+/// (created, updated, reordered, cancelled). Frontend subscribers should
+/// call their refresh function on receipt.
+pub const TASKS_CHANGED_EVENT: &str = "vox://tasks-changed";
+
+/// Emit [`TASKS_CHANGED_EVENT`] to all webview windows.
+///
+/// Call this after any mutation to orchestrator task state. The frontend
+/// `TasksView` subscribes to this event to refresh its task list without
+/// polling.
+pub fn emit_tasks_changed(app_handle: &tauri::AppHandle) {
+    // `emit` broadcasts to all windows. A unit payload `()` serialises to `null`.
+    let _ = app_handle.emit(TASKS_CHANGED_EVENT, ());
+}
+
+
 #[derive(Debug, serde::Serialize)]
 pub struct GuiAgentSummary {
     pub id: u64,

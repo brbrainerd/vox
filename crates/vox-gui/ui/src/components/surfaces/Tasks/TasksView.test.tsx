@@ -1,11 +1,18 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 
 // Mock Tauri invoke — TasksView calls list_orchestrator_tasks on mount.
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn().mockResolvedValue([]),
+}));
+
+// Mock @tauri-apps/api/event (listen)
+const mockUnlisten = vi.fn();
+const mockListen = vi.fn().mockResolvedValue(mockUnlisten);
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: mockListen,
 }));
 
 import { TasksView } from './TasksView';
@@ -51,5 +58,30 @@ describe('TasksView', () => {
   it('the add-task input is labeled', () => {
     render(<TasksView />);
     expect(screen.getByLabelText('Add a task')).toBeDefined();
+  });
+
+  it('subscribes to vox://tasks-changed on mount', async () => {
+    render(<TasksView />);
+    await waitFor(() => {
+      expect(mockListen).toHaveBeenCalledWith(
+        'vox://tasks-changed',
+        expect.any(Function),
+      );
+    });
+  });
+
+  it('calls unlisten on unmount', async () => {
+    const { unmount } = render(<TasksView />);
+    await waitFor(() => expect(mockListen).toHaveBeenCalled());
+    unmount();
+    expect(mockUnlisten).toHaveBeenCalled();
+  });
+
+  it('does NOT set a polling interval', async () => {
+    const setIntervalSpy = vi.spyOn(globalThis, 'setInterval');
+    render(<TasksView />);
+    await waitFor(() => expect(mockListen).toHaveBeenCalled());
+    expect(setIntervalSpy).not.toHaveBeenCalled();
+    setIntervalSpy.mockRestore();
   });
 });
