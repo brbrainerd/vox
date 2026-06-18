@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { projectIso } from '../../lib/projection';
 import { HudPanels } from './HudPanels';
+import { CitizenSprite } from './CitizenSprite';
 
 export interface GridPlot {
   x: number;
@@ -109,6 +110,16 @@ export const LudusSandbox: React.FC<SandboxProps> = ({ files }) => {
   return (
     <div className="relative w-full h-[500px] bg-[#09090b] overflow-hidden border border-zinc-800 rounded-2xl">
       <canvas ref={canvasRef} width={800} height={500} className="absolute inset-0 w-full h-full" />
+      <div className="absolute inset-0 pointer-events-none">
+        <CitizenSprite
+          id="dev"
+          name="Developer"
+          tileWidth={tileWidth}
+          tileHeight={tileHeight}
+          offsetX={camera.x}
+          offsetY={camera.y}
+        />
+      </div>
       <HudPanels
         treasuryValue={120}
         energy={90}
