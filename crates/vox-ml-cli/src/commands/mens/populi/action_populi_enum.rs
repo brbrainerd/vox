@@ -353,8 +353,8 @@ pub enum PopuliAction {
     /// Detect GPU capabilities and print recommended LoRA training configuration
     Probe {
         /// Show detailed hardware metadata and recommended hyperparameter presets.
-        #[arg(long, short = 'v')]
-        verbose: bool,
+        #[arg(long, short = 'd')]
+        detailed: bool,
     },
 
     /// Show training run status or BYOK quota usage

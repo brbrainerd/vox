@@ -407,8 +407,8 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
         #[cfg(feature = "gpu")]
         PopuliAction::Models => crate::commands::mens::models::run_models(_global_verbose),
 
-        PopuliAction::Probe { verbose } => {
-            let v = verbose || _global_verbose;
+        PopuliAction::Probe { detailed } => {
+            let v = detailed || _global_verbose;
             probe::run_probe(v).await
         }
 

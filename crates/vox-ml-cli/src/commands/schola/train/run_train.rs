@@ -105,7 +105,7 @@ pub async fn run_train(
             model = %resolved,
             "Using default HF model for Candle QLoRA (`--model` omitted; see contracts/mens/training-presets.v1.yaml)."
         );
-        model = Some(resolved.into_owned());
+        model = Some(resolved);
     }
 
     let effective_qlora_require_full_proxy_stack = !qlora_allow_partial_proxy_stack
