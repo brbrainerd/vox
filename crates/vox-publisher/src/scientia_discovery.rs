@@ -355,6 +355,117 @@ fn parse_scientific(meta: Option<&str>) -> Option<ScientificPublicationMetadata>
     serde_json::from_value(block.clone()).ok()
 }
 
+fn parse_metadata_root(meta: Option<&str>) -> Option<serde_json::Value> {
+    meta.filter(|s| !s.trim().is_empty())
+        .and_then(|s| serde_json::from_str(s.trim()).ok())
+}
+
+fn scientia_block(meta: Option<&str>) -> Option<serde_json::Map<String, serde_json::Value>> {
+    parse_metadata_root(meta).and_then(|v| v.get("scientia").and_then(|b| b.as_object().cloned()))
+}
+
+/// Zenodo archive fields tracked in [`ManifestCompletionReport::required_missing`].
+/// Autofill (via [`crate::scientia_autofill`]) fills holes and records
+/// [`FieldProvenanceEntry`] rows under `metadata_json.scientia.field_provenance`.
+#[must_use]
+pub fn zenodo_archive_required_missing(manifest: &PublicationManifest) -> Vec<String> {
+    let scientia = scientia_block(manifest.metadata_json.as_deref());
+    let scientific = parse_scientific(manifest.metadata_json.as_deref());
+    let mut missing = Vec::new();
+
+    let has_pub_date = scientia
+        .as_ref()
+        .and_then(|b| b.get("publication_date"))
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .is_some_and(|s| !s.is_empty());
+    if !has_pub_date {
+        missing.push("publication_date".into());
+    }
+
+    let has_keywords = scientia
+        .as_ref()
+        .and_then(|b| b.get("keywords"))
+        .and_then(|v| v.as_array())
+        .is_some_and(|a| !a.is_empty());
+    if !has_keywords {
+        missing.push("keywords".into());
+    }
+
+    let has_version = scientia
+        .as_ref()
+        .and_then(|b| b.get("version"))
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .is_some_and(|s| !s.is_empty());
+    if !has_version {
+        missing.push("version".into());
+    }
+
+    let stored_related = scientia
+        .as_ref()
+        .and_then(|b| b.get("related_identifiers"))
+        .and_then(|v| v.as_array())
+        .is_some_and(|a| !a.is_empty());
+    let derived_related = scientific
+        .as_ref()
+        .and_then(|s| s.reproducibility.as_ref())
+        .map(|r| {
+            r.code_repository_url
+                .as_deref()
+                .map(str::trim)
+                .is_some_and(|s| !s.is_empty())
+                || r.data_repository_url
+                    .as_deref()
+                    .map(str::trim)
+                    .is_some_and(|s| !s.is_empty())
+        })
+        .unwrap_or(false)
+        || scientia
+            .as_ref()
+            .and_then(|b| b.get("nanopub_uris"))
+            .and_then(|v| v.as_array())
+            .is_some_and(|a| !a.is_empty())
+        || scientia
+            .as_ref()
+            .and_then(|b| b.get("swhid"))
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .is_some_and(|s| !s.is_empty());
+    if !stored_related && !derived_related {
+        missing.push("related_identifiers".into());
+    }
+
+    missing
+}
+
+/// Merge persisted autofill provenance from `metadata_json.scientia.field_provenance`
+/// into a completion report (does not recompute missing fields).
+#[must_use]
+pub fn merge_field_provenance_from_metadata(
+    mut report: ManifestCompletionReport,
+    manifest: &PublicationManifest,
+) -> ManifestCompletionReport {
+    let Some(scientia) = scientia_block(manifest.metadata_json.as_deref()) else {
+        return report;
+    };
+    let Some(arr) = scientia.get("field_provenance").and_then(|v| v.as_array()) else {
+        return report;
+    };
+    for entry in arr {
+        if let Ok(prov) = serde_json::from_value::<FieldProvenanceEntry>(entry.clone()) {
+            if !report
+                .field_provenance
+                .iter()
+                .any(|p| p.field == prov.field && p.origin == prov.origin)
+            {
+                report.field_provenance.push(prov);
+            }
+        }
+    }
+    report
+}
+
 /// Field completion + provenance hints (clerical; does not assert novelty).
 #[must_use]
 pub fn manifest_completion_report(manifest: &PublicationManifest) -> ManifestCompletionReport {
@@ -429,17 +540,26 @@ pub fn manifest_completion_report(manifest: &PublicationManifest) -> ManifestCom
         human_only_pending.push("scientia_evidence_optional".into());
     }
 
+    for field in zenodo_archive_required_missing(manifest) {
+        if !required_missing.contains(&field) {
+            required_missing.push(field);
+        }
+    }
+
     let manifest_score = 100_i32 - (required_missing.len() as i32 * 18).min(90);
     let manifest_score = manifest_score.clamp(10, 100) as u16;
     let completeness = ((manifest_score + u16::from(ev_score)) / 2).min(100) as u8;
 
-    ManifestCompletionReport {
-        completeness_0_100: completeness,
-        required_missing,
-        inferred_ok,
-        human_only_pending,
-        field_provenance: provenance,
-    }
+    merge_field_provenance_from_metadata(
+        ManifestCompletionReport {
+            completeness_0_100: completeness,
+            required_missing,
+            inferred_ok,
+            human_only_pending,
+            field_provenance: provenance,
+        },
+        manifest,
+    )
 }
 
 /// Loss map + preview payloads for scholarly/social destinations (non-authoritative).
@@ -604,6 +724,92 @@ mod tests {
             "expected None (assumed 0.5 overlap) to score strictly below confirmed 0.0 overlap; none={} zero={}",
             with_none.rank_score,
             with_zero.rank_score
+        );
+    }
+
+    #[test]
+    fn zenodo_archive_fields_surface_in_required_missing() {
+        let m = PublicationManifest {
+            publication_id: "p".into(),
+            content_type: "scientia".into(),
+            source_ref: None,
+            title: "Neural Networks and Deep Learning".into(),
+            author: "Ada".into(),
+            abstract_text: Some("Abs".into()),
+            body_markdown: "b".into(),
+            citations_json: Some("[]".into()),
+            metadata_json: None,
+        };
+        let report = manifest_completion_report(&m);
+        for field in [
+            "publication_date",
+            "keywords",
+            "version",
+            "related_identifiers",
+        ] {
+            assert!(
+                report.required_missing.contains(&field.to_string()),
+                "expected {field} in required_missing: {:?}",
+                report.required_missing
+            );
+        }
+    }
+
+    #[test]
+    fn autofill_clears_zenodo_required_missing_with_provenance() {
+        let mut manifest = PublicationManifest {
+            publication_id: "p".into(),
+            content_type: "scientia".into(),
+            source_ref: None,
+            title: "Neural Networks and Deep Learning".into(),
+            author: "Ada".into(),
+            abstract_text: Some("Abs".into()),
+            body_markdown: "b".into(),
+            citations_json: Some("[]".into()),
+            metadata_json: None,
+        };
+        let before = manifest_completion_report(&manifest);
+        assert!(
+            before
+                .required_missing
+                .contains(&"publication_date".to_string())
+        );
+
+        let plan = crate::scientia_autofill::compute_autofill(
+            &manifest,
+            None,
+            Some("MIT"),
+            Some("https://github.com/org/repo"),
+            Some("0.6.0"),
+        );
+        let new_meta = crate::scientia_autofill::apply_autofill(
+            manifest.metadata_json.as_deref(),
+            &mut manifest.abstract_text,
+            &plan,
+        )
+        .expect("apply autofill");
+        manifest.metadata_json = Some(new_meta);
+
+        let after = manifest_completion_report(&manifest);
+        assert!(
+            !after
+                .required_missing
+                .contains(&"publication_date".to_string()),
+            "publication_date should be filled: {:?}",
+            after.required_missing
+        );
+        assert!(
+            !after.required_missing.contains(&"keywords".to_string()),
+            "keywords should be filled: {:?}",
+            after.required_missing
+        );
+        assert!(
+            after
+                .field_provenance
+                .iter()
+                .any(|p| p.field == "publication_date" && p.origin.starts_with("autofill:")),
+            "expected autofill provenance for publication_date: {:?}",
+            after.field_provenance
         );
     }
 }

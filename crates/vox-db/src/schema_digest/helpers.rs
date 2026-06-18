@@ -71,32 +71,28 @@ pub(crate) fn extract_function_info(
             type_str: p
                 .type_ann
                 .as_ref()
-                .map(|t| type_expr_to_string(t))
+                .map(type_expr_to_string)
                 .unwrap_or_else(|| "unknown".to_string()),
         })
         .collect();
 
-    let return_type = func.return_type.as_ref().map(|t| type_expr_to_string(t));
+    let return_type = func.return_type.as_ref().map(type_expr_to_string);
 
     // Heuristic: detect which tables this function might affect
     // by looking at type references in params and return type
     let mut affected_tables = Vec::new();
     for p in &func.params {
-        if let Some(ref ty) = p.type_ann {
-            if let Some(table) = detect_table_reference(ty, all_table_names) {
-                if !affected_tables.contains(&table) {
+        if let Some(ref ty) = p.type_ann
+            && let Some(table) = detect_table_reference(ty, all_table_names)
+                && !affected_tables.contains(&table) {
                     affected_tables.push(table);
                 }
-            }
-        }
     }
-    if let Some(ref ret) = func.return_type {
-        if let Some(table) = detect_table_reference(ret, all_table_names) {
-            if !affected_tables.contains(&table) {
+    if let Some(ref ret) = func.return_type
+        && let Some(table) = detect_table_reference(ret, all_table_names)
+            && !affected_tables.contains(&table) {
                 affected_tables.push(table);
             }
-        }
-    }
 
     FunctionInfo {
         name: func.name.clone(),
@@ -140,11 +136,10 @@ fn type_expr_to_string(ty: &TypeExpr) -> String {
 fn detect_table_reference(ty: &TypeExpr, all_table_names: &[String]) -> Option<String> {
     match ty {
         TypeExpr::Generic { name, args, .. } if name == "Id" => {
-            if let Some(TypeExpr::Named { name: table, .. }) = args.first() {
-                if all_table_names.contains(table) {
+            if let Some(TypeExpr::Named { name: table, .. }) = args.first()
+                && all_table_names.contains(table) {
                     return Some(table.clone());
                 }
-            }
             None
         }
         TypeExpr::Generic { name, args, .. } if name == "List" || name == "list" => {

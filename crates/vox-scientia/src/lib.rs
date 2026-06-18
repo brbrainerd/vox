@@ -11,7 +11,8 @@
 //!
 //! Now-present sub-modules (formerly tracked as planned crates in layers.toml):
 //! `claim_extractor`, `inspect_bridge`, `nanopub`, `ro_crate`, `ingest`.
-//! Still planned (not yet in this crate): `prereg`.
+//! Pre-registration is orchestrator-owned (`vox-orchestrator/src/preregistration/`),
+//! not planned in this crate.
 
 // ── Pre-existing modules ──────────────────────────────────────────────────────
 pub mod claim_extractor;

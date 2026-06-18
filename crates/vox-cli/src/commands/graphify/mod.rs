@@ -255,6 +255,23 @@ mod tests {
     }
 
     #[test]
+    fn ingest_corpus_resolves_cache_dir_path() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_registry(tmp.path());
+        // After path migration, repo-code-graph lives at .vox/cache/graphify/repo-code-graph/
+        let graph_dir = tmp.path().join(".vox/cache/graphify/repo-code-graph");
+        fs::create_dir_all(&graph_dir).unwrap();
+        fs::write(
+            graph_dir.join("graph.json"),
+            r#"{"nodes":[{"id":"n1","label":"some module","type":"module"}]}"#,
+        )
+        .unwrap();
+        let nodes = ingest_graph_corpus(tmp.path(), "repo-code-graph").unwrap();
+        assert_eq!(nodes.len(), 1);
+        assert_eq!(nodes[0].id, "graphify:repo-code-graph:node:n1");
+    }
+
+    #[test]
     fn ingest_graph_corpus_projects_minimal_graph_nodes() {
         let tmp = tempfile::tempdir().unwrap();
         write_registry(tmp.path());

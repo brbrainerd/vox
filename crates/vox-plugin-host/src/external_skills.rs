@@ -52,8 +52,9 @@ pub fn discover_external_skills(roots: &[PathBuf]) -> Vec<ExternalSkill> {
                     if dir_name_mismatch(&dir, &bundle.manifest.name) {
                         tracing::warn!(
                             path = %md.display(), name = %bundle.manifest.name,
-                            "skill name does not match directory name (agentskills.io spec violation); loading anyway"
+                            "skill name does not match directory name (agentskills.io spec); skipping"
                         );
+                        continue;
                     }
                     if seen.insert(bundle.manifest.id.clone()) {
                         out.push(ExternalSkill { path: dir, bundle });
@@ -128,6 +129,14 @@ mod tests {
         std::fs::write(bad.join("SKILL.md"), "no frontmatter at all").unwrap();
         let missing = tmp.path().join("does-not-exist");
         let found = discover_external_skills(&[tmp.path().to_path_buf(), missing]);
+        assert!(found.is_empty());
+    }
+
+    #[test]
+    fn skips_name_directory_mismatch() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_skill(tmp.path(), "wrong-dir", "right-name");
+        let found = discover_external_skills(&[tmp.path().to_path_buf()]);
         assert!(found.is_empty());
     }
 

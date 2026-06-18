@@ -465,6 +465,7 @@ class VoxTransport {
     total: number;
     next_cursor: number | null;
     corpora: string[];
+    repo_truncated: boolean;
   }> {
     return invoke('vox_search_query', { query, limit, scope });
   }

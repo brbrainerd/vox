@@ -149,13 +149,23 @@ impl ServerHandler for VoxMcpServer {
         params: InitializeRequestParams,
         _ctx: RequestContext<RoleServer>,
     ) -> Result<InitializeResult, ErrorData> {
-        let tool_count = crate::TOOL_REGISTRY.len();
+        let tool_count = crate::registry::merged_tool_registry(&self.state).len();
         let vox_version = env!("CARGO_PKG_VERSION");
-        let mut experimental = std::collections::BTreeMap::new();
+        let mut experimental: std::collections::BTreeMap<
+            String,
+            serde_json::Map<String, serde_json::Value>,
+        > = std::collections::BTreeMap::new();
         let mut inner = serde_json::Map::new();
         inner.insert("messagepack".to_string(), serde_json::Value::Bool(true));
         inner.insert("inmem_transport".to_string(), serde_json::Value::Bool(true));
         experimental.insert("transport_capabilities".to_string(), inner);
+        experimental.insert(
+            "io.modelcontextprotocol/skills".to_string(),
+            serde_json::Map::from_iter([(
+                "version".to_string(),
+                serde_json::Value::String("1".to_string()),
+            )]),
+        );
         // Skills may append tools after startup; `enable_tool_list_changed` tells
         // clients to refresh their tool list occasionally.
         let capabilities = ServerCapabilities::builder()
@@ -179,7 +189,7 @@ impl ServerHandler for VoxMcpServer {
         _params: Option<PaginatedRequestParams>,
         _ctx: RequestContext<RoleServer>,
     ) -> Result<ListToolsResult, ErrorData> {
-        let mut tool_list = crate::tool_registry();
+        let mut tool_list = crate::registry::merged_tool_registry(&self.state);
 
         // E.56 MCP tool tiering: load core by default, dev/advanced require opt-in
         let allowed_tiers_env =
@@ -202,14 +212,22 @@ impl ServerHandler for VoxMcpServer {
         for skill in skills {
             for tool_name in &skill.tools {
                 if !tool_list.iter().any(|t| t.name == *tool_name) {
-                    tool_list.push(rmcp::model::Tool::new_with_raw(
-                        std::borrow::Cow::Owned(tool_name.clone()),
-                        Some(std::borrow::Cow::Owned(format!(
-                            "Instructional macro tool from skill: {}",
-                            skill.name
-                        ))),
-                        std::sync::Arc::new(serde_json::Map::new()),
-                    ));
+                    let mut meta_map = serde_json::Map::new();
+                    meta_map.insert(
+                        "vox_tier".to_string(),
+                        serde_json::Value::String("skill".to_string()),
+                    );
+                    tool_list.push(
+                        rmcp::model::Tool::new_with_raw(
+                            std::borrow::Cow::Owned(tool_name.clone()),
+                            Some(std::borrow::Cow::Owned(format!(
+                                "Instructional macro tool from skill: {}",
+                                skill.name
+                            ))),
+                            std::sync::Arc::new(serde_json::Map::new()),
+                        )
+                        .with_meta(rmcp::model::Meta(meta_map)),
+                    );
                 }
             }
         }
@@ -226,9 +244,33 @@ impl ServerHandler for VoxMcpServer {
         _params: Option<PaginatedRequestParams>,
         _ctx: RequestContext<RoleServer>,
     ) -> Result<ListResourcesResult, ErrorData> {
+        let mut resources = static_vox_resources();
+        for (uri, description) in
+            crate::skills_resources::list_skill_resources(&self.state.skill_registry)
+        {
+            let mime_type = if uri.ends_with(".json") {
+                "application/json"
+            } else {
+                "text/markdown"
+            };
+            resources.push(Resource::new(
+                RawResource::new(uri.clone(), uri.clone())
+                    .with_description(description)
+                    .with_mime_type(mime_type),
+                None,
+            ));
+        }
+        for entry in &self.state.workspace_mcp.read().resources {
+            resources.push(Resource::new(
+                RawResource::new(entry.uri.clone(), entry.uri.clone())
+                    .with_description(entry.description.clone())
+                    .with_mime_type("text/plain"),
+                None,
+            ));
+        }
         Ok(ListResourcesResult {
             meta: None,
-            resources: static_vox_resources(),
+            resources,
             next_cursor: None,
         })
     }
@@ -238,6 +280,46 @@ impl ServerHandler for VoxMcpServer {
         params: ReadResourceRequestParams,
         _ctx: RequestContext<RoleServer>,
     ) -> Result<ReadResourceResult, ErrorData> {
+        if params.uri.starts_with("skill://") {
+            match crate::skills_resources::read_skill_resource(
+                &self.state.skill_registry,
+                &params.uri,
+            ) {
+                Ok((mime, text)) => {
+                    return Ok(ReadResourceResult::new(vec![
+                        ResourceContents::TextResourceContents {
+                            uri: params.uri.clone(),
+                            mime_type: Some(mime),
+                            text,
+                            meta: None,
+                        },
+                    ]));
+                }
+                Err(e) => {
+                    return Err(ErrorData::invalid_params(e, None));
+                }
+            }
+        }
+        if let Some(entry) = self.state.workspace_mcp.read().resource_by_uri(&params.uri) {
+            match crate::workspace_mcp::dispatch_workspace_resource(
+                &self.state.workspace_mcp.read(),
+                &entry.uri,
+            ) {
+                Ok(text) => {
+                    return Ok(ReadResourceResult::new(vec![
+                        ResourceContents::TextResourceContents {
+                            uri: params.uri.clone(),
+                            mime_type: Some("text/plain".into()),
+                            text,
+                            meta: None,
+                        },
+                    ]));
+                }
+                Err(e) => {
+                    return Err(ErrorData::internal_error(e, None));
+                }
+            }
+        }
         read_vox_resource(&self.state.repository.root, &params.uri)
     }
 

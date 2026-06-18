@@ -8,6 +8,7 @@ use std::sync::Mutex;
 use vox_workflow_runtime::{journal, workflow::extract_terminal_return};
 
 mod semcov_wave29_tests {
+    #![allow(clippy::module_inception)]
     use super::*;
     use vox_workflow_runtime::FileJournalTracker;
     use vox_workflow_runtime::WorkflowTracker;

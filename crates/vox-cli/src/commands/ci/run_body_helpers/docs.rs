@@ -512,6 +512,7 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     crate::commands::ci::db_schema_coverage::run(root)?;
     vox_cli_ci::nomenclature_guard::run(root, false)?;
     crate::commands::ci::operations_catalog::verify(root)?;
+    crate::commands::ci::mcp_vox_surface_parity::run()?;
     command_compliance::run(root)?;
     crate::commands::ci::gui_version_sync::run(root, false)?;
     crate::commands::ci::gui_catalog_parity::run(root)?;

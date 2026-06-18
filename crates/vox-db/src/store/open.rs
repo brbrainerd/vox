@@ -83,13 +83,7 @@ impl crate::VoxDb {
         Self::apply_pragmas(&conn).await?;
         Self::drop_all_user_tables(&conn).await?;
         Self::migrate(&conn).await?;
-        Ok(Self {
-            conn,
-            sync_db: None,
-            writer: None,
-            breaker: std::sync::Arc::new(crate::DbCircuitBreaker::from_env()),
-            sqlite_probe_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-        })
+        Ok(Self::assembled(conn, None, Some(std::sync::Arc::new(db))))
     }
 
     /// Apply the manifest **baseline** DDL and advance `schema_version` to [`BASELINE_VERSION`].
@@ -113,6 +107,7 @@ impl crate::VoxDb {
         } else {
             0
         };
+        drop(rows);
 
         // Single maintained baseline: only `BASELINE_VERSION` (or 0 pre-bootstrap) is valid.
         // `MAX(schema_version)` from ad-hoc `apply_migrations` rows also trips this guard.
@@ -134,22 +129,10 @@ impl crate::VoxDb {
                 conn.execute_batch(sql).await?;
             }
 
-            // v51 Migration: Flatten legacy reliability tables into the consolidated SSOT
-            if current_version > 0 && current_version < 51 {
-                let _ = conn.execute_batch(r#"
-                    INSERT OR REPLACE INTO reliability_scores (entity_type, entity_id, reliability, success_count, failure_count, updated_at_ms)
-                    SELECT 'agent', agent_id, reliability, success_count, failure_count, updated_at_ms FROM agent_reliability;
-                    
-                    INSERT OR REPLACE INTO reliability_scores (entity_type, entity_id, reliability, success_count, failure_count, updated_at_ms)
-                    SELECT 'skill', skill_id, reliability, success_count, failure_count, updated_at_ms FROM skill_reliability;
-                    
-                    INSERT OR REPLACE INTO reliability_scores (entity_type, entity_id, reliability, success_count, failure_count, updated_at_ms)
-                    SELECT 'workflow', workflow_id, reliability, success_count, failure_count, updated_at_ms FROM workflow_reliability;
-                    
-                    INSERT OR REPLACE INTO reliability_scores (entity_type, entity_id, reliability, success_count, failure_count, updated_at_ms)
-                    SELECT 'repository', repository_id, reliability, success_count, failure_count, updated_at_ms FROM repository_reliability;
-                "#).await;
-            }
+            // Note: In v51, the legacy reliability tables (agent_reliability, skill_reliability,
+            // workflow_reliability, repository_reliability) were retired and consolidated into
+            // the `reliability_scores` table in the baseline schema. Since we no longer support
+            // upgrading pre-v77 database files, the dynamic migration path here is retired.
 
             crate::schema_extensions::apply_schema_extensions(conn).await?;
 
@@ -170,13 +153,7 @@ impl crate::VoxDb {
         let db = turso::Builder::new_local(path).build().await?;
         let conn = db.connect()?;
         Self::apply_pragmas(&conn).await?;
-        Ok(Self {
-            conn,
-            sync_db: None,
-            writer: None,
-            breaker: std::sync::Arc::new(crate::DbCircuitBreaker::from_env()),
-            sqlite_probe_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-        })
+        Ok(Self::assembled(conn, None, Some(std::sync::Arc::new(db))))
     }
 
     /// Open or create a local database file (requires `local` feature on `vox-db`).
@@ -186,13 +163,7 @@ impl crate::VoxDb {
         let conn = db.connect()?;
         Self::apply_pragmas(&conn).await?;
         Self::migrate(&conn).await?;
-        Ok(Self {
-            conn,
-            sync_db: None,
-            writer: None,
-            breaker: std::sync::Arc::new(crate::DbCircuitBreaker::from_env()),
-            sqlite_probe_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-        })
+        Ok(Self::assembled(conn, None, Some(std::sync::Arc::new(db))))
     }
 
     /// In-memory store (requires `local` feature on `vox-db`).
@@ -221,13 +192,7 @@ impl crate::VoxDb {
         let conn = db.connect().await?;
         Self::apply_pragmas(&conn).await?;
         Self::migrate(&conn).await?;
-        Ok(Self {
-            conn,
-            sync_db: Some(db),
-            writer: None,
-            breaker: std::sync::Arc::new(crate::DbCircuitBreaker::from_env()),
-            sqlite_probe_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-        })
+        Ok(Self::assembled(conn, Some(db), None))
     }
 
     /// Embedded replica: local path with remote sync.
@@ -245,13 +210,7 @@ impl crate::VoxDb {
         let conn = db.connect().await?;
         Self::apply_pragmas(&conn).await?;
         Self::migrate(&conn).await?;
-        Ok(Self {
-            conn,
-            sync_db: Some(db),
-            writer: None,
-            breaker: std::sync::Arc::new(crate::DbCircuitBreaker::from_env()),
-            sqlite_probe_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-        })
+        Ok(Self::assembled(conn, Some(db), None))
     }
 
     /// Default local project store at [`super::DEFAULT_PROJECT_STORE_PATH`].

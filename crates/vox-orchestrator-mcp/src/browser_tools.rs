@@ -3,6 +3,7 @@
 //! Dispatches through vox-plugin-host / BrowserAutomation sabi trait.
 //! All blocking CDP work runs inside `tokio::task::spawn_blocking`.
 
+use crate::caller_role::trusted_caller_role;
 use crate::llm_bridge::call_llm;
 use crate::params::{
     BrowserActParams, BrowserClickPointParams, BrowserControlLockParams, BrowserExtractJsonParams,
@@ -20,49 +21,6 @@ use tokio::sync::Mutex;
 fn control_locks() -> &'static Mutex<HashMap<String, String>> {
     static LOCKS: OnceLock<Mutex<HashMap<String, String>>> = OnceLock::new();
     LOCKS.get_or_init(|| Mutex::new(HashMap::new()))
-}
-
-/// Trusted caller role for the current MCP server process.
-///
-/// SECURITY: derived from the `VOX_MCP_CALLER_ROLE` environment variable, which is
-/// set by the TRUSTED launcher (a human IDE/shell), NOT from the in-band tool
-/// request body. This is the trust anchor: an agent cannot assert "human" because
-/// it cannot set the launcher's environment. For the stdio transport one process
-/// == one MCP session == one role, so a process-level role is a complete anchor.
-/// (HTTP-gateway multi-session would derive this per-request from the auth token;
-/// it currently defaults to `Agent`.)
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CallerRole {
-    Human,
-    Agent,
-}
-
-impl CallerRole {
-    pub fn from_env() -> Self {
-        match std::env::var("VOX_MCP_CALLER_ROLE")
-            .ok()
-            .as_deref()
-            .map(|s| s.trim().to_ascii_lowercase())
-            .as_deref()
-        {
-            Some("human") => CallerRole::Human,
-            _ => CallerRole::Agent,
-        }
-    }
-
-    pub fn as_str(self) -> &'static str {
-        match self {
-            CallerRole::Human => "human",
-            CallerRole::Agent => "agent",
-        }
-    }
-}
-
-/// The process-wide trusted role (read once from the launcher's environment).
-/// Surfaced on the public API via [`crate::server_state::ServerState::caller_role`].
-pub fn trusted_caller_role() -> CallerRole {
-    static ROLE: OnceLock<CallerRole> = OnceLock::new();
-    *ROLE.get_or_init(CallerRole::from_env)
 }
 
 /// Pure authorization: may a caller with `trusted_role` ACT on a page whose lock
@@ -1031,29 +989,6 @@ mod tests {
 
     // ── Control-lock authorization (pure, role-parameterized — the adversarial
     //    coverage the self-asserted-actor design could not provide) ──
-
-    #[test]
-    fn caller_role_from_env_only_trusts_human_literal() {
-        // The trusted role can only become Human via the launcher-set env var.
-        for (val, expect) in [
-            (Some("human"), CallerRole::Human),
-            (Some("HUMAN"), CallerRole::Human),
-            (Some("  Human  "), CallerRole::Human),
-            (Some("agent"), CallerRole::Agent),
-            (Some("operator"), CallerRole::Agent), // anything not "human" => Agent
-            (Some(""), CallerRole::Agent),
-            (None, CallerRole::Agent), // unset default
-        ] {
-            // SAFETY: nextest runs each test in its own process; no cross-test leak.
-            unsafe {
-                match val {
-                    Some(v) => std::env::set_var("VOX_MCP_CALLER_ROLE", v),
-                    None => std::env::remove_var("VOX_MCP_CALLER_ROLE"),
-                }
-            }
-            assert_eq!(CallerRole::from_env(), expect, "input {val:?}");
-        }
-    }
 
     #[test]
     fn lock_action_allowed_only_owner_or_unlocked() {

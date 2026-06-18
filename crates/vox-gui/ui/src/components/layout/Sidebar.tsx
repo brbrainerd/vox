@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../ui/Glass';
 import { Icon } from '../ui/Icons';
@@ -7,6 +7,7 @@ import { SURFACE_REGISTRY } from '../../generated/surfaceRegistry.generated';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { TOP_LEVEL_VIEWS, resolveNavigation } from '../../lib/navigation';
 import { STATUS_BADGE_CLASS, STATUS_RAIL_BADGE_CLASS } from '../../styles/tokens';
+import { useFreshness } from '../../hooks/useFreshness';
 
 export type SidebarMode = 'rail' | 'default' | 'wide';
 
@@ -23,11 +24,13 @@ interface NavItemProps {
   railBadgeClass?: string;
   collapsed: boolean;
   innerRef?: React.Ref<HTMLButtonElement>;
+  ariaLabel?: string;
 }
 
-function NavItem({ active, icon, label, onClick, badge, badgeClass, railBadgeClass, collapsed, innerRef }: NavItemProps) {
+function NavItem({ active, icon, label, onClick, badge, badgeClass, railBadgeClass, collapsed, innerRef, ariaLabel }: NavItemProps) {
+  const effectiveAriaLabel = ariaLabel ?? (collapsed ? label : undefined);
   return (
-    <button type="button" ref={innerRef} onClick={onClick} title={collapsed ? label : undefined} aria-label={collapsed ? label : undefined}
+    <button type="button" ref={innerRef} onClick={onClick} title={collapsed ? label : undefined} aria-label={effectiveAriaLabel}
       className={`group relative flex w-full items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} py-2.5 rounded-xl transition ${active ? "bg-white/[0.04] text-zinc-100" : "text-zinc-500 hover:bg-white/[0.025] hover:text-zinc-200"}`}>
       {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[2px] rounded-r bg-brass shadow-[0_0_12px_2px_rgb(var(--brass)_/_0.5)]" />}
       <span className={`flex size-7 items-center justify-center rounded-lg shrink-0 ${active ? "bg-brass/10 text-brass ring-1 ring-brass/30" : "bg-white/[0.02] ring-1 ring-white/5"}`}>{icon}</span>
@@ -40,6 +43,11 @@ function NavItem({ active, icon, label, onClick, badge, badgeClass, railBadgeCla
 
 const SIDEBAR_WIDTHS = { rail: 64, default: 212, wide: 280 };
 const SIDEBAR_ORDER: SidebarMode[] = ["rail", "default", "wide"];
+const SIDEBAR_FILTER_COLLAPSED_KEY = 'gui.sidebar.filter_collapsed.v1';
+
+function matchesNavFilter(label: string, query: string): boolean {
+  return label.toLowerCase().includes(query.toLowerCase());
+}
 
 const TOP_NAV_META: Record<string, { label: string; icon: string }> = {
   chat: { label: 'Chat', icon: 'message' },
@@ -64,6 +72,9 @@ interface SidebarProps {
   appVersion?: string;
   policyBadge?: PolicyBadge | null;
   approvalsPending?: number;
+  lastOrchEventAt?: number | null;
+  orchUsesPolling?: boolean;
+  liveFreshMs?: number;
 }
 
 export function Sidebar({
@@ -75,11 +86,20 @@ export function Sidebar({
   appVersion,
   policyBadge,
   approvalsPending,
+  lastOrchEventAt = null,
+  orchUsesPolling = false,
+  liveFreshMs = 10_000,
 }: SidebarProps) {
   const w = SIDEBAR_WIDTHS[mode];
   const collapsed = mode === "rail";
   const { parent: activeParent } = resolveNavigation(view);
   const [identity, setIdentity] = useState('operator@vox');
+  const tone = useFreshness(lastOrchEventAt, {
+    freshMs: liveFreshMs,
+    usesPolling: orchUsesPolling,
+  });
+  const orchDotClass =
+    tone === 'live' ? 'bg-emerald-400' : tone === 'poll' ? 'bg-amber-400' : 'bg-zinc-500';
 
   useEffect(() => {
     invoke<{ display_name: string }>('get_identity_summary')
@@ -94,11 +114,56 @@ export function Sidebar({
   };
 
   const activeRef = useRef<HTMLButtonElement>(null);
+  const [navFilter, setNavFilter] = useState('');
+  const [filterCollapsed, setFilterCollapsed] = useLocalStorage<boolean>(
+    SIDEBAR_FILTER_COLLAPSED_KEY,
+    false,
+  );
+  const filterQuery = navFilter.trim();
+
+  const childTabsByParent = useMemo(() => {
+    const map = new Map<string, Array<{ viewKey: string; label: string }>>();
+    for (const entry of SURFACE_REGISTRY) {
+      if (!entry.parentSurface || !entry.viewKey || !entry.navLabel) continue;
+      const parent = entry.parentSurface as string;
+      const list = map.get(parent) ?? [];
+      list.push({ viewKey: entry.viewKey as string, label: entry.navLabel as string });
+      map.set(parent, list);
+    }
+    return map;
+  }, []);
+
+  const visibleTopLevel = useMemo(() => {
+    const keys = TOP_LEVEL_VIEWS.filter(k => k !== 'settings');
+    if (!filterQuery) return keys;
+    return keys.filter(key => {
+      const label = TOP_NAV_META[key]?.label ?? key;
+      if (matchesNavFilter(label, filterQuery)) return true;
+      const children = childTabsByParent.get(key) ?? [];
+      return children.some(child => matchesNavFilter(child.label, filterQuery));
+    });
+  }, [childTabsByParent, filterQuery]);
+
+  const visibleChildTabs = (parentKey: string) => {
+    const children = childTabsByParent.get(parentKey) ?? [];
+    if (!filterQuery) return [];
+    const parentLabel = TOP_NAV_META[parentKey]?.label ?? parentKey;
+    if (matchesNavFilter(parentLabel, filterQuery)) {
+      return children.filter(
+        child =>
+          matchesNavFilter(child.label, filterQuery) ||
+          matchesNavFilter(parentLabel, filterQuery),
+      );
+    }
+    return children.filter(child => matchesNavFilter(child.label, filterQuery));
+  };
+
   useEffect(() => {
     activeRef.current?.scrollIntoView({ block: 'nearest' });
   }, [view]);
 
   const settingsEntry = SURFACE_REGISTRY.find(e => e.viewKey === 'settings');
+  const coverageEntry = SURFACE_REGISTRY.find(e => e.viewKey === 'coverage');
 
   return (
     <aside className="shrink-0 flex flex-col transition-[width] duration-200 ease-out h-screen overflow-hidden sticky top-0" style={{ width: w }}>
@@ -126,8 +191,34 @@ export function Sidebar({
           </div>
         </div>
 
+        {!collapsed && (
+          <div className="pb-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setFilterCollapsed(!filterCollapsed)}
+              aria-expanded={!filterCollapsed}
+              aria-label="Filter navigation"
+              className="flex w-full items-center justify-between rounded-lg border border-white/5 px-2 py-1.5 text-[10px] uppercase tracking-[0.18em] text-zinc-500 hover:bg-white/[0.02] hover:text-zinc-300 transition"
+            >
+              <span>Filter</span>
+              <Icon.chevronDown className={`size-3 transition ${filterCollapsed ? '' : 'rotate-180'}`} aria-hidden="true" />
+            </button>
+            {!filterCollapsed && (
+              <input
+                data-testid="sidebar-nav-filter"
+                aria-label="Filter navigation"
+                type="search"
+                value={navFilter}
+                onChange={e => setNavFilter(e.target.value)}
+                placeholder="Filter nav…"
+                className="mt-1.5 w-full rounded-lg border border-white/5 bg-white/[0.02] px-2.5 py-1.5 text-[11px] text-zinc-200 placeholder:text-zinc-600 focus:border-brass/30 focus:outline-none"
+              />
+            )}
+          </div>
+        )}
+
         <nav className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar flex flex-col gap-0.5 -mr-1 pr-1">
-          {TOP_LEVEL_VIEWS.filter(k => k !== 'settings').map(key => {
+          {visibleTopLevel.map(key => {
             const meta = TOP_NAV_META[key] ?? { label: key, icon: 'file' };
             const IconCmp = (Icon as Record<string, any>)[meta.icon] ?? Icon.file;
             const isActive = activeParent === key;
@@ -135,17 +226,40 @@ export function Sidebar({
               key === 'agents' ? agentsCount
               : key === 'runs' && approvalsPending != null && approvalsPending > 0 ? approvalsPending
               : undefined;
+            const navAriaLabel =
+              key === 'runs'
+                ? approvalsPending != null && approvalsPending > 0
+                  ? `Runs and Approvals, ${approvalsPending} pending`
+                  : 'Runs and Approvals'
+                : undefined;
             return (
-              <NavItem
-                key={key}
-                innerRef={isActive ? activeRef : undefined}
-                collapsed={collapsed}
-                active={isActive}
-                onClick={() => setView(key)}
-                icon={<IconCmp className="size-4" />}
-                label={meta.label}
-                badge={badge}
-              />
+              <React.Fragment key={key}>
+                <NavItem
+                  innerRef={isActive ? activeRef : undefined}
+                  collapsed={collapsed}
+                  active={isActive}
+                  onClick={() => setView(key)}
+                  icon={<IconCmp className="size-4" />}
+                  label={meta.label}
+                  badge={badge}
+                  ariaLabel={navAriaLabel}
+                />
+                {!collapsed &&
+                  visibleChildTabs(key).map(child => (
+                    <button
+                      key={child.viewKey}
+                      type="button"
+                      onClick={() => setView(child.viewKey)}
+                      className={`ml-6 flex w-[calc(100%-1.5rem)] items-center rounded-lg px-2.5 py-1.5 text-left text-[11px] transition ${
+                        view === child.viewKey
+                          ? 'bg-white/[0.04] text-zinc-100'
+                          : 'text-zinc-500 hover:bg-white/[0.025] hover:text-zinc-200'
+                      }`}
+                    >
+                      {child.label}
+                    </button>
+                  ))}
+              </React.Fragment>
             );
           })}
         </nav>
@@ -163,13 +277,32 @@ export function Sidebar({
                 badge={policyBadge && policyBadge.count > 0 ? policyBadge.count : undefined}
                 badgeClass={policyBadge ? STATUS_BADGE_CLASS[policyBadge.status] : undefined}
                 railBadgeClass={policyBadge ? STATUS_RAIL_BADGE_CLASS[policyBadge.status] : undefined}
+                ariaLabel={
+                  policyBadge && policyBadge.count > 0
+                    ? `Settings, ${policyBadge.count} policy failures`
+                    : 'Settings'
+                }
               />
+              {coverageEntry && (
+                <NavItem
+                  collapsed={collapsed}
+                  active={view === 'coverage'}
+                  onClick={() => setView('coverage')}
+                  icon={<Icon.check className="size-4" />}
+                  label={coverageEntry.navLabel as string}
+                  ariaLabel="Coverage, CI surface gaps"
+                />
+              )}
             </div>
           )}
 
           <div className={`flex items-center ${collapsed ? "justify-center" : "gap-2 px-2"} pb-1 pt-1`}>
             <div className="relative size-7 shrink-0 rounded-full bg-gradient-to-br from-violet-500 to-cyan-500">
-              <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-emerald-400 ring-2 ring-zinc-950"/>
+              <span
+                data-testid="sidebar-orch-freshness-dot"
+                aria-hidden="true"
+                className={`absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-zinc-950 ${orchDotClass}`}
+              />
             </div>
             {!collapsed && (
               <div className="flex-1 leading-tight overflow-hidden">

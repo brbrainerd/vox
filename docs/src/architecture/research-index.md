@@ -250,3 +250,9 @@ Ready-to-use TypeScript drop-ins in `docs/src/architecture/fableforge-impl/`. Ve
 - **Status:** current
 - **Date:** 2026-06-17
 - **Description:** Synthesized web research (13 searches) on 2026 best practices: three-pillar hybrid search (BM25+vector+AST), RRF best practices, cross-encoder reranking, tree-sitter symbol indexing, MCP agent search patterns, GUI UX patterns, Rust-specific stack recommendations, and Vox-specific gap matrix.
+
+## mens-corpus-health-plan-2026-06-18.md
+- **Title:** MENS Training Corpus Health Implementation Plan (2026-06-18)
+- **Status:** current
+- **Date:** 2026-06-18
+- **Description:** 6-task TDD implementation plan for raising Vox parse rate from 75.1% to 88%+, fixing 93.7% Rust-source mix dominance, adding max_lines deterministic caps and content-hash deduplication to MixSource, making the Replay pipeline stage lock-resilient (os error 33), fixing @tool decorator syntax in preflight templates, and raising eval gate thresholds. Saved at docs/superpowers/plans/2026-06-18-mens-corpus-health.md.

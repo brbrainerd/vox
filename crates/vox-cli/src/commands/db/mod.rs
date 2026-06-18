@@ -2,7 +2,7 @@
 
 mod introspect;
 mod local;
-mod publication;
+pub mod publication;
 mod query_plans;
 mod verify;
 

@@ -4,6 +4,7 @@
 
 #[cfg(test)]
 mod semcov_wave47_tests {
+    #![allow(clippy::module_inception)]
     use std::collections::HashMap;
 
     use crate::{

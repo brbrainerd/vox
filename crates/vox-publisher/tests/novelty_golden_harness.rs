@@ -73,16 +73,24 @@ fn recall(t: &ClassTally) -> Option<f64> {
 #[test]
 fn novelty_golden_harness() {
     // ------------------------------------------------------------------
-    // Load fixture
+    // Load fixture (JSONL: one case per line)
     // ------------------------------------------------------------------
     let fixture_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/novelty_golden.v1.json");
+        .join("tests/fixtures/novelty_golden/cases.jsonl");
 
     let raw = std::fs::read_to_string(&fixture_path)
         .unwrap_or_else(|e| panic!("cannot read {}: {e}", fixture_path.display()));
 
-    let cases: Vec<GoldenCase> = serde_json::from_str(&raw)
-        .unwrap_or_else(|e| panic!("cannot deserialize novelty_golden.v1.json: {e}"));
+    let cases: Vec<GoldenCase> = raw
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(|line| {
+            serde_json::from_str(line).unwrap_or_else(|e| {
+                panic!("cannot deserialize novelty golden line: {e}\nline={line}")
+            })
+        })
+        .collect();
 
     assert!(
         cases.len() >= 12,
@@ -99,6 +107,7 @@ fn novelty_golden_harness() {
         "novel",
         "possibly_novel",
         "not_novel",
+        "contradicted",
     ];
 
     let mut tallies: std::collections::HashMap<String, ClassTally> = classes

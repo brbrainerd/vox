@@ -54,20 +54,26 @@ pub async fn decompose_query_with_config(
             },
         ];
         let opts = ActivityOptions::new().with_timeout_secs(30);
-        match chat_with_cascade(&opts, messages, candidates, None).await {
+        let degraded = match chat_with_cascade(&opts, messages, candidates, None).await {
             Ok(response) => {
                 match parse_planner_response(&response.content, query, max_subqueries) {
                     Ok(plan) => return Ok(plan),
                     Err(e) => {
-                        tracing::warn!(error = %e, "research planner response was invalid; falling back")
+                        tracing::warn!(error = %e, "research planner response was invalid; falling back");
+                        true
                     }
                 }
             }
-            Err(e) => tracing::warn!(error = %e, "research planner cascade failed; falling back"),
-        }
+            Err(e) => {
+                tracing::warn!(error = %e, "research planner cascade failed; falling back");
+                true
+            }
+        };
+        return Ok(passthrough_plan(query, degraded));
     }
 
-    Ok(passthrough_plan(query))
+    #[cfg(not(feature = "runtime"))]
+    Ok(passthrough_plan(query, false))
 }
 
 /// Serialize a plan to a JSON value for telemetry persistence.
@@ -110,15 +116,17 @@ fn parse_planner_response(
         subqueries,
         scope: query.scope.clone(),
         max_sources_per_subquery: query.max_sources,
+        planner_degraded: false,
     })
 }
 
-fn passthrough_plan(query: &ResearchQuery) -> ResearchPlan {
+fn passthrough_plan(query: &ResearchQuery, planner_degraded: bool) -> ResearchPlan {
     ResearchPlan {
         original_query: query.query.clone(),
         subqueries: vec![query.query.clone()],
         scope: query.scope.clone(),
         max_sources_per_subquery: query.max_sources,
+        planner_degraded,
     }
 }
 
@@ -170,5 +178,29 @@ mod tests {
             .expect_err("empty plans should not be accepted");
 
         assert!(err.to_string().contains("no usable subqueries"));
+    }
+
+    #[test]
+    fn passthrough_plan_default_is_not_degraded() {
+        let plan = passthrough_plan(&query(), false);
+        assert!(!plan.planner_degraded);
+        assert_eq!(plan.subqueries, vec![query().query]);
+    }
+
+    #[test]
+    fn passthrough_plan_marks_llm_fallback_as_degraded() {
+        let plan = passthrough_plan(&query(), true);
+        assert!(plan.planner_degraded);
+    }
+
+    #[test]
+    fn parse_planner_response_success_is_not_degraded() {
+        let plan = parse_planner_response(
+            r#"{"subqueries":["What is CRAG?","How are citations verified?"]}"#,
+            &query(),
+            6,
+        )
+        .expect("valid planner payload");
+        assert!(!plan.planner_degraded);
     }
 }

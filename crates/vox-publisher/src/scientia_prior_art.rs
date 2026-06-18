@@ -3,6 +3,7 @@
 //! Network I/O is best-effort: failures append traces and continue. Use `offline` for deterministic tests.
 
 use std::collections::HashSet;
+use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
@@ -22,9 +23,11 @@ pub struct PriorArtQuery {
     pub abstract_text: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct PriorArtFetchOptions {
     pub mailto_for_crossref: Option<&'static str>,
+    /// Workspace root for optional Graphify P1 lexical prior-art enrichment.
+    pub repo_root: Option<std::path::PathBuf>,
 }
 
 #[must_use]
@@ -407,6 +410,10 @@ pub async fn fetch_prior_art_federated(
         return Ok(empty_novelty_bundle(candidate_id, query));
     }
 
+    if embedder.is_none() {
+        tracing::warn!("prior-art semantic scores will be lexical-only (no embedder configured)");
+    }
+
     want.retain(|s| *s != PriorArtSource::Manual && *s != PriorArtSource::Other);
     if want.is_empty() {
         want = vec![
@@ -521,6 +528,17 @@ pub async fn fetch_prior_art_federated(
     }
 
     let mut hits = dedupe_hits(hits);
+
+    if let Some(repo_root) = options.repo_root.as_deref() {
+        if let Some((graphify_hits, trace)) =
+            graphify_lexical_prior_art(repo_root, &search, heuristics)
+        {
+            hits.extend(graphify_hits);
+            traces.push(trace);
+            sources_done.push(PriorArtSource::Other);
+        }
+    }
+
     if let Some(emb) = embedder {
         crate::scientia_semantic::enrich_semantic_scores(&search, &mut hits, emb).await;
     }
@@ -531,6 +549,88 @@ pub async fn fetch_prior_art_federated(
         hits,
         traces,
     ))
+}
+
+/// Lexical Graphify P1: when a fresh default corpus graph exists, emit hits + `graphify_hits` trace.
+fn graphify_lexical_prior_art(
+    repo_root: &Path,
+    search_face: &str,
+    h: &ScientiaHeuristics,
+) -> Option<(Vec<NormalizedPriorArtHit>, NoveltyQueryTrace)> {
+    let registry = vox_config::graphify::load_graphify_corpora(repo_root).ok()?;
+    let corpus = registry
+        .corpora
+        .iter()
+        .find(|c| c.id == registry.default_corpus_id)?;
+    let status = vox_config::graphify::assess_corpus_status(
+        repo_root,
+        corpus,
+        None,
+        chrono::Utc::now(),
+        registry.ttl_days_default,
+    );
+    if !status.graph_exists {
+        return None;
+    }
+    let raw = std::fs::read_to_string(&status.graph_path).ok()?;
+    let graph: serde_json::Value = serde_json::from_str(&raw).ok()?;
+    let nodes = graph.get("nodes")?.as_array()?;
+    let take_n = h.prior_art_results_per_source.clamp(1, 50) as usize;
+    let query_tokens = tokenize(search_face, h.prior_art_token_min_len);
+    if query_tokens.is_empty() {
+        return None;
+    }
+
+    let mut scored: Vec<(usize, NormalizedPriorArtHit)> = Vec::new();
+    for node in nodes {
+        let label = node
+            .get("label")
+            .or_else(|| node.get("id"))
+            .or_else(|| node.get("name"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        if label.is_empty() {
+            continue;
+        }
+        let node_tokens = tokenize(label, h.prior_art_token_min_len);
+        let overlap = query_tokens.intersection(&node_tokens).count();
+        if overlap == 0 {
+            continue;
+        }
+        let lex = title_lexical_score_with_min_len(search_face, label, h.prior_art_token_min_len);
+        let node_id = node.get("id").and_then(|v| v.as_str()).unwrap_or(label);
+        let uri = format!("graphify:{}:node:{}", corpus.id, node_id);
+        scored.push((
+            overlap,
+            NormalizedPriorArtHit {
+                source: PriorArtSource::Other,
+                work_uri: uri,
+                title: label.to_string(),
+                year: None,
+                lexical_score: Some(lex),
+                semantic_score: None,
+                overlap_note: Some("graphify_lexical_p1".to_string()),
+                cited_by_count: None,
+            },
+        ));
+    }
+    scored.sort_by(|a, b| b.0.cmp(&a.0));
+    let hits: Vec<NormalizedPriorArtHit> = scored
+        .into_iter()
+        .take(take_n)
+        .map(|(_, hit)| hit)
+        .collect();
+    let digest = sha256_hex(search_face.as_bytes());
+    let trace = NoveltyQueryTrace {
+        source: "graphify_hits".to_string(),
+        request_fingerprint_sha256: trace_fp("graphify_hits", &digest),
+        http_status: Some(200),
+        cached: Some(!status.is_fresh),
+    };
+    if hits.is_empty() {
+        return Some((Vec::new(), trace));
+    }
+    Some((hits, trace))
 }
 
 /// Parse embedded novelty bundle from `metadata_json` if present.
@@ -581,10 +681,71 @@ mod tests {
     }
 
     #[test]
+    fn empty_novelty_bundle_scores_insufficient_evidence() {
+        let bundle = empty_novelty_bundle("cand-empty", &test_query());
+        let assessment = crate::scientia_novelty_assess::assess_novelty(
+            &bundle,
+            2026,
+            &vox_scientia::inspect_bridge::NoveltyConfig::default(),
+        );
+        assert_eq!(assessment.verdict_kind, "insufficient_evidence");
+    }
+
+    #[test]
     fn empty_novelty_bundle_recency_is_unknown() {
         let bundle = empty_novelty_bundle("cand-3", &test_query());
         let summary = bundle.overlap_summary.unwrap();
         assert_eq!(summary.recency_bucket, NoveltyRecencyBucket::Unknown);
+    }
+
+    #[test]
+    fn graphify_lexical_emits_trace_when_graph_present() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let graph_dir = tmp.path().join("graphify-out");
+        std::fs::create_dir_all(&graph_dir).expect("mkdir");
+        let graph_path = graph_dir.join("graph.json");
+        std::fs::write(
+            &graph_path,
+            serde_json::json!({
+                "nodes": [
+                    {"id": "n1", "label": "novelty evidence bundle lexical overlap"},
+                    {"id": "n2", "label": "unrelated node"}
+                ],
+                "links": []
+            })
+            .to_string(),
+        )
+        .expect("write graph");
+        std::fs::copy(
+            std::path::Path::new("contracts/retrieval/graphify-corpora.v1.yaml"),
+            tmp.path()
+                .join("contracts/retrieval/graphify-corpora.v1.yaml"),
+        )
+        .ok();
+        // Minimal corpora file for the temp repo when contract copy fails in sandbox.
+        if !tmp
+            .path()
+            .join("contracts/retrieval/graphify-corpora.v1.yaml")
+            .exists()
+        {
+            std::fs::create_dir_all(tmp.path().join("contracts/retrieval"))
+                .expect("mkdir contracts");
+            std::fs::write(
+                tmp.path().join("contracts/retrieval/graphify-corpora.v1.yaml"),
+                format!(
+                    "default_corpus_id: repo-code-graph\ncorpora:\n  - id: repo-code-graph\n    title: test\n    scope_path: .\n    graph_path: {}\n    manifest_path: graphify-out/.graphify_manifest.v1.json\n",
+                    graph_path.strip_prefix(tmp.path()).unwrap().display()
+                ),
+            )
+            .expect("write corpora");
+        }
+
+        let h = crate::scientia_heuristics::ScientiaHeuristics::default();
+        let (hits, trace) =
+            super::graphify_lexical_prior_art(tmp.path(), "novelty evidence lexical", &h)
+                .expect("graphify hits");
+        assert_eq!(trace.source, "graphify_hits");
+        assert!(!hits.is_empty());
     }
 
     #[test]

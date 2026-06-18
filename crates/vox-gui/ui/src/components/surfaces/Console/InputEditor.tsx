@@ -6,6 +6,9 @@ interface Props {
   onSubmit: (line: string) => void;
   /** Called with the currently-highlighted suggestion's action id (for the rail). */
   onActiveSuggestion: (actionId: string | null) => void;
+  /** When set, replaces the current input with this line (Discovery rail "Use"). */
+  applyLine?: string | null;
+  onApplyLineConsumed?: () => void;
 }
 
 /**
@@ -13,11 +16,22 @@ interface Props {
  * completion entirely: as the user types, the top catalog suggestion renders as
  * ghost text after the cursor; Tab/→ accepts it, Enter submits the line.
  */
-export function InputEditor({ onSubmit, onActiveSuggestion }: Props) {
+export function InputEditor({
+  onSubmit,
+  onActiveSuggestion,
+  applyLine,
+  onApplyLineConsumed,
+}: Props) {
   const [value, setValue] = useState('');
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reqSeq = useRef(0);
+
+  useEffect(() => {
+    if (!applyLine) return;
+    setValue(applyLine.startsWith('vox') ? applyLine : `vox ${applyLine}`);
+    onApplyLineConsumed?.();
+  }, [applyLine, onApplyLineConsumed]);
 
   useEffect(() => {
     if (debounce.current) clearTimeout(debounce.current);

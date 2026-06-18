@@ -212,13 +212,19 @@ pub async fn run(cmd: SecretsCmd) -> Result<()> {
         SecretsCmd::BackendStatus => {
             let mode = vox_secrets::BackendMode::from_env();
             println!("secrets backend mode: {mode:?}");
-            println!("vault env: {}", vox_secrets::cloudless_vault_env_diagnostic());
+            println!(
+                "vault env: {}",
+                vox_secrets::cloudless_vault_env_diagnostic()
+            );
             match vox_secrets::backend::vox_vault::VoxCloudBackend::new() {
                 Ok(backend) => match vox_secrets::probe_vault_health(&backend) {
                     Ok(h) => {
                         println!(
                             "vault health: keyring={}; master_fp={}; rows={}; can_decrypt={}",
-                            h.keyring_entry_present, h.master_fingerprint, h.row_count, h.can_decrypt
+                            h.keyring_entry_present,
+                            h.master_fingerprint,
+                            h.row_count,
+                            h.can_decrypt
                         );
                         if !h.can_decrypt {
                             if let Some(err) = h.decrypt_error {

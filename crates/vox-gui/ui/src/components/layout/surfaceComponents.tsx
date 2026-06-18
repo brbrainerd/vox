@@ -19,14 +19,20 @@ import { PoliciesView } from '../surfaces/Policies/PoliciesView';
 import { ParentSurface } from './ParentSurface';
 import { surfaceDecorators } from '../surfaces/decoratorRegistry';
 import { ChatSurface } from '../surfaces/Chat/ChatSurface';
+import type {
+  ChatExecutionRailKpis,
+  ChatExecutionTask,
+} from '../surfaces/Chat/ChatExecutionRail';
 import { Console } from '../surfaces/Console/Console';
 import type { DashboardData, Agent, LudusAlert, StreamItem } from '../../types/dashboard';
 import type { CatalogEntry, Toast } from '../../types/tauri';
 import type { ChatMessage } from '../../lib/chatCorrelation';
+import type { HudTilesConfig } from '../../hooks/useHudTiles';
 
 export interface SurfaceProps {
   pushToast: (t: Toast) => void;
   data: DashboardData;
+  dashboardLoading?: boolean;
   onPause?: (a: Agent) => void;
   onResume?: (a: Agent) => void;
   onDoubt?: (item: StreamItem) => void;
@@ -39,6 +45,7 @@ export interface SurfaceProps {
   skills?: CatalogEntry[];
   onAttachContext?: (items: Array<{ kind: 'file' | 'url' | 'image'; label: string }>) => void;
   onNavigate?: (viewKey: string) => void;
+  onOpenChat?: () => void;
   onOpenInConsole?: (a: Agent) => void;
   activeChild?: string;
   onChildChange?: (viewKey: string) => void;
@@ -47,16 +54,30 @@ export interface SurfaceProps {
   chatMessages?: ChatMessage[];
   onHydrateChatSession?: (sessionId: string) => void;
   onFocusComposer?: () => void;
+  chatTasks?: ChatExecutionTask[];
+  chatIntents?: string[];
+  chatExecutionKpis?: ChatExecutionRailKpis;
+  chatActiveModel?: string | null;
+  chatOpenrouterSpendUsd?: number | null;
+  chatAgentStreamItems?: StreamItem[];
+  onOpenAgentInFlow?: (agentId: string) => void;
+  chatComposer?: React.ReactNode;
+  gamifyEnabled?: boolean;
+  hudTilesConfig?: HudTilesConfig;
+  onHudTilesChange?: (config: HudTilesConfig) => void;
 }
 
 function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
   const Decorator = surfaceDecorators[viewKey];
-  if (Decorator) return <Decorator pushToast={props.pushToast} />;
+  if (Decorator) {
+    return <Decorator pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
+  }
   switch (viewKey) {
     case 'dashboard':
       return (
         <Dashboard
           data={props.data}
+          loading={props.dashboardLoading}
           onPause={props.onPause!}
           onResume={props.onResume!}
           onDoubt={props.onDoubt!}
@@ -65,6 +86,7 @@ function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
           filterKind={props.filterKind!}
           setFilterKind={props.setFilterKind!}
           onOpenInConsole={props.onOpenInConsole}
+          onOpenChat={props.onOpenChat}
         />
       );
     case 'flow':
@@ -78,31 +100,44 @@ function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
     case 'catalog':
       return <Catalog skills={props.data.skills} />;
     case 'matrix':
-      return <Matrix pushToast={props.pushToast} />;
+      return <Matrix pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'memory':
       return <MemoryView pushToast={props.pushToast} onAttachContext={props.onAttachContext} />;
     case 'models':
-      return <ModelsView pushToast={props.pushToast} />;
+      return <ModelsView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'runs':
-      return <RunsView pushToast={props.pushToast} />;
+      return <RunsView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'tasks':
-      return <TasksView pushToast={props.pushToast} />;
+      return <TasksView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'settings':
-      return <SettingsView pushToast={props.pushToast} />;
+      return (
+        <SettingsView
+          pushToast={props.pushToast}
+          gamifyEnabled={props.gamifyEnabled}
+          hudTilesConfig={props.hudTilesConfig}
+          onHudTilesChange={props.onHudTilesChange}
+        />
+      );
     case 'repository':
-      return <RepositoryView pushToast={props.pushToast} />;
+      return <RepositoryView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'mesh':
-      return <MeshView pushToast={props.pushToast} />;
+      return <MeshView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'gamify':
       return <GamifyView pushToast={props.pushToast} />;
     case 'harness':
-      return <HarnessRedirect onFocusComposer={props.onFocusComposer} />;
+      return (
+        <HarnessRedirect
+          onFocusComposer={props.onFocusComposer}
+          gamifyEnabled={props.gamifyEnabled}
+        />
+      );
     case 'browser':
-      return <BrowserView pushToast={props.pushToast} />;
+      return <BrowserView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'console':
       return (
         <Console
           pushToast={props.pushToast}
+          gamifyEnabled={props.gamifyEnabled}
           initialAgentId={
             props.selectedAgentId && props.selectedAgentId !== 'ROOT'
               ? props.selectedAgentId
@@ -111,9 +146,9 @@ function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
         />
       );
     case 'approvals':
-      return <ApprovalsView pushToast={props.pushToast} />;
+      return <ApprovalsView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'policies':
-      return <PoliciesView pushToast={props.pushToast} />;
+      return <PoliciesView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'skills':
       return <SkillsPluginsView pushToast={props.pushToast} />;
     case 'chat':
@@ -125,6 +160,14 @@ function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
           activeSessionId={props.activeSessionId}
           onSessionChange={props.onSessionChange}
           onHydrateSession={props.onHydrateChatSession}
+          tasks={props.chatTasks}
+          intents={props.chatIntents}
+          executionKpis={props.chatExecutionKpis}
+          activeModel={props.chatActiveModel}
+          openrouterSpendUsd={props.chatOpenrouterSpendUsd}
+          agentStreamItems={props.chatAgentStreamItems}
+          onOpenAgentInFlow={props.onOpenAgentInFlow}
+          composer={props.chatComposer}
         />
       );
     default:

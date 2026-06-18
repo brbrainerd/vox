@@ -3,7 +3,7 @@ import { useQuery, useMutation, type UseQueryResult, type UseMutationResult, typ
 export function useVoxQuery<T>(
   queryKey: QueryKey,
   fetcher: () => Promise<T>,
-  options?: { enabled?: boolean; staleTime?: number }
+  options?: { enabled?: boolean; staleTime?: number; retry?: boolean | number }
 ): UseQueryResult<T, Error> {
   return useQuery<T, Error>({
     queryKey,

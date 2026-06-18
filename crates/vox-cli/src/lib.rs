@@ -194,6 +194,11 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::policy::PolicyCmd,
     },
+    /// Graphify corpus registry and map freshness (`vox graphify`).
+    Graphify {
+        #[command(subcommand)]
+        cmd: commands::graphify::GraphifyCmd,
+    },
     /// Identity and master key integration (`vox auth`).
     Auth {
         /// Subcommand

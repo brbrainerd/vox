@@ -39,6 +39,8 @@ fn prop_sort_idempotent(list: list[int]) {
             embed: None,
             is_remote: false,
             is_deprecated: false,
+            deprecated_reason: None,
+            is_traced: false,
             schedule_interval: None,
             durability: None,
             actor_state_fields: vec![],

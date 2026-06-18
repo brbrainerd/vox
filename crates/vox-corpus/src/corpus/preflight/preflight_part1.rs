@@ -119,12 +119,14 @@ pub fn gen_multiturn_vox(
             Turn {
                 role: "assistant",
                 content: format!(
-                    "// Error handling via Result[T] — null is banned\n\
+                    "// Error handling via Result[T, E] — null is banned\n\
                  @traced\n\
-                 fn {name}(x: int) -> Result[str]:\n\
-                     if x < 0:\n\
-                         return Err(\"invalid: x must be non-negative\")\n\
-                     return Ok(\"done\")"
+                 fn {name}(x: int) to Result[str, str] {{\n\
+                     if x < 0 {{\n\
+                         return Err(\"invalid: x must be non-negative\");\n\
+                     }}\n\
+                     return Ok(\"done\");\n\
+                 }}"
                 ),
             },
             Turn {
@@ -135,11 +137,13 @@ pub fn gen_multiturn_vox(
                 role: "assistant",
                 content: format!(
                     "@test\n\
-                 fn test_{name}_rejects_negative() -> Unit:\n\
-                     let result = {name}(-1)\n\
-                     match result:\n\
-                         Err(msg) -> assert(msg.contains(\"invalid\"))\n\
-                         Ok(_) -> fail(\"expected error\")"
+                 fn test_{name}_rejects_negative() to Unit {{\n\
+                     let result = {name}(-1);\n\
+                     match result {{\n\
+                         Ok(_) => fail(\"expected error\"),\n\
+                         Err(msg) => assert(msg.contains(\"invalid\")),\n\
+                     }}\n\
+                 }}"
                 ),
             },
         ],
@@ -165,9 +169,12 @@ pub fn gen_multiturn_vox(
                 content: format!(
                     "// Refactored: inlined hot path, removed intermediate allocations\n\
                  @inline\n\
-                 fn {name}(x: int) -> Result[str]:\n\
-                     if x < 0: return Err(\"invalid\")\n\
-                     return Ok(\"done\")"
+                 fn {name}(x: int) to Result[str, str] {{\n\
+                     if x < 0 {{\n\
+                         return Err(\"invalid\");\n\
+                     }}\n\
+                     return Ok(\"done\");\n\
+                 }}"
                 ),
             },
         ],
@@ -188,9 +195,12 @@ pub fn gen_multiturn_vox(
                 role: "assistant",
                 content: format!(
                     "// Option[T] exhaustive match\n\
-                 fn {name}(id: int) -> Option[str]:\n\
-                     if id == 0: return None\n\
-                     return Some(\"found\")"
+                 fn {name}(id: int) to Option[str] {{\n\
+                     if id == 0 {{\n\
+                         return None;\n\
+                     }}\n\
+                     return Some(\"found\");\n\
+                 }}"
                 ),
             },
         ],
@@ -211,10 +221,12 @@ pub fn gen_multiturn_vox(
                 role: "assistant",
                 content: format!(
                     "// Call tracking via actor state\n\
-                 actor {name}Tracker:\n\
-                     state count: int = 0\n\
-                     on increment() -> Unit:\n\
-                         self.count = self.count + 1"
+                 actor {name}Tracker {{\n\
+                     state count: int = 0;\n\
+                     on increment() to Unit {{\n\
+                         self.count = self.count + 1;\n\
+                     }}\n\
+                 }}"
                 ),
             },
         ],

@@ -206,6 +206,12 @@ pub enum DbCliPublication {
         /// Publish the Zenodo deposition rather than leaving it as a draft.
         #[arg(long, default_value_t = false)]
         publish: bool,
+        /// Plan only — no network I/O (CI-safe dry-run).
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
+        /// Include the nanopub test-server step when `VOX_NANOPUB_TEST_SERVER=1`.
+        #[arg(long, default_value_t = false)]
+        publish_nanopub_test_server: bool,
     },
     /// Emit destination transform preview JSON (scholarly/social stubs; `machine_suggested`).
     #[command(name = "publication-transform-preview")]

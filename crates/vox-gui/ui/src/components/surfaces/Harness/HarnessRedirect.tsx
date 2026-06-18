@@ -1,15 +1,20 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { EmptyState } from '../../ui/EmptyState';
 import { Icon } from '../../ui/Icons';
+import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 
 interface HarnessRedirectProps {
   onFocusComposer?: () => void;
+  gamifyEnabled?: boolean;
 }
 
 /**
  * Legacy Quick Harness tab — composer parity (slash, model tier, diff) lives in Loquela.
  */
-export function HarnessRedirect({ onFocusComposer }: HarnessRedirectProps) {
+export function HarnessRedirect({ onFocusComposer, gamifyEnabled }: HarnessRedirectProps) {
+  useEffect(() => {
+    void recordGamifyGuiEvent('harness_redirect_viewed', undefined, { enabled: gamifyEnabled });
+  }, [gamifyEnabled]);
   return (
     <section className="space-y-4" aria-labelledby="harness-redirect-title">
       <EmptyState

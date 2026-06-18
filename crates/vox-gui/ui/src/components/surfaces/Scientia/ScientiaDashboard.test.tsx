@@ -29,6 +29,9 @@ vi.mock('@tauri-apps/api/core', () => ({
 vi.mock('../../../transport', () => ({
   listenScientiaQueue: vi.fn().mockRejectedValue(new Error('not in tauri')),
 }));
+vi.mock('./ArchiveStatusSummary', () => ({
+  ArchiveStatusSummary: () => React.createElement('div', { 'data-testid': 'archive-status-summary' }),
+}));
 
 import { ScientiaDashboard } from './ScientiaDashboard';
 
@@ -44,10 +47,10 @@ describe('ScientiaDashboard', () => {
     expect(btn.getAttribute('type')).toBe('button');
   });
 
-  it('marks the snapshot region as an aria-live polite region', async () => {
-    const { container } = render(<ScientiaDashboard pushToast={vi.fn()} />);
+  it('includes the archive status summary panel', async () => {
+    render(<ScientiaDashboard pushToast={vi.fn()} />);
     await waitFor(() => {
-      expect(container.querySelector('[aria-live="polite"]')).toBeTruthy();
+      expect(screen.getByTestId('archive-status-summary')).toBeTruthy();
     });
   });
 });

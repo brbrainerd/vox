@@ -7,6 +7,7 @@
 
 #[cfg(test)]
 mod semcov_wave19_tests {
+    #![allow(clippy::module_inception)]
     // -----------------------------------------------------------------------
     // ResourceLockManager tests (resource.rs)
     // -----------------------------------------------------------------------

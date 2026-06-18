@@ -4,6 +4,7 @@ import { Glass } from '../../ui/Glass';
 import { Pill } from '../../ui/Pill';
 import { phaseFill, phaseStroke } from '../../../lib/visualTokens';
 import { MATRIX_POLL_MS } from '../../../config/constants';
+import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 
 /** One routing-priority axis projected onto the hex grid (mirrors the Rust
  *  `RoutingIntentionDto`). */
@@ -56,9 +57,10 @@ function HexCell({ intention, onSelect, selected }: { intention: RoutingIntentio
 
 interface MatrixProps {
   pushToast: (t: any) => void;
+  gamifyEnabled?: boolean;
 }
 
-export function Matrix({ pushToast }: MatrixProps) {
+export function Matrix({ pushToast, gamifyEnabled = false }: MatrixProps) {
   const [intentions, setIntentions] = useState<RoutingIntention[]>([]);
   const [sel, setSel] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
@@ -86,6 +88,11 @@ export function Matrix({ pushToast }: MatrixProps) {
     setBusy(true);
     try {
       await invoke('nudge_routing_intention', { axis: axis.id, direction });
+      void recordGamifyGuiEvent(
+        'palette_navigation',
+        { axis: axis.id, direction, surface: 'matrix' },
+        { enabled: gamifyEnabled },
+      );
       pushToast({
         tone: direction === 'promote' ? 'ok' : 'warn',
         title: direction === 'promote' ? 'Axis promoted' : 'Axis doubted',
@@ -98,7 +105,7 @@ export function Matrix({ pushToast }: MatrixProps) {
     } finally {
       setBusy(false);
     }
-  }, [pushToast, refresh]);
+  }, [pushToast, refresh, gamifyEnabled]);
 
   const active = intentions.find(i => i.id === sel) || intentions[0];
 

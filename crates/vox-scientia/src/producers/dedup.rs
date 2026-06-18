@@ -37,6 +37,7 @@ mod tests {
             claim_ids: vec![],
             worthiness_score: 0.5,
             session_id: "s".into(),
+            finding_candidate: None,
         }
     }
 

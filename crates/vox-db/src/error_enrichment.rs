@@ -42,8 +42,8 @@ pub fn enrich_error(raw_message: &str, digest: &SchemaDigest) -> EnrichedDbError
     let mut enriched = raw_message.to_string();
 
     // Check for field-not-found errors
-    if msg_lower.contains("field") || msg_lower.contains("column") {
-        if let Some(ref table) = related_table {
+    if (msg_lower.contains("field") || msg_lower.contains("column"))
+        && let Some(ref table) = related_table {
             let available = field_list_str(&table.fields);
             enriched = format!(
                 "{}\n\nAvailable fields on '{}': {}",
@@ -67,7 +67,6 @@ pub fn enrich_error(raw_message: &str, digest: &SchemaDigest) -> EnrichedDbError
                 }
             }
         }
-    }
 
     // Check for table-not-found errors
     if msg_lower.contains("table") && msg_lower.contains("not found") {
@@ -97,8 +96,7 @@ pub fn enrich_error(raw_message: &str, digest: &SchemaDigest) -> EnrichedDbError
     // Check for type mismatch errors
     if msg_lower.contains("type")
         && (msg_lower.contains("mismatch") || msg_lower.contains("expected"))
-    {
-        if let Some(ref table) = related_table {
+        && let Some(ref table) = related_table {
             let field_types: Vec<String> = table
                 .fields
                 .iter()
@@ -110,11 +108,10 @@ pub fn enrich_error(raw_message: &str, digest: &SchemaDigest) -> EnrichedDbError
                 field_types.join(", ")
             ));
         }
-    }
 
     // Check for missing required field errors
-    if msg_lower.contains("required") || msg_lower.contains("missing") {
-        if let Some(ref table) = related_table {
+    if (msg_lower.contains("required") || msg_lower.contains("missing"))
+        && let Some(ref table) = related_table {
             let required: Vec<&str> = table
                 .fields
                 .iter()
@@ -128,7 +125,6 @@ pub fn enrich_error(raw_message: &str, digest: &SchemaDigest) -> EnrichedDbError
             ));
             suggestions.push(format!("Example: {}", table.example_insert));
         }
-    }
 
     EnrichedDbError {
         original_message: raw_message.to_string(),

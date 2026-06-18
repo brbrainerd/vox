@@ -152,9 +152,7 @@ pub fn run_affected_cmd(args: &[String]) -> i32 {
             .map(String::from)
             .collect();
         let xml = std::fs::read_to_string(&junit).unwrap_or_default();
-        if affected.is_empty()
-            && (xml.contains("<failure") || xml.contains("<error"))
-        {
+        if affected.is_empty() && (xml.contains("<failure") || xml.contains("<error")) {
             eprintln!(
                 "::warning title=affected-ci shadow::junit has failures but affected set is empty — \
                  shadow comparison skipped (check merge_group setup / affected_crates output)"

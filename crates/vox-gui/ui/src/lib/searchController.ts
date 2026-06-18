@@ -2,6 +2,8 @@
  * Shared search state for CommandPalette and SearchView.
  */
 
+import { searchSettings } from '../components/surfaces/Settings/settingsIndex';
+
 export type UserScope =
   | 'code'
   | 'docs'
@@ -21,7 +23,11 @@ export const USER_SCOPE_LABELS: Record<UserScope, string> = {
   settings: 'Settings',
 };
 
-/** Map user-facing scope chips to backend scope strings. */
+/**
+ * Map user-facing scope chips to `vox_search_query` scope strings.
+ * Client-federated lanes (settings, and commands until a corpus exists) return `[]`
+ * — see `contracts/gui/omnisearch-index.v1.yaml` and docs/src/reference/gui-navigation.md.
+ */
 export function userScopeToBackend(scope: UserScope): string[] {
   switch (scope) {
     case 'code':
@@ -37,7 +43,8 @@ export function userScopeToBackend(scope: UserScope): string[] {
     case 'web':
       return ['web'];
     case 'settings':
-      return ['settings'];
+      // Client-federated only (SETTINGS_INDEX); no search.rs corpus in v1.
+      return [];
   }
 }
 
@@ -55,12 +62,13 @@ export interface SearchControllerState {
   hits: unknown[];
   loading: boolean;
   requestToken: number;
+  repoTruncated: boolean;
 }
 
 export type SearchAction =
   | { type: 'setQuery'; query: string }
   | { type: 'setScopes'; scopes: UserScope[] }
-  | { type: 'setHits'; hits: unknown[]; token: number }
+  | { type: 'setHits'; hits: unknown[]; repoTruncated: boolean; token: number }
   | { type: 'setLoading'; loading: boolean; token: number };
 
 export function searchReducer(
@@ -74,7 +82,7 @@ export function searchReducer(
       return { ...state, scopes: action.scopes, requestToken: state.requestToken + 1 };
     case 'setHits':
       if (action.token !== state.requestToken) return state;
-      return { ...state, hits: action.hits, loading: false };
+      return { ...state, hits: action.hits, repoTruncated: action.repoTruncated, loading: false };
     case 'setLoading':
       if (action.token !== state.requestToken) return state;
       return { ...state, loading: action.loading };
@@ -89,6 +97,7 @@ export const initialSearchState: SearchControllerState = {
   hits: [],
   loading: false,
   requestToken: 0,
+  repoTruncated: false,
 };
 
 export const ALL_USER_SCOPES: UserScope[] = [
@@ -138,5 +147,35 @@ export function filterCommandCatalogHits(
       score: 0.85,
       provenance: ['commands:catalog'],
       locator: { kind: 'command', value: e.command },
+    }));
+}
+
+/** Client-side SETTINGS_INDEX matches (no backend settings corpus in v1). */
+export function filterSettingsIndexHits(
+  query: string,
+): Array<{
+  source: string;
+  kind: string;
+  path: string;
+  title: string;
+  snippet: string;
+  score: number;
+  provenance: string[];
+  locator: { kind: string; value: string };
+}> {
+  return searchSettings(query)
+    .slice(0, 30)
+    .map((s) => ({
+      source: 'settings',
+      kind: 'setting',
+      path: s.id,
+      title: s.label,
+      snippet: s.hint,
+      score: 0.85,
+      provenance: ['settings:index'],
+      locator: {
+        kind: 'setting',
+        value: JSON.stringify({ section: s.section, settingId: s.id }),
+      },
     }));
 }

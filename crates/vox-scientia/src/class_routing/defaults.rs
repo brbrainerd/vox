@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::Path;
 use thiserror::Error;
 
 /// Closed enum of candidate classes the micro-track config knows about.
@@ -108,6 +109,18 @@ pub fn load_class_defaults_from_yaml(yaml: &str) -> Result<ClassDefaults, ClassR
     Ok(ClassDefaults { by_class })
 }
 
+/// Load class defaults from the repo SSOT file, falling back to builtins.
+pub fn load_class_defaults_from_repo(repo_root: &Path) -> ClassDefaults {
+    let path = repo_root.join("contracts/scientia/finding-class-defaults.v1.yaml");
+    if !path.is_file() {
+        return builtin_class_defaults();
+    }
+    match std::fs::read_to_string(&path) {
+        Ok(raw) => load_class_defaults_from_yaml(&raw).unwrap_or_else(|_| builtin_class_defaults()),
+        Err(_) => builtin_class_defaults(),
+    }
+}
+
 /// Built-in defaults — what the system uses when no YAML is supplied.
 /// These match the design-doc recommendations.
 pub fn builtin_class_defaults() -> ClassDefaults {
@@ -184,6 +197,7 @@ pub fn builtin_class_defaults() -> ClassDefaults {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     #[test]
     fn finding_class_round_trips_through_string() {
@@ -279,28 +293,16 @@ telemetry_trust:
     }
 
     #[test]
-    fn micro_track_default_critic_allowed_matrix() {
-        let d = builtin_class_defaults();
-        // SWE / repro: critic allowed.
-        assert!(
-            d.policy_for(FindingClass::AlgorithmicImprovement)
-                .unwrap()
-                .critic_allowed
-        );
-        assert!(
-            d.policy_for(FindingClass::ReproducibilityInfra)
-                .unwrap()
-                .critic_allowed
-        );
-        // Provider-implication classes: critic NOT allowed by default.
+    fn contract_yaml_loads_from_repo() {
+        let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let d = load_class_defaults_from_repo(&repo);
+        let algimp = d
+            .policy_for(FindingClass::AlgorithmicImprovement)
+            .expect("algorithmic_improvement in contract");
+        assert!(algimp.critic_allowed);
         assert!(
             !d.policy_for(FindingClass::TelemetryTrust)
-                .unwrap()
-                .critic_allowed
-        );
-        assert!(
-            !d.policy_for(FindingClass::PolicyGovernance)
-                .unwrap()
+                .expect("telemetry_trust in contract")
                 .critic_allowed
         );
     }

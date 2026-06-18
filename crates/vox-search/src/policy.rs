@@ -36,7 +36,9 @@ fn default_persist_web_hits() -> bool {
 }
 
 #[inline]
-fn default_novelty_min_score() -> f64 { 0.15 }
+fn default_novelty_min_score() -> f64 {
+    0.15
+}
 
 /// Tunable retrieval weights and safety rails (replaces ad hoc literals in tool surfaces).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

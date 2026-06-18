@@ -536,9 +536,8 @@ mod tests {
 }
 
 #[cfg(test)]
-#[allow(unsafe_code)]
 mod semcov_wave6_tests {
-    #![allow(unused_imports, dead_code)]
+    #![allow(unused_imports, dead_code, unsafe_code)]
     use super::*;
     use serial_test::serial;
 

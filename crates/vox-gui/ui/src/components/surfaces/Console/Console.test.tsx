@@ -2,6 +2,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+vi.mock('@msgpack/msgpack', () => ({
+  decode: vi.fn(() => ({ agents: [] })),
+}));
 
 vi.mock('../../../transport', () => ({
   discoverySuggest: vi.fn().mockResolvedValue([]),
@@ -14,6 +19,9 @@ vi.mock('../../../transport', () => ({
   listenPtyExit: vi.fn().mockResolvedValue(() => {}),
   listenOrchStatus: vi.fn().mockRejectedValue(new Error('not in tauri')),
   sendToAgent: vi.fn().mockResolvedValue('msg-1'),
+  voxTransport: {
+    getOrchestratorStatusBin: vi.fn().mockResolvedValue(new Uint8Array([0x80])),
+  },
 }));
 vi.mock('@xterm/xterm', () => ({
   Terminal: class {
@@ -42,11 +50,20 @@ vi.mock('@xterm/addon-fit', () => ({ FitAddon: class { fit() {} } }));
 
 import { Console } from './Console';
 
+function renderConsole(props: React.ComponentProps<typeof Console>) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={client}>
+      <Console {...props} />
+    </QueryClientProvider>,
+  );
+}
+
 describe('Console', () => {
   beforeEach(() => cleanup());
 
   it('renders the terminal, input, and discovery rail', async () => {
-    render(<Console pushToast={vi.fn()} />);
+    renderConsole({ pushToast: vi.fn() });
     expect(screen.getByLabelText('terminal')).toBeTruthy();
     expect(screen.getByRole('textbox')).toBeTruthy();
     await waitFor(() => expect(screen.getByLabelText('discovery')).toBeTruthy());
@@ -54,7 +71,7 @@ describe('Console', () => {
 
   it('submitting a line in the input forwards it to the terminal write path', async () => {
     const t = await import('../../../transport');
-    render(<Console pushToast={vi.fn()} />);
+    renderConsole({ pushToast: vi.fn() });
     const input = screen.getByRole('textbox');
     fireEvent.change(input, { target: { value: 'echo hi' } });
     fireEvent.keyDown(input, { key: 'Enter' });
@@ -62,7 +79,7 @@ describe('Console', () => {
   });
 
   it('gives toolbar controls explicit button type', () => {
-    render(<Console pushToast={vi.fn()} />);
+    renderConsole({ pushToast: vi.fn() });
     expect(screen.getByText('copy last block').getAttribute('type')).toBe('button');
     expect(screen.getByText('send to agent').getAttribute('type')).toBe('button');
   });

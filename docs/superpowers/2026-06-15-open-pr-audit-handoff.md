@@ -1,12 +1,38 @@
 # Open-PR Adversarial Audit + Runner-Clear Handoff — 2026-06-15
 
+> **SUPERSEDED (2026-06-16):** All four audited PRs (**#321**, **#331**, **#333**, **#334**) and the full **#321–#352** wave are **merged on `main`**. This document is retained as the adversarial audit record only — do **not** treat the "Request Changes" verdicts or "open PR" guidance below as current. For active work, start at [`plans/2026-06-15-config-registry-HANDOFF-STATE.md`](plans/2026-06-15-config-registry-HANDOFF-STATE.md) and [`docs/src/ci/affected-crate-selective-ci.md`](../src/ci/affected-crate-selective-ci.md).
+
 Cross-PR adversarial review of every open pull request, plus the state of the self-hosted CI runner (cleared this session). Authored to replace the CodeRabbit pass (rate-limited, never ran) and to be picked up cold.
 
-## TL;DR
+## TL;DR (historical — 2026-06-15)
 
 - **Runner fleet: fully cleared.** 0 containers, autoscaler **disabled**, queue drained 125 → ~7 (the rest are runner-less stragglers). Docker engine was wedged (root cause of the pileup); recovered via WSL restart. **Restore instructions below — the autoscaler is OFF until re-enabled.**
 - **4 open PRs, all verdict = Request Changes. None is merge-ready.** Two ship real defects: **#321 emits non-compiling Rust** (reproduced) and **#334 can force-kill a developer's live `vox` process**.
 - **#331 ⇄ #334 will textually conflict** (both add `vox ci` subcommands to the same two files). **#331/#333/#334 all touch the generated `gui-surface-coverage.v1.json`** (regen-mergeable, not a hand-edit conflict).
+
+## Post-merge status (2026-06-16)
+
+All audited PRs landed on `main` (wave **#321–#352** complete). Adversarial findings disposition:
+
+| PR | Finding (summary) | Status on `main` |
+|---|---|---|
+| **#321** | Generated `@traced` Rust missing `vox-telemetry` dep (E0433) | **Fixed** — dep emitted in codegen; `traced_fn_compiles` + `traced_fn_span_emitted` tests un-ignored |
+| **#321** | Compile test `#[ignore]`-tagged → CI false-green | **Fixed** — `traced_fn_compiles` runs in CI |
+| **#321** | Interp tests assert flag only, not span emission | **Partial** — structural span assertion in codegen test; runtime span capture still untested |
+| **#321** | Docs claim fully supported codegen path | **Fixed** post-merge |
+| **#333** | `config-registry-parity` leaked into GUI coverage without SSOT registration | **Fixed** — registered across command/catalog surfaces (#330, #343) |
+| **#331** | Visual-review cache commit step dead after `push:main` removal | **Fixed** — step gated on `merge_group \|\| push` to `main` |
+| **#331** | `install-runner-schedule.vox` used `std.env.get` | **Fixed** — uses bare `env.get` |
+| **#331** | `ScaleLock` check-then-create not atomic | **Partial** — stale-steal + Task XML `IgnoreNew` remain the real serializer; no `O_EXCL` yet |
+| **#331** | `append_history` on dry-run (non-atomic RMW) | **Partial** — intentional: dry-run entries include `"dry_run":true`; file still mutated on dry-run |
+| **#334** | No busy/in-use guard → could kill live `vox serve`/`run` | **Fixed** — subcommand guard excludes `serve`, `mcp`, `daemon`, `run` |
+| **#334** | Reaper fires on any build failure, not just os error 5 | **Partial** — pre-push hook still reap+retry on any `cargo build` failure (comment says "possible lock") |
+| **#334** | pid-recycle TOCTOU between scan and kill | **Fixed** — `kill_pid` re-verifies exe path before signal |
+| **#334** | `target_dir` not canonicalized → false-green on junction paths | **Partial** — lowercase path-prefix compare (no `canonicalize`) |
+| **#334** | `vox-*` prefix overreach | **Partial** — still matches managed `vox-*` siblings; excludes `*-build` |
+| **#334** | Staging copy still hits os error 5 when locked | **Partial** — sidecar-copy reaper pattern; no temp+rename on staging path |
+
+**Also merged (same wave, not in original audit):** #322 LLM egress SSOT, #348 affected-crate selective CI (+ wiring `229febdf`), #340/#345 config GUI codegen (2C.2/2C.3), #350 build-time program, #351 env-var SSOT phases 2–6, #352 orchestrator scope_enforcement fix, and others — see `gh pr list --state merged` for the full #321–#352 table.
 
 ---
 
@@ -97,12 +123,12 @@ Sound core idea (path-scope the reaper to the worktree's own `target/`), good dr
 
 ---
 
-## What remains (this session's open threads)
+## What remains (updated 2026-06-16)
 
-- **3 plans written, none executed:** [`2026-06-15-build-time-program-measured-phased.md`](plans/2026-06-15-build-time-program-measured-phased.md) (audited, revised — measurement spine + cycle detection + 4 re-lands + selective CI), [`2026-06-15-affected-crate-selective-ci.md`](plans/2026-06-15-affected-crate-selective-ci.md), and the fleet-health plan (executed → PR #331).
-- **PR #331 follow-ups** are this session's regressions (items 1–4 above) — fix before it merges.
-- **Merge gate:** `Cross-Platform (Win/macOS/Ubuntu)` was de-required from branch protection earlier this session (it never scheduled); it still runs informationally on PRs.
-- **CodeRabbit** was rate-limited and never reviewed #331; this audit supersedes it. To get its pass later: comment `@coderabbitai review` on the PR after the limit window.
+- **Build-time program (#350) and selective CI (#348 + `229febdf`)** — landed; see [`docs/src/ci/affected-crate-selective-ci.md`](../src/ci/affected-crate-selective-ci.md).
+- **Config registry Phase 2** — ~80% done; 2C.2/2C.3 merged (#340, #345); burndown + 2D/2E remain — see [`plans/2026-06-15-config-registry-HANDOFF-STATE.md`](plans/2026-06-15-config-registry-HANDOFF-STATE.md).
+- **Partial adversarial items** (ScaleLock atomicity, dry-run history mutation, pre-push reap-on-any-failure, staging-copy lock) — acceptable debt unless a regression is observed; track in follow-up issues if needed.
+- **Runner fleet:** re-enable autoscaler when ready (`Enable-ScheduledTask -TaskName VoxCIRunnerScale` or `vox ci runner-scale --apply`).
 
 ---
 

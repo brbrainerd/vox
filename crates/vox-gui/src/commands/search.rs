@@ -242,6 +242,7 @@ pub async fn vox_search_query(
 
     // ── Scope -> corpora ──────────────────────────────────────────────────────
     let scope_tags: Vec<String> = scope.clone().unwrap_or_default();
+    let is_scoped = scope.is_some() && !scope_tags.is_empty();
     let scope_corpora: Option<Vec<SearchCorpus>> = scope.and_then(|v| {
         if v.is_empty() {
             None
@@ -282,6 +283,10 @@ pub async fn vox_search_query(
                 .collect(),
             names,
         )
+    } else if is_scoped {
+        // User explicitly scoped to client-side only indices (e.g. settings/commands),
+        // so return empty backend hits immediately.
+        (Vec::new(), Vec::new())
     } else {
         let (execution, _diag, plan) = run_search_with_verification(
             &ctx,

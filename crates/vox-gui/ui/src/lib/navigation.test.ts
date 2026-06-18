@@ -30,4 +30,9 @@ describe('resolveNavigation', () => {
     const crumbs = breadcrumbsForView('console');
     expect(crumbs.map(c => c.key)).toEqual(['workspace', 'console']);
   });
+
+  it('gamify resolves under agents parent', () => {
+    expect(resolveNavigation('gamify').parent).toBe('agents');
+    expect(resolveNavigation('gamify').child).toBe('gamify');
+  });
 });

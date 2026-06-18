@@ -135,6 +135,7 @@ ci/plugin-catalog-sync
 ci/plugin-dep-boundary
 ci/plugin-skill-parity
 ci/plugin-surface-sync
+ci/pipeline-parity
 ci/pm-provenance
 ci/policy-allowlist-parity
 ci/policy-registry

@@ -5,6 +5,7 @@
 /// `VictoryClaimDetector`, `Language`, `Finding::fingerprint`, and `byte_offset_in_file`.
 #[cfg(test)]
 mod semcov_wave32_tests {
+    #![allow(clippy::module_inception)]
     use std::path::PathBuf;
 
     use crate::analysis::TokenMap;

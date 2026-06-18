@@ -8,26 +8,39 @@ interface SparklineProps {
   fill?: boolean;
 }
 
-export function Sparkline({ 
-  data, 
-  color = "currentColor", 
-  width = 84, 
-  height = 22, 
-  fill = true 
+export function Sparkline({
+  data,
+  color = "currentColor",
+  width = 84,
+  height = 22,
+  fill = true
 }: SparklineProps) {
+  const reactId = React.useId();
   if (!data || !data.length) return null;
   const min = Math.min(...data);
   const max = Math.max(...data);
-  const range = max - min || 1;
+  const range = max - min;
+  // When every value is identical, no line is meaningful — render only the
+  // terminal dot so the user sees a stable marker instead of a flat line.
+  if (range === 0) {
+    return (
+      <svg width={width} height={height} className="overflow-visible">
+        <circle cx={width - 2} cy={height / 2} r="2" fill={color} />
+      </svg>
+    );
+  }
   const stepX = width / (data.length - 1);
   const pts = data.map((v, i) => [
-    i * stepX, 
+    i * stepX,
     height - ((v - min) / range) * (height - 4) - 2
   ]);
   const d = pts.map((p, i) => (i === 0 ? `M${p[0]},${p[1]}` : `L${p[0]},${p[1]}`)).join(" ");
   const area = `${d} L${width},${height} L0,${height} Z`;
-  const gid = "g" + Math.abs(data.join("").length + data[0] * 7 | 0);
-  
+  // useId() guarantees a unique gradient <defs> per Sparkline instance, so
+  // multiple sparklines with the same data no longer share a gradient and
+  // render in the wrong color.
+  const gid = `vox-spark-${reactId}`;
+
   return (
     <svg width={width} height={height} className="overflow-visible">
       <defs>

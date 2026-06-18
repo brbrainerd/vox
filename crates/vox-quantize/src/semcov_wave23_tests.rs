@@ -6,6 +6,7 @@
 
 #[cfg(test)]
 mod semcov_wave23_tests {
+    #![allow(clippy::module_inception)]
     use crate::device::{DevicePref, select};
     use crate::error::QuantizeError;
     use crate::policy::{QuantMixture, TensorRole, resolve_dtype};

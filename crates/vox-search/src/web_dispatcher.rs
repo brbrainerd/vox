@@ -88,6 +88,16 @@ impl WebSearchDispatcher {
         }
         rank_and_dedupe_results(&mut results);
 
+        #[cfg(feature = "tavily")]
+        if policy.tavily_enabled {
+            crate::tavily_extract::uplift_low_quality_snippets(
+                &mut results,
+                query,
+                policy.searxng_max_urls_to_scrape,
+            )
+            .await;
+        }
+
         #[cfg(feature = "web-scrape")]
         {
             // Integrated scraping for clean content (optional — pulls scraper/html2text).

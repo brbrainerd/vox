@@ -7,14 +7,19 @@
 //   - log.error instead of bare print for failure paths.
 
 fn run_in(cmd: str, args: list[str], cwd: str, label: str) to bool {
-    let res = std.process.run_capture_ex(cmd, args, cwd, [])
+    let mut res = std.process.run_capture_ex(cmd, args, cwd, [])
     if res.is_err() {
-        log.error(label + " failed to spawn: " + res.unwrap_err())
+        if cmd == "pnpm" {
+            res = std.process.run_capture_ex("pnpm.cmd", args, cwd, [])
+        }
+    }
+    if res.is_err() {
+        print(label + " failed to spawn: " + res.unwrap_err())
         return false
     }
     let out = res.unwrap()
     if out.exit != 0 {
-        log.error(label + " failed (exit " + str(out.exit) + "): " + out.stderr)
+        print(label + " failed (exit " + str(out.exit) + "): " + out.stderr)
         return false
     }
     return true

@@ -174,6 +174,7 @@ pub async fn vox_scientia_publication_preflight(
             &contract,
             Some(attention),
             &scientia_h,
+            None,
         )
     } else {
         vox_publisher::publication_preflight::run_preflight_with_attention(

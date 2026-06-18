@@ -1,20 +1,29 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { discoveryHelp, discoveryRecord, type ActionHelp } from '../../../transport';
+import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
+import { Glass } from '../../ui/Glass';
+import { useLocalStorage } from '../../../hooks/useLocalStorage';
 
 interface Props {
   /** The action id currently under the cursor / top suggestion, or null. */
   actionId: string | null;
   /** Epoch ms (passed in so the component stays deterministic/testable). */
   nowMs: number;
+  gamifyEnabled?: boolean;
+  /** Apply the suggested example command to the console input. */
+  onUseAction?: (example: string, actionId: string) => void;
 }
+
+const DISCOVERY_RAIL_COLLAPSED_KEY = 'gui.console.discovery_rail_collapsed.v1';
 
 /**
  * Persistent right-hand rail (layout A). Resolves the active action to its help
  * and records a "seen" exposure (with dwell) so the spaced-repetition scheduler
  * learns what the user has been shown.
  */
-export function DiscoveryRail({ actionId, nowMs }: Props) {
+export function DiscoveryRail({ actionId, nowMs, gamifyEnabled = false, onUseAction }: Props) {
   const [help, setHelp] = useState<ActionHelp | null>(null);
+  const [collapsed, setCollapsed] = useLocalStorage<boolean>(DISCOVERY_RAIL_COLLAPSED_KEY, false);
   const shownAt = useRef<number>(nowMs);
 
   useEffect(() => {
@@ -49,36 +58,86 @@ export function DiscoveryRail({ actionId, nowMs }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [actionId]);
 
-  if (!help) {
+  if (collapsed) {
     return (
-      <aside
-        aria-label="discovery"
-        aria-live="polite"
-        style={{ width: 280, padding: 12, fontSize: 12 }}
-      >
-        <p className="text-text-muted">Start typing a vox command to see help and tips.</p>
+      <aside aria-label="discovery" className="shrink-0" data-testid="discovery-rail">
+        <Glass className="flex flex-col items-center gap-2 p-2">
+          <button
+            type="button"
+            aria-label="Expand discovery rail"
+            aria-expanded={false}
+            onClick={() => setCollapsed(false)}
+            className="rounded-lg border border-border-subtle p-2 text-text-muted transition hover:border-brass/40 hover:text-brass"
+          >
+            <span className="font-mono text-sm" aria-hidden="true">
+              »
+            </span>
+          </button>
+        </Glass>
       </aside>
     );
   }
+
+  const handleUse = () => {
+    if (!actionId || !help) return;
+    void recordGamifyGuiEvent(
+      'discovery_action_used',
+      { action_id: actionId },
+      { enabled: gamifyEnabled },
+    );
+    onUseAction?.(help.example, actionId);
+  };
 
   return (
     <aside
       aria-label="discovery"
       aria-live="polite"
-      style={{ width: 280, padding: 12, fontSize: 12 }}
+      className="w-[280px] shrink-0"
+      data-testid="discovery-rail"
     >
-      <h3 style={{ fontSize: 13, margin: '0 0 6px' }}>{help.example}</h3>
-      <p style={{ margin: '0 0 8px' }}>{help.about}</p>
-      {help.args.length > 0 && (
-        <ul style={{ margin: 0, paddingLeft: 16 }}>
-          {help.args.map((a) => (
-            <li key={a.name}>
-              <code>{a.name}</code>
-              {a.required ? ' (required)' : ''} — {a.help}
-            </li>
-          ))}
-        </ul>
-      )}
+      <Glass className="flex h-full flex-col gap-2 p-3 text-xs">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-[10px] uppercase tracking-[0.18em] text-brass">Discovery</h2>
+          <button
+            type="button"
+            aria-label="Collapse discovery rail"
+            aria-expanded={true}
+            onClick={() => setCollapsed(true)}
+            className="rounded p-1 text-zinc-500 transition hover:bg-white/[0.04] hover:text-zinc-300"
+          >
+            <span className="font-mono text-xs" aria-hidden="true">
+              «
+            </span>
+          </button>
+        </div>
+
+        {!help ? (
+          <p className="text-text-muted">Start typing a vox command to see help and tips.</p>
+        ) : (
+          <>
+            <h3 className="text-[13px] font-medium text-zinc-200">{help.example}</h3>
+            <p className="text-zinc-400">{help.about}</p>
+            {help.args.length > 0 && (
+              <ul className="list-disc pl-4 text-zinc-400">
+                {help.args.map((a) => (
+                  <li key={a.name}>
+                    <code className="text-zinc-300">{a.name}</code>
+                    {a.required ? ' (required)' : ''} — {a.help}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <button
+              type="button"
+              onClick={handleUse}
+              aria-label={`Use suggested action ${help.example}`}
+              className="mt-2 self-start rounded-lg border border-border-subtle px-2.5 py-1.5 text-[11px] text-text-muted transition hover:border-brass/40 hover:text-brass"
+            >
+              Use
+            </button>
+          </>
+        )}
+      </Glass>
     </aside>
   );
 }

@@ -157,7 +157,7 @@ Instruments: `vox ci build-bench` (Task 0.2–0.4) + `vox ci dep-cycles` (Task 1
 | 2.2 | vox-sql backend gating | check_vox_sql | PENDING-CI |
 | 2.3 | mcp drop news-publish default | check_vox_mcp | PENDING-CI |
 | 2.4 | vox-audit ci-gates | check_vox_audit | PENDING-CI |
-| 3.1 | mcp slowest-unit split | check_vox_mcp | PENDING-CI |
+| 3.1 | mcp `heavy-browser` gates browser_tools (~1.1k LoC) | check_vox_mcp | implemented, PENDING-CI measurement |
 | 5.1 | affected-crate selective CI (PR #348) | PR-time wall-clock | PENDING-CI |
 
 Note: PENDING-CI cells are filled by the non-blocking CI build-bench artifact on the first run after merge.

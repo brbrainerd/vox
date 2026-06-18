@@ -510,6 +510,9 @@ pub enum CiCmd {
     /// Validate GRAMMAR_SSOT.md against LEXER_KEYWORDS and LEXER_DECORATORS.
     #[command(name = "grammar-ssot-parity")]
     GrammarSsotParity,
+    /// Umbrella gate: grammar SSOT, canonical golden ladder, feature matrix smoke, ladder-scoped k-budget.
+    #[command(name = "pipeline-parity")]
+    PipelineParity,
     /// Histogram of AST decl kinds across `examples/golden` (requires `vox-corpus/ast-extract`).
     #[command(name = "corpus-decl-coverage", visible_alias = "corpus-coverage")]
     CorpusDeclCoverage,
@@ -1035,6 +1038,9 @@ pub enum CiCmd {
     /// Walk crates/vox-plugin-* for *.skill.md files and enforce AgentSkills frontmatter contract (name, description, format, directory match).
     #[command(name = "agentskills-compliance")]
     AgentSkillsCompliance,
+    /// Federated workspace @tool surface parity (schemas + fixture round-trips).
+    #[command(name = "mcp-vox-surface-parity")]
+    McpVoxSurfaceParity,
     /// Poll GitHub Actions checks for the current HEAD (or a specific SHA) and print failures.
     #[command(name = "watch-run")]
     WatchRun {

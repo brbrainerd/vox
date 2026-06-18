@@ -17,6 +17,12 @@ export interface KPI {
   spark: number[];
 }
 
+/** Orchestrator-fed metric for dashboard chart widgets (queue depth, etc.). */
+export interface DashboardMetricKpi {
+  value: number;
+  spark: number[];
+}
+
 export interface Agent {
   id: string;
   codename: string;
@@ -72,6 +78,7 @@ export interface DashboardData {
   kpis: {
     budgetBurn: KPI;
     mesh: KPI;
+    queueDepth: DashboardMetricKpi;
   };
   agents: Agent[];
   stream: StreamItem[];

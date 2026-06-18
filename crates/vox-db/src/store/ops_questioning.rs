@@ -553,8 +553,8 @@ impl crate::VoxDb {
         }
         arr.push(serde_json::Value::Object(ans_obj));
 
-        if let Some(sel) = selected_option_id {
-            if let Some((qeid, eig_bits)) = self
+        if let Some(sel) = selected_option_id
+            && let Some((qeid, eig_bits)) = self
                 .latest_question_event_id_and_eig(question_session_id, question_id)
                 .await?
             {
@@ -627,7 +627,6 @@ impl crate::VoxDb {
                     }
                 }
             }
-        }
 
         obj.insert(
             "last_updated_ms".to_string(),

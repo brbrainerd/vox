@@ -26,9 +26,9 @@
     }
   },
   {
-    "name": "empty_hits__no_traces_at_all__novel",
+    "name": "empty_hits__no_traces_at_all__insufficient_evidence",
     "claim_year": 2026,
-    "expected": "novel",
+    "expected": "insufficient_evidence",
     "bundle": {
       "schema_version": 1,
       "bundle_id": "nb.golden002",
@@ -211,9 +211,9 @@
     }
   },
   {
-    "name": "conflict_pair__supporting_sim0p9_and_contradicting_sim0p9__not_novel__conflicts_nonempty",
+    "name": "conflict_pair__supporting_sim0p9_and_contradicting_sim0p9__contradicted__conflicts_nonempty",
     "claim_year": 2026,
-    "expected": "not_novel",
+    "expected": "contradicted",
     "bundle": {
       "schema_version": 1,
       "bundle_id": "nb.golden009",

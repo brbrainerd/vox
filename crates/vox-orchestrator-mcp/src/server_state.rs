@@ -87,15 +87,67 @@ pub struct ServerState {
     /// gate in `dispatch.rs` and the `vox_pending_approvals` / `vox_resolve_approval`
     /// tools — all reach it via `&ServerState`).
     pub pending_approvals: Arc<crate::pending_approvals::PendingApprovals>,
+
+    /// Federated workspace `@tool` surface (Option A).
+    pub workspace_mcp: Arc<parking_lot::RwLock<crate::workspace_mcp::WorkspaceMcpSurface>>,
+
+    /// BM25 skill search index (rebuilt on install/hydrate).
+    pub skill_search_index: Arc<parking_lot::RwLock<crate::skill_search_index::SkillSearchIndex>>,
+
+    /// Active skill for per-skill MCP tool allowlist (`vox_skill_use` / chat composer).
+    pub active_skill_id: Arc<parking_lot::RwLock<Option<String>>>,
 }
 
 impl ServerState {
     /// The trusted caller role for this server (human vs agent), used to authorize
     /// privileged operations like the browser control lock. Derived from the
     /// launcher's environment (`VOX_MCP_CALLER_ROLE`), NOT from request bodies, so
-    /// an agent cannot assert "human". See `browser_tools::trusted_caller_role`.
-    pub fn caller_role(&self) -> crate::browser_tools::CallerRole {
-        crate::browser_tools::trusted_caller_role()
+    /// an agent cannot assert "human". See `caller_role::trusted_caller_role`.
+    pub fn caller_role(&self) -> crate::caller_role::CallerRole {
+        crate::caller_role::trusted_caller_role()
+    }
+
+    /// Rebuild the BM25 skill search index from the current registry manifests.
+    pub fn rebuild_skill_search_index(&self) {
+        let manifests = self.skill_registry.list(None);
+        self.skill_search_index.write().rebuild(&manifests);
+    }
+
+    fn load_workspace_mcp(repo: &std::path::Path) -> crate::workspace_mcp::WorkspaceMcpSurface {
+        let config = crate::workspace_mcp::load_scan_config(repo);
+        match crate::workspace_mcp::WorkspaceMcpLoader::load_repo(repo, &config) {
+            Ok(result) => {
+                for err in &result.errors {
+                    tracing::warn!(
+                        path = %err.path.display(),
+                        error = %err.message,
+                        "workspace MCP scan skipped file"
+                    );
+                }
+                if !result.surface.shadowed.is_empty() {
+                    tracing::warn!(
+                        shadowed = ?result.surface.shadowed,
+                        "workspace MCP tools shadowed by static catalog"
+                    );
+                }
+                result.surface
+            }
+            Err(e) => {
+                tracing::warn!("workspace MCP load failed: {e}");
+                crate::workspace_mcp::WorkspaceMcpSurface::default()
+            }
+        }
+    }
+
+    fn spawn_external_skill_hydration(
+        registry: Arc<SkillRegistry>,
+        hydrate_root: std::path::PathBuf,
+        skill_search_index: Arc<parking_lot::RwLock<crate::skill_search_index::SkillSearchIndex>>,
+    ) {
+        spawn_supervised_infallible("hydrate_external_skills", async move {
+            crate::skills_hydrate::hydrate_external_skills(&registry, &hydrate_root).await;
+            skill_search_index.write().rebuild(&registry.list(None));
+        });
     }
 
     /// Full-featured constructor for a native MCP server host.
@@ -154,6 +206,29 @@ impl ServerState {
             .await;
         });
 
+        let registry_for_hydrate = registry.clone();
+        let hydrate_root = workspace_root
+            .clone()
+            .unwrap_or_else(|| repository.root.clone());
+        let index_for_hydrate = Arc::new(parking_lot::RwLock::new(
+            crate::skill_search_index::SkillSearchIndex::from_manifests(&registry.list(None)),
+        ));
+        let index_for_hydrate_task = index_for_hydrate.clone();
+        Self::spawn_external_skill_hydration(
+            registry_for_hydrate,
+            hydrate_root,
+            index_for_hydrate_task,
+        );
+
+        let workspace_mcp = {
+            let root = workspace_root
+                .clone()
+                .unwrap_or_else(|| repository.root.clone());
+            Arc::new(parking_lot::RwLock::new(Self::load_workspace_mcp(&root)))
+        };
+
+        let skill_search_index = index_for_hydrate;
+
         let http_client = vox_http_client::client_builder()
             .timeout(vox_config::timeouts::D_120S)
             .build()
@@ -186,6 +261,9 @@ impl ServerState {
             mention_path_cache: Arc::new(PrMutex::new(None)),
             observer: Arc::new(Observer::with_default_policy()),
             pending_approvals: Arc::new(crate::pending_approvals::PendingApprovals::default()),
+            workspace_mcp,
+            skill_search_index,
+            active_skill_id: Arc::new(parking_lot::RwLock::new(None)),
         };
 
         // Spawn pollers
@@ -207,6 +285,10 @@ impl ServerState {
         skill_registry: Arc<SkillRegistry>,
     ) -> Self {
         let workspace_root = Some(repository.root.clone());
+        let workspace_mcp_root = workspace_root
+            .clone()
+            .unwrap_or_else(|| repository.root.clone());
+        let skill_manifests = skill_registry.list(None);
         let http_client = vox_http_client::client_builder()
             .timeout(vox_config::timeouts::D_120S)
             .build()
@@ -239,7 +321,21 @@ impl ServerState {
             mention_path_cache: Arc::new(PrMutex::new(None)),
             observer: Arc::new(Observer::with_default_policy()),
             pending_approvals: Arc::new(crate::pending_approvals::PendingApprovals::default()),
+            workspace_mcp: {
+                Arc::new(parking_lot::RwLock::new(Self::load_workspace_mcp(
+                    &workspace_mcp_root,
+                )))
+            },
+            skill_search_index: Arc::new(parking_lot::RwLock::new(
+                crate::skill_search_index::SkillSearchIndex::from_manifests(&skill_manifests),
+            )),
+            active_skill_id: Arc::new(parking_lot::RwLock::new(None)),
         };
+        Self::spawn_external_skill_hydration(
+            state.skill_registry.clone(),
+            workspace_mcp_root,
+            state.skill_search_index.clone(),
+        );
         state.spawn_scientia_research_mesh_background_jobs();
         state
     }
@@ -512,6 +608,13 @@ impl ServerState {
             mention_path_cache: Arc::new(PrMutex::new(None)),
             observer: Arc::new(Observer::with_default_policy()),
             pending_approvals: Arc::new(crate::pending_approvals::PendingApprovals::default()),
+            workspace_mcp: Arc::new(parking_lot::RwLock::new(
+                crate::workspace_mcp::WorkspaceMcpSurface::default(),
+            )),
+            skill_search_index: Arc::new(parking_lot::RwLock::new(
+                crate::skill_search_index::SkillSearchIndex::default(),
+            )),
+            active_skill_id: Arc::new(parking_lot::RwLock::new(None)),
         }
     }
 

@@ -32,7 +32,12 @@ pub fn classify(role: &str, content: &str) -> Option<ClassifyResult> {
     let matched_verb = ACTION_VERBS.iter().find(|&&v| lower.contains(v))?;
 
     // Trim to 200 chars, strip leading/trailing whitespace.
-    let intent = content.chars().take(200).collect::<String>().trim().to_string();
+    let intent = content
+        .chars()
+        .take(200)
+        .collect::<String>()
+        .trim()
+        .to_string();
 
     // Confidence is higher when the verb appears early in the message.
     let verb_pos = lower.find(matched_verb).unwrap_or(usize::MAX);
@@ -46,12 +51,31 @@ pub fn classify(role: &str, content: &str) -> Option<ClassifyResult> {
 
 /// Action verbs that signal the user wants something done.
 const ACTION_VERBS: &[&str] = &[
-    "fix", "add", "update", "create", "remove", "delete", "refactor",
-    "write", "implement", "build", "migrate", "extract", "rename",
-    "move", "replace", "rewrite", "upgrade", "configure", "setup",
-    "install", "deploy", "test", "debug", "investigate",
+    "fix",
+    "add",
+    "update",
+    "create",
+    "remove",
+    "delete",
+    "refactor",
+    "write",
+    "implement",
+    "build",
+    "migrate",
+    "extract",
+    "rename",
+    "move",
+    "replace",
+    "rewrite",
+    "upgrade",
+    "configure",
+    "setup",
+    "install",
+    "deploy",
+    "test",
+    "debug",
+    "investigate",
 ];
-
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -109,7 +133,10 @@ mod tests {
 
     #[test]
     fn intent_is_capped_at_200_chars() {
-        let long = format!("fix the thing that is currently broken and causing the server to crash repeatedly {}", "x".repeat(300));
+        let long = format!(
+            "fix the thing that is currently broken and causing the server to crash repeatedly {}",
+            "x".repeat(300)
+        );
         let result = classify("user", &long).unwrap();
         assert!(result.intent.len() <= 200);
     }

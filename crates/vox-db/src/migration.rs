@@ -34,25 +34,23 @@ impl Migration {
 
 /// Validate strictly increasing versions and no duplicates.
 ///
-/// **Note:** validation failures are reported as [`StoreError::NotFound`] with a message string for
-/// historical reasons; they are not “not found” semantically. Callers should match on the message
-/// or treat any `Err` as fatal.
+/// **Note:** validation failures are reported as [`StoreError::InvalidMigration`].
 pub fn validate_migrations(migrations: &[Migration]) -> Result<(), StoreError> {
     let mut seen = std::collections::BTreeSet::new();
     let mut last = 0i64;
     for migration in migrations {
         if migration.version <= 0 {
-            return Err(StoreError::NotFound(
+            return Err(StoreError::InvalidMigration(
                 "migration version must be > 0".to_string(),
             ));
         }
         if migration.version <= last {
-            return Err(StoreError::NotFound(
+            return Err(StoreError::InvalidMigration(
                 "migrations must be sorted by increasing version".to_string(),
             ));
         }
         if !seen.insert(migration.version) {
-            return Err(StoreError::NotFound(format!(
+            return Err(StoreError::InvalidMigration(format!(
                 "duplicate migration version {}",
                 migration.version
             )));

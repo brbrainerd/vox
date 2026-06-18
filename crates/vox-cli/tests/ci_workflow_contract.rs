@@ -367,18 +367,62 @@ fn selective_ci_shadow_comparator_on_merge_group() {
 }
 
 #[test]
-fn compute_affected_reusable_workflow_exists() {
+fn selective_ci_fail_closed_on_empty_affected() {
     let yml = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../.github/workflows/compute-affected.yml"
+        "/../../.github/workflows/ci.yml"
     ));
     assert!(
-        yml.contains("workflow_call:"),
-        "compute-affected.yml must be reusable via workflow_call"
+        yml.contains("rust_changed=true but git diff produced no changed files"),
+        "ci.yml must fail-closed when rust_changed but diff is empty"
     );
     assert!(
-        yml.contains("emit_fail_closed"),
-        "compute-affected must fail closed when rust changed but affected set empty"
+        yml.contains("rust_changed with empty affected set"),
+        "ci.yml must upgrade to full=true when rust_changed but affected set empty"
+    );
+}
+
+#[test]
+fn selective_ci_fail_closed_on_docs_only_empty_affected() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/ci.yml"
+    ));
+    assert!(
+        yml.contains("docs_changed with empty affected set"),
+        "ci.yml must upgrade to full=true when docs_changed but affected set empty"
+    );
+    assert!(
+        yml.contains("Run Tests — plain nextest (full gate, docs-only change)"),
+        "ci.yml must run workspace nextest on full gate when rust did not change"
+    );
+}
+
+#[test]
+fn selective_ci_workflow_changes_force_rust_gate() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/ci.yml"
+    ));
+    assert!(
+        yml.contains(r"\.github/workflows/)"),
+        "ci.yml filter must treat .github/workflows/ changes as rust_changed"
+    );
+}
+
+#[test]
+fn selective_ci_toestub_minimal_default_when_empty() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/ci.yml"
+    ));
+    assert!(
+        yml.contains("toestub-scoped --mode enforce-warn crates/vox-repository"),
+        "ci.yml must run TOESTUB on crates/vox-repository when affected set is empty"
+    );
+    assert!(
+        !yml.contains("No affected crates — skipping TOESTUB scoped."),
+        "ci.yml must not skip TOESTUB when affected set is empty"
     );
 }
 

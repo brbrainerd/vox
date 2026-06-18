@@ -70,3 +70,13 @@ export function runAutofill(publicationId: string, apply: boolean): Promise<Auto
 export function getArchiveStatus(publicationId: string): Promise<ArchiveStatus> {
   return invoke<ArchiveStatus>('get_archive_status', { publicationId });
 }
+
+/** Recent scientia publication manifests for dashboard rollups (read-only). */
+export interface PublicationManifest {
+  publication_id: string;
+  state: string;
+}
+
+export function listPublicationManifests(limit: number): Promise<PublicationManifest[]> {
+  return invoke<PublicationManifest[]>('list_publication_manifests', { limit });
+}

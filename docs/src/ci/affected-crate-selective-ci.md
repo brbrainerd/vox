@@ -6,9 +6,11 @@ category: "CI & Quality"
 
 # Affected-Crate Selective CI
 
-> **Status (2026-06-16):** PR-lane scoping wired in `.github/workflows/ci.yml`; `merge_group`
-> runs the full workspace. Tooling: `vox-cli-ci` (`affected`, `affected_cmd`); graph SSOT:
-> `contracts/ci/crate-graph.v1.json`. Reusable consumer: `.github/workflows/compute-affected.yml`.
+> **Status (2026-06-16):** PR-lane scoping wired inline in `.github/workflows/ci.yml` (`setup` →
+> `Compute affected crates` step); `merge_group` runs the full workspace. Tooling: `vox-cli-ci`
+> (`crates/vox-cli-ci/src/affected.rs`, `affected_cmd.rs`); graph SSOT:
+> `contracts/ci/crate-graph.v1.json`. CI invokes `./target/debug/vox ci affected-crates` after
+> the existing `setup` build of `vox-cli` — there is no separate reusable workflow.
 
 ## The rule
 
@@ -75,7 +77,6 @@ Shadow exits `1` on miss; CI shadow step uses `continue-on-error: true` until F1
 ## Future work
 
 - **F1:** Make shadow blocking after calibration.
-- **F2:** `ci.yml` calls `compute-affected.yml` (dedupe setup bash).
 - **F3:** `vox ci path-gate-plan` from `check-targets.v1.yaml`.
 - **F4:** Complete `pr_scope` on all CI checks.
 - **F5:** Update `rcicd-coverage-cost-matrix-2026.md`.

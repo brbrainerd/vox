@@ -111,7 +111,7 @@ pub async fn run(
                 if !dry_run {
                     crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Generate {
                         output: PathBuf::from("mens/data/synthetic.jsonl"),
-                        force_regen: false,
+                        force_regen: true,
                         dry_run: false,
                     })
                     .await?;

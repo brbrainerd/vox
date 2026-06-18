@@ -102,13 +102,12 @@ impl DbCircuitBreaker {
         if s == CircuitState::Open {
             // Check if timeout has elapsed → transition to HalfOpen
             let last = self.last_failure.read().unwrap_or_else(|p| p.into_inner());
-            if let Some(t) = *last {
-                if t.elapsed() >= self.reset_timeout {
+            if let Some(t) = *last
+                && t.elapsed() >= self.reset_timeout {
                     drop(last);
                     *self.state.write().unwrap_or_else(|p| p.into_inner()) = CircuitState::HalfOpen;
                     return CircuitState::HalfOpen;
                 }
-            }
         }
         s
     }

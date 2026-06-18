@@ -794,7 +794,9 @@ impl PopuliTransportState {
                                         #[cfg(feature = "gamify")]
                                         {
                                             tokio::spawn(async move {
-                                                if let Ok(db) = vox_db::Codex::connect_default().await {
+                                                if let Ok(db) =
+                                                    vox_db::Codex::connect_default().await
+                                                {
                                                     let ev = serde_json::json!({
                                                         "type": "skill_gossiped",
                                                         "source": "vox-populi",

@@ -2,9 +2,11 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
+import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 
 interface MeshViewProps {
   pushToast: (item: { tone: 'ok' | 'warn' | 'info'; title: string; body?: string }) => void;
+  gamifyEnabled?: boolean;
 }
 
 /** One node row as summarized by the `vox_mesh_nodes` MCP tool. */
@@ -66,7 +68,7 @@ function statusTone(status: string): string {
   }
 }
 
-export function MeshView({ pushToast }: MeshViewProps) {
+export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
   const [nodes, setNodes] = useState<MeshNode[]>([]);
   const [nodesMeta, setNodesMeta] = useState<NodesResult>({});
   const [queue, setQueue] = useState<QueueStatsResult>({});
@@ -148,6 +150,13 @@ export function MeshView({ pushToast }: MeshViewProps) {
           title: r.success ? 'Dispatched' : 'Dispatch returned failure',
           body: `node ${id}`,
         });
+        if (r.success) {
+          void recordGamifyGuiEvent(
+            'mesh_dispatch_success',
+            { node_id: id, task_kind: taskKind.trim() || null },
+            { enabled: gamifyEnabled },
+          );
+        }
       }
       await refresh();
     } catch (err) {
@@ -156,7 +165,7 @@ export function MeshView({ pushToast }: MeshViewProps) {
     } finally {
       setDispatching(false);
     }
-  }, [source, targetNode, taskKind, pushToast, refresh]);
+  }, [source, targetNode, taskKind, pushToast, refresh, gamifyEnabled]);
 
   return (
     <div className="grid grid-cols-12 gap-5">

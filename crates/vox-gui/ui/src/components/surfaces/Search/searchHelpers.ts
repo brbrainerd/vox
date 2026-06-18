@@ -1,13 +1,12 @@
+import type { OpenLocator } from '../../../types/tauri';
+
 /** Convert a raw [0,1] relevance score to a percentage string, clamped. */
 export function scoreToPct(score: number): string {
   const clamped = Math.max(0, Math.min(1, score));
   return (clamped * 100).toFixed(2) + '%';
 }
 
-export interface OpenLocator {
-  kind: 'file' | 'web' | 'memory' | 'chat' | 'command' | 'none';
-  value: string;
-}
+export type { OpenLocator };
 
 export interface UnifiedHit {
   source: string;
@@ -32,6 +31,7 @@ export interface SearchResponse {
   total: number;
   next_cursor: number | null;
   corpora: string[];
+  repo_truncated?: boolean;
 }
 
 /** Group hits by their source field, preserving insertion order of first occurrence. */

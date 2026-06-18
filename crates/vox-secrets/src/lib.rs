@@ -13,13 +13,11 @@ pub mod spec;
 mod tests;
 mod types;
 
+pub use backend::vox_vault::{VaultHealth, cloudless_vault_env_diagnostic, probe_vault_health};
 pub use errors::SecretError;
 pub use policy::{MissingBehavior, SecretPolicy};
 pub use resolver::ResolveProfile;
 use resolver::{ResolveOptions, SecretResolver};
-pub use backend::vox_vault::{
-    cloudless_vault_env_diagnostic, probe_vault_health, VaultHealth,
-};
 pub use spec::{
     Capability, Profile, RequirementMode, RequirementSet, RotationPolicy, SecretBundle,
     SecretClass, SecretId, SecretMaterialKind, SecretMetadata, SecretSpec, Workflow,

@@ -1,12 +1,68 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
+const mockSetGuiPreference = vi.fn().mockResolvedValue(undefined);
+
+const SECRET_ROW = {
+  id: 'db-token',
+  canonicalEnv: 'VOX_DB_TOKEN',
+  scopeDescription: 'Turso database token',
+  taxonomySlug: 'database',
+  authRegistry: null,
+  required: true,
+  isPresent: false,
+  status: 'missing',
+  redacted: '',
+  source: null,
+  remediation: 'Set via vault',
+};
+
+const invokeMock = vi.fn((cmd: string, args?: { key?: string }) => {
+  if (cmd === 'get_orchestrator_config') return Promise.resolve({});
+  if (cmd === 'list_secret_status') return Promise.resolve([SECRET_ROW]);
+  if (cmd === 'secrets_backend_status') {
+    return Promise.resolve({
+      backendMode: 'vault',
+      profile: 'dev',
+      strict: false,
+      available: true,
+      detail: null,
+    });
+  }
+  if (cmd === 'set_secret') return Promise.resolve(true);
+  if (cmd === 'signing_key_status') {
+    return Promise.resolve({
+      nodeId: 'node-abc',
+      algorithm: 'ed25519',
+      fingerprint: 'fp-deadbeef',
+      pubkeyHex: '00',
+      present: true,
+    });
+  }
+  if (cmd === 'rotate_signing_key') {
+    return Promise.resolve({
+      nodeId: 'node-abc',
+      algorithm: 'ed25519',
+      fingerprint: 'fp-cafebabe',
+      pubkeyHex: '01',
+      present: true,
+    });
+  }
+  return Promise.resolve(null);
+});
+
 // Mock Tauri invoke — SettingsView fires multiple invoke() calls on mount.
 vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn().mockResolvedValue(null),
+  invoke: (cmd: string, args?: unknown) => invokeMock(cmd, args as { key?: string }),
+}));
+
+const recordGamifyMock = vi.fn().mockResolvedValue(null);
+vi.mock('../../../lib/gamifyGuiEvents', () => ({
+  recordGamifyGuiEvent: (...args: unknown[]) => recordGamifyMock(...args),
 }));
 
 // Mock Tauri event listen — transport.ts calls listen() on import.
@@ -19,6 +75,10 @@ vi.mock('../../../transport', () => ({
   voxTransport: {
     getRoutingSummaryLive: vi.fn().mockResolvedValue({ routing_priority: null }),
     setRoutingPriority: vi.fn().mockResolvedValue(undefined),
+    getGuiPreference: vi.fn().mockResolvedValue(null),
+    get setGuiPreference() {
+      return mockSetGuiPreference;
+    },
   },
 }));
 
@@ -35,6 +95,11 @@ function wrapper({ children }: { children: React.ReactNode }) {
 }
 
 describe('SettingsView', () => {
+  beforeEach(() => {
+    invokeMock.mockClear();
+    recordGamifyMock.mockClear();
+  });
+
   it('renders without crashing', () => {
     expect(() =>
       render(<SettingsView pushToast={vi.fn()} />, { wrapper })
@@ -65,5 +130,49 @@ describe('SettingsView', () => {
     expect(screen.getAllByText('Orchestrator').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Theme').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Keybinds').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('announces preference save via aria-live when theme changes', async () => {
+    const user = userEvent.setup();
+    mockSetGuiPreference.mockClear();
+    render(<SettingsView pushToast={vi.fn()} />, { wrapper });
+    await user.click(screen.getByRole('button', { name: /theme/i }));
+    const voidTheme = await screen.findByRole('button', { name: /void/i });
+    await user.click(voidTheme);
+    await waitFor(() => expect(mockSetGuiPreference).toHaveBeenCalledWith('gui.theme', 'void'));
+    expect(await screen.findByRole('status')).toHaveTextContent(/saved/i);
+  });
+
+  it('fires secret_rotated when set_secret succeeds', async () => {
+    const user = userEvent.setup();
+    render(<SettingsView pushToast={vi.fn()} gamifyEnabled />, { wrapper });
+    await user.click(screen.getByRole('button', { name: /keys & secrets/i }));
+    const input = await screen.findByPlaceholderText('Paste new value…');
+    await user.type(input, 'super-secret-value');
+    fireEvent.click(screen.getByRole('button', { name: 'save' }));
+    await waitFor(() => {
+      expect(recordGamifyMock).toHaveBeenCalledWith(
+        'secret_rotated',
+        { key: 'VOX_DB_TOKEN' },
+        { enabled: true },
+      );
+    });
+  });
+
+  it('fires signing_key_rotated when rotate succeeds on an existing key', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal('prompt', vi.fn(() => 'master-password'));
+    render(<SettingsView pushToast={vi.fn()} gamifyEnabled />, { wrapper });
+    await user.click(screen.getByRole('button', { name: /signing keys/i }));
+    await screen.findByText('fp-deadbeef');
+    fireEvent.click(screen.getByRole('button', { name: 'rotate' }));
+    await waitFor(() => {
+      expect(recordGamifyMock).toHaveBeenCalledWith(
+        'signing_key_rotated',
+        expect.objectContaining({ node_id: 'node-abc', fingerprint: 'fp-cafebabe' }),
+        { enabled: true },
+      );
+    });
+    vi.unstubAllGlobals();
   });
 });

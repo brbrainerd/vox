@@ -14,11 +14,10 @@ impl VoxDb {
         if let Some(existing) = self
             .get_external_submission_job_by_idempotency_key(p.idempotency_key)
             .await?
-        {
-            if existing.publication_id != p.publication_id
+            && (existing.publication_id != p.publication_id
                 || existing.content_sha3_256 != p.content_sha3_256
                 || existing.adapter != p.adapter
-                || existing.operation != p.operation
+                || existing.operation != p.operation)
             {
                 return Err(StoreError::UpsertIdentityMismatch(format!(
                     "external_submission_jobs.idempotency_key={} already maps to \
@@ -31,7 +30,6 @@ impl VoxDb {
                     existing.operation,
                 )));
             }
-        }
         let ts = now_ms();
         let publication_id = p.publication_id.to_string();
         let content_sha3_256 = p.content_sha3_256.to_string();

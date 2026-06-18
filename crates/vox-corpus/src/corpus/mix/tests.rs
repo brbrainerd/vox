@@ -290,9 +290,10 @@ fn test_max_lines_hard_cap() {
             src,
             r#"{{"prompt":"q{}","response":"a{}","lane":"vox_codegen"}}"#,
             i, i
-        ).unwrap();
+        )
+        .unwrap();
     }
-    
+
     let dir = tempfile::tempdir().unwrap();
     let cfg_path = dir.path().join("mix.yaml");
     let out_path = dir.path().join("out.jsonl");
@@ -304,12 +305,19 @@ fn test_max_lines_hard_cap() {
     );
     std::fs::write(&cfg_path, yaml).unwrap();
 
-    let opts = super::MixRunOptions { strict: false, write_report: false };
+    let opts = super::MixRunOptions {
+        strict: false,
+        write_report: false,
+    };
     super::run_mix_with_options(&cfg_path, None, opts).unwrap();
 
     let emitted = std::fs::read_to_string(out_path).unwrap();
     let count = emitted.lines().filter(|l| !l.trim().is_empty()).count();
-    assert_eq!(count, 10, "max_lines cap should emit exactly 10, got {}", count);
+    assert_eq!(
+        count, 10,
+        "max_lines cap should emit exactly 10, got {}",
+        count
+    );
 }
 
 #[test]
@@ -321,11 +329,19 @@ fn test_dedup_skips_duplicate_rows() {
 
     let mut src_a = NamedTempFile::new().unwrap();
     writeln!(src_a, "{}", dup).unwrap();
-    writeln!(src_a, r#"{{"prompt":"unique a","response":"resp a","lane":"vox_codegen"}}"#).unwrap();
+    writeln!(
+        src_a,
+        r#"{{"prompt":"unique a","response":"resp a","lane":"vox_codegen"}}"#
+    )
+    .unwrap();
 
     let mut src_b = NamedTempFile::new().unwrap();
     writeln!(src_b, "{}", dup).unwrap();
-    writeln!(src_b, r#"{{"prompt":"unique b","response":"resp b","lane":"vox_codegen"}}"#).unwrap();
+    writeln!(
+        src_b,
+        r#"{{"prompt":"unique b","response":"resp b","lane":"vox_codegen"}}"#
+    )
+    .unwrap();
 
     let dir = tempfile::tempdir().unwrap();
     let cfg_path = dir.path().join("mix.yaml");
@@ -339,7 +355,10 @@ fn test_dedup_skips_duplicate_rows() {
     );
     std::fs::write(&cfg_path, yaml).unwrap();
 
-    let opts = super::MixRunOptions { strict: false, write_report: false };
+    let opts = super::MixRunOptions {
+        strict: false,
+        write_report: false,
+    };
     super::run_mix_with_options(&cfg_path, None, opts).unwrap();
 
     let emitted = std::fs::read_to_string(out_path).unwrap();

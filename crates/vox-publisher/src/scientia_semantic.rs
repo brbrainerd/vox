@@ -8,6 +8,39 @@
 
 use sha2::{Digest, Sha256};
 
+/// True when `VOX_SCIENTIA_REQUIRE_EMBEDDER` is set to a truthy value (`1`, `true`, `yes`, `on`).
+#[must_use]
+pub fn scientia_require_embedder_env_enabled() -> bool {
+    std::env::var("VOX_SCIENTIA_REQUIRE_EMBEDDER")
+        .map(|v| {
+            matches!(
+                v.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        })
+        .unwrap_or(false)
+}
+
+/// Fail fast when online prior-art fetch would run without an embedder while
+/// [`scientia_require_embedder_env_enabled`] is active.
+///
+/// Offline paths and unset env skip the check so deterministic tests stay usable.
+pub fn require_embedder_for_online_novelty(
+    offline: bool,
+    embedder_available: bool,
+) -> anyhow::Result<()> {
+    if offline || !scientia_require_embedder_env_enabled() {
+        return Ok(());
+    }
+    if embedder_available {
+        return Ok(());
+    }
+    anyhow::bail!(
+        "online novelty requires an embedder when VOX_SCIENTIA_REQUIRE_EMBEDDER=1; \
+         configure an embedding provider (see vox-search embedding env) or pass --offline"
+    )
+}
+
 /// Cosine similarity in [-1, 1]; 0.0 when either vector is all-zero.
 #[must_use]
 pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f64 {
@@ -79,6 +112,54 @@ pub async fn enrich_semantic_scores(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    static ENV_TEST_LOCK: Mutex<()> = Mutex::new(());
+
+    struct EnvVarGuard {
+        key: &'static str,
+        prior: Option<String>,
+    }
+
+    impl EnvVarGuard {
+        fn set(key: &'static str, value: &str) -> Self {
+            let prior = std::env::var(key).ok();
+            // SAFETY: test-only; single-threaded unit test module.
+            unsafe { std::env::set_var(key, value) };
+            Self { key, prior }
+        }
+    }
+
+    impl Drop for EnvVarGuard {
+        fn drop(&mut self) {
+            match &self.prior {
+                Some(v) => unsafe { std::env::set_var(self.key, v) },
+                None => unsafe { std::env::remove_var(self.key) },
+            }
+        }
+    }
+
+    #[test]
+    fn require_embedder_fails_when_flag_set_and_no_embedder() {
+        let _lock = ENV_TEST_LOCK.lock().expect("env test lock");
+        let _guard = EnvVarGuard::set("VOX_SCIENTIA_REQUIRE_EMBEDDER", "1");
+        let err = require_embedder_for_online_novelty(false, false).unwrap_err();
+        assert!(err.to_string().contains("VOX_SCIENTIA_REQUIRE_EMBEDDER"));
+    }
+
+    #[test]
+    fn require_embedder_skipped_when_offline() {
+        let _lock = ENV_TEST_LOCK.lock().expect("env test lock");
+        let _guard = EnvVarGuard::set("VOX_SCIENTIA_REQUIRE_EMBEDDER", "1");
+        require_embedder_for_online_novelty(true, false).expect("offline bypasses guard");
+    }
+
+    #[test]
+    fn require_embedder_skipped_when_flag_unset() {
+        let _lock = ENV_TEST_LOCK.lock().expect("env test lock");
+        let _guard = EnvVarGuard::set("VOX_SCIENTIA_REQUIRE_EMBEDDER", "0");
+        require_embedder_for_online_novelty(false, false).expect("flag off bypasses guard");
+    }
 
     #[test]
     fn identical_vectors_score_one() {

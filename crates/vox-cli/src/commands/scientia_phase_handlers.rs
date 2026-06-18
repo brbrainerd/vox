@@ -27,12 +27,26 @@ fn read_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T> {
 /// `vox scientia publication-replay-execute --main-entity X.json --stage-dir DIR`
 ///
 /// Re-executes the `MainEntity` entry-point inside `stage_dir` and emits a
-/// `ReplayReport` JSON document on stdout.
-pub async fn replay_execute(main_entity_path: &Path, stage_dir: &Path) -> Result<()> {
+/// `ReplayReport` JSON document on stdout. When `publication_id` is supplied,
+/// appends an `artifact_replayability_measured` row to `publication_status_events`.
+pub async fn replay_execute(
+    main_entity_path: &Path,
+    stage_dir: &Path,
+    publication_id: Option<&str>,
+) -> Result<()> {
     let main_entity: vox_scientia::ro_crate::MainEntity = read_json(main_entity_path)?;
     let report = vox_scientia::replay::run_replay(stage_dir, &main_entity)
         .await
         .context("vox_scientia::replay::run_replay")?;
+    if let Some(pid) = publication_id {
+        let db = vox_db::VoxDb::connect_default()
+            .await
+            .context("connect to default Codex / VoxDb for replay writeback")?;
+        let detail = serde_json::to_string(&report)?;
+        db.append_publication_status_event(pid, "artifact_replayability_measured", Some(&detail))
+            .await
+            .context("append artifact_replayability_measured status event")?;
+    }
     println!("{}", serde_json::to_string_pretty(&report)?);
     Ok(())
 }
@@ -805,9 +819,11 @@ pub fn arxiv_bundle_handler(
 /// and critic-allowed flag for the requested class.
 pub fn venue_recommend(candidate_class: &str, yaml_config: Option<&Path>) -> Result<()> {
     use vox_scientia::class_routing::{
-        FindingClass, builtin_class_defaults, critic_allowed_for, load_class_defaults_from_yaml,
-        negative_result_quota_for, recommended_venues_for, reply_window_days_for,
+        FindingClass, critic_allowed_for, effective_critic_allowed, load_class_defaults_from_repo,
+        load_class_defaults_from_yaml, negative_result_quota_for, recommended_venues_for,
+        reply_window_days_for, venue_critic_policy_for,
     };
+    use vox_scientia::critic_gate::VenueCatalog;
     let class = FindingClass::from_str(candidate_class).ok_or_else(|| {
         anyhow::anyhow!(
             "unknown candidate_class {candidate_class:?}; \
@@ -815,12 +831,17 @@ pub fn venue_recommend(candidate_class: &str, yaml_config: Option<&Path>) -> Res
              telemetry_trust, other, model_capability_atlas, provider_reliability_atlas"
         )
     })?;
+    let repo_root = vox_repository::resolve_repo_root_for_ci();
     let defaults = if let Some(p) = yaml_config {
         let yaml = std::fs::read_to_string(p).with_context(|| format!("read {}", p.display()))?;
         load_class_defaults_from_yaml(&yaml).context("parse class defaults YAML")?
     } else {
-        builtin_class_defaults()
+        load_class_defaults_from_repo(&repo_root)
     };
+    let venue_catalog = VenueCatalog::load_from_repo(&repo_root).ok();
+    let top_venue = recommended_venues_for(&defaults, class)
+        .first()
+        .map(String::as_str);
     #[derive(serde::Serialize)]
     struct Out<'a> {
         candidate_class: &'a str,
@@ -828,14 +849,24 @@ pub fn venue_recommend(candidate_class: &str, yaml_config: Option<&Path>) -> Res
         reply_window_days: u32,
         negative_result_quota: u32,
         critic_allowed: bool,
+        effective_critic_allowed: bool,
+        venue_critic_policy: &'static str,
         atlas_gate_applies: bool,
     }
+    let policy = venue_critic_policy_for(&defaults, class, top_venue, venue_catalog.as_ref());
     let out = Out {
         candidate_class: class.as_str(),
         recommended_venues: recommended_venues_for(&defaults, class),
         reply_window_days: reply_window_days_for(&defaults, class),
         negative_result_quota: negative_result_quota_for(&defaults, class),
         critic_allowed: critic_allowed_for(&defaults, class),
+        effective_critic_allowed: effective_critic_allowed(
+            &defaults,
+            class,
+            top_venue,
+            venue_catalog.as_ref(),
+        ),
+        venue_critic_policy: policy.as_str(),
         atlas_gate_applies: vox_scientia::class_routing::atlas_gate_applies_to(class),
     };
     println!("{}", serde_json::to_string_pretty(&out)?);
@@ -886,6 +917,51 @@ pub fn dashboard_snapshot(inputs_path: &Path) -> Result<()> {
     let snap = vox_scientia::dashboard::build_queue_snapshot(&inputs);
     println!("{}", serde_json::to_string_pretty(&snap)?);
     Ok(())
+}
+
+// ── Wave 5 — publication archive run orchestrator ────────────────────────────
+
+/// `vox scientia publication-archive-run` — Zenodo + Software Heritage + optional
+/// nanopub test-server, with `--dry-run` for CI-safe planning.
+pub async fn publication_archive_run(
+    publication_id: &str,
+    production: bool,
+    publish: bool,
+    dry_run: bool,
+    publish_nanopub_test_server: bool,
+) -> Result<()> {
+    crate::commands::db::publication::publication_archive_run(
+        publication_id,
+        production,
+        publish,
+        dry_run,
+        publish_nanopub_test_server,
+    )
+    .await
+}
+
+#[cfg(test)]
+mod archive_run_handler_tests {
+    use vox_publisher::archive_run::plan_archive_run;
+    use vox_publisher::scientia_discovery::ManifestCompletionReport;
+
+    #[test]
+    fn dry_run_plan_includes_nanopub_when_flagged_and_approved() {
+        let completion = ManifestCompletionReport {
+            completeness_0_100: 100,
+            required_missing: vec![],
+            inferred_ok: vec![],
+            human_only_pending: vec![],
+            field_provenance: vec![],
+        };
+        let plan = plan_archive_run(&completion, true, false, true);
+        assert!(
+            plan.step_names().contains(&"nanopub_test_server_publish"),
+            "steps: {:?}",
+            plan.step_names()
+        );
+        assert!(plan.first_blocker().is_none());
+    }
 }
 
 #[cfg(test)]
@@ -1287,5 +1363,30 @@ mod tests {
         let f = tmp_json(&page);
         // smoke
         finding_page_render(f.path()).unwrap();
+    }
+
+    #[test]
+    fn replay_status_event_detail_serializes_measured_score() {
+        let report = vox_scientia::replay::ReplayReport {
+            outcome: vox_scientia::replay::ReplayOutcome::Pass,
+            wall_ms: 42,
+            measured_score: 1.0,
+            diagnostics: vec![],
+            stdout: String::new(),
+            stderr: String::new(),
+        };
+        let detail = serde_json::to_string(&report).unwrap();
+        let events = vec![
+            vox_publisher::publication_preflight::PublicationStatusEventSnapshot {
+                status: "artifact_replayability_measured".into(),
+                detail_json: Some(detail),
+            },
+        ];
+        assert_eq!(
+            vox_publisher::publication_preflight::artifact_replayability_measured_from_status_events(
+                &events
+            ),
+            Some(1.0)
+        );
     }
 }

@@ -228,6 +228,10 @@ pub async fn discovery_watch(once: bool, repo: Option<&Path>, limit: usize) -> R
 
     // Optional code-uniqueness wiring.
     let embedder = crate::commands::db::publication::embedder::CachedLlmEmbedder::from_env(&db);
+    vox_publisher::scientia_semantic::require_embedder_for_online_novelty(
+        false,
+        embedder.is_some(),
+    )?;
     let code_index = resolve_code_index();
     let uniqueness_available = embedder.is_some() && code_index.is_some();
 
@@ -390,6 +394,40 @@ pub async fn discovery_watch(once: bool, repo: Option<&Path>, limit: usize) -> R
     });
     println!("{}", serde_json::to_string_pretty(&out)?);
     Ok(())
+}
+
+/// Scout hook (`VOX_SCOUT_CODE_UNIQUENESS=1`): probe code-uniqueness on `HEAD`.
+/// Read-only; skips when embedding or Qdrant seams are absent.
+pub async fn scout_code_uniqueness_hook(db: &vox_db::VoxDb, repo_root: &Path) -> serde_json::Value {
+    if std::env::var("VOX_SCOUT_CODE_UNIQUENESS").ok().as_deref() != Some("1") {
+        return serde_json::json!({ "enabled": false });
+    }
+    let embedder = Embedder::from_env(db);
+    if let Err(e) = vox_publisher::scientia_semantic::require_embedder_for_online_novelty(
+        false,
+        embedder.is_some(),
+    ) {
+        return serde_json::json!({ "enabled": true, "error": e.to_string() });
+    }
+    let commits = match collect_commits(repo_root, None, 1) {
+        Ok(c) => c,
+        Err(e) => {
+            return serde_json::json!({ "enabled": true, "error": e.to_string() });
+        }
+    };
+    let Some(head) = commits.first() else {
+        return serde_json::json!({ "enabled": true, "skipped": "no commits" });
+    };
+    let code_index = resolve_code_index();
+    let assessed = embedder.is_some() && code_index.is_some();
+    let signal =
+        uniqueness_signal_for_commit(repo_root, head, embedder.as_ref(), code_index.as_ref()).await;
+    serde_json::json!({
+        "enabled": true,
+        "assessed": assessed,
+        "head_sha": head.sha,
+        "signal_code": signal.as_ref().map(|s| s.code.as_str()),
+    })
 }
 
 #[cfg(test)]

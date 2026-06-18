@@ -52,11 +52,6 @@
 //! }
 //! ```
 
-#![allow(clippy::collapsible_if)]
-#![allow(clippy::needless_range_loop)]
-#![allow(clippy::single_char_add_str)]
-#![allow(clippy::redundant_closure)]
-#![allow(clippy::useless_vec)]
 
 /// Compare live SQLite schema to `@table` / collection declarations; non-destructive migrations.
 pub mod auto_migrate;
@@ -86,7 +81,8 @@ pub mod telemetry_sink;
 
 /// Canonical Codex storage policy (`vox.db` vs project store vs training sidecar).
 pub mod canonical_store;
-#[doc(hidden)]
+#[cfg(feature = "legacy-import")]
+#[deprecated(since = "0.6.0", note = "Use vox codex export-legacy CLI; module will be removed in the next major version")]
 pub mod codex_legacy;
 /// Manifest-derived readiness (baseline digest, required tables).
 pub mod codex_schema;
@@ -101,11 +97,53 @@ mod local_cli_introspection;
 pub mod sql_util;
 pub use exec_time_telemetry::{ExecOutcome, ExecTimeRecord, TimedExecution, ToolLatencyProfile};
 pub use local_cli_introspection::{audit_database_json, sample_table_json_objects};
-pub mod hash;
+pub mod hash {
+    //! SHA3-512 Base32Hex hashing utilities.
+    use data_encoding::BASE32HEX_NOPAD;
+    use sha3::{Digest, Sha3_512};
+
+    /// Compute a SHA3-512 hash of the given data, returning Base32Hex-encoded string.
+    pub fn content_hash(data: &[u8]) -> String {
+        let mut hasher = Sha3_512::new();
+        hasher.update(data);
+        let result = hasher.finalize();
+        BASE32HEX_NOPAD.encode(&result)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn test_deterministic_hash() {
+            let h1 = content_hash(b"hello world");
+            let h2 = content_hash(b"hello world");
+            assert_eq!(h1, h2);
+        }
+
+        #[test]
+        fn test_different_data_different_hash() {
+            let h1 = content_hash(b"hello");
+            let h2 = content_hash(b"world");
+            assert_ne!(h1, h2);
+        }
+
+        #[test]
+        fn test_hash_length() {
+            let h = content_hash(b"test");
+            assert!(h.len() > 50);
+        }
+    }
+}
 pub mod learning;
+#[cfg(feature = "legacy-import")]
 pub mod legacy_import_extras;
 /// Parameters for [`VoxDb::store_memory`].
-pub mod memory;
+///
+/// Alias of [`crate::store::SaveMemoryParams`] so application code can depend on `vox-db` only.
+pub mod memory {
+    pub type MemoryParams<'a> = crate::store::SaveMemoryParams<'a>;
+}
 mod mens_scorecard_trust;
 /// Declarative SQL migrations using the `schema_version` table (see `crate::schema`).
 pub mod migration;
@@ -307,7 +345,6 @@ pub struct VoxDb {
     pub(crate) sync_db: Option<turso::sync::Database>,
     /// Keeps local `:memory:` / file databases alive while `conn` is in use (Turso drops
     /// in-memory catalogs when the owning [`turso::Database`] is released).
-    #[cfg(feature = "local")]
     #[expect(dead_code, reason = "retains Arc<Database> for connection lifetime")]
     pub(crate) local_db: Option<std::sync::Arc<turso::Database>>,
     pub(crate) writer: Option<crate::VoxWriteHandle>,
@@ -321,12 +358,11 @@ impl VoxDb {
     pub(crate) fn assembled(
         conn: turso::Connection,
         sync_db: Option<turso::sync::Database>,
-        #[cfg(feature = "local")] local_db: Option<std::sync::Arc<turso::Database>>,
+        local_db: Option<std::sync::Arc<turso::Database>>,
     ) -> Self {
         Self {
             conn,
             sync_db,
-            #[cfg(feature = "local")]
             local_db,
             writer: None,
             breaker: std::sync::Arc::new(DbCircuitBreaker::from_env()),
@@ -359,3 +395,5 @@ mod local_tests;
 
 #[cfg(test)]
 mod semcov_wave18_tests;
+
+

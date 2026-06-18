@@ -17,6 +17,89 @@ interface DockShellProps {
   layoutKey?: string;
 }
 
+export type DockShellKeyAction = 'split-horizontal' | 'close-panel';
+
+type DockShellApi = DockviewReadyEvent['api'];
+
+export interface DockShellKeyboardContext {
+  api: DockShellApi | null;
+  container: HTMLElement | null;
+  panelId: string;
+  panelTitle: string;
+  content: React.ReactNode;
+}
+
+function hasModKey(event: Pick<KeyboardEvent, 'metaKey' | 'ctrlKey'>) {
+  return event.metaKey || event.ctrlKey;
+}
+
+export function dockShellKeybindingForEvent(
+  event: Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey'>,
+): DockShellKeyAction | null {
+  if (!hasModKey(event)) return null;
+  if (event.key === '\\') return 'split-horizontal';
+  if (event.key === 'w' || event.key === 'W') return 'close-panel';
+  return null;
+}
+
+export function isDockShellFocused(container: HTMLElement | null): boolean {
+  if (!container) return false;
+  const active = document.activeElement;
+  if (!active) return false;
+  return container.contains(active);
+}
+
+function nextSplitPanelId(api: DockShellApi, baseId: string): string {
+  let index = 1;
+  while (api.getPanel(`${baseId}-split-${index}`)) {
+    index += 1;
+  }
+  return `${baseId}-split-${index}`;
+}
+
+function splitActivePanelHorizontal(ctx: DockShellKeyboardContext): void {
+  const { api, panelId, panelTitle, content } = ctx;
+  if (!api) return;
+
+  const reference = api.activePanel ?? api.getPanel(panelId);
+  if (!reference) return;
+
+  const newId = nextSplitPanelId(api, reference.id);
+  api.addPanel({
+    id: newId,
+    component: 'panel',
+    title: `${panelTitle} (split)`,
+    params: { content },
+    position: {
+      referencePanel: reference,
+      direction: 'right',
+    },
+  });
+}
+
+function closeActivePanelIfAllowed(api: DockShellApi): void {
+  if (api.panels.length <= 1) return;
+  api.activePanel?.api.close();
+}
+
+export function handleDockShellKeydown(
+  event: KeyboardEvent,
+  ctx: DockShellKeyboardContext,
+): boolean {
+  if (!isDockShellFocused(ctx.container) || !ctx.api) return false;
+
+  const action = dockShellKeybindingForEvent(event);
+  if (!action) return false;
+
+  if (action === 'split-horizontal') {
+    splitActivePanelHorizontal(ctx);
+    return true;
+  }
+
+  closeActivePanelIfAllowed(ctx.api);
+  return true;
+}
+
 function PanelHost({ params }: IDockviewPanelProps<{ content: React.ReactNode }>) {
   return <div className="h-full min-h-0 overflow-auto custom-scrollbar p-1">{params.content}</div>;
 }
@@ -29,11 +112,12 @@ export function DockShell({
   children,
   layoutKey = 'gui.layout.v1',
 }: DockShellProps) {
-  const apiRef = useRef<DockviewReadyEvent['api'] | null>(null);
+  const apiRef = useRef<DockShellApi | null>(null);
+  const shellRef = useRef<HTMLDivElement | null>(null);
   const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const persistLayout = useCallback(
-    (api: DockviewReadyEvent['api']) => {
+    (api: DockShellApi) => {
       if (persistTimer.current) clearTimeout(persistTimer.current);
       persistTimer.current = setTimeout(() => {
         try {
@@ -90,12 +174,33 @@ export function DockShell({
     }
   }, [children, panelId]);
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const handled = handleDockShellKeydown(event, {
+        api: apiRef.current,
+        container: shellRef.current,
+        panelId,
+        panelTitle,
+        content: children,
+      });
+      if (handled) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [children, panelId, panelTitle]);
+
   return (
-    <DockviewReact
-      className="dockview-theme-vox h-full min-h-0"
-      onReady={onReady}
-      components={components}
-      theme={themeDark}
-    />
+    <div ref={shellRef} className="h-full min-h-0" tabIndex={-1}>
+      <DockviewReact
+        className="dockview-theme-vox h-full min-h-0"
+        onReady={onReady}
+        components={components}
+        theme={themeDark}
+      />
+    </div>
   );
 }

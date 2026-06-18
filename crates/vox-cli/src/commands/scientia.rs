@@ -188,11 +188,18 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
                     publication_id,
                     production,
                     publish,
-                } => DbCli::Publication(DbCliPublication::PublicationArchiveRun {
-                    publication_id,
-                    production,
-                    publish,
-                }),
+                    dry_run,
+                    publish_nanopub_test_server,
+                } => {
+                    return super::scientia_phase_handlers::publication_archive_run(
+                        &publication_id,
+                        production,
+                        publish,
+                        dry_run,
+                        publish_nanopub_test_server,
+                    )
+                    .await;
+                }
                 ScientiaCmd::PublicationTransformPreview { publication_id } => {
                     DbCli::Publication(DbCliPublication::PublicationTransformPreview {
                         publication_id,
@@ -346,10 +353,12 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
                 ScientiaCmd::PublicationReplayExecute {
                     main_entity,
                     stage_dir,
+                    publication_id,
                 } => {
                     return super::scientia_phase_handlers::replay_execute(
                         &main_entity,
                         &stage_dir,
+                        publication_id.as_deref(),
                     )
                     .await;
                 }

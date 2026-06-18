@@ -26,7 +26,7 @@ export const PARENT_CHILD_MAP: Record<string, { parent: string; child?: string }
   oratio: { parent: 'compute', child: 'oratio' },
   mesh: { parent: 'compute', child: 'mesh' },
   coverage: { parent: 'settings', child: 'coverage' },
-  gamify: { parent: 'settings', child: 'gamify' },
+  gamify: { parent: 'agents', child: 'gamify' },
   'discovery-inbox': { parent: 'knowledge', child: 'discovery-inbox' },
   'archive-panel': { parent: 'knowledge', child: 'archive-panel' },
 };

@@ -1,12 +1,14 @@
 import React from 'react';
 import { breadcrumbsForView, type BreadcrumbSegment } from '../../lib/navigation';
+import { recordGamifyGuiEvent } from '../../lib/gamifyGuiEvents';
 
 interface Props {
   viewKey: string;
   onNavigate?: (viewKey: string) => void;
+  gamifyEnabled?: boolean;
 }
 
-export function BreadcrumbBar({ viewKey, onNavigate }: Props) {
+export function BreadcrumbBar({ viewKey, onNavigate, gamifyEnabled }: Props) {
   const segments = breadcrumbsForView(viewKey);
   if (segments.length === 0 || viewKey === 'chat') return null;
 
@@ -20,7 +22,14 @@ export function BreadcrumbBar({ viewKey, onNavigate }: Props) {
         <button
           key={seg.key}
           type="button"
-          onClick={() => onNavigate(seg.key)}
+          onClick={() => {
+            void recordGamifyGuiEvent(
+              'breadcrumb_navigation',
+              { from: viewKey, to: seg.key },
+              { enabled: gamifyEnabled },
+            );
+            onNavigate(seg.key);
+          }}
           className="font-display text-[11px] uppercase tracking-[0.14em] hover:text-zinc-300 transition"
           aria-label={`Navigate to ${seg.label}`}
         >

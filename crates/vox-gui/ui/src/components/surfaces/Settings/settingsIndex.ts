@@ -28,6 +28,7 @@ export const SETTINGS_INDEX: SettingEntry[] = [
   { id: 'telemetry-mode', section: 'telemetry', label: 'Telemetry', hint: 'Off, local OTLP, or cloud', keywords: ['otlp', 'tracing', 'privacy'] },
   { id: 'keybinds', section: 'keybinds', label: 'Keybinds', hint: 'Global keyboard shortcuts', keywords: ['shortcuts', 'hotkeys', 'keyboard'] },
   { id: 'theme', section: 'theme', label: 'Theme', hint: 'Arcane, Void, or Glacier', keywords: ['dark', 'appearance', 'color'] },
+  { id: 'display-hud-tiles', section: 'display', label: 'HUD tiles', hint: 'Enable, disable, and reorder top status tiles', keywords: ['hud', 'status bar', 'kpi', 'tiles', 'display'] },
   { id: 'gamify', section: 'gamify', label: 'Gamification', hint: 'Enable and pick a mode', keywords: ['ludus', 'rewards', 'xp'] },
   // Registry-derived entries (generated from CONFIG_KEYS by `vox ci config-gui-codegen`).
   ...GENERATED_SETTINGS_INDEX,

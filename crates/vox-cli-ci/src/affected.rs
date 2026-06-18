@@ -24,6 +24,13 @@ pub fn contracts_outside_graph_force_full(changed_files: &[String]) -> bool {
         .any(|f| f.starts_with("contracts/") && f != CRATE_GRAPH_SENTINEL)
 }
 
+/// CI workflow edits can change gate behavior workspace-wide; force a full PR gate.
+pub fn ci_workflow_force_full(changed_files: &[String]) -> bool {
+    changed_files
+        .iter()
+        .any(|f| f.starts_with(".github/workflows/"))
+}
+
 pub fn file_to_crate(path: &str) -> Option<&str> {
     let rest = path.strip_prefix("crates/")?;
     let name = rest.split('/').next()?;
@@ -124,6 +131,9 @@ pub fn compute_affected(
         return Affected::Full;
     }
     if contracts_outside_graph_force_full(changed_files) {
+        return Affected::Full;
+    }
+    if ci_workflow_force_full(changed_files) {
         return Affected::Full;
     }
     let seeds: BTreeSet<String> = changed_files
@@ -262,6 +272,22 @@ mod tests {
                 &["contracts/config/env-vars.v1.yaml".into()],
                 &BTreeMap::new()
             ),
+            Affected::Full
+        );
+    }
+
+    #[test]
+    fn ci_workflow_force_full_flag() {
+        assert!(ci_workflow_force_full(&[".github/workflows/ci.yml".into()]));
+        assert!(!ci_workflow_force_full(&[
+            "docs/ci/runner-contract.md".into()
+        ]));
+    }
+
+    #[test]
+    fn ci_workflow_in_compute_affected() {
+        assert_eq!(
+            compute_affected(&[".github/workflows/ci.yml".into()], &BTreeMap::new()),
             Affected::Full
         );
     }

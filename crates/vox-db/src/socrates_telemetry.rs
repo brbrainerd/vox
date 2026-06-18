@@ -355,8 +355,8 @@ impl VoxDb {
                 n_proxy += 1;
                 agg.rows_with_metric_value += 1;
             }
-            if let Some(ref m) = meta {
-                if let Ok(t) = serde_json::from_str::<SocratesSurfaceTelemetry>(m) {
+            if let Some(ref m) = meta
+                && let Ok(t) = serde_json::from_str::<SocratesSurfaceTelemetry>(m) {
                     parsed_n += 1;
                     sum_conf += t.confidence_estimate;
                     sum_cr += t.contradiction_ratio;
@@ -366,7 +366,6 @@ impl VoxDb {
                         RiskDecision::Abstain => agg.abstain_count += 1,
                     }
                 }
-            }
         }
         agg.mean_hallucination_risk_proxy = if n_proxy > 0 {
             sum_proxy / n_proxy as f64

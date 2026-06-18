@@ -21,7 +21,7 @@ category: "Language Reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 282
+**schema_version:** `1` · **vox-cli operations:** 284
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -97,6 +97,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci operations-sync` | active | — | — | platform | — |
 | `vox ci operations-verify` | active | — | — | platform | — |
 | `vox ci parse-status` | active | — | — | platform | — |
+| `vox ci pipeline-parity` | active | — | — | platform | — |
 | `vox ci pm-provenance` | active | — | — | platform | — |
 | `vox ci policy-allowlist-parity` | active | — | — | platform | — |
 | `vox ci policy-smoke` | active | — | — | platform | — |
@@ -165,6 +166,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox fmt` | active | — | fabrica | app | — |
 | `vox gamify` | active | extras-ludus | ars | ai | — |
 | `vox gamify hud` | active | ludus-hud | ars | ai | — |
+| `vox graphify` | active | — | pm | platform | — |
 | `vox init` | active | — | pm | platform | — |
 | `vox live` | active | live | — | ai | — |
 | `vox lock` | active | — | pm | platform | — |

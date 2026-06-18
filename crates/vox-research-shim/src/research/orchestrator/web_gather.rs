@@ -92,13 +92,21 @@ pub(super) async fn try_llm_query_expansion(
     let Ok(response) =
         chat_with_cascade(&opts, messages, candidates, Some(ResearchStage::Planner)).await
     else {
+        tracing::warn!("LLM query expansion cascade failed to generate chat completion");
         return None;
     };
 
     let text = response.content.trim();
-    let start = text.find('{')?;
-    let end = text.rfind('}')?;
+    let Some(start) = text.find('{') else {
+        tracing::warn!(raw_response = %text, "LLM query expansion response did not contain '{{'");
+        return None;
+    };
+    let Some(end) = text.rfind('}') else {
+        tracing::warn!(raw_response = %text, "LLM query expansion response did not contain '}}'");
+        return None;
+    };
     if start > end {
+        tracing::warn!(start, end, "LLM query expansion brace indices are invalid");
         return None;
     }
     let json_str = &text[start..=end];
@@ -107,7 +115,13 @@ pub(super) async fn try_llm_query_expansion(
     struct Expansion {
         followup_queries: Vec<String>,
     }
-    let parsed: Expansion = serde_json::from_str(json_str).ok()?;
+    let parsed: Expansion = match serde_json::from_str(json_str) {
+        Ok(p) => p,
+        Err(err) => {
+            tracing::warn!(error = %err, json = %json_str, "LLM query expansion JSON parsing failed");
+            return None;
+        }
+    };
     let queries: Vec<String> = parsed
         .followup_queries
         .into_iter()
@@ -115,6 +129,7 @@ pub(super) async fn try_llm_query_expansion(
         .collect();
 
     if queries.is_empty() {
+        tracing::warn!("LLM query expansion returned empty list of queries");
         None
     } else {
         Some(queries)

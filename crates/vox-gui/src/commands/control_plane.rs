@@ -339,4 +339,3 @@ mod tests {
         let _ = std::mem::size_of::<ControlPlaneResult>();
     }
 }
-

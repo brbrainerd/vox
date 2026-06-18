@@ -113,7 +113,7 @@ pub fn format_llm_context(digest: &SchemaDigest) -> String {
     if let Some(snapshot) = &digest.vcs_snapshot_id {
         out.push_str(&format!("*Snapshot: {}*\n\n", snapshot));
     } else {
-        out.push_str("\n");
+        out.push('\n');
     }
 
     if !digest.tables.is_empty() {
@@ -171,7 +171,7 @@ pub fn format_llm_context(digest: &SchemaDigest) -> String {
                     ));
                 }
             }
-            out.push_str("\n");
+            out.push('\n');
         }
     }
 
@@ -231,7 +231,7 @@ pub fn format_llm_context(digest: &SchemaDigest) -> String {
                     ));
                 }
             }
-            out.push_str("\n");
+            out.push('\n');
         }
     }
 
