@@ -3,6 +3,7 @@
 use chrono::Utc;
 use serde::Deserialize;
 use std::fs;
+use vox_graphify_reader;
 
 use crate::git_exec::{GitExec, GitExecError};
 use crate::params::ToolResult;
@@ -289,6 +290,229 @@ pub async fn graphify_search(state: &ServerState, params: GraphifySearchParams) 
     ToolResult::ok(payload).to_json()
 }
 
+// ── Graphify Query (BFS expansion) ────────────────────────────────────────
+
+#[derive(Debug, Deserialize)]
+pub struct GraphifyQueryParams {
+    pub corpus: Option<String>,
+    /// Seed node IDs to BFS-expand from.
+    pub seeds: Vec<String>,
+    /// BFS hop limit (default 2, max 5).
+    pub max_depth: Option<u8>,
+    /// Max hits returned (default 20).
+    pub limit: Option<u32>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GraphifyPathParams {
+    pub corpus: Option<String>,
+    /// Source node ID.
+    pub from: String,
+    /// Destination node ID.
+    pub to: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GraphifyCompareParams {
+    pub corpus_a: String,
+    pub corpus_b: String,
+}
+
+/// Load and parse a corpus graph.json from disk.
+fn load_graph_json(
+    repo_root: &std::path::Path,
+    corpus: &vox_config::graphify::GraphifyCorpus,
+) -> Result<serde_json::Value, String> {
+    let p = repo_root.join(&corpus.graph_path);
+    let raw = fs::read_to_string(&p).map_err(|e| format!("read {}: {e}", p.display()))?;
+    serde_json::from_str(&raw).map_err(|e| format!("parse {}: {e}", p.display()))
+}
+
+/// `vox_graphify_query`: BFS neighbor expansion from seed node IDs.
+pub async fn graphify_query(state: &ServerState, params: GraphifyQueryParams) -> String {
+    let repo_root = &state.repository.root;
+    let reg = match load_graphify_corpora(repo_root) {
+        Ok(r) => r,
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                e.to_string(),
+                REM_GRAPHIFY,
+            )
+            .to_json();
+        }
+    };
+    let (corpus, corpus_id) = match resolve_search_corpus(&reg, &params.corpus) {
+        Ok(v) => v,
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                e.to_string(),
+                REM_GRAPHIFY,
+            )
+            .to_json();
+        }
+    };
+    let graph = match load_graph_json(repo_root, corpus) {
+        Ok(v) => v,
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_GRAPHIFY).to_json();
+        }
+    };
+    let reader = match vox_graphify_reader::GraphifyReader::from_value(graph) {
+        Ok(r) => r,
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                e.to_string(),
+                REM_GRAPHIFY,
+            )
+            .to_json();
+        }
+    };
+    let max_depth = params.max_depth.unwrap_or(2).min(5);
+    let limit = params.limit.unwrap_or(20).max(1) as usize;
+    let seeds: Vec<&str> = params.seeds.iter().map(String::as_str).collect();
+    let hits = reader.bfs_from_seeds(&seeds, max_depth, limit);
+    let payload_hits: Vec<serde_json::Value> = hits
+        .iter()
+        .map(|h| {
+            serde_json::json!({
+                "node_id": h.node_id,
+                "label": h.label,
+                "depth": h.depth,
+                "path": h.path,
+                "knowledge_id": knowledge_id(&corpus_id, &h.node_id),
+            })
+        })
+        .collect();
+    ToolResult::ok(serde_json::json!({
+        "corpus_id": corpus_id,
+        "seeds": params.seeds,
+        "hits": payload_hits,
+    }))
+    .to_json()
+}
+
+/// `vox_graphify_path`: shortest path between two node IDs.
+pub async fn graphify_path(state: &ServerState, params: GraphifyPathParams) -> String {
+    let repo_root = &state.repository.root;
+    let reg = match load_graphify_corpora(repo_root) {
+        Ok(r) => r,
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                e.to_string(),
+                REM_GRAPHIFY,
+            )
+            .to_json();
+        }
+    };
+    let (corpus, corpus_id) = match resolve_search_corpus(&reg, &params.corpus) {
+        Ok(v) => v,
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                e.to_string(),
+                REM_GRAPHIFY,
+            )
+            .to_json();
+        }
+    };
+    let graph = match load_graph_json(repo_root, corpus) {
+        Ok(v) => v,
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_GRAPHIFY).to_json();
+        }
+    };
+    let reader = match vox_graphify_reader::GraphifyReader::from_value(graph) {
+        Ok(r) => r,
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                e.to_string(),
+                REM_GRAPHIFY,
+            )
+            .to_json();
+        }
+    };
+    let path = reader.shortest_path(&params.from, &params.to);
+    let reachable = path.is_some();
+    ToolResult::ok(serde_json::json!({
+        "corpus_id": corpus_id,
+        "from": params.from,
+        "to": params.to,
+        "path": path,
+        "reachable": reachable,
+    }))
+    .to_json()
+}
+
+/// `vox_graphify_compare`: diff two corpus manifests (node/edge/community delta).
+pub async fn graphify_compare(state: &ServerState, params: GraphifyCompareParams) -> String {
+    let repo_root = &state.repository.root;
+    let reg = match load_graphify_corpora(repo_root) {
+        Ok(r) => r,
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                e.to_string(),
+                REM_GRAPHIFY,
+            )
+            .to_json();
+        }
+    };
+    let corpus_a = match reg.corpora.iter().find(|c| c.id == params.corpus_a) {
+        Some(c) => c,
+        None => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                format!("unknown corpus_a: {}", params.corpus_a),
+                REM_GRAPHIFY,
+            )
+            .to_json();
+        }
+    };
+    let corpus_b = match reg.corpora.iter().find(|c| c.id == params.corpus_b) {
+        Some(c) => c,
+        None => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                format!("unknown corpus_b: {}", params.corpus_b),
+                REM_GRAPHIFY,
+            )
+            .to_json();
+        }
+    };
+    let now = chrono::Utc::now();
+    let ttl = reg.ttl_days_default;
+    let head = resolve_head_sha(state).await;
+    let status_a = assess_corpus_status(repo_root, corpus_a, head.as_deref(), now, ttl);
+    let status_b = assess_corpus_status(repo_root, corpus_b, head.as_deref(), now, ttl);
+    let summary_a = vox_graphify_reader::compare::ManifestSummary {
+        node_count: status_a.node_count.unwrap_or(0),
+        edge_count: status_a.edge_count.unwrap_or(0),
+        community_count: 0, // not in CorpusStatus; reserved for future manifest field
+    };
+    let summary_b = vox_graphify_reader::compare::ManifestSummary {
+        node_count: status_b.node_count.unwrap_or(0),
+        edge_count: status_b.edge_count.unwrap_or(0),
+        community_count: 0,
+    };
+    let diff = vox_graphify_reader::compare::diff_manifests(&summary_a, &summary_b);
+    ToolResult::ok(serde_json::json!({
+        "corpus_a": {
+            "id": params.corpus_a,
+            "node_count": summary_a.node_count,
+            "edge_count": summary_a.edge_count,
+            "is_fresh": status_a.is_fresh,
+        },
+        "corpus_b": {
+            "id": params.corpus_b,
+            "node_count": summary_b.node_count,
+            "edge_count": summary_b.edge_count,
+            "is_fresh": status_b.is_fresh,
+        },
+        "diff": {
+            "node_delta": diff.node_delta,
+            "edge_delta": diff.edge_delta,
+            "community_delta": diff.community_delta,
+        },
+    }))
+    .to_json()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -434,5 +658,131 @@ mod tests {
             "searched_at must be a string: {data}"
         );
         assert_eq!(data["corpus_id"], serde_json::json!("repo-code-graph"));
+    }
+
+    #[tokio::test]
+    async fn graphify_query_returns_bfs_neighbors() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_registry(tmp.path());
+        // Graph: auth --edge--> crypto
+        let dir = tmp.path().join("graphify-out");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(
+            dir.join("graph.json"),
+            r#"{"nodes":[{"id":"auth","label":"authentication module","type":"module"},{"id":"crypto","label":"crypto lib","type":"lib"}],"links":[{"source":"auth","target":"crypto"}]}"#,
+        )
+        .unwrap();
+        let state = test_state_for_repo(tmp.path().to_path_buf());
+        let json = graphify_query(
+            &state,
+            GraphifyQueryParams {
+                corpus: Some("repo-code-graph".into()),
+                seeds: vec!["auth".into()],
+                max_depth: Some(1),
+                limit: Some(10),
+            },
+        )
+        .await;
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid json");
+        assert_eq!(
+            parsed["success"],
+            serde_json::json!(true),
+            "tool error: {json}"
+        );
+        let hits = parsed["data"]["hits"]
+            .as_array()
+            .expect("hits must be an array");
+        assert!(!hits.is_empty(), "expected BFS hits: {json}");
+        assert_eq!(hits[0]["node_id"], serde_json::json!("crypto"));
+    }
+
+    #[tokio::test]
+    async fn graphify_path_returns_node_route() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_registry(tmp.path());
+        let dir = tmp.path().join("graphify-out");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(
+            dir.join("graph.json"),
+            r#"{"nodes":[{"id":"a"},{"id":"b"},{"id":"c"}],"links":[{"source":"a","target":"b"},{"source":"b","target":"c"}]}"#,
+        )
+        .unwrap();
+        let state = test_state_for_repo(tmp.path().to_path_buf());
+        let json = graphify_path(
+            &state,
+            GraphifyPathParams {
+                corpus: Some("repo-code-graph".into()),
+                from: "a".into(),
+                to: "c".into(),
+            },
+        )
+        .await;
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid json");
+        assert_eq!(
+            parsed["success"],
+            serde_json::json!(true),
+            "tool error: {json}"
+        );
+        assert_eq!(parsed["data"]["path"], serde_json::json!(["a", "b", "c"]));
+        assert_eq!(parsed["data"]["reachable"], serde_json::json!(true));
+    }
+
+    #[tokio::test]
+    async fn graphify_compare_returns_delta_fields() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_registry(tmp.path());
+        // Write graph files for both corpora being compared.
+        let dir_a = tmp.path().join("graphify-out");
+        fs::create_dir_all(&dir_a).unwrap();
+        fs::write(
+            dir_a.join("graph.json"),
+            r#"{"nodes":[{"id":"a"},{"id":"b"}],"links":[{"source":"a","target":"b"}]}"#,
+        )
+        .unwrap();
+        let dir_b = tmp.path().join("crates/vox-gui/graphify-out");
+        fs::create_dir_all(&dir_b).unwrap();
+        fs::write(
+            dir_b.join("graph.json"),
+            r#"{"nodes":[{"id":"x"}],"links":[]}"#,
+        )
+        .unwrap();
+        let state = test_state_for_repo(tmp.path().to_path_buf());
+        let json = graphify_compare(
+            &state,
+            GraphifyCompareParams {
+                corpus_a: "repo-code-graph".into(),
+                corpus_b: "vox-gui-surface".into(),
+            },
+        )
+        .await;
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid json");
+        assert_eq!(
+            parsed["success"],
+            serde_json::json!(true),
+            "compare error: {json}"
+        );
+        // corpus_a has 2 nodes, corpus_b has 1 → node_delta = -1
+        assert_eq!(parsed["data"]["diff"]["node_delta"], serde_json::json!(-1));
+    }
+
+    #[tokio::test]
+    async fn graphify_compare_unknown_corpus_returns_error() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_registry(tmp.path());
+        let state = test_state_for_repo(tmp.path().to_path_buf());
+        let json = graphify_compare(
+            &state,
+            GraphifyCompareParams {
+                corpus_a: "no-such-corpus".into(),
+                corpus_b: "repo-code-graph".into(),
+            },
+        )
+        .await;
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid json");
+        assert_eq!(
+            parsed["success"],
+            serde_json::json!(false),
+            "expected error: {json}"
+        );
     }
 }

@@ -26,11 +26,15 @@ json-schema = ["vox-orchestrator/json-schema"]
 populi-transport = ["vox-orchestrator/populi-transport", "vox-populi/transport"]
 oratio-rerank = ["dep:vox-speech"]
 gui-visual-review = []
+# Chromium CDP browser automation (`vox_browser_*`, ~1.1k LoC). OFF by default so
+# `cargo check -p vox-orchestrator-mcp` skips the heaviest optional MCP surface.
+# Shipping binaries (vox-cli mcp-server, vox-orchestrator-d, vox-gui) opt back in.
+heavy-browser = []
 
 [dependencies]
 vox-orchestrator-driver = { workspace = true }
 vox-orchestrator = { path = "../vox-orchestrator", default-features = false, features = ["runtime"] }
-vox-research-shim = { workspace = true }
+vox-research-shim = { workspace = true, features = ["runtime", "gamify"] }
 
 # MCP-stack deps (always compiled when this crate is in the build)
 axum = { workspace = true, default-features = false, features = ["http1", "json", "tokio", "ws"] }
@@ -63,6 +67,7 @@ vox-db.workspace = true
 vox-scientia.workspace = true
 vox-search = { workspace = true }  # tantivy/web-scrape gated graph-wide via vox-cli heavy-retrieval (WS2-T3)
 vox-config.workspace = true
+vox-graphify-reader.workspace = true
 vox-repository = { workspace = true, features = ["json-schema"] }
 vox-package.workspace = true
 vox-gamify.workspace = true
@@ -125,6 +130,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_yaml = { workspace = true }
 
 [dev-dependencies]
+vox-plugin-api = { workspace = true }
 tower = { workspace = true, features = ["util"] }
 serial_test.workspace = true
 jsonschema.workspace = true

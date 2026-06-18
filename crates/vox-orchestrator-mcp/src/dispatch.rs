@@ -540,6 +540,15 @@ async fn handle_tool_call_inner(
         "vox_graphify_search" => {
             Ok(crate::graphify_tools::graphify_search(state, serde_json::from_value(args)?).await)
         }
+        "vox_graphify_query" => {
+            Ok(crate::graphify_tools::graphify_query(state, serde_json::from_value(args)?).await)
+        }
+        "vox_graphify_path" => {
+            Ok(crate::graphify_tools::graphify_path(state, serde_json::from_value(args)?).await)
+        }
+        "vox_graphify_compare" => {
+            Ok(crate::graphify_tools::graphify_compare(state, serde_json::from_value(args)?).await)
+        }
         "vox_project_init" => Ok(project_init_tools::project_init(state, args).await),
         "vox_repo_catalog_list" => Ok(repo_catalog_tools::repo_catalog_list(state).await),
         "vox_repo_catalog_refresh" => Ok(repo_catalog_tools::repo_catalog_refresh(state).await),
