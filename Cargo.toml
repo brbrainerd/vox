@@ -127,9 +127,9 @@ vox-orchestrator-types    = { path = "crates/vox-orchestrator-types" }
 
 
 vox-openai             = { path = "crates/vox-openai" }
-vox-plugin-api            = { path = "crates/vox-plugin-api" }
-vox-plugin-sdk            = { path = "crates/vox-plugin-sdk" }
-vox-plugin-types          = { path = "crates/vox-plugin-types" }
+vox-plugin-api            = { path = "crates/vox-plugin-api", version = "0.6.0" }
+vox-plugin-sdk            = { path = "crates/vox-plugin-sdk", version = "0.6.0" }
+vox-plugin-types          = { path = "crates/vox-plugin-types", version = "0.6.0" }
 vox-plugin-catalog        = { path = "crates/vox-plugin-catalog" }
 vox-plugin-host           = { path = "crates/vox-plugin-host" }
 vox-plugin-nvml-probe     = { path = "crates/vox-plugin-nvml-probe" }
