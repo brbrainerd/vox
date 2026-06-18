@@ -3,7 +3,7 @@ title: "Surfacing Errors to Humans and LLMs — Dual-Audience Research"
 description: "How captured program behavior and diagnostics should be presented simultaneously to humans (CLI/GUI) and to LLMs for diagnosis. Covers LLM root-cause analysis evidence, the telemetry-quality finding, dual-audience serialization, and Vox's existing --for-llm diagnostic envelope as the reuse point."
 category: "Architecture SSOTs"
 status: "current"
-last_updated: "2026-06-18"
+training_eligible: true
 ---
 
 # Surfacing Errors to Humans and LLMs — Dual-Audience Research

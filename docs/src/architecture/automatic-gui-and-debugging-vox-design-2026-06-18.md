@@ -2,6 +2,8 @@
 title: "Vox Design — Naked-Objects Auto-GUI & Zero-Annotation Severity-Graded Debugging"
 description: "A Vox-specific concept design for (A) auto-generating admin/CRUD GUIs from types (naked-objects step) and (B) a zero-annotation interpreter execution-event stream with inferred severity, dual-piped to humans (CLI/GUI) and an LLM, building on existing vox-codegen-ts, vox-telemetry, and the --for-llm diagnostic envelope."
 category: "Architecture SSOTs"
+status: "roadmap"
+training_eligible: false
 ---
 
 # Vox Design — Auto-GUI & Zero-Annotation Severity-Graded Debugging

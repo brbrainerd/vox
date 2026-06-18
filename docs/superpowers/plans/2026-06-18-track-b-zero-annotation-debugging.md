@@ -176,7 +176,7 @@ git commit -m "feat(execution-tracer): ExecutionEvent + rules-based infer_severi
 
 ---
 
-## Task 3 `[PARALLEL-SAFE]` (new file timeline.rs): human timeline renderer
+## Task 3 `[SEQUENTIAL]` (new file timeline.rs): human timeline renderer
 
 Default threshold Notice (Log2 selectivity — keep ordinary steps out). New file → parallel-safe after Task 2.
 

@@ -66,7 +66,7 @@ These five skills are now native (paths in §4). The summaries below are a fast 
 
 ### 5.3 verification-before-completion
 **Use when:** about to mark any task done or commit.
-**Do, in order, and paste the actual output:** (1) `cargo test -p <crate>` → must show PASS counts. (2) `cargo clippy -p <crate> -- -D warnings` → must be clean. (3) `cargo fmt -p <crate>` (never `--all`). (4) confirm the tree compiles (`cargo check -p <crate>`). **Rule:** evidence before assertion — do not claim "done" without pasted command output. If any fails, the task is NOT done.
+**Do, in order, and paste the actual output:** (1) `cargo test -p <crate>` → must show PASS counts. (2) `cargo clippy -p <crate> -- -D warnings` → must be clean. (3) `cargo fmt -p <crate>` (never `--all`). (4) `vox stub-check` → must report no stubs. (5) confirm the tree compiles (`cargo check -p <crate>`). **Rule:** evidence before assertion — do not claim "done" without pasted command output. If any fails, the task is NOT done.
 
 ### 5.4 code-review (self-review pass for a fast model)
 **Use when:** a task's implementation step is written, before its commit.

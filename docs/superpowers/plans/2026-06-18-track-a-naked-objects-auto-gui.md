@@ -424,12 +424,12 @@ fn admin_content_for(tables: &[vox_compiler::hir::nodes::decl::HirTable], enable
         .collect()
 }
 
-fn load_admin_registry() -> Vec<String> {
-    // reads contracts/gui/admin-registry.yaml `admin_tables:`; returns [] if missing/unparseable.
-    // Confirm a YAML dep with `rg -n "serde_yaml|serde_yml" crates/vox-codegen-ts/Cargo.toml`;
-    // if absent, parse the simple `- name` list with a small manual reader rather than adding a dep.
-    // (implementation per Step 1 findings)
-    Vec::new()
+fn load_admin_registry() -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let path = std::env::var("VOX_ADMIN_REGISTRY")
+        .unwrap_or_else(|_| "contracts/gui/admin-registry.yaml".to_string());
+    let src = std::fs::read_to_string(&path)?;
+    let cfg: AdminRegistry = serde_yaml::from_str(&src)?;
+    Ok(cfg.allow)
 }
 ```
 
@@ -437,7 +437,11 @@ At `emitter.rs:301`, after `forms_content`, call the helper and concatenate at t
 
 ```rust
     let admin_enabled = std::env::var("VOX_EMIT_ADMIN").as_deref() == Ok("1");
-    let admin_content = admin_content_for(&hir.tables, admin_enabled, &load_admin_registry());
+    let registry = load_admin_registry().unwrap_or_else(|e| {
+        tracing::warn!("admin registry unavailable, defaulting to empty list: {e}");
+        vec![]
+    });
+    let admin_content = admin_content_for(&hir.tables, admin_enabled, &registry);
 ```
 
 > Implement `load_admin_registry` per Step 1 (real YAML read). The pure `admin_content_for` is what the test pins; the public path just feeds it env + registry.

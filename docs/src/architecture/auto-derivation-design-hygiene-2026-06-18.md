@@ -3,7 +3,7 @@ title: "Design Hygiene for Auto-Derived UI and Observability"
 description: "Cross-cutting design principles for features that derive artifacts (UI, observability) from program structure: persistence is not UI intent (opt-in), capture is not meaning, selective-by-default, advise-not-gate, escape hatches, and K-complexity discipline. Distilled from the auto-GUI and auto-debugging research."
 category: "Architecture SSOTs"
 status: "current"
-last_updated: "2026-06-18"
+training_eligible: true
 ---
 
 # Design Hygiene for Auto-Derived UI and Observability
