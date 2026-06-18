@@ -83,8 +83,10 @@ impl Default for InterruptionCalibrationConfig {
     }
 }
 
-/// Baseline interrupt recovery cost from Gloria Mark (UC Irvine, 2023): 23 min 15 sec.
-pub const DEFAULT_INTERRUPT_COST_MS: u64 = 23_251;
+/// Baseline interrupt recovery cost (Gloria Mark, UC Irvine, 2023): 23 min 15 sec.
+/// Single-sourced from the policy SSOT so it cannot drift from `CLARIFICATION_INTERRUPT_COST_MS`.
+pub const DEFAULT_INTERRUPT_COST_MS: u64 =
+    vox_orchestrator_types::socrates_policy::CLARIFICATION_INTERRUPT_COST_MS;
 
 /// Default pilot attention budget: 1 hour per session period.
 pub const DEFAULT_ATTENTION_BUDGET_MS: u64 = 3_600_000;
