@@ -17,6 +17,7 @@ sources:
 
   - path: mens/data/mix_sources/rust_source.jsonl
     weight: 2.0                   # Human-mined Rust workspace code (GOLDEN / Wave 0)
+    sample_rate: 0.03             # Cap at ~12,500 lines to prevent Rust from dominating Vox SFT signal
     optional: true
 
   - path: mens/data/mix_sources/docs.jsonl
@@ -62,6 +63,7 @@ include_lanes:
   - vox_tooling
   - vox_docs_qa
   - vox_lang_tier_b
+  - vox_research_expert          # Research-domain SFT pairs from research_gen.rs
 exclude_lanes:
   - vox_speech
   - vox_rust_expert_cross    # Rust-flavoured — belongs in mix-rust.yaml only
