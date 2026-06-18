@@ -18,6 +18,9 @@ pub async fn run_train(
     seq_len: Option<usize>,
     batch_size: Option<usize>,
     grad_accum: Option<usize>,
+    budget_seq_len: Option<usize>,
+    budget_batch_size: Option<usize>,
+    budget_grad_accum: Option<usize>,
     resume: Option<PathBuf>,
     epochs: Option<usize>,
     lr: Option<f64>,
@@ -105,7 +108,7 @@ pub async fn run_train(
             model = %resolved,
             "Using default HF model for Candle QLoRA (`--model` omitted; see contracts/mens/training-presets.v1.yaml)."
         );
-        model = Some(resolved.into_owned());
+        model = Some(resolved);
     }
 
     let effective_qlora_require_full_proxy_stack = !qlora_allow_partial_proxy_stack
@@ -240,6 +243,10 @@ pub async fn run_train(
         epochs,
         warmup,
         lr,
+        budget_seq_len,
+        budget_batch_size,
+        budget_grad_accum,
+        vram_limit_fraction,
     };
     let preview_profile = vox_populi::mens::resolve_effective_profile(
         preset.as_deref(),

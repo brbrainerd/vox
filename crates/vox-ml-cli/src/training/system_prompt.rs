@@ -119,19 +119,16 @@ const CORE_SYNTAX: &str = r#"## Core Syntax
 - `import module.name` — import external dependency
 
 ## Durable Execution (April 2026 surface)
-The `actor`, `workflow`, and `activity` keywords are **tombstoned** at the parser
-level. Durable steps are written as ordinary `Result`-returning `fn`s and
-registered with the runtime; a unified `@durable(kind: workflow|activity|actor)`
-decorator (parallel to `@endpoint(kind: …)`) is queued behind a separate ADR.
+The `actor`, `workflow`, and `activity` keywords are active stable public-grammar features backed by a durable runtime.
 ```
-fn charge_card(amount: int) to Result[str] {
+activity charge_card(amount: int) to Result[str] {
     if amount > 1000 {
         return Error("Amount too large")
     }
     return Ok("tx_123")
 }
 
-fn checkout(amount: int) to Result[str] {
+workflow checkout(amount: int) to Result[str] {
     let result = charge_card(amount)
     return result
 }
@@ -179,4 +176,18 @@ pub fn generate_system_prompt() -> String {
     lines.push(CORE_SYNTAX.to_string());
 
     lines.join("\n")
+}
+
+#[cfg(test)]
+mod tests_prompt {
+    use super::*;
+
+    #[test]
+    fn test_prompt_durable_not_tombstoned() {
+        let prompt = generate_system_prompt();
+        assert!(
+            !prompt.contains("tombstoned"),
+            "System prompt still says keywords are tombstoned"
+        );
+    }
 }

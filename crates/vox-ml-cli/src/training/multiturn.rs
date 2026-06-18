@@ -1,61 +1,90 @@
 //! Multi-turn conversation templates.
 
+/// Returns true if the first actual declaration (ignoring comments/whitespace) is a function.
+fn first_decl_is_fn(code: &str) -> bool {
+    let mut in_block_comment = false;
+    for line in code.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if in_block_comment {
+            if let Some(idx) = trimmed.find("*/") {
+                in_block_comment = false;
+                let after = trimmed[idx + 2..].trim();
+                if after.is_empty() {
+                    continue;
+                }
+                if after.starts_with("//") {
+                    continue;
+                }
+                if is_fn_prefix(after) {
+                    return true;
+                }
+                return false;
+            }
+            continue;
+        }
+        if trimmed.starts_with("/*") {
+            in_block_comment = true;
+            if let Some(idx) = trimmed[2..].find("*/") {
+                in_block_comment = false;
+                let after = trimmed[2 + idx + 2..].trim();
+                if after.is_empty() {
+                    continue;
+                }
+                if after.starts_with("//") {
+                    continue;
+                }
+                if is_fn_prefix(after) {
+                    return true;
+                }
+                return false;
+            }
+            continue;
+        }
+        if trimmed.starts_with("//") {
+            continue;
+        }
+        // First actual code content found!
+        return is_fn_prefix(trimmed);
+    }
+    false
+}
+
+fn is_fn_prefix(s: &str) -> bool {
+    s.starts_with("fn ")
+        || s.starts_with("pub fn ")
+        || s.starts_with("async fn ")
+        || s.starts_with("pub async fn ")
+}
+
+/// Returns true if the given Vox construct type supports decorators.
+/// Only `fn` and `type` declarations accept decorator prefixes in Vox.
+fn construct_accepts_decorators(construct: &str) -> bool {
+    matches!(construct, "function" | "fn" | "method")
+}
+
 /// Return follow-up instruction templates for a given construct.
 /// These are used after a base instruction pair to simulate multi-turn refinement.
 /// `{name}` is replaced with the extracted identifier.
 pub fn followup_templates(construct: &str) -> &[&str] {
-    match construct {
-        "function" => &[
-            "Now add error handling that returns a Result type",
-            "Add a docstring explaining what the {name} function does",
-            "Refactor {name} to accept its parameters as a struct",
-        ],
-        "component" => &[
-            "Add a loading state and error boundary to {name}",
-            "Extract the {name} component props into a typed struct",
-            "Add responsive CSS classes to the {name} component",
-        ],
-        "actor" => &[
-            "Add history tracking to the {name} actor so it records all state changes",
-            "Add a reset() handler to {name} that restores the initial state",
-            "Add a subscription mechanism to notify observers of {name} state changes",
-        ],
-        "workflow" => &[
-            "Add compensating transactions to the {name} workflow for rollback on failure",
-            "Add exponential backoff to the retry policy in {name}",
-            "Extract the activities in {name} into separate named functions",
-        ],
-        "activity" => &[
-            "Add idempotency checking to {name} so it can safely be retried",
-            "Add structured logging to {name} using Vox's tracing primitives",
-        ],
-        "table" => &[
-            "Add an index on the most frequently queried field in {name}",
-            "Add created_at and updated_at timestamp fields to {name}",
-        ],
-        "query" => &[
-            "Add pagination (limit and offset) parameters to {name}",
-            "Add filtering by status field to {name}",
-        ],
-        "test" => &[
-            "Add edge case tests for null/empty inputs to {name}",
-            "Add property-based tests to verify {name} handles all input ranges",
-        ],
-        "mcp_tool" => &[
-            "Add input validation and descriptive error messages to {name}",
-            "Add rate limiting to {name} to prevent abuse",
-        ],
-        _ => &[
-            "Add error handling to the previous code",
-            "Add a comment explaining the purpose of the previous code",
-        ],
-    }
+    let _ = construct;
+    &[
+        "Add a docstring explaining the purpose of the `{name}` {construct}",
+        "Mark the `{name}` {construct} as deprecated using the `@deprecated` decorator",
+        "Add a tracing decorator `@traced` to the `{name}` {construct}",
+    ]
 }
 
 /// Build multi-turn conversation pairs from a base (instruction, code) pair.
-/// Returns a Vec of (follow_up_prompt, refined_code) where refined_code is the same
-/// base code since we don't have a compiler that can apply the follow-up automatically —
-/// the model should learn the *pattern* of refinement instructions.
+/// Returns a Vec of (follow_up_prompt, refined_code) where refined_code is modified
+/// by prepending docstrings or decorators so the model learns to refine code.
+///
+/// # Decorator placement safety
+/// `@deprecated` and `@traced` are only valid on `fn` and `type` declarations in Vox.
+/// For other constructs (import, component, actor, state_machine, etc.) we use
+/// non-decorator refinements: inline documentation comments and stability markers.
 pub fn generate_multiturn_pairs(
     construct: &str,
     name: &str,
@@ -65,18 +94,59 @@ pub fn generate_multiturn_pairs(
     source: &str,
 ) -> Vec<serde_json::Value> {
     let mut pairs = Vec::new();
-    let templates = followup_templates(construct);
-    for template in templates.iter().take(2) {
-        let follow_up = template.replace("{name}", name);
+    let supports_decorators = construct_accepts_decorators(construct) && first_decl_is_fn(code);
+
+    // Generate 3 turns of refinements with programmatically generated refined code.
+    for index in 0..3 {
+        let (follow_up, refined_code) = match index {
+            0 => (
+                format!("Add a docstring explaining the purpose of the `{name}` {construct}"),
+                format!("/// The `{name}` {construct} is documented here.\n{code}"),
+            ),
+            1 => {
+                if supports_decorators {
+                    (
+                        format!(
+                            "Mark the `{name}` {construct} as deprecated using the `@deprecated` decorator"
+                        ),
+                        format!("@deprecated\n{code}"),
+                    )
+                } else {
+                    // Non-fn/type constructs cannot carry decorator prefixes in Vox.
+                    // Use a documentation comment refinement instead.
+                    (
+                        format!("Add a TODO comment noting the `{name}` {construct} needs review"),
+                        format!(
+                            "// TODO: Review the `{name}` {construct} for correctness.\n{code}"
+                        ),
+                    )
+                }
+            }
+            _ => {
+                if supports_decorators {
+                    (
+                        format!("Add a tracing decorator `@traced` to the `{name}` {construct}"),
+                        format!("@traced\n{code}"),
+                    )
+                } else {
+                    // Stability marker comment -- safe for any construct type.
+                    (
+                        format!("Mark the `{name}` {construct} as stable with a stability comment"),
+                        format!("// STABLE: `{name}` {construct} is production-ready.\n{code}"),
+                    )
+                }
+            }
+        };
+
         // Multi-turn format: include the previous exchange as context in the prompt
         let prompt = format!(
             "Previous instruction: {base_instruction}\nPrevious code:\n```vox\n{code}\n```\n\nFollow-up: {follow_up}"
         );
         pairs.push(serde_json::json!({
             "prompt": prompt,
-            "response": code,
+            "response": refined_code,
             "instruction": follow_up,
-            "output": code,
+            "output": refined_code,
             "category": construct,
             "difficulty": crate::training::construct_difficulty(construct),
             "source": source,
@@ -86,4 +156,142 @@ pub fn generate_multiturn_pairs(
         }));
     }
     pairs
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_generate_multiturn_pairs_refines_code() {
+        let base_code = "fn my_fn() to str {\n    return \"hello\";\n}";
+        let pairs = generate_multiturn_pairs(
+            "function",
+            "my_fn",
+            "write my_fn",
+            base_code,
+            "vox_dogfood_v1",
+            "test_file.vox",
+        );
+
+        assert_eq!(pairs.len(), 3);
+        for pair in &pairs {
+            let response = pair["response"].as_str().unwrap();
+            let output = pair["output"].as_str().unwrap();
+
+            // Assert that the refined code is NOT equal to the original code
+            assert_ne!(
+                response, base_code,
+                "Refined code should be modified, not identical to base code"
+            );
+            assert_ne!(output, base_code, "Refined code output should be modified");
+        }
+    }
+
+    #[test]
+    fn test_non_fn_constructs_do_not_get_decorators() {
+        let base_code = "import std.mobile";
+        let pairs = generate_multiturn_pairs(
+            "import",
+            "std.mobile",
+            "import std.mobile",
+            base_code,
+            "vox_dogfood_v1",
+            "test_file.vox",
+        );
+
+        assert_eq!(pairs.len(), 3);
+        for pair in &pairs {
+            let response = pair["response"].as_str().unwrap();
+            // Decorators like @traced and @deprecated must NOT appear on import refinements
+            assert!(
+                !response.starts_with("@deprecated"),
+                "import construct must not be decorated with @deprecated"
+            );
+            assert!(
+                !response.starts_with("@traced"),
+                "import construct must not be decorated with @traced"
+            );
+        }
+    }
+
+    #[test]
+    fn test_type_constructs_do_not_get_decorators() {
+        let base_code = "type UserProfile {\n    id: int\n}";
+        let pairs = generate_multiturn_pairs(
+            "type",
+            "UserProfile",
+            "define type UserProfile",
+            base_code,
+            "vox_dogfood_v1",
+            "test_file.vox",
+        );
+
+        assert_eq!(pairs.len(), 3);
+        for pair in &pairs {
+            let response = pair["response"].as_str().unwrap();
+            assert!(
+                !response.starts_with("@deprecated"),
+                "type construct must not be decorated with @deprecated"
+            );
+            assert!(
+                !response.starts_with("@traced"),
+                "type construct must not be decorated with @traced"
+            );
+        }
+    }
+
+    #[test]
+    fn test_already_decorated_constructs_do_not_get_decorators() {
+        let base_code = "@query fn my_query() to str {\n    return \"hello\";\n}";
+        let pairs = generate_multiturn_pairs(
+            "fn",
+            "my_query",
+            "write my_query",
+            base_code,
+            "vox_dogfood_v1",
+            "test_file.vox",
+        );
+
+        assert_eq!(pairs.len(), 3);
+        for pair in &pairs {
+            let response = pair["response"].as_str().unwrap();
+            assert!(
+                !response.starts_with("@deprecated"),
+                "already decorated construct must not be prepended with @deprecated"
+            );
+            assert!(
+                !response.starts_with("@traced"),
+                "already decorated construct must not be prepended with @traced"
+            );
+        }
+    }
+
+    #[test]
+    fn test_multiturn_fails_on_code_starting_with_table_or_comments() {
+        let base_code = "// Authentication patterns\n// ---\n@table type Session {\n    id: int\n}\n\nfn my_helper() {\n}";
+        let pairs = generate_multiturn_pairs(
+            "function",
+            "my_helper",
+            "write my_helper",
+            base_code,
+            "vox_dogfood_v1",
+            "test_file.vox",
+        );
+
+        assert_eq!(pairs.len(), 3);
+        for pair in &pairs {
+            let response = pair["response"].as_str().unwrap();
+            assert!(
+                !response.starts_with("@deprecated"),
+                "must not prepend @deprecated to the top of comments/table: {}",
+                response
+            );
+            assert!(
+                !response.starts_with("@traced"),
+                "must not prepend @traced to the top of comments/table: {}",
+                response
+            );
+        }
+    }
 }

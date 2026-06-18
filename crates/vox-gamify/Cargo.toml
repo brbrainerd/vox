@@ -33,6 +33,7 @@ toml = { workspace = true }
 anyhow = { workspace = true }
 vox-bounded-fs = { workspace = true }
 tracing = { workspace = true }
+vox-mesh-types = { workspace = true }
 schemars = { workspace = true }
 xxhash-rust = { workspace = true }
 workspace-hack = { workspace = true }

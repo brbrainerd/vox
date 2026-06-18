@@ -23,7 +23,7 @@
 //! discovery / `VOX_REPOSITORY_ROOT` when comparing Codex rows from CLI subprocesses vs MCP.
 
 mod config;
-mod helpers;
+pub(crate) mod helpers;
 mod pipeline;
 mod pipeline_cache;
 mod stages;

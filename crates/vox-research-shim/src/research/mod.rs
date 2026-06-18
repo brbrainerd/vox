@@ -9,6 +9,7 @@
 
 pub mod claims;
 pub(super) mod config;
+pub mod discovery_bridge;
 pub mod emitter;
 pub mod gate;
 pub(super) mod json_parse;

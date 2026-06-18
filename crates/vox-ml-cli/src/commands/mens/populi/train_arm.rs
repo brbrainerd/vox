@@ -253,142 +253,129 @@ pub async fn run_train(
         }
     }
 
-    // ── VRAM-aware memory budgeting ──────────────────────────────────────────
-    // When seq_len / batch_size / grad_accum were not pinned by the user or a
-    // domain profile, size them from the detected VRAM and model size so the run
-    // fits without OOM and still maximizes utilization. Only applies on CUDA.
+    let mut budget_seq_len = None;
+    let mut budget_batch_size = None;
+    let mut budget_grad_accum = None;
     {
         use owo_colors::OwoColorize;
         let device_is_cuda = vox_populi::mens::normalize_device(&device)
             .map(|d| matches!(d, vox_populi::mens::DeviceKind::Cuda))
             .unwrap_or(false);
         if device_is_cuda {
+            use vox_populi::mens::tensor::finetune_contract::BaseQuantMode;
             use vox_populi::mens::tensor::memory_budget;
             let default_model = vox_populi::mens::default_model_id();
             let model_hint = effective_model.as_deref().unwrap_or(&default_model);
-            let requested_b = memory_budget::params_b_from_model_hint(model_hint).unwrap_or(4.0);
-            if let Some(vram_gb) = vox_populi::mens::tensor::vram_autodetect::get_system_vram_gb() {
-                let vram = vram_gb as f64;
-                // Coding-focused dense Qwen2.5-Coder ladder takes precedence when the
-                // requested model is a coder (it is the family the candle plugin trains
-                // reliably — no MoE/MTP/vision/mRoPE).
-                if memory_budget::is_qwen25coder(model_hint) {
-                    let mp = memory_budget::plan_qwen25coder(vram, requested_b);
-                    eprintln!("  {} VRAM budget: {}", "⚙".cyan(), mp.rationale);
-                    if let Some(from_b) = mp.retreated_from_b {
-                        if effective_model.is_none() {
-                            eprintln!(
-                                "  {} Auto-selected {} for {:.0} GiB VRAM (requested ≈{:.1}B would not fit).",
-                                "↓".yellow(),
-                                mp.model_id,
-                                vram,
-                                from_b
-                            );
-                            effective_model = Some(mp.model_id.clone());
-                        } else {
-                            eprintln!(
-                                "  {} {} is pinned but may not fit {:.0} GiB — omit --model to auto-retreat to {}.",
-                                "⚠".yellow(),
-                                model_hint,
-                                vram,
-                                mp.model_id
-                            );
-                        }
-                    }
-                    // Budget overrides a generic preset default but yields to an
-                    // explicit CLI flag or a deliberate domain profile (both of
-                    // which are already folded into `effective_*` above).
-                    effective_seq_len =
-                        resolve_training_sizing(effective_seq_len, None, Some(mp.seq_len), None);
-                    effective_batch_size = resolve_training_sizing(
-                        effective_batch_size,
-                        None,
-                        Some(mp.batch_size),
-                        None,
-                    );
-                    effective_grad_accum = resolve_training_sizing(
-                        effective_grad_accum,
-                        None,
-                        Some(mp.grad_accum),
-                        None,
-                    );
-                } else if memory_budget::is_qwen35(model_hint) {
-                    // For Qwen3.5 models (including the default), let the ladder pick the
-                    // largest variant that fits this card — retreating 4B → 2B → 0.8B as
-                    // needed, or scaling the sequence/batch up on roomier GPUs.
-                    let mp = memory_budget::plan_qwen35(vram, requested_b);
-                    eprintln!("  {} VRAM budget: {}", "⚙".cyan(), mp.rationale);
-                    if let Some(from_b) = mp.retreated_from_b {
-                        // Only switch the model when the user did not explicitly pin one.
-                        if effective_model.is_none() {
-                            eprintln!(
-                                "  {} Auto-selected {} for {:.0} GiB VRAM (requested ≈{:.1}B would OOM).",
-                                "↓".yellow(),
-                                mp.model_id,
-                                vram,
-                                from_b
-                            );
-                            effective_model = Some(mp.model_id.clone());
-                        } else {
-                            eprintln!(
-                                "  {} {} is pinned but does not fit {:.0} GiB — it may OOM. \
-                                 Omit --model to auto-retreat to {}.",
-                                "⚠".yellow(),
-                                model_hint,
-                                vram,
-                                mp.model_id
-                            );
-                        }
-                    }
-                    effective_seq_len =
-                        resolve_training_sizing(effective_seq_len, None, Some(mp.seq_len), None);
-                    effective_batch_size = resolve_training_sizing(
-                        effective_batch_size,
-                        None,
-                        Some(mp.batch_size),
-                        None,
-                    );
-                    effective_grad_accum = resolve_training_sizing(
-                        effective_grad_accum,
-                        None,
-                        Some(mp.grad_accum),
-                        None,
-                    );
-                } else {
-                    // Non-Qwen3.5: size the given model in place (no model swap).
-                    let plan = memory_budget::plan(vram, requested_b);
-                    eprintln!("  {} VRAM budget: {}", "⚙".cyan(), plan.rationale);
-                    if plan.over_budget {
-                        eprintln!(
-                            "  {} {:.1}B params is tight for {:.0} GiB VRAM — using the smallest \
-                             safe config. If it still OOMs, train a smaller base model.",
-                            "⚠".yellow(),
-                            requested_b,
-                            vram
-                        );
-                    }
-                    effective_seq_len =
-                        resolve_training_sizing(effective_seq_len, None, Some(plan.seq_len), None);
-                    effective_batch_size = resolve_training_sizing(
-                        effective_batch_size,
-                        None,
-                        Some(plan.batch_size),
-                        None,
-                    );
-                    effective_grad_accum = resolve_training_sizing(
-                        effective_grad_accum,
-                        None,
-                        Some(plan.grad_accum),
-                        None,
-                    );
+            let requested_b = memory_budget::params_b_from_model_hint(model_hint).unwrap_or(7.0);
+
+            // Dynamic VRAM Auditing (free VRAM takes priority)
+            let vram_info = vox_populi::mens::tensor::vram_autodetect::get_system_vram_info();
+            let mut vram = if let Some(info) = vram_info {
+                eprintln!(
+                    "  {} VRAM Audit: {:.1} GiB total, {:.1} GiB used, {:.1} GiB free",
+                    "📊".cyan(),
+                    info.total_gb,
+                    info.used_gb,
+                    info.free_gb
+                );
+                info.free_gb as f64
+            } else {
+                16.0
+            };
+            if let Some(frac) = vram_limit_fraction {
+                vram *= frac as f64;
+            }
+
+            // Early options resolution
+            let base_quant = match backend {
+                PopuliTrainBackendCli::Lora => BaseQuantMode::None,
+                PopuliTrainBackendCli::Qlora => BaseQuantMode::Nf4,
+            };
+            let gc_explicit = std::env::var("VOX_MENS_GRADIENT_CHECKPOINTING")
+                .ok()
+                .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+                .unwrap_or(false);
+            let gc_auto_large = requested_b >= 2.9;
+            let gc_enabled = gc_explicit || gc_auto_large;
+
+            // Run planning options-aware
+            let mp = if memory_budget::is_qwen25coder(model_hint) {
+                memory_budget::plan_qwen25coder_with_options(
+                    vram,
+                    requested_b,
+                    base_quant,
+                    gc_enabled,
+                )
+            } else if memory_budget::is_qwen35(model_hint) {
+                memory_budget::plan_qwen35_with_options(vram, requested_b, base_quant, gc_enabled)
+            } else if memory_budget::is_qwen3(model_hint) {
+                memory_budget::plan_qwen3_with_options(vram, requested_b, base_quant, gc_enabled)
+            } else {
+                let resident_per_b =
+                    memory_budget::get_resident_per_b(model_hint, base_quant, gc_enabled);
+                let p = memory_budget::plan_with_resident(vram, requested_b, resident_per_b);
+                memory_budget::ModelPlan {
+                    model_id: model_hint.to_string(),
+                    params_b: requested_b,
+                    seq_len: p.seq_len,
+                    batch_size: p.batch_size,
+                    grad_accum: p.grad_accum,
+                    retreated_from_b: None,
+                    over_budget: p.over_budget,
+                    rationale: p.rationale,
+                }
+            };
+
+            // Dual-sizing fix: if the model was pinned (effective_model is Some),
+            // we must not use the retreated model's generous constraints (it would cause OOM).
+            // Instead, re-solve the budget specifically for the pinned model parameters.
+            let final_plan = if effective_model.is_some() && mp.retreated_from_b.is_some() {
+                let resident_per_b =
+                    memory_budget::get_resident_per_b(model_hint, base_quant, gc_enabled);
+                let p = memory_budget::plan_with_resident(vram, requested_b, resident_per_b);
+                memory_budget::ModelPlan {
+                    model_id: model_hint.to_string(),
+                    params_b: requested_b,
+                    seq_len: p.seq_len,
+                    batch_size: p.batch_size,
+                    grad_accum: p.grad_accum,
+                    retreated_from_b: None,
+                    over_budget: p.over_budget,
+                    rationale: format!(
+                        "pinned model ≈{requested_b:.1}B solved specifically — {}",
+                        p.rationale
+                    ),
                 }
             } else {
-                eprintln!(
-                    "  {} Could not detect VRAM; using preset defaults. Set VOX_VRAM_OVERRIDE_GB \
-                     to enable VRAM-aware sizing.",
-                    "⚙".cyan()
-                );
+                mp
+            };
+
+            eprintln!("  {} VRAM budget: {}", "⚙".cyan(), final_plan.rationale);
+
+            if let Some(from_b) = final_plan.retreated_from_b {
+                if effective_model.is_none() {
+                    eprintln!(
+                        "  {} Auto-selected {} for {:.0} GiB VRAM (requested ≈{:.1}B would not fit).",
+                        "↓".yellow(),
+                        final_plan.model_id,
+                        vram,
+                        from_b
+                    );
+                    effective_model = Some(final_plan.model_id.clone());
+                } else {
+                    eprintln!(
+                        "  {} {} is pinned but may not fit {:.0} GiB — omit --model to auto-retreat to {}.",
+                        "⚠".yellow(),
+                        model_hint,
+                        vram,
+                        final_plan.model_id
+                    );
+                }
             }
+
+            budget_seq_len = Some(final_plan.seq_len);
+            budget_batch_size = Some(final_plan.batch_size);
+            budget_grad_accum = Some(final_plan.grad_accum);
         }
     }
 
@@ -434,6 +421,9 @@ pub async fn run_train(
         effective_seq_len,
         effective_batch_size,
         effective_grad_accum,
+        budget_seq_len,
+        budget_batch_size,
+        budget_grad_accum,
         resume,
         epochs,
         lr,

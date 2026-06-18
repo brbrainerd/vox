@@ -42,8 +42,9 @@ pub async fn run(
         PipelineStage::ReviewEvalPackBuild,
         PipelineStage::Validate,
         PipelineStage::Pairs,
-        PipelineStage::Eval,
         PipelineStage::Mix,
+        PipelineStage::Eval,
+        PipelineStage::KbSignals,
         PipelineStage::Train,
     ];
 
@@ -70,6 +71,8 @@ pub async fn run(
     let total_stages = planned_stages.len();
     let validated = PathBuf::from("mens/data/validated.jsonl");
     let train_jsonl = data_dir.join("train.jsonl");
+    let _train_mixed_jsonl = data_dir.join("train_mixed.jsonl");
+    let validated_mixed_jsonl = data_dir.join("validated_mixed.jsonl");
     let eval_out = output_dir.join("eval_results.json");
 
     tracing::info!(
@@ -110,7 +113,7 @@ pub async fn run(
                 if !dry_run {
                     crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Generate {
                         output: PathBuf::from("mens/data/synthetic.jsonl"),
-                        force_regen: false,
+                        force_regen: true,
                         dry_run: false,
                     })
                     .await?;
@@ -159,7 +162,13 @@ pub async fn run(
                 }
             }
             PipelineStage::Validate => {
-                if !dry_run && validated.is_file() {
+                if !dry_run {
+                    if !validated.is_file() {
+                        anyhow::bail!(
+                            "Validate stage: missing input file '{}'. Make sure Extract stage ran successfully.",
+                            validated.display()
+                        );
+                    }
                     crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Validate {
                         input: validated.clone(),
                         output: Some(validated.clone()),
@@ -173,18 +182,40 @@ pub async fn run(
             }
             PipelineStage::Replay => {
                 if !dry_run {
-                    crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Replay {
-                        chatml: true,
-                        min_score: 4.0, // High quality only for auto-replay
-                        output: PathBuf::from("mens/data/mix_sources/autofeedback.jsonl"),
-                        limit: 1000,
-                    })
-                    .await?;
+                    let autofeedback_out =
+                        PathBuf::from("mens/data/mix_sources/autofeedback.jsonl");
+                    match crate::commands::corpus::run(
+                        crate::commands::corpus::CorpusAction::Replay {
+                            chatml: true,
+                            min_score: 4.0, // High quality only for auto-replay
+                            output: autofeedback_out.clone(),
+                            limit: 1000,
+                        },
+                    )
+                    .await
+                    {
+                        Ok(_) => {
+                            println!("  ✓ Wrote replay pairs -> {}", autofeedback_out.display());
+                        }
+                        Err(e) if is_lock_error(&e) => {
+                            tracing::warn!(
+                                "Replay stage: DB locked (vox-gui or vox-orchestrator-d running?). \
+                                 Skipping -- writing empty autofeedback."
+                            );
+                            let _ = std::fs::write(&autofeedback_out, "");
+                            println!(
+                                "  ⚠ Replay skipped (DB locked) -> empty autofeedback written"
+                            );
+                        }
+                        Err(e) => return Err(e),
+                    }
                 }
             }
             PipelineStage::HealToDpo => {
                 if !dry_run {
-                    let input = PathBuf::from("~/.vox/corpus/heal_pairs.jsonl");
+                    let input = dirs::home_dir()
+                        .map(|h| h.join(".vox/corpus/heal_pairs.jsonl"))
+                        .unwrap_or_else(|| PathBuf::from("heal_pairs.jsonl"));
                     crate::commands::corpus::run(
                         crate::commands::corpus::CorpusAction::HealToDpo {
                             input: Some(input),
@@ -243,8 +274,21 @@ pub async fn run(
                     .await?;
                 }
             }
+            PipelineStage::KbSignals => {
+                if !dry_run {
+                    run_kb_signals_stage(&data_dir).await?;
+                } else {
+                    tracing::info!("KbSignals: dry_run, skipping");
+                }
+            }
             PipelineStage::Pairs => {
-                if !dry_run && validated.is_file() {
+                if !dry_run {
+                    if !validated.is_file() {
+                        anyhow::bail!(
+                            "Pairs stage: missing input file '{}'. Make sure Extract/Validate stage ran successfully.",
+                            validated.display()
+                        );
+                    }
                     crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Pairs {
                         input: validated.clone(),
                         output: train_jsonl.clone(),
@@ -254,9 +298,15 @@ pub async fn run(
                 }
             }
             PipelineStage::Eval => {
-                if !dry_run && train_jsonl.is_file() {
+                if !dry_run {
+                    if !validated_mixed_jsonl.is_file() {
+                        anyhow::bail!(
+                            "Eval stage: missing input file '{}'. Make sure Mix/Pairs stage ran successfully.",
+                            validated_mixed_jsonl.display()
+                        );
+                    }
                     crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Eval {
-                        input: train_jsonl.clone(),
+                        input: validated_mixed_jsonl.clone(),
                         output: eval_out.clone(),
                         print_summary: false,
                     })
@@ -288,7 +338,7 @@ pub async fn run(
                     {
                         let device = device.clone().unwrap_or_else(|| "best".into());
                         let target_model = model.clone();
-                        let target_preset = preset.clone().or_else(|| Some("qwen_4080_16g".into()));
+                        let target_preset = preset.clone().or_else(|| Some("prosumer_16g".into()));
 
                         // SAFETY: CLI process; no concurrent `getenv` readers rely on these during this block.
                         #[allow(unsafe_code)]
@@ -314,6 +364,9 @@ pub async fn run(
                             None, // seq_len
                             None, // batch_size
                             None, // grad_accum
+                            None, // budget_seq_len
+                            None, // budget_batch_size
+                            None, // budget_grad_accum
                             None, // resume
                             epochs,
                             None, // lr
@@ -339,8 +392,8 @@ pub async fn run(
                             false, // force_restart
                             curriculum,
                             vox_populi::mens::OptimizerExperimentMode::Off,
-                            false,              // require_gpu
-                            true,               // allow_cpu_fallback
+                            true,               // require_gpu
+                            false,              // allow_cpu_fallback
                             None,               // base_model_family
                             None,               // upstream_model_id
                             None,               // license_class
@@ -381,4 +434,211 @@ pub async fn run(
     );
 
     Ok(())
+}
+
+async fn run_kb_signals_stage(data_dir: &std::path::Path) -> anyhow::Result<()> {
+    use std::collections::HashMap;
+    use std::io::{BufWriter, Write};
+
+    let db_path = ".vox/db/vox.db";
+    if !std::path::Path::new(db_path).exists() {
+        tracing::info!("KbSignals: VoxDb at {db_path} does not exist; skipping KbSignals stage");
+        return Ok(());
+    }
+    tracing::info!("KbSignals: connecting to VoxDb at {db_path}");
+
+    // VoxDb::open is #[cfg(feature = "local")] — ensure vox-ml-cli/Cargo.toml has
+    // vox-db with features = ["local"]
+    let db = vox_db::VoxDb::open(db_path)
+        .await
+        .map_err(|e| anyhow::anyhow!("KbSignals: failed to open VoxDb at {db_path}: {e}"))?;
+
+    let entries = db
+        .kb_unqueued_training_entries(10_000)
+        .await
+        .map_err(|e| anyhow::anyhow!("KbSignals: query failed: {e}"))?;
+
+    if entries.is_empty() {
+        tracing::info!("KbSignals: no unqueued entries; skipping");
+        return Ok(());
+    }
+
+    let out_dir = data_dir.join("mix_sources");
+    std::fs::create_dir_all(&out_dir)?;
+    let out_path = out_dir.join("kb_signals.jsonl");
+    let file = std::fs::File::create(&out_path)?;
+    let mut writer = BufWriter::new(file);
+    let mut written = 0usize;
+
+    // Group by kb_id to pair accepted/rejected within the same KB
+    let mut by_kb: HashMap<String, Vec<_>> = HashMap::new();
+    for entry in &entries {
+        by_kb.entry(entry.kb_id.clone()).or_default().push(entry);
+    }
+
+    for (kb_id, kb_entries) in &by_kb {
+        let accepted: Vec<_> = kb_entries.iter().filter(|e| e.accepted == 1).collect();
+        let rejected: Vec<_> = kb_entries.iter().filter(|e| e.accepted == 0).collect();
+
+        // Accepted → SFT instruction-completion pairs
+        for entry in &accepted {
+            let record = serde_json::json!({
+                "type": "sft",
+                "source": "kb",
+                "kb_id": kb_id,
+                "instruction": format!(
+                    "What do you know about the following topic based on accumulated research?\n\nTopic: {}",
+                    entry.source_signal
+                ),
+                "completion": entry.content,
+                "routing_confidence": entry.routing_confidence,
+            });
+            writeln!(writer, "{record}")?;
+            written += 1;
+        }
+
+        // Accepted + rejected same-signal same-session pairs → DPO preference pairs
+        for acc in &accepted {
+            for rej in &rejected {
+                if acc.source_signal == rej.source_signal
+                    && acc.source_ref.is_some()
+                    && acc.source_ref == rej.source_ref
+                {
+                    let record = serde_json::json!({
+                        "type": "dpo",
+                        "source": "kb",
+                        "prompt": "Provide accurate technical information:",
+                        "chosen": acc.content,
+                        "rejected": rej.content,
+                    });
+                    writeln!(writer, "{record}")?;
+                    written += 1;
+                }
+            }
+        }
+    }
+
+    writer.flush()?;
+    tracing::info!(
+        "KbSignals: wrote {written} records to {}",
+        out_path.display()
+    );
+
+    // Mark all fetched entries as MENS-queued to avoid re-export
+    let ids: Vec<String> = entries.iter().map(|e| e.id.clone()).collect();
+    db.kb_mark_mens_queued(&ids)
+        .await
+        .map_err(|e| anyhow::anyhow!("KbSignals: mark_queued failed: {e}"))?;
+    tracing::info!("KbSignals: marked {} entries as mens_queued", ids.len());
+
+    Ok(())
+}
+
+/// Returns true if the error is a database/file lock error (os error 33 on Windows,
+/// os error 11 on Linux, or "locked" in the error message).
+fn is_lock_error(e: &anyhow::Error) -> bool {
+    let msg = format!("{e:#}");
+    msg.contains("os error 33")
+        || msg.contains("os error 11")
+        || msg.contains("locked")
+        || msg.contains("SQLITE_BUSY")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_heal_pairs_path_has_no_tilde() {
+        let input = dirs::home_dir()
+            .map(|h| h.join(".vox/corpus/heal_pairs.jsonl"))
+            .unwrap_or_else(|| PathBuf::from("heal_pairs.jsonl"));
+        assert!(!input.to_string_lossy().starts_with('~'));
+    }
+
+    #[tokio::test]
+    async fn test_empty_validated_fails_closed() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let data_dir = temp_dir.path().join("data");
+        let output_dir = temp_dir.path().join("output");
+
+        let res = run(
+            data_dir,
+            output_dir,
+            true,  // skip_train
+            false, // strict_gate
+            None,
+            None,
+            None,
+            None,
+            Some("validate,pairs,eval".to_string()),
+            false,
+            false,
+        )
+        .await;
+
+        assert!(res.is_err());
+        let err_msg = res.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("missing input file")
+                || err_msg.contains("produced no validated.jsonl")
+        );
+    }
+
+    #[test]
+    fn test_is_lock_error_recognizes_windows_lock() {
+        let e = anyhow::anyhow!(
+            "The process cannot access the file because another process has locked a portion of the file. (os error 33)"
+        );
+        assert!(is_lock_error(&e));
+    }
+
+    #[test]
+    fn test_is_lock_error_recognizes_sqlite_busy() {
+        let e = anyhow::anyhow!("database is locked");
+        assert!(is_lock_error(&e));
+    }
+
+    #[test]
+    fn test_is_lock_error_does_not_match_other_errors() {
+        let e = anyhow::anyhow!("file not found (os error 2)");
+        assert!(!is_lock_error(&e));
+    }
+
+    #[tokio::test]
+    async fn test_eval_stage_targets_validated_mixed_jsonl() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let data_dir = temp_dir.path().join("data");
+        let output_dir = temp_dir.path().join("output");
+        std::fs::create_dir_all(&data_dir).unwrap();
+        std::fs::create_dir_all(&output_dir).unwrap();
+
+        // Create validated_mixed.jsonl but NOT train_mixed.jsonl
+        let mixed_path = data_dir.join("validated_mixed.jsonl");
+        std::fs::write(&mixed_path, r#"{"prompt":"hello","completion":"world"}"#).unwrap();
+
+        let res = run(
+            data_dir.clone(),
+            output_dir,
+            true,  // skip_train
+            false, // strict_gate
+            None,
+            None,
+            None,
+            None,
+            Some("eval".to_string()),
+            false,
+            false,
+        )
+        .await;
+
+        if let Err(e) = res {
+            let err_msg = e.to_string();
+            assert!(
+                !err_msg.contains("train_mixed.jsonl"),
+                "Should not expect train_mixed.jsonl, error was: {}",
+                err_msg
+            );
+        }
+    }
 }

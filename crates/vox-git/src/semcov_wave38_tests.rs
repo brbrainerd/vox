@@ -6,9 +6,10 @@
 
 #[cfg(test)]
 mod semcov_wave38_tests {
+    #![allow(clippy::module_inception)]
     use crate::object::{GitCommit, ObjectId};
     use crate::read_cmd::{GitReadError, read_only};
-    use crate::refs::{RefName, RefStatus};
+    use crate::refs::RefName;
 
     // ── ObjectId::parse ───────────────────────────────────────────────────────
 

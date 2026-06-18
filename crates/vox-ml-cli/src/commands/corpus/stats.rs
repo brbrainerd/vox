@@ -45,6 +45,7 @@ fn scan_train_jsonl_content(content: &str) -> Result<EvalScan> {
     let mut safety_rejected = 0u32;
     let mut parse_passed = 0u32;
     let mut construct_hits: HashSet<String> = HashSet::new();
+    let mut parse_failed_count = 0u32;
 
     let safety_patterns = [
         "ignore previous instructions",
@@ -76,12 +77,31 @@ fn scan_train_jsonl_content(content: &str) -> Result<EvalScan> {
         }
 
         let dummy_path = Path::new("__eval__.vox");
-        if let Ok(result) = crate::pipeline::run_frontend_str(response, dummy_path, false)
-            && !result.has_errors()
-        {
-            parse_passed += 1;
-            for c in crate::training::extract_constructs(&result.module) {
-                construct_hits.insert(c);
+        match crate::pipeline::run_frontend_str(response, dummy_path, false) {
+            Ok(result) => {
+                if !result.has_errors() {
+                    parse_passed += 1;
+                    for c in crate::training::extract_constructs(&result.module) {
+                        construct_hits.insert(c);
+                    }
+                } else {
+                    parse_failed_count += 1;
+                    if parse_failed_count <= 10 {
+                        println!("--- PARSE FAILURE ---");
+                        println!("Code:\n{}", response);
+                        println!("Errors:");
+                        for err in &result.diagnostics {
+                            println!("  - {:?}", err);
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                parse_failed_count += 1;
+                if parse_failed_count <= 10 {
+                    println!("--- FRONTEND ERROR: {} ---", e);
+                    println!("Code:\n{}", response);
+                }
             }
         }
     }
@@ -223,6 +243,20 @@ pub(super) async fn run_eval(input: &Path, output: &Path, print_summary: bool) -
     let total = s.total;
 
     let taxonomy: HashSet<&str> = crate::training::TAXONOMY.iter().copied().collect();
+    let mut hit_vec: Vec<_> = s
+        .construct_hits
+        .iter()
+        .filter(|x| taxonomy.contains(x.as_str()))
+        .collect();
+    hit_vec.sort();
+    println!(
+        "--- DETECTED TAXONOMY CONSTRUCTS ({}/{}) ---",
+        hit_vec.len(),
+        taxonomy.len()
+    );
+    for h in &hit_vec {
+        println!("  - {}", h);
+    }
     let coverage = s
         .construct_hits
         .iter()

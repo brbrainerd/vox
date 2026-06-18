@@ -472,6 +472,10 @@ mod tests {
             "cost_incurred",
             "continuation_triggered",
             "scope_violation",
+            "telemetry_shared",
+            "skill_published",
+            "skill_gossiped",
+            "vox_feature_milestone",
         ];
         for ev in events {
             let baked = crate::reward_policy::base_reward(ev);

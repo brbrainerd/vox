@@ -12,6 +12,7 @@
 pub mod context;
 pub mod domain;
 pub mod executor;
+pub mod hermes_adapter;
 pub mod hooks;
 pub mod manifest;
 pub mod openclaw;
@@ -28,14 +29,15 @@ pub mod parser {
 }
 
 pub use domain::ArsSkill;
+pub use hermes_adapter::DefaultHermesRuntimeAdapter;
 pub use openclaw::{
     OpenClawClient, OpenClawError, OpenClawRemoteConfig, OpenClawSkillSpec, PublishResult,
 };
 pub use openclaw_adapter::{
-    DefaultOpenClawRuntimeAdapter, OpenClawAdapterConfig, OpenClawAdapterError,
-    OpenClawConnectionOverrides, OpenClawRuntimeAdapter, adapter_config_with_token_override,
-    connect_default_runtime_adapter, connect_runtime_adapter_with_overrides,
-    resolve_adapter_config,
+    AgentProvider, AgentRuntimeAdapter, AgentRuntimeConfig, DefaultOpenClawRuntimeAdapter,
+    OpenClawAdapterConfig, OpenClawAdapterError, OpenClawConnectionOverrides,
+    OpenClawRuntimeAdapter, adapter_config_with_token_override, connect_default_runtime_adapter,
+    connect_runtime_adapter_with_overrides, resolve_adapter_config,
 };
 pub use openclaw_discovery::{
     DEFAULT_HTTP_GATEWAY_URL, DEFAULT_WS_GATEWAY_URL, OpenClawDiscoveryOverrides,

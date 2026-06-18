@@ -71,6 +71,8 @@ pub struct ResearchConfig {
     pub cache_ttl_secs: u64,
     /// Provider configuration (high-trust domains, timeout, etc.).
     pub provider: super::super::config::ProviderConfig,
+    /// Minimum distinct source domains required before synthesis (citation diversity gate).
+    pub min_distinct_domains: usize,
     /// Optional embedding service for indexing chunks.
     pub embedder: Option<Arc<EmbeddingService>>,
     /// Whether claim detection and verification is enabled for this run.
@@ -149,6 +151,7 @@ impl Default for ResearchConfig {
             fusion_weights: (0.65, 0.50, 0.80),
             training_pair_min_confidence: ConfidencePolicy::DEFAULT_MIN_TRAINING_PAIR_CONFIDENCE,
             training_pair_min_citations: 2,
+            min_distinct_domains: 3,
             cache_ttl_secs: 3600,
             provider: super::super::config::ProviderConfig::default(),
             embedder: None,

@@ -13,6 +13,10 @@ pub struct CliOverrides {
     pub epochs: Option<usize>,
     pub warmup: Option<usize>,
     pub lr: Option<f64>,
+    pub budget_seq_len: Option<usize>,
+    pub budget_batch_size: Option<usize>,
+    pub budget_grad_accum: Option<usize>,
+    pub vram_limit_fraction: Option<f32>,
 }
 
 /// GPU-derived device profile.
@@ -151,6 +155,10 @@ fn normalize_preset_name(name: &str) -> &str {
         "qwen_small_8g" => "safe",
         "qwen_rtx3090_24g" => "4080",
         "qwen_a100_80g" => "a100",
+        // Prosumer presets aligned with gpu-specs.yaml SSOT
+        "prosumer_16g" => "qwen_4080_16g",
+        "prosumer_24g" => "4080",
+        "prosumer_12g" => "safe",
         // Historical generic alias kept as the 4080-class default.
         "default" => "4080",
         other => other,
@@ -344,6 +352,127 @@ pub fn resolve_effective_profile(
         p = apply_qwen_size_ladder_policy(p, class, device.vram_mb);
     }
 
+    // Determine the VRAM budget limits, either from the passed pre-computed overrides
+    // or by running the budget planner internally as a fallback.
+    let budget_limits = if let Some(seq) = overrides.budget_seq_len
+        && let Some(batch) = overrides.budget_batch_size
+        && let Some(accum) = overrides.budget_grad_accum
+    {
+        Some((seq, batch, accum))
+    } else if device.vram_mb > 0 {
+        // Fallback: run budget planner internally
+        let mut vram_gib = (device.vram_mb as f64) / 1024.0;
+        if let Some(frac) = overrides.vram_limit_fraction {
+            vram_gib *= frac as f64;
+        }
+
+        let hint = model_hint
+            .as_deref()
+            .unwrap_or(crate::mens::DEFAULT_MODEL_ID);
+        let params_b =
+            crate::mens::tensor::memory_budget::params_b_from_model_hint(hint).unwrap_or(7.0);
+
+        let gc_explicit = std::env::var("VOX_MENS_GRADIENT_CHECKPOINTING")
+            .ok()
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false);
+        let gc_auto = params_b >= 2.9;
+        let gradient_checkpointing = gc_explicit || gc_auto;
+
+        let quant = crate::mens::tensor::finetune_contract::BaseQuantMode::Nf4;
+
+        let mp = if crate::mens::tensor::memory_budget::is_qwen25coder(hint) {
+            crate::mens::tensor::memory_budget::plan_qwen25coder_with_options(
+                vram_gib,
+                params_b,
+                quant,
+                gradient_checkpointing,
+            )
+        } else if crate::mens::tensor::memory_budget::is_qwen35(hint) {
+            crate::mens::tensor::memory_budget::plan_qwen35_with_options(
+                vram_gib,
+                params_b,
+                quant,
+                gradient_checkpointing,
+            )
+        } else if crate::mens::tensor::memory_budget::is_qwen3(hint) {
+            crate::mens::tensor::memory_budget::plan_qwen3_with_options(
+                vram_gib,
+                params_b,
+                quant,
+                gradient_checkpointing,
+            )
+        } else {
+            let resident_per_b = crate::mens::tensor::memory_budget::get_resident_per_b(
+                hint,
+                quant,
+                gradient_checkpointing,
+            );
+            let p = crate::mens::tensor::memory_budget::plan_with_resident(
+                vram_gib,
+                params_b,
+                resident_per_b,
+            );
+            crate::mens::tensor::memory_budget::ModelPlan {
+                model_id: hint.to_string(),
+                params_b,
+                seq_len: p.seq_len,
+                batch_size: p.batch_size,
+                grad_accum: p.grad_accum,
+                retreated_from_b: None,
+                over_budget: p.over_budget,
+                rationale: p.rationale,
+            }
+        };
+
+        // Dual-sizing fix: if the planner retreated, we must re-solve specifically
+        // for the requested model's parameters to avoid OOM at training runtime.
+        let final_plan = if mp.retreated_from_b.is_some() {
+            let resident_per_b = crate::mens::tensor::memory_budget::get_resident_per_b(
+                hint,
+                quant,
+                gradient_checkpointing,
+            );
+            let p = crate::mens::tensor::memory_budget::plan_with_resident(
+                vram_gib,
+                params_b,
+                resident_per_b,
+            );
+            crate::mens::tensor::memory_budget::ModelPlan {
+                model_id: hint.to_string(),
+                params_b,
+                seq_len: p.seq_len,
+                batch_size: p.batch_size,
+                grad_accum: p.grad_accum,
+                retreated_from_b: None,
+                over_budget: p.over_budget,
+                rationale: p.rationale,
+            }
+        } else {
+            mp
+        };
+
+        Some((
+            final_plan.seq_len,
+            final_plan.batch_size,
+            final_plan.grad_accum,
+        ))
+    } else {
+        None
+    };
+
+    if let Some((b_seq_len, b_batch_size, b_grad_accum)) = budget_limits {
+        if overrides.seq_len.is_none() {
+            p.seq_len = p.seq_len.min(b_seq_len);
+        }
+        if overrides.batch_size.is_none() {
+            p.batch_size = p.batch_size.min(b_batch_size);
+        }
+        if overrides.grad_accum.is_none() {
+            p.grad_accum = p.grad_accum.max(b_grad_accum);
+        }
+    }
+
     let _ = probe_gpu();
     p
 }
@@ -450,5 +579,48 @@ mod preset_tests {
         assert_eq!(p.batch_size, 1);
         assert!(p.seq_len <= 512);
         assert!(p.rank <= 32);
+    }
+
+    #[test]
+    fn test_prosumer_16g_preset_resolves() {
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::set_var("VOX_BASE_MODEL", "Qwen/Qwen2.5-Coder-1.5B-Instruct");
+        }
+        let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384);
+        let profile =
+            resolve_effective_profile(Some("prosumer_16g"), dev, None, CliOverrides::default());
+        assert_eq!(profile.seq_len, 384);
+        assert_eq!(profile.batch_size, 1);
+        assert_eq!(profile.grad_accum, 8);
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::remove_var("VOX_BASE_MODEL");
+        }
+    }
+
+    #[test]
+    fn presets_are_bounded_by_vram() {
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::set_var("VOX_BASE_MODEL", "Qwen/Qwen2.5-Coder-7B-Instruct");
+        }
+        let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384);
+        let profile = resolve_effective_profile(Some("a100"), dev, None, CliOverrides::default());
+        assert!(profile.seq_len < 1024);
+        assert!(profile.batch_size < 8);
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::remove_var("VOX_BASE_MODEL");
+        }
+    }
+
+    #[test]
+    fn test_preset_bounds_dynamically_to_fit_vram() {
+        let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384);
+        let profile =
+            resolve_effective_profile(Some("prosumer_16g"), dev, None, CliOverrides::default());
+        // For a 7B model on 16GB, it should safely scale parameters down.
+        assert!(profile.seq_len <= 384);
     }
 }

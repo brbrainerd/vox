@@ -27,6 +27,7 @@ fn plan_to_json_serializes() {
         subqueries: vec!["q".into()],
         scope: ResearchScope::Both,
         max_sources_per_subquery: 3,
+        planner_degraded: false,
     };
     let v = plan_to_json(&plan);
     assert!(v.is_object());

@@ -60,6 +60,7 @@ vox-speech = { workspace = true, optional = true, features = ["compiler-rerank"]
 vox-plugin-host = { workspace = true, optional = true }
 vox-workflow-runtime = { workspace = true, optional = true }
 vox-secrets = { workspace = true }
+dirs = { workspace = true }
 vox-quantize = { workspace = true, optional = true }
 
 clap = { workspace = true }

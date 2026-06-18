@@ -3,6 +3,7 @@
 
 #[cfg(test)]
 mod semcov_wave28_tests {
+    #![allow(clippy::module_inception)]
     use serde::{Deserialize, Serialize};
 
     // -----------------------------------------------------------------------

@@ -786,7 +786,28 @@ impl PopuliTransportState {
                                     {
                                         federated[pos] = peer_entry;
                                     } else {
+                                        #[cfg(feature = "gamify")]
+                                        let peer_id = peer_entry.scope_id.clone();
+
                                         federated.push(peer_entry);
+
+                                        #[cfg(feature = "gamify")]
+                                        {
+                                            tokio::spawn(async move {
+                                                if let Ok(db) =
+                                                    vox_db::Codex::connect_default().await
+                                                {
+                                                    let ev = serde_json::json!({
+                                                        "type": "skill_gossiped",
+                                                        "source": "vox-populi",
+                                                        "payload": { "peer_id": peer_id },
+                                                    });
+                                                    if let Err(e) = vox_gamify::event_router::route_event_auto_user(&db, &ev).await {
+                                                        tracing::debug!(error = %e, "failed to route skill_gossiped event");
+                                                    }
+                                                }
+                                            });
+                                        }
                                     }
                                 }
                             }

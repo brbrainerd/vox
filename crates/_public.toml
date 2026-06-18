@@ -11,6 +11,10 @@ schema_version = 1
 crates = [
     "vox-crypto",
     "voxup",
+    # Plugin ABI trio — publish in dependency order: types → api → sdk
+    "vox-plugin-types",
+    "vox-plugin-api",
+    "vox-plugin-sdk",
     # "vox-config",
     # "vox-secrets",
 ]

@@ -179,7 +179,7 @@ description = "Skill-runtime plugin: Docker and Podman backends for sandboxed sk
 status = "alpha"
 extension-points = ["SkillRuntime"]
 default-source = "local:crates/vox-plugin-runtime-container"
-bundled-in = []
+bundled-in = ["vox-server"]
 
 [[plugin]]
 id = "publication"
@@ -252,7 +252,7 @@ id = "vox-server"
 description = "Headless backend deployment: orchestrator + mesh, no GUI/ML."
 status = "beta"
 extends = "vox-base"
-plugins = ["populi-mesh", "skill-orchestrator", "skill-memory", "webhook"]
+plugins = ["populi-mesh", "skill-orchestrator", "skill-memory", "webhook", "runtime-container"]
 
 [[bundle]]
 id = "vox-edge"
@@ -274,7 +274,245 @@ plugins = [
 
 [[bundle]]
 id = "vox-mobile"
-description = "Mobile-optimized deployment: lightweight skill runtime for iOS/Android (Tauri Mobile). Planned for v0.8."
+description = "Mobile-optimized deployment: lightweight skill runtime for iOS/Android (React Native / Expo). Planned for v0.8."
 status = "alpha"
 extends = "vox-base"
 plugins = []
+# ── Bundled interop skill library (assets/skills/) ─────────────────────────────
+# SSOT for license-verified agentskills.io directories shipped with Vox.
+# Provenance: assets/skills/SOURCES.toml. Regenerate after vendor-skills.vox.
+
+[[skill-bundle]]
+id = "algorithmic-art"
+description = "Creating algorithmic art using p5.js with seeded randomness and interactive parameter exploration. Use this when users request creating art using code, generative art, algorithm..."
+status = "stable"
+license = "Apache-2.0"
+source = "https://github.com/anthropics/skills"
+pin = "57546260929473d4e0d1c1bb75297be2fdfa1949"
+bundle-path = "assets/skills/algorithmic-art"
+
+[[skill-bundle]]
+id = "brainstorming"
+description = "You MUST use this before any creative work - creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements and design b..."
+status = "stable"
+license = "MIT"
+source = "https://github.com/obra/superpowers"
+pin = "e7a2d16476bf042e9add4699c9d018a90f86e4a6"
+bundle-path = "assets/skills/brainstorming"
+
+[[skill-bundle]]
+id = "brand-guidelines"
+description = "Applies Anthropic's official brand colors and typography to any sort of artifact that may benefit from having Anthropic's look-and-feel. Use it when brand colors or style guidel..."
+status = "stable"
+license = "Apache-2.0"
+source = "https://github.com/anthropics/skills"
+pin = "57546260929473d4e0d1c1bb75297be2fdfa1949"
+bundle-path = "assets/skills/brand-guidelines"
+
+[[skill-bundle]]
+id = "canvas-design"
+description = "Create beautiful visual art in .png and .pdf documents using design philosophy. You should use this skill when the user asks to create a poster, piece of art, design, or other s..."
+status = "stable"
+license = "Apache-2.0"
+source = "https://github.com/anthropics/skills"
+pin = "57546260929473d4e0d1c1bb75297be2fdfa1949"
+bundle-path = "assets/skills/canvas-design"
+
+[[skill-bundle]]
+id = "claude-api"
+description = "Claude API / Anthropic SDK reference for models, pricing, streaming, tool use, MCP, and migration"
+status = "stable"
+license = "Apache-2.0"
+source = "https://github.com/anthropics/skills"
+pin = "57546260929473d4e0d1c1bb75297be2fdfa1949"
+bundle-path = "assets/skills/claude-api"
+
+[[skill-bundle]]
+id = "dispatching-parallel-agents"
+description = "Use when facing 2+ independent tasks that can be worked on without shared state or sequential dependencies"
+status = "stable"
+license = "MIT"
+source = "https://github.com/obra/superpowers"
+pin = "e7a2d16476bf042e9add4699c9d018a90f86e4a6"
+bundle-path = "assets/skills/dispatching-parallel-agents"
+
+[[skill-bundle]]
+id = "executing-plans"
+description = "Use when you have a written implementation plan to execute in a separate session with review checkpoints"
+status = "stable"
+license = "MIT"
+source = "https://github.com/obra/superpowers"
+pin = "e7a2d16476bf042e9add4699c9d018a90f86e4a6"
+bundle-path = "assets/skills/executing-plans"
+
+[[skill-bundle]]
+id = "finishing-a-development-branch"
+description = "Use when implementation is complete, all tests pass, and you need to decide how to integrate the work - guides completion of development work by presenting structured options fo..."
+status = "stable"
+license = "MIT"
+source = "https://github.com/obra/superpowers"
+pin = "e7a2d16476bf042e9add4699c9d018a90f86e4a6"
+bundle-path = "assets/skills/finishing-a-development-branch"
+
+[[skill-bundle]]
+id = "frontend-design"
+description = "Guidance for distinctive, intentional visual design when building new UI or reshaping an existing one. Helps with aesthetic direction, typography, and making choices that don't ..."
+status = "stable"
+license = "Apache-2.0"
+source = "https://github.com/anthropics/skills"
+pin = "57546260929473d4e0d1c1bb75297be2fdfa1949"
+bundle-path = "assets/skills/frontend-design"
+
+[[skill-bundle]]
+id = "internal-comms"
+description = "A set of resources to help me write all kinds of internal communications, using the formats that my company likes to use. Claude should use this skill whenever asked to write so..."
+status = "stable"
+license = "Apache-2.0"
+source = "https://github.com/anthropics/skills"
+pin = "57546260929473d4e0d1c1bb75297be2fdfa1949"
+bundle-path = "assets/skills/internal-comms"
+
+[[skill-bundle]]
+id = "mcp-builder"
+description = "Guide for creating high-quality MCP (Model Context Protocol) servers that enable LLMs to interact with external services through well-designed tools. Use when building MCP serve..."
+status = "stable"
+license = "Apache-2.0"
+source = "https://github.com/anthropics/skills"
+pin = "57546260929473d4e0d1c1bb75297be2fdfa1949"
+bundle-path = "assets/skills/mcp-builder"
+
+[[skill-bundle]]
+id = "receiving-code-review"
+description = "Use when receiving code review feedback, before implementing suggestions, especially if feedback seems unclear or technically questionable - requires technical rigor and verific..."
+status = "stable"
+license = "MIT"
+source = "https://github.com/obra/superpowers"
+pin = "e7a2d16476bf042e9add4699c9d018a90f86e4a6"
+bundle-path = "assets/skills/receiving-code-review"
+
+[[skill-bundle]]
+id = "requesting-code-review"
+description = "Use when completing tasks, implementing major features, or before merging to verify work meets requirements"
+status = "stable"
+license = "MIT"
+source = "https://github.com/obra/superpowers"
+pin = "e7a2d16476bf042e9add4699c9d018a90f86e4a6"
+bundle-path = "assets/skills/requesting-code-review"
+
+[[skill-bundle]]
+id = "skill-creator"
+description = "Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, ru..."
+status = "stable"
+license = "Apache-2.0"
+source = "https://github.com/anthropics/skills"
+pin = "57546260929473d4e0d1c1bb75297be2fdfa1949"
+bundle-path = "assets/skills/skill-creator"
+
+[[skill-bundle]]
+id = "slack-gif-creator"
+description = "Knowledge and utilities for creating animated GIFs optimized for Slack. Provides constraints, validation tools, and animation concepts. Use when users request animated GIFs for ..."
+status = "stable"
+license = "Apache-2.0"
+source = "https://github.com/anthropics/skills"
+pin = "57546260929473d4e0d1c1bb75297be2fdfa1949"
+bundle-path = "assets/skills/slack-gif-creator"
+
+[[skill-bundle]]
+id = "subagent-driven-development"
+description = "Use when executing implementation plans with independent tasks in the current session"
+status = "stable"
+license = "MIT"
+source = "https://github.com/obra/superpowers"
+pin = "e7a2d16476bf042e9add4699c9d018a90f86e4a6"
+bundle-path = "assets/skills/subagent-driven-development"
+
+[[skill-bundle]]
+id = "systematic-debugging"
+description = "Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes"
+status = "stable"
+license = "MIT"
+source = "https://github.com/obra/superpowers"
+pin = "e7a2d16476bf042e9add4699c9d018a90f86e4a6"
+bundle-path = "assets/skills/systematic-debugging"
+
+[[skill-bundle]]
+id = "test-driven-development"
+description = "Use when implementing any feature or bugfix, before writing implementation code"
+status = "stable"
+license = "MIT"
+source = "https://github.com/obra/superpowers"
+pin = "e7a2d16476bf042e9add4699c9d018a90f86e4a6"
+bundle-path = "assets/skills/test-driven-development"
+
+[[skill-bundle]]
+id = "theme-factory"
+description = "Toolkit for styling artifacts with a theme. These artifacts can be slides, docs, reportings, HTML landing pages, etc. There are 10 pre-set themes with colors/fonts that you can ..."
+status = "stable"
+license = "Apache-2.0"
+source = "https://github.com/anthropics/skills"
+pin = "57546260929473d4e0d1c1bb75297be2fdfa1949"
+bundle-path = "assets/skills/theme-factory"
+
+[[skill-bundle]]
+id = "using-git-worktrees"
+description = "Use when starting feature work that needs isolation from current workspace or before executing implementation plans - creates isolated git worktrees with smart directory selecti..."
+status = "stable"
+license = "MIT"
+source = "https://github.com/obra/superpowers"
+pin = "e7a2d16476bf042e9add4699c9d018a90f86e4a6"
+bundle-path = "assets/skills/using-git-worktrees"
+
+[[skill-bundle]]
+id = "using-superpowers"
+description = "Use when starting any conversation - establishes how to find and use skills, requiring Skill tool invocation before ANY response including clarifying questions"
+status = "stable"
+license = "MIT"
+source = "https://github.com/obra/superpowers"
+pin = "e7a2d16476bf042e9add4699c9d018a90f86e4a6"
+bundle-path = "assets/skills/using-superpowers"
+
+[[skill-bundle]]
+id = "verification-before-completion"
+description = "Use when about to claim work is complete, fixed, or passing, before committing or creating PRs - requires running verification commands and confirming output before making any s..."
+status = "stable"
+license = "MIT"
+source = "https://github.com/obra/superpowers"
+pin = "e7a2d16476bf042e9add4699c9d018a90f86e4a6"
+bundle-path = "assets/skills/verification-before-completion"
+
+[[skill-bundle]]
+id = "web-artifacts-builder"
+description = "Suite of tools for creating elaborate, multi-component claude.ai HTML artifacts using modern frontend web technologies (React, Tailwind CSS, shadcn/ui). Use for complex artifact..."
+status = "stable"
+license = "Apache-2.0"
+source = "https://github.com/anthropics/skills"
+pin = "57546260929473d4e0d1c1bb75297be2fdfa1949"
+bundle-path = "assets/skills/web-artifacts-builder"
+
+[[skill-bundle]]
+id = "webapp-testing"
+description = "Toolkit for interacting with and testing local web applications using Playwright. Supports verifying frontend functionality, debugging UI behavior, capturing browser screenshots..."
+status = "stable"
+license = "Apache-2.0"
+source = "https://github.com/anthropics/skills"
+pin = "57546260929473d4e0d1c1bb75297be2fdfa1949"
+bundle-path = "assets/skills/webapp-testing"
+
+[[skill-bundle]]
+id = "writing-plans"
+description = "Use when you have a spec or requirements for a multi-step task, before touching code"
+status = "stable"
+license = "MIT"
+source = "https://github.com/obra/superpowers"
+pin = "e7a2d16476bf042e9add4699c9d018a90f86e4a6"
+bundle-path = "assets/skills/writing-plans"
+
+[[skill-bundle]]
+id = "writing-skills"
+description = "Use when creating new skills, editing existing skills, or verifying skills work before deployment"
+status = "stable"
+license = "MIT"
+source = "https://github.com/obra/superpowers"
+pin = "e7a2d16476bf042e9add4699c9d018a90f86e4a6"
+bundle-path = "assets/skills/writing-skills"
+

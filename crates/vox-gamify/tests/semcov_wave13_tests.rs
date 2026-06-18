@@ -15,6 +15,7 @@ use vox_gamify::{
 };
 
 mod semcov_wave13_tests {
+    #![allow(clippy::module_inception)]
     use super::*;
 
     // ── Leaderboard invariants ──────────────────────────────────────────────────
