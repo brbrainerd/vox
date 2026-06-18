@@ -9,8 +9,8 @@ import env;
 
 fn main() {
     let output_dir = "mens/runs/qwen_local_latest"
-    let data_dir = "mens/data"
-    let model = "Qwen/Qwen3.5-2B-Instruct"
+    let data_dir = "target/dogfood"
+    let model = "Qwen/Qwen2.5-Coder-1.5B-Instruct"
     
     // Parse command line arguments
     let argv = env.args()

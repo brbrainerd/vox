@@ -2,7 +2,7 @@
   "compiler_version": "0.6.0",
   "curriculum_ordered": true,
   "generated_by": "vox corpus pairs",
-  "negative_pairs": 558,
+  "negative_pairs": 330,
   "schema_version": "vox_dogfood_v1",
-  "total_pairs": 2381
+  "total_pairs": 1672
 }

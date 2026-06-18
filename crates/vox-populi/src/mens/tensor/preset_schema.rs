@@ -403,8 +403,16 @@ pub fn resolve_effective_profile(
                 gradient_checkpointing,
             )
         } else {
-            let resident_per_b = crate::mens::tensor::memory_budget::get_resident_per_b(hint, quant, gradient_checkpointing);
-            let p = crate::mens::tensor::memory_budget::plan_with_resident(vram_gib, params_b, resident_per_b);
+            let resident_per_b = crate::mens::tensor::memory_budget::get_resident_per_b(
+                hint,
+                quant,
+                gradient_checkpointing,
+            );
+            let p = crate::mens::tensor::memory_budget::plan_with_resident(
+                vram_gib,
+                params_b,
+                resident_per_b,
+            );
             crate::mens::tensor::memory_budget::ModelPlan {
                 model_id: hint.to_string(),
                 params_b,
@@ -420,8 +428,16 @@ pub fn resolve_effective_profile(
         // Dual-sizing fix: if the planner retreated, we must re-solve specifically
         // for the requested model's parameters to avoid OOM at training runtime.
         let final_plan = if mp.retreated_from_b.is_some() {
-            let resident_per_b = crate::mens::tensor::memory_budget::get_resident_per_b(hint, quant, gradient_checkpointing);
-            let p = crate::mens::tensor::memory_budget::plan_with_resident(vram_gib, params_b, resident_per_b);
+            let resident_per_b = crate::mens::tensor::memory_budget::get_resident_per_b(
+                hint,
+                quant,
+                gradient_checkpointing,
+            );
+            let p = crate::mens::tensor::memory_budget::plan_with_resident(
+                vram_gib,
+                params_b,
+                resident_per_b,
+            );
             crate::mens::tensor::memory_budget::ModelPlan {
                 model_id: hint.to_string(),
                 params_b,
@@ -436,7 +452,11 @@ pub fn resolve_effective_profile(
             mp
         };
 
-        Some((final_plan.seq_len, final_plan.batch_size, final_plan.grad_accum))
+        Some((
+            final_plan.seq_len,
+            final_plan.batch_size,
+            final_plan.grad_accum,
+        ))
     } else {
         None
     };

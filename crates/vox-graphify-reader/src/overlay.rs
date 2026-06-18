@@ -31,7 +31,10 @@ pub fn overlay_test_targets(
                     if let Some(ref current_test) = self.current_test {
                         if let Some(segment) = expr_path.path.segments.last() {
                             let callee = segment.ident.to_string();
-                            self.calls.entry(callee).or_default().push(current_test.clone());
+                            self.calls
+                                .entry(callee)
+                                .or_default()
+                                .push(current_test.clone());
                         }
                     }
                 }
@@ -50,10 +53,9 @@ pub fn overlay_test_targets(
         for node in nodes {
             if let Some(id) = node.get("id").and_then(|i| i.as_str()) {
                 if let Some(test_names) = targets.get(id) {
-                    node.as_object_mut().unwrap().insert(
-                        "targeted_by".to_string(),
-                        json!(test_names),
-                    );
+                    node.as_object_mut()
+                        .unwrap()
+                        .insert("targeted_by".to_string(), json!(test_names));
                 }
             }
         }

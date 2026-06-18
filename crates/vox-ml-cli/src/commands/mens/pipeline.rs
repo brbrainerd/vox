@@ -364,6 +364,9 @@ pub async fn run(
                             None, // seq_len
                             None, // batch_size
                             None, // grad_accum
+                            None, // budget_seq_len
+                            None, // budget_batch_size
+                            None, // budget_grad_accum
                             None, // resume
                             epochs,
                             None, // lr

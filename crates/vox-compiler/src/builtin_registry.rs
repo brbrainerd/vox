@@ -1007,7 +1007,7 @@ pub fn std_namespace_runtime_call(
             args[0]
         )),
         ("process", "run") if args.len() >= 2 => Some(format!(
-            "(vox_actor_runtime::builtins::vox_process_run_opt(({}).as_str(), {}.as_slice()))",
+            "(vox_actor_runtime::builtins::vox_process_run_opt(({}).as_str(), {}.as_slice()).map(|p| serde_json::json!({{ \"code\": p.code, \"stdout\": p.stdout, \"stderr\": p.stderr }})))",
             args[0], args[1]
         )),
         ("process", "run_ex") if args.len() >= 4 => Some(format!(

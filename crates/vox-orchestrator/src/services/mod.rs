@@ -33,6 +33,7 @@ pub mod persistence_obs;
 #[cfg(feature = "news-publish")]
 pub mod news;
 pub mod policy;
+#[cfg(feature = "http-server")]
 pub mod routes;
 pub mod routing;
 pub mod scaling;

@@ -113,8 +113,8 @@ mod bundle_membership_tests {
 
     #[test]
     fn vox_server_bundle_includes_runtime_container() {
-        let plugins = bundle_resolved("vox-server")
-            .expect("vox-server bundle must resolve without error");
+        let plugins =
+            bundle_resolved("vox-server").expect("vox-server bundle must resolve without error");
         assert!(
             plugins.iter().any(|p| p.id == "runtime-container"),
             "expected runtime-container in vox-server bundle; got: {:?}",
@@ -125,10 +125,15 @@ mod bundle_membership_tests {
     #[test]
     fn vox_server_bundle_preserves_existing_members() {
         // Regression guard: adding runtime-container must not evict existing plugins.
-        let plugins = bundle_resolved("vox-server")
-            .expect("vox-server bundle must resolve without error");
+        let plugins =
+            bundle_resolved("vox-server").expect("vox-server bundle must resolve without error");
         let ids: Vec<&str> = plugins.iter().map(|p| p.id.as_str()).collect();
-        for required in ["populi-mesh", "skill-orchestrator", "skill-memory", "webhook"] {
+        for required in [
+            "populi-mesh",
+            "skill-orchestrator",
+            "skill-memory",
+            "webhook",
+        ] {
             assert!(
                 ids.contains(&required),
                 "existing member '{required}' was evicted from vox-server bundle; current: {ids:?}"
@@ -142,4 +147,3 @@ mod bundle_membership_tests {
         bundle_resolved("vox-server").expect("vox-server bundle should resolve cleanly");
     }
 }
-
