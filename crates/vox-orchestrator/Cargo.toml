@@ -12,6 +12,7 @@ default = [
     "json-schema",
     "jj",
     "corpus-db",
+    "http-server",
 ]
 # HTTP server routes (axum). Enabled by vox-orchestrator-d and vox-cli
 # routes that serve JSON over TCP. Not needed by library consumers.
@@ -137,6 +138,7 @@ tempfile = { workspace = true }
 tracing-test = { workspace = true }
 vox-actor-runtime = { workspace = true }
 vox-test-harness = { path = "../vox-test-harness" }
+axum = { workspace = true, features = ["tokio", "http1", "json"] }
 tokio = { workspace = true, features = ["full", "test-util"] }
 jsonschema = { workspace = true, default-features = false }
 tower = { workspace = true, features = ["util"] }
