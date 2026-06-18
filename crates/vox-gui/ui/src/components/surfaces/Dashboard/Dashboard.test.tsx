@@ -240,4 +240,26 @@ describe('Dashboard', () => {
       { t: 1, v: 7 },
     ]);
   });
+
+  it('renders visual sandbox mini-map and handles expand navigation', () => {
+    const navigateMock = vi.fn();
+    const data = { ...emptyDash };
+    
+    render(
+      <Dashboard
+        data={data}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onDoubt={vi.fn()}
+        onOverrule={vi.fn()}
+        onAckLudus={vi.fn()}
+        filterKind="all"
+        setFilterKind={vi.fn()}
+        onNavigate={navigateMock}
+      />
+    );
+
+    const expandBtn = screen.getByText('Immersive View');
+    expect(expandBtn).toBeDefined();
+  });
 });

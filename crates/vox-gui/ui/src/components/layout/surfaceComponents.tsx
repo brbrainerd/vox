@@ -87,6 +87,7 @@ function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
           setFilterKind={props.setFilterKind!}
           onOpenInConsole={props.onOpenInConsole}
           onOpenChat={props.onOpenChat}
+          onNavigate={props.onNavigate}
         />
       );
     case 'flow':

@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useStore } from 'zustand';
+import { useLudusStore } from '../../gamify/store';
+import { LudusSandbox } from '../../gamify/LudusSandbox';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
 import { StreamCard } from './StreamCard';
@@ -45,6 +48,7 @@ interface DashboardProps {
   setFilterKind: (k: string) => void;
   onOpenInConsole?: (a: Agent) => void;
   onOpenChat?: () => void;
+  onNavigate?: (viewKey: string) => void;
 }
 
 export function Dashboard({
@@ -59,11 +63,15 @@ export function Dashboard({
   setFilterKind,
   onOpenInConsole,
   onOpenChat,
+  onNavigate,
 }: DashboardProps) {
   const filters = ["all", "validated", "in-progress", "doubted", "speculative"];
   const stream = data.stream.filter(s => filterKind === "all" ? true : s.kind === filterKind);
   const [customizeMode, setCustomizeMode] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [sandboxCollapsed, setSandboxCollapsed] = useState(false);
+  const buildings = useStore(useLudusStore, (state) => state.buildings);
+  const buildingFiles = React.useMemo(() => Object.keys(buildings), [buildings]);
   const [layout, setLayout] = useLocalStorage(
     SHELL_PREFERENCE_KEYS.dashboardLayout,
     loadDashboardLayout(defaultDashboardLayout()),
@@ -328,6 +336,25 @@ export function Dashboard({
           {customizeMode ? 'Done customizing' : 'Customize dashboard'}
         </button>
       </div>
+
+      {/* Workspace Simulation Mini-Map */}
+      <div className="mx-5 mb-4 border border-zinc-800 bg-[#09090b]/80 rounded-xl overflow-hidden">
+        <div className="flex items-center justify-between bg-zinc-900/60 px-4 py-2 text-xs border-b border-zinc-800">
+          <span className="font-semibold text-zinc-100 uppercase tracking-wide">⬤ Workspace Simulation Mini-Map</span>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => onNavigate?.('gamify')} className="text-cyan hover:underline">Immersive View</button>
+            <button type="button" onClick={() => setSandboxCollapsed(!sandboxCollapsed)} className="text-zinc-400 hover:text-zinc-200">
+              {sandboxCollapsed ? 'Expand' : 'Collapse'}
+            </button>
+          </div>
+        </div>
+        {!sandboxCollapsed && (
+          <div className="h-[250px] relative">
+            <LudusSandbox files={buildingFiles} />
+          </div>
+        )}
+      </div>
+
       <WidgetPickerDrawer
         layout={layout}
         open={customizeMode && pickerOpen}
