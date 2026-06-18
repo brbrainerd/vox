@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use std::fs;
 use std::path::{Path, PathBuf};
 use tracing::{info, warn};
@@ -12,62 +12,75 @@ fn home_dir() -> PathBuf {
 }
 
 pub async fn run_install(_profile: &str) -> Result<()> {
-    let vox_dir = home_dir().join(".vox");
-    let toolchains_dir = vox_dir.join("toolchains");
-    let bin_dir = vox_dir.join("bin");
+    let home = dirs::home_dir().context("cannot determine home directory")?;
+    let bin_dir   = home.join(".vox").join("bin");
+    let cache_dir = home.join(".vox").join("toolchains");
+    fs::create_dir_all(&bin_dir)?;
+    fs::create_dir_all(&cache_dir)?;
 
-    if !toolchains_dir.exists() {
-        fs::create_dir_all(&toolchains_dir)?;
-        info!("Created ~/.vox/toolchains directory");
-    }
+    info!("Fetching latest Vox release from GitHub…");
+    let client = reqwest::Client::new();
+    let release = crate::channel::fetch_latest(&client).await?;
+    info!("Latest release: {} ({})", release.tag, release.version);
 
-    if !bin_dir.exists() {
-        fs::create_dir_all(&bin_dir)?;
-        info!("Created ~/.vox/bin directory");
-    }
+    // Download and parse checksums.txt
+    let ck_asset = release.find_asset("checksums.txt")
+        .context("checksums.txt not found in GitHub release assets")?;
+    let ck_bytes = crate::download::fetch_bytes(&client, &ck_asset.browser_download_url).await?;
+    let ck_text  = String::from_utf8(ck_bytes).context("checksums.txt is not valid UTF-8")?;
+    let checksums = crate::download::parse_checksums(&ck_text);
 
-    info!("Parsing local manifest for stable channel...");
-    let manifest_path = std::env::current_dir()?
-        .join("contracts")
-        .join("toolchain")
-        .join("workspace-toolchain.v1.yaml");
+    // Resolve the platform archive
+    let archive_name = crate::channel::asset_name(&release.version);
+    let ar_asset = release.find_asset(&archive_name).with_context(|| {
+        format!(
+            "Expected asset '{archive_name}' not in release {}. Available: {}",
+            release.tag,
+            release.assets.iter().map(|a| a.name.as_str()).collect::<Vec<_>>().join(", ")
+        )
+    })?;
+    let expected_hash = checksums.get(&archive_name).with_context(|| {
+        format!("No checksum for '{archive_name}' in checksums.txt")
+    })?;
 
-    let mut expected_rust_version = String::from("1.92.0");
+    info!("Downloading {} ({} bytes)…", archive_name, ar_asset.size);
+    let ar_bytes = crate::download::fetch_bytes(&client, &ar_asset.browser_download_url).await?;
 
-    if manifest_path.exists() {
-        let content = fs::read_to_string(&manifest_path)?;
-        let manifest = crate::manifest::WorkspaceToolchain::parse(&content)?;
-        expected_rust_version = manifest
-            .versions
-            .get("rust")
-            .unwrap_or(&expected_rust_version)
-            .to_string();
-        info!(
-            "Successfully parsed toolchain manifest matching Rust version: {}",
-            expected_rust_version
-        );
-    } else {
-        warn!(
-            "Could not locate workspace-toolchain.v1.yaml locally. \
-             Falling back to default: {}",
-            expected_rust_version
-        );
-    }
+    info!("Verifying SHA-256…");
+    crate::download::verify_sha256(&ar_bytes, expected_hash)
+        .with_context(|| format!("Integrity check failed for {archive_name}"))?;
+    info!("Checksum OK");
 
-    info!("Linking a single vox binary across ~/.vox/bin and ~/.cargo/bin...");
+    // Extract to versioned dir
+    let tc_dir = cache_dir.join(format!("vox-{}", release.version));
+    crate::download::extract(&ar_bytes, &tc_dir, &archive_name)?;
+
+    // Establish canonical binary
     let exe = if cfg!(windows) { "vox.exe" } else { "vox" };
-    let canonical = bin_dir.join(exe);
-    let cargo_bin = home_dir().join(".cargo").join("bin").join(exe);
-    establish_single_binary(&canonical, &cargo_bin)?;
+    let extracted_bin = tc_dir.join(exe);
+    let canonical     = bin_dir.join(exe);
+    let secondary     = home.join(".cargo").join("bin").join(exe);
+    if !extracted_bin.exists() {
+        bail!("Extraction succeeded but '{exe}' not found in {}", tc_dir.display());
+    }
+    replace_file(&extracted_bin, &canonical)?;
+    establish_single_binary(&canonical, &secondary)?;
 
-    info!(
-        "Provisioning isolated WASM sysroots targeting Rust {}...",
-        expected_rust_version
-    );
-    provision_wasm_sysroots(&toolchains_dir, &expected_rust_version).await?;
+    // WASM sysroots
+    provision_wasm_sysroots(&cache_dir, &release.version).await?;
 
-    info!("Installation complete! Add ~/.vox/bin to your PATH.");
+    // Persistent PATH
+    let modified = crate::shell::add_to_path(&home, &bin_dir);
+    if modified.is_empty() {
+        info!("No shell profiles found. Add {} to your PATH manually.", bin_dir.display());
+    } else {
+        info!("Updated {} shell profile(s).", modified.len());
+    }
 
+    println!("\n✅ Vox {} installed!", release.version);
+    println!("   Binary: {}", canonical.display());
+    println!("   Run: vox --version");
+    println!("   Restart your shell or: source ~/.bashrc");
     Ok(())
 }
 
@@ -78,7 +91,7 @@ const MIN_REAL_BINARY_BYTES: u64 = 64 * 1024;
 
 /// True when `path` is an existing file large enough to be a real `vox` binary
 /// (not the legacy echo-stub proxy).
-fn is_real_binary(path: &Path) -> bool {
+pub(crate) fn is_real_binary(path: &Path) -> bool {
     fs::metadata(path)
         .map(|m| m.is_file() && m.len() >= MIN_REAL_BINARY_BYTES)
         .unwrap_or(false)
@@ -93,7 +106,7 @@ fn is_real_binary(path: &Path) -> bool {
 /// `secondary` is hard-linked to it. If hard-linking fails (e.g. the two paths
 /// live on different volumes) it falls back to a copy and warns — the two would
 /// then be able to drift, which `vox doctor`'s binary-SSOT check surfaces.
-fn establish_single_binary(canonical: &Path, secondary: &Path) -> Result<()> {
+pub(crate) fn establish_single_binary(canonical: &Path, secondary: &Path) -> Result<()> {
     let source = if is_real_binary(canonical) {
         canonical.to_path_buf()
     } else if is_real_binary(secondary) {
@@ -197,22 +210,7 @@ async fn provision_wasm_sysroots(toolchains_dir: &Path, rust_version: &str) -> R
     Ok(())
 }
 
-pub async fn run_proxy(args: &[String]) -> Result<()> {
-    info!("Proxy execution intercept. Setting up hermetic environment...");
-    let vox_dir = home_dir().join(".vox");
-
-    let old_path = std::env::var("PATH").unwrap_or_default();
-    let new_path = format!(
-        "{}:{}",
-        vox_dir.join("toolchains").join("bin").display(),
-        old_path
-    );
-    // SAFETY: single-threaded at this point; proxy entrypoint runs before any thread is spawned.
-    unsafe { std::env::set_var("PATH", new_path) };
-
-    info!("Forwarding args to target: {:?}", args);
-    Ok(())
-}
+// Removed run_proxy (now in proxy.rs)
 
 #[cfg(test)]
 mod tests {

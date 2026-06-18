@@ -43,7 +43,7 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Proxy { args } => {
             info!("voxup proxy intercept: forwarding args: {:?}", args);
-            install::run_proxy(args).await?;
+            proxy::run_proxy(args).await?;
         }
     }
 
