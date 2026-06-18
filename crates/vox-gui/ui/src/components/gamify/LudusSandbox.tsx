@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { projectIso } from '../../lib/projection';
-import { PathNode } from './CitizenSprite';
 import { HudPanels } from './HudPanels';
 
 export interface GridPlot {
@@ -77,14 +76,18 @@ export const LudusSandbox: React.FC<SandboxProps> = ({ files }) => {
   // Main rendering loop blitting offscreen to onscreen with transforms
   useEffect(() => {
     const canvas = canvasRef.current;
-    const offscreen = offscreenCanvasRef.current;
-    if (!canvas || !offscreen) return;
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     let frameId: number;
 
     const render = () => {
+      const offscreen = offscreenCanvasRef.current;
+      if (!offscreen) {
+        frameId = requestAnimationFrame(render);
+        return;
+      }
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.save();
       

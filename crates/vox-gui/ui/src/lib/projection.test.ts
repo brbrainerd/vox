@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { projectIso, getZIndex } from './projection';
+import { projectIso, getZIndex, unprojectIso } from './projection';
 
 describe('Isometric Projection', () => {
   it('correctly projects 3D coordinates to 2D pixels', () => {
@@ -22,5 +22,16 @@ describe('Isometric Projection', () => {
   it('correctly computes depth zIndex based on tile distance', () => {
     expect(getZIndex(0, 0)).toBe(0);
     expect(getZIndex(2.5, 3.1)).toBe(5);
+  });
+
+  it('correctly unprojects screen pixels back to 3D grid coords', () => {
+    const tileWidth = 64;
+    const tileHeight = 32;
+    const offsetX = 300;
+    const offsetY = 150;
+
+    const { x, y } = unprojectIso(268, 230, tileWidth, tileHeight, offsetX, offsetY);
+    expect(Math.round(x)).toBe(2);
+    expect(Math.round(y)).toBe(3);
   });
 });

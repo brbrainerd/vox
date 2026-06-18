@@ -31,3 +31,29 @@ export function projectIso(
 export function getZIndex(x: number, y: number): number {
   return Math.floor(x + y);
 }
+
+/**
+ * Reverses a 2D screen coordinate (px, py) back to 3D grid coordinate (x, y) assuming z = 0.
+ */
+export function unprojectIso(
+  px: number,
+  py: number,
+  tileWidth: number,
+  tileHeight: number,
+  offsetX: number,
+  offsetY: number
+): { x: number; y: number } {
+  const tileWidthHalf = tileWidth / 2;
+  const tileHeightHalf = tileHeight / 2;
+
+  const dx = px - offsetX;
+  const dy = py - offsetY;
+
+  const A = dx / tileWidthHalf;
+  const B = dy / tileHeightHalf;
+
+  const x = (A + B) / 2;
+  const y = (B - A) / 2;
+
+  return { x, y };
+}
