@@ -26,14 +26,14 @@ Currently, when a corpus is reported as `stale` due to `graph_missing` or `git_d
 scripts/graphify-refresh.vox → rebuild_full_graph.py → python -m graphify
 ```
 
-The Python-side `graphify` library depends on:
+The Python-side `graphify` module (distributed as `graphifyy` on PyPI) depends on:
 1. **Parser & Extractor:** Python `tree-sitter` bindings to walk directories and extract function decls, references, and imports.
 2. **Graph Builder:** `networkx` to represent the node-link graph structure in-memory.
 3. **Clustering Engine:** `graspologic` (which wraps C++ implementations) to run the **Leiden** community detection algorithm.
 4. **Export Engine:** Outputs the nested JSON schema matching the contract registry.
 
 ### Limitations of the Hybrid Approach
-- **Developer Onboarding Friction:** Requires a Python runtime, `pip install graphifyy`, and correct compiler tools for native C++ graspologic extensions on Windows (which frequently fails on MSVC compiler boundaries).
+- **Developer Onboarding Friction:** Requires a Python runtime, `pip install graphifyy` (the PyPI package name), and correct compiler tools for native C++ graspologic extensions on Windows (which frequently fails on MSVC compiler boundaries).
 - **Runtime Performance & File Locks:** Windows file locks prevent Cargo from compiling while `vox` runs the python interpreter, complicating dev loops.
 - **FinOps Cost:** Document/multimodal extractors call external LLM APIs, tracking token usage via an ad-hoc `cost.json` file rather than Vox's unified `vox-telemetry` cost accounting.
 
