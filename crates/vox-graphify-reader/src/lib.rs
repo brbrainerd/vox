@@ -120,6 +120,11 @@ impl GraphifyReader {
             }
         }
 
+        for neighbors in adjacency.values_mut() {
+            neighbors.sort();
+            neighbors.dedup();
+        }
+
         Ok(GraphifyReader { nodes, adjacency })
     }
 

@@ -35,7 +35,11 @@ fn load_graphify_corpora_reads_workspace_contract() {
     let reg = load_graphify_corpora(tmp.path()).expect("load");
     assert_eq!(reg.default_corpus_id, "repo-code-graph");
     assert_eq!(reg.ttl_days_default, 30);
-    assert_eq!(reg.corpora.len(), 4, "expected 4 corpora after adding graphify-search-log");
+    assert_eq!(
+        reg.corpora.len(),
+        4,
+        "expected 4 corpora after adding graphify-search-log"
+    );
     assert!(
         reg.corpora.iter().any(|c| c.id == "graphify-search-log"),
         "graphify-search-log must be present in registry"
@@ -59,6 +63,27 @@ fn assess_reports_graph_missing_when_file_absent() {
     assert!(!status.graph_exists);
     assert!(!status.is_fresh);
     assert!(status.stale_reasons.iter().any(|r| r == "graph_missing"));
+}
+
+#[test]
+fn assess_reports_graph_corrupt_when_file_invalid() {
+    let tmp = tempfile::tempdir().unwrap();
+    write_minimal_registry(tmp.path());
+    let graph_dir = tmp.path().join("graphify-out");
+    fs::create_dir_all(&graph_dir).unwrap();
+    fs::write(graph_dir.join("graph.json"), r#"{"nodes": ["invalid":}"#).unwrap();
+    let reg = load_graphify_corpora(tmp.path()).unwrap();
+    let corpus = corpus_by_id(&reg, "repo-code-graph");
+    let status = assess_corpus_status(
+        tmp.path(),
+        corpus,
+        None,
+        Utc.with_ymd_and_hms(2026, 6, 16, 12, 0, 0).unwrap(),
+        30,
+    );
+    assert!(status.graph_exists);
+    assert!(!status.is_fresh);
+    assert!(status.stale_reasons.iter().any(|r| r == "graph_corrupt"));
 }
 
 #[test]

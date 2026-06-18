@@ -354,10 +354,16 @@ pub fn assess_corpus_status(
         .flatten();
 
     let (node_count, edge_count, built_at, manifest_git_sha) = if graph_exists {
-        let stats = fs::read_to_string(&graph_path)
+        let raw_res = fs::read_to_string(&graph_path);
+        let parse_res = raw_res
             .ok()
-            .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
-            .and_then(|v| graph_stats_from_json(&v));
+            .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok());
+        let stats = parse_res.as_ref().and_then(|v| graph_stats_from_json(v));
+
+        if parse_res.is_none() || stats.is_none() {
+            stale_reasons.push("graph_corrupt".into());
+        }
+
         let (n, e) = stats.unwrap_or((0, 0));
         let built = manifest
             .as_ref()

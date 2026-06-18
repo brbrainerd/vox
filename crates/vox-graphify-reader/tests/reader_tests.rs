@@ -180,3 +180,17 @@ fn reader_accepts_edges_key_as_alias_for_links() {
     let g = GraphifyReader::from_value(graph).unwrap();
     assert_eq!(g.edge_count(), 1);
 }
+
+#[test]
+fn reader_deduplicates_bidirectional_and_duplicate_links() {
+    let graph = serde_json::json!({
+        "nodes": [{"id": "x"}, {"id": "y"}],
+        "links": [
+            {"source": "x", "target": "y"},
+            {"source": "y", "target": "x"},
+            {"source": "x", "target": "y"}
+        ]
+    });
+    let g = GraphifyReader::from_value(graph).unwrap();
+    assert_eq!(g.edge_count(), 1);
+}
