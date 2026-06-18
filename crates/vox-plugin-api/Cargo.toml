@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Shared API surface for Vox plugins: ABI version, traits, manifest types, error types."
+readme = "README.md"
 
 [dependencies]
 vox-plugin-types = { workspace = true }
