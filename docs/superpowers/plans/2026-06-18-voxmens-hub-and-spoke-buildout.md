@@ -472,7 +472,7 @@ git add crates/vox-populi/src/mens/tensor/spoke_validate.rs crates/vox-populi/sr
 git commit -m "feat(mens): spoke SSOT validator (fine-tune needs mix+preset; paths must exist)"
 ```
 
-> **Note on arch-check integration:** wiring `validate()` into `vox-arch-check`'s `main.rs` is a one-line call but `vox-arch-check` must not depend on `vox-populi` if that creates a layer violation. **Verify first:** `rg -n "vox-populi" crates/vox-arch-check/Cargo.toml`. If absent, do NOT add the dep here — instead expose validation through a tiny `vox ci spoke-check` subcommand in `vox-ml-cli` (which already depends on `vox-populi`). Decide via the `brainstorming` micro-skill (§A) and record the choice in the commit body. This keeps the layer graph clean.
+> **RESOLVED (layer check done 2026-06-18):** do **NOT** wire `validate()` into `vox-arch-check`. `vox-arch-check` is **layer 0** (`layers.toml:92`) and depends only on `cargo_metadata`/`toml`/`serde`; `vox-populi` is **layer 3** (`layers.toml:167`). A layer-0→layer-3 dependency is a hard layer violation. Instead expose validation through a new **`vox ci spoke-check`** subcommand in `vox-ml-cli` (layer 3, already deps `vox-populi`) — add it in this task: a thin command that calls `DomainProfilesFile::load(..)` → `spoke_validate::validate(..)` and exits non-zero on any violation. Add `vox ci spoke-check` to the pre-push/CI gate list so drift fails CI exactly as arch-check would.
 
 ### Task 1.5: Declare the three spokes in `domain-profiles.yaml` [PARALLEL-SAFE]
 
@@ -713,7 +713,7 @@ git commit -m "feat(mens): check_run handlers for rust_compile_rate/clippy_clean
 - Modify: `crates/vox-corpus/src/corpus/mod.rs`
 - Test: inline.
 
-Context: compute `tool_call_valid_json_rate` (model output parses as a tool-call JSON object with required keys) and `tool_name_exists_rate` (the emitted `tool_name` is in the **live Vox tool registry**). **`tool_name_exists_rate` needs the registry** — verify how tools are enumerated (`rg -n "tool registry|registered tool|ToolRegistry|available_tools" crates/ --type rust | head`) and inject that set; if no enumerable registry exists, **drop this metric to non-blocking and write a handoff note** (do not fabricate a tool list).
+Context: compute `tool_call_valid_json_rate` (model output parses as a tool-call JSON object with required keys) and `tool_name_exists_rate`. **RESOLVED (2026-06-18): an enumerable registry exists** — `vox_mcp_registry::TOOL_REGISTRY` / `TOOL_REGISTRY_SLIM` (auto-derived by `vox-corpus/build.rs`; verify with `rg -n "TOOL_REGISTRY" crates/vox-corpus/src/synthetic_gen/mod.rs crates/vox-mcp-registry/src`). So `tool_name_exists_rate` is a **hard (blocking) gate**: an emitted `tool_name` must be in that set. Inject the registry slice; do not fabricate a list.
 
 - [ ] **Step 1: Write the failing test**
 ```rust
@@ -758,7 +758,7 @@ git commit -m "feat(corpus): agentic eval metric producer (tool-call JSON validi
 
 - [ ] **Step 1:** Failing test: `eval_results.json` with `tool_call_valid_json_rate: 0.85` + gate `eval-gates-agents.yaml` → expect a passing `GateResult`.
 - [ ] **Step 2:** Run → FAIL.
-- [ ] **Step 3:** Add handler(s) mirroring the Task 2.1b pattern; keep `tool_name_exists_rate` non-blocking if its producer was dropped.
+- [ ] **Step 3:** Add handlers for BOTH `tool_call_valid_json_rate` and `tool_name_exists_rate` (the registry exists — both are blocking per `eval-gates-agents.yaml`), mirroring the Task 2.1b pattern.
 - [ ] **Step 4:** Run → PASS.
 - [ ] **Step 5: Commit**
 ```bash
@@ -1348,9 +1348,9 @@ git commit -m "feat(mens): wire rust_authoring lane into mix-rust (strict source
 
 Context: emit rows in the existing `tool_trace`-compatible shape so `normalize_training_jsonl_line(.., Some("tool_trace"))` consumes them. Reuse `ToolTraceRecord` (verified — exactly 7 fields: `task_prompt`, `tool_name`, `arguments_json`, `result_json`, `success`, `followup_text`, `session_id`).
 
-> **REVIEW FIX (design):** the spoke must learn the **Vox harness surface** (`vox.exe` subcommands, Vox skills/discovery registries) — **not** Claude Code's `Skill` tool. Training on a foreign tool surface teaches the model to call tools that do not exist in its runtime. Source `tool_name`/`arguments` from the **real Vox CLI command tree and skill registry**, enumerated from the codebase.
+> **REVIEW FIX + REUSE (2026-06-18):** the spoke must learn the **Vox harness surface** — **not** Claude Code's `Skill` tool. Crucially, **synthesis machinery already exists**: `vox-corpus` has `generate_tool_pairs(&mut buf, TOOL_REGISTRY_SLIM, cfg)` plus `ORCHESTRATOR_TOOLS` / `SKILL_TOOLS` constants (auto-derived from `vox_mcp_registry::TOOL_REGISTRY` by `build.rs`). **Prefer extending/reusing that over writing new synthesis.** This task adds only what's missing (skill/CLI-discovery pairs not already covered), tagged lane `vox_tooling`/`vox_dogfood_agent`.
 
-- [ ] **Step 1: Enumerate the real Vox tool surface** — `rg -n "Subcommand|#\[command|fn run\(.*Action" crates/vox-cli/src crates/vox-ml-cli/src | head -40` and locate the skill registry (`rg -n "SKILL.md|skill registry|register.*skill" crates/vox-skills/src crates/ --type rust | head`). Build the candidate `(command, args)` set from these. Do not invent commands.
+- [ ] **Step 1: Inventory what synthesis already exists, then fill only the gap** — `rg -n "generate_tool_pairs|TOOL_REGISTRY_SLIM|ORCHESTRATOR_TOOLS|SKILL_TOOLS" crates/vox-corpus/src/synthetic_gen`. If `generate_tool_pairs` already covers MCP tools, your new code should (a) route its output into `mix-agents.yaml`'s sources, and (b) add only skill-invocation / CLI-discovery pairs it omits. Build candidate `(command, args)` from `TOOL_REGISTRY_SLIM` + the skill registry (`vox_skills::SkillRegistry`); do not invent commands.
 
 - [ ] **Step 2: Write the failing test**
 ```rust
@@ -1785,3 +1785,8 @@ Applied after a Rust-ecosystem review of the embedded code:
 - **Correct tool surface.** Task 5.1 synthesizes the **Vox** CLI/skill surface, not Claude's `Skill` tool.
 - **Diversity gate wired.** Task 5.3 now actually calls `eval_semantic_entropy` (Step 3) and de-duplicates a redundant serialization.
 - `ToolTraceRecord` literal confirmed complete (7 fields); speculative `// NOTE` removed.
+
+**Follow-ups resolved (2026-06-18):**
+- **Validator placement (Task 1.4):** arch-check is layer 0, vox-populi is layer 3 → wiring it there is a layer violation. Resolved to a new **`vox ci spoke-check`** subcommand in `vox-ml-cli` (layer 3), added to the CI/pre-push gate list.
+- **`tool_name_exists_rate` (Tasks 2.2a/b):** an enumerable registry exists (`vox_mcp_registry::TOOL_REGISTRY` / `vox-corpus TOOL_REGISTRY_SLIM`) → promoted from "drop if absent" to a **hard blocking gate**.
+- **Agentic synthesis reuse (Task 5.1):** `vox-corpus` already has `generate_tool_pairs` over `TOOL_REGISTRY_SLIM` + `ORCHESTRATOR_TOOLS`/`SKILL_TOOLS` → reuse/extend rather than rebuild; new code fills only skill/CLI-discovery gaps.
