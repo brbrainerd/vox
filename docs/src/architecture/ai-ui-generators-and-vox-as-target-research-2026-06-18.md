@@ -3,7 +3,7 @@ title: "AI UI Generators (v0.dev, Claude Design, Bolt, Lovable) — How They Wor
 description: "How modern AI UI generators produce interfaces, why they default to generic/rule-breaking output, and the concrete strategy for making Vox/VUV an ideal target they can emit into — with compile-time contrast/occlusion/accessibility guarantees exposed via a component registry and MCP. Includes a Vox readiness audit and the top gaps."
 category: "Architecture SSOTs"
 status: "current"
-last_updated: "2026-06-18"
+training_eligible: true
 ---
 
 # AI UI Generators & Vox-as-Target Strategy
@@ -82,7 +82,7 @@ The winning position for Vox is the inverse of everyone else's: **don't ask the 
 - **Escape-hatch matrix** (gap 5): document/lint exactly which guarantees `raw_class`/`raw_css` bypass; consider gating them behind an `@unsafe` marker so unsafe UI is visible.
 - **shadcn-registry compatibility:** shape the registry to the de-facto standard so "Open in v0"-style flows and shadcn-MCP-aware agents work with minimal glue.
 
-This becomes **Track C** in the [Vox design doc](automatic-gui-and-debugging-vox-design-2026-06-18.md) and the plan `../superpowers/plans/2026-06-18-track-c-vox-as-ai-ui-target.md`.
+This becomes **Track C** in the [Vox design doc](automatic-gui-and-debugging-vox-design-2026-06-18.md) and the plan `../../superpowers/plans/2026-06-18-track-c-vox-as-ai-ui-target.md`.
 
 ## 6b. Modular rule engine + design-system interop (SSOT) ★★★
 

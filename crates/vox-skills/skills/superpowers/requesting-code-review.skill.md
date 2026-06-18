@@ -17,7 +17,7 @@ A focused review pass before a change is committed. For an autonomous executor t
 2. **No stubs:** Did I add any stub, placeholder, TODO, or hollow function? Forbidden (see `AGENTS.md` / no-stubs policy). Scope down to a smaller real artifact instead.
 3. **Scope fidelity:** Does the change match the task's stated Files block exactly? No unrelated edits, no scope creep.
 4. **DRY:** Did I duplicate logic that already exists? Reuse it instead.
-5. **House rules:** VoxScript-first automation; no `cargo fmt --all`; `docs/src/` `.md` has frontmatter; TOESTUB limits respected.
+5. **House rules:** VoxScript-first automation; no `cargo fmt --all`; `docs/src/` `.md` has frontmatter with required keys `title`, `description`, `category`, `status`, `training_eligible`; TOESTUB limits respected.
 6. **Tests prove behavior:** Is there a test that actually exercises the new behavior (not just compiles)?
 
 Fix issues inline; do not expand scope. If a finding is large, surface it rather than silently fixing.
