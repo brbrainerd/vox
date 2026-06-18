@@ -401,6 +401,12 @@ pub fn assess_corpus_status(
         stale_reasons.push("ttl_expired".into());
     }
 
+    if let Some(ref m) = manifest {
+        if let Some(reason) = lexical_lag_stale_reason(m) {
+            stale_reasons.push(reason);
+        }
+    }
+
     if let (Some(m), Some(nc), Some(ec)) = (&manifest, node_count, edge_count) {
         if let Some(expected) = m.node_count
             && expected != nc

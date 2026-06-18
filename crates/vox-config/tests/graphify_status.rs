@@ -69,7 +69,7 @@ fn assess_reports_graph_missing_when_file_absent() {
 fn assess_reports_graph_corrupt_when_file_invalid() {
     let tmp = tempfile::tempdir().unwrap();
     write_minimal_registry(tmp.path());
-    let graph_dir = tmp.path().join("graphify-out");
+    let graph_dir = tmp.path().join(".vox/cache/graphify/repo-code-graph");
     fs::create_dir_all(&graph_dir).unwrap();
     fs::write(graph_dir.join("graph.json"), r#"{"nodes": ["invalid":}"#).unwrap();
     let reg = load_graphify_corpora(tmp.path()).unwrap();
@@ -90,7 +90,7 @@ fn assess_reports_graph_corrupt_when_file_invalid() {
 fn assess_fresh_when_graph_present_and_git_sha_matches() {
     let tmp = tempfile::tempdir().unwrap();
     write_minimal_registry(tmp.path());
-    let graph_dir = tmp.path().join("graphify-out");
+    let graph_dir = tmp.path().join(".vox/cache/graphify/repo-code-graph");
     fs::create_dir_all(&graph_dir).unwrap();
     fs::write(
         graph_dir.join("graph.json"),
@@ -128,7 +128,7 @@ fn assess_fresh_when_graph_present_and_git_sha_matches() {
 fn assess_stale_on_git_drift() {
     let tmp = tempfile::tempdir().unwrap();
     write_minimal_registry(tmp.path());
-    let graph_dir = tmp.path().join("graphify-out");
+    let graph_dir = tmp.path().join(".vox/cache/graphify/repo-code-graph");
     fs::create_dir_all(&graph_dir).unwrap();
     fs::write(graph_dir.join("graph.json"), r#"{"nodes":[],"links":[]}"#).unwrap();
     fs::write(
@@ -235,7 +235,7 @@ fn no_lexical_lag_when_ingest_sha_absent() {
 fn assess_reports_lexical_lag_when_manifest_sha_mismatch() {
     let tmp = tempfile::tempdir().unwrap();
     write_minimal_registry(tmp.path());
-    let graph_dir = tmp.path().join("graphify-out");
+    let graph_dir = tmp.path().join(".vox/cache/graphify/repo-code-graph");
     fs::create_dir_all(&graph_dir).unwrap();
     fs::write(
         graph_dir.join("graph.json"),
@@ -260,6 +260,9 @@ fn assess_reports_lexical_lag_when_manifest_sha_mismatch() {
         30,
     );
     assert!(!status.is_fresh);
-    assert!(status.stale_reasons.iter().any(|r| r == "lexical_lag"), "stale reasons were: {:?}", status.stale_reasons);
+    assert!(
+        status.stale_reasons.iter().any(|r| r == "lexical_lag"),
+        "stale reasons were: {:?}",
+        status.stale_reasons
+    );
 }
-
