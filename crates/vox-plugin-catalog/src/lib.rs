@@ -5,7 +5,7 @@
 pub mod docs;
 pub mod schema;
 
-use schema::{BundleEntry, Component, PluginCatalogEntry};
+use schema::{BundleEntry, Component, PluginCatalogEntry, SkillBundleEntry};
 use serde::Deserialize;
 use std::sync::OnceLock;
 
@@ -20,6 +20,8 @@ struct CatalogFile {
     bundles: Vec<BundleEntry>,
     #[serde(default, rename = "component")]
     components: Vec<Component>,
+    #[serde(default, rename = "skill-bundle")]
+    skill_bundles: Vec<SkillBundleEntry>,
 }
 
 fn parsed() -> &'static CatalogFile {
@@ -45,6 +47,11 @@ pub fn all_bundles() -> &'static [BundleEntry] {
 /// standalone executables installed on demand and never built for CLI-only users.
 pub fn all_components() -> &'static [Component] {
     &parsed().components
+}
+
+/// All bundled interop skills declared in `catalog.toml` (`[[skill-bundle]]`).
+pub fn all_skill_bundles() -> &'static [SkillBundleEntry] {
+    &parsed().skill_bundles
 }
 
 use thiserror::Error;
@@ -98,4 +105,45 @@ pub fn bundle_resolved(id: &str) -> Result<Vec<&'static PluginCatalogEntry>, Res
         }
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod bundle_membership_tests {
+    use super::bundle_resolved;
+
+    #[test]
+    fn vox_server_bundle_includes_runtime_container() {
+        let plugins =
+            bundle_resolved("vox-server").expect("vox-server bundle must resolve without error");
+        assert!(
+            plugins.iter().any(|p| p.id == "runtime-container"),
+            "expected runtime-container in vox-server bundle; got: {:?}",
+            plugins.iter().map(|p| p.id.as_str()).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn vox_server_bundle_preserves_existing_members() {
+        // Regression guard: adding runtime-container must not evict existing plugins.
+        let plugins =
+            bundle_resolved("vox-server").expect("vox-server bundle must resolve without error");
+        let ids: Vec<&str> = plugins.iter().map(|p| p.id.as_str()).collect();
+        for required in [
+            "populi-mesh",
+            "skill-orchestrator",
+            "skill-memory",
+            "webhook",
+        ] {
+            assert!(
+                ids.contains(&required),
+                "existing member '{required}' was evicted from vox-server bundle; current: {ids:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn vox_server_bundle_resolves_without_error() {
+        // Sanity: every plugin id listed in vox-server must exist in all_plugins().
+        bundle_resolved("vox-server").expect("vox-server bundle should resolve cleanly");
+    }
 }

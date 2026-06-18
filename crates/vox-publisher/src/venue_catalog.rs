@@ -36,6 +36,12 @@ pub struct VenueEntry {
     pub target_atlas: Option<String>,
     #[serde(default)]
     pub living_review: bool,
+    #[serde(default = "default_allows_llm_critic")]
+    pub allows_llm_critic: bool,
+}
+
+fn default_allows_llm_critic() -> bool {
+    false
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

@@ -1,3 +1,5 @@
+#![cfg(feature = "legacy-import")]
+
 //! Behavior proofs for `import_orchestrator_memory_dir` (semantic-coverage Wave 1).
 //!
 //! Proves the non-directory error path and the markdown-only counting edge —

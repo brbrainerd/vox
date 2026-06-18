@@ -41,3 +41,15 @@ fn scrape_call_in_fn_gives_cr_f4_diagnostic() {
         "Expected CR-F4 diagnostic for Scrape, got: {result}"
     );
 }
+
+#[test]
+fn agent_call_in_fn_gives_cr_f4_diagnostic() {
+    let result = eval_fn_main(
+        // vox:skip — Agent requires compiled backend
+        "fn main() { let r = Agent.call(\"generate\", {}) }\n",
+    );
+    assert!(
+        result.contains("compiled builds") || result.contains("native-codegen-only"),
+        "Expected CR-F4 diagnostic for Agent, got: {result}"
+    );
+}

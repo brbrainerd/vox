@@ -6,7 +6,6 @@ use vox_db::Codex;
 use vox_search::crag::CragRouter;
 use vox_search::memory_hybrid::HybridSearchHit;
 use vox_search::policy::SearchPolicy;
-use vox_search::web_dispatcher::WebSearchDispatcher;
 use vox_search::{
     RetrievalTriggerMode, SearchExecution, SearchRuntimeContext, run_search_with_verification,
 };
@@ -38,6 +37,102 @@ fn research_hit_from_hybrid(hit: HybridSearchHit) -> ResearchHit {
         http_status: 0,
         trust_score: 1.0,
         raw_content: String::new(),
+    }
+}
+
+/// Attempt LLM-driven CRAG query expansion. Returns `None` on any failure.
+pub(super) async fn try_llm_query_expansion(
+    original_query: &str,
+    top_snippets: &[String],
+    config: &super::config::ResearchConfig,
+) -> Option<Vec<String>> {
+    use vox_actor_runtime::ActivityOptions;
+    use vox_actor_runtime::llm::LlmChatMessage;
+    use vox_actor_runtime::llm::cascade::{
+        ResearchStage, cascade_with_optional_manual, chat_with_cascade,
+    };
+    use vox_actor_runtime::model_resolution::RouteResolutionInput;
+
+    let snippets_text = top_snippets
+        .iter()
+        .take(5)
+        .enumerate()
+        .map(|(i, s)| format!("{}. {}", i + 1, s.chars().take(300).collect::<String>()))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let user_msg = format!(
+        "Research question: {original_query}\n\nEvidence so far:\n{snippets_text}\n\n\
+        Identify 2-4 specific follow-up search queries covering the most important missing \
+        aspects. Output ONLY valid JSON:\n{{\"followup_queries\": [\"query 1\", \"query 2\"]}}"
+    );
+
+    let messages = vec![
+        LlmChatMessage {
+            role: "system".to_string(),
+            content: "You are a research gap analyst. Generate precise follow-up search \
+                      queries to fill knowledge gaps. Output only valid JSON."
+                .to_string(),
+        },
+        LlmChatMessage {
+            role: "user".to_string(),
+            content: user_msg,
+        },
+    ];
+
+    let candidates = cascade_with_optional_manual(
+        ResearchStage::Planner,
+        &RouteResolutionInput::default(),
+        config.llm_endpoint.as_deref(),
+        config.api_key.as_deref(),
+        Some(&config.planner_model),
+    );
+
+    let opts = ActivityOptions::default();
+    let Ok(response) =
+        chat_with_cascade(&opts, messages, candidates, Some(ResearchStage::Planner)).await
+    else {
+        tracing::warn!("LLM query expansion cascade failed to generate chat completion");
+        return None;
+    };
+
+    let text = response.content.trim();
+    let Some(start) = text.find('{') else {
+        tracing::warn!(raw_response = %text, "LLM query expansion response did not contain '{{'");
+        return None;
+    };
+    let Some(end) = text.rfind('}') else {
+        tracing::warn!(raw_response = %text, "LLM query expansion response did not contain '}}'");
+        return None;
+    };
+    if start > end {
+        tracing::warn!(start, end, "LLM query expansion brace indices are invalid");
+        return None;
+    }
+    let json_str = &text[start..=end];
+
+    #[derive(serde::Deserialize)]
+    struct Expansion {
+        followup_queries: Vec<String>,
+    }
+    let parsed: Expansion = match serde_json::from_str(json_str) {
+        Ok(p) => p,
+        Err(err) => {
+            tracing::warn!(error = %err, json = %json_str, "LLM query expansion JSON parsing failed");
+            return None;
+        }
+    };
+    let queries: Vec<String> = parsed
+        .followup_queries
+        .into_iter()
+        .filter(|q| !q.trim().is_empty())
+        .collect();
+
+    if queries.is_empty() {
+        tracing::warn!("LLM query expansion returned empty list of queries");
+        None
+    } else {
+        Some(queries)
     }
 }
 
@@ -140,30 +235,24 @@ fn host_matches_site_scope(url: &str, site_scope: &str) -> bool {
 async fn search_one_subquery(
     subquery: &str,
     policy: &SearchPolicy,
+    registry: &ProviderRegistry,
     site_scope: Option<&str>,
     seen_urls: &mut HashSet<String>,
     all_hits: &mut Vec<ResearchHit>,
 ) -> (usize, usize) {
-    match WebSearchDispatcher::search(subquery, policy).await {
-        Ok(hybrids) => {
-            let attempted = hybrids.len().max(1);
-            let mut accepted = 0usize;
-            for h in hybrids {
-                let rh = research_hit_from_hybrid(h);
-                if let Some(scope) = site_scope
-                    && !host_matches_site_scope(&rh.url, scope)
-                {
-                    continue;
-                }
-                if seen_urls.insert(rh.url.clone()) {
-                    all_hits.push(rh);
-                    accepted += 1;
-                }
-            }
-            (attempted, accepted)
-        }
-        Err(_) => (1usize, 0usize),
+    let (mut hits, _) = registry.search(subquery, policy).await;
+    if let Some(scope) = site_scope {
+        hits.retain(|hit| host_matches_site_scope(&hit.url, scope));
     }
+    let attempted = hits.len().max(1);
+    let mut accepted = 0usize;
+    for hit in hits {
+        if seen_urls.insert(hit.url.clone()) {
+            all_hits.push(hit);
+            accepted += 1;
+        }
+    }
+    (attempted, accepted)
 }
 
 fn avg_score(hits: &[ResearchHit]) -> f64 {
@@ -180,9 +269,8 @@ pub(super) async fn gather_web_hits_for_plan(
     plan: &ResearchPlan,
     registry: &ProviderRegistry,
     policy: &SearchPolicy,
+    config: &super::config::ResearchConfig,
 ) -> (Vec<ResearchHit>, usize, usize, usize) {
-    let _ = registry;
-
     if matches!(query.scope, ResearchScope::Local) {
         return (Vec::new(), 0, 0, 0);
     }
@@ -198,9 +286,35 @@ pub(super) async fn gather_web_hits_for_plan(
     let mut subqueries_with_hits = 0usize;
     let mut total_sources_attempted = 0usize;
 
+    // Optional Tavily /research tier (VOX_TAVILY_RESEARCH=1).
+    for row in vox_search::tavily_research::try_tavily_research_hits(&query.query).await {
+        let rh = research_hit_from_hybrid(HybridSearchHit {
+            path: row.url.clone(),
+            title: row.title.clone(),
+            content_snippet: row.content.clone(),
+            score: row.score.unwrap_or(0.85),
+            provenance: vec![
+                "research_web_gather".to_string(),
+                "engine:tavily_research".to_string(),
+            ],
+            potential_contradiction: false,
+        });
+        if seen_urls.insert(rh.url.clone()) {
+            all_hits.push(rh);
+            total_sources_attempted += 1;
+        }
+    }
+
     for sq in &plan.subqueries {
-        let (att, got) =
-            search_one_subquery(sq, policy, site_scope, &mut seen_urls, &mut all_hits).await;
+        let (att, got) = search_one_subquery(
+            sq,
+            policy,
+            registry,
+            site_scope,
+            &mut seen_urls,
+            &mut all_hits,
+        )
+        .await;
         total_sources_attempted += att;
         if got > 0 {
             subqueries_with_hits += 1;
@@ -218,15 +332,28 @@ pub(super) async fn gather_web_hits_for_plan(
         }
 
         let hybrids: Vec<HybridSearchHit> = all_hits.iter().map(hybrid_from_research).collect();
-        let refined = CragRouter::expand_queries_from_partial_evidence(&query.query, &hybrids);
+        let top_snippets: Vec<String> = all_hits.iter().map(|h| h.snippet.clone()).collect();
+        let llm_queries = try_llm_query_expansion(&query.query, &top_snippets, config).await;
+        let refined = CragRouter::expand_queries_with_llm_or_heuristic(
+            &query.query,
+            &hybrids,
+            llm_queries.as_deref(),
+        );
         if refined.is_empty() {
             break;
         }
 
         let mut any_new = false;
         for rq in refined {
-            let (att, got) =
-                search_one_subquery(&rq, policy, site_scope, &mut seen_urls, &mut all_hits).await;
+            let (att, got) = search_one_subquery(
+                &rq,
+                policy,
+                registry,
+                site_scope,
+                &mut seen_urls,
+                &mut all_hits,
+            )
+            .await;
             total_sources_attempted += att;
             if got > 0 {
                 subqueries_with_hits += 1;
@@ -344,6 +471,7 @@ mod tests {
             subqueries: vec![query.query.clone()],
             scope: ResearchScope::Local,
             max_sources_per_subquery: 5,
+            planner_degraded: false,
         };
 
         let policy = SearchPolicy::from_env();
@@ -355,5 +483,35 @@ mod tests {
             hits.iter()
                 .any(|hit| hit.url.starts_with("repo://") || hit.url.starts_with("vox://"))
         );
+    }
+
+    #[test]
+    fn parses_llm_expansion_json_correctly() {
+        let json = r#"{"followup_queries": ["query A", "query B", ""]}"#;
+        #[derive(serde::Deserialize)]
+        struct Expansion {
+            followup_queries: Vec<String>,
+        }
+        let parsed: Expansion = serde_json::from_str(json).unwrap();
+        let filtered: Vec<String> = parsed
+            .followup_queries
+            .into_iter()
+            .filter(|q| !q.trim().is_empty())
+            .collect();
+        assert_eq!(filtered, vec!["query A", "query B"]);
+    }
+
+    #[test]
+    fn strips_markdown_fences_to_find_json() {
+        let raw = "```json\n{\"followup_queries\": [\"q1\"]}\n```";
+        let start = raw.find('{').unwrap();
+        let end = raw.rfind('}').unwrap();
+        let json_str = &raw[start..=end];
+        #[derive(serde::Deserialize)]
+        struct Expansion {
+            followup_queries: Vec<String>,
+        }
+        let parsed: Expansion = serde_json::from_str(json_str).unwrap();
+        assert_eq!(parsed.followup_queries, vec!["q1"]);
     }
 }

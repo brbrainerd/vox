@@ -1,4 +1,5 @@
 //! Stable sorted list of `vox …` command paths from [`vox_cli::command_catalog::build_catalog`].
+// Cache invalidate: 1
 //!
 //! Intentional command-surface changes: refresh the fixture:
 //! `UPDATE_CLI_CATALOG_BASELINE=1 cargo test -p vox-cli --test command_catalog_paths_baseline`

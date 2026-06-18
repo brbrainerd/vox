@@ -143,6 +143,21 @@ pub async fn upload_pending(
         if status.is_success() {
             ack(&p)?;
             ok += 1;
+
+            #[cfg(feature = "vox-gamify")]
+            {
+                if let Ok(db) = vox_db::Codex::connect_default().await {
+                    let ev = serde_json::json!({
+                        "type": "telemetry_shared",
+                        "source": "vox-telemetry",
+                        "payload": { "bytes_shared": raw.len() },
+                    });
+                    if let Err(e) = vox_gamify::event_router::route_event_auto_user(&db, &ev).await
+                    {
+                        tracing::debug!(error = %e, "failed to route telemetry_shared event");
+                    }
+                }
+            }
         } else {
             let text = resp.text().await.unwrap_or_default();
             tracing::warn!(

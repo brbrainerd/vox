@@ -6,6 +6,7 @@
 
 #[cfg(test)]
 mod semcov_wave30_tests {
+    #![allow(clippy::module_inception)]
     use crate::corpus::coverage::analyse_str_with_taxonomy;
     use crate::corpus::mix::{
         ASR_REFINE_INSTRUCTION, SPEECH_TO_CODE_INSTRUCTION, normalize_training_jsonl_line,

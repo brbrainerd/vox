@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { InputEditor } from './InputEditor';
 import { DiscoveryRail } from './DiscoveryRail';
 import { TerminalTab, type PendingLine } from './TerminalTab';
@@ -6,11 +6,27 @@ import { AgentStrip, type AgentChip } from './AgentStrip';
 import { AgentTab } from './AgentTab';
 import { SendToAgent } from './SendToAgent';
 import { renderBlockForAgent, type Block } from './osc633';
-import { listenOrchStatus, sendToAgent } from '../../../transport';
+import { sendToAgent } from '../../../transport';
+import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import { Button } from '../../ui/Button';
+import {
+  orchestratorStatusErrorMessage,
+  useOrchestratorStatus,
+} from '../../../hooks/useOrchestratorStatus';
+import type { OrchestratorStatus, RawAgentSummary } from '../../../types/tauri';
+import { viz } from '../../../lib/visualTokens';
+
+function agentsFromStatus(status: OrchestratorStatus | undefined): AgentChip[] {
+  return (status?.agents ?? []).map((a: RawAgentSummary) => ({
+    id: String(a.id ?? ''),
+    name: String(a.name ?? a.codename ?? a.id ?? 'agent'),
+    state: a.paused ? 'paused' : a.in_progress ? 'running' : 'queued',
+  }));
+}
 
 interface Props {
   pushToast: (item: { tone: 'ok' | 'warn' | 'info'; title: string; body?: string }) => void;
+  gamifyEnabled?: boolean;
   /** When set (e.g. via the Dashboard "Open in Console" deep link), open this
    *  agent's live event tab on mount. */
   initialAgentId?: string | null;
@@ -21,44 +37,40 @@ interface Props {
  * persistent discovery rail on the right, owned input editor along the bottom.
  * A single PTY tab ("console-1") in v1; multi-tab is additive.
  */
-export function Console({ pushToast, initialAgentId = null }: Props) {
+export function Console({ pushToast, gamifyEnabled = false, initialAgentId = null }: Props) {
+  const orchQuery = useOrchestratorStatus();
+  const agents = useMemo(() => agentsFromStatus(orchQuery.data), [orchQuery.data]);
+  const orchError = orchestratorStatusErrorMessage(orchQuery);
   const [pending, setPending] = useState<PendingLine | null>(null);
   const [activeAction, setActiveAction] = useState<string | null>(null);
-  const [agents, setAgents] = useState<AgentChip[]>([]);
   const [openAgentId, setOpenAgentId] = useState<string | null>(initialAgentId);
   const [composing, setComposing] = useState(false);
   const [lastLine, setLastLine] = useState('');
   const [latestBlock, setLatestBlock] = useState<Block | null>(null);
+  const [applyLine, setApplyLine] = useState<string | null>(null);
   const seq = React.useRef(0);
   const tabId = 'console-1';
   const nowMs = Date.now();
-
-  useEffect(() => {
-    let disposed = false;
-    let un: (() => void) | undefined;
-    listenOrchStatus((status: any) => {
-      const list: AgentChip[] = (status?.agents ?? []).map((a: any) => ({
-        id: String(a.id ?? a.agent_id ?? ''),
-        name: String(a.name ?? a.id ?? 'agent'),
-        state: a.paused ? 'paused' : a.in_progress > 0 ? 'running' : 'queued',
-      }));
-      setAgents(list);
-    })
-      .then((u) => (disposed ? u() : (un = u)))
-      .catch(() => {
-        /* not in tauri / daemon down — strip shows "no agents" */
-      });
-    return () => {
-      disposed = true;
-      un?.();
-    };
-  }, []);
 
   const submit = (line: string) => {
     seq.current += 1;
     setLastLine(line);
     setPending({ text: line, seq: seq.current });
   };
+
+  const handleBlock = useCallback(
+    (block: Block) => {
+      setLatestBlock(block);
+      if (block.exitCode === 0) {
+        recordGamifyGuiEvent(
+          'console_command_success',
+          { command: block.command },
+          { enabled: gamifyEnabled },
+        );
+      }
+    },
+    [gamifyEnabled],
+  );
 
   const openAgentTab = (agentId: string) => {
     setOpenAgentId(agentId);
@@ -94,7 +106,18 @@ export function Console({ pushToast, initialAgentId = null }: Props) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <AgentStrip agents={agents} onOpen={openAgentTab} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <AgentStrip agents={agents} onOpen={openAgentTab} />
+          {orchError && (
+            <div
+              role="alert"
+              aria-live="polite"
+              style={{ padding: '0 10px 4px', fontSize: 11, color: viz.amber400 }}
+            >
+              {orchError}
+            </div>
+          )}
+        </div>
         <div style={{ display: 'flex', gap: 6, margin: '0 10px' }}>
           <Button onClick={copyLastBlock} style={{ fontSize: 11 }}>
             copy last block
@@ -142,13 +165,23 @@ export function Console({ pushToast, initialAgentId = null }: Props) {
             {openAgentId && <AgentTab agentId={openAgentId} />}
           </div>
           <div style={{ flex: 1, minHeight: 0, display: openAgentId ? 'none' : 'block' }}>
-            <TerminalTab tabId={tabId} pendingLine={pending} onBlock={setLatestBlock} />
+            <TerminalTab tabId={tabId} pendingLine={pending} onBlock={handleBlock} />
           </div>
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', padding: '6px 10px' }}>
-            <InputEditor onSubmit={submit} onActiveSuggestion={setActiveAction} />
+            <InputEditor
+              onSubmit={submit}
+              onActiveSuggestion={setActiveAction}
+              applyLine={applyLine}
+              onApplyLineConsumed={() => setApplyLine(null)}
+            />
           </div>
         </div>
-        <DiscoveryRail actionId={activeAction} nowMs={nowMs} />
+        <DiscoveryRail
+          actionId={activeAction}
+          nowMs={nowMs}
+          gamifyEnabled={gamifyEnabled}
+          onUseAction={(example) => setApplyLine(example)}
+        />
       </div>
     </div>
   );

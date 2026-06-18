@@ -128,6 +128,8 @@ pub enum PipelineStage {
     ReviewEvalPackBuild,
     /// Native model training (`vox mens train`).
     Train,
+    /// Export accepted/rejected KB entries as training/DPO signals.
+    KbSignals,
 }
 
 impl PipelineStage {
@@ -147,6 +149,7 @@ impl PipelineStage {
             Self::ReviewDatasetBuild => "review_dataset_build",
             Self::ReviewEvalPackBuild => "review_eval_pack_build",
             Self::Train => "train",
+            Self::KbSignals => "kb_signals",
         }
     }
 }

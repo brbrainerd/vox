@@ -23,7 +23,7 @@ vox-config = { workspace = true }
 vox-repository = { workspace = true }
 vox-orchestrator = { workspace = true }
 # Integration tests exercise the full MCP tool surface (news/scientia/visus).
-vox-orchestrator-mcp = { workspace = true, features = ["news-publish", "gui-visual-review"] }
+vox-orchestrator-mcp = { workspace = true, features = ["news-publish", "gui-visual-review", "heavy-browser"] }
 vox-compiler = { workspace = true }
 vox-codegen = { workspace = true }
 vox-lsp = { workspace = true }
@@ -32,6 +32,7 @@ vox-actor-runtime = { workspace = true }
 vox-workflow-runtime = { workspace = true }
 vox-deploy-codegen = { workspace = true }
 vox-skills = { workspace = true }
+vox-plugin-api = { workspace = true }
 vox-cli = { workspace = true }
 vox-scaling-policy = { workspace = true }
 vox-secrets = { workspace = true }

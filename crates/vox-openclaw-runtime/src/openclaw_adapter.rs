@@ -10,6 +10,21 @@ use crate::openclaw_gateway_ws::{
     OpenClawGatewayWsClient, OpenClawGatewayWsConfig, OpenClawGatewayWsError,
 };
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum AgentProvider {
+    OpenClaw,
+    Hermes,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AgentRuntimeConfig {
+    pub provider: AgentProvider,
+    pub http_gateway_url: String,
+    pub ws_gateway_url: Option<String>,
+    pub auth_token: Option<String>,
+    pub local_skills_path: Option<std::path::PathBuf>,
+}
+
 /// Adapter-level configuration.
 #[derive(Debug, Clone)]
 pub struct OpenClawAdapterConfig {
@@ -17,6 +32,18 @@ pub struct OpenClawAdapterConfig {
     pub ws_gateway_url: String,
     pub auth_token: Option<String>,
     pub verify_tls: bool,
+}
+
+impl From<OpenClawAdapterConfig> for AgentRuntimeConfig {
+    fn from(cfg: OpenClawAdapterConfig) -> Self {
+        Self {
+            provider: AgentProvider::OpenClaw,
+            http_gateway_url: cfg.http_gateway_url,
+            ws_gateway_url: Some(cfg.ws_gateway_url),
+            auth_token: cfg.auth_token,
+            local_skills_path: None,
+        }
+    }
 }
 
 /// Optional overrides when resolving OpenClaw adapter connection settings.
@@ -131,9 +158,9 @@ impl From<OpenClawGatewayWsError> for OpenClawAdapterError {
     }
 }
 
-/// Common OpenClaw operation surface used by CLI, runtime, and MCP integrations.
+/// Common OpenClaw/Hermes operation surface used by CLI, runtime, and MCP integrations.
 #[async_trait]
-pub trait OpenClawRuntimeAdapter: Send {
+pub trait AgentRuntimeAdapter: Send {
     async fn list_remote_skills(&mut self) -> Result<Vec<OpenClawSkillSpec>, OpenClawAdapterError>;
     async fn import_skill(&mut self, slug: &str) -> Result<crate::ArsSkill, OpenClawAdapterError>;
     async fn list_subscriptions(&mut self) -> Result<Value, OpenClawAdapterError>;
@@ -150,6 +177,8 @@ pub trait OpenClawRuntimeAdapter: Send {
         params: Value,
     ) -> Result<Value, OpenClawAdapterError>;
 }
+
+pub use AgentRuntimeAdapter as OpenClawRuntimeAdapter;
 
 /// Default adapter implementation that composes existing HTTP skill APIs and WS control plane calls.
 pub struct DefaultOpenClawRuntimeAdapter {
@@ -195,7 +224,7 @@ pub async fn connect_runtime_adapter_with_overrides(
 }
 
 #[async_trait]
-impl OpenClawRuntimeAdapter for DefaultOpenClawRuntimeAdapter {
+impl AgentRuntimeAdapter for DefaultOpenClawRuntimeAdapter {
     async fn list_remote_skills(&mut self) -> Result<Vec<OpenClawSkillSpec>, OpenClawAdapterError> {
         Ok(self.http.list_skills().await?)
     }
@@ -248,5 +277,22 @@ impl OpenClawRuntimeAdapter for DefaultOpenClawRuntimeAdapter {
             .call_method(method, params)
             .await
             .map_err(Into::into)
+    }
+}
+
+#[cfg(test)]
+mod tests_generic_adaptation {
+    use super::*;
+
+    #[test]
+    fn test_agent_provider_config_resolution() {
+        let cfg = AgentRuntimeConfig {
+            provider: AgentProvider::Hermes,
+            http_gateway_url: "http://127.0.0.1:8642/v1".to_string(),
+            ws_gateway_url: None,
+            auth_token: None,
+            local_skills_path: Some(std::path::PathBuf::from("~/.hermes/skills")),
+        };
+        assert_eq!(cfg.provider, AgentProvider::Hermes);
     }
 }

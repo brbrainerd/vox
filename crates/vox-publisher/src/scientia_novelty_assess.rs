@@ -15,7 +15,9 @@ use vox_scientia::inspect_bridge::{
     NoveltyConfig, NoveltyVerdict, PolarizedHit,
 };
 
-use crate::scientia_finding_ledger::{NormalizedPriorArtHit, NoveltyEvidenceBundleV1};
+use crate::scientia_finding_ledger::{
+    NormalizedPriorArtHit, NoveltyEvidenceBundleV1, to_contract_bundle,
+};
 
 /// Explainable signal breakdown attached to every `NoveltyAssessment`.
 #[derive(Debug, Clone, Default, Serialize)]
@@ -35,9 +37,9 @@ pub struct NoveltySignalBreakdown {
 /// Full novelty assessment result with flattened verdict fields for stable JSON output.
 #[derive(Debug, Clone, Serialize)]
 pub struct NoveltyAssessment {
-    /// `"insufficient_evidence"` | `"novel"` | `"possibly_novel"` | `"not_novel"`
+    /// `"insufficient_evidence"` | `"novel"` | `"possibly_novel"` | `"not_novel"` | `"contradicted"`
     pub verdict_kind: String,
-    /// URI of the closest prior-art hit (only for `not_novel`).
+    /// URI of the closest prior-art hit (`not_novel`) or primary contradicting hit (`contradicted`).
     pub closest_hit_uri: Option<String>,
     /// Closest similarity score (set for `possibly_novel` and `not_novel`).
     pub closest_score: Option<f64>,
@@ -47,22 +49,13 @@ pub struct NoveltyAssessment {
     pub excluded_future_hits: usize,
     /// Explainable signal breakdown.
     pub signals: NoveltySignalBreakdown,
+    /// Human-readable retrieval-health reason when `verdict_kind` is `insufficient_evidence`.
+    pub insufficient_evidence_reason: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
-
-/// Convert `NoveltyEvidenceBundleV1` → `vox_research_events::schema_types::NoveltyEvidenceBundle`
-/// via serde round-trip.  Panics if the parity contract is broken (which the contract-parity
-/// test already guards against in CI).
-fn to_research_events_bundle(
-    v1: &NoveltyEvidenceBundleV1,
-) -> vox_research_events::schema_types::NoveltyEvidenceBundle {
-    let val = serde_json::to_value(v1).expect("NoveltyEvidenceBundleV1 must be serializable");
-    serde_json::from_value(val)
-        .expect("NoveltyEvidenceBundleV1 must round-trip to NoveltyEvidenceBundle")
-}
 
 /// Derive claim polarity for conflict detection.
 ///
@@ -106,7 +99,7 @@ pub fn assess_novelty(
     // 1. Chrono-filter
     // ------------------------------------------------------------------
     // Convert to the research-events type so we can use ChronoFilter directly.
-    let re_bundle = to_research_events_bundle(bundle);
+    let re_bundle = to_contract_bundle(bundle);
 
     // Build a ChronoFilter from claim_year.  ChronoFilter normally takes a Unix
     // timestamp, but its `filter_hits` method just compares `h.year < claim_year()`.
@@ -247,19 +240,28 @@ pub fn assess_novelty(
     // ------------------------------------------------------------------
     // 6. Flatten verdict
     // ------------------------------------------------------------------
-    let (verdict_kind, closest_hit_uri, closest_score) = match verdict {
-        // main's B6 verdict carries a `reason`; we surface the flattened kind only.
-        NoveltyVerdict::InsufficientEvidence { .. } => {
-            ("insufficient_evidence".to_string(), None, None)
-        }
+    let (verdict_kind, closest_hit_uri, closest_score, insufficient_evidence_reason) = match verdict
+    {
+        NoveltyVerdict::InsufficientEvidence { reason } => (
+            "insufficient_evidence".to_string(),
+            None,
+            None,
+            Some(reason),
+        ),
         // main's B6 `Contradicted { conflicting_uri }`: a prior-art conflict caps novelty.
-        NoveltyVerdict::Contradicted { conflicting_uri } => {
-            ("contradicted".to_string(), Some(conflicting_uri), None)
-        }
-        NoveltyVerdict::Novel => ("novel".to_string(), None, None),
-        NoveltyVerdict::PossiblyNovel { closest_score } => {
-            ("possibly_novel".to_string(), None, Some(closest_score))
-        }
+        NoveltyVerdict::Contradicted { conflicting_uri } => (
+            "contradicted".to_string(),
+            Some(conflicting_uri),
+            None,
+            None,
+        ),
+        NoveltyVerdict::Novel => ("novel".to_string(), None, None, None),
+        NoveltyVerdict::PossiblyNovel { closest_score } => (
+            "possibly_novel".to_string(),
+            None,
+            Some(closest_score),
+            None,
+        ),
         NoveltyVerdict::NotNovel {
             closest_hit_uri,
             similarity,
@@ -267,7 +269,20 @@ pub fn assess_novelty(
             "not_novel".to_string(),
             Some(closest_hit_uri),
             Some(similarity),
+            None,
         ),
+    };
+
+    // Non-empty conflicts cap novelty as contradicted regardless of scorer verdict.
+    let (verdict_kind, closest_hit_uri, closest_score) = if conflicts.is_empty() {
+        (verdict_kind, closest_hit_uri, closest_score)
+    } else {
+        let conflicting_uri = conflicts
+            .first()
+            .and_then(|c| c.contradicting_hits.first())
+            .map(|h| h.work_uri.clone())
+            .or(closest_hit_uri);
+        ("contradicted".to_string(), conflicting_uri, None)
     };
 
     NoveltyAssessment {
@@ -277,6 +292,7 @@ pub fn assess_novelty(
         conflicts,
         excluded_future_hits,
         signals,
+        insufficient_evidence_reason,
     }
 }
 
@@ -360,7 +376,7 @@ mod tests {
     /// EvidenceConflictDetector threshold 0.8) should trigger conflict detection.
     /// We also add a supporting hit to satisfy the Positive+Negative requirement.
     #[test]
-    fn contradicting_hit_surfaces_conflict_not_novel() {
+    fn contradicting_hit_surfaces_conflict_contradicted() {
         let hits = vec![
             // Supporting hit: high sim, year in range, no contradiction note
             make_hit("doi:10.support", Some(2022), Some(0.9), None, None, None),
@@ -378,7 +394,10 @@ mod tests {
         let config = NoveltyConfig::default(); // not_novel_threshold = 0.8
         let result = assess_novelty(&bundle, 2026, &config);
         assert!(!result.conflicts.is_empty(), "conflict should be detected");
-        assert_eq!(result.verdict_kind, "not_novel", "sim >= 0.8 → not_novel");
+        assert_eq!(
+            result.verdict_kind, "contradicted",
+            "non-empty conflicts → contradicted"
+        );
     }
 
     /// 3 hits with sims [0.55, 0.6, 0.3], novel_threshold default 0.5.

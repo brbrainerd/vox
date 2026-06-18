@@ -41,6 +41,30 @@ jobs:
         # Each ships as its own archive so users opt into the heavy ML/scientia plugins.
         run: cargo run --locked -p vox-cli ci release-build --target ${{ matrix.target }} --version ${{ github.ref_name }} --out-dir dist --package all
 
+      - name: Build voxup
+        run: cargo build --release --locked -p voxup --target ${{ matrix.target }}
+
+      - name: Package voxup (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cd target/${{ matrix.target }}/release
+          tar -czf "../../../dist/voxup-${{ github.ref_name }}-${{ matrix.target }}.tar.gz" voxup
+          echo "Packaged: voxup-${{ github.ref_name }}-${{ matrix.target }}.tar.gz"
+
+      - name: Package voxup (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Compress-Archive `
+            -Path "target\${{ matrix.target }}\release\voxup.exe" `
+            -DestinationPath "dist\voxup-${{ github.ref_name }}-${{ matrix.target }}.zip" `
+            -Force
+          Write-Host "Packaged: voxup-${{ github.ref_name }}-${{ matrix.target }}.zip"
+
       # SBOM (CycloneDX) — stub for release provenance. Enable when cargo-cyclonedx is
       # wired into the release pipeline (install: cargo install cargo-cyclonedx).
       # - name: Generate CycloneDX SBOM
@@ -107,6 +131,32 @@ jobs:
             & ".\_smoke_schola\vox-schola.exe" --help | Out-Null
           }
 
+      - name: Smoke test voxup (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          shopt -s nullglob
+          for f in voxup-${{ github.ref_name }}-*.tar.gz; do
+            rm -f voxup
+            tar -xzf "$f"
+            ./voxup --version
+            ./voxup --help > /dev/null
+          done
+
+      - name: Smoke test voxup (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Set-Location dist
+          Get-ChildItem -Filter 'voxup-${{ github.ref_name }}-*.zip' | ForEach-Object {
+            if (Test-Path _smoke_voxup) { Remove-Item -Recurse -Force _smoke_voxup }
+            Expand-Archive -Path $_.FullName -DestinationPath _smoke_voxup -Force
+            & ".\_smoke_voxup\voxup.exe" --version
+            & ".\_smoke_voxup\voxup.exe" --help | Out-Null
+          }
+
       - name: Upload packaged binary
         uses: actions/upload-artifact@v7
         with:
@@ -116,6 +166,7 @@ jobs:
             dist/vox-bootstrap-${{ github.ref_name }}-${{ matrix.target }}.*
             dist/vox-ml-cli-${{ github.ref_name }}-${{ matrix.target }}.*
             dist/vox-schola-${{ github.ref_name }}-${{ matrix.target }}.*
+            dist/voxup-${{ github.ref_name }}-${{ matrix.target }}.*
           if-no-files-found: error
 
   publish:
@@ -123,6 +174,8 @@ jobs:
     runs-on: [self-hosted, linux, x64]
     needs: build
     steps:
+      - uses: actions/checkout@v6
+
       - uses: actions/download-artifact@v8
         with:
           path: release-artifacts
@@ -159,5 +212,7 @@ jobs:
             release-artifacts/release-*/*
             release-artifacts/checksums.txt
             release-artifacts/sbom.spdx.json
+            scripts/install.sh
+            scripts/install.ps1
           generate_release_notes: true
           fail_on_unmatched_files: false

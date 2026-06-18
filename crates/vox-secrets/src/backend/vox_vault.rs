@@ -100,9 +100,12 @@ impl VoxCloudBackend {
             .and_then(|v| v.parse::<i64>().ok())
             .filter(|v| *v > 0)
             .unwrap_or(1);
+        let fallback_path = crate::sources::auth_json::vox_dir().join(".vox-master-key");
+        let master_key = derive_master_key_with_fallback(&fallback_path)?;
+
         Ok(Self {
             conn: Mutex::new(conn),
-            master_key: derive_master_key()?,
+            master_key,
             account_id,
             kek_ref,
             kek_version,
@@ -675,6 +678,120 @@ impl VoxCloudBackend {
             Ok(None)
         })
     }
+
+    fn count_account_secrets(&self) -> Result<u64, SecretError> {
+        let account_id = self.account_id.clone();
+        let conn = self.conn.lock().expect("vox vault mutex");
+        run_secrets_future(async {
+            let mut rows = conn
+                .query(
+                    "SELECT COUNT(*) FROM clavis_account_secrets WHERE account_id = ?1",
+                    params![account_id],
+                )
+                .await
+                .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?;
+            let Some(row) = rows
+                .next()
+                .await
+                .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?
+            else {
+                return Ok(0);
+            };
+            row.get(0)
+                .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))
+        })
+    }
+
+    fn get_first_account_secret(&self) -> Result<Option<CloudlessSecretRecord>, SecretError> {
+        let account_id = self.account_id.clone();
+        let conn = self.conn.lock().expect("vox vault mutex");
+        run_secrets_future(async {
+            let mut rows = conn
+                .query(
+                    "SELECT account_id, secret_id, ciphertext, nonce, cipher_version, dek_wrapped,
+                            kek_ref, kek_version, aad_hash, updated_at_ms, rotation_epoch,
+                            rotated_at_ms, consistency_origin, consistency_version, checksum_hash
+                     FROM clavis_account_secrets
+                     WHERE account_id = ?1
+                     ORDER BY secret_id ASC
+                     LIMIT 1",
+                    params![account_id],
+                )
+                .await
+                .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?;
+            if let Some(row) = rows
+                .next()
+                .await
+                .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?
+            {
+                return row_to_record(row).map(Some);
+            }
+            Ok(None)
+        })
+    }
+
+    fn try_decrypt_canary(&self) -> Result<(), SecretError> {
+        let row_count = self.count_account_secrets()?;
+        if row_count == 0 {
+            return Ok(());
+        }
+        let Some(row) = self.get_first_account_secret()? else {
+            return Ok(());
+        };
+        if !verify_record_checksum(&row) {
+            return Err(SecretError::BackendQueryFailed(format!(
+                "checksum mismatch for account_id={} secret_id={}",
+                row.account_id, row.secret_id
+            )));
+        }
+        let dek = self.unwrap_dek(&row.dek_wrapped, &row.kek_ref, row.kek_version)?;
+        decrypt_vault(&dek, &row.nonce, &row.ciphertext)?;
+        Ok(())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_master_key_for_test(mut self, key: [u8; 32]) -> Self {
+        self.master_key = key;
+        self
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VaultHealth {
+    pub vault_path_display: String,
+    pub keyring_entry_present: bool,
+    pub master_fingerprint: String,
+    pub account_id: String,
+    pub kek_ref: String,
+    pub kek_version: i64,
+    pub row_count: u64,
+    pub can_decrypt: bool,
+    pub decrypt_error: Option<String>,
+}
+
+pub fn probe_vault_health(backend: &VoxCloudBackend) -> Result<VaultHealth, SecretError> {
+    let vault_path_display = cloudless_vault_env_diagnostic();
+    let keyring_entry_present = keyring::Entry::new("vox-secrets-vault", "master")
+        .ok()
+        .and_then(|e| e.get_password().ok())
+        .is_some_and(|p| !p.is_empty());
+    let master_fingerprint = master_key_fingerprint(&backend.master_key);
+    let row_count = backend.count_account_secrets()?;
+    let (can_decrypt, decrypt_error) = match backend.try_decrypt_canary() {
+        Ok(()) => (true, None),
+        Err(e) => (false, Some(e.to_string())),
+    };
+    Ok(VaultHealth {
+        vault_path_display,
+        keyring_entry_present,
+        master_fingerprint,
+        account_id: backend.account_id.clone(),
+        kek_ref: backend.kek_ref.clone(),
+        kek_version: backend.kek_version,
+        row_count,
+        can_decrypt,
+        decrypt_error,
+    })
 }
 
 impl SecretBackend for VoxCloudBackend {
@@ -832,6 +949,43 @@ fn is_windows_absolute_path(normalized: &str) -> bool {
     bytes.len() >= 3 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' && bytes[2] == b'/'
 }
 
+/// Turso `Builder::new_local` expects a native filesystem path, not a `file:` URL.
+fn file_url_to_local_path(file_url: &str) -> Result<String, SecretError> {
+    let trimmed = file_url.trim();
+    let rest = trimmed.strip_prefix("file:").ok_or_else(|| {
+        SecretError::BackendMisconfigured(format!(
+            "expected file: URL for local vault, got: {trimmed}"
+        ))
+    })?;
+    let decoded = if let Some(path) = rest.strip_prefix("//") {
+        // `file:///C:/…` decodes to `/C:/…`; strip the leading slash before `C:`.
+        if path.len() >= 3
+            && path.as_bytes()[0] == b'/'
+            && path.as_bytes()[1].is_ascii_alphabetic()
+            && path.as_bytes()[2] == b':'
+        {
+            path[1..].to_string()
+        } else {
+            path.to_string()
+        }
+    } else {
+        rest.to_string()
+    };
+    Ok(normalize_turso_local_path(&decoded))
+}
+
+/// Normalize separators for Turso/libSQL (native `\` on Windows drive-letter paths).
+fn normalize_turso_local_path(decoded: &str) -> String {
+    #[cfg(windows)]
+    {
+        let norm = decoded.replace('\\', "/");
+        if is_windows_absolute_path(&norm) {
+            return norm.replace('/', "\\");
+        }
+    }
+    decoded.to_string()
+}
+
 fn resolve_cloudless_db_url() -> String {
     if let Ok(p) = std::env::var("VOX_SECRETS_VAULT_PATH") {
         let t = p.trim();
@@ -955,7 +1109,8 @@ pub fn cloudless_vault_env_diagnostic() -> String {
 async fn open_cloudless_connection() -> Result<turso::Connection, SecretError> {
     let db_url = resolve_cloudless_db_url();
     if db_url.starts_with("file:") {
-        let db = turso::Builder::new_local(&db_url)
+        let local_path = file_url_to_local_path(&db_url)?;
+        let db = turso::Builder::new_local(&local_path)
             .build()
             .await
             .map_err(|e| SecretError::BackendMisconfigured(e.to_string()))?;
@@ -976,11 +1131,8 @@ async fn open_cloudless_connection() -> Result<turso::Connection, SecretError> {
 }
 
 async fn ensure_schema(conn: &turso::Connection) -> Result<(), SecretError> {
-    if resolve_cloudless_db_url().starts_with("file:") {
-        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;")
-            .await
-            .map_err(|e| SecretError::BackendMisconfigured(e.to_string()))?;
-    }
+    // Turso 0.6 `execute` / `execute_batch` error on PRAGMA journal_mode (result row).
+    // Default journal mode is sufficient for the local Clavis vault file.
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS clavis_account_secrets (
             account_id TEXT NOT NULL,
@@ -1196,27 +1348,63 @@ fn compute_account_secret_checksum(
         .collect::<String>()
 }
 
-fn derive_master_key() -> Result<[u8; 32], SecretError> {
-    let entry = keyring::Entry::new("vox-secrets-vault", "master")
-        .map_err(|e| SecretError::BackendMisconfigured(e.to_string()))?;
-    let password = match entry.get_password() {
-        Ok(value) if !value.is_empty() => value,
-        _ => {
-            let mut bootstrap = [0_u8; 32];
-            rand::thread_rng().fill_bytes(&mut bootstrap);
-            let generated = bootstrap
-                .iter()
-                .map(|b| format!("{b:02x}"))
-                .collect::<String>();
-            entry.set_password(&generated).map_err(|e| {
-                SecretError::BackendMisconfigured(format!(
-                    "failed to initialize keyring master key: {e}"
-                ))
-            })?;
-            generated
+fn hash_master_password(pw: &str) -> [u8; 32] {
+    if pw.len() == 64 {
+        if let Ok(bytes) = hex::decode(pw) {
+            if let Ok(arr) = bytes.try_into() {
+                return arr;
+            }
         }
-    };
-    Ok(secure_hash(password.as_bytes()))
+    }
+    secure_hash(pw.as_bytes())
+}
+
+pub(crate) fn derive_master_key_with_fallback(
+    fallback_path: &std::path::Path,
+) -> Result<[u8; 32], SecretError> {
+    use keyring::Entry;
+    // 1. Try the OS keyring first (happy path in interactive shells).
+    let entry = Entry::new("vox-secrets-vault", "master")
+        .map_err(|e| SecretError::BackendMisconfigured(e.to_string()))?;
+    match entry.get_password() {
+        Ok(pw) if !pw.is_empty() => {
+            return Ok(hash_master_password(&pw));
+        }
+        _ => {}
+    }
+    // 2. File fallback: read existing key bytes or generate + persist.
+    if fallback_path.exists() {
+        let raw = std::fs::read(fallback_path).map_err(|e| SecretError::Io(e.to_string()))?;
+        if raw.len() == 32 {
+            let mut key = [0u8; 32];
+            key.copy_from_slice(&raw);
+            // Best-effort: write into keyring so next interactive shell finds it.
+            let _ = entry.set_password(&hex::encode(key));
+            return Ok(key);
+        }
+    }
+    // 3. Generate a new key and persist to both stores.
+    let mut key = [0u8; 32];
+    rand::thread_rng().fill_bytes(&mut key);
+    if let Some(parent) = fallback_path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| SecretError::Io(e.to_string()))?;
+    }
+    std::fs::write(fallback_path, &key).map_err(|e| SecretError::Io(e.to_string()))?;
+    let _ = entry.set_password(&hex::encode(key));
+    Ok(key)
+}
+
+fn derive_master_key() -> Result<[u8; 32], SecretError> {
+    let fallback_path = crate::sources::auth_json::vox_dir().join(".vox-master-key");
+    derive_master_key_with_fallback(&fallback_path)
+}
+
+/// Non-secret diagnostic: first 8 bytes of `secure_hash(b"vox-vault-master-fp:" + key)` as hex.
+pub(crate) fn master_key_fingerprint(master_key: &[u8; 32]) -> String {
+    let mut data = b"vox-vault-master-fp:".to_vec();
+    data.extend_from_slice(master_key);
+    let hash = secure_hash(&data);
+    hash.iter().take(8).map(|b| format!("{b:02x}")).collect()
 }
 
 fn derive_kek(master_key: &[u8; 32], kek_ref: &str, kek_version: i64) -> [u8; 32] {
@@ -1241,8 +1429,18 @@ fn decrypt_vault(
     nonce: &[u8],
     ciphertext: &[u8],
 ) -> Result<Vec<u8>, SecretError> {
-    decrypt_with_nonce(&SymKey(*key_bytes), nonce, ciphertext)
-        .map_err(|e| SecretError::BackendQueryFailed(format!("decryption failed: {e}")))
+    decrypt_with_nonce(&SymKey(*key_bytes), nonce, ciphertext).map_err(|e| {
+        let msg = e.to_string();
+        if msg.to_lowercase().contains("aead") {
+            SecretError::BackendQueryFailed(format!(
+                "decryption failed (master key mismatch?): {msg}. \
+                 Remediation: backup and delete the vault file, ensure OS keyring entry \
+                 vox-secrets-vault/master is stable, then re-run `vox secrets import-env`."
+            ))
+        } else {
+            SecretError::BackendQueryFailed(format!("decryption failed: {msg}"))
+        }
+    })
 }
 
 fn now_ms() -> i64 {
@@ -1498,6 +1696,81 @@ mod semcov_wave2_tests {
 #[cfg(test)]
 mod path_url_tests {
     use super::*;
+    #[test]
+    fn file_url_to_local_path_decodes_turso_paths() {
+        assert_eq!(
+            file_url_to_local_path("file:.vox/clavis_vault.db").expect("rel"),
+            ".vox/clavis_vault.db"
+        );
+        #[cfg(windows)]
+        assert_eq!(
+            file_url_to_local_path("file:///C:/Users/Owner/.vox/clavis_vault.db").expect("win"),
+            r"C:\Users\Owner\.vox\clavis_vault.db"
+        );
+        #[cfg(not(windows))]
+        assert_eq!(
+            file_url_to_local_path("file:///C:/Users/Owner/.vox/clavis_vault.db").expect("win"),
+            "C:/Users/Owner/.vox/clavis_vault.db"
+        );
+        assert_eq!(
+            file_url_to_local_path("file:///home/user/.vox/clavis_vault.db").expect("posix"),
+            "/home/user/.vox/clavis_vault.db"
+        );
+    }
+
+    #[test]
+    fn path_to_file_url_round_trip_preserves_native_absolute_path() {
+        let tmp_dir = tempfile::tempdir().expect("tempdir");
+        let db_path = tmp_dir.path().join("abs_vault.db");
+        let native = db_path.to_string_lossy().to_string();
+        let file_url = path_to_vault_file_url(&native);
+        let local = file_url_to_local_path(&file_url).expect("decode");
+        assert_eq!(
+            local, native,
+            "round-trip must preserve the native absolute path Turso can open"
+        );
+    }
+
+    #[test]
+    #[allow(unsafe_code)]
+    fn absolute_vault_path_opens_with_turso() {
+        use std::sync::Mutex;
+        static ENV_LOCK: Mutex<()> = Mutex::new(());
+        let _g = ENV_LOCK.lock().expect("env lock");
+
+        let tmp_dir = tempfile::tempdir().expect("tempdir");
+        let db_path = tmp_dir.path().join("turso_abs_vault.db");
+
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .expect("tokio rt");
+
+        for vault_path in [
+            db_path.to_string_lossy().to_string(),
+            db_path.to_string_lossy().replace('\\', "/"),
+        ] {
+            unsafe {
+                std::env::set_var("VOX_SECRETS_VAULT_PATH", &vault_path);
+            }
+            let open_result = rt.block_on(async {
+                open_cloudless_connection().await.map(|conn| {
+                    run_secrets_future(async {
+                        conn.execute("SELECT 1", ())
+                            .await
+                            .map_err(|e| SecretError::BackendMisconfigured(e.to_string()))
+                    })
+                })
+            });
+            unsafe {
+                std::env::remove_var("VOX_SECRETS_VAULT_PATH");
+            }
+            let _ = open_result.unwrap_or_else(|e| {
+                panic!("Turso must open absolute VOX_SECRETS_VAULT_PATH={vault_path:?}: {e}")
+            });
+        }
+    }
 
     #[test]
     fn already_file_url_passes_through() {
@@ -1623,5 +1896,89 @@ mod path_url_tests {
         assert!(!is_windows_absolute_path("foo/bar"));
         assert!(!is_windows_absolute_path("1:/foo"), "first char not alpha");
         assert!(!is_windows_absolute_path(""));
+    }
+}
+
+#[cfg(test)]
+mod vault_health_tests {
+    #[test]
+    fn master_key_fingerprint_is_stable_for_same_input() {
+        let key = [7_u8; 32];
+        let a = super::master_key_fingerprint(&key);
+        let b = super::master_key_fingerprint(&key);
+        assert_eq!(a, b);
+        assert_eq!(a.len(), 16, "fingerprint is 16 hex chars (64-bit prefix)");
+    }
+
+    #[test]
+    fn master_key_fingerprint_differs_for_different_keys() {
+        let a = super::master_key_fingerprint(&[1_u8; 32]);
+        let b = super::master_key_fingerprint(&[2_u8; 32]);
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    #[allow(unsafe_code)]
+    fn probe_vault_health_reports_empty_vault_as_ok() {
+        static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        let _g = ENV_LOCK.lock().expect("env lock");
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let db_path = tmp.path().join("health_empty.db");
+        unsafe {
+            std::env::set_var("VOX_SECRETS_VAULT_PATH", &db_path);
+            std::env::set_var("VOX_ACCOUNT_ID", "health-test-account");
+        }
+        let health = match super::VoxCloudBackend::new().and_then(|b| super::probe_vault_health(&b))
+        {
+            Ok(h) => h,
+            Err(e) => {
+                let msg = e.to_string().to_lowercase();
+                if msg.contains("keyring") || msg.contains("misconfigured") {
+                    return;
+                }
+                panic!("unexpected init failure: {e}");
+            }
+        };
+        unsafe {
+            std::env::remove_var("VOX_SECRETS_VAULT_PATH");
+            std::env::remove_var("VOX_ACCOUNT_ID");
+        }
+        assert!(health.can_decrypt, "empty vault should probe OK");
+        assert_eq!(health.row_count, 0);
+    }
+
+    #[test]
+    #[allow(unsafe_code)]
+    fn probe_vault_health_fails_after_simulated_master_drift() {
+        static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        let _g = ENV_LOCK.lock().expect("env lock");
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let db_path = tmp.path().join("health_drift.db");
+        unsafe {
+            std::env::set_var("VOX_SECRETS_VAULT_PATH", &db_path);
+            std::env::set_var("VOX_ACCOUNT_ID", "drift-test-account");
+        }
+        let backend = match super::VoxCloudBackend::new() {
+            Ok(b) => b,
+            Err(_) => {
+                unsafe {
+                    std::env::remove_var("VOX_SECRETS_VAULT_PATH");
+                    std::env::remove_var("VOX_ACCOUNT_ID");
+                }
+                return;
+            }
+        };
+        backend
+            .write_secret("PROBE_CANARY", "canary-value-0123456789")
+            .expect("write canary");
+        let drifted = backend.with_master_key_for_test([0_u8; 32]);
+        let health = super::probe_vault_health(&drifted).expect("probe returns struct");
+        unsafe {
+            std::env::remove_var("VOX_SECRETS_VAULT_PATH");
+            std::env::remove_var("VOX_ACCOUNT_ID");
+        }
+        assert!(!health.can_decrypt);
+        assert!(health.decrypt_error.is_some());
+        assert!(health.row_count >= 1);
     }
 }

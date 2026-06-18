@@ -6,13 +6,7 @@ const DEFAULT_RETRY_BASE_MS: u64 = 500;
 impl crate::VoxDb {
     /// Wrap an already-open `VoxDb` (e.g. after custom Turso setup).
     pub fn from_store(conn: turso::Connection, sync_db: Option<turso::sync::Database>) -> Self {
-        Self {
-            conn,
-            sync_db,
-            writer: None,
-            breaker: std::sync::Arc::new(DbCircuitBreaker::from_env()),
-            sqlite_probe_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-        }
+        Self::assembled(conn, sync_db, None)
     }
 
     /// Connect to a database using the given configuration, with retry logic.
@@ -61,6 +55,14 @@ impl crate::VoxDb {
         let mut attempts = 0u64;
         loop {
             attempts += 1;
+
+            struct ConnectResult {
+                conn: turso::Connection,
+                sync_db: Option<turso::sync::Database>,
+                #[cfg(feature = "local")]
+                local_db: Option<std::sync::Arc<turso::Database>>,
+            }
+
             let result = match &config {
                 #[cfg(feature = "local")]
                 DbConfig::Local { path } => {
@@ -69,7 +71,11 @@ impl crate::VoxDb {
                         .await
                         .map_err(StoreError::from)?;
                     let conn = db.connect().map_err(StoreError::from)?;
-                    Ok((conn, None))
+                    Ok(ConnectResult {
+                        conn,
+                        sync_db: None,
+                        local_db: Some(std::sync::Arc::new(db)),
+                    })
                 }
                 #[cfg(feature = "local")]
                 DbConfig::Memory => {
@@ -78,7 +84,11 @@ impl crate::VoxDb {
                         .await
                         .map_err(StoreError::from)?;
                     let conn = db.connect().map_err(StoreError::from)?;
-                    Ok((conn, None))
+                    Ok(ConnectResult {
+                        conn,
+                        sync_db: None,
+                        local_db: Some(std::sync::Arc::new(db)),
+                    })
                 }
                 DbConfig::Remote { url, token } => {
                     let db = turso::sync::Builder::new_remote(":memory:")
@@ -88,7 +98,12 @@ impl crate::VoxDb {
                         .await
                         .map_err(StoreError::from)?;
                     let conn = db.connect().await.map_err(StoreError::from)?;
-                    Ok((conn, Some(db)))
+                    Ok(ConnectResult {
+                        conn,
+                        sync_db: Some(db),
+                        #[cfg(feature = "local")]
+                        local_db: None,
+                    })
                 }
                 #[cfg(feature = "replication")]
                 DbConfig::EmbeddedReplica {
@@ -103,21 +118,26 @@ impl crate::VoxDb {
                         .await
                         .map_err(StoreError::from)?;
                     let conn = db.connect().await.map_err(StoreError::from)?;
-                    Ok((conn, Some(db)))
+                    Ok(ConnectResult {
+                        conn,
+                        sync_db: Some(db),
+                        #[cfg(feature = "local")]
+                        local_db: None,
+                    })
                 }
             };
 
             match result {
-                Ok((conn, sync_db)) => {
-                    Self::apply_pragmas(&conn).await?;
-                    Self::migrate(&conn).await?;
-                    return Ok(Self {
-                        conn,
-                        sync_db,
-                        writer: None,
-                        breaker: std::sync::Arc::new(DbCircuitBreaker::from_env()),
-                        sqlite_probe_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-                    });
+                Ok(res) => {
+                    Self::apply_pragmas(&res.conn).await?;
+                    Self::migrate(&res.conn).await?;
+
+                    return Ok(Self::assembled(
+                        res.conn,
+                        res.sync_db,
+                        #[cfg(feature = "local")]
+                        res.local_db,
+                    ));
                 }
                 Err(e) if attempts < max_retries => {
                     eprintln!(
@@ -174,13 +194,7 @@ impl crate::VoxDb {
             }
         };
         Self::apply_pragmas(&conn).await?;
-        Ok(Self {
-            conn,
-            sync_db: None,
-            writer: None,
-            breaker: std::sync::Arc::new(DbCircuitBreaker::from_env()),
-            sqlite_probe_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-        })
+        Ok(Self::assembled(conn, None, None))
     }
 
     /// Access the circuit breaker for this database.

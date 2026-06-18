@@ -1,89 +1,114 @@
 ---
 title: "Vox Skill Marketplace"
-description: "Documentation for the Vox skills ecosystem including ARS runtime, skill registries, and workflows."
+description: "Discovery roots, bundled interop skills, MCP tools, and GUI slash integration for the Vox skill ecosystem."
 category: "Language Reference"
 status: "current"
-last_updated: "2026-04-05"
 training_eligible: true
-
-schema_type: "TechArticle"
+training_rationale: "Authoritative reference for skill discovery, installation, and agent-facing MCP tools."
 ---
 
 # Vox Skill Marketplace
 
-The Vox skill marketplace (`vox-skills` crate) provides a plugin system
+Vox skills are [agentskills.io](https://agentskills.io/specification)-format directories: each skill is `<root>/<name>/SKILL.md` with YAML frontmatter (`name`, `description`, optional `metadata.vox-*`). The runtime discovers them from standard interop roots, installs them into the skill registry, and exposes them through CLI, MCP, orchestrator prompts, and the GUI command palette.
 
-## What is a Skill?
+## Two formats (do not conflate)
 
-A skill is a self-contained bundle containing:
-- A `SKILL.md` manifest (TOML frontmatter + markdown body)
-- Optional code or instructions
-- Declared dependencies and permissions
+| Format | Location | Frontmatter | When to use |
+|--------|----------|-------------|-------------|
+| **Interop directory** | `.vox/skills/`, `.cursor/skills/`, `.agents/skills/`, `.claude/skills/`, `assets/skills/` | YAML (`name`, `description`) | Universal ecosystem skills; bundled library; user imports |
+| **Plugin skill** | `crates/vox-plugin-skill-*/*.skill.md` | TOML + `vox-tools` tied to `Plugin.toml` | First-party skills that expose MCP tools via the plugin host |
 
-## SKILL.md Format
+Plugin skills win on id collision when installed before external discovery. External/bundled skills use `external:<id>` provenance.
 
-```markdown
----
-name = "web-search"
-version = "1.0.0"
-description = "Adds the ability to search the web"
-author = "vox-team"
-tags = ["search", "web"]
-permissions = ["network"]
----
+## Discovery roots (precedence: high → low)
 
-## Instructions
+Resolved by `vox_config::paths::skill_search_roots()`:
 
-Use this skill to perform web searches...
+1. `<workspace>/.vox/skills/`
+2. `<workspace>/.cursor/skills/`
+3. `<workspace>/.agents/skills/`
+4. `<workspace>/.claude/skills/`
+5. `~/.vox/skills/`, `~/.cursor/skills/`, `~/.agents/skills/`, `~/.claude/skills/`
+6. `<workspace>/assets/skills/` (lowest — bundled, license-verified library)
+
+First root wins for a given skill id. Search uses `vox skill search` / `vox_skill_search` (hybrid lexical + semantic via `vox-search`), not GUI directory walks.
+
+## Bundled library (`assets/skills/`)
+
+Shipped with the repo; provenance in `assets/skills/SOURCES.toml`; catalog SSOT in `crates/vox-plugin-catalog/catalog.toml` (`[[skill-bundle]]` rows).
+
+| Upstream | License | Count |
+|----------|---------|------:|
+| [anthropics/skills](https://github.com/anthropics/skills) | Apache-2.0 | 12 |
+| [obra/superpowers](https://github.com/obra/superpowers) | MIT | 14 |
+
+Refresh vendored copies:
+
+```bash
+vox run scripts/vendor-skills.vox
+vox run scripts/audit-skill-licenses.vox
 ```
 
-## MCP Tools
+**Not bundled:** Cursor built-in skills under `~/.cursor/skills-cursor/` (Cursor distribution — import locally only). Anthropic document skills (docx/pdf/pptx/xlsx) are proprietary and excluded per `SOURCES.toml`.
+
+## Importing from Cursor
+
+Cursor built-in skills are **not** committed to the Vox repo. Import them into your workspace interop root:
+
+```bash
+# Dry-run — lists source/target paths
+vox run scripts/sync-cursor-skills.vox
+
+# Copy into .agents/skills/<name>/
+vox run scripts/sync-cursor-skills.vox -- --write
+
+# Alternate target (higher precedence than .agents)
+vox run scripts/sync-cursor-skills.vox -- --write --target .vox/skills
+```
+
+After import, run `vox skill discover` or restart the orchestrator so the registry picks up new skills.
+
+## CLI
+
+| Command | Purpose |
+|---------|---------|
+| `vox skill list` | Installed skills (registry SSOT) |
+| `vox skill search <query>` | Keyword search over installed skills |
+| `vox skill discover` | Re-scan discovery roots |
+| `vox skill info <id>` | Manifest + body for one skill |
+| `vox codex import-skill-bundle --file <bundle.json>` | Install from `VoxSkillBundle` JSON |
+
+Registry bootstrap (`install_external_skills` in `crates/vox-cli/src/commands/extras/ars/registry.rs`) runs on daemon/MCP startup: plugin skills first, then external/bundled discovery (idempotent).
+
+## MCP tools
 
 | Tool | Description |
 |------|-------------|
-| `vox_skill_install` | Install a skill from a VoxSkillBundle JSON payload |
-| `vox_skill_uninstall` | Uninstall an installed skill by ID |
-| `vox_skill_list` | List all installed skills |
+| `vox_skill_list` | List installed skills |
 | `vox_skill_search` | Search installed skills by keyword |
-| `vox_skill_info` | Get detailed info on a specific skill by ID |
-| `vox_skill_parse` | Preview a SKILL.md manifest before installing |
+| `vox_skill_info` | Detail for one skill by id |
+| `vox_skill_use` | Load tier-2 skill body into agent context |
+| `vox_skill_discover` | Re-scan discovery roots |
+| `vox_skill_install` | Install from `VoxSkillBundle` JSON payload |
+| `vox_skill_uninstall` | Remove an installed skill |
+| `vox_skill_parse` | Preview a `SKILL.md` before installing |
 
-## Built-in Skills
+Tier-1 catalog (max 64 descriptions) is injected into the orchestrator system prompt via `crates/vox-orchestrator-mcp/src/chat_tools/skill_catalog.rs`.
 
-The following skills ship pre-installed in `vox-skills/skills/`:
+## GUI integration
 
-| File | Purpose |
-|------|---------|
-| `compiler.SKILL.md` | Vox compiler integration |
-| `testing.SKILL.md` | Test runner integration |
-| `docs.SKILL.md` | Documentation generation |
-| `deploy.SKILL.md` | Deployment automation |
-| `refactor.SKILL.md` | Code refactoring helper |
+- **Loquela slash commands:** Installed skills from `vox_skill_list` (not the CLI command catalog). Names must match `^[a-z0-9][a-z0-9-]*$` for slash expansion.
+- **Command palette (`Cmd+K`):** Type `/` to filter installed skills; `@` for agents; default mode searches commands + skills.
+- **Skills surface:** Browse and invoke skills from the GUI sidebar.
 
-## Plugin System
+Implementation: `crates/vox-gui/ui/src/hooks/useInstalledSkills.ts`, `crates/vox-gui/ui/src/lib/installedSkills.ts`.
 
-Skills are backed by the `Plugin` trait and managed by `PluginManager`:
+## First-party plugin skills
 
-```rust
-trait Plugin: Send + Sync {
-    fn id(&self) -> &str;
-    fn on_event(&self, event: &HookEvent) -> Result<(), PluginError>;
-}
-```
+Tool-linked plugin skills live under `crates/vox-plugin-skill-*` and are declared in `crates/vox-plugin-catalog/catalog.toml` as `[[plugin]]` with `payload-kind = "skill"`. See `docs/src/reference/plugin-catalog.md` for the full plugin catalog.
 
-## Hook System
+## Related docs
 
-Skills can register lifecycle hooks via `HookRegistry`:
-
-```rust
-registry.register(HookEvent::TaskCompleted, |event| {
-    // react to task completion
-});
-```
-
-Available events: `TaskCompleted`, `TaskFailed`, `AgentStarted`, `AgentStopped`, `MemoryFlushed`.
-
-## Skills vs. Deep Execution Libraries (PyTorch)
-
-Skills are designed exclusively for **loose-coupled orchestration** (e.g., connecting to a database, resolving a Git conflict, routing workflows) and are not meant to replace high-speed, tight-loop native ML execution like PyTorch. Because Skills function as discrete event-driven bundles with high-latency JSON/IPC handoffs, they should never be used for per-pixel or per-node calculations. For heavy loop execution or math operations, rely on native, highly coupled Rust constructs (such as `vox-tensor`), avoiding external library spaghetti.
-
+- Research: `docs/src/architecture/skill-ecosystem-interop-research-2026-06-12.md`
+- Plan: `docs/superpowers/plans/2026-06-16-universal-skill-bundle-cursor-import.md`
+- AGENTS.md §Agent Skills

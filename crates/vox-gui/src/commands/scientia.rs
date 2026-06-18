@@ -110,6 +110,43 @@ pub async fn list_publication_manifests(
 /// refetches via the typed read commands above.
 pub const SCIENTIA_QUEUE_EVENT: &str = "vox://scientia-queue";
 
+/// Tauri event channel for newly-surfaced discovery inbox rows (mirrors the
+/// orchestrator-mcp `scientia.discovery.surfaced` WS topic at the desktop boundary).
+pub const SCIENTIA_DISCOVERY_SURFACED_EVENT: &str = "vox://scientia-discovery-surfaced";
+
+/// Wire payload for [`SCIENTIA_DISCOVERY_SURFACED_EVENT`]: one inbox row.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct DiscoverySurfacedDto {
+    pub id: i64,
+    pub publication_id: String,
+    pub surfaced_at_ms: i64,
+    pub intake_tier: String,
+    pub signal_codes: Vec<String>,
+    pub origin: String,
+}
+
+fn discovery_inbox_origin(signal_codes: &[String]) -> &'static str {
+    if signal_codes
+        .iter()
+        .any(|code| code.starts_with("research_pipeline."))
+    {
+        "research"
+    } else {
+        "commit_watcher"
+    }
+}
+
+fn discovery_row_to_dto(row: &vox_db::DiscoveryInboxRow) -> DiscoverySurfacedDto {
+    DiscoverySurfacedDto {
+        id: row.id,
+        publication_id: row.publication_id.clone(),
+        surfaced_at_ms: row.surfaced_at_ms,
+        intake_tier: row.intake_tier.clone(),
+        signal_codes: row.signal_codes.clone(),
+        origin: discovery_inbox_origin(&row.signal_codes).to_string(),
+    }
+}
+
 /// How often the push bridge samples the DB for a change. The UI keeps its own
 /// (longer) interval as a fallback, so this only governs push latency.
 const SCIENTIA_POLL_INTERVAL_MS: u64 = crate::config::SCIENTIA_QUEUE_POLL_SECS * 1000;
@@ -196,6 +233,67 @@ pub fn spawn_scientia_queue_stream(app_handle: tauri::AppHandle) {
             tokio::time::sleep(std::time::Duration::from_millis(SCIENTIA_POLL_INTERVAL_MS)).await;
         }
     });
+}
+
+/// Spawn a background task that watches `scientia_discovery_inbox` for new row ids
+/// and emits [`SCIENTIA_DISCOVERY_SURFACED_EVENT`] for each newly-surfaced candidate.
+// toestub-ignore(skeleton/untested-pub-api) — spawns a background DB-watch task; covered by unit tests on diff logic
+pub fn spawn_discovery_surfaced_stream(app_handle: tauri::AppHandle) {
+    tokio::spawn(async move {
+        let mut last_max_id: i64 = 0;
+        let db = loop {
+            match vox_db::VoxDb::connect_canonical().await {
+                Ok(db) => {
+                    last_max_id = db.max_discovery_inbox_id().await.unwrap_or(0);
+                    break db;
+                }
+                Err(e) => {
+                    tracing::debug!("discovery surfaced: db unavailable (will retry): {e}");
+                    tokio::time::sleep(std::time::Duration::from_millis(SCIENTIA_POLL_INTERVAL_MS))
+                        .await;
+                }
+            }
+        };
+        loop {
+            match db.max_discovery_inbox_id().await {
+                Ok(current_max) if current_max > last_max_id => {
+                    match db.discoveries_since(last_max_id, 64).await {
+                        Ok(rows) => {
+                            for row in rows {
+                                let dto = discovery_row_to_dto(&row);
+                                let _ = app_handle.emit(SCIENTIA_DISCOVERY_SURFACED_EVENT, &dto);
+                                last_max_id = last_max_id.max(row.id);
+                            }
+                            last_max_id = last_max_id.max(current_max);
+                        }
+                        Err(e) => {
+                            tracing::debug!("discovery surfaced: discoveries_since failed: {e}")
+                        }
+                    }
+                }
+                Ok(_) => {}
+                Err(e) => tracing::debug!("discovery surfaced: max id failed: {e}"),
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(SCIENTIA_POLL_INTERVAL_MS)).await;
+        }
+    });
+}
+
+#[cfg(test)]
+mod discovery_surfaced_tests {
+    use super::*;
+
+    #[test]
+    fn discovery_origin_flags_research_pipeline_signals() {
+        assert_eq!(
+            discovery_inbox_origin(&["research_pipeline.supported_claims".into()]),
+            "research"
+        );
+        assert_eq!(
+            discovery_inbox_origin(&["perf_claim".into()]),
+            "commit_watcher"
+        );
+    }
 }
 
 #[cfg(test)]

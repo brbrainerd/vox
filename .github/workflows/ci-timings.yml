@@ -16,7 +16,7 @@ on:
   workflow_run:
     workflows:
       - "CI"
-      - "Cross-Platform Check (Windows + macOS)"
+      - "Cross-Platform Check (Windows + macOS + Ubuntu)"
       - "CI Fallback (GitHub-hosted)"
     types: [completed]
 

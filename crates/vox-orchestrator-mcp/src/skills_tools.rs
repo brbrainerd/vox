@@ -34,11 +34,15 @@ pub struct SkillSearchParams {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+pub struct SkillRunParams {
+    pub id: String,
+    pub command: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct SkillParseParams {
     pub skill_md: String,
 }
-
-/// Response shape for skill info.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SkillInfo {
     pub id: String,
@@ -71,8 +75,22 @@ fn to_info_with_source(m: vox_skills::SkillManifest, source: String) -> SkillInf
     }
 }
 
-fn to_info(m: vox_skills::SkillManifest) -> SkillInfo {
-    to_info_with_source(m, "local".to_string())
+fn manifest_source_label(state: &ServerState, id: &str) -> String {
+    match state.skill_registry.lookup(id) {
+        Ok(loaded) => {
+            if loaded.plugin_id != id && !loaded.plugin_id.is_empty() {
+                format!("plugin:{}", loaded.plugin_id)
+            } else {
+                "installed".to_string()
+            }
+        }
+        Err(_) => "local".to_string(),
+    }
+}
+
+fn to_info(state: &ServerState, m: vox_skills::SkillManifest) -> SkillInfo {
+    let id = m.id.clone();
+    to_info_with_source(m, manifest_source_label(state, &id))
 }
 
 // ---------------------------------------------------------------------------
@@ -93,6 +111,7 @@ pub async fn skill_install(state: &ServerState, params: SkillInstallParams) -> S
     // Arc<SkillRegistry> — interior mutability, no Mutex needed
     match state.skill_registry.install_bundle(&bundle).await {
         Ok(res) => {
+            state.rebuild_skill_search_index();
             if res.already_installed {
                 ToolResult::ok(format!(
                     "Skill '{}' already installed at {}",
@@ -119,6 +138,9 @@ pub async fn skill_uninstall(state: &ServerState, params: SkillIdParams) -> Stri
     match state.skill_registry.uninstall(&params.id).await {
         Ok(res) => {
             if res.was_installed {
+                state.rebuild_skill_search_index();
+            }
+            if res.was_installed {
                 ToolResult::ok(format!("Skill '{}' uninstalled.", res.id)).to_json()
             } else {
                 ToolResult::ok(format!("Skill '{}' was not installed.", res.id)).to_json()
@@ -135,28 +157,29 @@ pub fn skill_list(state: &ServerState) -> String {
         .skill_registry
         .list(None)
         .into_iter()
-        .map(to_info)
+        .map(|m| to_info(state, m))
         .collect();
     ToolResult::ok(skills).to_json()
 }
 
 pub fn skill_search(state: &ServerState, params: SkillSearchParams) -> String {
-    let hits: Vec<SkillInfo> = state
-        .skill_registry
-        .search(&params.query)
-        .into_iter()
-        .map(to_info)
+    let hits = state.skill_search_index.read().search(&params.query, 10);
+    let manifests: Vec<SkillInfo> = hits
+        .iter()
+        .filter_map(|h| state.skill_registry.get(&h.id).map(|m| to_info(state, m)))
         .collect();
-    if hits.is_empty() {
+    if manifests.is_empty() {
         ToolResult::ok(format!("No skills matching '{}'.", params.query)).to_json()
     } else {
-        ToolResult::ok(hits).to_json()
+        ToolResult::ok(manifests).to_json()
     }
 }
 
 pub fn skill_parse(params: SkillParseParams) -> String {
     match vox_skills::parser::parse_skill_md(&params.skill_md) {
-        Ok(bundle) => ToolResult::ok(to_info(bundle.manifest)).to_json(),
+        Ok(bundle) => {
+            ToolResult::ok(to_info_with_source(bundle.manifest, "parsed".to_string())).to_json()
+        }
         Err(e) => {
             ToolResult::<String>::err_with_remediation(format!("Parse error: {e}"), REM_SKILL_MD)
                 .to_json()
@@ -166,7 +189,7 @@ pub fn skill_parse(params: SkillParseParams) -> String {
 
 pub fn skill_info(state: &ServerState, params: SkillIdParams) -> String {
     match state.skill_registry.get(&params.id) {
-        Some(m) => ToolResult::ok(to_info(m)).to_json(),
+        Some(m) => ToolResult::ok(to_info(state, m)).to_json(),
         None => ToolResult::<String>::err_with_remediation(
             format!("Skill '{}' not installed.", params.id),
             REM_SKILL_ID,
@@ -183,6 +206,23 @@ pub struct SkillUseResponse {
     pub body: String,
 }
 
+/// Resolve a pinned skill by id or name and set [`ServerState::active_skill_id`].
+pub fn activate_skill_for_id_or_name(state: &ServerState, id_or_name: &str) -> bool {
+    let manifest = state
+        .skill_registry
+        .list(None)
+        .into_iter()
+        .find(|m| m.id == id_or_name || m.name == id_or_name);
+    match manifest {
+        Some(m) => {
+            tracing::info!(skill = %m.id, source = "activate", "skill_activated");
+            *state.active_skill_id.write() = Some(m.id);
+            true
+        }
+        None => false,
+    }
+}
+
 /// `vox_skill_use { id }` — return the full SKILL.md body for an installed
 /// skill, matched by id or name. This is the tier-2 step of agentskills.io
 /// progressive disclosure: tool-calling models load the body on demand after
@@ -195,6 +235,7 @@ pub fn skill_use(state: &ServerState, params: SkillIdParams) -> String {
         .find(|m| m.id == params.id || m.name == params.id);
     match manifest {
         Some(m) => {
+            activate_skill_for_id_or_name(state, &m.id);
             let body = state
                 .skill_registry
                 .lookup(&m.id)
@@ -259,4 +300,32 @@ pub fn skill_discover(state: &ServerState) -> String {
             })
             .collect();
     ToolResult::ok(items).to_json()
+}
+
+/// `vox_skill_run` — execute a skill script in the sandbox (parity with CLI `vox skill run`).
+pub async fn skill_run(state: &ServerState, params: SkillRunParams) -> String {
+    if state.skill_registry.get(&params.id).is_none() {
+        return ToolResult::<String>::err_with_remediation(
+            format!("Skill '{}' not installed.", params.id),
+            REM_SKILL_ID,
+        )
+        .to_json();
+    }
+    let command = params.command;
+    let outcome = tokio::task::spawn_blocking(move || {
+        let runner = vox_skills::sandbox::SandboxedSkillRunner::detect()?;
+        let limits = vox_openclaw_runtime::manifest::ResourceLimits::default();
+        runner.run(&command, &limits)
+    })
+    .await;
+    match outcome {
+        Ok(Ok(out)) => ToolResult::ok(serde_json::json!({
+            "exit_code": out.exit_code,
+            "stdout": out.stdout,
+            "stderr": out.stderr,
+        }))
+        .to_json(),
+        Ok(Err(e)) => ToolResult::<String>::err(format!("sandbox run failed: {e}")).to_json(),
+        Err(e) => ToolResult::<String>::err(format!("sandbox task failed: {e}")).to_json(),
+    }
 }

@@ -23,7 +23,35 @@ pub(super) async fn research_cache_short_circuit(
         .map(|entry| entry.result)
 }
 
-#[derive(serde::Deserialize)]
+/// Persist a completed research result for future cache short-circuit lookups.
+pub(super) async fn research_cache_store(
+    query: &ResearchQuery,
+    result: &ResearchResult,
+    db: &Codex,
+    _config: &ResearchConfig,
+) {
+    let key = research_cache_key(query);
+    let node_id = format!("research_cache:{key}");
+    let entry = ResearchCacheEntry {
+        key: key.clone(),
+        created_at_unix_secs: current_unix_secs(),
+        result: result.clone(),
+    };
+    let Ok(content) = serde_json::to_string(&entry) else {
+        tracing::warn!("research cache entry serialization failed");
+        return;
+    };
+    // Must use `knowledge_nodes` — `research_cache_short_circuit` reads via
+    // `list_memories_by_type`, not the episodic `memories` table.
+    if let Err(e) = db
+        .upsert_knowledge_node(&node_id, &key, &content, Some("research_cache"), None, None)
+        .await
+    {
+        tracing::warn!(error = %e, "research cache store failed");
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
 struct ResearchCacheEntry {
     key: String,
     created_at_unix_secs: u64,
@@ -54,7 +82,9 @@ fn current_unix_secs() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::research::types::ResearchScope;
+    use crate::research::types::{
+        ResearchMetadata, ResearchScope, RetrievalDiagnostics, RoutingTier,
+    };
 
     fn query(text: &str, scope: ResearchScope) -> ResearchQuery {
         ResearchQuery {
@@ -67,6 +97,30 @@ mod tests {
         }
     }
 
+    fn minimal_result() -> ResearchResult {
+        ResearchResult {
+            answer: "cached answer".to_string(),
+            sources: vec![],
+            citations: vec![],
+            research_metadata: ResearchMetadata {
+                session_id: 42,
+                duration_ms: 1,
+                provider: "test".to_string(),
+                routing_tier: RoutingTier::Direct,
+                confidence: 0.5,
+                subquery_count: 1,
+                source_count: 0,
+                claim_verdicts: vec![],
+                retrieval_diagnostics: RetrievalDiagnostics::default(),
+                quality_score: 50,
+                planner_degraded: false,
+                competence: None,
+                self_verification: None,
+                citation_audit: None,
+            },
+        }
+    }
+
     #[test]
     fn cache_key_changes_with_scope_and_normalizes_whitespace() {
         let a = research_cache_key(&query("  Deep   Research  ", ResearchScope::Web));
@@ -75,5 +129,20 @@ mod tests {
 
         assert_eq!(a, b);
         assert_ne!(a, c);
+    }
+
+    #[test]
+    fn research_cache_entry_serde_roundtrip() {
+        let q = query("deep research", ResearchScope::Web);
+        let entry = ResearchCacheEntry {
+            key: research_cache_key(&q),
+            created_at_unix_secs: 1_700_000_000,
+            result: minimal_result(),
+        };
+        let json = serde_json::to_string(&entry).expect("serialize");
+        let decoded: ResearchCacheEntry = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(decoded.key, entry.key);
+        assert_eq!(decoded.created_at_unix_secs, entry.created_at_unix_secs);
+        assert_eq!(decoded.result.answer, entry.result.answer);
     }
 }

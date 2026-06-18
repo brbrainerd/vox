@@ -74,6 +74,7 @@ impl Producer for SocratesTelemetryProducer {
             claim_ids: vec![],
             worthiness_score: delta.clamp(0.0, 1.0),
             session_id: ctx.session_id.clone(),
+            finding_candidate: None,
         }]
     }
 }

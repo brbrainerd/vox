@@ -29,7 +29,11 @@ tokio-tungstenite = { workspace = true, default-features = false, features = ["c
 semver       = { workspace = true }
 vox-secrets.workspace = true
 secrecy      = { workspace = true }
+dirs         = { workspace = true }
 workspace-hack = { workspace = true }
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+tempfile = { workspace = true }

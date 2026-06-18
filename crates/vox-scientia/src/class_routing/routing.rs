@@ -1,6 +1,7 @@
 //! Routing functions over a [`ClassDefaults`] map.
 
 use super::defaults::{ClassDefaults, FindingClass};
+use crate::critic_gate::{VenueCatalog, VenueCriticPolicy};
 
 /// Return the recommended-venues list for `class`, or an empty slice if no
 /// policy is configured.
@@ -36,6 +37,44 @@ pub fn critic_allowed_for(defaults: &ClassDefaults, class: FindingClass) -> bool
         .policy_for(class)
         .map(|p| p.critic_allowed)
         .unwrap_or(false)
+}
+
+/// Combined class + venue policy: class must allow critic and the venue
+/// catalog row must declare `allows_llm_critic: true` when `venue_id` is set.
+#[must_use]
+pub fn effective_critic_allowed(
+    defaults: &ClassDefaults,
+    class: FindingClass,
+    venue_id: Option<&str>,
+    catalog: Option<&VenueCatalog>,
+) -> bool {
+    if !critic_allowed_for(defaults, class) {
+        return false;
+    }
+    let Some(vid) = venue_id else {
+        return true;
+    };
+    let Some(cat) = catalog else {
+        return true;
+    };
+    cat.find_by_id(vid)
+        .map(|v| v.allows_llm_critic)
+        .unwrap_or(false)
+}
+
+/// Map class + venue to the gate's [`VenueCriticPolicy`].
+#[must_use]
+pub fn venue_critic_policy_for(
+    defaults: &ClassDefaults,
+    class: FindingClass,
+    venue_id: Option<&str>,
+    catalog: Option<&VenueCatalog>,
+) -> VenueCriticPolicy {
+    if effective_critic_allowed(defaults, class, venue_id, catalog) {
+        VenueCriticPolicy::Allowed
+    } else {
+        VenueCriticPolicy::Forbidden
+    }
 }
 
 /// Phase E §4: the Atlas-specific submission gate (negative-result quota,
@@ -121,5 +160,71 @@ mod tests {
             FindingClass::AlgorithmicImprovement
         ));
         assert!(recommended_venues_for(&empty, FindingClass::AlgorithmicImprovement).is_empty());
+    }
+
+    #[test]
+    fn effective_critic_requires_class_and_venue_allowance() {
+        let defaults = builtin_class_defaults();
+        let catalog = VenueCatalog::from_yaml(
+            r#"
+schema_version: 1
+venues:
+  - id: imc
+    allows_llm_critic: false
+  - id: tmlr
+    allows_llm_critic: true
+"#,
+        )
+        .unwrap();
+        assert!(effective_critic_allowed(
+            &defaults,
+            FindingClass::AlgorithmicImprovement,
+            Some("tmlr"),
+            Some(&catalog),
+        ));
+        assert!(!effective_critic_allowed(
+            &defaults,
+            FindingClass::AlgorithmicImprovement,
+            Some("imc"),
+            Some(&catalog),
+        ));
+        assert!(!effective_critic_allowed(
+            &defaults,
+            FindingClass::TelemetryTrust,
+            Some("tmlr"),
+            Some(&catalog),
+        ));
+    }
+
+    #[test]
+    fn venue_critic_policy_for_maps_effective_allowance() {
+        let defaults = builtin_class_defaults();
+        let catalog = VenueCatalog::from_yaml(
+            r#"
+schema_version: 1
+venues:
+  - id: tmlr
+    allows_llm_critic: true
+"#,
+        )
+        .unwrap();
+        assert_eq!(
+            venue_critic_policy_for(
+                &defaults,
+                FindingClass::ReproducibilityInfra,
+                Some("tmlr"),
+                Some(&catalog),
+            ),
+            VenueCriticPolicy::Allowed
+        );
+        assert_eq!(
+            venue_critic_policy_for(
+                &defaults,
+                FindingClass::PolicyGovernance,
+                Some("tmlr"),
+                Some(&catalog),
+            ),
+            VenueCriticPolicy::Forbidden
+        );
     }
 }

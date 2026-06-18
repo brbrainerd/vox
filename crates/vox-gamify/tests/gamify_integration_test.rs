@@ -419,3 +419,80 @@ fn quest_engine_archetype_differs_by_user() {
         "different users should get varied archetypes"
     );
 }
+
+#[tokio::test]
+async fn test_telemetry_shared_event_routing() {
+    let db = vox_db::VoxDb::open_memory().await.expect("db");
+    vox_gamify::db::apply_ludus_migrations(&db)
+        .await
+        .expect("migrations");
+    let ev = serde_json::json!({
+        "type": "telemetry_shared",
+        "source": "vox-telemetry",
+        "payload": { "bytes_shared": 1024 },
+    });
+    let res = vox_gamify::event_router::route_event_auto_user(&db, &ev)
+        .await
+        .expect("route");
+    let rw = res.reward.expect("reward");
+    assert_eq!(rw.xp, 15);
+    assert_eq!(rw.crystals, 3);
+}
+
+#[tokio::test]
+async fn test_vox_feature_milestone_event_routing() {
+    let db = vox_db::VoxDb::open_memory().await.expect("db");
+    vox_gamify::db::apply_ludus_migrations(&db)
+        .await
+        .expect("migrations");
+    let ev = serde_json::json!({
+        "type": "vox_feature_milestone",
+        "source": "vox-compiler",
+        "payload": { "feature": "actor" },
+    });
+    let res = vox_gamify::event_router::route_event_auto_user(&db, &ev)
+        .await
+        .expect("route");
+    let rw = res.reward.expect("reward");
+    assert_eq!(rw.xp, 31);
+    assert_eq!(rw.crystals, 6);
+}
+
+#[tokio::test]
+async fn test_skill_published_event_routing() {
+    let db = vox_db::VoxDb::open_memory().await.expect("db");
+    vox_gamify::db::apply_ludus_migrations(&db)
+        .await
+        .expect("migrations");
+    let ev = serde_json::json!({
+        "type": "skill_published",
+        "source": "vox-skills",
+        "payload": { "skill_name": "my-skill" },
+    });
+    let res = vox_gamify::event_router::route_event_auto_user(&db, &ev)
+        .await
+        .expect("route");
+    let rw = res.reward.expect("reward");
+    assert_eq!(rw.xp, 77);
+    assert_eq!(rw.crystals, 15);
+}
+
+#[tokio::test]
+async fn test_skill_gossiped_event_routing() {
+    let db = vox_db::VoxDb::open_memory().await.expect("db");
+    vox_gamify::db::apply_ludus_migrations(&db)
+        .await
+        .expect("migrations");
+    let ev = serde_json::json!({
+        "type": "skill_gossiped",
+        "source": "vox-populi",
+        "payload": { "peer_id": "peer-node-1" },
+    });
+    let res = vox_gamify::event_router::route_event_auto_user(&db, &ev)
+        .await
+        .expect("route");
+    let rw = res.reward.expect("reward");
+    assert_eq!(rw.xp, 115);
+    assert_eq!(rw.crystals, 23);
+    assert_eq!(rw.lumens, 15);
+}

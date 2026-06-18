@@ -149,3 +149,7 @@ rewards:
   cost_incurred: { xp: 0, crystals: 0 }
   continuation_triggered: { xp: 10, crystals: 2 }
   scope_violation: { xp: 0, crystals: 0 }
+  telemetry_shared: { xp: 20, crystals: 4 }
+  skill_published: { xp: 100, crystals: 20 }
+  skill_gossiped: { xp: 150, crystals: 30, lumens: 15 }
+  vox_feature_milestone: { xp: 40, crystals: 8 }

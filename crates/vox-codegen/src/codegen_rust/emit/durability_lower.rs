@@ -7,8 +7,23 @@ use std::collections::HashMap;
 use vox_compiler::ast::span::Span;
 use vox_compiler::hir::{DurabilityKind, HirFn, HirStmt, HirType};
 
+use super::script_db::with_activity_journal_inner;
 use super::stmt_expr::emit_stmt;
 use super::types::emit_type;
+
+fn activity_inner_return_type(ret: Option<&HirType>) -> String {
+    match ret {
+        Some(HirType::Generic(name, args)) if name == "Result" => {
+            let ok = args
+                .first()
+                .map(|t| emit_type(t))
+                .unwrap_or_else(|| "serde_json::Value".into());
+            format!("Result<{ok}, anyhow::Error>")
+        }
+        Some(other) => format!("Result<{}, anyhow::Error>", emit_type(other)),
+        None => "Result<(), anyhow::Error>".into(),
+    }
+}
 
 /// Emit the body of a workflow / activity / actor handler.
 ///
@@ -42,11 +57,11 @@ fn emit_workflow_body(func: &HirFn) -> String {
         "    let mut __vox_tracker = ::vox_workflow_runtime::workflow::tracker::DefaultTracker;\n",
     );
     out.push_str(&format!(
-        "    let __vox_journal = ::vox_workflow_runtime::workflow::interpret_workflow_durable(__vox_hir, \"{name}\", &mut __vox_tracker).await?;\n"
+        "    let __vox_journal = ::vox_workflow_runtime::workflow::interpret_workflow_durable(__vox_hir, \"{name}\", &mut __vox_tracker).await.map_err(|e| e.to_string())?;\n"
     ));
     if let Some(ret) = &func.return_type {
         out.push_str(&format!(
-            "    ::vox_workflow_runtime::workflow::extract_terminal_return::<{ty}>(&__vox_journal).map_err(|e| anyhow::anyhow!(e))\n",
+            "    ::vox_workflow_runtime::workflow::extract_terminal_return::<{ty}>(&__vox_journal).map_err(|e| e.to_string())?\n",
             ty = emit_type(ret),
         ));
     } else {
@@ -64,26 +79,48 @@ fn emit_activity_body(
         .generated_hash
         .clone()
         .unwrap_or_else(|| func.name.clone());
+    let inner_name = format!("__vox_activity_body_{}", func.name);
+    let mut param_decls = String::new();
+    let mut call_args = String::new();
+    for param in &func.params {
+        param_decls.push_str(&format!(
+            "{}: {}, ",
+            param.name,
+            emit_type(
+                param
+                    .type_ann
+                    .as_ref()
+                    .unwrap_or(&HirType::Named("serde_json::Value".into()))
+            )
+        ));
+        call_args.push_str(&format!("{}, ", param.name));
+    }
+    let inner_ret = activity_inner_return_type(func.return_type.as_ref());
+    let mut body = String::new();
+    with_activity_journal_inner(|| {
+        for stmt in &func.body {
+            body.push_str(&emit_stmt(
+                stmt,
+                3,
+                false,
+                false,
+                false,
+                inferred_types,
+                usage,
+                None,
+                func.return_type.as_ref(),
+            ));
+        }
+    });
     let mut out = String::new();
     out.push_str("    // P2-T7: activity body lowered to journal::execute\n");
     out.push_str(&format!(
-        "    ::vox_workflow_runtime::journal::execute(\"{activity_id}\", async move {{\n"
+        "    ::vox_workflow_runtime::journal::execute(\"{activity_id}\", async move {{\n\
+         \x20       async fn {inner_name}({param_decls}) -> {inner_ret} {{\n{body}\
+         \x20       }}\n\
+         \x20       {inner_name}({call_args}).await\n\
+         \x20   }}).await.map_err(|e| e.to_string())\n",
     ));
-    for stmt in &func.body {
-        let inner = emit_stmt(
-            stmt,
-            2,
-            false,
-            false,
-            false,
-            inferred_types,
-            usage,
-            None,
-            None,
-        );
-        out.push_str(&inner);
-    }
-    out.push_str("    }).await\n");
     out
 }
 

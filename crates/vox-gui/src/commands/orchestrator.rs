@@ -92,6 +92,44 @@ pub fn spawn_agent_event_stream(app_handle: tauri::AppHandle, daemon: Arc<Persis
     });
 }
 
+/// Tauri event emitted every time any orchestrator task changes state
+/// (created, updated, reordered, cancelled). Frontend subscribers should
+/// call their refresh function on receipt.
+pub const TASKS_CHANGED_EVENT: &str = "vox://tasks-changed";
+
+/// Emit [`TASKS_CHANGED_EVENT`] to all webview windows.
+///
+/// Call this after any mutation to orchestrator task state. The frontend
+/// `TasksView` subscribes to this event to refresh its task list without
+/// polling.
+pub fn emit_tasks_changed<R: tauri::Runtime>(app_handle: &tauri::AppHandle<R>) {
+    // `emit` broadcasts to all windows. A unit payload `()` serialises to `null`.
+    let _ = app_handle.emit(TASKS_CHANGED_EVENT, ());
+}
+
+/// Tauri event emitted when the secretary auto-submits a task from chat.
+/// Payload: `SecretaryProposedPayload`.
+pub const SECRETARY_PROPOSED_EVENT: &str = "vox://secretary-proposed-task";
+
+/// Payload for the [`SECRETARY_PROPOSED_EVENT`] Tauri event.
+#[derive(Debug, serde::Serialize, Clone)]
+pub struct SecretaryProposedPayload {
+    /// Hopper item ID assigned to the submitted task.
+    pub item_id: String,
+    /// Cleaned intent text that was submitted as the task description.
+    pub intent: String,
+    /// Classifier confidence 0–100 (for UI display only; not a guarantee).
+    pub confidence_pct: u8,
+}
+
+/// Emit [`SECRETARY_PROPOSED_EVENT`] to all webview windows.
+pub fn emit_secretary_proposed<R: tauri::Runtime>(
+    app_handle: &tauri::AppHandle<R>,
+    payload: SecretaryProposedPayload,
+) {
+    let _ = app_handle.emit(SECRETARY_PROPOSED_EVENT, payload);
+}
+
 #[derive(Debug, serde::Serialize)]
 pub struct GuiAgentSummary {
     pub id: u64,
@@ -528,4 +566,82 @@ pub async fn get_orchestrator_config() -> Result<serde_json::Value, String> {
         "scaleCpuCeilingPct": cfg.scale_cpu_ceiling_pct,
         "scaleMemFloorMb": cfg.scale_mem_floor_mb,
     }))
+}
+
+/// Token budget snapshot returned to the frontend.
+#[derive(Debug, serde::Serialize)]
+pub struct ContextBudgetPayload {
+    /// Maximum tokens the model's context can hold (from `CompactionConfig`).
+    pub max_context_tokens: usize,
+    /// Tokens reserved for the model's response (subtracted from usable budget).
+    pub reserved_tokens: usize,
+    /// Token count at which compaction triggers (`max * compaction_threshold`).
+    pub threshold_tokens: usize,
+    /// Usable token budget (`max - reserved`).
+    pub usable_tokens: usize,
+    /// Human-readable compaction strategy name: "aggressive", "balanced", or "conservative".
+    pub strategy: String,
+}
+
+/// Return the active context-window budget from the current compaction config.
+///
+/// Reads directly from the local in-memory config snapshot.
+#[tauri::command]
+pub async fn get_context_budget() -> Result<ContextBudgetPayload, String> {
+    let cfg = vox_orchestrator::config::OrchestratorConfig::snapshot().compaction;
+
+    Ok(ContextBudgetPayload {
+        max_context_tokens: cfg.max_context_tokens,
+        reserved_tokens: cfg.reserved_tokens,
+        threshold_tokens: cfg.trigger_at(),
+        usable_tokens: cfg.usable_budget(),
+        strategy: cfg.strategy.to_string(),
+    })
+}
+
+#[cfg(test)]
+
+mod budget_tests {
+    use super::*;
+
+    #[test]
+    fn context_budget_payload_serializes() {
+        let payload = ContextBudgetPayload {
+            max_context_tokens: 128_000,
+            reserved_tokens: 10_000,
+            threshold_tokens: 102_400,
+            usable_tokens: 118_000,
+            strategy: "balanced".to_string(),
+        };
+        let json = serde_json::to_value(&payload).expect("serialize");
+        assert_eq!(json["max_context_tokens"], 128_000);
+        assert_eq!(json["strategy"], "balanced");
+        assert_eq!(json["threshold_tokens"], 102_400);
+    }
+
+    #[test]
+    fn threshold_tokens_matches_trigger_at() {
+        // CompactionConfig::trigger_at() = max * threshold_fraction
+        // Default: 128_000 * 0.80 = 102_400
+        let cfg = vox_orchestrator::compaction::CompactionConfig::default();
+        assert_eq!(cfg.trigger_at(), 102_400);
+        assert_eq!(cfg.usable_budget(), 118_000);
+    }
+}
+
+#[cfg(test)]
+mod secretary_tests {
+    use super::*;
+
+    #[test]
+    fn secretary_proposed_payload_serializes() {
+        let payload = SecretaryProposedPayload {
+            item_id: "abc123".to_string(),
+            intent: "Fix the auth bug in login module".to_string(),
+            confidence_pct: 85,
+        };
+        let json = serde_json::to_value(&payload).expect("serialize");
+        assert_eq!(json["item_id"], "abc123");
+        assert_eq!(json["confidence_pct"], 85);
+    }
 }

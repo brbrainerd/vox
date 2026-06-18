@@ -146,7 +146,8 @@ export interface ContextChip {
  * `kind` selects the handler (file → editor, web → browser); other kinds are no-ops.
  */
 export interface OpenLocator {
-  kind: 'file' | 'web' | 'memory' | 'chat' | 'command' | 'none';
+  /** `setting` is GUI-only (Search/palette seed); not handled by Rust `open_locator`. */
+  kind: 'file' | 'web' | 'memory' | 'chat' | 'command' | 'setting' | 'none';
   value: string;
 }
 

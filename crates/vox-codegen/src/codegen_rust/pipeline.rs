@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use vox_compiler::ast::span::Span;
-use vox_compiler::hir::{HirModule, HirStmt};
+use vox_compiler::hir::{DurabilityKind, HirFn, HirModule, HirStmt};
 use vox_compiler::rust_interop_support::{
     classify_rust_crate, is_template_managed_script_native_dependency,
     is_template_managed_script_wasi_dependency, is_wasi_unsupported_rust_import,
@@ -14,6 +14,24 @@ use super::GENERATED_CARGO_EDITION;
 use super::emit;
 use super::emit::script_db;
 use super::manifest::{CodegenOutput, manifest_dependency_path};
+
+fn module_needs_workflow_runtime(module: &HirModule) -> bool {
+    let scan = |f: &HirFn| {
+        matches!(
+            f.durability,
+            Some(DurabilityKind::Workflow | DurabilityKind::Activity)
+        )
+    };
+    module.functions.iter().any(scan)
+        || module.tests.iter().any(scan)
+        || module.mcp_tools.iter().any(|t| scan(&t.func))
+        || module.mcp_resources.iter().any(|r| scan(&r.func))
+        || module.foralls.iter().any(|forall| scan(&forall.func))
+        || module
+            .functions
+            .iter()
+            .any(|f| f.schedule_interval.is_some())
+}
 
 /// Generate a full Rust project from a HIR module.
 pub fn generate(
@@ -122,7 +140,9 @@ pub fn generate_script_with_target(
         String::new()
     };
     let turso_dep = if has_tables {
-        "turso = { version = \"0.4\", default-features = false }\n".to_string()
+        // Must match workspace `[workspace.dependencies].turso` (vox-db uses 0.6).
+        "turso = { version = \"0.6\", default-features = false, features = [\"sync\"] }\n"
+            .to_string()
     } else {
         String::new()
     };
@@ -138,6 +158,19 @@ pub fn generate_script_with_target(
             .map(|p| manifest_dependency_path(&p.join("vox-telemetry")))
             .unwrap_or_else(|| "../vox-telemetry".to_string());
         format!("vox-telemetry = {{ path = \"{vox_telemetry_path}\" }}\n")
+    } else {
+        String::new()
+    };
+
+    let needs_workflow = module_needs_workflow_runtime(module);
+    let vox_workflow_runtime_dep = if needs_workflow {
+        let vox_workflow_runtime_path = runtime_path
+            .and_then(|p| p.parent())
+            .map(|p| manifest_dependency_path(&p.join("vox-workflow-runtime")))
+            .unwrap_or_else(|| "../vox-workflow-runtime".to_string());
+        format!(
+            "vox-workflow-runtime = {{ path = \"{vox_workflow_runtime_path}\", default-features = false }}\nanyhow = \"1\"\n"
+        )
     } else {
         String::new()
     };
@@ -218,10 +251,11 @@ tracing = "0.1"
 rust_decimal = "1.36"
 regex = "1"
 vox-actor-runtime = {{ path = "{runtime_path_str}" }}
-{vox_telemetry_dep}{vox_db_dep}{turso_dep}{rust_import_deps}{aegis_patch_section}"#,
+{vox_telemetry_dep}{vox_workflow_runtime_dep}{vox_db_dep}{turso_dep}{rust_import_deps}{aegis_patch_section}"#,
             package_name = package_name,
             runtime_path_str = runtime_path_str,
             vox_telemetry_dep = vox_telemetry_dep,
+            vox_workflow_runtime_dep = vox_workflow_runtime_dep,
             vox_db_dep = vox_db_dep,
             turso_dep = turso_dep,
             rust_import_deps = rust_import_deps,

@@ -48,14 +48,44 @@ tools:
   product_lane: ai
   http_read_role_eligible: false
   tier: core
+- name: vox_agent_gateway_call
+  description: Invoke an arbitrary agent Gateway method with JSON params.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
 - name: vox_agent_handoff
   description: Passes plan/context from one agent to another.
   product_lane: ai
   http_read_role_eligible: false
   tier: core
+- name: vox_agent_list_remote
+  description: List remote agent skills through the native agent runtime adapter.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_agent_notify
+  description: Send a domain-scoped notification over the agent gateway.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
 - name: vox_agent_status
   description: Returns current agent state, activity, mood, queue depth.
   product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_agent_subscribe
+  description: Subscribe the agent gateway session to a domain.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_agent_subscriptions
+  description: List active agent gateway subscriptions for the current session.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_agent_unsubscribe
+  description: Unsubscribe the agent gateway session from a domain.
+  product_lane: interop
   http_read_role_eligible: false
   tier: core
 - name: vox_answer_question
@@ -578,6 +608,31 @@ tools:
   product_lane: app
   http_read_role_eligible: true
   tier: core
+- name: vox_graphify_compare
+  description: Diff two graphify corpus manifests for node/edge/community delta (read-only).
+  product_lane: platform
+  http_read_role_eligible: true
+  tier: core
+- name: vox_graphify_path
+  description: Shortest path between two node IDs in a graphify corpus (read-only).
+  product_lane: platform
+  http_read_role_eligible: true
+  tier: core
+- name: vox_graphify_query
+  description: BFS neighbor expansion from seed node IDs (read-only; layered navigation).
+  product_lane: platform
+  http_read_role_eligible: true
+  tier: core
+- name: vox_graphify_search
+  description: Lexically search a graphify corpus graph on disk (read-only).
+  product_lane: platform
+  http_read_role_eligible: true
+  tier: core
+- name: vox_graphify_status
+  description: Report graphify corpus freshness (read-only; `--strict` fails when stale).
+  product_lane: platform
+  http_read_role_eligible: true
+  tier: core
 - name: vox_handoff_context
   description: Handoff summarized context from one agent to another.
   product_lane: ai
@@ -602,6 +657,66 @@ tools:
   description: List ordered canonical developer-journey steps from Codex (SSOT `developer_journey_steps`).
   product_lane: ai
   http_read_role_eligible: true
+  tier: core
+- name: vox_kb_add_entry
+  description: Add a knowledge entry to a knowledge base.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_kb_add_rule
+  description: Add an ingestion filter rule.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_kb_clip
+  description: Clip code/notes into knowledge bases.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_kb_create
+  description: Create a new knowledge base.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_kb_delete
+  description: Delete a knowledge base by ID.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_kb_delete_entry
+  description: Delete a knowledge entry by ID.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_kb_get_feed
+  description: Get the feed of knowledge entries.
+  product_lane: ai
+  http_read_role_eligible: true
+  tier: core
+- name: vox_kb_list
+  description: List all available knowledge bases.
+  product_lane: ai
+  http_read_role_eligible: true
+  tier: core
+- name: vox_kb_list_entries
+  description: List all knowledge entries in a knowledge base.
+  product_lane: ai
+  http_read_role_eligible: true
+  tier: core
+- name: vox_kb_list_rules
+  description: List ingestion filter rules.
+  product_lane: ai
+  http_read_role_eligible: true
+  tier: core
+- name: vox_kb_query
+  description: Query knowledge bases with semantic search.
+  product_lane: ai
+  http_read_role_eligible: true
+  tier: core
+- name: vox_kb_review_entry
+  description: Accept or reject a knowledge entry.
+  product_lane: ai
+  http_read_role_eligible: false
   tier: core
 - name: vox_knowledge_query
   description: Query the knowledge graph (VoxDB) for related concepts by keyword.
@@ -1283,6 +1398,11 @@ tools:
   product_lane: interop
   http_read_role_eligible: false
   tier: core
+- name: vox_skill_run
+  description: Execute a skill script in the sandbox (parity with CLI `vox skill run`).
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
 - name: vox_skill_search
   description: Search installed skills by keyword.
   product_lane: interop
@@ -1401,6 +1521,11 @@ tools:
 - name: vox_workspace_create
   description: Create an isolated workspace for an agent.
   product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_workspace_mcp_refresh
+  description: Reloads/refreshes the workspace MCP registry and scan config.
+  product_lane: interop
   http_read_role_eligible: false
   tier: core
 - name: vox_workspace_merge

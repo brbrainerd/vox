@@ -23,9 +23,14 @@ pub async fn open_browser(url: &str) {
 fn open_browser_sync(url: &str) -> std::io::Result<()> {
     #[cfg(windows)]
     {
-        std::process::Command::new("cmd")
-            .args(["/C", "start", "", url])
-            .spawn()?;
+        let mut cmd = std::process::Command::new("cmd");
+        cmd.args(["/C", "start", "", url]);
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.creation_flags(0x0800_0000);
+        }
+        cmd.spawn()?;
     }
     #[cfg(target_os = "macos")]
     {

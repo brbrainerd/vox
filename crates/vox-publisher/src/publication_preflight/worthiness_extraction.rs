@@ -20,6 +20,50 @@ pub fn parse_scientific_from_metadata_json(
 pub(super) fn clamp01(x: f64) -> f64 {
     x.clamp(0.0, 1.0)
 }
+
+/// Lightweight view of a `publication_status_events` row for replay writeback.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct PublicationStatusEventSnapshot {
+    pub status: String,
+    pub detail_json: Option<String>,
+}
+
+/// Status codes written by `publication-replay-execute` (newest-first scan).
+const REPLAY_MEASURED_STATUS: &str = "artifact_replayability_measured";
+const REPLAY_MEASURED_STATUS_LEGACY: &str = "replay_measured";
+
+/// Read the measured replay score from the latest matching status event.
+///
+/// Events are scanned in caller order; pass rows from
+/// [`vox_db::VoxDb::list_publication_status_events`] (DESC by id) so the first
+/// hit is the most recent measurement.
+#[must_use]
+pub fn artifact_replayability_measured_from_status_events(
+    events: &[PublicationStatusEventSnapshot],
+) -> Option<f64> {
+    for ev in events {
+        if ev.status != REPLAY_MEASURED_STATUS && ev.status != REPLAY_MEASURED_STATUS_LEGACY {
+            continue;
+        }
+        let Some(raw) = ev.detail_json.as_deref() else {
+            continue;
+        };
+        let trimmed = raw.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if let Ok(report) = serde_json::from_str::<vox_scientia::replay::ReplayReport>(trimmed) {
+            return Some(clamp01(report.measured_score));
+        }
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(trimmed) {
+            if let Some(score) = v.get("measured_score").and_then(|s| s.as_f64()) {
+                return Some(clamp01(score));
+            }
+        }
+    }
+    None
+}
+
 /// Build [`crate::publication_worthiness::WorthinessInputs`] from manifest + preflight (automated proxy only).
 ///
 /// This is intentionally conservative: benchmark-style fields are weakly informed, and
@@ -29,6 +73,20 @@ pub fn worthiness_inputs_from_manifest_and_preflight(
     manifest: &PublicationManifest,
     report: &PreflightReport,
     heuristics: Option<&crate::scientia_heuristics::ScientiaHeuristics>,
+) -> crate::publication_worthiness::WorthinessInputs {
+    worthiness_inputs_from_manifest_and_preflight_with_status_events(
+        manifest, report, heuristics, None,
+    )
+}
+
+/// Like [`worthiness_inputs_from_manifest_and_preflight`], with optional status events
+/// from `publication_status_events` (replay runner writeback).
+#[must_use]
+pub fn worthiness_inputs_from_manifest_and_preflight_with_status_events(
+    manifest: &PublicationManifest,
+    report: &PreflightReport,
+    heuristics: Option<&crate::scientia_heuristics::ScientiaHeuristics>,
+    status_events: Option<&[PublicationStatusEventSnapshot]>,
 ) -> crate::publication_worthiness::WorthinessInputs {
     let h_fallback = crate::scientia_heuristics::ScientiaHeuristics::default();
     let h = heuristics.unwrap_or(&h_fallback);
@@ -181,15 +239,16 @@ pub fn worthiness_inputs_from_manifest_and_preflight(
     let novelty = clamp01(h.worthiness_novelty_base + h.worthiness_novelty_r_coef * r);
     let reliability = clamp01(0.48 + 0.47 * r);
 
+    let measured_replay = status_events
+        .map(artifact_replayability_measured_from_status_events)
+        .unwrap_or(None);
+
     let mut inputs = crate::publication_worthiness::WorthinessInputs {
         red_line_violation_ids,
         repeated_unresolved_contradiction: false,
         claim_evidence_coverage: citation_score,
         artifact_replayability: repro_score,
-        // Phase B: measured value is written back by `vox-replay-runner` after
-        // a sandboxed re-execution of the manifest's RO-Crate `mainEntity`.
-        // Absent here means downstream gates fall back to the declared score.
-        artifact_replayability_measured: None,
+        artifact_replayability_measured: measured_replay,
         before_after_pair_integrity: before_after,
         metadata_completeness: meta_score,
         ai_disclosure_compliance: ai_disclosure,
@@ -215,4 +274,104 @@ pub fn worthiness_inputs_from_manifest_and_preflight(
         );
     }
     inputs
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::publication::PublicationManifest;
+
+    fn sample_report() -> PreflightReport {
+        PreflightReport {
+            ok: true,
+            readiness_score: 80,
+            findings: vec![],
+            manual_required: vec![],
+            next_actions: vec![],
+            confidence: PreflightConfidence::AutoWithReview,
+            destination_readiness: vec![],
+            worthiness: None,
+        }
+    }
+
+    fn sample_manifest() -> PublicationManifest {
+        PublicationManifest {
+            publication_id: "pub-test".into(),
+            content_type: "research".into(),
+            source_ref: None,
+            title: "Test".into(),
+            author: "Alice".into(),
+            abstract_text: Some("Abstract.".into()),
+            body_markdown: String::new(),
+            citations_json: None,
+            metadata_json: None,
+        }
+    }
+
+    fn replay_report_json(measured_score: f64) -> String {
+        format!(
+            r#"{{"outcome":{{"kind":"pass"}},"wall_ms":42,"measured_score":{measured_score},"diagnostics":[],"stdout":"","stderr":""}}"#
+        )
+    }
+
+    #[test]
+    fn artifact_replayability_measured_from_latest_status_event() {
+        let events = vec![
+            PublicationStatusEventSnapshot {
+                status: "draft_saved".into(),
+                detail_json: None,
+            },
+            PublicationStatusEventSnapshot {
+                status: "artifact_replayability_measured".into(),
+                detail_json: Some(replay_report_json(1.0)),
+            },
+        ];
+        assert_eq!(
+            artifact_replayability_measured_from_status_events(&events),
+            Some(1.0)
+        );
+    }
+
+    #[test]
+    fn legacy_replay_measured_status_is_accepted() {
+        let events = vec![PublicationStatusEventSnapshot {
+            status: "replay_measured".into(),
+            detail_json: Some(replay_report_json(0.0)),
+        }];
+        assert_eq!(
+            artifact_replayability_measured_from_status_events(&events),
+            Some(0.0)
+        );
+    }
+
+    #[test]
+    fn worthiness_inputs_prefers_measured_replay_from_status_events() {
+        let manifest = sample_manifest();
+        let report = sample_report();
+        let events = vec![PublicationStatusEventSnapshot {
+            status: "artifact_replayability_measured".into(),
+            detail_json: Some(replay_report_json(1.0)),
+        }];
+        let inputs = worthiness_inputs_from_manifest_and_preflight_with_status_events(
+            &manifest,
+            &report,
+            None,
+            Some(&events),
+        );
+        assert_eq!(inputs.artifact_replayability_measured, Some(1.0));
+        assert_eq!(
+            crate::publication_worthiness::effective_replayability(&inputs),
+            1.0
+        );
+    }
+
+    #[test]
+    fn absent_status_events_leaves_measured_replay_none() {
+        let manifest = sample_manifest();
+        let report = sample_report();
+        let inputs = worthiness_inputs_from_manifest_and_preflight_with_status_events(
+            &manifest, &report, None, None,
+        );
+        assert!(inputs.artifact_replayability_measured.is_none());
+    }
 }

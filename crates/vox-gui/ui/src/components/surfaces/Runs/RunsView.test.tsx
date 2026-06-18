@@ -45,4 +45,11 @@ describe('RunsView', () => {
     const runBtn = screen.getAllByText('build')[0].closest('button')!;
     expect(runBtn.getAttribute('aria-pressed')).toBeDefined();
   });
+
+  it('renders RunsView elements utilizing DataTable key fields', async () => {
+    render(<RunsView pushToast={vi.fn()} />);
+    await waitFor(() => {
+      expect(screen.getByText('No model runs tracked yet')).toBeDefined();
+    });
+  });
 });

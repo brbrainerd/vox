@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { useLudusStore } from '../../gamify/store';
 import { invoke } from '@tauri-apps/api/core';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
+import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import {
   buildClaimReviewArgv,
   buildNanopubBuildArgv,
@@ -47,7 +49,7 @@ const DECISION_STYLE: Record<ReviewDecision, string> = {
  * Every mutation routes through the shared `execute_command` __argv bridge — no
  * new Tauri command. argv wiring lives in `discoveryReviewArgv.ts`.
  */
-export function DiscoveryReviewView({ pushToast }: SurfaceDecoratorProps) {
+export function DiscoveryReviewView({ pushToast, gamifyEnabled }: SurfaceDecoratorProps) {
   const [publicationId, setPublicationId] = useState('');
   const [orcid, setOrcid] = useState('');
   const [claims, setClaims] = useState<ClaimRow[] | null>(null);
@@ -59,6 +61,7 @@ export function DiscoveryReviewView({ pushToast }: SurfaceDecoratorProps) {
 
   const loadClaims = async () => {
     if (!pubId) return;
+    useLudusStore.getState().setFocusedFile(pubId);
     setBusy(true);
     try {
       const out = await invoke<ExecuteOutput>('execute_command', {
@@ -97,6 +100,13 @@ export function DiscoveryReviewView({ pushToast }: SurfaceDecoratorProps) {
       }
       setReviews((prev) => ({ ...prev, [claimId]: { decision, trustyUri: null } }));
       pushToast({ tone: 'ok', title: 'Claim review', body: `claim ${claimId} → ${decision}` });
+      if (decision === 'approve') {
+        void recordGamifyGuiEvent(
+          'claim_approved',
+          { publication_id: pubId, claim_id: claimId },
+          { enabled: gamifyEnabled },
+        );
+      }
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Review failed', body: String(err) });
     } finally {
@@ -122,6 +132,11 @@ export function DiscoveryReviewView({ pushToast }: SurfaceDecoratorProps) {
         [claimId]: { decision: prev[claimId]?.decision ?? 'approve', trustyUri: uri },
       }));
       pushToast({ tone: 'ok', title: 'Nanopublication built', body: uri });
+      void recordGamifyGuiEvent(
+        'nanopub_built',
+        { publication_id: pubId, claim_id: claimId, trusty_uri: uri },
+        { enabled: gamifyEnabled },
+      );
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Nanopub build failed', body: String(err) });
     } finally {

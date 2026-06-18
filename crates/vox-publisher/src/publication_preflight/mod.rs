@@ -350,7 +350,7 @@ pub fn run_preflight_with_worthiness_heuristics(
     heuristics: &crate::scientia_heuristics::ScientiaHeuristics,
 ) -> PreflightReport {
     run_preflight_with_worthiness_attention_heuristics(
-        manifest, profile, contract, None, heuristics,
+        manifest, profile, contract, None, heuristics, None,
     )
 }
 
@@ -364,7 +364,7 @@ pub fn run_preflight_with_worthiness_attention(
 ) -> PreflightReport {
     let default = crate::scientia_heuristics::ScientiaHeuristics::default();
     run_preflight_with_worthiness_attention_heuristics(
-        manifest, profile, contract, attention, &default,
+        manifest, profile, contract, attention, &default, None,
     )
 }
 
@@ -376,6 +376,7 @@ pub fn run_preflight_with_worthiness_attention_heuristics(
     contract: &crate::publication_worthiness::PublicationWorthinessContract,
     attention: Option<PreflightAttentionInputs>,
     heuristics: &crate::scientia_heuristics::ScientiaHeuristics,
+    status_events: Option<&[PublicationStatusEventSnapshot]>,
 ) -> PreflightReport {
     let mut report = run_preflight_with_attention(manifest, profile, attention);
     if let Some(bundle) = crate::scientia_prior_art::parse_novelty_bundle_from_metadata_json(
@@ -410,7 +411,12 @@ pub fn run_preflight_with_worthiness_attention_heuristics(
             });
         }
     }
-    let inputs = worthiness_inputs_from_manifest_and_preflight(manifest, &report, Some(heuristics));
+    let inputs = worthiness_inputs_from_manifest_and_preflight_with_status_events(
+        manifest,
+        &report,
+        Some(heuristics),
+        status_events,
+    );
     let eval = crate::publication_worthiness::evaluate_worthiness(contract, &inputs);
     report.worthiness = Some(eval);
     report

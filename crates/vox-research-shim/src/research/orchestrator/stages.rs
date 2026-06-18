@@ -2,6 +2,46 @@ use super::super::types::{Citation, ResearchHit, SelfVerificationResult};
 use super::config::ANTI_LAZINESS_RIDER;
 use super::helpers::{sanitize_chatml, sanitize_evidence};
 
+/// Count distinct registrable domains in research hits and flag diversity shortfall.
+#[must_use]
+pub fn evaluate_citation_diversity(
+    hits: &[ResearchHit],
+    min_distinct_domains: usize,
+) -> (usize, bool) {
+    let mut domains = std::collections::HashSet::new();
+    for hit in hits {
+        if let Some(host) = registrable_domain(&hit.url) {
+            domains.insert(host);
+        }
+    }
+    let count = domains.len();
+    let below = min_distinct_domains > 0 && count < min_distinct_domains;
+    (count, below)
+}
+
+pub(super) fn registrable_domain(url: &str) -> Option<String> {
+    let lower = url.trim().to_ascii_lowercase();
+    if lower.starts_with("repo://")
+        || lower.starts_with("vox://")
+        || lower.starts_with("tavily-research://")
+    {
+        return None;
+    }
+    let rest = lower.split("://").nth(1).unwrap_or(&lower);
+    let host = rest
+        .split('/')
+        .next()
+        .unwrap_or(rest)
+        .split(':')
+        .next()
+        .unwrap_or(rest)
+        .trim_start_matches("www.");
+    if host.is_empty() || host == "localhost" {
+        return None;
+    }
+    Some(host.to_string())
+}
+
 pub(super) struct JudgeParams<'a> {
     pub query: &'a str,
     pub answer: &'a str,
@@ -427,4 +467,37 @@ async fn chat_stage(
     _response_format: Option<serde_json::Value>,
 ) -> anyhow::Result<String> {
     anyhow::bail!("research runtime feature is disabled")
+}
+
+#[cfg(test)]
+mod citation_diversity_tests {
+    use super::evaluate_citation_diversity;
+    use crate::research::types::ResearchHit;
+
+    #[test]
+    fn diversity_gate_flags_insufficient_domains() {
+        let hits = vec![
+            ResearchHit {
+                url: "https://a.example/x".into(),
+                title: "a".into(),
+                snippet: "s".into(),
+                score: 1.0,
+                http_status: 0,
+                trust_score: 1.0,
+                raw_content: String::new(),
+            },
+            ResearchHit {
+                url: "https://a.example/y".into(),
+                title: "b".into(),
+                snippet: "s".into(),
+                score: 1.0,
+                http_status: 0,
+                trust_score: 1.0,
+                raw_content: String::new(),
+            },
+        ];
+        let (count, below) = evaluate_citation_diversity(&hits, 3);
+        assert_eq!(count, 1);
+        assert!(below);
+    }
 }

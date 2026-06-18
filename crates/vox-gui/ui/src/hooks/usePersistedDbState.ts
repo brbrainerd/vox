@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { voxTransport } from '../transport';
 
 export function usePersistedDbState<T>(key: string, initialValue: T) {
   const [storedValue, setStoredValue] = useState<T>(initialValue);
@@ -8,7 +8,7 @@ export function usePersistedDbState<T>(key: string, initialValue: T) {
 
   useEffect(() => {
     let active = true;
-    invoke<string | null>('get_gui_preference', { key })
+    voxTransport.getGuiPreference(key)
       .then((val) => {
         if (!active) return;
         if (val) {
@@ -20,7 +20,7 @@ export function usePersistedDbState<T>(key: string, initialValue: T) {
         }
         setIsLoaded(true);
         if (pendingWrite.current !== undefined) {
-          invoke('set_gui_preference', { key, value: JSON.stringify(pendingWrite.current) })
+          voxTransport.setGuiPreference(key, JSON.stringify(pendingWrite.current))
             .catch(err => console.error("Failed to save preference to db", err));
           pendingWrite.current = undefined;
         }
@@ -37,7 +37,7 @@ export function usePersistedDbState<T>(key: string, initialValue: T) {
       const valueToStore = value instanceof Function ? value(storedValue) : value;
       setStoredValue(valueToStore);
       if (isLoaded) {
-        invoke('set_gui_preference', { key, value: JSON.stringify(valueToStore) })
+        voxTransport.setGuiPreference(key, JSON.stringify(valueToStore))
           .catch(err => console.error("Failed to save preference to db", err));
       } else {
         pendingWrite.current = valueToStore;

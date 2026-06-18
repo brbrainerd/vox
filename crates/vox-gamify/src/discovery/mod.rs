@@ -4,5 +4,6 @@
 pub mod fsrs;
 pub mod ledger;
 pub mod rank;
+pub mod scientia_kudos;
 
 pub use fsrs::{MemoryState, Recall, update as fsrs_update};

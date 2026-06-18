@@ -16,7 +16,7 @@ pub mod code_uniqueness;
 pub mod commit_watcher;
 
 pub use code_uniqueness::{
-    CodeKnnIndex, CodeSnippet, CodeUniquenessAssessment, assess_code_uniqueness, extract_snippets,
-    uniqueness_score,
+    CodeKnnIndex, CodeSnippet, CodeUniquenessAssessment, InMemoryKnnIndex, assess_code_uniqueness,
+    assessment_metadata_json, cosine_similarity, extract_snippets, uniqueness_score,
 };
 pub use commit_watcher::{CommitView, signals_from_commit};

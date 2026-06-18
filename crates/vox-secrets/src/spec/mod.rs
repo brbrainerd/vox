@@ -183,7 +183,8 @@ pub fn capabilities_for_secret(id: SecretId) -> &'static [Capability] {
         SecretId::V0ApiKey
         | SecretId::OpenClawToken
         | SecretId::TavilyApiKey
-        | SecretId::TavilyProject => &[Capability::AuxTools, Capability::AutonomousResearch],
+        | SecretId::TavilyProject
+        | SecretId::SonatypeGuideToken => &[Capability::AuxTools, Capability::AutonomousResearch],
         SecretId::VoxNewsTwitterBearer
         | SecretId::VoxSocialBlueskyHandle
         | SecretId::VoxSocialBlueskyPassword

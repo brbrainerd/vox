@@ -155,7 +155,6 @@ env-var-not-in-registry|crates/vox-ml-cli/src/commands/oratio_cmd.rs|VOX_REPOSIT
 env-var-not-in-registry|crates/vox-ml-cli/src/commands/populi_cli.rs|VOX_MESH_FEDERATION_BOOTSTRAP_PEERS
 env-var-not-in-registry|crates/vox-ml-cli/src/commands/schola/train/gpu.rs|VOX_MENS_GRADIENT_CHECKPOINTING
 env-var-not-in-registry|crates/vox-orchestrator-d/src/bin/vox_orchestrator_d.rs|VOX_PLUGINS_DIR
-env-var-not-in-registry|crates/vox-orchestrator-mcp/src/browser_tools.rs|VOX_MCP_CALLER_ROLE
 env-var-not-in-registry|crates/vox-orchestrator-mcp/src/http_gateway/dashboard_api.rs|VOX_DASHBOARD_LIVE_MESH
 env-var-not-in-registry|crates/vox-orchestrator-mcp/src/http_gateway/dashboard_api.rs|VOX_DASHBOARD_LIVE_RUNS
 env-var-not-in-registry|crates/vox-orchestrator-mcp/src/http_gateway/dashboard_api.rs|VOX_DASHBOARD_ROUTING_VIZ

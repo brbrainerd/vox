@@ -2,6 +2,16 @@
 //!
 //! This is the bridge between the Vox type system and SQLite's physical schema.
 //! It generates `CREATE TABLE`, `CREATE INDEX`, and type-safe DDL from the AST.
+//!
+//! ### Architectural Decision Point: Coupling with `vox-ast`
+//!
+//! This module translates compiler AST representations into physical SQLite DDL statements.
+//! As a result, the database access crate (`vox-db`) has a direct dependency on the
+//! compiler AST crate (`vox-ast`).
+//!
+//! **Future Refactoring:** To decouple the client database functionality from compiler-level
+//! DDL generation, this compiler module and the corresponding migration logic (in `auto_migrate.rs`)
+//! may be moved to a standalone crate (e.g., `vox-db-ddl`).
 
 pub mod activity_result_cache;
 mod diff;

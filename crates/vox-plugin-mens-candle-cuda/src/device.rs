@@ -30,6 +30,16 @@ pub struct GpuInfo {
 /// SP3-C stub: hardware registry is a vox-populi concern; reconnect via host capability in sub-batch D.
 #[must_use]
 pub fn probe_gpu() -> GpuInfo {
+    #[cfg(feature = "cuda")]
+    {
+        if let Some((_used_mb, total_mb)) = mem_pool::device_mem_used_total_mb() {
+            return GpuInfo {
+                model_name: "cuda_device".to_string(),
+                vram_mb: total_mb,
+                vendor: "NVIDIA".to_string(),
+            };
+        }
+    }
     GpuInfo {
         model_name: "unknown".to_string(),
         vram_mb: 0,
@@ -122,5 +132,21 @@ pub mod mem_pool {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests_probe {
+    use super::*;
+
+    #[test]
+    fn test_probe_gpu() {
+        let info = probe_gpu();
+        if cfg!(feature = "cuda") {
+            assert!(info.vendor == "NVIDIA" || info.vendor == "unknown");
+        } else {
+            assert_eq!(info.vendor, "unknown");
+            assert_eq!(info.vram_mb, 0);
+        }
     }
 }

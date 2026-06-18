@@ -112,7 +112,7 @@ where
             usage,
             emit,
         ),
-        HirExpr::FieldAccess(obj, field, _) => {
+        HirExpr::FieldAccess(obj, field, span) => {
             let o = emit(obj, OwnershipMode::Owned);
             if o == "std" && field == "args" {
                 "std::env::args().skip(1).map(|s| s.to_string()).collect::<Vec<String>>()"
@@ -120,7 +120,76 @@ where
             } else if is_vox_namespace_ident(&o) {
                 format!("{}::{}", o, field)
             } else {
-                format!("{}.{}", o, field)
+                let mut is_json_or_record = false;
+                if let Some(inferred) = inferred_types {
+                    eprintln!(
+                        "DEBUGLOG: FieldAccess obj={:?} span={:?}",
+                        obj,
+                        hir_expr_span(obj)
+                    );
+                    if let Some(obj_ty) = inferred.get(&hir_expr_span(obj)) {
+                        eprintln!("DEBUGLOG: Found obj_ty: {:?}", obj_ty);
+                        if let HirType::Named(n) = obj_ty {
+                            if n == "Json"
+                                || n == "Value"
+                                || (n.starts_with('{') && n.ends_with('}'))
+                            {
+                                is_json_or_record = true;
+                            }
+                        }
+                    } else {
+                        eprintln!(
+                            "DEBUGLOG: obj_ty NOT found in inferred map! Map size = {}",
+                            inferred.len()
+                        );
+                    }
+                }
+
+                if is_json_or_record {
+                    let expected_ty = inferred_types.and_then(|m| m.get(span));
+                    match expected_ty {
+                        Some(HirType::Named(n)) if n == "int" => {
+                            format!("{o}[\"{field}\"].as_i64().unwrap_or(0)")
+                        }
+                        Some(HirType::Named(n)) if n == "float" => {
+                            format!("{o}[\"{field}\"].as_f64().unwrap_or(0.0)")
+                        }
+                        Some(HirType::Named(n)) if n == "bool" => {
+                            format!("{o}[\"{field}\"].as_bool().unwrap_or(false)")
+                        }
+                        Some(HirType::Named(n)) if n == "str" => {
+                            format!("{o}[\"{field}\"].as_str().unwrap_or(\"\").to_string()")
+                        }
+                        Some(HirType::Generic(n, args))
+                            if (n == "Option" || n == "option") && args.len() == 1 =>
+                        {
+                            match &args[0] {
+                                HirType::Named(inner) if inner == "int" => {
+                                    format!("{o}.get(\"{field}\").and_then(|v| v.as_i64())")
+                                }
+                                HirType::Named(inner) if inner == "float" => {
+                                    format!("{o}.get(\"{field}\").and_then(|v| v.as_f64())")
+                                }
+                                HirType::Named(inner) if inner == "bool" => {
+                                    format!("{o}.get(\"{field}\").and_then(|v| v.as_bool())")
+                                }
+                                HirType::Named(inner) if inner == "str" => {
+                                    format!(
+                                        "{o}.get(\"{field}\").and_then(|v| v.as_str().map(|s| s.to_string()))"
+                                    )
+                                }
+                                _ => {
+                                    format!("{o}.get(\"{field}\").cloned()")
+                                }
+                            }
+                        }
+                        _ => {
+                            format!("{o}[\"{field}\"].clone()")
+                        }
+                    }
+                } else {
+                    format!("{}.{}", o, field)
+                }
             }
         }
         HirExpr::With(operand, options, _) => {
@@ -374,4 +443,30 @@ pub(super) fn is_vox_namespace_ident(name: &str) -> bool {
             | "regex"
             | "agentos"
     )
+}
+
+fn hir_expr_span(expr: &HirExpr) -> Span {
+    match expr {
+        HirExpr::IntLit(_, s) => *s,
+        HirExpr::FloatLit(_, s) => *s,
+        HirExpr::StringLit(_, s) => *s,
+        HirExpr::BoolLit(_, s) => *s,
+        HirExpr::DecimalLit(_, s) => *s,
+        HirExpr::Ident(_, s) => *s,
+        HirExpr::ObjectLit(_, s) => *s,
+        HirExpr::ListLit(_, s) => *s,
+        HirExpr::TupleLit(_, s) => *s,
+        HirExpr::Binary(_, _, _, s) => *s,
+        HirExpr::Unary(_, _, s) => *s,
+        HirExpr::Call(_, _, _, s) => *s,
+        HirExpr::MethodCall(_, _, _, _, s) => *s,
+        HirExpr::FieldAccess(_, _, s) => *s,
+        HirExpr::Match(_, _, s) => *s,
+        HirExpr::If(_, _, _, s) => *s,
+        HirExpr::Index(_, _, s) => *s,
+        HirExpr::Spawn(_, s) => *s,
+        HirExpr::Lambda(_, _, _, _, s) => *s,
+        HirExpr::With(_, _, s) => *s,
+        _ => Span::new(0, 0),
+    }
 }

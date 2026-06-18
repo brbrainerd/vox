@@ -1,10 +1,21 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Transcript } from '../Loquela/Transcript';
-import { Button } from '../../ui/Button';
+import { type UnlistenFn } from '@tauri-apps/api/event';
+import { ChatTranscript } from './ChatTranscript';
+import type { StreamItem } from '../../../types/dashboard';
 import { EmptyState } from '../../ui/EmptyState';
 import { Icon } from '../../ui/Icons';
+import {
+  ChatExecutionRail,
+  type ChatExecutionRailKpis,
+  type ChatExecutionTask,
+} from './ChatExecutionRail';
+import { ChatSessionRail } from './ChatSessionRail';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
+import { SecretaryToast } from './SecretaryToast';
+import { listenSecretaryProposed, type SecretaryProposedPayload } from '../../../transport';
+
+
 
 interface ChatSession {
   session_id: string;
@@ -19,16 +30,35 @@ interface ChatSurfaceProps {
   activeSessionId?: string;
   onSessionChange?: (sessionId: string) => void;
   onHydrateSession?: (sessionId: string) => void;
+  tasks?: ChatExecutionTask[];
+  intents?: string[];
+  executionKpis?: ChatExecutionRailKpis;
+  activeModel?: string | null;
+  openrouterSpendUsd?: number | null;
+  agentStreamItems?: StreamItem[];
+  onOpenAgentInFlow?: (agentId: string) => void;
+  /** Primary Loquela composer — embedded when global shell dock is hidden on Chat. */
+  composer?: React.ReactNode;
 }
 
 export function ChatSurface({
   pushToast,
+  onNavigate,
   messages = [],
   activeSessionId,
   onSessionChange,
   onHydrateSession,
+  tasks = [],
+  intents,
+  executionKpis,
+  activeModel,
+  openrouterSpendUsd,
+  agentStreamItems,
+  onOpenAgentInFlow,
+  composer,
 }: ChatSurfaceProps) {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [secretaryToast, setSecretaryToast] = useState<SecretaryProposedPayload | null>(null);
   const activeId = activeSessionId ?? '';
 
   const loadSessions = useCallback(async () => {
@@ -51,6 +81,17 @@ export function ChatSurface({
     if (activeId && onHydrateSession) onHydrateSession(activeId);
   }, [activeId, onHydrateSession]);
 
+  useEffect(() => {
+    const sub = listenSecretaryProposed((payload) => {
+      setSecretaryToast(payload);
+    });
+    return () => {
+      sub.then((fn) => fn());
+    };
+  }, []);
+
+
+
   const createSession = async () => {
     try {
       const s = await invoke<ChatSession & { conversation_id: number }>('chat_create_session', {
@@ -63,53 +104,64 @@ export function ChatSurface({
     }
   };
 
+  const railKpis = executionKpis ?? {
+    activeAgents: { value: 0 },
+    queueDepth: { value: 0 },
+    mesh: { peers: 0 },
+  };
+
   return (
-    <div className="flex flex-col gap-4 min-h-[60vh]">
-      <div
-        role="tablist"
-        aria-label="Chat sessions"
-        className="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1"
-      >
-        {sessions.map(s => {
-          const isActive = s.session_id === activeId;
-          return (
-            <Button
-              key={s.session_id}
-              role="tab"
-              aria-pressed={isActive}
-              aria-selected={isActive}
-              onClick={() => onSessionChange?.(s.session_id)}
-              className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs ${
-                isActive
-                  ? 'border-brass/40 bg-brass/10 text-brass'
-                  : 'border-border-subtle text-text-muted hover:text-zinc-200'
-              }`}
-            >
-              {s.title}
-              {s.message_count > 0 ? ` (${s.message_count})` : ''}
-            </Button>
-          );
-        })}
-        <Button
-          onClick={createSession}
-          aria-label="New chat session"
-          className="shrink-0 rounded-lg border border-border-subtle px-2 py-1 text-xs text-text-muted hover:text-brass"
-        >
-          <Icon.plus className="size-3.5" aria-hidden="true" /> New
-        </Button>
+    <div className="relative flex min-h-[60vh] gap-4" data-testid="chat-surface-layout">
+      <ChatSessionRail
+        sessions={sessions}
+        activeSessionId={activeId}
+        onSessionChange={id => onSessionChange?.(id)}
+        onCreateSession={() => void createSession()}
+      />
+
+      <div className="flex min-w-0 flex-1 flex-col gap-4">
+        {messages.length === 0 && !(agentStreamItems?.length ?? 0) ? (
+          <EmptyState
+            icon={<Icon.spark className="size-8 text-brass" aria-hidden="true" />}
+            title="No messages yet"
+            description="Describe a task in the composer below to start this session."
+          />
+        ) : (
+          <ChatTranscript
+            messages={messages}
+            agentStreamItems={agentStreamItems}
+            onOpenAgentInFlow={onOpenAgentInFlow}
+          />
+        )}
+        {composer != null ? (
+          <div className="mt-auto shrink-0 border-t border-border-subtle pt-3">{composer}</div>
+        ) : null}
       </div>
-      {messages.length === 0 ? (
-        <EmptyState
-          icon={<Icon.spark className="size-8 text-brass" aria-hidden="true" />}
-          title="No messages yet"
-          description="Submit a task from the composer docked below — the transcript mirrors this session here."
+
+      {onNavigate && (
+        <ChatExecutionRail
+          tasks={tasks}
+          kpis={railKpis}
+          intents={intents}
+          activeModel={activeModel}
+          openrouterSpendUsd={openrouterSpendUsd}
+          onNavigate={onNavigate}
         />
-      ) : (
-        <Transcript messages={messages} />
       )}
-      <p className="text-[11px] text-text-muted">
-        Composer is docked at the bottom — submit tasks there; this view mirrors the same session transcript.
-      </p>
+
+      {secretaryToast && (
+        <div className="absolute bottom-4 left-1/2 z-50 w-[480px] -translate-x-1/2">
+          <SecretaryToast
+            intent={secretaryToast.intent}
+            itemId={secretaryToast.item_id}
+            onDismiss={() => setSecretaryToast(null)}
+            onViewTask={() => {
+              setSecretaryToast(null);
+              onNavigate?.('tasks');
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

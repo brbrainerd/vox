@@ -2,9 +2,11 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { IsolationPanel } from './IsolationPanel';
 import type { IsolationStatus, IsolationStrategy } from './isolationHelpers';
+import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 
 interface RepositoryViewProps {
   pushToast: (item: { tone: 'ok' | 'warn' | 'info'; title: string; body?: string }) => void;
+  gamifyEnabled?: boolean;
 }
 
 interface ExecuteOutput {
@@ -20,7 +22,7 @@ async function run(path: string[], argv: string[] = []): Promise<ExecuteOutput> 
   });
 }
 
-export function RepositoryView({ pushToast }: RepositoryViewProps) {
+export function RepositoryView({ pushToast, gamifyEnabled }: RepositoryViewProps) {
   const [output, setOutput] = useState('No command run yet.');
   const [busy, setBusy] = useState(false);
 
@@ -59,6 +61,11 @@ export function RepositoryView({ pushToast }: RepositoryViewProps) {
         setIsolation(status);
         setIsolationError(null);
         pushToast({ tone: 'ok', title: 'Isolation strategy', body: `Default → ${strategy}` });
+        void recordGamifyGuiEvent(
+          'isolation_strategy_set',
+          { strategy, scope: 'default' },
+          { enabled: gamifyEnabled },
+        );
       } catch (err) {
         setIsolationError(String(err));
         pushToast({ tone: 'warn', title: 'Isolation strategy', body: String(err) });
@@ -68,7 +75,7 @@ export function RepositoryView({ pushToast }: RepositoryViewProps) {
         setIsolationBusy(false);
       }
     },
-    [pushToast, refetchIsolation],
+    [pushToast, refetchIsolation, gamifyEnabled],
   );
 
   const runAction = async (label: string, path: string[], argv: string[] = []) => {
@@ -83,6 +90,13 @@ export function RepositoryView({ pushToast }: RepositoryViewProps) {
         title: label,
         body: result.exit_code === 0 ? 'Completed' : `Failed (exit ${result.exit_code})`,
       });
+      if (result.exit_code === 0) {
+        void recordGamifyGuiEvent(
+          'isolation_scan_complete',
+          { label, path: path.join('/') },
+          { enabled: gamifyEnabled },
+        );
+      }
     } catch (err) {
       setOutput(String(err));
       pushToast({ tone: 'warn', title: label, body: String(err) });

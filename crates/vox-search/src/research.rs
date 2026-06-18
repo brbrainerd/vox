@@ -39,11 +39,15 @@ pub async fn run_multi_hop_web_research(
     quality_target: f64,
     anchor_query: &str,
 ) -> Vec<String> {
+    use crate::novelty::NoveltyScorer;
+
     let mut research_results = Vec::new();
     let mut hops_remaining = policy.web_search_max_hops;
     let mut active_queries: Vec<String> = initial_queries.to_vec();
     let mut visited_urls = HashSet::new();
     let mut running_top_score = 0.0_f64;
+    let mut novelty_scorer = NoveltyScorer::new();
+    let novelty_threshold = policy.novelty_min_score;
 
     while hops_remaining > 0 && !active_queries.is_empty() {
         let mut hop_hits: Vec<HybridSearchHit> = Vec::new();
@@ -59,20 +63,24 @@ pub async fn run_multi_hop_web_research(
                     for hit in hits {
                         if visited_urls.insert(hit.path.clone()) {
                             running_top_score = running_top_score.max(hit.score.clamp(0.0, 1.0));
-                            let engine = hit
-                                .provenance
-                                .iter()
-                                .find_map(|p| p.strip_prefix("engine:"))
-                                .unwrap_or("unknown");
-
-                            research_results.push(format!(
-                                "[autonomous_research:{}] {} (score: {:.3}; engine: {}) - {}",
-                                hit.path,
-                                hit.title,
-                                hit.score,
-                                engine,
-                                hit.content_snippet.replace('\n', " ")
-                            ));
+                            let novelty = novelty_scorer.score(&hit.content_snippet);
+                            if novelty >= novelty_threshold {
+                                novelty_scorer.accept(&hit.content_snippet);
+                                let engine = hit
+                                    .provenance
+                                    .iter()
+                                    .find_map(|p| p.strip_prefix("engine:"))
+                                    .unwrap_or("unknown");
+                                research_results.push(format!(
+                                    "[autonomous_research:{}] {} (score: {:.3}; engine: {}; novelty: {:.2}) - {}",
+                                    hit.path,
+                                    hit.title,
+                                    hit.score,
+                                    engine,
+                                    novelty,
+                                    hit.content_snippet.replace('\n', " ")
+                                ));
+                            }
                             hop_hits.push(hit);
                         }
                     }
@@ -119,5 +127,17 @@ mod tests {
         let policy = SearchPolicy::default();
         let out = run_multi_hop_web_research(&policy, &[], 1.0, "anchor").await;
         assert!(out.is_empty());
+    }
+
+    #[test]
+    fn novelty_scorer_filters_duplicate_content() {
+        use crate::novelty::NoveltyScorer;
+        let mut scorer = NoveltyScorer::new();
+        let text = "Rust ownership model prevents data races at compile time.";
+        assert_eq!(scorer.score(text), 1.0, "first time: fully novel");
+        scorer.accept(text);
+        assert_eq!(scorer.score(text), 0.0, "second time: duplicate");
+        let new_text = "Python uses garbage collection.";
+        assert!(scorer.score(new_text) > 0.8, "unrelated: still novel");
     }
 }

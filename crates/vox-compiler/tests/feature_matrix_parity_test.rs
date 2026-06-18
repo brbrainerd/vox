@@ -125,3 +125,43 @@ fn workflow_version_ts_emitter_produces_parity_code() {
         codes::PARITY_UNIMPLEMENTED
     );
 }
+
+// ── Ladder-linked matrix promotion (canonical golden ladder SSOT) ─────────────
+
+fn ladder_proven_decorators_for_tag(
+    tag: &str,
+) -> Vec<vox_compiler::feature_matrix::DecoratorFeature> {
+    use vox_compiler::feature_matrix::DecoratorFeature::*;
+    match tag {
+        "query" => vec![Query],
+        "mutation" => vec![Mutation],
+        "server" => vec![Server],
+        "db_emit" | "table" => vec![Table],
+        "index" => vec![Index],
+        "component" => vec![Component],
+        "reactive" => vec![Reactive],
+        "scheduled" | "durable_boot" => vec![Scheduled],
+        "auth" => vec![Auth],
+        "mcp_tools" => vec![McpTool, Tool],
+        "json_as_typed" => vec![JsonAs],
+        "palette" => vec![Tokens],
+        "layer" => vec![Layer],
+        _ => vec![],
+    }
+}
+
+#[test]
+fn promote_from_ladder_marks_query_implemented_on_rust_script() {
+    let promoted = ladder_proven_decorators_for_tag("query");
+    assert!(promoted.contains(&vox_compiler::feature_matrix::DecoratorFeature::Query));
+    for decorator in promoted {
+        assert_eq!(
+            vox_compiler::feature_matrix::support(
+                vox_compiler::feature_matrix::Feature::Decorator(decorator),
+                vox_compiler::target::Target::RustAxum,
+            ),
+            vox_compiler::feature_matrix::Support::Implemented,
+            "{decorator:?} should be ladder-promoted"
+        );
+    }
+}

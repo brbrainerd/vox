@@ -55,6 +55,8 @@ pub struct SearchResponseDto {
     pub next_cursor: Option<usize>,
     /// Names of the `SearchPlan` corpora that were consulted.
     pub corpora: Vec<String>,
+    /// True when the WalkDir file scan capped at `repo_inventory_max_files`.
+    pub repo_truncated: bool,
 }
 
 /// Outcome of an open_locator call.
@@ -180,7 +182,15 @@ pub(crate) fn unified_hit_to_dto(h: UnifiedHit) -> UnifiedHitDto {
     }
 }
 
-// ─── Tauri commands ───────────────────────────────────────────────────────────
+/// Returns `true` when the caller explicitly requested chats as the sole scope.
+///
+/// When this is true, the main multi-corpus search is skipped entirely and only
+/// `chat_search_gui_messages` runs. This prevents the chats scope from silently
+/// fanning out to all corpora (the "chats" string has no `SearchCorpus` variant,
+/// so it would otherwise drop through to the full heuristic plan).
+fn is_chats_only_scope(scope_tags: &[String]) -> bool {
+    !scope_tags.is_empty() && scope_tags.iter().all(|t| t == "chats")
+}
 
 /// Perform a typed multi-corpus search and return structured hits with facets + pagination.
 ///
@@ -232,6 +242,7 @@ pub async fn vox_search_query(
 
     // ── Scope -> corpora ──────────────────────────────────────────────────────
     let scope_tags: Vec<String> = scope.clone().unwrap_or_default();
+    let is_scoped = scope.is_some() && !scope_tags.is_empty();
     let scope_corpora: Option<Vec<SearchCorpus>> = scope.and_then(|v| {
         if v.is_empty() {
             None
@@ -245,15 +256,37 @@ pub async fn vox_search_query(
         }
     });
 
+    let chats_only = is_chats_only_scope(&scope_tags);
+    let mut repo_truncated = false;
+
     // ── Execute search ────────────────────────────────────────────────────────
-    let (exec, plan) = if let Some(corpora) = scope_corpora {
+    let (mut all_hits, corpora) = if chats_only {
+        (Vec::<UnifiedHitDto>::new(), vec!["chats".to_string()])
+    } else if let Some(corpora) = scope_corpora {
         // Build heuristic plan then override corpora.
         let mut plan: SearchPlan = heuristic_search_plan(&query, false, None);
         plan.corpora = corpora;
         let execution = execute_search_plan(&ctx, &query, &plan, engine_limit, &policy, None)
             .await
             .map_err(|e| format!("search failed: {e}"))?;
-        (execution, plan)
+        repo_truncated = execution.repo_truncated;
+        let names = plan
+            .corpora
+            .iter()
+            .map(|c| format!("{c:?}").to_lowercase())
+            .collect();
+        (
+            execution
+                .unified_hits
+                .into_iter()
+                .map(unified_hit_to_dto)
+                .collect(),
+            names,
+        )
+    } else if is_scoped {
+        // User explicitly scoped to client-side only indices (e.g. settings/commands),
+        // so return empty backend hits immediately.
+        (Vec::new(), Vec::new())
     } else {
         let (execution, _diag, plan) = run_search_with_verification(
             &ctx,
@@ -266,15 +299,21 @@ pub async fn vox_search_query(
         )
         .await
         .map_err(|e| format!("search failed: {e}"))?;
-        (execution, plan)
+        repo_truncated = execution.repo_truncated;
+        let names = plan
+            .corpora
+            .iter()
+            .map(|c| format!("{c:?}").to_lowercase())
+            .collect();
+        (
+            execution
+                .unified_hits
+                .into_iter()
+                .map(unified_hit_to_dto)
+                .collect(),
+            names,
+        )
     };
-
-    // ── Map corpora names ─────────────────────────────────────────────────────
-    let corpora: Vec<String> = plan
-        .corpora
-        .iter()
-        .map(|c| format!("{c:?}").to_lowercase())
-        .collect();
 
     // ── Map hits → DTOs ───────────────────────────────────────────────────────
     let kinds_set: Option<std::collections::HashSet<String>> = kinds.and_then(|v| {
@@ -285,14 +324,9 @@ pub async fn vox_search_query(
         }
     });
 
-    let mut all_hits: Vec<UnifiedHitDto> = exec
-        .unified_hits
-        .into_iter()
-        .map(unified_hit_to_dto)
-        .collect();
-
     // Chats corpus: LIKE search over GUI conversation messages when scoped.
-    let wants_chats = scope_tags.is_empty() || scope_tags.iter().any(|x| x == "chats");
+    let wants_chats =
+        chats_only || scope_tags.is_empty() || scope_tags.iter().any(|x| x == "chats");
     if wants_chats
         && let Some(db_ref) = ctx.db.as_ref()
         && let Ok(chat_rows) = db_ref.chat_search_gui_messages(&query, lim).await
@@ -364,6 +398,7 @@ pub async fn vox_search_query(
         total,
         next_cursor,
         corpora,
+        repo_truncated,
     })
 }
 
@@ -594,5 +629,40 @@ mod tests {
         assert_eq!(dto.score, hit.score);
         assert_eq!(dto.provenance, hit.provenance);
         assert_eq!(dto.locator.kind, "memory");
+    }
+
+    #[test]
+    fn scope_to_corpus_does_not_map_chats() {
+        // "chats" has no SearchCorpus variant — it is handled separately after the main search.
+        // Verify this invariant so we can safely use it as a sentinel value.
+        assert!(
+            scope_to_corpus("chats").is_none(),
+            "chats must not map to a SearchCorpus variant; it is handled post-hoc"
+        );
+    }
+
+    #[test]
+    fn is_chats_only_scope_helper_logic() {
+        let only_chats = vec!["chats".to_string()];
+        let mixed = vec!["chats".to_string(), "memory".to_string()];
+        let empty: Vec<String> = vec![];
+        let no_chats = vec!["memory".to_string(), "repo".to_string()];
+
+        assert!(
+            is_chats_only_scope(&only_chats),
+            "['chats'] should be chats-only"
+        );
+        assert!(
+            !is_chats_only_scope(&mixed),
+            "['chats','memory'] is not chats-only"
+        );
+        assert!(
+            !is_chats_only_scope(&empty),
+            "[] is not chats-only (means all scopes)"
+        );
+        assert!(
+            !is_chats_only_scope(&no_chats),
+            "['memory','repo'] is not chats-only"
+        );
     }
 }

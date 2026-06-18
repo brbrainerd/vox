@@ -7,9 +7,15 @@ import { voxTransport } from '../../../transport';
 import type { OrchestratorStatus, RoutingSummary, Toast } from '../../../types/tauri';
 import { DEFAULT_BUDGET_CAP_USD } from '../../../config/budget';
 import { PriorityChainEditor } from './PriorityChainEditor';
+import { HudTilesEditor } from './HudTilesEditor';
 import { applyTheme } from '../../../lib/theme';
 import { useLocalStorage } from '../../../hooks/useLocalStorage';
+import { useVoxMutation } from '../../../hooks/useVoxQuery';
 import { searchSettings } from './settingsIndex';
+import type { HudTilesConfig } from '../../../hooks/useHudTiles';
+import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
+
+const GUI_PREF_KEYS = ['theme', 'telemetry', 'sign', 'checkpointMins'] as const;
 
 const SECTIONS = [
   { id: 'orchestrator', icon: 'cpu',     label: 'Orchestrator' },
@@ -23,6 +29,7 @@ const SECTIONS = [
   { id: 'telemetry',    icon: 'scale',   label: 'Telemetry' },
   { id: 'keybinds',     icon: 'command', label: 'Keybinds' },
   { id: 'theme',        icon: 'spark',   label: 'Theme' },
+  { id: 'display',      icon: 'monitor', label: 'Display' },
   { id: 'gamify',       icon: 'bolt',    label: 'Gamification' },
 ];
 
@@ -262,8 +269,9 @@ function MeshPeersSection({ pushToast }: { pushToast: (t: Toast) => void }) {
   );
 }
 
-function SigningKeysSection({ vals, update, pushToast }: {
+function SigningKeysSection({ vals, update, pushToast, gamifyEnabled }: {
   vals: SettingsState; update: (patch: Partial<SettingsState>) => void; pushToast: (t: Toast) => void;
+  gamifyEnabled?: boolean;
 }) {
   const [key, setKey] = useState<SigningKeyDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -295,6 +303,13 @@ function SigningKeysSection({ vals, update, pushToast }: {
       const next = await invoke<SigningKeyDto>('rotate_signing_key', { password });
       setKey(next);
       pushToast({ tone: 'ok', title: `Key ${verb}d`, body: next.nodeId || next.fingerprint });
+      if (present) {
+        void recordGamifyGuiEvent(
+          'signing_key_rotated',
+          { node_id: next.nodeId, fingerprint: next.fingerprint },
+          { enabled: gamifyEnabled },
+        );
+      }
       await reload();
     } catch (err) {
       pushToast({ tone: 'warn', title: `Key ${verb} failed`, body: String(err) });
@@ -386,7 +401,7 @@ interface ImportEnvResultDto {
   entries: ImportEnvEntryDto[];
 }
 
-function KeysSecretsSection({ pushToast }: { pushToast: (t: Toast) => void }) {
+function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t: Toast) => void; gamifyEnabled?: boolean }) {
   const [rows, setRows] = useState<SecretStatusDto[]>([]);
   const [loading, setLoading] = useState(true);
   // Holds ONLY the in-flight input value per key. Cleared immediately on save.
@@ -511,6 +526,7 @@ function KeysSecretsSection({ pushToast }: { pushToast: (t: Toast) => void }) {
       // Clear the field immediately — the value never lives in UI state beyond this.
       setDrafts(d => { const n = { ...d }; delete n[key]; return n; });
       pushToast({ tone: 'ok', title: 'Secret saved', body: key });
+      void recordGamifyGuiEvent('secret_rotated', { key }, { enabled: gamifyEnabled });
       await reload();
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Save failed', body: String(err) });
@@ -938,9 +954,12 @@ function LlmSettingsSection({ pushToast }: { pushToast: (t: any) => void }) {
 
 interface SettingsViewProps {
   pushToast: (t: Toast) => void;
+  gamifyEnabled?: boolean;
+  hudTilesConfig?: HudTilesConfig;
+  onHudTilesChange?: (config: HudTilesConfig) => void;
 }
 
-export function SettingsView({ pushToast }: SettingsViewProps) {
+export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTilesChange }: SettingsViewProps) {
   const [section, setSection] = useState('orchestrator');
   const [filter, setFilter] = useState('');
 
@@ -991,6 +1010,23 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
   // hardcoded default OrchestratorConfig values to disk (an early click before
   // get_orchestrator_config resolves would otherwise clobber real config).
   const [hydrated, setHydrated] = useState(false);
+  const [prefAnnounce, setPrefAnnounce] = useState('');
+
+  const guiPrefMutation = useVoxMutation(
+    async (patch: Partial<SettingsState>) => {
+      for (const [k, v] of Object.entries(patch)) {
+        if ((GUI_PREF_KEYS as readonly string[]).includes(k)) {
+          await voxTransport.setGuiPreference(`gui.${k}`, String(v));
+        }
+      }
+    },
+    {
+      onSuccess: () => {
+        setPrefAnnounce('Preferences saved');
+        window.setTimeout(() => setPrefAnnounce(''), 3000);
+      },
+    },
+  );
 
   const update = async (patch: Partial<SettingsState>) => {
     const next = { ...valsRef.current, ...patch };
@@ -1006,10 +1042,11 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
     // GUI-only preferences (theme/telemetry/sign/checkpointMins) always persist —
     // they don't depend on orchestrator hydration.
     try {
-      for (const [k, v] of Object.entries(patch)) {
-        if (['theme', 'telemetry', 'sign', 'checkpointMins'].includes(k)) {
-          await voxTransport.setGuiPreference(`gui.${k}`, String(v));
-        }
+      const guiPatch = Object.fromEntries(
+        Object.entries(patch).filter(([k]) => (GUI_PREF_KEYS as readonly string[]).includes(k)),
+      ) as Partial<SettingsState>;
+      if (Object.keys(guiPatch).length > 0) {
+        await guiPrefMutation.mutateAsync(guiPatch);
       }
       // Defer orchestrator persistence until real values are loaded, so we never
       // write defaults over a user's on-disk config before hydration completes.
@@ -1158,6 +1195,9 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
 
   return (
     <div className="grid grid-cols-12 gap-5">
+      <div role="status" aria-live="polite" className="sr-only">
+        {prefAnnounce}
+      </div>
       {/* Nav */}
       <Glass className="col-span-12 md:col-span-3 p-3">
         <input
@@ -1357,9 +1397,13 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
 
         {section === 'mesh' && <MeshPeersSection pushToast={pushToast} />}
 
-        {section === 'signing' && <SigningKeysSection vals={vals} update={update} pushToast={pushToast} />}
+        {section === 'signing' && (
+          <SigningKeysSection vals={vals} update={update} pushToast={pushToast} gamifyEnabled={gamifyEnabled} />
+        )}
 
-        {section === 'secrets' && <KeysSecretsSection pushToast={pushToast} />}
+        {section === 'secrets' && (
+          <KeysSecretsSection pushToast={pushToast} gamifyEnabled={gamifyEnabled} />
+        )}
 
         {section === 'telemetry' && (
           <>
@@ -1442,6 +1486,10 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
               ))}
             </div>
           </>
+        )}
+
+        {section === 'display' && hudTilesConfig && onHudTilesChange && (
+          <HudTilesEditor config={hudTilesConfig} onChange={onHudTilesChange} />
         )}
       </Glass>
     </div>

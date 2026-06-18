@@ -17,15 +17,63 @@ pub struct Claim {
     pub is_named_event: bool,
 }
 
+/// Extract claims from arbitrary source text via `vox-scientia` when enabled.
+#[cfg(feature = "scientia-claims")]
+pub async fn extract_claims_from_text(source: &str, context_passages: &[&str]) -> Vec<Claim> {
+    use vox_scientia::claim_extractor::{ExtractionConfig, ExtractionPipeline};
+
+    let pipeline = ExtractionPipeline::new(ExtractionConfig::default());
+    let Ok(result) = pipeline.extract(source, context_passages).await else {
+        return Vec::new();
+    };
+    result
+        .claims
+        .into_iter()
+        .map(|claim| {
+            let (is_numeric, is_recent, is_named_event) = heuristics_from_atomic_claim(&claim);
+            Claim {
+                claim_id: claim.id,
+                text: claim.text,
+                is_numeric,
+                is_recent,
+                is_named_event,
+            }
+        })
+        .collect()
+}
+
+#[cfg(not(feature = "scientia-claims"))]
+pub async fn extract_claims_from_text(_source: &str, _context_passages: &[&str]) -> Vec<Claim> {
+    Vec::new()
+}
+
+#[cfg(feature = "scientia-claims")]
+fn heuristics_from_atomic_claim(
+    claim: &vox_scientia::claim_extractor::types::AtomicClaim,
+) -> (bool, bool, bool) {
+    use vox_scientia::claim_extractor::types::VerifiabilityClass;
+
+    let lower = claim.text.to_ascii_lowercase();
+    let is_numeric = matches!(claim.verifiability, VerifiabilityClass::Numeric)
+        || claim.text.chars().any(|c| c.is_ascii_digit());
+    let is_recent = lower.contains("recent")
+        || lower.contains("latest")
+        || lower.contains("2024")
+        || lower.contains("2025")
+        || lower.contains("2026");
+    let is_named_event = matches!(claim.verifiability, VerifiabilityClass::EventBased)
+        || claim.tuple.is_some()
+        || claim
+            .text
+            .split_whitespace()
+            .any(|word| word.chars().next().is_some_and(|c| c.is_ascii_uppercase()));
+    (is_numeric, is_recent, is_named_event)
+}
+
 /// Extract claims from a query.
 ///
-/// **PHASE_0a_STUB**: returns `Vec::new()`. No LLM invocation. Phase 1 wires
-/// this to `vox-claim-extractor`.
-///
-/// # Parameters
-/// - `_query`: the source text (in Phase 0a, this is the user query; Phase 1
-///   will accept arbitrary documents).
-/// - `_endpoint`, `_api_key`, `_model`, `_max_tokens`: ignored in Phase 0a.
+/// When `scientia-claims` is enabled, tries the deterministic `vox-scientia`
+/// extractor first; otherwise falls through to the LLM cascade when `runtime` is on.
 pub async fn extract_claims_with_model(
     query: &str,
     endpoint: Option<&str>,
@@ -33,6 +81,14 @@ pub async fn extract_claims_with_model(
     model: Option<&str>,
     max_tokens: Option<u32>,
 ) -> Vec<Claim> {
+    #[cfg(feature = "scientia-claims")]
+    {
+        let claims = extract_claims_from_text(query, &[]).await;
+        if !claims.is_empty() {
+            return claims;
+        }
+    }
+
     #[cfg(feature = "runtime")]
     {
         use vox_actor_runtime::ActivityOptions;
@@ -186,5 +242,21 @@ mod tests {
         let claims = parse_claims_response(response).expect("claims parse");
 
         assert!(claims.is_empty());
+    }
+
+    #[cfg(feature = "scientia-claims")]
+    #[tokio::test]
+    async fn extract_claims_from_text_returns_claims_for_factual_sentence() {
+        let claims = extract_claims_from_text(
+            "Provider X p95 latency increased by 12ms after the deployment.",
+            &[],
+        )
+        .await;
+        assert!(
+            !claims.is_empty(),
+            "scientia extractor should surface at least one factual claim"
+        );
+        assert!(!claims[0].text.is_empty());
+        assert_ne!(claims[0].claim_id, 0);
     }
 }

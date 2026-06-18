@@ -13,12 +13,17 @@ pub mod pending_approvals;
 pub mod server_state;
 
 pub mod aci;
+/// Agent native gateway and skill tools.
+pub mod agent_tools;
 mod agentos_telemetry;
 pub(crate) mod attention_policy;
 /// Benchmark telemetry query tools (`research_metrics`).
 pub mod benchmark_tools;
 /// Chromium CDP browser automation (`vox_browser_*`).
+#[cfg(feature = "heavy-browser")]
 pub mod browser_tools;
+/// Trusted caller role for browser control-lock authorization.
+pub mod caller_role;
 /// Shared LLM model resolution for chat tools.
 pub mod chat_model_resolve;
 /// Socrates grounding + telemetry helpers for chat tools.
@@ -42,6 +47,8 @@ pub mod git_exec;
 pub mod git_tools;
 /// Grammar export tools
 pub mod grammar_tools;
+/// Graphify corpus freshness and lexical search (`vox_graphify_status`, `vox_graphify_search`).
+pub mod graphify_tools;
 pub mod input_schemas;
 /// Introspection tools for language visualization (AST, surface, pipeline).
 pub mod introspection_tools;
@@ -119,13 +126,20 @@ pub mod qa_tools;
 pub use qa_tools as qa;
 pub mod models_tools;
 pub use models_tools as models;
+pub mod skill_permissions;
+pub mod skill_search_index;
+pub mod skills_hydrate;
+pub mod skills_resources;
 pub mod skills_tools;
+pub mod workspace_mcp;
 pub use skills_tools as skills;
 pub mod plugin_tools;
 pub use plugin_tools as plugins;
 pub mod trace_tools;
 pub use trace_tools as trace;
 pub mod dei_tools;
+pub mod kb_tools;
+pub use kb_tools as kb;
 
 pub mod mcp_context;
 pub use mcp_context as context;

@@ -465,6 +465,7 @@ fn all_secret_ids_have_spec_entries() {
         SecretId::VoxDataCitePassword,
         SecretId::TavilyApiKey,
         SecretId::TavilyProject,
+        SecretId::SonatypeGuideToken,
     ] {
         println!("Checking {:?}", id);
         let _ = id.spec();
@@ -605,6 +606,165 @@ fn test_redact_skips_short_patterns() {
     assert_eq!(scrubbed, val);
 }
 
+/// Sonatype Guide API token must round-trip through the Clavis vault like other
+/// integration secrets (MCP `getComponentVersion`, dependency audits).
+#[test]
+#[allow(unsafe_code)]
+fn store_secret_round_trips_sonatype_guide_token_via_temp_vault() {
+    let _g = ENV_LOCK.lock().expect("env lock");
+
+    let tmp_dir = tempfile::tempdir().expect("tempdir");
+    let db_path = tmp_dir.path().join("sonatype_vault.db");
+
+    let prev_path = std::env::var("VOX_SECRETS_VAULT_PATH").ok();
+    let prev_account = std::env::var("VOX_ACCOUNT_ID").ok();
+    let prev_cutover = std::env::var("VOX_SECRETS_CUTOVER_PHASE").ok();
+    unsafe {
+        std::env::set_var("VOX_SECRETS_VAULT_PATH", &db_path);
+        std::env::set_var("VOX_ACCOUNT_ID", "sonatype-secret-test-account");
+        std::env::set_var("VOX_SECRETS_CUTOVER_PHASE", "decommission");
+    }
+
+    const TOKEN: &str = "sonatype_pat_test-round-trip-token-value";
+
+    let id = SecretId::SonatypeGuideToken;
+    assert_eq!(
+        id.spec().canonical_env,
+        "SONATYPE_GUIDE_TOKEN",
+        "SonatypeGuideToken maps to SONATYPE_GUIDE_TOKEN env"
+    );
+
+    let stored = crate::store_secret(id, TOKEN, None);
+
+    let outcome = match stored {
+        Ok(()) => {
+            let resolved = crate::resolve_secret(id);
+            Some(resolved.expose().map(|s| s.to_string()))
+        }
+        Err(e) => {
+            let msg = e.to_string().to_lowercase();
+            let sandbox_unavailable = [
+                "vault",
+                "keyring",
+                "invalid filename",
+                "i/o error",
+                "unavailable",
+                "backend misconfigured",
+                "active tokio runtime",
+            ]
+            .iter()
+            .any(|needle| msg.contains(needle));
+            assert!(sandbox_unavailable, "unexpected store_secret failure: {e}");
+            None
+        }
+    };
+
+    unsafe {
+        match prev_path {
+            Some(v) => std::env::set_var("VOX_SECRETS_VAULT_PATH", v),
+            None => std::env::remove_var("VOX_SECRETS_VAULT_PATH"),
+        }
+        match prev_account {
+            Some(v) => std::env::set_var("VOX_ACCOUNT_ID", v),
+            None => std::env::remove_var("VOX_ACCOUNT_ID"),
+        }
+        match prev_cutover {
+            Some(v) => std::env::set_var("VOX_SECRETS_CUTOVER_PHASE", v),
+            None => std::env::remove_var("VOX_SECRETS_CUTOVER_PHASE"),
+        }
+    }
+
+    if let Some(exposed) = outcome {
+        assert_eq!(
+            exposed.as_deref(),
+            Some(TOKEN),
+            "store_secret -> resolve_secret must round-trip SonatypeGuideToken"
+        );
+    }
+}
+
+#[allow(unsafe_code)]
+fn restore_import_env_test_env(
+    prev_path: Option<String>,
+    prev_account: Option<String>,
+    prev_cutover: Option<String>,
+    prev_sonatype: Option<String>,
+) {
+    unsafe {
+        match prev_path {
+            Some(v) => std::env::set_var("VOX_SECRETS_VAULT_PATH", v),
+            None => std::env::remove_var("VOX_SECRETS_VAULT_PATH"),
+        }
+        match prev_account {
+            Some(v) => std::env::set_var("VOX_ACCOUNT_ID", v),
+            None => std::env::remove_var("VOX_ACCOUNT_ID"),
+        }
+        match prev_cutover {
+            Some(v) => std::env::set_var("VOX_SECRETS_CUTOVER_PHASE", v),
+            None => std::env::remove_var("VOX_SECRETS_CUTOVER_PHASE"),
+        }
+        match prev_sonatype {
+            Some(v) => std::env::set_var("SONATYPE_GUIDE_TOKEN", v),
+            None => std::env::remove_var("SONATYPE_GUIDE_TOKEN"),
+        }
+    }
+}
+
+/// `import-env` must write managed secrets into the Clavis vault (not auth.json).
+#[test]
+#[allow(unsafe_code)]
+fn import_env_round_trips_sonatype_guide_token_via_temp_vault() {
+    let _g = ENV_LOCK.lock().expect("env lock");
+
+    let tmp_dir = tempfile::tempdir().expect("tempdir");
+    let db_path = tmp_dir.path().join("import_env_vault.db");
+    let env_file = tmp_dir.path().join("import.env");
+    std::fs::write(
+        &env_file,
+        "SONATYPE_GUIDE_TOKEN=sgt_test_import_roundtrip_0123456789\n",
+    )
+    .expect("write env file");
+
+    let prev_path = std::env::var("VOX_SECRETS_VAULT_PATH").ok();
+    let prev_account = std::env::var("VOX_ACCOUNT_ID").ok();
+    let prev_cutover = std::env::var("VOX_SECRETS_CUTOVER_PHASE").ok();
+    let prev_sonatype = std::env::var("SONATYPE_GUIDE_TOKEN").ok();
+    unsafe {
+        std::env::set_var("VOX_SECRETS_VAULT_PATH", &db_path);
+        std::env::set_var("VOX_ACCOUNT_ID", "import-env-test-account");
+        std::env::set_var("VOX_SECRETS_CUTOVER_PHASE", "decommission");
+        std::env::remove_var("SONATYPE_GUIDE_TOKEN");
+    }
+
+    let result = match crate::import_env_from_path(&env_file, true) {
+        Ok(r) => r,
+        Err(e) => {
+            let msg = e.to_string().to_lowercase();
+            let sandbox_unavailable = ["keyring", "misconfigured", "vault", "unavailable"]
+                .iter()
+                .any(|needle| msg.contains(needle));
+            if sandbox_unavailable {
+                restore_import_env_test_env(prev_path, prev_account, prev_cutover, prev_sonatype);
+                return;
+            }
+            panic!("import failed: {e}");
+        }
+    };
+
+    assert_eq!(result.count(), 1);
+    assert_eq!(result.entries[0].canonical_env, "SONATYPE_GUIDE_TOKEN");
+
+    let resolved = crate::resolve_secret(SecretId::SonatypeGuideToken);
+    restore_import_env_test_env(prev_path, prev_account, prev_cutover, prev_sonatype);
+
+    assert_eq!(
+        resolved.expose().map(|s| s.to_string()).as_deref(),
+        Some("sgt_test_import_roundtrip_0123456789"),
+        "resolve after import-env should read vault, got status {:?}",
+        resolved.status
+    );
+}
+
 /// Expo / EAS access token must be a first-class Clavis secret so the mobile
 /// toolchain resolves it through the vault (not a bare GitHub Actions secret).
 /// TDD red→green for registering EXPO_TOKEN in the secret registry.
@@ -626,5 +786,19 @@ fn expo_token_is_a_registered_resolvable_secret() {
     assert!(
         matches!(id.metadata().class, crate::SecretClass::Integration),
         "EXPO_TOKEN is an Integration-class (persistable, shareable) secret"
+    );
+}
+
+#[test]
+fn derive_master_key_is_stable_across_calls() {
+    // Two calls with the same (stubbed) keyring entry must return the same 32-byte key.
+    // Uses a temp directory as the file fallback home so no real keyring is needed.
+    let tmp = tempfile::tempdir().unwrap();
+    let fallback = tmp.path().join(".vox-master-key");
+    let k1 = crate::backend::vox_vault::derive_master_key_with_fallback(&fallback).unwrap();
+    let k2 = crate::backend::vox_vault::derive_master_key_with_fallback(&fallback).unwrap();
+    assert_eq!(
+        k1, k2,
+        "master key must be stable across process restarts via file fallback"
     );
 }

@@ -24,6 +24,10 @@ pub(crate) fn run_k_complexity_budget(root: &Path, tolerance: f64, update: bool)
         ComplexityBudget::default()
     };
 
+    let ladder = vox_codegen::canonical_ladder::CanonicalLadder::load_from_repo_root(root)
+        .map_err(|e| anyhow!("failed to load canonical ladder: {e}"))?;
+    let ladder_ids = ladder.fixture_ids();
+
     let golden_dir = root.join("examples/golden");
     if !golden_dir.is_dir() {
         return Err(anyhow!("examples/golden directory not found"));
@@ -32,12 +36,15 @@ pub(crate) fn run_k_complexity_budget(root: &Path, tolerance: f64, update: bool)
     let mut failures = Vec::new();
     let mut new_budgets = HashMap::new();
 
-    // Scan for .vox files in golden dir
+    // Only ladder fixtures participate in the k-complexity budget gate.
     for entry in fs::read_dir(golden_dir)? {
         let entry = entry?;
         let path = entry.path();
         if path.extension().and_then(|s| s.to_str()) == Some("vox") {
             let fixture_id = path.file_stem().unwrap().to_str().unwrap().to_string();
+            if !ladder_ids.contains(&fixture_id) {
+                continue;
+            }
             let source = fs::read_to_string(&path)?;
 
             // Measure K-complexity of WebIR
@@ -74,7 +81,11 @@ pub(crate) fn run_k_complexity_budget(root: &Path, tolerance: f64, update: bool)
                     ));
                 }
             } else if !update {
-                eprintln!("Warning: Fixture '{}' has no budget defined.", fixture_id);
+                failures.push(format!(
+                    "Fixture '{}' has no budget defined in {}",
+                    fixture_id,
+                    budget_path.display()
+                ));
             }
         }
     }
@@ -98,14 +109,80 @@ pub(crate) fn run_k_complexity_budget(root: &Path, tolerance: f64, update: bool)
             eprintln!("  [K-Complexity] ERROR: {}", f);
         }
         anyhow::bail!(
-            "K-complexity budget audit failed ({} violations)",
-            failures.len()
+            "K-complexity budget audit failed ({} violations): {}",
+            failures.len(),
+            failures.join("; ")
         );
     }
 
     println!(
-        "K-complexity budget OK ({} fixtures validated)",
+        "K-complexity budget OK ({} ladder fixtures validated)",
         total_fixtures
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod k_complexity_budget_tests {
+    use super::*;
+    use std::fs;
+    use std::path::PathBuf;
+
+    const HELLO_VOX: &str = r#"fn hello(name: str) to str {
+    return "Hello " + name + "!"
+}
+"#;
+
+    const LADDER_YAML: &str = r#"x-vox-version: 1
+fixtures:
+  - id: hello
+    path: examples/golden/hello.vox
+    proves: [parse, lower, typecheck]
+    targets: [interp, rust-script]
+"#;
+
+    fn write_minimal_ladder_workspace(root: &Path, budget_fixtures_json: &str) {
+        fs::create_dir_all(root.join("contracts/pipeline")).expect("pipeline dir");
+        fs::create_dir_all(root.join("contracts/eval")).expect("eval dir");
+        fs::create_dir_all(root.join("examples/golden")).expect("golden dir");
+
+        fs::write(
+            root.join("contracts/pipeline/canonical-ladder.v1.yaml"),
+            LADDER_YAML,
+        )
+        .expect("ladder yaml");
+        fs::write(root.join("examples/golden/hello.vox"), HELLO_VOX).expect("hello fixture");
+        let budget = format!(
+            r#"{{
+  "x-vox-version": 1,
+  "fixtures": {budget_fixtures_json}
+}}"#
+        );
+        fs::write(
+            root.join("contracts/eval/complexity-budget.v1.json"),
+            budget,
+        )
+        .expect("budget json");
+    }
+
+    #[test]
+    fn missing_ladder_fixture_budget_fails_when_not_updating() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let root = dir.path();
+        write_minimal_ladder_workspace(root, "{}");
+
+        let err = run_k_complexity_budget(root, 0.0, false).expect_err("missing budget must fail");
+        let msg = format!("{err:#}");
+        assert!(
+            msg.contains("hello") && msg.contains("no budget defined"),
+            "expected missing-budget failure for hello, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn all_ladder_fixtures_have_budget_entries_in_repo() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        run_k_complexity_budget(&root, 0.0, false)
+            .expect("real repo k-complexity budget should pass");
+    }
 }

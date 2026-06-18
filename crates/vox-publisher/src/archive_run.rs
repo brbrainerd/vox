@@ -13,6 +13,8 @@ pub enum ArchiveStep {
     ZenodoDepositDraft,
     ZenodoUploadStaging,
     SoftwareHeritageSave,
+    /// Optional: publish signed nanopubs to the test server (never production).
+    NanopubTestServerPublish,
     RecordReceipt,
     /// Only present when the publish flag is set.
     ZenodoPublish,
@@ -26,6 +28,7 @@ impl ArchiveStep {
             ArchiveStep::ZenodoDepositDraft => "zenodo_deposit_draft",
             ArchiveStep::ZenodoUploadStaging => "zenodo_upload_staging",
             ArchiveStep::SoftwareHeritageSave => "software_heritage_save",
+            ArchiveStep::NanopubTestServerPublish => "nanopub_test_server_publish",
             ArchiveStep::RecordReceipt => "record_receipt",
             ArchiveStep::ZenodoPublish => "zenodo_publish",
         }
@@ -62,6 +65,7 @@ pub fn plan_archive_run(
     completion: &crate::scientia_discovery::ManifestCompletionReport,
     approved: bool,
     include_publish: bool,
+    include_nanopub_test_server: bool,
 ) -> ArchiveRunPlan {
     if !completion.required_missing.is_empty() {
         let blockers = completion
@@ -97,6 +101,9 @@ pub fn plan_archive_run(
         steps.push(ArchiveStep::ZenodoPublish);
     }
     steps.push(ArchiveStep::SoftwareHeritageSave);
+    if include_nanopub_test_server {
+        steps.push(ArchiveStep::NanopubTestServerPublish);
+    }
     steps.push(ArchiveStep::RecordReceipt);
 
     ArchiveRunPlan {
@@ -124,7 +131,7 @@ mod tests {
     fn plan_blocks_on_incomplete_required_fields() {
         let mut report = complete_report();
         report.required_missing = vec!["license_spdx".into()];
-        let plan = plan_archive_run(&report, true, false);
+        let plan = plan_archive_run(&report, true, false, false);
         assert!(plan.steps.is_empty());
         assert!(
             plan.first_blocker().unwrap().contains("license_spdx"),
@@ -136,7 +143,7 @@ mod tests {
     #[test]
     fn plan_blocks_without_approval() {
         let report = complete_report();
-        let plan = plan_archive_run(&report, false, false);
+        let plan = plan_archive_run(&report, false, false, false);
         assert!(plan.steps.is_empty());
         assert!(
             plan.first_blocker().unwrap().contains("approv"),
@@ -148,7 +155,7 @@ mod tests {
     #[test]
     fn complete_and_approved_plan_orders_steps() {
         let report = complete_report();
-        let plan = plan_archive_run(&report, true, false);
+        let plan = plan_archive_run(&report, true, false, false);
         assert!(plan.blockers.is_empty());
         assert_eq!(
             plan.step_names(),
@@ -164,7 +171,7 @@ mod tests {
     #[test]
     fn publish_flag_inserts_publish_before_receipt() {
         let report = complete_report();
-        let plan = plan_archive_run(&report, true, true);
+        let plan = plan_archive_run(&report, true, true, false);
         assert!(plan.blockers.is_empty());
         assert_eq!(
             plan.step_names(),
@@ -187,5 +194,22 @@ mod tests {
         let receipt_idx = names.iter().position(|n| *n == "record_receipt").unwrap();
         assert!(publish_idx < swh_idx, "publish is part of the Zenodo call");
         assert!(swh_idx < receipt_idx);
+    }
+
+    #[test]
+    fn nanopub_flag_inserts_test_server_step_before_receipt() {
+        let report = complete_report();
+        let plan = plan_archive_run(&report, true, false, true);
+        assert!(plan.blockers.is_empty());
+        assert_eq!(
+            plan.step_names(),
+            vec![
+                "zenodo_deposit_draft",
+                "zenodo_upload_staging",
+                "software_heritage_save",
+                "nanopub_test_server_publish",
+                "record_receipt",
+            ]
+        );
     }
 }

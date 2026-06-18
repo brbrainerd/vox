@@ -23,6 +23,13 @@ impl VenueCriticPolicy {
     pub fn allows_critic(self) -> bool {
         matches!(self, Self::Allowed)
     }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Allowed => "allowed",
+            Self::Forbidden => "forbidden",
+        }
+    }
 }
 
 #[cfg(test)]

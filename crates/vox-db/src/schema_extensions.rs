@@ -5,37 +5,16 @@ use crate::store::types::StoreError;
 use turso::Connection;
 
 pub async fn apply_schema_extensions(conn: &Connection) -> Result<(), StoreError> {
-    for sql in [
-        "ALTER TABLE llm_interactions ADD COLUMN task_category TEXT NOT NULL DEFAULT 'general'",
-        "ALTER TABLE llm_interactions ADD COLUMN strength_tag TEXT NOT NULL DEFAULT 'generalist'",
-        "ALTER TABLE llm_interactions ADD COLUMN trace_id TEXT",
-        "ALTER TABLE llm_interactions ADD COLUMN success INTEGER NOT NULL DEFAULT 1",
-        "ALTER TABLE llm_interactions ADD COLUMN latency_ms INTEGER",
-        "ALTER TABLE llm_interactions ADD COLUMN input_tokens INTEGER",
-        "ALTER TABLE llm_interactions ADD COLUMN output_tokens INTEGER",
-        "ALTER TABLE llm_interactions ADD COLUMN cost_usd REAL",
-        "ALTER TABLE llm_interactions ADD COLUMN context_utilization_pct REAL",
-        "ALTER TABLE llm_interactions ADD COLUMN cache_read_tokens INTEGER",
-        "ALTER TABLE model_scoreboard ADD COLUMN success_count INTEGER NOT NULL DEFAULT 0",
-        "ALTER TABLE model_scoreboard ADD COLUMN cumulative_cost_usd REAL NOT NULL DEFAULT 0.0",
-    ] {
-        exec_optional(conn, sql).await;
-    }
-
     apply_knowledge_fts_cutover(conn).await?;
     apply_search_document_chunks_fts_cutover(conn).await?;
+
     exec_optional_batch(
         conn,
         "UPDATE agent_trust_scores SET _data = json_set(_data, '$.variance', 1.0) WHERE json_type(json_extract(_data, '$.variance')) IS NULL;",
     )
     .await;
-    Ok(())
-}
 
-async fn exec_optional(conn: &Connection, sql: &str) {
-    if let Err(e) = conn.execute(sql, ()).await {
-        tracing::warn!(statement = %sql, error = %e, "schema extension statement skipped");
-    }
+    Ok(())
 }
 
 async fn exec_optional_batch(conn: &Connection, sql: &str) {
@@ -44,18 +23,21 @@ async fn exec_optional_batch(conn: &Connection, sql: &str) {
     }
 }
 
-async fn apply_knowledge_fts_cutover(conn: &Connection) -> Result<(), StoreError> {
-    let mut has_fts5 = false;
+/// Helper to query compile options to see if FTS5 is supported.
+async fn has_fts5_support(conn: &Connection) -> Result<bool, StoreError> {
     if let Ok(mut rows) = conn.query("PRAGMA compile_options", ()).await {
         while let Some(row) = rows.next().await? {
             let opt: String = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
             if opt.contains("FTS5") || opt == "ENABLE_FTS5" {
-                has_fts5 = true;
-                break;
+                return Ok(true);
             }
         }
     }
-    if !has_fts5 {
+    Ok(false)
+}
+
+async fn apply_knowledge_fts_cutover(conn: &Connection) -> Result<(), StoreError> {
+    if !has_fts5_support(conn).await? {
         return Ok(());
     }
 
@@ -96,17 +78,7 @@ WHERE rowid NOT IN (SELECT rowid FROM knowledge_nodes_fts);
 
 /// FTS5 over `search_document_chunks.body_text` for RAG-style chunk retrieval (mirrors knowledge_nodes_fts).
 async fn apply_search_document_chunks_fts_cutover(conn: &Connection) -> Result<(), StoreError> {
-    let mut has_fts5 = false;
-    if let Ok(mut rows) = conn.query("PRAGMA compile_options", ()).await {
-        while let Some(row) = rows.next().await? {
-            let opt: String = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
-            if opt.contains("FTS5") || opt == "ENABLE_FTS5" {
-                has_fts5 = true;
-                break;
-            }
-        }
-    }
-    if !has_fts5 {
+    if !has_fts5_support(conn).await? {
         return Ok(());
     }
 
@@ -140,4 +112,28 @@ WHERE rowid NOT IN (SELECT rowid FROM search_document_chunks_fts);
 "#;
     exec_optional_batch(conn, batch).await;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::schema::baseline_sql;
+
+    #[test]
+    fn test_baseline_contains_extended_columns() {
+        let sql = baseline_sql();
+
+        // Assert columns are present in the baseline DDL
+        assert!(sql.contains("task_category"));
+        assert!(sql.contains("strength_tag"));
+        assert!(sql.contains("trace_id"));
+        assert!(sql.contains("success"));
+        assert!(sql.contains("latency_ms"));
+        assert!(sql.contains("input_tokens"));
+        assert!(sql.contains("output_tokens"));
+        assert!(sql.contains("cost_usd"));
+        assert!(sql.contains("context_utilization_pct"));
+        assert!(sql.contains("cache_read_tokens"));
+        assert!(sql.contains("success_count"));
+        assert!(sql.contains("cumulative_cost_usd"));
+    }
 }

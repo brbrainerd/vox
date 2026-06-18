@@ -15,6 +15,9 @@ export function installTauriMock(viewKey: string): void {
     // Playwright data URLs / sandboxed contexts may deny localStorage.
   }
   (window as any).__TAURI_CALLS__ = [];
+  (window as any).__TAURI_EVENT_PLUGIN_INTERNALS__ = {
+    unregisterListener: (event: string, eventId: number) => {}
+  };
 
   const modelIds = ['mens-8b', 'opus-4-8', 'sonnet-4-6', 'haiku-4-5', 'qwen-coder-7b', 'local-llama'];
   const modelNames = ['Mens 8B', 'Opus 4.8', 'Sonnet 4.6', 'Haiku 4.5', 'Qwen Coder 7B', 'Local Llama'];
@@ -106,6 +109,12 @@ export function installTauriMock(viewKey: string): void {
   };
 
   (window as any).__TAURI_INTERNALS__ = {
+    ...((window as any).__TAURI_INTERNALS__ || {}),
+    transformCallback: (cb: (...args: unknown[]) => unknown) => {
+      const id = `cb_${Math.random().toString(36).slice(2)}`;
+      (window as any)[id] = cb;
+      return id;
+    },
     invoke: async (cmd: string, args?: any) => {
       (window as any).__TAURI_CALLS__.push({ cmd, args: args ?? null });
       switch (cmd) {
@@ -221,6 +230,7 @@ export function installTauriMock(viewKey: string): void {
         };
         case 'get_action_manifest': return { x_vox_version: 2, schema_version: 1, generated_from: 'mock', actions: [] };
         case 'get_full_registry': return { commands: [] };
+        case 'vox_docs_index': return [];
         case 'get_command_metadata': return { safety_class: 'read_only', confirmation_policy: 'none' };
         case 'list_gui_runs': return Array.from({ length: 5 }, (_, i) => ({
           run_id: `gui-run-${i + 1}`, workflow_name: ['gui.harness.submit', 'gui.policy.doubt', 'gui.search', 'gui.research', 'gui.repo'][i],
@@ -263,6 +273,11 @@ export function installTauriMock(viewKey: string): void {
             : mockFiles;
           return filtered.slice(0, lim);
         }
+        case 'plugin:event|listen': return Math.floor(Math.random() * 10000);
+        case 'plugin:event|unlisten': return null;
+        case 'list_orchestrator_tasks': return [];
+        case 'get_archive_status': return { swhid: null, swh_task_id: null, swh_task_status: null, zenodo_doi: null, zenodo_state: null };
+        case 'get_completion_report': return { score: 100, warnings: [], is_complete: true };
         default: return null;
       }
     },

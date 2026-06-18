@@ -19,3 +19,4 @@ presets:
   - id: default
   - id: distributed
   - id: mobile_edge
+  - id: vox-gen

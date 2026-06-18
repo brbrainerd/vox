@@ -4,7 +4,7 @@
 // syntax_version: "0.5.0"
 // status: golden
 // category: example
-// constructs: [fn, @mcp.tool, component, Result, match, if, cap]
+// constructs: [fn, @tool, component, Result, match, if, cap]
 // last_validated: 2026-05-05
 // training_eligible: true
 // training_weight: 1.0
@@ -47,7 +47,7 @@ fn settle_trade(amount: int) to str {
 // ANCHOR_END: workflow_layer
 
 // ANCHOR: mcp_layer
-@mcp.tool "propose_merge: Propose a stack merge and return primary+overflow"
+@tool "propose_merge: Propose a stack merge and return primary+overflow"
 fn propose_merge(kind: str, current: int, incoming: int, max_stack: int) to str {
     let total = current + incoming
     if total <= max_stack {

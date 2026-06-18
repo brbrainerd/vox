@@ -1,0 +1,66 @@
+x-vox-version: 1
+schema_version: 1
+description: >
+  Canonical GUI preference keys for shell chrome persistence. Values are stored
+  via voxTransport get_gui_preference / set_gui_preference (Tier-A GUI prefs).
+  New shell keys MUST be added here before use in React code.
+
+preference_keys:
+  - key: vox_sidebar_mode
+    type: enum
+    values: [rail, default, wide]
+    default: default
+    description: Sidebar width mode
+
+  - key: vox_hud_mode
+    type: enum
+    values: [full, slim, hidden]
+    default: full
+    description: Top HUD display density (hidden reserved for demo/screenshot)
+
+  - key: vox_parent_tabs
+    type: json
+    default: {}
+    description: Last-selected child tab per parent surface
+
+  - key: gui.layout.v1
+    type: json
+    default: null
+    description: Dockview panel layout snapshot (DockShell)
+
+  - key: gui.dashboard.layout.v1
+    type: json
+    default: null
+    description: Dashboard widget grid layout (dashboard-layout.v1.yaml)
+
+  - key: gui.hud.tiles.v1
+    type: json
+    default: null
+    description: Enabled HUD tile order (hud-tiles.v1.yaml)
+
+  - key: gui.shell.chat_docked
+    type: boolean
+    default: true
+    description: Global Loquela dock on non-chat surfaces
+
+  - key: gui.theme
+    type: string
+    description: Active theme token set
+
+  - key: gui.telemetry
+    type: string
+    description: Telemetry opt-in preference
+
+  - key: gui.sign
+    type: string
+    description: Commit signing preference
+
+  - key: gui.checkpointMins
+    type: string
+    description: Autosave checkpoint interval
+
+  - key: gui.memory.autoRecall
+    type: string
+    description: Memory surface auto-recall toggle
+
+spark_series_prefix: vox.spark.kpi.

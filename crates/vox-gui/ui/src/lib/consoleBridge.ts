@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { voxTransport } from '../transport';
 
 /**
  * Forward webview console errors/warnings and uncaught errors to the Rust backend (the
@@ -20,7 +20,7 @@ export function installConsoleBridge(): void {
           p instanceof Error ? (p.stack ?? p.message) : typeof p === 'string' ? p : safeJson(p),
         )
         .join(' ');
-      void invoke('log_frontend', { level, message });
+      void voxTransport.logFrontend(level, message);
     } catch {
       /* never let logging break the app */
     }

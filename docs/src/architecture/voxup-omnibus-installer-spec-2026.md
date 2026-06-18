@@ -63,22 +63,18 @@ export PATH=~/.vox/toolchains/node-v22/bin:~/.vox/toolchains/wasm-sysroot/bin:$P
 ```
 It then forwards the command to the actual `vox` binary. The `vox` CLI now reliably finds `pnpm` and `node` in its PATH without polluting the user's global system PATH.
 
-## Implementation Plan
+## Implementation Status
 
-### Phase 1: `voxup` Scaffold
-1. Create `crates/voxup` in the repository.
-2. Implement downloading and extracting of `.tar.gz` and `.zip` bundles using `reqwest` and `tar`/`zip`.
-3. Implement `PATH` modification logic for bash (`.bashrc`), zsh (`.zshrc`), and PowerShell profile.
-
-### Phase 2: Manifest Resolution
-1. Define the `channels/stable.toml` schema for tracking toolchain versions.
-2. Setup GitHub Actions CI to automatically build and upload hermetic Node and WASM bundles to the release page.
-3. Implement signature verification (Ed25519) in `voxup` to verify downloaded bundles.
-
-### Phase 3: Proxy Execution
-1. Implement the `vox` proxy wrapper in `voxup` that manipulates `std::env::set_var("PATH", ...)` before calling `execv` to the real CLI.
-
-### Phase 4: Migration
-1. Deprecate the direct `.msi`, `brew`, and `dpkg` instructions in the `README.md`.
-2. Advise existing users to run `voxup install` to migrate to the hermetic environment.
-3. Phase out Node/Rust installation logic from `vox doctor --auto-heal`, as `voxup` guarantees their presence.
+| Phase | Description | Status |
+|---|---|---|
+| 1 | `crates/voxup` scaffold — directory layout, hard-link, WASM sysroot stub | ✅ Done |
+| 2a | Channel resolution — GitHub Releases API (`channel.rs`) | ✅ Done |
+| 2b | Download + SHA-256 verification (`download.rs`) | ✅ Done |
+| 2c | Archive extraction (`.tar.gz` Unix, `.zip` Windows) | ✅ Done |
+| 3a | Shell PATH persistence (`shell.rs`) | ✅ Done |
+| 3b | Proxy execution — `execv` Unix, spawn+exit Windows (`proxy.rs`) | ✅ Done |
+| 3c | `voxup update` — semver comparison + conditional upgrade (`update.rs`) | ✅ Done |
+| 4 | Bootstrap scripts (`install.sh`, `install.ps1`) hosted at voxlang.org | ⬜ Plan B |
+| 5 | Hermetic Node.js + WASM bundle download | ⬜ Future |
+| 6 | Ed25519 signature verification of archives | ⬜ Future |
+| 7 | Deprecate direct `.msi`, `brew`, `dpkg` install instructions | ⬜ After Plan B |

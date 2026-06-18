@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useVirtualList } from '../../../hooks/useVirtualList';
+import { shardSparkColor } from '../../../lib/visualTokens';
 import { invoke } from '@tauri-apps/api/core';
 import { voxTransport } from '../../../transport';
 import { Glass } from '../../ui/Glass';
@@ -159,17 +160,30 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
   const [recalling, setRecalling] = useState(false);
 
   const recallsRef = useRef<HTMLDivElement>(null);
+  const shardsRef = useRef<HTMLDivElement>(null);
 
   const RECALL_ITEM_HEIGHT = 52; // px
   const RECALL_GAP = 6;          // px
+  const SHARD_COLS = 6;
+  const SHARD_ROW_HEIGHT = 132;
+  const SHARD_ROW_GAP = 12;
 
   const recentRecalls = memStatus?.recent_recalls ?? [];
+  const shards = memStatus?.shards ?? [];
+  const shardRowCount = Math.ceil(shards.length / SHARD_COLS) || 0;
 
   const recallsVL = useVirtualList({
     containerRef: recallsRef,
     count: recentRecalls.length,
     estimateSize: () => RECALL_ITEM_HEIGHT,
     overscan: 3,
+  });
+
+  const shardsVL = useVirtualList({
+    containerRef: shardsRef,
+    count: shardRowCount,
+    estimateSize: () => SHARD_ROW_HEIGHT + SHARD_ROW_GAP,
+    overscan: 2,
   });
 
   useEffect(() => {
@@ -180,7 +194,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
 
   // Hydrate the persisted auto-recall preference on mount.
   useEffect(() => {
-    invoke<string | null>('get_gui_preference', { key: 'gui.memory.autoRecall' })
+    voxTransport.getGuiPreference('gui.memory.autoRecall')
       .then((v) => { if (v != null) setRecallOn(v === 'true'); })
       .catch(() => { /* no workspace db (e.g. plain browser dev) — keep default off */ });
   }, []);
@@ -188,7 +202,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
   const toggleAutoRecall = () => {
     setRecallOn((prev) => {
       const next = !prev;
-      invoke('set_gui_preference', { key: 'gui.memory.autoRecall', value: String(next) })
+      voxTransport.setGuiPreference('gui.memory.autoRecall', String(next))
         .catch((err) => pushToast({ tone: 'warn', title: 'Could not persist auto-recall', body: String(err) }));
       return next;
     });
@@ -471,42 +485,66 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
             {memStatus?.embedding_dim != null ? ` · dim ${memStatus.embedding_dim}` : ''}
           </span>
         </div>
-        <div className="mt-3 max-h-[700px] overflow-y-auto custom-scrollbar">
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-            {(memStatus?.shards ?? []).map(s => (
-              <div
-                key={s.id}
-                className={`rounded-xl border p-3 transition hover:border-white/15 ${
-                  s.hot   ? 'border-brass/30 bg-brass/[0.04]' :
-                  s.dirty ? 'border-amber-400/30 bg-amber-400/[0.04]' :
-                            'border-white/5 bg-white/[0.02]'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-[11px] text-zinc-300">shard-{s.id}</span>
-                  {s.hot   && <span className="rounded-full bg-brass/15 px-1.5 py-0.5 font-display text-[9px] uppercase tracking-widest text-brass">hot</span>}
-                  {s.dirty && <span className="rounded-full bg-amber-400/15 px-1.5 py-0.5 font-display text-[9px] uppercase tracking-widest text-amber-300">dirty</span>}
-                </div>
-                <div className="mt-2 grid grid-cols-2 gap-1.5 text-[9px]">
-                  <div className="rounded border border-white/5 bg-zinc-950/40 px-2 py-1.5">
-                    <div className="uppercase tracking-widest text-zinc-500">Depth</div>
-                    <div className="mt-0.5 font-mono text-[11px] text-zinc-200">{s.depth}</div>
+        <div
+          ref={shardsRef}
+          className="mt-3 max-h-[700px] overflow-y-auto custom-scrollbar"
+        >
+          <div style={{ height: shardsVL.totalSize, position: 'relative' }}>
+            {shardsVL.virtualItems.map(vItem => {
+              const rowStart = vItem.index * SHARD_COLS;
+              const rowShards = shards.slice(rowStart, rowStart + SHARD_COLS);
+              return (
+                <div
+                  key={String(vItem.key)}
+                  ref={shardsVL.virtualizer.measureElement}
+                  data-index={vItem.index}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    transform: `translateY(${vItem.start}px)`,
+                    width: '100%',
+                    paddingBottom: SHARD_ROW_GAP,
+                  }}
+                >
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+                    {rowShards.map(s => (
+                      <div
+                        key={s.id}
+                        className={`rounded-xl border p-3 transition hover:border-white/15 ${
+                          s.hot   ? 'border-brass/30 bg-brass/[0.04]' :
+                          s.dirty ? 'border-amber-400/30 bg-amber-400/[0.04]' :
+                                    'border-white/5 bg-white/[0.02]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono text-[11px] text-zinc-300">shard-{s.id}</span>
+                          {s.hot   && <span className="rounded-full bg-brass/15 px-1.5 py-0.5 font-display text-[9px] uppercase tracking-widest text-brass">hot</span>}
+                          {s.dirty && <span className="rounded-full bg-amber-400/15 px-1.5 py-0.5 font-display text-[9px] uppercase tracking-widest text-amber-300">dirty</span>}
+                        </div>
+                        <div className="mt-2 grid grid-cols-2 gap-1.5 text-[9px]">
+                          <div className="rounded border border-white/5 bg-zinc-950/40 px-2 py-1.5">
+                            <div className="uppercase tracking-widest text-zinc-500">Depth</div>
+                            <div className="mt-0.5 font-mono text-[11px] text-zinc-200">{s.depth}</div>
+                          </div>
+                          <div className="rounded border border-white/5 bg-zinc-950/40 px-2 py-1.5">
+                            <div className="uppercase tracking-widest text-zinc-500">Entries</div>
+                            <div className="mt-0.5 font-mono text-[11px] text-zinc-200">{(s.entries ?? 0).toLocaleString()}</div>
+                          </div>
+                        </div>
+                        <div className="mt-2 h-8">
+                          <Sparkline
+                            data={s.spark}
+                            color={shardSparkColor(s)}
+                            width={160}
+                            height={28}
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div className="rounded border border-white/5 bg-zinc-950/40 px-2 py-1.5">
-                    <div className="uppercase tracking-widest text-zinc-500">Entries</div>
-                    <div className="mt-0.5 font-mono text-[11px] text-zinc-200">{(s.entries ?? 0).toLocaleString()}</div>
-                  </div>
                 </div>
-                <div className="mt-2 h-8">
-                  <Sparkline
-                    data={s.spark}
-                    color={s.hot ? 'rgb(var(--brass))' : s.dirty ? '#fbbf24' : '#71717a'}
-                    width={160}
-                    height={28}
-                  />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </Glass>

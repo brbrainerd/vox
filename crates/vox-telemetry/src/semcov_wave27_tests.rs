@@ -7,6 +7,7 @@
 
 #[cfg(test)]
 mod semcov_wave27_tests {
+    #![allow(clippy::module_inception)]
     use std::sync::{Arc, Mutex};
 
     use crate::types::validate_research_metric_row;

@@ -10,7 +10,9 @@ pub mod bootstrap_inference;
 pub mod config;
 pub mod config_key;
 pub mod config_registry;
+pub mod config_watch;
 pub mod env_parse;
+pub mod graphify;
 pub mod inference;
 pub mod model_routing;
 pub mod operator_registry;
@@ -33,6 +35,13 @@ pub use bootstrap_inference::{
     REVIEW_PREMIUM_FALLBACK,
 };
 pub use config::{BuildTarget, GamifyMode, VoxConfig, WebRunMode};
+pub use config_watch::{ConfigSnapshot, ConfigWatch};
+pub use graphify::{
+    CORPORA_REL_PATH, CorpusStatus, GraphifyCorporaRegistry, GraphifyCorpus, GraphifyError,
+    GraphifyKnowledgeNode, GraphifyManifest, LEGACY_GRAPHIFY_OUT_DIR, LexicalGraphHit,
+    MANIFEST_BASENAME, assess_corpus_status, graph_stats_from_json, lexical_search_graph,
+    load_graphify_corpora, project_graph_nodes_for_ingest,
+};
 pub use inference::{
     InferenceProfile, LOCAL_OLLAMA_POPULI_BASE_URL_DEFAULT, OPENAI_CHAT_COMPLETIONS_URL,
     OPENAI_EMBEDDINGS_URL, OPENROUTER_CHAT_COMPLETIONS_URL, OPENROUTER_EMBEDDINGS_URL,

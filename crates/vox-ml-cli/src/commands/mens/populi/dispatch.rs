@@ -88,6 +88,9 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 None,                         // seq_len
                 None,                         // batch_size
                 None,                         // grad_accum
+                None,                         // budget_seq_len
+                None,                         // budget_batch_size
+                None,                         // budget_grad_accum
                 None,                         // resume
                 None,                         // epochs
                 None,                         // lr

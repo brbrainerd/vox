@@ -9,9 +9,10 @@ use vox_search::{
 use crate::server_state::ServerState;
 
 /// Why retrieval is being invoked for this turn/tool path.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum RetrievalTriggerMode {
+    #[default]
     /// Silent preamble enrichment for chat turns.
     AutoChatPreamble,
     /// Explicit user call through a retrieval/search tool.
@@ -21,7 +22,7 @@ pub enum RetrievalTriggerMode {
 }
 
 /// Structured retrieval metadata shared between MCP surfaces and Socrates telemetry.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default)]
 pub struct RetrievalEvidenceEnvelope {
     /// Trigger mode that initiated this retrieval pass.
     pub trigger: RetrievalTriggerMode,
@@ -217,7 +218,7 @@ impl RetrievalEvidenceEnvelope {
 }
 
 /// Internal retrieval payload used by chat preamble and memory tools.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct RetrievalBundle {
     pub memory_lines: Vec<String>,
     pub knowledge_lines: Vec<String>,
@@ -225,7 +226,31 @@ pub struct RetrievalBundle {
     pub repo_lines: Vec<String>,
     /// RRF-merged excerpt ordering (same lines as corpora, deduped; empty when disabled).
     pub rrf_fused_lines: Vec<String>,
+    /// Knowledge base hits from topic-matched KB entries.
+    pub kb_lines: Vec<String>,
     pub evidence: RetrievalEvidenceEnvelope,
+}
+
+/// Extract `@name` mentions from a user message.
+/// Returns deduplicated, lowercased names in order of first appearance.
+pub fn parse_kb_mentions(text: &str) -> Vec<String> {
+    let mut seen = std::collections::HashSet::new();
+    let mut result = Vec::new();
+    for word in text.split_whitespace() {
+        if let Some(name) = word.strip_prefix('@') {
+            // Strip trailing punctuation (commas, periods, question marks, etc.)
+            let name =
+                name.trim_end_matches(|c: char| !c.is_alphanumeric() && c != '-' && c != '_');
+            if !name.is_empty() {
+                let lower = name.to_ascii_lowercase();
+                if !seen.contains(&lower) {
+                    seen.insert(lower.clone());
+                    result.push(lower);
+                }
+            }
+        }
+    }
+    result
 }
 
 struct McpMemoryFallback {
@@ -322,6 +347,21 @@ pub async fn run_retrieval_bundle(
             )
         });
 
+    // KB background enrichment: search accepted entries for this query
+    let kb_lines = if let Some(db) = &state.db {
+        use vox_orchestrator::knowledge_base::store::KbStore;
+        let store = KbStore::new(db.clone());
+        store
+            .search_entries(query, 5)
+            .await
+            .unwrap_or_default()
+            .into_iter()
+            .map(|e| format!("[KB:{} via {}] {}", e.kb_id, e.source_signal, e.content))
+            .collect()
+    } else {
+        Vec::new()
+    };
+
     Ok(RetrievalBundle {
         evidence: RetrievalEvidenceEnvelope {
             trigger,
@@ -360,7 +400,56 @@ pub async fn run_retrieval_bundle(
         chunk_lines,
         repo_lines: execution.repo_lines,
         rrf_fused_lines: execution.rrf_fused_lines,
+        kb_lines,
     })
+}
+
+/// Helper to determine if autonomous research should be triggered based on query and retrieval hits.
+pub fn should_trigger_autonomous_research(
+    query: &str,
+    bundle: &RetrievalBundle,
+    force_research: Option<bool>,
+) -> bool {
+    if let Some(forced) = force_research {
+        return forced;
+    }
+
+    // Explicit tag request
+    if query.contains("[[research:") || query.contains("[[category:research]]") {
+        return true;
+    }
+
+    // Evaluate confidence score using the confidence gate
+    use vox_research_shim::research::gate::{GateConfig, GateInput, score_with_config};
+
+    let claims: Vec<vox_research_shim::research::claims::Claim> = Vec::new(); // empty claims for initial heuristic score
+    let min_citations = 5;
+    let min_domains = 4;
+
+    let citation_count = bundle.rrf_fused_lines.len()
+        + bundle.memory_lines.len()
+        + bundle.knowledge_lines.len()
+        + bundle.chunk_lines.len();
+
+    let distinct_domain_count = 1; // lightweight fallback
+
+    let gate_input = GateInput {
+        claims: &claims,
+        citation_count,
+        supported_claim_count: 0,
+        distinct_domain_count,
+        no_retrieval_hits: citation_count == 0,
+        answer_is_empty: false,
+    };
+
+    let config = GateConfig {
+        min_citations_for_full_score: Some(min_citations),
+        min_domains_for_full_score: Some(min_domains),
+    };
+
+    let signal = score_with_config(&gate_input, &config);
+    // Trigger research if the confidence score is below 0.65
+    signal.score < 0.65
 }
 
 #[cfg(test)]
@@ -390,5 +479,54 @@ mod tests {
         assert_eq!(bundle.evidence.search_intent, "verification");
         assert_eq!(bundle.evidence.selected_mode, "hybrid");
         assert!(!bundle.evidence.retrieval_tier.is_empty());
+    }
+
+    #[test]
+    fn should_trigger_autonomous_research_on_forced_flag() {
+        let bundle = RetrievalBundle::default();
+        assert!(super::should_trigger_autonomous_research(
+            "test",
+            &bundle,
+            Some(true)
+        ));
+        assert!(!super::should_trigger_autonomous_research(
+            "test",
+            &bundle,
+            Some(false)
+        ));
+    }
+
+    #[test]
+    fn should_trigger_autonomous_research_on_explicit_tag() {
+        let bundle = RetrievalBundle::default();
+        assert!(super::should_trigger_autonomous_research(
+            "do some [[research:topic]] here",
+            &bundle,
+            None
+        ));
+    }
+
+    #[test]
+    fn parse_kb_mentions_extracts_at_names() {
+        let mentions = parse_kb_mentions("Can you check @rust-patterns and @async-guide?");
+        assert_eq!(mentions, vec!["rust-patterns", "async-guide"]);
+    }
+
+    #[test]
+    fn parse_kb_mentions_no_mentions() {
+        let mentions = parse_kb_mentions("No mentions here.");
+        assert!(mentions.is_empty());
+    }
+
+    #[test]
+    fn parse_kb_mentions_deduplicates() {
+        let mentions = parse_kb_mentions("See @retrieval and @retrieval again.");
+        assert_eq!(mentions, vec!["retrieval"]);
+    }
+
+    #[test]
+    fn parse_kb_mentions_strips_trailing_punctuation() {
+        let mentions = parse_kb_mentions("Use @rust-patterns, and @async-guide.");
+        assert_eq!(mentions, vec!["rust-patterns", "async-guide"]);
     }
 }

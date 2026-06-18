@@ -766,6 +766,9 @@ pub mod codes {
     /// (`crate::feature_matrix`); the parity test reconciles these against real emitters.
     pub const PARITY_UNIMPLEMENTED: &str = "vox/parity/unimplemented";
 
+    /// Parity: declared in the language surface but not yet proven by the canonical golden ladder.
+    pub const PARITY_UNVERIFIED: &str = "vox/parity/unverified";
+
     /// All Phase-1 codes registered for stability, used by the namespace guard test.
     pub const ALL_PHASE_1: &[&str] = &[
         // Core type errors (v0.6, LLM-target CR-L criteria)
@@ -891,6 +894,57 @@ pub mod codes {
         PARITY_FRONTEND_ONLY,
         PARITY_BACKEND_ONLY,
         PARITY_UNIMPLEMENTED,
+        PARITY_UNVERIFIED,
+        // WebIR validate (merged into emission profile; registered for audit multiplexing)
+        "web_ir_validate.route.duplicate_contract_id",
+        "web_ir_validate.dom.id_oob",
+        "web_ir_validate.dom.arena_too_large",
+        "web_ir_validate.route.duplicate_loader_id",
+        "web_ir_validate.route.empty_loader_id",
+        "web_ir_validate.route.empty_loader_contract",
+        "web_ir_validate.route.empty_server_fn_name",
+        "web_ir_validate.route.empty_server_export_path",
+        "web_ir_validate.route.empty_server_signature",
+        "web_ir_validate.route.empty_mutation_name",
+        "web_ir_validate.route.empty_mutation_payload_type",
+        "web_ir_validate.behavior.required_state_without_initial",
+        "web_ir_validate.style.raw_css_escape",
+        "web_ir_validate.style.empty_declarations",
+        "web_ir_validate.style.empty_property",
+        "web_ir_validate.style.duplicate_property_in_rule",
+        "web_ir_validate.style.unknown_property",
+        "web_ir_validate.style.specificity_conflict",
+        "web_ir_validate.style.token_contrast_warning",
+        "web_ir_validate.style.token_contrast_error",
+        "web_ir_validate.route.missing_component",
+        "web_ir_validate.route.broken_link",
+        "web_ir_validate.route.unreachable",
+        "web_ir_validate.style.literal_color_value",
+        "web_ir_validate.style.literal_dimension_value",
+        "web_ir_validate.style.unknown_token",
+        "web_ir_validate.style.raw_color_value",
+        "web_ir_validate.scheduled.empty_name",
+        "web_ir_validate.scheduled.empty_interval",
+        "web_ir_validate.interop.empty_component",
+        "web_ir_validate.interop.empty_import_source",
+        "web_ir_validate.interop.empty_external_specifier",
+        "web_ir_validate.interop.empty_escape_expr",
+        "web_ir_validate.interop.empty_escape_reason",
+        "web_ir_validate.surface.unknown_surface",
+        "web_ir_validate.a11y.insufficient_contrast",
+        "web_ir_validate.a11y.low_contrast",
+        "web_ir_validate.a11y.img_missing_alt",
+        "web_ir_validate.overlay.duplicate_z",
+        "web_ir_validate.overlay.position_conflict",
+        "web_ir_validate.a11y.input_missing_label",
+        "web_ir_validate.a11y.button_missing_name",
+        "web_ir_validate.a11y.anchor_missing_name",
+        "web_ir_validate.a11y.anchor_missing_href",
+        "web_ir_validate.a11y.role_button_missing_keyboard",
+        // Emission profile
+        "vox/emission/app_contract_schema_drift",
+        "vox/emission/runtime_projection_schema_drift",
+        "vox/emission/duplicate_http_route",
     ];
 
     #[cfg(test)]

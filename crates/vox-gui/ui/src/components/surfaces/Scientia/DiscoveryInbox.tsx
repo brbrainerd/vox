@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
-import { listenScientiaQueue } from '../../../transport';
+import { listenDiscoverySurfaced, listenScientiaQueue } from '../../../transport';
 import {
   listDiscoveryInbox,
   acknowledgeDiscovery,
@@ -32,12 +32,10 @@ function relativeTime(ms: number): string {
  * (rows in `scientia_discovery_inbox`). Each row can be acknowledged (drops it
  * from the list) or opened in the Discovery Review surface (deep-link).
  *
- * Live updates: subscribes to the `vox://scientia-queue` change ping (the
- * Scientia DB watcher) and refetches; a 10 s interval covers the
- * non-Tauri / no-bridge case. NOTE: the orchestrator-mcp daemon broadcasts a
- * dedicated `scientia.discovery.surfaced` WS topic, but there is no
- * daemon→Tauri re-bridge for it in the GUI yet, so we ride the existing
- * scientia-queue ping + polling rather than a discovery-specific event.
+ * Live updates: subscribes to `vox://scientia-discovery-surfaced` (one row per
+ * emission, mirroring the orchestrator-mcp `scientia.discovery.surfaced` WS topic
+ * at the Tauri boundary) and to the `vox://scientia-queue` change ping. A 10 s
+ * interval covers the non-Tauri / no-bridge case.
  *
  * On a newly-arrived strong candidate we raise an in-app toast. OS notifications
  * are intentionally NOT wired: the `tauri-plugin-notification` plugin is not a
@@ -93,21 +91,55 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
     return () => clearInterval(t);
   }, [refresh]);
 
-  // Event-driven refresh on the Scientia-queue ping. Interval above covers the
-  // non-Tauri / no-bridge case. Cleans up on unmount.
+  // Event-driven refresh on discovery-surfaced rows + scientia-queue ping.
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    listenScientiaQueue(() => {
-      void refresh();
+    let unlistenDiscovery: (() => void) | undefined;
+    let unlistenQueue: (() => void) | undefined;
+
+    listenDiscoverySurfaced((row) => {
+      const incoming: DiscoveryInboxRow = {
+        id: row.id,
+        publication_id: row.publication_id,
+        surfaced_at_ms: row.surfaced_at_ms,
+        intake_tier: row.intake_tier,
+        signal_codes: row.signal_codes,
+        origin: row.origin,
+      };
+      setRows((prev) => {
+        if (prev.some((r) => r.id === incoming.id)) return prev;
+        return [incoming, ...prev].sort((a, b) => b.surfaced_at_ms - a.surfaced_at_ms);
+      });
+      if (primedRef.current && row.intake_tier === STRONG_TIER && !seenStrongIds.current.has(row.id)) {
+        pushToast({
+          tone: 'info',
+          title: 'New research candidate',
+          body: `${row.publication_id}${row.signal_codes.length ? ` · ${row.signal_codes.join(', ')}` : ''}`,
+        });
+      }
+      if (row.intake_tier === STRONG_TIER) seenStrongIds.current.add(row.id);
     })
       .then((fn) => {
-        unlisten = fn;
+        unlistenDiscovery = fn;
       })
       .catch(() => {
         /* not in Tauri — interval fallback covers it */
       });
-    return () => unlisten?.();
-  }, [refresh]);
+
+    listenScientiaQueue(() => {
+      void refresh();
+    })
+      .then((fn) => {
+        unlistenQueue = fn;
+      })
+      .catch(() => {
+        /* not in Tauri — interval fallback covers it */
+      });
+
+    return () => {
+      unlistenDiscovery?.();
+      unlistenQueue?.();
+    };
+  }, [pushToast, refresh]);
 
   const acknowledge = useCallback(
     async (id: number) => {
@@ -168,6 +200,7 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
         <div className="flex flex-col" role="list" aria-live="polite">
           {rows.map((r) => {
             const strong = r.intake_tier === STRONG_TIER;
+            const researchOriginated = r.origin === 'research';
             return (
               <div
                 key={r.id}
@@ -185,6 +218,11 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
                     >
                       {tierLabel(r.intake_tier)}
                     </span>
+                    {researchOriginated && (
+                      <span className="rounded-full bg-cyan/15 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-cyan ring-1 ring-cyan/30">
+                        research
+                      </span>
+                    )}
                     <span className="truncate font-mono text-[12px] text-zinc-200">{r.publication_id}</span>
                     <span className="ml-auto shrink-0 font-mono text-[10px] text-zinc-600">
                       {relativeTime(r.surfaced_at_ms)}

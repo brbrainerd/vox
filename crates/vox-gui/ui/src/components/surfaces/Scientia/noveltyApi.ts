@@ -44,7 +44,8 @@ export type NoveltyVerdictKind =
   | 'insufficient_evidence'
   | 'novel'
   | 'possibly_novel'
-  | 'not_novel';
+  | 'not_novel'
+  | 'contradicted';
 
 /** Full novelty assessment for one publication. */
 export interface NoveltyAssessment {
@@ -55,6 +56,8 @@ export interface NoveltyAssessment {
   conflicts: Conflict[];
   signals: NoveltySignals;
   prior_art: PriorArtHit[];
+  /** Present when `verdict_kind` is `insufficient_evidence` (assess_novelty reason). */
+  insufficient_evidence_reason: string | null;
 }
 
 /** Assess novelty for one publication from its stored evidence bundle. */

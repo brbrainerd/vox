@@ -799,6 +799,18 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_GRAPHIFY_TTL_DAYS"
+    owner_crate: "vox-config"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "Override TTL in days for all graphify corpus status assessments."
+  - name: "VOX_GRAPHIFY_VIZ_NODE_LIMIT"
+    owner_crate: "vox-orchestrator-mcp"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "Maximum node limit for graphify visualization or neighbor query traversal."
   - name: "VOX_GROQ_API_KEY"
     owner_crate: "vox-secrets"
     kind: "string"
@@ -990,6 +1002,13 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_MCP_CALLER_ROLE"
+    owner_crate: "vox-orchestrator-mcp"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    default: "agent"
+    description: "Trusted MCP caller role for privileged operations. Set by the launcher (not tool requests). Values: human (privileged browser/privileged paths) or agent (default when unset or any other value)."
   - name: "VOX_MCP_DECODE_POLICY"
     owner_crate: "vox-secrets"
     kind: "string"
@@ -3294,6 +3313,12 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_SCIENTIA_REQUIRE_EMBEDDER"
+    owner_crate: "vox-publisher"
+    kind: "bool"
+    required: false
+    introduced_in: "0.6.0"
+    description: "When true, online prior-art fetch (non--offline) fails fast without a configured embedding provider."
   - name: "VOX_SCIENTIA_CROSSREF_MAILTO"
     owner_crate: "vox-secrets"
     kind: "string"
@@ -3756,6 +3781,12 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "SONATYPE_GUIDE_TOKEN"
+    owner_crate: "vox-secrets"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "Sonatype Guide API bearer token for MCP dependency intelligence (guide.sonatype.com)."
   - name: "VOX_TAVILY_API_KEY"
     owner_crate: "vox-secrets"
     kind: "string"
@@ -3774,6 +3805,12 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_TAVILY_RESEARCH"
+    owner_crate: "vox-search"
+    kind: "bool"
+    required: false
+    introduced_in: "0.6.0"
+    description: "When truthy, enable Tavily /research deep-research tier in vox-search web_gather."
   - name: "VOX_TELEMETRY_SPOOL_DIR"
     owner_crate: "vox-spool"
     kind: "string"

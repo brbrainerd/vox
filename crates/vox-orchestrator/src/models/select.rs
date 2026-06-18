@@ -978,6 +978,7 @@ mod tests {
             .into_iter()
             .next()
             .expect("at least one model");
+        model.id = "test-model-not-retired".to_string();
         model.pricing_source = super::super::spec::PricingSource::Unknown;
         assert_eq!(
             confidence_state_for_model(&model),

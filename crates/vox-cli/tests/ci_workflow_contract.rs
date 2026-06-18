@@ -134,6 +134,16 @@ fn command_registry_has_ci_retirement_audit() {
 }
 
 #[test]
+fn ci_pipeline_parity_subcommand_is_wired() {
+    use clap::Subcommand;
+    use vox_cli::commands::ci::CiCmd;
+    assert!(
+        CiCmd::has_subcommand("pipeline-parity"),
+        "CiCmd should expose pipeline-parity"
+    );
+}
+
+#[test]
 fn packaging_ssot_matches_workspace_compile_behavior() {
     let doc = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -315,5 +325,149 @@ fn gui_cross_build_covers_three_os_with_webkit() {
     assert!(
         yml.contains("merge_group:"),
         "gui-cross-build must run on merge_group (no paths filter at merge time)"
+    );
+}
+
+#[test]
+fn selective_ci_setup_exports_affected_outputs() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/ci.yml"
+    ));
+    for key in [
+        "affected_crates:",
+        "affected_p_args:",
+        "affects_compiler:",
+        "affects_contracts:",
+        "affects_scripts:",
+        "affects_golden:",
+    ] {
+        assert!(
+            yml.contains(key),
+            "ci.yml setup must export selective CI output `{key}`"
+        );
+    }
+}
+
+#[test]
+fn selective_ci_shadow_comparator_on_merge_group() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/ci.yml"
+    ));
+    assert!(
+        yml.contains("--shadow-junit"),
+        "ci.yml should run affected shadow comparator"
+    );
+    assert!(
+        yml.contains("github.event_name == 'merge_group'")
+            && yml.contains("continue-on-error: true"),
+        "shadow comparator should be merge_group advisory (continue-on-error)"
+    );
+}
+
+#[test]
+fn selective_ci_fail_closed_on_empty_affected() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/ci.yml"
+    ));
+    assert!(
+        yml.contains("rust_changed=true but git diff produced no changed files"),
+        "ci.yml must fail-closed when rust_changed but diff is empty"
+    );
+    assert!(
+        yml.contains("rust_changed with empty affected set"),
+        "ci.yml must upgrade to full=true when rust_changed but affected set empty"
+    );
+}
+
+#[test]
+fn selective_ci_fail_closed_on_docs_only_empty_affected() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/ci.yml"
+    ));
+    assert!(
+        yml.contains("docs_changed with empty affected set"),
+        "ci.yml must upgrade to full=true when docs_changed but affected set empty"
+    );
+    assert!(
+        yml.contains("Run Tests — plain nextest (full gate, docs-only change)"),
+        "ci.yml must run workspace nextest on full gate when rust did not change"
+    );
+}
+
+#[test]
+fn selective_ci_workflow_changes_force_rust_gate() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/ci.yml"
+    ));
+    assert!(
+        yml.contains(r"\.github/workflows/)"),
+        "ci.yml filter must treat .github/workflows/ changes as rust_changed"
+    );
+}
+
+#[test]
+fn selective_ci_toestub_minimal_default_when_empty() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/ci.yml"
+    ));
+    assert!(
+        yml.contains("toestub-scoped --mode enforce-warn crates/vox-repository"),
+        "ci.yml must run TOESTUB on crates/vox-repository when affected set is empty"
+    );
+    assert!(
+        !yml.contains("No affected crates — skipping TOESTUB scoped."),
+        "ci.yml must not skip TOESTUB when affected set is empty"
+    );
+}
+
+#[test]
+fn cross_platform_pr_is_path_filtered() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/cross-platform-check.yml"
+    ));
+    assert!(
+        yml.contains("pull_request:") && yml.contains("paths:"),
+        "cross-platform PR trigger must be path-filtered"
+    );
+    assert!(
+        yml.contains(".config/hakari.toml") && yml.contains("examples/golden/**"),
+        "cross-platform paths must include hakari + golden sentinels"
+    );
+}
+
+#[test]
+fn check_targets_declares_pr_scope() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../contracts/ci/check-targets.v1.yaml"
+    ));
+    assert!(
+        yml.contains("pr_scope:"),
+        "check-targets.v1.yaml must document pr_scope for selective CI"
+    );
+    for scope in ["affected", "merge_only", "nightly", "path"] {
+        assert!(
+            yml.contains(&format!("pr_scope: {scope}")),
+            "check-targets must include pr_scope: {scope}"
+        );
+    }
+}
+
+#[test]
+fn ssot_drift_includes_crate_graph_check() {
+    let src = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/commands/ci/run_body_helpers/docs.rs"
+    ));
+    assert!(
+        src.contains("affected_cmd::check_graph"),
+        "ssot-drift bundle must call affected_cmd::check_graph"
     );
 }

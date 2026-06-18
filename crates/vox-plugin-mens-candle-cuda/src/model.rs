@@ -1078,4 +1078,24 @@ mod bf16_activation_tests {
             "BF16 forward must be finite"
         );
     }
+
+    #[test]
+    fn test_lm_head_quantization_with_bf16_dtype() {
+        let device = Device::Cpu;
+        let mut config = QLoraConfig::default();
+        config.quantization.compute_dtype = ComputeDType::BF16;
+        let varmap = candle_nn::VarMap::new();
+        let vb = candle_nn::VarBuilder::from_varmap(&varmap, DType::F32, &device);
+
+        let wte = Tensor::zeros(&[8, 8], DType::BF16, &device).unwrap();
+        // Mimic the fix: cast to F32 first
+        let w_lm = wte.to_dtype(DType::F32).unwrap();
+        let lm_head =
+            QuantizedLinear::from_weight_with_varbuilder(&w_lm, None, &config, vb.pp("lm_head"));
+        assert!(
+            lm_head.is_ok(),
+            "lm_head building with F32 cast should succeed but failed: {:?}",
+            lm_head.err()
+        );
+    }
 }

@@ -16,6 +16,7 @@ pub mod capabilities;
 pub mod code_lens;
 pub mod completions;
 pub mod grammar;
+pub mod server;
 pub mod symbols;
 
 pub use capabilities::server_capabilities;

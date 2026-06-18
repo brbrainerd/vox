@@ -49,7 +49,6 @@ mcp-server = [
     "vox-orchestrator/populi-transport",
     "vox-orchestrator-mcp/populi-transport",
     "dep:rmcp",
-    "dep:vox-orchestrator-mcp",
 ]
 # Enables Arca telemetry replay and persistent DB features (shared with vox-corpus).
 database = ["vox-corpus/database"]
@@ -134,6 +133,7 @@ broken_inference_stub = []
 vox-compiler = { workspace = true }
 vox-codegen = { workspace = true }
 vox-rn-codegen = { workspace = true }
+vox-graphify-reader = { workspace = true }
 clap = { workspace = true }
 clap_complete = { workspace = true }
 miette = { workspace = true }
@@ -164,7 +164,7 @@ vox-openclaw-runtime = { workspace = true, optional = true }
 vox-gamify = { workspace = true, optional = true }
 vox-config = { workspace = true }
 vox-secrets = { workspace = true }
-vox-db = { workspace = true }
+vox-db = { workspace = true, features = ["legacy-import"] }
 vox-sql = { workspace = true, features = ["postgres", "mysql"] }
 vox-research-events = { workspace = true }
 # `vox-scientia::ro_crate::MainEntity` is the input shape for the replay
@@ -188,12 +188,12 @@ vox-drift-check = { workspace = true }
 
 toml = { workspace = true }
 vox-doc-pipeline = { path = "../vox-doc-pipeline" }
-vox-research-shim = { workspace = true }
+vox-research-shim = { workspace = true, features = ["runtime", "gamify"] }
 vox-orchestrator = { workspace = true }
 vox-orchestrator-driver = { workspace = true }
-# Shipping MCP server: keep the full default tool surface (news/scientia/visus).
+# Shipping MCP server: keep the full default tool surface (news/scientia/visus/browser).
 # The crate's own default drops these for fast standalone iteration; binaries opt back in.
-vox-orchestrator-mcp = { workspace = true, optional = true, features = ["news-publish", "gui-visual-review"] }
+vox-orchestrator-mcp = { workspace = true, features = ["news-publish", "gui-visual-review", "heavy-browser"] }
 vox-plugin-api = { workspace = true }
 vox-plugin-types = { workspace = true }
 vox-plugin-catalog = { workspace = true }

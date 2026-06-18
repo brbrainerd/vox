@@ -3,7 +3,7 @@ use vox_research_shim::research::provider::{ProviderConfig, ProviderRegistry};
 #[test]
 fn provider_registry_default_primary_name() {
     let r = ProviderRegistry::default();
-    assert_eq!(r.primary_name(), "stub");
+    assert_eq!(r.primary_name(), "vox-search/web");
 }
 
 #[test]

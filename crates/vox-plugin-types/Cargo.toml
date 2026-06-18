@@ -3,7 +3,9 @@ name = "vox-plugin-types"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 description = "Pure-types surface for the vox plugin system: manifests, skill types, state-backend trait. No abi_stable, no async runtime."
+readme = "README.md"
 
 [dependencies]
 serde = { workspace = true, features = ["derive"] }

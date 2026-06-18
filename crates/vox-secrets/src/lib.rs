@@ -13,6 +13,7 @@ pub mod spec;
 mod tests;
 mod types;
 
+pub use backend::vox_vault::{VaultHealth, cloudless_vault_env_diagnostic, probe_vault_health};
 pub use errors::SecretError;
 pub use policy::{MissingBehavior, SecretPolicy};
 pub use resolver::ResolveProfile;

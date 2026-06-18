@@ -116,6 +116,12 @@ export const Icon = {
       <path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8" />
     </svg>
   ),
+  trophy: (p: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" {...p}>
+      <path d="M8 21h8M12 17v4M7 4h10v3a5 5 0 0 1-10 0V4Z" />
+      <path d="M5 4H3v1a4 4 0 0 0 4 4M19 4h2v1a4 4 0 0 1-4 4" />
+    </svg>
+  ),
   x: (p: React.SVGProps<SVGSVGElement>) => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" {...p}>
       <path d="m6 6 12 12M18 6 6 18" />

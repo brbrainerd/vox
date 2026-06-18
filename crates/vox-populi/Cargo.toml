@@ -7,6 +7,7 @@ license.workspace = true
 
 [features]
 default = []
+gamify = ["dep:vox-gamify"]
 # NVIDIA NVML probe → Populi hardware pipeline (optional; requires NVML at runtime).
 # NVML probing has moved to vox-plugin-nvml-probe; this feature now only gates the
 # in-process fallback via mens/hardware/nvml.rs (used when the plugin is not loaded).
@@ -79,6 +80,7 @@ mesh-discovery-publish = [
 ]
 
 [dependencies]
+vox-gamify = { workspace = true, optional = true }
 async-trait = { workspace = true }
 owo-colors = { workspace = true }
 vox-config = { workspace = true }

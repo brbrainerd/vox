@@ -1,0 +1,36 @@
+# contracts/budgets/gui-dashboard-chunk.v1.yaml
+# Dashboard widget grid + chart dependency gzip budget for vox-gui.
+#
+# Measured by: crates/vox-gui/ui/src/lib/dashboardBundleBudget.test.ts
+# Method:
+#   1. Vite production build of dashboard-chunk-baseline-entry.ts (layout helpers only)
+#   2. Vite production build of dashboard-chunk-entry.ts (dnd-kit + recharts probe)
+#   3. react/react-dom externalized on both builds (incremental beyond app shell)
+#   4. es2022 target, esbuild minify; gzip via Node zlib.gzipSync
+#   5. Incremental gzip = full chunk gzip − baseline chunk gzip
+#   6. Measurement runs in a child Node process (Vitest-safe)
+#
+# Regenerate after intentional dependency changes:
+#   cd crates/vox-gui/ui && pnpm exec vitest run src/lib/dashboardBundleBudget.test.ts
+
+schema_version: 1
+generated_at: "2026-06-16"
+
+budget:
+  dashboard_chunk_gzip_max_bytes: 122880 # 120 KiB incremental delta (Phase 2.1 target)
+  measured_gzip_bytes: 122769 # 2026-06-16; 111 B headroom — budget is tight
+  measurement:
+    tool: vite
+    target: es2022
+    minify: esbuild
+    externals:
+      - react
+      - react-dom
+      - react/jsx-runtime
+    baseline_entry: crates/vox-gui/ui/src/test-fixtures/dashboard-chunk-baseline-entry.ts
+    full_entry: crates/vox-gui/ui/src/test-fixtures/dashboard-chunk-entry.ts
+    note: >
+      Incremental gzip delta for dashboard grid (dnd-kit core+sortable+utilities) and
+      chart widgets (recharts line/bar/area). Probe mirrors widget axis/tooltip settings.
+      React is excluded because the shell already ships it; layout-only helpers are
+      subtracted via the baseline entry.

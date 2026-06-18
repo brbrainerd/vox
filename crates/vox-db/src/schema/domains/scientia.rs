@@ -142,6 +142,8 @@ CREATE TABLE IF NOT EXISTS model_scoreboard (
     window_days           INTEGER NOT NULL,
     n_calls               INTEGER NOT NULL DEFAULT 0,
     success_rate          REAL    NOT NULL DEFAULT 0.0,
+    success_count         INTEGER NOT NULL DEFAULT 0,
+    cumulative_cost_usd   REAL    NOT NULL DEFAULT 0.0,
     p50_latency_ms        INTEGER,
     p99_latency_ms        INTEGER,
     cost_per_success_usd  REAL,

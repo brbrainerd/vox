@@ -46,6 +46,7 @@ vi.mock('@xyflow/react', () => ({
 }));
 
 import { render } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 
 // Polyfill APIs not in jsdom
@@ -65,6 +66,9 @@ beforeAll(() => {
 
 describe('App shell', () => {
   it('renders without throwing', () => {
-    expect(() => render(<App />)).not.toThrow();
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: qc }, children);
+    expect(() => render(<App />, { wrapper })).not.toThrow();
   });
 });

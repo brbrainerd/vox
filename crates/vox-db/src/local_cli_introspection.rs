@@ -121,14 +121,14 @@ pub async fn audit_database_json(db: &VoxDb, timestamps: bool) -> Result<Value, 
                 let tq = sqlite_quote_ident(&tc);
                 let rng_sql =
                     format!("SELECT MIN({tq}), MAX({tq}) FROM {q} WHERE {tq} IS NOT NULL");
-                if let Ok(mut rng) = conn.query(&rng_sql, ()).await {
-                    if let Some(rr) = rng.next().await? {
-                        let vmin: Option<String> = rr.get(0).ok();
-                        let vmax: Option<String> = rr.get(1).ok();
-                        entry["time_column"] = json!(tc);
-                        entry["time_min"] = json!(vmin);
-                        entry["time_max"] = json!(vmax);
-                    }
+                if let Ok(mut rng) = conn.query(&rng_sql, ()).await
+                    && let Some(rr) = rng.next().await?
+                {
+                    let vmin: Option<String> = rr.get(0).ok();
+                    let vmax: Option<String> = rr.get(1).ok();
+                    entry["time_column"] = json!(tc);
+                    entry["time_min"] = json!(vmin);
+                    entry["time_max"] = json!(vmax);
                 }
             }
         }

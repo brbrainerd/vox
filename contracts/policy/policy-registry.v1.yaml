@@ -735,6 +735,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.build-bench
+  domain: ci-gate
+  title: Ci Build-bench
+  group: CI Gates / build
+  description: Reproducible wall-clock build scenarios with a committed baseline; --compare emits a phase delta report.
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.build-bench
+    detail: vox ci build-bench
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.build-docs
   domain: ci-gate
   title: Ci Build-docs
@@ -1084,6 +1100,22 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.db-schema-coverage
     detail: vox ci db-schema-coverage
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.dep-cycles
+  domain: ci-gate
+  title: Ci Dep-cycles
+  group: CI Gates / dep
+  description: Detect dependency cycles (HARD on normal-dep cycles) and inventory dev-dep back-edges using Tarjan SCC over cargo metadata.
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.dep-cycles
+    detail: vox ci dep-cycles
   default_enabled: true
   protected: false
   origin: builtin
@@ -1516,6 +1548,22 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.parse-status
     detail: vox ci parse-status
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.pipeline-parity
+  domain: ci-gate
+  title: Ci Pipeline-parity
+  group: CI Gates / pipeline
+  description: CLI operation `vox ci pipeline-parity` — umbrella gate for script→emission SSOT (grammar parity, canonical ladder, feature matrix, k-budget)
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.pipeline-parity
+    detail: vox ci pipeline-parity
   default_enabled: true
   protected: false
   origin: builtin

@@ -17,44 +17,46 @@ Vox was built from the ground up to blur the lines between traditional applicati
 
 The Model Context Protocol establishes a standard way for AI assistants (like Claude Desktop, Cursor, or your own models) -> safely discover and interact with local data sources and tools.
 
-Vox seamlessly generates MCP servers natively from the logic you've already written.
+Vox seamlessly generates MCP servers from workspace logic and federates `@tool` declarations into the shipped `vox-mcp` orchestrator surface. See [MCP and Vox language exposure](../architecture/mcp-vox-language-exposure.md) for federation, collision rules, and parity gates.
 
-### `@mcp.tool`
+### `@tool` (formerly `@mcp.tool`)
 
-The `@mcp.tool` decorator tells the Vox compiler to expose a function to any connected LLM. 
+The `@tool` decorator tells the Vox compiler to expose a function on the workspace MCP surface. At orchestrator bind time, `WorkspaceMcpLoader` scans configured `.vox` globs, merges `AppContractModule.mcp_tools` into `vox-mcp` `tools/list`, and dispatches calls through the interpreter bridge.
 
 ```vox
 // vox:skip
-@mcp.tool "Calculate the shipping cost including surge pricing"
+@tool "Calculate the shipping cost including surge pricing"
 fn calculate_shipping(weight: float, zip_code: str) to float {
     // Logic here
 }
 ```
 
+Legacy `@mcp.tool` still parses but emits `vox/decorator/mcp-tool-deprecated`; prefer `@tool`.
+
 Behind the scenes, Vox:
 1. Derives the JSON Schema for the inputs (`weight` as a number, `zip_code` as a string).
-2. Generates an asynchronous Rust handler.
+2. Registers the tool on the federated MCP surface (static catalog tools win on name collision).
 3. Maps Vox `Result` types directly to MCP error structures so the LLM knows *why* an operation failed without you writing serialization glue.
 
-### `@mcp.resource`
+### `@mcp.resource` / `@resource`
 
-While tools are functions the LLM can call, resources are data the LLM can read. 
+While tools are functions the LLM can call, resources are data the LLM can read. Workspace `@resource` URIs are federated alongside static resources; installed skills also expose SEP-2640 `skill://` resources.
 
 ```vox
 // vox:skip
-@mcp.resource("vox://user/config", "The current user's profile configuration")
+@resource("vox://user/config", "The current user's profile configuration")
 fn get_user_profile() to str {
     return db.query("SELECT context FROM config")
 }
 ```
 
-The DEI orchestrator handles registering this URI schema. When an LLM requests `vox://user/config`, the orchestrator routes it directly to this function.
+The orchestrator registers federated URIs. When an LLM requests `vox://user/config`, the orchestrator routes it to the matching workspace handler.
 
 ## DEI Orchestrator
 
 The **Distributed Execution Intelligence (DEI)** orchestrator (historically confused with older crate naming; canonical crate is `vox-orchestrator`) is the runtime engine that manages these agents and tools.
 
-When you run `vox run src/main.vox`, the orchestrator spins up, discovers all your decorated tools, and starts an MCP endpoint that defaults to Stdio for desktop clients or HTTP/SSE for distributed meshes.
+When you run `vox run src/main.vox`, the orchestrator spins up, loads federated workspace `@tool` handlers via `WorkspaceMcpLoader`, and starts an MCP endpoint that defaults to Stdio for desktop clients or HTTP/SSE for distributed meshes. Call `vox_workspace_mcp_refresh` after editing workspace tools to rescan without restarting.
 
 ### Agent-to-Agent (A2A) Messaging
 

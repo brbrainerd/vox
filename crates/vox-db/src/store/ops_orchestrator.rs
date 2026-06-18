@@ -54,6 +54,7 @@ impl crate::VoxDb {
                     } else {
                         1
                     };
+                    drop(rows);
 
                     conn
                         .execute(

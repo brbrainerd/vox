@@ -5,6 +5,7 @@
 
 #[cfg(test)]
 mod semcov_wave35_tests {
+    #![allow(clippy::module_inception)]
     use crate::expr::{
         BinOp, Expr, JsxElement, JsxSelfClosingElement, MatchArm, Param, StringPart, UnOp,
         WorkflowVersionCall,

@@ -198,6 +198,12 @@ pub fn base_reward(event_type: &str) -> BaseReward {
         "migration_applied" => BaseReward::new(100, 20),
         "seed_completed" => BaseReward::new(50, 10),
         "vox_web_page_rendered" => BaseReward::new(20, 4),
+
+        // ── Community / Telemetry / Contribution Events ────────────────────
+        "telemetry_shared" => BaseReward::new(20, 4),
+        "skill_published" => BaseReward::new(100, 20),
+        "skill_gossiped" => BaseReward::with_lumens(150, 30, 15),
+        "vox_feature_milestone" => BaseReward::new(40, 8),
         "v0_import_complete" => BaseReward::new(150, 30),
         "lsp_go_to_def_used" => BaseReward::new(1, 0),
         "lsp_completion_accepted" => BaseReward::new(1, 0),
@@ -242,6 +248,19 @@ pub fn base_reward(event_type: &str) -> BaseReward {
 
         // Safety events
         "scope_violation" => BaseReward::new(0, 0),
+
+        // ── GUI operator console (ambient sprinkles) ─────
+        "gui_policy_viewed" => BaseReward::new(2, 0),
+        "gui_palette_nav" => BaseReward::new(2, 0),
+        "gui_console_command" => BaseReward::new(2, 0),
+        "gui_search_query" => BaseReward::new(2, 0),
+        "gui_discovery_action" => BaseReward::new(2, 0),
+        "gui_model_activated" => BaseReward::new(2, 0),
+        "gui_claim_approved" => BaseReward::new(2, 0),
+        "gui_nanopub_built" => BaseReward::new(2, 0),
+        "gui_secret_rotated" => BaseReward::new(2, 0),
+        "gui_signing_key_rotated" => BaseReward::new(2, 0),
+        "gui_orchestrator_connect" => BaseReward::new(2, 0),
 
         // Default: 0 reward for unknown events
         _ => BaseReward::new(0, 0),
@@ -576,6 +595,21 @@ mod tests {
     }
 
     #[test]
+    fn gui_operator_console_hooks_have_small_base_reward() {
+        for event_type in [
+            "gui_search_query",
+            "gui_policy_viewed",
+            "gui_palette_nav",
+            "gui_console_command",
+            "gui_orchestrator_connect",
+        ] {
+            let b = base_reward(event_type);
+            assert_eq!(b.xp, 2, "{event_type} xp");
+            assert_eq!(b.crystals, 0, "{event_type} crystals");
+        }
+    }
+
+    #[test]
     fn mode_multiplier_scales_reward() {
         let base = BaseReward::new(10, 2);
         let mut session = SessionState::default();
@@ -837,5 +871,25 @@ mod tests {
             (r.xp, r.crystals, r.lumens, r.grant_shield),
             (base.xp, base.crystals, base.lumens, base.grant_shield),
         );
+    }
+
+    #[test]
+    fn base_reward_for_community_and_contributions() {
+        let telemetry = base_reward("telemetry_shared");
+        assert_eq!(telemetry.xp, 20);
+        assert_eq!(telemetry.crystals, 4);
+
+        let skill_pub = base_reward("skill_published");
+        assert_eq!(skill_pub.xp, 100);
+        assert_eq!(skill_pub.crystals, 20);
+
+        let skill_gossip = base_reward("skill_gossiped");
+        assert_eq!(skill_gossip.xp, 150);
+        assert_eq!(skill_gossip.crystals, 30);
+        assert_eq!(skill_gossip.lumens, 15);
+
+        let milestone = base_reward("vox_feature_milestone");
+        assert_eq!(milestone.xp, 40);
+        assert_eq!(milestone.crystals, 8);
     }
 }

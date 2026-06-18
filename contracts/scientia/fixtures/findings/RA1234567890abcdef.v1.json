@@ -1,0 +1,35 @@
+{
+  "title": "Fast Foo",
+  "authors": [
+    {
+      "name": "Alice",
+      "orcid": "https://orcid.org/0000-0002-1825-0097"
+    },
+    {
+      "name": "Bob",
+      "orcid": null
+    }
+  ],
+  "abstract_text": "A short abstract.",
+  "body_html": "<p>The body.</p>",
+  "trusty_uri": "RA1234567890abcdef",
+  "doi": "10.0000/foo",
+  "versions": [
+    {
+      "trusty_uri": "RA1234567890abcdef",
+      "doi": "10.0000/foo",
+      "published_at_iso": "2026-05-15",
+      "revision_summary": "Initial version"
+    }
+  ],
+  "verified_claims": [
+    {
+      "claim_text": "p95 dropped 23%",
+      "trusty_uri": "RAclaim001",
+      "verdict": "Supported"
+    }
+  ],
+  "replies": [],
+  "retraction": null,
+  "published_at_iso": "2026-05-15"
+}

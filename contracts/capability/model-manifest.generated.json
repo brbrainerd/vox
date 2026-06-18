@@ -798,6 +798,17 @@
       "title": "Ci Parse-status"
     },
     {
+      "capability_id": "cli.ci.pipeline-parity",
+      "cli_path": [
+        "ci",
+        "pipeline-parity"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox ci pipeline-parity` — umbrella gate for script→emission SSOT (grammar parity, canonical ladder, feature matrix, k-budget)",
+      "implicit": false,
+      "title": "Ci Pipeline-parity"
+    },
+    {
       "capability_id": "cli.ci.pm-provenance",
       "cli_path": [
         "ci",
@@ -1540,6 +1551,47 @@
       "description_model": "CLI operation `vox gamify hud` (alias `vox ludus hud`)",
       "implicit": false,
       "title": "Gamify Hud"
+    },
+    {
+      "capability_id": "cli.graphify",
+      "cli_path": [
+        "graphify"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox graphify`",
+      "human_takeover_friendly": true,
+      "implicit": false,
+      "intent_tags": [
+        "retrieval",
+        "graph"
+      ],
+      "preferred_for_models": true,
+      "requires_repo": true,
+      "reversible": true,
+      "scope_kind": "repository",
+      "side_effect_class": "none",
+      "title": "Graphify"
+    },
+    {
+      "capability_id": "cli.graphify.ingest",
+      "cli_path": [
+        "graphify",
+        "ingest"
+      ],
+      "curated": true,
+      "description_model": "Project graph nodes into Turso knowledge_nodes via VoxDb (CLI only; no MCP surface).",
+      "human_takeover_friendly": true,
+      "implicit": false,
+      "intent_tags": [
+        "retrieval",
+        "graph"
+      ],
+      "preferred_for_models": true,
+      "requires_repo": true,
+      "reversible": true,
+      "scope_kind": "repository",
+      "side_effect_class": "none",
+      "title": "Graphify Ingest"
     },
     {
       "capability_id": "cli.init",
@@ -3198,6 +3250,14 @@
       "title": "Agent Events"
     },
     {
+      "capability_id": "mcp.vox_agent_gateway_call",
+      "curated": true,
+      "description_model": "Invoke an arbitrary agent Gateway method with JSON params.",
+      "implicit": false,
+      "mcp_tool": "vox_agent_gateway_call",
+      "title": "Agent Gateway Call"
+    },
+    {
       "capability_id": "mcp.vox_agent_handoff",
       "curated": true,
       "description_model": "Passes plan/context from one agent to another.",
@@ -3206,12 +3266,52 @@
       "title": "Agent Handoff"
     },
     {
+      "capability_id": "mcp.vox_agent_list_remote",
+      "curated": true,
+      "description_model": "List remote agent skills through the native agent runtime adapter.",
+      "implicit": false,
+      "mcp_tool": "vox_agent_list_remote",
+      "title": "Agent List Remote"
+    },
+    {
+      "capability_id": "mcp.vox_agent_notify",
+      "curated": true,
+      "description_model": "Send a domain-scoped notification over the agent gateway.",
+      "implicit": false,
+      "mcp_tool": "vox_agent_notify",
+      "title": "Agent Notify"
+    },
+    {
       "capability_id": "mcp.vox_agent_status",
       "curated": true,
       "description_model": "Returns current agent state, activity, mood, queue depth.",
       "implicit": false,
       "mcp_tool": "vox_agent_status",
       "title": "Agent Status"
+    },
+    {
+      "capability_id": "mcp.vox_agent_subscribe",
+      "curated": true,
+      "description_model": "Subscribe the agent gateway session to a domain.",
+      "implicit": false,
+      "mcp_tool": "vox_agent_subscribe",
+      "title": "Agent Subscribe"
+    },
+    {
+      "capability_id": "mcp.vox_agent_subscriptions",
+      "curated": true,
+      "description_model": "List active agent gateway subscriptions for the current session.",
+      "implicit": false,
+      "mcp_tool": "vox_agent_subscriptions",
+      "title": "Agent Subscriptions"
+    },
+    {
+      "capability_id": "mcp.vox_agent_unsubscribe",
+      "curated": true,
+      "description_model": "Unsubscribe the agent gateway session from a domain.",
+      "implicit": false,
+      "mcp_tool": "vox_agent_unsubscribe",
+      "title": "Agent Unsubscribe"
     },
     {
       "capability_id": "mcp.vox_answer_question",
@@ -4065,6 +4165,96 @@
       "title": "Git Status"
     },
     {
+      "capability_id": "mcp.vox_graphify_compare",
+      "curated": true,
+      "description_model": "Diff two graphify corpus manifests for node/edge/community delta (read-only).",
+      "human_takeover_friendly": true,
+      "implicit": false,
+      "intent_tags": [
+        "retrieval",
+        "graph"
+      ],
+      "mcp_tool": "vox_graphify_compare",
+      "preferred_for_models": true,
+      "requires_repo": true,
+      "reversible": true,
+      "scope_kind": "repository",
+      "side_effect_class": "none",
+      "title": "Graphify Compare"
+    },
+    {
+      "capability_id": "mcp.vox_graphify_path",
+      "curated": true,
+      "description_model": "Shortest path between two node IDs in a graphify corpus (read-only).",
+      "human_takeover_friendly": true,
+      "implicit": false,
+      "intent_tags": [
+        "retrieval",
+        "graph"
+      ],
+      "mcp_tool": "vox_graphify_path",
+      "preferred_for_models": true,
+      "requires_repo": true,
+      "reversible": true,
+      "scope_kind": "repository",
+      "side_effect_class": "none",
+      "title": "Graphify Path"
+    },
+    {
+      "capability_id": "mcp.vox_graphify_query",
+      "curated": true,
+      "description_model": "BFS neighbor expansion from seed node IDs (read-only; layered navigation).",
+      "human_takeover_friendly": true,
+      "implicit": false,
+      "intent_tags": [
+        "retrieval",
+        "graph"
+      ],
+      "mcp_tool": "vox_graphify_query",
+      "preferred_for_models": true,
+      "requires_repo": true,
+      "reversible": true,
+      "scope_kind": "repository",
+      "side_effect_class": "none",
+      "title": "Graphify Query"
+    },
+    {
+      "capability_id": "mcp.vox_graphify_search",
+      "curated": true,
+      "description_model": "Lexically search a graphify corpus graph on disk (read-only).",
+      "human_takeover_friendly": true,
+      "implicit": false,
+      "intent_tags": [
+        "retrieval",
+        "graph"
+      ],
+      "mcp_tool": "vox_graphify_search",
+      "preferred_for_models": true,
+      "requires_repo": true,
+      "reversible": true,
+      "scope_kind": "repository",
+      "side_effect_class": "none",
+      "title": "Graphify Search"
+    },
+    {
+      "capability_id": "mcp.vox_graphify_status",
+      "curated": true,
+      "description_model": "Report graphify corpus freshness (read-only; `--strict` fails when stale).",
+      "human_takeover_friendly": true,
+      "implicit": false,
+      "intent_tags": [
+        "retrieval",
+        "graph"
+      ],
+      "mcp_tool": "vox_graphify_status",
+      "preferred_for_models": true,
+      "requires_repo": true,
+      "reversible": true,
+      "scope_kind": "repository",
+      "side_effect_class": "none",
+      "title": "Graphify Status"
+    },
+    {
       "capability_id": "mcp.vox_handoff_context",
       "curated": true,
       "description_model": "Handoff summarized context from one agent to another.",
@@ -4103,6 +4293,133 @@
       "implicit": false,
       "mcp_tool": "vox_journey_canonical_steps",
       "title": "Journey Canonical Steps"
+    },
+    {
+      "capability_id": "mcp.vox_kb_add_entry",
+      "curated": true,
+      "description_model": "Add a knowledge entry to a knowledge base.",
+      "implicit": false,
+      "mcp_tool": "vox_kb_add_entry",
+      "reversible": false,
+      "scope_kind": "session",
+      "side_effect_class": "writes_files",
+      "title": "Add Knowledge Entry"
+    },
+    {
+      "capability_id": "mcp.vox_kb_add_rule",
+      "curated": true,
+      "description_model": "Add an ingestion filter rule.",
+      "implicit": false,
+      "mcp_tool": "vox_kb_add_rule",
+      "reversible": false,
+      "scope_kind": "session",
+      "side_effect_class": "writes_files",
+      "title": "Add Knowledge Rule"
+    },
+    {
+      "capability_id": "mcp.vox_kb_clip",
+      "curated": true,
+      "description_model": "Clip code/notes into knowledge bases.",
+      "implicit": false,
+      "mcp_tool": "vox_kb_clip",
+      "reversible": false,
+      "scope_kind": "session",
+      "side_effect_class": "writes_files",
+      "title": "Clip Knowledge Fact"
+    },
+    {
+      "capability_id": "mcp.vox_kb_create",
+      "curated": true,
+      "description_model": "Create a new knowledge base.",
+      "implicit": false,
+      "mcp_tool": "vox_kb_create",
+      "reversible": false,
+      "scope_kind": "session",
+      "side_effect_class": "writes_files",
+      "title": "Create Knowledge Base"
+    },
+    {
+      "capability_id": "mcp.vox_kb_delete",
+      "curated": true,
+      "description_model": "Delete a knowledge base by ID.",
+      "implicit": false,
+      "mcp_tool": "vox_kb_delete",
+      "reversible": false,
+      "scope_kind": "session",
+      "side_effect_class": "writes_files",
+      "title": "Delete Knowledge Base"
+    },
+    {
+      "capability_id": "mcp.vox_kb_delete_entry",
+      "curated": true,
+      "description_model": "Delete a knowledge entry by ID.",
+      "implicit": false,
+      "mcp_tool": "vox_kb_delete_entry",
+      "reversible": false,
+      "scope_kind": "session",
+      "side_effect_class": "writes_files",
+      "title": "Delete Knowledge Entry"
+    },
+    {
+      "capability_id": "mcp.vox_kb_get_feed",
+      "curated": true,
+      "description_model": "Get the feed of knowledge entries.",
+      "implicit": false,
+      "mcp_tool": "vox_kb_get_feed",
+      "reversible": false,
+      "scope_kind": "session",
+      "title": "Get Knowledge Feed"
+    },
+    {
+      "capability_id": "mcp.vox_kb_list",
+      "curated": true,
+      "description_model": "List all available knowledge bases.",
+      "implicit": false,
+      "mcp_tool": "vox_kb_list",
+      "reversible": false,
+      "scope_kind": "session",
+      "title": "List Knowledge Bases"
+    },
+    {
+      "capability_id": "mcp.vox_kb_list_entries",
+      "curated": true,
+      "description_model": "List all knowledge entries in a knowledge base.",
+      "implicit": false,
+      "mcp_tool": "vox_kb_list_entries",
+      "reversible": false,
+      "scope_kind": "session",
+      "title": "List Knowledge Entries"
+    },
+    {
+      "capability_id": "mcp.vox_kb_list_rules",
+      "curated": true,
+      "description_model": "List ingestion filter rules.",
+      "implicit": false,
+      "mcp_tool": "vox_kb_list_rules",
+      "reversible": false,
+      "scope_kind": "session",
+      "title": "List Knowledge Rules"
+    },
+    {
+      "capability_id": "mcp.vox_kb_query",
+      "curated": true,
+      "description_model": "Query knowledge bases with semantic search.",
+      "implicit": false,
+      "mcp_tool": "vox_kb_query",
+      "reversible": false,
+      "scope_kind": "session",
+      "title": "Query Knowledge Base"
+    },
+    {
+      "capability_id": "mcp.vox_kb_review_entry",
+      "curated": true,
+      "description_model": "Accept or reject a knowledge entry.",
+      "implicit": false,
+      "mcp_tool": "vox_kb_review_entry",
+      "reversible": false,
+      "scope_kind": "session",
+      "side_effect_class": "writes_files",
+      "title": "Review Knowledge Entry"
     },
     {
       "capability_id": "mcp.vox_knowledge_query",
@@ -5277,6 +5594,14 @@
       "title": "Skill Parse"
     },
     {
+      "capability_id": "mcp.vox_skill_run",
+      "curated": true,
+      "description_model": "Execute a skill script in the sandbox (parity with CLI `vox skill run`).",
+      "implicit": false,
+      "mcp_tool": "vox_skill_run",
+      "title": "Skill Run"
+    },
+    {
       "capability_id": "mcp.vox_skill_search",
       "curated": true,
       "description_model": "Search installed skills by keyword.",
@@ -5504,6 +5829,14 @@
       "scope_kind": "workspace",
       "side_effect_class": "writes_files",
       "title": "Workspace Create"
+    },
+    {
+      "capability_id": "mcp.vox_workspace_mcp_refresh",
+      "curated": true,
+      "description_model": "Reloads/refreshes the workspace MCP registry and scan config.",
+      "implicit": false,
+      "mcp_tool": "vox_workspace_mcp_refresh",
+      "title": "Workspace MCP Refresh"
     },
     {
       "capability_id": "mcp.vox_workspace_merge",

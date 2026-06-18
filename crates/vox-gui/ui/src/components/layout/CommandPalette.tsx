@@ -1,19 +1,55 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { voxTransport } from '../../transport';
 import { Icon } from '../ui/Icons';
 import { CommandCatalogEntry } from '../../types/catalog';
 import { Agent } from '../../types/dashboard';
 import type { CommandPaletteAction } from '../../types/tauri';
-import { SearchResponse, UnifiedHit } from '../surfaces/Search/searchHelpers';
-import { SURFACE_REGISTRY } from '../../generated/surfaceRegistry.generated';
-import { SETTINGS_INDEX } from '../surfaces/Settings/settingsIndex';
-import { buildPaletteItems, DocEntryLike } from './paletteSources';
-import { SEARCH_DEBOUNCE_MS, PALETTE_PREVIEW_LIMIT } from '../../config/constants';
-import { backendScopesFromUserScopes, initialSearchState } from '../../lib/searchController';
+import { UnifiedHit } from '../surfaces/Search/searchHelpers';
+import { parsePaletteQuery, type PalettePrefixMode } from './paletteSources';
+import {
+  type FederatedIndexEntry,
+  type FederatedIndexKind,
+} from '../../lib/federatedSearchIndex';
+import { useSearchController } from '../../hooks/useSearchController';
+import { useFederatedSearchIndex } from '../../hooks/useFederatedSearchIndex';
+import { viewKeyForLocator } from '../../lib/locatorNavigation';
+import { recordGamifyGuiEvent } from '../../lib/gamifyGuiEvents';
 
 const SEARCH_SEED_KEY = 'vox_search_seed';
 const SETTINGS_SEED_KEY = 'vox_settings_seed';
+
+const FED_KIND_SECTION_ORDER: FederatedIndexKind[] = [
+  'surface',
+  'setting',
+  'doc',
+  'policy',
+  'command',
+  'action',
+  'skill',
+];
+
+const FED_KIND_LABELS: Record<FederatedIndexKind, string> = {
+  surface: 'Windows',
+  setting: 'Settings',
+  doc: 'Documentation',
+  policy: 'Policies',
+  command: 'Commands',
+  action: 'Actions',
+  skill: 'Skills',
+};
+
+function federatedKindsForMode(mode: PalettePrefixMode): FederatedIndexKind[] {
+  switch (mode) {
+    case 'skills':
+      return ['doc', 'skill'];
+    case 'commands':
+      return ['command', 'action'];
+    case 'agents':
+      return [];
+    default:
+      return ['surface', 'setting', 'policy', 'command', 'action', 'doc'];
+  }
+}
 
 interface CommandPaletteProps {
   open: boolean;
@@ -21,6 +57,7 @@ interface CommandPaletteProps {
   onAction: (item: CommandPaletteAction) => void;
   agents: Agent[];
   skills: CommandCatalogEntry[];
+  gamifyEnabled?: boolean;
 }
 
 function SourceBadge({ source }: { source: string }) {
@@ -31,80 +68,163 @@ function SourceBadge({ source }: { source: string }) {
   );
 }
 
-export function CommandPalette({ open, onClose, onAction, agents, skills }: CommandPaletteProps) {
+export function CommandPalette({ open, onClose, onAction, agents, skills, gamifyEnabled = false }: CommandPaletteProps) {
   const [q, setQ] = useState('');
-  const [backendHits, setBackendHits] = useState<UnifiedHit[]>([]);
-  const [backendLoading, setBackendLoading] = useState(false);
   const [selectedRowIdx, setSelectedRowIdx] = useState(-1);
-  const [docs, setDocs] = useState<DocEntryLike[]>([]);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Lazy-load the docs index once the palette first opens (frontmatter walk).
-  useEffect(() => {
-    if (!open || docs.length > 0) return;
-    invoke<DocEntryLike[]>('vox_docs_index')
-      .then(setDocs)
-      .catch(() => setDocs([]));
-  }, [open, docs.length]);
+  const { mode: prefixMode, query: effectiveQ } = parsePaletteQuery(q);
+  const fedKinds = useMemo(() => federatedKindsForMode(prefixMode), [prefixMode]);
+
+  const backendSearchEnabled = open && prefixMode === 'default';
+  const { state: searchState, setQuery: setSearchQuery } = useSearchController({
+    enabled: backendSearchEnabled,
+  });
+  const backendHits = useMemo(
+    () => (backendSearchEnabled ? (searchState.hits as UnifiedHit[]) : []),
+    [searchState.hits, backendSearchEnabled],
+  );
+  const backendLoading = backendSearchEnabled && searchState.loading;
+
+  const skillSources = useMemo(
+    () =>
+      skills.map(s => ({
+        id: s.capability_id ?? s.command,
+        name: s.command,
+        description: s.about,
+      })),
+    [skills],
+  );
+
+  const { search: searchFederated } = useFederatedSearchIndex(skillSources);
+
+  const fedHits = useMemo(
+    () =>
+      effectiveQ.trim() && fedKinds.length > 0
+        ? searchFederated(effectiveQ, { kinds: fedKinds })
+        : [],
+    [searchFederated, effectiveQ, fedKinds],
+  );
+
+  const orderedFedHits = useMemo(() => {
+    const byKind = new Map<FederatedIndexKind, FederatedIndexEntry[]>();
+    for (const hit of fedHits) {
+      const list = byKind.get(hit.kind) ?? [];
+      list.push(hit);
+      byKind.set(hit.kind, list);
+    }
+    const ordered: FederatedIndexEntry[] = [];
+    for (const kind of FED_KIND_SECTION_ORDER) {
+      if (!fedKinds.includes(kind)) continue;
+      ordered.push(...(byKind.get(kind) ?? []));
+    }
+    return ordered;
+  }, [fedHits, fedKinds]);
+
+  const activateFedEntry = useCallback(
+    (entry: FederatedIndexEntry) => {
+      recordGamifyGuiEvent(
+        'palette_navigation',
+        { kind: entry.kind, label: entry.label },
+        { enabled: gamifyEnabled },
+      );
+      switch (entry.payload.type) {
+        case 'surface':
+          onAction({ id: 'navigate', type: 'navigate', viewKey: entry.payload.viewKey });
+          break;
+        case 'setting':
+          try {
+            localStorage.setItem(
+              SETTINGS_SEED_KEY,
+              JSON.stringify({
+                section: entry.payload.section,
+                settingId: entry.payload.settingId,
+              }),
+            );
+          } catch {
+            /* ignore */
+          }
+          onAction({ id: 'navigate', type: 'navigate', viewKey: 'settings' });
+          try {
+            window.dispatchEvent(new Event('vox-settings-seed'));
+          } catch {
+            /* ignore */
+          }
+          break;
+        case 'policy':
+          onAction({ id: 'navigate', type: 'navigate', viewKey: 'policies' });
+          break;
+        case 'doc':
+          voxTransport.openLocator({ kind: 'file', value: entry.payload.path }).catch(() => {});
+          break;
+        case 'skill':
+          onAction({ id: `skill:${entry.payload.skillId}` });
+          break;
+        case 'command':
+          onAction({
+            id: 'hit',
+            type: 'hit',
+            locator: { kind: 'command', value: entry.payload.command },
+            viewKey: 'catalog',
+          });
+          break;
+        case 'action':
+          onAction({
+            id: 'hit',
+            type: 'hit',
+            locator: { kind: 'command', value: entry.payload.actionId },
+            viewKey: 'console',
+            label: entry.label,
+          });
+          break;
+      }
+      onClose();
+    },
+    [onAction, onClose, gamifyEnabled],
+  );
 
   const filteredAgents = useMemo(
     () =>
-      agents.filter(
-        a =>
-          a.codename.toLowerCase().includes(q.toLowerCase()) ||
-          a.id.toLowerCase().includes(q.toLowerCase()),
-      ),
-    [agents, q],
+      prefixMode === 'default' || prefixMode === 'agents'
+        ? agents.filter(
+            a =>
+              a.codename.toLowerCase().includes(effectiveQ.toLowerCase()) ||
+              a.id.toLowerCase().includes(effectiveQ.toLowerCase()),
+          )
+        : [],
+    [agents, effectiveQ, prefixMode],
   );
 
   const filteredSkills = useMemo(
     () =>
-      skills.filter(
-        s =>
-          s.command.toLowerCase().includes(q.toLowerCase()) ||
-          s.about.toLowerCase().includes(q.toLowerCase()),
-      ),
-    [skills, q],
+      prefixMode === 'default' || prefixMode === 'skills' || prefixMode === 'commands'
+        ? skills.filter(
+            s =>
+              s.command.toLowerCase().includes(effectiveQ.toLowerCase()) ||
+              s.about.toLowerCase().includes(effectiveQ.toLowerCase()),
+          )
+        : [],
+    [skills, effectiveQ, prefixMode],
   );
 
   useEffect(() => {
     if (!open) {
       setQ('');
-      setBackendHits([]);
+      setSearchQuery('');
       setSelectedRowIdx(-1);
     }
-  }, [open]);
+  }, [open, setSearchQuery]);
 
   useEffect(() => {
-    if (!open) return;
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (!q.trim()) {
-      setBackendHits([]);
-      setBackendLoading(false);
-      return;
-    }
-    debounceRef.current = setTimeout(async () => {
-      setBackendLoading(true);
-      try {
-        const res = await invoke<SearchResponse>('vox_search_query', {
-          query: q,
-          limit: PALETTE_PREVIEW_LIMIT,
-          scope: backendScopesFromUserScopes(initialSearchState.scopes),
-        });
-        setBackendHits(res.hits);
-        setSelectedRowIdx(-1);
-      } catch {
-        setBackendHits([]);
-      } finally {
-        setBackendLoading(false);
-      }
-    }, SEARCH_DEBOUNCE_MS);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [q, open]);
+    setSelectedRowIdx(-1);
+  }, [searchState.hits, q]);
 
   const openHit = useCallback(async (hit: UnifiedHit) => {
+    recordGamifyGuiEvent(
+      'palette_navigation',
+      { kind: 'search_hit', source: hit.source },
+      { enabled: gamifyEnabled },
+    );
+    const viewKey = viewKeyForLocator(hit.locator);
     if (hit.locator.kind === 'file' || hit.locator.kind === 'web') {
       try {
         await voxTransport.openLocator(hit.locator);
@@ -112,68 +232,75 @@ export function CommandPalette({ open, onClose, onAction, agents, skills }: Comm
         // swallow — palette is closing
       }
     }
+    onAction({ id: 'hit', type: 'hit', locator: hit.locator, viewKey });
     onClose();
-  }, [onClose]);
+  }, [onAction, onClose, gamifyEnabled]);
 
   const selectableRows = useMemo(() => {
     const rows: Array<() => void> = [];
     filteredAgents.forEach(a => rows.push(() => { onAction(a); onClose(); }));
     filteredSkills.forEach(s => rows.push(() => { onAction(s); onClose(); }));
+    orderedFedHits.forEach(entry => rows.push(() => activateFedEntry(entry)));
     backendHits.forEach(hit => rows.push(() => openHit(hit)));
     return rows;
-  }, [filteredAgents, filteredSkills, backendHits, onAction, onClose, openHit]);
+  }, [
+    filteredAgents,
+    filteredSkills,
+    orderedFedHits,
+    backendHits,
+    onAction,
+    onClose,
+    openHit,
+    activateFedEntry,
+  ]);
+
+  const selectableRowsRef = useRef(selectableRows);
+  const selectedRowIdxRef = useRef(selectedRowIdx);
+  selectableRowsRef.current = selectableRows;
+  selectedRowIdxRef.current = selectedRowIdx;
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
+      const rows = selectableRowsRef.current;
+      let idx = selectedRowIdxRef.current;
       if (e.key === 'Escape') {
         onClose();
-      } else if (e.key === 'ArrowDown' && selectableRows.length > 0) {
+      } else if (e.key === 'ArrowDown' && rows.length > 0) {
         e.preventDefault();
-        setSelectedRowIdx(i => (i < 0 ? 0 : Math.min(i + 1, selectableRows.length - 1)));
-      } else if (e.key === 'ArrowUp' && selectableRows.length > 0) {
+        idx = idx < 0 ? 0 : Math.min(idx + 1, rows.length - 1);
+        selectedRowIdxRef.current = idx;
+        setSelectedRowIdx(idx);
+      } else if (e.key === 'ArrowUp' && rows.length > 0) {
         e.preventDefault();
-        setSelectedRowIdx(i => (i < 0 ? selectableRows.length - 1 : Math.max(i - 1, 0)));
-      } else if (e.key === 'Enter' && selectedRowIdx >= 0 && selectedRowIdx < selectableRows.length) {
+        idx = idx < 0 ? rows.length - 1 : Math.max(idx - 1, 0);
+        selectedRowIdxRef.current = idx;
+        setSelectedRowIdx(idx);
+      } else if (e.key === 'Enter' && idx >= 0 && idx < rows.length) {
         e.preventDefault();
-        selectableRows[selectedRowIdx]();
+        rows[idx]();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose, selectableRows, selectedRowIdx]);
+  }, [open, onClose]);
+
+  const fedHitsByKind = useMemo(() => {
+    const grouped = new Map<FederatedIndexKind, FederatedIndexEntry[]>();
+    for (const hit of orderedFedHits) {
+      const list = grouped.get(hit.kind) ?? [];
+      list.push(hit);
+      grouped.set(hit.kind, list);
+    }
+    return grouped;
+  }, [orderedFedHits]);
 
   if (!open) return null;
 
-  // Federated, client-side sources: windows/surfaces, settings, documentation.
-  const fedItems = buildPaletteItems(q, {
-    surfaces: SURFACE_REGISTRY,
-    settings: SETTINGS_INDEX,
-    docs,
-  });
-  const fedSurfaces = fedItems.filter(i => i.kind === 'surface');
-  const fedSettings = fedItems.filter(i => i.kind === 'setting');
-  const fedDocs = fedItems.filter(i => i.kind === 'doc');
-
-  const activateFed = (item: (typeof fedItems)[number]) => {
-    if (item.kind === 'surface') {
-      onAction({ id: 'navigate', viewKey: item.viewKey });
-    } else if (item.kind === 'setting') {
-      try {
-        localStorage.setItem(SETTINGS_SEED_KEY, JSON.stringify({ section: item.targetSection }));
-      } catch { /* ignore */ }
-      onAction({ id: 'navigate', viewKey: 'settings' });
-      // Fire after navigation so an already-mounted SettingsView (no remount when
-      // already on Settings) still consumes the seed.
-      try { window.dispatchEvent(new Event('vox-settings-seed')); } catch { /* ignore */ }
-    } else {
-      voxTransport.openLocator({ kind: 'file', value: item.path }).catch(() => {});
-    }
-    onClose();
-  };
-
   const hasClientResults =
-    filteredAgents.length > 0 || filteredSkills.length > 0 || fedItems.length > 0;
+    filteredAgents.length > 0 ||
+    filteredSkills.length > 0 ||
+    orderedFedHits.length > 0;
   const hasBackendResults = backendHits.length > 0;
   const noResults = q.length > 0 && !hasClientResults && !hasBackendResults && !backendLoading;
 
@@ -198,7 +325,11 @@ export function CommandPalette({ open, onClose, onAction, agents, skills }: Comm
           <input
             autoFocus
             value={q}
-            onChange={e => setQ(e.target.value)}
+            onChange={e => {
+              const v = e.target.value;
+              setQ(v);
+              setSearchQuery(v);
+            }}
             placeholder="Search commands, settings, docs, windows, agents…"
             className="flex-1 bg-transparent text-[14px] text-zinc-100 placeholder:text-zinc-600 outline-none"
           />
@@ -211,6 +342,15 @@ export function CommandPalette({ open, onClose, onAction, agents, skills }: Comm
         </div>
 
         <div className="max-h-[460px] overflow-auto p-2 custom-scrollbar">
+          {q.length === 0 && (
+            <div
+              data-testid="palette-prefix-legend"
+              className="px-3 py-2 text-[11px] text-zinc-500 border-b border-white/5 mb-1"
+            >
+              {'> commands · @ agents · / docs+skills'}
+            </div>
+          )}
+
           {q.length === 0 && (
             <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-zinc-500 border-b border-white/5 mb-1">
               Quick Actions
@@ -264,56 +404,41 @@ export function CommandPalette({ open, onClose, onAction, agents, skills }: Comm
             );
           })}
 
-          {/* Windows / surfaces */}
-          {fedSurfaces.length > 0 && (
-            <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-zinc-500 mt-2">Windows</div>
-          )}
-          {fedSurfaces.map((item, i) => (
-            <button
-              key={`surf-${i}`}
-              onClick={() => activateFed(item)}
-              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left hover:bg-white/[0.04] focus:outline-none focus-visible:ring-1 focus-visible:ring-brass/40"
-            >
-              <span className="text-[13px] text-zinc-200">{item.label}</span>
-              <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-500">{item.detail || 'window'}</span>
-            </button>
-          ))}
-
-          {/* Settings */}
-          {fedSettings.length > 0 && (
-            <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-zinc-500 mt-2">Settings</div>
-          )}
-          {fedSettings.map((item, i) => (
-            <button
-              key={`set-${i}`}
-              onClick={() => activateFed(item)}
-              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left hover:bg-white/[0.04] focus:outline-none focus-visible:ring-1 focus-visible:ring-brass/40"
-            >
-              <div className="flex flex-col min-w-0">
-                <span className="text-[13px] text-zinc-200">{item.label}</span>
-                <span className="text-[11px] text-zinc-500 truncate max-w-[420px]">{item.detail}</span>
-              </div>
-              <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-500 shrink-0 ml-2">settings</span>
-            </button>
-          ))}
-
-          {/* Documentation */}
-          {fedDocs.length > 0 && (
-            <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-zinc-500 mt-2">Documentation</div>
-          )}
-          {fedDocs.map((item, i) => (
-            <button
-              key={`doc-${i}`}
-              onClick={() => activateFed(item)}
-              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left hover:bg-white/[0.04] focus:outline-none focus-visible:ring-1 focus-visible:ring-brass/40"
-            >
-              <div className="flex flex-col min-w-0">
-                <span className="text-[13px] text-zinc-200 truncate max-w-[440px]">{item.label}</span>
-                <span className="text-[11px] text-zinc-500 truncate max-w-[440px]">{item.detail}</span>
-              </div>
-              <Icon.file className="size-3 text-zinc-500 shrink-0 ml-2" />
-            </button>
-          ))}
+          {FED_KIND_SECTION_ORDER.map(kind => {
+            const items = fedHitsByKind.get(kind);
+            if (!items?.length) return null;
+            return (
+              <React.Fragment key={kind}>
+                <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-zinc-500 mt-2">
+                  {FED_KIND_LABELS[kind]}
+                </div>
+                {items.map((item, i) => {
+                  const idx = rowOffset++;
+                  return (
+                    <button
+                      key={`${kind}-${item.id}-${i}`}
+                      onClick={() => activateFedEntry(item)}
+                      className={rowClass(idx)}
+                    >
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[13px] text-zinc-200 truncate max-w-[440px]">
+                          {item.label}
+                        </span>
+                        {item.detail ? (
+                          <span className="text-[11px] text-zinc-500 truncate max-w-[440px]">
+                            {item.detail}
+                          </span>
+                        ) : null}
+                      </div>
+                      <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-500 shrink-0 ml-2">
+                        {kind === 'surface' ? item.detail || 'window' : kind}
+                      </span>
+                    </button>
+                  );
+                })}
+              </React.Fragment>
+            );
+          })}
 
           {/* Backend search results */}
           {hasBackendResults && (

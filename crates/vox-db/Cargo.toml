@@ -37,6 +37,7 @@ workspace-hack = { workspace = true }
 default = ["local"]
 local = []
 replication = []
+legacy-import = []
 
 [dev-dependencies]
 regex = { workspace = true }

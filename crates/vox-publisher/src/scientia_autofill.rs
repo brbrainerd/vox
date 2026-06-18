@@ -74,6 +74,8 @@ fn today_ymd() -> String {
 /// - `authors[0].orcid` (scientific)    ← identity.orcid_id when author exists but orcid absent
 /// - `reproducibility.code_repository_url` ← `git_remote_url`, "autofill:git_remote"
 /// - `keywords` (scientia block)        ← derived from title, "autofill:title_keywords"
+/// - `version` (scientia block)         ← `workspace_version`, "autofill:workspace_version"
+/// - `related_identifiers` (scientia)   ← code repo URL (+ existing swhid/nanopub), "autofill:related_identifiers"
 /// - `abstract_text`                    ← lead paragraph (≥200-char body), "autofill:lead_paragraph"
 ///
 /// `human_only_remaining` captures fields no rule can fill automatically.
@@ -83,6 +85,7 @@ pub fn compute_autofill(
     identity: Option<&UserIdentityView>,
     repo_license_spdx: Option<&str>,
     git_remote_url: Option<&str>,
+    workspace_version: Option<&str>,
 ) -> AutofillPlan {
     let scientia = parse_scientia_block(manifest.metadata_json.as_deref());
     let scientific = parse_scientific_block(manifest.metadata_json.as_deref());
@@ -186,6 +189,80 @@ pub fn compute_autofill(
                 field: "keywords".into(),
                 value: serde_json::to_value(&kws).unwrap_or(serde_json::Value::Array(vec![])),
                 origin: "autofill:title_keywords".into(),
+                notes: None,
+            });
+        }
+    }
+
+    // ── version ─────────────────────────────────────────────────────────────
+    let has_version = scientia
+        .get("version")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .is_some_and(|s| !s.is_empty());
+    if !has_version && let Some(ver) = workspace_version.filter(|s| !s.trim().is_empty()) {
+        fills.push(PlannedFill {
+            field: "version".into(),
+            value: serde_json::Value::String(ver.to_string()),
+            origin: "autofill:workspace_version".into(),
+            notes: None,
+        });
+    }
+
+    // ── related_identifiers ─────────────────────────────────────────────────
+    let has_related = scientia
+        .get("related_identifiers")
+        .and_then(|v| v.as_array())
+        .map(|a| !a.is_empty())
+        .unwrap_or(false);
+    if !has_related {
+        let mut rels: Vec<serde_json::Value> = Vec::new();
+        let repo_url = scientific
+            .reproducibility
+            .as_ref()
+            .and_then(|r| r.code_repository_url.as_deref())
+            .filter(|s| !s.trim().is_empty())
+            .map(str::to_string)
+            .or_else(|| {
+                git_remote_url
+                    .filter(|s| !s.trim().is_empty())
+                    .map(str::to_string)
+            });
+        if let Some(url) = repo_url {
+            rels.push(serde_json::json!({
+                "identifier": url,
+                "relation": "isSupplementTo",
+                "resource_type": "software",
+            }));
+        }
+        if let Some(swhid) = scientia
+            .get("swhid")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.trim().is_empty())
+        {
+            rels.push(serde_json::json!({
+                "identifier": swhid,
+                "relation": "isIdenticalTo",
+                "resource_type": "software",
+            }));
+        }
+        if let Some(arr) = scientia.get("nanopub_uris").and_then(|v| v.as_array()) {
+            for uri in arr
+                .iter()
+                .filter_map(|v| v.as_str())
+                .filter(|s| !s.trim().is_empty())
+            {
+                rels.push(serde_json::json!({
+                    "identifier": uri,
+                    "relation": "isSupplementTo",
+                }));
+            }
+        }
+        if !rels.is_empty() {
+            fills.push(PlannedFill {
+                field: "related_identifiers".into(),
+                value: serde_json::Value::Array(rels),
+                origin: "autofill:related_identifiers".into(),
                 notes: None,
             });
         }
@@ -308,7 +385,7 @@ pub fn apply_autofill(
     for fill in &plan.fills {
         match fill.field.as_str() {
             // ── scientia block ────────────────────────────────────────────
-            "publication_date" | "keywords" => {
+            "publication_date" | "keywords" | "version" | "related_identifiers" => {
                 root[METADATA_KEY_SCIENTIA][&fill.field] = fill.value.clone();
             }
 
@@ -403,6 +480,7 @@ mod tests {
             Some(&identity),
             Some("MIT"),
             Some("https://github.com/org/repo"),
+            Some("0.6.0"),
         );
 
         let fields: Vec<&str> = plan.fills.iter().map(|f| f.field.as_str()).collect();
@@ -470,7 +548,7 @@ mod tests {
         manifest.metadata_json = Some(metadata_json);
 
         let identity = identity_with_orcid();
-        let plan = compute_autofill(&manifest, Some(&identity), Some("MIT"), None);
+        let plan = compute_autofill(&manifest, Some(&identity), Some("MIT"), None, None);
 
         // No license fill (already Apache-2.0)
         assert!(
@@ -496,7 +574,7 @@ mod tests {
         let short_body = "Too short.";
         let mut m_short = bare_manifest();
         m_short.body_markdown = short_body.into();
-        let plan_short = compute_autofill(&m_short, None, None, None);
+        let plan_short = compute_autofill(&m_short, None, None, None, None);
         assert!(
             plan_short.fills.iter().all(|f| f.field != "abstract_text"),
             "must not fill abstract when body < 200 chars"
@@ -509,7 +587,7 @@ mod tests {
         );
         let mut m_long = bare_manifest();
         m_long.body_markdown = long_body.clone();
-        let plan_long = compute_autofill(&m_long, None, None, None);
+        let plan_long = compute_autofill(&m_long, None, None, None, None);
         let abs_fill = plan_long.fills.iter().find(|f| f.field == "abstract_text");
         assert!(
             abs_fill.is_some(),
@@ -542,6 +620,7 @@ mod tests {
             Some(&identity),
             Some("MIT"),
             Some("https://github.com/org/repo"),
+            Some("0.6.0"),
         );
         assert!(!plan.fills.is_empty(), "first run must propose fills");
 
@@ -560,6 +639,7 @@ mod tests {
             Some(&identity),
             Some("MIT"),
             Some("https://github.com/org/repo"),
+            Some("0.6.0"),
         );
         assert!(
             plan2.fills.is_empty(),

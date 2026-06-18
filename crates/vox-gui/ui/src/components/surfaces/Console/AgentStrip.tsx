@@ -1,4 +1,5 @@
 import React from 'react';
+import { viz } from '../../../lib/visualTokens';
 import { Button } from '../../ui/Button';
 
 export interface AgentChip {
@@ -20,7 +21,7 @@ interface Props {
 export function AgentStrip({ agents, onOpen }: Props) {
   if (agents.length === 0) {
     return (
-      <div aria-label="agents" style={{ padding: '4px 10px', fontSize: 11, color: '#9ca3af' }}>
+      <div aria-label="agents" style={{ padding: '4px 10px', fontSize: 11, color: viz.gray400 }}>
         no agents
       </div>
     );

@@ -1,16 +1,13 @@
-import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { decode } from '@msgpack/msgpack';
-import { Backdrop } from './components/ui/Backdrop';
-import { Sidebar, SidebarMode } from './components/layout/Sidebar';
-import { TopHud, type HudMode } from './components/layout/TopHud';
-import { DockShell } from './components/layout/DockShell';
+import { AppShell } from './components/layout/AppShell';
+import { SidebarMode } from './components/layout/Sidebar';
+import { type HudMode } from './components/layout/TopHud';
 import { renderSurfaceView } from './components/layout/surfaceComponents';
-import { resolveNavigation } from './lib/navigation';
+import { resolveNavigation, parseViewFromLocation, syncViewToLocation } from './lib/navigation';
 import { CommandPalette } from './components/layout/CommandPalette';
-import { Toasts, ToastItem } from './components/ui/Toasts';
-import { SurfaceErrorBoundary } from './components/ui/ErrorBoundary';
 import { Loquela } from './components/surfaces/Loquela/Loquela';
+import { Toasts, ToastItem } from './components/ui/Toasts';
 import { Transcript } from './components/surfaces/Loquela/Transcript';
 import { DiffReview } from './components/surfaces/Loquela/DiffReview';
 import { InlineApprovals } from './components/surfaces/Loquela/InlineApprovals';
@@ -22,15 +19,30 @@ import {
 import {
   getSessionMessages,
   initialSessionChatStore,
+  resolveSessionForEvent,
   sessionChatReducer,
 } from './lib/sessionChatStore';
+import { mapAgentEvent } from './lib/mapAgentEvent';
 import { contextRefsFromPayload } from './lib/loquelaContext';
 import { overallWorst, worstCount } from './components/surfaces/Policies/policyTree';
 import type { PolicyRow, PolicyStatus, BranchInfo, RunStatus } from './components/surfaces/Policies/types';
-import { voxTransport, listenOrchStatus, listenAgentEvents, type AgentEventFrame } from './transport';
+import { voxTransport, listenAgentEvents, type AgentEventFrame } from './transport';
 import type { UnlistenFn } from '@tauri-apps/api/event';
 import { useLocalStorage } from './hooks/useLocalStorage';
+import { SHELL_PREFERENCE_KEYS } from './lib/shellPersistence';
 import { usePersistedSparkWindow } from './hooks/useSparkWindow';
+import { useOrchestratorStatus, meshKpiFromStatus, useOrchestratorFirstConnectGamify } from './hooks/useOrchestratorStatus';
+import { useInstalledSkills } from './hooks/useInstalledSkills';
+import { useWorkspaceIdentity } from './hooks/useWorkspaceIdentity';
+import { useLlmSpend } from './hooks/useLlmSpend';
+import { useChatExecutionData } from './hooks/useChatExecutionData';
+import { useHudTilesConfig } from './hooks/useHudTilesConfig';
+import { useGamifySettings } from './hooks/useGamifySettings';
+import { useAchievementToasts } from './hooks/useAchievementToasts';
+import { recordGamifyGuiEvent, setGamifyGuiEventResultListener } from './lib/gamifyGuiEvents';
+import { AchievementToast } from './components/gamify/AchievementToast';
+import { installedSkillToCatalogEntry } from './lib/installedSkills';
+import { handleSubmitTaskAction } from './lib/commandPaletteActions';
 import { DashboardData, Agent, StreamItem, LudusAlert } from './types/dashboard';
 import type {
   ActiveSkill,
@@ -48,7 +60,6 @@ import type {
 } from './types/tauri';
 import { INITIAL_DATA, INITIAL_KPIS } from './data/initialState';
 import {
-  ORCH_POLL_FALLBACK_MS,
   POLICY_BADGE_POLL_MS,
   APPROVALS_POLL_MS,
   STREAM_CAP,
@@ -57,6 +68,9 @@ import {
 import { budgetStateFromStatus, DEFAULT_BUDGET_CAP_USD } from './config/budget';
 import { nextId, nextGuiRunId } from './lib/ids';
 import { slashCommandBase } from './lib/slashRouter';
+import { viewKeyForLocator } from './lib/locatorNavigation';
+import { AchievementsDrawer } from './components/gamify/AchievementsDrawer';
+import type { LudusProfile } from './lib/ludus';
 
 type View =
   | 'dashboard'
@@ -104,35 +118,7 @@ const LEGACY_VIEWS: string[] = [
 ];
 
 // Single source of truth for valid view ids (deep-link validation + initial-view).
-const KNOWN_VIEWS: string[] = [
-  'dashboard',
-  'flow',
-  'catalog',
-  'matrix',
-  'memory',
-  'models',
-  'runs',
-  'repository',
-  'mesh',
-  'gamify',
-  'harness',
-  'scientia',
-  'discovery-review',
-  'discovery-inbox',
-  'archive-panel',
-  'claims',
-  'mens',
-  'populi',
-  'research',
-  'oratio',
-  'approvals',
-  'policies',
-  'skills',
-  'settings',
-  'coverage',
-  'publications',
-  'search',
-];
+const KNOWN_VIEWS: string[] = LEGACY_VIEWS;
 
 function isKnownView(v: unknown): v is View {
   return typeof v === 'string' && KNOWN_VIEWS.includes(v);
@@ -153,108 +139,50 @@ function mapAgent(a: RawAgentSummary): Agent {
     typeof rawBudget === 'number' && Number.isFinite(rawBudget) ? rawBudget : null;
   return {
     id: `A-${String(a.id).padStart(2, '0')}`,
-    codename: a.codename ?? 'Agent',
-    phase: a.paused ? 'Paused' : (inProgress ? (a.current_phase ?? 'Executing') : 'Idle'),
+    codename: typeof a.codename === 'object' && a.codename !== null ? JSON.stringify(a.codename) : String(a.codename ?? 'Agent'),
+    phase: a.paused ? 'Paused' : (inProgress ? String(a.current_phase ?? 'Executing') : 'Idle'),
     progress,
-    task: a.task_description ?? (inProgress ? 'Processing…' : 'Idle'),
+    task: typeof a.task_description === 'object' && a.task_description !== null ? JSON.stringify(a.task_description) : String(a.task_description ?? (inProgress ? 'Processing…' : 'Idle')),
     cost: typeof a.cost === 'number' ? a.cost : 0,
     budget,
-    eta: a.eta ?? '—',
-    skill: a.active_skill,
+    eta: typeof a.eta === 'object' && a.eta !== null ? JSON.stringify(a.eta) : String(a.eta ?? '—'),
+    skill: a.active_skill ? String(a.active_skill) : undefined,
   };
 }
 
 function mapStream(e: RawStreamEvent): StreamItem {
+  const tagStr = typeof e.tag === 'object' && e.tag !== null ? JSON.stringify(e.tag) : String(e.tag ?? 'SYSTEM');
+  const titleStr = typeof e.title === 'object' && e.title !== null ? JSON.stringify(e.title) : String(e.title ?? 'Event');
+  const bodyStr = typeof e.body === 'object' && e.body !== null ? JSON.stringify(e.body) : String(e.body ?? '');
   return {
     id: e.id != null ? String(e.id) : nextId('stream'),
     kind: e.kind ?? 'system',
-    tag: e.tag ?? 'SYSTEM',
-    title: e.title ?? 'Event',
-    body: e.body ?? '',
-    ts: e.timestamp ?? 'now',
-  };
-}
-
-// ─── Live AgentEvent (B4 "vox://agent-events") → dashboard StreamItem ─────────
-const AGENT_EVENT_LABELS: Record<string, string> = {
-  token_streamed: 'TOKEN',
-  task_started: 'TASK',
-  task_phase_changed: 'PHASE',
-  task_completed: 'DONE',
-  task_failed: 'FAILED',
-  agent_spawned: 'SPAWN',
-  agent_retired: 'RETIRE',
-  cost_incurred: 'COST',
-  snapshot_captured: 'CHECKPOINT',
-  activity_changed: 'ACTIVITY',
-  tool_timed_out: 'TOOL',
-};
-
-function mapAgentEvent(e: AgentEventFrame): StreamItem {
-  const kind = e.kind ?? ({ type: 'unknown' } as AgentEventFrame['kind']);
-  const type = kind.type ?? 'unknown';
-  const tag = AGENT_EVENT_LABELS[type] ?? type.replace(/_/g, ' ').toUpperCase();
-
-  // Build a human-readable title/body per variant.
-  let title = type.replace(/_/g, ' ');
-  let body = '';
-  switch (type) {
-    case 'token_streamed':
-      title = `Token · ${kind.agent_id ?? '?'}`;
-      body = String(kind.text ?? '');
-      break;
-    case 'task_started':
-    case 'task_phase_changed':
-    case 'task_completed':
-    case 'task_failed':
-      title = `${tag} · task ${kind.task_id ?? '?'}`;
-      body = kind.phase
-        ? `phase: ${kind.phase}`
-        : kind.error
-          ? `error: ${kind.error}`
-          : kind.agent_id
-            ? `agent ${kind.agent_id}`
-            : '';
-      break;
-    case 'agent_spawned':
-    case 'agent_retired':
-      title = `${tag} · agent ${kind.agent_id ?? '?'}`;
-      break;
-    case 'snapshot_captured':
-      title = `${tag} · ${kind.snapshot_id ?? 'snapshot'}`;
-      body = typeof kind.description === 'string' ? kind.description : '';
-      break;
-    case 'activity_changed':
-      title = `${tag} · agent ${kind.agent_id ?? '?'}`;
-      body = typeof kind.activity === 'string' ? kind.activity : '';
-      break;
-    default:
-      body = '';
-  }
-
-  const isFailed = type === 'task_failed';
-  return {
-    // Numeric event id correlates with orchestrator doubt/overrule task ids.
-    id: String(e.id),
-    kind: isFailed ? 'doubted' : 'agent',
-    tag,
-    title,
-    body,
-    ts: e.timestamp_ms
-      ? new Date(e.timestamp_ms).toLocaleTimeString()
-      : 'now',
+    tag: tagStr,
+    title: titleStr,
+    body: bodyStr,
+    ts: e.timestamp != null ? String(e.timestamp) : 'now',
   };
 }
 
 function mapAlert(a: RawLudusAlert): LudusAlert {
-  return { id: a.id, level: a.level, title: a.title, body: a.body };
+  const titleStr = typeof a.title === 'object' && a.title !== null ? JSON.stringify(a.title) : String(a.title ?? '');
+  const bodyStr = typeof a.body === 'object' && a.body !== null ? JSON.stringify(a.body) : String(a.body ?? '');
+  return {
+    id: String(a.id),
+    level: a.level,
+    title: titleStr,
+    body: bodyStr,
+  };
 }
 
 export default function App() {
   const [data, setData] = useState<DashboardData>(INITIAL_DATA);
   const [kpis, setKpis] = useState(INITIAL_KPIS);
   const [activeView, setActiveView] = useLocalStorage<View>('vox_active_view', 'dashboard');
-  const [sidebarMode, setSidebarMode] = useLocalStorage<SidebarMode>('vox_sidebar_mode', 'default');
+  const [sidebarMode, setSidebarMode] = useLocalStorage<SidebarMode>(
+    SHELL_PREFERENCE_KEYS.sidebarMode,
+    'default',
+  );
   const [isCommandOpen, setIsCommandOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [filterKind, setFilterKind] = useState('all');
@@ -266,25 +194,60 @@ export default function App() {
   // Master-sidebar Policies badge: worst-status count for the current branch.
   const [policyBadge, setPolicyBadge] = useState<{ count: number; status: RunStatus } | null>(null);
   const [lastOrchEventAt, setLastOrchEventAt] = useState<number | null>(null);
-  const [orchUsesPolling, setOrchUsesPolling] = useState(false);
-  const [hudMode, setHudMode] = useLocalStorage<HudMode>('vox_hud_mode', 'full');
+  const orchQuery = useOrchestratorStatus();
+  const orchUsesPolling = orchQuery.usesPolling;
+  const { workspaceTitle } = useWorkspaceIdentity();
+  const { totalUsd: openrouterSpendUsd } = useLlmSpend();
+  const { config: hudTilesConfig, setConfig: setHudTilesConfig, visibleTiles } = useHudTilesConfig();
+  const activeModel = useMemo(() => {
+    const status = orchQuery.data as (OrchestratorStatus & { active_model?: string | null }) | undefined;
+    return status?.active_model ?? null;
+  }, [orchQuery.data]);
+  const installedSkills = useInstalledSkills(true);
+  const installedSkillEntries = useMemo(
+    () => installedSkills.map(installedSkillToCatalogEntry),
+    [installedSkills],
+  );
+  const [hudMode, setHudMode] = useLocalStorage<HudMode>(SHELL_PREFERENCE_KEYS.hudMode, 'full');
   const [activeSessionId, setActiveSessionId] = useState<string>('');
+  const {
+    tasks: chatTasks,
+    intents: chatIntents,
+    meshPeers: chatMeshPeers,
+  } = useChatExecutionData(activeSessionId);
   const [approvalsPending, setApprovalsPending] = useState(0);
   const [diffOpen, setDiffOpen] = useState(false);
   const [diffText, setDiffText] = useState('');
   const [diffLoading, setDiffLoading] = useState(false);
+  const [achievementsOpen, setAchievementsOpen] = useState(false);
+  const [ludusProfile, setLudusProfile] = useState<LudusProfile | null>(null);
+  const gamifySettings = useGamifySettings();
+  useOrchestratorFirstConnectGamify(orchQuery, gamifySettings.enabled);
+  const achievementToasts = useAchievementToasts(
+    gamifySettings.enabled,
+    gamifySettings.mode,
+  );
+
+  useEffect(() => {
+    setGamifyGuiEventResultListener(achievementToasts.handleGuiEventResult);
+    return () => setGamifyGuiEventResultListener(null);
+  }, [achievementToasts.handleGuiEventResult]);
 
   // ── B4-chat: pure-reducer transcript state for the Loquela composer ────────
   const [chatStore, dispatchSessionChat] = useReducer(sessionChatReducer, initialSessionChatStore);
+  const chatStoreRef = useRef(chatStore);
+  chatStoreRef.current = chatStore;
+  const [sessionAgentStreams, setSessionAgentStreams] = useState<Record<string, StreamItem[]>>({});
   const persistedAssistantIdsRef = useRef<Map<string, Set<string>>>(new Map());
   const activeChatMessages = getSessionMessages(chatStore, activeSessionId);
+  const activeChatAgentItems = sessionAgentStreams[activeSessionId] ?? [];
 
   // ── 5-minute rolling sparkline windows ──────────────────────────────────
   // Each hook persists its window to localStorage under a namespaced key.
   const agentCountWindow = usePersistedSparkWindow('kpi.agentCount', kpis.activeAgents.value);
   const queueDepthWindow = usePersistedSparkWindow('kpi.queueDepth', kpis.queueDepth.value);
   const budgetBurnWindow = usePersistedSparkWindow('kpi.budgetBurn', kpis.budgetBurn.value);
-  const meshWindow       = usePersistedSparkWindow('kpi.mesh', typeof kpis.mesh.value === 'number' ? kpis.mesh.value : 0);
+  const meshWindow       = usePersistedSparkWindow('kpi.mesh', typeof kpis.mesh.value === 'number' ? kpis.mesh.value : kpis.mesh.peers);
 
   // ── Toast helper ─────────────────────────────────────────────────────────
   const pushToast = useCallback((t: Toast) => {
@@ -293,11 +256,21 @@ export default function App() {
     setTimeout(() => setToasts(curr => curr.filter(x => x.id !== id)), 5000);
   }, []);
 
+  const openAchievements = useCallback(() => {
+    setAchievementsOpen(true);
+  }, []);
+
+  const closeAchievements = useCallback(() => {
+    setAchievementsOpen(false);
+  }, []);
+
   // ── KPI update — shared logic used by both EventBus listener and fallback ─
   const applyStatus = useCallback((status: OrchestratorStatus) => {
     const agents: Agent[] = (status.agents ?? []).map(mapAgent);
     const stream: StreamItem[] = (status.recent_events ?? []).map(mapStream);
     const alerts: LudusAlert[] = (status.alerts ?? []).map(mapAlert);
+
+    const budget = budgetStateFromStatus(status.total_cost, status.budget_cap);
 
     setData(prev => ({
       ...prev,
@@ -305,9 +278,19 @@ export default function App() {
       stream: stream.length > 0 ? stream : prev.stream,
       alerts,
       peers: (status.peers ?? []).length > 0 ? status.peers : prev.peers,
+      kpis: {
+        ...prev.kpis,
+        budgetBurn: {
+          ...prev.kpis.budgetBurn,
+          value: budget.spent,
+          spark: budgetBurnWindow,
+        },
+        queueDepth: {
+          value: status.total_queued ?? 0,
+          spark: queueDepthWindow,
+        },
+      },
     }));
-
-    const budget = budgetStateFromStatus(status.total_cost, status.budget_cap);
     setKpis(prev => ({
       activeAgents: {
         value: status.agent_count ?? 0,
@@ -326,30 +309,46 @@ export default function App() {
         delta: budget.spent - prev.budgetBurn.value,
         spark: budgetBurnWindow,
       },
-      mesh: {
-        value: `${status.mesh_throughput ?? 0} MB/s`,
-        unit: 'MB/s',
-        delta: 0,
-        spark: meshWindow,
-        peers: (status.peers ?? []).length,
-        vramGb: status.total_vram_gb ?? 0,
-      },
+      mesh: (() => {
+        const fields = meshKpiFromStatus(status, {
+          value: prev.mesh.value,
+          peers: prev.mesh.peers,
+        });
+        return {
+          ...fields,
+          spark: meshWindow,
+        };
+      })(),
     }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agentCountWindow, queueDepthWindow, budgetBurnWindow, meshWindow]);
+
+  useEffect(() => {
+    if (orchQuery.data) {
+      setLastOrchEventAt(Date.now());
+      applyStatus(orchQuery.data);
+    }
+  }, [orchQuery.data, applyStatus]);
 
   // ── Bootstrap: catalog, initial view ─────────────────────────────────────
   useEffect(() => {
     voxTransport.getCatalog().then((catalog: CommandCatalog) => {
       if (catalog?.entries) setData(prev => ({ ...prev, skills: catalog.entries }));
-    });
+    }).catch((e: unknown) => { console.debug('[App] getCatalog failed (skills palette disabled):', e); });
     invoke<{ display?: string; version?: string }>('get_build_info')
       .then((info) => setAppVersion(info.display ?? info.version ?? 'unknown'))
       .catch(() => setAppVersion('unknown'));
 
     invoke<string>('get_initial_view').then((view) => {
+      const fromHash = parseViewFromLocation(window.location);
+      if (fromHash && LEGACY_VIEWS.includes(fromHash)) {
+        setActiveView(fromHash as View);
+        syncViewToLocation(fromHash);
+        return;
+      }
       if (view && LEGACY_VIEWS.includes(view)) {
         setActiveView(view as View);
+        syncViewToLocation(view);
       }
     }).catch(() => {});
 
@@ -392,65 +391,6 @@ export default function App() {
     return () => { cancelled = true; clearInterval(id); };
   }, []);
 
-  // ── Pushed status stream (B1: "vox://orch-status" Tauri event) ─────────────
-  // Primary path is the daemon-pushed event stream. We keep one initial snapshot
-  // fetch on mount, and fall back to polling ONLY if the listener can't be set
-  // up (e.g. running outside Tauri in a plain browser dev session).
-  useEffect(() => {
-    let unlisten: UnlistenFn | undefined;
-    let fallbackInterval: ReturnType<typeof setInterval> | undefined;
-    let cancelled = false;
-
-    // One-shot initial snapshot via the existing binary status command.
-    // We use `get_orchestrator_status_bin` to fetch raw MessagePack payloads,
-    // bypassing Tauri's default JSON string-escaping overhead for large states.
-    const fetchSnapshot = async () => {
-      try {
-        const rawBytes = await invoke<Uint8Array>('get_orchestrator_status_bin');
-        setLastOrchEventAt(Date.now());
-        applyStatus(decode(rawBytes));
-      } catch (err) {
-        // Silently ignore if backend is down or not ready.
-      }
-    };
-
-    const startFallbackPolling = () => {
-      if (fallbackInterval !== undefined) return;
-      fallbackInterval = setInterval(fetchSnapshot, ORCH_POLL_FALLBACK_MS);
-    };
-
-    // Initial snapshot for first paint.
-    fetchSnapshot();
-
-    // Subscribe to the pushed event stream; fall back to polling on failure.
-    listenOrchStatus((status) => {
-      setLastOrchEventAt(Date.now());
-      setOrchUsesPolling(false);
-      applyStatus(status);
-    })
-      .then((fn) => {
-        if (cancelled) {
-          // Effect already cleaned up before subscription resolved.
-          fn();
-          return;
-        }
-        unlisten = fn;
-      })
-      .catch(() => {
-        // listen() unavailable (e.g. plain browser) — degrade to polling.
-        if (!cancelled) {
-          setOrchUsesPolling(true);
-          startFallbackPolling();
-        }
-      });
-
-    return () => {
-      cancelled = true;
-      if (unlisten) unlisten();
-      if (fallbackInterval !== undefined) clearInterval(fallbackInterval);
-    };
-  }, [applyStatus]);
-
   // ── Approvals badge for Runs nav ───────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
@@ -489,6 +429,15 @@ export default function App() {
         }));
       }
       dispatchSessionChat({ type: 'agentEvent', event: frame });
+
+      const sessionId = resolveSessionForEvent(chatStoreRef.current, frame);
+      if (sessionId) {
+        const item = mapAgentEvent(frame);
+        setSessionAgentStreams(prev => ({
+          ...prev,
+          [sessionId]: [...(prev[sessionId] ?? []), item].slice(-STREAM_CAP),
+        }));
+      }
     })
       .then((fn) => {
         if (cancelled) {
@@ -561,6 +510,49 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── Navigation (hash-synced) ─────────────────────────────────────────────
+  const navigateTo = useCallback((viewKey: string) => {
+    const { child } = resolveNavigation(viewKey);
+    setActiveView(child as View);
+    syncViewToLocation(child);
+  }, [setActiveView]);
+
+  const manageGamifyInSettings = useCallback(() => {
+    try {
+      localStorage.setItem('vox_settings_seed', JSON.stringify({ section: 'gamify' }));
+      window.dispatchEvent(new Event('vox-settings-seed'));
+    } catch {
+      /* ignore storage errors */
+    }
+    setAchievementsOpen(false);
+    navigateTo('settings');
+  }, [navigateTo]);
+
+  useEffect(() => {
+    if (!achievementsOpen || !gamifySettings.enabled) return;
+    let cancelled = false;
+    invoke<LudusProfile>('get_ludus_profile')
+      .then((p) => {
+        if (!cancelled) setLudusProfile(p);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [achievementsOpen, gamifySettings.enabled]);
+
+  useEffect(() => {
+    const onHashChange = () => {
+      const fromHash = parseViewFromLocation(window.location);
+      if (fromHash && LEGACY_VIEWS.includes(fromHash)) {
+        const { child } = resolveNavigation(fromHash);
+        setActiveView(child as View);
+      }
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, [setActiveView]);
+
   // ── Cross-surface deep-link: a surface may request navigation to another
   // surface (optionally seeding a value) by dispatching a `vox://navigate-surface`
   // CustomEvent. Used by the Discovery Inbox "Open review" action to jump to the
@@ -574,18 +566,11 @@ export default function App() {
           window.localStorage.setItem('vox_discovery_review_seed', detail.publicationId);
         } catch { /* localStorage unavailable — surface still switches */ }
       }
-      setActiveView(detail.view);
+      navigateTo(detail.view);
     };
     window.addEventListener('vox://navigate-surface', onNavigate as EventListener);
     return () => window.removeEventListener('vox://navigate-surface', onNavigate as EventListener);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ── Action handlers ───────────────────────────────────────────────────────
-  const navigateTo = useCallback((viewKey: string) => {
-    const { child } = resolveNavigation(viewKey);
-    setActiveView(child as View);
-  }, [setActiveView]);
+  }, [navigateTo]);
 
   const hydrateChatSession = useCallback(async (sessionId: string) => {
     if (!sessionId) return;
@@ -639,6 +624,7 @@ export default function App() {
     invoke('chat_append_message', {
       input: { session_id: sessionId, role: 'user', content: String(payload.description ?? ''), task_id: null },
     }).catch((err) => pushToast({ tone: 'warn', title: 'Message not saved', body: String(err) }));
+    recordGamifyGuiEvent('chat_message_sent', { session_id: sessionId }, { enabled: gamifySettings.enabled });
     const contextFiles = contextRefsFromPayload(payload);
 
     // One submit attempt. `allowDuplicate=false` lets the daemon refuse a
@@ -702,11 +688,16 @@ export default function App() {
           runId,
           taskId: String(result.task_id),
         });
+        recordGamifyGuiEvent(
+          'task_submitted',
+          { session_id: sessionId, task_id: String(result.task_id) },
+          { enabled: gamifySettings.enabled },
+        );
       }
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Dispatch Failed', body: String(err) });
     }
-  }, [executeIpcWithRun, pushToast, activeSessionId, activeSkill]);
+  }, [executeIpcWithRun, pushToast, activeSessionId, activeSkill, gamifySettings.enabled]);
 
   const handleLoquelaSlash = useCallback(async (
     cmd: string,
@@ -919,17 +910,22 @@ export default function App() {
     else if ('type' in cmd && cmd.type === 'agent' && 'id' in cmd) { navigateTo('flow'); setSelectedAgentId(String(cmd.id)); }
     else if ('type' in cmd && cmd.type === 'command') navigateTo('catalog');
     else if ('type' in cmd && cmd.type === 'hit' && cmd.locator) {
-      if (cmd.locator.kind === 'chat') navigateTo('chat');
-      else if (cmd.locator.kind === 'file' || cmd.locator.kind === 'web') voxTransport.openLocator(cmd.locator).catch(() => {});
+      const viewKey = cmd.viewKey ?? viewKeyForLocator(cmd.locator);
+      if (cmd.locator.kind === 'file' || cmd.locator.kind === 'web') {
+        voxTransport.openLocator(cmd.locator).catch(() => {});
+      }
+      navigateTo(viewKey);
     }
-    else if ('id' in cmd && cmd.id === 'submit') focusComposer();
+    else if ('id' in cmd && cmd.id === 'submit') handleSubmitTaskAction(navigateTo, focusComposer);
     else if ('id' in cmd && cmd.id === 'pause-all') data.agents.forEach(handlePause);
     else if ('id' in cmd && cmd.id === 'resume-all') data.agents.filter(a => a.phase === 'Paused').forEach(handleResume);
     else if ('id' in cmd && cmd.id === 'ack-all') data.alerts.forEach(handleAckAlert);
     else if ('id' in cmd && typeof cmd.id === 'string' && cmd.id.startsWith('agent:')) { navigateTo('flow'); setSelectedAgentId(cmd.id.slice(6)); }
     else if ('id' in cmd && typeof cmd.id === 'string' && cmd.id.startsWith('skill:')) {
       const skillId = cmd.id.slice(6);
-      const s = data.skills.find((x) => x.command === skillId || x.capability_id === skillId);
+      const s = installedSkillEntries.find(
+        (x) => x.command === skillId || x.capability_id === skillId,
+      );
       if (s) {
         const deployId = s.capability_id ?? s.command;
         setDeployedSet(prev => new Set([...prev, deployId]));
@@ -946,12 +942,45 @@ export default function App() {
       const action = cmd as { label?: string; type?: string };
       pushToast({ tone: 'info', title: 'Command', body: action.label ?? action.type ?? 'action' });
     }
-  }, [data, handlePause, handleResume, handleAckAlert, handleLoquelaSubmit, pushToast, navigateTo, focusComposer]);
+  }, [data, installedSkillEntries, handlePause, handleResume, handleAckAlert, handleLoquelaSubmit, pushToast, navigateTo, focusComposer]);
 
   const nav = resolveNavigation(activeView);
+
+  const chatExecutionKpis = useMemo(
+    () => ({
+      activeAgents: { value: kpis.activeAgents.value },
+      queueDepth: { value: kpis.queueDepth.value },
+      mesh: { peers: chatMeshPeers > 0 ? chatMeshPeers : kpis.mesh.peers },
+    }),
+    [kpis, chatMeshPeers],
+  );
+
+  const loquelaComposer = (
+    <Loquela
+      chips={chips}
+      setChips={setChips}
+      onSubmit={(p) => handleLoquelaSubmit({ ...p, session_id: activeSessionId })}
+      onSlashCommand={handleLoquelaSlash}
+      sessionBudget={{
+        spent: kpis.budgetBurn.value,
+        cap: kpis.budgetBurn.cap,
+        source: kpis.budgetBurn.source,
+      }}
+      activeSkill={activeSkill}
+      setActiveSkill={setActiveSkill}
+      skills={installedSkillEntries}
+      toast={pushToast}
+      agents={data.agents}
+    />
+  );
+
+  // Appendix D: composer only on Chat surface; no global Loquela dock.
+  const chatDocked = false;
+
   const surfaceProps = {
     pushToast,
     data,
+    dashboardLoading: orchQuery.isLoading,
     onPause: handlePause,
     onResume: handleResume,
     onDoubt: handleDoubt,
@@ -964,102 +993,124 @@ export default function App() {
     skills: data.skills,
     onAttachContext: attachContext,
     onNavigate: navigateTo,
+    onOpenChat: () => navigateTo('chat'),
     onOpenInConsole: (a: Agent) => {
       setSelectedAgentId(a.id);
       navigateTo('console');
     },
     activeChild: nav.child,
-    onChildChange: (vk: string) => setActiveView(vk as View),
+    onChildChange: (vk: string) => navigateTo(vk),
     activeSessionId,
     onSessionChange: setActiveSessionId,
     chatMessages: activeChatMessages,
     onHydrateChatSession: hydrateChatSession,
     onFocusComposer: focusComposer,
+    chatTasks,
+    chatIntents,
+    chatExecutionKpis,
+    chatActiveModel: activeModel,
+    chatOpenrouterSpendUsd: openrouterSpendUsd,
+    chatAgentStreamItems: activeChatAgentItems,
+    onOpenAgentInFlow: (agentId: string) => {
+      setSelectedAgentId(agentId);
+      navigateTo('flow');
+    },
+    chatComposer: loquelaComposer,
+    gamifyEnabled: gamifySettings.enabled,
+    hudTilesConfig,
+    onHudTilesChange: setHudTilesConfig,
   };
 
   const mainSurface = renderSurfaceView(nav.parent, surfaceProps);
 
-  return (
-    <div className="flex h-screen w-screen bg-void text-zinc-400 font-sans selection:bg-brass/30 selection:text-zinc-100 overflow-hidden">
-      <Backdrop />
+  const chatDock = (
+    <>
+      <InlineApprovals pushToast={pushToast} onViewAll={() => navigateTo('approvals')} />
+      {diffOpen && (
+        <DiffReview
+          diff={diffText}
+          loading={diffLoading}
+          onClose={() => setDiffOpen(false)}
+        />
+      )}
+      <Transcript messages={activeChatMessages} />
+      {loquelaComposer}
+    </>
+  );
 
-      <Sidebar
-        view={activeView}
-        setView={(v) => setActiveView(resolveNavigation(v).child as View)}
-        agentsCount={data.agents.filter(a => a.phase !== 'Idle').length}
+  return (
+    <>
+      <AppShell
+        activeView={activeView}
+        onNavigate={(v) => navigateTo(v)}
+        sidebarMode={sidebarMode}
+        setSidebarMode={setSidebarMode}
+        agentsCount={data.agents.filter((a) => a.phase !== 'Idle').length}
         data={data}
-        mode={sidebarMode}
-        setMode={setSidebarMode}
         pushToast={pushToast}
         appVersion={appVersion}
         policyBadge={policyBadge}
         approvalsPending={approvalsPending}
+        kpis={kpis}
+        onCommand={() => setIsCommandOpen(true)}
+        onOpenCommandPalette={() => setIsCommandOpen(true)}
+        lastOrchEventAt={lastOrchEventAt}
+        orchUsesPolling={orchUsesPolling}
+        liveFreshMs={LIVE_EVENT_FRESH_MS}
+        hudMode={hudMode}
+        setHudMode={setHudMode}
+        surfaceKey={`${nav.parent}-${nav.child}`}
+        surfaceLabel={nav.child}
+        chatDocked={chatDocked}
+        chatDock={chatDock}
+        workspaceTitle={workspaceTitle}
+        visibleTiles={visibleTiles}
+        activeModel={activeModel}
+        openrouterSpendUsd={openrouterSpendUsd}
+        gamifyEnabled={gamifySettings.enabled}
+        onOpenAchievements={openAchievements}
+      >
+        {mainSurface}
+      </AppShell>
+
+      <AchievementsDrawer
+        open={achievementsOpen}
+        onClose={closeAchievements}
+        profile={ludusProfile}
+        onManageInSettings={manageGamifyInSettings}
       />
-
-      <main className="flex-1 flex flex-col min-w-0 relative">
-        <div className="p-4 pb-0">
-          <TopHud
-            kpis={kpis}
-            onCommand={() => setIsCommandOpen(true)}
-            lastOrchEventAt={lastOrchEventAt}
-            orchUsesPolling={orchUsesPolling}
-            liveFreshMs={LIVE_EVENT_FRESH_MS}
-            onNavigate={navigateTo}
-            hudMode={hudMode}
-            setHudMode={setHudMode}
-          />
-        </div>
-
-        <div className="flex-1 min-h-0 overflow-hidden p-5 pb-[180px]">
-          <SurfaceErrorBoundary key={`${nav.parent}-${nav.child}`} surface={nav.child}>
-            <DockShell panelId="main-surface" panelTitle={nav.parent}>
-              {mainSurface}
-            </DockShell>
-          </SurfaceErrorBoundary>
-        </div>
-
-        {/* Loquela — fixed to the bottom of main, tracks sidebar width */}
-        <div className="p-4 pt-0 mt-auto">
-          <InlineApprovals pushToast={pushToast} onViewAll={() => navigateTo('approvals')} />
-          {diffOpen && (
-            <DiffReview
-              diff={diffText}
-              loading={diffLoading}
-              onClose={() => setDiffOpen(false)}
-            />
-          )}
-          <Transcript messages={activeChatMessages} />
-          <Loquela
-            chips={chips}
-            setChips={setChips}
-            onSubmit={(p) => handleLoquelaSubmit({ ...p, session_id: activeSessionId })}
-            onSlashCommand={handleLoquelaSlash}
-            sessionBudget={{
-              spent: kpis.budgetBurn.value,
-              cap: kpis.budgetBurn.cap,
-              source: kpis.budgetBurn.source,
-            }}
-            activeSkill={activeSkill}
-            setActiveSkill={setActiveSkill}
-            skills={data.skills}
-            toast={pushToast}
-            agents={data.agents}
-          />
-        </div>
-      </main>
 
       <CommandPalette
         open={isCommandOpen}
         onClose={() => setIsCommandOpen(false)}
         onAction={cmd => { handleCommandAction(cmd); setIsCommandOpen(false); }}
         agents={data.agents}
-        skills={data.skills}
+        skills={installedSkillEntries}
+        gamifyEnabled={gamifySettings.enabled}
       />
 
       <Toasts
         items={toasts}
         onClose={id => setToasts(curr => curr.filter(x => x.id !== id))}
       />
-    </div>
+
+      {achievementToasts.toasts.length > 0 && (
+        <div
+          className="pointer-events-none fixed bottom-4 right-4 z-[60] flex max-w-sm flex-col gap-2"
+          aria-live="polite"
+          aria-label="Achievement notifications"
+        >
+          {achievementToasts.toasts.map((toast) => (
+            <AchievementToast
+              key={toast.id}
+              title={toast.title}
+              body={toast.body}
+              autoDismissMs={4000}
+              onDismiss={() => achievementToasts.dismissToast(toast.id)}
+            />
+          ))}
+        </div>
+      )}
+    </>
   );
 }

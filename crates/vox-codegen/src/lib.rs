@@ -10,10 +10,12 @@
 #![allow(clippy::collapsible_match, clippy::collapsible_if)]
 
 pub mod bundler;
+pub mod canonical_ladder;
 pub mod codegen_rust;
 pub mod codegen_shared;
 #[path = "../../vox-codegen-ts/src/mod.rs"]
 pub mod codegen_ts;
+pub mod emission_profile;
 pub mod projection_bundle;
 pub mod syntax_k;
 pub mod vox_ir;

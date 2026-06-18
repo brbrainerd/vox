@@ -72,6 +72,7 @@ vox-codegen         = { path = "crates/vox-codegen", default-features = false }
 vox-codegen-ts      = { path = "crates/vox-codegen-ts" }
 vox-rn-codegen      = { path = "crates/vox-rn-codegen" }
 vox-config                = { path = "crates/vox-config" }
+vox-graphify-reader       = { path = "crates/vox-graphify-reader" }
 vox-container             = { path = "crates/vox-container" }
 vox-container-types       = { path = "crates/vox-container-types" }
 vox-deploy-codegen        = { path = "crates/vox-deploy-codegen" }
@@ -126,9 +127,9 @@ vox-orchestrator-types    = { path = "crates/vox-orchestrator-types" }
 
 
 vox-openai             = { path = "crates/vox-openai" }
-vox-plugin-api            = { path = "crates/vox-plugin-api" }
-vox-plugin-sdk            = { path = "crates/vox-plugin-sdk" }
-vox-plugin-types          = { path = "crates/vox-plugin-types" }
+vox-plugin-api            = { path = "crates/vox-plugin-api", version = "0.6.0" }
+vox-plugin-sdk            = { path = "crates/vox-plugin-sdk", version = "0.6.0" }
+vox-plugin-types          = { path = "crates/vox-plugin-types", version = "0.6.0" }
 vox-plugin-catalog        = { path = "crates/vox-plugin-catalog" }
 vox-plugin-host           = { path = "crates/vox-plugin-host" }
 vox-plugin-nvml-probe     = { path = "crates/vox-plugin-nvml-probe" }
@@ -218,7 +219,7 @@ csv                = "1.3"
 tempfile           = "3"
 turso              = { version = "0.6", default-features = false, features = ["sync"] }
 blake3             = { version = "1", features = ["pure"] }
-jsonwebtoken       = { version = "9", default-features = false }
+jsonwebtoken       = { version = "10", default-features = false, features = ["rust_crypto"] }
 ed25519-dalek      = { version = "2", default-features = false }
 x25519-dalek       = { version = "2", default-features = false, features = ["static_secrets"] }
 rustls             = { version = "0.23", default-features = false, features = ["ring"] }
@@ -238,6 +239,11 @@ async-stream       = "0.3"
 xxhash-rust        = { version = "0.8", features = ["xxh3"] }
 sysinfo            = "0.39"
 walkdir            = "2"
+petgraph           = "0.8.3"
+leiden-rs          = "0.8.1"
+tree-sitter        = "0.26.9"
+tree-sitter-rust   = "0.24.2"
+tree-sitter-typescript = "0.23.2"
 rayon              = "1.10"
 rand               = { version = "0.8", features = ["small_rng", "std_rng"] }
 candle-core         = { version = "0.10", default-features = false }
@@ -283,15 +289,15 @@ chacha20poly1305   = "0.10"
 aead               = { version = "0.5", features = ["std"] }
 gix                = { version = "0.84", default-features = false }
 jj-lib             = { version = "0.42", default-features = false }
-wasmtime           = "45"
-wasmtime-wasi      = "45"
+wasmtime           = "45.0.2"
+wasmtime-wasi      = "45.0.2"
 
 self_update        = "0.44"
 landlock           = "0.4.4"
 win32job           = "2"
 windows-sys        = "0.59"
 tavily             = "2.1.0"
-quick-xml          = "0.31"
+quick-xml          = "0.40"
 flate2             = { version = "1", default-features = false, features = ["rust_backend"] }
 bzip2              = "0.6.1"
 zstd               = "0.13.3"
@@ -326,7 +332,7 @@ opentelemetry_sdk  = { version = "0.29", features = ["rt-tokio"] }
 tracing-opentelemetry = "0.30"
 rmp-serde          = "1"
 libloading         = "0.8"
-lru                = "0.13"
+lru                = "0.16"
 futures-core       = "0.3"
 quote              = "1"
 similar            = "2"
@@ -340,12 +346,13 @@ which              = "8"
 ctrlc              = "3.4"
 proptest           = { version = "1", default-features = false, features = ["std"] }
 # File watching
-notify             = "6"
+notify             = "8"
 # Audio
 cpal               = "0.15"
 # Binary / stream utilities
 byteorder          = "1"
 tar                = "0.4"
+zip                = "2.1"
 libc               = "0.2"
 # CLI UI
 dialoguer          = "0.11"

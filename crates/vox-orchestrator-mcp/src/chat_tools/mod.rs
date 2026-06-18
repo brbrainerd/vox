@@ -305,6 +305,8 @@ mod routing_tests {
             temperature: None,
             top_p: None,
             skill: None,
+            force_research: None,
+            research_scope: None,
         };
         let rich = ChatMessageParams {
             prompt: "Hi".into(),
@@ -325,6 +327,8 @@ mod routing_tests {
             temperature: None,
             top_p: None,
             skill: None,
+            force_research: None,
+            research_scope: None,
         };
         let a = chat_grounding_score(&empty, 0);
         let b = chat_grounding_score(&rich, 3);

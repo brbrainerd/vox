@@ -127,28 +127,21 @@ pub async fn run(
         // a gray-on-white or tier-inversion bug fails the mobile build the same
         // way it fails web. (Audit gaps XP-4 / CONTRAST-5.)
         {
-            let web_ir = vox_codegen::web_ir::lower::lower_hir_to_web_ir(&hir);
             let registry = vox_compiler::tokens::TokenRegistry::load_from_project_dir(
                 file.parent().unwrap_or(Path::new(".")),
             );
-            let diags = match &registry {
-                Some(reg) => {
-                    vox_codegen::web_ir::validate::validate_web_ir_with_registry(&web_ir, Some(reg))
-                }
-                None => vox_codegen::web_ir::validate::validate_web_ir(&web_ir),
-            };
-            let (errors, warnings): (Vec<_>, Vec<_>) = diags
-                .iter()
-                .partition(|d| !vox_codegen::web_ir::validate::is_advisory_diagnostic(d));
-            for d in &warnings {
-                eprintln!("warning[{}]: {}", d.code, d.message);
-            }
-            if !errors.is_empty() {
-                for d in &errors {
+            let bundle = vox_codegen::projection_bundle::project_and_validate_with_registry(
+                &hir,
+                vox_compiler::target::Target::RustTauri,
+                registry.as_ref(),
+            )
+            .map_err(|hard| {
+                for d in &hard {
                     eprintln!("error[{}]: {}", d.code, d.message);
                 }
-                anyhow::bail!("mobile build failed: {} validator error(s)", errors.len());
-            }
+                anyhow::anyhow!("mobile build failed: {} validator error(s)", hard.len())
+            })?;
+            let _bundle = bundle;
         }
 
         // React Native + Expo lowering. The Rust backend is intentionally NOT

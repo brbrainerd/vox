@@ -14,6 +14,7 @@ use super::types::RoutingTier;
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct GateConfig {
     pub min_citations_for_full_score: Option<usize>,
+    pub min_domains_for_full_score: Option<usize>,
 }
 
 /// Per-tier routing thresholds.
@@ -39,6 +40,8 @@ impl Default for RoutingThresholds {
 pub struct GateInput<'a> {
     pub claims: &'a [Claim],
     pub citation_count: usize,
+    pub supported_claim_count: usize,
+    pub distinct_domain_count: usize,
     pub no_retrieval_hits: bool,
     pub answer_is_empty: bool,
 }
@@ -57,7 +60,7 @@ impl ConfidenceSignal {
             RoutingTier::Direct
         } else if self.score >= light {
             RoutingTier::Light
-        } else if self.score == 0.0 {
+        } else if self.score < f32::EPSILON {
             // PHASE_0a_STUB: exact-zero check is valid only while score_with_config
             // produces an integer-derived float (citation_count / 5.0). Phase 2
             // multi-signal fusion may produce non-zero scores with no retrieval hits;
@@ -76,11 +79,25 @@ impl ConfidenceSignal {
 /// Phase 2 replaces this with a fusion of symbolic-verifier strengths,
 /// claim-evidence coverage, and contradiction ratio.
 #[must_use]
-pub fn score_with_config(input: &GateInput<'_>, _config: &GateConfig) -> ConfidenceSignal {
-    // PHASE_0a_STUB: simple linear function of citation count, capped at 1.0.
-    let raw = (input.citation_count as f32) / 5.0;
+pub fn score_with_config(input: &GateInput<'_>, config: &GateConfig) -> ConfidenceSignal {
+    if input.no_retrieval_hits {
+        return ConfidenceSignal { score: 0.0 };
+    }
+    let min_cit = (config.min_citations_for_full_score.unwrap_or(5) as f32).max(1.0);
+    let min_dom = (config.min_domains_for_full_score.unwrap_or(4) as f32).max(1.0);
+    let citation_score = (input.citation_count as f32 / min_cit).clamp(0.0, 1.0);
+    let claim_support_score = if input.claims.is_empty() {
+        0.5
+    } else {
+        (input.supported_claim_count as f32 / input.claims.len() as f32).clamp(0.0, 1.0)
+    };
+    let diversity_score = (input.distinct_domain_count as f32 / min_dom).clamp(0.0, 1.0);
+    let score = citation_score * 0.35
+        + claim_support_score * 0.30
+        + diversity_score * 0.20
+        + 1.0_f32 * 0.15; // retrieval_score always 1.0 here (guarded above)
     ConfidenceSignal {
-        score: raw.clamp(0.0, 1.0),
+        score: score.clamp(0.0, 1.0),
     }
 }
 
@@ -88,40 +105,120 @@ pub fn score_with_config(input: &GateInput<'_>, _config: &GateConfig) -> Confide
 mod semcov_wave2_tests {
     #![allow(unused_imports)]
     use super::*;
+    use crate::research::claims::Claim;
     use crate::research::types::RoutingTier;
+
+    fn dummy_claims(n: usize) -> Vec<Claim> {
+        (0..n)
+            .map(|i| Claim {
+                text: format!("claim {i}"),
+                claim_id: i as u64,
+                is_numeric: false,
+                is_recent: false,
+                is_named_event: false,
+            })
+            .collect()
+    }
+
+    fn full_config() -> GateConfig {
+        GateConfig {
+            min_citations_for_full_score: Some(5),
+            min_domains_for_full_score: Some(4),
+        }
+    }
 
     #[test]
     fn routing_tier_for_high_score_returns_direct() {
-        let signal = ConfidenceSignal { score: 0.9 };
-        let tier = signal.routing_tier_for(0.7, 0.4, 0.2);
-        assert!(matches!(tier, RoutingTier::Direct));
+        let s = ConfidenceSignal { score: 0.9 };
+        assert!(matches!(
+            s.routing_tier_for(0.7, 0.4, 0.2),
+            RoutingTier::Direct
+        ));
     }
 
     #[test]
     fn routing_tier_for_mid_score_returns_light() {
-        let signal = ConfidenceSignal { score: 0.5 };
-        let tier = signal.routing_tier_for(0.7, 0.4, 0.2);
-        assert!(matches!(tier, RoutingTier::Light));
+        let s = ConfidenceSignal { score: 0.5 };
+        assert!(matches!(
+            s.routing_tier_for(0.7, 0.4, 0.2),
+            RoutingTier::Light
+        ));
     }
 
     #[test]
     fn routing_tier_for_low_nonzero_score_returns_deep_research() {
-        let signal = ConfidenceSignal { score: 0.1 };
-        let tier = signal.routing_tier_for(0.7, 0.4, 0.2);
-        assert!(matches!(tier, RoutingTier::DeepResearch));
+        let s = ConfidenceSignal { score: 0.1 };
+        assert!(matches!(
+            s.routing_tier_for(0.7, 0.4, 0.2),
+            RoutingTier::DeepResearch
+        ));
     }
 
     #[test]
     fn routing_tier_for_exact_direct_threshold_returns_direct() {
-        let signal = ConfidenceSignal { score: 0.7 };
-        let tier = signal.routing_tier_for(0.7, 0.4, 0.2);
-        assert!(matches!(tier, RoutingTier::Direct));
+        let s = ConfidenceSignal { score: 0.7 };
+        assert!(matches!(
+            s.routing_tier_for(0.7, 0.4, 0.2),
+            RoutingTier::Direct
+        ));
     }
 
     #[test]
     fn routing_tier_for_exact_light_threshold_returns_light() {
-        let signal = ConfidenceSignal { score: 0.4 };
-        let tier = signal.routing_tier_for(0.7, 0.4, 0.2);
-        assert!(matches!(tier, RoutingTier::Light));
+        let s = ConfidenceSignal { score: 0.4 };
+        assert!(matches!(
+            s.routing_tier_for(0.7, 0.4, 0.2),
+            RoutingTier::Light
+        ));
+    }
+
+    #[test]
+    fn zero_evidence_scores_zero() {
+        let config = full_config();
+        let input = GateInput {
+            claims: &[],
+            citation_count: 0,
+            supported_claim_count: 0,
+            distinct_domain_count: 0,
+            no_retrieval_hits: true,
+            answer_is_empty: false,
+        };
+        assert_eq!(score_with_config(&input, &config).score, 0.0);
+    }
+
+    #[test]
+    fn full_evidence_scores_near_one() {
+        let claims = dummy_claims(4);
+        let config = full_config();
+        let input = GateInput {
+            claims: &claims,
+            citation_count: 5,
+            supported_claim_count: 4,
+            distinct_domain_count: 4,
+            no_retrieval_hits: false,
+            answer_is_empty: false,
+        };
+        let s = score_with_config(&input, &config);
+        assert!(s.score > 0.95, "expected >0.95, got {}", s.score);
+    }
+
+    #[test]
+    fn partial_evidence_scores_in_deep_research_band() {
+        let claims = dummy_claims(1);
+        let config = full_config();
+        let input = GateInput {
+            claims: &claims,
+            citation_count: 2,
+            supported_claim_count: 0,
+            distinct_domain_count: 1,
+            no_retrieval_hits: false,
+            answer_is_empty: false,
+        };
+        let s = score_with_config(&input, &config);
+        assert!(
+            s.score > 0.0 && s.score < 0.7,
+            "expected between 0 and 0.7, got {}",
+            s.score
+        );
     }
 }

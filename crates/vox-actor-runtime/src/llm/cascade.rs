@@ -153,14 +153,17 @@ fn apply_stage_defaults(stage: ResearchStage, cfg: &mut LlmConfig) {
         ResearchStage::Synthesis => 0.2,
         ResearchStage::SelfVerification => 0.0,
     });
-    cfg.max_tokens = Some(match stage {
-        ResearchStage::Planner => 700,
-        ResearchStage::ClaimExtraction => 900,
-        ResearchStage::Verification => 500,
-        ResearchStage::Synthesis => 1_800,
-        ResearchStage::Judge => 400,
-        ResearchStage::SelfVerification => 700,
-    });
+    // Synthesis max_tokens is NOT set here — controlled by ResearchConfig::synthesis_max_tokens.
+    if stage != ResearchStage::Synthesis {
+        cfg.max_tokens = Some(match stage {
+            ResearchStage::Planner => 700,
+            ResearchStage::ClaimExtraction => 900,
+            ResearchStage::Verification => 500,
+            ResearchStage::Judge => 400,
+            ResearchStage::SelfVerification => 700,
+            ResearchStage::Synthesis => unreachable!("guarded by outer if"),
+        });
+    }
 }
 
 #[cfg(test)]
@@ -195,5 +198,25 @@ mod tests {
             candidates[0].base_url.as_deref(),
             Some("http://localhost:9999/v1/chat/completions")
         );
+    }
+
+    #[test]
+    fn synthesis_stage_does_not_force_1800_max_tokens() {
+        use crate::model_resolution::RouteResolutionInput;
+        let candidates = cascade_with_optional_manual(
+            ResearchStage::Synthesis,
+            &RouteResolutionInput::default(),
+            None,
+            None,
+            None,
+        );
+        if let Some(c) = candidates.first() {
+            assert_ne!(
+                c.max_tokens,
+                Some(1_800),
+                "Synthesis max_tokens must not be hard-coded; got {:?}",
+                c.max_tokens
+            );
+        }
     }
 }

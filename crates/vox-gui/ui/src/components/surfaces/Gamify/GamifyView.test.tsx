@@ -75,4 +75,11 @@ describe('GamifyView', () => {
       expect(b.getAttribute('type')).toBe('button');
     }
   });
+
+  it('renders immersive fullscreen sandbox visualizer', () => {
+    const { render } = require('@testing-library/react');
+    const { container } = render(<GamifyView pushToast={vi.fn()} />);
+    const canvas = container.querySelector('canvas');
+    expect(canvas).not.toBeNull();
+  });
 });

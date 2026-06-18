@@ -138,6 +138,14 @@ def main() -> int:
 
     Path(args.out).write_text(json.dumps(g), encoding="utf-8")
 
+    from manifest_writer import find_repo_root, maybe_write_graphify_manifest
+
+    out_path = Path(args.out)
+    manifest_path = maybe_write_graphify_manifest(find_repo_root(out_path), out_path)
+    if manifest_path is not None:
+        repo_root = find_repo_root(out_path)
+        print(f"wrote {manifest_path.relative_to(repo_root)}", flush=True)
+
     rows = sorted(per_crate.items(), key=lambda kv: -kv[1]["reached_not_proven"])
     tot_rnp = sum(v["reached_not_proven"] for v in per_crate.values())
     out = ["# Reached-but-NOT-Proven — Phase 0 (llvm-cov × proven map)\n",

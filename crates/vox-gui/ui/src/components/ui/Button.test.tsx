@@ -45,4 +45,19 @@ describe('Button', () => {
     render(<Button disabled>Disabled</Button>);
     expect(screen.getByRole('button')).toBeDisabled();
   });
+
+  it('renders with variants and sizes', () => {
+    const { rerender } = render(<Button variant="primary" size="lg">Test</Button>);
+    expect(screen.getByRole('button')).toHaveClass('bg-brass');
+
+    rerender(<Button variant="danger" size="xs">Test</Button>);
+    expect(screen.getByRole('button')).toHaveClass('bg-red-500');
+  });
+
+  it('renders in loading state by rendering a spinner and disabling click', () => {
+    render(<Button loading>Submit</Button>);
+    const btn = screen.getByRole('button');
+    expect(btn).toBeDisabled();
+    expect(btn.querySelector('svg')).toBeInTheDocument(); // spinner icon
+  });
 });

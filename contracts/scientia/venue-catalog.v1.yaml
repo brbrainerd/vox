@@ -11,6 +11,7 @@ venues:
     min_pages: 12
     max_pages: 14
     target_atlas: provider-atlas
+    allows_llm_critic: false
 
   - id: mlsys
     name: "Machine Learning and Systems"
@@ -23,6 +24,7 @@ venues:
     min_pages: 10
     max_pages: 12
     target_atlas: provider-atlas
+    allows_llm_critic: false
 
   - id: tmlr
     name: "Transactions on Machine Learning Research"
@@ -35,6 +37,7 @@ venues:
     min_pages: ~
     max_pages: ~
     target_atlas: provider-atlas
+    allows_llm_critic: true
 
   - id: jmlr
     name: "Journal of Machine Learning Research"
@@ -47,6 +50,7 @@ venues:
     min_pages: ~
     max_pages: ~
     target_atlas: ~
+    allows_llm_critic: true
 
   - id: jair
     name: "Journal of Artificial Intelligence Research"
@@ -59,6 +63,7 @@ venues:
     min_pages: ~
     max_pages: ~
     target_atlas: ~
+    allows_llm_critic: true
 
   - id: distill
     name: "Distill"
@@ -71,6 +76,7 @@ venues:
     min_pages: ~
     max_pages: ~
     target_atlas: ~
+    allows_llm_critic: true
 
   - id: living-reviews
     name: "Living Reviews in AI (Vox Internal)"
@@ -84,3 +90,4 @@ venues:
     max_pages: ~
     target_atlas: provider-atlas
     living_review: true
+    allows_llm_critic: true

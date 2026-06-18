@@ -10,6 +10,8 @@ function verdictMeta(kind: NoveltyVerdictKind): { label: string; tone: string } 
       return { label: 'Possibly novel', tone: 'border-violet-400/40 bg-violet-400/10 text-violet-200' };
     case 'not_novel':
       return { label: 'Not novel', tone: 'border-rose-400/40 bg-rose-400/10 text-rose-200' };
+    case 'contradicted':
+      return { label: 'Contradicted', tone: 'border-orange-400/40 bg-orange-400/10 text-orange-200' };
     case 'insufficient_evidence':
     default:
       return { label: 'Insufficient evidence', tone: 'border-amber-400/40 bg-amber-400/10 text-amber-200' };
@@ -51,6 +53,9 @@ export function NoveltyEvidencePanel({ assessment }: { assessment: NoveltyAssess
       {insufficient && (
         <div className="mb-3 rounded-lg border border-amber-400/30 bg-amber-400/[0.06] px-3 py-2 font-mono text-[11px] text-amber-200/90">
           <span aria-hidden="true">⚠</span> Retrieval failed or never ran — do not treat as novel.
+          {assessment.insufficient_evidence_reason && (
+            <div className="mt-1 text-amber-100/80">{assessment.insufficient_evidence_reason}</div>
+          )}
         </div>
       )}
 

@@ -9,6 +9,7 @@ export const INITIAL_DATA: DashboardData = {
   kpis: {
     budgetBurn: { label: "Budget Burn", value: 0, cap: DEFAULT_BUDGET_CAP_USD, spark: [0, 0, 0, 0, 0, 0, 0] },
     mesh: { label: "Mesh", value: "0 GB/s", cap: 10, spark: [0, 0, 0, 0, 0, 0, 0] },
+    queueDepth: { value: 0, spark: [0, 0, 0, 0, 0] },
   },
   agents: [],
   stream: [],
@@ -27,5 +28,5 @@ export const INITIAL_KPIS = {
     activeAgents: { value: 0, delta: 0, spark: [0, 0, 0, 0, 0] },
     queueDepth: { value: 0, delta: 0, spark: [0, 0, 0, 0, 0] },
     budgetBurn: { value: 0, cap: DEFAULT_BUDGET_CAP_USD, delta: 0, spark: [0, 0, 0, 0, 0], source: 'fallback' as BudgetSource },
-    mesh: { value: "0 MB/s", unit: "MB/s", delta: 0, spark: [0, 0, 0, 0, 0], peers: 0, vramGb: 0 },
+    mesh: { value: '0 peers' as string | number, unit: '', delta: 0, spark: [0, 0, 0, 0, 0], peers: 0, vramGb: 0 },
 };

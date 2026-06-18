@@ -70,6 +70,7 @@ The compiler emits **`defineSchema` / `searchIndex(...)`** from `@search_index` 
 | Docs mirror (optional) | Tantivy (`tantivy-lexical` feature) | Supplemental |
 | Sidecar ANN (optional) | Qdrant (`qdrant-vector` feature) | Parallel to DB chunk search |
 | Web | SearXNG / DDG / optional Tavily | Policy-gated |
+| Graphify search log (virtual) | Turso `graphify_search_hit` nodes | Virtual corpus tracking queries and FNV-64 hashes. Always fresh; bypassed by lexical check |
 
 ## 5. Policy knobs (vox-secrets / env)
 
@@ -89,6 +90,10 @@ The compiler emits **`defineSchema` / `searchIndex(...)`** from `@search_index` 
 | `vox_memory_search` | Full retrieval bundle (memory, knowledge, chunks, repo, optional RRF / web paths per plan) |
 | `vox_knowledge_query` | Narrow query against `knowledge_nodes` only |
 | `vox_research_run` | Orchestrator `run_research` pipeline: `vox-search` web tier (SearXNG → DDG → Tavily) + optional CRAG hops + synthesis/judge when LLM env is configured — see [`deep-research-prior-art-and-vox-roadmap-2026.md`](deep-research-prior-art-and-vox-roadmap-2026.md) |
+| `vox_graphify_search` | Lexically search a graphify corpus graph on disk (read-only) |
+| `vox_graphify_query` | BFS neighbor expansion from seed node IDs (read-only; layered navigation) |
+| `vox_graphify_path` | Shortest path between two node IDs in a graphify corpus (read-only) |
+| `vox_graphify_compare` | Diff two graphify corpus manifests for node/edge/community delta (read-only) |
 
 **Dashboard:** use `POST /v1/tools/call` (`voxTransport.callTool`). No client-side BM25/vector index unless there is an explicit offline product requirement.
 

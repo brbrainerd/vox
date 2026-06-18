@@ -2,7 +2,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { Pill } from '../../ui/Pill';
+import { phaseFill, phaseStroke } from '../../../lib/visualTokens';
 import { MATRIX_POLL_MS } from '../../../config/constants';
+import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 
 /** One routing-priority axis projected onto the hex grid (mirrors the Rust
  *  `RoutingIntentionDto`). */
@@ -17,13 +19,19 @@ interface RoutingIntention {
 
 function HexCell({ intention, onSelect, selected }: { intention: RoutingIntention; onSelect: (id: string) => void; selected: boolean }) {
   const conf = intention.conf;
-  const phaseToneMap: Record<string, any> = {
-    Validated:   { stroke: "#34d399", fill: "rgba(52,211,153," + (0.06 + conf*0.18) + ")", text: "text-emerald-300", glow: "#34d399" },
-    Active:      { stroke: "#22d3ee", fill: "rgba(34,211,238," + (0.06 + conf*0.18) + ")", text: "text-cyan-300",    glow: "#22d3ee" },
-    Doubted:     { stroke: "#fbbf24", fill: "rgba(251,191,36," + (0.06 + conf*0.18) + ")", text: "text-amber-300",   glow: "#fbbf24" },
-    Speculative: { stroke: "#a78bfa", fill: "rgba(167,139,250," + (0.06 + conf*0.18) + ")", text: "text-violet-300", glow: "#a78bfa" },
+  const stroke = phaseStroke(intention.phase === 'Active' ? 'Active' : intention.phase);
+  const phaseText: Record<string, string> = {
+    Validated: 'text-emerald-300',
+    Active: 'text-cyan-300',
+    Doubted: 'text-amber-300',
+    Speculative: 'text-violet-300',
   };
-  const phaseTone = phaseToneMap[intention.phase] || phaseToneMap.Active;
+  const phaseTone = {
+    stroke,
+    fill: phaseFill(stroke, conf),
+    text: phaseText[intention.phase] ?? 'text-cyan-300',
+    glow: stroke,
+  };
 
   return (
     <button
@@ -49,9 +57,10 @@ function HexCell({ intention, onSelect, selected }: { intention: RoutingIntentio
 
 interface MatrixProps {
   pushToast: (t: any) => void;
+  gamifyEnabled?: boolean;
 }
 
-export function Matrix({ pushToast }: MatrixProps) {
+export function Matrix({ pushToast, gamifyEnabled = false }: MatrixProps) {
   const [intentions, setIntentions] = useState<RoutingIntention[]>([]);
   const [sel, setSel] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
@@ -79,6 +88,11 @@ export function Matrix({ pushToast }: MatrixProps) {
     setBusy(true);
     try {
       await invoke('nudge_routing_intention', { axis: axis.id, direction });
+      void recordGamifyGuiEvent(
+        'palette_navigation',
+        { axis: axis.id, direction, surface: 'matrix' },
+        { enabled: gamifyEnabled },
+      );
       pushToast({
         tone: direction === 'promote' ? 'ok' : 'warn',
         title: direction === 'promote' ? 'Axis promoted' : 'Axis doubted',
@@ -91,7 +105,7 @@ export function Matrix({ pushToast }: MatrixProps) {
     } finally {
       setBusy(false);
     }
-  }, [pushToast, refresh]);
+  }, [pushToast, refresh, gamifyEnabled]);
 
   const active = intentions.find(i => i.id === sel) || intentions[0];
 

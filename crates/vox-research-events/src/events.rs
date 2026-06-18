@@ -94,6 +94,9 @@ pub enum ResearchEvent {
         claim_ids: Vec<u64>,
         worthiness_score: f64,
         session_id: String,
+        /// Full `FindingCandidateV1` JSON when produced by the research pipeline.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        finding_candidate: Option<serde_json::Value>,
     },
 
     // ── T3 — Finding approved by dual-approver gate ───────────────────────────

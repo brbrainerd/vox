@@ -38,6 +38,8 @@ pub struct ResearchPlan {
     pub subqueries: Vec<String>,
     pub scope: ResearchScope,
     pub max_sources_per_subquery: usize,
+    /// `true` when the planner fell back to a single-subquery passthrough after LLM failure.
+    pub planner_degraded: bool,
 }
 
 /// One retrieved source.
@@ -64,6 +66,12 @@ pub struct RetrievalDiagnostics {
     pub fusion_weights: (f64, f64, f64),
     pub dropped_source_count: usize,
     pub hit_rate: f64,
+    /// Distinct registrable domains among retrieved source URLs.
+    #[serde(default)]
+    pub distinct_domain_count: usize,
+    /// True when `distinct_domain_count` is below `ResearchConfig::min_distinct_domains`.
+    #[serde(default)]
+    pub citation_diversity_below_threshold: bool,
 }
 
 impl Default for RetrievalDiagnostics {
@@ -75,6 +83,8 @@ impl Default for RetrievalDiagnostics {
             fusion_weights: (0.0, 0.0, 0.0),
             dropped_source_count: 0,
             hit_rate: 0.0,
+            distinct_domain_count: 0,
+            citation_diversity_below_threshold: false,
         }
     }
 }
@@ -172,6 +182,8 @@ pub struct ResearchMetadata {
     pub retrieval_diagnostics: RetrievalDiagnostics,
     /// Quality score from LLM-as-judge (0-100; i32 to match `judge_quality` return type).
     pub quality_score: i32,
+    /// `true` when the planner fell back to a single-subquery passthrough after LLM failure.
+    pub planner_degraded: bool,
     pub competence: Option<CompetenceSignal>,
     pub self_verification: Option<SelfVerificationResult>,
     pub citation_audit: Option<CitationAuditResult>,

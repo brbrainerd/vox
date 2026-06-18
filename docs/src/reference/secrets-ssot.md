@@ -70,6 +70,17 @@ For each managed secret ID:
 5. secure local store
 6. compatibility file stores (`~/.vox/auth.json`, legacy `~/.vox/auth_token`, `.vox/populi/mesh.env` where applicable)
 
+### Local Clavis vault troubleshooting (Windows)
+
+| Symptom | Likely cause | Recovery |
+| --- | --- | --- |
+| `invalid filename` on `backend-status` | Stale `vox.exe` or `file:` URL passed to Turso | Rebuild `vox-cli`; set `VOX_SECRETS_VAULT_PATH` to a filesystem path (not a `file:` URL) |
+| `decryption failed: aead::Error` | OS keyring master drift vs vault ciphertext | Backup → delete `.vox/clavis_vault.db` → `vox secrets import-env --file <env>` |
+| `secrets set` wrote auth.json but vault empty | `set` targets auth store, not Clavis | Use `import-env` for vault writes |
+| `secrets get` misses vault token | Spec has `auth_registry: None` | Use env var, vault via `resolve_secret`, or wire `auth_registry` |
+
+Keyring entry: service `vox-secrets-vault`, user `master`. **Never** commit vault files or `.env` import fragments.
+
 ## Required vs Optional Model
 
 - `vox secrets doctor` evaluates **blocking requirement groups** (`AnyOf`/`AllOf`) per workflow/profile.

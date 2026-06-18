@@ -143,6 +143,16 @@ pub struct NoveltyEvidenceBundleV1 {
     pub query_traces: Vec<NoveltyQueryTrace>,
 }
 
+/// Contract SSOT type from `contracts/scientia/novelty-evidence-bundle.v1.schema.json`.
+pub type NoveltyEvidenceBundleContract = vox_research_events::schema_types::NoveltyEvidenceBundle;
+
+/// Convert publisher wire type → contract type via validated serde round-trip.
+pub fn to_contract_bundle(v1: &NoveltyEvidenceBundleV1) -> NoveltyEvidenceBundleContract {
+    let val = serde_json::to_value(v1).expect("NoveltyEvidenceBundleV1 must be serializable");
+    serde_json::from_value(val)
+        .expect("NoveltyEvidenceBundleV1 must round-trip to NoveltyEvidenceBundle")
+}
+
 /// Derive a stable candidate id from publication id (or arbitrary stem).
 #[must_use]
 pub fn default_candidate_id(publication_id: &str) -> String {

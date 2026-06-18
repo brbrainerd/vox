@@ -52,7 +52,10 @@ pub(crate) async fn persist_research_event_metrics(
         } => {
             if !matches!(
                 metric_type.as_str(),
-                "research_started" | "sources_total" | "self_verification_reliability"
+                "research_started"
+                    | "sources_total"
+                    | "self_verification_reliability"
+                    | "research_session_completed"
             ) {
                 return Ok(());
             }
@@ -70,6 +73,22 @@ pub(crate) async fn persist_research_event_metrics(
             db.record_research_metric(sid, metric_type, *value, Some(&meta_str))
                 .await
                 .map_err(|e| e.to_string())?;
+            #[cfg(feature = "gamify")]
+            if metric_type == "research_session_completed" {
+                if let Err(err) =
+                    vox_gamify::discovery::scientia_kudos::emit_research_session_complete_kudos(
+                        db, sid,
+                    )
+                    .await
+                {
+                    tracing::debug!(
+                        target: "vox_orchestrator::research_metrics_bridge",
+                        session_id = sid,
+                        error = %err,
+                        "research_session_complete_kudos_failed"
+                    );
+                }
+            }
         }
         ResearchEvent::AggregateComputed {
             provider,
@@ -108,16 +127,20 @@ pub(crate) async fn persist_research_event_metrics(
             claim_ids,
             worthiness_score,
             session_id,
+            finding_candidate,
         } => {
             let Some(sid) = parse_session_row_id(session_id) else {
                 return Ok(());
             };
-            let meta = serde_json::json!({
+            let mut meta = serde_json::json!({
                 "telemetry_catalog_id": TELEMETRY_CATALOG_ID_RESEARCH_EVENT_BRIDGE,
                 "event_type": "FindingCandidateProposed",
                 "finding_id": finding_id,
                 "claim_ids": claim_ids,
             });
+            if let Some(candidate) = finding_candidate {
+                meta["finding_candidate"] = candidate.clone();
+            }
             let meta_str = serde_json::to_string(&meta).map_err(|e| e.to_string())?;
             db.record_research_metric(
                 sid,
@@ -222,5 +245,33 @@ mod tests {
             recorded_at_ms: 0,
         };
         assert_eq!(evt.kind(), ResearchEventKind::TelemetryObservation);
+    }
+
+    #[cfg(feature = "gamify")]
+    #[tokio::test]
+    async fn bridge_emits_kudos_on_research_session_completed_when_gamify_enabled() {
+        use vox_gamify::discovery::scientia_kudos::LOCAL_SCIENTIA_USER_ID;
+
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("memory db");
+        let sid = db
+            .create_research_session("bridge:kudos", "q")
+            .await
+            .expect("session");
+        let evt = ResearchEvent::TelemetryObservation {
+            provider: "unit".into(),
+            metric_type: "research_session_completed".into(),
+            value: 1.0,
+            session_id: sid.to_string(),
+            recorded_at_ms: 1,
+        };
+        persist_research_event_metrics(&db, &evt)
+            .await
+            .expect("persist + kudos");
+
+        let count = db
+            .count_kudos_for_user(LOCAL_SCIENTIA_USER_ID)
+            .await
+            .expect("count kudos");
+        assert_eq!(count, 1);
     }
 }

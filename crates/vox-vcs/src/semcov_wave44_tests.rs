@@ -5,6 +5,7 @@
 
 #[cfg(test)]
 mod semcov_wave44_tests {
+    #![allow(clippy::module_inception)]
     use crate::backend::{VcsBackend, VcsBackendKind, VcsError, detect};
     use crate::cas_fallback::CasFallback;
     use crate::types::{Change, ChangeId, Conflict, Diff, ResolveStrategy};

@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod semcov_wave46_tests {
+    #![allow(clippy::module_inception)]
     use crate::{
         A2A_MESSAGE_TYPES, McpToolRegistryEntry, ORCHESTRATOR_TOOLS, SKILL_TOOLS, TOOL_REGISTRY,
     };
