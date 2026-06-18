@@ -10,6 +10,7 @@
 
 pub mod bfs;
 pub mod compare;
+pub mod cluster;
 
 use std::collections::HashMap;
 
