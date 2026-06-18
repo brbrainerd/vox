@@ -36,7 +36,8 @@ const VARIANT_BADGE: Record<StateVariant, { bg: string; color: string; label: st
 
 test('generate visual audit report', async () => {
   if (!existsSync(SCREENS_DIR)) {
-    throw new Error(`screens/ not found at ${SCREENS_DIR}. Run screenshot specs first.`);
+    test.skip(true, 'No e2e/screens/ directory — run screenshot specs first (pnpm exec playwright test screenshots.spec.ts --project=chromium)');
+    return;
   }
   const pngs = readdirSync(SCREENS_DIR).filter((f) => f.endsWith('.png')).sort();
   expect(pngs.length, 'No PNGs in e2e/screens/ — run screenshot specs first').toBeGreaterThan(0);

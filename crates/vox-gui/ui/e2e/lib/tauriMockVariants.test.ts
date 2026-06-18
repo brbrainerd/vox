@@ -15,6 +15,8 @@ function makeFakeWindow(): any {
     },
     __TAURI_INTERNALS__: undefined,
     __TAURI_CALLS__: undefined,
+    // Required so unlisten() calls triggered during React cleanup don't throw.
+    __TAURI_EVENT_PLUGIN_INTERNALS__: undefined,
   };
 }
 
@@ -73,6 +75,14 @@ describe('installEmptyStateMock', () => {
       }
     });
   });
+
+  it('sets __TAURI_EVENT_PLUGIN_INTERNALS__ with unregisterListener stub', () => {
+    withFakeWindow((win) => {
+      installEmptyStateMock('dashboard');
+      expect(win.__TAURI_EVENT_PLUGIN_INTERNALS__).toBeDefined();
+      expect(typeof win.__TAURI_EVENT_PLUGIN_INTERNALS__.unregisterListener).toBe('function');
+    });
+  });
 });
 
 describe('installErrorStateMock', () => {
@@ -95,6 +105,14 @@ describe('installErrorStateMock', () => {
     await withFakeWindow(async (win) => {
       installErrorStateMock('policies');
       await expect(win.__TAURI_INTERNALS__.invoke('policy_list')).rejects.toThrow('[mock-error]');
+    });
+  });
+
+  it('sets __TAURI_EVENT_PLUGIN_INTERNALS__ with unregisterListener stub', () => {
+    withFakeWindow((win) => {
+      installErrorStateMock('runs');
+      expect(win.__TAURI_EVENT_PLUGIN_INTERNALS__).toBeDefined();
+      expect(typeof win.__TAURI_EVENT_PLUGIN_INTERNALS__.unregisterListener).toBe('function');
     });
   });
 });

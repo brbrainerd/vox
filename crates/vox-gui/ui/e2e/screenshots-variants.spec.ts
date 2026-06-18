@@ -9,7 +9,12 @@
  *   e2e/screens/<view>-error.png  — surface with key data-fetch IPC throwing errors
  */
 import { test, expect, type Page } from '@playwright/test';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { installEmptyStateMock, installErrorStateMock } from './lib/tauriMockVariants';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const SCREENS_DIR = join(__dirname, 'screens');
 
 const RUN_VARIANTS = !!process.env['VOX_VARIANT_SCREENSHOTS'];
 
@@ -44,7 +49,7 @@ test.describe('GUI visual audit — empty states', () => {
       await page.goto('/');
       await page.waitForSelector('nav', { timeout: 15_000 });
       await page.waitForTimeout(1600);
-      await page.screenshot({ path: `e2e/screens/${view}-empty.png`, fullPage: true });
+      await page.screenshot({ path: join(SCREENS_DIR, `${view}-empty.png`), fullPage: true });
 
       // Empty responses must NOT crash the error boundary — surfaces should show empty-state UI.
       await expect(
@@ -70,7 +75,7 @@ test.describe('GUI visual audit — error states', () => {
       await page.goto('/');
       await page.waitForSelector('nav', { timeout: 15_000 });
       await page.waitForTimeout(1600);
-      await page.screenshot({ path: `e2e/screens/${view}-error.png`, fullPage: true });
+      await page.screenshot({ path: join(SCREENS_DIR, `${view}-error.png`), fullPage: true });
 
       // Error-state surfaces MAY render an error boundary — both are valid.
       // What we audit: does the error UI look reasonable (not blank, not garbled)?

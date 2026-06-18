@@ -36,7 +36,7 @@ export function TerminalTab({ tabId, pendingLine, onBlock }: Props) {
   const onBlockRef = useRef(onBlock);
   onBlockRef.current = onBlock;
 
-  const isMock = typeof window !== 'undefined' && (window as any).__TAURI_CALLS__;
+  const isMock: boolean = typeof window !== 'undefined' && !!((window as any).__TAURI_CALLS__);
 
   useEffect(() => {
     if (isMock) return;
@@ -134,7 +134,7 @@ export function TerminalTab({ tabId, pendingLine, onBlock }: Props) {
         <div>Microsoft Windows [Version 10.0.22631]</div>
         <div>(c) Microsoft Corporation. All rights reserved.</div>
         <br />
-        <div>c:\Users\Owner\vox&gt; vox run</div>
+        <div>C:\workspace\vox&gt; vox run</div>
         <div>🏃 Running task...</div>
         <div>[info] Web server listening on port 1420</div>
         <div>[info] Database connection established</div>

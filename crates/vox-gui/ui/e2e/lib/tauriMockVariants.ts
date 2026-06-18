@@ -50,6 +50,10 @@ export function installEmptyStateMock(viewKey: string): void {
   }
 
   /** Commands that must succeed for the app shell to mount at all. */
+  // NOTE: bootstrapResponse is duplicated verbatim in installErrorStateMock.
+  // This is REQUIRED by Playwright's page.addInitScript which serialises the
+  // entire function body as a string — module-level constants are NOT in scope
+  // inside the browser. Keep both copies in sync when adding new bootstrap commands.
   function bootstrapResponse(cmd: string, viewKey: string): unknown {
     switch (cmd) {
       case 'get_initial_view': return viewKey;
@@ -107,6 +111,8 @@ export function installErrorStateMock(viewKey: string): void {
   ]);
 
   /** Commands that must succeed for the app shell to mount at all. */
+  // NOTE: bootstrapResponse is duplicated verbatim from installEmptyStateMock.
+  // See the comment there for why. Keep both copies in sync.
   function bootstrapResponse(cmd: string, viewKey: string): unknown {
     switch (cmd) {
       case 'get_initial_view': return viewKey;
