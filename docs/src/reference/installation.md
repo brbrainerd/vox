@@ -1,7 +1,7 @@
 ---
 title: "Installing Vox"
 description: "Install the Vox programming language and toolchain on macOS, Linux, or Windows using the official voxup installer."
-category: "reference"
+category: "Getting Started"
 status: "current"
 ---
 
@@ -27,7 +27,7 @@ Invoke-WebRequest -Uri https://voxlang.org/voxup.ps1 -OutFile voxup.ps1
 
 After installation, restart your terminal (or `source ~/.bashrc`) then verify:
 
-```
+```bash
 vox --version
 ```
 
@@ -44,7 +44,7 @@ vox --version
 
 ## Updating
 
-```
+```bash
 voxup update
 ```
 
@@ -54,7 +54,7 @@ This checks GitHub for a newer release and installs it if available.
 
 If you have the Rust toolchain and want to build from source:
 
-```
+```bash
 cargo install --locked --path crates/voxup
 voxup install default
 ```
