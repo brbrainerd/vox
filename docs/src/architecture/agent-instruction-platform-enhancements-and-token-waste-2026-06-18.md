@@ -1,7 +1,7 @@
 ---
 title: "Agent Instruction Files: Per-Platform Enhancements + Token-Waste & Commit-Churn Audit (June 2026)"
 description: "What each agent platform (Claude Code, Antigravity/Gemini 3.5 Flash, GitHub Copilot, Cursor) supports for instruction files as of mid-2026, the capabilities our overlay set under-uses, and a git-history audit of token waste and commit-message-vs-diff drift with concrete remediations."
-category: "Architecture"
+category: "Architecture SSOTs"
 ---
 
 # Agent Instruction Files: Per-Platform Enhancements + Token-Waste & Commit-Churn Audit
