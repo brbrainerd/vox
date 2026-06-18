@@ -1,16 +1,15 @@
 use clap::{Parser, Subcommand};
 use tracing::{Level, info};
 
-mod install;
-mod manifest;
 mod channel;
 mod download;
-mod shell;
+mod install;
 mod proxy;
+mod shell;
 mod update;
 
 #[derive(Parser)]
-#[command(name = "voxup", about = "The Vox toolchain multiplexer")]
+#[command(name = "voxup", about = "The Vox toolchain installer and multiplexer", version)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -18,15 +17,16 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Install or update the Vox toolchain
+    /// Install or update the Vox toolchain from GitHub Releases.
     Install {
         #[arg(default_value = "default")]
         profile: String,
     },
-    /// Run the proxy for a vox command
+    /// Check for a newer Vox release and upgrade if one is available.
+    Update,
+    /// Proxy a vox command through the hermetic environment.
     Proxy {
-        /// The vox arguments
-        #[arg(trailing_var_arg = true)]
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
 }
@@ -34,19 +34,19 @@ enum Commands {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt().with_max_level(Level::INFO).init();
-
     let cli = Cli::parse();
-
     match &cli.command {
         Commands::Install { profile } => {
-            info!("Installing voxup profile: {}", profile);
+            info!("Installing Vox (profile: {profile})");
             install::run_install(profile).await?;
         }
+        Commands::Update => {
+            info!("Checking for Vox updates…");
+            update::run_update().await?;
+        }
         Commands::Proxy { args } => {
-            info!("voxup proxy intercept: forwarding args: {:?}", args);
             proxy::run_proxy(args).await?;
         }
     }
-
     Ok(())
 }

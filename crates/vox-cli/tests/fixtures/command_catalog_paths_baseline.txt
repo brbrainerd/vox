@@ -335,6 +335,7 @@ generate
 grammar
 graphify
 graphify/ingest
+graphify/rebuild
 graphify/status
 init
 llm

@@ -1,15 +1,8 @@
 use anyhow::{Context, Result, bail};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tracing::{info, warn};
 
-/// Resolve the user home directory using env vars (cross-platform, no `dirs` dep).
-fn home_dir() -> PathBuf {
-    std::env::var_os("HOME")
-        .or_else(|| std::env::var_os("USERPROFILE"))
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("."))
-}
 
 pub async fn run_install(_profile: &str) -> Result<()> {
     let home = dirs::home_dir().context("cannot determine home directory")?;
