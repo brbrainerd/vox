@@ -2,6 +2,7 @@
 title: "VoxMens Hub-and-Spoke: SSOT, Per-Spoke Model Selection, and Generalization Beyond QLoRA — Research & Audit"
 description: "Audit of the existing lane/mix architecture plus researched best-practice for a config-only single source of truth that declares spokes, selects a base model and training method per spoke, and routes at inference — gesturing toward a future implementation plan."
 category: "Architecture SSOTs"
+training_eligible: true
 ---
 
 # VoxMens Hub-and-Spoke: SSOT + Per-Spoke Model Selection + Generalization Beyond QLoRA

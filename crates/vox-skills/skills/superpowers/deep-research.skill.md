@@ -35,3 +35,6 @@ Large fan-out (one agent per query, dozens at once) can trip a transient server 
 - Cite primary sources by URL. Prefer primary over secondary over blog.
 - Grade every claim. Separate confirmed / reputable-unverified / refuted.
 - End with caveats + open questions. Persist findings to `docs/src/architecture/` with YAML frontmatter (per AGENTS.md) so future sessions reuse them.
+  - Output files must follow the naming pattern `*-research-YYYY-MM-DD.md` or `*-findings-YYYY-MM-DD.md`
+  - Frontmatter must include: `title`, `description`, `category`, `status`, `training_eligible`
+  - After creating a new research page, update `docs/src/architecture/research-index.md`

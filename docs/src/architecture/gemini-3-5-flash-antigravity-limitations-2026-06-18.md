@@ -3,7 +3,7 @@ title: "Gemini 3.5 Flash & Google Antigravity — Limitations and Execution Cons
 description: "Reference profile of Gemini 3.5 Flash and the Google Antigravity agentic IDE as a plan-execution target: capability profile, documented reliability failure modes, customization surface (GEMINI.md/AGENTS.md/skills), and the concrete plan-engineering constraints these imply. For any future session handing autonomous work to this stack."
 category: "Architecture SSOTs"
 status: "current"
-last_updated: "2026-06-18"
+training_eligible: true
 ---
 
 # Gemini 3.5 Flash & Google Antigravity — Limitations and Execution Constraints

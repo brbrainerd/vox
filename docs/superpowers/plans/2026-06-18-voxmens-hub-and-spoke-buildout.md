@@ -582,12 +582,13 @@ Expected: This may already PASS (strict logic exists). If it PASSES, that confir
 The pipeline's `Mix` stage builds `train_mixed_*.jsonl`. Leave the broad `mens/config/mix.yaml` and the research mixes (`mix-research*.yaml`, `mix-rocks.yaml`) lenient — they aggregate many legitimately-optional lanes. Strictness must apply **only to the mix of the spoke actually being trained**, identified by the active `EffectiveDomainProfile.mix_config` (the `profile` parameter threaded in Task 2.3 Step 1), **not a filename heuristic** (a `"mix-"` prefix would wrongly force the research mixes strict). Concretely, in the `PipelineStage::Mix` arm, after resolving `mix_config`:
 ```rust
                         // Strict ONLY when this mix is the active spoke's declared mix.
-                        let is_active_spoke_mix = profile.as_deref()
-                            .and_then(|n| vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile
-                                ::load_domain_profile(n, ws.as_deref()).ok())
-                            .and_then(|e| e.mix_config)
-                            .map(|spoke_mix| spoke_mix == mix_config)
-                            .unwrap_or(false);
+                        let is_active_spoke_mix = if let Some(name) = profile.as_deref() {
+                            let eff = vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile
+                                ::load_domain_profile(name, ws.as_deref())?;
+                            eff.mix_config.map(|spoke_mix| spoke_mix == mix_config).unwrap_or(false)
+                        } else {
+                            false
+                        };
                         if is_active_spoke_mix {
                             vox_corpus::corpus::mix::run_mix_with_options(
                                 &mix_config,
@@ -924,6 +925,8 @@ Context: the research report's model-selection axis was rate-limited (unverified
 title: "VoxMens Per-Spoke Base Model Selection — Decision"
 description: "Verified base-model picks per spoke (VoxScript/Rust/agentic), VRAM floors, and method compatibility, scaled to the RTX 4080 SUPER (16GB) host. Resolves the unverified model-selection axis of the hub-and-spoke research."
 category: "Architecture"
+status: "roadmap"
+training_eligible: false
 ---
 
 # Per-Spoke Base Model Decision (2026-06-18)
@@ -1011,13 +1014,14 @@ impl ModelRegistry {
             .map_err(|e| anyhow::anyhow!("read {}: {e}", p.display()))?;
         serde_yaml::from_str(&s).map_err(|e| anyhow::anyhow!("parse model-registry: {e}"))
     }
-    /// Largest variant whose floor fits `available_vram_mb`. Errors if none fit.
-    pub fn resolve(&self, role: &str, available_vram_mb: u32) -> anyhow::Result<&Variant> {
+    /// Largest variant whose floor fits `available_vram_mb` and that supports `training_method`.
+    /// Errors if no variant satisfies both constraints.
+    pub fn resolve(&self, role: &str, available_vram_mb: u32, training_method: &str) -> anyhow::Result<&Variant> {
         let r = self.roles.get(role).ok_or_else(|| anyhow::anyhow!("unknown role '{role}'"))?;
         r.variants.iter()
-            .filter(|v| v.vram_floor_mb <= available_vram_mb)
+            .filter(|v| v.vram_floor_mb <= available_vram_mb && v.methods.iter().any(|m| m == training_method))
             .max_by_key(|v| v.vram_floor_mb)
-            .ok_or_else(|| anyhow::anyhow!("no variant of '{role}' fits {available_vram_mb}MB"))
+            .ok_or_else(|| anyhow::anyhow!("no variant of '{role}' fits {available_vram_mb}MB with method '{training_method}'"))
     }
 }
 
@@ -1035,12 +1039,16 @@ roles:
     }
     #[test]
     fn picks_largest_that_fits() {
-        assert_eq!(reg().resolve("r", 16384).unwrap().model_id, "big");
-        assert_eq!(reg().resolve("r", 8000).unwrap().model_id, "small");
+        assert_eq!(reg().resolve("r", 16384, "qlora").unwrap().model_id, "big");
+        assert_eq!(reg().resolve("r", 8000, "qlora").unwrap().model_id, "small");
     }
     #[test]
     fn errors_when_none_fit() {
-        assert!(reg().resolve("r", 4000).is_err());
+        assert!(reg().resolve("r", 4000, "qlora").is_err());
+    }
+    #[test]
+    fn errors_when_method_unsupported() {
+        assert!(reg().resolve("r", 16384, "dpo").is_err());
     }
 }
 ```
@@ -1093,7 +1101,7 @@ In the `Train` arm, before constructing `target_model`:
                                         .ok_or_else(|| anyhow::anyhow!(
                                             "cannot detect GPU VRAM; pass --model to override or fix gpu-specs detection"
                                         ))?;
-                                    Some(reg.resolve(&b.model, vram)?.model_id.clone())
+                                    Some(reg.resolve(&b.model, vram, b.method.as_str())?.model_id.clone())
                                 }
                                 None => None,
                             }
@@ -1239,8 +1247,7 @@ Expected: confirm (a) the no-flashing-window spawn helper to reuse (`feedback_no
 pub fn batch_pass_flags(n: usize, error_modules: &[String]) -> Vec<bool> {
     (0..n)
         .map(|i| {
-            let m = format!("snippet_{i}");
-            !error_modules.iter().any(|e| e.contains(&m))
+            !error_modules.iter().any(|m| m == &format!("snippet_{}", i))
         })
         .collect()
 }
@@ -1574,11 +1581,14 @@ Expected: lists the real backend variants. **Only map methods that have a real b
 
 - [ ] **Step 2: Add the dispatch before the `run_train` call**
 ```rust
-                        let method = profile.as_deref()
-                            .and_then(|n| vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile
-                                ::load_domain_profile(n, ws.as_deref()).ok())
-                            .and_then(|e| e.base.map(|b| b.method))
-                            .unwrap_or(vox_populi::mens::tensor::domain_profiles::TrainMethod::Qlora);
+                        let method = if let Some(name) = profile.as_deref() {
+                            let eff = vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile
+                                ::load_domain_profile(name, ws.as_deref())?;
+                            eff.base.map(|b| b.method)
+                                .ok_or_else(|| anyhow::anyhow!("profile '{name}' has no base.method; cannot dispatch training backend"))?
+                        } else {
+                            vox_populi::mens::tensor::domain_profiles::TrainMethod::Qlora
+                        };
                         use vox_populi::mens::tensor::domain_profiles::TrainMethod;
                         let backend = match method {
                             TrainMethod::Qlora => crate::commands::mens::PopuliTrainBackendCli::Qlora.into(),
@@ -1722,7 +1732,7 @@ git commit -m "feat(mens): lane-tag inference router over spoke triggers (priori
 
 If Phase 3 picked the **same base** for all spokes → adapter hot-swap (S-LoRA/LoRAX-style) is viable; if **heterogeneous bases** → separate model servers behind the Phase 7 router. Confirm the S-LoRA/LoRAX "single shared base" constraint with one live source before locking (it was unverified in the research).
 
-- [ ] **Step 2: Write the doc** (frontmatter `title`/`description`/`category: "Architecture"`), recording: chosen topology, the verified constraint, VRAM math from `gpu-specs.yaml`, and the router's role.
+- [ ] **Step 2: Write the doc** (frontmatter `title`/`description`/`category: "Architecture"`/`status: "roadmap"`/`training_eligible: false`), recording: chosen topology, the verified constraint, VRAM math from `gpu-specs.yaml`, and the router's role.
 
 - [ ] **Step 3: Commit**
 ```bash
