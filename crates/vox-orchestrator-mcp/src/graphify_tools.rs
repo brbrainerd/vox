@@ -537,7 +537,7 @@ mod tests {
     }
 
     fn write_sample_graph(repo: &Path) {
-        let dir = repo.join("graphify-out");
+        let dir = repo.join(".vox/cache/graphify/repo-code-graph");
         fs::create_dir_all(&dir).unwrap();
         fs::write(
             dir.join("graph.json"),
@@ -665,7 +665,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         write_registry(tmp.path());
         // Graph: auth --edge--> crypto
-        let dir = tmp.path().join("graphify-out");
+        let dir = tmp.path().join(".vox/cache/graphify/repo-code-graph");
         fs::create_dir_all(&dir).unwrap();
         fs::write(
             dir.join("graph.json"),
@@ -700,7 +700,7 @@ mod tests {
     async fn graphify_path_returns_node_route() {
         let tmp = tempfile::tempdir().unwrap();
         write_registry(tmp.path());
-        let dir = tmp.path().join("graphify-out");
+        let dir = tmp.path().join(".vox/cache/graphify/repo-code-graph");
         fs::create_dir_all(&dir).unwrap();
         fs::write(
             dir.join("graph.json"),
@@ -732,14 +732,14 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         write_registry(tmp.path());
         // Write graph files for both corpora being compared.
-        let dir_a = tmp.path().join("graphify-out");
+        let dir_a = tmp.path().join(".vox/cache/graphify/repo-code-graph");
         fs::create_dir_all(&dir_a).unwrap();
         fs::write(
             dir_a.join("graph.json"),
             r#"{"nodes":[{"id":"a"},{"id":"b"}],"links":[{"source":"a","target":"b"}]}"#,
         )
         .unwrap();
-        let dir_b = tmp.path().join("crates/vox-gui/graphify-out");
+        let dir_b = tmp.path().join(".vox/cache/graphify/vox-gui-surface");
         fs::create_dir_all(&dir_b).unwrap();
         fs::write(
             dir_b.join("graph.json"),

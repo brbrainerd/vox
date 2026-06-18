@@ -88,6 +88,8 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         | "vox_openclaw_discover"
         | "vox_openclaw_health"
         | "vox_openclaw_subscriptions"
+        | "vox_agent_list_remote"
+        | "vox_agent_subscriptions"
         | "vox_session_list"
         | "vox_session_cleanup"
         | "vox_memory_list_keys"
@@ -121,7 +123,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             r#"{"type":"object","properties":{"lane":{"type":"string","description":"Optional lane filter (e.g. lineage/task_failed)"},"limit":{"type":"integer","minimum":1,"maximum":1000,"description":"Maximum rows returned from the tail of filtered queue"},"include_replay":{"type":"boolean","description":"Include replay payload blobs in returned rows (default true)"}},"additionalProperties":false}"#,
         ),
         // `params` is `serde_json::Value` — derive would need a custom `schema_with`; keep explicit.
-        "vox_openclaw_gateway_call" => parse_obj(
+        "vox_openclaw_gateway_call" | "vox_agent_gateway_call" => parse_obj(
             r#"{"type":"object","properties":{"method":{"type":"string","minLength":1},"params":{"description":"OpenClaw gateway params JSON object"}},"required":["method"],"additionalProperties":false}"#,
         ),
         "vox_openclaw_search_remote" => {
@@ -130,10 +132,11 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_openclaw_import_skill" => {
             derived_tool_schema!(crate::params::OpenClawImportParams)
         }
-        "vox_openclaw_subscribe" | "vox_openclaw_unsubscribe" => {
-            derived_tool_schema!(crate::params::OpenClawDomainParams)
-        }
-        "vox_openclaw_notify" => {
+        "vox_openclaw_subscribe"
+        | "vox_openclaw_unsubscribe"
+        | "vox_agent_subscribe"
+        | "vox_agent_unsubscribe" => derived_tool_schema!(crate::params::OpenClawDomainParams),
+        "vox_openclaw_notify" | "vox_agent_notify" => {
             derived_tool_schema!(crate::params::OpenClawNotifyParams)
         }
 
