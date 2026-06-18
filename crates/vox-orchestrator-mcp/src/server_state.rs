@@ -175,8 +175,23 @@ impl ServerState {
                 .join(vox_config::mcp_sessions_dir(&repository.repository_id)),
             ..SessionConfig::default()
         };
-        let session_manager = SessionManager::new(session_cfg)
-            .unwrap_or_else(|e| panic!("Session manager initialization failed: {}", e));
+        let session_manager = match SessionManager::new(session_cfg) {
+            Ok(sm) => sm,
+            Err(e) => {
+                tracing::warn!(
+                    error = %e,
+                    "session manager initialization failed; \
+                     falling back to in-memory sessions (data will not persist across restarts)"
+                );
+                let fallback_cfg = SessionConfig {
+                    persist: false,
+                    ..SessionConfig::default()
+                };
+                SessionManager::new(fallback_cfg).unwrap_or_else(|e| {
+                    panic!("Fallback session manager initialization failed: {}", e)
+                })
+            }
+        };
 
         // Skill Registry
         let registry = new_registry_arc();
