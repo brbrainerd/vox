@@ -127,7 +127,7 @@ serde_core = { version = "1", features = ["alloc", "rc"] }
 serde_json = { version = "1", features = ["alloc", "raw_value", "unbounded_depth"] }
 serde_spanned = { version = "1" }
 sha1 = { version = "0.10", features = ["compress"] }
-sha2 = { version = "0.10", features = ["oid"] }
+sha2 = { version = "0.11", features = ["oid"] }
 signature = { version = "2", default-features = false, features = ["alloc", "digest", "rand_core"] }
 simd-adler32 = { version = "0.3" }
 similar = { version = "2", features = ["inline"] }
@@ -283,7 +283,7 @@ serde_core = { version = "1", features = ["alloc", "rc"] }
 serde_json = { version = "1", features = ["alloc", "raw_value", "unbounded_depth"] }
 serde_spanned = { version = "1" }
 sha1 = { version = "0.10", features = ["compress"] }
-sha2 = { version = "0.10", features = ["oid"] }
+sha2 = { version = "0.11", features = ["oid"] }
 signature = { version = "2", default-features = false, features = ["alloc", "digest", "rand_core"] }
 simd-adler32 = { version = "0.3" }
 similar = { version = "2", features = ["inline"] }
