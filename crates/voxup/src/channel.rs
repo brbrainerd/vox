@@ -26,10 +26,14 @@ impl ReleaseInfo {
     }
 }
 
-pub fn asset_name(version: &str) -> String {
+/// Returns the expected archive name for the given release tag on this platform.
+///
+/// `tag` is the raw GitHub tag string, e.g. `"v0.7.0"`. Asset names in GitHub
+/// Releases retain the `v` prefix exactly as the tag was pushed — so must we.
+pub fn asset_name(tag: &str) -> String {
     let target = env!("TARGET");
     let ext = if cfg!(windows) { "zip" } else { "tar.gz" };
-    format!("vox-{version}-{target}.{ext}")
+    format!("vox-{tag}-{target}.{ext}")
 }
 
 pub fn make_client() -> Result<Client> {
@@ -85,14 +89,14 @@ mod tests {
 
     #[test]
     fn asset_name_contains_version_and_target() {
-        let name = asset_name("0.7.0");
-        assert!(name.starts_with("vox-0.7.0-"), "got: {name}");
+        let name = asset_name("v0.7.0");
+        assert!(name.starts_with("vox-v0.7.0-"), "got: {name}");
         assert!(name.contains(env!("TARGET")), "got: {name}");
     }
 
     #[test]
     fn asset_name_has_correct_extension() {
-        let name = asset_name("1.2.3");
+        let name = asset_name("v1.2.3");
         if cfg!(windows) {
             assert!(name.ends_with(".zip"), "got: {name}");
         } else {
@@ -123,6 +127,18 @@ mod tests {
             "checksums.txt"
         );
         assert!(info.find_asset("nonexistent.zip").is_none());
+    }
+
+    #[test]
+    fn asset_name_includes_v_prefix_to_match_ci_artifact_filename() {
+        // CI calls: artifact_filename("vox", "v0.7.0", target) → "vox-v0.7.0-{target}.{ext}"
+        // voxup must look for: "vox-v0.7.0-{target}.{ext}" — WITH the 'v'
+        // The CI-side contract is locked in vox-cli/release_build.rs::artifact_filename_contract_is_stable
+        let name = asset_name("v0.7.0");
+        assert!(
+            name.starts_with("vox-v0.7.0-"),
+            "asset_name must keep the 'v' prefix to match CI artifact names, got: {name}"
+        );
     }
 
     #[test]

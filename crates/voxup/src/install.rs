@@ -24,7 +24,7 @@ pub async fn run_install(_profile: &str) -> Result<()> {
     let checksums = crate::download::parse_checksums(&ck_text);
 
     // Resolve the platform archive
-    let archive_name = crate::channel::asset_name(&release.version);
+    let archive_name = crate::channel::asset_name(&release.tag);
     let ar_asset = release.find_asset(&archive_name).with_context(|| {
         format!(
             "Expected asset '{archive_name}' not in release {}. Available: {}",
