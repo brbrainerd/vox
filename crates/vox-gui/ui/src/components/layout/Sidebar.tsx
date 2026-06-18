@@ -200,7 +200,7 @@ export function Sidebar({
               aria-label="Filter navigation"
               className="flex w-full items-center justify-between rounded-lg border border-white/5 px-2 py-1.5 text-[10px] uppercase tracking-[0.18em] text-zinc-500 hover:bg-white/[0.02] hover:text-zinc-300 transition"
             >
-              <span>Filter</span>
+              <span>Filter nav…</span>
               <Icon.chevronDown className={`size-3 transition ${filterCollapsed ? '' : 'rotate-180'}`} aria-hidden="true" />
             </button>
             {!filterCollapsed && (

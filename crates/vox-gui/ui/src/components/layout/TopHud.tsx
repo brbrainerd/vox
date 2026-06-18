@@ -244,8 +244,7 @@ export function TopHud({
           <span className={`size-1.5 rounded-full ${liveDot}`} />
           {liveLabel}
         </span>
-        <button type="button" onClick={openPalette} className="ml-auto text-zinc-500 hover:text-brass">⌘K</button>
-        <button type="button" onClick={cycleHud} aria-label="Expand HUD" className="text-zinc-600 hover:text-zinc-300" title="Expand HUD"><span aria-hidden="true">▲</span></button>
+        <button type="button" onClick={cycleHud} aria-label="Expand HUD" className="ml-auto text-zinc-600 hover:text-zinc-300" title="Expand HUD"><span aria-hidden="true">▲</span></button>
       </Glass>
     );
   }
@@ -280,15 +279,6 @@ export function TopHud({
       </div>
 
       <div className="ml-auto flex items-center gap-2 px-4 border-l border-white/5">
-        <button
-          type="button"
-          onClick={openPalette}
-          className="group flex items-center gap-2 rounded-lg border border-white/5 bg-white/[0.02] px-3 py-1.5 text-xs text-zinc-400 hover:border-brass/40 hover:text-brass transition"
-        >
-          <Icon.search className="size-3.5" />
-          <span className="font-display tracking-wider hidden sm:inline">Search</span>
-          <span className="ml-2 rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[9px] tracking-widest text-zinc-500">⌘K</span>
-        </button>
         <div className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 ${liveClasses}`}>
           <span className={`relative inline-block size-1.5 rounded-full ${liveDot}`}>
             {tone === 'live' && (
