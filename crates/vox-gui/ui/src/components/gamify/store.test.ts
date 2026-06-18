@@ -36,4 +36,16 @@ describe('Ludus Zustand Store', () => {
     expect(updated.energy).toBe(75);
     expect(updated.mood).toBe('Tired');
   });
+
+  it('correctly tracks warning and error statuses on building files', () => {
+    const store = useLudusStore.getState();
+    store.updateBuilding('src/lib.rs', { x: 3, y: 5, warnings: 2, errors: 0 });
+
+    const building = useLudusStore.getState().buildings['src/lib.rs'];
+    expect(building).toBeDefined();
+    expect(building.x).toBe(3);
+    expect(building.y).toBe(5);
+    expect(building.warnings).toBe(2);
+    expect(building.errors).toBe(0);
+  });
 });
