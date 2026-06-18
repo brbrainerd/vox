@@ -1,0 +1,53 @@
+// vox:caps fs subprocess env
+// Local Qwen Fine-Tuning Automation Script
+// Run via: vox run scripts/train_local_qwen.vox
+
+fn main() {
+    let output_dir = "mens/runs/qwen_local_latest"
+    let data_dir = "mens/data"
+    let model = "Qwen/Qwen3.5-2B-Instruct"
+    
+    print("--- Starting Local Qwen Training Automation ---")
+    print("Target Model:  " + model)
+    print("Data Dir:      " + data_dir)
+    print("Output Dir:    " + output_dir)
+    
+    let mut args = [
+        "mens", "train",
+        "--model", model,
+        "--device", "cuda",
+        "--backend", "qlora",
+        "--data-dir", data_dir,
+        "--output-dir", output_dir,
+        "--epochs", "3",
+        "--lr", "0.0002",
+        "--preset", "auto",
+        "--tokenizer", "hf"
+    ]
+    
+    print("Invoking training process...")
+    let mut proc = process.run("vox", args)
+    if proc is null {
+        print("  'vox' not found on PATH, falling back to 'cargo run'...")
+        let mut cargo_args = ["run", "-p", "vox-cli", "--"]
+        for a in args {
+            cargo_args.push(a)
+        }
+        proc = process.run("cargo", cargo_args)
+    }
+    
+    match proc {
+        Some(res) => {
+            if res.code == 0 {
+                print("Training completed successfully!")
+            } else {
+                print("Error: Training process exited with code: " + str(res.code))
+                process.exit(res.code)
+            }
+        }
+        None => {
+            print("Error: Could not execute training process.")
+            process.exit(1)
+        }
+    }
+}
