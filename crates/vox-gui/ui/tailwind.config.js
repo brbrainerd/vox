@@ -24,8 +24,8 @@ export default {
         'accent': 'var(--color-accent-default)',
       },
       fontFamily: {
-        display: ['Outfit', 'Inter', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
+        display: ['system-ui', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        mono: ['ui-monospace', 'Cascadia Code', 'Consolas', 'JetBrains Mono', 'monospace'],
       },
       animation: {
         'vox-ping': 'vox-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite',

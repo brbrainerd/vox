@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react';
 
+/**
+ * Browser-local persistence for GUI shell state. Canonical key names live in
+ * `lib/shellPersistence.ts` / `contracts/gui/shell-persistence.v1.yaml`.
+ * Prefer `voxTransport.getGuiPreference` for Tier-A prefs when backend sync is required.
+ */
 export function useLocalStorage<T>(key: string, initialValue: T) {
   const [storedValue, setStoredValue] = useState<T>(() => {
     try {

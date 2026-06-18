@@ -77,6 +77,7 @@ async fn main() {
             // F2: start the live Scientia-queue watcher, emitting a
             // "vox://scientia-queue" ping when the DB-backed queue changes.
             commands::scientia::spawn_scientia_queue_stream(app.handle().clone());
+            commands::scientia::spawn_discovery_surfaced_stream(app.handle().clone());
             let daemon = app
                 .state::<std::sync::Arc<commands::daemon::PersistentDaemon>>()
                 .inner()
@@ -146,6 +147,7 @@ async fn main() {
             commands::orchestrator::get_orchestrator_status_bin,
             commands::orchestrator::set_orchestrator_config,
             commands::orchestrator::get_orchestrator_config,
+            commands::orchestrator::get_context_budget,
             commands::dynamic_mapping::get_command_metadata,
             commands::dynamic_mapping::get_full_registry,
             commands::models::list_model_cards,
@@ -185,6 +187,7 @@ async fn main() {
             commands::gamify::ack_ludus_notification,
             commands::gamify::get_gamify_settings,
             commands::gamify::set_gamify_settings,
+            commands::gamify::record_gui_event,
             commands::gamify::list_gamify_leaderboard,
             commands::gamify::list_gamify_companions,
             commands::gamify::list_gamify_quests,

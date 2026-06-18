@@ -169,6 +169,95 @@ pub async fn get_gamify_settings() -> Result<GamifySettingsDto, String> {
     })
 }
 
+/// Map GUI hook names from the TypeScript layer to reward_policy event types.
+pub(crate) fn map_gui_hook_event_type(hook: &str) -> &str {
+    match hook {
+        "chat_message_sent" => "message_sent",
+        "task_submitted" => "task_submitted",
+        "search_query_executed" => "gui_search_query",
+        "policy_rule_viewed" => "gui_policy_viewed",
+        "palette_navigation" => "gui_palette_nav",
+        "console_command_success" => "gui_console_command",
+        "discovery_action_used" => "gui_discovery_action",
+        "model_activated" => "gui_model_activated",
+        "approval_decision" => "gui_approval_decision",
+        "browser_preview_loaded" => "gui_browser_preview",
+        "mesh_dispatch_success" => "gui_mesh_dispatch",
+        "isolation_strategy_set" => "gui_isolation_strategy",
+        "isolation_scan_complete" => "gui_isolation_scan",
+        "harness_redirect_viewed" => "gui_harness_redirect",
+        "breadcrumb_navigation" => "gui_breadcrumb_nav",
+        "claim_approved" => "gui_claim_approved",
+        "nanopub_built" => "gui_nanopub_built",
+        "secret_rotated" => "gui_secret_rotated",
+        "signing_key_rotated" => "gui_signing_key_rotated",
+        "orchestrator_first_connect" => "gui_orchestrator_connect",
+        other => other,
+    }
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GuiEventResultDto {
+    pub xp_granted: u32,
+    pub lumens_granted: u32,
+    pub achievement_title: Option<String>,
+}
+
+fn gui_event_result_from_route(
+    result: &vox_gamify::reward_policy::RouteResult,
+) -> GuiEventResultDto {
+    let xp = result.reward.as_ref().map(|r| r.xp).unwrap_or(0);
+    let lumens = result
+        .reward
+        .as_ref()
+        .map(|r| r.lumens.max(0) as u32)
+        .unwrap_or(0);
+    let achievement_title = if let Some((_, title)) = &result.leveled_up {
+        Some(title.clone())
+    } else if xp > 0 {
+        Some("XP".to_string())
+    } else if lumens > 0 {
+        Some("Lumens".to_string())
+    } else {
+        None
+    };
+    GuiEventResultDto {
+        xp_granted: xp.min(u32::MAX as u64) as u32,
+        lumens_granted: lumens,
+        achievement_title,
+    }
+}
+
+fn merge_gui_event_json(hook: &str, metadata: Option<serde_json::Value>) -> serde_json::Value {
+    let routed = map_gui_hook_event_type(hook);
+    let mut event_json = serde_json::json!({ "type": routed, "source": "gui" });
+    if let Some(serde_json::Value::Object(meta)) = metadata {
+        if let Some(obj) = event_json.as_object_mut() {
+            for (k, v) in meta {
+                if k != "type" {
+                    obj.insert(k, v);
+                }
+            }
+        }
+    }
+    event_json
+}
+
+/// Thin Tauri bridge: GUI hooks → `vox_gamify::event_router` (no XP math in TS).
+#[tauri::command]
+pub async fn record_gui_event(
+    event_type: String,
+    metadata: Option<serde_json::Value>,
+) -> Result<GuiEventResultDto, String> {
+    let event_json = merge_gui_event_json(&event_type, metadata);
+    let db = open_gamify_db().await?;
+    let routed = vox_gamify::event_router::route_event_auto_user(&db, &event_json)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(gui_event_result_from_route(&routed))
+}
+
 #[tauri::command]
 pub async fn set_gamify_settings(enabled: bool, mode: String) -> Result<(), String> {
     let mut cfg = vox_gamify::config_gate::load_disk();
@@ -327,5 +416,111 @@ mod tests {
             notification_level(&NotificationType::CompanionStatus),
             "info"
         );
+    }
+
+    #[test]
+    fn map_gui_hook_event_type_routes_known_hooks() {
+        assert_eq!(map_gui_hook_event_type("chat_message_sent"), "message_sent");
+        assert_eq!(map_gui_hook_event_type("task_submitted"), "task_submitted");
+        assert_eq!(
+            map_gui_hook_event_type("search_query_executed"),
+            "gui_search_query"
+        );
+        assert_eq!(
+            map_gui_hook_event_type("policy_rule_viewed"),
+            "gui_policy_viewed"
+        );
+        assert_eq!(
+            map_gui_hook_event_type("palette_navigation"),
+            "gui_palette_nav"
+        );
+        assert_eq!(
+            map_gui_hook_event_type("console_command_success"),
+            "gui_console_command"
+        );
+        assert_eq!(
+            map_gui_hook_event_type("discovery_action_used"),
+            "gui_discovery_action"
+        );
+        assert_eq!(
+            map_gui_hook_event_type("model_activated"),
+            "gui_model_activated"
+        );
+        assert_eq!(
+            map_gui_hook_event_type("approval_decision"),
+            "gui_approval_decision"
+        );
+        assert_eq!(
+            map_gui_hook_event_type("browser_preview_loaded"),
+            "gui_browser_preview"
+        );
+        assert_eq!(
+            map_gui_hook_event_type("claim_approved"),
+            "gui_claim_approved"
+        );
+        assert_eq!(
+            map_gui_hook_event_type("nanopub_built"),
+            "gui_nanopub_built"
+        );
+        assert_eq!(
+            map_gui_hook_event_type("secret_rotated"),
+            "gui_secret_rotated"
+        );
+        assert_eq!(
+            map_gui_hook_event_type("signing_key_rotated"),
+            "gui_signing_key_rotated"
+        );
+        assert_eq!(
+            map_gui_hook_event_type("orchestrator_first_connect"),
+            "gui_orchestrator_connect"
+        );
+        assert_eq!(
+            map_gui_hook_event_type("isolation_scan_complete"),
+            "gui_isolation_scan"
+        );
+    }
+
+    #[test]
+    fn gui_event_result_from_route_maps_xp_and_level_up_title() {
+        use vox_gamify::reward_policy::{PolicyReward, RouteResult};
+
+        let leveled = gui_event_result_from_route(&RouteResult {
+            reward: Some(PolicyReward {
+                xp: 120,
+                crystals: 0,
+                lumens: 0,
+                grant_shield: false,
+                effective_multiplier: 1.0,
+                grind_capped: false,
+            }),
+            leveled_up: Some((5, "Initiate".to_string())),
+        });
+        assert_eq!(leveled.xp_granted, 120);
+        assert_eq!(leveled.achievement_title.as_deref(), Some("Initiate"));
+
+        let xp_only = gui_event_result_from_route(&RouteResult {
+            reward: Some(PolicyReward {
+                xp: 5,
+                crystals: 0,
+                lumens: 0,
+                grant_shield: false,
+                effective_multiplier: 1.0,
+                grind_capped: false,
+            }),
+            leveled_up: None,
+        });
+        assert_eq!(xp_only.xp_granted, 5);
+        assert_eq!(xp_only.achievement_title.as_deref(), Some("XP"));
+    }
+
+    #[test]
+    fn merge_gui_event_json_includes_metadata_and_routed_type() {
+        let json = merge_gui_event_json(
+            "chat_message_sent",
+            Some(serde_json::json!({ "session_id": "abc" })),
+        );
+        assert_eq!(json["type"], "message_sent");
+        assert_eq!(json["source"], "gui");
+        assert_eq!(json["session_id"], "abc");
     }
 }

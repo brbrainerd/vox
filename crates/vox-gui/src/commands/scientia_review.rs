@@ -189,7 +189,7 @@ pub struct SignalsDto {
 /// The full novelty assessment for one publication, ready for the GUI panel.
 #[derive(Debug, serde::Serialize)]
 pub struct NoveltyAssessmentDto {
-    /// `"insufficient_evidence"` | `"novel"` | `"possibly_novel"` | `"not_novel"`.
+    /// `"insufficient_evidence"` | `"novel"` | `"possibly_novel"` | `"not_novel"` | `"contradicted"`.
     pub verdict_kind: String,
     pub closest_hit_uri: Option<String>,
     pub closest_score: Option<f64>,
@@ -198,6 +198,8 @@ pub struct NoveltyAssessmentDto {
     pub signals: SignalsDto,
     /// Top-5 prior-art hits by semantic score (desc).
     pub prior_art: Vec<PriorArtHitDto>,
+    /// Present when `verdict_kind` is `insufficient_evidence`.
+    pub insufficient_evidence_reason: Option<String>,
 }
 
 /// A DTO representing "no bundle has been fetched yet": the panel renders the
@@ -218,6 +220,7 @@ fn insufficient_evidence_dto() -> NoveltyAssessmentDto {
             sources_succeeded: 0,
         },
         prior_art: vec![],
+        insufficient_evidence_reason: Some("prior-art retrieval produced no evidence".into()),
     }
 }
 
@@ -315,6 +318,7 @@ pub async fn get_novelty_assessment(
             sources_succeeded: assessment.signals.sources_succeeded,
         },
         prior_art,
+        insufficient_evidence_reason: assessment.insufficient_evidence_reason,
     })
 }
 
@@ -332,6 +336,19 @@ pub struct DiscoveryInboxDto {
     pub surfaced_at_ms: i64,
     pub intake_tier: String,
     pub signal_codes: Vec<String>,
+    /// `"research"` when surfaced from the research pipeline; otherwise `"commit_watcher"`.
+    pub origin: String,
+}
+
+fn discovery_inbox_origin(signal_codes: &[String]) -> &'static str {
+    if signal_codes
+        .iter()
+        .any(|code| code.starts_with("research_pipeline."))
+    {
+        "research"
+    } else {
+        "commit_watcher"
+    }
 }
 
 /// List unacknowledged discoveries, newest first, capped at `limit` (default 50).
@@ -351,7 +368,8 @@ pub async fn list_discovery_inbox(limit: Option<i64>) -> Result<Vec<DiscoveryInb
             publication_id: r.publication_id,
             surfaced_at_ms: r.surfaced_at_ms,
             intake_tier: r.intake_tier,
-            signal_codes: r.signal_codes,
+            signal_codes: r.signal_codes.clone(),
+            origin: discovery_inbox_origin(&r.signal_codes).to_string(),
         })
         .collect())
 }
@@ -506,6 +524,23 @@ fn detect_repo_license(repo_root: &std::path::Path) -> Option<String> {
     None
 }
 
+fn detect_workspace_version(repo_root: &std::path::Path) -> Option<String> {
+    let text = std::fs::read_to_string(repo_root.join("Cargo.toml")).ok()?;
+    for line in text.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("version = ") {
+            let version = trimmed
+                .trim_start_matches("version = ")
+                .trim()
+                .trim_matches('"');
+            if !version.is_empty() {
+                return Some(version.to_string());
+            }
+        }
+    }
+    None
+}
+
 /// Compute the deterministic autofill plan for a publication and, when `apply`,
 /// persist it via the SAME sequence as the CLI `publication-autofill --apply`
 /// handler: [`vox_publisher::scientia_autofill::apply_autofill`] → digest
@@ -528,6 +563,7 @@ pub async fn run_autofill(
     let repo_root = vox_repository::resolve_repo_root_for_ci();
     let repo_license = detect_repo_license(&repo_root);
     let git_remote = git_remote_origin();
+    let workspace_version = detect_workspace_version(&repo_root);
     let identity_view = db
         .get_user_identity(ARCHIVE_DEFAULT_USER_ID)
         .await
@@ -546,6 +582,7 @@ pub async fn run_autofill(
         identity_view.as_ref(),
         repo_license.as_deref(),
         git_remote.as_deref(),
+        workspace_version.as_deref(),
     );
 
     let mut completeness_after = completeness_before;
