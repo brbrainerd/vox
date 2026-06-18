@@ -20,7 +20,7 @@ abi-version = 1
 extension-points = ["MlBackend"]
 
 [plugin.payload.artifacts]
-// vox-arch-check: allow dynlib-ext
+# vox-arch-check: allow dynlib-ext
 "linux-x86_64" = "libvox_plugin_mens_candle_cuda.so"
 "#;
     let m: PluginManifest = toml::from_str(toml_src).expect("should parse");
@@ -92,7 +92,7 @@ abi-version = 1
 extension-points = ["MeshDriver"]
 
 [plugin.payload.code.artifacts]
-// vox-arch-check: allow dynlib-ext
+# vox-arch-check: allow dynlib-ext
 "linux-x86_64" = "libvox_plugin_populi_mesh.so"
 
 [plugin.payload.skill]
