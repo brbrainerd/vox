@@ -3,6 +3,7 @@ use tracing::{Level, info};
 
 mod install;
 mod manifest;
+mod channel;
 
 #[derive(Parser)]
 #[command(name = "voxup", about = "The Vox toolchain multiplexer")]
