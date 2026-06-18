@@ -28,6 +28,14 @@ pub struct GraphifySearchParams {
     pub corpus: Option<String>,
     pub query: String,
     pub limit: Option<u32>,
+    /// When true (default), upsert each hit into `knowledge_nodes` for future agent recall.
+    /// Pass false for ephemeral searches that must not be recorded.
+    #[serde(default = "default_persist_true")]
+    pub persist: bool,
+}
+
+fn default_persist_true() -> bool {
+    true
 }
 
 fn corpus_by_id<'a>(
@@ -139,6 +147,36 @@ pub async fn graphify_status(state: &ServerState, params: GraphifyStatusParams) 
     ToolResult::ok(payload).to_json()
 }
 
+/// URL-safe slug from a query string with a 8-char FNV-64 hash suffix to prevent collisions.
+///
+/// Two different queries that share a 32-char prefix will still produce unique slugs because
+/// the hash suffix is derived from the **full** original query string.
+fn query_slug(query: &str) -> String {
+    // Normalize: lowercase, non-alphanumeric → hyphen, collapse runs, trim.
+    let normalized: String = query
+        .to_lowercase()
+        .chars()
+        .map(|c| if c.is_alphanumeric() { c } else { '-' })
+        .collect::<String>()
+        .split('-')
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join("-");
+    let prefix: String = normalized.chars().take(32).collect();
+    // FNV-64 of the original query (full, before normalization) for collision resistance.
+    let hash = {
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        query.hash(&mut h);
+        format!("{:08x}", h.finish() & 0xffff_ffff)
+    };
+    if prefix.is_empty() {
+        hash
+    } else {
+        format!("{prefix}-{hash}")
+    }
+}
+
 /// `vox_graphify_search`: lexical search over an on-disk graphify corpus graph.
 pub async fn graphify_search(state: &ServerState, params: GraphifySearchParams) -> String {
     let repo_root = &state.repository.root;
@@ -185,6 +223,53 @@ pub async fn graphify_search(state: &ServerState, params: GraphifySearchParams) 
     };
     let limit = params.limit.unwrap_or(DEFAULT_SEARCH_LIMIT).max(1);
     let hits = lexical_search_graph(&graph, &corpus_id, &params.query, limit as usize);
+
+    // Record searched_at before any async work.
+    let searched_at = chrono::Utc::now().to_rfc3339();
+    let head_sha_for_meta = resolve_head_sha(state).await;
+
+    // Persist hits to Turso so future agents can recall this search.
+    // NOTE: Recall consumers MUST compare metadata.git_sha against HEAD to detect stale hits.
+    if params.persist && !hits.is_empty() {
+        let slug = query_slug(&params.query);
+        if let Ok(db) = vox_db::VoxDb::connect_default().await {
+            for hit in &hits {
+                let node_id = format!("graphify:{corpus_id}:search:{slug}:{}", hit.node_id);
+                let metadata = serde_json::json!({
+                    "corpus_id": corpus_id,
+                    "query": params.query,
+                    "searched_at": searched_at,
+                    "git_sha": head_sha_for_meta,
+                    "source": "graphify_search_hit",
+                })
+                .to_string();
+                // Non-fatal: DB unavailability must not fail the search response.
+                // We DO log non-unavailability errors so schema/auth problems surface.
+                if let Err(e) = db
+                    .upsert_knowledge_node(
+                        &node_id,
+                        &hit.label,
+                        &format!(
+                            "{} [corpus: {corpus_id}, query: {}]",
+                            hit.label, params.query
+                        ),
+                        Some("graphify_search_hit"),
+                        Some(&metadata),
+                        None,
+                    )
+                    .await
+                {
+                    tracing::warn!(
+                        corpus_id = %corpus_id,
+                        node_id = %node_id,
+                        error = %e,
+                        "graphify search-hit persist failed (non-fatal)"
+                    );
+                }
+            }
+        }
+    }
+
     let payload_hits: Vec<serde_json::Value> = hits
         .into_iter()
         .map(|h| {
@@ -198,6 +283,7 @@ pub async fn graphify_search(state: &ServerState, params: GraphifySearchParams) 
         .collect();
     let payload = serde_json::json!({
         "corpus_id": corpus_id,
+        "searched_at": searched_at,
         "hits": payload_hits,
     });
     ToolResult::ok(payload).to_json()
@@ -293,6 +379,7 @@ mod tests {
                 corpus: Some("repo-code-graph".into()),
                 query: "authentication".into(),
                 limit: None,
+                persist: false, // avoid DB in unit test
             },
         )
         .await;
@@ -321,5 +408,31 @@ mod tests {
                 .unwrap_or("")
                 .contains("authentication")
         );
+    }
+
+    #[tokio::test]
+    async fn graphify_search_response_includes_searched_at() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_registry(tmp.path());
+        write_sample_graph(tmp.path());
+        let state = test_state_for_repo(tmp.path().to_path_buf());
+        let json = graphify_search(
+            &state,
+            GraphifySearchParams {
+                corpus: Some("repo-code-graph".into()),
+                query: "authentication".into(),
+                limit: None,
+                persist: false, // skip DB in unit test
+            },
+        )
+        .await;
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid json");
+        assert_eq!(parsed["success"], serde_json::json!(true));
+        let data = parsed.get("data").expect("data field");
+        assert!(
+            data.get("searched_at").and_then(|v| v.as_str()).is_some(),
+            "searched_at must be a string: {data}"
+        );
+        assert_eq!(data["corpus_id"], serde_json::json!("repo-code-graph"));
     }
 }
