@@ -1,0 +1,152 @@
+// vox:caps fs process env
+// scripts/sync-superpowers-skills.vox
+//
+// Populate the Antigravity / agent skills mount (`.agents/skills/`) from the
+// in-repo SSOT at `crates/vox-skills/skills/superpowers/`.
+//
+// `.agents/` is gitignored (a per-machine mount, see .gitignore). On machines
+// that support symlinks the mount is a live relative symlink and you do NOT
+// need this script. On a fresh clone where `core.symlinks=false` (Windows
+// default) or in a headless cloud session, the symlink materializes as a broken
+// text file or is absent — run this script with `--write` to copy the native
+// `*.skill.md` files into the mount so Antigravity/Gemini can discover them.
+//
+// SSOT: crates/vox-skills/skills/superpowers/ is authoritative. `.agents/skills/`
+// is a generated mirror — never edit it directly; edit the source and re-run.
+//
+// Usage (run with `--mode interp`; the native AOT lane has a codegen bug):
+//   vox run --mode interp scripts/sync-superpowers-skills.vox              # dry-run (default)
+//   vox run --mode interp scripts/sync-superpowers-skills.vox -- --write   # copy into the mount
+//   vox run --mode interp scripts/sync-superpowers-skills.vox -- --target=.vox/skills
+//
+// Environment:
+//   VOX_REPO_ROOT — workspace root (default ".")
+
+import fs;
+import process;
+import env;
+
+fn repo_root() to str {
+    let root_opt = env.get("VOX_REPO_ROOT");
+    if root_opt.is_some() {
+        return root_opt.unwrap();
+    }
+    return ".";
+}
+
+fn join_path(base: str, rel: str) to str {
+    if base.ends_with("/") {
+        return base + rel;
+    }
+    return base + "/" + rel;
+}
+
+fn has_flag(argv: list[str], flag: str) to bool {
+    for arg in argv {
+        if arg == flag {
+            return true;
+        }
+    }
+    return false;
+}
+
+fn target_from_argv(argv: list[str]) to str {
+    for arg in argv {
+        if arg.starts_with("--target=") {
+            return arg.replace("--target=", "");
+        }
+    }
+    let n = argv.len();
+    for i in range(0, n) {
+        if argv.get(i).unwrap() == "--target" {
+            if i + 1 < n {
+                return argv.get(i + 1).unwrap();
+            }
+        }
+    }
+    return ".agents/skills";
+}
+
+fn list_skill_files(src_root: str) to list[str] {
+    let mut names = [];
+    if not fs.is_dir(src_root) {
+        return names;
+    }
+    match fs.list_dir(src_root) {
+        Ok(entries) => {
+            for entry in entries {
+                if entry.ends_with(".skill.md") {
+                    let file = join_path(src_root, entry);
+                    if fs.is_file(file) {
+                        names = names.push(entry);
+                    }
+                }
+            }
+        }
+        Error(_) => {
+            return names;
+        }
+    }
+    return names;
+}
+
+fn main() {
+    let root = repo_root();
+    let src_root = join_path(root, "crates/vox-skills/skills/superpowers");
+    let argv = env.args();
+    let write_mode = has_flag(argv, "--write");
+    let target_rel = target_from_argv(argv);
+    let dst_root = join_path(root, target_rel);
+
+    let skills = list_skill_files(src_root);
+    if skills.len() == 0 {
+        print("sync-superpowers-skills: no *.skill.md files under " + src_root);
+        process.exit(1);
+    }
+
+    print("sync-superpowers-skills: found " + str(skills.len()) + " native skills");
+    print("sync-superpowers-skills: source=" + src_root);
+    print("sync-superpowers-skills: target=" + dst_root);
+    print("sync-superpowers-skills: mode=" + (if write_mode { "write" } else { "dry-run" }));
+
+    if write_mode {
+        match fs.mkdir(dst_root) {
+            Ok(_) => {}
+            Error(m) => {
+                print("sync-superpowers-skills: mkdir " + dst_root + ": " + m);
+                process.exit(1);
+            }
+        }
+    }
+
+    let mut copied = 0;
+    let mut failed = false;
+    for name in skills {
+        let src = join_path(src_root, name);
+        let dst = join_path(dst_root, name);
+        if write_mode {
+            match fs.copy(src, dst) {
+                Ok(_) => {
+                    copied = copied + 1;
+                    print("  copied " + name);
+                }
+                Error(m) => {
+                    print("sync-superpowers-skills: copy " + name + ": " + m);
+                    failed = true;
+                }
+            }
+        } else {
+            print("  would copy " + name + " -> " + dst);
+        }
+    }
+
+    if failed {
+        process.exit(1);
+    }
+
+    if write_mode {
+        print("sync-superpowers-skills: synced " + str(copied) + " skills into the mount");
+    } else {
+        print("sync-superpowers-skills: pass --write to populate the mount");
+    }
+}

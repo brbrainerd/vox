@@ -54,7 +54,15 @@ Research synthesis (Cursor, Gemini, Codex, PowerShell, bypass classes, future Vo
 
 ## Agent Skills & Plan Execution
 
-Antigravity mounts repo skills from `.agents/skills/`. Ensure that path resolves to (or copies/symlinks) **`crates/vox-skills/skills/superpowers/`** — the in-repo skill library (brainstorming, subagent-driven-development, dispatching-parallel-agents, verification-before-completion, test-driven-development, systematic-debugging, requesting-code-review, using-git-worktrees, writing-plans). Antigravity cannot see Claude's external `~/.claude/` skill cache, so any skill a plan references must be loaded from here.
+Antigravity mounts repo skills from `.agents/skills/`, which is wired to the in-repo SSOT **`crates/vox-skills/skills/superpowers/`** (brainstorming, subagent-driven-development, dispatching-parallel-agents, verification-before-completion, test-driven-development, systematic-debugging, requesting-code-review, using-git-worktrees, writing-plans, deep-research, research). Antigravity cannot see Claude's external `~/.claude/` skill cache, so any skill a plan references must load from here.
+
+`.agents/` is gitignored (a per-machine mount). The wiring is a live relative symlink `.agents/skills → ../crates/vox-skills/skills/superpowers`. On a fresh clone where the symlink didn't materialize (Windows `core.symlinks=false`, or a headless session), populate the mount from the SSOT instead:
+
+```
+vox run --mode interp scripts/sync-superpowers-skills.vox -- --write
+```
+
+Never edit `.agents/skills/` directly — it mirrors the SSOT; edit the source under `crates/vox-skills/skills/superpowers/` and re-sync.
 
 When executing a written implementation plan from `docs/superpowers/plans/`, first read [`docs/src/contributors/antigravity-handoff-and-skill-gaps-2026-06-18.md`](docs/src/contributors/antigravity-handoff-and-skill-gaps-2026-06-18.md) (execution model, parallel-vs-sequential dispatch rule, skill map) and [`docs/src/architecture/gemini-3-5-flash-antigravity-limitations-2026-06-18.md`](docs/src/architecture/gemini-3-5-flash-antigravity-limitations-2026-06-18.md) (why plans are shaped atomic-green-commit + verify-before-use + two-strike). Honor each task's `[PARALLEL-SAFE]`/`[SEQUENTIAL]` tag; never run two subagents that write the same file.
 
