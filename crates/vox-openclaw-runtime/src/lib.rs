@@ -32,6 +32,7 @@ pub use openclaw::{
     OpenClawClient, OpenClawError, OpenClawRemoteConfig, OpenClawSkillSpec, PublishResult,
 };
 pub use openclaw_adapter::{
+    AgentProvider, AgentRuntimeConfig,
     DefaultOpenClawRuntimeAdapter, OpenClawAdapterConfig, OpenClawAdapterError,
     OpenClawConnectionOverrides, OpenClawRuntimeAdapter, adapter_config_with_token_override,
     connect_default_runtime_adapter, connect_runtime_adapter_with_overrides,
