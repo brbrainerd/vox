@@ -7,6 +7,7 @@ mod channel;
 mod download;
 mod shell;
 mod proxy;
+mod update;
 
 #[derive(Parser)]
 #[command(name = "voxup", about = "The Vox toolchain multiplexer")]
