@@ -17,7 +17,7 @@ sources:
 
   - path: mens/data/mix_sources/rust_source.jsonl
     weight: 2.0                   # Human-mined Rust workspace code (GOLDEN / Wave 0)
-    sample_rate: 0.03             # Cap at ~12,500 lines to prevent Rust from dominating Vox SFT signal
+    max_lines: 12000              # Hard cap: deterministic ~12k lines per run
     optional: true
 
   - path: mens/data/mix_sources/docs.jsonl
@@ -58,6 +58,7 @@ sources:
     optional: true
 
 output: target/dogfood/train_mixed.jsonl
+dedup: true                          # Drop rows whose prompt+response hash already emitted
 include_lanes:
   - vox_codegen
   - vox_tooling
