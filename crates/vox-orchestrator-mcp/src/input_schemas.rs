@@ -278,6 +278,24 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_queue_status" | "vox_budget_status" | "vox_agent_events" | "vox_cost_history"
         | "vox_poll_events" => parse_obj(r#"{"type":"object","additionalProperties":true}"#),
 
+        // ── Knowledge Bases (VoxKB) ──────────────────────────────────────────
+        "vox_kb_create" => derived_tool_schema!(crate::kb_tools::params::KbCreateParams),
+        "vox_kb_list" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
+        "vox_kb_delete" => derived_tool_schema!(crate::kb_tools::params::KbDeleteParams),
+        "vox_kb_add_entry" => derived_tool_schema!(crate::kb_tools::params::KbAddEntryParams),
+        "vox_kb_delete_entry" => derived_tool_schema!(crate::kb_tools::params::KbDeleteEntryParams),
+        "vox_kb_list_entries" => {
+            derived_tool_schema!(crate::kb_tools::params::KbListEntriesParams)
+        }
+        "vox_kb_review_entry" => {
+            derived_tool_schema!(crate::kb_tools::params::KbReviewEntryParams)
+        }
+        "vox_kb_get_feed" => derived_tool_schema!(crate::kb_tools::params::KbGetFeedParams),
+        "vox_kb_add_rule" => derived_tool_schema!(crate::kb_tools::params::KbAddRuleParams),
+        "vox_kb_list_rules" => derived_tool_schema!(crate::kb_tools::params::KbListRulesParams),
+        "vox_kb_query" => derived_tool_schema!(crate::kb_tools::params::KbQueryParams),
+        "vox_kb_clip" => derived_tool_schema!(crate::kb_tools::params::KbClipParams),
+
         // ── Memory (MEMORY.md / search) ─────────────────────────────────────
         "vox_memory_store" => parse_obj(
             r#"{"type":"object","properties":{"agent_id":{"type":"integer","minimum":0},"key":{"type":"string"},"value":{"type":"string"},"relations":{"type":"array","items":{"type":"string"}},"media_url":{"type":"string"},"media_type":{"type":"string"}},"required":["agent_id","key","value"],"additionalProperties":false}"#,

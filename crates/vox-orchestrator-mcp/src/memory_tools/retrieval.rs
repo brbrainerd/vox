@@ -226,7 +226,31 @@ pub struct RetrievalBundle {
     pub repo_lines: Vec<String>,
     /// RRF-merged excerpt ordering (same lines as corpora, deduped; empty when disabled).
     pub rrf_fused_lines: Vec<String>,
+    /// Knowledge base hits from topic-matched KB entries.
+    pub kb_lines: Vec<String>,
     pub evidence: RetrievalEvidenceEnvelope,
+}
+
+/// Extract `@name` mentions from a user message.
+/// Returns deduplicated, lowercased names in order of first appearance.
+pub fn parse_kb_mentions(text: &str) -> Vec<String> {
+    let mut seen = std::collections::HashSet::new();
+    let mut result = Vec::new();
+    for word in text.split_whitespace() {
+        if let Some(name) = word.strip_prefix('@') {
+            // Strip trailing punctuation (commas, periods, question marks, etc.)
+            let name =
+                name.trim_end_matches(|c: char| !c.is_alphanumeric() && c != '-' && c != '_');
+            if !name.is_empty() {
+                let lower = name.to_ascii_lowercase();
+                if !seen.contains(&lower) {
+                    seen.insert(lower.clone());
+                    result.push(lower);
+                }
+            }
+        }
+    }
+    result
 }
 
 struct McpMemoryFallback {
@@ -323,6 +347,21 @@ pub async fn run_retrieval_bundle(
             )
         });
 
+    // KB background enrichment: search accepted entries for this query
+    let kb_lines = if let Some(db) = &state.db {
+        use vox_orchestrator::knowledge_base::store::KbStore;
+        let store = KbStore::new(db.clone());
+        store
+            .search_entries(query, 5)
+            .await
+            .unwrap_or_default()
+            .into_iter()
+            .map(|e| format!("[KB:{} via {}] {}", e.kb_id, e.source_signal, e.content))
+            .collect()
+    } else {
+        Vec::new()
+    };
+
     Ok(RetrievalBundle {
         evidence: RetrievalEvidenceEnvelope {
             trigger,
@@ -361,6 +400,7 @@ pub async fn run_retrieval_bundle(
         chunk_lines,
         repo_lines: execution.repo_lines,
         rrf_fused_lines: execution.rrf_fused_lines,
+        kb_lines,
     })
 }
 
@@ -464,5 +504,29 @@ mod tests {
             &bundle,
             None
         ));
+    }
+
+    #[test]
+    fn parse_kb_mentions_extracts_at_names() {
+        let mentions = parse_kb_mentions("Can you check @rust-patterns and @async-guide?");
+        assert_eq!(mentions, vec!["rust-patterns", "async-guide"]);
+    }
+
+    #[test]
+    fn parse_kb_mentions_no_mentions() {
+        let mentions = parse_kb_mentions("No mentions here.");
+        assert!(mentions.is_empty());
+    }
+
+    #[test]
+    fn parse_kb_mentions_deduplicates() {
+        let mentions = parse_kb_mentions("See @retrieval and @retrieval again.");
+        assert_eq!(mentions, vec!["retrieval"]);
+    }
+
+    #[test]
+    fn parse_kb_mentions_strips_trailing_punctuation() {
+        let mentions = parse_kb_mentions("Use @rust-patterns, and @async-guide.");
+        assert_eq!(mentions, vec!["rust-patterns", "async-guide"]);
     }
 }

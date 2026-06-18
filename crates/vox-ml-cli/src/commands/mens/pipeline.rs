@@ -44,6 +44,7 @@ pub async fn run(
         PipelineStage::Pairs,
         PipelineStage::Eval,
         PipelineStage::Mix,
+        PipelineStage::KbSignals,
         PipelineStage::Train,
     ];
 
@@ -161,7 +162,10 @@ pub async fn run(
             PipelineStage::Validate => {
                 if !dry_run {
                     if !validated.is_file() {
-                        anyhow::bail!("Validate stage: missing input file '{}'. Make sure Extract stage ran successfully.", validated.display());
+                        anyhow::bail!(
+                            "Validate stage: missing input file '{}'. Make sure Extract stage ran successfully.",
+                            validated.display()
+                        );
                     }
                     crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Validate {
                         input: validated.clone(),
@@ -248,10 +252,20 @@ pub async fn run(
                     .await?;
                 }
             }
+            PipelineStage::KbSignals => {
+                if !dry_run {
+                    run_kb_signals_stage(&data_dir).await?;
+                } else {
+                    tracing::info!("KbSignals: dry_run, skipping");
+                }
+            }
             PipelineStage::Pairs => {
                 if !dry_run {
                     if !validated.is_file() {
-                        anyhow::bail!("Pairs stage: missing input file '{}'. Make sure Extract/Validate stage ran successfully.", validated.display());
+                        anyhow::bail!(
+                            "Pairs stage: missing input file '{}'. Make sure Extract/Validate stage ran successfully.",
+                            validated.display()
+                        );
                     }
                     crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Pairs {
                         input: validated.clone(),
@@ -264,7 +278,10 @@ pub async fn run(
             PipelineStage::Eval => {
                 if !dry_run {
                     if !train_jsonl.is_file() {
-                        anyhow::bail!("Eval stage: missing input file '{}'. Make sure Pairs stage ran successfully.", train_jsonl.display());
+                        anyhow::bail!(
+                            "Eval stage: missing input file '{}'. Make sure Pairs stage ran successfully.",
+                            train_jsonl.display()
+                        );
                     }
                     crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Eval {
                         input: train_jsonl.clone(),
@@ -394,6 +411,97 @@ pub async fn run(
     Ok(())
 }
 
+async fn run_kb_signals_stage(data_dir: &std::path::Path) -> anyhow::Result<()> {
+    use std::collections::HashMap;
+    use std::io::{BufWriter, Write};
+
+    let db_path = ".vox/db/vox.db";
+    tracing::info!("KbSignals: connecting to VoxDb at {db_path}");
+
+    // VoxDb::open is #[cfg(feature = "local")] — ensure vox-ml-cli/Cargo.toml has
+    // vox-db with features = ["local"]
+    let db = vox_db::VoxDb::open(db_path)
+        .await
+        .map_err(|e| anyhow::anyhow!("KbSignals: failed to open VoxDb at {db_path}: {e}"))?;
+
+    let entries = db
+        .kb_unqueued_training_entries(10_000)
+        .await
+        .map_err(|e| anyhow::anyhow!("KbSignals: query failed: {e}"))?;
+
+    if entries.is_empty() {
+        tracing::info!("KbSignals: no unqueued entries; skipping");
+        return Ok(());
+    }
+
+    let out_dir = data_dir.join("mix_sources");
+    std::fs::create_dir_all(&out_dir)?;
+    let out_path = out_dir.join("kb_signals.jsonl");
+    let file = std::fs::File::create(&out_path)?;
+    let mut writer = BufWriter::new(file);
+    let mut written = 0usize;
+
+    // Group by kb_id to pair accepted/rejected within the same KB
+    let mut by_kb: HashMap<String, Vec<_>> = HashMap::new();
+    for entry in &entries {
+        by_kb.entry(entry.kb_id.clone()).or_default().push(entry);
+    }
+
+    for (kb_id, kb_entries) in &by_kb {
+        let accepted: Vec<_> = kb_entries.iter().filter(|e| e.accepted == 1).collect();
+        let rejected: Vec<_> = kb_entries.iter().filter(|e| e.accepted == 0).collect();
+
+        // Accepted → SFT instruction-completion pairs
+        for entry in &accepted {
+            let record = serde_json::json!({
+                "type": "sft",
+                "source": "kb",
+                "kb_id": kb_id,
+                "instruction": format!(
+                    "What do you know about the following topic based on accumulated research?\n\nTopic: {}",
+                    entry.source_signal
+                ),
+                "completion": entry.content,
+                "routing_confidence": entry.routing_confidence,
+            });
+            writeln!(writer, "{record}")?;
+            written += 1;
+        }
+
+        // Accepted + rejected same-signal pairs → DPO preference pairs
+        for acc in &accepted {
+            for rej in &rejected {
+                if acc.source_signal == rej.source_signal {
+                    let record = serde_json::json!({
+                        "type": "dpo",
+                        "source": "kb",
+                        "prompt": "Provide accurate technical information:",
+                        "chosen": acc.content,
+                        "rejected": rej.content,
+                    });
+                    writeln!(writer, "{record}")?;
+                    written += 1;
+                }
+            }
+        }
+    }
+
+    writer.flush()?;
+    tracing::info!(
+        "KbSignals: wrote {written} records to {}",
+        out_path.display()
+    );
+
+    // Mark all fetched entries as MENS-queued to avoid re-export
+    let ids: Vec<String> = entries.iter().map(|e| e.id.clone()).collect();
+    db.kb_mark_mens_queued(&ids)
+        .await
+        .map_err(|e| anyhow::anyhow!("KbSignals: mark_queued failed: {e}"))?;
+    tracing::info!("KbSignals: marked {} entries as mens_queued", ids.len());
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -415,7 +523,7 @@ mod tests {
         let res = run(
             data_dir,
             output_dir,
-            true, // skip_train
+            true,  // skip_train
             false, // strict_gate
             None,
             None,
@@ -429,6 +537,9 @@ mod tests {
 
         assert!(res.is_err());
         let err_msg = res.unwrap_err().to_string();
-        assert!(err_msg.contains("missing input file") || err_msg.contains("produced no validated.jsonl"));
+        assert!(
+            err_msg.contains("missing input file")
+                || err_msg.contains("produced no validated.jsonl")
+        );
     }
 }
