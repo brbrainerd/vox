@@ -3,6 +3,7 @@
 pub mod affected;
 pub mod affected_cmd;
 pub mod ai_fixtures_coverage;
+pub mod commit_lint;
 pub mod dep_sprawl;
 pub mod docs_deprecated_command_guard;
 pub mod frozen_crates;

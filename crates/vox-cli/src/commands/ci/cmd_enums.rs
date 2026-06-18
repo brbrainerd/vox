@@ -319,6 +319,13 @@ pub enum CiCmd {
         #[arg(long, default_value = "docs/agents/workflow-script-allowlist.txt")]
         allowlist: PathBuf,
     },
+    /// Conventional commit-msg and line-churn lint gate.
+    #[command(name = "commit-lint")]
+    CommitLint {
+        /// Base branch or ref to compare against (e.g. HEAD~1 or origin/main).
+        #[arg(long, default_value = "HEAD~1")]
+        base: String,
+    },
     /// Cross-platform `rustfmt --check` over the whole workspace. Chunked over crate
     /// target roots, so it avoids the Windows os-206 command-line overflow of
     /// `cargo fmt --all` and stays robust as crates are added/removed.

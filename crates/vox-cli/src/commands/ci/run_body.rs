@@ -279,6 +279,20 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             }
         },
         CiCmd::WorkflowScripts { allowlist } => check_workflow_scripts(&root, &allowlist),
+        CiCmd::CommitLint { base } => {
+            let violations = vox_cli_ci::commit_lint::run(&root, &base)?;
+            if !violations.is_empty() {
+                for v in &violations {
+                    eprintln!(
+                        "ERROR: Commit {} violates policy!\nSummary: {}\nReason: {}\n",
+                        v.commit, v.summary, v.reason
+                    );
+                }
+                anyhow::bail!("commit-lint failed with {} violation(s)", violations.len());
+            }
+            println!("commit-lint passed.");
+            Ok(())
+        }
         CiCmd::FmtCheck => super::pre_push::check_fmt(&root),
         CiCmd::RunnerPolicyCheck { strict } => vox_cli_ci::runner_policy_check::run(&root, strict),
         CiCmd::GuiVisualReview { no_ai } => vox_cli_ci::gui_visual_review::run(&root, no_ai),
