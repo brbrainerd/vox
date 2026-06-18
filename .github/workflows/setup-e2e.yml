@@ -27,7 +27,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # Strip pre-installed toolchains to ensure setup.vox works from scratch
       - name: Strip runner (Clean Room)
