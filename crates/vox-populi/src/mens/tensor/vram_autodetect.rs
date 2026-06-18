@@ -2,47 +2,77 @@
 //!
 //! Uses the HardwareRegistry SSOT to identify available video memory.
 
-/// Query available GPU VRAM in GiB.
-pub fn get_system_vram_gb() -> Option<f32> {
-    // Priority 1: env override
-    if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxVramOverrideGb).expose()
-        && let Ok(gb) = v.parse::<f32>()
-        && gb > 0.0
-    {
-        return Some(gb);
-    }
-
-    // Priority 2: hardware SSOT
-    let hardware = futures::executor::block_on(crate::mens::hardware::probe());
-    if hardware.vram_mb > 0 {
-        return Some(hardware.vram_mb as f32 / crate::mens::hardware::types::MB_PER_GB as f32);
-    }
-
-    // Priority 3: nvidia-smi fallback. The hardware probe is a stub on some
-    // builds (returns 0); query the driver directly so VRAM-aware budgeting works
-    // out of the box on any machine with an NVIDIA driver.
-    if let Some(gb) = nvidia_smi_total_vram_gb() {
-        return Some(gb);
-    }
-
-    None
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct VramInfo {
+    pub total_gb: f32,
+    pub used_gb: f32,
+    pub free_gb: f32,
 }
 
-/// Query total VRAM (GiB) of the first GPU via `nvidia-smi`. Returns `None` when
-/// nvidia-smi is absent or unparseable.
-fn nvidia_smi_total_vram_gb() -> Option<f32> {
+fn parse_nvidia_smi_output(stdout: &str) -> Option<VramInfo> {
+    let first_line = stdout.lines().next()?.trim();
+    let parts: Vec<&str> = first_line.split(',').map(|s| s.trim()).collect();
+    if parts.len() < 3 {
+        return None;
+    }
+    let total_mib: f32 = parts[0].parse().ok()?;
+    let used_mib: f32 = parts[1].parse().ok()?;
+    let free_mib: f32 = parts[2].parse().ok()?;
+    Some(VramInfo {
+        total_gb: total_mib / 1024.0,
+        used_gb: used_mib / 1024.0,
+        free_gb: free_mib / 1024.0,
+    })
+}
+
+/// Query total, used, and free VRAM info from `nvidia-smi`.
+pub fn query_nvidia_smi_vram() -> Option<VramInfo> {
     let out = std::process::Command::new("nvidia-smi")
-        .args(["--query-gpu=memory.total", "--format=csv,noheader,nounits"])
+        .args(["--query-gpu=memory.total,memory.used,memory.free", "--format=csv,noheader,nounits"])
         .output()
         .ok()?;
     if !out.status.success() {
         return None;
     }
-    let text = String::from_utf8_lossy(&out.stdout);
-    // First line is the first GPU's total memory in MiB (nounits).
-    let first = text.lines().next()?.trim();
-    let mib: f32 = first.parse().ok()?;
-    if mib > 0.0 { Some(mib / 1024.0) } else { None }
+    parse_nvidia_smi_output(&String::from_utf8_lossy(&out.stdout))
+}
+
+/// Query available GPU VRAM info.
+pub fn get_system_vram_info() -> Option<VramInfo> {
+    // Priority 1: env override
+    if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxVramOverrideGb).expose()
+        && let Ok(gb) = v.parse::<f32>()
+        && gb > 0.0
+    {
+        return Some(VramInfo {
+            total_gb: gb,
+            used_gb: 0.0,
+            free_gb: gb,
+        });
+    }
+
+    // Priority 2: nvidia-smi query
+    if let Some(info) = query_nvidia_smi_vram() {
+        return Some(info);
+    }
+
+    // Priority 3: hardware SSOT
+    let hardware = futures::executor::block_on(crate::mens::hardware::probe());
+    if hardware.vram_mb > 0 {
+        let gb = hardware.vram_mb as f32 / 1024.0;
+        return Some(VramInfo {
+            total_gb: gb,
+            used_gb: 0.0,
+            free_gb: gb,
+        });
+    }
+
+    None
+}
+
+/// Query available GPU VRAM in GiB.
+pub fn get_system_vram_gb() -> Option<f32> {
+    get_system_vram_info().map(|i| i.total_gb)
 }
 
 /// Select the best training preset for the detected hardware.
@@ -65,13 +95,16 @@ pub fn auto_preset(device_is_cuda: bool, vram_gb: Option<f32>) -> Option<&'stati
 
 /// Human-readable summary of detected VRAM + auto-selected preset.
 pub fn vram_summary(device_is_cuda: bool) -> String {
-    let vram = get_system_vram_gb();
-    let preset = auto_preset(device_is_cuda, vram);
-    match (vram, preset) {
-        (Some(v), Some(p)) => format!("{:.1} GiB VRAM detected → preset '{p}'", v),
-        (Some(v), None) => format!(
-            "{:.1} GiB VRAM detected (no matching preset; specify --preset manually)",
-            v
+    let info = get_system_vram_info();
+    let preset = auto_preset(device_is_cuda, info.map(|i| i.total_gb));
+    match (info, preset) {
+        (Some(i), Some(p)) => format!(
+            "VRAM: {:.1} GiB total, {:.1} GiB used, {:.1} GiB free → preset '{p}'",
+            i.total_gb, i.used_gb, i.free_gb
+        ),
+        (Some(i), None) => format!(
+            "VRAM: {:.1} GiB total, {:.1} GiB used, {:.1} GiB free (no matching preset; specify --preset manually)",
+            i.total_gb, i.used_gb, i.free_gb
         ),
         (None, _) => {
             "Could not detect VRAM (set VOX_VRAM_OVERRIDE_GB or pass --preset manually)".to_string()
@@ -228,5 +261,20 @@ mod semcov_wave26_tests {
                 && !summary.contains("safe"),
             "CPU summary must not mention a GPU preset; got: {summary}"
         );
+    }
+
+    #[test]
+    fn test_parse_nvidia_smi_output() {
+        let sample = "16376, 1401, 14645\n";
+        let info = parse_nvidia_smi_output(sample).unwrap();
+        assert_eq!(info.total_gb, 16376.0 / 1024.0);
+        assert_eq!(info.used_gb, 1401.0 / 1024.0);
+        assert_eq!(info.free_gb, 14645.0 / 1024.0);
+    }
+
+    #[test]
+    fn test_parse_nvidia_smi_output_invalid() {
+        assert!(parse_nvidia_smi_output("invalid").is_none());
+        assert!(parse_nvidia_smi_output("16376, 1401").is_none());
     }
 }
