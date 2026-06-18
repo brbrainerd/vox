@@ -16,6 +16,7 @@ tree-sitter-typescript = { workspace = true, optional = true }
 walkdir = { workspace = true }
 blake3 = { workspace = true }
 syn = { workspace = true, features = ["full", "visit", "clone-impls"] }
+lcov-parser = "0.6.0"
 
 [features]
 default = ["tree-sitter-grammars"]
