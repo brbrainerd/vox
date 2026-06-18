@@ -19,7 +19,7 @@ First-party Vox distribution bundles. Each bundle is the same host binary plus a
 | `vox-ml` | `vox-fullstack` | 2 | 11 |
 | `vox-ml-metal` | `vox-fullstack` | 1 | 10 |
 | `vox-mesh` | `vox-base` | 2 | 2 |
-| `vox-server` | `vox-base` | 4 | 4 |
+| `vox-server` | `vox-base` | 5 | 5 |
 | `vox-edge` | `vox-base` | 4 | 4 |
 | `vox-dev` | `vox-fullstack` | 7 | 16 |
 | `vox-mobile` | `vox-base` | 0 | 0 |
@@ -100,6 +100,7 @@ Extends: `vox-base`
 - `skill-orchestrator` — Agent-facing skill for task submission, status, budget, multi-agent coordination.
 - `skill-memory` — Agent-facing skill for memory and context management.
 - `webhook` — Inbound webhook HTTP listener with HMAC signature verification (GitHub, generic; GitLab deprecated).
+- `runtime-container` — Skill-runtime plugin: Docker and Podman backends for sandboxed skill execution.
 
 ### `vox-edge`
 
@@ -137,7 +138,7 @@ Extends: `vox-fullstack`
 
 ### `vox-mobile`
 
-Mobile-optimized deployment: lightweight skill runtime for iOS/Android (Tauri Mobile). Planned for v0.8.
+Mobile-optimized deployment: lightweight skill runtime for iOS/Android (React Native / Expo). Planned for v0.8.
 
 Extends: `vox-base`
 
