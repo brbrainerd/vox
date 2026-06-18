@@ -87,22 +87,29 @@ pub async fn ingest_chat_turn(
         }
     }
 
+    let mut cached_samples: Option<Vec<(String, Vec<String>)>> = None;
+
     for snippet in &snippets {
         // Tier 1: keyword rules
         let mut targets = apply_keyword_rules(snippet, &all_rules);
 
         // Tier 2: Jaccard similarity (only if tier 1 found no match)
         if targets.is_empty() {
-            let mut samples: Vec<(String, Vec<String>)> = Vec::new();
-            for kb in &kbs {
-                // Cap at 10 samples per KB to keep O(n) bounded
-                let entries = store.list_entries(&kb.id, 10, 0).await.unwrap_or_default();
-                let contents: Vec<String> = entries.into_iter().map(|e| e.content).collect();
-                if !contents.is_empty() {
-                    samples.push((kb.id.clone(), contents));
+            if cached_samples.is_none() {
+                let mut samples: Vec<(String, Vec<String>)> = Vec::new();
+                for kb in &kbs {
+                    // Cap at 10 samples per KB to keep O(n) bounded
+                    let entries = store.list_entries(&kb.id, 10, 0).await.unwrap_or_default();
+                    let contents: Vec<String> = entries.into_iter().map(|e| e.content).collect();
+                    if !contents.is_empty() {
+                        samples.push((kb.id.clone(), contents));
+                    }
                 }
+                cached_samples = Some(samples);
             }
-            targets = apply_similarity_routing(snippet, &samples, SIMILARITY_THRESHOLD);
+            if let Some(ref samples) = cached_samples {
+                targets = apply_similarity_routing(snippet, samples, SIMILARITY_THRESHOLD);
+            }
         }
 
         for (kb_id, confidence) in targets {

@@ -468,10 +468,13 @@ async fn run_kb_signals_stage(data_dir: &std::path::Path) -> anyhow::Result<()> 
             written += 1;
         }
 
-        // Accepted + rejected same-signal pairs → DPO preference pairs
+        // Accepted + rejected same-signal same-session pairs → DPO preference pairs
         for acc in &accepted {
             for rej in &rejected {
-                if acc.source_signal == rej.source_signal {
+                if acc.source_signal == rej.source_signal
+                    && acc.source_ref.is_some()
+                    && acc.source_ref == rej.source_ref
+                {
                     let record = serde_json::json!({
                         "type": "dpo",
                         "source": "kb",

@@ -7,10 +7,16 @@ pub fn keyword_rule_matches(content: &str, rule: &KbRoutingRule) -> bool {
     let content_lower = content.to_ascii_lowercase();
     let pattern_lower = rule.pattern.to_ascii_lowercase();
     match rule.rule_type {
-        // Regex: fall back to substring match for the MVP (avoids the `regex` dep).
-        // A future enhancement can compile regex patterns explicitly.
-        KbRoutingRuleType::Keyword | KbRoutingRuleType::Regex => {
-            content_lower.contains(&pattern_lower)
+        KbRoutingRuleType::Keyword => content_lower.contains(&pattern_lower),
+        KbRoutingRuleType::Regex => {
+            if let Ok(re) = regex::RegexBuilder::new(&rule.pattern)
+                .case_insensitive(true)
+                .build()
+            {
+                re.is_match(content)
+            } else {
+                content_lower.contains(&pattern_lower)
+            }
         }
     }
 }
@@ -26,7 +32,11 @@ pub fn jaccard_word_similarity(a: &str, b: &str) -> f64 {
     }
     let intersection = a_words.intersection(&b_words).count();
     let union = a_words.union(&b_words).count();
-    if union == 0 { 0.0 } else { intersection as f64 / union as f64 }
+    if union == 0 {
+        0.0
+    } else {
+        intersection as f64 / union as f64
+    }
 }
 
 /// Apply keyword/regex rules to content.
@@ -112,7 +122,9 @@ mod tests {
 
     #[test]
     fn jaccard_identical() {
-        assert!((jaccard_word_similarity("rust async tokio", "rust async tokio") - 1.0).abs() < 1e-9);
+        assert!(
+            (jaccard_word_similarity("rust async tokio", "rust async tokio") - 1.0).abs() < 1e-9
+        );
     }
 
     #[test]
@@ -140,19 +152,17 @@ mod tests {
 
     #[test]
     fn apply_keyword_rules_priority_ordering() {
-        let rules = vec![
-            kw_rule("kb_low", "the", 0),
-            kw_rule("kb_high", "quick", 10),
-        ];
+        let rules = vec![kw_rule("kb_low", "the", 0), kw_rule("kb_high", "quick", 10)];
         let matches = apply_keyword_rules("the quick brown fox", &rules);
         assert_eq!(matches.len(), 2);
     }
 
     #[test]
     fn similarity_above_threshold_routes() {
-        let samples = vec![
-            ("kb_rust".to_string(), vec!["tokio async runtime".to_string()]),
-        ];
+        let samples = vec![(
+            "kb_rust".to_string(),
+            vec!["tokio async runtime".to_string()],
+        )];
         let results = apply_similarity_routing("tokio async executor", &samples, 0.15);
         assert!(!results.is_empty());
         assert_eq!(results[0].0, "kb_rust");
@@ -160,10 +170,22 @@ mod tests {
 
     #[test]
     fn similarity_below_threshold_no_route() {
-        let samples = vec![
-            ("kb_rust".to_string(), vec!["python django flask".to_string()]),
-        ];
+        let samples = vec![(
+            "kb_rust".to_string(),
+            vec!["python django flask".to_string()],
+        )];
         let results = apply_similarity_routing("tokio async runtime", &samples, 0.15);
         assert!(results.is_empty());
+    }
+
+    #[test]
+    fn regex_rule_matches_correctly() {
+        let mut rule = kw_rule("kb1", r"rust.*safety", 0);
+        rule.rule_type = KbRoutingRuleType::Regex;
+        assert!(keyword_rule_matches(
+            "Rust's compile-time memory safety is great",
+            &rule
+        ));
+        assert!(!keyword_rule_matches("Rust has safe memory", &rule));
     }
 }

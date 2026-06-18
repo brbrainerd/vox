@@ -896,8 +896,11 @@ impl crate::VoxDb {
         let breaker = self.breaker.clone();
         breaker
             .call(|| async move {
-                conn.execute("DELETE FROM knowledge_bases WHERE id = ?1", params![id.as_str()])
-                    .await?;
+                conn.execute(
+                    "DELETE FROM knowledge_bases WHERE id = ?1",
+                    params![id.as_str()],
+                )
+                .await?;
                 Ok(())
             })
             .await
@@ -1307,6 +1310,47 @@ impl crate::VoxDb {
                     .await?;
                 if let Some(r) = rows.next().await? {
                     Ok(Some(r.get::<String>(0)?))
+                } else {
+                    Ok(None)
+                }
+            })
+            .await
+    }
+
+    /// Fetch a single KB entry by ID.
+    pub async fn kb_get_entry(
+        &self,
+        entry_id: &str,
+    ) -> Result<Option<crate::KbEntryRow>, crate::store::types::StoreError> {
+        let entry_id = entry_id.to_string();
+        let conn = self.conn.clone();
+        let breaker = self.breaker.clone();
+        breaker
+            .call(|| async move {
+                let mut rows = conn
+                    .query(
+                        "SELECT id, kb_id, content, source_signal, source_ref, routing_confidence,
+                                tags, created_at_ms, last_accessed_at_ms, access_count,
+                                accepted, mens_queued
+                         FROM kb_entries WHERE id = ?1 LIMIT 1",
+                        params![entry_id.as_str()],
+                    )
+                    .await?;
+                if let Some(r) = rows.next().await? {
+                    Ok(Some(crate::KbEntryRow {
+                        id: r.get::<String>(0)?,
+                        kb_id: r.get::<String>(1)?,
+                        content: r.get::<String>(2)?,
+                        source_signal: r.get::<String>(3)?,
+                        source_ref: r.get::<Option<String>>(4)?,
+                        routing_confidence: r.get::<f64>(5)?,
+                        tags: r.get::<String>(6)?,
+                        created_at_ms: r.get::<i64>(7)?,
+                        last_accessed_at_ms: r.get::<Option<i64>>(8)?,
+                        access_count: r.get::<i64>(9)?,
+                        accepted: r.get::<i64>(10)?,
+                        mens_queued: r.get::<i64>(11)?,
+                    }))
                 } else {
                     Ok(None)
                 }

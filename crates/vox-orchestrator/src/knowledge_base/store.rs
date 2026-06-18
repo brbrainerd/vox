@@ -5,7 +5,9 @@ use std::sync::Arc;
 use vox_db::VoxDb;
 
 use crate::{
-    knowledge_base::types::{KbEntry, KbEntrySource, KbRoutingRule, KbRoutingRuleType, KnowledgeBase},
+    knowledge_base::types::{
+        KbEntry, KbEntrySource, KbRoutingRule, KbRoutingRuleType, KnowledgeBase,
+    },
     now_unix_ms,
 };
 
@@ -109,21 +111,9 @@ impl KbStore {
     ) -> Result<KbEntry, String> {
         // Deduplication check (SOTA: search-before-insert)
         if let Ok(Some(existing_id)) = self.db.kb_find_duplicate(kb_id, content).await {
-            // Entry already exists — return a minimal KbEntry with just the id
-            return Ok(KbEntry {
-                id: existing_id,
-                kb_id: kb_id.to_string(),
-                content: content.to_string(),
-                source_signal: source.as_str().to_string(),
-                source_ref: source_ref.map(str::to_string),
-                routing_confidence,
-                tags: serde_json::to_string(tags).unwrap_or_else(|_| "[]".to_string()),
-                created_at_ms: 0, // unknown for existing
-                last_accessed_at_ms: None,
-                access_count: 0,
-                accepted: 1,
-                mens_queued: 0,
-            });
+            if let Ok(Some(row)) = self.db.kb_get_entry(&existing_id).await {
+                return Ok(entry_from_row(row));
+            }
         }
 
         let id = new_id();
