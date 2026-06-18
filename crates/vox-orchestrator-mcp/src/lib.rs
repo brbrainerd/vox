@@ -57,6 +57,8 @@ pub(crate) mod lock_guard;
 pub mod news_tools;
 /// OpenClaw native gateway and skill tools.
 pub mod openclaw_tools;
+/// Agent native gateway and skill tools.
+pub mod agent_tools;
 /// Oratio speech-to-text (Candle Whisper).
 #[cfg(feature = "oratio-rerank")]
 pub mod oratio_tools;

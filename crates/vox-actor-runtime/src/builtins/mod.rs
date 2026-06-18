@@ -12,6 +12,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use vox_openclaw_runtime::{
     DefaultOpenClawRuntimeAdapter, OpenClawRuntimeAdapter, connect_default_runtime_adapter,
+    AgentRuntimeAdapter,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -1102,6 +1103,222 @@ enum OpenClawOp {
     Subscribe { domain: String },
     Unsubscribe { domain: String },
     Notify { domain: String, message: String },
+}
+
+/// Unified Agent runtime call from Vox scripts (`Agent.call`).
+pub fn vox_agent_call(method: &str, params_json: &str) -> Result<String, String> {
+    run_agent_op(AgentOp::GatewayCall {
+        method: method.to_string(),
+        params_json: params_json.to_string(),
+    })
+}
+
+/// Unified Agent convenience: list remote/local skills as JSON (`Agent.list_skills`).
+pub fn vox_agent_list_skills() -> Result<String, String> {
+    run_agent_op(AgentOp::ListSkills)
+}
+
+/// Unified Agent convenience: subscribe domain (`Agent.subscribe`).
+pub fn vox_agent_subscribe(domain: &str) -> Result<String, String> {
+    run_agent_op(AgentOp::Subscribe {
+        domain: domain.to_string(),
+    })
+}
+
+/// Unified Agent convenience: unsubscribe domain (`Agent.unsubscribe`).
+pub fn vox_agent_unsubscribe(domain: &str) -> Result<String, String> {
+    run_agent_op(AgentOp::Unsubscribe {
+        domain: domain.to_string(),
+    })
+}
+
+/// Unified Agent convenience: notify domain (`Agent.notify`).
+pub fn vox_agent_notify(domain: &str, message: &str) -> Result<String, String> {
+    run_agent_op(AgentOp::Notify {
+        domain: domain.to_string(),
+        message: message.to_string(),
+    })
+}
+
+async fn connect_agent_adapter() -> Result<Box<dyn AgentRuntimeAdapter>, String> {
+    let config = vox_config::VoxConfig::load();
+    let provider_str = config.agent_provider.to_lowercase();
+    if provider_str == "hermes" {
+        let http_url = std::env::var("VOX_HERMES_URL")
+            .unwrap_or_else(|_| "http://localhost:8642/v1".to_string());
+        let auth_token = std::env::var("VOX_HERMES_TOKEN")
+            .ok()
+            .or_else(|| {
+                vox_secrets::resolve_secret(vox_secrets::SecretId::OpenClawToken)
+                    .expose()
+                    .map(|s| s.to_string())
+            });
+        let local_skills_path = std::env::var("VOX_HERMES_SKILLS_PATH")
+            .ok()
+            .map(std::path::PathBuf::from)
+            .or_else(|| {
+                Some(std::path::PathBuf::from(".agents/skills"))
+            });
+        let adapter_config = vox_openclaw_runtime::AgentRuntimeConfig {
+            provider: vox_openclaw_runtime::AgentProvider::Hermes,
+            http_gateway_url: http_url,
+            ws_gateway_url: None,
+            auth_token,
+            local_skills_path,
+        };
+        Ok(Box::new(vox_openclaw_runtime::DefaultHermesRuntimeAdapter::new(adapter_config)))
+    } else {
+        let secrets_token = vox_secrets::resolve_secret(vox_secrets::SecretId::OpenClawToken)
+            .expose()
+            .map(std::string::ToString::to_string);
+        let adapter = connect_default_runtime_adapter(secrets_token)
+            .await
+            .map_err(|e| format!("openclaw adapter connect failed: {e}"))?;
+        Ok(Box::new(adapter))
+    }
+}
+
+enum AgentOp {
+    GatewayCall { method: String, params_json: String },
+    ListSkills,
+    Subscribe { domain: String },
+    Unsubscribe { domain: String },
+    Notify { domain: String, message: String },
+}
+
+struct AgentRequest {
+    op: AgentOp,
+    reply_tx: std::sync::mpsc::Sender<Result<String, String>>,
+}
+
+struct AgentWorker {
+    tx: std::sync::mpsc::Sender<AgentRequest>,
+}
+
+fn agent_worker() -> &'static AgentWorker {
+    static WORKER: OnceLock<AgentWorker> = OnceLock::new();
+    WORKER.get_or_init(|| {
+        let (tx, rx) = std::sync::mpsc::channel::<AgentRequest>();
+        std::thread::Builder::new()
+            .name("vox-agent-runtime".to_string())
+            .spawn(move || {
+                let runtime = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .map_err(|e| format!("agent runtime init failed: {e}"));
+                match runtime {
+                    Ok(rt) => {
+                        let mut adapter: Option<Box<dyn AgentRuntimeAdapter>> = None;
+                        while let Ok(req) = rx.recv() {
+                            let result = rt.block_on(handle_agent_op(&mut adapter, req.op));
+                            let _ = req.reply_tx.send(result);
+                        }
+                    }
+                    Err(err) => {
+                        while let Ok(req) = rx.recv() {
+                            let _ = req.reply_tx.send(Err(err.clone()));
+                        }
+                    }
+                }
+            })
+            .expect("spawn agent runtime worker");
+        AgentWorker { tx }
+    })
+}
+
+fn run_agent_op(op: AgentOp) -> Result<String, String> {
+    let worker = agent_worker();
+    run_agent_op_with_worker(worker, op)
+}
+
+fn run_agent_op_with_worker(worker: &AgentWorker, op: AgentOp) -> Result<String, String> {
+    let (reply_tx, reply_rx) = std::sync::mpsc::channel();
+    worker
+        .tx
+        .send(AgentRequest { op, reply_tx })
+        .map_err(|e| format!("agent worker send failed: {e}"))?;
+    reply_rx
+        .recv()
+        .map_err(|e| format!("agent worker recv failed: {e}"))?
+}
+
+async fn handle_agent_op(
+    adapter: &mut Option<Box<dyn AgentRuntimeAdapter>>,
+    op: AgentOp,
+) -> Result<String, String> {
+    match op {
+        AgentOp::GatewayCall {
+            method,
+            params_json,
+        } => {
+            let params = serde_json::from_str::<serde_json::Value>(&params_json)
+                .map_err(|e| format!("invalid params_json: {e}"))?;
+            if adapter.is_none() {
+                *adapter = Some(connect_agent_adapter().await?);
+            }
+            let adapter = adapter
+                .as_mut()
+                .ok_or_else(|| "agent adapter unavailable".to_string())?;
+            let payload = adapter
+                .gateway_call(&method, params)
+                .await
+                .map_err(|e| e.to_string())?;
+            serde_json::to_string(&payload).map_err(|e| e.to_string())
+        }
+        AgentOp::ListSkills => {
+            if adapter.is_none() {
+                *adapter = Some(connect_agent_adapter().await?);
+            }
+            let adapter = adapter
+                .as_mut()
+                .ok_or_else(|| "agent adapter unavailable".to_string())?;
+            let skills = adapter
+                .list_remote_skills()
+                .await
+                .map_err(|e| e.to_string())?;
+            serde_json::to_string(&serde_json::json!({ "skills": skills }))
+                .map_err(|e| e.to_string())
+        }
+        AgentOp::Subscribe { domain } => {
+            if adapter.is_none() {
+                *adapter = Some(connect_agent_adapter().await?);
+            }
+            let adapter = adapter
+                .as_mut()
+                .ok_or_else(|| "agent adapter unavailable".to_string())?;
+            let payload = adapter
+                .subscribe_domain(&domain)
+                .await
+                .map_err(|e| e.to_string())?;
+            serde_json::to_string(&payload).map_err(|e| e.to_string())
+        }
+        AgentOp::Unsubscribe { domain } => {
+            if adapter.is_none() {
+                *adapter = Some(connect_agent_adapter().await?);
+            }
+            let adapter = adapter
+                .as_mut()
+                .ok_or_else(|| "agent adapter unavailable".to_string())?;
+            let payload = adapter
+                .unsubscribe_domain(&domain)
+                .await
+                .map_err(|e| e.to_string())?;
+            serde_json::to_string(&payload).map_err(|e| e.to_string())
+        }
+        AgentOp::Notify { domain, message } => {
+            if adapter.is_none() {
+                *adapter = Some(connect_agent_adapter().await?);
+            }
+            let adapter = adapter
+                .as_mut()
+                .ok_or_else(|| "agent adapter unavailable".to_string())?;
+            let payload = adapter
+                .notify_domain(&domain, &message)
+                .await
+                .map_err(|e| e.to_string())?;
+            serde_json::to_string(&payload).map_err(|e| e.to_string())
+        }
+    }
 }
 
 enum HttpOp {

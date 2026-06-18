@@ -21,7 +21,7 @@ category: "Language Reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 284
+**schema_version:** `1` · **vox-cli operations:** 285
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -167,6 +167,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox gamify` | active | extras-ludus | ars | ai | — |
 | `vox gamify hud` | active | ludus-hud | ars | ai | — |
 | `vox graphify` | active | — | pm | platform | — |
+| `vox graphify ingest` | active | — | pm | platform | — |
 | `vox init` | active | — | pm | platform | — |
 | `vox live` | active | live | — | ai | — |
 | `vox lock` | active | — | pm | platform | — |

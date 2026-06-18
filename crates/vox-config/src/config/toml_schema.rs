@@ -15,6 +15,7 @@ pub(super) struct VoxToml {
     pub(super) web: Option<WebTomlSection>,
     pub(super) build: Option<BuildTomlSection>,
     pub(super) llm: Option<LlmTomlSection>,
+    pub(super) agent: Option<AgentTomlSection>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -63,4 +64,10 @@ pub(super) struct LlmTomlSection {
     pub(super) openrouter_max_concurrent: Option<usize>,
     pub(super) openai_max_concurrent: Option<usize>,
     pub(super) retry_max_attempts: Option<u32>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+#[serde(default)]
+pub(super) struct AgentTomlSection {
+    pub(super) provider: Option<String>,
 }

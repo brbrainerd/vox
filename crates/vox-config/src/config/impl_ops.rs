@@ -88,6 +88,7 @@ impl VoxConfig {
             }
             "llm.openai_max_concurrent" => self.llm_openai_max_concurrent.map(|v| v.to_string()),
             "llm.retry_max_attempts" => Some(self.llm_retry_max_attempts.to_string()),
+            "agent.provider" | "agent_provider" => Some(self.agent_provider.clone()),
             _ => None,
         }
     }
@@ -162,6 +163,7 @@ impl VoxConfig {
                 Ok(v) => self.llm_retry_max_attempts = v,
                 Err(_) => return false,
             },
+            "agent.provider" | "agent_provider" => self.agent_provider = value.to_string(),
             _ => return false,
         }
         true
@@ -202,6 +204,8 @@ impl VoxConfig {
             "llm.openrouter_max_concurrent",
             "llm.openai_max_concurrent",
             "llm.retry_max_attempts",
+            "agent_provider",
+            "agent.provider",
         ]
     }
 
@@ -295,6 +299,12 @@ impl VoxConfig {
                 self.llm_retry_max_attempts = v;
             }
         }
+
+        if let Some(agent) = parsed.agent {
+            if let Some(v) = agent.provider {
+                self.agent_provider = v;
+            }
+        }
     }
 
     fn apply_env(&mut self) {
@@ -358,6 +368,10 @@ impl VoxConfig {
             vox_secrets::resolve_secret(vox_secrets::SecretId::AnthropicApiKey).expose()
         {
             self.anthropic_key = Some(v.to_string());
+        }
+
+        if let Ok(v) = std::env::var("VOX_AGENT_PROVIDER") {
+            self.agent_provider = v;
         }
 
         // Non-secret build override (documented on `BuildTarget` in `gamify_web.rs`).
@@ -505,6 +519,16 @@ db_extra = "de"
         let mut cfg = VoxConfig::default();
         merge_vox_toml_path_for_test(&mut cfg, &p);
         assert_eq!(cfg.web_run_mode, WebRunMode::App);
+    }
+
+    #[test]
+    fn test_default_agent_provider_parses() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let p = dir.path().join("Vox.toml");
+        std::fs::write(&p, "[agent]\nprovider = \"hermes\"\n").expect("write");
+        let mut cfg = VoxConfig::default();
+        merge_vox_toml_path_for_test(&mut cfg, &p);
+        assert_eq!(cfg.agent_provider, "hermes");
     }
 
     #[test]

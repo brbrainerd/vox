@@ -14,7 +14,7 @@ use crate::browser_tools;
 use crate::visus_tools;
 use crate::{
     benchmark_tools, chat_tools, code_validator, codex_tools, compiler_tools, db_tools,
-    exec_time_tools, git_tools, grammar_tools, introspection_tools, openclaw_tools,
+    exec_time_tools, git_tools, grammar_tools, introspection_tools, openclaw_tools, agent_tools,
     persistence_tools, populi_tools, project_init_tools, questioning_tools, rag_tools,
     repo_catalog_tools, repo_index, secrets_tools, task_tools, toestub_tools, tool_aliases,
     training_tools, trust_tools, vcs_tools,
@@ -505,6 +505,20 @@ async fn handle_tool_call_inner(
         }
         "vox_openclaw_notify" => {
             Ok(openclaw_tools::openclaw_notify(state, serde_json::from_value(args)?).await)
+        }
+        "vox_agent_list_remote" => Ok(agent_tools::agent_list_remote(state).await),
+        "vox_agent_gateway_call" => {
+            Ok(agent_tools::agent_gateway_call(state, serde_json::from_value(args)?).await)
+        }
+        "vox_agent_subscriptions" => Ok(agent_tools::agent_subscriptions(state).await),
+        "vox_agent_subscribe" => {
+            Ok(agent_tools::agent_subscribe(state, serde_json::from_value(args)?).await)
+        }
+        "vox_agent_unsubscribe" => {
+            Ok(agent_tools::agent_unsubscribe(state, serde_json::from_value(args)?).await)
+        }
+        "vox_agent_notify" => {
+            Ok(agent_tools::agent_notify(state, serde_json::from_value(args)?).await)
         }
 
         "vox_git_log" => Ok(git_tools::git_log(
@@ -1492,6 +1506,12 @@ mod registry_dispatch_tests {
         "vox_openclaw_subscribe",
         "vox_openclaw_unsubscribe",
         "vox_openclaw_notify",
+        "vox_agent_list_remote",
+        "vox_agent_gateway_call",
+        "vox_agent_subscriptions",
+        "vox_agent_subscribe",
+        "vox_agent_unsubscribe",
+        "vox_agent_notify",
         "vox_browser_open",
         "vox_browser_list_pages",
         "vox_browser_page_info",

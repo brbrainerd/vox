@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use serde_json::Value;
-use crate::openclaw_adapter::{AgentRuntimeAdapter, AgentRuntimeConfig, AgentProvider};
+use crate::openclaw_adapter::{AgentRuntimeAdapter, AgentRuntimeConfig};
 use crate::openclaw::OpenClawSkillSpec;
 use crate::openclaw_adapter::OpenClawAdapterError;
 use crate::ArsSkill;
@@ -66,11 +66,15 @@ impl AgentRuntimeAdapter for DefaultHermesRuntimeAdapter {
 
     async fn gateway_call(&mut self, method: &str, params: Value) -> Result<Value, OpenClawAdapterError> {
         if method == "generate" || method == "chat" {
-            let res = self.http.post(&format!("{}/chat/completions", self.cfg.http_gateway_url.trim_end_matches('/')))
-                .json(&params)
-                .send()
+            let mut req = self.http.post(&format!("{}/chat/completions", self.cfg.http_gateway_url.trim_end_matches('/')))
+                .json(&params);
+            if let Some(ref token) = self.cfg.auth_token {
+                req = req.bearer_auth(token);
+            }
+            let res = req.send()
                 .await
                 .map_err(|e| OpenClawAdapterError::Other(e.to_string()))?;
+            let res = res.error_for_status().map_err(|e| OpenClawAdapterError::Other(e.to_string()))?;
             let json = res.json::<Value>().await.map_err(|e| OpenClawAdapterError::Other(e.to_string()))?;
             Ok(json)
         } else {
@@ -82,6 +86,7 @@ impl AgentRuntimeAdapter for DefaultHermesRuntimeAdapter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::AgentProvider;
 
     #[tokio::test]
     async fn test_hermes_skills_empty_for_missing_dir() {

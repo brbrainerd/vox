@@ -34,6 +34,18 @@ pub struct OpenClawAdapterConfig {
     pub verify_tls: bool,
 }
 
+impl From<OpenClawAdapterConfig> for AgentRuntimeConfig {
+    fn from(cfg: OpenClawAdapterConfig) -> Self {
+        Self {
+            provider: AgentProvider::OpenClaw,
+            http_gateway_url: cfg.http_gateway_url,
+            ws_gateway_url: Some(cfg.ws_gateway_url),
+            auth_token: cfg.auth_token,
+            local_skills_path: None,
+        }
+    }
+}
+
 /// Optional overrides when resolving OpenClaw adapter connection settings.
 #[derive(Debug, Clone, Default)]
 pub struct OpenClawConnectionOverrides {

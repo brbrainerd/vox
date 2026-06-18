@@ -8316,6 +8316,126 @@ operations:
     http_read_role_eligible: false
     tier: core
   cli: null
+- id: agent.list.remote
+  title: Agent List Remote
+  description: List remote agent skills through the native agent runtime adapter.
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_agent_list_remote
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: agent.gateway.call
+  title: Agent Gateway Call
+  description: Invoke an arbitrary agent Gateway method with JSON params.
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_agent_gateway_call
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: agent.subscriptions
+  title: Agent Subscriptions
+  description: List active agent gateway subscriptions for the current session.
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_agent_subscriptions
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: agent.subscribe
+  title: Agent Subscribe
+  description: Subscribe the agent gateway session to a domain.
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_agent_subscribe
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: agent.unsubscribe
+  title: Agent Unsubscribe
+  description: Unsubscribe the agent gateway session from a domain.
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_agent_unsubscribe
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: agent.notify
+  title: Agent Notify
+  description: Send a domain-scoped notification over the agent gateway.
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_agent_notify
+    http_read_role_eligible: false
+    tier: core
+  cli: null
 - id: oplog
   title: Oplog
   description: Show recent operations with undo support.
@@ -13410,6 +13530,246 @@ operations:
   latin_aliases: null
   mcp:
     name: vox_resolve_approval
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: kb.create
+  title: Create Knowledge Base
+  description: Create a new knowledge base.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_kb_create
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: kb.list
+  title: List Knowledge Bases
+  description: List all available knowledge bases.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_kb_list
+    http_read_role_eligible: true
+    tier: core
+  cli: null
+- id: kb.delete
+  title: Delete Knowledge Base
+  description: Delete a knowledge base by ID.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_kb_delete
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: kb.add_entry
+  title: Add Knowledge Entry
+  description: Add a knowledge entry to a knowledge base.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_kb_add_entry
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: kb.delete_entry
+  title: Delete Knowledge Entry
+  description: Delete a knowledge entry by ID.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_kb_delete_entry
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: kb.list_entries
+  title: List Knowledge Entries
+  description: List all knowledge entries in a knowledge base.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_kb_list_entries
+    http_read_role_eligible: true
+    tier: core
+  cli: null
+- id: kb.review_entry
+  title: Review Knowledge Entry
+  description: Accept or reject a knowledge entry.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_kb_review_entry
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: kb.get_feed
+  title: Get Knowledge Feed
+  description: Get the feed of knowledge entries.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_kb_get_feed
+    http_read_role_eligible: true
+    tier: core
+  cli: null
+- id: kb.add_rule
+  title: Add Knowledge Rule
+  description: Add an ingestion filter rule.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_kb_add_rule
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: kb.list_rules
+  title: List Knowledge Rules
+  description: List ingestion filter rules.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_kb_list_rules
+    http_read_role_eligible: true
+    tier: core
+  cli: null
+- id: kb.query
+  title: Query Knowledge Base
+  description: Query knowledge bases with semantic search.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_kb_query
+    http_read_role_eligible: true
+    tier: core
+  cli: null
+- id: kb.clip
+  title: Clip Knowledge Fact
+  description: Clip code/notes into knowledge bases.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_kb_clip
     http_read_role_eligible: false
     tier: core
   cli: null
