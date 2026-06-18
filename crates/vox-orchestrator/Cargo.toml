@@ -11,7 +11,18 @@ default = [
     "runtime",
     "json-schema",
     "jj",
+    "corpus-db",
 ]
+# HTTP server routes (axum). Enabled by vox-orchestrator-d and vox-cli
+# routes that serve JSON over TCP. Not needed by library consumers.
+http-server = ["dep:axum"]
+# Pre-call token counting via tiktoken-rs. Needed for context-window
+# management and pre-flight cost estimates. Off by default in the library;
+# enabled by the daemon binary and tests that exercise context management.
+token-counting = ["dep:tiktoken-rs"]
+# In-process corpus DB integrations. Enabled by default; --no-default-features
+# disables to allow compiling without database dependencies.
+corpus-db = ["vox-corpus/database"]
 # Populi HTTP mesh client (`vox-populi` transport).
 populi-transport = ["dep:vox-populi", "vox-populi/transport", "dep:aes-gcm"]
 # `vox-speech` speech-to-text / refinement tools.
@@ -56,7 +67,7 @@ sha3 = { workspace = true }
 xxhash-rust = { workspace = true }
 hmac = { workspace = true }
 sha2 = { workspace = true }
-tiktoken-rs = { workspace = true }
+tiktoken-rs = { workspace = true, optional = true }
 hex = { workspace = true }
 getrandom = "0.2"
 vox-crypto.workspace = true
@@ -83,7 +94,7 @@ anyhow.workspace = true
 serde_yaml.workspace = true
 vox-speech = { workspace = true, optional = true, features = ["compiler-rerank"] }
 regex = { workspace = true }
-vox-corpus = { workspace = true, features = ["database"] }
+vox-corpus = { workspace = true }
 # In-process VCS backend. The single home for jj_lib:: calls; the orchestrator's
 # `jj` feature forwards to vox-vcs/jj. Lean by default so --no-default-features
 # chains through.
@@ -107,7 +118,7 @@ vox-mesh-policy = { workspace = true }
 blake3.workspace = true
 crossbeam-queue = { workspace = true }
 workspace-hack = { workspace = true }
-axum = { workspace = true, features = ["tokio", "http1", "json"] }
+axum = { workspace = true, features = ["tokio", "http1", "json"], optional = true }
 glob.workspace = true
 ignore = { workspace = true }
 rand_distr = { workspace = true }
@@ -126,7 +137,6 @@ tempfile = { workspace = true }
 tracing-test = { workspace = true }
 vox-actor-runtime = { workspace = true }
 vox-test-harness = { path = "../vox-test-harness" }
-axum = { workspace = true, features = ["tokio", "http1", "json"] }
 tokio = { workspace = true, features = ["full", "test-util"] }
 jsonschema = { workspace = true, default-features = false }
 tower = { workspace = true, features = ["util"] }
