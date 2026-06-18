@@ -177,11 +177,13 @@ Interpreted **`vox mens workflow run`** (journal + `mesh_*` activity hooks; ther
 
 ### `vox graphify …`
 
-Read-only **Tier D** corpus registry and freshness checks for graphify knowledge maps (`contracts/retrieval/graphify-corpora.v1.yaml`).
+Corpus registry and freshness status/ingest operations for graphify knowledge maps (`contracts/retrieval/graphify-corpora.v1.yaml`).
 
 | Subcommand | Role |
 |------------|------|
 | `vox graphify status` | Report per-corpus freshness (node/edge counts, graph path). `--corpus <id>` limits output; `--strict` exits non-zero when any corpus is stale; `--json` emits machine-readable status. |
+| `vox graphify ingest` | Project graph nodes into Turso `knowledge_nodes` via VoxDb. |
+| `vox graphify rebuild` | Rebuild the base AST code graph and cluster it. |
 
 ### `vox ci …`
 
