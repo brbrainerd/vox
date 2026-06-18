@@ -35,3 +35,13 @@ corpora:
     extraction_mode: audit
     default_for_intents:
       - config_audit
+
+  - id: graphify-search-log
+    title: "Graphify search-hit log (agent memory)"
+    scope_path: ".vox/cache/graphify/search-log/"
+    graph_path: ".vox/cache/graphify/search-log/graph.json"
+    manifest_path: ".vox/cache/graphify/search-log/.graphify_manifest.v1.json"
+    is_virtual: true
+    default_for_intents:
+      - search_history
+      - agent_recall

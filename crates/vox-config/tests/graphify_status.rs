@@ -35,7 +35,11 @@ fn load_graphify_corpora_reads_workspace_contract() {
     let reg = load_graphify_corpora(tmp.path()).expect("load");
     assert_eq!(reg.default_corpus_id, "repo-code-graph");
     assert_eq!(reg.ttl_days_default, 30);
-    assert_eq!(reg.corpora.len(), 3);
+    assert_eq!(reg.corpora.len(), 4, "expected 4 corpora after adding graphify-search-log");
+    assert!(
+        reg.corpora.iter().any(|c| c.id == "graphify-search-log"),
+        "graphify-search-log must be present in registry"
+    );
     assert!(reg.corpora.iter().any(|c| c.id == "vox-gui-surface"));
 }
 
