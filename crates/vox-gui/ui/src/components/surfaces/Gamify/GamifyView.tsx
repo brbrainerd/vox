@@ -1,4 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useStore } from 'zustand';
+import { useLudusStore } from '../../gamify/store';
+import { LudusSandbox } from '../../gamify/LudusSandbox';
 import { invoke } from '@tauri-apps/api/core';
 import { LudusProfile } from '../../../lib/ludus';
 import { LudusHud } from './LudusHud';
@@ -55,6 +58,8 @@ interface Quest {
 
 export function GamifyView({ pushToast }: GamifyViewProps) {
   const [profile, setProfile] = useState<LudusProfile | null>(null);
+  const buildings = useStore(useLudusStore, (state) => state.buildings);
+  const buildingFiles = React.useMemo(() => Object.keys(buildings), [buildings]);
   const [notes, setNotes] = useState<LudusNotification[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [companions, setCompanions] = useState<Companion[]>([]);
@@ -113,6 +118,13 @@ export function GamifyView({ pushToast }: GamifyViewProps) {
       {profile ? <LudusHud profile={profile} /> : (
         <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 text-sm text-zinc-500">No profile yet.</div>
       )}
+
+      <div className="mb-6 border border-zinc-800 rounded-xl overflow-hidden bg-zinc-950/60 p-4">
+        <h3 className="mb-2 font-display text-[12px] uppercase tracking-wide text-zinc-400">Simulation Map</h3>
+        <div className="h-[450px]">
+          <LudusSandbox files={buildingFiles} />
+        </div>
+      </div>
 
       <div>
         <div className="mb-2 font-display text-[12px] uppercase tracking-wide text-zinc-400">Notifications</div>
