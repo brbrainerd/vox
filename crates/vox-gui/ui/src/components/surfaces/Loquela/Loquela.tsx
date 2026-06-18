@@ -446,7 +446,7 @@ export function Loquela({
   const riskTone = dryRun ? 'low' : mode === 'verify' ? 'med' : mode === 'plan' ? 'low' : 'high';
 
   return (
-    <div className="pointer-events-auto p-4">
+    <div className="pointer-events-auto p-4" data-testid="loquela-composer">
       <Glass className={`relative overflow-hidden px-3 py-2 transition ${focused ? "ring-1 ring-brass/30 shadow-[0_0_60px_-20px_rgb(var(--brass)_/_0.45)]" : ""}`}>
         {chips.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5 pb-1.5">

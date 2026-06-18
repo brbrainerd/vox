@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
+import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 
 interface ModelCard {
   id: string;
@@ -33,9 +34,10 @@ interface RoutingSummary {
 
 interface ModelsViewProps {
   pushToast: (t: any) => void;
+  gamifyEnabled?: boolean;
 }
 
-export function ModelsView({ pushToast }: ModelsViewProps) {
+export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps) {
   const [models, setModels] = useState<ModelCard[]>([]);
   const [summary, setSummary] = useState<RoutingSummary | null>(null);
   const [activeModel, setActiveModel] = useState<string | null>(null);
@@ -69,6 +71,7 @@ export function ModelsView({ pushToast }: ModelsViewProps) {
     try {
       await invoke('set_active_model', { modelId: id });
       setActiveModel(id);
+      void recordGamifyGuiEvent('model_activated', { model_id: id }, { enabled: gamifyEnabled });
       pushToast({ tone: 'ok', title: 'Active model set', body: id });
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Set active failed', body: String(err) });

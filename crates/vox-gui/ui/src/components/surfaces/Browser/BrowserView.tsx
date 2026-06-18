@@ -9,9 +9,11 @@ import {
   type BrowserFramePayload,
   type PreviewAvailablePayload,
 } from '../../../transport';
+import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 
 interface BrowserViewProps {
   pushToast: (item: { tone: 'ok' | 'warn' | 'info'; title: string; body?: string }) => void;
+  gamifyEnabled?: boolean;
 }
 
 interface PreviewStatus {
@@ -57,7 +59,7 @@ export function mapClickToViewport(
   };
 }
 
-export function BrowserView({ pushToast }: BrowserViewProps) {
+export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
   const [tab, setTab] = useState<BrowserTab>('preview');
   const [previewUrl, setPreviewUrl] = useState('http://127.0.0.1:3000');
   const [appDir, setAppDir] = useState('');
@@ -211,6 +213,11 @@ export function BrowserView({ pushToast }: BrowserViewProps) {
         source: payload.source,
       });
       setPreviewUrl(payload.url);
+      void recordGamifyGuiEvent(
+        'browser_preview_loaded',
+        { url: payload.url, source: payload.source },
+        { enabled: gamifyEnabled },
+      );
       // Treat subsequent preview-available events as rebuild/restart signals.
       setPreviewReloadNonce((n) => n + 1);
     })
@@ -221,7 +228,7 @@ export function BrowserView({ pushToast }: BrowserViewProps) {
     return () => {
       if (unlisten) unlisten();
     };
-  }, []);
+  }, [gamifyEnabled]);
 
   const startPreview = async () => {
     setBusy(true);
@@ -234,6 +241,11 @@ export function BrowserView({ pushToast }: BrowserViewProps) {
       });
       setPreview(status);
       pushToast({ tone: 'ok', title: 'Preview started', body: status.url ?? undefined });
+      void recordGamifyGuiEvent(
+        'browser_preview_loaded',
+        { url: status.url, source: status.source },
+        { enabled: gamifyEnabled },
+      );
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Preview failed', body: String(err) });
     } finally {

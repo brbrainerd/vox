@@ -19,6 +19,8 @@ import { SearchView } from './Search/SearchView';
  */
 export interface SurfaceDecoratorProps {
   pushToast: (item: { tone: 'ok' | 'warn' | 'info'; title: string; body?: string }) => void;
+  /** When false, gamify GUI event hooks are no-ops (Settings SSOT polled in App). */
+  gamifyEnabled?: boolean;
 }
 
 /** Build a read-only command-cards decorator for a Tier-3 CLI surface. */

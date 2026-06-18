@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildPaletteItems, SurfaceEntryLike, DocEntryLike } from './paletteSources';
+import { buildPaletteItems, DocEntryLike, parsePaletteQuery, SurfaceEntryLike } from './paletteSources';
 import { SettingEntry } from '../surfaces/Settings/settingsIndex';
 
 const surfaces: SurfaceEntryLike[] = [
@@ -32,5 +32,17 @@ describe('buildPaletteItems', () => {
 
   it('empty query returns no federation items', () => {
     expect(buildPaletteItems('', { surfaces, settings, docs })).toHaveLength(0);
+  });
+
+  it('> prefix yields commands mode with stripped query', () => {
+    expect(parsePaletteQuery('> ci')).toEqual({ mode: 'commands', query: 'ci' });
+  });
+
+  it('@ prefix yields agents mode', () => {
+    expect(parsePaletteQuery('@ scout')).toEqual({ mode: 'agents', query: 'scout' });
+  });
+
+  it('/ prefix yields skills mode for docs and catalog', () => {
+    expect(parsePaletteQuery('/ mesh')).toEqual({ mode: 'skills', query: 'mesh' });
   });
 });

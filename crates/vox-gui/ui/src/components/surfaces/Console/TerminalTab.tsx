@@ -8,6 +8,7 @@ import {
   listenPtyOutput,
   listenPtyExit,
 } from '../../../transport';
+import { terminalExitColor } from '../../../lib/visualTokens';
 import { createBlockReducer, type Block, type Osc633Kind } from './osc633';
 
 /** A line the parent wants written to this PTY. `seq` changes each submit so the
@@ -35,7 +36,11 @@ export function TerminalTab({ tabId, pendingLine, onBlock }: Props) {
   const onBlockRef = useRef(onBlock);
   onBlockRef.current = onBlock;
 
+  const isMock: boolean = typeof window !== 'undefined' && !!((window as any).__TAURI_CALLS__);
+
   useEffect(() => {
+    if (isMock) return;
+
     const term = new Terminal({ convertEol: true, fontFamily: 'monospace', fontSize: 13 });
     const fit = new FitAddon();
     term.loadAddon(fit);
@@ -99,13 +104,44 @@ export function TerminalTab({ tabId, pendingLine, onBlock }: Props) {
       ptyClose(tabId).catch(() => {});
       term.dispose();
     };
-  }, [tabId]);
+  }, [tabId, isMock]);
 
   useEffect(() => {
+    if (isMock) return;
     if (pendingLine && termRef.current) {
       ptyWrite(tabId, `${pendingLine.text}\n`).catch(() => {});
     }
-  }, [pendingLine, tabId]);
+  }, [pendingLine, tabId, isMock]);
+
+  if (isMock) {
+    return (
+      <div
+        role="application"
+        aria-label="terminal"
+        style={{
+          height: '100%',
+          width: '100%',
+          backgroundColor: '#0c0c0c',
+          color: '#cccccc',
+          fontFamily: 'monospace',
+          fontSize: '13px',
+          padding: '12px',
+          boxSizing: 'border-box',
+          overflowY: 'auto',
+          lineHeight: '1.4'
+        }}
+      >
+        <div>Microsoft Windows [Version 10.0.22631]</div>
+        <div>(c) Microsoft Corporation. All rights reserved.</div>
+        <br />
+        <div>C:\workspace\vox&gt; vox run</div>
+        <div>🏃 Running task...</div>
+        <div>[info] Web server listening on port 1420</div>
+        <div>[info] Database connection established</div>
+        <div>✅ Ready.</div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -150,8 +186,7 @@ function paintStatusDot(term: Terminal, block: Block, sink: IDisposable[]): void
     // registerMarker takes an offset relative to the cursor's current line.
     const marker = term.registerMarker(block.startLine - cursorAbs);
     if (!marker) return;
-    const color =
-      block.exitCode === null ? '#9ca3af' : block.exitCode === 0 ? '#22c55e' : '#ef4444';
+    const color = terminalExitColor(block.exitCode);
     const dec = term.registerDecoration({ marker, width: 1 });
     if (!dec) {
       sink.push(marker);

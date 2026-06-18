@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
 import { useLocalStorage } from '../../../hooks/useLocalStorage';
+import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import { buildGroupTree, needsAttention, overallWorst, statusForRow } from './policyTree';
 import type { PolicyRow, PolicyDetail, PolicyStatus, BranchInfo, RunStatus } from './types';
 
@@ -28,7 +29,13 @@ function StatusCount({ counts }: { counts: Record<RunStatus, number> }) {
   );
 }
 
-export function PoliciesView({ pushToast }: { pushToast: (t: any) => void }) {
+export function PoliciesView({
+  pushToast,
+  gamifyEnabled = false,
+}: {
+  pushToast: (t: any) => void;
+  gamifyEnabled?: boolean;
+}) {
   const [rows, setRows] = useState<PolicyRow[]>([]);
   const [status, setStatus] = useState<PolicyStatus[]>([]);
   const [branches, setBranches] = useState<BranchInfo[]>([]);
@@ -64,6 +71,11 @@ export function PoliciesView({ pushToast }: { pushToast: (t: any) => void }) {
   // Load detail when the selected rule changes.
   useEffect(() => {
     if (!selectedId) { setDetail(null); return; }
+    recordGamifyGuiEvent(
+      'policy_rule_viewed',
+      { rule_id: selectedId },
+      { enabled: gamifyEnabled },
+    );
     invoke<PolicyDetail>('policy_show', { id: selectedId })
       .then(setDetail)
       .catch(err => pushToast({ tone: 'warn', title: 'Detail failed', body: String(err) }));
@@ -82,7 +94,7 @@ export function PoliciesView({ pushToast }: { pushToast: (t: any) => void }) {
   return (
     <div className="flex gap-4 h-full min-h-0">
       {/* ── SECONDARY: group rail (collapsible, mirrors Sidebar rail widths) ── */}
-      <div className="shrink-0 transition-[width] duration-200" style={{ width: railCollapsed ? 56 : 300 }}>
+      <nav aria-label="Policy tree" className="shrink-0 transition-[width] duration-200" style={{ width: railCollapsed ? 56 : 300 }}>
         <Glass className="flex h-full flex-col p-3 gap-3 overflow-hidden">
           <div className="flex items-center justify-between">
             {!railCollapsed && (
@@ -168,10 +180,10 @@ export function PoliciesView({ pushToast }: { pushToast: (t: any) => void }) {
             </>
           )}
         </Glass>
-      </div>
+      </nav>
 
       {/* ── PRIMARY: rule detail + contents (largest pane) ── */}
-      <div className="flex-1 min-w-0">
+      <section aria-label="Policy detail" className="flex-1 min-w-0">
         <Glass className="flex h-full flex-col p-5 gap-4 overflow-y-auto custom-scrollbar">
           {!detail ? (
             <div className="m-auto font-mono text-xs text-zinc-600">select a policy</div>
@@ -238,7 +250,7 @@ export function PoliciesView({ pushToast }: { pushToast: (t: any) => void }) {
             </>
           )}
         </Glass>
-      </div>
+      </section>
     </div>
   );
 }

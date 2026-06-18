@@ -1,37 +1,24 @@
 import React from 'react';
+import { cn } from '../../lib/cn';
 
 type Tone = 'success' | 'running' | 'warning' | 'neutral';
 
-const toneStyle: Record<Tone, React.CSSProperties> = {
-    success: {
-        background: 'var(--vscode-testing-iconPassed, #34d399)22',
-        color: 'var(--vscode-testing-iconPassed, #34d399)',
-        borderColor: 'var(--vscode-testing-iconPassed, #34d399)',
-    },
-    running: {
-        background: 'var(--vscode-textLink-foreground, #60a5fa)22',
-        color: 'var(--vscode-textLink-foreground, #60a5fa)',
-        borderColor: 'var(--vscode-textLink-foreground, #60a5fa)',
-    },
-    warning: {
-        background: 'var(--vscode-editorWarning-foreground, #eab308)22',
-        color: 'var(--vscode-editorWarning-foreground, #ca8a04)',
-        borderColor: 'var(--vscode-editorWarning-foreground, #ca8a04)',
-    },
-    neutral: {
-        background: 'var(--vscode-badge-background, rgba(120,120,120,0.2))',
-        color: 'var(--vscode-descriptionForeground, inherit)',
-        borderColor: 'var(--vscode-panel-border, rgba(255,255,255,0.08))',
-    },
+const toneClass: Record<Tone, string> = {
+  success: 'bg-emerald-400/10 text-emerald-400 border-emerald-400/30',
+  running: 'bg-sky-400/10 text-sky-400 border-sky-400/30',
+  warning: 'bg-amber-400/10 text-amber-400 border-amber-400/30',
+  neutral: 'bg-zinc-500/10 text-zinc-400 border-white/10',
 };
 
 export function StateChip({ label, tone }: { label: string; tone: Tone }) {
-    return (
-        <span
-            className="px-3 py-1 rounded-lg text-[9px] font-extrabold uppercase tracking-widest border"
-            style={toneStyle[tone]}
-        >
-            {label}
-        </span>
-    );
+  return (
+    <span
+      className={cn(
+        'px-3 py-1 rounded-lg text-[9px] font-extrabold uppercase tracking-widest border',
+        toneClass[tone],
+      )}
+    >
+      {label}
+    </span>
+  );
 }

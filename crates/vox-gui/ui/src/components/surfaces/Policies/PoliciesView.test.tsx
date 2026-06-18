@@ -56,4 +56,10 @@ describe('PoliciesView', () => {
     const chip = await screen.findByRole('button', { name: /branch: main/i });
     expect(chip.getAttribute('aria-pressed')).toBe('true');
   });
+
+  it('renders policy tree rail and detail pane', async () => {
+    render(<PoliciesView pushToast={vi.fn()} />);
+    await waitFor(() => expect(screen.getByRole('navigation', { name: /policy tree/i })).toBeTruthy());
+    expect(screen.getByRole('region', { name: /policy detail/i })).toBeTruthy();
+  });
 });

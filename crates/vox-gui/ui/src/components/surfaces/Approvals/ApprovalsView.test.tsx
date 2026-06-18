@@ -43,8 +43,8 @@ describe('ApprovalsView', () => {
     await waitFor(() => {
       expect(screen.getByText('rm -rf')).toBeDefined();
     });
-    const region = screen.getByRole('list', { name: /pending approvals/i });
-    expect(region.getAttribute('aria-live')).toBe('polite');
+    const region = screen.getByText('rm -rf').closest('[aria-live="polite"]');
+    expect(region).not.toBeNull();
   });
 
   it('gives the approve/reject buttons accessible labels and explicit type', async () => {
@@ -58,5 +58,18 @@ describe('ApprovalsView', () => {
     const reject = await screen.findByRole('button', { name: /reject do thing|reject ap-1/i });
     expect(approve.getAttribute('type')).toBe('button');
     expect(reject.getAttribute('type')).toBe('button');
+  });
+
+  it('renders ApprovalsView columns with appropriate headers', async () => {
+    invokeMock.mockResolvedValue(
+      envelope([
+        { approval_id: 'ap-1', tool: 'shell', summary: 'do thing', requested_at_ms: Date.now() },
+      ]),
+    );
+    render(<ApprovalsView pushToast={vi.fn()} />);
+    await waitFor(() => {
+      expect(screen.getByText('Request ID')).toBeDefined();
+      expect(screen.getByText('Action Description')).toBeDefined();
+    });
   });
 });

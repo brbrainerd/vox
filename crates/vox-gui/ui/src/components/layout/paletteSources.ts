@@ -28,6 +28,25 @@ export interface PaletteSources {
 
 const MAX_PER_KIND = 5;
 
+export type PalettePrefixMode = 'default' | 'commands' | 'agents' | 'skills';
+
+/** Strip palette prefix (`>`, `@`, `/`) and return routing mode + effective query. */
+export function parsePaletteQuery(raw: string): { mode: PalettePrefixMode; query: string } {
+  const match = raw.match(/^([>@/])\s*(.*)$/);
+  if (!match) return { mode: 'default', query: raw };
+  const query = match[2].trim();
+  switch (match[1]) {
+    case '>':
+      return { mode: 'commands', query };
+    case '@':
+      return { mode: 'agents', query };
+    case '/':
+      return { mode: 'skills', query };
+    default:
+      return { mode: 'default', query: raw };
+  }
+}
+
 export function buildPaletteItems(query: string, sources: PaletteSources): PaletteItem[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];

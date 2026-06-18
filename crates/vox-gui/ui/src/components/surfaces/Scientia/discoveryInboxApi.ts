@@ -17,6 +17,8 @@ export interface DiscoveryInboxRow {
   /** e.g. `strong_candidate` | `review_suggested` | `auto_intake`. */
   intake_tier: string;
   signal_codes: string[];
+  /** `research` when surfaced from the research pipeline; otherwise `commit_watcher`. */
+  origin: string;
 }
 
 /** List unacknowledged discoveries, newest first (default limit 50). */
