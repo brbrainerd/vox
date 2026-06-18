@@ -3,6 +3,40 @@ use std::fs;
 use std::path::Path;
 use tracing::{info, warn};
 
+/// Place the real `vox` binary at the canonical user-facing path, and install
+/// `voxup` itself alongside it.
+///
+/// This is extracted from `run_install` so it can be unit-tested independently.
+///
+/// - `extracted_vox`: The `vox` binary from the downloaded release archive.
+/// - `canonical`: `~/.vox/bin/vox[.exe]` — the path users invoke.
+/// - `secondary`: `~/.cargo/bin/vox[.exe]` — backward-compat hard-link.
+/// - `current_voxup`: The currently running `voxup` process binary.
+/// - `voxup_canonical`: `~/.vox/bin/voxup[.exe]` — where voxup lives post-install.
+pub(crate) fn place_binaries(
+    extracted_vox: &Path,
+    canonical: &Path,
+    secondary: &Path,
+    current_voxup: &Path,
+    voxup_canonical: &Path,
+) -> Result<()> {
+    if let Some(parent) = canonical.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    if let Some(parent) = secondary.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    if let Some(parent) = voxup_canonical.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    replace_file(extracted_vox, canonical)?;
+    establish_single_binary(canonical, secondary)?;
+    replace_file(current_voxup, voxup_canonical)?;
+    info!("voxup installed at {}", voxup_canonical.display());
+    Ok(())
+}
+
 pub async fn run_install(_profile: &str) -> Result<()> {
     let home = dirs::home_dir().context("cannot determine home directory")?;
     let bin_dir = home.join(".vox").join("bin");
@@ -68,9 +102,16 @@ pub async fn run_install(_profile: &str) -> Result<()> {
             tc_dir.display()
         );
     }
+    let voxup_exe = if cfg!(windows) { "voxup.exe" } else { "voxup" };
+    let voxup_canonical = bin_dir.join(voxup_exe);
     let current_voxup = std::env::current_exe().context("cannot get current exe path")?;
-    replace_file(&current_voxup, &canonical)?;
-    establish_single_binary(&canonical, &secondary)?;
+    place_binaries(
+        &extracted_bin,
+        &canonical,
+        &secondary,
+        &current_voxup,
+        &voxup_canonical,
+    )?;
 
     // WASM sysroots
     provision_wasm_sysroots(&cache_dir, &release.version).await?;
@@ -87,7 +128,8 @@ pub async fn run_install(_profile: &str) -> Result<()> {
     }
 
     println!("\n✅ Vox {} installed!", release.version);
-    println!("   Binary: {}", canonical.display());
+    println!("   vox:   {}", canonical.display());
+    println!("   voxup: {}", voxup_canonical.display());
     println!("   Run: vox --version");
     println!("   Restart your shell or: source ~/.bashrc");
     Ok(())
@@ -312,5 +354,48 @@ mod tests {
         fs::write(&canonical, b"stub").unwrap();
         let err = establish_single_binary(&canonical, &cargo).unwrap_err();
         assert!(err.to_string().contains("no real `vox` binary"));
+    }
+
+    #[test]
+    fn place_binaries_installs_extracted_vox_not_running_voxup() {
+        let dir = tempdir().unwrap();
+        let exe = if cfg!(windows) { "vox.exe" } else { "vox" };
+        let voxup_exe = if cfg!(windows) { "voxup.exe" } else { "voxup" };
+
+        // The extracted vox binary — byte 0xAA identifies it
+        let tc_dir = dir.path().join("toolchains").join("vox-1.0.0");
+        let extracted_vox = tc_dir.join(exe);
+        write_fake_binary(&extracted_vox, 0xAA);
+
+        // A fake "running voxup" — byte 0xBB identifies it
+        let fake_voxup = dir.path().join(voxup_exe);
+        write_fake_binary(&fake_voxup, 0xBB);
+
+        let canonical = dir.path().join("bin").join(exe);
+        let secondary = dir.path().join("cargo-bin").join(exe);
+        let voxup_canonical = dir.path().join("bin").join(voxup_exe);
+
+        place_binaries(
+            &extracted_vox,
+            &canonical,
+            &secondary,
+            &fake_voxup,
+            &voxup_canonical,
+        )
+        .unwrap();
+
+        // ~/.vox/bin/vox must contain the extracted vox bytes (0xAA), not voxup bytes (0xBB)
+        let canonical_bytes = fs::read(&canonical).unwrap();
+        assert!(
+            canonical_bytes.iter().all(|&b| b == 0xAA),
+            "~/.vox/bin/vox must be the extracted vox binary, not voxup"
+        );
+
+        // ~/.vox/bin/voxup must contain the voxup bytes (0xBB)
+        let voxup_bytes = fs::read(&voxup_canonical).unwrap();
+        assert!(
+            voxup_bytes.iter().all(|&b| b == 0xBB),
+            "~/.vox/bin/voxup must be the running voxup binary"
+        );
     }
 }
