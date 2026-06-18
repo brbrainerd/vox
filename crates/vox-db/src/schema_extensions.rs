@@ -121,7 +121,7 @@ mod tests {
     #[test]
     fn test_baseline_contains_extended_columns() {
         let sql = baseline_sql();
-        
+
         // Assert columns are present in the baseline DDL
         assert!(sql.contains("task_category"));
         assert!(sql.contains("strength_tag"));

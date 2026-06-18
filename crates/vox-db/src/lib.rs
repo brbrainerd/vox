@@ -52,7 +52,6 @@
 //! }
 //! ```
 
-
 /// Compare live SQLite schema to `@table` / collection declarations; non-destructive migrations.
 pub mod auto_migrate;
 /// Benchmark observations stored in `research_metrics` (`bench:<repository_id>` sessions).
@@ -82,7 +81,10 @@ pub mod telemetry_sink;
 /// Canonical Codex storage policy (`vox.db` vs project store vs training sidecar).
 pub mod canonical_store;
 #[cfg(feature = "legacy-import")]
-#[deprecated(since = "0.6.0", note = "Use vox codex export-legacy CLI; module will be removed in the next major version")]
+#[deprecated(
+    since = "0.6.0",
+    note = "Use vox codex export-legacy CLI; module will be removed in the next major version"
+)]
 pub mod codex_legacy;
 /// Manifest-derived readiness (baseline digest, required tables).
 pub mod codex_schema;
@@ -395,5 +397,3 @@ mod local_tests;
 
 #[cfg(test)]
 mod semcov_wave18_tests;
-
-

@@ -84,15 +84,17 @@ pub(crate) fn extract_function_info(
     for p in &func.params {
         if let Some(ref ty) = p.type_ann
             && let Some(table) = detect_table_reference(ty, all_table_names)
-                && !affected_tables.contains(&table) {
-                    affected_tables.push(table);
-                }
+            && !affected_tables.contains(&table)
+        {
+            affected_tables.push(table);
+        }
     }
     if let Some(ref ret) = func.return_type
         && let Some(table) = detect_table_reference(ret, all_table_names)
-            && !affected_tables.contains(&table) {
-                affected_tables.push(table);
-            }
+        && !affected_tables.contains(&table)
+    {
+        affected_tables.push(table);
+    }
 
     FunctionInfo {
         name: func.name.clone(),
@@ -137,9 +139,10 @@ fn detect_table_reference(ty: &TypeExpr, all_table_names: &[String]) -> Option<S
     match ty {
         TypeExpr::Generic { name, args, .. } if name == "Id" => {
             if let Some(TypeExpr::Named { name: table, .. }) = args.first()
-                && all_table_names.contains(table) {
-                    return Some(table.clone());
-                }
+                && all_table_names.contains(table)
+            {
+                return Some(table.clone());
+            }
             None
         }
         TypeExpr::Generic { name, args, .. } if name == "List" || name == "list" => {

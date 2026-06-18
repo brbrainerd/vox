@@ -40,8 +40,6 @@ async fn test_connect_memory() {
     assert!(!hash.is_empty());
 }
 
-
-
 #[tokio::test]
 async fn codex_alias_connects() {
     let db: Codex = VoxDb::connect(DbConfig::Memory).await.expect("db");
@@ -133,7 +131,6 @@ async fn raw_sqlite_gamify_profiles_integer_round_trip() {
     let row = q.next().await.expect("r").expect("row");
     assert_eq!(row.get::<i64>(0).expect("xp"), 900);
 }
-
 
 async fn seed_legacy_schema_version_only(path: &std::path::Path, version: i64) {
     let s = path.to_string_lossy().to_string();
@@ -306,13 +303,13 @@ async fn list_model_arm_stats_aggregates_scoreboard_rows() {
 #[cfg(feature = "legacy-import")]
 mod legacy_tests {
     use super::*;
-    use std::io::Cursor;
-    use tempfile::tempdir;
     use crate::codex_schema::missing_codex_reactivity_tables;
     use crate::legacy::codex::{
         LEGACY_EXPORT_SKIP_TABLES, LEGACY_EXPORT_TABLES, export_legacy_jsonl, import_legacy_jsonl,
         list_sqlite_user_tables, verify_legacy_store,
     };
+    use std::io::Cursor;
+    use tempfile::tempdir;
 
     #[tokio::test]
     async fn codex_reactivity_schema_and_legacy_verify() {

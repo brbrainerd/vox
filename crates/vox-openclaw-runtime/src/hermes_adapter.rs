@@ -1,9 +1,9 @@
-use async_trait::async_trait;
-use serde_json::Value;
-use crate::openclaw_adapter::{AgentRuntimeAdapter, AgentRuntimeConfig};
+use crate::ArsSkill;
 use crate::openclaw::OpenClawSkillSpec;
 use crate::openclaw_adapter::OpenClawAdapterError;
-use crate::ArsSkill;
+use crate::openclaw_adapter::{AgentRuntimeAdapter, AgentRuntimeConfig};
+use async_trait::async_trait;
+use serde_json::Value;
 
 fn resolve_tilde(path: &std::path::Path) -> std::path::PathBuf {
     let path_str = path.to_string_lossy();
@@ -126,7 +126,9 @@ impl AgentRuntimeAdapter for DefaultHermesRuntimeAdapter {
     }
 
     async fn import_skill(&mut self, _slug: &str) -> Result<ArsSkill, OpenClawAdapterError> {
-        Err(OpenClawAdapterError::Other("Importing remote skills not supported on Hermes local".to_string()))
+        Err(OpenClawAdapterError::Other(
+            "Importing remote skills not supported on Hermes local".to_string(),
+        ))
     }
 
     async fn list_subscriptions(&mut self) -> Result<Value, OpenClawAdapterError> {
@@ -134,32 +136,60 @@ impl AgentRuntimeAdapter for DefaultHermesRuntimeAdapter {
     }
 
     async fn subscribe_domain(&mut self, _domain: &str) -> Result<Value, OpenClawAdapterError> {
-        Err(OpenClawAdapterError::Other("WebSocket subscriptions not supported on Hermes".to_string()))
+        Err(OpenClawAdapterError::Other(
+            "WebSocket subscriptions not supported on Hermes".to_string(),
+        ))
     }
 
     async fn unsubscribe_domain(&mut self, _domain: &str) -> Result<Value, OpenClawAdapterError> {
-        Err(OpenClawAdapterError::Other("WebSocket subscriptions not supported on Hermes".to_string()))
+        Err(OpenClawAdapterError::Other(
+            "WebSocket subscriptions not supported on Hermes".to_string(),
+        ))
     }
 
-    async fn notify_domain(&mut self, _domain: &str, _message: &str) -> Result<Value, OpenClawAdapterError> {
-        Err(OpenClawAdapterError::Other("WebSocket notifications not supported on Hermes".to_string()))
+    async fn notify_domain(
+        &mut self,
+        _domain: &str,
+        _message: &str,
+    ) -> Result<Value, OpenClawAdapterError> {
+        Err(OpenClawAdapterError::Other(
+            "WebSocket notifications not supported on Hermes".to_string(),
+        ))
     }
 
-    async fn gateway_call(&mut self, method: &str, params: Value) -> Result<Value, OpenClawAdapterError> {
+    async fn gateway_call(
+        &mut self,
+        method: &str,
+        params: Value,
+    ) -> Result<Value, OpenClawAdapterError> {
         if method == "generate" || method == "chat" {
-            let mut req = self.http.post(&format!("{}/chat/completions", self.cfg.http_gateway_url.trim_end_matches('/')))
+            let mut req = self
+                .http
+                .post(&format!(
+                    "{}/chat/completions",
+                    self.cfg.http_gateway_url.trim_end_matches('/')
+                ))
                 .json(&params);
             if let Some(ref token) = self.cfg.auth_token {
                 req = req.bearer_auth(token);
             }
-            let res = req.send()
+            let res = req
+                .send()
                 .await
                 .map_err(|e| OpenClawAdapterError::Other(e.to_string()))?;
-            let res = res.error_for_status().map_err(|e| OpenClawAdapterError::Other(e.to_string()))?;
-            let json = res.json::<Value>().await.map_err(|e| OpenClawAdapterError::Other(e.to_string()))?;
+            let res = res
+                .error_for_status()
+                .map_err(|e| OpenClawAdapterError::Other(e.to_string()))?;
+            let json = res
+                .json::<Value>()
+                .await
+                .map_err(|e| OpenClawAdapterError::Other(e.to_string()))?;
             Ok(json)
         } else {
-            Err(OpenClawAdapterError::Other(format!("Method {} not supported by Hermes", method)))
+            Err(OpenClawAdapterError::Other(format!(
+                "Method {} not supported by Hermes",
+                method
+            )))
         }
     }
 }
@@ -224,6 +254,9 @@ description = "A parsed mock skill for test"
         assert_eq!(skills.len(), 1);
         assert_eq!(skills[0].name, "mock-discovered-skill"); // Uses name from SKILL.md frontmatter
         assert_eq!(skills[0].version, "2.3.4");
-        assert_eq!(skills[0].description, Some("A parsed mock skill for test".to_string()));
+        assert_eq!(
+            skills[0].description,
+            Some("A parsed mock skill for test".to_string())
+        );
     }
 }

@@ -1,5 +1,5 @@
-use turso::params;
 use crate::store::types::StoreError;
+use turso::params;
 
 impl crate::VoxDb {
     /// Upsert a knowledge node manually
@@ -128,9 +128,10 @@ impl crate::VoxDb {
             let q = super::sanitize_fts_query(query);
             if !q.is_empty()
                 && let Ok(out) = self.query_knowledge_nodes_fts(&q, lim).await
-                    && !out.is_empty() {
-                        return Ok(out);
-                    }
+                && !out.is_empty()
+            {
+                return Ok(out);
+            }
         }
         self.query_knowledge_nodes_like(query, lim).await
     }

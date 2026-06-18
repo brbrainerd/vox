@@ -1,5 +1,5 @@
-use turso::params;
 use crate::store::types::StoreError;
+use turso::params;
 
 impl crate::VoxDb {
     /// Upsert a row in `components`.

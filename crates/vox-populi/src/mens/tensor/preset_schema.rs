@@ -366,11 +366,26 @@ pub fn resolve_effective_profile(
         let quant = crate::mens::tensor::finetune_contract::BaseQuantMode::Nf4;
 
         let budget_plan = if crate::mens::tensor::memory_budget::is_qwen25coder(hint) {
-            crate::mens::tensor::memory_budget::plan_qwen25coder_with_options(vram_gib, params_b, quant, gradient_checkpointing)
+            crate::mens::tensor::memory_budget::plan_qwen25coder_with_options(
+                vram_gib,
+                params_b,
+                quant,
+                gradient_checkpointing,
+            )
         } else if crate::mens::tensor::memory_budget::is_qwen3(hint) {
-            crate::mens::tensor::memory_budget::plan_qwen3_with_options(vram_gib, params_b, quant, gradient_checkpointing)
+            crate::mens::tensor::memory_budget::plan_qwen3_with_options(
+                vram_gib,
+                params_b,
+                quant,
+                gradient_checkpointing,
+            )
         } else {
-            crate::mens::tensor::memory_budget::plan_qwen35_with_options(vram_gib, params_b, quant, gradient_checkpointing)
+            crate::mens::tensor::memory_budget::plan_qwen35_with_options(
+                vram_gib,
+                params_b,
+                quant,
+                gradient_checkpointing,
+            )
         };
 
         if overrides.seq_len.is_none() {
@@ -529,7 +544,8 @@ mod preset_tests {
     #[test]
     fn test_preset_bounds_dynamically_to_fit_vram() {
         let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384);
-        let profile = resolve_effective_profile(Some("prosumer_16g"), dev, None, CliOverrides::default());
+        let profile =
+            resolve_effective_profile(Some("prosumer_16g"), dev, None, CliOverrides::default());
         // For a 7B model on 16GB, it should safely scale parameters down.
         assert!(profile.seq_len <= 384);
     }

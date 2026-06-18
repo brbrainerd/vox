@@ -296,4 +296,3 @@ mod tests_generic_adaptation {
         assert_eq!(cfg.provider, AgentProvider::Hermes);
     }
 }
-

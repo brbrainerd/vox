@@ -71,9 +71,10 @@ pub fn embedding_candidate_cap(
         default_multiplier as u64,
     ) as i64;
     if let Some(p) = probe
-        && !p.fts5_reported {
-            mult = (mult * 2).min(30);
-        }
+        && !p.fts5_reported
+    {
+        mult = (mult * 2).min(30);
+    }
     let lim = limit.clamp(1, 500);
     (lim * mult).clamp(1, 50_000)
 }

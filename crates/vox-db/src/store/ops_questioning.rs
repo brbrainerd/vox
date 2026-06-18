@@ -557,76 +557,76 @@ impl crate::VoxDb {
             && let Some((qeid, eig_bits)) = self
                 .latest_question_event_id_and_eig(question_session_id, question_id)
                 .await?
-            {
-                let opts = self.list_question_options(qeid).await?;
-                if !opts.is_empty() && opts.iter().any(|o| o.option_id == sel) {
-                    let n = opts.len() as f64;
-                    let uniform = if n > 0.0 { 1.0 / n } else { 1.0 };
-                    fn is_good_prob(x: f64) -> bool {
-                        x.is_finite() && x > 0.0
-                    }
-                    let mut mass: Vec<(String, f64)> = Vec::with_capacity(opts.len());
-                    for o in &opts {
-                        let p = if let Some(pp) = o.prior_probability {
-                            if is_good_prob(pp) {
-                                pp
-                            } else if let Some(pq) = o.posterior_probability {
-                                if is_good_prob(pq) { pq } else { uniform }
-                            } else {
-                                uniform
-                            }
+        {
+            let opts = self.list_question_options(qeid).await?;
+            if !opts.is_empty() && opts.iter().any(|o| o.option_id == sel) {
+                let n = opts.len() as f64;
+                let uniform = if n > 0.0 { 1.0 / n } else { 1.0 };
+                fn is_good_prob(x: f64) -> bool {
+                    x.is_finite() && x > 0.0
+                }
+                let mut mass: Vec<(String, f64)> = Vec::with_capacity(opts.len());
+                for o in &opts {
+                    let p = if let Some(pp) = o.prior_probability {
+                        if is_good_prob(pp) {
+                            pp
                         } else if let Some(pq) = o.posterior_probability {
                             if is_good_prob(pq) { pq } else { uniform }
                         } else {
                             uniform
-                        };
-                        mass.push((o.option_id.clone(), p));
-                    }
-                    let sum: f64 = mass.iter().map(|(_, p)| p).sum();
-                    if sum > 0.0 && sum.is_finite() {
-                        for (_, p) in mass.iter_mut() {
-                            *p /= sum;
                         }
+                    } else if let Some(pq) = o.posterior_probability {
+                        if is_good_prob(pq) { pq } else { uniform }
                     } else {
-                        mass = opts
-                            .iter()
-                            .map(|o| (o.option_id.clone(), uniform))
-                            .collect();
+                        uniform
+                    };
+                    mass.push((o.option_id.clone(), p));
+                }
+                let sum: f64 = mass.iter().map(|(_, p)| p).sum();
+                if sum > 0.0 && sum.is_finite() {
+                    for (_, p) in mass.iter_mut() {
+                        *p /= sum;
                     }
-                    let lik_mul = 1.0_f64 + eig_bits.clamp(0.0, 8.0);
-                    let mut updated: HashMap<String, f64> = HashMap::new();
-                    for (oid, p) in mass {
-                        let l = if oid == sel { lik_mul } else { 1.0 };
-                        updated.insert(oid, p * l);
-                    }
-                    let s: f64 = updated.values().copied().sum();
-                    if s > 0.0 && s.is_finite() {
-                        for p in updated.values_mut() {
-                            *p /= s;
-                        }
-                    }
-                    let by_q = obj
-                        .entry("hypothesis_mass".to_string())
-                        .or_insert_with(|| serde_json::json!({}));
-                    let by_q_obj = by_q
-                        .as_object_mut()
-                        .ok_or_else(|| StoreError::Db("belief hypothesis_mass object".into()))?;
-                    let per_q = by_q_obj
-                        .entry("by_question".to_string())
-                        .or_insert_with(|| serde_json::json!({}));
-                    let per_q_obj = per_q
-                        .as_object_mut()
-                        .ok_or_else(|| StoreError::Db("belief by_question object".into()))?;
-                    let prob_map: serde_json::Map<String, serde_json::Value> = updated
+                } else {
+                    mass = opts
                         .iter()
-                        .map(|(k, v)| (k.clone(), serde_json::json!(v)))
+                        .map(|o| (o.option_id.clone(), uniform))
                         .collect();
-                    per_q_obj.insert(question_id.to_string(), serde_json::Value::Object(prob_map));
-                    for (oid, prob) in &updated {
-                        pending_option_updates.push((qeid, oid.clone(), *prob));
+                }
+                let lik_mul = 1.0_f64 + eig_bits.clamp(0.0, 8.0);
+                let mut updated: HashMap<String, f64> = HashMap::new();
+                for (oid, p) in mass {
+                    let l = if oid == sel { lik_mul } else { 1.0 };
+                    updated.insert(oid, p * l);
+                }
+                let s: f64 = updated.values().copied().sum();
+                if s > 0.0 && s.is_finite() {
+                    for p in updated.values_mut() {
+                        *p /= s;
                     }
                 }
+                let by_q = obj
+                    .entry("hypothesis_mass".to_string())
+                    .or_insert_with(|| serde_json::json!({}));
+                let by_q_obj = by_q
+                    .as_object_mut()
+                    .ok_or_else(|| StoreError::Db("belief hypothesis_mass object".into()))?;
+                let per_q = by_q_obj
+                    .entry("by_question".to_string())
+                    .or_insert_with(|| serde_json::json!({}));
+                let per_q_obj = per_q
+                    .as_object_mut()
+                    .ok_or_else(|| StoreError::Db("belief by_question object".into()))?;
+                let prob_map: serde_json::Map<String, serde_json::Value> = updated
+                    .iter()
+                    .map(|(k, v)| (k.clone(), serde_json::json!(v)))
+                    .collect();
+                per_q_obj.insert(question_id.to_string(), serde_json::Value::Object(prob_map));
+                for (oid, prob) in &updated {
+                    pending_option_updates.push((qeid, oid.clone(), *prob));
+                }
             }
+        }
 
         obj.insert(
             "last_updated_ms".to_string(),

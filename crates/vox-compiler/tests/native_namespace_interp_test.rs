@@ -53,4 +53,3 @@ fn agent_call_in_fn_gives_cr_f4_diagnostic() {
         "Expected CR-F4 diagnostic for Agent, got: {result}"
     );
 }
-

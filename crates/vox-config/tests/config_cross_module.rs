@@ -54,14 +54,18 @@ fn test_default_agent_provider_parses() {
         provider = "hermes"
     "#;
     std::fs::write(tmp.path().join("Vox.toml"), toml).unwrap();
-    
+
     let prev = std::env::var("VOX_AGENT_PROVIDER").ok();
-    unsafe { std::env::remove_var("VOX_AGENT_PROVIDER"); }
-    
+    unsafe {
+        std::env::remove_var("VOX_AGENT_PROVIDER");
+    }
+
     let config = VoxConfig::load_from_repo_root(tmp.path());
     assert_eq!(config.agent_provider, "hermes");
-    
+
     if let Some(v) = prev {
-        unsafe { std::env::set_var("VOX_AGENT_PROVIDER", v); }
+        unsafe {
+            std::env::set_var("VOX_AGENT_PROVIDER", v);
+        }
     }
 }

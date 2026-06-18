@@ -113,9 +113,7 @@ pub fn spawn_detached_null_stdio(base: &str, args: &[&str]) -> anyhow::Result<Ch
     let binary = resolve_or_stage_daemon(&target_sibling, &bin_dir)
         .unwrap_or_else(|_| resolve_managed_binary_path(base));
     let mut cmd = Command::new(binary);
-    cmd.args(args)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+    cmd.args(args).stdout(Stdio::null()).stderr(Stdio::null());
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;

@@ -261,9 +261,10 @@ impl<'a> BehavioralLearner<'a> {
         for event in &events {
             // Parse hour from ISO datetime (e.g. "2026-02-27 14:30:00")
             if let Some(hour_str) = event.created_at.get(11..13)
-                && let Ok(hour) = hour_str.parse::<u32>() {
-                    *hour_counts.entry(hour).or_insert(0) += 1;
-                }
+                && let Ok(hour) = hour_str.parse::<u32>()
+            {
+                *hour_counts.entry(hour).or_insert(0) += 1;
+            }
         }
 
         let mut buckets: Vec<TimeUsageBucket> = hour_counts

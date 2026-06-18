@@ -11,8 +11,8 @@ use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use vox_openclaw_runtime::{
-    DefaultOpenClawRuntimeAdapter, OpenClawRuntimeAdapter, connect_default_runtime_adapter,
-    AgentRuntimeAdapter,
+    AgentRuntimeAdapter, DefaultOpenClawRuntimeAdapter, OpenClawRuntimeAdapter,
+    connect_default_runtime_adapter,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -1146,19 +1146,15 @@ async fn connect_agent_adapter() -> Result<Box<dyn AgentRuntimeAdapter>, String>
     if provider_str == "hermes" {
         let http_url = std::env::var("VOX_HERMES_URL")
             .unwrap_or_else(|_| "http://localhost:8642/v1".to_string());
-        let auth_token = std::env::var("VOX_HERMES_TOKEN")
-            .ok()
-            .or_else(|| {
-                vox_secrets::resolve_secret(vox_secrets::SecretId::OpenClawToken)
-                    .expose()
-                    .map(|s| s.to_string())
-            });
+        let auth_token = std::env::var("VOX_HERMES_TOKEN").ok().or_else(|| {
+            vox_secrets::resolve_secret(vox_secrets::SecretId::OpenClawToken)
+                .expose()
+                .map(|s| s.to_string())
+        });
         let local_skills_path = std::env::var("VOX_HERMES_SKILLS_PATH")
             .ok()
             .map(std::path::PathBuf::from)
-            .or_else(|| {
-                Some(std::path::PathBuf::from(".agents/skills"))
-            });
+            .or_else(|| Some(std::path::PathBuf::from(".agents/skills")));
         let adapter_config = vox_openclaw_runtime::AgentRuntimeConfig {
             provider: vox_openclaw_runtime::AgentProvider::Hermes,
             http_gateway_url: http_url,
@@ -1166,7 +1162,9 @@ async fn connect_agent_adapter() -> Result<Box<dyn AgentRuntimeAdapter>, String>
             auth_token,
             local_skills_path,
         };
-        Ok(Box::new(vox_openclaw_runtime::DefaultHermesRuntimeAdapter::new(adapter_config)))
+        Ok(Box::new(
+            vox_openclaw_runtime::DefaultHermesRuntimeAdapter::new(adapter_config),
+        ))
     } else {
         let secrets_token = vox_secrets::resolve_secret(vox_secrets::SecretId::OpenClawToken)
             .expose()

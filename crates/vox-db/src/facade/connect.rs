@@ -131,7 +131,7 @@ impl crate::VoxDb {
                 Ok(res) => {
                     Self::apply_pragmas(&res.conn).await?;
                     Self::migrate(&res.conn).await?;
-                    
+
                     return Ok(Self::assembled(
                         res.conn,
                         res.sync_db,

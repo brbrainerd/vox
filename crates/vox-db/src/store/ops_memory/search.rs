@@ -1,8 +1,8 @@
-use turso::params;
 use crate::store::types::StoreError;
 use crate::{
     RetrievalEvidenceSource, RetrievalResult, SearchBackend, SearchDiagnostics, fuse_hybrid_results,
 };
+use turso::params;
 
 impl crate::VoxDb {
     /// Full-text search over `search_document_chunks` joined with `search_documents` titles.
@@ -29,9 +29,10 @@ impl crate::VoxDb {
             let q = super::sanitize_fts_query(query);
             if !q.is_empty()
                 && let Ok(out) = self.query_search_document_chunks_fts(&q, lim).await
-                    && !out.is_empty() {
-                        return Ok(out);
-                    }
+                && !out.is_empty()
+            {
+                return Ok(out);
+            }
         }
         self.query_search_document_chunks_like(query, lim).await
     }
@@ -60,12 +61,12 @@ impl crate::VoxDb {
                         mime_type = excluded.mime_type,
                         content_hash = excluded.content_hash,
                         ingested_at = datetime('now')",
-                     params![
+                    params![
                         source_uri.as_str(),
                         title.as_str(),
                         mime_type.as_str(),
                         content_hash.as_str()
-                     ],
+                    ],
                 )
                 .await?;
                 let mut rows = conn

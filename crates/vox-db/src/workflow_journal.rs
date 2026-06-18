@@ -67,9 +67,10 @@ impl VoxDb {
         while let Some(row) = rows.next().await? {
             let json: String = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
             if let Ok(meta) = serde_json::from_str::<WorkflowJournalMeta>(&json)
-                && meta.workflow == workflow_name {
-                    entries.push(meta.entry);
-                }
+                && meta.workflow == workflow_name
+            {
+                entries.push(meta.entry);
+            }
         }
 
         Ok(entries)

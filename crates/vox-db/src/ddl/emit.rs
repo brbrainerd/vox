@@ -161,10 +161,12 @@ pub fn table_info_to_ddl(info: &TableInfo) -> String {
 /// Generate `CREATE TABLE` from `CollectionInfo`.
 pub fn collection_info_to_ddl(info: &CollectionInfo) -> String {
     let name = to_snake_case(&info.name);
-    let cols = ["    _id INTEGER PRIMARY KEY AUTOINCREMENT".to_string(),
+    let cols = [
+        "    _id INTEGER PRIMARY KEY AUTOINCREMENT".to_string(),
         "    _data TEXT NOT NULL".to_string(),
         "    _created_at TEXT DEFAULT (datetime('now'))".to_string(),
-        "    _updated_at TEXT DEFAULT (datetime('now'))".to_string()];
+        "    _updated_at TEXT DEFAULT (datetime('now'))".to_string(),
+    ];
 
     format!(
         "CREATE TABLE IF NOT EXISTS {} (\n{}\n);",

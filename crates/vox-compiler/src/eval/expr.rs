@@ -534,7 +534,10 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             // instead (CR-F4: an arm that cannot support a construct must say so
             // clearly, never fail opaquely). See where-things-live.md.
             if let HirExpr::Ident(ns_name, _) = obj.as_ref()
-                && matches!(ns_name.as_str(), "Scrape" | "Browser" | "OpenClaw" | "Agent")
+                && matches!(
+                    ns_name.as_str(),
+                    "Scrape" | "Browser" | "OpenClaw" | "Agent"
+                )
             {
                 return Err(EvalError::AssertionFailed(format!(
                     "`{ns}.{m}(...)` is only available in compiled builds \

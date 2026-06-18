@@ -43,30 +43,31 @@ pub fn enrich_error(raw_message: &str, digest: &SchemaDigest) -> EnrichedDbError
 
     // Check for field-not-found errors
     if (msg_lower.contains("field") || msg_lower.contains("column"))
-        && let Some(ref table) = related_table {
-            let available = field_list_str(&table.fields);
-            enriched = format!(
-                "{}\n\nAvailable fields on '{}': {}",
-                raw_message, table.name, available
-            );
+        && let Some(ref table) = related_table
+    {
+        let available = field_list_str(&table.fields);
+        enriched = format!(
+            "{}\n\nAvailable fields on '{}': {}",
+            raw_message, table.name, available
+        );
 
-            // Try to fuzzy-match a misspelled field name
-            let words: Vec<&str> = raw_message.split_whitespace().collect();
-            for word in &words {
-                let clean = word.trim_matches(|c: char| !c.is_alphanumeric());
-                if !clean.is_empty() {
-                    for field in &table.fields {
-                        let dist = levenshtein(clean, &field.name);
-                        if dist > 0 && dist <= 2 {
-                            suggestions.push(format!(
-                                "Did you mean '{}' instead of '{}'?",
-                                field.name, clean
-                            ));
-                        }
+        // Try to fuzzy-match a misspelled field name
+        let words: Vec<&str> = raw_message.split_whitespace().collect();
+        for word in &words {
+            let clean = word.trim_matches(|c: char| !c.is_alphanumeric());
+            if !clean.is_empty() {
+                for field in &table.fields {
+                    let dist = levenshtein(clean, &field.name);
+                    if dist > 0 && dist <= 2 {
+                        suggestions.push(format!(
+                            "Did you mean '{}' instead of '{}'?",
+                            field.name, clean
+                        ));
                     }
                 }
             }
         }
+    }
 
     // Check for table-not-found errors
     if msg_lower.contains("table") && msg_lower.contains("not found") {
@@ -96,35 +97,37 @@ pub fn enrich_error(raw_message: &str, digest: &SchemaDigest) -> EnrichedDbError
     // Check for type mismatch errors
     if msg_lower.contains("type")
         && (msg_lower.contains("mismatch") || msg_lower.contains("expected"))
-        && let Some(ref table) = related_table {
-            let field_types: Vec<String> = table
-                .fields
-                .iter()
-                .map(|f| format!("{}: {}", f.name, f.type_str))
-                .collect();
-            suggestions.push(format!(
-                "Field types for '{}': {}",
-                table.name,
-                field_types.join(", ")
-            ));
-        }
+        && let Some(ref table) = related_table
+    {
+        let field_types: Vec<String> = table
+            .fields
+            .iter()
+            .map(|f| format!("{}: {}", f.name, f.type_str))
+            .collect();
+        suggestions.push(format!(
+            "Field types for '{}': {}",
+            table.name,
+            field_types.join(", ")
+        ));
+    }
 
     // Check for missing required field errors
     if (msg_lower.contains("required") || msg_lower.contains("missing"))
-        && let Some(ref table) = related_table {
-            let required: Vec<&str> = table
-                .fields
-                .iter()
-                .filter(|f| !f.is_optional)
-                .map(|f| f.name.as_str())
-                .collect();
-            suggestions.push(format!(
-                "Required fields for '{}': {}",
-                table.name,
-                required.join(", ")
-            ));
-            suggestions.push(format!("Example: {}", table.example_insert));
-        }
+        && let Some(ref table) = related_table
+    {
+        let required: Vec<&str> = table
+            .fields
+            .iter()
+            .filter(|f| !f.is_optional)
+            .map(|f| f.name.as_str())
+            .collect();
+        suggestions.push(format!(
+            "Required fields for '{}': {}",
+            table.name,
+            required.join(", ")
+        ));
+        suggestions.push(format!("Example: {}", table.example_insert));
+    }
 
     EnrichedDbError {
         original_message: raw_message.to_string(),

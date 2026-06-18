@@ -1,5 +1,5 @@
-use turso::params;
 use crate::store::types::{EmbeddingEntry, StoreError};
+use turso::params;
 
 impl crate::VoxDb {
     /// Store a raw embedding vector.
