@@ -2,8 +2,8 @@
 
 > **You do NOT need any prior conversation.** Read this document first, then the research SSOT at [`docs/src/architecture/graphify-integration-research-2026-06-16.md`](../../src/architecture/graphify-integration-research-2026-06-16.md). For branch-wide context (vault, pipeline, GUI WIP on the same branch), see [`2026-06-16-feat-vault-decryption-recovery-SESSION-HANDOFF.md`](2026-06-16-feat-vault-decryption-recovery-SESSION-HANDOFF.md).
 
-**Branch (current work context):** `feat/vault-decryption-recovery` — graphify work is **interleaved** with unrelated vault/pipeline/GUI changes; prefer a **graphify-only commit or PR** when shipping.  
-**Last updated:** 2026-06-16  
+**Branch (current work context):** `refactor/vox-db-maintainability` — graphify work is completed on this branch;  
+**Last updated:** 2026-06-18  
 **Do NOT commit unless the human operator explicitly asks.**
 
 ---
@@ -98,6 +98,16 @@ Manifest fields align with `GraphifyManifest` in Rust: `corpus_id`, `built_at`, 
 
 **Related (pre-existing, not replaced):** `crates/vox-publisher/src/scientia_prior_art.rs` — `graphify_lexical_prior_art()` does on-the-fly lexical hits from local `graph.json` for prior-art traces (`graphify_hits` source). P1 MCP search is the **general-purpose** agent tool; scientia path remains for publication novelty.
 
+### P2 — Structural query + cross-map diff (implemented on branch)
+
+| Component | Path / symbol |
+|-----------|----------------|
+| Structural reader | `crates/vox-graphify-reader` — `GraphifyReader` with BFS neighbor traversal, shortest path, god-nodes ranking, and cross-manifest diff |
+| Integration tests | `crates/vox-graphify-reader/tests/reader_tests.rs` (17 tests) |
+| MCP tools | `vox_graphify_query`, `vox_graphify_path`, `vox_graphify_compare` |
+| Dispatch + schemas | `crates/vox-orchestrator-mcp/src/dispatch.rs`, `input_schemas.rs` |
+| Operations | `graphify.query`, `graphify.path`, `graphify.compare` in `contracts/operations/catalog.v1.yaml` |
+
 ---
 
 ## What is NOT done (remaining work)
@@ -109,18 +119,7 @@ Manifest fields align with `GraphifyManifest` in Rust: `corpus_id`, `built_at`, 
 | **Retrieval bundle integration** | Wire `vox_graphify_search` / ingested nodes into planner and `vox_knowledge_query` with `corpus_id` metadata filter | `vox-orchestrator`, `vox-search`, MCP memory tools |
 | **DB-backed search option** | After ingest, `vox_graphify_search` could query Turso FTS on `knowledge_nodes` where `id` prefix `graphify:{corpus}:` (today: disk-only lexical) | `vox-db`, `graphify_tools.rs` |
 | **Lexical lag detection** | Compare Turso `metadata` / ingest fingerprint vs manifest `graph_json_sha256`; surface in status | `graphify.rs`, ingest path |
-| **Operations entry for ingest** | Optional `graphify.ingest` row in `catalog.v1.yaml` (parent `graphify` CLI op exists; ingest subcommand not separately cataloged) | contracts + `operations-sync` |
 | **`VOX_GRAPHIFY_TTL_DAYS` env** | Contract in `contracts/config/env-vars.v1.yaml` (research §4.4); today TTL only from YAML registry | `vox-config`, contracts |
-
-### P2 — Structural query + cross-map diff
-
-| Task | Intent |
-|------|--------|
-| **`vox-graphify-reader` crate** | mmap/read `graph.json`; BFS, shortest path, neighbors compatible with upstream Graphify MCP semantics |
-| **MCP tools** | `vox_graphify_query`, `vox_graphify_path`, `vox_graphify_compare` (see research §2.3, §4.2) |
-| **Cross-map comparison** | Community drift, god-node rank delta, edge confidence changes (research §4.3) |
-
-**Preferred approach:** embedded Rust reader (not subprocess `graphifyy --mcp`).
 
 ### P3 — Auto-refresh, CI gates, migration
 

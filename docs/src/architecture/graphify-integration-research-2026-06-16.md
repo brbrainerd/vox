@@ -230,10 +230,20 @@ Gap detection: files in detect manifest without graph nodes; crates without Phas
 
 | Phase | Outcome | Key crates |
 |-------|---------|------------|
-| **P0** | Registry + manifest + `vox graphify status` | `vox-config`, `vox-cli`, `vox-orchestrator-mcp` — **landed on `feat/vault-decryption-recovery`** (see handoff doc) |
-| **P1** | Lexical ingest + `vox_graphify_search` in retrieval bundle | `vox-search`, `vox-db` — **core landed** (lexical lib, MCP search, CLI ingest); retrieval bundle + DB FTS **open** |
-| **P2** | Structural query + cross-map diff MCP tools | `vox-graphify-reader`, MCP |
-| **P3** | Auto-refresh hooks, semantic coverage gate, CI `--strict` freshness | `vox-cli-ci`, VoxScript migration |
+| **P0** | Registry + manifest + `vox graphify status` | `vox-config`, `vox-cli`, `vox-orchestrator-mcp` — **landed** |
+| **P1** | Lexical ingest + `vox_graphify_search` in retrieval bundle | `vox-search`, `vox-db` — **landed** (lexical lib, MCP search, CLI ingest, search log virtual corpus) |
+| **P2** | Structural query + cross-map diff MCP tools | `vox-graphify-reader`, MCP — **landed** (BFS, path, compare, god-nodes ranking) |
+| **P3** | Auto-refresh hooks, semantic coverage gate, CI `--strict` freshness | `vox-cli-ci`, VoxScript migration — **open** |
+
+### 4.7 Search persistence details
+
+To integrate Graphify search into the broader workspace telemetry and context mapping, every lexical search performed via the `vox_graphify_search` MCP tool persists its query signature to the Turso database under the virtual corpus `graphify-search-log`.
+
+- **Virtual Corpus (`graphify-search-log`):** Registered as a virtual corpus that is always fresh. Lexical staleness checks bypass it.
+- **Node Type:** Persisted hits are recorded as `graphify_search_hit` nodes in the database.
+- **Query Slug & Collisions:** To prevent ID collisions, a `query_slug` is generated using a combination of the cleaned query text and an FNV-64 hash suffix of the full query parameters.
+- **Bypass Flag:** The `vox_graphify_search` tool accepts a `persist: Option<bool>` parameter (defaults to `true`). Setting this to `false` allows calling the search tool in transient contexts without writing to the database.
+- **Telemetry Timestamp:** Each returned search hit includes a `searched_at` timestamp.
 
 ---
 
