@@ -7,6 +7,18 @@ description = "Read-only BFS traversal, path-finding, and cross-manifest compari
 
 [dependencies]
 serde_json = { workspace = true }
+petgraph = { workspace = true }
+leiden-rs = { workspace = true }
+tree-sitter = { workspace = true, optional = true }
+tree-sitter-rust = { workspace = true, optional = true }
+tree-sitter-typescript = { workspace = true, optional = true }
+walkdir = { workspace = true }
+blake3 = { workspace = true }
+syn = { workspace = true, features = ["full", "visit", "clone-impls"] }
+
+[features]
+default = ["tree-sitter-grammars"]
+tree-sitter-grammars = ["dep:tree-sitter", "dep:tree-sitter-rust", "dep:tree-sitter-typescript"]
 
 [dev-dependencies]
 tempfile = { workspace = true }
