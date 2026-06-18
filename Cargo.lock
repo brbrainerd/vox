@@ -16943,16 +16943,24 @@ version = "0.6.0"
 dependencies = [
  "anyhow",
  "clap",
+ "dirs",
+ "flate2",
+ "hex",
+ "libc",
  "reqwest 0.12.28",
+ "semver",
  "serde",
  "serde_json",
  "serde_yaml_ng",
+ "sha2 0.11.0",
+ "tar",
  "tempfile",
  "tokio",
  "tracing",
  "tracing-subscriber",
  "url",
  "workspace-hack",
+ "zip 2.4.2",
 ]
 
 [[package]]
