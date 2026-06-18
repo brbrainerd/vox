@@ -146,9 +146,9 @@ impl From<OpenClawGatewayWsError> for OpenClawAdapterError {
     }
 }
 
-/// Common OpenClaw operation surface used by CLI, runtime, and MCP integrations.
+/// Common OpenClaw/Hermes operation surface used by CLI, runtime, and MCP integrations.
 #[async_trait]
-pub trait OpenClawRuntimeAdapter: Send {
+pub trait AgentRuntimeAdapter: Send {
     async fn list_remote_skills(&mut self) -> Result<Vec<OpenClawSkillSpec>, OpenClawAdapterError>;
     async fn import_skill(&mut self, slug: &str) -> Result<crate::ArsSkill, OpenClawAdapterError>;
     async fn list_subscriptions(&mut self) -> Result<Value, OpenClawAdapterError>;
@@ -165,6 +165,8 @@ pub trait OpenClawRuntimeAdapter: Send {
         params: Value,
     ) -> Result<Value, OpenClawAdapterError>;
 }
+
+pub use AgentRuntimeAdapter as OpenClawRuntimeAdapter;
 
 /// Default adapter implementation that composes existing HTTP skill APIs and WS control plane calls.
 pub struct DefaultOpenClawRuntimeAdapter {
@@ -210,7 +212,7 @@ pub async fn connect_runtime_adapter_with_overrides(
 }
 
 #[async_trait]
-impl OpenClawRuntimeAdapter for DefaultOpenClawRuntimeAdapter {
+impl AgentRuntimeAdapter for DefaultOpenClawRuntimeAdapter {
     async fn list_remote_skills(&mut self) -> Result<Vec<OpenClawSkillSpec>, OpenClawAdapterError> {
         Ok(self.http.list_skills().await?)
     }

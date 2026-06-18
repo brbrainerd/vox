@@ -16,6 +16,7 @@ pub mod hooks;
 pub mod manifest;
 pub mod openclaw;
 pub mod openclaw_adapter;
+pub mod hermes_adapter;
 pub mod openclaw_discovery;
 pub mod openclaw_gateway_ws;
 pub mod openclaw_protocol;
@@ -32,7 +33,7 @@ pub use openclaw::{
     OpenClawClient, OpenClawError, OpenClawRemoteConfig, OpenClawSkillSpec, PublishResult,
 };
 pub use openclaw_adapter::{
-    AgentProvider, AgentRuntimeConfig,
+    AgentProvider, AgentRuntimeConfig, AgentRuntimeAdapter,
     DefaultOpenClawRuntimeAdapter, OpenClawAdapterConfig, OpenClawAdapterError,
     OpenClawConnectionOverrides, OpenClawRuntimeAdapter, adapter_config_with_token_override,
     connect_default_runtime_adapter, connect_runtime_adapter_with_overrides,
@@ -45,6 +46,7 @@ pub use openclaw_discovery::{
 pub use openclaw_gateway_ws::{
     OpenClawGatewayWsClient, OpenClawGatewayWsConfig, OpenClawGatewayWsError,
 };
+pub use hermes_adapter::DefaultHermesRuntimeAdapter;
 
 // Re-export skill manifest + registry types from vox-plugin-host so the
 // historic `vox_ars::SkillManifest`, `vox_ars::SkillRegistry`, etc. paths
