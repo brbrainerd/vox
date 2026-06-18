@@ -356,12 +356,21 @@ pub fn resolve_effective_profile(
         let params_b =
             crate::mens::tensor::memory_budget::params_b_from_model_hint(hint).unwrap_or(7.0);
 
-        let budget_plan = if crate::mens::tensor::memory_budget::is_qwen35(hint) {
-            crate::mens::tensor::memory_budget::plan_qwen35(vram_gib, params_b)
+        let gc_explicit = std::env::var("VOX_MENS_GRADIENT_CHECKPOINTING")
+            .ok()
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false);
+        let gc_auto = params_b >= 2.9;
+        let gradient_checkpointing = gc_explicit || gc_auto;
+
+        let quant = crate::mens::tensor::finetune_contract::BaseQuantMode::Nf4;
+
+        let budget_plan = if crate::mens::tensor::memory_budget::is_qwen25coder(hint) {
+            crate::mens::tensor::memory_budget::plan_qwen25coder_with_options(vram_gib, params_b, quant, gradient_checkpointing)
         } else if crate::mens::tensor::memory_budget::is_qwen3(hint) {
-            crate::mens::tensor::memory_budget::plan_qwen3(vram_gib, params_b)
+            crate::mens::tensor::memory_budget::plan_qwen3_with_options(vram_gib, params_b, quant, gradient_checkpointing)
         } else {
-            crate::mens::tensor::memory_budget::plan_qwen25coder(vram_gib, params_b)
+            crate::mens::tensor::memory_budget::plan_qwen35_with_options(vram_gib, params_b, quant, gradient_checkpointing)
         };
 
         p.seq_len = p.seq_len.min(budget_plan.seq_len);
@@ -479,12 +488,20 @@ mod preset_tests {
 
     #[test]
     fn test_prosumer_16g_preset_resolves() {
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::set_var("VOX_BASE_MODEL", "Qwen/Qwen2.5-Coder-1.5B-Instruct");
+        }
         let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384);
         let profile =
             resolve_effective_profile(Some("prosumer_16g"), dev, None, CliOverrides::default());
         assert_eq!(profile.seq_len, 384);
         assert_eq!(profile.batch_size, 1);
         assert_eq!(profile.grad_accum, 8);
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::remove_var("VOX_BASE_MODEL");
+        }
     }
 
     #[test]
@@ -501,5 +518,13 @@ mod preset_tests {
         unsafe {
             std::env::remove_var("VOX_BASE_MODEL");
         }
+    }
+
+    #[test]
+    fn test_preset_bounds_dynamically_to_fit_vram() {
+        let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384);
+        let profile = resolve_effective_profile(Some("prosumer_16g"), dev, None, CliOverrides::default());
+        // For a 7B model on 16GB, it should safely scale parameters down.
+        assert!(profile.seq_len <= 384);
     }
 }

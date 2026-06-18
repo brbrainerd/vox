@@ -13,8 +13,8 @@ use crate::browser_tools;
 #[cfg(feature = "gui-visual-review")]
 use crate::visus_tools;
 use crate::{
-    benchmark_tools, chat_tools, code_validator, codex_tools, compiler_tools, db_tools,
-    exec_time_tools, git_tools, grammar_tools, introspection_tools, openclaw_tools, agent_tools,
+    agent_tools, benchmark_tools, chat_tools, code_validator, codex_tools, compiler_tools,
+    db_tools, exec_time_tools, git_tools, grammar_tools, introspection_tools, openclaw_tools,
     persistence_tools, populi_tools, project_init_tools, questioning_tools, rag_tools,
     repo_catalog_tools, repo_index, secrets_tools, task_tools, toestub_tools, tool_aliases,
     training_tools, trust_tools, vcs_tools,

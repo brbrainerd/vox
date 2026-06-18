@@ -28,19 +28,15 @@ async fn connect_agent_adapter_uncached() -> Result<BoxedAgentAdapter, String> {
     if provider_str == "hermes" {
         let http_url = std::env::var("VOX_HERMES_URL")
             .unwrap_or_else(|_| "http://localhost:8642/v1".to_string());
-        let auth_token = std::env::var("VOX_HERMES_TOKEN")
-            .ok()
-            .or_else(|| {
-                vox_secrets::resolve_secret(vox_secrets::SecretId::OpenClawToken)
-                    .expose()
-                    .map(|s| s.to_string())
-            });
+        let auth_token = std::env::var("VOX_HERMES_TOKEN").ok().or_else(|| {
+            vox_secrets::resolve_secret(vox_secrets::SecretId::OpenClawToken)
+                .expose()
+                .map(|s| s.to_string())
+        });
         let local_skills_path = std::env::var("VOX_HERMES_SKILLS_PATH")
             .ok()
             .map(std::path::PathBuf::from)
-            .or_else(|| {
-                Some(std::path::PathBuf::from(".agents/skills"))
-            });
+            .or_else(|| Some(std::path::PathBuf::from(".agents/skills")));
         let adapter_config = vox_openclaw_runtime::AgentRuntimeConfig {
             provider: vox_openclaw_runtime::AgentProvider::Hermes,
             http_gateway_url: http_url,
@@ -89,10 +85,7 @@ pub async fn agent_list_remote(_state: &ServerState) -> String {
 }
 
 /// Generic agent gateway method call.
-pub async fn agent_gateway_call(
-    _state: &ServerState,
-    params: OpenClawGatewayCallParams,
-) -> String {
+pub async fn agent_gateway_call(_state: &ServerState, params: OpenClawGatewayCallParams) -> String {
     #[cfg(test)]
     {
         match connect_agent_adapter_uncached().await {

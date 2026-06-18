@@ -25,6 +25,23 @@ impl VoxDb {
         Ok(())
     }
 
+    /// Count total kudos for a given user.
+    pub async fn count_kudos_for_user(&self, user_id: &str) -> Result<u64, crate::StoreError> {
+        let sql = "SELECT COALESCE(SUM(amount), 0) FROM vox_kudos WHERE vox_user_id = ?1";
+        let mut rows = self
+            .conn
+            .query(sql, turso::params![user_id.to_string()])
+            .await
+            .map_err(crate::StoreError::Turso)?;
+
+        if let Ok(Some(row)) = rows.next().await {
+            let sum = row.get::<i64>(0).unwrap_or(0);
+            return Ok(sum as u64);
+        }
+
+        Ok(0)
+    }
+
     /// Record a peer reputation event (success, failure, timeout, invalid).
     pub async fn record_peer_reputation(
         &self,

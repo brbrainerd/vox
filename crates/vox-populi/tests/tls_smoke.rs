@@ -12,7 +12,7 @@ async fn rustls_acceptor_accepts_https_handshake() {
     let key_pem = dir.path().join("key.pem");
     let cert = rcgen::generate_simple_self_signed(vec!["localhost".to_string()]).unwrap();
     std::fs::write(&cert_pem, cert.cert.pem()).unwrap();
-    std::fs::write(&key_pem, cert.key_pair.serialize_pem()).unwrap();
+    std::fs::write(&key_pem, cert.signing_key.serialize_pem()).unwrap();
 
     let acceptor = build_acceptor(&TlsOptions {
         cert_path: cert_pem,

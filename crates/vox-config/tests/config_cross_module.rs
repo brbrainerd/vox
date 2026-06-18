@@ -45,3 +45,23 @@ fn vox_config_default_serializes_and_deserializes_via_json() {
     assert_eq!(restored.hitl.enabled, cfg.hitl.enabled);
     assert_eq!(restored.gamify_mode, cfg.gamify_mode);
 }
+
+#[test]
+fn test_default_agent_provider_parses() {
+    let tmp = tempfile::tempdir().unwrap();
+    let toml = r#"
+        [agent]
+        provider = "hermes"
+    "#;
+    std::fs::write(tmp.path().join("Vox.toml"), toml).unwrap();
+    
+    let prev = std::env::var("VOX_AGENT_PROVIDER").ok();
+    unsafe { std::env::remove_var("VOX_AGENT_PROVIDER"); }
+    
+    let config = VoxConfig::load_from_repo_root(tmp.path());
+    assert_eq!(config.agent_provider, "hermes");
+    
+    if let Some(v) = prev {
+        unsafe { std::env::set_var("VOX_AGENT_PROVIDER", v); }
+    }
+}
