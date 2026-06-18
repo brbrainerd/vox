@@ -251,6 +251,20 @@ pub const CONFIG_KEYS: &[ConfigKey] = &[
         hint: "Safety budget for Tavily credits per session.",
     },
     ConfigKey {
+        key: "VOX_TAVILY_RESEARCH",
+        kind: ConfigKind::Bool,
+        default: DefaultValue::Literal("false"),
+        bound: None,
+        group: Group::Tuning,
+        class: ConfigClass::UserPreference,
+        home: Home::Env,
+        gui: None,
+        secret: false,
+        status: Status::Active,
+        label: "Tavily research tier",
+        hint: "When truthy, enable Tavily /research deep-research tier in web gather.",
+    },
+    ConfigKey {
         key: "VOX_SEARCH_SEARXNG_URL",
         kind: ConfigKind::String,
         default: DefaultValue::Literal(""),
@@ -1262,6 +1276,21 @@ pub const CONFIG_KEYS: &[ConfigKey] = &[
         label: "Openclaw Sidecar Disable",
         hint: "Disable OpenClaw sidecar installation.",
     },
+    // --- MCP (VOX_MCP_*): launcher-set operational knobs ---
+    ConfigKey {
+        key: "VOX_MCP_CALLER_ROLE",
+        kind: ConfigKind::Enum,
+        default: DefaultValue::Literal("agent"),
+        bound: None,
+        group: Group::Orchestrator,
+        class: ConfigClass::Bootstrap,
+        home: Home::Env,
+        gui: None,
+        secret: false,
+        status: Status::Active,
+        label: "MCP caller role",
+        hint: "Trusted MCP process role: human (privileged) or agent (default). Set by the launcher, not tool request bodies.",
+    },
     ConfigKey {
         key: "GEMINI_MODEL",
         kind: ConfigKind::String,
@@ -1766,5 +1795,32 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn vox_mcp_caller_role_is_registered() {
+        let row = CONFIG_KEYS
+            .iter()
+            .find(|k| k.key == "VOX_MCP_CALLER_ROLE")
+            .expect("VOX_MCP_CALLER_ROLE must be in CONFIG_KEYS");
+        assert_eq!(row.kind, ConfigKind::Enum);
+        assert_eq!(row.default, DefaultValue::Literal("agent"));
+        assert_eq!(row.group, Group::Orchestrator);
+        assert_eq!(row.class, ConfigClass::Bootstrap);
+        assert!(!row.secret);
+        assert_eq!(row.status, Status::Active);
+    }
+
+    #[test]
+    fn vox_tavily_research_is_registered() {
+        let row = CONFIG_KEYS
+            .iter()
+            .find(|k| k.key == "VOX_TAVILY_RESEARCH")
+            .expect("VOX_TAVILY_RESEARCH must be in CONFIG_KEYS");
+        assert_eq!(row.kind, ConfigKind::Bool);
+        assert_eq!(row.default, DefaultValue::Literal("false"));
+        assert_eq!(row.group, Group::Tuning);
+        assert!(!row.secret);
+        assert_eq!(row.status, Status::Active);
     }
 }

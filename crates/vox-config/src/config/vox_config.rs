@@ -38,6 +38,7 @@ pub struct VoxConfig {
     pub llm_openai_max_concurrent: Option<usize>,
     /// Max retry attempts on a 429 before surfacing the error.
     pub llm_retry_max_attempts: u32,
+    pub agent_provider: String,
 }
 
 impl Default for VoxConfig {
@@ -68,6 +69,7 @@ impl Default for VoxConfig {
             llm_openrouter_max_concurrent: None,
             llm_openai_max_concurrent: None,
             llm_retry_max_attempts: 4,
+            agent_provider: "openclaw".to_string(),
         }
     }
 }

@@ -17,6 +17,9 @@ pub enum StoreError {
     /// Requested row or binding was missing.
     #[error("Not found: {0}")]
     NotFound(String),
+    /// Invalid migration version or sequence.
+    #[error("Invalid migration: {0}")]
+    InvalidMigration(String),
     /// Stable identity columns would change for an existing natural key (`idempotency_key` / adapter id).
     #[error("upsert_identity_mismatch: {0}")]
     UpsertIdentityMismatch(String),

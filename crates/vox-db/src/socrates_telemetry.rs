@@ -355,16 +355,16 @@ impl VoxDb {
                 n_proxy += 1;
                 agg.rows_with_metric_value += 1;
             }
-            if let Some(ref m) = meta {
-                if let Ok(t) = serde_json::from_str::<SocratesSurfaceTelemetry>(m) {
-                    parsed_n += 1;
-                    sum_conf += t.confidence_estimate;
-                    sum_cr += t.contradiction_ratio;
-                    match t.risk_decision {
-                        RiskDecision::Answer => agg.answer_count += 1,
-                        RiskDecision::Ask | RiskDecision::Disambiguate => agg.ask_count += 1,
-                        RiskDecision::Abstain => agg.abstain_count += 1,
-                    }
+            if let Some(ref m) = meta
+                && let Ok(t) = serde_json::from_str::<SocratesSurfaceTelemetry>(m)
+            {
+                parsed_n += 1;
+                sum_conf += t.confidence_estimate;
+                sum_cr += t.contradiction_ratio;
+                match t.risk_decision {
+                    RiskDecision::Answer => agg.answer_count += 1,
+                    RiskDecision::Ask | RiskDecision::Disambiguate => agg.ask_count += 1,
+                    RiskDecision::Abstain => agg.abstain_count += 1,
                 }
             }
         }

@@ -82,4 +82,44 @@ CREATE INDEX IF NOT EXISTS idx_embeddings_source ON embeddings(source_type, sour
 CREATE INDEX IF NOT EXISTS idx_embeddings_source_created ON embeddings(source_type, created_at);
 CREATE INDEX IF NOT EXISTS idx_search_chunks_doc ON search_document_chunks(document_id);
 CREATE INDEX IF NOT EXISTS idx_search_jobs_status ON search_indexing_jobs(status);
+
+-- Knowledge Base tables (VoxKB) ---------------------------------------------------
+CREATE TABLE IF NOT EXISTS knowledge_bases (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    description TEXT NOT NULL DEFAULT '',
+    created_at_ms INTEGER NOT NULL,
+    updated_at_ms INTEGER NOT NULL,
+    entry_count INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS kb_entries (
+    id TEXT PRIMARY KEY,
+    kb_id TEXT NOT NULL REFERENCES knowledge_bases(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    source_signal TEXT NOT NULL,
+    source_ref TEXT,
+    routing_confidence REAL NOT NULL DEFAULT 1.0,
+    tags TEXT NOT NULL DEFAULT '[]',
+    created_at_ms INTEGER NOT NULL,
+    last_accessed_at_ms INTEGER,
+    access_count INTEGER NOT NULL DEFAULT 0,
+    accepted INTEGER NOT NULL DEFAULT 1,
+    mens_queued INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS kb_routing_rules (
+    id TEXT PRIMARY KEY,
+    kb_id TEXT NOT NULL REFERENCES knowledge_bases(id) ON DELETE CASCADE,
+    rule_type TEXT NOT NULL,
+    pattern TEXT NOT NULL,
+    priority INTEGER NOT NULL DEFAULT 0,
+    created_at_ms INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_kb_entries_kb_id ON kb_entries(kb_id);
+CREATE INDEX IF NOT EXISTS idx_kb_entries_source_signal ON kb_entries(source_signal);
+CREATE INDEX IF NOT EXISTS idx_kb_entries_accepted ON kb_entries(accepted);
+CREATE INDEX IF NOT EXISTS idx_kb_entries_mens_queued ON kb_entries(mens_queued, accepted);
+CREATE INDEX IF NOT EXISTS idx_kb_routing_rules_kb_id ON kb_routing_rules(kb_id);
 ";

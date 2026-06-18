@@ -3,15 +3,14 @@
 use crate::store::types::StoreError;
 use serde::{Deserialize, Serialize};
 
-impl super::VoxDb {
+impl crate::VoxDb {
     /// Save an actor state value (JSON-serialized) under a key.
     pub async fn save_actor_state_generic<T: Serialize>(
         &self,
         key: &str,
         value: &T,
     ) -> Result<(), StoreError> {
-        let data = serde_json::to_string(value)
-            .map_err(|e| StoreError::Db(e.to_string()))?;
+        let data = serde_json::to_string(value).map_err(|e| StoreError::Db(e.to_string()))?;
         let key = key.to_string();
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
@@ -33,14 +32,16 @@ impl super::VoxDb {
         &self,
         key: &str,
     ) -> Result<Option<T>, StoreError> {
-        let mut rows: turso::Rows = self.connection().query(
-            "SELECT value FROM actor_state WHERE key = ?1",
-            turso::params![key],
-        ).await?;
+        let mut rows: turso::Rows = self
+            .connection()
+            .query(
+                "SELECT value FROM actor_state WHERE key = ?1",
+                turso::params![key],
+            )
+            .await?;
         if let Some(row) = rows.next().await? {
             let data: String = row.get(0)?;
-            let parsed = serde_json::from_str(&data)
-                .map_err(|e| StoreError::Db(e.to_string()))?;
+            let parsed = serde_json::from_str(&data).map_err(|e| StoreError::Db(e.to_string()))?;
             Ok(Some(parsed))
         } else {
             Ok(None)

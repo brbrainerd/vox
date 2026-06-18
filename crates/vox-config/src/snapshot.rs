@@ -105,6 +105,7 @@ pub fn bump(changed_keys: &[&str]) {
     for l in &snapshot {
         l(&change);
     }
+    crate::config_watch::global().bump(changed_keys);
 }
 
 #[cfg(test)]

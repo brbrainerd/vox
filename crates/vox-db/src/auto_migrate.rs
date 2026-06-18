@@ -9,6 +9,20 @@
 //!
 //! **Naming:** “VoxDB” here means this crate’s auto-migrate layer, not the [`crate::VoxDb`] type
 //! specifically (though typical use is `db.auto_migrator()`).
+//!
+//! ### Architectural Decision Point: Coupling with `vox-ast`
+//!
+//! This module directly imports AST types (`TableDecl`, `CollectionDecl`, `IndexDecl`)
+//! from the `vox-ast` compiler crate. This introduces a heavy compiler dependency
+//! into the database access layer (`vox-db`).
+//!
+//! **Rationale:** The auto-migration engine needs to compare the live database schema
+//! against the declared AST structure of the Vox project.
+//!
+//! **Future Refactoring:** In a subsequent phase (see Q2 in `implementation_plan.md`),
+//! this migration engine and DDL compiler could be extracted into a separate crate
+//! (e.g., `vox-db-ddl`) to leave `vox-db` as a lightweight database client with fewer
+//! dependencies.
 
 use turso::Connection;
 

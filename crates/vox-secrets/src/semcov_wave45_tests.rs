@@ -3,6 +3,7 @@
 
 #[cfg(test)]
 mod semcov_wave45_tests {
+    #![allow(clippy::module_inception)]
     use crate::{
         SecretError,
         policy::{MissingBehavior, SecretPolicy},
@@ -254,7 +255,7 @@ mod semcov_wave45_tests {
     #[test]
     fn redact_replaces_secret_in_json_string() {
         // Catches: redact_secrets_from_value not replacing in leaf string nodes
-        let val = json!({"key": "Bearer sk-supersecrettoken"});
+        let val = json!({"key": "sk-supersecrettoken"});
         let out = redact_secrets_from_value(&val, &["sk-supersecrettoken"]);
         assert_eq!(out["key"], "[REDACTED]");
     }

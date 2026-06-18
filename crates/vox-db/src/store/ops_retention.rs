@@ -106,6 +106,7 @@ impl crate::VoxDb {
                             break;
                         };
                         let rowid: i64 = r.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+                        drop(rows);
                         let n = conn.execute(&delete_sql, params![rowid]).await?;
                         deleted += n as u64;
                     }

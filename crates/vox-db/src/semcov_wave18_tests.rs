@@ -9,6 +9,7 @@
 ///
 /// Every test carries a `// Catches:` annotation describing the specific bug it guards against.
 #[cfg(test)]
+#[allow(clippy::module_inception)]
 mod semcov_wave18_tests {
     // ── imports ──────────────────────────────────────────────────────────────
     use crate::ddl::{
@@ -42,6 +43,7 @@ mod semcov_wave18_tests {
         }
     }
 
+    #[allow(dead_code)]
     fn opt_field(name: &str, inner: &str) -> TableField {
         TableField {
             name: name.to_string(),

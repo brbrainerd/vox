@@ -66,7 +66,7 @@ pub fn collections_to_ddl(collections: &[&CollectionDecl]) -> Vec<String> {
 pub fn collection_to_ddl(collection: &CollectionDecl) -> String {
     let name = to_snake_case(&collection.name);
     // document store structure: _id INTEGER, _data TEXT (JSON), timestamps
-    let cols = vec![
+    let cols = [
         "    _id INTEGER PRIMARY KEY AUTOINCREMENT".to_string(),
         "    _data TEXT NOT NULL".to_string(), // JSON doc
         "    _created_at TEXT DEFAULT (datetime('now'))".to_string(),
@@ -161,7 +161,7 @@ pub fn table_info_to_ddl(info: &TableInfo) -> String {
 /// Generate `CREATE TABLE` from `CollectionInfo`.
 pub fn collection_info_to_ddl(info: &CollectionInfo) -> String {
     let name = to_snake_case(&info.name);
-    let cols = vec![
+    let cols = [
         "    _id INTEGER PRIMARY KEY AUTOINCREMENT".to_string(),
         "    _data TEXT NOT NULL".to_string(),
         "    _created_at TEXT DEFAULT (datetime('now'))".to_string(),

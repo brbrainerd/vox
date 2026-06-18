@@ -50,7 +50,8 @@ pub fn config_dir() -> Option<PathBuf> {
 
 /// Skill discovery roots, highest precedence first.
 ///
-/// `.vox/skills` is Vox-native; `.agents/skills` is the vendor-neutral
+/// `.vox/skills` is Vox-native; `.cursor/skills` is the Cursor IDE convention;
+/// `.agents/skills` is the vendor-neutral
 /// [agentskills.io](https://agentskills.io) convention (Codex, Cursor, Copilot,
 /// Amp); `.claude/skills` is the most widely honored compatibility path.
 /// Workspace beats user-home. On id collision, callers install first-root-wins.
@@ -59,7 +60,12 @@ pub fn config_dir() -> Option<PathBuf> {
 /// Vox source tree. It is shadowed by every interop root so workspace or user
 /// skills always win.
 pub fn skill_search_roots(workspace_root: &Path) -> Vec<PathBuf> {
-    const SUBDIRS: [&str; 3] = [".vox/skills", ".agents/skills", ".claude/skills"];
+    const SUBDIRS: [&str; 4] = [
+        ".vox/skills",
+        ".cursor/skills",
+        ".agents/skills",
+        ".claude/skills",
+    ];
     let mut roots: Vec<PathBuf> = SUBDIRS.iter().map(|d| workspace_root.join(d)).collect();
     if let Some(home) = dirs::home_dir() {
         roots.extend(SUBDIRS.iter().map(|d| home.join(d)));
@@ -211,6 +217,8 @@ pub const REPO_AGENTS_DIR: &str = ".vox/agents";
 pub const REPO_AGENTS_GLOB: &str = ".vox/agents/**";
 /// `.vox/cache/` repo subdirectory.
 pub const REPO_CACHE_DIR: &str = ".vox/cache";
+/// `.vox/cache/graphify/<corpus_id>` — Tier D graphify map cache (see graphify SSOT).
+pub const REPO_GRAPHIFY_CACHE_SUBDIR: &str = "graphify";
 /// `.vox/cache/` prefix (with trailing slash; for ignore-list prefix matching).
 pub const REPO_CACHE_DIR_PREFIX: &str = ".vox/cache/";
 /// `.vox/cache/drift` — drift-check cache root.
@@ -270,7 +278,7 @@ mod repo_path_tests {
         // Workspace roots come first (highest precedence), in canonical order.
         let rel: Vec<String> = roots
             .iter()
-            .take(3)
+            .take(4)
             .map(|p| {
                 p.strip_prefix(ws)
                     .unwrap()
@@ -278,7 +286,15 @@ mod repo_path_tests {
                     .replace('\\', "/")
             })
             .collect();
-        assert_eq!(rel, vec![".vox/skills", ".agents/skills", ".claude/skills"]);
+        assert_eq!(
+            rel,
+            vec![
+                ".vox/skills",
+                ".cursor/skills",
+                ".agents/skills",
+                ".claude/skills",
+            ],
+        );
         // assets/skills is always the last (lowest-precedence) entry.
         assert_eq!(
             roots.last().unwrap().to_string_lossy().replace('\\', "/"),
@@ -286,12 +302,13 @@ mod repo_path_tests {
         );
         // User-home roots mirror the same order under the home dir, when present.
         if let Some(home) = dirs::home_dir() {
-            assert_eq!(roots.len(), 7);
-            assert_eq!(roots[3], home.join(".vox/skills"));
-            assert_eq!(roots[4], home.join(".agents/skills"));
-            assert_eq!(roots[5], home.join(".claude/skills"));
+            assert_eq!(roots.len(), 9);
+            assert_eq!(roots[4], home.join(".vox/skills"));
+            assert_eq!(roots[5], home.join(".cursor/skills"));
+            assert_eq!(roots[6], home.join(".agents/skills"));
+            assert_eq!(roots[7], home.join(".claude/skills"));
         } else {
-            assert_eq!(roots.len(), 4);
+            assert_eq!(roots.len(), 5);
         }
     }
 }

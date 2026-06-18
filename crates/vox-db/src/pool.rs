@@ -117,6 +117,7 @@ impl VoxDbPool {
         Ok(VoxDb {
             conn,
             sync_db: sync_db_out,
+            local_db: None,
             writer: self.writer.get().cloned(),
             breaker: Arc::clone(&self.breaker),
             sqlite_probe_cache: Arc::clone(&self.sqlite_probe_cache),
