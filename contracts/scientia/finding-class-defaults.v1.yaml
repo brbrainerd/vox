@@ -1,0 +1,35 @@
+algorithmic_improvement:
+  reply_window_days: 7
+  negative_result_quota: 0
+  critic_allowed: true
+  recommended_venues: [ICSE, FSE, OOPSLA, PLDI]
+reproducibility_infra:
+  reply_window_days: 7
+  negative_result_quota: 0
+  critic_allowed: true
+  recommended_venues: [REP, MSR, ICSE-SEIP]
+telemetry_trust:
+  reply_window_days: 14
+  negative_result_quota: 0
+  critic_allowed: false
+  recommended_venues: [MLSys-workshop, SOSP-workshop, USENIX-ATC]
+policy_governance:
+  reply_window_days: 14
+  negative_result_quota: 0
+  critic_allowed: false
+  recommended_venues: [AIES, FAccT]
+other:
+  reply_window_days: 14
+  negative_result_quota: 0
+  critic_allowed: false
+  recommended_venues: []
+model_capability_atlas:
+  reply_window_days: 14
+  negative_result_quota: 3
+  critic_allowed: false
+  recommended_venues: [IMC, MLSys]
+provider_reliability_atlas:
+  reply_window_days: 14
+  negative_result_quota: 3
+  critic_allowed: false
+  recommended_venues: [IMC, MLSys]

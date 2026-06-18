@@ -1,0 +1,71 @@
+x-vox-version: 1
+schema_version: 1
+description: >
+  Federated OmniSearch index kinds and refresh policy for vox-gui. Client index
+  is built by federatedSearchIndex.ts; backend corpus lanes (corpus, chat_session,
+  achievement) are out of scope for the v1 client builder subset. The `setting`
+  kind is client-federated only (SETTINGS_INDEX + config-gui-codegen); a
+  vox-search / search.rs backend settings corpus is explicitly out of scope for v1.
+
+index_kinds_v1:
+  - kind: surface
+    source: SURFACE_REGISTRY
+    refresh: build
+    description: Navigable GUI surfaces from surface-registry contract
+
+  - kind: setting
+    source: SETTINGS_INDEX
+    refresh: build
+    backend_corpus: none # v1 — client-federated only; no search.rs / SearchCorpus lane
+    description: >
+      Settings rows from settingsIndex.ts + vox ci config-gui-codegen
+      (generatedSettingsIndex.ts). Indexed in the browser by federatedSearchIndex.ts
+      and CommandPalette; not queried via vox_search_query.
+
+  - kind: policy
+    source: policy_list
+    refresh: 60s
+    description: Policy catalog rows from Tauri policy_list IPC
+
+  - kind: command
+    source: get_command_catalog
+    refresh: session
+    description: CLI command catalog entries
+
+  - kind: action
+    source: get_action_manifest
+    refresh: session
+    description: GUI action manifest entries
+
+  - kind: skill
+    source: skill_catalog
+    refresh: session
+    description: Installed agent skills from plugin catalog
+
+  - kind: doc
+    source: vox_docs_index
+    refresh: lazy
+    description: Documentation pages from docs frontmatter walk
+
+# Planned kinds (not built in v1 client federatedSearchIndex builder):
+deferred_kinds:
+  - kind: task
+    source: list_orchestrator_tasks
+    refresh: 5s
+  - kind: chat_session
+    source: chat_list_sessions
+    refresh: 30s
+  - kind: achievement
+    source: gamify_profile
+    refresh: on_event
+  - kind: corpus
+    source: vox_search_query
+    refresh: debounced
+
+entry_shape:
+  kind: string # one of index_kinds_v1.kind
+  id: string
+  label: string
+  detail: string
+  score: number # optional at search time
+  payload: object # navigation target; kind-specific

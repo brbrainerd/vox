@@ -15,16 +15,13 @@ sources:
     weight: 6.0                   # Validated mixed (GOLDEN / Wave 0–4 combined)
     optional: false
 
-  - path: target/dogfood/vox_corpus_extract_pkg.jsonl
+  - path: mens/data/mix_sources/rust_source.jsonl
     weight: 2.0                   # Human-mined Rust workspace code (GOLDEN / Wave 0)
-    # Produced by: `vox mens corpus extract-rs crates --output target/dogfood/vox_corpus_extract_pkg.jsonl`
-    # (was: `vox populi corpus extract` — that name was renamed during the 2026-Q1
-    # populi → mens pipeline reorg; see vox-ml-cli mens corpus help)
+    max_lines: 12000              # Hard cap: deterministic ~12k lines per run
     optional: true
 
-  - path: target/dogfood/vox_corpus_extract_pkg_vox.jsonl
-    weight: 2.0                   # Human-mined .vox source files (GOLDEN / Wave 0)
-    # Produced by: `vox mens corpus extract . --output target/dogfood/vox_corpus_extract_pkg_vox.jsonl`
+  - path: mens/data/mix_sources/docs.jsonl
+    weight: 1.0                   # Human-mined documentation Q&A
     optional: true
 
   - path: target/dogfood/mutated_vox.jsonl
@@ -56,16 +53,18 @@ sources:
   # produces synthetic pairs to mens/data/synthetic.jsonl.
   # DO NOT reference tool_traces.example.jsonl — that file is a 1-row stub ({}).
   - path: mens/data/tool_traces.jsonl
-    weight: 4.0                   # High-value tool trajectories with vox output
+    weight: 0.0                   # Disabled until real session traces are captured
     record_format: tool_trace
     optional: true
 
 output: target/dogfood/train_mixed.jsonl
+dedup: true                          # Drop rows whose prompt+response hash already emitted
 include_lanes:
   - vox_codegen
   - vox_tooling
   - vox_docs_qa
   - vox_lang_tier_b
+  - vox_research_expert          # Research-domain SFT pairs from research_gen.rs
 exclude_lanes:
   - vox_speech
   - vox_rust_expert_cross    # Rust-flavoured — belongs in mix-rust.yaml only

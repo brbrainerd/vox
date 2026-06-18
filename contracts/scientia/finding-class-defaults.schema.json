@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://voxlang.org/contracts/scientia/finding-class-defaults.schema.json",
+  "title": "SCIENTIA finding class defaults",
+  "type": "object",
+  "additionalProperties": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "reply_window_days",
+      "negative_result_quota",
+      "critic_allowed",
+      "recommended_venues"
+    ],
+    "properties": {
+      "reply_window_days": { "type": "integer", "minimum": 0 },
+      "negative_result_quota": { "type": "integer", "minimum": 0 },
+      "critic_allowed": { "type": "boolean" },
+      "recommended_venues": {
+        "type": "array",
+        "items": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

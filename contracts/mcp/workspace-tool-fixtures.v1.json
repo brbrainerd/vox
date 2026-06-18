@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "fixtures": [
+    {
+      "tool": "read_file",
+      "args": { "path": "README.md" }
+    },
+    {
+      "tool": "file_uri",
+      "args": { "path": "docs/README.md" }
+    },
+    {
+      "resource": "vox://golden/mcp-status",
+      "expected_body": "ok"
+    }
+  ]
+}

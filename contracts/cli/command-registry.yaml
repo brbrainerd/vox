@@ -869,6 +869,18 @@ operations:
 - surface: vox-cli
   path:
   - ci
+  - pipeline-parity
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
   - pm-provenance
   status: active
   latin_ns: null
@@ -1678,6 +1690,29 @@ operations:
   ref_cli_required: true
   reachability_required: null
   handler_rust: commands::extras::ludus_cli
+- surface: vox-cli
+  path:
+  - graphify
+  status: active
+  latin_ns: pm
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::graphify
+- surface: vox-cli
+  path:
+  - graphify
+  - ingest
+  status: active
+  latin_ns: pm
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::graphify
 - surface: vox-cli
   path:
   - init

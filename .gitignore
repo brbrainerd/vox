@@ -249,5 +249,8 @@ gui-*.log
 # graphify knowledge-graph artifacts (local tooling) — large, regenerable
 graphify-out/
 
+# Graphify generated behavior coverage files (Tier D — not versioned)
+graphify-out/COVERAGE_BEHAVIORS_*
+
 # Isolated git worktrees for parallel development
 .worktrees/

@@ -1,0 +1,11 @@
+x-vox-version: 1
+description: >
+  Glob roots for federating workspace @tool / @resource declarations into vox-mcp
+  at bind time (Option A federation). Static catalog tools win on name collision.
+scan_globs:
+  - examples/golden/**/*.vox
+  - src/**/*.vox
+exclude_globs:
+  - "**/node_modules/**"
+  - "**/target/**"
+  - "**/.vox/**"

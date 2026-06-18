@@ -1302,6 +1302,24 @@ curated:
   - ci
   - parse-status
   parameters: null
+- id: cli.ci.pipeline-parity
+  title: Ci Pipeline-parity
+  description_human: null
+  description_model: CLI operation `vox ci pipeline-parity` — umbrella gate for script→emission SSOT (grammar parity, canonical ladder, feature matrix, k-budget)
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - pipeline-parity
+  parameters: null
 - id: cli.ci.pm-provenance
   title: Ci Pm-provenance
   description_human: null
@@ -2521,6 +2539,45 @@ curated:
   cli_path:
   - gamify
   - hud
+  parameters: null
+- id: cli.graphify
+  title: Graphify
+  description_human: null
+  description_model: CLI operation `vox graphify`
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - graphify
+  parameters: null
+- id: cli.graphify.ingest
+  title: Graphify Ingest
+  description_human: null
+  description_model: Project graph nodes into Turso knowledge_nodes via VoxDb (CLI only; no MCP surface).
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - graphify
+  - ingest
   parameters: null
 - id: cli.init
   title: Init
@@ -5195,6 +5252,22 @@ curated:
   mcp_tool: vox_agent_events
   cli_path: null
   parameters: null
+- id: mcp.vox_agent_gateway_call
+  title: Agent Gateway Call
+  description_human: null
+  description_model: Invoke an arbitrary agent Gateway method with JSON params.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_agent_gateway_call
+  cli_path: null
+  parameters: null
 - id: mcp.vox_agent_handoff
   title: Agent Handoff
   description_human: null
@@ -5211,6 +5284,38 @@ curated:
   mcp_tool: vox_agent_handoff
   cli_path: null
   parameters: null
+- id: mcp.vox_agent_list_remote
+  title: Agent List Remote
+  description_human: null
+  description_model: List remote agent skills through the native agent runtime adapter.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_agent_list_remote
+  cli_path: null
+  parameters: null
+- id: mcp.vox_agent_notify
+  title: Agent Notify
+  description_human: null
+  description_model: Send a domain-scoped notification over the agent gateway.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_agent_notify
+  cli_path: null
+  parameters: null
 - id: mcp.vox_agent_status
   title: Agent Status
   description_human: null
@@ -5225,6 +5330,54 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_agent_status
+  cli_path: null
+  parameters: null
+- id: mcp.vox_agent_subscribe
+  title: Agent Subscribe
+  description_human: null
+  description_model: Subscribe the agent gateway session to a domain.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_agent_subscribe
+  cli_path: null
+  parameters: null
+- id: mcp.vox_agent_subscriptions
+  title: Agent Subscriptions
+  description_human: null
+  description_model: List active agent gateway subscriptions for the current session.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_agent_subscriptions
+  cli_path: null
+  parameters: null
+- id: mcp.vox_agent_unsubscribe
+  title: Agent Unsubscribe
+  description_human: null
+  description_model: Unsubscribe the agent gateway session from a domain.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_agent_unsubscribe
   cli_path: null
   parameters: null
 - id: mcp.vox_answer_question
@@ -6894,6 +7047,96 @@ curated:
   mcp_tool: vox_git_status
   cli_path: null
   parameters: null
+- id: mcp.vox_graphify_compare
+  title: Graphify Compare
+  description_human: null
+  description_model: Diff two graphify corpus manifests for node/edge/community delta (read-only).
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: vox_graphify_compare
+  cli_path: null
+  parameters: null
+- id: mcp.vox_graphify_path
+  title: Graphify Path
+  description_human: null
+  description_model: Shortest path between two node IDs in a graphify corpus (read-only).
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: vox_graphify_path
+  cli_path: null
+  parameters: null
+- id: mcp.vox_graphify_query
+  title: Graphify Query
+  description_human: null
+  description_model: BFS neighbor expansion from seed node IDs (read-only; layered navigation).
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: vox_graphify_query
+  cli_path: null
+  parameters: null
+- id: mcp.vox_graphify_search
+  title: Graphify Search
+  description_human: null
+  description_model: Lexically search a graphify corpus graph on disk (read-only).
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: vox_graphify_search
+  cli_path: null
+  parameters: null
+- id: mcp.vox_graphify_status
+  title: Graphify Status
+  description_human: null
+  description_model: Report graphify corpus freshness (read-only; `--strict` fails when stale).
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: vox_graphify_status
+  cli_path: null
+  parameters: null
 - id: mcp.vox_handoff_context
   title: Handoff Context
   description_human: null
@@ -6972,6 +7215,198 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_journey_canonical_steps
+  cli_path: null
+  parameters: null
+- id: mcp.vox_kb_add_entry
+  title: Add Knowledge Entry
+  description_human: null
+  description_model: Add a knowledge entry to a knowledge base.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_kb_add_entry
+  cli_path: null
+  parameters: null
+- id: mcp.vox_kb_add_rule
+  title: Add Knowledge Rule
+  description_human: null
+  description_model: Add an ingestion filter rule.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_kb_add_rule
+  cli_path: null
+  parameters: null
+- id: mcp.vox_kb_clip
+  title: Clip Knowledge Fact
+  description_human: null
+  description_model: Clip code/notes into knowledge bases.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_kb_clip
+  cli_path: null
+  parameters: null
+- id: mcp.vox_kb_create
+  title: Create Knowledge Base
+  description_human: null
+  description_model: Create a new knowledge base.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_kb_create
+  cli_path: null
+  parameters: null
+- id: mcp.vox_kb_delete
+  title: Delete Knowledge Base
+  description_human: null
+  description_model: Delete a knowledge base by ID.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_kb_delete
+  cli_path: null
+  parameters: null
+- id: mcp.vox_kb_delete_entry
+  title: Delete Knowledge Entry
+  description_human: null
+  description_model: Delete a knowledge entry by ID.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_kb_delete_entry
+  cli_path: null
+  parameters: null
+- id: mcp.vox_kb_get_feed
+  title: Get Knowledge Feed
+  description_human: null
+  description_model: Get the feed of knowledge entries.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_kb_get_feed
+  cli_path: null
+  parameters: null
+- id: mcp.vox_kb_list
+  title: List Knowledge Bases
+  description_human: null
+  description_model: List all available knowledge bases.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_kb_list
+  cli_path: null
+  parameters: null
+- id: mcp.vox_kb_list_entries
+  title: List Knowledge Entries
+  description_human: null
+  description_model: List all knowledge entries in a knowledge base.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_kb_list_entries
+  cli_path: null
+  parameters: null
+- id: mcp.vox_kb_list_rules
+  title: List Knowledge Rules
+  description_human: null
+  description_model: List ingestion filter rules.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_kb_list_rules
+  cli_path: null
+  parameters: null
+- id: mcp.vox_kb_query
+  title: Query Knowledge Base
+  description_human: null
+  description_model: Query knowledge bases with semantic search.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_kb_query
+  cli_path: null
+  parameters: null
+- id: mcp.vox_kb_review_entry
+  title: Review Knowledge Entry
+  description_human: null
+  description_model: Accept or reject a knowledge entry.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_kb_review_entry
   cli_path: null
   parameters: null
 - id: mcp.vox_knowledge_query
@@ -9168,6 +9603,22 @@ curated:
   mcp_tool: vox_skill_parse
   cli_path: null
   parameters: null
+- id: mcp.vox_skill_run
+  title: Skill Run
+  description_human: null
+  description_model: Execute a skill script in the sandbox (parity with CLI `vox skill run`).
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_skill_run
+  cli_path: null
+  parameters: null
 - id: mcp.vox_skill_search
   title: Skill Search
   description_human: null
@@ -9563,6 +10014,22 @@ curated:
   human_takeover_friendly: true
   mens_planner_visible: true
   mcp_tool: vox_workspace_create
+  cli_path: null
+  parameters: null
+- id: mcp.vox_workspace_mcp_refresh
+  title: Workspace MCP Refresh
+  description_human: null
+  description_model: Reloads/refreshes the workspace MCP registry and scan config.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_workspace_mcp_refresh
   cli_path: null
   parameters: null
 - id: mcp.vox_workspace_merge

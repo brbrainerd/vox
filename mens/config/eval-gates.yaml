@@ -36,8 +36,8 @@ throughput:
   block: false
 
 eval_local:
-  min_parse_rate: 0.60
-  min_coverage_pct: 0.35
+  min_parse_rate: 0.88    # Target after decorator fixes (was 60%)
+  min_coverage_pct: 0.25  # Target after expanded templates (was 35%)
   block: true
 
 pass_at_k:

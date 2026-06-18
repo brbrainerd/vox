@@ -1,0 +1,50 @@
+x-vox-version: 1
+fixtures:
+  - id: hello
+    path: examples/golden/hello.vox
+    proves: [parse, lower, typecheck]
+    targets: [interp, rust-script]
+  - id: crud_api
+    path: examples/golden/crud_api.vox
+    proves: [query, mutation, server, db_emit]
+    targets: [rust-script, typescript, interp]
+  - id: reactive_counter
+    path: examples/golden/reactive_counter.vox
+    proves: [component, reactive, webir, tsx_emit]
+    targets: [typescript]
+  - id: durable_workflow_real
+    path: examples/golden/durable_workflow_real.vox
+    proves: [workflow, activity, durability_lower]
+    targets: [rust-script]
+  - id: scheduled_tick
+    path: examples/golden/scheduled_tick.vox
+    proves: [scheduled, durable_boot]
+    targets: [rust-script]
+  - id: db_native_ir
+    path: examples/golden/db_native_ir.vox
+    proves: [table, index, runtime_projection]
+    targets: [rust-script]
+  - id: dashboard_ui
+    path: examples/golden/dashboard_ui.vox
+    proves: [webir_validate, palette, layer]
+    targets: [typescript]
+  - id: web_routing_fullstack
+    path: examples/golden/web_routing_fullstack.vox
+    proves: [routes, app_contract, client_emit]
+    targets: [typescript, rust-script]
+  - id: auth_patterns
+    path: examples/golden/auth_patterns.vox
+    proves: [auth]
+    targets: [rust-script]
+  - id: mcp_tools
+    path: examples/golden/mcp_tools.vox
+    proves: [mcp_tools]
+    targets: [rust-script]
+  - id: error_propagation
+    path: examples/golden/error_propagation.vox
+    proves: [error_propagation]
+    targets: [rust-script, interp]
+  - id: json_as_typed
+    path: examples/golden/json_as_typed.vox
+    proves: [json_as_typed]
+    targets: [rust-script]

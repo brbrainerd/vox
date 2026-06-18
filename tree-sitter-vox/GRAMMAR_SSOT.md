@@ -1,63 +1,32 @@
----
-title: "tree-sitter-vox Grammar SSOT"
-description: "Single source of truth for the Vox tree-sitter grammar vocabulary and parity rules"
-category: "tooling"
----
+# Vox Grammar SSOT
 
-# tree-sitter-vox Grammar SSOT
+This document defines the canonical vocabulary for the Vox programming language. Both `tree-sitter-vox` and `apps/editor/vox-vscode/syntaxes/vox.tmLanguage.json` must align with these tokens.
 
-## Canonical Vocabulary
+## Keywords
 
-The vocabulary for `tree-sitter-vox` is owned by **two** files in `crates/vox-compiler/src/lexer/`:
+### Control Flow
+`fn`, `let`, `mut`, `if`, `else`, `match`, `for`, `in`, `to`, `return`, `while`, `loop`, `break`, `continue`, `type`, `import`, `actor`, `workflow`, `activity`
 
-| Surface | Lexer SSOT |
-|---------|-----------|
-| All `@decorator` tokens | `token.rs` — every `#[token("@...")]` attribute |
-| Keywords | `token.rs` — `#[token("keyword")]` attributes |
-| Operators | `token.rs` — `Token::Plus`, `Token::Eq`, etc. |
-| Reactive surface | `language_surface.rs` |
+### Declaration
+`spawn`, `http`, `pub`, `with`, `on`, `state`, `derived`, `effect`, `mount`, `cleanup`, `view`, `component`, `and`, `or`, `not`, `is`, `isnt`
 
-## Parity Enforcement
+### Web & Reactive (Path C)
+`true`, `false`, `get`, `post`, `put`, `delete`
 
-The CI gate is in `crates/vox-grammar-export/tests/export_test.rs`:
+## Primitive Types
+`int`, `str`, `bool`, `float`, `Unit`, `Element`
 
-- **`all_decorators_appear_in_grammar_js`** — asserts every `#[token("@...")]` from `token.rs` appears in `grammar.js` (either as a literal string in the SSOT comment block, or matched by the `decorator` regex rule).
-- **`grammar_js_uses_return_not_ret`** — asserts `grammar.js` uses `'return'` not `'ret'` (the retired spelling).
+## Collection Types
+`List[T]`, `Map[K, V]`, `Set[T]`, `Result[T, E]`, `Option[T]`
 
-## Decorator Rule
+## Constants
+`true`, `false`
 
-All 54+ decorators are covered by a single regex rule:
+## Decorators
+`@deprecated`, `@tool` (canonical; replaces deprecated `@mcp.tool`), `@resource` (canonical; replaces deprecated `@mcp.resource`), `@pure`, `@require`, `@scheduled`, `@ensure`, `@invariant`, `@forall`, `@fuzz`, `@test`, `@server`, `@query`, `@mutation`, `@table`, `@index`, `@v0`, `@mobile.native`, `@loading`
 
-```js
-decorator: $ => /@[a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)*/
-```
+## Operators
+`->`, `|>`, `==`, `!=`, `<=`, `>=`, `<`, `>`, `=`, `+=`, `-=`, `*=`, `/=`, `+`, `-`, `*`, `/`, `%`
 
-This handles plain (`@server`, `@auth`) and dotted (`@mcp.tool`, `@mcp.resource`) forms.
-The SSOT comment block in `grammar.js` lists every decorator explicitly so the parity
-test (which uses `contains()`) can find them.
-
-## Regenerating the Parser
-
-After editing `grammar.js`, run:
-
-```sh
-tree-sitter generate   # requires tree-sitter CLI in PATH
-```
-
-Or via npm: `cd tree-sitter-vox && npx tree-sitter generate`
-
-**Known pre-existing conflict:** `block` vs `block_repeat1` in the `http_route` production
-causes a generation error. This is a pre-existing grammar ambiguity; add a `prec.left`
-or a `conflicts:` entry in grammar.js to resolve it before releasing a new parser binary.
-Until resolved, the generated `grammar.json` is correct but the C parser (`src/parser.c`)
-cannot be regenerated.
-
-## Keyword List
-
-Vox keywords recognized by the compiler (`token.rs`):
-
-`fn`, `let`, `mut`, `return`, `if`, `else`, `for`, `in`, `while`, `loop`,
-`break`, `continue`, `match`, `type`, `import`, `export`, `pub`, `async`,
-`await`, `spawn`, `actor`, `workflow`, `activity`, `component`, `view`,
-`state`, `derived`, `effect`, `mount`, `cleanup`, `fragment`, `extern`,
-`routes`, `agent`, `environment`, `http`, `get`, `post`, `put`, `delete`
+## Comments
+- Single line: `//`

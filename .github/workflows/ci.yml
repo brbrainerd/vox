@@ -47,6 +47,16 @@ jobs:
       cache-key: ${{ steps.k.outputs.key }}
       rust_changed: ${{ steps.filter.outputs.rust }}
       docs_changed: ${{ steps.filter.outputs.docs }}
+      full: ${{ steps.affected.outputs.full }}
+      affected_crates: ${{ steps.affected.outputs.affected_crates }}
+      affected_p_args: ${{ steps.affected.outputs.affected_p_args }}
+      affects_compiler: ${{ steps.affected.outputs.affects_compiler }}
+      affects_golden: ${{ steps.affected.outputs.affects_golden }}
+      affects_gui: ${{ steps.affected.outputs.affects_gui }}
+      affects_web: ${{ steps.affected.outputs.affects_web }}
+      affects_plugins: ${{ steps.affected.outputs.affects_plugins }}
+      affects_contracts: ${{ steps.affected.outputs.affects_contracts }}
+      affects_scripts: ${{ steps.affected.outputs.affects_scripts }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -70,7 +80,7 @@ jobs:
             git fetch origin "${{ github.base_ref }}" --depth=256 2>/dev/null || true
             BASE="origin/${{ github.base_ref }}"
             CHANGED=$(git diff --name-only "${BASE}...HEAD" 2>/dev/null || git diff --name-only HEAD~1...HEAD)
-            if echo "$CHANGED" | grep -qE '^(crates/|Cargo\.(toml|lock)|\.cargo/)'; then
+            if echo "$CHANGED" | grep -qE '^(crates/|Cargo\.(toml|lock)|\.cargo/|\.github/workflows/)'; then
               echo "rust=true" >> "$GITHUB_OUTPUT"
             else
               echo "rust=false" >> "$GITHUB_OUTPUT"
@@ -93,6 +103,80 @@ jobs:
             ${{ runner.os }}-cargo-
       - name: Build vox-cli (warms sccache + downstream artifact)
         run: cargo build -p vox-cli --locked --features completion-toestub
+
+      # pull_request: map diff → affected crate closure via committed graph SSOT.
+      # merge_group: authoritative full gate (no PR base ref; closes feature-unification gap).
+      - id: affected
+        name: Compute affected crates
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch origin "${{ github.base_ref }}" --depth=256 2>/dev/null || true
+            BASE="origin/${{ github.base_ref }}"
+            if ! git diff --name-only "${BASE}...HEAD" > /tmp/changed.txt 2>/dev/null; then
+              git diff --name-only HEAD~1...HEAD > /tmp/changed.txt
+            fi
+            if [ ! -s /tmp/changed.txt ] && [ "${{ steps.filter.outputs.rust }}" = "true" ]; then
+              echo "::error::rust_changed=true but git diff produced no changed files — fail-closed to full workspace"
+              echo "full=true" >> "$GITHUB_OUTPUT"
+              echo "affected_crates=" >> "$GITHUB_OUTPUT"
+              echo "affected_p_args=" >> "$GITHUB_OUTPUT"
+              echo "affects_compiler=true" >> "$GITHUB_OUTPUT"
+              echo "affects_golden=false" >> "$GITHUB_OUTPUT"
+              echo "affects_contracts=false" >> "$GITHUB_OUTPUT"
+              echo "affects_scripts=false" >> "$GITHUB_OUTPUT"
+              echo "affects_gui=false" >> "$GITHUB_OUTPUT"
+              echo "affects_web=false" >> "$GITHUB_OUTPUT"
+              echo "affects_plugins=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            ./target/debug/vox ci affected-crates --changed /tmp/changed.txt \
+              --graph contracts/ci/crate-graph.v1.json --github-output "$GITHUB_OUTPUT"
+            if [ "${{ steps.filter.outputs.rust }}" = "true" ] \
+              && [ "$(grep -E '^full=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2)" = "false" ] \
+              && [ -z "$(grep -E '^affected_crates=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2 | xargs)" ]; then
+              echo "::warning::rust_changed with empty affected set — upgrading to full=true (fail-closed)"
+              echo "full=true" >> "$GITHUB_OUTPUT"
+              echo "affects_compiler=true" >> "$GITHUB_OUTPUT"
+            fi
+            if [ "${{ steps.filter.outputs.docs }}" = "true" ] \
+              && [ "$(grep -E '^full=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2)" = "false" ] \
+              && [ -z "$(grep -E '^affected_crates=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2 | xargs)" ]; then
+              echo "::warning::docs_changed with empty affected set — upgrading to full=true (fail-closed)"
+              echo "full=true" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "full=true" >> "$GITHUB_OUTPUT"
+            echo "affects_compiler=true" >> "$GITHUB_OUTPUT"
+            echo "affects_golden=true" >> "$GITHUB_OUTPUT"
+            echo "affects_contracts=true" >> "$GITHUB_OUTPUT"
+            echo "affects_scripts=true" >> "$GITHUB_OUTPUT"
+            echo "affects_gui=true" >> "$GITHUB_OUTPUT"
+            echo "affects_web=true" >> "$GITHUB_OUTPUT"
+            echo "affects_plugins=true" >> "$GITHUB_OUTPUT"
+            git diff --name-only HEAD~1...HEAD > /tmp/changed.txt
+            ./target/debug/vox ci affected-crates --changed /tmp/changed.txt \
+              --graph contracts/ci/crate-graph.v1.json \
+              | grep -E '^(affected_crates|affected_p_args)=' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Log selective CI plan
+        shell: bash
+        run: |
+          {
+            echo "### Selective CI (setup)"
+            echo "- event: ${{ github.event_name }}"
+            echo "- rust_changed: ${{ steps.filter.outputs.rust }}"
+            echo "- docs_changed: ${{ steps.filter.outputs.docs }}"
+            echo "- full: ${{ steps.affected.outputs.full }}"
+            echo "- affected_crates: ${{ steps.affected.outputs.affected_crates }}"
+            echo "- affects_compiler: ${{ steps.affected.outputs.affects_compiler }}"
+            echo "- affects_golden: ${{ steps.affected.outputs.affects_golden }}"
+            echo "- affects_contracts: ${{ steps.affected.outputs.affects_contracts }}"
+            echo "- affects_scripts: ${{ steps.affected.outputs.affects_scripts }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload vox-cli binary
         uses: actions/upload-artifact@v7
         with:
@@ -160,7 +244,8 @@ jobs:
             "gui-version-sync --write" \
             "capability-sync --write" \
             "gui-surface-coverage --write" \
-            "gui-surface-registry --write"; do
+            "gui-surface-registry --write" \
+            "affected-crates --regen --out contracts/ci/crate-graph.v1.json"; do
             echo "::group::vox ci $cmd"
             # Best-effort: a generator that errors (not just rewrites) is surfaced as a
             # warning but does not fail the job — the ssot-drift gate still verifies it.
@@ -290,17 +375,34 @@ jobs:
         run: ./target/debug/vox --quiet ci manifest
 
       - name: Format Check
+        if: needs.setup.outputs.full == 'true' || needs.setup.outputs.rust_changed == 'true'
         # Per-manifest, NOT `cargo fmt --all`: the latter passes every crate's
         # target root to one rustfmt process, overflowing the Windows
         # CreateProcess command-line limit (os error 206) on this large
         # workspace. The per-manifest form keeps each invocation tiny and stays
         # identical on Linux/macOS/Windows runners. Local writer: `vox run
         # scripts/fmt.vox`. See AGENTS.md "Formatting Rust (Windows-safe)".
+        shell: bash
         run: |
+          set -euo pipefail
+          FULL="${{ needs.setup.outputs.full }}"
+          CRATES="${{ needs.setup.outputs.affected_crates }}"
           fail=0
-          for m in crates/*/Cargo.toml; do
-            cargo fmt --manifest-path "$m" -- --check || fail=1
-          done
+          if [ "$FULL" = "true" ]; then
+            for m in crates/*/Cargo.toml; do
+              cargo fmt --manifest-path "$m" -- --check || fail=1
+            done
+          elif [ -z "$CRATES" ]; then
+            echo "No affected crates — skipping format check."
+            exit 0
+          else
+            for c in $CRATES; do
+              m="crates/${c}/Cargo.toml"
+              if [ -f "$m" ]; then
+                cargo fmt --manifest-path "$m" -- --check || fail=1
+              fi
+            done
+          fi
           if [ "$fail" != 0 ]; then
             echo "::error::rustfmt found unformatted files — run 'vox run scripts/fmt.vox' to fix"
             exit 1
@@ -321,15 +423,18 @@ jobs:
         run: cargo audit
 
       - name: Install cargo-shear + cargo-outdated (informational)
+        if: needs.setup.outputs.full == 'true'
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-shear,cargo-outdated
 
       - name: Unused dependency scan (cargo-shear, non-blocking)
+        if: needs.setup.outputs.full == 'true'
         continue-on-error: true
         run: cargo shear
 
       - name: Outdated crates report (cargo-outdated, non-blocking)
+        if: needs.setup.outputs.full == 'true'
         continue-on-error: true
         run: cargo outdated --workspace
 
@@ -368,6 +473,7 @@ jobs:
       # through the host loader to assert its embedded ABI version matches the host. Catches a
       # plugin drifting from VOX_PLUGIN_ABI_VERSION (e.g. an SDK/ABI bump that wasn't rebuilt).
       - name: Plugin ABI parity (build + load every plugin)
+        if: needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_compiler == 'true' || needs.setup.outputs.affects_plugins == 'true'
         run: ./target/debug/vox --quiet ci plugin-abi-parity --build
 
       - name: Dynamic Workspace Health Audit
@@ -434,6 +540,7 @@ jobs:
         run: ./target/debug/vox --quiet ci doc-inventory verify
 
       - name: Docs — no stale `tanstack_start.rs` compiler path
+        if: needs.setup.outputs.docs_changed == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -443,6 +550,7 @@ jobs:
           fi
 
       - name: Docs — no ghost references to retired HTMX / Pico / TanStack-virtual-routes (G.73)
+        if: needs.setup.outputs.docs_changed == 'true'
         # Audit item G.73: retired surfaces must not appear in normative docs.
         # Allowlist: the audit-findings doc and archive/ may reference them for historical context.
         shell: bash
@@ -466,6 +574,7 @@ jobs:
           echo "No ghost retired-surface references in normative docs."
 
       - name: Web TS codegen — forbidden legacy RPC shims in sources
+        if: needs.setup.outputs.docs_changed == 'true' || needs.setup.outputs.affects_compiler == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -475,6 +584,7 @@ jobs:
           fi
 
       - name: Normative docs — @query is GET (no POST /api/query claims)
+        if: needs.setup.outputs.docs_changed == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -506,7 +616,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      - name: Rustdoc (deny warnings)
+      - name: Rustdoc (deny warnings; full gate only)
+        if: needs.setup.outputs.full == 'true'
         run: RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps
 
       - name: Lint Check (Clippy)
@@ -528,22 +639,57 @@ jobs:
         # produce. The full vox-gui build (incl. the pnpm frontend) is covered by
         # release-gui.yml, so exclude it here rather than make the merge gate
         # depend on stale on-runner `ui/dist` state.
-        run: >-
-          cargo clippy --workspace --all-targets --exclude vox-gui --
-          -D warnings
-          -A clippy::items_after_test_module
-          -A clippy::collapsible_match
-          -A clippy::collapsible_if
-          -A clippy::should_implement_trait
-          -A clippy::doc_overindented_list_items
-          -A clippy::doc_lazy_continuation
+        shell: bash
+        run: |
+          set -euo pipefail
+          FULL="${{ needs.setup.outputs.full }}"
+          P_ARGS="${{ needs.setup.outputs.affected_p_args }}"
+          CLIPPY_FLAGS=(
+            -D warnings
+            -A clippy::items_after_test_module
+            -A clippy::collapsible_match
+            -A clippy::collapsible_if
+            -A clippy::should_implement_trait
+            -A clippy::doc_overindented_list_items
+            -A clippy::doc_lazy_continuation
+          )
+          if [ "$FULL" = "true" ]; then
+            cargo clippy --workspace --all-targets --exclude vox-gui -- "${CLIPPY_FLAGS[@]}"
+          elif [ -z "$P_ARGS" ]; then
+            echo "No affected crates — skipping clippy."
+          else
+            # vox-gui breaks clippy --all-targets without a built frontend; strip it.
+            FILTERED=$(echo "$P_ARGS" | sed 's/-p vox-gui//g' | xargs)
+            if [ -z "$FILTERED" ]; then
+              echo "Affected set is only vox-gui — skipping clippy."
+            else
+              # shellcheck disable=SC2086
+              cargo clippy $FILTERED --all-targets -- "${CLIPPY_FLAGS[@]}"
+            fi
+          fi
 
       # Scoped TOESTUB: enforce-warn mode — all 23 detectors, Warnings+ block.
       # This aligns with the pre-commit tdd-guard (enforce-strict on skeleton
       # rules) and pre-push toestub-scoped, giving one coherent severity model:
       # every detector runs at its authored severity; callers choose min-severity.
       - name: TOESTUB (scoped)
-        run: ./target/debug/vox --quiet ci toestub-scoped --mode enforce-warn
+        shell: bash
+        run: |
+          set -euo pipefail
+          FULL="${{ needs.setup.outputs.full }}"
+          CRATES="${{ needs.setup.outputs.affected_crates }}"
+          if [ "$FULL" = "true" ]; then
+            ./target/debug/vox --quiet ci toestub-scoped --mode enforce-warn
+          elif [ -z "$CRATES" ]; then
+            echo "No affected crates — running TOESTUB on minimal default scope (crates/vox-repository)."
+            ./target/debug/vox --quiet ci toestub-scoped --mode enforce-warn crates/vox-repository
+          else
+            ROOTS=()
+            for c in $CRATES; do
+              ROOTS+=("crates/${c}")
+            done
+            ./target/debug/vox --quiet ci toestub-scoped --mode enforce-warn "${ROOTS[@]}"
+          fi
 
       - name: Architecture / Code Drift Guard (TOESTUB)
         if: github.event_name == 'pull_request'
@@ -595,6 +741,7 @@ jobs:
   compiler-gates:
     name: Compiler gates (WebIR + projection + golden examples + benches)
     needs: setup
+    if: ${{ needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_compiler == 'true' }}
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 20
     steps:
@@ -655,6 +802,9 @@ jobs:
         # With, WorkflowVersion) match actual emitter behavior.
         run: cargo nextest run -p vox-compiler --test feature_matrix_parity_test
 
+      - name: Pipeline SSOT umbrella (grammar + golden ladder + matrix + k-budget)
+        run: ./target/debug/vox --quiet ci pipeline-parity
+
       - name: Golden examples strict-parse gate (A.13 — all examples/*.vox must parse)
         # A.13: VOX_EXAMPLES_STRICT_PARSE=1 must be the default in CI.
         # Uses the vox-compiler test suite which already has a strict-parse integration test.
@@ -712,36 +862,59 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      - name: Repository SSOT + MCP smoke
+      - name: Integration smokes (affected intersection)
+        shell: bash
         run: |
-          cargo nextest run -p vox-repository --lib
-          cargo nextest run -p vox-orchestrator --lib -E 'test(detect_layout_node_workspaces)'
-          cargo nextest run -p vox-orchestrator-mcp --lib
-          cargo check -p vox-git
-
-      - name: Mesh transport + workflow-runtime + CLI feature matrix slice
-        run: |
-          cargo nextest run -p vox-populi --features transport,mens
-          cargo nextest run -p vox-workflow-runtime
-          cargo check -p vox-cli --features mesh,workflow-runtime
-
-      - name: Orchestrator slim build (news-publish off, no populi-transport → minimal default)
-        run: cargo check -p vox-orchestrator --no-default-features --features runtime,mcp-native,toestub-gate
+          set -euo pipefail
+          FULL="${{ needs.setup.outputs.full }}"
+          AFFECTED="${{ needs.setup.outputs.affected_crates }}"
+          affected_has() {
+            local crate="$1"
+            if [ "$FULL" = "true" ]; then return 0; fi
+            case " ${AFFECTED} " in *" ${crate} "*) return 0;; esac
+            return 1
+          }
+          if affected_has vox-repository; then
+            cargo nextest run -p vox-repository --lib
+          fi
+          if affected_has vox-orchestrator; then
+            cargo nextest run -p vox-orchestrator --lib -E 'test(detect_layout_node_workspaces)'
+            cargo check -p vox-orchestrator --no-default-features --features runtime,mcp-native,toestub-gate
+          fi
+          if affected_has vox-orchestrator-mcp; then
+            cargo nextest run -p vox-orchestrator-mcp --lib
+          fi
+          if affected_has vox-git; then
+            cargo check -p vox-git
+          fi
+          if affected_has vox-populi; then
+            cargo nextest run -p vox-populi --features transport,mens
+          fi
+          if affected_has vox-workflow-runtime; then
+            cargo nextest run -p vox-workflow-runtime
+          fi
+          if affected_has vox-cli; then
+            cargo check -p vox-cli --features mesh,workflow-runtime
+          fi
 
       - name: Arch-check (layer + fan-in + LoC + orphan + docstring)
+        if: needs.setup.outputs.full == 'true' || needs.setup.outputs.rust_changed == 'true'
         # Invocation delegated to scripts/arch-check.vox (SSOT).
         # Layer rule strict; the others warn-only by default. Source of truth:
         # docs/src/architecture/layers.toml.
         run: ./target/debug/vox --quiet run scripts/arch-check.vox
 
       - name: Dependency cycle gate
+        if: needs.setup.outputs.full == 'true'
         run: ./target/debug/vox --quiet ci dep-cycles
 
       - name: Crate build/dependency audit (refresh leaf-design map)
+        if: needs.setup.outputs.full == 'true'
         run: ./target/debug/vox --quiet run --mode interp scripts/crate-build-audit.vox
         continue-on-error: true
 
       - name: Build-bench (wall-clock scenarios vs committed baseline — ROUGH signal)
+        if: needs.setup.outputs.full == 'true'
         run: |
           ./target/debug/vox --quiet ci build-bench \
             --label "ci-${{ github.run_number }}" \
@@ -751,6 +924,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload build-time maps
+        if: needs.setup.outputs.full == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: build-time-maps
@@ -760,12 +934,20 @@ jobs:
             graphify-out/build-bench/
           if-no-files-found: ignore
 
+      - name: Graphify corpus freshness gate (warning)
+        if: needs.setup.outputs.full == 'true'
+        run: ./target/debug/vox graphify status --strict
+        env:
+          VOX_GRAPHIFY_TTL_DAYS: "7"
+        continue-on-error: true
+
+
       # Conditional coverage: llvm-cov instrumentation adds significant wall-clock
       # time and is meaningless on docs-only PRs.  Run plain nextest when no Rust
-      # crates changed; full llvm-cov nextest otherwise.
-      # On merge_group setup always sets rust_changed=true so coverage always runs.
-      - name: Run Tests — llvm-cov nextest (Rust changed)
-        if: needs.setup.outputs.rust_changed == 'true'
+      # crates changed; full llvm-cov nextest on merge_group (full=true).
+      # PR-time affected runs use scoped nextest without coverage instrumentation.
+      - name: Run Tests — llvm-cov nextest (full gate, Rust changed)
+        if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
         env:
           INSTA_UPDATE: unseen
         run: |
@@ -774,8 +956,8 @@ jobs:
           printf '%s\n' '[profile.ci.junit]' 'path = "junit.xml"' >"${junit_cfg}"
           cargo llvm-cov nextest --workspace --profile ci --tool-config-file "vox-ci:${junit_cfg}"
 
-      - name: Run Tests — plain nextest (docs-only change, no coverage overhead)
-        if: needs.setup.outputs.rust_changed != 'true'
+      - name: Run Tests — plain nextest (full gate, docs-only change)
+        if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed != 'true'
         env:
           INSTA_UPDATE: unseen
         run: |
@@ -784,13 +966,48 @@ jobs:
           printf '%s\n' '[profile.ci.junit]' 'path = "junit.xml"' >"${junit_cfg}"
           cargo nextest run --workspace --profile ci --tool-config-file "vox-ci:${junit_cfg}"
 
+      - name: Run Tests — affected nextest (PR scoped)
+        if: needs.setup.outputs.full != 'true'
+        env:
+          INSTA_UPDATE: unseen
+        run: |
+          set -euo pipefail
+          P_ARGS="${{ needs.setup.outputs.affected_p_args }}"
+          if [ -z "$P_ARGS" ]; then
+            echo "No affected crates — skipping Rust tests."
+            exit 0
+          fi
+          junit_cfg="${RUNNER_TEMP}/vox-nextest-junit.toml"
+          printf '%s\n' '[profile.ci.junit]' 'path = "junit.xml"' >"${junit_cfg}"
+          # shellcheck disable=SC2086
+          cargo nextest run $P_ARGS --profile ci --tool-config-file "vox-ci:${junit_cfg}"
+
+      - name: Shadow — junit vs affected set (merge_group)
+        if: github.event_name == 'merge_group'
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          junit="target/nextest/ci/junit.xml"
+          if [ ! -f "${junit}" ]; then
+            echo "::notice::Shadow comparator skipped — no JUnit at ${junit}"
+            exit 0
+          fi
+          AFFECTED="${{ needs.setup.outputs.affected_crates }}"
+          if [ -z "${AFFECTED// }" ]; then
+            echo "::warning title=affected-ci shadow::merge_group affected_crates empty — cannot compare junit vs PR closure"
+            exit 0
+          fi
+          ./target/debug/vox ci affected-crates --shadow-junit \
+            --junit "${junit}" \
+            --affected-crates "${{ needs.setup.outputs.affected_crates }}"
+
       # Slow test partition — runs the three #[ignore = "slow; …"] tests explicitly.
       # These are excluded from the workspace nextest step above to keep CI wall-clock
       # under 30 min.  Uses an exact filter so none of the other 250+ intentionally-
       # ignored tests are swept in.  max-threads=1 is enforced by [test-groups.slow] in
       # .config/nextest.toml; the CI profile slow-timeout terminates after 3×180s.
       - name: Run slow test partition (arch-check, scientia timeout, codegen bundle)
-        if: needs.setup.outputs.rust_changed == 'true'
+        if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
         run: |
           cargo nextest run \
             -E 'test(arch_check_live_workspace_smoke_and_description_rule) or test(timeout_kills_long_running_child) or test(generated_ai_fixture_bundle_passes_cargo_check)' \
@@ -802,7 +1019,7 @@ jobs:
       # Does NOT re-run tests; no-op if budgets file is absent.
       # continue-on-error: true until tightened budgets land (Phase 5 follow-up).
       - name: Test-tier timing budget check (nextest full tier)
-        if: always() && needs.setup.outputs.rust_changed == 'true'
+        if: always() && needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
         continue-on-error: true
         run: |
           junit="target/nextest/ci/junit.xml"
@@ -889,15 +1106,25 @@ jobs:
           if-no-files-found: ignore
 
       - name: vox-db replication feature (compile + embedded sync smoke skips without creds)
-        run: cargo nextest run -p vox-db --features replication -E 'test(sync_embedded_replica_smoke)'
+        shell: bash
+        run: |
+          set -euo pipefail
+          FULL="${{ needs.setup.outputs.full }}"
+          AFFECTED="${{ needs.setup.outputs.affected_crates }}"
+          if [ "$FULL" = "true" ] || case " ${AFFECTED} " in *" vox-db "*) true;; *) false;; esac; then
+            cargo nextest run -p vox-db --features replication -E 'test(sync_embedded_replica_smoke)'
+          else
+            echo "vox-db not in affected set — skipping replication smoke."
+          fi
 
       # Doctests use Rust's built-in harness only; cargo-nextest does not execute them.
-      # Keep this as `cargo test --workspace --doc` until a verified nextest doctest path exists.
+      # Full gate only — PR-time affected runs skip doctests (covered at merge_group).
       - name: Doc tests (cargo test --workspace --doc; not nextest)
+        if: needs.setup.outputs.full == 'true'
         run: cargo test --workspace --doc
 
       - name: Line coverage report (summary, LCOV, gates enforce)
-        if: needs.setup.outputs.rust_changed == 'true'
+        if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
         run: |
           set -euo pipefail
           cargo llvm-cov report --text --summary-only
@@ -912,7 +1139,7 @@ jobs:
       # NOT gating until the reach layer is calibrated to CI's lcov. The deterministic
       # `semcov-gates` check (silent-drop + weak-test) IS blocking.
       - name: Semantic-coverage reach ratchet (advisory — reported, not gating)
-        if: needs.setup.outputs.rust_changed == 'true'
+        if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
         continue-on-error: true
         run: |
           set -uo pipefail
@@ -926,7 +1153,7 @@ jobs:
             --baseline contracts/reports/semantic-coverage.v1.json
 
       - name: Upload LLVM coverage artifacts
-        if: (success() || failure()) && needs.setup.outputs.rust_changed == 'true'
+        if: (success() || failure()) && needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: llvm-cov
@@ -979,6 +1206,7 @@ jobs:
             --min-f1 0.70
 
       - name: TOESTUB full crates/ — syn parse failure budget (JSON envelope)
+        if: needs.setup.outputs.full == 'true'
         env:
           VOX_TOESTUB_MAX_RUST_PARSE_FAILURES: 3
         run: |
@@ -987,6 +1215,7 @@ jobs:
             | ./target/debug/vox --quiet ci toestub-budget
 
       - name: vox-cli build timings (default + GPU/stub + per-crate lanes; wall-clock)
+        if: needs.setup.outputs.full == 'true'
         env:
           VOX_BENCHMARK_TELEMETRY: "1"
           # H.79: enforce soft build budget caps — fails if any lane exceeds budgets.json
@@ -997,17 +1226,32 @@ jobs:
         run: ./target/debug/vox --quiet ci feature-matrix && ./target/debug/vox --quiet ci no-vox-orchestrator-import
 
       - name: Workspace-wide all-features check (A.4)
-        run: cargo check --workspace --all-features
+        shell: bash
+        run: |
+          set -euo pipefail
+          FULL="${{ needs.setup.outputs.full }}"
+          P_ARGS="${{ needs.setup.outputs.affected_p_args }}"
+          if [ "$FULL" = "true" ]; then
+            cargo check --workspace --all-features
+          elif [ -n "$P_ARGS" ]; then
+            # shellcheck disable=SC2086
+            cargo check $P_ARGS --all-features
+          else
+            echo "No affected crates — skipping all-features check."
+          fi
 
       - name: Optional CUDA feature compile (Oratio + Populi Candle, when nvcc exists)
+        if: needs.setup.outputs.full == 'true'
         run: ./target/debug/vox --quiet ci cuda-features
 
       - name: Mens corpus mix (strict required sources)
+        if: needs.setup.outputs.full == 'true'
         run: |
           ./target/debug/vox --quiet run --interp scripts/ci/corpus_prep.vox
           ./target/debug/vox --quiet mens corpus mix --config mens/config/mix.yaml
 
       - name: Populi CI gate matrix (single manifest)
+        if: needs.setup.outputs.full == 'true'
         run: ./target/debug/vox --quiet ci mens-gate --profile ci_full
 
   # Single required-status check for branch protection. Keep this job's `name:`
@@ -1032,12 +1276,14 @@ jobs:
             "${{ needs.compiler-gates.result }}" \
             "${{ needs.tests.result }}" \
             "${{ needs.audits.result }}"; do
-            if [ "$r" != "success" ]; then fail=1; fi
+            if [ "$r" != "success" ] && [ "$r" != "skipped" ]; then fail=1; fi
           done
           exit $fail
 
   visualizer-ingest-smoke:
     name: Visualizer ingest unit (pnpm + tsx)
+    needs: setup
+    if: needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_web == 'true'
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 15
     steps:
@@ -1057,6 +1303,8 @@ jobs:
 
   web-vite-build-smoke:
     name: Web Vite build smoke (pnpm)
+    needs: setup
+    if: needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_web == 'true'
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 15
     steps:
@@ -1081,6 +1329,8 @@ jobs:
 
   vox-vscode-extension:
     name: VS Code extension (compile + lint)
+    needs: setup
+    if: needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_gui == 'true'
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 15
     steps:
@@ -1098,6 +1348,8 @@ jobs:
 
   mesh-compose-config:
     name: Validate examples/mesh-compose.yml
+    needs: setup
+    if: needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_scripts == 'true'
     # `docker compose config` only parses/validates the YAML (no daemon, no DinD),
     # so a GitHub-hosted runner — which ships Docker Compose v2 — is the right host.
     # The self-hosted `docker`-labelled runner container lacks the compose plugin

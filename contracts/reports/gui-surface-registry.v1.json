@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "surface_count": 106,
+  "surface_count": 107,
   "top_level_groups": [
     "add",
     "ars",
@@ -34,6 +34,7 @@
     "fmt",
     "generate",
     "grammar",
+    "graphify",
     "init",
     "llm",
     "lock",

@@ -2843,6 +2843,33 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: false
+- id: ci.pipeline-parity
+  title: Ci Pipeline-parity
+  description: CLI operation `vox ci pipeline-parity` — umbrella gate for script→emission SSOT (grammar parity, canonical ladder, feature matrix, k-budget)
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - pipeline-parity
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
 - id: ci.compile-matrix
   title: Ci Compile-matrix
   description: CLI operation `vox ci compile-matrix` — smoke `vox compile --help` via cargo (matches compile-matrix workflow)
@@ -5940,6 +5967,173 @@ operations:
     http_read_role_eligible: false
     tier: core
   cli: null
+- id: graphify
+  title: Graphify
+  description: CLI operation `vox graphify`
+  description_human: null
+  product_lane: platform
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - graphify
+    status: active
+    latin_ns: pm
+    handler_rust: commands::graphify
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: graphify.status
+  title: Graphify Status
+  description: Report graphify corpus freshness (read-only; `--strict` fails when stale).
+  description_human: null
+  product_lane: platform
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_graphify_status
+    http_read_role_eligible: true
+    tier: core
+  cli: null
+- id: graphify.search
+  title: Graphify Search
+  description: Lexically search a graphify corpus graph on disk (read-only).
+  description_human: null
+  product_lane: platform
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_graphify_search
+    http_read_role_eligible: true
+    tier: core
+  cli: null
+- id: graphify.ingest
+  title: Graphify Ingest
+  description: Project graph nodes into Turso knowledge_nodes via VoxDb (CLI only; no MCP surface).
+  description_human: null
+  product_lane: platform
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - graphify
+    - ingest
+    status: active
+    latin_ns: pm
+    handler_rust: commands::graphify
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: graphify.query
+  title: Graphify Query
+  description: BFS neighbor expansion from seed node IDs (read-only; layered navigation).
+  description_human: null
+  product_lane: platform
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_graphify_query
+    http_read_role_eligible: true
+    tier: core
+  cli: null
+- id: graphify.path
+  title: Graphify Path
+  description: Shortest path between two node IDs in a graphify corpus (read-only).
+  description_human: null
+  product_lane: platform
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_graphify_path
+    http_read_role_eligible: true
+    tier: core
+  cli: null
+- id: graphify.compare
+  title: Graphify Compare
+  description: Diff two graphify corpus manifests for node/edge/community delta (read-only).
+  description_human: null
+  product_lane: platform
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_graphify_compare
+    http_read_role_eligible: true
+    tier: core
+  cli: null
 - id: get.active.model
   title: Get Active Model
   description: Show sticky MCP chat override and resolved ModelSpec (no LLM call).
@@ -8119,6 +8313,126 @@ operations:
   latin_aliases: null
   mcp:
     name: vox_openclaw_unsubscribe
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: agent.list.remote
+  title: Agent List Remote
+  description: List remote agent skills through the native agent runtime adapter.
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_agent_list_remote
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: agent.gateway.call
+  title: Agent Gateway Call
+  description: Invoke an arbitrary agent Gateway method with JSON params.
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_agent_gateway_call
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: agent.subscriptions
+  title: Agent Subscriptions
+  description: List active agent gateway subscriptions for the current session.
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_agent_subscriptions
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: agent.subscribe
+  title: Agent Subscribe
+  description: Subscribe the agent gateway session to a domain.
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_agent_subscribe
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: agent.unsubscribe
+  title: Agent Unsubscribe
+  description: Unsubscribe the agent gateway session from a domain.
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_agent_unsubscribe
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: agent.notify
+  title: Agent Notify
+  description: Send a domain-scoped notification over the agent gateway.
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_agent_notify
     http_read_role_eligible: false
     tier: core
   cli: null
@@ -11773,6 +12087,26 @@ operations:
     http_read_role_eligible: false
     tier: core
   cli: null
+- id: skill.run
+  title: Skill Run
+  description: Execute a skill script in the sandbox (parity with CLI `vox skill run`).
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_skill_run
+    http_read_role_eligible: false
+    tier: core
+  cli: null
 - id: snapshot.diff
   title: Snapshot Diff
   description: Show the file-level diff between two snapshots.
@@ -12622,6 +12956,26 @@ operations:
     http_read_role_eligible: false
     tier: core
   cli: null
+- id: workspace.mcp_refresh
+  title: Workspace MCP Refresh
+  description: Reloads/refreshes the workspace MCP registry and scan config.
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_workspace_mcp_refresh
+    http_read_role_eligible: false
+    tier: core
+  cli: null
 - id: model.pricing.show
   title: Model Pricing Show
   description: Show the model pricing catalog with observed vs catalog costs, cache pricing, and pricing source.
@@ -13176,6 +13530,246 @@ operations:
   latin_aliases: null
   mcp:
     name: vox_resolve_approval
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: kb.create
+  title: Create Knowledge Base
+  description: Create a new knowledge base.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_kb_create
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: kb.list
+  title: List Knowledge Bases
+  description: List all available knowledge bases.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_kb_list
+    http_read_role_eligible: true
+    tier: core
+  cli: null
+- id: kb.delete
+  title: Delete Knowledge Base
+  description: Delete a knowledge base by ID.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_kb_delete
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: kb.add_entry
+  title: Add Knowledge Entry
+  description: Add a knowledge entry to a knowledge base.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_kb_add_entry
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: kb.delete_entry
+  title: Delete Knowledge Entry
+  description: Delete a knowledge entry by ID.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_kb_delete_entry
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: kb.list_entries
+  title: List Knowledge Entries
+  description: List all knowledge entries in a knowledge base.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_kb_list_entries
+    http_read_role_eligible: true
+    tier: core
+  cli: null
+- id: kb.review_entry
+  title: Review Knowledge Entry
+  description: Accept or reject a knowledge entry.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_kb_review_entry
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: kb.get_feed
+  title: Get Knowledge Feed
+  description: Get the feed of knowledge entries.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_kb_get_feed
+    http_read_role_eligible: true
+    tier: core
+  cli: null
+- id: kb.add_rule
+  title: Add Knowledge Rule
+  description: Add an ingestion filter rule.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_kb_add_rule
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: kb.list_rules
+  title: List Knowledge Rules
+  description: List ingestion filter rules.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_kb_list_rules
+    http_read_role_eligible: true
+    tier: core
+  cli: null
+- id: kb.query
+  title: Query Knowledge Base
+  description: Query knowledge bases with semantic search.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_kb_query
+    http_read_role_eligible: true
+    tier: core
+  cli: null
+- id: kb.clip
+  title: Clip Knowledge Fact
+  description: Clip code/notes into knowledge bases.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_kb_clip
     http_read_role_eligible: false
     tier: core
   cli: null

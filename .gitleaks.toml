@@ -30,4 +30,8 @@ paths = [
   '''/sources/auth_json\.rs$''',
   # Pre-registration signing-key round-trip vectors (repeated-hex placeholders).
   '''/preregistration/trusty_uri\.rs$''',
+  # Dashboard scoreboard column definitions: `key: '<metric_name>'` object literals
+  # (e.g. `p50_latency_ms`) trip the generic-api-key rule. Verified false positive —
+  # presentation-only React component, holds metric identifiers, not credentials.
+  '''/components/surfaces/Runs/RunsView\.tsx$''',
 ]

@@ -1,0 +1,53 @@
+x-vox-version: 1
+schema_version: 1
+description: >
+  Dashboard widget catalog and layout schema for the vox-gui operator console.
+  Runtime layouts are validated client-side via dashboardLayout.ts and persisted
+  under gui.dashboard.layout.v1 (see shell-persistence.v1.yaml).
+
+columns_default: 12
+
+widget_kinds:
+  - stream
+  - agents
+  - alerts
+  - kpi_spark
+  - line_chart
+  - bar_chart
+  - area_chart
+  - queue_depth
+  - budget_burn
+  - mesh_peers
+  - model_active
+  - openrouter_spend
+  - task_summary
+  - custom_text
+
+grid_shape:
+  col: integer # 1-based column start
+  row: integer # 1-based row start
+  w: integer   # column span
+  h: integer   # row span
+
+layout_shape:
+  version: 1
+  columns: integer
+  widgets:
+  - id: string
+    kind: string # one of widget_kinds
+    grid: grid_shape
+    config: object # optional widget-specific options
+
+default_profile:
+  version: 1
+  columns: 12
+  widgets:
+    - id: stream
+      kind: stream
+      grid: { col: 1, row: 1, w: 8, h: 4 }
+    - id: alerts
+      kind: alerts
+      grid: { col: 9, row: 1, w: 4, h: 2 }
+    - id: agents
+      kind: agents
+      grid: { col: 9, row: 3, w: 4, h: 2 }

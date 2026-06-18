@@ -20,16 +20,35 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: Build voxup
         run: cargo build --release -p voxup
-      - name: E2E Test voxup
+      - name: Smoke — voxup --help (all branches)
         run: |
-          mkdir -p /tmp/fake_home
-          HOME=/tmp/fake_home target/release/voxup install default
-          if [ ! -f /tmp/fake_home/.vox/bin/vox ]; then
-            echo "voxup failed to install the proxy binary."
+          ./target/release/voxup --help
+          ./target/release/voxup install --help
+          ./target/release/voxup update --help
+          ./target/release/voxup proxy --help
+
+      - name: E2E — voxup install (downloads from GitHub, tag runs only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          export HOME=/tmp/fake_home
+          mkdir -p $HOME
+          ./target/release/voxup install default
+          if [ ! -f "$HOME/.vox/bin/vox" ]; then
+            echo "FAIL: ~/.vox/bin/vox not found"
             exit 1
           fi
-          # Test the proxy wrapper
-          HOME=/tmp/fake_home /tmp/fake_home/.vox/bin/vox --version || true
+          version=$("$HOME/.vox/bin/vox" --version 2>&1)
+          echo "Installed: $version"
+          if ! echo "$version" | grep -qE '[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "FAIL: --version did not return semver"
+            exit 1
+          fi
+
+      - name: E2E — voxup update (no-op, tag runs only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          export HOME=/tmp/fake_home
+          ./target/release/voxup update
   build-windows-msi:
     runs-on: windows-latest
     steps:
@@ -72,3 +91,90 @@ jobs:
         run: |
           echo "Simulating Homebrew Tap update..."
           # Logic to dispatch repository event to vox-foundation/homebrew-vox
+
+  test-bootstrap-unix:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Verify install.sh POSIX syntax
+        run: |
+          sh -n scripts/install.sh
+          echo "install.sh syntax OK"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build voxup (for E2E bootstrap test)
+        run: cargo build --release -p voxup
+
+      - name: E2E — install.sh full (tag runs only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          export HOME=/tmp/fake_home_bootstrap
+          mkdir -p $HOME
+          sh scripts/install.sh
+          if [ ! -f "$HOME/.vox/bin/vox" ]; then
+            echo "FAIL: ~/.vox/bin/vox not found after install.sh"
+            exit 1
+          fi
+          version=$("$HOME/.vox/bin/vox" --version 2>&1)
+          echo "Installed vox: $version"
+          if ! echo "$version" | grep -qE '[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "FAIL: vox --version did not return semver"
+            exit 1
+          fi
+          if [ ! -f "$HOME/.vox/bin/voxup" ]; then
+            echo "FAIL: ~/.vox/bin/voxup not found — install.rs did not place voxup"
+            exit 1
+          fi
+
+  test-bootstrap-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Verify install.ps1 parses
+        shell: pwsh
+        run: |
+          $errors = $null
+          $null = [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path 'scripts\install.ps1').Path,
+              [ref]$null,
+              [ref]$errors
+          )
+          if ($errors) {
+              $errors | ForEach-Object { Write-Host "ParseError: $($_.Message)" }
+              exit 1
+          }
+          Write-Host "install.ps1 syntax OK"
+
+      - name: E2E — install.ps1 full (tag runs only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $fakeHome = "$env:TEMP\fake_home_bootstrap"
+          New-Item -ItemType Directory -Force -Path $fakeHome | Out-Null
+          $env:USERPROFILE = $fakeHome
+          $env:HOMEDRIVE = Split-Path $fakeHome -Qualifier
+          $env:HOMEPATH  = Split-Path $fakeHome -NoQualifier
+          .\scripts\install.ps1
+          $vox = "$fakeHome\.vox\bin\vox.exe"
+          if (-not (Test-Path $vox)) {
+              Write-Host "FAIL: $vox not found after install.ps1"
+              exit 1
+          }
+          $version = & $vox --version 2>&1
+          Write-Host "Installed vox: $version"
+          if ($version -notmatch '\d+\.\d+\.\d+') {
+            Write-Host "FAIL: vox --version did not return semver"
+            exit 1
+          }
+          $voxup = "$fakeHome\.vox\bin\voxup.exe"
+          if (-not (Test-Path $voxup)) {
+            Write-Host "FAIL: $voxup not found — install.rs did not place voxup.exe"
+            exit 1
+          }
