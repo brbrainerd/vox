@@ -1,7 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useStore } from 'zustand';
 import { projectIso } from '../../lib/projection';
 import { HudPanels } from './HudPanels';
 import { CitizenSprite } from './CitizenSprite';
+import { useLudusStore } from './store';
+import { listenAgentEvents, AgentEventFrame } from '../../transport';
 
 export interface GridPlot {
   x: number;
@@ -30,12 +33,23 @@ interface SandboxProps {
 export const LudusSandbox: React.FC<SandboxProps> = ({ files }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const plots = assignPlotCoordinates(files);
+  const plots = React.useMemo(() => assignPlotCoordinates(files), [files]);
   const tileWidth = 64;
   const tileHeight = 32;
   const [camera, setCamera] = useState({ x: 400, y: 100, zoom: 1 });
 
-  // Pre-render layout to offscreen canvas once
+  // Select building status to trigger re-renders on quality changes
+  const buildings = useStore(useLudusStore, (state) => state.buildings);
+
+  // Initialize buildings in Zustand store
+  useEffect(() => {
+    const store = useLudusStore.getState();
+    for (const [filePath, plot] of Object.entries(plots)) {
+      store.updateBuilding(filePath, { x: plot.x, y: plot.y, warnings: 0, errors: 0 });
+    }
+  }, [plots]);
+
+  // Pre-render layout to offscreen canvas
   useEffect(() => {
     const canvas = document.createElement('canvas');
     canvas.width = 2000;
@@ -64,15 +78,25 @@ export const LudusSandbox: React.FC<SandboxProps> = ({ files }) => {
       }
     }
 
-    // Draw buildings
-    ctx.fillStyle = '#3b82f6';
-    for (const [_, plot] of Object.entries(plots)) {
+    // Draw buildings with weeds/cracks overlays
+    for (const [filePath, plot] of Object.entries(plots)) {
       const { px, py } = projectIso(plot.x, plot.y, plot.z, tileWidth, tileHeight, centerOffsetX, centerOffsetY);
+      const bState = buildings[filePath] || { warnings: 0, errors: 0 };
+
+      // Base building: Red for errors, Blue for normal
+      ctx.fillStyle = bState.errors > 0 ? '#ef4444' : '#3b82f6';
       ctx.beginPath();
       ctx.arc(px, py, 6, 0, 2 * Math.PI);
       ctx.fill();
+
+      // Render Weeds (Warnings)
+      if (bState.warnings > 0) {
+        ctx.fillStyle = '#10b981';
+        ctx.fillRect(px - 10, py + 2, 4, 4);
+        ctx.fillRect(px + 6, py + 2, 4, 4);
+      }
     }
-  }, [files]);
+  }, [files, plots, buildings]);
 
   // Render offscreen canvas to onscreen viewport on camera or layout updates
   useEffect(() => {
@@ -89,11 +113,31 @@ export const LudusSandbox: React.FC<SandboxProps> = ({ files }) => {
     ctx.translate(camera.x, camera.y);
     ctx.scale(camera.zoom, camera.zoom);
 
-    // Copy buffer to screen (offset to align offscreen center with translation origin)
+    // Copy buffer to screen
     ctx.drawImage(offscreen, -offscreen.width / 2, 0);
     
     ctx.restore();
   }, [camera, files]);
+
+  // Listen to live agent execution events from Tauri
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+
+    listenAgentEvents((event: AgentEventFrame) => {
+      const store = useLudusStore.getState();
+      if (event.kind.type === 'file_edited') {
+        const filePath = event.kind.path || 'crates/vox-db/src/lib.rs';
+        // Mock compile warning changes
+        store.updateBuilding(filePath, { warnings: 1 });
+      }
+    }).then((unlistenFn) => {
+      unlisten = unlistenFn;
+    }).catch(() => {});
+
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, []);
 
   return (
     <div className="relative w-full h-[500px] bg-[#09090b] overflow-hidden border border-zinc-800 rounded-2xl">
