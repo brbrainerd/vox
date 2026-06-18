@@ -373,9 +373,15 @@ pub fn resolve_effective_profile(
             crate::mens::tensor::memory_budget::plan_qwen35_with_options(vram_gib, params_b, quant, gradient_checkpointing)
         };
 
-        p.seq_len = p.seq_len.min(budget_plan.seq_len);
-        p.batch_size = p.batch_size.min(budget_plan.batch_size);
-        p.grad_accum = p.grad_accum.max(budget_plan.grad_accum);
+        if overrides.seq_len.is_none() {
+            p.seq_len = p.seq_len.min(budget_plan.seq_len);
+        }
+        if overrides.batch_size.is_none() {
+            p.batch_size = p.batch_size.min(budget_plan.batch_size);
+        }
+        if overrides.grad_accum.is_none() {
+            p.grad_accum = p.grad_accum.max(budget_plan.grad_accum);
+        }
     }
 
     let _ = probe_gpu();
