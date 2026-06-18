@@ -69,6 +69,7 @@
       "vox-foundation",
       "vox-git",
       "vox-grammar-export",
+      "vox-graphify-reader",
       "vox-http-client",
       "vox-identity",
       "vox-jsonschema-util",
@@ -272,6 +273,7 @@
     "vox-grammar-export": [
       "workspace-hack"
     ],
+    "vox-graphify-reader": [],
     "vox-gui": [
       "vox-actor-runtime",
       "vox-build-meta",
@@ -454,6 +456,7 @@
       "vox-foundation",
       "vox-gamify",
       "vox-grammar-export",
+      "vox-graphify-reader",
       "vox-http-client",
       "vox-jsonschema-util",
       "vox-lsp",
