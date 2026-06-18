@@ -172,3 +172,42 @@ component Dash() {
         "pairwise-distinct canonical projection hashes"
     );
 }
+
+#[test]
+fn emission_profile_rejects_literal_color_style_block() {
+    use vox_codegen::emission_profile::{EmissionProfile, ProfileSeverity};
+    use vox_codegen::web_ir::{
+        CssColor, StyleDeclarationValue, StyleNode, StyleSelector, WebIrModule,
+    };
+    use vox_compiler::hir::HirModule;
+    use vox_compiler::target::Target;
+
+    let mut web = WebIrModule::default();
+    web.style_nodes.push(StyleNode::Rule {
+        specificity: (0, 1, 0),
+        selector: StyleSelector::Class("bad".into()),
+        declarations: vec![(
+            "color".into(),
+            StyleDeclarationValue::Color(CssColor::Hex("#ff0000".into())),
+        )],
+        is_raw_css: false,
+        span: None,
+    });
+    let bundle = vox_codegen::projection_bundle::ProjectionBundle {
+        web,
+        app: vox_compiler::app_contract::project_app_contract(&HirModule::default()),
+        runtime: vox_compiler::runtime_projection::project_runtime_from_hir(&HirModule::default()),
+        shell: vox_compiler::shell_projection::project_shell_from_hir(&HirModule::default()),
+        capabilities: vox_compiler::required_capabilities::project_required_capabilities(
+            &HirModule::default(),
+        ),
+    };
+    let diags = EmissionProfile::for_target(Target::TypeScript).validate_bundle(&bundle);
+    assert!(
+        diags.iter().any(|d| {
+            d.code == "web_ir_validate.style.literal_color_value"
+                && d.severity == ProfileSeverity::Error
+        }),
+        "{diags:?}"
+    );
+}

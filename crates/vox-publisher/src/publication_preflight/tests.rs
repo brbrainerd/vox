@@ -349,4 +349,37 @@ mod tests {
             std::env::remove_var("VOX_SECRETS_PROFILE");
         }
     }
+
+    #[test]
+    fn preflight_worthiness_reads_measured_replay_from_status_events() {
+        let manifest = sample_manifest(|_| {});
+        let report = PreflightReport {
+            ok: true,
+            readiness_score: 80,
+            findings: vec![],
+            manual_required: vec![],
+            next_actions: vec![],
+            confidence: PreflightConfidence::AutoWithReview,
+            destination_readiness: vec![],
+            worthiness: None,
+        };
+        let events = vec![PublicationStatusEventSnapshot {
+            status: "artifact_replayability_measured".into(),
+            detail_json: Some(
+                r#"{"outcome":{"kind":"pass"},"wall_ms":1,"measured_score":1.0,"diagnostics":[],"stdout":"","stderr":""}"#
+                    .into(),
+            ),
+        }];
+        let inputs = worthiness_inputs_from_manifest_and_preflight_with_status_events(
+            &manifest,
+            &report,
+            None,
+            Some(&events),
+        );
+        assert_eq!(inputs.artifact_replayability_measured, Some(1.0));
+        assert_eq!(
+            crate::publication_worthiness::effective_replayability(&inputs),
+            1.0
+        );
+    }
 }

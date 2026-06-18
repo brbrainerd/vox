@@ -618,21 +618,27 @@ fn maybe_web_ir_validate(
     if !super::web_migration_env::web_ir_validate_gate_enabled() {
         return Ok(());
     }
-    let diags = super::web_ir::validate::validate_web_ir_with_registry(web, registry);
-    // Advisory diagnostics must not block codegen — only hard errors gate the build.
-    let error_diags: Vec<super::web_ir::WebIrDiagnostic> =
-        diags.into_iter().filter(|d| !is_advisory_diag(d)).collect();
+    let diags = super::emission_profile::EmissionProfile::validate_web_module(web, registry);
+    let error_diags: Vec<_> = diags
+        .into_iter()
+        .filter(|d| d.severity == super::emission_profile::ProfileSeverity::Error)
+        .collect();
     if error_diags.is_empty() {
         return Ok(());
     }
+    let mapped: Vec<super::web_ir::WebIrDiagnostic> = error_diags
+        .into_iter()
+        .map(|d| super::web_ir::WebIrDiagnostic {
+            code: d.code,
+            message: d.message,
+            span: None,
+            category: None,
+        })
+        .collect();
     Err(format!(
         "VOX_WEBIR_VALIDATE: {}",
-        super::web_ir::validate::format_web_ir_validate_failure(&error_diags)
+        super::web_ir::validate::format_web_ir_validate_failure(&mapped)
     ))
-}
-
-fn is_advisory_diag(d: &super::web_ir::WebIrDiagnostic) -> bool {
-    super::web_ir::validate::is_advisory_diagnostic(d)
 }
 
 #[cfg(test)]

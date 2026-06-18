@@ -573,6 +573,17 @@ impl BuiltinTypes {
             },
         );
 
+        // Agent gateway module (Unified ARS runtime adapter).
+        env.define(
+            "Agent".into(),
+            Binding {
+                ty: Ty::Named("AgentModule".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+
         // Chromium/CDP browser module (native runtime only).
         env.define(
             "Browser".into(),
@@ -1435,6 +1446,23 @@ impl BuiltinTypes {
             );
         }
         methods.insert("OpenClawModule".into(), openclaw_methods);
+
+        // Agent module methods come from shared builtin registry entries.
+        let mut agent_methods = std::collections::HashMap::new();
+        for entry in builtin_registry_entries()
+            .iter()
+            .copied()
+            .filter(|e| e.namespace == "Agent")
+        {
+            let Some(params) = builtin_entry_param_tys(entry) else {
+                continue;
+            };
+            agent_methods.insert(
+                entry.name.to_string(),
+                Ty::Fn(params, Box::new(builtin_entry_result_ty(entry))),
+            );
+        }
+        methods.insert("AgentModule".into(), agent_methods);
 
         let mut browser_methods = std::collections::HashMap::new();
         for entry in builtin_registry_entries()

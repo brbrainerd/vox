@@ -37,8 +37,16 @@ impl Parser {
         })
     }
 
-    pub(crate) fn parse_mcp_tool(&mut self) -> Result<Decl, ()> {
-        self.advance(); // eat @mcp.tool
+    pub(crate) fn parse_mcp_tool(&mut self, legacy_mcp_tool_decorator: bool) -> Result<Decl, ()> {
+        let start = self.span();
+        self.advance(); // eat @tool / @mcp.tool
+        if legacy_mcp_tool_decorator {
+            self.errors.push(ParseError::warning(
+                start,
+                "@mcp.tool is deprecated; use @tool instead (vox/decorator/mcp-tool-deprecated)",
+                ParseErrorClass::Tombstoned,
+            ));
+        }
         let desc = if let Token::StringLit(s) = self.peek().clone() {
             self.advance();
             s

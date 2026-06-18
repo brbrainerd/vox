@@ -70,7 +70,10 @@ impl ProducerRegistry {
             codex.clone(),
         )));
         reg.register(Box::new(
-            super::socrates_telemetry::SocratesTelemetryProducer::new(codex),
+            super::socrates_telemetry::SocratesTelemetryProducer::new(codex.clone()),
+        ));
+        reg.register(Box::new(
+            super::mens_training_run::MensTrainingRunProducer::new(codex),
         ));
         reg
     }
@@ -79,5 +82,23 @@ impl ProducerRegistry {
 impl Default for ProducerRegistry {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn default_with_codex_registers_mens_training_run_producer() {
+        let codex = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+            .await
+            .expect("in-memory codex");
+        let reg = ProducerRegistry::default_with_codex(codex);
+        assert!(
+            reg.producer_names().contains(&"mens_training_run"),
+            "expected mens_training_run in {:?}",
+            reg.producer_names()
+        );
     }
 }

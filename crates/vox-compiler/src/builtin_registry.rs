@@ -166,6 +166,51 @@ pub fn builtin_registry_entries() -> &'static [BuiltinRegistryEntry] {
             arg_kinds: &[],
             returns_unit: false,
         },
+        BuiltinRegistryEntry {
+            namespace: "Agent",
+            name: "list_skills",
+            arg_count: 0,
+            signature: "fn() -> Result[str]",
+            runtime_symbol: Some("vox_actor_runtime::builtins::vox_agent_list_skills"),
+            arg_kinds: &[],
+            returns_unit: false,
+        },
+        BuiltinRegistryEntry {
+            namespace: "Agent",
+            name: "call",
+            arg_count: 2,
+            signature: "fn(str, str) -> Result[str]",
+            runtime_symbol: Some("vox_actor_runtime::builtins::vox_agent_call"),
+            arg_kinds: &[],
+            returns_unit: false,
+        },
+        BuiltinRegistryEntry {
+            namespace: "Agent",
+            name: "subscribe",
+            arg_count: 1,
+            signature: "fn(str) -> Result[str]",
+            runtime_symbol: Some("vox_actor_runtime::builtins::vox_agent_subscribe"),
+            arg_kinds: &[],
+            returns_unit: false,
+        },
+        BuiltinRegistryEntry {
+            namespace: "Agent",
+            name: "unsubscribe",
+            arg_count: 1,
+            signature: "fn(str) -> Result[str]",
+            runtime_symbol: Some("vox_actor_runtime::builtins::vox_agent_unsubscribe"),
+            arg_kinds: &[],
+            returns_unit: false,
+        },
+        BuiltinRegistryEntry {
+            namespace: "Agent",
+            name: "notify",
+            arg_count: 2,
+            signature: "fn(str, str) -> Result[str]",
+            runtime_symbol: Some("vox_actor_runtime::builtins::vox_agent_notify"),
+            arg_kinds: &[],
+            returns_unit: false,
+        },
         // Chromium / CDP — native scripts only (see codegen `wasm32` guard).
         BuiltinRegistryEntry {
             namespace: "Browser",
@@ -962,7 +1007,7 @@ pub fn std_namespace_runtime_call(
             args[0]
         )),
         ("process", "run") if args.len() >= 2 => Some(format!(
-            "(vox_actor_runtime::builtins::vox_process_run_opt(({}).as_str(), {}.as_slice()))",
+            "(vox_actor_runtime::builtins::vox_process_run_opt(({}).as_str(), {}.as_slice()).map(|p| serde_json::json!({{ \"code\": p.code, \"stdout\": p.stdout, \"stderr\": p.stderr }})))",
             args[0], args[1]
         )),
         ("process", "run_ex") if args.len() >= 4 => Some(format!(

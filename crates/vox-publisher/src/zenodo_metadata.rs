@@ -116,8 +116,16 @@ pub fn zenodo_deposition_create_body(manifest: &PublicationManifest) -> ZenodoDe
         })
         .unwrap_or_else(|| "notspecified".to_string());
 
-    // publication_date: today (deterministic archive record).
-    let publication_date = Some(chrono::Utc::now().format("%Y-%m-%d").to_string());
+    // publication_date: stored scientia value wins, else today (deterministic archive record).
+    let publication_date = meta_val
+        .as_ref()
+        .and_then(|v| v.get("scientia"))
+        .and_then(|s| s.get("publication_date"))
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .or_else(|| Some(chrono::Utc::now().format("%Y-%m-%d").to_string()));
 
     // keywords: explicit scientia.keywords wins, else derive from title.
     let keywords: Vec<String> = meta_val
@@ -133,57 +141,84 @@ pub fn zenodo_deposition_create_body(manifest: &PublicationManifest) -> ZenodoDe
         .filter(|v| !v.is_empty())
         .unwrap_or_else(|| keywords_from_title(&manifest.title));
 
-    // related_identifiers: reproducibility repos + nanopubs + swhid.
+    // related_identifiers: stored scientia block wins, else reproducibility repos + nanopubs + swhid.
     let mut related_identifiers: Vec<ZenodoRelatedIdentifier> = Vec::new();
-    if let Some(ref sci) = scientific
-        && let Some(ref repro) = sci.reproducibility
+    if let Some(stored) = meta_val
+        .as_ref()
+        .and_then(|v| v.get("scientia"))
+        .and_then(|s| s.get("related_identifiers"))
+        .and_then(|v| v.as_array())
+        .filter(|a| !a.is_empty())
     {
-        if let Some(ref url) = repro.code_repository_url
-            && !url.trim().is_empty()
-        {
-            related_identifiers.push(ZenodoRelatedIdentifier {
-                identifier: url.clone(),
-                relation: "isSupplementTo".to_string(),
-                resource_type: Some("software".to_string()),
-            });
-        }
-        if let Some(ref url) = repro.data_repository_url
-            && !url.trim().is_empty()
-        {
-            related_identifiers.push(ZenodoRelatedIdentifier {
-                identifier: url.clone(),
-                relation: "isSupplementTo".to_string(),
-                resource_type: Some("dataset".to_string()),
-            });
-        }
-    }
-    if let Some(ref val) = meta_val {
-        if let Some(arr) = val
-            .get("scientia")
-            .and_then(|s| s.get("nanopub_uris"))
-            .and_then(|v| v.as_array())
-        {
-            for uri in arr.iter().filter_map(|v| v.as_str()) {
-                if !uri.trim().is_empty() {
-                    related_identifiers.push(ZenodoRelatedIdentifier {
-                        identifier: uri.to_string(),
-                        relation: "isSupplementTo".to_string(),
-                        resource_type: None,
-                    });
-                }
+        for item in stored {
+            if let (Some(id), Some(rel)) = (
+                item.get("identifier").and_then(|v| v.as_str()),
+                item.get("relation").and_then(|v| v.as_str()),
+            ) && !id.trim().is_empty()
+            {
+                related_identifiers.push(ZenodoRelatedIdentifier {
+                    identifier: id.to_string(),
+                    relation: rel.to_string(),
+                    resource_type: item
+                        .get("resource_type")
+                        .and_then(|v| v.as_str())
+                        .filter(|s| !s.trim().is_empty())
+                        .map(str::to_string),
+                });
             }
         }
-        if let Some(swhid) = val
-            .get("scientia")
-            .and_then(|s| s.get("swhid"))
-            .and_then(|v| v.as_str())
-            && !swhid.trim().is_empty()
+    }
+    if related_identifiers.is_empty() {
+        if let Some(ref sci) = scientific
+            && let Some(ref repro) = sci.reproducibility
         {
-            related_identifiers.push(ZenodoRelatedIdentifier {
-                identifier: swhid.to_string(),
-                relation: "isIdenticalTo".to_string(),
-                resource_type: Some("software".to_string()),
-            });
+            if let Some(ref url) = repro.code_repository_url
+                && !url.trim().is_empty()
+            {
+                related_identifiers.push(ZenodoRelatedIdentifier {
+                    identifier: url.clone(),
+                    relation: "isSupplementTo".to_string(),
+                    resource_type: Some("software".to_string()),
+                });
+            }
+            if let Some(ref url) = repro.data_repository_url
+                && !url.trim().is_empty()
+            {
+                related_identifiers.push(ZenodoRelatedIdentifier {
+                    identifier: url.clone(),
+                    relation: "isSupplementTo".to_string(),
+                    resource_type: Some("dataset".to_string()),
+                });
+            }
+        }
+        if let Some(ref val) = meta_val {
+            if let Some(arr) = val
+                .get("scientia")
+                .and_then(|s| s.get("nanopub_uris"))
+                .and_then(|v| v.as_array())
+            {
+                for uri in arr.iter().filter_map(|v| v.as_str()) {
+                    if !uri.trim().is_empty() {
+                        related_identifiers.push(ZenodoRelatedIdentifier {
+                            identifier: uri.to_string(),
+                            relation: "isSupplementTo".to_string(),
+                            resource_type: None,
+                        });
+                    }
+                }
+            }
+            if let Some(swhid) = val
+                .get("scientia")
+                .and_then(|s| s.get("swhid"))
+                .and_then(|v| v.as_str())
+                && !swhid.trim().is_empty()
+            {
+                related_identifiers.push(ZenodoRelatedIdentifier {
+                    identifier: swhid.to_string(),
+                    relation: "isIdenticalTo".to_string(),
+                    resource_type: Some("software".to_string()),
+                });
+            }
         }
     }
 

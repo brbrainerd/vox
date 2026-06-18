@@ -90,6 +90,43 @@ fn generated_sql_dialect() -> SqlDialect {
     sql_dialect_from_urls(app_url.as_deref(), codex_url.as_deref())
 }
 
+/// Positional SQL bind args for turso 0.6+.
+///
+/// `turso::params!` expands to `[Result<Value, Error>; N]`, which does **not**
+/// implement `IntoParams`. Heterogeneous binds must use tuple syntax (≤16) or
+/// `params_from_iter` (17+).
+pub(crate) fn emit_turso_positional_binds(exprs: &[&str]) -> String {
+    match exprs.len() {
+        0 => "()".to_string(),
+        1 => format!("({},)", exprs[0]),
+        n if n <= 16 => format!("({})", exprs.join(", ")),
+        _ => format!("turso::params_from_iter([{}])", exprs.join(", ")),
+    }
+}
+
+/// SQL bind expression for one `@table` insert column — always a plain `turso::Value`
+/// (never `Result<Value, Error>`), so tuple/`params_from_iter` `IntoParams` resolves.
+fn emit_insert_bind_expr(field: &vox_compiler::hir::HirTableField, is_json: bool) -> String {
+    let name = &field.name;
+    if is_json {
+        return format!("turso::Value::Text({name}_json)");
+    }
+    match &field.type_ann {
+        HirType::Named(n) => match n.as_str() {
+            "int" => format!("turso::Value::Integer(item.{name})"),
+            "float" => format!("turso::Value::Real(item.{name})"),
+            "bool" => format!("turso::Value::Integer(item.{name} as i64)"),
+            "str" => format!("turso::Value::Text(item.{name}.clone())"),
+            _ => format!("turso::Value::from(item.{name}.clone())"),
+        },
+        HirType::Generic(g, _) if g == "Option" => {
+            format!("turso::Value::from(item.{name}.clone())")
+        }
+        HirType::Generic(g, _) if g == "Id" => format!("turso::Value::Integer(item.{name})"),
+        _ => format!("turso::Value::from(item.{name}.clone())"),
+    }
+}
+
 pub fn emit_schema_drift_verify(module: &HirModule) -> String {
     let mut out = String::new();
     out.push_str("    // Boot-time schema drift validation (table/column/type parity).\n");
@@ -283,27 +320,28 @@ pub fn emit_table_struct(table: &HirTable, projections: &[Vec<String>]) -> Strin
             ));
         }
     }
+    let insert_bind_exprs: Vec<String> = table
+        .fields
+        .iter()
+        .map(|field| emit_insert_bind_expr(field, is_json(&field.type_ann)))
+        .collect();
+    let insert_binds = emit_turso_positional_binds(
+        &insert_bind_exprs
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>(),
+    );
     out.push_str(&format!(
-        "        db.connection().execute(\n            \"INSERT INTO {} ({}) VALUES ({})\",\n            turso::params![",
+        "        db.connection().execute(\n            \"INSERT INTO {} ({}) VALUES ({})\",\n            {},\n        ).await?;\n",
         tn,
         col_names
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>()
             .join(", "),
-        placeholders.join(", ")
+        placeholders.join(", "),
+        insert_binds
     ));
-    for (i, field) in table.fields.iter().enumerate() {
-        if i > 0 {
-            out.push_str(", ");
-        }
-        if is_json(&field.type_ann) {
-            out.push_str(&format!("{}_json", field.name));
-        } else {
-            out.push_str(&format!("item.{}.clone()", field.name));
-        }
-    }
-    out.push_str("],\n        ).await?;\n");
     out.push_str("        Ok(db.connection().last_insert_rowid())\n");
     out.push_str("    }\n\n");
 
@@ -312,7 +350,7 @@ pub fn emit_table_struct(table: &HirTable, projections: &[Vec<String>]) -> Strin
         "    pub async fn get(db: &Codex, id: {pk_rust_ty}) -> Result<Option<Self>, turso::Error> {{\n",
     ));
     out.push_str(&format!(
-        "        let mut rows = db.connection().query(\"SELECT * FROM {} WHERE {} = {}\", turso::params![id]).await?;\n",
+        "        let mut rows = db.connection().query(\"SELECT * FROM {} WHERE {} = {}\", (id,)).await?;\n",
         tn,
         pk_col,
         placeholder_sql(&dialect, 1)
@@ -378,7 +416,7 @@ pub fn emit_table_struct(table: &HirTable, projections: &[Vec<String>]) -> Strin
 
     // -- filter_where: parameterized equality predicates (compiler supplies literal column names)
     out.push_str(
-        "    /// `WHERE` fragment uses `?1`, `?2`, … placeholders; bind with `turso::params!`.\n",
+        "    /// `WHERE` fragment uses `?1`, `?2`, … placeholders; bind with a positional tuple or `params_from_iter`.\n",
     );
     out.push_str(
         "    pub async fn filter_where(db: &Codex, where_clause: &str, params: impl turso::IntoParams + Send) -> Result<Vec<Self>, turso::Error> {\n",
@@ -429,7 +467,7 @@ pub fn emit_table_struct(table: &HirTable, projections: &[Vec<String>]) -> Strin
         "    pub async fn delete(db: &Codex, id: {pk_rust_ty}) -> Result<usize, turso::Error> {{\n",
     ));
     out.push_str(&format!(
-        "        let n = db.connection().execute(\"DELETE FROM {} WHERE {} = {}\", turso::params![id]).await?;\n",
+        "        let n = db.connection().execute(\"DELETE FROM {} WHERE {} = {}\", (id,)).await?;\n",
         tn,
         pk_col,
         placeholder_sql(&dialect, 1)
@@ -634,8 +672,69 @@ pub fn emit_db_setup(module: &HirModule) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::sql_dialect_from_urls;
+    use super::{emit_table_struct, emit_turso_positional_binds, sql_dialect_from_urls};
     use vox_sql::SqlDialect;
+
+    #[test]
+    fn insert_emits_turso_value_binds_not_clone() {
+        use vox_compiler::ast::span::Span;
+        use vox_compiler::hir::{DefId, HirTable, HirTableField, HirType};
+
+        let table = HirTable {
+            id: DefId(1),
+            name: "Session".into(),
+            fields: vec![
+                HirTableField {
+                    name: "token".into(),
+                    type_ann: HirType::Named("str".into()),
+                    span: Span::new(0, 0),
+                },
+                HirTableField {
+                    name: "admin".into(),
+                    type_ann: HirType::Named("bool".into()),
+                    span: Span::new(0, 0),
+                },
+                HirTableField {
+                    name: "bio".into(),
+                    type_ann: HirType::Generic("Option".into(), vec![HirType::Named("str".into())]),
+                    span: Span::new(0, 0),
+                },
+            ],
+            primary_key: None,
+            is_extern: false,
+            source: None,
+            is_pub: true,
+            is_deprecated: false,
+            span: Span::new(0, 0),
+        };
+        let out = emit_table_struct(&table, &[]);
+        assert!(
+            out.contains("turso::Value::Text(item.token.clone())"),
+            "str insert bind should use Value::Text"
+        );
+        assert!(
+            out.contains("turso::Value::Integer(item.admin as i64)"),
+            "bool insert bind should use Value::Integer"
+        );
+        assert!(
+            out.contains("turso::Value::from(item.bio.clone())"),
+            "Option insert bind should use Value::from"
+        );
+        assert!(
+            !out.contains("turso::params!["),
+            "insert must not use params! macro (array of Result<Value>)"
+        );
+    }
+
+    #[test]
+    fn positional_binds_use_tuple_not_params_macro() {
+        assert_eq!(emit_turso_positional_binds(&[]), "()");
+        assert_eq!(emit_turso_positional_binds(&["id"]), "(id,)");
+        assert_eq!(
+            emit_turso_positional_binds(&["item.name.clone()", "true"]),
+            "(item.name.clone(), true)"
+        );
+    }
 
     #[test]
     fn app_plane_url_precedes_codex_url_for_dialect() {

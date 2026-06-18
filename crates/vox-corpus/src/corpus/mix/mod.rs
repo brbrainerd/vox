@@ -79,6 +79,11 @@ pub struct MixSource {
     /// Probability (0.0 to 1.0) of including a row in the output.
     #[serde(default)]
     pub sample_rate: Option<f64>,
+    /// Hard cap on the number of lines emitted from this source.
+    /// Applied after `sample_rate` filtering. Prefer this over sample_rate
+    /// for deterministic corpus sizes. When `None`, all (sampled) lines are emitted.
+    #[serde(default)]
+    pub max_lines: Option<usize>,
     /// Opt-in to the legacy "weight = literal line repeats" behavior.
     /// Default `false` (each row emitted once, weight stamped on row).
     /// Set `true` only when a downstream consumer doesn't honor
@@ -104,6 +109,10 @@ pub struct MixConfigSchema {
     /// Optional lane deny-list. Rows in these lanes are skipped.
     #[serde(default)]
     pub exclude_lanes: Vec<String>,
+    /// When `true`, rows whose xxh3(prompt) XOR xxh3(response) hash was already
+    /// emitted are silently dropped. Zero overhead when false (default).
+    #[serde(default)]
+    pub dedup: bool,
 }
 
 impl MixConfigSchema {
@@ -644,6 +653,7 @@ pub fn run_mix_with_options(
     let out_file = Arc::new(Mutex::new(std::io::BufWriter::new(out_file)));
 
     let mut report_rows: Vec<MixSourceReportRow> = Vec::with_capacity(cfg.sources.len());
+    let mut seen_hashes = HashSet::<u64>::new();
 
     for src in &cfg.sources {
         let p = cwd.join(&src.path);
@@ -782,12 +792,41 @@ pub fn run_mix_with_options(
 
             if !processed_chunk.is_empty() {
                 let mut out = out_file.lock().unwrap();
+                let mut cap_reached = false;
                 for _ in 0..repeats {
                     for row in &processed_chunk {
+                        if cfg.dedup {
+                            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(row) {
+                                let prompt =
+                                    parsed.get("prompt").and_then(|v| v.as_str()).unwrap_or("");
+                                let response = parsed
+                                    .get("response")
+                                    .or_else(|| parsed.get("output"))
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("");
+                                let hash =
+                                    xxh3_64(prompt.as_bytes()) ^ xxh3_64(response.as_bytes());
+                                if !seen_hashes.insert(hash) {
+                                    continue; // Duplicate -- skip
+                                }
+                            }
+                        }
+                        if let Some(cap) = src.max_lines {
+                            if emitted_this_src >= cap {
+                                cap_reached = true;
+                                break;
+                            }
+                        }
                         writeln!(out, "{row}")?;
                         total_out += 1;
                         emitted_this_src += 1;
                     }
+                    if cap_reached {
+                        break;
+                    }
+                }
+                if cap_reached {
+                    break;
                 }
             }
         }

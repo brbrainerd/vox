@@ -89,6 +89,7 @@ impl Producer for BenchHistoryProducer {
                 claim_ids: vec![],
                 worthiness_score,
                 session_id: ctx.session_id.clone(),
+                finding_candidate: None,
             });
         }
         out

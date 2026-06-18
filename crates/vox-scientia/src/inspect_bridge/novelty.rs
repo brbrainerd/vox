@@ -71,6 +71,8 @@ impl AtomicNoveltyScorer {
     /// Score a bundle.
     ///
     /// Decision ladder (uses `overlap_summary.max_semantic_score`):
+    /// - No hits, no scores, and no query traces → `InsufficientEvidence` (retrieval never ran)
+    /// - No hits, no scores, but at least one successful trace → `Novel` (empty search)
     /// - `None` or `< novel_threshold`  → `Novel`
     /// - `>= not_novel_threshold`        → `NotNovel` (URI from the hit with the highest
     ///   `semantic_score`, falling back to the first hit if scores are absent)
@@ -78,9 +80,7 @@ impl AtomicNoveltyScorer {
     pub fn score(&self, bundle: &NoveltyEvidenceBundle) -> NoveltyVerdict {
         // Retrieval gate (must run BEFORE the similarity ladder): if we have
         // per-source query traces and *every* source failed, prior-art
-        // retrieval did not succeed — we cannot conclude novelty. An empty
-        // bundle WITHOUT failed traces (e.g. a successful search that returned
-        // no hits, or no traces at all) is genuine "no signal" and stays Novel.
+        // retrieval did not succeed — we cannot conclude novelty.
         if let Some(traces) = bundle.query_traces.as_ref()
             && !traces.is_empty()
             && traces.iter().all(|t| !trace_succeeded(t))
@@ -102,6 +102,18 @@ impl AtomicNoveltyScorer {
                     .filter_map(|h| h.semantic_score)
                     .reduce(f64::max)
             });
+
+        // No hits, no scores, and no retrieval traces → search never ran.
+        let traces_absent = bundle
+            .query_traces
+            .as_ref()
+            .map(|t| t.is_empty())
+            .unwrap_or(true);
+        if bundle.normalized_hits.is_empty() && max_score.is_none() && traces_absent {
+            return NoveltyVerdict::InsufficientEvidence {
+                reason: "prior-art retrieval produced no evidence".into(),
+            };
+        }
 
         match max_score {
             None => NoveltyVerdict::Novel,
@@ -170,8 +182,20 @@ mod tests {
     }
 
     #[test]
-    fn empty_bundle_is_novel() {
+    fn empty_bundle_is_insufficient_evidence() {
         let bundle = make_bundle(vec![], None);
+        let scorer = AtomicNoveltyScorer::default();
+        assert!(matches!(
+            scorer.score(&bundle),
+            NoveltyVerdict::InsufficientEvidence { reason }
+            if reason.contains("retrieval") || reason.contains("evidence")
+        ));
+    }
+
+    #[test]
+    fn successful_search_empty_hits_is_novel() {
+        let mut bundle = make_bundle(vec![], None);
+        bundle.query_traces = Some(vec![trace("openalex", Some(200), None)]);
         let scorer = AtomicNoveltyScorer::default();
         assert_eq!(scorer.score(&bundle), NoveltyVerdict::Novel);
     }

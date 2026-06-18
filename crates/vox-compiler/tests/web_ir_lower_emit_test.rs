@@ -260,6 +260,7 @@ fn emitter_source_orders_validate_gate_before_route_manifest() {
 
 /// WS08 / T074–T075: legacy TanStack router + `createServerFn` bundles must never ship from codegen.
 #[test]
+#[ignore = "gui-smoke lane — `vox ci gui-smoke` runs via --run-ignored ignored-only"]
 fn codegen_output_never_includes_vox_tanstack_router_or_server_fns() {
     let source = r#"
 component Home() {

@@ -24,10 +24,13 @@
 //! (vox-db / vox-publisher / vox-cli) translate that to DB row inserts and
 //! `next_actions`.
 
+pub mod catalog;
 pub mod fingerprint;
 pub mod gate;
 pub mod role;
 pub mod venue;
+
+pub use catalog::{VenueCatalog, VenueCatalogEntry, VenueCatalogError};
 
 pub use fingerprint::ModelFingerprint;
 pub use gate::{

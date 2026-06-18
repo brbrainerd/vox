@@ -6,14 +6,14 @@
 /// Parent crate modules when built standalone (`vox-codegen-ts`) vs embedded (`vox-codegen` via `#[path]`).
 #[cfg(feature = "standalone")]
 mod parent {
-    pub use vox_codegen::{projection_bundle, web_ir, web_migration_env};
+    pub use vox_codegen::{emission_profile, projection_bundle, web_ir, web_migration_env};
 }
 #[cfg(not(feature = "standalone"))]
 mod parent {
-    pub use crate::{projection_bundle, web_ir, web_migration_env};
+    pub use crate::{emission_profile, projection_bundle, web_ir, web_migration_env};
 }
 
-pub(crate) use parent::{projection_bundle, web_ir, web_migration_env};
+pub(crate) use parent::{emission_profile, projection_bundle, web_ir, web_migration_env};
 
 /// Algebraic data types → TypeScript unions and helpers.
 pub mod adt;

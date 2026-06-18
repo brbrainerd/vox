@@ -44,6 +44,8 @@ pub struct A2ARetrievalResponse {
     pub durable_artifacts: Vec<A2ADurableArtifact>,
     pub diagnostics: SearchDiagnostics,
     pub from_node_id: Option<String>,
+    #[serde(default)]
+    pub repo_truncated: bool,
 }
 
 impl A2ARetrievalResponse {
@@ -77,6 +79,7 @@ impl A2ARetrievalResponse {
                 .collect(),
             diagnostics,
             from_node_id: from_node_id.map(|s| s.into()),
+            repo_truncated: execution.repo_truncated,
         }
     }
 }
@@ -120,6 +123,7 @@ mod tests {
             evidence_quality: 0.5,
             citation_coverage: 0.5,
             recommended_next_action: None,
+            repo_truncated: false,
         };
         let r = A2ARetrievalResponse::from_search_pass(
             "r1",
@@ -130,5 +134,6 @@ mod tests {
         assert_eq!(r.chunk_excerpts.len(), 3);
         assert_eq!(r.rrf_fused_excerpts, vec!["fused".to_string()]);
         assert_eq!(r.from_node_id.as_deref(), Some("node-a"));
+        assert_eq!(r.repo_truncated, false);
     }
 }

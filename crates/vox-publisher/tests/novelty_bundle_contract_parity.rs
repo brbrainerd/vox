@@ -1,16 +1,15 @@
 //! The hand-written `NoveltyEvidenceBundleV1` MUST serialize to JSON that the
-//! contract schema accepts and that round-trips through the generated type.
+//! contract schema accepts and that round-trips through the stable contract type.
 //!
-//! `vox-research-events` generates `ScientiaNoveltyEvidenceBundleV1` via typify
-//! from `contracts/scientia/novelty-evidence-bundle.v1.schema.json`.  Nothing
-//! currently keeps the two in sync.  This test makes the contract the de-facto
-//! SSOT by asserting a lossless round-trip.
+//! [`NoveltyEvidenceBundle`](vox_research_events::schema_types::NoveltyEvidenceBundle)
+//! in `vox-research-events` is the consumer SSOT for
+//! `contracts/scientia/novelty-evidence-bundle.v1.schema.json`.
 
 use vox_publisher::scientia_finding_ledger::{
     NormalizedPriorArtHit, NoveltyEvidenceBundleV1, NoveltyOverlapSummary, NoveltyQueryTrace,
-    NoveltyRecencyBucket, PriorArtSource,
+    NoveltyRecencyBucket, PriorArtSource, to_contract_bundle,
 };
-use vox_research_events::schema_types::generated::novelty_evidence_bundle_v1_schema::ScientiaNoveltyEvidenceBundleV1;
+use vox_research_events::schema_types::NoveltyEvidenceBundle;
 
 /// A 64-char all-lowercase-hex string that satisfies the `^[a-f0-9]{64}$` pattern
 /// required by the contract schema.
@@ -56,12 +55,8 @@ fn v1_round_trips_through_generated_contract_type() {
     // Step 1: serialize hand-written type to a JSON Value.
     let json = serde_json::to_value(&bundle).expect("hand-written bundle serializes");
 
-    // Step 2: deserialize into the generated contract type.
-    // If this fails the hand-written type emits JSON the schema does not accept.
-    let generated: ScientiaNoveltyEvidenceBundleV1 = serde_json::from_value(json.clone()).expect(
-        "generated type should accept hand-written JSON; \
-             deserialization failure = schema drift",
-    );
+    // Step 2: deserialize into the contract type.
+    let generated: NoveltyEvidenceBundle = to_contract_bundle(&bundle);
 
     // Step 3: re-serialize and compare.
     let back = serde_json::to_value(&generated).expect("generated bundle re-serializes");

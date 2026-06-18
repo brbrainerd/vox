@@ -224,6 +224,65 @@ pub async fn assess_code_uniqueness(
     })
 }
 
+/// Wire-format blob for `metadata_json.scientia.code_uniqueness`.
+#[must_use]
+pub fn assessment_metadata_json(
+    assessment: &CodeUniquenessAssessment,
+    corpus: &str,
+) -> serde_json::Value {
+    serde_json::json!({
+        "score": assessment.score,
+        "snippets_assessed": assessment.snippets_assessed,
+        "corpus": corpus,
+    })
+}
+
+/// PURE: cosine similarity clamped to `[0, 1]` (negative dot → 0).
+#[must_use]
+pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f64 {
+    if a.is_empty() || b.len() != a.len() {
+        return 0.0;
+    }
+    let dot: f64 = a
+        .iter()
+        .zip(b)
+        .map(|(x, y)| f64::from(*x) * f64::from(*y))
+        .sum();
+    let na: f64 = a.iter().map(|x| f64::from(*x).powi(2)).sum::<f64>().sqrt();
+    let nb: f64 = b.iter().map(|x| f64::from(*x).powi(2)).sum::<f64>().sqrt();
+    if na == 0.0 || nb == 0.0 {
+        return 0.0;
+    }
+    (dot / (na * nb)).clamp(0.0, 1.0)
+}
+
+/// In-memory KNN index backed by a synthetic or fixture corpus (tests / offline probes).
+pub struct InMemoryKnnIndex {
+    corpus: Vec<Vec<f32>>,
+}
+
+impl InMemoryKnnIndex {
+    #[must_use]
+    pub fn from_vectors(corpus: Vec<Vec<f32>>) -> Self {
+        Self { corpus }
+    }
+}
+
+#[async_trait::async_trait]
+impl CodeKnnIndex for InMemoryKnnIndex {
+    async fn max_similarity(&self, vector: &[f32]) -> Option<f64> {
+        if self.corpus.is_empty() {
+            return Some(0.0);
+        }
+        let max = self
+            .corpus
+            .iter()
+            .map(|c| cosine_similarity(vector, c))
+            .fold(0.0_f64, f64::max);
+        Some(max)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -403,5 +462,74 @@ fn private_helper() {
             .expect("assessment present");
         assert!((out.score - 0.05).abs() < 1e-9);
         assert!(out.signal.is_none(), "0.05 < 0.6 => no novelty signal");
+    }
+
+    /// Embedder that maps snippet text to a fixed 3-vector (orthogonal texts → low sim).
+    struct SyntheticEmbedder;
+
+    #[async_trait::async_trait]
+    impl Embedder for SyntheticEmbedder {
+        async fn embed(&self, text: &str) -> Option<Vec<f32>> {
+            match text {
+                "fn legacy_a() {}" => Some(vec![1.0, 0.0, 0.0]),
+                "fn legacy_b() {}" => Some(vec![0.0, 1.0, 0.0]),
+                "fn novel_work() {}" => Some(vec![0.0, 0.0, 1.0]),
+                "fn novel_alt() {}" => Some(vec![0.0, 0.0, 1.0]),
+                _ => None,
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn knn_synthetic_corpus_ranks_novel_snippet_high() {
+        let corpus = InMemoryKnnIndex::from_vectors(vec![vec![1.0, 0.0, 0.0], vec![0.0, 1.0, 0.0]]);
+        let emb = SyntheticEmbedder;
+        let near_corpus = assess_code_uniqueness(
+            &[
+                CodeSnippet {
+                    path: "a.rs".into(),
+                    text: "fn legacy_a() {}".into(),
+                },
+                CodeSnippet {
+                    path: "b.rs".into(),
+                    text: "fn legacy_b() {}".into(),
+                },
+            ],
+            &emb,
+            Some(&corpus),
+            None,
+        )
+        .await
+        .expect("near-corpus assessment");
+        assert!(
+            near_corpus.score < 0.5,
+            "aligned vectors should be similar to corpus, got {}",
+            near_corpus.score
+        );
+
+        let novel = assess_code_uniqueness(
+            &[
+                CodeSnippet {
+                    path: "n.rs".into(),
+                    text: "fn novel_work() {}".into(),
+                },
+                CodeSnippet {
+                    path: "n2.rs".into(),
+                    text: "fn novel_alt() {}".into(),
+                },
+            ],
+            &emb,
+            Some(&corpus),
+            Some("git:deadbeef"),
+        )
+        .await
+        .expect("novel assessment");
+        assert!(
+            novel.score >= NOVELTY_THRESHOLD,
+            "orthogonal vector should score novel, got {}",
+            novel.score
+        );
+        assert_eq!(novel.snippets_assessed, 2);
+        assert!(novel.signal.is_some());
     }
 }

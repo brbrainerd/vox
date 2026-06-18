@@ -3,6 +3,7 @@
 
 #[cfg(test)]
 mod semcov_wave20_tests {
+    #![allow(clippy::module_inception)]
     use crate::web_ir::ZTier;
 
     // -----------------------------------------------------------------------

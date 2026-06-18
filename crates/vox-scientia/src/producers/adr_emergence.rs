@@ -105,6 +105,7 @@ fn scan(repo_root: &std::path::Path, now_ms: i64, session_id: &str) -> Vec<Resea
             claim_ids: vec![],
             worthiness_score: 0.55,
             session_id: session_id.to_string(),
+            finding_candidate: None,
         });
     });
     out

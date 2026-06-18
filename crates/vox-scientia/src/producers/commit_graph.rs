@@ -88,6 +88,15 @@ pub fn classify_subject(subject: &str) -> Option<CommitClass> {
     None
 }
 
+/// Corroboration producer for embedding-distance novelty on commit-derived findings.
+///
+/// Scout / discovery-watch fold [`vox_publisher::scientia_producers::code_uniqueness`]
+/// signals after commit_graph surfaces a candidate.
+#[must_use]
+pub fn corroboration_producer() -> &'static str {
+    "code_uniqueness"
+}
+
 #[async_trait]
 impl Producer for CommitGraphProducer {
     fn name(&self) -> &'static str {
@@ -160,6 +169,7 @@ fn scan_commits(
                 claim_ids: vec![],
                 worthiness_score,
                 session_id: session_id.to_string(),
+                finding_candidate: None,
             });
         }
         for p in commit.parent_ids() {
@@ -235,5 +245,10 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let out = scan_commits(tmp.path(), 100, 1_747_000_000_000, "s");
         assert!(out.is_empty());
+    }
+
+    #[test]
+    fn corroboration_producer_points_at_code_uniqueness() {
+        assert_eq!(corroboration_producer(), "code_uniqueness");
     }
 }

@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 use vox_compiler::ast::span::Span;
-use vox_compiler::hir::{HirConst, HirFn, HirForall, HirModule, HirType};
+use vox_compiler::hir::{DurabilityKind, HirConst, HirFn, HirForall, HirModule, HirType};
 
 use super::script_db;
 use super::tables::{collect_table_select_projections, emit_table_struct};
 use super::types::emit_type;
 
-/// Script-mode lib.rs: optional Codex prelude + mit_lib under script DB emit mode.
+/// Script-mode lib.rs: optional Codex prelude + emit_lib under script DB emit mode.
 pub fn emit_script_lib(module: &HirModule) -> String {
     script_db::refresh_script_async_metadata(module);
     let mut out = String::new();
@@ -52,7 +52,7 @@ pub fn emit_lib(module: &HirModule) -> String {
         out.push_str(&emit_const(c));
     }
 
-    // Re-export variants (only for sum types — struct typedefs are top-level structs).
+    // Re-export variants (only for sum types; struct typedefs are top-level structs).
     for typedef in &module.types {
         if !typedef.variants.is_empty() {
             out.push_str(&format!("pub use self::{}::*;\n", typedef.name));
@@ -84,7 +84,7 @@ pub fn emit_lib(module: &HirModule) -> String {
         out.push_str(&emit_fn_with_actor_handlers(func, module));
     }
 
-    // MCP tools and resources — must be `pub` so `mcp_server` binary can `use crate::*`.
+    // MCP tools and resources - must be `pub` so `mcp_server` binary can `use crate::*`.
     for t in &module.mcp_tools {
         let mut f = t.func.clone();
         f.is_pub = true;
@@ -171,7 +171,7 @@ fn emit_const(c: &HirConst) -> String {
 /// Extracted from `emit_lib` per CR-A1: the two-branch if-chain inside the
 /// for-loop contributed ~8 DPs (variants-empty/fields-empty, inner loops).
 fn emit_typedef(typedef: &vox_compiler::hir::HirTypeDef, out: &mut String) {
-    // Struct typedef → `pub struct Foo { pub f: T, ... }`.
+    // Struct typedef ? `pub struct Foo { pub f: T, ... }`.
     if typedef.variants.is_empty() && !typedef.fields.is_empty() {
         out.push_str("#[derive(Debug, Clone, Serialize, Deserialize)]\n");
         out.push_str(&format!("pub struct {} {{\n", typedef.name));
@@ -272,7 +272,12 @@ pub fn emit_fn(
 ) -> String {
     let mut out = String::new();
     let pub_kw = if func.is_pub { "pub " } else { "" };
-    let async_kw = if func.is_async || func.is_llm {
+    let async_kw = if func.is_async
+        || func.is_llm
+        || matches!(
+            func.durability,
+            Some(DurabilityKind::Workflow | DurabilityKind::Activity)
+        ) {
         "async "
     } else {
         ""

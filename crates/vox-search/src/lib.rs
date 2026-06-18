@@ -18,6 +18,7 @@ pub mod execution;
 pub mod ingest;
 mod memory_cache;
 pub mod memory_hybrid;
+pub mod novelty;
 pub mod policy;
 pub mod research;
 mod rrf;
@@ -29,6 +30,10 @@ mod searxng_defaults;
 pub mod semantic_fs;
 pub mod symbol_proximity;
 mod tavily_budget;
+#[cfg(feature = "tavily")]
+pub mod tavily_extract;
+#[cfg(feature = "tavily")]
+pub mod tavily_research;
 pub mod unified;
 pub mod web_dispatcher;
 

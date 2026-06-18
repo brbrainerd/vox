@@ -22,8 +22,8 @@ pub fn discover_files_for_intent(
     limit: usize,
     policy: &SearchPolicy,
 ) -> Vec<Value> {
-    repo_path_search(repo_root, intent, limit, policy)
-        .into_iter()
+    let (hits, _truncated) = repo_path_search(repo_root, intent, limit, policy);
+    hits.into_iter()
         .map(|hit| {
             json!({
                 "path": hit.source,

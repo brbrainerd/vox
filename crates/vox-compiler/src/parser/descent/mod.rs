@@ -632,7 +632,8 @@ impl Parser {
             Token::AtServer => self.parse_server_endpoint(),
             Token::AtForall => self.parse_forall(),
             Token::AtScheduled => self.parse_scheduled(),
-            Token::AtTool | Token::AtMcpTool => self.parse_mcp_tool(),
+            Token::AtTool => self.parse_mcp_tool(false),
+            Token::AtMcpTool => self.parse_mcp_tool(true),
             Token::AtResource | Token::AtMcpResource => self.parse_mcp_resource(),
             Token::Let => {
                 let start = self.span();

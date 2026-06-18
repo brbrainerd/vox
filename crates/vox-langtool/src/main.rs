@@ -48,6 +48,8 @@ enum Commands {
         #[arg(long)]
         out_dir: PathBuf,
     },
+    /// Start the Language Server Protocol runner over stdio.
+    Lsp,
 }
 
 fn main() -> Result<()> {
@@ -60,5 +62,6 @@ fn main() -> Result<()> {
         Commands::Fmt { file, check } => vox_langtool::commands::fmt::run(file, *check),
         Commands::Run { file, args } => vox_langtool::commands::run::run(file, args),
         Commands::Build { file, out_dir } => vox_langtool::commands::build::run(file, out_dir),
+        Commands::Lsp => vox_langtool::commands::lsp::run(),
     }
 }

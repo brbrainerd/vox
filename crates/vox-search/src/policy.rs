@@ -35,6 +35,11 @@ fn default_persist_web_hits() -> bool {
     true
 }
 
+#[inline]
+fn default_novelty_min_score() -> f64 {
+    0.15
+}
+
 /// Tunable retrieval weights and safety rails (replaces ad hoc literals in tool surfaces).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SearchPolicy {
@@ -109,6 +114,10 @@ pub struct SearchPolicy {
     /// When true, web-retrieval hits are mirrored into `search_documents` (async best-effort).
     #[serde(default = "default_persist_web_hits")]
     pub persist_web_hits: bool,
+    /// Minimum novelty score (0.0-1.0) for a hit to appear in synthesis context.
+    /// Env: `VOX_SEARCH_NOVELTY_MIN_SCORE`. Default: 0.15.
+    #[serde(default = "default_novelty_min_score")]
+    pub novelty_min_score: f64,
 }
 
 /// Aggregated SCIENTIA observations that can tune retrieval policy for a run.
@@ -164,7 +173,20 @@ impl Default for SearchPolicy {
             .expose()
             .filter(|s| !s.trim().is_empty())
             .map(std::path::PathBuf::from),
-            prefer_rrf_merge: parse_truthy_env(vox_secrets::SecretId::VoxSearchPreferRrf),
+            prefer_rrf_merge: match vox_secrets::resolve_secret(
+                vox_secrets::SecretId::VoxSearchPreferRrf,
+            )
+            .expose()
+            {
+                Some(v) => {
+                    let v = v.trim();
+                    v == "1"
+                        || v.eq_ignore_ascii_case("true")
+                        || v.eq_ignore_ascii_case("yes")
+                        || v.eq_ignore_ascii_case("on")
+                }
+                None => true, // default ON
+            },
             tavily_enabled: parse_truthy_env(vox_secrets::SecretId::VoxSearchTavilyEnabled),
             tavily_search_depth: vox_secrets::resolve_secret(
                 vox_secrets::SecretId::VoxSearchTavilyDepth,
@@ -259,6 +281,13 @@ impl Default for SearchPolicy {
             persist_web_hits: !parse_truthy_env(
                 vox_secrets::SecretId::VoxSearchPersistWebHitsDisabled,
             ),
+            novelty_min_score: vox_secrets::resolve_secret(
+                vox_secrets::SecretId::VoxSearchNoveltyMinScore,
+            )
+            .expose()
+            .and_then(|v| v.parse::<f64>().ok())
+            .filter(|x| x.is_finite() && *x >= 0.0 && *x <= 1.0)
+            .unwrap_or_else(default_novelty_min_score),
         }
     }
 }
@@ -381,6 +410,15 @@ impl SearchPolicy {
         {
             p.persist_web_hits =
                 !parse_truthy_env(vox_secrets::SecretId::VoxSearchPersistWebHitsDisabled);
+        }
+        if let Some(v) =
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchNoveltyMinScore).expose()
+            && let Ok(x) = v.parse::<f64>()
+            && x.is_finite()
+            && x >= 0.0
+            && x <= 1.0
+        {
+            p.novelty_min_score = x;
         }
         if let Some(v) =
             vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchSearxngEngines).expose()
@@ -570,5 +608,34 @@ mod tests {
         );
         assert!(adjusted.web_search_max_hops > policy.web_search_max_hops);
         assert!(!adjusted.tavily_enabled);
+    }
+
+    #[test]
+    fn rrf_is_enabled_by_default_when_env_unset() {
+        // This test modifies env which is process-global — run tests with --test-threads=1
+        // if env collision becomes a flake.
+        unsafe {
+            std::env::remove_var("VOX_SEARCH_PREFER_RRF");
+        }
+        let policy = SearchPolicy::from_env();
+        assert!(
+            policy.prefer_rrf_merge,
+            "prefer_rrf_merge must default to true; operators set VOX_SEARCH_PREFER_RRF=false to disable"
+        );
+    }
+
+    #[test]
+    fn rrf_disabled_when_env_set_to_false() {
+        unsafe {
+            std::env::set_var("VOX_SEARCH_PREFER_RRF", "false");
+        }
+        let policy = SearchPolicy::from_env();
+        assert!(
+            !policy.prefer_rrf_merge,
+            "VOX_SEARCH_PREFER_RRF=false must disable RRF"
+        );
+        unsafe {
+            std::env::remove_var("VOX_SEARCH_PREFER_RRF");
+        }
     }
 }

@@ -80,7 +80,7 @@ where
     F: Fn(&HirExpr) -> String,
 {
     let db = db_ref(fallible);
-    let args_str: Vec<String> = args.iter().map(|a| emit_expr(&a.value)).collect();
+    let args_str = emit_param_values(emit_expr, args);
 
     let rendered = match op {
         HirDbTableOp::Insert => {
@@ -165,17 +165,12 @@ where
     }
 }
 
-/// Emit a comma-separated list of argument expressions for a parameterized query.
-/// Extracted from `emit_db_table_op`'s nested `emit_params_values` fn to module
-/// scope so `emit_count_op` can call it without re-nesting.
-fn emit_params_values<F>(emit_expr: &F, args: &[vox_compiler::hir::HirArg]) -> String
+/// Comma-separated argument expressions for parameterized query codegen.
+fn emit_param_values<F>(emit_expr: &F, args: &[vox_compiler::hir::HirArg]) -> Vec<String>
 where
     F: Fn(&HirExpr) -> String,
 {
-    args.iter()
-        .map(|a| emit_expr(&a.value))
-        .collect::<Vec<_>>()
-        .join(", ")
+    args.iter().map(|a| emit_expr(&a.value)).collect()
 }
 
 /// Emit the `HirDbTableOp::All` arm — either a plain `.all()` call or
@@ -260,13 +255,16 @@ where
             .collect::<Vec<_>>()
             .join(" AND ")
     };
-    let params = emit_params_values(emit_expr, args);
+    let param_exprs = emit_param_values(emit_expr, args);
+    let param_binds = super::tables::emit_turso_positional_binds(
+        &param_exprs.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+    );
     format!(
-        "{}::count_where({}, \"{}\", turso::params![{}]){}",
+        "{}::count_where({}, \"{}\", {}){}",
         table_name,
         db,
         where_sql,
-        params,
+        param_binds,
         await_or_expect_suffix(fallible, "vox codegen: db count_where")
     )
 }
@@ -298,11 +296,10 @@ where
         );
     }
     let where_sql = build_filter_where_sql(emit_expr, args, plan);
-    let params = args
-        .iter()
-        .map(|a| emit_expr(&a.value))
-        .collect::<Vec<_>>()
-        .join(", ");
+    let param_exprs = emit_param_values(emit_expr, args);
+    let param_binds = super::tables::emit_turso_positional_binds(
+        &param_exprs.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+    );
     let proj = select_cols.as_ref().and_then(|c| {
         if c.is_empty() {
             None
@@ -322,7 +319,7 @@ where
         emit_filter_where_order_limit(
             table_name,
             &where_sql,
-            &params,
+            &param_binds,
             &order_sql,
             &limit_sql,
             proj.as_deref(),
@@ -333,7 +330,7 @@ where
         emit_filter_where(
             table_name,
             &where_sql,
-            &params,
+            &param_binds,
             proj.as_deref(),
             fallible,
             db,
@@ -344,7 +341,7 @@ where
 fn emit_filter_where_order_limit(
     table_name: &str,
     where_sql: &str,
-    params: &str,
+    param_binds: &str,
     order_sql: &str,
     limit_sql: &str,
     proj: Option<&str>,
@@ -353,23 +350,23 @@ fn emit_filter_where_order_limit(
 ) -> String {
     if let Some(sfx) = proj {
         format!(
-            "{}::filter_where_order_limit_proj_{}({}, \"{}\", turso::params![{}], \"{}\", {}){}",
+            "{}::filter_where_order_limit_proj_{}({}, \"{}\", {}, \"{}\", {}){}",
             table_name,
             sfx,
             db,
             where_sql,
-            params,
+            param_binds,
             order_sql,
             limit_sql,
             await_or_expect_suffix(fallible, "vox codegen: db filter_where_order_limit_proj")
         )
     } else {
         format!(
-            "{}::filter_where_order_limit({}, \"{}\", turso::params![{}], \"{}\", {}){}",
+            "{}::filter_where_order_limit({}, \"{}\", {}, \"{}\", {}){}",
             table_name,
             db,
             where_sql,
-            params,
+            param_binds,
             order_sql,
             limit_sql,
             await_or_expect_suffix(fallible, "vox codegen: db filter_where_order_limit")
@@ -380,28 +377,28 @@ fn emit_filter_where_order_limit(
 fn emit_filter_where(
     table_name: &str,
     where_sql: &str,
-    params: &str,
+    param_binds: &str,
     proj: Option<&str>,
     fallible: bool,
     db: &str,
 ) -> String {
     if let Some(sfx) = proj {
         format!(
-            "{}::filter_where_proj_{}({}, \"{}\", turso::params![{}]){}",
+            "{}::filter_where_proj_{}({}, \"{}\", {}){}",
             table_name,
             sfx,
             db,
             where_sql,
-            params,
+            param_binds,
             await_or_expect_suffix(fallible, "vox codegen: db filter_where_proj")
         )
     } else {
         format!(
-            "{}::filter_where({}, \"{}\", turso::params![{}]){}",
+            "{}::filter_where({}, \"{}\", {}){}",
             table_name,
             db,
             where_sql,
-            params,
+            param_binds,
             await_or_expect_suffix(fallible, "vox codegen: db filter_where")
         )
     }
@@ -529,6 +526,27 @@ where
             }
         }
     }
+    // HIR attaches a `HirDbQueryPlan` for canonical `db.Table.*` ops (including
+    // `filter(record)`). Route through Codex IR before generic list/str method
+    // lowerings mis-handle `db.User.filter({ .. })` as a Vec HOF.
+    if let Some(plan) = plan {
+        let exec_args = if !plan.predicate_args.is_empty() {
+            &plan.predicate_args
+        } else {
+            args
+        };
+        return emit_db_table_op(
+            emit_expr,
+            &plan.table,
+            plan.op,
+            exec_args,
+            &plan.projection,
+            &plan.order_by,
+            &plan.limit_value,
+            Some(plan),
+            fallible_db,
+        );
+    }
     // Fallback: `db.Table.method` if lowering missed (should be rare).
     if let Some(s) = try_emit_db_fallback(emit_expr, obj, method, args, plan, fallible_db) {
         return s;
@@ -591,7 +609,13 @@ where
     // Vox unwrap() on a fallible db op peels the Result layer only.
     // Codegen lowers that to `.await.expect(...)`, which already yields the
     // Ok payload (Option<Row> for get, etc.) — not Option::unwrap().
-    if method == "unwrap" && arg_exprs.is_empty() && o.contains(".expect(\"vox codegen: db") {
+    // Insert ids bound via `let id = db.T.insert(...)` are already `i64` in
+    // Rust even though Vox types them as `Result[int]`.
+    if method == "unwrap"
+        && arg_exprs.is_empty()
+        && (o.contains(".expect(\"vox codegen: db")
+            || insert_result_already_unwrapped(obj, inferred_types))
+    {
         return o;
     }
     let call = format!("{}.{}({})", o, method, arg_exprs.join(", "));
@@ -643,7 +667,29 @@ where
     }
 }
 
-/// Try to emit a `db.Table.method(...)` fallback call when HIR lowering missed it.
+/// True when a Vox `Result[int]` binding already lowered to plain `i64` (db insert).
+fn insert_result_already_unwrapped(
+    obj: &HirExpr,
+    inferred_types: Option<&HashMap<Span, HirType>>,
+) -> bool {
+    let HirExpr::Ident(_, span) = obj else {
+        return false;
+    };
+    inferred_types.and_then(|m| m.get(span)).is_some_and(|t| {
+        matches!(
+            t,
+            HirType::Generic(name, args)
+                if name == "Result"
+                    && args.first().is_some_and(|ok| {
+                        matches!(ok, HirType::Named(n) if n == "int")
+                    })
+        )
+    })
+}
+
+/// Try to emit a `db.Table.method(...)` call. When HIR attached a query plan
+/// (e.g. `filter({ col: val })` → `FilterRecord`), use `plan.op` so we do not
+/// fall through to list `.filter` lowerings on `db.User`.
 fn try_emit_db_fallback<F>(
     emit_expr: &F,
     obj: &HirExpr,
@@ -664,14 +710,18 @@ where
     if n != "db" {
         return None;
     }
-    let op = match method {
-        "insert" => HirDbTableOp::Insert,
-        "get" | "find" => HirDbTableOp::Get,
-        "delete" => HirDbTableOp::Delete,
-        "all" => HirDbTableOp::All,
-        "count" => HirDbTableOp::Count,
-        "query" => HirDbTableOp::UnsafeQueryRawClause,
-        _ => return None,
+    let op = if let Some(p) = plan {
+        p.op
+    } else {
+        match method {
+            "insert" => HirDbTableOp::Insert,
+            "get" | "find" => HirDbTableOp::Get,
+            "delete" => HirDbTableOp::Delete,
+            "all" => HirDbTableOp::All,
+            "count" => HirDbTableOp::Count,
+            "query" => HirDbTableOp::UnsafeQueryRawClause,
+            _ => return None,
+        }
     };
     Some(emit_db_table_op(
         emit_expr,
@@ -680,7 +730,7 @@ where
         args,
         &plan.and_then(|p| p.projection.clone()),
         &plan.and_then(|p| p.order_by.clone()),
-        &None,
+        &plan.and_then(|p| p.limit_value.clone()),
         plan,
         fallible_db,
     ))
@@ -892,20 +942,16 @@ where
 /// `String` at the end of the `let` statement, leaving `__s` dangling (E0716).
 fn try_emit_str_method(method: &str, o: &str, arg_exprs: &[String]) -> Option<String> {
     match method {
-        // Vox JSON accessors lower to the `serde_json::Value` equivalents.
+        // Vox JSON accessors lower to `VoxJson` methods (script mode Json alias).
         // `as_int`/`as_float`/`as_bool` have no `String` analogue, so they are
-        // unambiguously JSON-value accessors. `as_str` exists on both, but Vox
-        // models it as returning an owned `Option<str>`; on a `serde_json::Value`
-        // the native `.as_str()` yields `Option<&str>`, so map to an owned String
-        // to satisfy downstream `unwrap_or("…".to_string())` / `String` fields.
+        // unambiguously JSON-value accessors. `VoxJson::as_str()` already returns
+        // `Option<String>` (RFC §4.3 strict-Option API).
         // (The string methods to_upper/to_lower/replace/contains/split are handled
         // by the E0716-safe arms below — merged from origin/main.)
-        "as_int" if arg_exprs.is_empty() => Some(format!("({}).as_i64()", o)),
-        "as_float" if arg_exprs.is_empty() => Some(format!("({}).as_f64()", o)),
+        "as_int" if arg_exprs.is_empty() => Some(format!("({}).as_int()", o)),
+        "as_float" if arg_exprs.is_empty() => Some(format!("({}).as_float()", o)),
         "as_bool" if arg_exprs.is_empty() => Some(format!("({}).as_bool()", o)),
-        "as_str" if arg_exprs.is_empty() => {
-            Some(format!("({}).as_str().map(|__s| __s.to_string())", o))
-        }
+        "as_str" if arg_exprs.is_empty() => Some(format!("({}).as_str()", o)),
         // `xs.get(i)` (list, integer index) returns an owned `Option<T>` in Vox
         // (matching the `Index` emit). Rust's `Vec::get` returns `Option<&T>`, so
         // `.cloned()` aligns the type with `Some(<owned>)` comparisons, and the
