@@ -17,7 +17,10 @@ pub async fn run_proxy(args: &[String]) -> Result<()> {
     let home = dirs::home_dir().context("cannot determine home directory")?;
     let vox = resolve_vox_bin(&home);
     if !vox.exists() {
-        bail!("vox binary not found at {}. Run `voxup install` first.", vox.display());
+        bail!(
+            "vox binary not found at {}. Run `voxup install` first.",
+            vox.display()
+        );
     }
     let prefix = hermetic_path_prefix(&home);
     let old_path = std::env::var("PATH").unwrap_or_default();
@@ -37,14 +40,14 @@ fn exec_replace(vox: &std::path::Path, args: &[String], new_path: &str) -> Resul
     use std::os::unix::ffi::OsStrExt;
     // SAFETY: voxup proxy is single-threaded at this call site.
     unsafe { std::env::set_var("PATH", new_path) };
-    let c_vox = CString::new(vox.as_os_str().as_bytes())
-        .context("vox path contains null byte")?;
+    let c_vox = CString::new(vox.as_os_str().as_bytes()).context("vox path contains null byte")?;
     let mut c_args: Vec<CString> = Vec::with_capacity(args.len() + 1);
     c_args.push(c_vox.clone());
     for a in args {
         c_args.push(CString::new(a.as_str()).context("arg contains null byte")?);
     }
-    let c_argv: Vec<*const libc::c_char> = c_args.iter()
+    let c_argv: Vec<*const libc::c_char> = c_args
+        .iter()
         .map(|s| s.as_ptr())
         .chain(std::iter::once(std::ptr::null()))
         .collect();
@@ -80,7 +83,17 @@ mod tests {
     fn resolve_vox_bin_points_into_dot_vox() {
         let home = PathBuf::from("/home/ada");
         let vox = resolve_vox_bin(&home);
-        assert!(vox.starts_with("/home/ada/.vox/bin/"), "got: {}", vox.display());
-        assert!(vox.file_name().unwrap().to_str().unwrap().starts_with("vox"));
+        assert!(
+            vox.starts_with("/home/ada/.vox/bin/"),
+            "got: {}",
+            vox.display()
+        );
+        assert!(
+            vox.file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .starts_with("vox")
+        );
     }
 }

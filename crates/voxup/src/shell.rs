@@ -33,35 +33,59 @@ pub fn add_to_path(home: &Path, bin_dir: &Path) -> Vec<PathBuf> {
 }
 
 fn posix_snippet(bin_dir: &Path) -> String {
-    format!("\n# Added by voxup\nexport PATH=\"{}:$PATH\"\n", bin_dir.display())
+    format!(
+        "\n# Added by voxup\nexport PATH=\"{}:$PATH\"\n",
+        bin_dir.display()
+    )
 }
 
 fn fish_snippet(bin_dir: &Path) -> String {
-    format!("\n# Added by voxup\nfish_add_path \"{}\"\n", bin_dir.display())
+    format!(
+        "\n# Added by voxup\nfish_add_path \"{}\"\n",
+        bin_dir.display()
+    )
 }
 
 fn ps_snippet(bin_dir: &Path) -> String {
-    format!("\n# Added by voxup\n$env:PATH = \"{};$env:PATH\"\n", bin_dir.display())
+    format!(
+        "\n# Added by voxup\n$env:PATH = \"{};$env:PATH\"\n",
+        bin_dir.display()
+    )
 }
 
 fn try_append(profile: &Path, snippet: &str, bin_dir: &Path) -> bool {
-    if !profile.exists() { return false; }
+    if !profile.exists() {
+        return false;
+    }
     let existing = match fs::read_to_string(profile) {
         Ok(s) => s,
-        Err(e) => { warn!("Cannot read {}: {e}", profile.display()); return false; }
+        Err(e) => {
+            warn!("Cannot read {}: {e}", profile.display());
+            return false;
+        }
     };
     if existing.contains(&*bin_dir.to_string_lossy()) {
         info!("{} already has voxup PATH entry", profile.display());
         return false;
     }
     match fs::write(profile, format!("{existing}{snippet}")) {
-        Ok(()) => { info!("Updated {}", profile.display()); true }
-        Err(e) => { warn!("Cannot write {}: {e}", profile.display()); false }
+        Ok(()) => {
+            info!("Updated {}", profile.display());
+            true
+        }
+        Err(e) => {
+            warn!("Cannot write {}: {e}", profile.display());
+            false
+        }
     }
 }
 
 fn ps_documents_dir(home: &Path) -> Option<PathBuf> {
-    if cfg!(windows) { Some(home.join("Documents")) } else { None }
+    if cfg!(windows) {
+        Some(home.join("Documents"))
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]
@@ -117,7 +141,11 @@ mod tests {
         let bin = home.join(".vox").join("bin");
         let modified = add_to_path(home, &bin);
         assert!(modified.contains(&fish_file));
-        assert!(fs::read_to_string(&fish_file).unwrap().contains("fish_add_path"));
+        assert!(
+            fs::read_to_string(&fish_file)
+                .unwrap()
+                .contains("fish_add_path")
+        );
     }
 
     #[test]

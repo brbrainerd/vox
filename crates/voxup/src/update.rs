@@ -8,7 +8,9 @@ use tracing::info;
 pub fn parse_version_output(s: &str) -> Result<Version> {
     for token in s.split_whitespace() {
         let clean = token.trim_start_matches('v');
-        if let Ok(v) = Version::parse(clean) { return Ok(v); }
+        if let Ok(v) = Version::parse(clean) {
+            return Ok(v);
+        }
     }
     anyhow::bail!("could not find a semver string in: {:?}", s)
 }
@@ -26,7 +28,10 @@ pub async fn run_update() -> Result<bool> {
     let exe = if cfg!(windows) { "vox.exe" } else { "vox" };
     let vox_bin = home.join(".vox").join("bin").join(exe);
     if !vox_bin.exists() {
-        anyhow::bail!("{} not found — run `voxup install` first", vox_bin.display());
+        anyhow::bail!(
+            "{} not found — run `voxup install` first",
+            vox_bin.display()
+        );
     }
     let installed = read_installed_version(&vox_bin)?;
     info!("Installed: {installed}");

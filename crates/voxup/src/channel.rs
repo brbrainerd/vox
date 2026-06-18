@@ -4,8 +4,7 @@ use anyhow::{Context, Result, bail};
 use reqwest::Client;
 use serde::Deserialize;
 
-const API_LATEST: &str =
-    "https://api.github.com/repos/vox-foundation/vox/releases/latest";
+const API_LATEST: &str = "https://api.github.com/repos/vox-foundation/vox/releases/latest";
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct GhAsset {
@@ -55,7 +54,11 @@ pub async fn fetch_latest(client: &Client) -> Result<ReleaseInfo> {
     if version.is_empty() {
         bail!("release tag {:?} has no version after 'v'", rel.tag_name);
     }
-    Ok(ReleaseInfo { tag: rel.tag_name, version, assets: rel.assets })
+    Ok(ReleaseInfo {
+        tag: rel.tag_name,
+        version,
+        assets: rel.assets,
+    })
 }
 
 #[cfg(test)]
@@ -97,7 +100,10 @@ mod tests {
                 },
             ],
         };
-        assert_eq!(info.find_asset("checksums.txt").unwrap().name, "checksums.txt");
+        assert_eq!(
+            info.find_asset("checksums.txt").unwrap().name,
+            "checksums.txt"
+        );
         assert!(info.find_asset("nonexistent.zip").is_none());
     }
 }

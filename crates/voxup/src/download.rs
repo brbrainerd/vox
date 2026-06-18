@@ -32,7 +32,9 @@ pub fn parse_checksums(text: &str) -> HashMap<String, String> {
             let (hash, rest) = line.split_once("  ")?;
             let name = rest.trim().to_string();
             let hash = hash.trim().to_lowercase();
-            if hash.len() != 64 { return None; }
+            if hash.len() != 64 {
+                return None;
+            }
             Some((name, hash))
         })
         .collect()
@@ -49,8 +51,7 @@ pub fn verify_sha256(data: &[u8], expected: &str) -> Result<()> {
 }
 
 pub fn extract(data: &[u8], dest_dir: &Path, filename: &str) -> Result<()> {
-    fs::create_dir_all(dest_dir)
-        .with_context(|| format!("create {}", dest_dir.display()))?;
+    fs::create_dir_all(dest_dir).with_context(|| format!("create {}", dest_dir.display()))?;
     if filename.ends_with(".tar.gz") {
         extract_targz(data, dest_dir)
     } else if filename.ends_with(".zip") {
@@ -65,7 +66,8 @@ fn extract_targz(data: &[u8], dest_dir: &Path) -> Result<()> {
     use tar::Archive;
     let gz = GzDecoder::new(Cursor::new(data));
     let mut archive = Archive::new(gz);
-    archive.unpack(dest_dir)
+    archive
+        .unpack(dest_dir)
         .with_context(|| format!("unpack tar.gz to {}", dest_dir.display()))?;
     info!("Extracted tar.gz to {}", dest_dir.display());
     Ok(())
@@ -74,15 +76,16 @@ fn extract_targz(data: &[u8], dest_dir: &Path) -> Result<()> {
 fn extract_zip(data: &[u8], dest_dir: &Path) -> Result<()> {
     #[cfg(windows)]
     {
-        let mut archive = zip::ZipArchive::new(Cursor::new(data))
-            .context("open zip archive")?;
+        let mut archive = zip::ZipArchive::new(Cursor::new(data)).context("open zip archive")?;
         for i in 0..archive.len() {
             let mut entry = archive.by_index(i).context("read zip entry")?;
             let outpath = dest_dir.join(entry.name());
             if entry.is_dir() {
                 fs::create_dir_all(&outpath)?;
             } else {
-                if let Some(p) = outpath.parent() { fs::create_dir_all(p)?; }
+                if let Some(p) = outpath.parent() {
+                    fs::create_dir_all(p)?;
+                }
                 let mut outfile = fs::File::create(&outpath)
                     .with_context(|| format!("create {}", outpath.display()))?;
                 std::io::copy(&mut entry, &mut outfile)
@@ -93,7 +96,9 @@ fn extract_zip(data: &[u8], dest_dir: &Path) -> Result<()> {
         Ok(())
     }
     #[cfg(not(windows))]
-    { bail!(".zip extraction is only supported on Windows") }
+    {
+        bail!(".zip extraction is only supported on Windows")
+    }
 }
 
 #[cfg(test)]
@@ -154,8 +159,8 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn extract_targz_round_trip() {
-        use flate2::write::GzEncoder;
         use flate2::Compression;
+        use flate2::write::GzEncoder;
         use tar::Builder;
         let mut buf = Vec::new();
         let enc = GzEncoder::new(&mut buf, Compression::default());
@@ -165,7 +170,8 @@ mod tests {
         header.set_size(content.len() as u64);
         header.set_mode(0o755);
         header.set_cksum();
-        ar.append_data(&mut header, "vox", content.as_slice()).unwrap();
+        ar.append_data(&mut header, "vox", content.as_slice())
+            .unwrap();
         ar.finish().unwrap();
         drop(ar);
         let tmp = tempfile::tempdir().unwrap();

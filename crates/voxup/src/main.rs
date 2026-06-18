@@ -9,7 +9,11 @@ mod shell;
 mod update;
 
 #[derive(Parser)]
-#[command(name = "voxup", about = "The Vox toolchain installer and multiplexer", version)]
+#[command(
+    name = "voxup",
+    about = "The Vox toolchain installer and multiplexer",
+    version
+)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,

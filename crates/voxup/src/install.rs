@@ -3,10 +3,9 @@ use std::fs;
 use std::path::Path;
 use tracing::{info, warn};
 
-
 pub async fn run_install(_profile: &str) -> Result<()> {
     let home = dirs::home_dir().context("cannot determine home directory")?;
-    let bin_dir   = home.join(".vox").join("bin");
+    let bin_dir = home.join(".vox").join("bin");
     let cache_dir = home.join(".vox").join("toolchains");
     fs::create_dir_all(&bin_dir)?;
     fs::create_dir_all(&cache_dir)?;
@@ -17,10 +16,11 @@ pub async fn run_install(_profile: &str) -> Result<()> {
     info!("Latest release: {} ({})", release.tag, release.version);
 
     // Download and parse checksums.txt
-    let ck_asset = release.find_asset("checksums.txt")
+    let ck_asset = release
+        .find_asset("checksums.txt")
         .context("checksums.txt not found in GitHub release assets")?;
     let ck_bytes = crate::download::fetch_bytes(&client, &ck_asset.browser_download_url).await?;
-    let ck_text  = String::from_utf8(ck_bytes).context("checksums.txt is not valid UTF-8")?;
+    let ck_text = String::from_utf8(ck_bytes).context("checksums.txt is not valid UTF-8")?;
     let checksums = crate::download::parse_checksums(&ck_text);
 
     // Resolve the platform archive
@@ -29,12 +29,17 @@ pub async fn run_install(_profile: &str) -> Result<()> {
         format!(
             "Expected asset '{archive_name}' not in release {}. Available: {}",
             release.tag,
-            release.assets.iter().map(|a| a.name.as_str()).collect::<Vec<_>>().join(", ")
+            release
+                .assets
+                .iter()
+                .map(|a| a.name.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
         )
     })?;
-    let expected_hash = checksums.get(&archive_name).with_context(|| {
-        format!("No checksum for '{archive_name}' in checksums.txt")
-    })?;
+    let expected_hash = checksums
+        .get(&archive_name)
+        .with_context(|| format!("No checksum for '{archive_name}' in checksums.txt"))?;
 
     info!("Downloading {} ({} bytes)…", archive_name, ar_asset.size);
     let ar_bytes = crate::download::fetch_bytes(&client, &ar_asset.browser_download_url).await?;
@@ -51,10 +56,13 @@ pub async fn run_install(_profile: &str) -> Result<()> {
     // Establish canonical binary
     let exe = if cfg!(windows) { "vox.exe" } else { "vox" };
     let extracted_bin = tc_dir.join(exe);
-    let canonical     = bin_dir.join(exe);
-    let secondary     = home.join(".cargo").join("bin").join(exe);
+    let canonical = bin_dir.join(exe);
+    let secondary = home.join(".cargo").join("bin").join(exe);
     if !extracted_bin.exists() {
-        bail!("Extraction succeeded but '{exe}' not found in {}", tc_dir.display());
+        bail!(
+            "Extraction succeeded but '{exe}' not found in {}",
+            tc_dir.display()
+        );
     }
     replace_file(&extracted_bin, &canonical)?;
     establish_single_binary(&canonical, &secondary)?;
@@ -65,7 +73,10 @@ pub async fn run_install(_profile: &str) -> Result<()> {
     // Persistent PATH
     let modified = crate::shell::add_to_path(&home, &bin_dir);
     if modified.is_empty() {
-        info!("No shell profiles found. Add {} to your PATH manually.", bin_dir.display());
+        info!(
+            "No shell profiles found. Add {} to your PATH manually.",
+            bin_dir.display()
+        );
     } else {
         info!("Updated {} shell profile(s).", modified.len());
     }
