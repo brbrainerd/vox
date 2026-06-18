@@ -28,7 +28,10 @@ fn parse_nvidia_smi_output(stdout: &str) -> Option<VramInfo> {
 /// Query total, used, and free VRAM info from `nvidia-smi`.
 pub fn query_nvidia_smi_vram() -> Option<VramInfo> {
     let out = std::process::Command::new("nvidia-smi")
-        .args(["--query-gpu=memory.total,memory.used,memory.free", "--format=csv,noheader,nounits"])
+        .args([
+            "--query-gpu=memory.total,memory.used,memory.free",
+            "--format=csv,noheader,nounits",
+        ])
         .output()
         .ok()?;
     if !out.status.success() {

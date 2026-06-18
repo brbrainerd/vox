@@ -253,18 +253,16 @@ pub(super) async fn run_gpu_training(
         .ok()
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false);
-    let gc_auto_for_3b = model
+    let gc_auto_large = model
         .as_deref()
-        .map(|m| {
-            let m = m.to_ascii_lowercase();
-            m.contains("-3b") || m.contains("_3b") || m.contains("3b-")
-        })
+        .and_then(|m| vox_populi::mens::tensor::memory_budget::params_b_from_model_hint(m))
+        .map(|b| b >= 2.9)
         .unwrap_or(false);
-    let gradient_checkpointing = gc_explicit || gc_auto_for_3b;
+    let gradient_checkpointing = gc_explicit || gc_auto_large;
     if gradient_checkpointing {
         tracing::info!(
             explicit = gc_explicit,
-            auto_3b = gc_auto_for_3b,
+            auto_large = gc_auto_large,
             "activation/gradient checkpointing ENABLED for this run"
         );
     }

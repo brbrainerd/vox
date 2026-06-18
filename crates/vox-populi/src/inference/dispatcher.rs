@@ -47,8 +47,8 @@ impl InferenceDispatcher {
 
 #[cfg(test)]
 mod tests {
-    use crate::inference::backends::CandleCpuBackend;
     use super::*;
+    use crate::inference::backends::CandleCpuBackend;
 
     // The CandleCpu backend picks this bundle (hash verifies) but `load(&ModelBundle)`
     // now returns the documented CAS-not-wired error — there is no resolver to map a

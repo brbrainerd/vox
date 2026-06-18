@@ -263,8 +263,8 @@ pub async fn run_train(
             .map(|d| matches!(d, vox_populi::mens::DeviceKind::Cuda))
             .unwrap_or(false);
         if device_is_cuda {
-            use vox_populi::mens::tensor::memory_budget;
             use vox_populi::mens::tensor::finetune_contract::BaseQuantMode;
+            use vox_populi::mens::tensor::memory_budget;
             let default_model = vox_populi::mens::default_model_id();
             let model_hint = effective_model.as_deref().unwrap_or(&default_model);
             let requested_b = memory_budget::params_b_from_model_hint(model_hint).unwrap_or(7.0);
@@ -297,13 +297,19 @@ pub async fn run_train(
 
             // Run planning options-aware
             let mp = if memory_budget::is_qwen25coder(model_hint) {
-                memory_budget::plan_qwen25coder_with_options(vram, requested_b, base_quant, gc_enabled)
+                memory_budget::plan_qwen25coder_with_options(
+                    vram,
+                    requested_b,
+                    base_quant,
+                    gc_enabled,
+                )
             } else if memory_budget::is_qwen35(model_hint) {
                 memory_budget::plan_qwen35_with_options(vram, requested_b, base_quant, gc_enabled)
             } else if memory_budget::is_qwen3(model_hint) {
                 memory_budget::plan_qwen3_with_options(vram, requested_b, base_quant, gc_enabled)
             } else {
-                let resident_per_b = memory_budget::get_resident_per_b(model_hint, base_quant, gc_enabled);
+                let resident_per_b =
+                    memory_budget::get_resident_per_b(model_hint, base_quant, gc_enabled);
                 let p = memory_budget::plan_with_resident(vram, requested_b, resident_per_b);
                 memory_budget::ModelPlan {
                     model_id: model_hint.to_string(),
@@ -321,7 +327,8 @@ pub async fn run_train(
             // we must not use the retreated model's generous constraints (it would cause OOM).
             // Instead, re-solve the budget specifically for the pinned model parameters.
             let final_plan = if effective_model.is_some() && mp.retreated_from_b.is_some() {
-                let resident_per_b = memory_budget::get_resident_per_b(model_hint, base_quant, gc_enabled);
+                let resident_per_b =
+                    memory_budget::get_resident_per_b(model_hint, base_quant, gc_enabled);
                 let p = memory_budget::plan_with_resident(vram, requested_b, resident_per_b);
                 memory_budget::ModelPlan {
                     model_id: model_hint.to_string(),

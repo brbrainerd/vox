@@ -221,7 +221,12 @@ pub fn is_qwen35(model_id: &str) -> bool {
 /// past what the operator asked for (the default request is 4B via `DEFAULT_MODEL_ID`).
 #[must_use]
 pub fn plan_qwen35(vram_gib: f64, max_params_b: f64) -> ModelPlan {
-    plan_qwen35_with_options(vram_gib, max_params_b, super::finetune_contract::BaseQuantMode::Nf4, false)
+    plan_qwen35_with_options(
+        vram_gib,
+        max_params_b,
+        super::finetune_contract::BaseQuantMode::Nf4,
+        false,
+    )
 }
 
 /// Qwen2.5-Coder ladder (largest → smallest): (parameter count in billions, HF repo id).
@@ -248,7 +253,12 @@ pub fn is_qwen25coder(model_id: &str) -> bool {
 /// semantics as [`plan_qwen35`] but for the coding family.
 #[must_use]
 pub fn plan_qwen25coder(vram_gib: f64, max_params_b: f64) -> ModelPlan {
-    plan_qwen25coder_with_options(vram_gib, max_params_b, super::finetune_contract::BaseQuantMode::Nf4, false)
+    plan_qwen25coder_with_options(
+        vram_gib,
+        max_params_b,
+        super::finetune_contract::BaseQuantMode::Nf4,
+        false,
+    )
 }
 
 pub const QWEN3_LADDER: &[(f64, &str)] = &[
@@ -270,28 +280,29 @@ pub fn is_qwen3(model_id: &str) -> bool {
 
 /// Calculate resident VRAM per billion parameters dynamically.
 #[must_use]
-pub fn get_resident_per_b(model_id: &str, quant_mode: super::finetune_contract::BaseQuantMode, gradient_checkpointing: bool) -> f64 {
-    let base = if is_qwen35(model_id) {
-        3.5
-    } else {
-        5.0
-    };
+pub fn get_resident_per_b(
+    model_id: &str,
+    quant_mode: super::finetune_contract::BaseQuantMode,
+    gradient_checkpointing: bool,
+) -> f64 {
+    let base = if is_qwen35(model_id) { 3.5 } else { 5.0 };
     let quant_offset = match quant_mode {
         super::finetune_contract::BaseQuantMode::None => 1.5,
         super::finetune_contract::BaseQuantMode::Nf4 => 0.0,
     };
-    let gc_offset = if gradient_checkpointing {
-        -1.8
-    } else {
-        0.0
-    };
+    let gc_offset = if gradient_checkpointing { -1.8 } else { 0.0 };
     base + quant_offset + gc_offset
 }
 
 /// Pick the largest Qwen3 variant (no larger than `max_params_b`) that fits `vram_gib`.
 #[must_use]
 pub fn plan_qwen3(vram_gib: f64, max_params_b: f64) -> ModelPlan {
-    plan_qwen3_with_options(vram_gib, max_params_b, super::finetune_contract::BaseQuantMode::Nf4, false)
+    plan_qwen3_with_options(
+        vram_gib,
+        max_params_b,
+        super::finetune_contract::BaseQuantMode::Nf4,
+        false,
+    )
 }
 
 /// Pick the largest Qwen3 variant (no larger than `max_params_b`) with explicit options.
@@ -345,10 +356,7 @@ pub fn plan_qwen3_with_options(
             grad_accum: p.grad_accum,
             retreated_from_b: Some(max_params_b),
             over_budget: true,
-            rationale: format!(
-                "no Qwen3 variant fits {vram_gib:.0} GiB; {}",
-                p.rationale
-            ),
+            rationale: format!("no Qwen3 variant fits {vram_gib:.0} GiB; {}", p.rationale),
         }
     })
 }
@@ -404,10 +412,7 @@ pub fn plan_qwen35_with_options(
             grad_accum: p.grad_accum,
             retreated_from_b: Some(max_params_b),
             over_budget: true,
-            rationale: format!(
-                "no Qwen3.5 variant fits {vram_gib:.0} GiB; {}",
-                p.rationale
-            ),
+            rationale: format!("no Qwen3.5 variant fits {vram_gib:.0} GiB; {}", p.rationale),
         }
     })
 }
@@ -781,16 +786,34 @@ mod semcov_wave15_tests {
         // Qwen 2.5 / Qwen 3 base resident is 5.0
         // BaseQuantMode::None adds +1.5 -> 6.5
         // Gradient checkpointing subtracts -1.8 -> 3.2
-        assert_eq!(get_resident_per_b("Qwen/Qwen2.5-Coder-7B-Instruct", BaseQuantMode::None, false), 6.5);
-        assert_eq!(get_resident_per_b("Qwen/Qwen2.5-Coder-7B-Instruct", BaseQuantMode::Nf4, false), 5.0);
-        assert_eq!(get_resident_per_b("Qwen/Qwen2.5-Coder-7B-Instruct", BaseQuantMode::Nf4, true), 3.2);
+        assert_eq!(
+            get_resident_per_b("Qwen/Qwen2.5-Coder-7B-Instruct", BaseQuantMode::None, false),
+            6.5
+        );
+        assert_eq!(
+            get_resident_per_b("Qwen/Qwen2.5-Coder-7B-Instruct", BaseQuantMode::Nf4, false),
+            5.0
+        );
+        assert_eq!(
+            get_resident_per_b("Qwen/Qwen2.5-Coder-7B-Instruct", BaseQuantMode::Nf4, true),
+            3.2
+        );
 
         // Qwen 3.5 base resident is 3.5
         // BaseQuantMode::None adds +1.5 -> 5.0
         // Gradient checkpointing subtracts -1.8 -> 1.7
-        assert_eq!(get_resident_per_b("Qwen/Qwen3.5-4B", BaseQuantMode::None, false), 5.0);
-        assert_eq!(get_resident_per_b("Qwen/Qwen3.5-4B", BaseQuantMode::Nf4, false), 3.5);
-        assert_eq!(get_resident_per_b("Qwen/Qwen3.5-4B", BaseQuantMode::Nf4, true), 1.7);
+        assert_eq!(
+            get_resident_per_b("Qwen/Qwen3.5-4B", BaseQuantMode::None, false),
+            5.0
+        );
+        assert_eq!(
+            get_resident_per_b("Qwen/Qwen3.5-4B", BaseQuantMode::Nf4, false),
+            3.5
+        );
+        assert_eq!(
+            get_resident_per_b("Qwen/Qwen3.5-4B", BaseQuantMode::Nf4, true),
+            1.7
+        );
     }
 
     #[test]
@@ -799,4 +822,3 @@ mod semcov_wave15_tests {
         assert_eq!(p.model_id, "Qwen/Qwen3-1.5B-Instruct");
     }
 }
-

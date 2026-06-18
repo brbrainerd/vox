@@ -350,8 +350,11 @@ pub fn resolve_effective_profile(
 
     if device.vram_mb > 0 {
         let vram_gib = (device.vram_mb as f64) / 1024.0;
-        let hint = model_hint.as_deref().unwrap_or(crate::mens::DEFAULT_MODEL_ID);
-        let params_b = crate::mens::tensor::memory_budget::params_b_from_model_hint(hint).unwrap_or(7.0);
+        let hint = model_hint
+            .as_deref()
+            .unwrap_or(crate::mens::DEFAULT_MODEL_ID);
+        let params_b =
+            crate::mens::tensor::memory_budget::params_b_from_model_hint(hint).unwrap_or(7.0);
 
         let budget_plan = if crate::mens::tensor::memory_budget::is_qwen35(hint) {
             crate::mens::tensor::memory_budget::plan_qwen35(vram_gib, params_b)
@@ -500,4 +503,3 @@ mod preset_tests {
         }
     }
 }
-
