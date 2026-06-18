@@ -298,7 +298,6 @@ mod tests {
 
     /// `scripts/install.*` must name every triple users can download; keep aligned with CI matrix.
     #[test]
-    #[ignore = "opt-in release-target install script audit; owner: ci sunset: 2026-12-31"]
     fn install_scripts_cover_release_targets() {
         use std::path::PathBuf;
 
