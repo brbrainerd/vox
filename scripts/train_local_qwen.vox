@@ -57,15 +57,16 @@ fn main() {
         
         match proc {
             Some(res) => {
-                // If it timed out (exit code might be non-zero or specific signal on timeout),
-                // but if it initialized and started training, we count that as success.
-                // Wait! Some systems exit with 0 or specific code when timed out by max-runtime-secs.
-                // Let's print the exit code.
                 print("Preflight process finished with code: " + str(res.code))
+                print("Stdout:")
+                print(res.stdout)
+                print("Stderr:")
+                print(res.stderr)
+                
                 if res.code == 0 or res.code == 137 or res.code == 124 {
                     print("Preflight check completed successfully.")
                 } else {
-                    print("Preflight check completed (exit code indicates stopped/terminated as expected).")
+                    print("Preflight check finished (non-zero code might indicate termination/timeout or error).")
                 }
             }
             None => {
@@ -108,10 +109,16 @@ fn main() {
         
         match proc {
             Some(res) => {
+                print("Training run completed with code: " + str(res.code))
+                print("Stdout:")
+                print(res.stdout)
+                print("Stderr:")
+                print(res.stderr)
+                
                 if res.code == 0 {
                     print("Training run completed successfully.")
                 } else {
-                    print("Training run failed with code: " + str(res.code))
+                    print("Training run failed.")
                     process.exit(res.code)
                 }
             }

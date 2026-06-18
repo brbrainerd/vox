@@ -253,10 +253,9 @@ pub async fn run_train(
         }
     }
 
-    // ── VRAM-aware memory budgeting ──────────────────────────────────────────
-    // When seq_len / batch_size / grad_accum were not pinned by the user or a
-    // domain profile, size them from the detected VRAM and model size so the run
-    // fits without OOM and still maximizes utilization. Only applies on CUDA.
+    let mut budget_seq_len = None;
+    let mut budget_batch_size = None;
+    let mut budget_grad_accum = None;
     {
         use owo_colors::OwoColorize;
         let device_is_cuda = vox_populi::mens::normalize_device(&device)
@@ -271,7 +270,7 @@ pub async fn run_train(
 
             // Dynamic VRAM Auditing (free VRAM takes priority)
             let vram_info = vox_populi::mens::tensor::vram_autodetect::get_system_vram_info();
-            let vram = if let Some(info) = vram_info {
+            let mut vram = if let Some(info) = vram_info {
                 eprintln!(
                     "  {} VRAM Audit: {:.1} GiB total, {:.1} GiB used, {:.1} GiB free",
                     "📊".cyan(),
@@ -279,21 +278,25 @@ pub async fn run_train(
                     info.used_gb,
                     info.free_gb
                 );
-                if info.free_gb > 0.1 {
-                    info.free_gb as f64
-                } else {
-                    info.total_gb as f64
-                }
+                info.free_gb as f64
             } else {
                 16.0
             };
+            if let Some(frac) = vram_limit_fraction {
+                vram *= frac as f64;
+            }
 
             // Early options resolution
             let base_quant = match backend {
                 PopuliTrainBackendCli::Lora => BaseQuantMode::None,
                 PopuliTrainBackendCli::Qlora => BaseQuantMode::Nf4,
             };
-            let gc_enabled = std::env::var("VOX_MENS_GRADIENT_CHECKPOINTING").is_ok();
+            let gc_explicit = std::env::var("VOX_MENS_GRADIENT_CHECKPOINTING")
+                .ok()
+                .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+                .unwrap_or(false);
+            let gc_auto_large = requested_b >= 2.9;
+            let gc_enabled = gc_explicit || gc_auto_large;
 
             // Run planning options-aware
             let mp = if memory_budget::is_qwen25coder(model_hint) {
@@ -370,20 +373,9 @@ pub async fn run_train(
                 }
             }
 
-            effective_seq_len =
-                resolve_training_sizing(effective_seq_len, None, Some(final_plan.seq_len), None);
-            effective_batch_size = resolve_training_sizing(
-                effective_batch_size,
-                None,
-                Some(final_plan.batch_size),
-                None,
-            );
-            effective_grad_accum = resolve_training_sizing(
-                effective_grad_accum,
-                None,
-                Some(final_plan.grad_accum),
-                None,
-            );
+            budget_seq_len = Some(final_plan.seq_len);
+            budget_batch_size = Some(final_plan.batch_size);
+            budget_grad_accum = Some(final_plan.grad_accum);
         }
     }
 
@@ -429,6 +421,9 @@ pub async fn run_train(
         effective_seq_len,
         effective_batch_size,
         effective_grad_accum,
+        budget_seq_len,
+        budget_batch_size,
+        budget_grad_accum,
         resume,
         epochs,
         lr,

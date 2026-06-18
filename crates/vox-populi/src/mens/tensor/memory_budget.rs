@@ -291,7 +291,7 @@ pub fn get_resident_per_b(
         super::finetune_contract::BaseQuantMode::Nf4 => 0.0,
     };
     let gc_offset = if gradient_checkpointing { -1.8 } else { 0.0 };
-    base + quant_offset + gc_offset
+    f64::max(base + quant_offset + gc_offset, 1.5)
 }
 
 /// Pick the largest Qwen3 variant (no larger than `max_params_b`) that fits `vram_gib`.
