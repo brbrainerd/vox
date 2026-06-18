@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 """Write `.graphify_manifest.v1.json` beside a registered graphify corpus graph.
 
+DEPRECATED: Use the new `scripts/graphify-refresh.vox` script instead.
+This Python script is kept for legacy compatibility but is deprecated.
+
 SSOT schema: `crates/vox-config/src/graphify.rs` (MANIFEST_BASENAME).
 Registry: `contracts/retrieval/graphify-corpora.v1.yaml`.
 """
