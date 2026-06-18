@@ -32,6 +32,24 @@ pub fn asset_name(version: &str) -> String {
     format!("vox-{version}-{target}.{ext}")
 }
 
+pub fn make_client() -> Result<Client> {
+    let mut builder = Client::builder().timeout(std::time::Duration::from_secs(30));
+
+    // Support GITHUB_TOKEN/GH_TOKEN for auth header
+    if let Ok(token) = std::env::var("GITHUB_TOKEN").or_else(|_| std::env::var("GH_TOKEN")) {
+        if !token.trim().is_empty() {
+            let mut headers = reqwest::header::HeaderMap::new();
+            if let Ok(auth_val) = reqwest::header::HeaderValue::from_str(&format!("Bearer {token}"))
+            {
+                headers.insert(reqwest::header::AUTHORIZATION, auth_val);
+                builder = builder.default_headers(headers);
+            }
+        }
+    }
+
+    builder.build().context("failed to build reqwest Client")
+}
+
 pub async fn fetch_latest(client: &Client) -> Result<ReleaseInfo> {
     #[derive(Deserialize)]
     struct GhRelease {
@@ -105,5 +123,10 @@ mod tests {
             "checksums.txt"
         );
         assert!(info.find_asset("nonexistent.zip").is_none());
+    }
+
+    #[test]
+    fn test_make_client_creates_client() {
+        let _client = make_client().unwrap();
     }
 }

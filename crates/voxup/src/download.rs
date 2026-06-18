@@ -79,7 +79,16 @@ fn extract_zip(data: &[u8], dest_dir: &Path) -> Result<()> {
         let mut archive = zip::ZipArchive::new(Cursor::new(data)).context("open zip archive")?;
         for i in 0..archive.len() {
             let mut entry = archive.by_index(i).context("read zip entry")?;
-            let outpath = dest_dir.join(entry.name());
+            let enclosed = entry
+                .enclosed_name()
+                .with_context(|| format!("Zip Slip detected: invalid path {:?}", entry.name()))?;
+            let outpath = dest_dir.join(enclosed);
+            if !outpath.starts_with(dest_dir) {
+                bail!(
+                    "Zip Slip detected: path {:?} escapes destination",
+                    entry.name()
+                );
+            }
             if entry.is_dir() {
                 fs::create_dir_all(&outpath)?;
             } else {
@@ -177,5 +186,24 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         extract(&buf, tmp.path(), "vox-0.7.0.tar.gz").unwrap();
         assert!(tmp.path().join("vox").exists());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn test_extract_zip_prevents_zip_slip() {
+        use zip::ZipWriter;
+        use zip::write::SimpleFileOptions;
+        let mut buf = Vec::new();
+        {
+            let mut writer = ZipWriter::new(Cursor::new(&mut buf));
+            writer
+                .start_file("../escaping-file.txt", SimpleFileOptions::default())
+                .unwrap();
+            std::io::Write::write_all(&mut writer, b"dangerous content").unwrap();
+            writer.finish().unwrap();
+        }
+        let tmp = tempfile::tempdir().unwrap();
+        let err = extract_zip(&buf, tmp.path()).unwrap_err();
+        assert!(err.to_string().contains("Zip Slip detected"));
     }
 }

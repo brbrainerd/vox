@@ -7,6 +7,10 @@ use tracing::{info, warn};
 
 pub fn add_to_path(home: &Path, bin_dir: &Path) -> Vec<PathBuf> {
     let mut modified = Vec::new();
+    #[cfg(windows)]
+    {
+        add_to_windows_registry_path(bin_dir);
+    }
     for name in &[".bashrc", ".bash_profile", ".zshrc", ".profile"] {
         let p = home.join(name);
         if try_append(&p, &posix_snippet(bin_dir), bin_dir) {
@@ -32,17 +36,48 @@ pub fn add_to_path(home: &Path, bin_dir: &Path) -> Vec<PathBuf> {
     modified
 }
 
+#[cfg(windows)]
+fn add_to_windows_registry_path(bin_dir: &Path) {
+    use std::process::Command;
+    let path_str = bin_dir.to_string_lossy().to_string();
+    let cmd = format!(
+        "$old = [Environment]::GetEnvironmentVariable('PATH', [System.EnvironmentVariableTarget]::User); \
+         if ($old -split ';' -notcontains '{}') {{ \
+             $new = if ([string]::IsNullOrEmpty($old)) {{ '{}' }} else {{ \"$old;{}\" }}; \
+             [Environment]::SetEnvironmentVariable('PATH', $new, [System.EnvironmentVariableTarget]::User); \
+         }}",
+        path_str.replace("'", "''"),
+        path_str.replace("'", "''"),
+        path_str.replace("'", "''")
+    );
+    let _ = Command::new("powershell")
+        .arg("-NoProfile")
+        .arg("-Command")
+        .arg(&cmd)
+        .status();
+}
+
+fn posix_path(bin_dir: &Path) -> String {
+    let s = bin_dir.to_string_lossy().replace('\\', "/");
+    if s.len() >= 2 && s.as_bytes()[1] == b':' {
+        let drive = (s.as_bytes()[0] as char).to_ascii_lowercase();
+        format!("/{drive}{}", &s[2..])
+    } else {
+        s
+    }
+}
+
 fn posix_snippet(bin_dir: &Path) -> String {
     format!(
         "\n# Added by voxup\nexport PATH=\"{}:$PATH\"\n",
-        bin_dir.display()
+        posix_path(bin_dir)
     )
 }
 
 fn fish_snippet(bin_dir: &Path) -> String {
     format!(
         "\n# Added by voxup\nfish_add_path \"{}\"\n",
-        bin_dir.display()
+        posix_path(bin_dir)
     )
 }
 
@@ -64,7 +99,8 @@ fn try_append(profile: &Path, snippet: &str, bin_dir: &Path) -> bool {
             return false;
         }
     };
-    if existing.contains(&*bin_dir.to_string_lossy()) {
+    let posix = posix_path(bin_dir);
+    if existing.contains(&posix) || existing.contains(&*bin_dir.to_string_lossy()) {
         info!("{} already has voxup PATH entry", profile.display());
         return false;
     }
@@ -103,7 +139,7 @@ mod tests {
         let modified = add_to_path(home, &bin);
         assert!(modified.contains(&bashrc));
         let content = fs::read_to_string(&bashrc).unwrap();
-        assert!(content.contains(&bin.display().to_string()));
+        assert!(content.contains(&posix_path(&bin)));
         assert!(content.contains("export PATH="));
     }
 
@@ -154,5 +190,15 @@ mod tests {
         let s = posix_snippet(&bin);
         assert!(s.contains("export PATH=\"/home/user/.vox/bin:$PATH\""));
         assert!(s.contains("# Added by voxup"));
+    }
+
+    #[test]
+    fn test_posix_path_conversion() {
+        assert_eq!(
+            posix_path(Path::new("C:\\Users\\Owner\\.vox\\bin")),
+            "/c/Users/Owner/.vox/bin"
+        );
+        assert_eq!(posix_path(Path::new("d:\\path\\to\\bin")), "/d/path/to/bin");
+        assert_eq!(posix_path(Path::new("/usr/local/bin")), "/usr/local/bin");
     }
 }

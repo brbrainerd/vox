@@ -25,17 +25,13 @@ pub fn read_installed_version(vox_bin: &Path) -> Result<Version> {
 
 pub async fn run_update() -> Result<bool> {
     let home = dirs::home_dir().context("cannot determine home directory")?;
-    let exe = if cfg!(windows) { "vox.exe" } else { "vox" };
-    let vox_bin = home.join(".vox").join("bin").join(exe);
-    if !vox_bin.exists() {
-        anyhow::bail!(
-            "{} not found — run `voxup install` first",
-            vox_bin.display()
-        );
+    let real_vox = crate::proxy::resolve_vox_bin(&home);
+    if !real_vox.exists() {
+        anyhow::bail!("real vox binary not found under toolchains — run `voxup install` first");
     }
-    let installed = read_installed_version(&vox_bin)?;
+    let installed = read_installed_version(&real_vox)?;
     info!("Installed: {installed}");
-    let client = reqwest::Client::new();
+    let client = crate::channel::make_client()?;
     let release = crate::channel::fetch_latest(&client).await?;
     let latest = Version::parse(&release.version)
         .with_context(|| format!("parse remote version {:?}", release.version))?;

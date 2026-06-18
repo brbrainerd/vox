@@ -11,7 +11,7 @@ pub async fn run_install(_profile: &str) -> Result<()> {
     fs::create_dir_all(&cache_dir)?;
 
     info!("Fetching latest Vox release from GitHub…");
-    let client = reqwest::Client::new();
+    let client = crate::channel::make_client()?;
     let release = crate::channel::fetch_latest(&client).await?;
     info!("Latest release: {} ({})", release.tag, release.version);
 
@@ -53,7 +53,11 @@ pub async fn run_install(_profile: &str) -> Result<()> {
     let tc_dir = cache_dir.join(format!("vox-{}", release.version));
     crate::download::extract(&ar_bytes, &tc_dir, &archive_name)?;
 
-    // Establish canonical binary
+    // Write active version
+    fs::write(cache_dir.join("active"), &release.version)
+        .with_context(|| format!("failed to write active file in {}", cache_dir.display()))?;
+
+    // Establish canonical binary (the voxup proxy renamed/copied as vox)
     let exe = if cfg!(windows) { "vox.exe" } else { "vox" };
     let extracted_bin = tc_dir.join(exe);
     let canonical = bin_dir.join(exe);
@@ -64,7 +68,8 @@ pub async fn run_install(_profile: &str) -> Result<()> {
             tc_dir.display()
         );
     }
-    replace_file(&extracted_bin, &canonical)?;
+    let current_voxup = std::env::current_exe().context("cannot get current exe path")?;
+    replace_file(&current_voxup, &canonical)?;
     establish_single_binary(&canonical, &secondary)?;
 
     // WASM sysroots
@@ -157,7 +162,22 @@ pub(crate) fn establish_single_binary(canonical: &Path, secondary: &Path) -> Res
 /// Overwrite `dst` with a byte-for-byte copy of `src` (removing any prior stub).
 fn replace_file(src: &Path, dst: &Path) -> Result<()> {
     if dst.exists() {
-        fs::remove_file(dst).with_context(|| format!("remove {}", dst.display()))?;
+        #[cfg(windows)]
+        {
+            let old_path = dst.with_extension("exe.old");
+            if old_path.exists() {
+                let _ = fs::remove_file(&old_path);
+            }
+            if let Err(_) = fs::rename(dst, &old_path) {
+                fs::remove_file(dst).with_context(|| format!("remove {}", dst.display()))?;
+            } else {
+                let _ = fs::remove_file(&old_path); // try deleting non-blocking/best-effort
+            }
+        }
+        #[cfg(not(windows))]
+        {
+            fs::remove_file(dst).with_context(|| format!("remove {}", dst.display()))?;
+        }
     }
     fs::copy(src, dst).with_context(|| format!("copy {} -> {}", src.display(), dst.display()))?;
     set_executable(dst);

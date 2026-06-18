@@ -10,6 +10,39 @@ pub fn hermetic_path_prefix(home: &std::path::Path) -> PathBuf {
 
 pub fn resolve_vox_bin(home: &std::path::Path) -> PathBuf {
     let exe = if cfg!(windows) { "vox.exe" } else { "vox" };
+    let tc_dir = home.join(".vox").join("toolchains");
+
+    // 1. Try reading the active version file
+    if let Ok(active_ver) = std::fs::read_to_string(tc_dir.join("active")) {
+        let path = tc_dir.join(format!("vox-{}", active_ver.trim())).join(exe);
+        if path.exists() {
+            return path;
+        }
+    }
+
+    // 2. Fallback: Scan toolchains directory for highest semver
+    if let Ok(entries) = std::fs::read_dir(&tc_dir) {
+        let mut versions = Vec::new();
+        for entry in entries.flatten() {
+            if let Some(name) = entry.file_name().to_str() {
+                if name.starts_with("vox-") {
+                    let ver_str = &name[4..];
+                    if let Ok(ver) = semver::Version::parse(ver_str) {
+                        versions.push((ver, entry.path()));
+                    }
+                }
+            }
+        }
+        versions.sort_by(|a, b| b.0.cmp(&a.0));
+        if let Some((_, path)) = versions.first() {
+            let bin_path = path.join(exe);
+            if bin_path.exists() {
+                return bin_path;
+            }
+        }
+    }
+
+    // 3. Fallback to ~/.vox/bin/vox (legacy)
     home.join(".vox").join("bin").join(exe)
 }
 
@@ -38,8 +71,7 @@ pub async fn run_proxy(args: &[String]) -> Result<()> {
 fn exec_replace(vox: &std::path::Path, args: &[String], new_path: &str) -> Result<()> {
     use std::ffi::CString;
     use std::os::unix::ffi::OsStrExt;
-    // SAFETY: voxup proxy is single-threaded at this call site.
-    unsafe { std::env::set_var("PATH", new_path) };
+
     let c_vox = CString::new(vox.as_os_str().as_bytes()).context("vox path contains null byte")?;
     let mut c_args: Vec<CString> = Vec::with_capacity(args.len() + 1);
     c_args.push(c_vox.clone());
@@ -51,15 +83,31 @@ fn exec_replace(vox: &std::path::Path, args: &[String], new_path: &str) -> Resul
         .map(|s| s.as_ptr())
         .chain(std::iter::once(std::ptr::null()))
         .collect();
-    let ret = unsafe { libc::execv(c_vox.as_ptr(), c_argv.as_ptr()) };
-    bail!("execv returned {ret}: {}", std::io::Error::last_os_error());
+
+    // Construct envp with the new PATH to avoid std::env::set_var UB
+    let mut c_envs = Vec::new();
+    for (key, val) in std::env::vars() {
+        if key != "PATH" {
+            let env_str = format!("{key}={val}");
+            c_envs.push(CString::new(env_str).context("env contains null byte")?);
+        }
+    }
+    c_envs.push(CString::new(format!("PATH={new_path}")).unwrap());
+    let c_envp: Vec<*const libc::c_char> = c_envs
+        .iter()
+        .map(|s| s.as_ptr())
+        .chain(std::iter::once(std::ptr::null()))
+        .collect();
+
+    let ret = unsafe { libc::execve(c_vox.as_ptr(), c_argv.as_ptr(), c_envp.as_ptr()) };
+    bail!("execve returned {ret}: {}", std::io::Error::last_os_error());
 }
 
 #[cfg(windows)]
 fn exec_replace(vox: &std::path::Path, args: &[String], new_path: &str) -> Result<()> {
-    unsafe { std::env::set_var("PATH", new_path) };
     let status = std::process::Command::new(vox)
         .args(args)
+        .env("PATH", new_path)
         .status()
         .with_context(|| format!("spawn {}", vox.display()))?;
     std::process::exit(status.code().unwrap_or(1));
@@ -95,5 +143,38 @@ mod tests {
                 .unwrap()
                 .starts_with("vox")
         );
+    }
+
+    #[test]
+    fn test_resolve_vox_bin_reads_active_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        let home = tmp.path();
+        let tc_dir = home.join(".vox").join("toolchains");
+        std::fs::create_dir_all(tc_dir.join("vox-0.7.1")).unwrap();
+        std::fs::write(tc_dir.join("active"), "0.7.1").unwrap();
+
+        let exe = if cfg!(windows) { "vox.exe" } else { "vox" };
+        let real_bin = tc_dir.join("vox-0.7.1").join(exe);
+        std::fs::write(&real_bin, b"placeholder").unwrap();
+
+        let resolved = resolve_vox_bin(home);
+        assert_eq!(resolved, real_bin);
+    }
+
+    #[test]
+    fn test_resolve_vox_bin_scans_highest_semver() {
+        let tmp = tempfile::tempdir().unwrap();
+        let home = tmp.path();
+        let tc_dir = home.join(".vox").join("toolchains");
+        std::fs::create_dir_all(tc_dir.join("vox-0.6.0")).unwrap();
+        std::fs::create_dir_all(tc_dir.join("vox-0.7.2")).unwrap();
+        std::fs::create_dir_all(tc_dir.join("vox-0.7.10")).unwrap();
+
+        let exe = if cfg!(windows) { "vox.exe" } else { "vox" };
+        let real_bin = tc_dir.join("vox-0.7.10").join(exe);
+        std::fs::write(&real_bin, b"placeholder").unwrap();
+
+        let resolved = resolve_vox_bin(home);
+        assert_eq!(resolved, real_bin);
     }
 }

@@ -38,6 +38,27 @@ enum Commands {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt().with_max_level(Level::INFO).init();
+
+    let args: Vec<String> = std::env::args().collect();
+    let current_exe = std::env::current_exe().ok();
+    let binary_name = current_exe
+        .as_ref()
+        .and_then(|p| p.file_name())
+        .and_then(|n| n.to_str())
+        .unwrap_or("");
+    let is_proxied =
+        binary_name.eq_ignore_ascii_case("vox") || binary_name.eq_ignore_ascii_case("vox.exe");
+
+    if is_proxied {
+        let proxy_args = if args.is_empty() {
+            Vec::new()
+        } else {
+            args[1..].to_vec()
+        };
+        proxy::run_proxy(&proxy_args).await?;
+        return Ok(());
+    }
+
     let cli = Cli::parse();
     match &cli.command {
         Commands::Install { profile } => {
