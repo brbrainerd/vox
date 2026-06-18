@@ -138,7 +138,7 @@ The audit found most of what this design needs already exists — the work is
 | Need | Reuse this | Add only this |
 |---|---|---|
 | Nanopub identity, RSA signing, Trusty URI, validator | Rust **`nanopub`** crate (decision #B) | Clavis key custody + ORCID binding |
-| Semantic embeddings | **`vox_actor_runtime::llm::llm_embed`** — the *same* multi-vendor facade [`vox-search` already uses](../../../crates/vox-search/src/embeddings.rs) (OpenRouter/OpenAI/HF/auto), with vectors in [`vox-db`](../../../crates/vox-db/src/store/ops_memory.rs) + Qdrant ANN ([`vector_qdrant.rs`](../../../crates/vox-search/src/vector_qdrant.rs)) | An optional **local Candle backend** (benefits search too) |
+| Semantic embeddings | **`vox_actor_runtime::llm::llm_embed`** — the *same* multi-vendor facade [`vox-search` already uses](../../../crates/vox-search/src/embeddings.rs) (OpenRouter/OpenAI/HF/auto), with vectors in [`vox-db`](../../../crates/vox-db/src/store/ops_memory/mod.rs) + Qdrant ANN ([`vector_qdrant.rs`](../../../crates/vox-search/src/vector_qdrant.rs)) | An optional **local Candle backend** (benefits search too) |
 | Prior-art retrieval | `vox-publisher` [`fetch_prior_art_federated`](../../../crates/vox-publisher/src/scientia_prior_art.rs) (OpenAlex/Crossref/S2) | Real `semantic_score` from the facade above |
 | Social posting | `vox-publisher` adapters (Twitter/Bluesky/…) + `social_retry`/`topic_packs` | The `syndicate()` seam (§7) |
 | ORCID auth | `vox-publisher` [`orcid_oauth.rs`](../../../crates/vox-publisher/src/scholarly/orcid_oauth.rs) PKCE state machine | HTTP wrapper + per-user token storage |
