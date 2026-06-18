@@ -14,6 +14,7 @@ pub mod cache;
 pub mod cluster;
 pub mod compare;
 pub mod rebuild;
+pub mod overlay;
 
 use std::collections::HashMap;
 
