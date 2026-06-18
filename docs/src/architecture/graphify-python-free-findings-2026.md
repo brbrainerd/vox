@@ -58,30 +58,34 @@ Based on ecosystem research, we can construct the extraction and clustering pipe
 graph TD
     A["Phase 1: Rust-Native Leiden Integration (leiden-rs)"] --> B["Phase 2: Syn/Tree-Sitter AST Extractor"]
     B --> C["Phase 3: Native Cache & Hash Walk"]
-    C --> D["Phase 4: Deprecate Python Scripts"]
+    C --> D["Phase 4: Deprecate Python Scripts & CLI Integration"]
 ```
 
 ### Phase 1: Rust-Native Leiden Integration
 - **Objective:** Eliminate `networkx` and `graspologic` dependencies.
 - **Crate:** Add `leiden-rs` and `petgraph` to a new module `vox-graphify-reader::cluster`.
-- **Task:** Write a Rust function that accepts a list of extracted edges, builds a `petgraph::Graph`, runs `leiden_rs::Leiden`, and assigns nodes to hierarchical community IDs.
+- **Task:** Write a Rust function that accepts a list of extracted edges, builds a `petgraph::Graph`, runs `leiden_rs::Leiden`, and assigns nodes to hierarchical communities.
 
 ### Phase 2: AST Extractor (Rust & Multi-Language)
 - **Objective:** Eliminate python `tree-sitter` extractor.
 - **Task:** Build a native binary/library feature in `vox-compiler` or `vox-graphify-reader` using `tree-sitter` bindings.
-- **Queries:** Port the Python Graphify regex/tree-sitter patterns to declarative `.scm` query files. Execute these queries over scanned files to output structural nodes (`fn`, `struct`, `module`) and edges (`calls`, `imports`).
+- **Hybrid Resolution Strategy:** For deep Rust-specific parsing (macro expansion, trait resolution, type alias tracing), use `syn` & `visit`. Use the generic `tree-sitter` parser for multi-language files.
+- **Compilation Guard:** Feature-gate tree-sitter grammars (e.g. `features = ["rust", "typescript", "javascript"]`) in `Cargo.toml` to prevent compiling unused language grammars, keeping compiler overhead on Windows low.
+- **Queries:** Port the Python Graphify tree-sitter patterns to declarative `.scm` query files. Execute these queries over scanned files to output structural nodes (`fn`, `struct`, `module`) and edges (`calls`, `imports`).
 
 ### Phase 3: Native Cache and File Walking
 - **Objective:** Eliminate Python `cache.py` and `os_compat.py`.
 - **Task:** Implement standard `walkdir` walking. Compute `blake3` file hashes to implement incremental updates (skipping unmodified files by matching their cached hashes).
+- **Cache Schema:** Serialize extracted node-link subgraphs into lightweight JSON/BSON cache files. Store them under the Tier D cache path (`.vox/cache/graphify/<corpus_id>/file_cache/`) to avoid workspace pollution.
 
-### Phase 4: Deprecate Python Scripts
-- **Task:** Remove `rebuild_full_graph.py` and the remaining 19 Python scripts under `scripts/coverage-graph/`.
-- **Action:** Convert the semantic coverage analysis (`merge_behaviors_to_graph.py`, `ingest_reaches.py`) to native `.vox` scripts or CLI commands.
+### Phase 4: Deprecate Python Scripts & CLI Integration
+- **Task:** Expose a new subcommand `vox graphify rebuild` in `vox-cli` to orchestrate AST extraction, Leiden clustering, and graph output generation in-process.
+- **Task:** Remove `rebuild_full_graph.py` and all 19 Python scripts under `scripts/coverage-graph/`.
+- **Action:** Convert the semantic coverage analysis (`merge_behaviors_to_graph.py`, `ingest_reaches.py`), static overlays (`overlay_tests.py`), and log synthesis (`recover_and_synth.py`) to native `.vox` scripts or CLI commands.
 
 ---
 
 ## 5. Enhanced Availability & Traversal Design
 To scale the structural reader to monorepos exceeding 10,000 nodes, we must enhance runtime availability:
 1. **Async spawn_blocking:** Offload heavy `serde_json` parsing and petgraph BFS traversals in `graphify_tools.rs` to a tokio worker pool via `spawn_blocking`.
-2. **Parallel Ingest:** Parallelize database inserts inside `upsert_projected_nodes` using bounded concurrency streams (`futures::stream::StreamExt::buffer_unordered`) to prevent DB roundtrip bottlenecks.
+2. **Batch Ingestion & Transactions:** Instead of concurrent single-insert requests (which cause write-lock contention on SQLite/Turso databases), wrap all inserts inside a **single database transaction** (e.g., via multi-value `INSERT` or transaction block). This reduces disk synchronization overhead from $O(N)$ to $O(1)$.
