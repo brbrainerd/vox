@@ -83,8 +83,10 @@ impl Default for InterruptionCalibrationConfig {
     }
 }
 
-/// Baseline interrupt recovery cost from Gloria Mark (UC Irvine, 2023): 23 min 15 sec.
-pub const DEFAULT_INTERRUPT_COST_MS: u64 = 23_250;
+/// Baseline interrupt recovery cost (Gloria Mark, UC Irvine, 2023): 23 min 15 sec.
+/// Single-sourced from the policy SSOT so it cannot drift from `CLARIFICATION_INTERRUPT_COST_MS`.
+pub const DEFAULT_INTERRUPT_COST_MS: u64 =
+    vox_orchestrator_types::socrates_policy::CLARIFICATION_INTERRUPT_COST_MS;
 
 /// Default pilot attention budget: 1 hour per session period.
 pub const DEFAULT_ATTENTION_BUDGET_MS: u64 = 3_600_000;
@@ -425,6 +427,15 @@ mod semcov_wave1c_tests {
         assert_eq!(
             cost, 41,
             "exact NASA TLX attention cost for the fixed input"
+        );
+    }
+
+    #[test]
+    fn interrupt_cost_is_single_sourced_from_types_ssot() {
+        assert_eq!(
+            DEFAULT_INTERRUPT_COST_MS,
+            vox_orchestrator_types::socrates_policy::CLARIFICATION_INTERRUPT_COST_MS,
+            "interrupt recovery cost must be re-exported from the policy SSOT, not redefined"
         );
     }
 }
