@@ -8,7 +8,7 @@ category: "Architecture SSOTs"
 
 **Status:** Contributor reference for the handoff of the two 2026-06-18 plans to Google Antigravity / Gemini 3.5 Flash.
 **Research basis:** [`../architecture/gemini-3-5-flash-antigravity-limitations-2026-06-18.md`](../architecture/gemini-3-5-flash-antigravity-limitations-2026-06-18.md) (execution-target profile) + [`../architecture/auto-derivation-design-hygiene-2026-06-18.md`](../architecture/auto-derivation-design-hygiene-2026-06-18.md).
-**Plans:** [`../superpowers/plans/2026-06-18-track-a-naked-objects-auto-gui.md`](../superpowers/plans/2026-06-18-track-a-naked-objects-auto-gui.md) · [`../superpowers/plans/2026-06-18-track-b-zero-annotation-debugging.md`](../superpowers/plans/2026-06-18-track-b-zero-annotation-debugging.md).
+**Plans:** [`../../superpowers/plans/2026-06-18-track-a-naked-objects-auto-gui.md`](../../superpowers/plans/2026-06-18-track-a-naked-objects-auto-gui.md) · [`../../superpowers/plans/2026-06-18-track-b-zero-annotation-debugging.md`](../../superpowers/plans/2026-06-18-track-b-zero-annotation-debugging.md).
 
 ---
 
