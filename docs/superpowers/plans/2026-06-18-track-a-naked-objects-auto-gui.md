@@ -12,14 +12,14 @@
 4. **Two-strike circuit breaker.** If a step's verification fails twice, STOP, write a one-paragraph handoff note (what failed, last good commit), and hand back. Do not loop.
 5. **Parallel dispatch.** Tasks are tagged `[PARALLEL-SAFE]` or `[SEQUENTIAL]`. Only dispatch parallel subagents for `[PARALLEL-SAFE]` tasks whose **Files** sets are disjoint. Never let two subagents write the same file. See handoff §3/§5.2.
 6. **Vox house rules.** Never `cargo fmt --all` (use `cargo fmt -p <crate>`). Automation is `.vox`, not `.ps1/.sh/.py`. `.md` under `docs/src/` needs YAML frontmatter.
-7. **Verification ritual** before each commit (use the `verification-before-completion` skill — `crates/vox-skills/skills/superpowers/verification-before-completion.skill.md`): `cargo test -p <crate>` → `cargo clippy -p <crate> -- -D warnings` → `vox stub-check` (TOESTUB/no-stub compliance) → `cargo fmt -p <crate>`, pasting real output. Self-review with the `requesting-code-review` skill before committing.
+7. **Verification ritual** before each commit (use the `verification-before-completion` skill — `crates/vox-skills/skills/superpowers/verification-before-completion.skill.md`): `cargo test -p <crate>` → `cargo clippy -p <crate> -- -D warnings` → (no-stub check: `rg -n 'todo!|unimplemented!|TODO|FIXME' <changed-files>` must be empty — there is **no** `vox stub-check` command; the repo's TOESTUB gate is `vox ci toestub-budget`, a heavy full-repo build, so use the `rg` check per-task and reserve the gate for final verification) → `cargo fmt -p <crate>`, pasting real output. Self-review with the `requesting-code-review` skill before committing.
 8. **Rollback on broken tree.** If a task aborts mid-edit (Antigravity termination) leaving a non-compiling tree, `git reset --hard HEAD` to the last green commit, then re-attempt that single task from scratch. Never build forward on a broken tree.
 9. **Skill references.** Design choices → `brainstorming` skill; parallel waves → `dispatching-parallel-agents` skill; isolation → `using-git-worktrees` skill. All under `crates/vox-skills/skills/superpowers/` (see handoff §4).
 10. **Rust implementation constraints** — obey design §5b: `vox_compiler::ast::span::Span` in fixtures (not `vox_ast`); no `set_var`/global state in tests (inject params); no `.unwrap()` in library code; deterministic output; `cargo run -p vox-arch-check` must pass.
 
 **Goal:** Extend Vox's existing type→form codegen with richer typed field inference (enums, branded scalars) and an **opt-in** naked-objects generator that turns a `@table` **listed in an opt-in registry** into list/detail/edit React views — zero hand-written UI, and **never generated from persistence alone**.
 
-**Architecture:** Pure additive string-emission codegen in `vox-codegen-ts`, mirroring [`form_emit.rs`](../../../crates/vox-codegen-ts/src/form_emit.rs). Admin generation is a pure function `emit_admin(&HirTable) -> String`, unit-testable in isolation, wired in only for tables named in `contracts/gui/admin-registry.yaml` (opt-in; no grammar change) and behind the `VOX_EMIT_ADMIN` global switch.
+**Architecture:** Pure additive string-emission codegen in `vox-codegen-ts`, mirroring [`form_emit.rs`](../../../crates/vox-codegen-ts/src/form_emit.rs). Admin generation is a pure function `emit_admin(&HirTable) -> String`, unit-testable in isolation, wired in only for tables named in `contracts/gui/admin-registry.json` (opt-in; no grammar change) and behind the `VOX_EMIT_ADMIN` global switch.
 
 **Tech Stack:** Rust; `vox-codegen-ts`; HIR types from `vox-compiler` (`HirType`, `HirForm`, `HirFormField`, `HirFieldConstraint`, `HirTable`, `HirTableField`); `vox-ast::Span`.
 
@@ -33,14 +33,16 @@
 |---|---|---|
 | `crates/vox-codegen-ts/src/form_emit.rs` | `@form`→React; field-type inference | Modify (Tasks 1–2) |
 | `crates/vox-codegen-ts/src/admin_emit.rs` | `HirTable`→admin list/detail/edit | Create (Tasks 3–5) |
-| module-decl file (`lib.rs`/`emitter.rs`) | register `admin_emit` | Modify (Task 3) |
-| `contracts/gui/admin-registry.yaml` | opt-in allowlist of table names | Create (Task 6) |
+| module-decl file `crates/vox-codegen-ts/src/mod.rs` (confirmed in Pre-flight) | register `pub mod admin_emit;` | Modify (Task 3) |
+| `contracts/gui/admin-registry.json` | opt-in allowlist of table names | Create (Task 6) |
 | `crates/vox-codegen-ts/src/emitter.rs:301` | wire admin output (registry+flag gated) | Modify (Task 6) |
 | `docs/src/architecture/where-things-live.md` | register module | Modify (Task 7) |
 
 **Pre-flight (run once, paste output; NOT a code step):**
 - `rg -n "mod form_emit|pub mod form_emit" crates/vox-codegen-ts/src/` — note the exact module-decl file + visibility.
-- `rg -n "impl DefId|pub fn from_raw|pub fn new" crates/vox-compiler/src/hir/def_map.rs` — note the real `DefId` constructor.
+- `rg -n "struct DefId" crates/vox-compiler/src/hir/nodes/stmt_expr.rs` — it is `pub struct DefId(pub u32)`; construct with `DefId(0)` (there is NO `from_raw`). Import it as `use vox_compiler::hir::DefId;`.
+- `rg -n "StringLit" crates/vox-compiler/src/hir/nodes/stmt_expr.rs` — confirm `HirExpr` lives in `nodes::stmt_expr`; import as `use vox_compiler::hir::HirExpr;` (there is NO `nodes::expr` module).
+- `rg -n "serde_json|serde_yaml" Cargo.toml` — confirm `serde_json` is a workspace dep (it is); the admin registry is a JSON file (no YAML dep in vox-codegen-ts).
 - `cargo run -p vox-arch-check` — baseline must pass.
 
 ---
@@ -131,7 +133,7 @@ git commit -m "feat(codegen-ts): typed inputs for branded scalars (email/url/pho
 #[test]
 fn enum_constraint_renders_select() {
     use vox_compiler::hir::nodes::form::HirFieldConstraint;
-    use vox_compiler::hir::nodes::expr::HirExpr;
+    use vox_compiler::hir::HirExpr;
     let mut f = field("role", HirType::Named("Role".into()));
     f.constraints = vec![HirFieldConstraint::Enum(vec![
         HirExpr::StringLit("admin".into(), Span::new(0, 0)),
@@ -149,7 +151,7 @@ fn enum_constraint_renders_select() {
 - [ ] **Step 4: Implement.** Add helper near `hir_type_to_input_type`:
 
 ```rust
-use vox_compiler::hir::nodes::expr::HirExpr;
+use vox_compiler::hir::HirExpr;
 
 fn enum_variants(f: &HirFormField) -> Option<Vec<String>> {
     f.constraints.iter().find_map(|c| match c {
@@ -205,7 +207,7 @@ New module. `emit_admin_list(&HirTable) -> String` = read-only `<table>`.
 
 ```rust
 //! Naked-objects admin codegen: HirTable → React list/detail/edit views.
-//! Opt-in only (see admin-registry.yaml). Design §2.2.
+//! Opt-in only (see admin-registry.json). Design §2.2.
 use vox_compiler::hir::nodes::decl::HirTable;
 
 pub fn emit_admin_list(table: &HirTable) -> String { let _ = table; String::new() }
@@ -220,7 +222,7 @@ mod tests {
 
     fn table() -> HirTable {
         HirTable {
-            id: DefId::from_raw(0), // ← replace with the real constructor from Step 1 if different
+            id: DefId(0), // ← replace with the real constructor from Step 1 if different
             name: "User".into(),
             fields: vec![
                 HirTableField { name: "name".into(), type_ann: HirType::Named("string".into()), span: Span::new(0,0) },
@@ -241,7 +243,7 @@ mod tests {
 }
 ```
 
-Add `mod admin_emit;` to the module-decl file (from Pre-flight).
+Add `pub mod admin_emit;` to the module-decl file confirmed in Pre-flight — this is `crates/vox-codegen-ts/src/mod.rs` (next to `pub mod form_emit;` at line 29), **NOT** `lib.rs`. The emitter reaches it via `super::admin_emit::…`, so `pub mod` in `mod.rs` is correct.
 
 - [ ] **Step 3: Run → FAIL.** `cargo test -p vox-codegen-ts list_view_has_component_and_columns`.
 
@@ -269,7 +271,7 @@ pub fn emit_admin_list(table: &HirTable) -> String {
 - [ ] **Step 6: Commit.**
 
 ```bash
-git add crates/vox-codegen-ts/src/admin_emit.rs crates/vox-codegen-ts/src/lib.rs
+git add crates/vox-codegen-ts/src/admin_emit.rs crates/vox-codegen-ts/src/mod.rs
 git commit -m "feat(codegen-ts): emit_admin_list — naked-objects list view from HirTable"
 ```
 
@@ -365,18 +367,19 @@ git commit -m "feat(codegen-ts): emit_admin entry point composing list + edit vi
 
 ## Task 6 `[SEQUENTIAL]`: Opt-in registry + emitter wiring
 
-**Opt-in correction:** admin UI is emitted ONLY for tables named in `contracts/gui/admin-registry.yaml` AND only when `VOX_EMIT_ADMIN=1`. Persistence alone never generates UI (design §2.2; [design hygiene §1](../../src/architecture/auto-derivation-design-hygiene-2026-06-18.md)).
+**Opt-in correction:** admin UI is emitted ONLY for tables named in `contracts/gui/admin-registry.json` AND only when `VOX_EMIT_ADMIN=1`. Persistence alone never generates UI (design §2.2; [design hygiene §1](../../src/architecture/auto-derivation-design-hygiene-2026-06-18.md)).
 
-**Files:** Create `contracts/gui/admin-registry.yaml`; Modify `crates/vox-codegen-ts/src/emitter.rs:301`.
+**Files:** Create `contracts/gui/admin-registry.json`; Modify `crates/vox-codegen-ts/src/emitter.rs:301`.
 
 - [ ] **Step 1 (verify-before-use):** Run `rg -n "forms_content|hir.forms|fn emit" crates/vox-codegen-ts/src/emitter.rs | head`. Note where `forms_content` is built (~301) and where it is concatenated into the output, and how `emit`/the emit fn is invoked in existing tests (`rg -n "#\[test\]|fn emit" crates/vox-codegen-ts/src/emitter.rs`).
 
-- [ ] **Step 2: Create the registry file** `contracts/gui/admin-registry.yaml`:
+- [ ] **Step 2: Create the registry file** `contracts/gui/admin-registry.json`:
 
-```yaml
-# Opt-in allowlist: tables that should get an auto-generated admin UI.
-# A @table NOT listed here gets NO UI (persistence != UI intent).
-admin_tables: []
+```json
+{
+  "_comment": "Opt-in allowlist: tables that get an auto-generated admin UI. A @table NOT listed here gets NO UI (persistence != UI intent).",
+  "admin_tables": []
+}
 ```
 
 - [ ] **Step 3: Failing test — PURE helper, NO env mutation.** Test a pure function `admin_content_for(tables, enabled, allow)` that takes the flag and allowlist as *parameters* (env is read only by the public emitter, never in tests — avoids flaky/parallel-unsafe `set_var`). Construct `HirTable`s directly (reuse the `table()` fixture shape from Task 3, inlined here so this task is self-contained):
@@ -391,7 +394,7 @@ mod admin_wiring_tests {
     use vox_compiler::hir::def_map::DefId;
 
     fn user_table() -> HirTable {
-        HirTable { id: DefId::from_raw(0), name: "User".into(),
+        HirTable { id: DefId(0), name: "User".into(),
             fields: vec![HirTableField { name: "name".into(), type_ann: HirType::Named("string".into()), span: Span::new(0,0) }],
             primary_key: None, is_extern: false, source: None, is_pub: true, is_deprecated: false, span: Span::new(0,0) }
     }
@@ -407,7 +410,7 @@ mod admin_wiring_tests {
 }
 ```
 
-> `DefId::from_raw(0)` — replace with the real constructor from Pre-flight if different.
+> `DefId(0)` — replace with the real constructor from Pre-flight if different.
 
 - [ ] **Step 4: Run → FAIL.** `cargo test -p vox-codegen-ts admin_content_respects_flag_and_allowlist` (function missing → compile error).
 
@@ -424,14 +427,27 @@ fn admin_content_for(tables: &[vox_compiler::hir::nodes::decl::HirTable], enable
         .collect()
 }
 
+#[derive(serde::Deserialize)]
+struct AdminRegistry {
+    admin_tables: Vec<String>,
+}
+
 fn load_admin_registry() -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let path = std::env::var("VOX_ADMIN_REGISTRY")
-        .unwrap_or_else(|_| "contracts/gui/admin-registry.yaml".to_string());
+        .unwrap_or_else(|_| "contracts/gui/admin-registry.json".to_string());
     let src = std::fs::read_to_string(&path)?;
-    let cfg: AdminRegistry = serde_yaml::from_str(&src)?;
-    Ok(cfg.allow)
+    let cfg: AdminRegistry = serde_json::from_str(&src)?;
+    Ok(cfg.admin_tables)
 }
 ```
+
+> Use JSON, not YAML: `serde_json` is already a workspace dependency; `serde_yaml`
+> is NOT a dependency of `vox-codegen-ts`. The registry file is `admin-registry.json`
+> with shape `{ "admin_tables": ["User", ...] }`. The `AdminRegistry` struct is
+> defined inline above — do not reference an undefined type. Confirm `serde_json` is
+> in `[dependencies]` of `crates/vox-codegen-ts/Cargo.toml`; if absent, add
+> `serde_json = { workspace = true }` as the first step of this task and commit it
+> with the module wiring.
 
 At `emitter.rs:301`, after `forms_content`, call the helper and concatenate at the output-assembly site found in Step 1:
 
@@ -451,7 +467,7 @@ At `emitter.rs:301`, after `forms_content`, call the helper and concatenate at t
 - [ ] **Step 7: Commit.**
 
 ```bash
-git add crates/vox-codegen-ts/src/emitter.rs contracts/gui/admin-registry.yaml
+git add crates/vox-codegen-ts/src/emitter.rs contracts/gui/admin-registry.json
 git commit -m "feat(codegen-ts): opt-in admin UI via registry + VOX_EMIT_ADMIN gate"
 ```
 
@@ -461,10 +477,10 @@ git commit -m "feat(codegen-ts): opt-in admin UI via registry + VOX_EMIT_ADMIN g
 
 **Files:** Modify `docs/src/architecture/where-things-live.md`. (Disjoint from all code tasks → can run in parallel with any remaining doc task.)
 
-- [ ] **Step 1:** Open the file, match its exact table columns, add:
+- [ ] **Step 1:** Open the file, match its exact table columns. The table has **three** columns (`Group | Paths | Notes`) — match the real header (run `rg -n 'Group.*Paths.*Notes' docs/src/architecture/where-things-live.md`) and add a 3-cell row:
 
 ```markdown
-| Naked-objects admin UI codegen (opt-in table → list/detail/edit React) | `crates/vox-codegen-ts/src/admin_emit.rs` |
+| Naked-objects admin UI codegen (opt-in `@table`→list/detail/edit React) | [`crates/vox-codegen-ts/src/admin_emit.rs`](../../../crates/vox-codegen-ts/src/admin_emit.rs) | Opt-in via `contracts/gui/admin-registry.json` + `VOX_EMIT_ADMIN=1`; persistence never implies UI. |
 ```
 
 - [ ] **Step 2: Commit.**

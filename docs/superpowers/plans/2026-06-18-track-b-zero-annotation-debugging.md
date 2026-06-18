@@ -22,7 +22,7 @@
 
 **Architecture:** New L2 crate `vox-execution-tracer` owns `ExecutionEvent` + a pure rules-based `infer_severity` (DeepLV-style ML deferred; severity *advises*). The interpreter (`vox-compiler::eval`) gains an optional tracer emitting at existing step/error boundaries (OBI lesson: capture is structural; severity adds meaning). A CLI flag renders a Notice+ timeline (Log2 selectivity). The LLM path reuses the existing diagnostic envelope (OpenRCA lesson: feed curated, ranked context).
 
-**Tech Stack:** Rust; new `vox-execution-tracer`; `vox-telemetry` (`record_event!`, `TelemetryEvent`); `vox-compiler::eval::Interpreter`; `vox-cli`.
+**Tech Stack:** Rust; new `vox-execution-tracer` (depends on `serde` ONLY — no telemetry dep); `vox-compiler::eval::Interpreter`; `vox-langtool` (the `vox run` host). Note: `vox-telemetry` is referenced for design lineage only; this track adds NO telemetry dependency.
 
 **Design:** [`../../src/architecture/automatic-gui-and-debugging-vox-design-2026-06-18.md`](../../src/architecture/automatic-gui-and-debugging-vox-design-2026-06-18.md) §3.
 
@@ -36,8 +36,8 @@
 | `crates/vox-execution-tracer/src/timeline.rs` | severity-filtered human timeline | Create (T3) |
 | `crates/vox-compiler/src/eval/mod.rs:242` + `:583` | optional `tracer` field + emit at `track_step` | Modify (T4) |
 | `crates/vox-compiler/src/eval/{expr,stmt}.rs` | accurate event kinds | Modify (T5) |
-| `vox run` command handler | `--trace` flag | Modify (T6) |
-| `crates/vox-compiler/src/typeck/diagnostics.rs` | `execution_context` field | Modify (T7) |
+| `crates/vox-langtool/src/commands/run.rs` (the `vox run` host) | `--trace` flag | Modify (T6) |
+| runtime error LLM-envelope site (TBD by T7 Step 1; NOT `typeck/diagnostics.rs`) | `execution_context` field | Modify (T7, or Deferred) |
 | `docs/.../where-things-live.md`, `layers.toml` | register crate, L2 | Modify (T1, T8) |
 
 **Pre-flight (paste output; NOT code):**
@@ -50,7 +50,7 @@
 
 ## Task 1 `[SEQUENTIAL]`: Scaffold crate + `Severity`
 
-**Files:** Create `crates/vox-execution-tracer/Cargo.toml`, `src/lib.rs`; Modify root `Cargo.toml` members; maybe `layers.toml`.
+**Files:** Create `crates/vox-execution-tracer/Cargo.toml`, `src/lib.rs`; Modify `docs/src/architecture/layers.toml` + `docs/src/architecture/where-things-live.md` (the `members = ["crates/*"]` glob means NO root `Cargo.toml` edit is needed).
 
 - [ ] **Step 1 (verify-before-use):** Run `rg -n "^serde" Cargo.toml`. Note the exact workspace serde line to mirror.
 
@@ -85,11 +85,11 @@ edition = "2021"
 serde = { workspace = true, features = ["derive"] }
 ```
 
-Add `"crates/vox-execution-tracer"` to the root `Cargo.toml` `members`.
+No `members` edit is needed: root `Cargo.toml` uses `members = ["crates/*"]`, a glob that auto-includes the new crate. (Do NOT add `"crates/vox-execution-tracer"` — it would be a redundant/duplicate entry.)
 
 - [ ] **Step 3: Run → PASS (compiles).** `cargo test -p vox-execution-tracer severity_is_ordered`. If it does not compile, fix the manifest until green.
 
-- [ ] **Step 4: arch-check.** `cargo run -p vox-arch-check`. If a fan-in/layer violation appears, add an L2 entry for `vox-execution-tracer` in `docs/src/architecture/layers.toml` allowing `vox-telemetry`.
+- [ ] **Step 4: arch-check + layers registration.** `cargo run -p vox-arch-check`. Register `vox-execution-tracer` in `docs/src/architecture/layers.toml` as `vox-execution-tracer = { layer = 2, orphan_exempt = true }` (it has no dependent until Task 4 wires it into vox-compiler — drop `orphan_exempt` in Task 4) and add a row to `docs/src/architecture/where-things-live.md` (the `where_things_live` + `orphan` rules are `error`-level — see Track-equivalent skill-discovery plan). This crate depends on `serde` ONLY — do NOT add a `vox-telemetry` dependency.
 
 - [ ] **Step 5: Commit.**
 
@@ -295,7 +295,7 @@ git add crates/vox-execution-tracer/src/lib.rs
 git commit -m "feat(execution-tracer): Tracer event collector"
 ```
 
-- [ ] **Step 3: Wire into the compiler — failing integration test first.** Add `vox-execution-tracer` to `crates/vox-compiler/Cargo.toml` deps (one-directional; confirm `cargo run -p vox-arch-check` stays green). Add `pub tracer: Option<vox_execution_tracer::Tracer>,` to the `Interpreter` struct, and `tracer: None,` to the `Self { ... }` initializer (~:242 — the only construction site per the audit; `cargo build` will flag any other, e.g. in tests). Find an existing eval test pattern: `rg -n "#\[test\]" crates/vox-compiler/src/eval/mod.rs | head`. Add a test that builds an interpreter **with a tiny `step_limit`** and `tracer = Some(Tracer::default())`, runs a runaway loop module, asserts it returns `Err(EvalError::StepLimitExceeded)` **and** `events()` contains one `EventKind::Error`.
+- [ ] **Step 3: Wire into the compiler — failing integration test first.** Add `vox-execution-tracer` to `crates/vox-compiler/Cargo.toml` deps (one-directional; confirm `cargo run -p vox-arch-check` stays green). Add `pub tracer: Option<vox_execution_tracer::Tracer>,` to the `Interpreter` struct, and `tracer: None,` to the `Self { ... }` initializer at `:242`. This struct-field addition is safe because ALL ~30 construction sites (tests, benches, `vox-langtool/run.rs:34`) go through `Interpreter::new`, and `:242` is the sole struct-literal site — so only `:242` needs the `tracer: None,` field. After editing, run `cargo build -p vox-compiler --tests` to confirm no other literal site exists. Also drop the `orphan_exempt` flag added in Task 1 from the `vox-execution-tracer` layers.toml line now that vox-compiler depends on it. Find an existing eval test pattern: `rg -n "#\[test\]" crates/vox-compiler/src/eval/mod.rs | head`. Add a test that builds an interpreter **with a tiny `step_limit`** and `tracer = Some(Tracer::default())`, runs a runaway loop module, asserts it returns `Err(EvalError::StepLimitExceeded)` **and** `events()` contains one `EventKind::Error`.
 
 - [ ] **Step 4: Emit at the step-limit boundary (~:583) — NOT per step.** Per design §5b.5, do **not** allocate/`format!` or push an event on every step (unbounded + hot-path alloc). Record only the meaningful, rare boundary; Task 5 adds sparse call/error events at real sites.
 
@@ -356,42 +356,52 @@ git commit -m "feat(eval): emit accurate ExecutionEvent kinds at call/error site
 
 ## Task 6 `[SEQUENTIAL]`: CLI `--trace` prints the timeline
 
-**Files:** Modify the `vox run` command handler.
+**Files:** Modify the `vox run` command handler — which lives in `crates/vox-langtool/src/commands/run.rs`, **NOT** `vox-cli` (`vox-cli` has no `Commands::Run`). Verified: the interpreter is built at `run.rs:34` (`Interpreter::new(10_000_000)`).
 
-- [ ] **Step 1 (verify-before-use):** `rg -n "Commands::Run|fn .*run|Interpreter::new|\"run\"" crates/vox-cli/src/ | head`. Find the run subcommand struct + where the interpreter is built + run.
+- [ ] **Step 1 (verify-before-use):** `rg -n "pub fn run|Interpreter::new|run_module" crates/vox-langtool/src/commands/run.rs`. Note the run fn, where the interpreter is built (`:34`), and the run call. Then `ls crates/vox-langtool/tests/` to confirm the integration-test dir exists (if not, create it).
 
-- [ ] **Step 2: Failing test.** Add `--trace` (bool) to the run subcommand. When set: install `Tracer::default()` before running; after, print `render_timeline(events, Severity::Notice)` to stderr. Add a CLI integration test (mirror one in `crates/vox-cli/tests/`) asserting stderr contains `[NOTE]`/`[ERROR]` for a script that performs an effect/error with `--trace`, and contains no timeline without it.
+- [ ] **Step 2: Failing test.** Add a `--trace` (bool) flag to the langtool run command/struct. When set: after building the interpreter at `:34`, set `interpreter.tracer = Some(Tracer::default())`; after `run_module`, print `render_timeline(interpreter.tracer.as_ref().map(|t| t.events()).unwrap_or(&[]), Severity::Notice)` to stderr. Add an integration test in `crates/vox-langtool/tests/` asserting stderr contains `[NOTE]`/`[ERROR]` for a script that performs an effect/error with `--trace`, and contains no timeline without it.
 
-- [ ] **Step 3: Run → FAIL → implement → PASS.** `cargo test -p vox-cli trace`.
+- [ ] **Step 3: Run → FAIL → implement → PASS.** `cargo test -p vox-langtool trace`.
 
 - [ ] **Step 4: Rule 7 + commit.**
 
 ```bash
-git add crates/vox-cli/
-git commit -m "feat(cli): vox run --trace prints severity-graded execution timeline"
+git add crates/vox-langtool/
+git commit -m "feat(langtool): vox run --trace prints severity-graded execution timeline"
 ```
 
 ---
 
 ## Task 7 `[SEQUENTIAL]` (LIGHT-GATED): LLM execution_context in the diagnostic envelope
 
-⚠ Validate the dual-audience benefit with an A/B before investing ([error-surfacing §4](../../src/architecture/error-surfacing-dual-audience-research-2026-06-18.md); OpenRCA: telemetry quality dominates). Then add optional runtime context to the LLM payload.
+⚠ Validate the dual-audience benefit with an A/B before investing ([error-surfacing §4](../../src/architecture/error-surfacing-dual-audience-research-2026-06-18.md); OpenRCA: telemetry quality dominates).
 
-**Files:** Modify `crates/vox-compiler/src/typeck/diagnostics.rs`.
+> **ARCHITECTURAL CORRECTION (audit 2026-06-18):** `VoxCompilerDiagnosticPayload`
+> (`typeck/diagnostics.rs:170`) is the **compile-time** `vox check --for-llm` payload.
+> A runtime `--trace` timeline never flows through the typeck path, so bolting
+> `execution_context` onto that struct creates a field nothing on the runtime side can
+> populate (a dead field — violates no-stubs). This task must target the **runtime error
+> render path**, or be deferred. Do Step 1 first and branch accordingly.
 
-- [ ] **Step 1 (verify-before-use):** `rg -n "struct VoxCompilerDiagnosticPayload|minimal_repro|fn from_diagnostic" crates/vox-compiler/src/typeck/diagnostics.rs`. Confirm the payload struct + its constructors.
+**Files:** TBD by Step 1 — the runtime `EvalError` LLM-rendering site (likely in `crates/vox-langtool/` or `crates/vox-compiler/src/eval/`), NOT `typeck/diagnostics.rs`.
 
-- [ ] **Step 2: Failing test.** Assert the payload serializes an optional `execution_context: Option<Vec<String>>` (last N timeline lines around the error), omitted when `None`.
+- [ ] **Step 1 (verify-before-use, DECISION GATE):** `rg -n "EvalError|for.?llm|for_llm|to_json|render" crates/vox-langtool/src crates/vox-compiler/src/eval/`. Determine whether a runtime error is ever serialized to an LLM/JSON envelope.
+  - **If a runtime-error LLM render site exists:** attach `execution_context` THERE (Steps 2–4 below, retargeted to that file).
+  - **If none exists:** STOP. Mark Task 7 **Deferred** (the runtime error path has no LLM envelope yet — out of scope for this track), write a one-line handoff note, and finish Track B at Task 6. Do NOT modify `typeck/diagnostics.rs`.
 
-- [ ] **Step 3: Implement.** Add `#[serde(default, skip_serializing_if = "Option::is_none")] pub execution_context: Option<Vec<String>>,`. Default it `None` in every existing constructor (the compiler enumerates the sites). Add a setter accepting `render_timeline(...)` split into lines.
+- [ ] **Step 2 (only if Step 1 found a runtime site): Failing test.** Assert the runtime error envelope serializes an optional `execution_context: Option<Vec<String>>` (last N timeline lines around the error), omitted when `None`.
 
-- [ ] **Step 4: Run → PASS + envelope regression.** `cargo test -p vox-compiler`; `cargo test -p vox-cli check_for_llm_envelope` (existing `--for-llm` test stays green; new field optional).
+- [ ] **Step 3: Implement.** Add `#[serde(default, skip_serializing_if = "Option::is_none")] pub execution_context: Option<Vec<String>>,` to the runtime envelope struct, defaulting `None` in every constructor. Add a setter accepting `render_timeline(...)` split into lines.
+
+- [ ] **Step 4: Run → PASS.** `cargo test -p <the-crate-found-in-step-1>`.
 
 - [ ] **Step 5: Rule 7 + commit.**
 
 ```bash
-git add crates/vox-compiler/src/typeck/diagnostics.rs
-git commit -m "feat(diagnostics): optional execution_context in LLM diagnostic envelope"
+# only if Step 1 found a runtime LLM-render site; add the actual file(s) edited
+git add <runtime-error-envelope-file>
+git commit -m "feat(diagnostics): optional execution_context in runtime LLM error envelope"
 ```
 
 ---

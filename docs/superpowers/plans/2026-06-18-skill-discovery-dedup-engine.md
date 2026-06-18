@@ -52,6 +52,15 @@ If `TOOL_REGISTRY` is not visible, run `rg -n 'TOOL_REGISTRY' $(find . -name too
 Run: `rg -n '^vox-search ' Cargo.toml` and `rg -n 'vox-search|vox-mcp-registry' docs/src/architecture/layers.toml`
 Expected: workspace dep style `vox-search = { path = "crates/vox-search" }`; layers style `name = { layer = N }`. The `[workspace] members = ["crates/*"]` glob means a new `crates/<name>/` is auto-included — do NOT edit `members`.
 
+- [ ] **P5. Confirm the arch-check rules that gate a NEW crate (these are `error`-level and WILL fail the green-gate if unmet).**
+
+Run: `rg -n 'where_things_live|orphan' docs/src/architecture/layers.toml`
+Expected: `where_things_live = "error"` and `orphan = "error"`. This means:
+  - **Every** crate listed in `layers.toml` must also appear (by its `crates/<name>` path substring) in `docs/src/architecture/where-things-live.md`, or `vox-arch-check` fails. → Tasks 1 and 5 each add a WTL row.
+  - A `kind = "library"` crate with **zero dependents** is an orphan and fails arch-check. `vox-similarity` has no consumer until `vox-skill-discovery` is created in Task 5, so Task 1 registers it with `orphan_exempt = true`, and Task 5 removes that exemption once the dependency exists.
+Run: `rg -n 'vox-search' docs/src/architecture/where-things-live.md`
+Expected: confirms the crate-table row format to mirror.
+
 ---
 
 ## Phase 1 — `vox-similarity` (pure L2 core)
@@ -118,24 +127,33 @@ In root `Cargo.toml`, in the `[workspace.dependencies]` block near the other `vo
 vox-similarity = { path = "crates/vox-similarity" }
 ```
 
-- [ ] **Step 5: Register the crate layer**
+- [ ] **Step 5: Register the crate layer (with orphan exemption — see Step 6)**
 
 In `docs/src/architecture/layers.toml`, in the layer-2 group (near `vox-config = { layer = 2, ... }`), add:
 ```toml
-vox-similarity        = { layer = 2 }
+vox-similarity        = { layer = 2, orphan_exempt = true }
 ```
+`orphan_exempt = true` is REQUIRED here: until Task 5 creates `vox-skill-discovery`, nothing depends on `vox-similarity`, and the `orphan = "error"` rule would fail arch-check. Task 5 removes this exemption once the dependency exists.
 
-- [ ] **Step 6: Verify the crate compiles and arch-check passes**
+- [ ] **Step 6: Register the crate in `where-things-live.md` (REQUIRED — `where_things_live = "error"`)**
+
+In `docs/src/architecture/where-things-live.md`, in the crate table (find the row format with `rg -n 'vox-search' docs/src/architecture/where-things-live.md`), add a row mirroring that exact column layout. Example:
+```
+| [`vox-similarity`](../../../crates/vox-similarity/) | Pure simhash/minhash/LSH near-duplicate similarity core for discovery + marketplace dedup. |
+```
+If the table has more columns than shown here, match the real header exactly (run the `rg` above and copy the column count). Skipping this makes `vox-arch-check` exit non-zero in Step 7.
+
+- [ ] **Step 7: Verify the crate compiles and arch-check passes**
 
 Run: `cargo check -p vox-similarity`
 Expected: compiles (warnings about unused files are fine).
 Run: `cargo run -p vox-arch-check`
-Expected: exits 0. If it complains about the new crate's layer/parity, follow its message (it names the file and the missing entry) and re-run.
+Expected: exits 0. If it still complains (e.g. WTL coverage or orphan), follow its message — it names the file and the missing entry — fix, and re-run before committing.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add crates/vox-similarity Cargo.toml docs/src/architecture/layers.toml
+git add crates/vox-similarity Cargo.toml docs/src/architecture/layers.toml docs/src/architecture/where-things-live.md
 git commit -m "feat(vox-similarity): scaffold pure similarity crate + register"
 ```
 
@@ -753,15 +771,14 @@ Create these files, each with only a doc-comment line for now:
 - `crates/vox-skill-discovery/src/report.rs` → `//! filled in Task 13`
 - `crates/vox-skill-discovery/src/bin/vox_discover.rs` → `fn main() { println!("vox-discover: not yet wired"); }`
 
-To keep THIS task green, temporarily reduce `lib.rs` to only the doc comment plus `pub mod candidate; pub mod options;` is NOT yet valid (empty files). Instead, set `lib.rs` to ONLY the doc comment for now:
+A `pub mod foo;` pointing at a file that contains only a `//! ...` doc comment **is** valid Rust and compiles. The reason to trim `lib.rs` now is different: its `pub use candidate::{...}` / `pub use options::DiscoverOptions` lines reference items not defined until Task 6, so they would fail to resolve. Therefore set `lib.rs` to ONLY the doc comment for now, and let each later task re-add its own `pub mod` + `pub use` lines as the items land:
 ```rust
 //! Local, on-demand discovery + dedup engine. Mines repeated `.vox` code blocks,
 //! dedups installed skills, and flags MCP↔skill SSOT drift. Advisory only — it
 //! never installs, executes, or publishes.
 ```
-(Each later task re-adds its `pub mod` + `pub use` lines as it lands.)
 
-- [ ] **Step 4: Register workspace dep + layer**
+- [ ] **Step 4: Register workspace dep + layer + remove the `vox-similarity` orphan exemption**
 
 Root `Cargo.toml` `[workspace.dependencies]` (near `vox-search`):
 ```toml
@@ -771,18 +788,30 @@ vox-skill-discovery = { path = "crates/vox-skill-discovery" }
 ```toml
 vox-skill-discovery   = { layer = 3 }
 ```
+In the SAME file, now that `vox-skill-discovery` depends on `vox-similarity`, edit the `vox-similarity` line added in Task 1 to drop the exemption:
+```toml
+vox-similarity        = { layer = 2 }
+```
+(Leaving `orphan_exempt = true` permanently would be a smell; the dependency now satisfies the orphan rule.)
 
-- [ ] **Step 5: Verify compile + arch-check**
+- [ ] **Step 5: Register the crate in `where-things-live.md` (REQUIRED — `where_things_live = "error"`)**
+
+In `docs/src/architecture/where-things-live.md`, add a crate-table row mirroring the existing format (see Task 1 Step 6):
+```
+| [`vox-skill-discovery`](../../../crates/vox-skill-discovery/) | Local on-demand discovery + dedup engine: repeated .vox blocks, installed-skill dedup, MCP SSOT drift (advisory). |
+```
+
+- [ ] **Step 6: Verify compile + arch-check**
 
 Run: `cargo check -p vox-skill-discovery`
 Expected: compiles.
 Run: `cargo run -p vox-arch-check`
-Expected: exits 0 (fix any parity message it prints for the new crate).
+Expected: exits 0. The `vox-similarity` orphan error is now resolved (it has a dependent) and both WTL rows exist. Fix any remaining parity message before committing.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add crates/vox-skill-discovery Cargo.toml docs/src/architecture/layers.toml
+git add crates/vox-skill-discovery Cargo.toml docs/src/architecture/layers.toml docs/src/architecture/where-things-live.md
 git commit -m "feat(vox-skill-discovery): scaffold discovery crate + register"
 ```
 
@@ -1000,6 +1029,11 @@ Add `pub mod code_miner;` under the existing `pub mod` lines in `crates/vox-skil
 
 Run: `cargo test -p vox-skill-discovery extract_blocks`
 Expected: 1 test PASS.
+
+> Do NOT run `cargo clippy -- -D warnings` in this task. The `use` lines above are
+> consumed in Task 8 and will show `unused_import` *warnings* now — harmless under
+> `cargo test`, but they would fail a `-D warnings` clippy run. Clippy runs in Task 8
+> once the imports are used.
 ```bash
 cargo fmt -p vox-skill-discovery
 git add crates/vox-skill-discovery/src
@@ -1473,9 +1507,8 @@ use std::path::PathBuf;
 use clap::Parser;
 use vox_plugin_types::skill_manifest::SkillManifest;
 use vox_skill_discovery::{
-    catalog::{dedup_skills, validate_ssot},
-    code_miner::mine_repeated_code,
-    render_json, render_terminal, Candidate, DiscoverOptions,
+    dedup_skills, mine_repeated_code, render_json, render_terminal, validate_ssot, Candidate,
+    DiscoverOptions,
 };
 
 #[derive(Parser, Debug)]
