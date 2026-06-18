@@ -6039,6 +6039,101 @@ operations:
     http_read_role_eligible: true
     tier: core
   cli: null
+- id: graphify.ingest
+  title: Graphify Ingest
+  description: Project graph nodes into Turso knowledge_nodes via VoxDb (CLI only; no MCP surface).
+  description_human: null
+  product_lane: platform
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - graphify
+    - ingest
+    status: active
+    latin_ns: pm
+    handler_rust: commands::graphify
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: graphify.query
+  title: Graphify Query
+  description: BFS neighbor expansion from seed node IDs (read-only; layered navigation).
+  description_human: null
+  product_lane: platform
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_graphify_query
+    http_read_role_eligible: true
+    tier: core
+  cli: null
+- id: graphify.path
+  title: Graphify Path
+  description: Shortest path between two node IDs in a graphify corpus (read-only).
+  description_human: null
+  product_lane: platform
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_graphify_path
+    http_read_role_eligible: true
+    tier: core
+  cli: null
+- id: graphify.compare
+  title: Graphify Compare
+  description: Diff two graphify corpus manifests for node/edge/community delta (read-only).
+  description_human: null
+  product_lane: platform
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_graphify_compare
+    http_read_role_eligible: true
+    tier: core
+  cli: null
 - id: get.active.model
   title: Get Active Model
   description: Show sticky MCP chat override and resolved ModelSpec (no LLM call).

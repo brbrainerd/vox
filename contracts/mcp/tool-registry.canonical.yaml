@@ -578,6 +578,21 @@ tools:
   product_lane: app
   http_read_role_eligible: true
   tier: core
+- name: vox_graphify_compare
+  description: Diff two graphify corpus manifests for node/edge/community delta (read-only).
+  product_lane: platform
+  http_read_role_eligible: true
+  tier: core
+- name: vox_graphify_path
+  description: Shortest path between two node IDs in a graphify corpus (read-only).
+  product_lane: platform
+  http_read_role_eligible: true
+  tier: core
+- name: vox_graphify_query
+  description: BFS neighbor expansion from seed node IDs (read-only; layered navigation).
+  product_lane: platform
+  http_read_role_eligible: true
+  tier: core
 - name: vox_graphify_search
   description: Lexically search a graphify corpus graph on disk (read-only).
   product_lane: platform

@@ -458,6 +458,14 @@ surfaces:
   parent_surface: null
   notes: null
 - view_key: null
+  cli_group: graphify
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
+  notes: null
+- view_key: null
   cli_group: init
   representation_tier: none
   nav_label: null
@@ -510,9 +518,9 @@ surfaces:
   representation_tier: curated_decorator
   nav_label: Gamify
   nav_icon: spark
-  nav_group: system
-  parent_surface: settings
-  notes: null
+  nav_group: operate
+  parent_surface: null
+  notes: achievements-drawer; Ludus profile via StatusBar trophy; Settings SSOT for enable/mode; deep-linkable via
 - view_key: null
   cli_group: mcp
   representation_tier: none
@@ -704,7 +712,7 @@ surfaces:
   nav_icon: beaker
   nav_group: knowledge
   parent_surface: knowledge
-  notes: Phase H queue dashboard
+  notes: Phase H queue dashboard + archive deposit rollup
 - view_key: null
   cli_group: script
   representation_tier: none

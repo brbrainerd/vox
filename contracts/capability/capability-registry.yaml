@@ -2559,6 +2559,26 @@ curated:
   cli_path:
   - graphify
   parameters: null
+- id: cli.graphify.ingest
+  title: Graphify Ingest
+  description_human: null
+  description_model: Project graph nodes into Turso knowledge_nodes via VoxDb (CLI only; no MCP surface).
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - graphify
+  - ingest
+  parameters: null
 - id: cli.init
   title: Init
   description_human: vox init scaffolds a new project or skill file in the current directory (shared logic with vox_project_init).
@@ -6929,6 +6949,60 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_git_status
+  cli_path: null
+  parameters: null
+- id: mcp.vox_graphify_compare
+  title: Graphify Compare
+  description_human: null
+  description_model: Diff two graphify corpus manifests for node/edge/community delta (read-only).
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: vox_graphify_compare
+  cli_path: null
+  parameters: null
+- id: mcp.vox_graphify_path
+  title: Graphify Path
+  description_human: null
+  description_model: Shortest path between two node IDs in a graphify corpus (read-only).
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: vox_graphify_path
+  cli_path: null
+  parameters: null
+- id: mcp.vox_graphify_query
+  title: Graphify Query
+  description_human: null
+  description_model: BFS neighbor expansion from seed node IDs (read-only; layered navigation).
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: vox_graphify_query
   cli_path: null
   parameters: null
 - id: mcp.vox_graphify_search

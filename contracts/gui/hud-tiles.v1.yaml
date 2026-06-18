@@ -1,0 +1,66 @@
+x-vox-version: 1
+schema_version: 1
+description: >
+  TopHud tile catalog and layout schema for the vox-gui operator console.
+  Runtime configs are validated client-side via useHudTiles.ts and persisted
+  under gui.hud.tiles.v1 (see shell-persistence.v1.yaml).
+
+tile_kinds:
+  - active_agents
+  - queue_depth
+  - budget_burn
+  - mesh_peers
+  - active_model
+  - openrouter_spend
+
+data_bindings:
+  active_agents:
+    source: orchestrator_status
+    field: agent_count
+  queue_depth:
+    source: orchestrator_status
+    field: queue_depth
+  budget_burn:
+    source: orchestrator_status
+    field: budget_burn_usd
+  mesh_peers:
+    source: orchestrator_status
+    field: peers.length
+  active_model:
+    source: transport
+    method: get_active_model
+  openrouter_spend:
+    source: transport
+    method: get_llm_spend
+
+tile_shape:
+  id: string # must match a tile_kinds entry
+  kind: string # one of tile_kinds
+  enabled: boolean
+
+config_shape:
+  version: 1
+  tiles:
+    - tile_shape
+
+default_profile:
+  version: 1
+  tiles:
+    - id: active_agents
+      kind: active_agents
+      enabled: true
+    - id: queue_depth
+      kind: queue_depth
+      enabled: true
+    - id: budget_burn
+      kind: budget_burn
+      enabled: true
+    - id: mesh_peers
+      kind: mesh_peers
+      enabled: true
+    - id: active_model
+      kind: active_model
+      enabled: true
+    - id: openrouter_spend
+      kind: openrouter_spend
+      enabled: true

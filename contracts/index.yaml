@@ -1397,6 +1397,22 @@ contracts:
     enforced_by:
       - vox ci contracts-index
 
+  - id: scientia-finding-class-defaults-v1
+    path: contracts/scientia/finding-class-defaults.v1.yaml
+    owner: scientia
+    kind: yaml
+    description: Per-class reply window, negative-result quota, and critic policy defaults.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: scientia-finding-class-defaults-schema
+    path: contracts/scientia/finding-class-defaults.schema.json
+    owner: scientia
+    kind: json-schema
+    description: JSON Schema for finding-class-defaults.v1.yaml.
+    enforced_by:
+      - vox ci contracts-index
+
   - id: speech-to-code-audit-matrix-v1
     path: contracts/speech-to-code/audit-matrix.v1.yaml
     owner: oratio

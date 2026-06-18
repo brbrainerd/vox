@@ -798,6 +798,17 @@
       "title": "Ci Parse-status"
     },
     {
+      "capability_id": "cli.ci.pipeline-parity",
+      "cli_path": [
+        "ci",
+        "pipeline-parity"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox ci pipeline-parity` — umbrella gate for script→emission SSOT (grammar parity, canonical ladder, feature matrix, k-budget)",
+      "implicit": false,
+      "title": "Ci Pipeline-parity"
+    },
+    {
       "capability_id": "cli.ci.pm-provenance",
       "cli_path": [
         "ci",
@@ -1540,6 +1551,26 @@
       "description_model": "CLI operation `vox gamify hud` (alias `vox ludus hud`)",
       "implicit": false,
       "title": "Gamify Hud"
+    },
+    {
+      "capability_id": "cli.graphify",
+      "cli_path": [
+        "graphify"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox graphify`",
+      "human_takeover_friendly": true,
+      "implicit": false,
+      "intent_tags": [
+        "retrieval",
+        "graph"
+      ],
+      "preferred_for_models": true,
+      "requires_repo": true,
+      "reversible": true,
+      "scope_kind": "repository",
+      "side_effect_class": "none",
+      "title": "Graphify"
     },
     {
       "capability_id": "cli.init",
@@ -4065,6 +4096,42 @@
       "title": "Git Status"
     },
     {
+      "capability_id": "mcp.vox_graphify_search",
+      "curated": true,
+      "description_model": "Lexically search a graphify corpus graph on disk (read-only).",
+      "human_takeover_friendly": true,
+      "implicit": false,
+      "intent_tags": [
+        "retrieval",
+        "graph"
+      ],
+      "mcp_tool": "vox_graphify_search",
+      "preferred_for_models": true,
+      "requires_repo": true,
+      "reversible": true,
+      "scope_kind": "repository",
+      "side_effect_class": "none",
+      "title": "Graphify Search"
+    },
+    {
+      "capability_id": "mcp.vox_graphify_status",
+      "curated": true,
+      "description_model": "Report graphify corpus freshness (read-only; `--strict` fails when stale).",
+      "human_takeover_friendly": true,
+      "implicit": false,
+      "intent_tags": [
+        "retrieval",
+        "graph"
+      ],
+      "mcp_tool": "vox_graphify_status",
+      "preferred_for_models": true,
+      "requires_repo": true,
+      "reversible": true,
+      "scope_kind": "repository",
+      "side_effect_class": "none",
+      "title": "Graphify Status"
+    },
+    {
       "capability_id": "mcp.vox_handoff_context",
       "curated": true,
       "description_model": "Handoff summarized context from one agent to another.",
@@ -5277,6 +5344,14 @@
       "title": "Skill Parse"
     },
     {
+      "capability_id": "mcp.vox_skill_run",
+      "curated": true,
+      "description_model": "Execute a skill script in the sandbox (parity with CLI `vox skill run`).",
+      "implicit": false,
+      "mcp_tool": "vox_skill_run",
+      "title": "Skill Run"
+    },
+    {
       "capability_id": "mcp.vox_skill_search",
       "curated": true,
       "description_model": "Search installed skills by keyword.",
@@ -5504,6 +5579,14 @@
       "scope_kind": "workspace",
       "side_effect_class": "writes_files",
       "title": "Workspace Create"
+    },
+    {
+      "capability_id": "mcp.vox_workspace_mcp_refresh",
+      "curated": true,
+      "description_model": "Reloads/refreshes the workspace MCP registry and scan config.",
+      "implicit": false,
+      "mcp_tool": "vox_workspace_mcp_refresh",
+      "title": "Workspace MCP Refresh"
     },
     {
       "capability_id": "mcp.vox_workspace_merge",

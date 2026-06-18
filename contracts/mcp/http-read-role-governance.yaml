@@ -4,6 +4,11 @@ read_role_tools:
   - vox_exec_time_query
   - vox_git_diff
   - vox_git_status
+  - vox_graphify_status
+  - vox_graphify_search
+  - vox_graphify_query
+  - vox_graphify_path
+  - vox_graphify_compare
   - vox_handoff_lineage
   - vox_journey_canonical_steps
   - vox_mesh_nodes
