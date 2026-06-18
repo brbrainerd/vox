@@ -13,6 +13,7 @@ pub mod compare;
 pub mod cluster;
 pub mod ast;
 pub mod cache;
+pub mod rebuild;
 
 use std::collections::HashMap;
 

@@ -31,6 +31,12 @@ pub enum GraphifyCmd {
         #[arg(long)]
         dry_run: bool,
     },
+    /// Rebuild the base AST code graph and cluster it.
+    Rebuild {
+        /// Corpus id (default: registry `default_corpus_id`).
+        #[arg(long)]
+        corpus: Option<String>,
+    },
 }
 
 fn resolve_head_sha() -> anyhow::Result<Option<String>> {
@@ -132,6 +138,7 @@ async fn upsert_projected_nodes(nodes: &[GraphifyKnowledgeNode]) -> anyhow::Resu
 }
 
 /// Load registry, read corpus graph JSON, and project nodes for ingest (no DB I/O).
+#[allow(dead_code)]
 pub(crate) fn ingest_graph_corpus(
     repo_root: &std::path::Path,
     corpus_id: &str,
@@ -210,6 +217,27 @@ pub fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Result<()> 
                 .context("tokio runtime for graphify ingest")?
                 .block_on(upsert_projected_nodes(&nodes))?;
             println!("graphify ingest: corpus={corpus_id} upserted={upserted}");
+        }
+        GraphifyCmd::Rebuild { corpus } => {
+            let reg =
+                load_graphify_corpora(repo_root).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            let corpus_id = resolve_ingest_corpus_id(&reg, corpus)
+                .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            let corpus = corpus_by_id(&reg, &corpus_id)
+                .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+
+            let source_dir = repo_root.join("crates");
+            let output_file = repo_root.join(&corpus.graph_path);
+            let cache_dir = output_file.parent().unwrap().join("file_cache");
+
+            println!("Rebuilding Graphify graph for corpus: {}...", corpus_id);
+            vox_graphify_reader::rebuild::rebuild_graph(
+                repo_root,
+                &source_dir,
+                &output_file,
+                &cache_dir,
+            ).map_err(|e| anyhow::anyhow!("Rebuild failed: {}", e))?;
+            println!("Graphify rebuild successful!");
         }
     }
     Ok(())
