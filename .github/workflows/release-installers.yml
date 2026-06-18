@@ -15,7 +15,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Build voxup
@@ -52,7 +52,7 @@ jobs:
   build-windows-msi:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Install cargo-wix
@@ -67,7 +67,7 @@ jobs:
   build-linux-deb:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Install cargo-deb
@@ -80,7 +80,7 @@ jobs:
   publish-macos-brew:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Build Release
         run: cargo build --release --locked -p vox-cli
       - name: Archive and Hash
@@ -98,7 +98,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Verify install.sh POSIX syntax
         run: |
@@ -135,7 +135,7 @@ jobs:
   test-bootstrap-windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Verify install.ps1 parses
         shell: pwsh

@@ -33,7 +33,7 @@ jobs:
   docs-quality:
     runs-on: [self-hosted, linux, x64]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -87,7 +87,7 @@ jobs:
   generator-drift:
     runs-on: [self-hosted, linux, x64]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable

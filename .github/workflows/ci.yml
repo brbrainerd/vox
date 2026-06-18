@@ -58,7 +58,7 @@ jobs:
       affects_contracts: ${{ steps.affected.outputs.affects_contracts }}
       affects_scripts: ${{ steps.affected.outputs.affects_scripts }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -214,7 +214,7 @@ jobs:
       # ci.yml intentionally uses tag refs per repo convention — only this privileged job is
       # hardened. persist-credentials:false avoids leaving the clone token in .git/config;
       # the push step below authenticates explicitly via PUSH_TOKEN.
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
@@ -292,7 +292,7 @@ jobs:
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Detect rust-toolchain.toml change
@@ -341,7 +341,7 @@ jobs:
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           name: vox-cli-bin
@@ -599,7 +599,7 @@ jobs:
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           name: vox-cli-bin
@@ -745,7 +745,7 @@ jobs:
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           name: vox-cli-bin
@@ -845,7 +845,7 @@ jobs:
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           name: vox-cli-bin
@@ -1167,7 +1167,7 @@ jobs:
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           name: vox-cli-bin
@@ -1287,7 +1287,7 @@ jobs:
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
         with:
           version: 9
@@ -1308,7 +1308,7 @@ jobs:
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -1334,7 +1334,7 @@ jobs:
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -1357,7 +1357,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: docker compose config (mesh example)
         run: docker compose -f examples/mesh-compose.yml config
 
@@ -1369,7 +1369,7 @@ jobs:
     runs-on: [self-hosted, linux, x64, docker]
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: docker build default image
         run: docker build -t vox:ci-smoke .
       # Blessed doc name: vox:ci-mesh-worker (same image as historical vox:ci-mesh); see vox-cross-platform-runbook.md
@@ -1385,7 +1385,7 @@ jobs:
     runs-on: [self-hosted, linux, x64, browser]
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -1425,7 +1425,7 @@ jobs:
     runs-on: [self-hosted, linux, x64, browser]
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -1568,7 +1568,7 @@ jobs:
           - vox-code-audit
           - vox-openclaw-runtime
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - name: Cache Cargo
         uses: actions/cache@v5

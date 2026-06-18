@@ -21,7 +21,7 @@ jobs:
     runs-on: [self-hosted, linux, x64]
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Run OS compatibility scanner
         run: python scripts/coverage-graph/os_compat.py --repo-root . --out graphify-out/OS_COMPATIBILITY.md
