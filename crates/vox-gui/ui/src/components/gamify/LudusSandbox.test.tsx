@@ -125,4 +125,55 @@ describe('Telemetry Ingestion Mapping', () => {
     
     expect(useLudusStore.getState().focusedFile).toBe('crates/vox-db/src/lib.rs');
   });
+
+  it('correctly renders construction scaffolding clipboards for active tasks', async () => {
+    const files = ['crates/vox-db/src/lib.rs'];
+    const { render, screen } = require('@testing-library/react');
+    render(<LudusSandbox files={files} />);
+
+    // Initially no clipboard
+    expect(screen.queryByTestId('task-clipboard')).toBeNull();
+
+    // Simulate active agent task on file
+    useLudusStore.getState().updateAgentTask('agent_1', {
+      taskId: 'task_1',
+      filePath: 'crates/vox-db/src/lib.rs',
+      status: 'in_progress',
+    });
+
+    // We expect the clipboard to render now!
+    const clipboard = await screen.findByTestId('task-clipboard');
+    expect(clipboard).toBeDefined();
+  });
+
+  it('correctly spawns speech bubbles when telemetry events occur', async () => {
+    let eventCallback: any;
+    vi.mocked(transport.listenAgentEvents).mockImplementation((cb) => {
+      eventCallback = cb;
+      return Promise.resolve(() => {});
+    });
+
+    const files = ['crates/vox-db/src/lib.rs'];
+    const { render, screen } = require('@testing-library/react');
+    render(<LudusSandbox files={files} />);
+
+    // Initially no speech bubble
+    expect(screen.queryByText(/Hammering out features/)).toBeNull();
+
+    // Trigger file_edited event
+    if (eventCallback) {
+      eventCallback({
+        id: 2,
+        timestamp_ms: Date.now(),
+        kind: {
+          type: 'file_edited',
+          path: 'crates/vox-db/src/lib.rs',
+        },
+      });
+    }
+
+    // Expect speech bubble to render
+    const bubbleElement = await screen.findByText(/Hammering out features/);
+    expect(bubbleElement).toBeDefined();
+  });
 });

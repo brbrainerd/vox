@@ -37,6 +37,7 @@ export const LudusSandbox: React.FC<SandboxProps> = ({ files }) => {
   const tileWidth = 64;
   const tileHeight = 32;
   const [camera, setCamera] = useState({ x: 400, y: 100, zoom: 1 });
+  const [bubble, setBubble] = useState<string | null>(null);
 
   // Select building status to trigger re-renders on quality changes
   const buildings = useStore(useLudusStore, (state) => state.buildings);
@@ -170,6 +171,12 @@ export const LudusSandbox: React.FC<SandboxProps> = ({ files }) => {
         const filePath = event.kind.path || 'crates/vox-db/src/lib.rs';
         // Mock compile warning changes
         store.updateBuilding(filePath, { warnings: 1 });
+
+        // Trigger speech bubble
+        setBubble('Hammering out features! 🛠️');
+        setTimeout(() => {
+          if (active) setBubble(null);
+        }, 3000);
       }
     }).then((unlistenFn) => {
       if (!active) {
@@ -231,6 +238,11 @@ export const LudusSandbox: React.FC<SandboxProps> = ({ files }) => {
           offsetY={camera.y}
         />
       </div>
+      {bubble && (
+        <div className="absolute top-[180px] left-[380px] bg-zinc-900 border border-zinc-700 text-zinc-100 text-[10px] px-2 py-1 rounded shadow-lg animate-bounce whitespace-nowrap z-20">
+          💬 {bubble}
+        </div>
+      )}
       {Object.values(agentTasks).map((task) => {
         const plot = plots[task.filePath];
         if (!plot) return null;
