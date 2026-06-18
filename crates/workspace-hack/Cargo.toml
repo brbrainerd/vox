@@ -344,7 +344,7 @@ rustix = { version = "1", features = ["io_uring", "mm", "param", "pipe", "proces
 rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "aws_lc_rs"] }
 rustls-webpki = { version = "0.103", default-features = false, features = ["aws-lc-rs"] }
 tokio-rustls = { version = "0.26", default-features = false, features = ["aws-lc-rs", "tls12"] }
-toml = { version = "0.8" }
+toml = { version = "1.1" }
 tower = { version = "0.5", default-features = false, features = ["retry", "timeout"] }
 tower-http = { version = "0.6", default-features = false, features = ["decompression-gzip", "follow-redirect"] }
 tracing = { version = "0.1" }
@@ -369,7 +369,7 @@ rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", 
 rustls-webpki = { version = "0.103", default-features = false, features = ["aws-lc-rs"] }
 syn-dff4ba8e3ae991db = { package = "syn", version = "1", features = ["extra-traits", "full", "visit", "visit-mut"] }
 tokio-rustls = { version = "0.26", default-features = false, features = ["aws-lc-rs", "tls12"] }
-toml = { version = "0.8" }
+toml = { version = "1.1" }
 tower = { version = "0.5", default-features = false, features = ["retry", "timeout"] }
 tower-http = { version = "0.6", default-features = false, features = ["decompression-gzip", "follow-redirect"] }
 tracing = { version = "0.1" }

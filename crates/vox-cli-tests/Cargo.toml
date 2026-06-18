@@ -14,7 +14,7 @@ path = "src/lib.rs"
 [dependencies]
 tempfile = "3"
 serde = { version = "1", features = ["derive"] }
-toml = "0.8"
+toml = "1.1"
 
 [dev-dependencies]
 # Declared so cargo builds the `vox` binary before running tests.

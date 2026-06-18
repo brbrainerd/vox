@@ -186,7 +186,7 @@ serde_json         = "1"
 # is the API-compatible maintained fork; the package-rename keeps `serde_yaml::` paths working
 # workspace-wide with zero source changes. (Do NOT use serde_yml — RUSTSEC-2025-0068, unsound.)
 serde_yaml         = { package = "serde_yaml_ng", version = "0.10" }
-toml               = "0.8"
+toml               = "1.1"
 toml_edit          = "0.22"
 typify             = "0.7"
 miette             = { version = "7.6", features = ["fancy"] }

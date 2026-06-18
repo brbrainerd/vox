@@ -2874,7 +2874,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ccc2776f0c61eca1ca32528f85548abd1a4be8fb53d1b21c013e4f18da1e7090"
 dependencies = [
  "data-encoding",
- "syn 2.0.117",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -4918,7 +4918,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "19753d40da53d0ec41604750eeb969097a90fb2d7f7992730d904541c04e2c19"
 dependencies = [
  "bstr",
- "hashbrown 0.17.1",
+ "hashbrown 0.15.5",
 ]
 
 [[package]]
@@ -14541,7 +14541,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tokio-stream",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "tracing",
  "tracing-subscriber",
  "uuid",
@@ -14577,7 +14577,7 @@ dependencies = [
  "serde_json",
  "sha2 0.11.0",
  "tempfile",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "vox-build-meta",
  "vox-rename-registry",
  "vox-test-harness",
@@ -14607,7 +14607,7 @@ dependencies = [
  "serde_yaml_ng",
  "tempfile",
  "thiserror 2.0.18",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "tracing",
  "vox-code-audit",
  "vox-compiler",
@@ -14699,7 +14699,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tokio-stream",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "toml_edit 0.22.27",
  "tracing",
  "tracing-subscriber",
@@ -14827,7 +14827,7 @@ dependencies = [
  "assert_cmd",
  "serde",
  "tempfile",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "vox-cli",
  "vox-codegen",
  "vox-compiler",
@@ -14952,7 +14952,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "tracing",
  "vox-ast",
  "vox-codegen",
@@ -14983,7 +14983,7 @@ dependencies = [
  "serde_yaml_ng",
  "tempfile",
  "tokio",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "tracing",
  "vox-llm-config",
  "vox-llm-egress",
@@ -15179,7 +15179,7 @@ dependencies = [
  "swc_ecma_visit",
  "syn 2.0.117",
  "tempfile",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "tracing",
  "vox-code-audit",
  "vox-compiler",
@@ -15208,7 +15208,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "tracing",
  "uuid",
  "vox-actor-runtime",
@@ -15233,7 +15233,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "tracing",
  "uuid",
  "vox-actor-runtime",
@@ -15307,7 +15307,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tokio-stream",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "tracing",
  "turso",
  "vox-bounded-fs",
@@ -15389,7 +15389,7 @@ dependencies = [
  "tauri-plugin-shell",
  "tempfile",
  "tokio",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "tracing",
  "tracing-subscriber",
  "turso",
@@ -15718,7 +15718,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tokio-tungstenite 0.24.0",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "tracing",
  "uuid",
  "vox-config",
@@ -15769,7 +15769,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tiktoken-rs",
  "tokio",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "tower",
  "tower-lsp-server",
  "tracing",
@@ -15879,7 +15879,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tiktoken-rs",
  "tokio",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "tower",
  "tower-http",
  "tower-lsp-server",
@@ -15988,7 +15988,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "turso",
  "vox-compiler",
  "vox-config",
@@ -16006,7 +16006,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.18",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "workspace-hack",
 ]
 
@@ -16018,7 +16018,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.18",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "vox-plugin-types",
 ]
 
@@ -16047,7 +16047,7 @@ version = "0.6.0"
 dependencies = [
  "serde",
  "thiserror 2.0.18",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "workspace-hack",
 ]
 
@@ -16067,7 +16067,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "tracing",
  "tracing-test",
  "vox-plugin-api",
@@ -16253,7 +16253,7 @@ name = "vox-plugin-sdk"
 version = "0.6.0"
 dependencies = [
  "abi_stable",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "vox-plugin-api",
 ]
 
@@ -16275,7 +16275,7 @@ dependencies = [
  "symphonia",
  "tempfile",
  "tokenizers 0.21.4",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "tracing",
  "uuid",
  "vox-config",
@@ -16290,7 +16290,7 @@ name = "vox-plugin-test-harness"
 version = "0.6.0"
 dependencies = [
  "tempfile",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "vox-plugin-types",
 ]
 
@@ -16508,7 +16508,7 @@ dependencies = [
  "serde_yaml_ng",
  "tempfile",
  "thiserror 2.0.18",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "tracing",
  "vox-bounded-fs",
  "vox-config",
@@ -16753,7 +16753,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "tracing",
  "uuid",
  "vox-container",
@@ -16788,7 +16788,7 @@ dependencies = [
  "tempfile",
  "tokenizers 0.21.4",
  "tokio",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "tracing",
  "uuid",
  "vox-compiler",
@@ -18733,7 +18733,7 @@ dependencies = [
  "tokio-rustls",
  "tokio-stream",
  "tokio-util",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "toml_datetime 1.1.1+spec-1.1.0",
  "toml_edit 0.22.27",
  "toml_parser",
