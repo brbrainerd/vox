@@ -1,7 +1,7 @@
 ---
 title: "research-index"
 description: "Curated index of Vox architecture SSOT pages, mesh plans, language enforcement phases, and research artifacts."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 ---

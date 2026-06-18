@@ -1,7 +1,7 @@
-﻿---
+---
 title: "Code Search & Omni-Search Research (2026-06-17)"
 description: "Web research findings on 2026 best practices for code search, hybrid retrieval, omni-search UX, and agent-facing search. Companion to the omni-search-audit-and-roadmap-2026.md."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Synthesized from 13 web searches; covers tree-sitter AST indexing, RRF, cross-encoder reranking, MCP agent search patterns, and GUI UX best practices."

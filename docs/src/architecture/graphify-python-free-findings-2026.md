@@ -1,7 +1,7 @@
 ---
 title: "Graphify Python-Free Transition Findings (2026)"
 description: "Audit of current Python Graphify dependencies, limitations of the hybrid Rust-Python architecture, and a concrete roadmap to a pure Rust-native graph extraction and Leiden clustering implementation."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: true
 training_rationale: "Documents the engineering path to eliminate Python dependencies in the Graphify lifecycle, supporting LLM codebase-indexing parity."

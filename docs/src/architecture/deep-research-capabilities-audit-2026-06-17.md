@@ -1,7 +1,7 @@
 ---
 title: "Vox Deep Research Capabilities — Full Audit & 2026 Roadmap"
 description: "Comprehensive audit of Vox's search, deep research, and RAG capabilities as of 2026-06-17. Maps every component to source, benchmarks against 2026 SOTA, identifies 9 ranked gaps (CRAG heuristic, novelty scoring, reranking, free-tier cascade, confidence gate stub), and provides a 4-phase implementation plan."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Normative gap analysis and implementation plan for full deep research capability including novelty detection, OpenRouter free-tier routing, LLM-driven CRAG, and cross-encoder reranking."

@@ -1,7 +1,7 @@
 ---
 title: "Gamified Programming & Wellness Research (2026)"
 description: "Research findings on developer wellness metrics, digital curfew mechanisms, 'intentional friction' anti-addiction loop design, and AI-driven SVG asset marketplaces."
-category: "research"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Synthesis of developer health, gamification, and AI-asset best practices for the Vox system."

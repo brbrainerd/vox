@@ -1,7 +1,7 @@
 ---
 title: "Omni-Search Audit & Roadmap (2026)"
 description: "Comprehensive audit of Vox search capabilities, surfaces, gaps, bugs, and enhancement roadmap across the full stack from vox-db contracts through vox-search execution to GUI omni-search. Single source of truth for where search is and where it needs to go."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Maps the full search stack; essential for any agent working on retrieval, indexing, or GUI search surfaces."

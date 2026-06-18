@@ -1,7 +1,7 @@
 ---
 title: "SCIENTIA Automated Research — agent handoff"
 description: "Fresh-agent context for the June 2026 SCIENTIA automated-research implementation: what shipped in working tree, review status, verification gates, and remaining work."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Onboarding context for agents continuing SCIENTIA Waves 0–6 and post-review cleanup without prior session history."

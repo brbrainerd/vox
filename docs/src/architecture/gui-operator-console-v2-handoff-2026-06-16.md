@@ -1,7 +1,7 @@
 ---
 title: "GUI Operator Console v2 — agent handoff"
 description: "Fresh-agent handoff for the v2 operator console mega-plan: what shipped, invariants, verification, and remaining work."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Onboarding context for agents continuing GUI v2 without prior session history."
