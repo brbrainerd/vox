@@ -139,6 +139,7 @@
     "ci collateral-damage-gate",
     "ci command-compliance",
     "ci command-sync",
+    "ci commit-lint",
     "ci compile-matrix",
     "ci completion-audit",
     "ci completion-gates",
