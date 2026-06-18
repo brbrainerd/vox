@@ -132,7 +132,7 @@ fn sample_nucleus(logits: &Tensor, temperature: f64, top_p: f64) -> Result<u32, 
 
 #[cfg(test)]
 mod tests {
-    use super::qwen_weights::QwenWeights;
+    use crate::inference::qwen_weights::QwenWeights;
     use super::*;
     use candle_core::{DType, Tensor};
     use vox_hf_layout::HfTransformerLayout;

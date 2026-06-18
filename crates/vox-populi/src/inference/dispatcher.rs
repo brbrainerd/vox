@@ -47,7 +47,7 @@ impl InferenceDispatcher {
 
 #[cfg(test)]
 mod tests {
-    use super::backends::CandleCpuBackend;
+    use crate::inference::backends::CandleCpuBackend;
     use super::*;
 
     // The CandleCpu backend picks this bundle (hash verifies) but `load(&ModelBundle)`

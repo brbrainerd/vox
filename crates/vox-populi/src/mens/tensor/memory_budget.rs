@@ -109,7 +109,6 @@ fn resident_gib_at(model_params_b: f64, resident_per_b: f64) -> f64 {
 /// footprint is ≈5 GiB/B. MEASURED on a 16 GiB RTX 4080 Super: 1.5B trains STABLY
 /// (270+ steps, loss 9.6→1.5, no OOM); 3B cannot build/sustain (OOM) and needs gradient
 /// checkpointing. R=5.0 makes the ladder retreat 3B→1.5B on 16 GiB, as observed.
-const QWEN2_RESIDENT_GIB_PER_B: f64 = 5.0;
 
 /// Target effective batch (batch_size × grad_accum) for stable QLoRA convergence.
 /// Effective batch is kept roughly constant regardless of how the VRAM budget
@@ -222,56 +221,7 @@ pub fn is_qwen35(model_id: &str) -> bool {
 /// past what the operator asked for (the default request is 4B via `DEFAULT_MODEL_ID`).
 #[must_use]
 pub fn plan_qwen35(vram_gib: f64, max_params_b: f64) -> ModelPlan {
-    let mut smallest_tried: Option<ModelPlan> = None;
-
-    for &(params, id) in QWEN35_LADDER {
-        // Skip variants larger than the requested cap (no surprise upgrades).
-        if params > max_params_b + 1e-9 {
-            continue;
-        }
-        let p = plan(vram_gib, params);
-        let retreated = (params - max_params_b).abs() > 1e-9;
-        let retreated_from_b = retreated.then_some(max_params_b);
-        let rationale = if retreated {
-            format!(
-                "requested ≈{max_params_b:.1}B does not fit {vram_gib:.0} GiB; retreated to \
-                 {id} — {}",
-                p.rationale
-            )
-        } else {
-            format!("{id} — {}", p.rationale)
-        };
-        let mp = ModelPlan {
-            model_id: id.to_string(),
-            params_b: params,
-            seq_len: p.seq_len,
-            batch_size: p.batch_size,
-            grad_accum: p.grad_accum,
-            retreated_from_b,
-            over_budget: p.over_budget,
-            rationale,
-        };
-        if !p.over_budget {
-            return mp; // largest variant (descending walk) that fits
-        }
-        smallest_tried = Some(mp);
-    }
-
-    // Nothing fit — return the smallest variant we tried, flagged over budget.
-    smallest_tried.unwrap_or_else(|| {
-        let (params, id) = *QWEN35_LADDER.last().unwrap();
-        let p = plan(vram_gib, params);
-        ModelPlan {
-            model_id: id.to_string(),
-            params_b: params,
-            seq_len: p.seq_len,
-            batch_size: p.batch_size,
-            grad_accum: p.grad_accum,
-            retreated_from_b: Some(max_params_b),
-            over_budget: true,
-            rationale: format!("no Qwen3.5 variant fits {vram_gib:.0} GiB; {}", p.rationale),
-        }
-    })
+    plan_qwen35_with_options(vram_gib, max_params_b, super::finetune_contract::BaseQuantMode::Nf4, false)
 }
 
 /// Qwen2.5-Coder ladder (largest → smallest): (parameter count in billions, HF repo id).
@@ -298,12 +248,185 @@ pub fn is_qwen25coder(model_id: &str) -> bool {
 /// semantics as [`plan_qwen35`] but for the coding family.
 #[must_use]
 pub fn plan_qwen25coder(vram_gib: f64, max_params_b: f64) -> ModelPlan {
+    plan_qwen25coder_with_options(vram_gib, max_params_b, super::finetune_contract::BaseQuantMode::Nf4, false)
+}
+
+pub const QWEN3_LADDER: &[(f64, &str)] = &[
+    (72.0, "Qwen/Qwen3-72B-Instruct"),
+    (32.0, "Qwen/Qwen3-32B-Instruct"),
+    (14.0, "Qwen/Qwen3-14B-Instruct"),
+    (7.0, "Qwen/Qwen3-7B-Instruct"),
+    (3.0, "Qwen/Qwen3-3B-Instruct"),
+    (1.5, "Qwen/Qwen3-1.5B-Instruct"),
+    (0.5, "Qwen/Qwen3-0.5B-Instruct"),
+];
+
+/// True when a model id belongs to the Qwen3 family this ladder manages.
+#[must_use]
+pub fn is_qwen3(model_id: &str) -> bool {
+    let l = model_id.to_ascii_lowercase();
+    l.contains("qwen3") && !l.contains("qwen3.5") && !l.contains("qwen3_5") && !l.contains("qwen35")
+}
+
+/// Calculate resident VRAM per billion parameters dynamically.
+#[must_use]
+pub fn get_resident_per_b(model_id: &str, quant_mode: super::finetune_contract::BaseQuantMode, gradient_checkpointing: bool) -> f64 {
+    let base = if is_qwen35(model_id) {
+        3.5
+    } else {
+        5.0
+    };
+    let quant_offset = match quant_mode {
+        super::finetune_contract::BaseQuantMode::None => 1.5,
+        super::finetune_contract::BaseQuantMode::Nf4 => 0.0,
+    };
+    let gc_offset = if gradient_checkpointing {
+        -1.8
+    } else {
+        0.0
+    };
+    base + quant_offset + gc_offset
+}
+
+/// Pick the largest Qwen3 variant (no larger than `max_params_b`) that fits `vram_gib`.
+#[must_use]
+pub fn plan_qwen3(vram_gib: f64, max_params_b: f64) -> ModelPlan {
+    plan_qwen3_with_options(vram_gib, max_params_b, super::finetune_contract::BaseQuantMode::Nf4, false)
+}
+
+/// Pick the largest Qwen3 variant (no larger than `max_params_b`) with explicit options.
+#[must_use]
+pub fn plan_qwen3_with_options(
+    vram_gib: f64,
+    max_params_b: f64,
+    quant_mode: super::finetune_contract::BaseQuantMode,
+    gradient_checkpointing: bool,
+) -> ModelPlan {
+    let mut smallest_tried: Option<ModelPlan> = None;
+    for &(params, id) in QWEN3_LADDER {
+        if params > max_params_b + 1e-9 {
+            continue;
+        }
+        let resident_per_b = get_resident_per_b(id, quant_mode, gradient_checkpointing);
+        let p = plan_with_resident(vram_gib, params, resident_per_b);
+        let retreated = (params - max_params_b).abs() > 1e-9;
+        let rationale = if retreated {
+            format!(
+                "requested ≈{max_params_b:.1}B does not fit {vram_gib:.0} GiB; retreated to {id} — {}",
+                p.rationale
+            )
+        } else {
+            format!("{id} — {}", p.rationale)
+        };
+        let mp = ModelPlan {
+            model_id: id.to_string(),
+            params_b: params,
+            seq_len: p.seq_len,
+            batch_size: p.batch_size,
+            grad_accum: p.grad_accum,
+            retreated_from_b: retreated.then_some(max_params_b),
+            over_budget: p.over_budget,
+            rationale,
+        };
+        if !p.over_budget {
+            return mp;
+        }
+        smallest_tried = Some(mp);
+    }
+    smallest_tried.unwrap_or_else(|| {
+        let (params, id) = *QWEN3_LADDER.last().unwrap();
+        let resident_per_b = get_resident_per_b(id, quant_mode, gradient_checkpointing);
+        let p = plan_with_resident(vram_gib, params, resident_per_b);
+        ModelPlan {
+            model_id: id.to_string(),
+            params_b: params,
+            seq_len: p.seq_len,
+            batch_size: p.batch_size,
+            grad_accum: p.grad_accum,
+            retreated_from_b: Some(max_params_b),
+            over_budget: true,
+            rationale: format!(
+                "no Qwen3 variant fits {vram_gib:.0} GiB; {}",
+                p.rationale
+            ),
+        }
+    })
+}
+
+/// Pick the largest Qwen3.5 variant (no larger than `max_params_b`) with explicit options.
+#[must_use]
+pub fn plan_qwen35_with_options(
+    vram_gib: f64,
+    max_params_b: f64,
+    quant_mode: super::finetune_contract::BaseQuantMode,
+    gradient_checkpointing: bool,
+) -> ModelPlan {
+    let mut smallest_tried: Option<ModelPlan> = None;
+    for &(params, id) in QWEN35_LADDER {
+        if params > max_params_b + 1e-9 {
+            continue;
+        }
+        let resident_per_b = get_resident_per_b(id, quant_mode, gradient_checkpointing);
+        let p = plan_with_resident(vram_gib, params, resident_per_b);
+        let retreated = (params - max_params_b).abs() > 1e-9;
+        let rationale = if retreated {
+            format!(
+                "requested ≈{max_params_b:.1}B does not fit {vram_gib:.0} GiB; retreated to {id} — {}",
+                p.rationale
+            )
+        } else {
+            format!("{id} — {}", p.rationale)
+        };
+        let mp = ModelPlan {
+            model_id: id.to_string(),
+            params_b: params,
+            seq_len: p.seq_len,
+            batch_size: p.batch_size,
+            grad_accum: p.grad_accum,
+            retreated_from_b: retreated.then_some(max_params_b),
+            over_budget: p.over_budget,
+            rationale,
+        };
+        if !p.over_budget {
+            return mp;
+        }
+        smallest_tried = Some(mp);
+    }
+    smallest_tried.unwrap_or_else(|| {
+        let (params, id) = *QWEN35_LADDER.last().unwrap();
+        let resident_per_b = get_resident_per_b(id, quant_mode, gradient_checkpointing);
+        let p = plan_with_resident(vram_gib, params, resident_per_b);
+        ModelPlan {
+            model_id: id.to_string(),
+            params_b: params,
+            seq_len: p.seq_len,
+            batch_size: p.batch_size,
+            grad_accum: p.grad_accum,
+            retreated_from_b: Some(max_params_b),
+            over_budget: true,
+            rationale: format!(
+                "no Qwen3.5 variant fits {vram_gib:.0} GiB; {}",
+                p.rationale
+            ),
+        }
+    })
+}
+
+/// Pick the largest Qwen2.5-Coder variant (no larger than `max_params_b`) with explicit options.
+#[must_use]
+pub fn plan_qwen25coder_with_options(
+    vram_gib: f64,
+    max_params_b: f64,
+    quant_mode: super::finetune_contract::BaseQuantMode,
+    gradient_checkpointing: bool,
+) -> ModelPlan {
     let mut smallest_tried: Option<ModelPlan> = None;
     for &(params, id) in QWEN25CODER_LADDER {
         if params > max_params_b + 1e-9 {
             continue;
         }
-        let p = plan_with_resident(vram_gib, params, QWEN2_RESIDENT_GIB_PER_B);
+        let resident_per_b = get_resident_per_b(id, quant_mode, gradient_checkpointing);
+        let p = plan_with_resident(vram_gib, params, resident_per_b);
         let retreated = (params - max_params_b).abs() > 1e-9;
         let rationale = if retreated {
             format!(
@@ -330,7 +453,8 @@ pub fn plan_qwen25coder(vram_gib: f64, max_params_b: f64) -> ModelPlan {
     }
     smallest_tried.unwrap_or_else(|| {
         let (params, id) = *QWEN25CODER_LADDER.last().unwrap();
-        let p = plan_with_resident(vram_gib, params, QWEN2_RESIDENT_GIB_PER_B);
+        let resident_per_b = get_resident_per_b(id, quant_mode, gradient_checkpointing);
+        let p = plan_with_resident(vram_gib, params, resident_per_b);
         ModelPlan {
             model_id: id.to_string(),
             params_b: params,
@@ -642,4 +766,37 @@ mod semcov_wave15_tests {
             );
         }
     }
+
+    #[test]
+    fn qwen3_detection() {
+        assert!(is_qwen3("Qwen/Qwen3-7B-Instruct"));
+        assert!(is_qwen3("qwen3-0.5b"));
+        assert!(!is_qwen3("Qwen/Qwen3.5-4B"));
+        assert!(!is_qwen3("Qwen/Qwen2.5-Coder-7B-Instruct"));
+    }
+
+    #[test]
+    fn resident_scaling_calculation() {
+        use crate::mens::tensor::finetune_contract::BaseQuantMode;
+        // Qwen 2.5 / Qwen 3 base resident is 5.0
+        // BaseQuantMode::None adds +1.5 -> 6.5
+        // Gradient checkpointing subtracts -1.8 -> 3.2
+        assert_eq!(get_resident_per_b("Qwen/Qwen2.5-Coder-7B-Instruct", BaseQuantMode::None, false), 6.5);
+        assert_eq!(get_resident_per_b("Qwen/Qwen2.5-Coder-7B-Instruct", BaseQuantMode::Nf4, false), 5.0);
+        assert_eq!(get_resident_per_b("Qwen/Qwen2.5-Coder-7B-Instruct", BaseQuantMode::Nf4, true), 3.2);
+
+        // Qwen 3.5 base resident is 3.5
+        // BaseQuantMode::None adds +1.5 -> 5.0
+        // Gradient checkpointing subtracts -1.8 -> 1.7
+        assert_eq!(get_resident_per_b("Qwen/Qwen3.5-4B", BaseQuantMode::None, false), 5.0);
+        assert_eq!(get_resident_per_b("Qwen/Qwen3.5-4B", BaseQuantMode::Nf4, false), 3.5);
+        assert_eq!(get_resident_per_b("Qwen/Qwen3.5-4B", BaseQuantMode::Nf4, true), 1.7);
+    }
+
+    #[test]
+    fn qwen3_ladder_retreats_and_scales() {
+        let p = plan_qwen3(16.0, 7.0);
+        assert_eq!(p.model_id, "Qwen/Qwen3-1.5B-Instruct");
+    }
 }
+
