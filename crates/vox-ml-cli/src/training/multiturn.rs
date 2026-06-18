@@ -1,5 +1,64 @@
 //! Multi-turn conversation templates.
 
+/// Returns true if the first actual declaration (ignoring comments/whitespace) is a function.
+fn first_decl_is_fn(code: &str) -> bool {
+    let mut in_block_comment = false;
+    for line in code.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if in_block_comment {
+            if let Some(idx) = trimmed.find("*/") {
+                in_block_comment = false;
+                let after = trimmed[idx + 2..].trim();
+                if after.is_empty() {
+                    continue;
+                }
+                if after.starts_with("//") {
+                    continue;
+                }
+                if is_fn_prefix(after) {
+                    return true;
+                }
+                return false;
+            }
+            continue;
+        }
+        if trimmed.starts_with("/*") {
+            in_block_comment = true;
+            if let Some(idx) = trimmed[2..].find("*/") {
+                in_block_comment = false;
+                let after = trimmed[2 + idx + 2..].trim();
+                if after.is_empty() {
+                    continue;
+                }
+                if after.starts_with("//") {
+                    continue;
+                }
+                if is_fn_prefix(after) {
+                    return true;
+                }
+                return false;
+            }
+            continue;
+        }
+        if trimmed.starts_with("//") {
+            continue;
+        }
+        // First actual code content found!
+        return is_fn_prefix(trimmed);
+    }
+    false
+}
+
+fn is_fn_prefix(s: &str) -> bool {
+    s.starts_with("fn ")
+        || s.starts_with("pub fn ")
+        || s.starts_with("async fn ")
+        || s.starts_with("pub async fn ")
+}
+
 /// Returns true if the given Vox construct type supports decorators.
 /// Only `fn` and `type` declarations accept decorator prefixes in Vox.
 fn construct_accepts_decorators(construct: &str) -> bool {
@@ -35,8 +94,7 @@ pub fn generate_multiturn_pairs(
     source: &str,
 ) -> Vec<serde_json::Value> {
     let mut pairs = Vec::new();
-    let supports_decorators =
-        construct_accepts_decorators(construct) && !code.trim_start().starts_with('@');
+    let supports_decorators = construct_accepts_decorators(construct) && first_decl_is_fn(code);
 
     // Generate 3 turns of refinements with programmatically generated refined code.
     for index in 0..3 {
@@ -205,6 +263,34 @@ mod tests {
             assert!(
                 !response.starts_with("@traced"),
                 "already decorated construct must not be prepended with @traced"
+            );
+        }
+    }
+
+    #[test]
+    fn test_multiturn_fails_on_code_starting_with_table_or_comments() {
+        let base_code = "// Authentication patterns\n// ---\n@table type Session {\n    id: int\n}\n\nfn my_helper() {\n}";
+        let pairs = generate_multiturn_pairs(
+            "function",
+            "my_helper",
+            "write my_helper",
+            base_code,
+            "vox_dogfood_v1",
+            "test_file.vox",
+        );
+
+        assert_eq!(pairs.len(), 3);
+        for pair in &pairs {
+            let response = pair["response"].as_str().unwrap();
+            assert!(
+                !response.starts_with("@deprecated"),
+                "must not prepend @deprecated to the top of comments/table: {}",
+                response
+            );
+            assert!(
+                !response.starts_with("@traced"),
+                "must not prepend @traced to the top of comments/table: {}",
+                response
             );
         }
     }
