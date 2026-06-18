@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useLudusStore } from '../../gamify/store';
 import { invoke } from '@tauri-apps/api/core';
 import { voxTransport } from '../../../transport';
 import { Glass } from '../../ui/Glass';
@@ -200,6 +201,9 @@ function HitRow({
   const isOpenable = hit.locator.kind === 'file' || hit.locator.kind === 'web';
 
   const handleClick = async () => {
+    if (hit.path) {
+      useLudusStore.getState().setFocusedFile(hit.path);
+    }
     if (isOpenable) {
       onOpen();
     } else if (hit.path) {

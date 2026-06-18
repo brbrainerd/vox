@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLudusStore } from '../../gamify/store';
 import { invoke } from '@tauri-apps/api/core';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
@@ -60,6 +61,7 @@ export function DiscoveryReviewView({ pushToast, gamifyEnabled }: SurfaceDecorat
 
   const loadClaims = async () => {
     if (!pubId) return;
+    useLudusStore.getState().setFocusedFile(pubId);
     setBusy(true);
     try {
       const out = await invoke<ExecuteOutput>('execute_command', {

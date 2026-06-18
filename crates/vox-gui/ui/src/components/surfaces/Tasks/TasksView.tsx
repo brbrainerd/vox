@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useLudusStore } from '../../gamify/store';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { Icon } from '../../ui/Icons';
@@ -164,6 +165,9 @@ export function TasksView({
                 onClick={() => {
                   setEditingId(r.id);
                   setDraft(r.description);
+                  if (r.write_files && r.write_files.length > 0) {
+                    useLudusStore.getState().setFocusedFile(r.write_files[0]);
+                  }
                 }}
                 className="hover:text-brass cursor-pointer truncate text-[13px] text-zinc-200 bg-transparent border-0 p-0 text-left w-full outline-none focus-visible:ring-1 focus-visible:ring-brass"
                 title={r.description}

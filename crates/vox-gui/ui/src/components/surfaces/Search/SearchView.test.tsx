@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
+import { useLudusStore } from '../../gamify/store';
 
 const invokeMock = vi.fn(() => Promise.resolve(null));
 vi.mock('@tauri-apps/api/core', () => ({
@@ -85,6 +86,38 @@ describe('SearchView', () => {
       expect(screen.getByText('OpenRouter override')).toBeTruthy();
       expect(screen.getByText(/results across settings/i)).toBeTruthy();
     });
+  });
+
+  it('updates focusedFile store property when file list item is clicked', async () => {
+    const mockHit = {
+      id: 'h1',
+      title: 'main.rs',
+      snippet: 'fn main() {}',
+      score: 1.0,
+      source: 'repo',
+      kind: 'file',
+      path: 'src/main.rs',
+      locator: { kind: 'file', value: 'src/main.rs' },
+      provenance: [],
+    };
+
+    vi.mocked(useSearchController).mockReturnValue({
+      state: { query: 'main', hits: [mockHit], loading: false, scopes: ['code'], requestToken: 1 },
+      setQuery: vi.fn(),
+      setScopes: vi.fn(),
+    });
+
+    const user = userEvent.setup();
+    render(<SearchView pushToast={vi.fn()} />);
+
+    const hitRow = await screen.findByText('main.rs');
+    expect(hitRow).toBeDefined();
+
+    useLudusStore.getState().setFocusedFile(null);
+
+    await user.click(hitRow);
+
+    expect(useLudusStore.getState().focusedFile).toBe('src/main.rs');
   });
 });
 
