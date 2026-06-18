@@ -1,0 +1,374 @@
+// vox:caps fs process env
+// scripts/vendor-skills.vox
+//
+// Vendors upstream skill directories declared in assets/skills/SOURCES.toml into
+// assets/skills/<name>/ with LICENSE.upstream copied from the pinned commit.
+//
+// Usage:
+//   vox run scripts/vendor-skills.vox
+//   vox run scripts/vendor-skills.vox -- --local-cache "C:/path/to/superpowers/checkout"
+//
+// Environment:
+//   VOX_REPO_ROOT — repo root (default ".")
+//   VOX_VENDOR_LOCAL_CACHE — same as --local-cache when the flag is omitted
+
+import fs;
+import path;
+import process;
+import env;
+
+fn sources_path() to str {
+    return "assets/skills/SOURCES.toml";
+}
+
+fn out_root() to str {
+    return "assets/skills";
+}
+
+fn cache_root() to str {
+    return "target/vendor-skills-cache";
+}
+
+fn repo_root() to str {
+    let root_opt = env.get("VOX_REPO_ROOT");
+    if root_opt.is_some() {
+        return root_opt.unwrap();
+    }
+    return ".";
+}
+
+fn jstr(j: Json, k: str) to str {
+    return j.get(k).and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("");
+}
+
+fn jarr(j: Json, k: str) to list[Json] {
+    return j.get(k).and_then(fn(x: Json) to Option[list[Json]] { x.as_array() }).unwrap_or([]);
+}
+
+fn skill_names(entry: Json) to list[str] {
+    let mut names = [];
+    let items = jarr(entry, "skills");
+    for item in items {
+        match item.as_str() {
+            Some(name) => { names = names.push(name); }
+            None => {}
+        }
+    }
+    return names;
+}
+
+fn source_repo(entry: Json) to str {
+    match entry.get("repo").and_then(fn(x: Json) to Option[str] { x.as_str() }) {
+        Some(repo) => repo
+        None => ""
+    }
+}
+
+fn source_pin(entry: Json) to str {
+    match entry.get("pin").and_then(fn(x: Json) to Option[str] { x.as_str() }) {
+        Some(pin) => pin
+        None => ""
+    }
+}
+
+fn copy_file(src: str, dst: str) to Result[Unit] {
+    match fs.copy(src, dst) {
+        Ok(_) => Ok(Unit)
+        Error(m) => Error("copy " + src + " -> " + dst + ": " + m)
+    }
+}
+
+fn ensure_parent_dir(file_path: str) to Result[Unit] {
+    match std.path.parent(file_path) {
+        Some(parent) => {
+            if parent == "" {
+                return Ok(Unit);
+            }
+            match fs.mkdir(parent) {
+                Ok(_) => Ok(Unit)
+                Error(m) => Error("mkdir " + parent + ": " + m)
+            }
+        }
+        None => Ok(Unit)
+    }
+}
+
+fn copy_tree(src_root: str, dst_root: str) to Result[Unit] {
+    if not fs.exists(src_root) {
+        return Error("source tree missing: " + src_root);
+    }
+    match fs.mkdir(dst_root) {
+        Ok(_) => {}
+        Error(m) => return Error("mkdir " + dst_root + ": " + m)
+    }
+
+    let pattern = src_root.replace("\\", "/") + "/**/*";
+    let files = match fs.glob(pattern) {
+        Ok(f) => f
+        Error(m) => return Error("glob " + pattern + ": " + m)
+    };
+
+    let prefix = src_root.replace("\\", "/");
+    for file in files {
+        if not fs.is_file(file) {
+            continue;
+        }
+        let norm = file.replace("\\", "/");
+        let rel = norm.replace(prefix + "/", "");
+        let dst = path.join(dst_root, rel);
+        match ensure_parent_dir(dst) {
+            Ok(_) => {}
+            Error(m) => return Error(m)
+        }
+        match copy_file(file, dst) {
+            Ok(_) => {}
+            Error(m) => return Error(m)
+        }
+    }
+    return Ok(Unit);
+}
+
+fn remove_tree(dir: str) to Result[Unit] {
+    if fs.exists(dir) {
+        match fs.remove_dir_all(dir) {
+            Ok(_) => Ok(Unit)
+            Error(m) => Error("remove_dir_all " + dir + ": " + m)
+        }
+    } else {
+        Ok(Unit)
+    }
+}
+
+fn clone_at_pin(repo: str, pin: str, slug: str, root: str) to Result[str] {
+    let cache_dir = path.join(root, cache_root());
+    match fs.mkdir(cache_dir) {
+        Ok(_) => {}
+        Error(m) => return Error("mkdir cache: " + m)
+    }
+
+    let clone_dir = path.join(cache_dir, slug);
+    match remove_tree(clone_dir) {
+        Ok(_) => {}
+        Error(m) => return Error(m)
+    }
+
+    print("vendor-skills: cloning " + repo + " @ " + pin);
+    let init = std.process.run_ex("git", ["init", clone_dir], root, []);
+    match init {
+        Ok(code) => {
+            if code != 0 {
+                return Error("git init failed with code " + str(code));
+            }
+        }
+        Error(m) => return Error("git init: " + m)
+    }
+
+    let remote = std.process.run_ex(
+        "git",
+        ["-C", clone_dir, "remote", "add", "origin", repo],
+        root,
+        [],
+    );
+    match remote {
+        Ok(code) => {
+            if code != 0 {
+                return Error("git remote add failed with code " + str(code));
+            }
+        }
+        Error(m) => return Error("git remote add: " + m)
+    }
+
+    let fetch = std.process.run_ex(
+        "git",
+        ["-C", clone_dir, "fetch", "--depth", "1", "origin", pin],
+        root,
+        [],
+    );
+    match fetch {
+        Ok(code) => {
+            if code != 0 {
+                return Error("git fetch failed with code " + str(code));
+            }
+        }
+        Error(m) => return Error("git fetch: " + m)
+    }
+
+    let checkout = std.process.run_ex(
+        "git",
+        ["-C", clone_dir, "checkout", "FETCH_HEAD"],
+        root,
+        [],
+    );
+    match checkout {
+        Ok(code) => {
+            if code != 0 {
+                return Error("git checkout failed with code " + str(code));
+            }
+        }
+        Error(m) => return Error("git checkout: " + m)
+    }
+
+    return Ok(clone_dir);
+}
+
+fn license_upstream_path(upstream_root: str) to str {
+    if fs.is_file(path.join(upstream_root, "LICENSE")) {
+        return path.join(upstream_root, "LICENSE");
+    }
+    if fs.is_file(path.join(upstream_root, "LICENSE.txt")) {
+        return path.join(upstream_root, "LICENSE.txt");
+    }
+    if fs.is_file(path.join(upstream_root, "LICENSE.md")) {
+        return path.join(upstream_root, "LICENSE.md");
+    }
+    return "";
+}
+
+fn vendor_source(upstream_root: str, skills: list[str], root: str) to Result[int] {
+    let mut copied = 0;
+    let license_src = license_upstream_path(upstream_root);
+
+    for skill in skills {
+        let src_dir = path.join(upstream_root, "skills/" + skill);
+        if not fs.is_dir(src_dir) {
+            return Error("upstream skill dir missing: " + src_dir);
+        }
+
+        let dst_dir = path.join(root, path.join(out_root(), skill));
+        match remove_tree(dst_dir) {
+            Ok(_) => {}
+            Error(m) => return Error(m)
+        }
+        match copy_tree(src_dir, dst_dir) {
+            Ok(_) => {}
+            Error(m) => return Error(m)
+        }
+
+        if license_src != "" {
+            let license_dst = path.join(dst_dir, "LICENSE.upstream");
+            match copy_file(license_src, license_dst) {
+                Ok(_) => {}
+                Error(m) => return Error(m)
+            }
+        }
+
+        copied = copied + 1;
+        print("  ok " + skill);
+    }
+
+    return Ok(copied);
+}
+
+fn parse_local_cache_flag(argv: list[str]) to Option[str] {
+    let mut i = 0;
+    while i < argv.len() {
+        let arg = argv.get(i).unwrap();
+        if arg == "--local-cache" {
+            if i + 1 < argv.len() {
+                return Some(argv.get(i + 1).unwrap());
+            }
+        }
+        if arg.starts_with("--local-cache=") {
+            return Some(arg.replace("--local-cache=", ""));
+        }
+        i = i + 1;
+    }
+    return None;
+}
+
+fn main() {
+    let root = repo_root();
+    let sources_file = path.join(root, sources_path());
+    let raw = match fs.read(sources_file) {
+        Ok(text) => text
+        Error(m) => {
+            print("vendor-skills: read failed: " + m);
+            process.exit(1);
+        }
+    };
+
+    let parsed = match std.toml.parse(raw) {
+        Ok(doc) => doc
+        Error(m) => {
+            print("vendor-skills: parse failed: " + m);
+            process.exit(1);
+        }
+    };
+
+    let sources = jarr(parsed, "source");
+    if sources.len() == 0 {
+        print("vendor-skills: no [[source]] entries in SOURCES.toml");
+        process.exit(1);
+    }
+
+    let argv = env.args();
+    let local_cache_flag = parse_local_cache_flag(argv);
+    let local_cache_env = env.get("VOX_VENDOR_LOCAL_CACHE");
+    let local_cache = if local_cache_flag.is_some() {
+        local_cache_flag
+    } else {
+        local_cache_env
+    };
+
+    print("vendor-skills: " + str(sources.len()) + " source entries");
+
+    let local_cache_path = if local_cache.is_some() {
+        local_cache.unwrap()
+    } else {
+        ""
+    };
+
+    let mut total = 0;
+    for entry in sources {
+        let repo = source_repo(entry);
+        let pin = source_pin(entry);
+        let skills = skill_names(entry);
+
+        if skills.len() == 0 {
+            print("vendor-skills: skipping source with no skills: " + repo);
+            continue;
+        }
+
+        let slug = if repo == "https://github.com/obra/superpowers" {
+            "superpowers"
+        } else if repo == "https://github.com/anthropics/skills" {
+            "skills"
+        } else {
+            "upstream"
+        };
+
+        print("vendor-skills: source " + slug + " repo=" + repo + " (" + str(skills.len()) + " skills)");
+
+        let use_local = local_cache_path != "" and repo == "https://github.com/obra/superpowers";
+        let skip_anthropic_local = local_cache_path != "" and repo == "https://github.com/anthropics/skills";
+
+        let upstream_root = if use_local {
+            print("vendor-skills: using local cache " + local_cache_path);
+            local_cache_path
+        } else if skip_anthropic_local {
+            print("vendor-skills: skipping anthropic source (local cache is superpowers-only)");
+            continue;
+        } else {
+            match clone_at_pin(repo, pin, slug, root) {
+                Ok(dir) => dir
+                Error(m) => {
+                    print("vendor-skills: clone failed: " + m);
+                    process.exit(1);
+                }
+            }
+        };
+
+        match vendor_source(upstream_root, skills, root) {
+            Ok(count) => {
+                total = total + count;
+            }
+            Error(m) => {
+                print("vendor-skills: " + m);
+                process.exit(1);
+            }
+        }
+    }
+
+    print("vendor-skills: copied " + str(total) + " skill directories into " + out_root());
+    process.exit(0);
+}

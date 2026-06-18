@@ -13,6 +13,7 @@ related:
   - docs/src/architecture/search-retrieval-ssot-2026.md
   - docs/src/architecture/scientia-self-publication-finalization-plan-2026.md
   - docs/src/architecture/scientia-mesh-integration-research-2026.md
+  - docs/src/architecture/scientia-automated-research-historical-extension-research-2026.md
   - crates/vox-research-shim/src/research/orchestrator/pipeline.rs
   - crates/vox-search/src/web_dispatcher.rs
   - crates/vox-search/src/crag.rs
@@ -32,7 +33,7 @@ related:
 
 Optional dimensions aligned with commercial products: **human checkpoints**, **async/long-running jobs**, and **mesh-durable execution**. For Vox, mesh-durable execution is a **forward hook only**: `@durable` / `workflow` / `activity` are parsed and lowered per [`AGENTS.md`](../../../AGENTS.md) §Grammar Unification, but durable replay/cron semantics are **not** production-complete — see [`durability-runtime-audit-2026.md`](durability-runtime-audit-2026.md) and ADR-028 proposal.
 
-**Strategic anchor:** The SCIENTIA self-publication program targets longitudinal provider observability and publication-quality outputs ([`scientia-self-publication-finalization-plan-2026.md`](scientia-self-publication-finalization-plan-2026.md)). The deep-research pipeline is the substrate that can feed evidence bundles into that loop when paired with [`scientia-mesh-integration-research-2026.md`](scientia-mesh-integration-research-2026.md) signal families (`DiscoverySignalFamily`, `FindingCandidateClass`).
+**Strategic anchor:** The SCIENTIA self-publication program targets longitudinal provider observability and publication-quality outputs ([`scientia-self-publication-finalization-plan-2026.md`](scientia-self-publication-finalization-plan-2026.md)). The deep-research pipeline is the substrate that can feed evidence bundles into that loop when paired with [`scientia-mesh-integration-research-2026.md`](scientia-mesh-integration-research-2026.md) signal families (`DiscoverySignalFamily`, `FindingCandidateClass`). For a consolidated historical map, code-review findings, integration matrix (OpenRouter / Tavily / Tantivy / Graphify), and **Track F** unified-loop roadmap, see [`scientia-automated-research-historical-extension-research-2026.md`](scientia-automated-research-historical-extension-research-2026.md).
 
 **Non-duplication:** Tavily endpoint shapes, secrets lifecycle, pricing, fail-open rules, and Firecrawl comparison live in [`docs/src/reference/tavily-integration-ssot.md`](../reference/tavily-integration-ssot.md). This document **links** there instead of copying tables.
 

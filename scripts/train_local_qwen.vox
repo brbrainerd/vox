@@ -1,0 +1,132 @@
+// vox:caps fs process env
+// Local Qwen Fine-Tuning Automation Script
+// Run via:
+//   vox run scripts/train_local_qwen.vox             (Full training)
+//   vox run scripts/train_local_qwen.vox --dry-run   (Preflight check & dry run)
+
+import process;
+import env;
+
+fn main() {
+    let output_dir = "mens/runs/qwen_local_latest"
+    let data_dir = "target/dogfood"
+    let model = "Qwen/Qwen2.5-Coder-3B-Instruct"
+    
+    // Parse command line arguments
+    let argv = env.args()
+    let mut dry_run = false
+    for arg in argv {
+        if arg == "--dry-run" or arg == "--check-only" {
+            dry_run = true
+        }
+    }
+    
+    if dry_run {
+        print("--- Local Qwen Training Sizing Preflight Check & Dry Run ---")
+        print("Target Model:  " + model)
+        print("Data Dir:      " + data_dir)
+        print("Output Dir:    " + output_dir)
+        print("Running in dry-run mode (max 45 seconds to verify CUDA and load model)...")
+        
+        let args = [
+            "mens", "train",
+            "--model", model,
+            "--device", "cuda",
+            "--backend", "qlora",
+            "--data-dir", data_dir,
+            "--output-dir", output_dir,
+            "--epochs", "1",
+            "--lr", "0.0002",
+            "--preset", "auto",
+            "--tokenizer", "hf",
+            "--fast-corpus",
+            "--checkpoint-every", "1",
+            "--max-runtime-secs", "45"
+        ]
+        
+        print("Invoking preflight training check...")
+        let mut proc = process.run("vox", args)
+        if proc is null {
+            print("  'vox' not found on PATH, falling back to 'cargo run'...")
+            let mut cargo_args = ["run", "-p", "vox-cli", "--"]
+            for a in args {
+                cargo_args.push(a)
+            }
+            proc = process.run("cargo", cargo_args)
+        }
+        
+        match proc {
+            Some(res) => {
+                print("Preflight process finished with code: " + str(res.code))
+                print("Stdout:")
+                print(res.stdout)
+                print("Stderr:")
+                print(res.stderr)
+                
+                if res.code == 0 or res.code == 137 or res.code == 124 {
+                    print("Preflight check completed successfully.")
+                } else {
+                    print("Preflight check finished (non-zero code might indicate termination/timeout or error).")
+                }
+            }
+            None => {
+                print("Error: Could not execute preflight training check.")
+                process.exit(1)
+            }
+        }
+    } else {
+        print("--- Launching Full Local Qwen Fine-Tuning ---")
+        print("Target Model:  " + model)
+        print("Data Dir:      " + data_dir)
+        print("Output Dir:    " + output_dir)
+        print("Epochs:        3")
+        
+        let args = [
+            "mens", "train",
+            "--model", model,
+            "--device", "cuda",
+            "--backend", "qlora",
+            "--data-dir", data_dir,
+            "--output-dir", output_dir,
+            "--epochs", "3",
+            "--lr", "0.0002",
+            "--preset", "auto",
+            "--tokenizer", "hf",
+            "--process-priority", "normal",
+            "--vram-limit-fraction", "0.9",
+            "--checkpoint-every", "5"
+        ]
+        
+        print("Invoking full training process...")
+        let mut proc = process.run("vox", args)
+        if proc is null {
+            print("  'vox' not found on PATH, falling back to 'cargo run'...")
+            let mut cargo_args = ["run", "-p", "vox-cli", "--"]
+            for a in args {
+                cargo_args.push(a)
+            }
+            proc = process.run("cargo", cargo_args)
+        }
+        
+        match proc {
+            Some(res) => {
+                print("Training run completed with code: " + str(res.code))
+                print("Stdout:")
+                print(res.stdout)
+                print("Stderr:")
+                print(res.stderr)
+                
+                if res.code == 0 {
+                    print("Training run completed successfully.")
+                } else {
+                    print("Training run failed.")
+                    process.exit(res.code)
+                }
+            }
+            None => {
+                print("Error: Could not execute training process.")
+                process.exit(1)
+            }
+        }
+    }
+}

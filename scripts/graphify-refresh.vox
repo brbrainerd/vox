@@ -1,0 +1,141 @@
+import json;
+import fs;
+import process;
+
+fn vox_binary_path() to str {
+    if fs.exists("./target/release/vox.exe") {
+        return "./target/release/vox.exe";
+    }
+    if fs.exists("./target/release/vox") {
+        return "./target/release/vox";
+    }
+    if fs.exists("./target/debug/vox.exe") {
+        return "./target/debug/vox.exe";
+    }
+    return "./target/debug/vox";
+}
+
+fn main() {
+    print("Checking freshness of Graphify corpora...");
+
+    let bin = vox_binary_path();
+
+    // Run status check command
+    let proc_opt = process.run(bin, ["graphify", "status", "--json"]);
+    if proc_opt is null {
+        log.error("Failed to execute " + bin);
+        process.exit(1);
+    }
+    let proc = proc_opt.unwrap();
+    if proc.code isnt 0 {
+        log.error("vox graphify status failed with code " + str(proc.code));
+        process.exit(proc.code);
+    }
+
+    let json_str = clean_json(proc.stdout);
+    let parsed = json.parse(json_str);
+    if parsed.is_err() {
+        log.error("Failed to parse status JSON: " + parsed.unwrap_err());
+        process.exit(1);
+    }
+
+    let corpora = parsed.unwrap().as_array().unwrap_or([]);
+    let mut any_stale = false;
+
+    for c in corpora {
+        let id = jstr(c, "corpus_id");
+        let title = jstr(c, "title");
+        let is_fresh = jbool(c, "is_fresh");
+        let stale_reasons = jarr(c, "stale_reasons");
+
+        if not is_fresh {
+            any_stale = true;
+            print("");
+            print("❌ Corpus '" + id + "' (" + title + ") is STALE.");
+
+            // Print stale reasons
+            let mut reasons_str = "";
+            for r in stale_reasons {
+                reasons_str = reasons_str + r.as_str().unwrap_or("") + " ";
+            }
+            print("   Reasons: " + reasons_str);
+
+            // Rebuild or ingest logic
+            let mut has_graph_missing = false;
+            for r in stale_reasons {
+                let r_str = r.as_str().unwrap_or("");
+                if r_str == "graph_missing" or r_str == "graph_corrupt" {
+                    has_graph_missing = true;
+                }
+            }
+
+            if has_graph_missing {
+                print("   Rebuild instructions:");
+                if id == "repo-code-graph" {
+                    print("     " + bin + " graphify rebuild --corpus repo-code-graph");
+                } else if id == "vox-gui-surface" {
+                    print("     " + bin + " graphify rebuild --corpus vox-gui-surface");
+                } else if id == "config-audit" {
+                    print("     " + bin + " graphify rebuild --corpus config-audit");
+                } else {
+                    print("     Generate the graph.json file for this corpus at its graph_path.");
+                }
+            } else {
+                // Not missing graph, but stale (e.g. lexical_lag or git_drift or ttl_expired).
+                // We can run ingest to refresh the Turso db from the graph.json.
+                print("   Triggering ingest to refresh Turso db...");
+                let ingest_proc = process.run(bin, ["graphify", "ingest", "--corpus", id]);
+                if ingest_proc is null {
+                    print("     Failed to spawn ingest process.");
+                } else {
+                    let res = ingest_proc.unwrap();
+                    if res.code == 0 {
+                        print("     Ingest successful!");
+                    } else {
+                        print("     Ingest failed with code " + str(res.code));
+                    }
+                }
+            }
+        } else {
+            print("✅ Corpus '" + id + "' (" + title + ") is fresh.");
+        }
+    }
+
+    if any_stale {
+        print("");
+        print("Some corpora are stale. Please address the stale reasons above.");
+        process.exit(1);
+    } else {
+        print("");
+        print("All corpora are fresh!");
+    }
+}
+
+fn jstr(j: Json, k: str) to str {
+    return j.get(k).and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
+}
+
+fn jarr(j: Json, k: str) to list[Json] {
+    return j.get(k).and_then(fn(x: Json) to Option[list[Json]] { x.as_array() }).unwrap_or([])
+}
+
+fn jbool(j: Json, k: str) to bool {
+    return j.get(k).and_then(fn(x: Json) to Option[bool] { x.as_bool() }).unwrap_or(false)
+}
+
+fn clean_json(raw: str) to str {
+    let parts = raw.split("[");
+    if parts.len() >= 2 {
+        let mut res = "[";
+        let mut i = 1;
+        while i < parts.len() {
+            if i > 1 {
+                res = res + "[";
+            }
+            res = res + parts.get(i).unwrap();
+            i = i + 1;
+        }
+        return res;
+    }
+    return raw;
+}

@@ -33,7 +33,7 @@ they are built and complete per the Finalization Plan:
 - Claim extraction: VeriScore + atomic + span integrity + MiniCheck +
   calibrated ABSTAIN (`crates/vox-claim-extractor/`).
 - Pre-registration as signed code object with deviation detection
-  (`crates/vox-prereg/`).
+  (`vox-orchestrator/src/preregistration/` + `scientia_prereg` table in `vox-db`).
 - Nanopublication emission and RO-Crate 1.2 packaging (`crates/vox-nanopub/`,
   `crates/vox-ro-crate/`).
 - Atomic-NEI novelty against time-bounded corpus, SPECTER2 retrieval,

@@ -175,6 +175,16 @@ When **`VOX_MESH_ENABLED=1`** and the binary is built with **`--features populi`
 
 Interpreted **`vox mens workflow run`** (journal + `mesh_*` activity hooks; there is no top-level `vox workflow`) requires **`--features workflow-runtime`** (implies `mens-dei` + `vox-workflow-runtime`). The runtime emits versioned journal events (`journal_version: 1`) and durable rows keyed by a **run id** plus **`activity_id`**. Use `--run-id <id>` to resume the same interpreted workflow run; omit it to start a fresh run id. The interpreted runner can replay stored step results for linear workflows. Mens steps use **env-derived** `VOX_MESH_CONTROL_ADDR` / `Vox.toml` `[mens]` only — use `with { timeout: …, retries: …, initial_backoff: …, activity_id: …, id: …, mens: "noop" | "join" | "snapshot" | "heartbeat" }` on `mesh_*` calls (`id` is an alias for `activity_id`). Retry/backoff support currently applies to interpreted `mesh_*` activity execution; other interpreted activities remain journal-only no-ops. Codex append is enabled by default when DB config resolves and can be disabled with **`VOX_WORKFLOW_JOURNAL_CODEX_OFF=1`** ([orchestration SSOT](orchestration-unified.md), [durable execution](../explanation/expl-durable-execution.md)).
 
+### `vox graphify …`
+
+Corpus registry and freshness status/ingest operations for graphify knowledge maps (`contracts/retrieval/graphify-corpora.v1.yaml`).
+
+| Subcommand | Role |
+|------------|------|
+| `vox graphify status` | Report per-corpus freshness (node/edge counts, graph path). `--corpus <id>` limits output; `--strict` exits non-zero when any corpus is stale; `--json` emits machine-readable status. |
+| `vox graphify ingest` | Project graph nodes into Turso `knowledge_nodes` via VoxDb. |
+| `vox graphify rebuild` | Rebuild the base AST code graph and cluster it. |
+
 ### `vox ci …`
 
 Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix, doc inventory, milestone eval matrix contract, workflow `scripts/` allowlist, Mens gate matrix, TOESTUB scoped scan, optional CUDA checks). **Canonical:** **`vox ci <subcommand>`** when `vox` is on `PATH`. **CI/bootstrap:** `cargo run -p vox-cli --quiet -- ci <subcommand>` from the repo root (same code path).
@@ -247,6 +257,7 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `command-sync [--write]` | Regenerates or verifies [`cli-command-surface.generated.md`](cli-command-surface.generated.md) from `command-registry.yaml` (after `operations-sync --target cli`, run `--write` to refresh the table) |
 | `operations-verify` | Validates [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml) vs committed MCP/CLI/capability registries (strict projections), dispatch + input schemas + read-role governance, inventory JSON |
 | `operations-sync --target catalog\|mcp\|cli\|capability\|all [--write]` | Writes or verifies artifacts from the operations catalog (`all` = mcp → cli → capability) |
+| `pipeline-parity` | Umbrella gate for script→emission SSOT: grammar SSOT, canonical golden ladder, feature-matrix smoke, and k-complexity budget (ladder-scoped) |
 | `capability-sync [--write]` | Regenerates or verifies [`contracts/capability/model-manifest.generated.json`](../../../contracts/capability/model-manifest.generated.json) from the capability + MCP + CLI registries (run after `operations-sync --target capability`) |
 | `pm-provenance [--strict] [--root <dir>]` | Validates `vox.pm.provenance/1` JSON under `<dir>/.vox_modules/provenance/` (emitted by **`vox pm publish`**). Without **`--strict`**, missing/empty dir is OK. Use **`--strict`** on release pipelines after publishing. |
 | `contracts-index` | Validates `contracts/index.yaml` against `contracts/index.schema.json`, checks every listed contract path exists, and validates indexed YAML contracts against their index-listed JSON Schema when the schema id follows `{contract-id}-schema` (plus a small explicit override table for historical id pairs) |
@@ -814,6 +825,7 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `bundle` | default | `commands::bundle` |
 | `compile` | default | `commands::compile` — **`vox compile`** packaging umbrella (also **`vox fabrica compile`**) |
 | `fmt` | default | `commands::fmt` (`vox_compiler::fmt::try_format`; `--check` supported) |
+| `graphify` | default | `commands::graphify` |
 | `add` | default | `commands::add` |
 | `audit` | default | `commands::audit` |
 | `auth` | default | `commands::auth` |

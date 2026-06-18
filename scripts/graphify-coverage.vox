@@ -1,0 +1,65 @@
+import fs;
+import json;
+import process;
+
+fn vox_binary_path() to str {
+    if fs.exists("./target/release/vox.exe") {
+        return "./target/release/vox.exe";
+    }
+    if fs.exists("./target/release/vox") {
+        return "./target/release/vox";
+    }
+    if fs.exists("./target/debug/vox.exe") {
+        return "./target/debug/vox.exe";
+    }
+    return "./target/debug/vox";
+}
+
+fn main() {
+    print("Graphify coverage verification script started");
+
+    let bin = vox_binary_path();
+    print("Executing native rebuild via: " + bin + " graphify rebuild");
+
+    // Run rebuild command
+    let proc_opt = process.run(bin, ["graphify", "rebuild", "--corpus", "repo-code-graph"]);
+    if proc_opt is null {
+        log.error("Failed to execute rebuild process using " + bin);
+        process.exit(1);
+    }
+
+    let proc = proc_opt.unwrap();
+    if proc.code isnt 0 {
+        log.error("vox graphify rebuild failed with code " + str(proc.code));
+        process.exit(proc.code);
+    }
+
+    print("Rebuild completed successfully. Verifying generated files...");
+
+    let manifest_path = ".vox/cache/graphify/repo-code-graph/.graphify_manifest.v1.json";
+    if not fs.exists(manifest_path) {
+        log.error("Manifest not found at " + manifest_path);
+        process.exit(1);
+    }
+
+    let content_res = fs.read_to_string(manifest_path);
+    if content_res.is_err() {
+        log.error("Failed to read manifest file: " + content_res.unwrap_err());
+        process.exit(1);
+    }
+
+    let manifest_json = content_res.unwrap();
+    let parsed = json.parse(manifest_json);
+    if parsed.is_err() {
+        log.error("Failed to parse manifest JSON: " + parsed.unwrap_err());
+        process.exit(1);
+    }
+
+    let obj = parsed.unwrap();
+    let node_count = obj.get("node_count").and_then(fn(x: Json) to Option[int] { x.as_int() }).unwrap_or(0);
+    let edge_count = obj.get("edge_count").and_then(fn(x: Json) to Option[int] { x.as_int() }).unwrap_or(0);
+
+    print("Verification complete!");
+    print("  Node count: " + str(node_count));
+    print("  Edge count: " + str(edge_count));
+}

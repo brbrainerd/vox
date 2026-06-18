@@ -1,7 +1,7 @@
 ---
 title: "Plugin Registration Resolution Path (2026)"
 description: "Documentation of the resolution path for plugin registration errors, specifically related to the tensor-burn-wgpu regression in MENS."
-category: "Language Reference"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 ---

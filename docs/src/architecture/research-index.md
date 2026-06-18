@@ -3,7 +3,6 @@ title: "research-index"
 description: "Curated index of Vox architecture SSOT pages, mesh plans, language enforcement phases, and research artifacts."
 category: "Architecture SSOTs"
 status: "current"
-last_updated: "2026-05-28"
 training_eligible: false
 ---
 # Vox Architecture & Research Index (2026)
@@ -26,9 +25,15 @@ This file tracks the single source of truth for Vox architecture, research findi
 
 - [Vox GUI Browser Support (2026)](vox-gui-browser-support-2026.md) — Embedded app preview (iframe + Vite guard), agent CDP live view (`vox://browser-frame`), Playwright validation harness; reuses `vox-plugin-browser` + orchestrator `vox_browser_*` MCP tools.
 - [Vox application packaging SSOT (2026)](vox-application-packaging-ssot-2026.md) — End-user desktop/mobile installer lane (`vox compile`, `[bundle]` manifest, Tauri backbone); complements OCI-focused [portability SSOT](../reference/vox-portability-ssot.md).
+- [Knowledge Base Systems — State of the Art (2026-06-17)](kb-systems-sota-research-2026.md) — Research synthesis of persistent KB architectures for AI coding tools: three-layer memory model (Working/Episodic/Semantic), how Cursor/Claude Code/Copilot/Gemini implement memory, routing best practices (adaptive routing, Sense-Reason-Act triage pipeline), dedup strategies (semantic clustering, entity resolution, LLM-as-judge), TTL/staleness patterns (four consolidation levers: Importance/Merge/Decay/Evict), chunking (parent-child/small-to-big indexing), three-pillar retrieval (BM25 + dense + ColBERT + RRF + cross-encoder), open standards (MCP, AMP, A2A, agentskills.io), common failure modes (Bag of Chunks, Retrieval Thrash, Context Poisoning, Similarity≠Truth, Unbounded Growth), and Mem0/Microsoft GraphRAG reference architectures.
 - [Deep Research Prior Art and Vox Integration Roadmap (2026)](deep-research-prior-art-and-vox-roadmap-2026.md) — Gemini / OpenClaw–SearchClaw / Claude Research / Tavily vs `run_research` + `vox-search`; free-tier strategy; stub inventory; CLI `vox research run` + MCP `vox_research_run`.
+- [Deep Research Capabilities — Full Audit & 2026 Roadmap (2026-06-17)](deep-research-capabilities-audit-2026-06-17.md) — Comprehensive audit of Vox's search, deep research, and RAG capabilities as of 2026-06-17. Maps every component to source (29 files in `vox-search`, full `vox-research-shim` orchestrator), benchmarks against 2026 SOTA (PRAR cycle, hybrid retrieval, RRF k=60, cross-encoder reranking), identifies 9 ranked gaps (G1: LLM-driven CRAG, G2: reranking, G3: novelty scoring, G4: free-tier cascade, G5: confidence gate multi-signal fusion), provides a 4-phase implementation plan. Documents novelty detection via n-gram shingling, OpenRouter free-tier zero-cost strategy (15–28 runs/day on free models), and cost-optimized paid configuration. Prior art matrix compares Gemini Deep Research, OpenClaw, and Vox current vs. roadmap across 14 dimensions.
+- [SCIENTIA Automated Research — agent handoff (2026-06-16)](scientia-automated-research-handoff-2026-06-16.md) — Fresh-agent context for Waves 0–6 (novelty, unified loop, archive, GUI): working-tree state, review-fix status, verification gate, remaining P1 backlog. Companion: [`scientia-automated-research-historical-extension-research-2026.md`](scientia-automated-research-historical-extension-research-2026.md).
 - [AgentOS & Agent-Computer Interface SSOT (2026)](agentos-ssot-2026.md) — Contract-first ACI envelopes, mutation classification, guardrails/checkpointing/intent layers, and semantic-fs bridge map.
 - [Superpowers (Procedural Agentic Skills) SSoT (2026)](superpowers-ssot.md) — Multi-phase agentic execution graphs, the 14 standard superpowers (Brainstorm, Plan, TDD, etc.), and SkillRegistry integration.
+- [Agentic Secretary — Research Synthesis (2026-06-17)](agentic-secretary-research-2026-06-17.md) — Comprehensive research synthesis (20+ sources, dated 2026-06-17) covering 2026 best practices for: dynamic AI task list management (supervisor/worker DAG, replanning triggers), persistent memory architecture (four-type model: Working/Episodic/Semantic/Procedural, sleep-time consolidation, temporal validity, contradiction resolution), context window visualization (LCLMs, ACON/ICML 2026, token-meter UX, OpenRouter prompt caching), always-listening secretary agent pattern (Microsoft Scout/Google Remy/remio, intent extraction pipeline, A2A chat→hopper), codebase knowledge gap visualization (AST-derived graphs, hybrid RAG, coverage maps), HOTL approval flow (per-action autonomy, state-managed interruptions), and Tauri real-time event push (replacing 4s poll with `app.emit()`). Includes a 15-row Vox gap matrix and 8-phase recommended implementation sequence (P0: Hp-T5 hopper_inbox table → P7: background sleep-time memory consolidation).
+- [Vox Gamification & Ludus System Review (2026-06-17)](gamification-ludus-review-findings-2026.md) — Comprehensive review of the Vox Gamify (Ludus) architecture, identifying gaps in wellness features, curfew/lockout limits, cost controls, and AI-driven custom SVG companion art generation/marketplace.
+- [Gamified Programming & Wellness Research (2026-06-17)](gamified-programming-wellness-research-2026.md) — Research findings on developer wellness metrics, digital curfew mechanisms, "intentional friction" anti-addiction loop design, and AI-driven SVG asset marketplaces.
 
 ## AI-First Language Fixtures
 
@@ -45,6 +50,10 @@ This file tracks the single source of truth for Vox architecture, research findi
 
 ## Audits & Assessments
 
+- [Graphify Integration Research (2026-06-16)](graphify-integration-research-2026-06-16.md) — Audit of `graphify-out/` collision (Graphify graphs vs CI artifacts), upstream graphifyy architecture, Rust-native structural port feasibility, agent-search + cache-freshness + multi-map diff plan (P0–P3), and code-review blockers before MCP wiring. **Agent handoff:** [`docs/superpowers/plans/2026-06-16-graphify-integration-HANDOFF-STATE.md`](../../superpowers/plans/2026-06-16-graphify-integration-HANDOFF-STATE.md).
+- [Graphify Python-Free Transition Findings (2026)](graphify-python-free-findings-2026.md) — Roadmap and ecosystem audit to eliminate Python dependencies in the Graphify lifecycle, replacing Python AST parsing and Leiden community clustering with pure Rust implementations (e.g. `leiden-rs`, `tree-sitter` bindings, `walkdir`).
+- [Build Profiles & Plugins Audit (2026-06-17)](../../superpowers/specs/2026-06-17-build-profiles-and-plugins-audit.md) — Architectural audit of Vox build distribution targets (mobile, desktop, full, light) and plugin boundaries.
+- [MCP Vox language exposure](mcp-vox-language-exposure.md) — Workspace `@tool` / `@resource` federation into `vox-mcp`, tier policy, skill allowlist semantics. **Code review cleanup handoff:** [`docs/superpowers/plans/2026-06-16-mcp-skills-cleanup-HANDOFF.md`](../../superpowers/plans/2026-06-16-mcp-skills-cleanup-HANDOFF.md).
 - [WebIR / HIR split-brain inventory (2026)](webir-hir-split-brain-inventory-2026.md) — Dual codegen paths, WebIR bridge, mobile/Tauri seams, and parity tests (baseline for IR work).
 - [ADR 036 — WebIR vs HIR unification (compare-both)](../adr/036-webir-hir-unification-compare-both.md) — Scored decision: **HIR semantic core + WebIR projection**; platform capability projection wiring.
 - [Tauri audit (2026-05-11)](tauri-audit-2026.md) — Codebase-wide reality check of Tauri usage vs SSOT claims: current desktop/mobile compile paths, capability projection wiring, build/CI cost implications, and a strategy-independent retire list for dead/misleading seams.
@@ -172,6 +181,7 @@ Ready-to-use TypeScript drop-ins in `docs/src/architecture/fableforge-impl/`. Ve
 
 ## GUI-Native Language Roadmap
 
+- [GUI Operator Console v2 — agent handoff (2026-06-16)](gui-operator-console-v2-handoff-2026-06-16.md) — Fresh-agent context for the v2 mega-plan: shipped phases, invariants, verification commands, remaining IMPR/OmniSearch/gamify work.
 - [Vox GUI-Native Language Roadmap (2026)](vox-gui-native-roadmap-2026.md) — Full task specifications for Phases 0–9 of the GUI-native language roadmap: dashboard safety, HIR unification, grammar unification policy, compiler primitive expansion (state machines, effects, typed URLs, design tokens), Web IR validators, workflow/activity/actor integration, corpus migration, and route wiring.
 - [GUI-Native Roadmap Execution Status (2026)](gui-native-roadmap-status-2026.md) — Live status overlay tracking what has been implemented versus planned, with per-task commit references and an audit log.
 
@@ -228,3 +238,22 @@ Ready-to-use TypeScript drop-ins in `docs/src/architecture/fableforge-impl/`. Ve
 - [Plugin System Redesign — SP3 Implementation Plan (2026)](plugin-system-redesign-sp3-plan-2026.md) — TDD task plan for Sub-Project 3 (MlBackend extension point + first real code plugin extraction). 11 tasks covering the `MlBackend` `#[sabi_trait]` definition, `as_ml_backend()` accessor on `VoxPlugin` (ABI bump 1→2), new `vox-plugin-mens-candle-cuda` cdylib crate owning candle-core/candle-nn/qlora-rs/peft-rs/safetensors/tokenizers/memmap2, code-motion of training/checkpoint logic out of `vox-populi`, deletion of `mens-candle-qlora` and `mens-candle-qlora-cuda` features, host-mediated MlBackend dispatch in vox-populi, end-to-end training smoke test, behavioral parity verification.
 - [Plugin System Redesign — SP4 Implementation Plan (2026)](plugin-system-redesign-sp4-plan-2026.md) — TDD task plan for Sub-Project 4 (skill-compiler migration — first skill plugin). 11 tasks covering the directory-only `vox-plugin-skill-compiler/` plugin (verbatim port of the existing `vox.compiler` SKILL.md), removal from `vox-skills` builtins, orchestrator + runtime + integration-tests consumer migration to `vox-plugin-host::SkillRegistry` with fallback dispatch through the existing `vox-skills` registry for the 8 unmigrated skills, and end-to-end MCP behavioral-parity test. Independent of SP3; can ship in either order after SP2.
 - [Plugin System Redesign (2026)](plugin-system-redesign-2026.md) — Unifies Cargo features, `vox-skills`, and capability registries into one runtime-loadable plugin system (`vox plugin`, `vox bundle`), `vox-plugin-catalog` SSOT, `abi_stable` host ABI, bundles (`vox-base`, `vox-fullstack`, `vox-mesh`, `vox-server`), eight-sub-project sequencing (CUDA spike in SP3). **SP7 (2026-05-04, complete):** ABI v6; extension traits `TensorBackend`, `AudioCapture`, `CloudSync`, `ScriptExecutor`; five stub plugin crates (`TODO(SP7-followup)` for code-motion). Retires `vox-build-meta` and `vox-skills` when migration completes.
+
+
+## omni-search-audit-and-roadmap-2026.md
+- **Title:** Omni-Search Audit & Roadmap (2026)
+- **Status:** current
+- **Date:** 2026-06-17
+- **Description:** Comprehensive audit of Vox search capabilities, surfaces, gaps, bugs (20 items), and enhancement roadmap. Covers the full stack from vox-db contracts through vox-search execution to GUI omni-search. Establishes what is and is not searched; gestures toward phased implementation plan.
+
+## code-search-omnisearch-research-2026-06-17.md
+- **Title:** Code Search & Omni-Search Research (2026-06-17)
+- **Status:** current
+- **Date:** 2026-06-17
+- **Description:** Synthesized web research (13 searches) on 2026 best practices: three-pillar hybrid search (BM25+vector+AST), RRF best practices, cross-encoder reranking, tree-sitter symbol indexing, MCP agent search patterns, GUI UX patterns, Rust-specific stack recommendations, and Vox-specific gap matrix.
+
+## mens-corpus-health-plan-2026-06-18.md
+- **Title:** MENS Training Corpus Health Implementation Plan (2026-06-18)
+- **Status:** current
+- **Date:** 2026-06-18
+- **Description:** 6-task TDD implementation plan for raising Vox parse rate from 75.1% to 88%+, fixing 93.7% Rust-source mix dominance, adding max_lines deterministic caps and content-hash deduplication to MixSource, making the Replay pipeline stage lock-resilient (os error 33), fixing @tool decorator syntax in preflight templates, and raising eval gate thresholds. Saved at docs/superpowers/plans/2026-06-18-mens-corpus-health.md.

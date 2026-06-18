@@ -1,0 +1,204 @@
+// vox:caps fs process env
+// scripts/sync-cursor-skills.vox
+//
+// Lists Cursor built-in skills from ~/.cursor/skills-cursor/ and optionally
+// copies them into the workspace interop root `.agents/skills/<name>/`.
+//
+// Cursor built-in skills are NOT vendored into the repo — this script is for
+// user-local import only.
+//
+// Usage:
+//   vox run scripts/sync-cursor-skills.vox              # dry-run (default)
+//   vox run scripts/sync-cursor-skills.vox -- --write   # copy into workspace
+//   vox run scripts/sync-cursor-skills.vox -- --target=.vox/skills
+//
+// Environment:
+//   VOX_REPO_ROOT — workspace root (default ".")
+//   USERPROFILE / HOME — host home for Cursor skills source
+
+import fs;
+import process;
+import env;
+
+fn repo_root() to str {
+    let root_opt = env.get("VOX_REPO_ROOT");
+    if root_opt.is_some() {
+        return root_opt.unwrap();
+    }
+    return ".";
+}
+
+fn home_dir() to str {
+    let win = env.get("USERPROFILE");
+    if win.is_some() {
+        return win.unwrap();
+    }
+    let unix = env.get("HOME");
+    if unix.is_some() {
+        return unix.unwrap();
+    }
+    return "";
+}
+
+fn join_path(base: str, rel: str) to str {
+    if base.ends_with("/") {
+        return base + rel;
+    }
+    return base + "/" + rel;
+}
+
+fn has_flag(argv: list[str], flag: str) to bool {
+    for arg in argv {
+        if arg == flag {
+            return true;
+        }
+    }
+    return false;
+}
+
+fn target_from_argv(argv: list[str]) to str {
+    for arg in argv {
+        if arg.starts_with("--target=") {
+            return arg.replace("--target=", "");
+        }
+    }
+    let n = argv.len();
+    for i in range(0, n) {
+        if argv.get(i).unwrap() == "--target" {
+            if i + 1 < n {
+                return argv.get(i + 1).unwrap();
+            }
+        }
+    }
+    return ".agents/skills";
+}
+
+fn copy_file(src: str, dst: str) to Result[Unit] {
+    match fs.copy(src, dst) {
+        Ok(_) => Ok(Unit)
+        Error(m) => Error("copy " + src + " -> " + dst + ": " + m)
+    }
+}
+
+fn copy_dir_recursive(src_root: str, dst_root: str) to Result[Unit] {
+    match fs.list_dir(src_root) {
+        Ok(entries) => {
+            for entry in entries {
+                let src = join_path(src_root, entry);
+                let dst = join_path(dst_root, entry);
+                if fs.is_dir(src) {
+                    match fs.mkdir(dst) {
+                        Ok(_) => {}
+                        Error(m) => return Error("mkdir " + dst + ": " + m)
+                    }
+                    match copy_dir_recursive(src, dst) {
+                        Ok(_) => {}
+                        Error(m) => return Error(m)
+                    }
+                } else if fs.is_file(src) {
+                    match copy_file(src, dst) {
+                        Ok(_) => {}
+                        Error(m) => return Error(m)
+                    }
+                }
+            }
+            Ok(Unit)
+        }
+        Error(m) => Error("list_dir " + src_root + ": " + m)
+    }
+}
+
+fn copy_tree(src_root: str, dst_root: str) to Result[Unit] {
+    if not fs.is_dir(src_root) {
+        return Error("source tree missing: " + src_root);
+    }
+    match fs.mkdir(dst_root) {
+        Ok(_) => {}
+        Error(m) => return Error("mkdir " + dst_root + ": " + m)
+    }
+    return copy_dir_recursive(src_root, dst_root);
+}
+
+fn list_cursor_skill_dirs(src_root: str) to list[str] {
+    let mut names = [];
+    if not fs.is_dir(src_root) {
+        return names;
+    }
+    match fs.list_dir(src_root) {
+        Ok(entries) => {
+            for entry in entries {
+                let dir = join_path(src_root, entry);
+                if fs.is_dir(dir) and fs.is_file(join_path(dir, "SKILL.md")) {
+                    names = names.push(entry);
+                }
+            }
+        }
+        Error(_) => {
+            return names;
+        }
+    }
+    return names;
+}
+
+fn main() {
+    let root = repo_root();
+    let home = home_dir();
+    if home == "" {
+        print("sync-cursor-skills: could not resolve home (set USERPROFILE or HOME)");
+        process.exit(1);
+    }
+
+    let src_root = join_path(home, ".cursor/skills-cursor");
+    let argv = env.args();
+    let write_mode = has_flag(argv, "--write");
+    let target_rel = target_from_argv(argv);
+    let dst_root = join_path(root, target_rel);
+
+    let skills = list_cursor_skill_dirs(src_root);
+    if skills.len() == 0 {
+        print("sync-cursor-skills: no SKILL.md directories under " + src_root);
+        print("sync-cursor-skills: install Cursor or verify ~/.cursor/skills-cursor exists");
+        if write_mode {
+            process.exit(1);
+        }
+        return;
+    }
+
+    print("sync-cursor-skills: found " + str(skills.len()) + " Cursor built-in skills");
+    print("sync-cursor-skills: source=" + src_root);
+    print("sync-cursor-skills: target=" + dst_root);
+    print("sync-cursor-skills: mode=" + (if write_mode { "write" } else { "dry-run" }));
+
+    let mut copied = 0;
+    let mut failed = false;
+    for name in skills {
+        let src_dir = join_path(src_root, name);
+        let dst_dir = join_path(dst_root, name);
+        if write_mode {
+            match copy_tree(src_dir, dst_dir) {
+                Ok(_) => {
+                    copied = copied + 1;
+                    print("  copied " + name + " -> " + dst_dir);
+                }
+                Error(m) => {
+                    print("sync-cursor-skills: " + m);
+                    failed = true;
+                }
+            }
+        } else {
+            print("  would copy " + name);
+            print("    from " + src_dir);
+            print("    to   " + dst_dir);
+        }
+    }
+
+    if failed {
+        process.exit(1);
+    }
+
+    if write_mode {
+        print("sync-cursor-skills: copied " + str(copied) + " skill directories");
+    } else {
+        print("sync-cursor-skills: pass --write to copy into the workspace");
+    }
+}

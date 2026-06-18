@@ -40,8 +40,9 @@ function can be 100% line-covered and 0% proven. That delta is the deliverable.
 
 ## 3. Architecture: a derived layer on the graphify graph
 
-The map's home is `graphify-out/graph.json` (already built: 15,333 AST nodes,
-29k edges, community-clustered). We **overlay** new node and edge types rather
+The map's home is `graphify-out/graph.json` (partial compiler-scope rebuilds
+may be smaller; the committed semantic-coverage snapshot ratchet is
+`contracts/reports/semantic-coverage-graph.snapshot.json.gz`). We **overlay** new node and edge types rather
 than building a separate store, so it is queryable today via `/graphify query`
 and the HTML viz.
 
