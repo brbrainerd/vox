@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { LudusSandbox, assignPlotCoordinates } from './LudusSandbox';
 import { useLudusStore } from './store';
@@ -43,6 +43,10 @@ describe('DOM Subscription Engine', () => {
 });
 
 describe('Telemetry Ingestion Mapping', () => {
+  beforeEach(() => {
+    useLudusStore.getState().reset();
+  });
+
   it('subscribes to agent events and updates building state on file_edited', () => {
     let eventCallback: any;
     vi.mocked(transport.listenAgentEvents).mockImplementation((cb) => {
@@ -87,5 +91,39 @@ describe('Telemetry Ingestion Mapping', () => {
     // Camera target centering check (verifies camera center state is updated)
     const store = useLudusStore.getState();
     expect(store.focusedFile).toBe('crates/vox-db/src/lib.rs');
+  });
+
+  it('correctly maps canvas clicks to building focusedFile states', () => {
+    const files = ['crates/vox-db/src/lib.rs'];
+    const { render, fireEvent } = require('@testing-library/react');
+    const { container } = render(<LudusSandbox files={files} />);
+    const canvas = container.querySelector('canvas');
+    expect(canvas).toBeDefined();
+
+    // The single plot for crates/vox-db/src/lib.rs is at x=4, y=4, z=0
+    // projectIso(4, 4, 0, 64, 32, 1000, 100) -> px = 1000, py = 228
+    // Default camera is { x: 400, y: 100, zoom: 1 }
+    // clientX = camera.x + px = 1400
+    // clientY = camera.y + py = 328
+    
+    // We mock getBoundingClientRect on the canvas to return { left: 0, top: 0, width: 800, height: 500 }
+    canvas.getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      right: 800,
+      bottom: 500,
+      width: 800,
+      height: 500,
+      x: 0,
+      y: 0,
+      toJSON: () => {},
+    });
+
+    // Reset focusedFile first
+    useLudusStore.getState().setFocusedFile(null);
+
+    fireEvent.click(canvas, { clientX: 400, clientY: 328 });
+    
+    expect(useLudusStore.getState().focusedFile).toBe('crates/vox-db/src/lib.rs');
   });
 });

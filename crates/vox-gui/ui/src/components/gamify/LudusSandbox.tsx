@@ -52,8 +52,13 @@ export const LudusSandbox: React.FC<SandboxProps> = ({ files }) => {
     const centerOffsetY = 100;
     const { px, py } = projectIso(plot.x, plot.y, plot.z, tileWidth, tileHeight, centerOffsetX, centerOffsetY);
     
-    // Pan camera to center coordinates: cameraX = viewportWidth/2 - px, cameraY = viewportHeight/2 - py
-    setCamera({ x: 400 - px, y: 250 - py, zoom: 1.2 });
+    const targetZoom = 1.2;
+    // Pan camera to center coordinates: cameraX = viewportWidth/2 - (px - centerOffsetX) * zoom, cameraY = viewportHeight/2 - py * zoom
+    setCamera({
+      x: 400 - (px - centerOffsetX) * targetZoom,
+      y: 250 - py * targetZoom,
+      zoom: targetZoom
+    });
   }, [focusedFile, plots]);
 
   // Initialize buildings in Zustand store
@@ -166,9 +171,42 @@ export const LudusSandbox: React.FC<SandboxProps> = ({ files }) => {
     };
   }, []);
 
+  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+
+    // Convert screen coordinates to world coordinates based on camera transform
+    const worldX = (clickX - camera.x) / camera.zoom;
+    const worldY = (clickY - camera.y) / camera.zoom;
+
+    const centerOffsetX = 1000;
+    const centerOffsetY = 100;
+
+    // Find clicked building within click radius threshold
+    for (const [filePath, plot] of Object.entries(plots)) {
+      const { px, py } = projectIso(plot.x, plot.y, plot.z, tileWidth, tileHeight, centerOffsetX, centerOffsetY);
+      const dx = worldX - (px - 1000);
+      const dy = worldY - py;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance < 20) {
+        useLudusStore.getState().setFocusedFile(filePath);
+        break;
+      }
+    }
+  };
+
   return (
     <div className="relative w-full h-[500px] bg-[#09090b] overflow-hidden border border-zinc-800 rounded-2xl">
-      <canvas ref={canvasRef} width={800} height={500} className="absolute inset-0 w-full h-full" />
+      <canvas
+        ref={canvasRef}
+        width={800}
+        height={500}
+        className="absolute inset-0 w-full h-full cursor-pointer"
+        onClick={handleCanvasClick}
+      />
       <div className="absolute inset-0 pointer-events-none">
         <CitizenSprite
           id="dev"
