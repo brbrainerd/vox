@@ -230,3 +230,36 @@ fn no_lexical_lag_when_ingest_sha_absent() {
     };
     assert_eq!(lexical_lag_stale_reason(&manifest), None);
 }
+
+#[test]
+fn assess_reports_lexical_lag_when_manifest_sha_mismatch() {
+    let tmp = tempfile::tempdir().unwrap();
+    write_minimal_registry(tmp.path());
+    let graph_dir = tmp.path().join("graphify-out");
+    fs::create_dir_all(&graph_dir).unwrap();
+    fs::write(
+        graph_dir.join("graph.json"),
+        r#"{"nodes":[{"id":"a"}],"links":[{"source":"a","target":"b"}]}"#,
+    )
+    .unwrap();
+    let built_at = "2026-06-15T10:00:00Z";
+    fs::write(
+        graph_dir.join(".graphify_manifest.v1.json"),
+        format!(
+            r#"{{"corpus_id":"repo-code-graph","built_at":"{built_at}","git_sha":"abc123","node_count":1,"edge_count":1,"graph_json_sha256":"sha-g","lexical_ingest_sha256":"sha-i"}}"#
+        ),
+    )
+    .unwrap();
+    let reg = load_graphify_corpora(tmp.path()).unwrap();
+    let corpus = corpus_by_id(&reg, "repo-code-graph");
+    let status = assess_corpus_status(
+        tmp.path(),
+        corpus,
+        Some("abc123"),
+        Utc.with_ymd_and_hms(2026, 6, 16, 12, 0, 0).unwrap(),
+        30,
+    );
+    assert!(!status.is_fresh);
+    assert!(status.stale_reasons.iter().any(|r| r == "lexical_lag"), "stale reasons were: {:?}", status.stale_reasons);
+}
+

@@ -1,0 +1,10 @@
+{
+  "publication_id": "sandbox-fixture-pub",
+  "content_type": "scientia",
+  "title": "Deterministic Novelty Detection in Vox",
+  "author": "Ada Lovelace",
+  "abstract_text": "We study novelty scoring under partial retrieval.",
+  "body_markdown": "Full manuscript body for the sandbox fixture.",
+  "citations_json": "[]",
+  "metadata_json": null
+}

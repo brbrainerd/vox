@@ -527,7 +527,7 @@ fn stdlib_module_capability(module: &str) -> Option<HirCapability> {
         "process" | "Process" => Some(HirCapability::Spawn),
         // Web automation/scraping are network-bearing (Browser also launches a
         // process; Net is the load-bearing capability). Previously ungoverned.
-        "Scrape" | "scrape" | "Browser" | "OpenClaw" => Some(HirCapability::Net),
+        "Scrape" | "scrape" | "Browser" | "OpenClaw" | "Agent" => Some(HirCapability::Net),
         // VCS / repository builtins.
         "repo" | "Repo" | "vcs" | "Vcs" => Some(HirCapability::Vcs),
         _ => None,

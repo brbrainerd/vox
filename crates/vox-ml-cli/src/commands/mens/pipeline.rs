@@ -42,8 +42,8 @@ pub async fn run(
         PipelineStage::ReviewEvalPackBuild,
         PipelineStage::Validate,
         PipelineStage::Pairs,
-        PipelineStage::Eval,
         PipelineStage::Mix,
+        PipelineStage::Eval,
         PipelineStage::KbSignals,
         PipelineStage::Train,
     ];
@@ -71,6 +71,8 @@ pub async fn run(
     let total_stages = planned_stages.len();
     let validated = PathBuf::from("mens/data/validated.jsonl");
     let train_jsonl = data_dir.join("train.jsonl");
+    let _train_mixed_jsonl = data_dir.join("train_mixed.jsonl");
+    let validated_mixed_jsonl = data_dir.join("validated_mixed.jsonl");
     let eval_out = output_dir.join("eval_results.json");
 
     tracing::info!(
@@ -297,14 +299,14 @@ pub async fn run(
             }
             PipelineStage::Eval => {
                 if !dry_run {
-                    if !train_jsonl.is_file() {
+                    if !validated_mixed_jsonl.is_file() {
                         anyhow::bail!(
-                            "Eval stage: missing input file '{}'. Make sure Pairs stage ran successfully.",
-                            train_jsonl.display()
+                            "Eval stage: missing input file '{}'. Make sure Mix/Pairs stage ran successfully.",
+                            validated_mixed_jsonl.display()
                         );
                     }
                     crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Eval {
-                        input: train_jsonl.clone(),
+                        input: validated_mixed_jsonl.clone(),
                         output: eval_out.clone(),
                         print_summary: false,
                     })
@@ -598,5 +600,42 @@ mod tests {
     fn test_is_lock_error_does_not_match_other_errors() {
         let e = anyhow::anyhow!("file not found (os error 2)");
         assert!(!is_lock_error(&e));
+    }
+
+    #[tokio::test]
+    async fn test_eval_stage_targets_validated_mixed_jsonl() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let data_dir = temp_dir.path().join("data");
+        let output_dir = temp_dir.path().join("output");
+        std::fs::create_dir_all(&data_dir).unwrap();
+        std::fs::create_dir_all(&output_dir).unwrap();
+
+        // Create validated_mixed.jsonl but NOT train_mixed.jsonl
+        let mixed_path = data_dir.join("validated_mixed.jsonl");
+        std::fs::write(&mixed_path, r#"{"prompt":"hello","completion":"world"}"#).unwrap();
+
+        let res = run(
+            data_dir.clone(),
+            output_dir,
+            true,  // skip_train
+            false, // strict_gate
+            None,
+            None,
+            None,
+            None,
+            Some("eval".to_string()),
+            false,
+            false,
+        )
+        .await;
+
+        if let Err(e) = res {
+            let err_msg = e.to_string();
+            assert!(
+                !err_msg.contains("train_mixed.jsonl"),
+                "Should not expect train_mixed.jsonl, error was: {}",
+                err_msg
+            );
+        }
     }
 }

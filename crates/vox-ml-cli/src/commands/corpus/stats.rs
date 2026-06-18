@@ -243,6 +243,20 @@ pub(super) async fn run_eval(input: &Path, output: &Path, print_summary: bool) -
     let total = s.total;
 
     let taxonomy: HashSet<&str> = crate::training::TAXONOMY.iter().copied().collect();
+    let mut hit_vec: Vec<_> = s
+        .construct_hits
+        .iter()
+        .filter(|x| taxonomy.contains(x.as_str()))
+        .collect();
+    hit_vec.sort();
+    println!(
+        "--- DETECTED TAXONOMY CONSTRUCTS ({}/{}) ---",
+        hit_vec.len(),
+        taxonomy.len()
+    );
+    for h in &hit_vec {
+        println!("  - {}", h);
+    }
     let coverage = s
         .construct_hits
         .iter()

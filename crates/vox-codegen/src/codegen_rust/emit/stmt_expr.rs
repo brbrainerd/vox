@@ -862,7 +862,7 @@ fn try_emit_namespace_call(
     // Shape 1: `Module.fn(args)` where Module is OpenClaw / Browser / Scrape / fs.
     if let HirExpr::Ident(module_name, _) = namespace_expr.as_ref() {
         let a: Vec<_> = args.iter().map(|arg| emit_owned(&arg.value)).collect();
-        if module_name == "OpenClaw" || module_name == "Browser" || module_name == "Scrape" {
+        if module_name == "OpenClaw" || module_name == "Browser" || module_name == "Scrape" || module_name == "Agent" {
             if let Some(expr) = emit_openclaw_or_browser_registry_call(module_name, fn_name, &a) {
                 return Some(expr);
             }
@@ -1230,6 +1230,20 @@ mod scrape_emit_tests {
         assert!(
             out.contains("wasm32"),
             "Browser.* must keep the wasm guard: {out}"
+        );
+    }
+
+    #[test]
+    fn agent_emits_correctly() {
+        let out = emit_openclaw_or_browser_registry_call(
+            "Agent",
+            "call",
+            &["method".to_string(), "params".to_string()],
+        )
+        .expect("Agent.call in registry");
+        assert!(
+            out.contains("vox_actor_runtime::builtins::vox_agent_call((method).as_str(), (params).as_str())"),
+            "unexpected emit: {out}"
         );
     }
 }

@@ -1,0 +1,80 @@
+// vox:caps fs process env
+// scripts/audit-skill-licenses.vox
+//
+// Fails when a vendored skill under assets/skills/<name>/ lacks license evidence.
+// Accepts LICENSE.upstream (superpowers vendor) or LICENSE.txt (anthropic vendor).
+//
+// Usage:
+//   vox run scripts/audit-skill-licenses.vox
+//   VOX_REPO_ROOT=/path vox run scripts/audit-skill-licenses.vox
+
+import fs;
+import process;
+import env;
+
+fn repo_root() to str {
+    let root_opt = env.get("VOX_REPO_ROOT");
+    if root_opt.is_some() {
+        return root_opt.unwrap();
+    }
+    return ".";
+}
+
+fn has_license_evidence(skill_dir: str) to bool {
+    if fs.is_file(skill_dir + "/LICENSE.upstream") {
+        return true;
+    }
+    if fs.is_file(skill_dir + "/LICENSE.txt") {
+        return true;
+    }
+    if fs.is_file(skill_dir + "/LICENSE") {
+        return true;
+    }
+    return false;
+}
+
+fn list_skill_names(root: str) to list[str] {
+    let assets = root + "/assets/skills";
+    let mut names = [];
+    match fs.list_dir(assets) {
+        Ok(entries) => {
+            for entry in entries {
+                let dir = assets + "/" + entry;
+                if fs.is_dir(dir) and fs.is_file(dir + "/SKILL.md") {
+                    names = names.push(entry);
+                }
+            }
+        }
+        Error(_) => {
+            return names;
+        }
+    }
+    return names;
+}
+
+fn main() {
+    let root = repo_root();
+    let skills = list_skill_names(root);
+    if skills.len() == 0 {
+        print("audit-skill-licenses: no skills under assets/skills/");
+        process.exit(1);
+    }
+
+    let mut missing = [];
+    for name in skills {
+        let dir = repo_root() + "/assets/skills/" + name;
+        if not has_license_evidence(dir) {
+            missing = missing.push(name);
+        }
+    }
+
+    if missing.len() > 0 {
+        print("audit-skill-licenses: missing LICENSE.upstream or LICENSE.txt:");
+        for name in missing {
+            print("  - assets/skills/" + name);
+        }
+        process.exit(1);
+    }
+
+    print("audit-skill-licenses: ok (" + str(skills.len()) + " skills with license evidence)");
+}
