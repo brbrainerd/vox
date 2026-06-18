@@ -18,6 +18,19 @@ pub const LEGACY_GRAPHIFY_OUT_DIR: &str = "graphify-out";
 /// Basename for per-corpus manifest files written beside `graph.json`.
 pub const MANIFEST_BASENAME: &str = ".graphify_manifest.v1.json";
 
+/// Env var to override TTL in days for all graphify corpora.
+pub const GRAPHIFY_TTL_DAYS_ENV: &str = "VOX_GRAPHIFY_TTL_DAYS";
+
+/// Resolve the TTL (in days) using `VOX_GRAPHIFY_TTL_DAYS` if present, falling back to a default value.
+pub fn resolve_ttl_days(default_ttl: u64) -> u64 {
+    if let Ok(val) = std::env::var(GRAPHIFY_TTL_DAYS_ENV) {
+        if let Ok(parsed) = val.parse::<u64>() {
+            return parsed;
+        }
+    }
+    default_ttl
+}
+
 #[derive(Debug, Clone, Deserialize)]
 struct CorporaFile {
     default_corpus_id: String,

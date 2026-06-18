@@ -76,7 +76,7 @@ fn assess_all(
     head_sha: Option<&str>,
 ) -> Result<Vec<CorpusStatus>, GraphifyError> {
     let now = Utc::now();
-    let ttl = reg.ttl_days_default;
+    let ttl = vox_config::graphify::resolve_ttl_days(reg.ttl_days_default);
     selected_corpora(reg, corpus)?
         .into_iter()
         .map(|c| Ok(assess_corpus_status(repo_root, c, head_sha, now, ttl)))

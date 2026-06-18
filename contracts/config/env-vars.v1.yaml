@@ -799,6 +799,18 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_GRAPHIFY_TTL_DAYS"
+    owner_crate: "vox-config"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "Override TTL in days for all graphify corpus status assessments."
+  - name: "VOX_GRAPHIFY_VIZ_NODE_LIMIT"
+    owner_crate: "vox-orchestrator-mcp"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "Maximum node limit for graphify visualization or neighbor query traversal."
   - name: "VOX_GROQ_API_KEY"
     owner_crate: "vox-secrets"
     kind: "string"

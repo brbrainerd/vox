@@ -266,3 +266,24 @@ fn assess_reports_lexical_lag_when_manifest_sha_mismatch() {
         status.stale_reasons
     );
 }
+
+#[test]
+fn test_resolve_ttl_days_with_env_override() {
+    use vox_config::graphify::resolve_ttl_days;
+    
+    // Test default fallback
+    unsafe { std::env::remove_var("VOX_GRAPHIFY_TTL_DAYS"); }
+    assert_eq!(resolve_ttl_days(30), 30);
+    assert_eq!(resolve_ttl_days(15), 15);
+
+    // Test env override
+    unsafe { std::env::set_var("VOX_GRAPHIFY_TTL_DAYS", "10"); }
+    assert_eq!(resolve_ttl_days(30), 10);
+    
+    // Test invalid env override falls back
+    unsafe { std::env::set_var("VOX_GRAPHIFY_TTL_DAYS", "invalid"); }
+    assert_eq!(resolve_ttl_days(30), 30);
+    
+    unsafe { std::env::remove_var("VOX_GRAPHIFY_TTL_DAYS"); }
+}
+

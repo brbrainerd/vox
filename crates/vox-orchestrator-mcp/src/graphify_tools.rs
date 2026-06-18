@@ -109,7 +109,7 @@ fn assess_all(
     head_sha: Option<&str>,
 ) -> Result<Vec<CorpusStatus>, GraphifyError> {
     let now = Utc::now();
-    let ttl = reg.ttl_days_default;
+    let ttl = vox_config::graphify::resolve_ttl_days(reg.ttl_days_default);
     selected_corpora(reg, corpus)?
         .into_iter()
         .map(|c| Ok(assess_corpus_status(repo_root, c, head_sha, now, ttl)))
@@ -354,7 +354,8 @@ pub async fn graphify_query(state: &ServerState, params: GraphifyQueryParams) ->
     let graph = match load_graph_json(repo_root, corpus) {
         Ok(v) => v,
         Err(e) => {
-            return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_GRAPHIFY).to_json();
+            return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_GRAPHIFY)
+                .to_json();
         }
     };
     let reader = match vox_graphify_reader::GraphifyReader::from_value(graph) {
@@ -417,7 +418,8 @@ pub async fn graphify_path(state: &ServerState, params: GraphifyPathParams) -> S
     let graph = match load_graph_json(repo_root, corpus) {
         Ok(v) => v,
         Err(e) => {
-            return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_GRAPHIFY).to_json();
+            return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_GRAPHIFY)
+                .to_json();
         }
     };
     let reader = match vox_graphify_reader::GraphifyReader::from_value(graph) {
