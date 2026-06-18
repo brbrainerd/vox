@@ -248,7 +248,7 @@ fn extract_code_blocks(
             }
 
             let code = code_lines.join("\n");
-            if code.contains("{{#include") {
+            if code.contains("{{#include") || code.contains("// vox:skip") {
                 preceding_context.clear();
                 i += 1;
                 continue;

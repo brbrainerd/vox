@@ -450,7 +450,7 @@ fn extract_doc_pairs(docs_dir: &Path) -> Vec<serde_json::Value> {
             if in_vox_block && line.trim_start().starts_with("```") {
                 in_vox_block = false;
                 let code = code_lines.join("\n");
-                if code.contains("{{#include") {
+                if code.contains("{{#include") || code.contains("// vox:skip") {
                     continue;
                 }
                 if code.len() >= 20 {

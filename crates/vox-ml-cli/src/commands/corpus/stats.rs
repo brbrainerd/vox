@@ -45,6 +45,7 @@ fn scan_train_jsonl_content(content: &str) -> Result<EvalScan> {
     let mut safety_rejected = 0u32;
     let mut parse_passed = 0u32;
     let mut construct_hits: HashSet<String> = HashSet::new();
+    let mut parse_failed_count = 0u32;
 
     let safety_patterns = [
         "ignore previous instructions",
@@ -84,7 +85,8 @@ fn scan_train_jsonl_content(content: &str) -> Result<EvalScan> {
                         construct_hits.insert(c);
                     }
                 } else {
-                    if parse_passed < 10 {
+                    parse_failed_count += 1;
+                    if parse_failed_count <= 10 {
                         println!("--- PARSE FAILURE ---");
                         println!("Code:\n{}", response);
                         println!("Errors:");
@@ -95,7 +97,8 @@ fn scan_train_jsonl_content(content: &str) -> Result<EvalScan> {
                 }
             }
             Err(e) => {
-                if parse_passed < 10 {
+                parse_failed_count += 1;
+                if parse_failed_count <= 10 {
                     println!("--- FRONTEND ERROR: {} ---", e);
                     println!("Code:\n{}", response);
                 }
