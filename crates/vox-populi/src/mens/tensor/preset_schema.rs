@@ -348,6 +348,24 @@ pub fn resolve_effective_profile(
         p = apply_qwen_size_ladder_policy(p, class, device.vram_mb);
     }
 
+    if device.vram_mb > 0 {
+        let vram_gib = (device.vram_mb as f64) / 1024.0;
+        let hint = model_hint.as_deref().unwrap_or(crate::mens::DEFAULT_MODEL_ID);
+        let params_b = crate::mens::tensor::memory_budget::params_b_from_model_hint(hint).unwrap_or(7.0);
+
+        let budget_plan = if crate::mens::tensor::memory_budget::is_qwen35(hint) {
+            crate::mens::tensor::memory_budget::plan_qwen35(vram_gib, params_b)
+        } else if crate::mens::tensor::memory_budget::is_qwen3(hint) {
+            crate::mens::tensor::memory_budget::plan_qwen3(vram_gib, params_b)
+        } else {
+            crate::mens::tensor::memory_budget::plan_qwen25coder(vram_gib, params_b)
+        };
+
+        p.seq_len = p.seq_len.min(budget_plan.seq_len);
+        p.batch_size = p.batch_size.min(budget_plan.batch_size);
+        p.grad_accum = p.grad_accum.max(budget_plan.grad_accum);
+    }
+
     let _ = probe_gpu();
     p
 }
@@ -465,4 +483,21 @@ mod preset_tests {
         assert_eq!(profile.batch_size, 1);
         assert_eq!(profile.grad_accum, 8);
     }
+
+    #[test]
+    fn presets_are_bounded_by_vram() {
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::set_var("VOX_BASE_MODEL", "Qwen/Qwen2.5-Coder-7B-Instruct");
+        }
+        let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384);
+        let profile = resolve_effective_profile(Some("a100"), dev, None, CliOverrides::default());
+        assert!(profile.seq_len < 1024);
+        assert!(profile.batch_size < 8);
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::remove_var("VOX_BASE_MODEL");
+        }
+    }
 }
+
