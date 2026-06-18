@@ -334,7 +334,7 @@ export default function App() {
   useEffect(() => {
     voxTransport.getCatalog().then((catalog: CommandCatalog) => {
       if (catalog?.entries) setData(prev => ({ ...prev, skills: catalog.entries }));
-    });
+    }).catch(() => {});
     invoke<{ display?: string; version?: string }>('get_build_info')
       .then((info) => setAppVersion(info.display ?? info.version ?? 'unknown'))
       .catch(() => setAppVersion('unknown'));
