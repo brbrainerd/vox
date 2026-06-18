@@ -5,6 +5,7 @@ mod install;
 mod manifest;
 mod channel;
 mod download;
+mod shell;
 
 #[derive(Parser)]
 #[command(name = "voxup", about = "The Vox toolchain multiplexer")]
