@@ -93,6 +93,7 @@ export const LudusSandbox: React.FC<SandboxProps> = ({ files }) => {
     }
 
     // Draw buildings with weeds/cracks overlays
+    const activeScaffolds = new Set(Object.values(agentTasks).map(t => t.filePath));
     for (const [filePath, plot] of Object.entries(plots)) {
       const { px, py } = projectIso(plot.x, plot.y, plot.z, tileWidth, tileHeight, centerOffsetX, centerOffsetY);
       const bState = buildings[filePath] || { warnings: 0, errors: 0 };
@@ -108,6 +109,19 @@ export const LudusSandbox: React.FC<SandboxProps> = ({ files }) => {
         ctx.fillStyle = '#10b981';
         ctx.fillRect(px - 10, py + 2, 4, 4);
         ctx.fillRect(px + 6, py + 2, 4, 4);
+      }
+
+      if (activeScaffolds.has(filePath)) {
+        // Draw wooden construction scaffolding
+        ctx.strokeStyle = '#b45309'; // Brown/wood color
+        ctx.lineWidth = 1.5;
+        // Draw crossed pillars
+        ctx.beginPath();
+        ctx.moveTo(px - 14, py - 6);
+        ctx.lineTo(px + 14, py + 6);
+        ctx.moveTo(px - 14, py + 6);
+        ctx.lineTo(px + 14, py - 6);
+        ctx.stroke();
       }
     }
 
@@ -217,6 +231,23 @@ export const LudusSandbox: React.FC<SandboxProps> = ({ files }) => {
           offsetY={camera.y}
         />
       </div>
+      {Object.values(agentTasks).map((task) => {
+        const plot = plots[task.filePath];
+        if (!plot) return null;
+        const { px, py } = projectIso(plot.x, plot.y, plot.z, tileWidth, tileHeight, 1000, 100);
+        const left = camera.x + (px - 1000) * camera.zoom;
+        const top = camera.y + py * camera.zoom;
+        return (
+          <div
+            key={task.taskId}
+            data-testid="task-clipboard"
+            className="absolute pointer-events-auto cursor-pointer bg-zinc-900 border border-zinc-700 p-1 rounded text-xs select-none z-10"
+            style={{ left: left - 10, top: top - 20 }}
+          >
+            📋
+          </div>
+        );
+      })}
       <HudPanels
         treasuryValue={120}
         energy={90}
