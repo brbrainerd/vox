@@ -174,6 +174,8 @@ jobs:
     runs-on: [self-hosted, linux, x64]
     needs: build
     steps:
+      - uses: actions/checkout@v6
+
       - uses: actions/download-artifact@v8
         with:
           path: release-artifacts
@@ -210,5 +212,7 @@ jobs:
             release-artifacts/release-*/*
             release-artifacts/checksums.txt
             release-artifacts/sbom.spdx.json
+            scripts/install.sh
+            scripts/install.ps1
           generate_release_notes: true
           fail_on_unmatched_files: false
