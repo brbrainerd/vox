@@ -20,16 +20,35 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: Build voxup
         run: cargo build --release -p voxup
-      - name: E2E Test voxup
+      - name: Smoke — voxup --help (all branches)
         run: |
-          mkdir -p /tmp/fake_home
-          HOME=/tmp/fake_home target/release/voxup install default
-          if [ ! -f /tmp/fake_home/.vox/bin/vox ]; then
-            echo "voxup failed to install the proxy binary."
+          ./target/release/voxup --help
+          ./target/release/voxup install --help
+          ./target/release/voxup update --help
+          ./target/release/voxup proxy --help
+
+      - name: E2E — voxup install (downloads from GitHub, tag runs only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          export HOME=/tmp/fake_home
+          mkdir -p $HOME
+          ./target/release/voxup install default
+          if [ ! -f "$HOME/.vox/bin/vox" ]; then
+            echo "FAIL: ~/.vox/bin/vox not found"
             exit 1
           fi
-          # Test the proxy wrapper
-          HOME=/tmp/fake_home /tmp/fake_home/.vox/bin/vox --version || true
+          version=$("$HOME/.vox/bin/vox" --version 2>&1)
+          echo "Installed: $version"
+          if ! echo "$version" | grep -qE '[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "FAIL: --version did not return semver"
+            exit 1
+          fi
+
+      - name: E2E — voxup update (no-op, tag runs only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          export HOME=/tmp/fake_home
+          ./target/release/voxup update
   build-windows-msi:
     runs-on: windows-latest
     steps:
