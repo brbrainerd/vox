@@ -934,6 +934,14 @@ jobs:
             graphify-out/build-bench/
           if-no-files-found: ignore
 
+      - name: Graphify corpus freshness gate (warning)
+        if: needs.setup.outputs.full == 'true'
+        run: ./target/debug/vox graphify status --strict
+        env:
+          VOX_GRAPHIFY_TTL_DAYS: "7"
+        continue-on-error: true
+
+
       # Conditional coverage: llvm-cov instrumentation adds significant wall-clock
       # time and is meaningless on docs-only PRs.  Run plain nextest when no Rust
       # crates changed; full llvm-cov nextest on merge_group (full=true).
