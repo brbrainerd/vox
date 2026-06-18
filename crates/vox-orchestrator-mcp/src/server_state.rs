@@ -183,13 +183,15 @@ impl ServerState {
                     "session manager initialization failed; \
                      falling back to in-memory sessions (data will not persist across restarts)"
                 );
+                // SAFETY: `persist: false` skips `create_dir_all` — the only
+                // fallible operation in `SessionManager::new`. This call is
+                // therefore infallible and the `.expect` will never fire.
                 let fallback_cfg = SessionConfig {
                     persist: false,
                     ..SessionConfig::default()
                 };
-                SessionManager::new(fallback_cfg).unwrap_or_else(|e| {
-                    panic!("Fallback session manager initialization failed: {}", e)
-                })
+                SessionManager::new(fallback_cfg)
+                    .expect("in-memory SessionManager init is infallible")
             }
         };
 

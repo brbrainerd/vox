@@ -9,12 +9,7 @@ fn test_lcov_reachability_ingest() {
         ],
         "links": []
     });
-    let lcov = "
-        SF:src/main.rs
-        FN:3,hello
-        FNDA:5,hello
-        end_of_record
-    ";
+    let lcov = "SF:src/main.rs\nFN:3,hello\nFNDA:5,hello\nend_of_record\n";
     let updated = ingest_lcov_reachability(&graph, lcov).unwrap();
     let nodes = updated["nodes"].as_array().unwrap();
     assert_eq!(nodes[0]["execution_count"].as_u64().unwrap(), 5);
