@@ -1,6 +1,6 @@
 ---
 title: "AGENTS.md"
-description: "Documentation for AGENTS.md."
+description: "Cross-tool, always-loaded base policy and single source of truth for coding agents in the Vox repo; tool overlays (GEMINI.md, CLAUDE.md, copilot-instructions.md) narrow it but never replace it."
 category: "architecture"
 status: "current"
 training_eligible: true

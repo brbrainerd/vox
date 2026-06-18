@@ -52,6 +52,12 @@ Research synthesis (Cursor, Gemini, Codex, PowerShell, bypass classes, future Vo
 - Keep destructive operations explicitly denied in IDE policy where supported.
 - When unsure, choose decomposition and explicitness over shell cleverness.
 
+## Agent Skills & Plan Execution
+
+Antigravity mounts repo skills from `.agents/skills/`. Ensure that path resolves to (or copies/symlinks) **`crates/vox-skills/skills/superpowers/`** — the in-repo skill library (brainstorming, subagent-driven-development, dispatching-parallel-agents, verification-before-completion, test-driven-development, systematic-debugging, requesting-code-review, using-git-worktrees, writing-plans). Antigravity cannot see Claude's external `~/.claude/` skill cache, so any skill a plan references must be loaded from here.
+
+When executing a written implementation plan from `docs/superpowers/plans/`, first read [`docs/src/contributors/antigravity-handoff-and-skill-gaps-2026-06-18.md`](docs/src/contributors/antigravity-handoff-and-skill-gaps-2026-06-18.md) (execution model, parallel-vs-sequential dispatch rule, skill map) and [`docs/src/architecture/gemini-3-5-flash-antigravity-limitations-2026-06-18.md`](docs/src/architecture/gemini-3-5-flash-antigravity-limitations-2026-06-18.md) (why plans are shaped atomic-green-commit + verify-before-use + two-strike). Honor each task's `[PARALLEL-SAFE]`/`[SEQUENTIAL]` tag; never run two subagents that write the same file.
+
 ## Cursor IDE overlay
 
 For Cursor-specific rules, see [`.cursor/rules/`](.cursor/rules/).

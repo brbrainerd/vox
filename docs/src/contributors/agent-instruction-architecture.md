@@ -48,7 +48,7 @@ Prefer:
 - One command per terminal step (unless the user or policy explicitly allows pipelines; narrow pipeline patterns may be allowlisted under exec-policy).
 - **`pwsh` on Linux and macOS when installed** — same cmdlet surface and the same `vox shell check` semantics as on Windows.
 - PowerShell-native filesystem cmdlets instead of POSIX habits copied into a PowerShell session.
-- Stable project tools: `rg`, `git`, `cargo`, `pnpm`, `uv`, `vox`.
+- Stable project tools: `rg`, `git`, `cargo`, `pnpm`, `vox`. (Python/`uv` is **not** preferred for project automation — use `vox run` per AGENTS.md.)
 
 Avoid by default:
 
@@ -69,7 +69,7 @@ Use this block in Antigravity customizations when you want a strict PowerShell-f
 - Do not use wrapper shells like `bash -lc` for routine tasks.
 - Prefer `rg` for search.
 - Prefer `Get-ChildItem`, `Test-Path`, `Resolve-Path` for filesystem tasks.
-- Use project tools directly: `vox`, `cargo`, `pnpm`, `uv`, `git`.
+- Use project tools directly: `vox`, `cargo`, `pnpm`, `git`. (Prefer `vox run` over Python/`uv` for automation.)
 - If a task needs multiple actions, execute separate commands in sequence instead of chaining.
 - Treat allowlists as convenience only; keep risky/destructive commands denied explicitly in IDE policy where available.
 ```
@@ -84,7 +84,7 @@ Use when the agent host has **`pwsh`** installed and you want parity with Window
 - Use `pwsh` as the interactive shell when available.
 - Use one terminal command per step by default; avoid pipelines unless required and consistent with exec-policy.
 - Prefer `Get-ChildItem`, `Test-Path`, `Resolve-Path`, `Join-Path` over `ls` / string-built paths.
-- Prefer `rg` for search; use `vox`, `cargo`, `pnpm`, `uv`, `git` directly.
+- Prefer `rg` for search; use `vox`, `cargo`, `pnpm`, `git` directly (use `vox run`, not Python/`uv`, for automation).
 - Validate risky lines locally with `vox shell check --payload "..."` when unsure.
 ```
 
