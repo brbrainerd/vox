@@ -101,7 +101,7 @@ fn discovery_watch_entrypoint_calls_embedder_guard_before_assessment() {
         .find("require_embedder_for_online_novelty")
         .expect("discovery_watch must call require_embedder_for_online_novelty");
     let assessment = contents[fn_start..]
-        .find("assess_code_uniqueness")
+        .find("uniqueness_signal_for_commit")
         .expect("discovery_watch assesses code uniqueness");
     assert!(
         guard < assessment,
