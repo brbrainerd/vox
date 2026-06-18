@@ -1,0 +1,20 @@
+# Vox stable channel manifest.
+# Update version + release_tag in every release PR.
+
+[channel]
+name        = "stable"
+version     = "0.6.0"
+release_tag = "v0.6.0"
+github_repo = "vox-foundation/vox"
+min_rust    = "1.96.0"
+
+[targets]
+linux   = ["x86_64-unknown-linux-gnu"]
+macos   = ["x86_64-apple-darwin", "aarch64-apple-darwin"]
+windows = ["x86_64-pc-windows-msvc"]
+
+[archives]
+pattern = "vox-{version}-{target}.{ext}"
+
+[toolchains]
+wasm_sysroot = "wasm32-wasip1"
