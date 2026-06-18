@@ -115,12 +115,108 @@ pub fn run_frontend_str_with_options(
 ) -> Result<FrontendResult> {
     let file_path = file.to_string_lossy();
     match vox_compiler::pipeline::run_frontend_str_with_options(source, &file_path, options) {
-        Ok(res) => Ok(FrontendResult {
-            module: res.module,
-            hir: res.hir,
-            diagnostics: res.diagnostics,
-            source: res.source,
-        }),
+        Ok(res) => {
+            // Check for gamified features if compile succeeded and there are no typeck/HIR errors
+            if !res
+                .diagnostics
+                .iter()
+                .any(|d| d.severity == vox_compiler::typeck::diagnostics::TypeckSeverity::Error)
+            {
+                #[cfg(feature = "vox-gamify")]
+                {
+                    let mut has_remote = false;
+                    let mut has_durable = false;
+                    let mut has_actor = false;
+
+                    for f in &res.hir.functions {
+                        if f.is_remote {
+                            has_remote = true;
+                        }
+                        if let Some(kind) = f.durability {
+                            match kind {
+                                vox_compiler::hir::DurabilityKind::Workflow
+                                | vox_compiler::hir::DurabilityKind::Activity => {
+                                    has_durable = true;
+                                }
+                                vox_compiler::hir::DurabilityKind::Actor => {
+                                    has_actor = true;
+                                }
+                            }
+                        }
+                    }
+
+                    let mut features = Vec::new();
+                    if has_remote {
+                        features.push("@remote");
+                    }
+                    if has_durable {
+                        features.push("@durable");
+                    }
+                    if has_actor {
+                        features.push("actor");
+                    }
+
+                    if !features.is_empty() {
+                        let trigger_milestones = move || match tokio::runtime::Handle::try_current()
+                        {
+                            Ok(handle) => {
+                                handle.spawn(async move {
+                                    if let Ok(db) = vox_db::Codex::connect_default().await {
+                                        for feature in features {
+                                            let ev = serde_json::json!({
+                                                "type": "vox_feature_milestone",
+                                                "source": "vox-compiler",
+                                                "payload": { "feature": feature },
+                                            });
+                                            let _ =
+                                                vox_gamify::event_router::route_event_auto_user(
+                                                    &db, &ev,
+                                                )
+                                                .await;
+                                        }
+                                    }
+                                });
+                            }
+                            Err(_) => {
+                                static COMPILER_EVENT_RT: std::sync::OnceLock<
+                                    tokio::runtime::Runtime,
+                                > = std::sync::OnceLock::new();
+                                let rt = COMPILER_EVENT_RT.get_or_init(|| {
+                                    tokio::runtime::Builder::new_multi_thread()
+                                        .worker_threads(1)
+                                        .enable_all()
+                                        .build()
+                                        .expect("failed to build compiler event runtime")
+                                });
+                                rt.spawn(async move {
+                                    if let Ok(db) = vox_db::Codex::connect_default().await {
+                                        for feature in features {
+                                            let ev = serde_json::json!({
+                                                "type": "vox_feature_milestone",
+                                                "source": "vox-compiler",
+                                                "payload": { "feature": feature },
+                                            });
+                                            let _ =
+                                                vox_gamify::event_router::route_event_auto_user(
+                                                    &db, &ev,
+                                                )
+                                                .await;
+                                        }
+                                    }
+                                });
+                            }
+                        };
+                        trigger_milestones();
+                    }
+                }
+            }
+            Ok(FrontendResult {
+                module: res.module,
+                hir: res.hir,
+                diagnostics: res.diagnostics,
+                source: res.source,
+            })
+        }
         Err(e) => {
             if json {
                 let diagnostics = vox_compiler::pipeline::check_file(source, &file_path);

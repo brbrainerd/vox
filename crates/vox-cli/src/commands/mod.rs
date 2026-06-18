@@ -86,6 +86,8 @@ pub mod scientia_worthiness_enrich;
 pub use extras::ars;
 /// AST formatting and canonicalization (`vox fmt`).
 pub mod fmt;
+/// Graphify corpus registry and freshness (`vox graphify`).
+pub mod graphify;
 /// `vox info` — package metadata from registry / local Arca store (`vox-package`).
 pub mod info;
 /// `vox init` — scaffold `Vox.toml` / `src/main.vox` / skill markdown.

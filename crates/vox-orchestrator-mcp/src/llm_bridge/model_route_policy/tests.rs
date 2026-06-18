@@ -144,6 +144,7 @@ fn sticky_ollama_rejected_when_inference_profile_disallows() {
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     // SAFETY: serialized with `INFERENCE_PROFILE_TEST_LOCK`; no concurrent env access in tests.
     unsafe { std::env::set_var("vox_populi::inference_PROFILE", "cloud_openai_compatible") };
+    vox_config::snapshot::bump(&["vox_populi::inference_PROFILE"]);
     let mut config = OrchestratorConfig::for_testing();
     config.cost_preference = CostPreference::Performance;
     let orch = Orchestrator::new(config);
@@ -167,6 +168,7 @@ fn sticky_ollama_rejected_when_inference_profile_disallows() {
     unsafe {
         std::env::remove_var("vox_populi::inference_PROFILE");
     }
+    vox_config::snapshot::bump(&["vox_populi::inference_PROFILE"]);
 }
 
 #[test]
@@ -371,6 +373,7 @@ fn enforce_free_tier_only_fails_when_only_ollama_free_under_cloud_profile() {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     unsafe { std::env::set_var("vox_populi::inference_PROFILE", "cloud_openai_compatible") };
+    vox_config::snapshot::bump(&["vox_populi::inference_PROFILE"]);
     let mut config = OrchestratorConfig::for_testing();
     config.cost_preference = CostPreference::Performance;
     let orch = Orchestrator::new(config);
@@ -396,6 +399,7 @@ fn enforce_free_tier_only_fails_when_only_ollama_free_under_cloud_profile() {
     unsafe {
         std::env::remove_var("vox_populi::inference_PROFILE");
     }
+    vox_config::snapshot::bump(&["vox_populi::inference_PROFILE"]);
 }
 
 /// Capabilities broad enough to satisfy any capability requirement inferred from
@@ -536,6 +540,7 @@ fn vox_local_preferred_for_codegen_when_desktop_ollama_profile() {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     unsafe { std::env::set_var("vox_populi::inference_PROFILE", "desktop_ollama") };
+    vox_config::snapshot::bump(&["vox_populi::inference_PROFILE"]);
     let mut config = OrchestratorConfig::for_testing();
     config.cost_preference = CostPreference::Performance;
     let orch = Orchestrator::new(config);
@@ -564,6 +569,7 @@ fn vox_local_preferred_for_codegen_when_desktop_ollama_profile() {
     unsafe {
         std::env::remove_var("vox_populi::inference_PROFILE");
     }
+    vox_config::snapshot::bump(&["vox_populi::inference_PROFILE"]);
 }
 
 #[test]
@@ -574,6 +580,7 @@ fn vox_local_not_preferred_for_non_code_tasks() {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     unsafe { std::env::set_var("vox_populi::inference_PROFILE", "desktop_ollama") };
+    vox_config::snapshot::bump(&["vox_populi::inference_PROFILE"]);
     let mut config = OrchestratorConfig::for_testing();
     config.cost_preference = CostPreference::Performance;
     let orch = Orchestrator::new(config);
@@ -601,6 +608,7 @@ fn vox_local_not_preferred_for_non_code_tasks() {
     unsafe {
         std::env::remove_var("vox_populi::inference_PROFILE");
     }
+    vox_config::snapshot::bump(&["vox_populi::inference_PROFILE"]);
 }
 
 #[test]

@@ -74,6 +74,20 @@ pub(super) async fn publication_preflight_report_for_row(
         vox_publisher::publication_worthiness::validate_contract_invariants(&contract)?;
         let scientia_h =
             vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(&root);
+        let status_events = db
+            .list_publication_status_events(row.publication_id.as_str())
+            .await?;
+        let status_snapshots: Vec<
+            vox_publisher::publication_preflight::PublicationStatusEventSnapshot,
+        > = status_events
+            .into_iter()
+            .map(
+                |ev| vox_publisher::publication_preflight::PublicationStatusEventSnapshot {
+                    status: ev.status,
+                    detail_json: ev.detail_json,
+                },
+            )
+            .collect();
         Ok(
             vox_publisher::publication_preflight::run_preflight_with_worthiness_attention_heuristics(
                 &manifest,
@@ -81,6 +95,7 @@ pub(super) async fn publication_preflight_report_for_row(
                 &contract,
                 Some(attention),
                 &scientia_h,
+                Some(&status_snapshots),
             ),
         )
     } else {

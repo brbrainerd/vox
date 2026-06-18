@@ -40,6 +40,16 @@ pub async fn run(
 
     let inserted = persist_new_candidates(&codex, &events, now_ms).await?;
 
+    if std::env::var("VOX_SCOUT_CODE_UNIQUENESS").ok().as_deref() == Some("1") {
+        let hook =
+            crate::commands::db::publication::scout_code_uniqueness_hook(&codex, &ctx.repo_root)
+                .await;
+        eprintln!(
+            "scout code_uniqueness: {}",
+            serde_json::to_string(&hook).unwrap_or_else(|_| "{}".into())
+        );
+    }
+
     let filtered: Vec<&ResearchEvent> = events
         .iter()
         .filter(|e| matches_class_filter(e, candidate_class.as_deref()))
@@ -76,12 +86,13 @@ async fn persist_new_candidates(
         } = ev
         {
             let class = class_from_finding_id(finding_id);
+            let producer = producer_from_finding_id(finding_id);
             let row = FindingCandidateRow {
                 candidate_id: finding_id.clone(),
                 candidate_class: class,
                 publication_id: None,
                 title_hint: None,
-                internal_signals_json: "[]".into(),
+                internal_signals_json: internal_signals_json_for_producer(producer),
                 novelty_evidence_bundle_id: None,
                 worthiness_decision_ref: None,
                 confidence_json: Some(format!(
@@ -89,7 +100,7 @@ async fn persist_new_candidates(
                     sane_float(*worthiness_score)
                 )),
                 repository_id: None,
-                producer_name: producer_from_finding_id(finding_id).to_string(),
+                producer_name: producer.to_string(),
                 signal_fingerprint: finding_id.clone(),
                 created_at_ms: now_ms,
                 updated_at_ms: now_ms,
@@ -152,6 +163,14 @@ fn producer_from_finding_id(id: &str) -> &'static str {
     } else {
         "commit_graph"
     }
+}
+
+/// Scout hook: commit_graph findings should be corroborated via code_uniqueness.
+fn internal_signals_json_for_producer(producer: &str) -> String {
+    if producer == "commit_graph" {
+        return r#"[{"code":"code_uniqueness","strength":"supporting","summary":"corroborate via discovery-watch embedding kNN"}]"#.into();
+    }
+    "[]".into()
 }
 
 fn sane_float(f: f64) -> f64 {
@@ -269,6 +288,7 @@ mod tests {
             claim_ids: vec![],
             worthiness_score: 0.5,
             session_id: "s".into(),
+            finding_candidate: None,
         };
         assert!(matches_class_filter(&ev, None));
         assert!(matches_class_filter(&ev, Some("algorithmic_improvement")));
@@ -279,5 +299,12 @@ mod tests {
     fn truncate_handles_long_strings() {
         assert_eq!(truncate("short", 10), "short");
         assert_eq!(truncate("0123456789abc", 10), "012345678…");
+    }
+
+    #[test]
+    fn commit_graph_scout_rows_hint_code_uniqueness_corroboration() {
+        let json = internal_signals_json_for_producer("commit_graph");
+        assert!(json.contains("code_uniqueness"));
+        assert_eq!(internal_signals_json_for_producer("bench_history"), "[]");
     }
 }

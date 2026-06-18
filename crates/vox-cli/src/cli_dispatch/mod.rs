@@ -47,6 +47,7 @@ fn universal_reward_command_path(cli: &Cli) -> Option<&'static str> {
         Cli::Scientia { .. } => Some("scientia"),
         Cli::Audit { .. } => Some("audit"),
         Cli::Policy { .. } => Some("policy"),
+        Cli::Graphify { .. } => Some("graphify"),
         Cli::Ci { .. } => Some("ci"),
         Cli::Db { .. } => Some("db"),
         Cli::Mens { .. } => Some("mens"),
@@ -197,6 +198,10 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
         Cli::Policy { cmd } => {
             let root = crate::commands::ci::repo_root();
             crate::commands::policy::run(cmd, &root)?;
+        }
+        Cli::Graphify { cmd } => {
+            let root = crate::commands::ci::repo_root();
+            crate::commands::graphify::run(cmd, &root)?;
         }
         #[cfg(feature = "coderabbit")]
         Cli::Recensio { cmd } => {

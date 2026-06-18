@@ -8,17 +8,30 @@ publish = false
 description = "The Vox toolchain multiplexer and hermetic installer"
 
 [dependencies]
-clap = { workspace = true }
-reqwest = { workspace = true }
-tokio = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
+clap       = { workspace = true }
+reqwest    = { workspace = true }
+tokio      = { workspace = true }
+serde      = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
-tracing = { workspace = true }
+tracing    = { workspace = true }
 tracing-subscriber = { workspace = true }
-anyhow = { workspace = true }
-url = { workspace = true }
+anyhow     = { workspace = true }
+url        = { workspace = true }
+semver     = { workspace = true }
+sha2       = { workspace = true }
+hex        = { workspace = true }
+dirs       = { workspace = true }
+flate2     = { workspace = true }
+tar        = { workspace = true }
 workspace-hack = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+zip = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
 
 [dev-dependencies]
 tempfile = { workspace = true }

@@ -29,7 +29,20 @@ pub(super) async fn install_external_skills(
     let mut installed = 0;
     for ext in found {
         match registry.install_bundle(&ext.bundle).await {
-            Ok(res) if !res.already_installed => installed += 1,
+            Ok(res) if !res.already_installed => {
+                installed += 1;
+                #[cfg(feature = "vox-gamify")]
+                {
+                    if let Ok(db) = vox_db::Codex::connect_default().await {
+                        let ev = serde_json::json!({
+                            "type": "skill_published",
+                            "source": "vox-skills",
+                            "payload": { "skill_name": ext.bundle.manifest.id.clone() },
+                        });
+                        let _ = vox_gamify::event_router::route_event_auto_user(&db, &ev).await;
+                    }
+                }
+            }
             Ok(_) => {}
             Err(e) => {
                 tracing::warn!(path = %ext.path.display(), error = %e, "failed to install external skill");
@@ -62,6 +75,29 @@ mod tests {
         assert!(n >= 1);
         let listed = registry.list(None);
         assert!(listed.iter().any(|m| m.id == "brainstorming"));
+    }
+
+    #[tokio::test]
+    async fn install_external_skills_ingests_bundled_assets_root() {
+        let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("..")
+            .canonicalize()
+            .expect("repo root");
+        let assets_brainstorming = repo_root.join("assets/skills/brainstorming/SKILL.md");
+        assert!(
+            assets_brainstorming.is_file(),
+            "bundled brainstorming skill must exist at {}",
+            assets_brainstorming.display()
+        );
+
+        let registry = vox_skills::new_registry_arc();
+        let _ = install_external_skills(registry.as_ref(), &repo_root).await;
+        let listed = registry.list(None);
+        assert!(
+            listed.iter().any(|m| m.id == "brainstorming"),
+            "assets/skills brainstorming should be installed from bundled root"
+        );
     }
 
     #[tokio::test]

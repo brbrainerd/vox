@@ -159,6 +159,11 @@ pub async fn publication_novelty_fetch(
     let scientia_h =
         vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(&repo_root);
     let embedder = super::embedder::CachedLlmEmbedder::from_env(&db);
+    vox_publisher::scientia_semantic::require_embedder_for_online_novelty(
+        offline,
+        embedder.is_some(),
+    )
+    .context("embedder guard")?;
     let bundle = vox_publisher::scientia_prior_art::fetch_prior_art_federated(
         &client,
         &candidate_id,
@@ -252,6 +257,24 @@ fn detect_repo_license(repo_root: &std::path::Path) -> Option<String> {
     None
 }
 
+/// Read `[workspace.package].version` from the repo root `Cargo.toml`.
+fn detect_workspace_version(repo_root: &std::path::Path) -> Option<String> {
+    let text = std::fs::read_to_string(repo_root.join("Cargo.toml")).ok()?;
+    for line in text.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("version = ") {
+            let version = trimmed
+                .trim_start_matches("version = ")
+                .trim()
+                .trim_matches('"');
+            if !version.is_empty() {
+                return Some(version.to_string());
+            }
+        }
+    }
+    None
+}
+
 /// Run `git remote get-url origin` and return the URL on success.
 fn git_remote_origin() -> Option<String> {
     let repo_root = vox_repository::resolve_repo_root_for_ci();
@@ -276,6 +299,7 @@ pub async fn publication_autofill(publication_id: &str, apply: bool) -> Result<(
     let repo_root = vox_repository::resolve_repo_root_for_ci();
     let repo_license = detect_repo_license(&repo_root);
     let git_remote = git_remote_origin();
+    let workspace_version = detect_workspace_version(&repo_root);
 
     let identity_row = db.get_user_identity(DEFAULT_USER_ID).await.ok().flatten();
     let identity_view = identity_row.map(|r| vox_publisher::scientia_autofill::UserIdentityView {
@@ -291,6 +315,7 @@ pub async fn publication_autofill(publication_id: &str, apply: bool) -> Result<(
         identity_view.as_ref(),
         repo_license.as_deref(),
         git_remote.as_deref(),
+        workspace_version.as_deref(),
     );
 
     let mut completeness_after: Option<serde_json::Value> = None;

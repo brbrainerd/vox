@@ -12,7 +12,9 @@ use crate::chat_socrates_meta::{
 };
 use crate::journey_envelope;
 use crate::llm_bridge::{McpChatModelResolution, McpInferRouting, call_llm};
-use crate::memory::{RetrievalTriggerMode, run_retrieval_bundle};
+use crate::memory::{
+    RetrievalTriggerMode, run_retrieval_bundle, should_trigger_autonomous_research,
+};
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
 use crate::session_identity::normalize_chat_session_id;
@@ -195,7 +197,54 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                     .join("\n");
                 context_parts.push(format!("[AUTONOMOUS RESEARCH — REPOSITORY]:\n{formatted}"));
             }
-            retrieval_evidence = Some(bundle.evidence);
+            retrieval_evidence = Some(bundle.evidence.clone());
+
+            // Check if autonomous deep research should be triggered
+            if should_trigger_autonomous_research(&expanded_prompt, &bundle, params.force_research)
+            {
+                tracing::info!("Triggering autonomous research for additional context");
+                let scope = params.research_scope.as_deref().unwrap_or("both");
+
+                // Spawn autonomous research execution
+                let queries = vec![expanded_prompt.clone()];
+                let trigger_reason = format!(
+                    "Chat context injection (forced: {:?}, scope: {})",
+                    params.force_research, scope
+                );
+
+                match state
+                    .orchestrator
+                    .perform_autonomous_research(None, None, queries, &trigger_reason)
+                    .await
+                {
+                    Ok(results) => {
+                        if !results.is_empty() {
+                            let formatted = results.join("\n");
+                            context_parts.push(format!(
+                                "[AUTONOMOUS RESEARCH — SYNTHESIS SUMMARY]:\n{formatted}"
+                            ));
+                            tracing::info!(
+                                count = results.len(),
+                                "Autonomous research results injected successfully"
+                            );
+                        }
+                    }
+                    Err(err) => {
+                        tracing::warn!(error = %err, "Autonomous research execution failed");
+                    }
+                }
+            }
+            if !bundle.kb_lines.is_empty() {
+                let formatted = bundle
+                    .kb_lines
+                    .iter()
+                    .map(|c| format!("- {c}"))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                context_parts.push(format!(
+                    "[AUTONOMOUS RESEARCH — KNOWLEDGE BASE]:\n{formatted}"
+                ));
+            }
         }
         Err(e) => {
             tracing::debug!(
@@ -204,6 +253,34 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                 "autonomous retrieval injection failed — continuing without injected context"
             );
         }
+    }
+
+    let kb_mention_lines = if let Some(db) = state.db.clone() {
+        use vox_orchestrator::knowledge_base::store::KbStore;
+        let mentioned_names = crate::memory::parse_kb_mentions(&expanded_prompt);
+        if mentioned_names.is_empty() {
+            Vec::new()
+        } else {
+            let store = KbStore::new(db);
+            let kbs = store.list().await.unwrap_or_default();
+            let mut lines = Vec::new();
+            for name in &mentioned_names {
+                if let Some(kb) = kbs.iter().find(|k| k.name.to_ascii_lowercase() == *name) {
+                    let entries = store.list_entries(&kb.id, 10, 0).await.unwrap_or_default();
+                    for e in entries {
+                        lines.push(format!("[KB:{}] {}", kb.name, e.content));
+                    }
+                }
+            }
+            lines
+        }
+    } else {
+        Vec::new()
+    };
+
+    if !kb_mention_lines.is_empty() {
+        let formatted = kb_mention_lines.join("\n");
+        context_parts.push(format!("[MENTIONED KNOWLEDGE BASES]:\n{formatted}"));
     }
 
     let all_context_files: Vec<String> = {
@@ -393,6 +470,20 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
             }
         },
     };
+
+    // KB signal adapter: fire-and-forget after response is assembled
+    if let Some(db) = state.db.clone() {
+        let content_for_kb = response_text.clone();
+        let session_ref = session_id.clone();
+        tokio::spawn(async move {
+            crate::kb::signal_chat::ingest_chat_turn(
+                db,
+                &content_for_kb,
+                Some(session_ref.as_str()),
+            )
+            .await;
+        });
+    }
 
     let chat_q_key =
         mcp_questioning_session_key(state, "vox_chat_message", Some(session_id.as_str()));

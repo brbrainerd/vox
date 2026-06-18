@@ -154,6 +154,11 @@ pub async fn vox_scientia_publication_novelty_fetch(
         "schema_kind": "vox_scientia_publication_novelty_fetch",
         "publication_id": pid,
         "novelty_evidence_bundle": bundle,
+        "novelty_assessment": vox_publisher::scientia_novelty_assess::assess_novelty(
+            &bundle,
+            chrono::Datelike::year(&chrono::Utc::now().date_naive()),
+            &vox_scientia::inspect_bridge::NoveltyConfig::default(),
+        ),
         "persisted": params.persist_metadata,
     }))
     .to_json()
@@ -573,6 +578,13 @@ pub async fn vox_scientia_publication_novelty_happy_path(
             &scientia_h,
         );
 
+    let claim_year = chrono::Datelike::year(&chrono::Utc::now().date_naive());
+    let novelty_assessment = vox_publisher::scientia_novelty_assess::assess_novelty(
+        &bundle,
+        claim_year,
+        &vox_scientia::inspect_bridge::NoveltyConfig::default(),
+    );
+
     ToolResult::ok(serde_json::json!({
         "schema_kind": "vox_scientia_publication_novelty_happy_path",
         "finding_candidate": candidate,
@@ -582,6 +594,7 @@ pub async fn vox_scientia_publication_novelty_happy_path(
         "preflight_readiness_score": report.readiness_score,
         "calibration_telemetry": calibration,
         "impact_readership_projection": impact_readership_projection,
+        "novelty_assessment": novelty_assessment,
     }))
     .to_json()
 }

@@ -88,6 +88,8 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         | "vox_openclaw_discover"
         | "vox_openclaw_health"
         | "vox_openclaw_subscriptions"
+        | "vox_agent_list_remote"
+        | "vox_agent_subscriptions"
         | "vox_session_list"
         | "vox_session_cleanup"
         | "vox_memory_list_keys"
@@ -121,7 +123,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             r#"{"type":"object","properties":{"lane":{"type":"string","description":"Optional lane filter (e.g. lineage/task_failed)"},"limit":{"type":"integer","minimum":1,"maximum":1000,"description":"Maximum rows returned from the tail of filtered queue"},"include_replay":{"type":"boolean","description":"Include replay payload blobs in returned rows (default true)"}},"additionalProperties":false}"#,
         ),
         // `params` is `serde_json::Value` — derive would need a custom `schema_with`; keep explicit.
-        "vox_openclaw_gateway_call" => parse_obj(
+        "vox_openclaw_gateway_call" | "vox_agent_gateway_call" => parse_obj(
             r#"{"type":"object","properties":{"method":{"type":"string","minLength":1},"params":{"description":"OpenClaw gateway params JSON object"}},"required":["method"],"additionalProperties":false}"#,
         ),
         "vox_openclaw_search_remote" => {
@@ -130,10 +132,11 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_openclaw_import_skill" => {
             derived_tool_schema!(crate::params::OpenClawImportParams)
         }
-        "vox_openclaw_subscribe" | "vox_openclaw_unsubscribe" => {
-            derived_tool_schema!(crate::params::OpenClawDomainParams)
-        }
-        "vox_openclaw_notify" => {
+        "vox_openclaw_subscribe"
+        | "vox_openclaw_unsubscribe"
+        | "vox_agent_subscribe"
+        | "vox_agent_unsubscribe" => derived_tool_schema!(crate::params::OpenClawDomainParams),
+        "vox_openclaw_notify" | "vox_agent_notify" => {
             derived_tool_schema!(crate::params::OpenClawNotifyParams)
         }
 
@@ -278,6 +281,24 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_queue_status" | "vox_budget_status" | "vox_agent_events" | "vox_cost_history"
         | "vox_poll_events" => parse_obj(r#"{"type":"object","additionalProperties":true}"#),
 
+        // ── Knowledge Bases (VoxKB) ──────────────────────────────────────────
+        "vox_kb_create" => derived_tool_schema!(crate::kb_tools::params::KbCreateParams),
+        "vox_kb_list" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
+        "vox_kb_delete" => derived_tool_schema!(crate::kb_tools::params::KbDeleteParams),
+        "vox_kb_add_entry" => derived_tool_schema!(crate::kb_tools::params::KbAddEntryParams),
+        "vox_kb_delete_entry" => derived_tool_schema!(crate::kb_tools::params::KbDeleteEntryParams),
+        "vox_kb_list_entries" => {
+            derived_tool_schema!(crate::kb_tools::params::KbListEntriesParams)
+        }
+        "vox_kb_review_entry" => {
+            derived_tool_schema!(crate::kb_tools::params::KbReviewEntryParams)
+        }
+        "vox_kb_get_feed" => derived_tool_schema!(crate::kb_tools::params::KbGetFeedParams),
+        "vox_kb_add_rule" => derived_tool_schema!(crate::kb_tools::params::KbAddRuleParams),
+        "vox_kb_list_rules" => derived_tool_schema!(crate::kb_tools::params::KbListRulesParams),
+        "vox_kb_query" => derived_tool_schema!(crate::kb_tools::params::KbQueryParams),
+        "vox_kb_clip" => derived_tool_schema!(crate::kb_tools::params::KbClipParams),
+
         // ── Memory (MEMORY.md / search) ─────────────────────────────────────
         "vox_memory_store" => parse_obj(
             r#"{"type":"object","properties":{"agent_id":{"type":"integer","minimum":0},"key":{"type":"string"},"value":{"type":"string"},"relations":{"type":"array","items":{"type":"string"}},"media_url":{"type":"string"},"media_type":{"type":"string"}},"required":["agent_id","key","value"],"additionalProperties":false}"#,
@@ -375,6 +396,21 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             derived_tool_schema!(crate::params::VoxVisualRagQueryParams)
         }
         "vox_repo_status" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
+        "vox_graphify_status" => parse_obj(
+            r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id from contracts/retrieval/graphify-corpora.v1.yaml; omit for all corpora"}},"additionalProperties":false}"#,
+        ),
+        "vox_graphify_search" => parse_obj(
+            r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id from contracts/retrieval/graphify-corpora.v1.yaml; omit for default corpus"},"query":{"type":"string","minLength":1,"description":"Lexical search query matched against node labels"},"limit":{"type":"integer","minimum":1,"description":"Maximum hits to return (default 10)"},"persist":{"type":"boolean","default":true,"description":"When true (default), upsert hits into knowledge_nodes for future agent recall. Pass false for ephemeral searches. Recall consumers must compare metadata.git_sha against HEAD to detect stale hits."}},"required":["query"],"additionalProperties":false}"#,
+        ),
+        "vox_graphify_query" => parse_obj(
+            r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id; omit for default"},"seeds":{"type":"array","items":{"type":"string"},"minItems":1,"description":"Seed node IDs to BFS-expand from"},"max_depth":{"type":"integer","minimum":1,"maximum":5,"description":"BFS hop limit (default 2)"},"limit":{"type":"integer","minimum":1,"description":"Max hits returned (default 20)"}},"required":["seeds"],"additionalProperties":false}"#,
+        ),
+        "vox_graphify_path" => parse_obj(
+            r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id; omit for default"},"from":{"type":"string","description":"Source node ID"},"to":{"type":"string","description":"Destination node ID"}},"required":["from","to"],"additionalProperties":false}"#,
+        ),
+        "vox_graphify_compare" => parse_obj(
+            r#"{"type":"object","properties":{"corpus_a":{"type":"string","description":"First corpus id to compare"},"corpus_b":{"type":"string","description":"Second corpus id to compare"}},"required":["corpus_a","corpus_b"],"additionalProperties":false}"#,
+        ),
         "vox_project_init" => parse_obj(
             r#"{"type":"object","properties":{"project_name":{"type":"string","minLength":1,"description":"Project / package name"},"package_kind":{"type":"string","description":"e.g. application, skill, agent, workflow, chatbot, library"},"template":{"type":"string","description":"Optional application template: chatbot, dashboard, api"},"target_subdir":{"type":"string","description":"Repo-relative directory for the scaffold (no `..`); default is workspace root"}},"required":["project_name"],"additionalProperties":false}"#,
         ),
@@ -472,7 +508,12 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         ),
 
         // ── Skills ───────────────────────────────────────────────────────────
-        "vox_skill_uninstall" | "vox_skill_info" | "vox_skill_use" | "vox_skill_parse" => {
+        "vox_skill_uninstall"
+        | "vox_skill_info"
+        | "vox_skill_use"
+        | "vox_skill_parse"
+        | "vox_skill_run"
+        | "vox_workspace_mcp_refresh" => {
             parse_obj(r#"{"type":"object","additionalProperties":true}"#)
         }
         "vox_skill_search" => parse_obj(
@@ -495,7 +536,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
 
         // ── Chat & plan ──────────────────────────────────────────────────────
         "vox_chat_message" => parse_obj(
-            r#"{"type":"object","anyOf":[{"required":["prompt"]},{"required":["message"]}],"properties":{"prompt":{"type":"string","minLength":1,"maxLength":262144},"message":{"type":"string","minLength":1,"maxLength":262144,"description":"Alias for prompt (serde maps to prompt)"},"context_files":{"type":"array","items":{"type":"string","maxLength":4096}},"open_files":{"type":"array","items":{"type":"string","maxLength":4096}},"active_file":{"type":"string","maxLength":4096},"active_line":{"type":"integer"},"selected_text":{"type":"string","maxLength":1048576},"diagnostics":{"type":"array"},"session_id":{"type":"string","maxLength":2048,"description":"Opaque session isolation key. Independent sessions maintain separate history transcripts. Omit or pass null to use the shared default session."},"thread_id":{"type":"string","maxLength":2048,"description":"Editor thread id; included in structured transcript journey envelope"},"journey_id":{"type":"string","maxLength":2048,"description":"Stable request id across routing and storage (generated if omitted)"},"cognitive_profile":{"type":"string","enum":["fast","reasoning","creative"],"description":"Optional routing hint: fast=lowest latency model, reasoning=high-tier model, creative=high temperature. Omit for standard automatic resolution."},"temperature":{"type":"number","minimum":0.0,"maximum":2.0},"top_p":{"type":"number","minimum":0.0,"maximum":1.0}},"additionalProperties":true}"#,
+            r#"{"type":"object","anyOf":[{"required":["prompt"]},{"required":["message"]}],"properties":{"prompt":{"type":"string","minLength":1,"maxLength":262144},"message":{"type":"string","minLength":1,"maxLength":262144,"description":"Alias for prompt (serde maps to prompt)"},"context_files":{"type":"array","items":{"type":"string","maxLength":4096}},"open_files":{"type":"array","items":{"type":"string","maxLength":4096}},"active_file":{"type":"string","maxLength":4096},"active_line":{"type":"integer"},"selected_text":{"type":"string","maxLength":1048576},"diagnostics":{"type":"array"},"session_id":{"type":"string","maxLength":2048,"description":"Opaque session isolation key. Independent sessions maintain separate history transcripts. Omit or pass null to use the shared default session."},"thread_id":{"type":"string","maxLength":2048,"description":"Editor thread id; included in structured transcript journey envelope"},"journey_id":{"type":"string","maxLength":2048,"description":"Stable request id across routing and storage (generated if omitted)"},"cognitive_profile":{"type":"string","enum":["fast","reasoning","creative"],"description":"Optional routing hint: fast=lowest latency model, reasoning=high-tier model, creative=high temperature. Omit for standard automatic resolution."},"temperature":{"type":"number","minimum":0.0,"maximum":2.0},"top_p":{"type":"number","minimum":0.0,"maximum":1.0},"force_research":{"type":"boolean","description":"Optional override to force trigger autonomous research"},"research_scope":{"type":"string","enum":["local","web","both"],"description":"Optional research scope override"}},"additionalProperties":true}"#,
         ),
         "vox_chat_history" => parse_obj(
             r#"{"type":"object","properties":{"session_id":{"type":"string","maxLength":2048,"description":"Session isolation key. Omit to retrieve the shared default session history."},"trace_id":{"type":"string","maxLength":256,"description":"Optional trace id; logged server-side for correlation with chat_message"}},"additionalProperties":false}"#,
@@ -746,6 +787,9 @@ mod tests {
         let mut missing = Vec::new();
         for e in TOOL_REGISTRY {
             let name = e.name;
+            if !crate::registry::dispatchable_under_features(name) {
+                continue;
+            }
             if tool_input_schema(name).is_empty() {
                 missing.push(name);
             }

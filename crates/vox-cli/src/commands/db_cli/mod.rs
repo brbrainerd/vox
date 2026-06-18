@@ -312,7 +312,18 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
                 publication_id,
                 production,
                 publish,
-            } => db::publication_archive_run(&publication_id, production, publish).await,
+                dry_run,
+                publish_nanopub_test_server,
+            } => {
+                db::publication_archive_run(
+                    &publication_id,
+                    production,
+                    publish,
+                    dry_run,
+                    publish_nanopub_test_server,
+                )
+                .await
+            }
             DbCliPublication::PublicationTransformPreview { publication_id } => {
                 db::publication_transform_preview(&publication_id).await
             }

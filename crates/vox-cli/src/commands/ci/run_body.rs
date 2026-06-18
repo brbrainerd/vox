@@ -335,6 +335,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         }
         CiCmd::GrammarDrift { emit } => run_grammar_drift(&root, emit),
         CiCmd::GrammarSsotParity => grammar_ssot_parity::run().await,
+        CiCmd::PipelineParity => super::pipeline_parity::run(&root).await,
         CiCmd::KComplexityBudget {
             tolerance_percent,
             update,
@@ -692,6 +693,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::PluginCatalogSync { write } => super::plugin_catalog_sync::run(&root, write),
         CiCmd::PluginSkillParity { write } => super::plugin_skill_parity::run(write),
         CiCmd::AgentSkillsCompliance => super::agentskills_compliance::run(),
+        CiCmd::McpVoxSurfaceParity => super::mcp_vox_surface_parity::run(),
         CiCmd::CoolifyEval { cmd } => super::coolify_eval::run(cmd).await,
         CiCmd::WatchRun {
             sha,

@@ -1,73 +1,137 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tracing::{info, warn};
 
-/// Resolve the user home directory using env vars (cross-platform, no `dirs` dep).
-fn home_dir() -> PathBuf {
-    std::env::var_os("HOME")
-        .or_else(|| std::env::var_os("USERPROFILE"))
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("."))
+/// Place the real `vox` binary at the canonical user-facing path, and install
+/// `voxup` itself alongside it.
+///
+/// This is extracted from `run_install` so it can be unit-tested independently.
+///
+/// - `extracted_vox`: The `vox` binary from the downloaded release archive.
+/// - `canonical`: `~/.vox/bin/vox[.exe]` — the path users invoke.
+/// - `secondary`: `~/.cargo/bin/vox[.exe]` — backward-compat hard-link.
+/// - `current_voxup`: The currently running `voxup` process binary.
+/// - `voxup_canonical`: `~/.vox/bin/voxup[.exe]` — where voxup lives post-install.
+pub(crate) fn place_binaries(
+    extracted_vox: &Path,
+    canonical: &Path,
+    secondary: &Path,
+    current_voxup: &Path,
+    voxup_canonical: &Path,
+) -> Result<()> {
+    if let Some(parent) = canonical.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    if let Some(parent) = secondary.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    if let Some(parent) = voxup_canonical.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    replace_file(extracted_vox, canonical)?;
+    establish_single_binary(canonical, secondary)?;
+    replace_file(current_voxup, voxup_canonical)?;
+    info!("voxup installed at {}", voxup_canonical.display());
+    Ok(())
 }
 
 pub async fn run_install(_profile: &str) -> Result<()> {
-    let vox_dir = home_dir().join(".vox");
-    let toolchains_dir = vox_dir.join("toolchains");
-    let bin_dir = vox_dir.join("bin");
+    let home = dirs::home_dir().context("cannot determine home directory")?;
+    let bin_dir = home.join(".vox").join("bin");
+    let cache_dir = home.join(".vox").join("toolchains");
+    fs::create_dir_all(&bin_dir)?;
+    fs::create_dir_all(&cache_dir)?;
 
-    if !toolchains_dir.exists() {
-        fs::create_dir_all(&toolchains_dir)?;
-        info!("Created ~/.vox/toolchains directory");
+    info!("Fetching latest Vox release from GitHub…");
+    let client = crate::channel::make_client()?;
+    let release = crate::channel::fetch_latest(&client).await?;
+    info!("Latest release: {} ({})", release.tag, release.version);
+
+    // Download and parse checksums.txt
+    let ck_asset = release
+        .find_asset("checksums.txt")
+        .context("checksums.txt not found in GitHub release assets")?;
+    let ck_bytes = crate::download::fetch_bytes(&client, &ck_asset.browser_download_url).await?;
+    let ck_text = String::from_utf8(ck_bytes).context("checksums.txt is not valid UTF-8")?;
+    let checksums = crate::download::parse_checksums(&ck_text);
+
+    // Resolve the platform archive
+    let archive_name = crate::channel::asset_name(&release.tag);
+    let ar_asset = release.find_asset(&archive_name).with_context(|| {
+        format!(
+            "Expected asset '{archive_name}' not in release {}. Available: {}",
+            release.tag,
+            release
+                .assets
+                .iter()
+                .map(|a| a.name.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    })?;
+    let expected_hash = checksums
+        .get(&archive_name)
+        .with_context(|| format!("No checksum for '{archive_name}' in checksums.txt"))?;
+
+    info!("Downloading {} ({} bytes)…", archive_name, ar_asset.size);
+    let ar_bytes = crate::download::fetch_bytes(&client, &ar_asset.browser_download_url).await?;
+
+    info!("Verifying SHA-256…");
+    crate::download::verify_sha256(&ar_bytes, expected_hash)
+        .with_context(|| format!("Integrity check failed for {archive_name}"))?;
+    info!("Checksum OK");
+
+    // Extract to versioned dir
+    let tc_dir = cache_dir.join(format!("vox-{}", release.version));
+    crate::download::extract(&ar_bytes, &tc_dir, &archive_name)?;
+
+    // Write active version
+    fs::write(cache_dir.join("active"), &release.version)
+        .with_context(|| format!("failed to write active file in {}", cache_dir.display()))?;
+
+    // Establish canonical binary (the voxup proxy renamed/copied as vox)
+    let exe = if cfg!(windows) { "vox.exe" } else { "vox" };
+    let extracted_bin = tc_dir.join(exe);
+    let canonical = bin_dir.join(exe);
+    let secondary = home.join(".cargo").join("bin").join(exe);
+    if !extracted_bin.exists() {
+        bail!(
+            "Extraction succeeded but '{exe}' not found in {}",
+            tc_dir.display()
+        );
     }
+    let voxup_exe = if cfg!(windows) { "voxup.exe" } else { "voxup" };
+    let voxup_canonical = bin_dir.join(voxup_exe);
+    let current_voxup = std::env::current_exe().context("cannot get current exe path")?;
+    place_binaries(
+        &extracted_bin,
+        &canonical,
+        &secondary,
+        &current_voxup,
+        &voxup_canonical,
+    )?;
 
-    if !bin_dir.exists() {
-        fs::create_dir_all(&bin_dir)?;
-        info!("Created ~/.vox/bin directory");
-    }
+    // WASM sysroots
+    provision_wasm_sysroots(&cache_dir, &release.version).await?;
 
-    info!("Parsing local manifest for stable channel...");
-    let manifest_path = std::env::current_dir()?
-        .join("contracts")
-        .join("toolchain")
-        .join("workspace-toolchain.v1.yaml");
-
-    let mut expected_rust_version = String::from("1.92.0");
-
-    if manifest_path.exists() {
-        let content = fs::read_to_string(&manifest_path)?;
-        let manifest = crate::manifest::WorkspaceToolchain::parse(&content)?;
-        expected_rust_version = manifest
-            .versions
-            .get("rust")
-            .unwrap_or(&expected_rust_version)
-            .to_string();
+    // Persistent PATH
+    let modified = crate::shell::add_to_path(&home, &bin_dir);
+    if modified.is_empty() {
         info!(
-            "Successfully parsed toolchain manifest matching Rust version: {}",
-            expected_rust_version
+            "No shell profiles found. Add {} to your PATH manually.",
+            bin_dir.display()
         );
     } else {
-        warn!(
-            "Could not locate workspace-toolchain.v1.yaml locally. \
-             Falling back to default: {}",
-            expected_rust_version
-        );
+        info!("Updated {} shell profile(s).", modified.len());
     }
 
-    info!("Linking a single vox binary across ~/.vox/bin and ~/.cargo/bin...");
-    let exe = if cfg!(windows) { "vox.exe" } else { "vox" };
-    let canonical = bin_dir.join(exe);
-    let cargo_bin = home_dir().join(".cargo").join("bin").join(exe);
-    establish_single_binary(&canonical, &cargo_bin)?;
-
-    info!(
-        "Provisioning isolated WASM sysroots targeting Rust {}...",
-        expected_rust_version
-    );
-    provision_wasm_sysroots(&toolchains_dir, &expected_rust_version).await?;
-
-    info!("Installation complete! Add ~/.vox/bin to your PATH.");
-
+    println!("\n✅ Vox {} installed!", release.version);
+    println!("   vox:   {}", canonical.display());
+    println!("   voxup: {}", voxup_canonical.display());
+    println!("   Run: vox --version");
+    println!("   Restart your shell or: source ~/.bashrc");
     Ok(())
 }
 
@@ -78,7 +142,7 @@ const MIN_REAL_BINARY_BYTES: u64 = 64 * 1024;
 
 /// True when `path` is an existing file large enough to be a real `vox` binary
 /// (not the legacy echo-stub proxy).
-fn is_real_binary(path: &Path) -> bool {
+pub(crate) fn is_real_binary(path: &Path) -> bool {
     fs::metadata(path)
         .map(|m| m.is_file() && m.len() >= MIN_REAL_BINARY_BYTES)
         .unwrap_or(false)
@@ -93,7 +157,7 @@ fn is_real_binary(path: &Path) -> bool {
 /// `secondary` is hard-linked to it. If hard-linking fails (e.g. the two paths
 /// live on different volumes) it falls back to a copy and warns — the two would
 /// then be able to drift, which `vox doctor`'s binary-SSOT check surfaces.
-fn establish_single_binary(canonical: &Path, secondary: &Path) -> Result<()> {
+pub(crate) fn establish_single_binary(canonical: &Path, secondary: &Path) -> Result<()> {
     let source = if is_real_binary(canonical) {
         canonical.to_path_buf()
     } else if is_real_binary(secondary) {
@@ -140,7 +204,22 @@ fn establish_single_binary(canonical: &Path, secondary: &Path) -> Result<()> {
 /// Overwrite `dst` with a byte-for-byte copy of `src` (removing any prior stub).
 fn replace_file(src: &Path, dst: &Path) -> Result<()> {
     if dst.exists() {
-        fs::remove_file(dst).with_context(|| format!("remove {}", dst.display()))?;
+        #[cfg(windows)]
+        {
+            let old_path = dst.with_extension("exe.old");
+            if old_path.exists() {
+                let _ = fs::remove_file(&old_path);
+            }
+            if let Err(_) = fs::rename(dst, &old_path) {
+                fs::remove_file(dst).with_context(|| format!("remove {}", dst.display()))?;
+            } else {
+                let _ = fs::remove_file(&old_path); // try deleting non-blocking/best-effort
+            }
+        }
+        #[cfg(not(windows))]
+        {
+            fs::remove_file(dst).with_context(|| format!("remove {}", dst.display()))?;
+        }
     }
     fs::copy(src, dst).with_context(|| format!("copy {} -> {}", src.display(), dst.display()))?;
     set_executable(dst);
@@ -197,22 +276,7 @@ async fn provision_wasm_sysroots(toolchains_dir: &Path, rust_version: &str) -> R
     Ok(())
 }
 
-pub async fn run_proxy(args: &[String]) -> Result<()> {
-    info!("Proxy execution intercept. Setting up hermetic environment...");
-    let vox_dir = home_dir().join(".vox");
-
-    let old_path = std::env::var("PATH").unwrap_or_default();
-    let new_path = format!(
-        "{}:{}",
-        vox_dir.join("toolchains").join("bin").display(),
-        old_path
-    );
-    // SAFETY: single-threaded at this point; proxy entrypoint runs before any thread is spawned.
-    unsafe { std::env::set_var("PATH", new_path) };
-
-    info!("Forwarding args to target: {:?}", args);
-    Ok(())
-}
+// Removed run_proxy (now in proxy.rs)
 
 #[cfg(test)]
 mod tests {
@@ -290,5 +354,48 @@ mod tests {
         fs::write(&canonical, b"stub").unwrap();
         let err = establish_single_binary(&canonical, &cargo).unwrap_err();
         assert!(err.to_string().contains("no real `vox` binary"));
+    }
+
+    #[test]
+    fn place_binaries_installs_extracted_vox_not_running_voxup() {
+        let dir = tempdir().unwrap();
+        let exe = if cfg!(windows) { "vox.exe" } else { "vox" };
+        let voxup_exe = if cfg!(windows) { "voxup.exe" } else { "voxup" };
+
+        // The extracted vox binary — byte 0xAA identifies it
+        let tc_dir = dir.path().join("toolchains").join("vox-1.0.0");
+        let extracted_vox = tc_dir.join(exe);
+        write_fake_binary(&extracted_vox, 0xAA);
+
+        // A fake "running voxup" — byte 0xBB identifies it
+        let fake_voxup = dir.path().join(voxup_exe);
+        write_fake_binary(&fake_voxup, 0xBB);
+
+        let canonical = dir.path().join("bin").join(exe);
+        let secondary = dir.path().join("cargo-bin").join(exe);
+        let voxup_canonical = dir.path().join("bin").join(voxup_exe);
+
+        place_binaries(
+            &extracted_vox,
+            &canonical,
+            &secondary,
+            &fake_voxup,
+            &voxup_canonical,
+        )
+        .unwrap();
+
+        // ~/.vox/bin/vox must contain the extracted vox bytes (0xAA), not voxup bytes (0xBB)
+        let canonical_bytes = fs::read(&canonical).unwrap();
+        assert!(
+            canonical_bytes.iter().all(|&b| b == 0xAA),
+            "~/.vox/bin/vox must be the extracted vox binary, not voxup"
+        );
+
+        // ~/.vox/bin/voxup must contain the voxup bytes (0xBB)
+        let voxup_bytes = fs::read(&voxup_canonical).unwrap();
+        assert!(
+            voxup_bytes.iter().all(|&b| b == 0xBB),
+            "~/.vox/bin/voxup must be the running voxup binary"
+        );
     }
 }

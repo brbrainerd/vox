@@ -512,6 +512,7 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     crate::commands::ci::db_schema_coverage::run(root)?;
     vox_cli_ci::nomenclature_guard::run(root, false)?;
     crate::commands::ci::operations_catalog::verify(root)?;
+    crate::commands::ci::mcp_vox_surface_parity::run()?;
     command_compliance::run(root)?;
     crate::commands::ci::gui_version_sync::run(root, false)?;
     crate::commands::ci::gui_catalog_parity::run(root)?;
@@ -532,6 +533,8 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     scientia_worthiness_contract::run(root)?;
     scientia_novelty_ledger_contract::run(root)?;
     super::run_data_ssot_guards(root)?;
+    vox_cli_ci::affected_cmd::check_graph(root.join("contracts/ci/crate-graph.v1.json").as_path())
+        .map_err(|e| anyhow::anyhow!(e))?;
     // Advisory: GitHub-hosted runner drift (default warn-only).
     let _ = vox_cli_ci::runner_policy_check::run(root, false);
     println!("ssot-drift: nested SSOT guards OK");

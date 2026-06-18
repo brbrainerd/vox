@@ -38,6 +38,7 @@ catalog/list
 catalog/remove
 check
 ci
+ci/affected-crates
 ci/agentskills-compliance
 ci/ai-fixtures-coverage
 ci/artifact-audit
@@ -45,6 +46,9 @@ ci/artifact-prune
 ci/attention-config-parity
 ci/attention-event-ledger-parity
 ci/backend-tests
+ci/bom-check
+ci/build-bench
+ci/build-cache-doctor
 ci/build-docs
 ci/build-timings
 ci/canonical-map-verify
@@ -62,6 +66,9 @@ ci/compile-matrix
 ci/completion-audit
 ci/completion-gates
 ci/completion-ingest
+ci/config-gui-codegen
+ci/config-hygiene
+ci/config-registry-parity
 ci/constrained-gen-smoke
 ci/contracts-index
 ci/coolify-eval
@@ -74,6 +81,7 @@ ci/cuda-release-build
 ci/data-ssot-guards
 ci/data-storage-guard
 ci/db-schema-coverage
+ci/dep-cycles
 ci/dep-sprawl
 ci/deploy-status
 ci/detect-rules-bench
@@ -93,6 +101,7 @@ ci/exec-policy-contract
 ci/feature-matrix
 ci/flake-budget
 ci/fmt-check
+ci/free-binary
 ci/generate-plugin-catalog-docs
 ci/grammar-drift
 ci/grammar-export-check
@@ -103,6 +112,7 @@ ci/gui-smoke
 ci/gui-surface-coverage
 ci/gui-surface-registry
 ci/gui-version-sync
+ci/gui-visual-review
 ci/ignored-test-age
 ci/install-hooks
 ci/job-timings
@@ -111,6 +121,7 @@ ci/k-complexity-budget
 ci/kill-stuck-tests
 ci/line-endings
 ci/manifest
+ci/mcp-vox-surface-parity
 ci/mens-corpus-health
 ci/mens-scorecard
 ci/mens-scorecard/burn-rnd
@@ -129,6 +140,7 @@ ci/operations-sync
 ci/operations-verify
 ci/operator-env-guard
 ci/parse-status
+ci/pipeline-parity
 ci/plugin-abi-parity
 ci/plugin-catalog-parity
 ci/plugin-catalog-sync
@@ -150,6 +162,7 @@ ci/row-serde-lint
 ci/runner-policy-check
 ci/runner-preflight
 ci/runner-scale
+ci/runner-status
 ci/runtime-regress
 ci/rust-ecosystem-policy
 ci/safety-inventory
@@ -200,6 +213,9 @@ config/list
 config/set
 config/sync
 config/unset
+container
+container/build
+container/run
 db
 db/audit
 db/build-health
@@ -317,6 +333,10 @@ fabrica/test
 fmt
 generate
 grammar
+graphify
+graphify/ingest
+graphify/rebuild
+graphify/status
 init
 llm
 llm/prompt

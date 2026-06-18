@@ -86,12 +86,16 @@ fn path_lookup_executable(base: &str) -> Option<PathBuf> {
 
 pub fn probe_binary_version(base: &str) -> Option<String> {
     let binary = resolve_managed_binary_path(base);
-    let output = Command::new(binary)
-        .arg("--version")
+    let mut cmd = Command::new(binary);
+    cmd.arg("--version")
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .output()
-        .ok()?;
+        .stderr(Stdio::null());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x0800_0000);
+    }
+    let output = cmd.output().ok()?;
     if !output.status.success() {
         return None;
     }
@@ -108,11 +112,14 @@ pub fn spawn_detached_null_stdio(base: &str, args: &[&str]) -> anyhow::Result<Ch
         .unwrap_or_else(|| PathBuf::from(executable_name(base)));
     let binary = resolve_or_stage_daemon(&target_sibling, &bin_dir)
         .unwrap_or_else(|_| resolve_managed_binary_path(base));
-    Command::new(binary)
-        .args(args)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
+    let mut cmd = Command::new(binary);
+    cmd.args(args).stdout(Stdio::null()).stderr(Stdio::null());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x0800_0000);
+    }
+    cmd.spawn()
         .with_context(|| format!("spawn detached binary `{base}`"))
 }
 
@@ -213,10 +220,14 @@ pub fn stop_managed_process(base: &str) -> anyhow::Result<StopManagedProcessResu
 
 pub fn terminate_process_tree(pid: u32) -> anyhow::Result<()> {
     if cfg!(windows) {
-        let status = Command::new("taskkill")
-            .args(["/PID", &pid.to_string(), "/T", "/F"])
-            .status()
-            .context("run taskkill")?;
+        let mut cmd = Command::new("taskkill");
+        cmd.args(["/PID", &pid.to_string(), "/T", "/F"]);
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.creation_flags(0x0800_0000);
+        }
+        let status = cmd.status().context("run taskkill")?;
         if !status.success() {
             bail!("taskkill failed for pid {pid}");
         }
