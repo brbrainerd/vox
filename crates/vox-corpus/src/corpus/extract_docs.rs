@@ -248,6 +248,11 @@ fn extract_code_blocks(
             }
 
             let code = code_lines.join("\n");
+            if code.contains("{{#include") {
+                preceding_context.clear();
+                i += 1;
+                continue;
+            }
             if code.len() >= 20 {
                 let suffix =
                     " Use valid Vox only: annotate `fn` with `->` return types and 4-space indent.";
@@ -601,5 +606,28 @@ Durable execution is a first-class feature.
         assert!(!out.is_empty(), "should extract at least one Q&A pair");
         assert!(out[0].prompt.contains("Actor Model"));
         assert_eq!(out[0].metadata["chunk_kind"], "qa_section");
+    }
+
+    #[test]
+    fn ignores_mdbook_include_directives() {
+        const MD_WITH_INCLUDE: &str = r#"# Tutorial
+Check out this code:
+
+```vox
+{{#include ../../../examples/golden/getting_started.vox:logic}}
+```
+"#;
+        let mut out = Vec::new();
+        extract_code_blocks(
+            MD_WITH_INCLUDE,
+            Path::new("test.md"),
+            &Frontmatter::default(),
+            0,
+            &mut out,
+        );
+        assert!(
+            out.is_empty(),
+            "should ignore code block containing mdbook include"
+        );
     }
 }
