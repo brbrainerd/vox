@@ -1,12 +1,29 @@
 import json;
+import fs;
+import process;
+
+fn vox_binary_path() to str {
+    if fs.exists("./target/release/vox.exe") {
+        return "./target/release/vox.exe";
+    }
+    if fs.exists("./target/release/vox") {
+        return "./target/release/vox";
+    }
+    if fs.exists("./target/debug/vox.exe") {
+        return "./target/debug/vox.exe";
+    }
+    return "./target/debug/vox";
+}
 
 fn main() {
     print("Checking freshness of Graphify corpora...");
 
-    // Run status check command using target/debug/vox
-    let proc_opt = process.run("./target/debug/vox", ["graphify", "status", "--json"]);
+    let bin = vox_binary_path();
+
+    // Run status check command
+    let proc_opt = process.run(bin, ["graphify", "status", "--json"]);
     if proc_opt is null {
-        log.error("Failed to execute ./target/debug/vox");
+        log.error("Failed to execute " + bin);
         process.exit(1);
     }
     let proc = proc_opt.unwrap();
@@ -15,7 +32,8 @@ fn main() {
         process.exit(proc.code);
     }
 
-    let parsed = json.parse(proc.stdout);
+    let json_str = clean_json(proc.stdout);
+    let parsed = json.parse(json_str);
     if parsed.is_err() {
         log.error("Failed to parse status JSON: " + parsed.unwrap_err());
         process.exit(1);
@@ -66,7 +84,7 @@ fn main() {
                 // Not missing graph, but stale (e.g. lexical_lag or git_drift or ttl_expired).
                 // We can run ingest to refresh the Turso db from the graph.json.
                 print("   Triggering ingest to refresh Turso db...");
-                let ingest_proc = process.run("./target/debug/vox", ["graphify", "ingest", "--corpus", id]);
+                let ingest_proc = process.run(bin, ["graphify", "ingest", "--corpus", id]);
                 if ingest_proc is null {
                     print("     Failed to spawn ingest process.");
                 } else {
@@ -103,4 +121,21 @@ fn jarr(j: Json, k: str) to list[Json] {
 
 fn jbool(j: Json, k: str) to bool {
     return j.get(k).and_then(fn(x: Json) to Option[bool] { x.as_bool() }).unwrap_or(false)
+}
+
+fn clean_json(raw: str) to str {
+    let parts = raw.split("[");
+    if parts.len() >= 2 {
+        let mut res = "[";
+        let mut i = 1;
+        while i < parts.len() {
+            if i > 1 {
+                res = res + "[";
+            }
+            res = res + parts.get(i).unwrap();
+            i = i + 1;
+        }
+        return res;
+    }
+    return raw;
 }

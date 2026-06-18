@@ -9,6 +9,14 @@ Registry: `contracts/retrieval/graphify-corpora.v1.yaml`.
 """
 from __future__ import annotations
 
+import warnings
+warnings.warn(
+    "manifest_writer.py is deprecated. Use `vox run scripts/graphify-refresh.vox` instead. "
+    "See AGENTS.md §VoxScript-First Glue Code.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 import hashlib
 import json
 import re
