@@ -9,10 +9,10 @@ ttl_days_default: 30
 
 corpora:
   - id: repo-code-graph
-    title: Repository code graph (legacy graphify-out)
+    title: Repository code graph
     scope_path: "."
-    graph_path: graphify-out/graph.json
-    manifest_path: graphify-out/.graphify_manifest.v1.json
+    graph_path: ".vox/cache/graphify/repo-code-graph/graph.json"
+    manifest_path: ".vox/cache/graphify/repo-code-graph/.graphify_manifest.v1.json"
     extraction_mode: structural
     default_for_intents:
       - code_navigation
@@ -21,8 +21,8 @@ corpora:
   - id: vox-gui-surface
     title: vox-gui surface map
     scope_path: crates/vox-gui
-    graph_path: crates/vox-gui/graphify-out/graph.json
-    manifest_path: crates/vox-gui/graphify-out/.graphify_manifest.v1.json
+    graph_path: ".vox/cache/graphify/vox-gui-surface/graph.json"
+    manifest_path: ".vox/cache/graphify/vox-gui-surface/.graphify_manifest.v1.json"
     extraction_mode: structural
     default_for_intents:
       - gui_surface
@@ -30,8 +30,8 @@ corpora:
   - id: config-audit
     title: Config hardcoded-values audit graph
     scope_path: "."
-    graph_path: graphify-out/config-audit-graph/graph.json
-    manifest_path: graphify-out/config-audit-graph/.graphify_manifest.v1.json
+    graph_path: ".vox/cache/graphify/config-audit/graph.json"
+    manifest_path: ".vox/cache/graphify/config-audit/.graphify_manifest.v1.json"
     extraction_mode: audit
     default_for_intents:
       - config_audit

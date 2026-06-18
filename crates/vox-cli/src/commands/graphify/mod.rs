@@ -275,7 +275,7 @@ mod tests {
     fn ingest_graph_corpus_projects_minimal_graph_nodes() {
         let tmp = tempfile::tempdir().unwrap();
         write_registry(tmp.path());
-        let graph_dir = tmp.path().join("graphify-out");
+        let graph_dir = tmp.path().join(".vox/cache/graphify/repo-code-graph");
         fs::create_dir_all(&graph_dir).unwrap();
         fs::write(
             graph_dir.join("graph.json"),
