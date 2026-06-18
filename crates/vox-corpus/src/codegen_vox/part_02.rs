@@ -205,7 +205,7 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
         }
         "mcp_tool" => (
             format!(
-                "@mcp.tool \"{name}: {verb} data\"\nfn {name}({params}) to str {{\n    return \"done\"\n}}"
+                "@tool\nfn {name}({params}) to str {{\n    /// {name}: {verb} data.\n    return \"done\"\n}}"
             ),
             format!("Define a Vox MCP tool called `{name}`"),
         ),
