@@ -278,3 +278,71 @@ fn stamp_mix_weight_skips_default_weight() {
     let v: serde_json::Value = serde_json::from_str(&out).unwrap();
     assert_eq!(v["mix_weight"].as_f64(), Some(2.5));
 }
+
+#[test]
+fn test_max_lines_hard_cap() {
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    let mut src = NamedTempFile::new().unwrap();
+    for i in 0..100 {
+        writeln!(
+            src,
+            r#"{{"prompt":"q{}","response":"a{}","lane":"vox_codegen"}}"#,
+            i, i
+        ).unwrap();
+    }
+    
+    let dir = tempfile::tempdir().unwrap();
+    let cfg_path = dir.path().join("mix.yaml");
+    let out_path = dir.path().join("out.jsonl");
+    let p_src = src.path().to_str().unwrap().replace('\\', "/");
+    let p_out = out_path.to_str().unwrap().replace('\\', "/");
+
+    let yaml = format!(
+        "sources:\n  - path: \"{p_src}\"\n    weight: 1.0\n    max_lines: 10\noutput: \"{p_out}\"\n"
+    );
+    std::fs::write(&cfg_path, yaml).unwrap();
+
+    let opts = super::MixRunOptions { strict: false, write_report: false };
+    super::run_mix_with_options(&cfg_path, None, opts).unwrap();
+
+    let emitted = std::fs::read_to_string(out_path).unwrap();
+    let count = emitted.lines().filter(|l| !l.trim().is_empty()).count();
+    assert_eq!(count, 10, "max_lines cap should emit exactly 10, got {}", count);
+}
+
+#[test]
+fn test_dedup_skips_duplicate_rows() {
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    let dup = r#"{"prompt":"same question","response":"same answer","lane":"vox_codegen"}"#;
+
+    let mut src_a = NamedTempFile::new().unwrap();
+    writeln!(src_a, "{}", dup).unwrap();
+    writeln!(src_a, r#"{{"prompt":"unique a","response":"resp a","lane":"vox_codegen"}}"#).unwrap();
+
+    let mut src_b = NamedTempFile::new().unwrap();
+    writeln!(src_b, "{}", dup).unwrap();
+    writeln!(src_b, r#"{{"prompt":"unique b","response":"resp b","lane":"vox_codegen"}}"#).unwrap();
+
+    let dir = tempfile::tempdir().unwrap();
+    let cfg_path = dir.path().join("mix.yaml");
+    let out_path = dir.path().join("out.jsonl");
+    let p_a = src_a.path().to_str().unwrap().replace('\\', "/");
+    let p_b = src_b.path().to_str().unwrap().replace('\\', "/");
+    let p_out = out_path.to_str().unwrap().replace('\\', "/");
+
+    let yaml = format!(
+        "sources:\n  - path: \"{p_a}\"\n    weight: 1.0\n  - path: \"{p_b}\"\n    weight: 1.0\noutput: \"{p_out}\"\ndedup: true\n"
+    );
+    std::fs::write(&cfg_path, yaml).unwrap();
+
+    let opts = super::MixRunOptions { strict: false, write_report: false };
+    super::run_mix_with_options(&cfg_path, None, opts).unwrap();
+
+    let emitted = std::fs::read_to_string(out_path).unwrap();
+    let count = emitted.lines().filter(|l| !l.trim().is_empty()).count();
+    assert_eq!(count, 3, "dedup should emit 3 unique rows, got {}", count);
+}
