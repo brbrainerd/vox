@@ -925,7 +925,7 @@ jobs:
 
       - name: Upload build-time maps
         if: needs.setup.outputs.full == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: build-time-maps
           path: |
@@ -1486,7 +1486,7 @@ jobs:
 
       - name: Upload visual-review report + screens (always)
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: gui-visual-review-${{ github.run_id }}
           path: |

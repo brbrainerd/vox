@@ -27,7 +27,7 @@ jobs:
         run: python scripts/coverage-graph/os_compat.py --repo-root . --out graphify-out/OS_COMPATIBILITY.md
 
       - name: Upload report artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: os-compat-report-${{ github.run_number }}
           path: graphify-out/OS_COMPATIBILITY.md
