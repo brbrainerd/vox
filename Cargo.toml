@@ -352,6 +352,7 @@ cpal               = "0.15"
 # Binary / stream utilities
 byteorder          = "1"
 tar                = "0.4"
+zip                = "2.1"
 libc               = "0.2"
 # CLI UI
 dialoguer          = "0.11"
