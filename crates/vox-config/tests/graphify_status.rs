@@ -131,3 +131,73 @@ fn graph_stats_accepts_links_or_edges_key() {
     assert_eq!(n2, 1);
     assert_eq!(e2, 2);
 }
+
+#[test]
+fn virtual_corpus_is_always_fresh() {
+    // No graph file written — virtual corpora must not check disk.
+    let tmp = tempfile::tempdir().unwrap();
+    let corpus = vox_config::graphify::GraphifyCorpus {
+        id: "graphify-search-log".to_string(),
+        title: "Search hit log".to_string(),
+        scope_path: ".".to_string(),
+        graph_path: "nonexistent/graph.json".to_string(),
+        manifest_path: "nonexistent/.graphify_manifest.v1.json".to_string(),
+        extraction_mode: None,
+        default_for_intents: vec![],
+        is_virtual: true,
+    };
+    let status = vox_config::graphify::assess_corpus_status(
+        tmp.path(),
+        &corpus,
+        None,
+        chrono::Utc::now(),
+        30,
+    );
+    assert!(status.is_fresh, "virtual corpus must always be fresh");
+    assert!(
+        status.stale_reasons.is_empty(),
+        "no stale reasons: {:?}",
+        status.stale_reasons
+    );
+    assert!(
+        status.warnings.contains(&"virtual_corpus".to_string()),
+        "warnings must contain 'virtual_corpus'"
+    );
+}
+
+#[test]
+fn lexical_lag_detected_when_sha_mismatch() {
+    use vox_config::graphify::{GraphifyManifest, lexical_lag_stale_reason};
+    let manifest = GraphifyManifest {
+        graph_json_sha256: Some("abc123".to_string()),
+        lexical_ingest_sha256: Some("different456".to_string()),
+        ..GraphifyManifest::default()
+    };
+    assert_eq!(
+        lexical_lag_stale_reason(&manifest),
+        Some("lexical_lag".to_string())
+    );
+}
+
+#[test]
+fn no_lexical_lag_when_sha_matches() {
+    use vox_config::graphify::{GraphifyManifest, lexical_lag_stale_reason};
+    let manifest = GraphifyManifest {
+        graph_json_sha256: Some("abc123".to_string()),
+        lexical_ingest_sha256: Some("abc123".to_string()),
+        ..GraphifyManifest::default()
+    };
+    assert_eq!(lexical_lag_stale_reason(&manifest), None);
+}
+
+#[test]
+fn no_lexical_lag_when_ingest_sha_absent() {
+    use vox_config::graphify::{GraphifyManifest, lexical_lag_stale_reason};
+    // Not yet ingested — we don't call this a lag.
+    let manifest = GraphifyManifest {
+        graph_json_sha256: Some("abc123".to_string()),
+        lexical_ingest_sha256: None,
+        ..GraphifyManifest::default()
+    };
+    assert_eq!(lexical_lag_stale_reason(&manifest), None);
+}

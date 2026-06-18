@@ -41,6 +41,10 @@ pub struct GraphifyCorpus {
     pub extraction_mode: Option<String>,
     #[serde(default)]
     pub default_for_intents: Vec<String>,
+    /// When true, this corpus is Turso-backed (no on-disk graph.json).
+    /// `assess_corpus_status` skips all disk checks and returns fresh unconditionally.
+    #[serde(default)]
+    pub is_virtual: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -60,6 +64,9 @@ pub struct GraphifyManifest {
     pub edge_count: Option<u64>,
     pub graph_json_sha256: Option<String>,
     pub extraction_mode: Option<String>,
+    /// SHA256 of the graph file at last `vox graphify ingest` run.
+    /// If this differs from `graph_json_sha256`, the Turso index is behind the graph.
+    pub lexical_ingest_sha256: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -288,6 +295,18 @@ fn parse_rfc3339(s: &str) -> Option<DateTime<Utc>> {
         .map(|dt| dt.with_timezone(&Utc))
 }
 
+/// Returns `Some("lexical_lag")` when `lexical_ingest_sha256` differs from `graph_json_sha256`.
+///
+/// Returns `None` when either SHA is absent (never ingested = unknown, not a lag).
+pub fn lexical_lag_stale_reason(manifest: &GraphifyManifest) -> Option<String> {
+    match (&manifest.graph_json_sha256, &manifest.lexical_ingest_sha256) {
+        (Some(graph_sha), Some(ingest_sha)) if graph_sha != ingest_sha => {
+            Some("lexical_lag".to_string())
+        }
+        _ => None,
+    }
+}
+
 /// Assess on-disk freshness for one corpus (read-only).
 pub fn assess_corpus_status(
     repo_root: &Path,
@@ -296,6 +315,25 @@ pub fn assess_corpus_status(
     now: DateTime<Utc>,
     ttl_days: u64,
 ) -> CorpusStatus {
+    // Virtual corpora are Turso-backed; skip all disk checks.
+    if corpus.is_virtual {
+        return CorpusStatus {
+            corpus_id: corpus.id.clone(),
+            title: corpus.title.clone(),
+            graph_path: repo_root.join(&corpus.graph_path),
+            manifest_path: repo_root.join(&corpus.manifest_path),
+            graph_exists: false,
+            manifest_exists: false,
+            node_count: None,
+            edge_count: None,
+            built_at: None,
+            manifest_git_sha: None,
+            head_git_sha: head_git_sha.map(str::to_string),
+            stale_reasons: vec![],
+            warnings: vec!["virtual_corpus".to_string()],
+            is_fresh: true,
+        };
+    }
     let graph_path = repo_root.join(&corpus.graph_path);
     let manifest_path = repo_root.join(&corpus.manifest_path);
     let graph_exists = graph_path.is_file();
