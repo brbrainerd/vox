@@ -106,7 +106,10 @@ pub(super) fn save_merged_global_config(path: &Path, cfg: &VoxConfig) -> std::io
     root.insert("llm".to_string(), Value::Table(llm));
 
     let mut agent = take_toml_subtable(&mut root, "agent");
-    agent.insert("provider".to_string(), Value::String(cfg.agent_provider.clone()));
+    agent.insert(
+        "provider".to_string(),
+        Value::String(cfg.agent_provider.clone()),
+    );
     root.insert("agent".to_string(), Value::Table(agent));
 
     let out = toml::to_string_pretty(&Value::Table(root))

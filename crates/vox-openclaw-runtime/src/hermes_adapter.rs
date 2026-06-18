@@ -61,47 +61,67 @@ impl AgentRuntimeAdapter for DefaultHermesRuntimeAdapter {
             }
         }
 
-        let mut out = Vec::new();
-        let mut registered_skills = std::collections::HashSet::new();
+        let handle = tokio::task::spawn_blocking(move || {
+            let mut out = Vec::new();
+            let mut registered_skills = std::collections::HashSet::new();
 
-        for path in paths_to_scan {
-            if !path.exists() {
-                continue;
-            }
-            if let Ok(entries) = std::fs::read_dir(path) {
-                for entry in entries.flatten() {
-                    if entry.path().is_dir() {
-                        let skill_md_path = entry.path().join("SKILL.md");
-                        if skill_md_path.exists() {
-                            let folder_name = entry.file_name().to_string_lossy().to_string();
-                            if registered_skills.contains(&folder_name) {
-                                continue;
-                            }
-                            registered_skills.insert(folder_name.clone());
+            for path in paths_to_scan {
+                if !path.exists() {
+                    continue;
+                }
+                if let Ok(entries) = std::fs::read_dir(path) {
+                    for entry in entries.flatten() {
+                        if entry.path().is_dir() {
+                            let skill_md_path = entry.path().join("SKILL.md");
+                            if skill_md_path.exists() {
+                                let folder_name = entry.file_name().to_string_lossy().to_string();
+                                let dedup_key = folder_name.to_lowercase();
+                                if registered_skills.contains(&dedup_key) {
+                                    continue;
+                                }
+                                registered_skills.insert(dedup_key);
 
-                            let mut version = "0.1.0".to_string();
-                            let mut description = Some("Hermes local skill".to_string());
+                                let mut name = folder_name.clone();
+                                let mut version = "0.1.0".to_string();
+                                let mut description = Some("Hermes local skill".to_string());
 
-                            if let Ok(content) = std::fs::read_to_string(&skill_md_path) {
-                                if let Ok(bundle) = vox_plugin_host::skill_parser::parse_skill_md(&content) {
-                                    version = bundle.manifest.version;
-                                    if !bundle.manifest.description.is_empty() {
-                                        description = Some(bundle.manifest.description);
+                                if let Ok(content) = std::fs::read_to_string(&skill_md_path) {
+                                    match vox_plugin_host::skill_parser::parse_skill_md(&content) {
+                                        Ok(bundle) => {
+                                            if !bundle.manifest.name.is_empty() {
+                                                name = bundle.manifest.name;
+                                            }
+                                            version = bundle.manifest.version;
+                                            if !bundle.manifest.description.is_empty() {
+                                                description = Some(bundle.manifest.description);
+                                            }
+                                        }
+                                        Err(e) => {
+                                            tracing::debug!(
+                                                "Failed to parse skill manifest at {}: {:?}",
+                                                skill_md_path.display(),
+                                                e
+                                            );
+                                        }
                                     }
                                 }
-                            }
 
-                            out.push(OpenClawSkillSpec {
-                                name: folder_name,
-                                version,
-                                description,
-                            });
+                                out.push(OpenClawSkillSpec {
+                                    name,
+                                    version,
+                                    description,
+                                });
+                            }
                         }
                     }
                 }
             }
-        }
+            out
+        });
 
+        let out = handle
+            .await
+            .map_err(|e| OpenClawAdapterError::Other(format!("blocking task join failed: {e}")))?;
         Ok(out)
     }
 
@@ -176,7 +196,8 @@ mod tests {
     #[tokio::test]
     async fn test_hermes_skills_discovery_and_parsing() {
         let temp = tempfile::tempdir().unwrap();
-        let skill_dir = temp.path().join("mock-discovered-skill");
+        // Use a folder name different from the skill name in SKILL.md
+        let skill_dir = temp.path().join("different-folder-name");
         std::fs::create_dir_all(&skill_dir).unwrap();
 
         let skill_md_content = r#"---
@@ -201,7 +222,7 @@ description = "A parsed mock skill for test"
 
         let skills = adapter.list_remote_skills().await.unwrap();
         assert_eq!(skills.len(), 1);
-        assert_eq!(skills[0].name, "mock-discovered-skill");
+        assert_eq!(skills[0].name, "mock-discovered-skill"); // Uses name from SKILL.md frontmatter
         assert_eq!(skills[0].version, "2.3.4");
         assert_eq!(skills[0].description, Some("A parsed mock skill for test".to_string()));
     }
