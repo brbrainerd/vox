@@ -254,3 +254,7 @@ graphify-out/COVERAGE_BEHAVIORS_*
 
 # Isolated git worktrees for parallel development
 .worktrees/
+
+# Antigravity agents custom rules and skills mount (Track D T0)
+/.agents/
+
