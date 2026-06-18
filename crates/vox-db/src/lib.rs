@@ -241,6 +241,45 @@ pub use workspace_journey_store::{
     workspace_journey_store_mode_from_env,
 };
 
+/// Row returned by KB queries from VoxDb.
+#[derive(Debug, Clone)]
+pub struct KbRow {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub created_at_ms: i64,
+    pub updated_at_ms: i64,
+    pub entry_count: i64,
+}
+
+/// Row returned by KB entry queries from VoxDb.
+#[derive(Debug, Clone)]
+pub struct KbEntryRow {
+    pub id: String,
+    pub kb_id: String,
+    pub content: String,
+    pub source_signal: String,
+    pub source_ref: Option<String>,
+    pub routing_confidence: f64,
+    pub tags: String,
+    pub created_at_ms: i64,
+    pub last_accessed_at_ms: Option<i64>,
+    pub access_count: i64,
+    pub accepted: i64,
+    pub mens_queued: i64,
+}
+
+/// Row returned by KB routing rule queries from VoxDb.
+#[derive(Debug, Clone)]
+pub struct KbRuleRow {
+    pub id: String,
+    pub kb_id: String,
+    pub rule_type: String,
+    pub pattern: String,
+    pub priority: i64,
+    pub created_at_ms: i64,
+}
+
 /// Public product name for the unified database facade (**Codex** over Arca/Turso).
 ///
 /// `VoxDb` remains the stable Rust type name; new documentation should prefer **Codex**.
@@ -266,11 +305,34 @@ pub enum ReadConsistency {
 pub struct VoxDb {
     pub(crate) conn: turso::Connection,
     pub(crate) sync_db: Option<turso::sync::Database>,
+    /// Keeps local `:memory:` / file databases alive while `conn` is in use (Turso drops
+    /// in-memory catalogs when the owning [`turso::Database`] is released).
+    #[cfg(feature = "local")]
+    #[expect(dead_code, reason = "retains Arc<Database> for connection lifetime")]
+    pub(crate) local_db: Option<std::sync::Arc<turso::Database>>,
     pub(crate) writer: Option<crate::VoxWriteHandle>,
     pub(crate) breaker: std::sync::Arc<DbCircuitBreaker>,
     /// Lazily filled by [`VoxDb::sqlite_capabilities_snapshot`](crate::VoxDb::sqlite_capabilities_snapshot).
     pub(crate) sqlite_probe_cache:
         std::sync::Arc<tokio::sync::RwLock<Option<capabilities::SqliteProbeSnapshot>>>,
+}
+
+impl VoxDb {
+    pub(crate) fn assembled(
+        conn: turso::Connection,
+        sync_db: Option<turso::sync::Database>,
+        #[cfg(feature = "local")] local_db: Option<std::sync::Arc<turso::Database>>,
+    ) -> Self {
+        Self {
+            conn,
+            sync_db,
+            #[cfg(feature = "local")]
+            local_db,
+            writer: None,
+            breaker: std::sync::Arc::new(DbCircuitBreaker::from_env()),
+            sqlite_probe_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
+        }
+    }
 }
 
 pub mod facade;
