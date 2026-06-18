@@ -40,6 +40,21 @@ export const LudusSandbox: React.FC<SandboxProps> = ({ files }) => {
 
   // Select building status to trigger re-renders on quality changes
   const buildings = useStore(useLudusStore, (state) => state.buildings);
+  const focusedFile = useStore(useLudusStore, (state) => state.focusedFile);
+  const agentTasks = useStore(useLudusStore, (state) => state.agentTasks);
+
+  // Auto-center camera target when focused file changes
+  useEffect(() => {
+    if (!focusedFile) return;
+    const plot = plots[focusedFile];
+    if (!plot) return;
+    const centerOffsetX = 1000; // Center offset of offscreen canvas
+    const centerOffsetY = 100;
+    const { px, py } = projectIso(plot.x, plot.y, plot.z, tileWidth, tileHeight, centerOffsetX, centerOffsetY);
+    
+    // Pan camera to center coordinates: cameraX = viewportWidth/2 - px, cameraY = viewportHeight/2 - py
+    setCamera({ x: 400 - px, y: 250 - py, zoom: 1.2 });
+  }, [focusedFile, plots]);
 
   // Initialize buildings in Zustand store
   useEffect(() => {
@@ -96,7 +111,19 @@ export const LudusSandbox: React.FC<SandboxProps> = ({ files }) => {
         ctx.fillRect(px + 6, py + 2, 4, 4);
       }
     }
-  }, [files, plots, buildings]);
+
+    // Render active agent tasks glows
+    for (const task of Object.values(agentTasks)) {
+      const plot = plots[task.filePath];
+      if (!plot) continue;
+      const { px, py } = projectIso(plot.x, plot.y, plot.z, tileWidth, tileHeight, centerOffsetX, centerOffsetY);
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(px, py, 14, 0, 2 * Math.PI);
+      ctx.stroke();
+    }
+  }, [files, plots, buildings, agentTasks]);
 
   // Render offscreen canvas to onscreen viewport on camera or layout updates
   useEffect(() => {
