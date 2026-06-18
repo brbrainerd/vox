@@ -48,4 +48,15 @@ describe('Ludus Zustand Store', () => {
     expect(building.warnings).toBe(2);
     expect(building.errors).toBe(0);
   });
+
+  it('correctly manages focused file and agent tasks state', () => {
+    const store = useLudusStore.getState();
+    store.setFocusedFile('src/facade.rs');
+    expect(useLudusStore.getState().focusedFile).toBe('src/facade.rs');
+
+    store.updateAgentTask('agent_123', { taskId: 'task_abc', filePath: 'src/lib.rs', status: 'running' });
+    const task = useLudusStore.getState().agentTasks['agent_123'];
+    expect(task).toBeDefined();
+    expect(task.status).toBe('running');
+  });
 });
