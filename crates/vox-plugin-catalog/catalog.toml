@@ -179,7 +179,7 @@ description = "Skill-runtime plugin: Docker and Podman backends for sandboxed sk
 status = "alpha"
 extension-points = ["SkillRuntime"]
 default-source = "local:crates/vox-plugin-runtime-container"
-bundled-in = []
+bundled-in = ["vox-server"]
 
 [[plugin]]
 id = "publication"
@@ -252,7 +252,7 @@ id = "vox-server"
 description = "Headless backend deployment: orchestrator + mesh, no GUI/ML."
 status = "beta"
 extends = "vox-base"
-plugins = ["populi-mesh", "skill-orchestrator", "skill-memory", "webhook"]
+plugins = ["populi-mesh", "skill-orchestrator", "skill-memory", "webhook", "runtime-container"]
 
 [[bundle]]
 id = "vox-edge"
