@@ -180,13 +180,28 @@ pub async fn run(
             }
             PipelineStage::Replay => {
                 if !dry_run {
-                    crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Replay {
+                    let autofeedback_out = PathBuf::from("mens/data/mix_sources/autofeedback.jsonl");
+                    match crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Replay {
                         chatml: true,
                         min_score: 4.0, // High quality only for auto-replay
-                        output: PathBuf::from("mens/data/mix_sources/autofeedback.jsonl"),
+                        output: autofeedback_out.clone(),
                         limit: 1000,
                     })
-                    .await?;
+                    .await
+                    {
+                        Ok(_) => {
+                            println!("  ✓ Wrote replay pairs -> {}", autofeedback_out.display());
+                        }
+                        Err(e) if is_lock_error(&e) => {
+                            tracing::warn!(
+                                "Replay stage: DB locked (vox-gui or vox-orchestrator-d running?). \
+                                 Skipping -- writing empty autofeedback."
+                            );
+                            let _ = std::fs::write(&autofeedback_out, "");
+                            println!("  ⚠ Replay skipped (DB locked) -> empty autofeedback written");
+                        }
+                        Err(e) => return Err(e),
+                    }
                 }
             }
             PipelineStage::HealToDpo => {
@@ -505,6 +520,16 @@ async fn run_kb_signals_stage(data_dir: &std::path::Path) -> anyhow::Result<()> 
     Ok(())
 }
 
+/// Returns true if the error is a database/file lock error (os error 33 on Windows,
+/// os error 11 on Linux, or "locked" in the error message).
+fn is_lock_error(e: &anyhow::Error) -> bool {
+    let msg = format!("{e:#}");
+    msg.contains("os error 33")
+        || msg.contains("os error 11")
+        || msg.contains("locked")
+        || msg.contains("SQLITE_BUSY")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -544,5 +569,23 @@ mod tests {
             err_msg.contains("missing input file")
                 || err_msg.contains("produced no validated.jsonl")
         );
+    }
+
+    #[test]
+    fn test_is_lock_error_recognizes_windows_lock() {
+        let e = anyhow::anyhow!("The process cannot access the file because another process has locked a portion of the file. (os error 33)");
+        assert!(is_lock_error(&e));
+    }
+
+    #[test]
+    fn test_is_lock_error_recognizes_sqlite_busy() {
+        let e = anyhow::anyhow!("database is locked");
+        assert!(is_lock_error(&e));
+    }
+
+    #[test]
+    fn test_is_lock_error_does_not_match_other_errors() {
+        let e = anyhow::anyhow!("file not found (os error 2)");
+        assert!(!is_lock_error(&e));
     }
 }
