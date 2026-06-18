@@ -61,13 +61,7 @@ export const LudusSandbox: React.FC<SandboxProps> = ({ files }) => {
     });
   }, [focusedFile, plots]);
 
-  // Initialize buildings in Zustand store
-  useEffect(() => {
-    const store = useLudusStore.getState();
-    for (const [filePath, plot] of Object.entries(plots)) {
-      store.updateBuilding(filePath, { x: plot.x, y: plot.y, warnings: 0, errors: 0 });
-    }
-  }, [plots]);
+
 
   // Pre-render layout to offscreen canvas
   useEffect(() => {
@@ -149,10 +143,11 @@ export const LudusSandbox: React.FC<SandboxProps> = ({ files }) => {
     ctx.drawImage(offscreen, -offscreen.width / 2, 0);
     
     ctx.restore();
-  }, [camera, files]);
+  }, [camera, files, buildings, agentTasks]);
 
   // Listen to live agent execution events from Tauri
   useEffect(() => {
+    let active = true;
     let unlisten: (() => void) | undefined;
 
     listenAgentEvents((event: AgentEventFrame) => {
@@ -163,10 +158,15 @@ export const LudusSandbox: React.FC<SandboxProps> = ({ files }) => {
         store.updateBuilding(filePath, { warnings: 1 });
       }
     }).then((unlistenFn) => {
-      unlisten = unlistenFn;
+      if (!active) {
+        unlistenFn();
+      } else {
+        unlisten = unlistenFn;
+      }
     }).catch(() => {});
 
     return () => {
+      active = false;
       if (unlisten) unlisten();
     };
   }, []);

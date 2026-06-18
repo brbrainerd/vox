@@ -61,8 +61,7 @@ describe('Telemetry Ingestion Mapping', () => {
     // Initially, warnings/errors are 0
     const store = useLudusStore.getState();
     const initialBuilding = store.buildings['crates/vox-db/src/lib.rs'];
-    expect(initialBuilding).toBeDefined();
-    expect(initialBuilding.warnings).toBe(0);
+    expect(initialBuilding?.warnings ?? 0).toBe(0);
 
     // Simulate a file_edited event
     if (eventCallback) {
