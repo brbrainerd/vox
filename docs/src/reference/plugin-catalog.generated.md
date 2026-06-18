@@ -25,7 +25,7 @@ _Columns: `id`, `payload-kind`, `extension-points`/`exposes-tools`, `default-sou
 | `webhook` | `HttpListener` | `local:crates/vox-plugin-webhook` | `vox-server`, `vox-dev` |
 | `browser` | `BrowserAutomation` | `github:vox-foundation/vox-plugin-browser` | `vox-dev` |
 | `runtime-wasm` | `SkillRuntime` | `local:crates/vox-plugin-runtime-wasm` | `vox-fullstack`, `vox-edge`, `vox-dev` |
-| `runtime-container` | `SkillRuntime` | `local:crates/vox-plugin-runtime-container` | — |
+| `runtime-container` | `SkillRuntime` | `local:crates/vox-plugin-runtime-container` | `vox-server` |
 | `publication` | `Publication` | `local:crates/vox-plugin-publication` | — |
 
 ## Skill-payload plugins
