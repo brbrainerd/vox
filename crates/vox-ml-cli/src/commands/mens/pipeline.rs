@@ -180,13 +180,16 @@ pub async fn run(
             }
             PipelineStage::Replay => {
                 if !dry_run {
-                    let autofeedback_out = PathBuf::from("mens/data/mix_sources/autofeedback.jsonl");
-                    match crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Replay {
-                        chatml: true,
-                        min_score: 4.0, // High quality only for auto-replay
-                        output: autofeedback_out.clone(),
-                        limit: 1000,
-                    })
+                    let autofeedback_out =
+                        PathBuf::from("mens/data/mix_sources/autofeedback.jsonl");
+                    match crate::commands::corpus::run(
+                        crate::commands::corpus::CorpusAction::Replay {
+                            chatml: true,
+                            min_score: 4.0, // High quality only for auto-replay
+                            output: autofeedback_out.clone(),
+                            limit: 1000,
+                        },
+                    )
                     .await
                     {
                         Ok(_) => {
@@ -198,7 +201,9 @@ pub async fn run(
                                  Skipping -- writing empty autofeedback."
                             );
                             let _ = std::fs::write(&autofeedback_out, "");
-                            println!("  ⚠ Replay skipped (DB locked) -> empty autofeedback written");
+                            println!(
+                                "  ⚠ Replay skipped (DB locked) -> empty autofeedback written"
+                            );
                         }
                         Err(e) => return Err(e),
                     }
@@ -431,6 +436,10 @@ async fn run_kb_signals_stage(data_dir: &std::path::Path) -> anyhow::Result<()> 
     use std::io::{BufWriter, Write};
 
     let db_path = ".vox/db/vox.db";
+    if !std::path::Path::new(db_path).exists() {
+        tracing::info!("KbSignals: VoxDb at {db_path} does not exist; skipping KbSignals stage");
+        return Ok(());
+    }
     tracing::info!("KbSignals: connecting to VoxDb at {db_path}");
 
     // VoxDb::open is #[cfg(feature = "local")] — ensure vox-ml-cli/Cargo.toml has
@@ -573,7 +582,9 @@ mod tests {
 
     #[test]
     fn test_is_lock_error_recognizes_windows_lock() {
-        let e = anyhow::anyhow!("The process cannot access the file because another process has locked a portion of the file. (os error 33)");
+        let e = anyhow::anyhow!(
+            "The process cannot access the file because another process has locked a portion of the file. (os error 33)"
+        );
         assert!(is_lock_error(&e));
     }
 
