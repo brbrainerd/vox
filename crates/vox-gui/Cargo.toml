@@ -59,6 +59,7 @@ base64 = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+tauri = { workspace = true, features = ["test"] }
 
 [build-dependencies]
 vox-build-meta = { workspace = true }
