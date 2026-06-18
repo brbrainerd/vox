@@ -172,13 +172,13 @@ Add `contracts/retrieval/graphify-corpora.v1.yaml`:
 corpora:
   - id: repo-code-graph
     scope_path: "."
-    graph_path: "graphify-out/graph.json"
+    graph_path: ".vox/cache/graphify/repo-code-graph/graph.json"
     default_for_intents: [code_navigation, repo_structure]
   - id: vox-gui-surface
     scope_path: "crates/vox-gui"
-    graph_path: "crates/vox-gui/graphify-out/graph.json"
+    graph_path: ".vox/cache/graphify/vox-gui-surface/graph.json"
   - id: config-audit
-    graph_path: "graphify-out/config-audit-graph/graph.json"
+    graph_path: ".vox/cache/graphify/config-audit/graph.json"
 ```
 
 Each map gets `.graphify_manifest.v1.json`: `built_at`, `git_sha`, `node_count`, `graph_json_sha256`, `input_manifest_sha256`, `extraction_mode`, `semantic_pass_crates`.
