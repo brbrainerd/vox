@@ -12,6 +12,7 @@ pub mod bfs;
 pub mod compare;
 pub mod cluster;
 pub mod ast;
+pub mod cache;
 
 use std::collections::HashMap;
 
