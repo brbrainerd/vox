@@ -223,10 +223,10 @@ pub fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Result<()> 
                 load_graphify_corpora(repo_root).map_err(|e| anyhow::anyhow!(e.to_string()))?;
             let corpus_id = resolve_ingest_corpus_id(&reg, corpus)
                 .map_err(|e| anyhow::anyhow!(e.to_string()))?;
-            let corpus = corpus_by_id(&reg, &corpus_id)
-                .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            let corpus =
+                corpus_by_id(&reg, &corpus_id).map_err(|e| anyhow::anyhow!(e.to_string()))?;
 
-            let source_dir = repo_root.join("crates");
+            let source_dir = repo_root.join(&corpus.scope_path);
             let output_file = repo_root.join(&corpus.graph_path);
             let cache_dir = output_file.parent().unwrap().join("file_cache");
 
@@ -236,7 +236,8 @@ pub fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Result<()> 
                 &source_dir,
                 &output_file,
                 &cache_dir,
-            ).map_err(|e| anyhow::anyhow!("Rebuild failed: {}", e))?;
+            )
+            .map_err(|e| anyhow::anyhow!("Rebuild failed: {}", e))?;
             println!("Graphify rebuild successful!");
         }
     }

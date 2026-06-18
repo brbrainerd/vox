@@ -1,6 +1,6 @@
-use std::path::{Path, PathBuf};
-use std::fs;
 use super::ast::ExtractedGraph;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 pub struct CacheManager {
     cache_dir: PathBuf,
@@ -22,7 +22,10 @@ impl CacheManager {
         if cache_path.exists() {
             if let Ok(content) = fs::read_to_string(cache_path) {
                 if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-                    return json.get("hash").and_then(|h| h.as_str()).map(str::to_string);
+                    return json
+                        .get("hash")
+                        .and_then(|h| h.as_str())
+                        .map(str::to_string);
                 }
             }
         }

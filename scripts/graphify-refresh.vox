@@ -72,11 +72,11 @@ fn main() {
             if has_graph_missing {
                 print("   Rebuild instructions:");
                 if id == "repo-code-graph" {
-                    print("     python scripts/coverage-graph/rebuild_full_graph.py . .vox/cache/graphify/repo-code-graph/graph.json");
+                    print("     " + bin + " graphify rebuild --corpus repo-code-graph");
                 } else if id == "vox-gui-surface" {
-                    print("     python scripts/coverage-graph/rebuild_full_graph.py crates/vox-gui .vox/cache/graphify/vox-gui-surface/graph.json");
+                    print("     " + bin + " graphify rebuild --corpus vox-gui-surface");
                 } else if id == "config-audit" {
-                    print("     python scripts/coverage-graph/rebuild_full_graph.py . .vox/cache/graphify/config-audit/graph.json");
+                    print("     " + bin + " graphify rebuild --corpus config-audit");
                 } else {
                     print("     Generate the graph.json file for this corpus at its graph_path.");
                 }

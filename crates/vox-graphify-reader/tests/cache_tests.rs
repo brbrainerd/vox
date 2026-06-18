@@ -1,17 +1,21 @@
-use tempfile::tempdir;
-use vox_graphify_reader::cache::CacheManager;
-use vox_graphify_reader::ast::{ExtractedGraph, ExtractedNode};
 use std::path::Path;
+use tempfile::tempdir;
+use vox_graphify_reader::ast::{ExtractedGraph, ExtractedNode};
+use vox_graphify_reader::cache::CacheManager;
 
 #[test]
 fn test_cache_management_cycle() {
     let tmp = tempdir().unwrap();
     let manager = CacheManager::new(tmp.path().to_path_buf());
-    
+
     let file = Path::new("main.rs");
     let hash = "abc123hash";
     let graph = ExtractedGraph {
-        nodes: vec![ExtractedNode { id: "a".to_string(), label: "a".to_string(), kind: "fn".to_string() }],
+        nodes: vec![ExtractedNode {
+            id: "a".to_string(),
+            label: "a".to_string(),
+            kind: "fn".to_string(),
+        }],
         edges: vec![],
     };
 

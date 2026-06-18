@@ -34,7 +34,7 @@ impl<'ast> Visit<'ast> for RustVisitor {
             label: fn_name.clone(),
             kind: "fn".to_string(),
         });
-        
+
         let old_fn = self.current_fn.replace(fn_name);
         syn::visit::visit_item_fn(self, node);
         self.current_fn = old_fn;
@@ -100,7 +100,9 @@ pub fn extract_ast(path: &Path, content: &str) -> ExtractedGraph {
                             let mut stack = vec![tree.root_node()];
                             let mut current_fn: Option<String> = None;
                             while let Some(node) = stack.pop() {
-                                if node.kind() == "function_declaration" || node.kind() == "method_definition" {
+                                if node.kind() == "function_declaration"
+                                    || node.kind() == "method_definition"
+                                {
                                     if let Some(name_node) = node.child_by_field_name("name") {
                                         if let Ok(name) = name_node.utf8_text(content.as_bytes()) {
                                             nodes.push(ExtractedNode {
@@ -114,8 +116,12 @@ pub fn extract_ast(path: &Path, content: &str) -> ExtractedGraph {
                                 }
                                 if node.kind() == "call_expression" {
                                     if let Some(ref source_fn) = current_fn {
-                                        if let Some(function_node) = node.child_by_field_name("function") {
-                                            if let Ok(callee) = function_node.utf8_text(content.as_bytes()) {
+                                        if let Some(function_node) =
+                                            node.child_by_field_name("function")
+                                        {
+                                            if let Ok(callee) =
+                                                function_node.utf8_text(content.as_bytes())
+                                            {
                                                 edges.push(ExtractedEdge {
                                                     source: source_fn.clone(),
                                                     target: callee.to_string(),

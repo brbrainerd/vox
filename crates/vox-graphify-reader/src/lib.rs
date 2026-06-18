@@ -8,11 +8,11 @@
 //! Edges may appear under `"links"` or `"edges"` — both are supported.
 //! The graph is treated as **undirected**: edges are indexed in both directions.
 
-pub mod bfs;
-pub mod compare;
-pub mod cluster;
 pub mod ast;
+pub mod bfs;
 pub mod cache;
+pub mod cluster;
+pub mod compare;
 pub mod rebuild;
 
 use std::collections::HashMap;

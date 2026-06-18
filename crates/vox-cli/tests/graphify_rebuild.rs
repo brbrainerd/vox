@@ -1,5 +1,5 @@
-use tempfile::tempdir;
 use std::fs;
+use tempfile::tempdir;
 
 #[test]
 fn test_cli_graphify_rebuild_success() {
@@ -11,13 +11,9 @@ fn test_cli_graphify_rebuild_success() {
     let output_file = tmp.path().join("graph.json");
     let cache_dir = tmp.path().join("cache");
 
-    let res = vox_graphify_reader::rebuild::rebuild_graph(
-        tmp.path(),
-        &src,
-        &output_file,
-        &cache_dir,
-    );
-    
+    let res =
+        vox_graphify_reader::rebuild::rebuild_graph(tmp.path(), &src, &output_file, &cache_dir);
+
     assert!(res.is_ok());
     assert!(output_file.exists());
     let graph_content = fs::read_to_string(output_file).unwrap();
