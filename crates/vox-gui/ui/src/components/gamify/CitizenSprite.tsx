@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { projectIso, getZIndex } from '../../lib/projection';
-import { useLudusStore } from './store';
+import { useLudusStore, AgentState } from './store';
 
 interface CitizenProps {
   id: string;
@@ -22,22 +22,35 @@ export const CitizenSprite: React.FC<CitizenProps> = ({
   const spriteRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    // Register agent in the store
-    useLudusStore.getState().updateAgent(id, { x: 2, y: 2, energy: 100, mood: 'Happy' });
+    // 1. Lazy registration ONLY if the agent doesn't exist
+    const store = useLudusStore.getState();
+    if (!store.agents[id]) {
+      store.updateAgent(id, { x: 2, y: 2, energy: 100, mood: 'Happy' });
+    }
 
-    // Subscribe directly to store updates for this specific agent id
-    const unsubscribe = useLudusStore.subscribe((state) => {
-      const agent = state.agents[id];
+    const updateStyle = (agentState: AgentState) => {
       const el = spriteRef.current;
-      if (!agent || !el) return;
+      if (!el) return;
 
-      // Projection translation
-      const { px, py } = projectIso(agent.x, agent.y, 0, tileWidth, tileHeight, offsetX, offsetY);
-      const zIndex = getZIndex(agent.x, agent.y);
+      const { px, py } = projectIso(agentState.x, agentState.y, 0, tileWidth, tileHeight, offsetX, offsetY);
+      const zIndex = getZIndex(agentState.x, agentState.y);
 
-      // Direct styling updates bypassing React render cycle
       el.style.transform = `translate3d(${px}px, ${py - 24}px, 0) translate(-50%, -50%)`;
       el.style.zIndex = zIndex.toString();
+    };
+
+    // 2. Immediate position update to align with mount and camera panning
+    const initialAgent = useLudusStore.getState().agents[id] || { x: 2, y: 2, energy: 100, mood: 'Happy' as const };
+    updateStyle(initialAgent);
+
+    let prevAgentState = initialAgent;
+
+    // 3. Subscription with change detection to avoid redundant style writes
+    const unsubscribe = useLudusStore.subscribe((state) => {
+      const agent = state.agents[id];
+      if (!agent || agent === prevAgentState) return;
+      prevAgentState = agent;
+      updateStyle(agent);
     });
 
     return () => unsubscribe();
@@ -46,8 +59,8 @@ export const CitizenSprite: React.FC<CitizenProps> = ({
   return (
     <div
       ref={spriteRef}
-      className="absolute flex flex-col items-center pointer-events-none transition-transform duration-75"
-      style={{ left: 0, top: 0, zIndex: 0 }}
+      className="absolute flex flex-col items-center pointer-events-none"
+      style={{ left: 0, top: 0 }}
     >
       <div className="text-[9px] bg-black/80 px-1 py-0.5 rounded border border-blue-500/20 text-blue-400 font-mono scale-75 whitespace-nowrap mb-1">
         {name}

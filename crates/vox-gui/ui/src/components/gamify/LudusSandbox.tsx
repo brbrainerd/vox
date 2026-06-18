@@ -74,38 +74,26 @@ export const LudusSandbox: React.FC<SandboxProps> = ({ files }) => {
     }
   }, [files]);
 
-  // Main rendering loop blitting offscreen to onscreen with transforms
+  // Render offscreen canvas to onscreen viewport on camera or layout updates
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const offscreen = offscreenCanvasRef.current;
+    if (!canvas || !offscreen) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    let frameId: number;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    
+    // Apply pan and zoom transforms
+    ctx.translate(camera.x, camera.y);
+    ctx.scale(camera.zoom, camera.zoom);
 
-    const render = () => {
-      const offscreen = offscreenCanvasRef.current;
-      if (!offscreen) {
-        frameId = requestAnimationFrame(render);
-        return;
-      }
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.save();
-      
-      // Apply pan and zoom transforms
-      ctx.translate(camera.x, camera.y);
-      ctx.scale(camera.zoom, camera.zoom);
-
-      // Copy buffer to screen (offset to align offscreen center with translation origin)
-      ctx.drawImage(offscreen, -offscreen.width / 2, 0);
-      
-      ctx.restore();
-      frameId = requestAnimationFrame(render);
-    };
-
-    render();
-    return () => cancelAnimationFrame(frameId);
-  }, [camera]);
+    // Copy buffer to screen (offset to align offscreen center with translation origin)
+    ctx.drawImage(offscreen, -offscreen.width / 2, 0);
+    
+    ctx.restore();
+  }, [camera, files]);
 
   return (
     <div className="relative w-full h-[500px] bg-[#09090b] overflow-hidden border border-zinc-800 rounded-2xl">
