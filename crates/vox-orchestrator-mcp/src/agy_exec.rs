@@ -100,11 +100,15 @@ impl AgyExec {
             .kill_on_drop(true) // <-- ensures the timeout branch actually reaps the child
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
+        // Do NOT set CREATE_NO_WINDOW on Windows: agy requires a virtual console
+        // to initialise its TUI layer; suppressing the console causes it to exit
+        // silently (exit 0, no output, no file writes).  Suppress the visible
+        // window via DETACHED_PROCESS instead — same effect, no TUI breakage.
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;
-            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-            cmd.creation_flags(CREATE_NO_WINDOW);
+            const DETACHED_PROCESS: u32 = 0x0000_0008;
+            cmd.creation_flags(DETACHED_PROCESS);
         }
 
         let child = cmd.spawn().map_err(|e| {
