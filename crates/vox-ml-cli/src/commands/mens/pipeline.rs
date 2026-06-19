@@ -363,166 +363,114 @@ pub async fn run(
                 }
             }
             PipelineStage::Train => {
-                if !dry_run {
-                    #[cfg(feature = "gpu")]
-                    {
-                        let device = device.clone().unwrap_or_else(|| "best".into());
+                let ws = vox_corpus::training::contract::find_workspace_root();
+                let root = ws.clone().unwrap_or_else(|| std::path::PathBuf::from("."));
+                let selection = crate::commands::mens::training_selection::resolve_training_selection(
+                    &root,
+                    profile.as_deref(),
+                    model.as_deref(),
+                    preset.as_deref(),
+                    None,
+                )?;
+                match &selection {
+                    crate::commands::mens::training_selection::TrainingSelection::Skip { reason } => {
+                        tracing::info!("spoke training skipped ({reason})");
+                        continue;
+                    }
+                    crate::commands::mens::training_selection::TrainingSelection::Train { model: m, preset: p, backend } => {
+                        tracing::info!(model=?m, preset=%p, backend=?backend, "resolved training selection");
+                        if !dry_run {
+                            #[cfg(feature = "gpu")]
+                            {
+                                let device = device.clone().unwrap_or_else(|| "best".into());
+                                let target_model = m.clone();
+                                let target_preset = Some(p.clone());
+                                let backend = *backend;
 
-                        // Per-spoke base model: CLI --model wins; else resolve the profile's base.model
-                        // (tag -> VRAM-fit HF id, or concrete id passthrough). On a host with no GPU,
-                        // a TAG cannot be sized — fall back to the existing default-model path rather
-                        // than aborting a --skip-train dry-run (effect, not abort). §E.
-                        let target_model = if model.is_some() {
-                            model.clone()
-                        } else if let Some(name) = profile.as_deref() {
-                            let ws = vox_corpus::training::contract::find_workspace_root();
-                            let root = ws.clone().unwrap_or_else(|| std::path::PathBuf::from("."));
-                            match vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile::load_domain_profile(name, ws.as_deref()) {
-                                Ok(eff) => match eff.base.as_ref().map(|b| b.model.clone()) {
-                                    Some(tag) => match vox_populi::mens::tensor::spoke_base_resolver::resolve_base_model(&root, &tag, None) {
-                                        Ok(id) => Some(id),
-                                        Err(e) => {
-                                            tracing::warn!("spoke '{name}' base unresolved ({e}); using default model");
-                                            None
-                                        }
-                                    },
-                                    None => None,
-                                },
-                                Err(_) => None,
-                            }
-                        } else {
-                            model.clone()
-                        };
-
-                        // Preset SSOT: CLI --preset wins; else the spoke's declared
-                        // base.preset (e.g. qwen_4080_16g); else the default. Wiring
-                        // base.preset closes the "declared-but-unwired" gap (AGH-0012 F2).
-                        // Note: prosumer_16g ≡ qwen_4080_16g (alias, preset_schema.rs).
-                        let target_preset = preset
-                            .clone()
-                            .or_else(|| {
-                                profile.as_deref().and_then(|name| {
-                                    vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile
-                                        ::load_domain_profile(name, vox_corpus::training::contract::find_workspace_root().as_deref())
-                                        .ok()
-                                        .and_then(|e| e.base.and_then(|b| b.preset))
-                                })
-                            })
-                            .or_else(|| Some("qwen_4080_16g".into()));
-
-                        use vox_populi::mens::tensor::domain_profiles::TrainMethod;
-                        use vox_populi::mens::tensor::finetune_contract::AdapterMethod;
-                        use vox_populi::mens::tensor::finetune_registry::AdapterMethodRegistry;
-
-                        let method = profile.as_deref()
-                            .and_then(|n| vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile::load_domain_profile(n, vox_corpus::training::contract::find_workspace_root().as_deref()).ok())
-                            .and_then(|e| e.base.map(|b| b.method))
-                            .unwrap_or(TrainMethod::Qlora);
-
-                        let backend = match method {
-                            TrainMethod::Qlora => {
-                                match AdapterMethodRegistry::builtin().resolve(AdapterMethod::Qlora)
-                                {
-                                    Some(r) => r.default_kernel,
-                                    None => {
-                                        anyhow::bail!("AdapterMethodRegistry missing Qlora kernel")
+                                // SAFETY: CLI process; no concurrent `getenv` readers rely on these during this block.
+                                #[allow(unsafe_code)]
+                                unsafe {
+                                    std::env::set_var("VOX_BENCHMARK", "1");
+                                    if strict_gate {
+                                        std::env::set_var("VOX_EVAL_STRICT", "1");
+                                        std::env::set_var("VOX_BENCHMARK_MIN_PASS_RATE", "0.80");
+                                    } else {
+                                        std::env::set_var("VOX_EVAL_STRICT", "0");
+                                        std::env::set_var("VOX_BENCHMARK_MIN_PASS_RATE", "0.0");
                                     }
                                 }
+
+                                crate::commands::schola::train::run_train(
+                                    backend,
+                                    target_model,
+                                    device,
+                                    data_dir.clone(),
+                                    output_dir.clone(),
+                                    None, // rank (auto from preset)
+                                    None, // alpha
+                                    None, // seq_len
+                                    None, // batch_size
+                                    None, // grad_accum
+                                    None, // budget_seq_len
+                                    None, // budget_batch_size
+                                    None, // budget_grad_accum
+                                    None, // resume
+                                    epochs,
+                                    None, // lr
+                                    None, // warmup
+                                    42,   // seed
+                                    None, // min_rating
+                                    target_preset,
+                                    vox_populi::mens::TrainingDeploymentTarget::Workstation,
+                                    "normal".into(),
+                                    None, // vram_limit_fraction
+                                    None, // adapter_tag
+                                    None, // context_filter
+                                    None, // validation_split_ratio (use default 5%)
+                                    crate::commands::mens::MensTokenizerCli::Hf.into(),
+                                    false, // qlora_no_double_quant
+                                    false, // qlora_require_full_proxy_stack
+                                    false, // qlora_allow_partial_proxy_stack
+                                    None,  // qlora_max_skip_rate
+                                    false, // qlora_lm_head_only
+                                    None,  // qlora_proxy_max_layers
+                                    64,    // qlora_ce_last_k
+                                    None,  // checkpoint_every
+                                    false, // force_restart
+                                    curriculum,
+                                    vox_populi::mens::OptimizerExperimentMode::Off,
+                                    true,               // require_gpu
+                                    false,              // allow_cpu_fallback
+                                    None,               // base_model_family
+                                    None,               // upstream_model_id
+                                    None,               // license_class
+                                    false,              // attribution_required
+                                    false,              // trajectory_weighting_enabled
+                                    1.1,                // trajectory_tool_trace_boost
+                                    1.15,               // trajectory_failure_category_boost
+                                    None,               // trajectory_quality_floor
+                                    1.05,               // trajectory_quality_boost
+                                    None,               // curriculum_schedule
+                                    Default::default(), // chatml_config
+                                    None,               // mix_config
+                                )
+                                .await?;
+
+                                // W4-01: Flywheel signal telemetry
+                                if curriculum {
+                                    tracing::info!(
+                                        "flywheel.signal: Curriculum training complete, pending human promotion gate."
+                                    );
+                                }
                             }
-                            TrainMethod::FullSft | TrainMethod::Dpo | TrainMethod::Orpo => {
+
+                            #[cfg(not(feature = "gpu"))]
+                            {
                                 anyhow::bail!(
-                                    "training method {:?} has no wired backend; wire a kernel before selecting it in domain-profiles.yaml",
-                                    method
+                                    "mens pipeline: native train was requested but this `vox` binary was built without the `gpu` feature; pass `--skip-train` or rebuild with `--features gpu`"
                                 );
                             }
-                            TrainMethod::RagOnly | TrainMethod::PromptOnly => {
-                                tracing::info!("spoke uses {:?}; skipping training stage", method);
-                                continue;
-                            }
-                        };
-
-                        // SAFETY: CLI process; no concurrent `getenv` readers rely on these during this block.
-                        #[allow(unsafe_code)]
-                        unsafe {
-                            std::env::set_var("VOX_BENCHMARK", "1");
-                            if strict_gate {
-                                std::env::set_var("VOX_EVAL_STRICT", "1");
-                                std::env::set_var("VOX_BENCHMARK_MIN_PASS_RATE", "0.80");
-                            } else {
-                                std::env::set_var("VOX_EVAL_STRICT", "0");
-                                std::env::set_var("VOX_BENCHMARK_MIN_PASS_RATE", "0.0");
-                            }
                         }
-
-                        crate::commands::schola::train::run_train(
-                            backend,
-                            target_model,
-                            device,
-                            data_dir.clone(),
-                            output_dir.clone(),
-                            None, // rank (auto from preset)
-                            None, // alpha
-                            None, // seq_len
-                            None, // batch_size
-                            None, // grad_accum
-                            None, // budget_seq_len
-                            None, // budget_batch_size
-                            None, // budget_grad_accum
-                            None, // resume
-                            epochs,
-                            None, // lr
-                            None, // warmup
-                            42,   // seed
-                            None, // min_rating
-                            target_preset,
-                            vox_populi::mens::TrainingDeploymentTarget::Workstation,
-                            "normal".into(),
-                            None, // vram_limit_fraction
-                            None, // adapter_tag
-                            None, // context_filter
-                            None, // validation_split_ratio (use default 5%)
-                            crate::commands::mens::MensTokenizerCli::Hf.into(),
-                            false, // qlora_no_double_quant
-                            false, // qlora_require_full_proxy_stack
-                            false, // qlora_allow_partial_proxy_stack
-                            None,  // qlora_max_skip_rate
-                            false, // qlora_lm_head_only
-                            None,  // qlora_proxy_max_layers
-                            64,    // qlora_ce_last_k
-                            None,  // checkpoint_every
-                            false, // force_restart
-                            curriculum,
-                            vox_populi::mens::OptimizerExperimentMode::Off,
-                            true,               // require_gpu
-                            false,              // allow_cpu_fallback
-                            None,               // base_model_family
-                            None,               // upstream_model_id
-                            None,               // license_class
-                            false,              // attribution_required
-                            false,              // trajectory_weighting_enabled
-                            1.1,                // trajectory_tool_trace_boost
-                            1.15,               // trajectory_failure_category_boost
-                            None,               // trajectory_quality_floor
-                            1.05,               // trajectory_quality_boost
-                            None,               // curriculum_schedule
-                            Default::default(), // chatml_config
-                            None,               // mix_config
-                        )
-                        .await?;
-
-                        // W4-01: Flywheel signal telemetry
-                        if curriculum {
-                            tracing::info!(
-                                "flywheel.signal: Curriculum training complete, pending human promotion gate."
-                            );
-                        }
-                    }
-
-                    #[cfg(not(feature = "gpu"))]
-                    {
-                        anyhow::bail!(
-                            "mens pipeline: native train was requested but this `vox` binary was built without the `gpu` feature; pass `--skip-train` or rebuild with `--features gpu`"
-                        );
                     }
                 }
             }

@@ -29,6 +29,8 @@ mod eval_local_prompt;
 pub mod models;
 #[cfg(feature = "mens-base")]
 mod pipeline;
+#[cfg(feature = "mens-base")]
+pub(crate) mod training_selection;
 /// Self-healing for the `mens-candle-cuda` runtime plugin (rebuild + reinstall
 /// on a stale/missing/ABI-mismatched plugin before CUDA training).
 #[cfg(feature = "gpu")]
