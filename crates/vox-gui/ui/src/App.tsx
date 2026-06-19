@@ -507,11 +507,24 @@ export default function App() {
         e.preventDefault();
         setHudMode(m => (m === 'full' ? 'slim' : m === 'slim' ? 'hidden' : 'full'));
       }
+      if (mod && e.altKey && e.key.toLowerCase() === 'c') {
+        const selected = window.getSelection()?.toString();
+        if (selected && selected.trim()) {
+          e.preventDefault();
+          voxTransport.historyAdd('clip', selected, 'gui-hotkey')
+            .then(() => {
+              pushToast({ tone: 'ok', title: 'Selection saved to clip history', body: selected.slice(0, 60) });
+            })
+            .catch((err) => {
+              pushToast({ tone: 'warn', title: 'Failed to save selection', body: String(err) });
+            });
+        }
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [pushToast]);
 
   // ── Navigation (hash-synced) ─────────────────────────────────────────────
   const navigateTo = useCallback((viewKey: string) => {
