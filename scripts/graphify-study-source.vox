@@ -1,0 +1,50 @@
+import fs;
+import process;
+
+fn vox_binary_path() to str {
+    if fs.exists("./target/antigravity/release/vox.exe") { return "./target/antigravity/release/vox.exe"; }
+    if fs.exists("./target/antigravity/debug/vox.exe") { return "./target/antigravity/debug/vox.exe"; }
+    if fs.exists("./target/release/vox.exe") { return "./target/release/vox.exe"; }
+    if fs.exists("./target/release/vox") { return "./target/release/vox"; }
+    if fs.exists("./target/debug/vox.exe") { return "./target/debug/vox.exe"; }
+    return "./target/debug/vox";
+}
+
+fn main() {
+    let bin = vox_binary_path();
+    let src_dir = ".vox/cache/graphify-src";
+
+    if not fs.exists(src_dir) {
+        print("Cloning Graphify upstream source into " + src_dir + " ...");
+        let clone_opt = process.run("git", ["clone", "--depth", "1",
+            "https://github.com/safishamsi/graphify", src_dir]);
+        if clone_opt is null {
+            log.error("Failed to spawn git clone");
+            process.exit(1);
+        }
+        let clone = clone_opt.unwrap();
+        if clone.code isnt 0 {
+            log.error("git clone failed with code " + str(clone.code));
+            process.exit(clone.code);
+        }
+    } else {
+        print("Graphify source already present at " + src_dir);
+    }
+
+    print("Indexing Graphify source as corpus 'graphify-upstream' ...");
+    let idx_opt = process.run(bin, ["graphify", "index", src_dir,
+        "--id", "graphify-upstream", "--mode", "structural"]);
+    if idx_opt is null {
+        log.error("Failed to spawn " + bin + " graphify index");
+        process.exit(1);
+    }
+    let idx = idx_opt.unwrap();
+    if idx.code isnt 0 {
+        log.error("graphify index failed with code " + str(idx.code));
+        process.exit(idx.code);
+    }
+
+    print("");
+    print("Graphify source indexed. Query it via corpus 'graphify-upstream':");
+    print("  " + bin + " graphify status --corpus graphify-upstream");
+}
