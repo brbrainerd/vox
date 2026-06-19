@@ -475,6 +475,16 @@ vox-install-policy       = { plan = "docs/src/architecture/crate-structure-audit
 vox-dashboard            = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 3 }
 vox-mens-eval            = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 2 }
 vox-agentos-mutation     = { plan = "docs/src/architecture/mesh-and-language-distribution-ssot-2026.md", layer = 0 }
+vox-free-ai              = { plan = "docs/superpowers/plans/2026-06-18-gamify-gui-pluginization-lean-cli.md", layer = 2 }
+vox-plugin-gamify        = { plan = "docs/superpowers/plans/2026-06-18-gamify-gui-pluginization-lean-cli.md", layer = 4 }
 
 
 
+# ── Build profiles (Rule 20: forbidden crates per named profile) ─────────────
+[profiles.lean]
+build = "cargo build -p vox-cli --no-default-features --features script-execution"
+forbidden = ["vox-gui", "vox-gamify"]
+
+[profiles.full]
+build = "cargo build -p vox-cli --features extras-ludus"
+forbidden = []
