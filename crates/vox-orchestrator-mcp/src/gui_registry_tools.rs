@@ -21,6 +21,23 @@ pub async fn vox_gui_components(state: &ServerState, _args: serde_json::Value) -
     }
 }
 
+/// Map a web-IR validator diagnostic code to the `gui-design-rule/*` policy id
+/// it belongs to, so external generators get rule-linked, discoverable feedback
+/// (pairs with the vox_gui_rules tool). Returns `None` for non-GUI codes.
+fn rule_id_for_code(code: &str) -> Option<&'static str> {
+    if code.contains("contrast") {
+        Some("gui-design-rule/contrast")
+    } else if code.starts_with("web_ir_validate.a11y.") {
+        Some("gui-design-rule/a11y")
+    } else if code.starts_with("web_ir_validate.overlay.") {
+        Some("gui-design-rule/layer-occlusion")
+    } else if code.starts_with("vox/layer/") {
+        Some("gui-design-rule/layer-occlusion")
+    } else {
+        None
+    }
+}
+
 /// Pure validation pipeline: Vox/VUV `source` → web-IR → diagnostics, returning
 /// the JSON payload `{ ok, error_count, diagnostic_count, diagnostics[] }`. No
 /// `ServerState`, no I/O, no files written — directly unit-testable.
@@ -59,6 +76,7 @@ pub fn validate_vuv_source(source: &str) -> serde_json::Value {
                 "message": d.message,
                 "severity": format!("{:?}", d.severity()),
                 "category": d.category,
+                "rule_id": rule_id_for_code(&d.code),
             })
         })
         .collect();
