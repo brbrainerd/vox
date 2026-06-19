@@ -271,7 +271,16 @@ commits: [7994b368a6]
 
 **Ceiling closed this session (Claude Code, Opus 4.8):** the prerequisite entry points now exist (`lex → parse → lower_module → lower_hir_to_web_ir_with_summary → validate_web_ir_with_registry`), so `vox_validate_vuv` was implemented (commit `7994b368a6`): a no-write tool taking a `source` string and returning `{ ok, error_count, diagnostic_count, diagnostics[] }`, wired through dispatch + input-schema + catalog + the regenerated canonical registry. GUI MCP tools are now **3/3**, matching the design. Also fixed the `token_export` `.unwrap()` (§5b.3).
 
-**Remaining below-ceiling follow-ups (logged, non-blocking):** (a) a handler-level integration test that feeds `vox_validate_vuv` a known-bad VUV snippet and asserts a contrast/a11y diagnostic (the underlying validators are already tested in vox-codegen; the 2 sibling tools also lack handler tests); (b) converge `vox_gui_tokens` onto the `contracts/tokens/tokens.v1.json` SSOT (it currently reads root `vox.tokens.json`); (c) make `component_registry_sync` enumerate the live primitive set instead of a hardcoded list (§B-7).
+**Remaining below-ceiling follow-ups — ALL CLOSED (Claude Code, Sonnet 4.6, 2026-06-19):**
+- **(a) CLOSED** — `validate_vuv_effect.rs` provides 4 effect-level tests using forbidden-corpus fixtures (`contrast_gray_on_white.vox`, `raw_class_occlusion.vox`) + a clean golden fixture; extracted pure `validate_vuv_source(&str) → Value` helper for direct testability (commit `5b6e5cb209`).
+- **(b) WITHDRAWN — not a defect** — `vox_gui_tokens` correctly reads root `vox.tokens.json`, which IS the token data SSOT; `contracts/tokens/tokens.v1.json` is its JSON Schema. No SSOT fork.
+- **(c) CLOSED** — `component_registry_sync.rs` now calls `vox_compiler::lowering_shared::primitive_tags::all_primitives()` instead of a hardcoded list, so a new compiler primitive missing from the registry is caught at test time (commit `3be1b1214e`, §B-7).
+
+**Beyond-minimum extensions (also closed):**
+- **Rule-linked diagnostics** — each `validate_vuv_source` diagnostic now carries a `rule_id` field mapping to the relevant `gui-design-rule/*` policy id (contrast/a11y/layer-occlusion), joining validation output to the discoverable rule set (commit `a07462f10d`).
+- **`vox_gui_rules` MCP tool** — new discovery tool listing registered `gui-design-rule/*` policy entries, completing the read-rules → emit → validate loop; wired through dispatch, input-schemas, catalog, canonical registry, and http-read-role governance (commit `cad472cd79`). GUI MCP tools now **4/4**.
+
+**Net: Track C reached and extended past the design ceiling.** The constraint loop is complete: components + tokens + rules (discovery) + validate (rule-linked feedback).
 
 **Net:** the best-executed track of the three. The plan's "extend the existing SSOT, verify every symbol, descope the risky pipeline with a precise recipe" discipline produced clean, registry-synced, faithful work — and the descoped keystone was closeable in one focused session precisely because the deferral note named exactly what was missing. Verdict: **approve-with-followups**.
 
