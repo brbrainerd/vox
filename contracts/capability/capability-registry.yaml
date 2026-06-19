@@ -7137,6 +7137,54 @@ curated:
   mcp_tool: vox_graphify_status
   cli_path: null
   parameters: null
+- id: mcp.vox_gui_components
+  title: GUI Component Registry
+  description_human: null
+  description_model: Retrieve the components registered in the primitive component registry.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_gui_components
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gui_rules
+  title: GUI Design Rules
+  description_human: null
+  description_model: List the registered GUI design rules (gui-design-rule/*) so a generator can read the constraint set before emitting.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_gui_rules
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gui_tokens
+  title: GUI Design Tokens
+  description_human: null
+  description_model: Retrieve design tokens in W3C DTCG format.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_gui_tokens
+  cli_path: null
+  parameters: null
 - id: mcp.vox_handoff_context
   title: Handoff Context
   description_human: null
@@ -9924,6 +9972,22 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_validate_source
+  cli_path: null
+  parameters: null
+- id: mcp.vox_validate_vuv
+  title: GUI VUV Validation
+  description_human: null
+  description_model: Validate Vox/VUV source against the compile-time GUI guarantees (contrast, layer-occlusion, a11y, structural web-IR) without writing files.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_validate_vuv
   cli_path: null
   parameters: null
 - id: mcp.vox_vcs_status

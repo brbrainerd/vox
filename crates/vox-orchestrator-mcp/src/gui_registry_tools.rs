@@ -101,6 +101,59 @@ pub async fn vox_validate_vuv(_state: &ServerState, args: serde_json::Value) -> 
     ToolResult::ok(validate_vuv_source(source)).to_json()
 }
 
+/// List the registered GUI design rules (the `gui-design-rule/*` policy-registry
+/// entries) so an external generator can read the constraint set BEFORE emitting
+/// — the discovery counterpart to vox_validate_vuv. Reads the generated policy
+/// registry; returns `{ rules: [ { id, title, description, severity, blocking } ] }`.
+pub async fn vox_gui_rules(state: &ServerState, _args: serde_json::Value) -> String {
+    let path = state
+        .repository
+        .root
+        .join("contracts/policy/policy-registry.v1.yaml");
+    let content = match std::fs::read_to_string(&path) {
+        Ok(c) => c,
+        Err(e) => {
+            return ToolResult::<Value>::err(format!("Failed to read policy registry: {e}"))
+                .to_json();
+        }
+    };
+    let doc: serde_yaml::Value = match serde_yaml::from_str(&content) {
+        Ok(v) => v,
+        Err(e) => {
+            return ToolResult::<Value>::err(format!("Failed to parse policy registry: {e}"))
+                .to_json();
+        }
+    };
+    let entries = doc
+        .get("entries")
+        .or_else(|| doc.get("policies"))
+        .and_then(serde_yaml::Value::as_sequence)
+        .cloned()
+        .unwrap_or_default();
+    let rules: Vec<Value> = entries
+        .iter()
+        .filter(|e| {
+            e.get("domain").and_then(serde_yaml::Value::as_str) == Some("gui-design-rule")
+        })
+        .map(|e| {
+            let s = |k: &str| {
+                e.get(k)
+                    .and_then(serde_yaml::Value::as_str)
+                    .unwrap_or_default()
+                    .to_string()
+            };
+            serde_json::json!({
+                "id": s("id"),
+                "title": s("title"),
+                "description": s("description"),
+                "severity": s("severity"),
+                "blocking": e.get("blocking").and_then(serde_yaml::Value::as_bool).unwrap_or(false),
+            })
+        })
+        .collect();
+    ToolResult::ok(serde_json::json!({ "rules": rules })).to_json()
+}
+
 /// Retrieve design tokens in W3C DTCG format.
 pub async fn vox_gui_tokens(state: &ServerState, _args: serde_json::Value) -> String {
     let repo_root = &state.repository.root;

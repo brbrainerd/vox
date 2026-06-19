@@ -9,6 +9,9 @@ read_role_tools:
   - vox_graphify_query
   - vox_graphify_path
   - vox_graphify_compare
+  - vox_gui_components
+  - vox_gui_rules
+  - vox_gui_tokens
   - vox_handoff_lineage
   - vox_journey_canonical_steps
   - vox_kb_get_feed
@@ -34,4 +37,5 @@ read_role_tools:
   - vox_task_status
   - vox_test_decision
   - vox_tool_search
+  - vox_validate_vuv
   - vox_workspace_modules

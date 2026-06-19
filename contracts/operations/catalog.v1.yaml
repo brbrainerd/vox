@@ -13834,6 +13834,27 @@ operations:
     http_read_role_eligible: true
     tier: core
   cli: null
+- id: gui.rules
+  title: GUI Design Rules
+  description: List the registered GUI design rules (gui-design-rule/*) so a generator
+    can read the constraint set before emitting.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_gui_rules
+    http_read_role_eligible: true
+    tier: core
+  cli: null
 exemptions:
   mcp_tools: []
   cli_paths:

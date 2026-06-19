@@ -555,6 +555,7 @@ async fn handle_tool_call_inner(
         "vox_validate_vuv" => {
             Ok(crate::gui_registry_tools::vox_validate_vuv(state, args).await)
         }
+        "vox_gui_rules" => Ok(crate::gui_registry_tools::vox_gui_rules(state, args).await),
         "vox_graphify_status" => {
             Ok(crate::graphify_tools::graphify_status(state, serde_json::from_value(args)?).await)
         }
