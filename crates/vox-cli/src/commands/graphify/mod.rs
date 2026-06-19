@@ -78,6 +78,10 @@ pub enum GraphifyCmd {
         /// (bare flag → contracts/ci/crate-build-map.v1.json).
         #[arg(long, num_args = 0..=1, default_missing_value = "contracts/ci/crate-build-map.v1.json")]
         write_summary: Option<String>,
+        /// After building, project the crate-map into Turso for agent recall
+        /// (stamps lexical_ingest_sha256).
+        #[arg(long)]
+        ingest: bool,
     },
 }
 
@@ -199,6 +203,35 @@ fn regenerate_crate_graph(repo_root: &std::path::Path) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Project a corpus's graph nodes into Turso and stamp lexical_ingest_sha256.
+/// Shared by `graphify ingest` and `graphify crate-map --ingest`.
+async fn run_graphify_ingest(
+    repo_root: &std::path::Path,
+    corpus: Option<String>,
+    dry_run: bool,
+) -> anyhow::Result<()> {
+    let reg = load_all_corpora(repo_root).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+    let corpus_id =
+        resolve_ingest_corpus_id(&reg, corpus).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+    let nodes = load_projected_nodes(repo_root, &reg, &corpus_id)?;
+    if dry_run {
+        println!("dry-run: corpus={corpus_id} nodes={}", nodes.len());
+        return Ok(());
+    }
+    let upserted = upsert_projected_nodes(&nodes).await?;
+    println!("graphify ingest: corpus={corpus_id} upserted={upserted}");
+    let corpus = corpus_by_id(&reg, &corpus_id).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+    let graph_bytes = std::fs::read(repo_root.join(&corpus.graph_path))
+        .with_context(|| format!("read graph for digest: {}", corpus.graph_path))?;
+    let digest = vox_graphify_reader::graph_digest(&graph_bytes);
+    vox_config::graphify::set_lexical_ingest_sha256(
+        &repo_root.join(&corpus.manifest_path),
+        &digest,
+    )
+    .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+    Ok(())
+}
+
 fn resolve_ingest_corpus_id(
     reg: &GraphifyCorporaRegistry,
     corpus: Option<String>,
@@ -309,31 +342,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
             }
         }
         GraphifyCmd::Ingest { corpus, dry_run } => {
-            let reg = load_all_corpora(repo_root).map_err(|e| anyhow::anyhow!(e.to_string()))?;
-            let corpus_id = resolve_ingest_corpus_id(&reg, corpus)
-                .map_err(|e| anyhow::anyhow!(e.to_string()))?;
-            let nodes = load_projected_nodes(repo_root, &reg, &corpus_id)?;
-
-            if dry_run {
-                println!("dry-run: corpus={corpus_id} nodes={}", nodes.len());
-                return Ok(());
-            }
-
-            let upserted = upsert_projected_nodes(&nodes).await?;
-            println!("graphify ingest: corpus={corpus_id} upserted={upserted}");
-
-            // Stamp lexical_ingest_sha256 = digest of the graph just projected, so lexical_lag
-            // clears now and re-fires after a later rebuild changes graph_json_sha256.
-            let corpus =
-                corpus_by_id(&reg, &corpus_id).map_err(|e| anyhow::anyhow!(e.to_string()))?;
-            let graph_bytes = std::fs::read(repo_root.join(&corpus.graph_path))
-                .with_context(|| format!("read graph for digest: {}", corpus.graph_path))?;
-            let digest = vox_graphify_reader::graph_digest(&graph_bytes);
-            vox_config::graphify::set_lexical_ingest_sha256(
-                &repo_root.join(&corpus.manifest_path),
-                &digest,
-            )
-            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            run_graphify_ingest(repo_root, corpus, dry_run).await?;
         }
         GraphifyCmd::Rebuild { corpus } => {
             let reg = load_all_corpora(repo_root).map_err(|e| anyhow::anyhow!(e.to_string()))?;
@@ -508,6 +517,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
         GraphifyCmd::CrateMap {
             no_refresh_graph,
             write_summary,
+            ingest,
         } => {
             // 1. Freshen the committed dependency graph from cargo metadata unless suppressed.
             if !no_refresh_graph {
@@ -597,6 +607,11 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                          (needs `cargo build --timings` to populate target/cargo-timings/)."
                     );
                 }
+            }
+
+            if ingest {
+                run_graphify_ingest(repo_root, Some("crate-map".to_string()), false).await?;
+                println!("ingested crate-map (lexical_ingest_sha256 stamped)");
             }
         }
     }
