@@ -22,14 +22,14 @@ do not rely on this message for detail.
 ### Read first (in this order)
 1. `docs/src/architecture/gemini-3-5-flash-antigravity-limitations-2026-06-18.md` — your own operating limits.
 2. `docs/superpowers/specs/2026-06-19-vox-axis-rebrand-design.md` — the design SSOT. Read §2 (scope / what NOT to change) before any code.
-3. `docs/superpowers/plans/2026-06-19-vox-axis-rebrand.md` — the plan. **Execute PHASE B only** — tasks **B1, B4, B5, B6** (Phases A + D are already done in Claude Code). Finish with PHASE C (emit the handback block).
+3. `docs/superpowers/plans/2026-06-19-vox-axis-rebrand.md` — the plan. **Execute PHASE B only** — tasks **B1, B4, B5, B6** (Phase A done; Phase D is Claude's and may be landing in parallel — leave it alone). Finish with PHASE C (emit the handback block).
 
 ### Operating rules (the plan repeats these per task — follow exactly)
 - Each task is **atomic + green + committed**. A kill between tasks must leave a compiling, tested tree.
 - **Verify before use:** every Step-1 `rg`/read is a BLOCKING gate. Run it, paste the output; if reality differs from the plan, **STOP and report** — do not guess or "fix" the design.
 - **Two-strike circuit breaker:** a step fails twice → STOP and report; do not thrash.
 - Run the plan's **Mandatory pre-flight** block first. If `crates/vox-gui/icons` is not already rebranded, **STOP** (Phase A was skipped).
-- `[PARALLEL-SAFE]` tasks may run in parallel subagents only if they touch disjoint files; never two subagents on one file. `[SEQUENTIAL]` tasks share a file — one at a time. See the plan's task-split table (run order: B1 ∥ B4 → B2 → B3 → B5; B6 anytime).
+- `[PARALLEL-SAFE]` tasks may run in parallel subagents only if they touch disjoint files; never two subagents on one file. `[SEQUENTIAL]` tasks share a file — one at a time. **Run order: B1 ∥ B4 ∥ B6, then B5 after B4** (B5 shares `lib.rs` with B4). (Old B2/B3 are RETIRED — see the plan.)
 
 ### Non-negotiable invariants (brand-layer only — do NOT regress)
 1. **Do NOT change** `productName` ("Vox") or `identifier` ("org.vox-foundation.gui") in `tauri.conf.json` — only the window `title` → "Axis".
