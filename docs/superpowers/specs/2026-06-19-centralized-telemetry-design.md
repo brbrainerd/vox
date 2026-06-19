@@ -121,6 +121,7 @@ Existing categories stay (`research_metrics`, `model_calls`, `agent_orchestratio
 | `harness_usage` | how the harness is used | tool-call kind histogram, session shape (turns, agents spawned), mode | low |
 | `error_surface` | failures (extends `errors`) | error class, subsystem, recoverable? | medium |
 | `default_decision` | **learn sensible defaults** from real usage at tunable decision points | decision id (enum), chosen value (enum/bucket), outcome (enum: hit_limit / comfortable / throttled / timed_out …), magnitude bucket | low |
+| `model_prompt` | feed the **learned per-model prompt layer** (§7) | canonical model id (enum), profile variant id (enum), task category (enum), active-skill set (enum ids), quality/outcome bucket | low |
 
 **`default_decision` — the "sensible defaults" use-case.** Vox picks many tuned constants
 (budgets, concurrency, retries, timeouts, cache TTLs). Aggregating *what value was in effect* +
@@ -158,16 +159,58 @@ client allowlist are both generated from (one source, no drift).
 - **Dashboards**: Grafana or Metabase over ClickHouse, one board per §5 category, with the
   k-anonymity floor enforced in the query layer.
 
-## 7. Out of scope (YAGNI)
-Differential-privacy noise injection (research it; ship k-anonymity first), real-time
-streaming dashboards, per-user data-subject portal, ML on telemetry. Revisit post-MVP.
+## 7. Companion subsystem — learned per-model prompt layer ("Model-Layer")
 
-## 8. Success criteria
+A learned, model-specific **system-prompt segment** injected *between* the generic
+(model-agnostic) Vox skill archive and a concrete model — getting smarter over time from
+aggregate outcomes. Coupled to telemetry (the `model_prompt` category feeds it; the central
+forest proposes variants). **Decisions (locked):** dedicated `model_prompt_profiles` table +
+`ModelPromptRegistry`; **structured-only** central data + **local/opt-in** text mining +
+**human/council-approved** preamble text (no raw-prompt upload — honors §3.1); autonomic-gated
+promotion (shadow-eval → only `Confirmed` variants inject).
+
+**Reuse map (audited — build almost nothing new):**
+- **Learn/promote loop = reuse the model-autonomic confidence machine**
+  (`crates/vox-orchestrator/src/models/autonomic.rs`: `ModelConfidence`
+  `Provisional→Shadowed→Confirmed→Deprecated`, `should_promote()`, `record_promotion()`),
+  evidenced by the existing `model_scoreboard` table. A profile *variant* advances on a measured
+  quality-delta vs. the no-profile baseline; only `Confirmed` injects in production.
+- **Candidate mining = reuse `vox-similarity` (LSH/minhash) + the advisory `Candidate`
+  pattern** from `vox-skill-discovery` (add `CandidateKind::ModelPromptVariant`) — human-gated,
+  never auto-applied (mirrors today's skill-discovery).
+- **Persistence pattern = mirror `SkillRegistry`** (`vox-plugin-host`): `hydrate_from_db()` +
+  fire-and-forget publish; new `model_prompt_profiles` table.
+- **Injection point = `build_system_prompt_with_skill()`**
+  (`crates/vox-orchestrator-mcp/src/chat_tools/mod.rs:55-187`): add a new ordered segment right
+  after the skill catalog/pinned-skill layer. The selected model is already known here. The
+  segment MUST be **cache-stable** (the prompt is day-stable to preserve Anthropic/DeepSeek
+  prefix caching) — so only a `Confirmed`, versioned profile string is injected, never per-call text.
+
+**Privacy specifics:** profiles keyed by a **canonical model id / `prompt_profile_key`
+indirection** (OpenRouter ids churn — never key on a volatile alias). Central `model_prompt`
+events carry only enums/buckets (model id, variant id, task, active-skill ids, quality bucket);
+the preamble *text* is authored/approved by a human or council, optionally seeded by **local**
+prompt mining the user runs on their own machine. Nothing about a user's raw prompts leaves the
+device.
+
+**Split-brain guards (audited):** do not add a second model registry — extend the existing one;
+learned profiles tune the *prompt for an already-selected model*, never override model
+*selection* (council pins win); orphaned-profile lint when a model version retires.
+
+## 8. Out of scope (YAGNI)
+Differential-privacy noise injection (research it; ship k-anonymity first), real-time
+streaming dashboards, per-user data-subject portal, ML on telemetry, auto-harvesting preamble
+text from raw user prompts. Revisit post-MVP.
+
+## 9. Success criteria
 - Build `vox` with `--no-default-features` (no `telemetry-remote`) → **zero** otel/reqwest
   symbols in the binary; `record_event!` is a no-op (verified by a symbol/dep test).
 - Two-tier consent honored; `preview` shows exactly what `upload` would send; redaction
   guardrail tests pass (no denied field class ever serialized).
 - End-to-end: a local event opt-in-uploads → lands in ClickHouse → appears in a dashboard.
 - New crate within LoC budget; arch-check green; workspace build-time delta within budget.
+- **Model-Layer:** a `Confirmed` per-model profile injects a cache-stable segment after the
+  skill layer in `build_system_prompt`; shadow-eval gates promotion; no raw prompt text ever
+  uploads; reuses `autonomic.rs` + `vox-similarity` (no second model registry introduced).
 ```
 

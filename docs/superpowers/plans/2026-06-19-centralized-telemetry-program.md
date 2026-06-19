@@ -23,6 +23,9 @@ Track A (Audit & Foundations)  ──┬──► Track B (Client exporter)  ─
   [SEQUENTIAL — runs first]       │                               ├─► Track E (Migration & wiring)  [SEQUENTIAL, last]
                                   └──► Track C (Server repo)  ──► Track D (Deploy infra)  ─┘
                                        [PARALLEL-SAFE w/ B]      [SEQUENTIAL after C]
+
+Track F (Model-Layer: learned per-model prompt)  [soft-depends on A taxonomy + E `model_prompt`
+  category; PARALLEL-SAFE with B/C/D — touches the orchestrator/model subsystem, not the egress path]
 ```
 - **A is the gate.** It produces the **taxonomy SSOT** (`contracts/telemetry/collection-taxonomy.v1.json`) and the **infra-audit report**, which B, C, and D all consume. Do not start B/C until A's SSOT is committed.
 - **B and C run in parallel** (different surfaces: workspace client vs separate server repo).
@@ -687,12 +690,81 @@ git commit -m "feat(cli): feature-gated OTLP uploader + vox telemetry CLI + firs
 
 ---
 
+## Track F — Model-Layer: learned per-model prompt  `[soft-deps A+E; PARALLEL-SAFE with B/C/D]`
+
+> Reuses the audited machinery; introduces NO second model registry. Anchors verified:
+> autonomic loop `crates/vox-orchestrator/src/models/autonomic.rs` (`ModelConfidence`,
+> `should_promote`, `record_promotion`); scoreboard `crates/vox-db/src/schema/domains/scientia.rs`
+> (`model_scoreboard`); similarity `crates/vox-similarity` + `vox-skill-discovery` Candidate;
+> registry pattern `crates/vox-plugin-host/src/skill_registry.rs` (`hydrate_from_db`); injection
+> `crates/vox-orchestrator-mcp/src/chat_tools/mod.rs:55-187` (`build_system_prompt_with_skill`).
+
+### Task F1: `model_prompt_profiles` table + `ModelPromptRegistry` — TDD
+**Files:** new migration in `crates/vox-db/src/schema/domains/scientia.rs`; new
+`crates/vox-orchestrator/src/models/prompt_profiles.rs`; test alongside.
+- [ ] **Step 1: Failing test** — `ModelPromptRegistry::hydrate_from_db()` loads rows into a
+  `HashMap<prompt_profile_key, Vec<ModelPromptProfile>>`; `active_profile(key)` returns the
+  single `Confirmed` variant (or `None`).
+- [ ] **Step 2:** Add table `model_prompt_profiles` (PK `(prompt_profile_key, variant_id)`; cols
+  `preamble_text TEXT`, `confidence` enum, `quality_delta REAL`, `applications INT`,
+  `created_at_ms`, `approved_by TEXT`). Mirror the `model_scoreboard` schema style + bump
+  `BASELINE_VERSION` + yaml digest per the existing migration convention.
+- [ ] **Step 3:** Implement `ModelPromptProfile` type + `ModelPromptRegistry` (mirror
+  `SkillRegistry`: `Mutex<HashMap>` + `hydrate_from_db` + fire-and-forget `publish`). Run green. Commit.
+
+### Task F2: canonical-id keying (`prompt_profile_key`) — TDD
+- [ ] **Step 1: Failing test** — `prompt_profile_key(&ModelSpec)` returns a stable key that does
+  NOT change across OpenRouter alias churn (e.g. strips provider-route volatility; falls back to
+  `model.id` only when no canonical slug). **Step 2-3:** implement on `ModelSpec` (no new field
+  required if derivable; else add `Option<String>` defaulting to `id`); test alias-churn stability. Commit.
+
+### Task F3: inject the cache-stable segment in `build_system_prompt` — TDD
+**Files:** modify `crates/vox-orchestrator-mcp/src/chat_tools/mod.rs` (thread selected model in);
+new segment fn; test.
+- [ ] **Step 1: Read first** `chat_tools/mod.rs:55-187` + `plan.rs:236-261` (model resolved
+  before prompt build). **Step 2: Failing test** — given a `Confirmed` profile for the selected
+  model, `build_system_prompt` includes a `## Model guidance ({id})` segment placed AFTER the
+  skill catalog/pinned-skill layer and BEFORE the volatile budget/temporal segments (cache-stable
+  region); given no `Confirmed` profile, the prompt is byte-identical to today.
+- [ ] **Step 3:** Thread the selected `ModelSpec` into `build_system_prompt_with_skill`; look up
+  `registry.active_profile(prompt_profile_key(model))`; inject only the `Confirmed` variant text.
+  Run green. Commit. (Guard: never inject per-call/volatile text — would break prefix caching.)
+
+### Task F4: autonomic-gated promotion via shadow-eval — TDD
+- [ ] **Step 1: Failing test** — a variant starts `Provisional`; `should_promote_profile(variant,
+  scoreboard_delta)` advances `Provisional→Shadowed` on candidate acceptance and
+  `Shadowed→Confirmed` only when shadow-eval quality_delta ≥ threshold over ≥N applications;
+  emits a `ConfidencePromotionEvent`-style record. **Step 2-3:** implement by REUSING
+  `autonomic::should_promote` semantics (same thresholds/state enum); persist state to F1's table.
+  Run green. Commit.
+- [ ] **Step 2 (shadow-eval harness):** run a `Shadowed` variant in shadow (compare baseline vs
+  baseline+variant quality on the same calls) without injecting into production; record the delta.
+
+### Task F5: candidate mining (advisory) + local prompt mining — TDD
+- [ ] **Step 1:** Add `CandidateKind::ModelPromptVariant` to `vox-skill-discovery`; a miner that
+  clusters per-model structured outcomes (via `vox-similarity`) into proposed variants — ADVISORY
+  output only (never auto-applies), mirroring `dedup_skills`/`validate_ssot`. **Local-only** prompt
+  text mining is opt-in and stays on-device; central input is the structured `model_prompt` events.
+- [ ] **Step 2:** A `vox model-layer suggest` CLI surfaces candidates for human/council approval;
+  approval writes a `Provisional` profile via F1. Tests + commit.
+
+### Task F6: `model_prompt` telemetry category + forest feedback — TDD
+- [ ] Add the `model_prompt` category to the taxonomy SSOT (A3) — enum/bucket fields only
+  (canonical model id, variant id, task, active-skill ids, quality bucket). Emit a
+  `record_model_prompt!` event at the injection/outcome site. The server (Track C) rolls these up;
+  a server-side job proposes cross-user candidate variants that re-enter as advisory F5 candidates
+  (the "forest" feedback) — **structured signals only, never raw prompt text**.
+
+### Task F.LEDGER: Append Track F ledger entry (Model-Layer delivered; reuse map; follow-ups).
+
+---
+
 ## Self-Review (run after writing; checklist, not a subagent)
 
 - **Spec coverage:** §2 decisions → Shared Conventions + crate plan (B1) ✓; §3 privacy
   invariants → redaction (B2), consent (B3), preview/status (B5), server-side re-allowlist (C3),
-  k-anonymity (C2/C4/E) ✓; §4 architecture → B1/B4/C ✓; §5 taxonomy → A3 + E1 ✓; §6 server →
-  C+D ✓; §8 success criteria → E3/E4 ✓.
+  k-anonymity (C2/C4/E) ✓; §4 architecture → B1/B4/C ✓; §5 taxonomy → A3 + E1 + F6 ✓; §6 server →
+  C+D ✓; §7 Model-Layer → Track F (F1-F6) ✓; §9 success criteria → E3/E4 + F3 ✓.
 - **Placeholder scan:** audit-dependent values (DDL columns, emit sites) are **generated from
   the A3 SSOT via a stated procedure**, not left as "TBD" — each such task carries the generator
   + acceptance test. No bare TODOs.
