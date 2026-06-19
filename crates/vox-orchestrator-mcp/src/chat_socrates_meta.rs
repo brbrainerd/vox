@@ -884,6 +884,39 @@ fn retrieval_question_candidates(
     candidates
 }
 
+/// A question the policy chose NOT to surface, exposed to the client so the user can opt in.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+pub(crate) struct WithheldQuestion {
+    pub(crate) prompt: String,
+    pub(crate) reason: String,
+    pub(crate) expected_information_gain_bits: f64,
+}
+
+#[must_use]
+pub(crate) fn withheld_question(prompt: &str, reason: &str, eig_bits: f64) -> WithheldQuestion {
+    WithheldQuestion {
+        prompt: prompt.to_string(),
+        reason: reason.to_string(),
+        expected_information_gain_bits: eig_bits,
+    }
+}
+
+#[cfg(test)]
+mod withheld_tests {
+    use super::*;
+    #[test]
+    fn withheld_serializes_for_client() {
+        let w = withheld_question(
+            "Which environment — staging or prod?",
+            "backlog_and_low_diagnostic_value",
+            0.07,
+        );
+        let v = serde_json::to_value(&w).unwrap();
+        assert_eq!(v["prompt"], "Which environment — staging or prod?");
+        assert_eq!(v["reason"], "backlog_and_low_diagnostic_value");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
