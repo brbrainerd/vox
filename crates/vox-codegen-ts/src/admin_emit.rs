@@ -26,6 +26,34 @@ pub fn emit_admin_list(table: &HirTable) -> String {
     )
 }
 
+use vox_compiler::hir::nodes::form::{HirForm, HirFormField};
+
+pub fn emit_admin_edit(table: &HirTable) -> String {
+    let fields: Vec<HirFormField> = table
+        .fields
+        .iter()
+        .map(|f| HirFormField {
+            name: f.name.clone(),
+            ty: f.type_ann.clone(),
+            label: None,
+            required: false,
+            hidden: false,
+            default: None,
+            constraints: vec![],
+            span: f.span,
+        })
+        .collect();
+    let form = HirForm {
+        name: format!("{}Edit", table.name),
+        fields,
+        on_submit: Some(format!("api.{}.upsert", table.name.to_lowercase())),
+        success_redirect: None,
+        error_message: None,
+        span: table.span,
+    };
+    super::form_emit::emit_form(&form)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -65,5 +93,15 @@ mod tests {
         assert!(out.contains(">name<"), "name col:\n{out}");
         assert!(out.contains(">email<"), "email col:\n{out}");
         assert!(out.contains("<table"), "table:\n{out}");
+    }
+
+    #[test]
+    fn edit_form_reuses_form_emit_and_typed_inputs() {
+        let out = emit_admin_edit(&table());
+        assert!(out.contains("export function UserEdit()"), "name:\n{out}");
+        assert!(
+            out.contains("type=\"email\""),
+            "typed email via form_emit:\n{out}"
+        );
     }
 }
