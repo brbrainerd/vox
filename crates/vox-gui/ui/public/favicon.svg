@@ -10,7 +10,7 @@
     </linearGradient>
   </defs>
   <rect x="64" y="64" width="896" height="896" rx="196" ry="196" fill="url(#axisTile)"/>
-  <g stroke="#fafafa" strokeLinecap="round" fill="none" stroke-linecap="round">
+  <g stroke="#fafafa" fill="none" stroke-linecap="round">
     <circle cx="512" cy="512" r="292" stroke-opacity="0.5" stroke-width="24"/>
     <ellipse cx="512" cy="512" rx="292" ry="116" stroke-opacity="0.85" stroke-width="30" transform="rotate(34 512 512)"/>
     <ellipse cx="512" cy="512" rx="292" ry="116" stroke-opacity="0.85" stroke-width="30" transform="rotate(-34 512 512)"/>
