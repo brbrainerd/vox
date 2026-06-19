@@ -179,3 +179,67 @@ pub fn build_crate_map(crate_graph: &Value, audit: &Value) -> Value {
 
     json!({ "nodes": nodes_val, "links": links_val })
 }
+
+/// Build the small, committed crate-build SSOT (`contracts/ci/crate-build-map.v1.json`).
+///
+/// `crate_graph` is the `{crates:{name:[deps]}}` shape from `crate-graph.v1.json`.
+/// `compile_times` maps crate name -> self compile seconds (audit native precision; may be partial/empty).
+///
+/// Output embeds `compile_s` (the periodically-refreshed INPUT) plus the DERIVED
+/// `dependents`/`blast_s`/`fan_in`, so the parity gate can recompute the derived fields from
+/// `crate_graph` + the embedded `compile_s` and detect drift. Deterministic: crates sorted
+/// alphabetically; `blast_s` rounded to whole seconds; `compile_s` kept at input precision.
+pub fn build_crate_summary(crate_graph: &Value, compile_times: &HashMap<String, f64>) -> Value {
+    let mut adj: HashMap<String, Vec<String>> = HashMap::new();
+    let mut nodes: HashSet<String> = HashSet::new();
+    let mut fan_in: HashMap<String, usize> = HashMap::new();
+    if let Some(m) = crate_graph.get("crates").and_then(|v| v.as_object()) {
+        for (c, ds) in m {
+            nodes.insert(c.clone());
+            let deps: Vec<String> = ds
+                .as_array()
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|x| x.as_str().map(String::from))
+                        .collect()
+                })
+                .unwrap_or_default();
+            for d in &deps {
+                nodes.insert(d.clone());
+                *fan_in.entry(d.clone()).or_insert(0) += 1;
+            }
+            adj.insert(c.clone(), deps);
+        }
+    }
+
+    let metrics = crate_metrics(&adj, compile_times);
+
+    let mut names: Vec<String> = nodes.into_iter().collect();
+    names.sort();
+
+    let mut without = 0usize;
+    let crates_val: Vec<Value> = names
+        .iter()
+        .map(|n| {
+            let cs = compile_times.get(n).copied();
+            if cs.is_none() {
+                without += 1;
+            }
+            let m = metrics.get(n);
+            json!({
+                "crate": n,
+                "compile_s": cs.unwrap_or(0.0),
+                "dependents": m.map(|x| x.dependents).unwrap_or(0),
+                "blast_s": m.map(|x| x.blast_s).unwrap_or(0.0).round(),
+                "fan_in": fan_in.get(n).copied().unwrap_or(0),
+            })
+        })
+        .collect();
+
+    json!({
+        "schema_version": 1,
+        "has_compile_times": !compile_times.is_empty(),
+        "crates_without_compile_times": without,
+        "crates": crates_val,
+    })
+}
