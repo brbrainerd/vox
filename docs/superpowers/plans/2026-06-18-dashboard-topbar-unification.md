@@ -30,6 +30,25 @@
 
 ---
 
+## Flash Execution Addendum (2026-06-18 — second hardening pass)
+
+These override task granularity + wave order where they conflict. Source: Flash-executability critique.
+
+**Global gates:**
+1. Each Step-1 `rg`/read is a **BLOCKING gate** — paste output before any code step; reality differs → STOP.
+2. **Split-on-overrun:** one atomic green commit per sub-bullet when a step touches >1 file or >1 new component.
+
+**Mandatory splits + reorder:**
+- **Task 1 → 1a / 1b.** 1a: create `widgetRegistry.ts` with all 14 entries using **placeholder `render: () => <EmptyState/>`** for every kind + the completeness test; commit green. 1b: refactor the 8 working widget components so each **sources its own data via hooks internally** (e.g. `AreaChartWidget` calls `useMetricSeries('budget_burn')` itself), since the registry `render({widget, navigate})` cannot pass live `budgetSeries`/`queueSeries` (Rules of Hooks); then point the 8 registry entries at those components; commit.
+- **Task 4 → 4a / 4b.** 4a: the 3 simple widgets (`KpiSparkWidget`, `CustomTextWidget`, `ModelActiveWidget`) — fixture/props only; commit. 4b: the 3 data-wiring widgets (`MeshPeersWidget`, `OpenRouterSpendWidget`, `TaskSummaryWidget`) — each preceded by an `rg` confirming its App-state selector exists (placeholder + note if missing); commit.
+- **Task 6 (`upgradeLayoutIfNeeded`):** detection = `!layout.widgets.some(w => w.kind === 'kpi_spark')` → prepend the default KPI + mini-map widgets; **idempotent** (returns unchanged if already present); test runs it twice and asserts no duplicates. Inline this logic.
+- **Task 7:** extend the registry entry type with `topHudLabel?` + `topHudNavTarget?` (the nav target was unspecified); eligible tiles = `Object.entries(widgetRegistry).filter(([,e]) => e.topHudEligible)`, navigating to `e.topHudNavTarget`.
+
+**Corrected wave order (supersedes the Parallel-waves section below):**
+1. Task 1a → 2. Task 1b → 3. **parallel** {Task 2, Task 3, Task 4a} (disjoint: `Dashboard.tsx` / `WidgetPickerDrawer.tsx` / `widgets/*`+registry) → 4. Task 4b (registry) → 5. **sequential** Task 5 → Task 6 → Task 7 (all share registry/layout). `widgetRegistry.ts` is written by 1a/1b/4a/4b/5/7 → those are never concurrent.
+
+---
+
 ## File Structure
 
 | File | Responsibility | Action |

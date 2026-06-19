@@ -19,6 +19,41 @@ the *aggregate* number comes from the ledger. Implemented in the unified plan's 
 
 ---
 
+## Amendment B 2026-06-18 (three surfaces: log-as-conversation, Q&A, mesh-wide)
+
+The framing is broader than "chat ≡ task list": **you converse with a log.** Three coordinated
+surfaces, all reading one reactive spine:
+
+1. **Conversational log** (the chat surface) — your messages + the AI's replies **and inline
+   narration of what it's doing** (a readable digest of high-signal activity), plus **Q&A**.
+   This is the "talking" surface: session-scoped, human-paced.
+2. **Interactive task list** — notepad-editable, chat-grade (the TaskMessage envelope), the SSOT
+   for work (see the unified + cascade specs).
+3. **Full activity timeline** (THIS spec) — the dense, filterable, **mesh-wide, real-time**
+   monitor of what *all* agents are doing, paired with the dashboard + gamification mini-map.
+
+**Q&A surfacing (new).** Agents already exchange `Question`/`Answer` via the A2A `BulletinBoard`;
+agent→user questions must become a **first-class, answerable affordance in the conversational
+log** (an inline prompt the user replies to), and the Q&A pair is recorded in `activity_log`.
+**Wiring note (verified):** `Question`/`Answer` are A2A `BulletinBoard` messages, **not** `EventBus`
+`AgentEventKind` variants — so they cannot simply be added to the §3 `is_loggable` allowlist.
+Logging them needs a small **`BulletinBoard`→`activity_log` bridge** (a second sink that drains
+the bulletin), OR agents emitting a loggable lifecycle event when they raise a question. The
+*conversational* log shows the question as actionable; the *activity* timeline shows it as an
+audit row. (Build the bridge as a follow-on; this plan adds the `node_id` column + ships the
+EventBus-sourced timeline first.) Surface in the log:
+agent questions awaiting answer, decisions/approvals requested, errors/blocks, and phase
+milestones — **not** raw heartbeats/ticks.
+
+**Mesh-wide (scoped).** The §4 `ActivitySink` captures this node's events (incl.
+`MeshTopologyChanged`). True multi-node aggregation — streaming/merging peers' `activity_log`
+into one timeline filterable by node — is the **"advanced tier"**: design it as an additive
+`node_id` column on `activity_log` + a peer-activity merge in the surface, but treat full
+cross-mesh streaming as a **follow-on** (don't overscope this plan). Add the `node_id` column now
+(cheap, forward-compatible); defer the peer transport.
+
+---
+
 ## 1. Problem
 
 There are two streams of "what happened", and they are mirror-image broken:

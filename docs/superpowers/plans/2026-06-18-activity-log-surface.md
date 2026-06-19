@@ -26,6 +26,23 @@
 
 ---
 
+## Flash Execution Addendum (2026-06-18 — second hardening pass)
+
+These override task granularity where they conflict. Source: Flash-executability critique.
+
+**Global gates (apply to every task):**
+1. Each Step-1 `rg`/read is a **BLOCKING gate** — paste output before any code step; reality differs → STOP.
+2. **Split-on-overrun:** an Implement step touching >1 file or adding >1 new function → one atomic green commit per sub-bullet, in order.
+3. Tauri commands register in `crates/vox-gui/src/main.rs`'s `tauri::generate_handler![…]`.
+
+**Mandatory clarifications:**
+- **Task 1 (schema):** adding a `vox-db` table is a multi-anchor change — do all of it in the one commit: create `crates/vox-db/src/schema/domains/activity_log.rs` with the DDL const, add `pub mod activity_log;` to `schema/domains/mod.rs`, register the fragment, and **bump `BASELINE_VERSION`** in `schema/manifest.rs`. Run `rg -n "BASELINE_VERSION|SchemaFragment|pub mod " crates/vox-db/src/schema/` FIRST and copy the exact registration pattern; do not invent column types (use the DDL in Task 1 Step 4 verbatim).
+- **Task 3 (projection):** before Step 2, run `rg -n "CostIncurred" -A 10 crates/vox-orchestrator/src/events.rs` and paste it; the `CostIncurred` field set in the test is `{agent_id, provider, model, input_tokens, output_tokens, cost_usd, temporal_context}` — confirm before coding.
+- **Task 4 (sink):** Step 1 must CONFIRM `init_db` is `pub async fn` and that `self.db` is set there — the sink spawns in `init_db()` (the sync `Orchestrator::new()` has `db: None`). If `init_db` is not async, STOP.
+- **Task 6 (surface):** registration points are the `View` union in `App.tsx` + the **`childRenderer`** switch in `surfaceComponents.tsx` + `surface-registry.v1.yaml` — ignore the decorator-registry path.
+
+---
+
 ## File Structure
 
 | File | Responsibility | Action |
@@ -80,6 +97,7 @@ async fn activity_log_round_trip() {
 CREATE TABLE IF NOT EXISTS activity_log (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     ts_ms       INTEGER NOT NULL,
+    node_id     TEXT,                       -- mesh node origin (NULL = local); forward-compat for mesh-wide aggregation
     agent_id    TEXT,
     session_id  TEXT,
     kind        TEXT NOT NULL,
@@ -89,6 +107,7 @@ CREATE TABLE IF NOT EXISTS activity_log (
 CREATE INDEX IF NOT EXISTS idx_activity_ts   ON activity_log(ts_ms);
 CREATE INDEX IF NOT EXISTS idx_activity_agent ON activity_log(agent_id);
 CREATE INDEX IF NOT EXISTS idx_activity_kind ON activity_log(kind);
+CREATE INDEX IF NOT EXISTS idx_activity_node ON activity_log(node_id);
 ```
 
 - [ ] **Step 5: Run → PASS.** `cargo test -p vox-db activity_log_round_trip` → PASS.

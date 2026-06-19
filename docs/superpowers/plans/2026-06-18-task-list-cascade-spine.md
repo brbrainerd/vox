@@ -26,6 +26,24 @@
 
 ---
 
+## Flash Execution Addendum (2026-06-18 — second hardening pass)
+
+These override task granularity where they conflict. Source: Flash-executability critique.
+
+**Global gates (apply to every task):**
+1. Each Step-1 `rg`/read is a **BLOCKING gate** — run it and paste the output *before* writing any code step; if reality differs from the plan, STOP and report (don't code against memory).
+2. **Split-on-overrun:** if an Implement step would touch >1 file OR add >1 new function/struct, commit each sub-bullet as its **own atomic green commit** in the listed order. A Flash cutoff must never straddle two files.
+3. Tauri commands register in `crates/vox-gui/src/main.rs`'s `tauri::generate_handler![…]` (not a `commands/mod.rs` macro).
+4. For any "for each `match`/site" step, first run the `rg` and paste the **full list of sites**, then edit exactly those.
+
+**Mandatory task splits (execute as separate atomic commits):**
+- **Task 1 → 1a / 1b.** 1a: add `ItemState::Cancelled` and fix **every** `ItemState` match/`matches!` site (run `rg -n "ItemState::" crates/vox-orchestrator/src/` first; `Cancelled` is terminal — group with `Done | Overridden`, incl. `history()`); compile + `cargo test -p vox-orchestrator hopper` green; commit. 1b: add `HopperIntake::cancel()` + `InMemoryHopper` impl + the Task-1 test; commit.
+- **Task 2:** `AgentTask::new` is **4-arg** — `AgentTask::new(item.item_id.clone(), item.intent.clone(), item.classified_priority, vec![] /* file_manifest */)`. Inline this exact call; do not guess arity.
+- **Task 3:** spawn the dispatcher only. **Do NOT add the rehydrate-on-boot call here** — that moves to a new **Task 5-rehydrate** (after `SqliteHopper` exists) so a crash between 3 and 5 never leaves a call to a not-yet-persistent path. Show the `enqueue` closure inline (read `rg -n "pub fn len|fn id" crates/vox-orchestrator/src/queue/mod.rs` first; least-loaded = `agents.values().min_by_key(|q| q.read().len())`).
+- **Task 4:** inline BOTH closures: `on_reprioritize` → `queue.reorder(task_id, prio)` and `on_cancel` → `queue.cancel(task_id)`; if the task isn't currently queued, **log and no-op (never `unwrap`/panic)**.
+
+---
+
 ## File Structure
 
 | File | Responsibility | Action |

@@ -26,6 +26,24 @@
 
 ---
 
+## Flash Execution Addendum (2026-06-18 — second hardening pass)
+
+These override task granularity where they conflict. Source: Flash-executability critique.
+
+**Global gates (apply to every task):**
+1. Each Step-1 `rg`/read is a **BLOCKING gate** — paste output before any code step; reality differs → STOP.
+2. **Split-on-overrun:** Implement step touching >1 file or >1 new function → one atomic green commit per sub-bullet, in order.
+3. Tauri commands register in `crates/vox-gui/src/main.rs`'s `tauri::generate_handler![…]`.
+
+**Mandatory clarifications + splits:**
+- **Task 1:** the fix is location-explicit — in `get_ludus_profile()`, **immediately after** the `profile.regen_energy();` call (~line 101) and **before** the DTO return, add `vox_gamify::db::upsert_profile(&db, &profile).await` (on error: log + still return the DTO). Don't relocate other logic.
+- **Task 4 (KPI DTO):** the DTO is `KpiSummaryDto { events_recorded: i64, grind_ratio: f64, avg_multiplier: f64, quests_completed: i64, total_xp: i64 }`; `grind_ratio = grind_capped_events as f64 / (events_recorded.max(1) as f64)` clamped [0,1]; `avg_multiplier = avg_effective_multiplier` (passthrough). Inline this; do not invent fun/grind/quality.
+- **Task 5 (HudPanels):** the real call site passes **hardcoded dummy props** (`treasuryValue={120} energy={90} speed={1} onSetSpeed={()=>{}}`). This task only makes `HudPanels` *render* its props (no longer `null`); wiring real treasury/energy is explicitly **out of scope** here (a later task feeds `gamify_kpi_summary`/profile into the call site). Render the props as given — that is not a stub since the data flow is a separate, named follow-up.
+- **Task 6:** before Step 2, paste the `rg` output for `EmptyState`/`Glass`/`Pill` signatures and use those exact prop names.
+- **Task 7 → 7a / 7b.** 7a: create `crates/vox-gui/ui/src/components/gamify/LudusSandbox.mappers.ts` with pure `moodFromPhase`/`integrityFromDiag` + tests (no canvas); commit. 7b: import them into `LudusSandbox.tsx` and call them in the render loop (read the loop region first); commit. Splitting isolates the canvas-edit risk.
+
+---
+
 ## File Structure
 
 | File | Responsibility | Action |

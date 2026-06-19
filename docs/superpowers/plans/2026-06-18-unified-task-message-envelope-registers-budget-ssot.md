@@ -16,13 +16,31 @@
 8. **Rollback on broken tree:** `git reset --hard HEAD` to last green, re-attempt the one task.
 9. **Rust:** no `.unwrap()` in lib code; inject params in tests; deterministic. DB test ctor is `vox_db::VoxDb::connect(vox_db::DbConfig::Memory)` (`local` feature) — there is NO `open_in_memory`.
 
-**Goal:** Make a task a structured TaskMessage (multi-skill + typed context) authored by the existing Loquela composer and readable by orchestrator/A2A/mesh; unify all cost displays behind one BudgetLedger SSOT; and add an Office-default / gamified-opt-in register toggle over the widget registry.
+**Goal:** Make a task a structured TaskMessage (multi-skill + typed context) authored by the existing Loquela composer and readable by orchestrator/A2A/mesh; unify all cost displays behind one budget SSOT (the existing `BudgetManager`, extended); and add an Office-default / gamified-opt-in register toggle over the widget registry.
 
 **Architecture:** Extend `ChatPayload` + `IntakeItem` with `skills[]`/`context[]`; route dispatch on them; replicate over mesh. **Extend the EXISTING `BudgetManager`** (do not add a parallel aggregate) with a `snapshot()` + a `vox://cost-changed` emit, surfaced via `budget_get`, consumed by every cost reader. Make `widgetRegistry.render` register-aware.
 
 **Tech Stack:** React/TS + vitest (`vox-gui/ui`); Rust (`vox-orchestrator`, `vox-gui`).
 
 **Design:** [`../specs/2026-06-18-unified-task-message-envelope-registers-budget-ssot-design.md`](../specs/2026-06-18-unified-task-message-envelope-registers-budget-ssot-design.md). **Depends on** the cascade-spine + dashboard plans having landed (hopper wired; `widgetRegistry` exists).
+
+---
+
+## Flash Execution Addendum (2026-06-18 — second hardening pass)
+
+These override task granularity where they conflict. Source: Flash-executability critique.
+
+**Global gates:**
+1. Each Step-1 `rg`/read is a **BLOCKING gate** — paste output before any code step; reality differs → STOP.
+2. **Split-on-overrun:** one atomic green commit per sub-bullet when a step touches >1 file or >1 new function.
+3. This plan **depends on the cascade-spine + dashboard plans having landed** (it extends `IntakeItem`, `hopper_submit`, `widgetRegistry`). Task 1 Step 1 must confirm those exist; if not, STOP.
+
+**Mandatory splits + clarifications:**
+- **Task 1:** the composer ALREADY sends `context: chips.map(c => ({kind, ref}))` at the build site — before coding, `rg -n "payload\.context|\.context" crates/vox-gui/ui/src -l` to find consumers of the old `{kind,ref}` shape; **refactor** that mapping to `ContextRef{kind,id,label}` (don't add a second `context`); update any consumer.
+- **Task 3 → 3a / 3b.** 3a: extend `hopper_submit` to accept `skills`/`context` DTOs + test round-trip; commit. 3b: add `route_target(item, agents)` + tests + wire into `run_dispatcher`; commit. (3b note: agents do NOT advertise skills today — match only on file/agent `context` refs; skills-capability routing is deferred.)
+- **Task 4:** Step 1 must `rg` the `canonical_signing_bytes` function and confirm `HopperOpSync::ItemAdmitted`'s current fields — adding `skills`/`context` changes the signed payload (**BREAKING, lockstep rollout**). Write the test body concretely against the post-change variant; don't leave it as prose.
+- **Task 5 → 5a / 5b / 5c.** 5a: add `BudgetAggregate` + `BudgetManager::snapshot()` (+ `by_model` accumulation in the existing record path) + unit test; commit. 5b: `rg` where `CostIncurred` is already folded into the manager, add the `on_change` emit hook there (spawned post-`init_db`, not the sync ctor); commit. 5c: create `commands/budget.rs` (`budget_get` + `COST_CHANGED_EVENT`) + register in `main.rs`; commit.
+- **Task 6:** before Step 2, run `rg -n "SessionBudgetDisplay|useMetricSeries|total_cost|total_24h_usd" crates/vox-gui/ui/src -n` and paste the **enumerated list** of reader sites; refactor exactly those to `useBudget()`.
 
 ---
 
