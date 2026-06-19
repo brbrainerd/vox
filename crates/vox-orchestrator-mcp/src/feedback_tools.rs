@@ -210,7 +210,7 @@ pub async fn feedback_list(state: &ServerState, _params: serde_json::Value) -> S
 mod tests {
     use super::*;
     use crate::params::{AskClarificationParams, ResolveFeedbackParams};
-    use vox_orchestrator::feedback::{FeedbackAction, FeedbackKind, Surface};
+    use vox_orchestrator::feedback::{FeedbackKind, Surface};
     use vox_orchestrator::types::TaskId;
 
     #[tokio::test]

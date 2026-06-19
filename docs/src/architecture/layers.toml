@@ -32,7 +32,22 @@
 # target, .git, node_modules, .pnpm-store, __pycache__, .venv, .mypy_cache,
 # .turbo, .next, .parcel-cache, .cargo — extras can only add, never remove.
 [arch_check.walk_prune]
-# extra_skip_dir_names = ["example_vendor"]
+extra_skip_dir_names = [
+    "example_vendor",
+    "wt-skill-discovery-engine",
+    ".claude",
+    ".worktrees",
+    ".clone",
+    ".claire",
+    "target_ci",
+    "target-verify-mcp",
+    "tmp",
+    "graphify-out",
+    "workspace",
+    ".sccache",
+    ".vox",
+    ".agents"
+]
 
 [guards]
 # Strictness per rule. Layer ordering is implicitly strict (override with
