@@ -317,7 +317,8 @@ mod tests {
             "confidence_estimate":0.6,"contradiction_ratio":0.0,"pending_clarification_backlog":0,
             "clarification_turn_index":0,"max_clarification_turns":3,"irreversible_or_high_risk":false,
             "base_interrupt_cost_ms":23250,"trust_score":0.5,"open_question_session":false }"#;
-        let s: InterruptionSignals = serde_json::from_str(json).expect("legacy JSON must deserialize");
+        let s: InterruptionSignals =
+            serde_json::from_str(json).expect("legacy JSON must deserialize");
         assert_eq!(s.spec_uncertainty, 0.0);
         assert_eq!(s.model_uncertainty, 0.0);
     }
