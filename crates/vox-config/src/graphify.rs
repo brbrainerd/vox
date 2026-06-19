@@ -352,6 +352,25 @@ fn read_manifest(path: &Path) -> Option<GraphifyManifest> {
     serde_json::from_str(&raw).ok()
 }
 
+/// Write a manifest to disk (pretty JSON).
+pub fn write_manifest(path: &Path, manifest: &GraphifyManifest) -> Result<(), GraphifyError> {
+    let json = serde_json::to_string_pretty(manifest).map_err(|e| GraphifyError::Parse {
+        path: path.to_path_buf(),
+        detail: e.to_string(),
+    })?;
+    fs::write(path, json).map_err(|source| GraphifyError::Io {
+        path: path.to_path_buf(),
+        source,
+    })
+}
+
+/// Read-modify-write the manifest's `lexical_ingest_sha256` (creates a minimal manifest if absent).
+pub fn set_lexical_ingest_sha256(manifest_path: &Path, sha: &str) -> Result<(), GraphifyError> {
+    let mut manifest = read_manifest(manifest_path).unwrap_or_default();
+    manifest.lexical_ingest_sha256 = Some(sha.to_string());
+    write_manifest(manifest_path, &manifest)
+}
+
 fn parse_rfc3339(s: &str) -> Option<DateTime<Utc>> {
     DateTime::parse_from_rfc3339(s)
         .ok()
@@ -532,7 +551,7 @@ mod tests {
             extraction_mode: Some("structural".into()),
             default_for_intents: vec![],
             is_virtual: false,
-            source_root: Some("/tmp/target".into()),
+            source_root: Some(std::env::temp_dir().join("target").to_string_lossy().into_owned()),
         }
     }
     fn write_min_registry(repo: &std::path::Path) {
@@ -586,6 +605,31 @@ mod tests {
                 .filter(|c| c.id == "repo-code-graph")
                 .count(),
             1
+        );
+    }
+
+    #[test]
+    fn lexical_stamp_clears_and_refires_lag() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mpath = tmp.path().join(".graphify_manifest.v1.json");
+        let m = GraphifyManifest {
+            graph_json_sha256: Some("x".into()),
+            ..Default::default()
+        };
+        write_manifest(&mpath, &m).unwrap();
+
+        set_lexical_ingest_sha256(&mpath, "x").unwrap();
+        let after = read_manifest(&mpath).unwrap();
+        assert!(
+            lexical_lag_stale_reason(&after).is_none(),
+            "matched sha → no lag"
+        );
+
+        set_lexical_ingest_sha256(&mpath, "y").unwrap();
+        let after2 = read_manifest(&mpath).unwrap();
+        assert_eq!(
+            lexical_lag_stale_reason(&after2).as_deref(),
+            Some("lexical_lag")
         );
     }
 }
