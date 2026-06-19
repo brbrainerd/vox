@@ -10,8 +10,8 @@ every capability lands with its enforcing CI gate (locked decision Q5).
 | Track | Plan file | Status | Depends on |
 |-------|-----------|--------|------------|
 | 0 — Distribution SSOT | [`2026-06-19-track0-distribution-ssot.md`](2026-06-19-track0-distribution-ssot.md) | ✅ written | — |
-| A — Tiered install + enable | _to write_ | pending | Track 0 |
-| B — Release + nightly automation | _to write_ | pending | Track 0 |
+| A — Tiered install + enable | [`2026-06-19-track-a-tiered-install.md`](2026-06-19-track-a-tiered-install.md) | ✅ executed (Sonnet 4.6) | Track 0 |
+| B — Release + nightly automation | [`2026-06-19-track-b-release-nightly-automation.md`](2026-06-19-track-b-release-nightly-automation.md) | ✅ written (Flash handoff ready) | Track 0 |
 | C — crates.io publish readiness | _to write_ | pending | Track 0 |
 | D — Supply-chain trust (plugin sig + SBOM) | _to write_ | pending | Track 0 |
 
