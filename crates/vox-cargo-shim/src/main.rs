@@ -158,5 +158,22 @@ fn run_queued(
     };
     let _ = metrics::append(&queue_root.join("metrics.jsonl"), &rec);
 
+    // Human-readable surface so the broker's effect is observable at a glance.
+    // `waited` > 0 marks a contention event the queue absorbed instead of
+    // letting cargo block opaquely on its target lock.
+    let line = format!(
+        "{ts} {sub:<6} waited={queue_wait_ms:>6}ms ran={ran_ms:>7}ms queued_behind={pos} coalesce={would_coalesce} exit={code}\n",
+        ts = rec.ts_ms,
+        code = status.code().unwrap_or(-1),
+    );
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(queue_root.join("broker.log"))
+    {
+        use std::io::Write;
+        let _ = f.write_all(line.as_bytes());
+    }
+
     Ok(status.code().unwrap_or(1))
 }
