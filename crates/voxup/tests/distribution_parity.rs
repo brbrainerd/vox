@@ -80,3 +80,40 @@ fn rust_version_matches_toolchain_contract() {
         p.rust_version
     );
 }
+
+#[test]
+fn publish_set_is_subset_of_public_toml() {
+    let p = load();
+    let public = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../_public.toml"))
+        .expect("crates/_public.toml must exist");
+    let public_crates = voxup::profiles::public_toml_crates(&public);
+    assert!(
+        !public_crates.is_empty(),
+        "_public.toml 'crates' array must be non-empty"
+    );
+    for c in &p.publish.crates {
+        assert!(
+            public_crates.contains(c),
+            "SSOT publish crate '{c}' is not declared in crates/_public.toml"
+        );
+    }
+}
+
+#[test]
+fn when_publish_enabled_every_crate_is_actually_publishable() {
+    let p = load();
+    if !p.publish.enabled {
+        return; // deferred — Track C flips this; nothing to enforce yet.
+    }
+    for c in &p.publish.crates {
+        let manifest = std::fs::read_to_string(format!(
+            concat!(env!("CARGO_MANIFEST_DIR"), "/../{}/Cargo.toml"),
+            c
+        ))
+        .unwrap_or_else(|_| panic!("publish crate '{c}' has no crates/{c}/Cargo.toml"));
+        assert!(
+            !voxup::profiles::cargo_publish_is_false(&manifest),
+            "publish.enabled is true but crate '{c}' has `publish = false` in its Cargo.toml"
+        );
+    }
+}

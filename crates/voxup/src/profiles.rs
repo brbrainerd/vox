@@ -37,6 +37,34 @@ pub fn toolchain_rust_version(yaml: &str) -> Option<String> {
     v["versions"]["rust"].as_str().map(String::from)
 }
 
+/// Extract the top-level `crates = [...]` string array from `_public.toml`.
+pub fn public_toml_crates(toml_text: &str) -> Vec<String> {
+    let v: toml::Value = match toml::from_str(toml_text) {
+        Ok(v) => v,
+        Err(_) => return Vec::new(),
+    };
+    v.get("crates")
+        .and_then(|c| c.as_array())
+        .map(|a| {
+            a.iter()
+                .filter_map(|x| x.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// True iff a Cargo.toml sets `[package] publish = false`.
+pub fn cargo_publish_is_false(cargo_toml_text: &str) -> bool {
+    let v: toml::Value = match toml::from_str(cargo_toml_text) {
+        Ok(v) => v,
+        Err(_) => return false,
+    };
+    matches!(
+        v.get("package").and_then(|p| p.get("publish")),
+        Some(toml::Value::Boolean(false))
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
