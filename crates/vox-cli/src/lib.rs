@@ -85,15 +85,20 @@ pub use dispatch_protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
 use clap::{Parser, Subcommand};
 use clap_complete::Shell;
 
-/// Build version string: `0.x.y+build.N (githash)`
-pub const VOX_VERSION: &str = concat!(
-    env!("CARGO_PKG_VERSION"),
-    "+build.",
-    env!("VOX_BUILD_NUMBER"),
-    " (",
-    env!("VOX_GIT_HASH"),
-    ")",
-);
+/// Build version string. When `VOX_VERSION_OVERRIDE` is set at compile time
+/// (release/nightly CI injects it), it wins verbatim; otherwise we synthesize
+/// `0.x.y+build.N (githash)` from the build env.
+pub const VOX_VERSION: &str = match option_env!("VOX_VERSION_OVERRIDE") {
+    Some(v) => v,
+    None => concat!(
+        env!("CARGO_PKG_VERSION"),
+        "+build.",
+        env!("VOX_BUILD_NUMBER"),
+        " (",
+        env!("VOX_GIT_HASH"),
+        ")",
+    ),
+};
 
 pub use vox_cli_core::GlobalOpts;
 pub use vox_cli_core::apply_global_opts;
@@ -600,6 +605,16 @@ pub enum Cli {
     Stop {
         /// Reason for stopping
         reason: Option<String>,
+    },
+    /// Manage clips in project history
+    Clip {
+        #[command(subcommand)]
+        cmd: commands::history_cli::ClipSubCommand,
+    },
+    /// Manage project history and run interactive fuzzy search
+    History {
+        #[command(subcommand)]
+        cmd: commands::history_cli::HistorySubCommand,
     },
     /// ML/AI domain: train, serve, probe (Delegated to `vox-ml-cli`).
     #[command(
