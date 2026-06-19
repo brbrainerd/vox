@@ -41,6 +41,12 @@ pub struct EvalGatePolicy {
     /// Review-derived recurrence gate from `review_metrics.json`.
     #[serde(default)]
     pub review_recurrence: ReviewRecurrenceGate,
+    /// Rust spoke compilation rate gate.
+    #[serde(default)]
+    pub rust_compile_rate: RustCompileRateGate,
+    /// Clippy clean rate gate.
+    #[serde(default)]
+    pub clippy_clean_rate: ClippyCleanRateGate,
 }
 
 /// Gate on optional `mcp_tool_schema_kpi.json` in the run directory (from `vox-mcp` diagnostics).
@@ -229,6 +235,22 @@ pub struct ReviewRecurrenceGate {
     #[serde(default)]
     pub min_recurrence_delta: f64,
     /// If true, violations block promotion.
+    #[serde(default)]
+    pub block: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct RustCompileRateGate {
+    #[serde(default)]
+    pub min_pct: f64,
+    #[serde(default)]
+    pub block: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct ClippyCleanRateGate {
+    #[serde(default)]
+    pub min_pct: f64,
     #[serde(default)]
     pub block: bool,
 }

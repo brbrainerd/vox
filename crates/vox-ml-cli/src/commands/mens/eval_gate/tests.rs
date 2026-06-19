@@ -490,3 +490,35 @@ pass_at_k:
         .expect("gate");
     assert!(!g.passed, "{}", g.message);
 }
+
+#[test]
+fn rust_compile_and_clippy_gates_work() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(
+        dir.path().join("eval_results.json"),
+        r#"{"rust_compile_rate":0.95,"clippy_clean_rate":0.90}"#,
+    )
+    .unwrap();
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(
+        &policy_path,
+        r#"version: "1"
+rust_compile_rate:
+  min_pct: 0.90
+  block: true
+clippy_clean_rate:
+  min_pct: 0.85
+  block: false
+"#,
+    )
+    .unwrap();
+    let results = check_run(dir.path(), &policy_path).expect("check_run");
+    
+    let compile_gate = results.iter().find(|r| r.name == "rust_compile_rate").expect("compile gate present");
+    assert!(compile_gate.passed, "should pass");
+    assert!(compile_gate.block, "should be blocking");
+
+    let clippy_gate = results.iter().find(|r| r.name == "clippy_clean_rate").expect("clippy gate present");
+    assert!(clippy_gate.passed, "should pass");
+    assert!(!clippy_gate.block, "should not be blocking");
+}

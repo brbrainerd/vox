@@ -233,6 +233,40 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
         });
     }
 
+    if policy.rust_compile_rate.block || policy.rust_compile_rate.min_pct > 0.0 {
+        let (passed, msg) = match &eval_json {
+            Some(eval) => {
+                let rate = eval.get("rust_compile_rate").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                let ok = rate >= policy.rust_compile_rate.min_pct;
+                (ok, format!("rust_compile_rate={:.2} (min={:.2})", rate, policy.rust_compile_rate.min_pct))
+            }
+            None => (false, "eval_results.json not found — run `vox mens eval` first".to_string()),
+        };
+        results.push(GateResult {
+            name: "rust_compile_rate".to_string(),
+            passed,
+            message: msg,
+            block: policy.rust_compile_rate.block,
+        });
+    }
+
+    if policy.clippy_clean_rate.block || policy.clippy_clean_rate.min_pct > 0.0 {
+        let (passed, msg) = match &eval_json {
+            Some(eval) => {
+                let rate = eval.get("clippy_clean_rate").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                let ok = rate >= policy.clippy_clean_rate.min_pct;
+                (ok, format!("clippy_clean_rate={:.2} (min={:.2})", rate, policy.clippy_clean_rate.min_pct))
+            }
+            None => (false, "eval_results.json not found — run `vox mens eval` first".to_string()),
+        };
+        results.push(GateResult {
+            name: "clippy_clean_rate".to_string(),
+            passed,
+            message: msg,
+            block: policy.clippy_clean_rate.block,
+        });
+    }
+
     // anti_stub metrics (anti_stub_task_success, placeholder_event_rate,
     // trivial_placeholder_event_rate, construct_richness_mean) are written by
     // `vox mens eval-local` into eval_local_report.json — NOT by the corpus
