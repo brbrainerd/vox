@@ -4,12 +4,12 @@ This is the copy-paste brief for **Gemini Flash 3.5 in Antigravity**. It is comm
 so the runner can read it and every doc it references.
 
 **Preconditions (human, before pasting):**
-1. **Phases A + D are done in Claude Code** — the Axis icon set (`crates/vox-gui/icons/`),
-   the `AxisMark` component, brand tokens, the rebranded `Sidebar.tsx`, and `index.html`
-   are all committed. (The pre-flight gate below STOPs if `AxisMark.tsx` / `favicon.svg`
-   are missing.)
+1. **Phase A is done in Claude Code** — the Axis icon set under `crates/vox-gui/icons/`
+   is committed. **Phase D (the React/asset/token surface) may be running in parallel
+   in Claude Code** — that's fine: Flash's Phase B touches disjoint files and does not
+   depend on it. Flash must never touch Phase-D files (see invariant #6).
 2. The runner has this branch checked out. If the runner is **remote/cloud**, push the
-   branch first so its clone has the committed spec, plan, icons, and front-end layer.
+   branch first so its clone has the committed spec, plan, and icons.
 
 ---
 

@@ -56,10 +56,16 @@
 ```
 rg -n "\"productName\"|\"title\"|\"identifier\"" crates/vox-gui/tauri.conf.json
 rg -n "pub enum Cli|Gui \{|cfg\(feature = \"gui\"\)|pub struct VoxCliRoot" crates/vox-cli/src/lib.rs
-ls crates/vox-gui/ui/src/components/brand/AxisMark.tsx crates/vox-gui/ui/public/favicon.svg
 git -C . status --porcelain crates/vox-gui/icons | head
 ```
-Expected: `productName`/`identifier` present and unchanged; window `title` still `"Vox"` (B1 flips it); `VoxCliRoot` + `Cli` + a `#[cfg(feature = "gui")] Gui` variant; **`AxisMark.tsx` and `public/favicon.svg` EXIST** (Phase D done) and the Axis icons are committed. If either Phase-D file is missing or the icons aren't rebranded, **STOP** — a Claude pre-flight phase was skipped.
+Expected: `productName`/`identifier` present and unchanged; window `title` still `"Vox"` (B1 flips it); `VoxCliRoot` + `Cli` + a `#[cfg(feature = "gui")] Gui` variant; the Axis icons committed (Phase A).
+
+> **Tandem note:** Phase D (the React/asset/token surface — `Sidebar.tsx`, `AxisMark`,
+> token sources, `index.html`, `public/favicon.svg`) is owned by **Claude Code and may
+> be landing in parallel with your run**. Your Phase-B tasks (B1/B4/B5/B6) touch
+> **disjoint files** (`tauri.conf.json`, `vox-cli/**`, `docs/**`) and do **not** depend
+> on Phase D — proceed regardless of whether those Phase-D files exist yet. You must
+> **never create or edit** any Phase-D file. (No two-owner file → no merge conflict.)
 
 **Task-split table (Phase B = Flash only — the React/asset surface is Claude's Phases A + D):**
 
