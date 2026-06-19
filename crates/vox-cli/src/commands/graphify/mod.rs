@@ -4,9 +4,9 @@ use anyhow::Context;
 use chrono::Utc;
 use clap::Subcommand;
 use vox_config::graphify::{
+    CorpusStatus, GraphifyCorporaRegistry, GraphifyCorpus, GraphifyError, GraphifyKnowledgeNode,
     assess_corpus_status, load_all_corpora, load_graphify_corpora, project_graph_nodes_for_ingest,
-    upsert_registered_corpus, CorpusStatus, GraphifyCorporaRegistry, GraphifyCorpus, GraphifyError,
-    GraphifyKnowledgeNode,
+    upsert_registered_corpus,
 };
 
 #[derive(Debug, Subcommand)]
@@ -49,6 +49,36 @@ pub enum GraphifyCmd {
         #[arg(long, default_value = "structural")]
         mode: String,
     },
+    /// Assess all corpora and (with --auto) rebuild/ingest each stale one per policy.
+    Refresh {
+        /// Corpus id (default: all corpora).
+        #[arg(long)]
+        corpus: Option<String>,
+        /// Execute the chosen action; without it, only print what would happen.
+        #[arg(long)]
+        auto: bool,
+    },
+}
+
+/// What an autonomous refresh should do for a corpus, given its stale reasons.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub(crate) enum RefreshAction {
+    Rebuild,
+    Ingest,
+    Skip,
+}
+
+/// Deterministic cost/value gate: a structural change (missing/corrupt/drift/ttl) needs a
+/// native rebuild; a lexical-only lag needs a cheap re-ingest; otherwise do nothing.
+pub(crate) fn refresh_action(stale_reasons: &[String]) -> RefreshAction {
+    let has = |r: &str| stale_reasons.iter().any(|s| s == r);
+    if has("graph_missing") || has("graph_corrupt") || has("git_drift") || has("ttl_expired") {
+        RefreshAction::Rebuild
+    } else if has("lexical_lag") {
+        RefreshAction::Ingest
+    } else {
+        RefreshAction::Skip
+    }
 }
 
 fn resolve_head_sha() -> anyhow::Result<Option<String>> {
@@ -227,8 +257,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
             strict,
             json,
         } => {
-            let reg =
-                load_all_corpora(repo_root).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            let reg = load_all_corpora(repo_root).map_err(|e| anyhow::anyhow!(e.to_string()))?;
             let head = resolve_head_sha()?;
             let statuses = assess_all(repo_root, &reg, &corpus, head.as_deref())
                 .map_err(|e| anyhow::anyhow!(e.to_string()))?;
@@ -255,8 +284,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
             }
         }
         GraphifyCmd::Ingest { corpus, dry_run } => {
-            let reg =
-                load_all_corpora(repo_root).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            let reg = load_all_corpora(repo_root).map_err(|e| anyhow::anyhow!(e.to_string()))?;
             let corpus_id = resolve_ingest_corpus_id(&reg, corpus)
                 .map_err(|e| anyhow::anyhow!(e.to_string()))?;
             let nodes = load_projected_nodes(repo_root, &reg, &corpus_id)?;
@@ -271,8 +299,8 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
 
             // Stamp lexical_ingest_sha256 = digest of the graph just projected, so lexical_lag
             // clears now and re-fires after a later rebuild changes graph_json_sha256.
-            let corpus = corpus_by_id(&reg, &corpus_id)
-                .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            let corpus =
+                corpus_by_id(&reg, &corpus_id).map_err(|e| anyhow::anyhow!(e.to_string()))?;
             let graph_bytes = std::fs::read(repo_root.join(&corpus.graph_path))
                 .with_context(|| format!("read graph for digest: {}", corpus.graph_path))?;
             let digest = vox_graphify_reader::graph_digest(&graph_bytes);
@@ -283,8 +311,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
             .map_err(|e| anyhow::anyhow!(e.to_string()))?;
         }
         GraphifyCmd::Rebuild { corpus } => {
-            let reg =
-                load_all_corpora(repo_root).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            let reg = load_all_corpora(repo_root).map_err(|e| anyhow::anyhow!(e.to_string()))?;
             let corpus_id = resolve_ingest_corpus_id(&reg, corpus)
                 .map_err(|e| anyhow::anyhow!(e.to_string()))?;
             let corpus =
@@ -318,17 +345,28 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
             // NOTE (Windows): canonicalize yields a verbatim `\\?\` prefix; it round-trips
             // through PathBuf/join/git -C fine. Do not strip it manually.
             let corpus_id = id
-                .unwrap_or_else(|| abs.file_name().map(|s| s.to_string_lossy().to_string())
-                    .unwrap_or_else(|| "target".to_string()))
+                .unwrap_or_else(|| {
+                    abs.file_name()
+                        .map(|s| s.to_string_lossy().to_string())
+                        .unwrap_or_else(|| "target".to_string())
+                })
                 .chars()
-                .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '-' })
+                .map(|c| {
+                    if c.is_alphanumeric() || c == '-' || c == '_' {
+                        c
+                    } else {
+                        '-'
+                    }
+                })
                 .collect::<String>();
             let corpus = GraphifyCorpus {
                 id: corpus_id.clone(),
                 title: format!("Indexed target: {}", abs.display()),
                 scope_path: ".".to_string(),
                 graph_path: format!(".vox/cache/graphify/{corpus_id}/graph.json"),
-                manifest_path: format!(".vox/cache/graphify/{corpus_id}/.graphify_manifest.v1.json"),
+                manifest_path: format!(
+                    ".vox/cache/graphify/{corpus_id}/.graphify_manifest.v1.json"
+                ),
                 extraction_mode: Some(mode),
                 default_for_intents: vec![],
                 is_virtual: false,
@@ -339,7 +377,8 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
             let source_dir = resolve_source_dir(repo_root, &corpus);
             let output_file = repo_root.join(&corpus.graph_path);
             let cache_dir = output_file
-                .parent().ok_or_else(|| anyhow::anyhow!("graph_path has no parent"))?
+                .parent()
+                .ok_or_else(|| anyhow::anyhow!("graph_path has no parent"))?
                 .join("file_cache");
             let meta = vox_graphify_reader::rebuild::RebuildMeta {
                 corpus_id: corpus_id.clone(),
@@ -349,9 +388,78 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                 built_at_rfc3339: Utc::now().to_rfc3339(),
             };
             println!("Indexing '{}' as corpus '{}'...", abs.display(), corpus_id);
-            vox_graphify_reader::rebuild::rebuild_graph(repo_root, &source_dir, &output_file, &cache_dir, &meta)
-                .map_err(|e| anyhow::anyhow!("Index rebuild failed: {}", e))?;
+            vox_graphify_reader::rebuild::rebuild_graph(
+                repo_root,
+                &source_dir,
+                &output_file,
+                &cache_dir,
+                &meta,
+            )
+            .map_err(|e| anyhow::anyhow!("Index rebuild failed: {}", e))?;
             println!("Corpus '{corpus_id}' registered and built.");
+        }
+        GraphifyCmd::Refresh { corpus, auto } => {
+            let reg = load_all_corpora(repo_root).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            let head = resolve_head_sha()?;
+            let statuses = assess_all(repo_root, &reg, &corpus, head.as_deref())
+                .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            for s in &statuses {
+                if s.is_fresh {
+                    println!("fresh   {}", s.corpus_id);
+                    continue;
+                }
+                let action = refresh_action(&s.stale_reasons);
+                println!(
+                    "{:?}  {} (stale: {})",
+                    action,
+                    s.corpus_id,
+                    s.stale_reasons.join(",")
+                );
+                if !auto {
+                    continue;
+                }
+                let c =
+                    corpus_by_id(&reg, &s.corpus_id).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+                match action {
+                    RefreshAction::Rebuild => {
+                        let source_dir = resolve_source_dir(repo_root, c);
+                        let output_file = repo_root.join(&c.graph_path);
+                        let cache_dir = output_file
+                            .parent()
+                            .ok_or_else(|| anyhow::anyhow!("graph_path has no parent"))?
+                            .join("file_cache");
+                        let meta = vox_graphify_reader::rebuild::RebuildMeta {
+                            corpus_id: c.id.clone(),
+                            git_sha: head.clone(),
+                            scope_path: c.scope_path.clone(),
+                            extraction_mode: c.extraction_mode.clone(),
+                            built_at_rfc3339: Utc::now().to_rfc3339(),
+                        };
+                        vox_graphify_reader::rebuild::rebuild_graph(
+                            repo_root,
+                            &source_dir,
+                            &output_file,
+                            &cache_dir,
+                            &meta,
+                        )
+                        .map_err(|e| anyhow::anyhow!("refresh rebuild {}: {e}", c.id))?;
+                        println!("  rebuilt {}", c.id);
+                    }
+                    RefreshAction::Ingest => {
+                        let nodes = load_projected_nodes(repo_root, &reg, &c.id)?;
+                        let upserted = upsert_projected_nodes(&nodes).await?;
+                        let graph_bytes = std::fs::read(repo_root.join(&c.graph_path))
+                            .with_context(|| format!("read graph for digest: {}", c.graph_path))?;
+                        vox_config::graphify::set_lexical_ingest_sha256(
+                            &repo_root.join(&c.manifest_path),
+                            &vox_graphify_reader::graph_digest(&graph_bytes),
+                        )
+                        .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+                        println!("  ingested {} ({} nodes)", c.id, upserted);
+                    }
+                    RefreshAction::Skip => {}
+                }
+            }
         }
     }
     Ok(())
@@ -458,5 +566,32 @@ mod tests {
             ..ext
         };
         assert_eq!(resolve_source_dir(repo, &local), repo.join("src"));
+    }
+
+    #[test]
+    fn refresh_action_maps_reasons() {
+        use super::{RefreshAction, refresh_action};
+        assert_eq!(
+            refresh_action(&["graph_missing".into()]),
+            RefreshAction::Rebuild
+        );
+        assert_eq!(
+            refresh_action(&["git_drift".into()]),
+            RefreshAction::Rebuild
+        );
+        assert_eq!(
+            refresh_action(&["ttl_expired".into()]),
+            RefreshAction::Rebuild
+        );
+        assert_eq!(
+            refresh_action(&["lexical_lag".into()]),
+            RefreshAction::Ingest
+        );
+        assert_eq!(refresh_action(&[]), RefreshAction::Skip);
+        // rebuild dominates a co-occurring lexical_lag
+        assert_eq!(
+            refresh_action(&["git_drift".into(), "lexical_lag".into()]),
+            RefreshAction::Rebuild
+        );
     }
 }
