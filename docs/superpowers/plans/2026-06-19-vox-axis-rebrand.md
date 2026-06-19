@@ -11,9 +11,22 @@
 
 **Goal:** Rebrand the Vox GUI to **"Axis"** (full brand "Vox Axis") at the identity layer only — window title, in-app mark, footer, a `vox axis` launch alias, and a regenerated icon set — with zero crate/binary/identifier renames.
 
-**Architecture:** Brand-layer change across four lanes: (1) a JSON config value, (2) a **professional front-end brand layer** — a reusable `AxisMark` SVG component, brand design-tokens (extending the existing Style-Dictionary pipeline), the sidebar brand block, and favicon/`index.html` — (3) one clap subcommand alias + help/log strings, (4) binary image assets generated ahead of time. No new Rust types, no API churn. `productName`/`identifier` in `tauri.conf.json` stay "Vox"/`org.vox-foundation.gui` on purpose (they drive installer/bundle identity).
+**Architecture:** Brand-layer change across four lanes: (1) a JSON config value, (2) a **professional front-end brand layer** — a reusable, theme-reactive `AxisMark` SVG component that consumes the existing accent token (`--brass`), the sidebar brand lockup, favicon/`index.html`, and a token-hygiene test (no new/dead tokens) — (3) one clap subcommand alias + help/log strings, (4) binary image assets generated ahead of time. No new Rust types, no API churn. `productName`/`identifier` in `tauri.conf.json` stay "Vox"/`org.vox-foundation.gui` on purpose (they drive installer/bundle identity).
 
 **Execution split (this is the load-bearing decision):** Gemini Flash breaks on inline-SVG JSX, asset files, HTML-head wiring, and multi-element component restructures (its hallucination/path zone). So **Claude Code pre-builds the entire React/asset/token surface** (Phases A + D) before the handoff, and **Flash gets only rock-solid atomic edits** (Phase B: a JSON value, a clap alias, string/comment swaps, a docs file). Flash never touches `Sidebar.tsx`, `AxisMark`, the token sources, or `index.html`.
+
+**Execution tiers (who runs what, and why):**
+
+| Tier | Runs | Workload | Why this tier |
+|---|---|---|---|
+| **Opus** (this session) | design + author | Phase A asset design; the `AxisMark` geometry/JSX, token *semantics*, and the design-handoff spec; this plan + critique | Taste/visual judgment + cross-file design decisions. Already done where marked ✅. |
+| **Sonnet** (Claude harness, interactive session — NOT a subagent: subagents are read-only in this sandbox) | implement | Phase D mechanical execution: port the committed SVG→JSX verbatim, add tokens + regenerate, wire the sidebar lockup, favicon, `index.html` | Fully specified, deterministic TDD with code already written in the plan + the design-handoff spec — Sonnet is reliable and cheaper for spec-following work that runs tests. |
+| **Gemini Flash 3.5** (Antigravity) | implement | Phase B: B1 (JSON title), B4 (clap alias), B5 (strings), B6 (docs) | Atomic, gated, no JSX/asset/HTML. Exercises the handoff loop on its safe envelope. |
+
+> **Design-handoff spec:** `docs/superpowers/specs/2026-06-19-vox-axis-brand-design-handoff.md`
+> — token/state/responsive/a11y/edge-case detail for every Phase-D surface. Phase D
+> tasks below carry the code; the handoff spec carries the design contract. Read it
+> before executing Phase D.
 
 **Tech Stack:** Tauri 2 (`tauri.conf.json`), TypeScript/React + vitest (`vox-gui/ui`), Style Dictionary (`pnpm tokens:build`), Rust + clap (`vox-cli`), `tauri icon` + `resvg` for assets.
 
@@ -210,38 +223,51 @@ export function AxisMark({ className, title = 'Axis' }: { className?: string; ti
 
 - [ ] **Step 4:** Run → PASS; `npx tsc --noEmit`. **Step 5:** Commit `feat(axis): AxisMark brand component (themeable gimbal SVG)`.
 
-### Task D2 — Brand design tokens (extend Style Dictionary)
+### Task D2 — Brand token consistency (consume existing tokens; add none)
 
 **Files:**
-- Modify: `crates/vox-gui/ui/tokens/semantic.json`
-- Modify: `crates/vox-gui/ui/tailwind.config.js`
-- Regenerate (committed): `crates/vox-gui/ui/src/styles/tokens.generated.{css,ts}`
+- Test: `crates/vox-gui/ui/src/components/brand/AxisMark.tokens.test.ts`
+- (No changes to `semantic.json` / `tailwind.config.js` — see the reframe note below.)
 
-- [ ] **Step 1 (gate):** `rg -n "neutral|brass" crates/vox-gui/ui/tokens/primitive.json` — confirm primitives `color.neutral.50` (`#fafafa`), `color.neutral.900` (`#18181b`), `color.brass.default` (`#d4af37`) exist (they do as of 2026-06-19).
+> **Reframed after design audit (do NOT add a `brand` color group).** The accent is
+> **already a shared, themeable token** — `--brass`, switched arcane/void/glacier in
+> `src/index.css`, exposed as the Tailwind `brass` color. Adding Style-Dictionary
+> `color.brand.*` tokens would (a) be **dead tokens** (no consumer once the mark uses
+> `text-brass`) and (b) **break theming** — an SD brand token resolves to the *static*
+> `#d4af37`, not the live `--brass` var. So "light theme tokens" here = **consume the
+> existing tokens; introduce zero new color tokens; zero hardcoded brand hexes** in the
+> new surfaces.
 
-- [ ] **Step 2:** Add a `brand` group to `semantic.json` under `"color"`, referencing primitives (NO new hexes):
+- [ ] **Step 1 (gate):** confirm the accent token + theme switching exist:
+  ```
+  rg -n "\-\-brass" crates/vox-gui/ui/src/index.css
+  rg -n "brass:|--brass" crates/vox-gui/ui/tailwind.config.js
+  ```
+  Expected: `--brass` defined for `arcane`/`void`/`glacier`, and `brass: 'rgb(var(--brass) / <alpha-value>)'` in Tailwind. This is the token the mark uses (`text-brass`).
 
-```json
-    "brand": {
-      "mark":      { "value": "{color.neutral.50}" },
-      "tile-from": { "value": "{color.brass.default}" },
-      "tile-to":   { "value": "{color.neutral.900}" },
-      "hub":       { "value": "{color.neutral.900}" }
-    }
+- [ ] **Step 2 (consistency assertion):** add a token-hygiene test so a future hardcoded brand hex regresses loudly:
+
+```ts
+import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
+const here = dirname(fileURLToPath(import.meta.url));
+const read = (p: string) => readFileSync(resolve(here, p), 'utf8');
+describe('brand surfaces use tokens, not hardcoded hexes', () => {
+  it('AxisMark uses currentColor + the bg-base token (no hex)', () => {
+    const src = read('../brand/AxisMark.tsx');
+    expect(src).toMatch(/currentColor/);
+    expect(src).not.toMatch(/#[0-9a-fA-F]{6}/); // no literal hex colors
+  });
+});
 ```
+Place at `crates/vox-gui/ui/src/components/brand/AxisMark.tokens.test.ts`.
 
-- [ ] **Step 3:** Regenerate: `cd crates/vox-gui/ui && pnpm tokens:build`. Confirm `--color-brand-mark` etc. now appear in `src/styles/tokens.generated.css`.
+- [ ] **Step 3:** Run → it should PASS once D1's `AxisMark` is token-clean (strokes `currentColor`, hub `fill-bg-base`). If it fails, fix `AxisMark` to remove the hex — do NOT add a token to satisfy it. **Step 4:** Commit `test(axis): brand surfaces consume existing tokens (no new/dead tokens)`.
 
-- [ ] **Step 4:** Wire Tailwind aliases — add to `tailwind.config.js` `theme.extend.colors` (matching the existing `'bg-base': 'var(--color-bg-base)'` pattern):
-
-```js
-        'brand-mark': 'var(--color-brand-mark)',
-        'brand-tile-from': 'var(--color-brand-tile-from)',
-        'brand-tile-to': 'var(--color-brand-tile-to)',
-        'brand-hub': 'var(--color-brand-hub)',
-```
-
-- [ ] **Step 5:** `npx tsc --noEmit` (the generated `.ts` must still typecheck). **Step 6:** Commit `feat(axis): brand design tokens via Style Dictionary`.
+> If a *genuine* new consumer ever needs a brand-specific value, add it to
+> `semantic.json` then — not speculatively. YAGNI.
 
 ### Task D3 — Sidebar brand block (retires old B2/B3)
 
@@ -272,16 +298,25 @@ describe('Axis branding — sidebar', () => {
 });
 ```
 
-- [ ] **Step 3:** Run → FAIL. **Step 4:** Implement:
-  - Replace the brand-box `<div className="relative size-6 … from-brass via-amber-600 to-zinc-900 …"><span …>V</span></div>` with a branded tile wrapping the mark, e.g.:
+- [ ] **Step 3:** Run → FAIL. **Step 4:** Implement (per the design-handoff spec — mark is **themeable** via `text-brass`, and the brand stays visible when collapsed):
+  - Replace the brand-box `<div className="relative size-6 … from-brass via-amber-600 to-zinc-900 …"><span …>V</span></div>` with a subtle glass tile wrapping the **theme-reactive** mark:
     ```tsx
-    <div className="relative size-6 rounded-md bg-gradient-to-br from-brand-tile-from to-brand-tile-to ring-1 ring-brass/40 grid place-items-center">
-      <AxisMark className="size-4 text-brand-mark" />
+    <div className="relative grid size-6 place-items-center rounded-md bg-white/[0.04] ring-1 ring-brass/40">
+      <AxisMark className="size-4 text-brass" />
     </div>
     ```
   - `>VOX<` wordmark → `>AXIS<`.
   - Footer: `…>build {appVersion ?? 'unknown'} · tauri 2</div>` → `…>Vox Axis · build {appVersion ?? 'unknown'} · tauri 2</div>`.
+  - **Collapsed (rail) improvement:** the brand block today only renders when `!collapsed`. Add a collapsed branch that still shows the mark centered, e.g. in the `collapsed ? … : …` header area render `<AxisMark className="size-6 text-brass" />` when `collapsed` (so the brand never disappears in rail mode). Confirm the exact `collapsed`/`mode` guard from the Step-1 gate before wiring.
   - Add `import { AxisMark } from '../brand/AxisMark';` at the top.
+
+- [ ] **Step 4b (extend the test):** add a rail-mode assertion (the improvement):
+  ```tsx
+  it('keeps the mark visible in rail (collapsed) mode', () => {
+    const { container } = render(<Sidebar {...baseProps} mode={'rail' as const} />);
+    expect(container.querySelector('svg[aria-label="Axis"]')).toBeTruthy();
+  });
+  ```
 
 - [ ] **Step 5:** Run → PASS; `npx tsc --noEmit`. **Step 6:** Commit `feat(axis): sidebar brand block uses AxisMark + Vox Axis footer`.
 
