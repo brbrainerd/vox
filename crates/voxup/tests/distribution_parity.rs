@@ -117,3 +117,23 @@ fn when_publish_enabled_every_crate_is_actually_publishable() {
         );
     }
 }
+
+#[test]
+fn declared_binaries_have_crate_dirs() {
+    // Maps SSOT binary name -> crate directory under crates/.
+    // vox is produced by vox-cli; vox-ml-cli and voxup match their dir names.
+    let dir_for = |bin: &str| -> String {
+        match bin {
+            "vox" => "vox-cli".to_string(),
+            other => other.to_string(),
+        }
+    };
+    let p = load();
+    for bin in &p.binaries {
+        let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../").to_string() + &dir_for(bin);
+        assert!(
+            std::path::Path::new(&dir).is_dir(),
+            "SSOT binary '{bin}' expects crate dir '{dir}' which does not exist"
+        );
+    }
+}
