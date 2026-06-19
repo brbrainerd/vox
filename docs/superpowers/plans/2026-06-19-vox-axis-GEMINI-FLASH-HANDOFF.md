@@ -39,7 +39,8 @@ do not rely on this message for detail.
 ### Verification ritual (per task, before you commit)
 - **GUI TS:** from `crates/vox-gui/ui` → `npx vitest run <path>` then `npx tsc --noEmit`. First line of every new component test: `// @vitest-environment jsdom`.
 - **vox-cli Rust:** `cargo test -p vox-cli --features gui --test <name>` → `cargo clippy -p vox-cli --features gui -- -D warnings` → `cargo fmt -p vox-cli`.
-- **vox-gui Rust:** lib-only — `cargo clippy -p vox-gui --lib -- -D warnings` (`--all-targets` breaks on the Tauri build script). Never `cargo fmt --all` (Windows arg-limit).
+- **Docs (Task B6):** `cargo run -p vox-doc-pipeline -- --lint-only` (frontmatter gate; `category` must be exactly `"Contributors"`).
+- **Do NOT run `cargo clippy -p vox-gui`** — no task changes its Rust (title is a JSON value, marks are TS), and `--all-targets` breaks on the Tauri build script. Never `cargo fmt --all` (Windows arg-limit).
 - A task is done only when its tests are green **and** committed.
 
 ### Working location

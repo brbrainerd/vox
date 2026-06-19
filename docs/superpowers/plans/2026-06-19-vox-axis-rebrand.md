@@ -64,6 +64,14 @@ Run order: B1 ∥ B4 first; then B2 → B3 (same file, sequential); then B5 afte
 
 # PHASE A — Brand assets 🧑‍🎨 (CLAUDE-CODE PRE-FLIGHT — do NOT hand to Flash)
 
+> ✅ **DONE (2026-06-19, this session).** Executed in Claude Code with ImageMagick +
+> `cargo tauri icon`. The mark is the **coordinate-axis frame** (x/y/z arrows from a
+> shared origin — the conventional "axis" symbol), not a letterform. Commits:
+> `098edc3b9b` (svg) → `dc04893760` (png) → `d309473ef9` (initial set) →
+> `8c29861f5e` (axis-frame redesign + regenerate). The icons under
+> `crates/vox-gui/icons/` are committed; **do not regenerate** unless redesigning.
+> The task steps below are retained as the reproduction recipe.
+
 > These tasks run in **Claude Code** (this harness) before the Antigravity handoff,
 > because Gemini Flash cannot reliably author binary image assets. Claude may adapt
 > the exact rendering command to whatever is installed (resvg / ImageMagick / sharp);
@@ -140,11 +148,14 @@ Run order: B1 ∥ B4 first; then B2 → B3 (same file, sequential); then B5 afte
 ```ts
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 
-// vitest runs with cwd = crates/vox-gui/ui ; the config is one level up.
+// Resolve relative to THIS test file (robust regardless of vitest cwd):
+// src/__tests__ -> src -> ui -> vox-gui/tauri.conf.json
+const here = dirname(fileURLToPath(import.meta.url));
 const conf = JSON.parse(
-  readFileSync(resolve(process.cwd(), '../tauri.conf.json'), 'utf8'),
+  readFileSync(resolve(here, '../../../tauri.conf.json'), 'utf8'),
 );
 
 describe('Axis branding — tauri config', () => {
@@ -189,28 +200,46 @@ git commit -m "feat(axis): window title -> Axis (productName/identifier unchange
 - Modify: `crates/vox-gui/ui/src/components/layout/Sidebar.tsx` (~lines 175, 178)
 - Test: `crates/vox-gui/ui/src/components/layout/Sidebar.branding.test.tsx`
 
-- [ ] **Step 1 (gate):** Paste the current mark + the existing test's render harness so you reuse its props:
+- [ ] **Step 1 (gate):** Confirm the current mark JSX and that the render harness below still matches the real component contract:
   ```
   rg -n ">V<|>VOX<" crates/vox-gui/ui/src/components/layout/Sidebar.tsx
-  rg -n "render\(|<Sidebar|appVersion|const .*=.*\{" crates/vox-gui/ui/src/components/layout/Sidebar.test.tsx
+  rg -n "vi.mock|baseProps|surfaceRegistry.generated|@tauri-apps/api/core" crates/vox-gui/ui/src/components/layout/Sidebar.test.tsx
   ```
-  Confirm the exact glyph (`>V<`) and wordmark (`>VOX<`) JSX, and copy the prop fixture the existing `Sidebar.test.tsx` uses to render `<Sidebar>`.
+  Expected: a `>V<` glyph span and a `>VOX<` wordmark div; the existing test mocks `@tauri-apps/api/core` and `../../generated/surfaceRegistry.generated` and renders with a `baseProps` object. If the mock paths or `baseProps` shape differ from Step 2, **STOP and report** — do not guess.
 
-- [ ] **Step 2: Write the failing test** (reuse the prop fixture from `Sidebar.test.tsx` — substitute the real required props you pasted in Step 1 for `…props`):
+- [ ] **Step 2: Write the failing test.** ⚠️ `Sidebar` does NOT render without these two mocks, and the brand mark/footer only render when `mode` is NOT `'rail'` (use `'default'`). This harness is copied from the verified `Sidebar.test.tsx` fixture:
 
 ```tsx
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: vi.fn().mockResolvedValue({ display_name: 'operator@vox' }),
+}));
+vi.mock('../../generated/surfaceRegistry.generated', () => ({
+  SURFACE_REGISTRY: [
+    { viewKey: 'dashboard', navLabel: 'Dashboard', parentSurface: 'agents', tier: 'surface' },
+    { viewKey: 'settings', navLabel: 'Settings', parentSurface: null, tier: 'surface' },
+  ],
+}));
+
 import { Sidebar } from './Sidebar';
 
-const props = {
-  // paste the required props from Sidebar.test.tsx's fixture here, e.g. appVersion: '0.6.0', etc.
+const baseProps = {
+  view: 'dashboard',
+  setView: vi.fn(),
+  agentsCount: 2,
+  data: { agents: [], stream: [], alerts: [], skills: [], peers: [], kpis: {} as any, contextChips: [] },
+  mode: 'default' as const, // NOT 'rail' — the brand mark is hidden when collapsed
+  setMode: vi.fn(),
+  pushToast: vi.fn(),
+  appVersion: '0.6.0',
 } as React.ComponentProps<typeof Sidebar>;
 
 describe('Axis branding — sidebar', () => {
   it('shows the AXIS wordmark, not VOX', () => {
-    render(<Sidebar {...props} />);
+    render(<Sidebar {...baseProps} />);
     expect(screen.getByText('AXIS')).toBeTruthy();
     expect(screen.queryByText('VOX')).toBeNull();
   });
@@ -251,10 +280,11 @@ git commit -m "feat(axis): sidebar brand mark V/VOX -> A/AXIS"
 
 ```tsx
   it('footer spells out the Vox Axis full brand', () => {
-    render(<Sidebar {...props} />);
+    render(<Sidebar {...baseProps} />);
     expect(screen.getByText(/Vox Axis/)).toBeTruthy();
   });
 ```
+(Add this inside the same `describe` block from Task B2, reusing its `baseProps` and mocks.)
 
 - [ ] **Step 3: Run to verify it fails**
 
@@ -306,6 +336,11 @@ fn vox_axis_is_an_alias_for_gui() {
 
 Run: `cargo test -p vox-cli --features gui --test axis_alias`
 Expected: FAIL — `vox axis` is an unrecognized subcommand.
+
+> ✅ Verified idiomatic: this `Cli` enum already uses `#[command(visible_alias = "…")]`
+> on 9 variants (e.g. `fabrica`/`fab`, `secrets`/`clavis`, `gamify`/`ludus`). clap is
+> 4.6.1. The `gui = []` feature exists (`Cargo.toml:93`). `VoxCliRoot` + `Cli` are `pub`
+> at the crate root, so `use vox_cli::{Cli, VoxCliRoot};` resolves.
 
 - [ ] **Step 4: Add the alias** — in `crates/vox-cli/src/lib.rs`, annotate the `Gui` variant:
 
@@ -380,7 +415,7 @@ git commit -m "docs(axis): brand phrasing in GUI launch log and root help"
 ---
 title: "Axis — the Vox GUI product brand"
 description: "Branding reference: 'Axis' (full 'Vox Axis') is the product name of the Vox GUI. Launch with `vox axis` (alias of `vox gui`). Display uses 'Vox Axis'/'Axis'; identifiers use `axis`/`VoxAxis`. The `vox-gui` crate, `vox` binary, productName, and identifier are intentionally unchanged."
-category: "Contributor Guides"
+category: "Contributors"
 status: "current"
 training_eligible: true
 ---
@@ -399,9 +434,10 @@ binary, `vox-gui.exe`, `tauri.conf.json` `productName` ("Vox") and `identifier`
 (`org.vox-foundation.gui`). Renaming those is an out-of-scope follow-up.
 ```
 
-- [ ] **Step 2: Verify** the docs gate accepts the frontmatter:
+- [ ] **Step 2: Verify** the docs frontmatter gate accepts the file (this is the exact CI/pre-push gate — verified against `.github/workflows/docs-quality.yml`):
 
-Run: `vox ci docs-frontmatter` (or the repo's docs-lint gate — confirm the exact gate name with `rg -n "frontmatter|docs-lint" .github/workflows | head`). Expected: pass.
+Run: `cargo run -p vox-doc-pipeline -- --lint-only`
+Expected: pass (the lint validates `category` ∈ the enum — `"Contributors"` is valid — plus `status` and `training_eligible`). Note: the `category` MUST be exactly `"Contributors"`; `"Contributor Guides"` is rejected.
 
 - [ ] **Step 3: Commit**
 
@@ -424,7 +460,8 @@ git commit -m "docs(axis): brand reference + naming convention"
   - `cd crates/vox-gui/ui && npx vitest run src/__tests__/branding.test.ts src/components/layout/Sidebar.branding.test.tsx && npx tsc --noEmit`
   - `cargo test -p vox-cli --features gui --test axis_alias`
   - `cargo clippy -p vox-cli --features gui -- -D warnings`
-  - `cargo clippy -p vox-gui --lib -- -D warnings`
+  - `cargo run -p vox-doc-pipeline -- --lint-only` (docs frontmatter gate for Task B6)
+  - **Note:** no task changes `vox-gui` Rust (the title is a JSON value, the marks are TS), so do NOT run `cargo clippy -p vox-gui` — it forces a slow/flaky Tauri build for no covered change.
 - [ ] **Step 2:** Gather: the commit SHAs you made, the green test counts per lane, and any pre-flight-gate mismatch or deviation you hit.
 - [ ] **Step 3:** Emit EXACTLY this markdown block as your final message (fill the angle-bracket fields). Do **not** edit the ledger yourself.
 

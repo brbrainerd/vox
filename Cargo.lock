@@ -15942,6 +15942,7 @@ dependencies = [
  "vox-speech",
  "vox-telemetry",
  "walkdir",
+ "which 8.0.4",
  "workspace-hack",
  "xxhash-rust",
 ]
@@ -16905,7 +16906,6 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tokio",
- "vox-codegen",
  "vox-compiler",
  "vox-config",
  "vox-secrets",
