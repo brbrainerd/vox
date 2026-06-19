@@ -6,7 +6,8 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 rust-version.workspace = true
-description = "Central secret resolution and compatibility adapters for Vox."
+description = "Clavis: central secret resolution and OS-keyring vault, from the Vox project."
+readme = "README.md"
 
 [features]
 default = []
@@ -29,7 +30,6 @@ tokio = { workspace = true, features = ["rt", "macros", "rt-multi-thread"] }
 blake3 = { workspace = true }
 aes-gcm = { workspace = true }
 strum = { workspace = true, features = ["derive"] }
-workspace-hack = { workspace = true, optional = true }
 hex = { workspace = true }
 
 [dev-dependencies]
