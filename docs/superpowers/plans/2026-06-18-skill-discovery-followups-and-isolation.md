@@ -33,12 +33,15 @@ training_eligible: true
 
 ## Pre-flight (run once)
 - [ ] `git fetch origin main && git log --oneline -1 origin/main` — note the current tip.
+- [ ] **Baseline arch-check is green on `origin/main`.** `git switch -c tmp-baseline-check origin/main && cargo run -p vox-arch-check`. Expected: exits 0. **If it is RED**, the pre-existing baseline (vox-runtime layer, orphan crates, where-things-live, docstrings) is broken on `main` independent of this engine — STOP and report which crates fail; cherry-picking the engine will NOT fix them, and Task 1's green-gate would falsely block. Delete the temp branch afterward (`git switch - && git branch -D tmp-baseline-check`).
 - [ ] `rg -n '^ignore |^tempfile |^walkdir ' Cargo.toml` — confirm `ignore = "0.4.25"`, `tempfile = "3"`, `walkdir = "2"` are workspace deps.
 - [ ] `rg -n 'pub fn minhash|pub fn jaccard_estimate|fn band_keys' crates/vox-similarity/src/signature.rs crates/vox-similarity/src/index.rs` — confirm the functions to edit exist.
 
 ---
 
 ## Task 1: Isolate the engine onto a clean branch [SEQUENTIAL]
+
+> **⚠ Git-surgery task — escalate rather than thrash.** This is a 14-commit cherry-pick that may conflict on `layers.toml`/`where-things-live.md`/`Cargo.toml`. For a fast model this is the highest-risk task in the plan. **Rule:** if any single cherry-pick produces a conflict that is NOT a trivial "keep both rows" merge of registration lines, run `git cherry-pick --abort` and STOP with a handoff note listing the conflicting commit + files — do NOT attempt creative conflict resolution (two-strike applies immediately here, not after two tries). The orchestrating human/controller may prefer to perform this isolation directly and hand the executor the already-clean branch.
 
 **Files:** none (git only).
 
@@ -255,19 +258,17 @@ git commit -m "fix(vox-similarity): debug_assert signature length matches index 
 Cluster `score` uses only the first two members; replace with the mean pairwise jaccard. Document the single-linkage clustering semantics.
 
 **Files:**
+- Modify: `crates/vox-similarity/src/index.rs` (add shared `mean_pairwise_jaccard` helper + doc `cluster`)
+- Modify: `crates/vox-similarity/src/lib.rs` (export the helper)
 - Modify: `crates/vox-skill-discovery/src/code_miner.rs` (`mine_repeated_code` score block)
-- Modify: `crates/vox-similarity/src/index.rs` (doc comment on `cluster`)
 
-- [ ] **Step 1: Replace the score computation in `mine_repeated_code`.** Replace the `let score = if cluster.members.len() >= 2 { ... } else { 1.0 };` block with:
-
-```rust
-        let score = mean_pairwise_jaccard(&index, &cluster.members);
-```
-and add this helper above `stem_of`:
+- [ ] **Step 1: Add a SHARED helper in `vox-similarity` (so both miners and dedup reuse it — DRY).** In `crates/vox-similarity/src/index.rs`, add a free function (after the `impl LshIndex` block):
 
 ```rust
-/// Mean of pairwise minhash-jaccard over all member pairs (1.0 for a singleton).
-fn mean_pairwise_jaccard(index: &LshIndex, members: &[usize]) -> f32 {
+/// Mean of pairwise minhash-jaccard over all member pairs of an index cluster.
+/// Returns 1.0 for a singleton. Shared by discovery (code clusters) and dedup
+/// (skill clusters) so the scoring logic lives in one place.
+pub fn mean_pairwise_jaccard(index: &LshIndex, members: &[usize]) -> f32 {
     if members.len() < 2 {
         return 1.0;
     }
@@ -277,15 +278,18 @@ fn mean_pairwise_jaccard(index: &LshIndex, members: &[usize]) -> f32 {
         for j in (i + 1)..members.len() {
             let a = &index.fragment(members[i]).signature.minhash;
             let b = &index.fragment(members[j]).signature.minhash;
-            sum += vox_similarity::jaccard_estimate(a, b);
+            sum += jaccard_estimate(a, b);
             pairs += 1;
         }
     }
     sum / pairs as f32
 }
 ```
+(`jaccard_estimate` is already imported at the top of `index.rs` via `use crate::signature::{jaccard_estimate, Signature};`.)
 
-- [ ] **Step 2: Document single-linkage on `cluster`.** In `index.rs`, extend the `cluster` doc comment:
+- [ ] **Step 2: Export it.** In `crates/vox-similarity/src/lib.rs`, add `mean_pairwise_jaccard` to the `pub use index::{...}` line (alongside `Cluster, LshIndex, Match`).
+
+- [ ] **Step 3: Document single-linkage on `cluster`.** In `index.rs`, extend the `cluster` doc comment:
 
 ```rust
     /// Group indexed fragments into clusters via union-find over confirmed
@@ -294,15 +298,34 @@ fn mean_pairwise_jaccard(index: &LshIndex, members: &[usize]) -> f32 {
     /// Returns only clusters with `>= min_members`.
 ```
 
-- [ ] **Step 3: Existing `mine_finds_duplicate_block_across_two_files` still asserts `score >= 0.9`** — two identical blocks ⇒ mean pairwise jaccard = 1.0, so it passes. Run `cargo test -p vox-skill-discovery`.
+- [ ] **Step 4: Use the shared helper in `mine_repeated_code`.** Replace the `let score = if cluster.members.len() >= 2 { ... } else { 1.0 };` block with:
 
-- [ ] **Step 4: Clippy, fmt, commit.**
+```rust
+        let score = vox_similarity::mean_pairwise_jaccard(&index, &cluster.members);
+```
+
+- [ ] **Step 5: Add a unit test for the helper.** Append to the `tests` module in `index.rs`:
+
+```rust
+    #[test]
+    fn mean_pairwise_jaccard_singleton_and_identical() {
+        let mut idx = LshIndex::new(16, 4);
+        idx.insert(frag("a", "let total = price * quantity + tax", "a:1"));
+        idx.insert(frag("b", "let total = price * quantity + tax", "b:9"));
+        assert_eq!(mean_pairwise_jaccard(&idx, &[0]), 1.0);
+        assert!(mean_pairwise_jaccard(&idx, &[0, 1]) >= 0.9);
+    }
+```
+
+- [ ] **Step 6: Existing `mine_finds_duplicate_block_across_two_files` still asserts `score >= 0.9`** — two identical blocks ⇒ mean pairwise jaccard = 1.0, so it passes. Run `cargo test -p vox-similarity -p vox-skill-discovery`.
+
+- [ ] **Step 7: Clippy, fmt, commit.**
 
 ```bash
 cargo clippy -p vox-similarity -p vox-skill-discovery -- -D warnings
 cargo fmt -p vox-similarity -p vox-skill-discovery
-git add crates/vox-skill-discovery/src/code_miner.rs crates/vox-similarity/src/index.rs
-git commit -m "fix(vox-skill-discovery): representative cluster score; doc single-linkage"
+git add crates/vox-similarity/src/index.rs crates/vox-similarity/src/lib.rs crates/vox-skill-discovery/src/code_miner.rs
+git commit -m "fix(vox-similarity): shared mean_pairwise_jaccard; representative cluster score; doc single-linkage"
 ```
 
 ---
@@ -314,28 +337,7 @@ git commit -m "fix(vox-skill-discovery): representative cluster score; doc singl
 **Files:**
 - Modify: `crates/vox-skill-discovery/src/catalog.rs` (`dedup_skills`)
 
-- [ ] **Step 1: Compute the real score.** In `dedup_skills`, replace `score: opts.min_jaccard,` with a measured value. Add this helper at the bottom of `catalog.rs` (above the test module):
-
-```rust
-/// Mean pairwise minhash-jaccard over a cluster's members.
-fn cluster_mean_jaccard(index: &vox_similarity::LshIndex, members: &[usize]) -> f32 {
-    if members.len() < 2 {
-        return 1.0;
-    }
-    let mut sum = 0.0f32;
-    let mut pairs = 0u32;
-    for i in 0..members.len() {
-        for j in (i + 1)..members.len() {
-            let a = &index.fragment(members[i]).signature.minhash;
-            let b = &index.fragment(members[j]).signature.minhash;
-            sum += vox_similarity::jaccard_estimate(a, b);
-            pairs += 1;
-        }
-    }
-    sum / pairs as f32
-}
-```
-and in the `for cluster in index.cluster(2, opts.min_jaccard)` loop, compute `let score = cluster_mean_jaccard(&index, &cluster.members);` before building the `Candidate`, and use `score,` in the struct.
+- [ ] **Step 1: Compute the real score using the SHARED helper** added to `vox-similarity` in Task 6 (do NOT duplicate the logic here). In `dedup_skills`, in the `for cluster in index.cluster(2, opts.min_jaccard)` loop, compute `let score = vox_similarity::mean_pairwise_jaccard(&index, &cluster.members);` before building the `Candidate`, and replace `score: opts.min_jaccard,` with `score,`. (If executing Task 7 before Task 6, do Task 6 Steps 1–2 first — the helper + export must exist.)
 
 - [ ] **Step 2: Strengthen the existing dedup test.** In `dedup_flags_near_identical_skills`, after the existing asserts add:
 
@@ -406,6 +408,6 @@ git commit -m "test(vox-skill-discovery): use tempfile for temp dirs (unique + R
 
 ## Self-Review (author)
 - **Coverage:** review findings 1 (minhash perf, T3), 2 (ignore walking, T4), 3 (signature invariant, T5), 4 (single-linkage doc, T6), 5 (cluster score, T6), 6 (dedup score, T7), 7 (test hygiene, T8); process findings 8 (isolation, T1), 9 (vox-runtime, T2).
-- **Type consistency:** `mean_pairwise_jaccard`/`cluster_mean_jaccard` both take `(&LshIndex, &[usize]) -> f32`; `jaccard_estimate(&[u32],&[u32])->f32` unchanged; `DiscoverOptions { min_tokens, min_occurrences, .. }` consistent.
-- **Parallelism:** T3/T5/T6(index part) touch `vox-similarity`; T4/T6(miner)/T7/T8 touch `vox-skill-discovery`. T1→T2 sequential first; afterward the vox-similarity vs vox-skill-discovery tasks are two parallel lanes, but T6 spans both files → run T6 alone. Keep `[SEQUENTIAL]` unless dispatching by lane.
-</content>
+- **DRY:** the cluster-scoring helper `vox_similarity::mean_pairwise_jaccard(&LshIndex, &[usize]) -> f32` is defined ONCE in `vox-similarity` (T6) and reused by both `code_miner` (T6) and `catalog::dedup_skills` (T7) — no duplicated scoring logic.
+- **Ordering:** T1→T2 sequential first (isolation + arch). T6 adds the shared helper that **T7 depends on**, so T6 must precede T7. `jaccard_estimate(&[u32],&[u32])->f32` unchanged; `DiscoverOptions { min_tokens, min_occurrences, .. }` consistent.
+- **Parallelism:** after T1/T2, T3/T5 (vox-similarity) and T4/T8 (vox-skill-discovery) are two parallel lanes; T6 spans both crates and T7 depends on it → run T6 then T7 on one agent. Keep `[SEQUENTIAL]` unless dispatching by lane.

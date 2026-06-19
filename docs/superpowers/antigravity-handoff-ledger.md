@@ -29,6 +29,7 @@ author plan/prompt (Claude Code)  ──▶  hand off (launch statement)  ──
    - `rg -A2 "agent_deviations:" docs/superpowers/antigravity-handoff-ledger.md` — every time the agent went off-script.
 
 ## Entry schema (copy for each new handoff)
+> **`AGH-NNNN` is the reserved template sentinel.** The `vox ci handoff-ledger` lint skips any block whose id is literally `AGH-NNNN`, so this template never fails validation. Real entries use a 4-digit id (`AGH-0002`, …).
 ```yaml
 # --- AGH-NNNN ---
 id: AGH-NNNN
@@ -119,4 +120,15 @@ commits: [9564245036, 4adb4a26c3, c6f608f5bf, 5866e15639, 218363b686, 5eb3ccee4e
 **Process findings (the real risk):** (8) 73-commit kitchen-sink branch — skill-discovery can't be merged in isolation; cherry-pick onto a clean branch. (9) Unplanned `vox-runtime` L1→L2 promotion to clear a red baseline — needs human verification (correct layer, or should the vox-config dep be removed?).
 
 **Net:** the *prompt* was effective (explicit arch rules → honored; dependency-light steer → no mis-wiring). The *gaps* are about constraining the agent's environment behavior (don't touch shared config, isolate the branch, report a full manifest) — now captured as §B-2…§B-5 for the next handoff.
-</content>
+
+## §D. Pending handoffs — ready-to-paste launch statements
+> These are the next handoffs derived from the AGH-0001 review. When you dispatch one, copy its launch statement to the Antigravity runner AND open the matching ledger entry (AGH-0002/0003/0004) in §C. All three carry the §B hardenings inline. **Parallel-dispatch coordination:** the three plans hit disjoint crates, BUT plans D-1 and D-3 both append registration rows to `layers.toml` / `where-things-live.md` / `Cargo.toml`. Run **D-1 Tasks 1–2 first** (it owns the `vox-runtime` line + re-homes the engine), then start D-2 and D-3 in parallel; or serialize just those registration edits.
+
+### D-1 → AGH-0002 — Skill-discovery follow-ups + isolation
+> Execute `docs/superpowers/plans/2026-06-18-skill-discovery-followups-and-isolation.md` task-by-task (subagent-driven-development + TDD). Target: Gemini 3.5 Flash in Antigravity. Obey the plan's Operating Rules — especially: **no unplanned shared-config edits** (only the Task-2 `vox-runtime` line); **branch isolation** (Task 1 cherry-picks onto a clean branch off current `origin/main`); **full delivery manifest** in your handoff; **named hot path** (Task 3 minhash). Task 1 is git-surgery — if a cherry-pick conflict is not a trivial keep-both-rows merge, ABORT and escalate (do not thrash). Run the Pre-flight first, including the baseline arch-check-green gate.
+
+### D-2 → AGH-0003 — `vox ci handoff-ledger` lint
+> Execute `docs/superpowers/plans/2026-06-18-handoff-ledger-ci-lint.md`. Target: Gemini 3.5 Flash in Antigravity. Dependency-free line-based validator mirroring `commit_lint`; **the lint MUST skip the `AGH-NNNN` template block** (else it fails on its own ledger). Obey the plan's Operating Rules; fresh branch off `origin/main`. Verify with `cargo run -p vox-cli -- ci handoff-ledger` → `handoff-ledger passed.`
+
+### D-3 → AGH-0004 — Local pre-publish skill-review gate (subsystem B)
+> Execute `docs/superpowers/plans/2026-06-18-skill-review-gate.md`. Target: Gemini 3.5 Flash in Antigravity. New crate `vox-skill-review` (L3) reusing `vox_skill_discovery::{validate_ssot, dedup_skills}` + `vox_plugin_host::skill_parser::parse_skill_md`. The body is the **public field `bundle.skill_md`** (NOT a `body()` method). Deterministic + offline only; LLM pass deferred. Obey the plan's Operating Rules; new crate needs a `where-things-live.md` row + `orphan_exempt` (error-level arch rules). Verdict gate-before-listing: Error/Critical ⇒ NeedsHuman.

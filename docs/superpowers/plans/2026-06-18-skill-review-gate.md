@@ -26,7 +26,7 @@ Per-task ritual: `cargo test -p vox-skill-review` → `cargo clippy -p vox-skill
 ## Pre-flight (run once)
 - [ ] `git fetch origin main && git switch -c claude/skill-review-gate origin/main`.
 - [ ] `rg -n 'pub fn parse_skill_md|pub struct ParseSkillError' crates/vox-plugin-host/src/skill_parser.rs` — confirm `parse_skill_md(&str) -> Result<VoxSkillBundle, ParseSkillError>`.
-- [ ] `rg -n 'pub struct VoxSkillBundle|pub manifest|pub fn new' crates/vox-plugin-host/src/skill_bundle.rs` — confirm `VoxSkillBundle { manifest: SkillManifest, .. }` and the body accessor/field name (used in Task 4). Note the EXACT body field/method.
+- [ ] `rg -n 'pub struct VoxSkillBundle|pub manifest|pub skill_md|pub fn new' crates/vox-plugin-host/src/skill_bundle.rs` — confirm `VoxSkillBundle { manifest: SkillManifest, skill_md: String, .. }`. The body is the **public field `skill_md`** (full SKILL.md text), accessed as `&bundle.skill_md` — there is NO `body()` method.
 - [ ] `rg -n 'pub fn validate_ssot|pub fn dedup_skills' crates/vox-skill-discovery/src/lib.rs` — confirm both are re-exported at the crate root.
 - [ ] `rg -n 'where_things_live|orphan' docs/src/architecture/layers.toml` — confirm both rules are `error` (so this crate needs a WTL row + `orphan_exempt`).
 - [ ] `cargo run -p vox-arch-check` — baseline must pass on the fresh branch.
@@ -349,7 +349,7 @@ git commit -m "feat(vox-skill-review): SSOT + dedup-vs-installed checks (reuse d
 - Create: `crates/vox-skill-review/src/review.rs`
 - Modify: `crates/vox-skill-review/src/lib.rs`
 
-- [ ] **Step 1 (verify-before-use):** Confirm the `VoxSkillBundle` body accessor from Pre-flight. The code below assumes the body is reachable; if the field/method differs, substitute the real one (do NOT guess — re-grep `skill_bundle.rs`).
+- [ ] **Step 1 (verify-before-use):** Confirm from Pre-flight that the body is the public field `bundle.skill_md` (NOT a `body()` method). The code below uses `&bundle.skill_md`.
 
 - [ ] **Step 2: Write `review.rs`.**
 ```rust
@@ -396,8 +396,9 @@ pub fn review_skill(skill_md: &str, installed: &[SkillManifest]) -> ReviewReport
         }
     };
     let m = &bundle.manifest;
-    // VERIFY: replace `bundle.body()` with the real accessor confirmed in Pre-flight.
-    let body: &str = bundle.body();
+    // `skill_md` is a PUBLIC FIELD on VoxSkillBundle (the full SKILL.md text:
+    // frontmatter + body). It is NOT a method — `bundle.body()` does not exist.
+    let body: &str = &bundle.skill_md;
 
     let mut items = Vec::new();
     check_frontmatter(m, &mut items);
@@ -539,4 +540,3 @@ git commit -m "feat(vox-skill-review): vox-skill-review CLI binary"
 - **Coverage:** model + gate-before-listing verdict (T2); deterministic floor — frontmatter, stub (T3), SSOT + dedup reuse (T4); auto-tagging + orchestrator (T5); CLI (T6). Matches the research's "deterministic-floor-first, gate-before-listing, automation-is-a-floor" constraints. LLM pass + trust wiring explicitly deferred.
 - **Type consistency:** `review_skill(&str, &[SkillManifest]) -> ReviewReport`; `check_*` all take `(&_, .., &mut Vec<ReviewItem>)`; `Severity` ordering drives `verdict_for` (`>= Severity::Error`). `Candidate.members: Vec<String>` + `CandidateKind` reused from vox-skill-discovery.
 - **Offline:** no network in the core; LLM is a documented follow-up.
-</content>

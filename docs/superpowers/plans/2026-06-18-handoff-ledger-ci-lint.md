@@ -59,7 +59,13 @@ pub struct LedgerViolation {
 /// Default ledger path relative to the workspace root.
 pub const LEDGER_PATH: &str = "docs/superpowers/antigravity-handoff-ledger.md";
 
-/// Extract the text of each ```yaml fenced block that contains an `id: AGH-` line.
+/// The reserved id used by the copy-me schema template block in the ledger header.
+/// Real entries never use it, and the lint skips it (otherwise the gate would
+/// reject the documentation template itself).
+pub(crate) const TEMPLATE_ID: &str = "AGH-NNNN";
+
+/// Extract the text of each ```yaml fenced block that is a real entry — i.e. it
+/// contains an `id: AGH-` line whose value is NOT the `AGH-NNNN` template sentinel.
 /// Returns each block's inner text (without the ``` fences).
 pub(crate) fn extract_entry_blocks(markdown: &str) -> Vec<String> {
     let mut blocks = Vec::new();
@@ -74,7 +80,11 @@ pub(crate) fn extract_entry_blocks(markdown: &str) -> Vec<String> {
         }
         if in_fence && trimmed == "```" {
             in_fence = false;
-            if cur.lines().any(|l| l.trim_start().starts_with("id: AGH-")) {
+            let is_entry = cur.lines().any(|l| {
+                let t = l.trim_start();
+                t.starts_with("id: AGH-") && t.trim() != format!("id: {TEMPLATE_ID}")
+            });
+            if is_entry {
                 blocks.push(std::mem::take(&mut cur));
             }
             cur.clear();
@@ -97,6 +107,16 @@ mod tests {
         let md = "intro\n```yaml\nid: AGH-0001\noutcome: green\n```\nprose\n```yaml\nkey: not-an-entry\n```\n";
         let blocks = extract_entry_blocks(md);
         assert_eq!(blocks.len(), 1);
+        assert!(blocks[0].contains("AGH-0001"));
+    }
+
+    #[test]
+    fn skips_the_schema_template_block() {
+        // The ledger header contains a copy-me template with `id: AGH-NNNN`;
+        // the lint must NOT treat it as a real entry (else it fails on its own doc).
+        let md = "```yaml\nid: AGH-NNNN\noutcome: green | partial | failed\n```\n```yaml\nid: AGH-0001\noutcome: green\n```\n";
+        let blocks = extract_entry_blocks(md);
+        assert_eq!(blocks.len(), 1, "template block must be skipped");
         assert!(blocks[0].contains("AGH-0001"));
     }
 }
@@ -358,4 +378,3 @@ git commit -m "feat(ci): wire vox ci handoff-ledger gate"
 - **Coverage:** block extraction (T1), required keys + id format + uniqueness (T2), enum vocab outcome/verdict/category (T3), `vox ci` wiring (T4), end-to-end + negative (T5).
 - **Type consistency:** `run(&Path) -> anyhow::Result<Vec<LedgerViolation>>` mirrors `commit_lint::run`; `field`/`validate_block`/`validate_enums`/`extract_entry_blocks` consistent.
 - **Dependency-free:** no serde_yaml (research flagged it unmaintained); line-based parse only.
-</content>
