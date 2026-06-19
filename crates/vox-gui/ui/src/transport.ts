@@ -7,6 +7,7 @@ import type {
   OpenOutcome,
   OrchestratorStatus,
   RoutingSummary,
+  GraphifyStatusDto,
 } from './types/tauri';
 import type { TaskRow } from './components/surfaces/Tasks/tasksHelpers';
 
@@ -604,4 +605,9 @@ export const ACTIVITY_APPENDED_EVENT = 'vox://activity-appended';
 export function listenActivityAppended(onAppend: () => void): Promise<UnlistenFn> {
   return listen<void>(ACTIVITY_APPENDED_EVENT, () => onAppend());
 }
+
+export async function getGraphifyStatus(): Promise<GraphifyStatusDto> {
+  return invoke<GraphifyStatusDto>('vox_graphify_status');
+}
+
 

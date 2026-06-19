@@ -186,3 +186,24 @@ export interface SubmitTaskResult {
   /** Set when the daemon refused a near-duplicate; the id of the existing task. */
   duplicate_of?: string | null;
 }
+
+export interface CorpusStatusDto {
+  corpus_id: string;
+  title: string;
+  graph_exists: boolean;
+  manifest_exists: boolean;
+  node_count: number | null;
+  edge_count: number | null;
+  built_at: string | null;
+  manifest_git_sha: string | null;
+  head_git_sha: string | null;
+  stale_reasons: string[];
+  warnings: string[];
+  is_fresh: boolean;
+}
+
+export interface GraphifyStatusDto {
+  default_corpus_id: string;
+  corpora: CorpusStatusDto[];
+}
+
