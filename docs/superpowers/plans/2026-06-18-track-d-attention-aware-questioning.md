@@ -851,3 +851,40 @@ Plan complete and saved to `docs/superpowers/plans/2026-06-18-track-d-attention-
 **If executed in Claude Code instead — two options:**
 1. **Subagent-Driven (recommended)** — fresh subagent per task, review between tasks (`.agents/skills/subagent-driven-development.skill.md`).
 2. **Inline Execution** — batch with checkpoints (`.agents/skills/executing-plans.skill.md`).
+
+---
+
+## Post-Execution Audit & Ledger (2026-06-19, Claude Code review)
+
+Antigravity/Gemini 3.5 Flash executed T0–T12. This is the verified expectation-vs-reality ledger.
+
+### Ledger — what actually landed
+
+| Task | Expectation | Reality | Status |
+|---|---|---|---|
+| T0 `.agents/skills/` | mount native skills | junction present | ✅ done |
+| T1 single-source constant | re-export from policy SSOT | `budget.rs:88` re-exports | ✅ done |
+| T2 dead link | repoint to archive | `information-theoretic-questioning.md:217` fixed | ✅ done |
+| T3 status snapshot | `OrchestratorStatus.attention_budget` from `attention_snapshot()` | `types.rs:129` + `accessors.rs:16,114` | ✅ done |
+| T4 GUI host passthrough | `GuiOrchestratorStatus` field | `orchestrator.rs:171,279` | ✅ done |
+| T5 transport type | TS snapshot type | `types/tauri.ts:124,128` (note: lives in `types/tauri.ts`, not `transport.ts` as planned) | ✅ done |
+| T6 meter + mount | component **rendered** | `AttentionBudgetMeter.tsx` + threaded `App.tsx:1001 → surfaceComponents.tsx:92 → Dashboard.tsx:308`. **Fully mounted end-to-end.** | ✅ done |
+| T7/T8 spec/model uncertainty | fields + use in `evaluate_interruption` | committed `3ac52d223e`, `a171581633` | ✅ done |
+| T9 calibrator | offset + aggregate | `calibrator.rs` — **`aggregate_counts` had a silent-no-op bug** (see below) | ⚠️ fixed in review |
+| T10 feed offsets to config | `apply_learned_offsets` | present; improved over plan with real `interruption_channel_for_surface` SSOT helper | ✅ pure fn done |
+| T11 rider prompt | reason-over-solutions + spec/model split | `chat_socrates_meta.rs:90-97` — matches plan verbatim | ✅ done |
+| T12a/b withheld question | payload + persist | `WithheldQuestion` + `questioning_policy_metric_payload(.. withheld)` writes `withheld_question` into the DB metric payload | ✅ persisted (UI consumer pending) |
+
+### Reality gaps found in review
+
+1. **[FIXED 2026-06-19, commit `4a3c77650c`] Calibrator aggregated phantom strings.** `aggregate_counts` matched `"Accepted"`/`"Answered"` (neither is a real `ApprovalOutcome` variant — the real ones are `Approved`/`Rejected`/`Modified`/`AutoApproved`/`TimedOut`) and looked for the suppressed `PolicyDeferred`/`PolicyProceedAuto` values in the `outcome` slot when they actually live in the `event_type` column. Against real `attention_events` rows, `accepted` was **always 0** and `suppressed` **never matched** — the calibrator was a silent no-op. The 6 green tests passed only because they fed fabricated strings. Fixed to take `(channel, outcome, event_type)` and match the true PascalCase variants; added a regression test for the phantom strings.
+
+2. **[OPEN — the real ceiling gap] The learn loop is closed only as pure functions.** Nothing in production calls `aggregate_counts` / `apply_learned_offsets`: there is no periodic job that reads recent `attention_events`, aggregates, and writes the result into the running `OrchestratorConfig.interruption_calibration`. Audit #4 is therefore **not yet closed in the running system** — only in unit-test space. This matches the plan's explicit T10 carve-out ("hot-path config mutation … out of scope for this atomic task"), but the Antigravity handoff overstated it as "closed the loop." **To reach the ceiling, a follow-up task must wire the hot path** (read events on an interval → aggregate → `apply_learned_offsets` → write under the config lock). Recommended as Track D Phase F.
+
+3. **[MINOR] `ChatClarification` collapses into `inline_assist_gain_offset_bits`** — chat and inline-assist cannot be calibrated independently because `InterruptionCalibrationConfig` has no chat-specific offset field. Acceptable for v1; add a field if they diverge.
+
+4. **[HYGIENE] One stray uncommitted whitespace-only edit** to `interruption_policy.rs` and substantial unrelated working-tree churn on the branch at review time. Not a Track D defect; flag for branch hygiene before merge.
+
+### Expectation ceiling
+
+Track D's user-facing goals are **met**: the attention budget is visible in the GUI (real focus depth via the live snapshot), the rider now reasons over the solution space, withheld questions are persisted for opt-in, and the de-split-brain fixes landed. The **one substantive gap to the ceiling** is item #2 — making the calibration loop actually adapt the running config (Phase F), plus a small UI consumer for the persisted `withheld_question` payload (item under T12).
