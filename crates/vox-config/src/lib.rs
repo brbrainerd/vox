@@ -14,6 +14,7 @@ pub mod config_watch;
 pub mod env_parse;
 pub mod graphify;
 pub mod inference;
+pub mod model_pool;
 pub mod model_routing;
 pub mod operator_registry;
 pub mod paths;

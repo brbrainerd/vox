@@ -39,6 +39,9 @@ pub struct VoxConfig {
     /// Max retry attempts on a 429 before surfacing the error.
     pub llm_retry_max_attempts: u32,
     pub agent_provider: String,
+    /// Operator-curated allowed-model pool (see model_pool.rs). Empty ⇒ all enabled.
+    #[serde(default)]
+    pub model_pool: crate::model_pool::ModelPool,
 }
 
 impl Default for VoxConfig {
@@ -76,6 +79,7 @@ impl Default for VoxConfig {
                 4
             },
             agent_provider: "openclaw".to_string(),
+            model_pool: Default::default(),
         }
     }
 }
