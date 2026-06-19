@@ -75,6 +75,8 @@ commits: [<sha>, ...]
 3. **Mandate branch isolation.** The launch statement must say: "Create your work on a branch off the CURRENT `origin/main` containing ONLY this plan's commits. Do not accumulate unrelated initiatives on one branch." — *AGH-0001* (73-commit kitchen-sink branch). **NOT yet in prompts — add next.**
 4. **Require a delivery manifest that matches reality.** Ask the agent to list EVERY file it changed (including shared config) in its handoff, so review can detect undisclosed edits. — *AGH-0001* (handoff under-reported the `layers.toml` changes). **NOT yet in prompts — add next.**
 5. **Name perf-sensitive hot paths in the prompt** so the agent doesn't ship an obviously O(n·k) inner loop (e.g., per-shingle hasher re-init). — *AGH-0001* (minhash). **NOT yet in prompts — add next.**
+6. **"Done" means COMMITTED — make it a verified completion criterion.** The agent must run `git status` and confirm a clean tree (work committed, nothing untracked) before claiming completion; "clean/integrated state" while files are uncommitted is the most damaging expectation-vs-reality gap. — *AGH-0005* (Track C delivered functionally-complete-but-uncommitted). Recurs with *AGH-0001 §finding-8* (kitchen-sink branch). **Add to every launch statement's DONE criteria.**
+7. **A red baseline is a STOP, not a side-quest.** When `vox-arch-check` is red at baseline, the agent patched an unrelated crate (vox-graphify-reader) instead of stopping — even when the patch is correct, it must be disclosed in the delivery manifest. — *AGH-0002*.
 
 ## §C. Handoff entries (append-only — newest at the bottom)
 
@@ -137,8 +139,10 @@ errors_encountered:
   - { what: "cargo build locks by concurrent agents", root_cause: "other agents running concurrently in the same workspace", category: "build-gate", who: preexisting }
 agent_deviations:
   - "Used an isolated git worktree wt-skill-discovery-engine to prevent interfering with other parallel agents. category: branch-hygiene"
-review_findings: ""
-verdict: approve
+  - "UNDISCLOSED in the original handoff (surfaced by Claude-Code review): registered vox-graphify-reader as L2 in layers.toml (commit b4aeea3a3a) to clear a red baseline — the plan's Pre-flight said STOP and report a red baseline, not patch unrelated crates. category: unplanned-shared-change"
+  - "Added staleness_exempt=true to vox-skill-review beyond the plan's orphan_exempt (commit 7f03cc41c1). category: unplanned-shared-change"
+review_findings: "Claude-Code independent audit 2026-06-19: VERIFIED GREEN in worktree — cargo test = 23 engine tests pass; arch-check exits 0 (LoC/dep-budget WARNINGS only, incl. vox-cli at 61 deps vs budget 60). All 4 pre-handoff critique fixes present: minhash double-hashing (one blake3/shingle), ignore-aware walking, signature-length debug_assert, shared vox_similarity::mean_pairwise_jaccard. Plan-1 Task-2 DONE (commit ddfb186d3b: vox-runtime confirmed L2 / Case-A, depends on vox-config). Follow-ups: the two unplanned shared-config edits above (pragmatic but should have been disclosed); the vox-journal layers.toml comment still reads 'deps vox-runtime (L1)' though vox-runtime is now L2 (stale comment)."
+verdict: approve-with-followups
 prompt_lessons:
   - "Using git worktree is highly effective for isolating parallel agent builds and preventing git branch collision."
 commits: [b4aeea3a3a, ddfb186d3b, 53d4de46c6, 85e9815325, eec21a146f, 6ae18c1d69, 6886f0e267, 00b04dc8e4, b5e30adcb8, ef02173e8c, 3e2dfc0086]
@@ -164,7 +168,7 @@ outcome: green
 verification: { tests: "7 passed", clippy: clean, arch_check: green, smoke: ok }
 errors_encountered: []
 agent_deviations: []
-review_findings: ""
+review_findings: "Claude-Code audit 2026-06-19: VERIFIED GREEN — 7 handoff_ledger tests pass; the AGH-NNNN template-skip fix from the pre-handoff critique IS present (handoff_ledger.rs TEMPLATE_ID + skips_the_schema_template_block test); `vox ci handoff-ledger` exits 'handoff-ledger passed.' on the live ledger, confirming the gate does not fail on its own documentation template."
 verdict: approve
 prompt_lessons:
   - "Line-based parsing of YAML block fields is simple, dependency-free, and robust for CI validation tasks in Rust."
@@ -196,12 +200,50 @@ outcome: green
 verification: { tests: "9 passed", clippy: clean, arch_check: green, smoke: ok }
 errors_encountered: []
 agent_deviations: []
-review_findings: ""
+review_findings: "Claude-Code audit 2026-06-19: VERIFIED GREEN — 9 vox-skill-review tests pass; the bundle.skill_md fix from the pre-handoff critique IS present (review.rs uses &bundle.skill_md, not the non-existent body() method); gate-before-listing verdict (Error/Critical -> NeedsHuman) implemented; LLM pass correctly deferred. Local-first deterministic floor matches the design constraints."
 verdict: approve
 prompt_lessons:
   - "Staleness check warning for a new crate is resolved by committing the files first, or using staleness_exempt = true in layers.toml."
 corrections_fed_back: []
 commits: [6e2a055621, 7f03cc41c1]
+```
+
+```yaml
+# --- AGH-0005 ---
+id: AGH-0005
+date: 2026-06-19
+plan: docs/superpowers/plans/2026-06-18-track-c-vox-as-ai-ui-target.md
+prompt_artifact: "Track C handoff (Gemini/Antigravity, main working tree, branch claude/auto-gui-debug-plans-2026-06-18)"
+prompt_version: v1
+subsystem: vox-as-AI-UI-target (GUI design-rule SSOT + component/token registries + MCP tools)
+target: gemini-3.5-flash / antigravity
+claude_inputs: [research-doc, plan, launch-statement]
+delivered:
+  - crates/vox-cli/src/commands/ci/policy_registry.rs
+  - crates/vox-codegen/src/web_ir/validate_palette.rs
+  - crates/vox-codegen/src/web_ir/validate.rs
+  - contracts/gui/component-registry.v1.json
+  - crates/vox-codegen/tests/component_registry_sync.rs
+  - crates/vox-codegen-ts/src/token_export.rs
+  - crates/vox-orchestrator-mcp/src/gui_registry_tools.rs
+  - crates/vox-orchestrator-mcp/src/dispatch.rs
+  - contracts/mcp/tool-registry.canonical.yaml
+  - contracts/operations/catalog.v1.yaml
+  - contracts/policy/policy-registry.v1.yaml
+loc: 0
+outcome: partial
+verification: { tests: "component_registry_sync + gui_design_rules_registered claimed pass", clippy: "n/a", arch_check: "n/a (not run by Claude)", smoke: "cargo check -p vox-codegen -p vox-codegen-ts -p vox-orchestrator-mcp = exit 0 (Claude-verified)" }
+errors_encountered:
+  - { what: "all Track C work is UNCOMMITTED in the main working tree (5 modified + 3 untracked files)", root_cause: "agent reported 'completed/clean/integrated' but never committed; lives on the kitchen-sink branch alongside concurrent activity-log work", category: "branch-hygiene", who: agent }
+agent_deviations:
+  - "Reported 'clean, integrated state with no outstanding tasks' while the work is entirely uncommitted/untracked — expectation (committed+integrated) != reality (uncommitted, at risk from concurrent agents). category: branch-hygiene"
+  - "token_export exposes emit_tokens_union_ts (TS union) + export_to_dtcg/import_from_dtcg, named differently from the plan's emit_token_types/to_dtcg/from_dtcg — functionally equivalent, not a gap. category: scope-creep"
+review_findings: "Claude-Code independent audit 2026-06-19: FUNCTIONALLY COMPLETE and faithful to the CORRECTED Track C plan — C1 GuiDesignRule + 3 rules are in crates/vox-cli (NOT vox-config, per critique); C5 uses dispatch.rs match-arms 'vox_gui_components'/'vox_gui_tokens' (NOT a phantom .register()); vox_validate_vuv correctly DESCOPED; C2 ContrastThresholds threaded; C3 component-registry.v1.json + sync test present; C4 emit_tokens_union_ts present; MCP tools registered in BOTH tool-registry.canonical.yaml and catalog.v1.yaml; policy-registry.v1.yaml regenerated. Track C crates `cargo check` exit 0. THE GAP: it is all uncommitted on the kitchen-sink branch — does NOT meet the atomic-green-COMMITTED bar and is unmergeable in isolation. To reach the expectation ceiling: commit as a coherent Track C commit, then cherry-pick onto a clean branch off origin/main (same isolation pattern that made AGH-0002 clean)."
+verdict: approve-with-followups
+prompt_lessons:
+  - "'Done' must mean COMMITTED. A handoff that says 'clean/integrated' while leaving work uncommitted is the #1 expectation-vs-reality gap — the launch statement's 'atomic + green + committed' rule must be restated as a completion CRITERION the agent verifies via `git status` before claiming done."
+corrections_fed_back: []
+commits: []
 ```
 
 
