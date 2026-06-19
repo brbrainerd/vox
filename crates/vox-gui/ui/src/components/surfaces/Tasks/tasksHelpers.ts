@@ -1,12 +1,12 @@
 export interface TaskRow {
-  id: number;
+  id: number | string;
   description: string;
   priority: string; // 'urgent' | 'normal' | 'background' (normalized by the Tauri DTO)
   lifecycle: string; // 'queued' | 'in_progress' | 'blocked' | 'completed' | 'unknown'
   agent_id: number | null;
   session_id: string | null;
   estimated_complexity: number;
-  depends_on: number[];
+  depends_on: (number | string)[];
   write_files: string[];
   remote_node: string | null;
 }
@@ -24,7 +24,8 @@ export function groupTasks(rows: TaskRow[]): GroupedTasks {
     .filter(t => t.lifecycle !== 'in_progress')
     .sort(
       (a, b) =>
-        (PRIORITY_ORDER[a.priority] ?? 1) - (PRIORITY_ORDER[b.priority] ?? 1) || a.id - b.id,
+        (PRIORITY_ORDER[a.priority] ?? 1) - (PRIORITY_ORDER[b.priority] ?? 1) ||
+        String(a.id).localeCompare(String(b.id)),
     );
   return { inProgress, queued };
 }
@@ -34,8 +35,8 @@ export function groupTasks(rows: TaskRow[]): GroupedTasks {
  * same files. The orchestrator serializes these via file locks (and may split
  * VCS changes); surfacing it tells the user why two tasks won't run in parallel.
  */
-export function findWriteOverlaps(rows: TaskRow[]): Map<number, number[]> {
-  const byFile = new Map<string, number[]>();
+export function findWriteOverlaps(rows: TaskRow[]): Map<string | number, (string | number)[]> {
+  const byFile = new Map<string, (string | number)[]>();
   for (const t of rows) {
     for (const f of t.write_files) {
       const list = byFile.get(f) ?? [];
@@ -43,13 +44,13 @@ export function findWriteOverlaps(rows: TaskRow[]): Map<number, number[]> {
       byFile.set(f, list);
     }
   }
-  const out = new Map<number, number[]>();
+  const out = new Map<string | number, (string | number)[]>();
   for (const ids of byFile.values()) {
     if (ids.length < 2) continue;
     for (const id of ids) {
       const others = ids.filter(o => o !== id);
       const cur = out.get(id) ?? [];
-      out.set(id, [...new Set([...cur, ...others])].sort((a, b) => a - b));
+      out.set(id, [...new Set([...cur, ...others])].sort((a, b) => String(a).localeCompare(String(b))));
     }
   }
   return out;

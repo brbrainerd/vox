@@ -7,8 +7,9 @@ import { Button } from '../../ui/Button';
 import { EmptyState } from '../../ui/EmptyState';
 import { StatusPill } from '../../ui/StatusPill';
 import { DataTable } from '../../ui/DataTable';
-import { TaskRow, cyclePriority, filterBySession, findWriteOverlaps } from './tasksHelpers';
+import { TaskRow, filterBySession, findWriteOverlaps } from './tasksHelpers';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
+import { TaskComposer } from './TaskComposer';
 
 interface StoredSession { id: string; title: string }
 
@@ -23,6 +24,13 @@ function loadSessionTitles(): Record<string, string> {
   }
 }
 
+interface HopperTaskDto {
+  item_id: string;
+  intent: string;
+  priority: number;
+  state: string;
+}
+
 export function TasksView({
   pushToast: _pushToast,
   gamifyEnabled = false,
@@ -33,18 +41,27 @@ export function TasksView({
   const [rows, setRows] = useState<TaskRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [draft, setDraft] = useState('');
-  const [newTask, setNewTask] = useState('');
   const [busy, setBusy] = useState(false);
   const [sessionFilter, setSessionFilter] = useState<string | null>(null);
   const mounted = useRef(true);
 
   const refresh = useCallback(async () => {
     try {
-      const data = await invoke<TaskRow[]>('list_orchestrator_tasks');
+      const data = await invoke<HopperTaskDto[]>('hopper_list');
       if (mounted.current) {
-        setRows(data);
+        const mapped: TaskRow[] = data.map(dto => ({
+          id: dto.item_id,
+          description: dto.intent,
+          priority: dto.priority === 2 ? 'urgent' : dto.priority === 0 ? 'background' : 'normal',
+          lifecycle: dto.state === 'assigned' ? 'in_progress' : dto.state === 'inbox' ? 'queued' : dto.state === 'done' ? 'completed' : 'unknown',
+          agent_id: null,
+          session_id: null,
+          estimated_complexity: 1,
+          depends_on: [],
+          write_files: [],
+          remote_node: null,
+        }));
+        setRows(mapped);
         setError(null);
       }
     } catch (e) {
@@ -81,31 +98,17 @@ export function TasksView({
     [refresh]
   );
 
-  const addTask = () => {
-    const description = newTask.trim();
-    if (!description) return;
-    setNewTask('');
+  const addTask = (intent: string) => {
     act(async () => {
-      await invoke('submit_orchestrator_task', {
-        input: { description, files: [], priority: null, session_id: null },
-      });
-      void recordGamifyGuiEvent('task_submitted', { description }, { enabled: gamifyEnabled });
+      await invoke('hopper_submit', { intent, affinity: [] });
+      void recordGamifyGuiEvent('task_submitted', { description: intent }, { enabled: gamifyEnabled });
     });
   };
 
-  const saveEdit = (id: number) => {
-    const description = draft.trim();
-    setEditingId(null);
-    if (!description) return;
-    act(() => invoke('edit_orchestrator_task', { taskId: id, description }));
-  };
+  const remove = (id: string | number) => act(() => invoke('hopper_cancel', { itemId: String(id) }));
 
-  const remove = (id: number) => act(() => invoke('cancel_orchestrator_task', { taskId: id }));
-
-  const reprioritize = (t: TaskRow) =>
-    act(() =>
-      invoke('reorder_orchestrator_task', { taskId: t.id, priority: cyclePriority(t.priority) })
-    );
+  const reprioritize = (id: string | number, priority: number) =>
+    act(() => invoke('hopper_reprioritize', { itemId: String(id), priority }));
 
   const sessionTitles = loadSessionTitles();
   const presentSessions = Array.from(
@@ -118,27 +121,28 @@ export function TasksView({
     {
       key: 'priority',
       header: 'Priority',
-      width: 100,
+      width: 110,
       render: (r: TaskRow) => (
-        <button
-          type="button"
-          onClick={() => reprioritize(r)}
-          className="focus:outline-none focus:ring-1 focus:ring-brass/40 rounded"
-          aria-label={`Cycle priority for task ${r.id}, current priority: ${r.priority}`}
+        <select
+          value={r.priority === 'urgent' ? 2 : r.priority === 'background' ? 0 : 1}
+          onChange={(e) => {
+            const val = Number(e.target.value);
+            reprioritize(r.id, val);
+          }}
+          disabled={busy}
+          className="bg-zinc-900 text-zinc-100 border border-white/10 rounded px-1.5 py-0.5 text-xs outline-none focus:border-brass/50 cursor-pointer"
         >
-          <StatusPill
-            tone={r.priority === 'urgent' ? 'fail' : r.priority === 'background' ? 'neutral' : 'warn'}
-            label={r.priority}
-            size="xs"
-          />
-        </button>
+          <option value={2}>Urgent</option>
+          <option value={1}>Normal</option>
+          <option value={0}>Background</option>
+        </select>
       ),
     },
     {
       key: 'id',
       header: 'Task ID',
       width: 80,
-      render: (r: TaskRow) => <span className="font-mono text-zinc-400">#{r.id}</span>,
+      render: (r: TaskRow) => <span className="font-mono text-zinc-400">#{r.id.toString().slice(0, 8)}</span>,
     },
     {
       key: 'description',
@@ -146,40 +150,21 @@ export function TasksView({
       render: (r: TaskRow) => (
         <div className="flex flex-col gap-1 min-w-0">
           <div className="flex items-center gap-2">
-            {editingId === r.id ? (
-              <input
-                type="text"
-                value={draft}
-                onChange={e => setDraft(e.target.value)}
-                onBlur={() => saveEdit(r.id)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') saveEdit(r.id);
-                  if (e.key === 'Escape') setEditingId(null);
-                }}
-                className="bg-zinc-950 border border-white/10 rounded px-2 py-1 text-zinc-100 w-full outline-none focus:border-brass text-[13px]"
-                autoFocus
-              />
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingId(r.id);
-                  setDraft(r.description);
-                  if (r.write_files && r.write_files.length > 0) {
-                    useLudusStore.getState().setFocusedFile(r.write_files[0]);
-                  }
-                }}
-                className="hover:text-brass cursor-pointer truncate text-[13px] text-zinc-200 bg-transparent border-0 p-0 text-left w-full outline-none focus-visible:ring-1 focus-visible:ring-brass"
-                title={r.description}
-                aria-label={`Edit task description: ${r.description}`}
-              >
-                {r.description}
-              </button>
-            )}
+            <span
+              onClick={() => {
+                if (r.write_files && r.write_files.length > 0) {
+                  useLudusStore.getState().setFocusedFile(r.write_files[0]);
+                }
+              }}
+              className="text-[13px] text-zinc-200 truncate"
+              title={r.description}
+            >
+              {r.description}
+            </span>
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-600">
-              #{r.id}
+              #{r.id.toString().slice(0, 8)}
               {r.agent_id != null ? ` · agent ${r.agent_id}` : ''}
               {' · '}
               {r.lifecycle}
@@ -253,23 +238,7 @@ export function TasksView({
         </Button>
       </div>
 
-      <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2">
-        <Icon.plus className="size-4 text-brass" />
-        <input
-          type="text"
-          value={newTask}
-          onChange={e => setNewTask(e.target.value)}
-          placeholder="Add a task…"
-          aria-label="Add a task"
-          onKeyDown={e => {
-            if (e.key === 'Enter') addTask();
-          }}
-          className="flex-1 bg-transparent text-[13px] text-zinc-100 placeholder:text-zinc-600 outline-none"
-        />
-        <Button variant="primary" size="sm" onClick={addTask} disabled={busy || !newTask.trim()}>
-          Add
-        </Button>
-      </div>
+      <TaskComposer onSubmit={addTask} busy={busy} />
 
       {presentSessions.length > 1 && (
         <div className="flex items-center gap-1.5 flex-wrap">
@@ -324,3 +293,4 @@ export function TasksView({
     </div>
   );
 }
+

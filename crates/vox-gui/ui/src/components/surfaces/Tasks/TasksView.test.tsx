@@ -6,28 +6,16 @@ import { invoke } from '@tauri-apps/api/core';
 
 const MOCK_TASKS = [
   {
-    id: 1,
-    description: 'Task 1',
-    priority: 'normal',
-    lifecycle: 'in_progress',
-    agent_id: null,
-    session_id: null,
-    estimated_complexity: 1,
-    depends_on: [],
-    write_files: [],
-    remote_node: null,
+    item_id: 'task-1',
+    intent: 'Task 1',
+    priority: 1,
+    state: 'assigned',
   },
   {
-    id: 2,
-    description: 'Task 2',
-    priority: 'urgent',
-    lifecycle: 'queued',
-    agent_id: null,
-    session_id: null,
-    estimated_complexity: 1,
-    depends_on: [],
-    write_files: [],
-    remote_node: null,
+    item_id: 'task-2',
+    intent: 'Task 2',
+    priority: 2,
+    state: 'inbox',
   },
 ];
 
