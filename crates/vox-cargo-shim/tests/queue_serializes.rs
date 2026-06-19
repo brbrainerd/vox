@@ -1,36 +1,24 @@
-//! Two concurrent build invocations in the same worktree must both go through
-//! the fair queue (serializing on the run lock) and each must emit a metric.
+//! Two concurrent builds must serialize under the machine-wide concurrency cap
+//! and each emit a metric + log line to the (isolated) global broker root.
+//!
+//! `VOX_BROKER_HOME` points the broker at a temp dir so the test neither touches
+//! the real `~/.vox/build-broker` nor competes with real machine builds.
 
 use std::fs;
+use std::path::PathBuf;
 use std::process::Command;
 use std::thread;
 
-fn shim_bin() -> std::path::PathBuf {
-    std::path::PathBuf::from(env!("CARGO_BIN_EXE_cargo"))
-}
-
-fn walk(root: &std::path::Path) -> Vec<std::path::PathBuf> {
-    let mut out = vec![];
-    if let Ok(rd) = fs::read_dir(root) {
-        for e in rd.flatten() {
-            let p = e.path();
-            if p.is_dir() {
-                out.extend(walk(&p));
-            } else {
-                out.push(p);
-            }
-        }
-    }
-    out
+fn shim_bin() -> PathBuf {
+    PathBuf::from(env!("CARGO_BIN_EXE_cargo"))
 }
 
 #[test]
-fn two_builds_serialize_and_emit_metrics() {
+fn two_builds_serialize_under_global_cap() {
     let tmp = tempfile::tempdir().unwrap();
+    let broker_home = tmp.path().join("broker");
     let wt = tmp.path().join("wt");
-    fs::create_dir_all(wt.join(".cargo")).unwrap();
     fs::create_dir_all(wt.join("src")).unwrap();
-    fs::write(wt.join(".cargo/config.toml"), "[env]\n").unwrap();
     fs::write(
         wt.join("Cargo.toml"),
         "[package]\nname = \"qtest\"\nversion = \"0.0.0\"\nedition = \"2021\"\n",
@@ -38,38 +26,32 @@ fn two_builds_serialize_and_emit_metrics() {
     .unwrap();
     fs::write(wt.join("src/lib.rs"), "").unwrap();
 
-    let spawn = |wt: std::path::PathBuf| {
+    let spawn = |broker_home: PathBuf, wt: PathBuf| {
         thread::spawn(move || {
             Command::new(shim_bin())
                 .args(["check"])
                 .current_dir(&wt)
+                .env("VOX_BROKER_HOME", &broker_home)
+                .env("VOX_BROKER_MAX_CONCURRENT", "1") // force serialization
                 .status()
                 .unwrap()
                 .success()
         })
     };
 
-    let h1 = spawn(wt.clone());
-    let h2 = spawn(wt.clone());
-    let ok1 = h1.join().unwrap();
-    let ok2 = h2.join().unwrap();
-    assert!(ok1 && ok2, "both checks should succeed");
+    let h1 = spawn(broker_home.clone(), wt.clone());
+    let h2 = spawn(broker_home.clone(), wt.clone());
+    assert!(
+        h1.join().unwrap() && h2.join().unwrap(),
+        "both checks succeed"
+    );
 
-    let mut found = false;
-    for entry in walk(&wt.join(".vox/build-queue")) {
-        if entry
-            .file_name()
-            .map(|n| n == "metrics.jsonl")
-            .unwrap_or(false)
-        {
-            found = true;
-            let lines = fs::read_to_string(&entry).unwrap();
-            assert_eq!(
-                lines.lines().count(),
-                2,
-                "expected 2 metric lines, got: {lines}"
-            );
-        }
-    }
-    assert!(found, "metrics.jsonl not written under .vox/build-queue");
+    let log = fs::read_to_string(broker_home.join("broker.log")).unwrap_or_default();
+    assert_eq!(
+        log.lines().count(),
+        2,
+        "expected 2 broker.log lines, got:\n{log}"
+    );
+    let metrics = fs::read_to_string(broker_home.join("metrics.jsonl")).unwrap_or_default();
+    assert_eq!(metrics.lines().count(), 2, "expected 2 metric lines");
 }

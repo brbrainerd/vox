@@ -1,8 +1,9 @@
-//! Scoped, daemonless `cargo` shim for the vox build broker.
+//! Daemonless `cargo` shim for the vox build broker.
 //!
-//! Placed on PATH (for IDE-spawned terminals only) ahead of the rustup cargo
-//! proxy. For build subcommands inside a vox worktree it takes a fair per-worktree
-//! queue ticket, runs the real cargo, and records a metric. For everything else —
+//! Placed on PATH ahead of the rustup cargo proxy. For build subcommands it
+//! acquires a slot from a **machine-wide concurrency cap** (so N agents across
+//! many worktrees can't all build at once and saturate the machine), runs the
+//! real cargo, and records a metric to a single global log. For everything else —
 //! or on any error — it transparently runs the real cargo. The broker is never a
 //! hard dependency: a misconfiguration degrades to plain cargo.
 //!
@@ -11,7 +12,7 @@
 use std::path::PathBuf;
 use std::process::Command;
 use std::time::Instant;
-use vox_build_queue::{env_filter, metrics, queue, resolve};
+use vox_build_queue::{env_filter, global, metrics, resolve};
 
 /// Env var tracking shim nesting depth; a hard backstop against fork bombs.
 const DEPTH_VAR: &str = "VOX_BROKER_DEPTH";
@@ -22,10 +23,10 @@ const DEPTH_VAR: &str = "VOX_BROKER_DEPTH";
 fn real_cargo() -> Option<PathBuf> {
     let own = std::env::current_exe().ok()?;
     let own_canon = own.canonicalize().ok();
-    if let Some(proxy) = resolve::cargo_home_proxy() {
-        if proxy.canonicalize().ok() != own_canon {
-            return Some(proxy);
-        }
+    if let Some(proxy) = resolve::cargo_home_proxy()
+        && proxy.canonicalize().ok() != own_canon
+    {
+        return Some(proxy);
     }
     let path = std::env::var("PATH").unwrap_or_default();
     resolve::resolve_real_cargo(&path, &own)
@@ -77,63 +78,50 @@ fn main() {
     }
 
     let sub = args.first().map(String::as_str).unwrap_or("");
-    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    let worktree = resolve::worktree_root_of(&cwd);
 
-    // Fast path: non-build subcommand or outside any worktree -> direct exec.
-    if !resolve::is_build_subcommand(sub) || worktree.is_none() {
+    // Fast path: non-build subcommand -> direct exec, no coordination.
+    if !resolve::is_build_subcommand(sub) {
         exec_real(&real, &args, depth);
     }
-    let worktree = worktree.unwrap();
 
-    // Queued path. Any error falls back to a plain exec.
-    match run_queued(&real, &args, sub, &cwd, &worktree, depth) {
+    // Coordinated path: machine-wide concurrency cap. Any error falls back to a
+    // plain exec so the broker is never a hard dependency.
+    match run_global(&real, &args, sub, depth) {
         Ok(code) => std::process::exit(code),
         Err(e) => {
-            eprintln!("vox-broker: queue error ({e}); running cargo directly");
+            eprintln!("vox-broker: coordinator error ({e}); running cargo directly");
             exec_real(&real, &args, depth);
         }
     }
 }
 
-fn run_queued(
-    real: &PathBuf,
-    args: &[String],
-    sub: &str,
-    cwd: &std::path::Path,
-    worktree: &std::path::Path,
-    depth: u32,
-) -> anyhow::Result<i32> {
-    let queue_root = worktree.join(".vox/build-queue");
-    let wt_hash = queue::hash_path(worktree);
-    let q = queue::FairQueue::new(&queue_root, &wt_hash)?;
-    // Logs live in the same per-worktree hash dir as the queue files, so
-    // `metrics::summarize_worktree` (which scans `<hash>/metrics.jsonl`) sees them.
-    let log_dir = queue_root.join(&wt_hash);
+fn run_global(real: &PathBuf, args: &[String], sub: &str, depth: u32) -> anyhow::Result<i32> {
+    let root = global::global_root();
+    let n = global::max_concurrent();
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
 
     let env = env_filter::passthrough_env(std::env::vars());
     let argv_hash = env_filter::argv_hash(args);
     let env_hash = env_filter::env_hash(&env);
-    let key = format!("{argv_hash:016x}-{env_hash:016x}");
+    // Identity includes cwd so the same command in the same dir coalesces, but
+    // the same command in different worktrees counts as distinct work.
+    let key = format!("{argv_hash:016x}-{env_hash:016x}-{}", cwd.display());
 
-    let seq = q.take_ticket(&key)?;
-    let would_coalesce = q.coalesce_opportunity(seq, &key);
+    let (_inflight, would_coalesce) = global::register_inflight(&root, &key)?;
 
-    let pos = q.position(seq);
-    if pos > 0 {
+    let t_wait = Instant::now();
+    let (_slot, _waited_ms, busy) = global::acquire_slot(&root, n)?;
+    let queue_wait_ms = t_wait.elapsed().as_millis() as u64;
+    if busy > 0 {
         eprintln!(
-            "vox-broker: queued (position {pos}) for {}",
-            worktree.display()
+            "vox-broker: queued (cap {n}, {busy} build(s) ahead) — {sub} in {}",
+            cwd.display()
         );
     }
 
-    let t_wait = Instant::now();
-    let _ticket = q.acquire(seq)?;
-    let queue_wait_ms = t_wait.elapsed().as_millis() as u64;
-
     let t_run = Instant::now();
     let mut cmd = Command::new(real);
-    cmd.args(args).current_dir(cwd);
+    cmd.args(args).current_dir(&cwd);
     cmd.env_clear();
     for (k, v) in &env {
         cmd.env(k, v);
@@ -149,6 +137,7 @@ fn run_queued(
     let status = cmd.status()?;
     let ran_ms = t_run.elapsed().as_millis() as u64;
 
+    let worktree = resolve::worktree_root_of(&cwd).unwrap_or_else(|| cwd.clone());
     let rec = metrics::MetricRecord {
         ts_ms: metrics::now_ms(),
         worktree: worktree.display().to_string(),
@@ -159,20 +148,19 @@ fn run_queued(
         env_hash,
         would_coalesce,
     };
-    let _ = metrics::append(&log_dir.join("metrics.jsonl"), &rec);
-
-    // Human-readable surface so the broker's effect is observable at a glance.
-    // `waited` > 0 marks a contention event the queue absorbed instead of
-    // letting cargo block opaquely on its target lock.
+    // One global metrics + log location (outside any repo → git-proof, and a
+    // single place to observe ALL worktrees' build activity).
+    let _ = metrics::append(&root.join("metrics.jsonl"), &rec);
     let line = format!(
-        "{ts} {sub:<6} waited={queue_wait_ms:>6}ms ran={ran_ms:>7}ms queued_behind={pos} coalesce={would_coalesce} exit={code}\n",
+        "{ts} {sub:<6} wait={queue_wait_ms:>6}ms ran={ran_ms:>7}ms ahead={busy} cap={n} coalesce={would_coalesce} exit={code} {wt}\n",
         ts = rec.ts_ms,
         code = status.code().unwrap_or(-1),
+        wt = worktree.display(),
     );
     if let Ok(mut f) = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open(log_dir.join("broker.log"))
+        .open(root.join("broker.log"))
     {
         use std::io::Write;
         let _ = f.write_all(line.as_bytes());
