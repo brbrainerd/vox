@@ -418,6 +418,10 @@ pub struct DoctorArgs {
     /// structured output (the deploy integration test consumes this).
     #[arg(long, value_name = "PATH", num_args = 0..=1, default_missing_value = ".")]
     pub project: Option<PathBuf>,
+    /// Surface runtime-optional deps for this install tier (minimal/default/full).
+    /// Defaults to "full" (surfaces the widest dependency set).
+    #[arg(long, value_name = "TIER", default_value = "full")]
+    pub tier: String,
 }
 
 /// `vox stub-check` / `vox mens stub-check`
