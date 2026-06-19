@@ -54,6 +54,11 @@ pub fn emit_admin_edit(table: &HirTable) -> String {
     super::form_emit::emit_form(&form)
 }
 
+pub fn emit_admin(table: &HirTable) -> String {
+    let _ = table;
+    String::new()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -103,5 +108,12 @@ mod tests {
             out.contains("type=\"email\""),
             "typed email via form_emit:\n{out}"
         );
+    }
+
+    #[test]
+    fn emit_admin_composes_list_and_edit() {
+        let out = emit_admin(&table());
+        assert!(out.contains("export function UserList()"), "list:\n{out}");
+        assert!(out.contains("export function UserEdit()"), "edit:\n{out}");
     }
 }

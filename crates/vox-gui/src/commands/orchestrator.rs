@@ -166,6 +166,9 @@ pub struct GuiOrchestratorStatus {
     pub budget_cap: f64,
     pub mesh_throughput: f64,
     pub total_vram_gb: f64,
+    /// Live attention-budget snapshot passed through verbatim from the daemon (Track D). May be null.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attention_budget: Option<serde_json::Value>,
 }
 
 fn get_u64(v: &serde_json::Value, key: &str) -> u64 {
@@ -273,6 +276,10 @@ fn to_gui_status(status: serde_json::Value) -> GuiOrchestratorStatus {
         budget_cap: get_f64(&status, "budget_cap_usd"),
         mesh_throughput: get_f64(&status, "mesh_throughput_mb_s"),
         total_vram_gb: get_f64(&status, "total_vram_gb"),
+        attention_budget: status
+            .get("attention_budget")
+            .cloned()
+            .filter(|v| !v.is_null()),
     }
 }
 
@@ -643,5 +650,24 @@ mod secretary_tests {
         let json = serde_json::to_value(&payload).expect("serialize");
         assert_eq!(json["item_id"], "abc123");
         assert_eq!(json["confidence_pct"], 85);
+    }
+}
+
+#[cfg(test)]
+mod gui_status_tests {
+    use super::*;
+
+    #[test]
+    fn gui_status_passes_through_attention_budget() {
+        let raw = serde_json::json!({
+            "agent_count": 0, "total_queued": 0, "total_in_progress": 0,
+            "total_completed": 0, "total_doubted": 0,
+            "attention_budget": { "max_attention_ms": 3_600_000, "spent_ms": 1_800_000,
+                "total_requests": 0, "auto_approved": 0, "rejected": 0,
+                "interrupt_freq_per_hour": 9.0, "last_interrupt_ms": 0, "inbox_suppressed_count": 0 }
+        });
+        let gui = to_gui_status(raw);
+        let ab = gui.attention_budget.expect("budget passed through");
+        assert_eq!(ab["spent_ms"], 1_800_000);
     }
 }
