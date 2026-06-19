@@ -3,11 +3,53 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+/// Training method selected per spoke. Mirrors the methods our trainer can
+/// dispatch; extend ONLY when the trainer gains a real backend (no stubs).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TrainMethod {
+    Qlora,
+    FullSft,
+    Dpo,
+    Orpo,
+    /// No fine-tune: spoke is served via retrieval/prompting only.
+    RagOnly,
+    PromptOnly,
+}
+
+/// Per-spoke base model + training method + hardware preset.
+/// `model` and `preset` are validated against `model-registry.yaml` /
+/// `gpu-specs.yaml` by `spoke_validate` (Phase 1.4) — a typo fails arch-check.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SpokeBase {
+    pub model: String,
+    pub method: TrainMethod,
+    #[serde(default)]
+    pub preset: Option<String>,
+}
+
+/// Inference-time routing hints for this spoke (Phase 7 consumes these).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SpokeRouter {
+    /// Lane tags / glob triggers that route a request to this spoke.
+    #[serde(default)]
+    pub triggers: Vec<String>,
+    /// Higher wins when multiple spokes match.
+    #[serde(default)]
+    pub priority: i32,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DomainProfile {
     pub description: Option<String>,
     pub context_filter: Option<ContextFilter>,
     pub mix_config: Option<String>,
+    #[serde(default)]
+    pub base: Option<SpokeBase>,
+    #[serde(default)]
+    pub eval_gate: Option<String>,
+    #[serde(default)]
+    pub router: Option<SpokeRouter>,
     pub system_prompt: Option<String>,
     pub min_rating: Option<u8>,
     pub ce_last_k: Option<usize>,
@@ -139,5 +181,33 @@ impl EffectiveDomainProfile {
                 .clone()
                 .or_else(|| def.reward_hook.clone()),
         })
+    }
+}
+
+#[cfg(test)]
+mod spoke_base_tests {
+    use super::*;
+
+    #[test]
+    fn domain_profile_deserializes_base_block() {
+        let yaml = r#"
+description: "test"
+base:
+  model: qwen2_5_coder_7b
+  method: qlora
+  preset: qwen_4080_16g
+"#;
+        let p: DomainProfile = serde_yaml::from_str(yaml).expect("parse");
+        let base = p.base.expect("base present");
+        assert_eq!(base.model, "qwen2_5_coder_7b");
+        assert_eq!(base.method, TrainMethod::Qlora);
+        assert_eq!(base.preset.as_deref(), Some("qwen_4080_16g"));
+    }
+
+    #[test]
+    fn base_is_optional_for_backward_compat() {
+        let yaml = r#"description: "legacy profile, no base""#;
+        let p: DomainProfile = serde_yaml::from_str(yaml).expect("parse");
+        assert!(p.base.is_none());
     }
 }
