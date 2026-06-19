@@ -2,6 +2,7 @@ import React from 'react';
 import { Glass } from '../ui/Glass';
 import { Icon } from '../ui/Icons';
 import { Sparkline } from '../ui/Sparkline';
+import { AxisMark } from '../brand/AxisMark';
 import { formatBudgetCap } from '../../config/budget';
 import { freshnessTone } from '../../hooks/useFreshness';
 import {
@@ -252,13 +253,12 @@ export function TopHud({
   return (
     <Glass className="flex items-stretch overflow-hidden">
       <div className="flex items-center gap-3 px-5 border-r border-white/5">
-        <div className="relative">
-          <div className="size-8 rounded-lg bg-gradient-to-br from-[rgb(var(--brass))] via-[rgb(var(--brass)_/_0.85)] to-[rgb(var(--brass)_/_0.55)] shadow-[0_0_24px_-4px_rgb(var(--brass)_/_0.6)]" />
-          <div className="absolute inset-0 flex items-center justify-center font-display text-[14px] font-bold text-zinc-950">V</div>
+        <div className="relative grid size-8 place-items-center rounded-lg bg-white/[0.04] ring-1 ring-brass/40">
+          <AxisMark className="size-5 text-brass" />
         </div>
         <div className="flex flex-col leading-none">
           <span className="font-display text-[13px] tracking-[0.22em] text-zinc-100">{workspaceTitle}</span>
-          <span className="text-[9px] uppercase tracking-[0.3em] text-zinc-500">vox operator console</span>
+          <span className="text-[9px] uppercase tracking-[0.3em] text-zinc-500">axis operator console</span>
         </div>
       </div>
 
