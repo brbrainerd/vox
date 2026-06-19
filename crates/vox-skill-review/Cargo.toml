@@ -1,0 +1,18 @@
+[package]
+name = "vox-skill-review"
+version = "0.1.0"
+edition = "2021"
+description = "Local advisory pre-publish review gate for VoxSkills: frontmatter, stub, MCP-SSOT, and dedup checks with severity-graded verdict."
+
+[dependencies]
+vox-plugin-host = { workspace = true }
+vox-plugin-types = { workspace = true }
+vox-skill-discovery = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+
+[[bin]]
+name = "vox-skill-review"
+path = "src/bin/vox_skill_review.rs"

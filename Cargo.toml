@@ -171,6 +171,7 @@ vox-workflow-runtime      = { path = "crates/vox-workflow-runtime" }
 vox-search                = { path = "crates/vox-search" }
 vox-similarity            = { path = "crates/vox-similarity" }
 vox-skill-discovery       = { path = "crates/vox-skill-discovery" }
+vox-skill-review          = { path = "crates/vox-skill-review" }
 vox-tauri-codegen         = { path = "crates/vox-tauri-codegen" }
 vox-tauri-stt             = { path = "crates/vox-tauri-stt" }
 

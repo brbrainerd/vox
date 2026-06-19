@@ -16755,6 +16755,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-skill-review"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "serde",
+ "serde_json",
+ "vox-plugin-host",
+ "vox-plugin-types",
+ "vox-skill-discovery",
+]
+
+[[package]]
 name = "vox-skill-runtime"
 version = "0.6.0"
 dependencies = [

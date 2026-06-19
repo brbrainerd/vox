@@ -155,6 +155,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-search`](../../../crates/vox-search/) | Local-first retrieval execution: memory hybrid, repo inventory, Codex chunks, policy, and optional lexical/vector backends. |
 | [`vox-skills`](../../../crates/vox-skills/) | Skill marketplace and plugin architecture for the Vox agent system. |
 | [`vox-skill-discovery`](../../../crates/vox-skill-discovery/) | Local on-demand discovery + dedup engine: repeated .vox blocks, installed-skill dedup, MCP SSOT drift (advisory). |
+| [`vox-skill-review`](../../../crates/vox-skill-review/) | Local advisory pre-publish skill review gate (frontmatter/stub/SSOT/dedup). |
 | [`vox-tensor`](../../../crates/vox-tensor/) | Pure-CPU JSONL data loaders / training-pair types (Burn extracted 2026-05-08). |
 | [`vox-test-harness`](../../../crates/vox-test-harness/) | Shared compiler/tooling test fixtures plus [`workspace_paths`](../../../crates/vox-test-harness/src/workspace_paths.rs) (`repo_root_for_tests`), [`env_scratch`](../../../crates/vox-test-harness/src/env_scratch.rs) (scoped `set_var`/`remove_var`), [`temp_root`](../../../crates/vox-test-harness/src/temp_root.rs) (`tempfile::TempDir`). |
 | [`vox-wasm-engine`](../../../crates/vox-wasm-engine/) | Single-source-of-truth Wasmtime engine + WASI execution for Vox programs and skill plugins. |

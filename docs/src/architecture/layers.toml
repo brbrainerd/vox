@@ -191,6 +191,7 @@ vox-orchestrator-queue  = { layer = 3 }                          # Phase 5 extra
 vox-orchestrator-driver = { layer = 3 }                          # CLI/MCP embedded orchestrator driver (2026 debt burndown)
 vox-search              = { layer = 3 }
 vox-skill-discovery     = { layer = 3, orphan_exempt = true }
+vox-skill-review        = { layer = 3, orphan_exempt = true }
 
 
 vox-test-harness        = { layer = 3 }
