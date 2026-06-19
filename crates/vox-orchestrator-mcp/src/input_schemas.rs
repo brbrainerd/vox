@@ -396,6 +396,12 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             derived_tool_schema!(crate::params::VoxVisualRagQueryParams)
         }
         "vox_repo_status" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
+        "vox_gui_components" | "vox_gui_tokens" => {
+            parse_obj(r#"{"type":"object","additionalProperties":false}"#)
+        }
+        "vox_validate_vuv" => parse_obj(
+            r#"{"type":"object","properties":{"source":{"type":"string","minLength":1,"description":"Vox/VUV source to validate against the compile-time GUI guarantees (contrast, layer-occlusion, a11y, structural web-IR). No files are written."}},"required":["source"],"additionalProperties":false}"#,
+        ),
         "vox_graphify_status" => parse_obj(
             r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id from contracts/retrieval/graphify-corpora.v1.yaml; omit for all corpora"}},"additionalProperties":false}"#,
         ),

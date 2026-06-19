@@ -548,6 +548,13 @@ async fn handle_tool_call_inner(
             Ok(visus_tools::vox_visus_baseline(state, serde_json::from_value(args)?).await)
         }
         "vox_repo_status" => Ok(repo_catalog_tools::repo_status(state).await),
+        "vox_gui_components" => {
+            Ok(crate::gui_registry_tools::vox_gui_components(state, args).await)
+        }
+        "vox_gui_tokens" => Ok(crate::gui_registry_tools::vox_gui_tokens(state, args).await),
+        "vox_validate_vuv" => {
+            Ok(crate::gui_registry_tools::vox_validate_vuv(state, args).await)
+        }
         "vox_graphify_status" => {
             Ok(crate::graphify_tools::graphify_status(state, serde_json::from_value(args)?).await)
         }

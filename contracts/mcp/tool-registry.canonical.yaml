@@ -633,6 +633,16 @@ tools:
   product_lane: platform
   http_read_role_eligible: true
   tier: core
+- name: vox_gui_components
+  description: Retrieve the components registered in the primitive component registry.
+  product_lane: ai
+  http_read_role_eligible: true
+  tier: core
+- name: vox_gui_tokens
+  description: Retrieve design tokens in W3C DTCG format.
+  product_lane: ai
+  http_read_role_eligible: true
+  tier: core
 - name: vox_handoff_context
   description: Handoff summarized context from one agent to another.
   product_lane: ai
@@ -1497,6 +1507,11 @@ tools:
   description: Validate Vox source code passed as a string (no filesystem read). Returns LSP-style diagnostics with stable codes and structured autofix suggestions for the iterative AI-assistant repair loop.
   product_lane: app
   http_read_role_eligible: false
+  tier: core
+- name: vox_validate_vuv
+  description: Validate Vox/VUV source against the compile-time GUI guarantees (contrast, layer-occlusion, a11y, structural web-IR) without writing files.
+  product_lane: ai
+  http_read_role_eligible: true
   tier: core
 - name: vox_vcs_status
   description: Get unified VCS status.

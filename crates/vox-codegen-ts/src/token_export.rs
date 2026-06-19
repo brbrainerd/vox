@@ -9,7 +9,9 @@ pub fn export_to_dtcg(registry: &TokenRegistry) -> Value {
     keys.sort();
 
     for key in keys {
-        let val = registry.by_css_var.get(key).unwrap();
+        let Some(val) = registry.by_css_var.get(key) else {
+            continue; // unreachable (key came from .keys()); avoid unwrap per design §5b.3
+        };
         // convert e.g. "color-primary" to ["color", "primary"]
         let parts: Vec<&str> = key.split('-').collect();
         if parts.is_empty() {
