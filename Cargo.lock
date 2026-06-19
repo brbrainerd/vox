@@ -14772,6 +14772,7 @@ dependencies = [
  "vox-sql",
  "vox-tauri-codegen",
  "vox-telemetry",
+ "vox-telemetry-otlp",
  "vox-wasm-engine",
  "vox-workflow-runtime",
  "walkdir",

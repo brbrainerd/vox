@@ -267,7 +267,8 @@ semver = { workspace = true }
 keyring = { workspace = true, optional = true }
 workspace-hack = { workspace = true }
 vox-rule-pack = { workspace = true }
-vox-telemetry = { workspace = true }
+vox-telemetry      = { workspace = true }
+vox-telemetry-otlp = { workspace = true }
 vox-audit = { workspace = true }
 vox-identity.workspace = true
 vox-crypto.workspace = true

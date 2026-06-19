@@ -7,6 +7,7 @@
 use std::path::PathBuf;
 
 use vox_telemetry::{TelemetryEvent, TelemetryRecorder};
+use vox_telemetry_otlp::{otlp_json::to_otlp_log, project::project_event, redact::redact_event};
 
 /// `TelemetryRecorder` sink that writes events as JSON files to the local spool.
 ///
@@ -24,25 +25,34 @@ impl SpoolSink {
 
 impl TelemetryRecorder for SpoolSink {
     fn record(&self, event: &TelemetryEvent) {
+        // Two-layer privacy pipeline (redact-before-spool — spec §3):
+        //   1. project_event: variant→(category, flat_map), drops free-form strings.
+        //   2. redact_event: taxonomy-allowlist guard, drops fields not in contract.
+        // If either layer returns None, the event is silently dropped (not spooled).
+        // The spool ONLY ever holds clean OTLP-shaped JSON — no raw events.
+        let Some((category, flat_map)) = project_event(event) else {
+            return;
+        };
+        let Some(record) = redact_event(&category, &flat_map) else {
+            return;
+        };
+        let install_id = vox_telemetry::config::install_id();
+        let otlp_json = to_otlp_log(&record, &install_id);
+
         let root = self.root.clone();
-        let event = event.clone();
-        // Defensive: `tokio::spawn` panics when called outside a Tokio
-        // runtime. Most `vox` codepaths run inside one (the CLI is
-        // `#[tokio::main]`), but unit tests and sync utility binaries may not
-        // be — falling back to a blocking write keeps `record_event!` panic-
-        // free everywhere. Failures are non-critical and downgraded to DEBUG
-        // logs per existing convention.
+        // Defensive: `tokio::spawn` panics when called outside a Tokio runtime.
+        // Most `vox` codepaths run inside one, but tests and sync utility binaries
+        // may not. Falling back to a blocking write keeps record_event! panic-free.
         match tokio::runtime::Handle::try_current() {
             Ok(_) => {
                 tokio::spawn(async move {
-                    if let Err(err) = crate::telemetry_spool::enqueue(&root, &event) {
+                    if let Err(err) = crate::telemetry_spool::enqueue(&root, &otlp_json) {
                         tracing::debug!(?err, "SpoolSink: enqueue failed");
                     }
                 });
             }
             Err(_) => {
-                // No Tokio runtime — write synchronously on the caller's thread.
-                if let Err(err) = crate::telemetry_spool::enqueue(&root, &event) {
+                if let Err(err) = crate::telemetry_spool::enqueue(&root, &otlp_json) {
                     tracing::debug!(?err, "SpoolSink: enqueue failed (sync)");
                 }
             }

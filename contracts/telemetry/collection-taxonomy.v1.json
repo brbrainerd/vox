@@ -186,6 +186,91 @@
       ]
     },
     {
+      "name": "research_metrics",
+      "privacy_tier": "low",
+      "upload_default": true,
+      "otlp_event_name": "vox.research_metric",
+      "description": "Research/benchmark metric events. Session prefix is an enum (not the full id); metric value is bucketed. No metadata_json, no raw session ids.",
+      "emit_site": "vox-telemetry:record_event!(ResearchMetric)",
+      "fields": [
+        { "name": "session_prefix", "type": "enum", "description": "Prefix of the session id (colon-delimited; the suffix is hashed)" },
+        { "name": "metric_type", "type": "enum", "description": "Type of metric (e.g. syntax_k, benchmark, socrates)" },
+        { "name": "metric_value_bucket", "type": "int", "description": "Rounded/bucketed metric value" }
+      ]
+    },
+    {
+      "name": "model_calls",
+      "privacy_tier": "low",
+      "upload_default": true,
+      "otlp_event_name": "vox.model_call",
+      "description": "Per-LLM-call performance telemetry. Model/provider are enums. Token counts and latency are bucketed. No selection_rationale, trace_id, or caller_agent_id.",
+      "emit_site": "vox-telemetry:record_event!(ModelCall,SelectionDecision,ModelDiscovery,ModelClassification,ConfidencePromotion)",
+      "fields": [
+        { "name": "model_id", "type": "enum", "description": "Model identifier" },
+        { "name": "provider", "type": "enum", "description": "Provider name" },
+        { "name": "duration_bucket", "type": "enum", "allowed": ["lt1s","1_to_5s","5_to_30s","30s_to_5m","gt5m"], "description": "Latency bucket" },
+        { "name": "prompt_tokens_bucket", "type": "enum", "allowed": ["lt512","512_to_2k","2k_to_8k","8k_to_32k","gt32k"], "description": "Prompt token count bucket" },
+        { "name": "completion_tokens_bucket", "type": "enum", "allowed": ["lt512","512_to_2k","2k_to_8k","8k_to_32k","gt32k"], "description": "Completion token count bucket" },
+        { "name": "error_class", "type": "enum", "description": "Error class if the call failed, absent otherwise" },
+        { "name": "task", "type": "enum", "description": "Selection decision task tag" },
+        { "name": "chosen_model", "type": "enum", "description": "Chosen model for SelectionDecision events" },
+        { "name": "reason", "type": "enum", "description": "Selection reason tag" },
+        { "name": "source", "type": "enum", "description": "Discovery source" },
+        { "name": "tier", "type": "enum", "description": "Classification tier" },
+        { "name": "from_confidence", "type": "enum", "description": "Pre-promotion confidence tier" },
+        { "name": "to_confidence", "type": "enum", "description": "Post-promotion confidence tier" },
+        { "name": "evidence", "type": "enum", "description": "Promotion evidence tag" }
+      ]
+    },
+    {
+      "name": "agent_orchestration",
+      "privacy_tier": "low",
+      "upload_default": true,
+      "otlp_event_name": "vox.agent",
+      "description": "Agent task and orchestration summary events. Counts are bucketed. No task_id, trace_id, or repository_id.",
+      "emit_site": "vox-telemetry:record_event!(TaskRootSummary,AiFixture,RepairAttempt,RepairOutcome,AuditRun,DoctorProjectCheck)",
+      "fields": [
+        { "name": "outcome", "type": "enum", "description": "Task/run outcome class" },
+        { "name": "child_call_bucket", "type": "enum", "allowed": ["0","1_to_3","4_to_9","10_to_24","gte25"], "description": "Child call count bucket" },
+        { "name": "subagent_bucket", "type": "enum", "allowed": ["0","1_to_3","4_to_9","10_to_24","gte25"], "description": "Subagent fanout bucket" },
+        { "name": "fixture_kind", "type": "enum", "allowed": ["model_intent","subagent_dispatch","prompt_dispatch","search_dispatch","hole_observed"], "description": "AiFixture inner kind" },
+        { "name": "attempt", "type": "int", "description": "Repair attempt number" },
+        { "name": "diagnostics_delta", "type": "int", "description": "Diagnostics-in minus diagnostics-out (progress signal)" },
+        { "name": "success", "type": "bool", "description": "Whether the repair/run succeeded" },
+        { "name": "attempts_used", "type": "int", "description": "Number of repair attempts used" },
+        { "name": "thing", "type": "enum", "description": "Audit subject tag" },
+        { "name": "passed", "type": "bool", "description": "Whether the check passed" }
+      ]
+    },
+    {
+      "name": "build",
+      "privacy_tier": "low",
+      "upload_default": true,
+      "otlp_event_name": "vox.build",
+      "description": "Build and lint summary events. No file paths, build_id, or repository_id.",
+      "emit_site": "vox-telemetry:record_event!(BuildSummary,LintFinding)",
+      "fields": [
+        { "name": "exit_class", "type": "enum", "description": "Build outcome class" },
+        { "name": "duration_bucket", "type": "enum", "allowed": ["lt1s","1_to_5s","5_to_30s","30s_to_5m","gt5m"], "description": "Build wall-time bucket" },
+        { "name": "rule_id", "type": "enum", "description": "Lint rule id (LintFinding events)" },
+        { "name": "severity", "type": "enum", "allowed": ["error","warning","info","hint"], "description": "Lint severity" },
+        { "name": "autofix_available", "type": "bool", "description": "Whether an autofix was available" }
+      ]
+    },
+    {
+      "name": "errors",
+      "privacy_tier": "low",
+      "upload_default": true,
+      "otlp_event_name": "vox.error_event",
+      "description": "Subsystem error summary events. No trace_id, model, or provider free-form fields.",
+      "emit_site": "vox-telemetry:record_event!(Error)",
+      "fields": [
+        { "name": "subsystem", "type": "enum", "description": "Subsystem that produced the error" },
+        { "name": "error_class", "type": "enum", "description": "Error class" },
+        { "name": "recoverable", "type": "bool", "description": "Whether the error was recovered from" }
+      ]
+    },
+    {
       "name": "model_prompt",
       "privacy_tier": "low",
       "upload_default": true,
