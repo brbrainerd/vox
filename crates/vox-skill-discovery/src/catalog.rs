@@ -106,9 +106,21 @@ mod tests {
             ..DiscoverOptions::default()
         };
         let manifests = vec![
-            manifest("a.fmt", "format vox", "Formats vox source files with the standard style"),
-            manifest("b.fmt", "format vox", "Formats vox source files with the standard style"),
-            manifest("c.git", "git status", "Shows the working tree status using git"),
+            manifest(
+                "a.fmt",
+                "format vox",
+                "Formats vox source files with the standard style",
+            ),
+            manifest(
+                "b.fmt",
+                "format vox",
+                "Formats vox source files with the standard style",
+            ),
+            manifest(
+                "c.git",
+                "git status",
+                "Shows the working tree status using git",
+            ),
         ];
         let cands = dedup_skills(&manifests, &opts);
         assert_eq!(cands.len(), 1);
