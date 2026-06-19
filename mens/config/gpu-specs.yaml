@@ -239,3 +239,16 @@ presets:
     grad_accum: 1
     lr: 5.0e-6
     max_vram_mb: 999999
+
+# Training base candidates per capability tag (referenced by domain-profiles base.model).
+# floor_mb = approx QLoRA VRAM floor on the standard preset. Resolver picks the largest
+# variant whose floor_mb <= detected VRAM. methods = train methods this base supports.
+# Keys match domain-profiles.yaml base.model values exactly.
+train_bases:
+  small_code_default:
+    - { hf_id: "Qwen/Qwen2.5-Coder-3B-Instruct", floor_mb: 6000, methods: [qlora, full_sft] }
+  strong_code_default:
+    - { hf_id: "Qwen/Qwen2.5-Coder-7B-Instruct", floor_mb: 11000, methods: [qlora, dpo, orpo] }
+  agentic_default:
+    - { hf_id: "Qwen/Qwen2.5-Coder-7B-Instruct", floor_mb: 11000, methods: [qlora, dpo] }
+
