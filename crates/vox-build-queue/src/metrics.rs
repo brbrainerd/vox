@@ -82,7 +82,6 @@ pub fn summarize(path: &Path) -> anyhow::Result<Summary> {
     summarize_str(&text)
 }
 
-
 /// Summarize already-loaded JSONL content (used when aggregating across dirs).
 pub fn summarize_str(text: &str) -> anyhow::Result<Summary> {
     let recs: Vec<MetricRecord> = text
