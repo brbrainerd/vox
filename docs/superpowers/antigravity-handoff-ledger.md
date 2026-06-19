@@ -512,3 +512,31 @@ commits: []
 
 *In progress*
 
+---
+
+```yaml
+# --- AGH-0013 ---
+id: AGH-0013
+date: "2026-06-19"
+plan: "docs/superpowers/plans/2026-06-19-track0-distribution-ssot.md"
+handoff_prompt: "docs/superpowers/plans/2026-06-19-track0-FLASH-HANDOFF.md"
+subsystem: "Track 0 — Distribution SSOT (one-command install/release/publish program)"
+target: "Gemini 3.5 Flash inside Google Antigravity"
+delivered: []
+outcome: "in_progress"
+verification:
+  tests: "pending"        # cargo test -p voxup --test distribution_parity (expect all green)
+  build: "pending"        # cargo build -p voxup (expect exit 0)
+  fmt: "pending"          # cargo fmt -p voxup (expect no diff)
+  ci_workflow_present: "pending"  # .github/workflows/distribution-parity.yml exists
+errors_encountered: []
+agent_deviations: []
+commits: []
+```
+
+### AGH-0013 — Track 0 distribution-SSOT review detail (human prose)
+
+*In progress — Flash executing. Acceptance review checklist staged at
+`docs/superpowers/plans/2026-06-19-track0-ACCEPTANCE-REVIEW.md`; fill `delivered`,
+`verification`, `commits`, and this prose section on completion.*
+

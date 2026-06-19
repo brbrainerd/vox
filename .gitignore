@@ -260,3 +260,10 @@ graphify-out/COVERAGE_BEHAVIORS_*
 # Antigravity agents custom rules and skills mount (Track D T0)
 /.agents/
 
+# Scratch output from `cargo ... > file 2>&1` redirects (Windows process-orphan
+# avoidance). Never commit these — agents redirect cargo output here.
+test-out.txt
+build-out.txt
+voxup-deps.txt
+*-out.txt
+
