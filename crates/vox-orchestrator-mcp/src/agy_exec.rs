@@ -6,6 +6,7 @@
 //! the caller's per-delegation git worktree.
 
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone)]
@@ -158,6 +159,20 @@ pub fn classify_failure(stderr: &str, exit_code: i32, timed_out: bool) -> Option
     if exit_code == 0 { None } else { Some("error") }
 }
 
+/// Strip ANSI escape sequences (CSI colour/cursor + OSC title) from PTY output.
+/// A pseudo-console echoes terminal control codes interleaved with text; we
+/// remove them so the captured stream is plain text for logging and for the
+/// substring matching in `classify_failure`.
+pub fn strip_ansi(s: &str) -> String {
+    static RE: OnceLock<regex::Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| {
+        // CSI:  ESC [ ... final-byte   |   OSC:  ESC ] ... (BEL | ESC \)
+        regex::Regex::new(r"\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)")
+            .expect("static ANSI regex is valid")
+    });
+    re.replace_all(s, "").to_string()
+}
+
 /// Pure retry decision. `attempt` 0-based; `max_attempts` the cap.
 pub fn should_retry(class: &str, attempt: u32, max_attempts: u32) -> bool {
     if attempt + 1 >= max_attempts { return false; }
@@ -211,6 +226,18 @@ mod tests {
         assert_eq!(classify_failure("", -1, true), Some("timeout"));
         assert_eq!(classify_failure("boom", 2, false), Some("error"));
         assert_eq!(classify_failure("fine", 0, false), None);
+    }
+
+    #[test]
+    fn strip_ansi_removes_csi_and_osc_sequences() {
+        // CSI colour codes
+        assert_eq!(strip_ansi("\x1b[32mhello\x1b[0m"), "hello");
+        // OSC title sequence terminated by BEL
+        assert_eq!(strip_ansi("\x1b]0;title\x07world"), "world");
+        // plain text is untouched
+        assert_eq!(strip_ansi("quota exceeded"), "quota exceeded");
+        // a realistic mixed line still exposes the keyword for classification
+        assert!(strip_ansi("\x1b[31mERROR:\x1b[0m quota exceeded").contains("quota"));
     }
 
     #[test]

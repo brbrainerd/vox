@@ -124,6 +124,7 @@ xxhash-rust = { workspace = true }
 tiktoken-rs = { workspace = true }
 dirs = { workspace = true }
 which = { workspace = true }
+portable-pty = "0.9"
 crossbeam-queue = { workspace = true }
 globset = { workspace = true }
 workspace-hack = { workspace = true }
