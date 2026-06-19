@@ -34,6 +34,12 @@ vi.mock('@tauri-apps/api/event', () => ({
   listen: mockListen,
 }));
 
+vi.mock('../../../transport', () => ({
+  feedbackList: vi.fn().mockResolvedValue({ needsYou: [], withheld: [] }),
+  listenFeedbackChanged: vi.fn().mockResolvedValue(() => {}),
+}));
+
+import { feedbackList } from '../../../transport';
 import { TasksView } from './TasksView';
 
 describe('TasksView', () => {
@@ -117,6 +123,38 @@ describe('TasksView', () => {
     await waitFor(() => {
       expect(screen.getByText('Priority')).toBeDefined();
       expect(screen.getByText('Task ID')).toBeDefined();
+    });
+  });
+
+  it('renders Blocked section when a task matches feedback gates', async () => {
+    vi.mocked(feedbackList).mockResolvedValue({
+      needsYou: [
+        {
+          feedbackId: 'F-1',
+          kind: 'clarification',
+          prompt: 'Which database?',
+          options: ['sqlite', 'postgres'],
+          gates: [999],
+          doubtedTaskId: null,
+          surface: 'needs_you',
+          infoGainBits: 0.8,
+        },
+      ],
+      withheld: [],
+    });
+    vi.mocked(invoke).mockResolvedValue([
+      {
+        item_id: 'task-blocked',
+        intent: 'A blocked task',
+        priority: 1,
+        state: 'inbox',
+        task_id: 999,
+      },
+    ]);
+    render(<TasksView />);
+    await waitFor(() => {
+      expect(screen.getAllByText(/Blocked/i).length).toBeGreaterThan(0);
+      expect(screen.getByText(/waiting on Needs You/i)).toBeDefined();
     });
   });
 });

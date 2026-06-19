@@ -10,6 +10,7 @@ import { DataTable } from '../../ui/DataTable';
 import { TaskRow, filterBySession, findWriteOverlaps } from './tasksHelpers';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import { TaskComposer } from './TaskComposer';
+import { feedbackList, listenFeedbackChanged } from '../../../transport';
 
 interface StoredSession { id: string; title: string }
 
@@ -29,6 +30,7 @@ interface HopperTaskDto {
   intent: string;
   priority: number;
   state: string;
+  task_id: number;
 }
 
 export function TasksView({
@@ -43,17 +45,32 @@ export function TasksView({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [sessionFilter, setSessionFilter] = useState<string | null>(null);
+  const [showBlocked, setShowBlocked] = useState(true);
   const mounted = useRef(true);
 
   const refresh = useCallback(async () => {
     try {
-      const data = await invoke<HopperTaskDto[]>('hopper_list');
+      const [data, feedback] = await Promise.all([
+        invoke<HopperTaskDto[]>('hopper_list'),
+        feedbackList().catch(() => ({ needsYou: [] })),
+      ]);
+      const gateSet = new Set<number>(
+        (feedback?.needsYou ?? []).flatMap(f => f.gates ?? [])
+      );
       if (mounted.current) {
         const mapped: TaskRow[] = data.map(dto => ({
           id: dto.item_id,
           description: dto.intent,
           priority: dto.priority === 2 ? 'urgent' : dto.priority === 0 ? 'background' : 'normal',
-          lifecycle: dto.state === 'assigned' ? 'in_progress' : dto.state === 'inbox' ? 'queued' : dto.state === 'done' ? 'completed' : 'unknown',
+          lifecycle: gateSet.has(dto.task_id)
+            ? 'blocked'
+            : dto.state === 'assigned'
+            ? 'in_progress'
+            : dto.state === 'inbox'
+            ? 'queued'
+            : dto.state === 'done'
+            ? 'completed'
+            : 'unknown',
           agent_id: null,
           session_id: null,
           estimated_complexity: 1,
@@ -77,9 +94,13 @@ export function TasksView({
     const sub = listen<void>('vox://tasks-changed', () => {
       refresh();
     });
+    const subFeedback = listenFeedbackChanged(() => {
+      refresh();
+    });
     return () => {
       mounted.current = false;
       sub.then((fn) => fn());
+      subFeedback.then((fn) => fn());
     };
   }, [refresh]);
 
@@ -115,7 +136,9 @@ export function TasksView({
     new Set(rows.map(r => r.session_id).filter((s): s is string => !!s))
   );
   const overlaps = findWriteOverlaps(rows);
-  const filteredRows = filterBySession(rows, sessionFilter);
+  const filteredRows = filterBySession(rows, sessionFilter).filter(
+    r => showBlocked || r.lifecycle !== 'blocked'
+  );
 
   const columns = [
     {
@@ -129,8 +152,8 @@ export function TasksView({
             const val = Number(e.target.value);
             reprioritize(r.id, val);
           }}
-          disabled={busy}
-          className="bg-zinc-900 text-zinc-100 border border-white/10 rounded px-1.5 py-0.5 text-xs outline-none focus:border-brass/50 cursor-pointer"
+          disabled={busy || r.lifecycle === 'blocked'}
+          className="bg-zinc-900 text-zinc-100 border border-white/10 rounded px-1.5 py-0.5 text-xs outline-none focus:border-brass/50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <option value={2}>Urgent</option>
           <option value={1}>Normal</option>
@@ -147,55 +170,63 @@ export function TasksView({
     {
       key: 'description',
       header: 'Description',
-      render: (r: TaskRow) => (
-        <div className="flex flex-col gap-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span
-              onClick={() => {
-                if (r.write_files && r.write_files.length > 0) {
-                  useLudusStore.getState().setFocusedFile(r.write_files[0]);
-                }
-              }}
-              className="text-[13px] text-zinc-200 truncate"
-              title={r.description}
-            >
-              {r.description}
-            </span>
+      render: (r: TaskRow) => {
+        const isBlocked = r.lifecycle === 'blocked';
+        return (
+          <div className={`flex flex-col gap-1 min-w-0 ${isBlocked ? 'opacity-55' : ''}`}>
+            <div className="flex items-center gap-2">
+              <span
+                onClick={() => {
+                  if (!isBlocked && r.write_files && r.write_files.length > 0) {
+                    useLudusStore.getState().setFocusedFile(r.write_files[0]);
+                  }
+                }}
+                className={`text-[13px] text-zinc-200 truncate ${isBlocked ? '' : 'cursor-pointer hover:text-white'}`}
+                title={r.description}
+              >
+                {r.description}
+              </span>
+              {isBlocked && (
+                <span className="text-[10px] text-amber-400 font-medium inline-flex items-center gap-1">
+                  ⛔ waiting on Needs You
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-600">
+                #{r.id.toString().slice(0, 8)}
+                {r.agent_id != null ? ` · agent ${r.agent_id}` : ''}
+                {' · '}
+                {r.lifecycle}
+              </span>
+              {r.depends_on.length > 0 && (
+                <span
+                  title="Runs after the listed task(s) complete"
+                  className="rounded border border-white/10 bg-white/[0.03] px-1 font-mono text-[9px] text-zinc-400"
+                >
+                  → after #{r.depends_on.join(', #')}
+                </span>
+              )}
+              {(overlaps.get(r.id)?.length ?? 0) > 0 && (
+                <span
+                  title="These tasks write the same files — the orchestrator serializes them via file locks and may split VCS changes"
+                  className="rounded border border-amber-400/30 bg-amber-400/10 px-1 font-mono text-[9px] text-amber-300"
+                >
+                  ⚠ overlaps #{overlaps.get(r.id)!.join(', #')}
+                </span>
+              )}
+              {r.remote_node && (
+                <span
+                  title="Executing remotely on a mesh node via A2A lease"
+                  className="rounded border border-cyan-400/30 bg-cyan-400/10 px-1 font-mono text-[9px] text-cyan-300"
+                >
+                  mesh: {r.remote_node}
+                </span>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-600">
-              #{r.id.toString().slice(0, 8)}
-              {r.agent_id != null ? ` · agent ${r.agent_id}` : ''}
-              {' · '}
-              {r.lifecycle}
-            </span>
-            {r.depends_on.length > 0 && (
-              <span
-                title="Runs after the listed task(s) complete"
-                className="rounded border border-white/10 bg-white/[0.03] px-1 font-mono text-[9px] text-zinc-400"
-              >
-                → after #{r.depends_on.join(', #')}
-              </span>
-            )}
-            {(overlaps.get(r.id)?.length ?? 0) > 0 && (
-              <span
-                title="These tasks write the same files — the orchestrator serializes them via file locks and may split VCS changes"
-                className="rounded border border-amber-400/30 bg-amber-400/10 px-1 font-mono text-[9px] text-amber-300"
-              >
-                ⚠ overlaps #{overlaps.get(r.id)!.join(', #')}
-              </span>
-            )}
-            {r.remote_node && (
-              <span
-                title="Executing remotely on a mesh node via A2A lease"
-                className="rounded border border-cyan-400/30 bg-cyan-400/10 px-1 font-mono text-[9px] text-cyan-300"
-              >
-                mesh: {r.remote_node}
-              </span>
-            )}
-          </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       key: 'actions',
@@ -240,29 +271,40 @@ export function TasksView({
 
       <TaskComposer onSubmit={addTask} busy={busy} />
 
-      {presentSessions.length > 1 && (
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {[null, ...presentSessions].map(sid => {
-            const active = sessionFilter === sid;
-            const label = sid == null ? 'All sessions' : (sessionTitles[sid] ?? sid);
-            return (
-              <button
-                key={sid ?? '__all__'}
-                type="button"
-                onClick={() => setSessionFilter(sid)}
-                aria-pressed={active}
-                className={`rounded-full border px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-widest transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-brass/40 ${
-                  active
-                    ? 'border-brass/40 bg-brass/10 text-brass'
-                    : 'border-white/5 bg-white/[0.01] text-zinc-500 hover:border-white/10 hover:text-zinc-400'
-                }`}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-      )}
+      <div className="flex items-center justify-between gap-1.5 flex-wrap">
+        {presentSessions.length > 1 ? (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {[null, ...presentSessions].map(sid => {
+              const active = sessionFilter === sid;
+              const label = sid == null ? 'All sessions' : (sessionTitles[sid] ?? sid);
+              return (
+                <button
+                  key={sid ?? '__all__'}
+                  type="button"
+                  onClick={() => setSessionFilter(sid)}
+                  aria-pressed={active}
+                  className={`rounded-full border px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-widest transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-brass/40 ${
+                    active
+                      ? 'border-brass/40 bg-brass/10 text-brass'
+                      : 'border-white/5 bg-white/[0.01] text-zinc-500 hover:border-white/10 hover:text-zinc-400'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        ) : <div />}
+        <label className="flex items-center gap-2 text-[11px] text-zinc-400 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={showBlocked}
+            onChange={(e) => setShowBlocked(e.target.checked)}
+            className="rounded border-white/10 bg-zinc-950 text-brass focus:ring-brass/40 focus:ring-offset-zinc-900 size-3.5"
+          />
+          Show blocked tasks
+        </label>
+      </div>
 
       {error && (
         <div
@@ -279,7 +321,7 @@ export function TasksView({
           rows={filteredRows}
           columns={columns}
           getRowId={r => String(r.id)}
-          groupBy={r => (r.lifecycle === 'in_progress' ? 'In progress' : 'Queued')}
+          groupBy={r => (r.lifecycle === 'in_progress' ? 'In progress' : r.lifecycle === 'blocked' ? 'Blocked' : 'Queued')}
           loading={loading}
           emptyState={
             <EmptyState

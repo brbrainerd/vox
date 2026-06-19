@@ -1,0 +1,61 @@
+//! Typed reader for the distribution SSOT (`contracts/distribution/profiles.v1.yaml`).
+
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+pub struct Profiles {
+    pub schema_version: u32,
+    pub rust_version: String,
+    pub binaries: Vec<String>,
+    pub tiers: std::collections::BTreeMap<String, Tier>,
+    pub publish: Publish,
+    pub non_publishable: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+pub struct Tier {
+    pub description: String,
+    pub binaries: Vec<String>,
+    pub build_deps: Vec<String>,
+    pub runtime_optional: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+pub struct Publish {
+    pub enabled: bool,
+    pub crates: Vec<String>,
+}
+
+/// Parse the SSOT from a YAML string.
+pub fn parse(yaml: &str) -> Result<Profiles, serde_yaml::Error> {
+    serde_yaml::from_str(yaml)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_minimal_manifest() {
+        let yaml = r#"
+schema_version: 1
+rust_version: "1.96.0"
+binaries: [vox]
+tiers:
+  minimal:
+    description: "x"
+    binaries: [vox]
+    build_deps: [rust]
+    runtime_optional: []
+publish:
+  enabled: false
+  crates: [voxup]
+non_publishable: [vox-orchestrator-mcp]
+"#;
+        let p = parse(yaml).expect("must parse");
+        assert_eq!(p.schema_version, 1);
+        assert_eq!(p.rust_version, "1.96.0");
+        assert!(p.tiers.contains_key("minimal"));
+        assert!(!p.publish.enabled);
+    }
+}

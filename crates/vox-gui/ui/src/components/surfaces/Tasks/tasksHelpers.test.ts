@@ -32,6 +32,18 @@ describe('groupTasks', () => {
     const g = groupTasks([row({ id: 9, lifecycle: 'weird' })]);
     expect(g.queued).toHaveLength(1);
   });
+
+  it('separates blocked lifecycle into its own bucket', () => {
+    const rows = [
+      row({ id: 1, lifecycle: 'in_progress' }),
+      row({ id: 2, lifecycle: 'queued' }),
+      row({ id: 3, lifecycle: 'blocked' }),
+    ];
+    const g = groupTasks(rows);
+    expect(g.blocked.map(t => t.id)).toEqual([3]);
+    expect(g.inProgress.map(t => t.id)).toEqual([1]);
+    expect(g.queued.map(t => t.id)).toEqual([2]);
+  });
 });
 
 describe('filterBySession', () => {

@@ -14,20 +14,22 @@ export interface TaskRow {
 export interface GroupedTasks {
   inProgress: TaskRow[];
   queued: TaskRow[];
+  blocked: TaskRow[];
 }
 
 const PRIORITY_ORDER: Record<string, number> = { urgent: 0, normal: 1, background: 2 };
 
 export function groupTasks(rows: TaskRow[]): GroupedTasks {
   const inProgress = rows.filter(t => t.lifecycle === 'in_progress');
+  const blocked = rows.filter(t => t.lifecycle === 'blocked');
   const queued = rows
-    .filter(t => t.lifecycle !== 'in_progress')
+    .filter(t => t.lifecycle !== 'in_progress' && t.lifecycle !== 'blocked')
     .sort(
       (a, b) =>
         (PRIORITY_ORDER[a.priority] ?? 1) - (PRIORITY_ORDER[b.priority] ?? 1) ||
         String(a.id).localeCompare(String(b.id)),
     );
-  return { inProgress, queued };
+  return { inProgress, queued, blocked };
 }
 
 /**
