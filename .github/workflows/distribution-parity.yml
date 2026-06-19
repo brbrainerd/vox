@@ -1,0 +1,30 @@
+# Distribution SSOT parity gate (Track 0). Hosted-only so it never depends on
+# the self-hosted fleet. Make this a required check to enforce.
+name: distribution-parity
+
+on:
+  pull_request:
+    paths:
+      - "contracts/distribution/**"
+      - "contracts/toolchain/**"
+      - "crates/_public.toml"
+      - "crates/voxup/**"
+      - ".github/workflows/distribution-parity.yml"
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: distribution-parity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run distribution SSOT parity tests
+        run: cargo test -p voxup --test distribution_parity --locked
