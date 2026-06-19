@@ -1,507 +1,364 @@
-# Soft HITL Phase 2 — Needs You Surface + Blocked Tasks Implementation Plan
+# Soft HITL Phase 2 — Needs You Surface + Blocked Overlay (rev 2)
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> 🤖 **EXECUTION TARGET — READ FIRST.** Gemini Flash in Antigravity. See
+> `docs/src/architecture/gemini-3-5-flash-antigravity-limitations-2026-06-18.md`.
 
-**Goal:** Add the unified "Needs You" GUI surface (clarifications + doubts, per-type buttons, Withheld section, click-to-expand-in-chat), render blocked states on the Tasks surface, wire the AttentionStrip's real waiting/blocked counts, and retire the Dashboard `StreamCard` doubt buttons.
+**Operating Rules (EVERY task):**
+1. Atomic + green + committed.
+2. Every Step-1 `rg` is a BLOCKING gate; reality differs → STOP and report.
+3. Two-strike circuit breaker.
+4. Split on overrun (one atomic commit per file/fn).
+5. House rules: pnpm package; `npx vitest run <path>` / `npx tsc --noEmit` work; `// @vitest-environment jsdom` as FIRST line of every component test; vox-gui Rust builds **lib-only** (`cargo clippy -p vox-gui --lib`); never `cargo fmt --all`. Reuse design-system components (`Glass`, `Pill`, `Icon`, `EmptyState`, `DataTable`) — do not hand-roll raw Tailwind for interactive controls, and give every button an `aria-label`. No stubs.
+6. Tags: `[PARALLEL-SAFE]` / `[SEQUENTIAL]`.
 
-**Architecture:** A new `NeedsYou` surface registered in `surfaceRegistry`, fed by the `feedback_list` Tauri command (Phase 1) and refreshed reactively on the `vox://activity-appended`-style events (`FeedbackRequested`/`FeedbackResolved`). Tasks surface maps the new `blocked` state from `HopperTaskDto`. Card click dispatches a chat-scroll intent already used by the Loquela surface.
+**Goal:** The unified "Needs You" surface (clarifications + doubts, typed actions, click-to-context), a computed **blocked overlay** on the Tasks surface (no hopper mutation), real attention-strip counts, and retirement of the Dashboard `StreamCard` doubt buttons.
 
-**Tech Stack:** TypeScript/React, Tailwind, vitest. Depends on Phase 1 backend + Phase 0 strip.
+**Architecture:** Transport reuses the existing `invoke_mcp_tool` command (like `ApprovalsView`) — no new Tauri commands. Reactivity rides `vox://agent-events` (the `vox://activity-appended` signal has no Rust emitter). "Blocked" is derived: a Tasks row is blocked when its `TaskId` ∈ union of open `FeedbackRequest.gates`; the Rust `HopperTaskDto` gains a `task_id` field for the join.
 
-**Spec:** `docs/superpowers/specs/2026-06-19-attention-aware-soft-hitl-design.md` §5.2, §5.3
+**Tech Stack:** TypeScript/React, Tailwind, vitest; one small vox-gui Rust change. Depends on Phase 1 (tools `vox_feedback_list`/`vox_resolve_feedback`, events) + Phase 0 (strip).
+
+**Spec:** `docs/superpowers/specs/2026-06-19-attention-aware-soft-hitl-design.md` §5.2, §5.3, §6
 
 ---
 
-### Task 1: Feedback transport client
+## Flash Execution Addendum (2026-06-19)
 
-**Files:**
-- Modify: `crates/vox-gui/ui/src/lib/transport.ts` (add `feedbackList`, `feedbackResolve`, `listenFeedbackChanged`)
-- Test: `crates/vox-gui/ui/src/lib/__tests__/feedbackTransport.test.ts`
+**Global gates:**
+- **Real paths:** transport is `crates/vox-gui/ui/src/transport.ts` (NOT `lib/transport.ts`). Status types are `crates/vox-gui/ui/src/types/tauri.ts`. There is no `lib/orchestratorStatus.ts`.
+- **Transport pattern:** call `invoke('invoke_mcp_tool', { tool: 'vox_feedback_list', args: {} })` exactly as `ApprovalsView.tsx` does for `vox_pending_approvals`. Do NOT add new `#[tauri::command]`s and do NOT use `VoxDb::connect_canonical` (that reads a different hopper instance than the daemon's in-memory `FeedbackStore`).
+- **Reactivity:** subscribe to `vox://agent-events` (`AGENT_EVENTS_EVENT`) and refresh when `frame.kind.type` ∈ `{feedback_requested, feedback_resolved}` (snake_case, from Phase 1). Do NOT subscribe to `vox://activity-appended` (dead — no Rust emitter).
+- **Surface registration is 4 places:** (1) the `View` string-union in `App.tsx`; (2) `contracts/gui/surface-registry.v1.yaml` (snake_case `view_key`, NOT a TS source); (3) `vox ci gui-surface-registry --write` to regen `surfaceRegistry.generated.ts` (never hand-edit); (4) the `childRenderer` switch in `surfaceComponents.tsx`. The `gui-surface-registry` CI gate FAILS if the literal `'needs-you'` is absent from `App.tsx`.
+- **Doubts vs clarifications:** doubts are pinned top (actionable; `info_gain_bits == 0` by construction — never sort by it); clarifications sorted by info gain below.
 
-- [ ] **Step 1: Write the failing test**
+**Mandatory pre-flight:**
+```
+rg -n "invoke_mcp_tool|vox_pending_approvals|AGENT_EVENTS_EVENT|setInterval" crates/vox-gui/ui/src/components/surfaces/Approvals/ApprovalsView.tsx
+rg -n "ACTIVITY_APPENDED_EVENT|AGENT_EVENTS_EVENT|listenActivityAppended|invoke" crates/vox-gui/ui/src/transport.ts
+rg -n "interface TaskRow|interface GroupedTasks|function groupTasks" crates/vox-gui/ui/src/components/surfaces/Tasks/tasksHelpers.ts
+rg -n "dto.state|lifecycle|hopper_list" crates/vox-gui/ui/src/components/surfaces/Tasks/TasksView.tsx
+rg -n "type View|View =|navigateTo|childRenderer|case 'activity'" crates/vox-gui/ui/src/App.tsx crates/vox-gui/ui/src/components/layout/surfaceComponents.tsx
+rg -n "view_key: activity|view_key: approvals" contracts/gui/surface-registry.v1.yaml
+rg -n "Icon\\.|export const Icon" crates/vox-gui/ui/src/components/ui/Icons.tsx
+rg -n "HopperTaskDto|hopper_item_to_dto|stable_hash" crates/vox-gui/src/commands/orchestrator.rs crates/vox-orchestrator/src/orchestrator/dispatch.rs
+```
+Expected: `ApprovalsView` uses `invoke('invoke_mcp_tool', {tool, args})` + `setInterval` poll; `AGENT_EVENTS_EVENT` exists in transport.ts; `TaskRow` has `id`/`lifecycle` (no `item_id`/`state`); `GroupedTasks = {inProgress, queued}`; `Icon` has no `bell` (use `alert` or `eye`); `stable_hash` in dispatch.rs (~:19) computes `TaskId` from `item_id.0`.
 
+**Task-split table:**
+
+| Task | Touches | Tag |
+|---|---|---|
+| 1 — transport helpers | `transport.ts` (+test) | [PARALLEL-SAFE] |
+| 2 — FeedbackCard | `NeedsYou/FeedbackCard.tsx` (+test) | [PARALLEL-SAFE] |
+| 3 — NeedsYouSurface | `NeedsYou/NeedsYouSurface.tsx` (+test) | [SEQUENTIAL after 1,2] |
+| 4 — `task_id` on HopperTaskDto (Rust) | `vox-gui/src/commands/orchestrator.rs`, expose hash in vox-orchestrator | [PARALLEL-SAFE] |
+| 5 — blocked overlay on Tasks | `tasksHelpers.ts`, `TasksView.tsx` (+test) | [SEQUENTIAL] |
+| 6 — register surface | `App.tsx`, `surface-registry.v1.yaml`, `surfaceComponents.tsx` | [SEQUENTIAL] |
+| 7 — chat-focus + retire Dashboard buttons + strip counts | `App.tsx`, `Dashboard/StreamCard.tsx`, `Dashboard/Dashboard.tsx` | [SEQUENTIAL] |
+
+---
+
+### Task 1 — Feedback transport helpers [PARALLEL-SAFE]
+
+**Files:** Modify `crates/vox-gui/ui/src/transport.ts`; test `crates/vox-gui/ui/src/__tests__/feedbackTransport.test.ts`.
+
+- [ ] **Step 1 (gate):** confirm `invoke_mcp_tool` usage + `AGENT_EVENTS_EVENT` per pre-flight.
+
+- [ ] **Step 2: Write the failing test**
 ```ts
-import { describe, it, expect, vi } from 'vitest';
+// @vitest-environment jsdom
+import { describe, it, expect } from 'vitest';
 import { normalizeFeedback } from '../transport';
-
 describe('normalizeFeedback', () => {
-  it('splits needs_you from withheld', () => {
-    const rows = [
-      { feedback_id: 'F-1', kind: 'clarification', prompt: 'q', options: ['a'], gates: ['H-1'], surface: 'needs_you', info_gain_bits: 0.8 },
-      { feedback_id: 'F-2', kind: 'doubt', prompt: 'd', options: [], gates: ['H-2'], surface: 'needs_you', info_gain_bits: 0 },
-      { feedback_id: 'F-3', kind: 'clarification', prompt: 'low', options: [], gates: [], surface: 'withheld', info_gain_bits: 0.05 },
-    ];
-    const { needsYou, withheld } = normalizeFeedback(rows);
-    expect(needsYou.map(r => r.feedbackId)).toEqual(['F-1', 'F-2']);
-    expect(withheld.map(r => r.feedbackId)).toEqual(['F-3']);
+  it('splits needs_you from withheld and pins doubts first', () => {
+    const raw = { needs_you: [
+      { feedback_id:'F-1', kind:'clarification', prompt:'q', options:['a'], gates:[7], doubted_task_id:null, surface:'needs_you', info_gain_bits:0.8 },
+      { feedback_id:'F-2', kind:'doubt', prompt:'d', options:[], gates:[], doubted_task_id:9, surface:'needs_you', info_gain_bits:0 },
+    ], withheld: [
+      { feedback_id:'F-3', kind:'clarification', prompt:'low', options:[], gates:[], doubted_task_id:null, surface:'withheld', info_gain_bits:0.05 },
+    ]};
+    const { needsYou, withheld } = normalizeFeedback(raw);
+    expect(needsYou[0].feedbackId).toBe('F-2');   // doubt pinned first
+    expect(needsYou[1].feedbackId).toBe('F-1');   // clarification by gain
+    expect(withheld.map(r=>r.feedbackId)).toEqual(['F-3']);
   });
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `cd crates/vox-gui/ui && npx vitest run src/lib/__tests__/feedbackTransport.test.ts`
-Expected: FAIL — `normalizeFeedback` not exported.
-
-- [ ] **Step 3: Implement**
-
-In `transport.ts`:
-
+- [ ] **Step 3:** run → FAIL. **Step 4: Implement** (standalone exports near `listenActivityAppended`; imports already present at top of file):
 ```ts
-import { invoke } from '@tauri-apps/api/core';
-import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-
 export interface FeedbackRow {
   feedbackId: string;
   kind: 'clarification' | 'doubt';
-  prompt: string;
-  options: string[];
-  gates: string[];
+  prompt: string; options: string[]; gates: number[];
+  doubtedTaskId: number | null;
   surface: 'needs_you' | 'withheld';
   infoGainBits: number;
 }
-
-export function normalizeFeedback(raw: any[]): { needsYou: FeedbackRow[]; withheld: FeedbackRow[] } {
-  const rows: FeedbackRow[] = (raw ?? []).map((r) => ({
-    feedbackId: r.feedback_id, kind: r.kind, prompt: r.prompt,
-    options: r.options ?? [], gates: r.gates ?? [], surface: r.surface,
-    infoGainBits: r.info_gain_bits ?? 0,
-  }));
-  return {
-    needsYou: rows.filter((r) => r.surface === 'needs_you'),
-    withheld: rows.filter((r) => r.surface === 'withheld'),
-  };
+const toRow = (r: any): FeedbackRow => ({
+  feedbackId: r.feedback_id, kind: r.kind, prompt: r.prompt, options: r.options ?? [],
+  gates: r.gates ?? [], doubtedTaskId: r.doubted_task_id ?? null, surface: r.surface,
+  infoGainBits: r.info_gain_bits ?? 0,
+});
+export function normalizeFeedback(raw: any): { needsYou: FeedbackRow[]; withheld: FeedbackRow[] } {
+  const ny = (raw?.needs_you ?? []).map(toRow).sort((a: FeedbackRow, b: FeedbackRow) => {
+    if (a.kind !== b.kind) return a.kind === 'doubt' ? -1 : 1; // doubts pinned top
+    return b.infoGainBits - a.infoGainBits;
+  });
+  return { needsYou: ny, withheld: (raw?.withheld ?? []).map(toRow) };
 }
-
-export async function feedbackList(): Promise<{ needsYou: FeedbackRow[]; withheld: FeedbackRow[] }> {
-  const raw = await invoke<any[]>('feedback_list');
-  return normalizeFeedback(raw);
+export async function feedbackList() {
+  const res = await invoke<string>('invoke_mcp_tool', { tool: 'vox_feedback_list', args: {} });
+  return normalizeFeedback(JSON.parse(res)); // ToolResult json -> {needs_you, withheld}
 }
-
-export async function feedbackResolve(feedbackId: string, chosenOption: number | null, freeText: string | null): Promise<void> {
-  await invoke('feedback_resolve', { feedbackId, chosenOption, freeText });
+// action: { action:'answer', option, text } | { action:'skip' } | { action:'overrule' } | { action:'let_verify' }
+export async function feedbackResolve(feedbackId: string, action: Record<string, unknown>) {
+  await invoke('invoke_mcp_tool', { tool: 'vox_resolve_feedback', args: { feedback_id: feedbackId, action } });
 }
-
-// Feedback changes ride the activity-appended signal; subscribe the same way.
 export function listenFeedbackChanged(onChange: () => void): Promise<UnlistenFn> {
-  return listen<void>('vox://activity-appended', () => onChange());
+  return listen<any>(AGENT_EVENTS_EVENT, (e) => {
+    const t = e?.payload?.kind?.type;
+    if (t === 'feedback_requested' || t === 'feedback_resolved') onChange();
+  });
 }
 ```
+(Adjust `vox_feedback_list` result unwrapping to the real `ToolResult` shape from the Phase-1 `feedback_list` handler — it returns `ToolResult::ok(json!({...})).to_json()`; parse accordingly. Confirm `AGENT_EVENTS_EVENT` is exported from transport.ts; if not, import from its module.)
 
-- [ ] **Step 4: Run test to verify it passes**
-
-Run: `cd crates/vox-gui/ui && npx vitest run src/lib/__tests__/feedbackTransport.test.ts`
-Expected: PASS.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add crates/vox-gui/ui/src/lib/transport.ts crates/vox-gui/ui/src/lib/__tests__/feedbackTransport.test.ts
-git commit -m "feat(gui): feedback transport client"
-```
+- [ ] **Step 5:** run → PASS. `npx tsc --noEmit`. **Step 6: Commit** `feat(gui): feedback transport via invoke_mcp_tool + agent-events`.
 
 ---
 
-### Task 2: FeedbackCard component (per-type buttons)
+### Task 2 — FeedbackCard (typed actions, design system) [PARALLEL-SAFE]
 
-**Files:**
-- Create: `crates/vox-gui/ui/src/components/surfaces/NeedsYou/FeedbackCard.tsx`
-- Test: `crates/vox-gui/ui/src/components/surfaces/NeedsYou/__tests__/FeedbackCard.test.tsx`
+**Files:** Create `crates/vox-gui/ui/src/components/surfaces/NeedsYou/FeedbackCard.tsx`; test alongside.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1 (gate):** `rg -n "phase=|tone=|export function Pill|Icon\\.gavel|Icon\\.doubt" crates/vox-gui/ui/src/components/ui/Pill.tsx crates/vox-gui/ui/src/components/ui/Icons.tsx` — confirm `Pill` props (`phase` tones incl. `Doubted`/`Verifying`) and that `Icon.gavel`/`Icon.doubt` exist.
 
+- [ ] **Step 2: Write the failing test**
 ```tsx
+// @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { FeedbackCard } from '../FeedbackCard';
-
-const clar = { feedbackId: 'F-1', kind: 'clarification' as const, prompt: 'schema?', options: ['In hopper', 'Separate'], gates: ['H-1'], surface: 'needs_you' as const, infoGainBits: 0.8 };
-const doubt = { feedbackId: 'F-2', kind: 'doubt' as const, prompt: 'suspect', options: [], gates: ['H-2'], surface: 'needs_you' as const, infoGainBits: 0 };
-
+const clar = { feedbackId:'F-1', kind:'clarification' as const, prompt:'schema?', options:['In hopper','Separate'], gates:[7], doubtedTaskId:null, surface:'needs_you' as const, infoGainBits:0.8 };
+const doubt = { feedbackId:'F-2', kind:'doubt' as const, prompt:'suspect', options:[], gates:[], doubtedTaskId:9, surface:'needs_you' as const, infoGainBits:0 };
 describe('FeedbackCard', () => {
-  it('clarification renders option buttons + answer + skip', () => {
-    render(<FeedbackCard row={clar} onResolve={() => {}} onOpenContext={() => {}} />);
-    expect(screen.getByText('In hopper')).toBeTruthy();
-    expect(screen.getByText('Separate')).toBeTruthy();
-    expect(screen.getByText(/Answer/i)).toBeTruthy();
-  });
-
-  it('doubt renders overrule + answer + let-verify (no option buttons)', () => {
-    render(<FeedbackCard row={doubt} onResolve={() => {}} onOpenContext={() => {}} />);
-    expect(screen.getByText(/Overrule/i)).toBeTruthy();
-    expect(screen.getByText(/verify/i)).toBeTruthy();
-  });
-
-  it('clicking an option calls onResolve with its index', () => {
+  it('clarification: option click resolves with answer action', () => {
     const onResolve = vi.fn();
-    render(<FeedbackCard row={clar} onResolve={onResolve} onOpenContext={() => {}} />);
+    render(<FeedbackCard row={clar} onResolve={onResolve} onOpenContext={()=>{}} />);
     fireEvent.click(screen.getByText('Separate'));
-    expect(onResolve).toHaveBeenCalledWith('F-1', 1, null);
+    expect(onResolve).toHaveBeenCalledWith('F-1', { action:'answer', option:1, text:null });
   });
-
-  it('clicking the card body opens context', () => {
-    const onOpenContext = vi.fn();
-    render(<FeedbackCard row={clar} onResolve={() => {}} onOpenContext={onOpenContext} />);
-    fireEvent.click(screen.getByText('schema?'));
-    expect(onOpenContext).toHaveBeenCalledWith('F-1');
+  it('doubt: overrule resolves with overrule action', () => {
+    const onResolve = vi.fn();
+    render(<FeedbackCard row={doubt} onResolve={onResolve} onOpenContext={()=>{}} />);
+    fireEvent.click(screen.getByLabelText(/overrule/i));
+    expect(onResolve).toHaveBeenCalledWith('F-2', { action:'overrule' });
   });
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `cd crates/vox-gui/ui && npx vitest run src/components/surfaces/NeedsYou/__tests__/FeedbackCard.test.tsx`
-Expected: FAIL — module not found.
-
-- [ ] **Step 3: Implement**
-
+- [ ] **Step 3:** run → FAIL. **Step 4: Implement** with `Glass`/`Pill`/`Icon`; every button has `aria-label`:
 ```tsx
-import type { FeedbackRow } from '../../../lib/transport';
-
+import { Glass } from '../../ui/Glass';
+import { Pill } from '../../ui/Pill';
+import { Icon } from '../../ui/Icons';
+import type { FeedbackRow } from '../../../transport';
 interface Props {
   row: FeedbackRow;
-  onResolve: (feedbackId: string, chosenOption: number | null, freeText: string | null) => void;
-  onOpenContext: (feedbackId: string) => void;
+  onResolve: (id: string, action: Record<string, unknown>) => void;
+  onOpenContext: (id: string) => void;
 }
-
-const EDGE = { clarification: 'border-l-amber-400', doubt: 'border-l-rose-400' } as const;
-
 export function FeedbackCard({ row, onResolve, onOpenContext }: Props) {
   const isDoubt = row.kind === 'doubt';
   return (
-    <div className={`p-3 border-b border-zinc-800 border-l-2 ${EDGE[row.kind]} hover:bg-white/[0.02]`}>
+    <Glass className="p-3 border-b border-zinc-800">
       <div className="flex items-center gap-2 mb-1">
-        <span className={`text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border ${isDoubt ? 'bg-rose-400/10 text-rose-300 border-rose-400/30' : 'bg-amber-400/10 text-amber-300 border-amber-400/30'}`}>
-          {isDoubt ? 'Doubt' : 'Clarification'} · {row.feedbackId}
-        </span>
-        {row.gates.length > 0 && <span className="text-[11px] text-zinc-500">gates {row.gates.length} task{row.gates.length > 1 ? 's' : ''}</span>}
-        <span className="ml-auto text-[11px] text-zinc-600">context ›</span>
+        <Pill phase={isDoubt ? 'Doubted' : 'Verifying'}>{isDoubt ? 'Doubt' : 'Clarification'} · {row.feedbackId}</Pill>
+        {row.gates.length > 0 && <span className="text-[11px] text-zinc-500">parks {row.gates.length} task{row.gates.length>1?'s':''}</span>}
       </div>
-      <button className="text-xs text-zinc-200 mb-2 text-left block w-full" onClick={() => onOpenContext(row.feedbackId)}>
-        {row.prompt}
-      </button>
+      <button className="text-xs text-zinc-200 mb-2 text-left block w-full" aria-label="Open context" onClick={() => onOpenContext(row.feedbackId)}>{row.prompt}</button>
       <div className="flex gap-1.5 flex-wrap">
-        {isDoubt ? (
-          <>
-            <Btn tone="ok" onClick={() => onResolve(row.feedbackId, null, 'overrule')}>⚖️ Overrule</Btn>
-            <Btn tone="warn" onClick={() => onOpenContext(row.feedbackId)}>✎ Answer the conflict</Btn>
-            <Btn tone="ghost" onClick={() => onResolve(row.feedbackId, null, 'let-verify')}>Let it verify</Btn>
-          </>
-        ) : (
-          <>
-            {row.options.map((opt, i) => (
-              <Btn key={i} tone="ok" onClick={() => onResolve(row.feedbackId, i, null)}>{opt}</Btn>
-            ))}
-            <Btn tone="ghost" onClick={() => onOpenContext(row.feedbackId)}>✎ Answer…</Btn>
-            <Btn tone="ghost" onClick={() => onResolve(row.feedbackId, null, 'skip')}>Skip</Btn>
-          </>
-        )}
+        {isDoubt ? (<>
+          <button aria-label="Overrule the doubt" className="text-[11px] font-semibold px-2.5 py-1 rounded border border-emerald-400/30 text-emerald-300 bg-emerald-400/10 inline-flex items-center gap-1" onClick={() => onResolve(row.feedbackId, { action:'overrule' })}><Icon.gavel className="size-3.5" />Overrule</button>
+          <button aria-label="Let the agent verify" className="text-[11px] font-semibold px-2.5 py-1 rounded border border-zinc-700 text-zinc-400" onClick={() => onResolve(row.feedbackId, { action:'let_verify' })}>Let it verify</button>
+        </>) : (<>
+          {row.options.map((opt, i) => (
+            <button key={i} aria-label={`Answer: ${opt}`} className="text-[11px] font-semibold px-2.5 py-1 rounded border border-emerald-400/30 text-emerald-300 bg-emerald-400/10" onClick={() => onResolve(row.feedbackId, { action:'answer', option:i, text:null })}>{opt}</button>
+          ))}
+          <button aria-label="Answer in free text" className="text-[11px] font-semibold px-2.5 py-1 rounded border border-zinc-700 text-zinc-400" onClick={() => onOpenContext(row.feedbackId)}>✎ Answer…</button>
+          <button aria-label="Skip this question" className="text-[11px] font-semibold px-2.5 py-1 rounded border border-zinc-700 text-zinc-400" onClick={() => onResolve(row.feedbackId, { action:'skip' })}>Skip</button>
+        </>)}
       </div>
-    </div>
+    </Glass>
   );
 }
-
-function Btn({ tone, onClick, children }: { tone: 'ok' | 'warn' | 'ghost'; onClick: () => void; children: React.ReactNode }) {
-  const cls = tone === 'ok' ? 'bg-emerald-400/10 text-emerald-300 border-emerald-400/30'
-    : tone === 'warn' ? 'bg-amber-400/10 text-amber-300 border-amber-400/30'
-    : 'bg-transparent text-zinc-400 border-zinc-700';
-  return <button className={`text-[11px] font-semibold px-2.5 py-1 rounded border ${cls}`} onClick={onClick}>{children}</button>;
-}
 ```
+(If `Pill`/`Glass`/`Icon` APIs differ from the gate output, adapt to the real signatures — do not invent props.)
 
-- [ ] **Step 4: Run test to verify it passes**
-
-Run: `cd crates/vox-gui/ui && npx vitest run src/components/surfaces/NeedsYou/__tests__/FeedbackCard.test.tsx`
-Expected: PASS (4 tests).
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add crates/vox-gui/ui/src/components/surfaces/NeedsYou/FeedbackCard.tsx crates/vox-gui/ui/src/components/surfaces/NeedsYou/__tests__/FeedbackCard.test.tsx
-git commit -m "feat(gui): FeedbackCard with per-type response buttons"
-```
+- [ ] **Step 5:** run → PASS. **Step 6: Commit** `feat(gui): FeedbackCard (typed actions, design-system components)`.
 
 ---
 
-### Task 3: NeedsYouSurface (list + Withheld + reactive refresh)
+### Task 3 — NeedsYouSurface [SEQUENTIAL after 1,2]
 
-**Files:**
-- Create: `crates/vox-gui/ui/src/components/surfaces/NeedsYou/NeedsYouSurface.tsx`
-- Test: `crates/vox-gui/ui/src/components/surfaces/NeedsYou/__tests__/NeedsYouSurface.test.tsx`
+**Files:** Create `crates/vox-gui/ui/src/components/surfaces/NeedsYou/NeedsYouSurface.tsx`; test alongside.
 
-- [ ] **Step 1: Write the failing test**
-
+- [ ] **Step 1: Write the failing test** (mock `transport`):
 ```tsx
+// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { NeedsYouSurface } from '../NeedsYouSurface';
-import * as transport from '../../../../lib/transport';
-
+import * as transport from '../../../../transport';
 beforeEach(() => {
   vi.spyOn(transport, 'feedbackList').mockResolvedValue({
-    needsYou: [{ feedbackId: 'F-1', kind: 'clarification', prompt: 'schema?', options: ['a'], gates: ['H-1'], surface: 'needs_you', infoGainBits: 0.8 }],
-    withheld: [{ feedbackId: 'F-9', kind: 'clarification', prompt: 'low', options: [], gates: [], surface: 'withheld', infoGainBits: 0.05 }],
+    needsYou: [{ feedbackId:'F-1', kind:'clarification', prompt:'schema?', options:['a'], gates:[7], doubtedTaskId:null, surface:'needs_you', infoGainBits:0.8 }],
+    withheld: [{ feedbackId:'F-9', kind:'clarification', prompt:'low', options:[], gates:[], doubtedTaskId:null, surface:'withheld', infoGainBits:0.05 }],
   });
   vi.spyOn(transport, 'listenFeedbackChanged').mockResolvedValue(() => {});
 });
-
 describe('NeedsYouSurface', () => {
-  it('lists open needs-you items and a withheld section', async () => {
-    render(<NeedsYouSurface onOpenContext={() => {}} pushToast={() => {}} />);
+  it('lists open items + withheld section', async () => {
+    render(<NeedsYouSurface onOpenContext={()=>{}} pushToast={()=>{}} />);
     await waitFor(() => expect(screen.getByText('schema?')).toBeTruthy());
     expect(screen.getByText(/Withheld by policy/i)).toBeTruthy();
   });
-
-  it('shows empty state when nothing needs the user', async () => {
+  it('empty state when nothing needs you', async () => {
     (transport.feedbackList as any).mockResolvedValue({ needsYou: [], withheld: [] });
-    render(<NeedsYouSurface onOpenContext={() => {}} pushToast={() => {}} />);
+    render(<NeedsYouSurface onOpenContext={()=>{}} pushToast={()=>{}} />);
     await waitFor(() => expect(screen.getByText(/Nothing needs you/i)).toBeTruthy());
   });
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 2:** run → FAIL. **Step 3: Implement** using `EmptyState` for the empty case; `feedbackList()` already returns sorted/partitioned rows (doubts pinned), so render `needsYou` in order. `refresh` on mount + on `listenFeedbackChanged`. `handleResolve(id, action)` calls `transport.feedbackResolve(id, action)` then `refresh()`. Withheld in a collapsible `<details>`.
 
-Run: `cd crates/vox-gui/ui && npx vitest run src/components/surfaces/NeedsYou/__tests__/NeedsYouSurface.test.tsx`
-Expected: FAIL — module not found.
-
-- [ ] **Step 3: Implement**
-
-```tsx
-import { useCallback, useEffect, useState } from 'react';
-import { feedbackList, feedbackResolve, listenFeedbackChanged, type FeedbackRow } from '../../../lib/transport';
-import { FeedbackCard } from './FeedbackCard';
-
-interface Props {
-  onOpenContext: (feedbackId: string) => void;
-  pushToast: (t: { tone: string; title: string; body?: string }) => void;
-}
-
-export function NeedsYouSurface({ onOpenContext, pushToast }: Props) {
-  const [needsYou, setNeedsYou] = useState<FeedbackRow[]>([]);
-  const [withheld, setWithheld] = useState<FeedbackRow[]>([]);
-
-  const refresh = useCallback(async () => {
-    try {
-      const { needsYou, withheld } = await feedbackList();
-      // Sort by attention value (info gain), highest first.
-      setNeedsYou([...needsYou].sort((a, b) => b.infoGainBits - a.infoGainBits));
-      setWithheld(withheld);
-    } catch (e) {
-      pushToast({ tone: 'warn', title: 'Feedback query failed', body: String(e) });
-    }
-  }, [pushToast]);
-
-  useEffect(() => { refresh(); }, [refresh]);
-  useEffect(() => {
-    const p = listenFeedbackChanged(refresh);
-    return () => { p.then((un) => un()); };
-  }, [refresh]);
-
-  const handleResolve = useCallback(async (id: string, choice: number | null, text: string | null) => {
-    await feedbackResolve(id, choice, text);
-    refresh();
-  }, [refresh]);
-
-  return (
-    <div className="flex flex-col h-full gap-3 p-4 text-zinc-300">
-      <h2 className="text-lg font-semibold tracking-wider text-zinc-100">🙋 Needs You</h2>
-      {needsYou.length === 0 ? (
-        <p className="text-xs text-zinc-500">Nothing needs you right now.</p>
-      ) : (
-        <div className="flex flex-col">
-          {needsYou.map((r) => (
-            <FeedbackCard key={r.feedbackId} row={r} onResolve={handleResolve} onOpenContext={onOpenContext} />
-          ))}
-        </div>
-      )}
-      {withheld.length > 0 && (
-        <div className="mt-2">
-          <div className="text-[10px] uppercase font-bold tracking-wider text-zinc-500 mb-1">Withheld by policy</div>
-          {withheld.map((r) => (
-            <div key={r.feedbackId} className="text-[11px] text-zinc-500">▸ {r.prompt} ({r.infoGainBits.toFixed(2)} bits)</div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-```
-
-- [ ] **Step 4: Run test to verify it passes**
-
-Run: `cd crates/vox-gui/ui && npx vitest run src/components/surfaces/NeedsYou/__tests__/NeedsYouSurface.test.tsx`
-Expected: PASS (2 tests).
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add crates/vox-gui/ui/src/components/surfaces/NeedsYou/
-git commit -m "feat(gui): NeedsYouSurface — unified feedback inbox"
-```
+- [ ] **Step 4:** run → PASS. **Step 5: Commit** `feat(gui): NeedsYouSurface (reactive, doubts pinned, withheld section)`.
 
 ---
 
-### Task 4: Register the surface + route it
+### Task 4 — `task_id` on HopperTaskDto [PARALLEL-SAFE]
 
-**Files:**
-- Modify: `crates/vox-gui/ui/src/components/layout/surfaceComponents.tsx` (add `case 'needs-you'`)
-- Modify: surface registry source + regenerate (`vox ci gui-surface-registry --write`)
+So the GUI can join hopper rows to feedback gates. `TaskId = stable_hash(item_id.0)` — the same hash the dispatcher uses.
 
-- [ ] **Step 1: Add the registry entry (source, then regenerate)**
+**Files:** `crates/vox-orchestrator/src/orchestrator/dispatch.rs` (expose the hash), `crates/vox-gui/src/commands/orchestrator.rs` (DTO).
 
-Add a `needs-you` surface to the registry source (find it: `grep -rn "viewKey: 'activity'" crates/vox-gui/ui/src`). Mirror the `activity` entry: `{ viewKey: 'needs-you', tier: 'live_backend', navLabel: 'Needs You', navIcon: 'bell', navGroup: 'operate' }`.
+- [ ] **Step 1 (gate):** `rg -n "fn stable_hash|TaskId(stable_hash" crates/vox-orchestrator/src/orchestrator/dispatch.rs` — confirm the hash fn and its visibility.
 
-- [ ] **Step 2: Regenerate the registry**
+- [ ] **Step 2:** Make the hash reusable: add `pub fn task_id_for_hopper_id(item_id: &str) -> u64 { stable_hash(item_id) }` (or `pub(crate)` + a re-export) in vox-orchestrator, returning the `u64` inside `TaskId`. Test: assert it equals the dispatcher's value for a known id.
 
-Run: `vox ci gui-surface-registry --write`
-Expected: `surfaceRegistry.generated.ts` now contains the `needs-you` entry. (Per project memory, the generated file is SSOT — never hand-edit it.)
+- [ ] **Step 3:** Add `pub task_id: u64` to `HopperTaskDto` and set it in `hopper_item_to_dto`: `task_id: vox_orchestrator::orchestrator::task_id_for_hopper_id(&item.item_id.0)`. Update the existing `hopper_tests` in that file.
 
-- [ ] **Step 3: Route the component**
-
-In `surfaceComponents.tsx` switch, add:
-
-```tsx
-case 'needs-you':
-  return <NeedsYouSurface onOpenContext={props.onOpenFeedbackContext!} pushToast={props.pushToast} />;
-```
-
-Add `onOpenFeedbackContext?: (feedbackId: string) => void;` to `SurfaceProps` and thread it from `App.tsx` (Task 6 implements the handler).
-
-- [ ] **Step 4: Typecheck**
-
-Run: `cd crates/vox-gui/ui && npx tsc --noEmit`
-Expected: clean (a temporary `onOpenFeedbackContext` no-op is fine until Task 6).
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add crates/vox-gui/ui/src/components/layout/surfaceComponents.tsx crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts crates/vox-gui/ui/src/<registry-source>
-git commit -m "feat(gui): register + route Needs You surface"
-```
+- [ ] **Step 4:** `cargo test -p vox-orchestrator stable_hash && cargo clippy -p vox-gui --lib -- -D warnings`. fmt both. **Step 5: Commit** `feat(gui): expose task_id on HopperTaskDto for blocked overlay`.
 
 ---
 
-### Task 5: Blocked state on the Tasks surface
+### Task 5 — Blocked overlay on the Tasks surface [SEQUENTIAL]
 
-**Files:**
-- Modify: `crates/vox-gui/ui/src/components/surfaces/Tasks/tasksHelpers.ts` (recognize `blocked`)
-- Modify: `crates/vox-gui/ui/src/components/surfaces/Tasks/TasksView.tsx` (render dimmed + caption + filter)
-- Test: `crates/vox-gui/ui/src/components/surfaces/Tasks/__tests__/tasksHelpers.test.ts`
+**Files:** `crates/vox-gui/ui/src/components/surfaces/Tasks/tasksHelpers.ts`, `TasksView.tsx`; test alongside.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1 (gate):** confirm the REAL `TaskRow` shape (`id`, `description`, `priority`, `lifecycle` — NO `item_id`/`state`) and `GroupedTasks = {inProgress, queued}` per pre-flight. Confirm the DTO→lifecycle mapping in `TasksView.tsx` (`dto.state === 'assigned' ? 'in_progress' : ...`).
 
+- [ ] **Step 2: Write the failing test** (real shape):
 ```ts
 import { describe, it, expect } from 'vitest';
 import { groupTasks } from '../tasksHelpers';
-
 describe('groupTasks with blocked', () => {
-  it('separates blocked from queued and in-progress', () => {
+  it('separates blocked lifecycle into its own bucket', () => {
     const rows = [
-      { item_id: 'H-1', intent: 'a', priority: 1, state: 'assigned' },
-      { item_id: 'H-2', intent: 'b', priority: 1, state: 'inbox' },
-      { item_id: 'H-3', intent: 'c', priority: 1, state: 'blocked' },
+      { id:'H-1', description:'a', priority:'normal', lifecycle:'in_progress' },
+      { id:'H-2', description:'b', priority:'normal', lifecycle:'queued' },
+      { id:'H-3', description:'c', priority:'normal', lifecycle:'blocked' },
     ] as any[];
     const g = groupTasks(rows);
-    expect(g.blocked.map((r) => r.item_id)).toEqual(['H-3']);
-    expect(g.inProgress.map((r) => r.item_id)).toEqual(['H-1']);
-    expect(g.queued.map((r) => r.item_id)).toEqual(['H-2']);
+    expect(g.blocked.map((r:any)=>r.id)).toEqual(['H-3']);
+    expect(g.inProgress.map((r:any)=>r.id)).toEqual(['H-1']);
+    expect(g.queued.map((r:any)=>r.id)).toEqual(['H-2']);
   });
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 3:** run → FAIL. **Step 4: Implement**
+  - Extend `GroupedTasks` to `{ inProgress: TaskRow[]; queued: TaskRow[]; blocked: TaskRow[] }`; `groupTasks` filters `lifecycle==='blocked'` into `blocked`, `'in_progress'` into `inProgress`, and the rest (excluding blocked) into `queued`.
+  - In `TasksView.tsx`: (a) fetch the open feedback gate set (`feedbackList()` → flatten `needsYou` gates into a `Set<number>`); (b) when mapping each `HopperTaskDto`, set `lifecycle: gateSet.has(dto.task_id) ? 'blocked' : (dto.state === 'assigned' ? 'in_progress' : dto.state === 'inbox' ? 'queued' : dto.state === 'done' ? 'completed' : 'unknown')`; (c) render a "Blocked" section (dimmed `opacity-55`, caption "⛔ waiting on Needs You") with a show/hide filter. Refresh the gate set on `listenFeedbackChanged`.
 
-Run: `cd crates/vox-gui/ui && npx vitest run src/components/surfaces/Tasks/__tests__/tasksHelpers.test.ts`
-Expected: FAIL — `groupTasks` has no `blocked` group.
-
-- [ ] **Step 3: Extend `groupTasks`**
-
-In `tasksHelpers.ts`, add a `blocked` bucket to the grouping return type and put `state === 'blocked'` rows there (in-progress = `assigned`, queued = `inbox`, blocked = `blocked`).
-
-- [ ] **Step 4: Render in TasksView**
-
-In `TasksView.tsx`, add a "Blocked" section that renders blocked rows with `className="opacity-55"` and a caption "⛔ blocked — waiting on Needs You", plus a checkbox filter to hide/show the blocked group.
-
-- [ ] **Step 5: Run test + typecheck**
-
-Run: `cd crates/vox-gui/ui && npx vitest run src/components/surfaces/Tasks && npx tsc --noEmit`
-Expected: PASS; tsc clean.
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add crates/vox-gui/ui/src/components/surfaces/Tasks/
-git commit -m "feat(gui): render blocked tasks (dimmed + caption + filter)"
-```
+- [ ] **Step 5:** `npx vitest run src/components/surfaces/Tasks && npx tsc --noEmit` → green. **Step 6: Commit** `feat(gui): blocked overlay on Tasks (derived from feedback gates)`.
 
 ---
 
-### Task 6: Click-to-expand-in-chat + real strip counts; retire Dashboard doubt buttons
+### Task 6 — Register the Needs You surface [SEQUENTIAL]
 
-**Files:**
-- Modify: `crates/vox-gui/ui/src/App.tsx` (handler + counts)
-- Modify: `crates/vox-gui/ui/src/components/surfaces/Dashboard/StreamCard.tsx` (remove doubt/overrule buttons)
-- Modify: `crates/vox-gui/ui/src/components/surfaces/Dashboard/Dashboard.tsx` (drop `onDoubt`/`onOverrule` props)
-- Test: `crates/vox-gui/ui/src/components/surfaces/Dashboard/__tests__/StreamCard.test.tsx`
+**Files:** `crates/vox-gui/ui/src/App.tsx`, `contracts/gui/surface-registry.v1.yaml`, `crates/vox-gui/ui/src/components/layout/surfaceComponents.tsx`.
 
-- [ ] **Step 1: Write the failing test (buttons gone)**
+- [ ] **Step 1 (gate):** `rg -n "type View|View =" crates/vox-gui/ui/src/App.tsx` and read an existing curated entry (`approvals`) in `contracts/gui/surface-registry.v1.yaml`.
 
+- [ ] **Step 2:** Add `'needs-you'` to the `View` union in `App.tsx` (this also satisfies the `gui-surface-registry` wiring gate, which requires the literal in `App.tsx`).
+
+- [ ] **Step 3:** Add to `contracts/gui/surface-registry.v1.yaml` (snake_case, mirror `approvals`):
+```yaml
+- view_key: needs-you
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Needs You
+  nav_icon: alert          # 'bell' is NOT a valid Icon key — use alert/eye
+  nav_group: operate
+  parent_surface: null
+  notes: Unified soft-HITL feedback inbox (clarifications + doubts)
+```
+
+- [ ] **Step 4:** `vox ci gui-surface-registry --write` → confirm `surfaceRegistry.generated.ts` gains the entry. Do NOT hand-edit the generated file.
+
+- [ ] **Step 5:** Add to the `childRenderer` switch in `surfaceComponents.tsx` (mirror `case 'activity'`):
 ```tsx
+case 'needs-you':
+  return <NeedsYouSurface onOpenContext={props.onOpenFeedbackContext!} pushToast={props.pushToast} />;
+```
+Add `onOpenFeedbackContext?: (id: string) => void;` to `SurfaceProps` (same file).
+
+- [ ] **Step 6:** `vox ci gui-surface-registry` (non-write, the drift+wiring gate) → PASS; `npx tsc --noEmit`. **Step 7: Commit** `feat(gui): register Needs You surface (View union + yaml + childRenderer)`.
+
+---
+
+### Task 7 — Chat-focus, retire Dashboard doubt buttons, real strip counts [SEQUENTIAL]
+
+**Files:** `crates/vox-gui/ui/src/App.tsx`, `Dashboard/StreamCard.tsx`, `Dashboard/Dashboard.tsx`; tests alongside StreamCard.
+
+- [ ] **Step 1: Write the failing test** (buttons gone):
+```tsx
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { StreamCard } from '../StreamCard';
-
 describe('StreamCard after doubt migration', () => {
   it('no longer renders doubt or overrule controls', () => {
-    render(<StreamCard item={{ id: 'E-1', title: 't', kind: 'in-progress' } as any} />);
+    render(<StreamCard item={{ id:'E-1', title:'t', kind:'in-progress' } as any} />);
     expect(screen.queryByTitle(/doubt/i)).toBeNull();
     expect(screen.queryByTitle(/overrule/i)).toBeNull();
   });
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 2:** run → FAIL (buttons present). **Step 3:** Remove the `onDoubt`/`onOverrule` props + ❓/⚖️ buttons from `StreamCard.tsx`; drop the prop forwarding in `Dashboard.tsx` and the `handleDoubt`/`handleOverrule` Dashboard wiring in `App.tsx`. (The backend doubt path stays — only the Dashboard UI moves to Needs You.) Update any StreamCard test asserting the buttons existed.
 
-Run: `cd crates/vox-gui/ui && npx vitest run src/components/surfaces/Dashboard/__tests__/StreamCard.test.tsx`
-Expected: FAIL — buttons still present.
-
-- [ ] **Step 3: Remove the doubt/overrule buttons + props**
-
-Delete the ❓/⚖️ button JSX and the `onDoubt`/`onOverrule` props from `StreamCard.tsx`; remove the prop forwarding in `Dashboard.tsx` and the `handleDoubt`/`handleOverrule` wiring in `App.tsx` that fed the Dashboard (the backend doubt path stays — only the Dashboard UI moves to Needs You). Update any other `StreamCard` test that asserted the buttons existed.
-
-- [ ] **Step 4: Implement chat-expand handler + real counts**
-
-In `App.tsx`:
-
+- [ ] **Step 4: Chat-focus handler + real counts** in `App.tsx`:
 ```tsx
+const [focusedFeedbackId, setFocusedFeedbackId] = useState<string | null>(null);
 const onOpenFeedbackContext = useCallback((feedbackId: string) => {
-  // Reuse the Loquela/chat scroll intent already used for inline approvals.
-  setActiveSurface('loquela');
-  scrollChatToFeedback(feedbackId); // existing chat ref helper; if absent, set a `focusedFeedbackId` state the chat surface reads
-}, []);
+  navigateTo('chat');                 // real nav callback + real view key
+  setFocusedFeedbackId(feedbackId);   // ChatSurface reads this and scrolls/highlights (net-new wiring)
+}, [navigateTo]);
 ```
+Thread `focusedFeedbackId` into `ChatSurface` and add a `useEffect` + ref there that `scrollIntoView`s the matching message (net-new — there is no existing scroll-to-thread helper). For the attention strip (Phase 0 stubbed counts to 0): hold the latest `feedbackList()` result + a `hopper_list` snapshot in `App.tsx`; pass `waitingQuestions={needsYou.length}` and `blockedTasks={<count of hopper rows whose task_id ∈ open gate set>}` to `<AttentionStrip>`.
 
-Wire real counts into the AttentionStrip (Phase 0 stubbed them to 0): hold the latest `feedbackList()` result in `App.tsx` state and pass `waitingQuestions={needsYou.length}` and `blockedTasks={blockedCount}` (count of `hopper_list` rows with `state === 'blocked'`).
-
-- [ ] **Step 5: Run all UI tests + typecheck + lib build**
-
-Run: `cd crates/vox-gui/ui && npx vitest run && npx tsc --noEmit`
-Expected: all green; tsc clean.
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add crates/vox-gui/ui/src/App.tsx crates/vox-gui/ui/src/components/surfaces/Dashboard/
-git commit -m "feat(gui): chat-expand for feedback, real strip counts, retire Dashboard doubt buttons"
-```
+- [ ] **Step 5:** `npx vitest run && npx tsc --noEmit` → all green. **Step 6: Commit** `feat(gui): chat-focus for feedback, real strip counts, retire Dashboard doubt buttons`.
 
 ---
 
-### Self-review notes
-- Spec §5.2 (Needs You): Tasks 2, 3, 4 — unified list, per-type buttons, Withheld section, click-to-chat, registry entry. ✓
-- Spec §5.3 (Tasks blocked states): Task 5 — dimmed + caption + filter. ✓
-- "Retire Dashboard StreamCard buttons" (spec §5.2): Task 6. ✓
-- AttentionStrip real counts (closes Phase 0's documented stub): Task 6. ✓
-- Type consistency: `FeedbackRow`, `feedbackList`/`feedbackResolve`/`listenFeedbackChanged`, `onOpenContext`/`onOpenFeedbackContext`, `groupTasks().blocked` consistent across tasks.
-- Caveats flagged inline (registry source path via grep; chat-scroll helper may need a `focusedFeedbackId` state if no ref helper exists) — guarded, not placeholders.
+### Self-review notes (vs spec rev 2)
+- §5.2 Needs You: Tasks 2, 3, 6 — typed actions, doubts pinned, withheld section, design-system components, registration in all 4 places. ✓
+- §5.3 blocked overlay: Tasks 4, 5 — `task_id` join, derived `lifecycle: 'blocked'`, no hopper mutation. ✓
+- §6 transport/reactivity: Task 1 — `invoke_mcp_tool` + `vox://agent-events`. ✓
+- Retire Dashboard buttons + real counts: Task 7. ✓
+- Audit corrections: real paths (`transport.ts`, no `lib/`), `navigateTo('chat')` not `setActiveSurface('loquela')`, `focusedFeedbackId` is net-new (not a fictional helper), `Icon.alert` not `bell`, real `TaskRow`/`groupTasks` shape, jsdom pragma, lib-only vox-gui build. ✓
+- Type consistency: `FeedbackRow`, `feedbackList`/`feedbackResolve`/`listenFeedbackChanged`/`normalizeFeedback`, `onOpenFeedbackContext`, `GroupedTasks.blocked`, `HopperTaskDto.task_id` consistent across tasks and with Phase 1's tool outputs.
+```
