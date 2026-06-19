@@ -51,3 +51,16 @@ For 2+ independent, file-DISJOINT tasks, use `vox_agy_delegate_batch` instead of
 ```
 
 **Integration rule:** Review each worker's `diff` independently. For file-disjoint branches, cherry-pick or merge in any order. For any overlap the workers shouldn't have had (e.g. both touched `lib.rs`), resolve sequentially. Apply the **two-strike rule** (see `dispatching-parallel-agents`): if a worker fails twice, STOP and re-delegate with a corrected spec.
+
+### Prompt hygiene (REQUIRED)
+A vague prompt is the single most common cause of agy file-writing failures
+(ledger lesson B-6 / B-9). Before calling `vox_agy_delegate` or
+`vox_agy_delegate_batch`, verify each `task` string satisfies ALL of:
+
+1. **Single deliverable.** One file to create or one function to add per task.
+2. **Confirmed symbols.** Every struct/function/path mentioned MUST have been
+   verified with `rg`/Grep BEFORE inserting it. Never name something unconfirmed.
+3. **Explicit file path.** State the exact path, not "the relevant file".
+4. **File-write verb.** Include "Create a file …" or "Add … to …".
+5. **No git commands.** Append "Do not run any git commands."
+6. **Tight scope.** End with "— no other files." to prevent scope creep.

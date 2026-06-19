@@ -60,3 +60,21 @@ merge to main.
 - Never run agy against the live tree; the worktree jail is the only sandbox.
 - Never store Google credentials anywhere; agy owns its OAuth token.
 - Gates run exactly as specified — never substitute --warn-only / || true / --no-verify.
+
+### Prompt hygiene (REQUIRED)
+A vague prompt is the single most common cause of agy file-writing failures
+(ledger lesson B-6 / B-9). Before calling `vox_agy_pipeline`, verify your
+`task` field satisfies ALL of the following:
+
+1. **Single deliverable.** One file to create or one function to add. If you
+   have more, split into separate pipeline calls or use `vox_agy_delegate_batch`.
+2. **Confirmed symbols.** Every struct/function/path mentioned MUST have been
+   verified with `rg`/Grep BEFORE inserting it into the prompt. Never name
+   something you haven't confirmed exists.
+3. **Explicit file path.** State the exact path (`crates/foo/src/bar.rs`),
+   not "the relevant file".
+4. **File-write verb.** Include "Create a file …" or "Add … to …". agy
+   sometimes only reads when the task is ambiguous about writing.
+5. **No git commands.** Append "Do not run any git commands." — agy sometimes
+   stages or commits and the dirty worktree breaks the diff capture.
+6. **Tight scope.** End with "— no other files." to prevent scope creep.
