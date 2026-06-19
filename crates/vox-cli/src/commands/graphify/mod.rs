@@ -91,18 +91,16 @@ pub(crate) fn refresh_action(stale_reasons: &[String]) -> RefreshAction {
 }
 
 fn resolve_head_sha() -> anyhow::Result<Option<String>> {
-    let output = std::process::Command::new("git")
-        .args(["rev-parse", "HEAD"])
-        .output()
-        .context("git rev-parse HEAD")?;
-    if !output.status.success() {
-        return Ok(None);
-    }
-    let sha = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if sha.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(sha))
+    // Route through vox_git (concurrency-policy-honoring read-only exec), not a
+    // raw Command::new("git") — enforced by arch-check forbidden_pattern raw-git-exec.
+    match vox_git::read_only(std::path::Path::new("."), &["rev-parse", "HEAD"]) {
+        Ok(out) => {
+            let sha = out.trim().to_string();
+            Ok(if sha.is_empty() { None } else { Some(sha) })
+        }
+        // Not a git repo / git unavailable → treat as "no HEAD", same as the
+        // prior non-zero-exit branch.
+        Err(_) => Ok(None),
     }
 }
 
@@ -120,20 +118,13 @@ pub(crate) fn resolve_source_dir(
 
 /// `git -C <dir> rev-parse HEAD`, or Ok(None) if not a git repo.
 fn resolve_head_sha_in(dir: &std::path::Path) -> anyhow::Result<Option<String>> {
-    let output = std::process::Command::new("git")
-        .arg("-C")
-        .arg(dir)
-        .args(["rev-parse", "HEAD"])
-        .output()
-        .context("git rev-parse HEAD")?;
-    if !output.status.success() {
-        return Ok(None);
-    }
-    let sha = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if sha.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(sha))
+    // vox_git::read_only already runs `git -C <repo> <args>`; pass `dir` as the repo.
+    match vox_git::read_only(dir, &["rev-parse", "HEAD"]) {
+        Ok(out) => {
+            let sha = out.trim().to_string();
+            Ok(if sha.is_empty() { None } else { Some(sha) })
+        }
+        Err(_) => Ok(None),
     }
 }
 
