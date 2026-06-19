@@ -126,7 +126,11 @@ mod tests {
         let cands = dedup_skills(&manifests, &opts);
         assert_eq!(cands.len(), 1);
         assert_eq!(cands[0].members.len(), 2);
-        assert!(cands[0].score >= 0.9, "near-identical skills score high, got {}", cands[0].score);
+        assert!(
+            cands[0].score >= 0.9,
+            "near-identical skills score high, got {}",
+            cands[0].score
+        );
     }
 
     #[test]

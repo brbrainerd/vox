@@ -211,7 +211,6 @@ pub fn mean_pairwise_jaccard(index: &LshIndex, members: &[usize]) -> f32 {
     sum / pairs as f32
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

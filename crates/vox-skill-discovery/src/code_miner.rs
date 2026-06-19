@@ -149,7 +149,11 @@ mod tests {
         let body = "let subtotal = unit_price * quantity\nlet tax = subtotal * tax_rate\nlet total = subtotal + tax\nreturn total\n";
         std::fs::write(root.join("a.vox"), body).unwrap();
         std::fs::write(root.join("b.vox"), body).unwrap();
-        let opts = DiscoverOptions { min_tokens: 5, min_occurrences: 2, ..DiscoverOptions::default() };
+        let opts = DiscoverOptions {
+            min_tokens: 5,
+            min_occurrences: 2,
+            ..DiscoverOptions::default()
+        };
         let cands = mine_repeated_code(root, &opts);
         assert_eq!(cands.len(), 1);
         assert_eq!(cands[0].kind, CandidateKind::RepeatedCode);
