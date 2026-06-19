@@ -394,7 +394,21 @@ pub async fn run(
                             model.clone()
                         };
 
-                        let target_preset = preset.clone().or_else(|| Some("prosumer_16g".into()));
+                        // Preset SSOT: CLI --preset wins; else the spoke's declared
+                        // base.preset (e.g. qwen_4080_16g); else the default. Wiring
+                        // base.preset closes the "declared-but-unwired" gap (AGH-0012 F2).
+                        // Note: prosumer_16g ≡ qwen_4080_16g (alias, preset_schema.rs).
+                        let target_preset = preset
+                            .clone()
+                            .or_else(|| {
+                                profile.as_deref().and_then(|name| {
+                                    vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile
+                                        ::load_domain_profile(name, vox_corpus::training::contract::find_workspace_root().as_deref())
+                                        .ok()
+                                        .and_then(|e| e.base.and_then(|b| b.preset))
+                                })
+                            })
+                            .or_else(|| Some("qwen_4080_16g".into()));
 
                         use vox_populi::mens::tensor::domain_profiles::TrainMethod;
                         use vox_populi::mens::tensor::finetune_contract::AdapterMethod;
