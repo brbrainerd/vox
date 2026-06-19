@@ -6,4 +6,5 @@ pub mod candidate;
 pub mod options;
 
 pub use candidate::{Candidate, CandidateKind, DraftFrontmatter};
+pub use code_miner::mine_repeated_code;
 pub use options::DiscoverOptions;
