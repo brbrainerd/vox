@@ -9,9 +9,25 @@
 /// OpenRouter dynamic auto-selection route.
 pub const OPENROUTER_AUTO: &str = "openrouter/auto";
 
-/// OpenRouter free-tier preference route.
+/// OpenRouter free-tier preference route (VIRTUAL registry id — NOT dispatchable to
+/// the OpenRouter API directly; resolve to concrete `:free` slugs before egress).
 #[allow(dead_code)]
 pub const OPENROUTER_FREE: &str = "openrouter/free";
+
+/// Concrete, **dispatchable** OpenRouter free-tier model slugs (all end in `:free`,
+/// guaranteeing $0), ordered most-capable-first. Use these for the research free-tier
+/// fallback floor: unlike the virtual [`OPENROUTER_FREE`] route, these are real model
+/// ids the OpenRouter API accepts directly.
+///
+/// SSOT note: mirrors `vox-gamify`'s `OPENROUTER_FREE_MODELS`; the two should converge
+/// onto this constant (follow-up — see `docs/superpowers/antigravity-handoff-ledger.md` AGH-0006).
+pub const OPENROUTER_FREE_FALLBACK_MODELS: &[&str] = &[
+    "google/gemma-3-27b-it:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "qwen/qwen3-235b-a22b:free",
+    "mistralai/mistral-7b-instruct:free",
+    "microsoft/phi-3-mini-128k-instruct:free",
+];
 
 /// Research / planner / claim stages when no registry candidate exists.
 /// 2026-Q2: Gemini 3 Flash — cheap multimodal, fast, 1M context. Was `gpt-4o-mini` (retired).

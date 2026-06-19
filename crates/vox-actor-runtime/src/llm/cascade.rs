@@ -73,24 +73,36 @@ pub async fn chat_with_cascade(
     }
 }
 
-/// Ordered, de-duplicated OpenRouter model ids for a research call.
+/// Ordered, dispatchable OpenRouter model ids for a research call.
 ///
-/// The free-tier router (`openrouter/free`) is ALWAYS included as a fallback floor
-/// so research degrades to zero cost instead of failing. `prefer_free` moves it to
-/// the front (opt-in via `VOX_RESEARCH_PREFER_FREE_TIER`); otherwise it trails the
-/// caller-configured model. If the configured model already IS the free router,
-/// the list collapses to a single entry.
+/// Concrete `:free` slugs from [`vox_config::OPENROUTER_FREE_FALLBACK_MODELS`] are
+/// ALWAYS appended as a zero-cost fallback floor so research degrades to free instead
+/// of failing. The virtual `openrouter/free` route is intentionally NOT used here: it
+/// is a registry-only id that the OpenRouter API rejects when dispatched raw, so real
+/// `:free` model ids are used instead. `prefer_free` moves the free slugs ahead of the
+/// caller-configured model; a configured model that is already a free slug is not
+/// duplicated.
 #[must_use]
 fn research_openrouter_model_ids(configured: &str, prefer_free: bool) -> Vec<String> {
-    let free = vox_config::OPENROUTER_FREE.to_string();
-    if configured == free {
-        return vec![free];
-    }
+    let free: Vec<String> = vox_config::OPENROUTER_FREE_FALLBACK_MODELS
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect();
+    let configured_is_free = free.iter().any(|f| f == configured);
+
+    let mut ordered = Vec::with_capacity(free.len() + 1);
     if prefer_free {
-        vec![free, configured.to_string()]
+        ordered.extend(free.iter().cloned());
+        if !configured_is_free {
+            ordered.push(configured.to_string());
+        }
     } else {
-        vec![configured.to_string(), free]
+        if !configured_is_free {
+            ordered.push(configured.to_string());
+        }
+        ordered.extend(free.iter().cloned());
     }
+    ordered
 }
 
 /// Build the default research cascade: local Mens/Ollama first, then OpenRouter.
@@ -243,33 +255,39 @@ mod tests {
         }
     }
 
+    fn expected_free() -> Vec<String> {
+        vox_config::OPENROUTER_FREE_FALLBACK_MODELS
+            .iter()
+            .map(|s| (*s).to_string())
+            .collect()
+    }
+
     #[test]
     fn research_models_append_free_floor_by_default() {
         let v = research_openrouter_model_ids("anthropic/claude-sonnet-4.6", false);
-        assert_eq!(
-            v,
-            vec![
-                "anthropic/claude-sonnet-4.6".to_string(),
-                vox_config::OPENROUTER_FREE.to_string(),
-            ]
-        );
+        // configured model first, then the concrete dispatchable :free floor.
+        assert_eq!(v[0], "anthropic/claude-sonnet-4.6");
+        assert_eq!(v[1..].to_vec(), expected_free());
+        // every floor entry is a real, dispatchable :free slug (not the virtual route).
+        assert!(v[1..].iter().all(|m| m.ends_with(":free")));
+        assert!(!v.iter().any(|m| m == vox_config::OPENROUTER_FREE));
     }
 
     #[test]
     fn research_models_prefer_free_moves_it_first() {
         let v = research_openrouter_model_ids("anthropic/claude-sonnet-4.6", true);
-        assert_eq!(
-            v,
-            vec![
-                vox_config::OPENROUTER_FREE.to_string(),
-                "anthropic/claude-sonnet-4.6".to_string(),
-            ]
-        );
+        let n = expected_free().len();
+        assert_eq!(v[..n].to_vec(), expected_free());
+        assert_eq!(v.last().unwrap(), "anthropic/claude-sonnet-4.6");
+        assert!(v[..n].iter().all(|m| m.ends_with(":free")));
     }
 
     #[test]
-    fn research_models_dedup_when_configured_is_already_free() {
-        let v = research_openrouter_model_ids(vox_config::OPENROUTER_FREE, false);
-        assert_eq!(v, vec![vox_config::OPENROUTER_FREE.to_string()]);
+    fn research_models_no_duplicate_when_configured_is_already_free() {
+        let slug = vox_config::OPENROUTER_FREE_FALLBACK_MODELS[0];
+        let v = research_openrouter_model_ids(slug, false);
+        // a configured model that is already a free slug appears exactly once.
+        assert_eq!(v.iter().filter(|m| m.as_str() == slug).count(), 1);
+        assert_eq!(v, expected_free());
     }
 }
