@@ -113,7 +113,7 @@ vox-orchestrator-types = { layer = 0 }
 vox-llm-config         = { layer = 0, staleness_exempt = true }   # SSOT for LLM/AI setting-key metadata; pure-data, zero workspace deps; vox-secrets/vox-config/vox-gui are views
 
 vox-db-types           = { layer = 0 }
-vox-mesh-types         = { layer = 0 }
+vox-mesh-types         = { layer = 0, publishable = true }
 vox-ast                = { layer = 0, max_dependents = 40 }   # pure-data Vox AST (serde-only); extracted from vox-compiler 2026-06-05, re-exported as vox_compiler::ast
 workspace-hack         = { layer = 0, max_dependents = 80, staleness_exempt = true }
 vox-arch-check         = { layer = 0, kind = "binary" }
@@ -122,10 +122,10 @@ vox-rename-registry       = { layer = 0, staleness_exempt = true }   # rename-re
 vox-shell-stdlib-types    = { layer = 0, staleness_exempt = true }   # VoxFileRecord + std.fs types; shared between compiler interp path and actor-runtime codegen path
 
 # ── L1 — primitives & utilities ───────────────────────────────────────────────
-vox-bounded-fs        = { layer = 1, max_dependents = 25, staleness_exempt = true }
+vox-bounded-fs        = { layer = 1, max_dependents = 25, staleness_exempt = true, publishable = true }
 vox-hf-layout         = { layer = 1, max_loc = 6_000 }               # HF config.json layout (MENS / Candle plugins)
-vox-crypto            = { layer = 1, staleness_exempt = true }
-vox-secrets           = { layer = 1, max_dependents = 27 }  # 26 direct consumers (all call resolve_secret); budget = current + 1. A-9 split (vox-secrets-types) deferred: all consumers use resolution fns, so split would not reduce this fan-in.
+vox-crypto            = { layer = 1, staleness_exempt = true, publishable = true }
+vox-secrets           = { layer = 1, max_dependents = 27, publishable = true }  # 26 direct consumers (all call resolve_secret); budget = current + 1. A-9 split (vox-secrets-types) deferred: all consumers use resolution fns, so split would not reduce this fan-in.
 
 vox-jsonschema-util   = { layer = 1 }
 vox-foundation        = { layer = 1, staleness_exempt = true, max_dependents = 18 }   # umbrella: vox-primitives + vox-protocol + vox-tracing-init
@@ -136,17 +136,19 @@ vox-rule-pack         = { layer = 1 }                            # SSOT loader f
 vox-openai       = { layer = 1, staleness_exempt = true }
 
 vox-grammar-export    = { layer = 1 }
-vox-scaling-policy    = { layer = 1 }
+vox-scaling-policy    = { layer = 1, publishable = true }
 vox-package-types     = { layer = 1 }                            # pure-types L1 leaf
 vox-plugin-api        = { layer = 1 }                            # type/trait surface only
 vox-plugin-sdk        = { layer = 1 }                            # authoring SDK: re-exports api + declare_plugin! glue macro
 vox-plugin-types      = { layer = 1 }                            # pure-types L1 leaf
 vox-research-events    = { layer = 1 }                            # SCIENTIA typed event bus (Phase 0b)
 vox-telemetry         = { layer = 1 }                            # L1 telemetry facade; zero domain deps
+vox-telemetry-otlp    = { layer = 3, max_loc = 3_000 }           # L3 feature-gated OTLP egress; only surfaces register it (never domain crates)
 vox-runtime           = { layer = 2, max_dependents = 20 }       # umbrella runtime: RuntimeProfile + lifecycle traits + VoxConfig; deps vox-config
 
 # ── L2 — domain libraries ─────────────────────────────────────────────────────
 vox-config              = { layer = 2, max_dependents = 20 }
+vox-similarity          = { layer = 2 }
 vox-llm-egress          = { layer = 2, max_dependents = 10 }   # sanctioned LLM provider wire; pure egress (deps = vox-http-client + reqwest), no config/secret resolution
 
 vox-repository          = { layer = 2 }
@@ -217,6 +219,7 @@ vox-mcp-llm-bridge      = { layer = 3, orphan_exempt = true }                   
 vox-orchestrator-queue  = { layer = 3 }                          # Phase 5 extraction
 vox-orchestrator-driver = { layer = 3 }                          # CLI/MCP embedded orchestrator driver (2026 debt burndown)
 vox-search              = { layer = 3 }
+vox-skill-discovery     = { layer = 3, orphan_exempt = true }
 
 
 vox-test-harness        = { layer = 3 }
@@ -531,9 +534,6 @@ vox-mens-eval            = { plan = "docs/src/architecture/crate-structure-audit
 vox-agentos-mutation     = { plan = "docs/src/architecture/mesh-and-language-distribution-ssot-2026.md", layer = 0 }
 vox-free-ai              = { plan = "docs/superpowers/plans/2026-06-18-gamify-gui-pluginization-lean-cli.md", layer = 2 }
 vox-plugin-gamify        = { plan = "docs/superpowers/plans/2026-06-18-gamify-gui-pluginization-lean-cli.md", layer = 4 }
-vox-similarity           = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 2 }
-vox-skill-discovery      = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 3 }
-vox-telemetry-otlp       = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 3 }
 
 
 
