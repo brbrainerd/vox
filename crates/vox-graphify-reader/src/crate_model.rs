@@ -1,5 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
+use crate::cluster::{ClusterEdge, ClusterNode, cluster_nodes};
+use serde_json::{Value, json};
+
 /// Per-crate model metrics.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CrateMetrics {
@@ -57,4 +60,117 @@ pub fn crate_metrics(
         );
     }
     out
+}
+
+/// Build a deterministic graphify-shaped crate map from `crate-graph.v1.json`
+/// (`{crates:{name:[deps]}}`) and the `crate_audit.json` array
+/// (`crate`, `compile_s` [string or number], `loc`, `layer`).
+///
+/// Node attrs: `compile_s`, `loc`, `layer`, `fan_in`, `dependents`, `blast_s`, `community`.
+/// When `audit` is empty (`[]`), times degrade to 0 and `dependents` still ranks crates by impact.
+pub fn build_crate_map(crate_graph: &Value, audit: &Value) -> Value {
+    let mut adj: HashMap<String, Vec<String>> = HashMap::new();
+    if let Some(m) = crate_graph.get("crates").and_then(|v| v.as_object()) {
+        for (c, ds) in m {
+            let deps = ds
+                .as_array()
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|x| x.as_str().map(String::from))
+                        .collect()
+                })
+                .unwrap_or_default();
+            adj.insert(c.clone(), deps);
+        }
+    }
+
+    let (mut self_s, mut loc_map, mut layer_map): (
+        HashMap<String, f64>,
+        HashMap<String, i64>,
+        HashMap<String, i64>,
+    ) = (HashMap::new(), HashMap::new(), HashMap::new());
+    if let Some(arr) = audit.as_array() {
+        for r in arr {
+            let Some(name) = r.get("crate").and_then(|v| v.as_str()) else {
+                continue;
+            };
+            let cs = r
+                .get("compile_s")
+                .and_then(|v| {
+                    v.as_str()
+                        .and_then(|s| s.parse::<f64>().ok())
+                        .or_else(|| v.as_f64())
+                })
+                .unwrap_or(0.0);
+            self_s.insert(name.to_string(), cs);
+            loc_map.insert(
+                name.to_string(),
+                r.get("loc").and_then(|v| v.as_i64()).unwrap_or(0),
+            );
+            layer_map.insert(
+                name.to_string(),
+                r.get("layer").and_then(|v| v.as_i64()).unwrap_or(-1),
+            );
+        }
+    }
+
+    let metrics = crate_metrics(&adj, &self_s);
+
+    let mut nodes_set: HashSet<String> = HashSet::new();
+    let mut fan_in: HashMap<String, usize> = HashMap::new();
+    for (c, deps) in &adj {
+        nodes_set.insert(c.clone());
+        for d in deps {
+            nodes_set.insert(d.clone());
+            *fan_in.entry(d.clone()).or_insert(0) += 1;
+        }
+    }
+
+    let cnodes: Vec<ClusterNode> = nodes_set
+        .iter()
+        .map(|n| ClusterNode {
+            id: n.clone(),
+            label: n.clone(),
+        })
+        .collect();
+    let mut cedges: Vec<ClusterEdge> = Vec::new();
+    for (c, deps) in &adj {
+        for d in deps {
+            cedges.push(ClusterEdge {
+                source: c.clone(),
+                target: d.clone(),
+            });
+        }
+    }
+    let comm = cluster_nodes(&cnodes, &cedges);
+
+    let mut names: Vec<String> = nodes_set.into_iter().collect();
+    names.sort();
+    let nodes_val: Vec<Value> = names
+        .iter()
+        .map(|n| {
+            let cs = (self_s.get(n).copied().unwrap_or(0.0) * 10.0).round() / 10.0;
+            let mm = metrics.get(n);
+            json!({
+                "id": n, "label": n,
+                "community": comm.get(n).cloned().unwrap_or_else(|| "c_0".to_string()),
+                "compile_s": cs,
+                "loc": loc_map.get(n).copied().unwrap_or(0),
+                "layer": layer_map.get(n).copied().unwrap_or(-1),
+                "fan_in": fan_in.get(n).copied().unwrap_or(0),
+                "dependents": mm.map(|m| m.dependents).unwrap_or(0),
+                "blast_s": mm.map(|m| m.blast_s).unwrap_or(0.0).round(),
+            })
+        })
+        .collect();
+
+    let mut links_val: Vec<Value> = Vec::new();
+    for (c, deps) in &adj {
+        for d in deps {
+            links_val.push(json!({"source": c, "target": d}));
+        }
+    }
+    links_val.sort_by_key(|a| a.to_string());
+
+    json!({ "nodes": nodes_val, "links": links_val })
 }
