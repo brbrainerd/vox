@@ -496,21 +496,40 @@ date: "2026-06-19"
 plan: "docs/superpowers/plans/2026-06-19-voxmens-split-C-convergent.md"
 subsystem: "VoxMens Split C — convergent selection/routing"
 target: "Gemini 3.5 Flash inside Google Antigravity"
-delivered: []
-outcome: "in_progress"
+delivered:
+  - "mens/config/gpu-specs.yaml"
+  - "crates/vox-populi/src/mens/tensor/spoke_base_resolver.rs"
+  - "crates/vox-populi/src/mens/tensor/mod.rs"
+  - "crates/vox-ml-cli/src/commands/mens/pipeline.rs"
+  - "crates/vox-populi/src/mens/tensor/domain_router.rs"
+  - "crates/vox-populi/src/mens/tensor/spoke_validate.rs"
+  - "docs/src/architecture/voxmens-serving-topology-decision-2026-06-19.md"
+outcome: "green"
 verification:
-  tests: "pending"
-  clippy: "pending"
-  arch_check: "pending"
-  spoke_check: "pending"
-errors_encountered: []
+  tests: "5 spoke_base_resolver tests + 4 spoke_validate tests + 5 domain_router tests — all PASS (cargo test -p vox-populi --features mens-train)"
+  clippy: "clippy clean under --no-deps"
+  arch_check: "cargo run -p vox-arch-check PASS (exit 0)"
+  spoke_check: "vox ci spoke-check PASS (exit 0)"
+errors_encountered:
+  - "sccache fails to build workspace crates under Windows in this environment; bypassed by passing --config build.rustc-wrapper=''"
 agent_deviations: []
-commits: []
+commits:
+  - "1c2d4a4647 docs(ledger): open AGH-0012 for Split C convergent plan"
+  - "347f575240 feat(mens): train_bases overlay in gpu-specs (tag->fine-tunable bases + VRAM floor)"
+  - "1220b89f3c feat(mens): pure VRAM-fit base resolver and loader (resolve_base_model)"
+  - "f3ad06852a feat(mens): pipeline resolves per-spoke base model and dispatches backend method via AdapterMethodRegistry"
+  - "ad339d2539 feat(mens): DomainRouter::route_by_signal (triggers+priority, deterministic)"
+  - "6b86a41ffa feat(mens): spoke-check validates base.model resolves (overlay tag or concrete id)"
+  - "db542e531f docs(mens): serving-topology decision + Split C convergent e2e validated"
 ```
 
 ### AGH-0012 — Split C convergent review detail (human prose)
 
-*In progress*
+Wired the model selection, training method dispatch, and lane routing as a minimal overlay over existing infrastructure:
+- **Base model resolver**: maps capability tags (`small_code_default`, etc.) to VRAM-fit Hugging Face model IDs based on detected local system VRAM, using a lightweight overlay in `gpu-specs.yaml`. It falls back gracefully to default models if VRAM detection is missing (e.g. no-GPU hosts).
+- **Training method dispatch**: resolves `base.method` from the spoke configuration and maps `Qlora` to the correct kernel using `AdapterMethodRegistry`. Other unwired methods fail-closed, while `RagOnly`/`PromptOnly` methods skip the training stage cleanly.
+- **Lane routing**: implemented deterministic, priority-based signal routing `route_by_signal` matching spoke trigger suffixes with lexicographical name tie-breaking.
+- **Verification**: extended `spoke_validate` so that `vox ci spoke-check` verifies base model tags against the overlay. Verified successfully via end-to-end dry-run executions for `vox-lang`, `rust-expert`, and `agents` domain spokes.
 
 ---
 
