@@ -65,6 +65,8 @@ pub mod preflight_train;
 #[cfg(any(feature = "mens-train", feature = "mens-cloud"))]
 pub mod preset_schema;
 #[cfg(feature = "mens-train")]
+pub mod spoke_validate;
+#[cfg(feature = "mens-train")]
 pub mod train_backend;
 #[cfg(feature = "mens-train")]
 pub mod train_jsonl_preflight;
