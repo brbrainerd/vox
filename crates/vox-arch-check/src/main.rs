@@ -1087,11 +1087,19 @@ fn run(warn_only_flag: bool) -> Result<Report> {
 
     // ── Rule 18: Publishability closure gate ──
     {
-        // Build adjacency: workspace-normal deps only (same edges already collected).
-        let mut ws_normal_deps: std::collections::HashMap<String, Vec<String>> =
+        // Build adjacency from required (non-optional) workspace normal deps only.
+        // Optional deps are excluded: `cargo publish` does not require them to be on
+        // crates.io (they can be satisfied by a feature flag that is never enabled).
+        let mut ws_required_deps: std::collections::HashMap<String, Vec<String>> =
             std::collections::HashMap::new();
-        for (from, to) in &normal_dep_edges {
-            ws_normal_deps.entry(from.clone()).or_default().push(to.clone());
+        for pkg in metadata_full.workspace_packages() {
+            for dep in &pkg.dependencies {
+                if dep.kind != cargo_metadata::DependencyKind::Normal { continue; }
+                if dep.optional { continue; }
+                let to = dep.name.as_str();
+                if !workspace_members.contains(to) { continue; }
+                ws_required_deps.entry(pkg.name.to_string()).or_default().push(to.to_string());
+            }
         }
         // Detect publish_false via cargo_metadata: publish == Some([]) means publish = false.
         let crate_recs: Vec<checks::publishable::CrateRec> = metadata_full
@@ -1104,7 +1112,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
                     .unwrap_or(false);
                 checks::publishable::CrateRec {
                     name: pkg.name.to_string(),
-                    deps: ws_normal_deps.get(pkg.name.as_str()).cloned().unwrap_or_default(),
+                    deps: ws_required_deps.get(pkg.name.as_str()).cloned().unwrap_or_default(),
                     publish_false,
                     publishable,
                 }
