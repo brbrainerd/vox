@@ -13,7 +13,7 @@ tracing = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 vox-mesh-types = { workspace = true }
-workspace-hack = { workspace = true }
+workspace-hack = { workspace = true, optional = true }
 
 [lints]
 workspace = true
