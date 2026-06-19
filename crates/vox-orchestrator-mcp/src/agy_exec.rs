@@ -108,8 +108,14 @@ impl AgyExec {
 /// Blocking PTY-backed agy invocation. Spawns `agy` inside a pseudo-console so
 /// its bubbletea TUI initialises correctly (a plain piped subprocess has no
 /// terminal and aborts before running its file-writing tools). Output is drained
-/// on a reader thread; the timeout is enforced by polling `try_wait` against a
-/// deadline and killing the child on overrun.
+/// on a reader thread; timeout is enforced by killing the child if the reader
+/// thread hasn't finished by the deadline.
+///
+/// We do NOT use `child.try_wait()` for the exit signal — on Windows ConPTY
+/// `try_wait()` can return `Ok(None)` indefinitely even after the child exits.
+/// Instead we watch the reader thread: the child exiting closes the PTY slave →
+/// the master sees EOF → the reader thread finishes. That EOF is our reliable
+/// exit signal.
 fn run_in_pty(cwd: &Path, args: &[String], timeout: Duration) -> Result<AgyOutput, AgyExecError> {
     use portable_pty::{native_pty_system, CommandBuilder, PtySize};
     use std::io::Read;
@@ -145,6 +151,11 @@ fn run_in_pty(cwd: &Path, args: &[String], timeout: Duration) -> Result<AgyOutpu
     drop(pair.slave);
 
     // Drain the master on a dedicated thread (portable-pty reads are blocking).
+    // NOTE: we do NOT move `pair.master` into the reader thread. On Windows
+    // ConPTY, `child.kill()` does not reliably close the slave side, so the
+    // reader can block forever after a kill. By keeping the master in this
+    // function scope, we can `drop(pair.master)` from the main thread on the
+    // timeout path to force the reader to see an error (EOF) and unblock.
     let mut reader = pair
         .master
         .try_clone_reader()
@@ -161,26 +172,38 @@ fn run_in_pty(cwd: &Path, args: &[String], timeout: Duration) -> Result<AgyOutpu
         }
     });
 
-    // Poll for exit; kill if the deadline passes.
+    // Wait for the reader thread (= child exited, PTY master sees EOF) or kill.
+    // `is_finished` is cheap (atomic flag). Poll at 100 ms.
+    let deadline = started + timeout;
     let mut timed_out = false;
-    let exit_code: i32 = loop {
-        match child.try_wait() {
-            Ok(Some(status)) => break status.exit_code() as i32,
-            Ok(None) => {}
-            Err(e) => return Err(AgyExecError::Spawn(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))),
+    loop {
+        if reader_thread.is_finished() {
+            break;
         }
-        if started.elapsed() >= timeout {
+        if Instant::now() >= deadline {
+            // Kill the child on timeout.
             let _ = child.kill();
-            let _ = child.wait();
             timed_out = true;
-            break -1;
+            break;
         }
-        std::thread::sleep(Duration::from_millis(50));
-    };
-
-    // Dropping the master closes the PTY so the reader thread hits EOF.
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    // Dropping the master closes the ConPTY handle. On Windows this causes the
+    // cloned reader to return an error, unblocking the reader thread. On Unix
+    // this causes the master to send EOF. Either way the thread exits promptly.
     drop(pair.master);
     let _ = reader_thread.join();
+
+    // Get the exit code. `try_wait` can be unreliable on Windows ConPTY so we
+    // use `wait` (blocking, but the child has already exited or been killed).
+    let exit_code = if timed_out {
+        -1
+    } else {
+        match child.wait() {
+            Ok(status) => status.exit_code() as i32,
+            Err(_) => 0, // child already reaped
+        }
+    };
 
     let raw = buf.lock().unwrap().clone();
     let text = strip_ansi(&String::from_utf8_lossy(&raw));
