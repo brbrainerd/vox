@@ -4,10 +4,12 @@ This is the copy-paste brief for **Gemini Flash 3.5 in Antigravity**. It is comm
 so the runner can read it and every doc it references.
 
 **Preconditions (human, before pasting):**
-1. **Phase A is done in Claude Code** — the Axis icon set is generated and committed
-   under `crates/vox-gui/icons/`. (The pre-flight gate below will STOP if it isn't.)
+1. **Phases A + D are done in Claude Code** — the Axis icon set (`crates/vox-gui/icons/`),
+   the `AxisMark` component, brand tokens, the rebranded `Sidebar.tsx`, and `index.html`
+   are all committed. (The pre-flight gate below STOPs if `AxisMark.tsx` / `favicon.svg`
+   are missing.)
 2. The runner has this branch checked out. If the runner is **remote/cloud**, push the
-   branch first so its clone has the committed spec, plan, and icons.
+   branch first so its clone has the committed spec, plan, icons, and front-end layer.
 
 ---
 
@@ -20,7 +22,7 @@ do not rely on this message for detail.
 ### Read first (in this order)
 1. `docs/src/architecture/gemini-3-5-flash-antigravity-limitations-2026-06-18.md` — your own operating limits.
 2. `docs/superpowers/specs/2026-06-19-vox-axis-rebrand-design.md` — the design SSOT. Read §2 (scope / what NOT to change) before any code.
-3. `docs/superpowers/plans/2026-06-19-vox-axis-rebrand.md` — the plan. **Execute PHASE B only** (Phase A is already done in Claude Code; you must NOT generate images). Finish with PHASE C (emit the handback block).
+3. `docs/superpowers/plans/2026-06-19-vox-axis-rebrand.md` — the plan. **Execute PHASE B only** — tasks **B1, B4, B5, B6** (Phases A + D are already done in Claude Code). Finish with PHASE C (emit the handback block).
 
 ### Operating rules (the plan repeats these per task — follow exactly)
 - Each task is **atomic + green + committed**. A kill between tasks must leave a compiling, tested tree.
@@ -35,6 +37,7 @@ do not rely on this message for detail.
 3. `vox axis` is a clap **`visible_alias`** of the existing `Gui` variant — not a new command/dispatch.
 4. Display text = "Vox Axis"/"Axis"; identifiers = `axis`/`VoxAxis`.
 5. Do NOT touch the gamification "Imperator" rank titles — unrelated to branding.
+6. **Do NOT touch the front-end brand layer** — `Sidebar.tsx`, `components/brand/AxisMark.tsx`, `tokens/*.json`, `src/styles/tokens.generated.*`, `public/favicon.svg`, `index.html`. Claude built and committed these (Phase D); they are out of your scope. If a test references `AxisMark` or a brand token and it's missing, **STOP** — Phase D wasn't run, do not recreate it.
 
 ### Verification ritual (per task, before you commit)
 - **GUI TS:** from `crates/vox-gui/ui` → `npx vitest run <path>` then `npx tsc --noEmit`. First line of every new component test: `// @vitest-environment jsdom`.

@@ -11,9 +11,11 @@
 
 **Goal:** Rebrand the Vox GUI to **"Axis"** (full brand "Vox Axis") at the identity layer only — window title, in-app mark, footer, a `vox axis` launch alias, and a regenerated icon set — with zero crate/binary/identifier renames.
 
-**Architecture:** Pure brand-layer change across three lanes: (1) a JSON config value, (2) React/TS UI strings + one clap subcommand alias, (3) binary image assets generated ahead of time. No new Rust types, no API changes, no import churn. `productName`/`identifier` in `tauri.conf.json` stay "Vox"/`org.vox-foundation.gui` on purpose (they drive installer/bundle identity).
+**Architecture:** Brand-layer change across four lanes: (1) a JSON config value, (2) a **professional front-end brand layer** — a reusable `AxisMark` SVG component, brand design-tokens (extending the existing Style-Dictionary pipeline), the sidebar brand block, and favicon/`index.html` — (3) one clap subcommand alias + help/log strings, (4) binary image assets generated ahead of time. No new Rust types, no API churn. `productName`/`identifier` in `tauri.conf.json` stay "Vox"/`org.vox-foundation.gui` on purpose (they drive installer/bundle identity).
 
-**Tech Stack:** Tauri 2 (`tauri.conf.json`), TypeScript/React + vitest (`vox-gui/ui`), Rust + clap (`vox-cli`), `tauri icon` for asset fan-out.
+**Execution split (this is the load-bearing decision):** Gemini Flash breaks on inline-SVG JSX, asset files, HTML-head wiring, and multi-element component restructures (its hallucination/path zone). So **Claude Code pre-builds the entire React/asset/token surface** (Phases A + D) before the handoff, and **Flash gets only rock-solid atomic edits** (Phase B: a JSON value, a clap alias, string/comment swaps, a docs file). Flash never touches `Sidebar.tsx`, `AxisMark`, the token sources, or `index.html`.
+
+**Tech Stack:** Tauri 2 (`tauri.conf.json`), TypeScript/React + vitest (`vox-gui/ui`), Style Dictionary (`pnpm tokens:build`), Rust + clap (`vox-cli`), `tauri icon` + `resvg` for assets.
 
 **Spec:** `docs/superpowers/specs/2026-06-19-vox-axis-rebrand-design.md`
 
@@ -34,31 +36,34 @@
 
 **Global gates (facts this plan relies on — confirm, do not assume):**
 - The GUI config is `crates/vox-gui/tauri.conf.json`; `productName` is `"Vox"`, window `title` is `"Vox"`. You change **only** `title`.
-- The sidebar brand mark is in `crates/vox-gui/ui/src/components/layout/Sidebar.tsx`: a `V` glyph (~line 175) and a `VOX` wordmark (~line 178); the footer build line is ~line 310.
 - The CLI root parser is `VoxCliRoot` (`#[derive(Parser)]`) wrapping `pub enum Cli` (`#[derive(Subcommand)]`); the `Gui` variant is `#[cfg(feature = "gui")]` (`crates/vox-cli/src/lib.rs:431-435`). The `vox axis` alias is added there.
-- The committed Axis icon set already exists under `crates/vox-gui/icons/` (produced by Phase A). You do **not** generate images.
+- **Claude's Phases A + D are already committed**: the Axis icon set (`crates/vox-gui/icons/`), the `AxisMark` component, the brand tokens, the rebranded `Sidebar.tsx`, and `index.html`. You do **not** generate images, touch `Sidebar.tsx`/`AxisMark.tsx`/`index.html`/token sources, or restyle anything — that surface is DONE.
 
 **Mandatory pre-flight (run from repo root, paste output, confirm before any Phase-B code):**
 ```
 rg -n "\"productName\"|\"title\"|\"identifier\"" crates/vox-gui/tauri.conf.json
-rg -n ">V<|>VOX<|build \{appVersion" crates/vox-gui/ui/src/components/layout/Sidebar.tsx
-rg -n "appVersion" crates/vox-gui/ui/src/components/layout/Sidebar.test.tsx
 rg -n "pub enum Cli|Gui \{|cfg\(feature = \"gui\"\)|pub struct VoxCliRoot" crates/vox-cli/src/lib.rs
+ls crates/vox-gui/ui/src/components/brand/AxisMark.tsx crates/vox-gui/ui/public/favicon.svg
 git -C . status --porcelain crates/vox-gui/icons | head
 ```
-Expected: `productName`/`identifier` present and unchanged; a `V` glyph + `VOX` wordmark + a `build {appVersion}` footer in Sidebar; `VoxCliRoot` struct + `Cli` enum + a `#[cfg(feature = "gui")] Gui` variant; the Axis icons committed. If `crates/vox-gui/icons` is NOT already rebranded, **STOP** — Phase A was skipped.
+Expected: `productName`/`identifier` present and unchanged; window `title` still `"Vox"` (B1 flips it); `VoxCliRoot` + `Cli` + a `#[cfg(feature = "gui")] Gui` variant; **`AxisMark.tsx` and `public/favicon.svg` EXIST** (Phase D done) and the Axis icons are committed. If either Phase-D file is missing or the icons aren't rebranded, **STOP** — a Claude pre-flight phase was skipped.
 
-**Task-split table:**
+**Task-split table (Phase B = Flash only — the React/asset surface is Claude's Phases A + D):**
 
 | Task | Touches | Tag |
 |---|---|---|
-| B1 — window title → "Axis" | `tauri.conf.json` + new vitest `branding.test.ts` | [PARALLEL-SAFE] |
-| B2 — sidebar mark `V`/`VOX` → `A`/`AXIS` | `Sidebar.tsx` (+ test) | [SEQUENTIAL] (shares Sidebar.tsx with B3) |
-| B3 — footer "Vox Axis ·" brand line | `Sidebar.tsx` (+ test) | [SEQUENTIAL] (shares Sidebar.tsx with B2) |
+| B1 — window title → "Axis" | `tauri.conf.json` + new vitest `tauriConf.branding.test.ts` | [PARALLEL-SAFE] |
 | B4 — `vox axis` subcommand alias | `vox-cli/src/lib.rs` (+ test) | [PARALLEL-SAFE] |
 | B5 — brand phrasing in help/log | `vox-cli/src/lib.rs`, `commands/gui.rs` | [SEQUENTIAL] (shares lib.rs with B4) |
+| B6 — one-line docs reference | `docs/src/contributors/axis-brand.md` | [PARALLEL-SAFE] |
 
-Run order: B1 ∥ B4 first; then B2 → B3 (same file, sequential); then B5 after B4.
+Run order: B1 ∥ B4 ∥ B6 first; then B5 after B4 (same file).
+
+> **RETIRED:** old **B2** (sidebar `V`/`VOX`→`A`/`AXIS`) and **B3** (footer brand line)
+> are superseded by **Phase D (Claude-side)** — the sidebar gets the real `AxisMark`
+> component, not a letter swap. Do NOT edit `Sidebar.tsx` as Flash.
+> The B1 test file is renamed `tauriConf.branding.test.ts` so it can't collide with
+> the Claude-authored `indexHtml.branding.test.ts` (Phase D4).
 
 ---
 
@@ -135,13 +140,190 @@ Run order: B1 ∥ B4 first; then B2 → B3 (same file, sequential); then B5 afte
 
 ---
 
+# PHASE D — Professional front-end blend 🧑‍🎨 (CLAUDE-CODE PRE-FLIGHT — do NOT hand to Flash)
+
+> Runs in **Claude Code** alongside Phase A, before the handoff. Scope = **brand
+> essentials + light theme tokens**. This is the inline-SVG / asset / HTML-head /
+> token surface where Flash hallucinates — Claude owns all of it. TDD; atomic green
+> commits. Status: **plan-authored, not yet executed.**
+>
+> **Token reuse (anti-split-brain):** the UI already has a Style-Dictionary pipeline —
+> sources `crates/vox-gui/ui/tokens/{primitive,semantic}.json`, built via
+> `pnpm tokens:build` → `src/styles/tokens.generated.{css,ts}`; `--brass` is
+> theme-switched in `src/index.css` (arcane=gold `#d4af37`, void=violet, glacier=cyan).
+> Brand tokens **extend** `semantic.json` (referencing existing primitives); never add
+> a parallel color system.
+
+### Task D1 — `AxisMark` brand component
+
+**Files:**
+- Create: `crates/vox-gui/ui/src/components/brand/AxisMark.tsx`
+- Test: `crates/vox-gui/ui/src/components/brand/AxisMark.test.tsx`
+
+- [ ] **Step 1:** Write the failing test (jsdom): renders an accessible SVG and the spin-axis arrow.
+
+```tsx
+// @vitest-environment jsdom
+import { describe, it, expect } from 'vitest';
+import { render } from '@testing-library/react';
+import { AxisMark } from './AxisMark';
+
+describe('AxisMark', () => {
+  it('renders an accessible gimbal SVG with the spin axis', () => {
+    const { container } = render(<AxisMark className="size-6 text-brass" title="Axis" />);
+    const svg = container.querySelector('svg');
+    expect(svg).toBeTruthy();
+    expect(svg?.getAttribute('viewBox')).toBe('0 0 1024 1024');
+    // monochrome via currentColor (caller controls hue through text-*)
+    expect(svg?.innerHTML).toMatch(/currentColor/);
+    expect(container.querySelector('title')?.textContent).toBe('Axis');
+  });
+});
+```
+
+- [ ] **Step 2:** Run → FAIL (module not found). `npx vitest run src/components/brand/AxisMark.test.tsx`
+
+- [ ] **Step 3:** Implement the component. Mark strokes/arrow use `currentColor` (themeable); the hub uses the base-bg token so it punches through on any tile. Port the committed `crates/vox-gui/icons/source/axis.svg` geometry into JSX (camelCase attrs, `strokeOpacity`, `strokeWidth`, `strokeLinecap`):
+
+```tsx
+export function AxisMark({ className, title = 'Axis' }: { className?: string; title?: string }) {
+  return (
+    <svg viewBox="0 0 1024 1024" className={className} role="img" aria-label={title}
+         xmlns="http://www.w3.org/2000/svg" fill="none">
+      <title>{title}</title>
+      {/* gimbal rings — monochrome via currentColor */}
+      <g stroke="currentColor" strokeLinecap="round">
+        <circle cx="512" cy="512" r="292" strokeOpacity="0.5" strokeWidth="24" />
+        <ellipse cx="512" cy="512" rx="292" ry="116" strokeOpacity="0.85" strokeWidth="30" transform="rotate(34 512 512)" />
+        <ellipse cx="512" cy="512" rx="292" ry="116" strokeOpacity="0.85" strokeWidth="30" transform="rotate(-34 512 512)" />
+      </g>
+      {/* spin axis + arrow */}
+      <line x1="512" y1="236" x2="512" y2="872" stroke="currentColor" strokeWidth="46" strokeLinecap="round" />
+      <polygon points="512,140 466,244 558,244" fill="currentColor" />
+      {/* hub */}
+      <circle cx="512" cy="512" r="54" className="fill-bg-base" />
+      <circle cx="512" cy="512" r="54" fill="none" stroke="currentColor" strokeWidth="22" />
+    </svg>
+  );
+}
+```
+
+- [ ] **Step 4:** Run → PASS; `npx tsc --noEmit`. **Step 5:** Commit `feat(axis): AxisMark brand component (themeable gimbal SVG)`.
+
+### Task D2 — Brand design tokens (extend Style Dictionary)
+
+**Files:**
+- Modify: `crates/vox-gui/ui/tokens/semantic.json`
+- Modify: `crates/vox-gui/ui/tailwind.config.js`
+- Regenerate (committed): `crates/vox-gui/ui/src/styles/tokens.generated.{css,ts}`
+
+- [ ] **Step 1 (gate):** `rg -n "neutral|brass" crates/vox-gui/ui/tokens/primitive.json` — confirm primitives `color.neutral.50` (`#fafafa`), `color.neutral.900` (`#18181b`), `color.brass.default` (`#d4af37`) exist (they do as of 2026-06-19).
+
+- [ ] **Step 2:** Add a `brand` group to `semantic.json` under `"color"`, referencing primitives (NO new hexes):
+
+```json
+    "brand": {
+      "mark":      { "value": "{color.neutral.50}" },
+      "tile-from": { "value": "{color.brass.default}" },
+      "tile-to":   { "value": "{color.neutral.900}" },
+      "hub":       { "value": "{color.neutral.900}" }
+    }
+```
+
+- [ ] **Step 3:** Regenerate: `cd crates/vox-gui/ui && pnpm tokens:build`. Confirm `--color-brand-mark` etc. now appear in `src/styles/tokens.generated.css`.
+
+- [ ] **Step 4:** Wire Tailwind aliases — add to `tailwind.config.js` `theme.extend.colors` (matching the existing `'bg-base': 'var(--color-bg-base)'` pattern):
+
+```js
+        'brand-mark': 'var(--color-brand-mark)',
+        'brand-tile-from': 'var(--color-brand-tile-from)',
+        'brand-tile-to': 'var(--color-brand-tile-to)',
+        'brand-hub': 'var(--color-brand-hub)',
+```
+
+- [ ] **Step 5:** `npx tsc --noEmit` (the generated `.ts` must still typecheck). **Step 6:** Commit `feat(axis): brand design tokens via Style Dictionary`.
+
+### Task D3 — Sidebar brand block (retires old B2/B3)
+
+**Files:**
+- Modify: `crates/vox-gui/ui/src/components/layout/Sidebar.tsx` (brand block ~lines 173–180; footer ~line 310)
+- Test: `crates/vox-gui/ui/src/components/layout/Sidebar.branding.test.tsx`
+
+- [ ] **Step 1 (gate):** `rg -n ">V<|>VOX<|from-brass via-amber|build \{appVersion" crates/vox-gui/ui/src/components/layout/Sidebar.tsx` — paste the brand-box JSX (the `from-brass via-amber-600 to-zinc-900` tile with `>V<`, the `>VOX<` wordmark) and the footer line.
+
+- [ ] **Step 2:** Write the failing test (reuse the verified mocks + `baseProps` fixture, `mode: 'default'` — see the Sidebar test harness in `Sidebar.test.tsx`):
+
+```tsx
+// @vitest-environment jsdom
+// ... (same vi.mock('@tauri-apps/api/core') + vi.mock('../../generated/surfaceRegistry.generated')
+//      + baseProps with mode:'default' as in Sidebar.test.tsx) ...
+import { AxisMark } from '../brand/AxisMark';
+describe('Axis branding — sidebar', () => {
+  it('renders the AxisMark glyph + AXIS wordmark, no VOX/V letterform', () => {
+    const { container } = render(<Sidebar {...baseProps} />);
+    expect(container.querySelector('svg[aria-label="Axis"]')).toBeTruthy();
+    expect(screen.getByText('AXIS')).toBeTruthy();
+    expect(screen.queryByText('VOX')).toBeNull();
+  });
+  it('footer spells out the Vox Axis full brand', () => {
+    render(<Sidebar {...baseProps} />);
+    expect(screen.getByText(/Vox Axis/)).toBeTruthy();
+  });
+});
+```
+
+- [ ] **Step 3:** Run → FAIL. **Step 4:** Implement:
+  - Replace the brand-box `<div className="relative size-6 … from-brass via-amber-600 to-zinc-900 …"><span …>V</span></div>` with a branded tile wrapping the mark, e.g.:
+    ```tsx
+    <div className="relative size-6 rounded-md bg-gradient-to-br from-brand-tile-from to-brand-tile-to ring-1 ring-brass/40 grid place-items-center">
+      <AxisMark className="size-4 text-brand-mark" />
+    </div>
+    ```
+  - `>VOX<` wordmark → `>AXIS<`.
+  - Footer: `…>build {appVersion ?? 'unknown'} · tauri 2</div>` → `…>Vox Axis · build {appVersion ?? 'unknown'} · tauri 2</div>`.
+  - Add `import { AxisMark } from '../brand/AxisMark';` at the top.
+
+- [ ] **Step 5:** Run → PASS; `npx tsc --noEmit`. **Step 6:** Commit `feat(axis): sidebar brand block uses AxisMark + Vox Axis footer`.
+
+### Task D4 — Favicon + index.html
+
+**Files:**
+- Create: `crates/vox-gui/ui/public/favicon.svg`
+- Modify: `crates/vox-gui/ui/index.html`
+- Test: `crates/vox-gui/ui/src/__tests__/indexHtml.branding.test.ts`
+
+- [ ] **Step 1:** Create `public/favicon.svg` = the committed gimbal mark, web-trimmed (fixed brass tile + white mark; the static favicon does NOT theme-switch). Vite serves `public/` at `/`, so the href is `/favicon.svg`.
+
+- [ ] **Step 2:** Write the failing test (resolve via `import.meta.url`, like `tauriConf.branding.test.ts`):
+
+```ts
+import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
+const here = dirname(fileURLToPath(import.meta.url)); // src/__tests__ -> src -> ui
+const html = readFileSync(resolve(here, '../../index.html'), 'utf8');
+describe('Axis branding — index.html', () => {
+  it('document title is Axis', () => { expect(html).toMatch(/<title>Axis<\/title>/); });
+  it('links the favicon', () => { expect(html).toMatch(/rel="icon"[^>]*href="\/favicon\.svg"/); });
+});
+```
+
+- [ ] **Step 3:** Run → FAIL. **Step 4:** Edit `index.html`: `<title>Vox</title>` → `<title>Axis</title>`; add inside `<head>`: `<link rel="icon" type="image/svg+xml" href="/favicon.svg" />`.
+
+- [ ] **Step 5:** Run → PASS. **Step 6:** Commit `feat(axis): favicon + Axis document title`.
+
+**Phase D done →** the React/asset/token brand layer is committed; combined with Phase A, the Antigravity handoff (Phase B) can proceed.
+
+---
+
 # PHASE B — Branding wiring (Gemini Flash 3.5 / Antigravity)
 
 ### Task B1 — Window title → "Axis" [PARALLEL-SAFE]
 
 **Files:**
 - Modify: `crates/vox-gui/tauri.conf.json:14`
-- Test: `crates/vox-gui/ui/src/__tests__/branding.test.ts`
+- Test: `crates/vox-gui/ui/src/__tests__/tauriConf.branding.test.ts`
 
 - [ ] **Step 1 (gate):** `rg -n "\"productName\"|\"title\"|\"identifier\"" crates/vox-gui/tauri.conf.json` — paste output. Confirm `productName` is `"Vox"`, `identifier` is `"org.vox-foundation.gui"`, window `title` is `"Vox"`. You will change ONLY `title`.
 
@@ -173,7 +355,7 @@ describe('Axis branding — tauri config', () => {
 
 - [ ] **Step 3: Run test to verify it fails**
 
-Run (from `crates/vox-gui/ui`): `npx vitest run src/__tests__/branding.test.ts`
+Run (from `crates/vox-gui/ui`): `npx vitest run src/__tests__/tauriConf.branding.test.ts`
 Expected: FAIL — `expected 'Vox' to be 'Axis'`.
 
 - [ ] **Step 4: Make the change**
@@ -186,129 +368,24 @@ In `crates/vox-gui/tauri.conf.json`, change the window title only:
 
 - [ ] **Step 5: Run test to verify it passes**
 
-Run: `npx vitest run src/__tests__/branding.test.ts`
+Run: `npx vitest run src/__tests__/tauriConf.branding.test.ts`
 Expected: PASS (3 assertions).
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add crates/vox-gui/tauri.conf.json crates/vox-gui/ui/src/__tests__/branding.test.ts
+git add crates/vox-gui/tauri.conf.json crates/vox-gui/ui/src/__tests__/tauriConf.branding.test.ts
 git commit -m "feat(axis): window title -> Axis (productName/identifier unchanged)"
 ```
 
-### Task B2 — Sidebar brand mark `V`/`VOX` → `A`/`AXIS` [SEQUENTIAL]
+### Tasks B2 & B3 — RETIRED (superseded by Phase D, Claude-side)
 
-**Files:**
-- Modify: `crates/vox-gui/ui/src/components/layout/Sidebar.tsx` (~lines 175, 178)
-- Test: `crates/vox-gui/ui/src/components/layout/Sidebar.branding.test.tsx`
-
-- [ ] **Step 1 (gate):** Confirm the current mark JSX and that the render harness below still matches the real component contract:
-  ```
-  rg -n ">V<|>VOX<" crates/vox-gui/ui/src/components/layout/Sidebar.tsx
-  rg -n "vi.mock|baseProps|surfaceRegistry.generated|@tauri-apps/api/core" crates/vox-gui/ui/src/components/layout/Sidebar.test.tsx
-  ```
-  Expected: a `>V<` glyph span and a `>VOX<` wordmark div; the existing test mocks `@tauri-apps/api/core` and `../../generated/surfaceRegistry.generated` and renders with a `baseProps` object. If the mock paths or `baseProps` shape differ from Step 2, **STOP and report** — do not guess.
-
-- [ ] **Step 2: Write the failing test.** ⚠️ `Sidebar` does NOT render without these two mocks, and the brand mark/footer only render when `mode` is NOT `'rail'` (use `'default'`). This harness is copied from the verified `Sidebar.test.tsx` fixture:
-
-```tsx
-// @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
-
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn().mockResolvedValue({ display_name: 'operator@vox' }),
-}));
-vi.mock('../../generated/surfaceRegistry.generated', () => ({
-  SURFACE_REGISTRY: [
-    { viewKey: 'dashboard', navLabel: 'Dashboard', parentSurface: 'agents', tier: 'surface' },
-    { viewKey: 'settings', navLabel: 'Settings', parentSurface: null, tier: 'surface' },
-  ],
-}));
-
-import { Sidebar } from './Sidebar';
-
-const baseProps = {
-  view: 'dashboard',
-  setView: vi.fn(),
-  agentsCount: 2,
-  data: { agents: [], stream: [], alerts: [], skills: [], peers: [], kpis: {} as any, contextChips: [] },
-  mode: 'default' as const, // NOT 'rail' — the brand mark is hidden when collapsed
-  setMode: vi.fn(),
-  pushToast: vi.fn(),
-  appVersion: '0.6.0',
-} as React.ComponentProps<typeof Sidebar>;
-
-describe('Axis branding — sidebar', () => {
-  it('shows the AXIS wordmark, not VOX', () => {
-    render(<Sidebar {...baseProps} />);
-    expect(screen.getByText('AXIS')).toBeTruthy();
-    expect(screen.queryByText('VOX')).toBeNull();
-  });
-});
-```
-
-- [ ] **Step 3: Run test to verify it fails**
-
-Run: `npx vitest run src/components/layout/Sidebar.branding.test.tsx`
-Expected: FAIL — `Unable to find an element with the text: AXIS`.
-
-- [ ] **Step 4: Make the change** in `Sidebar.tsx`:
-  - `>V<` → `>A<` (the glyph span, ~line 175)
-  - `>VOX<` → `>AXIS<` (the wordmark div, ~line 178)
-
-- [ ] **Step 5: Run test + typecheck**
-
-Run: `npx vitest run src/components/layout/Sidebar.branding.test.tsx` → PASS
-Run: `npx tsc --noEmit` → no errors
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add crates/vox-gui/ui/src/components/layout/Sidebar.tsx crates/vox-gui/ui/src/components/layout/Sidebar.branding.test.tsx
-git commit -m "feat(axis): sidebar brand mark V/VOX -> A/AXIS"
-```
-
-### Task B3 — Footer spells out "Vox Axis" [SEQUENTIAL — after B2]
-
-**Files:**
-- Modify: `crates/vox-gui/ui/src/components/layout/Sidebar.tsx` (~line 310)
-- Test: extend `crates/vox-gui/ui/src/components/layout/Sidebar.branding.test.tsx`
-
-- [ ] **Step 1 (gate):** `rg -n "build \{appVersion" crates/vox-gui/ui/src/components/layout/Sidebar.tsx` — paste the exact footer line.
-  Expected: `<div className="font-mono text-[9px] text-zinc-500">build {appVersion ?? 'unknown'} · tauri 2</div>`
-
-- [ ] **Step 2: Add the failing assertion** to `Sidebar.branding.test.tsx`:
-
-```tsx
-  it('footer spells out the Vox Axis full brand', () => {
-    render(<Sidebar {...baseProps} />);
-    expect(screen.getByText(/Vox Axis/)).toBeTruthy();
-  });
-```
-(Add this inside the same `describe` block from Task B2, reusing its `baseProps` and mocks.)
-
-- [ ] **Step 3: Run to verify it fails**
-
-Run: `npx vitest run src/components/layout/Sidebar.branding.test.tsx`
-Expected: FAIL — text `Vox Axis` not found.
-
-- [ ] **Step 4: Make the change** — prepend the full brand to the footer line in `Sidebar.tsx`:
-```tsx
-                <div className="font-mono text-[9px] text-zinc-500">Vox Axis · build {appVersion ?? 'unknown'} · tauri 2</div>
-```
-
-- [ ] **Step 5: Run test + typecheck**
-
-Run: `npx vitest run src/components/layout/Sidebar.branding.test.tsx` → PASS (2 assertions)
-Run: `npx tsc --noEmit` → no errors
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add crates/vox-gui/ui/src/components/layout/Sidebar.tsx crates/vox-gui/ui/src/components/layout/Sidebar.branding.test.tsx
-git commit -m "feat(axis): footer spells out Vox Axis full brand"
-```
+The old B2 (swap the sidebar `V`/`VOX` letters to `A`/`AXIS`) and B3 (prepend
+"Vox Axis" to the footer) are **removed**. A letter swap next to a real gimbal mark
+looks unfinished. Instead, **Phase D (Claude-side)** replaces the sidebar's hardcoded
+gradient-`V` box with the `AxisMark` component + "AXIS" wordmark and sets the footer
+brand line, all tested and committed before the Flash handoff. **Flash must not edit
+`Sidebar.tsx`.**
 
 ### Task B4 — `vox axis` subcommand alias [PARALLEL-SAFE]
 
@@ -459,7 +536,7 @@ git commit -m "docs(axis): brand reference + naming convention"
 ### Task C1 — Emit the handback block (Flash, final step)
 
 - [ ] **Step 1:** Confirm the whole tree is green:
-  - `cd crates/vox-gui/ui && npx vitest run src/__tests__/branding.test.ts src/components/layout/Sidebar.branding.test.tsx && npx tsc --noEmit`
+  - `cd crates/vox-gui/ui && npx vitest run src/__tests__/tauriConf.branding.test.ts src/components/layout/Sidebar.branding.test.tsx && npx tsc --noEmit`
   - `cargo test -p vox-cli --features gui --test axis_alias`
   - `cargo clippy -p vox-cli --features gui -- -D warnings`
   - `cargo run -p vox-doc-pipeline -- --lint-only` (docs frontmatter gate for Task B6)
@@ -509,7 +586,8 @@ When the human pastes the handback block back into Claude Code:
 
 ## Self-Review (completed by plan author)
 
-- **Spec coverage:** every spec §3 touchpoint maps to a task — title→B1, glyph/wordmark→B2, footer→B3, `vox axis`→B4, log/help→B5, docs→B6, icon set→Phase A. ✅
-- **Placeholder scan:** no TBD/TODO; the one intentional fill-in (Sidebar prop fixture in B2) has an explicit gate step to source it from the existing `Sidebar.test.tsx`. ✅
-- **Type consistency:** `VoxCliRoot`/`Cli`/`Cli::Gui` match `lib.rs`; `visible_alias` is the real clap attribute; test imports flagged to verify the re-export path before use. ✅
+- **Spec coverage:** every spec §3 touchpoint maps to a task — window title→B1, brand glyph+wordmark→**D3** (real `AxisMark`, retires B2), footer→**D3** (retires B3), `vox axis`→B4, log/help→B5, docs→B6, icon set→Phase A, favicon/doc-title + tokens→**D4/D2**. ✅
+- **Placeholder scan:** no TBD/TODO. The Phase-D Sidebar test reuses the verified mocks + `baseProps` (`mode:'default'`) from `Sidebar.test.tsx`; D2 token values reference confirmed primitives. ✅
+- **Type consistency:** `VoxCliRoot`/`Cli`/`Cli::Gui` match `lib.rs`; `visible_alias` is the real clap attribute (used 9× already); `AxisMark`'s `{ className, title }` API is consumed exactly that way in D3; brand Tailwind aliases match the `var(--color-brand-*)` tokens emitted by D2. ✅
+- **Split integrity:** Flash (Phase B) touches only `tauri.conf.json`, `vox-cli/**`, and `docs/**` — never `Sidebar.tsx`/`AxisMark`/tokens/`index.html` (Claude's Phases A+D). No two-owner file. ✅
 - **Scope:** single subsystem (brand layer); no decomposition needed. ✅
