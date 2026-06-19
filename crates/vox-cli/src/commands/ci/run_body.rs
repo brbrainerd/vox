@@ -293,6 +293,20 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             println!("commit-lint passed.");
             Ok(())
         }
+        CiCmd::HandoffLedger => {
+            let violations = vox_cli_ci::handoff_ledger::run(&root)?;
+            if !violations.is_empty() {
+                for v in &violations {
+                    eprintln!("handoff-ledger: [{}] {}", v.entry, v.reason);
+                }
+                anyhow::bail!(
+                    "handoff-ledger failed with {} violation(s)",
+                    violations.len()
+                );
+            }
+            println!("handoff-ledger passed.");
+            Ok(())
+        }
         CiCmd::FmtCheck => super::pre_push::check_fmt(&root),
         CiCmd::RunnerPolicyCheck { strict } => vox_cli_ci::runner_policy_check::run(&root, strict),
         CiCmd::GuiVisualReview { no_ai } => vox_cli_ci::gui_visual_review::run(&root, no_ai),

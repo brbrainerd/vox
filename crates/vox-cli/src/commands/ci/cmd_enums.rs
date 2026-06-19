@@ -326,6 +326,9 @@ pub enum CiCmd {
         #[arg(long, default_value = "HEAD~1")]
         base: String,
     },
+    /// Validate the Antigravity handoff ledger against its schema.
+    #[command(name = "handoff-ledger")]
+    HandoffLedger,
     /// Cross-platform `rustfmt --check` over the whole workspace. Chunked over crate
     /// target roots, so it avoids the Windows os-206 command-line overflow of
     /// `cargo fmt --all` and stays robust as crates are added/removed.
