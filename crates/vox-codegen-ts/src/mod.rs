@@ -15,6 +15,8 @@ mod parent {
 
 pub(crate) use parent::{emission_profile, projection_bundle, web_ir, web_migration_env};
 
+/// Naked-objects admin list/detail/edit views codegen.
+pub mod admin_emit;
 /// Algebraic data types → TypeScript unions and helpers.
 pub mod adt;
 /// Single source of truth for Vox method/function/namespace → TypeScript lowering.
