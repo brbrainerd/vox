@@ -37,7 +37,7 @@ pub fn rebuild_graph(
         let path = entry.path();
         if path.is_file() {
             if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                if ext == "rs" || ext == "ts" || ext == "js" {
+                if ext == "rs" || ext == "ts" || ext == "js" || ext == "py" {
                     let content = fs::read_to_string(path)?;
 
                     // Cache key includes EXTRACTOR_VERSION so a scheme change invalidates

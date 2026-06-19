@@ -23,7 +23,7 @@ pub struct ExtractedGraph {
 /// Bump when the extraction scheme changes (node-id format, edge rules). Folded into the
 /// per-file cache key in `rebuild` so unchanged files re-extract instead of returning a
 /// graph built under the old scheme.
-pub const EXTRACTOR_VERSION: &str = "2";
+pub const EXTRACTOR_VERSION: &str = "3";
 
 /// Qualify a symbol with its module path. Empty `module_id` yields the bare symbol so the
 /// legacy `extract_ast` wrapper keeps its old output.
@@ -109,6 +109,7 @@ pub fn extract_ast_in_module(path: &Path, content: &str, module_id: &str) -> Ext
                 let language = match ext {
                     "ts" | "js" => Some(tree_sitter_typescript::LANGUAGE_TYPESCRIPT),
                     "tsx" | "jsx" => Some(tree_sitter_typescript::LANGUAGE_TSX),
+                    "py" => Some(tree_sitter_python::LANGUAGE),
                     _ => None,
                 };
                 if let Some(lang) = language {
@@ -119,22 +120,32 @@ pub fn extract_ast_in_module(path: &Path, content: &str, module_id: &str) -> Ext
                             let mut stack = vec![tree.root_node()];
                             let mut current_fn: Option<String> = None;
                             while let Some(node) = stack.pop() {
-                                if node.kind() == "function_declaration"
-                                    || node.kind() == "method_definition"
-                                {
+                                let is_fn_def = matches!(
+                                    node.kind(),
+                                    "function_declaration"
+                                        | "method_definition"
+                                        | "function_definition"
+                                );
+                                let is_class = node.kind() == "class_definition";
+                                let is_call = matches!(node.kind(), "call_expression" | "call");
+
+                                if is_fn_def || is_class {
                                     if let Some(name_node) = node.child_by_field_name("name") {
                                         if let Ok(name) = name_node.utf8_text(content.as_bytes()) {
                                             let id = qualify(module_id, name);
                                             nodes.push(ExtractedNode {
                                                 id: id.clone(),
                                                 label: name.to_string(),
-                                                kind: "fn".to_string(),
+                                                kind: if is_class { "struct" } else { "fn" }
+                                                    .to_string(),
                                             });
-                                            current_fn = Some(id);
+                                            if is_fn_def {
+                                                current_fn = Some(id);
+                                            }
                                         }
                                     }
                                 }
-                                if node.kind() == "call_expression" {
+                                if is_call {
                                     if let Some(ref source_fn) = current_fn {
                                         if let Some(function_node) =
                                             node.child_by_field_name("function")

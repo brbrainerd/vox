@@ -249,6 +249,7 @@ leiden-rs          = "0.8.1"
 tree-sitter        = "0.26.9"
 tree-sitter-rust   = "0.24.2"
 tree-sitter-typescript = "0.23.2"
+tree-sitter-python = "0.23.6"
 rayon              = "1.10"
 rand               = { version = "0.8", features = ["small_rng", "std_rng"] }
 candle-core         = { version = "0.10", default-features = false }

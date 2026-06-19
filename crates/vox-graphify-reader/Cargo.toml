@@ -13,6 +13,7 @@ leiden-rs = { workspace = true }
 tree-sitter = { workspace = true, optional = true }
 tree-sitter-rust = { workspace = true, optional = true }
 tree-sitter-typescript = { workspace = true, optional = true }
+tree-sitter-python = { workspace = true, optional = true }
 walkdir = { workspace = true }
 blake3 = { workspace = true }
 syn = { workspace = true, features = ["full", "visit", "clone-impls"] }
@@ -20,7 +21,7 @@ lcov-parser = "0.6.0"
 
 [features]
 default = ["tree-sitter-grammars"]
-tree-sitter-grammars = ["dep:tree-sitter", "dep:tree-sitter-rust", "dep:tree-sitter-typescript"]
+tree-sitter-grammars = ["dep:tree-sitter", "dep:tree-sitter-rust", "dep:tree-sitter-typescript", "dep:tree-sitter-python"]
 
 [dev-dependencies]
 tempfile = { workspace = true }
