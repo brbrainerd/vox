@@ -189,6 +189,9 @@ fn hir_type_to_input_type(ty: &HirType) -> &'static str {
         HirType::Named(t) if t == "int" || t == "float" || t == "decimal" => "number",
         HirType::Named(t) if t == "bool" => "checkbox",
         HirType::Named(t) if t == "timestamp" => "datetime-local",
+        HirType::Named(t) if t == "email" => "email",
+        HirType::Named(t) if t == "url" => "url",
+        HirType::Named(t) if t == "phone" => "tel",
         _ => "text",
     }
 }
@@ -200,5 +203,48 @@ fn field_initial_value(f: &HirFormField) -> &'static str {
         HirType::Named(t) if t == "int" || t == "float" || t == "decimal" => "NaN",
         HirType::Named(t) if t == "bool" => "false",
         _ => "\"\"",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use vox_compiler::ast::span::Span; // re-exported path used across vox-codegen-ts; NOT vox_ast (design §5b.1)
+    use vox_compiler::hir::HirType;
+    use vox_compiler::hir::nodes::form::{HirForm, HirFormField};
+
+    fn field(name: &str, ty: HirType) -> HirFormField {
+        HirFormField {
+            name: name.into(),
+            ty,
+            label: None,
+            required: false,
+            hidden: false,
+            default: None,
+            constraints: vec![],
+            span: Span::new(0, 0),
+        }
+    }
+    fn form_with(fields: Vec<HirFormField>) -> HirForm {
+        HirForm {
+            name: "T".into(),
+            fields,
+            on_submit: None,
+            success_redirect: None,
+            error_message: None,
+            span: Span::new(0, 0),
+        }
+    }
+
+    #[test]
+    fn branded_scalars_render_typed_inputs() {
+        let out = emit_form(&form_with(vec![
+            field("e", HirType::Named("email".into())),
+            field("u", HirType::Named("url".into())),
+            field("p", HirType::Named("phone".into())),
+        ]));
+        assert!(out.contains("type=\"email\""), "email:\n{out}");
+        assert!(out.contains("type=\"url\""), "url:\n{out}");
+        assert!(out.contains("type=\"tel\""), "tel:\n{out}");
     }
 }
