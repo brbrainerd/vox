@@ -52,7 +52,8 @@ pub fn overlay_test_targets(
     if let Some(nodes) = updated.get_mut("nodes").and_then(|n| n.as_array_mut()) {
         for node in nodes {
             if let Some(id) = node.get("id").and_then(|i| i.as_str()) {
-                if let Some(test_names) = targets.get(id) {
+                let bare = id.rsplit("::").next().unwrap_or(id);
+                if let Some(test_names) = targets.get(bare) {
                     node.as_object_mut()
                         .unwrap()
                         .insert("targeted_by".to_string(), json!(test_names));

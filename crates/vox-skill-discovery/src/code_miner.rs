@@ -8,6 +8,7 @@ use vox_similarity::{tokenize, Fragment, FragmentKind, LshIndex};
 
 use crate::candidate::{Candidate, CandidateKind, DraftFrontmatter};
 use crate::options::DiscoverOptions;
+use walkdir::WalkDir;
 
 /// Split text into (start_line, block_text) on blank-line boundaries.
 pub(crate) fn extract_blocks(text: &str) -> Vec<(usize, String)> {
@@ -37,6 +38,77 @@ pub(crate) fn extract_blocks(text: &str) -> Vec<(usize, String)> {
     blocks
 }
 
+/// Mine repeated `.vox` code blocks under `root`. Returns `RepeatedCode` candidates,
+/// one per cluster of `>= min_occurrences` similar blocks.
+pub fn mine_repeated_code(root: &Path, opts: &DiscoverOptions) -> Vec<Candidate> {
+    let mut index = LshIndex::new(opts.bands, opts.rows);
+    for entry in WalkDir::new(root).into_iter().filter_map(|e| e.ok()) {
+        let p = entry.path();
+        if p.extension().and_then(|e| e.to_str()) != Some("vox") {
+            continue;
+        }
+        let Ok(text) = std::fs::read_to_string(p) else {
+            continue;
+        };
+        for (start, block) in extract_blocks(&text) {
+            if tokenize(&block).len() < opts.min_tokens {
+                continue;
+            }
+            let src = format!("{}:{}", p.display(), start);
+            let frag = Fragment::new(
+                src.clone(),
+                FragmentKind::Code,
+                block,
+                src,
+                opts.shingle_k,
+                opts.num_hashes(),
+            );
+            index.insert(frag);
+        }
+    }
+
+    let mut candidates = Vec::new();
+    for cluster in index.cluster(opts.min_occurrences, opts.min_jaccard) {
+        let members: Vec<String> = cluster
+            .members
+            .iter()
+            .map(|&i| index.fragment(i).source_ref.clone())
+            .collect();
+        let score = if cluster.members.len() >= 2 {
+            let a = &index.fragment(cluster.members[0]).signature.minhash;
+            let b = &index.fragment(cluster.members[1]).signature.minhash;
+            vox_similarity::jaccard_estimate(a, b)
+        } else {
+            1.0
+        };
+        let stem = stem_of(&members[0]);
+        candidates.push(Candidate {
+            kind: CandidateKind::RepeatedCode,
+            members,
+            score,
+            suggested_action: "Extract this recurring block into a reusable Vox skill/snippet"
+                .to_string(),
+            draft_frontmatter: Some(DraftFrontmatter {
+                name: format!("{stem}-block"),
+                description: "Recurring code block detected across the repository.".to_string(),
+                category: "refactor".to_string(),
+                tags: vec!["auto-discovered".to_string(), "duplicate".to_string()],
+            }),
+        });
+    }
+    candidates
+}
+
+/// Best-effort file stem from a "path:line" source ref.
+fn stem_of(source_ref: &str) -> String {
+    let path = source_ref.rsplit_once(':').map(|(p, _)| p).unwrap_or(source_ref);
+    Path::new(path)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("vox")
+        .to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -50,5 +122,27 @@ mod tests {
         assert!(blocks[0].1.contains("line a"));
         assert_eq!(blocks[1].0, 4);
         assert!(blocks[1].1.contains("line c"));
+    }
+
+    #[test]
+    fn mine_finds_duplicate_block_across_two_files() {
+        let dir = std::env::temp_dir().join(format!("voxdisc_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let body = "let subtotal = unit_price * quantity\nlet tax = subtotal * tax_rate\nlet total = subtotal + tax\nreturn total\n";
+        std::fs::write(dir.join("a.vox"), body).unwrap();
+        std::fs::write(dir.join("b.vox"), body).unwrap();
+
+        let opts = DiscoverOptions {
+            min_tokens: 5,
+            min_occurrences: 2,
+            ..DiscoverOptions::default()
+        };
+        let cands = mine_repeated_code(&dir, &opts);
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(cands.len(), 1);
+        assert_eq!(cands[0].kind, CandidateKind::RepeatedCode);
+        assert_eq!(cands[0].members.len(), 2);
+        assert!(cands[0].score >= 0.9);
     }
 }
