@@ -427,7 +427,8 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             "properties": {
                 "task": { "type": "string", "description": "Exact, zero-ambiguity launch statement (paths + target symbols), hardened with ledger §B lessons + the digest's top categories." },
                 "model": { "type": "string", "description": "Optional agy model DISPLAY NAME (not a slug)." },
-                "timeout_secs": { "type": "integer", "default": 900, "description": "Hard kill for the agy delegation AND each gate." },
+                "timeout_secs": { "type": "integer", "default": 900, "description": "Hard kill for the agy delegation." },
+                "gate_timeout_secs": { "type": "integer", "default": 120, "description": "Hard kill for each verification gate (default 120s). Separate from the delegation timeout_secs." },
                 "gates": {
                     "type": "array",
                     "description": "Verification gates run inside the jail. Scope to the touched crate and set env.CARGO_TARGET_DIR to the main target. Empty means outcome 'partial' (unverified).",

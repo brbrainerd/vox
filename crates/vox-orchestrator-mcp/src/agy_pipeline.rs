@@ -53,27 +53,28 @@ fn doctor_status_label() -> (&'static str, String) {
     }
 }
 
-/// (task, model, timeout_secs, gates). Gates may be empty (⇒ unverified/partial).
+/// (task, model, timeout_secs, gate_timeout_secs, gates). Gates may be empty (⇒ unverified/partial).
 pub fn pipeline_validate(
     args: &serde_json::Value,
-) -> Result<(String, Option<String>, u64, Vec<Gate>), String> {
+) -> Result<(String, Option<String>, u64, u64, Vec<Gate>), String> {
     let task = args.get("task").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
     if task.is_empty() {
         return Err("Missing non-empty 'task'.".into());
     }
     let model = args.get("model").and_then(|v| v.as_str()).map(|s| s.to_string());
     let timeout_secs = args.get("timeout_secs").and_then(|v| v.as_u64()).unwrap_or(900);
+    let gate_timeout_secs = args.get("gate_timeout_secs").and_then(|v| v.as_u64()).unwrap_or(120);
     let gates: Vec<Gate> = match args.get("gates") {
         Some(g) => serde_json::from_value(g.clone())
             .map_err(|e| format!("'gates' must be [{{name, program, args, env}}]: {e}"))?,
         None => Vec::new(),
     };
-    Ok((task, model, timeout_secs, gates))
+    Ok((task, model, timeout_secs, gate_timeout_secs, gates))
 }
 
 /// `vox_agy_pipeline` — Stage 2.
 pub async fn vox_agy_pipeline(state: &ServerState, args: serde_json::Value) -> String {
-    let (task, model, timeout_secs, gates) = match pipeline_validate(&args) {
+    let (task, model, timeout_secs, gate_timeout_secs, gates) = match pipeline_validate(&args) {
         Ok(v) => v,
         Err(e) => return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_TASK).to_json(),
     };
@@ -127,7 +128,7 @@ pub async fn vox_agy_pipeline(state: &ServerState, args: serde_json::Value) -> S
 
     // Capture the EFFECT.
     let (diff, files_changed) = wt.capture().await.unwrap_or_else(|_| (String::new(), 0));
-    let gate_results: Vec<GateResult> = run_gates(&wt.path, &gates, timeout_secs).await;
+    let gate_results: Vec<GateResult> = run_gates(&wt.path, &gates, gate_timeout_secs).await;
     let outcome = classify_outcome(files_changed, &gate_results, timed_out);
 
     let gate_summary = if gate_results.is_empty() {
@@ -160,7 +161,8 @@ pub async fn vox_agy_pipeline(state: &ServerState, args: serde_json::Value) -> S
     ToolResult::ok(serde_json::json!({
         "ledger_id": id,
         "worktree": if files_changed == 0 { String::new() } else { wt.path.to_string_lossy().to_string() },
-        "branch": wt.branch,
+        "branch": if files_changed == 0 { serde_json::Value::Null } else { serde_json::json!(wt.branch) },
+        "worktree_cleaned": files_changed == 0,
         "outcome": outcome,
         "files_changed": files_changed,
         "gates": gate_results,
@@ -287,13 +289,14 @@ mod tests {
     #[test]
     fn pipeline_validate_requires_task_and_parses_gates() {
         assert!(pipeline_validate(&serde_json::json!({})).is_err());
-        let (task, model, t, gates) = pipeline_validate(&serde_json::json!({
+        let (task, model, t, gt, gates) = pipeline_validate(&serde_json::json!({
             "task": "do X",
             "gates": [{"name": "build", "program": "cargo", "args": ["build", "-p", "foo"]}]
         })).unwrap();
         assert_eq!(task, "do X");
         assert!(model.is_none());
         assert_eq!(t, 900);
+        assert_eq!(gt, 120);
         assert_eq!(gates.len(), 1);
         assert_eq!(gates[0].program, "cargo");
     }
