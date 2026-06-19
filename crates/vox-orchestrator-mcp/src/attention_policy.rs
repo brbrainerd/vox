@@ -131,6 +131,8 @@ pub(crate) fn task_submit_signals(
         base_interrupt_cost_ms,
         trust_score,
         open_question_session: session_backlog > 0,
+        spec_uncertainty: 0.0,
+        model_uncertainty: 0.0,
     }
 }
 
@@ -184,6 +186,8 @@ pub(crate) fn a2a_escalation_signals(
         base_interrupt_cost_ms,
         trust_score,
         open_question_session: session_backlog > 0,
+        spec_uncertainty: 0.0,
+        model_uncertainty: 0.0,
     }
 }
 
@@ -209,6 +213,8 @@ pub(crate) fn plan_review_signals(
         base_interrupt_cost_ms,
         trust_score,
         open_question_session: session_backlog > 0,
+        spec_uncertainty: 0.0,
+        model_uncertainty: 0.0,
     }
 }
 

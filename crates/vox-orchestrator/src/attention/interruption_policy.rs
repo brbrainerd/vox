@@ -55,6 +55,14 @@ pub struct InterruptionSignals {
     pub trust_score: f64,
     /// Open questioning session exists (batch / consolidate prompts).
     pub open_question_session: bool,
+    /// Specification uncertainty in `[0, 1]`: how unresolved the *user's intent/parameters* are
+    /// (high → a clarifying question is likely to help). Defaults to 0.0 for legacy payloads.
+    #[serde(default)]
+    pub spec_uncertainty: f64,
+    /// Model uncertainty in `[0, 1]`: the LLM's *own* epistemic doubt about its prediction
+    /// (high → asking the user may not help). Defaults to 0.0 for legacy payloads.
+    #[serde(default)]
+    pub model_uncertainty: f64,
 }
 
 /// Policy result — what to do with this interruption candidate.
@@ -242,6 +250,8 @@ mod tests {
             base_interrupt_cost_ms: 23_250,
             trust_score: 0.55,
             open_question_session: false,
+            spec_uncertainty: 0.0,
+            model_uncertainty: 0.0,
         }
     }
 
@@ -291,5 +301,17 @@ mod tests {
             d,
             InterruptionDecision::ProceedAutonomously { .. }
         ));
+    }
+
+    #[test]
+    fn signals_default_separates_spec_and_model_uncertainty() {
+        let json = r#"{
+            "channel": "inline_assist","expected_information_gain_bits":0.2,"expected_user_cost":0.3,
+            "confidence_estimate":0.6,"contradiction_ratio":0.0,"pending_clarification_backlog":0,
+            "clarification_turn_index":0,"max_clarification_turns":3,"irreversible_or_high_risk":false,
+            "base_interrupt_cost_ms":23250,"trust_score":0.5,"open_question_session":false }"#;
+        let s: InterruptionSignals = serde_json::from_str(json).expect("legacy JSON must deserialize");
+        assert_eq!(s.spec_uncertainty, 0.0);
+        assert_eq!(s.model_uncertainty, 0.0);
     }
 }

@@ -395,6 +395,8 @@ pub(crate) fn spawn_questioning_trace_from_socrates(
                 base_interrupt_cost_ms: spend_state.orchestrator_config.attention_interrupt_cost_ms,
                 trust_score: trust,
                 open_question_session: open.is_some(),
+                spec_uncertainty: 0.0,
+                model_uncertainty: 0.0,
             };
 
             let decision = evaluate_with_state(&spend_state, &signals, &att_snap);
