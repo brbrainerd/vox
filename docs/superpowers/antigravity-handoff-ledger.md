@@ -761,3 +761,59 @@ Wired the Needs You surface and blocked overlay on Tasks:
 - **Attention Strip counts**: Subscribed to feedback change and tasks change events to dynamically update counts for `waitingQuestions` (open feedback count) and `blockedTasks` (tasks blocked by open feedback gates).
 - **Chat focus & scrolling**: Threaded `focusedFeedbackId` to `ChatSurface` and implemented scrolling/highlighting of the corresponding thread/message bubble on navigation.
 
+
+---
+
+```yaml
+# --- AGH-0016 ---
+id: AGH-0016
+date: "2026-06-19"
+plan: "docs/superpowers/plans/2026-06-19-centralized-telemetry-program.md#track-e-e3"
+subsystem: "E3 — live end-to-end test (vox-server + ClickHouse Docker)"
+target: "Claude Sonnet 4.6 (inline execution)"
+repo: "C:/Users/Owner/vox-server (vox_clickhouse Docker container)"
+delivered:
+  - "fix(schema): correct ClickHouse column types + TTL expression (6e235a7 in vox-server)"
+outcome: "GREEN — live e2e verified"
+verification:
+  healthz: "curl http://127.0.0.1:4318/healthz → 'ok'"
+  ingest: "POST /v1/logs with 3 logRecords → {accepted:2, discarded:1}"
+  db_rows: "SELECT ... FROM vox_telemetry.events_raw → 2 rows (vox.command + vox.harness)"
+  canary: "CANARY_SECRET field absent from all stored rows — server-side filter confirmed"
+  reject: "vox.phishing_attempt category rejected by allowlist (discarded=1)"
+  mv: "mv_command_usage populated with {event_name:vox.command, day:2026-06-19, verb:build, cnt:1}"
+  unit_tests: "25/25 green (post-fix)"
+errors_encountered:
+  - "Nullable(LowCardinality(String)) is invalid — must be LowCardinality(Nullable(String))"
+  - "TTL ts + INTERVAL 180 DAY rejects DateTime64 column — use toDateTime(ts)"
+  - "Materialized view ORDER BY cannot include Nullable columns without allow_nullable_key"
+  - "E3 payload used timestamp from 2025 (>180 days ago) — TTL fired and deleted rows on first attempt"
+  - "Port 9000 (ClickHouse native TCP) already used by another process — mapped to HTTP-only"
+commits:
+  - "6e235a7 (vox-server repo)"
+```
+
+### AGH-0016 — E3 live test review detail
+
+Full telemetry pipeline end-to-end verified locally:
+
+```
+vox-server (port 4318) ← POST /v1/logs (OTLP JSON)
+  → server-side allowlist filter  
+  → clickhouse 0.13.3 batch insert  
+  → vox_clickhouse:8123 → vox_telemetry.events_raw  
+  → mv_command_usage (SummingMergeTree daily rollup)
+```
+
+Three ClickHouse DDL bugs fixed (all in vox-server/6e235a7):
+- `LowCardinality(Nullable(String))` not `Nullable(LowCardinality(String))`
+- `toDateTime(ts) + INTERVAL 180 DAY` not `ts + INTERVAL 180 DAY`  
+- Materialized view ORDER BY must be non-nullable columns only
+
+Privacy invariants verified live:
+- CANARY_SECRET field: **absent** from events_raw row
+- vox.phishing_attempt: **discarded=1** (not in DB)
+- Two allowlisted categories (vox.command, vox.harness): stored with correct columns only
+
+Docker stack at C:/Users/Owner/vox-server left running. Stop with:
+`cd C:/Users/Owner/vox-server && docker compose down`
