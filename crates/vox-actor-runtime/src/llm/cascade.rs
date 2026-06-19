@@ -73,6 +73,26 @@ pub async fn chat_with_cascade(
     }
 }
 
+/// Ordered, de-duplicated OpenRouter model ids for a research call.
+///
+/// The free-tier router (`openrouter/free`) is ALWAYS included as a fallback floor
+/// so research degrades to zero cost instead of failing. `prefer_free` moves it to
+/// the front (opt-in via `VOX_RESEARCH_PREFER_FREE_TIER`); otherwise it trails the
+/// caller-configured model. If the configured model already IS the free router,
+/// the list collapses to a single entry.
+#[must_use]
+fn research_openrouter_model_ids(configured: &str, prefer_free: bool) -> Vec<String> {
+    let free = vox_config::OPENROUTER_FREE.to_string();
+    if configured == free {
+        return vec![free];
+    }
+    if prefer_free {
+        vec![free, configured.to_string()]
+    } else {
+        vec![configured.to_string(), free]
+    }
+}
+
 /// Build the default research cascade: local Mens/Ollama first, then OpenRouter.
 #[must_use]
 pub fn cascade_for_research_stage(
@@ -94,9 +114,12 @@ pub fn cascade_for_research_stage(
     }
 
     if vox_config::inference::openrouter_api_key().is_some() {
-        let mut openrouter = LlmConfig::openrouter(input.openrouter_model.clone());
-        apply_stage_defaults(stage, &mut openrouter);
-        candidates.push(openrouter);
+        let prefer_free = vox_config::inference::research_prefer_free_tier();
+        for model_id in research_openrouter_model_ids(&input.openrouter_model, prefer_free) {
+            let mut openrouter = LlmConfig::openrouter(model_id);
+            apply_stage_defaults(stage, &mut openrouter);
+            candidates.push(openrouter);
+        }
     }
 
     candidates
@@ -218,5 +241,35 @@ mod tests {
                 c.max_tokens
             );
         }
+    }
+
+    #[test]
+    fn research_models_append_free_floor_by_default() {
+        let v = research_openrouter_model_ids("anthropic/claude-sonnet-4.6", false);
+        assert_eq!(
+            v,
+            vec![
+                "anthropic/claude-sonnet-4.6".to_string(),
+                vox_config::OPENROUTER_FREE.to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn research_models_prefer_free_moves_it_first() {
+        let v = research_openrouter_model_ids("anthropic/claude-sonnet-4.6", true);
+        assert_eq!(
+            v,
+            vec![
+                vox_config::OPENROUTER_FREE.to_string(),
+                "anthropic/claude-sonnet-4.6".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn research_models_dedup_when_configured_is_already_free() {
+        let v = research_openrouter_model_ids(vox_config::OPENROUTER_FREE, false);
+        assert_eq!(v, vec![vox_config::OPENROUTER_FREE.to_string()]);
     }
 }
