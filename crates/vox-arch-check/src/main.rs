@@ -71,6 +71,7 @@ use cargo_metadata::MetadataCommand;
 use serde::Deserialize;
 
 mod cache;
+mod checks;
 mod forbidden_patterns;
 mod json_report;
 use forbidden_patterns::{ForbiddenPatternRule, scan_all as scan_forbidden_patterns_all};
@@ -389,6 +390,9 @@ struct Report {
     /// `vox audit --gate all --strict-block-ga` exits 0 (i.e. when block-GA
     /// gates are met by real measurements rather than corpus-inventory).
     strict_evidence_ledger: bool,
+    /// Rule 17: dependency cycles detected by Tarjan SCC. Always a hard error.
+    /// Each entry is one cycle: a sorted list of crate names forming the SCC.
+    cycle_errors: Vec<Vec<String>>,
 }
 
 impl Report {
@@ -413,6 +417,7 @@ impl Report {
                     .evidence_findings
                     .iter()
                     .any(|f| f.kind.severity() == "ERROR"))
+            || !self.cycle_errors.is_empty()
     }
 
     /// Project the report into per-rule results for the policy-status overlay.
@@ -505,6 +510,13 @@ impl Report {
 
     fn print_summary(&self) {
         let mut any = false;
+        if !self.cycle_errors.is_empty() {
+            any = true;
+            eprintln!("[ERROR] Rule 17: dependency cycle(s) detected ({}):", self.cycle_errors.len());
+            for cycle in &self.cycle_errors {
+                eprintln!("  cycle: {}", cycle.join(" ↔ "));
+            }
+        }
         if !self.inversions.is_empty() {
             any = true;
             let label = if self.strict_layer { "ERROR" } else { "warn" };
@@ -980,10 +992,12 @@ fn run(warn_only_flag: bool) -> Result<Report> {
     };
     prof("setup (metadata+layers+cache)", &mut prof_last);
 
-    // ── Rule 1: Layer ordering + Rule 2: Fan-in + Rule 15: Workspace-dep budget (single pass) ──
+    // ── Rule 1: Layer ordering + Rule 2: Fan-in + Rule 15: Workspace-dep budget + Rule 17: Cycles (single pass) ──
     let mut dependent_count: HashMap<String, usize> = HashMap::new();
     let mut workspace_dep_count: HashMap<String, usize> = HashMap::new();
     let mut unlisted: Vec<String> = Vec::new();
+    // Rule 17: collect normal dep edges for Tarjan SCC cycle detection.
+    let mut normal_dep_edges: Vec<(String, String)> = Vec::new();
 
     for pkg in metadata_full.workspace_packages() {
         let from_name = pkg.name.as_str();
@@ -1004,6 +1018,8 @@ fn run(warn_only_flag: bool) -> Result<Report> {
                 *workspace_dep_count
                     .entry(from_name.to_string())
                     .or_insert(0) += 1;
+                // Collect for Rule 17 Tarjan cycle detection.
+                normal_dep_edges.push((from_name.to_string(), to_name.to_string()));
             }
 
             // Layer-inversion check only applies to normal (production) deps.
@@ -1041,6 +1057,9 @@ fn run(warn_only_flag: bool) -> Result<Report> {
             unlisted.join(", ")
         ));
     }
+
+    // ── Rule 17: Cycle detection (Tarjan SCC) ──
+    report.cycle_errors = checks::cycles::find_cycles(&normal_dep_edges);
 
     // Rule 2: fan-in budget
     for (name, entry) in &layers.crates {
