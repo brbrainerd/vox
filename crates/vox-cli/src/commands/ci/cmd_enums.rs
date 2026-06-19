@@ -1049,6 +1049,9 @@ pub enum CiCmd {
     /// Walk crates/vox-plugin-* for *.skill.md files and enforce AgentSkills frontmatter contract (name, description, format, directory match).
     #[command(name = "agentskills-compliance")]
     AgentSkillsCompliance,
+    /// Enforce lean-CLI crate-count budget and forbidden-crate list (Track C Phase 0).
+    #[command(name = "profile-parity")]
+    ProfileParity,
     /// Federated workspace @tool surface parity (schemas + fixture round-trips).
     #[command(name = "mcp-vox-surface-parity")]
     McpVoxSurfaceParity,
@@ -1127,6 +1130,7 @@ impl CiCmd {
                 Some("ci-gate/ci.scientia-novelty-ledger-contracts")
             }
             CiCmd::BuildCacheDoctor => Some("ci-gate/ci.build-cache-doctor"),
+            CiCmd::ProfileParity => Some("ci-gate/ci.profile-parity"),
             // The registry machinery itself is intentionally untracked, and any
             // gate without a registry-backed `ci-gate` row stays grey.
             _ => None,

@@ -56,6 +56,7 @@ mod pm_provenance;
 mod policy_allowlist_parity;
 mod policy_registry;
 mod pre_push;
+mod profile_parity;
 mod release_build;
 pub(crate) mod retired_symbol_check;
 mod runner_scale;

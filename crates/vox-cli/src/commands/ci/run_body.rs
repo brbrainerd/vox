@@ -705,6 +705,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         }
         CiCmd::PluginDepBoundary => vox_cli_ci::plugin_dep_boundary::run(&root),
         CiCmd::PluginAbiParity { build } => super::plugin_abi_parity::run(build),
+        CiCmd::ProfileParity => super::profile_parity::run(),
         CiCmd::PluginSurfaceSync { write } => super::plugin_surface::run(&root, write),
         CiCmd::PluginCatalogSync { write } => super::plugin_catalog_sync::run(&root, write),
         CiCmd::PluginSkillParity { write } => super::plugin_skill_parity::run(write),
