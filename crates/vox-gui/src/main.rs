@@ -106,6 +106,7 @@ async fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commands::activity::activity_query,
             commands::catalog::get_command_catalog,
             commands::discovery::discovery_suggest,
             commands::discovery::discovery_help,
