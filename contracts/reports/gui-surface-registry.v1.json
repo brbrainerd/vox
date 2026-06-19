@@ -1,6 +1,5 @@
 {
   "schema_version": 1,
-  "surface_count": 107,
   "top_level_groups": [
     "add",
     "ars",
@@ -80,6 +79,7 @@
     "wasm",
     "workflow"
   ],
+  "surface_count": 109,
   "unclassified_backfilled": [],
   "wiring_violations": []
 }

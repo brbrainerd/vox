@@ -13,7 +13,7 @@ import {
 import { ChatSessionRail } from './ChatSessionRail';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
 import { SecretaryToast } from './SecretaryToast';
-import { listenSecretaryProposed, type SecretaryProposedPayload } from '../../../transport';
+import { listenSecretaryProposed, type SecretaryProposedPayload, feedbackList } from '../../../transport';
 
 
 
@@ -39,6 +39,7 @@ interface ChatSurfaceProps {
   onOpenAgentInFlow?: (agentId: string) => void;
   /** Primary Loquela composer — embedded when global shell dock is hidden on Chat. */
   composer?: React.ReactNode;
+  focusedFeedbackId?: string | null;
 }
 
 export function ChatSurface({
@@ -56,6 +57,7 @@ export function ChatSurface({
   agentStreamItems,
   onOpenAgentInFlow,
   composer,
+  focusedFeedbackId,
 }: ChatSurfaceProps) {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [secretaryToast, setSecretaryToast] = useState<SecretaryProposedPayload | null>(null);
@@ -89,6 +91,37 @@ export function ChatSurface({
       sub.then((fn) => fn());
     };
   }, []);
+
+  useEffect(() => {
+    if (!focusedFeedbackId) return;
+    
+    feedbackList().then((data) => {
+      const allFeedback = [...data.needsYou, ...data.withheld];
+      const item = allFeedback.find((f) => f.feedbackId === focusedFeedbackId);
+      if (!item) return;
+
+      const match = messages.find((msg) => {
+        if (msg.taskId) {
+          const mTaskId = Number(msg.taskId);
+          if (item.gates.includes(mTaskId) || mTaskId === item.doubtedTaskId) {
+            return true;
+          }
+        }
+        return msg.text.includes(item.prompt);
+      });
+
+      if (match) {
+        const el = document.getElementById(`msg-${match.id}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.add('ring-2', 'ring-amber-400', 'ring-offset-2', 'ring-offset-zinc-950');
+          setTimeout(() => {
+            el.classList.remove('ring-2', 'ring-amber-400', 'ring-offset-2', 'ring-offset-zinc-950');
+          }, 3000);
+        }
+      }
+    }).catch(() => {});
+  }, [focusedFeedbackId, messages]);
 
 
 

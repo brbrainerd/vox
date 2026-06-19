@@ -27,8 +27,8 @@ import { mapAgentEvent } from './lib/mapAgentEvent';
 import { contextRefsFromPayload } from './lib/loquelaContext';
 import { overallWorst, worstCount } from './components/surfaces/Policies/policyTree';
 import type { PolicyRow, PolicyStatus, BranchInfo, RunStatus } from './components/surfaces/Policies/types';
-import { voxTransport, listenAgentEvents, type AgentEventFrame } from './transport';
-import type { UnlistenFn } from '@tauri-apps/api/event';
+import { voxTransport, listenAgentEvents, type AgentEventFrame, feedbackList, listenFeedbackChanged } from './transport';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { SHELL_PREFERENCE_KEYS } from './lib/shellPersistence';
 import { usePersistedSparkWindow } from './hooks/useSparkWindow';
@@ -97,6 +97,7 @@ type View =
   | 'research'
   | 'oratio'
   | 'approvals'
+  | 'needs-you'
   | 'activity'
   | 'policies'
   | 'skills'
@@ -519,6 +520,65 @@ export default function App() {
     syncViewToLocation(child);
   }, [setActiveView]);
 
+  interface HopperTaskDto {
+    item_id: string;
+    intent: string;
+    priority: number;
+    state: string;
+    task_id: number;
+  }
+
+  const [needsYouCount, setNeedsYouCount] = useState(0);
+  const [blockedTasksCount, setBlockedTasksCount] = useState(0);
+  const [focusedFeedbackId, setFocusedFeedbackId] = useState<string | null>(null);
+
+  const refreshAttentionCounts = useCallback(async () => {
+    try {
+      const [feedback, tasks] = await Promise.all([
+        feedbackList().catch(() => ({ needsYou: [] })),
+        invoke<HopperTaskDto[]>('hopper_list').catch(() => []),
+      ]);
+      const needsYou = feedback?.needsYou ?? [];
+      const gateSet = new Set<number>(needsYou.flatMap(f => f.gates ?? []));
+      const blockedCount = tasks.filter(dto => gateSet.has(dto.task_id)).length;
+      setNeedsYouCount(needsYou.length);
+      setBlockedTasksCount(blockedCount);
+    } catch {
+      // Ignore
+    }
+  }, []);
+
+  const onOpenFeedbackContext = useCallback((feedbackId: string) => {
+    navigateTo('chat');
+    setFocusedFeedbackId(feedbackId);
+  }, [navigateTo]);
+
+  useEffect(() => {
+    refreshAttentionCounts();
+    let unlistenFeedback: (() => void) | null = null;
+    let unlistenTasks: (() => void) | null = null;
+    
+    listenFeedbackChanged(() => {
+      refreshAttentionCounts();
+    }).then((un) => {
+      unlistenFeedback = un;
+    });
+
+    listen<void>('vox://tasks-changed', () => {
+      refreshAttentionCounts();
+    }).then((un) => {
+      unlistenTasks = un;
+    });
+
+    const timer = setInterval(refreshAttentionCounts, 5000);
+
+    return () => {
+      if (unlistenFeedback) unlistenFeedback();
+      if (unlistenTasks) unlistenTasks();
+      clearInterval(timer);
+    };
+  }, [refreshAttentionCounts]);
+
   const manageGamifyInSettings = useCallback(() => {
     try {
       localStorage.setItem('vox_settings_seed', JSON.stringify({ section: 'gamify' }));
@@ -855,43 +915,7 @@ export default function App() {
       .catch((err) => pushToast({ tone: 'warn', title: 'Resume failed', body: String(err) }));
   }, [executeIpcWithRun, pushToast]);
 
-  const handleDoubt = useCallback(async (item: StreamItem) => {
-    setData(prev => ({ ...prev, stream: prev.stream.map(x => x.id === item.id ? { ...x, kind: 'doubted' } : x) }));
-    pushToast({ tone: 'warn', title: 'Doubt injected', body: item.title, cmd: `vox doubt-task ${item.id}` });
-    const taskId = Number(String(item.id).replace(/\D+/g, ''));
-    if (!Number.isFinite(taskId) || taskId <= 0) {
-      pushToast({
-        tone: 'warn',
-        title: 'Doubt unavailable',
-        body: 'This stream event has no numeric task id, so orchestrator doubt cannot be applied.',
-      });
-      return;
-    }
-    await executeIpcWithRun('doubt_orchestrator_task', {
-      taskId,
-      reason: `GUI doubt on stream event ${item.id}`,
-    }, 'gui.stream.doubt')
-      .catch((err) => pushToast({ tone: 'warn', title: 'Doubt failed', body: String(err) }));
-  }, [executeIpcWithRun, pushToast]);
 
-  const handleOverrule = useCallback(async (item: StreamItem) => {
-    setData(prev => ({ ...prev, stream: prev.stream.map(x => x.id === item.id ? { ...x, kind: 'validated' } : x) }));
-    pushToast({ tone: 'ok', title: 'Doubt overruled', body: item.title, cmd: `vox overrule-task ${item.id}` });
-    const taskId = Number(String(item.id).replace(/\D+/g, ''));
-    if (!Number.isFinite(taskId) || taskId <= 0) {
-      pushToast({
-        tone: 'warn',
-        title: 'Overrule unavailable',
-        body: 'This stream event has no numeric task id, so orchestrator overrule cannot be applied.',
-      });
-      return;
-    }
-    await executeIpcWithRun('overrule_orchestrator_task', {
-      taskId,
-      reason: `GUI overrule on stream event ${item.id}`,
-    }, 'gui.stream.overrule')
-      .catch((err) => pushToast({ tone: 'warn', title: 'Overrule failed', body: String(err) }));
-  }, [executeIpcWithRun, pushToast]);
 
   const handleAckAlert = useCallback(async (note: LudusAlert) => {
     setData(prev => ({ ...prev, alerts: prev.alerts.filter(x => x.id !== note.id) }));
@@ -985,8 +1009,8 @@ export default function App() {
     dashboardLoading: orchQuery.isLoading,
     onPause: handlePause,
     onResume: handleResume,
-    onDoubt: handleDoubt,
-    onOverrule: handleOverrule,
+    onOpenFeedbackContext: onOpenFeedbackContext,
+    focusedFeedbackId: focusedFeedbackId,
     onAckLudus: handleAckAlert,
     filterKind,
     setFilterKind,
@@ -1043,7 +1067,7 @@ export default function App() {
 
   return (
     <>
-      <AttentionStrip budget={orchQuery.data?.attention_budget} waitingQuestions={0} blockedTasks={0} />
+      <AttentionStrip budget={orchQuery.data?.attention_budget} waitingQuestions={needsYouCount} blockedTasks={blockedTasksCount} />
       <AppShell
         activeView={activeView}
         onNavigate={(v) => navigateTo(v)}

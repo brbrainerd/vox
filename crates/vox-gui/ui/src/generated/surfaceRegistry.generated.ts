@@ -10,6 +10,7 @@ export interface SurfaceRegistryEntry {
   parentSurface: string | null;
 }
 export const SURFACE_REGISTRY: SurfaceRegistryEntry[] = [
+  { viewKey: 'activity', cliGroup: null, tier: 'live_backend', navLabel: 'Activity', navIcon: 'list', navGroup: 'operate', parentSurface: null },
   { viewKey: 'agents', cliGroup: null, tier: 'live_backend', navLabel: 'Agents', navIcon: 'dashboard', navGroup: 'operate', parentSurface: null },
   { viewKey: 'approvals', cliGroup: null, tier: 'live_backend', navLabel: 'Approvals', navIcon: 'shield', navGroup: 'operate', parentSurface: 'runs' },
   { viewKey: 'archive-panel', cliGroup: null, tier: 'live_backend', navLabel: 'Archive Panel', navIcon: 'beaker', navGroup: 'knowledge', parentSurface: null },
@@ -28,6 +29,7 @@ export const SURFACE_REGISTRY: SurfaceRegistryEntry[] = [
   { viewKey: 'knowledge', cliGroup: null, tier: 'live_backend', navLabel: 'Knowledge', navIcon: 'brain', navGroup: 'knowledge', parentSurface: null },
   { viewKey: 'matrix', cliGroup: null, tier: 'live_backend', navLabel: 'Routing', navIcon: 'scale', navGroup: 'operate', parentSurface: 'agents' },
   { viewKey: 'mesh', cliGroup: null, tier: 'live_backend', navLabel: 'Mesh', navIcon: 'link', navGroup: 'compute', parentSurface: 'compute' },
+  { viewKey: 'needs-you', cliGroup: null, tier: 'live_backend', navLabel: 'Needs You', navIcon: 'alert', navGroup: 'operate', parentSurface: null },
   { viewKey: 'policies', cliGroup: null, tier: 'live_backend', navLabel: 'Policies', navIcon: 'scale', navGroup: 'operate', parentSurface: 'runs' },
   { viewKey: 'publications', cliGroup: null, tier: 'curated_decorator', navLabel: 'Publications', navIcon: 'file', navGroup: 'knowledge', parentSurface: 'knowledge' },
   { viewKey: 'review', cliGroup: null, tier: 'curated_decorator', navLabel: 'Review', navIcon: 'doubt', navGroup: 'knowledge', parentSurface: null },

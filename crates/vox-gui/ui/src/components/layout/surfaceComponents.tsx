@@ -17,6 +17,7 @@ import { ApprovalsView } from '../surfaces/Approvals/ApprovalsView';
 import { ActivitySurface } from '../surfaces/Activity/ActivitySurface';
 import { SkillsPluginsView } from '../surfaces/SkillsPlugins/SkillsPluginsView';
 import { PoliciesView } from '../surfaces/Policies/PoliciesView';
+import { NeedsYouSurface } from '../surfaces/NeedsYou/NeedsYouSurface';
 import { ParentSurface } from './ParentSurface';
 import { surfaceDecorators } from '../surfaces/decoratorRegistry';
 import { GraphifyStatusPanel } from '../surfaces/Graphify/GraphifyStatusPanel';
@@ -68,6 +69,8 @@ export interface SurfaceProps {
   hudTilesConfig?: HudTilesConfig;
   onHudTilesChange?: (config: HudTilesConfig) => void;
   attention_budget?: AttentionBudgetSnapshot | null;
+  onOpenFeedbackContext?: (id: string) => void;
+  focusedFeedbackId?: string | null;
 }
 
 function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
@@ -83,8 +86,6 @@ function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
           loading={props.dashboardLoading}
           onPause={props.onPause!}
           onResume={props.onResume!}
-          onDoubt={props.onDoubt!}
-          onOverrule={props.onOverrule!}
           onAckLudus={props.onAckLudus!}
           filterKind={props.filterKind!}
           setFilterKind={props.setFilterKind!}
@@ -156,6 +157,8 @@ function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
       return <ApprovalsView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'activity':
       return <ActivitySurface pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
+    case 'needs-you':
+      return <NeedsYouSurface onOpenContext={props.onOpenFeedbackContext!} pushToast={props.pushToast} />;
     case 'policies':
       return <PoliciesView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'skills':
@@ -177,6 +180,7 @@ function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
           agentStreamItems={props.chatAgentStreamItems}
           onOpenAgentInFlow={props.onOpenAgentInFlow}
           composer={props.chatComposer}
+          focusedFeedbackId={props.focusedFeedbackId}
         />
       );
     default:

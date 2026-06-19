@@ -5,11 +5,9 @@ import { StreamItem } from '../../../types/dashboard';
 
 interface StreamCardProps {
   item: StreamItem;
-  onDoubt?: (item: StreamItem) => void;
-  onOverrule?: (item: StreamItem) => void;
 }
 
-export function StreamCard({ item, onDoubt, onOverrule }: StreamCardProps) {
+export function StreamCard({ item }: StreamCardProps) {
   const toneMap: Record<string, { phase: string; icon: React.ReactNode; bar: string }> = {
     validated:   { phase: "Validated",   icon: <Icon.check className="size-3.5" />, bar: "from-emerald-400/40 to-emerald-400/0" },
     "in-progress": { phase: "Executing", icon: <Icon.bolt className="size-3.5" />,  bar: "from-brass/40 to-brass/0" },
@@ -34,18 +32,6 @@ export function StreamCard({ item, onDoubt, onOverrule }: StreamCardProps) {
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
           <span className="font-mono text-[10px] text-zinc-500">{item.ts}</span>
-          <div className="flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
-            {item.kind !== "doubted" && (
-              <button type="button" aria-label="Doubt this action" onClick={() => onDoubt?.(item)} className="rounded-md border border-white/5 bg-white/[0.02] p-1.5 text-zinc-400 hover:border-amber-400/30 hover:text-amber-300 transition" title="Doubt">
-                <Icon.doubt className="size-3.5" aria-hidden="true" />
-              </button>
-            )}
-            {item.kind === "doubted" && (
-              <button type="button" aria-label="Overrule this action" onClick={() => onOverrule?.(item)} className="rounded-md border border-amber-400/20 bg-amber-400/5 p-1.5 text-amber-300 hover:bg-amber-400/15 transition" title="Overrule">
-                <Icon.gavel className="size-3.5" aria-hidden="true" />
-              </button>
-            )}
-          </div>
         </div>
       </div>
     </div>

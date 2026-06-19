@@ -25,6 +25,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 
   return (
     <div
+      id={`msg-${message.id}`}
       className={`max-w-[80%] rounded-xl border px-3 py-2 text-[12px] leading-relaxed whitespace-pre-wrap break-words ${tone}`}
     >
       {!isSystem && (
