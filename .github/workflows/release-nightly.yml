@@ -1,0 +1,140 @@
+name: Nightly Release
+
+on:
+  schedule:
+    # 04:00 UTC daily
+    - cron: "0 4 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nightly-release
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: Verify main is green
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.resolve.outputs.sha }}
+      nightly_version: ${{ steps.resolve.outputs.nightly_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+      - name: Resolve HEAD + nightly version
+         id: resolve
+         env:
+           GH_TOKEN: ${{ github.token }}
+         run: |
+           set -euo pipefail
+           sha="$(git rev-parse HEAD)"
+           short="${sha:0:7}"
+           workspace_version="$(grep -m1 '^version' Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')"
+           nightly_version="${workspace_version}-nightly.$(date -u +%Y%m%d)+${short}"
+           echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+           echo "nightly_version=${nightly_version}" >> "$GITHUB_OUTPUT"
+           echo "Resolved nightly version: ${nightly_version}"
+      - name: Require green combined status on HEAD
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          sha="${{ steps.resolve.outputs.sha }}"
+          state="$(gh api repos/${{ github.repository }}/commits/${sha}/status -q '.state')"
+          echo "Combined status for ${sha}: ${state}"
+          if [ "${state}" != "success" ]; then
+            echo "::error::main@${sha} is '${state}', not 'success' — aborting nightly."
+            exit 1
+          fi
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: gate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runs_on: '["ubuntu-latest"]'
+          - target: x86_64-pc-windows-msvc
+            runs_on: '["windows-latest"]'
+          - target: x86_64-apple-darwin
+            runs_on: '["macos-latest"]'
+          - target: aarch64-apple-darwin
+            runs_on: '["macos-latest"]'
+    runs-on: ${{ fromJson(matrix.runs_on) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.gate.outputs.sha }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Build + package nightly artifacts (vox, vox-ml-cli, voxup)
+        run: cargo run --locked -p vox-cli ci release-build --target ${{ matrix.target }} --version ${{ needs.gate.outputs.nightly_version }} --out-dir dist --package all
+      - name: Smoke test vox (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          set -euo pipefail
+          ver="$(./target/${{ matrix.target }}/release/vox --version)"
+          echo "vox --version => ${ver}"
+          echo "${ver}" | grep -q "nightly"
+      - name: Smoke test vox (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ver = & "./target/${{ matrix.target }}/release/vox.exe" --version
+          Write-Host "vox --version => $ver"
+          if ($ver -notmatch "nightly") { exit 1 }
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-${{ matrix.target }}
+          path: dist/*
+          retention-days: 3
+
+  publish:
+    name: Publish rolling nightly release
+    needs: [gate, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.gate.outputs.sha }}
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: staged
+      - name: Flatten + merge checksums
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          # Move every archive into dist/, concatenating per-target checksums.txt.
+          : > dist/checksums.txt
+          find staged -type f | while read -r f; do
+            base="$(basename "$f")"
+            if [ "$base" = "checksums.txt" ]; then
+              cat "$f" >> dist/checksums.txt
+            else
+              cp "$f" "dist/${base}"
+            fi
+          done
+          echo "Staged release assets:"
+          ls -la dist
+      - name: Replace rolling nightly release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          sha="${{ needs.gate.outputs.sha }}"
+          gh release delete nightly --cleanup-tag --yes || true
+          gh release create nightly \
+            --prerelease \
+            --target "${sha}" \
+            --title "Vox Nightly (${{ needs.gate.outputs.nightly_version }})" \
+            --notes "Automated nightly for main@${sha} ($(date -u +'%Y-%m-%d %H:%M UTC')). Pre-release; not for production." \
+            dist/*
