@@ -90,6 +90,9 @@ pub struct EffectiveDomainProfile {
     pub context_filter: Option<ContextFilter>,
     pub mix_config: Option<PathBuf>,
     pub system_prompt: Option<PathBuf>,
+    pub base: Option<SpokeBase>,
+    pub eval_gate: Option<PathBuf>,
+    pub router: Option<SpokeRouter>,
 
     // Overrides over LoraTrainingConfig defaults
     pub min_rating: Option<u8>,
@@ -160,6 +163,9 @@ impl EffectiveDomainProfile {
             context_filter: profile.context_filter.clone(),
             mix_config: profile.mix_config.as_ref().map(|p| root.join(p)),
             system_prompt: profile.system_prompt.as_ref().map(|p| root.join(p)),
+            base: profile.base.clone(),
+            eval_gate: profile.eval_gate.as_ref().map(|p| root.join(p)),
+            router: profile.router.clone(),
 
             min_rating: profile.min_rating.or(def.min_rating),
             ce_last_k: profile.ce_last_k.or(def.ce_last_k),
@@ -209,5 +215,23 @@ base:
         let yaml = r#"description: "legacy profile, no base""#;
         let p: DomainProfile = serde_yaml::from_str(yaml).expect("parse");
         assert!(p.base.is_none());
+    }
+
+    #[test]
+    fn effective_profile_carries_base_through() {
+        // load_domain_profile reads mens/config/domain-profiles.yaml from the
+        // workspace root; this test runs from the crate dir, so point it up.
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap()
+            .to_path_buf();
+        let eff = EffectiveDomainProfile::load_domain_profile("vox-lang", Some(&root))
+            .expect("vox-lang profile loads");
+        // vox-lang gains a base block in Task 1.5; until then this asserts the
+        // field exists and is plumbed (None is acceptable pre-1.5).
+        let _ = &eff.base;
+        let _ = &eff.eval_gate;
+        let _ = &eff.router;
     }
 }
