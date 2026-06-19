@@ -1,0 +1,26 @@
+// vox:skip — Vox-script; run with: vox run --mode interp scripts/profile-crate-count.vox
+// Counts unique crates in the vox-cli lean dependency tree.
+import fs;
+import json;
+
+fn main() {
+    let out = Process.run("cargo", [
+        "tree", "-p", "vox-cli",
+        "--no-default-features", "--features", "script-execution",
+        "-e", "normal", "--prefix", "none",
+    ])
+    let lines = out.stdout.split("\n")
+    let seen_list: list[str] = []
+    for line in lines {
+        let trimmed = line.trim()
+        let parts = trimmed.split(" ")
+        let name = parts.get(0).unwrap_or("")
+        if name != "" {
+            if !seen_list.contains(name) {
+                seen_list = seen_list.push(name)
+            }
+        }
+    }
+    let count = seen_list.len()
+    print("{\"profile\": \"lean\", \"crate_count\": " + str(count) + "}")
+}

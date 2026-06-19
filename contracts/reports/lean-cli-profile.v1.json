@@ -1,0 +1,7 @@
+{
+  "profile": "lean",
+  "build": "cargo build -p vox-cli --no-default-features --features script-execution",
+  "max_crates": 1198,
+  "forbidden_crates": ["vox-gamify", "vox-gui", "vox-free-ai"],
+  "note": "max_crates is a ceiling; lowered as gamify/gui leave the lean graph. forbidden_crates MUST NOT appear in the lean tree."
+}
