@@ -41,8 +41,9 @@ use run_body_helpers::{
     run_k_complexity_budget, run_manifest, run_mens_corpus_health, run_mens_gate,
     run_operator_env_guard, run_query_all_guard, run_repo_guards, run_script_hygiene,
     run_secret_env_guard, run_secrets_contracts, run_secrets_cutover_audit,
-    run_secrets_cutover_gates, run_secrets_parity, run_sql_surface_guard, run_ssot_audit,
-    run_ssot_drift, run_toestub_scoped_roots, run_toestub_self_apply, run_turso_import_guard,
+    run_secrets_cutover_gates, run_secrets_parity, run_spoke_check, run_sql_surface_guard,
+    run_ssot_audit, run_ssot_drift, run_toestub_scoped_roots, run_toestub_self_apply,
+    run_turso_import_guard,
 };
 
 use super::retired_symbol_check;
@@ -300,6 +301,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             vox_cli_ci::line_endings::run(&root, all, base, autofix)
         }
         CiCmd::BomCheck => vox_cli_ci::line_endings::check_bom(&root),
+        CiCmd::SpokeCheck => run_spoke_check(&root),
         CiCmd::FreeBinary { target, apply } => super::free_binary::run(&root, target, apply),
         CiCmd::ParseStatus { write } => parse_status::run(&root, write),
         CiCmd::MeshGate {

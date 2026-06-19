@@ -362,6 +362,10 @@ pub enum CiCmd {
     /// BOMs corrupt `include_str!()` output and break JSON parsing.
     #[command(name = "bom-check")]
     BomCheck,
+    /// Validate domain profiles spoke configurations, ensuring base models/methods/presets are correct
+    /// and required paths exist.
+    #[command(name = "spoke-check")]
+    SpokeCheck,
     /// Reap stale `vox*` processes that lock this worktree's `target/` build
     /// output (Windows os-error-5 on relink). Dry-run unless `--apply`.
     #[command(name = "free-binary")]
@@ -1087,6 +1091,7 @@ impl CiCmd {
             CiCmd::RepoGuards => Some("ci-gate/ci.repo-guards"),
             CiCmd::LineEndings { .. } => Some("ci-gate/ci.line-endings"),
             CiCmd::BomCheck => Some("ci-gate/ci.bom-check"),
+            CiCmd::SpokeCheck => Some("ci-gate/ci.spoke-check"),
             CiCmd::FreeBinary { .. } => Some("ci-gate/ci.free-binary"),
             CiCmd::DataSsotGuards => Some("ci-gate/ci.data-ssot-guards"),
             CiCmd::FeatureMatrix => Some("ci-gate/ci.feature-matrix"),
