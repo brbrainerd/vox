@@ -47,10 +47,12 @@ pub fn crate_metrics(
         // Remove n itself (was seeded to prevent self-loops from inflating the count).
         seen.remove(n);
         let base = self_s.get(n).copied().unwrap_or(0.0);
-        let dep_sum: f64 = seen
+        let mut dep_vals: Vec<f64> = seen
             .iter()
             .map(|x| self_s.get(x).copied().unwrap_or(0.0))
-            .sum();
+            .collect();
+        dep_vals.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let dep_sum: f64 = dep_vals.iter().sum();
         out.insert(
             n.clone(),
             CrateMetrics {
@@ -126,7 +128,9 @@ pub fn build_crate_map(crate_graph: &Value, audit: &Value) -> Value {
         }
     }
 
-    let cnodes: Vec<ClusterNode> = nodes_set
+    let mut sorted_nodes: Vec<String> = nodes_set.iter().cloned().collect();
+    sorted_nodes.sort();
+    let cnodes: Vec<ClusterNode> = sorted_nodes
         .iter()
         .map(|n| ClusterNode {
             id: n.clone(),
@@ -142,6 +146,7 @@ pub fn build_crate_map(crate_graph: &Value, audit: &Value) -> Value {
             });
         }
     }
+    cedges.sort_by(|a, b| a.source.cmp(&b.source).then(a.target.cmp(&b.target)));
     let comm = cluster_nodes(&cnodes, &cedges);
 
     let mut names: Vec<String> = nodes_set.into_iter().collect();

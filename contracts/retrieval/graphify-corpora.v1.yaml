@@ -36,6 +36,16 @@ corpora:
     default_for_intents:
       - config_audit
 
+  - id: crate-map
+    title: Crate build-time x dependency map
+    scope_path: "."
+    graph_path: ".vox/cache/graphify/crate-map/graph.json"
+    manifest_path: ".vox/cache/graphify/crate-map/.graphify_manifest.v1.json"
+    extraction_mode: crate-map
+    default_for_intents:
+      - build_time
+      - crate_arrangement
+
   - id: graphify-search-log
     title: "Graphify search-hit log (agent memory)"
     scope_path: ".vox/cache/graphify/search-log/"

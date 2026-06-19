@@ -5,8 +5,8 @@ use chrono::Utc;
 use clap::Subcommand;
 use vox_config::graphify::{
     CorpusStatus, GraphifyCorporaRegistry, GraphifyCorpus, GraphifyError, GraphifyKnowledgeNode,
-    assess_corpus_status, load_all_corpora, load_graphify_corpora, project_graph_nodes_for_ingest,
-    upsert_registered_corpus,
+    GraphifyManifest, assess_corpus_status, load_all_corpora, load_graphify_corpora,
+    project_graph_nodes_for_ingest, upsert_registered_corpus, write_manifest,
 };
 
 #[derive(Debug, Subcommand)]
@@ -66,6 +66,13 @@ pub enum GraphifyCmd {
         /// How many snapshots to keep per corpus.
         #[arg(long, default_value_t = 5)]
         keep: usize,
+    },
+    /// Build the crate build-time x dependency map (deterministic Leiden communities +
+    /// blast-radius) from contracts/ci/crate-graph.v1.json + graphify-out/crate_audit.json.
+    CrateMap {
+        /// Skip regenerating crate-graph.v1.json from cargo metadata (use the committed snapshot).
+        #[arg(long)]
+        no_refresh_graph: bool,
     },
 }
 
@@ -172,6 +179,19 @@ fn assess_all(
             ))
         })
         .collect()
+}
+
+fn regenerate_crate_graph(repo_root: &std::path::Path) -> anyhow::Result<()> {
+    let exe = std::env::current_exe().context("current exe")?;
+    let status = std::process::Command::new(&exe)
+        .current_dir(repo_root)
+        .args(["ci", "affected-crates", "--regen"])
+        .status()
+        .context("spawn crate-graph regenerator")?;
+    if !status.success() {
+        anyhow::bail!("crate-graph regenerator exited non-zero");
+    }
+    Ok(())
 }
 
 fn resolve_ingest_corpus_id(
@@ -479,6 +499,60 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                     println!("gc {} kept<= {keep} removed={removed}", c.id);
                 }
             }
+        }
+        GraphifyCmd::CrateMap { no_refresh_graph } => {
+            // 1. Freshen the committed dependency graph from cargo metadata unless suppressed.
+            if !no_refresh_graph {
+                if let Err(e) = regenerate_crate_graph(repo_root) {
+                    tracing::warn!("crate-graph regen failed, using committed snapshot: {e}");
+                }
+            }
+            let graph_path = repo_root.join("contracts/ci/crate-graph.v1.json");
+            let crate_graph: serde_json::Value = serde_json::from_str(
+                &std::fs::read_to_string(&graph_path)
+                    .with_context(|| format!("read {}", graph_path.display()))?,
+            )
+            .with_context(|| format!("parse {}", graph_path.display()))?;
+
+            // 2. Audit times are OPTIONAL (graphify-out/ is gitignored; absent on fresh checkout).
+            let audit_path = repo_root.join("graphify-out/crate_audit.json");
+            let audit: serde_json::Value = match std::fs::read_to_string(&audit_path) {
+                Ok(s) => serde_json::from_str(&s).unwrap_or_else(|_| serde_json::json!([])),
+                Err(_) => {
+                    println!(
+                        "note: {} absent — building count-only map (run scripts/crate-build-audit.vox for compile times)",
+                        audit_path.display()
+                    );
+                    serde_json::json!([])
+                }
+            };
+
+            // 3. Build + persist.
+            let map = vox_graphify_reader::crate_model::build_crate_map(&crate_graph, &audit);
+            let out_dir = repo_root.join(".vox/cache/graphify/crate-map");
+            std::fs::create_dir_all(&out_dir).context("create crate-map cache dir")?;
+            let bytes = serde_json::to_string_pretty(&map)?;
+            std::fs::write(out_dir.join("graph.json"), &bytes)
+                .context("write crate-map graph.json")?;
+            let node_count = map["nodes"].as_array().map(|a| a.len() as u64).unwrap_or(0);
+            let edge_count = map["links"].as_array().map(|a| a.len() as u64).unwrap_or(0);
+            let manifest = GraphifyManifest {
+                corpus_id: Some("crate-map".to_string()),
+                built_at: Some(Utc::now().to_rfc3339()),
+                git_sha: resolve_head_sha()?,
+                scope_path: Some(".".to_string()),
+                node_count: Some(node_count),
+                edge_count: Some(edge_count),
+                graph_json_sha256: Some(vox_graphify_reader::graph_digest(bytes.as_bytes())),
+                extraction_mode: Some("crate-map".to_string()),
+                lexical_ingest_sha256: None,
+            };
+            write_manifest(&out_dir.join(".graphify_manifest.v1.json"), &manifest)
+                .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            println!(
+                "crate-map: {node_count} crates, {edge_count} edges -> .vox/cache/graphify/crate-map/graph.json"
+            );
+            println!("persist for agent recall: vox graphify ingest --corpus crate-map");
         }
     }
     Ok(())
