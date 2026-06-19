@@ -14,8 +14,8 @@
 | # | Plan | Status | Goal |
 |---|---|---|---|
 | **T1** | [Native crate-map capability](2026-06-19-crate-build-track1-native-crate-map.md) | **WRITTEN (4 tasks)** | T1.0 fix non-deterministic Leiden (cross-cutting — also fixes shipped rebuild/modules), T1.1 cycle-safe blast+counts, T1.2 audit-optional `build_crate_map`, T1.3 `vox graphify crate-map` (regen graph, persist + ingest). The re-runnable model everything else is scored against. |
-| **T2** | Disentangle the 20-crate cycle | **TO WRITE** | Invert `vox-test-harness` heavy deps to dissolve the advisory cycle; add a `dep-cycles --deny-new` regression gate over a committed back-edge allowlist. |
-| **T4** | Measurement spine + gating | **TO WRITE** | Refresh the zeroed `build-bench` baseline + `crate_audit`; `vox ci crate-budget` gate on blast-radius-seconds + modularity Q deltas. |
+| **T2** | Disentangle the 20-crate cycle | **EXECUTED (e44b2d0202 + 62011c0521)** | Removed `vox-codegen` from `vox-test-harness` prod deps (dead `pipeline/codegen.rs` deleted). Added `dep-cycles --deny-new` gate + `contracts/ci/dep-backedges.allow.json` allowlist locking the current 20-crate cycle. Remaining cycle (`vox-test-harness→vox-compiler` back-edge) requires T3 type extractions to dissolve. |
+| **T4** | Measurement spine + gating | **PARTIAL (6621eea847)** | `vox ci crate-budget` gate implemented — reads `vox graphify crate-map` output and compares keystones against `contracts/ci/crate-budget.v1.json` (590/445/437/440s ceilings). **Pending:** refresh zeroed `build-bench-baseline.v1.json` once WIP in `vox-orchestrator-mcp` unblocks full workspace build. |
 | **T3** | Blast-radius splits | **TO WRITE** | Incremental, measured **type-only extractions** (e.g. expand `vox-db-types`) to shrink `vox-db`/`vox-compiler`/`vox-populi` blast radii; fix the 2 layer inversions + fan-in budget breaches. One module per task, `blast_s`-gated. |
 
 **Why T1 first:** it produces the live model (`vox graphify crate-map`) that T3's per-extraction `blast_s` deltas and T4's regression gate both consume. T2 and T4 are independent. T3 is the heavy refactor and runs last, each extraction gated by T1's measurement.
