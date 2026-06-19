@@ -27,6 +27,10 @@ pub struct GraphifyStatusParams {
 pub struct GraphifySearchParams {
     /// Corpus id from the registry; omit to use `default_corpus_id`.
     pub corpus: Option<String>,
+    /// Optional intent; when `corpus` is omitted, routes to the corpus registered for this
+    /// intent (`default_for_intents`) before falling back to `default_corpus_id`.
+    #[serde(default)]
+    pub intent: Option<String>,
     pub query: String,
     pub limit: Option<u32>,
     /// When true (default), upsert each hit into `knowledge_nodes` for future agent recall.
@@ -62,17 +66,24 @@ fn selected_corpora<'a>(
 fn resolve_search_corpus<'a>(
     reg: &'a vox_config::graphify::GraphifyCorporaRegistry,
     corpus: &Option<String>,
+    intent: &Option<String>,
 ) -> Result<(&'a vox_config::graphify::GraphifyCorpus, String), GraphifyError> {
-    match corpus {
-        Some(id) => {
-            let c = corpus_by_id(reg, id)?;
-            Ok((c, id.clone()))
-        }
-        None => {
+    if let Some(id) = corpus {
+        let c = corpus_by_id(reg, id)?;
+        Ok((c, id.clone()))
+    } else if let Some(i) = intent {
+        if let Some(id) = vox_config::graphify::select_corpus_for_intent(reg, i) {
+            let c = corpus_by_id(reg, &id)?;
+            Ok((c, id))
+        } else {
             let id = reg.default_corpus_id.clone();
             let c = corpus_by_id(reg, &id)?;
             Ok((c, id))
         }
+    } else {
+        let id = reg.default_corpus_id.clone();
+        let c = corpus_by_id(reg, &id)?;
+        Ok((c, id))
     }
 }
 
@@ -191,7 +202,7 @@ pub async fn graphify_search(state: &ServerState, params: GraphifySearchParams) 
             .to_json();
         }
     };
-    let (corpus, corpus_id) = match resolve_search_corpus(&reg, &params.corpus) {
+    let (corpus, corpus_id) = match resolve_search_corpus(&reg, &params.corpus, &params.intent) {
         Ok(v) => v,
         Err(e) => {
             return ToolResult::<serde_json::Value>::err_with_remediation(
@@ -341,7 +352,7 @@ pub async fn graphify_query(state: &ServerState, params: GraphifyQueryParams) ->
             .to_json();
         }
     };
-    let (corpus, corpus_id) = match resolve_search_corpus(&reg, &params.corpus) {
+    let (corpus, corpus_id) = match resolve_search_corpus(&reg, &params.corpus, &None) {
         Ok(v) => v,
         Err(e) => {
             return ToolResult::<serde_json::Value>::err_with_remediation(
@@ -405,7 +416,7 @@ pub async fn graphify_path(state: &ServerState, params: GraphifyPathParams) -> S
             .to_json();
         }
     };
-    let (corpus, corpus_id) = match resolve_search_corpus(&reg, &params.corpus) {
+    let (corpus, corpus_id) = match resolve_search_corpus(&reg, &params.corpus, &None) {
         Ok(v) => v,
         Err(e) => {
             return ToolResult::<serde_json::Value>::err_with_remediation(
@@ -603,6 +614,7 @@ mod tests {
             &state,
             GraphifySearchParams {
                 corpus: Some("repo-code-graph".into()),
+                intent: None,
                 query: "authentication".into(),
                 limit: None,
                 persist: false, // avoid DB in unit test
@@ -637,6 +649,32 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn graphify_search_routes_by_intent_when_no_corpus() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_registry(tmp.path());
+        write_sample_graph(tmp.path());
+        let state = test_state_for_repo(tmp.path().to_path_buf());
+        let json = graphify_search(
+            &state,
+            GraphifySearchParams {
+                corpus: None,
+                intent: Some("code_navigation".into()), // → repo-code-graph
+                query: "authentication".into(),
+                limit: None,
+                persist: false,
+            },
+        )
+        .await;
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid json");
+        assert_eq!(parsed.get("success"), Some(&serde_json::json!(true)));
+        let data = parsed.get("data").expect("data");
+        assert_eq!(
+            data.get("corpus_id"),
+            Some(&serde_json::json!("repo-code-graph"))
+        );
+    }
+
+    #[tokio::test]
     async fn graphify_search_response_includes_searched_at() {
         let tmp = tempfile::tempdir().unwrap();
         write_registry(tmp.path());
@@ -646,6 +684,7 @@ mod tests {
             &state,
             GraphifySearchParams {
                 corpus: Some("repo-code-graph".into()),
+                intent: None,
                 query: "authentication".into(),
                 limit: None,
                 persist: false, // skip DB in unit test
