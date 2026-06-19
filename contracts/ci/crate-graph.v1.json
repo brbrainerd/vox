@@ -40,7 +40,14 @@
       "workspace-hack"
     ],
     "vox-build-meta": [],
+    "vox-build-queue": [
+      "workspace-hack"
+    ],
     "vox-capability-registry": [
+      "workspace-hack"
+    ],
+    "vox-cargo-shim": [
+      "vox-build-queue",
       "workspace-hack"
     ],
     "vox-cli": [

@@ -14636,6 +14636,18 @@ name = "vox-build-meta"
 version = "0.6.0"
 
 [[package]]
+name = "vox-build-queue"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "fs2",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-capability-registry"
 version = "0.6.0"
 dependencies = [
@@ -14643,6 +14655,16 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml_ng",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vox-cargo-shim"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "tempfile",
+ "vox-build-queue",
  "workspace-hack",
 ]
 
