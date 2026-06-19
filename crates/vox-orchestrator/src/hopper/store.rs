@@ -105,6 +105,22 @@ pub trait HopperIntake: Send + Sync {
     /// emit a local `HopperItemAdmitted` bus event — the admission happened on
     /// the origin daemon, not here.
     async fn replay_admitted(&self, op: AdmittedReplay) -> IntakeItem;
+
+    /// Idempotently apply a remote priority override replicated from a peer daemon (B4).
+    async fn replay_overridden(
+        &self,
+        item_id: &HopperItemId,
+        new_priority: TaskPriority,
+        override_at_unix_ms: u64,
+        override_by_node_id: String,
+    ) -> Result<IntakeItem, HopperError>;
+
+    /// Idempotently apply a remote state transition replicated from a peer daemon (B4).
+    async fn replay_transitioned(
+        &self,
+        item_id: &HopperItemId,
+        new_state: ItemState,
+    ) -> Result<IntakeItem, HopperError>;
 }
 
 // ── SwappableHopper ────────────────────────────────────────────────────────────
@@ -220,6 +236,32 @@ impl HopperIntake for SwappableHopper {
             guard.clone()
         };
         inner.replay_admitted(op).await
+    }
+
+    async fn replay_overridden(
+        &self,
+        item_id: &HopperItemId,
+        new_priority: TaskPriority,
+        override_at_unix_ms: u64,
+        override_by_node_id: String,
+    ) -> Result<IntakeItem, HopperError> {
+        let inner = {
+            let guard = self.inner.read().await;
+            guard.clone()
+        };
+        inner.replay_overridden(item_id, new_priority, override_at_unix_ms, override_by_node_id).await
+    }
+
+    async fn replay_transitioned(
+        &self,
+        item_id: &HopperItemId,
+        new_state: ItemState,
+    ) -> Result<IntakeItem, HopperError> {
+        let inner = {
+            let guard = self.inner.read().await;
+            guard.clone()
+        };
+        inner.replay_transitioned(item_id, new_state).await
     }
 }
 
@@ -424,6 +466,52 @@ impl HopperIntake for InMemoryHopper {
         );
         items.push(item.clone());
         item
+    }
+
+    async fn replay_overridden(
+        &self,
+        item_id: &HopperItemId,
+        new_priority: TaskPriority,
+        override_at_unix_ms: u64,
+        override_by_node_id: String,
+    ) -> Result<IntakeItem, HopperError> {
+        let mut items = self.items.write().await;
+        let item = items
+            .iter_mut()
+            .find(|i| &i.item_id == item_id)
+            .ok_or_else(|| HopperError::NotFound(item_id.0.clone()))?;
+
+        if item.classified_priority == new_priority && item.priority_source == PrioritySource::Developer {
+            return Ok(item.clone());
+        }
+
+        let old_priority = item.classified_priority;
+        item.classified_priority = new_priority;
+        item.priority_source = PrioritySource::Developer;
+        item.override_history.push(PriorityOverrideRecord {
+            ts_micros: override_at_unix_ms * 1_000,
+            actor: override_by_node_id,
+            original_priority: old_priority,
+            new_priority,
+            reason: "Mesh replication override".to_string(),
+            audit_id: "mesh-sync".to_string(),
+        });
+        Ok(item.clone())
+    }
+
+    async fn replay_transitioned(
+        &self,
+        item_id: &HopperItemId,
+        new_state: ItemState,
+    ) -> Result<IntakeItem, HopperError> {
+        let mut items = self.items.write().await;
+        let item = items
+            .iter_mut()
+            .find(|i| &i.item_id == item_id)
+            .ok_or_else(|| HopperError::NotFound(item_id.0.clone()))?;
+
+        item.state = new_state;
+        Ok(item.clone())
     }
 }
 

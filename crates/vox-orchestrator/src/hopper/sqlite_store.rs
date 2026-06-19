@@ -332,6 +332,74 @@ impl HopperIntake for SqliteHopper {
 
         item
     }
+
+    async fn replay_overridden(
+        &self,
+        item_id: &HopperItemId,
+        new_priority: TaskPriority,
+        override_at_unix_ms: u64,
+        override_by_node_id: String,
+    ) -> Result<IntakeItem, HopperError> {
+        let item = self.inbox().await.into_iter()
+            .chain(self.assigned().await)
+            .find(|i| &i.item_id == item_id);
+
+        let mut item = match item {
+            Some(i) => i,
+            None => return Err(HopperError::NotFound(item_id.0.clone())),
+        };
+
+        if matches!(
+            item.state,
+            ItemState::Done | ItemState::Overridden | ItemState::Cancelled
+        ) {
+            return Err(HopperError::Terminal);
+        }
+
+        let old_priority = item.classified_priority;
+        item.classified_priority = new_priority;
+        item.priority_source = PrioritySource::Developer;
+        item.override_history.push(PriorityOverrideRecord {
+            ts_micros: override_at_unix_ms * 1_000,
+            actor: override_by_node_id,
+            original_priority: old_priority,
+            new_priority,
+            reason: "Mesh replication override".to_string(),
+            audit_id: "mesh-sync".to_string(),
+        });
+
+        // Save new priority
+        if let Err(e) = self.db.hopper_update_priority(&item_id.0, new_priority as i64).await {
+            tracing::error!("Failed to update priority in sqlite hopper: {:?}", e);
+        }
+
+        Ok(item)
+    }
+
+    async fn replay_transitioned(
+        &self,
+        item_id: &HopperItemId,
+        new_state: ItemState,
+    ) -> Result<IntakeItem, HopperError> {
+        let item = self.inbox().await.into_iter()
+            .chain(self.assigned().await)
+            .chain(self.history().await)
+            .find(|i| &i.item_id == item_id);
+
+        let mut item = match item {
+            Some(i) => i,
+            None => return Err(HopperError::NotFound(item_id.0.clone())),
+        };
+
+        item.state = new_state;
+        let state_json = serde_json::to_string(&item.state).unwrap();
+
+        if let Err(e) = self.db.hopper_update_state(&item_id.0, &state_json).await {
+            tracing::error!("Failed to update state in sqlite hopper: {:?}", e);
+        }
+
+        Ok(item)
+    }
 }
 
 #[cfg(test)]
