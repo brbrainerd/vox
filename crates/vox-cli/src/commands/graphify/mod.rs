@@ -4,8 +4,9 @@ use anyhow::Context;
 use chrono::Utc;
 use clap::Subcommand;
 use vox_config::graphify::{
-    CorpusStatus, GraphifyCorporaRegistry, GraphifyCorpus, GraphifyError, GraphifyKnowledgeNode,
-    assess_corpus_status, load_graphify_corpora, project_graph_nodes_for_ingest,
+    assess_corpus_status, load_all_corpora, load_graphify_corpora, project_graph_nodes_for_ingest,
+    upsert_registered_corpus, CorpusStatus, GraphifyCorporaRegistry, GraphifyCorpus, GraphifyError,
+    GraphifyKnowledgeNode,
 };
 
 #[derive(Debug, Subcommand)]
@@ -36,6 +37,17 @@ pub enum GraphifyCmd {
         /// Corpus id (default: registry `default_corpus_id`).
         #[arg(long)]
         corpus: Option<String>,
+    },
+    /// Register an external target repository as a corpus and build it.
+    Index {
+        /// Path to the target repository (or subdirectory) to index.
+        path: String,
+        /// Corpus id (default: sanitized final path component).
+        #[arg(long)]
+        id: Option<String>,
+        /// Extraction mode / semantic lens ("structural", "modules").
+        #[arg(long, default_value = "structural")]
+        mode: String,
     },
 }
 
@@ -216,7 +228,7 @@ pub fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Result<()> 
             json,
         } => {
             let reg =
-                load_graphify_corpora(repo_root).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+                load_all_corpora(repo_root).map_err(|e| anyhow::anyhow!(e.to_string()))?;
             let head = resolve_head_sha()?;
             let statuses = assess_all(repo_root, &reg, &corpus, head.as_deref())
                 .map_err(|e| anyhow::anyhow!(e.to_string()))?;
@@ -244,7 +256,7 @@ pub fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Result<()> 
         }
         GraphifyCmd::Ingest { corpus, dry_run } => {
             let reg =
-                load_graphify_corpora(repo_root).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+                load_all_corpora(repo_root).map_err(|e| anyhow::anyhow!(e.to_string()))?;
             let corpus_id = resolve_ingest_corpus_id(&reg, corpus)
                 .map_err(|e| anyhow::anyhow!(e.to_string()))?;
             let nodes = load_projected_nodes(repo_root, &reg, &corpus_id)?;
@@ -263,7 +275,7 @@ pub fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Result<()> 
         }
         GraphifyCmd::Rebuild { corpus } => {
             let reg =
-                load_graphify_corpora(repo_root).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+                load_all_corpora(repo_root).map_err(|e| anyhow::anyhow!(e.to_string()))?;
             let corpus_id = resolve_ingest_corpus_id(&reg, corpus)
                 .map_err(|e| anyhow::anyhow!(e.to_string()))?;
             let corpus =
@@ -290,6 +302,47 @@ pub fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Result<()> 
             )
             .map_err(|e| anyhow::anyhow!("Rebuild failed: {}", e))?;
             println!("Graphify rebuild successful!");
+        }
+        GraphifyCmd::Index { path, id, mode } => {
+            let abs = std::fs::canonicalize(&path)
+                .with_context(|| format!("canonicalize target path {path}"))?;
+            // NOTE (Windows): canonicalize yields a verbatim `\\?\` prefix; it round-trips
+            // through PathBuf/join/git -C fine. Do not strip it manually.
+            let corpus_id = id
+                .unwrap_or_else(|| abs.file_name().map(|s| s.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "target".to_string()))
+                .chars()
+                .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '-' })
+                .collect::<String>();
+            let corpus = GraphifyCorpus {
+                id: corpus_id.clone(),
+                title: format!("Indexed target: {}", abs.display()),
+                scope_path: ".".to_string(),
+                graph_path: format!(".vox/cache/graphify/{corpus_id}/graph.json"),
+                manifest_path: format!(".vox/cache/graphify/{corpus_id}/.graphify_manifest.v1.json"),
+                extraction_mode: Some(mode),
+                default_for_intents: vec![],
+                is_virtual: false,
+                source_root: Some(abs.to_string_lossy().to_string()),
+            };
+            upsert_registered_corpus(repo_root, &corpus)
+                .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            let source_dir = resolve_source_dir(repo_root, &corpus);
+            let output_file = repo_root.join(&corpus.graph_path);
+            let cache_dir = output_file
+                .parent().ok_or_else(|| anyhow::anyhow!("graph_path has no parent"))?
+                .join("file_cache");
+            let meta = vox_graphify_reader::rebuild::RebuildMeta {
+                corpus_id: corpus_id.clone(),
+                git_sha: resolve_head_sha_in(&abs).ok().flatten(),
+                scope_path: corpus.scope_path.clone(),
+                extraction_mode: corpus.extraction_mode.clone(),
+                built_at_rfc3339: Utc::now().to_rfc3339(),
+            };
+            println!("Indexing '{}' as corpus '{}'...", abs.display(), corpus_id);
+            vox_graphify_reader::rebuild::rebuild_graph(repo_root, &source_dir, &output_file, &cache_dir, &meta)
+                .map_err(|e| anyhow::anyhow!("Index rebuild failed: {}", e))?;
+            println!("Corpus '{corpus_id}' registered and built.");
         }
     }
     Ok(())

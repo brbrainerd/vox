@@ -2,6 +2,8 @@
 //!
 //! Extracted from `vox-orchestrator/src/mcp_tools/` in 2026-05-08 reorg Phase 4.
 
+extern crate vox_codegen;
+
 /// HTTP routes (moved from vox-orchestrator/services/routes).
 pub mod services;
 
@@ -49,6 +51,8 @@ pub mod git_tools;
 pub mod grammar_tools;
 /// Graphify corpus freshness and lexical search (`vox_graphify_status`, `vox_graphify_search`).
 pub mod graphify_tools;
+/// GUI Component and Token registry retrieval tools (`vox_gui_components`, `vox_gui_tokens`).
+pub mod gui_registry_tools;
 pub mod input_schemas;
 /// Introspection tools for language visualization (AST, surface, pipeline).
 pub mod introspection_tools;

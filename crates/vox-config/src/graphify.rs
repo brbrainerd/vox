@@ -12,6 +12,9 @@ use serde::{Deserialize, Serialize};
 /// Relative path to the corpora registry YAML from repo root.
 pub const CORPORA_REL_PATH: &str = "contracts/retrieval/graphify-corpora.v1.yaml";
 
+/// Runtime registration overlay (corpora created by `vox graphify index`).
+pub const REGISTERED_REL_PATH: &str = ".vox/cache/graphify/registered.v1.json";
+
 /// Legacy graphify output directory (shared with non-graphify CI artifacts — see research doc).
 pub const LEGACY_GRAPHIFY_OUT_DIR: &str = "graphify-out";
 
@@ -36,6 +39,12 @@ struct CorporaFile {
     default_corpus_id: String,
     #[serde(default = "default_ttl_days")]
     ttl_days_default: u64,
+    corpora: Vec<GraphifyCorpus>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+struct RegisteredCorporaFile {
+    #[serde(default)]
     corpora: Vec<GraphifyCorpus>,
 }
 
@@ -156,6 +165,43 @@ pub fn load_graphify_corpora(repo_root: &Path) -> Result<GraphifyCorporaRegistry
         ttl_days_default: file.ttl_days_default,
         corpora: file.corpora,
     })
+}
+
+/// Load runtime-registered corpora (empty if the overlay file is absent/unparseable).
+pub fn load_registered_corpora(repo_root: &Path) -> Vec<GraphifyCorpus> {
+    let path = repo_root.join(REGISTERED_REL_PATH);
+    let Ok(raw) = fs::read_to_string(&path) else {
+        return Vec::new();
+    };
+    serde_json::from_str::<RegisteredCorporaFile>(&raw)
+        .map(|f| f.corpora)
+        .unwrap_or_default()
+}
+
+/// Insert-or-replace a corpus (by `id`) in the overlay.
+pub fn upsert_registered_corpus(repo_root: &Path, corpus: &GraphifyCorpus) -> std::io::Result<()> {
+    let path = repo_root.join(REGISTERED_REL_PATH);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let mut corpora = load_registered_corpora(repo_root);
+    corpora.retain(|c| c.id != corpus.id);
+    corpora.push(corpus.clone());
+    let raw = serde_json::to_string_pretty(&RegisteredCorporaFile { corpora })
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+    fs::write(path, raw)
+}
+
+/// Canonical YAML corpora + runtime-registered corpora. YAML wins id collisions.
+pub fn load_all_corpora(repo_root: &Path) -> Result<GraphifyCorporaRegistry, GraphifyError> {
+    let mut reg = load_graphify_corpora(repo_root)?;
+    let existing: HashSet<String> = reg.corpora.iter().map(|c| c.id.clone()).collect();
+    for c in load_registered_corpora(repo_root) {
+        if !existing.contains(&c.id) {
+            reg.corpora.push(c);
+        }
+    }
+    Ok(reg)
 }
 
 /// Tier D cache dir for a named corpus: `<repo>/.vox/cache/graphify/<corpus_id>/`.
@@ -474,5 +520,72 @@ mod tests {
         assert!(s.contains(".vox"));
         assert!(s.contains("graphify"));
         assert!(s.ends_with("repo-code-graph") || s.contains("repo-code-graph"));
+    }
+
+    fn sample_corpus(id: &str) -> GraphifyCorpus {
+        GraphifyCorpus {
+            id: id.into(),
+            title: "t".into(),
+            scope_path: ".".into(),
+            graph_path: format!(".vox/cache/graphify/{id}/graph.json"),
+            manifest_path: format!(".vox/cache/graphify/{id}/.graphify_manifest.v1.json"),
+            extraction_mode: Some("structural".into()),
+            default_for_intents: vec![],
+            is_virtual: false,
+            source_root: Some("/tmp/target".into()),
+        }
+    }
+    fn write_min_registry(repo: &std::path::Path) {
+        let dir = repo.join("contracts/retrieval");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(
+            dir.join("graphify-corpora.v1.yaml"),
+            "default_corpus_id: repo-code-graph\nttl_days_default: 30\ncorpora:\n  - id: repo-code-graph\n    title: Repo\n    scope_path: \".\"\n    graph_path: \"g\"\n    manifest_path: \"m\"\n"
+        ).unwrap();
+    }
+    #[test]
+    fn upsert_then_load_all_includes_registered() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_min_registry(tmp.path());
+        upsert_registered_corpus(tmp.path(), &sample_corpus("ext-a")).unwrap();
+        let reg = load_all_corpora(tmp.path()).unwrap();
+        assert!(reg.corpora.iter().any(|c| c.id == "ext-a"));
+        assert!(reg.corpora.iter().any(|c| c.id == "repo-code-graph"));
+    }
+    #[test]
+    fn upsert_idempotent_by_id() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_min_registry(tmp.path());
+        upsert_registered_corpus(tmp.path(), &sample_corpus("ext-a")).unwrap();
+        upsert_registered_corpus(tmp.path(), &sample_corpus("ext-a")).unwrap();
+        assert_eq!(
+            load_registered_corpora(tmp.path())
+                .iter()
+                .filter(|c| c.id == "ext-a")
+                .count(),
+            1
+        );
+    }
+    #[test]
+    fn yaml_wins_id_collision() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_min_registry(tmp.path());
+        let mut collide = sample_corpus("repo-code-graph");
+        collide.title = "HIJACKED".into();
+        upsert_registered_corpus(tmp.path(), &collide).unwrap();
+        let reg = load_all_corpora(tmp.path()).unwrap();
+        let c = reg
+            .corpora
+            .iter()
+            .find(|c| c.id == "repo-code-graph")
+            .unwrap();
+        assert_eq!(c.title, "Repo");
+        assert_eq!(
+            reg.corpora
+                .iter()
+                .filter(|c| c.id == "repo-code-graph")
+                .count(),
+            1
+        );
     }
 }
