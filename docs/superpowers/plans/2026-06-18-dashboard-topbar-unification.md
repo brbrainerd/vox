@@ -26,6 +26,8 @@
 
 **Design:** [`../specs/2026-06-18-dashboard-topbar-unification-design.md`](../specs/2026-06-18-dashboard-topbar-unification-design.md).
 
+> **Forward note (2026-06-19):** this plan's `widgetRegistry` + dnd-kit grid are later absorbed/retired into a `panelRegistry` over `dockview` by [`2026-06-19-dockable-workspace-context-memory-ssot.md`](2026-06-19-dockable-workspace-context-memory-ssot.md). Build this plan as written first; the dockable-workspace plan generalizes it (one layout SSOT, docking everywhere).
+
 > **Sibling dependency note:** Task 5 adds `MiniMapWidget`/`ActivityWidget`/`TaskListWidget` wrappers. The mini-map (`LudusSandbox`) is from the gamification plan; the activity surface from the activity-log plan; `TasksView` from the cascade-spine plan. If those components don't yet exist when you reach Task 5, wrap a placeholder `EmptyState` ("coming soon") instead and note it — do NOT block the registry work.
 
 ---

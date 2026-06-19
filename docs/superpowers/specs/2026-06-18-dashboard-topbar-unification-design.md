@@ -8,6 +8,10 @@
 
 ---
 
+## Amendment 2026-06-19 (dockable workspace) — see [dockable-workspace spec](2026-06-19-dockable-workspace-context-memory-ssot-design.md)
+
+**Superseding direction:** the `widgetRegistry` SSOT below is later **absorbed into a `panelRegistry`**, and the dnd-kit **widget grid is retired into `dockview`** (already a dependency; `DockShell.tsx` exists). The 14 widget kinds become dockable *panel* kinds; the dashboard becomes a dockview *group*; the completeness test moves to `panelRegistry`. Build this dashboard plan first as written (it's the registry/widget groundwork), then the dockable-workspace plan generalizes it. Net: one layout SSOT (serialized dockview), Photoshop-style docking for every panel incl. gamification.
+
 ## Amendment 2026-06-18 (unification) — see [unified-task-message-envelope spec](2026-06-18-unified-task-message-envelope-registers-budget-ssot-design.md)
 
 Two additions land on top of the widget-registry SSOT below: (1) **Registers** — the registry's
