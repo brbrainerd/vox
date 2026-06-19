@@ -26,18 +26,18 @@ jobs:
           ref: main
           fetch-depth: 1
       - name: Resolve HEAD + nightly version
-         id: resolve
-         env:
-           GH_TOKEN: ${{ github.token }}
-         run: |
-           set -euo pipefail
-           sha="$(git rev-parse HEAD)"
-           short="${sha:0:7}"
-           workspace_version="$(grep -m1 '^version' Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')"
-           nightly_version="${workspace_version}-nightly.$(date -u +%Y%m%d)+${short}"
-           echo "sha=${sha}" >> "$GITHUB_OUTPUT"
-           echo "nightly_version=${nightly_version}" >> "$GITHUB_OUTPUT"
-           echo "Resolved nightly version: ${nightly_version}"
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          sha="$(git rev-parse HEAD)"
+          short="${sha:0:7}"
+          workspace_version="$(grep -m1 '^version' Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')"
+          nightly_version="${workspace_version}-nightly.$(date -u +%Y%m%d)+${short}"
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+          echo "nightly_version=${nightly_version}" >> "$GITHUB_OUTPUT"
+          echo "Resolved nightly version: ${nightly_version}"
       - name: Require green combined status on HEAD
         env:
           GH_TOKEN: ${{ github.token }}
