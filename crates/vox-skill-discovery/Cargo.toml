@@ -1,0 +1,21 @@
+[package]
+name = "vox-skill-discovery"
+version = "0.1.0"
+edition = "2021"
+description = "Local on-demand discovery + dedup engine: repeated .vox blocks, installed-skill dedup, MCP SSOT drift. Advisory only."
+
+[dependencies]
+vox-similarity = { workspace = true }
+vox-plugin-types = { workspace = true }
+vox-mcp-registry = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+walkdir = { workspace = true }
+anyhow = { workspace = true }
+
+[[bin]]
+name = "vox-discover"
+path = "src/bin/vox_discover.rs"
+
+[dependencies.clap]
+workspace = true
