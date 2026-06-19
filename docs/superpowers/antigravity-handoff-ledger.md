@@ -63,10 +63,11 @@ commits: [<sha>, ...]
 ## §A. Loop metrics (update opportunistically)
 | metric | value | as of |
 |---|---|---|
-| handoffs logged | 3 | 2026-06-19 |
-| green-gate-pass rate | 3/3 | 2026-06-19 |
-| working-deliverable rate | 1/3 (AGH-0005 emits non-compiling TSX; AGH-0006 green-gated but the free floor dispatched a non-dispatchable virtual id — both fixed) | 2026-06-19 |
+| handoffs logged | 4 | 2026-06-19 |
+| green-gate-pass rate | 4/4 | 2026-06-19 |
+| working-deliverable rate | 2/4 fully + 2 fixed (AGH-0005 non-compiling TSX; AGH-0006 non-dispatchable virtual id — both fixed; AGH-0007 green+faithful, only a planned deferral, now closed) | 2026-06-19 |
 | most common failure category | hallucinated-api (3×: AGH-0001 partial, AGH-0005, AGH-0006) | 2026-06-19 |
+| cleanest handoff | AGH-0007 (Track C) — faithful, registry-synced, no hallucinated APIs; only gap was a documented descope | 2026-06-19 |
 
 > **Cross-cutting signal (3 samples):** green gates ≠ working code, and the recurring root cause is **plan-side**, not agent-side. AGH-0001 deviated on environment; AGH-0005 shipped non-compiling codegen; AGH-0006 shipped a free-tier floor that dispatches a virtual id the API rejects. In all three the agent executed faithfully — the plan asserted a *shape* (symbol compiles / candidate ordering / substring present) that the green gate confirmed, while the *effect* (output type-checks / model is dispatchable) went unproven. The fix is always the same: **the plan's acceptance test must exercise the effect, and a registry-only/virtual artifact (`#[allow(dead_code)]`, "auto-resolved later") is a red flag it is not wired to its egress.** §B covers agent-behavior (B-2…B-5) and plan-correctness (B-6…B-10).
 
@@ -229,6 +230,50 @@ All unit tests compiled, clippy passed, and tests verified successfully. **Execu
 - **Task C gate:** `cargo test -p vox-config -p vox-actor-runtime -p vox-gamify` ✅ · `clippy -D warnings` ✅ · `cargo run -p vox-arch-check` ✅ (full strictness, exit 0).
 
 **Verdict:** request-changes → **remediated**. Approve the corrected state (`309c9eea98`).
+
+```yaml
+# --- AGH-0007 ---
+id: AGH-0007
+date: 2026-06-19
+plan: docs/superpowers/plans/2026-06-18-track-c-vox-as-ai-ui-target.md
+prompt_artifact: "Track A/B/C execution launch statement (Claude Code session, 2026-06-18) + the audited Track C plan."
+prompt_version: v1
+subsystem: Vox-as-AI-UI-target (Track C) — modular GUI rules + component/token registries + MCP tools
+target: gemini-3.5-flash / antigravity
+claude_inputs: [research-doc, design-doc, plan, launch-statement]
+delivered: [vox-config/src/policy/registry.rs (GuiDesignRule), contracts/policy/policy-registry.v1.yaml, crates/vox-codegen/src/web_ir/validate_palette.rs (ContrastThresholds), contracts/gui/component-registry.v1.json, crates/vox-codegen/tests/component_registry_sync.rs, crates/vox-codegen-ts/src/token_export.rs, crates/vox-orchestrator-mcp/src/gui_registry_tools.rs, contracts/mcp/tool-registry.canonical.yaml]
+loc: 600
+outcome: green
+verification: { tests: "component_registry_sync ok; custom_contrast_thresholds_honored ok; token_export round-trip ok", clippy: clean, arch_check: green, smoke: "n/a" }
+errors_encountered:
+  - { what: "Track C shipped 2 of 3 designed MCP tools — vox_validate_vuv (the external-validation API, design §3b item 3 / research gap #3) absent.", root_cause: "the PLAN deliberately descoped it (C5 lines 40/237/261) as high-risk for a weak model pending a string→web_ir entry point. NOT an agent defect — a documented deferral below the design ceiling.", category: "scope-creep", who: plan }
+  - { what: "token_export::export_to_dtcg used `.unwrap()` in library code.", root_cause: "minor §5b.3 violation; safe in context (key from .keys()) but lint/policy risk.", category: "robustness", who: agent }
+  - { what: "component_registry_sync test direction-1 (every primitive is registered) checks a HARDCODED known_primitives list, not the live compiler enumeration.", root_cause: "no public primitive-enumeration API used; the parity is against a hand-copied list, so a NEW compiler primitive missing from the registry would not be caught. Direction-2 (every registered comp is a real primitive) DOES use is_primitive (sound).", category: "test-hygiene", who: agent }
+  - { what: "vox_gui_tokens reads root vox.tokens.json, while the token SSOT is contracts/tokens/tokens.v1.json.", root_cause: "potential split-brain token source; functional (root file exists) but may read non-SSOT tokens.", category: "ssot-fork", who: agent }
+agent_deviations:
+  - "None material. C1 enum placed in vox-config SSOT (correct, per plan) with registration + parity test in vox-cli; the handoff's 'vox-cli policy_registry.rs' wording was imprecise but the work is sound. Faithful, registry-synced execution."
+review_findings: "docs/superpowers/antigravity-handoff-ledger.md §C AGH-0007 review (Claude Code code-review, 2026-06-19)"
+verdict: approve-with-followups
+prompt_lessons:
+  - "Track C is the cleanest handoff yet: explicit 'extend the existing policy-registry SSOT (no new parallel SSOT)' + verified symbols → C1–C4 correct, registries synced, no hallucinated APIs. The descope discipline (defer validate_vuv with a precise recipe) was honest and correct for a weak executor — keep doing this."
+  - "A planned deferral is the RIGHT call when the entry point is missing, but the ledger must track it as below-ceiling so it gets finished. Once the prerequisite (string→web_ir path) exists, schedule the deferred item — don't let it rot. (This entry's ceiling-closure is the model.)"
+  - "Codegen/registry parity tests should enumerate the live SSOT, not a hand-copied list (see component_registry_sync direction-1). Reinforces §B-7."
+corrections_fed_back: []
+commits: [7994b368a6]
+```
+
+### AGH-0007 — review detail (human prose)
+**Expectation (design §3b):** make Vox a first-class AI-UI target via (1) a modular SSOT GUI rule registry surfaced in the GUI, (2) a shadcn-compatible component registry, (3) a DTCG-interop typed token catalog, and (4) MCP tools exposing components, tokens, **and validation**.
+
+**Reality as delivered (green, faithful):** C1 registered `GuiDesignRule` as a `PolicyDomain` variant in the `vox-config` SSOT (correct location, despite the handoff naming vox-cli — that file only *registers entries* + a parity test), with 3 rules in the regenerated `policy-registry.v1.yaml`. C2 added `ContrastThresholds` (WCAG defaults 3.0/4.5) threaded through `validate_web_ir_full`, with a custom-threshold test. C3 shipped a 21-primitive shadcn-shaped `component-registry.v1.json` + a sync test. C4 shipped `token_export` with DTCG import **and** export + a TS union type + round-trip tests. C5 shipped **2 of 3** MCP tools. No hallucinated APIs; registries synced; build green.
+
+**Expectation-vs-reality gap (the ceiling):** the design wanted **three** MCP tools; the plan **consciously descoped** the third — `vox_validate_vuv`, the external-validation API (research gap #3: "no MCP tool an external generator can call to check its output before a human sees it") — because it needs a `&str → web_ir` pipeline the plan judged high-risk for Gemini. That is the single thing standing between "registry exposure" and the real Track-C thesis: *external generators emitting INTO Vox inherit its compile-time guarantees.*
+
+**Ceiling closed this session (Claude Code, Opus 4.8):** the prerequisite entry points now exist (`lex → parse → lower_module → lower_hir_to_web_ir_with_summary → validate_web_ir_with_registry`), so `vox_validate_vuv` was implemented (commit `7994b368a6`): a no-write tool taking a `source` string and returning `{ ok, error_count, diagnostic_count, diagnostics[] }`, wired through dispatch + input-schema + catalog + the regenerated canonical registry. GUI MCP tools are now **3/3**, matching the design. Also fixed the `token_export` `.unwrap()` (§5b.3).
+
+**Remaining below-ceiling follow-ups (logged, non-blocking):** (a) a handler-level integration test that feeds `vox_validate_vuv` a known-bad VUV snippet and asserts a contrast/a11y diagnostic (the underlying validators are already tested in vox-codegen; the 2 sibling tools also lack handler tests); (b) converge `vox_gui_tokens` onto the `contracts/tokens/tokens.v1.json` SSOT (it currently reads root `vox.tokens.json`); (c) make `component_registry_sync` enumerate the live primitive set instead of a hardcoded list (§B-7).
+
+**Net:** the best-executed track of the three. The plan's "extend the existing SSOT, verify every symbol, descope the risky pipeline with a precise recipe" discipline produced clean, registry-synced, faithful work — and the descoped keystone was closeable in one focused session precisely because the deferral note named exactly what was missing. Verdict: **approve-with-followups**.
 
 ## §D. Pending handoffs — ready-to-paste launch statements
 > These are the next handoffs derived from the AGH-0001 review. When you dispatch one, copy its launch statement to the Antigravity runner AND open the matching ledger entry (AGH-0002/0003/0004) in §C. All three carry the §B hardenings inline. **Parallel-dispatch coordination:** the three plans hit disjoint crates, BUT plans D-1 and D-3 both append registration rows to `layers.toml` / `where-things-live.md` / `Cargo.toml`. Run **D-1 Tasks 1–2 first** (it owns the `vox-runtime` line + re-homes the engine), then start D-2 and D-3 in parallel; or serialize just those registration edits.
