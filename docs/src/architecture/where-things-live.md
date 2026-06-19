@@ -66,6 +66,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-hf-layout`](../../../crates/vox-hf-layout/) | SSOT: Hugging Face `config.json` layout parsing for MENS (`vox-populi::mens::tensor::hf_load`) and `vox-plugin-mens-candle-cuda`. |
 | [`vox-identity`](../../../crates/vox-identity/) | Identity primitives: signing keys, trust ledger entries. |
 | [`vox-jsonschema-util`](../../../crates/vox-jsonschema-util/) | Shared JSON Schema compile + validate helpers for CLI, contracts, and tooling. |
+| [`vox-llm-config`](../../../crates/vox-llm-config/) | SSOT for LLM/AI setting-key metadata. Pure-data, zero workspace dependencies. |
 | [`vox-openai`](../../../crates/vox-openai/) | OpenAI integrations: wire-format types (`chat_completion.rs`) + SSE streaming (`sse.rs`) in one L1 crate. |
 | [`vox-package-types`](../../../crates/vox-package-types/) | Pure-data L1 leaf for vox-package: manifest, lockfile, package_kind, resolver types. |
 | [`vox-plugin-api`](../../../crates/vox-plugin-api/) | Shared API surface for Vox plugins: ABI version, traits, manifest types, error types. |
@@ -94,6 +95,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-eval`](../../../crates/vox-eval/) | Evaluation **metrics** — deterministic scoring of model outputs / Vox samples (format/safety/quality/parse) + MENS `CompileVerdict`. **Not** the interpreter; `--interp` lives in [`vox-compiler/src/eval/`](../../../crates/vox-compiler/src/eval/). |
 | [`vox-graphify-reader`](../../../crates/vox-graphify-reader/) | Graphify structural reader: BFS traversal, shortest path, god-nodes ranking, and cross-manifest diff. |
 | [`vox-journal`](../../../crates/vox-journal/) | Generic append-only JSON Lines file journal; crash-safe via per-record sync_data (default) or deferred-to-lifecycle sync for the mobile profile, replays on open. Durable substrate for workflow/actor runtimes and the mobile vox-runtime-rn (deps vox-runtime). |
+| [`vox-llm-egress`](../../../crates/vox-llm-egress/) | Sanctioned LLM provider wire; pure egress (deps = vox-http-client + reqwest), no config/secret resolution. |
 | [`vox-effort-audit`](../../../crates/vox-effort-audit/) | AI-judged audit of git commit history; walks commits, calls model-agnostic judge facade, emits ranked findings JSONL + report. CLI: `vox audit effort`. |
 | [`vox-effort-route`](../../../crates/vox-effort-route/) | Routes effort-audit findings to verified, drafted enforcement artifacts (AGENTS.md rule / lint detector spec / arch rule / CI gate / corpus example / Vox script). CLI: `vox audit effort-route`. |
 | [`vox-llm-egress`](../../../crates/vox-llm-egress/) | Sanctioned LLM provider wire; pure egress (deps = vox-http-client + reqwest), no config/secret resolution. |
