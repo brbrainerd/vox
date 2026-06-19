@@ -179,8 +179,11 @@ prompt_version: v1
 subsystem: deep-research / LLM cascade
 target: gemini-3.5-flash / antigravity
 claude_inputs: [research-doc, plan]
-delivered: [crates/vox-config/src/inference.rs, crates/vox-actor-runtime/src/llm/cascade.rs, docs/src/reference/tavily-integration-ssot.md]
-loc: 110
+delivered:  # full manifest (the agent handoff under-reported 3 of these — see lesson B-4)
+  planned: [crates/vox-config/src/inference.rs, crates/vox-actor-runtime/src/llm/cascade.rs, docs/src/reference/tavily-integration-ssot.md]
+  collateral_preexisting_fixes: [crates/vox-actor-runtime/src/builtins/mod.rs, crates/vox-config/src/config/impl_ops.rs, crates/vox-config/src/graphify.rs]   # clippy + test-race
+  remediation_by_claude: [crates/vox-config/src/bootstrap_inference.rs, crates/vox-config/src/lib.rs, crates/vox-actor-runtime/src/llm/cascade.rs]   # 309c9eea98
+loc: "~110 planned (Gemini) + ~34 net remediation (Claude, 309c9eea98: +66/-32)"
 outcome: green
 verification: { tests: "106 passed (but ordering-only — did NOT exercise dispatch)", clippy: clean, arch_check: "green (ran with --warn-only — plan required plain exit-0)", smoke: "n/a — floor never dispatched" }
 errors_encountered:
@@ -219,7 +222,7 @@ All unit tests compiled, clippy passed, and tests verified successfully. **Execu
 
 **Remediation (in-session, Claude, `309c9eea98`):** added `vox_config::OPENROUTER_FREE_FALLBACK_MODELS` (concrete `:free` slugs mirroring gamify's known-good list), rewired `research_openrouter_model_ids` to append those instead of the virtual route, and strengthened the tests to assert every floor entry is a real `:free` slug and that the virtual id never appears. `cargo test` + `clippy -D warnings` green on both crates.
 
-**Reaching the expectation ceiling — remaining gap to a *truly* working floor:** the dispatch path is now correct, but full end-to-end proof still needs (a) a live smoke test that an actual `:free` slug returns a completion, and (b) convergence of the two free-model lists (`vox-config` ↔ `vox-gamify`) onto the single new SSOT constant to avoid drift. Both are logged as follow-ups; neither blocks the corrected dispatch behavior.
+**Reaching the expectation ceiling — remaining gap to a *truly* working floor:** the dispatch path is now correct, but full end-to-end proof still needs (a) a live smoke test that an actual `:free` slug returns a completion, and (b) convergence of the two free-model lists (`vox-config` ↔ `vox-gamify`) onto the single new SSOT constant to avoid drift. Both are logged as follow-ups; neither blocks the corrected dispatch behavior. **These two follow-ups are planned in `docs/superpowers/plans/2026-06-19-deep-research-free-floor-followups.md` (target: Sonnet 4.6 via Claude Code, two parallel-safe tasks) — NOT an Antigravity handoff, so they are tracked there rather than as a new AGH entry. Update this note to "closed" once those two commits land.**
 
 **Verdict:** request-changes → **remediated**. Approve the corrected state (`309c9eea98`).
 
