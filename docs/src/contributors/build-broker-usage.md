@@ -71,7 +71,7 @@ grep -v 'ahead=0' ~/.vox/build-broker/broker.log | wc -l
 ```
 
 A line reads e.g.:
-```
+```text
 <ts> test   wait=  4200ms ran= 18000ms ahead=3 cap=4 coalesce=false exit=0 <worktree>
 ```
 `ahead>0` / `wait>0` means the cap absorbed contention that would otherwise have

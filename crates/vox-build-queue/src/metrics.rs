@@ -82,21 +82,6 @@ pub fn summarize(path: &Path) -> anyhow::Result<Summary> {
     summarize_str(&text)
 }
 
-/// Aggregate every `<hash>/metrics.jsonl` under a worktree's `.vox/build-queue`
-/// into one summary (there is usually one hash dir, but be robust to several).
-pub fn summarize_worktree(worktree: &Path) -> anyhow::Result<Summary> {
-    let root = worktree.join(".vox/build-queue");
-    let mut all = String::new();
-    if let Ok(rd) = std::fs::read_dir(&root) {
-        for e in rd.flatten() {
-            let m = e.path().join("metrics.jsonl");
-            if m.is_file() {
-                all.push_str(&std::fs::read_to_string(&m).unwrap_or_default());
-            }
-        }
-    }
-    summarize_str(&all)
-}
 
 /// Summarize already-loaded JSONL content (used when aggregating across dirs).
 pub fn summarize_str(text: &str) -> anyhow::Result<Summary> {
@@ -183,19 +168,6 @@ mod tests {
         };
         assert!(s.daemon_recommended());
         assert!(s.render().contains("recommended"));
-    }
-
-    #[test]
-    fn summarize_worktree_aggregates_hash_dirs() {
-        let tmp = tempfile::tempdir().unwrap();
-        let wt = tmp.path();
-        for h in ["aaa", "bbb"] {
-            let d = wt.join(".vox/build-queue").join(h);
-            std::fs::create_dir_all(&d).unwrap();
-            append(&d.join("metrics.jsonl"), &rec(10, true)).unwrap();
-        }
-        let s = summarize_worktree(wt).unwrap();
-        assert_eq!(s.count, 2);
     }
 
     #[test]
