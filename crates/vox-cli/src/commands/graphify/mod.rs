@@ -91,8 +91,8 @@ pub(crate) fn refresh_action(stale_reasons: &[String]) -> RefreshAction {
 }
 
 fn resolve_head_sha() -> anyhow::Result<Option<String>> {
-    // Route through vox_git (concurrency-policy-honoring read-only exec), not a
-    // raw Command::new("git") — enforced by arch-check forbidden_pattern raw-git-exec.
+    // Route through vox_git read-only exec (honors the concurrency policy), not a
+    // raw git subprocess — enforced by the arch-check raw-git-exec rule.
     match vox_git::read_only(std::path::Path::new("."), &["rev-parse", "HEAD"]) {
         Ok(out) => {
             let sha = out.trim().to_string();

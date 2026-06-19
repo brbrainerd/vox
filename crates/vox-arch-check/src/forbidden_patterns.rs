@@ -28,8 +28,50 @@ pub struct ForbiddenPatternRule {
     pub file_glob: String,
     #[serde(default)]
     pub exempt_files: Vec<String>,
+    /// When `true`, matches inside test code are ignored: files under a `tests/`
+    /// directory AND lines inside an inline `#[cfg(test)]` module. Use for
+    /// cross-OS-portability / unsafe-code rules that target SHIPPED code —
+    /// test fixtures legitimately contain literal paths, `.so` names, and
+    /// `unsafe` shims. Default `false` (rule applies to test code too).
+    #[serde(default)]
+    pub exempt_tests: bool,
     pub allow_annotation: Option<String>,
     pub reason: String,
+}
+
+/// Per-line mask marking lines that belong to an inline `#[cfg(test)]` module
+/// (the attribute line plus its brace-delimited body). Brace counting is
+/// whole-line (string/comment braces are rare in test-module headers and only
+/// risk *extending* the mask, which is the safe direction for an exemption).
+fn cfg_test_line_mask(lines: &[&str]) -> Vec<bool> {
+    let mut mask = vec![false; lines.len()];
+    let mut i = 0;
+    while i < lines.len() {
+        if lines[i].trim_start().starts_with("#[cfg(test)]") {
+            let mut depth: i32 = 0;
+            let mut opened = false;
+            let mut j = i;
+            while j < lines.len() {
+                for ch in lines[j].chars() {
+                    if ch == '{' {
+                        depth += 1;
+                        opened = true;
+                    } else if ch == '}' {
+                        depth -= 1;
+                    }
+                }
+                mask[j] = true;
+                if opened && depth <= 0 {
+                    break;
+                }
+                j += 1;
+            }
+            i = j + 1;
+        } else {
+            i += 1;
+        }
+    }
+    mask
 }
 
 /// A single match produced by `scan`.
@@ -116,9 +158,23 @@ pub fn scan_all(
         };
         let lines: Vec<&str> = body.lines().collect();
 
+        // Test-context exemption inputs, computed once per file (only the rules
+        // that opt in via `exempt_tests` consult these).
+        let in_tests_dir = rel.components().any(|comp| comp.as_os_str() == "tests");
+        let test_mask = if applicable.iter().any(|c| c.rule.exempt_tests) {
+            cfg_test_line_mask(&lines)
+        } else {
+            Vec::new()
+        };
+
         for c in applicable {
             for (i, line) in lines.iter().enumerate() {
                 if !c.regex.is_match(line) {
+                    continue;
+                }
+                if c.rule.exempt_tests
+                    && (in_tests_dir || test_mask.get(i).copied().unwrap_or(false))
+                {
                     continue;
                 }
                 if let Some(ann) = c.rule.allow_annotation.as_deref() {
@@ -154,6 +210,7 @@ mod tests {
     fn make_rule() -> ForbiddenPatternRule {
         ForbiddenPatternRule {
             name: "raw-git-exec".into(),
+            exempt_tests: false,
             pattern: r#"Command::new\("git"\)"#.into(),
             file_glob: "crates/**/*.rs".into(),
             exempt_files: vec!["crates/vox-vcs-git/src/git_exec.rs".into()],
@@ -263,6 +320,7 @@ mod tests {
     fn shell_spawn_rule() -> ForbiddenPatternRule {
         ForbiddenPatternRule {
             name: "no-hardcoded-shell-spawn".into(),
+            exempt_tests: false,
             pattern: r#"Command::new\(\s*"(cmd|cmd\.exe|powershell|pwsh|sh|bash)""#.into(),
             file_glob: "crates/**/*.rs".into(),
             exempt_files: vec![
@@ -315,6 +373,7 @@ mod tests {
     fn abs_path_rule() -> ForbiddenPatternRule {
         ForbiddenPatternRule {
             name: "no-hardcoded-abs-path".into(),
+            exempt_tests: false,
             // Absolute Unix roots OR a Windows drive letter, inside a string literal.
             pattern: r#""(/(tmp|usr|etc|var|home|opt|bin|root)\b|[A-Za-z]:\\)"#.into(),
             file_glob: "crates/**/*.rs".into(),
@@ -359,6 +418,7 @@ mod tests {
     fn dynlib_ext_rule() -> ForbiddenPatternRule {
         ForbiddenPatternRule {
             name: "no-hardcoded-dynlib-ext".into(),
+            exempt_tests: false,
             // A quoted filename ending in a platform-specific shared-lib suffix.
             pattern: r#""[^"]*\.(so|dll|dylib)""#.into(),
             file_glob: "crates/**/*.rs".into(),
@@ -366,6 +426,32 @@ mod tests {
             allow_annotation: Some("// vox-arch-check: allow dynlib-ext".into()),
             reason: "Shared-lib suffix differs per OS (.so/.dll/.dylib); derive it from target, do not hardcode.".into(),
         }
+    }
+
+    #[test]
+    fn exempt_tests_skips_tests_dir_and_cfg_test_blocks() {
+        let dir = tempfile::tempdir().unwrap();
+        // (1) integration test under a `tests/` dir — skipped when exempt_tests.
+        write_fixture(&dir, "crates/x/tests/it.rs", "let p = \"/tmp/fixture\";");
+        // (2) inline #[cfg(test)] block in a src file — the literal inside is
+        //     skipped, but a literal in shipped code (top) is still flagged.
+        write_fixture(
+            &dir,
+            "crates/x/src/lib.rs",
+            "fn ship() { let _ = \"/etc/real\"; }\n#[cfg(test)]\nmod tests {\n    fn t() { let _ = \"/tmp/fixture\"; }\n}\n",
+        );
+        let mut rule = abs_path_rule();
+        rule.exempt_tests = true;
+        let hits = scan(dir.path(), &rule, &crate::built_in_walk_prune_names()).unwrap();
+        assert_eq!(hits.len(), 1, "only shipped /etc/real survives; got {hits:?}");
+        assert!(
+            hits[0]
+                .file
+                .to_string_lossy()
+                .replace('\\', "/")
+                .ends_with("src/lib.rs")
+        );
+        assert_eq!(hits[0].line, 1);
     }
 
     #[test]
