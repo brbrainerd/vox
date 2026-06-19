@@ -393,6 +393,10 @@ struct Report {
     /// Rule 17: dependency cycles detected by Tarjan SCC. Always a hard error.
     /// Each entry is one cycle: a sorted list of crate names forming the SCC.
     cycle_errors: Vec<Vec<String>>,
+    /// Rule 18: publishability closure gate.
+    /// Pairs of (publishable_crate, unpublishable_dep) — warn initially,
+    /// hardened to ERROR in Track B Task B4.
+    publishability_warns: Vec<(String, String)>,
 }
 
 impl Report {
@@ -515,6 +519,16 @@ impl Report {
             eprintln!("[ERROR] Rule 17: dependency cycle(s) detected ({}):", self.cycle_errors.len());
             for cycle in &self.cycle_errors {
                 eprintln!("  cycle: {}", cycle.join(" ↔ "));
+            }
+        }
+        if !self.publishability_warns.is_empty() {
+            any = true;
+            eprintln!(
+                "[warn] Rule 18: publishable crates with unpublishable deps ({}):",
+                self.publishability_warns.len()
+            );
+            for (krate, dep) in &self.publishability_warns {
+                eprintln!("  {krate} → {dep} (publish = false)");
             }
         }
         if !self.inversions.is_empty() {
@@ -1060,6 +1074,34 @@ fn run(warn_only_flag: bool) -> Result<Report> {
 
     // ── Rule 17: Cycle detection (Tarjan SCC) ──
     report.cycle_errors = checks::cycles::find_cycles(&normal_dep_edges);
+
+    // ── Rule 18: Publishability closure gate ──
+    {
+        // Build adjacency: workspace-normal deps only (same edges already collected).
+        let mut ws_normal_deps: std::collections::HashMap<String, Vec<String>> =
+            std::collections::HashMap::new();
+        for (from, to) in &normal_dep_edges {
+            ws_normal_deps.entry(from.clone()).or_default().push(to.clone());
+        }
+        // Detect publish_false via cargo_metadata: publish == Some([]) means publish = false.
+        let crate_recs: Vec<checks::publishable::CrateRec> = metadata_full
+            .workspace_packages()
+            .iter()
+            .map(|pkg| {
+                let publish_false = pkg.publish.as_deref() == Some(&[]);
+                let publishable = layers.crates.get(pkg.name.as_str())
+                    .map(|e| e.publishable)
+                    .unwrap_or(false);
+                checks::publishable::CrateRec {
+                    name: pkg.name.to_string(),
+                    deps: ws_normal_deps.get(pkg.name.as_str()).cloned().unwrap_or_default(),
+                    publish_false,
+                    publishable,
+                }
+            })
+            .collect();
+        report.publishability_warns = checks::publishable::check(&crate_recs);
+    }
 
     // Rule 2: fan-in budget
     for (name, entry) in &layers.crates {
