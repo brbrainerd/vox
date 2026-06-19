@@ -426,9 +426,10 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::visus::VisusCmd,
     },
-    /// Launch the native Vox GUI (Tauri) for real-time orchestration visualization and discovery.
-    /// Use --command <view> to open directly to a specific surface (e.g., 'catalog', 'flow').
+    /// Launch the native Vox Axis (Axis) GUI — the Vox GUI under its product brand.
+    /// Alias: `vox axis`. Use --command <view> to open directly to a surface (e.g. 'catalog', 'flow').
     #[cfg(feature = "gui")]
+    #[command(visible_alias = "axis")]
     Gui {
         #[command(flatten)]
         args: cli_args::GuiArgs,

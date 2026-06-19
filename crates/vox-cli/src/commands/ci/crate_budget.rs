@@ -12,6 +12,7 @@ use std::path::Path;
 
 #[derive(Debug, Deserialize)]
 pub struct BudgetFile {
+    #[allow(dead_code)]
     pub schema_version: u32,
     pub keystones: Vec<KeystoneBudget>,
 }
@@ -24,14 +25,14 @@ pub struct KeystoneBudget {
 }
 
 #[derive(Debug, Deserialize)]
-struct CrateMapNode {
-    id: String,
-    blast_s: Option<f64>,
+pub(crate) struct CrateMapNode {
+    pub(crate) id: String,
+    pub(crate) blast_s: Option<f64>,
 }
 
 #[derive(Debug, Deserialize)]
-struct CrateMap {
-    nodes: Vec<CrateMapNode>,
+pub(crate) struct CrateMap {
+    pub(crate) nodes: Vec<CrateMapNode>,
 }
 
 /// Load `blast_s` per crate from a crate-map JSON value (Vec of node objects).

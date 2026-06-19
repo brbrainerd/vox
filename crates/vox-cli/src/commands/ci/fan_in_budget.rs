@@ -12,6 +12,7 @@ use std::path::Path;
 
 #[derive(Debug, Deserialize)]
 pub struct FanInSnapshot {
+    #[allow(dead_code)]
     pub schema_version: u32,
     pub snapshot: HashMap<String, usize>,
 }
