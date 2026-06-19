@@ -251,6 +251,11 @@ async fn main() {
             commands::model_pool::get_model_pool,
             commands::model_pool::set_model_pool,
             commands::model_pool::list_enabled_providers_cmd,
+            commands::history::history_list,
+            commands::history::history_add,
+            commands::history::history_search,
+            commands::history::history_pin,
+            commands::history::history_delete,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

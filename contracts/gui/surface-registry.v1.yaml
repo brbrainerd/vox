@@ -129,6 +129,14 @@ surfaces:
   nav_group: develop
   parent_surface: workspace
   notes: null
+- view_key: history
+  cli_group: null
+  representation_tier: curated_decorator
+  nav_label: History
+  nav_icon: clock
+  nav_group: operate
+  parent_surface: null
+  notes: project clipboard history, commands, and chat turns
 - view_key: knowledge
   cli_group: null
   representation_tier: live_backend
