@@ -37,6 +37,14 @@ publish order from the SSOT; hakari/workspace-hack handled so closures publish;
 `publish.enabled` flip gated behind a readiness check (stays `false`). Gates:
 publish-set dry-run parity; metadata completeness; no-cycle/leaf-order check.
 
+> ⚠️ **Reconcile, don't duplicate.** A prior program already designed the
+> crates.io *publish machinery* — see `project_gamify_gui_pluginization_plan_2026_06_18`
+> (its **TrackB**: hakari-aware publish, workspace-hack published first;
+> **R18** publishability arch-check gate; leaf-first → Clavis; human-gated).
+> Track C here owns only the *publish-set data* (the SSOT `publish` block) and
+> the dry-run/metadata gates that read it. Wire to that program's machinery
+> rather than reinventing `cargo publish` orchestration. Audit it first.
+
 **Track D — Supply-chain trust.** Plugin `sha256`/`signature` + `source_commit`
 in `Plugin.toml`; verify on install and at dlopen load (close the RCE surface);
 Linux GPG signing + SBOM + provenance-on-release. Gates: unsigned-plugin-load

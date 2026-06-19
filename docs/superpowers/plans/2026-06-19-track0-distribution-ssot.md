@@ -10,6 +10,33 @@
 
 ---
 
+## Critique pass — codebase audit (2026-06-19)
+
+This plan was hardened against the live codebase. Fixes already folded in:
+
+- **Path bug fixed.** `crates/_public.toml` is under `crates/`, so the test path
+  is `../_public.toml` (Task 6), not `../../_public.toml` (which would point at a
+  non-existent repo-root file).
+- **Dependency reality.** `voxup` already has `serde` (derive) + `serde_yaml`
+  (the maintained `serde_yaml_ng` 0.10 fork via package-rename). Only `toml` is
+  added (Task 2). The deprecated `serde_yaml = "0.9"` fallback was removed.
+- **workspace-hack + lock.** Adding a dep can change hakari output and always
+  changes `Cargo.lock`; CI runs `--locked`, so Task 2 now regenerates the hack
+  and commits `Cargo.lock`.
+- **Toolchain check tightened.** The contract key is `versions.rust` — Task 5
+  parses it exactly instead of a loose substring match.
+- **`publish = false` drift surfaced.** `voxup` carries `publish = false` while
+  being in the publish set — fine while `publish.enabled: false`, but a trap at
+  flip time. Task 6 adds a forward-looking readiness gate.
+- **Cross-reference.** Track C (publish) must reconcile with the existing
+  crates.io program (`project_gamify_gui_pluginization_plan_2026_06_18`):
+  its **TrackB hakari-aware publish** (workspace-hack blocks all closures →
+  publish the hack first) and **R18 publishability arch-check gate**. Do not
+  build a second, conflicting publish mechanism — the SSOT here is the *data*;
+  that program owns the *publish machinery*.
+
+---
+
 ## Gemini-Flash Execution Preamble
 
 - Work only inside the files named per task. Do **not** restructure unrelated code.
@@ -116,25 +143,29 @@ git commit -m "feat(dist): distribution SSOT manifest (tiers, deps, publish set,
 **Files:**
 - Modify: `crates/voxup/Cargo.toml`
 
-- [ ] **Step 1: Inspect current Cargo.toml**
+> **Audited reality (2026-06-19):** `crates/voxup/Cargo.toml` ALREADY has
+> `serde = { workspace = true, features = ["derive"] }` and
+> `serde_yaml = { workspace = true }` (the workspace `serde_yaml` is the
+> maintained `serde_yaml_ng` 0.10 fork via package-rename — `serde_yaml::` paths
+> still work). It does **NOT** have `toml`. `voxup` has no `[lib]`/`src/lib.rs`
+> (binary-only: `main.rs` + sibling modules). Do not add `serde_yaml = "0.9"` —
+> 0.9 is RUSTSEC-deprecated and banned by the workspace.
 
-Run: `cargo tree -p voxup --depth 1 > voxup-deps.txt 2>&1` then open `voxup-deps.txt`. Confirm whether `serde`, `serde_yaml`, `toml` are present.
+- [ ] **Step 1: Add the one missing dependency**
 
-- [ ] **Step 2: Ensure dependencies**
-
-In `crates/voxup/Cargo.toml`, under `[dependencies]`, ensure these lines exist (add any missing; do not duplicate):
+In `crates/voxup/Cargo.toml`, under `[dependencies]`, add exactly one line
+(keep alphabetical-ish grouping; `serde`/`serde_yaml` are already present — do
+not touch them):
 
 ```toml
-serde = { workspace = true, features = ["derive"] }
-serde_yaml = { workspace = true }
 toml = { workspace = true }
 ```
 
-If `serde_yaml` is not a workspace dependency, instead add `serde_yaml = "0.9"`. Check the root `Cargo.toml` `[workspace.dependencies]` first.
+- [ ] **Step 2: Add a lib target alongside the existing binary**
 
-- [ ] **Step 3: Ensure a lib target exists**
-
-If `crates/voxup/Cargo.toml` has no `[lib]` section and `src/lib.rs` does not exist, add:
+`voxup` is binary-only today. Add a `[lib]` section so the parity test can link
+against `voxup::profiles`. The binary (`main.rs`) and the lib coexist; `main.rs`
+keeps its own `mod` declarations and is unaffected. Add to `crates/voxup/Cargo.toml`:
 
 ```toml
 [lib]
@@ -142,16 +173,22 @@ name = "voxup"
 path = "src/lib.rs"
 ```
 
-- [ ] **Step 4: Verify it builds**
+- [ ] **Step 3: Regenerate workspace-hack + lock (prevents CI `--locked` failure)**
 
-Run: `cargo build -p voxup > build-out.txt 2>&1`
-Expected: exit 0 (may still fail if `src/lib.rs` absent — Task 3 creates it; if so, proceed to Task 3 then return).
+`voxup` depends on `workspace-hack`. Adding a dep can change the hakari output and
+will change `Cargo.lock`; the CI gate (Task 8) runs `--locked`, so both must be committed.
 
-- [ ] **Step 5: Commit**
+Run: `cargo hakari generate` (if `cargo-hakari` is installed; if the command is
+absent, skip — `toml` is already a widely-used workspace dep so the hack is
+unlikely to change). Then refresh the lock: `cargo build -p voxup > build-out.txt 2>&1`.
+Expected: exit 0 (lib.rs is created in Task 3; an "unresolved lib" error here is fine — return after Task 3).
+
+- [ ] **Step 4: Commit (include Cargo.lock and any hakari changes)**
 
 ```bash
-git add crates/voxup/Cargo.toml
-git commit -m "build(voxup): add serde_yaml + lib target for distribution SSOT reader"
+git add crates/voxup/Cargo.toml Cargo.lock
+git add crates/workspace-hack/Cargo.toml 2>/dev/null || true
+git commit -m "build(voxup): add toml dep + lib target for distribution SSOT reader"
 ```
 
 ---
@@ -354,11 +391,30 @@ git commit -m "test(dist): internal-consistency parity gate for distribution SSO
 **Files:**
 - Modify: `crates/voxup/tests/distribution_parity.rs`
 
-- [ ] **Step 1: Inspect the toolchain contract format**
+> **Audited reality (2026-06-19):** the contract is
+> `contracts/toolchain/workspace-toolchain.v1.yaml`; the Rust version lives at
+> `versions.rust: "1.96.0"`. We parse that exact key (not a loose substring match).
 
-Run: `cat contracts/toolchain/workspace-toolchain.v1.yaml` (read it; note the exact key holding the Rust version — e.g. `rust_version` or `toolchain.version`).
+> **Why a lib helper (not inline parse):** integration tests under `tests/`
+> compile as a separate crate that can only name the package's **public API** and
+> its **dev-dependencies** — NOT its regular dependencies. So a test cannot name
+> `serde_yaml::Value` or `toml::Value` directly. All YAML/TOML parsing therefore
+> lives in `profiles.rs` and returns plain std types (`String`, `Vec<String>`,
+> `bool`). Do not add `serde_yaml`/`toml` as dev-deps to work around this.
 
-- [ ] **Step 2: Add the failing test**
+- [ ] **Step 1: Add the extraction helper to the reader**
+
+Add to `crates/voxup/src/profiles.rs`:
+
+```rust
+/// Extract `versions.rust` from a workspace-toolchain.v1.yaml document.
+pub fn toolchain_rust_version(yaml: &str) -> Option<String> {
+    let v: serde_yaml::Value = serde_yaml::from_str(yaml).ok()?;
+    v["versions"]["rust"].as_str().map(String::from)
+}
+```
+
+- [ ] **Step 2: Add the failing test (names only std types + the helper)**
 
 Append to `crates/voxup/tests/distribution_parity.rs`:
 
@@ -366,22 +422,20 @@ Append to `crates/voxup/tests/distribution_parity.rs`:
 #[test]
 fn rust_version_matches_toolchain_contract() {
     let p = load();
-    let contract = std::fs::read_to_string(concat!(
+    let contract_txt = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../contracts/toolchain/workspace-toolchain.v1.yaml"
     ))
     .expect("workspace-toolchain.v1.yaml must exist");
-    assert!(
-        contract.contains(&p.rust_version),
-        "SSOT rust_version '{}' not found in workspace-toolchain.v1.yaml",
+    let contract_rust = voxup::profiles::toolchain_rust_version(&contract_txt)
+        .expect("workspace-toolchain.v1.yaml must have versions.rust");
+    assert_eq!(
+        contract_rust, p.rust_version,
+        "SSOT rust_version '{}' != toolchain contract versions.rust '{contract_rust}'",
         p.rust_version
     );
 }
 ```
-
-> Note: `contains` is a deliberately loose check that survives YAML key-name
-> variation in the toolchain contract. If Step 1 shows the version under a clear
-> key, tighten this to parse that key instead.
 
 - [ ] **Step 3: Run to verify it passes**
 
@@ -391,7 +445,7 @@ Expected: PASS. If FAIL, reconcile: the SSOT `rust_version` and the toolchain co
 - [ ] **Step 4: Commit**
 
 ```bash
-git add crates/voxup/tests/distribution_parity.rs
+git add crates/voxup/src/profiles.rs crates/voxup/tests/distribution_parity.rs
 git commit -m "test(dist): SSOT rust_version parity with toolchain contract"
 ```
 
@@ -402,11 +456,48 @@ git commit -m "test(dist): SSOT rust_version parity with toolchain contract"
 **Files:**
 - Modify: `crates/voxup/tests/distribution_parity.rs`
 
+> **Audited reality (2026-06-19):** the file is `crates/_public.toml` (a top-level
+> `crates = [...]` array). `voxup`'s manifest dir is `crates/voxup`, so the
+> correct relative path is `../_public.toml` (one level up → `crates/`), **NOT**
+> `../../_public.toml` (that resolves to a non-existent repo-root file). The
+> earlier draft of this plan had the wrong path — use `../_public.toml`.
+
 - [ ] **Step 1: Confirm `_public.toml` shape**
 
-Run: `cat crates/_public.toml`. Confirm it has a top-level `crates = [...]` array of strings.
+Run: `cat crates/_public.toml`. Confirm it has a top-level `crates = [...]` array of strings (currently: `vox-crypto`, `voxup`, `vox-plugin-types`, `vox-plugin-api`, `vox-plugin-sdk`).
 
-- [ ] **Step 2: Add the failing test**
+- [ ] **Step 2: Add TOML helpers to the reader**
+
+`toml::Value` cannot be named from the integration test (same dev-dep rule as
+Task 5), so add these helpers to `crates/voxup/src/profiles.rs`:
+
+```rust
+/// Extract the top-level `crates = [...]` string array from `_public.toml`.
+pub fn public_toml_crates(toml_text: &str) -> Vec<String> {
+    let v: toml::Value = match toml::from_str(toml_text) {
+        Ok(v) => v,
+        Err(_) => return Vec::new(),
+    };
+    v.get("crates")
+        .and_then(|c| c.as_array())
+        .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+        .unwrap_or_default()
+}
+
+/// True iff a Cargo.toml sets `[package] publish = false`.
+pub fn cargo_publish_is_false(cargo_toml_text: &str) -> bool {
+    let v: toml::Value = match toml::from_str(cargo_toml_text) {
+        Ok(v) => v,
+        Err(_) => return false,
+    };
+    matches!(
+        v.get("package").and_then(|p| p.get("publish")),
+        Some(toml::Value::Boolean(false))
+    )
+}
+```
+
+- [ ] **Step 3: Add the failing test (uses the helper)**
 
 Append to `crates/voxup/tests/distribution_parity.rs`:
 
@@ -416,18 +507,11 @@ fn publish_set_is_subset_of_public_toml() {
     let p = load();
     let public = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../_public.toml"
+        "/../_public.toml"
     ))
     .expect("crates/_public.toml must exist");
-    let parsed: toml::Value = toml::from_str(&public).expect("_public.toml must parse");
-    let public_crates: Vec<String> = parsed
-        .get("crates")
-        .and_then(|c| c.as_array())
-        .expect("_public.toml must have a 'crates' array")
-        .iter()
-        .filter_map(|v| v.as_str().map(String::from))
-        .collect();
-
+    let public_crates = voxup::profiles::public_toml_crates(&public);
+    assert!(!public_crates.is_empty(), "_public.toml 'crates' array must be non-empty");
     for c in &p.publish.crates {
         assert!(
             public_crates.contains(c),
@@ -437,21 +521,53 @@ fn publish_set_is_subset_of_public_toml() {
 }
 ```
 
-> Path note: `voxup`'s manifest dir is `crates/voxup`, so `../../_public.toml`
-> resolves to `crates/_public.toml`. Verify by running the test; if the path is
-> wrong the `expect` message will say the file is missing — adjust the relative
-> path accordingly.
+- [ ] **Step 4: Add the forward-looking publish-readiness gate**
 
-- [ ] **Step 3: Run to verify it passes**
+`voxup` (and likely others in the publish set) currently carry `publish = false`
+in their `Cargo.toml` — correct *now* because `publish.enabled` is `false`
+(deferred). But when Track C flips `publish.enabled: true`, every publish crate
+MUST have `publish` un-set or `true`, or `cargo publish` silently refuses. This
+test enforces that invariant *only* when the flip is on, so it is green today and
+guards the future. It reuses the `cargo_publish_is_false` helper from Step 2.
+Append to `crates/voxup/tests/distribution_parity.rs`:
 
-Run: `cargo test -p voxup --test distribution_parity publish_set_is_subset_of_public_toml > test-out.txt 2>&1`
-Expected: PASS. If FAIL with "not declared", add the missing crate to `crates/_public.toml` OR remove it from the SSOT (they must agree).
+```rust
+#[test]
+fn when_publish_enabled_every_crate_is_actually_publishable() {
+    let p = load();
+    if !p.publish.enabled {
+        return; // deferred — Track C flips this; nothing to enforce yet.
+    }
+    for c in &p.publish.crates {
+        let manifest = std::fs::read_to_string(format!(
+            concat!(env!("CARGO_MANIFEST_DIR"), "/../{}/Cargo.toml"),
+            c
+        ))
+        .unwrap_or_else(|_| panic!("publish crate '{c}' has no crates/{c}/Cargo.toml"));
+        assert!(
+            !voxup::profiles::cargo_publish_is_false(&manifest),
+            "publish.enabled is true but crate '{c}' has `publish = false` in its Cargo.toml"
+        );
+    }
+}
+```
 
-- [ ] **Step 4: Commit**
+> Note: this uses `crates/{c}/Cargo.toml` — true for `voxup`, `vox-crypto`, and
+> the plugin trio. If a future publish crate lives at a non-`crates/<name>` path,
+> Track C must generalize this lookup.
+
+- [ ] **Step 5: Run to verify both publish tests pass**
+
+Run: `cargo test -p voxup --test distribution_parity publish > test-out.txt 2>&1`
+Expected: PASS (both `publish_set_is_subset_of_public_toml` and
+`when_publish_enabled_every_crate_is_actually_publishable`). The readiness test
+short-circuits green while `enabled: false`.
+
+- [ ] **Step 6: Commit**
 
 ```bash
-git add crates/voxup/tests/distribution_parity.rs
-git commit -m "test(dist): SSOT publish set is a subset of _public.toml"
+git add crates/voxup/src/profiles.rs crates/voxup/tests/distribution_parity.rs
+git commit -m "test(dist): publish set ⊆ _public.toml + forward publish-readiness gate"
 ```
 
 ---
