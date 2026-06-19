@@ -8,6 +8,18 @@
 
 ---
 
+## Amendment 2026-06-18 (unification) — see [unified-task-message-envelope spec](2026-06-18-unified-task-message-envelope-registers-budget-ssot-design.md)
+
+Two additions land on top of the widget-registry SSOT below: (1) **Registers** — the registry's
+`render` becomes register-aware (`render({widget, navigate, register})`), with **Office as the
+default** (the dense/legible floor) and **gamified opt-in** (falls back to Office when a kind has
+no gamified variant); a top-bar toggle switches register without changing truth. (2) The **budget
+widget reads the budget SSOT** — the *existing* `BudgetManager` extended with `snapshot()`,
+surfaced via `budget_get` + `vox://cost-changed` — not its own `useMetricSeries` sum — so the TopHud tile, the widget, the activity cost-fold, and the gamified
+treasury all show one number. Implemented in the unified plan's Tasks 6–7.
+
+---
+
 ## 1. Problem
 
 The dashboard shell is genuinely good bones, but half-built and partly hardcoded:

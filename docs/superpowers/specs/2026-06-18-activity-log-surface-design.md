@@ -8,6 +8,17 @@
 
 ---
 
+## Amendment 2026-06-18 (unification) — see [unified-task-message-envelope spec](2026-06-18-unified-task-message-envelope-registers-budget-ssot-design.md)
+
+The §5 cost roll-up should source its totals from the budget SSOT — the *existing*
+`BudgetManager` (extended with `snapshot()`), via `budget_get` + `vox://cost-changed` —
+rather than summing `CostIncurred` rows independently —
+so the activity timeline's spend agrees byte-for-byte with the TopHud tile, the budget widget,
+and the gamified treasury. The per-row `CostIncurred` entries still appear in the timeline; only
+the *aggregate* number comes from the ledger. Implemented in the unified plan's Tasks 5–6.
+
+---
+
 ## 1. Problem
 
 There are two streams of "what happened", and they are mirror-image broken:

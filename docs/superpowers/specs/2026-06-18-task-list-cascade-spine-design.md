@@ -8,6 +8,18 @@
 
 ---
 
+## Amendment 2026-06-18 (unification) — see [unified-task-message-envelope spec](2026-06-18-unified-task-message-envelope-registers-budget-ssot-design.md)
+
+The reframe **"we are chatting with a task list"** changes the task model here: a task is a
+structured **TaskMessage envelope** (`body` + **multiple** `skills[]` + typed `context[]` of
+file/agent/branch/url/image refs + mode/tier), authored by the **existing Loquela composer**
+(not a new plain textarea), persisted on `IntakeItem`, and **read by the dispatcher/A2A/mesh
+as typed fields** (route on `context`/`skills`, not just `affinity_hints`). This supersedes the
+thin `intent: String` and the GUI `TaskComposer` described below — implemented in the unified
+plan's Tasks 1–4. The cascade/persistence/mesh mechanics in this spec are unchanged.
+
+---
+
 ## 1. Problem
 
 Vox has **two task systems that do not talk to each other**:

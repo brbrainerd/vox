@@ -8,6 +8,17 @@
 
 ---
 
+## Amendment 2026-06-18 (unification) — see [unified-task-message-envelope spec](2026-06-18-unified-task-message-envelope-registers-budget-ssot-design.md)
+
+Two ties to the unification: (1) the HUD **treasury reads the budget SSOT**
+(the *existing* `BudgetManager`, via `budget_get` + `vox://cost-changed`) so "treasury drain"
+is the *same* number as the Office budget widget — not an independent cost sum; (2) the gamified layer is the **opt-in register**
+(Office is default) rendered via the register-aware `widgetRegistry`, and mini-map quests/citizens
+reflect the **TaskMessage envelope** (skills/context) rather than flattened text. Implemented in
+the unified plan (registers/budget) + this plan (the gamified variants).
+
+---
+
 ## 1. Problem
 
 The gamification backend (`crates/vox-gamify`) is architecturally rich — profile/XP/
