@@ -242,3 +242,184 @@ impl crate::VoxDb {
             .await
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct HopperInboxRow {
+    pub item_id: String,
+    pub intent: String,
+    pub affinity_json: String,
+    pub priority: i64,
+    pub source: String,
+    pub session_id: Option<String>,
+    pub state: String,
+    pub submitted_at: i64,
+}
+
+impl crate::VoxDb {
+    /// Submit a new hopper item or idempotently insert it.
+    pub async fn hopper_submit(
+        &self,
+        item_id: &str,
+        intent: &str,
+        affinity_json: &str,
+        priority: i64,
+        source: &str,
+        session_id: Option<&str>,
+        state: &str,
+        submitted_at: i64,
+    ) -> Result<(), StoreError> {
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        let item_id = item_id.to_string();
+        let intent = intent.to_string();
+        let affinity_json = affinity_json.to_string();
+        let source = source.to_string();
+        let session_id = session_id.map(String::from);
+        let state = state.to_string();
+        breaker
+            .call(move || {
+                let item_id = item_id.clone();
+                let intent = intent.clone();
+                let affinity_json = affinity_json.clone();
+                let source = source.clone();
+                let session_id = session_id.clone();
+                let state = state.clone();
+                async move {
+                    conn.execute(
+                        "INSERT INTO hopper_inbox (item_id, intent, affinity_json, priority, source, session_id, state, submitted_at)
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                         ON CONFLICT(item_id) DO NOTHING",
+                        params![item_id, intent, affinity_json, priority, source, session_id, state, submitted_at],
+                    )
+                    .await?;
+                    Ok(())
+                }
+            })
+            .await
+    }
+
+    /// Read all hopper items in Inbox state.
+    pub async fn hopper_inbox_list(&self) -> Result<Vec<HopperInboxRow>, StoreError> {
+        let mut rows = self.conn.query(
+            "SELECT item_id, intent, affinity_json, priority, source, session_id, state, submitted_at
+             FROM hopper_inbox
+             WHERE state = '\"inbox\"'
+             ORDER BY submitted_at ASC",
+            (),
+        ).await?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next().await? {
+            out.push(HopperInboxRow {
+                item_id: row.get(0)?,
+                intent: row.get(1)?,
+                affinity_json: row.get(2)?,
+                priority: row.get(3)?,
+                source: row.get(4)?,
+                session_id: row.get(5)?,
+                state: row.get(6)?,
+                submitted_at: row.get(7)?,
+            });
+        }
+        Ok(out)
+    }
+
+    /// Read all hopper items in Assigned state.
+    pub async fn hopper_assigned_list(&self) -> Result<Vec<HopperInboxRow>, StoreError> {
+        let mut rows = self.conn.query(
+            "SELECT item_id, intent, affinity_json, priority, source, session_id, state, submitted_at
+             FROM hopper_inbox
+             WHERE state LIKE '{\"assigned\":%'
+             ORDER BY submitted_at ASC",
+            (),
+        ).await?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next().await? {
+            out.push(HopperInboxRow {
+                item_id: row.get(0)?,
+                intent: row.get(1)?,
+                affinity_json: row.get(2)?,
+                priority: row.get(3)?,
+                source: row.get(4)?,
+                session_id: row.get(5)?,
+                state: row.get(6)?,
+                submitted_at: row.get(7)?,
+            });
+        }
+        Ok(out)
+    }
+
+    /// Read all hopper items in terminal states (Done | Overridden | Cancelled).
+    pub async fn hopper_history_list(&self) -> Result<Vec<HopperInboxRow>, StoreError> {
+        let mut rows = self.conn.query(
+            "SELECT item_id, intent, affinity_json, priority, source, session_id, state, submitted_at
+             FROM hopper_inbox
+             WHERE state IN ('\"done\"', '\"overridden\"', '\"cancelled\"')
+             ORDER BY submitted_at ASC",
+            (),
+        ).await?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next().await? {
+            out.push(HopperInboxRow {
+                item_id: row.get(0)?,
+                intent: row.get(1)?,
+                affinity_json: row.get(2)?,
+                priority: row.get(3)?,
+                source: row.get(4)?,
+                session_id: row.get(5)?,
+                state: row.get(6)?,
+                submitted_at: row.get(7)?,
+            });
+        }
+        Ok(out)
+    }
+
+    /// Update the state of a hopper item.
+    pub async fn hopper_update_state(
+        &self,
+        item_id: &str,
+        new_state: &str,
+    ) -> Result<(), StoreError> {
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        let item_id = item_id.to_string();
+        let new_state = new_state.to_string();
+        breaker
+            .call(move || {
+                let item_id = item_id.clone();
+                let new_state = new_state.clone();
+                async move {
+                    conn.execute(
+                        "UPDATE hopper_inbox SET state = ?2 WHERE item_id = ?1",
+                        params![item_id, new_state],
+                    )
+                    .await?;
+                    Ok(())
+                }
+            })
+            .await
+    }
+
+    /// Update the priority of a hopper item.
+    pub async fn hopper_update_priority(
+        &self,
+        item_id: &str,
+        new_priority: i64,
+    ) -> Result<(), StoreError> {
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        let item_id = item_id.to_string();
+        breaker
+            .call(move || {
+                let item_id = item_id.clone();
+                async move {
+                    conn.execute(
+                        "UPDATE hopper_inbox SET priority = ?2 WHERE item_id = ?1",
+                        params![item_id, new_priority],
+                    )
+                    .await?;
+                    Ok(())
+                }
+            })
+            .await
+    }
+}

@@ -31,9 +31,10 @@ impl crate::orchestrator::Orchestrator {
         let bulletin = BulletinBoard::new(config.bulletin_capacity);
         let skill_registry = vox_skills::new_registry_arc();
         let event_bus = crate::events::EventBus::new(1024);
-        let hopper = Arc::new(crate::hopper::store::InMemoryHopper::new(Arc::new(
+        let inner_hopper = Arc::new(crate::hopper::store::InMemoryHopper::new(Arc::new(
             event_bus.clone(),
         )));
+        let hopper = Arc::new(crate::hopper::store::SwappableHopper::new(inner_hopper));
         let agents = Arc::new(RwLock::new(HashMap::<
             crate::types::AgentId,
             std::sync::Arc<std::sync::RwLock<crate::queue::AgentQueue>>,

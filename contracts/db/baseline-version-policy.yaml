@@ -6,7 +6,7 @@ policy:
   # Integer stored in DB `schema_version` table after baseline migration succeeds.
   repository_baseline_integer: 77
   # Keccak-256 of baseline_sql() — recomputed after union of discovery_state + scientia_discovery_inbox.
-  repository_baseline_digest_hex: "0xb7b40d3e762d2322d8488e7a0f292637f006573c93183b9f1733e0397ae4f6e4"
+  repository_baseline_digest_hex: "0x72e8345f4ca67b3600df34d4ce7ae2839d86f9ce061a77abc7ca0699ff98159a"
   # Keccak-256 over `vox_db::schema::baseline_sql()` (= ordered SCHEMA_FRAGMENTS + spec append DDL).
   digest_source: vox_db_schema_manifest_baseline_sql
   # Human-facing product name for the DB API layer.

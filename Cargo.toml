@@ -2,6 +2,7 @@
 resolver = "2"
 members = ["crates/*","crates/workspace-hack"]
 exclude = [
+    "crates/_corpus_verify_tmp",
     "crates/vox-cargo-shim",
     "crates/vox-arch-check/tests/fixtures/missing-desc",
 

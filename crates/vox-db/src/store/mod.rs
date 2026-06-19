@@ -77,6 +77,7 @@ mod ops_user_identity;
 
 pub use ops_discovery_inbox::DiscoveryInboxRow;
 pub use ops_finding_candidates::{FindingCandidateClass, FindingCandidateRow, InsertOutcome};
+pub use ops_orchestrator::HopperInboxRow;
 pub use ops_review::{ReviewDecisionRow, VALID_DECISIONS};
 pub use ops_user_identity::{NanopubRow, UserIdentityRow};
 mod ops_secrets_cloudless;

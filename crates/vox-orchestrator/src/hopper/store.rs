@@ -53,6 +53,8 @@ pub struct AdmittedReplay {
 /// implementations. Dashboard HTTP handlers program against this trait.
 #[async_trait::async_trait]
 pub trait HopperIntake: Send + Sync {
+    /// Support downcasting to concrete hopper implementations.
+    fn as_any(&self) -> &dyn std::any::Any;
     /// Submit a new intake item. Returns the admitted item.
     async fn submit(
         &self,
@@ -105,6 +107,122 @@ pub trait HopperIntake: Send + Sync {
     async fn replay_admitted(&self, op: AdmittedReplay) -> IntakeItem;
 }
 
+// ── SwappableHopper ────────────────────────────────────────────────────────────
+
+pub struct SwappableHopper {
+    inner: tokio::sync::RwLock<Arc<dyn HopperIntake>>,
+}
+
+impl SwappableHopper {
+    pub fn new(initial: Arc<dyn HopperIntake>) -> Self {
+        Self {
+            inner: tokio::sync::RwLock::new(initial),
+        }
+    }
+
+    pub async fn swap(&self, new_hopper: Arc<dyn HopperIntake>) {
+        let mut guard = self.inner.write().await;
+        *guard = new_hopper;
+    }
+}
+
+#[async_trait::async_trait]
+impl HopperIntake for SwappableHopper {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    async fn submit(
+        &self,
+        intent: String,
+        affinity_hints: Vec<String>,
+        priority_hint: PriorityHint,
+        source: IntakeSource,
+        session_id: Option<String>,
+    ) -> IntakeItem {
+        let inner = {
+            let guard = self.inner.read().await;
+            guard.clone()
+        };
+        inner
+            .submit(intent, affinity_hints, priority_hint, source, session_id)
+            .await
+    }
+
+    async fn inbox(&self) -> Vec<IntakeItem> {
+        let inner = {
+            let guard = self.inner.read().await;
+            guard.clone()
+        };
+        inner.inbox().await
+    }
+
+    async fn assigned(&self) -> Vec<IntakeItem> {
+        let inner = {
+            let guard = self.inner.read().await;
+            guard.clone()
+        };
+        inner.assigned().await
+    }
+
+    async fn history(&self) -> Vec<IntakeItem> {
+        let inner = {
+            let guard = self.inner.read().await;
+            guard.clone()
+        };
+        inner.history().await
+    }
+
+    async fn reprioritize(
+        &self,
+        item_id: &HopperItemId,
+        new_priority: TaskPriority,
+        cap: DeveloperOverride,
+    ) -> Result<IntakeItem, HopperError> {
+        let inner = {
+            let guard = self.inner.read().await;
+            guard.clone()
+        };
+        inner.reprioritize(item_id, new_priority, cap).await
+    }
+
+    async fn assign(
+        &self,
+        item_id: &HopperItemId,
+        agent_id: String,
+    ) -> Result<IntakeItem, HopperError> {
+        let inner = {
+            let guard = self.inner.read().await;
+            guard.clone()
+        };
+        inner.assign(item_id, agent_id).await
+    }
+
+    async fn complete(&self, item_id: &HopperItemId) -> Result<IntakeItem, HopperError> {
+        let inner = {
+            let guard = self.inner.read().await;
+            guard.clone()
+        };
+        inner.complete(item_id).await
+    }
+
+    async fn cancel(&self, item_id: &HopperItemId) -> Result<IntakeItem, HopperError> {
+        let inner = {
+            let guard = self.inner.read().await;
+            guard.clone()
+        };
+        inner.cancel(item_id).await
+    }
+
+    async fn replay_admitted(&self, op: AdmittedReplay) -> IntakeItem {
+        let inner = {
+            let guard = self.inner.read().await;
+            guard.clone()
+        };
+        inner.replay_admitted(op).await
+    }
+}
+
 // ── InMemoryHopper ────────────────────────────────────────────────────────────
 
 pub struct InMemoryHopper {
@@ -131,6 +249,10 @@ impl InMemoryHopper {
 
 #[async_trait::async_trait]
 impl HopperIntake for InMemoryHopper {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
     async fn submit(
         &self,
         intent: String,
