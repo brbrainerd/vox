@@ -8,6 +8,7 @@
 //! Persistence lives in [`crate::attention_tracker`].
 
 mod budget;
+pub mod calibrator;
 mod interruption_policy;
 mod routing;
 

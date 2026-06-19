@@ -233,6 +233,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | Compaction trigger — strategy selection (D7) | `crates/vox-orchestrator/src/compaction_trigger.rs` |
 | Calibration — drift detection + bandit (D10) | `crates/vox-orchestrator/src/calibration.rs` |
 | Sub-agent dispatch — spawn vs. inline (D4) | `crates/vox-orchestrator/src/subagent_dispatch.rs` |
+| Attention interruption calibrator (learns from logged outcomes) | `crates/vox-orchestrator/src/attention/calibrator.rs` |
 | Orchestrator policy metric_type constants | `crates/vox-telemetry/src/types.rs` — `METRIC_TYPE_*` constants |
 | Telemetry master switch + org-policy hard-off | `crates/vox-telemetry/src/config.rs` — `TelemetryConfig::from_env()`, `org_policy_disabled()` (reads `/etc/vox/telemetry-policy.toml`), `is_master_enabled()`. Resolution order: org policy → `VOX_TELEMETRY` env var → per-category vars → default. |
 | Telemetry debug sink (stderr JSON dump) | `crates/vox-cli/src/lib.rs` — `StderrDebugSink`; registered when `VOX_TELEMETRY=debug`. |
