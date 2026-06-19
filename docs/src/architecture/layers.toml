@@ -492,6 +492,18 @@ file_glob        = "crates/**/*.rs"
 allow_annotation = "// vox-arch-check: allow dynlib-ext"
 reason           = "Shared-lib suffix differs per OS (.so/.dll/.dylib); derive it from target, do not hardcode."
 
+[[forbidden_pattern]]
+name             = "no-otlp-in-emitters"
+pattern          = 'vox.telemetry.otlp'
+file_glob        = "crates/**/Cargo.toml"
+exempt_files     = [
+    "crates/vox-telemetry-otlp/Cargo.toml",
+    "crates/vox-cli/Cargo.toml",
+    "crates/vox-gui/Cargo.toml",
+]
+allow_annotation = "# vox-arch-check: allow otlp-dep"
+reason           = "vox-telemetry-otlp is L3 egress; only surface binaries (vox-cli, vox-gui) may depend on it. Domain crates emit via the L1 record_event! macro only."
+
 # ── Planned crates (in-flight design docs; not yet on disk) ──────────────────
 # Rule 12 (WTL parity check) consults this table before flagging a
 # where-things-live.md reference as a ghost.  Each entry must point to the
