@@ -169,6 +169,7 @@ pub mod plugin_skills_bridge;
 pub mod server;
 pub mod agy_doctor;
 pub mod agy_exec;
+pub mod agy_ledger;
 pub mod agy_worktree;
 pub mod agy_tools;
 
