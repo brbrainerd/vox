@@ -183,7 +183,72 @@ pub fn project_event(event: &TelemetryEvent) -> Option<(String, serde_json::Map<
         // LintAutofix: no product-relevant aggregate signal yet.
         TelemetryEvent::LintAutofix(_) => None,
 
-        // Future variants: not yet mapped. Track E drives from the inventory.
+        // ── Track E: new product-category emit sites ──────────────────────
+        TelemetryEvent::CommandUsage(e) => {
+            let mut map = serde_json::Map::new();
+            map.insert("verb".into(), Value::String(e.verb.clone()));
+            map.insert("exit_class".into(), Value::String(e.exit_class.clone()));
+            map.insert(
+                "duration_bucket".into(),
+                Value::String(e.duration_bucket.clone()),
+            );
+            Some(("command_usage".into(), map))
+        }
+
+        TelemetryEvent::SkillActivation(e) => {
+            let mut map = serde_json::Map::new();
+            // skill_id_hash is already salted-hash — safe to include.
+            map.insert(
+                "skill_id_hash".into(),
+                Value::String(e.skill_id_hash.clone()),
+            );
+            map.insert(
+                "trigger_source".into(),
+                Value::String(e.trigger_source.clone()),
+            );
+            map.insert("accepted".into(), Value::Bool(e.accepted));
+            map.insert("surface".into(), Value::String(e.surface.clone()));
+            Some(("skill_activation".into(), map))
+        }
+
+        TelemetryEvent::EditPattern(e) => {
+            let mut map = serde_json::Map::new();
+            map.insert("op_type".into(), Value::String(e.op_type.clone()));
+            map.insert("file_kind".into(), Value::String(e.file_kind.clone()));
+            map.insert("size_bucket".into(), Value::String(e.size_bucket.clone()));
+            Some(("edit_pattern".into(), map))
+        }
+
+        TelemetryEvent::HarnessUsage(e) => {
+            let mut map = serde_json::Map::new();
+            map.insert(
+                "tool_call_kind".into(),
+                Value::String(e.tool_call_kind.clone()),
+            );
+            map.insert("mode".into(), Value::String(e.mode.clone()));
+            Some(("agent_orchestration".into(), map))
+        }
+
+        TelemetryEvent::ErrorSurface(e) => {
+            let mut map = serde_json::Map::new();
+            map.insert("error_class".into(), Value::String(e.error_class.clone()));
+            map.insert("subsystem".into(), Value::String(e.subsystem.clone()));
+            map.insert("recoverable".into(), Value::Bool(e.recoverable));
+            Some(("errors".into(), map))
+        }
+
+        TelemetryEvent::DefaultDecision(e) => {
+            let mut map = serde_json::Map::new();
+            map.insert("decision_id".into(), Value::String(e.decision_id.clone()));
+            map.insert("chosen".into(), Value::String(e.chosen.clone()));
+            map.insert("outcome".into(), Value::String(e.outcome.clone()));
+            if let Some(mag) = e.magnitude_bucket {
+                map.insert("magnitude_bucket".into(), Value::Number(mag.into()));
+            }
+            Some(("default_decision".into(), map))
+        }
+
+        // Unhandled variants that don't yet have a product-category mapping.
         _ => None,
     }
 }
