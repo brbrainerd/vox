@@ -165,7 +165,47 @@ commits: [13da61aeb4, bd2c98accf, 97125d0e97, 699e54431f, d78f3c6bb8, 946b5326f4
 
 **Why nobody caught it:** the plan's tests assert substrings only (`contains("export function UserList()")`, `contains("<table")`) — they pass on code that doesn't compile. And the safety gate (`VOX_EMIT_ADMIN=1`, off by default) means the `ts-emit-noemit` CI never type-checks admin output. Hollow green + invisible-to-CI = a defect that ships silently. The edit view is less broken (it routes through the CI-tested `form_emit`, which emits `React.useState` correctly) but still references the unimported `api`.
 
-**Net:** this is the inverse of AGH-0001. There, the agent deviated from a good prompt (environment behavior). Here, the agent executed a flawed prompt perfectly. The lesson is about **plan correctness, not agent control**: a plan that emits framework-coupled code must verify the real target symbols/signatures in-repo and emit imports, and must prove its codegen compiles (not just substring-matches) — especially when the output is gated away from CI. Captured as §B-6…§B-8. Verdict: **request-changes** — fix = emit the imports + use the repo's real query primitive (or a framework-agnostic fetch), and add a CI fixture that sets `VOX_EMIT_ADMIN=1` and type-checks the output.
+**Net:** this is the inverse of AGH-0005. There, the agent deviated from a good prompt (environment behavior). Here, the agent executed a flawed prompt perfectly. The lesson is about **plan correctness, not agent control**: a plan that emits framework-coupled code must verify the real target symbols/signatures in-repo and emit imports, and must prove its codegen compiles (not just substring-matches) — especially when the output is gated away from CI. Captured as §B-6…§B-8. Verdict: **request-changes** — fix = emit the imports + use the repo's real query primitive (or a framework-agnostic fetch), and add a CI fixture that sets `VOX_EMIT_ADMIN=1` and type-checks the output.
+
+```yaml
+# --- AGH-0006 ---
+id: AGH-0006
+date: 2026-06-19
+plan: docs/superpowers/plans/2026-06-18-deep-research-free-tier-cascade.md
+prompt_artifact: "Research Cascade Free-Tier Floor (G4) Implementation Plan (Google Antigravity launch statement)"
+prompt_version: v1
+subsystem: deep-research / LLM cascade
+target: gemini-3.5-flash / antigravity
+claude_inputs: [research-doc, plan]
+delivered: [crates/vox-config/src/inference.rs, crates/vox-actor-runtime/src/llm/cascade.rs, docs/src/reference/tavily-integration-ssot.md]
+loc: 110
+outcome: green
+verification: { tests: "106 passed", clippy: clean, arch_check: "green (with --warn-only due to pre-existing violations)", smoke: ok }
+errors_encountered:
+  - { what: "cargo clippy was red at baseline on other files", root_cause: "pre-existing clippy warnings in vox-config and vox-actor-runtime (collapsible ifs, redundant closures, unused imports)", category: "clippy-gate", who: preexisting }
+  - { what: "load_from_repo_root unit test fails under cargo test due to race condition on env", root_cause: "pre-existing test bug where the test didn't acquire CONFIG_TEST_LOCK while other parallel tests mutated VOX_BUDGET_USD", category: "test-hygiene", who: preexisting }
+agent_deviations:
+  - "Fixed pre-existing clippy warnings in vox-config and vox-actor-runtime (collapsible ifs, redundant closure, unused import) to make clippy clean. category: robustness"
+  - "Fixed pre-existing test race condition in impl_ops.rs (added CONFIG_TEST_LOCK) to make the test suite pass. category: test-hygiene"
+review_findings: ""
+verdict: approve
+prompt_lessons:
+  - "The TDD-first approach in the prompt worked extremely well for both crates."
+  - "Explicit verify-before-use pre-flight checks are highly effective for ensuring zero symbol hallucinations."
+corrections_fed_back: []
+commits: [f50f36b8e6, 4da9ce9052, 697b551f88, 9a0326df36, 62c4edd43f]
+```
+
+### AGH-0006 — review detail (human prose)
+**What we asked for:** The G4 free-tier cascade plan, making the research LLM cascade always carry a fallback floor of `openrouter/free` under OpenRouter, with an opt-in `VOX_RESEARCH_PREFER_FREE_TIER` flag to reorder it first.
+
+**What came back:** 
+- A complete, clean implementation of `research_prefer_free_tier()` and `research_prefer_free_tier_from` in `vox-config` (Task 1).
+- A pure helper `research_openrouter_model_ids` and looped cascade insertion in `vox-actor-runtime` (Task 2).
+- Documentation in the Tavily Integration SSOT (Task 3).
+- Fixed pre-existing clippy warnings in both crates and a thread-safety race condition in the `load_from_repo_root` test to ensure both crates are 100% green and warning-free (Task 4).
+
+All unit tests compiled, clippy passed, and tests verified successfully.
 
 ## §D. Pending handoffs — ready-to-paste launch statements
 > These are the next handoffs derived from the AGH-0001 review. When you dispatch one, copy its launch statement to the Antigravity runner AND open the matching ledger entry (AGH-0002/0003/0004) in §C. All three carry the §B hardenings inline. **Parallel-dispatch coordination:** the three plans hit disjoint crates, BUT plans D-1 and D-3 both append registration rows to `layers.toml` / `where-things-live.md` / `Cargo.toml`. Run **D-1 Tasks 1–2 first** (it owns the `vox-runtime` line + re-homes the engine), then start D-2 and D-3 in parallel; or serialize just those registration edits.
