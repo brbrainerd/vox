@@ -28,6 +28,64 @@ fn parse_triplet(s: &str) -> Option<(u64, u64, u64)> {
     Some((major, minor, patch))
 }
 
+use crate::VOX_VERSION;
+
+const LATEST_RELEASE_API: &str = "https://api.github.com/repos/vox-foundation/vox/releases/latest";
+
+/// True when the footer should be suppressed: CI, non-interactive, or an
+/// explicit opt-out. Keeps the check invisible in scripts and pipelines.
+fn suppressed() -> bool {
+    std::env::var_os("CI").is_some()
+        || std::env::var_os("VOX_NO_UPDATE_CHECK").is_some()
+        || !atty_stdout()
+}
+
+fn atty_stdout() -> bool {
+    use std::io::IsTerminal;
+    std::io::stdout().is_terminal()
+}
+
+/// Fetch the latest release tag, returning `None` on ANY failure.
+async fn fetch_latest_tag() -> Option<String> {
+    #[derive(serde::Deserialize)]
+    struct Rel {
+        tag_name: String,
+    }
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_millis(1500))
+        .build()
+        .ok()?;
+    let rel: Rel = client
+        .get(LATEST_RELEASE_API)
+        .header("User-Agent", concat!("vox/", env!("CARGO_PKG_VERSION")))
+        .header("Accept", "application/vnd.github+json")
+        .send()
+        .await
+        .ok()?
+        .error_for_status()
+        .ok()?
+        .json()
+        .await
+        .ok()?;
+    Some(rel.tag_name)
+}
+
+/// Print a one-line footer to stderr if a newer release exists. Never errors,
+/// never blocks longer than the fetch timeout, silent in CI/non-interactive.
+pub async fn maybe_print_update_footer() {
+    if suppressed() {
+        return;
+    }
+    let Some(latest) = fetch_latest_tag().await else {
+        return;
+    };
+    if let Some(newer) = newer_version(VOX_VERSION, &latest) {
+        eprintln!(
+            "\nA new Vox release is available: {newer} (you have {VOX_VERSION}). Run `voxup update`."
+        );
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
