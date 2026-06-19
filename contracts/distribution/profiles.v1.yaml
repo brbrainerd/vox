@@ -1,0 +1,52 @@
+# Distribution SSOT (Track 0). Single source of truth for install tiers,
+# their dependency closures, the crates.io publish set, and released binaries.
+# Drift from on-disk reality is caught by crates/voxup/tests/distribution_parity.rs.
+schema_version: 1
+
+# Rust toolchain version. MUST equal the version in
+# contracts/toolchain/workspace-toolchain.v1.yaml (parity test enforces this).
+rust_version: "1.96.0"
+
+# Binaries produced by release + nightly. vox-bootstrap and vox-schola are RETIRED.
+binaries:
+  - vox
+  - vox-ml-cli
+  - voxup
+
+# Install tiers. Each tier declares the binaries it ships, its build-time deps
+# (only relevant on the from-source path), and its runtime-optional deps
+# (detected/enabled by `vox doctor`, never required to install).
+tiers:
+  minimal:
+    description: "Compiler / language CLI only."
+    binaries: [vox]
+    build_deps: [rust]
+    runtime_optional: []
+  default:
+    description: "CLI plus desktop GUI."
+    binaries: [vox]
+    build_deps: [rust, node, tauri-system-libs]
+    runtime_optional: []
+  full:
+    description: "Everything: CLI, GUI, ML, agy delegation, curated plugins."
+    binaries: [vox, vox-ml-cli, voxup]
+    build_deps: [rust, node, tauri-system-libs]
+    runtime_optional: [agy, model-weights, plugins]
+
+# crates.io publish set. MUST be a superset-consistent reconciliation of
+# crates/_public.toml. Order is leaf-first (publish order). `enabled: false`
+# means the public flip is deferred (readiness only).
+publish:
+  enabled: false
+  crates:
+    - vox-crypto
+    - vox-plugin-types
+    - vox-plugin-api
+    - vox-plugin-sdk
+    - voxup
+
+# Crates that MUST NOT be published or appear on the install/build path as a
+# hard dependency carrier for `agy`. The parity test asserts none of these are
+# in `publish.crates`.
+non_publishable:
+  - vox-orchestrator-mcp
