@@ -28,6 +28,7 @@ pub enum ReleasePackage {
 /// The package names `ReleasePackage::All` builds, in archive-name form.
 /// This is the parity anchor checked against the distribution SSOT
 /// (`contracts/distribution/profiles.v1.yaml` `binaries`).
+#[allow(dead_code)]
 pub const ALL_RELEASE_BINARIES: &[&str] = &["vox", "vox-ml-cli", "voxup"];
 
 pub(crate) fn validate_release_target(target: &str) -> Result<()> {
