@@ -242,6 +242,7 @@ pub use store::{
     BuildRunRow, BuilderSessionEntry, CloudCostSummary, CloudDispatchRow, CodexChangeLogEntry,
     CommandFrequencyEntry, ComponentEntry, CorpusQualitySummary, CrateSample, CrateSampleRow,
     DiscoveryInboxRow, EmbeddingEntry, EndpointReliabilityEntry, ExecutionEntry,
+    HopperInboxRow,
     ExternalStatusSnapshotParams, ExternalStatusSnapshotRow, ExternalSubmissionAttemptParams,
     ExternalSubmissionAttemptRow, ExternalSubmissionJobRow, ExternalSubmissionJobUpsertParams,
     GamifyLudusKpiRollup, GamifyPolicySnapshotListRow, GrpoStepRow, KnowledgeNodeSummary,

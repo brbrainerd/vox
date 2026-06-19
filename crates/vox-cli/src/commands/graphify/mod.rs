@@ -58,6 +58,15 @@ pub enum GraphifyCmd {
         #[arg(long)]
         auto: bool,
     },
+    /// Prune corpus graph snapshots, keeping the newest N per corpus.
+    Gc {
+        /// Corpus id (default: all corpora).
+        #[arg(long)]
+        corpus: Option<String>,
+        /// How many snapshots to keep per corpus.
+        #[arg(long, default_value_t = 5)]
+        keep: usize,
+    },
 }
 
 /// What an autonomous refresh should do for a corpus, given its stale reasons.
@@ -329,6 +338,14 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                 extraction_mode: corpus.extraction_mode.clone(),
                 built_at_rfc3339: Utc::now().to_rfc3339(),
             };
+            // Preserve the previous graph as a bounded history before overwriting.
+            if output_file.is_file() {
+                if let Some(corpus_dir) = output_file.parent() {
+                    let stamp = Utc::now().to_rfc3339().replace(':', "-");
+                    let _ = vox_graphify_reader::snapshot::snapshot_corpus(corpus_dir, &stamp);
+                    let _ = vox_graphify_reader::snapshot::prune_snapshots(corpus_dir, 5);
+                }
+            }
             vox_graphify_reader::rebuild::rebuild_graph(
                 repo_root,
                 &source_dir,
@@ -458,6 +475,17 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                         println!("  ingested {} ({} nodes)", c.id, upserted);
                     }
                     RefreshAction::Skip => {}
+                }
+            }
+        }
+        GraphifyCmd::Gc { corpus, keep } => {
+            let reg = load_all_corpora(repo_root).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            for c in selected_corpora(&reg, &corpus).map_err(|e| anyhow::anyhow!(e.to_string()))? {
+                let output_file = repo_root.join(&c.graph_path);
+                if let Some(corpus_dir) = output_file.parent() {
+                    let removed = vox_graphify_reader::snapshot::prune_snapshots(corpus_dir, keep)
+                        .map_err(|e| anyhow::anyhow!("prune {}: {e}", c.id))?;
+                    println!("gc {} kept<= {keep} removed={removed}", c.id);
                 }
             }
         }
