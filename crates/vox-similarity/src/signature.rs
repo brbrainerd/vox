@@ -46,16 +46,19 @@ pub fn simhash64(shingles: &[String]) -> u64 {
     out
 }
 
-/// MinHash with `num_hashes` independent blake3-seeded hash functions.
+/// MinHash with `num_hashes` lanes derived from ONE blake3 per shingle via
+/// double-hashing (`a + i·b`). Deterministic; ~num_hashes× fewer blake3 calls
+/// than per-(shingle,lane) hashing.
 pub fn minhash(shingles: &[String], num_hashes: usize) -> Vec<u32> {
     let mut mins = vec![u32::MAX; num_hashes];
     for s in shingles {
+        let h = blake3::hash(s.as_bytes());
+        let bytes = h.as_bytes();
+        let a = u32::from_le_bytes(bytes[0..4].try_into().unwrap());
+        // force `b` odd so lanes don't collapse (i·b stays well-distributed mod 2^32)
+        let b = u32::from_le_bytes(bytes[4..8].try_into().unwrap()) | 1;
         for (i, slot) in mins.iter_mut().enumerate() {
-            let mut hasher = blake3::Hasher::new();
-            hasher.update(&(i as u32).to_le_bytes());
-            hasher.update(s.as_bytes());
-            let h = hasher.finalize();
-            let v = u32::from_le_bytes(h.as_bytes()[0..4].try_into().unwrap());
+            let v = a.wrapping_add((i as u32).wrapping_mul(b));
             if v < *slot {
                 *slot = v;
             }
@@ -129,5 +132,16 @@ mod tests {
         let a = Signature::from_text("repeat me", 2, 32);
         let b = Signature::from_text("repeat me", 2, 32);
         assert_eq!(a, b);
+    }
+
+    #[test]
+    fn minhash_is_deterministic_and_multi_lane() {
+        let sh = shingle("the quick brown fox jumps over the lazy dog", 2);
+        let a = minhash(&sh, 64);
+        let b = minhash(&sh, 64);
+        assert_eq!(a, b, "deterministic");
+        assert_eq!(a.len(), 64);
+        // not all lanes identical (double-hashing spreads them)
+        assert!(a.windows(2).any(|w| w[0] != w[1]), "lanes must differ");
     }
 }
