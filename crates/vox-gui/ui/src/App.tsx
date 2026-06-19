@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } 
 import { invoke } from '@tauri-apps/api/core';
 import { AppShell } from './components/layout/AppShell';
 import { SidebarMode } from './components/layout/Sidebar';
+import { AttentionStrip } from './components/layout/AttentionStrip';
 import { type HudMode } from './components/layout/TopHud';
 import { renderSurfaceView } from './components/layout/surfaceComponents';
 import { resolveNavigation, parseViewFromLocation, syncViewToLocation } from './lib/navigation';
@@ -1042,6 +1043,7 @@ export default function App() {
 
   return (
     <>
+      <AttentionStrip budget={orchQuery.data?.attention_budget} waitingQuestions={0} blockedTasks={0} />
       <AppShell
         activeView={activeView}
         onNavigate={(v) => navigateTo(v)}
