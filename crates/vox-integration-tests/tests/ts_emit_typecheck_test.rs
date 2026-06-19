@@ -235,3 +235,181 @@ fn all_golden_fixtures_emit_valid_typescript() {
         vox_files.len()
     );
 }
+
+/// Resolve the local `tsc` binary (preferring `node_modules/.bin`) and run
+/// `tsc --noEmit --project <tsconfig>` from `scratch`. Shared by the gated-admin
+/// test below; mirrors the inline invocation in the golden-fixture test.
+fn run_tsc_noemit(scratch: &Path, tsconfig_path: &Path) -> std::process::Output {
+    let tsc_bin = {
+        let local_tsc_cmd = scratch.join("node_modules").join(".bin").join("tsc.cmd");
+        let local_tsc = scratch.join("node_modules").join(".bin").join("tsc");
+        if cfg!(target_os = "windows") && local_tsc_cmd.exists() {
+            local_tsc_cmd
+        } else if local_tsc.exists() {
+            local_tsc
+        } else {
+            PathBuf::from("npx")
+        }
+    };
+    if cfg!(target_os = "windows") && tsc_bin.extension().is_some_and(|e| e == "cmd") {
+        // vox-arch-check: allow shell-spawn
+        Command::new("cmd")
+            .arg("/C")
+            .arg(&tsc_bin)
+            .arg("--noEmit")
+            .arg("--project")
+            .arg(tsconfig_path)
+            .current_dir(scratch)
+            .output()
+            .expect("Failed to spawn tsc.cmd — is node/pnpm installed in ts-noemit-scratch/?")
+    } else {
+        Command::new(&tsc_bin)
+            .arg("--noEmit")
+            .arg("--project")
+            .arg(tsconfig_path)
+            .current_dir(scratch)
+            .output()
+            .expect("Failed to spawn tsc — is node/pnpm installed in ts-noemit-scratch/?")
+    }
+}
+
+/// Strict tsconfig (matches the golden-fixture test) for an isolated emit dir.
+fn emit_tsconfig_json() -> serde_json::Value {
+    serde_json::json!({
+        "compilerOptions": {
+            "target": "ES2022",
+            "module": "ESNext",
+            "moduleResolution": "bundler",
+            "strict": true,
+            "noEmit": true,
+            "jsx": "react-jsx",
+            "skipLibCheck": true,
+            "esModuleInterop": true,
+            "isolatedModules": true,
+            "lib": ["ES2022", "DOM", "DOM.Iterable"]
+        },
+        "include": ["./**/*.ts", "./**/*.tsx"]
+    })
+}
+
+/// AGH-0005 regression gate: the opt-in admin UI (`VOX_EMIT_ADMIN=1`) emits
+/// TypeScript that actually type-checks. The original Track A code emitted the
+/// Convex idiom (`useQuery(api.<t>.list)`, `row._id`, `api.<t>.upsert`) with no
+/// imports — non-compiling — and because the feature is gated off by default,
+/// the golden-fixture gate above never exercised it. This test SETS the gate and
+/// a temp registry that allows the table, then runs `tsc --noEmit` over the
+/// emitted admin output. See docs/superpowers/antigravity-handoff-ledger.md §C
+/// AGH-0005.
+#[test]
+#[ignore = "requires node/npx in PATH; run explicitly with: cargo test -p vox-integration-tests --test ts_emit_typecheck_test -- --ignored --nocapture — owner: integration-tests sunset: 2026-12-31"]
+fn admin_output_typechecks_when_gated() {
+    use vox_compiler::hir::nodes::DefId;
+    use vox_compiler::hir::{HirModule, HirTable, HirTableField, HirType};
+
+    let scratch = scratch_dir();
+    assert!(
+        scratch.join("node_modules").exists(),
+        "node_modules missing in ts-noemit-scratch/. Run: pnpm install --frozen-lockfile (from that directory)"
+    );
+
+    // Build HIR directly: `table User { name: string, email: email }`.
+    let span = vox_compiler::ast::span::Span::new(0, 0);
+    let table = HirTable {
+        id: DefId(0),
+        name: "User".into(),
+        fields: vec![
+            HirTableField {
+                name: "name".into(),
+                type_ann: HirType::Named("string".into()),
+                span,
+            },
+            HirTableField {
+                name: "email".into(),
+                type_ann: HirType::Named("email".into()),
+                span,
+            },
+        ],
+        primary_key: None,
+        is_extern: false,
+        source: None,
+        is_pub: true,
+        is_deprecated: false,
+        span,
+    };
+    let mut hir = HirModule::default();
+    hir.tables = vec![table];
+
+    // Isolated emit dir + a temp registry that opts the table in.
+    let emit_dir = scratch.join("__admin_emit_test__");
+    if emit_dir.exists() {
+        std::fs::remove_dir_all(&emit_dir).expect("clean __admin_emit_test__");
+    }
+    std::fs::create_dir_all(&emit_dir).expect("create __admin_emit_test__");
+    let registry_path = emit_dir.join("admin-registry.yaml");
+    std::fs::write(&registry_path, "admin_tables:\n  - User\n").expect("write registry");
+
+    // Enable the gate + point at our registry; disable the WebIR validate gate
+    // for isolation (same pattern as compile_to_ts). nextest runs each test in
+    // its own process, so these env writes don't leak across tests.
+    unsafe {
+        std::env::set_var("VOX_EMIT_ADMIN", "1");
+        std::env::set_var("VOX_ADMIN_REGISTRY", &registry_path);
+        std::env::set_var("VOX_WEBIR_VALIDATE", "0");
+    }
+    let opts = CodegenOptions {
+        tanstack_start: false,
+        target: None,
+        mode: BuildMode::App,
+        ..Default::default()
+    };
+    let result = generate_with_options(&hir, opts);
+    unsafe {
+        std::env::remove_var("VOX_EMIT_ADMIN");
+        std::env::remove_var("VOX_ADMIN_REGISTRY");
+        std::env::remove_var("VOX_WEBIR_VALIDATE");
+    }
+    let output = result.expect("admin codegen");
+
+    // Sanity: the admin component is present and NOT the regressed Convex idiom.
+    let forms = output
+        .files
+        .iter()
+        .find(|(n, _)| n == "forms.tsx")
+        .map(|(_, c)| c.clone())
+        .unwrap_or_default();
+    assert!(
+        forms.contains("export function UserList()"),
+        "admin output not emitted under VOX_EMIT_ADMIN=1:\n{forms}"
+    );
+    assert!(
+        !forms.contains("useQuery(api"),
+        "regressed to the Convex idiom:\n{forms}"
+    );
+
+    // Write all .ts/.tsx + a strict tsconfig, then type-check.
+    for (name, content) in &output.files {
+        if name.ends_with(".ts") || name.ends_with(".tsx") {
+            std::fs::write(emit_dir.join(name), content)
+                .unwrap_or_else(|e| panic!("write {name}: {e}"));
+        }
+    }
+    let tsconfig_path = emit_dir.join("tsconfig.json");
+    std::fs::write(
+        &tsconfig_path,
+        serde_json::to_string_pretty(&emit_tsconfig_json()).unwrap(),
+    )
+    .expect("write tsconfig.json");
+
+    let tsc = run_tsc_noemit(&scratch, &tsconfig_path);
+    let stdout = String::from_utf8_lossy(&tsc.stdout);
+    let stderr = String::from_utf8_lossy(&tsc.stderr);
+    assert!(
+        tsc.status.success(),
+        "tsc --noEmit failed over gated admin output.\nExit: {:?}\nstdout:\n{stdout}\nstderr:\n{stderr}\nEmitted in: {}",
+        tsc.status.code(),
+        emit_dir.display()
+    );
+
+    let _ = std::fs::remove_dir_all(&emit_dir);
+    println!("tsc --noEmit passed for gated admin output.");
+}
