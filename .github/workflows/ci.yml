@@ -911,12 +911,24 @@ jobs:
 
       - name: Dependency cycle gate
         if: needs.setup.outputs.full == 'true'
-        run: ./target/debug/vox --quiet ci dep-cycles
+        run: ./target/debug/vox --quiet ci dep-cycles --deny-new
 
       - name: Crate build/dependency audit (refresh leaf-design map)
         if: needs.setup.outputs.full == 'true'
         run: ./target/debug/vox --quiet run --mode interp scripts/crate-build-audit.vox
         continue-on-error: true
+
+      - name: Crate-build-map parity gate
+        if: needs.setup.outputs.full == 'true'
+        run: ./target/debug/vox --quiet ci crate-build-map-parity
+
+      - name: Crate blast-radius budget gate
+        if: needs.setup.outputs.full == 'true'
+        run: ./target/debug/vox --quiet ci crate-budget
+
+      - name: Fan-in budget gate
+        if: needs.setup.outputs.full == 'true'
+        run: ./target/debug/vox --quiet ci fan-in-budget
 
       - name: Plugin-candidacy classifier (advisory — non-gating)
         if: needs.setup.outputs.full == 'true'
