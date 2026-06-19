@@ -152,10 +152,24 @@ pub fn rebuild_graph(
         })
         .collect();
 
-    let final_graph = serde_json::json!({
+    let structural_graph = serde_json::json!({
         "nodes": nodes_val,
         "links": links_val
     });
+    let final_graph = if meta.extraction_mode.as_deref() == Some("modules") {
+        super::lens::collapse_to_modules(&structural_graph)
+    } else {
+        structural_graph
+    };
+    let node_count = final_graph["nodes"]
+        .as_array()
+        .map(|a| a.len())
+        .unwrap_or(0);
+    let edge_count = final_graph["links"]
+        .as_array()
+        .map(|a| a.len())
+        .unwrap_or(0);
+
     if let Some(parent) = output_file.parent() {
         fs::create_dir_all(parent)?;
     }
@@ -172,8 +186,8 @@ pub fn rebuild_graph(
         "built_at": meta.built_at_rfc3339,
         "git_sha": meta.git_sha,
         "scope_path": meta.scope_path,
-        "node_count": nodes_val.len(),
-        "edge_count": links_val.len(),
+        "node_count": node_count,
+        "edge_count": edge_count,
         "graph_json_sha256": graph_digest,
         "extraction_mode": meta.extraction_mode,
     });

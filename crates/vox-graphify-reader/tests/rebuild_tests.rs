@@ -113,3 +113,44 @@ fn ambiguous_and_self_calls_are_dropped() {
     .unwrap();
     assert_eq!(read_graph(&out)["links"].as_array().unwrap().len(), 0);
 }
+
+#[test]
+fn modules_mode_produces_module_graph() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = tmp.path().join("src");
+    fs::create_dir_all(&src).unwrap();
+    fs::write(src.join("a.rs"), "fn alpha() { beta(); gamma(); }").unwrap();
+    fs::write(src.join("b.rs"), "fn beta() {} fn gamma() {}").unwrap();
+
+    let out = tmp.path().join("out/graph.json");
+    let cache = tmp.path().join("out/file_cache");
+    let meta = RebuildMeta {
+        corpus_id: "test-corpus".to_string(),
+        git_sha: Some("abc123".to_string()),
+        scope_path: "src".to_string(),
+        extraction_mode: Some("modules".to_string()),
+        built_at_rfc3339: "2026-06-18T00:00:00+00:00".to_string(),
+    };
+    rebuild_graph(tmp.path(), &src, &out, &cache, &meta).unwrap();
+
+    let g = read_graph(&out);
+    let nodes = g["nodes"].as_array().unwrap();
+    let links = g["links"].as_array().unwrap();
+
+    let mut ids: Vec<&str> = nodes.iter().map(|n| n["id"].as_str().unwrap()).collect();
+    ids.sort();
+    assert_eq!(ids, vec!["a.rs", "b.rs"]);
+
+    assert_eq!(links.len(), 1);
+    assert_eq!(links[0]["source"], "a.rs");
+    assert_eq!(links[0]["target"], "b.rs");
+    assert_eq!(links[0]["weight"], 2);
+
+    // Verify manifest count updates
+    let m: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(tmp.path().join("out/.graphify_manifest.v1.json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(m["node_count"], 2);
+    assert_eq!(m["edge_count"], 1);
+}
