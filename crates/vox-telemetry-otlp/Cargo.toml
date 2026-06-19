@@ -1,0 +1,32 @@
+[package]
+name = "vox-telemetry-otlp"
+description = "Feature-gated OTLP exporter for vox-telemetry: redacts at egress and ships events as OTLP LogRecords. Compiles to a no-op shim unless the `remote` feature is on."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[features]
+default = []
+# Pure core (project/redact/otlp_json) ALWAYS compiles — serde only, zero network.
+# `remote` adds ONLY the async uploader (the compile-out unit). We hand-encode the OTLP/HTTP
+# logs JSON envelope, so NO `opentelemetry*` SDK deps are needed here (they are traces-only in
+# the workspace pin and dragging the `logs` feature in would be a workspace-global change).
+remote = ["dep:reqwest", "dep:governor", "dep:tokio"]
+
+[dependencies]
+vox-telemetry = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+reqwest = { workspace = true, optional = true }
+governor = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
+workspace-hack = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

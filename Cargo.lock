@@ -16878,10 +16878,25 @@ dependencies = [
  "serde",
  "serde_json",
  "serial_test",
+ "tempfile",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
  "uuid",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vox-telemetry-otlp"
+version = "0.6.0"
+dependencies = [
+ "governor",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "vox-telemetry",
  "workspace-hack",
 ]
 

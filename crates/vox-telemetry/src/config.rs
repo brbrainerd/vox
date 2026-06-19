@@ -218,6 +218,153 @@ impl Default for TelemetryConfig {
     }
 }
 
+// ─── Remote consent + installation identity (Track B3) ───────────────────────
+
+/// User's opt-in/opt-out state for remote telemetry upload.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConsentState {
+    /// Not yet decided (first-run prompt not yet shown).
+    Unset,
+    /// User has explicitly opted in.
+    Granted,
+    /// User has explicitly opted out.
+    Denied,
+}
+
+/// Returns true if remote telemetry upload is currently allowed.
+///
+/// `true` iff the master switch is enabled AND the user has explicitly granted
+/// remote consent. An `Unset` consent state (first-run prompt not yet shown)
+/// is treated as `Denied` (conservative default — nothing goes out).
+pub fn is_remote_allowed() -> bool {
+    is_master_enabled() && matches!(remote_consent(), ConsentState::Granted)
+}
+
+/// Read the persisted consent state from `~/.config/vox/remote-consent`.
+///
+/// File contents: `"granted"` or `"denied"`. Any other value (including a
+/// missing file) returns `Unset`.
+pub fn remote_consent() -> ConsentState {
+    let path = vox_config_dir().join("remote-consent");
+    match std::fs::read_to_string(&path) {
+        Ok(s) => match s.trim() {
+            "granted" => ConsentState::Granted,
+            "denied" => ConsentState::Denied,
+            _ => ConsentState::Unset,
+        },
+        Err(_) => ConsentState::Unset,
+    }
+}
+
+/// Persist a consent decision to `~/.config/vox/remote-consent`.
+///
+/// Errors are silently swallowed — failing to write consent must never crash
+/// the application. If the write fails, `remote_consent()` will keep returning
+/// `Unset` on the next call, which means nothing is uploaded (fail-closed).
+pub fn set_remote_consent(state: ConsentState) {
+    let path = vox_config_dir().join("remote-consent");
+    let content = match state {
+        ConsentState::Granted => "granted",
+        ConsentState::Denied => "denied",
+        ConsentState::Unset => return, // no-op for Unset
+    };
+    let _ = ensure_vox_config_dir();
+    let _ = std::fs::write(&path, content);
+}
+
+/// Return (or create and persist) a stable per-installation UUID.
+///
+/// Stored at `~/.config/vox/install-id` as a plain UUID string. On first
+/// call the file is created; subsequent calls return the cached value.
+/// Never panics — if reading/writing fails, returns a random UUID for this
+/// process invocation only (not persisted).
+pub fn install_id() -> String {
+    let path = vox_config_dir().join("install-id");
+    if let Ok(s) = std::fs::read_to_string(&path) {
+        let s = s.trim().to_string();
+        if !s.is_empty() {
+            return s;
+        }
+    }
+    // First time (or stale/empty file): generate + persist.
+    let id = uuid::Uuid::new_v4().to_string();
+    let _ = ensure_vox_config_dir();
+    let _ = std::fs::write(&path, &id);
+    id
+}
+
+/// Return (or create and persist) a 16-byte installation salt.
+///
+/// Stored at `~/.config/vox/install-salt` as 32 hex characters. The salt is
+/// used by `vox-telemetry-otlp` to hash session-id suffixes before upload;
+/// the salt itself is NEVER uploaded. If reading/writing fails, returns a
+/// random salt for this process invocation only.
+pub fn install_salt() -> [u8; 16] {
+    let path = vox_config_dir().join("install-salt");
+    if let Ok(s) = std::fs::read_to_string(&path) {
+        let s = s.trim();
+        if s.len() == 32 {
+            if let Ok(bytes) = hex_decode_16(s) {
+                return bytes;
+            }
+        }
+    }
+    // Generate via a UUID v4 (16 random bytes).
+    let salt = *uuid::Uuid::new_v4().as_bytes();
+    let hex: String = salt.iter().map(|b| format!("{b:02x}")).collect();
+    let _ = ensure_vox_config_dir();
+    let _ = std::fs::write(&path, &hex);
+    salt
+}
+
+fn vox_config_dir() -> std::path::PathBuf {
+    #[cfg(windows)]
+    {
+        if let Some(appdata) = std::env::var_os("APPDATA") {
+            return std::path::PathBuf::from(appdata).join("vox");
+        }
+        // vox-arch-check: allow abs-path
+        std::path::PathBuf::from(r"C:\Users\Default\AppData\Roaming\vox")
+    }
+    #[cfg(not(windows))]
+    {
+        if let Some(xdg) = std::env::var_os("XDG_CONFIG_HOME") {
+            return std::path::PathBuf::from(xdg).join("vox");
+        }
+        if let Some(home) = std::env::var_os("HOME") {
+            return std::path::PathBuf::from(home).join(".config").join("vox");
+        }
+        // vox-arch-check: allow abs-path
+        std::path::PathBuf::from("/etc/vox")
+    }
+}
+
+fn ensure_vox_config_dir() -> std::io::Result<()> {
+    std::fs::create_dir_all(vox_config_dir())
+}
+
+fn hex_decode_16(s: &str) -> Result<[u8; 16], ()> {
+    let mut out = [0u8; 16];
+    if s.len() != 32 {
+        return Err(());
+    }
+    for (i, chunk) in s.as_bytes().chunks(2).enumerate() {
+        let hi = hex_nibble(chunk[0]).ok_or(())?;
+        let lo = hex_nibble(chunk[1]).ok_or(())?;
+        out[i] = (hi << 4) | lo;
+    }
+    Ok(out)
+}
+
+fn hex_nibble(b: u8) -> Option<u8> {
+    match b {
+        b'0'..=b'9' => Some(b - b'0'),
+        b'a'..=b'f' => Some(b - b'a' + 10),
+        b'A'..=b'F' => Some(b - b'A' + 10),
+        _ => None,
+    }
+}
+
 // ─── Layer 2: user config ─────────────────────────────────────────────────────
 
 /// Parsed `~/.config/vox/config.toml` `[telemetry]` section. Every field is

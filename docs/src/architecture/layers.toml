@@ -85,6 +85,11 @@ crate    = "vox-code-audit"
 forbidden = ["vox-search", "tantivy", "qdrant"]
 reason   = "vox-code-audit detectors must not pull search/vector deps (build-time neutrality)"
 
+[[forbidden_deps]]
+crate    = "vox-telemetry-otlp"
+forbidden = ["vox-orchestrator", "vox-cli", "vox-gui"]
+reason   = "egress crate must not depend up into surfaces; surfaces register it, not vice-versa"
+
 [crates]
 vox-scientia = { layer = 3, staleness_exempt = true, max_loc = 15_000 }  # umbrella: +8 SCIENTIA sub-crates folded in (was ~2.5K, now ~8.8K)
 
@@ -123,6 +128,7 @@ vox-plugin-sdk        = { layer = 1 }                            # authoring SDK
 vox-plugin-types      = { layer = 1 }                            # pure-types L1 leaf
 vox-research-events    = { layer = 1 }                            # SCIENTIA typed event bus (Phase 0b)
 vox-telemetry         = { layer = 1 }                            # L1 telemetry facade; zero domain deps
+vox-telemetry-otlp    = { layer = 3, max_loc = 3_000 }           # L3 feature-gated OTLP egress; only surfaces register it (never domain crates)
 vox-runtime           = { layer = 2, max_dependents = 20 }       # umbrella runtime: RuntimeProfile + lifecycle traits + VoxConfig; deps vox-config
 
 # ── L2 — domain libraries ─────────────────────────────────────────────────────
