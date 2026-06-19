@@ -120,7 +120,22 @@ export interface OrchestratorStatus {
   budget_cap?: number;
   mesh_throughput?: number;
   total_vram_gb?: number;
+  /** Present when the daemon reports the live attention budget (Track D). */
+  attention_budget?: AttentionBudgetSnapshot | null;
 }
+
+/** Flat attention-budget snapshot (Rust `AttentionBudget`), surfaced via the orchestrator status stream. */
+export interface AttentionBudgetSnapshot {
+  max_attention_ms: number;
+  spent_ms: number;
+  total_requests: number;
+  auto_approved: number;
+  rejected: number;
+  interrupt_freq_per_hour: number;
+  last_interrupt_ms: number;
+  inbox_suppressed_count: number;
+}
+
 
 export interface CommandCatalog {
   generated_from?: string;
