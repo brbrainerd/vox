@@ -104,7 +104,7 @@ pub use vox_cli_core::init_tracing_for_cli;
 #[command(
     name = "vox",
     about = "The Vox AI-native language compiler",
-    long_about = "The Vox AI-native language compiler.\n\nDiscover commands dynamically:\n  vox commands --recommended\n  vox commands --format json --include-nested\n\nVisualization:\n  vox gui           — launch the native agent dashboard and command catalog",
+    long_about = "The Vox AI-native language compiler.\n\nDiscover commands dynamically:\n  vox commands --recommended\n  vox commands --format json --include-nested\n\nVisualization:\n  vox gui (alias: vox axis)   — launch Axis, the native Vox GUI dashboard & catalog",
     version = VOX_VERSION
 )]
 pub struct VoxCliRoot {

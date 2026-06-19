@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 pub async fn run(args: crate::cli_args::GuiArgs) -> Result<()> {
-    tracing::info!("Launching Vox Native GUI...");
+    tracing::info!("Launching Vox Axis (Axis) — the native Vox GUI…");
 
     let mut cmd = if cfg!(debug_assertions) {
         let mut c = Command::new("cargo");
