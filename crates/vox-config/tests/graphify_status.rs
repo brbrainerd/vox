@@ -37,8 +37,8 @@ fn load_graphify_corpora_reads_workspace_contract() {
     assert_eq!(reg.ttl_days_default, 30);
     assert_eq!(
         reg.corpora.len(),
-        4,
-        "expected 4 corpora after adding graphify-search-log"
+        5,
+        "expected 5 corpora after adding graphify-search-log"
     );
     assert!(
         reg.corpora.iter().any(|c| c.id == "graphify-search-log"),
