@@ -160,6 +160,10 @@ fn build_and_package_binary(
     if package_name == "vox-cli" {
         cmd.args(["--features", "heavy-retrieval"]);
     }
+    // Bake the resolved release/nightly version into the binary (read by
+    // `VOX_VERSION` via `option_env!`). Without this, `vox --version` on a
+    // nightly artifact would print the workspace dev version, not the tag.
+    cmd.env("VOX_VERSION_OVERRIDE", artifact_version);
     let status = cmd
         .status()
         .with_context(|| format!("spawn cargo build for {package_name} release artifact"))?;
