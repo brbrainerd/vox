@@ -4,8 +4,7 @@
 //! without needing access to the source repository.
 
 /// The distribution SSOT, embedded at compile time.
-pub const PROFILES_YAML: &str =
-    include_str!("../../../contracts/distribution/profiles.v1.yaml");
+pub const PROFILES_YAML: &str = include_str!("../../../contracts/distribution/profiles.v1.yaml");
 
 use serde::Deserialize;
 
@@ -39,12 +38,16 @@ pub fn parse(yaml: &str) -> Result<Profiles, serde_yaml::Error> {
 }
 
 /// Extract `versions.rust` from a workspace-toolchain.v1.yaml document.
+// Used by crates/voxup/tests/distribution_parity.rs; clippy can't see cross-unit usage.
+#[allow(dead_code)]
 pub fn toolchain_rust_version(yaml: &str) -> Option<String> {
     let v: serde_yaml::Value = serde_yaml::from_str(yaml).ok()?;
     v["versions"]["rust"].as_str().map(String::from)
 }
 
 /// Extract the top-level `crates = [...]` string array from `_public.toml`.
+// Used by crates/voxup/tests/distribution_parity.rs; clippy can't see cross-unit usage.
+#[allow(dead_code)]
 pub fn public_toml_crates(toml_text: &str) -> Vec<String> {
     let v: toml::Value = match toml::from_str(toml_text) {
         Ok(v) => v,
@@ -61,6 +64,8 @@ pub fn public_toml_crates(toml_text: &str) -> Vec<String> {
 }
 
 /// True iff a Cargo.toml sets `[package] publish = false`.
+// Used by crates/voxup/tests/distribution_parity.rs; clippy can't see cross-unit usage.
+#[allow(dead_code)]
 pub fn cargo_publish_is_false(cargo_toml_text: &str) -> bool {
     let v: toml::Value = match toml::from_str(cargo_toml_text) {
         Ok(v) => v,

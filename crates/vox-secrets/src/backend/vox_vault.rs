@@ -1349,12 +1349,11 @@ fn compute_account_secret_checksum(
 }
 
 fn hash_master_password(pw: &str) -> [u8; 32] {
-    if pw.len() == 64 {
-        if let Ok(bytes) = hex::decode(pw) {
-            if let Ok(arr) = bytes.try_into() {
-                return arr;
-            }
-        }
+    if pw.len() == 64
+        && let Ok(bytes) = hex::decode(pw)
+        && let Ok(arr) = bytes.try_into()
+    {
+        return arr;
     }
     secure_hash(pw.as_bytes())
 }
@@ -1389,11 +1388,12 @@ pub(crate) fn derive_master_key_with_fallback(
     if let Some(parent) = fallback_path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| SecretError::Io(e.to_string()))?;
     }
-    std::fs::write(fallback_path, &key).map_err(|e| SecretError::Io(e.to_string()))?;
+    std::fs::write(fallback_path, key).map_err(|e| SecretError::Io(e.to_string()))?;
     let _ = entry.set_password(&hex::encode(key));
     Ok(key)
 }
 
+#[allow(dead_code)]
 fn derive_master_key() -> Result<[u8; 32], SecretError> {
     let fallback_path = crate::sources::auth_json::vox_dir().join(".vox-master-key");
     derive_master_key_with_fallback(&fallback_path)

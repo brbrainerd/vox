@@ -220,7 +220,7 @@ fn replace_file(src: &Path, dst: &Path) -> Result<()> {
             if old_path.exists() {
                 let _ = fs::remove_file(&old_path);
             }
-            if let Err(_) = fs::rename(dst, &old_path) {
+            if fs::rename(dst, &old_path).is_err() {
                 fs::remove_file(dst).with_context(|| format!("remove {}", dst.display()))?;
             } else {
                 let _ = fs::remove_file(&old_path); // try deleting non-blocking/best-effort

@@ -49,7 +49,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-ast`](../../../crates/vox-ast/) | Pure-data Vox AST (decl/expr/stmt/pattern/types/scalar_mapping/span); serde-only L0 leaf extracted from `vox-compiler` and re-exported there as `vox_compiler::ast`. Depend on this (not `vox-compiler`) if you only need the declaration AST — e.g. `vox-db`'s DDL emitter. |
 | [`vox-build-meta`](../../../crates/vox-build-meta/) | Build-time helper emitting `VOX_BUILD_NUMBER` / `VOX_GIT_HASH`; use as `[build-dependencies]` only. |
 | [`vox-db-types`](../../../crates/vox-db-types/) | Pure-data L0 leaf for vox-db: row types, IDs, schema descriptors. |
-| [`vox-llm-config`](../../../crates/vox-llm-config/) | SSOT for LLM/AI setting-key metadata; pure-data, zero workspace dependencies. |
+| [`vox-llm-config`](../../../crates/vox-llm-config/) | SSOT for LLM/AI setting-key metadata; pure-data, zero workspace deps. |
 | [`vox-mesh-types`](../../../crates/vox-mesh-types/) | Pure-data mesh transport types. |
 | [`vox-orchestrator-types`](../../../crates/vox-orchestrator-types/) | Pure-data L0 leaf for vox-orchestrator: agent/task IDs, file affinity, switch actions, provider catalogs, VCS capability tokens (WorkingTreeWrite, BranchCreate, etc.). |
 | [`workspace-hack`](../../../crates/workspace-hack/) | Cargo-hakari unification crate; do not edit by hand. |
@@ -96,6 +96,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-journal`](../../../crates/vox-journal/) | Generic append-only JSON Lines file journal; crash-safe via per-record sync_data (default) or deferred-to-lifecycle sync for the mobile profile, replays on open. Durable substrate for workflow/actor runtimes and the mobile vox-runtime-rn (deps vox-runtime). |
 | [`vox-effort-audit`](../../../crates/vox-effort-audit/) | AI-judged audit of git commit history; walks commits, calls model-agnostic judge facade, emits ranked findings JSONL + report. CLI: `vox audit effort`. |
 | [`vox-effort-route`](../../../crates/vox-effort-route/) | Routes effort-audit findings to verified, drafted enforcement artifacts (AGENTS.md rule / lint detector spec / arch rule / CI gate / corpus example / Vox script). CLI: `vox audit effort-route`. |
+| [`vox-llm-egress`](../../../crates/vox-llm-egress/) | Sanctioned LLM provider wire; pure egress (deps = vox-http-client + reqwest), no config/secret resolution. |
 | [`vox-mcp-registry`](../../../crates/vox-mcp-registry/) | Compile-time MCP tool name/description registry from contracts YAML (SSOT). |
 | [`vox-llm-egress`](../../../crates/vox-llm-egress/) | Sanctioned LLM provider wire; pure egress, no config/secret resolution. |
 | [`vox-project-scaffold`](../../../crates/vox-project-scaffold/) | Shared Vox.toml + src/main.vox + skill scaffolding for vox init and MCP. |
