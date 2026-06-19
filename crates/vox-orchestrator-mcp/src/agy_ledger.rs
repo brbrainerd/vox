@@ -2,6 +2,7 @@
 //! §C schema in docs/superpowers/antigravity-handoff-ledger.md. Serialized so
 //! concurrent workers cannot collide on ids or lose appends.
 
+use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::OnceLock;
 
@@ -67,6 +68,46 @@ pub fn render_entry(id: &str, e: &LedgerEntry) -> String {
         id = id, date = e.date, subsystem = e.subsystem, outcome = e.outcome,
         files = e.files_changed, task = task_yaml, errors = errors, verification = verification,
     )
+}
+
+/// Stable §B + exec category vocabulary the digest tallies.
+pub const KNOWN_CATEGORIES: &[&str] = &[
+    "hallucinated-api", "wrong-path", "wrong-crate", "arch-check-gate", "fmt-gate",
+    "build-gate", "branch-hygiene", "scope-creep", "already-done", "perf", "robustness",
+    "test-hygiene", "unplanned-shared-change", "ssot-fork", "unit-mismatch",
+    "timeout", "quota", "error",
+];
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct LedgerDigest {
+    pub total_entries: usize,
+    pub category_counts: BTreeMap<String, usize>,
+}
+
+/// Pure: tally entries + category frequencies from raw ledger text.
+pub fn digest_from_body(body: &str) -> LedgerDigest {
+    let mut total = 0usize;
+    let mut counts: BTreeMap<String, usize> = BTreeMap::new();
+    for line in body.lines() {
+        let t = line.trim();
+        if t.starts_with("# --- AGH-") && !t.contains("-review") && !t.contains("AGH-NNNN") {
+            total += 1;
+        }
+        if t.contains("categor") {
+            for cat in KNOWN_CATEGORIES {
+                if t.contains(cat) {
+                    *counts.entry((*cat).to_string()).or_insert(0) += 1;
+                }
+            }
+        }
+    }
+    LedgerDigest { total_entries: total, category_counts: counts }
+}
+
+/// Read the on-disk ledger and digest it.
+pub fn ledger_digest(repo_root: &Path) -> std::io::Result<LedgerDigest> {
+    let body = std::fs::read_to_string(repo_root.join(LEDGER_REL))?;
+    Ok(digest_from_body(&body))
 }
 
 /// The Claude-side adversarial review outcome for one handoff.
@@ -152,6 +193,26 @@ mod tests {
         let block = render_entry("AGH-0010", &e);
         assert!(block.contains("build: pass, test: pass"));
         assert!(!block.contains("tests: \"n/a\""));
+    }
+
+    #[test]
+    fn digest_counts_categories_and_entries() {
+        let body = "\
+# --- AGH-NNNN ---
+# --- AGH-0001 ---
+id: AGH-0001
+errors_encountered:
+  - { what: x, root_cause: y, category: \"hallucinated-api\", who: agent }
+# --- AGH-0001-review ---
+verdict: request-changes
+categories: [hallucinated-api, scope-creep]
+# --- AGH-0002 ---
+id: AGH-0002
+";
+        let d = digest_from_body(body);
+        assert_eq!(d.total_entries, 2); // AGH-0001 + AGH-0002 (sentinel + -review excluded)
+        assert_eq!(*d.category_counts.get("hallucinated-api").unwrap(), 2);
+        assert_eq!(*d.category_counts.get("scope-creep").unwrap(), 1);
     }
 
     #[tokio::test]
