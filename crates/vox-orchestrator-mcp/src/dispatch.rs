@@ -14,7 +14,7 @@ use crate::browser_tools;
 use crate::visus_tools;
 use crate::{
     agent_tools, benchmark_tools, chat_tools, code_validator, codex_tools, compiler_tools,
-    db_tools, exec_time_tools, git_tools, grammar_tools, introspection_tools, openclaw_tools,
+    db_tools, exec_time_tools, feedback_tools, git_tools, grammar_tools, introspection_tools, openclaw_tools,
     persistence_tools, populi_tools, project_init_tools, questioning_tools, rag_tools,
     repo_catalog_tools, repo_index, secrets_tools, task_tools, toestub_tools, tool_aliases,
     training_tools, trust_tools, vcs_tools,
@@ -428,6 +428,9 @@ async fn handle_tool_call_inner(
         }
         "vox_fail_task" => Ok(task_tools::fail_task(state, serde_json::from_value(args)?).await),
         "vox_doubt_task" => Ok(task_tools::doubt_task(state, serde_json::from_value(args)?).await),
+        "vox_ask_clarification" => Ok(feedback_tools::ask_clarification(state, serde_json::from_value(args)?).await),
+        "vox_resolve_feedback" => Ok(feedback_tools::resolve_feedback(state, serde_json::from_value(args)?).await),
+        "vox_feedback_list" => Ok(feedback_tools::feedback_list(state, serde_json::from_value(args)?).await),
         "vox_check_file_owner" => Ok(crate::dei_tools::check_file_owner(
             state,
             args.get("path").and_then(|v| v.as_str()).unwrap_or("."),
@@ -558,6 +561,9 @@ async fn handle_tool_call_inner(
         "vox_agy_delegate" => Ok(crate::agy_tools::vox_agy_delegate(state, args).await),
         "vox_agy_delegate_batch" => Ok(crate::agy_tools::vox_agy_delegate_batch(state, args).await),
         "vox_credentials_status" => Ok(crate::agy_tools::vox_credentials_status(state, args).await),
+        "vox_agy_pipeline" => Ok(crate::agy_pipeline::vox_agy_pipeline(state, args).await),
+        "vox_agy_review" => Ok(crate::agy_pipeline::vox_agy_review(state, args).await),
+        "vox_agy_ledger_digest" => Ok(crate::agy_pipeline::vox_agy_ledger_digest(state, args).await),
         "vox_graphify_status" => {
             Ok(crate::graphify_tools::graphify_status(state, serde_json::from_value(args)?).await)
         }
