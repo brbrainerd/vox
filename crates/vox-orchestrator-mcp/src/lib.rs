@@ -169,6 +169,7 @@ pub mod plugin_skills_bridge;
 pub mod server;
 pub mod agy_doctor;
 pub mod agy_exec;
+pub mod agy_worktree;
 pub mod agy_tools;
 
 pub use lifecycle::{load_config, mcp_agent_fleet_env_enabled, run_stdio_server_blocking};

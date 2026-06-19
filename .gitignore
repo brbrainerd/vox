@@ -102,6 +102,8 @@ populi/data/*.jsonl
 # Per-branch policy run-status overlay (Phase 1c): machine-specific, written by
 # `vox ci`/code-audit/arch gates per branch. Regenerated on every run; never commit.
 .vox/policy-status/
+# Antigravity delegation worktrees (ephemeral, per-delegation)
+/.vox/agy-worktrees/
 **/.vox/policy-status/
 # Crate-local `.vox/` state (orchestrator memory, etc.)
 crates/*/.vox/
