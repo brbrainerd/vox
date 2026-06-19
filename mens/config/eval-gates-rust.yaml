@@ -1,0 +1,17 @@
+version: "1"
+# Per-spoke eval gate for the Rust authoring/review spoke.
+# Source file map (written by the eval step, same convention as eval-gates.yaml):
+#   eval_results.json → rust_compile_rate, clippy_clean_rate
+#   review_metrics.json → review_recurrence (already produced by review pipeline)
+rust_compile_rate:
+  min_pct: 0.70
+  block: true
+clippy_clean_rate:
+  min_pct: 0.50
+  block: false
+review_recurrence:
+  max_repeated_finding_rate: 0.20
+  block: false
+supervised_ratio:
+  min_pct: 10.0
+  block: true
