@@ -56,6 +56,8 @@ pub fn run(
         .with_context(|| format!("create out dir {}", out_dir_abs.display()))?;
 
     let mut checksum_lines = Vec::new();
+    // When adding a new binary: update ALL_RELEASE_BINARIES + contracts/distribution/profiles.v1.yaml
+    // (the parity gate `all_package_matches_distribution_ssot` enforces their equality).
     let want_vox = matches!(package, ReleasePackage::Vox | ReleasePackage::All);
     let want_mens = matches!(package, ReleasePackage::Mens | ReleasePackage::All);
     let want_voxup = matches!(package, ReleasePackage::Voxup | ReleasePackage::All);

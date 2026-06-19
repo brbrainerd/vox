@@ -11,7 +11,9 @@ permissions:
 
 concurrency:
   group: nightly-release
-  cancel-in-progress: true
+  # Don't cancel in-progress: a second nightly dispatch that cancels a running publish
+  # can delete the rolling release tag mid-flight, leaving no nightly release at all.
+  cancel-in-progress: false
 
 jobs:
   gate:
@@ -38,16 +40,21 @@ jobs:
           echo "sha=${sha}" >> "$GITHUB_OUTPUT"
           echo "nightly_version=${nightly_version}" >> "$GITHUB_OUTPUT"
           echo "Resolved nightly version: ${nightly_version}"
-      - name: Require green combined status on HEAD
+      - name: Require green check-runs on HEAD
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           sha="${{ steps.resolve.outputs.sha }}"
-          state="$(gh api repos/${{ github.repository }}/commits/${sha}/status -q '.state')"
-          echo "Combined status for ${sha}: ${state}"
-          if [ "${state}" != "success" ]; then
-            echo "::error::main@${sha} is '${state}', not 'success' — aborting nightly."
+          # Use the check-runs API (not the legacy Commit Status API) — GitHub Actions
+          # results appear as check-runs, NOT as combined commit statuses.
+          pending="$(gh api "repos/${{ github.repository }}/commits/${sha}/check-runs" --paginate \
+            --jq '[.check_runs[] | select(.status != "completed")] | length')"
+          failed="$(gh api "repos/${{ github.repository }}/commits/${sha}/check-runs" --paginate \
+            --jq '[.check_runs[] | select(.status == "completed" and (.conclusion | IN("success","skipped","neutral") | not))] | length')"
+          echo "Check-runs on ${sha}: pending=${pending} failed=${failed}"
+          if [ "${pending}" != "0" ] || [ "${failed}" != "0" ]; then
+            echo "::error::main@${sha} is not green (pending=${pending}, failed=${failed}) — aborting nightly."
             exit 1
           fi
 

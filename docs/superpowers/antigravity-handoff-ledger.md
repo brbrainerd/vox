@@ -691,3 +691,38 @@ commits:
   - "ce23e76982"
   - "4017586a58"
 ```
+
+---
+
+```yaml
+# --- AGH-0019 (code review of AGH-0022 Track B delivery) ---
+id: AGH-0019
+date: "2026-06-19"
+plan: "code-review of Track B (AGH-0022)"
+subsystem: "Track B — release + nightly automation (install/release/publish program)"
+target: "Opus 4.8 code review"
+delivered:
+  - "FIXED: release-nightly.yml gate job resolve step 9-space indent → invalid YAML (ff6b4dd6b6)"
+  - "FIXED: release-binaries.yml redundant voxup Build/Package steps removed (now covered by --package all)"
+  - "FIXED: release-nightly.yml gate switches combined-status API → check-runs API (Actions results appear in check-runs not status)"
+  - "FIXED: release-nightly.yml cancel-in-progress changed to false (was: true, risked deleting rolling release mid-publish)"
+  - "IMPROVED: release_build.rs dispatch block now has cross-reference comment to ALL_RELEASE_BINARIES parity gate"
+outcome: "GREEN (all issues resolved forward)"
+errors_encountered:
+  - what: "Flash YAML indentation off by 1 (9-space vs 8-space) in gate job resolve step"
+    root_cause: "Flash has no local YAML parse step; indentation errors are invisible until GitHub rejects the workflow"
+    category: hallucination
+    who: agent
+  - what: "Flash used legacy Commit Status API instead of check-runs API"
+    root_cause: "Two separate GitHub APIs exist; Actions writes check-runs; Status API can return pending vacuously on Actions-only repos"
+    category: design
+    who: agent
+agent_deviations:
+  - "Redundant voxup build/package steps pre-existed in release-binaries.yml; Flash removed stale bootstrap/schola but left these"
+prompt_lessons:
+  - "Always add a YAML validation step in Flash handoffs that touch workflow files: 'python -c yaml.safe_load(open(f)); print(OK)' is cheap and catches indent errors Flash will miss."
+  - "When gating on CI green, explicitly name which GitHub API to use: check-runs (/commits/{sha}/check-runs) not the legacy Status API (/commits/{sha}/status). The two are separate; Actions writes check-runs only."
+  - "For rolling-release workflows: set cancel-in-progress=false or gate publish with a concurrency group that cannot be preempted. Canceling mid-publish orphans the release tag."
+commits:
+  - "ff6b4dd6b6"
+```
