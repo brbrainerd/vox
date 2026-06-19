@@ -6,6 +6,9 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
+readme = "README.md"
+keywords = ["cryptography", "ed25519", "chacha20", "blake3", "x25519"]
+categories = ["cryptography", "no-std"]
 
 [dependencies]
 blake3.workspace = true
