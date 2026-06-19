@@ -651,3 +651,43 @@ Gemini delivered the complete backend for the operator-curated allowed-model poo
 4. **`constants.rs` (vox-gamify)** — `OPENROUTER_FREE_MODELS` annotated as offline fallback only; dynamic free selection via pool `free` rule.
 
 Claude P2.2 follow-up committed `fcce0b5d4b`: `apply_pool()` wired at all 3 production `list_models()` sites in `select.rs`; `ModelSpec::to_pool_view()` in `spec.rs`. 891 orchestrator tests pass.
+
+---
+
+```yaml
+# --- AGH-0022 ---
+id: AGH-0022
+date: "2026-06-19"
+plan: "docs/superpowers/plans/2026-06-19-track-b-release-nightly-automation.md"
+subsystem: "Track B — release + nightly automation (install/release/publish program)"
+target: "Gemini 3.5 Flash (Antigravity)"
+delivered:
+  - "release_build.rs: ReleasePackage = {Vox, Mens, Voxup, All}; dead bootstrap/schola removed; All builds vox+vox-ml-cli+voxup"
+  - "VOX_VERSION honors VOX_VERSION_OVERRIDE; release-build forwards --version into it"
+  - "all_package_matches_distribution_ssot parity gate (ReleasePackage::All == SSOT binaries)"
+  - ".github/workflows/release-nightly.yml (green-main gate + rolling nightly pre-release)"
+  - "release-binaries.yml stale bootstrap/schola comment and smoke tests/upload paths corrected"
+  - "crates/vox-cli/src/commands/updates.rs: failure-silent update-available footer (pure logic tested)"
+outcome: "GREEN"
+verification: "cargo test -p vox-cli --lib commands::ci::release_build + commands::updates -> 12 passed"
+errors_encountered:
+  - what: "cargo build/test reported NativeCommandError under PowerShell"
+    root_cause: "PowerShell 5.1 treats stderr writes from native commands as errors when redirecting with >"
+    category: build-gate
+    who: environment
+agent_deviations: []
+followups:
+  - "Wire maybe_print_update_footer() into the interactive CLI dispatcher (one line; human chooses call site)."
+  - "GUI auto-updater (tauri-plugin-updater) deferred — own plan."
+  - "release-nightly.yml unproven until first scheduled/dispatch run."
+commits:
+  - "64e120340a"
+  - "7913501fec"
+  - "04d262f616"
+  - "6b036819a5"
+  - "0aae8ceb92"
+  - "e391fffc29"
+  - "325c9ee377"
+  - "ce23e76982"
+  - "4017586a58"
+```
