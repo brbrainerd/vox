@@ -19,6 +19,7 @@ pub mod config_registry_parity;
 mod contracts_index;
 mod coolify_eval;
 mod crate_budget;
+mod crate_build_map_parity;
 pub mod data_storage_guard;
 mod db_schema_coverage;
 mod dep_cycles;
