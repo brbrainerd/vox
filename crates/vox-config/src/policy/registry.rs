@@ -48,6 +48,7 @@ pub enum PolicyDomain {
     CodeAuditRule,
     ArchRule,
     WorkflowJob,
+    GuiDesignRule,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
