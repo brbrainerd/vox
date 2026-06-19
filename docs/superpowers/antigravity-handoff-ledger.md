@@ -590,3 +590,44 @@ Track E wired all 5 product-category events into the existing `record_event!` in
 Projection coverage gate: 10 tests in `projection_coverage.rs` verify canary-in → canary-out-is-dropped for all 6 Track E variants plus regression guards for ResearchMetric and ModelCall.
 
 Arch-check guardrail `no-otlp-in-emitters`: blocks future crates from taking a direct `vox-telemetry-otlp` dep (domain crates must use `record_event!` only).
+
+---
+
+```yaml
+# --- AGH-0014 ---
+id: AGH-0014
+date: "2026-06-19"
+plan: "docs/superpowers/plans/2026-06-19-centralized-telemetry-program.md#track-c"
+subsystem: "Track C — vox-server (OTLP ingest + ClickHouse schema + dashboards)"
+target: "Claude Sonnet 4.6 (inline execution)"
+repo: "C:/Users/Owner/vox-server (separate repo, renamed from vox-telemetry-server)"
+delivered:
+  - "chore: init vox-server with OTLP ingest + schema + dashboards (615a706 in vox-server)"
+outcome: "delivered"
+verification:
+  tests: "green"    # 25/25 (9 schema + 7 ingest-roundtrip + 9 schema-gen)
+  build: "green"    # cargo build (vox-server 0.1.0, clean)
+errors_encountered:
+  - "axum-test 0.5 does not exist (versions are 18+); removed from dev-deps (tests use direct fn calls)"
+  - "clickhouse 0.13.3 does not have 'tls' feature; removed feature flag"
+  - "OtlpValue missing Clone derive; added"
+agent_deviations:
+  - "Repo named 'vox-server' per user instruction (plan used 'vox-telemetry-server')"
+  - "Integration tests use direct function calls instead of axum-test HTTP layer (same coverage, simpler)"
+commits:
+  - "615a706 (vox-server repo)"
+```
+
+### AGH-0014 — Track C review detail
+
+`C:/Users/Owner/vox-server` — separate private repo, git initialized, 25/25 tests green.
+
+Architecture:
+- `vox-server/src/schema.rs` — `gen_ddl(taxonomy)` generates a single DDL string with `events_raw` MergeTree + one SummingMergeTree materialized view per category. All `enum`/`hash` fields → `LowCardinality(String)`, `int` → `Nullable(Int64)`, `bool` → `UInt8`. 180-day TTL.
+- `vox-server/src/redact.rs` — `build_allowlist(taxonomy)` + `filter_record()`. Server-side re-filtering: unknown categories → `None` (discard); known categories → only allowlisted field names survive.
+- `vox-server/src/ingest.rs` — `POST /v1/logs` axum handler. Parses OTLP/HTTP JSON, extracts install_id from resource attributes, applies server-side filter, batch-inserts via `clickhouse 0.13.3`.
+- `src/main.rs` — binary on port 4318 (default OTLP), `GET /healthz`, env-var config.
+- `migrations/0001_events_raw.sql` — production-ready DDL for ClickHouse deploy.
+- `dashboards/` — 4 Grafana JSON boards (command_usage, skill_activation, harness_usage, edit_pattern), all queries enforce k≥20.
+
+Track D (deploy) is the next step — provision ClickHouse + deploy this service.
