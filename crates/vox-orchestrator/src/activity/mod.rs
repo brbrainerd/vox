@@ -2,6 +2,8 @@
 
 use crate::events::AgentEventKind;
 
+pub mod project;
+
 /// SSOT: true for high-signal lifecycle/resource/build events; false for
 /// high-frequency telemetry (heartbeats, throughput/cost ticks, file-diag churn).
 pub fn is_loggable(kind: &AgentEventKind) -> bool {
