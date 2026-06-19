@@ -15,8 +15,9 @@ pub struct ChannelOutcomeCounts {
 /// Bounded gain offset in `[-0.15, +0.05]` bits. NEGATIVE = raise the ask bar (channel wastes attention).
 #[must_use]
 pub fn channel_gain_offset(c: ChannelOutcomeCounts) -> f64 {
+    const MIN_SAMPLES: u32 = 5;
     let shown = c.accepted + c.rejected;
-    if shown == 0 {
+    if shown < MIN_SAMPLES {
         return 0.0;
     }
     let reject_rate = c.rejected as f64 / shown as f64;
@@ -60,6 +61,77 @@ pub fn aggregate_counts(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::attention::budget::{
+        ApprovalOutcome, ApprovalTier, AttentionEvent, AttentionEventType,
+    };
+    use crate::types::AgentId;
+
+    fn ev(
+        channel: &str,
+        outcome: ApprovalOutcome,
+        event_type: AttentionEventType,
+    ) -> AttentionEvent {
+        AttentionEvent {
+            agent_id: AgentId(0),
+            task_id: None,
+            event_type,
+            tier: ApprovalTier::Confirm,
+            cost_ms: 0,
+            outcome,
+            trust_score_at_time: 0.5,
+            effective_complexity: 0.0,
+            decision_entropy_bits: 0.0,
+            timestamp_ms: 0,
+            channel: Some(channel.to_string()),
+            policy_reason: None,
+        }
+    }
+
+    #[test]
+    fn aggregate_events_matches_enums_directly() {
+        let events = vec![
+            ev(
+                "vox_inline_edit",
+                ApprovalOutcome::Approved,
+                AttentionEventType::CommandApproval,
+            ),
+            ev(
+                "vox_inline_edit",
+                ApprovalOutcome::Modified,
+                AttentionEventType::CodeReview,
+            ),
+            ev(
+                "vox_inline_edit",
+                ApprovalOutcome::Rejected,
+                AttentionEventType::CommandApproval,
+            ),
+            ev(
+                "vox_inline_edit",
+                ApprovalOutcome::AutoApproved,
+                AttentionEventType::PolicyDeferred,
+            ),
+        ];
+        let m = aggregate_events(&events);
+        assert_eq!(
+            m["vox_inline_edit"],
+            ChannelOutcomeCounts {
+                accepted: 2,
+                rejected: 1,
+                suppressed: 1
+            }
+        );
+    }
+
+    #[test]
+    fn small_samples_yield_neutral_offset() {
+        // Below the minimum sample count, do not act on noise.
+        let c = ChannelOutcomeCounts {
+            accepted: 0,
+            rejected: 3,
+            suppressed: 0,
+        };
+        assert_eq!(channel_gain_offset(c), 0.0);
+    }
     #[test]
     fn no_data_is_neutral() {
         assert_eq!(channel_gain_offset(ChannelOutcomeCounts::default()), 0.0);
@@ -158,8 +230,37 @@ mod tests {
     }
 }
 
-use crate::attention::budget::InterruptionCalibrationConfig;
+use crate::attention::budget::{
+    ApprovalOutcome, AttentionEvent, AttentionEventType, InterruptionCalibrationConfig,
+};
 use crate::attention::interruption_policy::InterruptionChannel;
+
+/// Type-safe aggregation from the in-memory event ring. Matches enum variants directly, so it
+/// cannot regress to phantom-string matching (cf. the 2026-06-19 `aggregate_counts` fix). This is
+/// the path the live calibration job uses.
+#[must_use]
+pub fn aggregate_events(
+    events: &[AttentionEvent],
+) -> std::collections::HashMap<String, ChannelOutcomeCounts> {
+    let mut map: std::collections::HashMap<String, ChannelOutcomeCounts> =
+        std::collections::HashMap::new();
+    for ev in events {
+        let key = ev.channel.clone().unwrap_or_else(|| "unknown".to_string());
+        let e = map.entry(key).or_default();
+        match ev.outcome {
+            ApprovalOutcome::Approved | ApprovalOutcome::Modified => e.accepted += 1,
+            ApprovalOutcome::Rejected => e.rejected += 1,
+            _ => {}
+        }
+        if matches!(
+            ev.event_type,
+            AttentionEventType::PolicyDeferred | AttentionEventType::PolicyProceedAuto
+        ) {
+            e.suppressed += 1;
+        }
+    }
+    map
+}
 
 fn interruption_channel_for_surface(surface: &str) -> InterruptionChannel {
     match surface {
