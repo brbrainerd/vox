@@ -21,28 +21,29 @@ pub async fn vox_gui_components(state: &ServerState, _args: serde_json::Value) -
     }
 }
 
-/// Validate a Vox/VUV source string against the compile-time GUI guarantees
-/// (contrast, layer-occlusion, a11y, structural web-IR checks) WITHOUT writing
-/// any files — the external-validation API an AI UI generator calls to check its
-/// output before a human sees it. Pipeline: lex → parse → lower_module (HIR) →
-/// lower_hir_to_web_ir → validate_web_ir_with_registry. Returns `{ ok,
-/// error_count, diagnostic_count, diagnostics[] }`. See design §3b / Track C.
-pub async fn vox_validate_vuv(_state: &ServerState, args: serde_json::Value) -> String {
-    let Some(source) = args.get("source").and_then(Value::as_str) else {
-        return ToolResult::<Value>::err("missing required string field 'source'".to_string())
-            .to_json();
-    };
-
+/// Pure validation pipeline: Vox/VUV `source` → web-IR → diagnostics, returning
+/// the JSON payload `{ ok, error_count, diagnostic_count, diagnostics[] }`. No
+/// `ServerState`, no I/O, no files written — directly unit-testable.
+pub fn validate_vuv_source(source: &str) -> serde_json::Value {
     let tokens = vox_compiler::lexer::cursor::lex(source);
     let module = match vox_compiler::parser::parse(tokens) {
         Ok(m) => m,
         Err(e) => {
-            return ToolResult::<Value>::err(format!("parse error: {e:?}")).to_json();
+            return serde_json::json!({
+                "ok": false,
+                "error_count": 1,
+                "diagnostic_count": 1,
+                "diagnostics": [{
+                    "code": "parse_error",
+                    "message": format!("{e:?}"),
+                    "severity": "Error",
+                    "category": null,
+                }],
+            });
         }
     };
     let hir = vox_compiler::hir::lower_module(&module);
-    let (web_ir, _summary) =
-        vox_codegen::web_ir::lower::lower_hir_to_web_ir_with_summary(&hir);
+    let (web_ir, _summary) = vox_codegen::web_ir::lower::lower_hir_to_web_ir_with_summary(&hir);
     let diags = vox_codegen::web_ir::validate::validate_web_ir_with_registry(&web_ir, None);
 
     use vox_codegen::web_ir::WebIrDiagnosticSeverity;
@@ -62,13 +63,24 @@ pub async fn vox_validate_vuv(_state: &ServerState, args: serde_json::Value) -> 
         })
         .collect();
 
-    ToolResult::ok(serde_json::json!({
+    serde_json::json!({
         "ok": error_count == 0,
         "error_count": error_count,
         "diagnostic_count": diags.len(),
         "diagnostics": diagnostics,
-    }))
-    .to_json()
+    })
+}
+
+/// Validate a Vox/VUV source string against the compile-time GUI guarantees
+/// (contrast, layer-occlusion, a11y, structural web-IR) WITHOUT writing files —
+/// the external-validation API an AI UI generator calls to check its output
+/// before a human sees it. See design §3b / Track C.
+pub async fn vox_validate_vuv(_state: &ServerState, args: serde_json::Value) -> String {
+    let Some(source) = args.get("source").and_then(Value::as_str) else {
+        return ToolResult::<Value>::err("missing required string field 'source'".to_string())
+            .to_json();
+    };
+    ToolResult::ok(validate_vuv_source(source)).to_json()
 }
 
 /// Retrieve design tokens in W3C DTCG format.
@@ -79,7 +91,7 @@ pub async fn vox_gui_tokens(state: &ServerState, _args: serde_json::Value) -> St
     match std::fs::read_to_string(&tokens_path) {
         Ok(content) => match vox_compiler::tokens::TokenRegistry::load_from_str(&content) {
             Ok(reg) => {
-                let dtcg_val = vox_codegen::codegen_ts::token_export::export_to_dtcg(&reg);
+                let dtcg_val = vox_codegen_ts::token_export::export_to_dtcg(&reg);
                 ToolResult::ok(dtcg_val).to_json()
             }
             Err(e) => {

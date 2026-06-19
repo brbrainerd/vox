@@ -51,6 +51,8 @@ tower-http = { workspace = true, features = ["cors"] }
 
 # Workspace deps the moved code references
 vox-compiler.workspace = true
+vox-codegen.workspace = true
+vox-codegen-ts.workspace = true
 vox-grammar-export.workspace = true
 vox-mcp-registry.workspace = true
 vox-capability-registry.workspace = true
