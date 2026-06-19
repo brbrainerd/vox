@@ -141,8 +141,35 @@ review_findings: ""
 verdict: approve
 prompt_lessons:
   - "Using git worktree is highly effective for isolating parallel agent builds and preventing git branch collision."
-corrections_fed_back: []
 commits: [b4aeea3a3a, ddfb186d3b, 53d4de46c6, 85e9815325, eec21a146f, 6ae18c1d69, 6886f0e267, 00b04dc8e4, b5e30adcb8, ef02173e8c, 3e2dfc0086]
+```
+
+```yaml
+# --- AGH-0003 ---
+id: AGH-0003
+date: 2026-06-19
+plan: docs/superpowers/plans/2026-06-18-handoff-ledger-ci-lint.md
+prompt_artifact: "D-2 -> AGH-0003 - vox ci handoff-ledger lint"
+prompt_version: v1
+subsystem: skill-marketplace / handoff-ledger lint (Subsystem A verification)
+target: gemini-3.5-flash / antigravity
+claude_inputs: [plan, launch-statement]
+delivered:
+  - crates/vox-cli-ci/src/handoff_ledger.rs
+  - crates/vox-cli-ci/src/lib.rs
+  - crates/vox-cli/src/commands/ci/cmd_enums.rs
+  - crates/vox-cli/src/commands/ci/run_body.rs
+loc: 282
+outcome: green
+verification: { tests: "7 passed", clippy: clean, arch_check: green, smoke: ok }
+errors_encountered: []
+agent_deviations: []
+review_findings: ""
+verdict: approve
+prompt_lessons:
+  - "Line-based parsing of YAML block fields is simple, dependency-free, and robust for CI validation tasks in Rust."
+corrections_fed_back: []
+commits: [103593d2db]
 ```
 
 
