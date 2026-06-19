@@ -590,3 +590,64 @@ Track E wired all 5 product-category events into the existing `record_event!` in
 Projection coverage gate: 10 tests in `projection_coverage.rs` verify canary-in → canary-out-is-dropped for all 6 Track E variants plus regression guards for ResearchMetric and ModelCall.
 
 Arch-check guardrail `no-otlp-in-emitters`: blocks future crates from taking a direct `vox-telemetry-otlp` dep (domain crates must use `record_event!` only).
+
+---
+
+```yaml
+# --- AGH-0021 ---
+id: AGH-0021
+date: 2026-06-19
+plan: docs/superpowers/plans/2026-06-19-dynamic-model-pool-GEMINI-FLASH-HANDOFF.md
+prompt_artifact: same
+subsystem: dynamic-model-pool (backend)
+target: gemini-3.5-flash / antigravity
+delivered:
+  - crates/vox-config/src/model_pool.rs
+  - crates/vox-config/src/config/vox_config.rs
+  - crates/vox-gui/src/commands/model_pool.rs
+  - crates/vox-gamify/src/ai/constants.rs
+loc: 300
+outcome: green
+verification:
+  tests: "320 passed (vox-config 191, vox-gui 116, vox-gamify 213)"
+  clippy: clean
+  fmt: ok
+errors_encountered:
+  - what: "graphify_status expectation mismatch"
+    root_cause: "unrelated commit added a 5th corpus"
+    category: build-gate
+    who: plan
+  - what: "history.rs compilation failure"
+    root_cause: "history_store::search_entries symbol missing from vox-db"
+    category: build-gate
+    who: plan
+agent_deviations:
+  - none
+prompt_lessons:
+  - "Direct database queries are preferred in Tauri commands when underlying API helpers are missing to maintain layer separation rules."
+commits:
+  - 34bcf4e7fb
+  - 9678996c3c
+  - da90b12117
+  - 18826515ea
+  - 7f3a4600c3
+  - 69de4521cb
+claude_p2_2_followup:
+  commit: fcce0b5d4b
+  what: "hard-filter scorer candidates through the operator pool (select.rs + spec.rs)"
+  tests: "891 passed, 0 failed"
+```
+
+### AGH-0021 — Dynamic model-pool backend review detail
+
+Gemini delivered the complete backend for the operator-curated allowed-model pool:
+
+1. **`model_pool.rs`** — `PoolRule` enum (free/provider/max_cost_per_1k/tier/min_context + `#[serde(other)] Unknown`), `ModelPool` struct, `PoolModelView`, `resolve`, `resolve_with_fallback`, `list_enabled_providers`. 8 unit tests including TOML round-trip.
+
+2. **`vox_config.rs`** — `model_pool: ModelPool` field added to `VoxConfig` with `#[serde(default)]`; `Default` impl updated. Persists via existing `VoxConfig::save()` merge-write (no second config writer).
+
+3. **`model_pool.rs` (vox-gui commands)** — Tauri commands `get_model_pool`, `set_model_pool`, `list_enabled_providers_cmd`. Used direct DB query pattern to avoid missing `history_store::search_entries` symbol.
+
+4. **`constants.rs` (vox-gamify)** — `OPENROUTER_FREE_MODELS` annotated as offline fallback only; dynamic free selection via pool `free` rule.
+
+Claude P2.2 follow-up committed `fcce0b5d4b`: `apply_pool()` wired at all 3 production `list_models()` sites in `select.rs`; `ModelSpec::to_pool_view()` in `spec.rs`. 891 orchestrator tests pass.
