@@ -153,6 +153,16 @@ struct CrateEntry {
     #[serde(default)]
     #[allow(dead_code)]
     sibling_of: Vec<String>,
+    /// Rule 18: this crate is intended for public crates.io release.
+    /// Its entire workspace-crate dependency closure must also be publishable.
+    #[serde(default)]
+    #[allow(dead_code)]
+    publishable: bool,
+    /// Track A classifier advisory: this statically-linked capability should
+    /// migrate behind a plugin extension point (separable, optional at runtime).
+    #[serde(default)]
+    #[allow(dead_code)]
+    plugin_candidate: bool,
 }
 
 fn default_kind() -> String {
@@ -1942,5 +1952,41 @@ extra_skip_dir_names = ["my_vendor"]
             manifest_parent_rel_to_repo(repo, &mf).as_deref(),
             Some("crates/foo")
         );
+    }
+
+    #[test]
+    fn parses_publishable_and_plugin_candidate() {
+        let cfg: LayersConfig = toml::from_str(
+            r#"
+[crates.vox-crypto]
+layer = 1
+publishable = true
+
+[crates.vox-gamify]
+layer = 3
+plugin_candidate = true
+"#,
+        )
+        .expect("parse with publishable/plugin_candidate");
+        let crypto = &cfg.crates["vox-crypto"];
+        assert!(crypto.publishable, "vox-crypto should be publishable");
+        assert!(!crypto.plugin_candidate, "vox-crypto should not be a plugin_candidate");
+        let gamify = &cfg.crates["vox-gamify"];
+        assert!(!gamify.publishable, "vox-gamify should not be publishable");
+        assert!(gamify.plugin_candidate, "vox-gamify should be a plugin_candidate");
+    }
+
+    #[test]
+    fn defaults_are_false_when_absent() {
+        let cfg: LayersConfig = toml::from_str(
+            r#"
+[crates.plain-crate]
+layer = 2
+"#,
+        )
+        .expect("parse minimal crate entry");
+        let entry = &cfg.crates["plain-crate"];
+        assert!(!entry.publishable, "publishable defaults to false");
+        assert!(!entry.plugin_candidate, "plugin_candidate defaults to false");
     }
 }
