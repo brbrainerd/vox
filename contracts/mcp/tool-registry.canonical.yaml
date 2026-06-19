@@ -648,6 +648,21 @@ tools:
   product_lane: ai
   http_read_role_eligible: true
   tier: standard
+- name: vox_agy_delegate
+  description: "Delegate a code-generation or refactoring task to Gemini via the agy CLI. Runs agy -p in an isolated git worktree (jail), auto-accepts all prompts, retries on quota/timeout, and auto-logs to the handoff ledger. Returns the diff for human review."
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: standard
+- name: vox_agy_delegate_batch
+  description: "Fan out multiple file-disjoint agy delegation tasks with bounded concurrency (≤8 workers). Each worker gets its own worktree and ledger entry. All results returned for review before integration."
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: standard
+- name: vox_credentials_status
+  description: "List every inference provider with a present Clavis credential plus the agy delegation status — the credential-aware model-selection surface. OpenRouter is one of many."
+  product_lane: ai
+  http_read_role_eligible: true
+  tier: standard
 - name: vox_gui_tokens
   description: Retrieve design tokens in W3C DTCG format.
   product_lane: ai
