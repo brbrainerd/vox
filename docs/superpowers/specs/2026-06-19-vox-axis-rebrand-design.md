@@ -43,6 +43,11 @@
 | 3 | Brand wordmark | `crates/vox-gui/ui/src/components/layout/Sidebar.tsx:178` | `>VOX<` → `>AXIS<` (Phase D3) |
 | 4 | Footer brand line | `crates/vox-gui/ui/src/components/layout/Sidebar.tsx:310` | prepend `Vox Axis · ` to the build line (Phase D3) |
 | 2b | Brand component + tokens + favicon + `index.html` | `components/brand/AxisMark.tsx`, `tokens/semantic.json`, `public/favicon.svg`, `index.html` | professional front-end blend (Phase D1/D2/D4) |
+| 2c | **TopHud dashboard topbar lockup** (2nd brand surface — MISSED in v1, caught by visual audit) | `crates/vox-gui/ui/src/components/layout/TopHud.tsx:255-262` | `V` box → `AxisMark`; `vox operator console` → `axis operator console` |
+
+> **Audit lesson:** the original touchpoint map listed only the sidebar; `TopHud` was a
+> second brand lockup. Future brand work must run a repo-wide `rg -i 'vox operator|>V<|VOX'`
+> to enumerate ALL brand strings, not just the obvious one.
 | 5 | `vox axis` subcommand | `crates/vox-cli/src/lib.rs:431-435` | add `#[command(visible_alias = "axis")]` to the `Gui` variant |
 | 6 | Launch log + help | `crates/vox-cli/src/commands/gui.rs:7`, `lib.rs:429-430` | brand-phrasing the doc comment + tracing line |
 | 7 | Icon set | `crates/vox-gui/icons/*` | regenerate from a 1024px Axis source |

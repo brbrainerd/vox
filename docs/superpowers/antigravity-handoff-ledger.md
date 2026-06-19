@@ -692,3 +692,31 @@ Prod deploy checklist (human-gated):
 - [ ] Add TLS via reverse proxy (nginx/caddy) in front of port 4318
 - [ ] Set OTLP_ENDPOINT=https://your-domain.com:4318/v1/logs in vox-telemetry-otlp SpoolSink
 - [ ] Verify E3 end-to-end: start Vox with consent=Granted, watch events arrive in ClickHouse events_raw
+
+```yaml
+# --- AGH-0016 ---
+id: AGH-0016
+date: 2026-06-19
+plan: docs/superpowers/plans/2026-06-19-vox-axis-rebrand.md
+prompt_artifact: docs/superpowers/plans/2026-06-19-vox-axis-GEMINI-FLASH-HANDOFF.md
+prompt_version: v1
+subsystem: vox-axis-rebrand (Phase B — Gemini Flash; Phases A/D — Claude Code)
+target: gemini-3.5-flash / antigravity
+claude_inputs: [spec, plan, launch-statement, brand-assets, AxisMark+tokens+sidebar+favicon (Phase D)]
+delivered: [crates/vox-gui/tauri.conf.json, crates/vox-cli/src/lib.rs, crates/vox-cli/src/commands/gui.rs, docs/src/contributors/axis-brand.md]
+loc: 67
+outcome: green
+verification: { tests: "Phase B vitest tauriConf 1 + axis_alias (cargo, Gemini-reported 2); Claude independent re-verify = 11 brand vitest GREEN + 43 Playwright GREEN (40 surfaces + 3 axis-brand). cargo re-verify DEFERRED (tandem build-lock contention).", clippy: "Gemini-reported clean", tsc: "clean (exit 0, Claude-verified)", smoke: "Playwright dev-server launch OK" }
+errors_encountered:
+  - { what: "handback (orig id AGH-0010) re-numbered to AGH-0016 — 0010-0015 used by parallel telemetry session", root_cause: "shared ledger, concurrent sessions", category: "branch-hygiene", who: plan }
+agent_deviations:
+  - "B4 commit f418ecdfb6 edited UNRELATED files crates/vox-cli/src/commands/ci/{crate_budget,fan_in_budget}.rs (added #[allow(dead_code)] + widened struct visibility to pub(crate)) to silence dead-code lints under its -D warnings gate — UNDECLARED (handback said deviations: none). Out-of-scope; visibility-widening is a smell vs a localized #[allow]. Harmless to runtime; left in place (reverting risks re-breaking the clippy gate)."
+review_findings: "Brand deltas correct: visible_alias=axis (idiomatic, 9 prior usages); gui.rs/lib.rs phrasing; tauri.conf title->Axis with productName/identifier UNCHANGED (invariant held); axis-brand.md category Contributors. BUG FOUND BY CLAUDE VISUAL AUDIT (not in plan touchpoint map): a 2nd brand lockup in TopHud.tsx (dashboard topbar) still showed 'V' box + 'vox operator console' -> fixed by Claude (AxisMark + 'axis operator console') + Playwright guard."
+verdict: approve-with-followups
+prompt_lessons:
+  - "Gemini: `cargo clippy --no-deps` avoids lint failures from other dirty crates (valid)."
+  - "REQUIRE declaring EVERY file edited beyond the task's named Files list; B4 silently touched 2 CI files. Operating rule: edit an unnamed file -> STOP and report before committing."
+  - "Brand-rebrand plans must enumerate ALL brand surfaces via repo-wide grep (touchpoint map missed TopHud); add a pre-flight `rg -i 'vox operator|>V<|VOX'` gate."
+corrections_fed_back: []
+commits: [0251172968, f418ecdfb6, b328d4839f, e1c28b0f85, "TopHud-fix (Claude)"]
+```
