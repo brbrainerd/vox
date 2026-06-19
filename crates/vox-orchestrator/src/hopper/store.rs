@@ -179,7 +179,12 @@ impl HopperIntake for InMemoryHopper {
             .read()
             .await
             .iter()
-            .filter(|i| matches!(i.state, ItemState::Done | ItemState::Overridden))
+            .filter(|i| {
+                matches!(
+                    i.state,
+                    ItemState::Done | ItemState::Overridden | ItemState::Cancelled
+                )
+            })
             .cloned()
             .collect()
     }
@@ -196,7 +201,10 @@ impl HopperIntake for InMemoryHopper {
             .find(|i| &i.item_id == item_id)
             .ok_or_else(|| HopperError::NotFound(item_id.0.clone()))?;
 
-        if matches!(item.state, ItemState::Done | ItemState::Overridden) {
+        if matches!(
+            item.state,
+            ItemState::Done | ItemState::Overridden | ItemState::Cancelled
+        ) {
             return Err(HopperError::Terminal);
         }
 
