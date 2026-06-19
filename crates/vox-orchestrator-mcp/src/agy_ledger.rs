@@ -19,12 +19,21 @@ pub struct LedgerEntry {
     pub files_changed: usize,
     pub timeout_secs: u64,
     pub date: String,
+    /// Real verification summary (e.g. "build: pass, test: pass"). None ⇒ the
+    /// legacy "n/a" default is rendered, so existing callers are unaffected.
+    pub verification: Option<String>,
 }
 
 impl LedgerEntry {
     #[allow(clippy::too_many_arguments)]
     pub fn new(subsystem: &str, task: &str, outcome: &str, timed_out: bool, exit_code: i32, files_changed: usize, timeout_secs: u64, date: &str) -> Self {
-        Self { subsystem: subsystem.into(), task: task.into(), outcome: outcome.into(), timed_out, exit_code, files_changed, timeout_secs, date: date.into() }
+        Self { subsystem: subsystem.into(), task: task.into(), outcome: outcome.into(), timed_out, exit_code, files_changed, timeout_secs, date: date.into(), verification: None }
+    }
+
+    /// Attach a real verification summary; overrides the "n/a" default in render.
+    pub fn with_verification(mut self, v: impl Into<String>) -> Self {
+        self.verification = Some(v.into());
+        self
     }
 }
 
@@ -50,10 +59,13 @@ pub fn render_entry(id: &str, e: &LedgerEntry) -> String {
     } else {
         "errors_encountered: []\n".to_string()
     };
+    let verification = e.verification.clone().unwrap_or_else(|| {
+        format!("{{ tests: \"n/a\", clippy: \"n/a\", arch_check: \"n/a\", smoke: \"exit {}\" }}", e.exit_code)
+    });
     format!(
-        "```yaml\n# --- {id} ---\nid: {id}\ndate: {date}\nplan: docs/superpowers/plans/2026-06-19-agy-delegation-wedge1-2.md\nprompt_artifact: \"vox_agy_delegate (auto-logged)\"\nprompt_version: v1\nsubsystem: {subsystem}\ntarget: gemini-3.5-flash / antigravity\nclaude_inputs: [task-string]\ndelivered: [\"see agy/<slug> worktree diff\"]\nloc: {files}\noutcome: {outcome}\nverification: {{ tests: \"n/a\", clippy: \"n/a\", arch_check: \"n/a\", smoke: \"exit {code}\" }}\n{errors}agent_deviations: []\nreview_findings: \"pending human review of worktree diff\"\nverdict: request-changes\nprompt_lessons: []\ncorrections_fed_back: []\ncommits: []\n# task: '{task}'\n```\n",
+        "```yaml\n# --- {id} ---\nid: {id}\ndate: {date}\nplan: docs/superpowers/plans/2026-06-19-agy-delegation-wedge1-2.md\nprompt_artifact: \"vox_agy_delegate (auto-logged)\"\nprompt_version: v1\nsubsystem: {subsystem}\ntarget: gemini-3.5-flash / antigravity\nclaude_inputs: [task-string]\ndelivered: [\"see agy/<slug> worktree diff\"]\nloc: {files}\noutcome: {outcome}\nverification: {verification}\n{errors}agent_deviations: []\nreview_findings: \"pending human review of worktree diff\"\nverdict: request-changes\nprompt_lessons: []\ncorrections_fed_back: []\ncommits: []\n# task: '{task}'\n```\n",
         id = id, date = e.date, subsystem = e.subsystem, outcome = e.outcome,
-        code = e.exit_code, files = e.files_changed, task = task_yaml, errors = errors,
+        files = e.files_changed, task = task_yaml, errors = errors, verification = verification,
     )
 }
 
@@ -89,6 +101,15 @@ mod tests {
         assert!(block.contains("# --- AGH-0008 ---"));
         assert!(block.contains("target: gemini-3.5-flash / antigravity"));
         assert!(block.contains("category:")); // non-green => mineable failure vocab
+    }
+
+    #[test]
+    fn with_verification_overrides_the_default_block() {
+        let e = LedgerEntry::new("agy-pipeline", "Do X", "green", false, 0, 2, 600, "2026-06-19")
+            .with_verification("build: pass, test: pass");
+        let block = render_entry("AGH-0010", &e);
+        assert!(block.contains("build: pass, test: pass"));
+        assert!(!block.contains("tests: \"n/a\""));
     }
 
     #[tokio::test]
