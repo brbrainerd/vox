@@ -4,6 +4,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 /// Helper to extract/check active profile.
+#[allow(dead_code)]
 pub fn selected_profile(profile: &Option<String>) -> &str {
     profile.as_deref().unwrap_or("default")
 }
@@ -331,11 +332,33 @@ pub async fn run(
                             &data_dir,
                             &mix_config,
                         )?;
-                        crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Mix {
-                            config: mix_config,
-                            allow_missing_sources: true,
-                        })
-                        .await?;
+                        let is_active_spoke_mix = if let Some(name) = profile.as_deref() {
+                            let eff = vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile
+                                ::load_domain_profile(name, ws.as_deref())?;
+                            eff.mix_config
+                                .map(|spoke_mix| spoke_mix == mix_config)
+                                .unwrap_or(false)
+                        } else {
+                            false
+                        };
+                        if is_active_spoke_mix {
+                            vox_corpus::corpus::run_mix_with_options(
+                                &mix_config,
+                                ws.as_deref(),
+                                vox_corpus::corpus::MixRunOptions {
+                                    strict: true,
+                                    write_report: true,
+                                },
+                            )?;
+                        } else {
+                            crate::commands::corpus::run(
+                                crate::commands::corpus::CorpusAction::Mix {
+                                    config: mix_config,
+                                    allow_missing_sources: true,
+                                },
+                            )
+                            .await?;
+                        }
                     }
                 }
             }
