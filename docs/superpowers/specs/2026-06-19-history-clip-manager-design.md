@@ -61,17 +61,18 @@ clips (text only in v1); a bespoke fuzzy engine if a trivial scorer suffices.
 | `history_entries` table | `vox-db` schema domain (**new**) | Durable per-repo store; columns incl. `kind`, `pinned`, `redacted_text`. |
 | History store accessor | `vox-db` (**new** module) | `add` / `list(repo, kind?, limit)` / `pin` / `delete` / `evict(per-kind caps)`. |
 | Retention/eviction | same | Per-`kind` caps (config; default: clips longest, command/chat shorter window), pinned never evicted. |
-| Secret redaction | a pure `redact(text) -> (display, redacted)` fn | Mask secret patterns on capture (ties to Clavis patterns). |
+| Secret redaction | a pure `redact(text) -> (display, redacted)` fn | Mask secret patterns on capture via a **small local pattern set** (`sk-…`/`ghp_…`/`gho_…`/AWS `AKIA…`/bearer). NOTE (audit 2026-06-19): NO `vox-clavis` crate exists — do not import Clavis; field-masking prior art = `crates/vox-db/src/socrates_telemetry.rs`. |
 | `SearchCorpus::ClipHistory` | `crates/vox-db-types/src/retrieval.rs` (extend enum) + query routing | History joins the unified ranked search. |
-| Tauri commands | `crates/vox-gui/src/commands/history.rs` (**new**) | `history_list/add/search/pin/delete/copy_out` + `vox://history-changed`. |
+| Tauri commands | `crates/vox-gui/src/commands/history.rs` (**new**) | `history_list/add/search/pin/delete` + `vox://history-changed`. (audit 2026-06-19: NO `copy_out` Rust command — no Tauri clipboard plugin; copy-out is a frontend `navigator.clipboard.writeText` action in `HistoryPanel`, as `Console.tsx`/`SearchView.tsx` do.) |
 | GUI `HistoryPanel` | `crates/vox-gui/ui/src/components/surfaces/History/HistoryPanel.tsx` (**new**) | Searchable list; local fuzzy filter; per-entry actions; a `panelRegistry` kind. |
 | Local fuzzy filter | pure TS `filterEntries(query, entries)` | Instant type-to-filter over the loaded ring. |
 | CLI command | `crates/vox-cli/...` `vox clip` / `vox history` (**new**) | Interactive fuzzy search; copy-out / print / re-run; honors `contracts/terminal/exec-policy`. |
 | Capture wiring | Console (OSC633), chat append, clip hotkey | Feed `history_add` on the respective events. |
 
 ### 3.2 Scope key
-`repo_id` derives from the active project/repo (same scoping chats use). Switching repos switches
-the visible ring. There is one store; queries always filter by `repo_id`.
+`repo_id` derives from the active project/repo via **`vox_orchestrator::lineage::repository_id()`**
+(audit-verified `lineage.rs:21`; same `repository_id` scoping `conversations` use). Switching repos
+switches the visible ring. There is one store; queries always filter by `repository_id`.
 
 ### 3.3 Independence from the OS clipboard
 Vox never reads the OS clipboard in the background. Capture is explicit (a GUI "add to history"

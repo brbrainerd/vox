@@ -29,6 +29,35 @@
 
 ---
 
+## Codebase Audit Addendum (2026-06-19 — VERIFIED against real code; OVERRIDES plan text where it conflicts)
+
+Two parallel audits confirmed/corrected the anchors below. These are authoritative; the per-task snippets further down are illustrative and must be reconciled to these.
+
+**🔴 vox-db query API (Tasks 1–3, 6).** There is NO `db.execute(sql, ())` / `db.query(sql, ())`. The real API (see `crates/vox-db/src/codex_chat.rs`) is:
+```rust
+use turso::params;
+self.connection().execute("INSERT ... VALUES (?1, ?2)", params![a, b]).await?;          // writes
+let mut rows = self.connection().query("SELECT x FROM t WHERE repository_id = ?1", params![rid]).await?;
+while let Some(row) = rows.next().await? { let v: String = row.get(0)?; /* map */ }       // reads
+```
+All DB calls are `async .await?`; params use the `turso::params!` macro; rows map via `row.get::<T>(idx)`. A history store module takes the `VoxDb`/`Codex` handle and calls `.connection()`. Test ctor `VoxDb::connect(DbConfig::Memory)` (local feature) is correct. **Rewrite every test/impl snippet in Tasks 1–3 to this shape.**
+
+**🔴 Schema registration (Task 1) — has a GAP.** Current `BASELINE_VERSION = 78` (`crates/vox-db/src/schema/manifest.rs`). Steps: (a) create `schema/domains/history.rs` with `pub const SCHEMA_HISTORY: &str = "CREATE TABLE …"`; (b) `pub mod history;` in `domains/mod.rs`; (c) add a `SchemaFragment { name: "history_entries", sql: domains::history::SCHEMA_HISTORY }` to `SCHEMA_FRAGMENTS` and bump `BASELINE_VERSION` to **79**; (d) **MISSING FROM THE ORIGINAL TASK — update `contracts/db/baseline-version-policy.yaml`** (`repository_baseline_integer: 79` + the new `repository_baseline_digest_hex`). A contract test (`baseline_policy_matches_compiled_schema`) FAILS until the YAML matches — run the test, copy the expected digest from its failure message, paste it in. This is one atomic commit.
+
+**🔴 SearchCorpus::ClipHistory (Task 5) — 3 NAMED sites, no single executor.** Adding the variant breaks these exhaustive matches; fix all in the same commit: (1) `crates/vox-orchestrator/src/orchestrator/task_dispatch/submit/goal.rs:~70-77` (add an arm); (2) `crates/vox-gui/src/commands/search.rs:~145-150` (string→corpus, add `"cliphistory" => Some(SearchCorpus::ClipHistory)`); (3) `crates/vox-search/src/execution.rs:~312+` (the corpus→rows routing — add a branch SELECTing from `history_entries` over `redacted_text`, repo-scoped). The enum is in `crates/vox-db-types/src/retrieval.rs:95`.
+
+**🟡 Redaction (Task 4) — there is NO Clavis crate.** `crates/vox-clavis/src` does not exist (Clavis is an external vault referenced only in comments). There is no centralized redact lib. So `redact()` is a **small local secret-pattern set** (e.g. `sk-…`, `ghp_…`, `gho_…`, AWS `AKIA…`, bearer tokens); prior art for field masking is `crates/vox-db/src/socrates_telemetry.rs`. Do NOT import a non-existent Clavis API.
+
+**🟡 copy-out (Tasks 6, 8) — no Tauri clipboard plugin.** Neither `tauri-plugin-clipboard-manager` (Rust) nor `@tauri-apps/plugin-clipboard-manager` (JS) is a dependency. Existing surfaces (`Console.tsx`, `SearchView.tsx`) copy via the browser `navigator.clipboard.writeText(...)` inside the webview. So **copy-out is a frontend action in `HistoryPanel` using `navigator.clipboard.writeText`**, NOT a Rust `history_copy_out` Tauri command. Drop `history_copy_out` from Task 6; implement copy-out in Task 8 (toast on success/failure, matching Console.tsx).
+
+**🟡 panelRegistry not landed (Task 8) — register via the CURRENT surface system, do NOT block.** Spec-6's `panelRegistry.ts` does not exist yet. Ship the panel now via: (a) add `'history'` to the `View` union in `crates/vox-gui/ui/src/App.tsx` (+ `LEGACY_VIEWS`); (b) add a `case 'history': return <HistoryPanel .../>;` to the `childRenderer` switch in `components/layout/surfaceComponents.tsx`; (c) add a `surface-registry.v1.yaml` entry. Leave a comment: migrate to `panelRegistry` when spec-6 lands. (Supersedes Task 8's BLOCKED-path.)
+
+**🟢 Verified-correct anchors:** repo scope = `vox_orchestrator::lineage::repository_id() -> String` (`lineage.rs:21`; same `repository_id` field `conversations` uses) — use it everywhere, not "cwd". Tauri commands register in `crates/vox-gui/src/main.rs` `generate_handler![…]` (module declared in `commands/mod.rs`). FE calls use raw `invoke()` (`@tauri-apps/api/core`) + `listen()` (`@tauri-apps/api/event`) per `transport.ts` — no custom wrapper. CLI subcommand pattern = module in `vox-cli/src/commands/` + `mod.rs` + `Cli` enum variant + dispatch (examples: `codex.rs`, `db.rs`). Test stack = vitest 3.2.6 + @testing-library/react 16.3.2.
+
+**Capture hooks (Task 9):** 9a → `Console.tsx` `handleBlock` callback (fires with a finalized `Block { command, exitCode, output }` from `osc633.ts`; note `block.output` may be filled async by `TerminalTab` — guard on `exitCode !== null`). 9c → after the DB append in `chat_append_message` (`crates/vox-gui/src/commands/chat.rs` → `db.chat_append_workspace_message`, `codex_chat.rs:~97-137`); mirror assistant turns.
+
+---
+
 ## File Structure
 
 | File | Responsibility | Action |
