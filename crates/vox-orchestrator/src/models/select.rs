@@ -81,6 +81,23 @@ impl ModelSelectionRequest {
     }
 }
 
+/// Filter a model list to the operator's allowed pool.
+/// Empty pool ⇒ all enabled; empty result ⇒ fail open to all enabled (never zero).
+fn apply_pool(
+    models: &[ModelSpec],
+    pool: &vox_config::model_pool::ModelPool,
+    enabled: &std::collections::BTreeSet<String>,
+) -> Vec<ModelSpec> {
+    let views: Vec<_> = models.iter().map(|m| m.to_pool_view()).collect();
+    let (allowed, _fell_open) =
+        vox_config::model_pool::resolve_with_fallback(pool, &views, enabled);
+    models
+        .iter()
+        .filter(|m| allowed.contains(&m.id))
+        .cloned()
+        .collect()
+}
+
 /// Canonical selector entry point with structured decision envelope.
 #[must_use]
 pub fn decide(
@@ -89,7 +106,10 @@ pub fn decide(
 ) -> Option<ModelSelectionDecision> {
     use std::collections::HashSet;
 
-    let all = registry.list_models();
+    let pool = vox_config::VoxConfig::load().model_pool;
+    let enabled = vox_config::model_pool::list_enabled_providers();
+    let all_unfiltered = registry.list_models();
+    let all = apply_pool(&all_unfiltered, &pool, &enabled);
     let mut rejection_reasons: Vec<String> = Vec::new();
     let mut candidates: Vec<ModelSpec> = Vec::new();
 
@@ -125,7 +145,8 @@ pub fn decide(
     if candidates.is_empty() {
         // Controlled exploration fallback for unconfirmed models when explicitly enabled.
         if exploration_enabled() {
-            for m in registry.list_models() {
+            let exploration_pool = apply_pool(&all_unfiltered, &pool, &enabled);
+            for m in exploration_pool {
                 if !scope_allows(m.provider_type.clone(), request.candidate_scope) {
                     continue;
                 }
@@ -673,8 +694,10 @@ fn select_local_first(
     registry: &ModelRegistry,
 ) -> Option<SelectionOutcome> {
     let effective_axes = intent.axes.to_routing_priority(true);
-    let model = registry
-        .list_models()
+    let pool = vox_config::VoxConfig::load().model_pool;
+    let enabled = vox_config::model_pool::list_enabled_providers();
+    let pool_filtered = apply_pool(&registry.list_models(), &pool, &enabled);
+    let model = pool_filtered
         .into_iter()
         .filter(|m| {
             matches!(
@@ -1228,6 +1251,23 @@ mod tests {
             }
             // The key invariant is: no panic, correct scope on any returned model.
         }
+    }
+
+    #[test]
+    fn pool_excludes_constrain_decide_candidates() {
+        let registry = ModelRegistry::new();
+        let ids: Vec<String> = registry.list_models().iter().map(|m| m.id.clone()).collect();
+        assert!(ids.len() >= 2, "need ≥2 models in registry to test exclusion");
+        let victim = ids[0].clone();
+        let pool = vox_config::model_pool::ModelPool {
+            excludes: vec![victim.clone()],
+            ..Default::default()
+        };
+        let enabled: std::collections::BTreeSet<String> =
+            registry.list_models().iter().map(|m| m.provider.clone()).collect();
+        let filtered = apply_pool(&registry.list_models(), &pool, &enabled);
+        assert!(!filtered.iter().any(|m| m.id == victim), "excluded model must not be a candidate");
+        assert_eq!(filtered.len(), registry.list_models().len() - 1);
     }
 
     #[test]

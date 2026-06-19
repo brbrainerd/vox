@@ -190,6 +190,18 @@ pub fn route_backend_for_model(spec: &ModelSpec) -> ModelRouteBackend {
 }
 
 impl ModelSpec {
+    /// Minimal projection for the model-pool predicate (`vox-config` has no dep on this crate).
+    pub fn to_pool_view(&self) -> vox_config::model_pool::PoolModelView {
+        vox_config::model_pool::PoolModelView {
+            id: self.id.clone(),
+            provider: self.provider.clone(),
+            cost_per_1k: self.cost_per_1k,
+            max_tokens: self.max_tokens,
+            is_free: self.is_free,
+            tier: format!("{:?}", self.capabilities.tier),
+        }
+    }
+
     /// Whether the model supports native web-search grounding.
     ///
     /// This is a convenience forwarder to [`ModelCapabilities::supports_web_search`] so callers
