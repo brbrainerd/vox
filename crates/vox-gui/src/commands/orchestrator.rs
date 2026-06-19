@@ -606,6 +606,127 @@ pub async fn get_context_budget() -> Result<ContextBudgetPayload, String> {
     })
 }
 
+#[derive(Debug, serde::Serialize)]
+pub struct HopperTaskDto {
+    pub item_id: String,
+    pub intent: String,
+    pub priority: u8,
+    pub state: String,
+}
+
+fn hopper_item_to_dto(item: &vox_orchestrator::hopper::IntakeItem) -> HopperTaskDto {
+    HopperTaskDto {
+        item_id: item.item_id.0.clone(),
+        intent: item.intent.clone(),
+        priority: item.classified_priority as u8,
+        state: item.state.kind().to_string(),
+    }
+}
+
+#[tauri::command]
+pub async fn hopper_list() -> Result<Vec<HopperTaskDto>, String> {
+    use vox_orchestrator::hopper::HopperIntake;
+    let db = vox_db::VoxDb::connect_canonical()
+        .await
+        .map_err(|e| e.to_string())?;
+    let hopper = vox_orchestrator::hopper::SqliteHopper::new(Arc::new(db));
+    let inbox = hopper.inbox().await;
+    let assigned = hopper.assigned().await;
+    let mut all = Vec::new();
+    for item in inbox.iter().chain(assigned.iter()) {
+        all.push(hopper_item_to_dto(item));
+    }
+    Ok(all)
+}
+
+#[tauri::command]
+pub async fn hopper_submit(
+    app_handle: tauri::AppHandle,
+    intent: String,
+    affinity: Vec<String>,
+) -> Result<HopperTaskDto, String> {
+    use vox_orchestrator::hopper::HopperIntake;
+    let db = vox_db::VoxDb::connect_canonical()
+        .await
+        .map_err(|e| e.to_string())?;
+    let hopper = vox_orchestrator::hopper::SqliteHopper::new(Arc::new(db));
+    let item = hopper
+        .submit(
+            intent,
+            affinity,
+            vox_orchestrator::hopper::PriorityHint::Normal,
+            vox_orchestrator::hopper::IntakeSource::Developer,
+            None,
+        )
+        .await;
+    emit_tasks_changed(&app_handle);
+    Ok(hopper_item_to_dto(&item))
+}
+
+#[tauri::command]
+pub async fn hopper_reprioritize(
+    app_handle: tauri::AppHandle,
+    item_id: String,
+    priority: u8,
+) -> Result<HopperTaskDto, String> {
+    use vox_orchestrator::hopper::HopperIntake;
+    let db = vox_db::VoxDb::connect_canonical()
+        .await
+        .map_err(|e| e.to_string())?;
+    let hopper = vox_orchestrator::hopper::SqliteHopper::new(Arc::new(db));
+    let hid = vox_orchestrator::hopper::HopperItemId(item_id);
+    let new_priority = vox_orchestrator::types::TaskPriority::from_u8(priority);
+    let cap = vox_orchestrator::hopper::capability::DeveloperOverrideMint::new().mint(
+        "Tauri GUI",
+        "GUI Reprioritization",
+        "gui-override",
+    );
+    let item = hopper
+        .reprioritize(&hid, new_priority, cap)
+        .await
+        .map_err(|e| e.to_string())?;
+    emit_tasks_changed(&app_handle);
+    Ok(hopper_item_to_dto(&item))
+}
+
+#[tauri::command]
+pub async fn hopper_cancel(
+    app_handle: tauri::AppHandle,
+    item_id: String,
+) -> Result<HopperTaskDto, String> {
+    use vox_orchestrator::hopper::HopperIntake;
+    let db = vox_db::VoxDb::connect_canonical()
+        .await
+        .map_err(|e| e.to_string())?;
+    let hopper = vox_orchestrator::hopper::SqliteHopper::new(Arc::new(db));
+    let hid = vox_orchestrator::hopper::HopperItemId(item_id);
+    let item = hopper.cancel(&hid).await.map_err(|e| e.to_string())?;
+    emit_tasks_changed(&app_handle);
+    Ok(hopper_item_to_dto(&item))
+}
+
+#[cfg(test)]
+mod hopper_tests {
+    use super::*;
+    use vox_orchestrator::hopper::IntakeItem;
+    use vox_orchestrator::hopper::types::{IntakeSource, PriorityHint};
+
+    #[test]
+    fn test_hopper_item_to_dto() {
+        let item = IntakeItem::new(
+            "test intent".to_string(),
+            vec![],
+            PriorityHint::Normal,
+            IntakeSource::Developer,
+            None,
+        );
+        let dto = hopper_item_to_dto(&item);
+        assert_eq!(dto.item_id, item.item_id.0);
+        assert_eq!(dto.intent, "test intent");
+        assert_eq!(dto.state, "inbox");
+    }
+}
+
 #[cfg(test)]
 
 mod budget_tests {
