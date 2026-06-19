@@ -55,8 +55,10 @@ pub fn emit_admin_edit(table: &HirTable) -> String {
 }
 
 pub fn emit_admin(table: &HirTable) -> String {
-    let _ = table;
-    String::new()
+    let mut out = emit_admin_list(table);
+    out.push('\n');
+    out.push_str(&emit_admin_edit(table));
+    out
 }
 
 #[cfg(test)]
