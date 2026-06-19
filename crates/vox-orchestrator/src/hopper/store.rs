@@ -93,6 +93,9 @@ pub trait HopperIntake: Send + Sync {
     /// Mark an item as done.
     async fn complete(&self, item_id: &HopperItemId) -> Result<IntakeItem, HopperError>;
 
+    /// Cancel an item (terminal). Errors if already terminal.
+    async fn cancel(&self, item_id: &HopperItemId) -> Result<IntakeItem, HopperError>;
+
     /// Idempotently apply a remote admission replicated from a peer daemon (B4).
     ///
     /// Preserves the origin `item_id`; a second apply of the same id is a no-op
@@ -259,6 +262,24 @@ impl HopperIntake for InMemoryHopper {
         Ok(item.clone())
     }
 
+    async fn cancel(&self, item_id: &HopperItemId) -> Result<IntakeItem, HopperError> {
+        let mut items = self.items.write().await;
+        let item = items
+            .iter_mut()
+            .find(|i| &i.item_id == item_id)
+            .ok_or_else(|| HopperError::NotFound(item_id.0.clone()))?;
+
+        if matches!(
+            item.state,
+            ItemState::Done | ItemState::Overridden | ItemState::Cancelled
+        ) {
+            return Err(HopperError::Terminal);
+        }
+
+        item.state = ItemState::Cancelled;
+        Ok(item.clone())
+    }
+
     async fn replay_admitted(&self, op: AdmittedReplay) -> IntakeItem {
         let mut items = self.items.write().await;
         // Idempotent: if we already have this id (re-delivery, or we were the
@@ -406,5 +427,24 @@ mod tests {
         h.complete(&item.item_id).await.unwrap();
         assert_eq!(h.assigned().await.len(), 0);
         assert_eq!(h.history().await.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn cancel_moves_item_to_cancelled_terminal() {
+        let hopper = InMemoryHopper::headless();
+        let item = hopper
+            .submit(
+                "do thing".into(),
+                vec![],
+                PriorityHint::Normal,
+                IntakeSource::Developer,
+                None,
+            )
+            .await;
+        let cancelled = hopper.cancel(&item.item_id).await.expect("cancel ok");
+        assert!(matches!(cancelled.state, ItemState::Cancelled));
+        // second cancel on a terminal item is an error
+        let err = hopper.cancel(&item.item_id).await;
+        assert!(err.is_err(), "cancelling a terminal item must error");
     }
 }
