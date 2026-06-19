@@ -612,6 +612,7 @@ pub struct HopperTaskDto {
     pub intent: String,
     pub priority: u8,
     pub state: String,
+    pub task_id: u64,
 }
 
 fn hopper_item_to_dto(item: &vox_orchestrator::hopper::IntakeItem) -> HopperTaskDto {
@@ -620,6 +621,7 @@ fn hopper_item_to_dto(item: &vox_orchestrator::hopper::IntakeItem) -> HopperTask
         intent: item.intent.clone(),
         priority: item.classified_priority as u8,
         state: item.state.kind().to_string(),
+        task_id: vox_orchestrator::orchestrator::dispatch::stable_hash(&item.item_id.0),
     }
 }
 
@@ -724,6 +726,7 @@ mod hopper_tests {
         assert_eq!(dto.item_id, item.item_id.0);
         assert_eq!(dto.intent, "test intent");
         assert_eq!(dto.state, "inbox");
+        assert_eq!(dto.task_id, vox_orchestrator::orchestrator::dispatch::stable_hash(&item.item_id.0));
     }
 }
 
