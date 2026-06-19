@@ -631,3 +631,45 @@ Architecture:
 - `dashboards/` — 4 Grafana JSON boards (command_usage, skill_activation, harness_usage, edit_pattern), all queries enforce k≥20.
 
 Track D (deploy) is the next step — provision ClickHouse + deploy this service.
+
+---
+
+```yaml
+# --- AGH-0015 ---
+id: AGH-0015
+date: "2026-06-19"
+plan: "docs/superpowers/plans/2026-06-19-centralized-telemetry-program.md#track-d"
+subsystem: "Track D — vox-server deploy infra (docker-compose + Grafana)"
+target: "Claude Sonnet 4.6 (inline execution)"
+repo: "C:/Users/Owner/vox-server"
+delivered:
+  - "feat(infra): Track D deploy stack (17b4907 in vox-server)"
+outcome: "delivered (local deploy-ready; prod TLS+domain left for human)"
+verification:
+  docker_compose: "written — docker compose up -d starts ClickHouse + optional Grafana+ingest"
+  migrations: "run via --profile migrate"
+  grafana: "provisioned via /grafana/provisioning/ yaml auto-wires ClickHouse datasource + dashboard folder"
+agent_deviations:
+  - "Dockerfile uses musl/alpine build; TLS termination delegated to reverse proxy (not in-process)"
+  - "E3 (live end-to-end test) requires local Docker + ClickHouse to be running; left as post-deploy manual check"
+commits:
+  - "17b4907 (vox-server repo)"
+```
+
+### AGH-0015 — Track D review detail
+
+Deploy quick-start (local/dev):
+```sh
+cd C:/Users/Owner/vox-server
+cp .env.example .env
+docker compose up -d         # starts ClickHouse (port 8123)
+docker compose --profile migrate run --rm migrate
+docker compose --profile full up -d   # starts vox-server (port 4318) + Grafana (port 3000)
+curl http://localhost:4318/healthz    # → "ok"
+```
+
+Prod deploy checklist (human-gated):
+- [ ] Provision VPS/Coolify service, wire CLICKHOUSE_URL + CLICKHOUSE_PASSWORD
+- [ ] Add TLS via reverse proxy (nginx/caddy) in front of port 4318
+- [ ] Set OTLP_ENDPOINT=https://your-domain.com:4318/v1/logs in vox-telemetry-otlp SpoolSink
+- [ ] Verify E3 end-to-end: start Vox with consent=Granted, watch events arrive in ClickHouse events_raw
