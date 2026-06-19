@@ -813,6 +813,8 @@ mod semcov_wave1f_tests {
 
     #[test]
     fn load_from_repo_root_applies_vox_toml_at_given_root() {
+        use crate::toml_config::test_support::CONFIG_TEST_LOCK;
+        let _lock = CONFIG_TEST_LOCK.lock().expect("test lock");
         let dir = tempfile::tempdir().expect("tempdir");
         let vox_toml = dir.path().join("Vox.toml");
         std::fs::write(
