@@ -776,6 +776,37 @@ Wired the Needs You surface and blocked overlay on Tasks:
 - **Attention Strip counts**: Subscribed to feedback change and tasks change events to dynamically update counts for `waitingQuestions` (open feedback count) and `blockedTasks` (tasks blocked by open feedback gates).
 - **Chat focus & scrolling**: Threaded `focusedFeedbackId` to `ChatSurface` and implemented scrolling/highlighting of the corresponding thread/message bubble on navigation.
 
+#### Code review (Claude Opus, 2026-06-19) — ground truth vs the rev-2 plan
+
+```yaml
+review_findings:
+  - severity: blocker
+    where: "crates/vox-orchestrator/src/orchestrator/agent/doubt.rs"
+    finding: "Phase-1 Task 9 (doubt projection) was SILENTLY SKIPPED across the whole run. No production code ever registered a Doubt FeedbackRequest (only ask_clarification at feedback_tools.rs:89 + tests). Consequence: doubt cards NEVER appear in Needs You, and the resolve-handler Overrule→overrule_task dispatch (feedback_tools.rs:171) is dead code in production. The doubt half of the feature was non-functional despite the card UI + resolve path shipping."
+    status: "FIXED FORWARD — registered the Doubt FeedbackRequest inline in doubt_task (non-gating, doubted_task_id=Some(task_id)) + emit FeedbackRequested. Simpler than the rev-2 async-sink design because Flash made FeedbackStore sync (parking_lot::RwLock), so doubt_task (sync) can register directly. Added regression test orchestrator/tests/doubt_feedback_projection.rs."
+  - severity: minor
+    where: "crates/vox-orchestrator-mcp/src/feedback_tools.rs:190"
+    finding: "promote_withheld(|item| item.surface) is a no-op — the closure returns the current surface, so withheld items never promote. Harmless (v1 explicitly allowed skipping promotion) but it is misleading dead logic; either remove the call or implement real re-evaluation."
+    status: "left as-is (v1-acceptable); flagged for follow-up"
+  - severity: info
+    where: "store.rs / doubt path"
+    finding: "Beneficial deviation: FeedbackStore was implemented sync (parking_lot) instead of the planned async tokio RwLock. This is fine (short critical sections) and removed the need for the async projector sink the plan specified for doubts."
+verified_good:
+  - "TaskId-keyed gating (NOT HopperItemId) — types.rs:46"
+  - "No ItemState::Blocked / no hopper mutation — blocked is a computed GUI overlay"
+  - "Real overrule_task dispatch on doubt Overrule — feedback_tools.rs:175"
+  - "Single shared FeedbackStore (Orchestrator-owned, ServerState Arc) — accessors.rs:535"
+  - "invoke_mcp_tool transport + vox://agent-events reactivity (not the dead activity-appended)"
+  - "record_attention_event paired with evaluate_with_state in-file (attention_ledger_parity gate)"
+  - "tool-registry.canonical.yaml SSOT entries present for all 3 tools"
+  - "Phase 0 AttentionStrip reuses AttentionBudgetMeter (no duplicate parser)"
+verdict: "approve-with-fix-applied — the one blocker (missing doubt projection) is fixed forward in this branch; all rev-2 invariants otherwise held."
+prompt_lessons:
+  - "When a plan task is later restructured by an upstream change (here: store made sync), Flash drops the now-'unneeded'-looking task entirely. Mark cross-task dependencies as REQUIRED-OUTPUT checklist items the handback must tick, not just prose steps — Task 9 had no acceptance assertion the runner had to satisfy."
+  - "A feature split across a 'producer' task (register doubt) and a 'consumer' task (resolve/overrule) can ship the consumer + UI green while the producer is missing, and still pass tests (the resolve test self-registered its fixture). Require an end-to-end test that exercises the producer→consumer path, not unit tests on each half."
+fix_commits: ["0410ad7e19"]
+fix_verification: "cargo test -p vox-orchestrator doubt_task_surfaces_feedback_card -> 1 passed (foreground, no pipe, exit 0); crate compiled clean"
+```
 
 ---
 
