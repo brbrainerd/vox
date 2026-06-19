@@ -887,4 +887,372 @@ Antigravity/Gemini 3.5 Flash executed T0–T12. This is the verified expectation
 
 ### Expectation ceiling
 
-Track D's user-facing goals are **met**: the attention budget is visible in the GUI (real focus depth via the live snapshot), the rider now reasons over the solution space, withheld questions are persisted for opt-in, and the de-split-brain fixes landed. The **one substantive gap to the ceiling** is item #2 — making the calibration loop actually adapt the running config (Phase F), plus a small UI consumer for the persisted `withheld_question` payload (item under T12).
+Track D's user-facing goals are **met**: the attention budget is visible in the GUI (real focus depth via the live snapshot), the rider now reasons over the solution space, withheld questions are persisted for opt-in, and the de-split-brain fixes landed. The **one substantive gap to the ceiling** is item #2 — making the calibration loop actually adapt the running config (Phase F below), plus a small UI consumer for the persisted `withheld_question` payload (item under T12).
+
+---
+
+## Phase F — Close the calibration loop end-to-end (Claude Sonnet 4.6 edition)
+
+> **EXECUTION TARGET:** Phase F is implemented by **Claude Sonnet 4.6** (not Antigravity). The same discipline applies — TDD, atomic green commits, verify-before-use before referencing any symbol — but you may use higher-level judgement where the plan says so. Use `superpowers:test-driven-development` per task and `superpowers:verification-before-completion` before each commit.
+
+**Why:** Phase D landed the calibrator as pure functions but **nothing calls them at runtime**, and even if it did, the MCP chat path reads a **stale clone** of the config (`ServerState.orchestrator_config`), so learned offsets would never reach the live ask-decision. Phase F (F1) aggregates from the in-memory event ring with a type-safe matcher, (F2) provides the pure recalibration step, (F3) runs it on an interval and writes the running `Orchestrator.config`, (F4) makes the MCP path read the **live** calibration so offsets actually take effect, and (F5) cleans up the tree and ledger. This genuinely closes audit #4.
+
+**Grounded facts (verified 2026-06-19):**
+- In-memory ring accessor: `BudgetManager::attention_events_snapshot(limit: usize) -> Vec<AttentionEvent>` (`budget/mod.rs:579`; ring capped at 100, newest first).
+- `Orchestrator` holds `config: Arc<RwLock<OrchestratorConfig>>` and `budget_manager: Arc<RwLock<BudgetManager>>` (`orchestrator.rs:54-60`) — config IS runtime-mutable under a write lock.
+- `OrchestratorConfig.interruption_calibration: InterruptionCalibrationConfig` (`config/orchestrator_fields.rs:426`).
+- MCP reads a **clone**: `ServerState.orchestrator_config: OrchestratorConfig` (`server_state.rs:31`), used at `attention_policy.rs:227` `apply_calibration(signals, &state.orchestrator_config)`. `ServerState` also holds `orchestrator: Arc<Orchestrator>` (live).
+- `AttentionEvent` fields: `channel: Option<String>`, `event_type: AttentionEventType`, `outcome: ApprovalOutcome` (`attention/budget.rs:183`).
+- Background-service pattern to mirror: `services/flywheel.rs:36` (`tokio::time::interval(...)` + `tokio::spawn(async move { loop { tick.tick().await; ... } })`, cloning an `Arc<Orchestrator>`).
+
+### File Structure (Phase F)
+
+| File | Responsibility | Action | Task |
+|---|---|---|---|
+| `crates/vox-orchestrator/src/attention/calibrator.rs` | type-safe `aggregate_events` + min-sample guard + `recalibrate` | Modify | F1, F2 |
+| `crates/vox-orchestrator/src/services/attention_calibration.rs` | interval job: ring → recalibrate → write config | Create | F3 |
+| `crates/vox-orchestrator/src/services/mod.rs` | register service module | Modify | F3 |
+| (service-start site) | spawn the job | Modify | F3 |
+| `crates/vox-orchestrator-mcp/src/attention_policy.rs` | read **live** calibration, not the stale clone | Modify | F4 |
+| `crates/vox-orchestrator/src/orchestrator/accessors.rs` | `interruption_calibration()` live accessor | Modify | F4 |
+| `docs/superpowers/plans/2026-06-18-track-d-attention-aware-questioning.md` | flip ledger items to closed | Modify | F5 |
+
+---
+
+### Task F1 `[SEQUENTIAL]`: Type-safe event aggregation + min-sample guard
+
+Aggregate directly from `AttentionEvent` enums (compiler-checked — structurally cannot regress to the phantom-string bug), and stop trusting noisy tiny samples.
+
+**Files:** Modify `crates/vox-orchestrator/src/attention/calibrator.rs`.
+
+- [ ] **Step 1 (verify-before-use):** `rg -n "pub fn attention_events_snapshot|pub struct AttentionEvent|enum ApprovalOutcome|enum AttentionEventType|pub enum ApprovalTier|struct AgentId|struct TaskId" crates/vox-orchestrator/src/attention/budget.rs crates/vox-orchestrator/src/budget/mod.rs crates/vox-orchestrator/src/types*`. Confirm `AttentionEvent.channel: Option<String>`, `.outcome: ApprovalOutcome`, `.event_type: AttentionEventType`, and note how to construct `AgentId`/`ApprovalTier` for the test.
+
+- [ ] **Step 2: Write the failing tests.** Append to the `tests` module in `calibrator.rs`:
+
+```rust
+use crate::attention::budget::{ApprovalOutcome, ApprovalTier, AttentionEvent, AttentionEventType};
+use crate::types::AgentId;
+
+fn ev(channel: &str, outcome: ApprovalOutcome, event_type: AttentionEventType) -> AttentionEvent {
+    AttentionEvent {
+        agent_id: AgentId(0),
+        task_id: None,
+        event_type,
+        tier: ApprovalTier::Trusted, // confirm a real variant in Step 1
+        cost_ms: 0,
+        outcome,
+        trust_score_at_time: 0.5,
+        effective_complexity: 0.0,
+        decision_entropy_bits: 0.0,
+        timestamp_ms: 0,
+        channel: Some(channel.to_string()),
+        policy_reason: None,
+    }
+}
+
+#[test]
+fn aggregate_events_matches_enums_directly() {
+    let events = vec![
+        ev("vox_inline_edit", ApprovalOutcome::Approved, AttentionEventType::CommandApproval),
+        ev("vox_inline_edit", ApprovalOutcome::Modified, AttentionEventType::CodeReview),
+        ev("vox_inline_edit", ApprovalOutcome::Rejected, AttentionEventType::CommandApproval),
+        ev("vox_inline_edit", ApprovalOutcome::AutoApproved, AttentionEventType::PolicyDeferred),
+    ];
+    let m = aggregate_events(&events);
+    assert_eq!(m["vox_inline_edit"], ChannelOutcomeCounts { accepted: 2, rejected: 1, suppressed: 1 });
+}
+
+#[test]
+fn small_samples_yield_neutral_offset() {
+    // Below the minimum sample count, do not act on noise.
+    let c = ChannelOutcomeCounts { accepted: 0, rejected: 3, suppressed: 0 };
+    assert_eq!(channel_gain_offset(c), 0.0);
+}
+```
+
+- [ ] **Step 3: Run → FAIL.** `cargo test -p vox-orchestrator --lib calibrator` → FAIL (`aggregate_events` missing; `small_samples` fails because the guard isn't there yet).
+
+- [ ] **Step 4: Implement.** Add the min-sample guard to `channel_gain_offset` (top of the fn, after computing `shown`):
+
+```rust
+    const MIN_SAMPLES: u32 = 5;
+    let shown = c.accepted + c.rejected;
+    if shown < MIN_SAMPLES {
+        return 0.0;
+    }
+```
+
+(Replace the existing `let shown = ...; if shown == 0 { return 0.0; }` lines with the above — `MIN_SAMPLES` subsumes the zero case.) Then add the type-safe aggregator near `aggregate_counts`:
+
+```rust
+use crate::attention::budget::{ApprovalOutcome, AttentionEvent, AttentionEventType};
+
+/// Type-safe aggregation from the in-memory event ring. Matches enum variants directly, so it
+/// cannot regress to phantom-string matching (cf. the 2026-06-19 `aggregate_counts` fix). This is
+/// the path the live calibration job uses.
+#[must_use]
+pub fn aggregate_events(
+    events: &[AttentionEvent],
+) -> std::collections::HashMap<String, ChannelOutcomeCounts> {
+    let mut map: std::collections::HashMap<String, ChannelOutcomeCounts> =
+        std::collections::HashMap::new();
+    for ev in events {
+        let key = ev.channel.clone().unwrap_or_else(|| "unknown".to_string());
+        let e = map.entry(key).or_default();
+        match ev.outcome {
+            ApprovalOutcome::Approved | ApprovalOutcome::Modified => e.accepted += 1,
+            ApprovalOutcome::Rejected => e.rejected += 1,
+            _ => {}
+        }
+        if matches!(
+            ev.event_type,
+            AttentionEventType::PolicyDeferred | AttentionEventType::PolicyProceedAuto
+        ) {
+            e.suppressed += 1;
+        }
+    }
+    map
+}
+```
+
+- [ ] **Step 5: Run → PASS.** `cargo test -p vox-orchestrator --lib calibrator` → all PASS (including the pre-existing offset tests — confirm `high_reject_rate` uses shown=10 and `mostly_accepted` shown=20, both ≥ MIN_SAMPLES, so they still pass).
+
+- [ ] **Step 6: Verify + commit.** `cargo clippy -p vox-orchestrator --lib -- -D warnings`; `cargo fmt -p vox-orchestrator`; then:
+
+```bash
+git add crates/vox-orchestrator/src/attention/calibrator.rs
+git commit -m "feat(attention): type-safe aggregate_events + min-sample guard (Phase F1)"
+```
+
+---
+
+### Task F2 `[SEQUENTIAL]`: Pure recalibration step
+
+One pure function the interval job calls — easy to test, no I/O.
+
+**Files:** Modify `crates/vox-orchestrator/src/attention/calibrator.rs`.
+
+- [ ] **Step 1: Write the failing test.** Append to `close_loop_tests`:
+
+```rust
+#[test]
+fn recalibrate_lowers_gain_for_a_wasteful_channel() {
+    let events: Vec<AttentionEvent> = (0..10)
+        .map(|i| {
+            let outcome = if i == 0 { ApprovalOutcome::Approved } else { ApprovalOutcome::Rejected };
+            ev("vox_inline_edit", outcome, AttentionEventType::CommandApproval)
+        })
+        .collect();
+    let cfg = recalibrate(InterruptionCalibrationConfig::default(), &events);
+    assert!(cfg.inline_assist_gain_offset_bits < 0.0, "9/10 rejected ⇒ ask less on this channel");
+}
+```
+
+> Reuse the `ev(..)` helper added in F1 (same test file). If F1's helper is in `mod tests` and this test is in `mod close_loop_tests`, either move `ev` to the parent module or duplicate it locally — your call; keep it DRY if cheap.
+
+- [ ] **Step 2: Run → FAIL.** `cargo test -p vox-orchestrator --lib recalibrate_lowers_gain` → FAIL (`recalibrate` missing).
+
+- [ ] **Step 3: Implement.** Add near `apply_learned_offsets`:
+
+```rust
+/// Pure recalibration step: aggregate recent events and fold the learned per-channel offsets into
+/// `base`. This is the body the interval job runs each tick.
+#[must_use]
+pub fn recalibrate(
+    base: InterruptionCalibrationConfig,
+    events: &[AttentionEvent],
+) -> InterruptionCalibrationConfig {
+    apply_learned_offsets(base, &aggregate_events(events))
+}
+```
+
+- [ ] **Step 4: Run → PASS.** `cargo test -p vox-orchestrator --lib recalibrate` → PASS.
+
+- [ ] **Step 5: Verify + commit.** `cargo clippy -p vox-orchestrator --lib -- -D warnings`; `cargo fmt -p vox-orchestrator`; then:
+
+```bash
+git add crates/vox-orchestrator/src/attention/calibrator.rs
+git commit -m "feat(attention): pure recalibrate() step folding learned offsets into config (Phase F2)"
+```
+
+---
+
+### Task F3 `[SEQUENTIAL]`: Interval job — recalibrate the running config
+
+Mirror `services/flywheel.rs`. Read the ring, recalibrate, write `Orchestrator.config`.
+
+**Files:** Create `crates/vox-orchestrator/src/services/attention_calibration.rs`; Modify `crates/vox-orchestrator/src/services/mod.rs`; Modify the service-start site.
+
+- [ ] **Step 1 (verify-before-use):** `rg -n "fn spawn|tokio::time::interval|tick.tick\(\)" crates/vox-orchestrator/src/services/flywheel.rs` (mirror its shape). `rg -n "D_300S" crates/vox-config/src/timeouts.rs` (confirm the 5-minute constant exists; if not, use `tokio::time::Duration::from_secs(300)`). `rg -n "flywheel|services::|\.spawn\(\)|Flywheel" crates/vox-orchestrator/src` to find WHERE services are actually spawned at startup — note that file:line; you will add one spawn call there. `rg -n "pub fn attention_events_snapshot" crates/vox-orchestrator/src/budget/mod.rs` (confirm the accessor).
+
+- [ ] **Step 2: Create the job.** `services/attention_calibration.rs`:
+
+```rust
+//! Background calibration: every few minutes, aggregate recent attention events and update the
+//! running interruption-calibration config so the ask-threshold adapts to which surfaces the pilot
+//! actually engages vs. rejects. Closes the Phase-D learn loop (audit #4) at runtime.
+
+use std::sync::Arc;
+
+use crate::Orchestrator;
+
+/// Minimum events in the ring before we bother recalibrating (avoid acting on cold-start noise).
+const MIN_EVENTS_TO_CALIBRATE: usize = 10;
+
+/// Spawn the periodic attention-calibration job. Ticks every 5 minutes.
+pub fn spawn_attention_calibration(orch: Arc<Orchestrator>) {
+    let mut tick = tokio::time::interval(tokio::time::Duration::from_secs(300));
+    tokio::spawn(async move {
+        loop {
+            tick.tick().await;
+            // Snapshot the recent in-memory event ring (newest 100).
+            let events = {
+                let bm = crate::sync_lock::rw_read(&orch.budget_manager);
+                bm.attention_events_snapshot(100)
+            };
+            if events.len() < MIN_EVENTS_TO_CALIBRATE {
+                continue;
+            }
+            // Recalibrate from the current base and write it back under the config write lock.
+            let base = {
+                let cfg = crate::sync_lock::rw_read(&orch.config);
+                cfg.interruption_calibration.clone()
+            };
+            let updated = crate::attention::calibrator::recalibrate(base, &events);
+            {
+                let mut cfg = crate::sync_lock::rw_write(&orch.config);
+                cfg.interruption_calibration = updated;
+            }
+            tracing::debug!(
+                target: "vox_attention_calibration",
+                events = events.len(),
+                "recalibrated interruption offsets from attention events"
+            );
+        }
+    });
+}
+```
+
+> Confirm the lock helpers `crate::sync_lock::rw_read` / `rw_write` exist (used throughout, e.g. `accessors.rs:15`). If `calibrator` is not re-exported at `crate::attention::calibrator`, check `attention/mod.rs` and adjust the path (T9 registered `pub mod calibrator;`).
+
+- [ ] **Step 3: Register the module.** In `crates/vox-orchestrator/src/services/mod.rs` add (next to `pub mod flywheel;`):
+
+```rust
+pub mod attention_calibration;
+```
+
+- [ ] **Step 4: Spawn it at startup.** At the service-start site found in Step 1 (where `flywheel` / other services are spawned), add — using the same `Arc<Orchestrator>` handle that site already has:
+
+```rust
+crate::services::attention_calibration::spawn_attention_calibration(orch.clone());
+```
+
+> Match the real variable name for the orchestrator Arc at that site. If services are gated behind a config flag, place this spawn alongside the others under the same gate.
+
+- [ ] **Step 5: Compile.** `cargo check -p vox-orchestrator` → compiles. `cargo run -p vox-arch-check` → passes (new module).
+
+- [ ] **Step 6: Verify + commit.** `cargo clippy -p vox-orchestrator -- -D warnings`; `cargo fmt -p vox-orchestrator`; then:
+
+```bash
+git add crates/vox-orchestrator/src/services/attention_calibration.rs crates/vox-orchestrator/src/services/mod.rs
+# plus the modified service-start file:
+git add -u
+git commit -m "feat(attention): interval job recalibrates running interruption config (Phase F3)"
+```
+
+---
+
+### Task F4 `[SEQUENTIAL]`: Make the MCP ask-decision read the LIVE calibration (the actual loop closure)
+
+Right now the chat path reads `ServerState.orchestrator_config` — a clone frozen at startup — so F3's updates never reach it. Read the live config from the orchestrator instead.
+
+**Files:** Modify `crates/vox-orchestrator/src/orchestrator/accessors.rs` (add accessor); Modify `crates/vox-orchestrator-mcp/src/attention_policy.rs` (use it).
+
+- [ ] **Step 1 (verify-before-use):** `rg -n "fn apply_calibration|state.orchestrator_config|let cal = &cfg.interruption_calibration" crates/vox-orchestrator-mcp/src/attention_policy.rs`. Read `apply_calibration` (it does `let cal = &cfg.interruption_calibration;`). Confirm `ServerState` has `orchestrator: Arc<Orchestrator>` (`rg -n "orchestrator:" crates/vox-orchestrator-mcp/src/server_state.rs`).
+
+- [ ] **Step 2: Write the failing test.** Add to `accessors.rs` test module — assert a live accessor reflects a config mutation:
+
+```rust
+#[test]
+fn interruption_calibration_accessor_reflects_live_config() {
+    let orch = crate::Orchestrator::default(); // use the real test constructor confirmed earlier
+    {
+        let mut cfg = crate::sync_lock::rw_write(&orch.config);
+        cfg.interruption_calibration.inline_assist_gain_offset_bits = -0.07;
+    }
+    assert_eq!(orch.interruption_calibration().inline_assist_gain_offset_bits, -0.07);
+}
+```
+
+- [ ] **Step 3: Run → FAIL.** `cargo test -p vox-orchestrator interruption_calibration_accessor_reflects_live_config` → FAIL (accessor missing).
+
+- [ ] **Step 4: Add the live accessor.** In `accessors.rs`:
+
+```rust
+    /// Live snapshot of the interruption-calibration config (clone under read lock). Used by the
+    /// MCP ask-decision path so background recalibration (Phase F3) actually takes effect.
+    #[must_use]
+    pub fn interruption_calibration(&self) -> crate::attention::InterruptionCalibrationConfig {
+        crate::sync_lock::rw_read(&self.config).interruption_calibration.clone()
+    }
+```
+
+- [ ] **Step 5: Use it in the MCP path.** In `attention_policy.rs`, change `apply_calibration` to take the calibration directly, and read it live in `evaluate_with_state`:
+
+```rust
+// signature change:
+fn apply_calibration(
+    mut signals: InterruptionSignals,
+    cal: &vox_orchestrator::attention::InterruptionCalibrationConfig,
+) -> InterruptionSignals {
+    // body: replace `let cal = &cfg.interruption_calibration;` with the `cal` parameter directly.
+    ...
+}
+
+// caller (evaluate_with_state):
+let cal = state.orchestrator.interruption_calibration();
+let calibrated = apply_calibration(signals.clone(), &cal);
+```
+
+> Leave the `attention_enabled` / `attention_alert_threshold` reads on `state.orchestrator_config` as-is (those are not mutated at runtime). Only the calibration must be live.
+
+- [ ] **Step 6: Run → PASS.** `cargo test -p vox-orchestrator interruption_calibration_accessor` → PASS; `cargo test -p vox-orchestrator-mcp attention` → PASS; `cargo check -p vox-orchestrator-mcp` → compiles.
+
+- [ ] **Step 7: Verify + commit.** `cargo clippy -p vox-orchestrator -- -D warnings`; `cargo clippy -p vox-orchestrator-mcp -- -D warnings`; `cargo fmt -p vox-orchestrator`; `cargo fmt -p vox-orchestrator-mcp`; then:
+
+```bash
+git add crates/vox-orchestrator/src/orchestrator/accessors.rs crates/vox-orchestrator-mcp/src/attention_policy.rs
+git commit -m "feat(attention): MCP reads live interruption calibration — loop closed end-to-end (Phase F4, audit #4)"
+```
+
+---
+
+### Task F5 `[SEQUENTIAL]`: Cleanup + ledger close-out
+
+**Files:** working tree; this plan's ledger.
+
+- [ ] **Step 1: Resolve the stray edit.** `git status --short crates/vox-orchestrator/src/attention/interruption_policy.rs`. If it shows a whitespace-only modification, normalize and commit it: `cargo fmt -p vox-orchestrator`, then `git add crates/vox-orchestrator/src/attention/interruption_policy.rs && git commit -m "style(attention): fmt interruption_policy test (cleanup)"`. If `git diff` shows it is purely a re-wrap with no committed counterpart, this commit is correct; if it is already identical to HEAD, skip.
+
+- [ ] **Step 2: Full verification.** Run and paste output:
+  - `cargo test -p vox-orchestrator` → all PASS
+  - `cargo test -p vox-orchestrator-mcp` → all PASS
+  - `cargo clippy -p vox-orchestrator --lib -- -D warnings` and `cargo clippy -p vox-orchestrator-mcp -- -D warnings` → clean
+  - `cargo run -p vox-arch-check` → passes
+
+- [ ] **Step 3: Flip the ledger.** In the *Reality gaps found in review* section above, change item #2's status from `[OPEN — the real ceiling gap]` to `[CLOSED 2026-MM-DD, Phase F]` with a one-line note that the interval job + live MCP read now adapt the running config. Update the F-task checkboxes to `[x]`.
+
+- [ ] **Step 4: Commit the ledger.**
+
+```bash
+git add docs/superpowers/plans/2026-06-18-track-d-attention-aware-questioning.md
+git commit -m "docs(track-d): close audit #4 — calibration loop live (Phase F complete)"
+```
+
+> **Note on `withheld_question` UI consumer (deliberately out of scope):** the persisted payload (T12) has no GUI reader yet. That is a *frontend* task (render an inline "ask anyway?" affordance from `socrates.questioning.withheld_question`), not part of closing the calibration loop. Leave it for a separate small UI plan unless asked — YAGNI for Phase F.
+
+### Self-Review (Phase F)
+
+- **Coverage:** ceiling gap #2 → F1–F4 (aggregate from real events, recalibrate, run on interval, read live); cleanup → F5. ✅
+- **Type consistency:** `aggregate_events`/`recalibrate`/`apply_learned_offsets`/`channel_gain_offset`/`ChannelOutcomeCounts`/`InterruptionCalibrationConfig`/`interruption_calibration()` names are consistent across F1–F4. ✅
+- **No placeholders:** every code step shows real code; the one judgement call (service-start site) has a verify-before-use locating it. ✅
+- **Correctness guard:** F4 is the load-bearing step — without it F3 updates a config the chat path never reads. Both are required to truly close the loop. ✅
