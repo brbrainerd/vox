@@ -273,6 +273,8 @@ exempt_files     = [
     "crates/vox-cli/src/commands/ci/data_storage_guard.rs",
     "crates/vox-cli/src/commands/ci/install_hooks.rs",  # uses vox_git::read_only(); pattern match hits the comment only
     "crates/vox-cli/src/commands/ci/line_endings.rs",
+    "crates/vox-cli-ci/src/line_endings.rs",
+    "crates/vox-cli-ci/src/commit_lint.rs",
     "crates/vox-cli/src/commands/ci/pre_push.rs",
     "crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs",
     "crates/vox-cli/src/commands/ci/watch_run.rs",
