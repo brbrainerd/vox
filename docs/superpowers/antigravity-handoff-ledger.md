@@ -540,3 +540,53 @@ commits: []
 `docs/superpowers/plans/2026-06-19-track0-ACCEPTANCE-REVIEW.md`; fill `delivered`,
 `verification`, `commits`, and this prose section on completion.*
 
+
+---
+
+```yaml
+# --- AGH-0012 ---
+id: AGH-0012
+date: "2026-06-19"
+plan: "docs/superpowers/plans/2026-06-19-centralized-opt-in-telemetry-track-e.md"
+subsystem: "Track E — 5 product-category emit sites + 12 DefaultDecision sites + projection coverage gate + arch-check guardrail"
+target: "Claude Sonnet 4.6 (inline execution)"
+delivered:
+  - "feat(telemetry): E1 — 6 new TelemetryEvent variants + record_default_decision! macro (018a2f0b0f)"
+  - "feat(telemetry/track-e): wire 5 product-category emit sites (df21badda9)"
+  - "feat(telemetry/track-e): wire 12 DefaultDecision sites, vox-config gains vox-telemetry dep (0620e5a90a)"
+  - "test(telemetry/track-e): projection coverage gate 10 tests (528bb5c027)"
+  - "feat(arch-check/track-e): no-otlp-in-emitters forbidden_pattern rule (1f11c51e0f)"
+outcome: "delivered"
+verification:
+  tests: "green"   # cargo test -p vox-telemetry-otlp --test projection_coverage (10/10)
+  build: "green"   # cargo build -p vox-orchestrator-mcp vox-config vox-telemetry-otlp vox-cli (all clean)
+  arch_check: "green"  # cargo run -p vox-arch-check -- --manifest-dir . (exit 0)
+errors_encountered:
+  - "vox-config lacked vox-telemetry dep; added (layer 2→1, allowed)"
+  - "ModelCallEvent fields changed since spec was written; updated test to match actual struct"
+agent_deviations:
+  - "edit_pattern site moved from mcp_client.rs write_file to dispatch.rs handle_tool_call (vox_write_file routes through workspace_mcp, not mcp_client; dispatch.rs is the real chokepoint)"
+  - "limits.rs const sites: used OnceLock guard in emit_default_decisions_once() called from clamp_http_max_output_tokens() (consts have no fn body to emit from)"
+commits:
+  - "018a2f0b0f"
+  - "df21badda9"
+  - "0620e5a90a"
+  - "528bb5c027"
+  - "1f11c51e0f"
+```
+
+### AGH-0012 — Track E emit sites review detail
+
+Track E wired all 5 product-category events into the existing `record_event!` infrastructure:
+
+1. **command_usage** — `vox-cli/src/cli_dispatch/mod.rs`: wraps `dispatch_cli_inner` in a timer; emits `verb` + `exit_class` + `duration_bucket` after every CLI invocation.
+2. **skill_activation** — `chat_tools/mod.rs`: at the pinned-skill injection path; `skill_id_hash` = salted SHA-256 (never raw id).
+3. **harness_usage** — `dispatch.rs::handle_tool_call`: every MCP tool call; `tool_call_kind` from tool name prefix, `mode` = agent | interactive.
+4. **edit_pattern** — `dispatch.rs::handle_tool_call`: on successful `vox_write_file / vox_patch_file / vox_inline_edit_file / vox_multi_replace`; `file_kind` from path extension, `size_bucket` from content length.
+5. **error_surface** — `dispatch.rs::handle_tool_call`: on `Err(_)` results; `error_class` bucketed from error message, `subsystem` from tool name prefix.
+
+12 `DefaultDecision` sites wired across vox-orchestrator budget, vox-config LLM limits, vox-orchestrator-mcp llm_bridge, vox-effort-audit, and vox-audit. All `chosen` values are named enum slugs (no raw numbers).
+
+Projection coverage gate: 10 tests in `projection_coverage.rs` verify canary-in → canary-out-is-dropped for all 6 Track E variants plus regression guards for ResearchMetric and ModelCall.
+
+Arch-check guardrail `no-otlp-in-emitters`: blocks future crates from taking a direct `vox-telemetry-otlp` dep (domain crates must use `record_event!` only).
