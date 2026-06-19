@@ -204,6 +204,31 @@ pub fn openrouter_api_key() -> Option<String> {
         .map(std::string::ToString::to_string)
 }
 
+/// True when research should try the OpenRouter **free tier first**
+/// (`VOX_RESEARCH_PREFER_FREE_TIER`). This only REORDERS candidates — the free
+/// tier is always present as a fallback floor regardless of this flag. Accepts
+/// `1`/`true`/`yes`/`on` (case-insensitive, trimmed); unset/other → `false`.
+///
+/// Non-secret behavioral flag, read from the environment like `VOX_SELECTOR_MODEL`
+/// in `vox-actor-runtime::model_resolution`.
+#[must_use]
+pub fn research_prefer_free_tier() -> bool {
+    research_prefer_free_tier_from(
+        std::env::var("VOX_RESEARCH_PREFER_FREE_TIER")
+            .ok()
+            .as_deref(),
+    )
+}
+
+/// Pure parser for [`research_prefer_free_tier`] — testable without the environment.
+#[must_use]
+pub(crate) fn research_prefer_free_tier_from(raw: Option<&str>) -> bool {
+    matches!(
+        raw.map(|v| v.trim().to_ascii_lowercase()).as_deref(),
+        Some("1" | "true" | "yes" | "on")
+    )
+}
+
 /// Preferred Hugging Face **router** model id for chat when policy selects HF (`HF_CHAT_MODEL`).
 static HF_CHAT_MODEL_PREF_CACHE: SnapshotCache<Option<String>> = SnapshotCache::new();
 
@@ -674,5 +699,19 @@ mod tests {
 
         let _ = crate::toml_config::unset_user_config_value("GEMINI_TUNING_TEMPERATURE");
         crate::snapshot::bump(&["GEMINI_TUNING_TEMPERATURE"]);
+    }
+
+    #[test]
+    fn research_prefer_free_tier_parses_truthy() {
+        use super::research_prefer_free_tier_from;
+        assert!(research_prefer_free_tier_from(Some("1")));
+        assert!(research_prefer_free_tier_from(Some("true")));
+        assert!(research_prefer_free_tier_from(Some("TRUE")));
+        assert!(research_prefer_free_tier_from(Some("  yes ")));
+        assert!(research_prefer_free_tier_from(Some("on")));
+        assert!(!research_prefer_free_tier_from(Some("0")));
+        assert!(!research_prefer_free_tier_from(Some("false")));
+        assert!(!research_prefer_free_tier_from(Some("")));
+        assert!(!research_prefer_free_tier_from(None));
     }
 }
