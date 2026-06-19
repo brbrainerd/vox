@@ -10,7 +10,7 @@ vox-plugin-types = { workspace = true }
 vox-mcp-registry = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-walkdir = { workspace = true }
+ignore = { workspace = true }
 anyhow = { workspace = true }
 
 [[bin]]
@@ -19,3 +19,7 @@ path = "src/bin/vox_discover.rs"
 
 [dependencies.clap]
 workspace = true
+
+[dev-dependencies]
+tempfile = { workspace = true }
+

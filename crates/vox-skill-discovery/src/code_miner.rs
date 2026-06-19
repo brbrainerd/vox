@@ -8,7 +8,7 @@ use vox_similarity::{tokenize, Fragment, FragmentKind, LshIndex};
 
 use crate::candidate::{Candidate, CandidateKind, DraftFrontmatter};
 use crate::options::DiscoverOptions;
-
+use ignore::WalkBuilder;
 /// Split text into (start_line, block_text) on blank-line boundaries.
 pub(crate) fn extract_blocks(text: &str) -> Vec<(usize, String)> {
     let mut blocks = Vec::new();
@@ -41,7 +41,7 @@ pub(crate) fn extract_blocks(text: &str) -> Vec<(usize, String)> {
 /// one per cluster of `>= min_occurrences` similar blocks.
 pub fn mine_repeated_code(root: &Path, opts: &DiscoverOptions) -> Vec<Candidate> {
     let mut index = LshIndex::new(opts.bands, opts.rows);
-    for entry in WalkDir::new(root).into_iter().filter_map(|e| e.ok()) {
+    for entry in WalkBuilder::new(root).build().filter_map(|e| e.ok()) {
         let p = entry.path();
         if p.extension().and_then(|e| e.to_str()) != Some("vox") {
             continue;
@@ -124,5 +124,26 @@ mod tests {
         assert!(blocks[0].1.contains("line a"));
         assert_eq!(blocks[1].0, 4);
         assert!(blocks[1].1.contains("line c"));
+    }
+
+    #[test]
+    fn mining_respects_gitignore() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        std::fs::write(root.join(".gitignore"), "ignored/\n").unwrap();
+        std::fs::create_dir_all(root.join("ignored")).unwrap();
+        let body = "let subtotal = unit_price * quantity\nlet tax = subtotal * tax_rate\nlet total = subtotal + tax\n";
+        // two copies in a tracked dir → a candidate; one extra in ignored/ must NOT inflate members
+        std::fs::write(root.join("a.vox"), body).unwrap();
+        std::fs::write(root.join("b.vox"), body).unwrap();
+        std::fs::write(root.join("ignored").join("c.vox"), body).unwrap();
+        let opts = DiscoverOptions {
+            min_tokens: 5,
+            min_occurrences: 2,
+            ..DiscoverOptions::default()
+        };
+        let cands = mine_repeated_code(root, &opts);
+        assert_eq!(cands.len(), 1);
+        assert_eq!(cands[0].members.len(), 2, "ignored/ copy must be excluded");
     }
 }
