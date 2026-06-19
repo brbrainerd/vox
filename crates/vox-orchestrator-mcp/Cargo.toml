@@ -123,6 +123,7 @@ tempfile.workspace = true
 xxhash-rust = { workspace = true }
 tiktoken-rs = { workspace = true }
 dirs = { workspace = true }
+which = { workspace = true }
 crossbeam-queue = { workspace = true }
 globset = { workspace = true }
 workspace-hack = { workspace = true }
