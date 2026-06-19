@@ -1,4 +1,4 @@
-use super::ast::extract_ast;
+use super::ast::{EXTRACTOR_VERSION, ExtractedEdge, extract_ast_in_module};
 use super::cache::CacheManager;
 use super::cluster::{ClusterEdge, ClusterNode, cluster_nodes};
 use std::fs;
@@ -39,14 +39,24 @@ pub fn rebuild_graph(
             if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
                 if ext == "rs" || ext == "ts" || ext == "js" {
                     let content = fs::read_to_string(path)?;
-                    let hash = blake3::hash(content.as_bytes()).to_hex().to_string();
 
+                    // Cache key includes EXTRACTOR_VERSION so a scheme change invalidates
+                    // stale cached graphs even when file content is unchanged.
+                    let hash =
+                        blake3::hash(format!("{EXTRACTOR_VERSION}\u{0}{content}").as_bytes())
+                            .to_hex()
+                            .to_string();
+                    let module_id = path
+                        .strip_prefix(source_dir)
+                        .unwrap_or(path)
+                        .to_string_lossy()
+                        .replace('\\', "/");
                     let graph = if manager.get_cached_hash(path).as_deref() == Some(&hash) {
                         manager
                             .load_cache(path)
-                            .unwrap_or_else(|| extract_ast(path, &content))
+                            .unwrap_or_else(|| extract_ast_in_module(path, &content, &module_id))
                     } else {
-                        let g = extract_ast(path, &content);
+                        let g = extract_ast_in_module(path, &content, &module_id);
                         manager.write_cache(path, &hash, &g);
                         g
                     };
@@ -57,6 +67,44 @@ pub fn rebuild_graph(
             }
         }
     }
+
+    // Resolve each bare call target to a qualified definition id. Preference: same-module
+    // definition; else the unique global definition. Ambiguous, unresolved, and self-edges
+    // are dropped (honesty rule: never invent an edge).
+    fn module_of(id: &str) -> &str {
+        id.rsplit_once("::").map(|(m, _)| m).unwrap_or("")
+    }
+    let mut defs_by_name: std::collections::HashMap<String, Vec<String>> =
+        std::collections::HashMap::new();
+    for n in &all_nodes {
+        let bare = n.id.rsplit("::").next().unwrap_or(&n.id).to_string();
+        defs_by_name.entry(bare).or_default().push(n.id.clone());
+    }
+    let all_edges: Vec<ExtractedEdge> = all_edges
+        .iter()
+        .filter_map(|e| {
+            let candidates = defs_by_name.get(&e.target)?;
+            let src_mod = module_of(&e.source);
+            let same: Vec<&String> = candidates
+                .iter()
+                .filter(|id| module_of(id) == src_mod)
+                .collect();
+            let target = if same.len() == 1 {
+                same[0].clone()
+            } else if candidates.len() == 1 {
+                candidates[0].clone()
+            } else {
+                return None;
+            };
+            if target == e.source {
+                return None; // self-edge
+            }
+            Some(ExtractedEdge {
+                source: e.source.clone(),
+                target,
+            })
+        })
+        .collect();
 
     // Convert nodes to ClusterNode format for Leiden clustering
     let cluster_nodes_input: Vec<ClusterNode> = all_nodes
