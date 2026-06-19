@@ -24,14 +24,14 @@ pub async fn add_entry(
     repo_id: &str,
     kind: &str,
     text: &str,
-    redacted_text: &str,
+    _redacted_text: &str,
     created_at: i64,
     source: &str,
 ) -> Result<i64, StoreError> {
     let repo_id = repo_id.to_string();
     let kind = kind.to_string();
     let text = text.to_string();
-    let redacted_text = redacted_text.to_string();
+    let (redacted_text, _) = crate::redact::redact(&text);
     let source = source.to_string();
 
     let breaker = db.breaker.clone();
@@ -55,6 +55,27 @@ pub async fn add_entry(
             )
             .await?;
             let id = conn.last_insert_rowid();
+
+            // Auto-evict with default caps
+            let default_caps = HistoryCaps::default();
+            let limit_val = match kind.as_str() {
+                "clip" => default_caps.clip,
+                "command" => default_caps.command,
+                _ => default_caps.chat,
+            };
+            conn.execute(
+                "DELETE FROM history_entries
+                 WHERE repo_id = ?1 AND kind = ?2 AND pinned = 0
+                   AND id NOT IN (
+                       SELECT id FROM history_entries
+                       WHERE repo_id = ?1 AND kind = ?2 AND pinned = 0
+                       ORDER BY created_at DESC, id DESC
+                       LIMIT ?3
+                   )",
+                params![repo_id.as_str(), kind.as_str(), limit_val],
+            )
+            .await?;
+
             Ok::<i64, StoreError>(id)
         })
         .await
@@ -118,8 +139,107 @@ pub async fn list_entries(
             token_estimate,
         });
     }
-
     Ok(entries)
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HistoryCaps {
+    pub clip: i64,
+    pub command: i64,
+    pub chat: i64,
+}
+
+impl Default for HistoryCaps {
+    fn default() -> Self {
+        Self {
+            clip: 1000,
+            command: 500,
+            chat: 500,
+        }
+    }
+}
+
+pub async fn pin_entry(db: &VoxDb, id: i64, pinned: bool) -> Result<(), StoreError> {
+    let pinned_val = if pinned { 1i64 } else { 0i64 };
+    let breaker = db.breaker.clone();
+    let conn = db.conn.clone();
+    breaker
+        .call(|| async move {
+            conn.execute(
+                "UPDATE history_entries SET pinned = ?1 WHERE id = ?2",
+                params![pinned_val, id],
+            )
+            .await?;
+            Ok::<(), StoreError>(())
+        })
+        .await
+}
+
+pub async fn delete_entry(db: &VoxDb, id: i64) -> Result<(), StoreError> {
+    let breaker = db.breaker.clone();
+    let conn = db.conn.clone();
+    breaker
+        .call(|| async move {
+            conn.execute("DELETE FROM history_entries WHERE id = ?1", params![id])
+                .await?;
+            Ok::<(), StoreError>(())
+        })
+        .await
+}
+
+pub async fn evict(db: &VoxDb, repo_id: &str, caps: &HistoryCaps) -> Result<(), StoreError> {
+    let repo_id = repo_id.to_string();
+    let caps = caps.clone();
+    let breaker = db.breaker.clone();
+    let conn = db.conn.clone();
+
+    breaker
+        .call(|| async move {
+            // Evict for 'clip'
+            conn.execute(
+                "DELETE FROM history_entries
+                 WHERE repo_id = ?1 AND kind = 'clip' AND pinned = 0
+                   AND id NOT IN (
+                       SELECT id FROM history_entries
+                       WHERE repo_id = ?1 AND kind = 'clip' AND pinned = 0
+                       ORDER BY created_at DESC, id DESC
+                       LIMIT ?2
+                   )",
+                params![repo_id.as_str(), caps.clip],
+            )
+            .await?;
+
+            // Evict for 'command'
+            conn.execute(
+                "DELETE FROM history_entries
+                 WHERE repo_id = ?1 AND kind = 'command' AND pinned = 0
+                   AND id NOT IN (
+                       SELECT id FROM history_entries
+                       WHERE repo_id = ?1 AND kind = 'command' AND pinned = 0
+                       ORDER BY created_at DESC, id DESC
+                       LIMIT ?2
+                   )",
+                params![repo_id.as_str(), caps.command],
+            )
+            .await?;
+
+            // Evict for 'chat'
+            conn.execute(
+                "DELETE FROM history_entries
+                 WHERE repo_id = ?1 AND kind = 'chat' AND pinned = 0
+                   AND id NOT IN (
+                       SELECT id FROM history_entries
+                       WHERE repo_id = ?1 AND kind = 'chat' AND pinned = 0
+                       ORDER BY created_at DESC, id DESC
+                       LIMIT ?2
+                   )",
+                params![repo_id.as_str(), caps.chat],
+            )
+            .await?;
+
+            Ok::<(), StoreError>(())
+        })
+        .await
 }
 
 #[cfg(test)]
@@ -154,5 +274,36 @@ mod tests {
 
         let all = list_entries(&db, "r1", None, 50).await.expect("list");
         assert_eq!(all.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn evict_respects_caps_and_pins() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+        for i in 0..5 {
+            add_entry(
+                &db,
+                "r1",
+                "clip",
+                &format!("c{i}"),
+                &format!("c{i}"),
+                1000 + i,
+                "cli",
+            )
+            .await
+            .unwrap();
+        }
+        pin_entry(&db, 1, true).await.unwrap();
+        let caps = HistoryCaps {
+            clip: 2,
+            command: 50,
+            chat: 50,
+        };
+        evict(&db, "r1", &caps).await.unwrap();
+        let clips = list_entries(&db, "r1", Some("clip"), 50).await.unwrap();
+        // pinned c0 + 2 newest unpinned (c4, c3) = 3
+        assert_eq!(clips.len(), 3);
+        assert!(clips.iter().any(|c| c.text == "c0"));
+        assert!(clips.iter().any(|c| c.text == "c4"));
+        assert!(clips.iter().any(|c| c.text == "c3"));
     }
 }

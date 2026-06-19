@@ -70,6 +70,7 @@ pub mod connect_policy;
 pub mod history_store;
 /// Explicit namespace for migration-era and cutover-only pathways.
 pub mod legacy;
+pub mod redact;
 /// Ludus / extended `gamify_*` contracts and metrics keys (DDL in baseline `schema/domains`).
 pub mod research_metrics_contract;
 pub mod schema;
@@ -225,6 +226,7 @@ pub use oratio_eval::{OratioEvalRunRecord, OratioEvalRunStartParams, OratioEvalS
 pub use outcome_recorder::UnifiedLlmTurnRowIds;
 pub use project_store::{open_project_db, open_project_db_at_root};
 pub use questioning_telemetry::{QuestioningKpiSnapshot, QuestioningResearchArtifact};
+pub use redact::redact;
 pub use research::{
     CapabilityMapRecord, ExternalResearchPacket, ResearchEvalRunRecord, ResearchEvalSampleRecord,
     ResearchIngestRequest, ResearchIngestResult, RetrievalDiagnostics, retrieval_diagnostics,
