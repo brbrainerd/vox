@@ -1,1 +1,3 @@
-fn main() { println!("vox-discover: not yet wired"); }
+fn main() {
+    println!("vox-discover: not yet wired");
+}
