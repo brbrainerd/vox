@@ -69,10 +69,15 @@ pub enum GraphifyCmd {
     },
     /// Build the crate build-time x dependency map (deterministic Leiden communities +
     /// blast-radius) from contracts/ci/crate-graph.v1.json + graphify-out/crate_audit.json.
+    /// With `--write-summary`, also emit the committed gate SSOT.
     CrateMap {
         /// Skip regenerating crate-graph.v1.json from cargo metadata (use the committed snapshot).
         #[arg(long)]
         no_refresh_graph: bool,
+        /// Also write the committed SSOT to this path
+        /// (bare flag → contracts/ci/crate-build-map.v1.json).
+        #[arg(long, num_args = 0..=1, default_missing_value = "contracts/ci/crate-build-map.v1.json")]
+        write_summary: Option<String>,
     },
 }
 
@@ -500,7 +505,10 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                 }
             }
         }
-        GraphifyCmd::CrateMap { no_refresh_graph } => {
+        GraphifyCmd::CrateMap {
+            no_refresh_graph,
+            write_summary,
+        } => {
             // 1. Freshen the committed dependency graph from cargo metadata unless suppressed.
             if !no_refresh_graph {
                 if let Err(e) = regenerate_crate_graph(repo_root) {
@@ -553,6 +561,43 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                 "crate-map: {node_count} crates, {edge_count} edges -> .vox/cache/graphify/crate-map/graph.json"
             );
             println!("persist for agent recall: vox graphify ingest --corpus crate-map");
+
+            // 4. Optionally emit the committed gate SSOT (small; parity-checked in CI).
+            if let Some(summary_path) = write_summary {
+                use std::collections::HashMap;
+                let mut compile_times: HashMap<String, f64> = HashMap::new();
+                if let Some(arr) = audit.as_array() {
+                    for r in arr {
+                        if let (Some(name), Some(cs)) = (
+                            r.get("crate").and_then(|v| v.as_str()),
+                            r.get("compile_s").and_then(|v| {
+                                v.as_f64()
+                                    .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
+                            }),
+                        ) {
+                            compile_times.insert(name.to_string(), cs);
+                        }
+                    }
+                }
+                let summary = vox_graphify_reader::crate_model::build_crate_summary(
+                    &crate_graph,
+                    &compile_times,
+                );
+                let summary_abs = repo_root.join(&summary_path);
+                std::fs::write(&summary_abs, serde_json::to_string_pretty(&summary)?)
+                    .with_context(|| format!("write {}", summary_abs.display()))?;
+                let has_times = summary["has_compile_times"].as_bool().unwrap_or(false);
+                println!(
+                    "summary -> {} (has_compile_times={has_times}, missing={})",
+                    summary_path, summary["crates_without_compile_times"]
+                );
+                if !has_times {
+                    println!(
+                        "WARNING: no compile times — run scripts/crate-build-audit.vox first \
+                         (needs `cargo build --timings` to populate target/cargo-timings/)."
+                    );
+                }
+            }
         }
     }
     Ok(())
