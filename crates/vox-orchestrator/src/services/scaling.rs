@@ -204,6 +204,7 @@ mod tests {
                 current_phase: None,
                 cost_usd: 0.0,
             }],
+            attention_budget: None,
         }
     }
 

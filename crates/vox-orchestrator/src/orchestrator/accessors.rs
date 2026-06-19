@@ -13,6 +13,7 @@ use std::collections::HashMap;
 impl Orchestrator {
     pub fn status(&self) -> OrchestratorStatus {
         let budget = crate::sync_lock::rw_read(&self.budget_manager);
+        let attention_budget = Some(budget.attention_snapshot());
         let total_cost_usd = budget.total_cost_usd();
         let budget_cap_usd = budget.max_financial_cost_micros() as f64 / 1_000_000.0;
         let global_exploration_cost_usd = budget.global_exploration_cost_usd();
@@ -110,6 +111,7 @@ impl Orchestrator {
             budget_cap_usd,
             global_exploration_cost_usd,
             agents,
+            attention_budget,
         }
     }
 
@@ -515,5 +517,25 @@ impl Orchestrator {
         agent_id: Option<u64>,
     ) -> crate::orchestrator_policy::PolicyDecision {
         self.agentos_policy_ledger.evaluate_for_agent(agent_id)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn status_includes_attention_budget_snapshot() {
+        let orch = crate::Orchestrator::new(crate::config::OrchestratorConfig::for_testing());
+        let status = orch.status();
+        let budget = status
+            .attention_budget
+            .as_ref()
+            .expect("status must carry an attention budget snapshot");
+        assert_eq!(
+            budget.max_attention_ms,
+            crate::attention::DEFAULT_ATTENTION_BUDGET_MS
+        );
+        let _ = serde_json::to_value(&status).expect("status serializes");
     }
 }
