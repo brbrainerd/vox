@@ -763,6 +763,15 @@ pub enum CiCmd {
         #[arg(long)]
         exit_zero: bool,
     },
+    /// Gate workspace fan-in growth: fail when any crate gains new dependents vs the
+    /// committed snapshot in `contracts/ci/fan-in-snapshot.v1.json`.
+    /// Uses `contracts/ci/crate-graph.v1.json` for actual counts.
+    #[command(name = "fan-in-budget")]
+    FanInBudget {
+        /// Emit advisory output and exit 0 even on regressions.
+        #[arg(long)]
+        exit_zero: bool,
+    },
     /// Detect dependency cycles (HARD on normal-dep cycles) and inventory dev-dep back-edges.
     /// With --deny-new, fails when a new advisory cycle appears not in the committed allowlist.
     #[command(name = "dep-cycles")]

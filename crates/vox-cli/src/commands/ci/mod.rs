@@ -31,6 +31,7 @@ mod doctest_md;
 pub(super) mod doctor_build_cache;
 mod eval_matrix;
 mod exec_policy_contract;
+mod fan_in_budget;
 mod free_binary;
 mod generate_plugin_catalog_docs;
 mod grammar_ssot_parity;
