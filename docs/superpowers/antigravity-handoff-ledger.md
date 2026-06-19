@@ -168,8 +168,40 @@ review_findings: ""
 verdict: approve
 prompt_lessons:
   - "Line-based parsing of YAML block fields is simple, dependency-free, and robust for CI validation tasks in Rust."
-corrections_fed_back: []
 commits: [103593d2db]
+```
+
+```yaml
+# --- AGH-0004 ---
+id: AGH-0004
+date: 2026-06-19
+plan: docs/superpowers/plans/2026-06-18-skill-review-gate.md
+prompt_artifact: "D-3 -> AGH-0004 - Local pre-publish skill-review gate (subsystem B)"
+prompt_version: v1
+subsystem: skill-marketplace / pre-publish review gate (Subsystem B floor)
+target: gemini-3.5-flash / antigravity
+claude_inputs: [plan, launch-statement]
+delivered:
+  - crates/vox-skill-review/Cargo.toml
+  - crates/vox-skill-review/src/lib.rs
+  - crates/vox-skill-review/src/model.rs
+  - crates/vox-skill-review/src/checks.rs
+  - crates/vox-skill-review/src/review.rs
+  - crates/vox-skill-review/src/bin/vox_skill_review.rs
+  - Cargo.toml
+  - docs/src/architecture/layers.toml
+  - docs/src/architecture/where-things-live.md
+loc: 437
+outcome: green
+verification: { tests: "9 passed", clippy: clean, arch_check: green, smoke: ok }
+errors_encountered: []
+agent_deviations: []
+review_findings: ""
+verdict: approve
+prompt_lessons:
+  - "Staleness check warning for a new crate is resolved by committing the files first, or using staleness_exempt = true in layers.toml."
+corrections_fed_back: []
+commits: [6e2a055621, 7f03cc41c1]
 ```
 
 
