@@ -7,6 +7,7 @@ import {
   ptyClose,
   listenPtyOutput,
   listenPtyExit,
+  voxTransport,
 } from '../../../transport';
 import { terminalExitColor } from '../../../lib/visualTokens';
 import { createBlockReducer, type Block, type Osc633Kind } from './osc633';
@@ -69,6 +70,9 @@ export function TerminalTab({ tabId, pendingLine, onBlock }: Props) {
           const enriched = { ...b, output: captureOutput(term, b.startLine, b.endLine) };
           onBlockRef.current?.(enriched);
           paintStatusDot(term, b, decorations);
+          if (b.command) {
+            voxTransport.historyAdd('command', b.command, 'osc633').catch(() => {});
+          }
         }
       }
       return true; // handled

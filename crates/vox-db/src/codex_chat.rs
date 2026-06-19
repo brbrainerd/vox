@@ -105,6 +105,8 @@ impl VoxDb {
         context_files_json: Option<&str>,
         journey_payload_json: Option<&str>,
     ) -> Result<i64, StoreError> {
+        let is_assistant = role == "assistant";
+        let content_clone_history = content_text.to_string();
         let external_turn_id = external_turn_id.to_string();
         let role = role.to_string();
         let content_text = content_text.to_string();
@@ -113,7 +115,7 @@ impl VoxDb {
         let journey_payload_json = journey_payload_json.map(str::to_string);
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
-        breaker
+        let id = breaker
             .call(|| async move {
                 conn.execute(
                     "INSERT INTO conversation_messages
@@ -140,7 +142,34 @@ impl VoxDb {
                 .await?;
                 Ok::<i64, StoreError>(id)
             })
-            .await
+            .await?;
+
+        if is_assistant {
+            let db_clone = self.clone();
+            let content_clone = content_clone_history;
+            let source_str = format!("conv_{}", conversation_id);
+            tokio::spawn(async move {
+                let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+                let repo_ctx = vox_repository::discover_repository_or_fallback(&cwd);
+                let repo_id = repo_ctx.repository_id.to_string();
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis() as i64;
+                let _ = crate::history_store::add_entry(
+                    &db_clone,
+                    &repo_id,
+                    "chat",
+                    &content_clone,
+                    "",
+                    now,
+                    &source_str,
+                )
+                .await;
+            });
+        }
+
+        Ok(id)
     }
 
     /// Load recent structured transcript turns for hydration (oldest → newest).
@@ -246,12 +275,14 @@ impl VoxDb {
         content_text: &str,
         payload_json: Option<&str>,
     ) -> Result<i64, StoreError> {
+        let is_assistant = role == "assistant";
+        let content_clone_history = content_text.to_string();
         let role = role.to_string();
         let content_text = content_text.to_string();
         let payload_json = payload_json.map(str::to_string);
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
-        breaker
+        let id = breaker
             .call(|| async move {
                 conn.execute(
                     "INSERT INTO conversation_messages (conversation_id, role, content_text, payload_json)
@@ -272,7 +303,34 @@ impl VoxDb {
                 .await?;
                 Ok::<i64, StoreError>(id)
             })
-            .await
+            .await?;
+
+        if is_assistant {
+            let db_clone = self.clone();
+            let content_clone = content_clone_history;
+            let source_str = format!("conv_{}", conversation_id);
+            tokio::spawn(async move {
+                let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+                let repo_ctx = vox_repository::discover_repository_or_fallback(&cwd);
+                let repo_id = repo_ctx.repository_id.to_string();
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis() as i64;
+                let _ = crate::history_store::add_entry(
+                    &db_clone,
+                    &repo_id,
+                    "chat",
+                    &content_clone,
+                    "",
+                    now,
+                    &source_str,
+                )
+                .await;
+            });
+        }
+
+        Ok(id)
     }
 
     /// Record a tool invocation for an assistant message (V12+). Returns tool-call row `id`.

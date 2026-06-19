@@ -11,6 +11,9 @@ vi.mock('../../../transport', () => ({
   ptyClose: vi.fn().mockResolvedValue(undefined),
   listenPtyOutput: vi.fn().mockResolvedValue(() => {}),
   listenPtyExit: vi.fn().mockResolvedValue(() => {}),
+  voxTransport: {
+    historyAdd: vi.fn().mockResolvedValue(1),
+  },
 }));
 
 // Capture the OSC 633 handler the component registers so tests can drive markers.
