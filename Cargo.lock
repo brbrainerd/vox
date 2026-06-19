@@ -16740,6 +16740,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-skill-discovery"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "ignore",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "vox-mcp-registry",
+ "vox-plugin-types",
+ "vox-similarity",
+]
+
+[[package]]
 name = "vox-skill-runtime"
 version = "0.6.0"
 dependencies = [
