@@ -64,13 +64,14 @@ Run order: B1 ∥ B4 first; then B2 → B3 (same file, sequential); then B5 afte
 
 # PHASE A — Brand assets 🧑‍🎨 (CLAUDE-CODE PRE-FLIGHT — do NOT hand to Flash)
 
-> ✅ **DONE (2026-06-19, this session).** Executed in Claude Code with ImageMagick +
-> `cargo tauri icon`. The mark is the **coordinate-axis frame** (x/y/z arrows from a
-> shared origin — the conventional "axis" symbol), not a letterform. Commits:
-> `098edc3b9b` (svg) → `dc04893760` (png) → `d309473ef9` (initial set) →
-> `8c29861f5e` (axis-frame redesign + regenerate). The icons under
-> `crates/vox-gui/icons/` are committed; **do not regenerate** unless redesigning.
-> The task steps below are retained as the reproduction recipe.
+> ✅ **DONE (2026-06-19, this session).** Final mark = a **gimbal / gyroscope**
+> (nested tilted rings + outer ring pierced by a bold spin-axis arrow — "axis at a
+> distance"), **monochrome white** on the brass→amber→zinc tile. Rendered with
+> **resvg** (`cargo install resvg` → `resvg.exe`; accurate gradients/geometry — used
+> instead of ImageMagick, whose gradient-on-stroke render put orange in the arrow
+> tip), then `cargo tauri icon`. Commits: …→ `8c29861f5e` (axis-frame) →
+> `b484eee94b` (gimbal, monochrome, resvg). The icons under `crates/vox-gui/icons/`
+> are committed; **do not regenerate** unless redesigning. Recipe below.
 
 > These tasks run in **Claude Code** (this harness) before the Antigravity handoff,
 > because Gemini Flash cannot reliably author binary image assets. Claude may adapt
@@ -99,12 +100,13 @@ Run order: B1 ∥ B4 first; then B2 → B3 (same file, sequential); then B5 afte
 - Create: `crates/vox-gui/icons/source/axis-1024.png`
 
 - [ ] **Step 1:** Render `axis.svg` → `axis-1024.png` at 1024×1024 with transparency.
-  Primary command (adapt if the tool is absent):
+  Primary tool **resvg** (accurate SVG renderer; install once with `cargo install resvg`):
   ```bash
-  npx -y sharp-cli -i crates/vox-gui/icons/source/axis.svg \
-    -o crates/vox-gui/icons/source/axis-1024.png resize 1024 1024
+  resvg --width 1024 --height 1024 crates/vox-gui/icons/source/axis.svg crates/vox-gui/icons/source/axis-1024.png
   ```
-  Fallback (ImageMagick): `magick -background none -density 512 crates/vox-gui/icons/source/axis.svg -resize 1024x1024 crates/vox-gui/icons/source/axis-1024.png`
+  (On Windows the binary is `~/.cargo/bin/resvg.exe`.) Avoid ImageMagick for this SVG:
+  its gradient-on-stroke rendering tinted the white arrow tip orange. If resvg is
+  unavailable, an Inkscape `--export-type=png -w 1024` is the next-best fallback.
 - [ ] **Step 2:** Verify the PNG is 1024×1024 and non-empty (open it / check file size > 0).
 - [ ] **Step 3:** Commit.
   ```bash
