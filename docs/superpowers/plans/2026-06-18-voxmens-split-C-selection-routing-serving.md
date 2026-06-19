@@ -36,4 +36,3 @@ training_eligible: true
 
 ## Execution Handoff
 This completes the VoxMens hub-and-spoke initiative across Plans A→B→C.
-</content>

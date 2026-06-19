@@ -82,4 +82,3 @@ git commit -m "feat(ci): vox ci spoke-check validates the domain-profiles spoke 
 
 ## Execution Handoff
 On completion, proceed to Plan B (`2026-06-18-voxmens-split-B-measurement-and-corpora.md`). Run order overall: **A → B → C**.
-</content>
