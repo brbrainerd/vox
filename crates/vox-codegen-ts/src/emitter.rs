@@ -297,8 +297,14 @@ pub fn generate_with_options(
         ));
     }
 
-    // Emit @form React components (Task C3).
-    let forms_content: String = hir.forms.iter().map(super::form_emit::emit_form).collect();
+    let mut forms_content: String = hir.forms.iter().map(super::form_emit::emit_form).collect();
+    let admin_enabled = std::env::var("VOX_EMIT_ADMIN").as_deref() == Ok("1");
+    let registry = load_admin_registry().unwrap_or_else(|e| {
+        tracing::warn!("admin registry unavailable, defaulting to empty list: {e}");
+        vec![]
+    });
+    let admin_content = admin_content_for(&hir.tables, admin_enabled, &registry);
+    forms_content.push_str(&admin_content);
     if !forms_content.is_empty() {
         // Forms redirect via the history API (router-agnostic), so no router
         // library import is needed — works with the Vox-emitted dependency-free
@@ -641,6 +647,35 @@ fn maybe_web_ir_validate(
     ))
 }
 
+#[derive(serde::Deserialize)]
+struct AdminRegistry {
+    #[serde(rename = "admin_tables")]
+    allow: Vec<String>,
+}
+
+fn admin_content_for(
+    tables: &[vox_compiler::hir::HirTable],
+    enabled: bool,
+    allow: &[String],
+) -> String {
+    if !enabled {
+        return String::new();
+    }
+    tables
+        .iter()
+        .filter(|t| allow.iter().any(|n| n == &t.name))
+        .map(super::admin_emit::emit_admin)
+        .collect()
+}
+
+fn load_admin_registry() -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let path = std::env::var("VOX_ADMIN_REGISTRY")
+        .unwrap_or_else(|_| "contracts/gui/admin-registry.yaml".to_string());
+    let src = std::fs::read_to_string(&path)?;
+    let cfg: AdminRegistry = serde_yaml::from_str(&src)?;
+    Ok(cfg.allow)
+}
+
 #[cfg(test)]
 mod semcov_wave2_tests {
     #![allow(unused_imports)]
@@ -656,6 +691,47 @@ mod semcov_wave2_tests {
     }
     fn id() -> DefId {
         DefId(0)
+    }
+
+    #[test]
+    fn admin_content_respects_flag_and_allowlist() {
+        use vox_compiler::ast::span::Span; // re-exported path used across vox-codegen-ts; NOT vox_ast (design §5b.1)
+        use vox_compiler::hir::HirType;
+        use vox_compiler::hir::nodes::DefId;
+        use vox_compiler::hir::{HirTable, HirTableField};
+
+        fn user_table() -> HirTable {
+            HirTable {
+                id: DefId(0),
+                name: "User".into(),
+                fields: vec![HirTableField {
+                    name: "name".into(),
+                    type_ann: HirType::Named("string".into()),
+                    span: Span::new(0, 0),
+                }],
+                primary_key: None,
+                is_extern: false,
+                source: None,
+                is_pub: true,
+                is_deprecated: false,
+                span: Span::new(0, 0),
+            }
+        }
+
+        let tables = vec![user_table()];
+        let allow = vec!["User".to_string()];
+        assert!(
+            admin_content_for(&tables, false, &allow).is_empty(),
+            "off → nothing"
+        );
+        assert!(
+            admin_content_for(&tables, true, &[]).is_empty(),
+            "on but not in registry → nothing"
+        );
+        assert!(
+            admin_content_for(&tables, true, &allow).contains("export function UserList()"),
+            "on + allowed → admin"
+        );
     }
 
     fn empty_hir() -> HirModule {
