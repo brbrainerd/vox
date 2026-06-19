@@ -19,3 +19,11 @@ This document records the architectural decision for serving trained adapters an
 ## Cross-References
 
 - For the boundary rules and runtime dispatch contract, see the [model selection convergence design](file:///c:/Users/Owner/vox/docs/superpowers/specs/2026-06-19-voxmens-model-selection-convergence-design.md).
+
+## Preset Name Canonicalization
+
+To align the preset schema across different hardware specifications and configurations:
+- **Canonical Preset**: `qwen_4080_16g` is the canonical ID representing the RTX 4080 class (16GB VRAM) training profile.
+- **Legacy Alias**: `prosumer_16g` is kept as a documented alias mapping directly to `qwen_4080_16g` in the registry (`preset_schema.rs`).
+This ensures consistency between `domain-profiles.yaml` and client autodetect logic while maintaining backward compatibility with cloud sizing estimations.
+
