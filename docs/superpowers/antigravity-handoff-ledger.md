@@ -84,6 +84,10 @@ commits: [<sha>, ...]
 8. **Opt-in/gated output must be type-checked in CI by a fixture that sets the gate.** If a feature's output is hidden behind an env flag (e.g., `VOX_EMIT_ADMIN=1`), the plan must add a CI step/fixture that *enables* it and type-checks the result — otherwise the defect ships invisibly (CI's `ts-emit-noemit` never sees it). — *AGH-0005*. **PLAN-side — add to the codegen-plan template.**
 9. **Prove the EFFECT, not the SHAPE — and prove fallback artifacts are dispatchable.** When a plan names a runtime artifact it falls back to (a model id, endpoint, file path, env value), the acceptance test must exercise that it actually *works at the boundary*, not merely that it's well-formed. A unit test asserting candidate *ordering* (AGH-0006) or a *substring* (AGH-0005) is hollow green. Pre-flight MUST confirm the artifact is reachable: for a model id, that it's a real provider slug with egress resolution — **a `#[allow(dead_code)]` constant or a "virtual/auto-resolved" id is a red flag it is NOT wired to dispatch.** — *AGH-0006* (virtual `openrouter/free` floor would 400; concrete `:free` slugs were the dispatchable form). **PLAN-side — add to every plan template.**
 10. **Do not let the agent weaken a specified gate.** The launch statement must say: "Run gates exactly as written — do NOT substitute `--warn-only`, `|| true`, `--no-verify`, or a narrower scope for a gate the plan specifies at full strictness. If a gate is red at baseline for unrelated reasons, STOP and report." — *AGH-0006* (agent ran `arch-check --warn-only` vs the plan's exit-0 gate). **Add to the launch-statement template.**
+11. **A dry-run cannot validate code behind a stage the dry-run skips.** When a plan's acceptance is `--skip-train`/`--dry-run`, confirm the asserted behavior actually *executes* in that mode; for Train-stage / `cfg(feature="gpu")` code, acceptance must be a real (or gated-mock) train step, or the logic must be hoisted to a stage the dry-run reaches. — *AGH-0012* (F1, dry-run skipped Train entirely, leaving GPU resolution untested). **PLAN-side — promote to launch-statement template.**
+12. **Wire EVERY field of a new SSOT record, not a subset.** Plans introducing an SSOT record must list each field and assert each is consumed, rather than hoping all fields are wired by default. — *AGH-0012* (F2, `base.preset` was declared-but-unwired). **PLAN-side — promote to launch-statement template.**
+13. **The self-report manifest must match the diff.** The agent must quote the actual code/diff in its handoff instead of describing intent/prose from the plan, and review should verify manifest-vs-`git show`. — *AGH-0012* (F3, manifest prose contradicted the committed code). **Promote to launch-statement template.**
+
 
 ## §C. Handoff entries (append-only — newest at the bottom)
 
@@ -578,8 +582,8 @@ commits: []
 ---
 
 ```yaml
-# --- AGH-0012 ---
-id: AGH-0012
+# --- AGH-0018 ---
+id: AGH-0018
 date: "2026-06-19"
 plan: "docs/superpowers/plans/2026-06-19-centralized-opt-in-telemetry-track-e.md"
 subsystem: "Track E — 5 product-category emit sites + 12 DefaultDecision sites + projection coverage gate + arch-check guardrail"
@@ -609,7 +613,7 @@ commits:
   - "1f11c51e0f"
 ```
 
-### AGH-0012 — Track E emit sites review detail
+### AGH-0018 — Track E emit sites review detail
 
 Track E wired all 5 product-category events into the existing `record_event!` infrastructure:
 
@@ -811,8 +815,8 @@ fix_verification: "cargo test -p vox-orchestrator doubt_task_surfaces_feedback_c
 ---
 
 ```yaml
-# --- AGH-0016 ---
-id: AGH-0016
+# --- AGH-0019 ---
+id: AGH-0019
 date: "2026-06-19"
 plan: "docs/superpowers/plans/2026-06-19-centralized-telemetry-program.md#track-e-e3"
 subsystem: "E3 — live end-to-end test (vox-server + ClickHouse Docker)"
@@ -839,7 +843,7 @@ commits:
   - "6e235a7 (vox-server repo)"
 ```
 
-### AGH-0016 — E3 live test review detail
+### AGH-0019 — E3 live test review detail
 
 Full telemetry pipeline end-to-end verified locally:
 
@@ -979,3 +983,37 @@ lessons:
   - "PRODUCER/CONSUMER GAP: F6 telemetry path tested via projection_coverage tests (the consumer) but the producer path (model_key=None at all call sites) was never tested end-to-end → both C1 and C2 slipped through; need an e2e test that boots ServerState with a real profile and calls build_system_prompt_with_skill with a non-None key"
   - "REGISTRY HYDRATION: hydrate_from_db returns a new Self (pattern from SkillRegistry) but ServerState holds Arc<ModelPromptRegistry> — in-place populate_from_db was needed; always check Arc vs owned when reusing hydration patterns"
 ```
+
+---
+
+### AGH-0022 — VoxMens Split C Follow-ups
+
+```yaml
+# --- AGH-0022 ---
+id: AGH-0022
+date: "2026-06-19"
+plan: "docs/superpowers/plans/2026-06-19-voxmens-split-C-followups.md"
+subsystem: "VoxMens Split C — Follow-ups (effect-proof, preset SSOT, ledger hygiene)"
+target: "Gemini 3.5 Flash inside Google Antigravity"
+delivered:
+  - "feat(mens): pure resolve_training_selection (GPU-independent, unit-tested) — AGH-0012 F1"
+  - "docs(mens): canonicalize qwen_4080_16g preset id; prosumer_16g is a documented alias"
+outcome: "delivered"
+verification:
+  tests: "green"   # cargo test -p vox-ml-cli training_selection (5/5 pass)
+  build: "green"   # CARGO_TARGET_DIR=target/iso cargo check --tests -p vox-ml-cli (exit 0)
+  arch_check: "green"  # cargo run -p vox-arch-check (exit 0)
+errors_encountered: []
+agent_deviations: []
+commits:
+  - "acb76b7b3a"
+  - "8aea7f7e51"
+```
+
+### AGH-0022 — Split C Follow-ups review detail
+
+We resolved the AGH-0012 follow-ups so per-spoke training selection is verified correctly without a GPU:
+1. **Pure Configuration Selection**: Hoisted config resolution out of `cfg(feature="gpu")` block in `pipeline.rs` into `resolve_training_selection` in `training_selection.rs`.
+2. **GPU-Free Effect-Proof**: Wrote `all_live_spokes_resolve_to_trainable_selection` inline unit test to verify that the three live spokes (`vox-lang`, `rust-expert`, `agents`) resolve to the correct base model and preset (`qwen_4080_16g`) on non-GPU builds.
+3. **Preset Canonicalization**: Selected `qwen_4080_16g` as the canonical name, documented `prosumer_16g` as a legacy alias in `preset_schema.rs` and added a decision note to `voxmens-serving-topology-decision-2026-06-19.md`.
+4. **Ledger Hygiene**: Renumbered the Track E `AGH-0012` entry to `AGH-0018` and the E3 `AGH-0016` entry to `AGH-0019`. Promoted the three review lessons to §B.
