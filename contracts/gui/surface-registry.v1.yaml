@@ -17,6 +17,14 @@ surfaces:
   nav_group: operate
   parent_surface: runs
   notes: null
+- view_key: activity
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Activity
+  nav_icon: list
+  nav_group: operate
+  parent_surface: null
+  notes: Agent activity log and resource accounting
 - view_key: archive-panel
   cli_group: null
   representation_tier: live_backend

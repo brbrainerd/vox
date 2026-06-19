@@ -96,6 +96,7 @@ type View =
   | 'research'
   | 'oratio'
   | 'approvals'
+  | 'activity'
   | 'policies'
   | 'skills'
   | 'settings'
