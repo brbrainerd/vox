@@ -1,14 +1,26 @@
-use super::ast::{ExtractedEdge, ExtractedGraph, ExtractedNode, extract_ast};
+use super::ast::extract_ast;
 use super::cache::CacheManager;
 use super::cluster::{ClusterEdge, ClusterNode, cluster_nodes};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+
+/// Caller-supplied metadata so the manifest is freshness-correct. Field names of the
+/// written manifest match `vox_config::graphify::GraphifyManifest`.
+#[derive(Debug, Clone, Default)]
+pub struct RebuildMeta {
+    pub corpus_id: String,
+    pub git_sha: Option<String>,
+    pub scope_path: String,
+    pub extraction_mode: Option<String>,
+    pub built_at_rfc3339: String,
+}
 
 pub fn rebuild_graph(
     _repo_root: &Path,
     source_dir: &Path,
     output_file: &Path,
     cache_dir: &Path,
+    meta: &RebuildMeta,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let manager = CacheManager::new(cache_dir.to_path_buf());
     let mut all_nodes = Vec::new();
@@ -96,22 +108,30 @@ pub fn rebuild_graph(
         "nodes": nodes_val,
         "links": links_val
     });
-
     if let Some(parent) = output_file.parent() {
         fs::create_dir_all(parent)?;
     }
-    fs::write(output_file, serde_json::to_string_pretty(&final_graph)?)?;
+    let graph_bytes = serde_json::to_string_pretty(&final_graph)?;
+    fs::write(output_file, &graph_bytes)?;
 
-    // Create manifest file
-    let git_sha = "dev-sha"; // Fallback or retrieve from env
+    // Content digest of the exact bytes written. Despite the legacy field name
+    // `graph_json_sha256`, the digest is BLAKE3 (already a dep); the ingest path MUST
+    // use the same algorithm so `lexical_lag` comparisons are valid.
+    let graph_digest = blake3::hash(graph_bytes.as_bytes()).to_hex().to_string();
+
     let manifest_val = serde_json::json!({
-        "git_sha256": git_sha,
+        "corpus_id": meta.corpus_id,
+        "built_at": meta.built_at_rfc3339,
+        "git_sha": meta.git_sha,
+        "scope_path": meta.scope_path,
         "node_count": nodes_val.len(),
         "edge_count": links_val.len(),
+        "graph_json_sha256": graph_digest,
+        "extraction_mode": meta.extraction_mode,
     });
     let manifest_path = output_file
         .parent()
-        .unwrap()
+        .ok_or("output_file has no parent directory")?
         .join(".graphify_manifest.v1.json");
     fs::write(manifest_path, serde_json::to_string_pretty(&manifest_val)?)?;
 

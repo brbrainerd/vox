@@ -11,8 +11,13 @@ fn test_cli_graphify_rebuild_success() {
     let output_file = tmp.path().join("graph.json");
     let cache_dir = tmp.path().join("cache");
 
-    let res =
-        vox_graphify_reader::rebuild::rebuild_graph(tmp.path(), &src, &output_file, &cache_dir);
+    let res = vox_graphify_reader::rebuild::rebuild_graph(
+        tmp.path(),
+        &src,
+        &output_file,
+        &cache_dir,
+        &vox_graphify_reader::rebuild::RebuildMeta::default(),
+    );
 
     assert!(res.is_ok());
     assert!(output_file.exists());

@@ -231,11 +231,19 @@ pub fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Result<()> 
             let cache_dir = output_file.parent().unwrap().join("file_cache");
 
             println!("Rebuilding Graphify graph for corpus: {}...", corpus_id);
+            let meta = vox_graphify_reader::rebuild::RebuildMeta {
+                corpus_id: corpus_id.clone(),
+                git_sha: resolve_head_sha()?,
+                scope_path: corpus.scope_path.clone(),
+                extraction_mode: corpus.extraction_mode.clone(),
+                built_at_rfc3339: Utc::now().to_rfc3339(),
+            };
             vox_graphify_reader::rebuild::rebuild_graph(
                 repo_root,
                 &source_dir,
                 &output_file,
                 &cache_dir,
+                &meta,
             )
             .map_err(|e| anyhow::anyhow!("Rebuild failed: {}", e))?;
             println!("Graphify rebuild successful!");
