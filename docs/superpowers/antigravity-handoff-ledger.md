@@ -325,6 +325,42 @@ commits: [d39db04d3e]
 
 **RESOLVED (Claude Code, Opus 4.8, 2026-06-19, commit `ccc37615f7`):** ceiling reached. Root cause was that the portability/unsafe forbidden-pattern rules scanned TEST code (`file_glob: "crates/**/*.rs"` with no test exclusion) — ~25 of 28 were test fixtures (incl. arch-check's own), and the "real" `vox-scientia` `/tmp` / `voxup` / `free_binary` abs-paths were all inside `#[test]`/`#[cfg(test)]`. Fix: added a per-rule `exempt_tests` opt-in to the scanner (skips `tests/` dirs + brace-counted inline `#[cfg(test)]` blocks; unit-tested), enabled it on the unsafe/abs-path/dynlib/shell-spawn rules; routed the 2 real raw-git execs in `vox-cli` graphify through `vox_git` (commit `0239e29135` — the handoff fixed only the GUI copy); annotated the cfg(windows)-gated `voxup` powershell spawn. `forbidden_pattern` restored to `"error"`; full re-sweep = **0 violations, arch-check exits 0 at full strictness**. Remaining secondary ceiling (unchanged): re-add `vox-gamify` to `profiles.lean.forbidden` post Track C pluginization. Also surfaced en route: the working tree was briefly non-compiling (`vox-orchestrator-mcp` referencing a then-missing `available_inference_providers`) from concurrent agy work — resolved by that session.
 
+```yaml
+# --- AGH-0009 ---
+id: AGH-0009
+date: 2026-06-19
+plan: docs/superpowers/plans/2026-06-19-soft-hitl-phase0-attention-strip.md
+prompt_artifact: "Soft-HITL — Gemini Flash Handoff Prompt (2026-06-19)"
+prompt_version: v1
+subsystem: soft-hitl / GUI attention strip (Phase 0)
+target: gemini-3.5-flash / antigravity
+claude_inputs: [spec, plan, launch-statement]
+delivered: [crates/vox-gui/ui/src/components/surfaces/AttentionBudgetMeter.tsx, crates/vox-gui/ui/src/components/surfaces/__tests__/AttentionBudgetMeter.counts.test.tsx, crates/vox-gui/ui/src/components/layout/AttentionStrip.tsx, crates/vox-gui/ui/src/components/layout/AttentionStrip.test.tsx, crates/vox-gui/ui/src/App.tsx]
+loc: 68
+outcome: green
+verification: { tests: "670 passed (incl. 4 new)", clippy: clean, arch_check: green, smoke: ok }
+errors_encountered: []
+agent_deviations: []
+review_findings: "GUI-only layout strip successfully mounted and verified."
+verdict: approve
+prompt_lessons:
+  - "Adapting Pill's API to use 'label' and 'phase' instead of passing children as plan outlined (complying with real signature)."
+corrections_fed_back: []
+commits: [9cb5293f85, c212c42048, bb6f392df6]
+```
+
+### AGH-0009 — review detail (human prose)
+**What we asked for:** Phase 0 of attention-aware soft human-in-the-loop: top status strip showing attention budget, focus depth, and suppressed prompt counts, with counts of waiting-questions + blocked-tasks.
+
+**What came back:**
+- Extended `AttentionBudgetMeter` to accept `waitingQuestions` and `blockedTasks` props and render them using `Pill`.
+- Added unit tests for the counts in `AttentionBudgetMeter.counts.test.tsx`.
+- Created the `AttentionStrip` top-bar container component.
+- Added unit tests for `AttentionStrip.test.tsx`.
+- Mounted `AttentionStrip` in `App.tsx` and verified it compiles and type-checks successfully.
+
+All tests are green and compilation is completely clean.
+
 ## §D. Pending handoffs — ready-to-paste launch statements
 > These are the next handoffs derived from the AGH-0001 review. When you dispatch one, copy its launch statement to the Antigravity runner AND open the matching ledger entry (AGH-0002/0003/0004) in §C. All three carry the §B hardenings inline. **Parallel-dispatch coordination:** the three plans hit disjoint crates, BUT plans D-1 and D-3 both append registration rows to `layers.toml` / `where-things-live.md` / `Cargo.toml`. Run **D-1 Tasks 1–2 first** (it owns the `vox-runtime` line + re-homes the engine), then start D-2 and D-3 in parallel; or serialize just those registration edits.
 
