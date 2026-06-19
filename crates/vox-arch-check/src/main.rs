@@ -397,6 +397,8 @@ struct Report {
     /// Pairs of (publishable_crate, unpublishable_dep) — warn initially,
     /// hardened to ERROR in Track B Task B4.
     publishability_warns: Vec<(String, String)>,
+    /// Rule 19: dep-closure-size budget gate. Always a hard error when fired.
+    closure_budget_errors: Vec<String>,
 }
 
 impl Report {
@@ -422,6 +424,7 @@ impl Report {
                     .iter()
                     .any(|f| f.kind.severity() == "ERROR"))
             || !self.cycle_errors.is_empty()
+            || !self.closure_budget_errors.is_empty()
     }
 
     /// Project the report into per-rule results for the policy-status overlay.
@@ -529,6 +532,13 @@ impl Report {
             );
             for (krate, dep) in &self.publishability_warns {
                 eprintln!("  {krate} → {dep} (publish = false)");
+            }
+        }
+        if !self.closure_budget_errors.is_empty() {
+            any = true;
+            eprintln!("[ERROR] Rule 19: dep-closure-size budget exceeded ({}):", self.closure_budget_errors.len());
+            for msg in &self.closure_budget_errors {
+                eprintln!("  {msg}");
             }
         }
         if !self.inversions.is_empty() {
@@ -1101,6 +1111,29 @@ fn run(warn_only_flag: bool) -> Result<Report> {
             })
             .collect();
         report.publishability_warns = checks::publishable::check(&crate_recs);
+    }
+
+    // ── Rule 19: Dep-closure-size budget gate ──
+    {
+        let budgets_path = workspace_root.join("contracts/reports/closure-budgets.v1.json");
+        if budgets_path.exists() {
+            let raw = std::fs::read_to_string(&budgets_path)
+                .with_context(|| format!("reading {}", budgets_path.display()))?;
+            let parsed: serde_json::Value =
+                serde_json::from_str(&raw).with_context(|| "parsing closure-budgets.v1.json")?;
+            let budgets: Vec<checks::closure_budget::Budget> = parsed["budgets"]
+                .as_array()
+                .unwrap_or(&vec![])
+                .iter()
+                .filter_map(|entry| {
+                    let name = entry["crate_name"].as_str()?.to_string();
+                    let max = entry["max_closure"].as_u64()? as usize;
+                    Some(checks::closure_budget::Budget { crate_name: name, max_closure: max })
+                })
+                .collect();
+            report.closure_budget_errors =
+                checks::closure_budget::check(&normal_dep_edges, &budgets);
+        }
     }
 
     // Rule 2: fan-in budget
