@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../ui/Glass';
 import { Icon } from '../ui/Icons';
+import { AxisMark } from '../brand/AxisMark';
 import { DashboardData } from '../../types/dashboard';
 import { SURFACE_REGISTRY } from '../../generated/surfaceRegistry.generated';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
@@ -169,13 +170,18 @@ export function Sidebar({
     <aside className="shrink-0 flex flex-col transition-[width] duration-200 ease-out h-screen overflow-hidden sticky top-0" style={{ width: w }}>
       <Glass className="flex h-full flex-col p-3 rounded-none border-y-0 border-l-0">
         <div className={`flex items-center ${collapsed ? "justify-center" : "justify-between"} pb-3 shrink-0`}>
+          {collapsed && (
+            <div className="grid size-6 place-items-center rounded-md bg-white/[0.04] ring-1 ring-brass/40 shrink-0">
+              <AxisMark className="size-4 text-brass" />
+            </div>
+          )}
           {!collapsed && (
             <div className="flex items-center gap-2 px-1">
-              <div className="relative size-6 rounded-md bg-gradient-to-br from-brass via-amber-600 to-zinc-900 ring-1 ring-brass/40">
-                <span className="absolute inset-0 grid place-items-center font-display text-[11px] font-bold text-zinc-950">V</span>
+              <div className="relative grid size-6 place-items-center rounded-md bg-white/[0.04] ring-1 ring-brass/40">
+                <AxisMark className="size-4 text-brass" />
               </div>
               <div className="leading-tight">
-                <div className="font-display text-[11px] tracking-[0.22em] text-zinc-200">VOX</div>
+                <div className="font-display text-[11px] tracking-[0.22em] text-zinc-200">AXIS</div>
               </div>
             </div>
           )}
@@ -307,7 +313,7 @@ export function Sidebar({
             {!collapsed && (
               <div className="flex-1 leading-tight overflow-hidden">
                 <div className="font-display text-[11px] text-zinc-200 truncate">{identity}</div>
-                <div className="font-mono text-[9px] text-zinc-500">build {appVersion ?? 'unknown'} · tauri 2</div>
+                <div className="font-mono text-[9px] text-zinc-500">Vox Axis · build {appVersion ?? 'unknown'} · tauri 2</div>
               </div>
             )}
           </div>
