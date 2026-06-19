@@ -36,7 +36,10 @@ pub fn cluster_nodes(nodes: &[ClusterNode], edges: &[ClusterEdge]) -> HashMap<St
     let graph = builder
         .build()
         .unwrap_or_else(|_| GraphDataBuilder::new(nodes.len()).build().unwrap());
-    let leiden = Leiden::new(LeidenConfig::default());
+    let leiden = Leiden::new(LeidenConfig {
+        seed: Some(42),
+        ..Default::default()
+    });
 
     let mut communities = HashMap::new();
     if let Ok(result) = leiden.run(&graph) {
