@@ -15,6 +15,23 @@ import type { TaskRow } from './components/surfaces/Tasks/tasksHelpers';
 // alongside the other Tauri command types; re-exported here for callers of the hub.
 export type { OpenLocator, OpenOutcome } from './types/tauri';
 
+export type PoolRule =
+  | { kind: 'free' }
+  | { kind: 'provider'; value: string }
+  | { kind: 'max_cost_per_1k'; value: number }
+  | { kind: 'tier'; value: string }
+  | { kind: 'min_context'; value: number }
+  | { kind: string };
+
+export interface ModelPoolDto {
+  rules: PoolRule[];
+  includes: string[];
+  excludes: string[];
+  disabled_sources: string[];
+  member_ids: string[];
+  fell_open: boolean;
+}
+
 /** Tauri event name carrying the orchestrator status snapshot (see B1 daemon stream). */
 export const ORCH_STATUS_EVENT = 'vox://orch-status';
 
@@ -381,6 +398,18 @@ class VoxTransport {
 
   async suggestModelForTask(task: string) {
     return invoke('suggest_model_for_task', { task });
+  }
+
+  async getModelPool(): Promise<ModelPoolDto> {
+    return invoke<ModelPoolDto>('get_model_pool');
+  }
+
+  async setModelPool(pool: ModelPoolDto): Promise<void> {
+    return invoke('set_model_pool', { pool });
+  }
+
+  async listEnabledProviders(): Promise<string[]> {
+    return invoke<string[]>('list_enabled_providers_cmd');
   }
 
   async callTool(name: string, args: Record<string, any> = {}): Promise<ExecuteOutput> {

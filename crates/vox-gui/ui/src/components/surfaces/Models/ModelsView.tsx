@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
+import { ModelPoolView } from './ModelPoolView';
 
 interface ModelCard {
   id: string;
@@ -119,6 +120,7 @@ export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps
           <ModelGrid title="Local / Mesh / MENS" items={local} activeModel={activeModel} onSetDefault={setDefault} />
         </>
       )}
+      <ModelPoolView pushToast={pushToast} />
     </div>
   );
 }

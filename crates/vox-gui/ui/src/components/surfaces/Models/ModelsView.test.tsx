@@ -27,6 +27,14 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: (cmd: string, args?: unknown) => invokeMock(cmd, args),
 }));
 
+vi.mock('../../../transport', () => ({
+  voxTransport: {
+    getModelPool: vi.fn().mockResolvedValue({ rules: [], includes: [], excludes: [], disabled_sources: [], member_ids: [], fell_open: false }),
+    setModelPool: vi.fn().mockResolvedValue(undefined),
+    listEnabledProviders: vi.fn().mockResolvedValue(['ollama']),
+  },
+}));
+
 import { ModelsView } from './ModelsView';
 
 describe('ModelsView', () => {

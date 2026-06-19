@@ -182,4 +182,27 @@ describe('VoxTransport new methods', () => {
     expect(result).toHaveLength(1);
     expect(result[0]?.description).toBe('Ship feature');
   });
+
+  it('getModelPool invokes get_model_pool and returns dto', async () => {
+    const dto = { rules: [], includes: [], excludes: [], disabled_sources: [], member_ids: ['a/b'], fell_open: false };
+    mockInvoke.mockResolvedValue(dto);
+    const result = await voxTransport.getModelPool();
+    expect(mockInvoke).toHaveBeenCalledWith('get_model_pool');
+    expect(result.member_ids).toEqual(['a/b']);
+    expect(result.fell_open).toBe(false);
+  });
+
+  it('setModelPool invokes set_model_pool with pool arg', async () => {
+    mockInvoke.mockResolvedValue(undefined);
+    const pool = { rules: [{ kind: 'free' }], includes: [], excludes: ['x/y'], disabled_sources: [], member_ids: [], fell_open: false };
+    await voxTransport.setModelPool(pool);
+    expect(mockInvoke).toHaveBeenCalledWith('set_model_pool', { pool });
+  });
+
+  it('listEnabledProviders invokes list_enabled_providers_cmd', async () => {
+    mockInvoke.mockResolvedValue(['openrouter', 'ollama', 'mens']);
+    const result = await voxTransport.listEnabledProviders();
+    expect(mockInvoke).toHaveBeenCalledWith('list_enabled_providers_cmd');
+    expect(result).toContain('openrouter');
+  });
 });
