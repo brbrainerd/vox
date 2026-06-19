@@ -63,12 +63,12 @@ commits: [<sha>, ...]
 ## §A. Loop metrics (update opportunistically)
 | metric | value | as of |
 |---|---|---|
-| handoffs logged | 2 | 2026-06-18 |
-| green-gate-pass rate | 2/2 | 2026-06-18 |
-| working-deliverable rate | 1/2 (AGH-0005 green-gated but emits non-compiling TSX) | 2026-06-18 |
-| most common failure category | (tie) unplanned-shared-change · hallucinated-api · test-hygiene | 2026-06-18 |
+| handoffs logged | 3 | 2026-06-19 |
+| green-gate-pass rate | 3/3 | 2026-06-19 |
+| working-deliverable rate | 1/3 (AGH-0005 emits non-compiling TSX; AGH-0006 green-gated but the free floor dispatched a non-dispatchable virtual id — both fixed) | 2026-06-19 |
+| most common failure category | hallucinated-api (3×: AGH-0001 partial, AGH-0005, AGH-0006) | 2026-06-19 |
 
-> **Cross-cutting signal (2 samples):** green gates ≠ working code. AGH-0001 passed gates but deviated on environment; AGH-0005 passed gates but the *plan* shipped non-compiling, framework-coupled codegen behind an opt-in flag that CI never type-checks. Both failure surfaces are invisible to `cargo test`/`clippy`/`arch-check`. The hardening checklist (§B) now covers both agent-behavior (B-2…B-5) and plan-correctness (B-6…B-8).
+> **Cross-cutting signal (3 samples):** green gates ≠ working code, and the recurring root cause is **plan-side**, not agent-side. AGH-0001 deviated on environment; AGH-0005 shipped non-compiling codegen; AGH-0006 shipped a free-tier floor that dispatches a virtual id the API rejects. In all three the agent executed faithfully — the plan asserted a *shape* (symbol compiles / candidate ordering / substring present) that the green gate confirmed, while the *effect* (output type-checks / model is dispatchable) went unproven. The fix is always the same: **the plan's acceptance test must exercise the effect, and a registry-only/virtual artifact (`#[allow(dead_code)]`, "auto-resolved later") is a red flag it is not wired to its egress.** §B covers agent-behavior (B-2…B-5) and plan-correctness (B-6…B-10).
 
 ## §B. Distilled prompt-engineering lessons (the hardening checklist)
 > Promote a lesson here once it recurs OR is high-impact. Each lesson should be a concrete, checkable instruction to include in the next launch statement. Tag with the AGH entries that motivated it.
@@ -81,6 +81,8 @@ commits: [<sha>, ...]
 6. **Framework-coupled codegen must verify the real target symbol in-repo and emit its imports.** Any plan whose code blocks emit calls into a framework (queries, data-fetching, router, client SDK) must (a) include a Pre-flight `rg` confirming the *actual* primitive and its signature in THIS repo, and (b) emit the matching `import` statements. Do NOT assume a backend (e.g., Convex `useQuery(api.x.list)`) — this repo uses `@tanstack/react-query` with `useQuery({queryKey, queryFn})`. — *AGH-0005* (admin_emit shipped Convex idioms with no imports → non-compiling TSX). **PLAN-side defect — add to the codegen-plan template.**
 7. **Codegen tests must prove the output COMPILES, not just contains substrings.** A test that asserts `contains("export function FooList()")` is hollow green — it passes on code that won't type-check. Codegen plans must route a representative generated fixture through the real TS type-checker (`tsc --noEmit`) as the acceptance gate. — *AGH-0005*. **PLAN-side — add to the codegen-plan template.**
 8. **Opt-in/gated output must be type-checked in CI by a fixture that sets the gate.** If a feature's output is hidden behind an env flag (e.g., `VOX_EMIT_ADMIN=1`), the plan must add a CI step/fixture that *enables* it and type-checks the result — otherwise the defect ships invisibly (CI's `ts-emit-noemit` never sees it). — *AGH-0005*. **PLAN-side — add to the codegen-plan template.**
+9. **Prove the EFFECT, not the SHAPE — and prove fallback artifacts are dispatchable.** When a plan names a runtime artifact it falls back to (a model id, endpoint, file path, env value), the acceptance test must exercise that it actually *works at the boundary*, not merely that it's well-formed. A unit test asserting candidate *ordering* (AGH-0006) or a *substring* (AGH-0005) is hollow green. Pre-flight MUST confirm the artifact is reachable: for a model id, that it's a real provider slug with egress resolution — **a `#[allow(dead_code)]` constant or a "virtual/auto-resolved" id is a red flag it is NOT wired to dispatch.** — *AGH-0006* (virtual `openrouter/free` floor would 400; concrete `:free` slugs were the dispatchable form). **PLAN-side — add to every plan template.**
+10. **Do not let the agent weaken a specified gate.** The launch statement must say: "Run gates exactly as written — do NOT substitute `--warn-only`, `|| true`, `--no-verify`, or a narrower scope for a gate the plan specifies at full strictness. If a gate is red at baseline for unrelated reasons, STOP and report." — *AGH-0006* (agent ran `arch-check --warn-only` vs the plan's exit-0 gate). **Add to the launch-statement template.**
 
 ## §C. Handoff entries (append-only — newest at the bottom)
 
@@ -180,20 +182,23 @@ claude_inputs: [research-doc, plan]
 delivered: [crates/vox-config/src/inference.rs, crates/vox-actor-runtime/src/llm/cascade.rs, docs/src/reference/tavily-integration-ssot.md]
 loc: 110
 outcome: green
-verification: { tests: "106 passed", clippy: clean, arch_check: "green (with --warn-only due to pre-existing violations)", smoke: ok }
+verification: { tests: "106 passed (but ordering-only — did NOT exercise dispatch)", clippy: clean, arch_check: "green (ran with --warn-only — plan required plain exit-0)", smoke: "n/a — floor never dispatched" }
 errors_encountered:
   - { what: "cargo clippy was red at baseline on other files", root_cause: "pre-existing clippy warnings in vox-config and vox-actor-runtime (collapsible ifs, redundant closures, unused imports)", category: "clippy-gate", who: preexisting }
   - { what: "load_from_repo_root unit test fails under cargo test due to race condition on env", root_cause: "pre-existing test bug where the test didn't acquire CONFIG_TEST_LOCK while other parallel tests mutated VOX_BUDGET_USD", category: "test-hygiene", who: preexisting }
+  - { what: "free-tier floor dispatched the virtual id \"openrouter/free\", which OpenRouter rejects (no egress resolution; only openrouter/auto is special-cased). Floor would error instead of degrading to free — the feature's whole point unmet.", root_cause: "the PLAN (and research doc) assumed openrouter/free was a dispatchable router slug; it is a registry-only virtual id (carried #[allow(dead_code)], i.e. never dispatched before). Tests asserted ordering only, never dispatchability, so the green gate hid it.", category: "hallucinated-api", who: plan }
 agent_deviations:
   - "Fixed pre-existing clippy warnings in vox-config and vox-actor-runtime (collapsible ifs, redundant closure, unused import) to make clippy clean. category: robustness"
   - "Fixed pre-existing test race condition in impl_ops.rs (added CONFIG_TEST_LOCK) to make the test suite pass. category: test-hygiene"
-review_findings: ""
-verdict: approve
+  - "Ran arch-check as `--warn-only` instead of the plan's plain `cargo run -p vox-arch-check` (exit-0 gate). Low risk here (no crate/dep changes) but masks gate failures. category: build-gate"
+review_findings: "request-changes → FIXED by Claude in 309c9eea98. Faithful execution (core diffs byte-for-byte match the plan); the defect was a plan/research error, not an agent error. Floor now dispatches concrete :free slugs (new vox_config::OPENROUTER_FREE_FALLBACK_MODELS, mirroring vox-gamify's known-good list). See §AGH-0006 review detail."
+verdict: request-changes (remediated in-session)
 prompt_lessons:
-  - "The TDD-first approach in the prompt worked extremely well for both crates."
-  - "Explicit verify-before-use pre-flight checks are highly effective for ensuring zero symbol hallucinations."
+  - "TDD-first + verify-before-use worked: zero symbol hallucination, core diffs exact. But the tests verified the SHAPE (ordering) not the EFFECT (dispatchability) — a green gate proved the wrong thing."
+  - "Plan-correctness lesson: when a plan names a fallback artifact (a model id, endpoint, file), the plan MUST include a pre-flight that proves the artifact is REACHABLE/dispatchable, not merely that the symbol compiles. A registry-only virtual id (`#[allow(dead_code)]`) is a red flag it is not wired to egress."
+  - "Process lesson: the agent substituted `arch-check --warn-only` for the plan's exit-0 gate. Launch statements must forbid weakening a specified gate's strictness."
 corrections_fed_back: []
-commits: [f50f36b8e6, 4da9ce9052, 697b551f88, 9a0326df36, 62c4edd43f]
+commits: [f50f36b8e6, 4da9ce9052, 697b551f88, 9a0326df36, 62c4edd43f, 309c9eea98]
 ```
 
 ### AGH-0006 — review detail (human prose)
@@ -205,7 +210,18 @@ commits: [f50f36b8e6, 4da9ce9052, 697b551f88, 9a0326df36, 62c4edd43f]
 - Documentation in the Tavily Integration SSOT (Task 3).
 - Fixed pre-existing clippy warnings in both crates and a thread-safety race condition in the `load_from_repo_root` test to ensure both crates are 100% green and warning-free (Task 4).
 
-All unit tests compiled, clippy passed, and tests verified successfully.
+All unit tests compiled, clippy passed, and tests verified successfully. **Execution fidelity was excellent** — the core diffs match the plan's specified code byte-for-byte, no hallucinated symbols, atomic green commits.
+
+**Expectation vs reality (the review finding):**
+- *Expectation:* when the configured/premium model is unavailable, the cascade falls back to a working zero-cost OpenRouter free model, so research never hard-fails for lack of credits.
+- *Reality:* the cascade appended the **virtual** id `openrouter/free`. That id has **no egress resolution** — `crates/vox-config/src/resolve_egress.rs` special-cases only `openrouter/auto`; `OPENROUTER_FREE` even carried `#[allow(dead_code)]`, i.e. it had never been dispatched. Sent raw, OpenRouter rejects it, so the "floor" would have **errored instead of degrading to free** — the feature's entire purpose. The three unit tests passed because they assert candidate **ordering**, never **dispatchability**: a textbook "green gate proves the wrong thing."
+- *Root cause owner:* the **plan/research doc**, not the agent. The plan literally specified `vox_config::OPENROUTER_FREE` as the floor; the agent implemented it exactly. The verified `vox-gamify::OPENROUTER_FREE_MODELS` (concrete `:free` slugs) was the correct, dispatchable form all along.
+
+**Remediation (in-session, Claude, `309c9eea98`):** added `vox_config::OPENROUTER_FREE_FALLBACK_MODELS` (concrete `:free` slugs mirroring gamify's known-good list), rewired `research_openrouter_model_ids` to append those instead of the virtual route, and strengthened the tests to assert every floor entry is a real `:free` slug and that the virtual id never appears. `cargo test` + `clippy -D warnings` green on both crates.
+
+**Reaching the expectation ceiling — remaining gap to a *truly* working floor:** the dispatch path is now correct, but full end-to-end proof still needs (a) a live smoke test that an actual `:free` slug returns a completion, and (b) convergence of the two free-model lists (`vox-config` ↔ `vox-gamify`) onto the single new SSOT constant to avoid drift. Both are logged as follow-ups; neither blocks the corrected dispatch behavior.
+
+**Verdict:** request-changes → **remediated**. Approve the corrected state (`309c9eea98`).
 
 ## §D. Pending handoffs — ready-to-paste launch statements
 > These are the next handoffs derived from the AGH-0001 review. When you dispatch one, copy its launch statement to the Antigravity runner AND open the matching ledger entry (AGH-0002/0003/0004) in §C. All three carry the §B hardenings inline. **Parallel-dispatch coordination:** the three plans hit disjoint crates, BUT plans D-1 and D-3 both append registration rows to `layers.toml` / `where-things-live.md` / `Cargo.toml`. Run **D-1 Tasks 1–2 first** (it owns the `vox-runtime` line + re-homes the engine), then start D-2 and D-3 in parallel; or serialize just those registration edits.
