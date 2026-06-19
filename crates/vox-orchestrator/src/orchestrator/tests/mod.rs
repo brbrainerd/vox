@@ -988,5 +988,6 @@ mod orch_smoke {
     }
 }
 
+mod doubt_feedback_projection;
 mod persistence_integrity;
 mod populi_single_owner;

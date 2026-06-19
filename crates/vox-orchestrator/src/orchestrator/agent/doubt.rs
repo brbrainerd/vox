@@ -74,6 +74,39 @@ impl crate::orchestrator::Orchestrator {
                 reason: reason.clone(),
             });
 
+        // Surface the doubt in the unified "Needs You" feedback inbox so the user can
+        // Overrule (force-validate) or let the Verifier pass run. Non-gating (gates: [])
+        // because the task is re-enqueued in place and the agent keeps working;
+        // `doubted_task_id` carries the Overrule target for `resolve_feedback`.
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0);
+        let prompt = match reason.as_deref() {
+            Some(r) if !r.is_empty() => format!("Agent flagged this task as suspect: {r}"),
+            _ => "Agent flagged this task as suspect and is re-verifying.".to_string(),
+        };
+        let fid = self.feedback().register(
+            crate::feedback::FeedbackKind::Doubt,
+            prompt,
+            Vec::new(),
+            Vec::new(),
+            Some(task_id),
+            0.0,
+            0,
+            crate::feedback::Surface::NeedsYou,
+            task.session_id.clone(),
+            Some(agent_id),
+            ts,
+        );
+        self.event_bus
+            .emit(crate::events::AgentEventKind::FeedbackRequested {
+                feedback_id: fid.0,
+                kind: "doubt".into(),
+                gates: Vec::new(),
+                surface: "needs_you".into(),
+            });
+
         // The Implementation Plan requires that we re-enqueue it and let explicitly-enforced
         // terminal checks clear the Verification mode before it can be marked complete.
         queue.enqueue(task);
