@@ -24,8 +24,10 @@ pub use plan_gap::analyze_plan_gaps;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use sha2::{Digest, Sha256};
 use super::chat_socrates_meta::socrates_system_rider;
 use crate::server_state::ServerState;
+use vox_telemetry::{SkillActivationEvent, TelemetryEvent};
 
 pub(crate) fn now_ts() -> u64 {
     SystemTime::now()
@@ -129,6 +131,20 @@ pub(crate) async fn build_system_prompt_with_skill(
             let body = reg.lookup(&m.id).ok().map(|s| s.body).unwrap_or_default();
             if !body.is_empty() {
                 tracing::info!(skill = %m.id, source = "pinned", "skill_activated");
+                // Track E — skill_activation: hash the id with install-salt (never upload raw id).
+                let salt = vox_telemetry::config::install_salt();
+                let mut hasher = Sha256::new();
+                hasher.update(&salt);
+                hasher.update(m.id.as_bytes());
+                let hash = hasher.finalize().iter().map(|b| format!("{b:02x}")).collect::<String>();
+                vox_telemetry::record_event!(&TelemetryEvent::SkillActivation(
+                    SkillActivationEvent {
+                        skill_id_hash: hash,
+                        trigger_source: "pinned".to_string(),
+                        accepted: true,
+                        surface: "mcp".to_string(),
+                    }
+                ));
                 prompt.push_str(&skill_catalog::render_pinned_skill(&m.name, &body));
             }
         } else {
