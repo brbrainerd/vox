@@ -674,6 +674,11 @@ pub enum AgentEventKind {
         delta_seconds_since_admit: u64,
     },
 
+    /// Emitted when a developer cancels an item in the hopper.
+    HopperItemCancelled {
+        item_id: HopperItemId,
+    },
+
     // -----------------------------------------------------------------------
     // Mesh spend + action events (P4-T1, P4-T6, P4-T7)
     // -----------------------------------------------------------------------

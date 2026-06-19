@@ -1,7 +1,7 @@
 //! Hopper → agent-queue dispatch: pure mapping + the dispatcher loop.
 
 use crate::hopper::types::IntakeItem;
-use crate::types::{AgentTask, TaskId};
+use crate::types::{AgentTask, TaskId, TaskPriority};
 use std::sync::Arc;
 
 /// Stable hash function to map string IDs deterministically to u64 TaskIds.
@@ -66,6 +66,40 @@ pub async fn run_dispatcher(
     }
 }
 
+/// Runs the priority/cancel cascade loop:
+/// - HopperItemOverridden: updates the task's priority on agent queue.
+/// - HopperItemCancelled: cancels the task on agent queue.
+pub async fn run_cascade(
+    mut rx: tokio::sync::broadcast::Receiver<crate::events::AgentEvent>,
+    on_reprioritize: impl Fn(TaskId, TaskPriority) + Send + 'static,
+    on_cancel: impl Fn(TaskId) + Send + 'static,
+    max_events: Option<usize>,
+) {
+    let mut seen = 0usize;
+    while let Ok(ev) = rx.recv().await {
+        match ev.kind {
+            crate::events::AgentEventKind::HopperItemOverridden {
+                item_id,
+                developer_priority,
+                ..
+            } => {
+                let task_id = TaskId(stable_hash(&item_id.0));
+                on_reprioritize(task_id, developer_priority);
+                seen += 1;
+            }
+            crate::events::AgentEventKind::HopperItemCancelled { item_id } => {
+                let task_id = TaskId(stable_hash(&item_id.0));
+                on_cancel(task_id);
+                seen += 1;
+            }
+            _ => {}
+        }
+        if Some(seen) == max_events {
+            break;
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -116,5 +150,56 @@ mod tests {
             .await;
         handle.await.unwrap();
         assert_eq!(enqueued.lock().unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn override_event_triggers_reprioritize_callback() {
+        use crate::events::{AgentEvent, AgentEventKind};
+        let bus = Arc::new(EventBus::new(16));
+        let rx = bus.subscribe();
+        let reprioritized = Arc::new(Mutex::new(Vec::new()));
+        let sink = reprioritized.clone();
+        let handle = tokio::spawn(run_cascade(
+            rx,
+            move |id, _p| sink.lock().unwrap().push(id),
+            |_| {},
+            Some(1),
+        ));
+        bus.emit(AgentEventKind::HopperItemOverridden {
+            item_id: crate::events::HopperItemId("test_item".to_string()),
+            original_priority: TaskPriority::Normal,
+            developer_priority: TaskPriority::Urgent,
+            delta_seconds_since_admit: 0,
+        });
+        handle.await.unwrap();
+        assert_eq!(reprioritized.lock().unwrap().len(), 1);
+        assert_eq!(
+            reprioritized.lock().unwrap()[0],
+            TaskId(stable_hash("test_item"))
+        );
+    }
+
+    #[tokio::test]
+    async fn cancel_event_triggers_cancel_callback() {
+        use crate::events::{AgentEvent, AgentEventKind};
+        let bus = Arc::new(EventBus::new(16));
+        let rx = bus.subscribe();
+        let cancelled = Arc::new(Mutex::new(Vec::new()));
+        let sink = cancelled.clone();
+        let handle = tokio::spawn(run_cascade(
+            rx,
+            |_id, _p| {},
+            move |id| sink.lock().unwrap().push(id),
+            Some(1),
+        ));
+        bus.emit(AgentEventKind::HopperItemCancelled {
+            item_id: crate::events::HopperItemId("test_item".to_string()),
+        });
+        handle.await.unwrap();
+        assert_eq!(cancelled.lock().unwrap().len(), 1);
+        assert_eq!(
+            cancelled.lock().unwrap()[0],
+            TaskId(stable_hash("test_item"))
+        );
     }
 }

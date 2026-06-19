@@ -50,6 +50,42 @@ impl crate::orchestrator::Orchestrator {
             }
         };
 
+        let reprio_agents = Arc::clone(&agents);
+        let reprio_closure =
+            move |task_id: crate::types::TaskId, priority: crate::types::TaskPriority| {
+                let agents_lock = reprio_agents.read().unwrap();
+                let mut found = false;
+                for queue_arc in agents_lock.values() {
+                    let mut queue = queue_arc.write().unwrap();
+                    if queue.reorder(task_id, priority) {
+                        found = true;
+                        break;
+                    }
+                }
+                if !found {
+                    tracing::debug!(
+                        "Task {:?} not found in any queue for reprioritization",
+                        task_id
+                    );
+                }
+            };
+
+        let cancel_agents = Arc::clone(&agents);
+        let cancel_closure = move |task_id: crate::types::TaskId| {
+            let agents_lock = cancel_agents.read().unwrap();
+            let mut found = false;
+            for queue_arc in agents_lock.values() {
+                let mut queue = queue_arc.write().unwrap();
+                if queue.cancel(task_id).is_some() {
+                    found = true;
+                    break;
+                }
+            }
+            if !found {
+                tracing::debug!("Task {:?} not found in any queue for cancellation", task_id);
+            }
+        };
+
         if tokio::runtime::Handle::try_current().is_ok() {
             let dispatcher_rx = event_bus.subscribe();
             let dispatcher_hopper =
@@ -58,6 +94,14 @@ impl crate::orchestrator::Orchestrator {
                 dispatcher_rx,
                 dispatcher_hopper,
                 enqueue_closure,
+                None,
+            ));
+
+            let cascade_rx = event_bus.subscribe();
+            tokio::spawn(crate::orchestrator::dispatch::run_cascade(
+                cascade_rx,
+                reprio_closure,
+                cancel_closure,
                 None,
             ));
         }

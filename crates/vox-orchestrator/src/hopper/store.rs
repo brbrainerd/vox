@@ -277,7 +277,13 @@ impl HopperIntake for InMemoryHopper {
         }
 
         item.state = ItemState::Cancelled;
-        Ok(item.clone())
+        let out = item.clone();
+
+        self.bus.emit(AgentEventKind::HopperItemCancelled {
+            item_id: item_id.clone(),
+        });
+
+        Ok(out)
     }
 
     async fn replay_admitted(&self, op: AdmittedReplay) -> IntakeItem {
