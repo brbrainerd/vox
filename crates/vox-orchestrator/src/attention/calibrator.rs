@@ -270,6 +270,16 @@ fn interruption_channel_for_surface(surface: &str) -> InterruptionChannel {
     }
 }
 
+/// Pure recalibration step: aggregate recent events and fold the learned per-channel offsets into
+/// `base`. This is the body the interval job runs each tick.
+#[must_use]
+pub fn recalibrate(
+    base: InterruptionCalibrationConfig,
+    events: &[AttentionEvent],
+) -> InterruptionCalibrationConfig {
+    apply_learned_offsets(base, &aggregate_events(events))
+}
+
 /// Produce a calibrated config by overwriting the four channel gain-offset fields from learned
 /// per-channel counts. The HashMap keys are the REAL surface strings recorded in
 /// `AttentionEvent.channel` (e.g. "vox_plan", "vox_inline_edit", "vox_ghost_text", the chat
@@ -300,6 +310,55 @@ pub fn apply_learned_offsets(
 #[cfg(test)]
 mod close_loop_tests {
     use super::*;
+    use crate::attention::budget::{
+        ApprovalOutcome, ApprovalTier, AttentionEvent, AttentionEventType,
+    };
+    use crate::types::AgentId;
+
+    fn ev(
+        channel: &str,
+        outcome: ApprovalOutcome,
+        event_type: AttentionEventType,
+    ) -> AttentionEvent {
+        AttentionEvent {
+            agent_id: AgentId(0),
+            task_id: None,
+            event_type,
+            tier: ApprovalTier::Confirm,
+            cost_ms: 0,
+            outcome,
+            trust_score_at_time: 0.5,
+            effective_complexity: 0.0,
+            decision_entropy_bits: 0.0,
+            timestamp_ms: 0,
+            channel: Some(channel.to_string()),
+            policy_reason: None,
+        }
+    }
+
+    #[test]
+    fn recalibrate_lowers_gain_for_a_wasteful_channel() {
+        let events: Vec<AttentionEvent> = (0..10)
+            .map(|i| {
+                let outcome = if i == 0 {
+                    ApprovalOutcome::Approved
+                } else {
+                    ApprovalOutcome::Rejected
+                };
+                ev(
+                    "vox_inline_edit",
+                    outcome,
+                    AttentionEventType::CommandApproval,
+                )
+            })
+            .collect();
+        let cfg = recalibrate(InterruptionCalibrationConfig::default(), &events);
+        assert!(
+            cfg.inline_assist_gain_offset_bits < 0.0,
+            "9/10 rejected ⇒ ask less on this channel"
+        );
+    }
+
     #[test]
     fn wasteful_channel_gets_negative_offset_into_config() {
         let mut counts = std::collections::HashMap::new();
