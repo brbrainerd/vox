@@ -1,0 +1,19 @@
+[package]
+name = "vox-build-queue"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Fair FIFO build queue, cargo resolution, and build metrics for the vox build broker"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+fs2 = "0.4"
+workspace-hack = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

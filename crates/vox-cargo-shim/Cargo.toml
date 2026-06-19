@@ -1,0 +1,21 @@
+[package]
+name = "vox-cargo-shim"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Scoped daemonless cargo shim that fair-queues builds within a vox worktree"
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "cargo" # MUST be literally `cargo` so PATH interception works
+path = "src/main.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+vox-build-queue = { path = "../vox-build-queue" }
+workspace-hack = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
