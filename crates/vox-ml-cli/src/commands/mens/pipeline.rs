@@ -367,8 +367,65 @@ pub async fn run(
                     #[cfg(feature = "gpu")]
                     {
                         let device = device.clone().unwrap_or_else(|| "best".into());
-                        let target_model = model.clone();
+
+                        // Per-spoke base model: CLI --model wins; else resolve the profile's base.model
+                        // (tag -> VRAM-fit HF id, or concrete id passthrough). On a host with no GPU,
+                        // a TAG cannot be sized — fall back to the existing default-model path rather
+                        // than aborting a --skip-train dry-run (effect, not abort). §E.
+                        let target_model = if model.is_some() {
+                            model.clone()
+                        } else if let Some(name) = profile.as_deref() {
+                            let ws = vox_corpus::training::contract::find_workspace_root();
+                            let root = ws.clone().unwrap_or_else(|| std::path::PathBuf::from("."));
+                            match vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile::load_domain_profile(name, ws.as_deref()) {
+                                Ok(eff) => match eff.base.as_ref().map(|b| b.model.clone()) {
+                                    Some(tag) => match vox_populi::mens::tensor::spoke_base_resolver::resolve_base_model(&root, &tag, None) {
+                                        Ok(id) => Some(id),
+                                        Err(e) => {
+                                            tracing::warn!("spoke '{name}' base unresolved ({e}); using default model");
+                                            None
+                                        }
+                                    },
+                                    None => None,
+                                },
+                                Err(_) => None,
+                            }
+                        } else {
+                            model.clone()
+                        };
+
                         let target_preset = preset.clone().or_else(|| Some("prosumer_16g".into()));
+
+                        use vox_populi::mens::tensor::domain_profiles::TrainMethod;
+                        use vox_populi::mens::tensor::finetune_contract::AdapterMethod;
+                        use vox_populi::mens::tensor::finetune_registry::AdapterMethodRegistry;
+
+                        let method = profile.as_deref()
+                            .and_then(|n| vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile::load_domain_profile(n, vox_corpus::training::contract::find_workspace_root().as_deref()).ok())
+                            .and_then(|e| e.base.map(|b| b.method))
+                            .unwrap_or(TrainMethod::Qlora);
+
+                        let backend = match method {
+                            TrainMethod::Qlora => {
+                                match AdapterMethodRegistry::builtin().resolve(AdapterMethod::Qlora)
+                                {
+                                    Some(r) => r.default_kernel,
+                                    None => {
+                                        anyhow::bail!("AdapterMethodRegistry missing Qlora kernel")
+                                    }
+                                }
+                            }
+                            TrainMethod::FullSft | TrainMethod::Dpo | TrainMethod::Orpo => {
+                                anyhow::bail!(
+                                    "training method {:?} has no wired backend; wire a kernel before selecting it in domain-profiles.yaml",
+                                    method
+                                );
+                            }
+                            TrainMethod::RagOnly | TrainMethod::PromptOnly => {
+                                tracing::info!("spoke uses {:?}; skipping training stage", method);
+                                continue;
+                            }
+                        };
 
                         // SAFETY: CLI process; no concurrent `getenv` readers rely on these during this block.
                         #[allow(unsafe_code)]
@@ -384,7 +441,7 @@ pub async fn run(
                         }
 
                         crate::commands::schola::train::run_train(
-                            crate::commands::mens::PopuliTrainBackendCli::Qlora.into(),
+                            backend,
                             target_model,
                             device,
                             data_dir.clone(),
