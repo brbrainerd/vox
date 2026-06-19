@@ -1,0 +1,127 @@
+// vox:caps fs
+// scripts/plugin-candidacy.vox — Task A5, Track A
+//
+// Plugin candidacy classifier. Reads graphify-out/crate_audit.json and
+// docs/src/architecture/layers.toml, then prints crates scoring >=4 that
+// are not yet plugin-kind.
+//
+// Scoring:
+//   fan_in <= 3  -> +3   (few in-tree consumers = separable capability)
+//   capability name -> +2   (name contains: search, quantize, browser, speech,
+//                             retriev, scrape, scan, index, gamif)
+//   loc > 1500  -> +1   (substantial enough to be worth its own plugin)
+// Threshold >= 4 reported.
+//
+// Run: vox run --mode interp scripts/plugin-candidacy.vox
+
+import fs;
+import json;
+
+fn jstr(j: Json, k: str) to str {
+    return j.get(k).and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
+}
+fn jint(j: Json, k: str) to int {
+    return j.get(k).and_then(fn(x: Json) to Option[int] { x.as_int() }).unwrap_or(0)
+}
+
+let audit_read = fs.read("graphify-out/crate_audit.json")
+if audit_read.is_err() {
+    print("error: could not read graphify-out/crate_audit.json -- run scripts/crate-build-audit.vox first")
+    return
+}
+let parsed = json.parse(audit_read.unwrap())
+if parsed.is_err() {
+    print("error: could not parse graphify-out/crate_audit.json")
+    return
+}
+let crates = parsed.unwrap().as_array().unwrap_or([])
+
+let layers_raw = fs.read("docs/src/architecture/layers.toml").unwrap_or("")
+
+// Find plugin crates from layers.toml by scanning for kind = "plugin".
+let plugin_names: list[str] = []
+let lines = layers_raw.split("\n")
+for line in lines {
+    if line.contains("kind = \"plugin\"") {
+        let parts = line.split("=")
+        if parts.len() >= 1 {
+            let crate_name = parts.get(0).unwrap_or("").trim()
+            plugin_names = plugin_names.push(crate_name)
+        }
+    }
+}
+
+// Capability keywords that suggest plugin value.
+let capability_keywords: list[str] = [
+    "search", "quantize", "browser", "speech",
+    "retriev", "scrape", "scan", "index", "gamif"
+]
+
+// Collect scored candidates as flat lists (no list.set in interp).
+let candidate_names: list[str] = []
+let candidate_scores: list[int] = []
+let candidate_fan_ins: list[int] = []
+let candidate_locs: list[int] = []
+let candidate_layers: list[int] = []
+
+for entry in crates {
+    let name = jstr(entry, "crate")
+    let fan_in = jint(entry, "fan_in")
+    let loc = jint(entry, "loc")
+    let layer = jint(entry, "layer")
+
+    if plugin_names.contains(name) { continue }
+    if name.ends_with("-check") { continue }
+    if name.ends_with("-cli") { continue }
+    if name.ends_with("-driver") { continue }
+
+    let score = 0
+    if fan_in <= 3 { score = score + 3 }
+
+    for kw in capability_keywords {
+        if name.contains(kw) {
+            score = score + 2
+            break
+        }
+    }
+
+    if loc > 1500 { score = score + 1 }
+
+    if score >= 4 {
+        candidate_names = candidate_names.push(name)
+        candidate_scores = candidate_scores.push(score)
+        candidate_fan_ins = candidate_fan_ins.push(fan_in)
+        candidate_locs = candidate_locs.push(loc)
+        candidate_layers = candidate_layers.push(layer)
+    }
+}
+
+// Print results ordered by score descending (insertion-sort preserves relative order).
+// Simplify: just print all, highest first by doing a pass.
+// Since we can't list.set, emit a simple unordered report.
+print("# Plugin Candidacy Report")
+print("# Crates scoring >= 4 that are not yet plugins.")
+print("# Add plugin_candidate = true to layers.toml after human review.")
+print("")
+print("crate | score | fan_in | loc | layer")
+print("------|-------|--------|-----|------")
+
+// Print score 5 first, then 4.
+let score_thresholds: list[int] = [6, 5, 4]
+for threshold in score_thresholds {
+    let k = 0
+    while k < candidate_names.len() {
+        let s = candidate_scores.get(k).unwrap_or(0)
+        if s == threshold {
+            let name = candidate_names.get(k).unwrap_or("")
+            let fi = candidate_fan_ins.get(k).unwrap_or(0)
+            let loc = candidate_locs.get(k).unwrap_or(0)
+            let layer = candidate_layers.get(k).unwrap_or(0)
+            print(name + " | " + str(s) + " | " + str(fi) + " | " + str(loc) + " | " + str(layer))
+        }
+        k = k + 1
+    }
+}
+
+print("")
+print("Total candidates: " + str(candidate_names.len()))
