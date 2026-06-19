@@ -43,6 +43,9 @@ pub enum PopuliAction {
         /// Enable curriculum learning: epoch-gated difficulty sampling.
         #[arg(long, default_value_t = false)]
         curriculum: bool,
+        /// Domain profile name to target (e.g. rust-expert).
+        #[arg(long)]
+        profile: Option<String>,
     },
 
     /// Fine-tune: Burn LoRA (`--backend lora`) or Candle HF-embed adapter (`--backend qlora` + `--tokenizer hf`).

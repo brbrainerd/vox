@@ -3,6 +3,11 @@ use anyhow::Result;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
+/// Helper to extract/check active profile.
+pub fn selected_profile(profile: &Option<String>) -> &str {
+    profile.as_deref().unwrap_or("default")
+}
+
 /// Run the dogfood pipeline: corpus extract → validate → pairs → eval → optional native train.
 pub async fn run(
     data_dir: PathBuf,
@@ -16,6 +21,7 @@ pub async fn run(
     stages: Option<String>,
     dry_run: bool,
     curriculum: bool,
+    profile: Option<String>,
 ) -> Result<()> {
     #[cfg(not(feature = "gpu"))]
     {
@@ -26,6 +32,7 @@ pub async fn run(
             epochs,
             preset.as_ref(),
             curriculum,
+            profile.as_ref(),
         );
     }
 
@@ -574,6 +581,7 @@ mod tests {
             Some("validate,pairs,eval".to_string()),
             false,
             false,
+            None,
         )
         .await;
 
@@ -605,6 +613,15 @@ mod tests {
         assert!(!is_lock_error(&e));
     }
 
+    #[test]
+    fn test_selected_profile_helper() {
+        assert_eq!(selected_profile(&None), "default");
+        assert_eq!(
+            selected_profile(&Some("rust-expert".to_string())),
+            "rust-expert"
+        );
+    }
+
     #[tokio::test]
     async fn test_eval_stage_targets_validated_mixed_jsonl() {
         let temp_dir = tempfile::tempdir().unwrap();
@@ -629,6 +646,7 @@ mod tests {
             Some("eval".to_string()),
             false,
             false,
+            None,
         )
         .await;
 
