@@ -20,7 +20,14 @@ give the operator a multi-source picker to edit it.
 
 ## Dependency contract (what Gemini delivers; Claude builds on it)
 
-These symbols are produced by the Gemini handoff. **P2.2 needs the predicate landed; P3
+> **Status (audited 2026-06-19):** Gemini G1 + G2 are **committed** (`044b1b4ad3`, `a8e0bc7179`)
+> — `ModelPool`/`PoolRule`/`PoolModelView`/`resolve`/`resolve_with_fallback`/`rule_matches`,
+> `VoxConfig.model_pool`, and `list_enabled_providers()` are LIVE in `vox-config`. **→ P2.2 is
+> UNBLOCKED; start it now.** G3 (the Tauri commands) is not yet committed (orphaned/unwired),
+> so P3's *live* end-to-end wiring waits on it — but P3 builds+tests against the contract below
+> with mocked `invoke` in the meantime.
+
+These symbols are produced by the Gemini handoff. **P2.2 needs the predicate landed (it is); P3
 can build against the command contract with mocked `invoke` and wire live once the
 commands land.** If a symbol below is missing when you start a task, STOP — the Gemini
 half hasn't landed yet.

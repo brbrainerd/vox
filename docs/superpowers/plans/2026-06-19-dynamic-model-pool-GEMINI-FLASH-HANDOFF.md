@@ -12,6 +12,14 @@ not block you. Push the branch first if the runner is remote.
 You are implementing the **backend of the dynamic model-pool** for the Vox repo. All
 detail is committed in this checkout — read it from disk, do not rely on this message.
 
+### Progress (audited 2026-06-19 — RESUME at G3)
+- **G1 — DONE & committed** (`044b1b4ad3`): `crates/vox-config/src/model_pool.rs` (type + predicate) + `VoxConfig.model_pool` field; 7 unit tests pass.
+- **G2 — DONE & committed** (`a8e0bc7179`): `list_enabled_providers()` in `model_pool.rs`.
+- **G3 — IN PROGRESS, NEEDS FINISHING:** `crates/vox-gui/src/commands/model_pool.rs` exists (reviewed-correct, compiles) but is **untracked and UNWIRED** — its `pub mod model_pool;` (in `commands/mod.rs`) and the three `generate_handler!` entries (in `main.rs`) are NOT present in HEAD. **Your job: re-add `pub mod model_pool;` to `crates/vox-gui/src/commands/mod.rs`, register the 3 commands in `crates/vox-gui/src/main.rs`, build (`cargo test -p vox-gui` — bin crate, NO `--lib`), confirm the 2 tests in `model_pool.rs` run, then commit all three files together.** Do not rewrite the command code unless the build fails.
+- **G4 — TODO** (annotate the const; annotation-only).
+
+Skip G1/G2; start at G3.
+
 ### Read first (in this order)
 1. `docs/src/architecture/gemini-3-5-flash-antigravity-limitations-2026-06-18.md` — your own operating limits.
 2. `docs/superpowers/specs/2026-06-19-dynamic-model-pool-design.md` — the design SSOT (read §2 locked decisions, §3 data model, §4 predicate).
