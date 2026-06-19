@@ -25,6 +25,11 @@ pub enum ReleasePackage {
     All,
 }
 
+/// The package names `ReleasePackage::All` builds, in archive-name form.
+/// This is the parity anchor checked against the distribution SSOT
+/// (`contracts/distribution/profiles.v1.yaml` `binaries`).
+pub const ALL_RELEASE_BINARIES: &[&str] = &["vox", "vox-ml-cli", "voxup"];
+
 pub(crate) fn validate_release_target(target: &str) -> Result<()> {
     if SUPPORTED_RELEASE_TARGETS.contains(&target) {
         Ok(())
@@ -202,6 +207,36 @@ mod tests {
     use vox_bounded_fs::read_utf8_path_capped;
 
     use super::{checksum_line, executable_name, plugin_executable_name, validate_release_target};
+
+    /// The distribution SSOT, embedded so the parity test needs no file IO at runtime.
+    const PROFILES_YAML: &str =
+        include_str!("../../../../../contracts/distribution/profiles.v1.yaml");
+
+    #[derive(serde::Deserialize)]
+    struct ProfilesBinaries {
+        binaries: Vec<String>,
+    }
+
+    #[test]
+    fn all_package_matches_distribution_ssot() {
+        use std::collections::BTreeSet;
+
+        let parsed: ProfilesBinaries =
+            serde_yaml::from_str(PROFILES_YAML).expect("distribution SSOT must parse");
+
+        let from_ssot: BTreeSet<String> = parsed.binaries.into_iter().collect();
+        let from_code: BTreeSet<String> = super::ALL_RELEASE_BINARIES
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        assert_eq!(
+            from_code, from_ssot,
+            "ReleasePackage::All ({:?}) must equal contracts/distribution/profiles.v1.yaml `binaries` ({:?}). \
+             If you added/removed a shipped binary, update BOTH the SSOT and ALL_RELEASE_BINARIES + the build dispatch in run().",
+            from_code, from_ssot
+        );
+    }
 
     #[test]
     fn unsupported_target_errors() {
