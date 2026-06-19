@@ -15,6 +15,7 @@ pub mod nomenclature_guard;
 pub mod openclaw_contract;
 pub mod parse_check;
 pub mod plugin_dep_boundary;
+pub mod profile_parity;
 pub mod retirement_audit;
 pub mod row_serde_lint;
 pub mod runner_policy_check;
