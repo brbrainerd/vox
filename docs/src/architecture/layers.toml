@@ -120,6 +120,7 @@ vox-runtime           = { layer = 2, max_dependents = 20 }       # umbrella runt
 
 # ── L2 — domain libraries ─────────────────────────────────────────────────────
 vox-config              = { layer = 2, max_dependents = 20 }
+vox-similarity          = { layer = 2, orphan_exempt = true }
 vox-llm-egress          = { layer = 2, max_dependents = 10 }   # sanctioned LLM provider wire; pure egress (deps = vox-http-client + reqwest), no config/secret resolution
 
 vox-repository          = { layer = 2 }
