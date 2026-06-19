@@ -11,9 +11,10 @@ serde       = { workspace = true, features = ["derive"] }
 toml.workspace = true
 serde_json  = { workspace = true }
 tracing     = { workspace = true }
-vox-secrets  = { workspace = true }
+vox-secrets    = { workspace = true }
 vox-llm-config = { workspace = true }
 vox-llm-egress = { workspace = true }
+vox-telemetry  = { workspace = true }
 workspace-hack = { workspace = true }
 serde_yaml = { workspace = true }
 dirs = { workspace = true }

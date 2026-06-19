@@ -17,6 +17,8 @@ pub struct AgentBudgetAllocation {
 
 impl AgentBudgetAllocation {
     pub fn new(max_tokens: usize, max_cost_usd: f64) -> Self {
+        vox_telemetry::record_default_decision!("budget_token_alert_threshold", "high_80pct", "default");
+        vox_telemetry::record_default_decision!("budget_cost_alert_threshold", "very_high_90pct", "default");
         Self {
             max_tokens,
             max_cost_usd,
@@ -229,7 +231,10 @@ impl BudgetManager {
             attention_events: Arc::new(std::sync::RwLock::new(VecDeque::new())),
             trust_scores: Arc::new(std::sync::RwLock::new(HashMap::new())),
             fatigue: Arc::new(std::sync::RwLock::new(FatigueMonitor::new())),
-            max_financial_cost_micros: Arc::new(std::sync::atomic::AtomicI64::new(50_000)),
+            max_financial_cost_micros: {
+                vox_telemetry::record_default_decision!("budget_max_cost_micros", "5_cents_usd", "default");
+                Arc::new(std::sync::atomic::AtomicI64::new(50_000))
+            },
             global_financial_cost_micros: Arc::new(std::sync::atomic::AtomicI64::new(0)),
             execution_time_budget_multiplier: Arc::new(std::sync::atomic::AtomicU64::new(
                 1.5f64.to_bits(),
@@ -238,9 +243,15 @@ impl BudgetManager {
             global_exploration_cost_micros: Arc::new(std::sync::atomic::AtomicI64::new(0)),
             db: Arc::new(std::sync::RwLock::new(db)),
             drift: Arc::new(std::sync::RwLock::new(HashMap::new())),
-            drift_cost_threshold_usd: Arc::new(std::sync::atomic::AtomicU64::new(0.5f64.to_bits())),
+            drift_cost_threshold_usd: {
+                vox_telemetry::record_default_decision!("budget_drift_threshold_usd", "50_cents_usd", "default");
+                Arc::new(std::sync::atomic::AtomicU64::new(0.5f64.to_bits()))
+            },
             cost_progress: Arc::new(std::sync::RwLock::new(HashMap::new())),
-            doom_loop_threshold_usd: Arc::new(std::sync::atomic::AtomicU64::new(2.00f64.to_bits())),
+            doom_loop_threshold_usd: {
+                vox_telemetry::record_default_decision!("budget_doom_loop_threshold_usd", "2_usd", "default");
+                Arc::new(std::sync::atomic::AtomicU64::new(2.00f64.to_bits()))
+            },
         }
     }
 

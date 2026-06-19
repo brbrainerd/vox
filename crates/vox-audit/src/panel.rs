@@ -503,6 +503,7 @@ impl<I: PanelClient> ProtectedPanelClient<I> {
     /// Construct with the YAML's published defaults (3 retries, 30s
     /// base, 600s max) and `std::thread::sleep` as the sleeper.
     pub fn with_yaml_defaults(inner: I) -> Self {
+        vox_telemetry::record_default_decision!("audit_panel_backoff_base", "30_secs", "default");
         Self {
             inner,
             max_retries: 3,

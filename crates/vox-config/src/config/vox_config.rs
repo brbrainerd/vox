@@ -65,10 +65,16 @@ impl Default for VoxConfig {
             web_tanstack_start: false,
             build_target: BuildTarget::default(),
             hitl: HitlPolicy::default(),
-            llm_max_concurrent_requests: 8,
+            llm_max_concurrent_requests: {
+                vox_telemetry::record_default_decision!("llm_max_concurrent", "medium_8", "default");
+                8
+            },
             llm_openrouter_max_concurrent: None,
             llm_openai_max_concurrent: None,
-            llm_retry_max_attempts: 4,
+            llm_retry_max_attempts: {
+                vox_telemetry::record_default_decision!("llm_retry_max_attempts", "moderate_4", "default");
+                4
+            },
             agent_provider: "openclaw".to_string(),
         }
     }
