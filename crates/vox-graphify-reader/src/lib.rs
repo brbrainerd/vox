@@ -15,6 +15,7 @@ pub mod bfs;
 pub mod cache;
 pub mod cluster;
 pub mod compare;
+pub mod gc;
 pub mod lens;
 pub mod overlay;
 pub mod reachability;
