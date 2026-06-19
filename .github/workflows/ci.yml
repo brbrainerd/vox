@@ -913,6 +913,11 @@ jobs:
         run: ./target/debug/vox --quiet run --mode interp scripts/crate-build-audit.vox
         continue-on-error: true
 
+      - name: Plugin-candidacy classifier (advisory — non-gating)
+        if: needs.setup.outputs.full == 'true'
+        run: ./target/debug/vox --quiet run --mode interp scripts/plugin-candidacy.vox
+        continue-on-error: true
+
       - name: Build-bench (wall-clock scenarios vs committed baseline — ROUGH signal)
         if: needs.setup.outputs.full == 'true'
         run: |
