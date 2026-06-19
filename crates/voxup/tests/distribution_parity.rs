@@ -63,3 +63,20 @@ fn agy_only_in_full_tier_runtime_optional() {
         }
     }
 }
+
+#[test]
+fn rust_version_matches_toolchain_contract() {
+    let p = load();
+    let contract_txt = std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../contracts/toolchain/workspace-toolchain.v1.yaml"
+    ))
+    .expect("workspace-toolchain.v1.yaml must exist");
+    let contract_rust = voxup::profiles::toolchain_rust_version(&contract_txt)
+        .expect("workspace-toolchain.v1.yaml must have versions.rust");
+    assert_eq!(
+        contract_rust, p.rust_version,
+        "SSOT rust_version '{}' != toolchain contract versions.rust '{contract_rust}'",
+        p.rust_version
+    );
+}

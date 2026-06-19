@@ -31,6 +31,12 @@ pub fn parse(yaml: &str) -> Result<Profiles, serde_yaml::Error> {
     serde_yaml::from_str(yaml)
 }
 
+/// Extract `versions.rust` from a workspace-toolchain.v1.yaml document.
+pub fn toolchain_rust_version(yaml: &str) -> Option<String> {
+    let v: serde_yaml::Value = serde_yaml::from_str(yaml).ok()?;
+    v["versions"]["rust"].as_str().map(String::from)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
