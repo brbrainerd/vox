@@ -90,16 +90,23 @@ async fn open_gamify_db() -> Result<vox_db::Codex, String> {
         .map_err(|e| e.to_string())
 }
 
-#[tauri::command]
-pub async fn get_ludus_profile() -> Result<LudusProfileDto, String> {
-    let db = open_gamify_db().await?;
+pub async fn get_ludus_profile_impl(db: &vox_db::Codex) -> Result<LudusProfileDto, String> {
     let user_id = vox_gamify::db::canonical_user_id();
-    let mut profile = vox_gamify::db::get_profile(&db, &user_id)
+    let mut profile = vox_gamify::db::get_profile(db, &user_id)
         .await
         .map_err(|e| e.to_string())?
         .unwrap_or_else(|| LudusProfile::new_default(&user_id));
     profile.regen_energy();
+    if let Err(e) = vox_gamify::db::upsert_profile(db, &profile).await {
+        tracing::error!("failed to upsert profile after energy regen: {}", e);
+    }
     Ok(LudusProfileDto::from_profile(&profile))
+}
+
+#[tauri::command]
+pub async fn get_ludus_profile() -> Result<LudusProfileDto, String> {
+    let db = open_gamify_db().await?;
+    get_ludus_profile_impl(&db).await
 }
 
 #[tauri::command]
@@ -522,5 +529,33 @@ mod tests {
         assert_eq!(json["type"], "message_sent");
         assert_eq!(json["source"], "gui");
         assert_eq!(json["session_id"], "abc");
+    }
+
+    #[tokio::test]
+    async fn energy_regen_persists_to_db() {
+        let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+            .await
+            .expect("db");
+        vox_gamify::db::apply_ludus_migrations(&db)
+            .await
+            .expect("migrations");
+        let user_id = vox_gamify::db::canonical_user_id();
+
+        let mut p = LudusProfile::new_default(&user_id);
+        p.energy = 0;
+        p.last_energy_regen = vox_gamify::util::now_unix() - 7200; // 2 hours ago
+        vox_gamify::db::upsert_profile(&db, &p)
+            .await
+            .expect("upsert");
+
+        // Call the impl
+        let _dto = get_ludus_profile_impl(&db).await.expect("impl");
+
+        // Reload from DB
+        let reloaded = vox_gamify::db::get_profile(&db, &user_id)
+            .await
+            .expect("get")
+            .unwrap();
+        assert!(reloaded.energy > 0, "energy must persist after regen");
     }
 }

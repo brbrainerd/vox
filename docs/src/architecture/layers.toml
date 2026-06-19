@@ -63,7 +63,14 @@ forbidden_deps    = "error"
 # violations for every rule (see Task 4.2 in the cross-platform parity plan).
 # Adding a new [[forbidden_pattern]] rule with open violations while this is
 # "error" will cause CI to fail immediately for that rule.
-forbidden_pattern = "warn"
+#
+# 2026-06-19: briefly downgraded to "warn" during VoxMens Split B (28 violations,
+# almost all TEST-code false-positives + 2 real raw-git in vox-cli graphify).
+# Restored to "error" after: (a) adding per-rule `exempt_tests` (skips tests/ dirs
+# + inline #[cfg(test)] blocks) on the unsafe/abs-path/dynlib/shell-spawn rules,
+# (b) routing vox-cli graphify through vox_git, (c) annotating the cfg(windows)-gated
+# voxup powershell spawn. Tree re-swept clean (0 violations). See ledger AGH-0008.
+forbidden_pattern = "error"
 
 # ── Rule 10: Forbidden direct dependencies ────────────────────────────────────
 # vox-rule-pack and vox-code-audit must never directly depend on heavy search/
@@ -336,9 +343,23 @@ file_glob        = "crates/vox-codegen/src/codegen_rust/**/*.rs"
 allow_annotation = "// vox-arch-check: allow-direct-projection"
 reason           = "HIR projections for emit must go through projection_bundle (WebIR/AppContract/Runtime/Shell/RequiredCapabilities SSOT)."
 
+# agy chokepoint: all Antigravity CLI spawns must go through AgyExec (kill_on_drop,
+# CREATE_NO_WINDOW, arg sanitisation). Raw spawns bypass the credit-burn-on-orphan guard.
+[[forbidden_pattern]]
+name             = "raw-agy-exec"
+pattern          = 'Command::new\("agy"\)'
+file_glob        = "crates/**/*.rs"
+exempt_files     = [
+    "crates/vox-orchestrator-mcp/src/agy_exec.rs",
+    "crates/vox-orchestrator-mcp/src/agy_doctor.rs",
+]
+allow_annotation = "// vox-arch-check: allow agy-exec"
+reason           = "All agy CLI invocations must go through AgyExec (kill_on_drop guard prevents credit-burning orphans on timeout)."
+
 # Crate-level `unsafe_code` allows — keep list short; prefer `EnvScratch`, scoped `#[allow]`, or `// vox-arch-check: allow crate unsafe_code`.
 [[forbidden_pattern]]
 name             = "crate-allow-unsafe-code"
+exempt_tests     = true
 pattern          = '#!\[allow\([^\]]*unsafe_code[^\]]*\)\]'
 file_glob        = "crates/**/*.rs"
 exempt_files     = [
@@ -409,6 +430,7 @@ reason           = "Application package manifests use @tauri-apps/* per ADR 037.
 #    cross-platform-guarantees-audit-and-enforcement-2026-06-15.md, then promote in [guards]) ──
 [[forbidden_pattern]]
 name             = "no-hardcoded-shell-spawn"
+exempt_tests     = true
 pattern          = 'Command::new\(\s*"(cmd|cmd\.exe|powershell|pwsh|sh|bash)"'
 file_glob        = "crates/**/*.rs"
 exempt_files     = [
@@ -422,6 +444,7 @@ reason           = "Shell/PowerShell spawns must be cfg(windows)-gated or resolv
 
 [[forbidden_pattern]]
 name             = "no-hardcoded-abs-path"
+exempt_tests     = true
 pattern          = '"(/(tmp|usr|etc|var|home|opt|bin|root)\b|[A-Za-z]:\\)'
 file_glob        = "crates/**/*.rs"
 exempt_files     = [
@@ -442,6 +465,7 @@ reason           = "Hardcoded absolute paths break across OSes; use std::env::te
 
 [[forbidden_pattern]]
 name             = "no-hardcoded-dynlib-ext"
+exempt_tests     = true
 pattern          = '"[^"]*\.(so|dll|dylib)"'
 file_glob        = "crates/**/*.rs"
 allow_annotation = "// vox-arch-check: allow dynlib-ext"
