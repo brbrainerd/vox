@@ -41,22 +41,23 @@ Everything else is sequential. **Do not force parallelism on the Rust spine** �
 
 ## Verified vs. unverified facts (read before starting)
 
-**Verified — `agy` runtime surface (2026-06):**
-- `agy -p "<prompt>"` (`--print`) — non-interactive: one prompt, then exits. The CI/script mode.
-- `agy -i` (`--prompt-interactive`) — interactive TUI. **We never use this.**
-- `agy --dangerously-skip-permissions` — auto-approves *all* tool/command confirmations ("force accept human intervention").
-- `agy --sandbox` exists **but** combined with `--dangerously-skip-permissions` is bypassable (the model is hinted `bypassSandbox: true` and obeys) — [#36](https://github.com/google-antigravity/antigravity-cli/issues/36), **open, no fix**. ⇒ **Never pass `--sandbox`.**
+**Verified — `agy` command surface.** *Provenance: confirmed verbatim in Google's official Codelab "Hands-on with Antigravity CLI" (codelabs.developers.google.com/antigravity-cli-hands-on) + corroborated by antigravity-cli GitHub issues #36/#78, 2026-06-19. Do NOT substitute alternate invocations (no `run`/`exec` subcommand, no `--task`, no slash commands in headless mode) — slash commands (`/help`, `/config`, `/quit`) are interactive-session-only.*
+- `agy -p "<prompt>"` — non-interactive: the prompt is the **value of `-p`**, runs once, exits. Verbatim example: `agy -p "What is the gcloud command to deploy to Cloud Run"`. This is THE automation entry point.
+- `agy --dangerously-skip-permissions` — auto-approves *all* tool permissions; "There will be no prompt asking you for permissions." (The auto-accept mechanism.)
+- `agy --model "<Display Name>"` — model is a **human-readable display string, NOT a slug**. Verbatim example: `agy --model "Gemini 3.5 Flash (Low)"`. Available families: Gemini 3.5 Flash (Low/High), Gemini 3.1 Pro variants, Claude Sonnet/Opus, GPT-OSS 120B. ⇒ **Never synthesize a slug like `gemini-3.5-flash`** — pass an exact display name or omit the flag (defaults to Gemini 3.5 Flash High).
+- Working directory: **no `--cwd` flag** — `agy` operates on the process cwd. ⇒ We spawn with `current_dir(worktree)`; that IS the isolation.
+- `agy --sandbox` exists **but** combined with `--dangerously-skip-permissions` is bypassable (model hinted `bypassSandbox: true`) — [#36](https://github.com/google-antigravity/antigravity-cli/issues/36), **open, no fix**. ⇒ **Never pass `--sandbox`.**
 - No reliable `--output-format json`. ⇒ **Parse exit code + stderr + the resulting `git diff`. Never assume JSON stdout.**
 - Async sub-agents are auto-spawned by `agy`'s own orchestrator; the `/agents` panel is **TUI-only** (unavailable under `-p`). ⇒ We do not manage agy's internal sub-agents; *our* parallelism is N concurrent `agy -p` processes.
-- Default model: Gemini 3.5 Flash (High).
+- Default model when `--model` omitted: Gemini 3.5 Flash (High).
 
 **Verified — `agy` install/auth (2026-06):**
 - Install (Unix, and Windows via Git Bash): `curl -fsSL https://antigravity.google/cli/install.sh | bash` (drops binary `agy` into `~/.local/bin/` on Unix, `%LOCALAPPDATA%\Antigravity\` on Windows).
 - **Auth is interactive OAuth.** First `agy` run kicks off Google Sign-In (OAuth or a GCP project). ⇒ **Login cannot be fully automated and we must not store Google credentials.** The doctor detects + instructs; a human signs in once.
 - Not on npm; it's a downloaded binary.
 
-**UNVERIFIED — confirm in Task 0 before hardcoding (do NOT assume):**
-- A `--model` flag spelling; a `--cwd` flag; a `--version`/`version` subcommand string; whether a dedicated **Windows** installer (`.ps1`/`.msi`) exists beyond the bash script; whether `agy` exposes a non-interactive **auth-status** check. The doctor probes these at runtime rather than trusting this list.
+**UNVERIFIED — confirm in Task 0 before relying on (do NOT assume):**
+- The exact `--version`/`version` subcommand string (the doctor probes `--version` and tolerates failure); the exact set of `--model` display strings (capture from `agy --help` / the model picker — only pass strings you've seen); whether a dedicated **Windows** installer (`.ps1`/`.msi`) exists beyond the bash script; whether `agy` exposes a non-interactive **auth-status** check. The doctor probes at runtime rather than trusting this list.
 
 ---
 
@@ -105,7 +106,7 @@ else
 fi
 ```
 
-- [ ] **Step 2: Reconcile flags.** If the fixture exists, confirm `-p`/`--print` and `--dangerously-skip-permissions`, and note the real `--model`/`--cwd`/version-subcommand spellings. If `-p` or `--dangerously-skip-permissions` is absent/renamed, STOP and update the flag constants in this plan before coding.
+- [ ] **Step 2: Reconcile flags against the captured help.** `-p "<prompt>"`, `--dangerously-skip-permissions`, and `--model "<Display Name>"` are VERIFIED against Google's Codelab — expect them present. Your job here is to (a) record the **exact `--model` display strings** this install offers (so callers pass valid names), and (b) note the `--version` subcommand form. Only if `-p` or `--dangerously-skip-permissions` is *absent/renamed* in this build do you STOP and update the flag constants before coding.
 
 - [ ] **Step 3: Confirm the `which` crate is available** (the doctor uses it; arch-check's `no-hardcoded-shell-spawn` reason explicitly endorses `which::which`).
 
@@ -460,7 +461,8 @@ pub fn build_args(spec: &AgySpec) -> Vec<String> {
         "--dangerously-skip-permissions".to_string(),
     ];
     if let Some(m) = &spec.model {
-        // Confirm `--model` spelling against the Task 0 fixture before relying on it.
+        // VERIFIED: `--model` takes a display NAME, e.g. "Gemini 3.5 Flash (Low)" — NOT a slug.
+        // Callers must pass an exact display string; we pass it through unmodified.
         args.push("--model".to_string());
         args.push(m.clone());
     }
@@ -708,11 +710,21 @@ Add to `lib.rs`: `pub mod agy_worktree;`.
 Run: `cargo test -p vox-orchestrator-mcp agy_worktree::tests`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Keep delegation worktrees out of the parent's git status.** `.vox/agy-worktrees/` is NOT covered by the existing `.gitignore` (only specific `.vox/` subdirs are — verify: `rg -n 'agy-worktrees|^/?\.vox/' .gitignore`). A linked worktree dir nested in the repo otherwise shows as untracked. Add the ignore (mirror the existing `.vox/` entries):
+
+```
+# Antigravity delegation worktrees (ephemeral, per-delegation)
+/.vox/agy-worktrees/
+```
+
+Run: `rg -n 'agy-worktrees' .gitignore && git status --porcelain | rg 'agy-worktrees' || echo "clean"`
+Expected: the ignore line is present; no `agy-worktrees` path appears in `git status`.
+
+- [ ] **Step 6: Commit**
 
 ```bash
-git add crates/vox-orchestrator-mcp/src/agy_worktree.rs crates/vox-orchestrator-mcp/src/lib.rs
-git commit -m "feat(agy): unique worktree jail + diff/changed-file capture"
+git add crates/vox-orchestrator-mcp/src/agy_worktree.rs crates/vox-orchestrator-mcp/src/lib.rs .gitignore
+git commit -m "feat(agy): unique worktree jail + diff/changed-file capture (+gitignore)"
 ```
 
 ## Task 6: `agy_ledger` — serialized AGH-NNNN allocation + append
@@ -1018,7 +1030,7 @@ git commit -m "feat(agy): vox_agy_delegate (doctor-gated, jailed, retried, logge
             "required": ["task"],
             "properties": {
                 "task": { "type": "string", "description": "Exact, zero-ambiguity spec (paths + target symbols)." },
-                "model": { "type": "string", "description": "Optional model override; defaults to agy's Gemini 3.5 Flash." },
+                "model": { "type": "string", "description": "Optional agy model DISPLAY NAME (not a slug), e.g. \"Gemini 3.5 Flash (Low)\". Omit for the default (Gemini 3.5 Flash High)." },
                 "timeout_secs": { "type": "integer", "default": 900, "description": "Hard kill after this many seconds." }
             }
         }),
@@ -1571,12 +1583,16 @@ Expected: FAIL — `credentials_status_json` undefined.
 /// provider's doctor state. This is the "dynamically aware of all keys" surface.
 pub fn credentials_status_json() -> serde_json::Value {
     // Redaction-safe: list_secret_status() reports presence, never values.
+    // SecretStatusRow fields (verified vox-secrets/src/lib.rs:464): id, canonical_env,
+    // scope_description, taxonomy_slug, auth_registry, required, is_present, status.
     let secret_rows: Vec<serde_json::Value> = vox_secrets::list_secret_status()
         .into_iter()
-        .map(|row| {
-            // Map row fields to {key, present}; confirm the real field names in Step 3.
-            serde_json::json!({ "key": format!("{:?}", row) })
-        })
+        .map(|row| serde_json::json!({
+            "id": row.id,
+            "env": row.canonical_env,
+            "present": row.is_present,
+            "required": row.required,
+        }))
         .collect();
     let inference: Vec<String> = vox_orchestrator::models::key_guard::available_inference_providers()
         .into_iter()
@@ -1596,7 +1612,7 @@ pub async fn vox_credentials_status(_state: &ServerState, _args: serde_json::Val
 }
 ```
 
-> Verify `vox-orchestrator-mcp` already depends on `vox-orchestrator` and `vox-secrets` (`rg -n "vox-orchestrator|vox-secrets" crates/vox-orchestrator-mcp/Cargo.toml`). They are L3 peers; if the dep is absent, STOP and report rather than adding a cross-layer dep that arch-check may reject.
+> **Deps confirmed (2026-06-19):** `vox-orchestrator-mcp/Cargo.toml` depends on `vox-orchestrator` (`default-features = false, features = ["runtime"]`) and `vox-secrets.workspace`. ⇒ Ensure `key_guard::available_inference_providers` is reachable under the `runtime` feature (`rg -n "mod key_guard|pub fn available_inference_providers" crates/vox-orchestrator/src/models/mod.rs`). If it's behind a different feature, gate the call or expose it under `runtime` — do NOT add a new cross-crate dep (arch-check would flag it).
 
 - [ ] **Step 4: Register** (dispatch arm, schema arm `{ "type":"object","properties":{} }`, registry entry `name: vox_credentials_status`, description "List every inference provider with a present credential plus the agy delegation status — the credential-aware model-selection surface."). Then:
 
@@ -1711,3 +1727,6 @@ git commit -m "docs(skills): delegate-gemini credentials/budget awareness + cred
 | Flashing console windows (Windows) | `CREATE_NO_WINDOW` on every spawn | 4 |
 | Hallucinated repo APIs | Every cross-file symbol carries an `rg`-confirm note; ground-truth verified 2026-06-19 | all |
 | Supply-chain risk of curl\|bash installer | Doctor *instructs* (does not auto-run); remediation says to verify the URL first | 1 |
+| `agy --model` rejects a synthesized slug | `--model` takes a display name (verified); callers pass exact strings or omit; Task 0 records this install's valid names | 0, 3, 8 |
+| Delegation worktree pollutes parent `git status` | `/.vox/agy-worktrees/` added to `.gitignore` (not covered by existing rules) | 5 |
+| Wrong/aliased agy invocation invented by executor | Command surface pinned with provenance (Google Codelab) + "do NOT substitute" note; no `run`/`exec`/`--task`/headless-slash forms | facts §, 0 |
