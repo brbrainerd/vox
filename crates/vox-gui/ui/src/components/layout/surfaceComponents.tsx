@@ -19,6 +19,7 @@ import { SkillsPluginsView } from '../surfaces/SkillsPlugins/SkillsPluginsView';
 import { PoliciesView } from '../surfaces/Policies/PoliciesView';
 import { ParentSurface } from './ParentSurface';
 import { surfaceDecorators } from '../surfaces/decoratorRegistry';
+import { GraphifyStatusPanel } from '../surfaces/Graphify/GraphifyStatusPanel';
 import { ChatSurface } from '../surfaces/Chat/ChatSurface';
 import type {
   ChatExecutionRailKpis,
@@ -107,6 +108,8 @@ function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
       return <Matrix pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'memory':
       return <MemoryView pushToast={props.pushToast} onAttachContext={props.onAttachContext} />;
+    case 'graphify':
+      return <GraphifyStatusPanel />;
     case 'models':
       return <ModelsView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'runs':
