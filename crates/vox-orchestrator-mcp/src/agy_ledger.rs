@@ -69,6 +69,48 @@ pub fn render_entry(id: &str, e: &LedgerEntry) -> String {
     )
 }
 
+/// The Claude-side adversarial review outcome for one handoff.
+#[derive(Debug, Clone)]
+pub struct ReviewRecord {
+    pub verdict: String,         // approve | approve-with-followups | request-changes
+    pub categories: Vec<String>, // from the stable §B vocabulary
+    pub findings: String,
+    pub lessons: Vec<String>,
+    pub date: String,
+}
+
+fn yaml_inline(s: &str) -> String {
+    s.replace('"', "'").replace(['\n', '\r'], " ")
+}
+
+pub fn render_review(id: &str, r: &ReviewRecord) -> String {
+    let cats = r.categories.iter().map(|c| yaml_inline(c)).collect::<Vec<_>>().join(", ");
+    let lessons = if r.lessons.is_empty() {
+        "  []".to_string()
+    } else {
+        r.lessons.iter().map(|l| format!("  - \"{}\"", yaml_inline(l))).collect::<Vec<_>>().join("\n")
+    };
+    format!(
+        "```yaml\n# --- {id}-review ---\nreview_of: {id}\ndate: {date}\nverdict: {verdict}\ncategories: [{cats}]\nreview_findings: \"{findings}\"\nprompt_lessons:\n{lessons}\n```\n",
+        id = id, date = r.date, verdict = yaml_inline(&r.verdict), cats = cats,
+        findings = yaml_inline(&r.findings), lessons = lessons,
+    )
+}
+
+/// Append a `{id}-review` addendum under the same lock (append-only).
+pub async fn append_review_locked(repo_root: &Path, id: &str, r: &ReviewRecord) -> std::io::Result<()> {
+    let _guard = LEDGER_LOCK.get_or_init(|| tokio::sync::Mutex::new(())).lock().await;
+    let path = repo_root.join(LEDGER_REL);
+    let mut body = std::fs::read_to_string(&path)?;
+    if !body.ends_with('\n') {
+        body.push('\n');
+    }
+    body.push('\n');
+    body.push_str(&render_review(id, r));
+    std::fs::write(&path, body)?;
+    Ok(())
+}
+
 /// Serialized read-allocate-append. Returns the allocated id.
 pub async fn append_entry_locked(repo_root: &Path, entry: LedgerEntry) -> std::io::Result<String> {
     let _guard = LEDGER_LOCK.get_or_init(|| tokio::sync::Mutex::new(())).lock().await;
@@ -110,6 +152,26 @@ mod tests {
         let block = render_entry("AGH-0010", &e);
         assert!(block.contains("build: pass, test: pass"));
         assert!(!block.contains("tests: \"n/a\""));
+    }
+
+    #[tokio::test]
+    async fn append_review_writes_keyed_addendum() {
+        let dir = std::env::temp_dir().join(format!("agyrev-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("docs/superpowers")).unwrap();
+        let p = dir.join(LEDGER_REL);
+        std::fs::write(&p, "## §C\n# --- AGH-0007 ---\nid: AGH-0007\n").unwrap();
+        let rec = ReviewRecord {
+            verdict: "request-changes".into(),
+            categories: vec!["hallucinated-api".into(), "scope-creep".into()],
+            findings: "Invented useQuery(api.x) with no import".into(),
+            lessons: vec!["Verify framework primitives in-repo".into()],
+            date: "2026-06-19".into(),
+        };
+        append_review_locked(&dir, "AGH-0007", &rec).await.unwrap();
+        let body = std::fs::read_to_string(&p).unwrap();
+        assert!(body.contains("# --- AGH-0007-review ---"));
+        assert!(body.contains("verdict: request-changes"));
+        assert!(body.contains("hallucinated-api"));
     }
 
     #[tokio::test]
