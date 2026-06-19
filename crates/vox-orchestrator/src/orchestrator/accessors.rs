@@ -522,11 +522,34 @@ impl Orchestrator {
     pub fn hopper(&self) -> std::sync::Arc<dyn crate::hopper::store::HopperIntake> {
         std::sync::Arc::clone(&self.hopper)
     }
+
+    /// Live snapshot of the interruption-calibration config (clone under read lock). Used by the
+    /// MCP ask-decision path so background recalibration (Phase F3) actually takes effect.
+    #[must_use]
+    pub fn interruption_calibration(&self) -> crate::attention::InterruptionCalibrationConfig {
+        crate::sync_lock::rw_read(&self.config)
+            .interruption_calibration
+            .clone()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn interruption_calibration_accessor_reflects_live_config() {
+        let orch = crate::Orchestrator::new(crate::config::OrchestratorConfig::for_testing());
+        {
+            let mut cfg = crate::sync_lock::rw_write(&orch.config);
+            cfg.interruption_calibration.inline_assist_gain_offset_bits = -0.07;
+        }
+        assert_eq!(
+            orch.interruption_calibration()
+                .inline_assist_gain_offset_bits,
+            -0.07
+        );
+    }
 
     #[test]
     fn status_includes_attention_budget_snapshot() {

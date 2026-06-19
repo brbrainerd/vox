@@ -10,9 +10,8 @@ use crate::server_state::ServerState;
 #[must_use]
 fn apply_calibration(
     mut signals: InterruptionSignals,
-    cfg: &vox_orchestrator::OrchestratorConfig,
+    cal: &vox_orchestrator::attention::InterruptionCalibrationConfig,
 ) -> InterruptionSignals {
-    let cal = &cfg.interruption_calibration;
     let gain_offset = match signals.channel {
         InterruptionChannel::PlanReview => cal.plan_review_gain_offset_bits,
         InterruptionChannel::TaskSubmit => cal.task_submit_gain_offset_bits,
@@ -224,7 +223,8 @@ pub(crate) fn evaluate_with_state(
     signals: &InterruptionSignals,
     attention_snapshot: &AttentionBudget,
 ) -> InterruptionDecision {
-    let calibrated = apply_calibration(signals.clone(), &state.orchestrator_config);
+    let cal = state.orchestrator.interruption_calibration();
+    let calibrated = apply_calibration(signals.clone(), &cal);
     evaluate_interruption(
         &calibrated,
         attention_snapshot,
