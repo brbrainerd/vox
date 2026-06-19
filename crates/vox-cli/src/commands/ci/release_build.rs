@@ -15,13 +15,13 @@ pub use crate::utils::install_policy::SUPPORTED_RELEASE_TARGETS;
 pub enum ReleasePackage {
     /// Core `vox` CLI only (lean install — no ML/scientia plugins).
     Vox,
-    /// Standalone `vox-bootstrap` installer used by `scripts/install.{sh,ps1}`.
-    Bootstrap,
-    /// `vox` core + `vox-bootstrap` (legacy "Both" tier — pre-plugin packaging).
-    Both,
     /// `vox-ml-cli` plugin: ML/oratio/speech/populi/train subcommands (heavy: Candle).
     Mens,
-    /// Every artifact: vox + bootstrap + every plugin binary. The "full" tier.
+    /// `voxup` toolchain multiplexer + hermetic installer.
+    Voxup,
+    /// Every shipped binary: `vox`, `vox-ml-cli`, `voxup`.
+    /// MUST equal `contracts/distribution/profiles.v1.yaml` `binaries` (enforced by
+    /// `all_package_matches_distribution_ssot` below).
     All,
 }
 
@@ -50,15 +50,9 @@ pub fn run(
         .with_context(|| format!("create out dir {}", out_dir_abs.display()))?;
 
     let mut checksum_lines = Vec::new();
-    let want_vox = matches!(
-        package,
-        ReleasePackage::Vox | ReleasePackage::Both | ReleasePackage::All
-    );
-    let want_bootstrap = matches!(
-        package,
-        ReleasePackage::Bootstrap | ReleasePackage::Both | ReleasePackage::All
-    );
+    let want_vox = matches!(package, ReleasePackage::Vox | ReleasePackage::All);
     let want_mens = matches!(package, ReleasePackage::Mens | ReleasePackage::All);
+    let want_voxup = matches!(package, ReleasePackage::Voxup | ReleasePackage::All);
 
     if want_vox {
         let artifact_name = build_and_package_binary(
@@ -73,19 +67,6 @@ pub fn run(
         let digest = sha256_file(&out_dir_abs.join(&artifact_name))?;
         checksum_lines.push(checksum_line(&digest, &artifact_name));
     }
-    if want_bootstrap {
-        let artifact_name = build_and_package_binary(
-            repo_root,
-            out_dir_abs.as_path(),
-            target,
-            artifact_version,
-            "vox-bootstrap",
-            bootstrap_executable_name(target),
-            "vox-bootstrap",
-        )?;
-        let digest = sha256_file(&out_dir_abs.join(&artifact_name))?;
-        checksum_lines.push(checksum_line(&digest, &artifact_name));
-    }
     if want_mens {
         let mens_bin = plugin_executable_name(target, "vox-ml-cli");
         let artifact_name = build_and_package_binary(
@@ -96,6 +77,20 @@ pub fn run(
             "vox-ml-cli",
             &mens_bin,
             "vox-ml-cli",
+        )?;
+        let digest = sha256_file(&out_dir_abs.join(&artifact_name))?;
+        checksum_lines.push(checksum_line(&digest, &artifact_name));
+    }
+    if want_voxup {
+        let voxup_bin = plugin_executable_name(target, "voxup");
+        let artifact_name = build_and_package_binary(
+            repo_root,
+            out_dir_abs.as_path(),
+            target,
+            artifact_version,
+            "voxup",
+            &voxup_bin,
+            "voxup",
         )?;
         let digest = sha256_file(&out_dir_abs.join(&artifact_name))?;
         checksum_lines.push(checksum_line(&digest, &artifact_name));
@@ -124,14 +119,6 @@ fn executable_name(target: &str) -> &'static str {
         "vox.exe"
     } else {
         "vox"
-    }
-}
-
-fn bootstrap_executable_name(target: &str) -> &'static str {
-    if is_windows_target(target) {
-        "vox-bootstrap.exe"
-    } else {
-        "vox-bootstrap"
     }
 }
 
@@ -210,10 +197,7 @@ mod tests {
     use crate::utils::release_artifacts::artifact_filename;
     use vox_bounded_fs::read_utf8_path_capped;
 
-    use super::{
-        bootstrap_executable_name, checksum_line, executable_name, plugin_executable_name,
-        validate_release_target,
-    };
+    use super::{checksum_line, executable_name, plugin_executable_name, validate_release_target};
 
     #[test]
     fn unsupported_target_errors() {
@@ -229,14 +213,6 @@ mod tests {
         assert_eq!(executable_name("x86_64-pc-windows-msvc"), "vox.exe");
         assert_eq!(executable_name("x86_64-unknown-linux-gnu"), "vox");
         assert_eq!(executable_name("aarch64-apple-darwin"), "vox");
-        assert_eq!(
-            bootstrap_executable_name("x86_64-pc-windows-msvc"),
-            "vox-bootstrap.exe"
-        );
-        assert_eq!(
-            bootstrap_executable_name("x86_64-unknown-linux-gnu"),
-            "vox-bootstrap"
-        );
         assert_eq!(
             plugin_executable_name("x86_64-pc-windows-msvc", "vox-ml-cli"),
             "vox-ml-cli.exe"
@@ -266,8 +242,8 @@ mod tests {
             "vox-v1.2.3-aarch64-apple-darwin.tar.gz"
         );
         assert_eq!(
-            artifact_filename("vox-bootstrap", "v1.2.3", "x86_64-unknown-linux-gnu"),
-            "vox-bootstrap-v1.2.3-x86_64-unknown-linux-gnu.tar.gz"
+            artifact_filename("voxup", "v1.2.3", "x86_64-unknown-linux-gnu"),
+            "voxup-v1.2.3-x86_64-unknown-linux-gnu.tar.gz"
         );
     }
 
@@ -284,15 +260,12 @@ mod tests {
     fn checksum_manifest_supports_multiple_entries() {
         let all = [
             checksum_line("aaa", "vox-v1.2.3-x86_64-unknown-linux-gnu.tar.gz"),
-            checksum_line(
-                "bbb",
-                "vox-bootstrap-v1.2.3-x86_64-unknown-linux-gnu.tar.gz",
-            ),
+            checksum_line("bbb", "voxup-v1.2.3-x86_64-unknown-linux-gnu.tar.gz"),
         ]
         .join("");
         assert_eq!(
             all,
-            "aaa  vox-v1.2.3-x86_64-unknown-linux-gnu.tar.gz\nbbb  vox-bootstrap-v1.2.3-x86_64-unknown-linux-gnu.tar.gz\n"
+            "aaa  vox-v1.2.3-x86_64-unknown-linux-gnu.tar.gz\nbbb  voxup-v1.2.3-x86_64-unknown-linux-gnu.tar.gz\n"
         );
     }
 
