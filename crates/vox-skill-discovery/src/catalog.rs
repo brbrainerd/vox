@@ -40,10 +40,11 @@ pub fn dedup_skills(manifests: &[SkillManifest], opts: &DiscoverOptions) -> Vec<
             .iter()
             .map(|&i| index.fragment(i).source_ref.clone())
             .collect();
+        let score = vox_similarity::mean_pairwise_jaccard(&index, &cluster.members);
         out.push(Candidate {
             kind: CandidateKind::DuplicatesInstalled,
             members,
-            score: opts.min_jaccard,
+            score,
             suggested_action: "These installed skills overlap — consider consolidating or reusing one"
                 .to_string(),
             draft_frontmatter: None,
@@ -125,6 +126,7 @@ mod tests {
         let cands = dedup_skills(&manifests, &opts);
         assert_eq!(cands.len(), 1);
         assert_eq!(cands[0].members.len(), 2);
+        assert!(cands[0].score >= 0.9, "near-identical skills score high, got {}", cands[0].score);
     }
 
     #[test]
