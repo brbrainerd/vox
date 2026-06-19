@@ -63,6 +63,11 @@ mod tests {
         assert_eq!(payload.corpora.len(), 1);
         // No graph on disk → stale with graph_missing.
         assert!(!payload.corpora[0].is_fresh);
-        assert!(payload.corpora[0].stale_reasons.iter().any(|r| r == "graph_missing"));
+        assert!(
+            payload.corpora[0]
+                .stale_reasons
+                .iter()
+                .any(|r| r == "graph_missing")
+        );
     }
 }
