@@ -45,6 +45,13 @@ This file tracks the single source of truth for Vox architecture, research findi
 - [AI UI generators & Vox-as-target — research](ai-ui-generators-and-vox-as-target-research-2026-06-18.md) — How v0.dev/Claude Design/Bolt/Lovable work (React+Tailwind+shadcn, registry-over-MCP); good UI comes from constraints-in-the-system not the model; Vox's unfair advantage = compile-time contrast/occlusion/a11y. §6b: modular SSOT rule engine (extend policy-registry `GuiDesignRule`) + W3C DTCG token interop = the "Vox Design System".
 - [Auto-GUI & auto-debugging — Vox design](automatic-gui-and-debugging-vox-design-2026-06-18.md) — Concept design for Track A (opt-in naked-objects auto-GUI), Track B (`vox-execution-tracer`), Track C (Vox-as-AI-UI-target: modular rule registry + shadcn component registry + DTCG tokens + MCP tools). Plans: [Track A](../../superpowers/plans/2026-06-18-track-a-naked-objects-auto-gui.md), [Track B](../../superpowers/plans/2026-06-18-track-b-zero-annotation-debugging.md), [Track C](../../superpowers/plans/2026-06-18-track-c-vox-as-ai-ui-target.md). Handoff: [Antigravity guide](../contributors/antigravity-handoff-and-skill-gaps-2026-06-18.md).
 
+### FableForge Research & Audits (2026-06-19)
+
+- [FableForge "as any" Casts Reduction Strategy](as-any-casts-reduction-strategy-research-2026.md) — A systemic strategy for auditing, classifying, and eliminating legacy `as any` casts across the FableForge monorepo.
+- [FableForge Combat Knowledge Graph](combat-knowledge-graph-research-2026.md) — A directed knowledge graph spanning every layer of the Dystopia/FableForge combat engine, from legacy C to TypeScript.
+- [KI: Village Narrative Architecture — Research Audit](village-narrative-architecture-findings-2026.md) — A research audit on game structure for facilitating narrative, focusing on FableForge village.
+
+
 ## AI-First Language Fixtures
 
 - [AI-First Fixtures — Research (2026)](ai-first-fixtures-research-2026.md) — Evidence-grounded design for author-time AI fixtures across lexer/parser/HIR/codegen, `vox-actor-runtime` LLM substrate, orchestrator routing, MCP/ACI, and telemetry. Ships a machine-readable candidate catalog ([`contracts/agentos/ai-first-fixtures.v1.yaml`](../../../contracts/agentos/ai-first-fixtures.v1.yaml)) with JSON Schema, five fixture classes (agent control, model selection, query templates, deferred fill, search substitution), spike backlog S1–S8, and ADR drafts for proposed decorators (`@subagent`, `@prompt`, `@hole`, `@search`). **Implemented and observed (v0.7)** — typed `TelemetryEvent::AiFixture`, Rust codegen wired to memory/search/cascade/subagent dispatch; TS lowering still advisory (`vox/codegen/missing-ts-ai-lowering`). Follow-on: `ai-fixtures-ts-lowering-follow-on-2026.md`.
