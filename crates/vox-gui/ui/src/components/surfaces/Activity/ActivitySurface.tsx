@@ -259,7 +259,9 @@ export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
         before_id: null,
       };
       const res = await activityQuery(filter);
-      setRows(res);
+      // activityQuery is typed ActivityRowDto[], but a backend/IPC (or the visual-audit
+      // mock) can yield null/undefined; never let a non-array reach state (rows.map()).
+      setRows(Array.isArray(res) ? res : []);
     } catch (err) {
       pushToast({
         tone: 'warn',
