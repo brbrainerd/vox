@@ -427,6 +427,11 @@ pub(crate) fn spawn_questioning_trace_from_socrates(
                         policy_reason: Some(reason.clone()),
                     };
                     spend_state.record_attention_event(evt);
+                    let withheld = Some(withheld_question(
+                        q.prompt.as_deref().unwrap_or("Clarify intent"),
+                        reason,
+                        q.expected_information_gain_bits,
+                    ));
                     let _ = db
                         .record_questioning_metric(
                             &session_key,
@@ -439,6 +444,7 @@ pub(crate) fn spawn_questioning_trace_from_socrates(
                                 reason,
                                 &decision,
                                 ts_evt,
+                                withheld,
                             )
                             .to_string(),
                         )
@@ -465,6 +471,11 @@ pub(crate) fn spawn_questioning_trace_from_socrates(
                         policy_reason: Some(reason.clone()),
                     };
                     spend_state.record_attention_event(evt);
+                    let withheld = Some(withheld_question(
+                        q.prompt.as_deref().unwrap_or("Clarify intent"),
+                        reason,
+                        q.expected_information_gain_bits,
+                    ));
                     let _ = db
                         .record_questioning_metric(
                             &session_key,
@@ -477,6 +488,7 @@ pub(crate) fn spawn_questioning_trace_from_socrates(
                                 reason,
                                 &decision,
                                 ts_evt,
+                                withheld,
                             )
                             .to_string(),
                         )
@@ -702,8 +714,9 @@ fn questioning_policy_metric_payload(
     reason: &str,
     decision: &vox_orchestrator::InterruptionDecision,
     timestamp_ms: u64,
+    withheld: Option<WithheldQuestion>,
 ) -> serde_json::Value {
-    serde_json::json!({
+    let mut payload = serde_json::json!({
         "surface": surface,
         "channel": channel_label(channel),
         "question_needed": question_needed,
@@ -712,7 +725,13 @@ fn questioning_policy_metric_payload(
         "decision": decision_label(decision),
         "decision_legacy_debug": format!("{decision:?}"),
         "timestamp_ms": timestamp_ms,
-    })
+    });
+    if let Some(w) = withheld {
+        if let Ok(w_val) = serde_json::to_value(w) {
+            payload["withheld_question"] = w_val;
+        }
+    }
+    payload
 }
 
 #[must_use]
@@ -937,6 +956,7 @@ mod tests {
             "attention_budget_exhausted_marginal_gain_insufficient",
             &decision,
             123_456,
+            None,
         );
         let session = "mcp:test:vox_chat_message";
         db.record_questioning_metric(session, Some(0.07), &payload.to_string())
@@ -969,6 +989,27 @@ mod tests {
         assert!(r.to_lowercase().contains("you want") || r.to_lowercase().contains("specification"), "must distinguish user-spec uncertainty");
         // existing behaviour preserved:
         assert!(r.contains("calibrated confidence"));
+    }
+
+    #[test]
+    fn questioning_metric_payload_includes_withheld_question() {
+        let decision = vox_orchestrator::InterruptionDecision::DeferUntilCheckpoint {
+            reason: "low_utility".to_string(),
+        };
+        let withheld = Some(withheld_question("Staging or prod?", "low_utility", 0.05));
+        let payload = questioning_policy_metric_payload(
+            "vox_chat_message",
+            vox_orchestrator::InterruptionChannel::ChatClarification,
+            true,
+            "deferred",
+            "low_utility",
+            &decision,
+            123_456,
+            withheld,
+        );
+        assert_eq!(payload["policy_outcome"], "deferred");
+        assert_eq!(payload["withheld_question"]["prompt"], "Staging or prod?");
+        assert_eq!(payload["withheld_question"]["expected_information_gain_bits"], 0.05);
     }
 }
 
