@@ -131,6 +131,25 @@ use anyhow::{Context, Result};
 use std::path::Path;
 use std::process::Command;
 
+/// The format of `contracts/ci/dep-backedges.allow.json`.
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AllowedCycles {
+    pub schema_version: u32,
+    /// Each inner Vec is a sorted list of crate names in a known advisory cycle.
+    pub allowed_cycles: Vec<Vec<String>>,
+}
+
+/// Returns cycles in `current` that are NOT in `allowlist`.
+/// Both lists must have sorted member vecs (dep_cycles already guarantees this).
+pub fn new_advisory_cycles<'a>(
+    current: &'a [Vec<String>],
+    allowlist: &AllowedCycles,
+) -> Vec<&'a Vec<String>> {
+    let allowed: std::collections::BTreeSet<&Vec<String>> =
+        allowlist.allowed_cycles.iter().collect();
+    current.iter().filter(|c| !allowed.contains(c)).collect()
+}
+
 fn cargo_metadata(root: &Path) -> Result<Value> {
     let out = Command::new(super::cargo_bin())
         .current_dir(root)
@@ -146,7 +165,7 @@ fn cargo_metadata(root: &Path) -> Result<Value> {
     serde_json::from_slice(&out.stdout).context("parse cargo metadata")
 }
 
-pub fn run_dep_cycles(root: &Path) -> Result<()> {
+pub fn run_dep_cycles(root: &Path, deny_new: bool, allowlist_path: Option<&Path>) -> Result<()> {
     let meta = cargo_metadata(root)?;
     let link_time = adjacency_from_metadata(&meta, false);
     let with_nonlink = adjacency_from_metadata(&meta, true);
@@ -186,6 +205,29 @@ pub fn run_dep_cycles(root: &Path) -> Result<()> {
             normal_cycles.len()
         );
     }
+
+    if deny_new {
+        let allow_path = allowlist_path
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| root.join("contracts/ci/dep-backedges.allow.json"));
+        let raw = std::fs::read_to_string(&allow_path)
+            .with_context(|| format!("read allowlist {}", allow_path.display()))?;
+        let allowlist: AllowedCycles = serde_json::from_str(&raw)
+            .with_context(|| format!("parse {}", allow_path.display()))?;
+        let new = new_advisory_cycles(&nonlink_only, &allowlist);
+        if !new.is_empty() {
+            eprintln!(
+                "ERROR: {} new advisory cycle(s) not in allowlist:",
+                new.len()
+            );
+            for c in &new {
+                eprintln!("  new: {}", c.join(" -> "));
+            }
+            eprintln!("To allow: add the cycle to {}", allow_path.display());
+            anyhow::bail!("{} new advisory dep cycle(s) detected", new.len());
+        }
+    }
+
     Ok(())
 }
 
@@ -262,5 +304,47 @@ mod metadata_tests {
         let adj = adjacency_from_metadata(&meta(), true);
         assert_eq!(adj["b"], vec!["a".to_string()]);
         assert_eq!(cycles(&adj), vec![vec!["a".to_string(), "b".to_string()]]);
+    }
+}
+
+#[cfg(test)]
+mod deny_new_tests {
+    use super::*;
+
+    fn allowed() -> AllowedCycles {
+        AllowedCycles {
+            schema_version: 1,
+            allowed_cycles: vec![vec!["a".into(), "b".into(), "c".into()]],
+        }
+    }
+
+    #[test]
+    fn no_new_cycles_when_cycles_match_allowlist() {
+        let current = vec![vec!["a".into(), "b".into(), "c".into()]];
+        assert!(new_advisory_cycles(&current, &allowed()).is_empty());
+    }
+
+    #[test]
+    fn extra_cycle_detected_as_new() {
+        let current = vec![
+            vec!["a".into(), "b".into(), "c".into()],
+            vec!["x".into(), "y".into()],
+        ];
+        let new = new_advisory_cycles(&current, &allowed());
+        assert_eq!(new.len(), 1);
+        assert_eq!(new[0], &vec!["x".to_string(), "y".to_string()]);
+    }
+
+    #[test]
+    fn subset_of_allowlist_is_not_new() {
+        let current: Vec<Vec<String>> = vec![];
+        assert!(new_advisory_cycles(&current, &allowed()).is_empty());
+    }
+
+    #[test]
+    fn cycle_order_independent_match() {
+        // dep_cycles already sorts members; this is a belt-and-suspenders check
+        let current = vec![vec!["a".into(), "b".into(), "c".into()]]; // sorted
+        assert!(new_advisory_cycles(&current, &allowed()).is_empty());
     }
 }

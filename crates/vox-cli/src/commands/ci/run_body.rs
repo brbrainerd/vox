@@ -554,7 +554,10 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             compare,
             repeat,
         } => super::build_bench::run_build_bench(&root, label, write, compare, repeat),
-        CiCmd::DepCycles => super::dep_cycles::run_dep_cycles(&root),
+        CiCmd::DepCycles {
+            deny_new,
+            allowlist,
+        } => super::dep_cycles::run_dep_cycles(&root, deny_new, allowlist.as_deref()),
         CiCmd::AffectedCrates {
             changed,
             graph,

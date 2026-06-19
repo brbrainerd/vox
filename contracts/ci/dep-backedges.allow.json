@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "_comment": "Known advisory dev/build-dep back-edge cycles. To resolve: shrink vox-test-harness deps (T2.1+). Do not add new entries without fixing the underlying dep.",
+  "allowed_cycles": [
+    [
+      "vox-actor-runtime",
+      "vox-codegen",
+      "vox-codegen-ts",
+      "vox-compiler",
+      "vox-corpus",
+      "vox-db",
+      "vox-gamify",
+      "vox-openclaw-runtime",
+      "vox-orchestrator-queue",
+      "vox-package",
+      "vox-populi",
+      "vox-publisher",
+      "vox-scientia",
+      "vox-search",
+      "vox-skills",
+      "vox-sql",
+      "vox-tauri-codegen",
+      "vox-tensor",
+      "vox-test-harness",
+      "vox-workflow-runtime"
+    ]
+  ]
+}

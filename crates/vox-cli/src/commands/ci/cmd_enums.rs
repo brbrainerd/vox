@@ -756,8 +756,16 @@ pub enum CiCmd {
         repeat: u32,
     },
     /// Detect dependency cycles (HARD on normal-dep cycles) and inventory dev-dep back-edges.
+    /// With --deny-new, fails when a new advisory cycle appears not in the committed allowlist.
     #[command(name = "dep-cycles")]
-    DepCycles,
+    DepCycles {
+        /// Fail if any advisory back-edge cycle is not in the committed allowlist.
+        #[arg(long)]
+        deny_new: bool,
+        /// Path to allowlist JSON (default: contracts/ci/dep-backedges.allow.json).
+        #[arg(long)]
+        allowlist: Option<std::path::PathBuf>,
+    },
     /// Compute or verify the set of workspace crates affected by a set of changed files.
     /// Reads `contracts/ci/crate-graph.v1.json` (BFS reverse-dep closure).
     #[command(name = "affected-crates")]
