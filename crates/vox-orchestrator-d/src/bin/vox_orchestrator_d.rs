@@ -159,6 +159,9 @@ async fn main() -> anyhow::Result<()> {
     let flywheel = vox_orchestrator::services::flywheel::FlywheelMonitor::new(orch.clone());
     flywheel.spawn().await;
 
+    // Attention calibration: periodically adapt ask-thresholds from logged outcomes.
+    vox_orchestrator::services::attention_calibration::spawn_attention_calibration(orch.clone());
+
     // HTTP Gateway requires a ServerState
     let session_cfg = vox_orchestrator::SessionConfig {
         repository_id: Some(repository_id.clone()),

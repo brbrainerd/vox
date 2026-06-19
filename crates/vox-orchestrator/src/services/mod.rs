@@ -38,6 +38,7 @@ pub mod routes;
 pub mod routing;
 pub mod scaling;
 
+pub mod attention_calibration;
 pub mod campaign_scheduler;
 pub mod embeddings;
 pub mod flywheel;

@@ -60,6 +60,11 @@ pub async fn run_stdio_server_blocking() -> anyhow::Result<()> {
         vox_orchestrator::services::flywheel::FlywheelMonitor::new(state.orchestrator.clone());
     flywheel.spawn().await;
 
+    // Attention calibration: periodically adapt ask-thresholds from logged outcomes.
+    vox_orchestrator::services::attention_calibration::spawn_attention_calibration(
+        state.orchestrator.clone(),
+    );
+
     let server = crate::server::VoxMcpServer::new(state);
     tracing::info!("server state initialized, starting stdio transport...");
 
