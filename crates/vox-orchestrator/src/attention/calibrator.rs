@@ -104,3 +104,69 @@ mod tests {
         );
     }
 }
+
+use crate::attention::budget::InterruptionCalibrationConfig;
+use crate::attention::interruption_policy::InterruptionChannel;
+
+fn interruption_channel_for_surface(surface: &str) -> InterruptionChannel {
+    match surface {
+        "vox_plan" | "vox_replan" | "vox_plan_status" => InterruptionChannel::PlanReview,
+        "vox_inline_edit" | "vox_ghost_text" => InterruptionChannel::InlineAssist,
+        _ => InterruptionChannel::ChatClarification,
+    }
+}
+
+/// Produce a calibrated config by overwriting the four channel gain-offset fields from learned
+/// per-channel counts. The HashMap keys are the REAL surface strings recorded in
+/// `AttentionEvent.channel` (e.g. "vox_plan", "vox_inline_edit", "vox_ghost_text", the chat
+/// surface) — NOT synthetic labels. We map them to channels via the existing
+/// `interruption_channel_for_surface` helper to avoid string drift (DRY/SSOT).
+/// Non-channel fields (backlog, trust) are preserved from `base`.
+#[must_use]
+pub fn apply_learned_offsets(
+    base: InterruptionCalibrationConfig,
+    counts: &std::collections::HashMap<String, ChannelOutcomeCounts>,
+) -> InterruptionCalibrationConfig {
+    let mut cfg = base;
+    for (surface, c) in counts {
+        let offset = channel_gain_offset(*c);
+        match interruption_channel_for_surface(surface) {
+            InterruptionChannel::PlanReview => cfg.plan_review_gain_offset_bits = offset,
+            InterruptionChannel::TaskSubmit => cfg.task_submit_gain_offset_bits = offset,
+            InterruptionChannel::A2AEscalation => cfg.a2a_escalation_gain_offset_bits = offset,
+            InterruptionChannel::InlineAssist | InterruptionChannel::ChatClarification => {
+                cfg.inline_assist_gain_offset_bits = offset
+            }
+            _ => {}
+        }
+    }
+    cfg
+}
+
+#[cfg(test)]
+mod close_loop_tests {
+    use super::*;
+    #[test]
+    fn wasteful_channel_gets_negative_offset_into_config() {
+        let mut counts = std::collections::HashMap::new();
+        // Use a REAL surface string (what events actually carry), not "mcp_chat".
+        counts.insert(
+            "vox_inline_edit".to_string(),
+            ChannelOutcomeCounts {
+                accepted: 1,
+                rejected: 9,
+                suppressed: 0,
+            },
+        );
+        let cfg = apply_learned_offsets(InterruptionCalibrationConfig::default(), &counts);
+        assert!(
+            cfg.inline_assist_gain_offset_bits < 0.0,
+            "wasteful inline channel ⇒ ask less"
+        );
+        // non-channel knobs preserved
+        assert_eq!(
+            cfg.backlog_cost_penalty_per_item,
+            InterruptionCalibrationConfig::default().backlog_cost_penalty_per_item
+        );
+    }
+}
