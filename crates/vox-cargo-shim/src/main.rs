@@ -17,30 +17,54 @@ use vox_build_queue::{env_filter, global, metrics, resolve};
 /// Env var tracking shim nesting depth; a hard backstop against fork bombs.
 const DEPTH_VAR: &str = "VOX_BROKER_DEPTH";
 
-/// Resolve the real cargo, skipping this shim and any sibling copy. Prefers the
-/// rustup proxy under `$CARGO_HOME`/`~/.cargo/bin` (never a shim copy), then
-/// falls back to a PATH scan. None if not found.
-fn real_cargo() -> Option<PathBuf> {
+/// Ask rustup for the active toolchain's cargo (honors `rust-toolchain.toml` /
+/// overrides via cwd, and an explicit toolchain via `RUSTUP_TOOLCHAIN`). Used
+/// when the shim is installed AS the cargo proxy, so the real cargo can't be
+/// found by name on PATH (that name is us).
+fn rustup_which_cargo(toolchain: Option<&str>) -> Option<PathBuf> {
+    let mut c = Command::new("rustup");
+    if let Some(tc) = toolchain {
+        c.env("RUSTUP_TOOLCHAIN", tc);
+    }
+    let out = c.args(["which", "cargo"]).output().ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let p = PathBuf::from(String::from_utf8_lossy(&out.stdout).trim().to_string());
+    p.is_file().then_some(p)
+}
+
+/// Resolve the real cargo. Two install modes:
+/// - PATH-prepend: a DISTINCT rustup proxy exists at `~/.cargo/bin` → delegate
+///   to it (it handles toolchain selection).
+/// - Proxy-shadow: the shim IS `~/.cargo/bin/cargo.exe` → ask rustup for the
+///   toolchain cargo. `RUSTUP_TOOLCHAIN` (set by the caller for `+toolchain`)
+///   makes both modes honor an explicit toolchain.
+fn real_cargo(toolchain: Option<&str>) -> Option<PathBuf> {
     let own = std::env::current_exe().ok()?;
     let own_canon = own.canonicalize().ok();
     if let Some(proxy) = resolve::cargo_home_proxy()
         && proxy.canonicalize().ok() != own_canon
     {
-        return Some(proxy);
+        return Some(proxy); // PATH-prepend mode
+    }
+    if let Some(c) = rustup_which_cargo(toolchain) {
+        return Some(c); // proxy-shadow mode
     }
     let path = std::env::var("PATH").unwrap_or_default();
     resolve::resolve_real_cargo(&path, &own)
 }
 
-/// Run real cargo with the original args, propagating its exit code. Never returns.
-fn exec_real(real: &PathBuf, args: &[String], depth: u32) -> ! {
-    let code = Command::new(real)
-        .args(args)
-        .env(DEPTH_VAR, (depth + 1).to_string())
-        .status()
-        .ok()
-        .and_then(|s| s.code())
-        .unwrap_or(1);
+/// Run real cargo with the given args, propagating its exit code. Never returns.
+/// `toolchain` (from a `+toolchain` arg) is applied via `RUSTUP_TOOLCHAIN`, which
+/// both the rustup proxy and a toolchain-direct cargo respect.
+fn exec_real(real: &PathBuf, args: &[String], depth: u32, toolchain: Option<&str>) -> ! {
+    let mut c = Command::new(real);
+    c.args(args).env(DEPTH_VAR, (depth + 1).to_string());
+    if let Some(tc) = toolchain {
+        c.env("RUSTUP_TOOLCHAIN", tc);
+    }
+    let code = c.status().ok().and_then(|s| s.code()).unwrap_or(1);
     std::process::exit(code);
 }
 
@@ -58,10 +82,19 @@ fn main() {
         std::process::exit(70);
     }
 
-    let real = match real_cargo() {
+    // Split off a leading `+toolchain` so we can resolve/run the right cargo even
+    // in proxy-shadow mode (where we can't just forward `+tc` to ourselves).
+    let (toolchain, rest): (Option<String>, Vec<String>) =
+        match args.first().and_then(|a| a.strip_prefix('+')) {
+            Some(tc) => (Some(tc.to_string()), args[1..].to_vec()),
+            None => (None, args.clone()),
+        };
+    let tc = toolchain.as_deref();
+
+    let real = match real_cargo(tc) {
         Some(r) => r,
         None => {
-            eprintln!("vox-broker: real cargo not found on PATH; aborting");
+            eprintln!("vox-broker: real cargo not found (rustup unavailable?); aborting");
             std::process::exit(127);
         }
     };
@@ -69,33 +102,40 @@ fn main() {
     // Escape hatch for diagnosing resolution without running a build.
     if std::env::var_os("VOX_BROKER_DEBUG").is_some() {
         eprintln!(
-            "vox-broker-debug: own={:?} real={:?} args={:?}",
+            "vox-broker-debug: own={:?} real={:?} toolchain={:?} args={:?}",
             std::env::current_exe(),
             real,
-            args
+            toolchain,
+            rest
         );
         std::process::exit(0);
     }
 
-    let sub = args.first().map(String::as_str).unwrap_or("");
+    let sub = rest.first().map(String::as_str).unwrap_or("");
 
     // Fast path: non-build subcommand -> direct exec, no coordination.
     if !resolve::is_build_subcommand(sub) {
-        exec_real(&real, &args, depth);
+        exec_real(&real, &rest, depth, tc);
     }
 
     // Coordinated path: machine-wide concurrency cap. Any error falls back to a
     // plain exec so the broker is never a hard dependency.
-    match run_global(&real, &args, sub, depth) {
+    match run_global(&real, &rest, sub, depth, tc) {
         Ok(code) => std::process::exit(code),
         Err(e) => {
             eprintln!("vox-broker: coordinator error ({e}); running cargo directly");
-            exec_real(&real, &args, depth);
+            exec_real(&real, &rest, depth, tc);
         }
     }
 }
 
-fn run_global(real: &PathBuf, args: &[String], sub: &str, depth: u32) -> anyhow::Result<i32> {
+fn run_global(
+    real: &PathBuf,
+    args: &[String],
+    sub: &str,
+    depth: u32,
+    toolchain: Option<&str>,
+) -> anyhow::Result<i32> {
     let root = global::global_root();
     let n = global::max_concurrent();
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
@@ -128,6 +168,9 @@ fn run_global(real: &PathBuf, args: &[String], sub: &str, depth: u32) -> anyhow:
     }
     cmd.env("CARGO_TERM_COLOR", "always");
     cmd.env(DEPTH_VAR, (depth + 1).to_string());
+    if let Some(tc) = toolchain {
+        cmd.env("RUSTUP_TOOLCHAIN", tc);
+    }
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
