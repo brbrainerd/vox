@@ -37,3 +37,4 @@ pub mod secrets;
 pub mod signing;
 pub mod user_config;
 pub mod vcs_isolation;
+pub mod graphify;

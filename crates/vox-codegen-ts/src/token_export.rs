@@ -132,9 +132,15 @@ mod tests {
     #[test]
     fn test_export_dtcg() {
         let mut registry = TokenRegistry::default();
-        registry.by_css_var.insert("color-primary".to_string(), "#3a86ff".to_string());
-        registry.by_css_var.insert("color-background".to_string(), "#ffffff".to_string());
-        registry.by_css_var.insert("spacing-md".to_string(), "16px".to_string());
+        registry
+            .by_css_var
+            .insert("color-primary".to_string(), "#3a86ff".to_string());
+        registry
+            .by_css_var
+            .insert("color-background".to_string(), "#ffffff".to_string());
+        registry
+            .by_css_var
+            .insert("spacing-md".to_string(), "16px".to_string());
 
         let exported = export_to_dtcg(&registry);
         assert_eq!(exported, sample_dtcg());
@@ -143,8 +149,12 @@ mod tests {
     #[test]
     fn test_emit_tokens_union() {
         let mut registry = TokenRegistry::default();
-        registry.by_css_var.insert("color-primary".to_string(), "#3a86ff".to_string());
-        registry.by_css_var.insert("spacing-md".to_string(), "16px".to_string());
+        registry
+            .by_css_var
+            .insert("color-primary".to_string(), "#3a86ff".to_string());
+        registry
+            .by_css_var
+            .insert("spacing-md".to_string(), "16px".to_string());
 
         let ts = emit_tokens_union_ts(&registry);
         assert!(ts.contains("export type VoxTokenUnion ="), "{}", ts);

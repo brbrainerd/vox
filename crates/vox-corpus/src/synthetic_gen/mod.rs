@@ -168,7 +168,7 @@ pub(crate) fn emit_tool_pair(
     emit_line(out, prompt, &response, category, record_type)
 }
 
-mod rng;
+pub(crate) mod rng;
 pub(crate) use rng::name_hash;
 mod a2a_pairs;
 mod agent_pairs;
@@ -182,7 +182,7 @@ mod routing_pairs;
 mod script_pairs;
 mod telemetry_pairs;
 mod templates;
-mod tool_pairs;
+pub(crate) mod tool_pairs;
 pub mod transplant_pairs;
 mod web_pairs;
 mod workflow_pairs;

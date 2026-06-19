@@ -135,12 +135,18 @@ mod tests {
     /// not type-check. The authoritative *compile* check is the integration
     /// test `admin_output_typechecks_when_gated` (runs `tsc --noEmit`).
     fn assert_no_unimported_backend(out: &str) {
-        assert!(!out.contains("api."), "must not emit Convex api.* refs:\n{out}");
+        assert!(
+            !out.contains("api."),
+            "must not emit Convex api.* refs:\n{out}"
+        );
         assert!(
             !out.contains("useQuery"),
             "must not emit useQuery (repo uses useVoxServerQuery / fetch):\n{out}"
         );
-        assert!(!out.contains("_id"), "must not assume Convex row._id:\n{out}");
+        assert!(
+            !out.contains("_id"),
+            "must not assume Convex row._id:\n{out}"
+        );
     }
 
     #[test]

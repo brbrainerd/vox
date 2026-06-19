@@ -33,7 +33,11 @@ fn codes(v: &serde_json::Value) -> Vec<String> {
 fn clean_source_validates_ok() {
     let src = include_str!("../../../examples/golden-ts/form_basic.vox");
     let report = validate_vuv_source(src);
-    assert_eq!(report["ok"], serde_json::Value::Bool(true), "report: {report}");
+    assert_eq!(
+        report["ok"],
+        serde_json::Value::Bool(true),
+        "report: {report}"
+    );
     assert_eq!(errors(&report), 0, "report: {report}");
 }
 
@@ -54,7 +58,9 @@ fn contrast_diagnostic_links_to_contrast_rule() {
     let src = include_str!("../../../examples/forbidden/contrast_gray_on_white.vox");
     let report = validate_vuv_source(src);
     assert!(
-        rule_ids(&report).iter().any(|r| r == "gui-design-rule/contrast"),
+        rule_ids(&report)
+            .iter()
+            .any(|r| r == "gui-design-rule/contrast"),
         "expected a diagnostic linked to gui-design-rule/contrast, got: {report}"
     );
 }

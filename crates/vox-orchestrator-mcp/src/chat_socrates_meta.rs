@@ -984,9 +984,18 @@ mod tests {
     #[test]
     fn rider_instructs_solution_space_reasoning_and_spec_model_split() {
         let r = socrates_system_rider(&ConfidencePolicy::default());
-        assert!(r.contains("candidate"), "must mention enumerating candidate solutions");
-        assert!(r.to_lowercase().contains("information gain") || r.contains("splits"), "must mention picking the most-diagnostic question");
-        assert!(r.to_lowercase().contains("you want") || r.to_lowercase().contains("specification"), "must distinguish user-spec uncertainty");
+        assert!(
+            r.contains("candidate"),
+            "must mention enumerating candidate solutions"
+        );
+        assert!(
+            r.to_lowercase().contains("information gain") || r.contains("splits"),
+            "must mention picking the most-diagnostic question"
+        );
+        assert!(
+            r.to_lowercase().contains("you want") || r.to_lowercase().contains("specification"),
+            "must distinguish user-spec uncertainty"
+        );
         // existing behaviour preserved:
         assert!(r.contains("calibrated confidence"));
     }
@@ -1009,7 +1018,9 @@ mod tests {
         );
         assert_eq!(payload["policy_outcome"], "deferred");
         assert_eq!(payload["withheld_question"]["prompt"], "Staging or prod?");
-        assert_eq!(payload["withheld_question"]["expected_information_gain_bits"], 0.05);
+        assert_eq!(
+            payload["withheld_question"]["expected_information_gain_bits"],
+            0.05
+        );
     }
 }
-

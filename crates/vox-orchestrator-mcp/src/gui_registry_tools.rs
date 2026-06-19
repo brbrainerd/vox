@@ -132,9 +132,7 @@ pub async fn vox_gui_rules(state: &ServerState, _args: serde_json::Value) -> Str
         .unwrap_or_default();
     let rules: Vec<Value> = entries
         .iter()
-        .filter(|e| {
-            e.get("domain").and_then(serde_yaml::Value::as_str) == Some("gui-design-rule")
-        })
+        .filter(|e| e.get("domain").and_then(serde_yaml::Value::as_str) == Some("gui-design-rule"))
         .map(|e| {
             let s = |k: &str| {
                 e.get(k)

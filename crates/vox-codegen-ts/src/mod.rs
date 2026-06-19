@@ -66,6 +66,8 @@ pub mod schema;
 pub mod state_machine_emit;
 /// TanStack Query helper emission (`vox-tanstack-query.tsx`).
 pub mod tanstack_query_emit;
+/// DTCG tokens exporter.
+pub mod token_export;
 /// Design token CSS + TypeScript emit from vox.tokens.json.
 pub mod tokens_emit;
 /// `url` block TypeScript discriminated union + builder emit.

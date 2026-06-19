@@ -1,0 +1,188 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "name": "vox-component-registry",
+  "version": "1.0.0",
+  "components": [
+    {
+      "name": "button",
+      "tag": "button",
+      "props": ["variant", "size", "disabled"],
+      "variants": {
+        "variant": ["default", "outline", "ghost", "destructive"],
+        "size": ["default", "sm", "lg", "icon"]
+      },
+      "a11y": {
+        "role": "button",
+        "requires_accessible_name": true
+      }
+    },
+    {
+      "name": "panel",
+      "tag": "div",
+      "props": ["surface"],
+      "variants": {},
+      "a11y": {
+        "role": "region",
+        "requires_accessible_name": false
+      }
+    },
+    {
+      "name": "card",
+      "tag": "div",
+      "props": ["surface"],
+      "variants": {},
+      "a11y": {
+        "role": "region",
+        "requires_accessible_name": false
+      }
+    },
+    {
+      "name": "stack",
+      "tag": "div",
+      "props": ["align"],
+      "variants": {
+        "align": ["start", "center", "end"]
+      },
+      "a11y": {}
+    },
+    {
+      "name": "column",
+      "tag": "div",
+      "props": ["align"],
+      "variants": {
+        "align": ["start", "center", "end"]
+      },
+      "a11y": {}
+    },
+    {
+      "name": "row",
+      "tag": "div",
+      "props": ["align", "scroll", "wrap"],
+      "variants": {
+        "align": ["start", "center", "end"],
+        "scroll": ["horizontal", "x"],
+        "wrap": ["false", "true"]
+      },
+      "a11y": {}
+    },
+    {
+      "name": "wrap",
+      "tag": "div",
+      "props": [],
+      "variants": {},
+      "a11y": {}
+    },
+    {
+      "name": "text",
+      "tag": "p",
+      "props": ["size", "weight"],
+      "variants": {
+        "size": ["xs", "sm", "base", "lg", "xl", "2xl", "3xl"],
+        "weight": ["normal", "medium", "semibold", "bold"]
+      },
+      "a11y": {}
+    },
+    {
+      "name": "heading",
+      "tag": "h2",
+      "props": ["level", "size", "weight"],
+      "variants": {
+        "level": ["1", "2", "3", "4", "5", "6"],
+        "size": ["xs", "sm", "base", "lg", "xl", "2xl", "3xl"],
+        "weight": ["normal", "medium", "semibold", "bold"]
+      },
+      "a11y": {}
+    },
+    {
+      "name": "link",
+      "tag": "a",
+      "props": ["size"],
+      "variants": {
+        "size": ["xs", "sm", "base", "lg", "xl", "2xl", "3xl"]
+      },
+      "a11y": {}
+    },
+    {
+      "name": "image",
+      "tag": "img",
+      "props": [],
+      "variants": {},
+      "a11y": {}
+    },
+    {
+      "name": "list",
+      "tag": "ul",
+      "props": [],
+      "variants": {},
+      "a11y": {}
+    },
+    {
+      "name": "list_item",
+      "tag": "li",
+      "props": [],
+      "variants": {},
+      "a11y": {}
+    },
+    {
+      "name": "list-item",
+      "tag": "li",
+      "props": [],
+      "variants": {},
+      "a11y": {}
+    },
+    {
+      "name": "route_outlet",
+      "tag": "div",
+      "props": [],
+      "variants": {},
+      "a11y": {
+        "role": "main"
+      }
+    },
+    {
+      "name": "route-outlet",
+      "tag": "div",
+      "props": [],
+      "variants": {},
+      "a11y": {
+        "role": "main"
+      }
+    },
+    {
+      "name": "overlay",
+      "tag": "div",
+      "props": [],
+      "variants": {},
+      "a11y": {
+        "role": "presentation"
+      }
+    },
+    {
+      "name": "toast",
+      "tag": "div",
+      "props": ["position", "z"],
+      "variants": {},
+      "a11y": {
+        "role": "alert"
+      }
+    },
+    {
+      "name": "drawer",
+      "tag": "div",
+      "props": ["position", "z"],
+      "variants": {},
+      "a11y": {
+        "role": "dialog"
+      }
+    },
+    {
+      "name": "modal",
+      "tag": "div",
+      "props": ["z"],
+      "variants": {},
+      "a11y": {
+        "role": "dialog"
+      }
+    }
+  ]
+}

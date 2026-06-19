@@ -128,6 +128,7 @@ async fn main() {
             commands::chat::chat_archive_session,
             commands::identity::get_identity_summary,
             commands::harness::get_task_diff,
+            commands::graphify::vox_graphify_status,
             commands::harness::list_repo_files,
             commands::control_plane::submit_orchestrator_task,
             commands::control_plane::pause_orchestrator_agent,

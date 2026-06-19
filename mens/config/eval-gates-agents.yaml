@@ -1,0 +1,13 @@
+version: "1"
+# Per-spoke eval gate for the harness/agentic spoke.
+# Source file map (written by the eval step, same convention as eval-gates.yaml):
+#   eval_results.json → tool_call_valid_json_rate, tool_name_exists_rate
+tool_call_valid_json_rate:
+  min_pct: 0.90
+  block: true
+tool_name_exists_rate:
+  min_pct: 0.85
+  block: true
+supervised_ratio:
+  min_pct: 10.0
+  block: true
