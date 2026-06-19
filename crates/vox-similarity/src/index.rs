@@ -141,7 +141,9 @@ impl LshIndex {
     }
 
     /// Group indexed fragments into clusters via union-find over confirmed
-    /// neighbor pairs. Returns only clusters with `>= min_members`.
+    /// neighbor pairs (**single-linkage**: A and C land in one cluster if a chain
+    /// A~B~C exists, even when A and C are not directly above `min_jaccard`).
+    /// Returns only clusters with `>= min_members`.
     pub fn cluster(&self, min_members: usize, min_jaccard: f32) -> Vec<Cluster> {
         let n = self.fragments.len();
         let mut parent: Vec<usize> = (0..n).collect();
@@ -189,6 +191,27 @@ impl LshIndex {
     }
 }
 
+/// Mean of pairwise minhash-jaccard over all member pairs of an index cluster.
+/// Returns 1.0 for a singleton. Shared by discovery (code clusters) and dedup
+/// (skill clusters) so the scoring logic lives in one place.
+pub fn mean_pairwise_jaccard(index: &LshIndex, members: &[usize]) -> f32 {
+    if members.len() < 2 {
+        return 1.0;
+    }
+    let mut sum = 0.0f32;
+    let mut pairs = 0u32;
+    for i in 0..members.len() {
+        for j in (i + 1)..members.len() {
+            let a = &index.fragment(members[i]).signature.minhash;
+            let b = &index.fragment(members[j]).signature.minhash;
+            sum += jaccard_estimate(a, b);
+            pairs += 1;
+        }
+    }
+    sum / pairs as f32
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -233,5 +256,14 @@ mod tests {
         let mut idx = LshIndex::new(16, 4); // 64 hashes
         idx.insert(frag("a", "let total = price * quantity + tax", "a.vox:1")); // frag() uses 64
         assert_eq!(idx.len(), 1);
+    }
+
+    #[test]
+    fn mean_pairwise_jaccard_singleton_and_identical() {
+        let mut idx = LshIndex::new(16, 4);
+        idx.insert(frag("a", "let total = price * quantity + tax", "a:1"));
+        idx.insert(frag("b", "let total = price * quantity + tax", "b:9"));
+        assert_eq!(mean_pairwise_jaccard(&idx, &[0]), 1.0);
+        assert!(mean_pairwise_jaccard(&idx, &[0, 1]) >= 0.9);
     }
 }
