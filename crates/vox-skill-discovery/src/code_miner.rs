@@ -73,13 +73,7 @@ pub fn mine_repeated_code(root: &Path, opts: &DiscoverOptions) -> Vec<Candidate>
             .iter()
             .map(|&i| index.fragment(i).source_ref.clone())
             .collect();
-        let score = if cluster.members.len() >= 2 {
-            let a = &index.fragment(cluster.members[0]).signature.minhash;
-            let b = &index.fragment(cluster.members[1]).signature.minhash;
-            vox_similarity::jaccard_estimate(a, b)
-        } else {
-            1.0
-        };
+        let score = vox_similarity::mean_pairwise_jaccard(&index, &cluster.members);
         let stem = stem_of(&members[0]);
         candidates.push(Candidate {
             kind: CandidateKind::RepeatedCode,
@@ -130,6 +124,7 @@ mod tests {
     fn mining_respects_gitignore() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path();
+        std::fs::create_dir_all(root.join(".git")).unwrap();
         std::fs::write(root.join(".gitignore"), "ignored/\n").unwrap();
         std::fs::create_dir_all(root.join("ignored")).unwrap();
         let body = "let subtotal = unit_price * quantity\nlet tax = subtotal * tax_rate\nlet total = subtotal + tax\n";
