@@ -89,6 +89,32 @@ pub fn resolve_with_fallback(
     }
 }
 
+pub fn list_enabled_providers() -> BTreeSet<String> {
+    use vox_secrets::SecretId::*;
+    let mut out = BTreeSet::new();
+    let pairs = [
+        (OpenRouterApiKey, "openrouter"),
+        (OpenaiApiKey, "openai"),
+        (AnthropicApiKey, "anthropic"),
+        (GeminiApiKey, "google"),
+        (GroqApiKey, "groq"),
+        (MistralApiKey, "mistral"),
+        (DeepSeekApiKey, "deepseek"),
+        (SambaNovaApiKey, "sambanova"),
+        (TogetherApiKey, "together"),
+        (CerebrasApiKey, "cerebras"),
+        (HuggingFaceToken, "huggingface"),
+    ];
+    for (id, name) in pairs {
+        if vox_secrets::resolve_secret(id).is_present() {
+            out.insert(name.to_string());
+        }
+    }
+    out.insert("ollama".into());
+    out.insert("mens".into());
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -168,5 +194,15 @@ includes=["a/b"]"#,
         .unwrap();
         assert_eq!(p.rules.len(), 2);
         assert_eq!(p.includes, vec!["a/b"]);
+    }
+    #[test]
+    fn provider_with_key_is_enabled() {
+        unsafe {
+            std::env::set_var("OPENROUTER_API_KEY", "sk-test");
+        }
+        assert!(list_enabled_providers().contains("openrouter"));
+        unsafe {
+            std::env::remove_var("OPENROUTER_API_KEY");
+        }
     }
 }
