@@ -863,3 +863,43 @@ Privacy invariants verified live:
 
 Docker stack at C:/Users/Owner/vox-server left running. Stop with:
 `cd C:/Users/Owner/vox-server && docker compose down`
+
+---
+
+```yaml
+# --- AGH-0018 ---
+id: AGH-0018
+date: "2026-06-19"
+plan: "docs/superpowers/plans/2026-06-19-track-a-tiered-install.md"
+subsystem: "Track A — voxup tiered install + vox doctor --tier (install/release/publish program)"
+target: "Claude Sonnet 4.6 (inline execution)"
+branch: "claude/crate-build-spine-hardening"
+delivered:
+  - "crates/voxup/src/profiles.rs: PROFILES_YAML const (include_str! embed) + validate_tier() + #[allow(dead_code)] on 3 cross-unit helpers"
+  - "crates/voxup/tests/tier_validation.rs: 3 integration tests (unknown_tier_errors, known_tiers_accepted, no_yaml_noise)"
+  - "crates/voxup/src/install.rs: tier validation at top of run_install() before network; prints tier description"
+  - "crates/voxup/src/main.rs: mod profiles; wired so binary can call crate::profiles::validate_tier"
+  - "crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/tier_deps.rs: new check, serde_yaml subset parse, binary-presence + model-weights/plugins dir checks, 5 unit tests"
+  - "crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/mod.rs: tier param + tier_deps wired at end of run_checks"
+  - "crates/vox-cli/src/commands/diagnostics/doctor/mod.rs: tier param threaded through + tests updated"
+  - "crates/vox-cli/src/cli_args.rs: --tier flag on DoctorArgs (default=full)"
+  - "crates/vox-cli/src/cli_dispatch/lanes.rs: &args.tier passed to doctor::run"
+outcome: "GREEN — all tasks delivered inline; 46 voxup tests pass; 5 tier_deps unit tests pass; clippy + fmt clean on both crates"
+commits:
+  - "7b25893b73 (T1-T2: test + embed + validate_tier)"
+  - "6803d68015 (T3-T4: doctor tier_deps + --tier flag)"
+  - "T5 cleanup: dead_code suppress + is_err fix + fmt (landed in ad57779cd0 + 4b111c6762)"
+errors_encountered:
+  - "lib/bin split: profiles.rs must not reference channel/download/shell modules; validate_tier moved from install.rs to profiles.rs to stay lib-safe"
+  - "dead_code clippy: pub fn called only from integration tests fires in bin target; fixed with #[allow(dead_code)] + comment"
+  - "include_str! path depth: 7 levels up from tier_deps.rs to workspace root — counted manually"
+  - "CRLF hook: Edit tool writes CRLF on Windows; required PowerShell byte-level strip before commit"
+  - "Branch drift: CWD silently switched to voxmens-split-c-followups mid-session (unresolved merge); resolved via git worktree"
+agent_deviations: []
+review_findings: []
+verdict: "no-review-needed — Sonnet 4.6 inline execution; tests green; clippy clean"
+prompt_lessons:
+  - "On Windows, Edit tool writes CRLF; always strip with PowerShell byte-level replace before committing if the pre-commit hook checks line endings."
+  - "When a pub fn is only called from integration tests (external crate), clippy dead_code fires in the binary target even with --tests. Document with #[allow(dead_code)] + comment explaining the cross-unit usage."
+  - "Worktrees insulate against branch-drift: if CWD branch is uncertain, create a fresh worktree from the known branch ref rather than trying to stash/checkout in a conflicted state."
+```
