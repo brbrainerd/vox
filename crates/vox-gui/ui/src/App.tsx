@@ -998,6 +998,7 @@ export default function App() {
       setSelectedAgentId(a.id);
       navigateTo('console');
     },
+    attention_budget: orchQuery.data?.attention_budget,
     activeChild: nav.child,
     onChildChange: (vk: string) => navigateTo(vk),
     activeSessionId,

@@ -24,6 +24,9 @@ import { AreaChartWidget } from '../../dashboard/widgets/AreaChartWidget';
 import { LineChartWidget } from '../../dashboard/widgets/LineChartWidget';
 import { BarChartWidget } from '../../dashboard/widgets/BarChartWidget';
 import { Kpi } from '../../ui/Kpi';
+import { AttentionBudgetMeter } from '../AttentionBudgetMeter';
+import type { AttentionBudgetSnapshot } from '../../../types/tauri';
+
 
 /** Consistent empty-state hint for a panel with no data yet. */
 function EmptyHint({ icon, title, hint }: { icon?: React.ReactNode; title: string; hint?: string }) {
@@ -49,6 +52,7 @@ interface DashboardProps {
   onOpenInConsole?: (a: Agent) => void;
   onOpenChat?: () => void;
   onNavigate?: (viewKey: string) => void;
+  attention_budget?: AttentionBudgetSnapshot | null;
 }
 
 export function Dashboard({
@@ -64,6 +68,7 @@ export function Dashboard({
   onOpenInConsole,
   onOpenChat,
   onNavigate,
+  attention_budget,
 }: DashboardProps) {
   const filters = ["all", "validated", "in-progress", "doubted", "speculative"];
   const stream = data.stream.filter(s => filterKind === "all" ? true : s.kind === filterKind);
@@ -298,6 +303,11 @@ export function Dashboard({
         <Kpi label="Queue Depth" value={data.kpis.queueDepth.value} accent="amber" />
         <Kpi label="Budget Spent" value={typeof data.kpis.budgetBurn.value === 'number' ? `$${data.kpis.budgetBurn.value.toFixed(2)}` : data.kpis.budgetBurn.value} accent="brass" />
       </div>
+      {attention_budget && (
+        <div className="mb-4 px-5">
+          <AttentionBudgetMeter budget={attention_budget} />
+        </div>
+      )}
       <div className="absolute right-5 top-2 z-20 flex items-center gap-2">
         {customizeMode && (
           <>

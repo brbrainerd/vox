@@ -25,7 +25,7 @@ import type {
 } from '../surfaces/Chat/ChatExecutionRail';
 import { Console } from '../surfaces/Console/Console';
 import type { DashboardData, Agent, LudusAlert, StreamItem } from '../../types/dashboard';
-import type { CatalogEntry, Toast } from '../../types/tauri';
+import type { CatalogEntry, Toast, AttentionBudgetSnapshot } from '../../types/tauri';
 import type { ChatMessage } from '../../lib/chatCorrelation';
 import type { HudTilesConfig } from '../../hooks/useHudTiles';
 
@@ -65,6 +65,7 @@ export interface SurfaceProps {
   gamifyEnabled?: boolean;
   hudTilesConfig?: HudTilesConfig;
   onHudTilesChange?: (config: HudTilesConfig) => void;
+  attention_budget?: AttentionBudgetSnapshot | null;
 }
 
 function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
@@ -88,6 +89,7 @@ function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
           onOpenInConsole={props.onOpenInConsole}
           onOpenChat={props.onOpenChat}
           onNavigate={props.onNavigate}
+          attention_budget={props.attention_budget}
         />
       );
     case 'flow':
