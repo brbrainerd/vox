@@ -49,6 +49,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-ast`](../../../crates/vox-ast/) | Pure-data Vox AST (decl/expr/stmt/pattern/types/scalar_mapping/span); serde-only L0 leaf extracted from `vox-compiler` and re-exported there as `vox_compiler::ast`. Depend on this (not `vox-compiler`) if you only need the declaration AST — e.g. `vox-db`'s DDL emitter. |
 | [`vox-build-meta`](../../../crates/vox-build-meta/) | Build-time helper emitting `VOX_BUILD_NUMBER` / `VOX_GIT_HASH`; use as `[build-dependencies]` only. |
 | [`vox-db-types`](../../../crates/vox-db-types/) | Pure-data L0 leaf for vox-db: row types, IDs, schema descriptors. |
+| [`vox-llm-config`](../../../crates/vox-llm-config/) | SSOT for LLM/AI setting-key metadata; pure-data, zero workspace dependencies. |
 | [`vox-mesh-types`](../../../crates/vox-mesh-types/) | Pure-data mesh transport types. |
 | [`vox-orchestrator-types`](../../../crates/vox-orchestrator-types/) | Pure-data L0 leaf for vox-orchestrator: agent/task IDs, file affinity, switch actions, provider catalogs, VCS capability tokens (WorkingTreeWrite, BranchCreate, etc.). |
 | [`workspace-hack`](../../../crates/workspace-hack/) | Cargo-hakari unification crate; do not edit by hand. |
@@ -95,6 +96,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-effort-audit`](../../../crates/vox-effort-audit/) | AI-judged audit of git commit history; walks commits, calls model-agnostic judge facade, emits ranked findings JSONL + report. CLI: `vox audit effort`. |
 | [`vox-effort-route`](../../../crates/vox-effort-route/) | Routes effort-audit findings to verified, drafted enforcement artifacts (AGENTS.md rule / lint detector spec / arch rule / CI gate / corpus example / Vox script). CLI: `vox audit effort-route`. |
 | [`vox-mcp-registry`](../../../crates/vox-mcp-registry/) | Compile-time MCP tool name/description registry from contracts YAML (SSOT). |
+| [`vox-llm-egress`](../../../crates/vox-llm-egress/) | Sanctioned LLM provider wire; pure egress, no config/secret resolution. |
 | [`vox-project-scaffold`](../../../crates/vox-project-scaffold/) | Shared Vox.toml + src/main.vox + skill scaffolding for vox init and MCP. |
 | [`vox-repository`](../../../crates/vox-repository/) | Repository discovery, stable identity, layout probes, and agent scope helpers for external and internal Vox workspaces. |
 | [`vox-skill-runtime`](../../../crates/vox-skill-runtime/) | Abstract sandbox runtime trait for skill execution. Implementations ship as plugins (wasm, container). |
@@ -256,6 +258,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | `@versioned` / `@tracked` decorator + interpreter `repo.*` VCS store (auto-snapshot-on-success) | Decorator spine in `crates/vox-compiler/`: lexer token (`src/lexer/token.rs` `AtVersioned`/`AtTracked`) → parser (`src/parser/descent/decl/head.rs` `is_versioned`) → `FnDecl.is_versioned` (`crates/vox-ast/src/decl/fundecl.rs`) → `HirFn.is_versioned` + `uses vcs` injection (`src/hir/lower/decl.rs`) → `VoxValue::Fn { name, is_versioned }` (`src/eval/value.rs`); the auto-`repo.snapshot()` hook fires on successful return in both call paths (`src/eval/mod.rs` `Interpreter::call` + `src/eval/expr.rs` Call arm) against the in-memory `RepoStore` (`src/eval/repo.rs`). Interpreter-only (`--mode interp`); inert in the compiled arms. See [`vcs-as-vox-language-feature-jujutsu-2026.md`](./vcs-as-vox-language-feature-jujutsu-2026.md) §4.3. |
 | Add a code generator (Rust target) | `crates/vox-codegen/src/codegen_rust/` |
 | Add a code generator (TypeScript target) | `crates/vox-codegen-ts/src/` |
+| Naked-objects admin UI codegen (opt-in table → list/detail/edit React) | `crates/vox-codegen-ts/src/admin_emit.rs` |
 | VUV contrast / color-vocabulary guarantee (gray-on-white refuses compile) | `crates/vox-codegen/src/web_ir/validate_palette.rs` + palette SSOT `contracts/tokens/tailwind-palette.v1.json`; canonical WCAG fn `vox_compiler::tokens::wcag21_contrast_ratio` |
 | VUV occlusion / tier-inversion guarantee (Z-tiers, escape-hatch checks) | `crates/vox-codegen/src/web_ir/validate_layer.rs`; tiers in `vox_compiler::hir::nodes::layer` (`LayerTier`, `may_parent_surfaces`); z-ladder `ZTier::z_value()` in `web_ir/mod.rs` |
 | Add a "this VUV bug must be impossible" regression case | Add `examples/forbidden/<case>.vox` with a `// expect-error: <code>` header; `crates/vox-compiler/tests/forbidden_corpus_test.rs` runs it through the full pipeline |
