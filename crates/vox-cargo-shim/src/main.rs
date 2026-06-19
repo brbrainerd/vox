@@ -107,6 +107,9 @@ fn run_queued(
     let queue_root = worktree.join(".vox/build-queue");
     let wt_hash = queue::hash_path(worktree);
     let q = queue::FairQueue::new(&queue_root, &wt_hash)?;
+    // Logs live in the same per-worktree hash dir as the queue files, so
+    // `metrics::summarize_worktree` (which scans `<hash>/metrics.jsonl`) sees them.
+    let log_dir = queue_root.join(&wt_hash);
 
     let env = env_filter::passthrough_env(std::env::vars());
     let argv_hash = env_filter::argv_hash(args);
@@ -156,7 +159,7 @@ fn run_queued(
         env_hash,
         would_coalesce,
     };
-    let _ = metrics::append(&queue_root.join("metrics.jsonl"), &rec);
+    let _ = metrics::append(&log_dir.join("metrics.jsonl"), &rec);
 
     // Human-readable surface so the broker's effect is observable at a glance.
     // `waited` > 0 marks a contention event the queue absorbed instead of
@@ -169,7 +172,7 @@ fn run_queued(
     if let Ok(mut f) = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open(queue_root.join("broker.log"))
+        .open(log_dir.join("broker.log"))
     {
         use std::io::Write;
         let _ = f.write_all(line.as_bytes());
