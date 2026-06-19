@@ -204,12 +204,19 @@ pub fn evaluate_interruption(
     let trust_adj = (1.0 - signals.trust_score.clamp(0.0, 1.0)) * 0.08;
     let utility =
         signals.expected_information_gain_bits / signals.expected_user_cost.clamp(1e-6, 1.0);
-    let threshold = min_utility_threshold(spent_ratio, attention_alert_threshold) + trust_adj;
+    // Spec-vs-model uncertainty (SAGE-Agent, arXiv:2511.08798): a clarifying question resolves
+    // *specification* uncertainty, not the model's own epistemic doubt. Raise the bar when the
+    // model is unsure but the spec is clear — asking the user cannot resolve that.
+    let unresolvable_model_doubt =
+        (signals.model_uncertainty - signals.spec_uncertainty).clamp(0.0, 1.0);
+    let threshold = min_utility_threshold(spent_ratio, attention_alert_threshold)
+        + trust_adj
+        + 0.40 * unresolvable_model_doubt;
 
     if utility < threshold && !signals.irreversible_or_high_risk {
         return InterruptionDecision::DeferUntilCheckpoint {
             reason: format!(
-                "utility_below_threshold utility={utility:.4} threshold={threshold:.4} spent_ratio={spent_ratio:.3}"
+                "utility_below_threshold utility={utility:.4} threshold={threshold:.4} spent_ratio={spent_ratio:.3} model_doubt={unresolvable_model_doubt:.3}"
             ),
         };
     }
@@ -313,5 +320,50 @@ mod tests {
         let s: InterruptionSignals = serde_json::from_str(json).expect("legacy JSON must deserialize");
         assert_eq!(s.spec_uncertainty, 0.0);
         assert_eq!(s.model_uncertainty, 0.0);
+    }
+
+    fn base_signals() -> InterruptionSignals {
+        InterruptionSignals {
+            channel: InterruptionChannel::InlineAssist,
+            expected_information_gain_bits: 0.10,
+            expected_user_cost: 0.40,
+            confidence_estimate: 0.60,
+            contradiction_ratio: 0.0,
+            pending_clarification_backlog: 0,
+            clarification_turn_index: 0,
+            max_clarification_turns: 3,
+            irreversible_or_high_risk: false,
+            base_interrupt_cost_ms: crate::attention::budget::DEFAULT_INTERRUPT_COST_MS,
+            trust_score: 0.5,
+            open_question_session: false,
+            spec_uncertainty: 0.0,
+            model_uncertainty: 0.0,
+        }
+    }
+
+    #[test]
+    fn model_uncertainty_without_spec_uncertainty_suppresses_question() {
+        let b = AttentionBudget::default();
+        let mut s = base_signals();
+        s.spec_uncertainty = 0.1;
+        s.model_uncertainty = 0.9;
+        assert!(
+            matches!(
+                evaluate_interruption(&s, &b, true, 0.5),
+                InterruptionDecision::DeferUntilCheckpoint { .. }
+                    | InterruptionDecision::ProceedAutonomously { .. }
+            ),
+            "model-only uncertainty should not interrupt"
+        );
+        let mut s2 = base_signals();
+        s2.spec_uncertainty = 0.9;
+        s2.model_uncertainty = 0.1;
+        assert!(
+            matches!(
+                evaluate_interruption(&s2, &b, true, 0.5),
+                InterruptionDecision::InterruptNow { .. }
+            ),
+            "spec ambiguity should interrupt"
+        );
     }
 }
