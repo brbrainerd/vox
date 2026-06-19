@@ -1,6 +1,8 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
-  <!-- Axis (Vox Axis) app mark: a bold "A" whose two diagonal strokes read as crossed
-       x/y axes. Palette matches the in-app glyph: brass -> amber -> zinc, to-br. -->
+  <!-- Axis (Vox Axis) app mark: the coordinate-axis symbol — three arrowed axes
+       (x/y/z) radiating from a common origin, i.e. an isometric coordinate frame.
+       Semiotics: this is THE conventional sign for "axis/axes". Palette matches the
+       in-app glyph: brass -> amber -> zinc tile, light stroke. -->
   <defs>
     <linearGradient id="axisTile" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#c69a5b"/>
@@ -9,7 +11,7 @@
     </linearGradient>
     <linearGradient id="axisStroke" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#fafafa"/>
-      <stop offset="100%" stop-color="#e7d3b1"/>
+      <stop offset="100%" stop-color="#f0e0c2"/>
     </linearGradient>
   </defs>
 
@@ -19,19 +21,21 @@
   <rect x="92" y="92" width="840" height="840" rx="172" ry="172" fill="none"
         stroke="#f5deb3" stroke-opacity="0.28" stroke-width="8"/>
 
-  <!-- the "A" / crossed axes -->
-  <g fill="none" stroke="url(#axisStroke)" stroke-width="84"
-     stroke-linecap="round" stroke-linejoin="round">
-    <!-- left leg / one axis -->
-    <path d="M512 268 L300 760"/>
-    <!-- right leg / other axis -->
-    <path d="M512 268 L724 760"/>
-    <!-- crossbar / shared origin line -->
-    <path d="M386 566 L638 566"/>
+  <!-- coordinate frame: origin O=(512,548); y up, x lower-right (+30°), z lower-left (-30°) -->
+  <g stroke="url(#axisStroke)" stroke-width="62" stroke-linecap="round" fill="none">
+    <path d="M512 548 L512 268"/>   <!-- y axis (up)         -->
+    <path d="M512 548 L742 681"/>   <!-- x axis (lower-right) -->
+    <path d="M512 548 L282 681"/>   <!-- z axis (lower-left)  -->
   </g>
-  <!-- axis end-caps: small ticks at the leg feet to reinforce the axis read -->
-  <g fill="#fafafa" fill-opacity="0.92">
-    <circle cx="300" cy="760" r="30"/>
-    <circle cx="724" cy="760" r="30"/>
+
+  <!-- arrowheads (sharp triangles placed at each tip, rotated to its direction) -->
+  <g fill="url(#axisStroke)">
+    <polygon points="0,-64 -46,30 46,30" transform="translate(512,236)"/>            <!-- y: up        -->
+    <polygon points="0,-64 -46,30 46,30" transform="translate(774,699) rotate(120)"/> <!-- x: +30° down-right -->
+    <polygon points="0,-64 -46,30 46,30" transform="translate(250,699) rotate(240)"/> <!-- z: -30° down-left  -->
   </g>
+
+  <!-- origin node -->
+  <circle cx="512" cy="548" r="46" fill="#18181b"/>
+  <circle cx="512" cy="548" r="46" fill="none" stroke="url(#axisStroke)" stroke-width="20"/>
 </svg>
