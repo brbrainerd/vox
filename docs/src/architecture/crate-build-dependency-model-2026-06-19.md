@@ -103,3 +103,27 @@ vox-test-harness(L3)` (dev-dep). Both violate the layered model in `layers.toml`
    regressions on blast-radius-seconds and modularity Q via `vox ci`.
 5. **Measurement spine:** refresh `build-bench` (baseline is zeroed) and `crate_audit` so every split is
    scored against a committed baseline delta.
+
+## blast_s semantics & keystone selection (added 2026-06-19)
+
+`blast_s(c) = compile_s(c) + Σ compile_s(d)` over all transitive dependents `d` of `c`
+(reverse-BFS over the dep graph). It answers: "if `c` changes, how many compile-seconds of
+downstream rebuild does that trigger?"
+
+**Known limitation — churn-blindness.** `blast_s` weights by *fan-out × compile time*, not by
+*how often a crate actually changes*. Stable pure-type leaf crates therefore rank high:
+`vox-mesh-types` (419s) and `vox-crypto` (410s) outrank `vox-db`/`vox-compiler`/`vox-populi`
+(349s each) despite changing far less. The three heavyweights are identical (349s) because they
+share the same transitive-dependent closure — a cluster signature of the dependency tangle.
+
+**Consequence for gating.** `contracts/ci/crate-budget.v1.json` gates only the heavy,
+frequently-changed L3 crates (`vox-db`, `vox-compiler`, `vox-populi`, `workspace-hack`) — NOT
+high-blast_s leaf type crates, which would produce false pressure to split stable code.
+
+**SSOT + parity.** `contracts/ci/crate-build-map.v1.json` is the committed gate input
+(`compile_s` from the audit + derived `dependents`/`blast_s`/`fan_in`). `vox ci crate-build-map-parity`
+recomputes the derived fields from `crate-graph.v1.json` + embedded `compile_s` and fails on drift.
+Refresh `compile_s` periodically via the runbook in the measurement-spine plan.
+
+**Follow-on (out of scope):** a churn-weighted `blast_s_weighted = blast_s × commits_90d` mined
+from `git log` would rank by real rebuild cost. Tracked, not yet built.
