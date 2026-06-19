@@ -300,10 +300,10 @@ impl VoxConfig {
             }
         }
 
-        if let Some(agent) = parsed.agent {
-            if let Some(v) = agent.provider {
-                self.agent_provider = v;
-            }
+        if let Some(agent) = parsed.agent
+            && let Some(v) = agent.provider
+        {
+            self.agent_provider = v;
         }
     }
 

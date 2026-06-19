@@ -23,10 +23,10 @@ pub const GRAPHIFY_TTL_DAYS_ENV: &str = "VOX_GRAPHIFY_TTL_DAYS";
 
 /// Resolve the TTL (in days) using `VOX_GRAPHIFY_TTL_DAYS` if present, falling back to a default value.
 pub fn resolve_ttl_days(default_ttl: u64) -> u64 {
-    if let Ok(val) = std::env::var(GRAPHIFY_TTL_DAYS_ENV) {
-        if let Ok(parsed) = val.parse::<u64>() {
-            return parsed;
-        }
+    if let Ok(val) = std::env::var(GRAPHIFY_TTL_DAYS_ENV)
+        && let Ok(parsed) = val.parse::<u64>()
+    {
+        return parsed;
     }
     default_ttl
 }
@@ -58,6 +58,10 @@ pub struct GraphifyCorpus {
     /// `assess_corpus_status` skips all disk checks and returns fresh unconditionally.
     #[serde(default)]
     pub is_virtual: bool,
+    /// Absolute path to an external source repository to index. `None` = the Vox repo root.
+    /// The graph is stored under the Vox repo's `.vox/cache/graphify/<id>/` regardless.
+    #[serde(default)]
+    pub source_root: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -371,7 +375,7 @@ pub fn assess_corpus_status(
         let parse_res = raw_res
             .ok()
             .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok());
-        let stats = parse_res.as_ref().and_then(|v| graph_stats_from_json(v));
+        let stats = parse_res.as_ref().and_then(graph_stats_from_json);
 
         if parse_res.is_none() || stats.is_none() {
             stale_reasons.push("graph_corrupt".into());
@@ -414,10 +418,10 @@ pub fn assess_corpus_status(
         stale_reasons.push("ttl_expired".into());
     }
 
-    if let Some(ref m) = manifest {
-        if let Some(reason) = lexical_lag_stale_reason(m) {
-            stale_reasons.push(reason);
-        }
+    if let Some(ref m) = manifest
+        && let Some(reason) = lexical_lag_stale_reason(m)
+    {
+        stale_reasons.push(reason);
     }
 
     if let (Some(m), Some(nc), Some(ec)) = (&manifest, node_count, edge_count) {
