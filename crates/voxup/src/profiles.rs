@@ -1,4 +1,11 @@
 //! Typed reader for the distribution SSOT (`contracts/distribution/profiles.v1.yaml`).
+//!
+//! The SSOT is embedded at compile time so release binaries can validate tiers
+//! without needing access to the source repository.
+
+/// The distribution SSOT, embedded at compile time.
+pub const PROFILES_YAML: &str =
+    include_str!("../../../contracts/distribution/profiles.v1.yaml");
 
 use serde::Deserialize;
 
@@ -63,6 +70,23 @@ pub fn cargo_publish_is_false(cargo_toml_text: &str) -> bool {
         v.get("package").and_then(|p| p.get("publish")),
         Some(toml::Value::Boolean(false))
     )
+}
+
+/// Validate that `tier` names a tier declared in the distribution SSOT.
+///
+/// Returns `Ok(())` on a known tier, or `Err` with a human-readable message
+/// listing the valid tier names (derived from the SSOT, not hard-coded).
+pub fn validate_tier(profiles_yaml: &str, tier: &str) -> Result<(), String> {
+    let profiles = parse(profiles_yaml).map_err(|e| format!("SSOT parse error: {e}"))?;
+    if profiles.tiers.contains_key(tier) {
+        return Ok(());
+    }
+    let mut valid: Vec<&str> = profiles.tiers.keys().map(String::as_str).collect();
+    valid.sort_unstable();
+    Err(format!(
+        "unknown tier '{tier}'. Valid tiers: {}",
+        valid.join(", ")
+    ))
 }
 
 #[cfg(test)]
