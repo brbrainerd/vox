@@ -83,6 +83,18 @@ pub struct DomainProfilesFile {
     pub profiles: HashMap<String, DomainProfile>,
 }
 
+impl DomainProfilesFile {
+    /// Read and parse mens/config/domain-profiles.yaml from the workspace root.
+    pub fn load(workspace_root: Option<&Path>) -> anyhow::Result<Self> {
+        let root = workspace_root.unwrap_or_else(|| Path::new("."));
+        let profiles_path = root.join("mens/config/domain-profiles.yaml");
+        let content = std::fs::read_to_string(&profiles_path)
+            .map_err(|e| anyhow::anyhow!("Failed to read {}: {}", profiles_path.display(), e))?;
+        serde_yaml::from_str(&content)
+            .map_err(|e| anyhow::anyhow!("Failed to parse domain profiles: {}", e))
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct EffectiveDomainProfile {
     pub name: String,
@@ -112,18 +124,13 @@ pub struct EffectiveDomainProfile {
 impl EffectiveDomainProfile {
     pub fn load_domain_profile(name: &str, workspace_root: Option<&Path>) -> anyhow::Result<Self> {
         let root = workspace_root.unwrap_or_else(|| Path::new("."));
-        let profiles_path = root.join("mens/config/domain-profiles.yaml");
-        let content = std::fs::read_to_string(&profiles_path)
-            .map_err(|e| anyhow::anyhow!("Failed to read {}: {}", profiles_path.display(), e))?;
-
-        let file: DomainProfilesFile = serde_yaml::from_str(&content)
-            .map_err(|e| anyhow::anyhow!("Failed to parse domain profiles: {}", e))?;
+        let file = DomainProfilesFile::load(workspace_root)?;
 
         let profile = file.profiles.get(name).ok_or_else(|| {
             anyhow::anyhow!(
                 "Domain profile '{}' not found in {}",
                 name,
-                profiles_path.display()
+                root.join("mens/config/domain-profiles.yaml").display()
             )
         })?;
 
@@ -233,5 +240,16 @@ base:
         let _ = &eff.base;
         let _ = &eff.eval_gate;
         let _ = &eff.router;
+    }
+
+    #[test]
+    fn list_profiles_returns_known_spokes() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap()
+            .to_path_buf();
+        let file = DomainProfilesFile::load(Some(&root)).expect("load file");
+        assert!(file.profiles.contains_key("vox-lang"));
     }
 }
