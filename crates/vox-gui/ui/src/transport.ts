@@ -578,3 +578,30 @@ export function getContextBudget(): Promise<ContextBudgetPayload> {
   return invoke<ContextBudgetPayload>('get_context_budget');
 }
 
+export interface ActivityRowDto {
+  id: number;
+  ts_ms: number;
+  agent_id?: string;
+  session_id?: string;
+  kind: string;
+  summary: string;
+  detail_json: string;
+}
+
+export interface ActivityFilterDto {
+  agent_id: string | null;
+  kind: string | null;
+  limit: number;
+  before_id: number | null;
+}
+
+export function activityQuery(filter: ActivityFilterDto): Promise<ActivityRowDto[]> {
+  return invoke<ActivityRowDto[]>('activity_query', { filter });
+}
+
+export const ACTIVITY_APPENDED_EVENT = 'vox://activity-appended';
+
+export function listenActivityAppended(onAppend: () => void): Promise<UnlistenFn> {
+  return listen<void>(ACTIVITY_APPENDED_EVENT, () => onAppend());
+}
+

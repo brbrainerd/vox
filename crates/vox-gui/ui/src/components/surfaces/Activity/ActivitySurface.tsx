@@ -1,32 +1,97 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
 import { Glass } from '../../ui/Glass';
 import { EmptyState } from '../../ui/EmptyState';
 import { Icon } from '../../ui/Icons';
+import {
+  activityQuery,
+  listenActivityAppended,
+  type ActivityRowDto as ActivityRow,
+  type ActivityFilterDto as ActivityFilter,
+} from '../../../transport';
+import type { Toast } from '../../../types/tauri';
 
-export interface ActivityRow {
-  id: number;
-  ts_ms: number;
-  agent_id?: string;
-  session_id?: string;
-  kind: string;
-  summary: string;
-  detail_json: string;
-}
-
-export interface ActivityFilter {
-  agent_id: string | null;
-  kind: string | null;
-  limit: number;
-  before_id: number | null;
-}
+export type { ActivityRow, ActivityFilter };
 
 export interface ActivityTimelineProps {
   rows: ActivityRow[];
 }
 
+type TimelineItem =
+  | { type: 'single'; row: ActivityRow }
+  | { type: 'folded'; rows: ActivityRow[]; key: string; totalCost: number; agentId: string };
+
+function getCostUsd(row: ActivityRow): number {
+  try {
+    const parsed = JSON.parse(row.detail_json);
+    if (parsed && typeof parsed === 'object') {
+      if ('CostIncurred' in parsed && parsed.CostIncurred && typeof parsed.CostIncurred === 'object' && 'cost_usd' in parsed.CostIncurred) {
+        return Number(parsed.CostIncurred.cost_usd) || 0;
+      }
+      if ('cost_usd' in parsed) {
+        return Number(parsed.cost_usd) || 0;
+      }
+    }
+  } catch (e) {
+    // Fall back to summary parsing
+  }
+  const match = row.summary.match(/Cost incurred: \$([0-9.]+)/);
+  if (match) {
+    return parseFloat(match[1]) || 0;
+  }
+  return 0;
+}
+
+function foldCostRuns(rows: ActivityRow[]): TimelineItem[] {
+  const result: TimelineItem[] = [];
+  let i = 0;
+  while (i < rows.length) {
+    const current = rows[i];
+    if (current.kind === 'CostIncurred' && current.agent_id) {
+      const run: ActivityRow[] = [current];
+      let j = i + 1;
+      while (j < rows.length) {
+        const next = rows[j];
+        if (next.kind === 'CostIncurred' && next.agent_id === current.agent_id) {
+          run.push(next);
+          j++;
+        } else {
+          break;
+        }
+      }
+      if (run.length >= 3) {
+        let totalCost = 0;
+        for (const r of run) {
+          totalCost += getCostUsd(r);
+        }
+        result.push({
+          type: 'folded',
+          rows: run,
+          key: `folded-${current.id}-${j}`,
+          totalCost,
+          agentId: current.agent_id,
+        });
+        i = j;
+      } else {
+        for (const r of run) {
+          result.push({ type: 'single', row: r });
+        }
+        i = j;
+      }
+    } else {
+      result.push({ type: 'single', row: current });
+      i++;
+    }
+  }
+  return result;
+}
+
 export function ActivityTimeline({ rows }: ActivityTimelineProps) {
+  const [expandedKeys, setExpandedKeys] = useState<Record<string, boolean>>({});
+
+  const toggleExpand = (key: string) => {
+    setExpandedKeys((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
   const getKindColorClass = (kind: string) => {
     switch (kind) {
       case 'AgentSpawned':
@@ -72,43 +137,109 @@ export function ActivityTimeline({ rows }: ActivityTimelineProps) {
     }
   };
 
+  const items = foldCostRuns(rows);
+
   return (
     <div className="flex flex-col gap-3">
-      {rows.map((row) => (
-        <div
-          key={row.id}
-          data-testid="activity-row"
-          className={`flex items-start gap-4 p-3 rounded-lg border text-xs leading-relaxed transition-all ${getKindColorClass(
-            row.kind
-          )}`}
-        >
-          <div className="flex items-center justify-center p-1.5 rounded bg-zinc-900/50 border border-zinc-800">
-            {getIcon(row.kind)}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="font-semibold uppercase tracking-wider text-[10px] opacity-75">
-                {row.kind}
-              </span>
-              <span className="text-zinc-500">
-                {new Date(row.ts_ms).toLocaleTimeString()}
-              </span>
-              {row.agent_id && (
-                <span className="px-1.5 py-0.5 rounded bg-zinc-900/60 border border-zinc-800/50 text-[10px] text-zinc-400">
-                  Agent: {row.agent_id}
-                </span>
+      {items.map((item) => {
+        if (item.type === 'single') {
+          const row = item.row;
+          return (
+            <div
+              key={row.id}
+              data-testid="activity-row"
+              className={`flex items-start gap-4 p-3 rounded-lg border text-xs leading-relaxed transition-all ${getKindColorClass(
+                row.kind
+              )}`}
+            >
+              <div className="flex items-center justify-center p-1.5 rounded bg-zinc-900/50 border border-zinc-800">
+                {getIcon(row.kind)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <span className="font-semibold uppercase tracking-wider text-[10px] opacity-75">
+                    {row.kind}
+                  </span>
+                  <span className="text-zinc-500">
+                    {new Date(row.ts_ms).toLocaleTimeString()}
+                  </span>
+                  {row.agent_id && (
+                    <span className="px-1.5 py-0.5 rounded bg-zinc-900/60 border border-zinc-800/50 text-[10px] text-zinc-400">
+                      Agent: {row.agent_id}
+                    </span>
+                  )}
+                </div>
+                <p className="text-zinc-200 font-medium">{row.summary}</p>
+              </div>
+            </div>
+          );
+        } else {
+          const isExpanded = !!expandedKeys[item.key];
+          return (
+            <div
+              key={item.key}
+              data-testid="activity-row"
+              className={`flex flex-col gap-2 p-3 rounded-lg border text-xs leading-relaxed transition-all ${getKindColorClass(
+                'CostIncurred'
+              )}`}
+            >
+              <div className="flex items-start gap-4">
+                <div className="flex items-center justify-center p-1.5 rounded bg-zinc-900/50 border border-zinc-800">
+                  {getIcon('CostIncurred')}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="font-semibold uppercase tracking-wider text-[10px] opacity-75">
+                      CostIncurred (Folded)
+                    </span>
+                    <span className="text-zinc-500">
+                      {new Date(item.rows[0].ts_ms).toLocaleTimeString()}
+                    </span>
+                    {item.agentId && (
+                      <span className="px-1.5 py-0.5 rounded bg-zinc-900/60 border border-zinc-800/50 text-[10px] text-zinc-400">
+                        Agent: {item.agentId}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="text-zinc-200 font-medium">
+                      spent ${item.totalCost.toFixed(4)} ({item.rows.length} calls)
+                    </p>
+                    <button
+                      onClick={() => toggleExpand(item.key)}
+                      className="px-2 py-0.5 rounded bg-zinc-900/60 border border-zinc-800 hover:bg-zinc-800 text-[10px] text-zinc-400 hover:text-zinc-200 font-medium transition-colors"
+                      data-testid="fold-toggle"
+                    >
+                      {isExpanded ? 'Hide' : 'Expand'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              {isExpanded && (
+                <div className="pl-12 pr-2 py-1 flex flex-col gap-1.5 border-t border-zinc-800/30 mt-1">
+                  {item.rows.map((row) => (
+                    <div
+                      key={row.id}
+                      className="flex items-center justify-between text-[11px] text-zinc-400 hover:text-zinc-300 py-0.5"
+                    >
+                      <span className="truncate">{row.summary}</span>
+                      <span className="text-zinc-500 ml-2 whitespace-nowrap">
+                        {new Date(row.ts_ms).toLocaleTimeString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
-            <p className="text-zinc-200 font-medium">{row.summary}</p>
-          </div>
-        </div>
-      ))}
+          );
+        }
+      })}
     </div>
   );
 }
 
 export interface ActivitySurfaceProps {
-  pushToast: (t: { tone: 'ok' | 'warn' | 'error' | 'info'; title: string; body: string }) => void;
+  pushToast: (t: Toast) => void;
   gamifyEnabled?: boolean;
 }
 
@@ -127,11 +258,11 @@ export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
         limit: 50,
         before_id: null,
       };
-      const res = await invoke<ActivityRow[]>('activity_query', { filter });
+      const res = await activityQuery(filter);
       setRows(res);
     } catch (err) {
       pushToast({
-        tone: 'error',
+        tone: 'warn',
         title: 'Query Failed',
         body: String(err),
       });
@@ -146,7 +277,7 @@ export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
 
   // Reactive updates on "vox://activity-appended"
   useEffect(() => {
-    const unlistenPromise = listen('vox://activity-appended', () => {
+    const unlistenPromise = listenActivityAppended(() => {
       fetchLogs();
     });
     return () => {
