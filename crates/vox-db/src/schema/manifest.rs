@@ -10,7 +10,9 @@ use std::sync::OnceLock;
 
 // 77: feat(vox-kb): add knowledge_bases, kb_entries, kb_routing_rules tables
 // 78: feat(activity): add activity_log table for timeline events
-pub const BASELINE_VERSION: i64 = 79;
+// 79: (prior scientia additions)
+// 80: feat(telemetry-F): add model_prompt_profiles table (Track F learned prompt profiles)
+pub const BASELINE_VERSION: i64 = 80;
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]

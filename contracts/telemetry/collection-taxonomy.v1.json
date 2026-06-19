@@ -299,8 +299,8 @@
         {
           "name": "quality_bucket",
           "type": "enum",
-          "allowed": ["excellent","good","acceptable","poor","failed"],
-          "description": "Outcome quality bucket (derived from task completion signal)"
+          "allowed": ["excellent","good","acceptable","poor","failed","unknown"],
+          "description": "Outcome quality bucket (derived from task completion signal); 'unknown' is emitted at prompt-build time before outcome is known"
         }
       ]
     }

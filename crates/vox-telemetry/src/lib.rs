@@ -126,6 +126,8 @@ pub use types::{
     METRIC_TYPE_TASK_ROOT_SUMMARY,
     METRIC_TYPE_WORKFLOW_JOURNAL_ENTRY,
     ModelCallEvent,
+    // Track F: model-layer learned prompt profiles
+    ModelPromptEvent,
     OrchSubagentDispatchEvent,
     PromptDispatchTelemetryEvent,
     // size limits

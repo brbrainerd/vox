@@ -9,7 +9,7 @@ use vox_actor_runtime::supervisor::spawn_supervised_infallible;
 use vox_orchestrator::orch_daemon::OrchDaemonClient;
 use vox_orchestrator::{
     BudgetManager, Observer, Orchestrator, OrchestratorConfig, RemotePopuliSnapshot, SessionConfig,
-    SessionManager,
+    SessionManager, models::prompt_profiles::ModelPromptRegistry,
 };
 use vox_skills::{SkillRegistry, install_builtins, new_registry_arc};
 
@@ -99,6 +99,10 @@ pub struct ServerState {
 
     /// Active skill for per-skill MCP tool allowlist (`vox_skill_use` / chat composer).
     pub active_skill_id: Arc<parking_lot::RwLock<Option<String>>>,
+
+    /// Learned per-model prompt profiles (Track F).  Hydrated from DB at startup;
+    /// updated in-process as variants are promoted through the confidence state machine.
+    pub model_prompt_registry: Arc<ModelPromptRegistry>,
 }
 
 impl ServerState {
@@ -291,6 +295,7 @@ impl ServerState {
             workspace_mcp,
             skill_search_index,
             active_skill_id: Arc::new(parking_lot::RwLock::new(None)),
+            model_prompt_registry: Arc::new(ModelPromptRegistry::new()),
         };
 
         // Spawn pollers
@@ -359,6 +364,7 @@ impl ServerState {
                 crate::skill_search_index::SkillSearchIndex::from_manifests(&skill_manifests),
             )),
             active_skill_id: Arc::new(parking_lot::RwLock::new(None)),
+            model_prompt_registry: Arc::new(ModelPromptRegistry::new()),
         };
         Self::spawn_external_skill_hydration(
             state.skill_registry.clone(),
@@ -593,6 +599,14 @@ impl ServerState {
         sm.attach_db(db.clone());
         drop(sm);
         self.budget_manager.attach_db(db.clone()).await;
+        // F3/C1: populate model-prompt registry from DB in the background.
+        let reg = Arc::clone(&self.model_prompt_registry);
+        let db_reg = db.clone();
+        tokio::spawn(async move {
+            if let Err(e) = reg.populate_from_db(&db_reg).await {
+                tracing::warn!("model_prompt_registry populate_from_db failed: {e}");
+            }
+        });
         self.db = Some(db);
         self.load_attention_preferences_from_db().await;
 
@@ -646,6 +660,7 @@ impl ServerState {
                 crate::skill_search_index::SkillSearchIndex::default(),
             )),
             active_skill_id: Arc::new(parking_lot::RwLock::new(None)),
+            model_prompt_registry: Arc::new(ModelPromptRegistry::new()),
         }
     }
 

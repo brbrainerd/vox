@@ -219,6 +219,7 @@ pub use ddl::{SchemaDiff, diff_schemas, table_to_ddl, tables_to_ddl};
 pub use error_enrichment::{EnrichedDbError, enrich_error};
 pub use facade::agent_runs::AgentRunRow;
 pub use facade::hitl_approvals::HitlApprovalRow;
+pub use facade::model_prompt::ModelPromptProfileRow;
 pub use history_store::{HistoryEntry, add_entry, list_entries};
 pub use memory::MemoryParams;
 pub use migration::{Migration, builtin_migrations, validate_migrations};

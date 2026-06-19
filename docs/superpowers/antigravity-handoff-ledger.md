@@ -903,3 +903,79 @@ prompt_lessons:
   - "When a pub fn is only called from integration tests (external crate), clippy dead_code fires in the binary target even with --tests. Document with #[allow(dead_code)] + comment explaining the cross-unit usage."
   - "Worktrees insulate against branch-drift: if CWD branch is uncertain, create a fresh worktree from the known branch ref rather than trying to stash/checkout in a conflicted state."
 ```
+
+---
+
+### AGH-0020 — Track F: Model-Layer Learned Prompt Profiles
+
+```yaml
+# --- AGH-0020 ---
+id: AGH-0020
+date: "2026-06-19"
+plan: "docs/superpowers/plans/2026-06-19-centralized-telemetry-program.md#track-f"
+subsystem: "Track F — Model-Layer: per-model learned prompt profiles"
+target: "Claude Sonnet 4.6 (inline execution, worktree claude/telemetry-track-f)"
+delivered:
+  - "crates/vox-db/src/schema/domains/scientia.rs — model_prompt_profiles table DDL (BASELINE_VERSION 79→80)"
+  - "crates/vox-db/src/facade/model_prompt.rs — VoxDb::query_model_prompt_profiles + upsert_model_prompt_profile"
+  - "crates/vox-orchestrator/src/models/prompt_profiles.rs — ModelPromptProfile + ModelPromptRegistry + prompt_profile_key + should_promote_profile + maybe_promote_registry + model_guidance_segment (F1/F2/F3/F4)"
+  - "crates/vox-orchestrator-mcp/src/server_state.rs — model_prompt_registry field on ServerState"
+  - "crates/vox-orchestrator-mcp/src/chat_tools/mod.rs — model_key param + F3 injection + F6 ModelPrompt emit"
+  - "crates/vox-telemetry/src/types.rs — ModelPromptEvent struct + TelemetryEvent::ModelPrompt variant"
+  - "crates/vox-telemetry-otlp/src/project.rs — ModelPrompt projection arm"
+  - "crates/vox-telemetry-otlp/tests/projection_coverage.rs — F6 projection coverage tests"
+  - "crates/vox-skill-discovery/src/candidate.rs — CandidateKind::ModelPromptVariant (F5 advisory enum)"
+  - "contracts/db/baseline-version-policy.yaml — BASELINE_VERSION 80 digest update (pending build)"
+loc_estimate: "~500 net new lines"
+outcome: "code complete — build + test verification pending"
+verification:
+  tests_written: "4 F1 async + 4 F2 pure + 3 F3 pure + 6 F4 (1 async + 5 pure) + 2 F6 projection = 19 new tests in vox-orchestrator + vox-telemetry-otlp"
+  baseline_version: "BASELINE_VERSION bumped to 80; contracts/db/baseline-version-policy.yaml digest update pending (requires build to compute Keccak-256)"
+security_invariants_maintained:
+  - "No free-form String fields in ModelPromptEvent — all fields are enum slugs"
+  - "preamble_text (system prompt segment) never uploaded to telemetry"
+  - "profile injection gated on ModelConfidence::Confirmed only"
+  - "model_key param — callers pass None today (no model known at prompt-build time for most paths)"
+follow_ups:
+  - "Thread model_key from resolved ModelSpec into build_system_prompt_with_skill callers where model is known before prompt build"
+  - "Implement vox model-layer suggest CLI (F5 was scoped to enum variant only)"
+  - "DB hydration: spawn ModelPromptRegistry::hydrate_from_db after VoxDb connects in lifecycle"
+  - "Hook maybe_promote_registry into a periodic background poller"
+```
+
+---
+
+### AGH-0021 — Track F Code-Review Fix-Ups + E3 Live Verification
+
+```yaml
+# --- AGH-0021 ---
+id: AGH-0021
+date: "2026-06-19"
+subsystem: "Track F — post-review fix-ups (C1+C2+W1+W2+W5/N5) + E3 live pipeline proof"
+target: "Claude Sonnet 4.6 (inline execution, worktree claude/telemetry-track-f)"
+trigger: "Code-review found 2 critical blockers (C1+C2) that made F3/F6 dead at runtime"
+delivered:
+  - "crates/vox-orchestrator/src/models/prompt_profiles.rs — populate_from_db (C1 in-place hydration); publish demotes prior Confirmed on new Confirmed (W1); new test publish_demotes_prior_confirmed_on_new_confirmed"
+  - "crates/vox-orchestrator-mcp/src/server_state.rs — with_db_initialized spawns populate_from_db background task (C1 wiring)"
+  - "crates/vox-orchestrator-mcp/src/chat_tools/chat/message.rs — reads mcp_chat_model_override before system prompt build; passes as model_key to build_system_prompt_with_skill (C2)"
+  - "crates/vox-orchestrator-mcp/src/chat_tools/mod.rs — telemetry_model_bucket() helper normalizes key to taxonomy enum; quality_bucket 'unknown' (W2+W5/N5)"
+  - "contracts/telemetry/collection-taxonomy.v1.json — quality_bucket allowed list adds 'unknown' (W2 taxonomy fix)"
+outcome: "all 5 code-review blockers/warnings resolved; F3 guidance injection live at runtime; F6 telemetry correctly bucketed"
+verification:
+  build: "vox-orchestrator + vox-orchestrator-mcp both exit 0"
+  e3_live: "E3 e2e proven LIVE: vox-server running on port 4318 with ClickHouse 24.3 at localhost:8123; POST /v1/logs accepted events: vox.command (verb=build, exit_class=success) + vox.skill; rows visible in vox_telemetry.events_raw; server-side allowlist correctly discarded unknown-category events"
+  docker_stack: "C:/Users/Owner/vox-server running (container vox_clickhouse up, vox-server binary PID 264948)"
+security_invariants_maintained:
+  - "C2 uses sticky override (mcp_chat_model_override) only — never exposes model routing internals"
+  - "quality_bucket 'unknown' is now in the taxonomy allowed list; empty string no longer emitted"
+  - "telemetry_model_bucket normalizes to family-level enum — no provider-specific strings uploaded"
+follow_ups:
+  - "E3 spool path: vox-cli telemetry_spool upload_pending is real; vox-telemetry-otlp/upload.rs stub can be removed or wired later"
+  - "Coolify prod deployment: TLS reverse proxy + OTLP_ENDPOINT env var on the client side remain human-gated"
+  - "C2 full fix: resolve model via resolve_chat_llm_model once before system prompt build (avoid double-call) — model_key is sticky-override only today"
+  - "W1 DB persistence: demoted Confirmed variants are in-memory only; next promotion scan will fix DB on next upsert"
+  - "maybe_promote_registry needs a periodic poller hook (background task, not yet wired)"
+lessons:
+  - "PRODUCER/CONSUMER GAP: F6 telemetry path tested via projection_coverage tests (the consumer) but the producer path (model_key=None at all call sites) was never tested end-to-end → both C1 and C2 slipped through; need an e2e test that boots ServerState with a real profile and calls build_system_prompt_with_skill with a non-None key"
+  - "REGISTRY HYDRATION: hydrate_from_db returns a new Self (pattern from SkillRegistry) but ServerState holds Arc<ModelPromptRegistry> — in-place populate_from_db was needed; always check Arc vs owned when reusing hydration patterns"
+```
