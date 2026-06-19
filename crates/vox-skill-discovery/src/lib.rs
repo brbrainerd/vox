@@ -3,6 +3,7 @@
 //! never installs, executes, or publishes.
 
 pub mod candidate;
+pub mod code_miner;
 pub mod options;
 
 pub use candidate::{Candidate, CandidateKind, DraftFrontmatter};

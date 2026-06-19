@@ -14,6 +14,7 @@ pub mod log_ingest;
 pub mod mix;
 pub mod preflight;
 pub mod prompt_gen;
+pub mod rust_authoring;
 pub mod structured_eval;
 
 pub use benchmark::produce_benchmark;
