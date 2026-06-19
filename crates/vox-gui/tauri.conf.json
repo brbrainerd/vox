@@ -11,7 +11,7 @@
   "app": {
     "windows": [
       {
-        "title": "Vox",
+        "title": "Axis",
         "width": 1280,
         "height": 800,
         "label": "main"
