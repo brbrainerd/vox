@@ -21,7 +21,6 @@ export const DueNudge: React.FC<DueNudgeProps> = ({ count, onOpen }) => {
       size="sm"
       interactive
       as="button"
-      type="button"
       onClick={onOpen}
       className="bg-amber-950/20 border-amber-900/50 hover:bg-amber-950/30 hover:border-amber-700/50 text-amber-100 flex items-center justify-between w-full select-none"
     >
