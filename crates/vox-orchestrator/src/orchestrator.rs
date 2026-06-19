@@ -139,4 +139,6 @@ pub struct Orchestrator {
     /// Orchestrator-policy token/cost budget gate (D7).
     pub tenant_budget_gate:
         std::sync::Arc<std::sync::RwLock<crate::budget_gate::OrchestratorBudgetGate>>,
+    /// Soft HITL: feedback requests (clarifications, doubts).
+    pub feedback: crate::feedback::FeedbackStore,
 }

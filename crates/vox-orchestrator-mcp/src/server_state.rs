@@ -88,6 +88,9 @@ pub struct ServerState {
     /// tools — all reach it via `&ServerState`).
     pub pending_approvals: Arc<crate::pending_approvals::PendingApprovals>,
 
+    /// Soft HITL: feedback requests (clarifications, doubts).
+    pub feedback: vox_orchestrator::feedback::FeedbackStore,
+
     /// Federated workspace `@tool` surface (Option A).
     pub workspace_mcp: Arc<parking_lot::RwLock<crate::workspace_mcp::WorkspaceMcpSurface>>,
 
@@ -99,6 +102,10 @@ pub struct ServerState {
 }
 
 impl ServerState {
+    pub fn feedback(&self) -> vox_orchestrator::feedback::FeedbackStore {
+        self.feedback.clone()
+    }
+
     /// The trusted caller role for this server (human vs agent), used to authorize
     /// privileged operations like the browser control lock. Derived from the
     /// launcher's environment (`VOX_MCP_CALLER_ROLE`), NOT from request bodies, so
@@ -251,8 +258,10 @@ impl ServerState {
             .build()
             .expect("reqwest client for vox-mcp");
 
+        let orchestrator = Arc::new(build.orchestrator);
+        let feedback = orchestrator.feedback.clone();
         let state = Self {
-            orchestrator: Arc::new(build.orchestrator),
+            orchestrator,
             orchestrator_config: build.config,
             db: None,
             repository,
@@ -278,6 +287,7 @@ impl ServerState {
             mention_path_cache: Arc::new(PrMutex::new(None)),
             observer: Arc::new(Observer::with_default_policy()),
             pending_approvals: Arc::new(crate::pending_approvals::PendingApprovals::default()),
+            feedback,
             workspace_mcp,
             skill_search_index,
             active_skill_id: Arc::new(parking_lot::RwLock::new(None)),
@@ -311,6 +321,7 @@ impl ServerState {
             .build()
             .expect("reqwest client for vox-mcp");
 
+        let feedback = orchestrator.feedback.clone();
         let state = Self {
             orchestrator,
             orchestrator_config,
@@ -338,6 +349,7 @@ impl ServerState {
             mention_path_cache: Arc::new(PrMutex::new(None)),
             observer: Arc::new(Observer::with_default_policy()),
             pending_approvals: Arc::new(crate::pending_approvals::PendingApprovals::default()),
+            feedback,
             workspace_mcp: {
                 Arc::new(parking_lot::RwLock::new(Self::load_workspace_mcp(
                     &workspace_mcp_root,
@@ -598,6 +610,7 @@ impl ServerState {
         session_manager: Arc<TokMutex<SessionManager>>,
         skill_registry: Arc<SkillRegistry>,
     ) -> Self {
+        let feedback = orchestrator.feedback.clone();
         Self {
             orchestrator,
             orchestrator_config,
@@ -625,6 +638,7 @@ impl ServerState {
             mention_path_cache: Arc::new(PrMutex::new(None)),
             observer: Arc::new(Observer::with_default_policy()),
             pending_approvals: Arc::new(crate::pending_approvals::PendingApprovals::default()),
+            feedback,
             workspace_mcp: Arc::new(parking_lot::RwLock::new(
                 crate::workspace_mcp::WorkspaceMcpSurface::default(),
             )),
@@ -647,4 +661,32 @@ pub fn tool_json_envelope_is_error(json: &str) -> bool {
         .ok()
         .and_then(|v| v.get("success").and_then(|s| s.as_bool()))
         == Some(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use vox_orchestrator::feedback::FeedbackKind;
+    use vox_orchestrator::types::TaskId;
+
+    #[tokio::test]
+    async fn feedback_shared() {
+        let state = ServerState::new_test().await;
+        let id = state.feedback().register(
+            FeedbackKind::Clarification,
+            "Shared test?".into(),
+            vec![],
+            vec![TaskId(9)],
+            None,
+            0.5,
+            100,
+            vox_orchestrator::feedback::Surface::NeedsYou,
+            None,
+            None,
+            123,
+        );
+        let req = state.orchestrator.feedback().get(&id);
+        assert!(req.is_some());
+        assert_eq!(req.unwrap().prompt, "Shared test?");
+    }
 }

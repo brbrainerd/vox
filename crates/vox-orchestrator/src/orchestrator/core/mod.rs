@@ -182,6 +182,7 @@ impl crate::orchestrator::Orchestrator {
                     config.budget_gate_config.clone().unwrap_or_default(),
                 ),
             )),
+            feedback: crate::feedback::FeedbackStore::new(),
         }
     }
 

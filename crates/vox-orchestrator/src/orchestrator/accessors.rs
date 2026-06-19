@@ -531,6 +531,10 @@ impl Orchestrator {
             .interruption_calibration
             .clone()
     }
+
+    pub fn feedback(&self) -> &crate::feedback::FeedbackStore {
+        &self.feedback
+    }
 }
 
 #[cfg(test)]
