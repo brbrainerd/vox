@@ -396,7 +396,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             derived_tool_schema!(crate::params::VoxVisualRagQueryParams)
         }
         "vox_repo_status" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
-        "vox_gui_components" | "vox_gui_tokens" | "vox_gui_rules" => {
+        "vox_gui_components" | "vox_gui_tokens" | "vox_gui_rules" | "vox_agy_doctor" => {
             parse_obj(r#"{"type":"object","additionalProperties":false}"#)
         }
         "vox_validate_vuv" => parse_obj(
