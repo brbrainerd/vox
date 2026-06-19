@@ -92,61 +92,118 @@ impl AgyExec {
     pub async fn run(&self, spec: &AgySpec) -> Result<AgyOutput, AgyExecError> {
         validate_spec(spec)?;
         let args = build_args(spec);
-        let started = Instant::now();
+        let cwd = self.cwd.clone();
+        let timeout = Duration::from_secs(spec.timeout_secs.max(1));
 
-        // vox-arch-check: allow agy-exec  (annotation active once Task 15 adds the rule)
-        let mut cmd = tokio::process::Command::new("agy");
-        cmd.current_dir(&self.cwd)
-            .args(&args)
-            .kill_on_drop(true) // <-- ensures the timeout branch actually reaps the child
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped());
-        // Do NOT set CREATE_NO_WINDOW on Windows: agy requires a virtual console
-        // to initialise its TUI layer; suppressing the console causes it to exit
-        // silently (exit 0, no output, no file writes).  Suppress the visible
-        // window via DETACHED_PROCESS instead — same effect, no TUI breakage.
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            const DETACHED_PROCESS: u32 = 0x0000_0008;
-            cmd.creation_flags(DETACHED_PROCESS);
-        }
-
-        let child = cmd.spawn().map_err(|e| {
-            if e.kind() == std::io::ErrorKind::NotFound {
-                AgyExecError::NotFound
-            } else {
-                AgyExecError::Spawn(e)
-            }
-        })?;
-
-        let dur = Duration::from_secs(spec.timeout_secs.max(1));
-        match tokio::time::timeout(dur, child.wait_with_output()).await {
-            Ok(Ok(output)) => {
-                let code = output.status.code().unwrap_or(-1);
-                tracing::debug!(target: "vox.agy.exec", code, elapsed_ms = started.elapsed().as_millis() as u64, "agy exec done");
-                Ok(AgyOutput {
-                    stdout: String::from_utf8_lossy(&output.stdout).to_string(),
-                    stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-                    exit_code: code,
-                    timed_out: false,
-                    elapsed_ms: started.elapsed().as_millis() as u64,
-                })
-            }
-            Ok(Err(e)) => Err(AgyExecError::Spawn(e)),
-            Err(_elapsed) => {
-                // The wait-future is dropped here; kill_on_drop(true) reaps the child.
-                tracing::warn!(target: "vox.agy.exec", timeout_secs = spec.timeout_secs, "agy delegation timed out; child killed");
-                Ok(AgyOutput {
-                    stdout: String::new(),
-                    stderr: format!("agy delegation exceeded {}s; process killed", spec.timeout_secs),
-                    exit_code: -1,
-                    timed_out: true,
-                    elapsed_ms: started.elapsed().as_millis() as u64,
-                })
-            }
+        // portable-pty is synchronous; run the whole PTY interaction on a
+        // blocking worker so we never stall the async runtime.
+        let join = tokio::task::spawn_blocking(move || run_in_pty(&cwd, &args, timeout));
+        match join.await {
+            Ok(result) => result,
+            Err(join_err) => Err(AgyExecError::Spawn(std::io::Error::new(std::io::ErrorKind::Other, join_err.to_string()))),
         }
     }
+}
+
+/// Blocking PTY-backed agy invocation. Spawns `agy` inside a pseudo-console so
+/// its bubbletea TUI initialises correctly (a plain piped subprocess has no
+/// terminal and aborts before running its file-writing tools). Output is drained
+/// on a reader thread; the timeout is enforced by polling `try_wait` against a
+/// deadline and killing the child on overrun.
+fn run_in_pty(cwd: &Path, args: &[String], timeout: Duration) -> Result<AgyOutput, AgyExecError> {
+    use portable_pty::{native_pty_system, CommandBuilder, PtySize};
+    use std::io::Read;
+    use std::sync::{Arc, Mutex};
+
+    let started = Instant::now();
+
+    let pty_system = native_pty_system();
+    let pair = pty_system
+        .openpty(PtySize { rows: 40, cols: 120, pixel_width: 0, pixel_height: 0 })
+        .map_err(|e| AgyExecError::Spawn(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+
+    // vox-arch-check: allow agy-exec
+    let mut cmd = CommandBuilder::new("agy");
+    for a in args {
+        cmd.arg(a);
+    }
+    cmd.cwd(cwd);
+
+    let mut child = pair.slave.spawn_command(cmd).map_err(|e| {
+        let msg = e.to_string().to_ascii_lowercase();
+        if msg.contains("no such file")
+            || msg.contains("cannot find")
+            || msg.contains("not found")
+            || msg.contains("program not found")
+        {
+            AgyExecError::NotFound
+        } else {
+            AgyExecError::Spawn(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+        }
+    })?;
+    // The slave handle must be dropped or the master reader never sees EOF.
+    drop(pair.slave);
+
+    // Drain the master on a dedicated thread (portable-pty reads are blocking).
+    let mut reader = pair
+        .master
+        .try_clone_reader()
+        .map_err(|e| AgyExecError::Spawn(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+    let buf = Arc::new(Mutex::new(Vec::<u8>::new()));
+    let buf_writer = Arc::clone(&buf);
+    let reader_thread = std::thread::spawn(move || {
+        let mut chunk = [0u8; 4096];
+        loop {
+            match reader.read(&mut chunk) {
+                Ok(0) | Err(_) => break,
+                Ok(n) => buf_writer.lock().unwrap().extend_from_slice(&chunk[..n]),
+            }
+        }
+    });
+
+    // Poll for exit; kill if the deadline passes.
+    let mut timed_out = false;
+    let exit_code: i32 = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break status.exit_code() as i32,
+            Ok(None) => {}
+            Err(e) => return Err(AgyExecError::Spawn(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))),
+        }
+        if started.elapsed() >= timeout {
+            let _ = child.kill();
+            let _ = child.wait();
+            timed_out = true;
+            break -1;
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    };
+
+    // Dropping the master closes the PTY so the reader thread hits EOF.
+    drop(pair.master);
+    let _ = reader_thread.join();
+
+    let raw = buf.lock().unwrap().clone();
+    let text = strip_ansi(&String::from_utf8_lossy(&raw));
+
+    if timed_out {
+        tracing::warn!(target: "vox.agy.exec", timeout_secs = timeout.as_secs(), "agy delegation timed out; child killed");
+    } else {
+        tracing::debug!(target: "vox.agy.exec", code = exit_code, elapsed_ms = started.elapsed().as_millis() as u64, "agy exec done");
+    }
+
+    Ok(AgyOutput {
+        // PTY merges stdout+stderr into one stream. Mirror the merged, cleaned
+        // text into both fields so stderr-based classification keeps working.
+        stdout: text.clone(),
+        stderr: if timed_out {
+            format!("agy delegation exceeded {}s; process killed", timeout.as_secs())
+        } else {
+            text
+        },
+        exit_code,
+        timed_out,
+        elapsed_ms: started.elapsed().as_millis() as u64,
+    })
 }
 
 /// Classify outcome for retry + ledger category. None on success.
