@@ -22,6 +22,7 @@ pub mod mcp;
 pub mod memory;
 pub mod mesh;
 pub mod mic;
+pub mod model_pool;
 pub mod models;
 pub mod oratio;
 pub mod orchestrator;

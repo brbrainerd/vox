@@ -116,7 +116,7 @@ pub struct ScoreboardRowDto {
     pub quality_score: f64,
 }
 
-fn registry_from_cache() -> ModelRegistry {
+pub(crate) fn registry_from_cache() -> ModelRegistry {
     ModelRegistry::from_cache()
 }
 

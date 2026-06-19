@@ -248,6 +248,9 @@ async fn main() {
             commands::mesh::untrust_mesh_node,
             commands::mic::start_mic_capture,
             commands::mic::stop_mic_capture_and_transcribe,
+            commands::model_pool::get_model_pool,
+            commands::model_pool::set_model_pool,
+            commands::model_pool::list_enabled_providers_cmd,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

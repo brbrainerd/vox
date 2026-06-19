@@ -726,7 +726,10 @@ mod hopper_tests {
         assert_eq!(dto.item_id, item.item_id.0);
         assert_eq!(dto.intent, "test intent");
         assert_eq!(dto.state, "inbox");
-        assert_eq!(dto.task_id, vox_orchestrator::orchestrator::dispatch::stable_hash(&item.item_id.0));
+        assert_eq!(
+            dto.task_id,
+            vox_orchestrator::orchestrator::dispatch::stable_hash(&item.item_id.0)
+        );
     }
 }
 

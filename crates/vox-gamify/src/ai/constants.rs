@@ -16,6 +16,10 @@ pub(crate) const OLLAMA_PROBE_TIMEOUT_SECS: u64 = 2;
 /// SSOT: aliased to `vox_config::OPENROUTER_FREE_FALLBACK_MODELS` so the gamify
 /// free tier and the research free-floor cannot drift apart. Edit the list in
 /// `crates/vox-config/src/bootstrap_inference.rs`, not here.
+// Offline fallback list ONLY. Dynamic free-model selection for the main router is handled
+// by the model-pool `free` rule (vox_config::model_pool); this const is the gamify AI
+// client's last-resort fallback when no catalog/keys are available. Do NOT treat it as the
+// source of truth for available free models.
 pub(crate) const OPENROUTER_FREE_MODELS: &[&str] = vox_config::OPENROUTER_FREE_FALLBACK_MODELS;
 
 #[cfg(test)]
