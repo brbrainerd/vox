@@ -86,11 +86,15 @@ pub(crate) struct SearchRefinementJsonMeta {
 pub(crate) fn socrates_system_rider(policy: &ConfidencePolicy) -> String {
     let p = policy;
     format!(
-        "\n## Socrates (grounding)\n\
+        "\n## Socrates (grounding & diagnostic questioning)\n\
          - Below {:.0}% calibrated confidence: do not speculate; state what evidence is missing.\n\
-         - {:.0}–{:.0}%: answer with explicit uncertainty or ask one focused clarifying question.\n\
-         - Before plan-changing actions: ask a bounded clarification when scope or constraints are ambiguous.\n\
-         - Above {:.0}%: answer normally; tie claims to files or tools you used.\n",
+         - {:.0}–{:.0}%: answer with explicit uncertainty or ask ONE focused clarifying question.\n\
+         - Above {:.0}%: answer normally; tie claims to files or tools you used.\n\
+         When you do ask, ask the single most diagnostic question:\n\
+         1. Enumerate the 2–4 candidate solutions/interpretations consistent with the request so far.\n\
+         2. Ask the one question whose answer best SPLITS those candidates (maximizes information gain over solutions, not over phrasings).\n\
+         3. Separate *specification* uncertainty (what YOU want — a question can resolve this) from *model* uncertainty (what I'm unsure of — a question usually cannot). Only ask about the former.\n\
+         4. Prefer a bounded multiple-choice over open-ended when the candidate set is known; never ask what context already implies.\n",
         p.abstain_threshold * 100.0,
         p.abstain_threshold * 100.0,
         p.ask_for_help_threshold * 100.0,
@@ -923,4 +927,15 @@ mod tests {
         assert_eq!(parsed["channel"], "chat_clarification");
         assert_eq!(parsed["policy_outcome"], "proceed_auto");
     }
+
+    #[test]
+    fn rider_instructs_solution_space_reasoning_and_spec_model_split() {
+        let r = socrates_system_rider(&ConfidencePolicy::default());
+        assert!(r.contains("candidate"), "must mention enumerating candidate solutions");
+        assert!(r.to_lowercase().contains("information gain") || r.contains("splits"), "must mention picking the most-diagnostic question");
+        assert!(r.to_lowercase().contains("you want") || r.to_lowercase().contains("specification"), "must distinguish user-spec uncertainty");
+        // existing behaviour preserved:
+        assert!(r.contains("calibrated confidence"));
+    }
 }
+
