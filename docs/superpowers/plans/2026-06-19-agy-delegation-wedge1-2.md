@@ -1421,6 +1421,274 @@ git commit -m "docs(skills): delegate-gemini batch fan-out + integration rules"
 
 ---
 
+# WEDGE C — Antigravity credits doc + Clavis credential-awareness
+
+> **Goal of this wedge:** persistently document how Vox interfaces with Antigravity credits/limits, and make the credential surface *dynamically aware of every key we hold* so model/provider selection (OpenRouter is one of many) and delegation both know what's actually payable right now.
+>
+> **Ground truth (verified 2026-06-19 — do not re-derive):**
+> - "Vox Clavis" = the **`vox-secrets`** crate (vault `.vox/clavis_vault.db`). Key API: `vox_secrets::resolve_secret(SecretId)`, `vox_secrets::list_secret_status() -> Vec<SecretStatusRow>` (redaction-safe enumerate-all), `vox_secrets::store_secret(...)`.
+> - The "Clavis interceptor" is **not a crate** — it is the resolution chokepoint `resolve_secret()` / `vox-config::resolve_egress`. Don't invent an interceptor type.
+> - Selection is **already credential-aware**: `vox_orchestrator::models::key_guard::provider_secret_is_available(&ProviderType) -> bool` maps each provider → `SecretId` → Clavis; local providers (`Ollama`, `PopuliMesh`, `VoxLocal`) return `true` with no secret. The unified SSOT selector is `vox_orchestrator::models::select::decide(&request, &registry)`.
+> - **`agy` is a *delegation* provider, NOT an inference `ProviderType`.** It has **no headless API key** ([antigravity-cli#78](https://github.com/google-antigravity/antigravity-cli/issues/78), open) — OAuth only, balance not queryable. **Do NOT add `ProviderType::Antigravity`** (it would break every exhaustive match in the model system for zero inference benefit). Its availability comes from `agy_doctor::detect()`. The Clavis-keyed Gemini path is the separate `GoogleDirect` / `GEMINI_API_KEY` egress, already wired.
+>
+> See the persistent doc: `docs/src/architecture/antigravity-credits-auth-and-limitations-2026-06-19.md`.
+
+## Task C0: Commit & link the Antigravity-credits SSOT doc
+
+**Files:** `docs/src/architecture/antigravity-credits-auth-and-limitations-2026-06-19.md` (already written).
+
+- [ ] **Step 1: Verify frontmatter parity** with sibling architecture docs (AGENTS.md requires `title`/`description`/`category`/`status`).
+
+Run: `rg -n '^category:' docs/src/architecture/*.md | head` and confirm this doc uses `category: "Architecture SSOTs"` like its siblings. Do NOT hand-edit `docs/src/SUMMARY.md` / `architecture-index.md` — they are tool-regenerated.
+
+- [ ] **Step 2: Regenerate the docs index if the repo has a generator** (find it — `rg -n "SUMMARY.md" crates/ scripts/`), otherwise skip.
+
+Run: the discovered generator (e.g. `cargo run -p vox-cli -- docs sync` — confirm exact command; if none, skip).
+Expected: `SUMMARY.md` lists the new doc; no manual edits.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add docs/src/architecture/antigravity-credits-auth-and-limitations-2026-06-19.md docs/src/SUMMARY.md 2>/dev/null
+git commit -m "docs(arch): Antigravity credits, auth & limitations SSOT"
+```
+
+## Task C1: `available_inference_providers()` — enumerate every credentialed provider
+
+**Files:** modify `crates/vox-orchestrator/src/models/key_guard.rs`.
+
+- [ ] **Step 1: Confirm there is no existing enumerator** and the exact `ProviderType` variants.
+
+Run: `rg -n "available_.*providers|provider_secret_is_available|enum ProviderType" crates/vox-orchestrator crates/vox-orchestrator-types`
+Expected: `provider_secret_is_available` exists; no `available_inference_providers`. Record the exact variant list.
+
+- [ ] **Step 2: Write the failing test** (deterministic: local providers are always available regardless of secrets):
+
+```rust
+#[cfg(test)]
+mod avail_tests {
+    use super::*;
+    use vox_orchestrator_types::ProviderType;
+
+    #[test]
+    fn local_providers_always_available_and_listed() {
+        let avail = available_inference_providers();
+        // Local inference needs no Clavis key, so it must always be present.
+        assert!(avail.contains(&ProviderType::Ollama));
+        assert!(avail.contains(&ProviderType::PopuliMesh));
+        assert!(avail.contains(&ProviderType::VoxLocal));
+        // The function must be total (returns the providers it checked, not empty).
+        assert!(avail.len() >= 3);
+    }
+}
+```
+
+- [ ] **Step 3: Run test to verify it fails**
+
+Run: `cargo test -p vox-orchestrator key_guard::avail_tests`
+Expected: FAIL — `available_inference_providers` undefined.
+
+- [ ] **Step 4: Implement** (append to `key_guard.rs` — match the real variant list from Step 1; do not invent variants):
+
+```rust
+use vox_orchestrator_types::ProviderType;
+
+/// Every inference provider Vox can pay for *right now*, by checking each
+/// provider's Clavis key via `provider_secret_is_available`. Local providers
+/// (no key needed) are always included. This is the credential-aware SSOT the
+/// selector and the `vox_credentials_status` surface consult — OpenRouter is
+/// one of many.
+pub fn available_inference_providers() -> Vec<ProviderType> {
+    // Concrete, credential-bearing variants (NOT Custom(_), which is endpoint-specific).
+    const CANDIDATES: &[ProviderType] = &[
+        ProviderType::GoogleDirect,
+        ProviderType::OpenRouter,
+        ProviderType::Groq,
+        ProviderType::Mistral,
+        ProviderType::DeepSeek,
+        ProviderType::SambaNova,
+        ProviderType::Cerebras,
+        ProviderType::Anthropic,
+        ProviderType::HuggingFaceRouter,
+        ProviderType::Ollama,
+        ProviderType::PopuliMesh,
+        ProviderType::VoxLocal,
+    ];
+    CANDIDATES
+        .iter()
+        .filter(|p| provider_secret_is_available(p))
+        .cloned()
+        .collect()
+}
+```
+
+> If `ProviderType` is not `Copy`/`Clone` or a variant is missing/renamed, fix the list to match Step 1's output exactly. If `CANDIDATES` as a `const` is rejected (non-`const` variants), use a `let` array.
+
+- [ ] **Step 5: Run test to verify it passes**
+
+Run: `cargo test -p vox-orchestrator key_guard::avail_tests`
+Expected: PASS.
+
+- [ ] **Step 6: Wire it into selection (verify-first).** Confirm whether `select::decide` already filters by availability.
+
+Run: `rg -n "provider_secret_is_available|available_inference_providers" crates/vox-orchestrator/src/models/select.rs crates/vox-config/src/resolve_egress.rs`
+- If selection already filters by `provider_secret_is_available`, leave it (it's covered) and note it here.
+- If NOT, add a filter step in `decide()` that drops candidates whose `provider_type` is absent from `available_inference_providers()`, plus a `rejection_reasons` entry `"<provider>: no credential"`. Add a test asserting a candidate with an unavailable provider is rejected.
+
+- [ ] **Step 7: clippy + commit**
+
+```bash
+cargo clippy -p vox-orchestrator -- -D warnings
+git add crates/vox-orchestrator/src/models/key_guard.rs crates/vox-orchestrator/src/models/select.rs 2>/dev/null
+git commit -m "feat(models): available_inference_providers() — credential-aware provider set"
+```
+
+## Task C2: `vox_credentials_status` MCP tool — one view of every payable provider + agy
+
+**Files:** modify `crates/vox-orchestrator-mcp/src/agy_tools.rs`, `dispatch.rs`, `input_schemas.rs`, `contracts/mcp/tool-registry.canonical.yaml`.
+
+- [ ] **Step 1: Failing test** (pure JSON builder; uses redaction-safe status only):
+
+```rust
+    #[test]
+    fn credentials_status_has_inference_and_delegation_sections() {
+        let v = credentials_status_json();
+        assert!(v.get("inference_providers").is_some());
+        assert!(v.get("delegation").and_then(|d| d.get("agy")).is_some());
+    }
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `cargo test -p vox-orchestrator-mcp agy_tools::tests::credentials_status_has_inference_and_delegation_sections`
+Expected: FAIL — `credentials_status_json` undefined.
+
+- [ ] **Step 3: Implement** (append to `agy_tools.rs`). Confirm `vox_secrets::list_secret_status()` row fields first (`rg -n "struct SecretStatusRow" crates/vox-secrets/src`):
+
+```rust
+/// Unified, redaction-safe view of what Vox can actually use right now:
+/// every inference provider with a present Clavis key, plus the agy delegation
+/// provider's doctor state. This is the "dynamically aware of all keys" surface.
+pub fn credentials_status_json() -> serde_json::Value {
+    // Redaction-safe: list_secret_status() reports presence, never values.
+    let secret_rows: Vec<serde_json::Value> = vox_secrets::list_secret_status()
+        .into_iter()
+        .map(|row| {
+            // Map row fields to {key, present}; confirm the real field names in Step 3.
+            serde_json::json!({ "key": format!("{:?}", row) })
+        })
+        .collect();
+    let inference: Vec<String> = vox_orchestrator::models::key_guard::available_inference_providers()
+        .into_iter()
+        .map(|p| format!("{p:?}"))
+        .collect();
+    serde_json::json!({
+        "inference_providers": inference,        // providers we can pay for now
+        "secrets": secret_rows,                  // redaction-safe presence list
+        "delegation": { "agy": doctor_report_json() },
+        "note": "agy is billed in Antigravity credits (not USD) and has no queryable balance; see docs/src/architecture/antigravity-credits-auth-and-limitations-2026-06-19.md",
+    })
+}
+
+/// `vox_credentials_status`
+pub async fn vox_credentials_status(_state: &ServerState, _args: serde_json::Value) -> String {
+    ToolResult::ok(credentials_status_json()).to_json()
+}
+```
+
+> Verify `vox-orchestrator-mcp` already depends on `vox-orchestrator` and `vox-secrets` (`rg -n "vox-orchestrator|vox-secrets" crates/vox-orchestrator-mcp/Cargo.toml`). They are L3 peers; if the dep is absent, STOP and report rather than adding a cross-layer dep that arch-check may reject.
+
+- [ ] **Step 4: Register** (dispatch arm, schema arm `{ "type":"object","properties":{} }`, registry entry `name: vox_credentials_status`, description "List every inference provider with a present credential plus the agy delegation status — the credential-aware model-selection surface."). Then:
+
+Run: `cargo build -p vox-orchestrator-mcp && cargo run -p vox-cli -- ci ssot-drift`
+Expected: green; tool registered. (No `registry.rs` to commit.)
+
+- [ ] **Step 5: Test + commit**
+
+```bash
+cargo test -p vox-orchestrator-mcp agy_tools::tests::credentials_status_has_inference_and_delegation_sections
+git add crates/vox-orchestrator-mcp/src/agy_tools.rs crates/vox-orchestrator-mcp/src/dispatch.rs crates/vox-orchestrator-mcp/src/input_schemas.rs contracts/mcp/tool-registry.canonical.yaml
+git commit -m "feat(agy): vox_credentials_status — unified credential-aware provider surface"
+```
+
+## Task C3: Clavis config for the Gemini-direct path + budget honesty
+
+**Files:** modify `crates/vox-llm-config/src/keys.rs` (verify-first); modify `agy_tools.rs` (delegation result billing tag).
+
+- [ ] **Step 1: Verify the Clavis-keyed Gemini path already exists.**
+
+Run: `rg -n "GeminiApiKey|GEMINI_API_KEY" crates/vox-secrets/src crates/vox-llm-config/src`
+Expected: `SecretId::GeminiApiKey` (`GEMINI_API_KEY`) already present (it is). ⇒ **No new secret needed** for the direct-Gemini inference path; it's already credential-aware via `key_guard`.
+
+- [ ] **Step 2: Add ONE non-secret config hint** for guiding agy's interactive auth (a GCP project id — NOT a secret, NOT an API key). Confirm the `keys.rs` macro/shape first (`rg -n "secret_key!|LLM_CONFIG_KEYS|fn .*key" crates/vox-llm-config/src/keys.rs`), then add an entry matching the existing non-secret pattern:
+
+```rust
+    // Non-secret operator hint: which GCP project agy should auth against.
+    // agy itself manages the OAuth token; we only record the project for guidance.
+    // (Match the EXACT constructor shape used by sibling non-secret keys.)
+    LlmConfigKey {
+        env: "VOX_AGY_GCP_PROJECT",
+        default: "",
+        kind: Kind::String,
+        group: Group::ModelsAndEndpoints,
+        class: ConfigClass::NodeLocal,
+        label: "Antigravity GCP project",
+        hint: "Optional GCP project id agy authenticates against; agy stores its own OAuth token.",
+        secret: false,
+        persistence: Persistence::FlatToml,
+    },
+```
+
+> If the real `LlmConfigKey` field set differs, copy a sibling entry verbatim and change only the values. There is a parity test over this registry — run it (Step 4).
+
+- [ ] **Step 3: Tag delegation results with their billing dimension** so budgeting never double-counts agy as USD. In `vox_agy_delegate`'s success `json!` (Task 7), add:
+
+```rust
+        "billing": "antigravity-credits",
+        "billing_note": "Antigravity credits (not USD); balance not queryable — see the credits SSOT doc.",
+```
+
+- [ ] **Step 4: Run the llm-config parity/SSOT gate + drift.**
+
+Run: `cargo test -p vox-llm-config && cargo run -p vox-cli -- ci ssot-drift`
+Expected: green (the new key is consistent across config/GUI/secrets views). If a parity test fails, fix the entry to match — do NOT relax the test (ledger B-10).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add crates/vox-llm-config/src/keys.rs crates/vox-orchestrator-mcp/src/agy_tools.rs
+git commit -m "feat(clavis): VOX_AGY_GCP_PROJECT hint + agy credit-billing tag on delegations"
+```
+
+## Task C4: Skill + doc cross-link; Wedge C verification sweep
+
+**Files:** modify `delegate-gemini.skill.md`; verify the credits doc.
+
+- [ ] **Step 1:** Add a "Credentials & budget" note to `delegate-gemini.skill.md`: call `vox_credentials_status` to see which providers are payable; agy uses Antigravity credits (OAuth, no stored key, balance not queryable); the Gemini-direct inference path uses `GEMINI_API_KEY` in Clavis. Link the credits SSOT doc.
+
+- [ ] **Step 2: Full sweep** (verification-before-completion; paste outputs):
+
+```bash
+cargo test -p vox-orchestrator key_guard::avail_tests
+cargo test -p vox-orchestrator-mcp agy_tools::
+cargo test -p vox-llm-config
+cargo clippy -p vox-orchestrator -p vox-orchestrator-mcp -- -D warnings
+cargo run -p vox-arch-check
+cargo run -p vox-cli -- ci ssot-drift
+```
+Expected: all green; `vox_credentials_status`, `vox_agy_doctor`, `vox_agy_delegate`, `vox_agy_delegate_batch` all registered.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add crates/vox-skills/skills/superpowers/delegate-gemini.skill.md
+git commit -m "docs(skills): delegate-gemini credentials/budget awareness + credits doc link"
+```
+
+**✅ Wedge C complete:** persistent Antigravity-credits SSOT; agy registered as a doctor-gated delegation provider; a unified `vox_credentials_status` surface that makes selection/budgeting aware of every credential we hold (OpenRouter one of many); honest credit-vs-USD accounting.
+
+---
+
 ## Out of scope (future Wedge 3)
 - Live streaming dashboard for in-flight workers (agy's `/agents` panel is TUI-only; headless surfacing needs a different mechanism).
 - Managing agy's *internal* sub-agents (not exposed under `-p`).
