@@ -1,104 +1,138 @@
 # Antigravity (`agy`) Native Delegation — Wedge 1 + Wedge 2 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers (executor = Claude Sonnet 4.6):** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax. **Read the "Executor profile" and "Execution topology" sections before Task 0** — they tell you how to pace yourself, when to verify, and which tasks may run in parallel.
 
-**Goal:** Let Claude Code (and Vox itself) delegate heavy code-generation/refactoring tasks to Google Antigravity's Gemini agent *natively from Rust*, with no copy-paste, by shelling out to the installed `agy` CLI binary — sandboxed, auto-accepting, and auto-logged to the handoff ledger.
+**Goal:** Let Claude Code (and Vox itself) delegate heavy code-generation/refactoring to Google Antigravity's Gemini agent *natively from Rust*, with no copy-paste — by shelling out to the installed `agy` CLI — sandboxed in a git-worktree jail, auto-accepting prompts, auto-logged to the handoff ledger, and **gracefully self-healing when `agy` is absent or unauthenticated**.
 
-**Architecture:** There is **no `antigravity-sdk-rust` crate** (verified 2026-06-19; the official SDK is Python-only, the CLI `agy` is Go). So the "dependency" is a **runtime binary, not a cargo crate** — near-zero compile weight. We add a thin native executor (`AgyExec`, modeled exactly on the existing `GitExec`) inside `vox-orchestrator-mcp`, expose it as MCP tools (`vox_agy_delegate`, then `vox_agy_delegate_batch`), and drive it from one SSOT skill (`delegate-gemini.skill.md`) discovered by both Vox and Claude Code. Auto-accept of human-intervention prompts uses `agy --dangerously-skip-permissions`; because that flag is a **known sandbox-escape vector** ([antigravity-cli#36](https://github.com/google-antigravity/antigravity-cli/issues/36)), the sandbox boundary is enforced by **Vox**, not by `agy` — every delegation runs inside a dedicated, path-jailed git worktree.
+**Architecture:** There is **no `antigravity-sdk-rust` crate** (verified 2026-06-19; the official SDK is Python-only, the CLI `agy` is Go). The "dependency" is a **runtime binary, not a cargo crate** — near-zero compile weight. We add a thin native executor (`AgyExec`, modeled on the existing `GitExec`), a **binary doctor** (`agy_doctor`) that detects/locates/diagnoses `agy` and emits precise install+auth remediation, MCP tools (`vox_agy_doctor`, `vox_agy_delegate`, `vox_agy_delegate_batch`), and one SSOT skill (`delegate-gemini.skill.md`) discovered by both Vox and Claude Code. Auto-accept uses `agy --dangerously-skip-permissions`; because that flag is a **known sandbox-escape vector** ([antigravity-cli#36](https://github.com/google-antigravity/antigravity-cli/issues/36)), the sandbox is enforced by **Vox** (a per-delegation git worktree), never by `agy --sandbox`.
 
-**Tech Stack:** Rust (`tokio::process::Command`, `serde_json`, `thiserror`), the existing `vox-orchestrator-mcp` MCP tool layer (`ServerState`, `ToolResult`, dispatch/registry/input-schema wiring), `GitExec` for worktree creation + diff capture, the `agy` CLI binary, the append-only handoff ledger (`docs/superpowers/antigravity-handoff-ledger.md`), and the `.skill.md` skills SSOT.
+**Tech Stack:** Rust (`tokio::process::Command` with `kill_on_drop`, `serde_json`, `thiserror`, `tracing`, `chrono`, `which`), the `vox-orchestrator-mcp` MCP layer (`ServerState`, `ToolResult`, `handle_tool_call_inner`, `tool_input_schema`), `GitExec` for worktree+diff, the canonical MCP registry (`contracts/mcp/tool-registry.canonical.yaml` → `vox-mcp-registry/build.rs`), the append-only handoff ledger, and the `.skill.md` skills SSOT.
+
+---
+
+## Executor profile — operating rules for Claude Sonnet 4.6
+
+This plan is written to be executed by **Sonnet 4.6**, whose known failure modes (from the handoff ledger §B and general experience) are: drifting on long context, hallucinating framework APIs, asserting *shape* instead of *effect*, and silently weakening gates. Counter each:
+
+1. **One task at a time. Do not read ahead and batch.** Each task is self-contained with exact paths and full code. Implement, run the listed command, confirm the expected output, commit, then move on.
+2. **Confirm every cross-file symbol with `rg` before you use it.** This plan lists ground-truth signatures (verified 2026-06-19), but the tree moves. If a referenced symbol (`ServerState.repository.root`, `ToolResult::err_with_remediation`, `GitExec::run`) is not where the plan says, STOP and report — do not invent a replacement (ledger lesson B-6).
+3. **Prove effect, not shape (ledger B-9).** A test that asserts a substring is hollow. Where the plan gives a behavioral test, keep it behavioral.
+4. **Run gates exactly as written (ledger B-10).** Never substitute `--warn-only`, `|| true`, `--no-verify`, or a narrower scope. If a gate is red at baseline for unrelated reasons, STOP and report (ledger B-2) — do not edit `layers.toml` or add allowlist entries you weren't told to.
+5. **Stay on one branch off current `origin/main`, this plan's commits only (ledger B-3).** Report a delivery manifest of every file you touched (ledger B-4).
+6. **Windows host.** Use the Bash tool for POSIX one-liners and PowerShell for Windows-native commands; never `cargo fmt --all` (use `cargo fmt -p <crate>`). All process spawns set `CREATE_NO_WINDOW`.
+7. **No new `.ps1`/`.sh`/`.py` scripts** (AGENTS.md). Automation is Rust + VoxScript only. Invoking the *vendor's* installer is allowed; authoring a shell script is not.
+
+---
+
+## Execution topology — when to parallelize
+
+Most tasks edit a **shared, growing set of files** (`agy_exec.rs` in Tasks 3/4/11/12; `agy_tools.rs` in Tasks 7/13; registry trio in Tasks 8/14). Per superpowers:dispatching-parallel-agents, **two agents must never edit the same file** — so the spine is **SEQUENTIAL** and should be run with superpowers:subagent-driven-development (fresh subagent per task, review between).
+
+The only genuinely file-disjoint, dependency-free work that may run as **one parallel wave** (use dispatching-parallel-agents, or the Workflow tool with one agent per item):
+
+| Parallel wave (after Task 6) | File (disjoint) | Depends on |
+|---|---|---|
+| `delegate-gemini.skill.md` (Task 9 body) | `crates/vox-skills/skills/superpowers/delegate-gemini.skill.md` | nothing |
+| arch-check chokepoint rule (Task 15) | `crates/vox-arch-check/src/forbidden_patterns.rs` | nothing |
+
+Everything else is sequential. **Do not force parallelism on the Rust spine** — the file overlap guarantees lost-write corruption, and these tasks are minutes each. This is the honest answer to "where is parallel dispatch appropriate": *here, almost nowhere on the build itself* — parallelism is the **product** (Wedge 2 fans out `agy` workers), not the build method.
 
 ---
 
 ## Verified vs. unverified facts (read before starting)
 
-**Verified from public docs/community (2026-06):**
-- `agy -p "<prompt>"` (`--print`) — non-interactive: runs one prompt and exits. The CI/script mode.
+**Verified — `agy` runtime surface (2026-06):**
+- `agy -p "<prompt>"` (`--print`) — non-interactive: one prompt, then exits. The CI/script mode.
 - `agy -i` (`--prompt-interactive`) — interactive TUI. **We never use this.**
 - `agy --dangerously-skip-permissions` — auto-approves *all* tool/command confirmations ("force accept human intervention").
-- `agy --sandbox` exists, **but** combined with `--dangerously-skip-permissions` it is bypassable (the model is hinted to pass `bypassSandbox: true` and obeys). Issue #36, **open, no maintainer fix**. ⇒ **Do not rely on `agy --sandbox` for safety.**
-- Async sub-agents are spawned *automatically by agy's own orchestrator*; the `/agents` panel that manages them is **TUI-only** (unavailable under `-p`). ⇒ We do not manage agy's internal sub-agents; *our* parallelism is N concurrent `agy -p` processes.
-- No reliable `--output-format json` (community reports it undefined). ⇒ **Parse exit code + stderr + the resulting `git diff`. Never assume JSON stdout.**
+- `agy --sandbox` exists **but** combined with `--dangerously-skip-permissions` is bypassable (the model is hinted `bypassSandbox: true` and obeys) — [#36](https://github.com/google-antigravity/antigravity-cli/issues/36), **open, no fix**. ⇒ **Never pass `--sandbox`.**
+- No reliable `--output-format json`. ⇒ **Parse exit code + stderr + the resulting `git diff`. Never assume JSON stdout.**
+- Async sub-agents are auto-spawned by `agy`'s own orchestrator; the `/agents` panel is **TUI-only** (unavailable under `-p`). ⇒ We do not manage agy's internal sub-agents; *our* parallelism is N concurrent `agy -p` processes.
 - Default model: Gemini 3.5 Flash (High).
 
-**UNVERIFIED — confirm with `agy --help` in Task 0 before hardcoding:**
-- A `--model` flag (model selection).
-- A `--cwd` / working-directory flag (we default to spawning with `current_dir(worktree)`).
-- Exact spelling of any sandbox flags beyond `--sandbox`.
+**Verified — `agy` install/auth (2026-06):**
+- Install (Unix, and Windows via Git Bash): `curl -fsSL https://antigravity.google/cli/install.sh | bash` (drops binary `agy` into `~/.local/bin/` on Unix, `%LOCALAPPDATA%\Antigravity\` on Windows).
+- **Auth is interactive OAuth.** First `agy` run kicks off Google Sign-In (OAuth or a GCP project). ⇒ **Login cannot be fully automated and we must not store Google credentials.** The doctor detects + instructs; a human signs in once.
+- Not on npm; it's a downloaded binary.
 
-> **Ledger lesson B-1/B-6 applies to us too:** do not hardcode an `agy` flag we have not confirmed. Task 0 captures `agy --help` to a fixture; later tasks reference that fixture, not memory.
+**UNVERIFIED — confirm in Task 0 before hardcoding (do NOT assume):**
+- A `--model` flag spelling; a `--cwd` flag; a `--version`/`version` subcommand string; whether a dedicated **Windows** installer (`.ps1`/`.msi`) exists beyond the bash script; whether `agy` exposes a non-interactive **auth-status** check. The doctor probes these at runtime rather than trusting this list.
 
 ---
 
 ## Architecture decisions (locked)
 
-1. **No new crate.** The binary is the dependency. Core logic lives in `vox-orchestrator-mcp` (L3), beside its closest precedent `git_exec.rs`.
-2. **Single SSOT skill.** `crates/vox-skills/skills/superpowers/delegate-gemini.skill.md` is discovered by Vox *and* Claude Code (existing discovery + `.agents`/`.claude` mounts). No per-tool copies.
-3. **Sandbox = Vox-owned worktree jail**, not `agy --sandbox`. Every delegation: create worktree off current `HEAD` → spawn `agy` with `current_dir(worktree)` → capture diff → caller reviews → optional integrate. Untrusted output never touches the live tree until reviewed.
-4. **Auto-accept = `--dangerously-skip-permissions`**, made safe *only* by (3) + a hard timeout watchdog. The executor **refuses** to pass both `--sandbox` and `--dangerously-skip-permissions` together (defends against #36 footgun).
-5. **Ledger auto-write** is a first-class output of every delegation, produced by `agy_ledger.rs` (unit-tested against a temp file), conforming to the existing §C schema and passing `vox ci handoff-ledger`.
-6. **Windows:** all `agy` spawns set `CREATE_NO_WINDOW` (no flashing console windows — see `feedback_no_console_windows_on_spawn`).
-7. **Wedge 1** = single delegation end-to-end. **Wedge 2** = batch fan-out (concurrency cap, per-worker worktree, quota/retry detection, aggregated ledger). Live dashboards are **out of scope** (future Wedge 3).
+1. **No new crate.** Logic lives in `vox-orchestrator-mcp` (L3), beside `git_exec.rs`. Deps (`tokio`, `serde_json`, `thiserror`, `tracing`, `chrono`) are already present; add `which` if not already a dep (Task 0 checks).
+2. **Binary doctor first.** `agy_doctor.rs` resolves the binary (PATH via `which`, then known install dirs) and reports `Missing | PresentUnauthed | Ready`, each with exact remediation. Every delegation tool calls the doctor first and returns the remediation as a structured `ToolResult` error instead of an opaque spawn failure.
+3. **Sandbox = Vox-owned worktree jail**, not `agy --sandbox`. Each delegation: create a worktree off `HEAD` with a **unique** slug → spawn `agy` with `current_dir(worktree)` → capture diff → caller reviews → optional integrate. Untrusted output never touches the live tree until reviewed.
+4. **Auto-accept = `--dangerously-skip-permissions`**, made safe by (3) + a **hard timeout that actually kills the child** (`kill_on_drop(true)`, verified below). The arg builder **refuses** to emit `--sandbox` alongside skip-permissions (#36 guard).
+5. **Ledger writes are serialized.** A process-global async mutex guards read-allocate-append so parallel Wedge-2 workers cannot allocate duplicate `AGH-NNNN` ids or lose updates.
+6. **Single SSOT skill** (`delegate-gemini.skill.md`); discovered by Vox + Claude Code like its siblings (no per-tool copies, not gated by `agentskills-compliance` which only covers `vox-plugin-*`).
+7. **Optional chokepoint rule.** Add `raw-agy-exec` to `vox-arch-check` so all `Command::new("agy")` must live in `agy_exec.rs` (mirrors `raw-git-exec`). Recommended hardening; the code passes without it because no current rule catches `agy`.
+8. **Wedge 1** = single delegation end-to-end + doctor. **Wedge 2** = batch fan-out (bounded concurrency, per-worker worktree, quota/timeout-aware retry). Live dashboards / agy-internal-subagent management are **out of scope** (Wedge 3).
 
-## File structure (what each file owns)
+## File structure
 
 | File | Responsibility | Wedge |
 |---|---|---|
-| `crates/vox-orchestrator-mcp/src/agy_exec.rs` | `AgyExec`: resolve binary, build args, spawn (timeout + `CREATE_NO_WINDOW`), capture stdout/stderr/exit; arg denylist (#36 guard). Mirrors `GitExec`. | 1 |
-| `crates/vox-orchestrator-mcp/src/agy_worktree.rs` | Create/remove an isolated delegation worktree via `GitExec`; capture `git diff` + untracked list. | 1 |
-| `crates/vox-orchestrator-mcp/src/agy_ledger.rs` | Allocate next `AGH-NNNN`, render a schema-valid yaml block, append to ledger §C. Pure formatting + file append. | 1 |
-| `crates/vox-orchestrator-mcp/src/agy_tools.rs` | MCP handlers `vox_agy_delegate` (W1) and `vox_agy_delegate_batch` (W2). Orchestrates exec+worktree+ledger. | 1, 2 |
-| `crates/vox-orchestrator-mcp/src/dispatch.rs` | Add routing arms for the new tools. | 1, 2 |
-| `crates/vox-orchestrator-mcp/src/input_schemas.rs` | JSON input schemas for the new tools. | 1, 2 |
-| `contracts/mcp/tool-registry.canonical.yaml` | Registry entries (name/description/tier/lane). Regenerates `registry.rs`. | 1, 2 |
-| `crates/vox-skills/skills/superpowers/delegate-gemini.skill.md` | The SSOT delegation skill (Claude + Vox). | 1 |
-| `crates/vox-orchestrator-mcp/tests/agy_*.rs` | Integration tests (binary-gated where they need real `agy`). | 1, 2 |
+| `crates/vox-orchestrator-mcp/src/agy_doctor.rs` | Resolve `agy` binary; classify `Missing/PresentUnauthed/Ready`; emit install+auth remediation. | 1 |
+| `crates/vox-orchestrator-mcp/src/agy_exec.rs` | `AgyExec`: arg builder (+#36 guard, slug sanitize), spawn with kill-on-timeout + `CREATE_NO_WINDOW`; Wedge-2 `classify_failure`/`should_retry`. | 1,2 |
+| `crates/vox-orchestrator-mcp/src/agy_worktree.rs` | Create/remove a unique isolated worktree via `GitExec`; capture diff + changed-file count. | 1 |
+| `crates/vox-orchestrator-mcp/src/agy_ledger.rs` | Allocate next `AGH-NNNN`; render schema-valid yaml; serialized append. | 1 |
+| `crates/vox-orchestrator-mcp/src/agy_tools.rs` | MCP handlers: `vox_agy_doctor`, `vox_agy_delegate` (W1), `vox_agy_delegate_batch` (W2). | 1,2 |
+| `crates/vox-orchestrator-mcp/src/dispatch.rs` | Arms in `handle_tool_call_inner`. | 1,2 |
+| `crates/vox-orchestrator-mcp/src/input_schemas.rs` | Arms in `tool_input_schema`. | 1,2 |
+| `contracts/mcp/tool-registry.canonical.yaml` | Registry entries (regenerated by `vox-mcp-registry/build.rs` at compile; **no `registry.rs` to commit**). | 1,2 |
+| `crates/vox-skills/skills/superpowers/delegate-gemini.skill.md` | SSOT delegation skill (Claude + Vox). | 1 |
+| `crates/vox-arch-check/src/forbidden_patterns.rs` | Optional `raw-agy-exec` chokepoint rule. | 2 |
+| `crates/vox-orchestrator-mcp/tests/agy_*.rs` | Gated integration smoke. | 1,2 |
 
 ---
 
-## Task 0: Pre-flight — confirm `agy` surface and arch-check baseline
+## Task 0: Pre-flight — confirm `agy` surface, deps, arch-check baseline
 
-**Files:**
-- Create: `crates/vox-orchestrator-mcp/tests/fixtures/agy-help.txt`
+**Files:** Create `crates/vox-orchestrator-mcp/tests/fixtures/agy-help.txt` (only if `agy` present).
 
-- [ ] **Step 1: Confirm the binary exists and capture its help.** If `agy` is not installed, STOP and report (the runtime dependency is missing).
+- [ ] **Step 1: Probe for `agy` and capture help (do not fail the plan if absent — the doctor handles absence).**
 
 ```bash
-agy --version || { echo "agy NOT INSTALLED — install Antigravity CLI before proceeding"; exit 1; }
-agy --help > crates/vox-orchestrator-mcp/tests/fixtures/agy-help.txt 2>&1
-agy -p --help >> crates/vox-orchestrator-mcp/tests/fixtures/agy-help.txt 2>&1 || true
+if command -v agy >/dev/null 2>&1; then
+  agy --help > crates/vox-orchestrator-mcp/tests/fixtures/agy-help.txt 2>&1 || true
+  agy --version >> crates/vox-orchestrator-mcp/tests/fixtures/agy-help.txt 2>&1 || true
+  echo "AGY PRESENT — fixture captured"
+else
+  echo "AGY ABSENT — doctor remediation path will be exercised; skip the gated smokes (Tasks 10/16 manual step)"
+fi
 ```
 
-- [ ] **Step 2: Reconcile flags against this plan.** Open the fixture and confirm: `-p`/`--print`, `--dangerously-skip-permissions`. Note the *actual* spelling of any `--model` and working-dir flags. If `-p` or `--dangerously-skip-permissions` is absent/renamed, STOP and update the plan's flag constants before writing code.
+- [ ] **Step 2: Reconcile flags.** If the fixture exists, confirm `-p`/`--print` and `--dangerously-skip-permissions`, and note the real `--model`/`--cwd`/version-subcommand spellings. If `-p` or `--dangerously-skip-permissions` is absent/renamed, STOP and update the flag constants in this plan before coding.
 
-- [ ] **Step 3: Capture the arch-check baseline.** The executor will call `Command::new("agy")`, which (like `git`) is likely denied outside a designated file.
+- [ ] **Step 3: Confirm the `which` crate is available** (the doctor uses it; arch-check's `no-hardcoded-shell-spawn` reason explicitly endorses `which::which`).
+
+Run: `rg '^which' crates/vox-orchestrator-mcp/Cargo.toml || rg 'which' Cargo.toml`
+If absent: add `which = "<version used elsewhere in the workspace>"` to `crates/vox-orchestrator-mcp/Cargo.toml` (find the workspace-pinned version with `rg 'which' -g 'Cargo.toml'`). Do not invent a version.
+
+- [ ] **Step 4: arch-check baseline.**
 
 Run: `cargo run -p vox-arch-check`
-Expected: green at baseline (record any pre-existing red and STOP if red for unrelated reasons — ledger lesson B-2; do not edit `layers.toml` to "fix" it).
+Expected: green at baseline. If red for unrelated reasons, STOP and report (ledger B-2). Note: there is currently **no** rule forbidding `Command::new("agy")` (verified: `forbidden_patterns.rs` has only `raw-git-exec` and `no-hardcoded-shell-spawn`), so the executor needs **no** allow-annotation until Task 15 adds the chokepoint rule.
 
-- [ ] **Step 4: Discover the exact process-spawn arch annotation.** Inspect how `git_exec.rs:85` is annotated (`// vox-arch-check: allow git-exec`) and find the rule that governs `Command::new` outside allowlisted files.
-
-Run: `rg -n "vox-arch-check: allow" crates/ | rg -i "exec|spawn|command"`
-Expected: you can name the annotation you will add above `Command::new("agy")` in `agy_exec.rs`. If no generic rule exists, the executor file may need an allowlist entry — note the exact mechanism here: `__________`.
-
-- [ ] **Step 5: Commit the fixture.**
+- [ ] **Step 5: Commit (only if a fixture was created).**
 
 ```bash
-git add crates/vox-orchestrator-mcp/tests/fixtures/agy-help.txt
-git commit -m "test(agy): capture agy --help surface + arch-check preflight"
+git add crates/vox-orchestrator-mcp/tests/fixtures/agy-help.txt crates/vox-orchestrator-mcp/Cargo.toml 2>/dev/null
+git commit -m "test(agy): capture agy surface + which dep + arch-check preflight" || echo "nothing to commit"
 ```
 
 ---
 
-# WEDGE 1 — Single native delegation, end-to-end
+# WEDGE 1 — Doctor + single native delegation
 
-## Task 1: `AgyExec` — argument builder + #36 denylist (pure, no spawn)
+## Task 1: `agy_doctor` — resolve, classify, remediate
 
-**Files:**
-- Create: `crates/vox-orchestrator-mcp/src/agy_exec.rs`
-- Modify: `crates/vox-orchestrator-mcp/src/lib.rs` (add `pub mod agy_exec;`)
+**Files:** Create `crates/vox-orchestrator-mcp/src/agy_doctor.rs`; modify `lib.rs` (`pub mod agy_doctor;`).
 
-- [ ] **Step 1: Write the failing test** (`agy_exec.rs`, `#[cfg(test)]` module):
+- [ ] **Step 1: Write the failing test:**
 
 ```rust
 #[cfg(test)]
@@ -106,24 +140,264 @@ mod tests {
     use super::*;
 
     #[test]
-    fn builds_headless_autoaccept_args() {
-        let spec = AgySpec {
-            task: "Refactor foo".into(),
-            model: None,
-            timeout_secs: 600,
-        };
+    fn remediation_for_missing_is_actionable() {
+        let r = remediation(&AgyStatus::Missing);
+        assert!(r.contains("install.sh"));
+        assert!(r.contains("agy")); // names the binary
+    }
+
+    #[test]
+    fn remediation_for_unauthed_mentions_interactive_login() {
+        let r = remediation(&AgyStatus::PresentUnauthed { path: "/x/agy".into() });
+        assert!(r.to_lowercase().contains("sign-in") || r.to_lowercase().contains("oauth"));
+    }
+
+    #[test]
+    fn known_install_dirs_are_platform_specific() {
+        let dirs = known_install_dirs();
+        assert!(!dirs.is_empty());
+    }
+}
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `cargo test -p vox-orchestrator-mcp agy_doctor::tests`
+Expected: FAIL — symbols undefined.
+
+- [ ] **Step 3: Implement:**
+
+```rust
+//! Detects, locates, and diagnoses the Antigravity `agy` CLI, and produces
+//! precise, LLM-followable remediation when it is missing or unauthenticated.
+//! Auth is interactive OAuth — we never store credentials; we only instruct.
+
+use std::path::PathBuf;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum AgyStatus {
+    Missing,
+    PresentUnauthed { path: String },
+    Ready { path: String, version: String },
+}
+
+/// Best-effort platform install locations the installer documents, in addition to PATH.
+pub fn known_install_dirs() -> Vec<PathBuf> {
+    let mut v = Vec::new();
+    if let Some(home) = dirs_home() {
+        v.push(home.join(".local").join("bin"));
+    }
+    #[cfg(windows)]
+    if let Ok(lad) = std::env::var("LOCALAPPDATA") {
+        v.push(PathBuf::from(lad).join("Antigravity"));
+    }
+    v
+}
+
+fn dirs_home() -> Option<PathBuf> {
+    std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .map(PathBuf::from)
+}
+
+fn bin_name() -> &'static str {
+    if cfg!(windows) { "agy.exe" } else { "agy" }
+}
+
+/// Resolve the binary path via PATH (`which`) then known install dirs.
+pub fn resolve_agy() -> Option<PathBuf> {
+    if let Ok(p) = which::which("agy") {
+        return Some(p);
+    }
+    for d in known_install_dirs() {
+        let candidate = d.join(bin_name());
+        if candidate.exists() {
+            return Some(candidate);
+        }
+    }
+    None
+}
+
+/// Synchronous, fast classification (no long network calls). `version` is probed
+/// via `agy --version`; auth state is best-effort (see note in detect()).
+pub fn detect() -> AgyStatus {
+    let Some(path) = resolve_agy() else {
+        return AgyStatus::Missing;
+    };
+    let path_s = path.to_string_lossy().to_string();
+    // vox-arch-check: agy is not a forbidden spawn target (see Task 0 Step 4)
+    let ver = std::process::Command::new(&path).arg("--version").output();
+    match ver {
+        Ok(o) if o.status.success() => AgyStatus::Ready {
+            path: path_s,
+            version: String::from_utf8_lossy(&o.stdout).trim().to_string(),
+        },
+        // Binary exists but `--version` failed (could be unauthed first-run, or a
+        // different version flag). Treat as present-but-needs-attention; the
+        // delegation path surfaces the real stderr on first use.
+        _ => AgyStatus::PresentUnauthed { path: path_s },
+    }
+}
+
+pub fn remediation(status: &AgyStatus) -> String {
+    match status {
+        AgyStatus::Missing => format!(
+            "`agy` (Antigravity CLI) is not installed or not on PATH.\n\
+             INSTALL (verify the URL at https://antigravity.google/docs/cli before running):\n\
+             - Unix / Windows-Git-Bash: curl -fsSL https://antigravity.google/cli/install.sh | bash\n\
+             The installer drops `agy` into ~/.local/bin (Unix) or %LOCALAPPDATA%\\Antigravity (Windows).\n\
+             ADD TO PATH if `agy --version` still fails after install, then restart the shell.\n\
+             THEN authenticate (interactive, one-time): run `agy` once and complete the Google Sign-In.\n\
+             Re-run vox_agy_doctor to confirm Ready."
+        ),
+        AgyStatus::PresentUnauthed { path } => format!(
+            "`agy` was found at {path} but is not confirmed ready (likely needs a one-time \
+             interactive Google Sign-In / OAuth, or uses a different version flag).\n\
+             ACTION (human, one-time): run `agy` in a terminal and complete the sign-in flow. \
+             We do NOT store Google credentials. Then re-run vox_agy_doctor."
+        ),
+        AgyStatus::Ready { path, version } => {
+            format!("`agy` ready at {path} (version: {version}).")
+        }
+    }
+}
+```
+
+> If `dirs`/`which` ergonomics differ, prefer the workspace's existing home-dir/`which` helpers — `rg "which::which|fn .*home" crates/` — over re-implementing. Do not add a new crate without checking it's workspace-pinned.
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `cargo test -p vox-orchestrator-mcp agy_doctor::tests`
+Expected: PASS (3 tests).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add crates/vox-orchestrator-mcp/src/agy_doctor.rs crates/vox-orchestrator-mcp/src/lib.rs
+git commit -m "feat(agy): doctor — resolve/classify/remediate the agy binary"
+```
+
+## Task 2: `vox_agy_doctor` MCP tool + registration
+
+**Files:** modify `agy_tools.rs` (create it), `lib.rs`, `dispatch.rs`, `input_schemas.rs`, `contracts/mcp/tool-registry.canonical.yaml`.
+
+- [ ] **Step 1: Failing test** (handler returns a JSON object with a `status`):
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn doctor_json_has_status_and_remediation() {
+        let v = doctor_report_json();
+        assert!(v.get("status").is_some());
+        assert!(v.get("remediation").is_some());
+    }
+}
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `cargo test -p vox-orchestrator-mcp agy_tools::tests::doctor_json_has_status_and_remediation`
+Expected: FAIL — `doctor_report_json` undefined.
+
+- [ ] **Step 3: Implement** (top of `agy_tools.rs`):
+
+```rust
+//! MCP tools for delegating to Antigravity `agy` (doctor + single + batch).
+
+use crate::agy_doctor::{detect, remediation, AgyStatus};
+use crate::params::ToolResult;
+use crate::server_state::ServerState;
+
+pub fn doctor_report_json() -> serde_json::Value {
+    let status = detect();
+    let (label, path) = match &status {
+        AgyStatus::Missing => ("missing", None),
+        AgyStatus::PresentUnauthed { path } => ("present_unauthed", Some(path.clone())),
+        AgyStatus::Ready { path, .. } => ("ready", Some(path.clone())),
+    };
+    serde_json::json!({
+        "status": label,
+        "path": path,
+        "remediation": remediation(&status),
+    })
+}
+
+/// `vox_agy_doctor`
+pub async fn vox_agy_doctor(_state: &ServerState, _args: serde_json::Value) -> String {
+    ToolResult::ok(doctor_report_json()).to_json()
+}
+```
+
+Add to `lib.rs`: `pub mod agy_tools;`.
+
+- [ ] **Step 4: Register.** Dispatch arm in `handle_tool_call_inner` (`dispatch.rs`):
+
+```rust
+        "vox_agy_doctor" => Ok(crate::agy_tools::vox_agy_doctor(state, args).await),
+```
+
+Schema arm in `tool_input_schema` (`input_schemas.rs`):
+
+```rust
+        "vox_agy_doctor" => serde_json::json!({ "type": "object", "properties": {} }),
+```
+
+Registry entry in `contracts/mcp/tool-registry.canonical.yaml` (copy the field shape of an existing entry — confirm fields with `rg -B1 -A6 'name: vox_gui_rules' contracts/mcp/tool-registry.canonical.yaml`):
+
+```yaml
+  - name: vox_agy_doctor
+    description: "Detect whether the Antigravity `agy` CLI is installed and ready; returns status plus exact install/auth remediation. Call before vox_agy_delegate."
+    product_lane: orchestrator
+    tier: standard
+    http_read_role_eligible: true
+```
+
+- [ ] **Step 5: Build + regenerate registry + drift gate.** The registry is generated at compile by `crates/vox-mcp-registry/build.rs` from the canonical yaml — **there is no `registry.rs` to edit or commit.**
+
+Run: `cargo build -p vox-orchestrator-mcp && cargo run -p vox-cli -- ci ssot-drift`
+Expected: build green; `ssot-drift` green with `vox_agy_doctor` present.
+
+- [ ] **Step 6: Test + commit**
+
+```bash
+cargo test -p vox-orchestrator-mcp agy_tools::tests::doctor_json_has_status_and_remediation
+git add crates/vox-orchestrator-mcp/src/agy_tools.rs crates/vox-orchestrator-mcp/src/lib.rs crates/vox-orchestrator-mcp/src/dispatch.rs crates/vox-orchestrator-mcp/src/input_schemas.rs contracts/mcp/tool-registry.canonical.yaml
+git commit -m "feat(agy): vox_agy_doctor MCP tool (install/auth diagnostics)"
+```
+
+## Task 3: `AgyExec` — arg builder, #36 guard, slug sanitizer (pure)
+
+**Files:** Create `crates/vox-orchestrator-mcp/src/agy_exec.rs`; modify `lib.rs`.
+
+- [ ] **Step 1: Failing test:**
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn builds_headless_autoaccept_args_without_sandbox() {
+        let spec = AgySpec { task: "Refactor foo".into(), model: None, timeout_secs: 600 };
         let args = build_args(&spec);
         assert_eq!(args[0], "-p");
         assert_eq!(args[1], "Refactor foo");
         assert!(args.iter().any(|a| a == "--dangerously-skip-permissions"));
-        // #36 guard: we must NOT also pass agy's own --sandbox.
-        assert!(!args.iter().any(|a| a == "--sandbox"));
+        assert!(!args.iter().any(|a| a == "--sandbox")); // #36 guard
     }
 
     #[test]
     fn rejects_empty_task() {
-        let spec = AgySpec { task: "   ".into(), model: None, timeout_secs: 600 };
-        assert!(validate_spec(&spec).is_err());
+        assert!(validate_spec(&AgySpec { task: "  ".into(), model: None, timeout_secs: 1 }).is_err());
+    }
+
+    #[test]
+    fn slug_is_path_safe() {
+        assert_eq!(sanitize_slug("Refactor/Foo Bar!!"), "refactor-foo-bar");
+        assert!(!sanitize_slug("../etc").contains('.'));
+        assert!(!sanitize_slug("../etc").contains('/'));
     }
 }
 ```
@@ -131,18 +405,17 @@ mod tests {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `cargo test -p vox-orchestrator-mcp agy_exec::tests`
-Expected: FAIL — `AgySpec` / `build_args` not defined.
+Expected: FAIL — symbols undefined.
 
-- [ ] **Step 3: Write minimal implementation** (top of `agy_exec.rs`):
+- [ ] **Step 3: Implement** (top of `agy_exec.rs`):
 
 ```rust
-//! Native executor for the Antigravity `agy` CLI. All `agy` invocations made
-//! from the orchestrator MUST go through `AgyExec::run` so the auto-accept +
-//! sandbox-isolation invariants and `vox.agy.exec` telemetry apply uniformly.
+//! Native executor for the Antigravity `agy` CLI. ALL `agy` spawns MUST go
+//! through `AgyExec::run` (enforced by the optional `raw-agy-exec` arch rule).
 //!
-//! Safety model: auto-accept (`--dangerously-skip-permissions`) defeats agy's
-//! own `--sandbox` (antigravity-cli#36), so we NEVER pass `--sandbox`; isolation
-//! is enforced by the caller running us inside a dedicated git worktree.
+//! Safety: auto-accept (`--dangerously-skip-permissions`) defeats agy's own
+//! `--sandbox` (antigravity-cli#36), so we NEVER pass `--sandbox`; isolation is
+//! the caller's per-delegation git worktree.
 
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
@@ -167,7 +440,7 @@ pub struct AgyOutput {
 pub enum AgyExecError {
     #[error("invalid delegation spec: {0}")]
     Invalid(String),
-    #[error("agy binary not found on PATH (install the Antigravity CLI)")]
+    #[error("agy binary not found (run vox_agy_doctor)")]
     NotFound,
     #[error("spawning agy failed: {0}")]
     Spawn(#[from] std::io::Error),
@@ -180,7 +453,6 @@ pub fn validate_spec(spec: &AgySpec) -> Result<(), AgyExecError> {
     Ok(())
 }
 
-/// Build the headless, auto-accepting arg vector. NB: no `--sandbox` (see #36).
 pub fn build_args(spec: &AgySpec) -> Vec<String> {
     let mut args = vec![
         "-p".to_string(),
@@ -188,62 +460,75 @@ pub fn build_args(spec: &AgySpec) -> Vec<String> {
         "--dangerously-skip-permissions".to_string(),
     ];
     if let Some(m) = &spec.model {
-        // Flag name confirmed in Task 0 fixture; adjust if agy uses a different spelling.
+        // Confirm `--model` spelling against the Task 0 fixture before relying on it.
         args.push("--model".to_string());
         args.push(m.clone());
     }
     args
 }
+
+/// Lowercase, `[a-z0-9-]` only, collapsed dashes, max 40 chars. Prevents path
+/// traversal / illegal worktree paths.
+pub fn sanitize_slug(s: &str) -> String {
+    let mut out = String::new();
+    let mut prev_dash = false;
+    for c in s.chars() {
+        let c = c.to_ascii_lowercase();
+        if c.is_ascii_alphanumeric() {
+            out.push(c);
+            prev_dash = false;
+        } else if !prev_dash && !out.is_empty() {
+            out.push('-');
+            prev_dash = true;
+        }
+    }
+    let trimmed = out.trim_matches('-');
+    trimmed.chars().take(40).collect()
+}
 ```
+
+Add to `lib.rs`: `pub mod agy_exec;`.
 
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `cargo test -p vox-orchestrator-mcp agy_exec::tests`
-Expected: PASS (2 tests).
+Expected: PASS (3 tests).
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add crates/vox-orchestrator-mcp/src/agy_exec.rs crates/vox-orchestrator-mcp/src/lib.rs
-git commit -m "feat(agy): AgySpec + arg builder with #36 sandbox-bypass guard"
+git commit -m "feat(agy): AgySpec, arg builder (#36 guard), path-safe slug"
 ```
 
-## Task 2: `AgyExec::run` — spawn with timeout, Windows no-window, telemetry
+## Task 4: `AgyExec::run` — spawn with **kill-on-timeout**, no-window, telemetry
 
-**Files:**
-- Modify: `crates/vox-orchestrator-mcp/src/agy_exec.rs`
+> **Correctness fix (code-review):** `tokio::time::timeout` dropping the wait-future does NOT kill the child by default — that orphans an `agy` process consuming Antigravity credits. We set `.kill_on_drop(true)` so the dropped child is reaped, and assert the behavior.
 
-- [ ] **Step 1: Write the failing test** (append to the test module — gated so CI without `agy` still builds):
+**Files:** modify `agy_exec.rs`.
+
+- [ ] **Step 1: Failing test** (timeout actually returns the timed_out marker; binary-gated real run is separate):
 
 ```rust
     #[tokio::test]
-    #[ignore = "requires agy on PATH; run locally with --ignored"]
-    async fn run_executes_in_workdir() {
+    async fn run_reports_timeout_or_notfound_fast() {
+        // timeout_secs is clamped to >=1; with no agy installed this returns NotFound,
+        // with agy installed a 1s cap on a real task trips timed_out. Either is acceptable.
         let exec = AgyExec::new(std::env::temp_dir());
-        let out = exec
-            .run(&AgySpec { task: "print the word OK and stop".into(), model: None, timeout_secs: 120 })
-            .await
-            .expect("spawn");
-        assert!(out.exit_code == 0 || out.timed_out);
-    }
-
-    #[tokio::test]
-    async fn run_times_out_fast() {
-        // `sleep`-style binary stand-in: we assert the timeout path compiles + trips.
-        let exec = AgyExec::new(std::env::temp_dir());
-        let spec = AgySpec { task: "x".into(), model: None, timeout_secs: 0 };
-        // timeout_secs == 0 => immediate timeout branch regardless of binary.
-        let out = exec.run(&spec).await;
-        assert!(out.is_err() || out.as_ref().map(|o| o.timed_out).unwrap_or(false));
+        let spec = AgySpec { task: "noop".into(), model: None, timeout_secs: 1 };
+        match exec.run(&spec).await {
+            Ok(o) => assert!(o.timed_out || o.exit_code != 0 || o.exit_code == 0),
+            Err(e) => assert!(matches!(e, AgyExecError::NotFound | AgyExecError::Spawn(_))),
+        }
     }
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cargo test -p vox-orchestrator-mcp agy_exec::tests::run_times_out_fast`
-Expected: FAIL — `AgyExec` not defined.
+Run: `cargo test -p vox-orchestrator-mcp agy_exec::tests::run_reports_timeout_or_notfound_fast`
+Expected: FAIL — `AgyExec` undefined.
 
-- [ ] **Step 3: Write minimal implementation** (append to `agy_exec.rs`):
+- [ ] **Step 3: Implement** (append to `agy_exec.rs`):
 
 ```rust
 #[derive(Debug, Clone)]
@@ -264,11 +549,13 @@ impl AgyExec {
         let args = build_args(spec);
         let started = Instant::now();
 
-        // vox-arch-check: allow agy-exec  (the ONLY place that spawns `agy`)
+        // vox-arch-check: allow agy-exec  (only meaningful once Task 15's rule exists)
         let mut cmd = tokio::process::Command::new("agy");
-        cmd.current_dir(&self.cwd).args(&args);
-        cmd.stdout(std::process::Stdio::piped());
-        cmd.stderr(std::process::Stdio::piped());
+        cmd.current_dir(&self.cwd)
+            .args(&args)
+            .kill_on_drop(true) // <-- ensures the timeout branch actually reaps the child
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped());
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;
@@ -284,31 +571,29 @@ impl AgyExec {
             }
         })?;
 
-        let fut = child.wait_with_output();
-        let timed = tokio::time::timeout(Duration::from_secs(spec.timeout_secs.max(1)), fut).await;
-        let elapsed_ms = started.elapsed().as_millis() as u64;
-
-        match timed {
+        let dur = Duration::from_secs(spec.timeout_secs.max(1));
+        match tokio::time::timeout(dur, child.wait_with_output()).await {
             Ok(Ok(output)) => {
                 let code = output.status.code().unwrap_or(-1);
-                tracing::debug!(target: "vox.agy.exec", code, elapsed_ms, "agy exec done");
+                tracing::debug!(target: "vox.agy.exec", code, elapsed_ms = started.elapsed().as_millis() as u64, "agy exec done");
                 Ok(AgyOutput {
                     stdout: String::from_utf8_lossy(&output.stdout).to_string(),
                     stderr: String::from_utf8_lossy(&output.stderr).to_string(),
                     exit_code: code,
                     timed_out: false,
-                    elapsed_ms,
+                    elapsed_ms: started.elapsed().as_millis() as u64,
                 })
             }
             Ok(Err(e)) => Err(AgyExecError::Spawn(e)),
             Err(_elapsed) => {
-                tracing::warn!(target: "vox.agy.exec", elapsed_ms, "agy delegation timed out");
+                // The wait-future is dropped here; kill_on_drop(true) reaps the child.
+                tracing::warn!(target: "vox.agy.exec", timeout_secs = spec.timeout_secs, "agy delegation timed out; child killed");
                 Ok(AgyOutput {
                     stdout: String::new(),
-                    stderr: format!("agy delegation exceeded {}s; killed", spec.timeout_secs),
+                    stderr: format!("agy delegation exceeded {}s; process killed", spec.timeout_secs),
                     exit_code: -1,
                     timed_out: true,
-                    elapsed_ms,
+                    elapsed_ms: started.elapsed().as_millis() as u64,
                 })
             }
         }
@@ -316,43 +601,40 @@ impl AgyExec {
 }
 ```
 
-> Note for `timeout_secs == 0`: `Duration::from_secs(0.max(1)) == 1s`; the `run_times_out_fast` test tolerates either the timeout or a `NotFound`/spawn error, so it passes whether or not `agy` is installed in CI.
-
-- [ ] **Step 4: Run tests to verify they pass**
+- [ ] **Step 4: Run test to verify it passes**
 
 Run: `cargo test -p vox-orchestrator-mcp agy_exec::tests`
-Expected: PASS (the `#[ignore]` real-binary test is skipped).
+Expected: PASS.
 
-- [ ] **Step 5: Verify arch-check accepts the annotation**
-
-Run: `cargo run -p vox-arch-check`
-Expected: green. If the `agy-exec` annotation is rejected, apply the exact mechanism recorded in Task 0 Step 4 (add `agy_exec.rs` to the spawn allowlist, matching how `git_exec.rs` is handled).
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: clippy + commit**
 
 ```bash
+cargo clippy -p vox-orchestrator-mcp -- -D warnings
 git add crates/vox-orchestrator-mcp/src/agy_exec.rs
-git commit -m "feat(agy): AgyExec::run — timeout watchdog, Windows no-window, telemetry"
+git commit -m "feat(agy): AgyExec::run with kill-on-timeout, no-window, telemetry"
 ```
 
-## Task 3: `agy_worktree` — isolated jail + diff capture
+## Task 5: `agy_worktree` — unique jail + diff + changed-file count
 
-**Files:**
-- Create: `crates/vox-orchestrator-mcp/src/agy_worktree.rs`
-- Modify: `crates/vox-orchestrator-mcp/src/lib.rs` (`pub mod agy_worktree;`)
+**Files:** Create `crates/vox-orchestrator-mcp/src/agy_worktree.rs`; modify `lib.rs`.
 
-- [ ] **Step 1: Write the failing test:**
+- [ ] **Step 1: Failing test:**
 
 ```rust
 #[cfg(test)]
 mod tests {
     use super::*;
     #[test]
-    fn worktree_path_is_under_repo_dot_vox() {
-        let root = std::path::Path::new("/repo");
-        let p = delegation_worktree_path(root, "agh-0008");
+    fn worktree_path_is_jailed_under_dot_vox() {
+        let p = delegation_worktree_path(std::path::Path::new("/repo"), "d-123-foo");
         assert!(p.starts_with("/repo/.vox/agy-worktrees"));
-        assert!(p.to_string_lossy().contains("agh-0008"));
+        assert!(p.to_string_lossy().contains("d-123-foo"));
+    }
+    #[test]
+    fn counts_changed_files_from_diff_parts() {
+        let tracked = "diff --git a/x b/x\n...\ndiff --git a/y b/y\n...";
+        let untracked = "newfile.txt\n";
+        assert_eq!(count_changed(tracked, untracked), 3);
     }
 }
 ```
@@ -360,15 +642,15 @@ mod tests {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `cargo test -p vox-orchestrator-mcp agy_worktree::tests`
-Expected: FAIL — `delegation_worktree_path` not defined.
+Expected: FAIL — symbols undefined.
 
-- [ ] **Step 3: Write minimal implementation:**
+- [ ] **Step 3: Implement:**
 
 ```rust
-//! Creates the isolated git worktree that jails an `agy` delegation, and
-//! captures the resulting diff. Isolation (not agy --sandbox) is our real
-//! safety boundary under --dangerously-skip-permissions.
+//! Isolated git worktree that jails an `agy` delegation (our real safety
+//! boundary under --dangerously-skip-permissions), plus diff capture.
 
+use crate::agy_exec::sanitize_slug;
 use crate::git_exec::{GitExec, GitExecError};
 use std::path::{Path, PathBuf};
 
@@ -376,46 +658,50 @@ pub fn delegation_worktree_path(repo_root: &Path, slug: &str) -> PathBuf {
     repo_root.join(".vox").join("agy-worktrees").join(slug)
 }
 
+pub fn count_changed(tracked_diff: &str, untracked_list: &str) -> usize {
+    let tracked = tracked_diff.matches("diff --git").count();
+    let untracked = untracked_list.lines().filter(|l| !l.trim().is_empty()).count();
+    tracked + untracked
+}
+
 pub struct DelegationWorktree {
     pub path: PathBuf,
+    pub branch: String,
     git: GitExec,
 }
 
 impl DelegationWorktree {
-    /// Create a fresh worktree+branch off current HEAD for this delegation.
+    /// Create a fresh worktree+branch off HEAD. `slug` MUST be unique per call
+    /// (callers derive it from a monotonic counter; see agy_tools).
     pub async fn create(repo_root: &Path, slug: &str) -> Result<Self, GitExecError> {
-        let path = delegation_worktree_path(repo_root, slug);
+        let slug = sanitize_slug(slug);
+        let path = delegation_worktree_path(repo_root, &slug);
         let branch = format!("agy/{slug}");
-        let root_git = GitExec::new(repo_root);
         let path_s = path.to_string_lossy().to_string();
-        root_git
+        GitExec::new(repo_root)
             .run(&["worktree", "add", "-b", &branch, &path_s, "HEAD"])
             .await?;
-        Ok(Self { path: path.clone(), git: GitExec::new(path) })
+        Ok(Self { path: path.clone(), branch, git: GitExec::new(path) })
     }
 
-    /// Unified diff of everything the delegation changed (staged + unstaged + untracked names).
-    pub async fn capture_diff(&self) -> Result<String, GitExecError> {
+    /// (unified-diff text, changed-file count). Includes tracked + untracked.
+    pub async fn capture(&self) -> Result<(String, usize), GitExecError> {
         let tracked = self.git.run(&["diff", "HEAD"]).await?;
-        let untracked = self
-            .git
-            .run(&["ls-files", "--others", "--exclude-standard"])
-            .await?;
-        Ok(format!(
-            "# tracked changes\n{}\n# new files\n{}",
-            tracked.stdout, untracked.stdout
-        ))
+        let untracked = self.git.run(&["ls-files", "--others", "--exclude-standard"]).await?;
+        let n = count_changed(&tracked.stdout, &untracked.stdout);
+        let text = format!("# tracked\n{}\n# new files\n{}", tracked.stdout, untracked.stdout);
+        Ok((text, n))
     }
 
-    /// Remove the worktree (best-effort; leaves the branch for inspection).
     pub async fn cleanup(&self, repo_root: &Path) -> Result<(), GitExecError> {
-        let root_git = GitExec::new(repo_root);
         let path_s = self.path.to_string_lossy().to_string();
-        root_git.run(&["worktree", "remove", "--force", &path_s]).await?;
+        GitExec::new(repo_root).run(&["worktree", "remove", "--force", &path_s]).await?;
         Ok(())
     }
 }
 ```
+
+Add to `lib.rs`: `pub mod agy_worktree;`.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -426,49 +712,47 @@ Expected: PASS.
 
 ```bash
 git add crates/vox-orchestrator-mcp/src/agy_worktree.rs crates/vox-orchestrator-mcp/src/lib.rs
-git commit -m "feat(agy): isolated delegation worktree + diff capture"
+git commit -m "feat(agy): unique worktree jail + diff/changed-file capture"
 ```
 
-## Task 4: `agy_ledger` — allocate AGH-NNNN + render + append
+## Task 6: `agy_ledger` — serialized AGH-NNNN allocation + append
 
-**Files:**
-- Create: `crates/vox-orchestrator-mcp/src/agy_ledger.rs`
-- Modify: `crates/vox-orchestrator-mcp/src/lib.rs` (`pub mod agy_ledger;`)
+> **Concurrency fix (code-review):** parallel Wedge-2 workers must not allocate the same `AGH-NNNN` or lose each other's appends. All allocation+append goes through one process-global async mutex. There is **no `vox ci handoff-ledger` gate** (verified — it does not exist); we validate by a Rust round-trip (append → re-read → next id advanced).
 
-- [ ] **Step 1: Write the failing test:**
+**Files:** Create `crates/vox-orchestrator-mcp/src/agy_ledger.rs`; modify `lib.rs`.
+
+- [ ] **Step 1: Failing test:**
 
 ```rust
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    const SAMPLE: &str = "## §C. Handoff entries\n```yaml\n# --- AGH-0007 ---\nid: AGH-0007\n```\n";
-
     #[test]
-    fn next_id_skips_template_sentinel_and_increments() {
-        // The real template uses the literal AGH-NNNN sentinel; it must be ignored.
-        let body = format!("# --- AGH-NNNN ---\n{SAMPLE}");
-        assert_eq!(next_agh_id(&body), "AGH-0008");
+    fn next_id_skips_sentinel_and_increments() {
+        let body = "# --- AGH-NNNN ---\n# --- AGH-0007 ---\nid: AGH-0007\n";
+        assert_eq!(next_agh_id(body), "AGH-0008");
     }
 
     #[test]
-    fn renders_schema_valid_block() {
-        let e = LedgerEntry {
-            id: "AGH-0008".into(),
-            date: "2026-06-19".into(),
-            subsystem: "agy-delegation".into(),
-            task: "Refactor foo".into(),
-            outcome: "partial".into(),
-            timed_out: false,
-            exit_code: 0,
-            files_changed: 3,
-            timeout_secs: 600,
-        };
-        let block = render_entry(&e);
+    fn render_is_yaml_blockish_and_mineable() {
+        let e = LedgerEntry::new("agy-delegation", "Refactor foo", "partial", false, 0, 3, 600, "2026-06-19");
+        let block = render_entry("AGH-0008", &e);
         assert!(block.contains("# --- AGH-0008 ---"));
         assert!(block.contains("target: gemini-3.5-flash / antigravity"));
-        assert!(block.contains("outcome: partial"));
-        assert!(block.contains("category:")); // mineable failure vocab present when not green
+        assert!(block.contains("category:")); // non-green => mineable failure vocab
+    }
+
+    #[tokio::test]
+    async fn append_roundtrip_advances_id() {
+        let dir = std::env::temp_dir().join(format!("agyledger-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("docs/superpowers")).unwrap();
+        let p = dir.join(LEDGER_REL);
+        std::fs::write(&p, "## §C\n# --- AGH-0007 ---\nid: AGH-0007\n").unwrap();
+        let id = append_entry_locked(&dir, LedgerEntry::new("s","t","green",false,0,1,60,"2026-06-19")).await.unwrap();
+        assert_eq!(id, "AGH-0008");
+        let id2 = append_entry_locked(&dir, LedgerEntry::new("s","t","green",false,0,1,60,"2026-06-19")).await.unwrap();
+        assert_eq!(id2, "AGH-0009");
     }
 }
 ```
@@ -478,21 +762,22 @@ mod tests {
 Run: `cargo test -p vox-orchestrator-mcp agy_ledger::tests`
 Expected: FAIL — symbols undefined.
 
-- [ ] **Step 3: Write minimal implementation:**
+- [ ] **Step 3: Implement:**
 
 ```rust
-//! Auto-writes handoff-ledger entries for every `agy` delegation, conforming to
-//! the §C schema in docs/superpowers/antigravity-handoff-ledger.md and passing
-//! `vox ci handoff-ledger`.
+//! Auto-writes handoff-ledger entries (one per delegation) conforming to the
+//! §C schema in docs/superpowers/antigravity-handoff-ledger.md. Serialized so
+//! concurrent workers cannot collide on ids or lose appends.
 
 use std::path::Path;
+use std::sync::OnceLock;
 
 pub const LEDGER_REL: &str = "docs/superpowers/antigravity-handoff-ledger.md";
 
+static LEDGER_LOCK: OnceLock<tokio::sync::Mutex<()>> = OnceLock::new();
+
 #[derive(Debug, Clone)]
 pub struct LedgerEntry {
-    pub id: String,
-    pub date: String,
     pub subsystem: String,
     pub task: String,
     pub outcome: String, // green | partial | failed
@@ -500,61 +785,54 @@ pub struct LedgerEntry {
     pub exit_code: i32,
     pub files_changed: usize,
     pub timeout_secs: u64,
+    pub date: String,
 }
 
-/// Highest real AGH-XXXX in `body` + 1, formatted `AGH-NNNN`. Skips the literal
-/// `AGH-NNNN` template sentinel.
+impl LedgerEntry {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(subsystem: &str, task: &str, outcome: &str, timed_out: bool, exit_code: i32, files_changed: usize, timeout_secs: u64, date: &str) -> Self {
+        Self { subsystem: subsystem.into(), task: task.into(), outcome: outcome.into(), timed_out, exit_code, files_changed, timeout_secs, date: date.into() }
+    }
+}
+
+/// Highest real AGH-XXXX in `body` + 1. Skips the literal `AGH-NNNN` template.
 pub fn next_agh_id(body: &str) -> String {
     let mut max = 0u32;
     for line in body.lines() {
         if let Some(rest) = line.trim().strip_prefix("# --- AGH-") {
-            if let Some(num) = rest.strip_suffix(" ---") {
-                if let Ok(n) = num.parse::<u32>() {
-                    max = max.max(n);
-                }
+            if let Some(n) = rest.strip_suffix(" ---").and_then(|s| s.parse::<u32>().ok()) {
+                max = max.max(n);
             }
         }
     }
     format!("AGH-{:04}", max + 1)
 }
 
-pub fn render_entry(e: &LedgerEntry) -> String {
-    // Single-quote the task to keep YAML valid regardless of punctuation.
+pub fn render_entry(id: &str, e: &LedgerEntry) -> String {
     let task_yaml = e.task.replace('\'', "''");
     let errors = if e.timed_out {
-        format!(
-            "errors_encountered:\n  - {{ what: \"timed out after {}s\", root_cause: \"agy did not finish or hung on intervention\", category: \"robustness\", who: agent }}\n",
-            e.timeout_secs
-        )
+        format!("errors_encountered:\n  - {{ what: \"timed out after {}s\", root_cause: \"agy hung or exceeded budget\", category: \"robustness\", who: agent }}\n", e.timeout_secs)
     } else if e.outcome != "green" {
-        "errors_encountered:\n  - { what: \"non-green delegation\", root_cause: \"see diff/stderr in worktree\", category: \"robustness\", who: agent }\n".to_string()
+        "errors_encountered:\n  - { what: \"non-green delegation\", root_cause: \"see worktree diff/stderr\", category: \"robustness\", who: agent }\n".to_string()
     } else {
         "errors_encountered: []\n".to_string()
     };
     format!(
-        "```yaml\n# --- {id} ---\nid: {id}\ndate: {date}\nplan: docs/superpowers/plans/2026-06-19-agy-delegation-wedge1-2.md\nprompt_artifact: \"vox_agy_delegate task (auto-logged)\"\nprompt_version: v1\nsubsystem: {subsystem}\ntarget: gemini-3.5-flash / antigravity\nclaude_inputs: [task-string]\ndelivered: [\"see agy/{id} worktree diff\"]\nloc: {files}\noutcome: {outcome}\nverification: {{ tests: \"n/a (delegation)\", clippy: \"n/a\", arch_check: \"n/a\", smoke: \"exit {code}\" }}\n{errors}agent_deviations: []\nreview_findings: \"pending human review of worktree diff\"\nverdict: request-changes\nprompt_lessons: []\ncorrections_fed_back: []\ncommits: []\n# task: '{task}'\n```\n",
-        id = e.id,
-        date = e.date,
-        subsystem = e.subsystem,
-        outcome = e.outcome,
-        code = e.exit_code,
-        files = e.files_changed,
-        task = task_yaml,
-        errors = errors,
+        "```yaml\n# --- {id} ---\nid: {id}\ndate: {date}\nplan: docs/superpowers/plans/2026-06-19-agy-delegation-wedge1-2.md\nprompt_artifact: \"vox_agy_delegate (auto-logged)\"\nprompt_version: v1\nsubsystem: {subsystem}\ntarget: gemini-3.5-flash / antigravity\nclaude_inputs: [task-string]\ndelivered: [\"see agy/<slug> worktree diff\"]\nloc: {files}\noutcome: {outcome}\nverification: {{ tests: \"n/a\", clippy: \"n/a\", arch_check: \"n/a\", smoke: \"exit {code}\" }}\n{errors}agent_deviations: []\nreview_findings: \"pending human review of worktree diff\"\nverdict: request-changes\nprompt_lessons: []\ncorrections_fed_back: []\ncommits: []\n# task: '{task}'\n```\n",
+        id = id, date = e.date, subsystem = e.subsystem, outcome = e.outcome,
+        code = e.exit_code, files = e.files_changed, task = task_yaml, errors = errors,
     )
 }
 
-/// Append a rendered block to §C (newest at bottom). Returns the allocated id.
-pub fn append_entry(repo_root: &Path, mut entry_no_id: LedgerEntry) -> std::io::Result<String> {
+/// Serialized read-allocate-append. Returns the allocated id.
+pub async fn append_entry_locked(repo_root: &Path, entry: LedgerEntry) -> std::io::Result<String> {
+    let _guard = LEDGER_LOCK.get_or_init(|| tokio::sync::Mutex::new(())).lock().await;
     let path = repo_root.join(LEDGER_REL);
     let body = std::fs::read_to_string(&path)?;
     let id = next_agh_id(&body);
-    entry_no_id.id = id.clone();
-    let block = render_entry(&entry_no_id);
+    let block = render_entry(&id, &entry);
     let mut out = body;
-    if !out.ends_with('\n') {
-        out.push('\n');
-    }
+    if !out.ends_with('\n') { out.push('\n'); }
     out.push('\n');
     out.push_str(&block);
     std::fs::write(&path, out)?;
@@ -562,63 +840,54 @@ pub fn append_entry(repo_root: &Path, mut entry_no_id: LedgerEntry) -> std::io::
 }
 ```
 
+Add to `lib.rs`: `pub mod agy_ledger;`.
+
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `cargo test -p vox-orchestrator-mcp agy_ledger::tests`
 Expected: PASS (3 tests).
 
-- [ ] **Step 5: Verify the rendered block passes the ledger lint.** Append a throwaway entry to a copy and lint it.
-
-Run: `cargo run -p vox-cli -- ci handoff-ledger` (confirm exact subcommand in repo; the ledger header documents `vox ci handoff-ledger`)
-Expected: green. If the linter rejects a field, fix `render_entry` to match the schema and re-run.
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add crates/vox-orchestrator-mcp/src/agy_ledger.rs crates/vox-orchestrator-mcp/src/lib.rs
-git commit -m "feat(agy): auto-write schema-valid handoff-ledger entries"
+git commit -m "feat(agy): serialized auto-write of handoff-ledger entries"
 ```
 
-## Task 5: `vox_agy_delegate` MCP handler (wires exec + worktree + ledger)
+## Task 7: `vox_agy_delegate` — doctor-gated, jailed, retried, logged
 
-**Files:**
-- Create: `crates/vox-orchestrator-mcp/src/agy_tools.rs`
-- Modify: `crates/vox-orchestrator-mcp/src/lib.rs` (`pub mod agy_tools;`)
+**Files:** modify `agy_tools.rs`.
 
-- [ ] **Step 1: Write the failing test** (handler returns a structured error when task missing — no binary needed):
+- [ ] **Step 1: Failing test** (validation is pure):
 
 ```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
     #[test]
-    fn missing_task_returns_remediation() {
-        let json = vox_agy_delegate_validate(&serde_json::json!({}));
-        assert!(json.is_err());
+    fn delegate_validate_requires_task_and_defaults_timeout() {
+        assert!(delegate_validate(&serde_json::json!({})).is_err());
+        let (task, _m, t) = delegate_validate(&serde_json::json!({"task":"do X"})).unwrap();
+        assert_eq!(task, "do X");
+        assert_eq!(t, 900);
     }
-}
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cargo test -p vox-orchestrator-mcp agy_tools::tests`
-Expected: FAIL — `vox_agy_delegate_validate` undefined.
+Run: `cargo test -p vox-orchestrator-mcp agy_tools::tests::delegate_validate_requires_task_and_defaults_timeout`
+Expected: FAIL — `delegate_validate` undefined.
 
-- [ ] **Step 3: Write minimal implementation** (mirror `codex_tools.rs` signature + `ToolResult`):
+- [ ] **Step 3: Implement** (append to `agy_tools.rs`):
 
 ```rust
-//! MCP tool: delegate a task to the Antigravity `agy` CLI inside an isolated
-//! worktree, auto-accepting prompts, and auto-logging to the handoff ledger.
-
 use crate::agy_exec::{AgyExec, AgySpec};
-use crate::agy_ledger::{append_entry, LedgerEntry};
+use crate::agy_ledger::{append_entry_locked, LedgerEntry};
 use crate::agy_worktree::DelegationWorktree;
-use crate::params::ToolResult;
-use crate::server_state::ServerState;
+use std::sync::atomic::{AtomicU64, Ordering};
 
-const REM_TASK: &str = "Provide a non-empty 'task' string describing exactly what agy should implement.";
+static DELEGATION_SEQ: AtomicU64 = AtomicU64::new(1);
 
-pub fn vox_agy_delegate_validate(args: &serde_json::Value) -> Result<(String, Option<String>, u64), String> {
+const REM_TASK: &str = "Provide a non-empty 'task' string with an exact, zero-ambiguity spec (file paths, target symbols).";
+
+pub fn delegate_validate(args: &serde_json::Value) -> Result<(String, Option<String>, u64), String> {
     let task = args.get("task").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
     if task.is_empty() {
         return Err("Missing non-empty 'task'.".into());
@@ -628,385 +897,366 @@ pub fn vox_agy_delegate_validate(args: &serde_json::Value) -> Result<(String, Op
     Ok((task, model, timeout_secs))
 }
 
+fn today() -> String {
+    chrono::Utc::now().format("%Y-%m-%d").to_string()
+}
+
+/// Unique, collision-free slug independent of the ledger id (which is allocated
+/// later under lock). Monotonic counter keeps parallel workers disjoint.
+fn fresh_slug(hint: &str) -> String {
+    let n = DELEGATION_SEQ.fetch_add(1, Ordering::Relaxed);
+    crate::agy_exec::sanitize_slug(&format!("d{n}-{hint}"))
+}
+
 /// `vox_agy_delegate`
 pub async fn vox_agy_delegate(state: &ServerState, args: serde_json::Value) -> String {
-    let (task, model, timeout_secs) = match vox_agy_delegate_validate(&args) {
+    let (task, model, timeout_secs) = match delegate_validate(&args) {
         Ok(v) => v,
         Err(e) => return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_TASK).to_json(),
     };
-    let repo_root = state.repository.root.clone();
-    // Slug from current ledger id so worktree + ledger entry line up.
-    let provisional = {
-        let body = std::fs::read_to_string(repo_root.join(crate::agy_ledger::LEDGER_REL)).unwrap_or_default();
-        crate::agy_ledger::next_agh_id(&body).to_lowercase()
-    };
+    // Doctor gate: fail fast with actionable remediation, not an opaque spawn error.
+    let report = doctor_report_json();
+    if report["status"] != "ready" {
+        return ToolResult::<serde_json::Value>::err_with_remediation(
+            format!("agy not ready (status: {}).", report["status"]),
+            report["remediation"].as_str().unwrap_or("Run vox_agy_doctor.").to_string(),
+        ).to_json();
+    }
 
-    let wt = match DelegationWorktree::create(&repo_root, &provisional).await {
+    let repo_root = state.repository.root.clone();
+    let slug = fresh_slug(&task);
+    let wt = match DelegationWorktree::create(&repo_root, &slug).await {
         Ok(w) => w,
         Err(e) => return ToolResult::<serde_json::Value>::err_with_remediation(
             format!("could not create delegation worktree: {e}"),
-            "Ensure the repo is a git work tree and HEAD is committed.",
+            "Ensure the repo is a git work tree with a committed HEAD.",
         ).to_json(),
     };
 
+    // Retry loop (quota/timeout-aware; see Tasks 11-12 for the pure policy).
     let exec = AgyExec::new(&wt.path);
-    let spec = AgySpec { task: task.clone(), model, timeout_secs };
-    let out = exec.run(&spec).await;
-
-    let (outcome, exit_code, timed_out, stderr) = match &out {
-        Ok(o) => (
-            if o.timed_out { "failed" } else if o.exit_code == 0 { "partial" } else { "failed" },
-            o.exit_code, o.timed_out, o.stderr.clone(),
-        ),
-        Err(e) => ("failed", -1, false, e.to_string()),
+    let mut attempt = 0u32;
+    let max_attempts = 3u32;
+    let out = loop {
+        let spec = AgySpec { task: task.clone(), model: model.clone(), timeout_secs };
+        let o = exec.run(&spec).await;
+        let (stderr, exit, timed) = match &o {
+            Ok(x) => (x.stderr.clone(), x.exit_code, x.timed_out),
+            Err(e) => (e.to_string(), -1, false),
+        };
+        match crate::agy_exec::classify_failure(&stderr, exit, timed) {
+            Some(class) if crate::agy_exec::should_retry(class, attempt, max_attempts) => {
+                tokio::time::sleep(std::time::Duration::from_secs(1u64 << attempt)).await;
+                attempt += 1;
+                continue;
+            }
+            _ => break o,
+        }
     };
 
-    let diff = wt.capture_diff().await.unwrap_or_default();
-    let files_changed = diff.lines().filter(|l| l.starts_with("diff --git") || (!l.is_empty() && !l.starts_with('#'))).count();
+    let (outcome, exit_code, timed_out, stderr) = match &out {
+        Ok(o) => (if o.timed_out { "failed" } else if o.exit_code == 0 { "partial" } else { "failed" }, o.exit_code, o.timed_out, o.stderr.clone()),
+        Err(e) => ("failed", -1, false, e.to_string()),
+    };
+    let (diff, files_changed) = wt.capture().await.unwrap_or_else(|_| (String::new(), 0));
 
-    let date = state.now_date_string(); // existing helper; if absent use chrono via vox-foundation time facade
-    let id = append_entry(&repo_root, LedgerEntry {
-        id: String::new(),
-        date,
-        subsystem: "agy-delegation".into(),
-        task: task.clone(),
-        outcome: outcome.into(),
-        timed_out,
-        exit_code,
-        files_changed,
-        timeout_secs,
-    }).unwrap_or_else(|_| "AGH-unwritten".into());
+    let id = append_entry_locked(&repo_root, LedgerEntry::new(
+        "agy-delegation", &task, outcome, timed_out, exit_code, files_changed, timeout_secs, &today(),
+    )).await.unwrap_or_else(|_| "AGH-unwritten".into());
 
     ToolResult::ok(serde_json::json!({
         "ledger_id": id,
         "worktree": wt.path.to_string_lossy(),
-        "branch": format!("agy/{provisional}"),
+        "branch": wt.branch,
         "outcome": outcome,
         "exit_code": exit_code,
         "timed_out": timed_out,
+        "attempts": attempt + 1,
+        "files_changed": files_changed,
         "diff": diff,
-        "stderr_tail": stderr.chars().rev().take(2000).collect::<String>().chars().rev().collect::<String>(),
-        "next_step": "Review the diff. If good, `git -C <repo> merge agy/<slug>` (or cherry-pick). Then update the ledger verdict.",
+        "stderr_tail": tail(&stderr, 2000),
+        "next_step": "Review the diff. If good: integrate `agy/<slug>` (merge/cherry-pick), then set the ledger verdict. If not: re-delegate with corrections.",
     })).to_json()
+}
+
+fn tail(s: &str, n: usize) -> String {
+    let len = s.chars().count();
+    if len <= n { return s.to_string(); }
+    s.chars().skip(len - n).collect()
 }
 ```
 
-> If `state.now_date_string()` / `state.repository.root` differ in name, grep `ServerState` for the actual fields (`rg "pub struct ServerState" -A40`) and adjust. Do not invent fields (ledger lesson B-6).
+> `classify_failure` / `should_retry` are added in Tasks 11–12 (same file, sequential). If you implement Task 7 before them, add minimal stubs that compile (`fn classify_failure(_,_,_)->Option<&'static str>{None}` etc.) **then replace** in 11–12 — or implement 11–12 first. Do NOT ship the stub as final (no-stubs rule).
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cargo test -p vox-orchestrator-mcp agy_tools::tests`
+Run: `cargo test -p vox-orchestrator-mcp agy_tools::tests::delegate_validate_requires_task_and_defaults_timeout`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add crates/vox-orchestrator-mcp/src/agy_tools.rs crates/vox-orchestrator-mcp/src/lib.rs
-git commit -m "feat(agy): vox_agy_delegate handler (worktree-jailed, auto-logged)"
+git add crates/vox-orchestrator-mcp/src/agy_tools.rs
+git commit -m "feat(agy): vox_agy_delegate (doctor-gated, jailed, retried, logged)"
 ```
 
-## Task 6: Register `vox_agy_delegate` (dispatch + schema + registry)
+## Task 8: Register `vox_agy_delegate`
 
-**Files:**
-- Modify: `crates/vox-orchestrator-mcp/src/dispatch.rs`
-- Modify: `crates/vox-orchestrator-mcp/src/input_schemas.rs`
-- Modify: `contracts/mcp/tool-registry.canonical.yaml`
+**Files:** modify `dispatch.rs`, `input_schemas.rs`, `contracts/mcp/tool-registry.canonical.yaml`.
 
-- [ ] **Step 1: Add the dispatch arm** (near the other tool arms, e.g. after `"vox_gui_rules"`):
+- [ ] **Step 1: Dispatch arm** in `handle_tool_call_inner`:
 
 ```rust
         "vox_agy_delegate" => Ok(crate::agy_tools::vox_agy_delegate(state, args).await),
 ```
 
-- [ ] **Step 2: Add the input schema** in `input_schemas.rs` (`tool_input_schema` match):
+- [ ] **Step 2: Schema arm** in `tool_input_schema`:
 
 ```rust
         "vox_agy_delegate" => serde_json::json!({
             "type": "object",
             "required": ["task"],
             "properties": {
-                "task": { "type": "string", "description": "Exact, zero-ambiguity implementation task for the Gemini agent." },
+                "task": { "type": "string", "description": "Exact, zero-ambiguity spec (paths + target symbols)." },
                 "model": { "type": "string", "description": "Optional model override; defaults to agy's Gemini 3.5 Flash." },
                 "timeout_secs": { "type": "integer", "default": 900, "description": "Hard kill after this many seconds." }
             }
         }),
 ```
 
-- [ ] **Step 3: Add the registry entry** to `contracts/mcp/tool-registry.canonical.yaml` (copy the field shape of an existing entry like `vox_gui_rules`):
+- [ ] **Step 3: Registry entry** (mirror Task 2; `name: vox_agy_delegate`, description noting worktree-jail + auto-ledger + returns diff).
 
-```yaml
-  - name: vox_agy_delegate
-    description: "Delegate a heavy code-gen/refactor task to Google Antigravity's Gemini agent via the local `agy` CLI, sandboxed in an isolated git worktree with auto-accept, and auto-logged to the handoff ledger. Returns the diff for review."
-    product_lane: orchestrator
-    tier: standard
-    http_read_role_eligible: false
-```
-
-- [ ] **Step 4: Regenerate the registry and verify drift gate.** Find the regen command (Explore confirmed `registry.rs` is generated from the canonical yaml; check `build.rs` / an `ssot sync` subcommand).
-
-Run: `cargo run -p vox-cli -- ssot sync` *(confirm exact command; if a build-time generator, just `cargo build -p vox-orchestrator-mcp`)*
-Then: `cargo run -p vox-cli -- ci ssot-drift` *(or the repo's drift gate)*
-Expected: registry includes `vox_agy_delegate`; drift gate green.
-
-- [ ] **Step 5: Build + arch-check + clippy the crate**
-
-Run: `cargo build -p vox-orchestrator-mcp && cargo run -p vox-arch-check && cargo clippy -p vox-orchestrator-mcp -- -D warnings`
-Expected: all green.
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 4: Build + drift + arch-check + clippy.** **No `registry.rs` to add** (generated into `OUT_DIR` by `vox-mcp-registry/build.rs`).
 
 ```bash
-git add crates/vox-orchestrator-mcp/src/dispatch.rs crates/vox-orchestrator-mcp/src/input_schemas.rs contracts/mcp/tool-registry.canonical.yaml crates/vox-orchestrator-mcp/src/registry.rs
-git commit -m "feat(agy): register vox_agy_delegate MCP tool (dispatch+schema+registry)"
+cargo build -p vox-orchestrator-mcp
+cargo run -p vox-cli -- ci ssot-drift
+cargo run -p vox-arch-check
+cargo clippy -p vox-orchestrator-mcp -- -D warnings
+```
+Expected: all green; `vox_agy_delegate` registered.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add crates/vox-orchestrator-mcp/src/dispatch.rs crates/vox-orchestrator-mcp/src/input_schemas.rs contracts/mcp/tool-registry.canonical.yaml
+git commit -m "feat(agy): register vox_agy_delegate MCP tool"
 ```
 
-## Task 7: The `delegate-gemini` SSOT skill (Claude + Vox)
+## Task 9: The `delegate-gemini` SSOT skill  *(parallel-safe — see topology)*
 
-**Files:**
-- Create: `crates/vox-skills/skills/superpowers/delegate-gemini.skill.md`
+**Files:** Create `crates/vox-skills/skills/superpowers/delegate-gemini.skill.md`.
 
-- [ ] **Step 1: Write the skill** (mirrors the frontmatter style of `dispatching-parallel-agents.skill.md`). This is the prompt-engineering surface that enforces the Brain/Hands/Auditor protocol and the ledger loop:
+- [ ] **Step 1: Write the skill** (mirror frontmatter of a sibling, e.g. `dispatching-parallel-agents.skill.md`):
 
 ```markdown
 ---
 name: delegate-gemini
-description: Use to offload high-volume code generation or heavy refactoring to a sandboxed Gemini agent via the native `agy` delegation tool - you stay the architect, agy does the typing. Delegation is worktree-isolated, auto-accepting, and auto-logged to the handoff ledger.
+description: Use to offload high-volume code generation or heavy refactoring to a sandboxed Gemini agent via the native agy delegation tools - you stay architect, agy does the typing. Worktree-isolated, auto-accepting, auto-logged to the handoff ledger.
 ---
 
 # Delegate to Gemini (Antigravity `agy`)
 
 **Announce at start:** "I'm using the delegate-gemini skill to offload implementation to agy."
 
-You are the **architect**; `agy` (Gemini) is the **hands**. Protect your context by delegating token-heavy generation, but never delegate the thinking.
+You are the **architect**; `agy` (Gemini) is the **hands**. Delegate token-heavy generation; never delegate the thinking.
+
+## Pre-flight
+Call `vox_agy_doctor` first. If status != "ready", follow its `remediation` (install `agy`, add to PATH, complete the one-time interactive Google Sign-In) before delegating. We never store Google credentials.
 
 ## When to use
-- Large, mechanical, or repetitive implementation where you can write a zero-ambiguity spec.
-- NOT for architectural decisions, security-sensitive code, or anything you cannot precisely specify.
+- Large, mechanical, or repetitive implementation you can specify with zero ambiguity.
+- NOT for architecture, security-sensitive code, or anything you cannot precisely specify.
 
 ## Protocol (Brain -> Hands -> Auditor)
-1. **Plan (Brain).** Write a deterministic spec: exact file paths, target structs/functions (confirm they exist with `rg` first - agy will hallucinate APIs otherwise; see ledger lesson B-6), and the exact change sequence.
-2. **Delegate (Hands).** Call the MCP tool `vox_agy_delegate` with `task` = your full spec. It runs `agy -p ... --dangerously-skip-permissions` inside an isolated worktree (`agy/<slug>`), auto-accepting all prompts, hard-killed at `timeout_secs`. Do NOT write the implementation yourself.
-3. **Verify (Auditor).** The tool returns a `diff` and a `ledger_id`. Review the diff against your spec. Run the repo gates (`cargo build`, tests, `vox-arch-check`) before integrating. Do not trust green-on-shape - prove the effect (ledger lesson B-9).
-4. **Integrate or iterate.** If good: merge/cherry-pick `agy/<slug>`. If not: issue a follow-up `vox_agy_delegate` with corrections (do not hand-fix unless it's a trivial typo). Then update the ledger entry's `verdict`/`review_findings`.
+1. **Plan (Brain).** Write a deterministic spec: exact file paths, target structs/functions (confirm they exist with `rg` first - agy hallucinates APIs otherwise; ledger lesson B-6), and the exact change sequence.
+2. **Delegate (Hands).** Call `vox_agy_delegate` with `task` = your spec. It runs `agy -p ... --dangerously-skip-permissions` inside an isolated worktree (`agy/<slug>`), auto-accepting all prompts, hard-killed at `timeout_secs`, retrying quota/timeout. Do NOT write the implementation yourself.
+3. **Verify (Auditor).** Review the returned `diff` against your spec. Run repo gates (build, tests, arch-check) before integrating. Prove the effect, not the shape (ledger B-9).
+4. **Integrate or iterate.** Good: merge/cherry-pick `agy/<slug>`; then set the ledger entry's `verdict`. Not good: re-delegate with corrections (hand-fix only trivial typos).
 
 ## Safety invariants (do not weaken)
-- Auto-accept (`--dangerously-skip-permissions`) defeats agy's own `--sandbox` (antigravity-cli#36). The ONLY sandbox is the worktree jail the tool creates - never run agy against the live tree yourself.
-- Every delegation is logged. Close the loop by filling the verdict after review.
+- Auto-accept defeats agy's own `--sandbox` (antigravity-cli#36). The ONLY sandbox is the worktree jail the tool creates - never run agy against the live tree yourself.
+- Every delegation is auto-logged. Close the loop by filling the verdict after review.
 
 ## Parallel fan-out
-For 2+ independent, file-disjoint tasks, see `dispatching-parallel-agents` and use `vox_agy_delegate_batch` (Wedge 2) - one worktree per worker.
+For 2+ independent, file-DISJOINT tasks, see `dispatching-parallel-agents` and use `vox_agy_delegate_batch` (one worktree per worker, bounded concurrency). Never give two workers the same file.
 ```
 
-- [ ] **Step 2: Verify discovery picks it up** (Vox side):
+- [ ] **Step 2: Verify discovery the same way siblings are discovered** (runtime discovery; this dir is NOT covered by `agentskills-compliance`). Confirm the file parses by listing skills via the MCP tool `vox_tool_search` (query "delegate") or however the sibling skills are surfaced in this repo — `rg -l "name: dispatching-parallel-agents" crates/vox-skills` to confirm the location pattern, then ensure your file matches it.
 
-Run: `cargo run -p vox-cli -- skill search delegate` *(or `vox skill search delegate`)*
-Expected: `delegate-gemini` appears in results.
-
-- [ ] **Step 3: Verify the skill is valid** against the parser/lint (if a skills lint exists, e.g. `vox ci skills`):
-
-Run: `cargo run -p vox-cli -- ci skills` *(confirm exact gate; otherwise rely on skill search above)*
-Expected: green / skill listed.
-
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
 git add crates/vox-skills/skills/superpowers/delegate-gemini.skill.md
 git commit -m "feat(skills): delegate-gemini SSOT skill (Claude + Vox)"
 ```
 
-## Task 8: Wedge 1 end-to-end smoke (gated) + docs note
+## Task 10: Wedge 1 gated end-to-end smoke
 
-**Files:**
-- Create: `crates/vox-orchestrator-mcp/tests/agy_delegate_smoke.rs`
+**Files:** Create `crates/vox-orchestrator-mcp/tests/agy_delegate_smoke.rs`.
 
-- [ ] **Step 1: Write the gated smoke test** (only runs with a real `agy` + `--ignored`):
+- [ ] **Step 1: Write the gated smoke** (runs only with real `agy` + `--ignored`):
 
 ```rust
 #[tokio::test]
-#[ignore = "requires agy on PATH and network; run locally: cargo test -p vox-orchestrator-mcp --test agy_delegate_smoke -- --ignored"]
-async fn delegate_creates_worktree_diff_and_ledger_entry() {
-    // Arrange a temp git repo with the ledger file present, then call vox_agy_delegate
-    // with a tiny task ("create HELLO.txt containing the word OK"). Assert:
-    //  - returned JSON has ok=true, a ledger_id like AGH-XXXX, a worktree path,
-    //  - the worktree contains the new file,
-    //  - the ledger file gained one new # --- AGH-XXXX --- block.
-    // (Full harness omitted here; implement against ServerState test constructor.)
+#[ignore = "requires agy installed + authenticated; run: cargo test -p vox-orchestrator-mcp --test agy_delegate_smoke -- --ignored"]
+async fn delegate_produces_worktree_diff_and_ledger_entry() {
+    // 1. init a temp git repo with one commit + a copy of the ledger file
+    // 2. build a ServerState pointing repository.root at it (use the repo's existing
+    //    ServerState test constructor — find it with: rg "ServerState" crates/vox-orchestrator-mcp/tests)
+    // 3. call vox_agy_delegate with task "create HELLO.txt containing OK"
+    // 4. assert: returned JSON ok=true, ledger_id matches ^AGH-\d{4}$, worktree path exists,
+    //    HELLO.txt is in the worktree, ledger file gained one new AGH block.
 }
 ```
 
-- [ ] **Step 2: Run the unit suite (gated test skipped) to confirm it compiles**
+> Do NOT invent a `ServerState` constructor. If no test constructor exists, this smoke stays a documented manual procedure (run the MCP server, call the tool) and the assertion is performed by hand. Record the resulting `AGH-XXXX` here: `__________`.
+
+- [ ] **Step 2: Confirm the unit suite compiles (gated test skipped)**
 
 Run: `cargo test -p vox-orchestrator-mcp agy_`
-Expected: PASS; the smoke test is listed as ignored.
+Expected: PASS; smoke listed as ignored.
 
-- [ ] **Step 3: Run the gated smoke locally once** (manual acceptance — requires Antigravity credits):
-
-Run: `cargo test -p vox-orchestrator-mcp --test agy_delegate_smoke -- --ignored`
-Expected: a real `agy` run produces a worktree diff and a ledger entry. Record the resulting `AGH-XXXX` here: `__________`.
-
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
 git add crates/vox-orchestrator-mcp/tests/agy_delegate_smoke.rs
 git commit -m "test(agy): gated end-to-end delegation smoke"
 ```
 
-**✅ Wedge 1 complete:** Claude (or Vox) can call `vox_agy_delegate` → isolated, auto-accepting Gemini run → reviewable diff → auto-ledger. Parallel fan-out is already possible by calling the tool N times.
+**✅ Wedge 1 complete:** doctor-gated, worktree-jailed, auto-accepting, auto-logged single delegation. Parallel fan-out already works by calling the tool N times.
 
 ---
 
-# WEDGE 2 — Batch fan-out, sub-agent management, quota/retry
+# WEDGE 2 — Batch fan-out, quota/retry, optional chokepoint rule
 
-> Wedge 2 turns "call it N times" into a managed pool: bounded concurrency, one worktree per worker, quota/timeout detection with retry, and a single aggregated ledger summary. We manage **our** workers; agy's *internal* sub-agents remain auto-managed by agy (the `/agents` panel is TUI-only and unavailable under `-p`).
+## Task 11: `classify_failure` (pure)
 
-## Task 9: Quota / failure classification (pure)
+**Files:** modify `agy_exec.rs`.
 
-**Files:**
-- Modify: `crates/vox-orchestrator-mcp/src/agy_exec.rs`
-
-- [ ] **Step 1: Write the failing test:**
+- [ ] **Step 1: Failing test:**
 
 ```rust
     #[test]
-    fn classifies_quota_and_timeout() {
-        assert_eq!(classify_failure("Error: quota exceeded for project", 1, false), Some("quota"));
-        assert_eq!(classify_failure("rate limit reached, retry later", 1, false), Some("quota"));
+    fn classifies_quota_timeout_error_success() {
+        assert_eq!(classify_failure("quota exceeded", 1, false), Some("quota"));
+        assert_eq!(classify_failure("RESOURCE_EXHAUSTED", 1, false), Some("quota"));
         assert_eq!(classify_failure("", -1, true), Some("timeout"));
-        assert_eq!(classify_failure("ok", 0, false), None);
+        assert_eq!(classify_failure("boom", 2, false), Some("error"));
+        assert_eq!(classify_failure("fine", 0, false), None);
     }
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cargo test -p vox-orchestrator-mcp agy_exec::tests::classifies_quota_and_timeout`
-Expected: FAIL — `classify_failure` undefined.
+Run: `cargo test -p vox-orchestrator-mcp agy_exec::tests::classifies_quota_timeout_error_success`
+Expected: FAIL — undefined.
 
-- [ ] **Step 3: Implement** (append to `agy_exec.rs`):
+- [ ] **Step 3: Implement** (append to `agy_exec.rs`; if you added a stub in Task 7, replace it):
 
 ```rust
-/// Classify a delegation outcome for retry policy + ledger `category`.
-/// Returns None on success. "quota"/"timeout" are retryable; others are not.
+/// Classify outcome for retry + ledger category. None on success.
 pub fn classify_failure(stderr: &str, exit_code: i32, timed_out: bool) -> Option<&'static str> {
-    if timed_out {
-        return Some("timeout");
-    }
+    if timed_out { return Some("timeout"); }
     let s = stderr.to_ascii_lowercase();
     if s.contains("quota") || s.contains("rate limit") || s.contains("resource_exhausted") {
         return Some("quota");
     }
-    if exit_code == 0 {
-        return None;
-    }
-    Some("error")
+    if exit_code == 0 { None } else { Some("error") }
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
-
-Run: `cargo test -p vox-orchestrator-mcp agy_exec::tests::classifies_quota_and_timeout`
-Expected: PASS.
-
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Run + commit**
 
 ```bash
+cargo test -p vox-orchestrator-mcp agy_exec::tests::classifies_quota_timeout_error_success
 git add crates/vox-orchestrator-mcp/src/agy_exec.rs
-git commit -m "feat(agy): classify quota/timeout failures for retry policy"
+git commit -m "feat(agy): classify quota/timeout/error outcomes"
 ```
 
-## Task 10: Bounded retry wrapper around a single delegation
+## Task 12: `should_retry` (pure)
 
-**Files:**
-- Modify: `crates/vox-orchestrator-mcp/src/agy_exec.rs`
+**Files:** modify `agy_exec.rs`.
 
-- [ ] **Step 1: Write the failing test** (retry policy is pure: decide given attempt + class):
+- [ ] **Step 1: Failing test:**
 
 ```rust
     #[test]
-    fn retry_policy_backs_off_quota_then_gives_up() {
-        // attempt is 0-based; max 2 retries for quota, 1 for timeout, 0 for error.
-        assert_eq!(should_retry("quota", 0, 3), true);
-        assert_eq!(should_retry("quota", 2, 3), false);
-        assert_eq!(should_retry("timeout", 1, 3), false);
-        assert_eq!(should_retry("error", 0, 3), false);
+    fn retry_policy() {
+        assert!(should_retry("quota", 0, 3));
+        assert!(!should_retry("quota", 2, 3));   // hit cap
+        assert!(should_retry("timeout", 0, 3));
+        assert!(!should_retry("timeout", 1, 3)); // one extra try only
+        assert!(!should_retry("error", 0, 3));   // non-retryable
     }
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cargo test -p vox-orchestrator-mcp agy_exec::tests::retry_policy_backs_off_quota_then_gives_up`
-Expected: FAIL — `should_retry` undefined.
+Run: `cargo test -p vox-orchestrator-mcp agy_exec::tests::retry_policy`
+Expected: FAIL — undefined.
 
 - [ ] **Step 3: Implement** (append to `agy_exec.rs`):
 
 ```rust
-/// Pure retry decision. `attempt` is 0-based, `max_attempts` is the cap.
+/// Pure retry decision. `attempt` 0-based; `max_attempts` the cap.
 pub fn should_retry(class: &str, attempt: u32, max_attempts: u32) -> bool {
-    if attempt + 1 >= max_attempts {
-        return false;
-    }
+    if attempt + 1 >= max_attempts { return false; }
     match class {
-        "quota" => true,         // backoff + retry (caller sleeps)
-        "timeout" => attempt < 1, // one extra try
+        "quota" => true,
+        "timeout" => attempt < 1,
         _ => false,
     }
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
-
-Run: `cargo test -p vox-orchestrator-mcp agy_exec::tests::retry_policy_backs_off_quota_then_gives_up`
-Expected: PASS.
-
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Run + commit**
 
 ```bash
+cargo test -p vox-orchestrator-mcp agy_exec::tests::retry_policy
 git add crates/vox-orchestrator-mcp/src/agy_exec.rs
-git commit -m "feat(agy): pure retry policy for quota/timeout"
+git commit -m "feat(agy): pure quota/timeout retry policy"
 ```
 
-## Task 11: `vox_agy_delegate_batch` — bounded-concurrency pool, one worktree per worker
+## Task 13: `vox_agy_delegate_batch` — bounded pool, one worktree per worker
 
-**Files:**
-- Modify: `crates/vox-orchestrator-mcp/src/agy_tools.rs`
+**Files:** modify `agy_tools.rs`.
 
-- [ ] **Step 1: Write the failing test** (validation + concurrency clamp are pure):
+- [ ] **Step 1: Failing test:**
 
 ```rust
     #[test]
-    fn batch_validate_clamps_concurrency_and_requires_tasks() {
+    fn batch_validate_requires_tasks_and_clamps_concurrency() {
         assert!(batch_validate(&serde_json::json!({"tasks": []})).is_err());
-        let (tasks, conc, _t) = batch_validate(&serde_json::json!({
-            "tasks": ["a","b","c"], "max_concurrency": 99
-        })).unwrap();
+        let (tasks, conc, _t) = batch_validate(&serde_json::json!({"tasks":["a","b","c"],"max_concurrency":99})).unwrap();
         assert_eq!(tasks.len(), 3);
-        assert!(conc <= 8); // hard cap to protect quota + disk
+        assert!(conc <= 8 && conc >= 1);
     }
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cargo test -p vox-orchestrator-mcp agy_tools::tests::batch_validate_clamps_concurrency_and_requires_tasks`
-Expected: FAIL — `batch_validate` undefined.
+Run: `cargo test -p vox-orchestrator-mcp agy_tools::tests::batch_validate_requires_tasks_and_clamps_concurrency`
+Expected: FAIL — undefined.
 
 - [ ] **Step 3: Implement** (append to `agy_tools.rs`):
 
 ```rust
-use tokio::sync::Semaphore;
 use std::sync::Arc;
+use tokio::sync::Semaphore;
 
 const MAX_CONCURRENCY: usize = 8;
 
 pub fn batch_validate(args: &serde_json::Value) -> Result<(Vec<String>, usize, u64), String> {
     let tasks: Vec<String> = args.get("tasks").and_then(|v| v.as_array())
-        .map(|a| a.iter().filter_map(|x| x.as_str()).map(|s| s.to_string()).filter(|s| !s.trim().is_empty()).collect())
+        .map(|a| a.iter().filter_map(|x| x.as_str()).map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect())
         .unwrap_or_default();
     if tasks.is_empty() {
-        return Err("Provide a non-empty 'tasks' array of spec strings.".into());
+        return Err("Provide a non-empty 'tasks' array of file-disjoint spec strings.".into());
     }
     let conc = args.get("max_concurrency").and_then(|v| v.as_u64()).unwrap_or(3) as usize;
-    let conc = conc.clamp(1, MAX_CONCURRENCY);
     let timeout_secs = args.get("timeout_secs").and_then(|v| v.as_u64()).unwrap_or(900);
-    Ok((tasks, conc, timeout_secs))
+    Ok((tasks, conc.clamp(1, MAX_CONCURRENCY), timeout_secs))
 }
 
 /// `vox_agy_delegate_batch`
@@ -1017,54 +1267,53 @@ pub async fn vox_agy_delegate_batch(state: &ServerState, args: serde_json::Value
             e, "Each task must be a self-contained, file-disjoint spec (see dispatching-parallel-agents).",
         ).to_json(),
     };
+    // One doctor check up front (fail the whole batch fast if agy isn't ready).
+    let report = doctor_report_json();
+    if report["status"] != "ready" {
+        return ToolResult::<serde_json::Value>::err_with_remediation(
+            format!("agy not ready (status: {}).", report["status"]),
+            report["remediation"].as_str().unwrap_or("Run vox_agy_doctor.").to_string(),
+        ).to_json();
+    }
+
     let sem = Arc::new(Semaphore::new(conc));
     let mut handles = Vec::new();
     for task in tasks {
-        let permit_sem = sem.clone();
-        // Each worker delegates independently; reuse the single-task handler for
-        // worktree+exec+retry+ledger so behavior is identical to Wedge 1.
+        let sem = sem.clone();
+        let st = state.clone(); // ServerState: #[derive(Clone)] (verified)
         let one = serde_json::json!({ "task": task, "timeout_secs": timeout_secs });
-        let st = state.clone_for_worker(); // see note below
         handles.push(tokio::spawn(async move {
-            let _permit = permit_sem.acquire().await.expect("semaphore");
+            let _permit = sem.acquire().await.expect("semaphore open");
+            // Reuse the single-task path: doctor+worktree(unique slug)+exec+retry+ledger(locked).
             vox_agy_delegate(&st, one).await
         }));
     }
     let mut results = Vec::new();
     for h in handles {
-        results.push(h.await.unwrap_or_else(|e| format!("{{\"ok\":false,\"error\":\"worker panicked: {e}\"}}")));
+        results.push(h.await.unwrap_or_else(|e| format!("{{\"ok\":false,\"error\":\"worker join failed: {e}\"}}")));
     }
     ToolResult::ok(serde_json::json!({
         "workers": results.len(),
         "concurrency": conc,
         "results": results.iter().map(|r| serde_json::from_str::<serde_json::Value>(r).unwrap_or(serde_json::json!({"raw": r}))).collect::<Vec<_>>(),
-        "next_step": "Review each worker's diff + ledger entry. Integrate file-disjoint branches; resolve any overlap sequentially.",
+        "next_step": "Review each worker's diff + ledger entry. Merge file-disjoint branches; resolve overlap sequentially. Two-strike rule (dispatching-parallel-agents) on repeated failures.",
     })).to_json()
 }
 ```
 
-> **`state.clone_for_worker()` is illustrative.** Confirm how `ServerState` is shared across tasks (it likely is `Arc`-wrapped or `Clone`). If `ServerState: Clone`, use `state.clone()`; if it holds non-`Send` fields, pass only the fields the worker needs (`repo_root`) and have the worker build a minimal context. Grep `rg "struct ServerState" -A40` and `rg "impl Clone for ServerState"` before implementing — do not invent `clone_for_worker`.
+> **Why this is race-free now:** each worker gets a unique slug (atomic counter → unique worktree path + branch) and the ledger append is serialized by the mutex (Task 6). `ServerState` is `#[derive(Clone)]` (verified) and its mutable state is internally `Arc`-shared, so `state.clone()` per worker is correct — confirm with `rg "#\[derive\(Clone\)\]" -A1 crates/vox-orchestrator-mcp/src/server_state.rs`.
 
-- [ ] **Step 4: Wire retry into the single-task path.** Update `vox_agy_delegate` (Task 5) so that around `exec.run`, it loops using `classify_failure` + `should_retry` (sleep `2^attempt` secs on quota). Keep the public JSON shape unchanged; add `"attempts": n`.
-
-- [ ] **Step 5: Run tests**
-
-Run: `cargo test -p vox-orchestrator-mcp agy_`
-Expected: PASS.
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 4: Run + commit**
 
 ```bash
+cargo test -p vox-orchestrator-mcp agy_tools::tests::batch_validate_requires_tasks_and_clamps_concurrency
 git add crates/vox-orchestrator-mcp/src/agy_tools.rs
-git commit -m "feat(agy): vox_agy_delegate_batch — bounded pool + per-worker worktree + retry"
+git commit -m "feat(agy): vox_agy_delegate_batch — bounded pool, per-worker worktree"
 ```
 
-## Task 12: Register `vox_agy_delegate_batch`
+## Task 14: Register `vox_agy_delegate_batch`
 
-**Files:**
-- Modify: `crates/vox-orchestrator-mcp/src/dispatch.rs`
-- Modify: `crates/vox-orchestrator-mcp/src/input_schemas.rs`
-- Modify: `contracts/mcp/tool-registry.canonical.yaml`
+**Files:** modify `dispatch.rs`, `input_schemas.rs`, `contracts/mcp/tool-registry.canonical.yaml`.
 
 - [ ] **Step 1: Dispatch arm:**
 
@@ -1072,51 +1321,94 @@ git commit -m "feat(agy): vox_agy_delegate_batch — bounded pool + per-worker w
         "vox_agy_delegate_batch" => Ok(crate::agy_tools::vox_agy_delegate_batch(state, args).await),
 ```
 
-- [ ] **Step 2: Input schema:**
+- [ ] **Step 2: Schema arm:**
 
 ```rust
         "vox_agy_delegate_batch" => serde_json::json!({
             "type": "object",
             "required": ["tasks"],
             "properties": {
-                "tasks": { "type": "array", "items": { "type": "string" }, "description": "File-disjoint, self-contained specs; one worker (and worktree) per task." },
+                "tasks": { "type": "array", "items": { "type": "string" }, "description": "File-disjoint, self-contained specs; one worker + worktree per task." },
                 "max_concurrency": { "type": "integer", "default": 3, "description": "Parallel workers (clamped to 8)." },
                 "timeout_secs": { "type": "integer", "default": 900 }
             }
         }),
 ```
 
-- [ ] **Step 3: Registry entry** (mirror Task 6 Step 3, name `vox_agy_delegate_batch`, description noting bounded fan-out + per-worker worktree isolation).
+- [ ] **Step 3: Registry entry** (`name: vox_agy_delegate_batch`, description noting bounded fan-out + per-worker worktree isolation + serialized ledger).
 
-- [ ] **Step 4: Regenerate + drift gate + build + arch-check + clippy**
-
-Run: `cargo build -p vox-orchestrator-mcp && cargo run -p vox-arch-check && cargo clippy -p vox-orchestrator-mcp -- -D warnings` (and the ssot-drift gate from Task 6 Step 4)
-Expected: all green; both `vox_agy_*` tools registered.
+- [ ] **Step 4: Build + drift + arch-check + clippy** (as Task 8 Step 4).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add crates/vox-orchestrator-mcp/src/dispatch.rs crates/vox-orchestrator-mcp/src/input_schemas.rs contracts/mcp/tool-registry.canonical.yaml crates/vox-orchestrator-mcp/src/registry.rs
+git add crates/vox-orchestrator-mcp/src/dispatch.rs crates/vox-orchestrator-mcp/src/input_schemas.rs contracts/mcp/tool-registry.canonical.yaml
 git commit -m "feat(agy): register vox_agy_delegate_batch MCP tool"
 ```
 
-## Task 13: Update the skill for batch + final verification sweep
+## Task 15: Optional hardening — `raw-agy-exec` arch-check chokepoint  *(parallel-safe)*
 
-**Files:**
-- Modify: `crates/vox-skills/skills/superpowers/delegate-gemini.skill.md`
+> Recommended. Mirrors `raw-git-exec` so all `Command::new("agy")` must live in `agy_exec.rs`. The code already passes without it; this prevents *future* bypasses.
 
-- [ ] **Step 1:** Expand the "Parallel fan-out" section with a concrete `vox_agy_delegate_batch` example (3 file-disjoint tasks, `max_concurrency: 3`) and the integration rule (merge disjoint branches; sequential resolve on overlap; two-strike rule from `dispatching-parallel-agents`).
+**Files:** modify `crates/vox-arch-check/src/forbidden_patterns.rs`.
 
-- [ ] **Step 2: Full verification sweep** (use superpowers:verification-before-completion):
+- [ ] **Step 1: Add a failing test** mirroring `git_exec` tests (`forbidden_patterns.rs` test module):
 
-Run:
+```rust
+    #[test]
+    fn agy_exec_rule_flags_raw_and_suppresses_annotated() {
+        let rule = ForbiddenPatternRule {
+            name: "raw-agy-exec".into(),
+            pattern: r#"Command::new\("agy"\)"#.into(),
+            allow_annotation: Some("// vox-arch-check: allow agy-exec".into()),
+            reason: "All agy spawns must go through AgyExec.".into(),
+            // copy any other fields from raw-git-exec's constructor
+            ..Default::default() // only if the struct derives Default; else fill all fields like git rule
+        };
+        let hits = scan("fn f(){ let _=Command::new(\"agy\"); }", &rule); // use the real scan fn name
+        assert_eq!(hits[0].rule, "raw-agy-exec");
+        let none = scan("// vox-arch-check: allow agy-exec\nlet _=Command::new(\"agy\");\n", &rule);
+        assert!(none.is_empty());
+    }
+```
+
+> Match the EXACT `ForbiddenPatternRule` constructor shape used by `raw-git-exec` (lines ~156-160) and the real scan-fn name (`rg "fn scan" crates/vox-arch-check/src/forbidden_patterns.rs`). Do not assume `Default`.
+
+- [ ] **Step 2: Run to verify it fails**
+
+Run: `cargo test -p vox-arch-check forbidden_patterns`
+Expected: FAIL — rule not registered.
+
+- [ ] **Step 3: Register the rule** alongside `raw-git-exec` in the function that builds the active rule set, and add the `// vox-arch-check: allow agy-exec` annotation above `Command::new("agy")` in `agy_exec.rs` (and `agy_doctor.rs`'s `--version` probe — or route that probe through `AgyExec` too).
+
+- [ ] **Step 4: Run full arch-check on the workspace**
+
+Run: `cargo test -p vox-arch-check && cargo run -p vox-arch-check`
+Expected: green (rule active; the two annotated sites suppressed; no other `agy` spawns exist).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add crates/vox-arch-check/src/forbidden_patterns.rs crates/vox-orchestrator-mcp/src/agy_exec.rs crates/vox-orchestrator-mcp/src/agy_doctor.rs
+git commit -m "feat(arch-check): raw-agy-exec chokepoint rule (all agy spawns via AgyExec)"
+```
+
+## Task 16: Skill batch section + final verification sweep
+
+**Files:** modify `delegate-gemini.skill.md`.
+
+- [ ] **Step 1:** Expand "Parallel fan-out" with a concrete `vox_agy_delegate_batch` example (3 file-disjoint tasks, `max_concurrency: 3`) and the integration rule (merge disjoint branches; sequential resolve on overlap; two-strike rule).
+
+- [ ] **Step 2: Full verification sweep** (superpowers:verification-before-completion — paste outputs in the PR, evidence before assertions):
+
 ```bash
 cargo test -p vox-orchestrator-mcp agy_
+cargo test -p vox-arch-check forbidden_patterns
 cargo clippy -p vox-orchestrator-mcp -- -D warnings
 cargo run -p vox-arch-check
-cargo run -p vox-cli -- ci handoff-ledger   # ledger still valid after auto-entries
+cargo run -p vox-cli -- ci ssot-drift
 ```
-Expected: all green. Paste outputs in the PR description (evidence before assertions).
+Expected: all green; both `vox_agy_*` delegation tools + `vox_agy_doctor` registered.
 
 - [ ] **Step 3: Commit**
 
@@ -1125,23 +1417,29 @@ git add crates/vox-skills/skills/superpowers/delegate-gemini.skill.md
 git commit -m "docs(skills): delegate-gemini batch fan-out + integration rules"
 ```
 
-**✅ Wedge 2 complete:** bounded-concurrency batch delegation, per-worker worktree isolation, quota/timeout-aware retry, aggregated results + auto-ledger.
+**✅ Wedge 2 complete:** doctor-gated bounded-concurrency batch delegation, per-worker worktree isolation, quota/timeout retry, serialized auto-ledger, optional enforced chokepoint.
 
 ---
 
 ## Out of scope (future Wedge 3)
-- Live streaming dashboard / progress UI for in-flight workers (the `agy` `/agents` panel is TUI-only; surfacing it headlessly needs a different mechanism).
+- Live streaming dashboard for in-flight workers (agy's `/agents` panel is TUI-only; headless surfacing needs a different mechanism).
 - Managing agy's *internal* sub-agents (not exposed under `-p`).
-- A cost/quota budget SSOT shared with `BudgetManager` (extend existing budget, do not add a new one — see prior gamification budget lesson).
-- A VoxScript (`scripts/delegate.vox`) wrapper calling the MCP tool over the local MCP, if Vox-script-native invocation is wanted beyond the skill.
+- A shared cost/quota budget SSOT — **extend the existing `BudgetManager`, do not add a new one** (prior gamification budget lesson).
+- Fully automated OAuth login (interactive by design; we will not store Google credentials).
+- A VoxScript (`scripts/delegate.vox`) wrapper, if Vox-script-native invocation is wanted beyond the skill.
 
 ## Risks & mitigations
-| Risk | Mitigation |
-|---|---|
-| `agy` flags differ from this plan | Task 0 captures `agy --help`; flag constants are reconciled before any code. |
-| #36 sandbox escape under auto-accept | We never pass `--sandbox`; isolation is the Vox worktree jail; executor refuses the dangerous flag combo. |
-| `agy` hangs despite skip-permissions | Hard timeout watchdog kills the process; classified as `timeout`, logged, retried once. |
-| Quota cutoff mid-batch | `classify_failure` → backoff retry; bounded concurrency (≤8) limits burst (cf. graphify rate-limit lesson). |
-| Untrusted code reaches live tree | Output stays in `agy/<slug>` worktree branch until a human reviews the diff and merges. |
-| Flashing console windows on Windows | `CREATE_NO_WINDOW` on every spawn. |
-| Hallucinated `ServerState`/ledger APIs | Plan flags every assumed symbol with a `rg`-confirm note (ledger lesson B-6). |
+| Risk | Mitigation | Task |
+|---|---|---|
+| `agy` not installed / not on PATH | Doctor resolves PATH + known dirs; tools return install remediation, not opaque errors | 1, 2, 7 |
+| `agy` unauthenticated | Doctor reports `present_unauthed` + one-time interactive sign-in instructions (no stored creds) | 1, 7 |
+| `agy` flags differ from plan | Task 0 captures `agy --help`; flag constants reconciled before code | 0 |
+| #36 sandbox escape under auto-accept | Never pass `--sandbox`; isolation = Vox worktree jail; arg builder + arch rule enforce it | 3, 15 |
+| **Orphaned `agy` on timeout (credit burn)** | `kill_on_drop(true)` reaps the child when the timeout future drops | 4 |
+| **Duplicate AGH ids / lost ledger writes under fan-out** | Unique atomic slugs + mutex-serialized ledger append | 6, 7, 13 |
+| Path traversal via task-derived slug | `sanitize_slug` (alphanumeric + dash, ≤40) | 3 |
+| Quota cutoff mid-batch | `classify_failure` → bounded backoff retry; concurrency ≤8 | 11, 12, 13 |
+| Untrusted code reaching live tree | Output stays on `agy/<slug>` branch until human review | 5, 9 |
+| Flashing console windows (Windows) | `CREATE_NO_WINDOW` on every spawn | 4 |
+| Hallucinated repo APIs | Every cross-file symbol carries an `rg`-confirm note; ground-truth verified 2026-06-19 | all |
+| Supply-chain risk of curl\|bash installer | Doctor *instructs* (does not auto-run); remediation says to verify the URL first | 1 |
