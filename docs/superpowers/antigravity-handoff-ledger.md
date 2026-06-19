@@ -63,9 +63,12 @@ commits: [<sha>, ...]
 ## §A. Loop metrics (update opportunistically)
 | metric | value | as of |
 |---|---|---|
-| handoffs logged | 1 | 2026-06-18 |
-| green-first-pass rate | 1/1 | 2026-06-18 |
-| most common failure category | (n/a — single sample) | 2026-06-18 |
+| handoffs logged | 2 | 2026-06-18 |
+| green-gate-pass rate | 2/2 | 2026-06-18 |
+| working-deliverable rate | 1/2 (AGH-0005 green-gated but emits non-compiling TSX) | 2026-06-18 |
+| most common failure category | (tie) unplanned-shared-change · hallucinated-api · test-hygiene | 2026-06-18 |
+
+> **Cross-cutting signal (2 samples):** green gates ≠ working code. AGH-0001 passed gates but deviated on environment; AGH-0005 passed gates but the *plan* shipped non-compiling, framework-coupled codegen behind an opt-in flag that CI never type-checks. Both failure surfaces are invisible to `cargo test`/`clippy`/`arch-check`. The hardening checklist (§B) now covers both agent-behavior (B-2…B-5) and plan-correctness (B-6…B-8).
 
 ## §B. Distilled prompt-engineering lessons (the hardening checklist)
 > Promote a lesson here once it recurs OR is high-impact. Each lesson should be a concrete, checkable instruction to include in the next launch statement. Tag with the AGH entries that motivated it.
@@ -75,6 +78,9 @@ commits: [<sha>, ...]
 3. **Mandate branch isolation.** The launch statement must say: "Create your work on a branch off the CURRENT `origin/main` containing ONLY this plan's commits. Do not accumulate unrelated initiatives on one branch." — *AGH-0001* (73-commit kitchen-sink branch). **NOT yet in prompts — add next.**
 4. **Require a delivery manifest that matches reality.** Ask the agent to list EVERY file it changed (including shared config) in its handoff, so review can detect undisclosed edits. — *AGH-0001* (handoff under-reported the `layers.toml` changes). **NOT yet in prompts — add next.**
 5. **Name perf-sensitive hot paths in the prompt** so the agent doesn't ship an obviously O(n·k) inner loop (e.g., per-shingle hasher re-init). — *AGH-0001* (minhash). **NOT yet in prompts — add next.**
+6. **Framework-coupled codegen must verify the real target symbol in-repo and emit its imports.** Any plan whose code blocks emit calls into a framework (queries, data-fetching, router, client SDK) must (a) include a Pre-flight `rg` confirming the *actual* primitive and its signature in THIS repo, and (b) emit the matching `import` statements. Do NOT assume a backend (e.g., Convex `useQuery(api.x.list)`) — this repo uses `@tanstack/react-query` with `useQuery({queryKey, queryFn})`. — *AGH-0005* (admin_emit shipped Convex idioms with no imports → non-compiling TSX). **PLAN-side defect — add to the codegen-plan template.**
+7. **Codegen tests must prove the output COMPILES, not just contains substrings.** A test that asserts `contains("export function FooList()")` is hollow green — it passes on code that won't type-check. Codegen plans must route a representative generated fixture through the real TS type-checker (`tsc --noEmit`) as the acceptance gate. — *AGH-0005*. **PLAN-side — add to the codegen-plan template.**
+8. **Opt-in/gated output must be type-checked in CI by a fixture that sets the gate.** If a feature's output is hidden behind an env flag (e.g., `VOX_EMIT_ADMIN=1`), the plan must add a CI step/fixture that *enables* it and type-checks the result — otherwise the defect ships invisibly (CI's `ts-emit-noemit` never sees it). — *AGH-0005*. **PLAN-side — add to the codegen-plan template.**
 
 ## §C. Handoff entries (append-only — newest at the bottom)
 
@@ -120,6 +126,46 @@ commits: [9564245036, 4adb4a26c3, c6f608f5bf, 5866e15639, 218363b686, 5eb3ccee4e
 **Process findings (the real risk):** (8) 73-commit kitchen-sink branch — skill-discovery can't be merged in isolation; cherry-pick onto a clean branch. (9) Unplanned `vox-runtime` L1→L2 promotion to clear a red baseline — needs human verification (correct layer, or should the vox-config dep be removed?).
 
 **Net:** the *prompt* was effective (explicit arch rules → honored; dependency-light steer → no mis-wiring). The *gaps* are about constraining the agent's environment behavior (don't touch shared config, isolate the branch, report a full manifest) — now captured as §B-2…§B-5 for the next handoff.
+
+```yaml
+# --- AGH-0005 ---
+id: AGH-0005
+date: 2026-06-18
+plan: docs/superpowers/plans/2026-06-18-track-a-naked-objects-auto-gui.md
+prompt_artifact: "Track A/B/C execution launch statement (Claude Code session, 2026-06-18) — STEP 0..3 + HARD RULES + circuit breaker, paired with the audited Track A plan."
+prompt_version: v1
+subsystem: auto-gui / naked-objects admin UI (Track A)
+target: gemini-3.5-flash / antigravity
+claude_inputs: [research-doc, design-doc, plan, launch-statement]
+delivered: [crates/vox-codegen-ts/src/form_emit.rs, crates/vox-codegen-ts/src/admin_emit.rs, crates/vox-codegen-ts/src/emitter.rs, contracts/gui/admin-registry.yaml]
+loc: 300
+outcome: partial
+verification: { tests: "174 passed", clippy: clean, arch_check: green, smoke: "n/a (gated output never type-checked)" }
+errors_encountered:
+  - { what: "emit_admin_list emits Convex-style `useQuery(api.<t>.list)` + `row._id`, and emit_admin_edit injects `api.<t>.upsert` as on_submit — but no `import {useQuery}`/`import {api}` is emitted, AND this codebase's useQuery is @tanstack/react-query (signature `useQuery({queryKey, queryFn})`, NOT Convex `useQuery(api.x.list)`). Generated admin TSX references undefined `api`/`useQuery` and uses the wrong useQuery shape → will not type-check.", root_cause: "the PLAN's Step-4 code blocks (plan lines 260/263/313) baked in a Convex backend + omitted imports; plan line 506 even acknowledged `api.*` was 'assumed to exist' but shipped it without an import or a backend-agnostic abstraction.", category: "hallucinated-api", who: plan }
+  - { what: "the defect was not caught by tests or CI", root_cause: "plan specified substring-only assertions (contains `export function UserList()`, `<table>`) that pass on non-compiling output; AND the opt-in `VOX_EMIT_ADMIN` gate (off by default) means the `ts-emit-noemit` CI never exercises admin output.", category: "test-hygiene", who: plan }
+agent_deviations:
+  - "None material for Track A. The agent transcribed the plan's code blocks faithfully, used the correct verified symbols (Span via vox_compiler::ast::span, HirExpr::StringLit, HirFieldConstraint::Enum), kept tests pure (admin_content_for), and propagated the CodeRabbit Result-returning loader fix. Clean execution of a flawed spec."
+review_findings: "docs/superpowers/antigravity-handoff-ledger.md §C-AGH-0005-review (Claude Code code-review, 2026-06-18)"
+verdict: request-changes
+prompt_lessons:
+  - "When a plan emits framework-coupled code (queries, data-fetching, router), the plan MUST (a) emit the matching imports and (b) verify the target symbol's real signature in THIS repo — not assume a backend. Add a Pre-flight rg for the actual query primitive (here: `rg -n 'useQuery' crates/vox-codegen-ts/src` would have shown tanstack, not Convex). (§B-6)"
+  - "Codegen tests must prove the output COMPILES, not just contains substrings — gate generated fixtures through the real TS type-checker. Substring asserts are hollow green. (§B-7)"
+  - "If a feature's output is hidden behind an opt-in env gate, the plan must add a CI fixture that SETS the gate and type-checks the output, or the defect ships invisibly. (§B-8)"
+corrections_fed_back: []
+commits: [13da61aeb4, bd2c98accf, 97125d0e97, 699e54431f, d78f3c6bb8, 946b5326f4, a6efd24c4c]
+```
+
+### AGH-0005 — review detail (human prose)
+**What we asked for:** Track A naked-objects auto-GUI — typed inputs for branded scalars, enum `<select>`, admin list/edit views from `HirTable`, opt-in behind `VOX_EMIT_ADMIN` + an allowlist registry.
+
+**What came back (faithfully executed):** all 7 tasks, 174 green tests, clippy clean, arch-check green. The agent did NOT hallucinate APIs — every symbol it used was real and verified (the plan's Pre-flight `rg` steps worked). `form_emit` Tasks 1–2 are correct and a11y-aware (`aria-invalid`, `role="alert"` error spans). The edit view DRYs onto `form_emit::emit_form`. The CodeRabbit `Result`-returning `load_admin_registry` fix propagated into the code exactly. The opt-in gating is correct (`admin_content_for` is a pure, env-free, tested helper).
+
+**The real defect (PLAN's fault, not the agent's):** `emit_admin_list` emits `const rows = useQuery(api.<t>.list) ?? []` and keys rows on `row._id`; `emit_admin_edit` injects `api.<t>.upsert`. This is the **Convex** react-client idiom — but (1) no `import { useQuery }` / `import { api }` is ever emitted, and (2) this repo's `useQuery` is **@tanstack/react-query** with the incompatible signature `useQuery({ queryKey, queryFn })` (see `crates/vox-codegen-ts/src/tanstack_query_emit.rs`). So the generated admin TSX references undefined names and mis-calls `useQuery` → it will not type-check. The plan itself wrote these code blocks (lines 260/263/313) and even noted at line 506 that `api.*` was "assumed to exist" — but shipped it with no import and no backend-agnostic seam.
+
+**Why nobody caught it:** the plan's tests assert substrings only (`contains("export function UserList()")`, `contains("<table")`) — they pass on code that doesn't compile. And the safety gate (`VOX_EMIT_ADMIN=1`, off by default) means the `ts-emit-noemit` CI never type-checks admin output. Hollow green + invisible-to-CI = a defect that ships silently. The edit view is less broken (it routes through the CI-tested `form_emit`, which emits `React.useState` correctly) but still references the unimported `api`.
+
+**Net:** this is the inverse of AGH-0001. There, the agent deviated from a good prompt (environment behavior). Here, the agent executed a flawed prompt perfectly. The lesson is about **plan correctness, not agent control**: a plan that emits framework-coupled code must verify the real target symbols/signatures in-repo and emit imports, and must prove its codegen compiles (not just substring-matches) — especially when the output is gated away from CI. Captured as §B-6…§B-8. Verdict: **request-changes** — fix = emit the imports + use the repo's real query primitive (or a framework-agnostic fetch), and add a CI fixture that sets `VOX_EMIT_ADMIN=1` and type-checks the output.
 
 ## §D. Pending handoffs — ready-to-paste launch statements
 > These are the next handoffs derived from the AGH-0001 review. When you dispatch one, copy its launch statement to the Antigravity runner AND open the matching ledger entry (AGH-0002/0003/0004) in §C. All three carry the §B hardenings inline. **Parallel-dispatch coordination:** the three plans hit disjoint crates, BUT plans D-1 and D-3 both append registration rows to `layers.toml` / `where-things-live.md` / `Cargo.toml`. Run **D-1 Tasks 1–2 first** (it owns the `vox-runtime` line + re-homes the engine), then start D-2 and D-3 in parallel; or serialize just those registration edits.
