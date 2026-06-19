@@ -28,8 +28,8 @@ fn test_cli_graphify_rebuild_success() {
 #[test]
 fn rebuild_then_assess_is_fresh_and_detects_drift() {
     use chrono::Utc;
-    use vox_config::graphify::{assess_corpus_status, GraphifyCorpus};
-    use vox_graphify_reader::rebuild::{rebuild_graph, RebuildMeta};
+    use vox_config::graphify::{GraphifyCorpus, assess_corpus_status};
+    use vox_graphify_reader::rebuild::{RebuildMeta, rebuild_graph};
 
     let tmp = tempfile::tempdir().unwrap();
     let src = tmp.path().join("src");
@@ -45,7 +45,14 @@ fn rebuild_then_assess_is_fresh_and_detects_drift() {
         extraction_mode: Some("structural".to_string()),
         built_at_rfc3339: Utc::now().to_rfc3339(),
     };
-    rebuild_graph(tmp.path(), &src, &out, &out.parent().unwrap().join("file_cache"), &meta).unwrap();
+    rebuild_graph(
+        tmp.path(),
+        &src,
+        &out,
+        &out.parent().unwrap().join("file_cache"),
+        &meta,
+    )
+    .unwrap();
 
     let corpus = GraphifyCorpus {
         id: "repo-code-graph".to_string(),
@@ -56,6 +63,7 @@ fn rebuild_then_assess_is_fresh_and_detects_drift() {
         extraction_mode: Some("structural".to_string()),
         default_for_intents: vec![],
         is_virtual: false,
+        source_root: None,
     };
     let fresh = assess_corpus_status(tmp.path(), &corpus, Some("headsha"), Utc::now(), 30);
     assert!(fresh.is_fresh, "stale: {:?}", fresh.stale_reasons);

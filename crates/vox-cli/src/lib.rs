@@ -5,6 +5,7 @@
 
 #![allow(clippy::collapsible_if)]
 #![allow(clippy::drop_non_drop)]
+#![allow(deprecated, unexpected_cfgs)]
 
 pub mod benchmark_telemetry;
 #[cfg(feature = "script-execution")]

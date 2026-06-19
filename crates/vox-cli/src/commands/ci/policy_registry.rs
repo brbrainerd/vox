@@ -321,6 +321,70 @@ pub fn crl_gate_entries() -> Vec<PolicyEntry> {
     out
 }
 
+pub fn gui_design_rule_entries() -> Vec<vox_config::PolicyEntry> {
+    vec![
+        PolicyEntry {
+            id: "gui-design-rule/contrast".to_string(),
+            domain: PolicyDomain::GuiDesignRule,
+            title: "Contrast Ratio".to_string(),
+            group: "GUI Design Rules".to_string(),
+            description: "Validates WCAG contrast ratio for color palettes".to_string(),
+            severity: Some(PolicySeverity::Error),
+            blocking: true,
+            runs_on: vec!["pre-commit".into(), "ci".into()],
+            source: PolicySource {
+                kind: PolicySourceKind::Guard,
+                reference: "crates/vox-codegen/src/web_ir/validate_palette.rs".to_string(),
+                detail: Some("web_ir::validate_palette".to_string()),
+            },
+            docs: None,
+            default_enabled: true,
+            protected: false,
+            origin: "builtin".to_string(),
+        },
+        PolicyEntry {
+            id: "gui-design-rule/layer-occlusion".to_string(),
+            domain: PolicyDomain::GuiDesignRule,
+            title: "Layer Occlusion".to_string(),
+            group: "GUI Design Rules".to_string(),
+            description: "Validates z-index/depth layers and prevents overlapping occlusion"
+                .to_string(),
+            severity: Some(PolicySeverity::Error),
+            blocking: true,
+            runs_on: vec!["pre-commit".into(), "ci".into()],
+            source: PolicySource {
+                kind: PolicySourceKind::Guard,
+                reference: "crates/vox-codegen/src/web_ir/validate_layer.rs".to_string(),
+                detail: Some("web_ir::validate_layer".to_string()),
+            },
+            docs: None,
+            default_enabled: true,
+            protected: false,
+            origin: "builtin".to_string(),
+        },
+        PolicyEntry {
+            id: "gui-design-rule/a11y".to_string(),
+            domain: PolicyDomain::GuiDesignRule,
+            title: "Accessibility (a11y)".to_string(),
+            group: "GUI Design Rules".to_string(),
+            description: "Validates accessibility properties (aria roles, labels, contrast)"
+                .to_string(),
+            severity: Some(PolicySeverity::Error),
+            blocking: true,
+            runs_on: vec!["pre-commit".into(), "ci".into()],
+            source: PolicySource {
+                kind: PolicySourceKind::Guard,
+                reference: "crates/vox-codegen/src/web_ir/validate_a11y.rs".to_string(),
+                detail: Some("web_ir::validate_a11y".to_string()),
+            },
+            docs: None,
+            default_enabled: true,
+            protected: false,
+            origin: "builtin".to_string(),
+        },
+    ]
+}
+
 /// Build the full registry document across all domains this plan covers.
 /// The four contract/registry-backed domains (ci-gate, arch, crl, audit) compile
 /// in the default build; `code-audit-rule` is added only under `completion-toestub`.
@@ -330,6 +394,7 @@ pub fn build_registry(repo_root: &Path) -> Result<vox_config::PolicyRegistry, St
     policies.extend(arch_rule_entries(repo_root)?);
     policies.extend(crl_gate_entries());
     policies.extend(audit_check_entries(repo_root)?);
+    policies.extend(gui_design_rule_entries());
 
     #[cfg(feature = "completion-toestub")]
     policies.extend(code_audit_entries());
@@ -410,6 +475,11 @@ fn default_domain_expectations(repo_root: &Path) -> Result<Vec<DomainExpectation
             domain: PolicyDomain::AuditCheck,
             label: "audit-check",
             expected: audit_check_entries(repo_root)?,
+        },
+        DomainExpectation {
+            domain: PolicyDomain::GuiDesignRule,
+            label: "gui-design-rule",
+            expected: gui_design_rule_entries(),
         },
     ])
 }
@@ -760,6 +830,25 @@ mod default_domain_tests {
             .expect("tooling gate present");
         assert!(!tooling.blocking, "tooling gate block_ga() == false");
         assert_eq!(tooling.severity, Some(vox_config::PolicySeverity::Warn));
+    }
+
+    #[test]
+    fn gui_design_rules_registered() {
+        use vox_config::PolicyDomain;
+        let entries = gui_design_rule_entries();
+        let ids: Vec<&str> = entries.iter().map(|p| p.id.as_str()).collect();
+        for id in [
+            "gui-design-rule/contrast",
+            "gui-design-rule/layer-occlusion",
+            "gui-design-rule/a11y",
+        ] {
+            assert!(ids.contains(&id), "missing {id}");
+        }
+        assert!(
+            gui_design_rule_entries()
+                .iter()
+                .all(|p| p.domain == PolicyDomain::GuiDesignRule)
+        );
     }
 
     #[test]

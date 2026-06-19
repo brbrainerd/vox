@@ -55,6 +55,37 @@ fn resolve_head_sha() -> anyhow::Result<Option<String>> {
     }
 }
 
+pub(crate) fn resolve_source_dir(
+    repo_root: &std::path::Path,
+    corpus: &GraphifyCorpus,
+) -> std::path::PathBuf {
+    corpus
+        .source_root
+        .as_ref()
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| repo_root.to_path_buf())
+        .join(&corpus.scope_path)
+}
+
+/// `git -C <dir> rev-parse HEAD`, or Ok(None) if not a git repo.
+fn resolve_head_sha_in(dir: &std::path::Path) -> anyhow::Result<Option<String>> {
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(dir)
+        .args(["rev-parse", "HEAD"])
+        .output()
+        .context("git rev-parse HEAD")?;
+    if !output.status.success() {
+        return Ok(None);
+    }
+    let sha = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if sha.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(sha))
+    }
+}
+
 fn corpus_by_id<'a>(
     reg: &'a GraphifyCorporaRegistry,
     id: &str,
@@ -79,13 +110,25 @@ fn assess_all(
     repo_root: &std::path::Path,
     reg: &GraphifyCorporaRegistry,
     corpus: &Option<String>,
-    head_sha: Option<&str>,
+    vox_head: Option<&str>,
 ) -> Result<Vec<CorpusStatus>, GraphifyError> {
     let now = Utc::now();
     let ttl = vox_config::graphify::resolve_ttl_days(reg.ttl_days_default);
     selected_corpora(reg, corpus)?
         .into_iter()
-        .map(|c| Ok(assess_corpus_status(repo_root, c, head_sha, now, ttl)))
+        .map(|c| {
+            let head = match &c.source_root {
+                Some(root) => resolve_head_sha_in(std::path::Path::new(root)).unwrap_or(None),
+                None => vox_head.map(str::to_string),
+            };
+            Ok(assess_corpus_status(
+                repo_root,
+                c,
+                head.as_deref(),
+                now,
+                ttl,
+            ))
+        })
         .collect()
 }
 
@@ -226,7 +269,7 @@ pub fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Result<()> 
             let corpus =
                 corpus_by_id(&reg, &corpus_id).map_err(|e| anyhow::anyhow!(e.to_string()))?;
 
-            let source_dir = repo_root.join(&corpus.scope_path);
+            let source_dir = resolve_source_dir(repo_root, corpus);
             let output_file = repo_root.join(&corpus.graph_path);
             let cache_dir = output_file.parent().unwrap().join("file_cache");
 
@@ -327,5 +370,31 @@ mod tests {
         assert_eq!(nodes[0].node_type, "module");
         assert!(nodes[0].metadata.contains("repo-code-graph"));
         assert!(nodes[0].metadata.contains("graphify_lexical_ingest"));
+    }
+
+    #[test]
+    fn source_root_overrides_repo_root_for_source_dir() {
+        use vox_config::graphify::GraphifyCorpus;
+        let repo = std::path::Path::new("/repo");
+        let ext = GraphifyCorpus {
+            id: "ext".into(),
+            title: "ext".into(),
+            scope_path: "src".into(),
+            graph_path: ".vox/cache/graphify/ext/graph.json".into(),
+            manifest_path: ".vox/cache/graphify/ext/.graphify_manifest.v1.json".into(),
+            extraction_mode: Some("structural".into()),
+            default_for_intents: vec![],
+            is_virtual: false,
+            source_root: Some("/other/target".into()),
+        };
+        assert_eq!(
+            resolve_source_dir(repo, &ext),
+            std::path::Path::new("/other/target").join("src")
+        );
+        let local = GraphifyCorpus {
+            source_root: None,
+            ..ext
+        };
+        assert_eq!(resolve_source_dir(repo, &local), repo.join("src"));
     }
 }
