@@ -1,41 +1,39 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
-  <!-- Axis (Vox Axis) app mark: the coordinate-axis symbol — three arrowed axes
-       (x/y/z) radiating from a common origin, i.e. an isometric coordinate frame.
-       Semiotics: this is THE conventional sign for "axis/axes". Palette matches the
-       in-app glyph: brass -> amber -> zinc tile, light stroke. -->
+  <!-- Axis (Vox Axis) app mark: a GIMBAL / gyroscope read from a distance — two
+       tilted rings nested in an outer ring, pierced by a single bold spin axis with
+       a direction arrow. Semiotics: the gimbal IS the everyday object that embodies
+       "an axis". Mark is fully MONOCHROME white; only the tile carries the brand
+       gradient (brass -> amber -> zinc). Legible at 32px: 3 strokes + 1 hub. -->
   <defs>
     <linearGradient id="axisTile" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#c69a5b"/>
       <stop offset="48%" stop-color="#d97706"/>
       <stop offset="100%" stop-color="#18181b"/>
     </linearGradient>
-    <linearGradient id="axisStroke" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#fafafa"/>
-      <stop offset="100%" stop-color="#f0e0c2"/>
-    </linearGradient>
   </defs>
 
-  <!-- rounded tile -->
+  <!-- brand tile -->
   <rect x="64" y="64" width="896" height="896" rx="196" ry="196" fill="url(#axisTile)"/>
-  <!-- subtle inner ring (echoes ring-1 ring-brass/40) -->
+  <!-- subtle inner ring border -->
   <rect x="92" y="92" width="840" height="840" rx="172" ry="172" fill="none"
-        stroke="#f5deb3" stroke-opacity="0.28" stroke-width="8"/>
+        stroke="#fafafa" stroke-opacity="0.22" stroke-width="8"/>
 
-  <!-- coordinate frame: origin O=(512,548); y up, x lower-right (+30°), z lower-left (-30°) -->
-  <g stroke="url(#axisStroke)" stroke-width="62" stroke-linecap="round" fill="none">
-    <path d="M512 548 L512 268"/>   <!-- y axis (up)         -->
-    <path d="M512 548 L742 681"/>   <!-- x axis (lower-right) -->
-    <path d="M512 548 L282 681"/>   <!-- z axis (lower-left)  -->
+  <!-- ── gimbal rings (monochrome white, opacity for depth) ── -->
+  <g fill="none" stroke="#fafafa" stroke-linecap="round">
+    <!-- fixed outer ring -->
+    <circle cx="512" cy="512" r="292" stroke-opacity="0.50" stroke-width="24"/>
+    <!-- two tilted inner gimbal rings, crossing -->
+    <ellipse cx="512" cy="512" rx="292" ry="116" stroke-opacity="0.85" stroke-width="30"
+             transform="rotate(34 512 512)"/>
+    <ellipse cx="512" cy="512" rx="292" ry="116" stroke-opacity="0.85" stroke-width="30"
+             transform="rotate(-34 512 512)"/>
   </g>
 
-  <!-- arrowheads (sharp triangles placed at each tip, rotated to its direction) -->
-  <g fill="url(#axisStroke)">
-    <polygon points="0,-64 -46,30 46,30" transform="translate(512,236)"/>            <!-- y: up        -->
-    <polygon points="0,-64 -46,30 46,30" transform="translate(774,699) rotate(120)"/> <!-- x: +30° down-right -->
-    <polygon points="0,-64 -46,30 46,30" transform="translate(250,699) rotate(240)"/> <!-- z: -30° down-left  -->
-  </g>
+  <!-- ── spin axis (the hero): bold, solid white, with a direction arrow ── -->
+  <line x1="512" y1="236" x2="512" y2="872" stroke="#fafafa" stroke-width="46" stroke-linecap="round"/>
+  <polygon points="512,140 466,244 558,244" fill="#fafafa"/>
 
-  <!-- origin node -->
-  <circle cx="512" cy="548" r="46" fill="#18181b"/>
-  <circle cx="512" cy="548" r="46" fill="none" stroke="url(#axisStroke)" stroke-width="20"/>
+  <!-- hub at the origin -->
+  <circle cx="512" cy="512" r="54" fill="#18181b"/>
+  <circle cx="512" cy="512" r="54" fill="none" stroke="#fafafa" stroke-width="22"/>
 </svg>
