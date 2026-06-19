@@ -71,6 +71,7 @@ pub struct Orchestrator {
     pub qa_router: std::sync::Arc<std::sync::RwLock<crate::qa::QARouter>>,
     pub monitor: std::sync::Arc<std::sync::RwLock<crate::monitor::AiMonitor>>,
     pub event_bus: crate::events::EventBus,
+    pub hopper: std::sync::Arc<dyn crate::hopper::store::HopperIntake>,
     pub message_bus: crate::a2a::MessageBus,
     /// IDs of agents that were dynamically spawned (transient).
     pub dynamic_agents: std::sync::Arc<std::sync::RwLock<std::collections::HashSet<AgentId>>>,

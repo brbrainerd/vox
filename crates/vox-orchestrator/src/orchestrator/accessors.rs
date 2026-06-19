@@ -518,6 +518,10 @@ impl Orchestrator {
     ) -> crate::orchestrator_policy::PolicyDecision {
         self.agentos_policy_ledger.evaluate_for_agent(agent_id)
     }
+
+    pub fn hopper(&self) -> std::sync::Arc<dyn crate::hopper::store::HopperIntake> {
+        std::sync::Arc::clone(&self.hopper)
+    }
 }
 
 #[cfg(test)]
