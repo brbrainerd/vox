@@ -161,10 +161,15 @@ Run order: B1 ∥ B4 ∥ B6 first; then B5 after B4 (same file).
 
 # PHASE D — Professional front-end blend 🧑‍🎨 (CLAUDE-CODE PRE-FLIGHT — do NOT hand to Flash)
 
+> ✅ **DONE (2026-06-19, Claude Code, executing-plans, TDD).** 19 vitest tests green
+> across 5 files; existing Sidebar suite still 10/10; only pre-existing unrelated tsc
+> error is `DueNudge.tsx` (untracked WIP, not part of this work). Commits: AxisMark,
+> token-hygiene test, sidebar lockup (+ rail-mode mark), favicon + `index.html`.
+>
 > Runs in **Claude Code** alongside Phase A, before the handoff. Scope = **brand
 > essentials + light theme tokens**. This is the inline-SVG / asset / HTML-head /
 > token surface where Flash hallucinates — Claude owns all of it. TDD; atomic green
-> commits. Status: **plan-authored, not yet executed.**
+> commits.
 >
 > **Token reuse (anti-split-brain):** the UI already has a Style-Dictionary pipeline —
 > sources `crates/vox-gui/ui/tokens/{primitive,semantic}.json`, built via
