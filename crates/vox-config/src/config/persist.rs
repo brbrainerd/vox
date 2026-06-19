@@ -112,6 +112,10 @@ pub(super) fn save_merged_global_config(path: &Path, cfg: &VoxConfig) -> std::io
     );
     root.insert("agent".to_string(), Value::Table(agent));
 
+    let pool_val = toml::Value::try_from(&cfg.model_pool)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))?;
+    root.insert("model_pool".to_string(), pool_val);
+
     let out = toml::to_string_pretty(&Value::Table(root))
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))?;
     std::fs::write(path, out)?;
