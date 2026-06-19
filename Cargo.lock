@@ -14628,7 +14628,6 @@ dependencies = [
  "tempfile",
  "tokio",
  "vox-scaling-policy",
- "workspace-hack",
 ]
 
 [[package]]
@@ -14887,6 +14886,7 @@ dependencies = [
  "sha3",
  "syn 2.0.118",
  "tempfile",
+ "tracing",
  "vox-compiler",
  "vox-config",
  "vox-deploy-codegen",
@@ -14910,7 +14910,9 @@ dependencies = [
  "miette",
  "serde",
  "serde_json",
+ "serde_yaml_ng",
  "tempfile",
+ "tracing",
  "vox-codegen",
  "vox-compiler",
  "vox-config",
@@ -16608,7 +16610,6 @@ dependencies = [
  "thiserror 2.0.18",
  "tracing",
  "vox-mesh-types",
- "workspace-hack",
 ]
 
 [[package]]
@@ -16721,7 +16722,6 @@ dependencies = [
  "turso",
  "vox-bounded-fs",
  "vox-crypto",
- "workspace-hack",
 ]
 
 [[package]]
@@ -16729,6 +16729,28 @@ name = "vox-shell-stdlib-types"
 version = "0.6.0"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "vox-similarity"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "serde",
+]
+
+[[package]]
+name = "vox-skill-discovery"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "serde",
+ "serde_json",
+ "vox-mcp-registry",
+ "vox-plugin-types",
+ "vox-similarity",
+ "walkdir",
 ]
 
 [[package]]
