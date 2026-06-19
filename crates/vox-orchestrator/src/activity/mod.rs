@@ -34,6 +34,8 @@ pub fn is_loggable(kind: &AgentEventKind) -> bool {
             | WorkflowStarted { .. }
             | WorkflowCompleted { .. }
             | WorkflowFailed { .. }
+            | FeedbackRequested { .. }
+            | FeedbackResolved { .. }
     )
     // High-frequency telemetry deliberately excluded:
     // AgentHeartbeat, ThroughputTick, CostTick, FileDiagChanged → false (fall-through).

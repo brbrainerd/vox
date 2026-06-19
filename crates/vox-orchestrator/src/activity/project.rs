@@ -208,6 +208,18 @@ pub fn project(kind: &AgentEventKind) -> ActivityRow {
             "WorkflowFailed",
             format!("Workflow {workflow_id} failed: {error}"),
         ),
+        FeedbackRequested { feedback_id, kind, surface, .. } => (
+            None,
+            None,
+            "FeedbackRequested",
+            format!("Feedback requested ({kind}): {feedback_id} [{surface}]"),
+        ),
+        FeedbackResolved { feedback_id, .. } => (
+            None,
+            None,
+            "FeedbackResolved",
+            format!("Feedback resolved: {feedback_id}"),
+        ),
         other => (None, None, "Other", format!("{other:?}")),
     };
 
