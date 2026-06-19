@@ -25,21 +25,33 @@ pub fn channel_gain_offset(c: ChannelOutcomeCounts) -> f64 {
     raw.clamp(-0.15, 0.05)
 }
 
-/// Aggregate `(channel, outcome_or_event_str)` rows (as read from `attention_events`) into counts.
+/// Aggregate per-row `(channel, outcome, event_type)` triples read from `attention_events` into
+/// per-channel counts.
+///
+/// IMPORTANT — acceptance and suppression come from two DIFFERENT columns of the real schema, both
+/// serialized as default PascalCase (no serde rename), so we match the *actual* variant names:
+/// - **acceptance / rejection** live in the `outcome` column (`ApprovalOutcome`:
+///   `Approved` / `Rejected` / `Modified` / `AutoApproved` / `TimedOut`);
+/// - **suppression / deferral** lives in the `event_type` column
+///   (`AttentionEventType::PolicyDeferred` / `PolicyProceedAuto`).
+///
+/// `AutoApproved` (zero attention cost) and `TimedOut` are not treated as learning signal.
 #[must_use]
 pub fn aggregate_counts(
-    rows: &[(Option<String>, String)],
+    rows: &[(Option<String>, String, String)],
 ) -> std::collections::HashMap<String, ChannelOutcomeCounts> {
     let mut map: std::collections::HashMap<String, ChannelOutcomeCounts> =
         std::collections::HashMap::new();
-    for (channel, outcome) in rows {
+    for (channel, outcome, event_type) in rows {
         let key = channel.clone().unwrap_or_else(|| "unknown".to_string());
         let e = map.entry(key).or_default();
         match outcome.as_str() {
-            "Accepted" | "Answered" => e.accepted += 1,
+            "Approved" | "Modified" => e.accepted += 1,
             "Rejected" => e.rejected += 1,
-            "PolicyDeferred" | "PolicyProceedAuto" | "Suppressed" => e.suppressed += 1,
             _ => {}
+        }
+        if matches!(event_type.as_str(), "PolicyDeferred" | "PolicyProceedAuto") {
+            e.suppressed += 1;
         }
     }
     map
@@ -87,20 +99,61 @@ mod tests {
         );
     }
     #[test]
-    fn aggregate_buckets_by_channel_and_outcome() {
+    fn aggregate_buckets_by_real_outcome_and_event_type_strings() {
+        // REAL serialized values: outcome ∈ ApprovalOutcome (Approved/Rejected/Modified/...),
+        // event_type ∈ AttentionEventType (...PolicyDeferred/PolicyProceedAuto). No serde rename.
         let rows = vec![
-            (Some("mcp_chat".into()), "Rejected".to_string()),
-            (Some("mcp_chat".into()), "Accepted".to_string()),
-            (Some("mcp_chat".into()), "PolicyDeferred".to_string()),
+            (
+                Some("vox_inline_edit".into()),
+                "Rejected".to_string(),
+                "CommandApproval".to_string(),
+            ),
+            (
+                Some("vox_inline_edit".into()),
+                "Approved".to_string(),
+                "CommandApproval".to_string(),
+            ),
+            (
+                Some("vox_inline_edit".into()),
+                "Modified".to_string(),
+                "CodeReview".to_string(),
+            ),
+            (
+                Some("vox_inline_edit".into()),
+                "AutoApproved".to_string(),
+                "PolicyDeferred".to_string(),
+            ),
         ];
         let m = aggregate_counts(&rows);
         assert_eq!(
-            m["mcp_chat"],
+            m["vox_inline_edit"],
             ChannelOutcomeCounts {
-                accepted: 1,
+                accepted: 2, // Approved + Modified
                 rejected: 1,
-                suppressed: 1
+                suppressed: 1 // PolicyDeferred (from event_type, not outcome)
             }
+        );
+    }
+
+    #[test]
+    fn aggregate_ignores_legacy_phantom_strings() {
+        // Guard against the original bug: "Accepted"/"Answered" are NOT real ApprovalOutcome
+        // variants and must contribute nothing.
+        let rows = vec![
+            (
+                Some("x".into()),
+                "Accepted".to_string(),
+                "Other".to_string(),
+            ),
+            (
+                Some("x".into()),
+                "Answered".to_string(),
+                "Other".to_string(),
+            ),
+        ];
+        assert_eq!(
+            aggregate_counts(&rows)["x"],
+            ChannelOutcomeCounts::default()
         );
     }
 }
