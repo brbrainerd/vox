@@ -13,6 +13,7 @@ pub mod daemon_extra;
 pub mod params;
 pub mod pending_approvals;
 pub mod server_state;
+pub mod feedback_tools;
 
 pub mod aci;
 /// Agent native gateway and skill tools.
@@ -169,6 +170,7 @@ pub mod plugin_skills_bridge;
 pub mod server;
 pub mod agy_doctor;
 pub mod agy_exec;
+pub mod agy_gates;
 pub mod agy_ledger;
 pub mod agy_worktree;
 pub mod agy_tools;

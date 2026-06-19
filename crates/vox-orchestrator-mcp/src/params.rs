@@ -1005,3 +1005,48 @@ pub struct VoxCheckResponse {
     /// Total diagnostic count.
     pub count: usize,
 }
+
+/// Arguments for `vox_ask_clarification`.
+#[derive(Debug, Clone, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct AskClarificationParams {
+    pub prompt: String,
+    #[serde(default)]
+    pub options: Vec<String>,
+    /// TaskId(u64) values this question gates; empty = non-gating.
+    #[serde(default)]
+    pub gates: Vec<u64>,
+    #[serde(default)]
+    pub session_id: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, schemars::JsonSchema)]
+#[serde(tag = "action", rename_all = "snake_case")]
+pub enum McpFeedbackAction {
+    Answer {
+        option: Option<usize>,
+        text: Option<String>,
+    },
+    Skip,
+    Overrule,
+    LetVerify,
+}
+
+impl From<McpFeedbackAction> for vox_orchestrator::feedback::FeedbackAction {
+    fn from(val: McpFeedbackAction) -> Self {
+        match val {
+            McpFeedbackAction::Answer { option, text } => Self::Answer { option, text },
+            McpFeedbackAction::Skip => Self::Skip,
+            McpFeedbackAction::Overrule => Self::Overrule,
+            McpFeedbackAction::LetVerify => Self::LetVerify,
+        }
+    }
+}
+
+/// Arguments for `vox_resolve_feedback`.
+#[derive(Debug, Clone, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct ResolveFeedbackParams {
+    pub feedback_id: String,
+    pub action: McpFeedbackAction,
+}
