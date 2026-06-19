@@ -167,6 +167,15 @@ pub fn load_graphify_corpora(repo_root: &Path) -> Result<GraphifyCorporaRegistry
     })
 }
 
+/// First corpus id whose `default_for_intents` contains `intent`, if any.
+/// Activates the otherwise-dormant intent-routing field.
+pub fn select_corpus_for_intent(reg: &GraphifyCorporaRegistry, intent: &str) -> Option<String> {
+    reg.corpora
+        .iter()
+        .find(|c| c.default_for_intents.iter().any(|i| i == intent))
+        .map(|c| c.id.clone())
+}
+
 /// Load runtime-registered corpora (empty if the overlay file is absent/unparseable).
 pub fn load_registered_corpora(repo_root: &Path) -> Vec<GraphifyCorpus> {
     let path = repo_root.join(REGISTERED_REL_PATH);
@@ -631,5 +640,45 @@ mod tests {
             lexical_lag_stale_reason(&after2).as_deref(),
             Some("lexical_lag")
         );
+    }
+
+    #[test]
+    fn intent_routing_picks_first_matching_corpus() {
+        // synthetic registry
+        let mk = |id: &str, intents: &[&str]| GraphifyCorpus {
+            id: id.into(),
+            title: id.into(),
+            scope_path: ".".into(),
+            graph_path: "g".into(),
+            manifest_path: "m".into(),
+            extraction_mode: None,
+            default_for_intents: intents.iter().map(|s| s.to_string()).collect(),
+            is_virtual: false,
+            source_root: None,
+        };
+        let reg = GraphifyCorporaRegistry {
+            default_corpus_id: "a".into(),
+            ttl_days_default: 30,
+            corpora: vec![mk("a", &["code_navigation"]), mk("b", &["gui_surface"])],
+        };
+        assert_eq!(select_corpus_for_intent(&reg, "gui_surface").as_deref(), Some("b"));
+        assert_eq!(select_corpus_for_intent(&reg, "code_navigation").as_deref(), Some("a"));
+        assert_eq!(select_corpus_for_intent(&reg, "nonexistent"), None);
+    }
+
+    #[test]
+    fn intent_routing_against_bundled_registry() {
+        // Exercises the real contract data (repo-code-graph↔code_navigation, vox-gui-surface↔gui_surface).
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().join("contracts/retrieval");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("graphify-corpora.v1.yaml"),
+            include_str!("../../../contracts/retrieval/graphify-corpora.v1.yaml"),
+        )
+        .unwrap();
+        let reg = load_graphify_corpora(tmp.path()).unwrap();
+        assert_eq!(select_corpus_for_intent(&reg, "code_navigation").as_deref(), Some("repo-code-graph"));
+        assert_eq!(select_corpus_for_intent(&reg, "gui_surface").as_deref(), Some("vox-gui-surface"));
     }
 }
