@@ -200,20 +200,15 @@ function HitRow({
   const provenanceStr = hit.provenance.join(' · ');
   const isOpenable = hit.locator.kind === 'file' || hit.locator.kind === 'web';
 
-  const handleClick = async () => {
+  const handleClick = () => {
     if (hit.path) {
       useLudusStore.getState().setFocusedFile(hit.path);
     }
-    if (isOpenable) {
-      onOpen();
-    } else if (hit.path) {
-      try {
-        await navigator.clipboard.writeText(hit.path);
-        pushToast({ tone: 'ok', title: 'Path copied', body: hit.path });
-      } catch {
-        // Clipboard unavailable; silently ignore.
-      }
-    }
+    // Always route through onOpen → openHit, which dispatches by locator kind
+    // (file/web open, setting/chat navigate, command copy, path-copy fallback).
+    // Previously this only fired for file/web hits, so clicking a setting,
+    // command, or chat result did nothing useful.
+    onOpen();
   };
 
   const copyPath = async (e: React.MouseEvent) => {
@@ -440,7 +435,10 @@ export function SearchView({ pushToast, gamifyEnabled = false }: SurfaceDecorato
       } catch {
         /* ignore */
       }
-      pushToast({ tone: 'info', title: 'Chat session', body: 'Open Chat from the sidebar' });
+      // Actually switch to the Chat surface instead of telling the user to do it.
+      window.dispatchEvent(
+        new CustomEvent('vox://navigate-surface', { detail: { view: 'chat' } }),
+      );
     } else if (hit.locator.kind === 'command' || hit.kind === 'command') {
       try {
         await navigator.clipboard.writeText(hit.path ?? hit.title ?? '');
@@ -449,13 +447,18 @@ export function SearchView({ pushToast, gamifyEnabled = false }: SurfaceDecorato
         pushToast({ tone: 'info', title: 'Command', body: hit.path ?? hit.title ?? '' });
       }
     } else if (hit.locator.kind === 'setting' || hit.kind === 'setting') {
+      // Seed the target section (SettingsView reads JSON `{ section }`) and jump to
+      // the Settings surface — both the navigate event (switch surface) and the
+      // settings-seed event (apply section if Settings is already open).
       try {
-        localStorage.setItem(SETTINGS_SEED_KEY, hit.locator.value);
+        localStorage.setItem(SETTINGS_SEED_KEY, JSON.stringify({ section: hit.locator.value }));
         window.dispatchEvent(new Event('vox-settings-seed'));
       } catch {
         /* ignore */
       }
-      pushToast({ tone: 'info', title: 'Settings', body: 'Open Settings from the sidebar' });
+      window.dispatchEvent(
+        new CustomEvent('vox://navigate-surface', { detail: { view: 'settings' } }),
+      );
     } else if (hit.path) {
       try {
         await navigator.clipboard.writeText(hit.path);

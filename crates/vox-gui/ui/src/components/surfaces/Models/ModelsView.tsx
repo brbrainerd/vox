@@ -114,6 +114,14 @@ export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps
       )}
       {loading && models.length === 0 ? (
         <Glass className="p-8 text-center text-zinc-500 text-sm">Loading model catalog…</Glass>
+      ) : models.length === 0 ? (
+        <Glass className="p-8 text-center text-sm">
+          <div className="text-zinc-300">No models available</div>
+          <div className="mt-1 text-[12px] text-zinc-500">
+            Add a provider key (OpenRouter / Anthropic) under <span className="text-zinc-300">Settings → Keys &amp; Secrets</span>,
+            or start a local backend (Ollama / MENS). The registry refreshes automatically.
+          </div>
+        </Glass>
       ) : (
         <>
           <ModelGrid title="Hosted" items={hosted} activeModel={activeModel} onSetDefault={setDefault} />

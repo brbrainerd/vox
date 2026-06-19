@@ -95,6 +95,8 @@ export function Sidebar({
   const collapsed = mode === "rail";
   const { parent: activeParent } = resolveNavigation(view);
   const [identity, setIdentity] = useState('operator@vox');
+  const [osUser, setOsUser] = useState<string | null>(null);
+  const [accountOpen, setAccountOpen] = useState(false);
   const tone = useFreshness(lastOrchEventAt, {
     freshMs: liveFreshMs,
     usesPolling: orchUsesPolling,
@@ -103,10 +105,21 @@ export function Sidebar({
     tone === 'live' ? 'bg-emerald-400' : tone === 'poll' ? 'bg-amber-400' : 'bg-zinc-500';
 
   useEffect(() => {
-    invoke<{ display_name: string }>('get_identity_summary')
-      .then(i => setIdentity(i.display_name))
+    invoke<{ display_name: string; os_user: string | null }>('get_identity_summary')
+      .then(i => { setIdentity(i.display_name); setOsUser(i.os_user ?? null); })
       .catch(() => {});
   }, []);
+
+  // Jump to a specific Settings section (seed + navigate). SettingsView reads the
+  // JSON `{ section }` seed on mount and on the `vox-settings-seed` event.
+  const openSettingsSection = (section: string) => {
+    try {
+      localStorage.setItem('vox_settings_seed', JSON.stringify({ section }));
+      window.dispatchEvent(new Event('vox-settings-seed'));
+    } catch { /* localStorage unavailable — Settings still opens */ }
+    setView('settings');
+    setAccountOpen(false);
+  };
 
   const cycle = (dir: number) => {
     const i = SIDEBAR_ORDER.indexOf(mode);
@@ -302,19 +315,95 @@ export function Sidebar({
             </div>
           )}
 
-          <div className={`flex items-center ${collapsed ? "justify-center" : "gap-2 px-2"} pb-1 pt-1`}>
-            <div className="relative size-7 shrink-0 rounded-full bg-gradient-to-br from-violet-500 to-cyan-500">
-              <span
-                data-testid="sidebar-orch-freshness-dot"
-                aria-hidden="true"
-                className={`absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-zinc-950 ${orchDotClass}`}
-              />
-            </div>
-            {!collapsed && (
-              <div className="flex-1 leading-tight overflow-hidden">
-                <div className="font-display text-[11px] text-zinc-200 truncate">{identity}</div>
-                <div className="font-mono text-[9px] text-zinc-500">Vox Axis · build {appVersion ?? 'unknown'} · tauri 2</div>
+          <div className="relative">
+            <button
+              type="button"
+              data-testid="sidebar-account-button"
+              aria-haspopup="menu"
+              aria-expanded={accountOpen}
+              aria-label="Account and identity"
+              onClick={() => setAccountOpen(o => !o)}
+              className={`flex w-full items-center rounded-lg ${collapsed ? "justify-center px-0" : "gap-2 px-2"} pb-1 pt-1 transition hover:bg-white/[0.03]`}
+            >
+              <div className="relative size-7 shrink-0 rounded-full bg-gradient-to-br from-violet-500 to-cyan-500">
+                <span
+                  data-testid="sidebar-orch-freshness-dot"
+                  aria-hidden="true"
+                  className={`absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-zinc-950 ${orchDotClass}`}
+                />
               </div>
+              {!collapsed && (
+                <div className="flex-1 leading-tight overflow-hidden text-left">
+                  <div className="font-display text-[11px] text-zinc-200 truncate">{identity}</div>
+                  <div className="font-mono text-[9px] text-zinc-500">Vox Axis · build {appVersion ?? 'unknown'} · tauri 2</div>
+                </div>
+              )}
+            </button>
+
+            {accountOpen && (
+              <>
+                {/* Click-away backdrop */}
+                <button
+                  type="button"
+                  aria-hidden="true"
+                  tabIndex={-1}
+                  onClick={() => setAccountOpen(false)}
+                  className="fixed inset-0 z-40 cursor-default"
+                />
+                <div
+                  role="menu"
+                  data-testid="sidebar-account-menu"
+                  className="absolute bottom-full z-50 mb-2 w-60 left-0 rounded-xl border border-white/10 bg-zinc-950/95 p-2 shadow-2xl backdrop-blur"
+                >
+                  <div className="px-2 py-1.5">
+                    <div className="font-display text-[12px] text-zinc-100 truncate">{identity}</div>
+                    <div className="font-mono text-[10px] text-zinc-500 truncate">
+                      {osUser ? `os user · ${osUser}` : 'local identity'}
+                    </div>
+                    <div className="mt-1 font-mono text-[9px] text-zinc-600">
+                      Local identity — Vox has no cloud login. Federation is peer trust on the mesh.
+                    </div>
+                  </div>
+                  <div className="my-1 h-px bg-white/5" />
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => openSettingsSection('mesh')}
+                    className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[12px] text-zinc-300 hover:bg-white/[0.05] hover:text-zinc-100"
+                  >
+                    <Icon.link className="size-3.5 text-zinc-500" aria-hidden="true" />
+                    Mesh &amp; peers (federation)
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => openSettingsSection('signing')}
+                    className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[12px] text-zinc-300 hover:bg-white/[0.05] hover:text-zinc-100"
+                  >
+                    <Icon.shield className="size-3.5 text-zinc-500" aria-hidden="true" />
+                    Signing keys
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => openSettingsSection('secrets')}
+                    className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[12px] text-zinc-300 hover:bg-white/[0.05] hover:text-zinc-100"
+                  >
+                    <Icon.shield className="size-3.5 text-zinc-500" aria-hidden="true" />
+                    Keys &amp; secrets
+                  </button>
+                  <div className="my-1 h-px bg-white/5" />
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => { setView('settings'); setAccountOpen(false); }}
+                    className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[12px] text-zinc-300 hover:bg-white/[0.05] hover:text-zinc-100"
+                  >
+                    <Icon.settings className="size-3.5 text-zinc-500" aria-hidden="true" />
+                    All settings
+                  </button>
+                </div>
+              </>
             )}
           </div>
         </div>

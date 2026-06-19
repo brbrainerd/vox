@@ -960,24 +960,33 @@ interface SettingsViewProps {
 }
 
 export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTilesChange }: SettingsViewProps) {
-  const [section, setSection] = useState('orchestrator');
+  // Deep link from omni-search / the account menu: a `{ section }` seed in
+  // localStorage. Read it in the initializer so the FIRST render already shows the
+  // requested section (surviving React StrictMode's double-mount, which otherwise
+  // races an effect-based setSection). The seed is cleared by the effect below.
+  const readSeedSection = (): string | null => {
+    try {
+      const raw = localStorage.getItem('vox_settings_seed');
+      if (!raw) return null;
+      const seed = JSON.parse(raw) as { section?: string };
+      return seed.section ?? null;
+    } catch {
+      return null;
+    }
+  };
+  const [section, setSection] = useState<string>(() => readSeedSection() ?? 'orchestrator');
   const [filter, setFilter] = useState('');
 
-  // Deep link from omni-search: { section } seed in localStorage. Read on mount
-  // AND on the 'vox-settings-seed' event, so deep-linking works even when the
-  // Settings surface is already active (no remount fires in that case).
+  // Clear the consumed seed after mount, and keep handling the 'vox-settings-seed'
+  // event so deep-linking still works when the Settings surface is already active
+  // (no remount fires in that case, so the initializer above doesn't re-run).
   useEffect(() => {
+    try { localStorage.removeItem('vox_settings_seed'); } catch { /* ignore */ }
     const consume = () => {
-      try {
-        const raw = localStorage.getItem('vox_settings_seed');
-        if (raw) {
-          localStorage.removeItem('vox_settings_seed');
-          const seed = JSON.parse(raw) as { section?: string };
-          if (seed.section) setSection(seed.section);
-        }
-      } catch { /* ignore malformed seed */ }
+      const next = readSeedSection();
+      try { localStorage.removeItem('vox_settings_seed'); } catch { /* ignore */ }
+      if (next) setSection(next);
     };
-    consume();
     window.addEventListener('vox-settings-seed', consume);
     return () => window.removeEventListener('vox-settings-seed', consume);
   }, []);

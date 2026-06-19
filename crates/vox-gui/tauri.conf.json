@@ -4,8 +4,9 @@
   "version": "0.6.0",
   "identifier": "org.vox-foundation.gui",
   "build": {
-    "beforeDevCommand": "",
-    "beforeBuildCommand": "",
+    "beforeDevCommand": "pnpm --dir ui dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "pnpm --dir ui build",
     "frontendDist": "ui/dist"
   },
   "app": {
