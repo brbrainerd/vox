@@ -2,7 +2,7 @@
   "rust-analyzer.cargo.targetDir": "target/rust-analyzer",
   "terminal.integrated.env.windows": {
     "CUDA_PATH": "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v13.1",
-    "PATH": "${workspaceFolder}\\.vox\\bin\\cargo-shim;C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v13.1\\bin;C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v13.1\\bin\\x64;${env:PATH}"
+    "PATH": "C:\\Users\\Owner\\.vox\\build-broker\\bin;C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v13.1\\bin;C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v13.1\\bin\\x64;${env:PATH}"
   },
   "terminal.integrated.envFile": "${workspaceFolder}/.env",
   "terminal.integrated.profiles.windows": {
