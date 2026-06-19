@@ -141,4 +141,19 @@ mod tests {
         assert_eq!(cands.len(), 1);
         assert_eq!(cands[0].members.len(), 2, "ignored/ copy must be excluded");
     }
+
+    #[test]
+    fn mine_finds_duplicate_block_across_two_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let body = "let subtotal = unit_price * quantity\nlet tax = subtotal * tax_rate\nlet total = subtotal + tax\nreturn total\n";
+        std::fs::write(root.join("a.vox"), body).unwrap();
+        std::fs::write(root.join("b.vox"), body).unwrap();
+        let opts = DiscoverOptions { min_tokens: 5, min_occurrences: 2, ..DiscoverOptions::default() };
+        let cands = mine_repeated_code(root, &opts);
+        assert_eq!(cands.len(), 1);
+        assert_eq!(cands[0].kind, CandidateKind::RepeatedCode);
+        assert_eq!(cands[0].members.len(), 2);
+        assert!(cands[0].score >= 0.9);
+    }
 }
