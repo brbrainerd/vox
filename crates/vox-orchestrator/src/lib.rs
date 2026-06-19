@@ -38,6 +38,7 @@
 #![allow(clippy::large_enum_variant)]
 #![allow(clippy::let_underscore_future)]
 
+pub mod activity;
 /// AgentOS: ACI-aligned mutation classification, guardrails, checkpoint hints.
 pub mod agentos;
 pub mod attachment_manifest;
