@@ -123,8 +123,8 @@ mod tests {
     }
 }
 ```
-**Verify** `PopuliTrainBackend` import path (`vox_populi::mens::PopuliTrainBackend`) and `b.preset` field exist (they do per AGH-0012). Adjust if `rg` shows otherwise.
-- [ ] **Step 3:** Declare module in `mod.rs`; `cargo test -p vox-ml-cli training_selection` → FAIL then PASS (4). **No `--features gpu` needed — that's the point.**
+**Pre-verified (2026-06-19 audit — do not re-derive, just confirm with one `rg`):** `PopuliTrainBackend` is re-exported at `vox_populi::mens::PopuliTrainBackend` and derives `Debug, Clone, Copy, PartialEq, Eq` (so `TrainingSelection` can derive `Debug, PartialEq` and `*backend`/`matches!` work). `TrainMethod` derives `Copy`. `SpokeBase.preset` is `Option<String>`. `AdapterMethodRegistry::builtin().resolve(AdapterMethod::Qlora) -> Option<&AdapterMethodRecord{default_kernel: PopuliTrainBackend}>`. If any `rg` contradicts this, STOP + report (do not invent).
+- [ ] **Step 3:** Declare the module in `crates/vox-ml-cli/src/commands/mens/mod.rs` as `pub(crate) mod training_selection;` (next to `mod pipeline;`). Run `cargo test -p vox-ml-cli training_selection` → FAIL then PASS (4). **No `--features gpu` needed — that is the entire point of this phase.**
 - [ ] **Step 4: Commit** `feat(mens): pure resolve_training_selection (GPU-independent, unit-tested) — AGH-0012 F1`
 
 ### Task 1.2: Call the pure fn from the Train stage; cfg(gpu) only consumes it [SEQUENTIAL]
@@ -159,31 +159,33 @@ PipelineStage::Train => {
     }
 }
 ```
-**Delete** the old in-cfg(gpu) resolution blocks (target_model match, method match, target_preset). Adapt to the real `run_train(...)` arg order (verify with `rg -n "run_train\(" -A40`). Keep the bail for unwired methods (now raised inside `resolve_training_selection` → propagates via `?`).
-- [ ] **Step 3:** `cargo check -p vox-ml-cli` AND `cargo check -p vox-ml-cli --features gpu` (use `CARGO_TARGET_DIR=target/iso`). Both compile.
+**Delete** the old in-cfg(gpu) resolution blocks (the `target_model` match, the `method`/`backend` match, and the `target_preset` `or_else` chain). **KEEP the existing 60-arg `run_train(backend, target_model, device, …, target_preset, …)` call VERBATIM** — it already uses the variable names `backend`, `target_model`, `target_preset`. You are ONLY changing how those three are *bound*: inside the `cfg(feature="gpu")` block, set `let backend = *backend; let target_model = m.clone(); let target_preset = Some(p.clone());` from the `selection` you resolved above, then leave the `run_train(...)` invocation untouched. Do NOT rewrite or reorder the call's arguments.
+- [ ] **Step 3:** `cargo check -p vox-ml-cli` AND `CARGO_TARGET_DIR=target/iso cargo check -p vox-ml-cli --features gpu`. Both must compile. (Confirmed in this env: the `--features gpu` build succeeds in ~30s — if it fails on CUDA/sccache for *environment* reasons unrelated to your edit, note it and rely on the non-gpu check + the pure-fn tests; do NOT disable the feature or stub anything.)
 - [ ] **Step 4: Commit** `refactor(mens): Train stage resolves selection pre-gpu-gate (effect now reachable/loggable) — AGH-0012 F1`
 
-### Task 1.3: Effect proof — dry-run logs the resolved selection + CI assertion [SEQUENTIAL]
-**Files:** Create/extend an integration test under `crates/vox-ml-cli/tests/` (or a `#[cfg(test)]` in pipeline.rs) that calls `resolve_training_selection` for all three live spokes against the repo profiles + overlay (injected VRAM) and asserts each yields a `Train{...}` with a concrete `Qwen` model + a non-empty preset + `CandleQlora`.
-- [ ] **Step 1: Write the test** (this is the real effect-proof, GPU-free):
+### Task 1.3: Effect proof — all live spokes resolve (GPU-free, INLINE test) [SEQUENTIAL]
+**Files:** Modify `crates/vox-ml-cli/src/commands/mens/training_selection.rs` (extend its `#[cfg(test)] mod tests`).
+> **Must be INLINE, not `tests/`.** `resolve_training_selection` lives in a `pub(crate) mod`, so an external integration test under `crates/vox-ml-cli/tests/` cannot see it. Put this in the same file's test module (use `super::`). This is the real, GPU-free §B-9 effect-proof: it exercises resolution for every live spoke, which `--skip-train` could never do.
+- [ ] **Step 1: Get the live spoke ids** — `rg -n "^  [a-z][a-z-]*:" mens/config/domain-profiles.yaml` (under `profiles:`); use those exact ids below (likely `vox-lang`, `rust-expert`, `agents`).
+- [ ] **Step 2: Add the test to the existing `mod tests` in training_selection.rs**:
 ```rust
-#[test]
-fn all_live_spokes_resolve_to_trainable_selection() {
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).ancestors().nth(2).unwrap();
-    for spoke in ["vox-lang", "rust-expert", "agents"] {
-        let sel = crate::commands::mens::training_selection::resolve_training_selection(root, Some(spoke), None, None, Some(16384)).expect(spoke);
-        match sel {
-            crate::commands::mens::training_selection::TrainingSelection::Train { model, preset, .. } => {
-                assert!(model.as_deref().unwrap_or("").contains("Qwen"), "{spoke}: {model:?}");
-                assert!(!preset.is_empty(), "{spoke}");
+    #[test]
+    fn all_live_spokes_resolve_to_trainable_selection() {
+        let root = root(); // helper already defined in this test module
+        for spoke in ["vox-lang", "rust-expert", "agents"] {
+            let sel = super::resolve_training_selection(&root, Some(spoke), None, None, Some(16384))
+                .unwrap_or_else(|e| panic!("{spoke}: {e}"));
+            match sel {
+                super::TrainingSelection::Train { model, preset, .. } => {
+                    assert!(model.as_deref().unwrap_or("").contains("Qwen"), "{spoke}: {model:?}");
+                    assert!(!preset.is_empty(), "{spoke}");
+                }
+                other => panic!("{spoke}: expected Train, got {other:?}"),
             }
-            other => panic!("{spoke}: expected Train, got {other:?}"),
         }
     }
-}
 ```
-(If spoke ids differ from these, use the live ids from `rg -n "^  [a-z-]+:" mens/config/domain-profiles.yaml`.)
-- [ ] **Step 2:** `cargo test -p vox-ml-cli all_live_spokes_resolve` → PASS. This proves the EFFECT (resolution flows for every spoke) with no GPU.
+- [ ] **Step 3:** `cargo test -p vox-ml-cli all_live_spokes_resolve` → PASS. Proves the EFFECT (resolution flows for every spoke) with **no GPU and no Train stage** — the gap AGH-0012 F1 flagged.
 - [ ] **Step 3: Commit** `test(mens): GPU-free effect-proof — all live spokes resolve to a trainable selection — AGH-0012 F1`
 
 ---
