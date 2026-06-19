@@ -300,6 +300,30 @@ async fn list_model_arm_stats_aggregates_scoreboard_rows() {
     assert_eq!(map.get("openrouter/test-m").copied(), Some((10, 10)));
 }
 
+#[tokio::test]
+async fn history_entries_round_trip() {
+    let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+    db.connection()
+        .execute(
+            "INSERT INTO history_entries (repo_id, kind, text, redacted_text, created_at, pinned, source, token_estimate)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            turso::params!["r1", "clip", "hello", "hello", 1000i64, 0i64, "cli", 1i64],
+        )
+        .await
+        .expect("insert");
+    let mut q = db
+        .connection()
+        .query(
+            "SELECT kind FROM history_entries WHERE repo_id = ?1",
+            turso::params!["r1"],
+        )
+        .await
+        .expect("q");
+    let row = q.next().await.expect("r").expect("row");
+    let kind: String = row.get(0).expect("kind");
+    assert_eq!(kind, "clip");
+}
+
 #[cfg(feature = "legacy-import")]
 mod legacy_tests {
     use super::*;
