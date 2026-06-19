@@ -67,6 +67,7 @@ pub mod codex_chat;
 mod codex_conversation_graph;
 /// Canonical connect policy helpers (strict vs optional degraded surfaces).
 pub mod connect_policy;
+pub mod history_store;
 /// Explicit namespace for migration-era and cutover-only pathways.
 pub mod legacy;
 /// Ludus / extended `gamify_*` contracts and metrics keys (DDL in baseline `schema/domains`).
@@ -217,6 +218,7 @@ pub use ddl::{SchemaDiff, diff_schemas, table_to_ddl, tables_to_ddl};
 pub use error_enrichment::{EnrichedDbError, enrich_error};
 pub use facade::agent_runs::AgentRunRow;
 pub use facade::hitl_approvals::HitlApprovalRow;
+pub use history_store::{HistoryEntry, add_entry, list_entries};
 pub use memory::MemoryParams;
 pub use migration::{Migration, builtin_migrations, validate_migrations};
 pub use oratio_eval::{OratioEvalRunRecord, OratioEvalRunStartParams, OratioEvalSampleRecord};
