@@ -574,12 +574,26 @@ fn vox_local_preferred_for_codegen_when_desktop_ollama_profile() {
 
 #[test]
 fn vox_local_not_preferred_for_non_code_tasks() {
-    // Poison-tolerant: a panicking sibling test must not cascade PoisonError into
-    // every other test that serializes on this env lock (that was the flakiness).
+    // Serialized on the same lock as all sibling inference-profile and
+    // VOX_ROUTE_* tests so env mutations cannot race.
     let _g = INFERENCE_PROFILE_TEST_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    unsafe { std::env::set_var("vox_populi::inference_PROFILE", "desktop_ollama") };
+    unsafe {
+        std::env::set_var("vox_populi::inference_PROFILE", "desktop_ollama");
+        // `list_enabled_providers()` only includes "openrouter" when
+        // OPENROUTER_API_KEY is present. Without it, `decide()` finds no
+        // OpenRouter candidates and returns None, causing the resolver to
+        // fall through to the "No LLM model available" error in the full
+        // suite (where a sibling test that set the key has already cleaned
+        // up). Set it to a sentinel so the provider is treated as enabled.
+        std::env::set_var("OPENROUTER_API_KEY", "test-key");
+        // Also pin the route policy so no concurrent test's VOX_ROUTE_*
+        // leak can filter providers.
+        std::env::set_var("VOX_ROUTE_ALLOW_NET", "1");
+        std::env::set_var("VOX_ROUTE_ALLOW_PROVIDER_NETWORK", "1");
+        std::env::set_var("VOX_ROUTE_ALLOW_LOCAL_MODEL_HTTP", "1");
+    }
     vox_config::snapshot::bump(&["vox_populi::inference_PROFILE"]);
     let mut config = OrchestratorConfig::for_testing();
     config.cost_preference = CostPreference::Performance;
@@ -607,6 +621,10 @@ fn vox_local_not_preferred_for_non_code_tasks() {
     );
     unsafe {
         std::env::remove_var("vox_populi::inference_PROFILE");
+        std::env::remove_var("OPENROUTER_API_KEY");
+        std::env::remove_var("VOX_ROUTE_ALLOW_NET");
+        std::env::remove_var("VOX_ROUTE_ALLOW_PROVIDER_NETWORK");
+        std::env::remove_var("VOX_ROUTE_ALLOW_LOCAL_MODEL_HTTP");
     }
     vox_config::snapshot::bump(&["vox_populi::inference_PROFILE"]);
 }

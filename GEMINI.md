@@ -1,74 +1,183 @@
 ---
-title: "Antigravity Overlay"
-description: "Antigravity-specific behavior and shell discipline for Windows + PowerShell."
+title: "Antigravity System Prompt — Gemini 3.5 Flash on this repo"
+description: "Antigravity-specific behavior rules for this repo. Distilled from 3 months of Gemini 3.5 Flash failures inside Antigravity. Concrete, positive, executable."
 category: "contributor"
 status: "current"
 training_eligible: true
-training_rationale: "Defines Antigravity-specific rules and shell environment expectations."
+training_rationale: "Defines Antigravity-specific rules and shell environment expectations — execution constraints unique to Gemini 3.5 Flash running agentically in Antigravity IDE."
 ---
-# Antigravity Overlay (Windows + PowerShell)
+# Antigravity System Prompt — Gemini 3.5 Flash
 
-This file is Antigravity-specific. It narrows behavior for this repo without replacing `AGENTS.md`.
+This file is Antigravity-specific. `AGENTS.md` is the cross-tool base policy; this file narrows and extends it for Gemini 3.5 Flash executing implementation plans inside Antigravity IDE.
 
-## Scope
+Read [`AGENTS.md`](AGENTS.md) first. When they conflict, this file wins.
 
-- Treat `AGENTS.md` as the cross-tool base policy.
-- Use this file only for Antigravity-specific behavior and shell discipline.
-- Keep rules concise, concrete, and executable.
+---
 
-## VoxScript-First Glue
+## The Three Laws (non-negotiable, read before anything else)
 
-Automation is **`.vox` only** (tiers: `--interp`, native, `--isolation wasm`); never new `.ps1` / `.sh` / `.py` glue. Bootstrap launchers stay thin. **Normative detail:** [`AGENTS.md §VoxScript-First Glue Code`](AGENTS.md).
+**1. Every task ends committed and green.**
+Run the gate specified in the plan before committing. A plan killed between tasks must leave a tree that compiles and all existing tests pass. If a change would break the build, split it into a preparatory commit (types/stubs, compile-clean) followed by the wiring commit.
+
+**2. Verify before use.**
+Before writing any code that calls a function, imports a module, or references a path — run `rg '<SymbolName>' crates/` and confirm the exact signature and import path exist in THIS repo. The plan may name the right concept but the wrong identifier. `rg` is the source of truth.
+
+**3. Prove the effect, not the shape.**
+A test that asserts a substring (`contains("fn parse_config")`) or a candidate ordering is hollow green. The acceptance test must exercise the boundary: compile the output, call the function, dispatch the model. If the plan's gate is `cargo test -p vox-config`, run exactly that command with no flags added or removed.
+
+---
+
+## Atomic Task Execution
+
+Each task in the plan is designed to be atomic:
+
+- Complete all edits for that task, then run the specified gate, then commit.
+- Commit message: one imperative line matching the task title.
+- If the gate is red, fix it within that task before moving to the next — never commit a non-green tree.
+- If you cannot make the gate green after one correction, STOP, report what failed, and hand back. Do not loop.
+
+### Self-contained context
+
+Each task repeats the context you need. Do not rely on remembering what you did in earlier tasks. If a task says "the struct defined in Task 3", re-read Task 3. Gemini 3.5 Flash has weaker long-context recall than Pro; the plans are shaped to work around this.
+
+---
+
+## Parallel vs. Sequential Tasks
+
+Each task is tagged `[PARALLEL-SAFE]` or `[SEQUENTIAL]`.
+
+- `[PARALLEL-SAFE]` tasks write disjoint files and may run concurrently.
+- `[SEQUENTIAL]` tasks share a file or depend on a prior commit. Run them one at a time in order.
+- When in doubt, treat as `[SEQUENTIAL]`.
+
+---
+
+## Verification Gates — Run Exactly As Written
+
+Gates are written to be precise. Run them exactly as specified.
+
+**Correct:** `cargo test -p vox-config`
+**Correct:** `cargo build -p vox-config`
+
+The gate string in the plan is the contract. Passing a narrower or weaker gate — `--warn-only`, `|| true`, `--no-verify`, filtering to a single test function when the gate specifies `--lib` — does not satisfy it.
+
+If the gate is red at baseline for reasons unrelated to your task, STOP and report. Do not relabel `layers.toml`, add `orphan_exempt`, flip `publishable`, or edit shared architecture config to clear someone else's pre-existing red.
+
+---
+
+## Symbol Verification — the Pre-flight Habit
+
+For any symbol you plan to reference (function, struct, trait, module path), run:
+
+```
+rg 'SymbolName' crates/
+```
+
+Read the result. Use the exact identifier and the exact import path from the search result.
+
+When the plan says "confirmed present" and gives a path, verify once at the start of that task. When the plan gives a function signature, use it verbatim.
+
+The most common cause of gate failure in this repo is calling a function with the right concept name but the wrong identifier or the wrong crate path.
+
+---
+
+## Shared Architecture Files — Touch Only What the Plan Assigns
+
+The plan lists every file you should touch. If fixing your task would require editing:
+
+- `layers.toml`
+- `contracts/mcp/tool-registry.canonical.yaml`
+- `contracts/operations/catalog.v1.yaml`
+- `AGENTS.md`, `GEMINI.md`
+- Any `*-registry.yaml`, `*-policy.yaml`, or `*.schema.json` under `contracts/`
+
+...and the plan does not explicitly assign that file to your task — STOP and report it. Do not make the edit yourself to clear a gate. These files are SSOTs; unplanned edits cause drift that outlasts your session.
+
+---
+
+## Branch and Delivery
+
+- Work on a branch named `agy/<slug>` (the worktree is already set up for you).
+- Include ONLY this plan's commits on the branch. Do not accumulate unrelated changes.
+- Before reporting completion, list every file you changed — including any shared config. Do not omit files.
+
+---
+
+## Performance-Sensitive Code
+
+When the plan names a hot path (inner loop, per-item scorer, minhash shingle), read the existing implementation before writing. Match the idiom. Avoid per-call allocations in the hot path; reuse buffers where the plan shows a pattern.
+
+---
 
 ## Shell Environment
 
-- Workspace environment is Windows; **PowerShell is canonical** for the two retained launcher files and for interactive terminal work.
-- Repo-wide doctrine (see [`AGENTS.md`](AGENTS.md)): on **any** OS, prefer **`pwsh`** for terminal/agent shell work when installed, so behavior aligns with `vox shell check` and `contracts/terminal/exec-policy.v1.yaml`.
-- Prefer PowerShell-native commands for filesystem and process tasks **only when** not calling into project automation (which should be `.vox`).
-- Use project tools directly (`vox`, `cargo`, `pnpm`, `rg`, `git`) instead of shell wrappers.
+Windows workspace. PowerShell (`pwsh`) is canonical.
 
-## Command Shape Rules (Important)
+- One command per step. Do not chain with `&&`, `|`, `;`, `||` unless the plan explicitly requires it.
+- Use project tools: `cargo`, `vox`, `pnpm`, `rg`, `git`.
+- For text search: `rg`. Never run a recursive search from the workspace root; narrow to a crate subdirectory.
+- For file ops in scripts: `vox run --mode interp <script.vox>`.
+- For package management: `pnpm` for JS/TS.
 
-- Emit one terminal command per step by default.
-- Do not chain commands with `|`, `&&`, `;`, or `||` unless explicitly required.
-- Do not wrap routine commands in `bash -lc` or nested shell invocations.
-- If a task is multi-step, execute it as separate terminal calls.
+---
 
-Reason: command approval/allowlist matching in current IDE ecosystems is often brittle on compound commands, especially in PowerShell contexts.
+## VoxScript-First Glue
 
-Research synthesis (Cursor, Gemini, Codex, PowerShell, bypass classes, future Vox contract): [`docs/src/archive/research-2026-q1/terminal-exec-policy-research-findings-2026.md`](docs/src/archive/research-2026-q1/terminal-exec-policy-research-findings-2026.md) (archived).
+New automation is `.vox` only. Do not create `.ps1`, `.sh`, or `.py` glue scripts. If the plan says "run X" and X is a VoxScript, run it with `vox run --mode interp X` or `vox run --mode native X` as appropriate.
 
-## Tooling Preferences
+---
 
-- Search text: `rg`. Prohibit blind recursive searches in the workspace root as they take too long. Always narrow down the search path (e.g. to specific crate subdirectories like `crates/vox-cli/`) or use glob patterns. Prefer native `rg` via `run_command` with precise paths over the built-in `grep_search` tool, which can fail on Windows.
-- Filesystem listing and checks: `Get-ChildItem`, `Test-Path`, `Resolve-Path` (interactive terminal only; use `vox run` for scripted file ops)
-- File reads/writes from the IDE: use structured read/edit tools when available
-- Package managers: `pnpm` for JS/TS
-- **Python (`uv`) is NOT a preferred automation tool** — use `vox run` instead
+## Tests That Prove Behavior
 
-## Safety Posture
+Write the smallest test that exercises the observable effect:
 
-- Treat allowlists as convenience, not as a hard security boundary.
-- Keep destructive operations explicitly denied in IDE policy where supported.
-- When unsure, choose decomposition and explicitness over shell cleverness.
+- For a function that returns a value: assert the return value equals the expected value.
+- For a Tauri command: call it through the registered handler and assert the JSON response.
+- For codegen: run the generated output through the compiler (`cargo build` or `tsc --noEmit`).
+- For a registry: look up the registered name and assert it dispatches.
 
-## Agent Skills & Plan Execution
+A test asserting that generated code contains a string (`assert!(output.contains("fn foo"))`) does not prove the code compiles or runs. Add a compilation step.
 
-Antigravity mounts repo skills from `.agents/skills/`, which is wired to the in-repo SSOT **`crates/vox-skills/skills/superpowers/`** (brainstorming, subagent-driven-development, dispatching-parallel-agents, verification-before-completion, test-driven-development, systematic-debugging, requesting-code-review, using-git-worktrees, writing-plans, deep-research, research). Antigravity cannot see Claude's external `~/.claude/` skill cache, so any skill a plan references must load from here.
+---
 
-`.agents/` is gitignored (a per-machine mount). The wiring is a live relative symlink `.agents/skills → ../crates/vox-skills/skills/superpowers`. On a fresh clone where the symlink didn't materialize (Windows `core.symlinks=false`, or a headless session), populate the mount from the SSOT instead:
+## Two-Strike Rule
+
+If a gate fails after your first correction attempt:
+
+1. Report exactly which gate failed and what the error was.
+2. Report what you tried.
+3. STOP. Do not attempt a third correction.
+
+Hand back to the plan author with the above report. The plan author will correct the launch statement and re-delegate.
+
+---
+
+## Agent Skills
+
+Antigravity mounts repo skills from `.agents/skills/`, which mirrors `crates/vox-skills/skills/superpowers/`. If `.agents/` is not populated (Windows symlink miss), run:
 
 ```
 vox run --mode interp scripts/sync-superpowers-skills.vox -- --write
 ```
 
-Never edit `.agents/skills/` directly — it mirrors the SSOT; edit the source under `crates/vox-skills/skills/superpowers/` and re-sync.
+When executing an implementation plan from `docs/superpowers/plans/`, honor each task's `[PARALLEL-SAFE]` / `[SEQUENTIAL]` tag.
 
-When executing a written implementation plan from `docs/superpowers/plans/`, first read [`docs/src/contributors/antigravity-handoff-and-skill-gaps-2026-06-18.md`](docs/src/contributors/antigravity-handoff-and-skill-gaps-2026-06-18.md) (execution model, parallel-vs-sequential dispatch rule, skill map) and [`docs/src/architecture/gemini-3-5-flash-antigravity-limitations-2026-06-18.md`](docs/src/architecture/gemini-3-5-flash-antigravity-limitations-2026-06-18.md) (why plans are shaped atomic-green-commit + verify-before-use + two-strike). Honor each task's `[PARALLEL-SAFE]`/`[SEQUENTIAL]` tag; never run two subagents that write the same file.
+Reference docs (read before executing unfamiliar plan shapes):
+- Execution model: [`docs/src/contributors/antigravity-handoff-and-skill-gaps-2026-06-18.md`](docs/src/contributors/antigravity-handoff-and-skill-gaps-2026-06-18.md)
+- Why plans are atomic+verify-before-use: [`docs/src/architecture/gemini-3-5-flash-antigravity-limitations-2026-06-18.md`](docs/src/architecture/gemini-3-5-flash-antigravity-limitations-2026-06-18.md)
 
-## Cursor IDE overlay
+---
 
-For Cursor-specific rules, see [`.cursor/rules/`](.cursor/rules/).
-The `build-environment.mdc` and `retired-surfaces.mdc` rules supplement the PowerShell discipline above.
+## Quick Reference Card
 
-See [agent-instruction-architecture.md](docs/src/contributors/agent-instruction-architecture.md) for the instruction layering model.
+| Situation | Action |
+|---|---|
+| About to call `foo()` | Run `rg 'fn foo' crates/` first; use the exact path from the result |
+| Gate is red after my first fix | STOP — report the error; do not attempt a third correction |
+| Gate is red at baseline (pre-existing) | STOP — report; do NOT edit `layers.toml` or shared config to clear it |
+| Task says `[SEQUENTIAL]` | Run it after the previous task's commit is green |
+| Plan says to edit `layers.toml` | Check the task assignment — if the plan doesn't assign it to you, stop |
+| Need to write a test | Assert the return value or compile the output; avoid substring asserts |
+| My commit message | One imperative line matching the task title; no "also" or "and" |
+
+See [`AGENTS.md`](AGENTS.md) for the instruction-layer model and cross-tool policy.
