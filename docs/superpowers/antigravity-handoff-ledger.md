@@ -486,3 +486,29 @@ Consent + install-id: `ConsentState` enum in L1 facade (`vox-telemetry::config`)
 `vox telemetry consent grant/deny/status`: clean three-subcommand surface. `doctor` now shows `remote_consent` and `remote_upload_allowed`. The `upload.rs` in vox-telemetry-otlp remains a stub (returns 0) pending Track D's server endpoint.
 
 **Gate status: Track B COMPLETE. Track C (GUI surface) and Track D (server) can start. Track E (new emit sites) can start after Track C.**
+
+---
+
+```yaml
+# --- AGH-0012 ---
+id: AGH-0012
+date: "2026-06-19"
+plan: "docs/superpowers/plans/2026-06-19-voxmens-split-C-convergent.md"
+subsystem: "VoxMens Split C — convergent selection/routing"
+target: "Gemini 3.5 Flash inside Google Antigravity"
+delivered: []
+outcome: "in_progress"
+verification:
+  tests: "pending"
+  clippy: "pending"
+  arch_check: "pending"
+  spoke_check: "pending"
+errors_encountered: []
+agent_deviations: []
+commits: []
+```
+
+### AGH-0012 — Split C convergent review detail (human prose)
+
+*In progress*
+
