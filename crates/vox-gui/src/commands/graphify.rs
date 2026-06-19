@@ -34,12 +34,9 @@ pub fn build_status_payload(
 #[tauri::command]
 pub async fn vox_graphify_status() -> Result<GraphifyStatusPayload, String> {
     let repo_root = std::env::current_dir().map_err(|e| format!("cwd: {e}"))?;
-    let head = std::process::Command::new("git")
-        .args(["rev-parse", "HEAD"])
-        .output()
+    let head = vox_git::read_only(&repo_root, &["rev-parse", "HEAD"])
         .ok()
-        .filter(|o| o.status.success())
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
     build_status_payload(&repo_root, head.as_deref(), Utc::now())
 }

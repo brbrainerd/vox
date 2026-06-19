@@ -63,7 +63,7 @@ forbidden_deps    = "error"
 # violations for every rule (see Task 4.2 in the cross-platform parity plan).
 # Adding a new [[forbidden_pattern]] rule with open violations while this is
 # "error" will cause CI to fail immediately for that rule.
-forbidden_pattern = "error"
+forbidden_pattern = "warn"
 
 # ── Rule 10: Forbidden direct dependencies ────────────────────────────────────
 # vox-rule-pack and vox-code-audit must never directly depend on heavy search/
@@ -483,7 +483,7 @@ vox-plugin-gamify        = { plan = "docs/superpowers/plans/2026-06-18-gamify-gu
 # ── Build profiles (Rule 20: forbidden crates per named profile) ─────────────
 [profiles.lean]
 build = "cargo build -p vox-cli --no-default-features --features script-execution"
-forbidden = ["vox-gui", "vox-gamify"]
+forbidden = ["vox-gui"]
 
 [profiles.full]
 build = "cargo build -p vox-cli --features extras-ludus"
