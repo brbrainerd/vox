@@ -36,10 +36,16 @@ NOT a free additive pin.** The workspace root `Cargo.toml` already pins `opentel
 / `tracing-opentelemetry = 0.30`, and those are **already consumed** by the existing
 tracing/span stack (`vox-foundation` `otel` feature et al.). Going 0.29→0.32 crosses multiple
 breaking otel releases and is a **repo-wide breaking migration**, not a new dependency. Task A4
-MUST decide the scope (see A4 Step 4). **Default recommendation for this program:**
-`vox-telemetry-otlp` reuses the **existing 0.29 workspace pin** (additive, zero blast radius)
-and the 0.29→0.32 workspace-wide bump is filed as a SEPARATE tracked follow-up — unless A4's
-consumer enumeration shows the blast radius is trivially small.
+MUST decide the scope (see A4 Step 4). **Resolved by the v2 architecture correction:** the **client no longer depends on the
+`opentelemetry` SDK at all** — it hand-encodes the OTLP/HTTP logs JSON envelope with
+`serde`+`reqwest` (see Track B correction box). This SIDESTEPS the entire bump: the workspace
+`opentelemetry* = 0.29` pins (traces-only, consumed by `vox-foundation`'s `otel` feature) are
+**left untouched**, and no `logs` feature is added to any shared dep (which would have been a
+workspace-global feature-unification change, NOT the "additive" no-op the first draft claimed).
+The `clickhouse 0.13.3` + `opentelemetry-proto` pins live ONLY in the separate server repo.
+A4 just records the final client pins (`reqwest`/`governor`, already in the workspace) and
+confirms no client otel dep was introduced. A workspace-wide 0.29→0.32 bump, if ever wanted for
+the traces stack, is an unrelated follow-up out of scope here.
 
 **Crate hygiene (non-negotiable):**
 - New deps go in the **workspace root `[workspace.dependencies]`** then referenced
@@ -107,6 +113,29 @@ git commit -m "docs(telemetry): inventory existing emit sites across workspace"
 ```bash
 git add contracts/telemetry/emit-site-inventory.csv
 git commit -m "docs(telemetry): propose new product-category emit sites"
+```
+
+### Task A2b: Inventory `default_decision` sites (the "sensible defaults" surface)
+
+**Files:**
+- Create: `contracts/telemetry/default-decision-sites.csv`
+
+- [ ] **Step 1: Confirm the audited anchors.** Verify each of these tunable-default sites still
+  exists (line numbers may drift — confirm by content) and record
+  `decision_id,crate,file:line,default_value,chosen_enum,outcome_enum`:
+  - `vox-orchestrator` `src/budget/mod.rs` — cost threshold (~50_000 µ$), drift threshold (~0.5),
+    doom-loop threshold (~2.0), fallback token cap (~100_000), alert ratio (~0.8);
+  - `vox-config` `src/config/vox_config.rs` — LLM `max_concurrent` (8), retry max (4);
+  - `vox-orchestrator-mcp` `src/llm_bridge/limits.rs` — output-token cap (8192), probe cache TTL
+    (30s), probe timeout (2s/1s);
+  - `vox-effort-audit` `src/config.rs` — max concurrent audit jobs (4);
+  - `vox-audit` `src/panel.rs` — client backoff (base 30s / max 600s).
+- [ ] **Step 2:** For each, define the **bucketed enum** for the chosen value and the **outcome
+  enum** (e.g. `{hit_limit, near_limit, comfortable}`) — all enum/bucket, never raw numbers that
+  could fingerprint. Append to `default-decision-sites.csv` with `status=proposed`. **Commit.**
+```bash
+git add contracts/telemetry/default-decision-sites.csv
+git commit -m "docs(telemetry): inventory default_decision tuning sites"
 ```
 
 ### Task A3: Author the collection-taxonomy SSOT
@@ -186,6 +215,49 @@ git commit -m "docs(telemetry): infra audit + pinned dependency versions"
 
 ## Track B — Client exporter `vox-telemetry-otlp`  `[depends on A; PARALLEL-SAFE with C]`
 
+> ### ⚠ ARCHITECTURE CORRECTION (plan-review v2 — read before any B task)
+> The first draft assumed a *live* OTLP network export inside the sync `record()` path. That is
+> wrong and would panic. Ground truth (verified):
+> - `TelemetryRecorder::record(&self, &TelemetryEvent)` is **sync**, on the caller's hot path
+>   (`crates/vox-telemetry/src/recorder.rs:9`). Network in `record()` = `tokio::spawn` panic
+>   outside a runtime (the existing `SpoolSink` guards this with `Handle::try_current()`,
+>   `crates/vox-cli/src/telemetry_sink.rs:35`).
+> - **A real spool already exists** — but in **`vox-cli`** (`crates/vox-cli/src/telemetry_spool.rs`:
+>   `enqueue` / `list_pending` / `read_payload` / `ack` / async `upload_pending`), NOT in
+>   `vox-telemetry`. The exporter crate is forbidden from depending up into `vox-cli`.
+> - `set_global_recorder` is **first-write-wins / irreversible** (`recorder.rs:13`); `vox-cli`
+>   already calls it once at startup in `init_telemetry_sinks` (`crates/vox-cli/src/lib.rs:~673-711`,
+>   building a `CompositeRecorder`). A *second* `set_global_recorder` to "add the remote leg" is a
+>   **silent no-op**.
+> - `TelemetryEvent` is **internally-tagged** (`#[serde(tag="event_type")]`) and
+>   **`#[non_exhaustive]`** (`crates/vox-telemetry/src/types.rs:272-273`) — serialization is a
+>   FLAT `{"event_type":"research_metric",...}`, and any external `match` needs a `_ => None` arm.
+>
+> **Corrected design (redact-before-spool; no live network in `record()`):**
+> 1. `vox-telemetry-otlp` splits into a **pure core** (always compiles: `project` + `redact` +
+>    OTLP-logs-JSON encoder — serde only, ZERO otel/reqwest) and a **feature-gated `remote`
+>    uploader** (`reqwest`-based POST of OTLP/HTTP logs JSON; the compile-out unit).
+> 2. The **redaction happens at enqueue**: `vox-cli`'s `SpoolSink` calls the pure
+>    `project_event`→`redact_event` BEFORE writing, so the on-disk spool only ever holds
+>    **clean, OTLP-shaped** records (secrets never hit disk). `record()` stays pure+sync (no
+>    network), reusing the existing `Handle::try_current()` disk-write guard.
+> 3. The **uploader** (feature `remote`) reads pending clean records and POSTs OTLP/HTTP logs to
+>    the central endpoint — async, off the hot path, in `vox telemetry upload` + an optional
+>    periodic flush. Extends the existing `upload_pending` pattern.
+> 4. The remote sink is **always in the composite, gated INTERNALLY** per-`record()` by
+>    `is_remote_allowed()` — never conditionally registered (which can't work; #8 above). Adding
+>    the sink = pushing it into the `sinks` Vec inside the single `init_telemetry_sinks`
+>    construction, not a second `set_global_recorder`.
+> 5. **No `opentelemetry` SDK on the client.** We hand-encode the OTLP/HTTP **logs** JSON
+>    envelope (stable schema) with `serde` + `reqwest` — this sidesteps the missing `logs`
+>    feature on the workspace `opentelemetry-otlp`/`_sdk` pins (which are traces-only today) and
+>    its workspace-global feature-unification blast radius. A4 confirms; the server still speaks
+>    standard OTLP so the backend stays swappable.
+>
+> **Task order is corrected to: B3 (consent+salt+master-switch) → B2 (project/redact, needs the
+> salt) → B1 (crate scaffold can come first or here) → B4 (SpoolSink integration) → B5 (uploader
+> + CLI).** The headings below keep their numbers; follow the dependency order in this box.
+
 ### Task B1: Scaffold the feature-gated L3 crate
 
 **Files:**
@@ -206,15 +278,16 @@ license.workspace = true
 
 [features]
 default = []
-remote = ["dep:opentelemetry", "dep:opentelemetry-otlp", "dep:opentelemetry_sdk", "dep:reqwest", "dep:governor", "dep:tokio"]
+# Pure core (project/redact/otlp_json) ALWAYS compiles — serde only, zero network.
+# `remote` adds ONLY the async uploader (the compile-out unit). We hand-encode the OTLP/HTTP
+# logs JSON envelope, so NO `opentelemetry*` SDK deps are needed here (they are traces-only in
+# the workspace pin and dragging the `logs` feature in would be a workspace-global change).
+remote = ["dep:reqwest", "dep:governor", "dep:tokio"]
 
 [dependencies]
 vox-telemetry = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-opentelemetry = { workspace = true, optional = true }
-opentelemetry-otlp = { workspace = true, optional = true }
-opentelemetry_sdk = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true }
 governor = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
@@ -236,18 +309,20 @@ reason   = "egress crate must not depend up into surfaces; surfaces register it,
   And document the inverse convention in SCHEMA.md: domain crates depend on `vox-telemetry`, never on `-otlp`.
 - [ ] **Step 4: Stub `lib.rs`** with the no-op default path:
 ```rust
-//! OTLP exporter for vox-telemetry. With `--no-default-features` this crate is an
-//! empty shim: no network/serde-otlp code is compiled in (privacy + build-lean).
+//! OTLP egress for vox-telemetry. The pure core (project/redact/otlp_json) always compiles
+//! (serde only). The `remote` feature adds the async network uploader — the compile-out unit:
+//! `--no-default-features` builds contain zero `reqwest`/network symbols.
 #![cfg_attr(not(feature = "remote"), allow(unused))]
 
+// Pure core — ALWAYS compiled (serde only, no network). vox-cli's SpoolSink calls these so the
+// spool is redacted/clean even in builds without the `remote` feature.
+pub mod project;     // TelemetryEvent (internally-tagged, non_exhaustive) -> (category, flat map)
+pub mod redact;      // taxonomy-allowlist guard over the projected map
+pub mod otlp_json;   // RedactedRecord -> OTLP/HTTP logs JSON envelope
+
+// Feature-gated egress: the async uploader (reqwest). THIS is the compile-out unit.
 #[cfg(feature = "remote")]
-pub mod project;
-#[cfg(feature = "remote")]
-pub mod redact;
-#[cfg(feature = "remote")]
-mod exporter;
-#[cfg(feature = "remote")]
-pub use exporter::OtlpRecorder;
+pub mod upload;
 ```
 - [ ] **Step 5:** `cargo run -p vox-arch-check` → green; `cargo build -p vox-telemetry-otlp` (no features) → builds, pulls zero otel deps. **Commit.**
 ```bash
@@ -257,12 +332,19 @@ git commit -m "feat(telemetry-otlp): scaffold feature-gated L3 exporter crate"
 
 ### Task B2: Projection + redaction (egress boundary) — TDD
 
-> **Critical design note (corrected after plan review).** `TelemetryEvent` is an
-> **externally-tagged enum** (`crates/vox-telemetry/src/types.rs`): `serde_json::to_value`
-> yields `{"ResearchMetric": {"session_id": "...", "metadata_json": "..."}}` — NOT a flat
-> `{category, verb, ...}` object, and several variants carry **free-form `String` fields that
-> are prohibited by spec §3** (e.g. `ResearchMetricEvent.session_id` can be `"bench:myrepo"` — a
-> repo name; `metadata_json` is arbitrary ≤256 KB JSON). Privacy is therefore enforced in TWO
+> **Critical design note (corrected after plan-review v2).** `TelemetryEvent` is an
+> **internally-tagged, `#[non_exhaustive]` enum** (`crates/vox-telemetry/src/types.rs:272-273`:
+> `#[serde(tag = "event_type", rename_all = "snake_case")]`): `serde_json::to_value` yields a
+> **FLAT** `{"event_type":"research_metric","session_id":"...","metadata_json":"..."}` — there is
+> no nesting. Because it is `#[non_exhaustive]`, an external `match` **MUST** end in a mandatory
+> `_ => None` arm (it will not compile otherwise). The real variant set to handle (from
+> `types.rs:274+`) includes `ResearchMetric, ModelCall, Error, BuildSummary, TaskRootSummary,
+> AiFixture, LintFinding, LintAutofix, RepairAttempt, RepairOutcome, AuditRun, SelectionDecision,
+> ModelDiscovery, ModelClassification, ConfidencePromotion` (+ the 5 new product variants) — map
+> only the product-relevant ones; everything else → `_ => None` (not uploaded). Several variants
+> carry **free-form `String` fields prohibited by spec §3** (`ResearchMetricEvent.session_id` can
+> be `"bench:myrepo"` — a repo name; `metadata_json` is arbitrary ≤256 KB JSON). Privacy is
+> therefore enforced in TWO
 > layers: **(1) `project_event`** — a hand-written per-variant map that emits a `(category,
 > flat_map)` containing ONLY allowlisted, transformed fields (this is where free-form strings
 > are dropped/hashed); **(2) `redact_event`** — a generic taxonomy-driven allowlist filter that
@@ -327,14 +409,18 @@ pub struct RedactedRecord { pub event_name: String, pub attrs: serde_json::Map<S
 fn allowlist() -> &'static HashMap<String, (String, HashSet<String>)> {
     static CELL: OnceLock<HashMap<String, (String, HashSet<String>)>> = OnceLock::new();
     CELL.get_or_init(|| {
-        let v: Value = serde_json::from_str(TAXONOMY).unwrap();
+        // NEVER panic on the telemetry hot path (spec §3.6). On any parse problem, degrade to an
+        // EMPTY allowlist → redact_event returns None → nothing uploads (fail-closed/safe).
+        // The taxonomy is also validated at compile-test time by A3's parity test.
         let mut m = HashMap::new();
-        for cat in v["categories"].as_array().unwrap() {
-            let name = cat["name"].as_str().unwrap().to_string();
-            let ev = cat["otlp_event_name"].as_str().unwrap().to_string();
-            let fields = cat["fields"].as_array().unwrap().iter()
-                .map(|f| f["name"].as_str().unwrap().to_string()).collect();
-            m.insert(name, (ev, fields));
+        let Ok(v) = serde_json::from_str::<Value>(TAXONOMY) else { return m; };
+        let Some(cats) = v["categories"].as_array() else { return m; };
+        for cat in cats {
+            let (Some(name), Some(ev), Some(fields)) =
+                (cat["name"].as_str(), cat["otlp_event_name"].as_str(), cat["fields"].as_array())
+            else { continue; };
+            let set = fields.iter().filter_map(|f| f["name"].as_str().map(str::to_string)).collect();
+            m.insert(name.to_string(), (ev.to_string(), set));
         }
         m
     })
@@ -390,75 +476,90 @@ fn install_id_is_stable_and_consent_defaults_unset() {
     `install-salt`, used by `project.rs` to salt session-suffix hashes; **never uploaded**;
   - `pub fn remote_consent() -> ConsentState` reads `[telemetry] remote_consent =
     "granted|denied"`; `pub fn set_remote_consent(s: ConsentState)` writes it;
-  - `pub fn is_remote_allowed() -> bool` = `remote_consent()==Granted` (consent is the ONLY
-    thing that flips remote upload effective-true; a stray `remote_upload=true` without consent
-    must stay false).
-- [ ] **Step 4: Run** → PASS. Add test: `set_remote_consent(Denied)` makes `is_remote_allowed()` false even if `remote_upload=true` in config.
+  - `pub fn is_remote_allowed() -> bool` = **`is_master_enabled() && remote_consent()==Granted`**.
+    The existing `is_master_enabled()` (`config.rs:126`) is the hard kill (org-policy file +
+    `VOX_TELEMETRY=off|0|false`); it MUST gate remote upload too, or a machine with telemetry
+    hard-off would still upload once consent was granted (a §3.5 privacy breach). A stray
+    `remote_upload=true` without consent must also stay false.
+- [ ] **Step 4: Run** → PASS. Add tests (use `#[serial]` like the existing config tests, since
+  they mutate env): (a) `set_remote_consent(Denied)` ⇒ `is_remote_allowed()==false` even with
+  `remote_upload=true`; (b) **`VOX_TELEMETRY=off` ⇒ `is_remote_allowed()==false` even with
+  consent `Granted`** (master-switch precedence).
 - [ ] **Step 5: Commit.**
 ```bash
 git add crates/vox-telemetry/src/config.rs crates/vox-telemetry/tests/consent_install_id.rs
 git commit -m "feat(telemetry): two-tier consent state + anonymous install id"
 ```
 
-### Task B4: OTLP LogRecord exporter implementing `TelemetryRecorder` — TDD
+### Task B4: Redact-before-spool in `vox-cli`'s `SpoolSink` — TDD
+
+> Per the correction box: there is no live network recorder. The existing `SpoolSink`
+> (`crates/vox-cli/src/telemetry_sink.rs`) already runs in the composite at startup. We make it
+> **project + redact BEFORE enqueue** so the on-disk spool only holds clean OTLP-shaped records,
+> and so a build without the `remote` feature still never writes secrets to disk. `record()`
+> stays pure+sync (project/redact are pure); the existing `Handle::try_current()` guard handles
+> the disk write. NO new `set_global_recorder` call.
 
 **Files:**
-- Create: `crates/vox-telemetry-otlp/src/exporter.rs`
-- Test: `crates/vox-telemetry-otlp/tests/exporter_emits_otlp.rs`
+- Create: `crates/vox-telemetry-otlp/src/otlp_json.rs` (pure OTLP/HTTP logs JSON encoder — serde only)
+- Modify: `crates/vox-cli/src/telemetry_sink.rs` (`SpoolSink::record`)
+- Modify: `crates/vox-cli/Cargo.toml` (add `vox-telemetry-otlp` dep — pure core, no `remote` yet)
+- Test: `crates/vox-cli/tests/spool_is_redacted.rs`
 
-- [ ] **Step 1: Write failing test** against a local mock OTLP/HTTP endpoint (spawn a tiny
-  `tokio` test server that records the request body), asserting an emitted event arrives as an
-  OTLP log with the redacted attrs and the install-id resource attribute, and that emission is
-  a no-op when consent is not `Granted`:
-```rust
-#[tokio::test]
-async fn emits_redacted_otlp_log_only_when_consent_granted() {
-    // 1. consent Unset -> recorder.record(...) sends nothing.
-    // 2. consent Granted -> exactly one OTLP/HTTP POST with event.name="vox.command",
-    //    attrs contain "verb" but NOT any unlisted field; resource has install id.
-    // (Full harness in the test file; assert on captured request bodies.)
-}
-```
-- [ ] **Step 2: Run** `cargo test -p vox-telemetry-otlp --features remote emits_redacted` → FAIL.
-- [ ] **Step 3: Implement `OtlpRecorder`** — holds an `opentelemetry_sdk` logger provider
-  configured with `opentelemetry-otlp` (http-proto, endpoint from `VOX_TELEMETRY_ENDPOINT` /
-  config), a `governor` rate limiter, and the install-id as a resource attribute. `impl
-  TelemetryRecorder for OtlpRecorder { fn record(&self, e: &TelemetryEvent) { if
-  remote_consent()!=Granted { return; } if let Some((cat, flat)) = project_event(e) { if let
-  Some(r) = redact_event(&cat, &flat) { self.emit_log(r); } } } }` — note the two-layer
-  project→redact pipeline from B2 (no `event_to_json`; projection IS the enum→flat step).
-  `emit_log` builds an OTLP `LogRecord` (`event.name`=r.event_name, attributes=r.attrs) and
-  enqueues via the spool (best-effort, never blocks).
-- [ ] **Step 4: Run** → PASS.
-- [ ] **Step 5: Commit.**
+- [ ] **Step 1: Read first.** Open `crates/vox-cli/src/telemetry_sink.rs:26-50` and
+  `crates/vox-cli/src/telemetry_spool.rs` (`enqueue` signature) — replicate the existing
+  `Handle::try_current()` guard; do not change the sync trait contract.
+- [ ] **Step 2: Failing test** — register a `SpoolSink` over a temp dir, `record` a
+  `ResearchMetric` whose `session_id="bench:secret_repo"` + `metadata_json` carries a token; read
+  the spooled file and assert it contains neither the repo name nor the token, and that it is a
+  valid OTLP-logs JSON object with `event.name`.
+- [ ] **Step 3:** Implement `otlp_json.rs`: `pub fn to_otlp_log(rec: &RedactedRecord, install_id:
+  &str) -> serde_json::Value` building the stable OTLP/HTTP logs envelope
+  (`resourceLogs[0].resource.attributes` includes `vox.install_id`; `scopeLogs[0].logRecords[0]`
+  has `body`/`attributes` from `rec`). Pure serde — no otel SDK, no `logs` feature.
+- [ ] **Step 4:** In `SpoolSink::record`, before enqueue: `if let Some((cat, flat)) =
+  project_event(event) { if let Some(red) = redact_event(&cat, &flat) { let payload =
+  to_otlp_log(&red, &install_id()); /* enqueue payload via existing guard */ } }`. Events that
+  project to `None` are simply not spooled.
+- [ ] **Step 5: Run** → PASS. **Commit.**
 ```bash
-git add crates/vox-telemetry-otlp/src/exporter.rs crates/vox-telemetry-otlp/tests/exporter_emits_otlp.rs
-git commit -m "feat(telemetry-otlp): OTLP LogRecord recorder w/ consent + redaction gating"
+git add crates/vox-telemetry-otlp/src/otlp_json.rs crates/vox-cli/src/telemetry_sink.rs crates/vox-cli/Cargo.toml crates/vox-cli/tests/spool_is_redacted.rs
+git commit -m "feat(telemetry): redact+OTLP-encode before spool enqueue (clean-at-rest)"
 ```
 
-### Task B5: First-run consent prompt + `vox telemetry` CLI — TDD
+### Task B5: Feature-gated uploader + first-run prompt + `vox telemetry` CLI — TDD
 
 **Files:**
+- Create: `crates/vox-telemetry-otlp/src/upload.rs` (feature `remote`: async OTLP POST of pending spool records)
 - Create: `crates/vox-cli/src/commands/telemetry/mod.rs`
-- Modify: `crates/vox-cli/src/cli_dispatch/mod.rs` (register subcommand + startup prompt hook)
-- Modify: `crates/vox-cli/Cargo.toml` (dep `vox-telemetry-otlp` with `remote` feature; gate behind a cli feature `telemetry-remote`)
-- Test: `crates/vox-cli/tests/telemetry_cli.rs`
+- Modify: `crates/vox-cli/src/lib.rs` (the `init_telemetry_sinks` chokepoint + first-run prompt hook; CONFIRM the function name/line before editing — it is `init_telemetry_sinks` near `lib.rs:673`, NOT `cli_dispatch/mod.rs`)
+- Modify: `crates/vox-cli/Cargo.toml` (enable `vox-telemetry-otlp/remote` behind a NEW cli feature `telemetry-remote`, default OFF)
+- Test: `crates/vox-cli/tests/telemetry_cli.rs`, `crates/vox-telemetry-otlp/tests/upload_gating.rs`
 
-- [ ] **Step 1: Write failing test** for `vox telemetry status` (prints state machine-readably)
-  and `vox telemetry preview` (prints the exact redacted JSON that would upload, sends nothing).
+- [ ] **Step 1: Failing tests** — (a) `vox telemetry status` prints state machine-readably;
+  `vox telemetry preview` prints the exact redacted OTLP JSON that WOULD upload and sends
+  nothing; (b) `upload_pending_otlp(dir, endpoint)` is a **no-op returning Ok(0) when
+  `is_remote_allowed()==false`** (consent Unset OR `VOX_TELEMETRY=off`), and POSTs+acks each
+  pending record when allowed (assert against a tiny tokio mock server).
 - [ ] **Step 2: Run** → FAIL.
-- [ ] **Step 3: Implement** the subcommand: `status|preview|on|off`. `on` writes
-  `set_remote_consent(Granted)`; `off` writes `Denied`. The **first-run prompt** fires once
-  (guarded by consent==Unset && interactive TTY) at CLI startup: a concise one-time message
-  listing exactly what is/ isn't collected (from SCHEMA.md), defaulting to NOT uploading until
-  the user opts in. Register `OtlpRecorder` via `set_global_recorder` only when the cli
-  `telemetry-remote` feature is built AND consent==Granted.
-- [ ] **Step 4: Run** → PASS. Verify `--no-default-features` cli build has no otel symbols
-  (`cargo build -p vox-cli --no-default-features` then a `nm`/dep-tree assertion test).
+- [ ] **Step 3: Implement** `upload.rs` (feature `remote`): async `upload_pending_otlp` that
+  short-circuits on `!is_remote_allowed()`, else `list_pending`→POST OTLP/HTTP→`ack`, with a
+  `governor` rate limit and best-effort error swallowing (never panics). Wire `vox telemetry
+  {status,preview,on,off,upload}`: `on`→`set_remote_consent(Granted)`, `off`→`Denied`,
+  `upload`→call the uploader, `preview`→project+redact a synthetic-or-pending record and print.
+  The **first-run prompt** fires once at startup (consent==Unset && interactive TTY) listing
+  exactly what is/isn't collected (from SCHEMA.md), default = do not upload. An optional periodic
+  flush calls the uploader off the hot path. NOTE: the `SpoolSink` from B4 is ALWAYS in the
+  composite; the `remote` feature only adds the *uploader*, and consent/master-switch gate at
+  upload time — so runtime `vox telemetry on/off` takes effect on the next upload (no recorder
+  re-registration needed).
+- [ ] **Step 4: Run** → PASS. **Symbol tests:** assert BOTH `cargo build -p vox-cli
+  --no-default-features` AND the **default** `vox` binary build contain zero `reqwest`/otel
+  upload symbols unless `telemetry-remote` is explicitly enabled (guards feature-unification leak).
 - [ ] **Step 5: Commit.**
 ```bash
-git add crates/vox-cli/src/commands/telemetry crates/vox-cli/src/cli_dispatch/mod.rs crates/vox-cli/Cargo.toml crates/vox-cli/tests/telemetry_cli.rs
-git commit -m "feat(cli): vox telemetry status/preview/on/off + first-run consent prompt"
+git add crates/vox-telemetry-otlp/src/upload.rs crates/vox-cli/src/commands/telemetry crates/vox-cli/src/lib.rs crates/vox-cli/Cargo.toml crates/vox-cli/tests/telemetry_cli.rs crates/vox-telemetry-otlp/tests/upload_gating.rs
+git commit -m "feat(cli): feature-gated OTLP uploader + vox telemetry CLI + first-run consent"
 ```
 
 ### Task B.LEDGER: Append Track B ledger entry
@@ -540,6 +641,19 @@ git commit -m "feat(cli): vox telemetry status/preview/on/off + first-run consen
   the `record_event!` call at the chokepoint; run green; commit. (command_usage, skill_activation,
   edit_pattern, harness_usage, error_surface — 5 sites, 5 commits.)
 
+### Task E1b: Add `record_default_decision!` + instrument the default-decision sites — TDD
+- [ ] **Step 1:** Add a `DefaultDecisionEvent { decision_id: String, chosen: String, outcome:
+  String, magnitude_bucket: Option<i64> }` variant to `TelemetryEvent` (mirror the existing
+  variant pattern in `types.rs`; add the `METRIC_TYPE_DEFAULT_DECISION` const + re-export) and a
+  thin `record_default_decision!(decision_id, chosen, outcome)` macro wrapping `record_event!`.
+  Add the `default_decision` category to the taxonomy SSOT (A3) — `decision_id`/`chosen`/`outcome`
+  are `enum` fields whose `allowed` lists come from `default-decision-sites.csv` (A2b).
+- [ ] **Step 2:** For each `status=proposed` row in `default-decision-sites.csv`, write a failing
+  test that the site emits the right `decision_id`+`chosen` enum, then add the
+  `record_default_decision!` call at the site (passing the bucketed enum, never the raw number),
+  run green, commit. Do these as small per-site commits. Keep enums in sync with the SSOT
+  (the projection-coverage test from E2 Step 1 will catch any free-form leak).
+
 ### Task E2: Route ALL existing categories through the exporter (full package migration)
 - [ ] **Step 1: Projection coverage gate.** Before any existing category may upload, every
   `TelemetryEvent` variant that is NOT mapped in `project.rs` (B2) must return `None` (not
@@ -549,12 +663,15 @@ git commit -m "feat(cli): vox telemetry status/preview/on/off + first-run consen
   §3 invariant gate for the existing package, and it REPLACES the earlier (wrong) "gate
   identically" framing — existing structs carry free-form strings and need per-field projection,
   not blanket forwarding.
-- [ ] **Step 2:** In the binary startup (vox-cli + vox-gui + orchestrator daemon), when
-  `telemetry-remote` + `is_remote_allowed()`, register `OtlpRecorder` alongside the existing
-  local sink via `CompositeRecorder` (local + remote). Mapped existing categories
-  (`research_metrics`, `model_calls`, `build`, `errors`, `agent_orchestration`) now ALSO upload —
-  each through its projection arm. Add a test that `CompositeRecorder` fans out to both legs and
-  that the remote leg is silent without consent.
+- [ ] **Step 2:** No new recorder registration is needed — the `SpoolSink` (B4) already redacts
+  + spools every mapped category, and the B5 uploader ships them when `is_remote_allowed()`.
+  So Step 2 is: confirm each existing mapped category (`research_metrics`, `model_calls`,
+  `build`, `errors`, `agent_orchestration`) has a projection arm and an enabled
+  `upload_default`, and add an integration test that an existing event end-to-ends through
+  spool→uploader→mock endpoint only with consent. **Scope = `vox-cli` only for the MVP.**
+  `vox-gui` and the orchestrator daemon have **no recorder registration today** (verified: no
+  `set_global_recorder` in `crates/vox-gui/`) — wiring telemetry into those surfaces is net-new
+  and is filed as an explicit follow-up (E-followup), not assumed here.
 
 ### Task E3: End-to-end verification
 - [ ] With the live endpoint (Track D), set consent Granted in a scratch profile, run a command,
@@ -586,10 +703,18 @@ git commit -m "feat(cli): vox telemetry status/preview/on/off + first-run consen
   `OtlpRecorder`, `project_event`, `redact_event`, `RedactedRecord`, `gen_ddl`. (Plan-review
   correction: the earlier `event_to_json` symbol was removed — projection (`project_event`) is
   the enum→flat step; do not reintroduce it.)
-- **Post-review corrections applied:** B2 redaction now projects the real externally-tagged
-  enum + drops/hashes free-form `String` fields (blocker 1); E2 enforces per-variant projection
-  coverage for existing categories (blocker 2); B3 uses `uuid::Uuid::new_v4()` not a hand-rolled
-  RNG; the otel 0.29→0.32 bump is flagged as a breaking repo-wide migration scoped in A4.
+- **Post-review v1 corrections:** B2 projects the real enum + drops/hashes free-form `String`
+  fields; E2 enforces per-variant projection coverage; B3 uses `uuid::Uuid::new_v4()`.
+- **Post-review v2 corrections (architecture):** (1) `TelemetryEvent` is **internally-tagged +
+  `#[non_exhaustive]`** (flat serialization; mandatory `_ => None` arm) — note corrected. (2) No
+  live network in sync `record()` — egress is **redact-before-spool** + a feature-gated uploader
+  (resolves the `tokio::spawn`-panic and the first-write-wins `set_global_recorder` no-op). (3)
+  The real spool is in **`vox-cli`**, not the facade. (4) `is_remote_allowed()` now includes
+  **`is_master_enabled()`** (org-policy / `VOX_TELEMETRY=off` precedence). (5) Client carries **no
+  `opentelemetry` SDK** — OTLP JSON hand-encoded, dissolving the 0.29→0.32 / `logs`-feature blast
+  radius. (6) Taxonomy parse **fail-closed** (no hot-path panic). (7) MVP scope = `vox-cli`;
+  GUI/daemon registration is net-new follow-up. (8) Added `default_decision` category +
+  `record_default_decision!` + A2b/E1b for the "sensible defaults" surface.
 - **Gaps to flag at execution:** otel pin scope decision — keep 0.29 vs bump 0.32 (resolve in
   A4 Step 4); whether FableForge already hosts a Vox project (A4 Step 1); OTel-Collector-vs-axum
   ingest (A4 Step 2); the exact projection arm for each less-common `TelemetryEvent` variant

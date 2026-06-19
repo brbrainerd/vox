@@ -27,7 +27,7 @@ code present) and must always be **opt-out**, with central upload **opt-in**.
 |---|---|
 | Consent | **Two-tier**: local collection **on by default / opt-out**; central **upload opt-in** (one-time first-run prompt). |
 | Datastore | **ClickHouse** (columnar OLAP; built for billions of events + parallel cross-user aggregation). |
-| Client wire | **Hybrid**: keep the existing `TelemetryEvent` taxonomy; carry it over **OTLP logs** (`opentelemetry-otlp`) so the backend stays swappable. |
+| Client wire | **Hybrid**: keep the existing `TelemetryEvent` taxonomy; carry it as **OTLP/HTTP logs JSON**, hand-encoded with `serde`+`reqwest` (no `opentelemetry` SDK on the client) so the backend stays swappable. |
 | Server code | **Separate private repo** (`vox-telemetry-server`) — operational infra, never shipped to users. |
 | Client exporter crate | **One new workspace crate** `vox-telemetry-otlp` (L3, feature-gated `telemetry-remote`). No heavy deps added to the L1 facade or the ~60 emitters. |
 | Executor | **Sonnet 4.6** via subagent-driven development; infra is deployed **incrementally as the plan runs**. |
@@ -42,12 +42,17 @@ From 2025–26 CLI-telemetry norms (GitHub-CLI backlash, VS Code/Homebrew/Next.j
    file *kinds* (extension class); enum/numeric metrics. Anything not on the allowlist is dropped.
 3. **Anonymous identity**: a random per-install UUID (no machine/user PII). Repo identity →
    salted hash (salt is per-install, never uploaded).
-4. **Redaction at egress**: a redaction pass runs in `vox-telemetry-otlp` *before* any byte
-   leaves the process; covered by guardrail tests.
+4. **Redaction before persistence (clean-at-rest)**: the `project`+`redact` pass (pure core of
+   `vox-telemetry-otlp`) runs in `SpoolSink` *before* the event is written to the on-disk spool,
+   so secrets never touch disk and never leave the process. The uploader only ships
+   already-clean records. Covered by guardrail tests (the spooled file must contain no planted secret).
 5. **Inspectable & reversible**: `vox telemetry status` (state), `vox telemetry preview`
-   (exact payload that would be sent), `vox telemetry off` (kill switch), org-policy hard-off
-   (existing Layer-1).
-6. **Best-effort**: telemetry never blocks a command; upload is async via the spool and fails open.
+   (exact payload that would be sent), `vox telemetry off` (kill switch), AND the existing master
+   kill-switch `is_master_enabled()` (`VOX_TELEMETRY=off` + org-policy Layer-1) gates remote
+   upload too — `is_remote_allowed()` requires it.
+6. **Best-effort**: telemetry never blocks a command; `record()` does only pure redaction + a
+   guarded disk enqueue (no network); upload is async/off-hot-path and fails open (never panics,
+   even on malformed taxonomy → fail-closed empty allowlist).
 7. **Server-side k-anonymity** on any aggregate surfaced from the data (k ≥ threshold, TBD-in-research → default k=20).
 
 ## 4. Architecture
@@ -57,33 +62,42 @@ CLIENT (in Vox)                                   SERVER (separate private repo)
 ┌───────────────────────────────────────┐        ┌──────────────────────────────────┐
 │ ~60 emitter crates  → record_event!    │        │  ingest: axum + clickhouse 0.13   │
 │ vox-telemetry (L1 facade, ZERO net dep)│        │   (OTLP/HTTP logs receiver)       │
-│   • config (5-layer) + install-id +    │ OTLP   │        │                          │
-│     consent state                      │ logs   │  ClickHouse (columnar)            │
-│   • spool (exists)                     │ /HTTPS │   • events_raw  (TTL)             │
-│   • TelemetryRecorder trait            │ ─────► │   • MVs: cmd/skill/edit rollups   │
-│ vox-telemetry-otlp (L3, COMPILE-OUT)   │        │  Grafana/Metabase dashboards      │
-│   • redaction pass (egress boundary)   │        │  (skill-surfacing, cmd freq, …)   │
-│   • OTLP LogRecord exporter (0.32)     │        └──────────────────────────────────┘
+│   • config(5-layer)+install-id+salt+   │ OTLP   │        │                          │
+│     consent + master kill-switch       │ logs   │  ClickHouse (columnar)            │
+│ vox-cli SpoolSink:project→redact→spool │ JSON   │   • events_raw  (TTL)             │
+│   (clean-at-rest; spool ALREADY exists │ /HTTPS │   • MVs: cmd/skill/edit rollups   │
+│    in vox-cli, not the facade)         │ ─────► │  Grafana/Metabase dashboards      │
+│ vox-telemetry-otlp (L3)                │        │  (skill-surfacing, cmd freq, …)   │
+│   • project/redact/otlp_json (PURE)    │        └──────────────────────────────────┘
+│   • upload (feat `remote`,COMPILE-OUT) │
 └───────────────────────────────────────┘
-        feature = "telemetry-remote"  (off → no otel/reqwest symbols in the binary)
+   client hand-encodes OTLP/HTTP logs JSON (serde+reqwest) — NO opentelemetry SDK on client.
+   feature `telemetry-remote` off → zero reqwest/network symbols in the binary.
 ```
 
 > **Compile-out, precisely:** the `vox-telemetry` facade *always* compiles and is cheap — its
 > `record_event!` is a **runtime** no-op until a recorder is registered (it checks
-> `global_recorder()`). The *compile-out unit* is the **exporter crate** `vox-telemetry-otlp`:
-> with `--no-default-features` (no `telemetry-remote`) it is an empty shim and the binary's
-> dependency tree contains zero `opentelemetry`/`reqwest` symbols. Do NOT `#[cfg]`-gate the
-> facade itself. The success-criteria symbol test targets the **binary** (`vox-cli`) dep tree.
+> `global_recorder()`). `vox-telemetry-otlp`'s **pure core** (`project`/`redact`/`otlp_json`,
+> serde only) also always compiles — that's what lets `SpoolSink` redact even in non-remote
+> builds. The *compile-out unit* is the crate's **`upload` module** behind feature `remote`:
+> `--no-default-features` (no `telemetry-remote`) → the binary's dep tree contains zero
+> `reqwest`/network symbols. The client carries **no `opentelemetry` SDK** at all (OTLP JSON is
+> hand-encoded). Do NOT `#[cfg]`-gate the facade. The success-criteria symbol test targets the
+> **binary** (`vox-cli`) dep tree — both the default build and `--no-default-features`.
 
 ### Crate plan (lean; avoid ballooning)
 - **Keep** `vox-telemetry` (L1) zero-network: only `record_event!`, config, types, spool trait.
   Adding otel/reqwest here would poison build times for all ~60 dependents — **forbidden**.
-- **New** `vox-telemetry-otlp` (L3, `kind="library"`, feature-gated): implements
-  `TelemetryRecorder`, owns the OTLP exporter + redaction. Pulls `opentelemetry*`, `reqwest`,
-  `governor`. Registered at binary startup *only* when `telemetry-remote` + consent are on.
-- **Extend** `vox-telemetry::config`: install-UUID + consent persistence (uses file IO it
-  already does; **no new deps**).
-- **Extend** `vox-cli` (L5): first-run consent prompt + `vox telemetry {status,preview,on,off}`.
+- **New** `vox-telemetry-otlp` (L3, `kind="library"`): **pure core** (`project`/`redact`/
+  `otlp_json`, serde only — always compiles) + feature-gated **`upload`** (`reqwest`+`governor`,
+  the compile-out unit). No `opentelemetry` SDK (OTLP JSON hand-encoded). It does NOT implement a
+  live recorder — egress is redact-at-spool + a periodic/explicit uploader.
+- **Extend** `vox-telemetry::config`: install-UUID + per-install salt + consent persistence +
+  `is_remote_allowed() = is_master_enabled() && consent==Granted` (file IO it already does;
+  `uuid` already a dep; **no new deps**).
+- **Extend** `vox-cli` (L5): `SpoolSink` redacts-before-enqueue; first-run consent prompt +
+  `vox telemetry {status,preview,on,off,upload}`. MVP scope = `vox-cli` only (GUI/daemon have no
+  recorder registration today → follow-up).
 - **arch-check**: add a forbidden-dep rule so no domain crate depends on `vox-telemetry-otlp`
   directly (only the facade); register the new crate in `layers.toml` + `where-things-live.md`.
 - **Server** is **not** a workspace crate — separate repo, audited/deployed in its own track.
@@ -106,6 +120,19 @@ Existing categories stay (`research_metrics`, `model_calls`, `agent_orchestratio
 | `edit_pattern` | common edits | op type (insert/replace/delete), file-kind class, size bucket, count | medium |
 | `harness_usage` | how the harness is used | tool-call kind histogram, session shape (turns, agents spawned), mode | low |
 | `error_surface` | failures (extends `errors`) | error class, subsystem, recoverable? | medium |
+| `default_decision` | **learn sensible defaults** from real usage at tunable decision points | decision id (enum), chosen value (enum/bucket), outcome (enum: hit_limit / comfortable / throttled / timed_out …), magnitude bucket | low |
+
+**`default_decision` — the "sensible defaults" use-case.** Vox picks many tuned constants
+(budgets, concurrency, retries, timeouts, cache TTLs). Aggregating *what value was in effect* +
+*what outcome it produced* across users lets us set better defaults empirically. A codebase
+audit found ~12 high-value sites (committed to the inventory), e.g.: `vox-orchestrator`
+`budget/mod.rs` cost/drift/doom-loop/token thresholds; `vox-config` `vox_config.rs` LLM
+`max_concurrent`(8)/retry(4); `vox-orchestrator-mcp` `llm_bridge/limits.rs` output-token
+cap(8192)/probe TTL(30s)/timeout; `vox-effort-audit` `config.rs` audit concurrency(4);
+`vox-audit` `panel.rs` backoff. Emission: a `record_default_decision!(decision_id, chosen,
+outcome)` helper (enum-only args) at each site; the **decision id + chosen-value enums are
+themselves part of the taxonomy allowlist** so nothing free-form can leak. Outcomes are recorded
+near the decision site (runtime-dependent); the redaction/allowlist stays centralized.
 
 The **authoritative emit-site inventory** is produced by the plan's audit phase (graphify +
 parallel subagents) → committed as a versioned CSV/JSON SSOT that the server schema and the
