@@ -393,10 +393,9 @@ struct Report {
     /// Rule 17: dependency cycles detected by Tarjan SCC. Always a hard error.
     /// Each entry is one cycle: a sorted list of crate names forming the SCC.
     cycle_errors: Vec<Vec<String>>,
-    /// Rule 18: publishability closure gate.
-    /// Pairs of (publishable_crate, unpublishable_dep) — warn initially,
-    /// hardened to ERROR in Track B Task B4.
-    publishability_warns: Vec<(String, String)>,
+    /// Rule 18: publishability closure gate (hard error).
+    /// Pairs of (publishable_crate, unpublishable_dep).
+    publishability_errors: Vec<(String, String)>,
     /// Rule 19: dep-closure-size budget gate. Always a hard error when fired.
     closure_budget_errors: Vec<String>,
 }
@@ -425,6 +424,7 @@ impl Report {
                     .any(|f| f.kind.severity() == "ERROR"))
             || !self.cycle_errors.is_empty()
             || !self.closure_budget_errors.is_empty()
+            || !self.publishability_errors.is_empty()
     }
 
     /// Project the report into per-rule results for the policy-status overlay.
@@ -524,13 +524,13 @@ impl Report {
                 eprintln!("  cycle: {}", cycle.join(" ↔ "));
             }
         }
-        if !self.publishability_warns.is_empty() {
+        if !self.publishability_errors.is_empty() {
             any = true;
             eprintln!(
-                "[warn] Rule 18: publishable crates with unpublishable deps ({}):",
-                self.publishability_warns.len()
+                "[ERROR] Rule 18: publishable crates with unpublishable deps ({}):",
+                self.publishability_errors.len()
             );
-            for (krate, dep) in &self.publishability_warns {
+            for (krate, dep) in &self.publishability_errors {
                 eprintln!("  {krate} → {dep} (publish = false)");
             }
         }
@@ -1110,7 +1110,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
                 }
             })
             .collect();
-        report.publishability_warns = checks::publishable::check(&crate_recs);
+        report.publishability_errors = checks::publishable::check(&crate_recs);
     }
 
     // ── Rule 19: Dep-closure-size budget gate ──
