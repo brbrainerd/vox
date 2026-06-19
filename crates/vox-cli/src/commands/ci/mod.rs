@@ -18,6 +18,7 @@ pub mod config_hygiene;
 pub mod config_registry_parity;
 mod contracts_index;
 mod coolify_eval;
+mod crate_budget;
 pub mod data_storage_guard;
 mod db_schema_coverage;
 mod dep_cycles;

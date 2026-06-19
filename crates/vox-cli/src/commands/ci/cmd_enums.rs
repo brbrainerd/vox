@@ -755,6 +755,14 @@ pub enum CiCmd {
         #[arg(long, default_value_t = 3)]
         repeat: u32,
     },
+    /// Gate keystone crates' blast-radius-seconds against committed thresholds.
+    /// Reads `.vox/cache/graphify/crate-map/graph.json` (produced by `vox graphify crate-map`).
+    #[command(name = "crate-budget")]
+    CrateBudget {
+        /// Emit advisory output and exit 0 even on violations (use until baseline is populated).
+        #[arg(long)]
+        exit_zero: bool,
+    },
     /// Detect dependency cycles (HARD on normal-dep cycles) and inventory dev-dep back-edges.
     /// With --deny-new, fails when a new advisory cycle appears not in the committed allowlist.
     #[command(name = "dep-cycles")]

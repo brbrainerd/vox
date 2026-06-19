@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "_comment": "Blast-radius-seconds ceilings for workspace keystones. Set 20% above 2026-06-19 measured values. Lower as T3 extractions shrink keystones.",
+  "keystones": [
+    { "crate": "workspace-hack", "blast_s_ceiling": 590 },
+    { "crate": "vox-db",         "blast_s_ceiling": 445 },
+    { "crate": "vox-compiler",   "blast_s_ceiling": 437 },
+    { "crate": "vox-populi",     "blast_s_ceiling": 440 }
+  ]
+}

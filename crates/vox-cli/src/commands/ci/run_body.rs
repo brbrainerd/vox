@@ -554,6 +554,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             compare,
             repeat,
         } => super::build_bench::run_build_bench(&root, label, write, compare, repeat),
+        CiCmd::CrateBudget { exit_zero } => super::crate_budget::run_crate_budget(&root, exit_zero),
         CiCmd::DepCycles {
             deny_new,
             allowlist,
