@@ -4,7 +4,7 @@
 use crate::agy_doctor::{detect, remediation, AgyStatus};
 use crate::agy_exec::{AgyExec, AgySpec};
 use crate::agy_gates::{run_gates, Gate, GateResult};
-use crate::agy_ledger::{append_entry_locked, LedgerEntry};
+use crate::agy_ledger::{append_entry_locked, append_review_locked, ledger_digest, LedgerEntry, ReviewRecord};
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -183,6 +183,77 @@ pub async fn vox_agy_pipeline(state: &ServerState, args: serde_json::Value) -> S
     .to_json()
 }
 
+/// (ledger_id, ReviewRecord) from a vox_agy_review call.
+pub fn review_validate(args: &serde_json::Value) -> Result<(String, ReviewRecord), String> {
+    let id = args.get("ledger_id").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+    if id.is_empty() {
+        return Err("Missing 'ledger_id' (the AGH id returned by vox_agy_pipeline).".into());
+    }
+    let verdict = args.get("verdict").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+    if verdict.is_empty() {
+        return Err("Missing 'verdict' (approve | approve-with-followups | request-changes).".into());
+    }
+    let str_list = |key: &str| -> Vec<String> {
+        args.get(key)
+            .and_then(|v| v.as_array())
+            .map(|a| a.iter().filter_map(|x| x.as_str()).map(|s| s.to_string()).collect())
+            .unwrap_or_default()
+    };
+    let rec = ReviewRecord {
+        verdict,
+        categories: str_list("categories"),
+        findings: args.get("findings").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        lessons: str_list("lessons"),
+        date: today(),
+    };
+    Ok((id, rec))
+}
+
+/// `vox_agy_review` — Stage 3: record the Claude-side adversarial review.
+pub async fn vox_agy_review(state: &ServerState, args: serde_json::Value) -> String {
+    let (id, rec) = match review_validate(&args) {
+        Ok(v) => v,
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                e,
+                "Run the code-reviewer agent vs the jailed diff first; pass its verdict + §B categories here.",
+            )
+            .to_json()
+        }
+    };
+    match append_review_locked(&state.repository.root, &id, &rec).await {
+        Ok(()) => ToolResult::ok(serde_json::json!({
+            "recorded": format!("{id}-review"),
+            "verdict": rec.verdict,
+            "categories": rec.categories,
+            "next_step": "Take the jailed branch to the human merge gate. The flywheel will surface these categories via vox_agy_ledger_digest.",
+        }))
+        .to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(
+            format!("could not append review addendum: {e}"),
+            "Confirm docs/superpowers/antigravity-handoff-ledger.md exists and is writable.",
+        )
+        .to_json(),
+    }
+}
+
+/// `vox_agy_ledger_digest` — Stage 1 flywheel input.
+pub async fn vox_agy_ledger_digest(state: &ServerState, _args: serde_json::Value) -> String {
+    match ledger_digest(&state.repository.root) {
+        Ok(d) => ToolResult::ok(serde_json::json!({
+            "total_entries": d.total_entries,
+            "category_counts": d.category_counts,
+            "guidance": "Inject the top recurring categories as explicit avoid-rules into the next launch statement (Stage 1); read §B of the ledger for the matching lessons.",
+        }))
+        .to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(
+            format!("could not read ledger: {e}"),
+            "Confirm docs/superpowers/antigravity-handoff-ledger.md exists.",
+        )
+        .to_json(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -225,5 +296,21 @@ mod tests {
         assert_eq!(t, 900);
         assert_eq!(gates.len(), 1);
         assert_eq!(gates[0].program, "cargo");
+    }
+
+    #[test]
+    fn review_validate_requires_id_and_verdict() {
+        assert!(review_validate(&serde_json::json!({"verdict": "approve"})).is_err()); // no id
+        assert!(review_validate(&serde_json::json!({"ledger_id": "AGH-0007"})).is_err()); // no verdict
+        let (id, rec) = review_validate(&serde_json::json!({
+            "ledger_id": "AGH-0007",
+            "verdict": "request-changes",
+            "categories": ["hallucinated-api"],
+            "findings": "no import emitted",
+            "lessons": ["verify framework primitive"]
+        })).unwrap();
+        assert_eq!(id, "AGH-0007");
+        assert_eq!(rec.verdict, "request-changes");
+        assert_eq!(rec.categories, vec!["hallucinated-api"]);
     }
 }
