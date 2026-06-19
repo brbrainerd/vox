@@ -58,6 +58,16 @@ impl LshIndex {
     }
 
     pub fn insert(&mut self, fragment: Fragment) -> usize {
+        debug_assert_eq!(
+            fragment.signature.minhash.len(),
+            self.bands * self.rows,
+            "Fragment minhash length ({}) must equal bands*rows ({}*{}={}); \
+             build Fragments with the same num_hashes as the index config",
+            fragment.signature.minhash.len(),
+            self.bands,
+            self.rows,
+            self.bands * self.rows
+        );
         let idx = self.fragments.len();
         for key in self.band_keys(&fragment.signature) {
             self.buckets.entry(key).or_default().push(idx);
@@ -216,5 +226,12 @@ mod tests {
         idx.insert(frag("a", "alpha beta gamma delta epsilon", "a:1"));
         idx.insert(frag("b", "one two three four five six", "b:1"));
         assert!(idx.cluster(2, 0.7).is_empty());
+    }
+
+    #[test]
+    fn insert_accepts_matching_signature_length() {
+        let mut idx = LshIndex::new(16, 4); // 64 hashes
+        idx.insert(frag("a", "let total = price * quantity + tax", "a.vox:1")); // frag() uses 64
+        assert_eq!(idx.len(), 1);
     }
 }
