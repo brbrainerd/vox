@@ -154,3 +154,13 @@ fn modules_mode_produces_module_graph() {
     assert_eq!(m["node_count"], 2);
     assert_eq!(m["edge_count"], 1);
 }
+
+#[test]
+fn graph_digest_is_stable_and_distinct() {
+    let a = vox_graphify_reader::graph_digest(b"{\"nodes\":[]}");
+    let b = vox_graphify_reader::graph_digest(b"{\"nodes\":[]}");
+    let c = vox_graphify_reader::graph_digest(b"{\"nodes\":[{}]}");
+    assert_eq!(a, b);
+    assert_ne!(a, c);
+    assert!(a.len() >= 32);
+}

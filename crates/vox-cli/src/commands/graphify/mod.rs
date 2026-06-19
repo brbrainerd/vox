@@ -220,7 +220,7 @@ fn render_status_line(s: &CorpusStatus) -> String {
 }
 
 /// Entry point for `vox graphify <cmd>`.
-pub fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Result<()> {
+pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Result<()> {
     match cmd {
         GraphifyCmd::Status {
             corpus,
@@ -266,12 +266,21 @@ pub fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Result<()> 
                 return Ok(());
             }
 
-            let upserted = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .context("tokio runtime for graphify ingest")?
-                .block_on(upsert_projected_nodes(&nodes))?;
+            let upserted = upsert_projected_nodes(&nodes).await?;
             println!("graphify ingest: corpus={corpus_id} upserted={upserted}");
+
+            // Stamp lexical_ingest_sha256 = digest of the graph just projected, so lexical_lag
+            // clears now and re-fires after a later rebuild changes graph_json_sha256.
+            let corpus = corpus_by_id(&reg, &corpus_id)
+                .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            let graph_bytes = std::fs::read(repo_root.join(&corpus.graph_path))
+                .with_context(|| format!("read graph for digest: {}", corpus.graph_path))?;
+            let digest = vox_graphify_reader::graph_digest(&graph_bytes);
+            vox_config::graphify::set_lexical_ingest_sha256(
+                &repo_root.join(&corpus.manifest_path),
+                &digest,
+            )
+            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
         }
         GraphifyCmd::Rebuild { corpus } => {
             let reg =

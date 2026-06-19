@@ -179,7 +179,7 @@ pub fn rebuild_graph(
     // Content digest of the exact bytes written. Despite the legacy field name
     // `graph_json_sha256`, the digest is BLAKE3 (already a dep); the ingest path MUST
     // use the same algorithm so `lexical_lag` comparisons are valid.
-    let graph_digest = blake3::hash(graph_bytes.as_bytes()).to_hex().to_string();
+    let graph_digest = crate::graph_digest(graph_bytes.as_bytes());
 
     let manifest_val = serde_json::json!({
         "corpus_id": meta.corpus_id,

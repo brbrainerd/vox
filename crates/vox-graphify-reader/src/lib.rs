@@ -194,3 +194,9 @@ impl GraphifyReader {
             .collect()
     }
 }
+
+/// BLAKE3 hex digest of graph bytes. The single source of truth for `graph_json_sha256`
+/// (rebuild) and `lexical_ingest_sha256` (ingest) so `lexical_lag` comparisons are valid.
+pub fn graph_digest(bytes: &[u8]) -> String {
+    blake3::hash(bytes).to_hex().to_string()
+}

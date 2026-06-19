@@ -201,7 +201,7 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
         }
         Cli::Graphify { cmd } => {
             let root = crate::commands::ci::repo_root();
-            crate::commands::graphify::run(cmd, &root)?;
+            crate::commands::graphify::run(cmd, &root).await?;
         }
         #[cfg(feature = "coderabbit")]
         Cli::Recensio { cmd } => {
