@@ -1,8 +1,22 @@
 # VoxMens Hub-and-Spoke Build-Out Implementation Plan
 
+> **📑 SPLIT INTO THREE EXECUTION PLANS (2026-06-18).** This master is now the **reference for phase/task bodies**; execute via the three scoped plans, in order, each green at its boundary:
+> 1. [`2026-06-18-voxmens-split-A-spoke-ssot-and-seam.md`](2026-06-18-voxmens-split-A-spoke-ssot-and-seam.md) — Phases 0–1 + the `profile` seam + `vox ci spoke-check` (no GPU).
+> 2. [`2026-06-18-voxmens-split-B-measurement-and-corpora.md`](2026-06-18-voxmens-split-B-measurement-and-corpora.md) — Phases 2, 4, 5.
+> 3. [`2026-06-18-voxmens-split-C-selection-routing-serving.md`](2026-06-18-voxmens-split-C-selection-routing-serving.md) — Phases 3, 6, 7, 8.
+> The split plans carry the authoritative audit corrections and boundary contracts; this document's phase bodies are the task source they reference.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `crates/vox-skills/skills/superpowers/subagent-driven-development.skill.md` (recommended) or `executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 >
 > **EXECUTION TARGET: Gemini 3.5 Flash inside Google Antigravity.** Read §A (Execution Model for Gemini) before starting any task. It is not optional — the task shapes (atomic-green-commit, verify-before-use, `[PARALLEL-SAFE]`/`[SEQUENTIAL]` tags, two-strike circuit breaker) exist specifically because of this model's documented failure modes.
+
+> **🔧 AUDIT CORRECTIONS (2026-06-18) — READ BEFORE EXECUTING.** An adversarial codebase-grounded audit found:
+> 1. **Too large for one Antigravity run** (8 phases / ~30 tasks against a ~48%-completion, hard-quota model). **Recommended split into three independently-shippable plans, run in order:** (A) **Spoke SSOT + seam** = Phases 0–1 + the `profile` seam task + the `vox ci spoke-check` task (no GPU; lands the foundation green); (B) **Measurement + corpora** = Phases 2, 4, 5; (C) **Selection + routing + serving** = Phases 3, 6, 7, 8. Each ≤10 tasks and fails closed at a plan boundary, not mid-chain.
+> 2. **The `profile: Option<String>` seam** that Tasks 1.6 / 2.3 / 3.4 / 6.1 all consume is never landed as its own atomic task. Before any task reads `profile`, add a dedicated task that edits `pipeline::run`'s signature (`pipeline.rs:7`), the `PipelineStage` loop capture, AND the `vox-ml-cli` caller, and commits it GREEN. Verify the call site with `rg -n "pipeline::run\(" crates/vox-ml-cli/src`.
+> 3. **Rust spoke id = `rust-expert`** (it already exists), and the `agents` profile already exists with curriculum config — Task 1.5 EDITS both in place; it does NOT create a `rust` profile or replace `agents` (fixed below).
+> 4. **Producer→consumer artifact: `check_run` DOES already read `eval_results.json`** (verified `check_run.rs:197` — parsed once and shared across gates, alongside `training_manifest.json`/`telemetry.jsonl`/`eval_local_report.json`/`benchmark_passatk.json`). So the Phase-2 convention (producers write Rust/agentic metrics into `eval_results.json`; handlers read them from `eval_results.json`) is VALID — keep it. The real requirement is that each NEW gate name (`rust_compile_rate`, `clippy_clean_rate`, `tool_call_valid_json_rate`, …) gets a **handler arm** in `check_run` (a gate name with no handler is silently ignored). Mirror the `eval_json` access at `check_run.rs:197-213`. *(Correction to an earlier over-claim that `check_run` never reads `eval_results.json` — it does.)*
+> 5. **`supervised_ratio.min_pct` is unit-sensitive** (fraction `0.10`, not `10.0`) — copy the reference gate's exact value (fixed below).
+> 6. **`vox ci spoke-check`** (the validator surface) is described in prose but never created as a task — add the clap variant + `ci` dispatch arm + pre-push registration as an explicit task in plan A. **`detect_available_vram_mb()`** (Task 3.4) must be confirmed to exist via `rg` before being called; if absent, STOP rather than hallucinate it. **Never commit an `unimplemented!()` body** across a task boundary (Task 4.2): the real `compile_batch_in_workspace` body and its commit are one atomic unit.
 
 **Goal:** Turn VoxMens from a single-method, single-base, VoxScript-centric pipeline into a config-only hub-and-spoke where each of three spokes (VoxScript, Rust, Harness/agentic) declares its own data mix, base model, training method, and eval gate in one validated SSOT, trains end-to-end, and is selected at inference by a router — with per-spoke base models scaled to the host's VRAM.
 
@@ -479,7 +493,9 @@ git commit -m "feat(mens): spoke SSOT validator (fine-tune needs mix+preset; pat
 **Files:**
 - Modify: `mens/config/domain-profiles.yaml`
 
-Context: `vox-lang` profile already exists (verified) with `mix_config: mens/config/mix-vox-lang.yaml`. Add `base`/`eval_gate`/`router` to it and create `rust` and `agents` profiles. **Base `model` values are placeholders that Phase 3 replaces** with verified picks — use the registry keys Phase 3 will define.
+Context: THREE relevant profiles **already exist** (verified in `domain-profiles.yaml`): `vox-lang` (`mix-vox-lang.yaml`), **`rust-expert`** (line ~43, `reward_hook: cargo_build`), and **`agents`** (line ~53, rich curriculum config). So this task **edits all three in place** — it does NOT create a new `rust` profile (that would fork Rust into `rust` + `rust-expert`) and does NOT replace the `agents` block (that would clobber its curriculum config). Add ONLY the new `base`/`eval_gate`/`router` keys to each existing profile. **Base `model` values are placeholders that Phase 3 replaces** with verified picks. **Every downstream reference to the Rust spoke uses the id `rust-expert`, not `rust`** (Tasks 2.3 / 3.4 / 6.1 / 8.2 load `load_domain_profile("rust-expert", ...)`).
+
+- [ ] **Step 0 (verify-before-use):** `rg -n "^  rust-expert:|^  agents:|^  vox-lang:|reward_hook|curriculum" mens/config/domain-profiles.yaml` — confirm the three profiles exist and note their current keys so you ADD to them rather than overwrite.
 
 - [ ] **Step 1: Add a `base`/`router` block to the existing `vox-lang` profile**
 
@@ -495,11 +511,10 @@ Under `profiles.vox-lang`, add:
       priority: 10
 ```
 
-- [ ] **Step 2: Add the `rust` spoke**
+- [ ] **Step 2: Add `base`/`eval_gate`/`router` to the EXISTING `rust-expert` profile (do NOT create a new `rust` profile)**
+
+Under the existing `profiles.rust-expert` (preserve its `reward_hook: cargo_build` and all current keys), ADD:
 ```yaml
-  rust:
-    description: "Idiomatic Rust authoring & review of our own workspace"
-    mix_config: mens/config/mix-rust.yaml
     base:
       model: strong_code_default    # resolved in Phase 3
       method: qlora
@@ -508,15 +523,13 @@ Under `profiles.vox-lang`, add:
     router:
       triggers: ["lane:vox_rust_authoring", "lane:vox_rust_review", "*.rs"]
       priority: 10
-    min_rating: 4
-    seq_len: 2048
 ```
+(If `rust-expert` has no `mix_config`, add `mix_config: mens/config/mix-rust.yaml`.) The Rust spoke id remains `rust-expert` everywhere downstream.
 
-- [ ] **Step 3: Add the `agents` spoke**
+- [ ] **Step 3: Add `base`/`eval_gate`/`router` to the EXISTING `agents` profile (do NOT replace its block)**
+
+Under the existing `profiles.agents` (preserve its `curriculum`/`curriculum_schedule`/all current keys), ADD ONLY:
 ```yaml
-  agents:
-    description: "Harness/agentic: tool calls, skills, discovery, operating vox.exe"
-    mix_config: mens/config/mix-agents.yaml
     base:
       model: agentic_default        # resolved in Phase 3
       method: qlora
@@ -525,8 +538,6 @@ Under `profiles.vox-lang`, add:
     router:
       triggers: ["lane:vox_tooling", "lane:vox_dogfood_agent"]
       priority: 5
-    min_rating: 3
-    seq_len: 2048
 ```
 
 - [ ] **Step 4: Verify it parses (no code; uses the loader test from 1.3)**
@@ -544,7 +555,7 @@ Expected: all green (the new profiles must deserialize).
 
 ```bash
 git add mens/config/domain-profiles.yaml
-git commit -m "feat(mens): declare vox-lang/rust/agents spokes in domain-profiles SSOT (bases TBD Phase 3)"
+git commit -m "feat(mens): add base/eval_gate/router to vox-lang/rust-expert/agents spokes (bases TBD Phase 3)"
 ```
 
 ### Task 1.6: Make the pipeline mix strict (kill the silent-optional gap) [SEQUENTIAL]
@@ -792,14 +803,16 @@ review_recurrence:
   max_pct: 0.20
   block: false
 supervised_ratio:
-  min_pct: 10.0
+  min_pct: 0.10   # ⚠ UNIT-SENSITIVE — see Step 1.5; copy the reference gate's exact value, do NOT invent 10.0
   block: true
 ```
 
-- [ ] **Step 2: Verify the loader accepts it**
+- [ ] **Step 1.5 (verify the unit — CRITICAL):** `rg -n "supervised_ratio" -A2 mens/config/eval-gates.yaml` AND `rg -n "min_pct|sup_pct|supervised_ratio" crates/vox-ml-cli/src/commands/mens/eval_gate/check_run.rs`. The `SupervisedRatioGate.min_pct` default is `0.10` (a FRACTION) while `check_run` computes `sup_pct` as a percent (×100). Writing `10.0` here would demand 1000% supervised and **always fail**. Copy the EXACT numeric the reference `eval-gates.yaml` uses for `supervised_ratio` into this file — do not guess the unit.
+
+- [ ] **Step 2: Verify the loader accepts it AND the gate is not always-fail**
 
 Run: `rg -n "supervised_ratio|min_pct|block" mens/config/eval-gates.yaml`
-Expected: confirms the same keys exist in the reference gate (so `check_run`'s parser will accept this shape). No code change.
+Expected: confirms the same keys + same unit convention as the reference gate. Then dry-run `check_run` against a known-good run dir and confirm `supervised_ratio` does NOT block (`rg -n "fn check_run" crates/vox-ml-cli/src/commands/mens/eval_gate/check_run.rs` for invocation shape).
 
 - [ ] **Step 3: Commit**
 ```bash

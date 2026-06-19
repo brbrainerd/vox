@@ -39,7 +39,7 @@ jobs:
           - crate: vox-codegen
             path_filter: "crates/vox-codegen/**"
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Check if crate was changed
         id: changed

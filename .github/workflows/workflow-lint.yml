@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # actionlint = real syntax errors, bad `if:` expressions, shellcheck on `run:` blocks,
       # deprecated patterns. ADVISORY (continue-on-error) for now: the first run over the

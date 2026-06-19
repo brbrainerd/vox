@@ -11,7 +11,7 @@
 4. **Two-strike circuit breaker** — fail twice → STOP + handoff note; don't loop.
 5. **Parallel dispatch** — honor `[PARALLEL-SAFE]`/`[SEQUENTIAL]`; never two subagents on one file (handoff §3 / `dispatching-parallel-agents` skill).
 6. **Vox house rules** — no `cargo fmt --all`; automation is `.vox`; `docs/src/` `.md` needs frontmatter; **generated files are regenerated, never hand-edited** (e.g. `policy-registry.v1.yaml` is written by `vox ci policy-registry --write`).
-7. **Verification ritual** before commit (use `verification-before-completion` skill): `cargo test -p <crate>` → `cargo clippy -p <crate> -- -D warnings` → `vox stub-check` → `cargo fmt -p <crate>`, paste output. Self-review with `requesting-code-review` skill.
+7. **Verification ritual** before commit (use `verification-before-completion` skill): `cargo test -p <crate>` → `cargo clippy -p <crate> -- -D warnings` → no-stub check via `rg -n 'todo!|unimplemented!|TODO|FIXME' <changed-files>` (there is **no** `vox stub-check` command; the repo gate is the heavy `vox ci toestub-budget`, reserved for final verification) → `cargo fmt -p <crate>`, paste output. Self-review with `requesting-code-review` skill.
 8. **Rollback on broken tree** — `git reset --hard HEAD` to the last green commit and re-attempt the one task. Never build forward on a broken tree.
 9. **Skill references** — native under `crates/vox-skills/skills/superpowers/`.
 10. **Rust implementation constraints** — obey design §5b: additive struct/enum fields (`GuiDesignRule`, `execution_context`) break match arms/constructors → fix each; **no `.unwrap()` in MCP handlers** (return `Result`, surface errors as diagnostics); deterministic output (sort keys; `serde_json::Map` is BTreeMap when `preserve_order` is off); prefer runtime contract reads over deep `include_str!` paths; `cargo run -p vox-arch-check` must pass.
@@ -30,49 +30,71 @@
 
 | File | Responsibility | Action |
 |---|---|---|
-| `crates/vox-config/src/policy/registry.rs` | add `GuiDesignRule` domain + register 3 GUI rules | Modify (C1) |
-| `contracts/policy/policy-registry.v1.yaml` | regenerated SSOT (via gate) | Regenerate (C1) |
+| `crates/vox-config/src/policy/registry.rs` | add `GuiDesignRule` domain variant | Modify (C1a) |
+| `crates/vox-cli/src/commands/ci/policy_registry.rs` | `gui_design_rule_entries()` + extend `build_registry()` + parity | Modify (C1b) |
+| `contracts/policy/policy-registry.v1.yaml` | regenerated SSOT (via gate) | Regenerate (C1b) |
 | `crates/vox-codegen/src/web_ir/validate_palette.rs:233-248` | read contrast thresholds from config | Modify (C2) |
 | `contracts/gui/component-registry.v1.json` | shadcn-shaped component catalog | Create (C3) |
 | `crates/vox-codegen/.../component_registry_sync test` | registry⇄`primitives::resolve` parity | Create (C3) |
 | `crates/vox-codegen-ts/src/token_export.rs` | TS token union + DTCG import/export | Create (C4) |
-| `crates/vox-orchestrator-mcp/src/gui_registry_tools.rs` | `vox_gui_components`/`_tokens`/`vox_validate_vuv` | Create (C5) |
+| `crates/vox-orchestrator-mcp/src/gui_registry_tools.rs` + `dispatch.rs` | `vox_gui_components`/`_tokens` (validate_vuv deferred) | Create/Modify (C5) |
 | `docs/.../where-things-live.md`, handoff | register + GUI-surfacing note | Modify (C6) |
 
-**Pre-flight (paste output; NOT code):**
-- `rg -n "enum PolicyDomain|pub domain|fn builtin|policies\(\)|fn all" crates/vox-config/src/policy/registry.rs | head` — confirm `PolicyDomain` variants + how builtin entries are declared.
-- `rg -n "validate_web_ir_with_registry|fn validate_palette|wcag21_contrast_ratio|3.0|4.5" crates/vox-codegen/src/web_ir/validate.rs crates/vox-codegen/src/web_ir/validate_palette.rs | head` — confirm validator entry + hardcoded thresholds.
-- `rg -n "pub fn register|ToolDefinition|fn resolve\(" crates/vox-orchestrator-mcp/src/mcp_client.rs crates/vox-codegen/src/web_ir/primitives/mod.rs | head` — confirm MCP `register()` + primitive `resolve`.
+**Pre-flight (paste output; NOT code). These correct three load-bearing facts the original draft got wrong — read carefully:**
+- `rg -n "enum PolicyDomain|enum PolicySeverity|struct PolicySource|enum PolicySourceKind|pub origin|pub severity" crates/vox-config/src/policy/registry.rs | head -40` — confirm: `PolicyDomain` variants; `severity: Option<PolicySeverity>` (NOT a bare `Severity`); `origin: String` (NOT an `Origin` enum — set it to `"builtin".into()`); the `PolicySource`/`PolicySourceKind` shape.
+- `rg -n "fn build_registry|_entries\(\)|fn crl_gate_entries|DomainExpectation" crates/vox-cli/src/commands/ci/policy_registry.rs | head -40` — **builtin policy entries are declared HERE in vox-cli, NOT in vox-config's registry.rs** (which only *loads* YAML). This is where C1b adds `gui_design_rule_entries()`.
+- `rg -n "validate_web_ir_with_registry|fn validate_palette|3.0|4.5" crates/vox-codegen/src/web_ir/validate.rs crates/vox-codegen/src/web_ir/validate_palette.rs | head` — confirm validator entry + the two literal thresholds (~:235/:244).
+- `rg -n '"vox_check" =>|=> handle_|match name|fn dispatch' crates/vox-orchestrator-mcp/src/dispatch.rs | head -40` — **MCP tools are dispatched via a `match name { ... }` arm in `dispatch.rs`, NOT a `.register()` call.** Note an existing arm to mirror, and find the separate tool-schema/advertise list (`rg -n "vox_check_workspace" crates/vox-orchestrator-mcp/src/`).
+- `rg -n "match tag|html_tag|fn resolve" crates/vox-codegen/src/web_ir/primitives/mod.rs | head` — primitive `resolve` for C3.
 - `cargo run -p vox-arch-check` — baseline.
 
 ---
 
-## Task C1 `[SEQUENTIAL]`: Register GUI design rules in the policy-registry (modular SSOT)
+## Task C1a `[SEQUENTIAL]`: Add the `GuiDesignRule` domain variant (enum-only, trivially green)
 
-Make the GUI rule *set* data-driven: add a `GuiDesignRule` domain and register the three existing validators (contrast, layer/occlusion, a11y) as builtin policy entries with `severity`, `default_enabled`, and config params. The existing `vox-gui/src/commands/policy.rs` then surfaces them in the GUI **automatically**.
+Add ONLY the new `PolicyDomain` variant and fix every match arm the compiler flags. This is its own atomic task so a quota cutoff can't leave a half-added enum.
 
-**Files:** Modify `crates/vox-config/src/policy/registry.rs`; regenerate `contracts/policy/policy-registry.v1.yaml`.
+**Files:** Modify `crates/vox-config/src/policy/registry.rs` (the `PolicyDomain` enum + its `Display`/serde/match sites).
 
-- [ ] **Step 1 (verify-before-use):** Run the Pre-flight policy `rg`. Confirm `enum PolicyDomain { CiGate, AuditCheck, CodeAuditRule, ArchRule, .. }` and find the function that returns the builtin `PolicyEntry` list (the generator source). Note the `PolicyEntry` field set (id, domain, title, group, description, severity, blocking, runs_on, source, docs, default_enabled, protected, origin).
+- [ ] **Step 1 (verify-before-use):** `rg -n "enum PolicyDomain" -A 12 crates/vox-config/src/policy/registry.rs` and `rg -n "PolicyDomain::" crates/vox-config/src crates/vox-cli/src | head -40` — list every match site that will need a new arm.
 
-- [ ] **Step 2: Failing test.** Add a test asserting the three GUI rules are registered:
+- [ ] **Step 2: Implement.** Add `GuiDesignRule` to `enum PolicyDomain`. Compile (`cargo build -p vox-config`) and fix every non-exhaustive-match error the compiler lists (Display impl, any `match domain {}`), mirroring the existing `ArchRule`/`CrlGate` arms.
+
+- [ ] **Step 3: Run → green.** `cargo build -p vox-config` then `cargo test -p vox-config`. No new behavior yet — this commit just adds the variant.
+
+- [ ] **Step 4: Commit.**
+
+```bash
+git add crates/vox-config/src/policy/registry.rs
+git commit -m "feat(policy): add GuiDesignRule PolicyDomain variant"
+```
+
+---
+
+## Task C1b `[SEQUENTIAL]`: Register the three GUI rules as builtin entries (in vox-cli, where builtins live)
+
+Builtin `PolicyEntry`s are NOT declared in `vox-config` (that file only loads YAML). They are declared in `crates/vox-cli/src/commands/ci/policy_registry.rs` as `*_entries()` functions composed by `build_registry()`. Add a `gui_design_rule_entries()` mirroring `crl_gate_entries()`.
+
+**Files:** Modify `crates/vox-cli/src/commands/ci/policy_registry.rs`; regenerate `contracts/policy/policy-registry.v1.yaml`.
+
+- [ ] **Step 1 (verify-before-use):** `rg -n "fn crl_gate_entries|fn build_registry|DomainExpectation|policies.extend" crates/vox-cli/src/commands/ci/policy_registry.rs` — read `crl_gate_entries()` (the simplest template), the `build_registry()` `.extend(...)` chain, and the `DomainExpectation` parity list. Note the EXACT `PolicyEntry` field types: `severity: Option<PolicySeverity>`, `origin: String`, `source: PolicySource { kind: PolicySourceKind, .. }`. Run `rg -n "enum PolicySourceKind" crates/vox-config/src/policy/registry.rs`.
+
+- [ ] **Step 2: Failing test.** In the `#[cfg(test)]` module of `policy_registry.rs`, add:
 
 ```rust
 #[test]
 fn gui_design_rules_registered() {
-    let ids: Vec<&str> = builtin_policies().iter().map(|p| p.id.as_str()).collect();
+    let ids: Vec<&str> = gui_design_rule_entries().iter().map(|p| p.id.as_str()).collect();
     for id in ["gui-design-rule/contrast", "gui-design-rule/layer-occlusion", "gui-design-rule/a11y"] {
         assert!(ids.contains(&id), "missing {id}");
     }
-    assert!(builtin_policies().iter().any(|p| p.domain == PolicyDomain::GuiDesignRule));
+    assert!(gui_design_rule_entries().iter().all(|p| p.domain == PolicyDomain::GuiDesignRule));
 }
 ```
 
-> Replace `builtin_policies()` with the actual builtin-list function name from Step 1.
+- [ ] **Step 3: Run → FAIL.** `cargo test -p vox-cli gui_design_rules_registered`.
 
-- [ ] **Step 3: Run → FAIL.** `cargo test -p vox-config gui_design_rules_registered`.
-
-- [ ] **Step 4: Implement.** Add `GuiDesignRule` to `PolicyDomain` (and any `Display`/`serde rename`/match arms the compiler flags — fix each it lists). Append three `PolicyEntry` builtins (mirror an existing `arch-rule/*` entry's construction exactly), e.g.:
+- [ ] **Step 4: Implement.** Add `fn gui_design_rule_entries() -> Vec<PolicyEntry>` mirroring `crl_gate_entries()` exactly, with three entries. Use the REAL field types (confirmed in Step 1) — do NOT use `Origin::Builtin` or a bare `Severity` (neither exists):
 
 ```rust
 PolicyEntry {
@@ -81,26 +103,26 @@ PolicyEntry {
     title: "WCAG contrast".into(),
     group: "GUI Design".into(),
     description: "Text/background contrast must meet WCAG AA (configurable thresholds).".into(),
-    severity: Severity::Error,           // match the existing Severity type/import
+    severity: Some(PolicySeverity::Error),     // Option<PolicySeverity>
     blocking: true,
     runs_on: vec!["ci".into(), "pre-push".into()],
-    source: /* PolicySource mirroring an arch-rule entry; ref the validator path */,
+    source: PolicySource { /* mirror crl_gate_entries' PolicySource exactly; point kind/path at validate_palette.rs */ },
     docs: Some("docs/src/architecture/ai-ui-generators-and-vox-as-target-research-2026-06-18.md".into()),
     default_enabled: true,
     protected: false,
-    origin: Origin::Builtin,             // match existing enum/variant
+    origin: "builtin".into(),                   // String, not an enum
 }
 ```
 
-(+ `gui-design-rule/layer-occlusion` → `validate_layer.rs`, `gui-design-rule/a11y` → `validate_a11y.rs`.) Use the exact field types/enum variants found in Step 1.
+(+ `gui-design-rule/layer-occlusion` → `validate_layer.rs`, `gui-design-rule/a11y` → `validate_a11y.rs`.) Then: (a) add `policies.extend(gui_design_rule_entries());` to `build_registry()` after the last existing `.extend`; (b) add a matching `DomainExpectation` for `GuiDesignRule` to the parity list (mirror the `code_audit_entries` expectation) so the gate covers the new domain.
 
-- [ ] **Step 5: Run → PASS, then regenerate the SSOT.** `cargo test -p vox-config gui_design_rules_registered`; then `vox ci policy-registry --write` (regenerates the YAML — do NOT hand-edit it); then `vox ci policy-registry` (parity gate must pass).
+- [ ] **Step 5: Run → PASS, then regenerate + parity.** `cargo test -p vox-cli gui_design_rules_registered`; then `vox ci policy-registry --write` (regenerates the YAML — never hand-edit); then `vox ci policy-registry` (parity gate must pass).
 
 - [ ] **Step 6: Rule 7 + commit.**
 
 ```bash
-git add crates/vox-config/src/policy/registry.rs contracts/policy/policy-registry.v1.yaml
-git commit -m "feat(policy): register GUI design rules (contrast/occlusion/a11y) as GuiDesignRule domain"
+git add crates/vox-cli/src/commands/ci/policy_registry.rs contracts/policy/policy-registry.v1.yaml
+git commit -m "feat(policy): register GUI design rules (contrast/occlusion/a11y) as GuiDesignRule entries"
 ```
 
 ---
@@ -117,7 +139,7 @@ Replace the hardcoded `3.0`/`4.5` in `validate_palette.rs` with values resolved 
 
 - [ ] **Step 3: Run → FAIL.** `cargo test -p vox-codegen <test_name>`.
 
-- [ ] **Step 4: Implement.** Introduce a tiny `ContrastThresholds { hard_floor: f64, aa_body: f64 }` with defaults `{3.0, 4.5}`, sourced from the rule config when present (read the `gui-design-rule/contrast` params; if config plumbing is heavy, accept a `ContrastThresholds` param with the defaults and thread it from `validate_web_ir_with_registry`). Replace the literals at 235/244 with the struct fields. Keep defaults identical so existing tests stay green.
+- [ ] **Step 4: Implement.** Introduce a tiny `ContrastThresholds { hard_floor: f64, aa_body: f64 }` with `Default` = `{3.0, 4.5}`. Thread it as an explicit parameter from `validate_web_ir_with_registry` → `validate_palette` → `check_contrast`/`walk_contrast`, and replace the literals at ~:235/:244 with `thresholds.hard_floor` / `thresholds.aa_body`. Keep the default identical so existing tests stay green. (Do NOT attempt to source values from the policy-registry YAML — `validate_palette` receives a `TokenRegistry`, not a `PolicyRegistry`; there is no policy-param→validator wire today. This task proves modularity via a defaulted, explicitly-threaded struct, which is the realistic seam; config-sourcing is a documented follow-up.)
 
 - [ ] **Step 5: Run → PASS + regression.** `cargo test -p vox-codegen`.
 
@@ -210,32 +232,33 @@ git commit -m "feat(codegen-ts): typed token TS export + W3C DTCG import/export"
 
 ---
 
-## Task C5 `[SEQUENTIAL]`: MCP tools — components, tokens, validate_vuv
+## Task C5 `[SEQUENTIAL]`: MCP tools — components + tokens (two pure file-read tools)
 
-Expose the registry + tokens + the validation pass over MCP so external generators read and self-check.
+Expose the component registry + token catalog over MCP so external generators read them. **`vox_validate_vuv` is DESCOPED from this task** (see C5-deferred note) because there is no string→web_ir convenience entry point — it needs the full parse→typecheck→HIR→lower pipeline, which is unverified and high-risk for a weak model. Ship the two safe, pure file-read tools first.
 
-**Files:** Create `crates/vox-orchestrator-mcp/src/gui_registry_tools.rs` + register it where other tool modules register.
+**Files:** Create `crates/vox-orchestrator-mcp/src/gui_registry_tools.rs`; modify `crates/vox-orchestrator-mcp/src/dispatch.rs` (add `match` arms + `use`), and the tool-schema/advertise list.
 
-- [ ] **Step 1 (verify-before-use):** `rg -n "pub fn register|\.register\(|mod compiler_tools|mod code_validator|register_all|fn register_tools" crates/vox-orchestrator-mcp/src/*.rs | head`. Find the exact registration entry point and mirror how `compiler_tools`/`code_validator` register a tool (name + async handler). Also `rg -n "validate_web_ir|run_frontend|web_ir" crates/vox-orchestrator-mcp/src/ crates/vox-codegen/src/web_ir/validate.rs | head` to find how to lower+validate VUV from a string (reuse the existing frontend→web_ir→`validate_web_ir_with_registry` path).
+- [ ] **Step 1 (verify-before-use):** `rg -n '"vox_check" =>|=> handle|match name' crates/vox-orchestrator-mcp/src/dispatch.rs | head` — find an existing dispatch arm to mirror (tools are dispatched by a `match name { "vox_..." => ... }` arm; there is **no** `.register()` API for local tools). Then `rg -n "vox_check_workspace" crates/vox-orchestrator-mcp/src/` to locate EVERY place a tool name is enumerated — there is a tool-definition/advertise list separate from `dispatch.rs`; both must list the new tools or they dispatch but are never advertised.
 
-- [ ] **Step 2: Failing test.** Add a test that calls the `vox_validate_vuv` handler with a known-bad snippet (e.g. `gray.300` text on white — the palette tests prove this fails ~1.5:1) and asserts the returned JSON contains a contrast diagnostic; and that `vox_gui_components` returns the registry JSON containing `"button"`.
+- [ ] **Step 2: Failing test.** Add a test asserting `vox_gui_components` returns the registry JSON containing `"button"`, and `vox_gui_tokens` returns the token catalog (and `format=dtcg` yields `"$value"`).
 
 - [ ] **Step 3: Run → FAIL.** `cargo test -p vox-orchestrator-mcp gui_registry`.
 
-- [ ] **Step 4: Implement** `gui_registry_tools.rs`. Handlers return `Result` and surface errors as a diagnostic payload — **no `.unwrap()`** (design §5b.3):
-  - `vox_gui_components` → read the registry at runtime from a workspace-relative path resolved via `env!("CARGO_MANIFEST_DIR")` joined to `../../contracts/gui/component-registry.v1.json` (robust; avoids brittle `include_str!("../../../…")` depth — design §5b.6). Verify the relative depth from `crates/vox-orchestrator-mcp` to repo root with `rg --files contracts/gui/component-registry.v1.json` first. If embedding is preferred, `include_str!` only after confirming the exact `../` count from this source file.
+- [ ] **Step 4: Implement** `gui_registry_tools.rs` with two handler functions returning `Result` (no `.unwrap()`):
+  - `vox_gui_components` → read `contracts/gui/component-registry.v1.json`. **Prefer `include_str!`** with the exact `../` depth (confirm with `rg --files contracts/gui/component-registry.v1.json`, then count directories from `crates/vox-orchestrator-mcp/src/` to repo root) so a shipped binary doesn't depend on a repo checkout; fall back to a `CARGO_MANIFEST_DIR`-relative runtime read only if embedding is impractical.
   - `vox_gui_tokens` → return the token catalog (+ optional `format=dtcg` via `token_export::to_dtcg`); on parse error return an error result, don't panic.
-  - `vox_validate_vuv` → lower the submitted VUV via the existing frontend, run `validate_web_ir_with_registry`, return diagnostics as JSON; map any lowering error to a diagnostic, never `unwrap`.
-  Register all three at the entry point from Step 1, mirroring an existing module's registration exactly.
+  Then wire BOTH into MCP: (a) add `use crate::gui_registry_tools;` to `dispatch.rs`; (b) add two `match name` arms (`"vox_gui_components" => ...`, `"vox_gui_tokens" => ...`) mirroring the existing arm from Step 1; (c) add both tool names to the tool-definition/advertise list found in Step 1.
 
-- [ ] **Step 5: Run → PASS + regression.** `cargo test -p vox-orchestrator-mcp`, then Rule 7.
+- [ ] **Step 5: Run → PASS + regression.** `cargo test -p vox-orchestrator-mcp`, then Rule 7. Then `cargo run -p vox-arch-check` (this crate now depends on `vox-codegen-ts::token_export` — confirm no layer inversion).
 
 - [ ] **Step 6: Commit.**
 
 ```bash
-git add crates/vox-orchestrator-mcp/src/gui_registry_tools.rs crates/vox-orchestrator-mcp/src/<entrypoint>.rs
-git commit -m "feat(mcp): vox_gui_components/_tokens/validate_vuv tools for AI UI generators"
+git add crates/vox-orchestrator-mcp/src/gui_registry_tools.rs crates/vox-orchestrator-mcp/src/dispatch.rs
+git commit -m "feat(mcp): vox_gui_components + vox_gui_tokens tools for AI UI generators"
 ```
+
+> **C5-deferred — `vox_validate_vuv`:** requires a string→web_ir path. Before implementing, a follow-up task must `rg -n "fn .*-> .*HirModule|fn parse|fn compile" crates/vox-compiler/src crates/vox-codegen/src` to find (or add) a clean `&str → HirModule → lower_hir_to_web_ir_with_summary → validate_web_ir_with_registry` entry point. If none exists, that follow-up adds it first. Do NOT attempt `vox_validate_vuv` in C5.
 
 ---
 
@@ -258,11 +281,11 @@ git commit -m "docs: register Track C surfaces; note GUI design-rule surfacing v
 
 ## Parallelization summary (for the Antigravity orchestrator)
 
-- **C1→C2 SEQUENTIAL** (C2 reads the rule config C1 registers; both relate to the rule engine).
+- **C1a→C1b→C2 SEQUENTIAL** (C1a adds the enum variant; C1b adds the entries in vox-cli; C2 threads a defaulted threshold struct in the validator).
 - **C3, C4 PARALLEL-SAFE** (disjoint files: `contracts/gui/` + new test vs new `token_export.rs`) — run together, and beside C2.
-- **C5 SEQUENTIAL after C3 + C4** (uses the component registry JSON and `token_export`; also needs the validator path).
+- **C5 SEQUENTIAL after C3 + C4** (uses the component registry JSON and `token_export`).
 - **C6 PARALLEL-SAFE** (docs) — any time after C5.
-- **Waves:** W1 = C1→C2; W2 = {C3, C4} parallel; W3 = C5; W4 = C6. Never two agents on the same crate's shared file.
+- **Waves:** W1 = C1a→C1b→C2; W2 = {C3, C4} parallel; W3 = C5; W4 = C6. Never two agents on the same crate's shared file.
 
 ## Self-Review
 

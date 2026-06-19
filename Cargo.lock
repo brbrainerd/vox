@@ -5502,7 +5502,7 @@ checksum = "625d1f603d5d294d9ea5c1e48ee1484e1bd47cd57c2d8884785c085bca415212"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -15360,7 +15360,7 @@ dependencies = [
  "petgraph 0.8.3",
  "serde",
  "serde_json",
- "syn 2.0.117",
+ "syn 2.0.118",
  "tempfile",
  "tree-sitter",
  "tree-sitter-rust",
