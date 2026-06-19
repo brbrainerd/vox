@@ -110,6 +110,42 @@ corrections_fed_back: []
 commits: [9564245036, 4adb4a26c3, c6f608f5bf, 5866e15639, 218363b686, 5eb3ccee4e, 3dc6bf8618, 7c712bede6, ab3f6c1f46, 718be0f5e5]
 ```
 
+```yaml
+# --- AGH-0002 ---
+id: AGH-0002
+date: 2026-06-19
+plan: docs/superpowers/plans/2026-06-18-skill-discovery-followups-and-isolation.md
+prompt_artifact: "D-1 → AGH-0002 — Skill-discovery follow-ups + isolation"
+prompt_version: v1
+subsystem: skill-marketplace / discovery+dedup (Subsystem A follow-ups)
+target: gemini-3.5-flash / antigravity
+claude_inputs: [plan, launch-statement]
+delivered:
+  - crates/vox-similarity/src/signature.rs
+  - crates/vox-similarity/src/index.rs
+  - crates/vox-similarity/src/lib.rs
+  - crates/vox-skill-discovery/Cargo.toml
+  - crates/vox-skill-discovery/src/code_miner.rs
+  - crates/vox-skill-discovery/src/catalog.rs
+  - crates/vox-skill-discovery/src/lib.rs
+  - docs/src/architecture/layers.toml
+loc: 180
+outcome: green
+verification: { tests: "23 passed", clippy: clean, arch_check: green, smoke: ok }
+errors_encountered:
+  - { what: "git cherry-pick conflict on lib.rs and code_miner.rs", root_cause: "empty/incomplete main-branch baseline vs local commits", category: "wrong-path", who: preexisting }
+  - { what: "cargo build locks by concurrent agents", root_cause: "other agents running concurrently in the same workspace", category: "build-gate", who: preexisting }
+agent_deviations:
+  - "Used an isolated git worktree wt-skill-discovery-engine to prevent interfering with other parallel agents. category: branch-hygiene"
+review_findings: ""
+verdict: approve
+prompt_lessons:
+  - "Using git worktree is highly effective for isolating parallel agent builds and preventing git branch collision."
+corrections_fed_back: []
+commits: [b4aeea3a3a, ddfb186d3b, 53d4de46c6, 85e9815325, eec21a146f, 6ae18c1d69, 6886f0e267, 00b04dc8e4, b5e30adcb8, ef02173e8c, 3e2dfc0086]
+```
+
+
 ### AGH-0001 — review detail (human prose)
 **What we asked for:** the local discovery + dedup engine (Subsystem A wedge), via the audited plan + a launch statement carrying the arch-check corrections and operating rules.
 
