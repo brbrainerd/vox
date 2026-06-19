@@ -93,7 +93,12 @@ pub fn digest_from_body(body: &str) -> LedgerDigest {
         if t.starts_with("# --- AGH-") && !t.contains("-review") && !t.contains("AGH-NNNN") {
             total += 1;
         }
-        if t.contains("categor") {
+        // Match category-declaring lines; reject free-text uses of "category" mid-sentence.
+        // Standalone key: "category: X" or "categories: [...]"; flow-map list items "- { ..., category: X }".
+        let is_category_line = t.starts_with("category:")
+            || t.starts_with("categories:")
+            || (t.contains("category:") && (t.starts_with('-') || t.starts_with('{')));
+        if is_category_line {
             for cat in KNOWN_CATEGORIES {
                 if t.contains(cat) {
                     *counts.entry((*cat).to_string()).or_insert(0) += 1;
