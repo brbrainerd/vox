@@ -162,6 +162,7 @@ pub mod telemetry;
 /// Test suite integration wrapper (`vox test`).
 pub mod test;
 pub mod update;
+pub mod updates;
 
 pub mod grammar;
 
@@ -208,3 +209,4 @@ pub mod workflow;
 
 /// Dispatch-time routing preview — `vox dispatch preview` (P2-T6).
 pub mod dispatch;
+pub mod history_cli;
