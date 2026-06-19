@@ -245,17 +245,76 @@ export function installTauriMock(viewKey: string): void {
         ];
         case 'get_gui_preference': return null;
         case 'invoke_mcp_tool': return { tool: args?.tool ?? 'unknown', is_error: false, result: mcpResult(args?.tool ?? '') };
+        // ── Activity surface ─────────────────────────────────────────────────
+        case 'activity_query': return [
+          { id: 1, kind: 'AgentSpawned', summary: 'Agent spawned for task #101', agent_id: 'agent-a', ts_ms: Date.now() - 60000, detail_json: '{}' },
+          { id: 2, kind: 'TaskCompleted', summary: 'Task #101 completed successfully', agent_id: 'agent-a', ts_ms: Date.now() - 30000, detail_json: '{}' },
+          { id: 3, kind: 'CostIncurred', summary: 'Cost incurred: $0.0021', agent_id: 'agent-a', ts_ms: Date.now() - 10000, detail_json: '{"CostIncurred":{"cost_usd":0.0021}}' },
+        ];
+        // ── History / Clips surface ──────────────────────────────────────────
+        case 'history_list': return [
+          { id: 1, repo_id: 'local', kind: 'command', text: 'vox ci build', redacted_text: 'vox ci build', created_at: Date.now() - 120000, pinned: false, source: 'console', token_estimate: 4 },
+          { id: 2, repo_id: 'local', kind: 'clip', text: 'const x = 42;', redacted_text: 'const x = 42;', created_at: Date.now() - 60000, pinned: true, source: 'editor', token_estimate: 8 },
+          { id: 3, repo_id: 'local', kind: 'chat', text: 'What does this function do?', redacted_text: 'What does this function do?', created_at: Date.now() - 30000, pinned: false, source: 'loquela', token_estimate: 6 },
+        ];
+        case 'history_search': return [
+          { id: 1, repo_id: 'local', kind: 'command', text: 'vox ci build', redacted_text: 'vox ci build', created_at: Date.now() - 120000, pinned: false, source: 'console', token_estimate: 4 },
+        ];
+        case 'history_pin': return null;
+        case 'history_delete': return null;
+        case 'history_add': return 1;
+        // ── Tasks / Hopper surface ───────────────────────────────────────────
+        case 'hopper_list': return [
+          { item_id: 'hop-1', intent: 'Refactor auth middleware for compliance', priority: 1, state: 'inbox', task_id: 101 },
+          { item_id: 'hop-2', intent: 'Fix failing tests in vox-orchestrator', priority: 2, state: 'assigned', task_id: 102 },
+          { item_id: 'hop-3', intent: 'Write migration for db schema v80', priority: 0, state: 'done', task_id: 103 },
+        ];
+        case 'hopper_submit': return { ok: true, item_id: 'hop-new' };
+        case 'hopper_cancel': return null;
+        case 'hopper_reprioritize': return null;
+        // ── Model pool surface ───────────────────────────────────────────────
+        case 'get_model_pool': return {
+          rules: [{ kind: 'free' }],
+          includes: [],
+          excludes: [],
+          disabled_sources: [],
+          member_ids: ['mens-8b', 'qwen-coder-7b', 'local-llama'],
+          fell_open: false,
+        };
+        case 'list_enabled_providers_cmd': return ['mens', 'ollama', 'local'];
+        case 'set_model_pool': return null;
+        // ── Settings surface ─────────────────────────────────────────────────
+        case 'list_trusted_nodes': return [];
+        case 'get_user_config': return [];
+        case 'get_llm_config': return { model: 'opus-4-8', temperature: 0.7, max_tokens: 8192 };
+        case 'get_orchestrator_config': return { max_agents: 8, budget_usd: 50, timeout_secs: 300 };
+        case 'openrouter_key_status': return { configured: false };
+        case 'secrets_backend_status': return { backend: 'local', healthy: true };
+        case 'signing_key_status': return { algorithm: 'ed25519', fingerprint: 'mock:deadbeef', created_at_ms: 1717000000000, rotated_at_ms: null };
+        case 'get_vcs_isolation': return { strategy: 'worktree' };
+        case 'import_env': return { imported: [] };
+        case 'migrate_auth_store': return null;
+        // ── execute_command ──────────────────────────────────────────────────
         case 'execute_command': {
           const path: string[] = args?.path ?? [];
           const p = path.join(' ');
           if (p === 'scientia dashboard') return { exit_code: 0, stdout: JSON.stringify(queueSnapshot), stderr: '' };
+          if (p === 'scientia cost') return {
+            exit_code: 0,
+            stdout: JSON.stringify({
+              this_quarter: { extraction_usd: 0.12, critic_usd: 0.08, novelty_retrieval_usd: 0.04, scholarly_submission_usd: 0.02, total_usd: 0.26 },
+              per_finding_average_usd: 0.005,
+              by_provider: [{ provider: 'anthropic', usd: 0.20 }, { provider: 'openrouter', usd: 0.06 }],
+            }),
+            stderr: '',
+          };
           if (p === 'scientia claims' || p === 'scientia publication-extract-claims')
             return { exit_code: 0, stdout: JSON.stringify({ claims: Array.from({ length: 5 }, (_, i) => ({ claim_id: `c${i}`, text: 'Provider X shows 3% regression under load', verdict: ['Supported', 'Contested', 'Abstain', 'Supported', 'Contradicted'][i], confidence: 0.8 - i * 0.1, verifiability_score: 0.7, numeric: true, verifier_model: 'minicheck' })) }), stderr: '' };
           if (path[0] === 'research') return { exit_code: 0, stdout: 'SearXNG: ok\nDDG: ok\nTavily: ok', stderr: '' };
           if (path[0] === 'mens') return { exit_code: 0, stdout: 'training idle | 2 local models | GPU: RTX 4090 (24GB)', stderr: '' };
           if (path[0] === 'populi') return { exit_code: 0, stdout: 'mesh: 2 nodes online | overlay healthy', stderr: '' };
           if (path[0] === 'oratio') return { exit_code: 0, stdout: 'oratio runtime ok | backend: whisper-local', stderr: '' };
-          return { exit_code: 0, stdout: 'ok', stderr: '' };
+          return { exit_code: 0, stdout: '{}', stderr: '' };
         }
         case 'submit_orchestrator_task': return { ok: true, task_id: '101', message: 'submitted' };
         case 'get_task_diff': return 'diff --git a/README.md b/README.md\n';
