@@ -65,8 +65,15 @@ CLIENT (in Vox)                                   SERVER (separate private repo)
 │   • redaction pass (egress boundary)   │        │  (skill-surfacing, cmd freq, …)   │
 │   • OTLP LogRecord exporter (0.32)     │        └──────────────────────────────────┘
 └───────────────────────────────────────┘
-        feature = "telemetry-remote"  (off → facade is a pure no-op; no net/serde-otlp code)
+        feature = "telemetry-remote"  (off → no otel/reqwest symbols in the binary)
 ```
+
+> **Compile-out, precisely:** the `vox-telemetry` facade *always* compiles and is cheap — its
+> `record_event!` is a **runtime** no-op until a recorder is registered (it checks
+> `global_recorder()`). The *compile-out unit* is the **exporter crate** `vox-telemetry-otlp`:
+> with `--no-default-features` (no `telemetry-remote`) it is an empty shim and the binary's
+> dependency tree contains zero `opentelemetry`/`reqwest` symbols. Do NOT `#[cfg]`-gate the
+> facade itself. The success-criteria symbol test targets the **binary** (`vox-cli`) dep tree.
 
 ### Crate plan (lean; avoid ballooning)
 - **Keep** `vox-telemetry` (L1) zero-network: only `record_event!`, config, types, spool trait.
@@ -103,6 +110,15 @@ Existing categories stay (`research_metrics`, `model_calls`, `agent_orchestratio
 The **authoritative emit-site inventory** is produced by the plan's audit phase (graphify +
 parallel subagents) → committed as a versioned CSV/JSON SSOT that the server schema and the
 client allowlist are both generated from (one source, no drift).
+
+> **⚠ Existing event structs carry prohibited free-form fields.** The current `TelemetryEvent`
+> variants (e.g. `ResearchMetricEvent.session_id` can be a repo name like `"bench:myrepo"`;
+> `metadata_json` is arbitrary ≤256 KB JSON) violate invariants §3.1–§3.2 if forwarded as-is.
+> Migration (plan Track E2) therefore does NOT blanket-forward existing events — each variant
+> gets an explicit projection arm that drops free-form strings and salts-hashes any identifier
+> suffix. A variant with no privacy-safe mapping is simply not uploaded. The taxonomy parity
+> test constrains new categories; the **projection-coverage test** (E2) constrains the existing
+> ones.
 
 ## 6. Server (separate repo) shape
 - **Repo**: `vox-telemetry-server` (private). Stack: Rust `axum` ingest + `clickhouse` 0.13.3,
