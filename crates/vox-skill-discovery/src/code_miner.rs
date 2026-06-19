@@ -101,7 +101,10 @@ pub fn mine_repeated_code(root: &Path, opts: &DiscoverOptions) -> Vec<Candidate>
 
 /// Best-effort file stem from a "path:line" source ref.
 fn stem_of(source_ref: &str) -> String {
-    let path = source_ref.rsplit_once(':').map(|(p, _)| p).unwrap_or(source_ref);
+    let path = source_ref
+        .rsplit_once(':')
+        .map(|(p, _)| p)
+        .unwrap_or(source_ref);
     Path::new(path)
         .file_stem()
         .and_then(|s| s.to_str())
