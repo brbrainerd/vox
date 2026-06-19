@@ -1,3 +1,4 @@
+pub mod activity_log;
 pub mod agents;
 pub mod cas_codex;
 pub mod ci_completion;

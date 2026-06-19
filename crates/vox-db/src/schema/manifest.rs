@@ -9,7 +9,8 @@ use sha3::{Digest, Keccak256};
 use std::sync::OnceLock;
 
 // 77: feat(vox-kb): add knowledge_bases, kb_entries, kb_routing_rules tables
-pub const BASELINE_VERSION: i64 = 77;
+// 78: feat(activity): add activity_log table for timeline events
+pub const BASELINE_VERSION: i64 = 78;
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]
@@ -122,6 +123,10 @@ pub const SCHEMA_FRAGMENTS: &[SchemaFragment] = &[
     SchemaFragment {
         name: "discovery",
         sql: domains::discovery::SCHEMA_DISCOVERY,
+    },
+    SchemaFragment {
+        name: "activity_log",
+        sql: domains::activity_log::SCHEMA_ACTIVITY_LOG,
     },
 ];
 
