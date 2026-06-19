@@ -372,3 +372,65 @@ All tests are green and compilation is completely clean.
 
 ### D-3 → AGH-0004 — Local pre-publish skill-review gate (subsystem B)
 > Execute `docs/superpowers/plans/2026-06-18-skill-review-gate.md`. Target: Gemini 3.5 Flash in Antigravity. New crate `vox-skill-review` (L3) reusing `vox_skill_discovery::{validate_ssot, dedup_skills}` + `vox_plugin_host::skill_parser::parse_skill_md`. The body is the **public field `bundle.skill_md`** (NOT a `body()` method). Deterministic + offline only; LLM pass deferred. Obey the plan's Operating Rules; new crate needs a `where-things-live.md` row + `orphan_exempt` (error-level arch rules). Verdict gate-before-listing: Error/Critical ⇒ NeedsHuman.
+
+---
+
+```yaml
+# --- AGH-0010 ---
+id: AGH-0010
+date: 2026-06-19
+plan: docs/superpowers/plans/2026-06-19-centralized-telemetry-program.md
+track: A — Audit & Foundations (GATE for all other tracks)
+subsystem: centralized telemetry / privacy-first egress pipeline
+target: Claude Sonnet 4.6 (inline execution)
+claude_inputs: [spec, plan, codebase-audit (4 parallel Explore agents)]
+delivered:
+  - contracts/telemetry/emit-site-inventory.csv         # 37 existing + 5 proposed emit sites
+  - contracts/telemetry/INVENTORY_METHOD.md              # reproducible sweep method
+  - contracts/telemetry/default-decision-sites.csv       # 12 audited tunable-default sites
+  - contracts/telemetry/collection-taxonomy.v1.json      # v1 SSOT (7 categories, enum/int/bool/hash only)
+  - contracts/telemetry/SCHEMA.md                        # human-readable companion
+  - contracts/telemetry/pinned-versions.md               # dep pins + otel scope decision
+  - crates/vox-telemetry/tests/taxonomy_ssot_parity.rs  # 4 privacy parity tests
+  - docs/superpowers/specs/2026-06-19-telemetry-infra-audit.md  # ingest topology + hosting decision
+loc: 0  # audit-only; no product code shipped in Track A
+outcome: green
+verification:
+  tests: "4 taxonomy_ssot_parity tests — all PASS (cargo test -p vox-telemetry --test taxonomy_ssot_parity)"
+  arch_check: not applicable (no new crates or deps in Track A)
+  taxonomy: version=1, k_anonymity=20, 7 categories, 0 free-form string fields
+errors_encountered: []
+agent_deviations: []
+decisions_locked:
+  - "Client hand-encodes OTLP/HTTP logs JSON (NO opentelemetry SDK on client; workspace 0.29 pin untouched)"
+  - "Ingest topology: axum + clickhouse crate (NOT OTel Collector — not yet deployed)"
+  - "Hosting: New Coolify project on FableForge, separate from Vox MCP service"
+  - "No new client workspace deps required (reqwest/governor/serde/uuid all already pinned)"
+  - "ClickHouse version: 23.8 LTS (Docker: clickhouse/clickhouse-server:23.8-alpine)"
+follow_ups:
+  - "B+C can now start in parallel (A is the gate; all SSOT artifacts committed)"
+  - "Track D hosting: confirm FableForge capacity before D1; Hetzner CX21 as fallback"
+  - "E1 must drive from emit-site-inventory.csv proposed rows (5 new product-category sites)"
+  - "E1b instruments the 12 default-decision sites in default-decision-sites.csv"
+  - "Server-side: add opentelemetry-proto pin in vox-telemetry-server Cargo.toml (Track C)"
+commits:
+  - e4ee1c66f1  # docs(telemetry): inventory existing emit sites across workspace
+  - 04c115471b  # docs(telemetry): inventory default_decision tuning sites
+  - 5eccc2171d  # feat(telemetry): collection-taxonomy v1 SSOT + privacy parity test
+  - cf517eeaca  # docs(telemetry): infra audit + pinned dependency versions
+verdict: approve — Track A gate complete; unblock Tracks B and C
+```
+
+### AGH-0010 — Track A review detail (human prose)
+
+**What Track A produced:**
+
+Emit-site inventory: 4 parallel Explore subagents swept 37 source files across 10 crates and produced a full CSV of every `record_event!` / `TelemetryEvent::*` call site, categorized by existing collection category. 5 proposed new product-category sites were added (command_usage at `cli_dispatch/mod.rs:89`, skill_activation at `chat_tools/mod.rs:131`, edit_pattern at `mcp_client.rs:108`, harness_usage and error_surface at `dispatch.rs`).
+
+Default-decision inventory: 12 tunable-constant sites confirmed in the real code (budget thresholds at `budget/mod.rs`, llm_max_concurrent/retry at `vox_config.rs`, llm output-token cap and probe TTLs at `llm_bridge/limits.rs`, effort-audit concurrency at `vox-effort-audit/config.rs`, panel backoff at `vox-audit/panel.rs`). All bucket enums defined, no raw numbers.
+
+Taxonomy SSOT: `collection-taxonomy.v1.json` v1 with 7 categories (command_usage, skill_activation, edit_pattern, harness_usage, error_surface, default_decision, model_prompt). Every field is `enum|int|bool|hash` — privacy invariant §3.2 verified by the 4-test parity suite.
+
+Infra audit: No ClickHouse service exists today. Decision locked: axum + clickhouse crate (not OTel Collector), new Coolify project on FableForge. Client hand-encodes OTLP/HTTP logs JSON — the 0.29 workspace otel pin is **untouched** (this sidesteps the 0.29→0.32 breaking migration entirely).
+
+**Gate status: OPEN — Tracks B and C may now start in parallel.**
