@@ -1,9 +1,9 @@
 //! `vox ci crate-budget` — gate on keystone blast-radius-seconds.
 //!
-//! Reads `.vox/cache/graphify/crate-map/graph.json` (produced by `vox graphify crate-map`)
-//! and fails when any keystone crate in `contracts/ci/crate-budget.v1.json` exceeds its
-//! `blast_s_ceiling`. Advisory flag `--exit-zero` prevents CI breakage before the baseline
-//! is populated with real measurements.
+//! Reads the committed SSOT `contracts/ci/crate-build-map.v1.json` (produced by
+//! `vox graphify crate-map --write-summary`) and fails when any keystone in
+//! `contracts/ci/crate-budget.v1.json` exceeds its `blast_s_ceiling`. Fails loud when the
+//! SSOT is missing or count-only (`has_compile_times=false`). `--exit-zero` → advisory.
 
 use anyhow::{Context, Result};
 use serde::Deserialize;
@@ -24,23 +24,20 @@ pub struct KeystoneBudget {
     pub blast_s_ceiling: f64,
 }
 
-#[derive(Debug, Deserialize)]
-pub(crate) struct CrateMapNode {
-    pub(crate) id: String,
-    pub(crate) blast_s: Option<f64>,
-}
-
-#[derive(Debug, Deserialize)]
-pub(crate) struct CrateMap {
-    pub(crate) nodes: Vec<CrateMapNode>,
-}
-
-/// Load `blast_s` per crate from a crate-map JSON value (Vec of node objects).
-pub fn blast_s_from_nodes(nodes: &[CrateMapNode]) -> HashMap<String, f64> {
-    nodes
-        .iter()
-        .filter_map(|n| n.blast_s.map(|s| (n.id.clone(), s)))
-        .collect()
+/// Extract `crate -> blast_s` from a parsed crate-build-map summary value.
+pub fn blast_map_from_summary(summary: &serde_json::Value) -> HashMap<String, f64> {
+    let mut out = HashMap::new();
+    if let Some(arr) = summary.get("crates").and_then(|v| v.as_array()) {
+        for c in arr {
+            if let (Some(name), Some(b)) = (
+                c.get("crate").and_then(|v| v.as_str()),
+                c.get("blast_s").and_then(|v| v.as_f64()),
+            ) {
+                out.insert(name.to_string(), b);
+            }
+        }
+    }
+    out
 }
 
 /// Check keystones against their ceilings. Returns violation messages (empty = pass).
@@ -64,70 +61,72 @@ pub fn check_keystones(budget: &BudgetFile, blast_map: &HashMap<String, f64>) ->
 }
 
 pub fn run_crate_budget(root: &Path, exit_zero: bool) -> Result<()> {
-    let map_path = root.join(".vox/cache/graphify/crate-map/graph.json");
-    if !map_path.exists() {
-        eprintln!(
-            "ADVISORY: crate-map not found at {}. Run `vox graphify crate-map` to generate.",
-            map_path.display()
+    let budget_path = root.join("contracts/ci/crate-budget.v1.json");
+    let budget: BudgetFile = serde_json::from_str(
+        &std::fs::read_to_string(&budget_path)
+            .with_context(|| format!("read {}", budget_path.display()))?,
+    )
+    .with_context(|| format!("parse {}", budget_path.display()))?;
+
+    // FAIL LOUD when the SSOT is missing — never silently skip the gate.
+    let summary_path = root.join("contracts/ci/crate-build-map.v1.json");
+    let summary: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&summary_path).with_context(|| {
+            format!(
+                "read {} — regenerate with `vox graphify crate-map --write-summary`",
+                summary_path.display()
+            )
+        })?)
+        .with_context(|| format!("parse {}", summary_path.display()))?;
+
+    // FAIL LOUD when blast_s is count-only — a green gate that can't fail is worse than none.
+    let has_times = summary
+        .get("has_compile_times")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    if !has_times && !exit_zero {
+        anyhow::bail!(
+            "{} has has_compile_times=false (count-only blast_s) — gate would be toothless. \
+             Run scripts/crate-build-audit.vox then `vox graphify crate-map --write-summary`.",
+            summary_path.display()
         );
-        eprintln!("Skipping crate-budget gate (no data).");
-        return Ok(());
     }
 
-    let budget_path = root.join("contracts/ci/crate-budget.v1.json");
-    let budget_raw = std::fs::read_to_string(&budget_path)
-        .with_context(|| format!("read {}", budget_path.display()))?;
-    let budget: BudgetFile = serde_json::from_str(&budget_raw)
-        .with_context(|| format!("parse {}", budget_path.display()))?;
-
-    let map_raw = std::fs::read_to_string(&map_path)
-        .with_context(|| format!("read {}", map_path.display()))?;
-    let map: CrateMap =
-        serde_json::from_str(&map_raw).with_context(|| format!("parse {}", map_path.display()))?;
-
-    let blast_map = blast_s_from_nodes(&map.nodes);
+    let blast_map = blast_map_from_summary(&summary);
 
     for k in &budget.keystones {
         match blast_map.get(&k.crate_name) {
-            Some(&actual) => {
-                println!(
-                    "{}  {} blast_s={:.0}s (ceiling {:.0}s)",
-                    if actual > k.blast_s_ceiling {
-                        "OVER"
-                    } else {
-                        "OK  "
-                    },
-                    k.crate_name,
-                    actual,
-                    k.blast_s_ceiling
-                );
-            }
-            None => {
-                eprintln!(
-                    "WARN: keystone '{}' not in crate-map (renamed or not yet generated)",
-                    k.crate_name
-                );
-            }
+            Some(&actual) => println!(
+                "{}  {} blast_s={:.0}s (ceiling {:.0}s)",
+                if actual > k.blast_s_ceiling {
+                    "OVER"
+                } else {
+                    "OK  "
+                },
+                k.crate_name,
+                actual,
+                k.blast_s_ceiling
+            ),
+            None => eprintln!(
+                "WARN: keystone '{}' not in crate-build-map (renamed?)",
+                k.crate_name
+            ),
         }
     }
 
     let violations = check_keystones(&budget, &blast_map);
-
     if violations.is_empty() {
         println!("crate-budget: all keystones within budget.");
         return Ok(());
     }
-
     eprintln!("crate-budget VIOLATIONS ({}):", violations.len());
     for v in &violations {
         eprintln!("{v}");
     }
-
     if exit_zero {
         eprintln!("(advisory — exiting 0 due to --exit-zero)");
         return Ok(());
     }
-
     anyhow::bail!(
         "{} keystone crate(s) exceed blast-radius budget",
         violations.len()
@@ -191,10 +190,16 @@ mod tests {
     }
 
     #[test]
-    fn zero_blast_s_never_violates() {
-        // When crate-map has no audit data, blast_s=0; must not trigger false violation
-        let budget = make_budget(vec![("vox-db", 445.0)]);
-        let map = make_map(vec![("vox-db", 0.0)]);
-        assert!(check_keystones(&budget, &map).is_empty());
+    fn blast_map_from_summary_parses_committed_shape() {
+        let summary = serde_json::json!({
+            "has_compile_times": true,
+            "crates": [
+                { "crate": "vox-db",  "compile_s": 34.0, "dependents": 25, "blast_s": 349.0, "fan_in": 5 },
+                { "crate": "vox-cli", "compile_s": 10.0, "dependents": 0,  "blast_s": 10.0,  "fan_in": 0 }
+            ]
+        });
+        let m = blast_map_from_summary(&summary);
+        assert_eq!(m.get("vox-db").copied(), Some(349.0));
+        assert_eq!(m.get("vox-cli").copied(), Some(10.0));
     }
 }
