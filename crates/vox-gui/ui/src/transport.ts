@@ -201,6 +201,18 @@ export interface GamifySettingsDto {
   mode: string;
 }
 
+export interface HistoryEntry {
+  id: number;
+  repo_id: string;
+  kind: 'clip' | 'command' | 'chat';
+  text: string;
+  redacted_text: string;
+  created_at: number;
+  pinned: boolean;
+  source?: string;
+  token_estimate: number;
+}
+
 /** Wire DTO returned by `record_gui_event` (camelCase on the Tauri bridge). */
 export interface GuiEventResultDto {
   xpGranted: number;
@@ -496,6 +508,26 @@ class VoxTransport {
       eventType,
       metadata: metadata ?? null,
     });
+  }
+
+  historyList(kind: string | null, limit?: number): Promise<HistoryEntry[]> {
+    return invoke<HistoryEntry[]>('history_list', { kind, limit });
+  }
+
+  historySearch(query: string, limit?: number): Promise<HistoryEntry[]> {
+    return invoke<HistoryEntry[]>('history_search', { query, limit });
+  }
+
+  historyPin(id: number, pinned: boolean): Promise<void> {
+    return invoke('history_pin', { id, pinned });
+  }
+
+  historyDelete(id: number): Promise<void> {
+    return invoke('history_delete', { id });
+  }
+
+  historyAdd(kind: string, text: string, source: string): Promise<number> {
+    return invoke('history_add', { kind, text, source });
   }
 }
 

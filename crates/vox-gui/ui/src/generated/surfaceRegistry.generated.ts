@@ -26,6 +26,7 @@ export const SURFACE_REGISTRY: SurfaceRegistryEntry[] = [
   { viewKey: 'discovery-review', cliGroup: null, tier: 'live_backend', navLabel: 'Discovery Review', navIcon: 'check', navGroup: 'knowledge', parentSurface: 'knowledge' },
   { viewKey: 'flow', cliGroup: null, tier: 'live_backend', navLabel: 'Agents', navIcon: 'flow', navGroup: 'operate', parentSurface: 'agents' },
   { viewKey: 'harness', cliGroup: null, tier: 'live_backend', navLabel: 'Harness', navIcon: 'command', navGroup: 'develop', parentSurface: 'workspace' },
+  { viewKey: 'history', cliGroup: null, tier: 'curated_decorator', navLabel: 'History', navIcon: 'clock', navGroup: 'operate', parentSurface: null },
   { viewKey: 'knowledge', cliGroup: null, tier: 'live_backend', navLabel: 'Knowledge', navIcon: 'brain', navGroup: 'knowledge', parentSurface: null },
   { viewKey: 'matrix', cliGroup: null, tier: 'live_backend', navLabel: 'Routing', navIcon: 'scale', navGroup: 'operate', parentSurface: 'agents' },
   { viewKey: 'mesh', cliGroup: null, tier: 'live_backend', navLabel: 'Mesh', navIcon: 'link', navGroup: 'compute', parentSurface: 'compute' },
