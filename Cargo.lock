@@ -16732,6 +16732,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-similarity"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "serde",
+]
+
+[[package]]
 name = "vox-skill-runtime"
 version = "0.6.0"
 dependencies = [
