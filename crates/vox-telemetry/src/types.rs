@@ -329,6 +329,8 @@ pub enum TelemetryEvent {
     ErrorSurface(ErrorSurfaceEvent),
     /// Tunable-constant decision and its observed outcome (Track E1b).
     DefaultDecision(DefaultDecisionEvent),
+    /// Outcome of per-model prompt-profile injection (Track F).
+    ModelPrompt(ModelPromptEvent),
 }
 
 /// Payload aligned with `contracts/telemetry/fixture-model-intent-resolved.v1.schema.json`.
@@ -1148,6 +1150,23 @@ pub struct DefaultDecisionEvent {
     /// Optional ordinal magnitude (0=minimal, 1=normal, 2=stressed, 3=extreme).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub magnitude_bucket: Option<i64>,
+}
+
+/// Per-model prompt-profile injection outcome (Track F).
+///
+/// Aligned with `contracts/telemetry/collection-taxonomy.v1.json#model_prompt`.
+/// All fields are enum strings — no raw prompt text, no model-specific secrets.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+pub struct ModelPromptEvent {
+    /// Canonical model family bucket (e.g. "claude_sonnet_4", "gemini_flash_2").
+    pub canonical_model_id: String,
+    /// Which profile variant was injected ("none" if no Confirmed profile exists).
+    pub profile_variant_id: String,
+    /// Broad task category at prompt-build time.
+    pub task_category: String,
+    /// Outcome quality bucket (set retroactively on task completion).
+    #[serde(default)]
+    pub quality_bucket: String,
 }
 
 #[cfg(test)]

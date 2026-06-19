@@ -24,9 +24,9 @@ pub use plan_gap::analyze_plan_gaps;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use sha2::{Digest, Sha256};
 use super::chat_socrates_meta::socrates_system_rider;
 use crate::server_state::ServerState;
+use sha2::{Digest, Sha256};
 use vox_telemetry::{SkillActivationEvent, TelemetryEvent};
 
 pub(crate) fn now_ts() -> u64 {
@@ -53,17 +53,53 @@ pub(crate) fn ts_to_date_str(secs: u64) -> String {
     format!("{:04}-{:02}-{:02}", y + if m <= 2 { 1 } else { 0 }, m, d)
 }
 
+/// Map a raw model key to the taxonomy `canonical_model_id` enum bucket.
+///
+/// The taxonomy uses underscored family names; the registry key may use hyphens
+/// or provider-specific suffixes.  This is a best-effort prefix match; unknown
+/// models map to "unknown" so they are dropped by the server-side allowlist.
+fn telemetry_model_bucket(key: &str) -> &'static str {
+    if key.contains("fable") {
+        "claude_fable_5"
+    } else if key.contains("opus") {
+        "claude_opus_4"
+    } else if key.contains("haiku") {
+        "claude_haiku_4"
+    } else if key.contains("sonnet") {
+        "claude_sonnet_4"
+    } else if key.contains("gemini") && key.contains("flash") {
+        "gemini_flash_2"
+    } else if key.contains("gemini") {
+        "gemini_pro_2"
+    } else if key.contains("gpt-4o-mini") || key.contains("gpt4o_mini") {
+        "gpt4o_mini"
+    } else if key.contains("gpt-4o") || key.contains("gpt4o") {
+        "gpt4o"
+    } else if key.contains("deepseek") {
+        "deepseek_v3"
+    } else if key.contains("ollama") || key.contains("local") {
+        "local_ollama"
+    } else {
+        "unknown"
+    }
+}
+
 /// Build the full system prompt for the Vox chat assistant.
 pub(crate) async fn build_system_prompt(state: &ServerState, session_id: Option<&str>) -> String {
-    build_system_prompt_with_skill(state, session_id, None).await
+    build_system_prompt_with_skill(state, session_id, None, None).await
 }
 
 /// Like [`build_system_prompt`], but injects the full body of a user-pinned
 /// skill (by id or name) so prompt-only models honor it without a tool call.
+///
+/// When `model_key` is `Some`, a cache-stable `## Model guidance` segment is
+/// appended after the skill catalog if a `Confirmed` prompt profile exists for
+/// that key (see `ModelPromptRegistry`).
 pub(crate) async fn build_system_prompt_with_skill(
     state: &ServerState,
     session_id: Option<&str>,
     pinned_skill: Option<&str>,
+    model_key: Option<&str>,
 ) -> String {
     let ws_root = state
         .workspace_root
@@ -136,7 +172,11 @@ pub(crate) async fn build_system_prompt_with_skill(
                 let mut hasher = Sha256::new();
                 hasher.update(&salt);
                 hasher.update(m.id.as_bytes());
-                let hash = hasher.finalize().iter().map(|b| format!("{b:02x}")).collect::<String>();
+                let hash = hasher
+                    .finalize()
+                    .iter()
+                    .map(|b| format!("{b:02x}"))
+                    .collect::<String>();
                 vox_telemetry::record_event!(&TelemetryEvent::SkillActivation(
                     SkillActivationEvent {
                         skill_id_hash: hash,
@@ -150,6 +190,30 @@ pub(crate) async fn build_system_prompt_with_skill(
         } else {
             tracing::warn!(pinned = %pinned, "pinned skill not found in registry");
         }
+    }
+
+    // F3/F6: inject cache-stable model guidance + emit telemetry for Confirmed profiles.
+    if let Some(key) = model_key {
+        let profile_variant_id = match state.model_prompt_registry.active_profile(key) {
+            Some(p) => {
+                prompt.push_str(&format!(
+                    "\n\n## Model guidance ({})\n\n{}\n",
+                    key, p.preamble_text
+                ));
+                format!("confirmed_{}", p.variant_id)
+            }
+            None => "none".to_string(),
+        };
+        // Normalize to taxonomy canonical_model_id enum (underscores, family-level bucketing).
+        let canonical_model_id = telemetry_model_bucket(key);
+        vox_telemetry::record_event!(&TelemetryEvent::ModelPrompt(
+            vox_telemetry::ModelPromptEvent {
+                canonical_model_id: canonical_model_id.to_string(),
+                profile_variant_id,
+                task_category: "unknown".to_string(),
+                quality_bucket: "unknown".to_string(),
+            }
+        ));
     }
 
     prompt.push_str(params::ANTI_LAZINESS_RIDER);

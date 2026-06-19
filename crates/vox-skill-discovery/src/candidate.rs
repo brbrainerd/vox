@@ -10,6 +10,10 @@ pub enum CandidateKind {
     DuplicatesInstalled,
     /// A skill declares an MCP tool that does not exist in the registry.
     SsotDrift,
+    /// A per-model prompt preamble candidate derived from interaction history.
+    ///
+    /// Advisory only — never auto-applied; surfaced by `vox model-layer suggest`.
+    ModelPromptVariant,
 }
 
 /// Advisory draft frontmatter the user MAY accept (never auto-applied).

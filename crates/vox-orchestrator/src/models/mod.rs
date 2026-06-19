@@ -4,6 +4,7 @@ pub mod discovery_pipeline;
 pub mod generated;
 pub mod key_guard;
 pub mod policy;
+pub mod prompt_profiles;
 mod registry;
 pub mod routing_table;
 pub mod scoring;

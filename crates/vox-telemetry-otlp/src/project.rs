@@ -248,6 +248,27 @@ pub fn project_event(event: &TelemetryEvent) -> Option<(String, serde_json::Map<
             Some(("default_decision".into(), map))
         }
 
+        TelemetryEvent::ModelPrompt(e) => {
+            let mut map = serde_json::Map::new();
+            map.insert(
+                "canonical_model_id".into(),
+                Value::String(e.canonical_model_id.clone()),
+            );
+            map.insert(
+                "profile_variant_id".into(),
+                Value::String(e.profile_variant_id.clone()),
+            );
+            map.insert(
+                "task_category".into(),
+                Value::String(e.task_category.clone()),
+            );
+            map.insert(
+                "quality_bucket".into(),
+                Value::String(e.quality_bucket.clone()),
+            );
+            Some(("model_prompt".into(), map))
+        }
+
         // Unhandled variants that don't yet have a product-category mapping.
         _ => None,
     }

@@ -340,9 +340,23 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                 String::new()
             }
         };
+    // F3: resolve sticky model override to pass as model_key for profile injection.
+    let sticky_model_key: Option<String> = match crate::sync_poison::poison_rw_read(
+        state.mcp_chat_model_override.read(),
+        "mcp_chat_model_override",
+    ) {
+        Ok(g) => g.clone(),
+        Err(_) => None,
+    };
     let system_prompt = format!(
         "{}{}\n\n{}",
-        build_system_prompt_with_skill(state, None, params.skill.as_deref()).await,
+        build_system_prompt_with_skill(
+            state,
+            None,
+            params.skill.as_deref(),
+            sticky_model_key.as_deref(),
+        )
+        .await,
         session_ts,
         ANTI_LAZINESS_RIDER
     );
