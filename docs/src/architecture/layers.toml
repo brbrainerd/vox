@@ -116,7 +116,7 @@ vox-plugin-sdk        = { layer = 1 }                            # authoring SDK
 vox-plugin-types      = { layer = 1 }                            # pure-types L1 leaf
 vox-research-events    = { layer = 1 }                            # SCIENTIA typed event bus (Phase 0b)
 vox-telemetry         = { layer = 1 }                            # L1 telemetry facade; zero domain deps
-vox-runtime           = { layer = 1, max_dependents = 20 }       # umbrella runtime: RuntimeProfile + lifecycle traits + VoxConfig; zero internal deps (PR #97)
+vox-runtime           = { layer = 2, max_dependents = 20 }       # umbrella runtime: RuntimeProfile + lifecycle traits + VoxConfig; deps vox-config
 
 # ── L2 — domain libraries ─────────────────────────────────────────────────────
 vox-config              = { layer = 2, max_dependents = 20 }
@@ -186,7 +186,7 @@ vox-skills              = { layer = 3, staleness_exempt = true }
 vox-cli-core            = { layer = 3 }
 
 vox-orchestrator-mcp    = { layer = 3, max_loc = 40_000 }        # Phase 4 extraction
-vox-mcp-llm-bridge      = { layer = 3 }                          # MCP LLM inference bridge (extracted from vox-orchestrator-mcp)
+vox-mcp-llm-bridge      = { layer = 3, orphan_exempt = true }                          # MCP LLM inference bridge (extracted from vox-orchestrator-mcp)
 vox-orchestrator-queue  = { layer = 3 }                          # Phase 5 extraction
 vox-orchestrator-driver = { layer = 3 }                          # CLI/MCP embedded orchestrator driver (2026 debt burndown)
 vox-search              = { layer = 3 }

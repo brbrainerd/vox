@@ -8,6 +8,8 @@
 //! Edges may appear under `"links"` or `"edges"` — both are supported.
 //! The graph is treated as **undirected**: edges are indexed in both directions.
 
+#![allow(clippy::collapsible_if, clippy::unnecessary_map_or)]
+
 pub mod ast;
 pub mod bfs;
 pub mod cache;
