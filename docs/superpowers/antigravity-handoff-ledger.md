@@ -434,3 +434,55 @@ Taxonomy SSOT: `collection-taxonomy.v1.json` v1 with 7 categories (command_usage
 Infra audit: No ClickHouse service exists today. Decision locked: axum + clickhouse crate (not OTel Collector), new Coolify project on FableForge. Client hand-encodes OTLP/HTTP logs JSON — the 0.29 workspace otel pin is **untouched** (this sidesteps the 0.29→0.32 breaking migration entirely).
 
 **Gate status: OPEN — Tracks B and C may now start in parallel.**
+
+---
+
+```yaml
+# --- AGH-0011 ---
+id: AGH-0011
+date: "2026-06-19"
+track: "B — vox-telemetry-otlp client exporter crate"
+executor: "Claude Sonnet 4.6 (inline, not Antigravity/Flash)"
+plan_ref: "docs/superpowers/plans/2026-06-19-centralized-telemetry-program.md#track-b"
+commits:
+  - "496aaec846 feat(telemetry): B1+B3 — vox-telemetry-otlp scaffold + consent/install-id"
+  - "5db8ee0935 feat(telemetry): B2+B4 — redact-before-spool + taxonomy categories"
+  - "827c528abd feat(telemetry): B5 — consent CLI + upload gating"
+outcome: "green"
+deliverables:
+  - "B1: crates/vox-telemetry-otlp — new L3 crate (project.rs/redact.rs/otlp_json.rs/upload.rs)"
+  - "B3: ConsentState enum + install_id/install_salt/remote_consent/set_remote_consent/is_remote_allowed in vox-telemetry::config"
+  - "B2: Two-layer privacy pipeline wired into SpoolSink::record (redact-before-spool spec §3)"
+  - "B4: Taxonomy extended with 5 new categories (research_metrics/model_calls/agent_orchestration/build/errors)"
+  - "B5: vox telemetry consent grant/deny/status + doctor shows consent state"
+tests_added:
+  - "crates/vox-telemetry/tests/consent_install_id.rs (8 tests — compile-passes; elevation-required to execute on Windows)"
+  - "crates/vox-cli/tests/spool_is_redacted.rs (4 tests — all GREEN)"
+  - "crates/vox-telemetry-otlp/tests/upload_gating.rs (4 tests — all GREEN)"
+locked_decisions:
+  - "Taxonomy categories 'errors', 'build', 'model_calls', 'agent_orchestration', 'research_metrics' added in B4 (was Track-E scope; moved earlier to unblock spool tests)"
+  - "project_event(LintAutofix) → None (no product-relevant signal; no spool entry)"
+  - "install_salt() uses UUID v4 bytes; hex-encoded at ~/.config/vox/install-salt"
+  - "set_remote_consent(Unset) is a no-op (no file write) — caller cannot 'reset to Unset'"
+follow_ups:
+  - "Track E: wire command_usage/skill_activation/harness_usage emit sites (those categories now in taxonomy)"
+  - "Track D: implement upload.rs reqwest upload loop (placeholder B5 stub returns 0)"
+  - "consent_install_id.rs: Windows sandbox requires elevation for env-var tests — verify in Linux CI"
+verdict: "COMPLETE — all B tasks done; spool holds OTLP JSON only; privacy pipeline enforced"
+```
+
+### AGH-0011 — Track B review detail (human prose)
+
+**What Track B produced (inline Sonnet 4.6 session, not Antigravity):**
+
+Architecture correction applied: the plan's original design had a live-network call inside `record()`. The session's context summary carried an ARCHITECTURE CORRECTION box that inverted this to redact-before-spool: the two-layer pipeline (project_event → redact_event) now runs synchronously inside `SpoolSink::record` before any file I/O, so the spool contains only clean OTLP JSON — never raw `TelemetryEvent` fields.
+
+`vox-telemetry-otlp` (L3): hand-encoded OTLP/HTTP logs JSON (`to_otlp_log`). No `opentelemetry*` SDK dep. `project_event` maps 15 TelemetryEvent variants to `(category, flat_map)` with per-field privacy decisions baked in (e.g., `metadata_json` dropped for every event, `relative_path` dropped for LintFinding, `selection_rationale` dropped for ModelCall). `redact_event` is a taxonomy-OnceLock guard: unknown categories silently return None (fail-closed). On parse error the allowlist is empty → nothing uploads → no panic.
+
+Taxonomy bloat: 5 categories that were originally Track-E scope were added in B4 (`research_metrics`, `model_calls`, `agent_orchestration`, `build`, `errors`) because the spool integration tests required them — without these, the OnceLock returns `None` for every existing event and the tests can't assert "relative_path was dropped" (nothing spools at all). Tradeoff: taxonomy grew earlier than planned; benefit: B4 tests are real and can't false-positive.
+
+Consent + install-id: `ConsentState` enum in L1 facade (`vox-telemetry::config`). `install_id()` / `install_salt()` persist UUID v4 values to `~/.config/vox/` (or `%APPDATA%\vox\` on Windows). `is_remote_allowed()` = `is_master_enabled() && consent==Granted` — the master kill-switch always wins.
+
+`vox telemetry consent grant/deny/status`: clean three-subcommand surface. `doctor` now shows `remote_consent` and `remote_upload_allowed`. The `upload.rs` in vox-telemetry-otlp remains a stub (returns 0) pending Track D's server endpoint.
+
+**Gate status: Track B COMPLETE. Track C (GUI surface) and Track D (server) can start. Track E (new emit sites) can start after Track C.**
