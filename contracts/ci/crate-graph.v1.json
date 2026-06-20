@@ -301,7 +301,8 @@
       "vox-scientia",
       "vox-search",
       "vox-secrets",
-      "vox-speech"
+      "vox-speech",
+      "vox-terminal-core"
     ],
     "vox-hf-layout": [
       "vox-bounded-fs"
@@ -758,6 +759,11 @@
     "vox-tensor": [
       "vox-actor-runtime",
       "workspace-hack"
+    ],
+    "vox-terminal-core": [
+      "vox-compiler",
+      "vox-journal",
+      "vox-orchestrator"
     ],
     "vox-test-harness": [
       "vox-codegen",
