@@ -28,6 +28,7 @@ export function SubAgentTree() {
         const fate = tokenFate(r.node.usedTokens, r.node.model.maxTokens);
         return (
           <div role="treeitem" key={r.windowId} aria-selected={selected === r.windowId}
+               aria-expanded={r.hasChildren ? expanded.has(r.windowId) : undefined}
                style={{ paddingLeft: 8 + r.depth * 16, display: 'flex', gap: 6, alignItems: 'center' }}
                onClick={() => select(r.windowId)}>
             {r.hasChildren ? (

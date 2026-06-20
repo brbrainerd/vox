@@ -10,8 +10,9 @@ export function SubAgentContextEditor({ windowId, maxTokens }: { windowId: strin
   const used = items.filter((i) => i.fate === 'included' || i.pinned).reduce((a, i) => a + i.tokenEstimate, 0);
 
   async function persist(next: ProjectionItem[]) {
+    const prev = items;
     setItems(next);
-    await setContext(windowId, next.map((i) => i.itemId));
+    await setContext(windowId, next.map((i) => i.itemId)).catch(() => setItems(prev));
   }
   const remove = (id: string) => persist(items.filter((i) => i.itemId !== id));
   const togglePin = (id: string) => persist(items.map((i) => i.itemId === id ? { ...i, pinned: !i.pinned } : i));

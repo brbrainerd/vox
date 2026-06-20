@@ -25,5 +25,5 @@ export async function control(windowId: string, action: ControlAction): Promise<
 /** Subscribe to live agent-events; rejects outside Tauri (caller degrades). */
 export const SUBAGENT_ACTIVITY_EVENT = 'vox://agent-events';
 export function listenActivity(onEvent: (e: { id: number; timestamp_ms: number; kind: { type: string; [k: string]: unknown } }) => void): Promise<UnlistenFn> {
-  return listen(SUBAGENT_ACTIVITY_EVENT, (e) => onEvent(e.payload as never));
+  return listen(SUBAGENT_ACTIVITY_EVENT, (e) => onEvent(e.payload as { id: number; timestamp_ms: number; kind: { type: string; [k: string]: unknown } }));
 }

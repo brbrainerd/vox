@@ -9,9 +9,9 @@ export function SubAgentControls({ windowId, status }: { windowId: string; statu
       {status === 'paused'
         ? <button aria-label={`resume ${windowId}`} onClick={() => control(windowId, { kind: 'resume' })}>Resume</button>
         : <button aria-label={`pause ${windowId}`} onClick={() => control(windowId, { kind: 'pause' })}>Pause</button>}
-      <button aria-label={`kill ${windowId}`} onClick={() => control(windowId, { kind: 'kill' })}>Kill</button>
+      <button aria-label={`kill ${windowId}`} onClick={() => control(windowId, { kind: 'kill' }).catch(console.error)}>Kill</button>
       <input aria-label="overrule note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="overrule…" />
-      <button aria-label={`overrule ${windowId}`} onClick={() => control(windowId, { kind: 'overrule', note })}>Overrule</button>
+      <button aria-label={`overrule ${windowId}`} disabled={!note.trim()} onClick={() => control(windowId, { kind: 'overrule', note }).catch(console.error)}>Overrule</button>
     </div>
   );
 }

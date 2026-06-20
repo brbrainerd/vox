@@ -30,7 +30,7 @@ export function SubAgentsView(_props: SurfaceDecoratorProps) {
   const setTree = useSubAgentStore(selSetTree);
   const pushEvent = useSubAgentStore(selPushEvent);
 
-  useEffect(() => { fetchTree().then(setTree).catch(() => {}); }, [setTree]);
+  useEffect(() => { let live = true; fetchTree().then((t) => { if (live) setTree(t); }).catch(() => {}); return () => { live = false; }; }, [setTree]);
   useEffect(() => {
     let un: (() => void) | undefined;
     listenActivity((e) => {
