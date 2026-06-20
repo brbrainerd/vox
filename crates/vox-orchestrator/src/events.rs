@@ -694,6 +694,17 @@ pub enum AgentEventKind {
         actor: String,
         signed_audit_id: String,
     },
+
+    // -----------------------------------------------------------------------
+    // Plan/Act/Verify loop (Track D)
+    // -----------------------------------------------------------------------
+    /// A task's PAV (Plan/Act/Verify) phase advanced. Distinct from
+    /// `TaskPhaseChanged` which carries the OOPAV debug phase (`TaskPhase`).
+    /// The GUI subscribes via the same agent-events broadcast stream.
+    PavPhaseChanged {
+        task_id: TaskId,
+        phase: crate::planning::phase_loop::PavPhase,
+    },
 }
 
 /// Destructive mesh actions that trigger a confirmation modal and signed audit-log entry.
@@ -855,5 +866,56 @@ mod tests {
         });
         assert_eq!(id1, EventId(1));
         assert_eq!(id2, EventId(2));
+    }
+
+    #[tokio::test]
+    async fn pav_phase_changed_event_fires_on_advance() {
+        use crate::planning::phase_loop::{PavPhase, PhaseLoop};
+        let bus = EventBus::new(16);
+        let mut rx = bus.subscribe();
+
+        let task_id = TaskId(999);
+        let mut loop_ = PhaseLoop::new();
+
+        // Advance Planning → Acting
+        loop_.advance_to_acting();
+        bus.emit(AgentEventKind::PavPhaseChanged {
+            task_id,
+            phase: loop_.phase(),
+        });
+
+        let event = tokio::time::timeout(vox_config::timeouts::D_100MS, rx.recv())
+            .await
+            .expect("should not timeout")
+            .expect("received");
+
+        match event.kind {
+            AgentEventKind::PavPhaseChanged {
+                task_id: tid,
+                phase,
+            } => {
+                assert_eq!(tid, TaskId(999));
+                assert_eq!(phase, PavPhase::Acting);
+            }
+            _ => panic!("expected PavPhaseChanged, got {:?}", event.kind),
+        }
+    }
+
+    #[test]
+    fn pav_phase_changed_serializes_cleanly() {
+        use crate::planning::phase_loop::PavPhase;
+        let event = AgentEvent {
+            id: EventId(77),
+            timestamp_ms: 1_000_000,
+            kind: AgentEventKind::PavPhaseChanged {
+                task_id: TaskId(42),
+                phase: PavPhase::Verifying,
+            },
+        };
+        let json = serde_json::to_string(&event).expect("serialize");
+        assert!(json.contains("pav_phase_changed"), "serde tag missing: {json}");
+        assert!(json.contains("verifying"), "phase value missing: {json}");
+        let back: AgentEvent = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.id, EventId(77));
     }
 }
