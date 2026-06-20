@@ -372,6 +372,15 @@ pub async fn dispatch_request(
                 Err(e) => response_err(&req.id, format!("{e}")),
             }
         }
+        orch_daemon_method::INTERRUPT_TASK => {
+            let Some(task_id) = req.params.get("task_id").and_then(|x| x.as_u64()) else {
+                return response_err(&req.id, "params.task_id (u64) required");
+            };
+            match orch.interrupt_task(TaskId(task_id)) {
+                Ok(()) => response_result(&req.id, serde_json::json!({ "ok": true })),
+                Err(e) => response_err(&req.id, format!("{e}")),
+            }
+        }
         orch_daemon_method::REORDER_TASK => {
             let Some(task_id) = req.params.get("task_id").and_then(|x| x.as_u64()) else {
                 return response_err(&req.id, "params.task_id (u64) required");

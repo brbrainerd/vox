@@ -308,6 +308,26 @@ pub async fn cancel_orchestrator_task(
 }
 
 #[tauri::command]
+pub async fn interrupt_orchestrator_task(
+    app_handle: tauri::AppHandle,
+    task_id: u64,
+) -> Result<ControlPlaneResult, String> {
+    call_orchestrator_daemon(
+        orch_daemon_method::INTERRUPT_TASK,
+        serde_json::json!({ "task_id": task_id }),
+    )
+    .await?;
+    let result = Ok(ControlPlaneResult {
+        ok: true,
+        message: format!("task {task_id} interrupted"),
+        task_id: Some(task_id.to_string()),
+        duplicate_of: None,
+    });
+    crate::commands::orchestrator::emit_tasks_changed(&app_handle);
+    result
+}
+
+#[tauri::command]
 pub async fn reorder_orchestrator_task(
     app_handle: tauri::AppHandle,
     task_id: u64,

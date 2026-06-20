@@ -136,6 +136,7 @@ async fn main() {
             commands::control_plane::list_orchestrator_tasks,
             commands::control_plane::edit_orchestrator_task,
             commands::control_plane::cancel_orchestrator_task,
+            commands::control_plane::interrupt_orchestrator_task,
             commands::control_plane::reorder_orchestrator_task,
             commands::orchestrator::get_orchestrator_config,
             commands::orchestrator::get_orchestrator_config_catalog,

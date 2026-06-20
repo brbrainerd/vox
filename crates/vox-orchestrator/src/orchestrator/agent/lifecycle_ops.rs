@@ -255,6 +255,28 @@ impl crate::orchestrator::Orchestrator {
         }
     }
 
+    /// Signal a running local task to abort by setting its interrupt flag.
+    ///
+    /// The flag is stored in [`Orchestrator::interrupt_flags`]. The running
+    /// [`crate::runtime::AiTaskProcessor`] must poll this flag during inference to
+    /// actually stop early (see `crates/vox-orchestrator/src/interrupt.rs` for the
+    /// full wiring plan).  If the task is queued (not yet in-progress), this
+    /// delegates to `cancel_task` instead.
+    pub fn interrupt_task(&self, task_id: TaskId) -> Result<(), OrchestratorError> {
+        // Try to set the interrupt flag if the task has one registered.
+        let flag = crate::sync_lock::rw_read(&self.interrupt_flags)
+            .get(&task_id)
+            .cloned();
+        if let Some(f) = flag {
+            f.store(true, std::sync::atomic::Ordering::Release);
+            tracing::info!("Interrupt flag set for task {}", task_id);
+            emit_task_cancelled(task_id, AgentId(0), "local_interrupt");
+            return Ok(());
+        }
+        // Fall back to cancel for queued tasks.
+        self.cancel_task(task_id)
+    }
+
     /// Reorder a queued task with a new priority.
     pub fn reorder_task(
         &self,

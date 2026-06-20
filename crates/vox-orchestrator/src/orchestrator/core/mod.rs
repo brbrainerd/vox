@@ -104,6 +104,7 @@ impl crate::orchestrator::Orchestrator {
                     config.budget_gate_config.clone().unwrap_or_default(),
                 ),
             )),
+            interrupt_flags: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -184,6 +185,7 @@ impl crate::orchestrator::Orchestrator {
                     config.budget_gate_config.clone().unwrap_or_default(),
                 ),
             )),
+            interrupt_flags: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 

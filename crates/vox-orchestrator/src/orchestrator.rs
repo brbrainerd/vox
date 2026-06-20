@@ -137,4 +137,11 @@ pub struct Orchestrator {
     /// Orchestrator-policy token/cost budget gate (D7).
     pub tenant_budget_gate:
         std::sync::Arc<std::sync::RwLock<crate::budget_gate::OrchestratorBudgetGate>>,
+    /// Per-task interrupt flags: set to `true` to signal a running local task to abort.
+    ///
+    /// Populated when a task starts executing; cleared when it completes or is cancelled.
+    /// The running [`crate::runtime::AiTaskProcessor`] should poll this flag periodically
+    /// (see `crates/vox-orchestrator/src/interrupt.rs` for the full wiring design).
+    pub interrupt_flags:
+        std::sync::Arc<std::sync::RwLock<HashMap<TaskId, std::sync::Arc<std::sync::atomic::AtomicBool>>>>,
 }

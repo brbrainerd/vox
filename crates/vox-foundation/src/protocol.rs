@@ -23,6 +23,10 @@ pub mod orch_daemon_method {
     pub const FAIL_TASK: &str = "orch.fail_task";
     /// Params: `{"task_id": u64}` → `{"ok": true}`.
     pub const CANCEL_TASK: &str = "orch.cancel_task";
+    /// Params: `{"task_id": u64}` → `{"ok": true}`.
+    /// Signals an in-progress local task to abort (fires its `CancellationToken`).
+    /// Unlike `CANCEL_TASK` this works on tasks that are already running, not just queued.
+    pub const INTERRUPT_TASK: &str = "orch.interrupt_task";
     /// Params: `{"task_id": u64, "priority": "urgent|normal|background"}`.
     pub const REORDER_TASK: &str = "orch.reorder_task";
     /// Params: `{}` → `{"tasks": [{id, description, priority, status, lifecycle,
