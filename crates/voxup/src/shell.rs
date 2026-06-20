@@ -50,6 +50,7 @@ fn add_to_windows_registry_path(bin_dir: &Path) {
         path_str.replace("'", "''"),
         path_str.replace("'", "''")
     );
+    // vox-arch-check: allow shell-spawn
     let _ = Command::new("powershell")
         .arg("-NoProfile")
         .arg("-Command")
