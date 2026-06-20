@@ -70,7 +70,7 @@ export interface SurfaceProps {
   attention_budget?: AttentionBudgetSnapshot | null;
 }
 
-function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
+export function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
   const Decorator = surfaceDecorators[viewKey];
   if (Decorator) {
     return <Decorator pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
