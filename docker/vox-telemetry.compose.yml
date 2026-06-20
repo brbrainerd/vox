@@ -1,8 +1,10 @@
-# Vox Telemetry — Coolify deployment (Vox Foundation project)
+# Vox Telemetry — Coolify deployment (existing "Vox Ecosystem" project)
 # Public ingest at telemetry.voxlang.org → vox-server :4318 → ClickHouse (internal only).
 # Image SSOT: GHCR (built by .github/workflows/docker-telemetry.yml).
 # Secrets (CLICKHOUSE_PASSWORD, VOX_TELEMETRY_INGEST_TOKEN) injected via Coolify project secrets.
-# Decoupling boundary: separate Coolify project ("Vox Foundation"), own subdomain, own volume.
+# Decoupling boundary: deployed in the existing "Vox Ecosystem" Coolify project
+# (uuid no88080okk0c0gk4ss0cgw0o, env "production" — already hosts the eval app),
+# which is a SEPARATE project from "FableForge Production". Own subdomain, own volume.
 # Docs: docs/src/ci/coolify-services.md
 name: vox-telemetry
 

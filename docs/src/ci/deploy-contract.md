@@ -76,7 +76,21 @@ The `vox-foundation/vox` repository requires the following GitHub Secrets, which
 
 *Note: Accessing these secrets via raw `std::env::var` in Rust source code is prohibited. Use `vox_secrets::resolve_secret(SecretId::CoolifyToken)` and, when splitting read vs deploy credentials, `SecretId::CoolifyReadToken`.*
 
-### Telemetry app (`telemetry.voxlang.org`) — Vox Foundation project
+### Telemetry app (`telemetry.voxlang.org`) — "Vox Ecosystem" project
+
+Deployed into the **existing** Coolify project **"Vox Ecosystem"** (project uuid
+`no88080okk0c0gk4ss0cgw0o`, environment `production` uuid `p4ggk40c4so0w8g88c0c40gw`)
+— the same project that already hosts the **eval** app (app uuid
+`g4sogoo48kwkkco00ccs4cck`, dockercompose from `vox-foundation/vox@main`
+`/vox-eval.compose.yml`). "Vox Ecosystem" is a **separate** Coolify project from
+"FableForge Production" (uuid `nw4sgkc40csk4ckg0os0sk40`), so the for-profit /
+Foundation decoupling is satisfied at the project level — **no new project is needed.**
+
+DNS: `voxlang.org` is on **Cloudflare** (nameservers `*.ns.cloudflare.com`).
+`telemetry.voxlang.org` is currently **NXDOMAIN** — add an `A` record
+`telemetry → 178.156.212.19`, **DNS-only (grey cloud, NOT proxied)** so Traefik's
+Let's Encrypt HTTP-01 challenge reaches the VPS and TLS terminates at Traefik
+(mirrors the eval host).
 
 The telemetry deploy (`.github/workflows/deploy-telemetry.yml`) reuses the **same**
 `COOLIFY_BASE_URL` / `COOLIFY_TOKEN` / `COOLIFY_READ_TOKEN` as eval, plus these
