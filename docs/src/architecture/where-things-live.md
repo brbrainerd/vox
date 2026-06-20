@@ -80,6 +80,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-scaling-policy`](../../../crates/vox-scaling-policy/) | Compile-time and runtime accessors for scaling SSOT (`contracts/scaling/policy.yaml`); includes [`donations_vox`](../../../crates/vox-scaling-policy/src/donations_vox/) for mesh `donations.vox` parse/pretty-print (folded from retired `vox-mesh-policy`). |
 | [`vox-mesh-policy`](../../../crates/vox-mesh-policy/) | Donations.vox mesh policy parser and `WorkerDonationPolicy` type; migration to `vox-scaling-policy::donations_vox` in progress. |
 | [`vox-secrets`](../../../crates/vox-secrets/) | Central secret resolution and compatibility adapters for Vox. |
+| [`vox-build-queue`](../../../crates/vox-build-queue/) | Fair FIFO build queue, cargo resolution, and build metrics library for the vox-cargo-shim build broker. Layer 1. |
 
 ### L2 — domain libraries
 
@@ -152,6 +153,9 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-publisher`](../../../crates/vox-publisher/) | Unified news syndication and publishing for Vox. SCIENTIA mesh intake from orchestrator research events: `research_mesh.rs` (+ contract `contracts/scientia/research-mesh-intake.v1.schema.json`). |
 | [`vox-scientia`](../../../crates/vox-scientia/) | SCIENTIA cluster umbrella — all Phases A–H as sub-modules: `producers` (Phase A signal emitters), `replay` (Phase B re-executor), `manuscript` (Phases C+3+4 IMRaD/LaTeX scaffolders), `critic_gate` (Phase D gate), `class_routing` (Phase E venue routing), `findings_site` (Phase G HTML builder), `dashboard` (Phase H JSON builders). |
 | [`vox-search`](../../../crates/vox-search/) | Local-first retrieval execution: memory hybrid, repo inventory, Codex chunks, policy, and optional lexical/vector backends. |
+| [`vox-terminal-core`](../../../crates/vox-terminal-core/) | UI-agnostic terminal+agent engine: block model, input router, PTY host, OSC-633 parser, Vox-interpreter adapter, orchestrator adapter, transcript sink. Front-ends (`vox-term` TUI, GUI Console) render its blocks/events; neither reimplements the agent loop. Layer 3. |
+| [`vox-llm-config`](../../../crates/vox-llm-config/) | LLM configuration types and registry — unified SSOT for model settings shared across vox-orchestrator and vox-gui. Layer 3. |
+| [`vox-llm-egress`](../../../crates/vox-llm-egress/) | LLM egress layer — provider routing, request construction, and response parsing for outbound LLM calls. Layer 3. |
 | [`vox-skills`](../../../crates/vox-skills/) | Skill marketplace and plugin architecture for the Vox agent system. |
 | [`vox-tensor`](../../../crates/vox-tensor/) | Pure-CPU JSONL data loaders / training-pair types (Burn extracted 2026-05-08). |
 | [`vox-test-harness`](../../../crates/vox-test-harness/) | Shared compiler/tooling test fixtures plus [`workspace_paths`](../../../crates/vox-test-harness/src/workspace_paths.rs) (`repo_root_for_tests`), [`env_scratch`](../../../crates/vox-test-harness/src/env_scratch.rs) (scoped `set_var`/`remove_var`), [`temp_root`](../../../crates/vox-test-harness/src/temp_root.rs) (`tempfile::TempDir`). |
@@ -174,6 +178,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-gui`](../../../crates/vox-gui/) | Tauri desktop shell; depends on vox-cli / vox-orchestrator. |
 | [`vox-audit`](../../../crates/vox-audit/) | CR-L gate runner binary (`vox audit <thing>`); implements the JSON report shape from `contracts/ci/vox-audit-contract.v1.yaml`. |
 | [`voxup`](../../../crates/voxup/) | Desktop & CLI environment installer. |
+| [`vox-cargo-shim`](../../../crates/vox-cargo-shim/) | Scoped daemonless cargo shim that fair-queues builds within a vox worktree (the build broker binary). Layer 5. |
 
 ## Common tasks → exact path
 

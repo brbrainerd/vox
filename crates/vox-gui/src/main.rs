@@ -52,6 +52,7 @@ async fn main() {
         })
         .manage(commands::mic::MicCaptureState::default())
         .manage(commands::pty::PtyManager::default())
+        .manage(commands::terminal_core::TerminalSessionManager::default())
         .manage(std::sync::Arc::new(
             commands::daemon::PersistentDaemon::default(),
         ))
@@ -113,6 +114,9 @@ async fn main() {
             commands::pty::pty_spawn,
             commands::pty::pty_write,
             commands::pty::pty_close,
+            commands::terminal_core::term_pty_bytes,
+            commands::terminal_core::term_get_blocks,
+            commands::terminal_core::term_submit,
             commands::console_a2a::send_to_agent,
             commands::action_manifest::get_action_manifest,
             commands::execute::execute_command,

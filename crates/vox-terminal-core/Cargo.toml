@@ -1,0 +1,27 @@
+[package]
+name = "vox-terminal-core"
+version.workspace = true
+edition = "2021"
+description = "UI-agnostic terminal+agent engine shared by vox-term (ratatui TUI) and the Axis GUI Console."
+license = "Apache-2.0"
+
+[features]
+default = []
+# Placeholder: vox-lang will gate vox-compiler once feature-cfg gating is wired.
+vox-lang = []
+
+[dependencies]
+serde        = { workspace = true, features = ["derive"] }
+tokio        = { workspace = true, features = ["sync", "rt", "macros"] }
+portable-pty = { workspace = true }
+anyhow       = { workspace = true }
+# vox-compiler is ~47k LoC; included directly for now.
+# TODO: make optional behind vox-lang feature once feature-cfg wiring is done.
+vox-compiler     = { path = "../vox-compiler" }
+vox-journal      = { path = "../vox-journal" }
+vox-orchestrator = { path = "../vox-orchestrator" }
+serde_json       = { workspace = true }
+regex            = { workspace = true }
+
+[dev-dependencies]
+tokio          = { workspace = true, features = ["rt", "macros", "rt-multi-thread"] }
