@@ -1,0 +1,39 @@
+schema_version: 1
+channels:
+  - name: orch_status
+    uri: "vox://orch-status"
+    payload: OrchestratorStatus
+    semantics: replace
+    poll: { command: get_orchestrator_status, every_ms: 5000 }
+  - name: agent_events
+    uri: "vox://agent-events"
+    payload: AgentEventFrame
+    semantics: fold
+  - name: scientia_queue
+    uri: "vox://scientia-queue"
+    payload: ScientiaQueuePing
+    semantics: fold
+  - name: scientia_discovery_surfaced
+    uri: "vox://scientia-discovery-surfaced"
+    payload: DiscoverySurfacedPayload
+    semantics: fold
+  - name: browser_frame
+    uri: "vox://browser-frame"
+    payload: BrowserFramePayload
+    semantics: replace
+  - name: preview_available
+    uri: "vox://preview-available"
+    payload: PreviewAvailablePayload
+    semantics: replace
+  - name: secretary_proposed
+    uri: "vox://secretary-proposed-task"
+    payload: SecretaryProposedPayload
+    semantics: fold
+  - name: pty_output
+    uri: "vox://pty-output"
+    payload: PtyOutputFrame
+    semantics: fold
+  - name: pty_exit
+    uri: "vox://pty-exit"
+    payload: PtyExitFrame
+    semantics: fold

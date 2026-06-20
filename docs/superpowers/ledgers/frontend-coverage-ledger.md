@@ -32,7 +32,7 @@ surface is added or removed without updating this table.
 | Chat | blocked:reactive-streams | streamed tokens + secretary-proposed events |
 | Console | blocked:other | PTY streams + xterm.js terminal emulation |
 | Coverage | expressible | tabular report rendering |
-| Dashboard | blocked:reactive-streams | live orch-status / widget streams |
+| Dashboard | blocked:reactive-streams | orch-status now `.vox`-expressible via `on stream` (Sub-project B); full surface migration pending (Sub-project G) |
 | Flow | blocked:reactive-streams | live pipeline timeline events |
 | Gamify | blocked:reactive-streams | ludus notifications stream |
 | Harness | expressible | diff + repo file listing (request/response) |
@@ -50,11 +50,12 @@ surface is added or removed without updating this table.
 | Search | expressible | query/result request-response |
 | Settings | expressible | config get/set forms |
 | SkillsPlugins | expressible | skill/plugin list rendering |
+| SubAgents | blocked:reactive-streams | live sub-agent activity stream via agent-events |
 | Tasks | blocked:reactive-streams | tasks-changed live mutations |
 
 ## Summary
 
-- Total surfaces: 25
+- Total surfaces: 26
 - `expressible` today: 13
 - `blocked:reactive-streams`: 10
 - `blocked:other`: 2 (Browser, Console)

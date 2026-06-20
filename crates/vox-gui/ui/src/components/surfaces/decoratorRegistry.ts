@@ -10,6 +10,7 @@ import { CoverageView } from './Coverage/CoverageView';
 import { ResearchView } from './Research/ResearchView';
 import { PublicationsView } from './Publications/PublicationsView';
 import { SearchView } from './Search/SearchView';
+import { SubAgentsView } from './SubAgents/SubAgentsView';
 
 /**
  * Props every surface decorator receives. Decorators are hand-built views that
@@ -64,4 +65,5 @@ export const surfaceDecorators: Record<string, React.ComponentType<SurfaceDecora
     { key: 'doctor', title: 'Runtime Health', description: 'Oratio runtime + configuration diagnostics', path: ['oratio', 'doctor'] },
     { key: 'status', title: 'Backend Status', description: 'Available backends + passthrough modes', path: ['oratio', 'status'] },
   ]),
+  'sub-agents': SubAgentsView,
 };

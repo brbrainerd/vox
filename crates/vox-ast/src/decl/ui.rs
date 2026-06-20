@@ -217,6 +217,8 @@ pub enum ReactiveMemberDecl {
     OnCleanup(OnCleanupDecl),
     /// Imperative prelude: `let` bindings, hook calls (`use_effect(...)`), assignments, etc.
     Stmt(crate::stmt::Stmt),
+    /// Subscribes to a named push channel: `on stream(name) as bind: { body }`.
+    OnStream(OnStreamDecl),
 }
 
 /// `state name: Type = init_expr`
@@ -270,6 +272,19 @@ pub struct OnMountDecl {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct OnCleanupDecl {
     /// Cleanup body expression.
+    pub body: crate::expr::Expr,
+    /// Source span.
+    pub span: Span,
+}
+
+/// `on stream(channel) as binding: { body }` — subscribe to a named push channel.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct OnStreamDecl {
+    /// Channel registry name (validated against `contracts/channels.v1.yaml`).
+    pub channel: String,
+    /// Identifier bound to each received frame inside `body`.
+    pub binding: String,
+    /// Handler body; runs per frame with `binding` in scope.
     pub body: crate::expr::Expr,
     /// Source span.
     pub span: Span,

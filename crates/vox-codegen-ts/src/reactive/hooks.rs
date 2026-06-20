@@ -485,7 +485,8 @@ pub(crate) fn react_import_line(members: &[HirReactiveMember]) -> String {
             HirReactiveMember::Derived(_) => need_memo = true,
             HirReactiveMember::Effect(_)
             | HirReactiveMember::OnMount(_)
-            | HirReactiveMember::OnCleanup(_) => need_effect = true,
+            | HirReactiveMember::OnCleanup(_)
+            | HirReactiveMember::OnStream(_) => need_effect = true,
             HirReactiveMember::Stmt(s) => {
                 scan_hir_stmt_for_react_imports(
                     s,

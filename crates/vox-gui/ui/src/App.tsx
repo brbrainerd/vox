@@ -107,14 +107,15 @@ type View =
   | 'workspace'
   | 'commands'
   | 'knowledge'
-  | 'compute';
+  | 'compute'
+  | 'sub-agents';
 
 const LEGACY_VIEWS: string[] = [
   'dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository',
   'mesh', 'gamify', 'harness', 'browser', 'console', 'scientia', 'discovery-review', 'discovery-inbox', 'archive-panel', 'claims', 'mens',
   'populi', 'research', 'oratio', 'approvals', 'policies', 'skills', 'settings', 'coverage',
   'publications', 'search', 'chat', 'agents', 'workspace', 'commands', 'knowledge', 'compute',
-  'review', 'tasks',
+  'review', 'tasks', 'sub-agents',
 ];
 
 // Single source of truth for valid view ids (deep-link validation + initial-view).

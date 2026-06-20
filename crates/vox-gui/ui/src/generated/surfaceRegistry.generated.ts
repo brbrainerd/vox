@@ -33,6 +33,7 @@ export const SURFACE_REGISTRY: SurfaceRegistryEntry[] = [
   { viewKey: 'review', cliGroup: null, tier: 'curated_decorator', navLabel: 'Review', navIcon: 'doubt', navGroup: 'knowledge', parentSurface: null },
   { viewKey: 'runs', cliGroup: null, tier: 'live_backend', navLabel: 'Runs', navIcon: 'clock', navGroup: 'operate', parentSurface: 'runs' },
   { viewKey: 'search', cliGroup: null, tier: 'live_backend', navLabel: 'Search', navIcon: 'search', navGroup: 'knowledge', parentSurface: null },
+  { viewKey: 'sub-agents', cliGroup: null, tier: 'live_backend', navLabel: 'Sub-Agents', navIcon: 'list-tree', navGroup: 'compute', parentSurface: 'compute' },
   { viewKey: 'tasks', cliGroup: null, tier: 'live_backend', navLabel: 'Tasks', navIcon: 'list', navGroup: 'operate', parentSurface: 'agents' },
   { viewKey: 'workspace', cliGroup: null, tier: 'live_backend', navLabel: 'Workspace', navIcon: 'file', navGroup: 'develop', parentSurface: null },
   { viewKey: null, cliGroup: 'add', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },

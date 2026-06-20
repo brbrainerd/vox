@@ -28,6 +28,7 @@ vox-sql = { workspace = true }
 vox-deploy-codegen = { workspace = true }
 vox-secrets = { workspace = true }
 anyhow.workspace = true
+serde_yaml = { workspace = true }
 
 [dev-dependencies]
 insta = "1"

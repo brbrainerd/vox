@@ -192,6 +192,9 @@ fn walk_reactive_member(
         ReactiveMemberDecl::OnCleanup(c) => {
             walk_expr(&mut c.body, registry, warnings, primitives_used);
         }
+        ReactiveMemberDecl::OnStream(s) => {
+            walk_expr(&mut s.body, registry, warnings, primitives_used);
+        }
         ReactiveMemberDecl::Stmt(s) => {
             walk_stmt(s, registry, warnings, primitives_used);
         }

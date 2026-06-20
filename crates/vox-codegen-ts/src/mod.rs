@@ -56,6 +56,10 @@ pub mod route_pattern;
 /// Screen-root horizontal inset opt-out (`bleed`) shared by web + RN emitters.
 pub mod screen_inset;
 
+/// Emits the transport-neutral channel runtime (`vox-channel.ts`).
+pub mod channel_runtime_emit;
+/// Channel-contract SSOT loader (`contracts/channels.v1.yaml`) + transport-parity guard.
+pub mod channels;
 /// One-time SPA / shadcn / Tailwind scaffold (user-owned files).
 pub mod scaffold;
 /// `@table` / VoxDB `schema.ts` generator ([`generate_voxdb_schema`]).

@@ -1092,3 +1092,45 @@ fn fragment_decl_with_params_parses() {
         other => panic!("expected Fragment, got {other:?}"),
     }
 }
+
+#[test]
+fn parses_on_stream_member() {
+    let src = r#"
+component Live() {
+    state status: str = ""
+    on stream(orch_status) as s: { status = s }
+    view: text { status }
+}
+"#;
+    let module = crate::parser::parse(crate::lexer::cursor::lex(src)).expect("parse");
+    let decl = module
+        .declarations
+        .iter()
+        .find_map(|d| match d {
+            crate::ast::decl::Decl::ReactiveComponent(rc) => Some(rc),
+            _ => None,
+        })
+        .expect("reactive component");
+    let has_stream = decl.members.iter().any(|m| {
+        matches!(
+            m, crate::ast::decl::ReactiveMemberDecl::OnStream(s)
+                if s.channel == "orch_status" && s.binding == "s"
+        )
+    });
+    assert!(
+        has_stream,
+        "expected an OnStream member with channel=orch_status binding=s"
+    );
+}
+
+#[test]
+fn on_stream_requires_as_binding() {
+    let src = r#"
+component Bad() {
+    on stream(orch_status): { }
+    view: text { "x" }
+}
+"#;
+    let res = crate::parser::parse(crate::lexer::cursor::lex(src));
+    assert!(res.is_err(), "missing `as <binding>` must be a parse error");
+}

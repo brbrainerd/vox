@@ -61,6 +61,15 @@ pub fn generate_reactive_component(
 
     out.push_str(&react_import_line(&rc.members));
 
+    // Emit channel runtime import when any member subscribes to a stream.
+    if rc
+        .members
+        .iter()
+        .any(|m| matches!(m, HirReactiveMember::OnStream(_)))
+    {
+        out.push_str("import { voxChannel } from \"./vox-channel\";\n");
+    }
+
     // Phase 5: external React components/hooks. Supports default, named, and
     // namespace `import react …` forms, grouped per module specifier.
     let react_es = emit_react_es_import_lines(&hir.imports);
@@ -210,6 +219,31 @@ pub fn generate_reactive_component(
                 let stmts_str = emit_block_stmts(&c.body, &view_ctx, 2);
                 let body = wrap_effect_body_if_async(&stmts_str, 2);
                 out.push_str(&format!("  useEffect(() => () => {{\n{}  }}, []);\n", body));
+            }
+            HirReactiveMember::OnStream(os) => {
+                let contract = super::super::channels::load_channel_contract();
+                if super::super::channels::channel_by_name(&contract, &os.channel).is_none() {
+                    let valid: Vec<&str> =
+                        contract.channels.iter().map(|c| c.name.as_str()).collect();
+                    out.push_str(&format!(
+                        "  // vox/web/unknown-channel: `{}` is not in contracts/channels.v1.yaml \
+                         (valid: {}). Subscription skipped.\n",
+                        os.channel,
+                        valid.join(", ")
+                    ));
+                } else {
+                    let handler_body = emit_block_stmts(&os.body, &view_ctx, 4);
+                    out.push_str("  useEffect(() => {\n");
+                    out.push_str("    let unsub: (() => void) | undefined;\n");
+                    out.push_str("    let cancelled = false;\n");
+                    out.push_str(&format!(
+                        "    voxChannel.subscribe(\"{}\", ({}) => {{\n{}    }})\n",
+                        os.channel, os.binding, handler_body
+                    ));
+                    out.push_str("      .then((u) => { if (cancelled) u(); else unsub = u; });\n");
+                    out.push_str("    return () => { cancelled = true; unsub?.(); };\n");
+                    out.push_str("  }, []);\n");
+                }
             }
             HirReactiveMember::Stmt(s) => {
                 out.push_str(&emit_hir_stmt(s, &plain_ctx, 2));

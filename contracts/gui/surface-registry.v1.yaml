@@ -185,6 +185,14 @@ surfaces:
   nav_group: knowledge
   parent_surface: null
   notes: unified hybrid search (vox-search)
+- view_key: sub-agents
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Sub-Agents
+  nav_icon: list-tree
+  nav_group: compute
+  parent_surface: compute
+  notes: null
 - view_key: tasks
   cli_group: null
   representation_tier: live_backend

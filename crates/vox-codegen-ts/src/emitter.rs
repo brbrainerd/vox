@@ -405,6 +405,20 @@ pub fn generate_with_options(
         files.push((VOX_CLIENT_FILENAME.to_string(), emit_vox_client(hir)));
     }
 
+    // Channel runtime: emitted when any component subscribes to a stream.
+    let needs_channels = hir
+        .components
+        .iter()
+        .flat_map(|rc| &rc.members)
+        .any(|m| matches!(m, vox_compiler::hir::HirReactiveMember::OnStream(_)));
+    if needs_channels {
+        let contract = super::channels::load_channel_contract();
+        files.push((
+            "vox-channel.ts".to_string(),
+            super::channel_runtime_emit::emit_channel_runtime(&contract),
+        ));
+    }
+
     // OpenAPI 3.1 spec — emitted when the module declares any user types or
     // endpoints. Reads through Contract IR; conforms to wire-format-v1. See
     // [`super::openapi_emit`] and Phase 2 of the external frontend

@@ -864,6 +864,15 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
                         span: None,
                     });
                 }
+                HirReactiveMember::OnStream(os) => {
+                    let body = emit_hir_expr(&os.body, &mem_ctx);
+                    m.behavior_nodes.push(BehaviorNode::StreamSub {
+                        channel: os.channel.clone(),
+                        binding: os.binding.clone(),
+                        body,
+                        span: None,
+                    });
+                }
                 HirReactiveMember::Stmt(_) => {}
             }
         }
