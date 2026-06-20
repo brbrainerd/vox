@@ -15,7 +15,7 @@ training_rationale: "Internal implementation plan; superseded once executed."
 
 **Architecture:** Extract a UI-agnostic `vox-terminal-core` crate that owns the block model, input router, PTY/shell host, OSC-633 block parser, Vox-interpreter adapter, a thin adapter over `vox-orchestrator` (agent loop / HITL / hopper / budget / model-select), and a typed transcript-event stream. Front-ends (`vox-term` ratatui TUI; the existing React/Tauri Console) are thin renderers over it. A curation/redaction layer turns transcripts into a VoxMENS-ready corpus.
 
-**Tech Stack:** Rust, `ratatui` + `crossterm` (TUI), `portable-pty` (PTY/ConPTY — already in use), `vte`/clean-room OSC-633 parser, `nucleo` (command palette), `reedline` (line editing), `tokio`, `vox-orchestrator`, `vox-journal` (transcript substrate), `vox-telemetry-otlp` redaction, `vox-similarity` (dedup), `vox-compiler` `eval --interp` (Vox-native execution). Default font: **IBM Plex Mono Nerd Font**.
+**Tech Stack:** Rust, `ratatui` + `crossterm` (TUI), `portable-pty` (PTY/ConPTY — already in use), **`alacritty_terminal`** (VT-grid emulation for headless rendering — Apache/MIT), clean-room OSC-633 parser, `nucleo` (command palette), `reedline` (line editing), `tokio`, `vox-orchestrator` (agent, feature-gated), `vox-journal` (transcript substrate), `vox-telemetry-otlp` redaction, `vox-similarity` (dedup), `vox-compiler` `eval --interp` (Vox-native, feature-gated). Default font: **IBM Plex Mono Nerd Font**.
 
 ---
 
@@ -47,7 +47,17 @@ Grounded in the current tree (read, not guessed):
 | Near-dup similarity | `crates/vox-similarity` | **KEEP; reuse in flywheel** | Corpus dedup. |
 | History/clip store, context_windows domain | `crates/vox-db` | **KEEP; consume** | Persistence for blocks/history. |
 
-**Net new crates:** `vox-terminal-core` (lib, L3 — depends on orchestrator) and `vox-term` (bin, L4).
+**Net new crates:** `vox-terminal-core` (lib, **L3** — same layer as `vox-orchestrator`/`vox-compiler`; same-layer deps are allowed) and `vox-term` (**bin, L5** — layers.toml has no L4; all binaries are L5, e.g. `vox-cli`/`vox-gui`/`vox-orchestrator-d`).
+
+**Lean-core feature gating (audit-driven):** `vox-compiler` is ~47k LoC (pulls reqwest/rayon/compression) and `vox-orchestrator` is ~70k LoC. To keep a minimal headless/server build cheap, `vox-terminal-core`'s **default features are minimal** (`block`, `input`, `pty`, `osc633`, `transcript`); the Vox interpreter is behind feature **`vox-lang`** (adds `vox-compiler`), the agent adapter behind feature **`agent`** (adds `vox-orchestrator`), and Nushell behind **`nushell`**. `vox-term` enables all three; a server embedder can take just blocks+PTY.
+
+### Architecture decision: VT emulation lives in the *front-end*, not the core (audit finding #1)
+
+The GUI delegates **all** ANSI/cursor/color interpretation to **xterm.js** (`TerminalTab.tsx:89 term.write(data)`). A headless ratatui front-end has no such engine, so raw PTY bytes would render as literal escape codes and full-screen apps (vim/htop) would break. Decision:
+
+- **`vox-terminal-core` stays VT-agnostic.** It captures **raw output bytes** per block (correct for transcript/agent context) and exposes `plain_output()` that **strips ANSI** via a small built-in CSI/OSC escape stripper (see Task 1.2 `strip_ansi` — no extra dep; used only for the text projection, not rendering).
+- **Each front-end owns its renderer.** GUI keeps xterm.js. **`vox-term` (Track 2) owns an `alacritty_terminal` grid** that consumes the raw byte stream and produces a cell grid ratatui paints. This is the same Alacritty model Warp forked — taken **upstream** (Apache/MIT), license-clean.
+- **OSC-633 block boundaries and VT rendering are orthogonal layers:** the core's `osc633` parser delimits blocks; the front-end's VT grid renders the bytes *within* a block. Neither replaces the other.
 
 ---
 
@@ -245,9 +255,12 @@ git commit -m "feat(terminal-core): scaffold vox-terminal-core crate"
 // crates/vox-terminal-core/tests/block.rs
 use vox_terminal_core::block::{Block, BlockKind, BlockStatus, OutputChunk, Stream};
 
+use vox_terminal_core::block::BlockId;
+
 #[test]
 fn block_accumulates_output_and_finishes() {
-    let mut b = Block::new(BlockKind::Shell, "echo hi");
+    let mut b = Block::new(BlockId(1), BlockKind::Shell, "echo hi");
+    assert_eq!(b.id, BlockId(1));
     assert_eq!(b.status, BlockStatus::Running);
     b.push(OutputChunk::text(Stream::Stdout, "hi\n"));
     b.finish(0);
@@ -257,8 +270,15 @@ fn block_accumulates_output_and_finishes() {
 }
 
 #[test]
+fn plain_output_strips_ansi() {
+    let mut b = Block::new(BlockId(2), BlockKind::Shell, "ls");
+    b.push(OutputChunk::text(Stream::Stdout, "\x1b[31mred\x1b[0m\n"));
+    assert_eq!(b.plain_output(), "red\n"); // ANSI stripped for agent/transcript
+}
+
+#[test]
 fn nonzero_exit_marks_failed() {
-    let mut b = Block::new(BlockKind::Shell, "false");
+    let mut b = Block::new(BlockId(3), BlockKind::Shell, "false");
     b.finish(1);
     assert_eq!(b.status, BlockStatus::Failed);
     assert_eq!(b.exit_code, Some(1));
@@ -296,6 +316,7 @@ impl OutputChunk {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Block {
+    pub id: BlockId,
     pub kind: BlockKind,
     pub input: String,
     pub output: Vec<OutputChunk>,
@@ -303,15 +324,37 @@ pub struct Block {
     pub exit_code: Option<i32>,
 }
 impl Block {
-    pub fn new(kind: BlockKind, input: impl Into<String>) -> Self {
-        Self { kind, input: input.into(), output: vec![], status: BlockStatus::Running, exit_code: None }
+    pub fn new(id: BlockId, kind: BlockKind, input: impl Into<String>) -> Self {
+        Self { id, kind, input: input.into(), output: vec![], status: BlockStatus::Running, exit_code: None }
     }
     pub fn push(&mut self, c: OutputChunk) { self.output.push(c); }
     pub fn finish(&mut self, exit: i32) {
         self.exit_code = Some(exit);
         self.status = if exit == 0 { BlockStatus::Ok } else { BlockStatus::Failed };
     }
-    pub fn plain_output(&self) -> String { self.output.iter().map(|c| c.text.as_str()).collect() }
+    /// Text projection for agent context + transcript: concatenated output with
+    /// ANSI/VT escapes stripped (visual rendering is the front-end's job, not this).
+    pub fn plain_output(&self) -> String {
+        let raw: String = self.output.iter().map(|c| c.text.as_str()).collect();
+        strip_ansi(&raw)
+    }
+}
+
+/// Minimal CSI/OSC escape stripper for the text projection. (A full VT grid lives
+/// in the front-end via alacritty_terminal; this is only for plain-text export.)
+fn strip_ansi(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\x1b' {
+            match chars.peek() {
+                Some('[') => { chars.next(); while let Some(&n) = chars.peek() { chars.next(); if ('@'..='~').contains(&n) { break; } } }
+                Some(']') => { chars.next(); while let Some(&n) = chars.peek() { chars.next(); if n == '\x07' { break; } } }
+                _ => {}
+            }
+        } else { out.push(c); }
+    }
+    out
 }
 ```
 
@@ -683,7 +726,7 @@ Expected: FAIL.
 
 - [ ] **Step 3: Minimal implementation**
 
-Wire `Osc633Parser` → block transitions; expose `blocks()`, a `SessionEvent` receiver, and `submit(intent)` that routes VoxNative→`vox_interp`, Shell→`PtyHost`, Agent/Command→`AgentAdapter` (Task 1.9). Emit transcript events on each transition.
+Wire `Osc633Parser` → block transitions; assign each new block a monotonically increasing `BlockId` from a session counter; expose `blocks()`, a `SessionEvent` receiver, and `submit(intent)` that routes VoxNative→`vox_interp`, Shell→`ShellBackend`, Agent/Command→`AgentAdapter` (Task 1.9). Emit transcript events on each transition.
 
 - [ ] **Step 4: Run to verify it passes**
 
@@ -704,7 +747,12 @@ git commit -m "feat(terminal-core): Session block state machine + event stream"
 - Create: `crates/vox-terminal-core/src/agent.rs`
 - Test: `crates/vox-terminal-core/tests/agent.rs`
 
-The adapter subscribes to `orch.event_bus()` and translates `AgentEvent` → `SessionEvent::AgentMessage` / block updates; `submit_prompt(text)` enqueues a task. **It must not reimplement the loop** — only translate. Feedback/HITL surfacing reuses the orchestrator `feedback` module.
+The adapter subscribes to `orch.event_bus()` and translates `AgentEvent` → `SessionEvent::AgentMessage` / block updates; `submit_prompt(text)` enqueues a task. **It must not reimplement the loop** — only translate.
+
+**HITL surface (audit-confirmed API — use these exact types, no reimplementation):** reuse `vox_orchestrator::feedback::{FeedbackStore, FeedbackRequest, FeedbackResolution, FeedbackAction, Surface, FeedbackKind}`. The adapter exposes:
+- `needs_you() -> Vec<FeedbackRequest>` → delegates to `FeedbackStore::open_needs_you()` (the `Surface::NeedsYou` queue). Render each as a `SessionEvent::FeedbackRequested { id, prompt, options }`.
+- `respond(id, FeedbackResolution)` → delegates to `FeedbackStore::resolve(id, resolution)`, where `FeedbackResolution { action: FeedbackAction::{Answer{option,text}|Skip|Overrule|LetVerify}, decided_at_ms, decided_by }`.
+- The single `FeedbackStore` is the one owned by the orchestrator (do **not** construct a second one).
 
 - [ ] **Step 1: Write the failing test** — a fake `AgentEvent` (e.g. `TokenStreamed`) maps to a `SessionEvent::AgentMessage` with the streamed text. (Construct via `build_repo_scoped_orchestrator(OrchestratorConfig::default(), None)` and publish a token event, mirroring `live.rs`.)
 - [ ] **Step 2: Run to verify it fails.** Run: `cargo test -p vox-terminal-core --test agent`
@@ -729,13 +777,15 @@ The adapter subscribes to `orch.event_bus()` and translates `AgentEvent` → `Se
 
 **Task list (each becomes a TDD task in Phase-4):**
 1. Crossterm raw-mode lifecycle + clean teardown (test: terminal restored on drop).
-2. Render a static block list from `Session::blocks()` (snapshot test of the ratatui buffer).
-3. Input box with `reedline`; submit → `classify` → `Session::submit` (test: a `!ls` submission opens a Shell block).
-4. Live `SessionEvent` subscription → repaint (test: streamed output appends to the open block).
-5. Command palette via `nucleo` over registered slash-commands (test: fuzzy "mdl"→"model").
-6. Mode indicator + theme (Nerd-Font powerline glyphs; document font requirement).
-7. `vox term` entry: headless check — runs under a dumb terminal / over SSH (test: starts with `TERM=dumb` without panicking).
+2. **VT-grid renderer (`src/vt.rs`)**: wrap `alacritty_terminal` — feed a block's raw output bytes into a `Term` grid, expose a `Vec<ratatui::text::Line>` projection (cells→styled spans). Test: bytes `"\x1b[31mhi\x1b[0m"` produce one red-styled span `hi`; an alternate-screen sequence (`\x1b[?1049h`) is handled without panicking. **This is the component the audit found missing — do it before Task 3.**
+3. Render a block list from `Session::blocks()`, output rendered via the Task-2 VT grid (snapshot test of the ratatui buffer).
+4. Input box with `reedline`; submit → `classify` → `Session::submit` (test: a `!ls` submission opens a Shell block).
+5. Live `SessionEvent` subscription → repaint (test: streamed output appends to the open block and re-renders via the grid).
+6. Command palette via `nucleo` over registered slash-commands (test: fuzzy "mdl"→"model").
+7. Mode indicator + theme (Nerd-Font powerline glyphs; document font requirement).
+8. `vox term` entry: headless check — runs under a dumb terminal / over SSH (test: starts with `TERM=dumb` without panicking).
 
+**New deps (add to `[workspace.dependencies]`):** `ratatui`, `crossterm`, `reedline`, `alacritty_terminal` (Apache/MIT). `nucleo` already present.
 **Reference (not copy):** `live.rs` for the event-render pattern.
 
 ---
@@ -783,15 +833,18 @@ Completes the harness side of `classify`'s `Command { name, args }` dispatch.
 
 **Decision (owner, 2026-06-20):** the underlying AI-preferred shell is **Nushell**. Rationale: typed/structured pipelines mean `/sh` can hand the agent **structured values** (not screen-scraped text), it is Rust-native and **embeddable in-process via the `nu-*` crates** (no PTY round-trip), and it composes with the Vox-native default (both are structured). Ranking that stands: **Vox-native (default) → Nushell (structured `/sh`) → system shell (pwsh/zsh/bash) over PTY for raw muscle-memory.**
 
-**Architecture impact on Track 1:** the shell host is **two-backed**. Define `ShellBackend` in `vox-terminal-core::pty` with two impls: `PtyShell` (existing portable-pty + OSC-633, for system shells) and `NuShell` (in-process via `nu-*`, returning structured `Value`). `InputIntent::Shell` routes to the configured backend (default **Nushell**); `/sh!` or a config flag forces `PtyShell`.
+**Architecture impact on Track 1:** the shell host is **backend-pluggable** via the `ShellBackend` trait (seam built in Task 1.5). `PtyShell` is the first impl.
+
+**Nushell integration is staged (audit finding #4 — in-process `nu-*` is heavy + API-unstable, and absent from the tree):**
+- **MVP (this track):** run the `nu` binary through the **existing `PtyShell`**, requesting structured output via `… | to json`; parse the JSON into a structured payload retained on the block for the agent/transcript. No new heavy deps. Default `/sh` backend = `nu` if on PATH, else the system shell.
+- **Later (feature `nushell`, optional):** an in-process `NuShell` impl via the `nu-*` crates for zero-spawn structured eval. Gated so headless/server builds skip it. Treat the `nu-*` API churn as a real risk — pin versions and isolate behind the trait.
 
 **Tasks (now in-scope, full TDD in Phase-4 hardening):**
-1. `ShellBackend` trait + `NuShell` in-process adapter: run a pipeline, capture structured output (TDD: `ls | length` returns a numeric `Value`, rendered deterministically).
-2. Route `InputIntent::Shell` through the configured `ShellBackend` (TDD: default backend is `NuShell`; `/sh!` forces `PtyShell`).
-3. Structured-output → `Block` rendering (TDD: a Nushell table renders to a `BlockKind::Shell` block with the structured payload retained for the agent/transcript).
+1. **MVP — `nu`-over-PTY**: select `nu` as the `PtyShell` program when present; append `| to json` (or detect already-structured) and parse stdout JSON into a structured payload (TDD: `ls | length` over `nu` yields a parsed numeric JSON value retained on the block).
+2. Route `InputIntent::Shell` through the configured backend (TDD: default backend resolves to `nu` when on PATH, else system shell; `/sh!` forces the raw system shell).
+3. Structured-output → `Block` rendering (TDD: a Nushell `to json` table renders to a `BlockKind::Shell` block with the structured payload retained for the agent/transcript).
 4. Add `zsh`/`fish` OSC-633 snippets to `PtyShell` (currently `None`) for the system-shell fallback (TDD: `shell_integration_snippet("zsh").is_some()`).
-
-**Dep note:** the `nu-*` crates are heavy — gate `NuShell` behind a `nushell` cargo feature (default-on for `vox-term`, optional for embedders) so the core stays lean for headless/server builds that only need `PtyShell`. Run dep-currency/crate-build-audit when added.
+5. **Later (feature `nushell`)**: in-process `NuShell: ShellBackend` via `nu-*` (TDD: `ls | length` returns a numeric value without spawning). Pin `nu-*` versions; run dep-currency/crate-build-audit when added.
 
 ---
 
@@ -835,6 +888,16 @@ Read against the real tree on 2026-06-20:
 - **`portable-pty` is a direct vox-gui dep (`"0.9"`), not a workspace dep.** *Correction applied:* Task 1.1 promotes it to `[workspace.dependencies]`; `nucleo = "0.5"` already exists; `ratatui`/`crossterm`/`reedline` are new (added in Track 2).
 - **Orchestrator event surface verified:** `vox-orchestrator/src/events.rs` — `AgentEvent` (L93), `AgentEventKind` (L116) incl. `TokenStreamed` (L385); `event_bus().subscribe()` returns `broadcast::Receiver<AgentEvent>` (L769). Task 1.9's adapter contract holds (translate-only, mirrors `live.rs`).
 - **Feedback module surface:** `feedback/mod.rs` re-exports `store::*`, `surface_policy::*`, `types::*` — HITL types live in `feedback::store`/`feedback::types`. Adapter reuses these; no reimplementation.
-- **Still UNVERIFIED (carry into Phase-5 handoff as caveats):** exact `feedback`/HITL call signatures the adapter needs; whether the `Session` per-tab model maps cleanly onto the GUI's existing tab lifecycle (Track 3); the precise MENS corpus schema (Track 5, gated by G-PRIV). The Sonnet 4.6 worker must read these before the corresponding task, not assume.
+### Pre-execution adversarial audit (2026-06-20, parallel Explore agents) — findings applied
+
+- **🔴 #1 Missing VT emulation (FIXED):** the GUI delegates ANSI/cursor/color to **xterm.js** (`TerminalTab.tsx:89`); headless ratatui has nothing → raw bytes would render literally and vim/htop break. No task used the `alacritty_terminal` named in §2. *Applied:* core stays VT-agnostic + `strip_ansi` for `plain_output()`; **Track 2 Task 2 adds an `alacritty_terminal` VT grid** in `vox-term`. (Confirmed: `vte`/`alacritty_terminal`/`ratatui`/`crossterm`/`reedline`/`nu-*` are ALL absent from the tree today.)
+- **🔴 #2 Wrong layer (FIXED):** layers.toml has **no L4**; binaries are **L5**. `vox-term` corrected L4→L5. `vox-terminal-core` at L3 confirmed legal (same-layer deps allowed; vox-gui→orchestrator already a known inversion → no cycle).
+- **🟠 #3 Heavy core (FIXED):** `vox-compiler` ~47k LoC (reqwest/rayon/compression), `vox-orchestrator` ~70k LoC. *Applied:* feature gates `vox-lang` / `agent` / `nushell`; minimal default features.
+- **🟠 #4 Nushell embedding risk (FIXED):** in-process `nu-*` heavy + API-unstable. *Applied:* Track 6 MVP = `nu`-over-PTY with `to json`; in-process behind optional `nushell` feature.
+- **🟡 #5 `Block` had no `id` (FIXED):** added `id: BlockId`; Session assigns from a counter.
+- **🟢 #6 HITL API now concrete (CAVEAT REMOVED):** Task 1.9 specifies `FeedbackStore::{open_needs_you, resolve}` + `FeedbackResolution{action: Answer/Skip/Overrule/LetVerify}`.
+- **🟡 #7 `VoxValue` Debug-only:** `eval_line` returns `{val:?}` (`Int(42)` not `42`) for MVP; a `Display`/`render_value` for `VoxValue` is a tracked follow-up (not blocking).
+
+- **Still UNVERIFIED (carry into handoff as caveats):** whether the per-tab `Session` model maps cleanly onto the GUI's existing `PtyManager` tab lifecycle (Track 3 — read the Console surfaces first); the precise MENS corpus schema (Track 5, gated by G-PRIV). Read before the affected task, do not assume.
 
 **Placeholder scan:** the only deliberate `todo!` is in Task 1.4 Step 3, bounded by the tests in that task plus a required split-sequence test — not a plan gap. **Type consistency:** `Block`/`BlockKind`/`BlockStatus`/`OutputChunk`/`Stream`, `InputIntent`, `Osc633Event`, `SessionEvent`, `TranscriptEvent`/`TranscriptKind`, `PtyHost`/`PtyHandle`, `AgentAdapter` are used consistently across tasks.
