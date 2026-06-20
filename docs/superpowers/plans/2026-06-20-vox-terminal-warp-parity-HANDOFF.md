@@ -45,11 +45,22 @@ NON-NEGOTIABLE OPERATING RULES (see the limitations doc for the why):
     session writes/verifies/commits. Parallelize Tracks 2–5 (after the freeze) only via
     worktrees the main session owns.
 
+RESOLVED DECISIONS (do not re-litigate):
+  - G-SHELL → Nushell is the AI-preferred structured shell (in-process nu-* behind a
+    `nushell` cargo feature); ranking Vox-native default → Nushell → system shell over PTY.
+    Build the `ShellBackend` seam in Task 1.5 so Track 6 slots Nushell in.
+
 STOP-AND-ASK GATES (do not resolve these yourself):
-  - G-LEGAL: is vox-term AGPL? (Default: no → clean-room.) 
-  - G-SHELL: which underlying shell is "ideal for LLM generation"? (2–3 targeted fetches only.)
+  - G-LEGAL: is vox-term AGPL? (Default: no → clean-room.)
   - G-PRIV: the training-corpus consent/opt-in model.
+  - G-WARP: scope of reference-reading Warp's AGPL crates (reference only, never vendor).
   Pause and ask the owner when you reach each.
+
+ORCHESTRATION (see plan §4):
+  - T1 is sequential, one task at a time, via subagent-driven-development; the MAIN
+    session writes/verifies/commits (subagents are read-only here — never assume parallel
+    writers). After Task 1.10 freezes the API, T2–T5 may run in parallel worktrees the
+    main session owns. A multi-agent Workflow is allowed ONLY if the owner opts in.
 
 UNVERIFIED CAVEATS (read the named files before the affected task — see §14):
   - Exact feedback/HITL call signatures for Task 1.9 (read crates/vox-orchestrator/src/feedback/*).
