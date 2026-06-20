@@ -35,7 +35,10 @@ pub struct OutputChunk {
 
 impl OutputChunk {
     pub fn text(stream: Stream, s: impl Into<String>) -> Self {
-        Self { stream, text: s.into() }
+        Self {
+            stream,
+            text: s.into(),
+        }
     }
 }
 
@@ -67,7 +70,11 @@ impl Block {
 
     pub fn finish(&mut self, exit: i32) {
         self.exit_code = Some(exit);
-        self.status = if exit == 0 { BlockStatus::Ok } else { BlockStatus::Failed };
+        self.status = if exit == 0 {
+            BlockStatus::Ok
+        } else {
+            BlockStatus::Failed
+        };
     }
 
     /// Text projection for agent context + transcript: output with ANSI/VT
@@ -89,7 +96,7 @@ fn strip_ansi(s: &str) -> String {
             match chars.peek() {
                 Some('[') => {
                     chars.next(); // consume '['
-                    // CSI: consume until a byte in 0x40–0x7E
+                                  // CSI: consume until a byte in 0x40–0x7E
                     for ch in chars.by_ref() {
                         if ('\x40'..='\x7e').contains(&ch) {
                             break;
@@ -98,7 +105,7 @@ fn strip_ansi(s: &str) -> String {
                 }
                 Some(']') => {
                     chars.next(); // consume ']'
-                    // OSC: consume until BEL (0x07) or ST (ESC \)
+                                  // OSC: consume until BEL (0x07) or ST (ESC \)
                     for ch in chars.by_ref() {
                         if ch == '\x07' {
                             break;

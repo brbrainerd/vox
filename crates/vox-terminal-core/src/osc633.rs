@@ -22,10 +22,7 @@ pub fn decode_command(enc: &str) -> String {
     let mut out = String::with_capacity(enc.len());
     let mut i = 0;
     while i < bytes.len() {
-        if bytes[i] == b'\\'
-            && bytes.get(i + 1) == Some(&b'x')
-            && i + 3 < bytes.len()
-        {
+        if bytes[i] == b'\\' && bytes.get(i + 1) == Some(&b'x') && i + 3 < bytes.len() {
             if let Ok(n) = u8::from_str_radix(&enc[i + 2..i + 4], 16) {
                 out.push(n as char);
                 i += 4;
@@ -122,7 +119,11 @@ impl Osc633Parser {
         events
     }
 
-    fn process_marker(&mut self, payload: &str, events: &mut Vec<Osc633Event>) -> Option<Osc633Event> {
+    fn process_marker(
+        &mut self,
+        payload: &str,
+        events: &mut Vec<Osc633Event>,
+    ) -> Option<Osc633Event> {
         // payload is everything after "633;"
         if let Some(rest) = payload.strip_prefix("633;") {
             match rest {

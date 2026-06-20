@@ -11,16 +11,33 @@ use crate::block::Block;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum TranscriptKind {
-    Submitted { intent: String, input: String },
-    Output { stream: String, text: String },
-    AgentTurn { text: String },
-    ExitStatus { code: i32 },
+    Submitted {
+        intent: String,
+        input: String,
+    },
+    Output {
+        stream: String,
+        text: String,
+    },
+    AgentTurn {
+        text: String,
+    },
+    ExitStatus {
+        code: i32,
+    },
     /// User accepted the block's output as useful training signal.
-    Accepted { block: Block },
+    Accepted {
+        block: Block,
+    },
     /// User rejected (thumbs-down) the block.
-    Rejected { block: Block },
+    Rejected {
+        block: Block,
+    },
     /// User corrected the output: `from` is what the model did, `to` is what they wanted.
-    Corrected { from: String, to: String },
+    Corrected {
+        from: String,
+        to: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -57,12 +74,16 @@ impl JournalSink {
     pub fn open(path: impl Into<std::path::PathBuf>) -> anyhow::Result<Self> {
         let opened = vox_journal::FileJournal::<TranscriptEvent>::open(path)
             .map_err(|e| anyhow::anyhow!("{e}"))?;
-        Ok(Self { journal: opened.journal })
+        Ok(Self {
+            journal: opened.journal,
+        })
     }
 }
 
 impl TranscriptSink for JournalSink {
     fn append(&self, event: &TranscriptEvent) -> anyhow::Result<()> {
-        self.journal.append(event).map_err(|e| anyhow::anyhow!("{e}"))
+        self.journal
+            .append(event)
+            .map_err(|e| anyhow::anyhow!("{e}"))
     }
 }

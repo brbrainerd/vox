@@ -11,7 +11,7 @@
 use std::io::Read;
 
 use anyhow::Result;
-use portable_pty::{Child, CommandBuilder, PtySize, native_pty_system};
+use portable_pty::{native_pty_system, Child, CommandBuilder, PtySize};
 use tokio::sync::mpsc;
 
 // ── Pure platform helpers (moved verbatim from vox-gui/src/commands/pty.rs) ──
@@ -141,9 +141,15 @@ impl PtyHandle {
 }
 
 impl ShellBackend for PtyHandle {
-    fn kind(&self) -> ShellKind { ShellKind::Pty }
-    fn write(&mut self, data: &[u8]) -> Result<()> { self.write(data) }
-    fn kill(&mut self) { self.kill() }
+    fn kind(&self) -> ShellKind {
+        ShellKind::Pty
+    }
+    fn write(&mut self, data: &[u8]) -> Result<()> {
+        self.write(data)
+    }
+    fn kill(&mut self) {
+        self.kill()
+    }
 }
 
 /// Spawn a PTY shell and return a handle + a receiver for raw output bytes.

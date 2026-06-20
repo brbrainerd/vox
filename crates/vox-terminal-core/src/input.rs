@@ -16,7 +16,10 @@ pub fn classify(raw: &str) -> InputIntent {
         return match name {
             "sh" | "shell" => InputIntent::Shell(args.trim().to_string()),
             "ai" | "agent" => InputIntent::Agent(args.trim().to_string()),
-            _ => InputIntent::Command { name: name.to_string(), args: args.trim().to_string() },
+            _ => InputIntent::Command {
+                name: name.to_string(),
+                args: args.trim().to_string(),
+            },
         };
     }
     InputIntent::VoxNative(t.to_string())

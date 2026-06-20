@@ -22,10 +22,7 @@ pub struct AgentAdapterConfig {
 /// Pure translation function — maps one `AgentEvent` → `SessionEvent` or `None`.
 ///
 /// Exposed as `pub` so tests can call it directly without a live orchestrator.
-pub fn translate_event(
-    ev: &AgentEvent,
-    cfg: &AgentAdapterConfig,
-) -> Option<SessionEvent> {
+pub fn translate_event(ev: &AgentEvent, cfg: &AgentAdapterConfig) -> Option<SessionEvent> {
     // Filter by agent_id if configured.
     if let Some(filter_id) = cfg.agent_id {
         let ev_agent = agent_id_of(ev)?;

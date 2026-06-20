@@ -13,11 +13,14 @@ use anyhow::{anyhow, Result};
 /// `eval_line("fn main() -> Int { 40 + 2 }")` → `"42"`.
 pub fn eval_line(src: &str) -> Result<String> {
     use vox_compiler::eval::Interpreter;
-    use vox_compiler::pipeline::{PipelineOptions, run_frontend_str_with_options};
+    use vox_compiler::pipeline::{run_frontend_str_with_options, PipelineOptions};
 
-    let options = PipelineOptions { script_mode: true, ..PipelineOptions::default() };
-    let res = run_frontend_str_with_options(src, "terminal.vox", &options)
-        .map_err(|e| anyhow!("{e}"))?;
+    let options = PipelineOptions {
+        script_mode: true,
+        ..PipelineOptions::default()
+    };
+    let res =
+        run_frontend_str_with_options(src, "terminal.vox", &options).map_err(|e| anyhow!("{e}"))?;
 
     if res.error_count() > 0 {
         let msgs: Vec<_> = res.diagnostics.iter().map(|d| format!("{d:?}")).collect();
