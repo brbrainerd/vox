@@ -35,9 +35,9 @@ interface QueueSnapshot {
 
 function Kpi({ label, value, tone }: { label: string; value: number; tone?: string }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
-      <div className={`font-display text-2xl ${tone ?? 'text-zinc-100'}`}>{value}</div>
-      <div className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-zinc-500">{label}</div>
+    <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-3">
+      <div className={`font-display text-2xl ${tone ?? 'text-text-primary'}`}>{value}</div>
+      <div className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-text-muted">{label}</div>
     </div>
   );
 }
@@ -113,12 +113,12 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
     <section className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="font-display text-lg tracking-wider text-zinc-100 uppercase">Vox Scientia</h2>
-          <p className="font-mono text-xs text-zinc-500">Publication pipeline queue snapshot</p>
+          <h2 className="font-display text-lg tracking-wider text-text-primary uppercase">Vox Scientia</h2>
+          <p className="font-mono text-xs text-text-muted">Publication pipeline queue snapshot</p>
         </div>
         <button
           type="button"
-          className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs uppercase tracking-wider hover:bg-white/[0.06] disabled:opacity-40"
+          className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-xs uppercase tracking-wider hover:bg-overlay-subtle disabled:opacity-40"
           disabled={loading}
           onClick={refresh}
         >
@@ -129,14 +129,14 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
       {/* Snapshot region: refetched on a 10s interval + event ping, so announce
           updates politely to assistive tech. */}
       <div aria-live="polite">
-        {!snap && <div className="font-mono text-xs text-zinc-500">Loading queue snapshot…</div>}
+        {!snap && <div className="font-mono text-xs text-text-muted">Loading queue snapshot…</div>}
 
         {snap && (
           <>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <Kpi label="Candidates" value={snap.candidates.total} />
               <Kpi label="Verifiable claims" value={snap.claims_pending.verifiable} tone="text-emerald-300" />
-              <Kpi label="Abstained claims" value={snap.claims_pending.abstained} tone="text-zinc-300" />
+              <Kpi label="Abstained claims" value={snap.claims_pending.abstained} tone="text-text-secondary" />
               <Kpi label="Extraction pending" value={snap.claims_pending.extraction_running} tone="text-amber-300" />
               <Kpi label="Reply window" value={snap.manifests_in_reply_window.length} />
               <Kpi label="Retraction queue" value={snap.retraction_queue.length} tone="text-red-300" />
@@ -144,12 +144,12 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
             </div>
 
             {Object.keys(snap.candidates.by_class).length > 0 && (
-              <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
-                <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-zinc-500">Candidates by class</div>
+              <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-3">
+                <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-text-muted">Candidates by class</div>
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(snap.candidates.by_class).map(([cls, n]) => (
-                    <span key={cls} className="rounded bg-white/5 px-2 py-0.5 font-mono text-[11px] text-zinc-300">
-                      {cls} <span className="text-zinc-500">{n}</span>
+                    <span key={cls} className="rounded bg-overlay-subtle px-2 py-0.5 font-mono text-[11px] text-text-secondary">
+                      {cls} <span className="text-text-muted">{n}</span>
                     </span>
                   ))}
                 </div>
@@ -157,15 +157,15 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
             )}
 
             {snap.candidates.top_5_by_confidence.length > 0 && (
-              <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
-                <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-zinc-500">Top candidates</div>
+              <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-3">
+                <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-text-muted">Top candidates</div>
                 <div className="space-y-1">
                   {snap.candidates.top_5_by_confidence.map((c) => (
                     <div key={c.candidate_id} className="flex items-center gap-2 font-mono text-[11px]">
                       <span className="text-cyan">{c.confidence.toFixed(2)}</span>
-                      <span className="text-zinc-300">{c.candidate_id}</span>
-                      <span className="text-zinc-500">{c.candidate_class}</span>
-                      <span className="ml-auto text-zinc-400">{c.state}</span>
+                      <span className="text-text-secondary">{c.candidate_id}</span>
+                      <span className="text-text-muted">{c.candidate_class}</span>
+                      <span className="ml-auto text-text-muted">{c.state}</span>
                     </div>
                   ))}
                 </div>
@@ -178,8 +178,8 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
                 <div className="space-y-1">
                   {snap.stalls.map((s) => (
                     <div key={s.candidate_id} className="flex items-center gap-2 font-mono text-[11px]">
-                      <span className="text-zinc-300">{s.candidate_id}</span>
-                      <span className="text-zinc-500">{s.class}</span>
+                      <span className="text-text-secondary">{s.candidate_id}</span>
+                      <span className="text-text-muted">{s.class}</span>
                       <span className="ml-auto text-amber-300/80">{Math.round(s.stuck_for_ms / 86_400_000)}d stuck</span>
                     </div>
                   ))}
@@ -193,19 +193,19 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
       <ArchiveStatusSummary />
 
       {cost && (
-        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
+        <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-3">
           <div className="mb-2 flex items-center justify-between">
-            <div className="font-mono text-[10px] uppercase tracking-wider text-zinc-500">
+            <div className="font-mono text-[10px] uppercase tracking-wider text-text-muted">
               Cost this quarter
             </div>
-            <div className="font-mono text-[10px] text-zinc-500">
+            <div className="font-mono text-[10px] text-text-muted">
               avg/finding{' '}
-              <span className="text-zinc-300">${cost.per_finding_average_usd.toFixed(2)}</span>
+              <span className="text-text-secondary">${cost.per_finding_average_usd.toFixed(2)}</span>
             </div>
           </div>
 
           {cost.this_quarter.total_usd === 0 && cost.by_provider.length === 0 ? (
-            <div className="font-mono text-[11px] text-zinc-500">
+            <div className="font-mono text-[11px] text-text-muted">
               No cost recorded this quarter.
             </div>
           ) : (
@@ -215,7 +215,7 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
                   <div
                     key={r.label}
                     className={`flex items-center justify-between font-mono text-[11px] ${
-                      r.label === 'Total' ? 'border-t border-white/10 pt-1 text-zinc-200' : 'text-zinc-400'
+                      r.label === 'Total' ? 'border-t border-border-subtle pt-1 text-text-secondary' : 'text-text-muted'
                     }`}
                   >
                     <span>{r.label}</span>
@@ -225,21 +225,21 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
               </div>
 
               <div className="space-y-1">
-                <div className="font-mono text-[10px] uppercase tracking-wider text-zinc-500">
+                <div className="font-mono text-[10px] uppercase tracking-wider text-text-muted">
                   By provider
                 </div>
                 {providerRows(cost).length > 0 ? (
                   providerRows(cost).map((p) => (
                     <div
                       key={p.provider}
-                      className="flex items-center justify-between font-mono text-[11px] text-zinc-400"
+                      className="flex items-center justify-between font-mono text-[11px] text-text-muted"
                     >
                       <span>{p.provider}</span>
-                      <span className="text-zinc-300">{p.usd}</span>
+                      <span className="text-text-secondary">{p.usd}</span>
                     </div>
                   ))
                 ) : (
-                  <div className="font-mono text-[11px] text-zinc-500">No provider spend.</div>
+                  <div className="font-mono text-[11px] text-text-muted">No provider spend.</div>
                 )}
               </div>
             </div>

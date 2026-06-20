@@ -19,7 +19,7 @@ function defaultIsEmpty<T>(data: T): boolean {
 
 function DefaultLoading() {
   return (
-    <div className="flex items-center justify-center p-4 text-sm text-zinc-400" role="status" aria-live="polite">
+    <div className="flex items-center justify-center p-4 text-sm text-text-muted" role="status" aria-live="polite">
       Loading…
     </div>
   );
@@ -27,7 +27,7 @@ function DefaultLoading() {
 
 function DefaultEmpty() {
   return (
-    <div className="flex items-center justify-center p-4 text-sm text-zinc-500">
+    <div className="flex items-center justify-center p-4 text-sm text-text-muted">
       No results
     </div>
   );

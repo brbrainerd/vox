@@ -40,16 +40,16 @@ export function AchievementsDrawer({
         role="dialog"
         aria-label="Achievements"
         aria-modal="true"
-        className="flex h-full w-full max-w-md flex-col rounded-none border-l border-white/10 shadow-2xl"
+        className="flex h-full w-full max-w-md flex-col rounded-none border-l border-border-subtle shadow-2xl"
         inset={false}
       >
-        <header className="flex items-center justify-between border-b border-white/5 px-5 py-4">
+        <header className="flex items-center justify-between border-b border-border-subtle px-5 py-4">
           <div>
-            <h2 className="font-display text-sm uppercase tracking-[0.2em] text-zinc-100">
+            <h2 className="font-display text-sm uppercase tracking-[0.2em] text-text-primary">
               Achievements
             </h2>
             {profile && (
-              <p className="mt-1 font-mono text-[11px] text-zinc-500">
+              <p className="mt-1 font-mono text-[11px] text-text-muted">
                 Lv {profile.level} · {profile.xp} XP
               </p>
             )}
@@ -58,7 +58,7 @@ export function AchievementsDrawer({
             type="button"
             onClick={onClose}
             aria-label="Close achievements"
-            className="rounded-md border border-white/10 p-1.5 text-zinc-400 hover:text-zinc-100"
+            className="rounded-md border border-border-subtle p-1.5 text-text-muted hover:text-text-primary"
           >
             <Icon.x className="size-4" aria-hidden="true" />
           </button>
@@ -68,17 +68,17 @@ export function AchievementsDrawer({
           {profile ? (
             <LudusHud profile={profile} />
           ) : (
-            <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 text-sm text-zinc-500">
+            <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-4 text-sm text-text-muted">
               No profile yet — complete tasks to earn XP.
             </div>
           )}
         </div>
 
-        <footer className="border-t border-white/5 p-4">
+        <footer className="border-t border-border-subtle p-4">
           <button
             type="button"
             onClick={onManageInSettings}
-            className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-zinc-300 hover:bg-white/[0.06] hover:text-brass transition"
+            className="w-full rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-2 text-xs text-text-secondary hover:bg-overlay-subtle hover:text-brass transition"
           >
             Manage in Settings
           </button>

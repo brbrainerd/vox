@@ -28,7 +28,7 @@ function KPI({ label, value, unit, delta, color, spark, icon, sub, onClick }: KP
   const deltaPos = delta != null && delta >= 0;
   const inner = (
     <div className="flex items-center gap-3 px-4 py-2 first:pl-5 last:pr-5">
-      <div className={`flex size-9 items-center justify-center rounded-lg bg-white/[0.03] ring-1 ring-border-subtle ${color}`}>
+      <div className={`flex size-9 items-center justify-center rounded-lg bg-overlay-subtle ring-1 ring-border-subtle ${color}`}>
         {icon}
       </div>
       <div className="flex flex-col leading-none">

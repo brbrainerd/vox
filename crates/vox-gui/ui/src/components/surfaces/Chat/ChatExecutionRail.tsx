@@ -44,21 +44,21 @@ function Segment({
   onClick?: () => void;
 }) {
   const className =
-    'inline-flex w-full items-center justify-between gap-2 rounded px-2 py-1 text-[10px] text-zinc-400 transition hover:bg-white/[0.04] hover:text-zinc-200';
+    'inline-flex w-full items-center justify-between gap-2 rounded px-2 py-1 text-[10px] text-text-muted transition hover:bg-overlay-subtle hover:text-text-secondary';
 
   if (onClick) {
     return (
       <button type="button" data-testid={testId} onClick={onClick} className={className}>
-        <span className="uppercase tracking-[0.14em] text-zinc-500">{label}</span>
-        <span className="font-mono tabular-nums text-zinc-200">{value}</span>
+        <span className="uppercase tracking-[0.14em] text-text-muted">{label}</span>
+        <span className="font-mono tabular-nums text-text-secondary">{value}</span>
       </button>
     );
   }
 
   return (
     <div data-testid={testId} className={className}>
-      <span className="uppercase tracking-[0.14em] text-zinc-500">{label}</span>
-      <span className="font-mono tabular-nums text-zinc-200">{value}</span>
+      <span className="uppercase tracking-[0.14em] text-text-muted">{label}</span>
+      <span className="font-mono tabular-nums text-text-secondary">{value}</span>
     </div>
   );
 }
@@ -114,7 +114,7 @@ export function ChatExecutionRail({
             aria-label="Collapse execution rail"
             aria-expanded={true}
             onClick={() => setCollapsed(true)}
-            className="rounded p-1 text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-300 transition"
+            className="rounded p-1 text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
           >
             <span className="font-mono text-xs" aria-hidden="true">
               «
@@ -128,17 +128,17 @@ export function ChatExecutionRail({
           className="flex min-h-0 flex-1 flex-col gap-2"
         >
           {tasks.length === 0 ? (
-            <p className="text-[11px] text-zinc-500">No active tasks for this session.</p>
+            <p className="text-[11px] text-text-muted">No active tasks for this session.</p>
           ) : (
             <ul className="flex flex-col gap-1.5 overflow-y-auto custom-scrollbar">
               {tasks.map(task => (
                 <li
                   key={task.id}
-                  className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-2"
+                  className="rounded-lg border border-border-subtle bg-overlay-subtle px-2.5 py-2"
                 >
-                  <p className="text-xs text-zinc-200 leading-snug">{task.title}</p>
+                  <p className="text-xs text-text-secondary leading-snug">{task.title}</p>
                   {task.status && (
-                    <p className="mt-0.5 text-[10px] uppercase tracking-[0.12em] text-zinc-500">
+                    <p className="mt-0.5 text-[10px] uppercase tracking-[0.12em] text-text-muted">
                       {task.status}
                     </p>
                   )}
@@ -152,7 +152,7 @@ export function ChatExecutionRail({
           <section
             role="region"
             aria-label="Intent map"
-            className="flex flex-col gap-1 border-t border-white/[0.06] pt-3"
+            className="flex flex-col gap-1 border-t border-border-subtle pt-3"
           >
             {intents.slice(0, 3).map(intent => (
               <button
@@ -160,7 +160,7 @@ export function ChatExecutionRail({
                 type="button"
                 aria-label={intent}
                 onClick={() => onNavigate('matrix')}
-                className="rounded px-2 py-1 text-left text-[11px] text-zinc-300 transition hover:bg-white/[0.04] hover:text-brass"
+                className="rounded px-2 py-1 text-left text-[11px] text-text-secondary transition hover:bg-overlay-subtle hover:text-brass"
               >
                 {intent}
               </button>
@@ -168,7 +168,7 @@ export function ChatExecutionRail({
           </section>
         )}
 
-        <section aria-label="Resource strip" className="flex flex-col gap-1 border-t border-white/[0.06] pt-3">
+        <section aria-label="Resource strip" className="flex flex-col gap-1 border-t border-border-subtle pt-3">
           <Kpi
             data-testid="execution-rail-agents"
             label="Agents"

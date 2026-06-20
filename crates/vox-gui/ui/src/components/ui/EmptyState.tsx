@@ -14,7 +14,7 @@ export interface EmptyStateProps {
 }
 
 const DEFAULT_ICONS = {
-  'no-data': <Icon.alert className="size-8 text-zinc-500" />,
+  'no-data': <Icon.alert className="size-8 text-text-muted" />,
   'no-permission': <Icon.x className="size-8 text-red-400" />,
   'no-connection': <Icon.bolt className="size-8 text-amber-400" />,
   'error': <Icon.alert className="size-8 text-red-500" />,
@@ -42,8 +42,8 @@ export function EmptyState({
       <div className="flex justify-center mb-1">
         {icon || DEFAULT_ICONS[variant]}
       </div>
-      <h3 className="font-display text-sm tracking-widest uppercase text-zinc-200">{title}</h3>
-      {description && <p className="text-xs text-zinc-500 leading-relaxed max-w-sm">{description}</p>}
+      <h3 className="font-display text-sm tracking-widest uppercase text-text-secondary">{title}</h3>
+      {description && <p className="text-xs text-text-muted leading-relaxed max-w-sm">{description}</p>}
       
       {children}
 

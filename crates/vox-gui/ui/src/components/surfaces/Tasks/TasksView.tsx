@@ -138,7 +138,7 @@ export function TasksView({
       key: 'id',
       header: 'Task ID',
       width: 80,
-      render: (r: TaskRow) => <span className="font-mono text-zinc-400">#{r.id}</span>,
+      render: (r: TaskRow) => <span className="font-mono text-text-muted">#{r.id}</span>,
     },
     {
       key: 'description',
@@ -156,7 +156,7 @@ export function TasksView({
                   if (e.key === 'Enter') saveEdit(r.id);
                   if (e.key === 'Escape') setEditingId(null);
                 }}
-                className="bg-zinc-950 border border-white/10 rounded px-2 py-1 text-zinc-100 w-full outline-none focus:border-brass text-[13px]"
+                className="bg-bg-base border border-border-subtle rounded px-2 py-1 text-text-primary w-full outline-none focus:border-brass text-[13px]"
                 autoFocus
               />
             ) : (
@@ -169,7 +169,7 @@ export function TasksView({
                     useLudusStore.getState().setFocusedFile(r.write_files[0]);
                   }
                 }}
-                className="hover:text-brass cursor-pointer truncate text-[13px] text-zinc-200 bg-transparent border-0 p-0 text-left w-full outline-none focus-visible:ring-1 focus-visible:ring-brass"
+                className="hover:text-brass cursor-pointer truncate text-[13px] text-text-secondary bg-transparent border-0 p-0 text-left w-full outline-none focus-visible:ring-1 focus-visible:ring-brass"
                 title={r.description}
                 aria-label={`Edit task description: ${r.description}`}
               >
@@ -178,7 +178,7 @@ export function TasksView({
             )}
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-600">
+            <span className="font-mono text-[9px] uppercase tracking-widest text-text-muted">
               #{r.id}
               {r.agent_id != null ? ` · agent ${r.agent_id}` : ''}
               {' · '}
@@ -187,7 +187,7 @@ export function TasksView({
             {r.depends_on.length > 0 && (
               <span
                 title="Runs after the listed task(s) complete"
-                className="rounded border border-white/10 bg-white/[0.03] px-1 font-mono text-[9px] text-zinc-400"
+                className="rounded border border-border-subtle bg-overlay-subtle px-1 font-mono text-[9px] text-text-muted"
               >
                 → after #{r.depends_on.join(', #')}
               </span>
@@ -225,7 +225,7 @@ export function TasksView({
             disabled={busy}
             title="Cancel task"
           >
-            <Icon.x className="size-3.5 text-zinc-400 hover:text-red-400 transition" />
+            <Icon.x className="size-3.5 text-text-muted hover:text-red-400 transition" />
           </Button>
         </div>
       ),
@@ -236,8 +236,8 @@ export function TasksView({
     <div className="flex flex-col gap-4 p-6 h-full overflow-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-[15px] font-medium text-zinc-100">Tasks</h1>
-          <p className="text-[11px] text-zinc-500">
+          <h1 className="text-[15px] font-medium text-text-primary">Tasks</h1>
+          <p className="text-[11px] text-text-muted">
             Everything queued or running across the agent fleet. Chat submissions land here.
           </p>
         </div>
@@ -247,13 +247,13 @@ export function TasksView({
           onClick={refresh}
           aria-label="Refresh tasks"
           title="Refresh"
-          className="border border-white/10 text-zinc-400 hover:bg-white/[0.05]"
+          className="border border-border-subtle text-text-muted hover:bg-overlay-subtle"
         >
           <Icon.refresh className="size-4" />
         </Button>
       </div>
 
-      <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2">
+      <div className="flex items-center gap-2 rounded-xl border border-border-subtle bg-overlay-subtle px-3 py-2">
         <Icon.plus className="size-4 text-brass" />
         <input
           type="text"
@@ -264,7 +264,7 @@ export function TasksView({
           onKeyDown={e => {
             if (e.key === 'Enter') addTask();
           }}
-          className="flex-1 bg-transparent text-[13px] text-zinc-100 placeholder:text-zinc-600 outline-none"
+          className="flex-1 bg-transparent text-[13px] text-text-primary placeholder:text-text-muted outline-none"
         />
         <Button variant="primary" size="sm" onClick={addTask} disabled={busy || !newTask.trim()}>
           Add
@@ -285,7 +285,7 @@ export function TasksView({
                 className={`rounded-full border px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-widest transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-brass/40 ${
                   active
                     ? 'border-brass/40 bg-brass/10 text-brass'
-                    : 'border-white/5 bg-white/[0.01] text-zinc-500 hover:border-white/10 hover:text-zinc-400'
+                    : 'border-border-subtle bg-overlay-subtle text-text-muted hover:border-border-subtle hover:text-text-muted'
                 }`}
               >
                 {label}

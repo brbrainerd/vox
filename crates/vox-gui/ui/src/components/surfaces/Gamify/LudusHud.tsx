@@ -3,13 +3,13 @@ import { LudusProfile, xpBarPct } from '../../../lib/ludus';
 
 export function LudusHud({ profile }: { profile: LudusProfile }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+    <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-4">
       <div className="flex items-baseline justify-between">
         <div className="font-display text-sm tracking-wider text-brass uppercase">{profile.full_title}</div>
-        <div className="font-mono text-[11px] text-zinc-500">Lv {profile.level} · prestige {profile.prestige_level}</div>
+        <div className="font-mono text-[11px] text-text-muted">Lv {profile.level} · prestige {profile.prestige_level}</div>
       </div>
       <div
-        className="mt-3 h-2 overflow-hidden rounded-full bg-white/[0.05]"
+        className="mt-3 h-2 overflow-hidden rounded-full bg-overlay-subtle"
         role="progressbar"
         aria-label="XP progress"
         aria-valuenow={Math.round(Math.max(0, Math.min(1, profile.xp_progress)) * 100)}
@@ -18,7 +18,7 @@ export function LudusHud({ profile }: { profile: LudusProfile }) {
       >
         <div className="h-full rounded-full bg-brass/70 transition-all" style={{ width: xpBarPct(profile.xp_progress) }} />
       </div>
-      <div className="mt-1 flex justify-between font-mono text-[10px] text-zinc-500">
+      <div className="mt-1 flex justify-between font-mono text-[10px] text-text-muted">
         <span>{profile.xp} XP</span>
         <span>{profile.xp_to_next_level} to next</span>
       </div>
@@ -34,9 +34,9 @@ export function LudusHud({ profile }: { profile: LudusProfile }) {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg bg-white/[0.02] px-2 py-1.5 ring-1 ring-white/5">
-      <div className="text-[9px] uppercase tracking-wide text-zinc-500">{label}</div>
-      <div className="font-mono text-zinc-200">{value}</div>
+    <div className="rounded-lg bg-overlay-subtle px-2 py-1.5 ring-1 ring-white/5">
+      <div className="text-[9px] uppercase tracking-wide text-text-muted">{label}</div>
+      <div className="font-mono text-text-secondary">{value}</div>
     </div>
   );
 }

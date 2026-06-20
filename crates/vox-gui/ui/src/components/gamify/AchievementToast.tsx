@@ -22,8 +22,8 @@ export function AchievementToast({ title, body, autoDismissMs, onDismiss }: Achi
         <Icon.spark className="size-3.5" aria-hidden="true" />
       </div>
       <div className="min-w-0 flex-1 leading-tight">
-        <div className="font-display text-[12px] tracking-wide text-zinc-100">{title}</div>
-        {body && <div className="mt-0.5 text-[11px] text-zinc-400">{body}</div>}
+        <div className="font-display text-[12px] tracking-wide text-text-primary">{title}</div>
+        {body && <div className="mt-0.5 text-[11px] text-text-muted">{body}</div>}
       </div>
     </Glass>
   );

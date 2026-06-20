@@ -18,7 +18,7 @@ function verdictTone(verdict: string | null): string {
   if (v.includes('support')) return 'text-emerald-300/90';
   if (v.includes('refut') || v.includes('contradict')) return 'text-rose-300/90';
   if (v.includes('novel')) return 'text-violet-300/90';
-  return 'text-zinc-400';
+  return 'text-text-muted';
 }
 
 /**
@@ -217,24 +217,24 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
       {/* header + publication input */}
       <div className="flex items-end justify-between">
         <div>
-          <h2 className="font-display text-lg tracking-wider text-zinc-100 uppercase">Discovery Review</h2>
-          <p className="font-mono text-xs text-zinc-500">
+          <h2 className="font-display text-lg tracking-wider text-text-primary uppercase">Discovery Review</h2>
+          <p className="font-mono text-xs text-text-muted">
             Human-gated review of extracted claims before nanopublication. Nothing is published to any network.
           </p>
         </div>
         <label className="flex items-center gap-2">
-          <span className="font-mono text-[10px] uppercase tracking-wider text-zinc-500">Publication</span>
+          <span className="font-mono text-[10px] uppercase tracking-wider text-text-muted">Publication</span>
           <input
             value={pubId}
             onChange={(e) => setPubId(e.target.value)}
             placeholder="publication id"
-            className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 font-mono text-[12px] text-zinc-200 placeholder:text-zinc-600 focus:border-brass/40 focus:outline-none"
+            className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-mono text-[12px] text-text-secondary placeholder:text-text-muted focus:border-brass/40 focus:outline-none"
           />
           <button
             type="button"
             onClick={refresh}
             disabled={loading}
-            className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs uppercase tracking-wider hover:bg-white/[0.06] disabled:opacity-40"
+            className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-xs uppercase tracking-wider hover:bg-overlay-subtle disabled:opacity-40"
           >
             {loading ? 'Loading…' : 'Refresh'}
           </button>
@@ -243,20 +243,20 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
 
       <div className="grid gap-4" style={{ gridTemplateColumns: '360px 1fr' }}>
         {/* LIST */}
-        <div className="flex flex-col overflow-hidden rounded-xl border border-white/10 bg-white/[0.02]">
-          <div className="flex items-center justify-between border-b border-white/5 px-4 py-3">
-            <span className="font-display text-[10px] uppercase tracking-[0.2em] text-zinc-400">
+        <div className="flex flex-col overflow-hidden rounded-xl border border-border-subtle bg-overlay-subtle">
+          <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3">
+            <span className="font-display text-[10px] uppercase tracking-[0.2em] text-text-muted">
               Awaiting Review ({queue.length})
             </span>
           </div>
           <div className="flex flex-col" aria-live="polite">
             {!pubId.trim() && (
-              <div className="px-4 py-8 text-center font-mono text-[11px] text-zinc-600">
+              <div className="px-4 py-8 text-center font-mono text-[11px] text-text-muted">
                 Enter a publication id to load its review queue.
               </div>
             )}
             {pubId.trim() && queue.length === 0 && !loading && (
-              <div className="px-4 py-8 text-center font-mono text-[11px] text-zinc-600">
+              <div className="px-4 py-8 text-center font-mono text-[11px] text-text-muted">
                 No claims awaiting review.
               </div>
             )}
@@ -272,8 +272,8 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
                     setReason('');
                     setSuggestions([]);
                   }}
-                  className={`relative border-b border-white/5 px-4 py-3 text-left transition ${
-                    active ? 'bg-white/[0.04]' : 'hover:bg-white/[0.02]'
+                  className={`relative border-b border-border-subtle px-4 py-3 text-left transition ${
+                    active ? 'bg-overlay-subtle' : 'hover:bg-overlay-subtle'
                   }`}
                 >
                   {active && (
@@ -283,11 +283,11 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
                     />
                   )}
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-[11px] text-zinc-500">#{c.claim_id}</span>
+                    <span className="font-mono text-[11px] text-text-muted">#{c.claim_id}</span>
                     <span className={`font-mono text-[10px] ${verdictTone(c.verdict)}`}>{c.verdict ?? 'unverified'}</span>
                   </div>
-                  <div className="mt-1 text-[12.5px] leading-snug text-zinc-300">{c.text}</div>
-                  <div className="mt-1.5 flex items-center gap-2 font-mono text-[10px] text-zinc-500">
+                  <div className="mt-1 text-[12.5px] leading-snug text-text-secondary">{c.text}</div>
+                  <div className="mt-1.5 flex items-center gap-2 font-mono text-[10px] text-text-muted">
                     {c.confidence != null && <span className="text-brass"><span aria-hidden="true">★</span> {c.confidence.toFixed(2)}</span>}
                     {c.is_numeric && <span>numeric</span>}
                   </div>
@@ -298,48 +298,48 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
         </div>
 
         {/* DETAIL */}
-        <div className="flex flex-col overflow-hidden rounded-xl border border-white/10 bg-white/[0.02]">
-          <div className="flex items-center justify-between border-b border-white/5 px-5 py-3">
-            <span className="font-display text-[10px] uppercase tracking-[0.2em] text-zinc-400">Claim Detail</span>
-            {selected && <span className="font-mono text-[10px] text-zinc-600">claim #{selected.claim_id}</span>}
+        <div className="flex flex-col overflow-hidden rounded-xl border border-border-subtle bg-overlay-subtle">
+          <div className="flex items-center justify-between border-b border-border-subtle px-5 py-3">
+            <span className="font-display text-[10px] uppercase tracking-[0.2em] text-text-muted">Claim Detail</span>
+            {selected && <span className="font-mono text-[10px] text-text-muted">claim #{selected.claim_id}</span>}
           </div>
 
           {!selected && (
-            <div className="px-5 py-10 text-center font-mono text-[11px] text-zinc-600">
+            <div className="px-5 py-10 text-center font-mono text-[11px] text-text-muted">
               Select a claim to review.
             </div>
           )}
 
           {selected && (
             <div className="flex flex-col gap-4 p-5">
-              <blockquote className="border-l-2 border-brass/40 pl-4 text-[15px] leading-relaxed text-zinc-100">
+              <blockquote className="border-l-2 border-brass/40 pl-4 text-[15px] leading-relaxed text-text-primary">
                 “{selected.text}”
               </blockquote>
 
               <div className="grid grid-cols-2 gap-x-8 gap-y-2 font-mono text-[11px]">
-                <div className="flex justify-between border-b border-white/5 pb-1">
-                  <span className="text-zinc-500">Verdict</span>
+                <div className="flex justify-between border-b border-border-subtle pb-1">
+                  <span className="text-text-muted">Verdict</span>
                   <span className={verdictTone(selected.verdict)}>{selected.verdict ?? 'unverified'}</span>
                 </div>
-                <div className="flex justify-between border-b border-white/5 pb-1">
-                  <span className="text-zinc-500">Confidence</span>
+                <div className="flex justify-between border-b border-border-subtle pb-1">
+                  <span className="text-text-muted">Confidence</span>
                   <span className="text-brass">{selected.confidence != null ? selected.confidence.toFixed(2) : '—'}</span>
                 </div>
-                <div className="flex justify-between border-b border-white/5 pb-1">
-                  <span className="text-zinc-500">Numeric</span>
-                  <span className="text-zinc-300">{selected.is_numeric ? 'yes' : 'no'}</span>
+                <div className="flex justify-between border-b border-border-subtle pb-1">
+                  <span className="text-text-muted">Numeric</span>
+                  <span className="text-text-secondary">{selected.is_numeric ? 'yes' : 'no'}</span>
                 </div>
-                <div className="flex justify-between border-b border-white/5 pb-1">
-                  <span className="text-zinc-500">Verifier</span>
-                  <span className="text-zinc-300">{selected.verifier_model ?? '—'}</span>
+                <div className="flex justify-between border-b border-border-subtle pb-1">
+                  <span className="text-text-muted">Verifier</span>
+                  <span className="text-text-secondary">{selected.verifier_model ?? '—'}</span>
                 </div>
               </div>
 
               {noveltyLoading && (
-                <div className="font-mono text-[11px] text-zinc-500">Loading novelty…</div>
+                <div className="font-mono text-[11px] text-text-muted">Loading novelty…</div>
               )}
               {!noveltyLoading && noveltyError && (
-                <div className="font-mono text-[11px] text-zinc-600">
+                <div className="font-mono text-[11px] text-text-muted">
                   Novelty evidence unavailable.
                 </div>
               )}
@@ -348,13 +348,13 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
               )}
 
               <div>
-                <label className="font-mono text-[10px] uppercase tracking-wider text-zinc-500">Reason (optional)</label>
+                <label className="font-mono text-[10px] uppercase tracking-wider text-text-muted">Reason (optional)</label>
                 <textarea
                   rows={2}
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="Why approve / reject / defer…"
-                  className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-[12px] text-zinc-200 placeholder:text-zinc-600 focus:border-brass/40 focus:outline-none"
+                  className="mt-1 w-full rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-2 text-[12px] text-text-secondary placeholder:text-text-muted focus:border-brass/40 focus:outline-none"
                 />
               </div>
 
@@ -379,7 +379,7 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
                   type="button"
                   disabled={busy}
                   onClick={() => decide('deferred')}
-                  className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.02] px-4 py-2 text-[12px] text-zinc-300 hover:bg-white/[0.05] disabled:opacity-40"
+                  className="flex items-center gap-1.5 rounded-lg border border-border-subtle bg-overlay-subtle px-4 py-2 text-[12px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
                 >
                   <span aria-hidden="true">⏸</span> Defer
                 </button>
@@ -402,8 +402,8 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
                     {suggestions.map((s, i) => (
                       <div key={i} className="font-mono text-[11px]">
                         <span className="text-violet-300/90">[{s.kind}]</span>{' '}
-                        <span className="text-zinc-200">{s.summary}</span>
-                        <div className="text-zinc-500">{s.rationale}</div>
+                        <span className="text-text-secondary">{s.summary}</span>
+                        <div className="text-text-muted">{s.rationale}</div>
                       </div>
                     ))}
                   </div>
@@ -424,7 +424,7 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
                     >
                       <span aria-hidden="true">⬆</span> Nanopublish (offline)
                     </button>
-                    <span className="font-mono text-[10px] text-zinc-500">
+                    <span className="font-mono text-[10px] text-text-muted">
                       builds + signs + offline-validates, stores locally · no network
                     </span>
                   </div>
@@ -447,25 +447,25 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
             aria-modal="true"
             aria-label={`Nanopublish claim #${selected.claim_id}`}
             onClick={(e) => e.stopPropagation()}
-            className="w-[460px] rounded-xl border border-white/10 bg-zinc-950/90 p-5 backdrop-blur-xl"
+            className="w-[460px] rounded-xl border border-border-subtle bg-bg-base/90 p-5 backdrop-blur-xl"
           >
             <div className="mb-1 font-display text-[11px] uppercase tracking-[0.2em] text-brass">
               Nanopublish claim #{selected.claim_id} (offline)
             </div>
-            <p className="text-[12.5px] leading-relaxed text-zinc-300">
+            <p className="text-[12.5px] leading-relaxed text-text-secondary">
               Builds + signs + offline-validates, stores locally. Nothing is sent to any network.
             </p>
             <div className="mt-4 grid grid-cols-[auto,1fr] gap-x-4 gap-y-1.5 font-mono text-[11px]">
-              <span className="text-zinc-500">Publication</span>
-              <span className="text-zinc-300">{pubId.trim()}</span>
-              <span className="text-zinc-500">Claim</span>
-              <span className="text-zinc-300">#{selected.claim_id}</span>
+              <span className="text-text-muted">Publication</span>
+              <span className="text-text-secondary">{pubId.trim()}</span>
+              <span className="text-text-muted">Claim</span>
+              <span className="text-text-secondary">#{selected.claim_id}</span>
             </div>
             <div className="mt-5 flex items-center justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setConfirmOpen(false)}
-                className="rounded-lg border border-white/10 bg-white/[0.02] px-4 py-2 text-[12px] text-zinc-300 hover:bg-white/5"
+                className="rounded-lg border border-border-subtle bg-overlay-subtle px-4 py-2 text-[12px] text-text-secondary hover:bg-overlay-subtle"
               >
                 Cancel
               </button>

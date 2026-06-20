@@ -31,15 +31,15 @@ export function Glass({
       {...buttonProps}
       {...rest}
       className={cn(
-        "relative border border-white/[0.06] bg-white/[0.025] backdrop-blur-2xl shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_24px_60px_-30px_rgba(0,0,0,0.9)]",
+        "relative border border-border-subtle bg-overlay-subtle backdrop-blur-2xl shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_24px_60px_-30px_rgba(0,0,0,0.9)]",
         isButton && "text-left bg-transparent border-0 p-0 outline-none w-full",
         SIZE_PADDING[size],
-        interactive && "hover:border-white/[0.12] hover:bg-white/[0.04] cursor-pointer transition-all duration-150 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brass/40",
+        interactive && "hover:border-border-subtle hover:bg-overlay-subtle cursor-pointer transition-all duration-150 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brass/40",
         className
       )}
     >
       {inset && (
-        <div className="pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-inset ring-white/[0.04]" />
+        <div className="pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-inset ring-overlay-subtle" />
       )}
       {children}
     </Comp>

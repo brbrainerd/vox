@@ -197,7 +197,7 @@ export function Sidebar({
               onClick={() => setFilterCollapsed(!filterCollapsed)}
               aria-expanded={!filterCollapsed}
               aria-label="Filter navigation"
-              className="flex w-full items-center justify-between rounded-lg border border-border-subtle px-2 py-1.5 text-[10px] uppercase tracking-[0.18em] text-zinc-500 hover:bg-overlay-subtle hover:text-text-secondary transition"
+              className="flex w-full items-center justify-between rounded-lg border border-border-subtle px-2 py-1.5 text-[10px] uppercase tracking-[0.18em] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
             >
               <span>Filter nav…</span>
               <Icon.chevronDown className={`size-3 transition ${filterCollapsed ? '' : 'rotate-180'}`} aria-hidden="true" />
@@ -210,7 +210,7 @@ export function Sidebar({
                 value={navFilter}
                 onChange={e => setNavFilter(e.target.value)}
                 placeholder="Filter nav…"
-                className="mt-1.5 w-full rounded-lg border border-border-subtle bg-white/[0.02] px-2.5 py-1.5 text-[11px] text-zinc-200 placeholder:text-zinc-600 focus:border-brass/30 focus:outline-none text-text-primary placeholder:text-text-muted bg-overlay-subtle border-border-subtle"
+                className="mt-1.5 w-full rounded-lg border border-border-subtle bg-overlay-subtle px-2.5 py-1.5 text-[11px] text-text-secondary placeholder:text-text-muted focus:border-brass/30 focus:outline-none text-text-primary placeholder:text-text-muted bg-overlay-subtle border-border-subtle"
               />
             )}
           </div>

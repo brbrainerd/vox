@@ -48,7 +48,7 @@ export function IsolationPanel({ status, onSetDefault, busy, unavailableNote }: 
 
   return (
     <section className="space-y-3">
-      <h3 className="font-display text-sm text-zinc-100 tracking-wider uppercase">
+      <h3 className="font-display text-sm text-text-primary tracking-wider uppercase">
         Multi-Agent Isolation
       </h3>
 
@@ -59,12 +59,12 @@ export function IsolationPanel({ status, onSetDefault, busy, unavailableNote }: 
       )}
 
       <div className="flex items-center gap-2">
-        <label className="text-xs text-zinc-400" htmlFor="isolation-default">
+        <label className="text-xs text-text-muted" htmlFor="isolation-default">
           Default strategy
         </label>
         <select
           id="isolation-default"
-          className="rounded-lg border border-white/10 bg-white/[0.03] px-2 py-1 text-sm text-zinc-200"
+          className="rounded-lg border border-border-subtle bg-overlay-subtle px-2 py-1 text-sm text-text-secondary"
           value={current}
           disabled={busy || !onSetDefault}
           onChange={(e) => {
@@ -78,16 +78,16 @@ export function IsolationPanel({ status, onSetDefault, busy, unavailableNote }: 
             </option>
           ))}
         </select>
-        <span className="text-xs text-zinc-500">active: {strategyLabel(current)}</span>
+        <span className="text-xs text-text-muted">active: {strategyLabel(current)}</span>
       </div>
 
       <div>
-        <h4 className="mb-1 text-xs text-zinc-400">Per-agent overrides</h4>
+        <h4 className="mb-1 text-xs text-text-muted">Per-agent overrides</h4>
         {agents.length === 0 ? (
-          <p className="text-xs text-zinc-500">No per-agent overrides.</p>
+          <p className="text-xs text-text-muted">No per-agent overrides.</p>
         ) : (
-          <table className="w-full text-left text-xs text-zinc-300">
-            <thead className="text-zinc-500">
+          <table className="w-full text-left text-xs text-text-secondary">
+            <thead className="text-text-muted">
               <tr>
                 <th className="py-1 pr-4">Agent</th>
                 <th className="py-1">Strategy</th>
@@ -95,7 +95,7 @@ export function IsolationPanel({ status, onSetDefault, busy, unavailableNote }: 
             </thead>
             <tbody>
               {agents.map((row) => (
-                <tr key={row.agentId} className="border-t border-white/5">
+                <tr key={row.agentId} className="border-t border-border-subtle">
                   <td className="py-1 pr-4 font-mono">A-{row.agentId}</td>
                   <td className="py-1">{strategyLabel(row.strategy)}</td>
                 </tr>
@@ -106,14 +106,14 @@ export function IsolationPanel({ status, onSetDefault, busy, unavailableNote }: 
       </div>
 
       <div>
-        <h4 className="mb-1 text-xs text-zinc-400">Active conflicts</h4>
+        <h4 className="mb-1 text-xs text-text-muted">Active conflicts</h4>
         {conflicts.length === 0 ? (
           <p className="text-xs text-emerald-300/80">No active conflicts</p>
         ) : (
           <ul className="space-y-1 text-xs text-rose-300">
             {conflicts.map((c) => (
               <li key={c.id} className="font-mono">
-                {c.path} <span className="text-zinc-500">— agents {c.sides.join(', ')}</span>
+                {c.path} <span className="text-text-muted">— agents {c.sides.join(', ')}</span>
               </li>
             ))}
           </ul>
@@ -131,7 +131,7 @@ export function IsolationPanel({ status, onSetDefault, busy, unavailableNote }: 
             <Button
               type="button"
               onClick={() => setPending(null)}
-              className="rounded-lg border border-white/10 px-3 py-1.5 text-sm text-zinc-300 hover:bg-white/5"
+              className="rounded-lg border border-border-subtle px-3 py-1.5 text-sm text-text-secondary hover:bg-overlay-subtle"
             >
               Cancel
             </Button>

@@ -8,7 +8,7 @@ const ACCENT_COLORS = {
   emerald: 'text-emerald-400',
   violet: 'text-violet-400',
   brass: 'text-brass',
-  zinc: 'text-zinc-400',
+  zinc: 'text-text-muted',
   sky: 'text-sky-400',
 };
 
@@ -54,22 +54,22 @@ export function Kpi({
       {...props}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] overline uppercase tracking-widest text-zinc-500 font-medium truncate">
+        <span className="text-[10px] overline uppercase tracking-widest text-text-muted font-medium truncate">
           {label}
         </span>
-        {icon && <span className="text-zinc-600 flex shrink-0">{icon}</span>}
+        {icon && <span className="text-text-muted flex shrink-0">{icon}</span>}
       </div>
 
       <div className="flex items-baseline gap-1 mt-1">
         <span className={cn("font-mono font-bold tracking-tight text-[18px] tabular-nums", ACCENT_COLORS[accent])}>
           {value}
         </span>
-        {unit && <span className="text-xs text-zinc-500 font-medium">{unit}</span>}
+        {unit && <span className="text-xs text-text-muted font-medium">{unit}</span>}
         
         {delta !== undefined && (
           <span className={cn(
             "ml-auto font-mono text-[10px] font-semibold flex items-center tabular-nums",
-            trend === 'up' ? 'text-emerald-400' : trend === 'down' ? 'text-red-400' : 'text-zinc-500'
+            trend === 'up' ? 'text-emerald-400' : trend === 'down' ? 'text-red-400' : 'text-text-muted'
           )}>
             {trend === 'up' ? '▲' : trend === 'down' ? '▼' : '■'}
             {Math.abs(delta)}
@@ -84,7 +84,7 @@ export function Kpi({
 
 Kpi.Sub = function KpiSub({ children }: { children: React.ReactNode }) {
   return (
-    <div className="text-[11px] text-zinc-500 mt-1 leading-none select-text">
+    <div className="text-[11px] text-text-muted mt-1 leading-none select-text">
       {children}
     </div>
   );

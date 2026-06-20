@@ -51,7 +51,7 @@ export function StatusPill({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full font-medium tracking-wide uppercase ring-1 bg-white/[0.02] shrink-0 select-none",
+        "inline-flex items-center gap-1.5 rounded-full font-medium tracking-wide uppercase ring-1 bg-overlay-subtle shrink-0 select-none",
         toneStyle.ring,
         toneStyle.text,
         SIZE_CLASS[size],

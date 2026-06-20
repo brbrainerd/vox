@@ -4,10 +4,10 @@ import { Slot } from '@radix-ui/react-slot';
 import { cn } from '../../lib/cn';
 
 const VARIANT_CLASS = {
-  primary: 'bg-brass text-zinc-950 hover:bg-brass-light active:bg-brass-dark disabled:opacity-50',
-  secondary: 'bg-white/[0.05] text-zinc-100 hover:bg-white/[0.1] active:bg-white/[0.15]',
-  ghost: 'bg-transparent text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.03]',
-  outline: 'bg-transparent border border-white/[0.08] text-zinc-300 hover:bg-white/[0.03]',
+  primary: 'bg-brass text-bg-base hover:bg-brass-light active:bg-brass-dark disabled:opacity-50',
+  secondary: 'bg-overlay-subtle text-text-primary hover:bg-overlay-subtle active:bg-overlay-subtle',
+  ghost: 'bg-transparent text-text-muted hover:text-text-primary hover:bg-overlay-subtle',
+  outline: 'bg-transparent border border-border-subtle text-text-secondary hover:bg-overlay-subtle',
   danger: 'bg-red-500 text-white hover:bg-red-600 active:bg-red-700',
 };
 

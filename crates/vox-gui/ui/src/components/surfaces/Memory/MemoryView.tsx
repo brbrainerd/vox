@@ -37,8 +37,8 @@ function CorpusChip({
       aria-label={`Scope: ${corpus.name}`}
       className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-mono text-[10px] transition ${
         active
-          ? 'border-white/15 bg-white/[0.04] text-zinc-100'
-          : 'border-white/5 bg-white/[0.01] text-zinc-500'
+          ? 'border-white/15 bg-overlay-subtle text-text-primary'
+          : 'border-border-subtle bg-overlay-subtle text-text-muted'
       }`}
     >
       <span aria-hidden="true" className={`size-1.5 rounded-full ${active ? 'bg-brass' : 'bg-white/15'}`} />
@@ -74,21 +74,21 @@ function HitCard({
 
   return (
     <div
-      className={`group flex items-start gap-3 rounded-md border border-white/5 bg-white/[0.02] p-3 hover:border-white/15 transition ${isOpenable ? 'cursor-pointer' : ''}`}
+      className={`group flex items-start gap-3 rounded-md border border-border-subtle bg-overlay-subtle p-3 hover:border-white/15 transition ${isOpenable ? 'cursor-pointer' : ''}`}
       onClick={isOpenable ? onOpen : undefined}
     >
-      <div className="flex size-7 shrink-0 items-center justify-center rounded bg-white/[0.03] text-zinc-400">
+      <div className="flex size-7 shrink-0 items-center justify-center rounded bg-overlay-subtle text-text-muted">
         {kindIcon[hit.kind] ?? <Icon.file className="size-3.5" />}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="font-mono text-[11px] text-zinc-300 truncate">{src}</span>
+          <span className="font-mono text-[11px] text-text-secondary truncate">{src}</span>
           {/* Show score instead of line number (no line field in UnifiedHit). */}
-          <span className="font-mono text-[9px] text-zinc-500">
+          <span className="font-mono text-[9px] text-text-muted">
             {(hit.score * 100).toFixed(1)}%
           </span>
         </div>
-        <div className="mt-1 text-[12px] leading-relaxed text-zinc-300 line-clamp-2">
+        <div className="mt-1 text-[12px] leading-relaxed text-text-secondary line-clamp-2">
           {segments.map((seg, i) =>
             seg.mark ? (
               <mark key={i} className="bg-brass/20 text-brass rounded px-0.5">{seg.text}</mark>
@@ -99,7 +99,7 @@ function HitCard({
         </div>
       </div>
       <div className="flex flex-col items-end gap-1">
-        <div className="h-1 w-16 overflow-hidden rounded-full bg-white/5">
+        <div className="h-1 w-16 overflow-hidden rounded-full bg-overlay-subtle">
           <div
             className="h-full bg-gradient-to-r from-violet-400 to-emerald-400"
             style={{ width: `${hit.score * 100}%` }}
@@ -110,7 +110,7 @@ function HitCard({
             <button
               type="button"
               onClick={e => { e.stopPropagation(); onOpen(); }}
-              className="rounded border border-white/10 bg-white/[0.02] px-1.5 py-0.5 font-mono text-[9px] text-zinc-300 hover:bg-white/5"
+              className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[9px] text-text-secondary hover:bg-overlay-subtle"
             >
               <Icon.link aria-hidden="true" className="size-2.5 inline mr-0.5" />open
             </button>
@@ -118,7 +118,7 @@ function HitCard({
           <button
             type="button"
             onClick={e => { e.stopPropagation(); onPin(); }}
-            className="rounded border border-white/10 bg-white/[0.02] px-1.5 py-0.5 font-mono text-[9px] text-zinc-300 hover:bg-white/5"
+            className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[9px] text-text-secondary hover:bg-overlay-subtle"
           >
             <Icon.pin aria-hidden="true" className="size-2.5 inline mr-0.5" />pin
           </button>
@@ -302,10 +302,10 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
       <Glass className="col-span-12 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">
+            <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">
               Mnemosyne · Memory
             </h2>
-            <p className="mt-0.5 text-[11px] text-zinc-500">
+            <p className="mt-0.5 text-[11px] text-text-muted">
               Vector + symbolic recall · {scope.length} corpora active · {(totalEntries ?? 0).toLocaleString()} indexed entries
             </p>
           </div>
@@ -318,7 +318,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
               className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1.5 font-mono text-[10px] transition ${
                 recallOn
                   ? 'border-violet-400/40 bg-violet-400/10 text-violet-300'
-                  : 'border-white/10 bg-white/[0.02] text-zinc-400 hover:text-zinc-200'
+                  : 'border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-secondary'
               }`}
             >
               <Icon.eye aria-hidden="true" className="size-3" /> Auto-recall
@@ -330,7 +330,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
                   .then(() => pushToast({ tone: 'ok', title: 'Reindex complete', cmd: 'mnemosyne reindex' }))
                   .catch((err) => pushToast({ tone: 'warn', title: 'Reindex failed', body: String(err) }))
               }
-              className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.02] px-2 py-1.5 font-mono text-[10px] text-zinc-400 hover:text-zinc-200"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1.5 font-mono text-[10px] text-text-muted hover:text-text-secondary"
             >
               <Icon.refresh aria-hidden="true" className="size-3" /> Reindex
             </button>
@@ -338,22 +338,22 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
         </div>
 
         {/* Search bar */}
-        <div className="mt-4 flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2">
-          <Icon.search aria-hidden="true" className="size-3.5 text-zinc-500" />
+        <div className="mt-4 flex items-center gap-2 rounded-xl border border-border-subtle bg-overlay-subtle px-3 py-2">
+          <Icon.search aria-hidden="true" className="size-3.5 text-text-muted" />
           <input
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && recall()}
             aria-label="Recall query"
             placeholder="Recall… e.g. 'ed25519 invariants', 'checkpoint stall'"
-            className="flex-1 bg-transparent text-[13px] text-zinc-100 placeholder:text-zinc-600 outline-none"
+            className="flex-1 bg-transparent text-[13px] text-text-primary placeholder:text-text-muted outline-none"
           />
-          <span className="font-mono text-[10px] text-zinc-500">top</span>
+          <span className="font-mono text-[10px] text-text-muted">top</span>
           <input
             type="number" min={1} max={50} value={topK}
             onChange={e => setTopK(parseInt(e.target.value) || 8)}
             aria-label="Number of top hits"
-            className="w-12 rounded border border-white/10 bg-white/[0.02] px-1.5 py-0.5 text-center font-mono text-[11px] text-zinc-200 outline-none"
+            className="w-12 rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 text-center font-mono text-[11px] text-text-secondary outline-none"
           />
           <button
             type="button"
@@ -362,7 +362,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
             className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 font-display text-[10px] uppercase tracking-widest transition ${
               query.trim()
                 ? 'border-brass/40 bg-brass/15 text-brass hover:bg-brass/25'
-                : 'border-white/5 bg-white/[0.02] text-zinc-600 cursor-not-allowed'
+                : 'border-border-subtle bg-overlay-subtle text-text-muted cursor-not-allowed'
             }`}
           >
             {recalling ? '…' : 'Recall'}
@@ -371,7 +371,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
 
         {/* Scope chips — corpus vocabulary: memory / knowledge / chunk */}
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
-          <span className="font-display text-[9px] uppercase tracking-[0.22em] text-zinc-500">Scope</span>
+          <span className="font-display text-[9px] uppercase tracking-[0.22em] text-text-muted">Scope</span>
           {corpora.map(c => (
             <CorpusChip
               key={c.id}
@@ -386,8 +386,8 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
       {/* Recent recalls */}
       <Glass className="col-span-12 xl:col-span-4 p-5">
         <div className="flex items-center justify-between">
-          <h3 className="font-display text-[13px] uppercase tracking-[0.18em] text-zinc-200">Recent recalls</h3>
-          <Icon.clock className="size-3.5 text-zinc-500" />
+          <h3 className="font-display text-[13px] uppercase tracking-[0.18em] text-text-secondary">Recent recalls</h3>
+          <Icon.clock className="size-3.5 text-text-muted" />
         </div>
         <div
           ref={recallsRef}
@@ -418,13 +418,13 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
                     type="button"
                     onClick={() => { setQuery(r.q); recall(r.q); }}
                     aria-label={`Re-run recall: ${r.q}`}
-                    className="flex w-full items-center justify-between rounded-md border border-white/5 bg-white/[0.02] px-2.5 py-1.5 text-left hover:border-white/15 hover:bg-white/[0.04] transition"
+                    className="flex w-full items-center justify-between rounded-md border border-border-subtle bg-overlay-subtle px-2.5 py-1.5 text-left hover:border-white/15 hover:bg-overlay-subtle transition"
                   >
                     <div className="min-w-0">
-                      <div className="truncate text-[12px] text-zinc-200">{r.q}</div>
-                      <div className="font-mono text-[9px] text-zinc-500">{r.n} hits · {r.when} ago</div>
+                      <div className="truncate text-[12px] text-text-secondary">{r.q}</div>
+                      <div className="font-mono text-[9px] text-text-muted">{r.n} hits · {r.when} ago</div>
                     </div>
-                    <Icon.chevR className="size-3 text-zinc-500 shrink-0" />
+                    <Icon.chevR className="size-3 text-text-muted shrink-0" />
                   </button>
                 </div>
               );
@@ -436,8 +436,8 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
       {/* Hits */}
       <Glass className="col-span-12 xl:col-span-8 p-5">
         <div className="flex items-center justify-between">
-          <h3 className="font-display text-[13px] uppercase tracking-[0.18em] text-zinc-200">
-            Citations {hits.length > 0 && <span className="text-zinc-500">· {hits.length}</span>}
+          <h3 className="font-display text-[13px] uppercase tracking-[0.18em] text-text-secondary">
+            Citations {hits.length > 0 && <span className="text-text-muted">· {hits.length}</span>}
           </h3>
           {hits.length > 0 && (
             <button
@@ -452,15 +452,15 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
         <div className="mt-3 space-y-2" aria-label="Recall citations" aria-live="polite" aria-busy={recalling}>
           {recalling &&
             Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-12 rounded-md border border-white/5 bg-white/[0.02] relative overflow-hidden">
+              <div key={i} className="h-12 rounded-md border border-border-subtle bg-overlay-subtle relative overflow-hidden">
                 <span className="absolute inset-0 -translate-x-full animate-vox-shimmer bg-gradient-to-r from-transparent via-white/5 to-transparent" />
               </div>
             ))}
           {!recalling && hits.length === 0 && (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-white/10 bg-white/[0.01] py-12 text-center">
-              <Icon.memory className="size-6 text-zinc-600 mb-2" />
-              <div className="font-display text-[12px] tracking-wider text-zinc-400">No recall yet</div>
-              <div className="font-mono text-[10px] text-zinc-500">Type a query or click a recent recall</div>
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border-subtle bg-overlay-subtle py-12 text-center">
+              <Icon.memory className="size-6 text-text-muted mb-2" />
+              <div className="font-display text-[12px] tracking-wider text-text-muted">No recall yet</div>
+              <div className="font-mono text-[10px] text-text-muted">Type a query or click a recent recall</div>
             </div>
           )}
           {!recalling &&
@@ -479,8 +479,8 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
       {/* Memory shards */}
       <Glass className="col-span-12 p-5">
         <div className="flex items-center justify-between">
-          <h3 className="font-display text-[13px] uppercase tracking-[0.18em] text-zinc-200">Memory shards</h3>
-          <span className="font-mono text-[10px] text-zinc-500">
+          <h3 className="font-display text-[13px] uppercase tracking-[0.18em] text-text-secondary">Memory shards</h3>
+          <span className="font-mono text-[10px] text-text-muted">
             {(memStatus?.shards ?? []).length} live · HNSW
             {memStatus?.embedding_dim != null ? ` · dim ${memStatus.embedding_dim}` : ''}
           </span>
@@ -513,22 +513,22 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
                         className={`rounded-xl border p-3 transition hover:border-white/15 ${
                           s.hot   ? 'border-brass/30 bg-brass/[0.04]' :
                           s.dirty ? 'border-amber-400/30 bg-amber-400/[0.04]' :
-                                    'border-white/5 bg-white/[0.02]'
+                                    'border-border-subtle bg-overlay-subtle'
                         }`}
                       >
                         <div className="flex items-center justify-between">
-                          <span className="font-mono text-[11px] text-zinc-300">shard-{s.id}</span>
+                          <span className="font-mono text-[11px] text-text-secondary">shard-{s.id}</span>
                           {s.hot   && <span className="rounded-full bg-brass/15 px-1.5 py-0.5 font-display text-[9px] uppercase tracking-widest text-brass">hot</span>}
                           {s.dirty && <span className="rounded-full bg-amber-400/15 px-1.5 py-0.5 font-display text-[9px] uppercase tracking-widest text-amber-300">dirty</span>}
                         </div>
                         <div className="mt-2 grid grid-cols-2 gap-1.5 text-[9px]">
-                          <div className="rounded border border-white/5 bg-zinc-950/40 px-2 py-1.5">
-                            <div className="uppercase tracking-widest text-zinc-500">Depth</div>
-                            <div className="mt-0.5 font-mono text-[11px] text-zinc-200">{s.depth}</div>
+                          <div className="rounded border border-border-subtle bg-bg-base/40 px-2 py-1.5">
+                            <div className="uppercase tracking-widest text-text-muted">Depth</div>
+                            <div className="mt-0.5 font-mono text-[11px] text-text-secondary">{s.depth}</div>
                           </div>
-                          <div className="rounded border border-white/5 bg-zinc-950/40 px-2 py-1.5">
-                            <div className="uppercase tracking-widest text-zinc-500">Entries</div>
-                            <div className="mt-0.5 font-mono text-[11px] text-zinc-200">{(s.entries ?? 0).toLocaleString()}</div>
+                          <div className="rounded border border-border-subtle bg-bg-base/40 px-2 py-1.5">
+                            <div className="uppercase tracking-widest text-text-muted">Entries</div>
+                            <div className="mt-0.5 font-mono text-[11px] text-text-secondary">{(s.entries ?? 0).toLocaleString()}</div>
                           </div>
                         </div>
                         <div className="mt-2 h-8">

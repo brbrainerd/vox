@@ -31,11 +31,11 @@ export class ErrorBoundary extends Component<Props, State> {
             <div className="absolute inset-0 bg-rose-500/5 animate-pulse pointer-events-none" />
             <AlertCircle size={48} className="text-rose-500 mb-6" />
             <h2 className="text-xl font-bold uppercase tracking-widest text-rose-500 mb-2">Display Runtime Error</h2>
-            <p className="text-zinc-400 text-sm mb-6 max-w-sm">
+            <p className="text-text-muted text-sm mb-6 max-w-sm">
               The interface encountered an unexpected payload from the Orchestrator. 
             </p>
-            <div className="bg-black/50 p-4 rounded-xl border border-white/5 w-full text-left overflow-x-auto mb-8">
-              <code className="text-[10px] font-mono text-zinc-300">
+            <div className="bg-black/50 p-4 rounded-xl border border-border-subtle w-full text-left overflow-x-auto mb-8">
+              <code className="text-[10px] font-mono text-text-secondary">
                 {this.state.error?.message || "Unknown rendering exception"}
               </code>
             </div>

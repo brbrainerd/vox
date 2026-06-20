@@ -75,11 +75,11 @@ export function CommandCardsView({ title, subtitle, cards, pushToast }: CommandC
     <section className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="font-display text-lg tracking-wider text-zinc-100 uppercase">{title}</h2>
-          <p className="font-mono text-xs text-zinc-500">{subtitle}</p>
+          <h2 className="font-display text-lg tracking-wider text-text-primary uppercase">{title}</h2>
+          <p className="font-mono text-xs text-text-muted">{subtitle}</p>
         </div>
         <button
-          className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs uppercase tracking-wider hover:bg-white/[0.06] disabled:opacity-40"
+          className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-xs uppercase tracking-wider hover:bg-overlay-subtle disabled:opacity-40"
           disabled={loading}
           onClick={refresh}
         >
@@ -90,10 +90,10 @@ export function CommandCardsView({ title, subtitle, cards, pushToast }: CommandC
         {cards.map((card) => {
           const r = results[card.key];
           return (
-            <div key={card.key} className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
-              <div className="mb-1 font-display text-sm tracking-wide text-zinc-200">{card.title}</div>
-              <div className="mb-2 text-[10px] uppercase tracking-wider text-zinc-500">{card.description}</div>
-              {!r && <div className="font-mono text-xs text-zinc-500">Loading…</div>}
+            <div key={card.key} className="rounded-xl border border-border-subtle bg-overlay-subtle p-3">
+              <div className="mb-1 font-display text-sm tracking-wide text-text-secondary">{card.title}</div>
+              <div className="mb-2 text-[10px] uppercase tracking-wider text-text-muted">{card.description}</div>
+              {!r && <div className="font-mono text-xs text-text-muted">Loading…</div>}
               {r && r.kind === 'error' && (
                 <div className="font-mono text-xs text-red-400">{r.message}</div>
               )}
@@ -106,7 +106,7 @@ export function CommandCardsView({ title, subtitle, cards, pushToast }: CommandC
                   >
                     exit {r.out.exit_code} · vox {card.path.join(' ')}
                   </div>
-                  <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-lg border border-white/10 bg-black/40 p-2 text-[11px] text-zinc-300">
+                  <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-lg border border-border-subtle bg-black/40 p-2 text-[11px] text-text-secondary">
                     {[r.out.stdout, r.out.stderr].filter(Boolean).join('\n').trim() || '(no output)'}
                   </pre>
                 </>

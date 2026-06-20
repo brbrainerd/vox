@@ -64,10 +64,10 @@ interface SettingsState {
 
 function Row({ label, hint, children }: { label: string; hint: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-xl border border-white/5 bg-white/[0.02] p-3">
+    <div className="flex items-center justify-between gap-4 rounded-xl border border-border-subtle bg-overlay-subtle p-3">
       <div>
-        <div className="font-display text-[12px] text-zinc-200">{label}</div>
-        <div className="text-[11px] text-zinc-500">{hint}</div>
+        <div className="font-display text-[12px] text-text-secondary">{label}</div>
+        <div className="text-[11px] text-text-muted">{hint}</div>
       </div>
       <div className="shrink-0">{children}</div>
     </div>
@@ -76,8 +76,8 @@ function Row({ label, hint, children }: { label: string; hint: string; children:
 
 function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
   return (
-    <button type="button" aria-label={on ? 'Toggle on' : 'Toggle off'} aria-pressed={on} onClick={onClick} className={`relative h-5 w-9 rounded-full transition ${on ? 'bg-brass/40' : 'bg-white/10'}`}>
-      <span className={`absolute top-0.5 size-4 rounded-full bg-zinc-50 transition ${on ? 'left-[18px]' : 'left-0.5'}`} />
+    <button type="button" aria-label={on ? 'Toggle on' : 'Toggle off'} aria-pressed={on} onClick={onClick} className={`relative h-5 w-9 rounded-full transition ${on ? 'bg-brass/40' : 'bg-overlay-subtle'}`}>
+      <span className={`absolute top-0.5 size-4 rounded-full bg-[#fafafa] transition ${on ? 'left-[18px]' : 'left-0.5'}`} />
     </button>
   );
 }
@@ -96,7 +96,7 @@ function RangeInline({
         className="vox-range flex-1 h-1 appearance-none rounded-full overflow-hidden"
         style={{ background: `linear-gradient(to right, rgb(var(--brass)) ${pct}%, rgba(255,255,255,0.08) ${pct}%)` } as any}
       />
-      <span className="w-14 text-right font-mono text-[11px] text-zinc-200">{value}{suffix}</span>
+      <span className="w-14 text-right font-mono text-[11px] text-text-secondary">{value}{suffix}</span>
     </div>
   );
 }
@@ -209,19 +209,19 @@ function MeshPeersSection({ pushToast }: { pushToast: (t: Toast) => void }) {
 
   return (
     <>
-      <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Mesh &amp; peers</h2>
-      <p className="mt-0.5 text-[11px] text-zinc-500">Discover and authorise peer compute on the local mesh (source: {meta.source ?? '—'})</p>
+      <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">Mesh &amp; peers</h2>
+      <p className="mt-0.5 text-[11px] text-text-muted">Discover and authorise peer compute on the local mesh (source: {meta.source ?? '—'})</p>
       {meta.control_plane_error && (
         <div className="mt-3 rounded-md border border-amber-400/20 bg-amber-400/5 px-3 py-2 text-[11px] text-amber-300">
           Control plane unreachable — showing local registry. <span className="font-mono">{meta.control_plane_error}</span>
         </div>
       )}
       {loading ? (
-        <div className="mt-4 text-[12px] text-zinc-500">Loading peers…</div>
+        <div className="mt-4 text-[12px] text-text-muted">Loading peers…</div>
       ) : nodes.length === 0 ? (
-        <div className="mt-4 rounded-md border border-white/5 bg-white/[0.02] p-4 text-[11px] leading-relaxed text-zinc-500">
-          No mesh peers. Join one with <code className="font-mono text-zinc-400">vox populi join</code>, or configure a control plane via{' '}
-          <code className="font-mono text-zinc-400">VOX_ORCHESTRATOR_MESH_CONTROL_URL</code>.
+        <div className="mt-4 rounded-md border border-border-subtle bg-overlay-subtle p-4 text-[11px] leading-relaxed text-text-muted">
+          No mesh peers. Join one with <code className="font-mono text-text-muted">vox populi join</code>, or configure a control plane via{' '}
+          <code className="font-mono text-text-muted">VOX_ORCHESTRATOR_MESH_CONTROL_URL</code>.
         </div>
       ) : (
         <div className="mt-4 space-y-2">
@@ -229,11 +229,11 @@ function MeshPeersSection({ pushToast }: { pushToast: (t: Toast) => void }) {
             const r = aggregateMeshResources(nodes);
             if (!r.hasMetrics) return null;
             return (
-              <div className="grid grid-cols-4 gap-2 rounded-lg border border-white/10 bg-white/[0.02] p-3 text-center">
-                <div><div className="text-[18px] text-zinc-100">{r.readyCount}/{r.total}</div><div className="text-[9px] uppercase tracking-widest text-zinc-500">nodes ready</div></div>
-                <div><div className="text-[18px] text-zinc-100">{r.gpusFree}</div><div className="text-[9px] uppercase tracking-widest text-zinc-500">GPUs free</div></div>
-                <div><div className="text-[18px] text-zinc-100">{r.ramFreeGib.toFixed(0)} GiB</div><div className="text-[9px] uppercase tracking-widest text-zinc-500">RAM free</div></div>
-                <div><div className="text-[18px] text-zinc-100">{r.cpuAvg.toFixed(0)}%</div><div className="text-[9px] uppercase tracking-widest text-zinc-500">avg CPU</div></div>
+              <div className="grid grid-cols-4 gap-2 rounded-lg border border-border-subtle bg-overlay-subtle p-3 text-center">
+                <div><div className="text-[18px] text-text-primary">{r.readyCount}/{r.total}</div><div className="text-[9px] uppercase tracking-widest text-text-muted">nodes ready</div></div>
+                <div><div className="text-[18px] text-text-primary">{r.gpusFree}</div><div className="text-[9px] uppercase tracking-widest text-text-muted">GPUs free</div></div>
+                <div><div className="text-[18px] text-text-primary">{r.ramFreeGib.toFixed(0)} GiB</div><div className="text-[9px] uppercase tracking-widest text-text-muted">RAM free</div></div>
+                <div><div className="text-[18px] text-text-primary">{r.cpuAvg.toFixed(0)}%</div><div className="text-[9px] uppercase tracking-widest text-text-muted">avg CPU</div></div>
               </div>
             );
           })()}
@@ -241,23 +241,23 @@ function MeshPeersSection({ pushToast }: { pushToast: (t: Toast) => void }) {
             const isTrusted = !!trusted[p.id];
             const online = p.status === 'online';
             return (
-              <div key={p.id} className="flex items-center justify-between rounded-md border border-white/5 bg-white/[0.02] p-3">
+              <div key={p.id} className="flex items-center justify-between rounded-md border border-border-subtle bg-overlay-subtle p-3">
                 <div className="flex items-center gap-3">
-                  <span className={`size-2 rounded-full ${online ? 'bg-emerald-400' : 'bg-zinc-600'}`} />
+                  <span className={`size-2 rounded-full ${online ? 'bg-emerald-400' : 'bg-text-muted'}`} />
                   <div className="leading-tight">
-                    <div className="font-mono text-[12px] text-zinc-100 break-all">{p.id}</div>
-                    <div className="font-mono text-[10px] text-zinc-500">{(p.host_triple ?? '—')} · {(p.gpu_summary ?? '—')}</div>
+                    <div className="font-mono text-[12px] text-text-primary break-all">{p.id}</div>
+                    <div className="font-mono text-[10px] text-text-muted">{(p.host_triple ?? '—')} · {(p.gpu_summary ?? '—')}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`rounded-full px-2 py-0.5 font-display text-[9px] uppercase tracking-widest ${
-                    isTrusted ? 'bg-emerald-400/15 text-emerald-300' : 'bg-zinc-700/40 text-zinc-400'
+                    isTrusted ? 'bg-emerald-400/15 text-emerald-300' : 'bg-bg-elevated/40 text-text-muted'
                   }`}>{isTrusted ? 'trusted' : (p.trust_tier ?? 'untrusted')}</span>
                   <button
                     type="button"
                     disabled={busy === p.id}
                     onClick={() => toggleTrust(p)}
-                    className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40"
+                    className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
                   >{isTrusted ? 'untrust' : 'trust'}</button>
                 </div>
               </div>
@@ -320,37 +320,37 @@ function SigningKeysSection({ vals, update, pushToast, gamifyEnabled }: {
 
   return (
     <>
-      <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Signing keys</h2>
-      <p className="mt-0.5 text-[11px] text-zinc-500">ed25519 capability gate for high-risk dispatch (local node identity)</p>
+      <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">Signing keys</h2>
+      <p className="mt-0.5 text-[11px] text-text-muted">ed25519 capability gate for high-risk dispatch (local node identity)</p>
       <div className="mt-4 space-y-2">
         {loading ? (
-          <div className="text-[12px] text-zinc-500">Loading…</div>
+          <div className="text-[12px] text-text-muted">Loading…</div>
         ) : !key?.present ? (
-          <div className="rounded-md border border-white/5 bg-white/[0.02] p-4">
-            <div className="text-[11px] text-zinc-500">No local node identity yet. Create one to enable signed dispatch.</div>
+          <div className="rounded-md border border-border-subtle bg-overlay-subtle p-4">
+            <div className="text-[11px] text-text-muted">No local node identity yet. Create one to enable signed dispatch.</div>
             <button
               type="button"
               disabled={rotating}
               onClick={rotate}
-              className="mt-3 rounded border border-white/10 bg-white/[0.02] px-3 py-1.5 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40"
+              className="mt-3 rounded border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
             >{rotating ? 'working…' : 'create identity'}</button>
           </div>
         ) : (
-          <div className="flex items-center justify-between rounded-md border border-white/5 bg-white/[0.02] p-3">
+          <div className="flex items-center justify-between rounded-md border border-border-subtle bg-overlay-subtle p-3">
             <div className="flex items-center gap-3">
               <Icon.shield className="size-4 text-amber-300" />
               <div className="leading-tight">
-                <div className="font-mono text-[12px] text-zinc-100">{key.nodeId || '(locked)'}</div>
-                <div className="font-mono text-[10px] text-zinc-500">{key.fingerprint}</div>
+                <div className="font-mono text-[12px] text-text-primary">{key.nodeId || '(locked)'}</div>
+                <div className="font-mono text-[10px] text-text-muted">{key.fingerprint}</div>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="rounded-full bg-white/[0.04] px-2 py-0.5 font-display text-[9px] uppercase tracking-widest text-zinc-300">{key.algorithm}</span>
+              <span className="rounded-full bg-overlay-subtle px-2 py-0.5 font-display text-[9px] uppercase tracking-widest text-text-secondary">{key.algorithm}</span>
               <button
                 type="button"
                 disabled={rotating}
                 onClick={rotate}
-                className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40"
+                className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
               >{rotating ? 'rotating…' : 'rotate'}</button>
             </div>
           </div>
@@ -549,23 +549,23 @@ function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t: Toast
   };
 
   const renderSecretRow = (r: SecretStatusDto) => (
-    <div key={r.id} className="rounded-md border border-white/5 bg-white/[0.02] p-3">
+    <div key={r.id} className="rounded-md border border-border-subtle bg-overlay-subtle p-3">
       <div className="flex items-center justify-between gap-3">
         <div className="leading-tight">
           <div className="flex items-center gap-2">
-            <span className="font-mono text-[12px] text-zinc-100">{r.canonicalEnv}</span>
+            <span className="font-mono text-[12px] text-text-primary">{r.canonicalEnv}</span>
             {r.required && (
               <span className="rounded-full bg-amber-400/15 px-2 py-0.5 font-display text-[9px] uppercase tracking-widest text-amber-300">required</span>
             )}
           </div>
-          <div className="mt-0.5 text-[10px] text-zinc-500">{r.scopeDescription}</div>
+          <div className="mt-0.5 text-[10px] text-text-muted">{r.scopeDescription}</div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <span className={`rounded-full px-2 py-0.5 font-display text-[9px] uppercase tracking-widest ${
-            r.isPresent ? 'bg-emerald-400/15 text-emerald-300' : 'bg-zinc-700/40 text-zinc-400'
+            r.isPresent ? 'bg-emerald-400/15 text-emerald-300' : 'bg-bg-elevated/40 text-text-muted'
           }`}>{r.isPresent ? 'set' : 'missing'}</span>
           {r.isPresent && (
-            <span className="font-mono text-[10px] text-zinc-500">{r.redacted}</span>
+            <span className="font-mono text-[10px] text-text-muted">{r.redacted}</span>
           )}
         </div>
       </div>
@@ -576,13 +576,13 @@ function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t: Toast
           placeholder="Paste new value…"
           value={drafts[r.canonicalEnv] ?? ''}
           onChange={e => setDrafts(d => ({ ...d, [r.canonicalEnv]: e.target.value }))}
-          className="flex-1 rounded border border-white/10 bg-black/30 px-2 py-1 font-mono text-[11px] text-zinc-100 placeholder:text-zinc-600 focus:border-brass/40 focus:outline-none"
+          className="flex-1 rounded border border-border-subtle bg-black/30 px-2 py-1 font-mono text-[11px] text-text-primary placeholder:text-text-muted focus:border-brass/40 focus:outline-none"
         />
         <button
           type="button"
           disabled={!drafts[r.canonicalEnv] || busy === r.canonicalEnv}
           onClick={() => save(r.canonicalEnv)}
-          className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40"
+          className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
         >save</button>
         <button
           type="button"
@@ -597,14 +597,14 @@ function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t: Toast
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Keys &amp; Secrets</h2>
+        <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">Keys &amp; Secrets</h2>
         {status && (
           <>
-            <span className="rounded-full bg-white/[0.04] px-2 py-0.5 font-display text-[9px] uppercase tracking-widest text-zinc-300" title="Active secrets backend mode">
+            <span className="rounded-full bg-overlay-subtle px-2 py-0.5 font-display text-[9px] uppercase tracking-widest text-text-secondary" title="Active secrets backend mode">
               backend: {status.backendMode}
             </span>
             <span className={`rounded-full px-2 py-0.5 font-display text-[9px] uppercase tracking-widest ${
-              status.strict ? 'bg-amber-400/15 text-amber-300' : 'bg-white/[0.04] text-zinc-300'
+              status.strict ? 'bg-amber-400/15 text-amber-300' : 'bg-overlay-subtle text-text-secondary'
             }`} title="Active resolution profile">
               profile: {status.profile}
             </span>
@@ -616,31 +616,31 @@ function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t: Toast
           </>
         )}
       </div>
-      <p className="mt-0.5 text-[11px] text-zinc-500">
+      <p className="mt-0.5 text-[11px] text-text-muted">
         Managed API keys and tokens (Vox Secrets / Clavis). Values are write-only — once saved they are never shown again, only a redacted preview.
       </p>
 
       {/* Actions: migrate auth.json + import .env */}
-      <div className="mt-4 rounded-md border border-white/5 bg-white/[0.02] p-3">
+      <div className="mt-4 rounded-md border border-border-subtle bg-overlay-subtle p-3">
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             disabled={importBusy}
             onClick={migrate}
-            className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40"
+            className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
           >Migrate auth.json → vault</button>
           <input
             type="text"
             value={envPath}
             placeholder="default .env (optional path)"
             onChange={e => { setEnvPath(e.target.value); setPreview(null); }}
-            className="min-w-[180px] flex-1 rounded border border-white/10 bg-black/30 px-2 py-1 font-mono text-[11px] text-zinc-100 placeholder:text-zinc-600 focus:border-brass/40 focus:outline-none"
+            className="min-w-[180px] flex-1 rounded border border-border-subtle bg-black/30 px-2 py-1 font-mono text-[11px] text-text-primary placeholder:text-text-muted focus:border-brass/40 focus:outline-none"
           />
           <button
             type="button"
             disabled={importBusy}
             onClick={runPreview}
-            className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40"
+            className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
           >Preview</button>
           {preview && preview.count > 0 && (
             <button
@@ -652,18 +652,18 @@ function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t: Toast
           )}
         </div>
         {preview && (
-          <div className="mt-2 rounded border border-white/5 bg-black/20 p-2">
-            <div className="font-display text-[10px] uppercase tracking-widest text-zinc-400">
+          <div className="mt-2 rounded border border-border-subtle bg-black/20 p-2">
+            <div className="font-display text-[10px] uppercase tracking-widest text-text-muted">
               {preview.count} managed secret{preview.count === 1 ? '' : 's'} would import (names only — no values shown)
             </div>
             {preview.entries.length > 0 && (
               <div className="mt-1 flex flex-col gap-0.5">
                 {preview.entries.map(e => (
-                  <div key={e.sourceKey} className="flex items-center gap-2 font-mono text-[10px] text-zinc-400">
-                    <span className="text-zinc-200">{e.sourceKey}</span>
-                    <span className="text-zinc-600">→</span>
-                    <span className="text-zinc-300">{e.canonicalEnv}</span>
-                    <span className="text-zinc-600">{e.redacted}</span>
+                  <div key={e.sourceKey} className="flex items-center gap-2 font-mono text-[10px] text-text-muted">
+                    <span className="text-text-secondary">{e.sourceKey}</span>
+                    <span className="text-text-muted">→</span>
+                    <span className="text-text-secondary">{e.canonicalEnv}</span>
+                    <span className="text-text-muted">{e.redacted}</span>
                   </div>
                 ))}
               </div>
@@ -673,26 +673,26 @@ function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t: Toast
       </div>
 
       {loading ? (
-        <div className="mt-4 text-[12px] text-zinc-500">Loading…</div>
+        <div className="mt-4 text-[12px] text-text-muted">Loading…</div>
       ) : (
         <div className="mt-4 space-y-2">
           {groups.map(g => {
             const isCollapsed = !!collapsed[g.slug];
             return (
-              <div key={g.slug} className="rounded-md border border-white/5 bg-white/[0.01]">
+              <div key={g.slug} className="rounded-md border border-border-subtle bg-overlay-subtle">
                 <button
                   type="button"
                   onClick={() => toggleGroup(g.slug)}
-                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-white/[0.02]"
+                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-overlay-subtle"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-[10px] text-zinc-500">{isCollapsed ? '▸' : '▾'}</span>
-                    <span className="rounded-full bg-white/[0.04] px-2 py-0.5 font-display text-[9px] uppercase tracking-widest text-zinc-300">{g.slug}</span>
+                    <span className="font-mono text-[10px] text-text-muted">{isCollapsed ? '▸' : '▾'}</span>
+                    <span className="rounded-full bg-overlay-subtle px-2 py-0.5 font-display text-[9px] uppercase tracking-widest text-text-secondary">{g.slug}</span>
                     {g.needsAttention && (
                       <span className="rounded-full bg-amber-400/15 px-2 py-0.5 font-display text-[9px] uppercase tracking-widest text-amber-300">action needed</span>
                     )}
                   </div>
-                  <span className="font-mono text-[10px] text-zinc-500">
+                  <span className="font-mono text-[10px] text-text-muted">
                     {g.set} set / {g.missing} missing
                   </span>
                 </button>
@@ -803,7 +803,7 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
   const control = (f: UserConfigFieldDto) => {
     if (f.kind === 'enum') {
       return (
-        <div className="inline-flex flex-wrap items-center rounded-md border border-white/10 bg-black/30 p-0.5">
+        <div className="inline-flex flex-wrap items-center rounded-md border border-border-subtle bg-black/30 p-0.5">
           {f.options.map(opt => (
             <button
               key={opt}
@@ -811,7 +811,7 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
               disabled={busy === f.key}
               onClick={() => save(f, opt)}
               className={`rounded-[5px] px-2 py-1 font-display text-[10px] uppercase tracking-[0.12em] transition disabled:opacity-40 ${
-                f.currentValue === opt ? 'bg-white/10 text-zinc-50' : 'text-zinc-500 hover:text-zinc-300'
+                f.currentValue === opt ? 'bg-overlay-subtle text-text-primary' : 'text-text-muted hover:text-text-secondary'
               }`}
             >{opt}</button>
           ))}
@@ -826,13 +826,13 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
           value={draftFor(f)}
           placeholder={f.default || '—'}
           onChange={e => setDrafts(d => ({ ...d, [f.key]: e.target.value }))}
-          className="w-56 rounded border border-white/10 bg-black/30 px-2 py-1 font-mono text-[11px] text-zinc-100 placeholder:text-zinc-600 focus:border-brass/40 focus:outline-none"
+          className="w-56 rounded border border-border-subtle bg-black/30 px-2 py-1 font-mono text-[11px] text-text-primary placeholder:text-text-muted focus:border-brass/40 focus:outline-none"
         />
         <button
           type="button"
           disabled={busy === f.key || draftFor(f) === f.currentValue}
           onClick={() => save(f, draftFor(f))}
-          className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40"
+          className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
         >save</button>
       </div>
     );
@@ -844,14 +844,14 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
 
   return (
     <>
-      <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Runtime</h2>
-      <p className="mt-0.5 text-[11px] text-zinc-500">
+      <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">Runtime</h2>
+      <p className="mt-0.5 text-[11px] text-text-muted">
         Core user config persisted to your Vox user config (effective values: ENV &gt; Vox.toml &gt; global &gt; defaults)
       </p>
       {spend && (
-        <div className="mt-3 rounded border border-white/10 bg-black/20 p-3" data-testid="llm-spend">
-          <div className="font-mono text-[10px] uppercase tracking-wide text-zinc-500">LLM spend (recorded actuals)</div>
-          <div className="mt-1 flex flex-wrap gap-x-6 gap-y-1 font-mono text-[11px] text-zinc-300">
+        <div className="mt-3 rounded border border-border-subtle bg-black/20 p-3" data-testid="llm-spend">
+          <div className="font-mono text-[10px] uppercase tracking-wide text-text-muted">LLM spend (recorded actuals)</div>
+          <div className="mt-1 flex flex-wrap gap-x-6 gap-y-1 font-mono text-[11px] text-text-secondary">
             <span>session ${spend.sessionUsd.toFixed(4)} / ${spend.perSessionBudgetUsd.toFixed(2)}</span>
             <span>today ${spend.dayUsd.toFixed(4)} / ${spend.dailyBudgetUsd.toFixed(2)}</span>
             <span>total ${spend.totalUsd.toFixed(4)}</span>
@@ -859,12 +859,12 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
         </div>
       )}
       {loading ? (
-        <div className="mt-4 text-[12px] text-zinc-500">Loading…</div>
+        <div className="mt-4 text-[12px] text-text-muted">Loading…</div>
       ) : (
         <div className="mt-4 space-y-5">
           {groups.map(({ group, items }) => (
             <div key={group}>
-              <div className="font-display text-[11px] uppercase tracking-[0.15em] text-zinc-400">{group}</div>
+              <div className="font-display text-[11px] uppercase tracking-[0.15em] text-text-muted">{group}</div>
               <div className="mt-2 space-y-2">
                 {items.map(f => (
                   <Row key={f.key} label={f.label} hint={f.hint}>
@@ -875,7 +875,7 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
                         disabled={busy === f.key}
                         onClick={() => reset(f)}
                         title="Reset to default"
-                        className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-400 hover:bg-white/5 disabled:opacity-40"
+                        className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-muted hover:bg-overlay-subtle disabled:opacity-40"
                       >reset</button>
                     </div>
                   </Row>
@@ -928,8 +928,8 @@ function LlmSettingsSection({ pushToast }: { pushToast: (t: any) => void }) {
 
   return (
     <>
-      <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">LLM &amp; providers</h2>
-      <p className="mt-0.5 text-[11px] text-zinc-500">Concurrency throttle for LLM egress. OpenRouter paid tier has no platform request cap, so parallelism is the real dial.</p>
+      <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">LLM &amp; providers</h2>
+      <p className="mt-0.5 text-[11px] text-text-muted">Concurrency throttle for LLM egress. OpenRouter paid tier has no platform request cap, so parallelism is the real dial.</p>
       <div className="mt-4 space-y-3">
         <Row label="Max parallel LLM requests" hint="Global ceiling across all providers (AIMD throttle)">
           <RangeInline value={cfg.maxConcurrentRequests} min={1} max={64} onChange={v => save({ ...cfg, maxConcurrentRequests: v })} />
@@ -942,7 +942,7 @@ function LlmSettingsSection({ pushToast }: { pushToast: (t: any) => void }) {
         </Row>
       </div>
       {keyConfigured !== null && (
-        <div className="mt-4 rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-[11px] text-zinc-400">
+        <div className="mt-4 rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-2 text-[11px] text-text-muted">
           {keyConfigured
             ? 'OpenRouter API key is configured.'
             : 'No OpenRouter key configured — add one under Keys & Secrets.'}
@@ -1205,7 +1205,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           onChange={e => setFilter(e.target.value)}
           placeholder="Search settings…"
           aria-label="Search settings"
-          className="mb-2 w-full rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-[12px] text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-brass/30"
+          className="mb-2 w-full rounded-lg border border-border-subtle bg-overlay-subtle px-2.5 py-1.5 text-[12px] text-text-secondary placeholder:text-text-muted outline-none focus:border-brass/30"
         />
         {filter.trim() ? (
           <nav className="flex flex-col gap-1">
@@ -1214,14 +1214,14 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
                 key={entry.id}
                 type="button"
                 onClick={() => { setSection(entry.section); setFilter(''); }}
-                className="flex flex-col rounded-lg px-3 py-2 text-left text-zinc-300 hover:bg-white/[0.04] hover:text-zinc-100 focus:outline-none focus-visible:ring-1 focus-visible:ring-brass/40"
+                className="flex flex-col rounded-lg px-3 py-2 text-left text-text-secondary hover:bg-overlay-subtle hover:text-text-primary focus:outline-none focus-visible:ring-1 focus-visible:ring-brass/40"
               >
                 <span className="text-[12px]">{entry.label}</span>
-                <span className="text-[10px] text-zinc-500">{entry.hint}</span>
+                <span className="text-[10px] text-text-muted">{entry.hint}</span>
               </button>
             ))}
             {searchSettings(filter).length === 0 && (
-              <p className="px-3 py-2 text-[11px] text-zinc-600">No settings match.</p>
+              <p className="px-3 py-2 text-[11px] text-text-muted">No settings match.</p>
             )}
           </nav>
         ) : (
@@ -1235,10 +1235,10 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
                 type="button"
                 onClick={() => setSection(s.id)}
                 className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-left transition ${
-                  on ? 'bg-white/[0.05] text-zinc-100' : 'text-zinc-400 hover:bg-white/[0.025] hover:text-zinc-200'
+                  on ? 'bg-overlay-subtle text-text-primary' : 'text-text-muted hover:bg-overlay-subtle hover:text-text-secondary'
                 }`}
               >
-                <IcoCmp className={`size-4 ${on ? 'text-brass' : 'text-zinc-500'}`} />
+                <IcoCmp className={`size-4 ${on ? 'text-brass' : 'text-text-muted'}`} />
                 <span className="font-display text-[12px] tracking-[0.12em] uppercase">{s.label}</span>
               </button>
             );
@@ -1251,8 +1251,8 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
       <Glass className="col-span-12 md:col-span-9 p-5">
         {section === 'orchestrator' && (
           <>
-            <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Orchestrator</h2>
-            <p className="mt-0.5 text-[11px] text-zinc-500">Global scheduling, budget, and verification policy</p>
+            <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">Orchestrator</h2>
+            <p className="mt-0.5 text-[11px] text-text-muted">Global scheduling, budget, and verification policy</p>
             <div className="mt-4 space-y-3">
               <Row label="Max concurrent agents" hint="Hard cap before scheduler back-pressure">
                 <RangeInline value={vals.concurrency} min={1} max={16} onChange={v => update({ concurrency: v })} />
@@ -1267,14 +1267,14 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
                 <RangeInline value={vals.checkpointMins} min={1} max={30} step={1} suffix=" min" onChange={v => update({ checkpointMins: v })} />
               </Row>
               <Row label="Default isolation tier" hint="Runtime sandbox for new agents">
-                <div className="inline-flex items-center rounded-md border border-white/10 bg-black/30 p-0.5">
+                <div className="inline-flex items-center rounded-md border border-border-subtle bg-black/30 p-0.5">
                   {([['wasm', 'WASM'], ['ctr', 'Container'], ['native', 'Native']] as [string, string][]).map(([id, l]) => (
                     <button
                       key={id}
                       type="button"
                       onClick={() => update({ isolation: id })}
                       className={`rounded-[5px] px-2 py-1 font-display text-[10px] uppercase tracking-[0.15em] transition ${
-                        vals.isolation === id ? 'bg-white/10 text-zinc-50' : 'text-zinc-500 hover:text-zinc-300'
+                        vals.isolation === id ? 'bg-overlay-subtle text-text-primary' : 'text-text-muted hover:text-text-secondary'
                       }`}
                     >
                       {l}
@@ -1294,8 +1294,8 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
 
         {section === 'scaling' && (
           <>
-            <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Scaling</h2>
-            <p className="mt-0.5 text-[11px] text-zinc-500">Spawn and retire agents automatically based on queue load and local host resources</p>
+            <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">Scaling</h2>
+            <p className="mt-0.5 text-[11px] text-text-muted">Spawn and retire agents automatically based on queue load and local host resources</p>
             <div className="mt-4 space-y-3">
               <Row label="Auto-scaling" hint="Let the orchestrator add/remove agents dynamically">
                 <Toggle on={vals.scalingEnabled} onClick={() => update({ scalingEnabled: !vals.scalingEnabled })} />
@@ -1323,12 +1323,12 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
 
         {section === 'routing' && (
           <>
-            <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Model routing</h2>
-            <p className="mt-0.5 text-[11px] text-zinc-500">Emphasis tunes how the scorer trades off intelligence, efficiency, and responsiveness (persisted to VOX_AUTO_ROUTING_PRIORITY)</p>
+            <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">Model routing</h2>
+            <p className="mt-0.5 text-[11px] text-text-muted">Emphasis tunes how the scorer trades off intelligence, efficiency, and responsiveness (persisted to VOX_AUTO_ROUTING_PRIORITY)</p>
 
             {/* Emphasis: presets + three labeled characteristic sliders */}
-            <div className="mt-4 rounded-xl border border-white/5 bg-white/[0.02] p-3">
-              <div className="font-display text-[12px] tracking-[0.12em] uppercase text-zinc-300">Emphasis</div>
+            <div className="mt-4 rounded-xl border border-border-subtle bg-overlay-subtle p-3">
+              <div className="font-display text-[12px] tracking-[0.12em] uppercase text-text-secondary">Emphasis</div>
               <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
                 {EMPHASIS_PRESETS.map(([name, preset]) => (
                   <button
@@ -1336,7 +1336,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
                     type="button"
                     onClick={() => applyEmphasis(preset)}
                     className={`rounded-lg border p-2 text-center transition ${
-                      activePreset === name ? 'border-brass/40 bg-brass/[0.05] text-zinc-50' : 'border-white/5 bg-white/[0.02] text-zinc-400 hover:border-white/15 hover:text-zinc-200'
+                      activePreset === name ? 'border-brass/40 bg-brass/[0.05] text-text-primary' : 'border-border-subtle bg-overlay-subtle text-text-muted hover:border-white/15 hover:text-text-secondary'
                     }`}
                   >
                     <span className="font-display text-[11px] tracking-wide">{name}</span>
@@ -1359,7 +1359,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
             <button
               type="button"
               onClick={() => setAdvanced(a => !a)}
-              className="mt-4 font-display text-[11px] uppercase tracking-[0.15em] text-zinc-500 hover:text-zinc-300"
+              className="mt-4 font-display text-[11px] uppercase tracking-[0.15em] text-text-muted hover:text-text-secondary"
             >
               {advanced ? '▾ Hide advanced axes' : '▸ Advanced (all 6 axes)'}
             </button>
@@ -1407,8 +1407,8 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
 
         {section === 'telemetry' && (
           <>
-            <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Telemetry</h2>
-            <p className="mt-0.5 text-[11px] text-zinc-500">Where Vox sends spans, metrics, and traces</p>
+            <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">Telemetry</h2>
+            <p className="mt-0.5 text-[11px] text-text-muted">Where Vox sends spans, metrics, and traces</p>
             <div className="mt-4 grid grid-cols-3 gap-2">
               {([['off', 'Off', 'Nothing leaves the device'], ['local', 'Local', 'OTLP → localhost:4317'], ['cloud', 'Cloud', 'Encrypted → vendor']] as [string, string, string][]).map(([id, l, h]) => (
                 <button
@@ -1416,11 +1416,11 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
                   type="button"
                   onClick={() => update({ telemetry: id })}
                   className={`rounded-xl border p-3 text-left transition ${
-                    vals.telemetry === id ? 'border-brass/40 bg-brass/[0.05]' : 'border-white/5 hover:border-white/15 bg-white/[0.02]'
+                    vals.telemetry === id ? 'border-brass/40 bg-brass/[0.05]' : 'border-border-subtle hover:border-white/15 bg-overlay-subtle'
                   }`}
                 >
-                  <div className="font-display text-[12px] tracking-wider text-zinc-100">{l}</div>
-                  <div className="mt-1 font-mono text-[10px] text-zinc-500">{h}</div>
+                  <div className="font-display text-[12px] tracking-wider text-text-primary">{l}</div>
+                  <div className="mt-1 font-mono text-[10px] text-text-muted">{h}</div>
                 </button>
               ))}
             </div>
@@ -1429,13 +1429,13 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
 
         {section === 'keybinds' && (
           <>
-            <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Keybinds</h2>
-            <p className="mt-0.5 text-[11px] text-zinc-500">Global shortcuts</p>
+            <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">Keybinds</h2>
+            <p className="mt-0.5 text-[11px] text-text-muted">Global shortcuts</p>
             <div className="mt-4 grid grid-cols-1 gap-1.5 md:grid-cols-2">
               {KEYBINDS.map(([k, d]) => (
-                <div key={k} className="flex items-center justify-between rounded-md border border-white/5 bg-white/[0.02] px-3 py-2">
-                  <span className="text-[12px] text-zinc-200">{d}</span>
-                  <kbd className="rounded border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[10px] text-zinc-300">{k}</kbd>
+                <div key={k} className="flex items-center justify-between rounded-md border border-border-subtle bg-overlay-subtle px-3 py-2">
+                  <span className="text-[12px] text-text-secondary">{d}</span>
+                  <kbd className="rounded border border-border-subtle bg-overlay-subtle px-2 py-0.5 font-mono text-[10px] text-text-secondary">{k}</kbd>
                 </div>
               ))}
             </div>
@@ -1444,28 +1444,28 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
 
         {section === 'gamify' && (
           <div className="space-y-3">
-            <label className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.02] p-3 text-sm">
+            <label className="flex items-center justify-between rounded-lg border border-border-subtle bg-overlay-subtle p-3 text-sm">
               <span>Gamification enabled</span>
               <input type="checkbox" checked={gamify.enabled} onChange={e => updateGamify({ enabled: e.target.checked })} />
             </label>
-            <label className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.02] p-3 text-sm">
+            <label className="flex items-center justify-between rounded-lg border border-border-subtle bg-overlay-subtle p-3 text-sm">
               <span>Mode</span>
               <select value={gamify.mode} disabled={!gamify.enabled}
                 onChange={e => updateGamify({ mode: e.target.value })}
-                className="rounded bg-black/40 px-2 py-1 text-zinc-200">
+                className="rounded bg-black/40 px-2 py-1 text-text-secondary">
                 <option value="balanced">Balanced</option>
                 <option value="serious">Serious (silent)</option>
                 <option value="learning">Learning</option>
               </select>
             </label>
-            <p className="text-[11px] text-zinc-500">Serious mode keeps rewards active but hides overlays and hints.</p>
+            <p className="text-[11px] text-text-muted">Serious mode keeps rewards active but hides overlays and hints.</p>
           </div>
         )}
 
         {section === 'theme' && (
           <>
-            <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Theme</h2>
-            <p className="mt-0.5 text-[11px] text-zinc-500">Aesthetic mode for the GUI layer</p>
+            <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">Theme</h2>
+            <p className="mt-0.5 text-[11px] text-text-muted">Aesthetic mode for the GUI layer</p>
             <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3">
               {[
                 { id: 'arcane',  name: 'Arcane',  swatch: 'from-brass via-amber-600 to-zinc-900' },
@@ -1477,11 +1477,11 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
                   type="button"
                   onClick={() => update({ theme: t.id })}
                   className={`rounded-xl border p-3 text-left transition ${
-                    vals.theme === t.id ? 'border-brass/40 bg-brass/[0.05]' : 'border-white/5 hover:border-white/15 bg-white/[0.02]'
+                    vals.theme === t.id ? 'border-brass/40 bg-brass/[0.05]' : 'border-border-subtle hover:border-white/15 bg-overlay-subtle'
                   }`}
                 >
                   <div className={`h-16 w-full rounded-lg bg-gradient-to-br ${t.swatch}`} />
-                  <div className="mt-2 font-display text-[12px] tracking-wider text-zinc-200">{t.name}</div>
+                  <div className="mt-2 font-display text-[12px] tracking-wider text-text-secondary">{t.name}</div>
                 </button>
               ))}
             </div>

@@ -13,10 +13,10 @@ export interface ChartWidgetProps {
 export function ChartWidgetEmpty({ title }: Pick<ChartWidgetProps, 'title'>) {
   return (
     <Glass className="h-full p-5">
-      <h3 className="font-display text-[14px] font-semibold tracking-wide text-zinc-100">{title}</h3>
+      <h3 className="font-display text-[14px] font-semibold tracking-wide text-text-primary">{title}</h3>
       <div
         role="status"
-        className="mt-4 rounded-lg border border-dashed border-white/5 py-8 text-center text-[11px] text-zinc-600"
+        className="mt-4 rounded-lg border border-dashed border-border-subtle py-8 text-center text-[11px] text-text-muted"
       >
         No data yet — waiting for metric samples.
       </div>
@@ -33,7 +33,7 @@ export function ChartWidgetFrame({
 }) {
   return (
     <Glass className="flex h-full flex-col p-5">
-      <h3 className="font-display text-[14px] font-semibold tracking-wide text-zinc-100">{title}</h3>
+      <h3 className="font-display text-[14px] font-semibold tracking-wide text-text-primary">{title}</h3>
       <div role="img" aria-label={`${title} chart`} className="mt-3 min-h-[160px] flex-1">
         {children}
       </div>

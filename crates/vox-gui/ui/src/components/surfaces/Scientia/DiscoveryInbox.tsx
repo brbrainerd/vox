@@ -169,8 +169,8 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
     <section className="space-y-4">
       <div className="flex items-end justify-between">
         <div>
-          <h2 className="font-display text-lg tracking-wider text-zinc-100 uppercase">Discovery Inbox</h2>
-          <p className="font-mono text-xs text-zinc-500">
+          <h2 className="font-display text-lg tracking-wider text-text-primary uppercase">Discovery Inbox</h2>
+          <p className="font-mono text-xs text-text-muted">
             Unacknowledged surfaced research candidates. Open one for review, or acknowledge to dismiss.
           </p>
         </div>
@@ -178,21 +178,21 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
           type="button"
           onClick={refresh}
           disabled={loading}
-          className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs uppercase tracking-wider hover:bg-white/[0.06] disabled:opacity-40"
+          className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-xs uppercase tracking-wider hover:bg-overlay-subtle disabled:opacity-40"
         >
           {loading ? 'Loading…' : 'Refresh'}
         </button>
       </div>
 
-      <div className="flex flex-col overflow-hidden rounded-xl border border-white/10 bg-white/[0.02]">
-        <div className="flex items-center justify-between border-b border-white/5 px-4 py-3">
-          <span className="font-display text-[10px] uppercase tracking-[0.2em] text-zinc-400">
+      <div className="flex flex-col overflow-hidden rounded-xl border border-border-subtle bg-overlay-subtle">
+        <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3">
+          <span className="font-display text-[10px] uppercase tracking-[0.2em] text-text-muted">
             Unacknowledged ({rows.length})
           </span>
         </div>
 
         {rows.length === 0 && !loading && (
-          <div className="px-4 py-10 text-center font-mono text-[11px] text-zinc-600">
+          <div className="px-4 py-10 text-center font-mono text-[11px] text-text-muted">
             No unacknowledged research candidates.
           </div>
         )}
@@ -205,7 +205,7 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
               <div
                 key={r.id}
                 role="listitem"
-                className="flex items-start justify-between gap-4 border-b border-white/5 px-4 py-3"
+                className="flex items-start justify-between gap-4 border-b border-border-subtle px-4 py-3"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
@@ -213,7 +213,7 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
                       className={`rounded-full px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider ${
                         strong
                           ? 'bg-brass/20 text-brass ring-1 ring-brass/40'
-                          : 'bg-white/[0.05] text-zinc-400'
+                          : 'bg-overlay-subtle text-text-muted'
                       }`}
                     >
                       {tierLabel(r.intake_tier)}
@@ -223,8 +223,8 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
                         research
                       </span>
                     )}
-                    <span className="truncate font-mono text-[12px] text-zinc-200">{r.publication_id}</span>
-                    <span className="ml-auto shrink-0 font-mono text-[10px] text-zinc-600">
+                    <span className="truncate font-mono text-[12px] text-text-secondary">{r.publication_id}</span>
+                    <span className="ml-auto shrink-0 font-mono text-[10px] text-text-muted">
                       {relativeTime(r.surfaced_at_ms)}
                     </span>
                   </div>
@@ -245,7 +245,7 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
                   <button
                     type="button"
                     onClick={() => openReview(r.publication_id)}
-                    className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11px] text-zinc-200 hover:bg-white/[0.06]"
+                    className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-[11px] text-text-secondary hover:bg-overlay-subtle"
                   >
                     Open review
                   </button>
