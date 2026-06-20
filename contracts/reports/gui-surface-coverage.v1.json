@@ -605,6 +605,7 @@
     "telemetry export",
     "telemetry status",
     "telemetry upload",
+    "term",
     "test",
     "train",
     "update",
