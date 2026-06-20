@@ -9,6 +9,29 @@
 **Tech Stack:** Rust (vox-orchestrator, vox-gui Tauri commands), serde, existing daemon RPC pattern.
 
 **Scope marker:** `[SEQUENTIAL]` after Track A.
+**Execution target:** Sonnet 4.6.
+
+---
+
+## Audit Corrections — verified against code 2026-06-20 (read FIRST; overrides stale claims below)
+
+- **CONFIRMED:** `CompletionAttestation` derives + `PathBuf` import (`types/tasks.rs:292`) — additive serde-default fields are safe (Task 1 OK). `ChatMessageDto` shape (`chat.rs:16-23`) — adding `model_id` OK (Task 3). `CANCEL_TASK = "orch.cancel_task"` is in **`vox-foundation/src/protocol.rs:25`** (NOT a local `orch_daemon_method` module — fix Task 4 Step 1 path); daemon dispatch handles it at `orch_daemon/mod.rs:366-373`; the Tauri handler is registered in **`vox-gui/src/main.rs:138`** inside `generate_handler!` (fix Task 4 Step 4).
+
+- **TASK 2 IS NOT FEASIBLE AS WRITTEN — `ModelSelectionDecision` is NOT in scope at completion.** The primary completion handler is `orchestrator/task_dispatch/complete/success/mod.rs:43-477`; it only has the task's `model_override`/`model_preference` (`:371-374`, fed to `record_bandit_task_outcome` at `:456`). Model *selection* happens at dispatch/inference time, not completion. **Revised Task 2:** capture attribution where the decision actually exists (at dispatch / inference) and stash it on the task so completion can read it. Concretely: add a `selected_model_record: Option<SelectedModelRecord>` field to `AgentTask` (new small struct: `model`, `provider`, `reason`, `request_tokens`, `response_tokens`, `latency_ms`), populate it at the dispatch/inference site that already computes the route, then in the completion handler copy it onto the attestation. This makes Task 2 a 2-step thread (dispatch-write → completion-copy), not a single edit.
+
+- **TASK 2 CODE WON'T COMPILE.** `ModelRouteBackend` (alias `ChatRouteBackend`, `vox-orchestrator-types/src/lib.rs:43-57`) has **no `Display`**, and `ScoreBreakdown` has **no `reason_str()`** — `SelectionReason` (`models/select.rs:528-545`) is an enum `{PremiumAlias{task,alias_model_id}, Scored, LocalOnly, EnvOverride{env_var}}`. Replace the offending lines with:
+  ```rust
+  att.provider = decision.as_ref().map(|d| {
+      let (provider, _route) = vox_orchestrator_types::backend_telemetry_labels(d.provider_route);
+      provider.to_string()
+  });
+  att.selection_reason = decision.as_ref().map(|d| format!("{:?}", d.score_breakdown.reason));
+  ```
+  (Confirm `backend_telemetry_labels` is the real helper name; if not, match `ModelRouteBackend` variants explicitly.)
+
+- **TASK 3 retrieval:** prefer persisting `model_id` into the message **payload JSON at append time** (`chat_append_message`, `chat.rs:114`) over a per-message daemon round-trip in `chat_get_messages` (`:72-102`). The DTO field is fine; the source should be the payload, populated from the attestation's `completing_model` when the assistant message is written.
+
+- **TASK 4 (interrupt) NEEDS A NEW CANCELLATION PATH — none exists.** `cancel_task` (`lifecycle_ops.rs:110-156`) only handles queued tasks and in-progress **Populi remote** tasks (`populi_remote_delegate.is_some()`); the agent runtime's `AgentCommand::CancelTask` (`runtime.rs:594-599`) only cancels *queued* work; `TaskProcessor::process(&self, agent_id, task)` (`runtime.rs:49-55`) takes **no cancellation token** and runs to completion. So Task 4 is bigger than a daemon method: (a) add a per-task cancellation flag/token store on the Orchestrator (e.g. `Arc<DashMap<TaskId, CancellationToken>>` using `tokio_util::sync::CancellationToken`), (b) thread the token into `TaskProcessor::process` (signature change — update all impls), (c) have the local inference loop poll/select on it and abort, emitting `TaskCancelled{path:"local_interrupt"}`, (d) `interrupt_task` fires the token. Keep the Tauri command + daemon constant exactly as the plan shows (those parts are correct); expand the orchestrator-side step into (a)–(d). This is the largest single piece of work in the program — consider splitting into its own task list.
 
 ---
 

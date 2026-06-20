@@ -9,6 +9,16 @@
 **Tech Stack:** Rust (vox-orchestrator a2a/mesh, attention), Tauri commands, React (vox-gui/ui), dockview panelRegistry.
 
 **Scope marker:** `[PARALLEL-SAFE]` with C/D. **Hard dep:** dockable-workspace `panelRegistry` (external spec).
+**Execution target:** Sonnet 4.6.
+
+---
+
+## Audit Corrections — verified against code 2026-06-20 (read FIRST; overrides stale claims below)
+
+- **CONFIRMED:** `AgentTask` derives (`types/tasks.rs:357`) — adding `mesh_policy`/`executor_node_id` near `mode` OK (Task 1). `AgentDelegationBinding{parent_agent_id, source_task_id, reason}` exists (`topology.rs:78-83`), stored as `orchestrator.agent_delegations: Arc<RwLock<HashMap<AgentId, AgentDelegationBinding>>>` (`orchestrator.rs:77-78`), populated by `spawn_dynamic_agent_with_parent` (`spawn.rs:89-95`) → SUBAGENT_TREE is trivial. `pause/resume_orchestrator_agent` (`control_plane.rs:108,123`) + `reorder_orchestrator_task` (`:311`) exist. `ApprovalTier{AutoApprove,Confirm,Review,Blocked}` (`attention/budget.rs`) + the gate `check_approval_gate` (`gates.rs:66-113`, currently just re-queues with `debug_iterations`, no human loop). Daemon constants live in `vox-foundation/src/protocol.rs` `orch_daemon_method`; dispatch arms in `orch_daemon/mod.rs:133-564` (default errors `unknown method`).
+- **TASK 3 ARCHITECTURAL MISMATCH — there is NO `FeedbackStore`/`FeedbackRequest`/`FeedbackAction`.** The real HITL surfaces are `PendingApprovals` (`vox-orchestrator-mcp/src/pending_approvals.rs`, in-memory MCP-side) + `HitlApprovalRow` (`vox-db/src/facade/hitl_approvals.rs`, DB audit) + an existing **`Approvals` GUI surface** (`vox-gui/ui/src/components/surfaces/Approvals/ApprovalsView.tsx`). **Revised Task 3:** route Review-tier completions into the existing `PendingApprovals`/`HitlApprovalRow` path and surface them in the existing `ApprovalsView` (don't invent a FeedbackStore, and don't build a second inbox — the "Needs You" section of Mission Control should read the SAME approvals source as `ApprovalsView`). This also fixes Task 4's `LIST_APPROVALS` data source (read `PendingApprovals`).
+- **TASK 2 HOOK POINT IS WRONG — `task` is not in scope in the mesh utils.** `gate_local_fallback(db, scope_key, self_node_id)` (`mesh.rs:24-52`) and `relay_to_mesh(client, sender, receiver, msg_type, payload)` (`:78-105`) take no `task`. **Revised Task 2:** first locate the *caller* in the task-dispatch path where the relay/local decision is made AND the `AgentTask` is in scope (grep callers of `relay_to_mesh`/`gate_local_fallback`), and put the `task.mesh_policy.allows_node(candidate)` check + `executor_node_id` stamp THERE. The `MeshPolicy` type + `allows_node` (Task 1) are unchanged and correct.
+- **TASK 5 IS BLOCKED — `panelRegistry` DOES NOT EXIST.** Grep finds no `panelRegistry`/`dockable`/`MissionControl` in the GUI. Build `MissionControlPanel.tsx` (Task 5 Steps 1-3, 5 stand), but **Step 4 (register in panelRegistry) has no target until the dockable-workspace spec lands**. Until then, mount Mission Control as a normal surface/view (like the existing `Approvals`, `Dashboard` surfaces) reachable from the `agents N ▾` console affordance, and leave a `// TODO: register in panelRegistry once dockable-workspace lands` marker. This keeps Track E shippable independent of the blocked dep.
 
 ---
 

@@ -9,6 +9,20 @@
 **Tech Stack:** Rust (vox-orchestrator), existing EventBus, daemon RPC + Tauri commands, vitest for the FE phase chip.
 
 **Scope marker:** `[SEQUENTIAL]` after Track C (consumes console control + needs the phase chip in the execution block). Depends on Track A types.
+**Execution target:** Sonnet 4.6.
+
+---
+
+## Audit Corrections — verified against code 2026-06-20 (read FIRST; overrides stale claims below)
+
+- **NAME COLLISION — rename our enum to `PavPhase`.** `TaskPhase` ALREADY EXISTS (`types/tasks.rs:101`) as `{Inspect,Localize,Hypothesize,Act,Verify,Decide}` (the OODA-style debug phases), and `AgentTask.current_phase: Option<TaskPhase>` uses it. Our four-state `{Planning,Acting,Verifying,Done}` must be a NEW type — call it **`PavPhase`** — everywhere in Task 1 (the type, `PhaseLoop::phase()->PavPhase`, the FE `Phase` union, serde tags). Do not redefine the existing `TaskPhase`.
+- **`PlanModeTrigger::default()` DOES NOT EXIST** — it has `new(config: PlanModeTriggerConfig)` (`plan_mode_trigger.rs:81`). Task 2's test uses `PlanModeTrigger::default()`. **Add `impl Default for PlanModeTrigger { fn default() -> Self { Self::new(PlanModeTriggerConfig::default()) } }`** (confirm `PlanModeTriggerConfig: Default`) as the first step of Task 2, or construct via `new(Default::default())` in the test.
+- **CONFIRMED & EASIER THAN PLANNED:** the `ai.plan.execute` enqueue is already a callable function — `crate::planning::schedule::enqueue_runnable_plan_nodes(orch, plan_session_id, plan_version, session_id, tenant_id)` (`schedule.rs:40-87`), invoked by `handle_plan_execute` (`dei_dispatch.rs:172-213`). Auto-chaining (Task 3) just calls it after synthesis — no extraction needed. `OperatingMode::Verification` (`context_envelope.rs:28`) + the `doubt_task` re-enqueue pattern (`doubt.rs:79`) are the SSOT to mimic. `PlanModeSignal`/`PlanModeDecision` fields/variants match.
+- **EVENT REALITY — don't invent `PhaseChanged` or a `vox://` channel.** The `EventBus` is a `tokio::broadcast::Sender<AgentEvent>` (`events.rs:718`) — **no string channel paths**; "`vox://agent-events`" is wrong (delete that phrasing). A phase event already exists: `AgentEventKind::TaskPhaseChanged{task_id,agent_id,phase: TaskPhase}` (`events.rs:162`) — but it carries the *existing* `TaskPhase`. **Add a new variant `AgentEventKind::PavPhaseChanged{task_id, phase: PavPhase}`** and have the GUI subscribe through the same agent-events stream the Chat surface already consumes (find that subscription in the FE; it's the existing broadcast bridge, not a new channel).
+- **`PhaseLoop` HAS NO STORAGE — add it.** `AgentTask` has `current_phase: Option<TaskPhase>` but no slot for our loop. **Add `pav_loop: Option<PavLoopState>` to `AgentTask`** (serializable: `{phase: PavPhase, verify_required: bool, verify_skipped: bool}`) rather than a side-map (simpler lifecycle; dies with the task). `PhaseLoop` becomes the logic over that state.
+- **Intervention handlers don't exist yet (expected)** — `DOUBT_TASK`/`OVERRULE_TASK` constants (`vox-foundation/src/protocol.rs`) + GUI cmds (`control_plane.rs:138,159`) are the pattern to copy for `APPROVE_PLAN`/`SKIP_VERIFY`/`FORCE_VERIFY`. Daemon dispatch arms go in `orch_daemon/mod.rs` (alongside `:527 DOUBT_TASK`).
+- **Test harness CONFIRMED:** mimic `test_orchestrator()` + `orch.submit_task(...)` + `orch.status()` (`orchestrator/tests/mod.rs:~237-252`).
+- **HARD DEP:** Track A's `ClutchProfile`/`RiskPosture`/`ResolvedRisk` must be landed first (Task 1 reads `risk.resolve().socrates_enforce`).
 
 ---
 

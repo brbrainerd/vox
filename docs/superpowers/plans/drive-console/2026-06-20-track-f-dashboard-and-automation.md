@@ -9,6 +9,19 @@
 **Tech Stack:** React (vox-gui/ui Recharts + widgetRegistry), CSS tokens, Vox-language automation (`.vox`, run `--mode interp`), existing `agy` shell-out + handoff ledger + `vox ci gui-visual-review`.
 
 **Scope marker:** `[PARALLEL-SAFE]` with C/D/E. **Soft dep:** dashboard-topbar-unification spec (widgetRegistry).
+**Execution target:** Sonnet 4.6.
+
+---
+
+## Audit Corrections — verified against code 2026-06-20 (read FIRST; overrides stale claims below)
+
+- **CONFIRMED:** the Recharts widgets accept `MetricPoint[]` where `MetricPoint = {t:number; v:number}` (`hooks/useMetricSeries.ts:4-7`, `chartWidgetShared.tsx:8-11`) — the `{t,v}` shape is right. TopHud full→slim→hidden cycle + Ctrl+Shift+H (`TopHud.tsx:100-103`, `App.tsx:503-505`) — making it optional is just state. The white-scrollbar complaint is REAL: `index.css:27-39` only styles `.custom-scrollbar`; there is **no app-wide `*` rule**, so un-classed scroll containers show the browser default. `vox ci gui-visual-review` exists as a CLI subcommand (`vox-cli/src/commands/ci/cmd_enums.rs:~1219`) + `vox-orchestrator-mcp/src/visus_review/` logic.
+- **`useMetricSeries.ts` ALREADY EXISTS.** Don't create a duplicate `metricSeries.ts`. **Revised Task 1:** extend the existing `useMetricSeries` hook (and its `MetricPoint`) with the windowed ring-buffer + the event-fed `push`; keep the existing type. Reuse, don't fork.
+- **TASK 4 IS INFEASIBLE AS A `.vox` SCRIPT — rewrite as a Rust `vox-cli` command.** Verified against the builtin registry (`vox-compiler/src/builtin_registry.rs`) and interp stdlib (`vox-compiler/src/eval/shell_stdlib.rs`): Vox scripts **cannot spawn processes**, and **none** of `agy_run`/`agy_pool_run`/`worktree_create`/`ledger_append`/`plan_parse_tasks`/`ci_gui_visual_review` exist as builtins. Also there is **no `agy` integration anywhere in-repo** (grep `agy` → zero code hits), and **no `Design` clap subcommand** (`vox-cli/src/lib.rs:119-657`). So:
+  - Implement **`vox design execute <plan.md>` as a new Rust subcommand** under `crates/vox-cli/src/commands/design/` and register it in the `Cli` enum (`vox-cli/src/lib.rs`). Delete the `scripts/design-execute.vox` task entirely.
+  - The Rust command: (1) parse the plan markdown for `### Task` blocks + `[PARALLEL-SAFE]`/`[SEQUENTIAL]` tags; (2) shell out to the external **`agy` Go binary** via `std::process::Command` (gated behind an `agy --version` presence check with an actionable error if missing — there is no `antigravity-sdk-rust` crate); run each task in a git worktree jail you create with `git worktree add`; (3) for UI tasks, gate via the existing `visus_review` logic (call it in-process from `vox-orchestrator-mcp`, or invoke `vox ci gui-visual-review`); (4) append to `docs/superpowers/antigravity-handoff-ledger.md`.
+  - **HARD DEP:** this assumes an `agy` binary on PATH; the "native-agy delegation" shim does not exist yet. If that shim is desired in-repo first, Track F Task 4 depends on it. Otherwise the Rust command shells out directly. **Note the execution target for THESE plans is Sonnet 4.6, not agy** — `vox design execute` is a separate downstream automation, not the tool running Tracks A–F.
+- **Scrollbar fix (Task 3) is correct** — add the app-wide `*` rule as written; keep `.custom-scrollbar` for the slim opt-in variant.
 
 ---
 

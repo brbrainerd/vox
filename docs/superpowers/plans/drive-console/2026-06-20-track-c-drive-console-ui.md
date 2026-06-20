@@ -9,6 +9,17 @@
 **Tech Stack:** React + TypeScript (vox-gui/ui), Tailwind, existing design tokens, vitest, Playwright.
 
 **Scope marker:** `[SEQUENTIAL]` after Track B (needs `model_id` + interrupt command).
+**Execution target:** Sonnet 4.6.
+
+---
+
+## Audit Corrections — verified against code 2026-06-20 (read FIRST; overrides stale claims below)
+
+- **CONFIRMED:** `LQ_MODES` (`Loquela.tsx:20-24`), `<Segment value={mode}…>` mount (`:560`), send button (`:554-556`); `useLocalStorage<T>(key, initial): [T,(v:T)=>void]` (`hooks/useLocalStorage.ts`), `gui.chat.*` key convention; `Icon.send` exists (`:71-74`); `Glass` is exported & generic (`components/ui/Glass.tsx`); vitest + `@testing-library/react` + jsdom set up; tests run via `npm test -- <path>` (script `vitest run`) and typecheck via `npm run typecheck` (`tsc --noEmit`). Risk pill is actually `Loquela.tsx:620-625` (not 626).
+- **`Icon.stop` DOES NOT EXIST.** Available icons include `pause`, `play`, `x`, `refresh`, … (no `stop`). **Add a `stop` icon to the Icon set** (a simple `<rect>` square) as Task 4 Step 0, OR use `Icon.pause`. The plan's `Icon.stop` will not compile until added.
+- **`Segment` and `Popover` are NOT exported** — they're local to `Loquela.tsx` (`:61-76`, `:93-100`); `Pill` (`components/ui/Pill.tsx`) is phase-specific, not a generic risk pill. So "reuse Segment/Popover/Pill" in the spec is inaccurate. **Decision:** the plan's `DriveConsole`/`RiskPopover` already build with raw `Glass`+buttons — keep that (correct), but to honor the design-system consistency goal, **first extract `Segment` and `Popover` to `components/ui/Segment.tsx` / `Popover.tsx`** (Task 0, mechanical move + re-import in Loquela) and have `DriveConsole` use the extracted `Segment` for the clutch. This removes the inconsistency the spec promised to avoid.
+- **`running` STATE IS NOT WIRED.** `Loquela.tsx` tracks `text/mode/tier/dryRun` only; it does not know when a submitted task is in progress. **Add a `taskInProgress?: boolean` (+ `onInterrupt?: () => void`) prop passed from `ChatSurface`** (the parent, which has orchestrator status), and derive the Send↔Stop flip from it. Specify this prop in Task 4 — do not "derive from existing state" (there is none).
+- **`ChatPayload` lives in `crates/vox-gui/ui/src/types/tauri.ts:30-40`**, not where implied, and has `{description, session_id?, priority?, mode?, model_hint?, tier?, dry_run?, active_skill?, files?}` — **no `context` field** (the composer builds `context` inline at `Loquela.tsx:~420` even though the type omits it — a pre-existing type gap). **Task 3 must:** add `clutch?: string` and `risk?: string` to `ChatPayload` in `tauri.ts`, and the Rust submit command must accept them (this is the Track A→backend contract; coordinate — the GUI `SubmitTaskInput`/`control_plane.rs:14` `mode` field is where `clutch`/`risk` get added). Keep `mode` for now (Track D still reads it during transition); don't remove it from the payload until Track D lands the loop.
 
 ---
 

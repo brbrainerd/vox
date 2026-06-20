@@ -9,6 +9,16 @@
 **Tech Stack:** Rust (vox-orchestrator, vox-config), serde, TOML/YAML contract, existing test harness.
 
 **Scope marker:** `[SEQUENTIAL]` — foundational; land before B–F.
+**Execution target:** Sonnet 4.6.
+
+---
+
+## Audit Corrections — verified against code 2026-06-20 (read FIRST; overrides stale claims below)
+
+- **CONFIRMED:** `crate::config::CostPreference` import path is correct (`mode.rs:5`); `QualityLevel{Flash,Balanced,Premium}` (`mode.rs:14-20`); `SelectionAxes` presets exact — `COST_FIRST` (70/15/15) `select.rs:287`, `BALANCED` (33/33/34) `:294`, `QUALITY_FIRST` (15/15/70) `:302`, `FAST` (15/70/15) `:310`; `serde_yaml` is a workspace dep of `vox-orchestrator` (`Cargo.toml:95` + build-deps `:131`) → available in tests, **no `cargo add` needed** (delete that instruction in Task 4 Step 2); `pub mod control;` convention OK; the parity test runs automatically under `cargo test` (no separate registry-gate file — the repo's `tool-registry.canonical` style gate is for config registries, not this; Task 4 Step 4 "wire into CI gate" is therefore a no-op — **delete it**, the test self-includes).
+- **CONTRACT PATH CONFIRMED:** from `CARGO_MANIFEST_DIR` (= crate root `crates/vox-orchestrator/`) the YAML is `/../../contracts/gui/drive-console.v1.yaml` (up 2). Correct as written. `contracts/gui/` already exists.
+- **TASK 5 WAS WRONG — DO NOT DELETE `ExecutionModeProfile`.** It is used in `vox-research-shim` (6 refs: `selection/scorer.rs:61,178-195`, `selection/tests.rs:88,95,113,120`) and re-exported at `vox-orchestrator/src/lib.rs:379`. Deleting it breaks the build. **Replace Task 5 with:** leave `ExecutionModeProfile` in place for now and add a doc-comment `// superseded by ClutchProfile; migrate vox-research-shim then remove` — actual removal is a separate follow-up after the scorer is migrated to consume `ResolvedClutch`. Confirm with `grep -rn "ExecutionModeProfile" crates/` (expect the 6+1 refs above) and STOP if you were about to delete.
+- **DESIGN NOTE (code-review):** the plan invents `ApprovalLean` parallel to the real `attention::ApprovalTier{AutoApprove,Confirm,Review,Blocked}` (`attention/budget.rs`). Keep `ApprovalLean` as the *risk-posture intent* (3 values, no `Blocked`) but document the mapping `AutoApproveMore→AutoApprove`, `Confirm→Confirm`, `Review→Review` so Track E wires posture→tier without a second source of truth. Add a `pub fn to_approval_tier(self) -> attention::ApprovalTier` on `ApprovalLean` and a test, so the mapping is code, not prose.
 
 ---
 
