@@ -340,7 +340,10 @@ impl HopperIntake for SqliteHopper {
         override_at_unix_ms: u64,
         override_by_node_id: String,
     ) -> Result<IntakeItem, HopperError> {
-        let item = self.inbox().await.into_iter()
+        let item = self
+            .inbox()
+            .await
+            .into_iter()
             .chain(self.assigned().await)
             .find(|i| &i.item_id == item_id);
 
@@ -369,7 +372,11 @@ impl HopperIntake for SqliteHopper {
         });
 
         // Save new priority
-        if let Err(e) = self.db.hopper_update_priority(&item_id.0, new_priority as i64).await {
+        if let Err(e) = self
+            .db
+            .hopper_update_priority(&item_id.0, new_priority as i64)
+            .await
+        {
             tracing::error!("Failed to update priority in sqlite hopper: {:?}", e);
         }
 
@@ -381,7 +388,10 @@ impl HopperIntake for SqliteHopper {
         item_id: &HopperItemId,
         new_state: ItemState,
     ) -> Result<IntakeItem, HopperError> {
-        let item = self.inbox().await.into_iter()
+        let item = self
+            .inbox()
+            .await
+            .into_iter()
             .chain(self.assigned().await)
             .chain(self.history().await)
             .find(|i| &i.item_id == item_id);

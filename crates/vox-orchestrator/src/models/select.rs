@@ -1256,17 +1256,30 @@ mod tests {
     #[test]
     fn pool_excludes_constrain_decide_candidates() {
         let registry = ModelRegistry::new();
-        let ids: Vec<String> = registry.list_models().iter().map(|m| m.id.clone()).collect();
-        assert!(ids.len() >= 2, "need ≥2 models in registry to test exclusion");
+        let ids: Vec<String> = registry
+            .list_models()
+            .iter()
+            .map(|m| m.id.clone())
+            .collect();
+        assert!(
+            ids.len() >= 2,
+            "need ≥2 models in registry to test exclusion"
+        );
         let victim = ids[0].clone();
         let pool = vox_config::model_pool::ModelPool {
             excludes: vec![victim.clone()],
             ..Default::default()
         };
-        let enabled: std::collections::BTreeSet<String> =
-            registry.list_models().iter().map(|m| m.provider.clone()).collect();
+        let enabled: std::collections::BTreeSet<String> = registry
+            .list_models()
+            .iter()
+            .map(|m| m.provider.clone())
+            .collect();
         let filtered = apply_pool(&registry.list_models(), &pool, &enabled);
-        assert!(!filtered.iter().any(|m| m.id == victim), "excluded model must not be a candidate");
+        assert!(
+            !filtered.iter().any(|m| m.id == victim),
+            "excluded model must not be a candidate"
+        );
         assert_eq!(filtered.len(), registry.list_models().len() - 1);
     }
 

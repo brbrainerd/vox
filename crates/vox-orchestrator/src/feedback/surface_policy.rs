@@ -12,7 +12,9 @@ pub fn surface_for(d: &InterruptionDecision) -> Surface {
 pub fn scaled_cost_of(d: &InterruptionDecision) -> u64 {
     match d {
         InterruptionDecision::InterruptNow { scaled_cost_ms, .. }
-        | InterruptionDecision::RequireHumanBeforeContinue { scaled_cost_ms, .. } => *scaled_cost_ms,
+        | InterruptionDecision::RequireHumanBeforeContinue { scaled_cost_ms, .. } => {
+            *scaled_cost_ms
+        }
         _ => 0,
     }
 }
