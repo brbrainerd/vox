@@ -239,6 +239,27 @@ chunking threshold (e.g. 128 KB) is a tunable for degradation-avoidance ("lost i
 middle"), never a correctness guarantee. The estimator must also handle non-UTF-8 bytes
 explicitly (never silently treat invalid UTF-8 as empty/zero tokens).
 
+### 6.2 Model-relative projections & sub-agent handoff (approved)
+
+A `ModelProfile { model_id, max_context_tokens, tokenizer_ratio, tool_capable,
+reasoning_tier }` (sourced from the OpenRouter pool / `model_resolution`) is the SSOT for
+"what fits." A `Projection(window, model)` is an ordered list of **item references** plus a
+per-item fate (`included`/`summarized`/`dropped`/`on_demand`) computed by the
+`TokenEstimator` against the profile. **Storage stays model-invariant (bytes, one CAS
+copy); only the projection is model-relative** — never store content per model.
+
+**Sub-agent detach = retrieval-on-demand seed (default) with pre-pack fallback.** A
+sub-agent is a **child window** (`parent_window_id`). Its seed = pins + task brief + a
+compact summary, sized to a fraction of the sub-agent's window (reserve headroom). The
+A2A envelope carries `child_window_id` + `parent_window_id` + seed hashes + a **retrieval
+grant scoped to the parent's `root_window_id` lineage**; the sub-agent pulls items by hash
+through the retrieval router into *its own* committed set, budget-enforced by *its*
+`ModelProfile`. The seed snapshots CAS hashes at handoff → immutable even if the parent
+advances. **Critique-driven guardrails:** retrieval-on-demand requires `tool_capable` —
+non-tool models auto-fall-back to a pre-packed projection (so both paths exist, on-demand
+is the principled default); cap pulls/turn + budget to prevent thrash; the summary is
+lossy but raw stays retrievable in CAS with provenance.
+
 ## 7. Layer C — Consumers / Wiring
 
 - **API assembly:** `context_get` / `context_set` Tauri commands (already planned in the
@@ -289,6 +310,32 @@ items that produced it; scrub time → watch a subsystem grow.
 Register both surfaces in `decoratorRegistry`; subscribe to new
 `vox://context-window-changed`, `vox://context-tier-changed`, `vox://graph-snapshot-added`
 events.
+
+### 8.1 Sub-agent activity visualization (nested · editable · skill-aware · controllable)
+
+Sub-agent activity must be a first-class **nested** surface, not one line in a chat. It
+renders the live tree of agent/sub-agent **windows** (from A2A lineage: `parent_task_id` /
+`span_depth` / `trace_id`, joined to `context_windows.parent_window_id`). Each node:
+
+- **Skill-aware:** shows the running skill (badge), and its context can be grouped/filtered
+  by skill (a skill lens over the committed set).
+- **Model-relative meter:** the node's `ModelProfile` + token meter; the committed-set view
+  reflows when the node's model changes (per §6.2).
+- **Editable at every level:** the committed-set editor (§8 right pane) operates on ANY
+  node — add/remove/pin/reorder items, adjust budget — including deeply nested sub-agents,
+  live. Edits write through the same `context_set` SSOT scoped to that node's window.
+- **Visualizable:** an expandable tree (bonsai) + a graph view (`@xyflow/react`,
+  `agent-mesh` corpus) + a live event stream per node (`vox://agent-events`), including the
+  **retrieval pulls** a sub-agent makes (which parent items it materialized on demand).
+- **Controllable:** per-node actions — pause/resume, overrule (reuse soft-HITL
+  `overrule_task` / `FeedbackStore`), adjust budget/model, inject/remove context, kill.
+
+Reuse: `@xyflow/react`, `DockShell`, `useVirtualList`, `ContextWindowMeter`,
+`loquelaContext`, `decoratorRegistry`/`surfaceRegistry`, `vox://agent-events`, and the
+existing `AgentFlow.tsx` as a starting point. Frontend is testable in isolation against
+mocked transport clients (the established GUI test pattern); real Tauri wiring of
+`context_get/set`, lineage, and control commands is a named backend follow-on (chunks
+6–7).
 
 ## 9. Layer E — Graphify Temporal Join
 
