@@ -220,6 +220,25 @@ The committed set (`context_window_items.committed = 1`) is the SSOT for what re
 the model and is the single enforcement point for the token budget (reuse
 `context_budget_manager` / AttentionBudget).
 
+### 6.1 Byte-native storage, per-model token estimation at the boundary (reviewed)
+
+Content is stored as raw bytes (CAS `objects.data`, already a `Vec<u8>`), and each item
+records an exact `byte_len` — the one **model-invariant** size fact. Token counts are NOT
+a storage property: every model family tokenizes differently (a chunk that is 4k tokens
+for one model is 5.5k for another), so token accounting is computed **at the committed-set
+/ API-assembly boundary against the window's current `model_route`** via a `TokenEstimator`
+trait (backed by `tiktoken-rs`/`tokenizers` where available, else a per-family
+bytes/token ratio). Because a window can switch models mid-session, the budget meter
+recomputes when `model_route` changes.
+
+**Rejected as unsafe (review of a proposed heuristic):** a "max bytes = token_limit ×
+3.5" rule is an *average-case* ratio, NOT a hard guarantee — dense content (code, CJK,
+base64) runs well under 3.5 bytes/token and would overflow. A true cap either tokenizes
+exactly or uses a *conservative lower-bound* bytes/token with margin. Any byte-size
+chunking threshold (e.g. 128 KB) is a tunable for degradation-avoidance ("lost in the
+middle"), never a correctness guarantee. The estimator must also handle non-UTF-8 bytes
+explicitly (never silently treat invalid UTF-8 as empty/zero tokens).
+
 ## 7. Layer C — Consumers / Wiring
 
 - **API assembly:** `context_get` / `context_set` Tauri commands (already planned in the

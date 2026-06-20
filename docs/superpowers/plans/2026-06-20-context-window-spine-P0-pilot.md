@@ -45,8 +45,13 @@ pilot.**
    except the two explicitly-authorized shared files in Task 1
    (`schema/manifest.rs`, `schema/domains/mod.rs`, `contracts/db/baseline-version-policy.yaml`).
    Report any other edit you believe is required instead of making it.
-7. **Branch discipline.** Work ONLY on branch `claude/context-window-spine`. Every commit
-   stays on it. Do not branch off, do not rebase, do not merge.
+7. **Branch discipline — LOCAL, on-machine run; do NOT push.** Work ONLY on the existing
+   local branch `claude/context-window-spine` (it already carries this plan + the design
+   SSOT). Every commit stays on it. **Do not `git push`, do not open a PR, do not branch
+   off, rebase, or merge.** This is an on-machine Antigravity run: the branch is
+   intentionally local-only (a repo-wide `cargo fmt --all` pre-push gate is currently red
+   on unrelated concurrent work, and pushing is out of scope here). A human handles
+   integration after the pilot review. If a tool tries to push, cancel it.
 
 ## Flash Execution Addendum (2026-06-20)
 
@@ -124,7 +129,8 @@ CREATE TABLE IF NOT EXISTS context_window_items (
     role           TEXT NOT NULL,                -- 'user'|'assistant'|'system'|'tool'
     item_kind      TEXT NOT NULL,                -- 'message'|'pin'|'attachment'|'summary'|'tool_call'
     content_hash   TEXT NOT NULL,                -- references objects(hash) in CAS
-    token_estimate INTEGER NOT NULL DEFAULT 0,
+    byte_len       INTEGER NOT NULL DEFAULT 0,   -- exact, model-invariant size (design §6.1)
+    token_estimate INTEGER NOT NULL DEFAULT 0,   -- heuristic; exact per-model count is computed at the API boundary, NOT here
     pinned         INTEGER NOT NULL DEFAULT 0,
     committed      INTEGER NOT NULL DEFAULT 0,
     redacted       INTEGER NOT NULL DEFAULT 0,
@@ -214,7 +220,10 @@ mod tests {
   root_window_id, now) -> Result<(), StoreError>`; an `add_item(db, item_id, window_id,
   ordinal, role, item_kind, content: &[u8], now) -> Result<String, StoreError>` that calls
   `db.store("ctxwin-item", content).await?` to put the blob in CAS and inserts the item row
-  with the returned `content_hash`, returning the hash; a `count_hash_references(db, hash)
+  with the returned `content_hash` **and `byte_len = content.len() as i64`** (the exact,
+  model-invariant size — do NOT compute or store any token count here; per-model token
+  estimation happens later at the API boundary, design §6.1), returning the hash; a
+  `count_hash_references(db, hash)
   -> Result<i64, StoreError>` that returns
   `SELECT COUNT(*) FROM context_window_items WHERE content_hash = ?1 AND trimmed_at IS NULL`;
   and a `mark_item_trimmed(db, item_id, now)` that sets `trimmed_at`. Mirror the
@@ -223,6 +232,7 @@ mod tests {
   - create a window, add the SAME content to two items, assert `count_hash_references == 2`
     and that the two items share one `content_hash` (dedup proven via CAS);
   - assert `db.get(&hash)` returns the original bytes (content really landed in CAS);
+  - assert the stored `byte_len` equals `content.len()` (byte-native storage, design §6.1);
   - trim one item, assert `count_hash_references == 1` (refcount respects `trimmed_at`).
   > Do NOT implement any DELETE against `objects`. Refcount is read-only in this pilot.
 
