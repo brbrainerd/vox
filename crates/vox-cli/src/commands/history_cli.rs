@@ -15,7 +15,7 @@ pub async fn run_clip(cmd: ClipSubCommand) -> anyhow::Result<()> {
         ClipSubCommand::Add { text, source } => {
             let now = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
+                .context("system clock error")?
                 .as_millis() as i64;
             let id =
                 history_store::add_entry(&db, &repo_id, "clip", &text, "", now, &source).await?;

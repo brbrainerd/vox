@@ -42,6 +42,51 @@ pub fn redact(text: &str) -> (String, bool) {
         redacted = true;
     }
 
+    // 4. JWT tokens (three base64url segments: eyJ...)
+    static JWT_RE: OnceLock<Regex> = OnceLock::new();
+    let jwt_re = JWT_RE.get_or_init(|| {
+        Regex::new(r"\beyJ[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}\b").unwrap()
+    });
+    if jwt_re.is_match(&result) {
+        result = jwt_re.replace_all(&result, "[REDACTED_JWT]").to_string();
+        redacted = true;
+    }
+
+    // 5. HTTP Authorization Bearer tokens
+    static BEARER_RE: OnceLock<Regex> = OnceLock::new();
+    let bearer_re =
+        BEARER_RE.get_or_init(|| Regex::new(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]{16,}").unwrap());
+    if bearer_re.is_match(&result) {
+        result = bearer_re
+            .replace_all(&result, "Bearer [REDACTED]")
+            .to_string();
+        redacted = true;
+    }
+
+    // 6. PEM private keys (-----BEGIN * PRIVATE KEY-----)
+    static PEM_RE: OnceLock<Regex> = OnceLock::new();
+    let pem_re = PEM_RE.get_or_init(|| {
+        Regex::new(r"-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----")
+            .unwrap()
+    });
+    if pem_re.is_match(&result) {
+        result = pem_re
+            .replace_all(&result, "[REDACTED_PEM_KEY]")
+            .to_string();
+        redacted = true;
+    }
+
+    // 7. Opaque long tokens (40+ alphanumeric chars, covers libsql/turso auth tokens)
+    // Run last to avoid matching on already-redacted text.
+    static OPAQUE_RE: OnceLock<Regex> = OnceLock::new();
+    let opaque_re = OPAQUE_RE.get_or_init(|| Regex::new(r"\b[A-Za-z0-9_-]{40,}\b").unwrap());
+    if opaque_re.is_match(&result) {
+        result = opaque_re
+            .replace_all(&result, "[REDACTED_TOKEN]")
+            .to_string();
+        redacted = true;
+    }
+
     (result, redacted)
 }
 
@@ -57,12 +102,42 @@ mod tests {
         let (masked, flagged) = redact("token sk-ABC123DEF456GHI789");
         assert!(flagged);
         assert!(!masked.contains("sk-ABC123DEF456GHI789"));
-        assert!(masked.contains("[REDACTED_API_KEY]"));
+        assert!(masked.contains("[REDACTED"));
 
         let (masked_gh, flagged_gh) =
             redact("github token ghp_123456789012345678901234567890123456");
         assert!(flagged_gh);
         assert!(!masked_gh.contains("ghp_123456789012345678901234567890123456"));
-        assert!(masked_gh.contains("[REDACTED_GITHUB_TOKEN]"));
+        assert!(masked_gh.contains("[REDACTED"));
+    }
+
+    #[test]
+    fn redact_masks_jwt_pem_bearer_and_turso() {
+        let jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.abc123def456";
+        let (masked, flagged) = redact(jwt);
+        assert!(flagged, "should flag JWT");
+        assert!(
+            !masked.contains("eyJhbGciOiJIUzI1NiJ9"),
+            "JWT header leaked"
+        );
+
+        let bearer_input = "Authorization: Bearer abcdefghijklmnopqrstuvwxyz123456";
+        let (masked_b, flagged_b) = redact(bearer_input);
+        assert!(flagged_b, "should flag bearer");
+        assert!(masked_b.contains("[REDACTED]"), "bearer value not redacted");
+
+        let pem = "-----BEGIN PRIVATE KEY-----\nMIIBVgIBADANBg\n-----END PRIVATE KEY-----";
+        let (masked_p, flagged_p) = redact(pem);
+        assert!(flagged_p, "should flag PEM key");
+        assert!(!masked_p.contains("MIIBVgIBADAN"), "PEM body leaked");
+
+        // long opaque token (40+ chars, covers libsql/turso)
+        let turso = "eyJ0eXA9libsqlauthtokenaaaaaaaaaaaaaaaaaaaaaa";
+        let (masked_t, flagged_t) = redact(turso);
+        assert!(flagged_t, "should flag long opaque token");
+        assert!(masked_t.contains("[REDACTED"), "opaque token not redacted");
+
+        // normal text unchanged
+        assert_eq!(redact("just normal text").0, "just normal text");
     }
 }

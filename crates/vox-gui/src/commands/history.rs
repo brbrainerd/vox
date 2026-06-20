@@ -41,7 +41,7 @@ pub async fn history_add(
     let repo_id = repo_ctx.repository_id;
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
+        .map_err(|e| format!("system clock error: {e}"))?
         .as_millis() as i64;
 
     let id = history_store::add_entry(&db, &repo_id, &kind, &text, "", now, &source)
