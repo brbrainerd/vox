@@ -47,12 +47,12 @@ function Chip({ chip, onRemove }: { chip: ChipData; onRemove: (c: ChipData) => v
             : chip.kind === "skill"  ? "border-brass/30 text-brass bg-brass/[0.05]"
             : chip.kind === "agent"  ? "border-violet-400/25 text-violet-300 bg-violet-400/[0.05]"
             : chip.kind === "branch" ? "border-emerald-400/25 text-emerald-300 bg-emerald-400/[0.05]"
-            :                          "border-white/10 text-zinc-300 bg-white/[0.03]";
+            :                          "border-border-subtle text-text-secondary bg-overlay-subtle";
   return (
     <span className={`group inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-mono text-[10px] ${tone}`}>
       <IconCmp className="size-3" />
       <span className="truncate max-w-[180px]">{chip.label}</span>
-      {chip.meta && <span className="text-zinc-500">· {chip.meta}</span>}
+      {chip.meta && <span className="text-text-muted">· {chip.meta}</span>}
       <button type="button" aria-label={`Remove ${chip.label}`} onClick={() => onRemove(chip)} className="ml-0.5 opacity-40 hover:opacity-100"><Icon.x className="size-2.5" aria-hidden="true" /></button>
     </span>
   );
@@ -61,12 +61,12 @@ function Chip({ chip, onRemove }: { chip: ChipData; onRemove: (c: ChipData) => v
 function Segment({ value, onChange, options, size = "sm" }: any) {
   const pad = size === "xs" ? "px-2 py-0.5 text-[10px]" : "px-2.5 py-1 text-[11px]";
   return (
-    <div className="inline-flex items-center rounded-md border border-white/10 bg-black/30 p-0.5">
+    <div className="inline-flex items-center rounded-md border border-border-subtle bg-black/30 p-0.5">
       {options.map((o: any) => {
         const on = value === o.id;
         return (
           <button type="button" key={o.id} title={o.hint} aria-pressed={on} onClick={() => onChange(o.id)}
-            className={`${pad} font-display uppercase tracking-[0.15em] rounded-[5px] transition ${on ? (o.tone || "bg-white/10 text-zinc-50") : "text-zinc-500 hover:text-zinc-300"}`}>
+            className={`${pad} font-display uppercase tracking-[0.15em] rounded-[5px] transition ${on ? (o.tone || "bg-overlay-subtle text-text-primary") : "text-text-muted hover:text-text-secondary"}`}>
             {o.label}
           </button>
         );
@@ -79,13 +79,13 @@ function MiniSlider({ label, value, setValue, min, max, step, fmt, accent = 'rgb
   const pct = ((value - min) / (max - min)) * 100;
   return (
     <label className="group flex items-center gap-2 cursor-pointer">
-      <span className="font-display text-[9px] uppercase tracking-[0.22em] text-zinc-500">{label}</span>
+      <span className="font-display text-[9px] uppercase tracking-[0.22em] text-text-muted">{label}</span>
       <input type="range" min={min} max={max} step={step} value={value}
         onChange={e => setValue(parseFloat(e.target.value))}
         className="vox-range w-24 h-1 appearance-none rounded-full overflow-hidden" 
         style={{ background: `linear-gradient(to right, ${accent} ${pct}%, rgba(255,255,255,0.08) ${pct}%)` } as any} 
       />
-      <span className="w-10 font-mono text-[10px] tabular-nums text-zinc-300">{fmt(value)}</span>
+      <span className="w-10 font-mono text-[10px] tabular-nums text-text-secondary">{fmt(value)}</span>
     </label>
   );
 }
@@ -93,7 +93,7 @@ function MiniSlider({ label, value, setValue, min, max, step, fmt, accent = 'rgb
 function Popover({ open, children, align = "left" }: any) {
   if (!open) return null;
   return (
-    <div className={`absolute ${align === "right" ? "right-0" : "left-0"} bottom-9 z-50 min-w-[240px] rounded-lg border border-white/10 bg-zinc-950/95 p-1 backdrop-blur-xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)]`}>
+    <div className={`absolute ${align === "right" ? "right-0" : "left-0"} bottom-9 z-50 min-w-[240px] rounded-lg border border-border-subtle bg-bg-base/95 p-1 backdrop-blur-xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)]`}>
       {children}
     </div>
   );
@@ -450,16 +450,16 @@ export function Loquela({
       <Glass className={`relative overflow-hidden px-3 py-2 transition ${focused ? "ring-1 ring-brass/30 shadow-[0_0_60px_-20px_rgb(var(--brass)_/_0.45)]" : ""}`}>
         {chips.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5 pb-1.5">
-            <span className="font-display text-[9px] uppercase tracking-[0.22em] text-zinc-500">Context</span>
+            <span className="font-display text-[9px] uppercase tracking-[0.22em] text-text-muted">Context</span>
             {chips.map(c => <Chip key={c.id} chip={c} onRemove={(x) => setChips(chips.filter(y => y.id !== x.id))} />)}
           </div>
         )}
 
         <div className="relative flex items-end gap-2">
-          <button type="button" aria-label="Attach local file(s) to context" onClick={attachContext} title="Attach local file(s) to context (native picker)" className="flex size-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.02] text-zinc-400 hover:text-zinc-100 hover:border-white/25 transition">
+          <button type="button" aria-label="Attach local file(s) to context" onClick={attachContext} title="Attach local file(s) to context (native picker)" className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-white/25 transition">
             <Icon.plus className="size-4" aria-hidden="true" />
           </button>
-          <button type="button" aria-label="Attach a URL to context" onClick={attachUrl} title="Attach a URL to context" className="flex size-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.02] text-zinc-400 hover:text-zinc-100 hover:border-white/25 transition">
+          <button type="button" aria-label="Attach a URL to context" onClick={attachUrl} title="Attach a URL to context" className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-white/25 transition">
             <Icon.link className="size-4" aria-hidden="true" />
           </button>
           <button
@@ -471,10 +471,10 @@ export function Loquela({
             aria-pressed={recording}
             className={`flex size-8 shrink-0 items-center justify-center rounded-md border transition ${
               transcribing
-                ? 'border-white/10 bg-white/[0.02] text-zinc-500 cursor-wait'
+                ? 'border-border-subtle bg-overlay-subtle text-text-muted cursor-wait'
                 : recording
                 ? 'border-rose-400/50 bg-rose-400/15 text-rose-300 animate-pulse'
-                : 'border-white/10 bg-white/[0.02] text-zinc-400 hover:text-zinc-100 hover:border-white/25'
+                : 'border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-white/25'
             }`}
           >
             <Icon.mic className="size-4" aria-hidden="true" />
@@ -492,20 +492,20 @@ export function Loquela({
               onBlur={() => setTimeout(() => setFocused(false), 120)}
               rows={1}
               placeholder="Describe a task — e.g. ‘harden cryptographic invariants’. / for commands, @ for agents or files"
-              className={`min-h-[36px] ${expanded ? "max-h-[360px]" : "max-h-[160px]"} w-full resize-none bg-transparent py-1.5 text-[14px] leading-relaxed text-zinc-100 placeholder:text-zinc-600 outline-none`}
+              className={`min-h-[36px] ${expanded ? "max-h-[360px]" : "max-h-[160px]"} w-full resize-none bg-transparent py-1.5 text-[14px] leading-relaxed text-text-primary placeholder:text-text-muted outline-none`}
             />
 
             {slashOpen && filteredSlash.length > 0 && (
-              <div className="absolute bottom-[calc(100%+6px)] left-0 z-50 w-[360px] rounded-lg border border-white/10 bg-zinc-950/95 p-1 backdrop-blur-xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)]">
-                <div className="px-2 pt-1 pb-1.5 font-display text-[9px] uppercase tracking-[0.22em] text-zinc-500">Slash commands</div>
+              <div className="absolute bottom-[calc(100%+6px)] left-0 z-50 w-[360px] rounded-lg border border-border-subtle bg-bg-base/95 p-1 backdrop-blur-xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)]">
+                <div className="px-2 pt-1 pb-1.5 font-display text-[9px] uppercase tracking-[0.22em] text-text-muted">Slash commands</div>
                 {filteredSlash.map((s, i) => {
                   const IcoCmp = (Icon as any)[s.icon] || Icon.bolt;
                   return (
                     <button type="button" key={s.cmd} onMouseEnter={() => setSlashIdx(i)} onClick={() => void runSlash(s)}
-                            className={`flex w-full items-center gap-2.5 rounded px-2 py-1.5 text-left ${i === slashIdx ? "bg-white/5" : ""}`}>
+                            className={`flex w-full items-center gap-2.5 rounded px-2 py-1.5 text-left ${i === slashIdx ? "bg-overlay-subtle" : ""}`}>
                       <IcoCmp className="size-3.5 text-brass" />
-                      <span className="font-mono text-[11px] text-zinc-100">{s.cmd}</span>
-                      <span className="ml-auto text-[10px] text-zinc-500">{s.desc}</span>
+                      <span className="font-mono text-[11px] text-text-primary">{s.cmd}</span>
+                      <span className="ml-auto text-[10px] text-text-muted">{s.desc}</span>
                     </button>
                   );
                 })}
@@ -513,37 +513,37 @@ export function Loquela({
             )}
 
             {showAtPopover && (
-              <div className="absolute bottom-[calc(100%+6px)] left-0 z-50 w-[360px] max-h-[280px] overflow-y-auto rounded-lg border border-white/10 bg-zinc-950/95 p-1 backdrop-blur-xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)]">
+              <div className="absolute bottom-[calc(100%+6px)] left-0 z-50 w-[360px] max-h-[280px] overflow-y-auto rounded-lg border border-border-subtle bg-bg-base/95 p-1 backdrop-blur-xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)]">
                 {filteredAt.length > 0 && (
                   <>
-                    <div className="px-2 pt-1 pb-1.5 font-display text-[9px] uppercase tracking-[0.22em] text-zinc-500">Agents</div>
+                    <div className="px-2 pt-1 pb-1.5 font-display text-[9px] uppercase tracking-[0.22em] text-text-muted">Agents</div>
                     {filteredAt.map(a => (
                       <button type="button" key={a.id} onClick={() => insertAt(a)}
-                              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-white/5">
+                              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-overlay-subtle">
                         <span className="font-mono text-[10px] text-violet-300">{a.id}</span>
-                        <span className="text-[11px] text-zinc-200">{a.codename}</span>
-                        <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-zinc-500">{a.phase}</span>
+                        <span className="text-[11px] text-text-secondary">{a.codename}</span>
+                        <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-text-muted">{a.phase}</span>
                       </button>
                     ))}
                   </>
                 )}
                 {showFileSuggestions && (
                   <>
-                    <div className={`px-2 pt-1 pb-1.5 font-display text-[9px] uppercase tracking-[0.22em] text-zinc-500 ${filteredAt.length > 0 ? "mt-1 border-t border-white/5" : ""}`}>
+                    <div className={`px-2 pt-1 pb-1.5 font-display text-[9px] uppercase tracking-[0.22em] text-text-muted ${filteredAt.length > 0 ? "mt-1 border-t border-border-subtle" : ""}`}>
                       Files
                     </div>
                     {fileSuggestionsLoading && fileSuggestions.length === 0 && (
-                      <div className="px-2 py-1.5 text-[10px] text-zinc-500">Searching repo…</div>
+                      <div className="px-2 py-1.5 text-[10px] text-text-muted">Searching repo…</div>
                     )}
                     {fileSuggestions.map(p => (
                       <button type="button" key={p} onClick={() => insertAtFile(p)}
-                              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-white/5">
+                              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-overlay-subtle">
                         <Icon.file className="size-3 shrink-0 text-cyan-300" />
-                        <span className="truncate font-mono text-[10px] text-zinc-200">{p}</span>
+                        <span className="truncate font-mono text-[10px] text-text-secondary">{p}</span>
                       </button>
                     ))}
                     {!fileSuggestionsLoading && fileSuggestions.length === 0 && (
-                      <div className="px-2 py-1.5 text-[10px] text-zinc-500">No matching files</div>
+                      <div className="px-2 py-1.5 text-[10px] text-text-muted">No matching files</div>
                     )}
                   </>
                 )}
@@ -551,12 +551,12 @@ export function Loquela({
             )}
           </div>
 
-          <button type="button" onClick={send} disabled={!text.trim()} className={`flex h-8 shrink-0 items-center gap-1.5 rounded-md border px-3 font-display text-[11px] uppercase tracking-[0.18em] transition ${text.trim() ? "border-brass/40 bg-brass/15 text-brass hover:bg-brass/25 shadow-[0_0_24px_-8px_rgb(var(--brass)_/_0.6)]" : "border-white/5 bg-white/[0.02] text-zinc-600 cursor-not-allowed"}`}>
+          <button type="button" onClick={send} disabled={!text.trim()} className={`flex h-8 shrink-0 items-center gap-1.5 rounded-md border px-3 font-display text-[11px] uppercase tracking-[0.18em] transition ${text.trim() ? "border-brass/40 bg-brass/15 text-brass hover:bg-brass/25 shadow-[0_0_24px_-8px_rgb(var(--brass)_/_0.6)]" : "border-border-subtle bg-overlay-subtle text-text-muted cursor-not-allowed"}`}>
             <Icon.send className="size-3.5"/> {dryRun ? "Dry-run" : mode === "plan" ? "Plan" : mode === "verify" ? "Verify" : "Run"}
           </button>
         </div>
 
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-white/5 pt-2 text-[10px]">
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-border-subtle pt-2 text-[10px]">
           <Segment value={mode} onChange={setMode} options={LQ_MODES} />
 
           {typeof queueDepth === 'number' && queueDepth > 0 && (
@@ -571,16 +571,16 @@ export function Loquela({
           )}
 
           <div className="relative">
-            <button type="button" aria-expanded={tierOpen} aria-label="Choose model tier" onClick={() => { setTierOpen(o => !o); setSkillOpen(false); }} className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.02] px-2 py-1 text-zinc-300 hover:border-white/20">
-              <Icon.cpu className="size-3 text-cyan-300" /><span className="text-zinc-500">Run on</span> <span className="text-zinc-100">{tierObj.label.split(" · ")[0]}</span>
-              <Icon.chevR className="size-2.5 text-zinc-500 rotate-90" />
+            <button type="button" aria-expanded={tierOpen} aria-label="Choose model tier" onClick={() => { setTierOpen(o => !o); setSkillOpen(false); }} className="inline-flex items-center gap-1 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 text-text-secondary hover:border-white/20">
+              <Icon.cpu className="size-3 text-cyan-300" /><span className="text-text-muted">Run on</span> <span className="text-text-primary">{tierObj.label.split(" · ")[0]}</span>
+              <Icon.chevR className="size-2.5 text-text-muted rotate-90" />
             </button>
             <Popover open={tierOpen}>
               {runtimeTiers.map(t => (
-                <button type="button" key={t.id} onClick={() => { setTier(t.id); setTierOpen(false); }} className={`flex w-full items-start gap-2 rounded px-2 py-1.5 text-left hover:bg-white/5 ${tier === t.id ? "bg-white/5" : ""}`}>
+                <button type="button" key={t.id} onClick={() => { setTier(t.id); setTierOpen(false); }} className={`flex w-full items-start gap-2 rounded px-2 py-1.5 text-left hover:bg-overlay-subtle ${tier === t.id ? "bg-overlay-subtle" : ""}`}>
                   <div className="flex-1">
-                    <div className="text-[11px] text-zinc-100">{t.label}</div>
-                    <div className="font-mono text-[9px] text-zinc-500">{t.detail}</div>
+                    <div className="text-[11px] text-text-primary">{t.label}</div>
+                    <div className="font-mono text-[9px] text-text-muted">{t.detail}</div>
                   </div>
                 </button>
               ))}
@@ -593,11 +593,11 @@ export function Loquela({
               <Icon.chevR className="size-2.5 text-brass/60 rotate-90" />
             </button>
             <Popover open={skillOpen}>
-              <button type="button" onClick={() => { setActiveSkill(null); setSkillOpen(false); }} className="block w-full rounded px-2 py-1.5 text-left text-[11px] text-zinc-400 hover:bg-white/5 hover:text-zinc-100">auto</button>
+              <button type="button" onClick={() => { setActiveSkill(null); setSkillOpen(false); }} className="block w-full rounded px-2 py-1.5 text-left text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-primary">auto</button>
               {skills.map(s => {
                 const skillId = s.capability_id ?? s.command;
                 return (
-                <button type="button" key={skillId} onClick={() => { setActiveSkill({ id: skillId, name: s.command, command: s.command }); setSkillOpen(false); }} className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-[11px] hover:bg-white/5 ${activeSkill?.id === skillId ? "bg-white/5 text-brass" : "text-zinc-300"}`}>
+                <button type="button" key={skillId} onClick={() => { setActiveSkill({ id: skillId, name: s.command, command: s.command }); setSkillOpen(false); }} className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-[11px] hover:bg-overlay-subtle ${activeSkill?.id === skillId ? "bg-overlay-subtle text-brass" : "text-text-secondary"}`}>
                   <span>{s.command}</span>
                 </button>
               );})}
@@ -606,7 +606,7 @@ export function Loquela({
 
           
           {(estCost != null || sessionBudget) && (
-            <span className="font-mono text-[9px] text-zinc-500 tabular-nums">
+            <span className="font-mono text-[9px] text-text-muted tabular-nums">
               {estCost != null && (
                 <>~{tokens} tok · ~${estCost.toFixed(3)}</>
               )}
@@ -617,11 +617,11 @@ export function Loquela({
             </span>
           )}
 
-          <div className="ml-auto flex items-center gap-2 font-mono text-[9px] text-zinc-500">
+          <div className="ml-auto flex items-center gap-2 font-mono text-[9px] text-text-muted">
             <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 uppercase tracking-widest ${riskTone === "high" ? "border-amber-400/40 bg-amber-400/10 text-amber-300" : riskTone === "med" ? "border-violet-400/40 bg-violet-400/10 text-violet-300" : "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"}`}>
               {riskTone} risk
             </span>
-            <kbd className="rounded border border-white/10 bg-white/5 px-1 py-0.5 tracking-widest text-zinc-400">⌘↵</kbd>
+            <kbd className="rounded border border-border-subtle bg-overlay-subtle px-1 py-0.5 tracking-widest text-text-muted">⌘↵</kbd>
           </div>
         </div>
       </Glass>
