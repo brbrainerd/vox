@@ -316,7 +316,7 @@ what to search.
 - **GC must be refcount-safe** — never purge a CAS blob another window references.
 - **GUI reuse** — `useVirtualList`, `DockShell`, `CommandPalette`, `ContextWindowMeter`,
   `loquelaContext`, surface decorators, `vox://` events. The single largest net-new UI is
-  the graph component; mitigate by reusing vis-network.
+  the graph component; mitigate by building on `@xyflow/react` (already a dependency).
 
 ## 11. Scope Decomposition for Planning
 
