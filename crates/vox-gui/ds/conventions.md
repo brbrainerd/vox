@@ -54,6 +54,15 @@ long-form text.
 | `NavItem` | Sidebar row; `active` adds the gold leading rail. |
 | `KpiTile` | HUD metric; signed `delta` renders verdigris ▲ / fail ▼. |
 
+## Brand assets
+
+`brand/lockup.svg` and `brand/splash.svg` are the composed marks. Both passed a
+three-lens enforcement audit (token-only colors, WCAG contrast on basalt, groma
+geometry + Cinzel typography). Preview them on the real dark surface via
+`brand.html`. The wordmark uses `font-family: "Cinzel, Georgia, serif"`, so a
+standalone `.svg` (no page fonts) falls back to Georgia — embed inline in a page
+that loads `styles.css` for true Cinzel.
+
 ## Do / Don't
 
 - **Do** drive every color from a token variable. Never hardcode hex in a
