@@ -68,6 +68,7 @@ pub mod codex_chat;
 mod codex_conversation_graph;
 /// Canonical connect policy helpers (strict vs optional degraded surfaces).
 pub mod connect_policy;
+pub mod context_window_store;
 pub mod history_store;
 /// Explicit namespace for migration-era and cutover-only pathways.
 pub mod legacy;
