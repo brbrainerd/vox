@@ -760,6 +760,9 @@
       "vox-actor-runtime",
       "workspace-hack"
     ],
+    "vox-term": [
+      "vox-terminal-core"
+    ],
     "vox-terminal-core": [
       "vox-compiler",
       "vox-journal",
