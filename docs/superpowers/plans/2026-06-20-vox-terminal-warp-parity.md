@@ -167,6 +167,8 @@ portable-pty = { workspace = true }
 anyhow = { workspace = true }
 ```
 
+> **Dependency note (Phase-4 audit):** `portable-pty` is currently a **direct** dep in `vox-gui` (`portable-pty = "0.9"`), **not** a workspace dep. As part of this task, **promote it to `[workspace.dependencies]`** in root `Cargo.toml` (`portable-pty = "0.9"`) and switch vox-gui to `{ workspace = true }` so there is one version (DRY). `nucleo = "0.5"` is **already** a workspace dep (reused by Track 2). `ratatui`, `crossterm`, and `reedline` are **new** third-party deps introduced by Track 2 — add them to `[workspace.dependencies]` then and run the crate-build-audit / dep-currency checks.
+
 ```rust
 // crates/vox-terminal-core/src/lib.rs
 //! UI-agnostic terminal + agent engine. Front-ends (ratatui TUI, GUI Console)
@@ -374,9 +376,11 @@ git commit -m "feat(terminal-core): input router (Vox-native default, slash-to-s
 ### Task 1.4: OSC-633 parser (Rust port of `osc633.ts`)
 
 **Files:**
-- Read first: `crates/vox-gui/ui/src/components/surfaces/Console/osc633.ts` (the reference state machine — port its semantics)
+- Read first: `crates/vox-gui/ui/src/components/surfaces/Console/osc633.ts` (the reference reducer — port its semantics)
 - Create: `crates/vox-terminal-core/src/osc633.rs`
 - Test: `crates/vox-terminal-core/tests/osc633.rs`
+
+> **Phase-4 audit correction — two layers, not one.** `osc633.ts` is only a **marker reducer**: `onMarker(kind, payload, cursorLine)`. In the GUI, **xterm.js does the byte-level OSC extraction *and* owns the output buffer** (the TS `Block.output` is filled by the terminal layer, not the reducer). The headless Rust core has no xterm.js, so `osc633.rs` must do **both**: (a) byte-scan `ESC ] 633 ; … BEL`/`ST` sequences out of the PTY stream, **and** (b) capture the raw output bytes between the `C` and `D` markers as `Output(...)`. Also: the TS `decodeCommand` decodes the **general** `\xNN` hex form (`/\\x([0-9a-fA-F]{2})/`), not just three fixed escapes — the Rust `decode_command` must do the same (see corrected impl below). Marker semantics to preserve from the reducer: `A` opens a block (and finalizes any still-open block with unknown exit), `E;` sets the command, `C` marks running/output-start, `D;<exit>` finalizes, `B` is a no-op.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -430,10 +434,27 @@ impl Osc633Parser {
         todo!("port from osc633.ts; keep tests above green")
     }
 }
+// General `\xNN` hex decode — mirror osc633.ts `decodeCommand` exactly.
 fn decode_command(enc: &str) -> String {
-    enc.replace("\\x0a", "\n").replace("\\x3b", ";").replace("\\x5c", "\\")
+    let bytes = enc.as_bytes();
+    let mut out = String::with_capacity(enc.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'\\' && i + 3 < bytes.len() + 1 && bytes.get(i + 1) == Some(&b'x') {
+            if let Ok(n) = u8::from_str_radix(&enc[i + 2..i + 4], 16) {
+                out.push(n as char);
+                i += 4;
+                continue;
+            }
+        }
+        out.push(bytes[i] as char);
+        i += 1;
+    }
+    out
 }
 ```
+
+> Add a regression test asserting `decode_command("ls\\x3b\\x20rm")` yields `"ls; rm"` (general hex, not a fixed table).
 
 > Implementer note: replace the `todo!` with the real scanner; the test in Step 1 plus a partial-sequence test (split a marker across two `feed` calls) define correctness. Add that split test before finishing.
 
@@ -754,5 +775,17 @@ Completes the harness side of `classify`'s `Command { name, args }` dispatch.
 - **Warp ingestion (where/how):** §2 — clean-room patterns, no AGPL code; `alacritty_terminal` taken upstream. ✓
 - **Claude Code parallelism/workflows/subagents + limits:** §4. ✓
 - **Audit / retire / move:** §1 table, grounded in real files. ✓
+
+---
+
+## 14. Phase-4 audit log (what was verified against the code, and corrections)
+
+Read against the real tree on 2026-06-20:
+
+- **`osc633.ts` is a marker reducer, not a byte parser** — xterm.js owns byte-extraction + output buffering in the GUI. *Correction applied:* Task 1.4 now mandates a two-layer Rust parser (byte-scan **+** output capture) and a general `\xNN` hex `decode_command` (the original 3-escape version was a bug). Verified semantics: `A` opens/auto-finalizes, `E;` cmd, `C` running, `D;<exit>` finalize, `B` no-op.
+- **`portable-pty` is a direct vox-gui dep (`"0.9"`), not a workspace dep.** *Correction applied:* Task 1.1 promotes it to `[workspace.dependencies]`; `nucleo = "0.5"` already exists; `ratatui`/`crossterm`/`reedline` are new (added in Track 2).
+- **Orchestrator event surface verified:** `vox-orchestrator/src/events.rs` — `AgentEvent` (L93), `AgentEventKind` (L116) incl. `TokenStreamed` (L385); `event_bus().subscribe()` returns `broadcast::Receiver<AgentEvent>` (L769). Task 1.9's adapter contract holds (translate-only, mirrors `live.rs`).
+- **Feedback module surface:** `feedback/mod.rs` re-exports `store::*`, `surface_policy::*`, `types::*` — HITL types live in `feedback::store`/`feedback::types`. Adapter reuses these; no reimplementation.
+- **Still UNVERIFIED (carry into Phase-5 handoff as caveats):** exact `feedback`/HITL call signatures the adapter needs; whether the `Session` per-tab model maps cleanly onto the GUI's existing tab lifecycle (Track 3); the precise MENS corpus schema (Track 5, gated by G-PRIV). The Sonnet 4.6 worker must read these before the corresponding task, not assume.
 
 **Placeholder scan:** the only deliberate `todo!` is in Task 1.4 Step 3, bounded by the tests in that task plus a required split-sequence test — not a plan gap. **Type consistency:** `Block`/`BlockKind`/`BlockStatus`/`OutputChunk`/`Stream`, `InputIntent`, `Osc633Event`, `SessionEvent`, `TranscriptEvent`/`TranscriptKind`, `PtyHost`/`PtyHandle`, `AgentAdapter` are used consistently across tasks.
