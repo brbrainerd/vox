@@ -7,5 +7,6 @@ pub mod block;
 pub mod input;
 pub mod osc633;
 pub mod pty;
+pub mod session;
 pub mod transcript;
 pub mod vox_interp;
