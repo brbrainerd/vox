@@ -15,6 +15,9 @@ exclude = [
     "crates/vox-plugin-skill-testing",
     "crates/vox-plugin-skill-testing-validate",
     "crates/vox-plugin-skill-v0",
+    # Telemetry ingest server — own self-contained workspace; ClickHouse deps
+    # never enter the main cargo graph / arch-check. See server/telemetry/Cargo.toml.
+    "server/telemetry",
 ]
 default-members = ["crates/vox-cli"]
 
