@@ -143,6 +143,7 @@ vox-plugin-sdk        = { layer = 1 }                            # authoring SDK
 vox-plugin-types      = { layer = 1 }                            # pure-types L1 leaf
 vox-research-events    = { layer = 1 }                            # SCIENTIA typed event bus (Phase 0b)
 vox-telemetry         = { layer = 1 }                            # L1 telemetry facade; zero domain deps
+vox-telemetry-otlp    = { layer = 3, max_loc = 3_000 }           # L3 feature-gated OTLP egress; only surfaces register it (never domain crates)
 vox-runtime           = { layer = 2, max_dependents = 20 }       # umbrella runtime: RuntimeProfile + lifecycle traits + VoxConfig; deps vox-config
 
 # ── L2 — domain libraries ─────────────────────────────────────────────────────
@@ -167,6 +168,8 @@ vox-effort-audit        = { layer = 3, kind = "library", max_loc = 4_000 }
 vox-effort-route        = { layer = 3, kind = "library", max_loc = 4_000 }
 vox-eval                = { layer = 2 }
 vox-graphify-reader     = { layer = 2 }
+vox-similarity          = { layer = 2, max_loc = 6_000 }          # L2 pure simhash/minhash/LSH; no async runtime deps
+vox-skill-discovery     = { layer = 3, kind = "binary", max_loc = 8_000 }  # L3 code-block miner + dedup (vox-discover bin)
 
 
 
@@ -531,9 +534,6 @@ vox-mens-eval            = { plan = "docs/src/architecture/crate-structure-audit
 vox-agentos-mutation     = { plan = "docs/src/architecture/mesh-and-language-distribution-ssot-2026.md", layer = 0 }
 vox-free-ai              = { plan = "docs/superpowers/plans/2026-06-18-gamify-gui-pluginization-lean-cli.md", layer = 2 }
 vox-plugin-gamify        = { plan = "docs/superpowers/plans/2026-06-18-gamify-gui-pluginization-lean-cli.md", layer = 4 }
-vox-similarity           = { plan = "docs/superpowers/plans/2026-06-18-voxmens-hub-and-spoke-buildout.md", layer = 2 }
-vox-skill-discovery      = { plan = "docs/superpowers/plans/2026-06-18-voxmens-hub-and-spoke-buildout.md", layer = 3 }
-vox-telemetry-otlp       = { plan = "docs/superpowers/plans/2026-06-18-voxmens-hub-and-spoke-buildout.md", layer = 3 }
 
 
 
