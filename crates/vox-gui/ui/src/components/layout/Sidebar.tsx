@@ -26,16 +26,38 @@ interface NavItemProps {
   collapsed: boolean;
   innerRef?: React.Ref<HTMLButtonElement>;
   ariaLabel?: string;
+  onMouseDown?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  onOpenInNewPanel?: () => void;
 }
 
-function NavItem({ active, icon, label, onClick, badge, badgeClass, railBadgeClass, collapsed, innerRef, ariaLabel }: NavItemProps) {
+function NavItem({ active, icon, label, onClick, onMouseDown, onOpenInNewPanel, badge, badgeClass, railBadgeClass, collapsed, innerRef, ariaLabel }: NavItemProps) {
   const effectiveAriaLabel = ariaLabel ?? (collapsed ? label : undefined);
   return (
-    <button type="button" ref={innerRef} onClick={onClick} title={collapsed ? label : undefined} aria-label={effectiveAriaLabel}
+    <button type="button" ref={innerRef} onClick={onClick} onMouseDown={onMouseDown} title={collapsed ? label : undefined} aria-label={effectiveAriaLabel}
       className={`group relative flex w-full items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} py-2.5 rounded-xl transition ${active ? "bg-white/[0.04] text-zinc-100" : "text-zinc-500 hover:bg-white/[0.025] hover:text-zinc-200"}`}>
       {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[2px] rounded-r bg-brass shadow-[0_0_12px_2px_rgb(var(--brass)_/_0.5)]" />}
       <span className={`flex size-7 items-center justify-center rounded-lg shrink-0 ${active ? "bg-brass/10 text-brass ring-1 ring-brass/30" : "bg-white/[0.02] ring-1 ring-white/5"}`}>{icon}</span>
       {!collapsed && <span className="flex-1 text-left font-display text-[12px] tracking-[0.12em] uppercase whitespace-nowrap overflow-hidden">{label}</span>}
+      {!collapsed && onOpenInNewPanel && (
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenInNewPanel();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.stopPropagation();
+              onOpenInNewPanel();
+            }
+          }}
+          title="Open in new panel"
+          className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-white/10 text-zinc-400 hover:text-zinc-100 transition-opacity mr-1 shrink-0 cursor-pointer"
+        >
+          ⊞
+        </span>
+      )}
       {!collapsed && badge != null && <span className={`rounded-full px-1.5 py-0.5 font-mono text-[9px] ${badgeClass ?? 'bg-white/[0.05] text-zinc-400'}`}>{badge}</span>}
       {collapsed && badge != null && <span className={`absolute right-1 top-1 rounded-full px-1 font-mono text-[8px] ${railBadgeClass ?? 'bg-brass/80 text-zinc-950'}`}>{badge}</span>}
     </button>
@@ -76,6 +98,7 @@ interface SidebarProps {
   lastOrchEventAt?: number | null;
   orchUsesPolling?: boolean;
   liveFreshMs?: number;
+  onOpenPanel?: (viewKey: string) => void;
 }
 
 export function Sidebar({
@@ -90,7 +113,14 @@ export function Sidebar({
   lastOrchEventAt = null,
   orchUsesPolling = false,
   liveFreshMs = 10_000,
+  onOpenPanel,
 }: SidebarProps) {
+  const handleMouseDown = (e: React.MouseEvent, key: string) => {
+    if (e.button === 1) {
+      e.preventDefault();
+      onOpenPanel?.(key);
+    }
+  };
   const w = SIDEBAR_WIDTHS[mode];
   const collapsed = mode === "rail";
   const { parent: activeParent } = resolveNavigation(view);
@@ -258,6 +288,8 @@ export function Sidebar({
                   collapsed={collapsed}
                   active={isActive}
                   onClick={() => setView(key)}
+                  onMouseDown={(e) => handleMouseDown(e, key)}
+                  onOpenInNewPanel={onOpenPanel ? () => onOpenPanel(key) : undefined}
                   icon={<IconCmp className="size-4" />}
                   label={meta.label}
                   badge={badge}
@@ -269,6 +301,7 @@ export function Sidebar({
                       key={child.viewKey}
                       type="button"
                       onClick={() => setView(child.viewKey)}
+                      onMouseDown={(e) => handleMouseDown(e, child.viewKey)}
                       className={`ml-6 flex w-[calc(100%-1.5rem)] items-center rounded-lg px-2.5 py-1.5 text-left text-[11px] transition ${
                         view === child.viewKey
                           ? 'bg-white/[0.04] text-zinc-100'
@@ -291,6 +324,8 @@ export function Sidebar({
                 collapsed={collapsed}
                 active={activeParent === 'settings'}
                 onClick={() => setView('settings')}
+                onMouseDown={(e) => handleMouseDown(e, 'settings')}
+                onOpenInNewPanel={onOpenPanel ? () => onOpenPanel('settings') : undefined}
                 icon={<Icon.settings className="size-4" />}
                 label={settingsEntry.navLabel as string}
                 badge={policyBadge && policyBadge.count > 0 ? policyBadge.count : undefined}
@@ -307,6 +342,8 @@ export function Sidebar({
                   collapsed={collapsed}
                   active={view === 'coverage'}
                   onClick={() => setView('coverage')}
+                  onMouseDown={(e) => handleMouseDown(e, 'coverage')}
+                  onOpenInNewPanel={onOpenPanel ? () => onOpenPanel('coverage') : undefined}
                   icon={<Icon.check className="size-4" />}
                   label={coverageEntry.navLabel as string}
                   ariaLabel="Coverage, CI surface gaps"

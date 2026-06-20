@@ -41,6 +41,8 @@ export interface AppShellProps {
   chatDock?: React.ReactNode;
   children: React.ReactNode;
   workspaceProps: SurfaceProps;
+  workspaceRef?: React.RefObject<any>;
+  onOpenPanel?: (viewKey: string) => void;
   /** Workspace display name for TopHud (defaults to Operator in TopHud). */
   workspaceTitle?: string;
   visibleTiles?: HudTileKind[];
@@ -75,6 +77,8 @@ export function AppShell({
   chatDock,
   children,
   workspaceProps,
+  workspaceRef,
+  onOpenPanel,
   workspaceTitle,
   visibleTiles,
   activeModel,
@@ -102,6 +106,7 @@ export function AppShell({
         lastOrchEventAt={lastOrchEventAt}
         orchUsesPolling={orchUsesPolling}
         liveFreshMs={liveFreshMs}
+        onOpenPanel={onOpenPanel}
       />
 
       <main className="flex-1 flex flex-col min-w-0 relative">
@@ -135,7 +140,7 @@ export function AppShell({
 
         <div className={`flex-1 min-h-0 overflow-hidden p-5 ${mainPaddingBottom}`}>
           <SurfaceErrorBoundary key={surfaceKey} surface={surfaceLabel}>
-            <DockWorkspace activeView={activeView} surfaceProps={workspaceProps} />
+            <DockWorkspace ref={workspaceRef} activeView={activeView} surfaceProps={workspaceProps} />
           </SurfaceErrorBoundary>
         </div>
 

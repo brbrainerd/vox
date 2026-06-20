@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { AppShell } from './components/layout/AppShell';
+import { DockWorkspaceHandle } from './components/layout/DockWorkspace';
 import { SidebarMode } from './components/layout/Sidebar';
 import { AttentionStrip } from './components/layout/AttentionStrip';
 import { type HudMode } from './components/layout/TopHud';
@@ -179,6 +180,7 @@ function mapAlert(a: RawLudusAlert): LudusAlert {
 }
 
 export default function App() {
+  const dockRef = useRef<DockWorkspaceHandle>(null);
   const [data, setData] = useState<DashboardData>(INITIAL_DATA);
   const [kpis, setKpis] = useState(INITIAL_KPIS);
   const [activeView, setActiveView] = useLocalStorage<View>('vox_active_view', 'dashboard');
@@ -1061,6 +1063,8 @@ export default function App() {
       <AppShell
         activeView={activeView}
         workspaceProps={surfaceProps}
+        workspaceRef={dockRef}
+        onOpenPanel={(vk) => dockRef.current?.openPanel(vk)}
         onNavigate={(v) => navigateTo(v)}
         sidebarMode={sidebarMode}
         setSidebarMode={setSidebarMode}
