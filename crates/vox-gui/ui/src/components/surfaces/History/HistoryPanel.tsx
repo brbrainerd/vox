@@ -91,6 +91,24 @@ export function HistoryPanel({ pushToast }: SurfaceDecoratorProps) {
     }
   };
 
+  const handleRerun = async (entry: HistoryEntry) => {
+    try {
+      await navigator.clipboard.writeText(entry.text);
+      pushToast({ tone: 'ok', title: 'Command ready', body: 'Paste it in your terminal to re-run' });
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Failed to copy command', body: String(err) });
+    }
+  };
+
+  const handleReinsert = async (entry: HistoryEntry) => {
+    try {
+      await navigator.clipboard.writeText(entry.text);
+      pushToast({ tone: 'ok', title: 'Chat turn copied', body: 'Paste it into the chat input to re-send' });
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Failed to copy chat turn', body: String(err) });
+    }
+  };
+
   const filtered = filterEntries(searchQuery, entries);
 
   return (
@@ -209,6 +227,32 @@ export function HistoryPanel({ pushToast }: SurfaceDecoratorProps) {
                       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                     </svg>
                   </button>
+                  {entry.kind === 'command' && (
+                    <button
+                      data-testid="rerun-btn"
+                      onClick={() => handleRerun(entry)}
+                      title="Re-run command"
+                      className="p-2 hover:bg-white/5 rounded-lg text-zinc-400 hover:text-amber-300 transition-colors"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-4">
+                        <polyline points="23 4 23 10 17 10" />
+                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                      </svg>
+                    </button>
+                  )}
+                  {entry.kind === 'chat' && (
+                    <button
+                      data-testid="reinsert-btn"
+                      onClick={() => handleReinsert(entry)}
+                      title="Re-insert into chat"
+                      className="p-2 hover:bg-white/5 rounded-lg text-zinc-400 hover:text-purple-300 transition-colors"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-4">
+                        <line x1="22" y1="2" x2="11" y2="13" />
+                        <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                      </svg>
+                    </button>
+                  )}
                   <button
                     onClick={() => handleTogglePin(entry)}
                     title={entry.pinned ? 'Unpin' : 'Pin'}
