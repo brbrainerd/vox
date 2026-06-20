@@ -3,6 +3,8 @@ import { Pill } from '../../ui/Pill';
 import { Button } from '../../ui/Button';
 import type { StreamItem } from '../../../types/dashboard';
 import type { TranscriptAgentRow, TranscriptTokenGroupRow } from '../../../lib/chatTranscriptTimeline';
+import { PhaseChip, type PavPhase } from './PhaseChip';
+import { invoke } from '@tauri-apps/api/core';
 
 type AgentTimelineRow = TranscriptAgentRow | TranscriptTokenGroupRow;
 
@@ -88,6 +90,20 @@ export function ChatAgentEventRow({ row, onOpenAgent }: ChatAgentEventRowProps) 
 
   const tone = toneForItem(row.item);
 
+  // PAV phase from event metadata (populated when the task has a pav_loop).
+  const pavPhase = (row.item.metadata?.pavPhase as PavPhase | undefined);
+  const taskId = row.item.metadata?.taskId as number | undefined;
+
+  const handleApprovePlan = () => {
+    if (taskId != null) invoke('approve_orchestrator_task_plan', { taskId }).catch(console.error);
+  };
+  const handleSkipVerify = () => {
+    if (taskId != null) invoke('skip_orchestrator_verify', { taskId }).catch(console.error);
+  };
+  const handleForceVerify = () => {
+    if (taskId != null) invoke('force_orchestrator_verify', { taskId }).catch(console.error);
+  };
+
   return (
     <div
       className="relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-3"
@@ -100,6 +116,14 @@ export function ChatAgentEventRow({ row, onOpenAgent }: ChatAgentEventRowProps) 
             <Pill phase={tone.phase} />
             <span className="font-display text-[10px] tracking-widest uppercase text-zinc-500">{row.item.tag}</span>
             <span className="font-mono text-[10px] text-zinc-600">{row.item.id}</span>
+            {pavPhase != null && (
+              <PhaseChip
+                phase={pavPhase}
+                onApprovePlan={handleApprovePlan}
+                onSkipVerify={handleSkipVerify}
+                onForceVerify={handleForceVerify}
+              />
+            )}
           </div>
           {row.collapsed ? (
             <button
