@@ -1518,6 +1518,18 @@ contracts:
     enforced_by:
       - vox audit all              # umbrella, lands P1.5
 
+  - id: channels
+    path: contracts/channels.v1.yaml
+    owner: platform-gui
+    kind: yaml
+    description: >
+      Transport-neutral channel SSOT: 9 vox:// event channels (orch_status,
+      agent_events, scientia_queue, etc.) with payload type, semantics, and
+      poll fallback. Parity with transport.ts enforced by
+      `cargo test -p vox-codegen-ts --lib channels::`.
+    enforced_by:
+      - "cargo test -p vox-codegen-ts --lib channels::"
+
   - id: retired-surfaces
     path: contracts/retirement/retired-surfaces.v1.yaml
     owner: platform-language
