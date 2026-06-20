@@ -2191,3 +2191,54 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: gui-design-rule/a11y
+  domain: gui-design-rule
+  title: Accessibility (a11y)
+  group: GUI Design Rules
+  description: Validates accessibility properties (aria roles, labels, contrast)
+  severity: error
+  blocking: true
+  runs_on:
+  - pre-commit
+  - ci
+  source:
+    kind: guard
+    ref: crates/vox-codegen/src/web_ir/validate_a11y.rs
+    detail: web_ir::validate_a11y
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: gui-design-rule/contrast
+  domain: gui-design-rule
+  title: Contrast Ratio
+  group: GUI Design Rules
+  description: Validates WCAG contrast ratio for color palettes
+  severity: error
+  blocking: true
+  runs_on:
+  - pre-commit
+  - ci
+  source:
+    kind: guard
+    ref: crates/vox-codegen/src/web_ir/validate_palette.rs
+    detail: web_ir::validate_palette
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: gui-design-rule/layer-occlusion
+  domain: gui-design-rule
+  title: Layer Occlusion
+  group: GUI Design Rules
+  description: Validates z-index/depth layers and prevents overlapping occlusion
+  severity: error
+  blocking: true
+  runs_on:
+  - pre-commit
+  - ci
+  source:
+    kind: guard
+    ref: crates/vox-codegen/src/web_ir/validate_layer.rs
+    detail: web_ir::validate_layer
+  default_enabled: true
+  protected: false
+  origin: builtin

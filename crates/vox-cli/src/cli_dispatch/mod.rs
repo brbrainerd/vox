@@ -58,6 +58,8 @@ fn universal_reward_command_path(cli: &Cli) -> Option<&'static str> {
         Cli::Container { .. } => Some("container"),
         Cli::Plan { .. } => Some("plan"),
         Cli::Doctor { .. } => Some("doctor"),
+        Cli::Clip { .. } => Some("clip"),
+        Cli::History { .. } => Some("history"),
         _ => Some("command"),
     }
 }
@@ -141,6 +143,8 @@ fn command_verb(cli: &Cli) -> &'static str {
         Cli::Container { .. } => "container",
         Cli::Plan { .. } => "plan",
         Cli::Doctor { .. } => "doctor",
+        Cli::Clip { .. } => "clip",
+        Cli::History { .. } => "history",
         _ => "unknown",
     }
 }
@@ -574,6 +578,12 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
         }
         Cli::Grammar { args } => {
             crate::commands::grammar::handle(args);
+        }
+        Cli::Clip { cmd } => {
+            crate::commands::history_cli::run_clip(cmd).await?;
+        }
+        Cli::History { cmd } => {
+            crate::commands::history_cli::run_history(cmd).await?;
         }
         Cli::Mens { .. } | Cli::Populi { .. } | Cli::Oratio { .. } => {
             std::unreachable!(

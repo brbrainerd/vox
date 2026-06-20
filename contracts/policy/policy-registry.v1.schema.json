@@ -13,7 +13,7 @@
         "properties": {
           "id": { "type": "string", "pattern": "^[a-z0-9-]+/.+$" },
           "domain": {
-            "enum": ["ci-gate", "audit-check", "crl-gate", "code-audit-rule", "arch-rule", "workflow-job"]
+            "enum": ["ci-gate", "audit-check", "crl-gate", "code-audit-rule", "arch-rule", "workflow-job", "gui-design-rule"]
           },
           "title": { "type": "string", "minLength": 1 },
           "group": { "type": "string", "minLength": 1 },

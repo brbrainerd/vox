@@ -218,6 +218,7 @@ vox-tauri-codegen = { workspace = true }
 turso = { workspace = true }
 owo-colors = { workspace = true }
 comfy-table = { workspace = true }
+dialoguer = { workspace = true, features = ["fuzzy-select"] }
 chrono = { workspace = true }
 regex = { workspace = true }
 glob = { workspace = true }

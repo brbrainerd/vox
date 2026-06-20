@@ -3049,6 +3049,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "658bce805d770f407bc62102fca7c2c64ceef2fbcb2b8bd19d2765ce093980de"
 dependencies = [
  "console 0.15.11",
+ "fuzzy-matcher",
  "shell-words",
  "tempfile",
  "thiserror 1.0.69",
@@ -4050,6 +4051,15 @@ dependencies = [
  "memchr",
  "pin-project-lite",
  "slab",
+]
+
+[[package]]
+name = "fuzzy-matcher"
+version = "0.3.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "54614a3312934d066701a80f20f15fa3b56d67ac7722b39eea5b4c9dd1d66c94"
+dependencies = [
+ "thread_local",
 ]
 
 [[package]]
@@ -14671,6 +14681,7 @@ dependencies = [
  "clap_complete",
  "comfy-table",
  "deadpool",
+ "dialoguer",
  "dirs",
  "flate2",
  "form_urlencoded",
@@ -15430,6 +15441,7 @@ dependencies = [
  "vox-search",
  "vox-secrets",
  "vox-speech",
+ "vox-telemetry",
 ]
 
 [[package]]
@@ -15879,6 +15891,7 @@ dependencies = [
  "ignore",
  "jsonschema",
  "parking_lot 0.12.5",
+ "portable-pty",
  "rand 0.8.6",
  "regex",
  "reqwest 0.12.28",

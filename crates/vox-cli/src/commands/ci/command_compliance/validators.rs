@@ -1136,6 +1136,7 @@ pub(crate) fn check_latin_alias_parity_with_catalog(repo_root: &Path, lib_rs: &s
         "orchestrator",
         "clavis",
         "speech",
+        "axis",
     ];
 
     // Build set of canonical English names from catalog (valid targets for reverse-direction aliases)

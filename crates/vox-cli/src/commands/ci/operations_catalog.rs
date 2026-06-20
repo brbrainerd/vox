@@ -398,6 +398,8 @@ fn apply_prev_planner_metadata(row: &mut OperationRow, prev: Option<&OperationRo
     row.human_takeover_friendly = p.human_takeover_friendly;
     row.mens_planner_visible = p.mens_planner_visible;
     row.description_human = p.description_human.clone();
+    row.canonical_name = p.canonical_name.clone();
+    row.latin_aliases = p.latin_aliases.clone();
 }
 
 fn write_inventory_report(repo_root: &Path, catalog: &OperationsCatalog) -> Result<()> {

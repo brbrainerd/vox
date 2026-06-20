@@ -39,10 +39,12 @@ fn migrate_dry_run_uses_app_plane_when_vox_app_db_url_is_set() {
 fn migrate_dry_run_defaults_to_local_codex_without_app_plane_env() {
     let temp = tempfile::tempdir().expect("tempdir");
     let schema = write_minimal_schema(&temp);
+    let temp_db = temp.path().join("temp_codex.db");
 
     let out = Command::new(env!("CARGO_BIN_EXE_vox"))
         .current_dir(temp.path())
         .env_remove("VOX_APP_DB_URL")
+        .env("VOX_DB_PATH", temp_db.to_str().expect("temp db path"))
         .args([
             "db",
             "migrate",
