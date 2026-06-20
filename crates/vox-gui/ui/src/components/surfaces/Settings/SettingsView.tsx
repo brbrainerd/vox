@@ -15,7 +15,7 @@ import { searchSettings } from './settingsIndex';
 import type { HudTilesConfig } from '../../../hooks/useHudTiles';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 
-const GUI_PREF_KEYS = ['theme', 'telemetry', 'sign', 'checkpointMins'] as const;
+const GUI_PREF_KEYS = ['theme', 'sign', 'checkpointMins'] as const;
 
 const SECTIONS = [
   { id: 'orchestrator', icon: 'cpu',     label: 'Orchestrator' },
@@ -52,7 +52,7 @@ interface SettingsState {
   capUsd: number;
   doubtThresh: number;
   sign: boolean;
-  telemetry: string;
+  // telemetry consent lives in vox-telemetry (surfaced by TelemetrySection), not as a GUI pref.
   isolation: string;
   checkpointMins: number;
   scalingEnabled: boolean;
@@ -1089,7 +1089,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
   });
   const [vals, setVals] = useState<SettingsState>({
     doubt: true, autobudget: true, theme: 'arcane', concurrency: 7,
-    capUsd: DEFAULT_BUDGET_CAP_USD, doubtThresh: 0.6, sign: false, telemetry: 'local',
+    capUsd: DEFAULT_BUDGET_CAP_USD, doubtThresh: 0.6, sign: false,
     isolation: 'wasm', checkpointMins: 5,
     scalingEnabled: false, minAgents: 1, scalingThreshold: 5,
     scaleCpuCeilingPct: 85, scaleMemFloorMb: 1024,
@@ -1137,7 +1137,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
     // key off — the picker was previously inert.
     if (patch.theme !== undefined) applyTheme(next.theme);
 
-    // GUI-only preferences (theme/telemetry/sign/checkpointMins) always persist —
+    // GUI-only preferences (theme/sign/checkpointMins) always persist —
     // they don't depend on orchestrator hydration.
     try {
       const guiPatch = Object.fromEntries(
@@ -1162,9 +1162,8 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
     }).catch(() => {});
     const hydrate = async () => {
       try {
-        const [theme, telemetry, sign, checkpoint, statusRaw] = await Promise.all([
+        const [theme, sign, checkpoint, statusRaw] = await Promise.all([
           voxTransport.getGuiPreference('gui.theme'),
-          voxTransport.getGuiPreference('gui.telemetry'),
           voxTransport.getGuiPreference('gui.sign'),
           voxTransport.getGuiPreference('gui.checkpointMins'),
           invoke<Uint8Array>('get_orchestrator_status_bin').catch(() => null),
@@ -1184,7 +1183,6 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           ...prev,
           ...orchPatch,
           theme: theme || prev.theme,
-          telemetry: telemetry || prev.telemetry,
           sign: sign != null ? sign === 'true' : prev.sign,
           // checkpointMins is a UI-only preference (no OrchestratorConfig field).
           checkpointMins: checkpoint != null
