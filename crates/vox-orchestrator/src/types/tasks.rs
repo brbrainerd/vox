@@ -615,6 +615,10 @@ pub struct AgentTask {
     /// [`CompletionAttestation`] at task completion.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub selected_model_record: Option<SelectedModelRecord>,
+    /// Live Plan/Act/Verify loop state (Track D). `None` for tasks that predate
+    /// the PAV loop or were submitted without a clutch override.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pav_loop: Option<crate::planning::phase_loop::PavLoopState>,
 }
 
 impl AgentTask {
@@ -686,6 +690,7 @@ impl AgentTask {
             active_skill: None,
             tenant_id: None,
             selected_model_record: None,
+            pav_loop: None,
         }
     }
 
