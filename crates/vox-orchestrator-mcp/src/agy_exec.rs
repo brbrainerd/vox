@@ -253,6 +253,30 @@ pub fn strip_ansi(s: &str) -> String {
     re.replace_all(s, "").to_string()
 }
 
+/// Maps the most-recent PTY output chunk to an automatic stdin reply.
+///
+/// Scans the tail (last 300 bytes) of `chunk` for known interactive prompts
+/// that can be safely auto-answered without human judgement. Returns
+/// `Some(response_bytes)` or `None` if no pattern matched.
+pub fn auto_respond(chunk: &[u8]) -> Option<&'static [u8]> {
+    let tail_start = chunk.len().saturating_sub(300);
+    let tail = String::from_utf8_lossy(&chunk[tail_start..]).to_ascii_lowercase();
+    // Press-enter pauses (check first — response is "\n", not "y\n")
+    if tail.contains("press enter") || tail.contains("press <enter>") {
+        return Some(b"\n");
+    }
+    // yes/no confirmation variants
+    if tail.contains("[y/n]")
+        || tail.contains("(y/n)")
+        || tail.contains("[yes/no]")
+        || tail.contains("(yes/no)")
+        || tail.contains("yes/no:")
+    {
+        return Some(b"y\n");
+    }
+    None
+}
+
 /// Pure retry decision. `attempt` 0-based; `max_attempts` the cap.
 pub fn should_retry(class: &str, attempt: u32, max_attempts: u32) -> bool {
     if attempt + 1 >= max_attempts { return false; }
@@ -327,5 +351,21 @@ mod tests {
         assert!(should_retry("timeout", 0, 3));
         assert!(!should_retry("timeout", 1, 3)); // one extra try only
         assert!(!should_retry("error", 0, 3));   // non-retryable
+    }
+
+    #[test]
+    fn auto_respond_detects_yn_and_enter_prompts() {
+        assert_eq!(auto_respond(b"Proceed with changes? [y/n] "), Some(&b"y\n"[..]));
+        assert_eq!(auto_respond(b"Are you sure? (y/n): "),       Some(&b"y\n"[..]));
+        assert_eq!(auto_respond(b"Continue? [Y/n] "),            Some(&b"y\n"[..]));
+        assert_eq!(auto_respond(b"yes/no: "),                    Some(&b"y\n"[..]));
+        assert_eq!(auto_respond(b"Press Enter to continue..."), Some(&b"\n"[..]));
+        assert_eq!(auto_respond(b"press <enter> "),             Some(&b"\n"[..]));
+        assert_eq!(auto_respond(b"Writing file src/lib.rs..."), None);
+        assert_eq!(auto_respond(b"Task complete."),             None);
+        assert_eq!(
+            auto_respond(b"Reading 1000 lines of context...\r\nProceed? [y/n] "),
+            Some(&b"y\n"[..])
+        );
     }
 }
