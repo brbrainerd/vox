@@ -2,6 +2,7 @@
 //! See docs/superpowers/specs/2026-06-20-vox-placement-model-design.md.
 
 use crate::hir::{HirArg, HirCapability, HirExpr, HirFn, HirModule, HirReactiveComponent, HirStmt};
+use crate::typeck::diagnostics::{Diagnostic, codes};
 use std::collections::HashMap;
 
 /// Where a declaration may be emitted. `Shared` is the top of the lattice
@@ -121,8 +122,8 @@ impl PlacementMap {
 fn walk_expr(e: &HirExpr, out: &mut Vec<String>) {
     use HirExpr::*;
     match e {
-        IntLit(..) | FloatLit(..) | StringLit(..) | BoolLit(..) | DecimalLit(..)
-        | Ident(..) | WorkflowVersion(..) => {}
+        IntLit(..) | FloatLit(..) | StringLit(..) | BoolLit(..) | DecimalLit(..) | Ident(..)
+        | WorkflowVersion(..) => {}
         ObjectLit(fields, _) => {
             for (_, v) in fields {
                 walk_expr(v, out);
@@ -211,7 +212,9 @@ fn walk_stmt(s: &HirStmt, out: &mut Vec<String>) {
                 walk_expr(v, out);
             }
         }
-        While { condition, body, .. } => {
+        While {
+            condition, body, ..
+        } => {
             walk_expr(condition, out);
             for s in body {
                 walk_stmt(s, out);
@@ -234,6 +237,73 @@ pub fn callee_names(body: &[HirStmt]) -> Vec<String> {
         walk_stmt(s, &mut out);
     }
     out
+}
+
+/// Placement pass entry point wired into typeck. Emits conflict and boundary diagnostics.
+#[must_use]
+pub fn infer(m: &HirModule, source: &str) -> Vec<Diagnostic> {
+    let map = PlacementMap::infer(m);
+    let mut diags = Vec::new();
+
+    // E-PLACE-CONFLICT: a function is pulled toward both native and gui tiers.
+    for f in &m.functions {
+        let own = seed_fn(f);
+        for callee in callee_names(&f.body) {
+            if let Some(cp) = map.get(&callee) {
+                let incompatible = matches!(
+                    (own, cp),
+                    (Placement::Native, Placement::Gui) | (Placement::Gui, Placement::Native)
+                );
+                if incompatible {
+                    diags.push(
+                        Diagnostic::error(
+                            format!(
+                                "`{}` is {:?}-placed but calls `{}` which is {:?}-placed — split the function or cross via an endpoint",
+                                f.name, own, callee, cp
+                            ),
+                            f.span,
+                            source,
+                        )
+                        .with_code(codes::PLACEMENT_CONFLICT)
+                        .with_suggestion(format!(
+                            "extract the {cp:?}-tier work, or wrap `{callee}` in `@query fn` and call across the boundary"
+                        )),
+                    );
+                }
+            }
+        }
+    }
+
+    // E-PLACE-BOUNDARY: a gui function calls a native function directly (not an endpoint).
+    let endpoint_names: std::collections::HashSet<&str> =
+        m.endpoint_fns.iter().map(|e| e.name.as_str()).collect();
+
+    for f in &m.functions {
+        if map.get(&f.name) != Some(Placement::Gui) {
+            continue;
+        }
+        for callee in callee_names(&f.body) {
+            let callee_native = map.get(&callee) == Some(Placement::Native);
+            if callee_native && !endpoint_names.contains(callee.as_str()) {
+                diags.push(
+                    Diagnostic::error(
+                        format!(
+                            "GUI function `{}` calls native function `{}` directly — cross the boundary via an endpoint",
+                            f.name, callee
+                        ),
+                        f.span,
+                        source,
+                    )
+                    .with_code(codes::PLACEMENT_BOUNDARY)
+                    .with_suggestion(format!(
+                        "wrap `{callee}` in `@query fn` (or `@server`/`@mutation`) and call the generated client"
+                    )),
+                );
+            }
+        }
+    }
+
+    diags
 }
 
 #[cfg(test)]
@@ -304,5 +374,56 @@ mod tests {
         let m = hir_of("fn read_db() uses db { 0 }\nfn wrapper() { read_db() }");
         let map = PlacementMap::infer(&m);
         assert_eq!(map.get("wrapper"), Some(Placement::Native));
+    }
+
+    // ── Task 6: E-PLACE-CONFLICT ──────────────────────────────────────────────
+
+    #[test]
+    fn native_fn_calling_gui_is_conflict() {
+        // hybrid seeds native (uses db) but calls render_view (gui via @reactive).
+        // Note: uppercase names like Widget() are sugar for JSX — use lowercase to
+        // avoid the parser's call-site-to-JsxSelfClosing rewrite.
+        let m = hir_of("fn hybrid() uses db { render_view() }\n@reactive fn render_view() { 0 }");
+        let diags = infer(&m, "");
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code.as_deref() == Some(codes::PLACEMENT_CONFLICT))
+        );
+    }
+
+    #[test]
+    fn shared_fn_calling_native_is_not_conflict() {
+        let m = hir_of("fn read_db() uses db { 0 }\nfn wrapper() { read_db() }");
+        let diags = infer(&m, "");
+        assert!(
+            diags
+                .iter()
+                .all(|d| d.code.as_deref() != Some(codes::PLACEMENT_CONFLICT))
+        );
+    }
+
+    // ── Task 7: E-PLACE-BOUNDARY ──────────────────────────────────────────────
+
+    #[test]
+    fn gui_calling_native_nonendpoint_is_boundary_error() {
+        let m = hir_of("@reactive fn View() { read_db() }\nfn read_db() uses db { 0 }");
+        let diags = infer(&m, "");
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code.as_deref() == Some(codes::PLACEMENT_BOUNDARY))
+        );
+    }
+
+    #[test]
+    fn gui_calling_endpoint_is_allowed() {
+        let m = hir_of("@reactive fn View() { list_tasks() }\n@query fn list_tasks() { 0 }");
+        let diags = infer(&m, "");
+        assert!(
+            diags
+                .iter()
+                .all(|d| d.code.as_deref() != Some(codes::PLACEMENT_BOUNDARY))
+        );
     }
 }
