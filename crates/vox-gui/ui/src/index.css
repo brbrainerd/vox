@@ -23,19 +23,61 @@
   }
 }
 
+/* ─── Global themed scrollbars ────────────────────────────────────────────
+   Vox runs in WebView2 / WKWebView (Chromium/WebKit), so the ::-webkit-*
+   pseudo-elements style every scroll container; `scrollbar-*` covers Gecko.
+   Native scrollbars are chunky and light — these are thin, dark, and tinted
+   with the accent on hover so they read as part of the theme. The thumb uses a
+   2px transparent border + padding-box clip so the visible bar is ~5px (slim)
+   while the 9px hit-area stays easy to grab. Per-container `.custom-scrollbar`
+   (below) is now just an alias kept for existing markup. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border: 2px solid transparent;
+  border-radius: 9999px;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--brass) / 0.55);
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:active {
+  background: rgb(var(--brass) / 0.8);
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 @layer components {
+  /* Retained alias — global rules above already cover these containers. */
   .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
+    width: 9px;
+    height: 9px;
   }
   .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(255,255,255,0.05);
-    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.14);
+    border: 2px solid transparent;
+    border-radius: 9999px;
+    background-clip: padding-box;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(255,255,255,0.1);
+    background: rgb(var(--brass) / 0.55);
+    background-clip: padding-box;
   }
 
   /* Range slider styles */

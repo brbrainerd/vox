@@ -1049,7 +1049,7 @@ interface SettingsViewProps {
 }
 
 export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTilesChange }: SettingsViewProps) {
-  // Deep link from omni-search / the account menu: a `{ section }` seed in
+  // Deep link from omni-search / the sidebar identity menu: a `{ section }` seed in
   // localStorage. Read it in the initializer so the FIRST render already shows the
   // requested section (surviving React StrictMode's double-mount, which otherwise
   // races an effect-based setSection). The seed is cleared by the effect below.

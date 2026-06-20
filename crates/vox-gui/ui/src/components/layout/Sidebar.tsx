@@ -96,7 +96,7 @@ export function Sidebar({
   const { parent: activeParent } = resolveNavigation(view);
   const [identity, setIdentity] = useState('operator@vox');
   const [osUser, setOsUser] = useState<string | null>(null);
-  const [accountOpen, setAccountOpen] = useState(false);
+  const [identityOpen, setIdentityOpen] = useState(false);
   const tone = useFreshness(lastOrchEventAt, {
     freshMs: liveFreshMs,
     usesPolling: orchUsesPolling,
@@ -118,7 +118,7 @@ export function Sidebar({
       window.dispatchEvent(new Event('vox-settings-seed'));
     } catch { /* localStorage unavailable — Settings still opens */ }
     setView('settings');
-    setAccountOpen(false);
+    setIdentityOpen(false);
   };
 
   const cycle = (dir: number) => {
@@ -318,11 +318,11 @@ export function Sidebar({
           <div className="relative">
             <button
               type="button"
-              data-testid="sidebar-account-button"
+              data-testid="sidebar-identity-button"
               aria-haspopup="menu"
-              aria-expanded={accountOpen}
-              aria-label="Account and identity"
-              onClick={() => setAccountOpen(o => !o)}
+              aria-expanded={identityOpen}
+              aria-label="Identity, keys & federation"
+              onClick={() => setIdentityOpen(o => !o)}
               className={`flex w-full items-center rounded-lg ${collapsed ? "justify-center px-0" : "gap-2 px-2"} pb-1 pt-1 transition hover:bg-white/[0.03]`}
             >
               <div className="relative size-7 shrink-0 rounded-full bg-gradient-to-br from-violet-500 to-cyan-500">
@@ -340,19 +340,19 @@ export function Sidebar({
               )}
             </button>
 
-            {accountOpen && (
+            {identityOpen && (
               <>
                 {/* Click-away backdrop */}
                 <button
                   type="button"
                   aria-hidden="true"
                   tabIndex={-1}
-                  onClick={() => setAccountOpen(false)}
+                  onClick={() => setIdentityOpen(false)}
                   className="fixed inset-0 z-40 cursor-default"
                 />
                 <div
                   role="menu"
-                  data-testid="sidebar-account-menu"
+                  data-testid="sidebar-identity-menu"
                   className="absolute bottom-full z-50 mb-2 w-60 left-0 rounded-xl border border-white/10 bg-zinc-950/95 p-2 shadow-2xl backdrop-blur"
                 >
                   <div className="px-2 py-1.5">
@@ -396,7 +396,7 @@ export function Sidebar({
                   <button
                     type="button"
                     role="menuitem"
-                    onClick={() => { setView('settings'); setAccountOpen(false); }}
+                    onClick={() => { setView('settings'); setIdentityOpen(false); }}
                     className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[12px] text-zinc-300 hover:bg-white/[0.05] hover:text-zinc-100"
                   >
                     <Icon.settings className="size-3.5 text-zinc-500" aria-hidden="true" />
