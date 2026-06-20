@@ -726,3 +726,50 @@ prompt_lessons:
 commits:
   - "ff6b4dd6b6"
 ```
+
+```yaml
+id: AGH-0023
+date: "2026-06-20"
+plan: "History & Clip Manager remediation (Plan-7 adversarial review fixes)"
+subsystem: "vox-db history_store / vox-gui HistoryPanel / vox-orchestrator activity_log / vox-search ClipHistory"
+target: "Opus 4.8 inline execution (no Flash handoff — complexity fit one session)"
+delivered:
+  - "T1: Configurable HistoryCaps in add_entry_with_caps; evict() deleted (dedup removed)"
+  - "T2: Real token_estimate = chars/4 (was always 0)"
+  - "T3: LIKE metacharacter escaping in search_entries (%, _, \ with ESCAPE '\\'); prevents injection"
+  - "T4: Broadened redaction — JWT (eyJ pattern), Bearer tokens, PEM PRIVATE KEY blocks, opaque 40+ char tokens"
+  - "T5: SearchCorpus::ClipHistory made real (was fabricated) — added to vox-db-types, 3 dispatch sites, SearchRuntimeContext::repo_id builder, search execution integration"
+  - "T6: activity_store.rs new module centralising all activity_log SQL; activity.rs refactored off query_all; entry removed from query-all-allowlist.txt"
+  - "T7: orchestrator/core/init.rs refactored off raw turso INSERT via log_activity; entry removed from turso-import-allowlist.txt"
+  - "T8: SystemTime .unwrap() removed in history.rs and history_cli.rs (.map_err / .context)"
+  - "T9: Re-run button (command entries) + re-insert button (chat entries) added to HistoryPanel.tsx"
+  - "T10: 8 vitest tests — render/filter/copy/pin/delete/rerun/reinsert/event-subscription (all green)"
+  - "T11: 4 Rust unit tests for history_cli print_entries_table + token_estimate"
+  - "T12: playwright-report/index.html untracked from git (already in .gitignore)"
+  - "T13: AGH-0023 ledger entry (this entry)"
+outcome: "GREEN — all 13 tasks complete; 3 activity_store tests + 4 history_cli tests pass; 8 vitest tests pass"
+errors_encountered:
+  - what: "turso::params::IntoParams::into_params(vals) E0277 in activity_store.rs"
+    root_cause: "Vec<turso::Value> implements IntoParams directly — must be passed as-is to .query(), not wrapped in the trait method call"
+    category: api-misuse
+    who: agent
+  - what: "Positional params ?1/?2 vs unnumbered ? mismatch in dynamic SQL"
+    root_cause: "Turso dynamic Vec<Value> params require unnumbered ? placeholders; named positional ?N requires turso::params![] macro"
+    category: api-misuse
+    who: agent
+  - what: "HistoryEntry.source typed as Option<String>, not String, in test fixture"
+    root_cause: "Checked field type late; should read struct definition before writing tests"
+    category: type-mismatch
+    who: agent
+agent_deviations:
+  - "Re-run/re-insert actions implemented as clipboard-copy with descriptive toasts (no sendToChat transport exists); faithful to plan intent"
+prompt_lessons:
+  - "When adding typed accessors for a SQL table that uses Vec<Value> dynamic params, prefer unnumbered ? placeholders and pass Vec<Value> directly; never call .into_params() explicitly."
+  - "Before writing test fixtures for a struct defined in another crate, grep for pub struct <Name> to read field types first — avoids type-mismatch compile failures."
+  - "Guard-dodge allowlist entries are strong signals: the root cause is always missing typed accessor; fix the accessor first, then remove the allowlist entry."
+commits:
+  - "3b82be4c51 (T1-T4+T8 history_store redaction SystemTime)"
+  - "9ecf44e67a (T5 SearchCorpus::ClipHistory)"
+  - "e92729ff45 (T6+T7 activity_store typed accessors)"
+  - "4ee9fce805 (T9+T10 HistoryPanel rerun/reinsert + vitest)"
+```

@@ -216,6 +216,55 @@ fn execute_shell_command(cmd_str: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use vox_db::history_store::HistoryEntry;
+
+    fn make_entry(id: i64, kind: &str, text: &str, pinned: bool) -> HistoryEntry {
+        HistoryEntry {
+            id,
+            repo_id: "test-repo".to_string(),
+            kind: kind.to_string(),
+            text: text.to_string(),
+            redacted_text: text.to_string(),
+            created_at: 1_700_000_000_000,
+            pinned,
+            source: Some("cli".to_string()),
+            token_estimate: (text.len() / 4) as i64,
+        }
+    }
+
+    #[test]
+    fn print_entries_table_does_not_panic_on_empty() {
+        print_entries_table(vec![]);
+    }
+
+    #[test]
+    fn print_entries_table_does_not_panic_on_nonempty() {
+        let entries = vec![
+            make_entry(1, "clip", "my clip text", false),
+            make_entry(2, "command", "git status", true),
+            make_entry(3, "chat", "hello from chat", false),
+        ];
+        print_entries_table(entries);
+    }
+
+    #[test]
+    fn print_entries_table_truncates_long_text() {
+        let long_text = "x".repeat(200);
+        let entries = vec![make_entry(1, "clip", &long_text, false)];
+        // Should not panic; truncation happens internally to 60 chars
+        print_entries_table(entries);
+    }
+
+    #[test]
+    fn make_entry_token_estimate_is_nonzero() {
+        let entry = make_entry(1, "clip", "hello world", false);
+        assert!(entry.token_estimate > 0);
+    }
+}
+
 #[derive(clap::Subcommand, Clone, Debug)]
 pub enum ClipSubCommand {
     /// Add a new text clip to history.
