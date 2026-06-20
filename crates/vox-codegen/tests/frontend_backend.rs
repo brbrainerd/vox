@@ -28,8 +28,8 @@ fn typescript_target_matches_direct_emitter_output() {
     let hir = hir_for(SRC);
     let opts = CodegenOptions::default();
 
-    let direct = vox_codegen::codegen_ts::generate_with_options(&hir, opts.clone())
-        .expect("direct emit ok");
+    let direct =
+        vox_codegen::codegen_ts::generate_with_options(&hir, opts.clone()).expect("direct emit ok");
     let via_seam = emit_frontend(Target::TypeScript, &hir, opts).expect("seam emit ok");
 
     // Same emitted file set, byte-for-byte — proves zero behavior change.

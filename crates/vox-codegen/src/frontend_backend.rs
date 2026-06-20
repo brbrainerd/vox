@@ -15,7 +15,7 @@
 use vox_compiler::hir::HirModule;
 use vox_compiler::target::Target;
 
-use crate::codegen_ts::{generate_with_options, CodegenOptions, CodegenOutput};
+use crate::codegen_ts::{CodegenOptions, CodegenOutput, generate_with_options};
 
 /// Emit the frontend for `target` from a lowered `hir`.
 ///

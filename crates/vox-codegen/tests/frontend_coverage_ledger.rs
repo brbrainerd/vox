@@ -13,8 +13,7 @@ use std::path::PathBuf;
 
 fn workspace_root() -> PathBuf {
     // CARGO_MANIFEST_DIR = crates/vox-codegen → workspace root is two levels up.
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
 fn surfaces_dir() -> PathBuf {
