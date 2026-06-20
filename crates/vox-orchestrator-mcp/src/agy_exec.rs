@@ -23,6 +23,9 @@ pub struct AgyOutput {
     pub exit_code: i32,
     pub timed_out: bool,
     pub elapsed_ms: u64,
+    /// Auto-responses written back to agy's PTY stdin (e.g. "y\n" for a [y/n]
+    /// prompt). Empty when no HITL prompts were detected during the run.
+    pub hitl_responses: Vec<String>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -226,6 +229,7 @@ fn run_in_pty(cwd: &Path, args: &[String], timeout: Duration) -> Result<AgyOutpu
         exit_code,
         timed_out,
         elapsed_ms: started.elapsed().as_millis() as u64,
+        hitl_responses: vec![],
     })
 }
 
@@ -351,6 +355,20 @@ mod tests {
         assert!(should_retry("timeout", 0, 3));
         assert!(!should_retry("timeout", 1, 3)); // one extra try only
         assert!(!should_retry("error", 0, 3));   // non-retryable
+    }
+
+    #[test]
+    fn agy_output_has_hitl_responses_field() {
+        let out = AgyOutput {
+            stdout: "done".into(),
+            stderr: "".into(),
+            exit_code: 0,
+            timed_out: false,
+            elapsed_ms: 100,
+            hitl_responses: vec!["y\n".into()],
+        };
+        assert_eq!(out.hitl_responses.len(), 1);
+        assert_eq!(out.hitl_responses[0], "y\n");
     }
 
     #[test]
