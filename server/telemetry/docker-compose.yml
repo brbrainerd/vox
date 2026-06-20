@@ -1,0 +1,87 @@
+version: "3.9"
+
+# Local dev + CI stack: ClickHouse + vox-server ingest service + Grafana
+#
+# Usage:
+#   cp .env.example .env        # fill in values
+#   docker compose up -d
+#   docker compose run --rm migrate   # run migrations
+#   curl http://localhost:4318/healthz
+
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.3-alpine
+    container_name: vox_clickhouse
+    restart: unless-stopped
+    ports:
+      - "8123:8123"    # HTTP (clickhouse Rust client uses only this)
+    environment:
+      CLICKHOUSE_DB: vox_telemetry
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-}
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8123/ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    image: clickhouse/clickhouse-client:24.3
+    container_name: vox_migrate
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    volumes:
+      - ./migrations:/migrations:ro
+    entrypoint: >
+      sh -c "clickhouse-client --host=clickhouse
+             --user=${CLICKHOUSE_USER:-default}
+             --password=${CLICKHOUSE_PASSWORD:-}
+             --multiquery < /migrations/0001_events_raw.sql"
+    profiles:
+      - migrate
+
+  vox-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vox_ingest
+    restart: unless-stopped
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    ports:
+      - "4318:4318"
+    environment:
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-vox_telemetry}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-}
+      LISTEN_ADDR: 0.0.0.0:4318
+      RUST_LOG: info
+    profiles:
+      - full
+
+  grafana:
+    image: grafana/grafana-oss:10.4.3
+    container_name: vox_grafana
+    restart: unless-stopped
+    depends_on:
+      - clickhouse
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_INSTALL_PLUGINS: grafana-clickhouse-datasource
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./dashboards:/var/lib/grafana/dashboards:ro
+    profiles:
+      - full
+
+volumes:
+  clickhouse_data:
+  grafana_data:
