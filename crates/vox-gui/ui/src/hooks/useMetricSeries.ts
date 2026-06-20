@@ -51,3 +51,32 @@ export function useMetricSeries(key: string, initial: MetricPoint[]) {
 
   return { series, setSeries, append };
 }
+
+/**
+ * Fixed-window per-key time-series buffer, fed by orchestrator events
+ * (cost_incurred, task_completed, queue depth, mesh peers).
+ * Persisted to the GUI pref store by the caller.
+ *
+ * Usage:
+ *   const s = new MetricSeries(240);
+ *   s.push("budget_burn", { t: Date.now(), v: 0.42 });
+ *   const points = s.get("budget_burn"); // MetricPoint[]
+ */
+export class MetricSeries {
+  private buf = new Map<string, MetricPoint[]>();
+
+  constructor(private cap = 240) {}
+
+  push(key: string, p: MetricPoint): void {
+    const arr = this.buf.get(key) ?? [];
+    arr.push(p);
+    if (arr.length > this.cap) {
+      arr.splice(0, arr.length - this.cap);
+    }
+    this.buf.set(key, arr);
+  }
+
+  get(key: string): MetricPoint[] {
+    return this.buf.get(key) ?? [];
+  }
+}

@@ -3,6 +3,7 @@ import {
   appendMetricSample,
   metricSeriesFromSpark,
   shouldAppendMetricFromKpi,
+  MetricSeries,
   type MetricPoint,
 } from './useMetricSeries';
 
@@ -37,5 +38,20 @@ describe('useMetricSeries helpers', () => {
     expect(shouldAppendMetricFromKpi([], 5, undefined)).toBe(true);
     expect(shouldAppendMetricFromKpi([], 5, 3)).toBe(true);
     expect(shouldAppendMetricFromKpi([], 5, 5)).toBe(false);
+  });
+});
+
+describe('MetricSeries ring-buffer', () => {
+  it('appends points and caps the window', () => {
+    const s = new MetricSeries(3);
+    s.push('budget_burn', { t: 1, v: 0.1 });
+    s.push('budget_burn', { t: 2, v: 0.2 });
+    s.push('budget_burn', { t: 3, v: 0.3 });
+    s.push('budget_burn', { t: 4, v: 0.4 });
+    expect(s.get('budget_burn').map((p) => p.v)).toEqual([0.2, 0.3, 0.4]);
+  });
+
+  it('returns empty for unknown key', () => {
+    expect(new MetricSeries(10).get('nope')).toEqual([]);
   });
 });
