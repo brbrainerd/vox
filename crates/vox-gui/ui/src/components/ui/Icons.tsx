@@ -255,4 +255,9 @@ export const Icon = {
       <path d="M17.5 13.6a5.5 5.5 0 0 1 3 5.4" />
     </svg>
   ),
+  stop: (p: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" {...p}>
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+    </svg>
+  ),
 };

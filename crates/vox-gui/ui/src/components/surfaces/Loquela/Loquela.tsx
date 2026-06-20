@@ -3,6 +3,8 @@ import { invoke } from '@tauri-apps/api/core';
 import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
+import { Segment } from '../../ui/Segment';
+import { Popover } from '../../ui/Popover';
 import { voxTransport } from '../../../transport';
 import { buildSlashEntries, type SlashEntry } from '../../../lib/slashCommands';
 import {
@@ -58,23 +60,6 @@ function Chip({ chip, onRemove }: { chip: ChipData; onRemove: (c: ChipData) => v
   );
 }
 
-function Segment({ value, onChange, options, size = "sm" }: any) {
-  const pad = size === "xs" ? "px-2 py-0.5 text-[10px]" : "px-2.5 py-1 text-[11px]";
-  return (
-    <div className="inline-flex items-center rounded-md border border-white/10 bg-black/30 p-0.5">
-      {options.map((o: any) => {
-        const on = value === o.id;
-        return (
-          <button type="button" key={o.id} title={o.hint} aria-pressed={on} onClick={() => onChange(o.id)}
-            className={`${pad} font-display uppercase tracking-[0.15em] rounded-[5px] transition ${on ? (o.tone || "bg-white/10 text-zinc-50") : "text-zinc-500 hover:text-zinc-300"}`}>
-            {o.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 function MiniSlider({ label, value, setValue, min, max, step, fmt, accent = 'rgb(var(--brass))' }: any) {
   const pct = ((value - min) / (max - min)) * 100;
   return (
@@ -87,15 +72,6 @@ function MiniSlider({ label, value, setValue, min, max, step, fmt, accent = 'rgb
       />
       <span className="w-10 font-mono text-[10px] tabular-nums text-zinc-300">{fmt(value)}</span>
     </label>
-  );
-}
-
-function Popover({ open, children, align = "left" }: any) {
-  if (!open) return null;
-  return (
-    <div className={`absolute ${align === "right" ? "right-0" : "left-0"} bottom-9 z-50 min-w-[240px] rounded-lg border border-white/10 bg-zinc-950/95 p-1 backdrop-blur-xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)]`}>
-      {children}
-    </div>
   );
 }
 
