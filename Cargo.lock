@@ -15356,6 +15356,7 @@ dependencies = [
  "vox-sql",
  "vox-tauri-codegen",
  "vox-telemetry",
+ "vox-term",
  "vox-wasm-engine",
  "vox-workflow-runtime",
  "walkdir",
@@ -17474,6 +17475,7 @@ version = "0.1.1"
 dependencies = [
  "anyhow",
  "portable-pty",
+ "regex",
  "serde",
  "serde_json",
  "tokio",

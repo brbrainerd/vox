@@ -19,6 +19,8 @@ pub const CRATE_NAME: &str = "vox-terminal-core";
 
 pub mod agent;
 pub mod block;
+pub mod commands;
+pub mod corpus;
 pub mod input;
 pub mod osc633;
 pub mod pty;

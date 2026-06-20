@@ -4,7 +4,7 @@
 //! Under a dumb terminal (CI, SSH without `TERM`) `new()` returns `Err`; the
 //! caller should fall back to plain stdout rendering.
 
-use std::io::{self, Write};
+use std::io;
 
 #[cfg(test)]
 mod tests {

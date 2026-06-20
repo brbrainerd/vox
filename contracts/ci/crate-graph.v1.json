@@ -105,6 +105,7 @@
       "vox-sql",
       "vox-tauri-codegen",
       "vox-telemetry",
+      "vox-term",
       "workspace-hack"
     ],
     "vox-cli-ci": [

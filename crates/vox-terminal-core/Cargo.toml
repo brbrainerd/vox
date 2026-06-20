@@ -21,6 +21,7 @@ vox-compiler     = { path = "../vox-compiler" }
 vox-journal      = { path = "../vox-journal" }
 vox-orchestrator = { path = "../vox-orchestrator" }
 serde_json       = { workspace = true }
+regex            = { workspace = true }
 
 [dev-dependencies]
 tokio          = { workspace = true, features = ["rt", "macros", "rt-multi-thread"] }
