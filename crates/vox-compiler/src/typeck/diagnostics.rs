@@ -769,6 +769,13 @@ pub mod codes {
     /// Parity: declared in the language surface but not yet proven by the canonical golden ladder.
     pub const PARITY_UNVERIFIED: &str = "vox/parity/unverified";
 
+    /// A declaration is pulled toward both native-only and gui-only tiers.
+    pub const PLACEMENT_CONFLICT: &str = "vox/placement/conflict";
+    /// A `gui` declaration calls a `native` declaration directly (no endpoint).
+    pub const PLACEMENT_BOUNDARY: &str = "vox/placement/boundary";
+    /// An explicit `@place(...)` override cannot be satisfied by the declaration's effects.
+    pub const PLACEMENT_UNSAT: &str = "vox/placement/unsat";
+
     /// All Phase-1 codes registered for stability, used by the namespace guard test.
     pub const ALL_PHASE_1: &[&str] = &[
         // Core type errors (v0.6, LLM-target CR-L criteria)
@@ -945,11 +952,15 @@ pub mod codes {
         "vox/emission/app_contract_schema_drift",
         "vox/emission/runtime_projection_schema_drift",
         "vox/emission/duplicate_http_route",
+        // Placement model
+        PLACEMENT_CONFLICT,
+        PLACEMENT_BOUNDARY,
+        PLACEMENT_UNSAT,
     ];
 
     #[cfg(test)]
     mod guard_tests {
-        use super::ALL_COMPILER_DIAGNOSTIC_CODES;
+        use super::*;
         use std::collections::HashSet;
 
         #[test]
@@ -959,6 +970,20 @@ pub mod codes {
                 assert!(
                     seen.insert(*code),
                     "duplicate compiler diagnostic code in ALL_COMPILER_DIAGNOSTIC_CODES: {code}"
+                );
+            }
+        }
+
+        #[test]
+        fn placement_codes_are_registered() {
+            for code in [
+                PLACEMENT_CONFLICT,
+                PLACEMENT_BOUNDARY,
+                PLACEMENT_UNSAT,
+            ] {
+                assert!(
+                    ALL_COMPILER_DIAGNOSTIC_CODES.contains(&code),
+                    "{code} must be registered in ALL_COMPILER_DIAGNOSTIC_CODES"
                 );
             }
         }
