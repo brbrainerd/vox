@@ -86,29 +86,68 @@ T7  Packaging / distribution (vox term binary + font)
 ```
 
 - **T1 must fully land and freeze its public API before T2–T5 begin.**
-- **T2, T3, T4, T5** are mutually independent once T1 is frozen → parallelizable (see §4).
-- **T6** depends on the PTY host (T1) and the shell-integration seam; its design half is a **research gate**.
+- **T2, T3, T4, T5** are mutually independent once T1 is frozen → parallelizable (see §4.1).
+- **T6 (Nushell)** depends on the `ShellBackend` seam (T1 Task 1.5) and edits the shared `pty`/`session` seam → run it **sequentially**, not concurrently with T2/T4 (would conflict on the seam).
 - **T7** depends on T2.
 
 ---
 
-## 4. Claude Code execution strategy (parallelism, workflows, subagents, limits)
+## 4. Claude Code execution playbook (Sonnet 4.6: skills, workflows, subagents, gates)
 
-This plan will be executed by **Claude 4.6 Sonnet** via the Claude Code harness. Guidance and the harness's own limits:
+Executed by **Claude 4.6 Sonnet** (`claude-sonnet-4-6`) via the Claude Code harness. The full operating envelope lives in [`claude-code-sonnet-handoff-limitations.md`](../../src/contributors/claude-code-sonnet-handoff-limitations.md); this section maps *this plan* onto the harness's capabilities.
 
-**Sequencing vs. parallelism**
-- **T1 is strictly sequential, single-threaded.** Its tasks churn shared public types; parallel agents would conflict constantly. Use **subagent-driven-development one task at a time**, reviewing between tasks.
-- **After T1's API freezes**, T2/T3/T4/T5 touch disjoint files → safe to **fan out**. Each parallel worker should run in **its own git worktree** (`isolation: "worktree"`) to avoid working-tree conflicts. A `Workflow` `parallel()`/`pipeline()` over the four tracks is appropriate *only if the owner opts into multi-agent orchestration*; otherwise dispatch sequential subagents.
-- Within a track, the per-task TDD loop (write failing test → run → implement → run → commit) stays sequential.
+### 4.1 Per-track orchestration matrix
 
-**Harness limitations to design around (document these in the handoff)**
-- **Subagents are read-only in this repo's sandbox** (recorded gotcha): dispatched agents get shell/write **DENIED** in worktree sandboxes. *Implication:* parallel **writing** subagents may not work in the owner's Claude Code environment — prefer the pattern "subagent produces the diff/plan; main session writes + verifies + commits," or run parallelism via worktrees the main session owns. The handoff doc (Phase 5) must state this explicitly so Sonnet doesn't assume parallel writers.
-- **Context window:** Track 1's file count is large; instruct the worker to read only the files named per task, not the whole crate.
-- **Rate limits:** any web/deep-research (G-SHELL, G-LEGAL) must use **2–3 targeted fetches**, never the mass-verify workflow (recorded gotcha: 110-agent verify trips server rate-limit and mislabels 0–0 as "refuted").
-- **`cargo` on Windows:** never pipe `cargo` to `head`/`grep` (recorded gotcha — orphans thousands of processes); redirect to a file. Run clippy per-crate (`cargo clippy -p <crate> -- -D warnings`).
-- **Vox formatting ban:** use `vox run scripts/fmt.vox` / `cargo fmt -p <crate>`, never `cargo fmt --all`.
+| Track | Mode | Harness mechanism | Isolation | Why |
+|---|---|---|---|---|
+| **T1 core** | **Sequential, one task at a time** | `superpowers:subagent-driven-development` — fresh subagent *plans* each task, **main session writes/verifies/commits** | single worktree | T1 churns the shared public API; parallelism would thrash. |
+| **T2 TUI** | Parallel-eligible after T1 freeze | one worker (own worktree) | `isolation:"worktree"` | disjoint files (`crates/vox-term/**`). |
+| **T3 GUI** | Parallel-eligible after T1 freeze | one worker (own worktree) | `isolation:"worktree"` | disjoint files (`vox-gui/**`); only shares the frozen core API. |
+| **T4 slash-cmds** | Parallel-eligible after T1 freeze | one worker (own worktree) | `isolation:"worktree"` | adds `core/src/commands.rs` — coordinate the single `lib.rs` re-export line with T1 owner before merge. |
+| **T5 flywheel** | Parallel-eligible after T1 freeze | one worker (own worktree) | `isolation:"worktree"` | new `core/src/corpus/**`. |
+| **T6 Nushell** | After T1 (needs `ShellBackend` seam) | sequential | single worktree | edits the shared `pty`/`session` seam → not safe to run concurrently with T2/T4. |
+| **T7 packaging** | After T2 | sequential | single worktree | depends on the `vox-term` binary. |
 
-**Verification gates (every track):** `cargo test -p <crate>`, `cargo clippy -p <crate> -- -D warnings`, and `cargo run -p vox-arch-check` must pass before a track is "done." New crates need a `layers.toml` row and a `where-things-live.md` row **in the same PR**.
+### 4.2 The hard constraint that shapes everything: **read-only subagents**
+
+In this repo's sandbox, **dispatched subagents get write/shell DENIED** (recorded gotcha). So "parallel subagents" does **not** mean parallel *writers*. Two safe patterns:
+
+- **Default (subagent-driven-development):** the subagent reads + returns the diff/test as text; the **main session applies it, runs the gate, commits**. Use this for all of T1.
+- **True parallelism (only with owner opt-in):** the **main session** drives several **git worktrees** itself (sequential apply, but the agent that *designed* each track's tasks can run concurrently as read-only planners). A `Workflow` is justified only here, and only when the owner says "use a workflow" / ultracode is on — never spin one up unprompted.
+
+`Workflow` sketch for the post-freeze fan-out (opt-in only):
+
+```js
+// After T1 freeze. Each agent RETURNS a unified diff + the gate command output;
+// the main session applies+commits. Worktree isolation prevents cross-track clobber.
+const TRACKS = ['T2-tui','T3-gui','T4-cmds','T5-flywheel']
+const diffs = await parallel(TRACKS.map(t => () =>
+  agent(`Implement ${t} per the plan; return a unified diff + 'cargo test -p' output. Do not assume write access.`,
+        { label: t, isolation: 'worktree', schema: DIFF_SCHEMA })))
+// main session reviews diffs.filter(Boolean), applies, runs gates, commits per task
+```
+
+### 4.3 Efficiency rules (Sonnet 4.6 context discipline)
+
+- **Read only the files a task names.** `vox-orchestrator`/`vox-cli` are huge; a blind read blows the window. Each Track-1 task lists its "Read first" files for exactly this reason.
+- **Don't re-read what the plan already quotes.** The plan embeds the types/signatures; trust them unless a task says "verify."
+- **Batch independent reads** in one message; **batch the per-crate gate** (`test` + `clippy`) rather than interleaving.
+- Prefer `Grep`/`Glob` over reading whole files to locate a symbol.
+
+### 4.4 Repo gotchas (must encode in every task)
+
+- **Never pipe `cargo` to `head`/`grep` on Windows** — orphans thousands of processes; redirect to a file.
+- **`cargo fmt --all` BANNED** → `cargo fmt -p <crate>` / `vox run scripts/fmt.vox`.
+- **Clippy per-crate** (`cargo clippy -p <crate> -- -D warnings`); exclude `vox-gui` from workspace `--all-targets` clippy (Tauri build-script breaks it).
+- **Web/research:** 2–3 targeted fetches, never the mass-verify workflow (trips rate-limit, mislabels abstain as "refuted").
+
+### 4.5 Verification gate (every task, no exceptions)
+
+`cargo test -p <crate>` **and** `cargo clippy -p <crate> -- -D warnings` **and** `cargo run -p vox-arch-check` pass, with output shown, before "done." New crate ⇒ `layers.toml` + `where-things-live.md` rows in the same commit.
+
+### 4.6 Stop-and-ask gates
+
+At **G-LEGAL** (AGPL?), **G-PRIV** (corpus consent), and **G-WARP** (reference-read scope) the worker **pauses and asks the owner** — never resolves unilaterally. **G-SHELL is already resolved (Nushell).** See §12.
 
 ---
 
@@ -479,6 +518,8 @@ git commit -m "feat(terminal-core): Rust OSC-633 block parser (port of osc633.ts
 
 Move `default_shell`, `shell_integration_snippet`, `PWSH_OSC633`, `BASH_OSC633` **verbatim** (they are pure). Replace the Tauri command + `Emitter` with a `PtyHost::spawn(shell, cols, rows) -> (PtyHandle, mpsc::Receiver<Vec<u8>>)` API; `PtyHandle::{write, resize, kill}`.
 
+> **Forward-compat seam (for Track 6 Nushell):** define a `ShellBackend` trait now — `submit(line) -> stream of output`, `kind() -> ShellKind` — and make `PtyShell` (this task) its first impl. Track 6 adds `NuShell` (in-process `nu-*`) as a second impl behind a `nushell` cargo feature. `Session` depends on `dyn ShellBackend`, never on `PtyShell` concretely, so the default backend can flip to Nushell without touching the session.
+
 - [ ] **Step 1: Write the failing test** (keep the existing pure-fn tests; they must pass post-move)
 
 ```rust
@@ -738,11 +779,19 @@ Completes the harness side of `classify`'s `Command { name, args }` dispatch.
 
 ---
 
-## 10. Track 6 — Shell audit + Nushell/zsh/fish (research gate → impl)
+## 10. Track 6 — Shell integration (G-SHELL **RESOLVED → Nushell**)
 
-**Research gate G-SHELL (Phase-3, 2–3 targeted fetches only):** rank candidate underlying shells for "ideal for LLM generation." Seed hypothesis: **Vox-native default (already structured) → Nushell (typed/structured pipelines, Rust-native, possibly in-process via `nu-*` crates) → system shell (pwsh/zsh) over PTY for muscle-memory.** Deliverable: a short decision doc under `docs/src/architecture/`.
+**Decision (owner, 2026-06-20):** the underlying AI-preferred shell is **Nushell**. Rationale: typed/structured pipelines mean `/sh` can hand the agent **structured values** (not screen-scraped text), it is Rust-native and **embeddable in-process via the `nu-*` crates** (no PTY round-trip), and it composes with the Vox-native default (both are structured). Ranking that stands: **Vox-native (default) → Nushell (structured `/sh`) → system shell (pwsh/zsh/bash) over PTY for raw muscle-memory.**
 
-**Impl tasks (after gate):** add `zsh`/`fish` OSC-633 snippets to `pty.rs` (currently `None`); optionally a Nushell in-process adapter so `/sh` can return structured values to the agent. TDD: `shell_integration_snippet("zsh").is_some()`; Nushell adapter returns structured output for a pipeline.
+**Architecture impact on Track 1:** the shell host is **two-backed**. Define `ShellBackend` in `vox-terminal-core::pty` with two impls: `PtyShell` (existing portable-pty + OSC-633, for system shells) and `NuShell` (in-process via `nu-*`, returning structured `Value`). `InputIntent::Shell` routes to the configured backend (default **Nushell**); `/sh!` or a config flag forces `PtyShell`.
+
+**Tasks (now in-scope, full TDD in Phase-4 hardening):**
+1. `ShellBackend` trait + `NuShell` in-process adapter: run a pipeline, capture structured output (TDD: `ls | length` returns a numeric `Value`, rendered deterministically).
+2. Route `InputIntent::Shell` through the configured `ShellBackend` (TDD: default backend is `NuShell`; `/sh!` forces `PtyShell`).
+3. Structured-output → `Block` rendering (TDD: a Nushell table renders to a `BlockKind::Shell` block with the structured payload retained for the agent/transcript).
+4. Add `zsh`/`fish` OSC-633 snippets to `PtyShell` (currently `None`) for the system-shell fallback (TDD: `shell_integration_snippet("zsh").is_some()`).
+
+**Dep note:** the `nu-*` crates are heavy — gate `NuShell` behind a `nushell` cargo feature (default-on for `vox-term`, optional for embedders) so the core stays lean for headless/server builds that only need `PtyShell`. Run dep-currency/crate-build-audit when added.
 
 ---
 
@@ -757,7 +806,7 @@ Completes the harness side of `classify`'s `Command { name, args }` dispatch.
 | Gate | Phase | Question | Method |
 |---|---|---|---|
 | G-LEGAL | 4 | Is `vox-term` AGPL or not? (Determines whether *any* Warp code can be vendored.) | Owner decision; default = clean-room, no vendor |
-| G-SHELL | 3 | Which underlying shell is "ideal for LLM generation"? | 2–3 targeted fetches; decision doc |
+| G-SHELL | ✅ RESOLVED | Which underlying shell is "ideal for LLM generation"? | **Nushell** (structured pipelines, in-process `nu-*`); see §10 |
 | G-PRIV | 5 | Corpus consent/opt-in model | Owner decision; reuse telemetry off-switch |
 | G-WARP | 3 | Deep-read Warp's block/Agent-Mode crates for clean-room patterns | Targeted read of AGPL crates *as reference only* |
 
@@ -771,7 +820,7 @@ Completes the harness side of `classify`'s `Command { name, args }` dispatch.
 - **GUI Console = front-end of core; same terminal view:** Track 3. ✓
 - **Flywheel (emit + curate):** Track 1.7 + Track 5. ✓
 - **Font (IBM Plex Mono Nerd Font):** Track 2.6 + Track 7. ✓
-- **Shell audit:** Track 6 / G-SHELL. ✓
+- **Shell choice (Nushell, structured /sh):** Track 6 (G-SHELL resolved) + `ShellBackend` seam in Task 1.5. ✓
 - **Warp ingestion (where/how):** §2 — clean-room patterns, no AGPL code; `alacritty_terminal` taken upstream. ✓
 - **Claude Code parallelism/workflows/subagents + limits:** §4. ✓
 - **Audit / retire / move:** §1 table, grounded in real files. ✓
