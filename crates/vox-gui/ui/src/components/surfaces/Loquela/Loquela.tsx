@@ -3,7 +3,6 @@ import { invoke } from '@tauri-apps/api/core';
 import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
-import { Segment } from '../../ui/Segment';
 import { Popover } from '../../ui/Popover';
 import { voxTransport } from '../../../transport';
 import { buildSlashEntries, type SlashEntry } from '../../../lib/slashCommands';
@@ -18,11 +17,16 @@ import {
   formatSessionBudget,
   resolveInternalModeSlash,
 } from '../../../lib/slashRouter';
+import { DriveConsole } from './DriveConsole';
+import { defaultControl, type ControlState } from '../../../lib/driveConsole';
 
+// LQ_MODES kept for slash command hint lookup (/plan, /verify, /act).
+// The Segment UI has been replaced by DriveConsole. Remove in Track D when
+// mode transitions are fully migrated to clutch+risk.
 const LQ_MODES = [
-  { id: "plan",   label: "Plan",   hint: "Augur drafts a plan, no side effects",       tone: "text-cyan-300   border-cyan-400/30   bg-cyan-400/[0.08]" },
-  { id: "act",    label: "Act",    hint: "Plan → execute under risk gates",            tone: "text-brass      border-brass/30      bg-brass/[0.08]" },
-  { id: "verify", label: "Verify", hint: "Re-run with stricter doubt + property tests", tone: "text-violet-300 border-violet-400/30 bg-violet-400/[0.08]" },
+  { id: "plan",   label: "Plan",   hint: "Augur drafts a plan, no side effects" },
+  { id: "act",    label: "Act",    hint: "Plan → execute under risk gates" },
+  { id: "verify", label: "Verify", hint: "Re-run with stricter doubt + property tests" },
 ];
 
 // Static fallback tiers shown before the runtime model list loads.
@@ -99,6 +103,10 @@ interface LoquelaProps {
   onSlashCommand?: (cmd: string, ctx: SlashCommandContext) => boolean | Promise<boolean>;
   queueDepth?: number;
   onOpenTasks?: () => void;
+  /** True when a submitted task is still in progress — flips Send button to Stop. */
+  taskInProgress?: boolean;
+  /** Called when the user clicks Stop; should interrupt the active orchestrator task. */
+  onInterrupt?: () => void;
 }
 
 export function Loquela({
@@ -114,11 +122,14 @@ export function Loquela({
   onSlashCommand,
   queueDepth,
   onOpenTasks,
+  taskInProgress = false,
+  onInterrupt,
 }: LoquelaProps) {
   const [text, setText] = useState("");
   const [mode, setMode] = useState("act");
   const [tier, setTier] = useState("auto");
   const [dryRun, setDryRun] = useState(false);
+  const [control, setControl] = useState<ControlState>(defaultControl);
 
   const [skillOpen, setSkillOpen] = useState(false);
   const [tierOpen,  setTierOpen]  = useState(false);
@@ -393,6 +404,8 @@ export function Loquela({
       mode,
       tier,
       dry_run: dryRun,
+      clutch: control.clutch,
+      risk: control.risk,
       context: chips.map(c => ({ kind: c.kind, ref: c.label })),
     };
     onSubmit(payload);
@@ -418,8 +431,6 @@ export function Loquela({
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); return; }
     if (e.key === "Enter" && !e.shiftKey && !slashOpen && !atOpen) { e.preventDefault(); send(); }
   };
-
-  const riskTone = dryRun ? 'low' : mode === 'verify' ? 'med' : mode === 'plan' ? 'low' : 'high';
 
   return (
     <div className="pointer-events-auto p-4" data-testid="loquela-composer">
@@ -527,13 +538,41 @@ export function Loquela({
             )}
           </div>
 
-          <button type="button" onClick={send} disabled={!text.trim()} className={`flex h-8 shrink-0 items-center gap-1.5 rounded-md border px-3 font-display text-[11px] uppercase tracking-[0.18em] transition ${text.trim() ? "border-brass/40 bg-brass/15 text-brass hover:bg-brass/25 shadow-[0_0_24px_-8px_rgb(var(--brass)_/_0.6)]" : "border-white/5 bg-white/[0.02] text-zinc-600 cursor-not-allowed"}`}>
-            <Icon.send className="size-3.5"/> {dryRun ? "Dry-run" : mode === "plan" ? "Plan" : mode === "verify" ? "Verify" : "Run"}
-          </button>
+          {taskInProgress ? (
+            <button
+              type="button"
+              onClick={() => onInterrupt?.()}
+              aria-label="Stop (Enter)"
+              className="inline-flex h-8 shrink-0 items-center gap-2 rounded-md border border-rose-400/45 bg-rose-400/[0.12] px-3 text-rose-300 transition hover:bg-rose-400/[0.18]"
+            >
+              <Icon.stop className="size-3.5" />
+              <span className="font-display text-[11px] uppercase tracking-[0.18em]">Stop</span>
+              <kbd className="rounded border border-current px-1 text-[9px] opacity-75">↵</kbd>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={send}
+              disabled={!text.trim()}
+              aria-label="Run (Enter)"
+              className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border px-3 font-display text-[11px] uppercase tracking-[0.18em] transition ${text.trim() ? "border-brass/40 bg-brass/15 text-brass hover:bg-brass/25 shadow-[0_0_24px_-8px_rgb(var(--brass)_/_0.6)]" : "border-white/5 bg-white/[0.02] text-zinc-600 cursor-not-allowed"}`}
+            >
+              <Icon.send className="size-3.5" />
+              {dryRun ? "Dry-run" : "Run"}
+              <kbd className="rounded border border-current px-1 text-[9px] opacity-75">↵</kbd>
+            </button>
+          )}
         </div>
 
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-white/5 pt-2 text-[10px]">
-          <Segment value={mode} onChange={setMode} options={LQ_MODES} />
+          <DriveConsole
+            control={control}
+            onControlChange={(n) => setControl(c => ({ ...c, ...n }))}
+            spentUsd={sessionBudget?.spent ?? 0}
+            budgetUsd={sessionBudget?.cap ?? 0}
+            model={tierObj.label.split(' · ')[0]}
+            auto={tier === 'auto'}
+          />
 
           {typeof queueDepth === 'number' && queueDepth > 0 && (
             <button
@@ -594,9 +633,6 @@ export function Loquela({
           )}
 
           <div className="ml-auto flex items-center gap-2 font-mono text-[9px] text-zinc-500">
-            <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 uppercase tracking-widest ${riskTone === "high" ? "border-amber-400/40 bg-amber-400/10 text-amber-300" : riskTone === "med" ? "border-violet-400/40 bg-violet-400/10 text-violet-300" : "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"}`}>
-              {riskTone} risk
-            </span>
             <kbd className="rounded border border-white/10 bg-white/5 px-1 py-0.5 tracking-widest text-zinc-400">⌘↵</kbd>
           </div>
         </div>
