@@ -225,7 +225,7 @@ pub const LEXER_AT_DECORATORS: &[&str] = &[
     "@skip_if_none",
     "@table",
     "@index",
-    "@native",
+    "@place",
     "@loading",
     "@require",
     "@ensure",
