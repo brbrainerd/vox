@@ -348,6 +348,71 @@ pub async fn reorder_orchestrator_task(
     result
 }
 
+// ── Plan/Act/Verify intervention commands (Track D) ─────────────────────────
+
+/// Approve the plan phase of a task, advancing its PAV loop to Acting.
+#[tauri::command]
+pub async fn approve_orchestrator_task_plan(
+    app_handle: tauri::AppHandle,
+    task_id: u64,
+) -> Result<ControlPlaneResult, String> {
+    call_orchestrator_daemon(
+        orch_daemon_method::APPROVE_PLAN,
+        serde_json::json!({ "task_id": task_id }),
+    )
+    .await?;
+    let result = Ok(ControlPlaneResult {
+        ok: true,
+        message: format!("task {task_id} plan approved → acting"),
+        task_id: Some(task_id.to_string()),
+        duplicate_of: None,
+    });
+    crate::commands::orchestrator::emit_tasks_changed(&app_handle);
+    result
+}
+
+/// Skip the verification phase of a task (Acting → Done, bypassing Verifying).
+#[tauri::command]
+pub async fn skip_orchestrator_verify(
+    app_handle: tauri::AppHandle,
+    task_id: u64,
+) -> Result<ControlPlaneResult, String> {
+    call_orchestrator_daemon(
+        orch_daemon_method::SKIP_VERIFY,
+        serde_json::json!({ "task_id": task_id }),
+    )
+    .await?;
+    let result = Ok(ControlPlaneResult {
+        ok: true,
+        message: format!("task {task_id} verification skipped"),
+        task_id: Some(task_id.to_string()),
+        duplicate_of: None,
+    });
+    crate::commands::orchestrator::emit_tasks_changed(&app_handle);
+    result
+}
+
+/// Force a verification phase for a task (Acting → Verifying).
+#[tauri::command]
+pub async fn force_orchestrator_verify(
+    app_handle: tauri::AppHandle,
+    task_id: u64,
+) -> Result<ControlPlaneResult, String> {
+    call_orchestrator_daemon(
+        orch_daemon_method::FORCE_VERIFY,
+        serde_json::json!({ "task_id": task_id }),
+    )
+    .await?;
+    let result = Ok(ControlPlaneResult {
+        ok: true,
+        message: format!("task {task_id} forced to verify"),
+        task_id: Some(task_id.to_string()),
+        duplicate_of: None,
+    });
+    crate::commands::orchestrator::emit_tasks_changed(&app_handle);
+    result
+}
+
 #[cfg(test)]
 mod tests {
     // Verify the module imports compile cleanly.

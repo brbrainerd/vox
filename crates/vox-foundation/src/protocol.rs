@@ -52,6 +52,15 @@ pub mod orch_daemon_method {
     pub const DOUBT_TASK: &str = "orch.doubt_task";
     /// Params: `{"task_id": u64, "reason": "..."} ` → `{"ok": true}`.
     pub const OVERRULE_TASK: &str = "orch.overrule_task";
+    /// Params: `{"task_id": u64}` → `{"ok": true}`.
+    /// Approves the current planning phase, advancing the PAV loop to Acting.
+    pub const APPROVE_PLAN: &str = "orch.approve_plan";
+    /// Params: `{"task_id": u64}` → `{"ok": true}`.
+    /// Skips the Verifying phase; the task completes immediately.
+    pub const SKIP_VERIFY: &str = "orch.skip_verify";
+    /// Params: `{"task_id": u64}` → `{"ok": true}`.
+    /// Forces a Verifying phase even when risk would normally skip it.
+    pub const FORCE_VERIFY: &str = "orch.force_verify";
     /// Params: `{}` → workspace journey store diagnostics (`.vox/store.db` vs canonical).
     pub const WORKSPACE_JOURNEY: &str = "orch.workspace_journey";
     /// Params: `{}` → `{"ok": true}`. Triggers a hot-reload of Vox.toml configuration.

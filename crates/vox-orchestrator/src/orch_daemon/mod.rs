@@ -561,6 +561,33 @@ pub async fn dispatch_request(
                 Err(e) => response_err(&req.id, format!("{e}")),
             }
         }
+        orch_daemon_method::APPROVE_PLAN => {
+            let Some(task_id) = req.params.get("task_id").and_then(|x| x.as_u64()) else {
+                return response_err(&req.id, "params.task_id (u64) required");
+            };
+            match orch.pav_advance_to_acting(TaskId(task_id)) {
+                Ok(()) => response_result(&req.id, serde_json::json!({ "ok": true })),
+                Err(e) => response_err(&req.id, format!("{e}")),
+            }
+        }
+        orch_daemon_method::SKIP_VERIFY => {
+            let Some(task_id) = req.params.get("task_id").and_then(|x| x.as_u64()) else {
+                return response_err(&req.id, "params.task_id (u64) required");
+            };
+            match orch.pav_skip_verify(TaskId(task_id)) {
+                Ok(()) => response_result(&req.id, serde_json::json!({ "ok": true })),
+                Err(e) => response_err(&req.id, format!("{e}")),
+            }
+        }
+        orch_daemon_method::FORCE_VERIFY => {
+            let Some(task_id) = req.params.get("task_id").and_then(|x| x.as_u64()) else {
+                return response_err(&req.id, "params.task_id (u64) required");
+            };
+            match orch.pav_force_verify(TaskId(task_id)) {
+                Ok(()) => response_result(&req.id, serde_json::json!({ "ok": true })),
+                Err(e) => response_err(&req.id, format!("{e}")),
+            }
+        }
         orch_daemon_method::VCS_ISOLATION_STATUS => {
             let v = crate::json_vcs_facade::isolation_status_json(&orch);
             response_result(&req.id, v)
