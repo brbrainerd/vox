@@ -318,6 +318,73 @@ pub struct CompletionAttestation {
     /// Populated by the MCP completion handler when an `Observer` was active for this task.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub observation_summary: Option<crate::observer::ObservationSummary>,
+    /// Model that actually completed this task (e.g. "anthropic/claude-opus").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub completing_model: Option<String>,
+    /// Provider route for the completing model.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
+    /// Why this model was selected (`SelectionReason` rendered as a short string).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub selection_reason: Option<String>,
+    /// Input tokens sent for this task.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub request_tokens: Option<u64>,
+    /// Output tokens received for this task.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub response_tokens: Option<u64>,
+    /// End-to-end latency in milliseconds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub latency_ms: Option<u64>,
+    /// Optional pointer to a captured request/response digest (privacy-gated).
+    /// Only populated when the user enables I/O capture; never stores raw payload inline.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub io_digest_ref: Option<String>,
+}
+
+#[cfg(test)]
+mod attribution_tests {
+    use super::*;
+
+    #[test]
+    fn attestation_roundtrips_attribution() {
+        let a = CompletionAttestation {
+            completing_model: Some("anthropic/claude-opus".into()),
+            provider: Some("anthropic".into()),
+            selection_reason: Some("scored".into()),
+            request_tokens: Some(4200),
+            response_tokens: Some(1100),
+            latency_ms: Some(820),
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&a).unwrap();
+        let back: CompletionAttestation = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.completing_model.as_deref(), Some("anthropic/claude-opus"));
+        assert_eq!(back.request_tokens, Some(4200));
+    }
+
+    #[test]
+    fn old_attestation_without_attribution_still_parses() {
+        // Backward compatibility: a payload predating these fields must deserialize.
+        let old = r#"{"declared_non_placeholder":true}"#;
+        let a: CompletionAttestation = serde_json::from_str(old).unwrap();
+        assert!(a.completing_model.is_none());
+        assert!(a.declared_non_placeholder);
+    }
+
+    #[test]
+    fn attestation_serializes_new_fields_as_optional() {
+        // All new fields None → they must be absent from the JSON output.
+        let a = CompletionAttestation::default();
+        let json = serde_json::to_string(&a).unwrap();
+        assert!(!json.contains("completing_model"), "completing_model should be absent: {json}");
+        assert!(!json.contains("provider"), "provider should be absent: {json}");
+        assert!(!json.contains("selection_reason"), "selection_reason should be absent: {json}");
+        assert!(!json.contains("request_tokens"), "request_tokens should be absent: {json}");
+        assert!(!json.contains("response_tokens"), "response_tokens should be absent: {json}");
+        assert!(!json.contains("latency_ms"), "latency_ms should be absent: {json}");
+        assert!(!json.contains("io_digest_ref"), "io_digest_ref should be absent: {json}");
+    }
 }
 
 /// Description of a task before it is assigned an ID and routed in the orchestrator.
