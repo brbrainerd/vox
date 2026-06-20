@@ -2,7 +2,8 @@
 
 use super::super::Parser;
 use crate::ast::decl::{
-    Decl, EffectDecl, OnCleanupDecl, OnMountDecl, ReactiveComponentDecl, ReactiveMemberDecl,
+    Decl, EffectDecl, OnCleanupDecl, OnMountDecl, OnStreamDecl, ReactiveComponentDecl,
+    ReactiveMemberDecl,
 };
 use crate::ast::span::Span;
 use crate::lexer::token::Token;
@@ -122,11 +123,53 @@ impl Parser {
                                 span: on_start.merge(self.span()),
                             }));
                         }
+                        Token::Ident(n) if n == "stream" => {
+                            self.advance(); // eat `stream`
+                            self.expect(&Token::LParen)?;
+                            let channel = self.parse_ident_name()?;
+                            self.expect(&Token::RParen)?;
+                            match self.peek().clone() {
+                                Token::Ident(a) if a == "as" => {
+                                    self.advance();
+                                }
+                                other => {
+                                    self.errors.push(ParseError::classified(
+                                        self.span(),
+                                        "Expected `as <binding>` after `on stream(<channel>)`.",
+                                        vec!["as frame".into()],
+                                        Some(other.to_string()),
+                                        ParseErrorClass::Declaration,
+                                    ));
+                                    return Err(());
+                                }
+                            }
+                            let binding = self.parse_ident_name()?;
+                            // parse `: { body }` inline (parse_reactive_block consumes one
+                            // token as the keyword then expects colon — not the right shape here).
+                            self.expect(&Token::Colon)?;
+                            let body = if matches!(self.peek(), Token::LBrace) {
+                                let b_start = self.span();
+                                self.advance(); // eat `{`
+                                let stmts = self.parse_block()?;
+                                crate::ast::expr::Expr::Block {
+                                    stmts,
+                                    span: b_start.merge(self.span()),
+                                }
+                            } else {
+                                self.parse_expr()?
+                            };
+                            members.push(ReactiveMemberDecl::OnStream(OnStreamDecl {
+                                channel,
+                                binding,
+                                body,
+                                span: on_start.merge(self.span()),
+                            }));
+                        }
                         _ => {
                             self.errors.push(ParseError::classified(
                                 self.span(),
-                                "Expected `mount` or `cleanup` after `on` in reactive component block.",
-                                vec!["mount".into(), "cleanup".into()],
+                                "Expected `mount`, `cleanup`, or `stream` after `on` in reactive component block.",
+                                vec!["mount".into(), "cleanup".into(), "stream(orch_status) as s: { … }".into()],
                                 Some(self.peek().to_string()),
                                 ParseErrorClass::Declaration,
                             ));
@@ -268,11 +311,53 @@ impl Parser {
                                 span: on_start.merge(self.span()),
                             }));
                         }
+                        Token::Ident(n) if n == "stream" => {
+                            self.advance(); // eat `stream`
+                            self.expect(&Token::LParen)?;
+                            let channel = self.parse_ident_name()?;
+                            self.expect(&Token::RParen)?;
+                            match self.peek().clone() {
+                                Token::Ident(a) if a == "as" => {
+                                    self.advance();
+                                }
+                                other => {
+                                    self.errors.push(ParseError::classified(
+                                        self.span(),
+                                        "Expected `as <binding>` after `on stream(<channel>)`.",
+                                        vec!["as frame".into()],
+                                        Some(other.to_string()),
+                                        ParseErrorClass::Declaration,
+                                    ));
+                                    return Err(());
+                                }
+                            }
+                            let binding = self.parse_ident_name()?;
+                            // parse `: { body }` inline (parse_reactive_block consumes one
+                            // token as the keyword then expects colon — not the right shape here).
+                            self.expect(&Token::Colon)?;
+                            let body = if matches!(self.peek(), Token::LBrace) {
+                                let b_start = self.span();
+                                self.advance(); // eat `{`
+                                let stmts = self.parse_block()?;
+                                crate::ast::expr::Expr::Block {
+                                    stmts,
+                                    span: b_start.merge(self.span()),
+                                }
+                            } else {
+                                self.parse_expr()?
+                            };
+                            members.push(ReactiveMemberDecl::OnStream(OnStreamDecl {
+                                channel,
+                                binding,
+                                body,
+                                span: on_start.merge(self.span()),
+                            }));
+                        }
                         _ => {
                             self.errors.push(ParseError::classified(
                                 self.span(),
-                                "Expected `mount` or `cleanup` after `on` at module scope in a `.vox.ui` file.",
-                                vec!["mount".into(), "cleanup".into()],
+                                "Expected `mount`, `cleanup`, or `stream` after `on` at module scope in a `.vox.ui` file.",
+                                vec!["mount".into(), "cleanup".into(), "stream(orch_status) as s: { … }".into()],
                                 Some(self.peek().to_string()),
                                 ParseErrorClass::Declaration,
                             ));

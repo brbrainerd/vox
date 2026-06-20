@@ -253,6 +253,12 @@ impl Printer {
                     self.print_expr(&oc.body);
                     self.out.push('\n');
                 }
+                ReactiveMemberDecl::OnStream(s) => {
+                    self.out
+                        .push_str(&format!("on stream({}) as {}: ", s.channel, s.binding));
+                    self.print_expr(&s.body);
+                    self.out.push('\n');
+                }
                 ReactiveMemberDecl::Stmt(s) => self.print_stmt(s),
             }
         }
@@ -343,6 +349,12 @@ impl Printer {
                 ReactiveMemberDecl::OnCleanup(c) => {
                     self.out.push_str("cleanup: ");
                     self.print_expr(&c.body);
+                    self.out.push('\n');
+                }
+                ReactiveMemberDecl::OnStream(s) => {
+                    self.out
+                        .push_str(&format!("on stream({}) as {}: ", s.channel, s.binding));
+                    self.print_expr(&s.body);
                     self.out.push('\n');
                 }
                 ReactiveMemberDecl::Stmt(s) => {
