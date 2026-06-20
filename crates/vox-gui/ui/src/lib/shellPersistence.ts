@@ -7,7 +7,7 @@ export const SHELL_PREFERENCE_KEYS = {
   sidebarWidth: 'vox_sidebar_width',
   hudMode: 'vox_hud_mode',
   parentTabs: 'vox_parent_tabs',
-  dockLayout: 'gui.layout.v1',
+  dockLayout: 'gui.layout.v2',
   dashboardLayout: 'gui.dashboard.layout.v1',
   hudTiles: 'gui.hud.tiles.v1',
   chatDocked: 'gui.shell.chat_docked',

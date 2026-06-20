@@ -19,7 +19,7 @@ describe('Sidebar open-in-panel', () => {
   it('middle-click on a nav item opens it as a panel instead of navigating', () => {
     const onOpenPanel = vi.fn();
     render(<Sidebar {...base} onOpenPanel={onOpenPanel} />);
-    const agents = screen.getByRole('button', { name: /agents/i });
+    const agents = screen.getByRole('button', { name: /^agents/i });
     fireEvent.mouseDown(agents, { button: 1 }); // middle button
     expect(onOpenPanel).toHaveBeenCalledWith('agents');
     expect(base.setView).not.toHaveBeenCalled();

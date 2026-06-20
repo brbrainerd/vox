@@ -995,7 +995,7 @@ export default function App() {
   // Appendix D: composer only on Chat surface; no global Loquela dock.
   const chatDocked = false;
 
-  const surfaceProps = {
+  const surfaceProps = useMemo(() => ({
     pushToast,
     data,
     dashboardLoading: orchQuery.isLoading,
@@ -1038,7 +1038,17 @@ export default function App() {
     gamifyEnabled: gamifySettings.enabled,
     hudTilesConfig,
     onHudTilesChange: setHudTilesConfig,
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [
+    pushToast, data, orchQuery.isLoading, orchQuery.data?.attention_budget,
+    handlePause, handleResume, handleDoubt, handleOverrule, handleAckAlert,
+    filterKind, setFilterKind, selectedAgentId, setSelectedAgentId,
+    attachContext, navigateTo, nav.child,
+    activeSessionId, setActiveSessionId, activeChatMessages, hydrateChatSession,
+    focusComposer, chatTasks, chatIntents, chatExecutionKpis, activeModel,
+    openrouterSpendUsd, activeChatAgentItems, loquelaComposer,
+    gamifySettings.enabled, hudTilesConfig, setHudTilesConfig,
+  ]);
 
   const mainSurface = renderSurfaceView(nav.parent, surfaceProps);
 

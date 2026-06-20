@@ -79,6 +79,10 @@ export const DockWorkspace = forwardRef<DockWorkspaceHandle, DockWorkspaceProps>
     }, LAYOUT_PERSIST_DEBOUNCE_MS);
   }, [layoutKey]);
 
+  useEffect(() => () => {
+    if (persistTimer.current) clearTimeout(persistTimer.current);
+  }, []);
+
   const addSurfacePanel = useCallback((api: Api, viewKey: string, setActive: boolean) => {
     api.addPanel({
       id: panelIdForView(viewKey),
