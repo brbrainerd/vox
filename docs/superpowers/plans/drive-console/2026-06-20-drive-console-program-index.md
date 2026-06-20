@@ -13,11 +13,11 @@ working, testable software on its own. Build in this order (dependency-driven, p
 | Track | Plan | Produces | Depends on | Parallelism |
 |---|---|---|---|---|
 | **A** | [track-a-backend-control-ssot](2026-06-20-track-a-backend-control-ssot.md) | `ClutchProfile` + `RiskPosture` pure-logic SSOT + `drive-console.v1.yaml` contract + parity gate | none | foundational — land first |
-| **B** | track-b-attribution-and-interrupt *(to write)* | `completing_model`/IO capture on `CompletionAttestation`, `model_id` on `ChatMessageDto`, `orch.interrupt_task` | A (RiskPosture types) | `[SEQUENTIAL]` after A |
-| **C** | track-c-drive-console-ui *(to write)* | `DriveConsole.tsx`, `RiskPopover.tsx`, `ModelBadge.tsx`; replaces `LQ_MODES`+risk pill in `Loquela.tsx` | A (contract), B (badge data) | `[SEQUENTIAL]` after B |
-| **D** | track-d-plan-act-verify-loop *(to write)* | wire `mode`→`PlanModeTrigger`+`Verification`, auto-chain plan→act→verify, phase-boundary intervention | A, C | `[SEQUENTIAL]` after C |
-| **E** | track-e-mission-control-mesh *(to write)* | `MissionControlPanel.tsx`, mesh executor audit + local-only/exclude-peer policy, "Needs You" approval inbox, subagent tree | dockable-workspace panelRegistry | `[PARALLEL-SAFE]` with C/D |
-| **F** | track-f-dashboard-and-automation *(to write)* | top-bar→dashboard, `vox.metric.series.v1`, scrollbar theming, `vox design execute` Antigravity dispatcher | dashboard-topbar-unification spec | `[PARALLEL-SAFE]` with C/D/E |
+| **B** | [track-b-attribution-and-interrupt](2026-06-20-track-b-attribution-and-interrupt.md) | `completing_model`/IO capture on `CompletionAttestation`, `model_id` on `ChatMessageDto`, `orch.interrupt_task` | A (RiskPosture types) | `[SEQUENTIAL]` after A |
+| **C** | [track-c-drive-console-ui](2026-06-20-track-c-drive-console-ui.md) | `DriveConsole.tsx`, `RiskPopover.tsx`, `ModelBadge.tsx`; replaces `LQ_MODES`+risk pill in `Loquela.tsx` | A (contract), B (badge data) | `[SEQUENTIAL]` after B |
+| **D** | [track-d-plan-act-verify-loop](2026-06-20-track-d-plan-act-verify-loop.md) | wire `mode`→`PlanModeTrigger`+`Verification`, auto-chain plan→act→verify, phase-boundary intervention | A, C | `[SEQUENTIAL]` after C |
+| **E** | [track-e-mission-control-mesh](2026-06-20-track-e-mission-control-mesh.md) | `MissionControlPanel.tsx`, mesh executor audit + local-only/exclude-peer policy, "Needs You" approval inbox, subagent tree | dockable-workspace panelRegistry | `[PARALLEL-SAFE]` with C/D |
+| **F** | [track-f-dashboard-and-automation](2026-06-20-track-f-dashboard-and-automation.md) | top-bar→dashboard, `vox.metric.series.v1`, scrollbar theming, `vox design execute` Antigravity dispatcher | dashboard-topbar-unification spec | `[PARALLEL-SAFE]` with C/D/E |
 
 ## External dependencies (other specs, not re-planned here)
 
@@ -38,6 +38,6 @@ working, testable software on its own. Build in this order (dependency-driven, p
 
 - [x] Spec written + committed
 - [x] Track A written
-- [ ] Tracks B–F written (generate on request)
+- [x] Tracks B–F written
 - [ ] Plan audit pass (correct against codebase, quality)
 - [ ] Antigravity/Flash execution
