@@ -20,6 +20,9 @@ pub struct ChatMessageDto {
     pub content: String,
     pub created_at: String,
     pub task_id: Option<String>,
+    /// Model that produced this message, if recorded at append time.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model_id: Option<String>,
 }
 
 async fn gui_db() -> Result<vox_db::VoxDb, String> {
@@ -82,21 +85,27 @@ pub async fn chat_get_messages(
     Ok(rows
         .into_iter()
         .map(|(id, role, content, created_at, payload)| {
-            let task_id = payload.and_then(|p| {
-                serde_json::from_str::<serde_json::Value>(&p)
-                    .ok()
-                    .and_then(|v| {
-                        v.get("task_id")
-                            .and_then(|t| t.as_str())
-                            .map(str::to_string)
-                    })
-            });
+            let (task_id, model_id) = payload
+                .and_then(|p| serde_json::from_str::<serde_json::Value>(&p).ok())
+                .map(|v| {
+                    let task_id = v
+                        .get("task_id")
+                        .and_then(|t| t.as_str())
+                        .map(str::to_string);
+                    let model_id = v
+                        .get("model_id")
+                        .and_then(|m| m.as_str())
+                        .map(str::to_string);
+                    (task_id, model_id)
+                })
+                .unwrap_or((None, None));
             ChatMessageDto {
                 id,
                 role,
                 content,
                 created_at,
                 task_id,
+                model_id,
             }
         })
         .collect())
@@ -108,6 +117,9 @@ pub struct ChatAppendInput {
     pub role: String,
     pub content: String,
     pub task_id: Option<String>,
+    /// Optional model id to record in the message payload (e.g. for assistant messages).
+    #[serde(default)]
+    pub model_id: Option<String>,
 }
 
 #[tauri::command]
@@ -126,9 +138,19 @@ pub async fn chat_append_message<R: tauri::Runtime>(
         .chat_ensure_gui_session(&input.session_id, "Chat")
         .await
         .map_err(|e| e.to_string())?;
-    let payload = input
-        .task_id
-        .map(|t| serde_json::json!({ "task_id": t }).to_string());
+    let payload = match (&input.task_id, &input.model_id) {
+        (None, None) => None,
+        _ => {
+            let mut obj = serde_json::Map::new();
+            if let Some(ref t) = input.task_id {
+                obj.insert("task_id".to_string(), serde_json::Value::String(t.clone()));
+            }
+            if let Some(ref m) = input.model_id {
+                obj.insert("model_id".to_string(), serde_json::Value::String(m.clone()));
+            }
+            Some(serde_json::Value::Object(obj).to_string())
+        }
+    };
     let msg_id = db
         .chat_append_message(conv_id, &input.role, &input.content, payload.as_deref())
         .await
@@ -228,6 +250,7 @@ mod tests {
             role: "user".to_string(),
             content: "hi".to_string(),
             task_id: None,
+            model_id: None,
         };
         let err = chat_append_message(app.handle().clone(), input)
             .await
@@ -267,5 +290,34 @@ mod tests {
             "fix the broken authentication flow in the login page it keeps redirecting users",
         );
         assert!(result.is_some());
+    }
+
+    #[test]
+    fn chat_message_dto_model_id_roundtrip() {
+        let dto = ChatMessageDto {
+            id: 1,
+            role: "assistant".to_string(),
+            content: "hi".to_string(),
+            created_at: "now".to_string(),
+            task_id: Some("7".to_string()),
+            model_id: Some("anthropic/claude-opus-4-5".to_string()),
+        };
+        let j = serde_json::to_string(&dto).unwrap();
+        assert!(j.contains("\"model_id\":\"anthropic/claude-opus-4-5\""), "model_id present: {j}");
+        assert!(j.contains("\"task_id\":\"7\""), "task_id present: {j}");
+    }
+
+    #[test]
+    fn chat_message_dto_model_id_absent_when_none() {
+        let dto = ChatMessageDto {
+            id: 2,
+            role: "user".to_string(),
+            content: "hello".to_string(),
+            created_at: "now".to_string(),
+            task_id: None,
+            model_id: None,
+        };
+        let j = serde_json::to_string(&dto).unwrap();
+        assert!(!j.contains("model_id"), "model_id absent when None: {j}");
     }
 }
