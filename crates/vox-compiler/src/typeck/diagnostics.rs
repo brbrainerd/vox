@@ -976,11 +976,7 @@ pub mod codes {
 
         #[test]
         fn placement_codes_are_registered() {
-            for code in [
-                PLACEMENT_CONFLICT,
-                PLACEMENT_BOUNDARY,
-                PLACEMENT_UNSAT,
-            ] {
+            for code in [PLACEMENT_CONFLICT, PLACEMENT_BOUNDARY, PLACEMENT_UNSAT] {
                 assert!(
                     ALL_COMPILER_DIAGNOSTIC_CODES.contains(&code),
                     "{code} must be registered in ALL_COMPILER_DIAGNOSTIC_CODES"
