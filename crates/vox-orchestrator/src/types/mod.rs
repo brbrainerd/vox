@@ -23,7 +23,7 @@ pub use routing_profile::{RoutingProfile as FreeRoutingProfile, config_to_routin
 pub use switch::{SwitchAccessMode, SwitchAction, SwitchActionType};
 pub use tasks::{
     AccessKind, AgentTask, Budget, CompletionAttestation, FileAffinity, MAX_A2A_BOUNCE,
-    PopuliRemoteDelegate, TaskCategory, TaskDescriptor, TaskEnqueueHints, TaskPhase, TaskPriority,
-    TaskStatus, TaskTurn,
+    MeshPolicy, PopuliRemoteDelegate, TaskCategory, TaskDescriptor, TaskEnqueueHints, TaskPhase,
+    TaskPriority, TaskStatus, TaskTurn,
 };
 pub use vox_orchestrator_types::PrioritySource;
