@@ -121,7 +121,7 @@ impl AgyExec {
 /// exit signal.
 fn run_in_pty(cwd: &Path, args: &[String], timeout: Duration) -> Result<AgyOutput, AgyExecError> {
     use portable_pty::{native_pty_system, CommandBuilder, PtySize};
-    use std::io::Read;
+    use std::io::{Read, Write};
     use std::sync::{Arc, Mutex};
 
     let started = Instant::now();
@@ -159,20 +159,43 @@ fn run_in_pty(cwd: &Path, args: &[String], timeout: Duration) -> Result<AgyOutpu
     // reader can block forever after a kill. By keeping the master in this
     // function scope, we can `drop(pair.master)` from the main thread on the
     // timeout path to force the reader to see an error (EOF) and unblock.
+    // Take the PTY writer before spawning the reader thread. Arc<Mutex<...>>
+    // lets the reader thread write auto-responses without blocking the main thread.
+    let writer = pair.master.take_writer().map_err(|e| {
+        AgyExecError::Spawn(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+    })?;
+    let writer_arc: Arc<Mutex<Box<dyn Write + Send>>> =
+        Arc::new(Mutex::new(writer));
+    let writer_for_thread = Arc::clone(&writer_arc);
+
     let mut reader = pair
         .master
         .try_clone_reader()
         .map_err(|e| AgyExecError::Spawn(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
     let buf = Arc::new(Mutex::new(Vec::<u8>::new()));
     let buf_writer = Arc::clone(&buf);
+
+    let (hitl_tx, hitl_rx) = std::sync::mpsc::channel::<String>();
+
     let reader_thread = std::thread::spawn(move || {
         let mut chunk = [0u8; 4096];
         loop {
             match reader.read(&mut chunk) {
                 Ok(0) | Err(_) => break,
-                Ok(n) => buf_writer.lock().unwrap().extend_from_slice(&chunk[..n]),
+                Ok(n) => {
+                    let data = &chunk[..n];
+                    buf_writer.lock().unwrap().extend_from_slice(data);
+                    if let Some(resp) = auto_respond(data) {
+                        if let Ok(mut w) = writer_for_thread.lock() {
+                            let _ = w.write_all(resp);
+                            let _ = w.flush();
+                        }
+                        let _ = hitl_tx.send(String::from_utf8_lossy(resp).to_string());
+                    }
+                }
             }
         }
+        // hitl_tx drops here closing the channel
     });
 
     // Wait for the reader thread (= child exited, PTY master sees EOF) or kill.
@@ -194,8 +217,13 @@ fn run_in_pty(cwd: &Path, args: &[String], timeout: Duration) -> Result<AgyOutpu
     // Dropping the master closes the ConPTY handle. On Windows this causes the
     // cloned reader to return an error, unblocking the reader thread. On Unix
     // this causes the master to send EOF. Either way the thread exits promptly.
+    // Drop writer first, then master. On Windows ConPTY this ensures both
+    // handles are closed before we drain the hitl channel.
+    drop(writer_arc);
     drop(pair.master);
     let _ = reader_thread.join();
+
+    let hitl_responses: Vec<String> = hitl_rx.try_iter().collect();
 
     // Get the exit code. `try_wait` can be unreliable on Windows ConPTY so we
     // use `wait` (blocking, but the child has already exited or been killed).
@@ -229,7 +257,7 @@ fn run_in_pty(cwd: &Path, args: &[String], timeout: Duration) -> Result<AgyOutpu
         exit_code,
         timed_out,
         elapsed_ms: started.elapsed().as_millis() as u64,
-        hitl_responses: vec![],
+        hitl_responses,
     })
 }
 

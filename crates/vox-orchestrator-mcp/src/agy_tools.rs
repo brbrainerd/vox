@@ -115,6 +115,10 @@ pub async fn vox_agy_delegate(state: &ServerState, args: serde_json::Value) -> S
         ),
         Err(e) => ("failed", -1, false, e.to_string()),
     };
+    let hitl_responses: Vec<String> = match &out {
+        Ok(o) => o.hitl_responses.clone(),
+        Err(_) => vec![],
+    };
     let (diff, files_changed) = wt.capture().await.unwrap_or_else(|_| (String::new(), 0));
 
     let id = append_entry_locked(&repo_root, LedgerEntry::new(
@@ -134,6 +138,12 @@ pub async fn vox_agy_delegate(state: &ServerState, args: serde_json::Value) -> S
         "stderr_tail": tail(&stderr, 2000),
         "billing": "antigravity-credits",
         "billing_note": "Antigravity credits (not USD); balance not queryable — see the credits SSOT doc.",
+        "hitl_responses": hitl_responses,
+        "hitl_note": if hitl_responses.is_empty() {
+            "No interactive prompts detected during this run."
+        } else {
+            "agy was auto-responded to interactive prompts listed in hitl_responses. Review if any required human judgement."
+        },
         "next_step": "Review the diff. If good: integrate `agy/<slug>` (merge/cherry-pick), then set the ledger verdict. If not: re-delegate with corrections.",
     })).to_json()
 }
