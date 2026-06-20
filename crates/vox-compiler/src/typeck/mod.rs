@@ -21,6 +21,7 @@ pub mod determinism_lint;
 mod effect_deps_lint;
 pub mod form_check;
 pub mod layer;
+pub mod placement;
 pub mod semantic_ui;
 mod stale_capture_lint;
 
