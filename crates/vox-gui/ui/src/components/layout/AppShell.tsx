@@ -34,12 +34,10 @@ export interface AppShellProps {
   liveFreshMs: number;
   hudMode: HudMode;
   setHudMode: (mode: HudMode) => void;
-  surfaceKey: string;
   surfaceLabel: string;
   /** When false, Loquela / transcript stack is omitted (Chat surface hosts composer). */
   chatDocked: boolean;
   chatDock?: React.ReactNode;
-  children: React.ReactNode;
   workspaceProps: SurfaceProps;
   workspaceRef?: React.RefObject<any>;
   onOpenPanel?: (viewKey: string) => void;
@@ -72,11 +70,9 @@ export function AppShell({
   liveFreshMs,
   hudMode,
   setHudMode,
-  surfaceKey,
   surfaceLabel,
   chatDocked,
   chatDock,
-  children,
   workspaceProps,
   workspaceRef,
   onOpenPanel,
@@ -141,7 +137,7 @@ export function AppShell({
         </div>
 
         <div className={`flex-1 min-h-0 overflow-hidden p-5 ${mainPaddingBottom}`}>
-          <SurfaceErrorBoundary key={surfaceKey} surface={surfaceLabel}>
+          <SurfaceErrorBoundary surface={surfaceLabel}>
             <DockWorkspace ref={workspaceRef} activeView={activeView} surfaceProps={workspaceProps} />
           </SurfaceErrorBoundary>
         </div>

@@ -5,7 +5,6 @@ import { DockWorkspaceHandle } from './components/layout/DockWorkspace';
 import { SidebarMode } from './components/layout/Sidebar';
 import { AttentionStrip } from './components/layout/AttentionStrip';
 import { type HudMode } from './components/layout/TopHud';
-import { renderSurfaceView } from './components/layout/surfaceComponents';
 import { resolveNavigation, parseViewFromLocation, syncViewToLocation } from './lib/navigation';
 import { CommandPalette } from './components/layout/CommandPalette';
 import { Loquela } from './components/surfaces/Loquela/Loquela';
@@ -1050,8 +1049,6 @@ export default function App() {
     gamifySettings.enabled, hudTilesConfig, setHudTilesConfig,
   ]);
 
-  const mainSurface = renderSurfaceView(nav.parent, surfaceProps);
-
   const chatDock = (
     <>
       <InlineApprovals pushToast={pushToast} onViewAll={() => navigateTo('approvals')} />
@@ -1093,7 +1090,6 @@ export default function App() {
         liveFreshMs={LIVE_EVENT_FRESH_MS}
         hudMode={hudMode}
         setHudMode={setHudMode}
-        surfaceKey={`${nav.parent}-${nav.child}`}
         surfaceLabel={nav.child}
         chatDocked={chatDocked}
         chatDock={chatDock}
@@ -1103,9 +1099,8 @@ export default function App() {
         openrouterSpendUsd={openrouterSpendUsd}
         gamifyEnabled={gamifySettings.enabled}
         onOpenAchievements={openAchievements}
-      >
-        {mainSurface}
-      </AppShell>
+      />
+
 
       <AchievementsDrawer
         open={achievementsOpen}
