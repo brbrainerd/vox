@@ -182,6 +182,9 @@ fn emit_member(m: &HirReactiveMember, state_names: &HashSet<String>, out: &mut S
             let stmts = emit_block_stmts(body, &ctx, 2);
             out.push_str(&format!("  useEffect(() => () => {{\n{stmts}  }}, []);\n"));
         }
+        HirReactiveMember::OnStream(_) => {
+            // module-scope on stream not yet emitted (deferred to Sub-project G)
+        }
         HirReactiveMember::Stmt(stmt) => {
             let s = emit_hir_stmt(stmt, &ctx, 2);
             out.push_str(&s);

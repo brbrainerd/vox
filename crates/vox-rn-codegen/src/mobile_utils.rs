@@ -54,6 +54,7 @@ pub fn component_uses_mobile(rc: &vox_compiler::hir::HirReactiveComponent) -> bo
                     return true;
                 }
             }
+            HirReactiveMember::OnStream(_) => {}
             HirReactiveMember::Stmt(s) => {
                 if stmt_uses_mobile(s) {
                     return true;
