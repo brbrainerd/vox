@@ -267,6 +267,47 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
         });
     }
 
+    // Agentic spoke gates — read from eval_results.json (same file, different keys).
+    if policy.tool_call_valid_json_rate.block || policy.tool_call_valid_json_rate.min_pct > 0.0 {
+        let (passed, msg) = match &eval_json {
+            Some(eval) => {
+                let rate = eval
+                    .get("tool_call_valid_json_rate")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0);
+                let ok = rate >= policy.tool_call_valid_json_rate.min_pct;
+                (ok, format!("tool_call_valid_json_rate={:.2} (min={:.2})", rate, policy.tool_call_valid_json_rate.min_pct))
+            }
+            None => (false, "eval_results.json not found — run `vox mens eval` first".to_string()),
+        };
+        results.push(GateResult {
+            name: "tool_call_valid_json_rate".to_string(),
+            passed,
+            message: msg,
+            block: policy.tool_call_valid_json_rate.block,
+        });
+    }
+
+    if policy.tool_name_exists_rate.block || policy.tool_name_exists_rate.min_pct > 0.0 {
+        let (passed, msg) = match &eval_json {
+            Some(eval) => {
+                let rate = eval
+                    .get("tool_name_exists_rate")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0);
+                let ok = rate >= policy.tool_name_exists_rate.min_pct;
+                (ok, format!("tool_name_exists_rate={:.2} (min={:.2})", rate, policy.tool_name_exists_rate.min_pct))
+            }
+            None => (false, "eval_results.json not found — run `vox mens eval` first".to_string()),
+        };
+        results.push(GateResult {
+            name: "tool_name_exists_rate".to_string(),
+            passed,
+            message: msg,
+            block: policy.tool_name_exists_rate.block,
+        });
+    }
+
     // anti_stub metrics (anti_stub_task_success, placeholder_event_rate,
     // trivial_placeholder_event_rate, construct_richness_mean) are written by
     // `vox mens eval-local` into eval_local_report.json — NOT by the corpus

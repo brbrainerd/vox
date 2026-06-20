@@ -522,3 +522,62 @@ clippy_clean_rate:
     assert!(clippy_gate.passed, "should pass");
     assert!(!clippy_gate.block, "should not be blocking");
 }
+
+#[test]
+fn agentic_gates_pass_when_rates_above_threshold() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(
+        dir.path().join("eval_results.json"),
+        r#"{"tool_call_valid_json_rate": 0.95, "tool_name_exists_rate": 0.90}"#,
+    )
+    .unwrap();
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(
+        &policy_path,
+        r#"
+version: "1"
+tool_call_valid_json_rate:
+  min_pct: 0.90
+  block: true
+tool_name_exists_rate:
+  min_pct: 0.85
+  block: true
+"#,
+    )
+    .unwrap();
+    let results = check_run(dir.path(), &policy_path).expect("check_run");
+    let json_gate = results.iter().find(|r| r.name == "tool_call_valid_json_rate").expect("json gate");
+    assert!(json_gate.passed, "json rate 0.95 >= 0.90");
+    assert!(json_gate.block);
+    let name_gate = results.iter().find(|r| r.name == "tool_name_exists_rate").expect("name gate");
+    assert!(name_gate.passed, "name rate 0.90 >= 0.85");
+}
+
+#[test]
+fn agentic_gates_fail_when_rates_below_threshold() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(
+        dir.path().join("eval_results.json"),
+        r#"{"tool_call_valid_json_rate": 0.80, "tool_name_exists_rate": 0.70}"#,
+    )
+    .unwrap();
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(
+        &policy_path,
+        r#"
+version: "1"
+tool_call_valid_json_rate:
+  min_pct: 0.90
+  block: true
+tool_name_exists_rate:
+  min_pct: 0.85
+  block: true
+"#,
+    )
+    .unwrap();
+    let results = check_run(dir.path(), &policy_path).expect("check_run");
+    let json_gate = results.iter().find(|r| r.name == "tool_call_valid_json_rate").expect("json gate");
+    assert!(!json_gate.passed, "0.80 < 0.90 should fail");
+    let name_gate = results.iter().find(|r| r.name == "tool_name_exists_rate").expect("name gate");
+    assert!(!name_gate.passed, "0.70 < 0.85 should fail");
+}

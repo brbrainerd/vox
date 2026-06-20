@@ -47,6 +47,12 @@ pub struct EvalGatePolicy {
     /// Clippy clean rate gate.
     #[serde(default)]
     pub clippy_clean_rate: ClippyCleanRateGate,
+    /// Agentic spoke: fraction of outputs whose tool-call JSON is valid.
+    #[serde(default)]
+    pub tool_call_valid_json_rate: AgentToolCallGate,
+    /// Agentic spoke: fraction of tool names that exist in the MCP registry.
+    #[serde(default)]
+    pub tool_name_exists_rate: AgentToolNameGate,
 }
 
 /// Gate on optional `mcp_tool_schema_kpi.json` in the run directory (from `vox-mcp` diagnostics).
@@ -249,6 +255,24 @@ pub struct RustCompileRateGate {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct ClippyCleanRateGate {
+    #[serde(default)]
+    pub min_pct: f64,
+    #[serde(default)]
+    pub block: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct AgentToolCallGate {
+    /// Minimum fraction of completions whose tool-call JSON parses as valid (0.0–1.0).
+    #[serde(default)]
+    pub min_pct: f64,
+    #[serde(default)]
+    pub block: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct AgentToolNameGate {
+    /// Minimum fraction of tool names that exist in the MCP registry (0.0–1.0).
     #[serde(default)]
     pub min_pct: f64,
     #[serde(default)]
