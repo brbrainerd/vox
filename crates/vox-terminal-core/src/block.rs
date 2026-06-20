@@ -111,7 +111,10 @@ fn strip_ansi(s: &str) -> String {
                             break;
                         }
                         if ch == '\x1b' {
-                            chars.next(); // consume trailing '\'
+                            // Only consume the next char if it is actually '\'
+                            if matches!(chars.peek(), Some('\\')) {
+                                chars.next();
+                            }
                             break;
                         }
                     }

@@ -76,10 +76,9 @@ impl Osc633Parser {
                         self.output_buf.extend_from_slice(raw);
                     } else {
                         // Plain passthrough output (outside command execution)
-                        if let Ok(s) = std::str::from_utf8(raw) {
-                            if !s.is_empty() {
-                                events.push(Osc633Event::Output(s.to_string()));
-                            }
+                        let s = String::from_utf8_lossy(raw);
+                        if !s.is_empty() {
+                            events.push(Osc633Event::Output(s.into_owned()));
                         }
                     }
                     pos = abs_start;
@@ -106,9 +105,8 @@ impl Osc633Parser {
                 if self.capturing {
                     self.output_buf.extend_from_slice(tail);
                 } else if !tail.is_empty() {
-                    if let Ok(s) = std::str::from_utf8(tail) {
-                        events.push(Osc633Event::Output(s.to_string()));
-                    }
+                    let s = String::from_utf8_lossy(tail);
+                    events.push(Osc633Event::Output(s.into_owned()));
                 }
                 self.buf.clear();
                 return events;
@@ -141,10 +139,9 @@ impl Osc633Parser {
                 _ if rest.starts_with("D;") || rest == "D" => {
                     if self.capturing {
                         // Flush captured output
-                        if let Ok(s) = std::str::from_utf8(&self.output_buf) {
-                            if !s.is_empty() {
-                                events.push(Osc633Event::Output(s.to_string()));
-                            }
+                        let s = String::from_utf8_lossy(&self.output_buf);
+                        if !s.is_empty() {
+                            events.push(Osc633Event::Output(s.into_owned()));
                         }
                         self.output_buf.clear();
                         self.capturing = false;
@@ -166,7 +163,7 @@ fn find_osc_start(buf: &[u8]) -> Option<usize> {
         if buf[i] == b'\x1b' && buf.get(i + 1) == Some(&b']') {
             // Peek ahead to confirm "633;" follows
             let peek = &buf[i + 2..];
-            if peek.starts_with(b"633;") || peek.is_empty() || matches!(peek, [b'6', ..]) {
+            if peek.starts_with(b"633;") || b"633;".starts_with(peek) {
                 return Some(i);
             }
         }

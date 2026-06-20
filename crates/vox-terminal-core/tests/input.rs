@@ -39,3 +39,14 @@ fn other_slash_is_command() {
         }
     );
 }
+
+#[test]
+fn empty_slash_is_vox_native() {
+    assert_eq!(classify("/"), InputIntent::VoxNative("/".into()));
+}
+
+#[test]
+fn slash_only_whitespace_is_vox_native() {
+    // input is trimmed before classification, so "/   " → "/"
+    assert_eq!(classify("/   "), InputIntent::VoxNative("/".into()));
+}

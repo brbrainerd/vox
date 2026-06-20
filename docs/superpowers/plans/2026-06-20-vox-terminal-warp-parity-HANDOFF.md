@@ -2,7 +2,7 @@
 title: "Vox Terminal (Warp-parity) — Sonnet 4.6 handoff prompt"
 description: "Copy-paste prompt to start a fresh Claude 4.6 Sonnet session executing the Vox Terminal implementation plan."
 category: "Plans"
-status: "draft"
+status: "roadmap"
 training_eligible: false
 training_rationale: "Throwaway execution prompt."
 ---

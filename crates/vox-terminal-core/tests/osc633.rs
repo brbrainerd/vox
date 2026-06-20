@@ -38,6 +38,22 @@ fn decode_command_general_hex() {
 }
 
 #[test]
+fn non_633_osc_passes_through_as_output() {
+    // OSC sequences with different identifiers (e.g., OSC 1 for icon title,
+    // OSC 2 for window title) must not be swallowed by the 633 parser.
+    let mut p = Osc633Parser::new();
+    let mut evs = vec![];
+    // OSC 2 (window title) followed by plain text — ensure text is preserved
+    evs.extend(p.feed(b"\x1b]2;My Terminal\x07plain text after"));
+    // The plain text after must appear as Output; the OSC 2 may be emitted
+    // or silently dropped, but must NOT block subsequent content.
+    assert!(
+        evs.iter()
+            .any(|e| matches!(e, Osc633Event::Output(s) if s.contains("plain text after")))
+    );
+}
+
+#[test]
 fn output_passthrough_between_markers() {
     let mut p = Osc633Parser::new();
     let mut evs = vec![];

@@ -3,7 +3,6 @@ title: "Claude Code handoff: Sonnet 4.6 limitations & operating envelope"
 description: "Reusable reference for handing implementation plans off to Claude 4.6 Sonnet running in the Claude Code harness — its limits, this repo's gotchas, and the operating rules a handoff prompt must encode."
 category: "Contributors"
 status: "current"
-last_updated: "2026-06-20"
 training_eligible: true
 training_rationale: "Durable, repo-specific operating envelope for agentic handoffs; high-value for any future plan execution."
 ---

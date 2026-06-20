@@ -34,6 +34,13 @@ fn all_variants_serialize() {
         TranscriptKind::Accepted {
             block: Block::new(BlockId(1), BlockKind::Shell, "ls"),
         },
+        TranscriptKind::Rejected {
+            block: Block::new(BlockId(2), BlockKind::Shell, "rm -rf /"),
+        },
+        TranscriptKind::Corrected {
+            from: "old output".into(),
+            to: "corrected output".into(),
+        },
     ];
     for v in variants {
         let e = TranscriptEvent {

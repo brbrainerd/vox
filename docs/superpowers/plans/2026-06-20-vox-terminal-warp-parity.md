@@ -2,7 +2,7 @@
 title: "Vox Terminal (Warp-parity standalone) — Implementation Plan"
 description: "End-to-end plan to extract a UI-agnostic terminal/agent core and ship a headless-capable ratatui TUI (vox-term) plus a refactored GUI Console, with a VoxMENS training flywheel. Authored for Claude Code → Sonnet 4.6 handoff."
 category: "Plans"
-status: "draft"
+status: "roadmap"
 training_eligible: false
 training_rationale: "Internal implementation plan; superseded once executed."
 ---
@@ -773,7 +773,7 @@ The adapter subscribes to `orch.event_bus()` and translates `AgentEvent` → `Se
 
 ## 6. Track 2 — `vox-term` ratatui TUI (decompose; harden in Phase-4)
 
-**Crate:** `crates/vox-term/` (bin, L4). **File map:** `src/main.rs` (crossterm setup, event loop), `src/app.rs` (state: `Session` + view state), `src/ui/blocks.rs` (block list render), `src/ui/input.rs` (reedline input box, mode indicator), `src/ui/palette.rs` (nucleo command palette), `src/theme.rs` (IBM Plex Mono Nerd Font glyphs/colors).
+**Crate:** `crates/vox-term/` (bin, L5). **File map:** `src/main.rs` (crossterm setup, event loop), `src/app.rs` (state: `Session` + view state), `src/ui/blocks.rs` (block list render), `src/ui/input.rs` (reedline input box, mode indicator), `src/ui/palette.rs` (nucleo command palette), `src/theme.rs` (IBM Plex Mono Nerd Font glyphs/colors).
 
 **Task list (each becomes a TDD task in Phase-4):**
 1. Crossterm raw-mode lifecycle + clean teardown (test: terminal restored on drop).

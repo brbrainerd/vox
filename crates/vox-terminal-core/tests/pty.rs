@@ -9,7 +9,9 @@ fn default_shell_nonempty() {
 fn snippet_supports_pwsh_and_bash() {
     assert!(shell_integration_snippet("pwsh").is_some());
     assert!(shell_integration_snippet("bash").is_some());
-    assert!(shell_integration_snippet("fish").is_none()); // until Track 6
+    assert!(shell_integration_snippet("fish").is_some()); // Track 6 added fish support
+    assert!(shell_integration_snippet("zsh").is_some()); // Track 6 added zsh support
+    assert!(shell_integration_snippet("nu").is_some()); // Track 6 added nushell support
 }
 
 #[test]
