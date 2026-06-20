@@ -288,6 +288,27 @@ pub struct TaskEnqueueHints {
     pub tenant_id: Option<String>,
 }
 
+/// Attribution record for which model was actually used to execute a task.
+///
+/// Populated at the inference/dispatch site and stashed on [`AgentTask`] so the
+/// completion handler can copy it onto [`CompletionAttestation`] without a separate
+/// lookup.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SelectedModelRecord {
+    /// The model id that ran this task (e.g. `"anthropic/claude-opus-4-5"`).
+    pub model_id: String,
+    /// Provider family label from `backend_telemetry_labels` (e.g. `"anthropic"`).
+    pub provider: String,
+    /// Short description of why this model was chosen (serialised `SelectionReason`).
+    pub selection_reason: String,
+    /// Input tokens consumed, if known at record time.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub request_tokens: Option<u64>,
+    /// Wall-clock latency in milliseconds, if measured at record time.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub latency_ms: Option<u64>,
+}
+
 /// Completion-time attestation metadata supplied by clients (e.g. MCP) for policy checks.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct CompletionAttestation {
@@ -384,6 +405,38 @@ mod attribution_tests {
         assert!(!json.contains("response_tokens"), "response_tokens should be absent: {json}");
         assert!(!json.contains("latency_ms"), "latency_ms should be absent: {json}");
         assert!(!json.contains("io_digest_ref"), "io_digest_ref should be absent: {json}");
+    }
+
+    #[test]
+    fn selected_model_record_survives_round_trip() {
+        let rec = SelectedModelRecord {
+            model_id: "anthropic/claude-opus-4-5".to_string(),
+            provider: "anthropic".to_string(),
+            selection_reason: "Scored".to_string(),
+            request_tokens: Some(1234),
+            latency_ms: Some(500),
+        };
+        let json = serde_json::to_string(&rec).unwrap();
+        let back: SelectedModelRecord = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.model_id, "anthropic/claude-opus-4-5");
+        assert_eq!(back.provider, "anthropic");
+        assert_eq!(back.selection_reason, "Scored");
+        assert_eq!(back.request_tokens, Some(1234));
+        assert_eq!(back.latency_ms, Some(500));
+    }
+
+    #[test]
+    fn selected_model_record_optional_fields_absent_when_none() {
+        let rec = SelectedModelRecord {
+            model_id: "openai/gpt-4o".to_string(),
+            provider: "openai".to_string(),
+            selection_reason: "LocalOnly".to_string(),
+            request_tokens: None,
+            latency_ms: None,
+        };
+        let json = serde_json::to_string(&rec).unwrap();
+        assert!(!json.contains("request_tokens"), "request_tokens should be absent: {json}");
+        assert!(!json.contains("latency_ms"), "latency_ms should be absent: {json}");
     }
 }
 
@@ -558,6 +611,10 @@ pub struct AgentTask {
     /// Optional tenant ID for budget tracking.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tenant_id: Option<String>,
+    /// Attribution record written by the inference/dispatch layer and copied to
+    /// [`CompletionAttestation`] at task completion.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub selected_model_record: Option<SelectedModelRecord>,
 }
 
 impl AgentTask {
@@ -628,6 +685,7 @@ impl AgentTask {
             attachment_manifest: None,
             active_skill: None,
             tenant_id: None,
+            selected_model_record: None,
         }
     }
 

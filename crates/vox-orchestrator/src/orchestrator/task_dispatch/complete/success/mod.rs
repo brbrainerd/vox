@@ -72,6 +72,33 @@ impl Orchestrator {
             }
         };
 
+        // Enrich the attestation with attribution from the task's SelectedModelRecord (if set
+        // by the inference layer). This keeps attribution fields consistent whether or not the
+        // caller supplied them explicitly.
+        let completion_attestation = {
+            let mut att = completion_attestation.unwrap_or_default();
+            if let Some(ref task) = task_clone_opt {
+                if let Some(ref rec) = task.selected_model_record {
+                    if att.completing_model.is_none() {
+                        att.completing_model = Some(rec.model_id.clone());
+                    }
+                    if att.provider.is_none() {
+                        att.provider = Some(rec.provider.clone());
+                    }
+                    if att.selection_reason.is_none() {
+                        att.selection_reason = Some(rec.selection_reason.clone());
+                    }
+                    if att.request_tokens.is_none() {
+                        att.request_tokens = rec.request_tokens;
+                    }
+                    if att.latency_ms.is_none() {
+                        att.latency_ms = rec.latency_ms;
+                    }
+                }
+            }
+            Some(att)
+        };
+
         let mut trust_score_opt = None;
         if let Some(db) = self.db() {
             if task_clone_opt.is_some() {
