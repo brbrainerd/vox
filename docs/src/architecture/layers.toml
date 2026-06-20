@@ -189,6 +189,7 @@ vox-orchestrator-queue  = { layer = 3 }                          # Phase 5 extra
 vox-orchestrator-driver = { layer = 3 }                          # CLI/MCP embedded orchestrator driver (2026 debt burndown)
 vox-search              = { layer = 3 }
 vox-terminal-core       = { layer = 3, max_loc = 25_000, staleness_exempt = true, orphan_exempt = true }  # UI-agnostic terminal+agent engine; renderers (vox-term, vox-gui Console) are L5
+vox-term                = { layer = 4, kind = "binary", max_loc = 15_000, staleness_exempt = true }  # ratatui TUI front-end for vox-terminal-core
 
 
 vox-test-harness        = { layer = 3 }
