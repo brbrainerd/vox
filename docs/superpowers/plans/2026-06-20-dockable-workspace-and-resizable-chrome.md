@@ -23,6 +23,32 @@ category: "Architecture SSOTs"
 
 ---
 
+> **🤖 EXECUTION TARGET — READ FIRST.** This plan is written to be executed by **Gemini 3.5 Flash inside Google Antigravity** (known traits: ~48% unaided completion, no mid-task checkpoint, hard quota cutoff, occasional API hallucination, weak long-context recall). Background + mitigations: [`../../src/architecture/gemini-3-5-flash-antigravity-limitations-2026-06-18.md`](../../src/architecture/gemini-3-5-flash-antigravity-limitations-2026-06-18.md). Because of these traits, the rules below are mandatory, not advisory.
+
+## Operating Rules (apply to EVERY task)
+
+1. **Atomic + green + committed.** Every task ends with a commit and a green tree. A crash between tasks must leave a compiling, tested repo. Never split a compile-breaking change across two commits.
+2. **Verify-before-use is a BLOCKING gate.** Every task's Step 1 runs the shown `rg`/read command and you must paste its output **before** writing any code. If reality differs from what the task assumes (missing symbol, different signature) → **STOP**, write a one-paragraph handoff note (what you expected, what you found), and do not improvise.
+3. **Self-contained.** Everything you need is in the task. Do not invent file paths, props, or APIs not shown here or confirmed by a Step-1 paste.
+4. **No new dependencies.** `dockview` 6.6.1 is already installed. Do not run `npm install` / add packages. If a task seems to need one → STOP + handoff note.
+5. **Two-strike circuit breaker.** If the same step fails twice, STOP and write a handoff note. Do not attempt a third variant.
+6. **No placeholders, ever.** No `TODO`, no “handle edge cases”, no stubbed returns left behind. If you can't complete a step fully, STOP.
+7. **Verification ritual before every commit (paste the output):** from `crates/vox-gui/ui` run `npx tsc --noEmit` (must exit 0) then `npx vitest run <the test file(s) for this task>` (must pass). For the final task also run the full `npx vitest run` + `npx vite build`.
+8. **House rules (Vox).** TS-only changes here — no Rust, no `.ps1`/`.sh`/`.py`. Do not run `cargo fmt --all`. Keep `docs/src/` files' YAML frontmatter intact. Match the surrounding code's style (Tailwind classes, no semicolyon/format churn).
+9. **One file focus per step.** If an Implement step would touch more than the files its task lists, STOP and re-read the task — you've drifted.
+10. **Single-threaded.** Do the tasks in numeric order (Tasks 7 and 8 are the only `[PARALLEL-SAFE]` ones and may be done any time after Task 3). Never have two edits in flight on the same file.
+
+**Handoff note format (use on any STOP):**
+```
+## HANDOFF — Task <N>, Step <S>
+Expected: <what the task assumed>
+Found: <actual output / error, pasted>
+Tried: <what you attempted, if anything>
+Blocked on: <the specific decision or fact you need>
+```
+
+---
+
 ## File Structure
 
 | File | Responsibility | Action |
@@ -81,7 +107,7 @@ The registry reuses the **existing** `childRenderer` (which already knows how to
 ```tsx
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { DOCKABLE_VIEW_KEYS, panelTitle } from './panelRegistry';
+import { DOCKABLE_VIEW_KEYS, panelTitle, resolvePanelView } from './panelRegistry';
 
 describe('panelRegistry', () => {
   it('lists the primary surfaces as dockable', () => {
@@ -96,6 +122,13 @@ describe('panelRegistry', () => {
       expect(panelTitle(key).length).toBeGreaterThan(0);
     }
   });
+
+  it('resolves a top-level parent key to a renderable child', () => {
+    // `knowledge` is a parent with no childRenderer case — must resolve to a child.
+    expect(resolvePanelView('knowledge')).not.toBe('knowledge');
+    // a key that is already a child resolves to itself (idempotent).
+    expect(resolvePanelView('memory')).toBe('memory');
+  });
 });
 ```
 
@@ -107,7 +140,7 @@ describe('panelRegistry', () => {
 ```tsx
 import React from 'react';
 import { SURFACE_REGISTRY } from '../generated/surfaceRegistry.generated';
-import { labelForNavKey } from './navigation';
+import { labelForNavKey, resolveNavigation } from './navigation';
 import { childRenderer, type SurfaceProps } from '../components/layout/surfaceComponents';
 
 /**
@@ -127,8 +160,19 @@ export function isDockable(viewKey: string): boolean {
   return DOCKABLE_VIEW_KEYS.includes(viewKey);
 }
 
+/**
+ * Resolve a viewKey to the CHILD view that `childRenderer` actually renders.
+ * Top-level parent keys (knowledge/agents/workspace/commands/compute) have no
+ * childRenderer case — they must be mapped to their default child first.
+ * `resolveNavigation` is idempotent for keys that are already children, so this
+ * is safe to call on any viewKey.
+ */
+export function resolvePanelView(viewKey: string): string {
+  return resolveNavigation(viewKey).child;
+}
+
 export function panelTitle(viewKey: string): string {
-  return labelForNavKey(viewKey);
+  return labelForNavKey(resolvePanelView(viewKey));
 }
 
 /**
@@ -136,7 +180,7 @@ export function panelTitle(viewKey: string): string {
  * panel is pixel-identical to the surface rendered inline — no duplicate views.
  */
 export function renderPanel(viewKey: string, props: SurfaceProps): React.ReactNode {
-  return childRenderer(props, viewKey);
+  return childRenderer(props, resolvePanelView(viewKey));
 }
 ```
 
@@ -204,11 +248,15 @@ import '../../styles/dockview-vox.css';
 import { voxTransport } from '../../transport';
 import { LAYOUT_PERSIST_DEBOUNCE_MS } from '../../config/constants';
 import { SHELL_PREFERENCE_KEYS } from '../../lib/shellPersistence';
-import { renderPanel, panelTitle, isDockable } from '../../lib/panelRegistry';
+import { renderPanel, panelTitle, isDockable, resolvePanelView } from '../../lib/panelRegistry';
 import type { SurfaceProps } from './surfaceComponents';
 
+/**
+ * Panel id is keyed by the RESOLVED child view, so opening a parent (`agents`)
+ * and its default child (`dashboard`) target the same panel instead of two.
+ */
 export function panelIdForView(viewKey: string): string {
-  return `surface:${viewKey}`;
+  return `surface:${resolvePanelView(viewKey)}`;
 }
 
 export type OpenPlan =
@@ -372,7 +420,9 @@ Replace the single `DockShell` with `DockWorkspace`, seeding the active surface 
   workspaceProps={surfaceProps}
   ```
 
-- [ ] **Step 3: Write the failing test.** Append to `src/components/layout/AppShell.test.tsx` a case that the content region mounts the dockview workspace (not the old single shell). Because dockview is heavy in jsdom, assert on a seam: mock `DockWorkspace` and assert it receives `activeView`.
+- [ ] **Step 3a (verify-before-use, BLOCKING):** Paste the top ~40 lines of `src/components/layout/AppShell.test.tsx` (the imports, the `vi.mock` calls, and however it builds props for `render(<AppShell .../>)`). Identify the exact props variable/object the existing tests pass (it may be a `baseProps` const, an inline object, or a helper). You will REUSE that exact construct verbatim in Step 3b — do not invent a new props object.
+
+- [ ] **Step 3b: Write the failing test.** Add a mock of `DockWorkspace` and one test that asserts the content region mounts it with the active view. Use the SAME props construct you found in Step 3a (shown here as `<existing props>` — substitute the real one), adding `activeView="memory"` and the new required `workspaceProps`:
 
 ```tsx
 // add near the other vi.mock calls at the top of AppShell.test.tsx
@@ -382,14 +432,15 @@ vi.mock('./DockWorkspace', () => ({
   ),
 }));
 
-// add inside describe('AppShell', ...)
+// add inside describe('AppShell', ...). `<existing props>` = the exact construct
+// from Step 3a; `workspaceProps={{} as never}` satisfies the new required prop
+// because DockWorkspace is mocked and never reads it.
 it('mounts the dock workspace for the active view', () => {
-  render(<AppShell {...baseProps} activeView="memory" />);
+  render(<AppShell <existing props> activeView="memory" workspaceProps={{} as never} />);
   const ws = screen.getByTestId('dock-workspace');
   expect(ws.getAttribute('data-active')).toBe('memory');
 });
 ```
-(Use the file's existing `baseProps`/render helper; if none, construct props mirroring the other tests in the file.)
 
 - [ ] **Step 4: Run → FAIL.** `npx vitest run src/components/layout/AppShell.test.tsx`
   Expected: FAIL — no `dock-workspace` testid (still rendering `DockShell`).
@@ -803,6 +854,11 @@ Floating the global command/status bar is unconventional and costs orientation f
 
 **Placeholder scan:** no TBD/“handle edge cases”/uncited code — each code step shows the full code; the only adjust-to-reality note (dockview `--dv-*` variable names in Task 7) is gated by a Step-1 verify and a string test.
 
-**Type consistency:** `panelIdForView`/`planOpen`/`DockWorkspaceHandle`/`renderPanel`/`panelTitle`/`isDockable`/`clampSidebarWidth`/`snapToPreset`/`SHELL_PREFERENCE_KEYS.sidebarWidth` are defined once and referenced with identical signatures across tasks. `SurfaceProps` is imported from `surfaceComponents.tsx` everywhere.
+**Type consistency:** `panelIdForView`/`planOpen`/`DockWorkspaceHandle`/`renderPanel`/`panelTitle`/`isDockable`/`resolvePanelView`/`clampSidebarWidth`/`snapToPreset`/`SHELL_PREFERENCE_KEYS.sidebarWidth` are defined once and referenced with identical signatures across tasks. `SurfaceProps` is imported from `surfaceComponents.tsx` everywhere.
+
+**Codebase audit (done while writing):**
+- dockview API used here (`clear()`, `addPanel({inactive})`, `getPanel`, `panels`, `activePanel`, `panel.api.setActive()`, `toJSON`/`fromJSON`) was verified against the installed `dockview-core@6.6.1` type defs — all present.
+- **Bug caught + fixed in plan:** rendering a panel by a top-level parent key (`knowledge`/`agents`/`workspace`/`commands`/`compute`) would hit `childRenderer`'s `default → null` (blank panel). Resolved by routing every id/title/render through `resolvePanelView` = `resolveNavigation(viewKey).child` (idempotent for child keys). Task 1's test asserts this.
+- Flash-handoff hardening added: execution-target note + Operating Rules (verify-gates, two-strike breaker, verification ritual, handoff-note format).
 
 **Known follow-ups (out of scope, noted not silently dropped):** context-window + memory panels live in `2026-06-19-dockable-workspace-context-memory-ssot.md`; the dnd-kit dashboard grid is left intact (the dashboard is itself a dockable panel); a stale `telemetry` entry remains in `SHELL_PREFERENCE_KEYS` (harmless; remove opportunistically).
