@@ -721,6 +721,8 @@ pub enum HirReactiveMember {
     Effect(HirEffect),
     OnMount(HirOnMount),
     OnCleanup(HirOnCleanup),
+    /// `on stream(channel) as binding: { body }` — subscribe to a named push channel.
+    OnStream(HirOnStream),
     /// `let` / hook calls / assignments before `view:` (Path C prelude).
     Stmt(HirStmt),
 }
@@ -760,6 +762,14 @@ pub struct HirOnMount {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirOnCleanup {
+    pub body: HirExpr,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirOnStream {
+    pub channel: String,
+    pub binding: String,
     pub body: HirExpr,
     pub span: Span,
 }

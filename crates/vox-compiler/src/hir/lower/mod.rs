@@ -485,6 +485,14 @@ impl LowerCtx {
                                     span: c.span,
                                 })
                             }
+                            ReactiveMemberDecl::OnStream(s) => {
+                                HirReactiveMember::OnStream(crate::hir::HirOnStream {
+                                    channel: s.channel.clone(),
+                                    binding: s.binding.clone(),
+                                    body: self.lower_expr(&s.body),
+                                    span: s.span,
+                                })
+                            }
                             ReactiveMemberDecl::Stmt(s) => {
                                 HirReactiveMember::Stmt(self.lower_stmt(s))
                             }

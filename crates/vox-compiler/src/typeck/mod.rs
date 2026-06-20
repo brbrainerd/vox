@@ -493,6 +493,7 @@ fn collect_async_views(hir: &HirModule) -> Vec<crate::hir::nodes::async_view::Hi
                 HirReactiveMember::Effect(e) => visit_expr(&e.body, &mut out),
                 HirReactiveMember::OnMount(m) => visit_expr(&m.body, &mut out),
                 HirReactiveMember::OnCleanup(c) => visit_expr(&c.body, &mut out),
+                HirReactiveMember::OnStream(s) => visit_expr(&s.body, &mut out),
                 HirReactiveMember::Stmt(s) => visit_stmt(s, &mut out),
             }
         }
@@ -654,6 +655,7 @@ fn collect_semantic_ui_callsites(hir: &HirModule) -> Vec<semantic_ui::SemanticUi
                 HirReactiveMember::Effect(e) => visit_expr(&e.body, &mut out),
                 HirReactiveMember::OnMount(m) => visit_expr(&m.body, &mut out),
                 HirReactiveMember::OnCleanup(c) => visit_expr(&c.body, &mut out),
+                HirReactiveMember::OnStream(s) => visit_expr(&s.body, &mut out),
                 HirReactiveMember::Stmt(s) => visit_stmt(s, &mut out),
             }
         }
