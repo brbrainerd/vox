@@ -76,6 +76,26 @@ The `vox-foundation/vox` repository requires the following GitHub Secrets, which
 
 *Note: Accessing these secrets via raw `std::env::var` in Rust source code is prohibited. Use `vox_secrets::resolve_secret(SecretId::CoolifyToken)` and, when splitting read vs deploy credentials, `SecretId::CoolifyReadToken`.*
 
+### Telemetry app (`telemetry.voxlang.org`) — Vox Foundation project
+
+The telemetry deploy (`.github/workflows/deploy-telemetry.yml`) reuses the **same**
+`COOLIFY_BASE_URL` / `COOLIFY_TOKEN` / `COOLIFY_READ_TOKEN` as eval, plus these
+telemetry-specific GitHub Secrets. They are consumed **directly by the workflow**
+(passed to `vox ci coolify-eval sync-compose --app-uuid …` and to the Gate-3 probe),
+so they do **not** require a `vox-secrets` `SecretId` binding for the deploy path.
+
+| GHA Secret Name | Description |
+|---|---|
+| `COOLIFY_TELEMETRY_APP_UUID` | Coolify Docker-Compose app UUID for `telemetry.voxlang.org` (the **Vox Foundation** project — a separate project from eval/FableForge). Passed verbatim as `--app-uuid`. |
+| `VOX_TELEMETRY_INGEST_TOKEN` | Write-only ingest anti-abuse key (Sentry-DSN model — NOT a privacy boundary). Injected as a Coolify **project secret** on the telemetry app AND baked into the client default config. |
+| `CLICKHOUSE_PASSWORD` | ClickHouse password for the telemetry project. Coolify **project secret** only; never internet-routed. |
+| _(optional)_ `COOLIFY_PUBLIC_TELEMETRY_HEALTH_URL` | Overrides `https://telemetry.voxlang.org/healthz` for the Gate-3 public HTTPS + TLS probe. |
+
+> **Follow-up (Phase 7):** when a local `vox telemetry dev` subcommand needs to
+> resolve the app UUID by name, add `SecretId::CoolifyTelemetryAppUuid` to
+> `vox-secrets` (variant + `SecretSpec` + regenerate `contracts/secrets/*.v1.json`).
+> The deploy path does not need it today — the raw GitHub Secret above is sufficient.
+
 ### Operator checklist (GitHub Secrets + Coolify UI)
 
 When Gate 2 fails authentication or polling, verify **in Coolify first**, then mirror into **GitHub repository secrets**:
