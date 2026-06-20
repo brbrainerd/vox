@@ -3,6 +3,7 @@
 use super::super::Parser;
 use super::head_types::FnDecl;
 use crate::ast::decl::PostCondition;
+use crate::ast::decl::fundecl::PlacementHint;
 use crate::lexer::token::Token;
 
 impl Parser {
@@ -16,6 +17,7 @@ impl Parser {
         let mut postconditions = Vec::new();
         let mut invariants = Vec::new();
         let mut is_mobile_native = false;
+        let mut placement_override: Option<PlacementHint> = None;
         let mut is_pure = false;
         let mut is_traced = false;
         let mut is_reactive = false;
@@ -130,9 +132,26 @@ impl Parser {
                         let _ = self.expect(&Token::RParen);
                     }
                 }
-                Token::AtFuzz | Token::AtNative => {
+                Token::AtFuzz => {
                     self.advance();
                     is_mobile_native = true;
+                }
+                Token::AtNative => {
+                    self.advance();
+                    is_mobile_native = true;
+                }
+                Token::AtPlace => {
+                    self.advance();
+                    self.expect(&Token::LParen)?;
+                    if let Token::Ident(p) = self.peek().clone() {
+                        self.advance();
+                        placement_override = Some(match p.as_str() {
+                            "native" => PlacementHint::Native,
+                            "gui" => PlacementHint::Gui,
+                            _ => PlacementHint::Shared,
+                        });
+                    }
+                    self.expect(&Token::RParen)?;
                 }
                 Token::AtInference => {
                     self.advance();
@@ -1152,6 +1171,7 @@ impl Parser {
             verify_mode: crate::ast::decl::fundecl::VerifyMode::Off,
             test_strategy: None,
             is_mobile_native,
+            placement_override,
             ts_extern_module: None,
             effects,
             inference_model,

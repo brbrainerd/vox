@@ -190,6 +190,8 @@ pub enum Token {
     AtForall,
     #[token("@fuzz")]
     AtFuzz,
+    #[token("@place")]
+    AtPlace,
     #[token("@pure")]
     AtPure,
     #[token("@traced")]
@@ -602,6 +604,7 @@ impl std::fmt::Display for Token {
             Token::AtInvariant => write!(f, "@invariant"),
             Token::AtForall => write!(f, "@forall"),
             Token::AtFuzz => write!(f, "@fuzz"),
+            Token::AtPlace => write!(f, "@place"),
             Token::AtPure => write!(f, "@pure"),
             Token::AtTraced => write!(f, "@traced"),
             Token::AtReactive => write!(f, "@reactive"),

@@ -147,6 +147,7 @@ pub(crate) fn endpoint_as_script_fn(ep: &HirEndpointFn) -> HirFn {
         inference_model: None,
         training_step: false,
         distributed_train: None,
+        placement_override: None,
     };
     if has_async_stmts(&f.body) {
         f.is_async = true;

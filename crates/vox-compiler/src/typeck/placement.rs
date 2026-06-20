@@ -5,6 +5,8 @@ use crate::hir::{HirArg, HirCapability, HirExpr, HirFn, HirModule, HirReactiveCo
 use crate::typeck::diagnostics::{Diagnostic, codes};
 use std::collections::HashMap;
 
+pub use vox_ast::decl::fundecl::PlacementHint;
+
 /// Where a declaration may be emitted. `Shared` is the top of the lattice
 /// (emits to native + gui + interp); `Native` and `Gui` are incompatible
 /// specializations.
@@ -13,6 +15,14 @@ pub enum Placement {
     Shared,
     Native,
     Gui,
+}
+
+fn hint_to_placement(h: PlacementHint) -> Placement {
+    match h {
+        PlacementHint::Shared => Placement::Shared,
+        PlacementHint::Native => Placement::Native,
+        PlacementHint::Gui => Placement::Gui,
+    }
 }
 
 fn is_native_capability(cap: &HirCapability) -> bool {
@@ -34,6 +44,9 @@ fn is_native_capability(cap: &HirCapability) -> bool {
 /// Seed a single function's placement from its own decorators/effects.
 #[must_use]
 pub fn seed_fn(f: &HirFn) -> Placement {
+    if let Some(h) = f.placement_override {
+        return hint_to_placement(h);
+    }
     if f.is_reactive {
         return Placement::Gui;
     }
@@ -239,6 +252,38 @@ pub fn callee_names(body: &[HirStmt]) -> Vec<String> {
     out
 }
 
+/// Verify an explicit `@place(...)` override is satisfiable given effects.
+#[must_use]
+pub fn check_override(f: &HirFn, source: &str) -> Vec<Diagnostic> {
+    let Some(hint) = f.placement_override else {
+        return Vec::new();
+    };
+    let needs_native = f.capabilities.iter().any(is_native_capability)
+        || f.is_remote
+        || f.is_llm
+        || f.durability.is_some();
+    let unsat = match hint {
+        PlacementHint::Native => false, // native is always satisfiable
+        PlacementHint::Gui | PlacementHint::Shared => needs_native,
+    };
+    if unsat {
+        vec![Diagnostic::error(
+            format!(
+                "`@place({hint:?})` on `{}` is unsatisfiable — it uses native-only effects",
+                f.name
+            ),
+            f.span,
+            source,
+        )
+        .with_code(codes::PLACEMENT_UNSAT)
+        .with_suggestion(
+            "remove the override, use @place(native), or route the effect through an endpoint",
+        )]
+    } else {
+        Vec::new()
+    }
+}
+
 /// Placement pass entry point wired into typeck. Emits conflict and boundary diagnostics.
 #[must_use]
 pub fn infer(m: &HirModule, source: &str) -> Vec<Diagnostic> {
@@ -301,6 +346,11 @@ pub fn infer(m: &HirModule, source: &str) -> Vec<Diagnostic> {
                 );
             }
         }
+    }
+
+    // E-PLACE-UNSAT: explicit @place(...) override that cannot be satisfied by effects.
+    for f in &m.functions {
+        diags.extend(check_override(f, source));
     }
 
     diags
@@ -424,6 +474,39 @@ mod tests {
             diags
                 .iter()
                 .all(|d| d.code.as_deref() != Some(codes::PLACEMENT_BOUNDARY))
+        );
+    }
+
+    // ── Task 9: E-PLACE-UNSAT ─────────────────────────────────────────────────
+
+    #[test]
+    fn place_gui_on_db_fn_is_unsat() {
+        let m = hir_of("@place(gui) fn bad() uses db { 0 }");
+        let diags = check_override(&m.functions[0], "");
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code.as_deref() == Some(codes::PLACEMENT_UNSAT)),
+            "expected PLACEMENT_UNSAT; got: {diags:?}"
+        );
+    }
+
+    #[test]
+    fn place_native_is_always_sat() {
+        let m = hir_of("@place(native) fn ok() uses db { 0 }");
+        assert!(
+            check_override(&m.functions[0], "").is_empty(),
+            "expected no diagnostics for @place(native)"
+        );
+    }
+
+    #[test]
+    fn parses_place_native_override() {
+        let m = hir_of("@place(native) fn f() { 0 }");
+        assert_eq!(
+            m.functions[0].placement_override,
+            Some(PlacementHint::Native),
+            "placement_override should be Some(Native)"
         );
     }
 }
