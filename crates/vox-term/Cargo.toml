@@ -1,0 +1,28 @@
+[package]
+name = "vox-term"
+version = "0.1.0"
+edition = "2021"
+description = "Headless-capable ratatui TUI front-end for vox-terminal-core."
+license = "Apache-2.0"
+
+[lib]
+name = "vox_term"
+path = "src/lib.rs"
+
+[[bin]]
+name = "vox-term"
+path = "src/main.rs"
+
+[dependencies]
+vox-terminal-core  = { path = "../vox-terminal-core" }
+ratatui            = { workspace = true }
+crossterm          = { workspace = true, features = ["event-stream"] }
+reedline           = { workspace = true }
+alacritty_terminal = { workspace = true }
+nucleo             = { workspace = true }
+nucleo-matcher     = "0.3"
+anyhow             = { workspace = true }
+tokio              = { workspace = true, features = ["rt", "macros", "rt-multi-thread", "sync"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "macros", "rt-multi-thread"] }

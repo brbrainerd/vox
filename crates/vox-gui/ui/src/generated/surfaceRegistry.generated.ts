@@ -111,6 +111,7 @@ export const SURFACE_REGISTRY: SurfaceRegistryEntry[] = [
   { viewKey: null, cliGroup: 'stop', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'sync', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'telemetry', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
+  { viewKey: null, cliGroup: 'term', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'test', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'train', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'update', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
