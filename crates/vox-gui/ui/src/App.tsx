@@ -1060,6 +1060,7 @@ export default function App() {
       <AttentionStrip budget={orchQuery.data?.attention_budget} waitingQuestions={0} blockedTasks={0} />
       <AppShell
         activeView={activeView}
+        workspaceProps={surfaceProps}
         onNavigate={(v) => navigateTo(v)}
         sidebarMode={sidebarMode}
         setSidebarMode={setSidebarMode}

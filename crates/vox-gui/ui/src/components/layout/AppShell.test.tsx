@@ -30,6 +30,13 @@ vi.mock('./DockShell', () => ({
   ),
 }));
 
+vi.mock('./DockWorkspace', () => ({
+  DockWorkspace: (props: { activeView: string }) => (
+    <div data-testid="dock-workspace" data-active={props.activeView} />
+  ),
+}));
+
+
 vi.mock('../ui/Backdrop', () => ({
   Backdrop: () => null,
 }));
@@ -58,19 +65,20 @@ const baseProps = {
   setHudMode: vi.fn(),
   surfaceKey: 'dashboard',
   surfaceLabel: 'Dashboard',
+  workspaceProps: {} as any,
 };
 
 describe('AppShell', () => {
-  it('renders sidebar, hud, status bar, and main children', () => {
+  it('renders sidebar, hud, status bar, and workspace', () => {
     render(
-      <AppShell {...baseProps} chatDocked={false}>
+      <AppShell {...baseProps} chatDocked={false} workspaceProps={{} as never}>
         <div data-testid="main-surface">surface</div>
       </AppShell>,
     );
     expect(screen.getByTestId('sidebar')).toBeInTheDocument();
     expect(screen.getByTestId('top-hud')).toBeInTheDocument();
     expect(screen.getByTestId('status-bar')).toBeInTheDocument();
-    expect(screen.getByTestId('main-surface')).toBeInTheDocument();
+    expect(screen.getByTestId('dock-workspace')).toBeInTheDocument();
   });
 
   it('does not render chat dock when chatDocked is false', () => {
@@ -93,5 +101,11 @@ describe('AppShell', () => {
       </AppShell>,
     );
     expect(screen.getAllByTestId('loquela-dock').length).toBeGreaterThan(0);
+  });
+
+  it('mounts the dock workspace for the active view', () => {
+    render(<AppShell {...baseProps} activeView="memory" workspaceProps={{} as never} />);
+    const ws = screen.getByTestId('dock-workspace');
+    expect(ws.getAttribute('data-active')).toBe('memory');
   });
 });

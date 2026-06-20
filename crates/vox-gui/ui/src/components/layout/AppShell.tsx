@@ -2,7 +2,8 @@ import React from 'react';
 import { Backdrop } from '../ui/Backdrop';
 import { Sidebar, type SidebarMode } from './Sidebar';
 import { TopHud, type HudMode } from './TopHud';
-import { DockShell } from './DockShell';
+import { DockWorkspace } from './DockWorkspace';
+import type { SurfaceProps } from './surfaceComponents';
 import { BreadcrumbBar } from './BreadcrumbBar';
 import { StatusBar } from './StatusBar';
 import { SurfaceErrorBoundary } from '../ui/ErrorBoundary';
@@ -39,6 +40,7 @@ export interface AppShellProps {
   chatDocked: boolean;
   chatDock?: React.ReactNode;
   children: React.ReactNode;
+  workspaceProps: SurfaceProps;
   /** Workspace display name for TopHud (defaults to Operator in TopHud). */
   workspaceTitle?: string;
   visibleTiles?: HudTileKind[];
@@ -72,6 +74,7 @@ export function AppShell({
   chatDocked,
   chatDock,
   children,
+  workspaceProps,
   workspaceTitle,
   visibleTiles,
   activeModel,
@@ -132,9 +135,7 @@ export function AppShell({
 
         <div className={`flex-1 min-h-0 overflow-hidden p-5 ${mainPaddingBottom}`}>
           <SurfaceErrorBoundary key={surfaceKey} surface={surfaceLabel}>
-            <DockShell panelId="main-surface" panelTitle={surfaceLabel}>
-              {children}
-            </DockShell>
+            <DockWorkspace activeView={activeView} surfaceProps={workspaceProps} />
           </SurfaceErrorBoundary>
         </div>
 
