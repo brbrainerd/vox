@@ -440,6 +440,34 @@ mod attribution_tests {
     }
 }
 
+/// Per-task mesh execution policy.
+///
+/// Controls which mesh nodes are eligible to run this task. The default (`Any`) allows
+/// any available node. `LocalOnly` forces local execution. `Exclude` filters out named
+/// nodes from the candidate set.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum MeshPolicy {
+    #[default]
+    Any,
+    LocalOnly,
+    Exclude(Vec<String>),
+}
+
+impl MeshPolicy {
+    /// Returns `true` when `node_id` is eligible to execute this task under the policy.
+    ///
+    /// `"local"` is the conventional id for the current node.
+    #[must_use]
+    pub fn allows_node(&self, node_id: &str) -> bool {
+        match self {
+            Self::Any => true,
+            Self::LocalOnly => node_id == "local",
+            Self::Exclude(list) => !list.iter().any(|n| n == node_id),
+        }
+    }
+}
+
 /// Description of a task before it is assigned an ID and routed in the orchestrator.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskDescriptor {
@@ -619,6 +647,12 @@ pub struct AgentTask {
     /// the PAV loop or were submitted without a clutch override.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pav_loop: Option<crate::planning::phase_loop::PavLoopState>,
+    /// Per-task mesh execution policy (local-only / exclude peers).
+    #[serde(default)]
+    pub mesh_policy: MeshPolicy,
+    /// Node that actually executed this task (audit). `None` = local or not yet run.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub executor_node_id: Option<String>,
 }
 
 impl AgentTask {
@@ -691,6 +725,8 @@ impl AgentTask {
             tenant_id: None,
             selected_model_record: None,
             pav_loop: None,
+            mesh_policy: MeshPolicy::Any,
+            executor_node_id: None,
         }
     }
 
@@ -1060,6 +1096,51 @@ mod tests {
             back.harness_spec_json.as_deref(),
             Some("{\"schema_version\":1}")
         );
+    }
+}
+
+#[cfg(test)]
+mod mesh_policy_tests {
+    use super::*;
+
+    #[test]
+    fn mesh_policy_defaults_to_any() {
+        assert_eq!(MeshPolicy::default(), MeshPolicy::Any);
+    }
+
+    #[test]
+    fn local_only_forbids_remote() {
+        assert!(!MeshPolicy::LocalOnly.allows_node("peer-7"));
+        assert!(MeshPolicy::LocalOnly.allows_node("local"));
+    }
+
+    #[test]
+    fn exclude_peer_blocks_named() {
+        let p = MeshPolicy::Exclude(vec!["peer-7".into()]);
+        assert!(!p.allows_node("peer-7"));
+        assert!(p.allows_node("peer-9"));
+    }
+
+    #[test]
+    fn any_allows_all_nodes() {
+        assert!(MeshPolicy::Any.allows_node("peer-7"));
+        assert!(MeshPolicy::Any.allows_node("local"));
+        assert!(MeshPolicy::Any.allows_node("remote-xyz"));
+    }
+
+    #[test]
+    fn mesh_policy_roundtrips_via_serde() {
+        let p = MeshPolicy::Exclude(vec!["peer-1".into(), "peer-2".into()]);
+        let json = serde_json::to_string(&p).unwrap();
+        let back: MeshPolicy = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, p);
+    }
+
+    #[test]
+    fn agent_task_has_mesh_policy_field_with_default_any() {
+        let task = AgentTask::new(TaskId(1), "test", TaskPriority::Normal, vec![]);
+        assert_eq!(task.mesh_policy, MeshPolicy::Any);
+        assert!(task.executor_node_id.is_none());
     }
 }
 
