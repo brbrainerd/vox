@@ -68,6 +68,14 @@ reused, not reinvented:
    (vis-network) and a canvas `AgentFlow.tsx`. A navigable graph surface is net-new.
 5. **No generic cross-surface window manager** (only chat-scoped `ChatSessionRail`).
 6. **Snapshot metadata lives off-DB** (filesystem manifest). Needs a queryable index.
+7. **CAS has no refcount and no GC** (`ops_cas.rs` is store/get/bind only). Refcounting
+   + sweep is net-new.
+8. **GUI chat is a separate store** (`conversations`/`conversation_messages`), NOT
+   `agent_session_events` — the projector must adapt three producers.
+9. **No per-call model override** in `RouteResolutionInput`; per-window routing is net-new.
+10. **`compact()` discards dropped turns and has no live caller** — must be refactored to
+    return them and be wired before lossless tiering is possible.
+11. **`embeddings` table is dormant** — semantic retrieval is a later phase, not v1 reuse.
 
 ## 3. Layered Architecture
 
@@ -129,8 +137,19 @@ Indexes (covering, for glogg-scale): `(repo_id, tier, updated_at)`,
 
 ### 4.2 The projector
 
-A `WindowProjector` folds the existing `agent_session_events` append log into
-`context_window_items`. **One event source — no split-brain.** Rules:
+A `WindowProjector` folds the existing append logs into `context_window_items`.
+**Correction (verified):** there is NOT a single event source. There are **three**
+producers and the projector must adapt all three behind one `WindowSource` trait:
+
+1. **Orchestrator/agent sessions** — `agent_session_events` (`TurnAdded`/`Compacted`/…).
+2. **GUI chat** — a *separate* store: `conversations` + `conversation_messages`
+   (`crates/vox-db/src/codex_chat.rs`, written by `crates/vox-gui/src/commands/chat.rs`).
+   This is the split-brain risk; the projector unifies it at the index, it does NOT
+   merge the underlying tables.
+3. **History/clips** — `history_entries` (clip/command/chat capture).
+
+The single SSOT is `context_windows`/`context_window_items` (the *index*), fed by a
+`WindowSource` adapter per producer. Rules (per `TurnAdded`-equivalent event):
 
 - `TurnAdded` → write content blob to CAS (zstd-compress, get hash), insert an item
   row referencing the hash.
@@ -151,13 +170,21 @@ Extend `compaction.rs` into a `TierManager` (background, idempotent):
 - **Warm** — recently idle; unchanged storage, dropped from in-memory working set.
 - **Cold** — compaction runs; **dropped turns persisted to CAS before removal**;
   a persisted summary item is created; raw items remain retrievable (lossless).
+  **Correction (verified):** `compaction.rs::compact()` currently returns only *counts*
+  (`dropped_turns`) and discards the dropped `Turn` objects inside its trim strategies,
+  and has **no live caller found** — so two prerequisite fixes precede tiering: (a)
+  refactor `compact()` to *return* the dropped `Turn`s, (b) confirm/establish its call
+  site. Treat (a)+(b) as their own atomic task before any CAS-persist step.
 - **Frozen** — deep archive; index row + summary kept light; CAS blobs already
   compressed+deduped; optionally zstd-pack cold blob groups.
 
-**GC is refcount-safe.** A CAS blob is purged only when no live (non-trimmed) item in
-any window references its `content_hash` — refcount derived from `content_hash` index
-+ `causal`/`names`. Pinned windows/items are never auto-GC'd. Hard purge (bonsai) is
-the only path that removes content, and only when unreferenced.
+**GC is refcount-safe — and refcounting is NEW work (verified).** `ops_cas.rs` today
+has NO refcount column and NO delete/GC path (`store`/`get`/`bind_name` only); `causal`
+is lineage, not a refcount. So this design adds a `content_hash` refcount derived from
+live `context_window_items` (a covering index + a sweep query, or a maintained
+`cas_refcount` row). A CAS blob is purged only when no live (non-trimmed) item
+references its `content_hash`. Pinned windows/items are never auto-GC'd. Hard purge
+(bonsai) is the only path that removes content, and only when unreferenced.
 
 Persisted summaries and snapshot pointers also fix the audit finding that compaction
 rationale is currently un-queryable.
@@ -167,8 +194,17 @@ rationale is currently un-queryable.
 **Storage is a blob; retrieval is structured.** A `RetrievalRouter` fans a query to:
 
 - **FTS5** — exact/lexical over item text (new FTS virtual table mirroring
-  `context_window_items`, with the established trigger pattern).
-- **embeddings** — semantic recall over the existing `embeddings` table.
+  `context_window_items`, with the established trigger pattern). **Must degrade
+  gracefully:** FTS5 is runtime-detected (`has_fts5_support`) and absent on some SQLite
+  builds; reuse the existing `LIKE`-fallback path from
+  `ops_memory/search.rs::query_search_document_chunks`. v1 retrieval is correct with or
+  without FTS5.
+- **embeddings (semantic) — OPT-IN / PHASE 2, not v1.** The `embeddings` table exists
+  but is **dormant**: nothing populates it unless an `EmbeddingService` is explicitly
+  wired (verified — only research/memory paths write vectors, gated on a service). v1
+  retrieval is lexical (FTS5/LIKE) + graphify only. Semantic recall is a later phase
+  that first wires embedding generation for window items; the router must treat the
+  semantic lane as optional and skip it when no service is attached.
 - **graphify** — structural ("which windows touched symbol X") via the MCP tools.
 
 Results are merged → **ranked → deduped by `content_hash` → token-budget-capped** →
@@ -195,8 +231,12 @@ the model and is the single enforcement point for the token budget (reuse
   `content_hash`es (not the bytes). The receiver pulls from the **shared CAS** →
   zero-copy, dedup-by-construction handoff.
 - **OpenRouter "fully wired":** `context_windows.model_route` overrides the cascade per
-  window; the existing model-pool DTO gains a per-window binding; the budget meter is
-  per-window.
+  window. **Correction (verified):** the cascade has NO per-call override today —
+  `RouteResolutionInput` resolves from env (`VOX_SELECTOR_MODEL`/`VOX_MODEL`) then global
+  config; `manual_model` is the closest hook. This design adds an `override_model:
+  Option<String>` field to `RouteResolutionInput`, checked *before* the global cascade,
+  threaded from the active window's `model_route`. The model-pool DTO gains a per-window
+  binding; the budget meter is per-window.
 
 ## 8. Layer B — GUI Surfaces
 
@@ -218,9 +258,11 @@ panels, all `useVirtualList`:
 range, or filter-based ("all tool-noise older than 90d"); a separate *Hard purge* step
 GC's unreferenced CAS blobs.
 
-**Graph navigator surface (net-new):** an interactive graph component. **Reuse
-vis-network** (already a dependency via `graph.html`) wrapped in React, rather than
-introducing react-flow. Left rail selects the corpus (code-graph, evolution-join,
+**Graph navigator surface (net-new):** an interactive graph component. **Correction
+(verified):** `vis-network` is NOT a vox-gui dependency (it is CDN-loaded only by the
+standalone `graphify-out/graph.html`). The GUI already depends on **`@xyflow/react`
+(React Flow)** — build the navigator on that, not vis-network. Left rail selects the
+corpus (code-graph, evolution-join,
 window-provenance, agent-mesh) and lens (clusters/god-nodes/blast-radius). A time
 scrubber replays codebase evolution. Click a code node → trace back to the windows +
 items that produced it; scrub time → watch a subsystem grow.
@@ -235,8 +277,14 @@ The chosen model is **the join** (windows are the edit events that link to commi
 mutate code-graph nodes), with **arbitrarily expandable corpora** so agents/LLMs choose
 what to search.
 
-- **Enable the join:** populate `git_sha_at_open/close` on windows (keystone #1). On
-  window close (or commit), record the SHA.
+- **Enable the join:** populate `git_sha_at_open/close` on windows (keystone #1).
+  **Verified:** these fields exist nowhere today and there is no session→commit
+  association anywhere in the codebase — this is entirely net-new. On window close (or
+  on commit), record the SHA via `git rev-parse HEAD` in the repo scope.
+- **Scope the join honestly:** many windows (research, brainstorm, agent chatter)
+  produce no commit. `git_sha_*` is nullable; such windows participate in the
+  provenance graph but contribute no code-delta edge. The evolution-join only draws
+  `window → commit → code-delta` edges for windows whose SHA actually advanced.
 - **Queryable snapshots:** new `context_graph_snapshots` table indexing the existing
   filesystem snapshots (`corpus_id`, `stamp`, `git_sha`, `node/edge/community counts`,
   path) so snapshots join to windows/commits in SQL rather than only on disk.
@@ -272,6 +320,11 @@ what to search.
 
 ## 11. Scope Decomposition for Planning
 
+> **Superseded by §14.2.** The list below is the conceptual grouping; the
+> *authoritative, audit-corrected* execution order (which splits out CAS refcount, the
+> 3-source projector, the `compact()` refactor, and the per-window override as their own
+> chunks, and defers semantic retrieval to Phase 2) is **§14.2**. Plan against §14.2.
+
 The plan should sequence by the keystones, each independently testable:
 
 1. **Spine:** `context_windows` + `context_window_items` tables + `WindowProjector` over
@@ -294,3 +347,86 @@ The plan should sequence by the keystones, each independently testable:
   follow-on if opt-in lossy is ever wanted).
 - No new docking framework (dockview stays).
 - No rewrite of graphify construction (Rust-native build stays; we add a corpus + index).
+
+## 13. Adversarial Audit — Verified Corrections (AUTHORITATIVE)
+
+This section overrides any earlier statement it conflicts with. Each row was checked
+against the code. The lesson from the Antigravity ledger is that **plan-side false
+assumptions, not the agent, cause hollow-green failures** — so these are corrected
+*before* a single task is handed off.
+
+| # | Original assumption | Verdict | Reality | Plan consequence |
+|---|---|---|---|---|
+| 1 | Single event source (`agent_session_events`) | **FALSE** | GUI chat is `conversations`/`conversation_messages` (`codex_chat.rs`); history is `history_entries` | Projector = a `WindowSource` trait with 3 adapters; index unifies, tables stay separate |
+| 2 | CAS gives refcount-safe GC for free | **FALSE** | `ops_cas.rs` has no refcount, no delete/GC; `causal` ≠ refcount | Add refcount + sweep as an explicit task; never "free" |
+| 3 | FTS5 always available | **PARTIAL** | Runtime-detected; `LIKE` fallback exists | Router must degrade; reuse `ops_memory/search.rs` fallback; v1 correct without FTS5 |
+| 4 | Reuse `vis-network` (a dep) | **FALSE** | Not in `package.json`; CDN-only in `graph.html`. `@xyflow/react` IS a dep | Build navigator on `@xyflow/react` |
+| 5 | Hook compaction to persist dropped turns | **PARTIAL** | `compact()` returns counts only, discards `Turn`s, no live caller | Refactor signature + establish caller first (own task) |
+| 6 | Per-window model override exists | **FALSE** | `RouteResolutionInput` is env/global only | Add `override_model` field before the cascade |
+| 7 | `embeddings` powers semantic retrieval | **PARTIAL** | Table dormant; nothing populates it by default | Semantic = Phase 2 behind an `EmbeddingService`; v1 lexical+graph |
+| 8 | `git_sha_at_open/close` links windows→commits | **FALSE** | Fields exist nowhere; no session→commit link anywhere | Entirely net-new; nullable; only commit-advancing windows get code-delta edges |
+
+**Net effect on scope:** the design is still sound, but four items move from "reuse" to
+"net-new, sequence first": (a) CAS refcount+GC, (b) 3-source projector, (c)
+`compact()` refactor, (d) per-window model override. None is large; all are now explicit.
+
+## 14. Flash Handoff Strategy — Pilot-First, Pathway-Validated
+
+The plan will be executed by **Gemini Flash 3.5 in Antigravity** via the existing
+pathway: `vox_agy_pipeline` runs each task's gates inside a **jailed git worktree**
+(`agy_exec.rs`/`agy_gates.rs`/`agy_worktree.rs`), an adversarial `code-reviewer` pass
+hunts hallucination + hollow-green, and `vox_agy_review` records the verdict + lessons
+to `docs/superpowers/antigravity-handoff-ledger.md` (next AGH id). Flash's hard limits
+(~48% unaided in-IDE completion, no mid-task checkpoint, weak long-context recall,
+hard quota cutoff, repeats failures) dictate the plan *shape*, per
+`docs/src/architecture/gemini-3-5-flash-antigravity-limitations-2026-06-18.md`.
+
+**Every task** carries the standard Operating Rules + Flash Execution Addendum: atomic +
+green + committed; a BLOCKING pre-flight `rg` gate that pastes on-disk reality and STOPs
+on mismatch; two-strike circuit breaker; split-on-overrun; `[PARALLEL-SAFE]`/
+`[SEQUENTIAL]` tags by file-write disjointness; prove EFFECT not SHAPE (route fixtures
+through real compilers/type-checkers, no substring-only tests).
+
+### 14.1 Pilot chunk first (validate the pathway before committing the full plan)
+
+Do **not** hand off all 8 chunks at once. Ship one **vertical, low-blast-radius pilot**
+through the *entire* pathway, read the result, and only then continue. The pilot is
+**Chunk 1 (the spine), narrowed**:
+
+- **Pilot task P0** — add `context_windows` + `context_window_items` tables via the
+  existing migration manifest + a `cas_refcount` helper; pure `vox-db`, no consumers.
+  Gates: `cargo build -p vox-db`, `cargo test -p vox-db`, `cargo clippy -p vox-db -D
+  warnings`. This exercises the riskiest *process* questions (Does Flash respect the
+  migration manifest? Does it invent schema APIs? Does the worktree jail + gates report
+  cleanly?) with the *lowest* code risk.
+
+**Go/No-Go after the pilot:** inspect the worktree diff + the `code-reviewer` verdict +
+the ledger entry. Useful answer (green, faithful, no hallucinated API, schema matches
+`BASELINE_VERSION` conventions) ⇒ proceed to the next chunk. Hollow/false ⇒ fix the
+*plan/prompt* (not just re-run), capture the lesson in §B of the ledger, re-issue once
+(two-strike), and only widen scope once the pathway is proven on something small.
+
+### 14.2 Sequencing (each chunk = one handoff, gated by the prior chunk's review)
+
+1. **P0 spine + refcount** (pilot) → 2. **3-source projector** → 3. **session→commit
+capture** → 4. **`compact()` refactor + TierManager + GC sweep** → 5. **retrieval router
+(lexical+graph, FTS5-degrading)** → 6. **wiring: `context_get/set` + injection +
+`override_model` + A2A hash handoff** → 7. **GUI window manager + bonsai + committed-set
+(on `@xyflow/react` where graph is involved)** → 8. **graph navigator +
+`context_graph_snapshots`** → 9. **graphify evolution-join + temporal MCP mode** →
+(Phase 2) **embeddings/semantic lane**.
+
+Chunks 2–9 are authored only after the pilot proves the pathway returns useful answers.
+Each chunk gets its own plan file + Flash Execution Addendum + a fresh ledger entry, and
+must branch off **current** `origin/main` with ONLY that chunk's commits and a full
+delivery manifest (so review detects undisclosed shared-config edits).
+
+### 14.3 Pathway gaps to build out (only if the pilot reveals them)
+
+The pathway exists and is proven on 4 prior handoffs, but watch for: (a) Rust-side gates
+are well-trodden, GUI/TS gates (`pnpm`, `npx tsc --noEmit`, `npx vitest run`) less so —
+the GUI chunks (7–8) may need the addendum's house-rules tightened; (b) the evolution
+graph build (chunk 9) is the only step with an open-ended feel — pre-decompose it into
+single-decision steps before handoff, since Flash reasons poorly on open-ended "design
+X" tasks. No new pathway crates are anticipated; if the pilot shows the jail/gates can't
+express a needed check, extend `agy_gates.rs` rather than loosening the gate.
