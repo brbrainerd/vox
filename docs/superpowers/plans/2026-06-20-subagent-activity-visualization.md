@@ -38,6 +38,68 @@ isolation.
   rendered output or client calls, not string shapes.
 - After all tasks, use `superpowers:requesting-code-review` before declaring done.
 
+## Flash Execution Addendum (2026-06-20) — and an executor-fit warning
+
+> ⚠️ **Recommended executor for this plan is Sonnet/Claude Code, not Flash.** This is a
+> React/TS surface with framework-coupled rendering, a generated-registry SSOT + regen
+> command, and a cross-crate backend prerequisite — exactly the cluster of work the
+> Antigravity ledger flags as Flash's highest failure rate (GUI/TS gates + open-ended
+> integration). If running on **Gemini Flash 3.5**, apply this addendum strictly and split
+> the riskiest task; expect to babysit Tasks 8–10.
+
+**Operating Rules (apply to EVERY task, Flash):**
+1. **Atomic + green + committed.** No mid-task checkpoint; a kill between tasks must leave a
+   compiling, test-passing tree.
+2. **Verify before use (BLOCKING).** Each task's pre-flight commands run first; paste output;
+   if reality differs from the plan, STOP and report — never invent component/prop/command names.
+3. **Two-strike circuit breaker.** A step's gate failing twice → STOP, write a ledger note.
+4. **House rules (GUI/TS):** run from `crates/vox-gui/ui`; `pnpm test -- <file>` for one file,
+   `pnpm test` + `pnpm typecheck` for the full gate. Every component test starts with
+   `// @vitest-environment jsdom` and mocks `@tauri-apps/api/core` (and `@xyflow/react` when a
+   real `ReactFlow` is rendered — see `App.test.tsx:37`). No `cargo fmt --all`.
+5. **Prove EFFECT not SHAPE:** tests render real components / call real client functions; never
+   assert on source-string contents. Route every TSX change through `pnpm typecheck`.
+6. **No unplanned shared edits.** Only Task 9 (`decoratorRegistry.ts`) and Task 10
+   (`surface-registry.v1.yaml` + the regen command) touch shared files. Report any other.
+7. **Branch:** local on-machine run; do NOT push/PR.
+
+**Mandatory global pre-flight (run, paste, confirm before Task 1):**
+```
+git rev-parse --abbrev-ref HEAD
+rg -n "@vitest-environment jsdom" crates/vox-gui/ui/src/App.test.tsx
+rg -n "SurfaceDecoratorProps|surfaceDecorators" crates/vox-gui/ui/src/components/surfaces/decoratorRegistry.ts
+rg -n "view_key: mesh" -A6 contracts/gui/surface-registry.v1.yaml
+rg -n "AgentEventFrame" crates/vox-gui/ui/src/transport.ts        # confirm NO window_id field (audit #1)
+```
+
+**Task-split table (Flash):**
+| Task | Touches | Tag |
+|---|---|---|
+| 1 types · 2 client · 3 store | disjoint new files | **[PARALLEL-SAFE]** |
+| 4 tree · 5 editor · 6 controls · 7 stream · 8 graph | disjoint new files (each imports 1–3) | **[PARALLEL-SAFE]** after 1–3 |
+| 9 view + decoratorRegistry edit | shared `decoratorRegistry.ts` | **[SEQUENTIAL]** (after 4–8) |
+| 10 registry SSOT + regen | shared YAML + generated file | **[SEQUENTIAL]** (after 9) |
+
+If Flash stalls on Task 8 (real `@xyflow/react`) or Task 10 (regen/wiring gate), hand those
+two back to Sonnet/Claude Code rather than burning the two-strike budget.
+
+## Codebase-audit corrections (READ FIRST — verified 2026-06-20)
+
+1. **Agent events are NOT window-scoped.** `AgentEventFrame` (`transport.ts:59-63`) has no
+   `window_id`/`session_id`; `vox://agent-events` is globally broadcast. **True per-window
+   routing needs a Rust daemon change** (add a session/window id to the `AgentEvent` enum in
+   `vox-orchestrator` + emit it) — that is a named **backend prerequisite**, not part of this
+   frontend plan. Until it lands, the activity stream degrades: events with a `window_id`
+   route to that window; events without one route to the **currently-selected** window
+   (Task 9). The component tests drive the store directly, so they are unaffected.
+2. **A decorator entry does NOT make a surface reachable.** The surface must ALSO exist in
+   `SURFACE_REGISTRY`, generated from `contracts/gui/surface-registry.v1.yaml` via
+   `vox ci gui-surface-registry --write` (Task 10). `surfaceComponents.tsx` checks
+   `surfaceDecorators[viewKey]` first, then a built-in switch, but nav/deep-link needs the
+   registry row.
+3. **Never hand-edit `surfaceRegistry.generated.ts`** (`// AUTO-GENERATED … DO NOT EDIT`,
+   drift-gated by `vox ci gui-surface-registry`). Edit the YAML SSOT and regenerate.
+
 ## File Structure (all new, under `crates/vox-gui/ui/src/components/surfaces/SubAgents/`)
 
 - `types.ts` — DTOs + pure helpers (`SubAgentNode`, `ProjectionItem`, `ControlAction`, `flattenTree`, `tokenFate`).
@@ -735,8 +797,13 @@ export function SubAgentsView(_props: SurfaceDecoratorProps) {
   useEffect(() => { fetchTree().then(setTree).catch(() => {}); }, [setTree]);
   useEffect(() => {
     let un: (() => void) | undefined;
-    listenActivity((e) => { const w = (e.kind as { window_id?: string }).window_id; if (w) pushEvent(w, e); })
-      .then((u) => { un = u; }).catch(() => {});
+    listenActivity((e) => {
+      // Backend does not yet stamp window_id on agent events (audit correction #1):
+      // route by window_id when present, else attribute to the selected window.
+      const w = (e.kind as { window_id?: string }).window_id
+        ?? useSubAgentStore.getState().selectedWindowId;
+      if (w) pushEvent(w, e);
+    }).then((u) => { un = u; }).catch(() => {});
     return () => un?.();
   }, [pushEvent]);
 
@@ -771,28 +838,48 @@ export function SubAgentsView(_props: SurfaceDecoratorProps) {
 
 ---
 
-### Task 10: Surface-registry entry + final gate
+### Task 10: Surface-registry SSOT entry + regenerate + final gate
 
 **Files:**
-- Modify: the surface registry source consulted by `surfaceRegistry.generated.ts` (confirm via
-  pre-flight; `surfaceRegistry.generated.ts` is auto-generated — do NOT hand-edit it).
+- Modify: `contracts/gui/surface-registry.v1.yaml` (the SSOT — add one entry)
+- Regenerate (do NOT hand-edit): `crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts`
 
-- [ ] **Step 1 (pre-flight, BLOCKING):** find how surfaces are declared.
-  Run: `rg -n "sub-agents|surfaceRegistry|live_backend" crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts | head`
-  and `rg -n "registry" crates/vox-gui/src -l | head`. Identify the SSOT that GENERATES
-  `surfaceRegistry.generated.ts` (it is generated from a Rust/CLI source, per the audit). If
-  the generator source is not obvious, STOP and report — do not hand-edit the generated file.
+- [ ] **Step 1 (pre-flight, BLOCKING):** confirm the SSOT + the `mesh` template row.
+  Run: `rg -n "view_key: mesh" -A6 contracts/gui/surface-registry.v1.yaml`
+  Expected: a block with `view_key`, `representation_tier`, `nav_label`, `nav_icon`,
+  `nav_group`, `parent_surface`. If the file or that row is absent, STOP and report.
 
-- [ ] **Step 2:** add a `sub-agents` surface entry to the generator SSOT (mirror an existing
-  `live_backend` surface such as `mesh` or `flow`), then regenerate per the repo's documented
-  command (search `rg -n "surface.*registry" contracts/ scripts/`).
+- [ ] **Step 2: Add the `sub-agents` entry to the YAML SSOT**, mirroring `mesh`:
+```yaml
+- view_key: sub-agents
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Sub-Agents
+  nav_icon: list-tree
+  nav_group: compute
+  parent_surface: compute
+```
+  > If `vox ci gui-surface-registry` later fails a *wiring* check (a `live_backend` surface
+  > must be reachable in `App.tsx`), the `surfaceDecorators['sub-agents'] = SubAgentsView`
+  > entry from Task 9 IS the wiring — confirm that registration landed. Do not change the
+  > tier to dodge the gate; report if it still fails after Task 9 is committed.
 
-- [ ] **Step 3: Full gate** — Run from `crates/vox-gui/ui`: `pnpm test && pnpm typecheck`.
+- [ ] **Step 3: Regenerate the TypeScript registry.**
+  Run: `vox ci gui-surface-registry --write`
+  Expected: `surfaceRegistry.generated.ts` updated to include `sub-agents`. NEVER edit that
+  file by hand.
+
+- [ ] **Step 4: Verify no drift.**
+  Run: `vox ci gui-surface-registry`
+  Expected: PASS (no drift). If it reports drift, you edited the generated file directly —
+  revert and re-run `--write`.
+
+- [ ] **Step 5: Full gate** — from `crates/vox-gui/ui`: `pnpm test && pnpm typecheck`.
   Expected: all green.
 
-- [ ] **Step 4: Commit** — `git commit -am "feat(gui): register sub-agents in the surface registry SSOT"`
+- [ ] **Step 6: Commit** — `git commit -am "feat(gui): register sub-agents surface in YAML SSOT + regenerate registry"`
 
-- [ ] **Step 5: Request review** — use `superpowers:requesting-code-review` before declaring done.
+- [ ] **Step 7: Request review** — use `superpowers:requesting-code-review` before declaring done.
 
 ---
 
