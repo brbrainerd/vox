@@ -40,7 +40,7 @@ Target state:
 - Retire `void`/`glacier`/`arcane` accent themes; `data-theme` axis becomes `basalt` (default) ↔ `travertine`, with `high-contrast` retained.
 - Every accent/background pairing in both scopes must be contrast-checked (AA). Contrast assertions live in a unit test fed by `tokens.generated.ts`.
 
-**Important coverage caveat:** many components use hardcoded `text-zinc-*` and `bg-white/[0.0x]` utilities. Token swaps alone reskin dark acceptably but **break light**. The 3 hero surfaces must migrate hardcoded neutrals/whites to semantic tokens (`text-primary/secondary/muted`, `bg-surface/elevated`, `border-subtle/strong`, `white/α` → a themed `--overlay` token) so they render correctly in both scopes. Non-hero surfaces inherit the global token reskin and are explicitly out of pixel-scope this pass (tracked as follow-up).
+**Important coverage caveat (audited 2026-06-20):** hardcoded `text-zinc-*` / `bg-white/[0.0x]` / `bg-void` utilities appear **~92 times across 38 files**, and `tailwind.config.js` hardcodes `background`/`border`/`void`. Token swaps reskin **dark** acceptably, but **light breaks** anywhere a hardcoded color survives. Therefore light ships in phases: (a) Tailwind base colors tokenized; (b) the 3 hero surfaces tokenized; (c) a **global tokenization sweep** of the remaining ~34 files. The `travertine` toggle is **gated off in the UI until (c) completes**. **Dark (basalt) ships globally regardless.** This revises the earlier "co-equal light, both shipped in one pass" intent: light is co-equal *by design and on hero surfaces immediately*, app-wide after the sweep.
 
 ## 4. Hero surfaces (full pixel restyle)
 
@@ -77,8 +77,9 @@ Structure outputs so they can later feed `/design-sync` → claude.ai/design **a
 
 ## 8. Out of scope (this pass)
 
-- Pixel restyle of non-hero surfaces (inherit global tokens only).
-- The actual `/design-sync` upload to claude.ai/design.
+- Pixel restyle of non-hero surfaces (they get the global tokenization sweep for correctness, but not bespoke Roman ornament this pass).
+- The actual `/design-sync` upload to claude.ai/design (operator-run, opt-in; instructions in the plan).
+- Syncing the live app's hero components (Tauri/transport-coupled — the handoff is a purpose-built presentational subset in `crates/vox-gui/ds/`).
 - Any logic/behavior change; this is presentation-only.
 - New gamification visuals beyond token reskin.
 

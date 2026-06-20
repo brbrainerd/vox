@@ -248,6 +248,39 @@ git commit -m "feat(vox-gui): basalt default scope, retire void/glacier, add Rom
 
 ---
 
+## Task 5.5: Tokenize Tailwind base colors (required for light to work at all)
+
+**Why:** `tailwind.config.js` hardcodes `background:'#09090b'`, `void:'#09090b'`, `border:'rgba(255,255,255,0.06)'`. These power `bg-background`, `bg-void`, and the default `border` color used across many files; they do NOT follow `data-theme`, so light mode stays dark-paneled until they are tokenized.
+
+**Files:**
+- Modify: `crates/vox-gui/ui/tailwind.config.js:6-14`
+
+- [ ] **Step 1: Repoint base colors at semantic tokens**
+
+```js
+        void: 'var(--color-bg-base)',
+        steel: 'var(--color-text-muted)',
+        brass: 'rgb(var(--brass) / <alpha-value>)',
+        "amber-glow": 'rgb(var(--brass) / 0.5)',
+        border: 'var(--color-border-subtle)',
+        background: 'var(--color-bg-base)',
+        primary: 'rgb(var(--brass) / <alpha-value>)',
+```
+(Keep the semantic `bg-*`/`text-*`/`border-*`/`accent` entries below unchanged; add `'accent-secondary': 'var(--color-accent-secondary)'` and `'overlay-subtle': 'var(--color-overlay-subtle)'`, `'overlay-hover': 'var(--color-overlay-hover)'` so they are first-class Tailwind utilities instead of arbitrary `[var(...)]`.)
+
+- [ ] **Step 2: Verify both scopes**
+
+Run: `pnpm build` (expected: success). In dev, set `data-theme="travertine"` and confirm previously-`bg-background`/`border` chrome flips to travertine.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add crates/vox-gui/ui/tailwind.config.js
+git commit -m "feat(vox-gui): tokenize Tailwind base colors (background/border/void) for dual scope"
+```
+
+---
+
 ## Task 6: Contrast guard test (AA) — TDD
 
 **Files:**
@@ -551,7 +584,10 @@ git commit -m "feat(vox-gui): Roman restyle Loquela (tokenized, Cinzel headers, 
 - Modify: `crates/vox-gui/ui/src/components/surfaces/Dashboard/Dashboard.tsx`
 - Modify: `crates/vox-gui/ui/src/components/surfaces/Dashboard/AgentRow.tsx`
 - Modify: `crates/vox-gui/ui/src/components/surfaces/Dashboard/StreamCard.tsx`
+- Modify: `crates/vox-gui/ui/src/components/surfaces/Dashboard/LudusBanner.tsx`
 - Test: existing Dashboard/AgentRow/StreamCard tests must stay green.
+
+> **Scope note (audited):** this surface has the heaviest hardcoding — ~47 `zinc`/`white-α` hits across these 4 files (Dashboard.tsx ≈ 23, AgentRow ≈ 12, StreamCard ≈ 8, LudusBanner ≈ 4). Budget accordingly; this is the largest single task.
 
 - [ ] **Step 1: Tokenize colors (same recipe as Task 10 Step 1)**
 
@@ -582,27 +618,88 @@ git commit -m "feat(vox-gui): Roman restyle Dashboard/Mesh (engraved cards, Cinz
 
 ---
 
-## Task 12: Draft the Claude Design handoff conventions
+## Task 11.5: Global tokenization sweep — unblock app-wide light
+
+**Why (audited):** ~92 hardcoded `zinc`/`white-α`/`bg-void` hits remain across ~34 non-hero files. Until they are tokenized, the `travertine` scope is broken everywhere outside the 3 hero surfaces. The spec's "co-equal light" therefore requires this sweep before the light toggle is exposed app-wide.
+
+**Files:** all non-hero `*.tsx` under `crates/vox-gui/ui/src/components/**` containing the patterns below.
+
+- [ ] **Step 1: Enumerate the remaining sites**
+
+```bash
+grep -rnE "zinc-[0-9]|white/\[|black/\[|bg-void" crates/vox-gui/ui/src/components | grep -vE "layout/(Sidebar|TopHud)|surfaces/(Loquela|Dashboard)" > /tmp/tokenize-sites.txt
+wc -l /tmp/tokenize-sites.txt
+```
+
+- [ ] **Step 2: Apply the deterministic mapping** (per file, smallest-blast-radius first)
+
+| Hardcoded | Replace with |
+|---|---|
+| `text-zinc-50/100` | `text-text-primary` |
+| `text-zinc-200/300` | `text-text-secondary` |
+| `text-zinc-400/500/600` | `text-text-muted` |
+| `bg-zinc-900/950`, `bg-void` | `bg-bg-base` |
+| `bg-zinc-800` | `bg-bg-surface` |
+| `bg-zinc-700` | `bg-bg-elevated` |
+| `bg-white/[0.0x]` | `bg-overlay-subtle` / `bg-overlay-hover` |
+| `border-white/[0.0x]`, `border-zinc-*` | `border-border-subtle` |
+
+Do this in focused batches (≤5 files per commit); after each batch run `pnpm typecheck`.
+
+- [ ] **Step 3: Gate the light toggle until the sweep is complete**
+
+Until Step 2 is fully green, the theme switcher must NOT offer `travertine` to users. Keep `basalt` the only selectable scope; expose `travertine` only after the sweep + a manual light pass. (Implement as a feature flag or a commented option in the theme selector — find it with `grep -rn "data-theme\|setTheme\|theme.*basalt" crates/vox-gui/ui/src`.)
+
+- [ ] **Step 4: Verify + commit per batch**
+
+Run after the final batch: `pnpm typecheck && pnpm vitest run` (expected: PASS; update class-string assertions as needed).
+```bash
+git add -A crates/vox-gui/ui/src/components
+git commit -m "refactor(vox-gui): tokenize hardcoded colors app-wide for travertine scope"
+```
+
+---
+
+## Task 12: Claude Design handoff — purpose-built presentational design system
+
+**Why a subset, not the app (audited):** the hero components import Tauri `invoke`, the transport layer, and app hooks — they cannot render standalone in the claude.ai/design agent runtime, and there is no Storybook/library `dist`. So the handoff is a small, **dependency-free presentational design system** that teaches the design agent the Roman vocabulary, not the live app.
 
 **Files:**
-- Create: `crates/vox-gui/ui/.design-sync/conventions.md`
+- Create: `crates/vox-gui/ds/` (the sync source — separate from the app so it bundles cleanly)
+- Create: `crates/vox-gui/ds/styles.css` (the single `@import` closure)
+- Create: `crates/vox-gui/ds/tokens/` (copies of `tokens.generated.css` + `tokens.travertine.generated.css`)
+- Create: `crates/vox-gui/ds/fonts/` (copies of the woff2 + `fonts.css`)
+- Create: `crates/vox-gui/ds/components/<group>/<Name>/{index.html, <Name>.prompt.md}` for: `AxisMark`, `Button` (primary gold / outline), `Pill`, `MetricCard` (engraved + Cinzel numeral), `PanelHeader` (corner-ticks + fading rule), `StatusDot` (verdigris/gold/terracotta/red)
+- Create: `crates/vox-gui/ds/.design-sync/conventions.md`
 
-- [ ] **Step 1: Write the conventions draft**
+- [ ] **Step 1: Assemble the closure**
 
-Author `conventions.md` naming the REAL vocabulary so a future design agent builds on-brand. Include: the `data-theme` basalt(default)/travertine switch; the token families (`--color-bg-*`, `--color-text-*`, `--color-accent-default` gold / `--color-accent-secondary` verdigris, `--color-status-*`); the type idiom (`font-display`=Cinzel caps for headings/labels only, `font-sans`=Inter for body/data, `font-serif`=EB Garamond italic for captions, `font-mono` for code); the ornament recipes (`vox-rule`, `vox-tick-tl/-tr`, `vox-display`); and the rule that clarity/AA beats theme. Add one idiomatic snippet (a tokenized metric card). Keep it 2–4k chars.
+`styles.css` must `@import` (in order) `fonts/fonts.css`, `tokens/tokens.generated.css`, `tokens/tokens.travertine.generated.css`. Rendered designs receive ONLY this closure — every component style must be reachable from it.
 
-- [ ] **Step 2: Validate every name exists**
+- [ ] **Step 2: Author each component as a standalone preview**
 
-```bash
-grep -oE "color-(bg|text|border|accent|status|overlay)-[a-z]+" crates/vox-gui/ui/src/styles/tokens.generated.css | sort -u
+Each `index.html` is a self-contained, dependency-free snippet using ONLY token vars and the `vox-*` utilities (inline the utility CSS in `styles.css`). First line of each preview is the card marker:
+```html
+<!-- @dsCard group="Components" -->
 ```
-Confirm each token named in `conventions.md` appears here (and travertine sheet). Fix or cut any name that doesn't resolve.
+`AxisMark` reuses the SVG from Task 7 (gold via `color: rgb(var(--brass))`).
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 3: Write `conventions.md` (the design-agent system-prompt header)**
+
+Name the REAL vocabulary so the agent builds on-brand: the `data-theme` basalt(default)/travertine switch; tokens (`--color-bg-*`, `--color-text-*`, `--color-accent-default` gold / `--color-accent-secondary` verdigris, `--color-status-*`, `--color-overlay-*`); the type idiom (`font-display`=Cinzel caps for headings/labels ONLY, `font-sans`=Inter for body/data, `font-serif`=EB Garamond italic for captions, `font-mono` for code); the ornament recipes (`vox-rule`, `vox-tick-tl/-tr`, `vox-display`); and the overriding rule that clarity/AA beats theme. Include one idiomatic snippet (the MetricCard). 2–4k chars.
+
+- [ ] **Step 4: Validate every named token resolves**
 
 ```bash
-git add crates/vox-gui/ui/.design-sync/conventions.md
-git commit -m "docs(vox-gui): design-sync conventions draft for claude.ai/design handoff"
+grep -oE "color-(bg|text|border|accent|status|overlay)-[a-z]+" crates/vox-gui/ds/tokens/*.css | sort -u
+```
+Confirm every token named in `conventions.md` appears. Fix or cut any that don't.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add crates/vox-gui/ds
+git commit -m "feat(vox-gui): purpose-built presentational design system for claude.ai/design handoff"
 ```
 
 ---
@@ -641,7 +738,23 @@ git commit -m "docs(vox-gui): Roman restyle preview screenshots (basalt + traver
 
 ## Self-review notes
 
-- **Spec coverage:** §2 type/accent → Tasks 1,2,5,9–11; §3 tokens → Tasks 2–6; §4 hero surfaces → Tasks 9–11; §5 icon → Tasks 7–8; §6 handoff → Task 12; §7 preview-first → Task 13; §1 AA clarity → Task 6 (guard). All covered.
-- **Light-theme breakage risk** (hardcoded `zinc`/`white-α`) is addressed by the tokenize steps (Tasks 9–11 Step 1) + the `--color-overlay-*` token.
-- **Naming consistency:** semantic slots (`color.accent.secondary`, `color.overlay.subtle/hover`, `color.status.*`) are defined in Task 3/4 and consumed verbatim in Tasks 5,9–12.
-- **Non-hero surfaces** intentionally inherit global tokens only (spec §8) — follow-up pass if light reveals contrast issues there.
+- **Spec coverage:** §2 type/accent → Tasks 1,2,5,5.5,9–11; §3 tokens → Tasks 2–6; §4 hero surfaces → Tasks 9–11; §5 icon → Tasks 7–8; §6 handoff → Task 12; §7 preview-first → Task 13; §1 AA clarity → Task 6 (guard). All covered.
+- **Light-theme breakage (audited):** hardcoded colors are ~92 hits across 38 files. Hero tokenization (Tasks 9–11) + Tailwind base tokenization (Task 5.5) + the global sweep (Task 11.5) are ALL required before `travertine` ships app-wide; Task 11.5 Step 3 gates the toggle until then. Dark (basalt) ships globally regardless.
+- **Advisory gates (not hard blocks):** `gui-visual-review` will flag changed surfaces (advisory, exit 0). The `crates/vox-codegen/src/web_ir/validate_*.rs` VUV validators target **codegen'd web_ir, not this React app** — they are NOT a gate here; do not assume they cover this work.
+- **Naming consistency:** semantic slots (`color.accent.secondary`, `color.overlay.subtle/hover`, `color.status.*`) are defined in Tasks 3/4 and consumed verbatim in Tasks 5,5.5,9–12.
+- **AGENTS.md compliance:** all automation here is one-off shell (grep/cp/pnpm dlx) — no committed `.ps1`/`.sh`/`.py` scripts, no `cargo fmt --all`. The icon rasterizer is a throwaway `pnpm dlx` invocation, not a committed script.
+
+---
+
+## How to run the Claude Design handoff (operator instructions)
+
+Run these AFTER Task 12 has produced `crates/vox-gui/ds/`. This is the opt-in, separate step the spec describes — it uploads the presentational design system to claude.ai/design so its design agent builds on-brand.
+
+1. **Authenticate.** If on a Claude subscription session: run `/login`. If on API-key / enterprise auth (no claude.ai login): run `/design-login` to grant the dedicated design authorization.
+2. **Invoke the sync from the bundle dir:** `/design-sync` — when it asks for the source, point it at `crates/vox-gui/ds/` (it expects the `styles.css` import-closure + `components/<group>/<Name>/` layout that Task 12 created).
+3. **Pick the target project.** First run has no pinned config → it creates a NEW design-system project (confirm the name when prompted). It writes `.design-sync/config.json` with the `projectId` so re-syncs are incremental.
+4. **Approve the one-time upload.** You'll get a single approval covering this run's writes + cleanup. Approve it; verified components then appear in the project as it progresses. The project URL is printed (`https://claude.ai/design/p/<projectId>`).
+5. **Design on-brand.** Open the project at claude.ai/design and prompt the design agent — it now renders with the basalt/travertine tokens, Cinzel/Inter/Garamond type, gold/verdigris accents, and the groma mark.
+6. **Re-sync later.** After editing tokens/components, re-run `/design-sync`; the anchor (`_ds_sync.json`) skips unchanged components and uploads only diffs.
+
+**Caveats to know going in:** the live app's hero components are NOT synced (they're Tauri/transport-coupled and won't render in the design runtime) — only the `ds/` presentational subset is. Anything the design agent produces comes back as generic HTML/CSS you then port into the React app via the same tokens; it is not auto-applied to the Tauri build.
