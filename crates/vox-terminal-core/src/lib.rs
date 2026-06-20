@@ -5,3 +5,4 @@ pub const CRATE_NAME: &str = "vox-terminal-core";
 
 pub mod block;
 pub mod input;
+pub mod osc633;
