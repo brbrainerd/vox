@@ -17,9 +17,10 @@ portable-pty = { workspace = true }
 anyhow       = { workspace = true }
 # vox-compiler is ~47k LoC; included directly for now.
 # TODO: make optional behind vox-lang feature once feature-cfg wiring is done.
-vox-compiler = { path = "../vox-compiler" }
-vox-journal  = { path = "../vox-journal" }
-serde_json   = { workspace = true }
+vox-compiler     = { path = "../vox-compiler" }
+vox-journal      = { path = "../vox-journal" }
+vox-orchestrator = { path = "../vox-orchestrator" }
+serde_json       = { workspace = true }
 
 [dev-dependencies]
-tokio        = { workspace = true, features = ["rt", "macros", "rt-multi-thread"] }
+tokio          = { workspace = true, features = ["rt", "macros", "rt-multi-thread"] }

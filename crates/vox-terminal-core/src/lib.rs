@@ -3,6 +3,7 @@
 //! never reimplements the agent loop.
 pub const CRATE_NAME: &str = "vox-terminal-core";
 
+pub mod agent;
 pub mod block;
 pub mod input;
 pub mod osc633;

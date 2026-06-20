@@ -16893,6 +16893,7 @@ dependencies = [
  "tokio",
  "vox-compiler",
  "vox-journal",
+ "vox-orchestrator",
 ]
 
 [[package]]
