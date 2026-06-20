@@ -37,6 +37,10 @@ export interface ChatPayload {
   dry_run?: boolean | null;
   active_skill?: string | null;
   files?: string[];
+  /** Drive Console clutch detent — how aggressively to spend on models. Track D wires this to the orchestrator. */
+  clutch?: string | null;
+  /** Drive Console risk posture — safety gate level. Track D wires this to the orchestrator. */
+  risk?: string | null;
 }
 
 export interface RoutingPriority {
