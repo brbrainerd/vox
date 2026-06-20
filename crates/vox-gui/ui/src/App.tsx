@@ -1065,6 +1065,7 @@ export default function App() {
         workspaceProps={surfaceProps}
         workspaceRef={dockRef}
         onOpenPanel={(vk) => dockRef.current?.openPanel(vk)}
+        onResetLayout={() => dockRef.current?.resetLayout()}
         onNavigate={(v) => navigateTo(v)}
         sidebarMode={sidebarMode}
         setSidebarMode={setSidebarMode}

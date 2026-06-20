@@ -50,6 +50,7 @@ export interface AppShellProps {
   openrouterSpendUsd?: number | null;
   gamifyEnabled?: boolean;
   onOpenAchievements?: () => void;
+  onResetLayout?: () => void;
 }
 
 export function AppShell({
@@ -85,6 +86,7 @@ export function AppShell({
   openrouterSpendUsd,
   gamifyEnabled,
   onOpenAchievements,
+  onResetLayout,
 }: AppShellProps) {
   const mainPaddingBottom = chatDocked ? 'pb-[180px]' : 'pb-5';
 
@@ -126,7 +128,7 @@ export function AppShell({
             activeModel={activeModel}
             openrouterSpendUsd={openrouterSpendUsd}
           />
-          <BreadcrumbBar viewKey={activeView} onNavigate={onNavigate} gamifyEnabled={gamifyEnabled} />
+          <BreadcrumbBar viewKey={activeView} onNavigate={onNavigate} gamifyEnabled={gamifyEnabled} onResetLayout={onResetLayout} />
           <StatusBar
             kpis={kpis}
             lastOrchEventAt={lastOrchEventAt}

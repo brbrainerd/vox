@@ -23,4 +23,12 @@ describe('BreadcrumbBar', () => {
     btn.click();
     expect(onNavigate).toHaveBeenCalledWith('workspace');
   });
+
+  it('reset layout button invokes onResetLayout', () => {
+    const onResetLayout = vi.fn();
+    render(<BreadcrumbBar viewKey="dashboard" onNavigate={vi.fn()} onResetLayout={onResetLayout} />);
+    const resetBtn = screen.getByRole('button', { name: /reset layout/i });
+    resetBtn.click();
+    expect(onResetLayout).toHaveBeenCalled();
+  });
 });

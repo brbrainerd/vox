@@ -6,9 +6,10 @@ interface Props {
   viewKey: string;
   onNavigate?: (viewKey: string) => void;
   gamifyEnabled?: boolean;
+  onResetLayout?: () => void;
 }
 
-export function BreadcrumbBar({ viewKey, onNavigate, gamifyEnabled }: Props) {
+export function BreadcrumbBar({ viewKey, onNavigate, gamifyEnabled, onResetLayout }: Props) {
   const segments = breadcrumbsForView(viewKey);
   if (segments.length === 0 || viewKey === 'chat') return null;
 
@@ -49,13 +50,24 @@ export function BreadcrumbBar({ viewKey, onNavigate, gamifyEnabled }: Props) {
   };
 
   return (
-    <nav aria-label="Breadcrumb" className="flex items-center gap-2 px-1 pb-2">
-      {segments.map((seg, i) => (
-        <React.Fragment key={seg.key}>
-          {i > 0 && <span className="text-zinc-600 text-[10px]" aria-hidden="true">›</span>}
-          {renderSegment(seg, i)}
-        </React.Fragment>
-      ))}
+    <nav aria-label="Breadcrumb" className="flex items-center justify-between px-1 pb-2">
+      <div className="flex items-center gap-2">
+        {segments.map((seg, i) => (
+          <React.Fragment key={seg.key}>
+            {i > 0 && <span className="text-zinc-600 text-[10px]" aria-hidden="true">›</span>}
+            {renderSegment(seg, i)}
+          </React.Fragment>
+        ))}
+      </div>
+      {onResetLayout && (
+        <button
+          type="button"
+          onClick={onResetLayout}
+          className="text-zinc-500 hover:text-zinc-300 font-display text-[10px] uppercase tracking-[0.14em] transition px-2 py-0.5 rounded hover:bg-white/[0.04]"
+        >
+          Reset layout
+        </button>
+      )}
     </nav>
   );
 }
