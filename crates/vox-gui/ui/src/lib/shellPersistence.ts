@@ -4,6 +4,7 @@
 
 export const SHELL_PREFERENCE_KEYS = {
   sidebarMode: 'vox_sidebar_mode',
+  sidebarWidth: 'vox_sidebar_width',
   hudMode: 'vox_hud_mode',
   parentTabs: 'vox_parent_tabs',
   dockLayout: 'gui.layout.v1',

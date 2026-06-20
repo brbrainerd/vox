@@ -9,6 +9,8 @@ import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { TOP_LEVEL_VIEWS, resolveNavigation } from '../../lib/navigation';
 import { STATUS_BADGE_CLASS, STATUS_RAIL_BADGE_CLASS } from '../../styles/tokens';
 import { useFreshness } from '../../hooks/useFreshness';
+import { SHELL_PREFERENCE_KEYS } from '../../lib/shellPersistence';
+import { SidebarResizer } from './SidebarResizer';
 
 export type SidebarMode = 'rail' | 'default' | 'wide';
 
@@ -121,7 +123,15 @@ export function Sidebar({
       onOpenPanel?.(key);
     }
   };
-  const w = SIDEBAR_WIDTHS[mode];
+  const [width, setWidth] = useLocalStorage<number>(SHELL_PREFERENCE_KEYS.sidebarWidth, SIDEBAR_WIDTHS[mode]);
+  const [dragWidth, setDragWidth] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (mode !== 'rail') {
+      setWidth(SIDEBAR_WIDTHS[mode]);
+    }
+  }, [mode, setWidth]);
+
   const collapsed = mode === "rail";
   const { parent: activeParent } = resolveNavigation(view);
   const [identity, setIdentity] = useState('operator@vox');
@@ -209,8 +219,10 @@ export function Sidebar({
   const settingsEntry = SURFACE_REGISTRY.find(e => e.viewKey === 'settings');
   const coverageEntry = SURFACE_REGISTRY.find(e => e.viewKey === 'coverage');
 
+  const w = collapsed ? SIDEBAR_WIDTHS.rail : (dragWidth ?? width);
+
   return (
-    <aside className="shrink-0 flex flex-col transition-[width] duration-200 ease-out h-screen overflow-hidden sticky top-0" style={{ width: w }}>
+    <aside className={`shrink-0 flex flex-col relative h-screen overflow-hidden sticky top-0 ${dragWidth === null ? "transition-[width] duration-200 ease-out" : ""}`} style={{ width: w }}>
       <Glass className="flex h-full flex-col p-3 rounded-none border-y-0 border-l-0">
         <div className={`flex items-center ${collapsed ? "justify-center" : "justify-between"} pb-3 shrink-0`}>
           {collapsed && (
@@ -445,6 +457,18 @@ export function Sidebar({
           </div>
         </div>
       </Glass>
+      {!collapsed && (
+        <SidebarResizer
+          onResize={setDragWidth}
+          onCommit={(px) => {
+            setWidth(px);
+            setDragWidth(null);
+          }}
+          onReset={() => {
+            setWidth(SIDEBAR_WIDTHS.default);
+          }}
+        />
+      )}
     </aside>
   );
 }
