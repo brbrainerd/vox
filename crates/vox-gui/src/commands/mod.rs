@@ -37,6 +37,7 @@ pub mod scientia_review;
 pub mod search;
 pub mod secrets;
 pub mod signing;
+pub mod telemetry;
 pub mod user_config;
 pub mod vcs_isolation;
 pub mod history;

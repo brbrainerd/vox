@@ -184,6 +184,8 @@ async fn main() {
             commands::secrets::secrets_backend_status,
             commands::secrets::import_env,
             commands::secrets::migrate_auth_store,
+            commands::telemetry::get_telemetry_consent,
+            commands::telemetry::set_telemetry_consent,
             commands::user_config::get_user_config,
             commands::user_config::set_user_config,
             commands::user_config::reset_user_config,

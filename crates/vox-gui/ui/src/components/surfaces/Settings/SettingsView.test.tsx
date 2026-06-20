@@ -34,6 +34,12 @@ const invokeMock = vi.fn((cmd: string, args?: { key?: string }) => {
     });
   }
   if (cmd === 'set_secret') return Promise.resolve(true);
+  if (cmd === 'get_telemetry_consent') {
+    return Promise.resolve({ state: 'denied', remoteAllowed: false, masterEnabled: true, installId: 'inst-abc123' });
+  }
+  if (cmd === 'set_telemetry_consent') {
+    return Promise.resolve({ state: 'granted', remoteAllowed: true, masterEnabled: true, installId: 'inst-abc123' });
+  }
   if (cmd === 'signing_key_status') {
     return Promise.resolve({
       nodeId: 'node-abc',
@@ -156,6 +162,19 @@ describe('SettingsView', () => {
         { key: 'VOX_DB_TOKEN' },
         { enabled: true },
       );
+    });
+  });
+
+  it('opts in to anonymous contribution via the real telemetry consent command', async () => {
+    const user = userEvent.setup();
+    render(<SettingsView pushToast={vi.fn()} />, { wrapper });
+    await user.click(screen.getByRole('button', { name: /^telemetry$/i }));
+    // Consent snapshot loaded — install id is shown.
+    await screen.findByText(/anonymous install id/i);
+    // Denied → toggle is off; clicking it must call the REAL consent command.
+    fireEvent.click(screen.getByRole('button', { name: /toggle off/i }));
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith('set_telemetry_consent', { grant: true });
     });
   });
 

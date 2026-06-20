@@ -952,6 +952,95 @@ function LlmSettingsSection({ pushToast }: { pushToast: (t: any) => void }) {
   );
 }
 
+/** Anonymous-contribution consent snapshot, mirrors Rust `TelemetryConsentDto`. */
+interface TelemetryConsentDto {
+  state: 'granted' | 'denied' | 'unset';
+  remoteAllowed: boolean;
+  masterEnabled: boolean;
+  installId: string;
+}
+
+/**
+ * Real, opt-in anonymous-contribution control wired to `vox-telemetry`'s
+ * `remote_consent` (the same persisted state the CLI `vox telemetry consent`
+ * drives). No account/login: a contribution is tagged only with a random
+ * install id. Replaces the former cosmetic off/local/cloud picker that never
+ * touched the consent backend.
+ */
+function TelemetrySection({ pushToast }: { pushToast: (t: Toast) => void }) {
+  const [consent, setConsent] = useState<TelemetryConsentDto | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const reload = useCallback(async () => {
+    try {
+      setConsent(await invoke<TelemetryConsentDto>('get_telemetry_consent'));
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Could not load telemetry consent', body: String(err) });
+    }
+  }, [pushToast]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  const setGrant = async (grant: boolean) => {
+    setBusy(true);
+    try {
+      const next = await invoke<TelemetryConsentDto>('set_telemetry_consent', { grant });
+      setConsent(next);
+      pushToast({
+        tone: 'ok',
+        title: grant ? 'Anonymous contribution enabled' : 'Remote contribution disabled',
+        body: grant
+          ? 'Thank you — data is anonymous and you can revoke anytime.'
+          : 'Nothing leaves the device. Local collection is unaffected.',
+      });
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Could not update consent', body: String(err) });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const granted = consent?.state === 'granted';
+
+  return (
+    <>
+      <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Telemetry &amp; anonymous contribution</h2>
+      <p className="mt-0.5 text-[11px] text-zinc-500">
+        Vox has no account or login. Usage data is collected locally on this device; you can optionally
+        contribute it anonymously to improve Vox — identified only by a random install ID, never your
+        identity, prompts, or keys.
+      </p>
+
+      {consent && !consent.masterEnabled && (
+        <div className="mt-3 rounded-md border border-amber-400/20 bg-amber-400/5 px-3 py-2 text-[11px] text-amber-300">
+          Telemetry is disabled by policy (<span className="font-mono">VOX_TELEMETRY=off</span> or an org
+          policy file). Nothing is collected or uploaded.
+        </div>
+      )}
+
+      <div className="mt-4 space-y-3">
+        <Row
+          label="Contribute anonymous usage data"
+          hint="Opt-in. Aggregated spans/metrics with no PII, prompts, or secrets — tagged with a random install ID. Revocable anytime."
+        >
+          <Toggle
+            on={granted}
+            onClick={() => { if (!busy && consent) setGrant(!granted); }}
+          />
+        </Row>
+
+        {consent && (
+          <div className="rounded-md border border-white/5 bg-white/[0.02] p-3 font-mono text-[10px] text-zinc-500">
+            <div>consent: <span className="text-zinc-300">{consent.state}</span></div>
+            <div>remote upload: <span className="text-zinc-300">{consent.remoteAllowed ? 'allowed' : 'off'}</span></div>
+            <div className="truncate">anonymous install id: <span className="text-zinc-400">{consent.installId}</span></div>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 interface SettingsViewProps {
   pushToast: (t: Toast) => void;
   gamifyEnabled?: boolean;
@@ -1414,27 +1503,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           <KeysSecretsSection pushToast={pushToast} gamifyEnabled={gamifyEnabled} />
         )}
 
-        {section === 'telemetry' && (
-          <>
-            <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Telemetry</h2>
-            <p className="mt-0.5 text-[11px] text-zinc-500">Where Vox sends spans, metrics, and traces</p>
-            <div className="mt-4 grid grid-cols-3 gap-2">
-              {([['off', 'Off', 'Nothing leaves the device'], ['local', 'Local', 'OTLP → localhost:4317'], ['cloud', 'Cloud', 'Encrypted → vendor']] as [string, string, string][]).map(([id, l, h]) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => update({ telemetry: id })}
-                  className={`rounded-xl border p-3 text-left transition ${
-                    vals.telemetry === id ? 'border-brass/40 bg-brass/[0.05]' : 'border-white/5 hover:border-white/15 bg-white/[0.02]'
-                  }`}
-                >
-                  <div className="font-display text-[12px] tracking-wider text-zinc-100">{l}</div>
-                  <div className="mt-1 font-mono text-[10px] text-zinc-500">{h}</div>
-                </button>
-              ))}
-            </div>
-          </>
-        )}
+        {section === 'telemetry' && <TelemetrySection pushToast={pushToast} />}
 
         {section === 'keybinds' && (
           <>
