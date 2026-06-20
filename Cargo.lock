@@ -16882,6 +16882,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-terminal-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "portable-pty",
+ "serde",
+ "tokio",
+]
+
+[[package]]
 name = "vox-test-harness"
 version = "0.6.0"
 dependencies = [

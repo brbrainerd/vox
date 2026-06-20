@@ -1,0 +1,15 @@
+[package]
+name = "vox-terminal-core"
+version = "0.1.0"
+edition = "2021"
+description = "UI-agnostic terminal+agent engine shared by vox-term (ratatui TUI) and the Axis GUI Console."
+license = "Apache-2.0"
+
+[dependencies]
+serde       = { workspace = true, features = ["derive"] }
+tokio       = { workspace = true, features = ["sync", "rt", "macros"] }
+portable-pty = { workspace = true }
+anyhow      = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "macros", "rt-multi-thread"] }
