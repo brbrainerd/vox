@@ -37,9 +37,78 @@ pub fn shell_integration_snippet(shell: &str) -> Option<String> {
     match name {
         "pwsh" | "powershell" => Some(PWSH_OSC633.to_string()),
         "bash" => Some(BASH_OSC633.to_string()),
+        "zsh" => Some(ZSH_OSC633.to_string()),
+        "fish" => Some(FISH_OSC633.to_string()),
+        "nu" => Some(NU_OSC633.to_string()),
         _ => None,
     }
 }
+
+/// Prefer `nu` (Nushell) when it is on the PATH; fall back to the default
+/// platform shell. Use this instead of `default_shell()` when structured
+/// output (block model) is desired.
+pub fn detect_ai_shell() -> String {
+    if std::process::Command::new("nu")
+        .arg("--version")
+        .output()
+        .is_ok()
+    {
+        return "nu".to_string();
+    }
+    default_shell()
+}
+
+/// Zsh OSC 633 integration (preexec/precmd hooks).
+const ZSH_OSC633: &str = r#"
+if [[ -z "${__VOX_OSC633:-}" ]]; then
+  __VOX_OSC633=1
+  __vox_preexec() {
+    local cmd="${1//\\/\\x5c}"; cmd="${cmd//;/\\x3b}"; cmd="${cmd//$'\n'/\\x0a}"
+    printf '\e]633;E;%s\a\e]633;C\a' "$cmd"
+  }
+  __vox_precmd() {
+    printf '\e]633;D;%s\a\e]633;A\a' "${__vox_ec:-0}"
+    __vox_ec=0
+  }
+  __vox_trappost() { __vox_ec=$? }
+  autoload -Uz add-zsh-hook 2>/dev/null || true
+  add-zsh-hook preexec __vox_preexec
+  add-zsh-hook precmd __vox_precmd
+  PROMPT="${PROMPT}"$'\e]633;B\a'
+fi
+"#;
+
+/// Fish OSC 633 integration (event handler functions).
+const FISH_OSC633: &str = r#"
+if not set -q __vox_osc633
+  set -g __vox_osc633 1
+  function __vox_fish_preexec --on-event fish_preexec
+    printf '\e]633;E;%s\a\e]633;C\a' $argv[1]
+  end
+  function __vox_fish_postexec --on-event fish_postexec
+    printf '\e]633;D;%s\a\e]633;A\a' $status
+  end
+  functions --query fish_prompt && functions --copy fish_prompt __vox_orig_fish_prompt
+  function fish_prompt
+    __vox_orig_fish_prompt 2>/dev/null
+    printf '\e]633;B\a'
+  end
+end
+"#;
+
+/// Nushell OSC 633 integration (config hook upsert).
+const NU_OSC633: &str = r#"
+$env.config = ($env.config | upsert hooks {|c|
+  let h = ($c.hooks? | default {})
+  $h
+  | upsert pre_prompt (
+      ($h.pre_prompt? | default []) | append {|| print -n ([(char -u 1b) "]633;A" (char bel)] | str join) }
+    )
+  | upsert pre_execution (
+      ($h.pre_execution? | default []) | append {|| print -n ([(char -u 1b) "]633;C" (char bel)] | str join) }
+    )
+})
+"#;
 
 /// PowerShell OSC 633 integration (verbatim from vox-gui).
 const PWSH_OSC633: &str = r#"
@@ -203,4 +272,41 @@ pub fn spawn_pty(
     });
 
     Ok((PtyHandle { writer, child }, rx))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_shell_is_nonempty() {
+        assert!(!default_shell().is_empty());
+    }
+
+    #[test]
+    fn pwsh_and_bash_snippets_are_some() {
+        assert!(shell_integration_snippet("pwsh").is_some());
+        assert!(shell_integration_snippet("bash").is_some());
+    }
+
+    #[test]
+    fn zsh_snippet_is_some() {
+        assert!(shell_integration_snippet("zsh").is_some());
+    }
+
+    #[test]
+    fn fish_snippet_is_some() {
+        assert!(shell_integration_snippet("fish").is_some());
+    }
+
+    #[test]
+    fn nu_snippet_is_some() {
+        assert!(shell_integration_snippet("nu").is_some());
+    }
+
+    #[test]
+    fn detect_ai_shell_is_nonempty() {
+        // nu may or may not be installed; either way we get a nonempty string.
+        assert!(!detect_ai_shell().is_empty());
+    }
 }
