@@ -1,0 +1,75 @@
+# Vox Telemetry — Coolify deployment (existing "Vox Ecosystem" project)
+# Public ingest at telemetry.voxlang.org → vox-server :4318 → ClickHouse (internal only).
+# Image SSOT: GHCR (built by .github/workflows/docker-telemetry.yml).
+# Secrets (CLICKHOUSE_PASSWORD, VOX_TELEMETRY_INGEST_TOKEN) injected via Coolify project secrets.
+# Decoupling boundary: deployed in the existing "Vox Ecosystem" Coolify project
+# (uuid no88080okk0c0gk4ss0cgw0o, env "production" — already hosts the eval app),
+# which is a SEPARATE project from "FableForge Production". Own subdomain, own volume.
+# Docs: docs/src/ci/coolify-services.md
+name: vox-telemetry
+
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.3-alpine
+    container_name: vox-telemetry-clickhouse
+    restart: unless-stopped
+    # NO ports: and NO traefik labels — reachable ONLY by vox-server on the
+    # compose network. Never internet-routed.
+    environment:
+      CLICKHOUSE_DB: vox_telemetry
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse   # Vox-owned data custody
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8123/ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    labels:
+      - com.centurylinklabs.watchtower.enable=false
+
+  vox-server:
+    image: ghcr.io/vox-foundation/vox-telemetry-server:latest
+    pull_policy: always
+    container_name: vox-telemetry-server
+    restart: unless-stopped
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    environment:
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_DB: vox_telemetry
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      LISTEN_ADDR: 0.0.0.0:4318
+      VOX_TELEMETRY_INGEST_TOKEN: ${VOX_TELEMETRY_INGEST_TOKEN}
+      RUST_LOG: info
+    ports:
+      - "4318"   # exposed to Traefik only, not published to host
+    labels:
+      - "traefik.enable=true"
+      # HTTPS router
+      - "traefik.http.routers.vox-telemetry.rule=Host(`telemetry.voxlang.org`)"
+      - "traefik.http.routers.vox-telemetry.entrypoints=https"
+      - "traefik.http.routers.vox-telemetry.tls=true"
+      - "traefik.http.routers.vox-telemetry.tls.certresolver=letsencrypt"
+      # HTTP→HTTPS redirect
+      - "traefik.http.routers.vox-telemetry-http.rule=Host(`telemetry.voxlang.org`)"
+      - "traefik.http.routers.vox-telemetry-http.entrypoints=http"
+      - "traefik.http.routers.vox-telemetry-http.middlewares=redirect-to-https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.services.vox-telemetry.loadbalancer.server.port=4318"
+      - com.centurylinklabs.watchtower.enable=true
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:4318/healthz"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+
+volumes:
+  clickhouse_data:

@@ -1,0 +1,17 @@
+apiVersion: 1
+
+datasources:
+  - name: ClickHouse
+    type: grafana-clickhouse-datasource
+    uid: vox-clickhouse
+    access: proxy
+    orgId: 1
+    isDefault: true
+    jsonData:
+      host: clickhouse
+      port: 8123
+      username: ${CLICKHOUSE_USER}
+      defaultDatabase: vox_telemetry
+      protocol: http
+    secureJsonData:
+      password: ${CLICKHOUSE_PASSWORD}
