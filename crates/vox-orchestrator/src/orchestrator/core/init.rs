@@ -18,19 +18,17 @@ impl crate::orchestrator::Orchestrator {
             move |row, ts_ms| {
                 let db = db_clone.clone();
                 async move {
-                    let conn = db.connection().clone();
-                    if let Err(e) = conn.execute(
-                        "INSERT INTO activity_log (ts_ms, agent_id, session_id, kind, summary, detail_json)
-                         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                        turso::params![
-                            ts_ms as i64,
-                            row.agent_id,
-                            row.session_id,
-                            row.kind,
-                            row.summary,
-                            row.detail_json
-                        ]
-                    ).await {
+                    if let Err(e) = vox_db::activity_store::log_activity(
+                        &db,
+                        ts_ms as i64,
+                        row.agent_id.as_deref(),
+                        row.session_id.as_deref(),
+                        &row.kind,
+                        &row.summary,
+                        &row.detail_json,
+                    )
+                    .await
+                    {
                         tracing::warn!("Failed to persist activity log to database: {:?}", e);
                     }
                 }

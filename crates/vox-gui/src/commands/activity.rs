@@ -3,7 +3,7 @@
 //! TASK-5.0
 
 use serde::{Deserialize, Serialize};
-use vox_db::{DbConnectSurface, connect_workspace_journey_optional};
+use vox_db::{DbConnectSurface, activity_store, connect_workspace_journey_optional};
 
 /// Filter options for querying the activity log.
 ///
@@ -30,35 +30,6 @@ pub struct ActivityRowDto {
     pub detail_json: String,
 }
 
-/// Build the WHERE clause and parameters from filter.
-///
-/// TASK-5.0
-pub fn build_where(filter: &ActivityFilter) -> (String, Vec<turso::Value>) {
-    let mut clauses = Vec::new();
-    let mut params = Vec::<turso::Value>::new();
-
-    if let Some(agent_id) = &filter.agent_id {
-        clauses.push("agent_id = ?");
-        params.push(agent_id.clone().into());
-    }
-    if let Some(kind) = &filter.kind {
-        clauses.push("kind = ?");
-        params.push(kind.clone().into());
-    }
-    if let Some(before_id) = filter.before_id {
-        clauses.push("id < ?");
-        params.push(before_id.into());
-    }
-
-    let where_clause = if clauses.is_empty() {
-        String::new()
-    } else {
-        format!("WHERE {}", clauses.join(" AND "))
-    };
-
-    (where_clause, params)
-}
-
 /// Query the activity log table with the specified filters.
 ///
 /// TASK-5.0
@@ -69,44 +40,29 @@ pub async fn activity_query(filter: ActivityFilter) -> Result<Vec<ActivityRowDto
         .await
         .ok_or_else(|| "No database handle available".to_string())?;
 
-    let (where_clause, mut params) = build_where(&filter);
+    let store_filter = activity_store::ActivityFilter {
+        agent_id: filter.agent_id,
+        kind: filter.kind,
+        before_id: filter.before_id,
+        limit: filter.limit,
+    };
 
-    let sql = format!(
-        "SELECT id, ts_ms, agent_id, session_id, kind, summary, detail_json \
-         FROM activity_log \
-         {} \
-         ORDER BY id DESC LIMIT ?",
-        where_clause
-    );
-    params.push((filter.limit as i64).into());
-
-    let rows = db
-        .query_all(&sql, params)
+    let rows = activity_store::query_activity(&db, &store_filter)
         .await
         .map_err(|e| e.to_string())?;
 
-    let mut out = Vec::new();
-    for row in rows {
-        let id: i64 = row.get(0).map_err(|e| e.to_string())?;
-        let ts_ms: i64 = row.get(1).map_err(|e| e.to_string())?;
-        let agent_id: Option<String> = row.get(2).map_err(|e| e.to_string())?;
-        let session_id: Option<String> = row.get(3).map_err(|e| e.to_string())?;
-        let kind: String = row.get(4).map_err(|e| e.to_string())?;
-        let summary: String = row.get(5).map_err(|e| e.to_string())?;
-        let detail_json: String = row.get(6).map_err(|e| e.to_string())?;
-
-        out.push(ActivityRowDto {
-            id,
-            ts_ms,
-            agent_id,
-            session_id,
-            kind,
-            summary,
-            detail_json,
-        });
-    }
-
-    Ok(out)
+    Ok(rows
+        .into_iter()
+        .map(|r| ActivityRowDto {
+            id: r.id,
+            ts_ms: r.ts_ms,
+            agent_id: r.agent_id,
+            session_id: r.session_id,
+            kind: r.kind,
+            summary: r.summary,
+            detail_json: r.detail_json,
+        })
+        .collect())
 }
 
 #[cfg(test)]
@@ -114,17 +70,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn filter_by_agent_and_kind() {
+    fn filter_mapping_preserves_fields() {
         let filter = ActivityFilter {
             agent_id: Some("A1".to_string()),
             kind: Some("TaskCompleted".to_string()),
             limit: 50,
             before_id: Some(100),
         };
-        let (sql, params) = build_where(&filter);
-        assert!(sql.contains("agent_id = ?"));
-        assert!(sql.contains("kind = ?"));
-        assert!(sql.contains("id < ?"));
-        assert_eq!(params.len(), 3);
+        let store_filter = activity_store::ActivityFilter {
+            agent_id: filter.agent_id.clone(),
+            kind: filter.kind.clone(),
+            before_id: filter.before_id,
+            limit: filter.limit,
+        };
+        assert_eq!(store_filter.agent_id.as_deref(), Some("A1"));
+        assert_eq!(store_filter.kind.as_deref(), Some("TaskCompleted"));
+        assert_eq!(store_filter.before_id, Some(100));
+        assert_eq!(store_filter.limit, 50);
     }
 }

@@ -52,6 +52,7 @@
 //! }
 //! ```
 
+pub mod activity_store;
 /// Compare live SQLite schema to `@table` / collection declarations; non-destructive migrations.
 pub mod auto_migrate;
 /// Benchmark observations stored in `research_metrics` (`bench:<repository_id>` sessions).
