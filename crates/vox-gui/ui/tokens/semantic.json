@@ -1,8 +1,10 @@
 {
   "color": {
-    "bg":     { "base": { "value": "{color.neutral.950}" }, "surface": { "value": "{color.neutral.900}" }, "elevated": { "value": "{color.neutral.800}" } },
-    "text":   { "primary": { "value": "{color.neutral.50}" }, "secondary": { "value": "{color.neutral.300}" }, "muted": { "value": "{color.neutral.400}" } },
-    "border": { "subtle": { "value": "{color.neutral.700}" }, "strong": { "value": "{color.neutral.400}" } },
-    "accent": { "default": { "value": "{color.brass.default}" } }
+    "bg":     { "base": { "value": "{color.basalt.900}" }, "surface": { "value": "{color.basalt.800}" }, "elevated": { "value": "{color.basalt.700}" } },
+    "text":   { "primary": { "value": "{color.neutral.50}" }, "secondary": { "value": "#c4ccd2" }, "muted": { "value": "#8b949a" } },
+    "border": { "subtle": { "value": "{color.basalt.700}" }, "strong": { "value": "#3a444b" } },
+    "accent": { "default": { "value": "{color.gold.500}" }, "secondary": { "value": "{color.verdigris.400}" } },
+    "status": { "pass": { "value": "{color.verdigris.300}" }, "fail": { "value": "#f0a59a" }, "warn": { "value": "{color.terracotta.400}" }, "info": { "value": "#bfdbfe" } },
+    "overlay": { "subtle": { "value": "rgba(255,255,255,0.04)" }, "hover": { "value": "rgba(255,255,255,0.07)" } }
   }
 }

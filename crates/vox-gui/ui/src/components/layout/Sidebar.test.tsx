@@ -134,8 +134,8 @@ describe('Sidebar orchestrator freshness dot', () => {
       />,
     );
     const dot = screen.getByTestId('sidebar-orch-freshness-dot');
-    expect(dot.className).toMatch(/bg-emerald-400/);
-    expect(dot.className).not.toMatch(/bg-zinc-500/);
+    expect(dot.className).toMatch(/bg-accent-secondary/);
+    expect(dot.className).not.toMatch(/bg-text-muted/);
   });
 
   it('uses stale styling when orchestrator events are stale', () => {
@@ -149,7 +149,7 @@ describe('Sidebar orchestrator freshness dot', () => {
       />,
     );
     const dot = screen.getByTestId('sidebar-orch-freshness-dot');
-    expect(dot.className).toMatch(/bg-zinc-500/);
-    expect(dot.className).not.toMatch(/bg-emerald-400/);
+    expect(dot.className).toMatch(/bg-text-muted/);
+    expect(dot.className).not.toMatch(/bg-accent-secondary/);
   });
 });

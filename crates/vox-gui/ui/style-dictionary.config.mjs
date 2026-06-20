@@ -51,6 +51,16 @@ const contrast = new StyleDictionary({
   },
 });
 
+const travertine = new StyleDictionary({
+  source: ['tokens/primitive.json', 'tokens/semantic.travertine.json'],
+  platforms: {
+    css: { transformGroup: 'css', buildPath: 'src/styles/', files: [
+      { destination: 'tokens.travertine.generated.css', format: 'css/vars-selector', options: { selector: '[data-theme="travertine"]' } },
+    ] },
+  },
+});
+
 await dark.buildAllPlatforms();
 await contrast.buildAllPlatforms();
-console.log('tokens built: tokens.generated.css, tokens.contrast.generated.css, tokens.generated.ts');
+await travertine.buildAllPlatforms();
+console.log('tokens built: tokens.generated.css, tokens.contrast.generated.css, tokens.travertine.generated.css, tokens.generated.ts');

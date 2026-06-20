@@ -3,14 +3,14 @@ export default {
   theme: {
     extend: {
       colors: {
-        void: '#09090b',
-        steel: '#71717a',
+        void: 'var(--color-bg-base)',
+        steel: 'var(--color-text-muted)',
         // Accent palette is theme-switched via the --brass CSS var (see index.css).
         // <alpha-value> keeps existing opacity utilities (brass/40, …) working.
         brass: 'rgb(var(--brass) / <alpha-value>)',
         "amber-glow": 'rgb(var(--brass) / 0.5)',
-        border: 'rgba(255,255,255,0.06)',
-        background: '#09090b',
+        border: 'var(--color-border-subtle)',
+        background: 'var(--color-bg-base)',
         primary: 'rgb(var(--brass) / <alpha-value>)',
         // Semantic tokens (Style Dictionary → tokens.generated.css):
         'bg-base': 'var(--color-bg-base)',
@@ -22,9 +22,14 @@ export default {
         'border-subtle': 'var(--color-border-subtle)',
         'border-strong': 'var(--color-border-strong)',
         'accent': 'var(--color-accent-default)',
+        'accent-secondary': 'var(--color-accent-secondary)',
+        'overlay-subtle': 'var(--color-overlay-subtle)',
+        'overlay-hover': 'var(--color-overlay-hover)',
       },
       fontFamily: {
-        display: ['system-ui', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        display: ['Cinzel', 'Georgia', 'serif'],
+        sans: ['Inter', 'system-ui', 'Segoe UI', 'sans-serif'],
+        serif: ['EB Garamond', 'Georgia', 'serif'],
         mono: ['ui-monospace', 'Cascadia Code', 'Consolas', 'JetBrains Mono', 'monospace'],
       },
       animation: {
