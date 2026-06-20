@@ -60,9 +60,10 @@ jobs:
           set -euo pipefail
           APP_UUID="${{ secrets.COOLIFY_TELEMETRY_APP_UUID }}"
           if [ -z "$APP_UUID" ]; then
-            echo "::error::COOLIFY_TELEMETRY_APP_UUID is not set. Create the Coolify"
-            echo "'Vox Foundation' Docker-Compose app for telemetry.voxlang.org, then add"
-            echo "its UUID as a repo secret (see docs/src/ci/deploy-contract.md, Phase 6)."
+            echo "::error::COOLIFY_TELEMETRY_APP_UUID is not set. Create the telemetry"
+            echo "Docker-Compose app in the existing 'Vox Ecosystem' Coolify project"
+            echo "(uuid no88080okk0c0gk4ss0cgw0o), then add its UUID as a repo secret"
+            echo "(see docs/src/ci/deploy-contract.md, Phase 6)."
             exit 1
           fi
           # Reuse Vox's hardened Coolify CLI; --app-uuid targets the telemetry app
