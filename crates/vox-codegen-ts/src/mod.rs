@@ -75,7 +75,7 @@ pub mod web_entry;
 /// Zod schema emission.
 pub mod zod_emit;
 
-pub use emitter::{CodegenOptions, generate, generate_with_options};
+pub use emitter::{CodegenOptions, CodegenOutput, generate, generate_with_options};
 pub use schema::{generate_voxdb_schema, generate_voxdb_schema_from_hir};
 
 /// The set of component names that are SCREEN ROOTS: the top-level view of any
