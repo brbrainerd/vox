@@ -5,6 +5,7 @@
 
 // Pure core — ALWAYS compiled (serde only, no network). vox-cli's SpoolSink calls these so the
 // spool is redacted/clean even in builds without the `remote` feature.
+pub mod config; // canonical production endpoint + write-only ingest token (pure, no reqwest)
 pub mod otlp_json;
 pub mod project; // TelemetryEvent (internally-tagged, non_exhaustive) -> (category, flat map)
 pub mod redact; // taxonomy-allowlist guard over the projected map // RedactedRecord -> OTLP/HTTP logs JSON envelope
