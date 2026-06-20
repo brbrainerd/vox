@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 use tauri::Emitter;
-use vox_terminal_core::pty::{spawn_pty, PtyHandle};
+use vox_terminal_core::pty::{PtyHandle, spawn_pty};
 
 // Re-export pure helpers so existing call sites in this crate still compile.
 pub use vox_terminal_core::pty::{default_shell, shell_integration_snippet};
@@ -61,7 +61,11 @@ pub fn pty_spawn(
     if let Some(mut old) = manager.sessions.lock().unwrap().remove(&tab_id) {
         old.kill();
     }
-    manager.sessions.lock().unwrap().insert(tab_id.clone(), handle);
+    manager
+        .sessions
+        .lock()
+        .unwrap()
+        .insert(tab_id.clone(), handle);
 
     // Forward byte stream from core's mpsc to Tauri events.
     let app_handle = app.clone();
