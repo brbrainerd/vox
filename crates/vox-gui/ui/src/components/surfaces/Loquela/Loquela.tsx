@@ -529,7 +529,7 @@ export function Loquela({
                 )}
                 {showFileSuggestions && (
                   <>
-                    <div className={`px-2 pt-1 pb-1.5 font-display text-[9px] uppercase tracking-[0.22em] text-text-muted ${filteredAt.length > 0 ? "mt-1 border-t border-border-subtle" : ""}`}>
+                    <div className={`mb-1 border-b border-border-subtle px-2 pt-1 pb-1 font-display text-[9px] uppercase tracking-[0.22em] text-text-muted ${filteredAt.length > 0 ? "mt-1" : ""}`}>
                       Files
                     </div>
                     {fileSuggestionsLoading && fileSuggestions.length === 0 && (

@@ -265,8 +265,8 @@ export function Sidebar({
 
         <div className="flex flex-col gap-2 pt-3 shrink-0">
           {settingsEntry && (
-            <div className="flex flex-col gap-0.5 border-t border-border-subtle pt-2">
-              {!collapsed && <div className="px-2 pb-0.5 font-display text-[9px] uppercase tracking-[0.32em] text-text-muted">System</div>}
+            <div className={`flex flex-col gap-0.5 pt-2 ${collapsed ? 'border-t border-border-subtle' : ''}`}>
+              {!collapsed && <div className="mx-2 mb-1 border-b border-border-subtle px-0 pb-1 font-display text-[9px] uppercase tracking-[0.32em] text-text-muted">System</div>}
               <NavItem
                 collapsed={collapsed}
                 active={activeParent === 'settings'}

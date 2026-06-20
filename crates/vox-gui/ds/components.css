@@ -30,6 +30,22 @@
 .ds-tick-tr { top: 9px; right: 9px;
   border-top: 1px solid var(--color-accent-secondary); border-right: 1px solid var(--color-accent-secondary); }
 
+/* --- section heading ---------------------------------------------------- *
+ * A divider that introduces a section UNDERLINES its heading (border-bottom
+ * beneath the label) — it never caps the section with a top border above the
+ * first label, which crowds the text and hurts readability. Items follow below.
+ */
+.ds-section-head {
+  font-family: var(--font-family-display);
+  font-size: 9px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  padding-bottom: 4px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
 /* --- surface (Glass) ---------------------------------------------------- */
 .ds-card {
   position: relative;

@@ -152,8 +152,11 @@ export function ChatExecutionRail({
           <section
             role="region"
             aria-label="Intent map"
-            className="flex flex-col gap-1 border-t border-border-subtle pt-3"
+            className="flex flex-col gap-1 pt-3"
           >
+            <div className="mb-1.5 border-b border-border-subtle pb-1 font-display text-[9px] uppercase tracking-[0.28em] text-text-muted">
+              Intents
+            </div>
             {intents.slice(0, 3).map(intent => (
               <button
                 key={intent}
@@ -168,7 +171,10 @@ export function ChatExecutionRail({
           </section>
         )}
 
-        <section aria-label="Resource strip" className="flex flex-col gap-1 border-t border-border-subtle pt-3">
+        <section aria-label="Resource strip" className="flex flex-col gap-1 pt-3">
+          <div className="mb-1.5 border-b border-border-subtle pb-1 font-display text-[9px] uppercase tracking-[0.28em] text-text-muted">
+            Resources
+          </div>
           <Kpi
             data-testid="execution-rail-agents"
             label="Agents"

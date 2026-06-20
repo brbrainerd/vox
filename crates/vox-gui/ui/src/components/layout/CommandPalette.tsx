@@ -443,7 +443,7 @@ export function CommandPalette({ open, onClose, onAction, agents, skills, gamify
           {/* Backend search results */}
           {hasBackendResults && (
             <>
-              <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-text-muted mt-2 border-t border-border-subtle flex items-center gap-2">
+              <div className="px-3 pt-2 pb-1.5 mt-2 mb-1 text-[10px] uppercase tracking-widest text-text-muted border-b border-border-subtle flex items-center gap-2">
                 <Icon.search className="size-3" />
                 Search results
               </div>

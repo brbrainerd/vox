@@ -39,6 +39,13 @@ long-form text.
 ## Ornament (use sparingly)
 
 - `.ds-rule` — a hairline that fades from gold to transparent; section dividers.
+- **Section dividers underline their heading.** A rule that introduces a
+  section sits *beneath* its label (`border-bottom`, the `.ds-section-head`
+  pattern) with the items below — never as a `border-top` capping the section
+  above its first label. A line directly above a label (e.g. "Agents", "Mesh")
+  crowds the text and reads as a ceiling pressing down; an underline reads as a
+  heading. Table-row separators (`border-top` on `<tr>`) are exempt — those are
+  row rules, not section headings.
 - `.ds-tick-tl` / `.ds-tick-tr` — engraved L-corner ticks (gold top-left,
   verdigris top-right). Apply to a positioned container (see `Card ticks`).
 - No glows, no neon. The active-nav indicator is a solid gold rail, not a halo.
