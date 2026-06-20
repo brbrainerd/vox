@@ -171,6 +171,17 @@ checks:
     pr_scope: affected
     command: ["cargo", "run", "-q", "-p", "vox-cli", "--", "ci", "toestub-scoped", "--mode", "enforce-warn"]
 
+  - id: spoke-check
+    description: "vox ci spoke-check (VoxMens domain-profile SSOT vs GPU-specs drift validation)"
+    category: arch
+    blocking: true
+    runs_on:
+      - pre-push
+      - ci
+    rust_only: true
+    pr_scope: path
+    command: ["cargo", "run", "-q", "-p", "vox-cli", "--", "ci", "spoke-check"]
+
   - id: arch-check
     description: "cargo run -p vox-arch-check (architecture layer + LoC budget validation)"
     category: arch

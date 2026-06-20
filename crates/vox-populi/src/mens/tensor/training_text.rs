@@ -102,10 +102,10 @@ pub fn chatml_supervised_text(
 /// Tokenize ChatML SFT with HF tokenizer: prompt tokens masked with `-100`, assistant + EOS supervised.
 ///
 /// Mirrors `VoxTokenizer::tokenize_for_training` layout (pad id 0, eos appended, length `max_len`).
-#[cfg(feature = "mens-gpu")]
+#[cfg(feature = "mens-candle-qlora")]
 const HF_MASK_IGNORE: i64 = -100;
 
-#[cfg(feature = "mens-gpu")]
+#[cfg(feature = "mens-candle-qlora")]
 pub fn hf_tokenize_chatml_supervised(
     tokenizer: &tokenizers::Tokenizer,
     system: &str,
