@@ -7,3 +7,4 @@ pub mod block;
 pub mod input;
 pub mod osc633;
 pub mod pty;
+pub mod vox_interp;

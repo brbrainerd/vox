@@ -15437,6 +15437,7 @@ dependencies = [
  "vox-search",
  "vox-secrets",
  "vox-speech",
+ "vox-terminal-core",
 ]
 
 [[package]]
@@ -16889,6 +16890,7 @@ dependencies = [
  "portable-pty",
  "serde",
  "tokio",
+ "vox-compiler",
 ]
 
 [[package]]
