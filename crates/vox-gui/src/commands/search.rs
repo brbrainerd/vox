@@ -148,6 +148,7 @@ fn scope_to_corpus(s: &str) -> Option<SearchCorpus> {
         "repo" => Some(SearchCorpus::RepoInventory),
         "web" => Some(SearchCorpus::WebResearch),
         "symbol" => Some(SearchCorpus::SymbolProximity),
+        "cliphistory" => Some(SearchCorpus::ClipHistory),
         _ => None,
     }
 }

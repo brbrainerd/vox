@@ -49,6 +49,8 @@ pub struct SearchExecution {
     pub web_lines: Vec<String>,
     /// Candidates from semantic proximity scanning (split-brain detection).
     pub symbol_proximity_lines: Vec<String>,
+    /// Project-scoped history entries (clip / command / chat) from the `history_entries` table.
+    pub clip_history_lines: Vec<String>,
     /// Typed, structured hits captured at-source from the per-corpus typed results,
     /// sorted by descending score. Parallel to the `_lines` fields (which are kept
     /// for existing consumers); lets GUIs render real typed results without re-parsing.
@@ -645,6 +647,37 @@ pub async fn execute_search_plan(
         Vec::new()
     };
 
+    let clip_history_lines = if plan.corpora.contains(&SearchCorpus::ClipHistory) {
+        if let (Some(db), Some(repo_id)) = (db_opt.as_ref(), ctx.repo_id.as_deref()) {
+            match vox_db::history_store::search_entries(db, repo_id, query, limit as u32).await {
+                Ok(entries) if !entries.is_empty() => entries
+                    .into_iter()
+                    .map(|e| {
+                        unified_hits.push(UnifiedHit {
+                            source: "clip_history".to_string(),
+                            kind: e.kind.clone(),
+                            path: None,
+                            title: None,
+                            snippet: e.redacted_text.replace('\n', " "),
+                            score: 0.5,
+                            provenance: vec!["clip_history:fts".to_string()],
+                        });
+                        format!(
+                            "[history:{}] {}",
+                            e.kind,
+                            e.redacted_text.replace('\n', " ")
+                        )
+                    })
+                    .collect(),
+                _ => Vec::new(),
+            }
+        } else {
+            Vec::new()
+        }
+    } else {
+        Vec::new()
+    };
+
     let rrf_fused_lines: Vec<String> = if policy.prefer_rrf_merge {
         let lists = vec![
             memory_lines.clone(),
@@ -677,7 +710,8 @@ pub async fn execute_search_plan(
         + usize::from(!tantivy_doc_lines.is_empty())
         + usize::from(!qdrant_lines.is_empty())
         + usize::from(!web_lines.is_empty())
-        + usize::from(!symbol_proximity_lines.is_empty());
+        + usize::from(!symbol_proximity_lines.is_empty())
+        + usize::from(!clip_history_lines.is_empty());
 
     let evidence_total = memory_lines.len()
         + knowledge_lines.len()
@@ -686,7 +720,8 @@ pub async fn execute_search_plan(
         + tantivy_doc_lines.len()
         + qdrant_lines.len()
         + web_lines.len()
-        + symbol_proximity_lines.len();
+        + symbol_proximity_lines.len()
+        + clip_history_lines.len();
 
     let citation_coverage = if evidence_total == 0 {
         0.0
@@ -727,6 +762,7 @@ pub async fn execute_search_plan(
         rrf_fused_lines,
         web_lines,
         symbol_proximity_lines,
+        clip_history_lines,
         unified_hits,
         durable_artifacts: Vec::new(),
         warnings,

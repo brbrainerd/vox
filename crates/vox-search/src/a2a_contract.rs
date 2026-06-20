@@ -110,6 +110,7 @@ mod tests {
             rrf_fused_lines: vec!["fused".into()],
             web_lines: vec![],
             symbol_proximity_lines: vec![],
+            clip_history_lines: vec![],
             unified_hits: vec![],
             durable_artifacts: vec![],
             warnings: Vec::new(),

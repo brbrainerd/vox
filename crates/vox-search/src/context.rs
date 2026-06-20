@@ -18,6 +18,8 @@ pub struct SearchRuntimeContext {
     pub memory_md_path: PathBuf,
     /// Optional MCP/orchestrator trace id for logging and outbound HTTP (e.g. Qdrant).
     pub trace_id: Option<String>,
+    /// Repository identifier for repo-scoped corpora (e.g. `ClipHistory`).
+    pub repo_id: Option<String>,
 }
 
 impl std::fmt::Debug for SearchRuntimeContext {
@@ -46,7 +48,15 @@ impl SearchRuntimeContext {
             memory_log_dir,
             memory_md_path,
             trace_id: None,
+            repo_id: None,
         }
+    }
+
+    /// Attach a repository identifier for repo-scoped corpora (e.g. `ClipHistory`).
+    #[must_use]
+    pub fn with_repo_id(mut self, repo_id: Option<String>) -> Self {
+        self.repo_id = repo_id;
+        self
     }
 
     /// Attach a trace id for [`crate::execution::execute_search_plan`] telemetry and sidecar headers.

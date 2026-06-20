@@ -99,6 +99,8 @@ pub enum SearchCorpus {
     RepoInventory,
     WebResearch,
     SymbolProximity,
+    /// Project-scoped clip / command / chat history (via `history_entries` table).
+    ClipHistory,
 }
 
 /// Concrete retrieval backends or ranking legs used during execution.
@@ -651,5 +653,19 @@ mod semcov_wave1b_tests {
         let plan = heuristic_search_plan("struct SearchPolicy", false, None);
         assert_eq!(plan.intent, SearchIntent::CodeNavigation);
         assert!(plan.corpora.contains(&SearchCorpus::SymbolProximity));
+    }
+
+    #[test]
+    fn cliphistory_variant_exists_and_is_distinct() {
+        // Verify the variant exists, serializes, and is not confused with other corpora.
+        let corpus = SearchCorpus::ClipHistory;
+        let json = serde_json::to_string(&corpus).expect("serialize");
+        assert_eq!(json, r#""clip_history""#);
+        let round_trip: SearchCorpus = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(round_trip, SearchCorpus::ClipHistory);
+        // Must be different from every other variant.
+        assert_ne!(corpus, SearchCorpus::Memory);
+        assert_ne!(corpus, SearchCorpus::KnowledgeGraph);
+        assert_ne!(corpus, SearchCorpus::WebResearch);
     }
 }
