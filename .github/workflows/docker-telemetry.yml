@@ -1,0 +1,77 @@
+name: Build & Push vox-telemetry-server Docker Image
+
+# Builds the telemetry ingest server image and pushes it to GHCR. vox is a PUBLIC
+# repo → unlimited free GitHub-hosted minutes, so the deploy critical path runs on
+# ubuntu-latest and never waits on the local self-hosted fleet. See
+# docs/src/ci/compute-placement.md.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "server/telemetry/**"
+      - "docker/vox-telemetry.compose.yml"
+      - ".github/workflows/docker-telemetry.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  REGISTRY: ghcr.io
+  IMAGE_NAME: vox-foundation/vox-telemetry-server
+
+jobs:
+  build-and-push:
+    name: Build vox-telemetry-server image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=main-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v7
+        with:
+          # The telemetry crate is a standalone (excluded) workspace; build it in
+          # isolation so the image stays small and never pulls the main workspace.
+          context: server/telemetry
+          file: server/telemetry/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          cache-to: type=inline
+
+      # Report-only image vulnerability scan (matches docker-eval.yml). exit-code 0
+      # surfaces findings in the log without blocking; tighten to 1 once clean.
+      - name: Scan image for vulnerabilities (Trivy, report-only)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          exit-code: '0'
