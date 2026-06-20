@@ -145,6 +145,14 @@ surfaces:
   nav_group: compute
   parent_surface: compute
   notes: null
+- view_key: operator-console
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Operator Console
+  nav_icon: dashboard
+  nav_group: operate
+  parent_surface: agents
+  notes: Limes operator console implemented from the Claude Design template (templates/operator-console).
 - view_key: policies
   cli_group: null
   representation_tier: live_backend

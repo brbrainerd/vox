@@ -75,6 +75,7 @@ import type { LudusProfile } from './lib/ludus';
 type View =
   | 'dashboard'
   | 'flow'
+  | 'operator-console'
   | 'catalog'
   | 'matrix'
   | 'memory'
@@ -110,7 +111,7 @@ type View =
   | 'compute';
 
 const LEGACY_VIEWS: string[] = [
-  'dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository',
+  'dashboard', 'flow', 'operator-console', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository',
   'mesh', 'gamify', 'harness', 'browser', 'console', 'scientia', 'discovery-review', 'discovery-inbox', 'archive-panel', 'claims', 'mens',
   'populi', 'research', 'oratio', 'approvals', 'policies', 'skills', 'settings', 'coverage',
   'publications', 'search', 'chat', 'agents', 'workspace', 'commands', 'knowledge', 'compute',

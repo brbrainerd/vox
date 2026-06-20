@@ -1,5 +1,6 @@
 import React from 'react';
 import { Dashboard } from '../surfaces/Dashboard/Dashboard';
+import { OperatorConsole } from '../surfaces/OperatorConsole/OperatorConsole';
 import { AgentFlow } from '../surfaces/Flow/AgentFlow';
 import { Catalog } from '../surfaces/Catalog/Catalog';
 import { Matrix } from '../surfaces/Matrix/Matrix';
@@ -90,6 +91,8 @@ function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
           onNavigate={props.onNavigate}
         />
       );
+    case 'operator-console':
+      return <OperatorConsole />;
     case 'flow':
       return (
         <AgentFlow
