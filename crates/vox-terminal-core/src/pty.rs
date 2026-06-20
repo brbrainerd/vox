@@ -11,7 +11,7 @@
 use std::io::Read;
 
 use anyhow::Result;
-use portable_pty::{native_pty_system, Child, CommandBuilder, PtySize};
+use portable_pty::{Child, CommandBuilder, PtySize, native_pty_system};
 use tokio::sync::mpsc;
 
 // ── Pure platform helpers (moved verbatim from vox-gui/src/commands/pty.rs) ──

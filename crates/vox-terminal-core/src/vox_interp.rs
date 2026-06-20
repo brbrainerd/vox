@@ -4,7 +4,7 @@
 //! a text rendering of the result. Enabled by the `vox-lang` cargo feature;
 //! available unconditionally in dev/test (vox-compiler is a dev-dep).
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 
 /// Evaluate a single Vox source string (function definition + `main` entry point).
 /// Returns the `Debug` rendering of the return value, or an error.
@@ -13,7 +13,7 @@ use anyhow::{anyhow, Result};
 /// `eval_line("fn main() -> Int { 40 + 2 }")` → `"42"`.
 pub fn eval_line(src: &str) -> Result<String> {
     use vox_compiler::eval::Interpreter;
-    use vox_compiler::pipeline::{run_frontend_str_with_options, PipelineOptions};
+    use vox_compiler::pipeline::{PipelineOptions, run_frontend_str_with_options};
 
     let options = PipelineOptions {
         script_mode: true,

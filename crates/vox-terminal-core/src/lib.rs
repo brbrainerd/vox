@@ -27,11 +27,11 @@ pub mod transcript;
 pub mod vox_interp;
 
 // Flat re-exports for ergonomic use by front-ends.
-pub use agent::{translate_event, AgentAdapterConfig};
+pub use agent::{AgentAdapterConfig, translate_event};
 pub use block::{Block, BlockId, BlockKind, BlockStatus, OutputChunk, Stream};
-pub use input::{classify, InputIntent};
+pub use input::{InputIntent, classify};
 pub use osc633::{Osc633Event, Osc633Parser};
-pub use pty::{default_shell, spawn_pty, PtyHandle, ShellBackend, ShellKind};
+pub use pty::{PtyHandle, ShellBackend, ShellKind, default_shell, spawn_pty};
 pub use session::{Session, SessionEvent};
 pub use transcript::{JournalSink, NullSink, TranscriptEvent, TranscriptKind, TranscriptSink};
 pub use vox_interp::eval_line;
