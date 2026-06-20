@@ -24,11 +24,7 @@ vi.mock('./StatusBar', () => ({
   StatusBar: () => <div data-testid="status-bar" role="status" aria-label="Operator status" />,
 }));
 
-vi.mock('./DockShell', () => ({
-  DockShell: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="dock-shell">{children}</div>
-  ),
-}));
+
 
 vi.mock('./DockWorkspace', () => ({
   DockWorkspace: (props: { activeView: string }) => (

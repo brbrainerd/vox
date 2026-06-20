@@ -8,7 +8,7 @@ const SRC_ROOT = join(import.meta.dirname, '..');
 const MUST_USE_TRANSPORT = [
   'lib/consoleBridge.ts',
   'hooks/usePersistedDbState.ts',
-  'components/layout/DockShell.tsx',
+  'components/layout/DockWorkspace.tsx',
   'components/layout/CommandPalette.tsx',
   'main.tsx',
 ];

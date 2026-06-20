@@ -51,9 +51,10 @@ This file tracks the single source of truth for Vox architecture, research findi
 - [FableForge Combat Knowledge Graph](combat-knowledge-graph-research-2026.md) — A directed knowledge graph spanning every layer of the Dystopia/FableForge combat engine, from legacy C to TypeScript.
 - [KI: Village Narrative Architecture — Research Audit](village-narrative-architecture-findings-2026.md) — A research audit on game structure for facilitating narrative, focusing on FableForge village.
 
-### History & Clip Manager (2026-06-20)
+### History, Workspace & Layout (2026-06-20)
 
 - [History & Clip Manager Handoff Findings (2026-06-20)](history-clip-manager-handoff-findings-2026.md) — Handoff details for the History and Clip Manager implementation under Plan 7, outlining changes made, CLI/GUI status, and next steps.
+- [GUI Layout & Docking Model (2026-06-20)](gui-layout-docking-model.md) — Documentation of the fixed-chrome and dockable-body layout system, serializing layout to gui.layout.v1, and sidebar width preferences.
 
 
 ## AI-First Language Fixtures

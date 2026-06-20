@@ -16,9 +16,9 @@ vi.mock('@msgpack/msgpack', () => ({
 }));
 
 // ── dockview ──────────────────────────────────────────────────────────────────
-// Mock the entire DockShell wrapper so we don't need to enumerate every dockview export.
-vi.mock('./components/layout/DockShell', () => ({
-  DockShell: ({ children }: { children: React.ReactNode }) => React.createElement(React.Fragment, null, children),
+// Mock the entire DockWorkspace wrapper so we don't need to enumerate every dockview export.
+vi.mock('./components/layout/DockWorkspace', () => ({
+  DockWorkspace: () => null,
 }));
 
 // ── xterm ─────────────────────────────────────────────────────────────────────
