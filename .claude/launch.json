@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "vox-gui-limes",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "crates/vox-gui/ui", "dev"],
+      "port": 1420
+    }
+  ]
+}
