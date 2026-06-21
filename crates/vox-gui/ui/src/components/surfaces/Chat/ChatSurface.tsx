@@ -39,6 +39,7 @@ interface ChatSurfaceProps {
   onOpenAgentInFlow?: (agentId: string) => void;
   /** Primary Loquela composer — embedded when global shell dock is hidden on Chat. */
   composer?: React.ReactNode;
+  activeWindowId?: string | null;
 }
 
 export function ChatSurface({
@@ -56,6 +57,7 @@ export function ChatSurface({
   agentStreamItems,
   onOpenAgentInFlow,
   composer,
+  activeWindowId,
 }: ChatSurfaceProps) {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [secretaryToast, setSecretaryToast] = useState<SecretaryProposedPayload | null>(null);
@@ -145,6 +147,7 @@ export function ChatSurface({
           intents={intents}
           activeModel={activeModel}
           openrouterSpendUsd={openrouterSpendUsd}
+          activeWindowId={activeWindowId}
           onNavigate={onNavigate}
         />
       )}

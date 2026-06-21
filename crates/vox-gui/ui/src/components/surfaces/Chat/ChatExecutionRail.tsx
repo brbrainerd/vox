@@ -3,6 +3,7 @@ import { Glass } from '../../ui/Glass';
 import { Kpi } from '../../ui/Kpi';
 import { useLocalStorage } from '../../../hooks/useLocalStorage';
 import { ContextWindowMeter } from './ContextWindowMeter';
+import { ContextWindowArchiveControl } from './ContextWindowArchiveControl';
 import { getContextBudget, type ContextBudgetPayload } from '../../../transport';
 
 
@@ -25,6 +26,7 @@ export interface ChatExecutionRailProps {
   intents?: string[];
   activeModel?: string | null;
   openrouterSpendUsd?: number | null;
+  activeWindowId?: string | null;
   onNavigate: (viewKey: string) => void;
 }
 
@@ -71,6 +73,7 @@ export function ChatExecutionRail({
   intents,
   activeModel,
   openrouterSpendUsd,
+  activeWindowId,
   onNavigate,
 }: ChatExecutionRailProps) {
   const [collapsed, setCollapsed] = useLocalStorage<boolean>(EXECUTION_RAIL_COLLAPSED_KEY, false);
@@ -217,6 +220,10 @@ export function ChatExecutionRail({
             strategy={budget.strategy}
           />
         )}
+
+        <div className="border-t border-white/[0.06] pt-1">
+          <ContextWindowArchiveControl activeWindowId={activeWindowId} />
+        </div>
       </Glass>
     </aside>
   );
