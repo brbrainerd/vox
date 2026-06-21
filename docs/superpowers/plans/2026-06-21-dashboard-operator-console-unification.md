@@ -24,6 +24,7 @@
 - **One component per concept:** reuse `Glass`, `Kpi`, `AgentRow`, `Pill`. Do NOT import anything from `crates/vox-gui/ds/` into the app. The `ds/` directory is a publish target, not an app dependency.
 - **One layout SSOT:** widget kinds live in `contracts/gui/dashboard-layout.v1.yaml` AND `dashboardLayout.ts`; both are edited together (Task 4) and kept identical.
 - **Real data only:** no hardcoded agent/resource arrays in shipped components. Sample data lives ONLY in tests/fixtures. A tile whose fetch fails renders an honest "unavailable" state (the existing `EmptyHint` pattern), never a fabricated number.
+- **Known DEAD field — do NOT bind to it:** `data.kpis.mesh` is **never updated at runtime** (App.tsx's `setData` writes only `budgetBurn` + `queueDepth`; mesh lives only in the separate HUD `kpis` store and otherwise stays at the `initialState` constant `"0 GB/s"`). Therefore mesh state in this plan is derived ONLY from `data.peers` (the live `Peer[]`): the Mesh Peers KPI and the Compute Mesh resource card both count `data.peers.filter(p => p.online)`. No component in this plan reads `data.kpis.mesh`. (Wiring `kpis.mesh` into `setData` is out of scope for SP-1.)
 
 ## File structure
 
@@ -121,6 +122,22 @@ git commit -m "refactor(vox-gui): retire standalone operator-console surface (fo
 - Modify: `crates/vox-gui/ui/src/components/surfaces/Dashboard/Dashboard.tsx` (the fixed KPI row, currently 3 `<Kpi>` in a `md:grid-cols-3` block)
 - Test: `crates/vox-gui/ui/src/components/surfaces/Dashboard/Dashboard.test.tsx`
 
+- [ ] **Step 0 (REQUIRED — no helper exists yet): add a shared test harness** to `Dashboard.test.tsx`. The file already declares `const emptyDash` (a full `DashboardData`, ~line 31) but has NO `renderDashboard`/`baseData`. Add this near the top of the file (after the imports + `emptyDash`):
+
+```tsx
+const baseData = emptyDash;
+function renderDashboard(over: Partial<DashboardData> = {}) {
+  return render(
+    <Dashboard
+      data={{ ...baseData, ...over }}
+      onPause={vi.fn()} onResume={vi.fn()} onDoubt={vi.fn()} onOverrule={vi.fn()} onAckLudus={vi.fn()}
+      filterKind="all" setFilterKind={vi.fn()}
+    />,
+  );
+}
+```
+All new tests below use `renderDashboard(...)`. Do NOT invent a different helper name.
+
 - [ ] **Step 1: Write the failing test** (append to `Dashboard.test.tsx`)
 
 ```tsx
@@ -133,11 +150,10 @@ it('renders a 4-tile KPI strip including Mesh Peers', () => {
   expect(screen.getByText('Queue Depth')).toBeInTheDocument();
   expect(screen.getByText('Budget Spent')).toBeInTheDocument();
   expect(screen.getByText('Mesh Peers')).toBeInTheDocument();
-  // online peers only → 1
+  // with the empty base: agents 0, queue 0, budget $0.00 → only Mesh Peers renders "1"
   expect(screen.getByText('1')).toBeInTheDocument();
 });
 ```
-(Use the file's existing `renderDashboard`/props helper; if none exists, render `<Dashboard {...baseProps} data={{...baseData, peers}} />` with the file's existing `baseProps`/`baseData`.)
 
 - [ ] **Step 2: Run → FAIL**
 
@@ -256,11 +272,12 @@ vi.mock('../../../hooks/useMemoryStatus', () => ({
 import { ResourcesWidget } from './ResourcesWidget';
 import type { DashboardData } from '../../../types/dashboard';
 
-const data = {
+// Fully-typed (no `as unknown as` cast) so the compiler validates the widget's data dependency.
+const data: DashboardData = {
   peers: [{ id: 'p1', name: 'a', backend: 'cuda', online: true }, { id: 'p2', name: 'b', backend: 'cuda', online: false }],
   kpis: { budgetBurn: { label: 'Budget', value: 4.2, cap: 20, spark: [] }, mesh: { label: 'Mesh', value: 1, cap: 0, spark: [] }, queueDepth: { value: 0, spark: [] } },
   agents: [], stream: [], alerts: [], contextChips: [], skills: [],
-} as unknown as DashboardData;
+};
 
 describe('ResourcesWidget', () => {
   it('renders compute mesh (online peers), vector store, and token budget from real data', () => {
@@ -345,16 +362,18 @@ export function ResourcesWidget({ data }: { data: DashboardData }) {
 - [ ] **Step 1: Write the failing test** (append to `Dashboard.test.tsx`)
 
 ```tsx
+import { SHELL_PREFERENCE_KEYS } from '../../../lib/shellPersistence'; // add to imports if absent
+// ...
 it('renders the resources widget when present in the layout', () => {
-  // force a layout containing the resources widget
-  window.localStorage.setItem('gui.dashboard.layout.v1', JSON.stringify({
+  // force a layout containing the resources widget — use the SSOT key symbol, never the literal
+  window.localStorage.setItem(SHELL_PREFERENCE_KEYS.dashboardLayout, JSON.stringify({
     version: 1, columns: 12, widgets: [{ id: 'resources', kind: 'resources', grid: { col: 1, row: 1, w: 12, h: 2 } }],
   }));
   renderDashboard({});
   expect(screen.getByText('Resources')).toBeInTheDocument();
 });
 ```
-(Confirm the persistence key against `SHELL_PREFERENCE_KEYS.dashboardLayout` in `lib/shellPersistence.ts`; use that exact key.)
+Use the `SHELL_PREFERENCE_KEYS.dashboardLayout` symbol (it resolves to `gui.dashboard.layout.v1`) — hardcoding the literal would re-introduce a magic-string split-brain this plan forbids.
 
 - [ ] **Step 2: Run → FAIL** — `unknown widget kind "resources"` from the layout validator.
 
@@ -382,7 +401,9 @@ and add the import at the top: `import { ResourcesWidget } from './ResourcesWidg
 **Files:**
 - Create: `crates/vox-gui/ui/src/hooks/useAgentApprovals.ts`, `.../useAgentApprovals.test.ts`
 
-Reuses the same IPC as `InlineApprovals.tsx`: `invoke('invoke_mcp_tool', { tool: 'vox_pending_approvals', args: {} })` and `invoke('invoke_mcp_tool', { tool: 'vox_resolve_approval', args: { approval_id, outcome } })`, plus the existing `parsePendingApprovals` / `unwrapMcpEnvelope` from `lib/mcpToolResult.ts`. An approval maps to an agent when its `summary` or `tool` contains the agent's `id` or `codename` (documented heuristic — agents without a pending approval get no buttons).
+Reuses the same IPC as `InlineApprovals.tsx`: `invoke('invoke_mcp_tool', { tool: 'vox_pending_approvals', args: {} })` and `invoke('invoke_mcp_tool', { tool: 'vox_resolve_approval', args: { approval_id, outcome } })`, plus the existing `parsePendingApprovals` / `unwrapMcpEnvelope` from `lib/mcpToolResult.ts`.
+
+**Heuristic disclosure (B3):** the `vox_pending_approvals` payload (`PendingApprovalRow = { approval_id, tool, summary, requested_at_ms }`) carries **NO agent-id field**. So agent association is a best-effort heuristic: match the agent's `codename` on a **word boundary** (case-insensitive) inside `summary`+`tool`. Match on `codename` ONLY — never `id` (e.g. `A-1`, which never appears in summaries). This is genuinely fuzzy (a summary mentioning a file named `atlas.rs` could false-match). To stay honest: (a) the inline dashboard buttons are a convenience overlay, and (b) **every pending approval — matched or not — remains fully actionable in the dedicated approvals inbox** (`InlineApprovals` on the Chat surface / the Approvals surface), so nothing is dropped. Do NOT describe this as authoritative agent↔approval binding.
 
 - [ ] **Step 1: Write the failing test** — `useAgentApprovals.test.ts`
 
@@ -442,8 +463,10 @@ export function useAgentApprovals(agentKeys: string[]): UseAgentApprovals {
     return () => clearInterval(id);
   }, [refresh]);
   const approvalFor = useCallback((agentKey: string): PendingApprovalRow | null => {
-    const k = agentKey.toLowerCase();
-    return rows.find((r) => `${r.summary} ${r.tool}`.toLowerCase().includes(k)) ?? null;
+    // Word-boundary, case-insensitive match on codename only (NOT id). Escape regex metachars.
+    const safe = agentKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(`\\b${safe}\\b`, 'i');
+    return rows.find((r) => re.test(`${r.summary} ${r.tool}`)) ?? null;
   }, [rows]);
   const resolve = useCallback(async (approvalId: string, outcome: 'approved' | 'rejected') => {
     const res = await invoke<McpInvokeResult>('invoke_mcp_tool', { tool: 'vox_resolve_approval', args: { approval_id: approvalId, outcome } });
@@ -601,7 +624,9 @@ export function defaultDashboardLayout(): DashboardLayout {
 
 - [ ] **Step 3b:** Update `contracts/gui/dashboard-layout.v1.yaml` `default_profile.widgets` to the identical 4-widget composition (resources/agents/alerts/stream with the same grids).
 
-- [ ] **Step 4: Run → PASS** (`pnpm vitest run src/lib/dashboardLayout.test.ts`).
+- [ ] **Step 3c (REQUIRED — existing tests assert the OLD default):** Open `crates/vox-gui/ui/src/lib/dashboardLayout.test.ts` and `crates/vox-gui/ui/src/components/surfaces/Dashboard/Dashboard.test.tsx`. Any test that asserts the previous 3-widget default profile (`stream`/`alerts`/`agents` at the old grids) MUST be updated to the new composition. Do NOT weaken assertions to force green — update them to the real new default. In `Dashboard.test.tsx`, the tests at ~lines 168/201 that call `addWidgetToLayout(defaultDashboardLayout(), 'queue_depth')` may depend on the prior widget count/positions; re-check and fix their expectations against the new default.
+
+- [ ] **Step 4: Run → PASS** (`pnpm vitest run src/lib/dashboardLayout.test.ts` AND `pnpm vitest run src/components/surfaces/Dashboard`). Both must be green with the updated assertions.
 
 - [ ] **Step 5: Commit** — `git commit -am "feat(vox-gui): operator-console default dashboard layout"`
 
@@ -625,6 +650,17 @@ export function defaultDashboardLayout(): DashboardLayout {
 2. **Placeholder scan:** no "TBD"/"add error handling" — each code step shows code; the only non-code instructions are the verification greps and the explicit "verify exported symbol X in file Y" pre-flights (legitimate, named, and bounded — not vague). The ResourcesWidget renders honest `—`/`Unavailable` states, not fabricated numbers. ✓
 3. **Type consistency:** `UseMemoryStatus.vectorCount` used identically in hook + widget; `useAgentApprovals` returns `{ approvalFor, resolve }` used identically in Dashboard; `AgentRow` new props `pendingApprovalId/onApprove/onReject` match between definition and call site; `DashboardWidgetKind` adds `'resources'` in both the contract and TS. ✓
 4. **No-backend confirmation:** the Vector Store count reuses the existing `get_memory_status` (`corpus_counts.proj`); no new Rust — the "minimal backend" decision is satisfied by an existing source (audit finding). ✓
+
+### Post-critique hardening (adversarial review applied)
+
+An independent design-critique verified every symbol claim against the code and found issues, now fixed in this plan:
+- **B1 (blocker):** `Dashboard.test.tsx` has no `renderDashboard`/`baseData` helper → Task 1 **Step 0** now creates one anchored on the existing `emptyDash`.
+- **B2 (blocker):** `data.kpis.mesh` is dead at runtime → methodology now forbids binding to it; mesh derives only from `data.peers`.
+- **B6 (blocker):** changing the default layout breaks existing default-profile tests → Task 8 **Step 3c** now requires updating them (no weakening).
+- **B3 (high):** pending-approvals payload has no agent field → heuristic restricted to **word-boundary codename** match (never `id`), with a disclosure that unmatched approvals stay actionable in the approvals inbox.
+- **B4:** Task 4 test uses the `SHELL_PREFERENCE_KEYS.dashboardLayout` symbol, not the literal.
+- **B5:** ResourcesWidget test is fully typed (`DashboardData`), no `as unknown as` cast.
+- Verified CONFIRMED by the critique: `mcpToolResult` exports + `PendingApprovalRow` shape, `APPROVALS_POLL_MS = 2000`, `SHELL_PREFERENCE_KEYS.dashboardLayout`, `Kpi` accent keys, grid math.
 
 ---
 
