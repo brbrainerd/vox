@@ -28,21 +28,11 @@ pub struct SpokeBase {
     pub preset: Option<String>,
 }
 
-/// Provider locality a spoke's router prefers at inference time.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SpokeLocality {
-    /// Restrict to local providers (VoxLocal / PopuliMesh / Ollama).
-    LocalOnly,
-    /// Restrict to cloud providers.
-    CloudOnly,
-    /// No restriction — let the standard scorer choose.
-    Any,
-}
-
-/// Provider names treated as local inference backends.
-const LOCAL_PROVIDERS: [&str; 3] = ["vox_local", "populi_mesh", "ollama"];
-
-/// Inference-time routing hints for this spoke (Phase 7 consumes these).
+/// Inference-time routing hints for this spoke. `triggers`/`priority` are
+/// consumed by `route_by_signal` (lane → spoke). `prefer_local` is a
+/// forward-looking flag for Phase-7 local-vs-cloud inference routing; it has no
+/// consumer yet — the routing function will be added together with that
+/// consumer (and an end-to-end test), not speculatively ahead of it.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpokeRouter {
     /// Lane tags / glob triggers that route a request to this spoke.
@@ -51,48 +41,10 @@ pub struct SpokeRouter {
     /// Higher wins when multiple spokes match.
     #[serde(default)]
     pub priority: i32,
-    /// When true and a local adapter exists, model selection restricts to
-    /// VoxLocal / PopuliMesh providers (CandidateScope::LocalOnly).
+    /// Phase-7 hint: prefer the spoke's local fine-tuned adapter over a cloud
+    /// model when one exists. No consumer yet (see struct-level note).
     #[serde(default)]
     pub prefer_local: bool,
-    /// Explicit provider allowlist (overrides prefer_local when set).
-    /// Values: "vox_local", "populi_mesh", "openrouter", "anthropic", "ollama".
-    #[serde(default)]
-    pub allowed_providers: Vec<String>,
-}
-
-impl SpokeRouter {
-    /// Resolve the provider locality this router prefers.
-    ///
-    /// An explicit `allowed_providers` allowlist takes precedence: all-local →
-    /// [`SpokeLocality::LocalOnly`], all-cloud → [`SpokeLocality::CloudOnly`],
-    /// mixed → [`SpokeLocality::Any`]. With no allowlist, `prefer_local` applies
-    /// only when `has_local_adapter` is true (no point forcing local with no model).
-    #[must_use]
-    pub fn candidate_locality(&self, has_local_adapter: bool) -> SpokeLocality {
-        if !self.allowed_providers.is_empty() {
-            let all_local = self
-                .allowed_providers
-                .iter()
-                .all(|p| LOCAL_PROVIDERS.contains(&p.as_str()));
-            let none_local = self
-                .allowed_providers
-                .iter()
-                .all(|p| !LOCAL_PROVIDERS.contains(&p.as_str()));
-            return if all_local {
-                SpokeLocality::LocalOnly
-            } else if none_local {
-                SpokeLocality::CloudOnly
-            } else {
-                SpokeLocality::Any
-            };
-        }
-        if self.prefer_local && has_local_adapter {
-            SpokeLocality::LocalOnly
-        } else {
-            SpokeLocality::Any
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -320,10 +272,6 @@ base:
             .expect("agents profile loads");
         let router = eff.router.expect("agents router present");
         assert!(router.prefer_local, "agents spoke should prefer_local");
-        assert!(
-            !router.allowed_providers.is_empty(),
-            "allowed_providers set"
-        );
     }
 
     #[test]
@@ -341,54 +289,5 @@ router:
         let p2: DomainProfile = serde_yaml::from_str(yaml2).expect("parse");
         let r = p2.router.unwrap();
         assert!(!r.prefer_local, "prefer_local defaults to false");
-        assert!(
-            r.allowed_providers.is_empty(),
-            "allowed_providers defaults empty"
-        );
-    }
-
-    fn router(prefer_local: bool, allowed: &[&str]) -> SpokeRouter {
-        SpokeRouter {
-            triggers: vec![],
-            priority: 0,
-            prefer_local,
-            allowed_providers: allowed.iter().map(|s| s.to_string()).collect(),
-        }
-    }
-
-    #[test]
-    fn candidate_locality_allowlist_all_local() {
-        let r = router(false, &["vox_local", "populi_mesh"]);
-        assert_eq!(r.candidate_locality(false), SpokeLocality::LocalOnly);
-    }
-
-    #[test]
-    fn candidate_locality_allowlist_all_cloud() {
-        let r = router(true, &["openrouter", "anthropic"]);
-        // Allowlist precedence: cloud-only allowlist overrides prefer_local.
-        assert_eq!(r.candidate_locality(true), SpokeLocality::CloudOnly);
-    }
-
-    #[test]
-    fn candidate_locality_allowlist_mixed_is_any() {
-        let r = router(true, &["vox_local", "openrouter"]);
-        assert_eq!(r.candidate_locality(true), SpokeLocality::Any);
-    }
-
-    #[test]
-    fn candidate_locality_prefer_local_needs_adapter() {
-        let r = router(true, &[]);
-        assert_eq!(r.candidate_locality(true), SpokeLocality::LocalOnly);
-        assert_eq!(
-            r.candidate_locality(false),
-            SpokeLocality::Any,
-            "prefer_local is a no-op without a local adapter"
-        );
-    }
-
-    #[test]
-    fn candidate_locality_default_is_any() {
-        let r = router(false, &[]);
-        assert_eq!(r.candidate_locality(true), SpokeLocality::Any);
     }
 }

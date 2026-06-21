@@ -814,15 +814,11 @@ pub fn select_with_default_registry(intent: &SelectionIntent) -> Option<Selectio
     select(intent, &registry)
 }
 
-// NOTE (U.3 / Phase 7): the spoke-locality decision lives in
-// `vox_populi::mens::tensor::domain_profiles::SpokeRouter::candidate_locality`
-// (honors `allowed_providers` then `prefer_local`, fully unit-tested there).
-// When Phase-7 local-vs-cloud inference routing is wired, map its `SpokeLocality`
-// onto `CandidateScope` at the actual selection call site — LocalOnly→LocalOnly,
-// CloudOnly→CloudOnly, Any→AllProviders. It is intentionally NOT bridged here yet:
-// `domain_profiles` is gated behind `vox-populi/mens-train` (a training-only
-// module the inference orchestrator must not pull in), and an unreferenced bridge
-// would be dead code.
+// NOTE (U.3 / Phase 7): local-vs-cloud spoke-inference routing is not wired yet.
+// When it is, read the spoke's `SpokeRouter.prefer_local` hint and set
+// `ModelSelectionRequest.candidate_scope` (LocalOnly) before `decide()`, at the
+// real inference call site — landing the routing helper together with its
+// consumer and an end-to-end test, not speculatively ahead of it.
 
 #[cfg(test)]
 mod tests {
