@@ -75,29 +75,12 @@ pub fn generate_agent_traces_sft_file(
         }
     }
 
-    // Fallback: if there are no traces or input doesn't exist, we synthesize a small diverse set of mock traces
-    // to prevent downstream mix gating failures due to missing/empty files.
+    // No traces (missing/empty input): write an empty file and return 0. The mix
+    // source is `optional: true`, so an empty file is safe — we must NOT fabricate
+    // synthetic rows tagged as genuine agent traces (silent corpus contamination).
     if traces.is_empty() {
-        traces = vec![
-            json!({
-                "intent": "list files",
-                "steps": [
-                    { "tool_name": "vox_skill_list", "arguments": {}, "result": "[]", "success": true }
-                ]
-            }),
-            json!({
-                "intent": "install skill",
-                "steps": [
-                    { "tool_name": "vox_skill_install", "arguments": { "bundle_json": "{}" }, "result": "ok", "success": true }
-                ]
-            }),
-            json!({
-                "intent": "search helper",
-                "steps": [
-                    { "tool_name": "vox_skill_search", "arguments": { "query": "git" }, "result": "[]", "success": true }
-                ]
-            }),
-        ];
+        std::fs::File::create(output_path)?;
+        return Ok(0);
     }
 
     let sft_rows = traces_to_sft_gated(&traces, min_diversity)?;
@@ -138,5 +121,16 @@ mod tests {
         let traces = vec![single_trace.clone(); 5];
         let res = traces_to_sft_gated(&traces, 0.90);
         assert!(res.is_err());
+    }
+
+    #[test]
+    fn missing_input_writes_empty_does_not_fabricate() {
+        let dir = tempfile::tempdir().unwrap();
+        let input = dir.path().join("absent.jsonl");
+        let output = dir.path().join("agent_traces.jsonl");
+        let n = generate_agent_traces_sft_file(&input, &output, 0.40).unwrap();
+        assert_eq!(n, 0, "missing input must yield zero rows, not synthetic data");
+        let content = std::fs::read_to_string(&output).unwrap();
+        assert!(content.trim().is_empty(), "output must be empty, not fabricated");
     }
 }

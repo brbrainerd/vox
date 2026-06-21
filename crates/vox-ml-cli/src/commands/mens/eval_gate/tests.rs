@@ -524,6 +524,40 @@ clippy_clean_rate:
 }
 
 #[test]
+fn rust_gate_not_applicable_when_metric_absent() {
+    // A non-rust corpus produces eval_results.json WITHOUT rust_compile_rate.
+    // A blocking rust gate must treat the absent metric as "not applicable" (pass),
+    // not as 0% (which would spuriously hard-fail the run).
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(
+        dir.path().join("eval_results.json"),
+        r#"{"vox_parse_rate":0.99,"total_samples":100}"#,
+    )
+    .unwrap();
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(
+        &policy_path,
+        r#"version: "1"
+rust_compile_rate:
+  min_pct: 0.90
+  block: true
+"#,
+    )
+    .unwrap();
+    let results = check_run(dir.path(), &policy_path).expect("check_run");
+    let compile_gate = results
+        .iter()
+        .find(|r| r.name == "rust_compile_rate")
+        .expect("compile gate present");
+    assert!(compile_gate.passed, "absent rust metric must not fail the gate");
+    assert!(
+        compile_gate.message.contains("not applicable"),
+        "message explains why: {}",
+        compile_gate.message
+    );
+}
+
+#[test]
 fn agentic_gates_pass_when_rates_above_threshold() {
     let dir = tempfile::tempdir().expect("tempdir");
     std::fs::write(

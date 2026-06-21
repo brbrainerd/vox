@@ -48,12 +48,14 @@ pub async fn run(
         PipelineStage::ReviewIngest,
         PipelineStage::ReviewDatasetBuild,
         PipelineStage::ReviewEvalPackBuild,
+        // Mix-source producers must run BEFORE Mix so their outputs are consumed
+        // in the same run (Mix is the only stage that reads mix_sources/*).
+        PipelineStage::ReviewToDpo,
+        PipelineStage::AgentTraceIngest,
         PipelineStage::Validate,
         PipelineStage::Pairs,
         PipelineStage::Mix,
         PipelineStage::Eval,
-        PipelineStage::AgentTraceIngest,
-        PipelineStage::ReviewToDpo,
         PipelineStage::KbSignals,
         PipelineStage::Train,
     ];
@@ -307,19 +309,26 @@ pub async fn run(
             PipelineStage::AgentTraceIngest => {
                 if !dry_run {
                     // Ingest a2a traces from dogfood capture path → SFT rows with diversity gate.
+                    // Guard on input presence (consistent with ReviewToDpo) — never fabricate.
                     let trace_input =
                         PathBuf::from("target/dogfood/a2a_traces.jsonl");
                     let trace_output =
                         PathBuf::from("mens/data/mix_sources/agent_traces.jsonl");
-                    crate::commands::corpus::run(
-                        crate::commands::corpus::CorpusAction::TraceIngest {
-                            input: trace_input,
-                            output: trace_output,
-                            min_diversity: 0.40,
-                        },
-                    )
-                    .await
-                    .map_err(|e| anyhow::anyhow!("pipeline agent_trace_ingest failed: {e}"))?;
+                    if trace_input.is_file() {
+                        crate::commands::corpus::run(
+                            crate::commands::corpus::CorpusAction::TraceIngest {
+                                input: trace_input,
+                                output: trace_output,
+                                min_diversity: 0.40,
+                            },
+                        )
+                        .await
+                        .map_err(|e| anyhow::anyhow!("pipeline agent_trace_ingest failed: {e}"))?;
+                    } else {
+                        tracing::debug!(
+                            "AgentTraceIngest: no a2a_traces.jsonl captured, skipping"
+                        );
+                    }
                 } else {
                     tracing::info!("AgentTraceIngest: dry_run, skipping");
                 }

@@ -21,12 +21,17 @@ fn extract_rust_from_markdown(md: &str) -> String {
     md.to_string()
 }
 
-/// Compute compile/clippy clean rates for rust_authoring samples in `input_jsonl`
-/// and return them as (rust_compile_rate, clippy_clean_rate).
+/// Compute compile/clippy clean rates for rust_authoring samples in `input_jsonl`.
+///
+/// Returns `Ok(None)` when the corpus contains **no** rust_authoring rows (the
+/// metric is not applicable — the caller must omit it rather than report 0.0,
+/// which a blocking rust gate would misread as "model writes no compiling Rust").
+/// Returns `Ok(Some((compile_rate, clippy_rate)))` otherwise. Cargo is only
+/// spawned when rust rows are present.
 pub fn compute_rust_spoke_metrics(
     workspace_root: &Path,
     input_jsonl: &Path,
-) -> anyhow::Result<(f64, f64)> {
+) -> anyhow::Result<Option<(f64, f64)>> {
     let content = std::fs::read_to_string(input_jsonl)?;
     let mut snippets = Vec::new();
 
@@ -49,7 +54,8 @@ pub fn compute_rust_spoke_metrics(
     }
 
     if snippets.is_empty() {
-        return Ok((0.0, 0.0));
+        // Not applicable — no rust rows. Distinct from "0% compiled".
+        return Ok(None);
     }
 
     // Limit the verification set size to prevent excessively long eval runs
@@ -61,7 +67,7 @@ pub fn compute_rust_spoke_metrics(
     let compile_rate = pass_rate(&snippets, compile_verifier);
     let clippy_rate = pass_rate(&snippets, clippy_verifier);
 
-    Ok((compile_rate, clippy_rate))
+    Ok(Some((compile_rate, clippy_rate)))
 }
 
 #[cfg(test)]

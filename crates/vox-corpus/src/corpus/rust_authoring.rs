@@ -188,20 +188,29 @@ pub fn corpus_from_workspace(
 }
 
 /// Extract the first function name from a Rust source snippet.
+///
+/// Finds the `fn ` keyword as a standalone token (start of line or after
+/// whitespace), so it handles every modifier combination — `pub fn`,
+/// `pub(crate) fn`, `async fn`, `pub async fn`, `const fn`, `unsafe fn`,
+/// `pub unsafe fn`, etc. — not just the bare `pub fn` / `fn` prefixes.
 fn extract_fn_name(src: &str) -> Option<String> {
     for line in src.lines() {
-        let trimmed = line.trim();
-        // Match `pub fn name` or `fn name`
-        let rest = if let Some(r) = trimmed.strip_prefix("pub fn ") {
-            r
-        } else if let Some(r) = trimmed.strip_prefix("fn ") {
-            r
-        } else {
-            continue;
-        };
-        let name: String = rest.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect();
-        if !name.is_empty() {
-            return Some(name);
+        let bytes = line.as_bytes();
+        let mut search = 0;
+        while let Some(rel) = line[search..].find("fn ") {
+            let idx = search + rel;
+            let boundary_ok = idx == 0 || bytes[idx - 1].is_ascii_whitespace();
+            if boundary_ok {
+                let rest = &line[idx + 3..];
+                let name: String = rest
+                    .chars()
+                    .take_while(|c| c.is_alphanumeric() || *c == '_')
+                    .collect();
+                if !name.is_empty() {
+                    return Some(name);
+                }
+            }
+            search = idx + 3;
         }
     }
     None
@@ -249,6 +258,31 @@ mod tests {
     #[test]
     fn extract_fn_name_returns_none_for_non_fn() {
         assert_eq!(extract_fn_name("let x = 42;"), None);
+    }
+
+    #[test]
+    fn extract_fn_name_handles_modifiers() {
+        // The bare strip_prefix approach returned "unnamed" for all of these.
+        assert_eq!(
+            extract_fn_name("pub async fn fetch(url: &str) -> Bytes { todo!() }"),
+            Some("fetch".to_string())
+        );
+        assert_eq!(
+            extract_fn_name("pub(crate) fn helper() {}"),
+            Some("helper".to_string())
+        );
+        assert_eq!(
+            extract_fn_name("const fn sized() -> usize { 8 }"),
+            Some("sized".to_string())
+        );
+        assert_eq!(
+            extract_fn_name("    unsafe fn raw(p: *const u8) {}"),
+            Some("raw".to_string())
+        );
+        assert_eq!(
+            extract_fn_name("async fn run() {}"),
+            Some("run".to_string())
+        );
     }
 
     #[test]

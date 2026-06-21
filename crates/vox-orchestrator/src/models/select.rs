@@ -814,39 +814,15 @@ pub fn select_with_default_registry(intent: &SelectionIntent) -> Option<Selectio
     select(intent, &registry)
 }
 
-/// Derive the inference `CandidateScope` for a named training spoke.
-///
-/// Reads the spoke's `domain-profiles.yaml` entry. When `router.prefer_local = true`
-/// and the spoke has a configured base model, returns `CandidateScope::LocalOnly`
-/// (restricts inference to VoxLocal / PopuliMesh providers). Otherwise returns
-/// `CandidateScope::AllProviders` so the standard scorer runs.
-///
-/// Returns `CandidateScope::AllProviders` on any load / parse error so callers
-/// degrade gracefully when the profile is missing (e.g., during bootstrapping).
-#[cfg(feature = "runtime")]
-pub fn candidate_scope_for_spoke(
-    spoke_name: &str,
-    workspace_root: Option<&std::path::Path>,
-) -> CandidateScope {
-    let Ok(profile) =
-        vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile::load_domain_profile(
-            spoke_name,
-            workspace_root,
-        )
-    else {
-        return CandidateScope::AllProviders;
-    };
-    let prefers_local = profile
-        .router
-        .as_ref()
-        .map(|r| r.prefer_local)
-        .unwrap_or(false);
-    if prefers_local && profile.base.is_some() {
-        CandidateScope::LocalOnly
-    } else {
-        CandidateScope::AllProviders
-    }
-}
+// NOTE (U.3 / Phase 7): the spoke-locality decision lives in
+// `vox_populi::mens::tensor::domain_profiles::SpokeRouter::candidate_locality`
+// (honors `allowed_providers` then `prefer_local`, fully unit-tested there).
+// When Phase-7 local-vs-cloud inference routing is wired, map its `SpokeLocality`
+// onto `CandidateScope` at the actual selection call site — LocalOnly→LocalOnly,
+// CloudOnly→CloudOnly, Any→AllProviders. It is intentionally NOT bridged here yet:
+// `domain_profiles` is gated behind `vox-populi/mens-train` (a training-only
+// module the inference orchestrator must not pull in), and an unreferenced bridge
+// would be dead code.
 
 #[cfg(test)]
 mod tests {
