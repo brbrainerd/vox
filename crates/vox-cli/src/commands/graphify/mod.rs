@@ -43,7 +43,11 @@ fn resolve_head_sha() -> anyhow::Result<Option<String>> {
     match vox_git::read_only(std::path::Path::new("."), &["rev-parse", "HEAD"]) {
         Ok(out) => {
             let sha = out.trim().to_string();
-            if sha.is_empty() { Ok(None) } else { Ok(Some(sha)) }
+            if sha.is_empty() {
+                Ok(None)
+            } else {
+                Ok(Some(sha))
+            }
         }
         Err(_) => Ok(None),
     }
