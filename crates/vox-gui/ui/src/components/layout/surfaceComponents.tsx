@@ -14,6 +14,7 @@ import { GamifyView } from '../surfaces/Gamify/GamifyView';
 import { HarnessRedirect } from '../surfaces/Harness/HarnessRedirect';
 import { BrowserView } from '../surfaces/Browser/BrowserView';
 import { ApprovalsView } from '../surfaces/Approvals/ApprovalsView';
+import { MissionControlPanel } from '../surfaces/MissionControl/MissionControlPanel';
 import { SkillsPluginsView } from '../surfaces/SkillsPlugins/SkillsPluginsView';
 import { PoliciesView } from '../surfaces/Policies/PoliciesView';
 import { ParentSurface } from './ParentSurface';
@@ -148,6 +149,8 @@ function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
       );
     case 'approvals':
       return <ApprovalsView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
+    case 'mission-control':
+      return <MissionControlPanel pushToast={props.pushToast} />;
     case 'policies':
       return <PoliciesView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'skills':
