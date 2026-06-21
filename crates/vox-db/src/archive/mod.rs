@@ -3,6 +3,7 @@ pub mod cache;
 pub mod chunking;
 pub mod compression;
 pub mod dictionary;
+pub mod gc;
 pub mod members;
 pub mod membership;
 pub mod pipeline;
