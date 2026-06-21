@@ -8,10 +8,59 @@ use super::adapter_card::AdapterCard;
 // ── Signal-to-domain mapping ─────────────────────────────────────────────────
 
 /// Known domain names for signal routing.
+///
+/// These MUST match the profile keys in `mens/config/domain-profiles.yaml`
+/// (the SSOT) and the directory names that `discover()` registers, otherwise
+/// `route_by_signal` looks up a domain that was never registered and silently
+/// falls back to base. In particular `DOMAIN_RUST` is `"rust"` (NOT
+/// `"rust-expert"`), matching the `rust:` profile key.
 const DOMAIN_VOX_LANG: &str = "vox-lang";
-const DOMAIN_RUST: &str = "rust-expert";
+const DOMAIN_RUST: &str = "rust";
 const DOMAIN_TOOL_SELECTION: &str = "tool-selection";
 const DOMAIN_ARGUMENT_GENERATION: &str = "argument-generation";
+
+/// Exact lane-trigger → domain table. Mirrors the `router.triggers` lists in
+/// `mens/config/domain-profiles.yaml` (the SSOT), plus a few legacy lane
+/// aliases that callers still emit. Matching is EXACT on the lane token, never
+/// substring: this is what keeps `lane:vox_rust_review` from matching the rust
+/// adapter (its only rust trigger is `lane:vox_rust_authoring`). Review lanes
+/// intentionally have no entry, so they fall through to base.
+///
+/// Keep this list in sync with the YAML SSOT — `signal_to_domain_table_matches_ssot`
+/// (mens-train) and `runtime_table_agrees_with_yaml_triggers` assert parity.
+const LANE_DOMAIN_TABLE: &[(&str, &str)] = &[
+    // vox-lang
+    ("lane:vox_codegen", DOMAIN_VOX_LANG),
+    ("lane:vox_lang_tier_b", DOMAIN_VOX_LANG),
+    ("lane:vox_lang", DOMAIN_VOX_LANG), // legacy alias
+    ("lane:vox_authoring", DOMAIN_VOX_LANG), // legacy alias
+    // rust — authoring ONLY; review is deliberately absent (routes to base).
+    ("lane:vox_rust_authoring", DOMAIN_RUST),
+    // tool-selection
+    ("lane:vox_tool_selection", DOMAIN_TOOL_SELECTION),
+    ("lane:vox_tooling", DOMAIN_TOOL_SELECTION),
+    ("lane:tool_selection", DOMAIN_TOOL_SELECTION), // legacy alias
+    // argument-generation
+    ("lane:vox_argument_generation", DOMAIN_ARGUMENT_GENERATION),
+    ("lane:argument_generation", DOMAIN_ARGUMENT_GENERATION), // legacy alias
+];
+
+/// File-extension globs → domain (mirrors `*.ext` triggers in the YAML SSOT).
+const EXT_DOMAIN_TABLE: &[(&str, &str)] = &[
+    (".vox", DOMAIN_VOX_LANG),
+    (".rs", DOMAIN_RUST),
+];
+
+/// Extract the `lane:...` token from a signal, if any. A signal may carry
+/// trailing context (e.g. `"lane:vox_rust_review src/foo.rs"`); we take the
+/// first whitespace-delimited token and only treat it as a lane when it starts
+/// with `lane:`. Returns the full token (including the `lane:` prefix).
+fn lane_token(signal: &str) -> Option<&str> {
+    signal
+        .split_whitespace()
+        .next()
+        .filter(|tok| tok.starts_with("lane:"))
+}
 
 /// A reference to an adapter returned by routing.
 #[derive(Debug, Clone)]
@@ -206,32 +255,28 @@ impl DomainRouter {
     /// Map a signal (file path suffix or lane tag) to a domain name.
     ///
     /// Returns `None` for unknown signals — callers fall back to the base model.
+    ///
+    /// Lane tags take priority and are matched EXACTLY against
+    /// [`LANE_DOMAIN_TABLE`] (no substring matching): `lane:vox_rust_review`
+    /// therefore does NOT match the rust adapter's `lane:vox_rust_authoring`
+    /// trigger and correctly falls through to base. File-path signals fall back
+    /// to extension globs in [`EXT_DOMAIN_TABLE`].
     fn signal_to_domain(signal: &str) -> Option<&'static str> {
-        // Lane tags take priority.
-        if signal.contains("lane:vox_lang")
-            || signal.ends_with(".vox")
-            || signal.contains("lane:vox_authoring")
-        {
-            return Some(DOMAIN_VOX_LANG);
+        // 1. Lane tags take priority — exact match on the lane token.
+        if let Some(token) = lane_token(signal) {
+            return LANE_DOMAIN_TABLE
+                .iter()
+                .find(|(trigger, _)| *trigger == token)
+                .map(|(_, domain)| *domain);
+            // An unrecognised lane (e.g. lane:vox_rust_review) returns None →
+            // caller serves base. We do NOT fall through to extension matching
+            // for an explicit-but-unknown lane.
         }
-        if signal.contains("lane:vox_rust")
-            || signal.ends_with(".rs")
-            || signal.contains("lane:rust")
-        {
-            return Some(DOMAIN_RUST);
-        }
-        if signal.contains("lane:vox_tool_selection")
-            || signal.contains("lane:vox_tooling")
-            || signal.contains("lane:tool_selection")
-        {
-            return Some(DOMAIN_TOOL_SELECTION);
-        }
-        if signal.contains("lane:vox_argument_generation")
-            || signal.contains("lane:argument_generation")
-        {
-            return Some(DOMAIN_ARGUMENT_GENERATION);
-        }
-        None
+        // 2. Non-lane signal: match by file extension.
+        EXT_DOMAIN_TABLE
+            .iter()
+            .find(|(ext, _)| signal.ends_with(*ext))
+            .map(|(_, domain)| *domain)
     }
 
     /// Route a signal to the champion (or challenger if `VOX_MENS_SERVE_CHALLENGER` is set)
@@ -330,9 +375,9 @@ mod tests {
         let mut router = DomainRouter::new();
         let card = AdapterCard::for_test("qwen3_16g", "qlora");
         router
-            .register("rust-expert", "/fake/path/adapter_model.safetensors", card)
+            .register("rust", "/fake/path/adapter_model.safetensors", card)
             .unwrap();
-        assert!(router.route("rust-expert").is_some());
+        assert!(router.route("rust").is_some());
         assert!(router.route("rocks").is_none());
     }
 }
@@ -740,11 +785,10 @@ mod b6_champion_challenger_tests {
 
     #[test]
     fn route_known_lane_returns_champion() {
-        let router =
-            make_router_with_champion("rust-expert", "/models/rust/adapter_model.safetensors");
+        let router = make_router_with_champion("rust", "/models/rust/adapter_model.safetensors");
         let (adapter_ref, telemetry) = router.route_by_signal("src/main.rs");
-        let adapter_ref = adapter_ref.expect("*.rs signal must route to rust-expert");
-        assert_eq!(adapter_ref.name, "rust-expert");
+        let adapter_ref = adapter_ref.expect("*.rs signal must route to rust");
+        assert_eq!(adapter_ref.name, "rust");
         assert!(
             !adapter_ref.is_challenger,
             "must be champion, not challenger"
@@ -789,19 +833,18 @@ mod b6_champion_challenger_tests {
 
     #[test]
     fn promote_makes_challenger_champion() {
-        let mut router =
-            make_router_with_champion("rust-expert", "/v1/rust/adapter_model.safetensors");
+        let mut router = make_router_with_champion("rust", "/v1/rust/adapter_model.safetensors");
 
         let challenger_card = AdapterCard::for_test("qwen3_16g", "qlora");
         router
             .register_challenger(
-                "rust-expert",
+                "rust",
                 "/v2/rust/adapter_model.safetensors",
                 challenger_card,
             )
             .unwrap();
 
-        router.promote_challenger("rust-expert").unwrap();
+        router.promote_challenger("rust").unwrap();
 
         // After promotion, route_by_signal must return the new champion (v2).
         let (adapter_ref, _) = router.route_by_signal("lib.rs");
@@ -812,7 +855,7 @@ mod b6_champion_challenger_tests {
             adapter_ref.path
         );
         // The legacy route() should also reflect the new champion.
-        let (path, _) = router.route("rust-expert").unwrap();
+        let (path, _) = router.route("rust").unwrap();
         assert!(path.to_string_lossy().contains("v2"));
     }
 
@@ -820,28 +863,27 @@ mod b6_champion_challenger_tests {
 
     #[test]
     fn rollback_restores_prior_champion() {
-        let mut router =
-            make_router_with_champion("rust-expert", "/v1/rust/adapter_model.safetensors");
+        let mut router = make_router_with_champion("rust", "/v1/rust/adapter_model.safetensors");
 
         let challenger_card = AdapterCard::for_test("qwen3_16g", "qlora");
         router
             .register_challenger(
-                "rust-expert",
+                "rust",
                 "/v2/rust/adapter_model.safetensors",
                 challenger_card,
             )
             .unwrap();
 
-        router.promote_challenger("rust-expert").unwrap();
+        router.promote_challenger("rust").unwrap();
 
         // Verify v2 is now champion.
-        let (path, _) = router.route("rust-expert").unwrap();
+        let (path, _) = router.route("rust").unwrap();
         assert!(path.to_string_lossy().contains("v2"));
 
         // Rollback.
-        router.rollback("rust-expert").unwrap();
+        router.rollback("rust").unwrap();
 
-        let (path, _) = router.route("rust-expert").unwrap();
+        let (path, _) = router.route("rust").unwrap();
         assert!(
             path.to_string_lossy().contains("v1"),
             "rollback must restore the pre-promote champion; got {path:?}"
@@ -904,6 +946,88 @@ mod b6_champion_challenger_tests {
             adapter_ref.is_some(),
             "lane:vox_tool_selection must route to tool-selection"
         );
+    }
+
+    // ── BLOCKER 5: rust spoke is served under the SSOT key "rust" ─────────────
+
+    #[test]
+    fn rust_authoring_lane_routes_to_rust_domain() {
+        // The SSOT profile key + discover() dir is "rust" (NOT "rust-expert").
+        // route_by_signal must resolve lane:vox_rust_authoring to the registered
+        // "rust" champion, otherwise the rust spoke is never served.
+        let router = make_router_with_champion("rust", "/models/rust/adapter_model.safetensors");
+        let (adapter_ref, telemetry) = router.route_by_signal("lane:vox_rust_authoring");
+        let adapter_ref =
+            adapter_ref.expect("lane:vox_rust_authoring must route to the rust spoke");
+        assert_eq!(adapter_ref.name, "rust");
+        assert!(!telemetry.is_fallback);
+    }
+
+    // ── ROUTER-2: review lane must route to BASE, never the rust adapter ──────
+
+    #[test]
+    fn rust_review_lane_routes_to_base_not_adapter() {
+        // HARD RULE: review signals route to base (no adapter). The old runtime
+        // table substring-matched "lane:vox_rust", so lane:vox_rust_review
+        // wrongly hit the rust adapter. Exact matching must send it to base.
+        let router = make_router_with_champion("rust", "/models/rust/adapter_model.safetensors");
+
+        let (adapter_ref, telemetry) = router.route_by_signal("lane:vox_rust_review");
+        assert!(
+            adapter_ref.is_none(),
+            "lane:vox_rust_review must NOT resolve to the rust adapter (review→base); got {adapter_ref:?}"
+        );
+        assert!(
+            telemetry.is_fallback,
+            "review lane must be a base fallback, not an adapter hit"
+        );
+
+        // Even with trailing context the review lane stays on base.
+        let (adapter_ref, _) = router.route_by_signal("lane:vox_rust_review src/foo.rs");
+        assert!(
+            adapter_ref.is_none(),
+            "review lane with trailing context must still route to base"
+        );
+    }
+
+    #[test]
+    fn unknown_lane_does_not_fall_through_to_extension() {
+        // An explicit but unknown lane must not be rescued by an `.rs` suffix in
+        // trailing context — that would re-introduce the review→adapter bug.
+        assert_eq!(
+            DomainRouter::signal_to_domain("lane:vox_rust_review src/foo.rs"),
+            None
+        );
+    }
+
+    // ── ROUTER-1/3 parity: runtime table agrees with the YAML SSOT triggers ──
+
+    #[test]
+    fn runtime_table_agrees_with_yaml_triggers() {
+        // Every lane trigger declared in the YAML SSOT must resolve, via the
+        // runtime table, to the SAME domain (the profile key). This is the
+        // parity guard required when keeping a hand-written runtime table.
+        // (key, trigger) pairs mirror mens/config/domain-profiles.yaml.
+        let ssot: &[(&str, &str)] = &[
+            ("vox-lang", "lane:vox_codegen"),
+            ("vox-lang", "lane:vox_lang_tier_b"),
+            ("rust", "lane:vox_rust_authoring"),
+            ("tool-selection", "lane:vox_tool_selection"),
+            ("tool-selection", "lane:vox_tooling"),
+            ("argument-generation", "lane:vox_argument_generation"),
+        ];
+        for (domain, trigger) in ssot {
+            assert_eq!(
+                DomainRouter::signal_to_domain(trigger),
+                Some(*domain),
+                "runtime table disagrees with YAML SSOT for trigger {trigger}"
+            );
+        }
+        // File-glob triggers from the SSOT.
+        assert_eq!(DomainRouter::signal_to_domain("foo.vox"), Some("vox-lang"));
+        assert_eq!(DomainRouter::signal_to_domain("foo.rs"), Some("rust"));
+        // Review lane is deliberately absent from the SSOT → base.
+        assert_eq!(DomainRouter::signal_to_domain("lane:vox_rust_review"), None);
     }
 
     // ── Extra: telemetry fields on fallback ───────────────────────────────────
