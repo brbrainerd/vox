@@ -52,26 +52,47 @@ mod tests {
 
     #[test]
     fn parse_json_prefix() {
-        assert_eq!(ConstrainedDecodingMode::parse("json_prefix"), ConstrainedDecodingMode::JsonPrefix);
-        assert_eq!(ConstrainedDecodingMode::parse("json-prefix"), ConstrainedDecodingMode::JsonPrefix);
+        assert_eq!(
+            ConstrainedDecodingMode::parse("json_prefix"),
+            ConstrainedDecodingMode::JsonPrefix
+        );
+        assert_eq!(
+            ConstrainedDecodingMode::parse("json-prefix"),
+            ConstrainedDecodingMode::JsonPrefix
+        );
     }
 
     #[test]
     fn parse_strict_json() {
-        assert_eq!(ConstrainedDecodingMode::parse("strict_json"), ConstrainedDecodingMode::StrictJson);
-        assert_eq!(ConstrainedDecodingMode::parse("strict-json"), ConstrainedDecodingMode::StrictJson);
+        assert_eq!(
+            ConstrainedDecodingMode::parse("strict_json"),
+            ConstrainedDecodingMode::StrictJson
+        );
+        assert_eq!(
+            ConstrainedDecodingMode::parse("strict-json"),
+            ConstrainedDecodingMode::StrictJson
+        );
     }
 
     #[test]
     fn parse_unknown_maps_to_none() {
-        assert_eq!(ConstrainedDecodingMode::parse("unknown"), ConstrainedDecodingMode::None);
+        assert_eq!(
+            ConstrainedDecodingMode::parse("unknown"),
+            ConstrainedDecodingMode::None
+        );
     }
 
     #[test]
     fn parse_schema_guided_maps_to_none_with_no_panic() {
         // Must not panic; returns None (payload cannot be recovered from a string).
-        assert_eq!(ConstrainedDecodingMode::parse("schema_guided"), ConstrainedDecodingMode::None);
-        assert_eq!(ConstrainedDecodingMode::parse("schema-guided"), ConstrainedDecodingMode::None);
+        assert_eq!(
+            ConstrainedDecodingMode::parse("schema_guided"),
+            ConstrainedDecodingMode::None
+        );
+        assert_eq!(
+            ConstrainedDecodingMode::parse("schema-guided"),
+            ConstrainedDecodingMode::None
+        );
     }
 
     #[test]
@@ -96,7 +117,10 @@ mod tests {
 
     #[test]
     fn none_is_default() {
-        assert_eq!(ConstrainedDecodingMode::default(), ConstrainedDecodingMode::None);
+        assert_eq!(
+            ConstrainedDecodingMode::default(),
+            ConstrainedDecodingMode::None
+        );
     }
 
     #[test]

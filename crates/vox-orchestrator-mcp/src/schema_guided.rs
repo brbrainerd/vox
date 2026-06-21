@@ -87,7 +87,10 @@ mod tests {
     fn spec_contains_schema() {
         let schema = simple_schema();
         let spec = to_guided_decoding_spec(&schema);
-        assert_eq!(spec.guided_json, schema, "guided_json must equal the input schema");
+        assert_eq!(
+            spec.guided_json, schema,
+            "guided_json must equal the input schema"
+        );
     }
 
     #[test]
@@ -134,7 +137,10 @@ mod tests {
         let v = serde_json::to_value(&spec).expect("GuidedDecodingSpec must serialize");
         assert!(v.is_object(), "serialized spec must be a JSON object");
         assert!(v.get("guided_json").is_some(), "must have guided_json key");
-        assert!(v.get("guided_decoding_backend").is_some(), "must have guided_decoding_backend key");
+        assert!(
+            v.get("guided_decoding_backend").is_some(),
+            "must have guided_decoding_backend key"
+        );
     }
 
     // ── attach_guided_decoding ───────────────────────────────────────────────
@@ -185,7 +191,9 @@ mod tests {
         let once = attach_guided_decoding(req, &schema);
         let twice = attach_guided_decoding(once, &schema);
         assert_eq!(
-            twice.get("guided_json").expect("guided_json after two attaches"),
+            twice
+                .get("guided_json")
+                .expect("guided_json after two attaches"),
             &schema
         );
     }
