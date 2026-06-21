@@ -1270,3 +1270,269 @@ git commit -m "docs(ledger): record archive/dedup/compression engine (AGH-00XX)"
 **Type consistency:** `store_compressed(kind, original, stored, codec, dict_id)` is defined in Task 5 and called identically in Task 9. `refcount::{incr,decr,refs_of}`, `members::{set_members,members_of}`, `dictionary::{insert_dictionary,latest_dictionary,train_from_corpus}`, `compression::{compress,decompress}`, `chunking::chunk_content`, `dictionary_bytes` — all names match across defining and calling tasks. `crate::test_support::memory_db()` is assumed to be the crate's existing in-memory test helper; if its path differs, mirror the exact helper used in `context_window_store.rs`'s tests (Task 5 Step 1 notes this).
 
 **Known cross-task ordering:** Task 5's `get()` references `dictionary_bytes` (Task 8) and `compression::decompress` (Task 4); implement Tasks 3-4 and 8 before running Task 5's test (noted inline).
+
+---
+
+# Revision 2 — Codebase Audit Corrections (AUTHORITATIVE)
+
+> Added 2026-06-20 after a 3-agent adversarial review (codebase audit, Rust-crate audit, design adversary) verified against `claude/context-window-spine`, `open.rs`, `schema_extensions.rs`, and docs.rs. **Where this section conflicts with Tasks 1-14 above, this section wins.**
+
+## Summary of defects found in Rev 1
+
+| ID | Severity | Defect | Root cause |
+|----|----------|--------|-----------|
+| C1 | CRITICAL | New `objects` columns never reach existing DBs → every `get()` errors `no such column: codec` | `migrate()` upgrade branch (`open.rs:126-145`) only runs `CREATE TABLE IF NOT EXISTS`; no `ALTER`. Editing the baseline `CREATE` only affects *fresh* DBs. |
+| C2 | CRITICAL | Compression silently never happens | `add_item` already stored the item uncompressed under its content hash; `store_compressed` re-inserts the same hash with `INSERT OR IGNORE` → ignored. |
+| I3 | IMPORTANT | Large items keep an orphaned full-size uncompressed copy forever | Chunks stored under new hashes; original item object never replaced/GC'd. |
+| I4 | IMPORTANT | Refcount divergence + non-idempotent re-archive | Materialized `cas_refcount` blindly incremented; conflicts with spine's computed `count_hash_references`. |
+| I5 | IMPORTANT | Archive not atomic | Many independent `breaker.call` executes, no transaction. |
+| I6 | IMPORTANT | Tests pass even when compression never runs | No assertion of `codec='zstd'` or byte shrink. |
+| X7 | CRITICAL(build) | `from_samples` won't compile; stale crate pins | zstd `zdict_builder` feature off; `fastcdc="3"` (cur 4); `lru="0.12"` (cur 0.18, and wrong tool for a byte budget). |
+| X8 | IMPORTANT(perf) | Dict reparsed on every `get()` | `with_dictionary` rebuilds the DDict per call. |
+| X9 | IMPORTANT(perf) | Per-chunk independent zstd hurts ratio; level 19 pathological | Strategy + level choice. |
+
+## Correction 1 (C1) — Real column migration. Supersedes Task 2 Step 1.
+
+Keep the edited baseline `CREATE TABLE objects (...)` for fresh DBs, AND add an idempotent ADD-COLUMN migration that runs on upgrade. The hook is `apply_schema_extensions` (`crates/vox-db/src/schema_extensions.rs:7`), invoked from `migrate()` in the `< BASELINE_VERSION` branch, using `exec_optional_batch` (errors swallowed + logged).
+
+Add to `schema_extensions.rs`:
+
+```rust
+/// Idempotently add the archive columns to the pre-existing `objects` table.
+/// Each ALTER is its own optional batch so a single "duplicate column name" on
+/// re-run does not abort the others (execute_batch is all-or-nothing per call).
+async fn apply_objects_archive_columns(conn: &Connection) {
+    for stmt in [
+        "ALTER TABLE objects ADD COLUMN codec TEXT NOT NULL DEFAULT 'none';",
+        "ALTER TABLE objects ADD COLUMN dict_id INTEGER;",
+        "ALTER TABLE objects ADD COLUMN uncompressed_len INTEGER NOT NULL DEFAULT 0;",
+        "ALTER TABLE objects ADD COLUMN storage TEXT NOT NULL DEFAULT 'inline';",
+        "ALTER TABLE objects ADD COLUMN file_path TEXT;",
+    ] {
+        exec_optional_batch(conn, stmt).await; // ignores "duplicate column name"
+    }
+}
+```
+
+Call it first in `apply_schema_extensions`:
+
+```rust
+pub async fn apply_schema_extensions(conn: &Connection) -> Result<(), StoreError> {
+    apply_objects_archive_columns(conn).await; // NEW — must precede any codec-aware read
+    apply_knowledge_fts_cutover(conn).await?;
+    apply_search_document_chunks_fts_cutover(conn).await?;
+    // ... existing ...
+    Ok(())
+}
+```
+
+Caveat: `apply_schema_extensions` only runs inside the `current_version < BASELINE_VERSION` block, so the bump 80→81 triggers it exactly once on an existing DB — correct. Add a test that opens a DB, sets `schema_version` to 80 with a v80-shaped `objects` table (no codec cols), re-runs `migrate`, and asserts `SELECT codec FROM objects LIMIT 1` no longer errors. The new code must tolerate NULL `data` (for `storage='file'`/`'chunked'`).
+
+## Correction 2 (C2 + I3) — `codec='chunked'` manifest + UPSERT. Supersedes Tasks 5, 9 write path, 10.
+
+`objects.codec ∈ {'none','zstd','chunked'}`:
+- `'none'` — raw bytes in `data` (unchanged; every legacy caller).
+- `'zstd'` — `data` = zstd frame; `uncompressed_len` set; decompress on read.
+- `'chunked'` — `data IS NULL`; content = in-order concat of `chunk_members(item_hash)` (each member is a `'zstd'`/`'none'` object). The original large-item object becomes a MANIFEST, not an orphan — and folds `read_item` into `get()`.
+
+Replace `store_compressed` with an UPSERT that only rewrites when smaller, plus a manifest writer:
+
+```rust
+    /// Compress-in-place an EXISTING object (or insert if absent), only when the compressed
+    /// form is strictly smaller. `hash` = content_hash(original). Safe to call repeatedly.
+    pub async fn put_compressed(
+        &self, kind: &str, original: &[u8], stored: &[u8], codec: &str, dict_id: Option<i64>,
+    ) -> Result<String, StoreError> {
+        let hash = crate::hash::content_hash(original);
+        let (kind, codec) = (kind.to_string(), codec.to_string());
+        let (hash_ins, stored, ulen) = (hash.clone(), stored.to_vec(), original.len() as i64);
+        let smaller = stored.len() < original.len();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker.call(|| async move {
+            if smaller {
+                conn.execute(
+                    "INSERT INTO objects (hash, kind, data, codec, dict_id, uncompressed_len, storage)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'inline')
+                     ON CONFLICT(hash) DO UPDATE SET
+                       data=excluded.data, codec=excluded.codec,
+                       dict_id=excluded.dict_id, uncompressed_len=excluded.uncompressed_len",
+                    params![hash_ins.as_str(), kind.as_str(), stored.as_slice(),
+                            codec.as_str(), dict_id, ulen],
+                ).await?;
+            } else {
+                conn.execute(
+                    "INSERT OR IGNORE INTO objects (hash, kind, data, codec, uncompressed_len)
+                     VALUES (?1, ?2, ?3, 'none', ?4)",
+                    params![hash_ins.as_str(), kind.as_str(), stored.as_slice(), ulen],
+                ).await?;
+            }
+            Ok::<(), StoreError>(())
+        }).await?;
+        Ok(hash)
+    }
+
+    /// Convert an existing whole-item object into a chunk manifest (data=NULL, codec='chunked').
+    pub async fn put_chunk_manifest(&self, item_hash: &str, uncompressed_len: i64) -> Result<(), StoreError> {
+        let item_hash = item_hash.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker.call(|| async move {
+            conn.execute(
+                "INSERT INTO objects (hash, kind, data, codec, uncompressed_len, storage)
+                 VALUES (?1, 'ctxwin-item', NULL, 'chunked', ?2, 'inline')
+                 ON CONFLICT(hash) DO UPDATE SET data=NULL, codec='chunked', uncompressed_len=excluded.uncompressed_len",
+                params![item_hash.as_str(), uncompressed_len],
+            ).await?;
+            Ok::<(), StoreError>(())
+        }).await
+    }
+```
+
+Make `get()` handle all three codecs (REPLACES the Task 5 `get()` body, ABSORBS Task 10 `read_item`):
+
+```rust
+    pub async fn get(&self, hash: &str) -> Result<Vec<u8>, StoreError> {
+        let mut rows = self.conn.query(
+            "SELECT data, codec, dict_id, uncompressed_len FROM objects WHERE hash=?1 LIMIT 1",
+            params![hash]).await?;
+        let row = rows.next().await?.ok_or_else(|| StoreError::NotFound(format!("object {hash}")))?;
+        let codec: String = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+        match codec.as_str() {
+            "chunked" => {
+                let mut members = self.conn.query(
+                    "SELECT chunk_hash FROM chunk_members WHERE item_hash=?1 ORDER BY ordinal",
+                    params![hash]).await?;
+                let mut out = Vec::new();
+                while let Some(m) = members.next().await? {
+                    let ch: String = m.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+                    out.extend_from_slice(&Box::pin(self.get(&ch)).await?); // Box::pin for async recursion
+                }
+                Ok(out)
+            }
+            "zstd" => {
+                let data: Vec<u8> = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+                let dict_id: Option<i64> = row.get(2).map_err(|e| StoreError::Db(e.to_string()))?;
+                let ulen: i64 = row.get(3).map_err(|e| StoreError::Db(e.to_string()))?;
+                let dict = match dict_id { Some(id) => Some(self.decoder_dictionary(id).await?), None => None };
+                crate::archive::compression::decompress_prepared(&data, ulen as usize, dict.as_deref())
+            }
+            _ => row.get::<Vec<u8>>(0).map_err(|e| StoreError::Db(e.to_string())),
+        }
+    }
+```
+
+Task 9 pipeline: whole-message item → `put_compressed("ctxwin-item", &content, &comp, "zstd", dict_id)`; large item → per chunk `put_compressed("ctxwin-chunk", chunk, &comp, "zstd", dict_id)` + `members::set_members(...)` + `put_chunk_manifest(&item_hash, content.len() as i64)`. DELETE Task 10 (`read_item` is now just `get`).
+
+## Correction 3 (I4 + I5) — Idempotent membership edges replace the materialized counter. Supersedes Task 2 (`cas_refcount`), Task 6, Task 11.
+
+Drop `cas_refcount`. Add an idempotent edge table; refcount is a COUNT over it, so re-archiving is a no-op and unarchive/trim decrement correctly.
+
+```sql
+CREATE TABLE IF NOT EXISTS archive_membership (
+    window_id TEXT NOT NULL,
+    ref_hash  TEXT NOT NULL REFERENCES objects(hash),
+    PRIMARY KEY (window_id, ref_hash)
+);
+CREATE INDEX IF NOT EXISTS idx_archive_membership_hash ON archive_membership(ref_hash);
+```
+
+Accessors (`archive::membership`, replaces `archive::refcount`):
+
+```rust
+/// Idempotently record that `window_id` references `ref_hash`. Re-archiving = no-op.
+pub async fn add_edge(db: &VoxDb, window_id: &str, ref_hash: &str) -> Result<(), StoreError> { /* INSERT OR IGNORE */ }
+/// Remove all edges for a window (on unarchive-delete / window hard-delete).
+pub async fn drop_window_edges(db: &VoxDb, window_id: &str) -> Result<(), StoreError> { /* DELETE WHERE window_id=?1 */ }
+/// Live reference count = distinct windows referencing the object.
+pub async fn refs_of(db: &VoxDb, ref_hash: &str) -> Result<i64, StoreError> {
+    // SELECT COUNT(*) FROM archive_membership WHERE ref_hash=?1
+}
+/// Mining frequency signal (replaces dropped chunk_stats / cas_refcount ORDER BY):
+/// SELECT ref_hash FROM archive_membership GROUP BY ref_hash ORDER BY COUNT(*) DESC LIMIT ?1
+pub async fn top_referenced(db: &VoxDb, limit: i64) -> Result<Vec<String>, StoreError> { /* ... */ }
+```
+
+Pipeline records an edge per referenced object (`add_edge(window, item_or_chunk_hash)`) — idempotent, so re-archiving one window does not inflate counts. GC (Task 11): delete objects with ZERO membership edges AND not referenced by any live `context_window_items.content_hash`. Wrap the per-window archive in a transaction:
+
+```rust
+conn.execute("BEGIN", ()).await?;   // via breaker
+// ... all item/chunk/edge/manifest writes; set tier='cold' LAST ...
+conn.execute("COMMIT", ()).await?;  // on any error: conn.execute("ROLLBACK", ()).await
+```
+
+Update `train_from_corpus` (Task 12) to sample `membership::top_referenced(db, max)`.
+
+## Correction 4 (X7) — Crate pins + features. Supersedes Task 1 + Task 13 Step 1.
+
+```toml
+# workspace [workspace.dependencies]
+zstd = { version = "0.13", features = ["zdict_builder"] }   # zdict_builder REQUIRED for from_samples
+fastcdc = "4"                                                # "3" is two majors stale; 4.x matches the API used
+quick_cache = "0.6"                                          # weighted byte budget (replaces lru — see Correction 5)
+```
+
+Remove `lru`. `fastcdc::v2020::FastCDC::new` takes **`usize`** params (not `u32`) and returns `Self` (not Result); `Chunk { offset, length, hash }` — NEVER use `Chunk.hash` as a CAS key (64-bit GEAR boundary artifact). After editing deps, run the hakari regen (the repo's `vox ci` hakari step) and the workspace-hack parity gate, or CI fails. `zstd` pulls `zstd-sys` (C via `cc`) — builds on Windows/MSVC; accepted.
+
+## Correction 5 (X8 + X9) — Prepared dictionaries, level, strategy. Supersedes Task 4, Task 13.
+
+```rust
+const ZSTD_LEVEL_DEFAULT: i32 = 12; // was 19 (pathological cost for ~1-3% gain); expose via config later
+
+pub fn compress_prepared(data: &[u8], dict: Option<&zstd::dict::EncoderDictionary>) -> Result<Vec<u8>, StoreError> {
+    let mut c = match dict {
+        Some(ed) => zstd::bulk::Compressor::with_prepared_dictionary(ed),
+        None => zstd::bulk::Compressor::new(ZSTD_LEVEL_DEFAULT),
+    }.map_err(|e| StoreError::Db(format!("zstd compressor: {e}")))?;
+    c.compress(data).map_err(|e| StoreError::Db(format!("zstd compress: {e}")))
+}
+
+pub fn decompress_prepared(data: &[u8], capacity: usize, dict: Option<&zstd::dict::DecoderDictionary>) -> Result<Vec<u8>, StoreError> {
+    let mut d = match dict {
+        Some(dd) => zstd::bulk::Decompressor::with_prepared_dictionary(dd),
+        None => zstd::bulk::Decompressor::new(),
+    }.map_err(|e| StoreError::Db(format!("zstd decompressor: {e}")))?;
+    d.decompress(data, capacity).map_err(|e| StoreError::Db(format!("zstd decompress: {e}")))
+}
+```
+
+`VoxDb` holds an in-memory `dict_cache` (e.g. `Mutex<HashMap<i64, Arc<DecoderDictionary<'static>>>>`); `decoder_dictionary(id)` loads bytes once via `dictionary_bytes(id)` then caches the prepared `DecoderDictionary`. Removes the per-read DB hit AND the per-read DDict parse.
+
+Cache (Task 13): replace `lru` with `quick_cache::sync::Cache` + a weighter so the budget is real bytes, not entries:
+
+```rust
+use quick_cache::sync::Cache;
+pub struct DecompressionCache { inner: Cache<String, std::sync::Arc<Vec<u8>>> }
+// with_weighter(estimated_items, max_bytes as u64, |_k, v: &Arc<Vec<u8>>| v.len() as u64)
+```
+
+Compression-granularity decision (documented + benchmark-gated): v1 keeps per-chunk compression for dedup addressability BUT (a) always under the prepared dictionary, (b) widen FastCDC to **min 4K / avg 8K / max 32K** (normalized chunking wants max ≥ 4×avg), and (c) add a benchmark test `archive_ratio_benchmark` archiving a representative multi-session corpus, asserting total stored bytes < 0.6× raw; if it fails, fallback is whole-item compression (CDC stays only as the dedup boundary detector). zstd long-distance matching is a Phase-2 follow-up.
+
+## Correction 6 (I6) — Stronger tests. Augments Tasks 9, 11.
+
+```rust
+// after archiving w1 + w2 with a compressible payload:
+let mut r = db.conn.query(
+    "SELECT codec, length(data), uncompressed_len FROM objects WHERE hash=?1", params![&h]).await.unwrap();
+let row = r.next().await.unwrap().unwrap();
+assert_eq!(row.get::<String>(0).unwrap(), "zstd", "must be compressed in place (catches C2)");
+assert!(row.get::<i64>(1).unwrap() < row.get::<i64>(2).unwrap(), "stored bytes must be < uncompressed");
+assert_eq!(membership::refs_of(&db, &h).await.unwrap(), 2);
+// Idempotency (catches I4): re-archive w1, refs must STAY 2.
+archive_window(&db, "w1", 12).await.unwrap();
+assert_eq!(membership::refs_of(&db, &h).await.unwrap(), 2, "re-archive must not inflate refs");
+// Large-item no-orphan (catches I3): the item hash is a 'chunked' manifest with NULL data.
+```
+
+## Net effect on task list
+
+- **Task 2:** baseline `objects` edit stays; add `archive_membership` (not `cas_refcount`); column migration via Correction 1.
+- **Task 5:** `get()` per Correction 2; `put_compressed`/`put_chunk_manifest` replace `store_compressed`.
+- **Task 6:** becomes `archive::membership` (edges), per Correction 3.
+- **Task 9:** records edges + manifest + transaction, per Corrections 2-3.
+- **Task 10:** DELETED (folded into `get`).
+- **Task 11:** GC keyed on zero membership edges + not-live, per Correction 3.
+- **Task 12:** sample `top_referenced`, prepared dict, per Corrections 3+5.
+- **Task 13:** `quick_cache` weighted + prepared `DecoderDictionary` cache, per Correction 5.
+- **New micro-tasks:** column-migration test (Correction 1); `archive_ratio_benchmark` (Correction 5).
+- **Frozen spill** remains an explicit follow-up (now with `storage='file'`/`file_path` already migrated and read-ready).
