@@ -137,12 +137,7 @@ impl VllmLoraClient {
     ///
     /// The guided-decoding field is embedded inline (vox-orchestrator-mcp is not a
     /// dependency of vox-populi; the schema is merged directly per the vLLM API).
-    pub fn build_chat(
-        &self,
-        task: &str,
-        adapter_name: &str,
-        tool_schema: &Value,
-    ) -> Value {
+    pub fn build_chat(&self, task: &str, adapter_name: &str, tool_schema: &Value) -> Value {
         serde_json::json!({
             "model": adapter_name,
             "messages": [
@@ -207,7 +202,11 @@ mod tests {
             result.is_err(),
             "loading with serve_rung != card.base_rung must return Err"
         );
-        assert_eq!(client.loaded_count(), 0, "failed load must not insert an entry");
+        assert_eq!(
+            client.loaded_count(),
+            0,
+            "failed load must not insert an entry"
+        );
     }
 
     // ── B6.1 Test 3: quant mismatch ─────────────────────────────────────────
@@ -229,7 +228,11 @@ mod tests {
             result.is_err(),
             "loading with serve_quant != card.quantization must return Err"
         );
-        assert_eq!(client.loaded_count(), 0, "failed load must not insert an entry");
+        assert_eq!(
+            client.loaded_count(),
+            0,
+            "failed load must not insert an entry"
+        );
     }
 
     // ── B6.1 Test 4: build_chat sets model and guided_json ──────────────────
