@@ -105,8 +105,10 @@ interface LoquelaProps {
   onOpenTasks?: () => void;
   /** True when a submitted task is still in progress — flips Send button to Stop. */
   taskInProgress?: boolean;
+  /** The in-flight task id (numeric orchestrator id) used when interrupting. */
+  currentTaskId?: number;
   /** Called when the user clicks Stop; should interrupt the active orchestrator task. */
-  onInterrupt?: () => void;
+  onInterrupt?: (taskId?: number) => void;
 }
 
 export function Loquela({
@@ -123,6 +125,7 @@ export function Loquela({
   queueDepth,
   onOpenTasks,
   taskInProgress = false,
+  currentTaskId,
   onInterrupt,
 }: LoquelaProps) {
   const [text, setText] = useState("");
@@ -428,8 +431,15 @@ export function Loquela({
     if (e.key === "ArrowDown" && histIdx >= 0) {
       e.preventDefault(); const ni = histIdx - 1; setHistIdx(ni); setText(ni < 0 ? "" : history[ni]); return;
     }
-    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); return; }
-    if (e.key === "Enter" && !e.shiftKey && !slashOpen && !atOpen) { e.preventDefault(); send(); }
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      if (taskInProgress) { onInterrupt?.(currentTaskId); } else { send(); }
+      return;
+    }
+    if (e.key === "Enter" && !e.shiftKey && !slashOpen && !atOpen) {
+      e.preventDefault();
+      if (taskInProgress) { onInterrupt?.(currentTaskId); } else { send(); }
+    }
   };
 
   return (
@@ -541,7 +551,7 @@ export function Loquela({
           {taskInProgress ? (
             <button
               type="button"
-              onClick={() => onInterrupt?.()}
+              onClick={() => onInterrupt?.(currentTaskId)}
               aria-label="Stop (Enter)"
               className="inline-flex h-8 shrink-0 items-center gap-2 rounded-md border border-rose-400/45 bg-rose-400/[0.12] px-3 text-rose-300 transition hover:bg-rose-400/[0.18]"
             >

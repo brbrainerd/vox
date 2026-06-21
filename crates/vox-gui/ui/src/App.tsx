@@ -956,12 +956,45 @@ export default function App() {
     [kpis, chatMeshPeers],
   );
 
+  // Derive the in-flight task from the shared chat transcript: the latest
+  // assistant bubble still streaming/pending whose task_id has resolved is the
+  // task the Stop button (and Enter, when running) should interrupt. No parallel
+  // source of truth — this rides the same EventBus correlation as the bubbles.
+  const inFlightAssistant = useMemo(() => {
+    for (let i = activeChatMessages.length - 1; i >= 0; i -= 1) {
+      const m = activeChatMessages[i];
+      if (
+        m.role === 'assistant' &&
+        (m.status === 'pending' || m.status === 'streaming') &&
+        m.taskId != null
+      ) {
+        return m;
+      }
+    }
+    return undefined;
+  }, [activeChatMessages]);
+  const inFlightTaskId = inFlightAssistant ? Number(inFlightAssistant.taskId) : undefined;
+  const taskInProgress = inFlightTaskId != null && Number.isFinite(inFlightTaskId);
+
+  const handleInterruptTask = useCallback(
+    (taskId?: number) => {
+      if (taskId == null || !Number.isFinite(taskId)) return;
+      invoke('interrupt_orchestrator_task', { taskId })
+        .then(() => pushToast({ tone: 'info', title: 'Interrupting task', body: `Task #${taskId}` }))
+        .catch((err) => pushToast({ tone: 'warn', title: 'Interrupt failed', body: String(err) }));
+    },
+    [pushToast],
+  );
+
   const loquelaComposer = (
     <Loquela
       chips={chips}
       setChips={setChips}
       onSubmit={(p) => handleLoquelaSubmit({ ...p, session_id: activeSessionId })}
       onSlashCommand={handleLoquelaSlash}
+      taskInProgress={taskInProgress}
+      currentTaskId={taskInProgress ? inFlightTaskId : undefined}
+      onInterrupt={handleInterruptTask}
       sessionBudget={{
         spent: kpis.budgetBurn.value,
         cap: kpis.budgetBurn.cap,
