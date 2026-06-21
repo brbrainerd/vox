@@ -105,6 +105,13 @@ pub mod orch_daemon_method {
     /// `agent_id` must be present. Returns the fresh isolation status JSON.
     /// Mirrors `POST /api/v2/vcs/isolation/strategy`.
     pub const VCS_ISOLATION_SET_STRATEGY: &str = "orch.vcs_isolation_set_strategy";
+    /// Params: `{}` → `{"tree": [{task_id, agent_id, parent_task_id?, reason, source_task_id}]}`
+    /// — the current subagent delegation tree from `AgentDelegationBinding` topology records.
+    /// Served via `ExtraDispatch`.
+    pub const SUBAGENT_TREE: &str = "orch.subagent_tree";
+    /// Params: `{"task_id": u64, "policy": "any"|"local_only"|{"exclude": ["node1",...]}}` → `{"ok": true}`.
+    /// Updates the `mesh_policy` of a queued task. Served via `ExtraDispatch`.
+    pub const SET_MESH_POLICY: &str = "orch.set_mesh_policy";
 }
 
 pub mod dei_method {

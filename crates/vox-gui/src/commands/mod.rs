@@ -19,6 +19,7 @@ pub mod llm_settings;
 pub mod mcp;
 pub mod memory;
 pub mod mesh;
+pub mod mission_control;
 pub mod mic;
 pub mod models;
 pub mod oratio;
