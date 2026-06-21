@@ -42,12 +42,18 @@ const CPUS_PER_RUNNER: &str = "4";
 const MEM_PER_RUNNER: &str = "5000m";
 /// Shared S3-compatible compile cache (MinIO container `vox-sccache-minio` on
 /// this host; see docs/src/ci/shared-compile-cache.md). Runner containers reach
-/// the host via Docker Desktop's `host.docker.internal`. The host-side probe
-/// uses localhost. The bucket allows anonymous read/write on the LAN, so no
+/// the host's MinIO by **IP**: opendal's S3 client (sccache's backend) rejects a
+/// *hostname* endpoint — "Host header is specified and is not an IP address or
+/// localhost" — so we resolve `host.docker.internal` to an IP at spawn (see
+/// [`container_host_ip`]) instead of baking the name. The host-side probe uses
+/// localhost. The bucket allows anonymous read/write on the LAN, so no
 /// credentials are injected.
 const SCCACHE_S3_BUCKET: &str = "vox-sccache";
-const SCCACHE_S3_CONTAINER_ENDPOINT: &str = "http://host.docker.internal:9000";
+const SCCACHE_S3_PORT: u16 = 9000;
 const SCCACHE_S3_HOST_PROBE: &str = "127.0.0.1:9000";
+/// Fallback container→host IP when Docker resolution fails (the common Docker
+/// bridge gateway). Used only if [`resolve_container_host_ip`] can't ask Docker.
+const SCCACHE_S3_FALLBACK_HOST_IP: &str = "172.17.0.1";
 /// Default ceiling on concurrent managed runners (6 runners × 4 cpu = 24 vCPU =
 /// WSL2 processors cap; 6 × 5000m = 30 GB < 32 GB WSL2 memory cap).
 /// Override: `VOX_RUNNER_MAX`.
@@ -408,21 +414,59 @@ fn s3_cache_reachable() -> bool {
 /// disk-volume defaults then apply. `CARGO_INCREMENTAL=0` because sccache
 /// cannot cache incremental compiles and ephemeral runners gain nothing from
 /// incremental state anyway.
-pub fn shared_cache_env(reachable: bool) -> Vec<(&'static str, String)> {
+pub fn shared_cache_env(reachable: bool, host_ip: &str) -> Vec<(&'static str, String)> {
     if !reachable {
         return Vec::new();
     }
     vec![
         ("SCCACHE_BUCKET", SCCACHE_S3_BUCKET.to_string()),
+        // IP, never a hostname — opendal rejects a non-IP/non-localhost Host.
         (
             "SCCACHE_ENDPOINT",
-            SCCACHE_S3_CONTAINER_ENDPOINT.to_string(),
+            format!("http://{host_ip}:{SCCACHE_S3_PORT}"),
         ),
         ("SCCACHE_REGION", "us-east-1".to_string()),
         ("SCCACHE_S3_USE_SSL", "off".to_string()),
         ("SCCACHE_S3_NO_CREDENTIALS", "true".to_string()),
         ("CARGO_INCREMENTAL", "0".to_string()),
     ]
+}
+
+/// Resolve the IP that runner containers use to reach the host's MinIO, memoized
+/// for the process. opendal rejects a hostname Host header, so `host.docker.internal`
+/// cannot be passed verbatim. Ask Docker what it maps to (works on Docker Desktop
+/// and Linux via `host-gateway`); fall back to the bridge gateway on any failure.
+fn container_host_ip() -> String {
+    use std::sync::OnceLock;
+    static IP: OnceLock<String> = OnceLock::new();
+    IP.get_or_init(|| {
+        resolve_container_host_ip().unwrap_or_else(|| SCCACHE_S3_FALLBACK_HOST_IP.to_string())
+    })
+    .clone()
+}
+
+/// Run a throwaway container to resolve `host.docker.internal` → IP. Returns
+/// `None` (caller falls back) if Docker is unavailable or the output isn't an IP.
+fn resolve_container_host_ip() -> Option<String> {
+    let out = std::process::Command::new("docker")
+        .args([
+            "run",
+            "--rm",
+            "--add-host",
+            "host.docker.internal:host-gateway",
+            "busybox:latest",
+            "getent",
+            "hosts",
+            "host.docker.internal",
+        ])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let ip = stdout.split_whitespace().next()?;
+    ip.parse::<std::net::IpAddr>().ok().map(|_| ip.to_string())
 }
 
 fn spawn_one(index: u32, tag: &str, dry_run: bool) -> Result<()> {
@@ -448,6 +492,10 @@ fn spawn_one(index: u32, tag: &str, dry_run: bool) -> Result<()> {
         // actions runner (run.sh) would otherwise leave defunct after a cancelled
         // or crashed job.
         "--init".into(),
+        // Ensure `host.docker.internal` always resolves inside the runner (Docker
+        // Desktop provides it; `host-gateway` makes it work on Linux too).
+        "--add-host".into(),
+        "host.docker.internal:host-gateway".into(),
         "--name".into(),
         name.clone(),
         format!("--cpus={CPUS_PER_RUNNER}"),
@@ -468,7 +516,7 @@ fn spawn_one(index: u32, tag: &str, dry_run: bool) -> Result<()> {
         "-v".into(),
         format!("{CACHE_VOLUME}:/cache"),
     ];
-    for (k, v) in shared_cache_env(s3_cache_reachable()) {
+    for (k, v) in shared_cache_env(s3_cache_reachable(), &container_host_ip()) {
         args.push("-e".into());
         args.push(format!("{k}={v}"));
     }
@@ -1130,12 +1178,12 @@ mod tests {
 
     #[test]
     fn shared_cache_env_empty_when_unreachable() {
-        assert!(shared_cache_env(false).is_empty());
+        assert!(shared_cache_env(false, "172.17.0.1").is_empty());
     }
 
     #[test]
     fn shared_cache_env_points_runners_at_host_minio_without_credentials() {
-        let env = shared_cache_env(true);
+        let env = shared_cache_env(true, "172.17.0.1");
         let get = |k: &str| {
             env.iter()
                 .find(|(key, _)| *key == k)
@@ -1143,13 +1191,34 @@ mod tests {
                 .unwrap_or_default()
         };
         assert_eq!(get("SCCACHE_BUCKET"), "vox-sccache");
-        // Containers must reach the host's MinIO, not their own loopback.
-        assert!(get("SCCACHE_ENDPOINT").contains("host.docker.internal"));
+        // Containers reach the host's MinIO by IP, not a hostname: opendal's S3
+        // client rejects a non-IP/non-localhost Host header ("Host header is
+        // specified and is not an IP address or localhost").
+        assert_eq!(get("SCCACHE_ENDPOINT"), "http://172.17.0.1:9000");
+        // Regression guard: never a hostname in the endpoint (broke the fleet).
+        assert!(!get("SCCACHE_ENDPOINT").contains("host.docker.internal"));
         assert_eq!(get("SCCACHE_S3_NO_CREDENTIALS"), "true");
         // sccache cannot cache incremental compiles.
         assert_eq!(get("CARGO_INCREMENTAL"), "0");
         // Anonymous LAN bucket: no AWS credentials may be injected.
         assert!(!env.iter().any(|(k, _)| k.starts_with("AWS_")));
+    }
+
+    #[test]
+    fn shared_cache_env_endpoint_host_is_always_an_ip() {
+        // Whatever IP the resolver yields, the endpoint host must parse as an IP
+        // (the opendal constraint). Exercised here with the fallback gateway.
+        let env = shared_cache_env(true, super::SCCACHE_S3_FALLBACK_HOST_IP);
+        let ep = env
+            .iter()
+            .find(|(k, _)| *k == "SCCACHE_ENDPOINT")
+            .map(|(_, v)| v.clone())
+            .unwrap();
+        let host = ep.trim_start_matches("http://").split(':').next().unwrap();
+        assert!(
+            host.parse::<std::net::IpAddr>().is_ok(),
+            "host not an IP: {host}"
+        );
     }
 
     #[test]
