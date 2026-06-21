@@ -1,75 +1,36 @@
 //! Interrupt infrastructure for stopping in-progress local tasks.
 //!
-//! # Current state (Track B, 2026-06-20)
+//! # Current state (Track B, complete — 2026-06-20)
 //!
-//! The interrupt path is **partially implemented**:
+//! The local-task interrupt path is **fully wired end to end**:
 //!
-//! - `Orchestrator::interrupt_flags` — an `RwLock<HashMap<TaskId, Arc<AtomicBool>>>` stores a
-//!   per-task flag.  Set to `true` by [`Orchestrator::interrupt_task`].
-//! - `orch.interrupt_task` daemon method constant is in `vox-foundation/src/protocol.rs`.
-//! - Daemon handler dispatches to `interrupt_task` in `orch_daemon/mod.rs`.
-//! - Tauri command `interrupt_orchestrator_task` is registered in `vox-gui/src/main.rs`.
+//! 1. **Flag registration.** When [`crate::runtime::ActorAgent`] dequeues a task and is about to
+//!    run it, it creates `Arc<AtomicBool>` and inserts it into
+//!    [`Orchestrator::interrupt_flags`] keyed by `TaskId` (via `crate::sync_lock::rw_write`).
+//!    The entry is removed after `process` returns.
+//! 2. **Threaded into the processor.** [`crate::runtime::TaskProcessor::process`] takes a
+//!    `cancel: Arc<AtomicBool>` parameter. Both `StubTaskProcessor` and `AiTaskProcessor`
+//!    implement it.
+//! 3. **Polling.** `AiTaskProcessor` polls `cancel.load(Ordering::Acquire)` at the top of every
+//!    phase and after every streamed chunk (in `run_phase_stream`). `StubTaskProcessor` checks
+//!    the flag at entry so the cancel path is unit-testable.
+//! 4. **Abort telemetry.** On abort, [`Orchestrator::abort_interrupted_task`] emits
+//!    `orch.task.cancelled` with `path = "local_interrupt"` (mirrors `emit_task_cancelled`).
+//! 5. **Lock release.** `abort_interrupted_task` mirrors `cancel_task`'s release path: it revokes
+//!    the file lock, affinity, and scope-guard claims for the task's write files (unless another
+//!    task still claims them), drops the task assignment, and clears the interrupt flag.
 //!
-//! # What is still missing (TODO for next session)
+//! # Trigger surface
 //!
-//! ## 1. Register the flag when a task starts
+//! - [`Orchestrator::interrupt_task`] sets the flag if the task is in-progress (registered), or
+//!   falls back to `cancel_task` for still-queued tasks.
+//! - Daemon method constant `orch.interrupt_task` lives in `vox-foundation/src/protocol.rs`;
+//!   the daemon handler dispatches it; the Tauri command `interrupt_orchestrator_task` is
+//!   registered in `vox-gui/src/main.rs`.
 //!
-//! In `runtime.rs` (or wherever `TaskProcessor::process` is called), before handing the task
-//! to the processor, create a flag and insert it:
+//! # Design notes
 //!
-//! ```rust,ignore
-//! let flag = Arc::new(AtomicBool::new(false));
-//! crate::sync_lock::rw_write(&orch.interrupt_flags).insert(task.id, Arc::clone(&flag));
-//! let result = processor.process(agent_id, task).await;
-//! crate::sync_lock::rw_write(&orch.interrupt_flags).remove(&task_id);
-//! result
-//! ```
-//!
-//! ## 2. Thread `CancellationToken` (or `Arc<AtomicBool>`) into `TaskProcessor::process`
-//!
-//! The trait signature is currently:
-//! ```rust,ignore
-//! async fn process(&self, agent_id: AgentId, task: AgentTask) -> anyhow::Result<TaskId>;
-//! ```
-//!
-//! Add a cancellation parameter — either `Arc<AtomicBool>` (zero new deps) or
-//! `tokio_util::sync::CancellationToken` (cleaner async integration):
-//! ```rust,ignore
-//! async fn process(
-//!     &self,
-//!     agent_id: AgentId,
-//!     task: AgentTask,
-//!     cancel: Arc<AtomicBool>,
-//! ) -> anyhow::Result<TaskId>;
-//! ```
-//!
-//! Both `StubTaskProcessor` and `AiTaskProcessor` must be updated.
-//!
-//! ## 3. Poll the flag in `AiTaskProcessor::process`
-//!
-//! In `runtime.rs::AiTaskProcessor::process`, the streaming loop receives tokens from the
-//! LLM.  After each batch/chunk, check:
-//! ```rust,ignore
-//! if cancel.load(Ordering::Acquire) {
-//!     tracing::info!("Task {} interrupted by user", task_id);
-//!     return Err(anyhow::anyhow!("task interrupted"));
-//! }
-//! ```
-//!
-//! ## 4. Emit `TaskCancelled` with `path = "local_interrupt"` on abort
-//!
-//! Reuse `emit_task_cancelled(task_id, agent_id, "local_interrupt")` from
-//! `orchestrator/agent/lifecycle_ops.rs`.
-//!
-//! ## 5. Release locks on abort
-//!
-//! Mirror the lock-release pattern in `cancel_task` (affinity map + file lock manager + scope
-//! guard revoke) when the interrupt path is taken.
-//!
-//! # Files to touch
-//!
-//! | File | Change |
-//! |------|--------|
-//! | `src/runtime.rs` | `TaskProcessor::process` signature + flag registration + polling in `AiTaskProcessor` |
-//! | `src/orchestrator/agent/lifecycle_ops.rs` | lock release in `interrupt_task` when task is in-progress |
-//! | `Cargo.toml` (optional) | add `tokio-util = { features = ["sync"] }` if using `CancellationToken` |
+//! `Arc<AtomicBool>` is used rather than `tokio_util::sync::CancellationToken` to avoid adding a
+//! dependency. Polling is cooperative: a phase that is mid-`await` on inference completes that
+//! single inference before the next poll observes the flag, so abort latency is bounded by one
+//! streamed chunk (or one phase boundary if the backend does not stream).

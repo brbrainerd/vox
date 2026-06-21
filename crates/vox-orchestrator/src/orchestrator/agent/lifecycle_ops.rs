@@ -277,6 +277,58 @@ impl crate::orchestrator::Orchestrator {
         self.cancel_task(task_id)
     }
 
+    /// Release locks and emit telemetry when an in-progress local task aborts
+    /// because its interrupt flag was set (see `runtime::AiTaskProcessor`).
+    ///
+    /// Mirrors the lock-release path of [`Orchestrator::cancel_task`]: it revokes
+    /// the file lock, affinity, and scope-guard claims held by `agent_id` for the
+    /// interrupted task's write files (unless another queued/running task still
+    /// claims them), drops the task assignment, and emits the
+    /// `orch.task.cancelled` event with `path = "local_interrupt"`.
+    pub fn abort_interrupted_task(&self, task_id: TaskId, agent_id: AgentId) {
+        // Best-effort lock release: locate the task's write files from the
+        // agent's queue (in-progress or queued) and release any no-longer-claimed.
+        if let Some(queue_lock) = self.agent_queue(agent_id) {
+            let queue = crate::sync_lock::rw_read(&queue_lock);
+            let write_files: Vec<std::path::PathBuf> = queue
+                .current_task()
+                .filter(|t| t.id == task_id)
+                .map(|t| t.write_files().into_iter().cloned().collect::<Vec<_>>())
+                .or_else(|| {
+                    queue
+                        .tasks()
+                        .iter()
+                        .find(|t| t.id == task_id)
+                        .map(|t| t.write_files().into_iter().cloned().collect::<Vec<_>>())
+                })
+                .unwrap_or_default();
+            let still_claimed = |path: &std::path::Path| {
+                queue
+                    .current_task()
+                    .is_some_and(|t| t.id != task_id && t.write_files().iter().any(|p| p.as_path() == path))
+                    || queue
+                        .tasks()
+                        .iter()
+                        .any(|t| t.id != task_id && t.write_files().iter().any(|p| p.as_path() == path))
+            };
+            for path in &write_files {
+                if !still_claimed(path) {
+                    self.lock_manager.release(path, agent_id);
+                    self.affinity_map.release(path);
+                    crate::sync_lock::rw_write(&*self.scope_guard).revoke_file(agent_id, path);
+                }
+            }
+        }
+        crate::sync_lock::rw_write(&self.task_assignments).remove(&task_id);
+        crate::sync_lock::rw_write(&self.interrupt_flags).remove(&task_id);
+        tracing::info!(
+            "Aborted interrupted task {} on agent {} (local_interrupt)",
+            task_id,
+            agent_id
+        );
+        emit_task_cancelled(task_id, agent_id, "local_interrupt");
+    }
+
     /// Reorder a queued task with a new priority.
     pub fn reorder_task(
         &self,
