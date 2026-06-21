@@ -422,4 +422,30 @@ impl crate::VoxDb {
             })
             .await
     }
+
+    // ── Activity log (activity_log) ──────────────────────────────────────────
+
+    /// Insert one row into `activity_log`. Best-effort persistence for the
+    /// orchestrator activity sink — keeps direct SQL inside vox-db rather than
+    /// the orchestrator (query-all / turso-import SSOT boundary). `agent_id` and
+    /// `session_id` are nullable; `None` stores SQL NULL.
+    pub async fn insert_activity_log_row(
+        &self,
+        ts_ms: i64,
+        agent_id: Option<&str>,
+        session_id: Option<&str>,
+        kind: &str,
+        summary: &str,
+        detail_json: &str,
+    ) -> Result<(), StoreError> {
+        self.conn
+            .execute(
+                "INSERT INTO activity_log (ts_ms, agent_id, session_id, kind, summary, detail_json)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![ts_ms, agent_id, session_id, kind, summary, detail_json],
+            )
+            .await
+            .map_err(StoreError::Turso)?;
+        Ok(())
+    }
 }
