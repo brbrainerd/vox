@@ -267,6 +267,7 @@ impl LowerCtx {
                     inference_model: None,
                     training_step: false,
                     distributed_train: None,
+                    placement_override: None,
                 });
                 HirExpr::Call(Box::new(HirExpr::Ident(name, *span)), vec![], false, *span)
             }

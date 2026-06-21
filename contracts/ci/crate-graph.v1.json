@@ -105,6 +105,7 @@
       "vox-sql",
       "vox-tauri-codegen",
       "vox-telemetry",
+      "vox-term",
       "workspace-hack"
     ],
     "vox-cli-ci": [
@@ -301,7 +302,8 @@
       "vox-scientia",
       "vox-search",
       "vox-secrets",
-      "vox-speech"
+      "vox-speech",
+      "vox-terminal-core"
     ],
     "vox-hf-layout": [
       "vox-bounded-fs"
@@ -758,6 +760,14 @@
     "vox-tensor": [
       "vox-actor-runtime",
       "workspace-hack"
+    ],
+    "vox-term": [
+      "vox-terminal-core"
+    ],
+    "vox-terminal-core": [
+      "vox-compiler",
+      "vox-journal",
+      "vox-orchestrator"
     ],
     "vox-test-harness": [
       "vox-codegen",

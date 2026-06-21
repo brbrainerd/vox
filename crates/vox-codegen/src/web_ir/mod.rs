@@ -276,6 +276,15 @@ pub enum BehaviorNode {
         payload_expr: Option<String>,
         span: Option<SourceSpanId>,
     },
+    StreamSub {
+        /// Channel registry name (validated against the channel contract at emit).
+        channel: String,
+        /// Identifier bound to each received frame in `body`.
+        binding: String,
+        /// Emitted handler body (TS source string), with `binding` in scope.
+        body: String,
+        span: Option<SourceSpanId>,
+    },
 }
 
 // ---------------------------------------------------------------------------

@@ -76,6 +76,40 @@ The `vox-foundation/vox` repository requires the following GitHub Secrets, which
 
 *Note: Accessing these secrets via raw `std::env::var` in Rust source code is prohibited. Use `vox_secrets::resolve_secret(SecretId::CoolifyToken)` and, when splitting read vs deploy credentials, `SecretId::CoolifyReadToken`.*
 
+### Telemetry app (`telemetry.voxlang.org`) — "Vox Ecosystem" project
+
+Deployed into the **existing** Coolify project **"Vox Ecosystem"** (project uuid
+`no88080okk0c0gk4ss0cgw0o`, environment `production` uuid `p4ggk40c4so0w8g88c0c40gw`)
+— the same project that already hosts the **eval** app (app uuid
+`g4sogoo48kwkkco00ccs4cck`, dockercompose from `vox-foundation/vox@main`
+`/vox-eval.compose.yml`). "Vox Ecosystem" is a **separate** Coolify project from
+"FableForge Production" (uuid `nw4sgkc40csk4ckg0os0sk40`), so the for-profit /
+Foundation decoupling is satisfied at the project level — **no new project is needed.**
+
+DNS: `voxlang.org` is on **Cloudflare** (nameservers `*.ns.cloudflare.com`).
+`telemetry.voxlang.org` is currently **NXDOMAIN** — add an `A` record
+`telemetry → 178.156.212.19`, **DNS-only (grey cloud, NOT proxied)** so Traefik's
+Let's Encrypt HTTP-01 challenge reaches the VPS and TLS terminates at Traefik
+(mirrors the eval host).
+
+The telemetry deploy (`.github/workflows/deploy-telemetry.yml`) reuses the **same**
+`COOLIFY_BASE_URL` / `COOLIFY_TOKEN` / `COOLIFY_READ_TOKEN` as eval, plus these
+telemetry-specific GitHub Secrets. They are consumed **directly by the workflow**
+(passed to `vox ci coolify-eval sync-compose --app-uuid …` and to the Gate-3 probe),
+so they do **not** require a `vox-secrets` `SecretId` binding for the deploy path.
+
+| GHA Secret Name | Description |
+|---|---|
+| `COOLIFY_TELEMETRY_APP_UUID` | Coolify Docker-Compose app UUID for `telemetry.voxlang.org` (the **Vox Foundation** project — a separate project from eval/FableForge). Passed verbatim as `--app-uuid`. |
+| `VOX_TELEMETRY_INGEST_TOKEN` | Write-only ingest anti-abuse key (Sentry-DSN model — NOT a privacy boundary). Injected as a Coolify **project secret** on the telemetry app AND baked into the client default config. |
+| `CLICKHOUSE_PASSWORD` | ClickHouse password for the telemetry project. Coolify **project secret** only; never internet-routed. |
+| _(optional)_ `COOLIFY_PUBLIC_TELEMETRY_HEALTH_URL` | Overrides `https://telemetry.voxlang.org/healthz` for the Gate-3 public HTTPS + TLS probe. |
+
+> **Follow-up (Phase 7):** when a local `vox telemetry dev` subcommand needs to
+> resolve the app UUID by name, add `SecretId::CoolifyTelemetryAppUuid` to
+> `vox-secrets` (variant + `SecretSpec` + regenerate `contracts/secrets/*.v1.json`).
+> The deploy path does not need it today — the raw GitHub Secret above is sufficient.
+
 ### Operator checklist (GitHub Secrets + Coolify UI)
 
 When Gate 2 fails authentication or polling, verify **in Coolify first**, then mirror into **GitHub repository secrets**:

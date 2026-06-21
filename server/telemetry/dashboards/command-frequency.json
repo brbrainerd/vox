@@ -1,0 +1,59 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_CLICKHOUSE",
+      "label": "ClickHouse",
+      "description": "vox_telemetry ClickHouse instance",
+      "type": "datasource",
+      "pluginId": "grafana-clickhouse-datasource"
+    }
+  ],
+  "title": "Vox — Command Frequency",
+  "uid": "vox-cmd-freq",
+  "description": "Daily command usage breakdown (verb × exit_class × duration). k-anonymity floor: counts < 20 suppressed.",
+  "schemaVersion": 38,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Daily command counts (k≥20)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "${DS_CLICKHOUSE}" },
+      "targets": [
+        {
+          "rawSql": "SELECT day, verb, sum(cnt) AS total FROM mv_command_usage WHERE day >= today() - 30 GROUP BY day, verb HAVING total >= 20 ORDER BY day, total DESC",
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Exit class distribution",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "${DS_CLICKHOUSE}" },
+      "targets": [
+        {
+          "rawSql": "SELECT exit_class, sum(cnt) AS total FROM mv_command_usage WHERE day >= today() - 30 GROUP BY exit_class HAVING total >= 20",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Duration distribution",
+      "type": "bargauge",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "${DS_CLICKHOUSE}" },
+      "targets": [
+        {
+          "rawSql": "SELECT duration_bucket, sum(cnt) AS total FROM mv_command_usage WHERE day >= today() - 30 GROUP BY duration_bucket HAVING total >= 20 ORDER BY total DESC",
+          "format": "table"
+        }
+      ]
+    }
+  ],
+  "time": { "from": "now-30d", "to": "now" },
+  "refresh": "1h",
+  "tags": ["vox", "telemetry", "commands"]
+}

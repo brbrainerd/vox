@@ -414,6 +414,9 @@ impl<'a> Checker<'a> {
                 crate::hir::HirReactiveMember::OnCleanup(oc) => {
                     let _ = self.check_expr(&oc.body, None);
                 }
+                crate::hir::HirReactiveMember::OnStream(os) => {
+                    let _ = self.check_expr(&os.body, None);
+                }
                 crate::hir::HirReactiveMember::Stmt(stmt) => {
                     let _ = self.check_stmt(stmt);
                 }

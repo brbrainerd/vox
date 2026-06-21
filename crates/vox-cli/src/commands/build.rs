@@ -214,8 +214,12 @@ pub async fn run(
             mode: vox_codegen::codegen_ts::emitter::BuildMode::Library,
             ..Default::default()
         };
-        let ts_output = vox_codegen::codegen_ts::generate_with_options(&hir, ts_opts)
-            .map_err(|e| anyhow::anyhow!("TypeScript codegen error: {}", e))?;
+        let ts_output = vox_codegen::frontend_backend::emit_frontend(
+            vox_compiler::target::Target::TypeScript,
+            &hir,
+            ts_opts,
+        )
+        .map_err(|e| anyhow::anyhow!("TypeScript codegen error: {}", e))?;
         for d in &ts_output.diagnostics {
             eprintln!("warning[{}]: {}", d.code, d.message);
         }

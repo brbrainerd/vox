@@ -40,18 +40,16 @@ pub enum GraphifyCmd {
 }
 
 fn resolve_head_sha() -> anyhow::Result<Option<String>> {
-    let output = std::process::Command::new("git")
-        .args(["rev-parse", "HEAD"])
-        .output()
-        .context("git rev-parse HEAD")?;
-    if !output.status.success() {
-        return Ok(None);
-    }
-    let sha = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if sha.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(sha))
+    match vox_git::read_only(std::path::Path::new("."), &["rev-parse", "HEAD"]) {
+        Ok(out) => {
+            let sha = out.trim().to_string();
+            if sha.is_empty() {
+                Ok(None)
+            } else {
+                Ok(Some(sha))
+            }
+        }
+        Err(_) => Ok(None),
     }
 }
 

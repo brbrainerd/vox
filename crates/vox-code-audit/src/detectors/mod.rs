@@ -219,7 +219,7 @@ pub fn all_rules(schema_path: Option<std::path::PathBuf>) -> Vec<Box<dyn Detecti
 
 /// Returns the number of built-in rules.
 pub fn rule_count() -> usize {
-    53
+    54
 }
 
 #[cfg(test)]

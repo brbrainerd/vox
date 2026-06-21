@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "surface_count": 107,
+  "surface_count": 108,
   "top_level_groups": [
     "add",
     "ars",
@@ -72,6 +72,7 @@
     "stop",
     "sync",
     "telemetry",
+    "term",
     "test",
     "train",
     "update",
@@ -80,6 +81,8 @@
     "wasm",
     "workflow"
   ],
-  "unclassified_backfilled": [],
+  "unclassified_backfilled": [
+    "term"
+  ],
   "wiring_violations": []
 }

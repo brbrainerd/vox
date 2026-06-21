@@ -202,7 +202,7 @@ pub const LEXER_DECORATORS: &[&str] = &[
     "@table",
     "@index",
     "@placeholder",
-    "@native",
+    "@place",
     "@loading",
     "@ai",
 ];
@@ -225,7 +225,7 @@ pub const LEXER_AT_DECORATORS: &[&str] = &[
     "@skip_if_none",
     "@table",
     "@index",
-    "@native",
+    "@place",
     "@loading",
     "@require",
     "@ensure",

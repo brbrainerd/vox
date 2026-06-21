@@ -176,8 +176,6 @@ pub enum Token {
     AtTable,
     #[token("@index")]
     AtIndex,
-    #[token("@native")]
-    AtNative,
     #[token("@loading")]
     AtLoading,
     #[token("@require")]
@@ -190,6 +188,8 @@ pub enum Token {
     AtForall,
     #[token("@fuzz")]
     AtFuzz,
+    #[token("@place")]
+    AtPlace,
     #[token("@pure")]
     AtPure,
     #[token("@traced")]
@@ -595,13 +595,13 @@ impl std::fmt::Display for Token {
             Token::AtSkipIfNone => write!(f, "@skip_if_none"),
             Token::AtTable => write!(f, "@table"),
             Token::AtIndex => write!(f, "@index"),
-            Token::AtNative => write!(f, "@native"),
             Token::AtLoading => write!(f, "@loading"),
             Token::AtRequire => write!(f, "@require"),
             Token::AtEnsure => write!(f, "@ensure"),
             Token::AtInvariant => write!(f, "@invariant"),
             Token::AtForall => write!(f, "@forall"),
             Token::AtFuzz => write!(f, "@fuzz"),
+            Token::AtPlace => write!(f, "@place"),
             Token::AtPure => write!(f, "@pure"),
             Token::AtTraced => write!(f, "@traced"),
             Token::AtReactive => write!(f, "@reactive"),

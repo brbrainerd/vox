@@ -35,5 +35,6 @@ pub mod scientia_review;
 pub mod search;
 pub mod secrets;
 pub mod signing;
+pub mod terminal_core;
 pub mod user_config;
 pub mod vcs_isolation;

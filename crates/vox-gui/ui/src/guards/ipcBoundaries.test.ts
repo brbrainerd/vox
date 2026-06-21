@@ -76,6 +76,7 @@ describe('IPC boundaries (Phase 0B)', () => {
       'components/surfaces/Search/SearchView.tsx',
       'components/surfaces/Settings/SettingsView.tsx',
       'components/surfaces/SkillsPlugins/SkillsPluginsView.tsx',
+      'components/surfaces/SubAgents/subAgentClient.ts',
       'components/surfaces/Tasks/TasksView.tsx',
     ]);
 

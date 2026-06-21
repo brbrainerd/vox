@@ -75,6 +75,7 @@ fn fn_decl(name: &str) -> FnDecl {
         verify_mode: vox_compiler::ast::decl::VerifyMode::Off,
         test_strategy: None,
         is_mobile_native: false,
+        placement_override: None,
         ts_extern_module: None,
         is_remote: false,
         inference_model: None,

@@ -97,6 +97,7 @@ mod tests {
             inference_model: None,
             training_step: true,
             distributed_train: None,
+            placement_override: None,
         };
         let module = HirModule {
             functions: vec![f],
