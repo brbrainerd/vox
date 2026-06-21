@@ -71,7 +71,7 @@ fn socrates_task_from_search_pass(
             vox_db::SearchCorpus::Memory => memory_hits > 0,
             vox_db::SearchCorpus::KnowledgeGraph => knowledge_hits > 0,
             vox_db::SearchCorpus::DocumentChunks => chunk_hits > 0,
-            vox_db::SearchCorpus::ContextArchive => false,
+            vox_db::SearchCorpus::ContextArchive => false, // not yet wired through SearchExecution (Plan B T5)
             vox_db::SearchCorpus::RepoInventory => repo_hits > 0,
             vox_db::SearchCorpus::WebResearch => false,
             vox_db::SearchCorpus::SymbolProximity => false,

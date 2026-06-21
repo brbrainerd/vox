@@ -73,7 +73,7 @@ pub(crate) fn locator_for(source: &str, path: Option<&str>) -> OpenLocatorDto {
     let kind = match source {
         "web" => "web",
         "memory" | "knowledge" => "memory",
-        "chunk" | "repo" => "file",
+        "chunk" | "repo" | "archive" => "file",
         _ => "none",
     };
     if kind != "none" && !value.is_empty() {
@@ -631,6 +631,14 @@ mod tests {
         assert_eq!(dto.score, hit.score);
         assert_eq!(dto.provenance, hit.provenance);
         assert_eq!(dto.locator.kind, "memory");
+    }
+
+    #[test]
+    fn scope_to_corpus_maps_archive() {
+        assert_eq!(
+            scope_to_corpus("archive"),
+            Some(SearchCorpus::ContextArchive)
+        );
     }
 
     #[test]
