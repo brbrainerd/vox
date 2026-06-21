@@ -59,6 +59,13 @@ vox mens train --cloud runpod --spoke <name> [--dry-run] [--apply]
 ```
 Money-spending tasks require an explicit **machine-enforceable flag/sentinel** the executor cannot set itself.
 
+### Local-first / backwards compatibility (preserved)
+Cloud is the *default for scale*, **not a replacement for local**. The existing local path must keep working for testing on the user's **RTX 4080 SUPER (16 GB)**:
+- The current `vox mens train` (no `--cloud`, i.e. `--cloud local`) flow, the **CandleQlora plugin backend**, and the existing **`qwen_4080_16g` preset** are retained unchanged. New `qwen3_*` presets are added *alongside*, never replacing the old ones (the YAML↔Rust parity contract stays green).
+- The 16 GB tier (Qwen3-8B QLoRA) is the local test rung; the CPU/dev tier (Qwen3-0.6B) is the no-GPU smoke. Either can run the full train→gate→register loop locally.
+- **Provenance is uniform:** the local path emits the same `AdapterCard` + `training_manifest.json` as cloud, so a locally-trained 4080 adapter registers, validates, and serves identically to a cloud one (it just carries `provider: local`).
+- Every new contract (`AdapterCard`-bearing `DomainRouter::register`, `bfcl_accuracy` gate, retrieval/schema layer) is **additive** — no existing local-training invocation breaks.
+
 ### Evals (baseline-first, leakage-guarded)
 1. **Baseline capture FIRST:** run the untrained base rung + the Flash/Sonnet reference on the held-out packs → `baseline_report.json` (per spoke: metric, pass@k **with k**, **sample size**, **bootstrap CI**, judge identity). 2. **Leakage guard:** corpora split by tool/skill **identity** (not row), `split_manifest.json`; B7 asserts train↔eval fingerprint disjointness + near-dup dedup via existing `vox-similarity`. 3. **Gates:** beat-base per spoke (vox parse-rate, `rust_compile_rate`, `bfcl_accuracy`, `tool_call_valid_json_rate`); **per-rung thresholds** (a 4B spoke isn't held to a 32B bar); **regression guard** vs the prior registered adapter. 4. **Harness safety:** all harness evals run against a **mocked/dry-run tool executor** — no real side-effecting tool calls. 5. **Planning eval** (base-only) to evidence whether a v2 planning spoke is warranted.
 

@@ -98,7 +98,12 @@ The architecture rests on these; the research's adversarial pass was rate-limite
 **Files:** Modify `mens/config/domain-profiles.yaml` (add `hub: { base: <qwen3 alias>, embedder: <pinned ~0.6B embedder id@rev> }`)
 - [ ] **Failing test:** the loader exposes `hub.embedder` as a required, non-empty, revision-pinned id. Implement. **PASS. Commit.**
 
-**B0 gate:** `cargo test -p vox-populi --lib` green; `vox ci spoke-check` OK; research open-items recorded.
+### Task B0.7: Local-training backwards-compatibility guard (4080 SUPER 16 GB)
+**Files:** test in `crates/vox-ml-cli/src/commands/mens/train_arm.rs`; Modify `contracts/mens/training-presets.v1.yaml` (retain, do not remove, `qwen_4080_16g`)
+- [ ] **Failing test:** the default/`--cloud local` path resolves to the CandleQlora plugin backend and the `qwen_4080_16g` preset still loads (parity test green with BOTH the old `qwen_*` and new `qwen3_*` presets present); a local run emits an `AdapterCard` with `provider: "local"` and registers via the same `DomainRouter::register(spoke, adapter, card)`.
+- [ ] **Run → FAIL → ensure additive (old presets kept, local path untouched, card emitted locally) → PASS → Commit.**
+
+**B0 gate:** `cargo test -p vox-populi --lib` green; `vox ci spoke-check` OK; research open-items recorded; **local 4080/CPU training path proven backwards-compatible (B0.7)**.
 
 ---
 
@@ -241,7 +246,8 @@ The architecture rests on these; the research's adversarial pass was rate-limite
 - [ ] From B2.5: train only spokes marked ready. Record the set; thin spokes are flagged "blocked on data," not failed.
 
 ### Task B8.2: smoke spoke FIRST (hard prerequisite)
-- [ ] Train the **mono `harness`** adapter end-to-end on RunPod (gated). It must pass train→gate(beat-base)→register(challenger)→**offline-validate** before any fan-out. This is the single end-to-end proof.
+- [ ] **Local 4080 smoke (no money, run this first):** train the **mono `harness`** adapter on the 16 GB tier (`qwen3_16g` / Qwen3-8B QLoRA) **locally on the 4080 SUPER** via the CandleQlora path — full train→gate(beat-base)→register(challenger w/ `provider: local`)→offline-validate. This proves the whole loop end-to-end with zero spend and is the local-testing capability the user requires.
+- [ ] **Cloud smoke (gated):** repeat the mono-`harness` end-to-end on RunPod (`VOX_MENS_ALLOW_SPEND=1 --apply`) to prove the cloud path. Only after both is fan-out unlocked.
 
 ### Task B8.3: fan-out train the ready spokes  `[4-way sub-agent fan-out]`
 - [ ] Train `vox-lang`, `rust`, and the **decomposed** `tool-selection` + `argument-generation` adapters. **Comparison arm:** evaluate decomposed (selection+arg-gen) vs the mono `harness` adapter, both over *base + B3 retrieval + B4 schema-guided* — keep whichever wins; if mono wins, the decomposition is deferred to v2 (records the decision). **Optional arm:** a single language-tagged code adapter on the combined vox+rust corpus vs the two separate adapters (could collapse two spokes in v2).
