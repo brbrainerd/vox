@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { voxTransport } from '../transport';
-import { parsePendingApprovals, PendingApprovalRow } from '../lib/mcpToolResult';
+import { parsePendingApprovals, type PendingApprovalRow, type McpInvokeResult } from '../lib/mcpToolResult';
 import { APPROVALS_POLL_MS } from '../config/constants';
 
 export interface UseAgentApprovals {
@@ -16,7 +16,8 @@ export function useAgentApprovals(agentKeys: string[]): UseAgentApprovals {
   const refresh = useCallback(async () => {
     try {
       const res = await voxTransport.invokeMcpTool('vox_pending_approvals', {});
-      const parsed = parsePendingApprovals(res as any);
+      // invokeMcpTool returns { is_error?, result? }; parsePendingApprovals only reads .result. The missing 'tool' field is intentionally unused.
+      const parsed = parsePendingApprovals(res as McpInvokeResult);
       setRows(parsed);
     } catch {
       // silently ignore poll errors

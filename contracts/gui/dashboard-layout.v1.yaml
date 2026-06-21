@@ -1,7 +1,7 @@
 x-vox-version: 1
 schema_version: 1
 description: >
-  Dashboard widget catalog and layout schema for the vox-gui operator console.
+  Dashboard widget catalog and layout schema for the vox-gui dashboard.
   Runtime layouts are validated client-side via dashboardLayout.ts and persisted
   under gui.dashboard.layout.v1 (see shell-persistence.v1.yaml).
 
