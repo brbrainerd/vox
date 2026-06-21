@@ -433,9 +433,12 @@ pub fn shared_cache_env(reachable: bool, host_ip: &str) -> Vec<(&'static str, St
 }
 
 /// Resolve the IP that runner containers use to reach the host's MinIO, memoized
-/// for the process. opendal rejects a hostname Host header, so `host.docker.internal`
-/// cannot be passed verbatim. Ask Docker what it maps to (works on Docker Desktop
-/// and Linux via `host-gateway`); fall back to the bridge gateway on any failure.
+/// for the process. opendal rejects a hostname Host header (so `host.docker.internal`
+/// can't be passed verbatim) — and on Docker Desktop that name resolves to the VM
+/// gateway (e.g. `192.168.65.254`), which can't reach **host-published** ports
+/// anyway. The correct IP is the default `bridge` network's gateway (typically
+/// `172.17.0.1`), through which `-p 9000:9000` is reachable. Fall back to that
+/// gateway constant on any Docker query failure.
 fn container_host_ip() -> String {
     use std::sync::OnceLock;
     static IP: OnceLock<String> = OnceLock::new();
@@ -445,19 +448,17 @@ fn container_host_ip() -> String {
     .clone()
 }
 
-/// Run a throwaway container to resolve `host.docker.internal` → IP. Returns
-/// `None` (caller falls back) if Docker is unavailable or the output isn't an IP.
+/// Query Docker for the default `bridge` network gateway — the IP runner
+/// containers use to reach host-published ports (MinIO). Returns `None` (caller
+/// falls back) if Docker is unavailable or the output isn't an IP.
 fn resolve_container_host_ip() -> Option<String> {
     let out = std::process::Command::new("docker")
         .args([
-            "run",
-            "--rm",
-            "--add-host",
-            "host.docker.internal:host-gateway",
-            "busybox:latest",
-            "getent",
-            "hosts",
-            "host.docker.internal",
+            "network",
+            "inspect",
+            "bridge",
+            "--format",
+            "{{range .IPAM.Config}}{{.Gateway}}{{end}}",
         ])
         .output()
         .ok()?;
