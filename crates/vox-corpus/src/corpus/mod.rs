@@ -4,6 +4,7 @@ pub mod agentic_synth;
 pub mod augment;
 pub mod benchmark;
 pub mod constrained_decoding;
+pub mod corpus_readiness;
 pub mod coverage;
 pub mod decl_coverage;
 pub mod dogfood;
