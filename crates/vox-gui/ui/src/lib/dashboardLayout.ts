@@ -80,9 +80,10 @@ export function defaultDashboardLayout(): DashboardLayout {
     version: 1,
     columns: 12,
     widgets: [
-      { id: 'stream', kind: 'stream', grid: { col: 1, row: 1, w: 8, h: 4 } },
-      { id: 'alerts', kind: 'alerts', grid: { col: 9, row: 1, w: 4, h: 2 } },
-      { id: 'agents', kind: 'agents', grid: { col: 9, row: 3, w: 4, h: 2 } },
+      { id: 'resources', kind: 'resources', grid: { col: 1, row: 1, w: 12, h: 2 } },
+      { id: 'agents', kind: 'agents', grid: { col: 1, row: 3, w: 8, h: 4 } },
+      { id: 'alerts', kind: 'alerts', grid: { col: 9, row: 3, w: 4, h: 2 } },
+      { id: 'stream', kind: 'stream', grid: { col: 9, row: 5, w: 4, h: 2 } },
     ],
   };
 }
