@@ -102,7 +102,7 @@ mod tests {
 
     #[test]
     fn validate_rejects_empty_quantization() {
-        let mut card = AdapterCard::for_test("qwen3_16g", "");
+        let card = AdapterCard::for_test("qwen3_16g", "");
         assert!(
             card.validate().is_err(),
             "empty quantization must fail validate"
