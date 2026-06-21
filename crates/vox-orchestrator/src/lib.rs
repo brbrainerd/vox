@@ -380,7 +380,7 @@ pub use workspace::{AgentWorkspace, ChangeId, ChangeStatus, WorkspaceManager};
 // ── Orchestrator policy (D1–D10) re-exports ───────────────────────────────────
 // Single ergonomic surface for the autonomous orchestration policy program.
 // See `docs/superpowers/plans/orchestrator/2026-05-08-orchestrator-master-plan.md`.
-pub use mode::{ExecutionModeProfile, InferenceConfig, Modalities, QualityLevel, TierProfile};
+pub use mode::{InferenceConfig, Modalities, QualityLevel, TierProfile};
 pub use orchestration_feature_flags::OrchestrationFeatureFlags;
 pub use orchestrator_policy::{
     OrchestratorPolicy, OrchestratorPolicyConfig, PolicyContext, PolicyDecision,

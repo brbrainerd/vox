@@ -270,6 +270,15 @@ impl OrchestratorPolicy {
         };
 
         let budget_decision = if flags.tenant_budget {
+            // TODO(clutch-budget): when PolicyContext carries the task's clutch,
+            // call `self.budget.evaluate_with_aggressiveness(token, cost,
+            // clutch.resolve().budget_gate)` so a task's BudgetAggressiveness
+            // (Aggressive/Default/Relaxed) actually moves the downgrade/halt
+            // thresholds. Method + thresholds() exist; only this wiring is pending
+            // (PolicyContext field add is high-blast — left to a follow-up).
+            // TODO(risk-safety-budget): Task E — call
+            // `evaluate_with_safety_multiplier(token, cost, task.resolved_risk().safety_token_multiplier)`
+            // here once PolicyContext carries task risk; helper + test exist in budget_gate.rs.
             self.budget
                 .evaluate(ctx.budget_token_fraction, ctx.budget_cost_fraction)
         } else {

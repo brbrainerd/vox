@@ -75,7 +75,18 @@ pub(super) fn populate_task_attention_fields(
     };
     let entropy = decision_entropy_bits(approve_rate);
     let tier = classify_tier(&trust, &action, entropy, &config.tier_gate);
-    task.approval_tier = Some(tier);
+    // Task E: RiskPosture may *escalate* the trust-classified tier (e.g. Low risk
+    // forces Review) but must never demote below what trust warranted. Take the
+    // stricter of (classified, risk-derived). None == Moderate-equivalent, which
+    // resolves to Confirm and therefore cannot demote a higher classified tier.
+    let effective_tier = match task.risk_posture {
+        Some(_) => {
+            let risk_tier = task.resolved_risk().approval.to_approval_tier();
+            tier.max_strictness(risk_tier)
+        }
+        None => tier,
+    };
+    task.approval_tier = Some(effective_tier);
     let base = config.attention_interrupt_cost_ms.max(1);
     let cost = compute_attention_cost_ms(
         &action,
@@ -137,5 +148,55 @@ mod tests {
         let mut t = AgentTask::new(TaskId(1), "normal", TaskPriority::Normal, vec![]);
         t.approval_tier = Some(ApprovalTier::Confirm);
         assert!(submission_approval_block_reason(&t).is_none());
+    }
+
+    // Task E: replicate the escalation decision in attention_fields without
+    // constructing a whole Orchestrator. `effective = classified.max_strictness(risk)`.
+    fn effective(
+        classified: ApprovalTier,
+        posture: Option<crate::mode::RiskPosture>,
+    ) -> ApprovalTier {
+        match posture {
+            Some(p) => classified.max_strictness(p.resolve().approval.to_approval_tier()),
+            None => classified,
+        }
+    }
+
+    #[test]
+    fn low_risk_escalates_confirm_to_review() {
+        // Low risk resolves to ApprovalLean::Review.
+        assert_eq!(
+            effective(ApprovalTier::Confirm, Some(crate::mode::RiskPosture::Low)),
+            ApprovalTier::Review
+        );
+    }
+
+    #[test]
+    fn high_risk_does_not_demote_trust_required_review() {
+        // High risk resolves to AutoApprove, but must NOT pull a classified Review down.
+        assert_eq!(
+            effective(ApprovalTier::Review, Some(crate::mode::RiskPosture::High)),
+            ApprovalTier::Review
+        );
+    }
+
+    #[test]
+    fn high_risk_does_not_demote_blocked() {
+        assert_eq!(
+            effective(ApprovalTier::Blocked, Some(crate::mode::RiskPosture::High)),
+            ApprovalTier::Blocked
+        );
+    }
+
+    #[test]
+    fn none_posture_leaves_classified_tier_unchanged() {
+        assert_eq!(
+            effective(ApprovalTier::Confirm, None),
+            ApprovalTier::Confirm
+        );
+        assert_eq!(
+            effective(ApprovalTier::AutoApprove, None),
+            ApprovalTier::AutoApprove
+        );
     }
 }

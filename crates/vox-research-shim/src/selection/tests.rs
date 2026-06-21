@@ -1,6 +1,6 @@
 use super::*;
 use vox_orchestrator::config::CostPreference;
-use vox_orchestrator::mode::{ExecutionModeProfile, InferenceConfig};
+use vox_orchestrator::mode::{ClutchProfile, InferenceConfig};
 use vox_orchestrator::models::{
     ModelCapabilities, ModelRegistry, ModelSpec, ModelTier, ProviderType,
 };
@@ -85,14 +85,14 @@ fn mode_bonus_efficient_prefers_free() {
         model: Some(free),
         task_type: TaskCategory::CodeGen,
         effective_pref: CostPreference::Economy,
-        mode: Some(ExecutionModeProfile::Efficient),
+        mode: Some(ClutchProfile::Efficiency.resolve()),
         ..Default::default()
     });
     let score_paid = scorer.score_with_mode(ScoreParams {
         model: Some(paid),
         task_type: TaskCategory::CodeGen,
         effective_pref: CostPreference::Economy,
-        mode: Some(ExecutionModeProfile::Efficient),
+        mode: Some(ClutchProfile::Efficiency.resolve()),
         ..Default::default()
     });
     assert!(
@@ -110,14 +110,14 @@ fn mode_bonus_precision_prefers_pro_tier() {
         model: Some(pro),
         task_type: TaskCategory::CodeGen,
         effective_pref: CostPreference::Performance,
-        mode: Some(ExecutionModeProfile::Precision),
+        mode: Some(ClutchProfile::Genius.resolve()),
         ..Default::default()
     });
     let score_free = scorer.score_with_mode(ScoreParams {
         model: Some(free),
         task_type: TaskCategory::CodeGen,
         effective_pref: CostPreference::Performance,
-        mode: Some(ExecutionModeProfile::Precision),
+        mode: Some(ClutchProfile::Genius.resolve()),
         ..Default::default()
     });
     assert!(

@@ -44,11 +44,24 @@ impl Orchestrator {
             } else {
                 (false, false)
             };
+            // Task E: per-task RiskPosture overrides the global enforce flags.
+            // A Low-risk task forces grounding+socrates enforcement true even when
+            // the global default is off; None (Moderate-equivalent) leaves the
+            // global value unchanged so default behavior is preserved.
+            let resolved = task.resolved_risk();
+            let grounding_enforce = task
+                .risk_posture
+                .map(|_| resolved.grounding_enforce)
+                .unwrap_or(config.completion_grounding_enforce);
+            let socrates_enforce = task
+                .risk_posture
+                .map(|_| resolved.socrates_enforce)
+                .unwrap_or(config.socrates_gate_enforce);
             (
                 config.completion_grounding_shadow,
-                config.completion_grounding_enforce,
+                grounding_enforce,
                 config.socrates_gate_shadow,
-                config.socrates_gate_enforce,
+                socrates_enforce,
                 config.effective_socrates_policy(),
                 bb,
                 fr,

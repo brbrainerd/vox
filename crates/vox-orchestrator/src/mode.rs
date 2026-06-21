@@ -45,16 +45,6 @@ pub enum TierProfile {
     },
 }
 
-// superseded by ClutchProfile; migrate vox-research-shim (scorer.rs:61,178-195) then remove
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ExecutionModeProfile {
-    Efficient,
-    LegacyDefault,
-    Fast,
-    Verbose,
-    Precision,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct InferenceConfig {
     pub modalities: Modalities,
@@ -84,6 +74,21 @@ pub enum BudgetAggressiveness {
     Relaxed,
 }
 
+impl BudgetAggressiveness {
+    /// `(downgrade_fraction, halt_fraction)` for the orchestrator budget gate
+    /// (`budget_gate.rs`). `Default` mirrors the global gate (0.80 / 0.95);
+    /// `Aggressive` trips earlier (cheaper, for Free clutch); `Relaxed` lets
+    /// Genius keep going (halt only at full budget).
+    #[must_use]
+    pub fn thresholds(self) -> (f64, f64) {
+        match self {
+            Self::Aggressive => (0.70, 0.90),
+            Self::Default => (0.80, 0.95),
+            Self::Relaxed => (0.90, 1.0),
+        }
+    }
+}
+
 /// Resolved control knobs for one clutch detent. Pure data — no I/O.
 /// `axes` is the (cost, responsiveness, intelligence) triple consumed by
 /// `SelectionAxes` at the scorer candidate boundary.
@@ -110,6 +115,20 @@ pub enum ClutchProfile {
 }
 
 impl ClutchProfile {
+    /// Parse a GUI-supplied label into a profile. Case-insensitive; matches
+    /// `lib/driveConsole.ts` `ClutchId` exactly (`free`|`efficiency`|`balanced`|`genius`).
+    /// Unknown labels return `None`.
+    #[must_use]
+    pub fn from_label(label: &str) -> Option<Self> {
+        match label.trim().to_ascii_lowercase().as_str() {
+            "free" => Some(Self::Free),
+            "efficiency" => Some(Self::Efficiency),
+            "balanced" => Some(Self::Balanced),
+            "genius" => Some(Self::Genius),
+            _ => None,
+        }
+    }
+
     #[must_use]
     pub fn resolve(self) -> ResolvedClutch {
         match self {
@@ -206,6 +225,19 @@ pub enum RiskPosture {
 }
 
 impl RiskPosture {
+    /// Parse a GUI-supplied label into a posture. Case-insensitive; matches
+    /// `lib/driveConsole.ts` `RiskId` exactly (`high`|`moderate`|`low`).
+    /// Unknown labels return `None`.
+    #[must_use]
+    pub fn from_label(label: &str) -> Option<Self> {
+        match label.trim().to_ascii_lowercase().as_str() {
+            "high" => Some(Self::High),
+            "moderate" => Some(Self::Moderate),
+            "low" => Some(Self::Low),
+            _ => None,
+        }
+    }
+
     #[must_use]
     pub fn resolve(self) -> ResolvedRisk {
         match self {

@@ -155,6 +155,45 @@ impl OrchestratorBudgetGate {
         }
     }
 
+    /// Evaluate both fractions using clutch-derived thresholds instead of the
+    /// configured global ones. Additive: callers that don't thread a task clutch
+    /// keep using [`Self::evaluate`] (which uses the config's
+    /// `downgrade_fraction`/`halt_fraction`). This lets a task's
+    /// [`crate::mode::BudgetAggressiveness`] (Aggressive=0.70/0.90,
+    /// Default=0.80/0.95, Relaxed=0.90/1.0) actually move the gate.
+    #[must_use]
+    pub fn evaluate_with_aggressiveness(
+        &self,
+        token_fraction: f64,
+        cost_fraction: f64,
+        aggressiveness: crate::mode::BudgetAggressiveness,
+    ) -> BudgetDecision {
+        let (downgrade, halt) = aggressiveness.thresholds();
+        let scoped = OrchestratorBudgetGate::new(BudgetGateConfig {
+            downgrade_fraction: downgrade,
+            halt_fraction: halt,
+            global_limits: Vec::new(),
+        });
+        scoped.evaluate(token_fraction, cost_fraction)
+    }
+
+    /// Evaluate both fractions after inflating the *consumed* fractions by a task's
+    /// [`crate::mode::ResolvedRisk::safety_token_multiplier`]. Additive: callers that
+    /// don't thread a task risk keep using [`Self::evaluate`]. A multiplier > 1.0
+    /// (e.g. Low risk = 1.5) makes the gate trip *earlier* — the task is treated as
+    /// having consumed more budget, reserving headroom for safety overhead. A
+    /// multiplier of 1.0 (High/Moderate) is identical to [`Self::evaluate`].
+    #[must_use]
+    pub fn evaluate_with_safety_multiplier(
+        &self,
+        token_fraction: f64,
+        cost_fraction: f64,
+        safety_token_multiplier: f32,
+    ) -> BudgetDecision {
+        let m = f64::from(safety_token_multiplier).max(0.0);
+        self.evaluate(token_fraction * m, cost_fraction * m)
+    }
+
     /// Evaluate tenant monthly token budget.
     pub fn check_tenant_monthly_budget(
         &self,
@@ -252,6 +291,50 @@ mod tests {
         let g = gate();
         assert!(!g.evaluate(0.85, 0.0).is_exhausted());
         assert!(g.evaluate(0.96, 0.0).is_exhausted());
+    }
+
+    #[test]
+    fn aggressiveness_thresholds_match_contract() {
+        use crate::mode::BudgetAggressiveness;
+        assert_eq!(BudgetAggressiveness::Aggressive.thresholds(), (0.70, 0.90));
+        assert_eq!(BudgetAggressiveness::Default.thresholds(), (0.80, 0.95));
+        assert_eq!(BudgetAggressiveness::Relaxed.thresholds(), (0.90, 1.0));
+    }
+
+    #[test]
+    fn evaluate_with_aggressiveness_uses_clutch_thresholds() {
+        use crate::mode::BudgetAggressiveness;
+        let g = gate();
+        // 0.72 fraction: Default gate is Ok (< 0.80) but Aggressive downgrades (>= 0.70).
+        assert_eq!(g.evaluate(0.72, 0.0).status, BudgetStatus::Ok);
+        assert_eq!(
+            g.evaluate_with_aggressiveness(0.72, 0.0, BudgetAggressiveness::Aggressive)
+                .status,
+            BudgetStatus::Downgrade
+        );
+        // 0.96 fraction: Default halts, but Relaxed only downgrades (halt at 1.0).
+        assert_eq!(g.evaluate(0.96, 0.0).status, BudgetStatus::Halt);
+        assert_eq!(
+            g.evaluate_with_aggressiveness(0.96, 0.0, BudgetAggressiveness::Relaxed)
+                .status,
+            BudgetStatus::Downgrade
+        );
+    }
+
+    #[test]
+    fn safety_multiplier_trips_gate_earlier() {
+        let g = gate();
+        // 0.60 fraction: Default gate is Ok. With Low-risk 1.5x → 0.90 → Downgrade.
+        assert_eq!(g.evaluate(0.60, 0.0).status, BudgetStatus::Ok);
+        assert_eq!(
+            g.evaluate_with_safety_multiplier(0.60, 0.0, 1.5).status,
+            BudgetStatus::Downgrade
+        );
+        // multiplier 1.0 is identical to plain evaluate.
+        assert_eq!(
+            g.evaluate_with_safety_multiplier(0.85, 0.0, 1.0).status,
+            g.evaluate(0.85, 0.0).status
+        );
     }
 
     #[test]

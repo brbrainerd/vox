@@ -194,7 +194,23 @@ impl TaskProcessor for AiTaskProcessor {
         task: crate::types::AgentTask,
         cancel: Arc<AtomicBool>,
     ) -> anyhow::Result<crate::types::TaskId> {
-        let cost_pref = crate::sync_lock::rw_read(&*self.orchestrator.config).cost_preference;
+        let mut cost_pref = crate::sync_lock::rw_read(&*self.orchestrator.config).cost_preference;
+        // Drive Console: a task's clutch overrides the global cost preference and can
+        // force the free-only model pool; a Low-risk posture (model_lean=Intelligence)
+        // nudges selection toward Performance. No clutch set ⇒ unchanged global behavior.
+        let force_free_pool = if task.clutch_profile.is_some() {
+            let rc = task.resolved_clutch();
+            cost_pref = rc.cost_preference;
+            rc.force_free_pool
+        } else {
+            false
+        };
+        if matches!(
+            task.resolved_risk().model_lean,
+            crate::mode::ModelLean::Intelligence
+        ) {
+            cost_pref = crate::config::CostPreference::Performance;
+        }
         let mut allowed_providers = std::collections::HashSet::new();
         if let Some(db) = self.orchestrator.db() {
             let tracker = crate::usage::UsageTracker::new_ref(&db);
@@ -223,6 +239,9 @@ impl TaskProcessor for AiTaskProcessor {
                     {
                         return false;
                     }
+                    if force_free_pool && !m.is_free {
+                        return false;
+                    }
                     true
                 })
             } else {
@@ -230,6 +249,9 @@ impl TaskProcessor for AiTaskProcessor {
                     if m.pricing_source == crate::models::spec::PricingSource::Unknown
                         && exploration_spent >= exploration_limit
                     {
+                        return false;
+                    }
+                    if force_free_pool && !m.is_free {
                         return false;
                     }
                     let provider_str = match m.provider_type {
@@ -340,6 +362,29 @@ impl TaskProcessor for AiTaskProcessor {
                 }))
         };
 
+        // Capture attribution for the SelectedModelRecord that the completion handler
+        // copies onto CompletionAttestation (so the GUI ModelBadge can show the real
+        // model/provider instead of "model unknown"). Derived from the actual local
+        // routing decision above — not a re-run of the scorer.
+        let selected_model_id = usage_model.clone();
+        let selected_provider = routed
+            .as_ref()
+            .map(|m| m.provider.clone())
+            .unwrap_or_else(|| usage_provider.clone());
+        let selection_reason = if task
+            .model_override
+            .as_deref()
+            .map(str::trim)
+            .is_some_and(|s| !s.is_empty())
+        {
+            "override".to_string()
+        } else if routed.is_some() {
+            "scored".to_string()
+        } else {
+            "fallback".to_string()
+        };
+        let dispatch_start = std::time::Instant::now();
+
         let mut notes = String::new();
         let phases = [
             crate::types::TaskPhase::Inspect,
@@ -447,6 +492,7 @@ impl TaskProcessor for AiTaskProcessor {
             }
         }
         let full_text = notes;
+        let latency_ms = dispatch_start.elapsed().as_millis() as u64;
 
         let input_tokens =
             crate::compaction::CompactionEngine::estimate_tokens(&task.description) as u32;
@@ -488,14 +534,23 @@ impl TaskProcessor for AiTaskProcessor {
 
         // We update the task transcript in the orchestrator's state so it persists
         // across handoffs if the task is re-queued or migrated.
+        let selected_model_record = crate::types::SelectedModelRecord {
+            model_id: selected_model_id,
+            provider: selected_provider,
+            selection_reason,
+            request_tokens: Some(input_tokens as u64),
+            latency_ms: Some(latency_ms),
+        };
         let turn_opt = {
             if let Some(queue_lock) = self.orchestrator.agent_queue(agent_id) {
                 let mut queue = crate::sync_lock::rw_write(&*queue_lock);
                 if let Some(t) = queue.find_task_mut(task.id) {
+                    t.selected_model_record = Some(selected_model_record.clone());
                     t.append_turn(agent_id, agent_name.clone(), full_text.clone());
                     t.transcript.last().cloned()
                 } else if let Some(t) = queue.current_task_mut() {
                     if t.id == task.id {
+                        t.selected_model_record = Some(selected_model_record.clone());
                         t.append_turn(agent_id, agent_name, full_text.clone());
                         t.transcript.last().cloned()
                     } else {

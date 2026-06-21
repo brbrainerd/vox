@@ -87,6 +87,32 @@ fn enforce_free_tier_only_swaps_paid_best_for() {
     assert_eq!(resolved.0.id, "free-model");
 }
 
+#[test]
+fn free_clutch_force_free_pool_filters_to_free_model() {
+    let mut config = OrchestratorConfig::for_testing();
+    config.cost_preference = CostPreference::Performance;
+    let orch = Orchestrator::new(config);
+    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) =
+        tiny_registry_with_free_and_paid();
+
+    // Free clutch sets force_free_pool=true → must never pick the paid model,
+    // even with Performance cost preference and high complexity.
+    let resolved = resolve_mcp_chat_model_sync(
+        &orch,
+        "",
+        None,
+        McpChatModelResolution {
+            complexity: 8,
+            allow_cheapest_fallback: true,
+            clutch: Some(vox_orchestrator::mode::ClutchProfile::Free),
+            ..Default::default()
+        },
+    )
+    .expect("resolve");
+    assert!(resolved.0.is_free);
+    assert_eq!(resolved.0.id, "free-model");
+}
+
 fn registry_ollama_only() -> ModelRegistry {
     let mut r = ModelRegistry::default();
     r.register(ModelSpec {

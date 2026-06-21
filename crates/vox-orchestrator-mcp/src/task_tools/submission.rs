@@ -165,6 +165,8 @@ pub fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<Tas
         }),
         trace_id: params.trace_id.clone(),
         active_skill: params.active_skill.clone(),
+        clutch: None,
+        risk: None,
     })
 }
 

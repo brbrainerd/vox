@@ -286,6 +286,12 @@ pub struct TaskEnqueueHints {
     /// Optional tenant ID for budget tracking.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tenant_id: Option<String>,
+    /// Drive Console clutch label (`free`|`efficiency`|`balanced`|`genius`); parsed in [`AgentTask::apply_hints`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub clutch: Option<String>,
+    /// Drive Console risk label (`high`|`moderate`|`low`); parsed in [`AgentTask::apply_hints`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub risk: Option<String>,
 }
 
 /// Attribution record for which model was actually used to execute a task.
@@ -683,6 +689,14 @@ pub struct AgentTask {
     /// Node that actually executed this task (audit). `None` = local or not yet run.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub executor_node_id: Option<String>,
+    /// User-selected clutch ("how much gas") profile from the Drive Console.
+    /// `None` = no override; routing falls back to the neutral `Balanced` resolution.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub clutch_profile: Option<crate::mode::ClutchProfile>,
+    /// User-selected risk posture ("acceptable risk") from the Drive Console.
+    /// `None` = no override; gating falls back to the neutral `Moderate` resolution.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub risk_posture: Option<crate::mode::RiskPosture>,
 }
 
 impl AgentTask {
@@ -757,6 +771,8 @@ impl AgentTask {
             pav_loop: None,
             mesh_policy: MeshPolicy::Any,
             executor_node_id: None,
+            clutch_profile: None,
+            risk_posture: None,
         }
     }
 
@@ -914,6 +930,34 @@ impl AgentTask {
         if let Some(ref tenant_id) = h.tenant_id {
             self.tenant_id = Some(tenant_id.clone());
         }
+        if let Some(ref clutch) = h.clutch {
+            if let Some(profile) = crate::mode::ClutchProfile::from_label(clutch) {
+                self.clutch_profile = Some(profile);
+            }
+        }
+        if let Some(ref risk) = h.risk {
+            if let Some(posture) = crate::mode::RiskPosture::from_label(risk) {
+                self.risk_posture = Some(posture);
+            }
+        }
+    }
+
+    /// Resolve the clutch profile to its safety/quality gates, falling back to the
+    /// neutral `Balanced` resolution when no override was supplied.
+    #[must_use]
+    pub fn resolved_clutch(&self) -> crate::mode::ResolvedClutch {
+        self.clutch_profile
+            .unwrap_or(crate::mode::ClutchProfile::Balanced)
+            .resolve()
+    }
+
+    /// Resolve the risk posture to its safety gates, falling back to the neutral
+    /// `Moderate` resolution when no override was supplied.
+    #[must_use]
+    pub fn resolved_risk(&self) -> crate::mode::ResolvedRisk {
+        self.risk_posture
+            .unwrap_or(crate::mode::RiskPosture::Moderate)
+            .resolve()
     }
 
     /// Mark the task as started, recording the start timestamp.
@@ -1018,6 +1062,83 @@ mod tests {
     }
 
     #[test]
+    fn apply_hints_parses_clutch_labels() {
+        for (label, expected) in [
+            ("free", crate::mode::ClutchProfile::Free),
+            ("Efficiency", crate::mode::ClutchProfile::Efficiency),
+            ("BALANCED", crate::mode::ClutchProfile::Balanced),
+            ("genius", crate::mode::ClutchProfile::Genius),
+        ] {
+            let mut task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
+            let hints = TaskEnqueueHints {
+                clutch: Some(label.to_string()),
+                ..Default::default()
+            };
+            task.apply_hints(&hints);
+            assert_eq!(task.clutch_profile, Some(expected), "label {label}");
+        }
+    }
+
+    #[test]
+    fn apply_hints_parses_risk_labels() {
+        for (label, expected) in [
+            ("high", crate::mode::RiskPosture::High),
+            ("Moderate", crate::mode::RiskPosture::Moderate),
+            ("LOW", crate::mode::RiskPosture::Low),
+        ] {
+            let mut task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
+            let hints = TaskEnqueueHints {
+                risk: Some(label.to_string()),
+                ..Default::default()
+            };
+            task.apply_hints(&hints);
+            assert_eq!(task.risk_posture, Some(expected), "label {label}");
+        }
+    }
+
+    #[test]
+    fn apply_hints_unknown_clutch_risk_leaves_none() {
+        let mut task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
+        let hints = TaskEnqueueHints {
+            clutch: Some("turbo".to_string()),
+            risk: Some("reckless".to_string()),
+            ..Default::default()
+        };
+        task.apply_hints(&hints);
+        assert_eq!(task.clutch_profile, None);
+        assert_eq!(task.risk_posture, None);
+    }
+
+    #[test]
+    fn resolved_clutch_risk_fall_back_to_neutral_defaults() {
+        let task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
+        assert_eq!(task.clutch_profile, None);
+        assert_eq!(task.risk_posture, None);
+        assert_eq!(
+            task.resolved_clutch(),
+            crate::mode::ClutchProfile::Balanced.resolve()
+        );
+        assert_eq!(
+            task.resolved_risk(),
+            crate::mode::RiskPosture::Moderate.resolve()
+        );
+    }
+
+    #[test]
+    fn agent_task_clutch_risk_serde_round_trip() {
+        let mut task = AgentTask::new(TaskId(7), "t", TaskPriority::Normal, vec![]);
+        task.clutch_profile = Some(crate::mode::ClutchProfile::Genius);
+        task.risk_posture = Some(crate::mode::RiskPosture::Low);
+        let json = serde_json::to_string(&task).unwrap();
+        let back: AgentTask = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            back.clutch_profile,
+            Some(crate::mode::ClutchProfile::Genius)
+        );
+        assert_eq!(back.risk_posture, Some(crate::mode::RiskPosture::Low));
+    }
+
+    #[test]
     fn agent_task_dependency_check() {
         let task = AgentTask::new(TaskId(1), "test task", TaskPriority::Normal, vec![])
             .depends_on(TaskId(10))
@@ -1109,6 +1230,8 @@ mod tests {
             budget: None,
             active_skill: None,
             tenant_id: None,
+            clutch: None,
+            risk: None,
         };
         let json = serde_json::to_string(&hints).expect("serialize hints");
         let back: TaskEnqueueHints = serde_json::from_str(&json).expect("deserialize hints");

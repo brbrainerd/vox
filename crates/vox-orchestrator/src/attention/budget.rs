@@ -107,6 +107,31 @@ pub enum ApprovalTier {
     Blocked,
 }
 
+impl ApprovalTier {
+    /// Strictness ordering: higher = more human oversight required.
+    /// `AutoApprove`(0) < `Confirm`(1) < `Review`(2) < `Blocked`(3).
+    #[must_use]
+    pub fn strictness_rank(self) -> u8 {
+        match self {
+            Self::AutoApprove => 0,
+            Self::Confirm => 1,
+            Self::Review => 2,
+            Self::Blocked => 3,
+        }
+    }
+
+    /// Return the stricter (higher-oversight) of two tiers. Used to let a risk
+    /// posture *escalate* a trust-classified tier without ever demoting it.
+    #[must_use]
+    pub fn max_strictness(self, other: Self) -> Self {
+        if other.strictness_rank() > self.strictness_rank() {
+            other
+        } else {
+            self
+        }
+    }
+}
+
 /// Quantified trust level for an agent, replacing `Option<String>` in `MessageEnvelope`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum TrustTier {
