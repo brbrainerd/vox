@@ -145,4 +145,63 @@ mod tests {
             "org/My-Model"
         );
     }
+
+    #[test]
+    fn qwen3_code_24g_returns_14b_qlora() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap();
+        let overlay = load_overlay(root).expect("load overlay");
+        let base = pick_base(&overlay, "qwen3_code", 24_000).expect("14B fits at 24GB");
+        assert!(
+            base.hf_id.contains("Qwen3-14B"),
+            "expected Qwen3-14B at 24GB, got: {}",
+            base.hf_id
+        );
+        assert!(
+            base.hf_id.contains('@'),
+            "hf_id must be revision-pinned (contains @): {}",
+            base.hf_id
+        );
+    }
+
+    #[test]
+    fn qwen3_code_fail_closed_below_floor() {
+        // Lowest qwen3_code rung has floor_mb=2000 (CPU/dev tier, ~0.6B QLoRA).
+        // Anything below 2000 MB must fail-closed — no base should be returned.
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap();
+        let overlay = load_overlay(root).expect("load overlay");
+        let result = pick_base(&overlay, "qwen3_code", 1_000);
+        assert!(
+            result.is_err(),
+            "below 2GB floor must fail-closed, got {:?}",
+            result.ok().map(|b| &b.hf_id)
+        );
+    }
+
+    #[test]
+    fn qwen3_code_48g_prefers_unquantized_14b() {
+        // At 48GB: 14B-LoRA (floor ~44GB) should beat 14B-QLoRA (floor ~20GB)
+        // because max_by_key(floor_mb) picks the highest floor that fits.
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap();
+        let overlay = load_overlay(root).expect("load overlay");
+        let base = pick_base(&overlay, "qwen3_code", 49_152).expect("14B-LoRA fits at 48GB");
+        assert!(
+            base.methods.iter().any(|m| m == "lora" || m == "full_lora"),
+            "at 48GB should prefer LoRA (un-quantized) over QLoRA, but got methods: {:?}",
+            base.methods
+        );
+        assert!(
+            base.hf_id.contains("Qwen3-14B"),
+            "should be 14B, got: {}",
+            base.hf_id
+        );
+    }
 }
