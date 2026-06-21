@@ -3,7 +3,9 @@ read_role_tools:
   - vox_agy_doctor
   - vox_agy_ledger_digest
   - vox_attention_summary
+  - vox_credentials_status
   - vox_exec_time_query
+  - vox_feedback_list
   - vox_git_diff
   - vox_git_status
   - vox_graphify_status
