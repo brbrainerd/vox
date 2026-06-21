@@ -18,7 +18,10 @@ mod run_gate;
 #[cfg(test)]
 mod tests;
 
-pub use baseline::{BaselineEntry, BaselineReport, beat_base, load_baseline, save_baseline};
+pub use baseline::{
+    BaselineEntry, BaselineReport, beat_base, capture_baseline, load_baseline, save_baseline,
+    wilson_ci,
+};
 pub use bfcl::{BfclGate, check_bfcl};
 pub use check_run::{GateResult, check_run};
 pub use leakage::{SplitManifest, assert_no_leakage, load_split_manifest};

@@ -28,6 +28,43 @@ Per the current spike (`mens/data-sufficiency-spike-b2_5.json`):
 
 ---
 
+## Capture the base baseline (run BEFORE training a spoke)
+
+The beat-base eval gate compares a trained adapter's BFCL accuracy against the
+**base model** (no adapter). That comparison can only run if a baseline has been
+captured first. Without `baseline_report.json` in the run dir, beat-base
+**silently skips** and a below-baseline adapter could pass the gate.
+
+For each spoke, before training:
+
+1. Run the BFCL eval harness against the BASE model (no adapter) to produce a
+   `bfcl_results.json` (`{"accuracy": <f64>, "total": <usize>}`) in a base-eval
+   directory.
+2. Capture it into the spoke's training run dir:
+
+```
+vox mens baseline \
+  --spoke <name> \
+  --base-eval-dir <base-eval-dir> \
+  --out <train-run-dir>/baseline_report.json
+```
+
+Example:
+
+```
+vox mens baseline --spoke vox-lang \
+  --base-eval-dir runs/vox-lang-base-eval/ \
+  --out runs/vox-lang-20260622/baseline_report.json
+```
+
+This writes a `baseline_report.json` with a single `bfcl_accuracy` entry whose
+confidence interval is a Wilson 95% score interval over `(accuracy, total)`.
+The post-training `eval-gate` reads this file and runs the beat-base comparison.
+The baseline MUST come from a real base eval — `vox mens baseline` fails closed
+if `bfcl_results.json` is absent; it never fabricates a passing baseline.
+
+---
+
 ## B8.2 — Smoke run (single spoke, harness-first)
 
 ### Local path (RTX 4080 SUPER required)
