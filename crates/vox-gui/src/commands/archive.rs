@@ -116,3 +116,80 @@ mod tests {
         assert_eq!(CONTEXT_ARCHIVED_EVENT, "vox://context-archived");
     }
 }
+
+// ── Background archive worker ─────────────────────────────────────────────────
+
+const ARCHIVE_POLL_INTERVAL_MS: u64 = 5_000;
+
+pub fn spawn_archive_worker(app_handle: tauri::AppHandle) {
+    tokio::spawn(async move {
+        let db = loop {
+            match vox_db::VoxDb::connect_canonical().await {
+                Ok(db) => break db,
+                Err(e) => {
+                    tracing::debug!("archive worker: db unavailable (will retry): {e}");
+                    tokio::time::sleep(std::time::Duration::from_millis(ARCHIVE_POLL_INTERVAL_MS))
+                        .await;
+                }
+            }
+        };
+        loop {
+            if let Err(e) = run_archive_worker_tick(&db, &app_handle).await {
+                tracing::warn!("archive worker tick failed: {e}");
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(ARCHIVE_POLL_INTERVAL_MS)).await;
+        }
+    });
+}
+
+async fn run_archive_worker_tick(
+    db: &vox_db::VoxDb,
+    app_handle: &tauri::AppHandle,
+) -> Result<(), String> {
+    use turso::params;
+    // Claim one queued archive run.
+    let mut rows = db.conn.query(
+        "SELECT id, scope_id FROM processing_runs WHERE run_kind = 'archive_context_window' AND status = 'queued' ORDER BY id ASC LIMIT 1",
+        (),
+    ).await.map_err(|e| e.to_string())?;
+
+    let Some(row) = rows.next().await.map_err(|e| e.to_string())? else {
+        return Ok(()); // nothing queued
+    };
+    let run_id: i64 = row.get(0).map_err(|e| e.to_string())?;
+    let window_id: String = row.get(1).map_err(|e| e.to_string())?;
+
+    // Mark running.
+    db.conn.execute(
+        "UPDATE processing_runs SET status = 'running', started_at = datetime('now'), updated_at = datetime('now') WHERE id = ?1",
+        params![run_id],
+    ).await.map_err(|e| e.to_string())?;
+
+    // Run the archive pipeline.
+    let result = vox_db::archive::pipeline::archive_window(db, &window_id, now_unix_secs()).await;
+
+    match result {
+        Ok(()) => {
+            db.conn.execute(
+                "UPDATE processing_runs SET status = 'completed', completed_at = datetime('now'), updated_at = datetime('now') WHERE id = ?1",
+                params![run_id],
+            ).await.map_err(|e| e.to_string())?;
+            let payload = ContextArchivedPayload {
+                window_id,
+                tier: "cold".into(),
+            };
+            if let Err(e) = app_handle.emit(CONTEXT_ARCHIVED_EVENT, payload) {
+                tracing::warn!("archive worker: failed to emit event: {e}");
+            }
+        }
+        Err(e) => {
+            let err_str = e.to_string();
+            db.conn.execute(
+                "UPDATE processing_runs SET status = 'failed', error_text = ?2, updated_at = datetime('now') WHERE id = ?1",
+                params![run_id, err_str.as_str()],
+            ).await.map_err(|e| e.to_string())?;
+            return Err(format!("archive_window failed for {window_id}: {err_str}"));
+        }
+    }
+    Ok(())
+}

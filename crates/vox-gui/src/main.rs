@@ -103,6 +103,7 @@ async fn main() {
             // "vox://orchestrator-config-changed" so the Orchestrator settings
             // surface refreshes live after set_orchestrator_config writes.
             commands::orchestrator::spawn_orchestrator_config_watch(app.handle().clone());
+            commands::archive::spawn_archive_worker(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
