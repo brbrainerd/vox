@@ -1,6 +1,7 @@
 //! Versioned zstd dictionaries trained from the corpus (design §4.4, §5.5).
 
 use crate::VoxDb;
+use crate::archive::membership;
 use crate::store::types::StoreError;
 use turso::params;
 
@@ -49,6 +50,24 @@ pub async fn latest_dictionary(db: &VoxDb) -> Result<Option<(i64, Vec<u8>)>, Sto
     }
 }
 
+/// Train a new zstd dictionary from the highest-frequency objects and persist it as a new version.
+/// Samples up to `max_samples` objects by membership frequency (most-referenced first).
+/// Returns the new dict id, or `Ok(None)` if there are fewer than 8 samples (zstd minimum).
+pub async fn train_from_corpus(db: &VoxDb, max_samples: usize) -> Result<Option<i64>, StoreError> {
+    let hashes = membership::top_referenced(db, max_samples as i64).await?;
+    if hashes.len() < 8 {
+        return Ok(None);
+    }
+    let mut samples: Vec<Vec<u8>> = Vec::with_capacity(hashes.len());
+    for h in &hashes {
+        samples.push(db.get(h).await?);
+    }
+    let dict = zstd::dict::from_samples(&samples, 112 * 1024)
+        .map_err(|e| StoreError::Db(format!("zstd train: {e}")))?;
+    let id = insert_dictionary(db, &dict, samples.len() as i64).await?;
+    Ok(Some(id))
+}
+
 #[cfg(all(test, feature = "local"))]
 mod tests {
     use super::*;
@@ -65,5 +84,21 @@ mod tests {
         let (lid, bytes) = latest_dictionary(&db).await.unwrap().unwrap();
         assert_eq!(lid, id);
         assert_eq!(bytes, b"dict-bytes-v1");
+    }
+
+    #[tokio::test]
+    async fn trains_when_enough_samples() {
+        let db = crate::VoxDb::connect(crate::DbConfig::Memory).await.expect("db");
+        // Insert 16 objects and create membership edges so they appear in top_referenced.
+        for i in 0..16u64 {
+            let body = format!("context window archive sample number {i} ").repeat(20);
+            db.store("s", body.as_bytes()).await.unwrap();
+            let h = crate::hash::content_hash(body.as_bytes());
+            // Add an edge so it appears in top_referenced.
+            crate::archive::membership::add_edge(&db, &format!("w{i}"), &h).await.unwrap();
+        }
+        let id = train_from_corpus(&db, 64).await.unwrap();
+        assert!(id.is_some(), "should train a dictionary from 16 samples");
+        assert!(latest_dictionary(&db).await.unwrap().is_some());
     }
 }
