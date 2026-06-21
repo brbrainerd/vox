@@ -42,6 +42,17 @@ const emptyDash: DashboardData = {
   skills: [],
 };
 
+const baseData = emptyDash;
+function renderDashboard(over: Partial<DashboardData> = {}) {
+  return render(
+    <Dashboard
+      data={{ ...baseData, ...over }}
+      onPause={vi.fn()} onResume={vi.fn()} onDoubt={vi.fn()} onOverrule={vi.fn()} onAckLudus={vi.fn()}
+      filterKind="all" setFilterKind={vi.fn()}
+    />,
+  );
+}
+
 describe('Dashboard', () => {
   beforeEach(() => {
     window.localStorage.clear();
@@ -239,6 +250,20 @@ describe('Dashboard', () => {
       { t: 0, v: 3 },
       { t: 1, v: 7 },
     ]);
+  });
+
+  it('renders a 4-tile KPI strip including Mesh Peers', () => {
+    renderDashboard({ peers: [
+      { id: 'p1', name: 'node-a', backend: 'cuda', online: true },
+      { id: 'p2', name: 'node-b', backend: 'cuda', online: false },
+    ] });
+    // 'Active Agents' appears in both the KPI strip label and the agents widget heading
+    expect(screen.getAllByText('Active Agents').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Queue Depth')).toBeInTheDocument();
+    expect(screen.getByText('Budget Spent')).toBeInTheDocument();
+    expect(screen.getByText('Mesh Peers')).toBeInTheDocument();
+    // with the empty base: agents 0, queue 0, budget $0.00 → only Mesh Peers renders "1"
+    expect(screen.getByText('1')).toBeInTheDocument();
   });
 
   it('renders visual sandbox mini-map and handles expand navigation', () => {

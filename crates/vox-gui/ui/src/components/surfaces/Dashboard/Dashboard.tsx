@@ -293,10 +293,11 @@ export function Dashboard({
           </button>
         </div>
       )}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 px-5">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 px-5">
         <Kpi label="Active Agents" value={data.agents.length} accent="cyan" />
         <Kpi label="Queue Depth" value={data.kpis.queueDepth.value} accent="amber" />
         <Kpi label="Budget Spent" value={typeof data.kpis.budgetBurn.value === 'number' ? `$${data.kpis.budgetBurn.value.toFixed(2)}` : data.kpis.budgetBurn.value} accent="brass" />
+        <Kpi label="Mesh Peers" value={data.peers.filter((p) => p.online).length} accent="emerald" />
       </div>
       <div className="absolute right-5 top-2 z-20 flex items-center gap-2">
         {customizeMode && (
