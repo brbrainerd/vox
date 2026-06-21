@@ -1,11 +1,12 @@
 version: 1
 read_role_tools:
-  - vox_agy_doctor
-  - vox_agy_ledger_digest
+  # NOTE: vox_agy_doctor, vox_agy_ledger_digest, vox_credentials_status, and
+  # vox_feedback_list are read-only but currently exempted from the operations
+  # catalog (pre-existing un-enrolled tools). They are omitted here to keep this
+  # derived read-role set == the catalog's http_read_role_eligible set. Re-add
+  # them when they get proper catalog rows in the dedicated enrollment PR.
   - vox_attention_summary
-  - vox_credentials_status
   - vox_exec_time_query
-  - vox_feedback_list
   - vox_git_diff
   - vox_git_status
   - vox_graphify_status
