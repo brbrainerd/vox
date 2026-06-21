@@ -52,6 +52,7 @@ fn prop_sort_idempotent(list: list[int]) {
             inference_model: None,
             training_step: false,
             distributed_train: None,
+            placement_override: None,
         },
     };
 

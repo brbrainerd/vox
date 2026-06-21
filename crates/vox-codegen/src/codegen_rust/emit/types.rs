@@ -370,6 +370,7 @@ mod tests {
             inference_model: None,
             training_step: false,
             distributed_train: None,
+            placement_override: None,
         });
         assert!(module_uses_vox_json_type(&module));
     }
