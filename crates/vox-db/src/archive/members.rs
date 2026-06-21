@@ -6,7 +6,11 @@ use turso::params;
 
 /// Record the ordered chunk hashes for `item_hash`.
 /// Use only when an item was actually split into >1 chunk.
-pub async fn set_members(db: &VoxDb, item_hash: &str, chunk_hashes: &[String]) -> Result<(), StoreError> {
+pub async fn set_members(
+    db: &VoxDb,
+    item_hash: &str,
+    chunk_hashes: &[String],
+) -> Result<(), StoreError> {
     for (ordinal, chunk_hash) in chunk_hashes.iter().enumerate() {
         let (item_hash, chunk_hash) = (item_hash.to_string(), chunk_hash.clone());
         let ordinal = ordinal as i64;
@@ -38,7 +42,10 @@ pub async fn members_of(db: &VoxDb, item_hash: &str) -> Result<Vec<String>, Stor
         .await?;
     let mut out = Vec::new();
     while let Some(r) = rows.next().await? {
-        out.push(r.get::<String>(0).map_err(|e| StoreError::Db(e.to_string()))?);
+        out.push(
+            r.get::<String>(0)
+                .map_err(|e| StoreError::Db(e.to_string()))?,
+        );
     }
     Ok(out)
 }
@@ -49,7 +56,9 @@ mod tests {
 
     #[tokio::test]
     async fn members_round_trip_in_order() {
-        let db = crate::VoxDb::connect(crate::DbConfig::Memory).await.expect("db");
+        let db = crate::VoxDb::connect(crate::DbConfig::Memory)
+            .await
+            .expect("db");
         // chunk_members FK requires the objects to exist.
         for b in [b"a".as_slice(), b"b", b"c"] {
             db.store("chunk", b).await.unwrap();
@@ -61,7 +70,9 @@ mod tests {
         );
         db.store("item", b"abc").await.unwrap();
         let item = crate::hash::content_hash(b"abc");
-        set_members(&db, &item, &[ha.clone(), hb.clone(), hc.clone()]).await.unwrap();
+        set_members(&db, &item, &[ha.clone(), hb.clone(), hc.clone()])
+            .await
+            .unwrap();
         assert_eq!(members_of(&db, &item).await.unwrap(), vec![ha, hb, hc]);
     }
 }

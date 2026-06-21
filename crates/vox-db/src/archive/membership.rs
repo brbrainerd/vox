@@ -68,7 +68,10 @@ pub async fn top_referenced(db: &VoxDb, limit: i64) -> Result<Vec<String>, Store
         .await?;
     let mut out = Vec::new();
     while let Some(r) = rows.next().await? {
-        out.push(r.get::<String>(0).map_err(|e| StoreError::Db(e.to_string()))?);
+        out.push(
+            r.get::<String>(0)
+                .map_err(|e| StoreError::Db(e.to_string()))?,
+        );
     }
     Ok(out)
 }
@@ -79,7 +82,9 @@ mod tests {
 
     #[tokio::test]
     async fn add_edge_idempotent_and_refs_count() {
-        let db = crate::VoxDb::connect(crate::DbConfig::Memory).await.expect("db");
+        let db = crate::VoxDb::connect(crate::DbConfig::Memory)
+            .await
+            .expect("db");
         // Need a real object for the FK constraint.
         db.store("k", b"abc").await.unwrap();
         let h = crate::hash::content_hash(b"abc");
@@ -90,7 +95,11 @@ mod tests {
 
         // Re-archiving w1 must not inflate refs (idempotent).
         add_edge(&db, "w1", &h).await.unwrap();
-        assert_eq!(refs_of(&db, &h).await.unwrap(), 2, "re-archive must not inflate refs");
+        assert_eq!(
+            refs_of(&db, &h).await.unwrap(),
+            2,
+            "re-archive must not inflate refs"
+        );
 
         drop_window_edges(&db, "w1").await.unwrap();
         assert_eq!(refs_of(&db, &h).await.unwrap(), 1);
@@ -98,7 +107,9 @@ mod tests {
 
     #[tokio::test]
     async fn top_referenced_orders_by_frequency() {
-        let db = crate::VoxDb::connect(crate::DbConfig::Memory).await.expect("db");
+        let db = crate::VoxDb::connect(crate::DbConfig::Memory)
+            .await
+            .expect("db");
         // Two objects: "popular" referenced 3×, "rare" referenced 1×.
         db.store("k", b"popular").await.unwrap();
         db.store("k", b"rare").await.unwrap();

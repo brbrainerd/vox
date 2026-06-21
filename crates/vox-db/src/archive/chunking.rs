@@ -36,7 +36,11 @@ mod tests {
         // 200 KB of varied content so CDC finds multiple boundaries.
         let data: Vec<u8> = (0..200_000).map(|i| (i * 2654435761usize) as u8).collect();
         let chunks = chunk_content(&data);
-        assert!(chunks.len() > 1, "expected multiple chunks, got {}", chunks.len());
+        assert!(
+            chunks.len() > 1,
+            "expected multiple chunks, got {}",
+            chunks.len()
+        );
         let rejoined: Vec<u8> = chunks.concat();
         assert_eq!(rejoined, data, "concatenated chunks must equal original");
     }

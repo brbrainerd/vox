@@ -1,14 +1,16 @@
 //! Convert captured agent traces (agent_trace_record schema) into SFT rows.
-use serde_json::{json, Value};
-use std::path::Path;
+use serde_json::{Value, json};
 use std::io::Write;
+use std::path::Path;
 
 /// Convert one trace JSON into an SFT row (lane vox_dogfood_agent). Returns
 /// None if the trace has no steps (nothing to learn).
 pub fn trace_to_sft(trace: &Value) -> Option<Value> {
     let intent = trace.get("intent")?.as_str()?;
     let steps = trace.get("steps")?.as_array()?;
-    if steps.is_empty() { return None; }
+    if steps.is_empty() {
+        return None;
+    }
     let prompt = format!("[vox_agent]\nIntent: {intent}\nEmit the tool-call sequence as JSON.");
     let response = serde_json::to_string(steps).ok()?;
     Some(json!({
@@ -30,13 +32,17 @@ pub fn trace_to_sft(trace: &Value) -> Option<Value> {
 /// monoculture (semantic entropy below `min_diversity`).
 pub fn traces_to_sft_gated(traces: &[Value], min_diversity: f64) -> anyhow::Result<Vec<Value>> {
     let rows: Vec<Value> = traces.iter().filter_map(trace_to_sft).collect();
-    let responses: Vec<String> = rows.iter()
+    let responses: Vec<String> = rows
+        .iter()
         .filter_map(|r| r.get("response").and_then(|v| v.as_str()).map(String::from))
         .collect();
     if !responses.is_empty() {
         let report = vox_eval::eval_semantic_entropy(&responses, min_diversity);
-        anyhow::ensure!(!report.collapse_warning,
-            "agentic trace corpus failed diversity check (mode collapse) — got {:.3}", report.ast_diversity);
+        anyhow::ensure!(
+            !report.collapse_warning,
+            "agentic trace corpus failed diversity check (mode collapse) — got {:.3}",
+            report.ast_diversity
+        );
     }
     Ok(rows)
 }

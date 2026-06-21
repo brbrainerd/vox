@@ -1,8 +1,8 @@
 //! In-process byte-budgeted cache of decompressed objects. Keyed by content hash.
 //! Dedup means one cache entry serves reads from many windows (design §5.2, Rev 2 Correction 5).
 
-use quick_cache::sync::Cache;
 use quick_cache::Weighter;
+use quick_cache::sync::Cache;
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -56,7 +56,10 @@ mod tests {
         c.put("c".to_string(), vec![0u8; 10]);
         // "a" must survive (recently used), "c" must be present (just inserted).
         assert!(c.get("a").is_some(), "recently used 'a' should survive");
-        assert!(c.get("c").is_some(), "freshly inserted 'c' should be present");
+        assert!(
+            c.get("c").is_some(),
+            "freshly inserted 'c' should be present"
+        );
         // "b" should be evicted (was LRU when budget was exceeded).
         // Note: quick_cache uses concurrent eviction so the exact eviction timing
         // may vary slightly. We assert the cache doesn't grow unboundedly instead.

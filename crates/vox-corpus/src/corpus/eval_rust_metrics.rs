@@ -38,7 +38,11 @@ pub fn compute_rust_spoke_metrics(
             let category = val.get("category").and_then(|c| c.as_str()).unwrap_or("");
             let lane = val.get("lane").and_then(|l| l.as_str()).unwrap_or("");
             if category == "rust_authoring" || lane == "vox_rust_authoring" {
-                if let Some(response) = val.get("response").or_else(|| val.get("output")).and_then(|r| r.as_str()) {
+                if let Some(response) = val
+                    .get("response")
+                    .or_else(|| val.get("output"))
+                    .and_then(|r| r.as_str())
+                {
                     let cleaned = extract_rust_from_markdown(response);
                     if !cleaned.trim().is_empty() {
                         snippets.push(cleaned);
@@ -55,8 +59,10 @@ pub fn compute_rust_spoke_metrics(
     // Limit the verification set size to prevent excessively long eval runs
     snippets.truncate(100);
 
-    let compile_verifier = |s: &[String]| crate::corpus::rust_authoring::compile_batch_in_workspace(workspace_root, s);
-    let clippy_verifier = |s: &[String]| crate::corpus::rust_authoring::clippy_batch_in_workspace(workspace_root, s);
+    let compile_verifier =
+        |s: &[String]| crate::corpus::rust_authoring::compile_batch_in_workspace(workspace_root, s);
+    let clippy_verifier =
+        |s: &[String]| crate::corpus::rust_authoring::clippy_batch_in_workspace(workspace_root, s);
 
     let compile_rate = pass_rate(&snippets, compile_verifier);
     let clippy_rate = pass_rate(&snippets, clippy_verifier);
