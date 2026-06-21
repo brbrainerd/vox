@@ -101,8 +101,5 @@ fn taxonomy_k_anonymity_floor_is_at_least_20() {
     let k = v["k_anonymity"]
         .as_u64()
         .expect("taxonomy must have a numeric 'k_anonymity' field");
-    assert!(
-        k >= 20,
-        "k_anonymity must be ≥ 20 (spec §3.7); got {k}"
-    );
+    assert!(k >= 20, "k_anonymity must be ≥ 20 (spec §3.7); got {k}");
 }
