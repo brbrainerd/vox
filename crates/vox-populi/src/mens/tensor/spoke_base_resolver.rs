@@ -192,7 +192,7 @@ mod tests {
             .nth(2)
             .unwrap();
         let overlay = load_overlay(root).expect("load overlay");
-        let base = pick_base(&overlay, "qwen3_code", 49_152).expect("14B-LoRA fits at 48GB");
+        let base = pick_base(&overlay, "qwen3_code", 49_152).expect("14B-LoRA fits at 48GB"); // 48 GB GPU expressed in MB; the LoRA un-quantized rung has floor_mb=44_000
         assert!(
             base.methods.iter().any(|m| m == "lora" || m == "full_lora"),
             "at 48GB should prefer LoRA (un-quantized) over QLoRA, but got methods: {:?}",

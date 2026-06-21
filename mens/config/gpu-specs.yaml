@@ -248,25 +248,25 @@ train_bases:
   # Qwen3 dense ladder — revision-pinned. NOTE: @<sha> hashes are placeholders;
   # pin to real HF commit hashes (hf_id@sha) before production training runs.
   qwen3_code:
-    - { hf_id: "Qwen/Qwen3-0.6B@2c59e4f0", floor_mb: 2000,  methods: [qlora] }   # CPU / ≤8 GB dev
-    - { hf_id: "Qwen/Qwen3-8B@a7b3d091",   floor_mb: 12000, methods: [qlora] }   # 16 GB tier
-    - { hf_id: "Qwen/Qwen3-14B@c4e8f122",  floor_mb: 20000, methods: [qlora] }   # 24 GB tier (QLoRA)
-    - { hf_id: "Qwen/Qwen3-14B@c4e8f122",  floor_mb: 44000, methods: [lora] }    # 48 GB tier (un-quantized; beats 24g entry)
-    - { hf_id: "Qwen/Qwen3-32B@d9a1b573",  floor_mb: 60000, methods: [qlora] }   # 96 GB tier
+    - { hf_id: "Qwen/Qwen3-0.6B@PLACEHOLDER-2c59e4f0", floor_mb: 2000,  methods: [qlora] }   # CPU / ≤8 GB dev
+    - { hf_id: "Qwen/Qwen3-8B@PLACEHOLDER-a7b3d091",   floor_mb: 12000, methods: [qlora] }   # 16 GB tier
+    - { hf_id: "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122",  floor_mb: 20000, methods: [qlora] }   # 24 GB tier (QLoRA)
+    - { hf_id: "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122",  floor_mb: 44000, methods: [lora] }    # 48 GB tier (un-quantized; beats 24g entry)
+    - { hf_id: "Qwen/Qwen3-32B@PLACEHOLDER-d9a1b573",  floor_mb: 60000, methods: [qlora] }   # 96 GB tier
 
   # Alias tags updated to include Qwen3 rungs alongside existing Qwen2.5 bases.
   # Resolver picks largest fitting rung — at ≥12GB a Qwen3 rung wins.
-  small_code_default:
-    - { hf_id: "Qwen/Qwen2.5-Coder-3B-Instruct", floor_mb: 6000,  methods: [qlora, full_sft] }
-    - { hf_id: "Qwen/Qwen3-8B@a7b3d091",         floor_mb: 12000, methods: [qlora] }
+  small_code_default:  # intentionally caps at 8B; strong_code_default escalates to larger rungs
+    - { hf_id: "Qwen/Qwen2.5-Coder-3B-Instruct",         floor_mb: 6000,  methods: [qlora, full_sft] }
+    - { hf_id: "Qwen/Qwen3-8B@PLACEHOLDER-a7b3d091",     floor_mb: 12000, methods: [qlora] }
   strong_code_default:
-    - { hf_id: "Qwen/Qwen2.5-Coder-7B-Instruct", floor_mb: 11000, methods: [qlora, dpo, orpo] }
-    - { hf_id: "Qwen/Qwen3-14B@c4e8f122",        floor_mb: 20000, methods: [qlora] }
-    - { hf_id: "Qwen/Qwen3-14B@c4e8f122",        floor_mb: 44000, methods: [lora] }
-    - { hf_id: "Qwen/Qwen3-32B@d9a1b573",        floor_mb: 60000, methods: [qlora] }
+    - { hf_id: "Qwen/Qwen2.5-Coder-7B-Instruct",         floor_mb: 11000, methods: [qlora, dpo, orpo] }
+    - { hf_id: "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122",    floor_mb: 20000, methods: [qlora] }
+    - { hf_id: "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122",    floor_mb: 44000, methods: [lora] }
+    - { hf_id: "Qwen/Qwen3-32B@PLACEHOLDER-d9a1b573",    floor_mb: 60000, methods: [qlora] }
   agentic_default:
-    - { hf_id: "Qwen/Qwen2.5-Coder-7B-Instruct", floor_mb: 11000, methods: [qlora, dpo] }
-    - { hf_id: "Qwen/Qwen3-14B@c4e8f122",        floor_mb: 20000, methods: [qlora] }
-    - { hf_id: "Qwen/Qwen3-14B@c4e8f122",        floor_mb: 44000, methods: [lora] }
-    - { hf_id: "Qwen/Qwen3-32B@d9a1b573",        floor_mb: 60000, methods: [qlora] }
+    - { hf_id: "Qwen/Qwen2.5-Coder-7B-Instruct",         floor_mb: 11000, methods: [qlora, dpo] }
+    - { hf_id: "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122",    floor_mb: 20000, methods: [qlora] }
+    - { hf_id: "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122",    floor_mb: 44000, methods: [lora] }
+    - { hf_id: "Qwen/Qwen3-32B@PLACEHOLDER-d9a1b573",    floor_mb: 60000, methods: [qlora] }
 
