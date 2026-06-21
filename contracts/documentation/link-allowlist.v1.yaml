@@ -577,3 +577,8 @@ allowlist:
     target: "../architecture/diagnostic-questioning-sota-and-wiring-audit-2026-06-18.md"
     reason: "architecture doc not tracked on this branch; planned file"
     expires: "2026-11-30"
+
+  - source: "docs/src/architecture/crate-build-dependency-model-2026-06-19.md"
+    target: "../../../graphify-out/crate-build-map.json"
+    reason: "graphify-out/ is gitignored (generated artifact); historical doc link"
+    expires: "2026-11-30"
