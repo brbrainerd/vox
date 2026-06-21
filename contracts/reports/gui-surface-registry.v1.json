@@ -82,9 +82,6 @@
     "workflow"
   ],
   "surface_count": 111,
-  "unclassified_backfilled": [
-    "clip",
-    "history"
-  ],
+  "unclassified_backfilled": [],
   "wiring_violations": []
 }
