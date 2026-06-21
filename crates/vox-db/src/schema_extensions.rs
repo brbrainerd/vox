@@ -4,7 +4,23 @@
 use crate::store::types::StoreError;
 use turso::Connection;
 
+/// Idempotently add archive columns to the pre-existing `objects` table.
+/// Each ALTER is its own call so a "duplicate column name" on re-run
+/// does not abort the others.
+async fn apply_objects_archive_columns(conn: &Connection) {
+    for stmt in [
+        "ALTER TABLE objects ADD COLUMN codec TEXT NOT NULL DEFAULT 'none';",
+        "ALTER TABLE objects ADD COLUMN dict_id INTEGER;",
+        "ALTER TABLE objects ADD COLUMN uncompressed_len INTEGER NOT NULL DEFAULT 0;",
+        "ALTER TABLE objects ADD COLUMN storage TEXT NOT NULL DEFAULT 'inline';",
+        "ALTER TABLE objects ADD COLUMN file_path TEXT;",
+    ] {
+        exec_optional_batch(conn, stmt).await;
+    }
+}
+
 pub async fn apply_schema_extensions(conn: &Connection) -> Result<(), StoreError> {
+    apply_objects_archive_columns(conn).await; // NEW — must precede any codec-aware read
     apply_knowledge_fts_cutover(conn).await?;
     apply_search_document_chunks_fts_cutover(conn).await?;
 

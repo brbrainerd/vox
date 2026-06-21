@@ -4,9 +4,9 @@ schema_version: 1
 
 policy:
   # Integer stored in DB `schema_version` table after baseline migration succeeds.
-  repository_baseline_integer: 80
-  # Keccak-256 of baseline_sql() — recomputed after adding context_windows + context_window_items.
-  repository_baseline_digest_hex: "0xfa2e8614fe5c5190d53348e100fc175354f1ae9a4ae4aaac50dbe92d94bdb449"
+  repository_baseline_integer: 81
+  # Keccak-256 of baseline_sql() — recomputed after archive dedup/compression schema (2026-06-20).
+  repository_baseline_digest_hex: "0xbcf1abac833e13bcfd446e4389cedf8868015df0846126ca309e171eab2c58d4"
   # Keccak-256 over `vox_db::schema::baseline_sql()` (= ordered SCHEMA_FRAGMENTS + spec append DDL).
   digest_source: vox_db_schema_manifest_baseline_sql
   # Human-facing product name for the DB API layer.

@@ -12,7 +12,8 @@ use std::sync::OnceLock;
 // 78: feat(activity): add activity_log table for timeline events
 // 79: feat(hopper/feedback/budget): context-window spine supporting changes
 // 80: feat(context): add context_windows + context_window_items (design 2026-06-20)
-pub const BASELINE_VERSION: i64 = 80;
+// 81: feat(context): archive dedup/compression — objects codec columns + chunk_members + archive_membership + zstd_dictionaries (design 2026-06-20)
+pub const BASELINE_VERSION: i64 = 81;
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]
@@ -137,6 +138,10 @@ pub const SCHEMA_FRAGMENTS: &[SchemaFragment] = &[
     SchemaFragment {
         name: "context_windows",
         sql: domains::context_windows::SCHEMA_CONTEXT_WINDOWS,
+    },
+    SchemaFragment {
+        name: "context_archive",
+        sql: domains::context_archive::SCHEMA_CONTEXT_ARCHIVE,
     },
 ];
 

@@ -2,6 +2,7 @@ pub mod activity_log;
 pub mod agents;
 pub mod cas_codex;
 pub mod ci_completion;
+pub mod context_archive;
 pub mod context_windows;
 pub mod conversations;
 pub mod developer_journeys;

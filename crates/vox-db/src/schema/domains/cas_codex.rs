@@ -3,7 +3,12 @@ pub const SCHEMA_CAS_CODEX: &str = "
 CREATE TABLE IF NOT EXISTS objects (
     hash TEXT PRIMARY KEY,
     kind TEXT NOT NULL,
-    data BLOB NOT NULL,
+    data BLOB,
+    codec TEXT NOT NULL DEFAULT 'none',
+    dict_id INTEGER,
+    uncompressed_len INTEGER NOT NULL DEFAULT 0,
+    storage TEXT NOT NULL DEFAULT 'inline',
+    file_path TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
