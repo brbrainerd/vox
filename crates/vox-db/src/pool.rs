@@ -121,6 +121,9 @@ impl VoxDbPool {
             writer: self.writer.get().cloned(),
             breaker: Arc::clone(&self.breaker),
             sqlite_probe_cache: Arc::clone(&self.sqlite_probe_cache),
+            dict_cache: std::sync::Arc::new(std::sync::Mutex::new(
+                std::collections::HashMap::new(),
+            )),
         })
     }
 

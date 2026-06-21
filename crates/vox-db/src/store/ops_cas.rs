@@ -33,12 +33,13 @@ impl crate::VoxDb {
         Ok(hash)
     }
 
-    /// Read the `data` blob for `hash` from `objects`. Returns `NotFound` if absent.
+    /// Read the `data` blob for `hash` from `objects`. Codec-aware: decodes `zstd` and
+    /// reassembles `chunked` manifests transparently.
     pub async fn get(&self, hash: &str) -> Result<Vec<u8>, StoreError> {
         let mut rows = self
             .conn
             .query(
-                "SELECT data FROM objects WHERE hash = ?1 LIMIT 1",
+                "SELECT data, codec, dict_id, uncompressed_len FROM objects WHERE hash = ?1 LIMIT 1",
                 params![hash],
             )
             .await?;
@@ -46,8 +47,153 @@ impl crate::VoxDb {
             .next()
             .await?
             .ok_or_else(|| StoreError::NotFound(format!("object {hash}")))?;
-        let data: Vec<u8> = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
-        Ok(data)
+        let codec: String = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+        match codec.as_str() {
+            "chunked" => {
+                let mut members = self
+                    .conn
+                    .query(
+                        "SELECT chunk_hash FROM chunk_members WHERE item_hash = ?1 ORDER BY ordinal",
+                        params![hash],
+                    )
+                    .await?;
+                let mut out = Vec::new();
+                while let Some(m) = members.next().await? {
+                    let ch: String = m.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+                    out.extend_from_slice(&Box::pin(self.get(&ch)).await?);
+                }
+                Ok(out)
+            }
+            "zstd" => {
+                let data: Vec<u8> = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+                let dict_id: Option<i64> = row.get(2).map_err(|e| StoreError::Db(e.to_string()))?;
+                let ulen: i64 = row.get(3).map_err(|e| StoreError::Db(e.to_string()))?;
+                let dict = match dict_id {
+                    Some(id) => Some(self.decoder_dictionary(id).await?),
+                    None => None,
+                };
+                crate::archive::compression::decompress_prepared(
+                    &data,
+                    ulen as usize,
+                    dict.as_deref(),
+                )
+            }
+            _ => {
+                let data: Vec<u8> = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+                Ok(data)
+            }
+        }
+    }
+
+    /// Write or overwrite an object with compressed data (only when smaller).
+    /// `hash` = content_hash(original). On conflict, replaces iff `stored.len() < original.len()`.
+    pub async fn put_compressed(
+        &self,
+        kind: &str,
+        original: &[u8],
+        stored: &[u8],
+        codec: &str,
+        dict_id: Option<i64>,
+    ) -> Result<String, StoreError> {
+        let hash = content_hash(original);
+        let ulen = original.len() as i64;
+        let smaller = stored.len() < original.len();
+        let (kind, codec) = (kind.to_string(), codec.to_string());
+        let (hash_ins, stored) = (hash.clone(), stored.to_vec());
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                if smaller {
+                    conn.execute(
+                        "INSERT INTO objects (hash, kind, data, codec, dict_id, uncompressed_len, storage)
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'inline')
+                         ON CONFLICT(hash) DO UPDATE SET
+                           data = excluded.data,
+                           codec = excluded.codec,
+                           dict_id = excluded.dict_id,
+                           uncompressed_len = excluded.uncompressed_len",
+                        params![
+                            hash_ins.as_str(),
+                            kind.as_str(),
+                            stored.as_slice(),
+                            codec.as_str(),
+                            dict_id,
+                            ulen
+                        ],
+                    )
+                    .await?;
+                } else {
+                    conn.execute(
+                        "INSERT OR IGNORE INTO objects (hash, kind, data, codec, uncompressed_len, storage)
+                         VALUES (?1, ?2, ?3, 'none', ?4, 'inline')",
+                        params![hash_ins.as_str(), kind.as_str(), stored.as_slice(), ulen],
+                    )
+                    .await?;
+                }
+                Ok::<(), StoreError>(())
+            })
+            .await?;
+        Ok(hash)
+    }
+
+    /// Convert the object at `item_hash` into a chunk manifest (data=NULL, codec='chunked').
+    pub async fn put_chunk_manifest(
+        &self,
+        item_hash: &str,
+        uncompressed_len: i64,
+    ) -> Result<(), StoreError> {
+        let item_hash = item_hash.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO objects (hash, kind, data, codec, uncompressed_len, storage)
+                     VALUES (?1, 'ctxwin-item', NULL, 'chunked', ?2, 'inline')
+                     ON CONFLICT(hash) DO UPDATE SET
+                       data = NULL,
+                       codec = 'chunked',
+                       uncompressed_len = excluded.uncompressed_len",
+                    params![item_hash.as_str(), uncompressed_len],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    /// Fetch a dictionary's raw bytes by id.
+    pub async fn dictionary_bytes(&self, dict_id: i64) -> Result<Vec<u8>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT bytes FROM zstd_dictionaries WHERE id = ?1",
+                params![dict_id],
+            )
+            .await?;
+        let row = rows
+            .next()
+            .await?
+            .ok_or_else(|| StoreError::NotFound(format!("dictionary {dict_id}")))?;
+        row.get::<Vec<u8>>(0).map_err(|e| StoreError::Db(e.to_string()))
+    }
+
+    /// Load and cache a prepared `DecoderDictionary` for `dict_id`.
+    pub async fn decoder_dictionary(
+        &self,
+        dict_id: i64,
+    ) -> Result<std::sync::Arc<zstd::dict::DecoderDictionary<'static>>, StoreError> {
+        {
+            let cache = self.dict_cache.lock().unwrap();
+            if let Some(d) = cache.get(&dict_id) {
+                return Ok(d.clone());
+            }
+        }
+        let bytes = self.dictionary_bytes(dict_id).await?;
+        let dd = std::sync::Arc::new(zstd::dict::DecoderDictionary::copy(&bytes));
+        self.dict_cache.lock().unwrap().insert(dict_id, dd.clone());
+        Ok(dd)
     }
 
     /// Bind (or rebind) a logical `name` in `namespace` to a content hash in the `names` table.
@@ -180,5 +326,51 @@ impl crate::VoxDb {
             .await?
             .ok_or_else(|| StoreError::NotFound(format!("db_snapshot {snap_id}")))?;
         Ok(())
+    }
+}
+
+#[cfg(all(test, feature = "local"))]
+mod archive_cas_tests {
+    use crate::archive::compression;
+
+    #[tokio::test]
+    async fn compressed_object_reads_back_transparently() {
+        let db = crate::VoxDb::connect(crate::DbConfig::Memory)
+            .await
+            .expect("db");
+        let payload = b"archive payload ".repeat(64);
+        let comp = compression::compress(&payload, None).unwrap();
+        let hash = db
+            .put_compressed("ctxwin-item", &payload, &comp, "zstd", None)
+            .await
+            .unwrap();
+        let got = db.get(&hash).await.unwrap();
+        assert_eq!(got, payload.as_slice());
+    }
+
+    #[tokio::test]
+    async fn codec_check_stored_as_zstd() {
+        use turso::params;
+        let db = crate::VoxDb::connect(crate::DbConfig::Memory)
+            .await
+            .expect("db");
+        let payload = b"zstd codec test payload ".repeat(64);
+        let comp = compression::compress(&payload, None).unwrap();
+        assert!(comp.len() < payload.len(), "test payload must compress");
+        let hash = db
+            .put_compressed("ctxwin-item", &payload, &comp, "zstd", None)
+            .await
+            .unwrap();
+        let mut rows = db
+            .conn
+            .query(
+                "SELECT codec, length(data), uncompressed_len FROM objects WHERE hash = ?1",
+                params![hash.as_str()],
+            )
+            .await
+            .unwrap();
+        let row = rows.next().await.unwrap().unwrap();
+        assert_eq!(row.get::<String>(0).unwrap(), "zstd");
+        assert!(row.get::<i64>(1).unwrap() < row.get::<i64>(2).unwrap());
     }
 }
