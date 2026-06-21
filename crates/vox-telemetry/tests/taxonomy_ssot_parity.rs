@@ -3,8 +3,10 @@
 
 use serde_json::Value;
 
-const TAXONOMY_PATH: &str =
-    concat!(env!("CARGO_MANIFEST_DIR"), "/../../contracts/telemetry/collection-taxonomy.v1.json");
+const TAXONOMY_PATH: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../contracts/telemetry/collection-taxonomy.v1.json"
+);
 
 /// Required category names from spec §5. If any are absent the test fails.
 const REQUIRED_CATEGORIES: &[&str] = &[
@@ -28,7 +30,9 @@ fn taxonomy_parses_and_has_no_freeform_string_fields() {
         .expect("taxonomy must have a 'categories' array");
 
     for cat in cats {
-        let cat_name = cat["name"].as_str().expect("each category must have a 'name'");
+        let cat_name = cat["name"]
+            .as_str()
+            .expect("each category must have a 'name'");
         let fields = cat["fields"]
             .as_array()
             .unwrap_or_else(|| panic!("category '{cat_name}' must have a 'fields' array"));
@@ -50,11 +54,9 @@ fn taxonomy_parses_and_has_no_freeform_string_fields() {
 
             // enum fields must have a non-empty 'allowed' list
             if ty == "enum" {
-                let allowed = field["allowed"]
-                    .as_array()
-                    .unwrap_or_else(|| {
-                        panic!("enum field '{field_name}' in '{cat_name}' must have an 'allowed' list")
-                    });
+                let allowed = field["allowed"].as_array().unwrap_or_else(|| {
+                    panic!("enum field '{field_name}' in '{cat_name}' must have an 'allowed' list")
+                });
                 assert!(
                     !allowed.is_empty(),
                     "enum field '{field_name}' in '{cat_name}' has an empty 'allowed' list"
@@ -70,10 +72,8 @@ fn taxonomy_contains_all_required_categories() {
     let v: Value = serde_json::from_str(&txt).expect("taxonomy must parse");
 
     let cats = v["categories"].as_array().expect("must have 'categories'");
-    let present: std::collections::HashSet<&str> = cats
-        .iter()
-        .filter_map(|c| c["name"].as_str())
-        .collect();
+    let present: std::collections::HashSet<&str> =
+        cats.iter().filter_map(|c| c["name"].as_str()).collect();
 
     for required in REQUIRED_CATEGORIES {
         assert!(
@@ -87,11 +87,7 @@ fn taxonomy_contains_all_required_categories() {
 fn taxonomy_version_is_1() {
     let txt = std::fs::read_to_string(TAXONOMY_PATH).expect("taxonomy must exist");
     let v: Value = serde_json::from_str(&txt).expect("taxonomy must parse");
-    assert_eq!(
-        v["version"].as_u64(),
-        Some(1),
-        "taxonomy version must be 1"
-    );
+    assert_eq!(v["version"].as_u64(), Some(1), "taxonomy version must be 1");
 }
 
 #[test]
@@ -101,8 +97,5 @@ fn taxonomy_k_anonymity_floor_is_at_least_20() {
     let k = v["k_anonymity"]
         .as_u64()
         .expect("taxonomy must have a numeric 'k_anonymity' field");
-    assert!(
-        k >= 20,
-        "k_anonymity must be ≥ 20 (spec §3.7); got {k}"
-    );
+    assert!(k >= 20, "k_anonymity must be ≥ 20 (spec §3.7); got {k}");
 }
