@@ -27,6 +27,8 @@ pub mod cloud;
 #[cfg(feature = "mesh-discovery-publish")]
 pub mod discovery_publish;
 
+pub mod serving;
+
 /// Default HuggingFace model for Mens training and serving (VoxMens QLoRA SSOT).
 ///
 /// Qwen2.5-Coder is the coding-focused dense family the candle QLoRA trainer

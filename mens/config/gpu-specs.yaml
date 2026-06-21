@@ -270,3 +270,25 @@ train_bases:
     - { hf_id: "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122",    floor_mb: 44000, methods: [lora] }
     - { hf_id: "Qwen/Qwen3-32B@PLACEHOLDER-d9a1b573",    floor_mb: 60000, methods: [qlora] }
 
+# TODO: B6.0 vLLM compat spike
+# B6.0 requires standing up a real vLLM instance with Qwen3 + a trained QLoRA adapter.
+# This is a PROCEDURE step requiring human action and hardware — it cannot be automated.
+#
+# Steps (pending human execution):
+#   1. Stand up a vLLM instance: `vllm serve <base_model> --enable-lora --max-lora-rank 64`
+#   2. Load a trained adapter via the /v1/models API or --lora-modules flag
+#   3. Send a test request with `model=<adapter_name>` and verify the adapter is applied
+#   4. Validate guided_json decoding works end-to-end (schema-constrained output)
+#   5. Confirm multi-LoRA slot exhaustion behavior (what happens when max_loaded is exceeded)
+#   6. Record measured latency and throughput vs. base model for the gate metric
+#
+# Pre-requisites:
+#   - At least one trained QLoRA adapter from B2+ pipeline stages
+#   - vLLM >= 0.4.0 with LoRA support enabled
+#   - GPU with sufficient VRAM for base model + adapter overhead
+#   - VOX_MENS_VLLM_BASE_URL env var set to the running vLLM endpoint
+#
+# Once completed, update this comment with:
+#   - vLLM version confirmed working
+#   - Max simultaneous adapters tested
+#   - Latency overhead of LoRA vs. base (expected: <5ms per token)
