@@ -521,12 +521,12 @@ tools:
 - name: vox_credentials_status
   description: "List every inference provider with a present Clavis credential plus the agy delegation status — the credential-aware model-selection surface. OpenRouter is one of many."
   product_lane: ai
-  http_read_role_eligible: true
+  http_read_role_eligible: false
   tier: core
 - name: vox_feedback_list
   description: List all pending and withheld feedback requests.
   product_lane: ai
-  http_read_role_eligible: true
+  http_read_role_eligible: false
   tier: core
 - name: vox_resolve_feedback
   description: Resolve a pending clarification or doubt request with a specific action.
