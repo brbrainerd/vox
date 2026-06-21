@@ -3,6 +3,7 @@
 use anyhow::Result;
 use std::path::Path;
 
+use super::bfcl::check_bfcl;
 use super::io::{read_jsonl_nonempty_lines, read_utf8_path_capped};
 use super::policy::{load_policy, mcp_tool_schema_metrics_path};
 
@@ -763,6 +764,26 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
                 ),
                 block: rr.block,
             });
+        }
+    }
+
+    // --- bfcl_accuracy gate --------------------------------------------------
+    // Only active when block=true or min_accuracy > 0 or per_rung_overrides is
+    // non-empty. Absent metrics file + block=false is "not applicable" (pass).
+    {
+        let bfcl_cfg = &policy.bfcl_accuracy;
+        let bfcl_active = bfcl_cfg.block
+            || bfcl_cfg.min_accuracy > 0.0
+            || !bfcl_cfg.per_rung_overrides.is_empty();
+        if bfcl_active {
+            // Read rung key from run manifest (base_rung field), if present.
+            let rung_key: Option<String> = manifest
+                .as_ref()
+                .and_then(|m| m.get("base_rung"))
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            let gate_result = check_bfcl(run_dir, bfcl_cfg, None, rung_key.as_deref())?;
+            results.push(gate_result);
         }
     }
 
