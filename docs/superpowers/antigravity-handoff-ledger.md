@@ -827,3 +827,85 @@ da92b6a3d2 feat(vox-db): context window store accessors + read-only hash refcoun
 1. **Always `git add <new-file>` before `git commit -am`** — `-am` doesn't track new files; spec-reviewer must check `git ls-files` for untracked new files.
 2. **Two-step new-file commits are safe** — follow-up `git add + commit` for missed files is clean and doesn't break the plan's atomic-green invariant.
 3. **Build-broker clippy recursion is a known infrastructure issue** — do not block on it; proceed when build + test are green.
+
+---
+
+## AGH-0025 — Archive/Dedup/Compression Engine (vox-db)
+
+```yaml
+agh_id: AGH-0025
+date: 2026-06-20
+subsystem: vox-db / archive engine
+branch: claude/archive-engine
+base_branch: claude/context-window-spine
+executor: Sonnet 4.6 / Claude Code (inline)
+outcome: GREEN
+baseline_bump: 80 → 81
+archive_tests: 20
+total_tests: 232
+```
+
+### What landed
+
+Archive/dedup/compression engine in `vox-db` on `claude/archive-engine` (based on `claude/context-window-spine`). Baseline bumped 80 → 81.
+
+**New tables:** `chunk_members`, `archive_membership`, `zstd_dictionaries`.
+
+**Modified table:** `objects` gained `codec/dict_id/uncompressed_len/storage/file_path` columns (in baseline DDL; `schema_extensions.rs` also applies idempotent `ALTER TABLE` for pre-existing DBs).
+
+**New modules (`crates/vox-db/src/archive/`):**
+
+| Module | Responsibility |
+|---|---|
+| `chunking` | Hybrid FastCDC chunking — inline for ≤ 4KB, chunked above |
+| `compression` | zstd level 12 + prepared dictionary support |
+| `dictionary` | Insert/query `zstd_dictionaries`; train from corpus |
+| `membership` | `archive_membership` edge upsert + frequency query |
+| `members` | `chunk_members` insert/query (ordered by ordinal) |
+| `pipeline` | `archive_window()` — compress → chunk → dedup orchestration |
+| `gc` | `sweep_unreferenced()` — respects live `context_window_items` |
+| `cache` | `quick_cache`-backed weighted decompression cache |
+
+**Modified ops:**
+- `get()` — codec-aware: handles `none`, `zstd`, `chunked` transparently
+- `put_compressed()` — UPSERT-if-smaller semantics
+- `put_chunk_manifest()` — sets `codec='chunked'`, data=NULL
+- `dictionary_bytes()` / `decoder_dictionary()` — lazy-cached `DecoderDictionary`
+
+**Key design points:**
+- Hybrid FastCDC (4KB threshold): small items stored inline, large items split into content-addressed chunks
+- zstd level 12 + prepared dictionary; UPSERT-if-smaller means compression is never forced
+- `archive_membership` edges are idempotent (INSERT OR IGNORE) — re-archiving a window is safe
+- GC respects live `context_window_items` refcounts before sweeping
+
+### Verification
+
+```
+cargo test -p vox-db  (--manifest-path worktree)  → PASS (232 lib + integration tests)
+  archive::chunking::tests::*         2/2
+  archive::compression::tests::*      3/3
+  archive::dictionary::tests::*       2/2
+  archive::membership::tests::*       2/2
+  archive::members::tests::*          1/1
+  archive::pipeline::tests::*         2/2
+  archive::gc::tests::*               3/3
+  archive::cache::tests::*            3/3
+  archive_cas_tests::*                2/2
+  baseline_policy_matches_compiled_schema  PASS
+cargo clippy -p vox-db --lib -- -D warnings  → CLEAN
+```
+
+**Note:** `cargo test -p vox-db` run from the main workspace root (`C:\Users\Owner\vox`) tests the main branch code (baseline 77), not the worktree. Always use `--manifest-path` pointing to the worktree `Cargo.toml` when validating archive-engine work.
+
+### Follow-ons (Plan B — GUI/Tauri)
+
+- GUI chat-tab archive/unarchive control
+- Tauri commands (`archive_context_window`, `list_archived_windows`)
+- `vox://context-archived` reactive stream emission
+- `SearchCorpus::ContextArchive` variant in vox-db search router
+
+### Follow-ons (Phase 2)
+
+- Embeddings integration (vector-based dedup across chunks)
+- `vox ci db-hygiene` gate (schema drift detection in CI)
+- Dead-table sweep (audit for tables no longer referenced by any module)
