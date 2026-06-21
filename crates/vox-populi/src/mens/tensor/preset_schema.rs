@@ -77,12 +77,21 @@ pub const KNOWN_PRESETS: &[&str] = &[
     "qwen3_96g",     // Qwen3-32B QLoRA r64 (96GB)
 ];
 
+/// Size classes on the REAL Qwen3 dense ladder (0.6/8/14/32B).
+///
+/// The previous classes matched 0.8b/2b/4b/9b — NONE of which exist on the real
+/// ladder, so the OOM safety clamps in [`apply_qwen_size_ladder_policy`] never fired.
+/// These map to the actual rungs the resolver emits (see `gpu-specs.yaml` qwen3_code).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum QwenSizeClass {
-    S0p8,
-    S2,
-    S4,
-    S9,
+    /// ~0.6B — CPU / dev smoke tier.
+    S0p6,
+    /// ~8B — 16 GB tier (RTX 4080 Super).
+    S8,
+    /// ~14B — 24/48 GB tier.
+    S14,
+    /// ~32B — 96 GB tier.
+    S32,
     Other,
 }
 
@@ -91,17 +100,19 @@ fn detect_qwen_size_class(model_hint: Option<&str>) -> Option<QwenSizeClass> {
     if !m.contains("qwen") {
         return None;
     }
-    if m.contains("0.8b") {
-        return Some(QwenSizeClass::S0p8);
+    // Order matters: match the larger, more specific tokens first so "14b" is not
+    // shadowed by a substring match, and so "0.6b" is not mistaken for "6b".
+    if m.contains("32b") {
+        return Some(QwenSizeClass::S32);
     }
-    if m.contains("2b") {
-        return Some(QwenSizeClass::S2);
+    if m.contains("14b") {
+        return Some(QwenSizeClass::S14);
     }
-    if m.contains("4b") {
-        return Some(QwenSizeClass::S4);
+    if m.contains("0.6b") {
+        return Some(QwenSizeClass::S0p6);
     }
-    if m.contains("9b") {
-        return Some(QwenSizeClass::S9);
+    if m.contains("8b") {
+        return Some(QwenSizeClass::S8);
     }
     Some(QwenSizeClass::Other)
 }
@@ -112,27 +123,21 @@ fn apply_qwen_size_ladder_policy(
     vram_mb: u64,
 ) -> TrainPresetProfile {
     match class {
-        QwenSizeClass::S0p8 => {
+        QwenSizeClass::S0p6 => {
+            // Smallest rung (CPU/dev smoke): roomy activations, larger micro-batch ok.
             p.rank = p.rank.min(16);
             p.alpha = p.alpha.min(32.0);
             p.seq_len = p.seq_len.clamp(384, 1024);
             p.batch_size = p.batch_size.max(2);
             p.grad_accum = p.grad_accum.max(4);
         }
-        QwenSizeClass::S2 => {
-            p.rank = p.rank.min(16);
-            p.alpha = p.alpha.min(32.0);
-            p.seq_len = p.seq_len.clamp(320, 768);
-            p.batch_size = p.batch_size.max(1);
-            p.grad_accum = p.grad_accum.max(6);
-        }
-        QwenSizeClass::S4 => {
-            // Keep current 4080-class defaults; only enforce safe floors.
+        QwenSizeClass::S8 => {
+            // 16 GB-tier default rung: keep current 4080-class defaults; enforce safe floors.
             p.batch_size = p.batch_size.max(1);
             p.grad_accum = p.grad_accum.max(8);
         }
-        QwenSizeClass::S9 => {
-            // 9B requires a tighter envelope on 16G class cards.
+        QwenSizeClass::S14 => {
+            // 14B requires a tighter envelope on 16/24 GB class cards.
             p.rank = p.rank.min(8);
             p.alpha = p.alpha.min(16.0);
             if vram_mb <= 16_384 {
@@ -146,6 +151,24 @@ fn apply_qwen_size_ladder_policy(
                 p.grad_accum = p.grad_accum.max(12);
             } else {
                 p.seq_len = p.seq_len.min(512);
+                p.grad_accum = p.grad_accum.max(8);
+            }
+        }
+        QwenSizeClass::S32 => {
+            // 32B is only viable on very large cards; floor it hard everywhere else.
+            p.rank = p.rank.min(8);
+            p.alpha = p.alpha.min(16.0);
+            if vram_mb <= 24_576 {
+                p.seq_len = p.seq_len.min(256);
+                p.batch_size = 1;
+                p.grad_accum = p.grad_accum.max(16);
+                p.lr = p.lr.min(1.0e-4);
+            } else if vram_mb <= 49_152 {
+                p.seq_len = p.seq_len.min(384);
+                p.batch_size = p.batch_size.min(1);
+                p.grad_accum = p.grad_accum.max(12);
+            } else {
+                p.seq_len = p.seq_len.min(768);
                 p.grad_accum = p.grad_accum.max(8);
             }
         }
@@ -710,6 +733,50 @@ mod qwen3_preset_tests {
         assert!(
             p.seq_len <= 256,
             "dev cpu must have short seq_len for CPU fit, got {}",
+            p.seq_len
+        );
+    }
+
+    #[test]
+    fn each_real_rung_maps_to_a_size_class() {
+        // DEFAULTS F2: the size-class matcher must recognize every rung on the REAL
+        // dense ladder (0.6/8/14/32B). Previously it matched 0.8b/2b/4b/9b — none on
+        // the ladder — so the OOM safety clamps never fired.
+        use super::QwenSizeClass;
+        let cases = [
+            ("Qwen/Qwen3-0.6B@PLACEHOLDER-2c59e4f0", QwenSizeClass::S0p6),
+            ("Qwen/Qwen3-8B@PLACEHOLDER-a7b3d091", QwenSizeClass::S8),
+            ("Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122", QwenSizeClass::S14),
+            ("Qwen/Qwen3-32B@PLACEHOLDER-d9a1b573", QwenSizeClass::S32),
+        ];
+        for (id, expected) in cases {
+            let got = super::detect_qwen_size_class(Some(id));
+            assert_eq!(
+                got,
+                Some(expected),
+                "real rung {id} must map to {expected:?}, got {got:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn size_class_clamp_fires_for_14b_on_16g() {
+        // Proves the clamp is now reachable: a 14B hint on a 16 GB card must tighten
+        // the envelope (seq_len floored, single micro-batch). Before F2 this never ran.
+        let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384);
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::set_var("VOX_BASE_MODEL", "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122");
+        }
+        let p = resolve_effective_profile(Some("qwen3_24g"), dev, None, CliOverrides::default());
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::remove_var("VOX_BASE_MODEL");
+        }
+        assert_eq!(p.batch_size, 1, "14B on 16GB must be single micro-batch");
+        assert!(
+            p.seq_len <= 256,
+            "14B on 16GB must floor seq_len to <=256, got {}",
             p.seq_len
         );
     }
