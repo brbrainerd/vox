@@ -27,6 +27,7 @@
 
 pub mod budget;
 pub mod estimator;
+pub mod pipeline_dispatch;
 pub mod resolver;
 pub mod runpod_provider;
 pub mod vast;
@@ -34,6 +35,10 @@ pub mod watchdog;
 
 pub use budget::BudgetLedger;
 pub use estimator::TimeEstimator;
+pub use pipeline_dispatch::{
+    DispatchPlan, TerminateOnDrop, TrainingManifest, dispatch_training, dispatch_with_guard,
+    make_idempotency_key, poll_until_done, read_checkpoint_uri, sync_checkpoint_down,
+};
 pub use resolver::{CloudResolver, ResolveRequest};
 
 use std::time::{Duration, SystemTime};
