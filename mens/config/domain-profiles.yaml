@@ -5,6 +5,13 @@
 # v1 sequencing: train mono 'harness' adapter first (union corpus) as the end-to-end smoke,
 # then train decomposed 'tool-selection' + 'argument-generation' adapters and keep whichever wins.
 
+# Hub: one pinned Qwen3 dense base + one small embedder.
+# embedder: used by the retrieval layer (B3) — not fine-tuned.
+# NOTE: @PLACEHOLDER-* revisions must be replaced with real HF commit hashes before production use.
+hub:
+  base: "Qwen/Qwen3-8B@PLACEHOLDER-a7b3d091"       # Default hub base (16 GB tier)
+  embedder: "Qwen/Qwen3-0.6B@PLACEHOLDER-2c59e4f0"  # ~0.6B embedder for tool retrieval
+
 defaults:
   min_rating: 3
   ce_last_k: 64

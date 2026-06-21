@@ -3,6 +3,32 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+/// Hub configuration: pinned Qwen3 dense base + small embedder.
+/// `base` is the default hub base model (16 GB tier, optional).
+/// `embedder` is required, non-empty, and must be revision-pinned (org/model@revision).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HubConfig {
+    #[serde(default)]
+    pub base: Option<String>,
+    pub embedder: String,
+}
+
+impl HubConfig {
+    /// Returns Err if embedder is not set, not revision-pinned (no '@'), or empty.
+    pub fn validate(&self) -> anyhow::Result<()> {
+        if self.embedder.is_empty() {
+            anyhow::bail!("hub.embedder must not be empty");
+        }
+        if !self.embedder.contains('@') {
+            anyhow::bail!(
+                "hub.embedder must be revision-pinned (format: org/model@revision): {}",
+                self.embedder
+            );
+        }
+        Ok(())
+    }
+}
+
 /// Training method selected per spoke. Mirrors the methods our trainer can
 /// dispatch; extend ONLY when the trainer gains a real backend (no stubs).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -87,6 +113,8 @@ pub struct DomainProfileDefaults {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DomainProfilesFile {
+    #[serde(default)]
+    pub hub: Option<HubConfig>,
     pub defaults: Option<DomainProfileDefaults>,
     pub profiles: HashMap<String, DomainProfile>,
 }
@@ -354,6 +382,27 @@ base:
                 );
             }
         }
+    }
+
+    #[test]
+    fn hub_embedder_is_present_and_revision_pinned() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap()
+            .to_path_buf();
+        let file = DomainProfilesFile::load(Some(&root)).expect("load file");
+        let hub = file.hub.expect("hub section must be present in domain-profiles.yaml");
+        assert!(
+            !hub.embedder.is_empty(),
+            "hub.embedder must not be empty"
+        );
+        assert!(
+            hub.embedder.contains('@'),
+            "hub.embedder must be revision-pinned (org/model@revision), got: {}",
+            hub.embedder
+        );
+        hub.validate().expect("hub config must validate");
     }
 
     #[test]
