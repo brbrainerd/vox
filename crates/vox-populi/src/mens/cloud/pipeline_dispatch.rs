@@ -11,8 +11,7 @@ use std::sync::Arc;
 use anyhow::Context as _;
 
 use super::{
-    BudgetLedger, CloudJobSpec, CloudProvider, GpuOffer, JobHandle,
-    JobStatus, TerminationReason,
+    BudgetLedger, CloudJobSpec, CloudProvider, GpuOffer, JobHandle, JobStatus, TerminationReason,
     estimator::TimeEstimator,
 };
 
@@ -141,7 +140,10 @@ fn format_status_line(handle: &JobHandle, status: &JobStatus) -> String {
     let ts = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ");
     match status {
         JobStatus::Pending => format!("[{ts}] job={} status=pending\n", handle.job_id),
-        JobStatus::Running { progress_pct, gpu_util_pct } => format!(
+        JobStatus::Running {
+            progress_pct,
+            gpu_util_pct,
+        } => format!(
             "[{ts}] job={} status=running progress={:.0}% gpu={:.0}%\n",
             handle.job_id,
             progress_pct.unwrap_or(0.0) * 100.0,
@@ -152,7 +154,10 @@ fn format_status_line(handle: &JobHandle, status: &JobStatus) -> String {
             handle.job_id, adapter_uploaded
         ),
         JobStatus::Failed(reason) => {
-            format!("[{ts}] job={} status=failed reason={reason}\n", handle.job_id)
+            format!(
+                "[{ts}] job={} status=failed reason={reason}\n",
+                handle.job_id
+            )
         }
         JobStatus::Terminated => format!("[{ts}] job={} status=terminated\n", handle.job_id),
     }
@@ -206,7 +211,11 @@ pub fn read_checkpoint_uri(local_dir: &Path, job_id: &str) -> Option<String> {
     let raw = std::fs::read_to_string(&manifest_path).ok()?;
     let value: serde_json::Value = serde_json::from_str(&raw).ok()?;
     let uri = value.get("checkpoint_uri")?.as_str()?;
-    if uri == "none" { None } else { Some(uri.to_string()) }
+    if uri == "none" {
+        None
+    } else {
+        Some(uri.to_string())
+    }
 }
 
 /// Derive a stable idempotency key from job parameters.
@@ -240,7 +249,12 @@ impl TerminateOnDrop {
         handle: JobHandle,
         budget: Arc<BudgetLedger>,
     ) -> Self {
-        Self { provider, handle, budget, armed: true }
+        Self {
+            provider,
+            handle,
+            budget,
+            armed: true,
+        }
     }
 
     /// Disarm: the job completed normally, do not terminate on drop.
@@ -324,8 +338,7 @@ pub async fn dispatch_with_guard(
         }
     }
 
-    let handle =
-        dispatch_training(provider.as_ref(), offer, spec, &budget, estimator).await?;
+    let handle = dispatch_training(provider.as_ref(), offer, spec, &budget, estimator).await?;
 
     // Write idempotency key file
     std::fs::create_dir_all(state_dir)
@@ -350,11 +363,7 @@ pub struct DispatchPlan {
 
 impl DispatchPlan {
     /// Build a plan from a known offer + estimator (no network call).
-    pub fn from_offer(
-        offer: &GpuOffer,
-        spec: &CloudJobSpec,
-        estimator: &TimeEstimator,
-    ) -> Self {
+    pub fn from_offer(offer: &GpuOffer, spec: &CloudJobSpec, estimator: &TimeEstimator) -> Self {
         let overhead = if offer.auto_terminate { 1.10 } else { 1.20 };
         let (raw_secs, _) = estimator.estimate(
             &offer.gpu_name,
@@ -447,7 +456,10 @@ pub enum CloudOrchestrationOutcome {
     /// ALLOW_SPEND gate not set: printed plan, exit clean.
     SpendNotAllowed,
     /// Training completed and adapter registered as challenger.
-    RegisteredChallenger { domain: String, adapter_path: PathBuf },
+    RegisteredChallenger {
+        domain: String,
+        adapter_path: PathBuf,
+    },
     /// Training completed but eval gate failed — not registered.
     EvalGateFailed { domain: String },
 }
@@ -473,12 +485,49 @@ pub fn register_challenger(
     router: &mut crate::mens::tensor::domain_router::DomainRouter,
     domain: &str,
     adapter_path: &Path,
-) -> CloudOrchestrationOutcome {
-    router.register(domain, adapter_path);
-    CloudOrchestrationOutcome::RegisteredChallenger {
+    card: crate::mens::tensor::adapter_card::AdapterCard,
+) -> anyhow::Result<CloudOrchestrationOutcome> {
+    router.register(domain, adapter_path, card)?;
+    Ok(CloudOrchestrationOutcome::RegisteredChallenger {
         domain: domain.to_string(),
         adapter_path: adapter_path.to_path_buf(),
-    }
+    })
+}
+
+/// Build an [`AdapterCard`] from a [`TrainingManifest`].
+///
+/// The card is written as `adapter_card.json` alongside `adapter_path` before
+/// registration so the provenance sidecar is always present.
+fn card_from_manifest(
+    manifest: &TrainingManifest,
+    adapter_path: &Path,
+) -> anyhow::Result<crate::mens::tensor::adapter_card::AdapterCard> {
+    let card = crate::mens::tensor::adapter_card::AdapterCard {
+        base_hf_id: manifest.base_hf_id.clone(),
+        base_revision: manifest.base_revision.clone(),
+        base_rung: manifest.rung.clone(),
+        quantization: "qlora".to_string(),
+        lora_rank: manifest.rank,
+        lora_alpha: manifest.alpha,
+        seed: manifest.seed,
+        corpus_hash: manifest.corpus_hash.clone(),
+        preset_version: manifest.preset.clone(),
+        metrics: manifest.metrics.clone(),
+        cost_usd: manifest.cost_usd,
+        provider: manifest.provider.clone(),
+        git_sha: manifest.git_sha.clone(),
+        created: manifest.created_at.clone(),
+    };
+    card.validate()?;
+    // write_sidecar expects a file path and writes adapter_card.json next to it.
+    // If adapter_path is a directory (as in tests), synthesize a sentinel file path.
+    let sidecar_ref = if adapter_path.is_dir() {
+        std::borrow::Cow::Owned(adapter_path.join("adapter_model.safetensors"))
+    } else {
+        std::borrow::Cow::Borrowed(adapter_path)
+    };
+    card.write_sidecar(&sidecar_ref)?;
+    Ok(card)
 }
 
 /// Full post-training flow: eval gate → register or skip.
@@ -496,11 +545,12 @@ pub fn post_training_flow(
 
     match eval_outcome {
         EvalGateOutcome::PassedBase => {
-            Ok(register_challenger(router, domain, adapter_path))
+            let card = card_from_manifest(manifest, adapter_path)?;
+            register_challenger(router, domain, adapter_path, card)
         }
-        EvalGateOutcome::BelowBase => {
-            Ok(CloudOrchestrationOutcome::EvalGateFailed { domain: domain.to_string() })
-        }
+        EvalGateOutcome::BelowBase => Ok(CloudOrchestrationOutcome::EvalGateFailed {
+            domain: domain.to_string(),
+        }),
         EvalGateOutcome::EvalError(reason) => {
             anyhow::bail!("Eval gate error for domain '{}': {}", domain, reason)
         }
@@ -511,8 +561,8 @@ pub fn post_training_flow(
 
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::time::SystemTime;
 
     use super::*;
@@ -550,11 +600,7 @@ mod tests {
         // Write a minimal gpu-specs.yaml to a temp file and load it.
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("gpu-specs.yaml");
-        std::fs::write(
-            &path,
-            "gpus: {}\npresets: {}\n",
-        )
-        .unwrap();
+        std::fs::write(&path, "gpus: {}\npresets: {}\n").unwrap();
         // Keep `dir` alive until after `new`; then the estimator holds the data in-memory.
         let est = TimeEstimator::new(&path, vec![]).unwrap();
         drop(dir);
@@ -589,17 +635,25 @@ mod tests {
 
     impl AlwaysSucceedProvider {
         fn new() -> Self {
-            Self { call_count: Arc::new(AtomicUsize::new(0)) }
+            Self {
+                call_count: Arc::new(AtomicUsize::new(0)),
+            }
         }
     }
 
     #[async_trait::async_trait]
     impl CloudProvider for AlwaysSucceedProvider {
-        fn kind(&self) -> ProviderKind { ProviderKind::RunPod }
+        fn kind(&self) -> ProviderKind {
+            ProviderKind::RunPod
+        }
         async fn list_offers(&self, _min_vram_mb: u64) -> anyhow::Result<Vec<GpuOffer>> {
             Ok(vec![])
         }
-        async fn dispatch(&self, offer: &GpuOffer, _spec: &CloudJobSpec) -> anyhow::Result<JobHandle> {
+        async fn dispatch(
+            &self,
+            offer: &GpuOffer,
+            _spec: &CloudJobSpec,
+        ) -> anyhow::Result<JobHandle> {
             self.call_count.fetch_add(1, Ordering::SeqCst);
             Ok(JobHandle {
                 provider: offer.provider,
@@ -611,10 +665,18 @@ mod tests {
             })
         }
         async fn poll_status(&self, _handle: &JobHandle) -> anyhow::Result<JobStatus> {
-            Ok(JobStatus::Completed { adapter_uploaded: false })
+            Ok(JobStatus::Completed {
+                adapter_uploaded: false,
+            })
         }
-        async fn terminate(&self, _handle: &JobHandle) -> anyhow::Result<()> { Ok(()) }
-        async fn get_serve_url(&self, _handle: &JobHandle, _port: u16) -> anyhow::Result<Option<String>> {
+        async fn terminate(&self, _handle: &JobHandle) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn get_serve_url(
+            &self,
+            _handle: &JobHandle,
+            _port: u16,
+        ) -> anyhow::Result<Option<String>> {
             Ok(None)
         }
     }
@@ -638,7 +700,11 @@ mod tests {
         let result = dispatch_training(&provider, &offer, &spec, &budget, &estimator).await;
 
         assert!(result.is_err(), "must fail when budget is $0");
-        assert_eq!(call_count.load(Ordering::SeqCst), 0, "provider must NOT be called");
+        assert_eq!(
+            call_count.load(Ordering::SeqCst),
+            0,
+            "provider must NOT be called"
+        );
     }
 
     /// Budget = $100 → dispatch succeeds.
@@ -653,8 +719,16 @@ mod tests {
 
         let result = dispatch_training(&provider, &offer, &spec, &budget, &estimator).await;
 
-        assert!(result.is_ok(), "dispatch should succeed: {:?}", result.err());
-        assert_eq!(call_count.load(Ordering::SeqCst), 1, "provider must be called exactly once");
+        assert!(
+            result.is_ok(),
+            "dispatch should succeed: {:?}",
+            result.err()
+        );
+        assert_eq!(
+            call_count.load(Ordering::SeqCst),
+            1,
+            "provider must be called exactly once"
+        );
     }
 
     // ── B5.2: Failing provider for poll tests ─────────────────────────────────
@@ -665,11 +739,17 @@ mod tests {
 
     #[async_trait::async_trait]
     impl CloudProvider for FailingProvider {
-        fn kind(&self) -> ProviderKind { ProviderKind::RunPod }
+        fn kind(&self) -> ProviderKind {
+            ProviderKind::RunPod
+        }
         async fn list_offers(&self, _min_vram_mb: u64) -> anyhow::Result<Vec<GpuOffer>> {
             Ok(vec![])
         }
-        async fn dispatch(&self, offer: &GpuOffer, _spec: &CloudJobSpec) -> anyhow::Result<JobHandle> {
+        async fn dispatch(
+            &self,
+            offer: &GpuOffer,
+            _spec: &CloudJobSpec,
+        ) -> anyhow::Result<JobHandle> {
             Ok(JobHandle {
                 provider: offer.provider,
                 job_id: "x".into(),
@@ -682,8 +762,14 @@ mod tests {
         async fn poll_status(&self, _handle: &JobHandle) -> anyhow::Result<JobStatus> {
             Ok(JobStatus::Failed(self.reason.clone()))
         }
-        async fn terminate(&self, _handle: &JobHandle) -> anyhow::Result<()> { Ok(()) }
-        async fn get_serve_url(&self, _handle: &JobHandle, _port: u16) -> anyhow::Result<Option<String>> {
+        async fn terminate(&self, _handle: &JobHandle) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn get_serve_url(
+            &self,
+            _handle: &JobHandle,
+            _port: u16,
+        ) -> anyhow::Result<Option<String>> {
             Ok(None)
         }
     }
@@ -694,14 +780,19 @@ mod tests {
     #[test]
     fn poll_loop_persists_logs_on_failure() {
         let tmp = tempfile::tempdir().unwrap();
-        let provider = FailingProvider { reason: "OOM".into() };
+        let provider = FailingProvider {
+            reason: "OOM".into(),
+        };
         let handle = test_handle();
 
         let result = poll_until_done_sync(&provider, &handle, tmp.path());
 
         assert!(result.is_err(), "must return Err on failure");
         let err_msg = result.unwrap_err().to_string();
-        assert!(err_msg.contains("OOM"), "error must contain reason, got: {err_msg}");
+        assert!(
+            err_msg.contains("OOM"),
+            "error must contain reason, got: {err_msg}"
+        );
 
         let log_count = std::fs::read_dir(tmp.path()).unwrap().count();
         assert!(log_count > 0, "log file must be written to log_dir");
@@ -730,7 +821,9 @@ mod tests {
         let handle = test_handle();
 
         // Simulate a previous sync
-        let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
         let provider = AlwaysSucceedProvider::new();
         rt.block_on(sync_checkpoint_down(
             &provider,
@@ -756,7 +849,10 @@ mod tests {
         assert_eq!(key1, key2, "identical inputs must produce the same key");
 
         let key3 = make_idempotency_key("vox", "different");
-        assert_ne!(key1, key3, "different corpus_hash must produce different key");
+        assert_ne!(
+            key1, key3,
+            "different corpus_hash must produce different key"
+        );
     }
 
     /// TerminateOnDrop calls terminate on the provider when dropped armed.
@@ -844,7 +940,9 @@ mod tests {
         // Temporarily unset (if set); safe in single-threaded test
         let was_set = std::env::var("VOX_MENS_ALLOW_SPEND").ok();
         #[allow(unsafe_code)]
-        unsafe { std::env::remove_var("VOX_MENS_ALLOW_SPEND"); }
+        unsafe {
+            std::env::remove_var("VOX_MENS_ALLOW_SPEND");
+        }
         let outcome = check_spend_gate(false);
         assert!(
             matches!(outcome, Some(CloudOrchestrationOutcome::SpendNotAllowed)),
@@ -853,7 +951,9 @@ mod tests {
         // Restore
         if let Some(val) = was_set {
             #[allow(unsafe_code)]
-            unsafe { std::env::set_var("VOX_MENS_ALLOW_SPEND", val); }
+            unsafe {
+                std::env::set_var("VOX_MENS_ALLOW_SPEND", val);
+            }
         }
     }
 
@@ -878,7 +978,10 @@ mod tests {
             "should return EvalGateFailed"
         );
         // Router should have nothing registered
-        assert!(router.route("vox").is_none(), "adapter must NOT be registered");
+        assert!(
+            router.route("vox").is_none(),
+            "adapter must NOT be registered"
+        );
     }
 
     /// Eval PassedBase → register called, RegisteredChallenger returned.
@@ -898,7 +1001,10 @@ mod tests {
         .unwrap();
 
         assert!(
-            matches!(outcome, CloudOrchestrationOutcome::RegisteredChallenger { .. }),
+            matches!(
+                outcome,
+                CloudOrchestrationOutcome::RegisteredChallenger { .. }
+            ),
             "should return RegisteredChallenger"
         );
         assert!(router.route("vox").is_some(), "adapter must be registered");

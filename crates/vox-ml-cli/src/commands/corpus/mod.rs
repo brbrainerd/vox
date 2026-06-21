@@ -768,7 +768,7 @@ pub(crate) fn spoke_readiness_defaults(spoke: &str) -> (usize, f64) {
     match spoke {
         "tool-selection" | "argument-generation" => (500, 0.30),
         "vox-lang" => (1000, 0.50),
-        "rust" | "rust-expert" => (800, 0.40),
+        "rust" => (800, 0.40),
         "agents" => (500, 0.30),
         _ => (500, 0.30), // safe default for unknown spokes
     }
@@ -813,7 +813,7 @@ mod readiness_tests {
 
     #[test]
     fn spoke_defaults_rust() {
-        let (rows, div) = spoke_readiness_defaults("rust-expert");
+        let (rows, div) = spoke_readiness_defaults("rust");
         assert_eq!(rows, 800);
         assert!((div - 0.40).abs() < f64::EPSILON);
     }
