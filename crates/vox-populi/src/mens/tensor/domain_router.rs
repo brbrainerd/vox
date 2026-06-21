@@ -269,8 +269,8 @@ mod signal_tests {
     fn file() -> DomainProfilesFile {
         serde_yaml::from_str(r#"
 profiles:
-  rust-expert: { description: x, router: { triggers: ["*.rs", "lane:vox_rust_authoring"], priority: 10 } }
-  agents:      { description: x, router: { triggers: ["lane:vox_tooling"], priority: 5 } }
+  rust-expert:     { description: x, router: { triggers: ["*.rs", "lane:vox_rust_authoring"], priority: 10 } }
+  tool-selection:  { description: x, router: { triggers: ["lane:vox_tool_selection", "lane:vox_tooling"], priority: 5 } }
 "#).unwrap()
     }
 
@@ -283,10 +283,11 @@ profiles:
     }
 
     #[test]
-    fn tool_routes_agents() {
+    fn tool_routes_tool_selection() {
+        // lane:vox_tooling now routes to tool-selection (agents profile retired by B0.1)
         assert_eq!(
             route_by_signal(&file(), "lane:vox_tooling x").as_deref(),
-            Some("agents")
+            Some("tool-selection")
         );
     }
 

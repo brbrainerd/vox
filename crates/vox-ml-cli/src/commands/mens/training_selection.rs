@@ -95,8 +95,9 @@ mod tests {
             .to_path_buf()
     }
     #[test]
-    fn rust_expert_resolves_qwen_qlora() {
-        let sel = resolve_training_selection(&root(), Some("rust-expert"), None, None, Some(16384))
+    fn rust_resolves_qwen_qlora() {
+        // "rust-expert" renamed to "rust" by B0.1; test updated by B0.2 audit.
+        let sel = resolve_training_selection(&root(), Some("rust"), None, None, Some(16384))
             .unwrap();
         match sel {
             TrainingSelection::Train {
@@ -113,9 +114,10 @@ mod tests {
     }
     #[test]
     fn cli_model_overrides() {
+        // "rust-expert" renamed to "rust" by B0.1; updated by B0.2 audit.
         let sel = resolve_training_selection(
             &root(),
-            Some("rust-expert"),
+            Some("rust"),
             Some("org/Manual"),
             None,
             Some(16384),
@@ -131,7 +133,7 @@ mod tests {
     fn no_gpu_tag_falls_back_to_none_model() {
         let sel = resolve_training_selection(
             &root(),
-            Some("rust-expert"),
+            Some("rust"),
             None,
             None,
             None, /*no VRAM*/
@@ -149,7 +151,7 @@ mod tests {
     fn cli_preset_overrides() {
         let sel = resolve_training_selection(
             &root(),
-            Some("rust-expert"),
+            Some("rust"),
             None,
             Some("a100"),
             Some(16384),
@@ -163,8 +165,9 @@ mod tests {
     }
     #[test]
     fn all_live_spokes_resolve_to_trainable_selection() {
+        // "agents" retired by B0.1 → replaced by "tool-selection" and "argument-generation".
         let root = root();
-        for spoke in ["vox-lang", "rust-expert", "agents"] {
+        for spoke in ["vox-lang", "rust", "tool-selection", "argument-generation"] {
             let sel = resolve_training_selection(&root, Some(spoke), None, None, Some(16384))
                 .unwrap_or_else(|e| panic!("{spoke}: {e}"));
             match sel {
