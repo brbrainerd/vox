@@ -107,27 +107,35 @@ Same spend + apply gates as B8.2 cloud.
 
 ## Post-training evaluation
 
-After each training run completes, check the beat-base gate:
+After each training run completes, check the beat-base gate. The gate reads the
+run dir (which must contain `baseline_report.json` from the capture step above,
+plus the trained adapter's `bfcl_results.json`):
 
 ```
-vox mens eval-gate --spoke <name> --run-dir <path-to-run-dir>
+vox mens eval-gate --run-dir <path-to-run-dir> [--policy <eval-gates.yaml>]
 ```
 
 Examples:
 
 ```
-vox mens eval-gate --spoke vox-lang --run-dir runs/vox-lang-20260622/
-vox mens eval-gate --spoke rust     --run-dir runs/rust-20260622/
+vox mens eval-gate --run-dir runs/vox-lang-20260622/
+vox mens eval-gate --run-dir runs/rust-20260622/ --policy mens/config/eval-gates-rust.yaml
 ```
 
-Then generate the parity report (compares trained adapter vs baseline and
-records Flash/Sonnet gaps as the north-star metric):
+> Note: `eval-gate` keys off the run dir, not a `--spoke` flag — the spoke is read
+> from the run's `training_manifest.json`. The default policy is
+> `mens/config/eval-gates.yaml`; pass `--policy` to use a spoke-specific gate.
+
+Then generate the parity report (compares each trained adapter vs its baseline and
+records Flash/Sonnet gaps as the north-star metric). The parity report is currently
+a **library API** (`commands::mens::parity_report`, B8.4) — there is no
+`vox mens parity-report` CLI subcommand yet; it is produced programmatically by the
+fan-out orchestration, or wire a thin CLI arm when needed:
 
 ```
-vox mens parity-report \
-  --spoke vox-lang,rust \
-  --run-dirs runs/vox-lang-20260622/,runs/rust-20260622/ \
-  --output mens/parity-report-v1.json
+// commands::mens::parity_report
+let entry = compute_parity_entry(spoke, trained_metric, &baseline_entry, flash_ref, sonnet_ref);
+write_parity_report(Path::new("mens/parity-report-v1.json"), &report)?;
 ```
 
 V1 is accepted when every spoke entry in the parity report has `beats_base: true`.
