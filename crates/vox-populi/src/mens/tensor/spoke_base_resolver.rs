@@ -226,6 +226,61 @@ mod tests {
     }
 
     #[test]
+    fn strong_code_default_16g_resolves_qwen3_8b() {
+        // USER DECISION (Qwen3 everywhere): a 16GB box must resolve to Qwen3-8B,
+        // not fall to Qwen2.5-Coder-7B. The Qwen3-8B rung (floor 12000) must outrank
+        // the Qwen2.5-Coder-7B rung (floor 11000) at 16384 MB.
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap();
+        let overlay = load_overlay(root).expect("load overlay");
+        let base = pick_base(&overlay, "strong_code_default", 16384).expect("a base fits at 16GB");
+        assert!(
+            base.hf_id.contains("Qwen3-8B"),
+            "16GB strong_code_default must resolve Qwen3-8B (Qwen3 everywhere), got: {}",
+            base.hf_id
+        );
+    }
+
+    #[test]
+    fn agentic_default_16g_resolves_qwen3_8b() {
+        // USER DECISION (Qwen3 everywhere): the agentic_default ladder must also
+        // resolve Qwen3-8B at 16GB (the bare no-domain default tier).
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap();
+        let overlay = load_overlay(root).expect("load overlay");
+        let base = pick_base(&overlay, "agentic_default", 16384).expect("a base fits at 16GB");
+        assert!(
+            base.hf_id.contains("Qwen3-8B"),
+            "16GB agentic_default must resolve Qwen3-8B (Qwen3 everywhere), got: {}",
+            base.hf_id
+        );
+    }
+
+    #[test]
+    fn small_code_default_caps_at_8b() {
+        // small_code_default is documented to cap at 8B — adding the Qwen3-8B rung to
+        // the strong/agentic ladders must NOT change small_code_default's cap.
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap();
+        let overlay = load_overlay(root).expect("load overlay");
+        // Even on a huge card, small_code_default must not exceed an 8B rung.
+        let base = pick_base(&overlay, "small_code_default", 96_000).expect("a base fits");
+        assert!(
+            !base.hf_id.contains("14B")
+                && !base.hf_id.contains("32B")
+                && !base.hf_id.contains("72B"),
+            "small_code_default must cap at 8B, got: {}",
+            base.hf_id
+        );
+    }
+
+    #[test]
     fn qwen3_code_48g_prefers_unquantized_14b() {
         // At 48GB: 14B-LoRA (floor ~44GB) should beat 14B-QLoRA (floor ~20GB)
         // because max_by_key(floor_mb) picks the highest floor that fits.

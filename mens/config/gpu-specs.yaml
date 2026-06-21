@@ -261,11 +261,17 @@ train_bases:
     - { hf_id: "Qwen/Qwen3-8B@PLACEHOLDER-a7b3d091",     floor_mb: 12000, methods: [qlora] }
   strong_code_default:
     - { hf_id: "Qwen/Qwen2.5-Coder-7B-Instruct",         floor_mb: 11000, methods: [qlora, dpo, orpo] }
+    # USER DECISION (Qwen3 everywhere): the Qwen3-8B rung (floor 12000) outranks the
+    # Qwen2.5-Coder-7B rung (floor 11000) so a 16 GB box resolves to Qwen3-8B.
+    - { hf_id: "Qwen/Qwen3-8B@PLACEHOLDER-a7b3d091",     floor_mb: 12000, methods: [qlora] }
     - { hf_id: "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122",    floor_mb: 20000, methods: [qlora] }
     - { hf_id: "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122",    floor_mb: 44000, methods: [lora] }
     - { hf_id: "Qwen/Qwen3-32B@PLACEHOLDER-d9a1b573",    floor_mb: 60000, methods: [qlora] }
   agentic_default:
     - { hf_id: "Qwen/Qwen2.5-Coder-7B-Instruct",         floor_mb: 11000, methods: [qlora, dpo] }
+    # USER DECISION (Qwen3 everywhere): the Qwen3-8B rung (floor 12000) outranks the
+    # Qwen2.5-Coder-7B rung (floor 11000) so a 16 GB box resolves to Qwen3-8B.
+    - { hf_id: "Qwen/Qwen3-8B@PLACEHOLDER-a7b3d091",     floor_mb: 12000, methods: [qlora] }
     - { hf_id: "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122",    floor_mb: 20000, methods: [qlora] }
     - { hf_id: "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122",    floor_mb: 44000, methods: [lora] }
     - { hf_id: "Qwen/Qwen3-32B@PLACEHOLDER-d9a1b573",    floor_mb: 60000, methods: [qlora] }
