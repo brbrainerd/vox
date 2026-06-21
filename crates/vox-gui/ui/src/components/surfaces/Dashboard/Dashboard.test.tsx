@@ -13,6 +13,13 @@ import {
   metricSeriesStorageKey,
 } from '../../../hooks/useMetricSeries';
 
+vi.mock('../../../hooks/useAgentApprovals', () => ({
+  useAgentApprovals: () => ({
+    approvalFor: (k: string) => (k === 'Atlas' ? { approval_id: 'ap1', tool: 't', summary: 'Atlas', requested_at_ms: 0 } : null),
+    resolve: vi.fn(),
+  }),
+}));
+
 vi.mock('recharts', () => ({
   ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   LineChart: ({ children }: { children: React.ReactNode }) => <svg>{children}</svg>,
@@ -273,6 +280,15 @@ describe('Dashboard', () => {
     }));
     renderDashboard({});
     expect(screen.getByText('Resources')).toBeInTheDocument();
+  });
+
+  it('surfaces inline approval only for the agent with a pending approval', () => {
+    window.localStorage.setItem(SHELL_PREFERENCE_KEYS.dashboardLayout, JSON.stringify({ version: 1, columns: 12, widgets: [{ id: 'agents', kind: 'agents', grid: { col: 1, row: 1, w: 12, h: 4 } }] }));
+    renderDashboard({ agents: [
+      { id: 'A-1', codename: 'Atlas', phase: 'Executing', progress: 0.6, task: 't', cost: 1, budget: null, eta: '1m' },
+      { id: 'A-2', codename: 'Surveyor', phase: 'Validated', progress: 1, task: 't', cost: 1, budget: null, eta: '0m' },
+    ] });
+    expect(screen.getAllByRole('button', { name: 'Approve' })).toHaveLength(1);
   });
 
   it('renders visual sandbox mini-map and handles expand navigation', () => {

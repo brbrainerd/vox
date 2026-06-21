@@ -25,6 +25,7 @@ import { LineChartWidget } from '../../dashboard/widgets/LineChartWidget';
 import { BarChartWidget } from '../../dashboard/widgets/BarChartWidget';
 import { Kpi } from '../../ui/Kpi';
 import { ResourcesWidget } from './ResourcesWidget';
+import { useAgentApprovals } from '../../../hooks/useAgentApprovals';
 
 /** Consistent empty-state hint for a panel with no data yet. */
 function EmptyHint({ icon, title, hint }: { icon?: React.ReactNode; title: string; hint?: string }) {
@@ -77,6 +78,7 @@ export function Dashboard({
     SHELL_PREFERENCE_KEYS.dashboardLayout,
     loadDashboardLayout(defaultDashboardLayout()),
   );
+  const approvals = useAgentApprovals(data.agents.map((a) => a.codename));
   const { series: budgetSeries, setSeries: setBudgetSeries, append: appendBudget } =
     useMetricSeries('budget_burn', []);
   const { series: queueSeries, setSeries: setQueueSeries, append: appendQueue } =
@@ -214,7 +216,15 @@ export function Dashboard({
                   No active agents — open Chat to submit a task.
                 </div>
               ) : (
-                data.agents.map(a => <AgentRow key={a.id} a={a} onPause={onPause} onResume={onResume} onOpenInConsole={onOpenInConsole} />)
+                data.agents.map((a) => {
+                  const ap = approvals.approvalFor(a.codename);
+                  return (
+                    <AgentRow key={a.id} a={a} onPause={onPause} onResume={onResume} onOpenInConsole={onOpenInConsole}
+                      pendingApprovalId={ap?.approval_id ?? null}
+                      onApprove={(id) => approvals.resolve(id, 'approved')}
+                      onReject={(id) => approvals.resolve(id, 'rejected')} />
+                  );
+                })
               )}
             </div>
           </Glass>
