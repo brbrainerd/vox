@@ -183,11 +183,7 @@ mod semcov_wave26_tests {
         let mut router = DomainRouter::new();
         let raw = "/models/vox-lang/adapter_model.safetensors";
         router
-            .register(
-                "vox-lang",
-                raw,
-                AdapterCard::for_test("qwen3_16g", "qlora"),
-            )
+            .register("vox-lang", raw, AdapterCard::for_test("qwen3_16g", "qlora"))
             .unwrap();
         let (stored, _card) = router.route("vox-lang").unwrap();
         assert_eq!(stored, &PathBuf::from(raw));
@@ -337,13 +333,16 @@ mod provenance_tests {
         let mut card = AdapterCard::for_test("qwen3_16g", "qlora");
         card.base_revision = "".to_string(); // empty revision
         let result = router.register("test", "/fake/adapter.safetensors", card);
-        assert!(result.is_err(), "empty base_revision must fail registration");
+        assert!(
+            result.is_err(),
+            "empty base_revision must fail registration"
+        );
     }
 
     #[test]
     fn register_requires_card_and_fails_on_empty_quantization() {
         let mut router = DomainRouter::new();
-        let mut card = AdapterCard::for_test("qwen3_16g", "");  // empty quantization
+        let mut card = AdapterCard::for_test("qwen3_16g", ""); // empty quantization
         card.base_revision = "abc".to_string();
         let result = router.register("test", "/fake/adapter.safetensors", card);
         assert!(result.is_err(), "empty quantization must fail registration");

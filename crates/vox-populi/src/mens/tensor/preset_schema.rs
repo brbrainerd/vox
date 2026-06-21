@@ -687,7 +687,13 @@ mod qwen3_preset_tests {
 
     #[test]
     fn known_presets_contains_all_qwen3_tiers() {
-        for name in &["qwen3_dev_cpu", "qwen3_16g", "qwen3_24g", "qwen3_48g", "qwen3_96g"] {
+        for name in &[
+            "qwen3_dev_cpu",
+            "qwen3_16g",
+            "qwen3_24g",
+            "qwen3_48g",
+            "qwen3_96g",
+        ] {
             assert!(
                 KNOWN_PRESETS.contains(name),
                 "KNOWN_PRESETS missing qwen3 preset: {}",
@@ -701,19 +707,32 @@ mod qwen3_preset_tests {
         let p = base_for_name("qwen3_dev_cpu");
         assert_eq!(p.rank, 8, "dev cpu must be r8 (smoke only)");
         assert_eq!(p.epochs, 1, "dev cpu is single-epoch smoke only");
-        assert!(p.seq_len <= 256, "dev cpu must have short seq_len for CPU fit, got {}", p.seq_len);
+        assert!(
+            p.seq_len <= 256,
+            "dev cpu must have short seq_len for CPU fit, got {}",
+            p.seq_len
+        );
     }
 
     #[test]
     fn qwen3_96g_is_high_rank() {
         let p = base_for_name("qwen3_96g");
-        assert!(p.rank >= 64, "qwen3_96g must have rank >= 64, got {}", p.rank);
+        assert!(
+            p.rank >= 64,
+            "qwen3_96g must have rank >= 64, got {}",
+            p.rank
+        );
     }
 
     #[test]
     fn old_qwen_presets_still_load() {
         // Backwards compat: existing presets must not be broken
-        for name in &["qwen_4080_16g", "qwen_small_8g", "qwen_rtx3090_24g", "qwen_a100_80g"] {
+        for name in &[
+            "qwen_4080_16g",
+            "qwen_small_8g",
+            "qwen_rtx3090_24g",
+            "qwen_a100_80g",
+        ] {
             let _ = base_for_name(name);
         }
         // qwen_4080_16g should still work as it always did
@@ -745,7 +764,10 @@ mod local_compat_b07_tests {
     #[test]
     fn qwen_4080_16g_preset_still_loads_alongside_qwen3() {
         let p = base_for_name("qwen_4080_16g");
-        assert_eq!(p.rank, 16, "qwen_4080_16g rank must remain 16 (r16 QLoRA for 16GB VRAM)");
+        assert_eq!(
+            p.rank, 16,
+            "qwen_4080_16g rank must remain 16 (r16 QLoRA for 16GB VRAM)"
+        );
         assert_eq!(p.grad_accum, 8, "qwen_4080_16g grad_accum must remain 8");
         assert_eq!(p.lr, 1.5e-4, "qwen_4080_16g lr must remain 1.5e-4");
         assert_eq!(p.alpha, 32.0, "qwen_4080_16g alpha must remain 32.0");
@@ -773,7 +795,10 @@ mod local_compat_b07_tests {
     fn local_adapter_card_provider_is_local_and_registers() {
         // Use the for_test() constructor — which already sets provider="local"
         let card = AdapterCard::for_test("qwen3_16g", "qlora");
-        assert_eq!(card.provider, "local", "for_test() must produce provider=local (4080 Super)");
+        assert_eq!(
+            card.provider, "local",
+            "for_test() must produce provider=local (4080 Super)"
+        );
 
         // Validate passes
         card.validate()
@@ -800,7 +825,8 @@ mod local_compat_b07_tests {
             .expect("local AdapterCard must register in DomainRouter without error");
 
         // Verify round-trip
-        let (_, registered_card) = router.route("vox-lang")
+        let (_, registered_card) = router
+            .route("vox-lang")
             .expect("vox-lang domain must be routable after registration");
         assert_eq!(
             registered_card.provider, "local",

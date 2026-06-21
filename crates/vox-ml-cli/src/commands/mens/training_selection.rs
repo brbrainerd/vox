@@ -97,8 +97,8 @@ mod tests {
     #[test]
     fn rust_resolves_qwen_qlora() {
         // "rust-expert" renamed to "rust" by B0.1; test updated by B0.2 audit.
-        let sel = resolve_training_selection(&root(), Some("rust"), None, None, Some(16384))
-            .unwrap();
+        let sel =
+            resolve_training_selection(&root(), Some("rust"), None, None, Some(16384)).unwrap();
         match sel {
             TrainingSelection::Train {
                 model,
@@ -131,14 +131,9 @@ mod tests {
     }
     #[test]
     fn no_gpu_tag_falls_back_to_none_model() {
-        let sel = resolve_training_selection(
-            &root(),
-            Some("rust"),
-            None,
-            None,
-            None, /*no VRAM*/
-        )
-        .unwrap();
+        let sel =
+            resolve_training_selection(&root(), Some("rust"), None, None, None /*no VRAM*/)
+                .unwrap();
         // On a host with no GPU, get_system_vram_gb() is None → tag unsizable → model None (default path).
         if let TrainingSelection::Train { model, .. } = sel {
             /* model may be None here */
@@ -149,14 +144,9 @@ mod tests {
     }
     #[test]
     fn cli_preset_overrides() {
-        let sel = resolve_training_selection(
-            &root(),
-            Some("rust"),
-            None,
-            Some("a100"),
-            Some(16384),
-        )
-        .unwrap();
+        let sel =
+            resolve_training_selection(&root(), Some("rust"), None, Some("a100"), Some(16384))
+                .unwrap();
         if let TrainingSelection::Train { preset, .. } = sel {
             assert_eq!(preset, "a100");
         } else {

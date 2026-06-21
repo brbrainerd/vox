@@ -97,7 +97,10 @@ mod tests {
     fn validate_rejects_empty_rung() {
         let mut card = AdapterCard::for_test("", "qlora");
         card.base_revision = "abc".to_string();
-        assert!(card.validate().is_err(), "empty base_rung must fail validate");
+        assert!(
+            card.validate().is_err(),
+            "empty base_rung must fail validate"
+        );
     }
 
     #[test]
