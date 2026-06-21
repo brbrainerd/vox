@@ -49,10 +49,12 @@ pub async fn archive_context_window(
         .await
         .map_err(|e| e.to_string())?;
     let payload = ContextArchivedPayload {
-        window_id: window_id.clone(),
+        window_id,
         tier: "cold".into(),
     };
-    let _ = app_handle.emit(CONTEXT_ARCHIVED_EVENT, payload);
+    if let Err(e) = app_handle.emit(CONTEXT_ARCHIVED_EVENT, payload) {
+        tracing::warn!("failed to emit {CONTEXT_ARCHIVED_EVENT}: {e}");
+    }
     Ok(())
 }
 
