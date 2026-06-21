@@ -35,8 +35,7 @@ pub async fn ask_clarification(state: &ServerState, params: AskClarificationPara
     };
 
     let bm_snap = state.orchestrator.budget_manager_handle();
-    let att_snap = vox_orchestrator::sync_lock::rw_read(&*bm_snap)
-        .attention_snapshot();
+    let att_snap = vox_orchestrator::sync_lock::rw_read(&*bm_snap).attention_snapshot();
 
     let decision = crate::attention_policy::evaluate_with_state(state, &signals, &att_snap);
     let surface = vox_orchestrator::feedback::surface_for(&decision);
@@ -79,12 +78,7 @@ pub async fn ask_clarification(state: &ServerState, params: AskClarificationPara
     };
     state.record_attention_event(evt);
 
-    let gates_task_ids = params
-        .gates
-        .iter()
-        .copied()
-        .map(TaskId)
-        .collect::<Vec<_>>();
+    let gates_task_ids = params.gates.iter().copied().map(TaskId).collect::<Vec<_>>();
 
     let id = state.feedback().register(
         FeedbackKind::Clarification,
@@ -105,14 +99,15 @@ pub async fn ask_clarification(state: &ServerState, params: AskClarificationPara
         Surface::Withheld => "withheld",
     };
 
-    state.orchestrator.event_bus().emit(
-        vox_orchestrator::AgentEventKind::FeedbackRequested {
+    state
+        .orchestrator
+        .event_bus()
+        .emit(vox_orchestrator::AgentEventKind::FeedbackRequested {
             feedback_id: id.0.clone(),
             kind: "clarification".into(),
             gates: gates_task_ids.iter().map(|t| t.0).collect(),
             surface: surface_str.to_string(),
-        },
-    );
+        });
 
     ToolResult::ok(serde_json::json!({
         "feedback_id": id.0,
@@ -172,20 +167,21 @@ pub async fn resolve_feedback(state: &ServerState, params: ResolveFeedbackParams
         if let (vox_orchestrator::feedback::FeedbackAction::Overrule, Some(tid)) =
             (&action, req.doubted_task_id)
         {
-            if let Err(e) = state.orchestrator.overrule_task(
-                tid,
-                Some("Overruled by user via Needs You".to_string()),
-            ) {
+            if let Err(e) = state
+                .orchestrator
+                .overrule_task(tid, Some("Overruled by user via Needs You".to_string()))
+            {
                 tracing::error!("Failed to overrule task {}: {:?}", tid.0, e);
             }
         }
     }
 
-    state.orchestrator.event_bus().emit(
-        vox_orchestrator::AgentEventKind::FeedbackResolved {
+    state
+        .orchestrator
+        .event_bus()
+        .emit(vox_orchestrator::AgentEventKind::FeedbackResolved {
             feedback_id: fid.0.clone(),
-        },
-    );
+        });
 
     state.feedback().promote_withheld(|item| item.surface);
 
@@ -229,7 +225,12 @@ mod tests {
         let res_val: serde_json::Value = serde_json::from_str(&res_json).unwrap();
         assert!(res_val.get("success").unwrap().as_bool().unwrap());
         let data = res_val.get("data").unwrap();
-        let fid = data.get("feedback_id").unwrap().as_str().unwrap().to_string();
+        let fid = data
+            .get("feedback_id")
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_string();
         let surface = data.get("surface").unwrap().as_str().unwrap().to_string();
 
         // 2. Test feedback_list
@@ -237,7 +238,7 @@ mod tests {
         let list_val: serde_json::Value = serde_json::from_str(&list_json).unwrap();
         assert!(list_val.get("success").unwrap().as_bool().unwrap());
         let list_data = list_val.get("data").unwrap();
-        
+
         if surface == "needs_you" {
             let needs_you_arr = list_data.get("needs_you").unwrap().as_array().unwrap();
             assert_eq!(needs_you_arr.len(), 1);
@@ -264,8 +265,24 @@ mod tests {
         let list_json2 = feedback_list(&state, serde_json::json!({})).await;
         let list_val2: serde_json::Value = serde_json::from_str(&list_json2).unwrap();
         let list_data2 = list_val2.get("data").unwrap();
-        assert_eq!(list_data2.get("needs_you").unwrap().as_array().unwrap().len(), 0);
-        assert_eq!(list_data2.get("withheld").unwrap().as_array().unwrap().len(), 0);
+        assert_eq!(
+            list_data2
+                .get("needs_you")
+                .unwrap()
+                .as_array()
+                .unwrap()
+                .len(),
+            0
+        );
+        assert_eq!(
+            list_data2
+                .get("withheld")
+                .unwrap()
+                .as_array()
+                .unwrap()
+                .len(),
+            0
+        );
     }
 
     #[tokio::test]

@@ -29,21 +29,36 @@ async fn smoke_delegate_trivial_task() {
     let exec = AgyExec::new(&wt.path);
     let spec = AgySpec {
         task: "echo 'smoke-ok' into a new file named .vox/agy-smoke.txt. \
-               No other files may be touched.".to_string(),
+               No other files may be touched."
+            .to_string(),
         model: None,
         timeout_secs: 120,
     };
     let out = exec.run(&spec).await.expect("agy spawn failed");
     eprintln!("stdout={}", &out.stdout[..out.stdout.len().min(500)]);
     eprintln!("stderr={}", &out.stderr[..out.stderr.len().min(500)]);
-    eprintln!("exit_code={} timed_out={} elapsed_ms={}", out.exit_code, out.timed_out, out.elapsed_ms);
+    eprintln!(
+        "exit_code={} timed_out={} elapsed_ms={}",
+        out.exit_code, out.timed_out, out.elapsed_ms
+    );
 
     assert!(!out.timed_out, "smoke task timed out");
-    assert_eq!(out.exit_code, 0, "agy exited non-zero: {}", &out.stderr[..out.stderr.len().min(300)]);
+    assert_eq!(
+        out.exit_code,
+        0,
+        "agy exited non-zero: {}",
+        &out.stderr[..out.stderr.len().min(300)]
+    );
 
     let (diff, files_changed) = wt.capture().await.expect("capture failed");
-    eprintln!("files_changed={files_changed}\ndiff_head={}…", &diff[..diff.len().min(400)]);
-    assert!(files_changed > 0, "expected ≥1 changed file after delegation");
+    eprintln!(
+        "files_changed={files_changed}\ndiff_head={}…",
+        &diff[..diff.len().min(400)]
+    );
+    assert!(
+        files_changed > 0,
+        "expected ≥1 changed file after delegation"
+    );
 
     wt.cleanup(&repo_root).await.expect("cleanup failed");
 }

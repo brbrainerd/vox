@@ -294,22 +294,34 @@ mod review_dpo_tests {
     fn mines_return_type_strip_as_worse() {
         let pairs = mine(&format!(
             "{}\n",
-            fix_row("fn process(data: &[u8]) -> Vec<u8> { data.to_vec() }", "review_fix_pairs")
+            fix_row(
+                "fn process(data: &[u8]) -> Vec<u8> { data.to_vec() }",
+                "review_fix_pairs"
+            )
         ));
         assert_eq!(pairs.len(), 1);
         let p = &pairs[0];
         assert_eq!(p.source.as_deref(), Some("review_findings"));
         assert_ne!(p.chosen, p.rejected);
         assert!(p.rejected.contains("fn process"), "fn name preserved");
-        assert!(!p.rejected.contains("-> Vec<u8>"), "return type stripped → type error");
+        assert!(
+            !p.rejected.contains("-> Vec<u8>"),
+            "return type stripped → type error"
+        );
         assert!(p.category.starts_with("rust_review_"));
     }
 
     #[test]
     fn try_operator_downgraded_to_unwrap() {
-        let pairs = mine(&format!("{}\n", fix_row("let v = parse(s)?;", "review_fix_pairs")));
+        let pairs = mine(&format!(
+            "{}\n",
+            fix_row("let v = parse(s)?;", "review_fix_pairs")
+        ));
         assert_eq!(pairs.len(), 1);
-        assert!(pairs[0].rejected.contains(".unwrap();"), "? → .unwrap() (panics)");
+        assert!(
+            pairs[0].rejected.contains(".unwrap();"),
+            "? → .unwrap() (panics)"
+        );
         assert!(!pairs[0].rejected.contains("?;"));
     }
 
@@ -317,12 +329,18 @@ mod review_dpo_tests {
     fn expect_downgraded_to_unwrap_not_upgraded() {
         let pairs = mine(&format!(
             "{}\n",
-            fix_row("let v = thing.expect(\"clear message\");", "review_fix_pairs")
+            fix_row(
+                "let v = thing.expect(\"clear message\");",
+                "review_fix_pairs"
+            )
         ));
         assert_eq!(pairs.len(), 1);
         // The rejected sample must be WORSE: unwrap() drops the message.
         assert!(pairs[0].rejected.contains(".unwrap()"));
-        assert!(!pairs[0].rejected.contains(".expect("), "must not keep/prefer expect");
+        assert!(
+            !pairs[0].rejected.contains(".expect("),
+            "must not keep/prefer expect"
+        );
     }
 
     #[test]
@@ -330,10 +348,16 @@ mod review_dpo_tests {
         // The param arrow (Fn() -> i32) must NOT be mistaken for the return arrow.
         let pairs = mine(&format!(
             "{}\n",
-            fix_row("fn run(cb: impl Fn() -> i32) -> i32 { cb() }", "review_fix_pairs")
+            fix_row(
+                "fn run(cb: impl Fn() -> i32) -> i32 { cb() }",
+                "review_fix_pairs"
+            )
         ));
         assert_eq!(pairs.len(), 1);
-        assert!(pairs[0].rejected.contains("impl Fn() -> i32"), "param arrow preserved");
+        assert!(
+            pairs[0].rejected.contains("impl Fn() -> i32"),
+            "param arrow preserved"
+        );
         assert!(pairs[0].rejected.contains("fn run"), "fn intact");
     }
 
@@ -341,7 +365,10 @@ mod review_dpo_tests {
     fn skips_prose_fix_rows() {
         let pairs = mine(&format!(
             "{}\n",
-            fix_row("The function should have a doc comment explaining the purpose.", "review_fix_pairs")
+            fix_row(
+                "The function should have a doc comment explaining the purpose.",
+                "review_fix_pairs"
+            )
         ));
         assert!(pairs.is_empty(), "pure prose has no degradable construct");
     }
@@ -352,7 +379,10 @@ mod review_dpo_tests {
             "{}\n",
             fix_row("fn good() -> i32 { 1 }", "review_antipattern_memory")
         ));
-        assert!(pairs.is_empty(), "antipattern/regression rows are prose, not fixes");
+        assert!(
+            pairs.is_empty(),
+            "antipattern/regression rows are prose, not fixes"
+        );
     }
 
     #[test]

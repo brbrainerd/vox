@@ -1,5 +1,5 @@
+use crate::types::{AgentId, TaskId};
 use serde::{Deserialize, Serialize};
-use crate::types::{TaskId, AgentId};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FeedbackId(pub String);
@@ -82,8 +82,19 @@ mod tests {
     }
     #[test]
     fn action_is_internally_tagged() {
-        let a = FeedbackAction::Answer { option: Some(1), text: None };
-        assert!(serde_json::to_string(&a).unwrap().contains("\"action\":\"answer\""));
-        assert!(serde_json::to_string(&FeedbackAction::Overrule).unwrap().contains("overrule"));
+        let a = FeedbackAction::Answer {
+            option: Some(1),
+            text: None,
+        };
+        assert!(
+            serde_json::to_string(&a)
+                .unwrap()
+                .contains("\"action\":\"answer\"")
+        );
+        assert!(
+            serde_json::to_string(&FeedbackAction::Overrule)
+                .unwrap()
+                .contains("overrule")
+        );
     }
 }

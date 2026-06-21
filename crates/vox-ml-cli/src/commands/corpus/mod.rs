@@ -304,7 +304,11 @@ pub enum CorpusAction {
         #[arg(short, long, default_value = "target/dogfood/a2a_traces.jsonl")]
         input: std::path::PathBuf,
         /// Output SFT JSONL
-        #[arg(short, long, default_value = "mens/data/mix_sources/agent_traces.jsonl")]
+        #[arg(
+            short,
+            long,
+            default_value = "mens/data/mix_sources/agent_traces.jsonl"
+        )]
         output: std::path::PathBuf,
         /// Minimum AST semantic diversity (0.0-1.0); corpus rejected if monoculture
         #[arg(long, default_value_t = 0.40)]
@@ -633,9 +637,8 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             quarantine,
         } => generate::run_curate_prose(&input, &output, min_score, quarantine.as_deref()).await,
         CorpusAction::ReviewToDpo { input, output } => {
-            let count =
-                vox_corpus::corpus::dpo::review_findings_to_dpo(&input, &output)
-                    .with_context(|| format!("review-to-dpo: {}", input.display()))?;
+            let count = vox_corpus::corpus::dpo::review_findings_to_dpo(&input, &output)
+                .with_context(|| format!("review-to-dpo: {}", input.display()))?;
             println!(
                 "✓ Mined {} rust_review DPO pairs → {}",
                 count,

@@ -208,7 +208,12 @@ pub fn project(kind: &AgentEventKind) -> ActivityRow {
             "WorkflowFailed",
             format!("Workflow {workflow_id} failed: {error}"),
         ),
-        FeedbackRequested { feedback_id, kind, surface, .. } => (
+        FeedbackRequested {
+            feedback_id,
+            kind,
+            surface,
+            ..
+        } => (
             None,
             None,
             "FeedbackRequested",

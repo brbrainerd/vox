@@ -1,7 +1,9 @@
-use std::sync::Arc;
-use parking_lot::RwLock;
-use crate::feedback::types::{FeedbackId, FeedbackKind, FeedbackRequest, FeedbackResolution, Surface};
+use crate::feedback::types::{
+    FeedbackId, FeedbackKind, FeedbackRequest, FeedbackResolution, Surface,
+};
 use crate::types::{AgentId, TaskId};
+use parking_lot::RwLock;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct FeedbackStore {
@@ -119,11 +121,7 @@ mod tests {
     use crate::feedback::{FeedbackAction, FeedbackKind, FeedbackResolution, Surface};
     use crate::types::TaskId;
 
-    fn reg(
-        s: &FeedbackStore,
-        surface: Surface,
-        gain: f64,
-    ) -> FeedbackId {
+    fn reg(s: &FeedbackStore, surface: Surface, gain: f64) -> FeedbackId {
         s.register(
             FeedbackKind::Clarification,
             "q?".into(),

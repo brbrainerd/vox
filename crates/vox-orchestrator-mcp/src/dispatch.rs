@@ -15,10 +15,10 @@ use crate::browser_tools;
 use crate::visus_tools;
 use crate::{
     agent_tools, benchmark_tools, chat_tools, code_validator, codex_tools, compiler_tools,
-    db_tools, exec_time_tools, feedback_tools, git_tools, grammar_tools, introspection_tools, openclaw_tools,
-    persistence_tools, populi_tools, project_init_tools, questioning_tools, rag_tools,
-    repo_catalog_tools, repo_index, secrets_tools, task_tools, toestub_tools, tool_aliases,
-    training_tools, trust_tools, vcs_tools,
+    db_tools, exec_time_tools, feedback_tools, git_tools, grammar_tools, introspection_tools,
+    openclaw_tools, persistence_tools, populi_tools, project_init_tools, questioning_tools,
+    rag_tools, repo_catalog_tools, repo_index, secrets_tools, task_tools, toestub_tools,
+    tool_aliases, training_tools, trust_tools, vcs_tools,
 };
 #[cfg(feature = "news-publish")]
 use crate::{news_tools, scientia_tools};
@@ -289,7 +289,11 @@ pub async fn handle_tool_call(
     // Track E — emit structured telemetry for every MCP tool call.
     {
         let tool_call_kind = tool_call_kind_for(name_canonical);
-        let mode = if agent_id.is_some() { "agent" } else { "interactive" };
+        let mode = if agent_id.is_some() {
+            "agent"
+        } else {
+            "interactive"
+        };
         vox_telemetry::record_event!(&TelemetryEvent::HarnessUsage(HarnessUsageEvent {
             tool_call_kind: tool_call_kind.to_string(),
             mode: mode.to_string(),
@@ -307,7 +311,11 @@ pub async fn handle_tool_call(
                 .get("content")
                 .and_then(|v| v.as_str())
                 .map(|s| s.len())
-                .or_else(|| args.get("new_content").and_then(|v| v.as_str()).map(|s| s.len()))
+                .or_else(|| {
+                    args.get("new_content")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.len())
+                })
                 .unwrap_or(0);
             let size_bucket = content_size_bucket(content_len);
             vox_telemetry::record_event!(&TelemetryEvent::EditPattern(EditPatternEvent {
@@ -472,9 +480,15 @@ async fn handle_tool_call_inner(
         }
         "vox_fail_task" => Ok(task_tools::fail_task(state, serde_json::from_value(args)?).await),
         "vox_doubt_task" => Ok(task_tools::doubt_task(state, serde_json::from_value(args)?).await),
-        "vox_ask_clarification" => Ok(feedback_tools::ask_clarification(state, serde_json::from_value(args)?).await),
-        "vox_resolve_feedback" => Ok(feedback_tools::resolve_feedback(state, serde_json::from_value(args)?).await),
-        "vox_feedback_list" => Ok(feedback_tools::feedback_list(state, serde_json::from_value(args)?).await),
+        "vox_ask_clarification" => {
+            Ok(feedback_tools::ask_clarification(state, serde_json::from_value(args)?).await)
+        }
+        "vox_resolve_feedback" => {
+            Ok(feedback_tools::resolve_feedback(state, serde_json::from_value(args)?).await)
+        }
+        "vox_feedback_list" => {
+            Ok(feedback_tools::feedback_list(state, serde_json::from_value(args)?).await)
+        }
         "vox_check_file_owner" => Ok(crate::dei_tools::check_file_owner(
             state,
             args.get("path").and_then(|v| v.as_str()).unwrap_or("."),
@@ -607,7 +621,9 @@ async fn handle_tool_call_inner(
         "vox_credentials_status" => Ok(crate::agy_tools::vox_credentials_status(state, args).await),
         "vox_agy_pipeline" => Ok(crate::agy_pipeline::vox_agy_pipeline(state, args).await),
         "vox_agy_review" => Ok(crate::agy_pipeline::vox_agy_review(state, args).await),
-        "vox_agy_ledger_digest" => Ok(crate::agy_pipeline::vox_agy_ledger_digest(state, args).await),
+        "vox_agy_ledger_digest" => {
+            Ok(crate::agy_pipeline::vox_agy_ledger_digest(state, args).await)
+        }
         "vox_graphify_status" => {
             Ok(crate::graphify_tools::graphify_status(state, serde_json::from_value(args)?).await)
         }
@@ -1536,7 +1552,8 @@ async fn handle_tool_call_inner(
 // ── Track E telemetry helpers ──────────────────────────────────────────────
 
 fn tool_call_kind_for(name: &str) -> &'static str {
-    if name.starts_with("vox_run") || name.starts_with("vox_exec") || name.starts_with("vox_shell") {
+    if name.starts_with("vox_run") || name.starts_with("vox_exec") || name.starts_with("vox_shell")
+    {
         "exec"
     } else if name.starts_with("vox_write")
         || name.starts_with("vox_patch")
@@ -1545,9 +1562,15 @@ fn tool_call_kind_for(name: &str) -> &'static str {
         || name.starts_with("vox_delete")
     {
         "edit"
-    } else if name.starts_with("vox_read") || name.starts_with("vox_list") || name.starts_with("vox_search") {
+    } else if name.starts_with("vox_read")
+        || name.starts_with("vox_list")
+        || name.starts_with("vox_search")
+    {
         "read"
-    } else if name.starts_with("vox_agent") || name.starts_with("vox_submit_task") || name.starts_with("vox_task") {
+    } else if name.starts_with("vox_agent")
+        || name.starts_with("vox_submit_task")
+        || name.starts_with("vox_task")
+    {
         "orchestration"
     } else {
         "other"
@@ -1622,7 +1645,8 @@ fn error_class_from_err(e: &anyhow::Error) -> &'static str {
 }
 
 fn subsystem_from_tool(name: &str) -> &'static str {
-    if name.starts_with("vox_run") || name.starts_with("vox_exec") || name.starts_with("vox_shell") {
+    if name.starts_with("vox_run") || name.starts_with("vox_exec") || name.starts_with("vox_shell")
+    {
         "exec"
     } else if name.starts_with("vox_write")
         || name.starts_with("vox_patch")

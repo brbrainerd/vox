@@ -358,7 +358,10 @@ fn walk_dir_rs(
             // throwaway crate the rust-authoring verifier spawns; a stale copy
             // (from a killed verify run) must never be ingested as training data.
             let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-            if matches!(name, "target" | ".git" | "node_modules" | ".vox" | "_corpus_verify_tmp") {
+            if matches!(
+                name,
+                "target" | ".git" | "node_modules" | ".vox" | "_corpus_verify_tmp"
+            ) {
                 continue;
             }
             walk_dir_rs(&path, config, out)?;

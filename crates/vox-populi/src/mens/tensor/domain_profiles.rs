@@ -320,7 +320,10 @@ base:
             .expect("agents profile loads");
         let router = eff.router.expect("agents router present");
         assert!(router.prefer_local, "agents spoke should prefer_local");
-        assert!(!router.allowed_providers.is_empty(), "allowed_providers set");
+        assert!(
+            !router.allowed_providers.is_empty(),
+            "allowed_providers set"
+        );
     }
 
     #[test]
@@ -338,7 +341,10 @@ router:
         let p2: DomainProfile = serde_yaml::from_str(yaml2).expect("parse");
         let r = p2.router.unwrap();
         assert!(!r.prefer_local, "prefer_local defaults to false");
-        assert!(r.allowed_providers.is_empty(), "allowed_providers defaults empty");
+        assert!(
+            r.allowed_providers.is_empty(),
+            "allowed_providers defaults empty"
+        );
     }
 
     fn router(prefer_local: bool, allowed: &[&str]) -> SpokeRouter {

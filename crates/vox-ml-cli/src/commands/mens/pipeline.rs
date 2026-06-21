@@ -288,10 +288,8 @@ pub async fn run(
             }
             PipelineStage::ReviewToDpo => {
                 if !dry_run {
-                    let review_input =
-                        PathBuf::from("mens/data/mix_sources/review_findings.jsonl");
-                    let dpo_output =
-                        PathBuf::from("mens/data/mix_sources/rust_review_dpo.jsonl");
+                    let review_input = PathBuf::from("mens/data/mix_sources/review_findings.jsonl");
+                    let dpo_output = PathBuf::from("mens/data/mix_sources/rust_review_dpo.jsonl");
                     if review_input.is_file() {
                         crate::commands::corpus::run(
                             crate::commands::corpus::CorpusAction::ReviewToDpo {
@@ -310,10 +308,8 @@ pub async fn run(
                 if !dry_run {
                     // Ingest a2a traces from dogfood capture path → SFT rows with diversity gate.
                     // Guard on input presence (consistent with ReviewToDpo) — never fabricate.
-                    let trace_input =
-                        PathBuf::from("target/dogfood/a2a_traces.jsonl");
-                    let trace_output =
-                        PathBuf::from("mens/data/mix_sources/agent_traces.jsonl");
+                    let trace_input = PathBuf::from("target/dogfood/a2a_traces.jsonl");
+                    let trace_output = PathBuf::from("mens/data/mix_sources/agent_traces.jsonl");
                     if trace_input.is_file() {
                         crate::commands::corpus::run(
                             crate::commands::corpus::CorpusAction::TraceIngest {
@@ -325,9 +321,7 @@ pub async fn run(
                         .await
                         .map_err(|e| anyhow::anyhow!("pipeline agent_trace_ingest failed: {e}"))?;
                     } else {
-                        tracing::debug!(
-                            "AgentTraceIngest: no a2a_traces.jsonl captured, skipping"
-                        );
+                        tracing::debug!("AgentTraceIngest: no a2a_traces.jsonl captured, skipping");
                     }
                 } else {
                     tracing::info!("AgentTraceIngest: dry_run, skipping");
@@ -416,19 +410,26 @@ pub async fn run(
             PipelineStage::Train => {
                 let ws = vox_corpus::training::contract::find_workspace_root();
                 let root = ws.clone().unwrap_or_else(|| std::path::PathBuf::from("."));
-                let selection = crate::commands::mens::training_selection::resolve_training_selection(
-                    &root,
-                    profile.as_deref(),
-                    model.as_deref(),
-                    preset.as_deref(),
-                    None,
-                )?;
+                let selection =
+                    crate::commands::mens::training_selection::resolve_training_selection(
+                        &root,
+                        profile.as_deref(),
+                        model.as_deref(),
+                        preset.as_deref(),
+                        None,
+                    )?;
                 match &selection {
-                    crate::commands::mens::training_selection::TrainingSelection::Skip { reason } => {
+                    crate::commands::mens::training_selection::TrainingSelection::Skip {
+                        reason,
+                    } => {
                         tracing::info!("spoke training skipped ({reason})");
                         continue;
                     }
-                    crate::commands::mens::training_selection::TrainingSelection::Train { model: m, preset: p, backend } => {
+                    crate::commands::mens::training_selection::TrainingSelection::Train {
+                        model: m,
+                        preset: p,
+                        backend,
+                    } => {
                         tracing::info!(model=?m, preset=%p, backend=?backend, "resolved training selection");
                         if !dry_run {
                             #[cfg(feature = "gpu")]

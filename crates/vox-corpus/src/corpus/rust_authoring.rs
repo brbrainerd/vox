@@ -25,9 +25,7 @@ pub fn make_authoring_pair(fn_name: &str, rust_src: &str) -> serde_json::Value {
 /// fails iff any error diagnostic's span path contains its module name.
 pub fn batch_pass_flags(n: usize, error_modules: &[String]) -> Vec<bool> {
     (0..n)
-        .map(|i| {
-            !error_modules.iter().any(|m| m == &format!("snippet_{}", i))
-        })
+        .map(|i| !error_modules.iter().any(|m| m == &format!("snippet_{}", i)))
         .collect()
 }
 
@@ -36,12 +34,18 @@ pub fn batch_pass_flags(n: usize, error_modules: &[String]) -> Vec<bool> {
 /// Wraps each snippet in `mod snippet_i { ... }` and parses `cargo check
 /// --message-format=json` diagnostics via `batch_pass_flags`.
 /// Spawns with the no-flashing-window helper on Windows.
-pub fn compile_batch_in_workspace(workspace_root: &std::path::Path, snippets: &[String]) -> Vec<bool> {
+pub fn compile_batch_in_workspace(
+    workspace_root: &std::path::Path,
+    snippets: &[String],
+) -> Vec<bool> {
     run_batch_command_in_workspace(workspace_root, snippets, false)
 }
 
 /// Clippy version of `compile_batch_in_workspace`.
-pub fn clippy_batch_in_workspace(workspace_root: &std::path::Path, snippets: &[String]) -> Vec<bool> {
+pub fn clippy_batch_in_workspace(
+    workspace_root: &std::path::Path,
+    snippets: &[String],
+) -> Vec<bool> {
     run_batch_command_in_workspace(workspace_root, snippets, true)
 }
 
@@ -60,7 +64,10 @@ fn run_batch_command_in_workspace(
 
     // Create directories
     if let Err(e) = std::fs::create_dir_all(&src_dir) {
-        eprintln!("Failed to create directories for compile verification: {}", e);
+        eprintln!(
+            "Failed to create directories for compile verification: {}",
+            e
+        );
         return vec![false; n];
     }
 
@@ -107,7 +114,15 @@ vox-bounded-fs = { path = "../vox-bounded-fs" }
     // Spawn command
     let mut cmd = std::process::Command::new("cargo");
     if clippy {
-        cmd.args(&["clippy", "-p", "_corpus_verify_tmp", "--message-format=json", "--", "-D", "warnings"]);
+        cmd.args(&[
+            "clippy",
+            "-p",
+            "_corpus_verify_tmp",
+            "--message-format=json",
+            "--",
+            "-D",
+            "warnings",
+        ]);
     } else {
         cmd.args(&["check", "-p", "_corpus_verify_tmp", "--message-format=json"]);
     }
@@ -142,7 +157,9 @@ vox-bounded-fs = { path = "../vox-bounded-fs" }
                     if level == "error" {
                         if let Some(spans) = msg.get("spans").and_then(|s| s.as_array()) {
                             for span in spans {
-                                if let Some(file_name) = span.get("file_name").and_then(|f| f.as_str()) {
+                                if let Some(file_name) =
+                                    span.get("file_name").and_then(|f| f.as_str())
+                                {
                                     if let Some(start_idx) = file_name.find("snippet_") {
                                         let sub = &file_name[start_idx..];
                                         let end_idx = sub.find(".rs").unwrap_or(sub.len());
@@ -249,10 +266,7 @@ mod tests {
 
     #[test]
     fn extract_fn_name_finds_bare_fn() {
-        assert_eq!(
-            extract_fn_name("fn inner() {}"),
-            Some("inner".to_string())
-        );
+        assert_eq!(extract_fn_name("fn inner() {}"), Some("inner".to_string()));
     }
 
     #[test]
@@ -294,7 +308,10 @@ mod tests {
         let pairs = corpus_from_workspace(root).expect("corpus_from_workspace");
         assert!(!pairs.is_empty(), "should find Rust fns in workspace");
         for p in &pairs {
-            assert_eq!(p["lane"], "vox_rust_authoring", "all pairs have correct lane");
+            assert_eq!(
+                p["lane"], "vox_rust_authoring",
+                "all pairs have correct lane"
+            );
             assert_eq!(p["category"], "rust_authoring");
         }
     }

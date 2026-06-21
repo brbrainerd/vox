@@ -513,12 +513,18 @@ clippy_clean_rate:
     )
     .unwrap();
     let results = check_run(dir.path(), &policy_path).expect("check_run");
-    
-    let compile_gate = results.iter().find(|r| r.name == "rust_compile_rate").expect("compile gate present");
+
+    let compile_gate = results
+        .iter()
+        .find(|r| r.name == "rust_compile_rate")
+        .expect("compile gate present");
     assert!(compile_gate.passed, "should pass");
     assert!(compile_gate.block, "should be blocking");
 
-    let clippy_gate = results.iter().find(|r| r.name == "clippy_clean_rate").expect("clippy gate present");
+    let clippy_gate = results
+        .iter()
+        .find(|r| r.name == "clippy_clean_rate")
+        .expect("clippy gate present");
     assert!(clippy_gate.passed, "should pass");
     assert!(!clippy_gate.block, "should not be blocking");
 }
@@ -549,7 +555,10 @@ rust_compile_rate:
         .iter()
         .find(|r| r.name == "rust_compile_rate")
         .expect("compile gate present");
-    assert!(compile_gate.passed, "absent rust metric must not fail the gate");
+    assert!(
+        compile_gate.passed,
+        "absent rust metric must not fail the gate"
+    );
     assert!(
         compile_gate.message.contains("not applicable"),
         "message explains why: {}",
@@ -580,10 +589,16 @@ tool_name_exists_rate:
     )
     .unwrap();
     let results = check_run(dir.path(), &policy_path).expect("check_run");
-    let json_gate = results.iter().find(|r| r.name == "tool_call_valid_json_rate").expect("json gate");
+    let json_gate = results
+        .iter()
+        .find(|r| r.name == "tool_call_valid_json_rate")
+        .expect("json gate");
     assert!(json_gate.passed, "json rate 0.95 >= 0.90");
     assert!(json_gate.block);
-    let name_gate = results.iter().find(|r| r.name == "tool_name_exists_rate").expect("name gate");
+    let name_gate = results
+        .iter()
+        .find(|r| r.name == "tool_name_exists_rate")
+        .expect("name gate");
     assert!(name_gate.passed, "name rate 0.90 >= 0.85");
 }
 
@@ -610,8 +625,14 @@ tool_name_exists_rate:
     )
     .unwrap();
     let results = check_run(dir.path(), &policy_path).expect("check_run");
-    let json_gate = results.iter().find(|r| r.name == "tool_call_valid_json_rate").expect("json gate");
+    let json_gate = results
+        .iter()
+        .find(|r| r.name == "tool_call_valid_json_rate")
+        .expect("json gate");
     assert!(!json_gate.passed, "0.80 < 0.90 should fail");
-    let name_gate = results.iter().find(|r| r.name == "tool_name_exists_rate").expect("name gate");
+    let name_gate = results
+        .iter()
+        .find(|r| r.name == "tool_name_exists_rate")
+        .expect("name gate");
     assert!(!name_gate.passed, "0.70 < 0.85 should fail");
 }

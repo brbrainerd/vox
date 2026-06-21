@@ -171,25 +171,18 @@ pub async fn apply_op_fragment(
             hopper
                 .replay_overridden(&hid, priority, override_at_unix_ms, override_by_node_id)
                 .await
-                .map_err(|e| {
-                    ReplicationError::Decode(format!("Overridden replay failed: {:?}", e))
-                })
+                .map_err(|e| ReplicationError::Decode(format!("Overridden replay failed: {:?}", e)))
         }
         HopperOpSync::ItemTransitioned {
-            item_id,
-            new_state,
-            ..
+            item_id, new_state, ..
         } => {
             let hid = crate::events::HopperItemId(item_id);
             let state: super::types::ItemState = serde_json::from_str(&new_state)
                 .or_else(|_| serde_json::from_str(&format!("\"{}\"", new_state)))
                 .map_err(|e| ReplicationError::Decode(format!("Invalid ItemState: {}", e)))?;
-            hopper
-                .replay_transitioned(&hid, state)
-                .await
-                .map_err(|e| {
-                    ReplicationError::Decode(format!("Transitioned replay failed: {:?}", e))
-                })
+            hopper.replay_transitioned(&hid, state).await.map_err(|e| {
+                ReplicationError::Decode(format!("Transitioned replay failed: {:?}", e))
+            })
         }
     }
 }

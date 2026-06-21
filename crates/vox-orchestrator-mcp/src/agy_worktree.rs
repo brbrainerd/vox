@@ -11,7 +11,10 @@ pub fn delegation_worktree_path(repo_root: &Path, slug: &str) -> PathBuf {
 
 pub fn count_changed(tracked_diff: &str, untracked_list: &str) -> usize {
     let tracked = tracked_diff.matches("diff --git").count();
-    let untracked = untracked_list.lines().filter(|l| !l.trim().is_empty()).count();
+    let untracked = untracked_list
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .count();
     tracked + untracked
 }
 
@@ -32,21 +35,33 @@ impl DelegationWorktree {
         GitExec::new(repo_root)
             .run(&["worktree", "add", "-b", &branch, &path_s, "HEAD"])
             .await?;
-        Ok(Self { path: path.clone(), branch, git: GitExec::new(path) })
+        Ok(Self {
+            path: path.clone(),
+            branch,
+            git: GitExec::new(path),
+        })
     }
 
     /// (unified-diff text, changed-file count). Includes tracked + untracked.
     pub async fn capture(&self) -> Result<(String, usize), GitExecError> {
         let tracked = self.git.run(&["diff", "HEAD"]).await?;
-        let untracked = self.git.run(&["ls-files", "--others", "--exclude-standard"]).await?;
+        let untracked = self
+            .git
+            .run(&["ls-files", "--others", "--exclude-standard"])
+            .await?;
         let n = count_changed(&tracked.stdout, &untracked.stdout);
-        let text = format!("# tracked\n{}\n# new files\n{}", tracked.stdout, untracked.stdout);
+        let text = format!(
+            "# tracked\n{}\n# new files\n{}",
+            tracked.stdout, untracked.stdout
+        );
         Ok((text, n))
     }
 
     pub async fn cleanup(&self, repo_root: &Path) -> Result<(), GitExecError> {
         let path_s = self.path.to_string_lossy().to_string();
-        GitExec::new(repo_root).run(&["worktree", "remove", "--force", &path_s]).await?;
+        GitExec::new(repo_root)
+            .run(&["worktree", "remove", "--force", &path_s])
+            .await?;
         Ok(())
     }
 }

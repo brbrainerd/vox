@@ -399,11 +399,14 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             derived_tool_schema!(crate::params::VoxVisualRagQueryParams)
         }
         "vox_repo_status" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
-        "vox_gui_components" | "vox_gui_tokens" | "vox_gui_rules" | "vox_agy_doctor"
-        | "vox_credentials_status" | "vox_agy_ledger_digest" => {
-            parse_obj(r#"{"type":"object","additionalProperties":false}"#)
-        }
-        "vox_agy_delegate" => parse_obj(r#"{
+        "vox_gui_components"
+        | "vox_gui_tokens"
+        | "vox_gui_rules"
+        | "vox_agy_doctor"
+        | "vox_credentials_status"
+        | "vox_agy_ledger_digest" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
+        "vox_agy_delegate" => parse_obj(
+            r#"{
             "type": "object",
             "required": ["task"],
             "properties": {
@@ -411,8 +414,10 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
                 "model": { "type": "string", "description": "Optional agy model DISPLAY NAME (not a slug), e.g. \"Gemini 3.5 Flash (Low)\". Omit for the default (Gemini 3.5 Flash High)." },
                 "timeout_secs": { "type": "integer", "default": 900, "description": "Hard kill after this many seconds." }
             }
-        }"#),
-        "vox_agy_delegate_batch" => parse_obj(r#"{
+        }"#,
+        ),
+        "vox_agy_delegate_batch" => parse_obj(
+            r#"{
             "type": "object",
             "required": ["tasks"],
             "properties": {
@@ -420,8 +425,10 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
                 "max_concurrency": { "type": "integer", "default": 3, "description": "Parallel workers (clamped to 8)." },
                 "timeout_secs": { "type": "integer", "default": 900 }
             }
-        }"#),
-        "vox_agy_pipeline" => parse_obj(r#"{
+        }"#,
+        ),
+        "vox_agy_pipeline" => parse_obj(
+            r#"{
             "type": "object",
             "required": ["task"],
             "properties": {
@@ -443,8 +450,10 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
                     }
                 }
             }
-        }"#),
-        "vox_agy_review" => parse_obj(r#"{
+        }"#,
+        ),
+        "vox_agy_review" => parse_obj(
+            r#"{
             "type": "object",
             "required": ["ledger_id", "verdict"],
             "properties": {
@@ -454,7 +463,8 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
                 "findings": { "type": "string" },
                 "lessons": { "type": "array", "items": { "type": "string" }, "description": "1-3 prompt-hardening lessons fed to the flywheel." }
             }
-        }"#),
+        }"#,
+        ),
         "vox_validate_vuv" => parse_obj(
             r#"{"type":"object","properties":{"source":{"type":"string","minLength":1,"description":"Vox/VUV source to validate against the compile-time GUI guarantees (contrast, layer-occlusion, a11y, structural web-IR). No files are written."}},"required":["source"],"additionalProperties":false}"#,
         ),
