@@ -13867,6 +13867,12 @@ exemptions:
   - vox_agy_pipeline
   - vox_agy_review
   - vox_agy_ledger_digest
+  # Pre-existing: soft-HITL attention/feedback + credentials tools registered
+  # without catalog rows. Exempt until enrolled in the same dedicated catalog PR.
+  - vox_ask_clarification
+  - vox_credentials_status
+  - vox_feedback_list
+  - vox_resolve_feedback
   cli_paths:
   # Pre-existing: ci doctest-md exists as a real command but was never enrolled in
   # the catalog; exempt until a catalog entry is added in a dedicated docs-ci PR.
