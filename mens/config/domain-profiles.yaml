@@ -54,7 +54,9 @@ profiles:
     base:
       model: small_code_default     # resolved in Phase 3 (model-registry.yaml)
       method: qlora
-      preset: qwen_4080_16g
+      # USER DECISION (adopt qwen3_* presets): 16 GB tier auto-selects the Qwen3 preset.
+      # Legacy qwen_4080_16g remains loadable in KNOWN_PRESETS for 4080/CPU back-compat.
+      preset: qwen3_16g
     eval_gate: mens/config/eval-gates.yaml
     router:
       triggers: ["lane:vox_codegen", "lane:vox_lang_tier_b", "*.vox"]
@@ -72,7 +74,8 @@ profiles:
     base:
       model: strong_code_default    # resolved in Phase 3
       method: qlora
-      preset: qwen_4080_16g
+      # USER DECISION (adopt qwen3_* presets): 16 GB tier auto-selects the Qwen3 preset.
+      preset: qwen3_16g
     eval_gate: mens/config/eval-gates-rust.yaml
     router:
       # lane:vox_rust_review intentionally omitted — review signals route to base (no adapter)
@@ -99,7 +102,8 @@ profiles:
     base:
       model: agentic_default        # resolved in Phase 3
       method: qlora
-      preset: qwen_4080_16g
+      # USER DECISION (adopt qwen3_* presets): 16 GB tier auto-selects the Qwen3 preset.
+      preset: qwen3_16g
     eval_gate: mens/config/eval-gates-agents.yaml
     router:
       triggers: ["lane:vox_tool_selection", "lane:vox_tooling"]
@@ -125,7 +129,8 @@ profiles:
     base:
       model: agentic_default        # resolved in Phase 3
       method: qlora
-      preset: qwen_4080_16g
+      # USER DECISION (adopt qwen3_* presets): 16 GB tier auto-selects the Qwen3 preset.
+      preset: qwen3_16g
     eval_gate: mens/config/eval-gates-agents.yaml
     router:
       triggers: ["lane:vox_argument_generation"]
