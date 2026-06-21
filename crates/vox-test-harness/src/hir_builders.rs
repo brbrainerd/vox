@@ -55,6 +55,7 @@ pub fn hir_fn(name: impl Into<String>) -> HirFn {
         inference_model: None,
         training_step: false,
         distributed_train: None,
+        placement_override: None,
     }
 }
 

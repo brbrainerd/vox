@@ -424,6 +424,9 @@ pub struct HirFn {
     /// `@distributed_train(...)` metadata when lowered from a workflow — Mn-T5.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub distributed_train: Option<(String, u32)>,
+    /// Explicit `@place(...)` override; `None` = inferred.
+    #[serde(default)]
+    pub placement_override: Option<vox_ast::decl::fundecl::PlacementHint>,
 }
 
 /// A lowered postcondition with optional fallback.

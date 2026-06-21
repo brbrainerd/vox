@@ -167,7 +167,7 @@ pub enum DecoratorFeature {
     SkipIfNone,
     Table,
     Index,
-    Native,
+    Place,
     Loading,
     Require,
     Ensure,
@@ -336,7 +336,7 @@ impl DecoratorFeature {
             SkipIfNone => "@skip_if_none",
             Table => "@table",
             Index => "@index",
-            Native => "@native",
+            Place => "@place",
             Loading => "@loading",
             Require => "@require",
             Ensure => "@ensure",
@@ -399,7 +399,7 @@ impl DecoratorFeature {
             SkipIfNone,
             Table,
             Index,
-            Native,
+            Place,
             Loading,
             Require,
             Ensure,
@@ -742,6 +742,27 @@ mod tests {
         );
         assert!(matches!(
             support(Feature::Expr(ExprFeature::Jsx), Target::RustAxum),
+            Support::Unsupported(_)
+        ));
+    }
+
+    #[test]
+    fn place_decorator_registered_and_native_gone() {
+        let _ = support(
+            Feature::Decorator(DecoratorFeature::Place),
+            Target::TypeScript,
+        );
+        assert_eq!(DecoratorFeature::Place.lexer_spelling(), "@place");
+    }
+
+    #[test]
+    fn placement_matches_feature_matrix_frontend_backend() {
+        assert!(matches!(
+            support(Feature::Expr(ExprFeature::Jsx), Target::RustAxum),
+            Support::Unsupported(_)
+        ));
+        assert!(matches!(
+            support(Feature::Expr(ExprFeature::Spawn), Target::TypeScript),
             Support::Unsupported(_)
         ));
     }

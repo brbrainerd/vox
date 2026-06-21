@@ -250,7 +250,7 @@ mod tests {
 
     #[test]
     fn test_decorators() {
-        let tokens = lex_tokens("@component @tool @mcp.tool @resource @mcp.resource @native");
+        let tokens = lex_tokens("@component @tool @mcp.tool @resource @mcp.resource @place");
         assert_eq!(
             tokens,
             vec![
@@ -259,7 +259,7 @@ mod tests {
                 Token::AtMcpTool,
                 Token::AtResource,
                 Token::AtMcpResource,
-                Token::AtNative,
+                Token::AtPlace,
                 Token::Eof
             ]
         );

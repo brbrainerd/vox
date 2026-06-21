@@ -136,6 +136,7 @@ fn build_from_json(
         inference_model: None,
         training_step: false,
         distributed_train: None,
+        placement_override: None,
     }
 }
 
@@ -461,6 +462,7 @@ fn build_to_json(ctx: &mut LowerCtx, t: &TypeDefDecl, ann: &JsonAsAnnotation, sp
         inference_model: None,
         training_step: false,
         distributed_train: None,
+        placement_override: None,
     }
 }
 
