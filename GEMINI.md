@@ -12,6 +12,8 @@ This file is Antigravity-specific. `AGENTS.md` is the cross-tool base policy; th
 
 Read [`AGENTS.md`](AGENTS.md) first. When they conflict, this file wins.
 
+See [agent-instruction-architecture.md](docs/src/contributors/agent-instruction-architecture.md) for the instruction layering model.
+
 ---
 
 ## The Three Laws (non-negotiable, read before anything else)
