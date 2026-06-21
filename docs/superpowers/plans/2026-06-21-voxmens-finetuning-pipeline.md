@@ -1,407 +1,264 @@
-# VoxMens Fine-Tuning Architecture & Spot Pipeline — Implementation Plan
+# VoxMens Fine-Tuning Architecture & Spot Pipeline — Implementation Plan (rev 2, adversarially reviewed)
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax. **This rev fixes codebase-fit blockers, an adapter-provenance correctness bug, and a parallel-write bug found in adversarial review — read "How to execute" before fanning out.**
 
-**Goal:** Make VoxMens a resource-scalable hub-and-spoke system — 4 fine-tuned QLoRA spokes on a shared Qwen3 ladder, a dynamic (no-retrain) tool/skill layer, vLLM multi-LoRA serving, and a RunPod-default cloud spot training pipeline — reaching per-spoke Flash/Sonnet parity on each spoke's domain.
+**Goal:** A resource-scalable hub-and-spoke system — Qwen3 dense-ladder hub (CPU→96 GB) + a tiny embedder hub, 3 v1 QLoRA adapters (vox-lang, rust, mono-harness; decomposed harness as a measured arm), a no-retrain tool/skill retrieval+schema layer, RunPod-default spot training with full provenance, and offline eval acceptance.
 
-**Architecture:** One Qwen3 dense-ladder hub; 4 LoRA adapters (`vox-lang`, `rust`, `tool-selection`, `argument-generation`); tools/skills/plugins served by retrieval + schema-constrained decoding (never fine-tuned); training on cloud spot GPUs via the existing `cloud/` module; serving via vLLM runtime LoRA hot-swap wired to `DomainRouter`.
+**V1 success = pipeline runs end-to-end AND each adapter beats its own base rung on its gate metric.** Flash/Sonnet parity is a tracked north-star gap report, not a pass/fail gate.
 
-**Tech Stack:** Rust (vox-populi, vox-corpus, vox-ml-cli, vox-orchestrator-mcp), Qwen3 + QLoRA (CandleQlora plugin local; container image on cloud), vLLM (serving + guided decoding), RunPod/Vast.ai REST APIs, BFCL + MultiPL-E evals.
+**Architecture:** One pinned Qwen3 dense base (revision-locked) + LoRA adapters; tools/skills served by an embedder-backed retrieval + schema-constrained decoding (never fine-tuned); cloud spot training via the existing trait-based `cloud/` module with provenance manifests; adapters validated offline (vLLM serving wired but gated behind a compat spike, off the v1 critical path).
 
-**Spec:** `docs/superpowers/specs/2026-06-21-voxmens-finetuning-architecture-design.md`
-**Research:** `docs/src/architecture/voxmens-finetuning-boundaries-research-2026-06-21.md`
+**Tech Stack:** Rust (vox-populi, vox-corpus, vox-ml-cli, vox-orchestrator-mcp), Qwen3 + QLoRA (CandleQlora plugin local; container on cloud), a ~0.6B embedder, vLLM (serving + guided decoding, v2-promoted), RunPod/Vast.ai REST, BFCL + MultiPL-E evals, existing `vox-similarity` for dedup.
+
+**Spec:** `docs/superpowers/specs/2026-06-21-voxmens-finetuning-architecture-design.md` · **Research:** `docs/src/architecture/voxmens-finetuning-boundaries-research-2026-06-21.md`
 
 ---
 
-## How to execute (workflow shape for Sonnet 4.6)
-
-Phases are labelled **B0..B8** with explicit dependency + parallelism markers:
+## How to execute (workflow shape — corrected for parallel-write safety)
 
 ```
-B0 (foundations/contracts)  ── sequential, FIRST (everyone depends on it)
+B0 (foundations/contracts/provenance) ── SEQUENTIAL, FIRST
         │
-        ├──► B1 (harness corpora)        [PARALLEL track 1]  ── 2 sub-agents (selection | arg-gen)
-        ├──► B2 (vox/rust corpus gating) [PARALLEL track 2]  ── 2 sub-agents (vox | rust)
-        ├──► B3 (tool retrieval)         [PARALLEL track 3]
-        ├──► B4 (schema-constrained dec) [PARALLEL track 4]
-        └──► B5 (cloud spot pipeline)    [PARALLEL track 5]  ── the long pole
-        │
-        ├──► B6 (vLLM multi-LoRA serving) [needs B0; parallel to corpora/cloud]
-        └──► B7 (BFCL + per-spoke gates)  [needs B0; parallel]
-        │
+   ┌────┴───────── parallel TRACKS, each in ITS OWN GIT WORKTREE ──────────┐
+   │  T1: B1 (harness corpora)   ── 2 sub-agents (selection | arg-gen)      │
+   │  T2: B2 (vox/rust readiness + B2.5 data-sufficiency spike)             │
+   │  T3: B3 (embedder + tool retrieval)                                    │
+   │  T5: B5 (cloud spot pipeline) ── long pole                            │
+   └───────────────────────────────────────────────────────────────────────┘
+        │   (B4 schema-guided needs B0;  B6 serving needs B0 AND B4 → NOT parallel with B4)
         ▼
-B8 (end-to-end: train 4 adapters on RunPod → gate → register → serve → validate parity)
-        └── sequential, LAST (depends on B1,B2,B3,B4,B5,B6,B7)
+B-INT (integration): merge worktrees, resolve mod.rs/lib.rs, run full workspace test  ── SEQUENTIAL
+        ▼
+B4 (schema-guided decoding) → B6 (serving compat spike + wiring)  ── SEQUENTIAL chain
+        ▼
+B7 (evals: baseline-first, leakage guard, gates)  ── after B-INT
+        ▼
+B8 (smoke spoke → fan-out train → offline-validate → parity gap report)  ── SEQUENTIAL, LAST, money-gated
 ```
 
-**Recommended workflow (one phase per `agent()` stage, fan-out inside a phase):**
-- A `pipeline()` is wrong here (phases have a barrier at B8). Use `parallel()` for B1–B7 after B0, then a final B8 stage.
-- Within B1 and B2, fan out 2 sub-agents each (one per corpus). Within B5, the sub-tasks are sequential (job-submit → logs → checkpoints) — single agent.
-- **Each code phase ends in a green `cargo test -p <crate>` gate; each ML phase ends in a corpus-readiness or eval gate.** Never advance a phase on red.
-- **Cost guard:** B5/B8 spend real money. The eval-gate + budget ledger (`VOX_CLOUD_MAX_BUDGET`) must pass before any `--remote` run; B8 is the ONLY phase that provisions paid GPUs.
+**Parallel-write rule (this was a bug in rev 1).** `crates/vox-corpus/src/corpus/mod.rs` (touched by B1.1/B1.2/B1.3/B2.1) and `crates/vox-orchestrator-mcp/src/lib.rs` (B3/B4) are shared files. Do **not** let parallel agents edit them concurrently. Two enforced mechanisms:
+1. **Worktree-per-track** (repo uses `superpowers:using-git-worktrees`): T1/T2/T3/T5 each run in their own worktree off the B0 commit.
+2. **A single sequential `B-INT` integration task** merges the tracks, resolves the `mod.rs`/`lib.rs` module-declaration conflicts by hand, and runs `cargo test --workspace --exclude vox-gui --locked`. No track edits another track's files.
+- `B6` depends on `B4` (it calls `attach_guided_decoding`) — sequence them, never parallel.
+- All `min_readiness`/`domain-profiles.yaml` edits live in **B0** (not a parallel phase) — it is the SSOT everyone reads.
 
-**Windows/CI gotchas (this repo):** never pipe `cargo` to `head`/`grep` (process leak — redirect to a file); never `cargo fmt --all` (use `cargo fmt -p <crate>`); `vox ci` is freshness-gated (`VOX_SKIP_FRESHNESS_CHECK=1` for in-loop runs); docs under `docs/src/` need `category:` frontmatter (these plan/spec files do not).
+**Recommended workflow primitive:** `parallel()` for the 4 tracks (barrier), each thunk using `isolation: 'worktree'`; then a sequential `agent()` for B-INT; then the B4→B6 chain; then B7; then B8.
+
+**Money/safety gates (machine-enforceable, not prose):** B5.5 and B8 provisioning require the env sentinel `VOX_MENS_ALLOW_SPEND=1` AND `--apply`; absent either, the orchestration prints the plan and exits 0 without provisioning. The executor cannot set `VOX_MENS_ALLOW_SPEND` itself.
+
+**Repo gotchas:** never pipe `cargo` to `head`/`grep` (redirect to file); `cargo fmt -p <crate>` only (never `--all`); `VOX_SKIP_FRESHNESS_CHECK=1` for in-loop `vox ci`; docs under `docs/src/` need `category:` frontmatter (these files don't); secrets via `vox_secrets::resolve_secret`, never `std::env::var`.
 
 ---
 
 ## File structure map
 
-**Create:**
-- `crates/vox-corpus/src/corpus/tool_selection_synth.rs` — selection-adapter SFT corpus from the real tool surface
-- `crates/vox-corpus/src/corpus/argument_generation_synth.rs` — arg-gen SFT corpus (schema-grounded)
-- `crates/vox-corpus/src/corpus/corpus_readiness.rs` — volume+diversity gate per spoke
-- `crates/vox-orchestrator-mcp/src/tool_retrieval.rs` — semantic top-K tool selection
-- `crates/vox-orchestrator-mcp/src/schema_guided.rs` — schema→grammar bridge for constrained decoding
-- `crates/vox-populi/src/mens/cloud/job.rs` — remote job submission/poll/log/checkpoint flow
-- `crates/vox-populi/src/mens/serving/mod.rs` + `vllm_lora.rs` — vLLM multi-LoRA client + DomainRouter wiring
-- `crates/vox-ml-cli/src/commands/mens/eval_gate/bfcl.rs` — BFCL metric producer + gate handler
-- `mens/config/mix-tool-selection.yaml`, `mens/config/mix-argument-generation.yaml`
-- `mens/config/eval-gates-bfcl.yaml`
+**Create:** `crates/vox-corpus/src/corpus/{tool_selection_synth.rs, argument_generation_synth.rs, harness_union.rs, corpus_readiness.rs, eval_split.rs}` · `crates/vox-orchestrator-mcp/src/{tool_retrieval.rs, schema_guided.rs}` · `crates/vox-populi/src/mens/serving/{mod.rs, vllm_lora.rs}` (v2-gated) · `crates/vox-populi/src/mens/tensor/adapter_card.rs` · `crates/vox-ml-cli/src/commands/mens/eval_gate/{bfcl.rs, baseline.rs, leakage.rs}` · `mens/config/{mix-tool-selection.yaml, mix-argument-generation.yaml, mix-harness.yaml, eval-gates-bfcl.yaml}`
 
-**Modify:**
-- `mens/config/domain-profiles.yaml` — 4-spoke set; retire others; Qwen3 base aliases
-- `mens/config/gpu-specs.yaml` + `contracts/mens/training-presets.v1.yaml` — Qwen3 rung presets
-- `crates/vox-populi/src/mens/tensor/spoke_base_resolver.rs` — Qwen3 ladder tags
-- `crates/vox-populi/src/mens/tensor/domain_router.rs` — adapter-name lookup for serving
-- `crates/vox-ml-cli/src/commands/mens/` — `train --remote` wiring; new pipeline stages for the 2 corpora
-- `crates/vox-orchestrator-mcp/src/lib.rs` — register tool_retrieval + schema_guided in the request path
+**Modify:** `mens/config/{domain-profiles.yaml, gpu-specs.yaml}` · `contracts/mens/training-presets.v1.yaml` + `crates/vox-populi/src/mens/tensor/preset_schema.rs` · `crates/vox-populi/src/mens/tensor/{spoke_base_resolver.rs, domain_router.rs}` · `crates/vox-populi/src/mens/cloud/{part_jobs.rs, mod.rs, runpod_provider.rs, resolver.rs}` · `crates/vox-ml-cli/src/commands/mens/{train_arm.rs, eval_gate/{check_run.rs, policy.rs}}` · `crates/vox-corpus/src/corpus/{mod.rs, agentic_synth.rs}` · `crates/vox-orchestrator-mcp/src/{input_schemas.rs (widen `tool_input_schema` to `pub`), constrained_decoding.rs (add `SchemaGuided`), lib.rs}`
 
 ---
 
-## Phase B0 — Foundations & contracts  `[SEQUENTIAL — FIRST]`
+## Phase B0 — Foundations, contracts, provenance  `[SEQUENTIAL — FIRST; single agent]`
 
-**Goal:** Land the SSOT changes every other phase reads. No model training. Small, fast, blocks everything.
+### Task B0.0: Confirm the 4 load-bearing 🟡 research claims (no code)
+The architecture rests on these; the research's adversarial pass was rate-limited. Confirm each with **2–3 targeted WebFetch in small clusters** (the repo's documented rate-safe pattern), record results in the research doc:
+- [ ] Qwen3 dense ladder rungs + native function-calling (re-fetch Qwen3 repo). [ ] "New tools without retraining via retrieval" (2509.20415 full text). [ ] vLLM runtime-LoRA + guided_json viability + version. [ ] Rust-vs-Vox separate-vs-shared adapter (Agnostics). **Gate:** any claim that fails confirmation triggers a design note before building on it. Commit the updated research doc.
 
-**Sub-agent fan-out:** none (single agent; it's config + resolver edits that conflict if parallel).
+### Task B0.1: 4-spoke set + retire others + route review→base
+**Files:** Modify `mens/config/domain-profiles.yaml`, test in `crates/vox-populi/src/mens/tensor/domain_profiles.rs`
+- [ ] **Failing test:** the fine-tuned set (profiles with a `base.method: qlora`) is exactly `{vox-lang, rust, tool-selection, argument-generation}`; `harness` exists as a union profile; retired profiles (`chat/research/research-expert/rocks/populi-meta`) have **no `base`**; a profile/router entry maps `lane:vox_rust_review` to base (no adapter).
+- [ ] **Run → FAIL.**
+- [ ] **Edit YAML:** split the current `agents` profile into `tool-selection` + `argument-generation` (+ a `harness` union profile for the v1 mono smoke), base alias `agentic_default`; keep `vox-lang`/`rust`; strip `base:` from retired profiles; add the review→base routing row; header comment documenting the v1 mono-first sequencing.
+- [ ] **Run → PASS.** Then `VOX_SKIP_FRESHNESS_CHECK=1 vox ci spoke-check` OK.
+- [ ] **Commit.**
 
-### Task B0.1: Define the 4-spoke set in domain-profiles.yaml
-**Files:** Modify `mens/config/domain-profiles.yaml`
+### Task B0.2: Retired-spoke consumer audit (correctness)
+- [ ] Grep every consumer of the retired profiles (`rocks/research/...`) and assert none resolves a `base`/adapter for them (a stripped `base:` must fail-closed, not panic/fail-open). Add a regression test if a consumer assumes a base. Commit.
 
-- [ ] **Step 1 — write the failing test** (`crates/vox-populi/src/mens/tensor/domain_profiles.rs` tests):
-```rust
-#[test]
-fn v1_spoke_set_is_exactly_four_finetuned() {
-    let root = repo_root();
-    let file = DomainProfilesFile::load(Some(&root)).expect("load");
-    let finetuned: Vec<_> = file.profiles.iter()
-        .filter(|(_, p)| p.base.as_ref().map(|b| b.method == TrainMethod::Qlora).unwrap_or(false))
-        .map(|(k, _)| k.clone()).collect();
-    let mut got = finetuned.clone(); got.sort();
-    assert_eq!(got, vec!["argument-generation","rust","tool-selection","vox-lang"],
-        "v1 fine-tuned spokes must be exactly these 4; retired spokes must not set a qlora base");
-}
-```
-- [ ] **Step 2 — run, expect FAIL** (`agents` is the only harness spoke today; `tool-selection`/`argument-generation` don't exist): `cargo test -p vox-populi --lib v1_spoke_set_is_exactly_four_finetuned`
-- [ ] **Step 3 — edit `domain-profiles.yaml`:** rename/split `agents` into two profiles `tool-selection` and `argument-generation` (each `base.method: qlora`, base alias `agentic_default`, preset to be set in B0.3); keep `vox-lang` + `rust`; **remove `base:` from** `rocks`, `research`, `research-expert`, `populi-meta` (they become dynamic/hub — keep the profiles for context_filter docs but with no `base`). Add a top-of-file comment: "V1 fine-tuned spokes = vox-lang, rust, tool-selection, argument-generation. All others are served by hub + retrieval (see spec)."
-- [ ] **Step 4 — run, expect PASS.** Also run `VOX_SKIP_FRESHNESS_CHECK=1 cargo run -q -p vox-cli -- ci spoke-check > /tmp/sc.txt 2>&1; grep -i "OK\|error" /tmp/sc.txt` → spoke-check OK.
-- [ ] **Step 5 — commit:** `git add mens/config/domain-profiles.yaml crates/vox-populi/src/mens/tensor/domain_profiles.rs && git commit -m "feat(mens): v1 4-spoke set (vox/rust/tool-selection/argument-generation)"`
+### Task B0.3: Qwen3 ladder + per-tier table in resolver  `[CODEBASE-FIT: real API]`
+**Files:** Modify `crates/vox-populi/src/mens/tensor/spoke_base_resolver.rs` (real fns are `pick_base(overlay, tag, vram_mb)` and `resolve_base_model(root, base_model, vram_override)` — do NOT invent `resolve_base_for_vram`), `mens/config/gpu-specs.yaml` (add a `train_bases:` overlay section)
+- [ ] **Failing test** using the REAL fn: `pick_base(&overlay, "qwen3_code", 24_000)` returns a concrete `Qwen/Qwen3-14B@<revision>` (revision-pinned), and `pick_base(&overlay, "qwen3_code", 4_000)` returns `Err` (fail-closed below floor). Add a `prefer (larger rung, then less quantization)` ordering test that picks 14B-LoRA over 14B-QLoRA at 48 GB.
+- [ ] **Run → FAIL.**
+- [ ] **Implement:** add the full CPU/16/24/48/96 GB `train_bases:` table (rung → pinned HF id+revision → min VRAM → method) to `gpu-specs.yaml`; extend the resolver tag table + ordering. Map `small_code_default`→smallest fitting, `strong_code_default`/`agentic_default`→largest fitting rung.
+- [ ] **Run → PASS. Commit.**
 
-### Task B0.2: Qwen3 ladder tags in spoke_base_resolver
-**Files:** Modify `crates/vox-populi/src/mens/tensor/spoke_base_resolver.rs`, `mens/config/gpu-specs.yaml`
+### Task B0.4: Qwen3 presets (incl. dev/CPU tier)  `[CODEBASE-FIT]`
+**Files:** Modify `contracts/mens/training-presets.v1.yaml` + `KNOWN_PRESETS` in `crates/vox-populi/src/mens/tensor/preset_schema.rs` (existing parity test enforces YAML↔Rust)
+- [ ] **Failing test:** `KNOWN_PRESETS` contains `qwen3_dev_cpu`, `qwen3_16g`, `qwen3_24g`, `qwen3_48g`, `qwen3_96g`; parity test red until both sides match.
+- [ ] **Add presets** (seq_len, batch, grad_accum, rank/alpha per rung; `qwen3_dev_cpu` = 0.6B r8 for smoke). **Run parity → PASS. Commit.**
 
-- [ ] **Step 1 — failing test:** assert `resolve_base("qwen3_code", vram_mb=24000)` returns a concrete Qwen3 HF id (e.g. `Qwen/Qwen3-14B`) and that a too-big rung fails closed:
-```rust
-#[test]
-fn qwen3_ladder_resolves_by_vram_and_fails_closed() {
-    let r = resolve_base_for_vram("qwen3_code", 24_000).expect("fits");
-    assert!(r.contains("Qwen/Qwen3-"), "got {r}");
-    assert!(resolve_base_for_vram("qwen3_code", 6_000).is_err(), "must fail closed when no rung fits");
-}
-```
-- [ ] **Step 2 — run, expect FAIL.**
-- [ ] **Step 3 — implement:** add the Qwen3 dense-ladder mapping (rung → HF id → min VRAM at QLoRA) to `gpu-specs.yaml`'s `train_bases` overlay and the resolver's tag table. Map aliases `small_code_default`→smallest fitting Qwen3, `strong_code_default`/`agentic_default`→largest fitting Qwen3 rung.
-- [ ] **Step 4 — run, expect PASS.**
-- [ ] **Step 5 — commit.**
+### Task B0.5: Adapter provenance contract (correctness — the BLOCK item)
+**Files:** Create `crates/vox-populi/src/mens/tensor/adapter_card.rs`; Modify `domain_router.rs`
+- [ ] **Failing test:** `AdapterCard { base_hf_id, base_revision, base_rung, quantization, lora_rank, lora_alpha, seed, corpus_hash, preset_version, metrics, cost_usd, provider, git_sha, created }`; `DomainRouter::register` requires a card and **errors if base_rung/quantization/base_revision are missing**; a `card.is_compatible_with(serve_rung, serve_quant)` returns false on mismatch.
+- [ ] **Run → FAIL.**
+- [ ] **Implement** `AdapterCard` + `adapter_card.json` sidecar writer/reader; change `DomainRouter::register(&mut self, domain, adapter_path, card)` (update existing callers/tests). 
+- [ ] **Run → PASS. Commit.**
 
-### Task B0.3: Qwen3 presets
-**Files:** Modify `contracts/mens/training-presets.v1.yaml` + `crates/vox-populi/src/mens/tensor/preset_schema.rs`
-- [ ] **Step 1 — failing test:** `KNOWN_PRESETS` contains `qwen3_24g` and `qwen3_a100_80g`; the YAML↔Rust parity test fails until both sides match.
-- [ ] **Step 2 — run, expect FAIL.**
-- [ ] **Step 3 — add presets** to both files (seq_len, batch, grad_accum, rank/alpha per rung) keeping the existing parity contract.
-- [ ] **Step 4 — run parity test, expect PASS.**
-- [ ] **Step 5 — commit.**
+### Task B0.6: Declare the embedder hub
+**Files:** Modify `mens/config/domain-profiles.yaml` (add `hub: { base: <qwen3 alias>, embedder: <pinned ~0.6B embedder id@rev> }`)
+- [ ] **Failing test:** the loader exposes `hub.embedder` as a required, non-empty, revision-pinned id. Implement. **PASS. Commit.**
 
-**Phase B0 gate:** `cargo test -p vox-populi --lib` green; `vox ci spoke-check` OK.
+**B0 gate:** `cargo test -p vox-populi --lib` green; `vox ci spoke-check` OK; research open-items recorded.
 
 ---
 
-## Phase B1 — Harness corpora (tool-selection + argument-generation)  `[PARALLEL track 1; 2 sub-agents]`
-
-**Goal:** Generate two SFT corpora from the REAL Vox surface so the harness learns the *grammar* of tool use, not specific tools. Depends on B0. The two corpora are independent → **fan out 2 sub-agents** (one per file).
-
-**Reuse:** `agentic_synth.rs` already builds tool-use rows from `TOOL_REGISTRY_SLIM` + `CLI_COMMANDS` + `SkillRegistry`. B1 *specializes* that into the two decomposed tasks.
+## Phase B1 — Harness corpora + union  `[TRACK T1 — own worktree; 2 sub-agents]`
 
 ### Task B1.1: tool-selection corpus  `[sub-agent A]`
-**Files:** Create `crates/vox-corpus/src/corpus/tool_selection_synth.rs`; Create `mens/config/mix-tool-selection.yaml`; Modify `crates/vox-corpus/src/corpus/mod.rs`
-
-- [ ] **Step 1 — failing test:** a generated row is `{task, candidate_tools[], chosen_tool}` where `chosen_tool ∈ candidate_tools`, candidates include hard negatives (sibling tools), and `lane == "vox_tool_selection"`:
-```rust
-#[test]
-fn selection_rows_have_chosen_within_candidates_and_negatives() {
-    let rows = generate_tool_selection_rows(&sample_surface(), 50);
-    assert!(!rows.is_empty());
-    for r in &rows {
-        let cands = r["candidate_tools"].as_array().unwrap();
-        assert!(cands.len() >= 4, "need distractors");
-        assert!(cands.iter().any(|c| c == &r["chosen_tool"]), "chosen must be a candidate");
-        assert_eq!(r["lane"], "vox_tool_selection");
-    }
-}
-```
-- [ ] **Step 2 — run, expect FAIL.**
-- [ ] **Step 3 — implement** `generate_tool_selection_rows(surface, n)`: for each real tool, build a task prompt from its description, sample K-1 hard-negative sibling tools (same product_lane) + the correct one as candidates, emit the selection row. Add `pub mod tool_selection_synth;`.
-- [ ] **Step 4 — run, expect PASS.**
-- [ ] **Step 5 — commit.**
+**Files:** Create `tool_selection_synth.rs`, `mens/config/mix-tool-selection.yaml`; the `corpus/mod.rs` `pub mod` declaration is added in **B-INT** (not here — avoids the shared-file conflict; in-worktree, declare via a track-local module path so tests compile)
+- [ ] **Failing test:** `generate_tool_selection_rows(&surface, 50)` rows are `{task, candidate_tools[], chosen_tool, lane:"vox_tool_selection"}` with ≥4 candidates incl. hard negatives (same `product_lane` siblings) and `chosen ∈ candidates`. Use real `input_schemas::tool_input_schema` (widen to `pub`) + `tool_aliases::canonical_tool_name` for names.
+- [ ] **Run → FAIL → implement → PASS → commit (in worktree).**
+- [ ] **Licensing assertion:** add a test that rows are rule-based-from-surface (no frontier-teacher text fields). 
+- [ ] **Curriculum:** `mix-tool-selection.yaml` carries an explicit schedule (single-tool → large-catalog hard-negatives).
 
 ### Task B1.2: argument-generation corpus  `[sub-agent B]`
-**Files:** Create `crates/vox-corpus/src/corpus/argument_generation_synth.rs`; Create `mens/config/mix-argument-generation.yaml`; Modify `mod.rs`
+**Files:** Create `argument_generation_synth.rs`, `mens/config/mix-argument-generation.yaml`
+- [ ] **Failing test:** rows `{task, tool_name, tool_schema, arguments, lane:"vox_argument_generation"}` where `arguments` validates against `tool_schema` (shared `schema_validate` helper, draft-07 subset). Curriculum: flat → nested/enum/optional. Licensing assertion as B1.1.
+- [ ] **FAIL → implement → PASS → commit.**
 
-- [ ] **Step 1 — failing test:** a generated row is `{task, tool_name, tool_schema, arguments}` where `arguments` validates against `tool_schema` (use the same JSON-schema check the runtime uses), `lane == "vox_argument_generation"`:
-```rust
-#[test]
-fn arg_rows_validate_against_their_schema() {
-    let rows = generate_argument_generation_rows(&sample_surface(), 50);
-    assert!(!rows.is_empty());
-    for r in &rows {
-        let schema = &r["tool_schema"];
-        let args = &r["arguments"];
-        assert!(crate::corpus::schema_validate(schema, args), "args must satisfy schema for {}", r["tool_name"]);
-        assert_eq!(r["lane"], "vox_argument_generation");
-    }
-}
-```
-- [ ] **Step 2 — run, expect FAIL.**
-- [ ] **Step 3 — implement** `generate_argument_generation_rows`: pull each tool's JSON schema from `input_schemas::tool_input_schema`, synthesize valid argument objects (respecting required/enum/min-max), emit row. Add a small `schema_validate` helper (draft-07 subset) if one isn't already shared.
-- [ ] **Step 4 — run, expect PASS.**
-- [ ] **Step 5 — commit.**
+### Task B1.3: harness union corpus (for the v1 mono smoke)
+**Files:** Create `harness_union.rs`, `mens/config/mix-harness.yaml`
+- [ ] **Failing test:** `generate_harness_rows` = selection + arg-gen rows merged into a single tool-call SFT format (`lane:"vox_harness"`), preserving the curriculum order. Implement. PASS. Commit.
 
-### Task B1.3: wire both as pipeline stages
-**Files:** Modify `crates/vox-ml-cli/src/commands/mens/populi/action_prelude.rs` (+ `pipeline.rs`) — add stages `ToolSelectionSynth`, `ArgumentGenerationSynth` BEFORE `Mix`; Modify `corpus/mod.rs` CorpusAction.
-- [ ] **Step 1 — failing test:** `PipelineStage::as_str` covers both new stages; `all_possible_stages` orders them before `Mix`. (Mirror the existing `AgentTraceIngest`/`ReviewToDpo` wiring.)
-- [ ] **Step 2-4 — TDD** as in the existing stage pattern.
-- [ ] **Step 5 — commit.**
+### Task B1.4: seeded train/eval split at generation time (leakage guard)
+**Files:** Create `eval_split.rs`
+- [ ] **Failing test:** `split_surface(seed, eval_frac)` partitions tools/skills **by identity** (a tool is wholly in train xor eval, never split by row); emits `split_manifest.json`; deterministic for a fixed seed. Implement; wire all B1 generators to honor the split. PASS. Commit.
 
-**Phase B1 gate:** `cargo test -p vox-corpus --lib corpus::tool_selection_synth corpus::argument_generation_synth` green; running `vox mens corpus` for both lanes produces ≥ the readiness threshold rows (see B2.3 gate).
+**B1 gate:** `cargo test -p vox-corpus --lib` (in worktree) green for the new modules.
 
 ---
 
-## Phase B2 — Vox & Rust corpus readiness  `[PARALLEL track 2; 2 sub-agents]`
+## Phase B2 — Vox/Rust readiness + data-sufficiency spike  `[TRACK T2 — own worktree; 2 sub-agents]`
 
-**Goal:** The vox-lang and rust spokes already have corpora (mix-vox-lang.yaml, mix-rust.yaml) — ensure VOLUME + DIVERSITY so training is worth it. Add a readiness gate. Depends on B0. Two independent spokes → **2 sub-agents**.
+### Task B2.1: corpus-readiness gate
+**Files:** Create `corpus_readiness.rs`
+- [ ] **Failing test:** `assess_corpus_readiness(jsonl, MinReadiness{rows, ast_diversity})` → `{rows, ast_diversity, rows_ok, diversity_ok, ready}`; reuse `vox_eval::eval_semantic_entropy` for diversity (VERIFY it exists; if not, compute n-gram/AST entropy locally). Implement. PASS. Commit.
 
-### Task B2.1: corpus-readiness gate module
-**Files:** Create `crates/vox-corpus/src/corpus/corpus_readiness.rs`; Modify `mod.rs`
-- [ ] **Step 1 — failing test:**
-```rust
-#[test]
-fn readiness_requires_min_rows_and_diversity() {
-    let report = assess_corpus_readiness(&jsonl_path, MinReadiness{ rows: 2000, ast_diversity: 0.40 });
-    assert!(report.rows_ok == (report.rows >= 2000));
-    assert!(report.diversity_ok == (report.ast_diversity >= 0.40));
-    assert_eq!(report.ready, report.rows_ok && report.diversity_ok);
-}
-```
-- [ ] **Step 2 — run, expect FAIL.**
-- [ ] **Step 3 — implement** `assess_corpus_readiness` reusing `vox_eval::eval_semantic_entropy` for `ast_diversity`.
-- [ ] **Step 4 — run, expect PASS.**
-- [ ] **Step 5 — commit.**
+### Task B2.2: `vox mens corpus readiness --spoke <name>` command + thresholds
+**Files:** Modify `crates/vox-ml-cli/src/commands/corpus/mod.rs`; thresholds already added to `domain-profiles.yaml` in **B0**.
+- [ ] TDD a `CorpusAction::Readiness` writing `corpus_readiness.json`, exit non-zero when not ready. Commit.
 
-### Task B2.2: `vox mens corpus readiness --spoke <name>` command + CI gate
-**Files:** Modify `crates/vox-ml-cli/src/commands/corpus/mod.rs` (+ stats.rs)
-- [ ] TDD a `CorpusAction::Readiness` that prints a `corpus_readiness.json` and exits non-zero when not ready. Commit.
+### Task B2.5: data-sufficiency spike (the real critical path — runs BEFORE any spend)
+**Files:** none new (procedure + a `data_sufficiency.json` report)
+- [ ] **Run every synth generator at full scale** (vox, rust, tool-selection, arg-gen, harness) and report actual rows + diversity vs the B0 thresholds. **Decision branch, recorded in the report:** (a) all ready → proceed to B8; (b) any thin → v1 deliverable becomes "pipeline + the corpora we can build," that spoke is **blocked from training** (grow corpus first), and parity for it is explicitly out of reach. **No cloud GPU may be provisioned until this report shows ≥1 spoke ready.** Commit the report.
 
-### Task B2.3: per-spoke readiness thresholds in config
-**Files:** Modify `mens/config/domain-profiles.yaml` (add `min_readiness:` per spoke)
-- [ ] Add `min_readiness: { rows: <n>, ast_diversity: 0.40 }` to all 4 fine-tuned spokes (vox/rust: rows 3000; tool-selection/argument-generation: rows 2000). Commit.
-
-**Phase B2 gate:** `vox mens corpus readiness --spoke vox-lang|rust|tool-selection|argument-generation` all report `ready: true`. **This gate blocks B8 training for any spoke that isn't ready** (the executor must grow the corpus first — flag it, don't train on thin data).
+**B2 gate:** readiness command works; `data_sufficiency.json` committed; sufficiency decision recorded.
 
 ---
 
-## Phase B3 — Dynamic layer: semantic tool retrieval  `[PARALLEL track 3]`
+## Phase B3 — Embedder + semantic tool retrieval  `[TRACK T3 — own worktree]`
 
-**Goal:** Inject only top-K relevant tool schemas per task instead of the whole registry. New skill = new registry row → retrievable immediately, no retraining. Depends on B0. Independent of corpora.
+### Task B3.1: tool-retrieval module (embedder-backed, BM25 = warned degraded mode)
+**Files:** Create `tool_retrieval.rs`; `lib.rs` `pub mod` added **in B-INT**
+- [ ] **Failing test 1 (lexical-friendly):** `select_tools(&reg, "what files changed in the repo", 5)` returns ≤5 with the git-status tool in **top-K** (assert in-top-K, not top-1 — brittle otherwise).
+- [ ] **Failing test 2 (semantics, the important one):** a **paraphrased** task ("show me my uncommitted edits") that BM25 misses but the embedder surfaces — proves semantics are wired, not lexical luck. Skip-with-warning if `hub.embedder` unavailable, and the gate **warns** on degraded mode.
+- [ ] **Run → FAIL → implement** using the declared `hub.embedder` (B0.6); BM25 fallback emits a degraded-mode warning. **PASS → commit.**
 
-### Task B3.1: tool-retrieval module
-**Files:** Create `crates/vox-orchestrator-mcp/src/tool_retrieval.rs`; Modify `lib.rs`
-- [ ] **Step 1 — failing test:** given a task string and the tool registry, `select_tools(task, k)` returns ≤ k tools ranked by similarity, and a task clearly about one tool surfaces it in the top-1:
-```rust
-#[test]
-fn retrieval_surfaces_relevant_tool_top1() {
-    let reg = test_registry(); // includes vox_git_status, vox_repo_query_text, ...
-    let hits = select_tools(&reg, "what files changed in the repo", 5);
-    assert!(hits.len() <= 5);
-    assert_eq!(hits[0].name, "vox_git_status");
-}
-```
-- [ ] **Step 2 — run, expect FAIL.**
-- [ ] **Step 3 — implement** `select_tools`: embed task + tool descriptions (reuse the existing retrieval/embedding infra in `memory_tools/retrieval.rs`; if a local embedder isn't available, fall back to BM25/lexical over name+description — the module already has a lexical fallback path). Rank, return top-K with schema.
-- [ ] **Step 4 — run, expect PASS.**
-- [ ] **Step 5 — commit.**
-
-### Task B3.2: wire retrieval into the tool-call request path
-**Files:** Modify `crates/vox-orchestrator-mcp/src/lib.rs` (the place that assembles tool context for a model turn)
-- [ ] TDD: a request with N≫K registered tools sends only top-K schemas to the model; assert the assembled context contains the retrieved subset, not the full registry. Commit.
-
-**Phase B3 gate:** `cargo test -p vox-orchestrator-mcp --lib tool_retrieval` green; an integration test shows context size bounded by K regardless of registry size.
+**B3 gate:** both retrieval tests green with the embedder present; degraded-mode path warns.
 
 ---
 
-## Phase B4 — Dynamic layer: schema-constrained decoding at generation  `[PARALLEL track 4]`
-
-**Goal:** Emitted tool-call args are schema-valid by construction (not post-hoc). Adopt vLLM guided decoding / XGrammar; do not hand-roll. Depends on B0. Independent.
-
-### Task B4.1: schema→grammar bridge
-**Files:** Create `crates/vox-orchestrator-mcp/src/schema_guided.rs`; Modify `constrained_decoding.rs`
-- [ ] **Step 1 — failing test:** `to_guided_decoding_spec(schema)` produces a vLLM `guided_json` request field equal to the tool's JSON schema (vLLM consumes JSON-schema directly via `guided_json`):
-```rust
-#[test]
-fn schema_becomes_guided_json_request() {
-    let schema = serde_json::json!({"type":"object","required":["path"],"properties":{"path":{"type":"string"}}});
-    let spec = to_guided_decoding_spec(&schema);
-    assert_eq!(spec["guided_json"], schema);
-    assert_eq!(spec["guided_decoding_backend"], "xgrammar");
-}
-```
-- [ ] **Step 2 — run, expect FAIL.**
-- [ ] **Step 3 — implement** `to_guided_decoding_spec`: map a tool's `input_schemas::tool_input_schema` result into the vLLM sampling-params `guided_json` + `guided_decoding_backend: xgrammar`. Extend `ConstrainedDecodingMode` with a `SchemaGuided(serde_json::Value)` variant.
-- [ ] **Step 4 — run, expect PASS.**
-- [ ] **Step 5 — commit.**
-
-### Task B4.2: thread the schema for the selected tool into the generation request
-**Files:** Modify the serving request builder (B6's `vllm_lora.rs` once it exists, else stub the seam here)
-- [ ] TDD: when the harness has selected a tool, the generation request carries that tool's `guided_json`. (If B6 not yet merged, land the pure mapping + a seam fn `attach_guided_decoding(req, tool)`; B6 calls it.) Commit.
-
-**Phase B4 gate:** `cargo test -p vox-orchestrator-mcp --lib schema_guided` green.
+## Phase B-INT — Integration  `[SEQUENTIAL — after T1/T2/T3/T5 worktrees]`
+- [ ] Merge the track worktrees. Resolve `corpus/mod.rs` (`pub mod tool_selection_synth/argument_generation_synth/harness_union/corpus_readiness/eval_split`) and `lib.rs` (`pub mod tool_retrieval`) by hand. Add `CorpusAction`/`PipelineStage` variants (`ToolSelectionSynth`, `ArgumentGenerationSynth`, `HarnessSynth`) to the enum **and** its `as_str` match in `action_prelude.rs` (there is no `all_possible_stages()` — edit the enum + match directly), ordered before `Mix`.
+- [ ] Run `cargo test --workspace --exclude vox-gui --locked` (redirect to a file). Gate: green. Commit the integration.
 
 ---
 
-## Phase B5 — Cloud spot pipeline completion (RunPod default)  `[PARALLEL track 5 — LONG POLE; single agent, sequential sub-tasks]`
-
-**Goal:** Complete the 3 missing pieces in `crates/vox-populi/src/mens/cloud/`: job submission, log streaming, checkpoint sync — exposed as `vox mens train --remote`. RunPod default; Vast opt-in. Depends on B0. **Sub-tasks are sequential** (submit → poll/logs → checkpoints → orchestrate). No paid GPU is provisioned in B5 except one tiny smoke run gated behind `--apply` (see B5.5).
-
-### Task B5.1: job submission (RunPod)
-**Files:** Create `crates/vox-populi/src/mens/cloud/job.rs`; Modify `cloud/mod.rs`, `cloud/runpod_provider.rs`
-- [ ] **Step 1 — failing test** (mock HTTP): `submit_job(provider, JobSpec{ image, gpu, corpus_uri, spoke, preset, budget })` returns a `JobHandle{ id, provider }`; on budget-exceeded it errors before any API call:
-```rust
-#[test]
-fn submit_refuses_over_budget_before_calling_provider() {
-    let spec = JobSpec{ est_cost_usd: 50.0, ..fixture() };
-    let err = submit_job(&MockProvider::recording(), &spec, Budget{ max_usd: 10.0 }).unwrap_err();
-    assert!(matches!(err, JobError::OverBudget{..}));
-    assert_eq!(MockProvider::calls(), 0, "must not hit provider when over budget");
-}
-```
-- [ ] **Step 2 — run, expect FAIL.**
-- [ ] **Step 3 — implement** `submit_job`: estimate via existing `estimator.rs`; check `budget.rs`; build the RunPod create-pod request (image `VOX_CLOUD_IMAGE`, GPU from preset rung, onstart that runs `vox mens train --local` against the synced corpus); return handle. Vast path mirrors via the existing `vast.rs` ask flow.
-- [ ] **Step 4 — run, expect PASS.**
-- [ ] **Step 5 — commit.**
-
-### Task B5.2: log streaming + status poll
-**Files:** Modify `cloud/job.rs`
-- [ ] TDD `poll_job(handle) -> JobStatus{Running{logs_tail}, Succeeded{checkpoint_uri}, Failed{reason}}` against a mock; on `Failed` it must surface the provider reason (not a generic error). Commit.
-
-### Task B5.3: checkpoint sync (down) + corpus sync (up)
-**Files:** Modify `cloud/job.rs`
-- [ ] TDD `sync_corpus_up(local_dir) -> uri` and `sync_checkpoint_down(uri, local_dir) -> adapter_path`. For Vast (spot-interruptible) the design syncs checkpoints **every N minutes**; assert the sync interval is configurable and defaults to frequent (≤10 min). Commit.
-
-### Task B5.4: `vox mens train --remote` orchestration
-**Files:** Modify `crates/vox-ml-cli/src/commands/mens/` (train command), `cloud/mod.rs`
-- [ ] TDD the orchestration ordering with mocked steps: estimate → (budget gate) → sync_corpus_up → submit_job → poll-until-terminal (stream logs) → sync_checkpoint_down → eval-gate → `DomainRouter::register(spoke, adapter_path)`. Assert eval-gate runs BEFORE register and that a failed gate does NOT register. Commit.
-
-### Task B5.5: live smoke (gated, real money, tiny)
-**Files:** none (procedure)
-- [ ] **Procedure (NOT auto-run):** `vox mens train --remote --spoke tool-selection --provider runpod --preset qwen3_24g --max-budget 5 --apply` on a *tiny* corpus subset; confirm the full loop produces a registered adapter for <$5. **Gate:** loop completes, adapter file present, eval-gate ran. This is the proof the pipeline is executable end-to-end before B8 trains all four. **Do not run without explicit human go-ahead** (spends money).
-
-**Phase B5 gate:** `cargo test -p vox-populi --lib cloud::` green; B5.5 smoke deferred to a human-approved moment.
+## Phase B4 — Schema-constrained decoding at generation  `[SEQUENTIAL — after B-INT]`
+**Files:** Create `schema_guided.rs`; Modify `constrained_decoding.rs` (add variant)
+- [ ] **Failing test:** `to_guided_decoding_spec(&schema)` → `{guided_json: <schema>, guided_decoding_backend: <from config>}` (backend from config, **not** a hard-coded string). Add `ConstrainedDecodingMode::SchemaGuided(serde_json::Value)` to the real enum (currently only `None/JsonPrefix/StrictJson`). Add seam fn `attach_guided_decoding(req, tool_schema)`.
+- [ ] **FAIL → implement → PASS → commit.**
 
 ---
 
-## Phase B6 — Serving: vLLM multi-LoRA hot-swap  `[needs B0; parallel to B1-B5]`
+## Phase B5 — Cloud spot pipeline (RunPod default)  `[TRACK T5 — own worktree; sequential sub-tasks]`  `[CODEBASE-FIT: trait-based]`
+**Reality:** job code lives in `cloud/part_jobs.rs` with trait `CloudProvider::{dispatch(offer, spec)->JobHandle, poll_status(handle)->JobStatus}`, `CloudJobSpec`, `BudgetLedger`, `estimator::TimeEstimator`, `CloudResolver`. Extend these — do NOT create `cloud/job.rs`/`submit_job`/`Budget{max_usd}`.
 
-**Goal:** One Qwen3 base + 4 adapters hot-swapped at request time via vLLM runtime LoRA. Wire `DomainRouter`/`route_by_signal` → adapter name. No custom merge.
+### Task B5.1: budget-gated dispatch on the real trait
+- [ ] **Failing test (mock provider):** a `dispatch_training(resolver, CloudJobSpec, &mut BudgetLedger)` wrapper refuses when `BudgetLedger` cumulative + estimate exceeds the cap **before** calling `CloudProvider::dispatch` (assert 0 provider calls). Implement using `TimeEstimator::estimate` + `BudgetLedger`. Secrets via `vox_secrets::resolve_secret("runpod-api-key")` (env fallback). PASS. Commit.
 
-### Task B6.1: vLLM LoRA client
-**Files:** Create `crates/vox-populi/src/mens/serving/mod.rs` + `vllm_lora.rs`
-- [ ] **Step 1 — failing test** (mock HTTP): `ensure_adapter_loaded(name, path)` calls vLLM's `/v1/load_lora_adapter` once and is idempotent (LRU cache — second call no-ops); `chat(req, adapter=name)` sets the model field to the adapter name:
-```rust
-#[test]
-fn adapter_load_is_idempotent_and_chat_targets_adapter() {
-    let s = VllmLora::new(MockVllm::new());
-    s.ensure_adapter_loaded("rust", "/a/rust").unwrap();
-    s.ensure_adapter_loaded("rust", "/a/rust").unwrap();
-    assert_eq!(MockVllm::load_calls(), 1, "idempotent");
-    let req = s.build_chat("write a fn", "rust");
-    assert_eq!(req["model"], "rust");
-}
-```
-- [ ] **Step 2 — run, expect FAIL.**
-- [ ] **Step 3 — implement** `VllmLora`: POST `/v1/load_lora_adapter` (requires `VLLM_ALLOW_RUNTIME_LORA_UPDATING=1`), LRU of loaded names (cap configurable), `build_chat` sets `model=<adapter>` + attaches `guided_json` via B4's `attach_guided_decoding`.
-- [ ] **Step 4 — run, expect PASS.**
-- [ ] **Step 5 — commit.**
+### Task B5.2: poll + log streaming + retention
+- [ ] TDD a poll loop over `CloudProvider::poll_status` that streams logs and **persists them** next to the adapter; on `Failed` surfaces the provider reason. Commit.
 
-### Task B6.2: route_by_signal → adapter
-**Files:** Modify `crates/vox-populi/src/mens/tensor/domain_router.rs`
-- [ ] TDD: `route_by_signal(file, "lane:vox_rust_authoring")` → spoke `rust` → `DomainRouter::route("rust")` → adapter path; serving calls `ensure_adapter_loaded` then `build_chat`. Assert an unknown lane falls back to the base model (no adapter), never errors. Commit.
+### Task B5.3: checkpoint sync + resume + idempotent submit + orphan cleanup
+- [ ] TDD: `sync_corpus_up`/`sync_checkpoint_down` (configurable interval, default ≤10 min); `resume_from_checkpoint(uri)` restarts a fresh pod mid-training (not from scratch); `dispatch` carries an **idempotency key** (retry ≠ second paid pod); an error-path guard/reconciler **terminates orphaned pods**; budget checked against **cumulative** spend incl. retries; provider-side **max-price auto-terminate** set on dispatch. Commit.
 
-**Phase B6 gate:** `cargo test -p vox-populi --lib serving:: domain_router::` green.
+### Task B5.4: `vox mens train --cloud <provider>` orchestration  `[CODEBASE-FIT: --cloud not --remote]`
+**Files:** Modify `crates/vox-ml-cli/src/commands/mens/train_arm.rs` (the real `cloud` param, checked `!= "local"`)
+- [ ] TDD ordering (mocked): estimate → cumulative-budget gate → `--dry-run` prints plan+ready-spokes and exits without provisioning → (with `VOX_MENS_ALLOW_SPEND=1 && --apply`) sync up → dispatch → poll+log → checkpoint down → **eval-gate (beat-base) BEFORE register** → write `training_manifest.json` + `adapter_card.json` → `DomainRouter::register(spoke, adapter, card)` as **challenger**. Assert a failed gate does NOT register. Commit.
+
+### Task B5.5: gated live smoke (real money, tiny)
+- [ ] **Procedure (requires `VOX_MENS_ALLOW_SPEND=1 --apply`, human go-ahead):** train `harness` (mono) on a tiny subset via RunPod for <$5; confirm full loop → registered challenger adapter + manifest + card. This is the executable-pipeline proof before B8.
+
+**B5 gate:** `cargo test -p vox-populi --lib cloud::` green; live smoke deferred to human approval.
 
 ---
 
-## Phase B7 — Evals: BFCL + per-spoke gates  `[needs B0; parallel]`
+## Phase B6 — Serving (vLLM multi-LoRA)  `[SEQUENTIAL — after B4; v1 = wired + spike, promotion is v2]`
 
-**Goal:** Add BFCL for the harness adapters; keep MultiPL-E pass@k + per-spoke gates; target per-spoke Flash/Sonnet parity.
+### Task B6.0: vLLM compatibility spike (real, non-mocked — gates everything serving)
+- [ ] **Procedure:** stand up vLLM on the pinned version with a real Qwen3 base + one trained QLoRA adapter; confirm (a) runtime LoRA load/unload, (b) `guided_json` + the configured backend, (c) **serve quantization matches the QLoRA training quantization** (the silent killer). Record versions in `gpu-specs.yaml`. **Gate:** if any fails, serving stays v2 and B8 validates **offline only** (still a green v1).
 
-### Task B7.1: BFCL metric producer + gate
-**Files:** Create `crates/vox-ml-cli/src/commands/mens/eval_gate/bfcl.rs`; Create `mens/config/eval-gates-bfcl.yaml`; Modify `eval_gate/check_run.rs` + `policy.rs`
-- [ ] **Step 1 — failing test:** mirror the existing `rust_gate_not_applicable_when_metric_absent` pattern — a `bfcl_accuracy` gate reads `eval_results.json`, passes when ≥ threshold, is "not applicable" when absent:
-```rust
-#[test]
-fn bfcl_gate_blocks_below_threshold_and_skips_when_absent() {
-    write_eval(&dir, r#"{"bfcl_accuracy":0.55}"#);
-    assert!(!gate_passes(&dir, "bfcl_accuracy", 0.70));
-    write_eval(&dir, r#"{"vox_parse_rate":0.9}"#);
-    assert!(gate_result(&dir, "bfcl_accuracy", 0.70).message.contains("not applicable"));
-}
-```
-- [ ] **Step 2 — run, expect FAIL.**
-- [ ] **Step 3 — implement** the `bfcl_accuracy` producer (runs a held-out BFCL-style pack against the harness adapters and writes `bfcl_accuracy` into `eval_results.json`) + the gate handler (copy the rust-gate handler shape, including the "not applicable when absent" branch).
-- [ ] **Step 4 — run, expect PASS.**
-- [ ] **Step 5 — commit.**
+### Task B6.1: vLLM LoRA client + provenance enforcement
+**Files:** Create `serving/{mod.rs, vllm_lora.rs}`
+- [ ] **Failing test (mock):** `ensure_adapter_loaded(name, path, card)` loads once, is idempotent (LRU), and **rejects on rung/quantization mismatch** via `AdapterCard::is_compatible_with`; `build_chat(task, adapter)` sets `model=<adapter>` + attaches `guided_json`. Add `load_rejects_rung_mismatch` test. Implement. PASS. Commit.
 
-### Task B7.2: per-spoke parity thresholds
-**Files:** Modify `mens/config/eval-gates-*.yaml`
-- [ ] Set per-spoke gate thresholds toward the parity target: vox parse-rate, `rust_compile_rate`, `bfcl_accuracy` (harness), `tool_call_valid_json_rate` (arg-gen). Document each as "block: true" once a baseline is measured (start `block: false`, flip after first real run). Commit.
+### Task B6.2: `route_by_signal` → adapter + champion/challenger + telemetry
+**Files:** Modify `domain_router.rs` (create `route_by_signal`)
+- [ ] TDD: `route_by_signal(file_or_lane)` → spoke → `DomainRouter::route` → adapter; unknown lane → base (no adapter), never errors; a **challenger** serves only behind a flag, **champion** is the promoted default; emit routing telemetry (adapter, fallback rate, evictions, latency). Commit.
 
-**Phase B7 gate:** `cargo test -p vox-ml-cli --lib mens::eval_gate` green (incl. new BFCL tests).
+**B6 gate:** client tests green; compat spike recorded; promotion deferred to v2 unless the spike passes.
 
 ---
 
-## Phase B8 — End-to-end: train, gate, register, serve, validate  `[SEQUENTIAL — LAST; needs B1-B7]`
+## Phase B7 — Evals: baseline-first, leakage-guarded, beat-base  `[after B-INT]`
 
-**Goal:** Use the completed pipeline to actually produce the 4 adapters and prove per-spoke parity. **Spends money — human-gated.**
+### Task B7.0: leakage assertion (runs before any gate is trusted)
+**Files:** Create `eval_gate/leakage.rs`
+- [ ] **Failing test:** intersect train-corpus fingerprints with eval-pack fingerprints (from `split_manifest.json`) → **fail build if non-empty**; near-dup check via existing `vox-similarity` (simhash/minhash). Implement. PASS. Commit.
 
-**Sub-agent fan-out:** the 4 trainings are independent → fan out 4 (one per spoke) **only after** each spoke passes its B2 readiness gate. Serving/eval validation is sequential after all four register.
+### Task B7.1: baseline capture (base rung + Flash/Sonnet reference)
+**Files:** Create `eval_gate/baseline.rs`
+- [ ] TDD `baseline_report.json` per spoke: metric, pass@k **with k stated**, **sample size**, **bootstrap CI**, judge identity for any LLM-judged metric. Run untrained base + the reference on the held-out packs. Commit.
 
-### Task B8.1: readiness pre-flight (no GPU)
-- [ ] Run `vox mens corpus readiness --spoke <each>`; **any spoke not ready → STOP and grow its corpus** (re-run B1/B2 synth), do not train. Record which spokes are ready.
+### Task B7.2: BFCL gate + per-rung thresholds + regression guard  `[CODEBASE-FIT]`
+**Files:** Create `eval_gate/bfcl.rs`, `mens/config/eval-gates-bfcl.yaml`; Modify `eval_gate/{check_run.rs, policy.rs}` (add `bfcl_accuracy` field — absent today)
+- [ ] **Failing test (mirror the existing "not applicable when metric absent" handler):** `bfcl_accuracy` blocks below threshold, "not applicable" when absent; **gate = beat-base** (trained metric > `baseline_report.json` base by margin, CIs considered), not a hand-set number; **per-rung** thresholds (4B spoke not held to 32B bar); **regression guard** vs the prior registered adapter's stored metrics. Implement producer + handler. PASS. Commit.
 
-### Task B8.2: train each ready spoke on RunPod  `[fan out per ready spoke]`
-- [ ] For each ready spoke: `vox mens train --remote --spoke <name> --provider runpod --preset <rung> --max-budget <cap> --apply`. The orchestration (B5.4) runs estimate→budget→sync→train→logs→checkpoint→eval-gate→register. **Gate per spoke:** eval-gate passed AND adapter registered in DomainRouter. Capture cost + metrics.
+### Task B7.3: harness safety eval (mocked executor)
+- [ ] TDD: harness evals run against a **mocked/dry-run tool executor** — assert no real side-effecting tool is invoked in any eval/smoke path. Commit.
 
-### Task B8.3: serve all four via vLLM and validate routing
-- [ ] Start the vLLM base server (`VLLM_ALLOW_RUNTIME_LORA_UPDATING=1`); for each lane signal, assert `route_by_signal`→correct adapter→`ensure_adapter_loaded`→a real completion. Assert hot-swap across all 4 within one base instance.
+### Task B7.4: planning/dispatch eval (base-only; evidences a v2 planning spoke)
+- [ ] TDD a multi-step "did the harness sequence the right tools" metric on the base; write to `baseline_report.json`. (No planning spoke in v1 — this is the evidence to decide v2.) Commit.
 
-### Task B8.4: parity validation
-- [ ] Run the per-spoke eval packs (B7) and compare to the Flash/Sonnet parity targets on each domain. Record a `parity_report.json`. **Gate:** each spoke meets or transparently misses (with the gap documented) its domain target. Flip the B7.2 gates to `block: true` for spokes that met target.
-
-**Phase B8 gate (final):** 4 adapters registered + served from one Qwen3 base; `parity_report.json` written; per-spoke gates green or gaps explicitly recorded.
+**B7 gate:** `cargo test -p vox-ml-cli --lib mens::eval_gate` green; leakage assertion green; baselines captured.
 
 ---
 
-## Self-review (author's checklist — done)
+## Phase B8 — End-to-end: smoke → fan-out → offline-validate → parity gap  `[SEQUENTIAL — LAST; money-gated]`
 
-- **Spec coverage:** Hub (B0.2/B0.3) · 4 spokes (B0.1) · harness corpora (B1) · vox/rust readiness (B2) · tool retrieval (B3) · schema-constrained decoding (B4) · cloud RunPod pipeline (B5) · vLLM serving (B6) · BFCL + per-spoke gates (B7) · end-to-end parity (B8). Dynamic-layer "no retrain for new skills" = B3 (retrieval over the registry) — covered. V2 deferrals (RLVR/distillation/DPO) intentionally absent.
-- **Placeholders:** none — empirical ML tasks (B2/B8) are stated as procedures + explicit gates (correct altitude; "complete code" does not apply to a training run), code tasks carry real signatures/tests.
-- **Type consistency:** `JobSpec`/`JobHandle`/`JobStatus`/`JobError` (B5), `VllmLora`/`ensure_adapter_loaded`/`build_chat` (B6), `to_guided_decoding_spec`/`attach_guided_decoding` (B4→B6), `assess_corpus_readiness`/`MinReadiness` (B2), `select_tools` (B3) used consistently across phases.
-- **Parallelism markers:** B0 sequential-first; B1-B7 parallel after B0 (fan-out noted per phase); B8 sequential-last with a 4-way fan-out inside.
+### Task B8.1: readiness + sufficiency pre-flight (no GPU)
+- [ ] From B2.5: train only spokes marked ready. Record the set; thin spokes are flagged "blocked on data," not failed.
+
+### Task B8.2: smoke spoke FIRST (hard prerequisite)
+- [ ] Train the **mono `harness`** adapter end-to-end on RunPod (gated). It must pass train→gate(beat-base)→register(challenger)→**offline-validate** before any fan-out. This is the single end-to-end proof.
+
+### Task B8.3: fan-out train the ready spokes  `[4-way sub-agent fan-out]`
+- [ ] Train `vox-lang`, `rust`, and the **decomposed** `tool-selection` + `argument-generation` adapters. **Comparison arm:** evaluate decomposed (selection+arg-gen) vs the mono `harness` adapter, both over *base + B3 retrieval + B4 schema-guided* — keep whichever wins; if mono wins, the decomposition is deferred to v2 (records the decision). **Optional arm:** a single language-tagged code adapter on the combined vox+rust corpus vs the two separate adapters (could collapse two spokes in v2).
+
+### Task B8.4: offline validation + parity gap report
+- [ ] Load each registered adapter offline; run the held-out eval packs. **V1 acceptance:** each adapter beats its base rung (B7.2). Write `parity_report.json` = each spoke's metric vs the Flash/Sonnet reference (north-star gap, not a gate). Promote champions only on beat-incumbent; keep last-known-good for rollback.
+- [ ] (If B6.0 passed) validate live vLLM hot-swap across adapters on one base; else note serving deferred to v2.
+
+**B8 gate (final):** smoke spoke proven end-to-end; ready spokes trained + offline-validated (beat-base); `parity_report.json` + decomposition/shared-code decisions recorded; champions promoted with rollback in place.
+
+---
+
+## Self-review (rev 2 — done)
+
+- **Codebase-fit:** every invented API replaced with the real one (`pick_base`, trait `CloudProvider::dispatch/poll_status`, `BudgetLedger`, `--cloud`, enum-edit instead of `all_possible_stages`, `DomainRouter::register(+card)`, `ConstrainedDecodingMode::SchemaGuided`, `bfcl_accuracy` field, `pub` `tool_input_schema` + `canonical_tool_name`).
+- **Correctness:** adapter↔(rung+quantization+revision) provenance pinned and fail-closed (B0.5/B5.4/B6.1); parallel-write bug fixed via worktree-per-track + B-INT; B6 sequenced after B4; `min_readiness` moved to B0.
+- **Stability/quality:** provenance manifest (B5.4), base-revision pin (B0.3), seed (B0.5/B1.4), leakage split+guard (B1.4/B7.0), baseline-first (B7.1), cloud resume/idempotent/orphan-cleanup/secrets/max-price (B5.3), regression guard + champion/challenger + rollback (B7.2/B6.2/B8.4), safety eval (B7.3).
+- **Scaling:** CPU→96 GB table + dev tier + scale-down floor + 48 GB un-quantize rule (B0.3/B0.4); dense-vs-MoE recorded (spec).
+- **Honesty:** success reframed to beat-base; data-sufficiency spike gates spend (B2.5); money gated by machine-enforceable sentinel; serving off the v1 critical path.
+- **Type consistency:** `AdapterCard`/`is_compatible_with`, `dispatch_training`/`CloudJobSpec`/`BudgetLedger`, `to_guided_decoding_spec`/`attach_guided_decoding`, `select_tools`, `assess_corpus_readiness`/`MinReadiness`, `split_surface`/`split_manifest.json` used consistently across phases.
