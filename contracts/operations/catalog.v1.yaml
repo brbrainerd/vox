@@ -13856,23 +13856,7 @@ operations:
     tier: core
   cli: null
 exemptions:
-  # Pre-existing: the Antigravity (agy) delegation MCP tools were registered in
-  # tool-registry.canonical.yaml without operations-catalog rows. Exempt until
-  # proper rows are added in a dedicated catalog-enrollment PR (mirrors the
-  # `ci doctest-md` cli_path precedent below).
-  mcp_tools:
-  - vox_agy_doctor
-  - vox_agy_delegate
-  - vox_agy_delegate_batch
-  - vox_agy_pipeline
-  - vox_agy_review
-  - vox_agy_ledger_digest
-  # Pre-existing: soft-HITL attention/feedback + credentials tools registered
-  # without catalog rows. Exempt until enrolled in the same dedicated catalog PR.
-  - vox_ask_clarification
-  - vox_credentials_status
-  - vox_feedback_list
-  - vox_resolve_feedback
+  mcp_tools: []
   cli_paths:
   # Pre-existing: ci doctest-md exists as a real command but was never enrolled in
   # the catalog; exempt until a catalog entry is added in a dedicated docs-ci PR.
