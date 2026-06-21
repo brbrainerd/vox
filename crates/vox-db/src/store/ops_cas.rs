@@ -99,7 +99,7 @@ impl crate::VoxDb {
         let ulen = original.len() as i64;
         let smaller = stored.len() < original.len();
         let (kind, codec) = (kind.to_string(), codec.to_string());
-        let (hash_ins, stored) = (hash.clone(), stored.to_vec());
+        let (hash_ins, stored, orig) = (hash.clone(), stored.to_vec(), original.to_vec());
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
         breaker
@@ -124,10 +124,11 @@ impl crate::VoxDb {
                     )
                     .await?;
                 } else {
+                    // Compression didn't help — store the original plaintext under codec='none'.
                     conn.execute(
                         "INSERT OR IGNORE INTO objects (hash, kind, data, codec, uncompressed_len, storage)
                          VALUES (?1, ?2, ?3, 'none', ?4, 'inline')",
-                        params![hash_ins.as_str(), kind.as_str(), stored.as_slice(), ulen],
+                        params![hash_ins.as_str(), kind.as_str(), orig.as_slice(), ulen],
                     )
                     .await?;
                 }

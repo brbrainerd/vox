@@ -50,6 +50,8 @@ pub async fn archive_window(db: &VoxDb, window_id: &str, now: i64) -> Result<(),
             }
             members::set_members(db, item_hash, &chunk_hashes).await?;
             db.put_chunk_manifest(item_hash, content.len() as i64).await?;
+            // Edge on the manifest itself so GC cannot delete it while the window is alive.
+            membership::add_edge(db, window_id, item_hash).await?;
         }
     }
 
