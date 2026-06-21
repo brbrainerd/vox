@@ -1,7 +1,7 @@
 ---
 title: "History & Clip Manager Handoff Findings"
 description: "Handoff details for the History and Clip Manager implementation under Plan 7, outlining changes made, CLI/GUI status, and next steps."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 ---
 

@@ -1,7 +1,7 @@
 ---
 title: "GUI Layout & Docking Model"
 description: "Documentation of the fixed-chrome and dockable-body layout system in the GUI."
-category: "architecture"
+category: "Architecture SSOTs"
 ---
 
 # GUI Layout & Docking Model
