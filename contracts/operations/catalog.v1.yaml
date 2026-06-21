@@ -62,6 +62,206 @@ capability:
     - - telemetry
     - - pm
 operations:
+- id: agy.delegate
+  title: Agy Delegate
+  description: Delegate a code-generation or refactoring task to Gemini via the agy CLI. Runs agy -p in an isolated git worktree (jail), auto-accepts all prompts, retries on quota/timeout, and auto-logs to the handoff ledger. Returns the diff for human review.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_agy_delegate
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: agy.delegate.batch
+  title: Agy Delegate Batch
+  description: Fan out multiple file-disjoint agy delegation tasks with bounded concurrency (≤8 workers). Each worker gets its own worktree and ledger entry. All results returned for review before integration.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_agy_delegate_batch
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: agy.doctor
+  title: Agy Doctor
+  description: Detect whether the Antigravity `agy` CLI is installed and ready; returns status plus exact install/auth remediation. Call before vox_agy_delegate.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_agy_doctor
+    http_read_role_eligible: true
+    tier: core
+  cli: null
+- id: agy.ledger.digest
+  title: Agy Ledger Digest
+  description: Read the handoff ledger and return historical Gemini failure-category frequencies + entry count — the flywheel input injected as explicit avoid-rules into the next launch statement (Stage 1).
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_agy_ledger_digest
+    http_read_role_eligible: true
+    tier: core
+  cli: null
+- id: agy.pipeline
+  title: Agy Pipeline
+  description: 'Run one Antigravity delegation end-to-end with deterministic verification: delegate via agy in a worktree jail, capture diff + spend proxy, run the plan-specified gates INSIDE the jail, classify green/partial/failed by effect, write a provisional ledger entry, and return a verdict-ready report for the human merge gate. Use this (not vox_agy_delegate) when you want the result proven, not asserted.'
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_agy_pipeline
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: agy.review
+  title: Agy Review
+  description: Record the Claude-side adversarial code review of a delegation as an append-only {id}-review ledger addendum (verdict + §B failure categories + findings + prompt lessons). Closes the review phase before the human merge gate and feeds the flywheel.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_agy_review
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: ask.clarification
+  title: Ask Clarification
+  description: Raise a clarification question to the user and declare gating task IDs.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_ask_clarification
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: credentials.status
+  title: Credentials Status
+  description: List every inference provider with a present Clavis credential plus the agy delegation status — the credential-aware model-selection surface. OpenRouter is one of many.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_credentials_status
+    http_read_role_eligible: true
+    tier: core
+  cli: null
+- id: feedback.list
+  title: Feedback List
+  description: List all pending and withheld feedback requests.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_feedback_list
+    http_read_role_eligible: true
+    tier: core
+  cli: null
+- id: resolve.feedback
+  title: Resolve Feedback
+  description: Resolve a pending clarification or doubt request with a specific action.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_resolve_feedback
+    http_read_role_eligible: false
+    tier: core
+  cli: null
 - id: a2a.ack
   title: A2a Ack
   description: Acknowledge a message in an agent's inbox.
