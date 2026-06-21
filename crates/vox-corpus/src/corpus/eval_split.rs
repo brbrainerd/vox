@@ -47,11 +47,7 @@ fn xorshift(state: &mut u64) -> u64 {
 
 /// Deterministic Fisher-Yates shuffle of `indices` using an xorshift RNG.
 fn shuffle(indices: &mut Vec<String>, seed: u64) {
-    let mut state = if seed == 0 {
-        0xdeadbeef_cafebabe
-    } else {
-        seed
-    };
+    let mut state = if seed == 0 { 0xdeadbeef_cafebabe } else { seed };
     for i in (1..indices.len()).rev() {
         let j = xorshift(&mut state) as usize % (i + 1);
         indices.swap(i, j);
@@ -130,10 +126,8 @@ mod tests {
     fn split_is_by_tool_identity() {
         let rows = generate_harness_rows(100);
         let (train, eval, _) = split_surface(42, 0.2, &rows);
-        let train_lanes: std::collections::HashSet<_> =
-            train.iter().map(|r| &r.lane).collect();
-        let eval_lanes: std::collections::HashSet<_> =
-            eval.iter().map(|r| &r.lane).collect();
+        let train_lanes: std::collections::HashSet<_> = train.iter().map(|r| &r.lane).collect();
+        let eval_lanes: std::collections::HashSet<_> = eval.iter().map(|r| &r.lane).collect();
         // Both sets must exist (not trivially empty)
         assert!(!train.is_empty() && !eval.is_empty());
         let _ = (train_lanes, eval_lanes); // structural check; identity guard below

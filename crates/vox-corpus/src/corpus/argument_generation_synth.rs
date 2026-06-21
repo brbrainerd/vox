@@ -128,9 +128,9 @@ pub fn validate_against_schema(
     // Check required fields are present
     if let Some(required) = required_arr {
         for req in required {
-            let field = req.as_str().ok_or_else(|| {
-                anyhow::anyhow!("required entry is not a string: {}", req)
-            })?;
+            let field = req
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("required entry is not a string: {}", req))?;
             if value.get(field).is_none() {
                 return Err(anyhow::anyhow!(
                     "required field '{}' is missing from arguments",

@@ -392,11 +392,10 @@ base:
             .unwrap()
             .to_path_buf();
         let file = DomainProfilesFile::load(Some(&root)).expect("load file");
-        let hub = file.hub.expect("hub section must be present in domain-profiles.yaml");
-        assert!(
-            !hub.embedder.is_empty(),
-            "hub.embedder must not be empty"
-        );
+        let hub = file
+            .hub
+            .expect("hub section must be present in domain-profiles.yaml");
+        assert!(!hub.embedder.is_empty(), "hub.embedder must not be empty");
         assert!(
             hub.embedder.contains('@'),
             "hub.embedder must be revision-pinned (org/model@revision), got: {}",

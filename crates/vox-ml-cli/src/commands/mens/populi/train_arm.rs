@@ -96,7 +96,9 @@ pub async fn run_train(
 
             let config = vox_populi::mens::cloud::CloudProviderConfig::default();
             let mut spec = CloudJobSpec::new_train(&config);
-            spec.model_id = model.clone().unwrap_or_else(vox_populi::mens::default_model_id);
+            spec.model_id = model
+                .clone()
+                .unwrap_or_else(vox_populi::mens::default_model_id);
             spec.train_data_hf = _train_data_hf;
             spec.adapter_upload_hf = _adapter_upload_hf.clone();
             spec.max_budget_usd = _max_budget;
@@ -125,7 +127,9 @@ pub async fn run_train(
                 .to_string();
 
             let manifest = TrainingManifest {
-                base_hf_id: model.clone().unwrap_or_else(vox_populi::mens::default_model_id),
+                base_hf_id: model
+                    .clone()
+                    .unwrap_or_else(vox_populi::mens::default_model_id),
                 base_revision: "main".to_string(),
                 rung: "cloud".to_string(),
                 preset: spec.preset.clone(),

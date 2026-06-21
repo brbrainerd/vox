@@ -17,39 +17,142 @@ pub struct ToolSelectionRow {
 /// (same category = confusable; different category = easy negative).
 const TOOL_CATALOG: &[(&str, &str, &str)] = &[
     // ── task management ─────────────────────────────────────────────────────
-    ("vox_submit_task",    "task", "submit a new task to the orchestrator for execution"),
-    ("vox_task_status",    "task", "query the current status of a running or completed task"),
-    ("vox_cancel_task",    "task", "cancel an in-progress or queued task by identifier"),
-    ("vox_complete_task",  "task", "mark a task as successfully completed with a result"),
-    ("vox_fail_task",      "task", "mark a task as failed and provide an error reason"),
-    ("vox_reorder_task",   "task", "change the priority order of pending tasks in the queue"),
+    (
+        "vox_submit_task",
+        "task",
+        "submit a new task to the orchestrator for execution",
+    ),
+    (
+        "vox_task_status",
+        "task",
+        "query the current status of a running or completed task",
+    ),
+    (
+        "vox_cancel_task",
+        "task",
+        "cancel an in-progress or queued task by identifier",
+    ),
+    (
+        "vox_complete_task",
+        "task",
+        "mark a task as successfully completed with a result",
+    ),
+    (
+        "vox_fail_task",
+        "task",
+        "mark a task as failed and provide an error reason",
+    ),
+    (
+        "vox_reorder_task",
+        "task",
+        "change the priority order of pending tasks in the queue",
+    ),
     // ── agents ──────────────────────────────────────────────────────────────
-    ("vox_spawn_agent",    "agent", "spawn a new agent to handle a specific workload"),
-    ("vox_retire_agent",   "agent", "retire and shut down an agent that is no longer needed"),
-    ("vox_drain_agent",    "agent", "drain an agent by waiting for current work to finish"),
-    ("vox_pause_agent",    "agent", "pause an agent so it stops accepting new work"),
-    ("vox_resume_agent",   "agent", "resume a previously paused agent"),
+    (
+        "vox_spawn_agent",
+        "agent",
+        "spawn a new agent to handle a specific workload",
+    ),
+    (
+        "vox_retire_agent",
+        "agent",
+        "retire and shut down an agent that is no longer needed",
+    ),
+    (
+        "vox_drain_agent",
+        "agent",
+        "drain an agent by waiting for current work to finish",
+    ),
+    (
+        "vox_pause_agent",
+        "agent",
+        "pause an agent so it stops accepting new work",
+    ),
+    (
+        "vox_resume_agent",
+        "agent",
+        "resume a previously paused agent",
+    ),
     // ── speech / oratio ─────────────────────────────────────────────────────
-    ("vox_oratio_transcribe", "speech", "transcribe an audio file to text using Oratio STT"),
-    ("vox_oratio_listen",     "speech", "listen to live audio input and transcribe in real time"),
-    ("vox_oratio_status",     "speech", "check the current status of the Oratio speech service"),
-    ("vox_speech_to_code",    "speech", "convert speech input to Vox code using STT then codegen"),
+    (
+        "vox_oratio_transcribe",
+        "speech",
+        "transcribe an audio file to text using Oratio STT",
+    ),
+    (
+        "vox_oratio_listen",
+        "speech",
+        "listen to live audio input and transcribe in real time",
+    ),
+    (
+        "vox_oratio_status",
+        "speech",
+        "check the current status of the Oratio speech service",
+    ),
+    (
+        "vox_speech_to_code",
+        "speech",
+        "convert speech input to Vox code using STT then codegen",
+    ),
     // ── tool search / registry ───────────────────────────────────────────────
-    ("vox_tool_search",     "registry", "search the tool registry for tools matching a query"),
-    ("vox_publish_message", "registry", "publish a message to a topic on the agent message bus"),
+    (
+        "vox_tool_search",
+        "registry",
+        "search the tool registry for tools matching a query",
+    ),
+    (
+        "vox_publish_message",
+        "registry",
+        "publish a message to a topic on the agent message bus",
+    ),
     // ── feedback / clarification ─────────────────────────────────────────────
-    ("vox_doubt_task",          "feedback", "raise a doubt about a task that needs user review"),
-    ("vox_ask_clarification",   "feedback", "ask the user a clarifying question before proceeding"),
-    ("vox_resolve_feedback",    "feedback", "resolve pending feedback and resume task execution"),
-    ("vox_feedback_list",       "feedback", "list all pending feedback items for the current session"),
+    (
+        "vox_doubt_task",
+        "feedback",
+        "raise a doubt about a task that needs user review",
+    ),
+    (
+        "vox_ask_clarification",
+        "feedback",
+        "ask the user a clarifying question before proceeding",
+    ),
+    (
+        "vox_resolve_feedback",
+        "feedback",
+        "resolve pending feedback and resume task execution",
+    ),
+    (
+        "vox_feedback_list",
+        "feedback",
+        "list all pending feedback items for the current session",
+    ),
 ];
 
 /// Task phrasings derived from a tool description (rule-based, no LLM).
 fn task_from_description(tool_name: &str, description: &str) -> String {
     // Transform "submit a new task to the orchestrator" → "I need to submit a new task to the orchestrator"
-    let action_words = ["submit", "query", "cancel", "mark", "change", "spawn", "retire",
-                        "drain", "pause", "resume", "transcribe", "listen", "check", "convert",
-                        "search", "publish", "raise", "ask", "resolve", "list"];
+    let action_words = [
+        "submit",
+        "query",
+        "cancel",
+        "mark",
+        "change",
+        "spawn",
+        "retire",
+        "drain",
+        "pause",
+        "resume",
+        "transcribe",
+        "listen",
+        "check",
+        "convert",
+        "search",
+        "publish",
+        "raise",
+        "ask",
+        "resolve",
+        "list",
+    ];
     let lower = description.to_lowercase();
     for word in &action_words {
         if lower.starts_with(word) {
@@ -61,11 +164,7 @@ fn task_from_description(tool_name: &str, description: &str) -> String {
 
 /// Select hard negatives: other tools in the same category (confusable), plus
 /// fill up to total_count from other categories (easy negatives).
-fn select_candidates(
-    chosen_idx: usize,
-    total_count: usize,
-    rng_state: &mut u64,
-) -> Vec<String> {
+fn select_candidates(chosen_idx: usize, total_count: usize, rng_state: &mut u64) -> Vec<String> {
     let (chosen_name, chosen_cat, _) = TOOL_CATALOG[chosen_idx];
     let mut candidates = vec![chosen_name.to_string()];
 
