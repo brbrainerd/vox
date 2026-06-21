@@ -341,6 +341,15 @@ mod provenance_tests {
     }
 
     #[test]
+    fn register_requires_card_and_fails_on_empty_quantization() {
+        let mut router = DomainRouter::new();
+        let mut card = AdapterCard::for_test("qwen3_16g", "");  // empty quantization
+        card.base_revision = "abc".to_string();
+        let result = router.register("test", "/fake/adapter.safetensors", card);
+        assert!(result.is_err(), "empty quantization must fail registration");
+    }
+
+    #[test]
     fn register_succeeds_with_valid_card() {
         let mut router = DomainRouter::new();
         let card = AdapterCard::for_test("qwen3_16g", "qlora");
