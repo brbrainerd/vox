@@ -12,6 +12,7 @@
     "catalog",
     "check",
     "ci",
+    "clip",
     "codex",
     "commands",
     "compile",
@@ -34,6 +35,7 @@
     "generate",
     "grammar",
     "graphify",
+    "history",
     "init",
     "llm",
     "lock",
@@ -79,7 +81,10 @@
     "wasm",
     "workflow"
   ],
-  "surface_count": 109,
-  "unclassified_backfilled": [],
+  "surface_count": 111,
+  "unclassified_backfilled": [
+    "clip",
+    "history"
+  ],
   "wiring_violations": []
 }

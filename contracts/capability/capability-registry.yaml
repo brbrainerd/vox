@@ -5524,6 +5524,22 @@ curated:
   mcp_tool: vox_ask_agent
   cli_path: null
   parameters: null
+- id: mcp.vox_ask_clarification
+  title: Ask Clarification
+  description_human: null
+  description_model: Raise a clarification question to the user and declare gating task IDs.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_ask_clarification
+  cli_path: null
+  parameters: null
 - id: mcp.vox_attention_history
   title: Attention History
   description_human: null
@@ -6468,6 +6484,22 @@ curated:
   mcp_tool: vox_coverage_report
   cli_path: null
   parameters: null
+- id: mcp.vox_credentials_status
+  title: Credentials Status
+  description_human: null
+  description_model: List every inference provider with a present Clavis credential plus the agy delegation status.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_credentials_status
+  cli_path: null
+  parameters: null
 - id: mcp.vox_db_conversation_edge_insert
   title: Db Conversation Edge Insert
   description_human: null
@@ -6834,6 +6866,22 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_fail_task
+  cli_path: null
+  parameters: null
+- id: mcp.vox_feedback_list
+  title: Feedback List
+  description_human: null
+  description_model: List all pending and withheld feedback requests.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_feedback_list
   cli_path: null
   parameters: null
 - id: mcp.vox_file_graph
@@ -8929,6 +8977,22 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_resolve_conflict
+  cli_path: null
+  parameters: null
+- id: mcp.vox_resolve_feedback
+  title: Resolve Feedback
+  description_human: null
+  description_model: Resolve a pending clarification or doubt request with a specific action.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_resolve_feedback
   cli_path: null
   parameters: null
 - id: mcp.vox_resume_agent
