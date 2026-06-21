@@ -10,6 +10,11 @@ export interface ContextWindowArchiveControlProps {
 
 type Tier = 'hot' | 'warm' | 'cold' | null;
 
+const VALID_TIERS = new Set<string>(['hot', 'warm', 'cold']);
+function toTier(s: string): Tier {
+  return VALID_TIERS.has(s) ? (s as Tier) : null;
+}
+
 const TIER_LABEL: Record<NonNullable<Tier>, string> = {
   hot: 'Hot',
   warm: 'Warm',
@@ -39,9 +44,10 @@ export function ContextWindowArchiveControl({ activeWindowId }: ContextWindowArc
     let cancelled = false;
     invoke<ContextWindowInfoResult>('get_context_window_info', { windowId: activeWindowId })
       .then((info) => {
-        if (!cancelled) setTier(info.tier as Tier);
+        if (!cancelled) setTier(toTier(info.tier));
       })
-      .catch(() => {
+      .catch((e: unknown) => {
+        console.error('ContextWindowArchiveControl: get_context_window_info failed', e);
         if (!cancelled) setTier(null);
       });
     return () => { cancelled = true; };
@@ -53,7 +59,7 @@ export function ContextWindowArchiveControl({ activeWindowId }: ContextWindowArc
     let unlisten: (() => void) | null = null;
     listenContextArchived((payload) => {
       if (payload.window_id === activeWindowId) {
-        setTier(payload.tier as Tier);
+        setTier(toTier(payload.tier));
       }
     }).then((fn) => {
       if (cancelled) {
@@ -61,7 +67,9 @@ export function ContextWindowArchiveControl({ activeWindowId }: ContextWindowArc
       } else {
         unlisten = fn;
       }
-    }).catch(() => {/* tauri unavailable */});
+    }).catch((e: unknown) => {
+      console.warn('ContextWindowArchiveControl: listenContextArchived unavailable', e);
+    });
     return () => {
       cancelled = true;
       unlisten?.();
@@ -96,6 +104,7 @@ export function ContextWindowArchiveControl({ activeWindowId }: ContextWindowArc
           variant="ghost"
           disabled={archiving}
           onClick={handleArchive}
+          aria-label={archiving ? 'Archiving context window' : 'Archive context window'}
           className="justify-center text-zinc-500 hover:text-zinc-300"
         >
           {archiving ? 'Archiving…' : 'Archive'}
