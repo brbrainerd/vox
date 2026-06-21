@@ -814,6 +814,40 @@ pub fn select_with_default_registry(intent: &SelectionIntent) -> Option<Selectio
     select(intent, &registry)
 }
 
+/// Derive the inference `CandidateScope` for a named training spoke.
+///
+/// Reads the spoke's `domain-profiles.yaml` entry. When `router.prefer_local = true`
+/// and the spoke has a configured base model, returns `CandidateScope::LocalOnly`
+/// (restricts inference to VoxLocal / PopuliMesh providers). Otherwise returns
+/// `CandidateScope::AllProviders` so the standard scorer runs.
+///
+/// Returns `CandidateScope::AllProviders` on any load / parse error so callers
+/// degrade gracefully when the profile is missing (e.g., during bootstrapping).
+#[cfg(feature = "runtime")]
+pub fn candidate_scope_for_spoke(
+    spoke_name: &str,
+    workspace_root: Option<&std::path::Path>,
+) -> CandidateScope {
+    let Ok(profile) =
+        vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile::load_domain_profile(
+            spoke_name,
+            workspace_root,
+        )
+    else {
+        return CandidateScope::AllProviders;
+    };
+    let prefers_local = profile
+        .router
+        .as_ref()
+        .map(|r| r.prefer_local)
+        .unwrap_or(false);
+    if prefers_local && profile.base.is_some() {
+        CandidateScope::LocalOnly
+    } else {
+        CandidateScope::AllProviders
+    }
+}
+
 #[cfg(test)]
 mod tests {
     // Env-mutating tests exercise `from_env` cascades; they are `#[serial]` so no

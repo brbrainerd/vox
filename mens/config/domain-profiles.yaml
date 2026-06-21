@@ -91,6 +91,8 @@ profiles:
     router:
       triggers: ["lane:vox_tooling", "lane:vox_dogfood_agent"]
       priority: 5
+      prefer_local: true
+      allowed_providers: ["vox_local", "populi_mesh"]
 
   rocks:
     description: "Rocks database interaction and optimization patterns"

@@ -165,6 +165,48 @@ vox-bounded-fs = { path = "../vox-bounded-fs" }
     batch_pass_flags(n, &error_modules_vec)
 }
 
+/// Walk workspace Rust sources and emit `vox_rust_authoring` SFT pairs.
+///
+/// Uses `extract_rs::walk_and_extract` for extraction, then re-frames each
+/// function as a `make_authoring_pair` row (lane = vox_rust_authoring).
+/// The function name is extracted from the first `pub fn` / `fn` token in the response.
+pub fn corpus_from_workspace(
+    workspace_root: &std::path::Path,
+) -> anyhow::Result<Vec<serde_json::Value>> {
+    let config = crate::corpus::extract_rs::ExtractRsConfig {
+        root: workspace_root.join("crates"),
+        skip_tests: true,
+        ..Default::default()
+    };
+    let pairs = crate::corpus::extract_rs::walk_and_extract(&config)?;
+    let mut out = Vec::with_capacity(pairs.len());
+    for pair in &pairs {
+        let fn_name = extract_fn_name(&pair.response).unwrap_or_else(|| "unnamed".to_string());
+        out.push(make_authoring_pair(&fn_name, &pair.response));
+    }
+    Ok(out)
+}
+
+/// Extract the first function name from a Rust source snippet.
+fn extract_fn_name(src: &str) -> Option<String> {
+    for line in src.lines() {
+        let trimmed = line.trim();
+        // Match `pub fn name` or `fn name`
+        let rest = if let Some(r) = trimmed.strip_prefix("pub fn ") {
+            r
+        } else if let Some(r) = trimmed.strip_prefix("fn ") {
+            r
+        } else {
+            continue;
+        };
+        let name: String = rest.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect();
+        if !name.is_empty() {
+            return Some(name);
+        }
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -186,6 +228,41 @@ mod tests {
     #[test]
     fn empty_errors_all_pass() {
         assert_eq!(batch_pass_flags(2, &[]), vec![true, true]);
+    }
+
+    #[test]
+    fn extract_fn_name_finds_pub_fn() {
+        assert_eq!(
+            extract_fn_name("pub fn compute_rate(x: usize) -> f64 { x as f64 }"),
+            Some("compute_rate".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_fn_name_finds_bare_fn() {
+        assert_eq!(
+            extract_fn_name("fn inner() {}"),
+            Some("inner".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_fn_name_returns_none_for_non_fn() {
+        assert_eq!(extract_fn_name("let x = 42;"), None);
+    }
+
+    #[test]
+    fn corpus_from_workspace_returns_vox_rust_authoring_lane() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap();
+        let pairs = corpus_from_workspace(root).expect("corpus_from_workspace");
+        assert!(!pairs.is_empty(), "should find Rust fns in workspace");
+        for p in &pairs {
+            assert_eq!(p["lane"], "vox_rust_authoring", "all pairs have correct lane");
+            assert_eq!(p["category"], "rust_authoring");
+        }
     }
 }
 

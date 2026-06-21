@@ -242,6 +242,14 @@ pub(super) async fn run_eval(input: &Path, output: &Path, print_summary: bool) -
     let s = scan_train_jsonl_content(&content)?;
     let total = s.total;
 
+    let workspace_root = vox_corpus::training::contract::find_workspace_root();
+    let (rust_compile_rate, clippy_clean_rate) = if let Some(ref ws) = workspace_root {
+        vox_corpus::corpus::eval_rust_metrics::compute_rust_spoke_metrics(ws, input)
+            .unwrap_or((0.0, 0.0))
+    } else {
+        (0.0, 0.0)
+    };
+
     let taxonomy: HashSet<&str> = crate::training::TAXONOMY.iter().copied().collect();
     let mut hit_vec: Vec<_> = s
         .construct_hits
@@ -273,6 +281,8 @@ pub(super) async fn run_eval(input: &Path, output: &Path, print_summary: bool) -
         "construct_total": taxonomy.len(),
         "construct_coverage_pct": if taxonomy.is_empty() { 0.0 } else { 100.0 * coverage as f64 / taxonomy.len() as f64 },
         "quality_proxy": if total > 0 { s.parse_passed as f64 / total as f64 } else { 0.0 },
+        "rust_compile_rate": rust_compile_rate,
+        "clippy_clean_rate": clippy_clean_rate,
     });
 
     if let Some(parent) = output.parent() {

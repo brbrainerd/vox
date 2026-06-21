@@ -37,6 +37,14 @@ pub struct SpokeRouter {
     /// Higher wins when multiple spokes match.
     #[serde(default)]
     pub priority: i32,
+    /// When true and a local adapter exists, model selection restricts to
+    /// VoxLocal / PopuliMesh providers (CandidateScope::LocalOnly).
+    #[serde(default)]
+    pub prefer_local: bool,
+    /// Explicit provider allowlist (overrides prefer_local when set).
+    /// Values: "vox_local", "populi_mesh", "openrouter", "anthropic", "ollama".
+    #[serde(default)]
+    pub allowed_providers: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -251,5 +259,37 @@ base:
             .to_path_buf();
         let file = DomainProfilesFile::load(Some(&root)).expect("load file");
         assert!(file.profiles.contains_key("vox-lang"));
+    }
+
+    #[test]
+    fn agents_profile_has_prefer_local() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap()
+            .to_path_buf();
+        let eff = EffectiveDomainProfile::load_domain_profile("agents", Some(&root))
+            .expect("agents profile loads");
+        let router = eff.router.expect("agents router present");
+        assert!(router.prefer_local, "agents spoke should prefer_local");
+        assert!(!router.allowed_providers.is_empty(), "allowed_providers set");
+    }
+
+    #[test]
+    fn spoke_router_prefer_local_defaults_false() {
+        let yaml = r#"description: "no router""#;
+        let p: DomainProfile = serde_yaml::from_str(yaml).expect("parse");
+        assert!(p.router.is_none());
+
+        let yaml2 = r#"
+description: "router without prefer_local"
+router:
+  triggers: ["lane:test"]
+  priority: 1
+"#;
+        let p2: DomainProfile = serde_yaml::from_str(yaml2).expect("parse");
+        let r = p2.router.unwrap();
+        assert!(!r.prefer_local, "prefer_local defaults to false");
+        assert!(r.allowed_providers.is_empty(), "allowed_providers defaults empty");
     }
 }

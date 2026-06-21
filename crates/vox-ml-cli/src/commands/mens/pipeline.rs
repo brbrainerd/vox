@@ -52,6 +52,7 @@ pub async fn run(
         PipelineStage::Pairs,
         PipelineStage::Mix,
         PipelineStage::Eval,
+        PipelineStage::AgentTraceIngest,
         PipelineStage::KbSignals,
         PipelineStage::Train,
     ];
@@ -280,6 +281,26 @@ pub async fn run(
                         },
                     )
                     .await?;
+                }
+            }
+            PipelineStage::AgentTraceIngest => {
+                if !dry_run {
+                    // Ingest a2a traces from dogfood capture path → SFT rows with diversity gate.
+                    let trace_input =
+                        PathBuf::from("target/dogfood/a2a_traces.jsonl");
+                    let trace_output =
+                        PathBuf::from("mens/data/mix_sources/agent_traces.jsonl");
+                    crate::commands::corpus::run(
+                        crate::commands::corpus::CorpusAction::TraceIngest {
+                            input: trace_input,
+                            output: trace_output,
+                            min_diversity: 0.40,
+                        },
+                    )
+                    .await
+                    .map_err(|e| anyhow::anyhow!("pipeline agent_trace_ingest failed: {e}"))?;
+                } else {
+                    tracing::info!("AgentTraceIngest: dry_run, skipping");
                 }
             }
             PipelineStage::KbSignals => {

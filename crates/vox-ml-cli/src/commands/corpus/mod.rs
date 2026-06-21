@@ -279,6 +279,19 @@ pub enum CorpusAction {
         #[arg(long)]
         quarantine: Option<std::path::PathBuf>,
     },
+    /// Ingest agent traces (JSON/JSONL) into SFT rows with semantic diversity gate.
+    #[command(name = "trace-ingest")]
+    TraceIngest {
+        /// Input agent trace file (JSON array or JSONL of agent_trace_record objects)
+        #[arg(short, long, default_value = "target/dogfood/a2a_traces.jsonl")]
+        input: std::path::PathBuf,
+        /// Output SFT JSONL
+        #[arg(short, long, default_value = "mens/data/mix_sources/agent_traces.jsonl")]
+        output: std::path::PathBuf,
+        /// Minimum AST semantic diversity (0.0-1.0); corpus rejected if monoculture
+        #[arg(long, default_value_t = 0.40)]
+        min_diversity: f64,
+    },
 }
 
 /// Execute the native training data extraction or validation logic.
@@ -601,5 +614,23 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             min_score,
             quarantine,
         } => generate::run_curate_prose(&input, &output, min_score, quarantine.as_deref()).await,
+        CorpusAction::TraceIngest {
+            input,
+            output,
+            min_diversity,
+        } => {
+            let count = vox_corpus::corpus::trace_ingest::generate_agent_traces_sft_file(
+                &input,
+                &output,
+                min_diversity,
+            )
+            .with_context(|| format!("trace-ingest: {}", input.display()))?;
+            println!(
+                "✓ Ingested {} agent trace SFT rows → {}",
+                count,
+                output.display()
+            );
+            Ok(())
+        }
     }
 }
