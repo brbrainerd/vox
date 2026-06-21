@@ -307,7 +307,9 @@ tavily             = "2.1.0"
 quick-xml          = "0.40"
 flate2             = { version = "1", default-features = false, features = ["rust_backend"] }
 bzip2              = "0.6.1"
-zstd               = "0.13.3"
+zstd               = { version = "0.13", features = ["zdict_builder"] }
+fastcdc            = "4"
+quick_cache        = "0.6"
 hmac               = "0.13"
 crossbeam-queue    = "0.3.12"
 ignore             = "0.4.25"

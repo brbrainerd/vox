@@ -26,6 +26,9 @@ strsim = { workspace = true }
 tracing = { workspace = true }
 chrono = { workspace = true }
 blake3 = { workspace = true }
+fastcdc = { workspace = true }
+quick_cache = { workspace = true }
+zstd = { workspace = true }
 data-encoding = { workspace = true }
 keyring = { workspace = true }
 uuid = { workspace = true, features = ["v4", "serde"] }
