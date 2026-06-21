@@ -10,10 +10,10 @@ pub mod services;
 /// `<TOOL_CALLS>` XML fallback for LLM providers without native function-call support.
 pub mod chat_fallback_tools;
 pub mod daemon_extra;
+pub mod feedback_tools;
 pub mod params;
 pub mod pending_approvals;
 pub mod server_state;
-pub mod feedback_tools;
 
 pub mod aci;
 /// Agent native gateway and skill tools.
@@ -165,16 +165,16 @@ pub use vox_mcp_registry::TOOL_REGISTRY;
 pub use dispatch::handle_tool_call;
 pub use registry::tool_registry;
 pub use tool_aliases::canonical_tool_name;
-pub mod lifecycle;
-pub mod plugin_skills_bridge;
-pub mod server;
 pub mod agy_doctor;
 pub mod agy_exec;
 pub mod agy_gates;
 pub mod agy_ledger;
 pub mod agy_pipeline;
-pub mod agy_worktree;
 pub mod agy_tools;
+pub mod agy_worktree;
+pub mod lifecycle;
+pub mod plugin_skills_bridge;
+pub mod server;
 
 pub use lifecycle::{load_config, mcp_agent_fleet_env_enabled, run_stdio_server_blocking};
 pub use params::ToolResult;

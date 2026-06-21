@@ -12,11 +12,16 @@ use vox_orchestrator_mcp::agy_worktree::DelegationWorktree;
 #[tokio::test]
 #[ignore = "live agy call — bills Antigravity credits"]
 async fn smoke_pipeline_classifies_green() {
-    assert!(matches!(detect(), AgyStatus::Ready { .. }), "agy must be ready");
+    assert!(
+        matches!(detect(), AgyStatus::Ready { .. }),
+        "agy must be ready"
+    );
 
     let repo_root = std::env::current_dir().expect("cwd");
     let slug = format!("pipe-{}", uuid::Uuid::new_v4().simple());
-    let wt = DelegationWorktree::create(&repo_root, &slug).await.expect("worktree");
+    let wt = DelegationWorktree::create(&repo_root, &slug)
+        .await
+        .expect("worktree");
 
     let exec = AgyExec::new(&wt.path);
     let spec = AgySpec {
@@ -43,8 +48,10 @@ async fn smoke_pipeline_classifies_green() {
     // Clean up before asserting.
     wt.cleanup(&repo_root).await.expect("cleanup");
 
-    eprintln!("exit={} files_changed={files_changed} gate_passed={} outcome={outcome}",
-        out.exit_code, results[0].passed);
+    eprintln!(
+        "exit={} files_changed={files_changed} gate_passed={} outcome={outcome}",
+        out.exit_code, results[0].passed
+    );
 
     assert_eq!(out.exit_code, 0, "agy should exit 0");
     assert!(files_changed > 0, "agy must have written a file");

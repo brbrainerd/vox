@@ -513,12 +513,18 @@ clippy_clean_rate:
     )
     .unwrap();
     let results = check_run(dir.path(), &policy_path).expect("check_run");
-    
-    let compile_gate = results.iter().find(|r| r.name == "rust_compile_rate").expect("compile gate present");
+
+    let compile_gate = results
+        .iter()
+        .find(|r| r.name == "rust_compile_rate")
+        .expect("compile gate present");
     assert!(compile_gate.passed, "should pass");
     assert!(compile_gate.block, "should be blocking");
 
-    let clippy_gate = results.iter().find(|r| r.name == "clippy_clean_rate").expect("clippy gate present");
+    let clippy_gate = results
+        .iter()
+        .find(|r| r.name == "clippy_clean_rate")
+        .expect("clippy gate present");
     assert!(clippy_gate.passed, "should pass");
     assert!(!clippy_gate.block, "should not be blocking");
 }

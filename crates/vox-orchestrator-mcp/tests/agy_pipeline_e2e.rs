@@ -27,14 +27,19 @@ fn python_binary() -> Option<String> {
 #[ignore = "live agy call — bills Antigravity credits"]
 async fn smoke_e2e_pipeline_python_compile() {
     // 1. Pre-flight: agy must be ready.
-    assert!(matches!(detect(), AgyStatus::Ready { .. }), "agy must be ready");
+    assert!(
+        matches!(detect(), AgyStatus::Ready { .. }),
+        "agy must be ready"
+    );
 
     // 2. Python must be available for the compile gate.
     let python = python_binary().expect("python3 or python must be on PATH");
 
     let repo_root = std::env::current_dir().expect("cwd");
     let slug = format!("e2e-{}", uuid::Uuid::new_v4().simple());
-    let wt = DelegationWorktree::create(&repo_root, &slug).await.expect("worktree");
+    let wt = DelegationWorktree::create(&repo_root, &slug)
+        .await
+        .expect("worktree");
 
     // 3. Delegate: write a syntactically valid Python file.
     let exec = AgyExec::new(&wt.path);
@@ -82,6 +87,9 @@ async fn smoke_e2e_pipeline_python_compile() {
     assert!(!out.timed_out, "agy timed out");
     assert_eq!(out.exit_code, 0, "agy exited non-zero");
     assert!(files_changed > 0, "agy must have written hello.py");
-    assert!(results[0].passed, "py_compile gate must pass — hello.py has a syntax error");
+    assert!(
+        results[0].passed,
+        "py_compile gate must pass — hello.py has a syntax error"
+    );
     assert_eq!(outcome, "green", "files written + gate passed => green");
 }

@@ -105,7 +105,9 @@ mod tests {
 
     #[test]
     fn remediation_for_unauthed_mentions_interactive_login() {
-        let r = remediation(&AgyStatus::PresentUnauthed { path: "/x/agy".into() });
+        let r = remediation(&AgyStatus::PresentUnauthed {
+            path: "/x/agy".into(),
+        });
         assert!(r.to_lowercase().contains("sign-in") || r.to_lowercase().contains("oauth"));
     }
 

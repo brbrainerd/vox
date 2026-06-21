@@ -103,7 +103,10 @@ impl AgyExec {
         let join = tokio::task::spawn_blocking(move || run_in_pty(&cwd, &args, timeout));
         match join.await {
             Ok(result) => result,
-            Err(join_err) => Err(AgyExecError::Spawn(std::io::Error::new(std::io::ErrorKind::Other, join_err.to_string()))),
+            Err(join_err) => Err(AgyExecError::Spawn(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                join_err.to_string(),
+            ))),
         }
     }
 }
@@ -120,7 +123,7 @@ impl AgyExec {
 /// the master sees EOF → the reader thread finishes. That EOF is our reliable
 /// exit signal.
 fn run_in_pty(cwd: &Path, args: &[String], timeout: Duration) -> Result<AgyOutput, AgyExecError> {
-    use portable_pty::{native_pty_system, CommandBuilder, PtySize};
+    use portable_pty::{CommandBuilder, PtySize, native_pty_system};
     use std::io::{Read, Write};
     use std::sync::{Arc, Mutex};
 
@@ -128,8 +131,18 @@ fn run_in_pty(cwd: &Path, args: &[String], timeout: Duration) -> Result<AgyOutpu
 
     let pty_system = native_pty_system();
     let pair = pty_system
-        .openpty(PtySize { rows: 40, cols: 120, pixel_width: 0, pixel_height: 0 })
-        .map_err(|e| AgyExecError::Spawn(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+        .openpty(PtySize {
+            rows: 40,
+            cols: 120,
+            pixel_width: 0,
+            pixel_height: 0,
+        })
+        .map_err(|e| {
+            AgyExecError::Spawn(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                e.to_string(),
+            ))
+        })?;
 
     // vox-arch-check: allow agy-exec
     let mut cmd = CommandBuilder::new("agy");
@@ -147,7 +160,10 @@ fn run_in_pty(cwd: &Path, args: &[String], timeout: Duration) -> Result<AgyOutpu
         {
             AgyExecError::NotFound
         } else {
-            AgyExecError::Spawn(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+            AgyExecError::Spawn(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                e.to_string(),
+            ))
         }
     })?;
     // The slave handle must be dropped or the master reader never sees EOF.
@@ -162,16 +178,20 @@ fn run_in_pty(cwd: &Path, args: &[String], timeout: Duration) -> Result<AgyOutpu
     // Take the PTY writer before spawning the reader thread. Arc<Mutex<...>>
     // lets the reader thread write auto-responses without blocking the main thread.
     let writer = pair.master.take_writer().map_err(|e| {
-        AgyExecError::Spawn(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+        AgyExecError::Spawn(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            e.to_string(),
+        ))
     })?;
-    let writer_arc: Arc<Mutex<Box<dyn Write + Send>>> =
-        Arc::new(Mutex::new(writer));
+    let writer_arc: Arc<Mutex<Box<dyn Write + Send>>> = Arc::new(Mutex::new(writer));
     let writer_for_thread = Arc::clone(&writer_arc);
 
-    let mut reader = pair
-        .master
-        .try_clone_reader()
-        .map_err(|e| AgyExecError::Spawn(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+    let mut reader = pair.master.try_clone_reader().map_err(|e| {
+        AgyExecError::Spawn(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            e.to_string(),
+        ))
+    })?;
     let buf = Arc::new(Mutex::new(Vec::<u8>::new()));
     let buf_writer = Arc::clone(&buf);
 
@@ -250,7 +270,10 @@ fn run_in_pty(cwd: &Path, args: &[String], timeout: Duration) -> Result<AgyOutpu
         // text into both fields so stderr-based classification keeps working.
         stdout: text.clone(),
         stderr: if timed_out {
-            format!("agy delegation exceeded {}s; process killed", timeout.as_secs())
+            format!(
+                "agy delegation exceeded {}s; process killed",
+                timeout.as_secs()
+            )
         } else {
             text
         },
@@ -263,7 +286,9 @@ fn run_in_pty(cwd: &Path, args: &[String], timeout: Duration) -> Result<AgyOutpu
 
 /// Classify outcome for retry + ledger category. None on success.
 pub fn classify_failure(stderr: &str, exit_code: i32, timed_out: bool) -> Option<&'static str> {
-    if timed_out { return Some("timeout"); }
+    if timed_out {
+        return Some("timeout");
+    }
     let s = stderr.to_ascii_lowercase();
     if s.contains("quota") || s.contains("rate limit") || s.contains("resource_exhausted") {
         return Some("quota");
@@ -311,7 +336,9 @@ pub fn auto_respond(chunk: &[u8]) -> Option<&'static [u8]> {
 
 /// Pure retry decision. `attempt` 0-based; `max_attempts` the cap.
 pub fn should_retry(class: &str, attempt: u32, max_attempts: u32) -> bool {
-    if attempt + 1 >= max_attempts { return false; }
+    if attempt + 1 >= max_attempts {
+        return false;
+    }
     match class {
         "quota" => true,
         "timeout" => attempt < 1,
@@ -325,7 +352,11 @@ mod tests {
 
     #[test]
     fn builds_headless_autoaccept_args_without_sandbox() {
-        let spec = AgySpec { task: "Refactor foo".into(), model: None, timeout_secs: 600 };
+        let spec = AgySpec {
+            task: "Refactor foo".into(),
+            model: None,
+            timeout_secs: 600,
+        };
         let args = build_args(&spec);
         assert_eq!(args[0], "-p");
         assert_eq!(args[1], "Refactor foo");
@@ -335,7 +366,14 @@ mod tests {
 
     #[test]
     fn rejects_empty_task() {
-        assert!(validate_spec(&AgySpec { task: "  ".into(), model: None, timeout_secs: 1 }).is_err());
+        assert!(
+            validate_spec(&AgySpec {
+                task: "  ".into(),
+                model: None,
+                timeout_secs: 1
+            })
+            .is_err()
+        );
     }
 
     #[test]
@@ -348,7 +386,11 @@ mod tests {
     #[tokio::test]
     async fn run_reports_timeout_or_notfound_fast() {
         let exec = AgyExec::new(std::env::temp_dir());
-        let spec = AgySpec { task: "noop".into(), model: None, timeout_secs: 1 };
+        let spec = AgySpec {
+            task: "noop".into(),
+            model: None,
+            timeout_secs: 1,
+        };
         match exec.run(&spec).await {
             Ok(o) => assert!(o.timed_out || o.exit_code != 0 || o.exit_code == 0),
             Err(e) => assert!(matches!(e, AgyExecError::NotFound | AgyExecError::Spawn(_))),
@@ -358,7 +400,10 @@ mod tests {
     #[test]
     fn classifies_quota_timeout_error_success() {
         assert_eq!(classify_failure("quota exceeded", 1, false), Some("quota"));
-        assert_eq!(classify_failure("RESOURCE_EXHAUSTED", 1, false), Some("quota"));
+        assert_eq!(
+            classify_failure("RESOURCE_EXHAUSTED", 1, false),
+            Some("quota")
+        );
         assert_eq!(classify_failure("", -1, true), Some("timeout"));
         assert_eq!(classify_failure("boom", 2, false), Some("error"));
         assert_eq!(classify_failure("fine", 0, false), None);
@@ -379,10 +424,10 @@ mod tests {
     #[test]
     fn retry_policy() {
         assert!(should_retry("quota", 0, 3));
-        assert!(!should_retry("quota", 2, 3));   // hit cap
+        assert!(!should_retry("quota", 2, 3)); // hit cap
         assert!(should_retry("timeout", 0, 3));
         assert!(!should_retry("timeout", 1, 3)); // one extra try only
-        assert!(!should_retry("error", 0, 3));   // non-retryable
+        assert!(!should_retry("error", 0, 3)); // non-retryable
     }
 
     #[test]
@@ -401,14 +446,20 @@ mod tests {
 
     #[test]
     fn auto_respond_detects_yn_and_enter_prompts() {
-        assert_eq!(auto_respond(b"Proceed with changes? [y/n] "), Some(&b"y\n"[..]));
-        assert_eq!(auto_respond(b"Are you sure? (y/n): "),       Some(&b"y\n"[..]));
-        assert_eq!(auto_respond(b"Continue? [Y/n] "),            Some(&b"y\n"[..]));
-        assert_eq!(auto_respond(b"yes/no: "),                    Some(&b"y\n"[..]));
-        assert_eq!(auto_respond(b"Press Enter to continue..."), Some(&b"\n"[..]));
-        assert_eq!(auto_respond(b"press <enter> "),             Some(&b"\n"[..]));
+        assert_eq!(
+            auto_respond(b"Proceed with changes? [y/n] "),
+            Some(&b"y\n"[..])
+        );
+        assert_eq!(auto_respond(b"Are you sure? (y/n): "), Some(&b"y\n"[..]));
+        assert_eq!(auto_respond(b"Continue? [Y/n] "), Some(&b"y\n"[..]));
+        assert_eq!(auto_respond(b"yes/no: "), Some(&b"y\n"[..]));
+        assert_eq!(
+            auto_respond(b"Press Enter to continue..."),
+            Some(&b"\n"[..])
+        );
+        assert_eq!(auto_respond(b"press <enter> "), Some(&b"\n"[..]));
         assert_eq!(auto_respond(b"Writing file src/lib.rs..."), None);
-        assert_eq!(auto_respond(b"Task complete."),             None);
+        assert_eq!(auto_respond(b"Task complete."), None);
         assert_eq!(
             auto_respond(b"Reading 1000 lines of context...\r\nProceed? [y/n] "),
             Some(&b"y\n"[..])

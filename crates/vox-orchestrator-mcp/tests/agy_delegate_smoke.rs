@@ -46,13 +46,22 @@ async fn smoke_delegate_writes_a_file() {
     let proof_contents = std::fs::read_to_string(&proof_path).unwrap_or_default();
     wt.cleanup(&repo_root).await.expect("cleanup failed");
 
-    eprintln!("exit_code={} timed_out={} elapsed_ms={}", out.exit_code, out.timed_out, out.elapsed_ms);
-    eprintln!("files_changed={files_changed}\ndiff_head={}…", &diff[..diff.len().min(300)]);
+    eprintln!(
+        "exit_code={} timed_out={} elapsed_ms={}",
+        out.exit_code, out.timed_out, out.elapsed_ms
+    );
+    eprintln!(
+        "files_changed={files_changed}\ndiff_head={}…",
+        &diff[..diff.len().min(300)]
+    );
     eprintln!("proof_contents={proof_contents:?}");
 
     assert!(!out.timed_out, "smoke task timed out");
     assert_eq!(out.exit_code, 0, "agy exited non-zero");
-    assert!(files_changed > 0, "expected ≥1 changed file after delegation");
+    assert!(
+        files_changed > 0,
+        "expected ≥1 changed file after delegation"
+    );
     assert!(
         proof_contents.contains("PROOF-OK"),
         "delegate-proof.txt missing/empty: {proof_contents:?}"
