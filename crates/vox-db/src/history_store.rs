@@ -358,9 +358,17 @@ mod tests {
     #[tokio::test]
     async fn search_redacted_text() {
         let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
-        add_entry(&db, "r1", "clip", "secret-password token sk-123456789012", "", 1000, "cli")
-            .await
-            .expect("add");
+        add_entry(
+            &db,
+            "r1",
+            "clip",
+            "secret-password token sk-123456789012",
+            "",
+            1000,
+            "cli",
+        )
+        .await
+        .expect("add");
 
         let results = search_entries(&db, "r1", "sk-123456789012", 50)
             .await
@@ -372,6 +380,10 @@ mod tests {
             .await
             .expect("search");
         assert_eq!(results_redacted.len(), 1);
-        assert!(results_redacted[0].redacted_text.contains("[REDACTED_API_KEY]"));
+        assert!(
+            results_redacted[0]
+                .redacted_text
+                .contains("[REDACTED_API_KEY]")
+        );
     }
 }
