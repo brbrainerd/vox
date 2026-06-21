@@ -496,6 +496,10 @@ class VoxTransport {
       metadata: metadata ?? null,
     });
   }
+
+  getMemoryStatus(): Promise<{ corpus_counts: Record<string, number> }> {
+    return invoke<{ corpus_counts: Record<string, number> }>('get_memory_status');
+  }
 }
 
 export const voxTransport = new VoxTransport();
