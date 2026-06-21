@@ -111,9 +111,7 @@ pub async fn run_train(
             // BLOCKER 3: fail-closed placeholder guard on the real (--apply) path.
             // This fires BEFORE any provisioning/dispatch. A dry-run would have
             // already returned above via check_spend_gate.
-            vox_populi::mens::tensor::spoke_base_resolver::ensure_not_placeholder(
-                &resolved_hf_id,
-            )?;
+            vox_populi::mens::tensor::spoke_base_resolver::ensure_not_placeholder(&resolved_hf_id)?;
 
             // BLOCKER 2: derive base_revision from the resolved @sha and rung from
             // the resolved preset/VRAM rung (no fabricated "main"/"cloud").
@@ -182,8 +180,7 @@ pub async fn run_train(
                         epochs: spec.epochs,
                     })
                     .await?;
-                let (handle, watchdog, provider) =
-                    resolver.dispatch_top(&ranked, &spec).await?;
+                let (handle, watchdog, provider) = resolver.dispatch_top(&ranked, &spec).await?;
                 // Record the idempotency key so a concurrent / retried invocation
                 // detects the in-flight job and reuses it.
                 std::fs::write(&key_path, &handle.job_id).ok();
@@ -691,23 +688,22 @@ fn resolve_cloud_spoke_base(
     cli_model: Option<&str>,
     cli_preset: Option<&str>,
 ) -> anyhow::Result<(String, String, String)> {
-    use crate::commands::mens::training_selection::{TrainingSelection, resolve_training_selection};
+    use crate::commands::mens::training_selection::{
+        TrainingSelection, resolve_training_selection,
+    };
 
     let root = workspace_root
         .map(Path::to_path_buf)
         .or_else(vox_corpus::training::contract::find_workspace_root)
-        .ok_or_else(|| anyhow::anyhow!("could not find workspace root for spoke base resolution"))?;
+        .ok_or_else(|| {
+            anyhow::anyhow!("could not find workspace root for spoke base resolution")
+        })?;
 
     // Cloud sizing tier: 24GB-class GPU (matches CloudResolver default min_vram_mb).
     const CLOUD_VRAM_MB: u32 = 24_000;
 
-    let selection = resolve_training_selection(
-        &root,
-        domain,
-        cli_model,
-        cli_preset,
-        Some(CLOUD_VRAM_MB),
-    )?;
+    let selection =
+        resolve_training_selection(&root, domain, cli_model, cli_preset, Some(CLOUD_VRAM_MB))?;
 
     let (model, rung) = match selection {
         TrainingSelection::Train { model, preset, .. } => (model, preset),
@@ -1082,13 +1078,7 @@ mod cloud_eval_gate_tests {
         // EvalError must fail-closed (Err); BelowBase returns EvalGateFailed.
         match outcome {
             EvalGateOutcome::EvalError(_) => {
-                let res = post_training_flow(
-                    outcome,
-                    &mut router,
-                    "vox",
-                    tmp.path(),
-                    &manifest,
-                );
+                let res = post_training_flow(outcome, &mut router, "vox", tmp.path(), &manifest);
                 assert!(res.is_err(), "EvalError must fail-closed (no register)");
                 assert!(router.route("vox").is_none(), "must not register on error");
             }
@@ -1102,9 +1092,11 @@ mod cloud_eval_gate_tests {
                     ),
                     "below-base gate must NOT register"
                 );
-                assert!(router.route("vox").is_none(), "must not register below base");
+                assert!(
+                    router.route("vox").is_none(),
+                    "must not register below base"
+                );
             }
         }
     }
-
 }

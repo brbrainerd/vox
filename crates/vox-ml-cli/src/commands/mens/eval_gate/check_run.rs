@@ -819,8 +819,7 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
                     })
             });
 
-            let gate_result =
-                check_bfcl(run_dir, bfcl_cfg, baseline_entry, rung_key.as_deref())?;
+            let gate_result = check_bfcl(run_dir, bfcl_cfg, baseline_entry, rung_key.as_deref())?;
             results.push(gate_result);
         }
     }

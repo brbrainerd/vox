@@ -1077,8 +1077,11 @@ mod tests {
         let state_dir = tmp.path();
         let key = make_idempotency_key("vox", "corpus-abc");
         // Pre-seed an active-job key file to simulate an in-flight job.
-        std::fs::write(state_dir.join(format!("{key}.active_job")), "owned-by-someone-else")
-            .unwrap();
+        std::fs::write(
+            state_dir.join(format!("{key}.active_job")),
+            "owned-by-someone-else",
+        )
+        .unwrap();
 
         let provider = Arc::new(AlwaysSucceedProvider::new()) as Arc<dyn CloudProvider>;
         let config = Arc::new(CloudProviderConfig::default());

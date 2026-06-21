@@ -32,7 +32,7 @@ const LANE_DOMAIN_TABLE: &[(&str, &str)] = &[
     // vox-lang
     ("lane:vox_codegen", DOMAIN_VOX_LANG),
     ("lane:vox_lang_tier_b", DOMAIN_VOX_LANG),
-    ("lane:vox_lang", DOMAIN_VOX_LANG), // legacy alias
+    ("lane:vox_lang", DOMAIN_VOX_LANG),      // legacy alias
     ("lane:vox_authoring", DOMAIN_VOX_LANG), // legacy alias
     // rust — authoring ONLY; review is deliberately absent (routes to base).
     ("lane:vox_rust_authoring", DOMAIN_RUST),
@@ -46,10 +46,7 @@ const LANE_DOMAIN_TABLE: &[(&str, &str)] = &[
 ];
 
 /// File-extension globs → domain (mirrors `*.ext` triggers in the YAML SSOT).
-const EXT_DOMAIN_TABLE: &[(&str, &str)] = &[
-    (".vox", DOMAIN_VOX_LANG),
-    (".rs", DOMAIN_RUST),
-];
+const EXT_DOMAIN_TABLE: &[(&str, &str)] = &[(".vox", DOMAIN_VOX_LANG), (".rs", DOMAIN_RUST)];
 
 /// Extract the `lane:...` token from a signal, if any. A signal may carry
 /// trailing context (e.g. `"lane:vox_rust_review src/foo.rs"`); we take the
