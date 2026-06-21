@@ -53,10 +53,16 @@ pub use types::{
     BuildSummaryEvent,
     // model-autonomic system (L0/L1/L2/L3) — 2026-05-15
     ClassificationEvent,
+    // Track E: new product-category event structs
+    CommandUsageEvent,
     ConfidencePromotionEvent,
+    DefaultDecisionEvent,
     DiscoveryEvent,
+    EditPatternEvent,
     ErrorEvent,
+    ErrorSurfaceEvent,
     FixtureModelIntentResolvedEvent,
+    HarnessUsageEvent,
     HoleObservedTelemetryEvent,
     // CR-L8 corpus-feedback (P2.1)
     LintAutofixEvent,
@@ -120,6 +126,8 @@ pub use types::{
     METRIC_TYPE_TASK_ROOT_SUMMARY,
     METRIC_TYPE_WORKFLOW_JOURNAL_ENTRY,
     ModelCallEvent,
+    // Track F: model-layer learned prompt profiles
+    ModelPromptEvent,
     OrchSubagentDispatchEvent,
     PromptDispatchTelemetryEvent,
     // size limits
@@ -143,6 +151,7 @@ pub use types::{
     SESSION_PREFIX_WORKFLOW,
     SearchDispatchTelemetryEvent,
     SelectionDecisionEvent,
+    SkillActivationEvent,
     SubagentDispatchTelemetryPayload,
     TaskRootSummaryEvent,
     // error
@@ -169,5 +178,37 @@ macro_rules! record_event {
         if let Some(r) = $crate::global_recorder() {
             r.record($event);
         }
+    };
+}
+
+/// Emit a `DefaultDecision` telemetry event (Track E1b).
+///
+/// Convenience wrapper around `record_event!` for tunable-constant decision sites.
+/// `chosen` and `outcome` must be enum slugs (never raw numeric values).
+///
+/// ```text
+/// record_default_decision!("llm_max_concurrent", "8", "comfortable");
+/// ```
+#[macro_export]
+macro_rules! record_default_decision {
+    ($decision_id:expr, $chosen:expr, $outcome:expr) => {
+        $crate::record_event!(&$crate::TelemetryEvent::DefaultDecision(
+            $crate::DefaultDecisionEvent {
+                decision_id: $decision_id.to_string(),
+                chosen: $chosen.to_string(),
+                outcome: $outcome.to_string(),
+                magnitude_bucket: None,
+            }
+        ));
+    };
+    ($decision_id:expr, $chosen:expr, $outcome:expr, $magnitude:expr) => {
+        $crate::record_event!(&$crate::TelemetryEvent::DefaultDecision(
+            $crate::DefaultDecisionEvent {
+                decision_id: $decision_id.to_string(),
+                chosen: $chosen.to_string(),
+                outcome: $outcome.to_string(),
+                magnitude_bucket: Some($magnitude),
+            }
+        ));
     };
 }

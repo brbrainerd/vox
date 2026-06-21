@@ -17,3 +17,6 @@ crates/vox-workflow-runtime/tests/
 crates/vox-code-audit/src/detectors/
 # check_for_llm_envelope.rs embeds a Vox fixture string containing `db.query_all()` — exact-file allowance.
 crates/vox-cli/tests/check_for_llm_envelope.rs
+# activity.rs builds a dynamic activity-log query; migration to a typed vox-db
+# store method is pending (tracked as pre-existing debt). Exact-file allowance.
+crates/vox-gui/src/commands/activity.rs

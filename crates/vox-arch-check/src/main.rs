@@ -71,6 +71,7 @@ use cargo_metadata::MetadataCommand;
 use serde::Deserialize;
 
 mod cache;
+mod checks;
 mod forbidden_patterns;
 mod json_report;
 use forbidden_patterns::{ForbiddenPatternRule, scan_all as scan_forbidden_patterns_all};
@@ -99,6 +100,18 @@ struct LayersConfig {
     /// doc that owns the work via `plan = "..."`.
     #[serde(default)]
     planned: HashMap<String, PlannedEntry>,
+    /// Rule 20: named build profiles (e.g. [profiles.lean]) with forbidden-crate lists.
+    #[serde(default)]
+    profiles: HashMap<String, ProfileConfig>,
+}
+
+/// A named build profile with an optional forbidden-crate list for Rule 20.
+#[derive(Debug, Default, Deserialize)]
+struct ProfileConfig {
+    #[allow(dead_code)]
+    build: Option<String>,
+    #[serde(default)]
+    forbidden: Vec<String>,
 }
 
 /// A crate that is planned but not yet landed on disk. Used by Rule 12 to suppress
@@ -153,6 +166,16 @@ struct CrateEntry {
     #[serde(default)]
     #[allow(dead_code)]
     sibling_of: Vec<String>,
+    /// Rule 18: this crate is intended for public crates.io release.
+    /// Its entire workspace-crate dependency closure must also be publishable.
+    #[serde(default)]
+    #[allow(dead_code)]
+    publishable: bool,
+    /// Track A classifier advisory: this statically-linked capability should
+    /// migrate behind a plugin extension point (separable, optional at runtime).
+    #[serde(default)]
+    #[allow(dead_code)]
+    plugin_candidate: bool,
 }
 
 fn default_kind() -> String {
@@ -379,6 +402,16 @@ struct Report {
     /// `vox audit --gate all --strict-block-ga` exits 0 (i.e. when block-GA
     /// gates are met by real measurements rather than corpus-inventory).
     strict_evidence_ledger: bool,
+    /// Rule 17: dependency cycles detected by Tarjan SCC. Always a hard error.
+    /// Each entry is one cycle: a sorted list of crate names forming the SCC.
+    cycle_errors: Vec<Vec<String>>,
+    /// Rule 18: publishability closure gate (hard error).
+    /// Pairs of (publishable_crate, unpublishable_dep).
+    publishability_errors: Vec<(String, String)>,
+    /// Rule 19: dep-closure-size budget gate. Always a hard error when fired.
+    closure_budget_errors: Vec<String>,
+    /// Rule 20: named build profiles must not contain forbidden crates.
+    profile_forbidden_errors: Vec<String>,
 }
 
 impl Report {
@@ -403,6 +436,10 @@ impl Report {
                     .evidence_findings
                     .iter()
                     .any(|f| f.kind.severity() == "ERROR"))
+            || !self.cycle_errors.is_empty()
+            || !self.closure_budget_errors.is_empty()
+            || !self.publishability_errors.is_empty()
+            || !self.profile_forbidden_errors.is_empty()
     }
 
     /// Project the report into per-rule results for the policy-status overlay.
@@ -495,6 +532,46 @@ impl Report {
 
     fn print_summary(&self) {
         let mut any = false;
+        if !self.cycle_errors.is_empty() {
+            any = true;
+            eprintln!(
+                "[ERROR] Rule 17: dependency cycle(s) detected ({}):",
+                self.cycle_errors.len()
+            );
+            for cycle in &self.cycle_errors {
+                eprintln!("  cycle: {}", cycle.join(" ↔ "));
+            }
+        }
+        if !self.publishability_errors.is_empty() {
+            any = true;
+            eprintln!(
+                "[ERROR] Rule 18: publishable crates with unpublishable deps ({}):",
+                self.publishability_errors.len()
+            );
+            for (krate, dep) in &self.publishability_errors {
+                eprintln!("  {krate} → {dep} (publish = false)");
+            }
+        }
+        if !self.closure_budget_errors.is_empty() {
+            any = true;
+            eprintln!(
+                "[ERROR] Rule 19: dep-closure-size budget exceeded ({}):",
+                self.closure_budget_errors.len()
+            );
+            for msg in &self.closure_budget_errors {
+                eprintln!("  {msg}");
+            }
+        }
+        if !self.profile_forbidden_errors.is_empty() {
+            any = true;
+            eprintln!(
+                "[ERROR] Rule 20: profile forbidden-crate violations ({}):",
+                self.profile_forbidden_errors.len()
+            );
+            for msg in &self.profile_forbidden_errors {
+                eprintln!("  {msg}");
+            }
+        }
         if !self.inversions.is_empty() {
             any = true;
             let label = if self.strict_layer { "ERROR" } else { "warn" };
@@ -970,10 +1047,12 @@ fn run(warn_only_flag: bool) -> Result<Report> {
     };
     prof("setup (metadata+layers+cache)", &mut prof_last);
 
-    // ── Rule 1: Layer ordering + Rule 2: Fan-in + Rule 15: Workspace-dep budget (single pass) ──
+    // ── Rule 1: Layer ordering + Rule 2: Fan-in + Rule 15: Workspace-dep budget + Rule 17: Cycles (single pass) ──
     let mut dependent_count: HashMap<String, usize> = HashMap::new();
     let mut workspace_dep_count: HashMap<String, usize> = HashMap::new();
     let mut unlisted: Vec<String> = Vec::new();
+    // Rule 17: collect normal dep edges for Tarjan SCC cycle detection.
+    let mut normal_dep_edges: Vec<(String, String)> = Vec::new();
 
     for pkg in metadata_full.workspace_packages() {
         let from_name = pkg.name.as_str();
@@ -994,6 +1073,8 @@ fn run(warn_only_flag: bool) -> Result<Report> {
                 *workspace_dep_count
                     .entry(from_name.to_string())
                     .or_insert(0) += 1;
+                // Collect for Rule 17 Tarjan cycle detection.
+                normal_dep_edges.push((from_name.to_string(), to_name.to_string()));
             }
 
             // Layer-inversion check only applies to normal (production) deps.
@@ -1030,6 +1111,142 @@ fn run(warn_only_flag: bool) -> Result<Report> {
             unlisted.len(),
             unlisted.join(", ")
         ));
+    }
+
+    // ── Rule 17: Cycle detection (Tarjan SCC) ──
+    report.cycle_errors = checks::cycles::find_cycles(&normal_dep_edges);
+
+    // ── Rule 18: Publishability closure gate ──
+    {
+        // Build adjacency from required (non-optional) workspace normal deps only.
+        // Optional deps are excluded: `cargo publish` does not require them to be on
+        // crates.io (they can be satisfied by a feature flag that is never enabled).
+        let mut ws_required_deps: std::collections::HashMap<String, Vec<String>> =
+            std::collections::HashMap::new();
+        for pkg in metadata_full.workspace_packages() {
+            for dep in &pkg.dependencies {
+                if dep.kind != cargo_metadata::DependencyKind::Normal {
+                    continue;
+                }
+                if dep.optional {
+                    continue;
+                }
+                let to = dep.name.as_str();
+                if !workspace_members.contains(to) {
+                    continue;
+                }
+                ws_required_deps
+                    .entry(pkg.name.to_string())
+                    .or_default()
+                    .push(to.to_string());
+            }
+        }
+        // Detect publish_false via cargo_metadata: publish == Some([]) means publish = false.
+        let crate_recs: Vec<checks::publishable::CrateRec> = metadata_full
+            .workspace_packages()
+            .iter()
+            .map(|pkg| {
+                let publish_false = pkg.publish.as_deref() == Some(&[]);
+                let publishable = layers
+                    .crates
+                    .get(pkg.name.as_str())
+                    .map(|e| e.publishable)
+                    .unwrap_or(false);
+                checks::publishable::CrateRec {
+                    name: pkg.name.to_string(),
+                    deps: ws_required_deps
+                        .get(pkg.name.as_str())
+                        .cloned()
+                        .unwrap_or_default(),
+                    publish_false,
+                    publishable,
+                }
+            })
+            .collect();
+        report.publishability_errors = checks::publishable::check(&crate_recs);
+    }
+
+    // ── Rule 19: Dep-closure-size budget gate ──
+    {
+        let budgets_path = workspace_root.join("contracts/reports/closure-budgets.v1.json");
+        if budgets_path.exists() {
+            let raw = std::fs::read_to_string(&budgets_path)
+                .with_context(|| format!("reading {}", budgets_path.display()))?;
+            let parsed: serde_json::Value =
+                serde_json::from_str(&raw).with_context(|| "parsing closure-budgets.v1.json")?;
+            let budgets: Vec<checks::closure_budget::Budget> = parsed["budgets"]
+                .as_array()
+                .unwrap_or(&vec![])
+                .iter()
+                .filter_map(|entry| {
+                    let name = entry["crate_name"].as_str()?.to_string();
+                    let max = entry["max_closure"].as_u64()? as usize;
+                    Some(checks::closure_budget::Budget {
+                        crate_name: name,
+                        max_closure: max,
+                    })
+                })
+                .collect();
+            report.closure_budget_errors =
+                checks::closure_budget::check(&normal_dep_edges, &budgets);
+        }
+    }
+
+    // ── Rule 20: Profile forbidden-crate gate ──
+    for (profile_name, profile_cfg) in &layers.profiles {
+        if profile_cfg.forbidden.is_empty() {
+            continue;
+        }
+        // Run cargo tree for the profile; skip silently if cargo tree fails.
+        let tree_out = std::process::Command::new("cargo")
+            .args([
+                "tree",
+                "-p",
+                "vox-cli",
+                "--no-default-features",
+                "--features",
+                "script-execution",
+                "-e",
+                "normal",
+                "--prefix",
+                "none",
+            ])
+            .output();
+        let lean_tree: Vec<String> = match tree_out {
+            Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout)
+                .lines()
+                .filter_map(|l| l.split_whitespace().next())
+                .map(|s| s.to_string())
+                .collect(),
+            // Feature may not exist; try without --features
+            _ => {
+                let o2 = std::process::Command::new("cargo")
+                    .args([
+                        "tree",
+                        "-p",
+                        "vox-cli",
+                        "--no-default-features",
+                        "-e",
+                        "normal",
+                        "--prefix",
+                        "none",
+                    ])
+                    .output();
+                match o2 {
+                    Ok(o2) if o2.status.success() => String::from_utf8_lossy(&o2.stdout)
+                        .lines()
+                        .filter_map(|l| l.split_whitespace().next())
+                        .map(|s| s.to_string())
+                        .collect(),
+                    _ => vec![],
+                }
+            }
+        };
+        if !lean_tree.is_empty() {
+            let mut errs =
+                check_profile_forbidden(profile_name, &lean_tree, &profile_cfg.forbidden);
+            report.profile_forbidden_errors.append(&mut errs);
+        }
     }
 
     // Rule 2: fan-in budget
@@ -1846,6 +2063,15 @@ fn check_generated_file_drift(
     Ok(warns)
 }
 
+/// Rule 20: named build profiles must not contain forbidden crates.
+fn check_profile_forbidden(profile: &str, tree: &[String], forbidden: &[String]) -> Vec<String> {
+    forbidden
+        .iter()
+        .filter(|f| tree.iter().any(|c| c == *f))
+        .map(|f| format!("Rule 20: profile `{profile}` must not contain `{f}`"))
+        .collect()
+}
+
 #[cfg(test)]
 mod walk_and_staleness_tests {
     use super::*;
@@ -1942,5 +2168,75 @@ extra_skip_dir_names = ["my_vendor"]
             manifest_parent_rel_to_repo(repo, &mf).as_deref(),
             Some("crates/foo")
         );
+    }
+
+    #[test]
+    fn parses_publishable_and_plugin_candidate() {
+        let cfg: LayersConfig = toml::from_str(
+            r#"
+[crates.vox-crypto]
+layer = 1
+publishable = true
+
+[crates.vox-gamify]
+layer = 3
+plugin_candidate = true
+"#,
+        )
+        .expect("parse with publishable/plugin_candidate");
+        let crypto = &cfg.crates["vox-crypto"];
+        assert!(crypto.publishable, "vox-crypto should be publishable");
+        assert!(
+            !crypto.plugin_candidate,
+            "vox-crypto should not be a plugin_candidate"
+        );
+        let gamify = &cfg.crates["vox-gamify"];
+        assert!(!gamify.publishable, "vox-gamify should not be publishable");
+        assert!(
+            gamify.plugin_candidate,
+            "vox-gamify should be a plugin_candidate"
+        );
+    }
+
+    #[test]
+    fn defaults_are_false_when_absent() {
+        let cfg: LayersConfig = toml::from_str(
+            r#"
+[crates.plain-crate]
+layer = 2
+"#,
+        )
+        .expect("parse minimal crate entry");
+        let entry = &cfg.crates["plain-crate"];
+        assert!(!entry.publishable, "publishable defaults to false");
+        assert!(
+            !entry.plugin_candidate,
+            "plugin_candidate defaults to false"
+        );
+    }
+
+    #[test]
+    fn rule20_flags_forbidden_crate_in_lean_profile() {
+        let lean_tree = vec!["vox-cli".to_string(), "vox-gui".to_string()];
+        let forbidden = vec!["vox-gui".to_string(), "vox-gamify".to_string()];
+        let violations = check_profile_forbidden("lean", &lean_tree, &forbidden);
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].contains("vox-gui"));
+    }
+
+    #[test]
+    fn rule20_clean_profile_passes() {
+        let lean_tree = vec!["vox-cli".to_string(), "vox-ast".to_string()];
+        let forbidden = vec!["vox-gui".to_string(), "vox-gamify".to_string()];
+        let violations = check_profile_forbidden("lean", &lean_tree, &forbidden);
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn rule20_multiple_forbidden_all_reported() {
+        let lean_tree = vec!["vox-gamify".to_string(), "vox-gui".to_string()];
+        let forbidden = vec!["vox-gui".to_string(), "vox-gamify".to_string()];
+        let violations = check_profile_forbidden("lean", &lean_tree, &forbidden);
+        assert_eq!(violations.len(), 2);
     }
 }

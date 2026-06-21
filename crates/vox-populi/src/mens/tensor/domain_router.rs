@@ -228,3 +228,80 @@ mod semcov_wave26_tests {
         fs::remove_dir_all(&tmp).ok();
     }
 }
+
+#[cfg(feature = "mens-train")]
+use crate::mens::tensor::domain_profiles::DomainProfilesFile;
+
+/// Pick the spoke whose router.triggers substring-match `signal`, by highest
+/// priority, breaking ties on the lexicographically smaller spoke name
+/// (profiles is a HashMap -> name tie-break required for determinism). A
+/// trigger's leading `*` is stripped before matching.
+///
+/// Note: Substring matching also means `.rs` matches things like `foo.rsync`,
+/// which is acceptable for v1.
+#[cfg(feature = "mens-train")]
+pub fn route_by_signal(file: &DomainProfilesFile, signal: &str) -> Option<String> {
+    let mut best: Option<(i32, &str)> = None;
+    for (name, p) in &file.profiles {
+        let Some(r) = &p.router else { continue };
+        let hit = r.triggers.iter().any(|t| {
+            let n = t.trim_start_matches('*');
+            !n.is_empty() && signal.contains(n)
+        });
+        if hit {
+            let cand = (r.priority, name.as_str());
+            let better = match best {
+                None => true,
+                Some((bp, bn)) => cand.0 > bp || (cand.0 == bp && cand.1 < bn),
+            };
+            if better {
+                best = Some(cand);
+            }
+        }
+    }
+    best.map(|(_, n)| n.to_string())
+}
+
+#[cfg(all(test, feature = "mens-train"))]
+mod signal_tests {
+    use super::*;
+
+    fn file() -> DomainProfilesFile {
+        serde_yaml::from_str(r#"
+profiles:
+  rust-expert: { description: x, router: { triggers: ["*.rs", "lane:vox_rust_authoring"], priority: 10 } }
+  agents:      { description: x, router: { triggers: ["lane:vox_tooling"], priority: 5 } }
+"#).unwrap()
+    }
+
+    #[test]
+    fn rs_routes_rust() {
+        assert_eq!(
+            route_by_signal(&file(), "src/main.rs").as_deref(),
+            Some("rust-expert")
+        );
+    }
+
+    #[test]
+    fn tool_routes_agents() {
+        assert_eq!(
+            route_by_signal(&file(), "lane:vox_tooling x").as_deref(),
+            Some("agents")
+        );
+    }
+
+    #[test]
+    fn no_match_none() {
+        assert_eq!(route_by_signal(&file(), "zzz"), None);
+    }
+
+    #[test]
+    fn equal_priority_name_tiebreak() {
+        let f: DomainProfilesFile = serde_yaml::from_str(
+            "profiles:\n  zeta:  { description: x, router: { triggers: [\"x\"], priority: 5 } }\n  alpha: { description: x, router: { triggers: [\"x\"], priority: 5 } }\n"
+        ).unwrap();
+        for _ in 0..20 {
+            assert_eq!(route_by_signal(&f, "x").as_deref(), Some("alpha"));
+        }
+    }
+}

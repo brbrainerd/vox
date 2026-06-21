@@ -10,6 +10,7 @@ mod model_telemetry;
 mod secrets;
 mod tail;
 mod test_health;
+pub mod tier_deps;
 mod toolchain;
 mod vox_ignore;
 mod web_frontend;
@@ -20,6 +21,7 @@ pub async fn run_checks(
     auto_heal: bool,
     test_health: bool,
     compile_target: Option<&str>,
+    tier: &str,
     checks: &mut Vec<Check>,
 ) {
     if let Some(t) = compile_target.filter(|s| !s.is_empty()) {
@@ -39,4 +41,18 @@ pub async fn run_checks(
     model_telemetry::run(checks).await;
     model_catalog::run(checks).await;
     tail::run(auto_heal, checks).await;
+
+    // Per-tier runtime-optional dep surfacing (reads distribution SSOT).
+    let dep_statuses = tier_deps::check_runtime_optional_deps(tier);
+    for s in dep_statuses {
+        checks.push(Check::new(
+            format!("tier dep: {}", s.name),
+            s.present,
+            if s.present {
+                format!("{} — found", s.name)
+            } else {
+                s.hint
+            },
+        ));
+    }
 }

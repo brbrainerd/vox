@@ -242,6 +242,23 @@ pub(super) async fn run_eval(input: &Path, output: &Path, print_summary: bool) -
     let s = scan_train_jsonl_content(&content)?;
     let total = s.total;
 
+    let workspace_root = vox_corpus::training::contract::find_workspace_root();
+    // None = no rust rows (metric not applicable → omit, never report a fake 0.0).
+    let rust_metrics: Option<(f64, f64)> = match workspace_root {
+        Some(ref ws) => {
+            match vox_corpus::corpus::eval_rust_metrics::compute_rust_spoke_metrics(ws, input) {
+                Ok(m) => m,
+                Err(e) => {
+                    tracing::warn!(
+                        "rust spoke metrics computation failed; omitting from eval: {e}"
+                    );
+                    None
+                }
+            }
+        }
+        None => None,
+    };
+
     let taxonomy: HashSet<&str> = crate::training::TAXONOMY.iter().copied().collect();
     let mut hit_vec: Vec<_> = s
         .construct_hits
@@ -263,7 +280,7 @@ pub(super) async fn run_eval(input: &Path, output: &Path, print_summary: bool) -
         .filter(|x| taxonomy.contains(x.as_str()))
         .count();
 
-    let results = serde_json::json!({
+    let mut results = serde_json::json!({
         "run_id": format!("eval_{}", crate::training::timestamp_string()),
         "total_samples": total,
         "format_validity": if total > 0 { s.format_valid as f64 / total as f64 } else { 0.0 },
@@ -274,6 +291,11 @@ pub(super) async fn run_eval(input: &Path, output: &Path, print_summary: bool) -
         "construct_coverage_pct": if taxonomy.is_empty() { 0.0 } else { 100.0 * coverage as f64 / taxonomy.len() as f64 },
         "quality_proxy": if total > 0 { s.parse_passed as f64 / total as f64 } else { 0.0 },
     });
+    // Only emit rust metrics when the corpus actually has rust_authoring rows.
+    if let Some((compile_rate, clippy_rate)) = rust_metrics {
+        results["rust_compile_rate"] = serde_json::json!(compile_rate);
+        results["clippy_clean_rate"] = serde_json::json!(clippy_rate);
+    }
 
     if let Some(parent) = output.parent() {
         tokio::fs::create_dir_all(parent).await?;

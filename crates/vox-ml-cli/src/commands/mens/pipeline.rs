@@ -3,6 +3,12 @@ use anyhow::Result;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
+/// Helper to extract/check active profile.
+#[allow(dead_code)]
+pub fn selected_profile(profile: &Option<String>) -> &str {
+    profile.as_deref().unwrap_or("default")
+}
+
 /// Run the dogfood pipeline: corpus extract → validate → pairs → eval → optional native train.
 pub async fn run(
     data_dir: PathBuf,
@@ -16,6 +22,7 @@ pub async fn run(
     stages: Option<String>,
     dry_run: bool,
     curriculum: bool,
+    profile: Option<String>,
 ) -> Result<()> {
     #[cfg(not(feature = "gpu"))]
     {
@@ -26,6 +33,7 @@ pub async fn run(
             epochs,
             preset.as_ref(),
             curriculum,
+            profile.as_ref(),
         );
     }
 
@@ -40,6 +48,10 @@ pub async fn run(
         PipelineStage::ReviewIngest,
         PipelineStage::ReviewDatasetBuild,
         PipelineStage::ReviewEvalPackBuild,
+        // Mix-source producers must run BEFORE Mix so their outputs are consumed
+        // in the same run (Mix is the only stage that reads mix_sources/*).
+        PipelineStage::ReviewToDpo,
+        PipelineStage::AgentTraceIngest,
         PipelineStage::Validate,
         PipelineStage::Pairs,
         PipelineStage::Mix,
@@ -274,6 +286,47 @@ pub async fn run(
                     .await?;
                 }
             }
+            PipelineStage::ReviewToDpo => {
+                if !dry_run {
+                    let review_input = PathBuf::from("mens/data/mix_sources/review_findings.jsonl");
+                    let dpo_output = PathBuf::from("mens/data/mix_sources/rust_review_dpo.jsonl");
+                    if review_input.is_file() {
+                        crate::commands::corpus::run(
+                            crate::commands::corpus::CorpusAction::ReviewToDpo {
+                                input: review_input,
+                                output: dpo_output,
+                            },
+                        )
+                        .await
+                        .map_err(|e| anyhow::anyhow!("pipeline review_to_dpo failed: {e}"))?;
+                    } else {
+                        tracing::debug!("ReviewToDpo: no review_findings.jsonl, skipping");
+                    }
+                }
+            }
+            PipelineStage::AgentTraceIngest => {
+                if !dry_run {
+                    // Ingest a2a traces from dogfood capture path → SFT rows with diversity gate.
+                    // Guard on input presence (consistent with ReviewToDpo) — never fabricate.
+                    let trace_input = PathBuf::from("target/dogfood/a2a_traces.jsonl");
+                    let trace_output = PathBuf::from("mens/data/mix_sources/agent_traces.jsonl");
+                    if trace_input.is_file() {
+                        crate::commands::corpus::run(
+                            crate::commands::corpus::CorpusAction::TraceIngest {
+                                input: trace_input,
+                                output: trace_output,
+                                min_diversity: 0.40,
+                            },
+                        )
+                        .await
+                        .map_err(|e| anyhow::anyhow!("pipeline agent_trace_ingest failed: {e}"))?;
+                    } else {
+                        tracing::debug!("AgentTraceIngest: no a2a_traces.jsonl captured, skipping");
+                    }
+                } else {
+                    tracing::info!("AgentTraceIngest: dry_run, skipping");
+                }
+            }
             PipelineStage::KbSignals => {
                 if !dry_run {
                     run_kb_signals_stage(&data_dir).await?;
@@ -324,104 +377,152 @@ pub async fn run(
                             &data_dir,
                             &mix_config,
                         )?;
-                        crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Mix {
-                            config: mix_config,
-                            allow_missing_sources: true,
-                        })
-                        .await?;
+                        let is_active_spoke_mix = if let Some(name) = profile.as_deref() {
+                            let eff = vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile
+                                ::load_domain_profile(name, ws.as_deref())?;
+                            eff.mix_config
+                                .map(|spoke_mix| spoke_mix == mix_config)
+                                .unwrap_or(false)
+                        } else {
+                            false
+                        };
+                        if is_active_spoke_mix {
+                            vox_corpus::corpus::run_mix_with_options(
+                                &mix_config,
+                                ws.as_deref(),
+                                vox_corpus::corpus::MixRunOptions {
+                                    strict: true,
+                                    write_report: true,
+                                },
+                            )?;
+                        } else {
+                            crate::commands::corpus::run(
+                                crate::commands::corpus::CorpusAction::Mix {
+                                    config: mix_config,
+                                    allow_missing_sources: true,
+                                },
+                            )
+                            .await?;
+                        }
                     }
                 }
             }
             PipelineStage::Train => {
-                if !dry_run {
-                    #[cfg(feature = "gpu")]
-                    {
-                        let device = device.clone().unwrap_or_else(|| "best".into());
-                        let target_model = model.clone();
-                        let target_preset = preset.clone().or_else(|| Some("prosumer_16g".into()));
+                let ws = vox_corpus::training::contract::find_workspace_root();
+                let root = ws.clone().unwrap_or_else(|| std::path::PathBuf::from("."));
+                let selection =
+                    crate::commands::mens::training_selection::resolve_training_selection(
+                        &root,
+                        profile.as_deref(),
+                        model.as_deref(),
+                        preset.as_deref(),
+                        None,
+                    )?;
+                match &selection {
+                    crate::commands::mens::training_selection::TrainingSelection::Skip {
+                        reason,
+                    } => {
+                        tracing::info!("spoke training skipped ({reason})");
+                        continue;
+                    }
+                    crate::commands::mens::training_selection::TrainingSelection::Train {
+                        model: m,
+                        preset: p,
+                        backend,
+                    } => {
+                        tracing::info!(model=?m, preset=%p, backend=?backend, "resolved training selection");
+                        if !dry_run {
+                            #[cfg(feature = "gpu")]
+                            {
+                                let device = device.clone().unwrap_or_else(|| "best".into());
+                                let target_model = m.clone();
+                                let target_preset = Some(p.clone());
+                                let backend = *backend;
 
-                        // SAFETY: CLI process; no concurrent `getenv` readers rely on these during this block.
-                        #[allow(unsafe_code)]
-                        unsafe {
-                            std::env::set_var("VOX_BENCHMARK", "1");
-                            if strict_gate {
-                                std::env::set_var("VOX_EVAL_STRICT", "1");
-                                std::env::set_var("VOX_BENCHMARK_MIN_PASS_RATE", "0.80");
-                            } else {
-                                std::env::set_var("VOX_EVAL_STRICT", "0");
-                                std::env::set_var("VOX_BENCHMARK_MIN_PASS_RATE", "0.0");
+                                // SAFETY: CLI process; no concurrent `getenv` readers rely on these during this block.
+                                #[allow(unsafe_code)]
+                                unsafe {
+                                    std::env::set_var("VOX_BENCHMARK", "1");
+                                    if strict_gate {
+                                        std::env::set_var("VOX_EVAL_STRICT", "1");
+                                        std::env::set_var("VOX_BENCHMARK_MIN_PASS_RATE", "0.80");
+                                    } else {
+                                        std::env::set_var("VOX_EVAL_STRICT", "0");
+                                        std::env::set_var("VOX_BENCHMARK_MIN_PASS_RATE", "0.0");
+                                    }
+                                }
+
+                                crate::commands::schola::train::run_train(
+                                    backend,
+                                    target_model,
+                                    device,
+                                    data_dir.clone(),
+                                    output_dir.clone(),
+                                    None, // rank (auto from preset)
+                                    None, // alpha
+                                    None, // seq_len
+                                    None, // batch_size
+                                    None, // grad_accum
+                                    None, // budget_seq_len
+                                    None, // budget_batch_size
+                                    None, // budget_grad_accum
+                                    None, // resume
+                                    epochs,
+                                    None, // lr
+                                    None, // warmup
+                                    42,   // seed
+                                    None, // min_rating
+                                    target_preset,
+                                    vox_populi::mens::TrainingDeploymentTarget::Workstation,
+                                    "normal".into(),
+                                    None, // vram_limit_fraction
+                                    None, // adapter_tag
+                                    None, // context_filter
+                                    None, // validation_split_ratio (use default 5%)
+                                    crate::commands::mens::MensTokenizerCli::Hf.into(),
+                                    false, // qlora_no_double_quant
+                                    false, // qlora_require_full_proxy_stack
+                                    false, // qlora_allow_partial_proxy_stack
+                                    None,  // qlora_max_skip_rate
+                                    false, // qlora_lm_head_only
+                                    None,  // qlora_proxy_max_layers
+                                    64,    // qlora_ce_last_k
+                                    None,  // checkpoint_every
+                                    false, // force_restart
+                                    curriculum,
+                                    vox_populi::mens::OptimizerExperimentMode::Off,
+                                    true,               // require_gpu
+                                    false,              // allow_cpu_fallback
+                                    None,               // base_model_family
+                                    None,               // upstream_model_id
+                                    None,               // license_class
+                                    false,              // attribution_required
+                                    false,              // trajectory_weighting_enabled
+                                    1.1,                // trajectory_tool_trace_boost
+                                    1.15,               // trajectory_failure_category_boost
+                                    None,               // trajectory_quality_floor
+                                    1.05,               // trajectory_quality_boost
+                                    None,               // curriculum_schedule
+                                    Default::default(), // chatml_config
+                                    None,               // mix_config
+                                )
+                                .await?;
+
+                                // W4-01: Flywheel signal telemetry
+                                if curriculum {
+                                    tracing::info!(
+                                        "flywheel.signal: Curriculum training complete, pending human promotion gate."
+                                    );
+                                }
+                            }
+
+                            #[cfg(not(feature = "gpu"))]
+                            {
+                                anyhow::bail!(
+                                    "mens pipeline: native train was requested but this `vox` binary was built without the `gpu` feature; pass `--skip-train` or rebuild with `--features gpu`"
+                                );
                             }
                         }
-
-                        crate::commands::schola::train::run_train(
-                            crate::commands::mens::PopuliTrainBackendCli::Qlora.into(),
-                            target_model,
-                            device,
-                            data_dir.clone(),
-                            output_dir.clone(),
-                            None, // rank (auto from preset)
-                            None, // alpha
-                            None, // seq_len
-                            None, // batch_size
-                            None, // grad_accum
-                            None, // budget_seq_len
-                            None, // budget_batch_size
-                            None, // budget_grad_accum
-                            None, // resume
-                            epochs,
-                            None, // lr
-                            None, // warmup
-                            42,   // seed
-                            None, // min_rating
-                            target_preset,
-                            vox_populi::mens::TrainingDeploymentTarget::Workstation,
-                            "normal".into(),
-                            None, // vram_limit_fraction
-                            None, // adapter_tag
-                            None, // context_filter
-                            None, // validation_split_ratio (use default 5%)
-                            crate::commands::mens::MensTokenizerCli::Hf.into(),
-                            false, // qlora_no_double_quant
-                            false, // qlora_require_full_proxy_stack
-                            false, // qlora_allow_partial_proxy_stack
-                            None,  // qlora_max_skip_rate
-                            false, // qlora_lm_head_only
-                            None,  // qlora_proxy_max_layers
-                            64,    // qlora_ce_last_k
-                            None,  // checkpoint_every
-                            false, // force_restart
-                            curriculum,
-                            vox_populi::mens::OptimizerExperimentMode::Off,
-                            true,               // require_gpu
-                            false,              // allow_cpu_fallback
-                            None,               // base_model_family
-                            None,               // upstream_model_id
-                            None,               // license_class
-                            false,              // attribution_required
-                            false,              // trajectory_weighting_enabled
-                            1.1,                // trajectory_tool_trace_boost
-                            1.15,               // trajectory_failure_category_boost
-                            None,               // trajectory_quality_floor
-                            1.05,               // trajectory_quality_boost
-                            None,               // curriculum_schedule
-                            Default::default(), // chatml_config
-                            None,               // mix_config
-                        )
-                        .await?;
-
-                        // W4-01: Flywheel signal telemetry
-                        if curriculum {
-                            tracing::info!(
-                                "flywheel.signal: Curriculum training complete, pending human promotion gate."
-                            );
-                        }
-                    }
-
-                    #[cfg(not(feature = "gpu"))]
-                    {
-                        anyhow::bail!(
-                            "mens pipeline: native train was requested but this `vox` binary was built without the `gpu` feature; pass `--skip-train` or rebuild with `--features gpu`"
-                        );
                     }
                 }
             }
@@ -574,6 +675,7 @@ mod tests {
             Some("validate,pairs,eval".to_string()),
             false,
             false,
+            None,
         )
         .await;
 
@@ -605,6 +707,15 @@ mod tests {
         assert!(!is_lock_error(&e));
     }
 
+    #[test]
+    fn test_selected_profile_helper() {
+        assert_eq!(selected_profile(&None), "default");
+        assert_eq!(
+            selected_profile(&Some("rust-expert".to_string())),
+            "rust-expert"
+        );
+    }
+
     #[tokio::test]
     async fn test_eval_stage_targets_validated_mixed_jsonl() {
         let temp_dir = tempfile::tempdir().unwrap();
@@ -629,6 +740,7 @@ mod tests {
             Some("eval".to_string()),
             false,
             false,
+            None,
         )
         .await;
 

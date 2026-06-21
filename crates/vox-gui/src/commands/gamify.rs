@@ -46,6 +46,37 @@ impl LudusProfileDto {
     }
 }
 
+#[derive(Debug, serde::Serialize)]
+pub struct DueActionDto {
+    pub action_id: String,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct KpiSummaryDto {
+    pub events_recorded: i64,
+    pub grind_ratio: f64,
+    pub avg_multiplier: f64,
+    pub quests_completed: i64,
+    pub total_xp: i64,
+}
+
+impl KpiSummaryDto {
+    fn from_summary(s: &vox_gamify::kpi::LudusKpiSummary) -> Self {
+        let grind_ratio = if s.events_recorded > 0 {
+            (s.grind_capped_events as f64 / s.events_recorded as f64).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+        Self {
+            events_recorded: s.events_recorded,
+            grind_ratio,
+            avg_multiplier: s.avg_effective_multiplier,
+            quests_completed: s.quests_completed_total,
+            total_xp: s.total_xp_awarded,
+        }
+    }
+}
+
 /// Map a notification kind to a banner/toast severity (`ok`/`warn`/`info`).
 pub(crate) fn notification_level(t: &NotificationType) -> &'static str {
     match t {
@@ -90,16 +121,23 @@ async fn open_gamify_db() -> Result<vox_db::Codex, String> {
         .map_err(|e| e.to_string())
 }
 
-#[tauri::command]
-pub async fn get_ludus_profile() -> Result<LudusProfileDto, String> {
-    let db = open_gamify_db().await?;
+pub async fn get_ludus_profile_impl(db: &vox_db::Codex) -> Result<LudusProfileDto, String> {
     let user_id = vox_gamify::db::canonical_user_id();
-    let mut profile = vox_gamify::db::get_profile(&db, &user_id)
+    let mut profile = vox_gamify::db::get_profile(db, &user_id)
         .await
         .map_err(|e| e.to_string())?
         .unwrap_or_else(|| LudusProfile::new_default(&user_id));
     profile.regen_energy();
+    if let Err(e) = vox_gamify::db::upsert_profile(db, &profile).await {
+        tracing::error!("failed to upsert profile after energy regen: {}", e);
+    }
     Ok(LudusProfileDto::from_profile(&profile))
+}
+
+#[tauri::command]
+pub async fn get_ludus_profile() -> Result<LudusProfileDto, String> {
+    let db = open_gamify_db().await?;
+    get_ludus_profile_impl(&db).await
 }
 
 #[tauri::command]
@@ -125,6 +163,30 @@ pub async fn ack_ludus_notification(notification_id: String) -> Result<(), Strin
         .await
         .map_err(|e| e.to_string())?;
     Ok(())
+}
+
+#[tauri::command]
+pub async fn gamify_due_actions(limit: u32) -> Result<Vec<DueActionDto>, String> {
+    let db = open_gamify_db().await?;
+    let user_id = vox_gamify::db::canonical_user_id();
+    let now_ms = vox_gamify::util::now_unix() * 1000;
+    let action_ids = vox_gamify::db::due_action_ids(&db, &user_id, now_ms, limit)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(action_ids
+        .into_iter()
+        .map(|id| DueActionDto { action_id: id })
+        .collect())
+}
+
+#[tauri::command]
+pub async fn gamify_kpi_summary() -> Result<KpiSummaryDto, String> {
+    let db = open_gamify_db().await?;
+    let user_id = vox_gamify::db::canonical_user_id();
+    let summary = vox_gamify::db::load_kpi_summary(&db, &user_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(KpiSummaryDto::from_summary(&summary))
 }
 
 /// Best-effort: map unread gamify notifications to the GUI alert JSON shape
@@ -522,5 +584,63 @@ mod tests {
         assert_eq!(json["type"], "message_sent");
         assert_eq!(json["source"], "gui");
         assert_eq!(json["session_id"], "abc");
+    }
+
+    #[tokio::test]
+    async fn energy_regen_persists_to_db() {
+        let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+            .await
+            .expect("db");
+        vox_gamify::db::apply_ludus_migrations(&db)
+            .await
+            .expect("migrations");
+        let user_id = vox_gamify::db::canonical_user_id();
+
+        let mut p = LudusProfile::new_default(&user_id);
+        p.energy = 0;
+        p.last_energy_regen = vox_gamify::util::now_unix() - 7200; // 2 hours ago
+        vox_gamify::db::upsert_profile(&db, &p)
+            .await
+            .expect("upsert");
+
+        // Call the impl
+        let _dto = get_ludus_profile_impl(&db).await.expect("impl");
+
+        // Reload from DB
+        let reloaded = vox_gamify::db::get_profile(&db, &user_id)
+            .await
+            .expect("get")
+            .unwrap();
+        assert!(reloaded.energy > 0, "energy must persist after regen");
+    }
+
+    #[test]
+    fn due_action_to_dto() {
+        let dto = DueActionDto {
+            action_id: "my_action".to_string(),
+        };
+        assert_eq!(dto.action_id, "my_action");
+    }
+
+    #[test]
+    fn kpi_to_dto() {
+        let summary = vox_gamify::kpi::LudusKpiSummary {
+            events_recorded: 10,
+            total_xp_awarded: 50,
+            total_crystals_awarded: 5,
+            grind_capped_events: 2,
+            avg_effective_multiplier: 1.5,
+            hint_events_logged: 0,
+            quests_completed_total: 3,
+            notifications_unread: 0,
+            hints_shown: 0,
+            hints_dismissed: 0,
+        };
+        let dto = KpiSummaryDto::from_summary(&summary);
+        assert_eq!(dto.events_recorded, 10);
+        assert_eq!(dto.grind_ratio, 0.2);
+        assert_eq!(dto.avg_multiplier, 1.5);
+        assert_eq!(dto.quests_completed, 3);
+        assert_eq!(dto.total_xp, 50);
     }
 }

@@ -203,7 +203,7 @@ vox-plugin-host = { workspace = true }
 # Needed to construct ROption / RString when dispatching into plugin extension
 # trait methods (e.g. the Publication.ingest_tick signature).
 abi_stable = { workspace = true }
-vox-populi = { workspace = true }
+vox-populi = { workspace = true, features = ["mens-train"] }
 vox-mesh-types = { workspace = true }
 vox-workflow-runtime = { workspace = true, optional = true }
 
@@ -268,7 +268,8 @@ semver = { workspace = true }
 keyring = { workspace = true, optional = true }
 workspace-hack = { workspace = true }
 vox-rule-pack = { workspace = true }
-vox-telemetry = { workspace = true }
+vox-telemetry      = { workspace = true }
+vox-telemetry-otlp = { workspace = true }
 vox-audit = { workspace = true }
 vox-identity.workspace = true
 vox-crypto.workspace = true

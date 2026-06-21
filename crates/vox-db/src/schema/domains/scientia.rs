@@ -400,4 +400,22 @@ CREATE TABLE IF NOT EXISTS scientia_review_decisions (
 -- --experimental-triggers"), the same constraint that rules out SQL CHECK here.
 CREATE INDEX IF NOT EXISTS idx_scientia_review_decisions_claim
     ON scientia_review_decisions(claim_id, decided_at_ms);
+
+-- Track F: Learned per-model prompt-guidance profiles.
+-- One row per (prompt_profile_key, variant_id). Only `Confirmed` variants are
+-- injected into the system prompt; others are in the autonomic pipeline.
+CREATE TABLE IF NOT EXISTS model_prompt_profiles (
+    prompt_profile_key  TEXT    NOT NULL,
+    variant_id          TEXT    NOT NULL,
+    preamble_text       TEXT    NOT NULL DEFAULT '',
+    confidence          TEXT    NOT NULL DEFAULT 'provisional',
+    quality_delta       REAL    NOT NULL DEFAULT 0.0,
+    applications        INTEGER NOT NULL DEFAULT 0,
+    created_at_ms       INTEGER NOT NULL,
+    approved_by         TEXT,
+    PRIMARY KEY (prompt_profile_key, variant_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_model_prompt_profiles_key
+    ON model_prompt_profiles(prompt_profile_key, confidence);
 "#;

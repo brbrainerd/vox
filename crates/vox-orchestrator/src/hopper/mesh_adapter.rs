@@ -159,11 +159,30 @@ pub async fn apply_op_fragment(
             };
             Ok(hopper.replay_admitted(replay).await)
         }
-        HopperOpSync::ItemOverridden { .. } => {
-            Err(ReplicationError::UnsupportedOpVariant("ItemOverridden"))
+        HopperOpSync::ItemOverridden {
+            item_id,
+            new_priority,
+            override_at_unix_ms,
+            override_by_node_id,
+            ..
+        } => {
+            let hid = crate::events::HopperItemId(item_id);
+            let priority = TaskPriority::from_u8(new_priority);
+            hopper
+                .replay_overridden(&hid, priority, override_at_unix_ms, override_by_node_id)
+                .await
+                .map_err(|e| ReplicationError::Decode(format!("Overridden replay failed: {:?}", e)))
         }
-        HopperOpSync::ItemTransitioned { .. } => {
-            Err(ReplicationError::UnsupportedOpVariant("ItemTransitioned"))
+        HopperOpSync::ItemTransitioned {
+            item_id, new_state, ..
+        } => {
+            let hid = crate::events::HopperItemId(item_id);
+            let state: super::types::ItemState = serde_json::from_str(&new_state)
+                .or_else(|_| serde_json::from_str(&format!("\"{}\"", new_state)))
+                .map_err(|e| ReplicationError::Decode(format!("Invalid ItemState: {}", e)))?;
+            hopper.replay_transitioned(&hid, state).await.map_err(|e| {
+                ReplicationError::Decode(format!("Transitioned replay failed: {:?}", e))
+            })
         }
     }
 }
@@ -173,6 +192,7 @@ mod tests {
     use super::*;
     use crate::hopper::store::InMemoryHopper;
     use crate::hopper::types::{IntakeSource, ItemState};
+    use crate::types::PrioritySource;
     use ed25519_dalek::{Signer, SigningKey};
     use vox_mesh_types::op_fragment::FederationSignature;
 
@@ -289,23 +309,52 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn unsupported_variant_is_surfaced() {
+    async fn apply_item_overridden_updates_priority() {
         let sk = signing_key();
+        let hopper = InMemoryHopper::headless();
+        // First admit it
+        let env_admit = signed_envelope(&admitted(), &sk);
+        apply_op_fragment(&env_admit, &sk.verifying_key(), 3, &hopper)
+            .await
+            .unwrap();
+
+        let op = HopperOpSync::ItemOverridden {
+            item_id: "remote-item-001".into(),
+            new_priority: 0, // Background
+            override_at_unix_ms: 1_700_000_010_000,
+            override_by_node_id: "did:key:zPeerA".into(),
+            delta_seconds_since_admit: 10,
+        };
+        let env_override = signed_envelope(&op, &sk);
+        let item = apply_op_fragment(&env_override, &sk.verifying_key(), 3, &hopper)
+            .await
+            .expect("apply override ok");
+
+        assert_eq!(item.classified_priority, TaskPriority::Background);
+        assert_eq!(item.priority_source, PrioritySource::Developer);
+    }
+
+    #[tokio::test]
+    async fn apply_item_transitioned_updates_state() {
+        let sk = signing_key();
+        let hopper = InMemoryHopper::headless();
+        // First admit it
+        let env_admit = signed_envelope(&admitted(), &sk);
+        apply_op_fragment(&env_admit, &sk.verifying_key(), 3, &hopper)
+            .await
+            .unwrap();
+
         let op = HopperOpSync::ItemTransitioned {
             item_id: "remote-item-001".into(),
             new_state: "done".into(),
-            transitioned_at_unix_ms: 1,
+            transitioned_at_unix_ms: 1_700_000_020_000,
             by_node_id: "did:key:zPeerA".into(),
         };
-        let env = signed_envelope(&op, &sk);
-        let hopper = InMemoryHopper::headless();
-
-        let err = apply_op_fragment(&env, &sk.verifying_key(), 3, &hopper)
+        let env_trans = signed_envelope(&op, &sk);
+        let item = apply_op_fragment(&env_trans, &sk.verifying_key(), 3, &hopper)
             .await
-            .unwrap_err();
-        assert!(matches!(
-            err,
-            ReplicationError::UnsupportedOpVariant("ItemTransitioned")
-        ));
+            .expect("apply transition ok");
+
+        assert!(matches!(item.state, ItemState::Done));
     }
 }

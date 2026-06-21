@@ -23,7 +23,8 @@ pub fn ingest_lcov_reachability(graph: &Value, lcov_content: &str) -> Result<Val
     if let Some(nodes) = updated.get_mut("nodes").and_then(|n| n.as_array_mut()) {
         for node in nodes {
             if let Some(id) = node.get("id").and_then(|i| i.as_str()) {
-                let count = execution_counts.get(id).copied().unwrap_or(0);
+                let bare = id.rsplit("::").next().unwrap_or(id);
+                let count = execution_counts.get(bare).copied().unwrap_or(0);
                 node.as_object_mut()
                     .unwrap()
                     .insert("execution_count".to_string(), json!(count));

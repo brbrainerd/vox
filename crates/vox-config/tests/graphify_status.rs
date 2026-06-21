@@ -174,6 +174,7 @@ fn virtual_corpus_is_always_fresh() {
         extraction_mode: None,
         default_for_intents: vec![],
         is_virtual: true,
+        source_root: None,
     };
     let status = vox_config::graphify::assess_corpus_status(
         tmp.path(),

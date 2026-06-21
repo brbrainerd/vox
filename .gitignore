@@ -102,6 +102,8 @@ populi/data/*.jsonl
 # Per-branch policy run-status overlay (Phase 1c): machine-specific, written by
 # `vox ci`/code-audit/arch gates per branch. Regenerated on every run; never commit.
 .vox/policy-status/
+# Antigravity delegation worktrees (ephemeral, per-delegation)
+/.vox/agy-worktrees/
 **/.vox/policy-status/
 # Crate-local `.vox/` state (orchestrator memory, etc.)
 crates/*/.vox/
@@ -254,3 +256,14 @@ graphify-out/COVERAGE_BEHAVIORS_*
 
 # Isolated git worktrees for parallel development
 .worktrees/
+
+# Antigravity agents custom rules and skills mount (Track D T0)
+/.agents/
+
+# Scratch output from `cargo ... > file 2>&1` redirects (Windows process-orphan
+# avoidance). Never commit these — agents redirect cargo output here.
+test-out.txt
+build-out.txt
+voxup-deps.txt
+*-out.txt
+

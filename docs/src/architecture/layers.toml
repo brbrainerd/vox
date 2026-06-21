@@ -32,7 +32,22 @@
 # target, .git, node_modules, .pnpm-store, __pycache__, .venv, .mypy_cache,
 # .turbo, .next, .parcel-cache, .cargo — extras can only add, never remove.
 [arch_check.walk_prune]
-# extra_skip_dir_names = ["example_vendor"]
+extra_skip_dir_names = [
+    "example_vendor",
+    "wt-skill-discovery-engine",
+    ".claude",
+    ".worktrees",
+    ".clone",
+    ".claire",
+    "target_ci",
+    "target-verify-mcp",
+    "tmp",
+    "graphify-out",
+    "workspace",
+    ".sccache",
+    ".vox",
+    ".agents"
+]
 
 [guards]
 # Strictness per rule. Layer ordering is implicitly strict (override with
@@ -63,6 +78,13 @@ forbidden_deps    = "error"
 # violations for every rule (see Task 4.2 in the cross-platform parity plan).
 # Adding a new [[forbidden_pattern]] rule with open violations while this is
 # "error" will cause CI to fail immediately for that rule.
+#
+# 2026-06-19: briefly downgraded to "warn" during VoxMens Split B (28 violations,
+# almost all TEST-code false-positives + 2 real raw-git in vox-cli graphify).
+# Restored to "error" after: (a) adding per-rule `exempt_tests` (skips tests/ dirs
+# + inline #[cfg(test)] blocks) on the unsafe/abs-path/dynlib/shell-spawn rules,
+# (b) routing vox-cli graphify through vox_git, (c) annotating the cfg(windows)-gated
+# voxup powershell spawn. Tree re-swept clean (0 violations). See ledger AGH-0008.
 forbidden_pattern = "error"
 
 # ── Rule 10: Forbidden direct dependencies ────────────────────────────────────
@@ -78,6 +100,11 @@ crate    = "vox-code-audit"
 forbidden = ["vox-search", "tantivy", "qdrant"]
 reason   = "vox-code-audit detectors must not pull search/vector deps (build-time neutrality)"
 
+[[forbidden_deps]]
+crate    = "vox-telemetry-otlp"
+forbidden = ["vox-orchestrator", "vox-cli", "vox-gui"]
+reason   = "egress crate must not depend up into surfaces; surfaces register it, not vice-versa"
+
 [crates]
 vox-scientia = { layer = 3, staleness_exempt = true, max_loc = 15_000 }  # umbrella: +8 SCIENTIA sub-crates folded in (was ~2.5K, now ~8.8K)
 
@@ -86,7 +113,7 @@ vox-orchestrator-types = { layer = 0 }
 vox-llm-config         = { layer = 0, staleness_exempt = true }   # SSOT for LLM/AI setting-key metadata; pure-data, zero workspace deps; vox-secrets/vox-config/vox-gui are views
 
 vox-db-types           = { layer = 0 }
-vox-mesh-types         = { layer = 0 }
+vox-mesh-types         = { layer = 0, publishable = true }
 vox-ast                = { layer = 0, max_dependents = 40 }   # pure-data Vox AST (serde-only); extracted from vox-compiler 2026-06-05, re-exported as vox_compiler::ast
 workspace-hack         = { layer = 0, max_dependents = 80, staleness_exempt = true }
 vox-arch-check         = { layer = 0, kind = "binary" }
@@ -116,7 +143,8 @@ vox-plugin-sdk        = { layer = 1 }                            # authoring SDK
 vox-plugin-types      = { layer = 1 }                            # pure-types L1 leaf
 vox-research-events    = { layer = 1 }                            # SCIENTIA typed event bus (Phase 0b)
 vox-telemetry         = { layer = 1 }                            # L1 telemetry facade; zero domain deps
-vox-runtime           = { layer = 1, max_dependents = 20 }       # umbrella runtime: RuntimeProfile + lifecycle traits + VoxConfig; zero internal deps (PR #97)
+vox-telemetry-otlp    = { layer = 3, max_loc = 3_000 }           # L3 feature-gated OTLP egress; only surfaces register it (never domain crates)
+vox-runtime           = { layer = 2, max_dependents = 20 }       # umbrella runtime: RuntimeProfile + lifecycle traits + VoxConfig; deps vox-config
 
 # ── L2 — domain libraries ─────────────────────────────────────────────────────
 vox-config              = { layer = 2, max_dependents = 20 }
@@ -139,6 +167,10 @@ vox-journal             = { layer = 2 }                          # append-only J
 vox-effort-audit        = { layer = 3, kind = "library", max_loc = 4_000 }
 vox-effort-route        = { layer = 3, kind = "library", max_loc = 4_000 }
 vox-eval                = { layer = 2 }
+vox-graphify-reader     = { layer = 2 }
+vox-similarity          = { layer = 2, max_loc = 6_000 }          # L2 pure simhash/minhash/LSH; no async runtime deps
+vox-skill-discovery     = { layer = 3, kind = "binary", max_loc = 8_000 }  # L3 code-block miner + dedup (vox-discover bin)
+
 
 
 
@@ -184,7 +216,7 @@ vox-skills              = { layer = 3, staleness_exempt = true }
 vox-cli-core            = { layer = 3 }
 
 vox-orchestrator-mcp    = { layer = 3, max_loc = 40_000 }        # Phase 4 extraction
-vox-mcp-llm-bridge      = { layer = 3 }                          # MCP LLM inference bridge (extracted from vox-orchestrator-mcp)
+vox-mcp-llm-bridge      = { layer = 3, orphan_exempt = true }                          # MCP LLM inference bridge (extracted from vox-orchestrator-mcp)
 vox-orchestrator-queue  = { layer = 3 }                          # Phase 5 extraction
 vox-orchestrator-driver = { layer = 3 }                          # CLI/MCP embedded orchestrator driver (2026 debt burndown)
 vox-search              = { layer = 3 }
@@ -276,6 +308,8 @@ exempt_files     = [
     "crates/vox-cli/src/commands/ci/data_storage_guard.rs",
     "crates/vox-cli/src/commands/ci/install_hooks.rs",  # uses vox_git::read_only(); pattern match hits the comment only
     "crates/vox-cli/src/commands/ci/line_endings.rs",
+    "crates/vox-cli-ci/src/line_endings.rs",
+    "crates/vox-cli-ci/src/commit_lint.rs",
     "crates/vox-cli/src/commands/ci/pre_push.rs",
     "crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs",
     "crates/vox-cli/src/commands/ci/watch_run.rs",
@@ -335,9 +369,23 @@ file_glob        = "crates/vox-codegen/src/codegen_rust/**/*.rs"
 allow_annotation = "// vox-arch-check: allow-direct-projection"
 reason           = "HIR projections for emit must go through projection_bundle (WebIR/AppContract/Runtime/Shell/RequiredCapabilities SSOT)."
 
+# agy chokepoint: all Antigravity CLI spawns must go through AgyExec (kill_on_drop,
+# CREATE_NO_WINDOW, arg sanitisation). Raw spawns bypass the credit-burn-on-orphan guard.
+[[forbidden_pattern]]
+name             = "raw-agy-exec"
+pattern          = 'Command::new\("agy"\)'
+file_glob        = "crates/**/*.rs"
+exempt_files     = [
+    "crates/vox-orchestrator-mcp/src/agy_exec.rs",
+    "crates/vox-orchestrator-mcp/src/agy_doctor.rs",
+]
+allow_annotation = "// vox-arch-check: allow agy-exec"
+reason           = "All agy CLI invocations must go through AgyExec (kill_on_drop guard prevents credit-burning orphans on timeout)."
+
 # Crate-level `unsafe_code` allows — keep list short; prefer `EnvScratch`, scoped `#[allow]`, or `// vox-arch-check: allow crate unsafe_code`.
 [[forbidden_pattern]]
 name             = "crate-allow-unsafe-code"
+exempt_tests     = true
 pattern          = '#!\[allow\([^\]]*unsafe_code[^\]]*\)\]'
 file_glob        = "crates/**/*.rs"
 exempt_files     = [
@@ -408,6 +456,7 @@ reason           = "Application package manifests use @tauri-apps/* per ADR 037.
 #    cross-platform-guarantees-audit-and-enforcement-2026-06-15.md, then promote in [guards]) ──
 [[forbidden_pattern]]
 name             = "no-hardcoded-shell-spawn"
+exempt_tests     = true
 pattern          = 'Command::new\(\s*"(cmd|cmd\.exe|powershell|pwsh|sh|bash)"'
 file_glob        = "crates/**/*.rs"
 exempt_files     = [
@@ -421,6 +470,7 @@ reason           = "Shell/PowerShell spawns must be cfg(windows)-gated or resolv
 
 [[forbidden_pattern]]
 name             = "no-hardcoded-abs-path"
+exempt_tests     = true
 pattern          = '"(/(tmp|usr|etc|var|home|opt|bin|root)\b|[A-Za-z]:\\)'
 file_glob        = "crates/**/*.rs"
 exempt_files     = [
@@ -441,10 +491,23 @@ reason           = "Hardcoded absolute paths break across OSes; use std::env::te
 
 [[forbidden_pattern]]
 name             = "no-hardcoded-dynlib-ext"
+exempt_tests     = true
 pattern          = '"[^"]*\.(so|dll|dylib)"'
 file_glob        = "crates/**/*.rs"
 allow_annotation = "// vox-arch-check: allow dynlib-ext"
 reason           = "Shared-lib suffix differs per OS (.so/.dll/.dylib); derive it from target, do not hardcode."
+
+[[forbidden_pattern]]
+name             = "no-otlp-in-emitters"
+pattern          = 'vox.telemetry.otlp'
+file_glob        = "crates/**/Cargo.toml"
+exempt_files     = [
+    "crates/vox-telemetry-otlp/Cargo.toml",
+    "crates/vox-cli/Cargo.toml",
+    "crates/vox-gui/Cargo.toml",
+]
+allow_annotation = "# vox-arch-check: allow otlp-dep"
+reason           = "vox-telemetry-otlp is L3 egress; only surface binaries (vox-cli, vox-gui) may depend on it. Domain crates emit via the L1 record_event! macro only."
 
 # ── Planned crates (in-flight design docs; not yet on disk) ──────────────────
 # Rule 12 (WTL parity check) consults this table before flagging a
@@ -474,6 +537,16 @@ vox-install-policy       = { plan = "docs/src/architecture/crate-structure-audit
 vox-dashboard            = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 3 }
 vox-mens-eval            = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 2 }
 vox-agentos-mutation     = { plan = "docs/src/architecture/mesh-and-language-distribution-ssot-2026.md", layer = 0 }
+vox-free-ai              = { plan = "docs/superpowers/plans/2026-06-18-gamify-gui-pluginization-lean-cli.md", layer = 2 }
+vox-plugin-gamify        = { plan = "docs/superpowers/plans/2026-06-18-gamify-gui-pluginization-lean-cli.md", layer = 4 }
 
 
 
+# ── Build profiles (Rule 20: forbidden crates per named profile) ─────────────
+[profiles.lean]
+build = "cargo build -p vox-cli --no-default-features --features script-execution"
+forbidden = ["vox-gui"]
+
+[profiles.full]
+build = "cargo build -p vox-cli --features extras-ludus"
+forbidden = []

@@ -130,6 +130,10 @@ pub enum PipelineStage {
     Train,
     /// Export accepted/rejected KB entries as training/DPO signals.
     KbSignals,
+    /// Ingest agent traces from dogfood paths into SFT rows (with diversity gate).
+    AgentTraceIngest,
+    /// Mine PR review findings → Rust-review DPO preference pairs.
+    ReviewToDpo,
 }
 
 impl PipelineStage {
@@ -150,6 +154,8 @@ impl PipelineStage {
             Self::ReviewEvalPackBuild => "review_eval_pack_build",
             Self::Train => "train",
             Self::KbSignals => "kb_signals",
+            Self::AgentTraceIngest => "agent_trace_ingest",
+            Self::ReviewToDpo => "review_to_dpo",
         }
     }
 }

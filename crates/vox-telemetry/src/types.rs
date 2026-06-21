@@ -317,6 +317,20 @@ pub enum TelemetryEvent {
     /// CR-L7's third leg (after `vox new` + `vox deploy`): the doctor mode
     /// invoked by the deploy integration test to verify post-deploy health.
     DoctorProjectCheck(DoctorProjectCheckEvent),
+    /// Top-level CLI command usage (verb + exit class + duration bucket). Track E.
+    CommandUsage(CommandUsageEvent),
+    /// Skill activation at the MCP skill-catalog layer (Track E).
+    SkillActivation(SkillActivationEvent),
+    /// File-mutation edit pattern (op type + file kind + size bucket). Track E.
+    EditPattern(EditPatternEvent),
+    /// MCP tool-call harness shape (tool kind + turns + agents + mode). Track E.
+    HarnessUsage(HarnessUsageEvent),
+    /// Subsystem error class at the MCP dispatch boundary (Track E).
+    ErrorSurface(ErrorSurfaceEvent),
+    /// Tunable-constant decision and its observed outcome (Track E1b).
+    DefaultDecision(DefaultDecisionEvent),
+    /// Outcome of per-model prompt-profile injection (Track F).
+    ModelPrompt(ModelPromptEvent),
 }
 
 /// Payload aligned with `contracts/telemetry/fixture-model-intent-resolved.v1.schema.json`.
@@ -1061,6 +1075,98 @@ pub struct AuditRouteRunFailedEvent {
     /// Short human-readable message (no PII; no raw repo paths beyond the
     /// repo root marker).
     pub message: String,
+}
+
+// ── Track E: new product-category event structs ───────────────────────────
+
+/// CLI command usage event (Track E, category=command_usage).
+/// All fields are enum slugs — no raw command arguments or flag values.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct CommandUsageEvent {
+    /// Top-level subcommand verb (e.g. "build", "check", "run", "telemetry").
+    pub verb: String,
+    /// Outcome class: success | user_error | internal_error | cancelled | timeout.
+    pub exit_class: String,
+    /// Wall-time bucket: lt1s | 1_to_5s | 5_to_30s | 30s_to_2m | gt2m.
+    pub duration_bucket: String,
+}
+
+/// Skill activation at the MCP skill-catalog layer (Track E, category=skill_activation).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct SkillActivationEvent {
+    /// Salted SHA-256 hash of the skill manifest id (never the raw id).
+    pub skill_id_hash: String,
+    /// How the skill was triggered: pinned | catalog | user_explicit | auto_suggested | continuation.
+    pub trigger_source: String,
+    /// Whether the skill was included in the prompt (true) or skipped/rejected (false).
+    pub accepted: bool,
+    /// Which surface triggered the activation: cli | gui | mcp | api | unknown.
+    pub surface: String,
+}
+
+/// File-mutation pattern at the MCP tool layer (Track E, category=edit_pattern).
+/// Never includes file contents, paths, or diffs.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct EditPatternEvent {
+    /// Operation type: insert | replace | delete | create | unknown.
+    pub op_type: String,
+    /// File extension class: rust | typescript | javascript | python | toml | yaml | json | markdown | vox | other.
+    pub file_kind: String,
+    /// Change size in lines: lt10_lines | 10_to_50_lines | 50_to_200_lines | gt200_lines.
+    pub size_bucket: String,
+}
+
+/// MCP tool-call shape at the dispatch boundary (Track E, category=agent_orchestration).
+/// Counts and shapes only — never tool arguments or results.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct HarnessUsageEvent {
+    /// Broad tool class: read | write | edit | search | run | mcp_infer | task_lifecycle | agent_dispatch | skill_import | unknown.
+    pub tool_call_kind: String,
+    /// Mode: interactive | headless | plan | auto | unknown.
+    pub mode: String,
+}
+
+/// Subsystem error at the MCP dispatch boundary (Track E, category=errors).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct ErrorSurfaceEvent {
+    /// Error class: rate_limited | server_error | client_error | transport_error | decode_error | timeout | auth_error | not_found | validation | internal | unknown.
+    pub error_class: String,
+    /// Subsystem: llm_http | llm_bridge | tool_dispatch | task_lifecycle | db | plugin | build | audit | unknown.
+    pub subsystem: String,
+    /// Whether the error was recovered from (e.g. by retry).
+    pub recoverable: bool,
+}
+
+/// Tunable-constant decision and observed outcome (Track E1b, category=default_decision).
+/// All fields are enum slugs — no raw numeric values.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct DefaultDecisionEvent {
+    /// Which tunable constant was in effect (see contracts/telemetry/default-decision-sites.csv).
+    pub decision_id: String,
+    /// Bucketed chosen value (never the raw number).
+    pub chosen: String,
+    /// Observed outcome at that decision site.
+    pub outcome: String,
+    /// Optional ordinal magnitude (0=minimal, 1=normal, 2=stressed, 3=extreme).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub magnitude_bucket: Option<i64>,
+}
+
+/// Per-model prompt-profile injection outcome (Track F).
+///
+/// Aligned with `contracts/telemetry/collection-taxonomy.v1.json#model_prompt`.
+/// All fields are enum strings — no raw prompt text, no model-specific secrets.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+pub struct ModelPromptEvent {
+    /// Canonical model family bucket (e.g. "claude_sonnet_4", "gemini_flash_2").
+    pub canonical_model_id: String,
+    /// Which profile variant was injected ("none" if no Confirmed profile exists).
+    pub profile_variant_id: String,
+    /// Broad task category at prompt-build time.
+    pub task_category: String,
+    /// Outcome quality bucket (set retroactively on task completion).
+    #[serde(default)]
+    pub quality_bucket: String,
 }
 
 #[cfg(test)]

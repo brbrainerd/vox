@@ -14,6 +14,7 @@ pub mod config_watch;
 pub mod env_parse;
 pub mod graphify;
 pub mod inference;
+pub mod model_pool;
 pub mod model_routing;
 pub mod operator_registry;
 pub mod paths;
@@ -31,8 +32,8 @@ pub mod timeouts;
 pub mod toml_config;
 
 pub use bootstrap_inference::{
-    NLI_FALLBACK, OPENROUTER_AUTO, OPENROUTER_FREE, RESEARCH_FLASH_FALLBACK,
-    REVIEW_PREMIUM_FALLBACK,
+    NLI_FALLBACK, OPENROUTER_AUTO, OPENROUTER_FREE, OPENROUTER_FREE_FALLBACK_MODELS,
+    RESEARCH_FLASH_FALLBACK, REVIEW_PREMIUM_FALLBACK,
 };
 pub use config::{BuildTarget, GamifyMode, VoxConfig, WebRunMode};
 pub use config_watch::{ConfigSnapshot, ConfigWatch};

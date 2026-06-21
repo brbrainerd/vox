@@ -142,6 +142,22 @@ pub fn emit_form(form: &HirForm) -> String {
     for f in &visible {
         let label = f.label.as_deref().unwrap_or(&f.name);
         let req_marker = if f.required { " *" } else { "" };
+        if let Some(variants) = enum_variants(f) {
+            let options: String = variants
+                .iter()
+                .map(|v| format!("<option value=\"{v}\">{v}</option>"))
+                .collect();
+            out.push_str(&format!(
+                "      <label className=\"vox-form-field\">\n\
+                 \x20       <span>{label}{req_marker}</span>\n\
+                 \x20       <select value={{{fname} ?? \"\"}} onChange={{e => set_{fname}(e.target.value)}} aria-invalid={{!!errors.{fname}}}>\n\
+                 \x20         <option value=\"\"></option>{options}\n\
+                 \x20       </select>\n\
+                 \x20       {{errors.{fname} && <span id=\"{fname}-error\" role=\"alert\" className=\"vox-form-error\">{{errors.{fname}}}</span>}}\n\
+                 \x20     </label>\n",
+                fname = f.name));
+            continue;
+        }
         let input_type = hir_type_to_input_type(&f.ty);
         let value_prop = match input_type {
             "checkbox" => "checked",
@@ -184,11 +200,31 @@ pub fn emit_form(form: &HirForm) -> String {
     out
 }
 
+use vox_compiler::hir::HirExpr;
+
+fn enum_variants(f: &HirFormField) -> Option<Vec<String>> {
+    f.constraints.iter().find_map(|c| match c {
+        HirFieldConstraint::Enum(exprs) => Some(
+            exprs
+                .iter()
+                .filter_map(|e| match e {
+                    HirExpr::StringLit(s, _) => Some(s.clone()),
+                    _ => None,
+                })
+                .collect(),
+        ),
+        _ => None,
+    })
+}
+
 fn hir_type_to_input_type(ty: &HirType) -> &'static str {
     match ty {
         HirType::Named(t) if t == "int" || t == "float" || t == "decimal" => "number",
         HirType::Named(t) if t == "bool" => "checkbox",
         HirType::Named(t) if t == "timestamp" => "datetime-local",
+        HirType::Named(t) if t == "email" => "email",
+        HirType::Named(t) if t == "url" => "url",
+        HirType::Named(t) if t == "phone" => "tel",
         _ => "text",
     }
 }
@@ -200,5 +236,63 @@ fn field_initial_value(f: &HirFormField) -> &'static str {
         HirType::Named(t) if t == "int" || t == "float" || t == "decimal" => "NaN",
         HirType::Named(t) if t == "bool" => "false",
         _ => "\"\"",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use vox_compiler::ast::span::Span; // re-exported path used across vox-codegen-ts; NOT vox_ast (design §5b.1)
+    use vox_compiler::hir::HirType;
+    use vox_compiler::hir::nodes::form::{HirForm, HirFormField};
+
+    fn field(name: &str, ty: HirType) -> HirFormField {
+        HirFormField {
+            name: name.into(),
+            ty,
+            label: None,
+            required: false,
+            hidden: false,
+            default: None,
+            constraints: vec![],
+            span: Span::new(0, 0),
+        }
+    }
+    fn form_with(fields: Vec<HirFormField>) -> HirForm {
+        HirForm {
+            name: "T".into(),
+            fields,
+            on_submit: None,
+            success_redirect: None,
+            error_message: None,
+            span: Span::new(0, 0),
+        }
+    }
+
+    #[test]
+    fn branded_scalars_render_typed_inputs() {
+        let out = emit_form(&form_with(vec![
+            field("e", HirType::Named("email".into())),
+            field("u", HirType::Named("url".into())),
+            field("p", HirType::Named("phone".into())),
+        ]));
+        assert!(out.contains("type=\"email\""), "email:\n{out}");
+        assert!(out.contains("type=\"url\""), "url:\n{out}");
+        assert!(out.contains("type=\"tel\""), "tel:\n{out}");
+    }
+
+    #[test]
+    fn enum_constraint_renders_select() {
+        use vox_compiler::hir::HirExpr;
+        use vox_compiler::hir::nodes::form::HirFieldConstraint;
+        let mut f = field("role", HirType::Named("Role".into()));
+        f.constraints = vec![HirFieldConstraint::Enum(vec![
+            HirExpr::StringLit("admin".into(), Span::new(0, 0)),
+            HirExpr::StringLit("user".into(), Span::new(0, 0)),
+        ])];
+        let out = emit_form(&form_with(vec![f]));
+        assert!(out.contains("<select"), "select:\n{out}");
+        assert!(out.contains(">admin<"), "admin opt:\n{out}");
+        assert!(out.contains(">user<"), "user opt:\n{out}");
     }
 }

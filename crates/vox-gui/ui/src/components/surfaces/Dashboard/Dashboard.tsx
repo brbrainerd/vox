@@ -24,6 +24,8 @@ import { AreaChartWidget } from '../../dashboard/widgets/AreaChartWidget';
 import { LineChartWidget } from '../../dashboard/widgets/LineChartWidget';
 import { BarChartWidget } from '../../dashboard/widgets/BarChartWidget';
 import { Kpi } from '../../ui/Kpi';
+import { AttentionBudgetMeter } from '../AttentionBudgetMeter';
+import type { AttentionBudgetSnapshot } from '../../../types/tauri';
 import { ResourcesWidget } from './ResourcesWidget';
 import { useAgentApprovals } from '../../../hooks/useAgentApprovals';
 
@@ -43,14 +45,15 @@ interface DashboardProps {
   loading?: boolean;
   onPause: (a: Agent) => void;
   onResume: (a: Agent) => void;
-  onDoubt: (item: StreamItem) => void;
-  onOverrule: (item: StreamItem) => void;
+  onDoubt?: (item: StreamItem) => void;
+  onOverrule?: (item: StreamItem) => void;
   onAckLudus: (note: LudusAlert) => void;
   filterKind: string;
   setFilterKind: (k: string) => void;
   onOpenInConsole?: (a: Agent) => void;
   onOpenChat?: () => void;
   onNavigate?: (viewKey: string) => void;
+  attention_budget?: AttentionBudgetSnapshot | null;
 }
 
 export function Dashboard({
@@ -66,6 +69,7 @@ export function Dashboard({
   onOpenInConsole,
   onOpenChat,
   onNavigate,
+  attention_budget,
 }: DashboardProps) {
   const filters = ["all", "validated", "in-progress", "doubted", "speculative"];
   const stream = data.stream.filter(s => filterKind === "all" ? true : s.kind === filterKind);
@@ -312,6 +316,11 @@ export function Dashboard({
         <Kpi label="Budget Spent" value={typeof data.kpis.budgetBurn.value === 'number' ? `$${data.kpis.budgetBurn.value.toFixed(2)}` : data.kpis.budgetBurn.value} accent="brass" />
         <Kpi label="Mesh Peers" value={data.peers.filter((p) => p.online).length} accent="emerald" />
       </div>
+      {attention_budget && (
+        <div className="mb-4 px-5">
+          <AttentionBudgetMeter budget={attention_budget} />
+        </div>
+      )}
       <div className="absolute right-5 top-2 z-20 flex items-center gap-2">
         {customizeMode && (
           <>

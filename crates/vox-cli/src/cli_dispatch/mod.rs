@@ -6,6 +6,7 @@ use crate::codex_cmd::CodexCmd;
 use crate::command_catalog;
 // use crate::latin_cmd; // Unused after alias retirement
 use crate::{Cli, GlobalOpts, VoxCliRoot};
+use vox_telemetry::{CommandUsageEvent, TelemetryEvent};
 
 #[cfg(feature = "ars")]
 pub(crate) use lanes::run_openclaw_subcommand;
@@ -69,7 +70,36 @@ fn universal_reward_command_path(cli: &Cli) -> Option<&'static str> {
 /// or latency). GUI-driven commands inherit this through the `vox` sidecar.
 pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()> {
     let reward_path = universal_reward_command_path(&cli);
+    let verb = command_verb(&cli);
+    let t0 = std::time::Instant::now();
     let result = dispatch_cli_inner(cli, global).await;
+    let elapsed_ms = t0.elapsed().as_millis() as u64;
+
+    // Track E — command_usage product telemetry (verb + exit class + duration).
+    let exit_class = match &result {
+        Ok(_) => "success",
+        Err(e) => {
+            let msg = format!("{e:?}");
+            if msg.contains("UsageError") || msg.contains("clap") {
+                "user_error"
+            } else {
+                "internal_error"
+            }
+        }
+    };
+    let duration_bucket = match elapsed_ms {
+        0..=999 => "lt1s",
+        1_000..=4_999 => "1_to_5s",
+        5_000..=29_999 => "5_to_30s",
+        30_000..=119_999 => "30s_to_2m",
+        _ => "gt2m",
+    };
+    vox_telemetry::record_event!(&TelemetryEvent::CommandUsage(CommandUsageEvent {
+        verb: verb.to_string(),
+        exit_class: exit_class.to_string(),
+        duration_bucket: duration_bucket.to_string(),
+    }));
+
     if let Some(command_path) = reward_path {
         let success = result.is_ok();
         vox_cli_core::gamify_shim::record_cli_event_fire_and_forget(
@@ -84,6 +114,35 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         );
     }
     result
+}
+
+/// Map a top-level CLI command to its verb enum slug for `CommandUsageEvent`.
+fn command_verb(cli: &Cli) -> &'static str {
+    match cli {
+        Cli::Build { .. } => "build",
+        Cli::Check { .. } => "check",
+        Cli::Test { .. } => "test",
+        Cli::Run { .. } => "run",
+        Cli::Dev { .. } => "dev",
+        Cli::BundleApp { .. } => "bundle_app",
+        Cli::Compile { .. } => "compile",
+        Cli::Fmt { .. } => "fmt",
+        Cli::Fabrica { .. } => "fabrica",
+        Cli::Scientia { .. } => "scientia",
+        Cli::Audit { .. } => "audit",
+        Cli::Policy { .. } => "policy",
+        Cli::Graphify { .. } => "graphify",
+        Cli::Ci { .. } => "ci",
+        Cli::Db { .. } => "db",
+        Cli::Mens { .. } => "mens",
+        Cli::Populi { .. } => "populi",
+        Cli::Research { .. } => "research",
+        Cli::Deploy { .. } => "deploy",
+        Cli::Container { .. } => "container",
+        Cli::Plan { .. } => "plan",
+        Cli::Doctor { .. } => "doctor",
+        _ => "unknown",
+    }
 }
 
 async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()> {
@@ -201,7 +260,7 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
         }
         Cli::Graphify { cmd } => {
             let root = crate::commands::ci::repo_root();
-            crate::commands::graphify::run(cmd, &root)?;
+            crate::commands::graphify::run(cmd, &root).await?;
         }
         #[cfg(feature = "coderabbit")]
         Cli::Recensio { cmd } => {

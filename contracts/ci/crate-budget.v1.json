@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "_comment": "blast_s ceilings = actual (contracts/ci/crate-build-map.v1.json, 2026-06-19) x 1.15. Keystones are the heavy, frequently-changed L3 crates — NOT high-fan-in leaf type crates (vox-mesh-types/vox-crypto rank high on blast_s but rarely change; see crate-build-dependency-model doc, blast_s churn-blindness). Lower ceilings as T3 type extractions shrink these.",
+  "keystones": [
+    { "crate": "workspace-hack", "blast_s_ceiling": 566 },
+    { "crate": "vox-db",         "blast_s_ceiling": 401 },
+    { "crate": "vox-compiler",   "blast_s_ceiling": 401 },
+    { "crate": "vox-populi",     "blast_s_ceiling": 401 }
+  ]
+}

@@ -21,6 +21,8 @@ vox-codegen = { workspace = true, optional = true }
 workspace-hack = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+tracing = { workspace = true }
 chrono = { workspace = true }
 miette = { workspace = true }
 vox-config = { workspace = true }
@@ -28,7 +30,6 @@ vox-sql = { workspace = true }
 vox-deploy-codegen = { workspace = true }
 vox-secrets = { workspace = true }
 anyhow.workspace = true
-serde_yaml = { workspace = true }
 
 [dev-dependencies]
 insta = "1"

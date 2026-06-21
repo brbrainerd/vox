@@ -5380,6 +5380,102 @@ curated:
   mcp_tool: vox_agent_unsubscribe
   cli_path: null
   parameters: null
+- id: mcp.vox_agy_delegate
+  title: Agy Delegate
+  description_human: null
+  description_model: Delegate a code-generation or refactoring task to Gemini via the agy CLI. Runs agy -p in an isolated git worktree (jail), auto-accepts all prompts, retries on quota/timeout, and auto-logs to the handoff ledger. Returns the diff for human review.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_agy_delegate
+  cli_path: null
+  parameters: null
+- id: mcp.vox_agy_delegate_batch
+  title: Agy Delegate Batch
+  description_human: null
+  description_model: Fan out multiple file-disjoint agy delegation tasks with bounded concurrency (≤8 workers). Each worker gets its own worktree and ledger entry. All results returned for review before integration.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_agy_delegate_batch
+  cli_path: null
+  parameters: null
+- id: mcp.vox_agy_doctor
+  title: Agy Doctor
+  description_human: null
+  description_model: Detect whether the Antigravity `agy` CLI is installed and ready; returns status plus exact install/auth remediation. Call before vox_agy_delegate.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_agy_doctor
+  cli_path: null
+  parameters: null
+- id: mcp.vox_agy_ledger_digest
+  title: Agy Ledger Digest
+  description_human: null
+  description_model: Read the handoff ledger and return historical Gemini failure-category frequencies + entry count — the flywheel input injected as explicit avoid-rules into the next launch statement (Stage 1).
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_agy_ledger_digest
+  cli_path: null
+  parameters: null
+- id: mcp.vox_agy_pipeline
+  title: Agy Pipeline
+  description_human: null
+  description_model: 'Run one Antigravity delegation end-to-end with deterministic verification: delegate via agy in a worktree jail, capture diff + spend proxy, run the plan-specified gates INSIDE the jail, classify green/partial/failed by effect, write a provisional ledger entry, and return a verdict-ready report for the human merge gate. Use this (not vox_agy_delegate) when you want the result proven, not asserted.'
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_agy_pipeline
+  cli_path: null
+  parameters: null
+- id: mcp.vox_agy_review
+  title: Agy Review
+  description_human: null
+  description_model: Record the Claude-side adversarial code review of a delegation as an append-only {id}-review ledger addendum (verdict + §B failure categories + findings + prompt lessons). Closes the review phase before the human merge gate and feeds the flywheel.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_agy_review
+  cli_path: null
+  parameters: null
 - id: mcp.vox_answer_question
   title: Answer Question
   description_human: null
@@ -5426,6 +5522,22 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_ask_agent
+  cli_path: null
+  parameters: null
+- id: mcp.vox_ask_clarification
+  title: Ask Clarification
+  description_human: null
+  description_model: Raise a clarification question to the user and declare gating task IDs.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_ask_clarification
   cli_path: null
   parameters: null
 - id: mcp.vox_attention_history
@@ -6372,6 +6484,22 @@ curated:
   mcp_tool: vox_coverage_report
   cli_path: null
   parameters: null
+- id: mcp.vox_credentials_status
+  title: Credentials Status
+  description_human: null
+  description_model: List every inference provider with a present Clavis credential plus the agy delegation status — the credential-aware model-selection surface. OpenRouter is one of many.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_credentials_status
+  cli_path: null
+  parameters: null
 - id: mcp.vox_db_conversation_edge_insert
   title: Db Conversation Edge Insert
   description_human: null
@@ -6738,6 +6866,22 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_fail_task
+  cli_path: null
+  parameters: null
+- id: mcp.vox_feedback_list
+  title: Feedback List
+  description_human: null
+  description_model: List all pending and withheld feedback requests.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_feedback_list
   cli_path: null
   parameters: null
 - id: mcp.vox_file_graph
@@ -7135,6 +7279,54 @@ curated:
   human_takeover_friendly: true
   mens_planner_visible: null
   mcp_tool: vox_graphify_status
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gui_components
+  title: GUI Component Registry
+  description_human: null
+  description_model: Retrieve the components registered in the primitive component registry.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_gui_components
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gui_rules
+  title: GUI Design Rules
+  description_human: null
+  description_model: List the registered GUI design rules (gui-design-rule/*) so a generator can read the constraint set before emitting.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_gui_rules
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gui_tokens
+  title: GUI Design Tokens
+  description_human: null
+  description_model: Retrieve design tokens in W3C DTCG format.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_gui_tokens
   cli_path: null
   parameters: null
 - id: mcp.vox_handoff_context
@@ -8787,6 +8979,22 @@ curated:
   mcp_tool: vox_resolve_conflict
   cli_path: null
   parameters: null
+- id: mcp.vox_resolve_feedback
+  title: Resolve Feedback
+  description_human: null
+  description_model: Resolve a pending clarification or doubt request with a specific action.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_resolve_feedback
+  cli_path: null
+  parameters: null
 - id: mcp.vox_resume_agent
   title: Resume Agent
   description_human: null
@@ -9924,6 +10132,22 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_validate_source
+  cli_path: null
+  parameters: null
+- id: mcp.vox_validate_vuv
+  title: GUI VUV Validation
+  description_human: null
+  description_model: Validate Vox/VUV source against the compile-time GUI guarantees (contrast, layer-occlusion, a11y, structural web-IR) without writing files.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_validate_vuv
   cli_path: null
   parameters: null
 - id: mcp.vox_vcs_status

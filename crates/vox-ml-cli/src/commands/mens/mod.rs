@@ -33,6 +33,8 @@ mod pipeline;
 /// on a stale/missing/ABI-mismatched plugin before CUDA training).
 #[cfg(feature = "gpu")]
 pub mod plugin_heal;
+#[cfg(feature = "mens-base")]
+pub(crate) mod training_selection;
 
 mod probe;
 mod status;

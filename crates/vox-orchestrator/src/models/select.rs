@@ -814,6 +814,12 @@ pub fn select_with_default_registry(intent: &SelectionIntent) -> Option<Selectio
     select(intent, &registry)
 }
 
+// NOTE (U.3 / Phase 7): local-vs-cloud spoke-inference routing is not wired yet.
+// When it is, read the spoke's `SpokeRouter.prefer_local` hint and set
+// `ModelSelectionRequest.candidate_scope` (LocalOnly) before `decide()`, at the
+// real inference call site — landing the routing helper together with its
+// consumer and an end-to-end test, not speculatively ahead of it.
+
 #[cfg(test)]
 mod tests {
     // Env-mutating tests exercise `from_env` cascades; they are `#[serial]` so no

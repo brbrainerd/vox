@@ -50,6 +50,8 @@ fn add_to_windows_registry_path(bin_dir: &Path) {
         path_str.replace("'", "''"),
         path_str.replace("'", "''")
     );
+    // Already inside `#[cfg(windows)] fn add_to_windows_registry_path` — the spawn
+    // is platform-gated as the rule requires; the regex just can't see the cfg.
     // vox-arch-check: allow shell-spawn
     let _ = Command::new("powershell")
         .arg("-NoProfile")

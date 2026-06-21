@@ -1,6 +1,7 @@
 [package]
 name = "vox-scaling-policy"
-description = "Compile-time and runtime accessors for scaling SSOT (contracts/scaling/policy.yaml)"
+description = "Bounded-resource scaling policy types from the Vox project."
+readme = "README.md"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -13,7 +14,6 @@ tracing = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 vox-mesh-types = { workspace = true }
-workspace-hack = { workspace = true }
 
 [lints]
 workspace = true

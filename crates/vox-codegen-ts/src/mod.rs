@@ -15,6 +15,8 @@ mod parent {
 
 pub(crate) use parent::{emission_profile, projection_bundle, web_ir, web_migration_env};
 
+/// Naked-objects admin list/detail/edit views codegen.
+pub mod admin_emit;
 /// Algebraic data types → TypeScript unions and helpers.
 pub mod adt;
 /// Single source of truth for Vox method/function/namespace → TypeScript lowering.
@@ -68,6 +70,8 @@ pub mod schema;
 pub mod state_machine_emit;
 /// TanStack Query helper emission (`vox-tanstack-query.tsx`).
 pub mod tanstack_query_emit;
+/// DTCG tokens exporter.
+pub mod token_export;
 /// Design token CSS + TypeScript emit from vox.tokens.json.
 pub mod tokens_emit;
 /// `url` block TypeScript discriminated union + builder emit.

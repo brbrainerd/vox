@@ -481,6 +481,11 @@ fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
             run: Box::new(step_ssot_drift),
         },
         OwnedStep {
+            label: "vox ci spoke-check".into(),
+            scope: None,
+            run: Box::new(step_spoke_check),
+        },
+        OwnedStep {
             label: "vox ci runner-policy-check".into(),
             scope: None,
             run: Box::new(step_runner_policy_check),
@@ -957,6 +962,10 @@ fn step_line_endings(root: &Path) -> Result<()> {
 
 fn step_ssot_drift(root: &Path) -> Result<()> {
     super::run_body::run_body_helpers::run_ssot_drift(root)
+}
+
+fn step_spoke_check(root: &Path) -> Result<()> {
+    super::run_body::run_body_helpers::run_spoke_check(root)
 }
 
 fn step_runner_policy_check(root: &Path) -> Result<()> {

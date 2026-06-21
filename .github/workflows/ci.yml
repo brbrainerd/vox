@@ -476,6 +476,11 @@ jobs:
         if: needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_compiler == 'true' || needs.setup.outputs.affects_plugins == 'true'
         run: ./target/debug/vox --quiet ci plugin-abi-parity --build
 
+      - name: Profile parity (lean CLI crate budget)
+        if: needs.setup.outputs.full == 'true'
+        run: cargo run -p vox-cli -- ci profile-parity
+        continue-on-error: true
+
       - name: Dynamic Workspace Health Audit
         run: ./scripts/windows/vox-dev.ps1 run --interp scripts/quality/audit-workspace-health.vox
 
@@ -906,11 +911,28 @@ jobs:
 
       - name: Dependency cycle gate
         if: needs.setup.outputs.full == 'true'
-        run: ./target/debug/vox --quiet ci dep-cycles
+        run: ./target/debug/vox --quiet ci dep-cycles --deny-new
 
       - name: Crate build/dependency audit (refresh leaf-design map)
         if: needs.setup.outputs.full == 'true'
         run: ./target/debug/vox --quiet run --mode interp scripts/crate-build-audit.vox
+        continue-on-error: true
+
+      - name: Crate-build-map parity gate
+        if: needs.setup.outputs.full == 'true'
+        run: ./target/debug/vox --quiet ci crate-build-map-parity
+
+      - name: Crate blast-radius budget gate
+        if: needs.setup.outputs.full == 'true'
+        run: ./target/debug/vox --quiet ci crate-budget
+
+      - name: Fan-in budget gate
+        if: needs.setup.outputs.full == 'true'
+        run: ./target/debug/vox --quiet ci fan-in-budget
+
+      - name: Plugin-candidacy classifier (advisory — non-gating)
+        if: needs.setup.outputs.full == 'true'
+        run: ./target/debug/vox --quiet run --mode interp scripts/plugin-candidacy.vox
         continue-on-error: true
 
       - name: Build-bench (wall-clock scenarios vs committed baseline — ROUGH signal)

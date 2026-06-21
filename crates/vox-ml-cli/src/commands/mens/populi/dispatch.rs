@@ -40,6 +40,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             stages,
             dry_run,
             curriculum,
+            profile,
         } => {
             pipeline::run(
                 data_dir,
@@ -53,6 +54,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 stages,
                 dry_run,
                 curriculum,
+                profile,
             )
             .await
         }

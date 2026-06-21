@@ -46,7 +46,7 @@ pub fn jaccard_word_similarity(a: &str, b: &str) -> f64 {
 /// sorted by confidence descending.
 pub fn apply_keyword_rules(content: &str, rules: &[KbRoutingRule]) -> Vec<(String, f64)> {
     let mut sorted = rules.to_vec();
-    sorted.sort_by(|a, b| b.priority.cmp(&a.priority));
+    sorted.sort_by_key(|b| std::cmp::Reverse(b.priority));
 
     let mut matched: std::collections::HashMap<String, f64> = std::collections::HashMap::new();
     for rule in &sorted {

@@ -170,6 +170,11 @@ export function Sidebar({
     <aside className="shrink-0 flex flex-col transition-[width] duration-200 ease-out h-screen overflow-hidden sticky top-0" style={{ width: w }}>
       <Glass className="flex h-full flex-col p-3 rounded-none border-y-0 border-l-0">
         <div className={`flex items-center ${collapsed ? "justify-center" : "justify-between"} pb-3 shrink-0`}>
+          {collapsed && (
+            <div className="grid size-6 place-items-center rounded-md bg-white/[0.04] ring-1 ring-brass/40 shrink-0">
+              <AxisMark className="size-4 text-brass" />
+            </div>
+          )}
           {!collapsed && (
             <div className="flex items-center gap-2 px-1">
               <AxisMark size={22} />

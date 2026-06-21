@@ -85,3 +85,69 @@
     scroll-behavior: auto !important;
   }
 }
+
+.attention-budget-meter {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 1rem;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+}
+
+.attention-budget-meter header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.attention-budget-meter header span:first-child {
+  font-family: var(--font-display, inherit);
+  font-weight: 600;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #f4f4f5;
+}
+
+.attention-budget-meter header span:last-child {
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgb(var(--brass));
+  border: 1px solid rgba(212, 175, 55, 0.2);
+}
+
+.attention-budget-meter div[role="meter"] {
+  height: 8px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.attention-budget-meter__fill {
+  height: 100%;
+  background: linear-gradient(90deg, rgb(var(--brass)) 0%, #f43f5e 100%);
+  border-radius: 4px;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.attention-budget-meter p {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.75rem;
+  color: #71717a;
+}
+
+.attention-budget-meter p:last-child {
+  margin-top: 0.375rem;
+  font-family: monospace;
+  font-size: 0.7rem;
+  color: #a1a1aa;
+}
+

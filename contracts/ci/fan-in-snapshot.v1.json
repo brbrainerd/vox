@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "_comment": "Committed fan-in snapshot. vox ci fan-in-budget fails when any crate GAINS dependents beyond this count. Reducing counts (shrinking fan-in) does NOT fail the gate. To add a legitimate new dep: bump the crate's count here (PR + review).",
+  "snapshot": {
+    "vox-ast":                      3,
+    "vox-bounded-fs":               20,
+    "vox-compiler":                 21,
+    "vox-config":                   40,
+    "vox-db":                       25,
+    "vox-foundation":               14,
+    "vox-http-client":              18,
+    "vox-llm-egress":               4,
+    "vox-orchestrator":             9,
+    "vox-orchestrator-test-helpers":0,
+    "vox-runtime":                  3,
+    "vox-secrets":                  31,
+    "vox-sql":                      3,
+    "workspace-hack":               72
+  }
+}

@@ -51,6 +51,8 @@ tower-http = { workspace = true, features = ["cors"] }
 
 # Workspace deps the moved code references
 vox-compiler.workspace = true
+vox-codegen.workspace = true
+vox-codegen-ts.workspace = true
 vox-grammar-export.workspace = true
 vox-mcp-registry.workspace = true
 vox-capability-registry.workspace = true
@@ -121,6 +123,7 @@ tempfile.workspace = true
 xxhash-rust = { workspace = true }
 tiktoken-rs = { workspace = true }
 dirs = { workspace = true }
+which = { workspace = true }
 crossbeam-queue = { workspace = true }
 globset = { workspace = true }
 workspace-hack = { workspace = true }

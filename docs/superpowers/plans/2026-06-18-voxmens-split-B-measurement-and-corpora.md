@@ -36,4 +36,3 @@ training_eligible: true
 
 ## Execution Handoff
 On completion, proceed to Plan C (`2026-06-18-voxmens-split-C-selection-routing-serving.md`).
-</content>

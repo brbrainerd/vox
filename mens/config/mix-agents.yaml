@@ -20,3 +20,6 @@ sources:
     weight: 2.0
     record_format: workflow_trace
     optional: true
+  - path: mens/data/mix_sources/agent_traces.jsonl
+    weight: 4.0
+    optional: true

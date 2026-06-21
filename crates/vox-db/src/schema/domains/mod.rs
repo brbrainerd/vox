@@ -1,3 +1,4 @@
+pub mod activity_log;
 pub mod agents;
 pub mod cas_codex;
 pub mod ci_completion;
@@ -9,6 +10,7 @@ pub mod execution;
 pub mod external_review;
 pub mod foundation;
 pub mod gamification_coordination;
+pub mod history;
 pub mod knowledge;
 pub mod mens_intelligence;
 pub mod packages;

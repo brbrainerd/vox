@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useStore } from 'zustand';
 import { projectIso, getZIndex } from '../../lib/projection';
 import { useLudusStore, AgentState } from './store';
 
@@ -11,6 +12,14 @@ interface CitizenProps {
   offsetY: number;
 }
 
+const MOOD_EMOJIS: Record<string, string> = {
+  Happy: '😊',
+  Tired: '🥱',
+  Sad: '😢',
+  Excited: '🤩',
+  Exhausted: '😩',
+};
+
 export const CitizenSprite: React.FC<CitizenProps> = ({
   id,
   name,
@@ -20,6 +29,9 @@ export const CitizenSprite: React.FC<CitizenProps> = ({
   offsetY,
 }) => {
   const spriteRef = useRef<HTMLDivElement | null>(null);
+  const agent = useStore(useLudusStore, (state) => state.agents[id]);
+  const mood = agent?.mood || 'Happy';
+
 
   useEffect(() => {
     // 1. Lazy registration ONLY if the agent doesn't exist
@@ -66,7 +78,7 @@ export const CitizenSprite: React.FC<CitizenProps> = ({
         {name}
       </div>
       <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center border border-white/20 shadow-lg">
-        <span>👨‍💻</span>
+        <span>{MOOD_EMOJIS[mood] || '👨‍💻'}</span>
       </div>
     </div>
   );

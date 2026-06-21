@@ -111,6 +111,9 @@ pub const LLM_CONFIG_KEYS: &[LlmConfigKey] = &[
     key!("GEMINI_TUNING_TOP_P", "", Float, Tuning, "Gemini top-p", "Nucleus sampling cutoff for Gemini"),
     key!("TOGETHER_TUNING_TEMPERATURE", "", Float, Tuning, "Together temperature", "Sampling temperature for Together AI"),
     key!("TOGETHER_TUNING_TOP_P", "", Float, Tuning, "Together top-p", "Nucleus sampling cutoff for Together AI"),
+    // ---- Antigravity delegation (non-secret) ----------------------------------------
+    // agy manages its own OAuth token; we only record the GCP project id as a hint.
+    key!("VOX_AGY_GCP_PROJECT", "", String, ModelsAndEndpoints, "Antigravity GCP project", "Optional GCP project id that agy authenticates against; agy stores its own OAuth token"),
     // ---- Provider API keys (secret, Clavis) -----------------------------------------
     secret_key!("OPENROUTER_API_KEY", "OpenRouter API key"),
     secret_key!("OPENAI_API_KEY", "OpenAI API key"),

@@ -124,6 +124,9 @@ pub struct OrchestratorStatus {
     pub global_exploration_cost_usd: f64,
     /// Per-agent rollups for UI tables.
     pub agents: Vec<AgentSummary>,
+    /// Live NASA-TLX attention-budget snapshot for GUI surfacing (Track D). `None` if unavailable.
+    #[serde(default)]
+    pub attention_budget: Option<crate::attention::AttentionBudget>,
 }
 
 /// Summary info for one agent.

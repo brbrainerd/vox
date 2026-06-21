@@ -86,11 +86,15 @@ pub(crate) struct SearchRefinementJsonMeta {
 pub(crate) fn socrates_system_rider(policy: &ConfidencePolicy) -> String {
     let p = policy;
     format!(
-        "\n## Socrates (grounding)\n\
+        "\n## Socrates (grounding & diagnostic questioning)\n\
          - Below {:.0}% calibrated confidence: do not speculate; state what evidence is missing.\n\
-         - {:.0}–{:.0}%: answer with explicit uncertainty or ask one focused clarifying question.\n\
-         - Before plan-changing actions: ask a bounded clarification when scope or constraints are ambiguous.\n\
-         - Above {:.0}%: answer normally; tie claims to files or tools you used.\n",
+         - {:.0}–{:.0}%: answer with explicit uncertainty or ask ONE focused clarifying question.\n\
+         - Above {:.0}%: answer normally; tie claims to files or tools you used.\n\
+         When you do ask, ask the single most diagnostic question:\n\
+         1. Enumerate the 2–4 candidate solutions/interpretations consistent with the request so far.\n\
+         2. Ask the one question whose answer best SPLITS those candidates (maximizes information gain over solutions, not over phrasings).\n\
+         3. Separate *specification* uncertainty (what YOU want — a question can resolve this) from *model* uncertainty (what I'm unsure of — a question usually cannot). Only ask about the former.\n\
+         4. Prefer a bounded multiple-choice over open-ended when the candidate set is known; never ask what context already implies.\n",
         p.abstain_threshold * 100.0,
         p.abstain_threshold * 100.0,
         p.ask_for_help_threshold * 100.0,
@@ -395,6 +399,8 @@ pub(crate) fn spawn_questioning_trace_from_socrates(
                 base_interrupt_cost_ms: spend_state.orchestrator_config.attention_interrupt_cost_ms,
                 trust_score: trust,
                 open_question_session: open.is_some(),
+                spec_uncertainty: 0.0,
+                model_uncertainty: 0.0,
             };
 
             let decision = evaluate_with_state(&spend_state, &signals, &att_snap);
@@ -421,6 +427,11 @@ pub(crate) fn spawn_questioning_trace_from_socrates(
                         policy_reason: Some(reason.clone()),
                     };
                     spend_state.record_attention_event(evt);
+                    let withheld = Some(withheld_question(
+                        q.prompt.as_deref().unwrap_or("Clarify intent"),
+                        reason,
+                        q.expected_information_gain_bits,
+                    ));
                     let _ = db
                         .record_questioning_metric(
                             &session_key,
@@ -433,6 +444,7 @@ pub(crate) fn spawn_questioning_trace_from_socrates(
                                 reason,
                                 &decision,
                                 ts_evt,
+                                withheld,
                             )
                             .to_string(),
                         )
@@ -459,6 +471,11 @@ pub(crate) fn spawn_questioning_trace_from_socrates(
                         policy_reason: Some(reason.clone()),
                     };
                     spend_state.record_attention_event(evt);
+                    let withheld = Some(withheld_question(
+                        q.prompt.as_deref().unwrap_or("Clarify intent"),
+                        reason,
+                        q.expected_information_gain_bits,
+                    ));
                     let _ = db
                         .record_questioning_metric(
                             &session_key,
@@ -471,6 +488,7 @@ pub(crate) fn spawn_questioning_trace_from_socrates(
                                 reason,
                                 &decision,
                                 ts_evt,
+                                withheld,
                             )
                             .to_string(),
                         )
@@ -696,8 +714,9 @@ fn questioning_policy_metric_payload(
     reason: &str,
     decision: &vox_orchestrator::InterruptionDecision,
     timestamp_ms: u64,
+    withheld: Option<WithheldQuestion>,
 ) -> serde_json::Value {
-    serde_json::json!({
+    let mut payload = serde_json::json!({
         "surface": surface,
         "channel": channel_label(channel),
         "question_needed": question_needed,
@@ -706,7 +725,13 @@ fn questioning_policy_metric_payload(
         "decision": decision_label(decision),
         "decision_legacy_debug": format!("{decision:?}"),
         "timestamp_ms": timestamp_ms,
-    })
+    });
+    if let Some(w) = withheld {
+        if let Ok(w_val) = serde_json::to_value(w) {
+            payload["withheld_question"] = w_val;
+        }
+    }
+    payload
 }
 
 #[must_use]
@@ -878,6 +903,39 @@ fn retrieval_question_candidates(
     candidates
 }
 
+/// A question the policy chose NOT to surface, exposed to the client so the user can opt in.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+pub(crate) struct WithheldQuestion {
+    pub(crate) prompt: String,
+    pub(crate) reason: String,
+    pub(crate) expected_information_gain_bits: f64,
+}
+
+#[must_use]
+pub(crate) fn withheld_question(prompt: &str, reason: &str, eig_bits: f64) -> WithheldQuestion {
+    WithheldQuestion {
+        prompt: prompt.to_string(),
+        reason: reason.to_string(),
+        expected_information_gain_bits: eig_bits,
+    }
+}
+
+#[cfg(test)]
+mod withheld_tests {
+    use super::*;
+    #[test]
+    fn withheld_serializes_for_client() {
+        let w = withheld_question(
+            "Which environment — staging or prod?",
+            "backlog_and_low_diagnostic_value",
+            0.07,
+        );
+        let v = serde_json::to_value(&w).unwrap();
+        assert_eq!(v["prompt"], "Which environment — staging or prod?");
+        assert_eq!(v["reason"], "backlog_and_low_diagnostic_value");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -898,6 +956,7 @@ mod tests {
             "attention_budget_exhausted_marginal_gain_insufficient",
             &decision,
             123_456,
+            None,
         );
         let session = "mcp:test:vox_chat_message";
         db.record_questioning_metric(session, Some(0.07), &payload.to_string())
@@ -920,5 +979,48 @@ mod tests {
         assert_eq!(parsed["decision"], "ProceedAutonomously");
         assert_eq!(parsed["channel"], "chat_clarification");
         assert_eq!(parsed["policy_outcome"], "proceed_auto");
+    }
+
+    #[test]
+    fn rider_instructs_solution_space_reasoning_and_spec_model_split() {
+        let r = socrates_system_rider(&ConfidencePolicy::default());
+        assert!(
+            r.contains("candidate"),
+            "must mention enumerating candidate solutions"
+        );
+        assert!(
+            r.to_lowercase().contains("information gain") || r.contains("splits"),
+            "must mention picking the most-diagnostic question"
+        );
+        assert!(
+            r.to_lowercase().contains("you want") || r.to_lowercase().contains("specification"),
+            "must distinguish user-spec uncertainty"
+        );
+        // existing behaviour preserved:
+        assert!(r.contains("calibrated confidence"));
+    }
+
+    #[test]
+    fn questioning_metric_payload_includes_withheld_question() {
+        let decision = vox_orchestrator::InterruptionDecision::DeferUntilCheckpoint {
+            reason: "low_utility".to_string(),
+        };
+        let withheld = Some(withheld_question("Staging or prod?", "low_utility", 0.05));
+        let payload = questioning_policy_metric_payload(
+            "vox_chat_message",
+            vox_orchestrator::InterruptionChannel::ChatClarification,
+            true,
+            "deferred",
+            "low_utility",
+            &decision,
+            123_456,
+            withheld,
+        );
+        assert_eq!(payload["policy_outcome"], "deferred");
+        assert_eq!(payload["withheld_question"]["prompt"], "Staging or prod?");
+        assert_eq!(
+            payload["withheld_question"]["expected_information_gain_bits"],
+            0.05
+        );
     }
 }

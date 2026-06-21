@@ -1,0 +1,17 @@
+{
+  "description": "Rule 19 workspace-dep closure-size budgets. Measured 2026-06-18 via BFS over normal deps from cargo metadata --no-deps. Budget = measured + ~10% headroom. To update: re-measure, raise budget, commit.",
+  "budgets": [
+    {
+      "crate_name": "vox-cli",
+      "measured_closure": 82,
+      "max_closure": 90,
+      "note": "Lean-CLI budget: any growth here slows cold builds for all users"
+    },
+    {
+      "crate_name": "vox-orchestrator-mcp",
+      "measured_closure": 63,
+      "max_closure": 70,
+      "note": "Orchestrator MCP server closure budget"
+    }
+  ]
+}

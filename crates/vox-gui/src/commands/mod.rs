@@ -1,4 +1,5 @@
 pub mod action_manifest;
+pub mod activity;
 pub mod app_state;
 pub mod browser;
 pub mod build_info;
@@ -13,6 +14,7 @@ pub mod docs_index;
 pub mod dynamic_mapping;
 pub mod execute;
 pub mod gamify;
+pub mod graphify;
 pub mod harness;
 pub mod identity;
 pub mod llm_settings;

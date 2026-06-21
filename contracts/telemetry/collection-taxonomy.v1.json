@@ -1,0 +1,308 @@
+{
+  "version": 1,
+  "k_anonymity": 20,
+  "note": "All field types must be enum|int|bool|hash. No string/free types allowed (privacy invariant §3.2). This file is the single source of truth for both the client redaction allowlist and the server schema codegen.",
+  "categories": [
+    {
+      "name": "command_usage",
+      "privacy_tier": "low",
+      "upload_default": true,
+      "otlp_event_name": "vox.command",
+      "description": "Which CLI commands are used, how often, and how they complete. Never includes arguments or flag values — only verb + enumerated flag presence.",
+      "emit_site": "vox-cli:src/cli_dispatch/mod.rs:89",
+      "fields": [
+        {
+          "name": "verb",
+          "type": "enum",
+          "allowed": ["build","check","test","run","dev","bundle_app","compile","fmt","fabrica","scientia","audit","policy","graphify","ci","db","mens","populi","research","deploy","container","plan","review","openclaw","extras","telemetry","unknown"],
+          "description": "Top-level subcommand verb"
+        },
+        {
+          "name": "exit_class",
+          "type": "enum",
+          "allowed": ["success","user_error","internal_error","cancelled","timeout"],
+          "description": "Outcome class (not the numeric exit code)"
+        },
+        {
+          "name": "duration_bucket",
+          "type": "enum",
+          "allowed": ["lt1s","1_to_5s","5_to_30s","30s_to_2m","gt2m"],
+          "description": "Wall-time bucket"
+        }
+      ]
+    },
+    {
+      "name": "skill_activation",
+      "privacy_tier": "low",
+      "upload_default": true,
+      "otlp_event_name": "vox.skill",
+      "description": "Which skill was activated, from what surface, and whether it was accepted. Skill id is a salted hash of the skill manifest id — never the raw name.",
+      "emit_site": "vox-orchestrator-mcp:src/chat_tools/mod.rs:131",
+      "fields": [
+        {
+          "name": "skill_id_hash",
+          "type": "hash",
+          "description": "Salted hash of the skill manifest id (install-salt; never the raw id)"
+        },
+        {
+          "name": "trigger_source",
+          "type": "enum",
+          "allowed": ["pinned","catalog","user_explicit","auto_suggested","continuation"],
+          "description": "How the skill was triggered"
+        },
+        {
+          "name": "accepted",
+          "type": "bool",
+          "description": "Whether the skill was included in the prompt (vs rejected/skipped)"
+        },
+        {
+          "name": "surface",
+          "type": "enum",
+          "allowed": ["cli","gui","mcp","api","unknown"],
+          "description": "Which surface triggered the skill activation"
+        }
+      ]
+    },
+    {
+      "name": "edit_pattern",
+      "privacy_tier": "medium",
+      "upload_default": false,
+      "otlp_event_name": "vox.edit",
+      "description": "Operation type and file category for file edits performed by the agent. Never includes file contents, paths, or diffs.",
+      "emit_site": "vox-orchestrator-mcp:src/mcp_client.rs:108",
+      "fields": [
+        {
+          "name": "op_type",
+          "type": "enum",
+          "allowed": ["insert","replace","delete","create","unknown"],
+          "description": "Type of edit operation"
+        },
+        {
+          "name": "file_kind",
+          "type": "enum",
+          "allowed": ["rust","typescript","javascript","python","toml","yaml","json","markdown","vox","other"],
+          "description": "File extension class (not the filename)"
+        },
+        {
+          "name": "size_bucket",
+          "type": "enum",
+          "allowed": ["lt10_lines","10_to_50_lines","50_to_200_lines","gt200_lines"],
+          "description": "Size of the change in lines"
+        }
+      ]
+    },
+    {
+      "name": "harness_usage",
+      "privacy_tier": "low",
+      "upload_default": true,
+      "otlp_event_name": "vox.harness",
+      "description": "Tool-call mix and session shape per task. Counts and shapes only — never tool arguments or results.",
+      "emit_site": "vox-orchestrator-mcp:src/dispatch.rs:29",
+      "fields": [
+        {
+          "name": "tool_call_kind",
+          "type": "enum",
+          "allowed": ["read","write","edit","search","run","mcp_infer","task_lifecycle","agent_dispatch","skill_import","unknown"],
+          "description": "Broad class of MCP tool called"
+        },
+        {
+          "name": "turns_bucket",
+          "type": "enum",
+          "allowed": ["1","2_to_5","6_to_20","21_to_50","gt50"],
+          "description": "Number of LLM turns in the task"
+        },
+        {
+          "name": "agents_spawned_bucket",
+          "type": "enum",
+          "allowed": ["0","1","2_to_5","6_to_20","gt20"],
+          "description": "Number of subagents spawned"
+        },
+        {
+          "name": "mode",
+          "type": "enum",
+          "allowed": ["interactive","headless","plan","auto","unknown"],
+          "description": "Execution mode"
+        }
+      ]
+    },
+    {
+      "name": "error_surface",
+      "privacy_tier": "medium",
+      "upload_default": false,
+      "otlp_event_name": "vox.error",
+      "description": "Error class and subsystem, extending the existing `errors` category for cross-user aggregate analysis. Never includes error messages or stack traces.",
+      "emit_site": "vox-orchestrator-mcp:src/dispatch.rs:240",
+      "fields": [
+        {
+          "name": "error_class",
+          "type": "enum",
+          "allowed": ["rate_limited","server_error","client_error","transport_error","decode_error","timeout","auth_error","not_found","validation","internal","unknown"],
+          "description": "Error class (not the message)"
+        },
+        {
+          "name": "subsystem",
+          "type": "enum",
+          "allowed": ["llm_http","llm_bridge","tool_dispatch","task_lifecycle","db","plugin","build","audit","unknown"],
+          "description": "Subsystem that produced the error"
+        },
+        {
+          "name": "recoverable",
+          "type": "bool",
+          "description": "Whether the error was recovered from (e.g. by retry)"
+        }
+      ]
+    },
+    {
+      "name": "default_decision",
+      "privacy_tier": "low",
+      "upload_default": true,
+      "otlp_event_name": "vox.default_decision",
+      "description": "Tunable-constant decisions and their observed outcomes. Enables empirical default-setting across the user base. Decision id and chosen value are both enums — no raw numeric values.",
+      "emit_site": "multiple — see default-decision-sites.csv",
+      "fields": [
+        {
+          "name": "decision_id",
+          "type": "enum",
+          "allowed": ["budget_max_cost_micros","budget_token_alert_threshold","budget_cost_alert_threshold","budget_drift_threshold_usd","budget_doom_loop_threshold_usd","llm_max_concurrent","llm_retry_max_attempts","llm_output_token_cap","ollama_probe_cache_ttl","ollama_probe_timeout","effort_audit_max_concurrent","audit_panel_backoff_base"],
+          "description": "Which tunable constant was in effect"
+        },
+        {
+          "name": "chosen",
+          "type": "enum",
+          "allowed": ["lt25k","25k_to_50k","50k_to_100k","100k_to_500k","gt500k","lt60pct","60_to_80pct","80_to_90pct","gt90pct","lt70pct","70_to_90pct","lt25c","25c_to_50c","50c_to_1usd","gt1usd","lt1usd","1_to_2usd","2_to_5usd","gt5usd","1","2","3","4","8","16","gt16","le4096","le8192","le16384","le32768","gt32768","le10s","le30s","le60s","gt60s","le1s","le2s","le5s","gt5s","base_lt15s","base_15_to_30s","base_gt30s"],
+          "description": "Bucketed chosen value (never the raw number)"
+        },
+        {
+          "name": "outcome",
+          "type": "enum",
+          "allowed": ["hit_limit","near_limit","comfortable","underutilized","throttled","timed_out","succeeded","retry_succeeded","retry_exhausted","succeeded_first","drift_detected","no_drift","doom_loop_fired","no_doom_loop","cache_hit","cache_miss"],
+          "description": "Observed outcome at that decision site"
+        },
+        {
+          "name": "magnitude_bucket",
+          "type": "int",
+          "description": "Optional ordinal (0=minimal, 1=normal, 2=stressed, 3=extreme) for relative magnitude context"
+        }
+      ]
+    },
+    {
+      "name": "research_metrics",
+      "privacy_tier": "low",
+      "upload_default": true,
+      "otlp_event_name": "vox.research_metric",
+      "description": "Research/benchmark metric events. Session prefix is an enum (not the full id); metric value is bucketed. No metadata_json, no raw session ids.",
+      "emit_site": "vox-telemetry:record_event!(ResearchMetric)",
+      "fields": [
+        { "name": "session_prefix", "type": "enum", "description": "Prefix of the session id (colon-delimited; the suffix is hashed)" },
+        { "name": "metric_type", "type": "enum", "description": "Type of metric (e.g. syntax_k, benchmark, socrates)" },
+        { "name": "metric_value_bucket", "type": "int", "description": "Rounded/bucketed metric value" }
+      ]
+    },
+    {
+      "name": "model_calls",
+      "privacy_tier": "low",
+      "upload_default": true,
+      "otlp_event_name": "vox.model_call",
+      "description": "Per-LLM-call performance telemetry. Model/provider are enums. Token counts and latency are bucketed. No selection_rationale, trace_id, or caller_agent_id.",
+      "emit_site": "vox-telemetry:record_event!(ModelCall,SelectionDecision,ModelDiscovery,ModelClassification,ConfidencePromotion)",
+      "fields": [
+        { "name": "model_id", "type": "enum", "description": "Model identifier" },
+        { "name": "provider", "type": "enum", "description": "Provider name" },
+        { "name": "duration_bucket", "type": "enum", "allowed": ["lt1s","1_to_5s","5_to_30s","30s_to_5m","gt5m"], "description": "Latency bucket" },
+        { "name": "prompt_tokens_bucket", "type": "enum", "allowed": ["lt512","512_to_2k","2k_to_8k","8k_to_32k","gt32k"], "description": "Prompt token count bucket" },
+        { "name": "completion_tokens_bucket", "type": "enum", "allowed": ["lt512","512_to_2k","2k_to_8k","8k_to_32k","gt32k"], "description": "Completion token count bucket" },
+        { "name": "error_class", "type": "enum", "description": "Error class if the call failed, absent otherwise" },
+        { "name": "task", "type": "enum", "description": "Selection decision task tag" },
+        { "name": "chosen_model", "type": "enum", "description": "Chosen model for SelectionDecision events" },
+        { "name": "reason", "type": "enum", "description": "Selection reason tag" },
+        { "name": "source", "type": "enum", "description": "Discovery source" },
+        { "name": "tier", "type": "enum", "description": "Classification tier" },
+        { "name": "from_confidence", "type": "enum", "description": "Pre-promotion confidence tier" },
+        { "name": "to_confidence", "type": "enum", "description": "Post-promotion confidence tier" },
+        { "name": "evidence", "type": "enum", "description": "Promotion evidence tag" }
+      ]
+    },
+    {
+      "name": "agent_orchestration",
+      "privacy_tier": "low",
+      "upload_default": true,
+      "otlp_event_name": "vox.agent",
+      "description": "Agent task and orchestration summary events. Counts are bucketed. No task_id, trace_id, or repository_id.",
+      "emit_site": "vox-telemetry:record_event!(TaskRootSummary,AiFixture,RepairAttempt,RepairOutcome,AuditRun,DoctorProjectCheck)",
+      "fields": [
+        { "name": "outcome", "type": "enum", "description": "Task/run outcome class" },
+        { "name": "child_call_bucket", "type": "enum", "allowed": ["0","1_to_3","4_to_9","10_to_24","gte25"], "description": "Child call count bucket" },
+        { "name": "subagent_bucket", "type": "enum", "allowed": ["0","1_to_3","4_to_9","10_to_24","gte25"], "description": "Subagent fanout bucket" },
+        { "name": "fixture_kind", "type": "enum", "allowed": ["model_intent","subagent_dispatch","prompt_dispatch","search_dispatch","hole_observed"], "description": "AiFixture inner kind" },
+        { "name": "attempt", "type": "int", "description": "Repair attempt number" },
+        { "name": "diagnostics_delta", "type": "int", "description": "Diagnostics-in minus diagnostics-out (progress signal)" },
+        { "name": "success", "type": "bool", "description": "Whether the repair/run succeeded" },
+        { "name": "attempts_used", "type": "int", "description": "Number of repair attempts used" },
+        { "name": "thing", "type": "enum", "description": "Audit subject tag" },
+        { "name": "passed", "type": "bool", "description": "Whether the check passed" }
+      ]
+    },
+    {
+      "name": "build",
+      "privacy_tier": "low",
+      "upload_default": true,
+      "otlp_event_name": "vox.build",
+      "description": "Build and lint summary events. No file paths, build_id, or repository_id.",
+      "emit_site": "vox-telemetry:record_event!(BuildSummary,LintFinding)",
+      "fields": [
+        { "name": "exit_class", "type": "enum", "description": "Build outcome class" },
+        { "name": "duration_bucket", "type": "enum", "allowed": ["lt1s","1_to_5s","5_to_30s","30s_to_5m","gt5m"], "description": "Build wall-time bucket" },
+        { "name": "rule_id", "type": "enum", "description": "Lint rule id (LintFinding events)" },
+        { "name": "severity", "type": "enum", "allowed": ["error","warning","info","hint"], "description": "Lint severity" },
+        { "name": "autofix_available", "type": "bool", "description": "Whether an autofix was available" }
+      ]
+    },
+    {
+      "name": "errors",
+      "privacy_tier": "low",
+      "upload_default": true,
+      "otlp_event_name": "vox.error_event",
+      "description": "Subsystem error summary events. No trace_id, model, or provider free-form fields.",
+      "emit_site": "vox-telemetry:record_event!(Error)",
+      "fields": [
+        { "name": "subsystem", "type": "enum", "description": "Subsystem that produced the error" },
+        { "name": "error_class", "type": "enum", "description": "Error class" },
+        { "name": "recoverable", "type": "bool", "description": "Whether the error was recovered from" }
+      ]
+    },
+    {
+      "name": "model_prompt",
+      "privacy_tier": "low",
+      "upload_default": true,
+      "otlp_event_name": "vox.model_prompt",
+      "description": "Outcome of per-model prompt profile injection (Track F). Feeds the learned Model-Layer. All fields are enums/buckets — no raw prompt text ever uploaded.",
+      "emit_site": "vox-orchestrator-mcp:src/chat_tools/mod.rs (injected by build_system_prompt_with_skill)",
+      "fields": [
+        {
+          "name": "canonical_model_id",
+          "type": "enum",
+          "allowed": ["claude_opus_4","claude_sonnet_4","claude_haiku_4","claude_fable_5","gemini_flash_2","gemini_pro_2","gpt4o","gpt4o_mini","deepseek_v3","local_ollama","unknown"],
+          "description": "Canonical model family (not the provider-specific alias)"
+        },
+        {
+          "name": "profile_variant_id",
+          "type": "enum",
+          "allowed": ["none","provisional_v1","shadowed_v1","confirmed_v1","confirmed_v2","confirmed_v3"],
+          "description": "Which profile variant was active (none = no profile injected)"
+        },
+        {
+          "name": "task_category",
+          "type": "enum",
+          "allowed": ["coding","research","writing","debugging","planning","review","unknown"],
+          "description": "Broad task category at prompt-build time"
+        },
+        {
+          "name": "quality_bucket",
+          "type": "enum",
+          "allowed": ["excellent","good","acceptable","poor","failed","unknown"],
+          "description": "Outcome quality bucket (derived from task completion signal); 'unknown' is emitted at prompt-build time before outcome is known"
+        }
+      ]
+    }
+  ]
+}

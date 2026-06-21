@@ -40,7 +40,7 @@ Research synthesis (Cursor, Gemini, Codex, PowerShell, bypass classes, future Vo
 
 ## Tooling Preferences
 
-- Search text: `rg`
+- Search text: `rg`. Prohibit blind recursive searches in the workspace root as they take too long. Always narrow down the search path (e.g. to specific crate subdirectories like `crates/vox-cli/`) or use glob patterns. Prefer native `rg` via `run_command` with precise paths over the built-in `grep_search` tool, which can fail on Windows.
 - Filesystem listing and checks: `Get-ChildItem`, `Test-Path`, `Resolve-Path` (interactive terminal only; use `vox run` for scripted file ops)
 - File reads/writes from the IDE: use structured read/edit tools when available
 - Package managers: `pnpm` for JS/TS

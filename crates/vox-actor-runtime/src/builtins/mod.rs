@@ -11,8 +11,7 @@ use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use vox_openclaw_runtime::{
-    AgentRuntimeAdapter, DefaultOpenClawRuntimeAdapter, OpenClawRuntimeAdapter,
-    connect_default_runtime_adapter,
+    AgentRuntimeAdapter, DefaultOpenClawRuntimeAdapter, connect_default_runtime_adapter,
 };
 
 #[cfg(not(target_arch = "wasm32"))]

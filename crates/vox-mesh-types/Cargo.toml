@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "Shared types for the Vox federated GPU mesh: worker registration, dispatch, and capability negotiation."
+readme = "README.md"
 
 [dependencies]
 serde = { workspace = true, features = ["derive"] }

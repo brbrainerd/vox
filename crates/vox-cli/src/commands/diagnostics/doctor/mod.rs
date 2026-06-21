@@ -20,6 +20,7 @@ pub async fn run(
     json: bool,
     probe: bool,
     fix_cuda_path: bool,
+    tier: &str,
 ) -> Result<()> {
     #[cfg(not(feature = "codex"))]
     if build_perf || scope || json {
@@ -69,7 +70,7 @@ pub async fn run(
         return Ok(());
     }
 
-    checks_standard::run_checks(auto_heal, test_health, compile_target, &mut checks).await;
+    checks_standard::run_checks(auto_heal, test_health, compile_target, tier, &mut checks).await;
 
     let failed = checks.iter().filter(|c| !c.pass).count();
     if probe {
@@ -132,7 +133,7 @@ mod tests {
     #[tokio::test]
     #[cfg(not(feature = "codex"))]
     async fn extended_doctor_flags_require_codex_build() {
-        let err = run(None, false, false, true, false, false, false, false)
+        let err = run(None, false, false, true, false, false, false, false, "full")
             .await
             .expect_err("build_perf without codex doctor should error");
         let s = err.to_string();
@@ -145,7 +146,7 @@ mod tests {
     #[tokio::test]
     #[cfg(feature = "codex")]
     async fn build_perf_runs_when_codex_enabled() {
-        let r = run(None, false, false, true, false, false, false, false).await;
+        let r = run(None, false, false, true, false, false, false, false, "full").await;
         assert!(r.is_ok(), "expected build_perf path to complete: {r:?}");
     }
 }

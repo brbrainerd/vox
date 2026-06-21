@@ -8,14 +8,20 @@
 //! Edges may appear under `"links"` or `"edges"` — both are supported.
 //! The graph is treated as **undirected**: edges are indexed in both directions.
 
+#![allow(clippy::collapsible_if, clippy::unnecessary_map_or)]
+
 pub mod ast;
 pub mod bfs;
 pub mod cache;
 pub mod cluster;
 pub mod compare;
+pub mod crate_model;
+pub mod gc;
+pub mod lens;
 pub mod overlay;
 pub mod reachability;
 pub mod rebuild;
+pub mod snapshot;
 
 use std::collections::HashMap;
 
@@ -190,4 +196,10 @@ impl GraphifyReader {
             })
             .collect()
     }
+}
+
+/// BLAKE3 hex digest of graph bytes. The single source of truth for `graph_json_sha256`
+/// (rebuild) and `lexical_ingest_sha256` (ingest) so `lexical_lag` comparisons are valid.
+pub fn graph_digest(bytes: &[u8]) -> String {
+    blake3::hash(bytes).to_hex().to_string()
 }

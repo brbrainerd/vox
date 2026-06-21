@@ -20,7 +20,23 @@ pub struct ExtractedGraph {
     pub edges: Vec<ExtractedEdge>,
 }
 
+/// Bump when the extraction scheme changes (node-id format, edge rules). Folded into the
+/// per-file cache key in `rebuild` so unchanged files re-extract instead of returning a
+/// graph built under the old scheme.
+pub const EXTRACTOR_VERSION: &str = "3";
+
+/// Qualify a symbol with its module path. Empty `module_id` yields the bare symbol so the
+/// legacy `extract_ast` wrapper keeps its old output.
+pub(crate) fn qualify(module_id: &str, sym: &str) -> String {
+    if module_id.is_empty() {
+        sym.to_string()
+    } else {
+        format!("{module_id}::{sym}")
+    }
+}
+
 struct RustVisitor {
+    module_id: String,
     nodes: Vec<ExtractedNode>,
     edges: Vec<ExtractedEdge>,
     current_fn: Option<String>,
@@ -29,35 +45,32 @@ struct RustVisitor {
 impl<'ast> Visit<'ast> for RustVisitor {
     fn visit_item_fn(&mut self, node: &'ast syn::ItemFn) {
         let fn_name = node.sig.ident.to_string();
+        let id = qualify(&self.module_id, &fn_name);
         self.nodes.push(ExtractedNode {
-            id: fn_name.clone(),
-            label: fn_name.clone(),
+            id: id.clone(),
+            label: fn_name,
             kind: "fn".to_string(),
         });
-
-        let old_fn = self.current_fn.replace(fn_name);
+        let old_fn = self.current_fn.replace(id);
         syn::visit::visit_item_fn(self, node);
         self.current_fn = old_fn;
     }
-
     fn visit_item_struct(&mut self, node: &'ast syn::ItemStruct) {
         let struct_name = node.ident.to_string();
         self.nodes.push(ExtractedNode {
-            id: struct_name.clone(),
+            id: qualify(&self.module_id, &struct_name),
             label: struct_name,
             kind: "struct".to_string(),
         });
         syn::visit::visit_item_struct(self, node);
     }
-
     fn visit_expr_call(&mut self, node: &'ast syn::ExprCall) {
         if let syn::Expr::Path(ref expr_path) = *node.func {
             if let Some(ref current_fn) = self.current_fn {
                 if let Some(segment) = expr_path.path.segments.last() {
-                    let callee = segment.ident.to_string();
                     self.edges.push(ExtractedEdge {
                         source: current_fn.clone(),
-                        target: callee,
+                        target: segment.ident.to_string(), // BARE; resolved in rebuild
                     });
                 }
             }
@@ -66,13 +79,21 @@ impl<'ast> Visit<'ast> for RustVisitor {
     }
 }
 
+/// Back-compat wrapper: bare ids. Used by `ast_tests` (which assert on `label`, unaffected).
 pub fn extract_ast(path: &Path, content: &str) -> ExtractedGraph {
+    extract_ast_in_module(path, content, "")
+}
+
+/// Per-file AST. Definition ids and edge sources are qualified with `module_id`; edge
+/// targets are left bare for global resolution in `rebuild`.
+pub fn extract_ast_in_module(path: &Path, content: &str, module_id: &str) -> ExtractedGraph {
     let mut nodes = Vec::new();
     let mut edges = Vec::new();
 
     if path.extension().map_or(false, |ext| ext == "rs") {
         if let Ok(file) = syn::parse_file(content) {
             let mut visitor = RustVisitor {
+                module_id: module_id.to_string(),
                 nodes: Vec::new(),
                 edges: Vec::new(),
                 current_fn: None,
@@ -82,13 +103,13 @@ pub fn extract_ast(path: &Path, content: &str) -> ExtractedGraph {
             edges = visitor.edges;
         }
     } else {
-        // Multi-language tree-sitter fallback (under tree-sitter-grammars feature)
         #[cfg(feature = "tree-sitter-grammars")]
         {
             if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
                 let language = match ext {
                     "ts" | "js" => Some(tree_sitter_typescript::LANGUAGE_TYPESCRIPT),
                     "tsx" | "jsx" => Some(tree_sitter_typescript::LANGUAGE_TSX),
+                    "py" => Some(tree_sitter_python::LANGUAGE),
                     _ => None,
                 };
                 if let Some(lang) = language {
@@ -96,25 +117,35 @@ pub fn extract_ast(path: &Path, content: &str) -> ExtractedGraph {
                     if parser.set_language(&lang.into()).is_ok() {
                         if let Some(tree) = parser.parse(content, None) {
                             let mut cursor = tree.walk();
-                            // Simple traversal to extract functions/calls
                             let mut stack = vec![tree.root_node()];
                             let mut current_fn: Option<String> = None;
                             while let Some(node) = stack.pop() {
-                                if node.kind() == "function_declaration"
-                                    || node.kind() == "method_definition"
-                                {
+                                let is_fn_def = matches!(
+                                    node.kind(),
+                                    "function_declaration"
+                                        | "method_definition"
+                                        | "function_definition"
+                                );
+                                let is_class = node.kind() == "class_definition";
+                                let is_call = matches!(node.kind(), "call_expression" | "call");
+
+                                if is_fn_def || is_class {
                                     if let Some(name_node) = node.child_by_field_name("name") {
                                         if let Ok(name) = name_node.utf8_text(content.as_bytes()) {
+                                            let id = qualify(module_id, name);
                                             nodes.push(ExtractedNode {
-                                                id: name.to_string(),
+                                                id: id.clone(),
                                                 label: name.to_string(),
-                                                kind: "fn".to_string(),
+                                                kind: if is_class { "struct" } else { "fn" }
+                                                    .to_string(),
                                             });
-                                            current_fn = Some(name.to_string());
+                                            if is_fn_def {
+                                                current_fn = Some(id);
+                                            }
                                         }
                                     }
                                 }
-                                if node.kind() == "call_expression" {
+                                if is_call {
                                     if let Some(ref source_fn) = current_fn {
                                         if let Some(function_node) =
                                             node.child_by_field_name("function")

@@ -37,6 +37,7 @@ use crate::types::{AgentId, AgentIdGenerator, TaskId, TaskIdGenerator};
 
 pub mod accessors;
 pub mod comms;
+pub mod dispatch;
 pub mod safety;
 pub mod task_dispatch;
 /// Error type for orchestrator operations.
@@ -70,6 +71,7 @@ pub struct Orchestrator {
     pub qa_router: std::sync::Arc<std::sync::RwLock<crate::qa::QARouter>>,
     pub monitor: std::sync::Arc<std::sync::RwLock<crate::monitor::AiMonitor>>,
     pub event_bus: crate::events::EventBus,
+    pub hopper: std::sync::Arc<dyn crate::hopper::store::HopperIntake>,
     pub message_bus: crate::a2a::MessageBus,
     /// IDs of agents that were dynamically spawned (transient).
     pub dynamic_agents: std::sync::Arc<std::sync::RwLock<std::collections::HashSet<AgentId>>>,
@@ -137,6 +139,8 @@ pub struct Orchestrator {
     /// Orchestrator-policy token/cost budget gate (D7).
     pub tenant_budget_gate:
         std::sync::Arc<std::sync::RwLock<crate::budget_gate::OrchestratorBudgetGate>>,
+    /// Soft HITL: feedback requests (clarifications, doubts).
+    pub feedback: crate::feedback::FeedbackStore,
     /// Per-task interrupt flags: set to `true` to signal a running local task to abort.
     ///
     /// Populated when a task starts executing; cleared when it completes or is cancelled.

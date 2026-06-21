@@ -31,10 +31,7 @@ fn configure_stdio_daemon_command(daemon: &str, daemon_path: &std::path::Path) -
         cmd.env("VOX_ORCHESTRATOR_DAEMON_SOCKET", socket);
     }
     #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        cmd.creation_flags(0x0800_0000);
-    }
+    cmd.creation_flags(0x0800_0000);
     cmd
 }
 

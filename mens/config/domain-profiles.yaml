@@ -39,6 +39,14 @@ profiles:
       epoch_2_max_difficulty: 6
       epoch_3_max_difficulty: 9
       curriculum_phases: ["syntax", "reasoning", "agentic"]
+    base:
+      model: small_code_default     # resolved in Phase 3 (model-registry.yaml)
+      method: qlora
+      preset: qwen_4080_16g
+    eval_gate: mens/config/eval-gates.yaml
+    router:
+      triggers: ["lane:vox_codegen", "lane:vox_lang_tier_b", "*.vox"]
+      priority: 10
 
   rust-expert:
     description: "Rust patterns in the Vox workspace + direct dependencies"
@@ -49,6 +57,14 @@ profiles:
     min_rating: 3
     ce_last_k: 64
     reward_hook: "cargo_build"
+    base:
+      model: strong_code_default    # resolved in Phase 3
+      method: qlora
+      preset: qwen_4080_16g
+    eval_gate: mens/config/eval-gates-rust.yaml
+    router:
+      triggers: ["lane:vox_rust_authoring", "lane:vox_rust_review", "*.rs"]
+      priority: 10
 
   agents:
     description: "MCP tool-use, multi-turn orchestration, A2A, durable workflows"
@@ -67,6 +83,15 @@ profiles:
       epoch_2_max_difficulty: 8
       epoch_3_max_difficulty: 10
       curriculum_phases: ["tool_call", "multi_turn", "orchestration"]
+    base:
+      model: agentic_default        # resolved in Phase 3
+      method: qlora
+      preset: qwen_4080_16g
+    eval_gate: mens/config/eval-gates-agents.yaml
+    router:
+      triggers: ["lane:vox_tooling", "lane:vox_dogfood_agent"]
+      priority: 5
+      prefer_local: true
 
   rocks:
     description: "Rocks database interaction and optimization patterns"

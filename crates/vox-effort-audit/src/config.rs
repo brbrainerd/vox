@@ -57,6 +57,7 @@ fn default_since() -> String {
     "30 days ago".into()
 }
 fn default_max_concurrent() -> usize {
+    vox_telemetry::record_default_decision!("effort_audit_max_concurrent", "moderate_4", "default");
     4
 }
 fn default_max_diff_bytes() -> usize {

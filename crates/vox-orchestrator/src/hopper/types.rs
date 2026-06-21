@@ -83,6 +83,8 @@ pub enum ItemState {
     Done,
     /// Overridden / cancelled — terminal state.
     Overridden,
+    /// Terminal: the developer cancelled the item before completion.
+    Cancelled,
 }
 
 impl ItemState {
@@ -92,6 +94,7 @@ impl ItemState {
             Self::Assigned { .. } => "assigned",
             Self::Done => "done",
             Self::Overridden => "overridden",
+            Self::Cancelled => "cancelled",
         }
     }
 }

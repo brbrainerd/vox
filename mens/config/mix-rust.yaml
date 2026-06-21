@@ -1,6 +1,7 @@
 # Mix configuration for rust-expert domain
 # rust_source.jsonl is 464MB — sample at 2% to keep run manageable on RTX 4080 SUPER.
 output: mens/data/train_mixed_rust.jsonl
+include_lanes: [vox_rust_expert_cross, vox_rust_authoring, vox_rust_review]
 sources:
   - path: target/dogfood/rust_pairs.validated.jsonl
     weight: 4.0
@@ -14,4 +15,10 @@ sources:
   - path: mens/data/mix_sources/rust_source.jsonl
     weight: 1.5
     sample_rate: 0.02             # 464MB × 2% ≈ 9.3MB — fits in VRAM budget
+    optional: true
+  - path: target/dogfood/rust_authoring.validated.jsonl
+    weight: 3.0
+    optional: false   # strict: this spoke needs real authoring data
+  - path: mens/data/mix_sources/rust_review_dpo.jsonl
+    weight: 2.0
     optional: true

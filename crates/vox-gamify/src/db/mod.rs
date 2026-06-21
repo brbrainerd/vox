@@ -18,6 +18,7 @@ mod profile;
 mod quest_battle;
 mod teaching;
 
+pub use crate::discovery::ledger::due_action_ids;
 pub use agent_telemetry::{
     AgentEventRecord, AgentSessionRecord, CostRecord, acknowledge_message, end_agent_session,
     get_agent_cost_usd, get_agent_metrics, get_agent_session, get_events,

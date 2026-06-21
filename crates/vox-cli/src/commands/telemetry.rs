@@ -6,6 +6,18 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result, anyhow};
 use clap::Subcommand;
+use vox_telemetry::config::{ConsentState, is_remote_allowed, remote_consent, set_remote_consent};
+
+/// Actions for `vox telemetry consent`.
+#[derive(Subcommand, Clone)]
+pub enum ConsentAction {
+    /// Opt in to remote telemetry upload (persists to ~/.config/vox/remote-consent).
+    Grant,
+    /// Opt out of remote telemetry upload (persists to ~/.config/vox/remote-consent).
+    Deny,
+    /// Show current consent state and whether remote upload is allowed.
+    Status,
+}
 
 use crate::telemetry_spool;
 fn resolve_spool(spool: Option<PathBuf>) -> PathBuf {
@@ -18,8 +30,14 @@ pub enum TelemetryCmd {
     /// Print the effective telemetry configuration and recorder health.
     ///
     /// Shows: master switch state, per-category flags, recorder registration,
-    /// and spool path. Exit 0 if telemetry is active; exit 1 if master switch is off.
+    /// spool path, and remote consent state. Exit 0 if telemetry is active;
+    /// exit 1 if master switch is off.
     Doctor,
+    /// Manage remote telemetry upload consent.
+    Consent {
+        #[command(subcommand)]
+        action: ConsentAction,
+    },
     /// Show spool path, pending count, and whether upload URL/token resolve (redacted).
     Status {
         /// Override spool root (default: cwd `.vox/telemetry-upload-queue` or `VOX_TELEMETRY_SPOOL_DIR`).
@@ -62,11 +80,13 @@ pub async fn run(cmd: TelemetryCmd) -> Result<()> {
             let recorder_active = vox_telemetry::global_recorder().is_some();
             let master = vox_telemetry::is_master_enabled();
             let org_disabled = vox_telemetry::org_policy_disabled();
+            let consent = remote_consent();
+            let remote_ok = is_remote_allowed();
 
             println!("vox telemetry doctor");
             println!("─────────────────────────────────────");
-            println!("org_policy_disabled:   {}", org_disabled);
-            println!("master_enabled:        {}", master);
+            println!("org_policy_disabled:   {org_disabled}");
+            println!("master_enabled:        {master}");
             println!("enabled:               {}", cfg.enabled);
             println!("remote_upload:         {}", cfg.remote_upload);
             println!("debug_to_stderr:       {}", cfg.debug_to_stderr);
@@ -78,7 +98,16 @@ pub async fn run(cmd: TelemetryCmd) -> Result<()> {
             println!("  build:               {}", cfg.build);
             println!("  errors:              {}", cfg.errors);
             println!("─────────────────────────────────────");
-            println!("recorder_registered:   {}", recorder_active);
+            println!("recorder_registered:   {recorder_active}");
+            println!(
+                "remote_consent:        {}",
+                match consent {
+                    ConsentState::Granted => "granted",
+                    ConsentState::Denied => "denied",
+                    ConsentState::Unset => "unset (run `vox telemetry consent grant` to opt in)",
+                }
+            );
+            println!("remote_upload_allowed: {remote_ok}");
 
             let spool_root = telemetry_spool::spool_root();
             println!("spool_root:            {}", spool_root.display());
@@ -95,6 +124,39 @@ pub async fn run(cmd: TelemetryCmd) -> Result<()> {
                 println!("STATUS: OK");
             }
         }
+        TelemetryCmd::Consent { action } => match action {
+            ConsentAction::Grant => {
+                set_remote_consent(ConsentState::Granted);
+                println!("Remote telemetry upload: ENABLED");
+                println!(
+                    "Events will be uploaded to the Vox analytics endpoint on the next `vox telemetry upload` run."
+                );
+                println!("To opt out at any time: vox telemetry consent deny");
+            }
+            ConsentAction::Deny => {
+                set_remote_consent(ConsentState::Denied);
+                println!("Remote telemetry upload: DISABLED");
+                println!("No events will be uploaded. Local spool is unaffected.");
+                println!("To opt in at any time: vox telemetry consent grant");
+            }
+            ConsentAction::Status => {
+                let consent = remote_consent();
+                let allowed = is_remote_allowed();
+                println!(
+                    "consent: {}",
+                    match consent {
+                        ConsentState::Granted => "granted",
+                        ConsentState::Denied => "denied",
+                        ConsentState::Unset => "unset",
+                    }
+                );
+                println!("remote_upload_allowed: {allowed}");
+                if matches!(consent, ConsentState::Unset) {
+                    println!("Hint: run `vox telemetry consent grant` to enable remote upload,");
+                    println!("       or  `vox telemetry consent deny` to opt out permanently.");
+                }
+            }
+        },
         TelemetryCmd::Status { spool } => {
             let root = resolve_spool(spool);
             let pending_n = telemetry_spool::pending_count(&root);

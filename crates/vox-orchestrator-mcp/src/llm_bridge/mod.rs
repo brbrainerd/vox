@@ -23,8 +23,10 @@ pub use model_route_policy::{
 };
 
 /// Clamp requested max output tokens for HTTP chat APIs (OpenRouter / Gemini caps).
+/// Also emits Track-E default-decision events for all limits (once per process).
 #[must_use]
 pub fn clamp_http_max_output_tokens(n: u64) -> u64 {
+    limits::emit_default_decisions_once();
     n.clamp(1, limits::HTTP_MAX_OUTPUT_TOKENS_CAP)
 }
 

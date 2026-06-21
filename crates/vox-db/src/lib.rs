@@ -67,8 +67,10 @@ pub mod codex_chat;
 mod codex_conversation_graph;
 /// Canonical connect policy helpers (strict vs optional degraded surfaces).
 pub mod connect_policy;
+pub mod history_store;
 /// Explicit namespace for migration-era and cutover-only pathways.
 pub mod legacy;
+pub mod redact;
 /// Ludus / extended `gamify_*` contracts and metrics keys (DDL in baseline `schema/domains`).
 pub mod research_metrics_contract;
 pub mod schema;
@@ -217,12 +219,15 @@ pub use ddl::{SchemaDiff, diff_schemas, table_to_ddl, tables_to_ddl};
 pub use error_enrichment::{EnrichedDbError, enrich_error};
 pub use facade::agent_runs::AgentRunRow;
 pub use facade::hitl_approvals::HitlApprovalRow;
+pub use facade::model_prompt::ModelPromptProfileRow;
+pub use history_store::{HistoryEntry, add_entry, list_entries};
 pub use memory::MemoryParams;
 pub use migration::{Migration, builtin_migrations, validate_migrations};
 pub use oratio_eval::{OratioEvalRunRecord, OratioEvalRunStartParams, OratioEvalSampleRecord};
 pub use outcome_recorder::UnifiedLlmTurnRowIds;
 pub use project_store::{open_project_db, open_project_db_at_root};
 pub use questioning_telemetry::{QuestioningKpiSnapshot, QuestioningResearchArtifact};
+pub use redact::redact;
 pub use research::{
     CapabilityMapRecord, ExternalResearchPacket, ResearchEvalRunRecord, ResearchEvalSampleRecord,
     ResearchIngestRequest, ResearchIngestResult, RetrievalDiagnostics, retrieval_diagnostics,
@@ -244,21 +249,22 @@ pub use store::{
     DiscoveryInboxRow, EmbeddingEntry, EndpointReliabilityEntry, ExecutionEntry,
     ExternalStatusSnapshotParams, ExternalStatusSnapshotRow, ExternalSubmissionAttemptParams,
     ExternalSubmissionAttemptRow, ExternalSubmissionJobRow, ExternalSubmissionJobUpsertParams,
-    GamifyLudusKpiRollup, GamifyPolicySnapshotListRow, GrpoStepRow, KnowledgeNodeSummary,
-    LearnedPatternEntry, LocalTrainRow, LogExecutionParams, LogInteractionParams, MemoryEntry,
-    PackageSearchResult, PlanNodeRow, PlanSessionRow, PlanVersionRow, PublicationAttemptRow,
-    PublicationExternalLinkRow, PublicationExternalLinkUpsertParams,
-    PublicationExternalRevisionRow, PublicationExternalRevisionUpsertParams,
-    PublicationManifestParams, PublicationManifestRow, PublicationMediaAssetParams,
-    PublicationMediaAssetRow, PublicationStatusEventRow, PublishArtifactParams,
-    QuestionEventParams, QuestionEventRow, QuestionOptionOutcomeParams, QuestionOptionOutcomeRow,
-    QuestionOptionParams, QuestionOptionRow, QuestionRow, QuestionSessionCreateParams,
-    QuestionSessionRow, QuestionStopEventParams, QuestionStopEventRow, RegisterAgentParams,
-    RegressionRow, ReviewEntry, SaveMemoryParams, SaveSnippetParams, ScheduledEntry,
-    ScholarlySubmissionRow, SessionEventRow, SessionRow, SessionTurnEntry, SkillExecutionParams,
-    SkillExecutionRow, SkillManifestEntry, SkillReliabilityReport, SnippetEntry, StoreError,
-    ThroughputProfileRow, TrainingPair, TrustRollupEntry, TypedStreamEventEntry,
-    UpsertAccountSecretCiphertextParams, UserEntry, WarningRow, WorkflowExecutionRow,
+    GamifyLudusKpiRollup, GamifyPolicySnapshotListRow, GrpoStepRow, HopperInboxRow,
+    KnowledgeNodeSummary, LearnedPatternEntry, LocalTrainRow, LogExecutionParams,
+    LogInteractionParams, MemoryEntry, PackageSearchResult, PlanNodeRow, PlanSessionRow,
+    PlanVersionRow, PublicationAttemptRow, PublicationExternalLinkRow,
+    PublicationExternalLinkUpsertParams, PublicationExternalRevisionRow,
+    PublicationExternalRevisionUpsertParams, PublicationManifestParams, PublicationManifestRow,
+    PublicationMediaAssetParams, PublicationMediaAssetRow, PublicationStatusEventRow,
+    PublishArtifactParams, QuestionEventParams, QuestionEventRow, QuestionOptionOutcomeParams,
+    QuestionOptionOutcomeRow, QuestionOptionParams, QuestionOptionRow, QuestionRow,
+    QuestionSessionCreateParams, QuestionSessionRow, QuestionStopEventParams, QuestionStopEventRow,
+    RegisterAgentParams, RegressionRow, ReviewEntry, SaveMemoryParams, SaveSnippetParams,
+    ScheduledEntry, ScholarlySubmissionRow, SessionEventRow, SessionRow, SessionTurnEntry,
+    SkillExecutionParams, SkillExecutionRow, SkillManifestEntry, SkillReliabilityReport,
+    SnippetEntry, StoreError, ThroughputProfileRow, TrainingPair, TrustRollupEntry,
+    TypedStreamEventEntry, UpsertAccountSecretCiphertextParams, UserEntry, WarningRow,
+    WorkflowExecutionRow,
 };
 pub use sync_invocables::InvocableSyncEngine;
 pub use syntax_k_telemetry::SyntaxKEventMeta;

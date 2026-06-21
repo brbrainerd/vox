@@ -11,6 +11,62 @@ impl crate::orchestrator::Orchestrator {
             .map_err(|e| OrchestratorError::DatabaseError(format!("DB sync failed: {}", e)))?;
 
         crate::sync_lock::rw_write(&*self.db).replace(db.clone());
+
+        let db_clone = db.clone();
+        tokio::spawn(crate::activity::sink::run_sink(
+            self.event_bus.subscribe(),
+            move |row, ts_ms| {
+                let db = db_clone.clone();
+                async move {
+                    // Typed vox-db ops method — keeps direct turso/SQL out of the
+                    // orchestrator (turso-import / query-all SSOT boundary).
+                    if let Err(e) = db
+                        .insert_activity_log_row(
+                            ts_ms as i64,
+                            row.agent_id.as_deref(),
+                            row.session_id.as_deref(),
+                            &row.kind,
+                            &row.summary,
+                            &row.detail_json,
+                        )
+                        .await
+                    {
+                        tracing::warn!("Failed to persist activity log to database: {:?}", e);
+                    }
+                }
+            },
+            None,
+        ));
+
+        if let Some(swappable) = self
+            .hopper
+            .as_any()
+            .downcast_ref::<crate::hopper::store::SwappableHopper>()
+        {
+            let sqlite_hopper =
+                std::sync::Arc::new(crate::hopper::sqlite_store::SqliteHopper::with_bus(
+                    db.clone(),
+                    std::sync::Arc::new(self.event_bus.clone()),
+                ));
+            swappable.swap(sqlite_hopper).await;
+        }
+
+        // Rehydrate task hopper inbox items on boot using enqueue_dedup
+        let inbox_items = self.hopper.inbox().await;
+        for item in inbox_items {
+            let task = crate::orchestrator::dispatch::intake_to_task(&item);
+            let agents_lock = self.agents.read().unwrap();
+            if let Some(queue_arc) = agents_lock.values().min_by_key(|q| q.read().unwrap().len()) {
+                let mut queue = queue_arc.write().unwrap();
+                queue.enqueue_dedup(task);
+            } else {
+                tracing::warn!(
+                    "No active agents available to rehydrate task: {:?}",
+                    item.item_id
+                );
+            }
+        }
+
         match db.sqlite_capabilities_snapshot().await {
             Ok(p) => {
                 tracing::debug!(

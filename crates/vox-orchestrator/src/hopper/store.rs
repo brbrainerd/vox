@@ -53,6 +53,8 @@ pub struct AdmittedReplay {
 /// implementations. Dashboard HTTP handlers program against this trait.
 #[async_trait::async_trait]
 pub trait HopperIntake: Send + Sync {
+    /// Support downcasting to concrete hopper implementations.
+    fn as_any(&self) -> &dyn std::any::Any;
     /// Submit a new intake item. Returns the admitted item.
     async fn submit(
         &self,
@@ -93,6 +95,9 @@ pub trait HopperIntake: Send + Sync {
     /// Mark an item as done.
     async fn complete(&self, item_id: &HopperItemId) -> Result<IntakeItem, HopperError>;
 
+    /// Cancel an item (terminal). Errors if already terminal.
+    async fn cancel(&self, item_id: &HopperItemId) -> Result<IntakeItem, HopperError>;
+
     /// Idempotently apply a remote admission replicated from a peer daemon (B4).
     ///
     /// Preserves the origin `item_id`; a second apply of the same id is a no-op
@@ -100,6 +105,171 @@ pub trait HopperIntake: Send + Sync {
     /// emit a local `HopperItemAdmitted` bus event — the admission happened on
     /// the origin daemon, not here.
     async fn replay_admitted(&self, op: AdmittedReplay) -> IntakeItem;
+
+    /// Idempotently apply a remote priority override replicated from a peer daemon (B4).
+    async fn replay_overridden(
+        &self,
+        item_id: &HopperItemId,
+        new_priority: TaskPriority,
+        override_at_unix_ms: u64,
+        override_by_node_id: String,
+    ) -> Result<IntakeItem, HopperError>;
+
+    /// Idempotently apply a remote state transition replicated from a peer daemon (B4).
+    async fn replay_transitioned(
+        &self,
+        item_id: &HopperItemId,
+        new_state: ItemState,
+    ) -> Result<IntakeItem, HopperError>;
+}
+
+// ── SwappableHopper ────────────────────────────────────────────────────────────
+
+pub struct SwappableHopper {
+    inner: tokio::sync::RwLock<Arc<dyn HopperIntake>>,
+}
+
+impl SwappableHopper {
+    pub fn new(initial: Arc<dyn HopperIntake>) -> Self {
+        Self {
+            inner: tokio::sync::RwLock::new(initial),
+        }
+    }
+
+    pub async fn swap(&self, new_hopper: Arc<dyn HopperIntake>) {
+        let mut guard = self.inner.write().await;
+        *guard = new_hopper;
+    }
+}
+
+#[async_trait::async_trait]
+impl HopperIntake for SwappableHopper {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    async fn submit(
+        &self,
+        intent: String,
+        affinity_hints: Vec<String>,
+        priority_hint: PriorityHint,
+        source: IntakeSource,
+        session_id: Option<String>,
+    ) -> IntakeItem {
+        let inner = {
+            let guard = self.inner.read().await;
+            guard.clone()
+        };
+        inner
+            .submit(intent, affinity_hints, priority_hint, source, session_id)
+            .await
+    }
+
+    async fn inbox(&self) -> Vec<IntakeItem> {
+        let inner = {
+            let guard = self.inner.read().await;
+            guard.clone()
+        };
+        inner.inbox().await
+    }
+
+    async fn assigned(&self) -> Vec<IntakeItem> {
+        let inner = {
+            let guard = self.inner.read().await;
+            guard.clone()
+        };
+        inner.assigned().await
+    }
+
+    async fn history(&self) -> Vec<IntakeItem> {
+        let inner = {
+            let guard = self.inner.read().await;
+            guard.clone()
+        };
+        inner.history().await
+    }
+
+    async fn reprioritize(
+        &self,
+        item_id: &HopperItemId,
+        new_priority: TaskPriority,
+        cap: DeveloperOverride,
+    ) -> Result<IntakeItem, HopperError> {
+        let inner = {
+            let guard = self.inner.read().await;
+            guard.clone()
+        };
+        inner.reprioritize(item_id, new_priority, cap).await
+    }
+
+    async fn assign(
+        &self,
+        item_id: &HopperItemId,
+        agent_id: String,
+    ) -> Result<IntakeItem, HopperError> {
+        let inner = {
+            let guard = self.inner.read().await;
+            guard.clone()
+        };
+        inner.assign(item_id, agent_id).await
+    }
+
+    async fn complete(&self, item_id: &HopperItemId) -> Result<IntakeItem, HopperError> {
+        let inner = {
+            let guard = self.inner.read().await;
+            guard.clone()
+        };
+        inner.complete(item_id).await
+    }
+
+    async fn cancel(&self, item_id: &HopperItemId) -> Result<IntakeItem, HopperError> {
+        let inner = {
+            let guard = self.inner.read().await;
+            guard.clone()
+        };
+        inner.cancel(item_id).await
+    }
+
+    async fn replay_admitted(&self, op: AdmittedReplay) -> IntakeItem {
+        let inner = {
+            let guard = self.inner.read().await;
+            guard.clone()
+        };
+        inner.replay_admitted(op).await
+    }
+
+    async fn replay_overridden(
+        &self,
+        item_id: &HopperItemId,
+        new_priority: TaskPriority,
+        override_at_unix_ms: u64,
+        override_by_node_id: String,
+    ) -> Result<IntakeItem, HopperError> {
+        let inner = {
+            let guard = self.inner.read().await;
+            guard.clone()
+        };
+        inner
+            .replay_overridden(
+                item_id,
+                new_priority,
+                override_at_unix_ms,
+                override_by_node_id,
+            )
+            .await
+    }
+
+    async fn replay_transitioned(
+        &self,
+        item_id: &HopperItemId,
+        new_state: ItemState,
+    ) -> Result<IntakeItem, HopperError> {
+        let inner = {
+            let guard = self.inner.read().await;
+            guard.clone()
+        };
+        inner.replay_transitioned(item_id, new_state).await
+    }
 }
 
 // ── InMemoryHopper ────────────────────────────────────────────────────────────
@@ -128,6 +298,10 @@ impl InMemoryHopper {
 
 #[async_trait::async_trait]
 impl HopperIntake for InMemoryHopper {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
     async fn submit(
         &self,
         intent: String,
@@ -179,7 +353,12 @@ impl HopperIntake for InMemoryHopper {
             .read()
             .await
             .iter()
-            .filter(|i| matches!(i.state, ItemState::Done | ItemState::Overridden))
+            .filter(|i| {
+                matches!(
+                    i.state,
+                    ItemState::Done | ItemState::Overridden | ItemState::Cancelled
+                )
+            })
             .cloned()
             .collect()
     }
@@ -196,7 +375,10 @@ impl HopperIntake for InMemoryHopper {
             .find(|i| &i.item_id == item_id)
             .ok_or_else(|| HopperError::NotFound(item_id.0.clone()))?;
 
-        if matches!(item.state, ItemState::Done | ItemState::Overridden) {
+        if matches!(
+            item.state,
+            ItemState::Done | ItemState::Overridden | ItemState::Cancelled
+        ) {
             return Err(HopperError::Terminal);
         }
 
@@ -251,6 +433,30 @@ impl HopperIntake for InMemoryHopper {
         Ok(item.clone())
     }
 
+    async fn cancel(&self, item_id: &HopperItemId) -> Result<IntakeItem, HopperError> {
+        let mut items = self.items.write().await;
+        let item = items
+            .iter_mut()
+            .find(|i| &i.item_id == item_id)
+            .ok_or_else(|| HopperError::NotFound(item_id.0.clone()))?;
+
+        if matches!(
+            item.state,
+            ItemState::Done | ItemState::Overridden | ItemState::Cancelled
+        ) {
+            return Err(HopperError::Terminal);
+        }
+
+        item.state = ItemState::Cancelled;
+        let out = item.clone();
+
+        self.bus.emit(AgentEventKind::HopperItemCancelled {
+            item_id: item_id.clone(),
+        });
+
+        Ok(out)
+    }
+
     async fn replay_admitted(&self, op: AdmittedReplay) -> IntakeItem {
         let mut items = self.items.write().await;
         // Idempotent: if we already have this id (re-delivery, or we were the
@@ -267,6 +473,54 @@ impl HopperIntake for InMemoryHopper {
         );
         items.push(item.clone());
         item
+    }
+
+    async fn replay_overridden(
+        &self,
+        item_id: &HopperItemId,
+        new_priority: TaskPriority,
+        override_at_unix_ms: u64,
+        override_by_node_id: String,
+    ) -> Result<IntakeItem, HopperError> {
+        let mut items = self.items.write().await;
+        let item = items
+            .iter_mut()
+            .find(|i| &i.item_id == item_id)
+            .ok_or_else(|| HopperError::NotFound(item_id.0.clone()))?;
+
+        if item.classified_priority == new_priority
+            && item.priority_source == PrioritySource::Developer
+        {
+            return Ok(item.clone());
+        }
+
+        let old_priority = item.classified_priority;
+        item.classified_priority = new_priority;
+        item.priority_source = PrioritySource::Developer;
+        item.override_history.push(PriorityOverrideRecord {
+            ts_micros: override_at_unix_ms * 1_000,
+            actor: override_by_node_id,
+            original_priority: old_priority,
+            new_priority,
+            reason: "Mesh replication override".to_string(),
+            audit_id: "mesh-sync".to_string(),
+        });
+        Ok(item.clone())
+    }
+
+    async fn replay_transitioned(
+        &self,
+        item_id: &HopperItemId,
+        new_state: ItemState,
+    ) -> Result<IntakeItem, HopperError> {
+        let mut items = self.items.write().await;
+        let item = items
+            .iter_mut()
+            .find(|i| &i.item_id == item_id)
+            .ok_or_else(|| HopperError::NotFound(item_id.0.clone()))?;
+
+        item.state = new_state;
+        Ok(item.clone())
     }
 }
 
@@ -398,5 +652,24 @@ mod tests {
         h.complete(&item.item_id).await.unwrap();
         assert_eq!(h.assigned().await.len(), 0);
         assert_eq!(h.history().await.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn cancel_moves_item_to_cancelled_terminal() {
+        let hopper = InMemoryHopper::headless();
+        let item = hopper
+            .submit(
+                "do thing".into(),
+                vec![],
+                PriorityHint::Normal,
+                IntakeSource::Developer,
+                None,
+            )
+            .await;
+        let cancelled = hopper.cancel(&item.item_id).await.expect("cancel ok");
+        assert!(matches!(cancelled.state, ItemState::Cancelled));
+        // second cancel on a terminal item is an error
+        let err = hopper.cancel(&item.item_id).await;
+        assert!(err.is_err(), "cancelling a terminal item must error");
     }
 }

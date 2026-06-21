@@ -1,0 +1,13 @@
+{
+  "description": "Approved crates.io published names. Right-hand values are the published names; left-hand keys are in-repo crate names. Decided 2026-06-18.",
+  "names": {
+    "vox-crypto": "vox-crypto",
+    "vox-scaling-policy": "vox-scaling-policy",
+    "vox-bounded-fs": "vox-bounded-fs",
+    "vox-secrets": "vox-secrets",
+    "workspace-hack": "vox-workspace-hack"
+  },
+  "notes": {
+    "workspace-hack": "The crates.io name 'workspace-hack' is taken by a generic hakari stub (0.1.0). Cargo has no 'publish under different name' feature — the [package] name IS the published name. In-repo rename would break hakari and the 69 dependent crates. Resolution (Task B2): make workspace-hack OPTIONAL in vox-scaling-policy, vox-bounded-fs, vox-secrets. cargo publish then does not require workspace-hack on crates.io. vox-crypto has no workspace-hack dep so it is unaffected. workspace-hack itself is NOT published."
+  }
+}

@@ -2,7 +2,10 @@
 resolver = "2"
 members = ["crates/*","crates/workspace-hack"]
 exclude = [
+    "crates/_corpus_verify_tmp",
+    "crates/vox-cargo-shim",
     "crates/vox-arch-check/tests/fixtures/missing-desc",
+
     "crates/vox-plugin-cloud",
     "crates/vox-plugin-host/tests/fixtures/noop-code",
     "crates/vox-plugin-host/tests/fixtures/noop-code-bad-abi",
@@ -60,6 +63,7 @@ workspace-hack            = { path = "crates/workspace-hack" }
 # Internal crates
 vox-build-meta            = { path = "crates/vox-build-meta" }
 vox-telemetry             = { path = "crates/vox-telemetry" }
+vox-telemetry-otlp        = { path = "crates/vox-telemetry-otlp" }
 vox-foundation            = { path = "crates/vox-foundation" }
 vox-llm-config            = { path = "crates/vox-llm-config" }
 vox-llm-egress            = { path = "crates/vox-llm-egress" }
@@ -67,9 +71,9 @@ vox-llm-egress            = { path = "crates/vox-llm-egress" }
 
 vox-audit                 = { path = "crates/vox-audit" }
 vox-capability-registry   = { path = "crates/vox-capability-registry" }
-vox-secrets                = { path = "crates/vox-secrets" }
+vox-secrets                = { path = "crates/vox-secrets", version = "0.6.0" }
 vox-cli                   = { path = "crates/vox-cli" }
-vox-bounded-fs            = { path = "crates/vox-bounded-fs" }
+vox-bounded-fs            = { path = "crates/vox-bounded-fs", version = "0.6.0" }
 vox-compiler              = { path = "crates/vox-compiler" }
 vox-codegen         = { path = "crates/vox-codegen", default-features = false }
 vox-codegen-ts      = { path = "crates/vox-codegen-ts" }
@@ -90,7 +94,7 @@ vox-db-types              = { path = "crates/vox-db-types" }
 vox-eval                  = { path = "crates/vox-eval" }
 
 vox-forge                 = { path = "crates/vox-forge" }
-vox-crypto                = { path = "crates/vox-crypto" }
+vox-crypto                = { path = "crates/vox-crypto", version = "0.6.0" }
 vox-identity              = { path = "crates/vox-identity" }
 
 vox-openclaw-runtime           = { path = "crates/vox-openclaw-runtime" }
@@ -113,7 +117,7 @@ vox-populi                = { path = "crates/vox-populi" }
 vox-populi-types          = { path = "crates/vox-populi-types" }
 vox-ml-cli                  = { path = "crates/vox-ml-cli" }
 vox-mesh-policy           = { path = "crates/vox-mesh-policy" }
-vox-mesh-types            = { path = "crates/vox-mesh-types" }
+vox-mesh-types            = { path = "crates/vox-mesh-types", version = "0.6.0" }
 
 vox-effort-audit          = { path = "crates/vox-effort-audit" }
 vox-effort-route          = { path = "crates/vox-effort-route" }
@@ -163,7 +167,7 @@ vox-repository            = { path = "crates/vox-repository" }
 vox-shell-stdlib-types    = { path = "crates/vox-shell-stdlib-types" }
 vox-rule-pack             = { path = "crates/vox-rule-pack" }
 vox-actor-runtime               = { path = "crates/vox-actor-runtime" }
-vox-scaling-policy        = { path = "crates/vox-scaling-policy" }
+vox-scaling-policy        = { path = "crates/vox-scaling-policy", version = "0.6.0" }
 
 vox-skills                = { path = "crates/vox-skills" }
 
@@ -172,6 +176,8 @@ vox-code-audit               = { path = "crates/vox-code-audit" }
 vox-drift-check              = { path = "crates/vox-drift-check" }
 vox-workflow-runtime      = { path = "crates/vox-workflow-runtime" }
 vox-search                = { path = "crates/vox-search" }
+vox-similarity            = { path = "crates/vox-similarity" }
+vox-skill-discovery       = { path = "crates/vox-skill-discovery" }
 vox-tauri-codegen         = { path = "crates/vox-tauri-codegen" }
 vox-tauri-stt             = { path = "crates/vox-tauri-stt" }
 
@@ -252,6 +258,7 @@ leiden-rs          = "0.8.1"
 tree-sitter        = "0.26.9"
 tree-sitter-rust   = "0.24.2"
 tree-sitter-typescript = "0.23.2"
+tree-sitter-python = "0.23.6"
 rayon              = "1.10"
 rand               = { version = "0.8", features = ["small_rng", "std_rng"] }
 candle-core         = { version = "0.10", default-features = false }

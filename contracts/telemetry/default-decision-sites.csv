@@ -1,0 +1,13 @@
+decision_id,crate,file_line,default_value,chosen_enum_values,outcome_enum_values,status
+budget_max_cost_micros,vox-orchestrator,src/budget/mod.rs:232,50000 µ$,"lt25k,25k_to_50k,50k_to_100k,100k_to_500k,gt500k","hit_limit,near_limit(gt80pct),comfortable",proposed
+budget_token_alert_threshold,vox-orchestrator,src/budget/mod.rs:23,0.8 (80%),"lt60pct,60_to_80pct,80_to_90pct,gt90pct","hit_limit,near_limit,comfortable",proposed
+budget_cost_alert_threshold,vox-orchestrator,src/budget/mod.rs:24,0.9 (90%),"lt70pct,70_to_90pct,gt90pct","hit_limit,near_limit,comfortable",proposed
+budget_drift_threshold_usd,vox-orchestrator,src/budget/mod.rs:241,$0.50,"lt25c,25c_to_50c,50c_to_1usd,gt1usd","drift_detected,no_drift",proposed
+budget_doom_loop_threshold_usd,vox-orchestrator,src/budget/mod.rs:243,$2.00,"lt1usd,1_to_2usd,2_to_5usd,gt5usd","doom_loop_fired,no_doom_loop",proposed
+llm_max_concurrent,vox-config,src/config/vox_config.rs:68,8,"1,2,4,8,16,gt16","throttled,comfortable,underutilized",proposed
+llm_retry_max_attempts,vox-config,src/config/vox_config.rs:71,4,"1,2,3,4,gt4","exhausted_retries,succeeded_on_retry,succeeded_first",proposed
+llm_output_token_cap,vox-orchestrator-mcp,src/llm_bridge/limits.rs:4,8192 tokens,"le4096,le8192,le16384,le32768,gt32768","hit_cap,near_cap(gt80pct),comfortable",proposed
+ollama_probe_cache_ttl,vox-orchestrator-mcp,src/llm_bridge/limits.rs:10,30s,"le10s,le30s,le60s,gt60s","cache_hit,cache_miss",proposed
+ollama_probe_timeout,vox-orchestrator-mcp,src/llm_bridge/limits.rs:7,2s,"le1s,le2s,le5s,gt5s","timed_out,succeeded",proposed
+effort_audit_max_concurrent,vox-effort-audit,src/config.rs:60,4,"1,2,4,8,gt8","throttled,comfortable,underutilized",proposed
+audit_panel_backoff_base,vox-audit,src/panel.rs:509,"base=30s,max=600s","base_lt15s,base_15_to_30s,base_gt30s","retry_succeeded,retry_exhausted",proposed

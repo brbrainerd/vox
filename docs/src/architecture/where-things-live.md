@@ -49,6 +49,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-ast`](../../../crates/vox-ast/) | Pure-data Vox AST (decl/expr/stmt/pattern/types/scalar_mapping/span); serde-only L0 leaf extracted from `vox-compiler` and re-exported there as `vox_compiler::ast`. Depend on this (not `vox-compiler`) if you only need the declaration AST — e.g. `vox-db`'s DDL emitter. |
 | [`vox-build-meta`](../../../crates/vox-build-meta/) | Build-time helper emitting `VOX_BUILD_NUMBER` / `VOX_GIT_HASH`; use as `[build-dependencies]` only. |
 | [`vox-db-types`](../../../crates/vox-db-types/) | Pure-data L0 leaf for vox-db: row types, IDs, schema descriptors. |
+| [`vox-llm-config`](../../../crates/vox-llm-config/) | SSOT for LLM/AI setting-key metadata; pure-data, zero workspace deps. |
 | [`vox-mesh-types`](../../../crates/vox-mesh-types/) | Pure-data mesh transport types. |
 | [`vox-orchestrator-types`](../../../crates/vox-orchestrator-types/) | Pure-data L0 leaf for vox-orchestrator: agent/task IDs, file affinity, switch actions, provider catalogs, VCS capability tokens (WorkingTreeWrite, BranchCreate, etc.). |
 | [`workspace-hack`](../../../crates/workspace-hack/) | Cargo-hakari unification crate; do not edit by hand. |
@@ -65,12 +66,14 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-hf-layout`](../../../crates/vox-hf-layout/) | SSOT: Hugging Face `config.json` layout parsing for MENS (`vox-populi::mens::tensor::hf_load`) and `vox-plugin-mens-candle-cuda`. |
 | [`vox-identity`](../../../crates/vox-identity/) | Identity primitives: signing keys, trust ledger entries. |
 | [`vox-jsonschema-util`](../../../crates/vox-jsonschema-util/) | Shared JSON Schema compile + validate helpers for CLI, contracts, and tooling. |
+| [`vox-llm-config`](../../../crates/vox-llm-config/) | SSOT for LLM/AI setting-key metadata. Pure-data, zero workspace dependencies. |
 | [`vox-openai`](../../../crates/vox-openai/) | OpenAI integrations: wire-format types (`chat_completion.rs`) + SSE streaming (`sse.rs`) in one L1 crate. |
 | [`vox-package-types`](../../../crates/vox-package-types/) | Pure-data L1 leaf for vox-package: manifest, lockfile, package_kind, resolver types. |
 | [`vox-plugin-api`](../../../crates/vox-plugin-api/) | Shared API surface for Vox plugins: ABI version, traits, manifest types, error types. |
 | [`vox-plugin-sdk`](../../../crates/vox-plugin-sdk/) | Authoring SDK for code plugins: re-exports the stable ABI + the `declare_plugin!` glue macro (ABI-neutral, byte-identical exports). |
 | [`vox-plugin-types`](../../../crates/vox-plugin-types/) | Pure-types surface for the vox plugin system: manifests, skill types, state-backend trait. |
 | [`vox-telemetry`](../../../crates/vox-telemetry/) | L1 telemetry facade: `METRIC_TYPE_*` constants, `TelemetryRecorder` trait, `record_event!` macro, `TelemetryConfig` (Phase D: org-policy hard-off + `VOX_TELEMETRY=on/off/debug`), per-task `TaskAggregate`, `record_task_started`. Zero domain dependencies. |
+| [`vox-telemetry-otlp`](../../../crates/vox-telemetry-otlp/) | L3 feature-gated OTLP egress: `project_event` (variant→category projection, privacy transforms), `redact_event` (taxonomy-allowlist guard, second layer), `to_otlp_log` (OTLP/HTTP logs JSON encoder). `remote` feature adds the async uploader. Only binary surfaces (`vox-cli`) register it — domain crates depend on `vox-telemetry` only. |
 | [`vox-runtime`](../../../crates/vox-runtime/) | Umbrella runtime foundation: `RuntimeProfile` (Desktop vs Mobile), lifecycle traits, `VoxConfig`. Consumed by downstream runtime crates and the uniffi mobile bridge. Zero internal deps. |
 | [`vox-http-client`](../../../crates/vox-http-client/) | Shared HTTP client presets (user-agent, timeouts) for CLI, runtime, and AI transports. |
 | [`vox-rename-registry`](../../../crates/vox-rename-registry/) | Rename registry (`RenameKind`, `RenameRegistry`, `RegistryError`) and primitive-tag lookup (`primitive_tags::all_primitives`, `is_primitive`). L0 — zero workspace deps. Re-exported via `vox_compiler::parser::renames` and `vox_compiler::lowering_shared::primitive_tags`. |
@@ -93,12 +96,17 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-eval`](../../../crates/vox-eval/) | Evaluation **metrics** — deterministic scoring of model outputs / Vox samples (format/safety/quality/parse) + MENS `CompileVerdict`. **Not** the interpreter; `--interp` lives in [`vox-compiler/src/eval/`](../../../crates/vox-compiler/src/eval/). |
 | [`vox-graphify-reader`](../../../crates/vox-graphify-reader/) | Graphify structural reader: BFS traversal, shortest path, god-nodes ranking, and cross-manifest diff. |
 | [`vox-journal`](../../../crates/vox-journal/) | Generic append-only JSON Lines file journal; crash-safe via per-record sync_data (default) or deferred-to-lifecycle sync for the mobile profile, replays on open. Durable substrate for workflow/actor runtimes and the mobile vox-runtime-rn (deps vox-runtime). |
+| [`vox-llm-egress`](../../../crates/vox-llm-egress/) | Sanctioned LLM provider wire; pure egress (deps = vox-http-client + reqwest), no config/secret resolution. |
 | [`vox-effort-audit`](../../../crates/vox-effort-audit/) | AI-judged audit of git commit history; walks commits, calls model-agnostic judge facade, emits ranked findings JSONL + report. CLI: `vox audit effort`. |
 | [`vox-effort-route`](../../../crates/vox-effort-route/) | Routes effort-audit findings to verified, drafted enforcement artifacts (AGENTS.md rule / lint detector spec / arch rule / CI gate / corpus example / Vox script). CLI: `vox audit effort-route`. |
+| [`vox-llm-egress`](../../../crates/vox-llm-egress/) | Sanctioned LLM provider wire; pure egress (deps = vox-http-client + reqwest), no config/secret resolution. |
 | [`vox-mcp-registry`](../../../crates/vox-mcp-registry/) | Compile-time MCP tool name/description registry from contracts YAML (SSOT). |
+| [`vox-llm-egress`](../../../crates/vox-llm-egress/) | Sanctioned LLM provider wire; pure egress, no config/secret resolution. |
 | [`vox-project-scaffold`](../../../crates/vox-project-scaffold/) | Shared Vox.toml + src/main.vox + skill scaffolding for vox init and MCP. |
 | [`vox-repository`](../../../crates/vox-repository/) | Repository discovery, stable identity, layout probes, and agent scope helpers for external and internal Vox workspaces. |
+| [`vox-similarity`](../../../crates/vox-similarity/) | Pure simhash/minhash/LSH near-duplicate similarity core for discovery + marketplace dedup. |
 | [`vox-skill-runtime`](../../../crates/vox-skill-runtime/) | Abstract sandbox runtime trait for skill execution. Implementations ship as plugins (wasm, container). |
+| `vox-free-ai` _(planned)_ | Free-AI provider cascade (Ollama/Gemini/OpenRouter) with cost accounting; no game mechanics. Extracted from `vox-gamify`. See the crate-build disentanglement suite (`docs/superpowers/plans/2026-06-19-crate-build-disentanglement-suite-index.md`). |
 
 ### L3 — heavy domain crates
 
@@ -157,6 +165,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-llm-config`](../../../crates/vox-llm-config/) | LLM configuration types and registry — unified SSOT for model settings shared across vox-orchestrator and vox-gui. Layer 3. |
 | [`vox-llm-egress`](../../../crates/vox-llm-egress/) | LLM egress layer — provider routing, request construction, and response parsing for outbound LLM calls. Layer 3. |
 | [`vox-skills`](../../../crates/vox-skills/) | Skill marketplace and plugin architecture for the Vox agent system. |
+| [`vox-skill-discovery`](../../../crates/vox-skill-discovery/) | Local on-demand discovery + dedup engine: repeated .vox blocks, installed-skill dedup, MCP SSOT drift (advisory). |
 | [`vox-tensor`](../../../crates/vox-tensor/) | Pure-CPU JSONL data loaders / training-pair types (Burn extracted 2026-05-08). |
 | [`vox-test-harness`](../../../crates/vox-test-harness/) | Shared compiler/tooling test fixtures plus [`workspace_paths`](../../../crates/vox-test-harness/src/workspace_paths.rs) (`repo_root_for_tests`), [`env_scratch`](../../../crates/vox-test-harness/src/env_scratch.rs) (scoped `set_var`/`remove_var`), [`temp_root`](../../../crates/vox-test-harness/src/temp_root.rs) (`tempfile::TempDir`). |
 | [`vox-wasm-engine`](../../../crates/vox-wasm-engine/) | Single-source-of-truth Wasmtime engine + WASI execution for Vox programs and skill plugins. |
@@ -233,6 +242,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | Compaction trigger — strategy selection (D7) | `crates/vox-orchestrator/src/compaction_trigger.rs` |
 | Calibration — drift detection + bandit (D10) | `crates/vox-orchestrator/src/calibration.rs` |
 | Sub-agent dispatch — spawn vs. inline (D4) | `crates/vox-orchestrator/src/subagent_dispatch.rs` |
+| Attention interruption calibrator (learns from logged outcomes) | `crates/vox-orchestrator/src/attention/calibrator.rs` |
 | Orchestrator policy metric_type constants | `crates/vox-telemetry/src/types.rs` — `METRIC_TYPE_*` constants |
 | Telemetry master switch + org-policy hard-off | `crates/vox-telemetry/src/config.rs` — `TelemetryConfig::from_env()`, `org_policy_disabled()` (reads `/etc/vox/telemetry-policy.toml`), `is_master_enabled()`. Resolution order: org policy → `VOX_TELEMETRY` env var → per-category vars → default. |
 | Telemetry debug sink (stderr JSON dump) | `crates/vox-cli/src/lib.rs` — `StderrDebugSink`; registered when `VOX_TELEMETRY=debug`. |
@@ -261,6 +271,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | `@versioned` / `@tracked` decorator + interpreter `repo.*` VCS store (auto-snapshot-on-success) | Decorator spine in `crates/vox-compiler/`: lexer token (`src/lexer/token.rs` `AtVersioned`/`AtTracked`) → parser (`src/parser/descent/decl/head.rs` `is_versioned`) → `FnDecl.is_versioned` (`crates/vox-ast/src/decl/fundecl.rs`) → `HirFn.is_versioned` + `uses vcs` injection (`src/hir/lower/decl.rs`) → `VoxValue::Fn { name, is_versioned }` (`src/eval/value.rs`); the auto-`repo.snapshot()` hook fires on successful return in both call paths (`src/eval/mod.rs` `Interpreter::call` + `src/eval/expr.rs` Call arm) against the in-memory `RepoStore` (`src/eval/repo.rs`). Interpreter-only (`--mode interp`); inert in the compiled arms. See [`vcs-as-vox-language-feature-jujutsu-2026.md`](./vcs-as-vox-language-feature-jujutsu-2026.md) §4.3. |
 | Add a code generator (Rust target) | `crates/vox-codegen/src/codegen_rust/` |
 | Add a code generator (TypeScript target) | `crates/vox-codegen-ts/src/` |
+| Naked-objects admin UI codegen (opt-in table → list/detail/edit React) | `crates/vox-codegen-ts/src/admin_emit.rs` |
 | VUV contrast / color-vocabulary guarantee (gray-on-white refuses compile) | `crates/vox-codegen/src/web_ir/validate_palette.rs` + palette SSOT `contracts/tokens/tailwind-palette.v1.json`; canonical WCAG fn `vox_compiler::tokens::wcag21_contrast_ratio` |
 | VUV occlusion / tier-inversion guarantee (Z-tiers, escape-hatch checks) | `crates/vox-codegen/src/web_ir/validate_layer.rs`; tiers in `vox_compiler::hir::nodes::layer` (`LayerTier`, `may_parent_surfaces`); z-ladder `ZTier::z_value()` in `web_ir/mod.rs` |
 | Add a "this VUV bug must be impossible" regression case | Add `examples/forbidden/<case>.vox` with a `// expect-error: <code>` header; `crates/vox-compiler/tests/forbidden_corpus_test.rs` runs it through the full pipeline |
@@ -298,6 +309,7 @@ Don't depend on `vox-orchestrator` or `vox-cli` from a plugin.
 | Plugin crate | Provides |
 |---|---|
 | [`vox-plugin-browser`](../../../crates/vox-plugin-browser/) | Browser automation plugin (chromiumoxide CDP). |
+| `vox-plugin-gamify` _(planned)_ | Gamification cdylib plugin: implements the `Gamification` extension point trait (quests/battles/XP/companions). Loaded dynamically by `vox-cli-core`; not a compile-time dep. See the crate-build disentanglement suite (`docs/superpowers/plans/2026-06-19-crate-build-disentanglement-suite-index.md`). |
 | [`vox-plugin-cloud`](../../../crates/vox-plugin-cloud/) | CloudSync plugin stub: HF Hub / S3 model artifact sync. |
 | [`vox-plugin-mens-candle-cuda`](../../../crates/vox-plugin-mens-candle-cuda/) | ML training backend plugin: Candle + CUDA. Implements MlBackend. |
 | [`vox-plugin-mens-candle-metal`](../../../crates/vox-plugin-mens-candle-metal/) | MENS Apple Silicon Metal execution plugin. |

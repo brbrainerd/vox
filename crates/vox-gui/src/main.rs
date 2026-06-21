@@ -107,6 +107,7 @@ async fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commands::activity::activity_query,
             commands::catalog::get_command_catalog,
             commands::discovery::discovery_suggest,
             commands::discovery::discovery_help,
@@ -131,6 +132,7 @@ async fn main() {
             commands::chat::chat_archive_session,
             commands::identity::get_identity_summary,
             commands::harness::get_task_diff,
+            commands::graphify::vox_graphify_status,
             commands::harness::list_repo_files,
             commands::control_plane::submit_orchestrator_task,
             commands::control_plane::pause_orchestrator_agent,
@@ -156,6 +158,10 @@ async fn main() {
             commands::orchestrator::set_orchestrator_config,
             commands::orchestrator::get_orchestrator_config,
             commands::orchestrator::get_context_budget,
+            commands::orchestrator::hopper_list,
+            commands::orchestrator::hopper_submit,
+            commands::orchestrator::hopper_reprioritize,
+            commands::orchestrator::hopper_cancel,
             commands::dynamic_mapping::get_command_metadata,
             commands::dynamic_mapping::get_full_registry,
             commands::models::list_model_cards,
@@ -199,6 +205,8 @@ async fn main() {
             commands::gamify::list_gamify_leaderboard,
             commands::gamify::list_gamify_companions,
             commands::gamify::list_gamify_quests,
+            commands::gamify::gamify_due_actions,
+            commands::gamify::gamify_kpi_summary,
             commands::research::start_research_async,
             commands::scientia::list_research_sessions,
             commands::scientia::get_research_session_detail,

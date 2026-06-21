@@ -12,6 +12,9 @@ use serde::{Deserialize, Serialize};
 /// Relative path to the corpora registry YAML from repo root.
 pub const CORPORA_REL_PATH: &str = "contracts/retrieval/graphify-corpora.v1.yaml";
 
+/// Runtime registration overlay (corpora created by `vox graphify index`).
+pub const REGISTERED_REL_PATH: &str = ".vox/cache/graphify/registered.v1.json";
+
 /// Legacy graphify output directory (shared with non-graphify CI artifacts — see research doc).
 pub const LEGACY_GRAPHIFY_OUT_DIR: &str = "graphify-out";
 
@@ -23,10 +26,10 @@ pub const GRAPHIFY_TTL_DAYS_ENV: &str = "VOX_GRAPHIFY_TTL_DAYS";
 
 /// Resolve the TTL (in days) using `VOX_GRAPHIFY_TTL_DAYS` if present, falling back to a default value.
 pub fn resolve_ttl_days(default_ttl: u64) -> u64 {
-    if let Ok(val) = std::env::var(GRAPHIFY_TTL_DAYS_ENV) {
-        if let Ok(parsed) = val.parse::<u64>() {
-            return parsed;
-        }
+    if let Ok(val) = std::env::var(GRAPHIFY_TTL_DAYS_ENV)
+        && let Ok(parsed) = val.parse::<u64>()
+    {
+        return parsed;
     }
     default_ttl
 }
@@ -36,6 +39,12 @@ struct CorporaFile {
     default_corpus_id: String,
     #[serde(default = "default_ttl_days")]
     ttl_days_default: u64,
+    corpora: Vec<GraphifyCorpus>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+struct RegisteredCorporaFile {
+    #[serde(default)]
     corpora: Vec<GraphifyCorpus>,
 }
 
@@ -58,6 +67,10 @@ pub struct GraphifyCorpus {
     /// `assess_corpus_status` skips all disk checks and returns fresh unconditionally.
     #[serde(default)]
     pub is_virtual: bool,
+    /// Absolute path to an external source repository to index. `None` = the Vox repo root.
+    /// The graph is stored under the Vox repo's `.vox/cache/graphify/<id>/` regardless.
+    #[serde(default)]
+    pub source_root: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -152,6 +165,52 @@ pub fn load_graphify_corpora(repo_root: &Path) -> Result<GraphifyCorporaRegistry
         ttl_days_default: file.ttl_days_default,
         corpora: file.corpora,
     })
+}
+
+/// First corpus id whose `default_for_intents` contains `intent`, if any.
+/// Activates the otherwise-dormant intent-routing field.
+pub fn select_corpus_for_intent(reg: &GraphifyCorporaRegistry, intent: &str) -> Option<String> {
+    reg.corpora
+        .iter()
+        .find(|c| c.default_for_intents.iter().any(|i| i == intent))
+        .map(|c| c.id.clone())
+}
+
+/// Load runtime-registered corpora (empty if the overlay file is absent/unparseable).
+pub fn load_registered_corpora(repo_root: &Path) -> Vec<GraphifyCorpus> {
+    let path = repo_root.join(REGISTERED_REL_PATH);
+    let Ok(raw) = fs::read_to_string(&path) else {
+        return Vec::new();
+    };
+    serde_json::from_str::<RegisteredCorporaFile>(&raw)
+        .map(|f| f.corpora)
+        .unwrap_or_default()
+}
+
+/// Insert-or-replace a corpus (by `id`) in the overlay.
+pub fn upsert_registered_corpus(repo_root: &Path, corpus: &GraphifyCorpus) -> std::io::Result<()> {
+    let path = repo_root.join(REGISTERED_REL_PATH);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let mut corpora = load_registered_corpora(repo_root);
+    corpora.retain(|c| c.id != corpus.id);
+    corpora.push(corpus.clone());
+    let raw = serde_json::to_string_pretty(&RegisteredCorporaFile { corpora })
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+    fs::write(path, raw)
+}
+
+/// Canonical YAML corpora + runtime-registered corpora. YAML wins id collisions.
+pub fn load_all_corpora(repo_root: &Path) -> Result<GraphifyCorporaRegistry, GraphifyError> {
+    let mut reg = load_graphify_corpora(repo_root)?;
+    let existing: HashSet<String> = reg.corpora.iter().map(|c| c.id.clone()).collect();
+    for c in load_registered_corpora(repo_root) {
+        if !existing.contains(&c.id) {
+            reg.corpora.push(c);
+        }
+    }
+    Ok(reg)
 }
 
 /// Tier D cache dir for a named corpus: `<repo>/.vox/cache/graphify/<corpus_id>/`.
@@ -302,6 +361,25 @@ fn read_manifest(path: &Path) -> Option<GraphifyManifest> {
     serde_json::from_str(&raw).ok()
 }
 
+/// Write a manifest to disk (pretty JSON).
+pub fn write_manifest(path: &Path, manifest: &GraphifyManifest) -> Result<(), GraphifyError> {
+    let json = serde_json::to_string_pretty(manifest).map_err(|e| GraphifyError::Parse {
+        path: path.to_path_buf(),
+        detail: e.to_string(),
+    })?;
+    fs::write(path, json).map_err(|source| GraphifyError::Io {
+        path: path.to_path_buf(),
+        source,
+    })
+}
+
+/// Read-modify-write the manifest's `lexical_ingest_sha256` (creates a minimal manifest if absent).
+pub fn set_lexical_ingest_sha256(manifest_path: &Path, sha: &str) -> Result<(), GraphifyError> {
+    let mut manifest = read_manifest(manifest_path).unwrap_or_default();
+    manifest.lexical_ingest_sha256 = Some(sha.to_string());
+    write_manifest(manifest_path, &manifest)
+}
+
 fn parse_rfc3339(s: &str) -> Option<DateTime<Utc>> {
     DateTime::parse_from_rfc3339(s)
         .ok()
@@ -371,7 +449,7 @@ pub fn assess_corpus_status(
         let parse_res = raw_res
             .ok()
             .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok());
-        let stats = parse_res.as_ref().and_then(|v| graph_stats_from_json(v));
+        let stats = parse_res.as_ref().and_then(graph_stats_from_json);
 
         if parse_res.is_none() || stats.is_none() {
             stale_reasons.push("graph_corrupt".into());
@@ -414,10 +492,10 @@ pub fn assess_corpus_status(
         stale_reasons.push("ttl_expired".into());
     }
 
-    if let Some(ref m) = manifest {
-        if let Some(reason) = lexical_lag_stale_reason(m) {
-            stale_reasons.push(reason);
-        }
+    if let Some(ref m) = manifest
+        && let Some(reason) = lexical_lag_stale_reason(m)
+    {
+        stale_reasons.push(reason);
     }
 
     if let (Some(m), Some(nc), Some(ec)) = (&manifest, node_count, edge_count) {
@@ -470,5 +548,154 @@ mod tests {
         assert!(s.contains(".vox"));
         assert!(s.contains("graphify"));
         assert!(s.ends_with("repo-code-graph") || s.contains("repo-code-graph"));
+    }
+
+    fn sample_corpus(id: &str) -> GraphifyCorpus {
+        GraphifyCorpus {
+            id: id.into(),
+            title: "t".into(),
+            scope_path: ".".into(),
+            graph_path: format!(".vox/cache/graphify/{id}/graph.json"),
+            manifest_path: format!(".vox/cache/graphify/{id}/.graphify_manifest.v1.json"),
+            extraction_mode: Some("structural".into()),
+            default_for_intents: vec![],
+            is_virtual: false,
+            source_root: Some(
+                std::env::temp_dir()
+                    .join("target")
+                    .to_string_lossy()
+                    .into_owned(),
+            ),
+        }
+    }
+    fn write_min_registry(repo: &std::path::Path) {
+        let dir = repo.join("contracts/retrieval");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(
+            dir.join("graphify-corpora.v1.yaml"),
+            "default_corpus_id: repo-code-graph\nttl_days_default: 30\ncorpora:\n  - id: repo-code-graph\n    title: Repo\n    scope_path: \".\"\n    graph_path: \"g\"\n    manifest_path: \"m\"\n"
+        ).unwrap();
+    }
+    #[test]
+    fn upsert_then_load_all_includes_registered() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_min_registry(tmp.path());
+        upsert_registered_corpus(tmp.path(), &sample_corpus("ext-a")).unwrap();
+        let reg = load_all_corpora(tmp.path()).unwrap();
+        assert!(reg.corpora.iter().any(|c| c.id == "ext-a"));
+        assert!(reg.corpora.iter().any(|c| c.id == "repo-code-graph"));
+    }
+    #[test]
+    fn upsert_idempotent_by_id() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_min_registry(tmp.path());
+        upsert_registered_corpus(tmp.path(), &sample_corpus("ext-a")).unwrap();
+        upsert_registered_corpus(tmp.path(), &sample_corpus("ext-a")).unwrap();
+        assert_eq!(
+            load_registered_corpora(tmp.path())
+                .iter()
+                .filter(|c| c.id == "ext-a")
+                .count(),
+            1
+        );
+    }
+    #[test]
+    fn yaml_wins_id_collision() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_min_registry(tmp.path());
+        let mut collide = sample_corpus("repo-code-graph");
+        collide.title = "HIJACKED".into();
+        upsert_registered_corpus(tmp.path(), &collide).unwrap();
+        let reg = load_all_corpora(tmp.path()).unwrap();
+        let c = reg
+            .corpora
+            .iter()
+            .find(|c| c.id == "repo-code-graph")
+            .unwrap();
+        assert_eq!(c.title, "Repo");
+        assert_eq!(
+            reg.corpora
+                .iter()
+                .filter(|c| c.id == "repo-code-graph")
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn lexical_stamp_clears_and_refires_lag() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mpath = tmp.path().join(".graphify_manifest.v1.json");
+        let m = GraphifyManifest {
+            graph_json_sha256: Some("x".into()),
+            ..Default::default()
+        };
+        write_manifest(&mpath, &m).unwrap();
+
+        set_lexical_ingest_sha256(&mpath, "x").unwrap();
+        let after = read_manifest(&mpath).unwrap();
+        assert!(
+            lexical_lag_stale_reason(&after).is_none(),
+            "matched sha → no lag"
+        );
+
+        set_lexical_ingest_sha256(&mpath, "y").unwrap();
+        let after2 = read_manifest(&mpath).unwrap();
+        assert_eq!(
+            lexical_lag_stale_reason(&after2).as_deref(),
+            Some("lexical_lag")
+        );
+    }
+
+    #[test]
+    fn intent_routing_picks_first_matching_corpus() {
+        // synthetic registry
+        let mk = |id: &str, intents: &[&str]| GraphifyCorpus {
+            id: id.into(),
+            title: id.into(),
+            scope_path: ".".into(),
+            graph_path: "g".into(),
+            manifest_path: "m".into(),
+            extraction_mode: None,
+            default_for_intents: intents.iter().map(|s| s.to_string()).collect(),
+            is_virtual: false,
+            source_root: None,
+        };
+        let reg = GraphifyCorporaRegistry {
+            default_corpus_id: "a".into(),
+            ttl_days_default: 30,
+            corpora: vec![mk("a", &["code_navigation"]), mk("b", &["gui_surface"])],
+        };
+        assert_eq!(
+            select_corpus_for_intent(&reg, "gui_surface").as_deref(),
+            Some("b")
+        );
+        assert_eq!(
+            select_corpus_for_intent(&reg, "code_navigation").as_deref(),
+            Some("a")
+        );
+        assert_eq!(select_corpus_for_intent(&reg, "nonexistent"), None);
+    }
+
+    #[test]
+    fn intent_routing_against_bundled_registry() {
+        // Exercises the real contract data (repo-code-graph↔code_navigation, vox-gui-surface↔gui_surface).
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().join("contracts/retrieval");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("graphify-corpora.v1.yaml"),
+            include_str!("../../../contracts/retrieval/graphify-corpora.v1.yaml"),
+        )
+        .unwrap();
+        let reg = load_graphify_corpora(tmp.path()).unwrap();
+        assert_eq!(
+            select_corpus_for_intent(&reg, "code_navigation").as_deref(),
+            Some("repo-code-graph")
+        );
+        assert_eq!(
+            select_corpus_for_intent(&reg, "gui_surface").as_deref(),
+            Some("vox-gui-surface")
+        );
     }
 }

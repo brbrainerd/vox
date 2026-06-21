@@ -7,6 +7,7 @@ import type {
   OpenOutcome,
   OrchestratorStatus,
   RoutingSummary,
+  GraphifyStatusDto,
 } from './types/tauri';
 import type { TaskRow } from './components/surfaces/Tasks/tasksHelpers';
 
@@ -581,4 +582,94 @@ export interface ContextBudgetPayload {
 export function getContextBudget(): Promise<ContextBudgetPayload> {
   return invoke<ContextBudgetPayload>('get_context_budget');
 }
+
+export interface ActivityRowDto {
+  id: number;
+  ts_ms: number;
+  agent_id?: string;
+  session_id?: string;
+  kind: string;
+  summary: string;
+  detail_json: string;
+}
+
+export interface ActivityFilterDto {
+  agent_id: string | null;
+  kind: string | null;
+  limit: number;
+  before_id: number | null;
+}
+
+export function activityQuery(filter: ActivityFilterDto): Promise<ActivityRowDto[]> {
+  return invoke<ActivityRowDto[]>('activity_query', { filter });
+}
+
+export const ACTIVITY_APPENDED_EVENT = 'vox://activity-appended';
+
+export function listenActivityAppended(onAppend: () => void): Promise<UnlistenFn> {
+  return listen<void>(ACTIVITY_APPENDED_EVENT, () => onAppend());
+}
+
+export async function getGraphifyStatus(): Promise<GraphifyStatusDto> {
+  return invoke<GraphifyStatusDto>('vox_graphify_status');
+}
+
+export interface FeedbackRow {
+  feedbackId: string;
+  kind: 'clarification' | 'doubt';
+  prompt: string;
+  options: string[];
+  gates: number[];
+  doubtedTaskId: number | null;
+  surface: 'needs_you' | 'withheld';
+  infoGainBits: number;
+}
+
+const toRow = (r: any): FeedbackRow => ({
+  feedbackId: r.id,
+  kind: r.kind,
+  prompt: r.prompt,
+  options: r.options ?? [],
+  gates: r.gates ?? [],
+  doubtedTaskId: r.doubted_task_id ?? null,
+  surface: r.surface,
+  infoGainBits: r.info_gain_bits ?? 0,
+});
+
+export function normalizeFeedback(raw: any): { needsYou: FeedbackRow[]; withheld: FeedbackRow[] } {
+  const ny = (raw?.needs_you ?? []).map(toRow).sort((a: FeedbackRow, b: FeedbackRow) => {
+    if (a.kind !== b.kind) return a.kind === 'doubt' ? -1 : 1; // doubts pinned top
+    return b.infoGainBits - a.infoGainBits;
+  });
+  return { needsYou: ny, withheld: (raw?.withheld ?? []).map(toRow) };
+}
+
+export async function feedbackList(): Promise<{ needsYou: FeedbackRow[]; withheld: FeedbackRow[] }> {
+  const res = await invoke<string>('invoke_mcp_tool', { tool: 'vox_feedback_list', args: {} });
+  const parsed = JSON.parse(res);
+  if (!parsed.success) {
+    throw new Error(parsed.error || 'Failed to list feedback');
+  }
+  return normalizeFeedback(parsed.data);
+}
+
+export async function feedbackResolve(feedbackId: string, action: Record<string, unknown>): Promise<void> {
+  const res = await invoke<string>('invoke_mcp_tool', {
+    tool: 'vox_resolve_feedback',
+    args: { feedback_id: feedbackId, action }
+  });
+  const parsed = JSON.parse(res);
+  if (!parsed.success) {
+    throw new Error(parsed.error || 'Failed to resolve feedback');
+  }
+}
+
+export function listenFeedbackChanged(onChange: () => void): Promise<UnlistenFn> {
+  return listen<any>(AGENT_EVENTS_EVENT, (e) => {
+    const t = e?.payload?.kind?.type;
+    if (t === 'feedback_requested' || t === 'feedback_resolved') onChange();
+  });
+}
+
+
 

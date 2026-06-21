@@ -1,0 +1,11 @@
+[package]
+name = "vox-similarity"
+version = "0.1.0"
+edition = "2021"
+description = "Pure simhash/minhash/LSH near-duplicate similarity core for Vox discovery and marketplace dedup."
+
+[dependencies]
+blake3 = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]

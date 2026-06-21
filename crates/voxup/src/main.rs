@@ -4,6 +4,7 @@ use tracing::{Level, info};
 mod channel;
 mod download;
 mod install;
+mod profiles;
 mod proxy;
 mod shell;
 mod update;

@@ -214,7 +214,8 @@ Question-level runtime telemetry must be queryable in VoxDB via dedicated questi
 - `docs/src/reference/socrates-protocol.md` — confidence gate and Ask decision
 - `docs/src/reference/scientia-publication-worthiness-rules.md`
 - `docs/src/reference/orchestration-unified.md`
-- `docs/src/architecture/research-diagnostic-questioning-2026.md` — full research grounding (POMDP, EVPI, gap analysis, implementation roadmap)
+- [`../archive/research-2026-q1/research-diagnostic-questioning-2026.md`](../archive/research-2026-q1/research-diagnostic-questioning-2026.md) — April-2026 full research grounding (POMDP, EVPI, gap analysis, implementation roadmap)
+- `diagnostic-questioning-sota-and-wiring-audit-2026-06-18` — June-2026 SoTA refresh + wiring audit (this plan's basis; audit notes not committed to the tree)
 - `docs/src/architecture/planning-meta/12-question-gate-standard.md` — Tier 1 normative rules for planning-mode questioning
 
 

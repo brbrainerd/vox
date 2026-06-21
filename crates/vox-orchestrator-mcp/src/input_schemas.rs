@@ -67,6 +67,9 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_complete_task" => derived_tool_schema!(crate::params::CompleteTaskParams),
         "vox_fail_task" => derived_tool_schema!(crate::params::FailTaskParams),
         "vox_doubt_task" => derived_tool_schema!(crate::params::DoubtTaskParams),
+        "vox_ask_clarification" => derived_tool_schema!(crate::params::AskClarificationParams),
+        "vox_resolve_feedback" => derived_tool_schema!(crate::params::ResolveFeedbackParams),
+        "vox_feedback_list" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
         "vox_publish_message" => {
             derived_tool_schema!(crate::params::PublishMessageParams)
         }
@@ -396,6 +399,75 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             derived_tool_schema!(crate::params::VoxVisualRagQueryParams)
         }
         "vox_repo_status" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
+        "vox_gui_components"
+        | "vox_gui_tokens"
+        | "vox_gui_rules"
+        | "vox_agy_doctor"
+        | "vox_credentials_status"
+        | "vox_agy_ledger_digest" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
+        "vox_agy_delegate" => parse_obj(
+            r#"{
+            "type": "object",
+            "required": ["task"],
+            "properties": {
+                "task": { "type": "string", "description": "Exact, zero-ambiguity spec (paths + target symbols)." },
+                "model": { "type": "string", "description": "Optional agy model DISPLAY NAME (not a slug), e.g. \"Gemini 3.5 Flash (Low)\". Omit for the default (Gemini 3.5 Flash High)." },
+                "timeout_secs": { "type": "integer", "default": 900, "description": "Hard kill after this many seconds." }
+            }
+        }"#,
+        ),
+        "vox_agy_delegate_batch" => parse_obj(
+            r#"{
+            "type": "object",
+            "required": ["tasks"],
+            "properties": {
+                "tasks": { "type": "array", "items": { "type": "string" }, "description": "File-disjoint, self-contained specs; one worker + worktree per task." },
+                "max_concurrency": { "type": "integer", "default": 3, "description": "Parallel workers (clamped to 8)." },
+                "timeout_secs": { "type": "integer", "default": 900 }
+            }
+        }"#,
+        ),
+        "vox_agy_pipeline" => parse_obj(
+            r#"{
+            "type": "object",
+            "required": ["task"],
+            "properties": {
+                "task": { "type": "string", "description": "Exact, zero-ambiguity launch statement (paths + target symbols), hardened with ledger §B lessons + the digest's top categories." },
+                "model": { "type": "string", "description": "Optional agy model DISPLAY NAME (not a slug)." },
+                "timeout_secs": { "type": "integer", "default": 900, "description": "Hard kill for the agy delegation AND each gate." },
+                "gates": {
+                    "type": "array",
+                    "description": "Verification gates run inside the jail. Scope to the touched crate and set env.CARGO_TARGET_DIR to the main target. Empty means outcome 'partial' (unverified).",
+                    "items": {
+                        "type": "object",
+                        "required": ["name", "program"],
+                        "properties": {
+                            "name": { "type": "string" },
+                            "program": { "type": "string" },
+                            "args": { "type": "array", "items": { "type": "string" } },
+                            "env": { "type": "object", "additionalProperties": { "type": "string" } }
+                        }
+                    }
+                }
+            }
+        }"#,
+        ),
+        "vox_agy_review" => parse_obj(
+            r#"{
+            "type": "object",
+            "required": ["ledger_id", "verdict"],
+            "properties": {
+                "ledger_id": { "type": "string", "description": "The AGH id returned by vox_agy_pipeline." },
+                "verdict": { "type": "string", "enum": ["approve", "approve-with-followups", "request-changes"] },
+                "categories": { "type": "array", "items": { "type": "string" }, "description": "Stable §B vocabulary, e.g. hallucinated-api, scope-creep." },
+                "findings": { "type": "string" },
+                "lessons": { "type": "array", "items": { "type": "string" }, "description": "1-3 prompt-hardening lessons fed to the flywheel." }
+            }
+        }"#,
+        ),
+        "vox_validate_vuv" => parse_obj(
+            r#"{"type":"object","properties":{"source":{"type":"string","minLength":1,"description":"Vox/VUV source to validate against the compile-time GUI guarantees (contrast, layer-occlusion, a11y, structural web-IR). No files are written."}},"required":["source"],"additionalProperties":false}"#,
+        ),
         "vox_graphify_status" => parse_obj(
             r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id from contracts/retrieval/graphify-corpora.v1.yaml; omit for all corpora"}},"additionalProperties":false}"#,
         ),

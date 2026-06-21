@@ -490,3 +490,149 @@ pass_at_k:
         .expect("gate");
     assert!(!g.passed, "{}", g.message);
 }
+
+#[test]
+fn rust_compile_and_clippy_gates_work() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(
+        dir.path().join("eval_results.json"),
+        r#"{"rust_compile_rate":0.95,"clippy_clean_rate":0.90}"#,
+    )
+    .unwrap();
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(
+        &policy_path,
+        r#"version: "1"
+rust_compile_rate:
+  min_pct: 0.90
+  block: true
+clippy_clean_rate:
+  min_pct: 0.85
+  block: false
+"#,
+    )
+    .unwrap();
+    let results = check_run(dir.path(), &policy_path).expect("check_run");
+
+    let compile_gate = results
+        .iter()
+        .find(|r| r.name == "rust_compile_rate")
+        .expect("compile gate present");
+    assert!(compile_gate.passed, "should pass");
+    assert!(compile_gate.block, "should be blocking");
+
+    let clippy_gate = results
+        .iter()
+        .find(|r| r.name == "clippy_clean_rate")
+        .expect("clippy gate present");
+    assert!(clippy_gate.passed, "should pass");
+    assert!(!clippy_gate.block, "should not be blocking");
+}
+
+#[test]
+fn rust_gate_not_applicable_when_metric_absent() {
+    // A non-rust corpus produces eval_results.json WITHOUT rust_compile_rate.
+    // A blocking rust gate must treat the absent metric as "not applicable" (pass),
+    // not as 0% (which would spuriously hard-fail the run).
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(
+        dir.path().join("eval_results.json"),
+        r#"{"vox_parse_rate":0.99,"total_samples":100}"#,
+    )
+    .unwrap();
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(
+        &policy_path,
+        r#"version: "1"
+rust_compile_rate:
+  min_pct: 0.90
+  block: true
+"#,
+    )
+    .unwrap();
+    let results = check_run(dir.path(), &policy_path).expect("check_run");
+    let compile_gate = results
+        .iter()
+        .find(|r| r.name == "rust_compile_rate")
+        .expect("compile gate present");
+    assert!(
+        compile_gate.passed,
+        "absent rust metric must not fail the gate"
+    );
+    assert!(
+        compile_gate.message.contains("not applicable"),
+        "message explains why: {}",
+        compile_gate.message
+    );
+}
+
+#[test]
+fn agentic_gates_pass_when_rates_above_threshold() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(
+        dir.path().join("eval_results.json"),
+        r#"{"tool_call_valid_json_rate": 0.95, "tool_name_exists_rate": 0.90}"#,
+    )
+    .unwrap();
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(
+        &policy_path,
+        r#"
+version: "1"
+tool_call_valid_json_rate:
+  min_pct: 0.90
+  block: true
+tool_name_exists_rate:
+  min_pct: 0.85
+  block: true
+"#,
+    )
+    .unwrap();
+    let results = check_run(dir.path(), &policy_path).expect("check_run");
+    let json_gate = results
+        .iter()
+        .find(|r| r.name == "tool_call_valid_json_rate")
+        .expect("json gate");
+    assert!(json_gate.passed, "json rate 0.95 >= 0.90");
+    assert!(json_gate.block);
+    let name_gate = results
+        .iter()
+        .find(|r| r.name == "tool_name_exists_rate")
+        .expect("name gate");
+    assert!(name_gate.passed, "name rate 0.90 >= 0.85");
+}
+
+#[test]
+fn agentic_gates_fail_when_rates_below_threshold() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(
+        dir.path().join("eval_results.json"),
+        r#"{"tool_call_valid_json_rate": 0.80, "tool_name_exists_rate": 0.70}"#,
+    )
+    .unwrap();
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(
+        &policy_path,
+        r#"
+version: "1"
+tool_call_valid_json_rate:
+  min_pct: 0.90
+  block: true
+tool_name_exists_rate:
+  min_pct: 0.85
+  block: true
+"#,
+    )
+    .unwrap();
+    let results = check_run(dir.path(), &policy_path).expect("check_run");
+    let json_gate = results
+        .iter()
+        .find(|r| r.name == "tool_call_valid_json_rate")
+        .expect("json gate");
+    assert!(!json_gate.passed, "0.80 < 0.90 should fail");
+    let name_gate = results
+        .iter()
+        .find(|r| r.name == "tool_name_exists_rate")
+        .expect("name gate");
+    assert!(!name_gate.passed, "0.70 < 0.85 should fail");
+}

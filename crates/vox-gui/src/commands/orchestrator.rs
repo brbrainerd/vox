@@ -166,6 +166,9 @@ pub struct GuiOrchestratorStatus {
     pub budget_cap: f64,
     pub mesh_throughput: f64,
     pub total_vram_gb: f64,
+    /// Live attention-budget snapshot passed through verbatim from the daemon (Track D). May be null.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attention_budget: Option<serde_json::Value>,
 }
 
 fn get_u64(v: &serde_json::Value, key: &str) -> u64 {
@@ -273,6 +276,10 @@ fn to_gui_status(status: serde_json::Value) -> GuiOrchestratorStatus {
         budget_cap: get_f64(&status, "budget_cap_usd"),
         mesh_throughput: get_f64(&status, "mesh_throughput_mb_s"),
         total_vram_gb: get_f64(&status, "total_vram_gb"),
+        attention_budget: status
+            .get("attention_budget")
+            .cloned()
+            .filter(|v| !v.is_null()),
     }
 }
 
@@ -599,6 +606,133 @@ pub async fn get_context_budget() -> Result<ContextBudgetPayload, String> {
     })
 }
 
+#[derive(Debug, serde::Serialize)]
+pub struct HopperTaskDto {
+    pub item_id: String,
+    pub intent: String,
+    pub priority: u8,
+    pub state: String,
+    pub task_id: u64,
+}
+
+fn hopper_item_to_dto(item: &vox_orchestrator::hopper::IntakeItem) -> HopperTaskDto {
+    HopperTaskDto {
+        item_id: item.item_id.0.clone(),
+        intent: item.intent.clone(),
+        priority: item.classified_priority as u8,
+        state: item.state.kind().to_string(),
+        task_id: vox_orchestrator::orchestrator::dispatch::stable_hash(&item.item_id.0),
+    }
+}
+
+#[tauri::command]
+pub async fn hopper_list() -> Result<Vec<HopperTaskDto>, String> {
+    use vox_orchestrator::hopper::HopperIntake;
+    let db = vox_db::VoxDb::connect_canonical()
+        .await
+        .map_err(|e| e.to_string())?;
+    let hopper = vox_orchestrator::hopper::SqliteHopper::new(Arc::new(db));
+    let inbox = hopper.inbox().await;
+    let assigned = hopper.assigned().await;
+    let mut all = Vec::new();
+    for item in inbox.iter().chain(assigned.iter()) {
+        all.push(hopper_item_to_dto(item));
+    }
+    Ok(all)
+}
+
+#[tauri::command]
+pub async fn hopper_submit(
+    app_handle: tauri::AppHandle,
+    intent: String,
+    affinity: Vec<String>,
+) -> Result<HopperTaskDto, String> {
+    use vox_orchestrator::hopper::HopperIntake;
+    let db = vox_db::VoxDb::connect_canonical()
+        .await
+        .map_err(|e| e.to_string())?;
+    let hopper = vox_orchestrator::hopper::SqliteHopper::new(Arc::new(db));
+    let item = hopper
+        .submit(
+            intent,
+            affinity,
+            vox_orchestrator::hopper::PriorityHint::Normal,
+            vox_orchestrator::hopper::IntakeSource::Developer,
+            None,
+        )
+        .await;
+    emit_tasks_changed(&app_handle);
+    Ok(hopper_item_to_dto(&item))
+}
+
+#[tauri::command]
+pub async fn hopper_reprioritize(
+    app_handle: tauri::AppHandle,
+    item_id: String,
+    priority: u8,
+) -> Result<HopperTaskDto, String> {
+    use vox_orchestrator::hopper::HopperIntake;
+    let db = vox_db::VoxDb::connect_canonical()
+        .await
+        .map_err(|e| e.to_string())?;
+    let hopper = vox_orchestrator::hopper::SqliteHopper::new(Arc::new(db));
+    let hid = vox_orchestrator::hopper::HopperItemId(item_id);
+    let new_priority = vox_orchestrator::types::TaskPriority::from_u8(priority);
+    let cap = vox_orchestrator::hopper::capability::DeveloperOverrideMint::new().mint(
+        "Tauri GUI",
+        "GUI Reprioritization",
+        "gui-override",
+    );
+    let item = hopper
+        .reprioritize(&hid, new_priority, cap)
+        .await
+        .map_err(|e| e.to_string())?;
+    emit_tasks_changed(&app_handle);
+    Ok(hopper_item_to_dto(&item))
+}
+
+#[tauri::command]
+pub async fn hopper_cancel(
+    app_handle: tauri::AppHandle,
+    item_id: String,
+) -> Result<HopperTaskDto, String> {
+    use vox_orchestrator::hopper::HopperIntake;
+    let db = vox_db::VoxDb::connect_canonical()
+        .await
+        .map_err(|e| e.to_string())?;
+    let hopper = vox_orchestrator::hopper::SqliteHopper::new(Arc::new(db));
+    let hid = vox_orchestrator::hopper::HopperItemId(item_id);
+    let item = hopper.cancel(&hid).await.map_err(|e| e.to_string())?;
+    emit_tasks_changed(&app_handle);
+    Ok(hopper_item_to_dto(&item))
+}
+
+#[cfg(test)]
+mod hopper_tests {
+    use super::*;
+    use vox_orchestrator::hopper::IntakeItem;
+    use vox_orchestrator::hopper::types::{IntakeSource, PriorityHint};
+
+    #[test]
+    fn test_hopper_item_to_dto() {
+        let item = IntakeItem::new(
+            "test intent".to_string(),
+            vec![],
+            PriorityHint::Normal,
+            IntakeSource::Developer,
+            None,
+        );
+        let dto = hopper_item_to_dto(&item);
+        assert_eq!(dto.item_id, item.item_id.0);
+        assert_eq!(dto.intent, "test intent");
+        assert_eq!(dto.state, "inbox");
+        assert_eq!(
+            dto.task_id,
+            vox_orchestrator::orchestrator::dispatch::stable_hash(&item.item_id.0)
+        );
+    }
+}
+
 #[cfg(test)]
 
 mod budget_tests {
@@ -643,5 +777,24 @@ mod secretary_tests {
         let json = serde_json::to_value(&payload).expect("serialize");
         assert_eq!(json["item_id"], "abc123");
         assert_eq!(json["confidence_pct"], 85);
+    }
+}
+
+#[cfg(test)]
+mod gui_status_tests {
+    use super::*;
+
+    #[test]
+    fn gui_status_passes_through_attention_budget() {
+        let raw = serde_json::json!({
+            "agent_count": 0, "total_queued": 0, "total_in_progress": 0,
+            "total_completed": 0, "total_doubted": 0,
+            "attention_budget": { "max_attention_ms": 3_600_000, "spent_ms": 1_800_000,
+                "total_requests": 0, "auto_approved": 0, "rejected": 0,
+                "interrupt_freq_per_hour": 9.0, "last_interrupt_ms": 0, "inbox_suppressed_count": 0 }
+        });
+        let gui = to_gui_status(raw);
+        let ab = gui.attention_budget.expect("budget passed through");
+        assert_eq!(ab["spent_ms"], 1_800_000);
     }
 }

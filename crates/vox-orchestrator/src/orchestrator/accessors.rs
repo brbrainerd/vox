@@ -13,6 +13,7 @@ use std::collections::HashMap;
 impl Orchestrator {
     pub fn status(&self) -> OrchestratorStatus {
         let budget = crate::sync_lock::rw_read(&self.budget_manager);
+        let attention_budget = Some(budget.attention_snapshot());
         let total_cost_usd = budget.total_cost_usd();
         let budget_cap_usd = budget.max_financial_cost_micros() as f64 / 1_000_000.0;
         let global_exploration_cost_usd = budget.global_exploration_cost_usd();
@@ -110,6 +111,7 @@ impl Orchestrator {
             budget_cap_usd,
             global_exploration_cost_usd,
             agents,
+            attention_budget,
         }
     }
 
@@ -515,5 +517,56 @@ impl Orchestrator {
         agent_id: Option<u64>,
     ) -> crate::orchestrator_policy::PolicyDecision {
         self.agentos_policy_ledger.evaluate_for_agent(agent_id)
+    }
+
+    pub fn hopper(&self) -> std::sync::Arc<dyn crate::hopper::store::HopperIntake> {
+        std::sync::Arc::clone(&self.hopper)
+    }
+
+    /// Live snapshot of the interruption-calibration config (clone under read lock). Used by the
+    /// MCP ask-decision path so background recalibration (Phase F3) actually takes effect.
+    #[must_use]
+    pub fn interruption_calibration(&self) -> crate::attention::InterruptionCalibrationConfig {
+        crate::sync_lock::rw_read(&self.config)
+            .interruption_calibration
+            .clone()
+    }
+
+    pub fn feedback(&self) -> &crate::feedback::FeedbackStore {
+        &self.feedback
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn interruption_calibration_accessor_reflects_live_config() {
+        let orch = crate::Orchestrator::new(crate::config::OrchestratorConfig::for_testing());
+        {
+            let mut cfg = crate::sync_lock::rw_write(&orch.config);
+            cfg.interruption_calibration.inline_assist_gain_offset_bits = -0.07;
+        }
+        assert_eq!(
+            orch.interruption_calibration()
+                .inline_assist_gain_offset_bits,
+            -0.07
+        );
+    }
+
+    #[test]
+    fn status_includes_attention_budget_snapshot() {
+        let orch = crate::Orchestrator::new(crate::config::OrchestratorConfig::for_testing());
+        let status = orch.status();
+        let budget = status
+            .attention_budget
+            .as_ref()
+            .expect("status must carry an attention budget snapshot");
+        assert_eq!(
+            budget.max_attention_ms,
+            crate::attention::DEFAULT_ATTENTION_BUDGET_MS
+        );
+        let _ = serde_json::to_value(&status).expect("status serializes");
     }
 }

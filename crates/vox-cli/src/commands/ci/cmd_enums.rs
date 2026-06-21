@@ -362,6 +362,10 @@ pub enum CiCmd {
     /// BOMs corrupt `include_str!()` output and break JSON parsing.
     #[command(name = "bom-check")]
     BomCheck,
+    /// Validate domain profiles spoke configurations, ensuring base models/methods/presets are correct
+    /// and required paths exist.
+    #[command(name = "spoke-check")]
+    SpokeCheck,
     /// Reap stale `vox*` processes that lock this worktree's `target/` build
     /// output (Windows os-error-5 on relink). Dry-run unless `--apply`.
     #[command(name = "free-binary")]
@@ -751,9 +755,38 @@ pub enum CiCmd {
         #[arg(long, default_value_t = 3)]
         repeat: u32,
     },
+    /// Gate keystone crates' blast-radius-seconds against committed thresholds.
+    /// Reads `.vox/cache/graphify/crate-map/graph.json` (produced by `vox graphify crate-map`).
+    #[command(name = "crate-budget")]
+    CrateBudget {
+        /// Emit advisory output and exit 0 even on violations (use until baseline is populated).
+        #[arg(long)]
+        exit_zero: bool,
+    },
+    /// Verify contracts/ci/crate-build-map.v1.json is in sync with crate-graph.v1.json
+    /// (recomputes derived blast_s/dependents and fails on drift).
+    #[command(name = "crate-build-map-parity")]
+    CrateBuildMapParity,
+    /// Gate workspace fan-in growth: fail when any crate gains new dependents vs the
+    /// committed snapshot in `contracts/ci/fan-in-snapshot.v1.json`.
+    /// Uses `contracts/ci/crate-graph.v1.json` for actual counts.
+    #[command(name = "fan-in-budget")]
+    FanInBudget {
+        /// Emit advisory output and exit 0 even on regressions.
+        #[arg(long)]
+        exit_zero: bool,
+    },
     /// Detect dependency cycles (HARD on normal-dep cycles) and inventory dev-dep back-edges.
+    /// With --deny-new, fails when a new advisory cycle appears not in the committed allowlist.
     #[command(name = "dep-cycles")]
-    DepCycles,
+    DepCycles {
+        /// Fail if any advisory back-edge cycle is not in the committed allowlist.
+        #[arg(long)]
+        deny_new: bool,
+        /// Path to allowlist JSON (default: contracts/ci/dep-backedges.allow.json).
+        #[arg(long)]
+        allowlist: Option<std::path::PathBuf>,
+    },
     /// Compute or verify the set of workspace crates affected by a set of changed files.
     /// Reads `contracts/ci/crate-graph.v1.json` (BFS reverse-dep closure).
     #[command(name = "affected-crates")]
@@ -1045,6 +1078,9 @@ pub enum CiCmd {
     /// Walk crates/vox-plugin-* for *.skill.md files and enforce AgentSkills frontmatter contract (name, description, format, directory match).
     #[command(name = "agentskills-compliance")]
     AgentSkillsCompliance,
+    /// Enforce lean-CLI crate-count budget and forbidden-crate list (Track C Phase 0).
+    #[command(name = "profile-parity")]
+    ProfileParity,
     /// Federated workspace @tool surface parity (schemas + fixture round-trips).
     #[command(name = "mcp-vox-surface-parity")]
     McpVoxSurfaceParity,
@@ -1087,6 +1123,7 @@ impl CiCmd {
             CiCmd::RepoGuards => Some("ci-gate/ci.repo-guards"),
             CiCmd::LineEndings { .. } => Some("ci-gate/ci.line-endings"),
             CiCmd::BomCheck => Some("ci-gate/ci.bom-check"),
+            CiCmd::SpokeCheck => Some("ci-gate/ci.spoke-check"),
             CiCmd::FreeBinary { .. } => Some("ci-gate/ci.free-binary"),
             CiCmd::DataSsotGuards => Some("ci-gate/ci.data-ssot-guards"),
             CiCmd::FeatureMatrix => Some("ci-gate/ci.feature-matrix"),
@@ -1122,6 +1159,7 @@ impl CiCmd {
                 Some("ci-gate/ci.scientia-novelty-ledger-contracts")
             }
             CiCmd::BuildCacheDoctor => Some("ci-gate/ci.build-cache-doctor"),
+            CiCmd::ProfileParity => Some("ci-gate/ci.profile-parity"),
             // The registry machinery itself is intentionally untracked, and any
             // gate without a registry-backed `ci-gate` row stays grey.
             _ => None,

@@ -7,6 +7,7 @@
 
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
+use vox_telemetry::{EditPatternEvent, ErrorSurfaceEvent, HarnessUsageEvent, TelemetryEvent};
 
 #[cfg(feature = "heavy-browser")]
 use crate::browser_tools;
@@ -14,10 +15,10 @@ use crate::browser_tools;
 use crate::visus_tools;
 use crate::{
     agent_tools, benchmark_tools, chat_tools, code_validator, codex_tools, compiler_tools,
-    db_tools, exec_time_tools, git_tools, grammar_tools, introspection_tools, openclaw_tools,
-    persistence_tools, populi_tools, project_init_tools, questioning_tools, rag_tools,
-    repo_catalog_tools, repo_index, secrets_tools, task_tools, toestub_tools, tool_aliases,
-    training_tools, trust_tools, vcs_tools,
+    db_tools, exec_time_tools, feedback_tools, git_tools, grammar_tools, introspection_tools,
+    openclaw_tools, persistence_tools, populi_tools, project_init_tools, questioning_tools,
+    rag_tools, repo_catalog_tools, repo_index, secrets_tools, task_tools, toestub_tools,
+    tool_aliases, training_tools, trust_tools, vcs_tools,
 };
 #[cfg(feature = "news-publish")]
 use crate::{news_tools, scientia_tools};
@@ -285,6 +286,57 @@ pub async fn handle_tool_call(
 
     let duration_ms = start_time.elapsed().as_millis() as i64;
 
+    // Track E — emit structured telemetry for every MCP tool call.
+    {
+        let tool_call_kind = tool_call_kind_for(name_canonical);
+        let mode = if agent_id.is_some() {
+            "agent"
+        } else {
+            "interactive"
+        };
+        vox_telemetry::record_event!(&TelemetryEvent::HarnessUsage(HarnessUsageEvent {
+            tool_call_kind: tool_call_kind.to_string(),
+            mode: mode.to_string(),
+        }));
+
+        // edit_pattern — only on successful file mutations.
+        if result.is_ok() && is_file_mutation(name_canonical) {
+            let op_type = file_op_type(name_canonical);
+            let file_kind = args
+                .get("path")
+                .and_then(|v| v.as_str())
+                .map(file_kind_from_path)
+                .unwrap_or("unknown");
+            let content_len = args
+                .get("content")
+                .and_then(|v| v.as_str())
+                .map(|s| s.len())
+                .or_else(|| {
+                    args.get("new_content")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.len())
+                })
+                .unwrap_or(0);
+            let size_bucket = content_size_bucket(content_len);
+            vox_telemetry::record_event!(&TelemetryEvent::EditPattern(EditPatternEvent {
+                op_type: op_type.to_string(),
+                file_kind: file_kind.to_string(),
+                size_bucket: size_bucket.to_string(),
+            }));
+        }
+
+        // error_surface — only on failures.
+        if let Err(ref e) = result {
+            let error_class = error_class_from_err(e);
+            let subsystem = subsystem_from_tool(name_canonical);
+            vox_telemetry::record_event!(&TelemetryEvent::ErrorSurface(ErrorSurfaceEvent {
+                error_class: error_class.to_string(),
+                subsystem: subsystem.to_string(),
+                recoverable: false,
+            }));
+        }
+    }
+
     if let Some(ref tid) = trace_for_telemetry {
         tracing::info!(
             target: "vox_mcp::trace",
@@ -428,6 +480,15 @@ async fn handle_tool_call_inner(
         }
         "vox_fail_task" => Ok(task_tools::fail_task(state, serde_json::from_value(args)?).await),
         "vox_doubt_task" => Ok(task_tools::doubt_task(state, serde_json::from_value(args)?).await),
+        "vox_ask_clarification" => {
+            Ok(feedback_tools::ask_clarification(state, serde_json::from_value(args)?).await)
+        }
+        "vox_resolve_feedback" => {
+            Ok(feedback_tools::resolve_feedback(state, serde_json::from_value(args)?).await)
+        }
+        "vox_feedback_list" => {
+            Ok(feedback_tools::feedback_list(state, serde_json::from_value(args)?).await)
+        }
         "vox_check_file_owner" => Ok(crate::dei_tools::check_file_owner(
             state,
             args.get("path").and_then(|v| v.as_str()).unwrap_or("."),
@@ -548,6 +609,21 @@ async fn handle_tool_call_inner(
             Ok(visus_tools::vox_visus_baseline(state, serde_json::from_value(args)?).await)
         }
         "vox_repo_status" => Ok(repo_catalog_tools::repo_status(state).await),
+        "vox_gui_components" => {
+            Ok(crate::gui_registry_tools::vox_gui_components(state, args).await)
+        }
+        "vox_gui_tokens" => Ok(crate::gui_registry_tools::vox_gui_tokens(state, args).await),
+        "vox_validate_vuv" => Ok(crate::gui_registry_tools::vox_validate_vuv(state, args).await),
+        "vox_gui_rules" => Ok(crate::gui_registry_tools::vox_gui_rules(state, args).await),
+        "vox_agy_doctor" => Ok(crate::agy_tools::vox_agy_doctor(state, args).await),
+        "vox_agy_delegate" => Ok(crate::agy_tools::vox_agy_delegate(state, args).await),
+        "vox_agy_delegate_batch" => Ok(crate::agy_tools::vox_agy_delegate_batch(state, args).await),
+        "vox_credentials_status" => Ok(crate::agy_tools::vox_credentials_status(state, args).await),
+        "vox_agy_pipeline" => Ok(crate::agy_pipeline::vox_agy_pipeline(state, args).await),
+        "vox_agy_review" => Ok(crate::agy_pipeline::vox_agy_review(state, args).await),
+        "vox_agy_ledger_digest" => {
+            Ok(crate::agy_pipeline::vox_agy_ledger_digest(state, args).await)
+        }
         "vox_graphify_status" => {
             Ok(crate::graphify_tools::graphify_status(state, serde_json::from_value(args)?).await)
         }
@@ -1470,6 +1546,122 @@ async fn handle_tool_call_inner(
             }
             Err(anyhow::anyhow!("Unknown tool: {}", name))
         }
+    }
+}
+
+// ── Track E telemetry helpers ──────────────────────────────────────────────
+
+fn tool_call_kind_for(name: &str) -> &'static str {
+    if name.starts_with("vox_run") || name.starts_with("vox_exec") || name.starts_with("vox_shell")
+    {
+        "exec"
+    } else if name.starts_with("vox_write")
+        || name.starts_with("vox_patch")
+        || name.starts_with("vox_inline_edit")
+        || name.starts_with("vox_multi_replace")
+        || name.starts_with("vox_delete")
+    {
+        "edit"
+    } else if name.starts_with("vox_read")
+        || name.starts_with("vox_list")
+        || name.starts_with("vox_search")
+    {
+        "read"
+    } else if name.starts_with("vox_agent")
+        || name.starts_with("vox_submit_task")
+        || name.starts_with("vox_task")
+    {
+        "orchestration"
+    } else {
+        "other"
+    }
+}
+
+fn is_file_mutation(name: &str) -> bool {
+    matches!(
+        name,
+        "vox_write_file"
+            | "vox_patch_file"
+            | "vox_inline_edit_file"
+            | "vox_multi_replace"
+            | "vox_multi_replace_file"
+    )
+}
+
+fn file_op_type(name: &str) -> &'static str {
+    match name {
+        "vox_write_file" => "write",
+        "vox_patch_file" => "patch",
+        "vox_inline_edit_file" => "inline_edit",
+        "vox_multi_replace" | "vox_multi_replace_file" => "multi_replace",
+        _ => "other",
+    }
+}
+
+fn file_kind_from_path(path: &str) -> &'static str {
+    let ext = std::path::Path::new(path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("");
+    match ext {
+        "rs" => "rust",
+        "ts" | "tsx" => "typescript",
+        "js" | "jsx" => "javascript",
+        "toml" => "toml",
+        "json" => "json",
+        "yaml" | "yml" => "yaml",
+        "md" => "markdown",
+        "vox" => "vox",
+        "html" | "htm" => "html",
+        "css" | "scss" => "css",
+        "" => "no_ext",
+        _ => "other",
+    }
+}
+
+fn content_size_bucket(len: usize) -> &'static str {
+    match len {
+        0..=511 => "lt512b",
+        512..=4095 => "512b_to_4k",
+        4096..=32767 => "4k_to_32k",
+        32768..=262143 => "32k_to_256k",
+        _ => "gt256k",
+    }
+}
+
+fn error_class_from_err(e: &anyhow::Error) -> &'static str {
+    let msg = format!("{e:?}");
+    if msg.contains("permission") || msg.contains("unauthorized") || msg.contains("denied") {
+        "permission"
+    } else if msg.contains("not found") || msg.contains("No such file") {
+        "not_found"
+    } else if msg.contains("timeout") || msg.contains("timed out") {
+        "timeout"
+    } else if msg.contains("parse") || msg.contains("invalid") || msg.contains("deserialize") {
+        "invalid_input"
+    } else {
+        "internal"
+    }
+}
+
+fn subsystem_from_tool(name: &str) -> &'static str {
+    if name.starts_with("vox_run") || name.starts_with("vox_exec") || name.starts_with("vox_shell")
+    {
+        "exec"
+    } else if name.starts_with("vox_write")
+        || name.starts_with("vox_patch")
+        || name.starts_with("vox_inline_edit")
+        || name.starts_with("vox_multi_replace")
+    {
+        "file_ops"
+    } else if name.starts_with("vox_git") || name.starts_with("vox_vcs") {
+        "vcs"
+    } else if name.starts_with("vox_agent") || name.starts_with("vox_task") {
+        "orchestration"
+    } else if name.starts_with("vox_chat") || name.starts_with("vox_plan") {
+        "chat"
+    } else {
+        "mcp"
     }
 }
 

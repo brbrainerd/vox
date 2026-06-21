@@ -168,11 +168,7 @@ pub fn shadow_misses(junit_xml: &str, affected: &BTreeSet<String>) -> Vec<String
         if !has_fail {
             continue;
         }
-        if let Some(name) = cap
-            .split('"')
-            .nth(1)
-            .and_then(|classname| crate_from_junit_classname(classname))
-        {
+        if let Some(name) = cap.split('"').nth(1).and_then(crate_from_junit_classname) {
             failing_crates.insert(name);
         }
     }

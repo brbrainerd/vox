@@ -495,4 +495,16 @@ CREATE TABLE IF NOT EXISTS routing_decisions (
 );
 CREATE INDEX IF NOT EXISTS idx_routing_decisions_created ON routing_decisions(created_at);
 CREATE INDEX IF NOT EXISTS idx_routing_decisions_journey ON routing_decisions(journey_id);
+
+CREATE TABLE IF NOT EXISTS hopper_inbox (
+    item_id TEXT PRIMARY KEY,
+    intent TEXT NOT NULL,
+    affinity_json TEXT NOT NULL,
+    priority INTEGER NOT NULL,
+    source TEXT NOT NULL,
+    session_id TEXT,
+    state TEXT NOT NULL,
+    submitted_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_hopper_inbox_state ON hopper_inbox(state);
 ";

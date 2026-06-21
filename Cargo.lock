@@ -3072,7 +3072,6 @@ version = "0.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7cd812cc2bc1d69d4764bd80df88b4317eaef9e773c75226407d9bc0876b211c"
 dependencies = [
- "powerfmt",
  "serde_core",
 ]
 
@@ -14146,6 +14145,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "009994f150cc0cd50ff54917d5bc8bffe8cad10ca10d81c34da2ec421ae61782"
 
 [[package]]
+name = "tree-sitter-python"
+version = "0.23.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d065aaa27f3aaceaf60c1f0e0ac09e1cb9eb8ed28e7bcdaa52129cffc7f4b04"
+dependencies = [
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
 name = "tree-sitter-rust"
 version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -15199,7 +15208,6 @@ dependencies = [
  "tempfile",
  "tokio",
  "vox-scaling-policy",
- "workspace-hack",
 ]
 
 [[package]]
@@ -15226,16 +15234,6 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml_ng",
- "workspace-hack",
-]
-
-[[package]]
-name = "vox-cargo-shim"
-version = "0.6.0"
-dependencies = [
- "anyhow",
- "tempfile",
- "vox-build-queue",
  "workspace-hack",
 ]
 
@@ -15356,6 +15354,7 @@ dependencies = [
  "vox-sql",
  "vox-tauri-codegen",
  "vox-telemetry",
+ "vox-telemetry-otlp",
  "vox-term",
  "vox-wasm-engine",
  "vox-workflow-runtime",
@@ -15481,6 +15480,7 @@ dependencies = [
  "sha3",
  "syn 2.0.118",
  "tempfile",
+ "tracing",
  "vox-compiler",
  "vox-config",
  "vox-deploy-codegen",
@@ -15506,6 +15506,7 @@ dependencies = [
  "serde_json",
  "serde_yaml_ng",
  "tempfile",
+ "tracing",
  "vox-codegen",
  "vox-compiler",
  "vox-config",
@@ -15582,6 +15583,7 @@ dependencies = [
  "vox-llm-config",
  "vox-llm-egress",
  "vox-secrets",
+ "vox-telemetry",
  "workspace-hack",
 ]
 
@@ -15642,6 +15644,7 @@ dependencies = [
  "vox-bounded-fs",
  "vox-compiler",
  "vox-db",
+ "vox-eval",
  "vox-mcp-registry",
  "vox-repository",
  "xxhash-rust",
@@ -15958,6 +15961,7 @@ dependencies = [
  "syn 2.0.118",
  "tempfile",
  "tree-sitter",
+ "tree-sitter-python",
  "tree-sitter-rust",
  "tree-sitter-typescript",
  "walkdir",
@@ -16370,6 +16374,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "tracing-test",
+ "turso",
  "uuid",
  "vox-actor-runtime",
  "vox-bounded-fs",
@@ -16484,6 +16489,8 @@ dependencies = [
  "vox-bounded-fs",
  "vox-capability-registry",
  "vox-code-audit",
+ "vox-codegen",
+ "vox-codegen-ts",
  "vox-compiler",
  "vox-config",
  "vox-corpus",
@@ -16521,6 +16528,7 @@ dependencies = [
  "vox-speech",
  "vox-telemetry",
  "walkdir",
+ "which 8.0.4",
  "workspace-hack",
  "xxhash-rust",
 ]
@@ -17204,7 +17212,6 @@ dependencies = [
  "thiserror 2.0.18",
  "tracing",
  "vox-mesh-types",
- "workspace-hack",
 ]
 
 [[package]]
@@ -17317,7 +17324,6 @@ dependencies = [
  "turso",
  "vox-bounded-fs",
  "vox-crypto",
- "workspace-hack",
 ]
 
 [[package]]
@@ -17325,6 +17331,28 @@ name = "vox-shell-stdlib-types"
 version = "0.6.0"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "vox-similarity"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "serde",
+]
+
+[[package]]
+name = "vox-skill-discovery"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "serde",
+ "serde_json",
+ "vox-mcp-registry",
+ "vox-plugin-types",
+ "vox-similarity",
+ "walkdir",
 ]
 
 [[package]]
@@ -17436,10 +17464,25 @@ dependencies = [
  "serde",
  "serde_json",
  "serial_test",
+ "tempfile",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
  "uuid",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vox-telemetry-otlp"
+version = "0.6.0"
+dependencies = [
+ "governor",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "vox-telemetry",
  "workspace-hack",
 ]
 
@@ -17494,7 +17537,6 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tokio",
- "vox-codegen",
  "vox-compiler",
  "vox-config",
  "vox-secrets",
@@ -17581,6 +17623,7 @@ dependencies = [
  "tar",
  "tempfile",
  "tokio",
+ "toml 0.8.23",
  "tracing",
  "tracing-subscriber",
  "url",
@@ -19327,6 +19370,7 @@ dependencies = [
  "camino",
  "cc",
  "chrono",
+ "cipher",
  "clap",
  "clap_builder",
  "console 0.16.3",
@@ -19337,12 +19381,16 @@ dependencies = [
  "crossbeam-utils",
  "crypto-common 0.1.7",
  "ctrlc",
+ "curve25519-dalek",
  "data-encoding",
  "deadpool",
  "deadpool-runtime",
+ "der 0.7.10",
  "deranged",
  "digest 0.10.7",
  "digest 0.11.3",
+ "ed25519",
+ "ed25519-dalek",
  "either",
  "errno",
  "fastrand",
@@ -19359,6 +19407,7 @@ dependencies = [
  "futures-sink",
  "futures-task",
  "futures-util",
+ "generic-array",
  "getrandom 0.2.17",
  "getrandom 0.3.4",
  "getrandom 0.4.2",
@@ -19396,16 +19445,19 @@ dependencies = [
  "memmap2",
  "miette",
  "mime_guess",
- "minimal-lexical",
  "miniz_oxide",
+ "mio",
  "native-tls",
+ "nix 0.31.3",
  "nom",
  "num-bigint",
+ "num-bigint-dig",
  "num-complex",
  "num-integer",
  "num-iter",
  "num-traits",
  "objc2",
+ "objc2-app-kit",
  "objc2-core-foundation",
  "objc2-foundation",
  "object 0.37.3",
@@ -19416,6 +19468,8 @@ dependencies = [
  "phf_shared 0.10.0",
  "phf_shared 0.11.3",
  "phf_shared 0.13.1",
+ "pkcs1",
+ "pkcs8",
  "portable-atomic",
  "postcard",
  "proc-macro2",
@@ -19429,7 +19483,7 @@ dependencies = [
  "regex-syntax",
  "reqwest 0.12.28",
  "reqwest 0.13.4",
- "ring",
+ "rsa",
  "rustc-demangle",
  "rustix 1.1.4",
  "rustls",
@@ -19444,16 +19498,20 @@ dependencies = [
  "serde_spanned 1.1.1",
  "sha1 0.10.6",
  "sha2 0.10.9",
+ "sha2 0.11.0",
  "signature",
  "simd-adler32",
  "similar",
  "slab",
  "smallvec",
  "spin",
+ "spki",
+ "sqlx",
  "stable_deref_trait",
  "subtle",
  "syn 1.0.109",
  "syn 2.0.118",
+ "tauri",
  "textwrap",
  "thiserror 2.0.18",
  "time",
@@ -19473,6 +19531,7 @@ dependencies = [
  "tracing-core",
  "tracing-subscriber",
  "typenum",
+ "unicode-normalization",
  "url",
  "uuid",
  "wasm-encoder 0.248.0",
@@ -19480,10 +19539,12 @@ dependencies = [
  "wasmtime-internal-core",
  "winapi",
  "windows 0.61.3",
+ "windows 0.62.2",
  "windows-core 0.61.2",
  "windows-core 0.62.2",
  "windows-sys 0.52.0",
  "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
  "windows-sys 0.61.2",
  "winnow 0.7.15",
  "winnow 1.0.3",

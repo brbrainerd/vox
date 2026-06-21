@@ -1,14 +1,26 @@
-use super::ast::{ExtractedEdge, ExtractedGraph, ExtractedNode, extract_ast};
+use super::ast::{EXTRACTOR_VERSION, ExtractedEdge, extract_ast_in_module};
 use super::cache::CacheManager;
 use super::cluster::{ClusterEdge, ClusterNode, cluster_nodes};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+
+/// Caller-supplied metadata so the manifest is freshness-correct. Field names of the
+/// written manifest match `vox_config::graphify::GraphifyManifest`.
+#[derive(Debug, Clone, Default)]
+pub struct RebuildMeta {
+    pub corpus_id: String,
+    pub git_sha: Option<String>,
+    pub scope_path: String,
+    pub extraction_mode: Option<String>,
+    pub built_at_rfc3339: String,
+}
 
 pub fn rebuild_graph(
     _repo_root: &Path,
     source_dir: &Path,
     output_file: &Path,
     cache_dir: &Path,
+    meta: &RebuildMeta,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let manager = CacheManager::new(cache_dir.to_path_buf());
     let mut all_nodes = Vec::new();
@@ -25,16 +37,26 @@ pub fn rebuild_graph(
         let path = entry.path();
         if path.is_file() {
             if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                if ext == "rs" || ext == "ts" || ext == "js" {
+                if ext == "rs" || ext == "ts" || ext == "js" || ext == "py" {
                     let content = fs::read_to_string(path)?;
-                    let hash = blake3::hash(content.as_bytes()).to_hex().to_string();
 
+                    // Cache key includes EXTRACTOR_VERSION so a scheme change invalidates
+                    // stale cached graphs even when file content is unchanged.
+                    let hash =
+                        blake3::hash(format!("{EXTRACTOR_VERSION}\u{0}{content}").as_bytes())
+                            .to_hex()
+                            .to_string();
+                    let module_id = path
+                        .strip_prefix(source_dir)
+                        .unwrap_or(path)
+                        .to_string_lossy()
+                        .replace('\\', "/");
                     let graph = if manager.get_cached_hash(path).as_deref() == Some(&hash) {
                         manager
                             .load_cache(path)
-                            .unwrap_or_else(|| extract_ast(path, &content))
+                            .unwrap_or_else(|| extract_ast_in_module(path, &content, &module_id))
                     } else {
-                        let g = extract_ast(path, &content);
+                        let g = extract_ast_in_module(path, &content, &module_id);
                         manager.write_cache(path, &hash, &g);
                         g
                     };
@@ -45,6 +67,44 @@ pub fn rebuild_graph(
             }
         }
     }
+
+    // Resolve each bare call target to a qualified definition id. Preference: same-module
+    // definition; else the unique global definition. Ambiguous, unresolved, and self-edges
+    // are dropped (honesty rule: never invent an edge).
+    fn module_of(id: &str) -> &str {
+        id.rsplit_once("::").map(|(m, _)| m).unwrap_or("")
+    }
+    let mut defs_by_name: std::collections::HashMap<String, Vec<String>> =
+        std::collections::HashMap::new();
+    for n in &all_nodes {
+        let bare = n.id.rsplit("::").next().unwrap_or(&n.id).to_string();
+        defs_by_name.entry(bare).or_default().push(n.id.clone());
+    }
+    let all_edges: Vec<ExtractedEdge> = all_edges
+        .iter()
+        .filter_map(|e| {
+            let candidates = defs_by_name.get(&e.target)?;
+            let src_mod = module_of(&e.source);
+            let same: Vec<&String> = candidates
+                .iter()
+                .filter(|id| module_of(id) == src_mod)
+                .collect();
+            let target = if same.len() == 1 {
+                same[0].clone()
+            } else if candidates.len() == 1 {
+                candidates[0].clone()
+            } else {
+                return None;
+            };
+            if target == e.source {
+                return None; // self-edge
+            }
+            Some(ExtractedEdge {
+                source: e.source.clone(),
+                target,
+            })
+        })
+        .collect();
 
     // Convert nodes to ClusterNode format for Leiden clustering
     let cluster_nodes_input: Vec<ClusterNode> = all_nodes
@@ -92,26 +152,48 @@ pub fn rebuild_graph(
         })
         .collect();
 
-    let final_graph = serde_json::json!({
+    let structural_graph = serde_json::json!({
         "nodes": nodes_val,
         "links": links_val
     });
+    let final_graph = if meta.extraction_mode.as_deref() == Some("modules") {
+        super::lens::collapse_to_modules(&structural_graph)
+    } else {
+        structural_graph
+    };
+    let node_count = final_graph["nodes"]
+        .as_array()
+        .map(|a| a.len())
+        .unwrap_or(0);
+    let edge_count = final_graph["links"]
+        .as_array()
+        .map(|a| a.len())
+        .unwrap_or(0);
 
     if let Some(parent) = output_file.parent() {
         fs::create_dir_all(parent)?;
     }
-    fs::write(output_file, serde_json::to_string_pretty(&final_graph)?)?;
+    let graph_bytes = serde_json::to_string_pretty(&final_graph)?;
+    fs::write(output_file, &graph_bytes)?;
 
-    // Create manifest file
-    let git_sha = "dev-sha"; // Fallback or retrieve from env
+    // Content digest of the exact bytes written. Despite the legacy field name
+    // `graph_json_sha256`, the digest is BLAKE3 (already a dep); the ingest path MUST
+    // use the same algorithm so `lexical_lag` comparisons are valid.
+    let graph_digest = crate::graph_digest(graph_bytes.as_bytes());
+
     let manifest_val = serde_json::json!({
-        "git_sha256": git_sha,
-        "node_count": nodes_val.len(),
-        "edge_count": links_val.len(),
+        "corpus_id": meta.corpus_id,
+        "built_at": meta.built_at_rfc3339,
+        "git_sha": meta.git_sha,
+        "scope_path": meta.scope_path,
+        "node_count": node_count,
+        "edge_count": edge_count,
+        "graph_json_sha256": graph_digest,
+        "extraction_mode": meta.extraction_mode,
     });
     let manifest_path = output_file
         .parent()
-        .unwrap()
+        .ok_or("output_file has no parent directory")?
         .join(".graphify_manifest.v1.json");
     fs::write(manifest_path, serde_json::to_string_pretty(&manifest_val)?)?;
 

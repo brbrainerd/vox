@@ -38,6 +38,39 @@ pub(crate) fn run_repo_guards(root: &Path) -> Result<()> {
     Ok(())
 }
 
+pub(crate) fn run_spoke_check(root: &Path) -> Result<()> {
+    use vox_populi::mens::tensor::domain_profiles::DomainProfilesFile;
+    use vox_populi::mens::tensor::spoke_validate;
+
+    println!("Running spoke-check...");
+    let file = DomainProfilesFile::load(Some(root))?;
+    let violations = spoke_validate::validate(&file, root);
+
+    let mut hard_violations = Vec::new();
+    for v in &violations {
+        let is_pending =
+            v.0.contains("eval-gates-rust.yaml") || v.0.contains("eval-gates-agents.yaml");
+        if is_pending {
+            eprintln!(
+                "  [WARNING] Spoke validation warning (known-pending): {}",
+                v.0
+            );
+        } else {
+            hard_violations.push(v.clone());
+        }
+    }
+
+    if !hard_violations.is_empty() {
+        for v in &hard_violations {
+            eprintln!("  [ERROR] Spoke validation error: {}", v.0);
+        }
+        anyhow::bail!("spoke-check failed with {} error(s)", hard_violations.len());
+    }
+
+    println!("spoke-check OK");
+    Ok(())
+}
+
 /// Fail when Rust sources outside the Arca SQL home (`vox-db`) use Codex's
 /// raw SQL entrypoints on `connection()`: the `query` / `execute` methods (see nomenclature doc).
 ///

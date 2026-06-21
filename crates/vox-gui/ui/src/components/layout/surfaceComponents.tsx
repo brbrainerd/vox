@@ -14,11 +14,14 @@ import { GamifyView } from '../surfaces/Gamify/GamifyView';
 import { HarnessRedirect } from '../surfaces/Harness/HarnessRedirect';
 import { BrowserView } from '../surfaces/Browser/BrowserView';
 import { ApprovalsView } from '../surfaces/Approvals/ApprovalsView';
+import { ActivitySurface } from '../surfaces/Activity/ActivitySurface';
 import { MissionControlPanel } from '../surfaces/MissionControl/MissionControlPanel';
 import { SkillsPluginsView } from '../surfaces/SkillsPlugins/SkillsPluginsView';
 import { PoliciesView } from '../surfaces/Policies/PoliciesView';
+import { NeedsYouSurface } from '../surfaces/NeedsYou/NeedsYouSurface';
 import { ParentSurface } from './ParentSurface';
 import { surfaceDecorators } from '../surfaces/decoratorRegistry';
+import { GraphifyStatusPanel } from '../surfaces/Graphify/GraphifyStatusPanel';
 import { ChatSurface } from '../surfaces/Chat/ChatSurface';
 import type {
   ChatExecutionRailKpis,
@@ -26,7 +29,7 @@ import type {
 } from '../surfaces/Chat/ChatExecutionRail';
 import { Console } from '../surfaces/Console/Console';
 import type { DashboardData, Agent, LudusAlert, StreamItem } from '../../types/dashboard';
-import type { CatalogEntry, Toast } from '../../types/tauri';
+import type { CatalogEntry, Toast, AttentionBudgetSnapshot } from '../../types/tauri';
 import type { ChatMessage } from '../../lib/chatCorrelation';
 import type { HudTilesConfig } from '../../hooks/useHudTiles';
 
@@ -66,6 +69,9 @@ export interface SurfaceProps {
   gamifyEnabled?: boolean;
   hudTilesConfig?: HudTilesConfig;
   onHudTilesChange?: (config: HudTilesConfig) => void;
+  attention_budget?: AttentionBudgetSnapshot | null;
+  onOpenFeedbackContext?: (id: string) => void;
+  focusedFeedbackId?: string | null;
 }
 
 function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
@@ -81,14 +87,15 @@ function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
           loading={props.dashboardLoading}
           onPause={props.onPause!}
           onResume={props.onResume!}
-          onDoubt={props.onDoubt!}
-          onOverrule={props.onOverrule!}
+          onDoubt={props.onDoubt}
+          onOverrule={props.onOverrule}
           onAckLudus={props.onAckLudus!}
           filterKind={props.filterKind!}
           setFilterKind={props.setFilterKind!}
           onOpenInConsole={props.onOpenInConsole}
           onOpenChat={props.onOpenChat}
           onNavigate={props.onNavigate}
+          attention_budget={props.attention_budget}
         />
       );
     case 'flow':
@@ -105,6 +112,8 @@ function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
       return <Matrix pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'memory':
       return <MemoryView pushToast={props.pushToast} onAttachContext={props.onAttachContext} />;
+    case 'graphify':
+      return <GraphifyStatusPanel />;
     case 'models':
       return <ModelsView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'runs':
@@ -149,6 +158,10 @@ function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
       );
     case 'approvals':
       return <ApprovalsView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
+    case 'activity':
+      return <ActivitySurface pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
+    case 'needs-you':
+      return <NeedsYouSurface onOpenContext={props.onOpenFeedbackContext!} pushToast={props.pushToast} />;
     case 'mission-control':
       return <MissionControlPanel pushToast={props.pushToast} />;
     case 'policies':
@@ -172,6 +185,7 @@ function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
           agentStreamItems={props.chatAgentStreamItems}
           onOpenAgentInFlow={props.onOpenAgentInFlow}
           composer={props.chatComposer}
+          focusedFeedbackId={props.focusedFeedbackId}
         />
       );
     default:

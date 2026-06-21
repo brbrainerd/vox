@@ -63,7 +63,15 @@ describe('TopHud branding', () => {
     render(<TopHud {...baseProps} />);
     expect(screen.queryByText('IMPERIUM')).not.toBeInTheDocument();
     expect(screen.getByText('Operator')).toBeInTheDocument();
-    expect(screen.getByText('vox operator console')).toBeInTheDocument();
+    expect(screen.getByText('axis operator console')).toBeInTheDocument();
+  });
+
+  it('shows the AxisMark brand glyph, not a "V" letterform', () => {
+    const { container } = render(<TopHud {...baseProps} />);
+    expect(container.querySelector('svg[aria-label="Axis"]')).toBeTruthy();
+    // the old standalone "V" glyph (a div whose only text is "V") is gone
+    const vGlyph = Array.from(container.querySelectorAll('div')).find(d => d.textContent === 'V');
+    expect(vGlyph).toBeUndefined();
   });
 
   it('shows custom workspaceTitle when provided', () => {

@@ -1,0 +1,3 @@
+# Opt-in allowlist: tables that should get an auto-generated admin UI.
+# A @table NOT listed here gets NO UI (persistence != UI intent).
+admin_tables: []

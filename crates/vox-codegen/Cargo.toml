@@ -22,6 +22,7 @@ workspace-hack = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
+tracing = { workspace = true }
 chrono = { workspace = true }
 sha3 = { workspace = true }
 flate2 = "1.1.9"

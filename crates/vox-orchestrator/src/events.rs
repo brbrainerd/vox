@@ -142,6 +142,17 @@ pub enum AgentEventKind {
         agent_id: AgentId,
         mode: crate::context_envelope::OperatingMode,
     },
+    /// A feedback request was created.
+    FeedbackRequested {
+        feedback_id: String,
+        kind: String,
+        gates: Vec<u64>,
+        surface: String,
+    },
+    /// A feedback request was resolved.
+    FeedbackResolved {
+        feedback_id: String,
+    },
 
     /// A task was submitted to the queue.
     TaskSubmitted {
@@ -674,6 +685,11 @@ pub enum AgentEventKind {
         delta_seconds_since_admit: u64,
     },
 
+    /// Emitted when a developer cancels an item in the hopper.
+    HopperItemCancelled {
+        item_id: HopperItemId,
+    },
+
     // -----------------------------------------------------------------------
     // Mesh spend + action events (P4-T1, P4-T6, P4-T7)
     // -----------------------------------------------------------------------
@@ -866,6 +882,19 @@ mod tests {
         });
         assert_eq!(id1, EventId(1));
         assert_eq!(id2, EventId(2));
+    }
+
+    #[test]
+    fn feedback_events_serialize_snake_case_tag() {
+        let e = AgentEventKind::FeedbackRequested {
+            feedback_id: "F-000001".into(),
+            kind: "clarification".into(),
+            gates: vec![7],
+            surface: "needs_you".into(),
+        };
+        let j = serde_json::to_string(&e).unwrap();
+        assert!(j.contains("\"type\":\"feedback_requested\"")); // NOT "FeedbackRequested"
+        assert!(j.contains("needs_you"));
     }
 
     #[tokio::test]

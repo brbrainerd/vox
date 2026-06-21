@@ -2,12 +2,15 @@
 //!
 //! Extracted from `vox-orchestrator/src/mcp_tools/` in 2026-05-08 reorg Phase 4.
 
+extern crate vox_codegen;
+
 /// HTTP routes (moved from vox-orchestrator/services/routes).
 pub mod services;
 
 /// `<TOOL_CALLS>` XML fallback for LLM providers without native function-call support.
 pub mod chat_fallback_tools;
 pub mod daemon_extra;
+pub mod feedback_tools;
 pub mod params;
 pub mod pending_approvals;
 pub mod server_state;
@@ -49,6 +52,8 @@ pub mod git_tools;
 pub mod grammar_tools;
 /// Graphify corpus freshness and lexical search (`vox_graphify_status`, `vox_graphify_search`).
 pub mod graphify_tools;
+/// GUI registry + validation tools (`vox_gui_components`, `vox_gui_tokens`, `vox_gui_rules`, `vox_validate_vuv`).
+pub mod gui_registry_tools;
 pub mod input_schemas;
 /// Introspection tools for language visualization (AST, surface, pipeline).
 pub mod introspection_tools;
@@ -160,6 +165,13 @@ pub use vox_mcp_registry::TOOL_REGISTRY;
 pub use dispatch::handle_tool_call;
 pub use registry::tool_registry;
 pub use tool_aliases::canonical_tool_name;
+pub mod agy_doctor;
+pub mod agy_exec;
+pub mod agy_gates;
+pub mod agy_ledger;
+pub mod agy_pipeline;
+pub mod agy_tools;
+pub mod agy_worktree;
 pub mod lifecycle;
 pub mod plugin_skills_bridge;
 pub mod server;

@@ -3,8 +3,9 @@ import { useStore } from 'zustand';
 import { projectIso } from '../../lib/projection';
 import { HudPanels } from './HudPanels';
 import { CitizenSprite } from './CitizenSprite';
-import { useLudusStore } from './store';
+import { useLudusStore, MoodType } from './store';
 import { listenAgentEvents, AgentEventFrame } from '../../transport';
+import { moodFromPhase, integrityFromDiag } from './LudusSandbox.mappers';
 
 export interface GridPlot {
   x: number;
@@ -62,6 +63,18 @@ export const LudusSandbox: React.FC<SandboxProps> = ({ files }) => {
     });
   }, [focusedFile, plots]);
 
+  // Update agent mood in the store based on their active task phase
+  useEffect(() => {
+    const store = useLudusStore.getState();
+    for (const [agentId, task] of Object.entries(agentTasks)) {
+      const mood = moodFromPhase(task.status) as MoodType;
+      if (store.agents[agentId]?.mood !== mood) {
+        store.updateAgent(agentId, { mood });
+      }
+    }
+  }, [agentTasks]);
+
+
 
 
   // Pre-render layout to offscreen canvas
@@ -99,8 +112,9 @@ export const LudusSandbox: React.FC<SandboxProps> = ({ files }) => {
       const { px, py } = projectIso(plot.x, plot.y, plot.z, tileWidth, tileHeight, centerOffsetX, centerOffsetY);
       const bState = buildings[filePath] || { warnings: 0, errors: 0 };
 
-      // Base building: Red for errors, Blue for normal
-      ctx.fillStyle = bState.errors > 0 ? '#ef4444' : '#3b82f6';
+      // Base building integrity mapping
+      const integrity = integrityFromDiag(bState);
+      ctx.fillStyle = integrity === 'cracked' ? '#ef4444' : '#3b82f6';
       ctx.beginPath();
       ctx.arc(px, py, 6, 0, 2 * Math.PI);
       ctx.fill();

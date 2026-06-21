@@ -1,6 +1,14 @@
 x_vox_version: 2
 schema_version: 1
 surfaces:
+- view_key: activity
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Activity
+  nav_icon: list
+  nav_group: operate
+  parent_surface: null
+  notes: Agent activity log and resource accounting
 - view_key: agents
   cli_group: null
   representation_tier: live_backend
@@ -145,6 +153,14 @@ surfaces:
   nav_group: compute
   parent_surface: compute
   notes: null
+- view_key: needs-you
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Needs You
+  nav_icon: alert
+  nav_group: operate
+  parent_surface: null
+  notes: Unified soft-HITL feedback inbox (clarifications + doubts)
 - view_key: policies
   cli_group: null
   representation_tier: live_backend

@@ -124,7 +124,22 @@ export interface OrchestratorStatus {
   budget_cap?: number;
   mesh_throughput?: number;
   total_vram_gb?: number;
+  /** Present when the daemon reports the live attention budget (Track D). */
+  attention_budget?: AttentionBudgetSnapshot | null;
 }
+
+/** Flat attention-budget snapshot (Rust `AttentionBudget`), surfaced via the orchestrator status stream. */
+export interface AttentionBudgetSnapshot {
+  max_attention_ms: number;
+  spent_ms: number;
+  total_requests: number;
+  auto_approved: number;
+  rejected: number;
+  interrupt_freq_per_hour: number;
+  last_interrupt_ms: number;
+  inbox_suppressed_count: number;
+}
+
 
 export interface CommandCatalog {
   generated_from?: string;
@@ -175,3 +190,24 @@ export interface SubmitTaskResult {
   /** Set when the daemon refused a near-duplicate; the id of the existing task. */
   duplicate_of?: string | null;
 }
+
+export interface CorpusStatusDto {
+  corpus_id: string;
+  title: string;
+  graph_exists: boolean;
+  manifest_exists: boolean;
+  node_count: number | null;
+  edge_count: number | null;
+  built_at: string | null;
+  manifest_git_sha: string | null;
+  head_git_sha: string | null;
+  stale_reasons: string[];
+  warnings: string[];
+  is_fresh: boolean;
+}
+
+export interface GraphifyStatusDto {
+  default_corpus_id: string;
+  corpora: CorpusStatusDto[];
+}
+

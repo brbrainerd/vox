@@ -37,7 +37,17 @@ pub(crate) fn place_binaries(
     Ok(())
 }
 
-pub async fn run_install(_profile: &str) -> Result<()> {
+pub async fn run_install(profile: &str) -> Result<()> {
+    // Validate tier before touching the network.
+    crate::profiles::validate_tier(crate::profiles::PROFILES_YAML, profile)
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    let profiles = crate::profiles::parse(crate::profiles::PROFILES_YAML)
+        .expect("embedded SSOT must be valid");
+    if let Some(tier) = profiles.tiers.get(profile) {
+        info!("Installing Vox ({profile}) — {}", tier.description);
+    }
+
     let home = dirs::home_dir().context("cannot determine home directory")?;
     let bin_dir = home.join(".vox").join("bin");
     let cache_dir = home.join(".vox").join("toolchains");
@@ -210,7 +220,7 @@ fn replace_file(src: &Path, dst: &Path) -> Result<()> {
             if old_path.exists() {
                 let _ = fs::remove_file(&old_path);
             }
-            if let Err(_) = fs::rename(dst, &old_path) {
+            if fs::rename(dst, &old_path).is_err() {
                 fs::remove_file(dst).with_context(|| format!("remove {}", dst.display()))?;
             } else {
                 let _ = fs::remove_file(&old_path); // try deleting non-blocking/best-effort

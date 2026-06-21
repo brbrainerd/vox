@@ -38,6 +38,7 @@
 #![allow(clippy::large_enum_variant)]
 #![allow(clippy::let_underscore_future)]
 
+pub mod activity;
 /// AgentOS: ACI-aligned mutation classification, guardrails, checkpoint hints.
 pub mod agentos;
 pub mod attachment_manifest;
@@ -52,6 +53,7 @@ pub mod json_vcs_facade;
 /// Pure conflict-recording core for workspace merge-back.
 pub mod merge_conflicts;
 
+pub mod feedback;
 pub mod lineage;
 
 /// `VOX_ROUTE_*` alignment helpers for registry/MCP paths (see contracts orchestration routing YAML).

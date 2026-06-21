@@ -598,6 +598,7 @@ async fn refresh_stale_training_corpus(
         None,
         false,
         false,
+        None,
     )
     .await
     {

@@ -178,6 +178,7 @@ After adding the secret entries:
 | `VOX_SEARCH_TAVILY_ON_EMPTY` | Fire when all local corpora empty | `true` |
 | `VOX_SEARCH_TAVILY_ON_WEAK` | CRAG mode — fire when evidence_quality < threshold | `false` |
 | `VOX_SEARCH_TAVILY_BUDGET` | Max credits per session | `50` |
+| `VOX_RESEARCH_PREFER_FREE_TIER` | Reorder research LLM cascade to try `openrouter/free` first (the free floor is always present regardless) | `false` |
 
 ---
 

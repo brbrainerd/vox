@@ -41,8 +41,9 @@ use run_body_helpers::{
     run_k_complexity_budget, run_manifest, run_mens_corpus_health, run_mens_gate,
     run_operator_env_guard, run_query_all_guard, run_repo_guards, run_script_hygiene,
     run_secret_env_guard, run_secrets_contracts, run_secrets_cutover_audit,
-    run_secrets_cutover_gates, run_secrets_parity, run_sql_surface_guard, run_ssot_audit,
-    run_ssot_drift, run_toestub_scoped_roots, run_toestub_self_apply, run_turso_import_guard,
+    run_secrets_cutover_gates, run_secrets_parity, run_spoke_check, run_sql_surface_guard,
+    run_ssot_audit, run_ssot_drift, run_toestub_scoped_roots, run_toestub_self_apply,
+    run_turso_import_guard,
 };
 
 use super::retired_symbol_check;
@@ -300,6 +301,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             vox_cli_ci::line_endings::run(&root, all, base, autofix)
         }
         CiCmd::BomCheck => vox_cli_ci::line_endings::check_bom(&root),
+        CiCmd::SpokeCheck => run_spoke_check(&root),
         CiCmd::FreeBinary { target, apply } => super::free_binary::run(&root, target, apply),
         CiCmd::ParseStatus { write } => parse_status::run(&root, write),
         CiCmd::MeshGate {
@@ -552,7 +554,17 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             compare,
             repeat,
         } => super::build_bench::run_build_bench(&root, label, write, compare, repeat),
-        CiCmd::DepCycles => super::dep_cycles::run_dep_cycles(&root),
+        CiCmd::CrateBudget { exit_zero } => super::crate_budget::run_crate_budget(&root, exit_zero),
+        CiCmd::CrateBuildMapParity => {
+            super::crate_build_map_parity::run_crate_build_map_parity(&root)
+        }
+        CiCmd::FanInBudget { exit_zero } => {
+            super::fan_in_budget::run_fan_in_budget(&root, exit_zero)
+        }
+        CiCmd::DepCycles {
+            deny_new,
+            allowlist,
+        } => super::dep_cycles::run_dep_cycles(&root, deny_new, allowlist.as_deref()),
         CiCmd::AffectedCrates {
             changed,
             graph,
@@ -703,6 +715,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         }
         CiCmd::PluginDepBoundary => vox_cli_ci::plugin_dep_boundary::run(&root),
         CiCmd::PluginAbiParity { build } => super::plugin_abi_parity::run(build),
+        CiCmd::ProfileParity => super::profile_parity::run(),
         CiCmd::PluginSurfaceSync { write } => super::plugin_surface::run(&root, write),
         CiCmd::PluginCatalogSync { write } => super::plugin_catalog_sync::run(&root, write),
         CiCmd::PluginSkillParity { write } => super::plugin_skill_parity::run(write),

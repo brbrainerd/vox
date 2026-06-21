@@ -5,6 +5,7 @@
 
 #![allow(clippy::collapsible_if)]
 #![allow(clippy::drop_non_drop)]
+#![allow(deprecated, unexpected_cfgs)]
 
 pub mod benchmark_telemetry;
 #[cfg(feature = "script-execution")]
@@ -103,7 +104,7 @@ pub use vox_cli_core::init_tracing_for_cli;
 #[command(
     name = "vox",
     about = "The Vox AI-native language compiler",
-    long_about = "The Vox AI-native language compiler.\n\nDiscover commands dynamically:\n  vox commands --recommended\n  vox commands --format json --include-nested\n\nVisualization:\n  vox gui           — launch the native agent dashboard and command catalog",
+    long_about = "The Vox AI-native language compiler.\n\nDiscover commands dynamically:\n  vox commands --recommended\n  vox commands --format json --include-nested\n\nVisualization:\n  vox gui (alias: vox axis)   — launch Axis, the native Vox GUI dashboard & catalog",
     version = VOX_VERSION
 )]
 pub struct VoxCliRoot {
@@ -425,9 +426,10 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::visus::VisusCmd,
     },
-    /// Launch the native Vox GUI (Tauri) for real-time orchestration visualization and discovery.
-    /// Use --command <view> to open directly to a specific surface (e.g., 'catalog', 'flow').
+    /// Launch the native Vox Axis (Axis) GUI — the Vox GUI under its product brand.
+    /// Alias: `vox axis`. Use --command <view> to open directly to a surface (e.g. 'catalog', 'flow').
     #[cfg(feature = "gui")]
+    #[command(visible_alias = "axis")]
     Gui {
         #[command(flatten)]
         args: cli_args::GuiArgs,
