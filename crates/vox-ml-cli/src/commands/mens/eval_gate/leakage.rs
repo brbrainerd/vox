@@ -123,12 +123,14 @@ pub fn assert_no_leakage(corpus_dir: &Path, manifest: &SplitManifest) -> Result<
         );
     }
 
-    // Step 3: cross-check corpus JSONL rows (if corpus_dir contains JSONL)
+    // Step 3: cross-check corpus JSONL rows (if corpus_dir contains JSONL).
+    // Row-partition-aware: a tool whose ROWS appear in both the train and eval
+    // partition files is real row-level leakage.
     if corpus_dir.exists() {
-        let corpus_leaks = check_corpus_rows(corpus_dir, &train_set, &eval_set)?;
+        let corpus_leaks = check_corpus_rows(corpus_dir)?;
         if !corpus_leaks.is_empty() {
             bail!(
-                "corpus row leakage: tools found in both training and eval corpus rows: {:?}",
+                "corpus row leakage: tool(s) have rows in both the train and eval partition files: {:?}",
                 corpus_leaks
             );
         }
@@ -137,17 +139,42 @@ pub fn assert_no_leakage(corpus_dir: &Path, manifest: &SplitManifest) -> Result<
     Ok(())
 }
 
-/// Scan JSONL files in `corpus_dir` for rows with a `tool` (or `tool_name`)
-/// field, partition into train vs eval buckets via `split` membership, and
-/// return any tool names whose rows appear in both buckets.
-fn check_corpus_rows(
-    corpus_dir: &Path,
-    train_set: &HashSet<String>,
-    eval_set: &HashSet<String>,
-) -> Result<Vec<String>> {
+/// Classify a JSONL filename into a corpus partition by naming convention.
+/// Returns `Some(true)` for a train-partition file, `Some(false)` for an
+/// eval/validation/test-partition file, and `None` when the filename carries no
+/// partition marker (the row check abstains for such files — no false protection).
+fn partition_of(file_stem: &str) -> Option<bool> {
+    let s = file_stem.to_ascii_lowercase();
+    let is_eval = s.contains("eval")
+        || s.contains("valid")
+        || s.contains("test")
+        || s.contains("heldout")
+        || s.contains("held_out");
+    let is_train = s.contains("train");
+    match (is_train, is_eval) {
+        (true, false) => Some(true),
+        (false, true) => Some(false),
+        // Neither marker, or BOTH markers (ambiguous) → cannot attribute a partition.
+        _ => None,
+    }
+}
+
+/// Scan JSONL files in `corpus_dir` for rows with a `tool` (or `tool_name`) field,
+/// bucketing each row into the train or eval partition by the **filename** convention
+/// (see [`partition_of`]), and return any tool whose ROWS appear in BOTH partitions.
+///
+/// This is the row-level leakage signal: the split is by tool identity, so a tool is
+/// supposed to live entirely in one partition. If its rows show up under both a
+/// `*train*.jsonl` and a `*eval*.jsonl` file, the corpus contradicts the split and the
+/// eval set is contaminated.
+///
+/// Files without a partition marker in their name are skipped (we cannot attribute a
+/// partition, so abstaining avoids both false protection and false positives). The
+/// previous implementation bucketed by manifest membership, which made this check dead
+/// (a manifest tool lands in at most one set, so the intersection was always empty).
+fn check_corpus_rows(corpus_dir: &Path) -> Result<Vec<String>> {
     use std::io::{BufRead, BufReader};
 
-    // Collect tool→{in_train, in_eval} presence
     let mut seen_train: HashSet<String> = HashSet::new();
     let mut seen_eval: HashSet<String> = HashSet::new();
 
@@ -157,6 +184,12 @@ fn check_corpus_rows(
         if path.extension().and_then(|e| e.to_str()) != Some("jsonl") {
             continue;
         }
+        let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+        let is_train = match partition_of(stem) {
+            Some(p) => p,
+            None => continue, // unattributable file → abstain
+        };
+
         let file = std::fs::File::open(&path)?;
         let reader = BufReader::new(file);
         for line in reader.lines() {
@@ -174,16 +207,17 @@ fn check_corpus_rows(
                 .and_then(|t| t.as_str())
                 .map(|s| s.to_string());
             if let Some(tool) = tool_name {
-                if train_set.contains(&tool) {
+                if is_train {
                     seen_train.insert(tool);
-                } else if eval_set.contains(&tool) {
+                } else {
                     seen_eval.insert(tool);
                 }
             }
         }
     }
 
-    let leaks: Vec<String> = seen_train.intersection(&seen_eval).cloned().collect();
+    let mut leaks: Vec<String> = seen_train.intersection(&seen_eval).cloned().collect();
+    leaks.sort();
     Ok(leaks)
 }
 
@@ -256,20 +290,62 @@ mod tests {
     }
 
     #[test]
-    fn corpus_row_leakage_fails() {
+    fn corpus_row_leakage_detected_across_partition_files() {
+        // F5: REAL row-level leakage — the SAME tool has rows in BOTH the train and
+        // eval partition files (filenames carry the partition). This is the failure the
+        // old `check_corpus_rows` could never catch (it bucketed by manifest membership,
+        // so a tool could only ever land in one bucket → intersection always empty).
         let dir = tempfile::tempdir().unwrap();
-        // write a JSONL file with a tool in both partitions
-        let jsonl_content = r#"{"tool":"alpha_tool","output":"x"}
-{"tool":"beta_tool","output":"y"}
-"#;
-        std::fs::write(dir.path().join("corpus.jsonl"), jsonl_content).unwrap();
-        // manifest says alpha_tool is train-only, but corpus row would appear in eval
-        let m = manifest(&["alpha_tool", "gamma_tool"], &["alpha_tool", "delta_tool"]);
+        std::fs::write(
+            dir.path().join("corpus.train.jsonl"),
+            "{\"tool\":\"shared_tool\",\"output\":\"x\"}\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.path().join("corpus.eval.jsonl"),
+            "{\"tool\":\"shared_tool\",\"output\":\"y\"}\n",
+        )
+        .unwrap();
+        // Manifest itself is clean (no exact/near-dup overlap) — the leakage is purely
+        // at the row level across the two partition files.
+        let m = manifest(&["alpha_tool"], &["beta_tool"]);
         let err = assert_no_leakage(dir.path(), &m).unwrap_err();
         assert!(
-            err.to_string().contains("leakage"),
-            "corpus row leakage should be detected: {err}"
+            err.to_string().contains("row leakage"),
+            "row-level cross-partition leakage should be detected: {err}"
         );
+    }
+
+    #[test]
+    fn corpus_rows_partitioned_cleanly_pass() {
+        // A tool confined to a single partition file is NOT leakage.
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("corpus.train.jsonl"),
+            "{\"tool\":\"train_only\",\"output\":\"x\"}\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.path().join("corpus.eval.jsonl"),
+            "{\"tool\":\"eval_only\",\"output\":\"y\"}\n",
+        )
+        .unwrap();
+        let m = manifest(&["train_only"], &["eval_only"]);
+        assert_no_leakage(dir.path(), &m).expect("cleanly partitioned rows must pass");
+    }
+
+    #[test]
+    fn corpus_without_partition_filenames_is_skipped() {
+        // Files with no partition marker can't be attributed to a partition; the row
+        // check abstains (no false protection, no false positive).
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("corpus.jsonl"),
+            "{\"tool\":\"ambiguous_tool\",\"output\":\"x\"}\n",
+        )
+        .unwrap();
+        let m = manifest(&["alpha_tool"], &["beta_tool"]);
+        assert_no_leakage(dir.path(), &m).expect("unpartitioned corpus must not false-fail");
     }
 
     #[test]
