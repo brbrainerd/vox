@@ -152,6 +152,9 @@ impl Orchestrator {
             }
         }
 
+        // Holds info for a Review-tier DB write that must happen after the queue lock is dropped.
+        let mut review_approval_pending: Option<(String, String, u64)> = None;
+
         {
             let queue_lock = {
                 let agents = crate::sync_lock::rw_read(&*self.agents);
@@ -217,6 +220,30 @@ impl Orchestrator {
                         completion_attestation.as_ref(),
                         max_debug_iterations,
                     ) {
+                        Ok(outcome) if outcome.needs_review_approval => {
+                            // Review-tier task: surface to the human approval inbox instead of
+                            // re-queuing autonomically.  Collect everything we need from `task`
+                            // before any `.await` so we don't hold the queue lock across it.
+                            let approval_id = format!("REV-{}", task.id.0);
+                            let summary = format!(
+                                "Review required for task {}: {}",
+                                task.id.0,
+                                task.description.chars().take(120).collect::<String>()
+                            );
+                            let task_id_u64 = task.id.0;
+                            let mut task_clone = task.clone();
+                            task_clone.status = TaskStatus::BlockedOnApproval;
+                            auto_debug_requeue = Some((
+                                task_clone,
+                                format!("Review-tier approval required (id={})", approval_id),
+                                0,
+                                0,
+                            ));
+                            // Schedule the DB write outside the queue-lock scope: store info for
+                            // after the lock is released.
+                            review_approval_pending =
+                                Some((approval_id, summary, task_id_u64));
+                        }
                         Ok(outcome) => auto_debug_requeue = outcome.requeue,
                         Err(e) => return Err(OrchestratorError::ApprovalAttestationRequired(e)),
                     }
@@ -304,6 +331,22 @@ impl Orchestrator {
                 );
                 queue.enqueue(requeue_task);
                 return Ok(());
+            }
+        }
+
+        // Write the HitlApprovalRow for any Review-tier task that was parked above.
+        // The queue lock is now dropped so we can safely await.
+        if let Some((approval_id, summary, task_id_u64)) = review_approval_pending {
+            tracing::info!(
+                task_id = task_id_u64,
+                approval_id = %approval_id,
+                "approval gate: Review-tier task parked for human review"
+            );
+            if let Some(db) = self.db() {
+                let now_ms = crate::types::now_unix_ms() as i64;
+                let _ = db
+                    .hitl_approval_record(&approval_id, "task_review", &summary, now_ms)
+                    .await;
             }
         }
 
