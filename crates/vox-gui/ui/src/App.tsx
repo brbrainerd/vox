@@ -646,6 +646,8 @@ export default function App() {
             dry_run: payload.dry_run ?? null,
             active_skill: payload.active_skill ?? activeSkill?.id ?? null,
             allow_duplicate: allowDuplicate,
+            clutch: payload.clutch ?? null,
+            risk: payload.risk ?? null,
           }
         },
         'gui.loquela.submit',

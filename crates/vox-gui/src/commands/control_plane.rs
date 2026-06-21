@@ -20,6 +20,10 @@ pub struct SubmitTaskInput {
     pub model_hint: Option<String>,
     pub dry_run: Option<bool>,
     pub active_skill: Option<String>,
+    /// Drive Console clutch label (`free`|`efficiency`|`balanced`|`genius`); forwarded as enqueue hint.
+    pub clutch: Option<String>,
+    /// Drive Console risk label (`high`|`moderate`|`low`); forwarded as enqueue hint.
+    pub risk: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -72,6 +76,12 @@ pub async fn submit_orchestrator_task(
     }
     if let Some(mode) = input.mode.as_deref().filter(|m| !m.trim().is_empty()) {
         enqueue_hints.insert("mode".into(), serde_json::json!(mode));
+    }
+    if let Some(clutch) = input.clutch.as_deref().filter(|c| !c.trim().is_empty()) {
+        enqueue_hints.insert("clutch".into(), serde_json::json!(clutch));
+    }
+    if let Some(risk) = input.risk.as_deref().filter(|r| !r.trim().is_empty()) {
+        enqueue_hints.insert("risk".into(), serde_json::json!(risk));
     }
     if !enqueue_hints.is_empty() {
         if let Some(obj) = params.as_object_mut() {
