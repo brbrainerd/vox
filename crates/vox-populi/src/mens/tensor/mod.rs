@@ -45,6 +45,7 @@ pub mod checkpoint_state;
 // candle_qlora_merge deleted: plugin owns merge impl; vox-ml-cli/merge_qlora.rs dispatches via plugin.
 #[cfg(feature = "mens-train")]
 pub mod domain_profiles;
+pub mod adapter_card;
 pub mod domain_router;
 #[cfg(feature = "mens-train")]
 pub mod execution_planner;
