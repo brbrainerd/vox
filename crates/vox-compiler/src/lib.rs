@@ -59,3 +59,6 @@ pub use typeck::checker::Checker;
 pub use fmt::format;
 /// Re-export canonical compact serializer for deterministic `.vox` output.
 pub use serialization::canonicalize_vox;
+/// Re-export placement types for downstream sub-specs (speed tiers, parity panel).
+pub use typeck::placement::{Placement, PlacementMap};
+pub use vox_ast::decl::fundecl::PlacementHint;
