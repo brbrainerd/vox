@@ -426,6 +426,87 @@ impl TrainingManifest {
     }
 }
 
+// ─── B5.4: cloud orchestration helpers ───────────────────────────────────────
+
+/// The result of evaluating a trained adapter against the base model.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EvalGateOutcome {
+    /// Adapter beats the base model — safe to register as challenger.
+    PassedBase,
+    /// Adapter did not beat the base model — do NOT register.
+    BelowBase,
+    /// Evaluation could not complete (treated as failure).
+    EvalError(String),
+}
+
+/// Outcome of the cloud orchestration flow (for testability).
+#[derive(Debug)]
+pub enum CloudOrchestrationOutcome {
+    /// Dry-run: printed plan, no provisioning.
+    DryRunPrinted,
+    /// ALLOW_SPEND gate not set: printed plan, exit clean.
+    SpendNotAllowed,
+    /// Training completed and adapter registered as challenger.
+    RegisteredChallenger { domain: String, adapter_path: PathBuf },
+    /// Training completed but eval gate failed — not registered.
+    EvalGateFailed { domain: String },
+}
+
+/// Check ALLOW_SPEND gate and return outcome if we should abort provisioning.
+///
+/// Pure function — reads env but has no side effects otherwise.
+pub fn check_spend_gate(dry_run: bool) -> Option<CloudOrchestrationOutcome> {
+    if dry_run {
+        return Some(CloudOrchestrationOutcome::DryRunPrinted);
+    }
+    if !DispatchPlan::spending_allowed() {
+        return Some(CloudOrchestrationOutcome::SpendNotAllowed);
+    }
+    None
+}
+
+/// Register an adapter as challenger in the domain router.
+///
+/// Only called when the eval gate passes. Returns the domain + adapter path
+/// for the caller to record.
+pub fn register_challenger(
+    router: &mut crate::mens::tensor::domain_router::DomainRouter,
+    domain: &str,
+    adapter_path: &Path,
+) -> CloudOrchestrationOutcome {
+    router.register(domain, adapter_path);
+    CloudOrchestrationOutcome::RegisteredChallenger {
+        domain: domain.to_string(),
+        adapter_path: adapter_path.to_path_buf(),
+    }
+}
+
+/// Full post-training flow: eval gate → register or skip.
+///
+/// `eval_outcome` is injected for testability (no real inference call here).
+pub fn post_training_flow(
+    eval_outcome: EvalGateOutcome,
+    router: &mut crate::mens::tensor::domain_router::DomainRouter,
+    domain: &str,
+    adapter_path: &Path,
+    manifest: &TrainingManifest,
+) -> anyhow::Result<CloudOrchestrationOutcome> {
+    // Write manifest regardless of eval gate outcome
+    manifest.write_alongside(adapter_path).ok();
+
+    match eval_outcome {
+        EvalGateOutcome::PassedBase => {
+            Ok(register_challenger(router, domain, adapter_path))
+        }
+        EvalGateOutcome::BelowBase => {
+            Ok(CloudOrchestrationOutcome::EvalGateFailed { domain: domain.to_string() })
+        }
+        EvalGateOutcome::EvalError(reason) => {
+            anyhow::bail!("Eval gate error for domain '{}': {}", domain, reason)
+        }
+    }
+}
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -725,6 +806,102 @@ mod tests {
         let _h2 = dispatch_training(&provider, &offer, &spec, &budget, &estimator)
             .await
             .expect("second dispatch (no-DB) should succeed");
+    }
+
+    // ── B5.4 tests ────────────────────────────────────────────────────────────
+
+    fn test_manifest() -> TrainingManifest {
+        TrainingManifest {
+            base_hf_id: "Qwen/Qwen3-4B".into(),
+            base_revision: "main".into(),
+            rung: "mid".into(),
+            preset: "prosumer_24g".into(),
+            rank: 32,
+            alpha: 64.0,
+            seed: 42,
+            corpus_hash: "deadbeef".into(),
+            metrics: serde_json::json!({"loss": 1.23}),
+            cost_usd: 0.42,
+            provider: "runpod".into(),
+            git_sha: "abc123".into(),
+            created_at: "2026-06-21T00:00:00Z".into(),
+        }
+    }
+
+    /// dry_run=true → returns DryRunPrinted without calling provider.
+    #[test]
+    fn dry_run_exits_without_provisioning() {
+        let outcome = check_spend_gate(true);
+        assert!(
+            matches!(outcome, Some(CloudOrchestrationOutcome::DryRunPrinted)),
+            "dry_run should return DryRunPrinted"
+        );
+    }
+
+    /// VOX_MENS_ALLOW_SPEND unset → SpendNotAllowed.
+    #[test]
+    fn no_allow_spend_env_returns_spend_not_allowed() {
+        // Temporarily unset (if set); safe in single-threaded test
+        let was_set = std::env::var("VOX_MENS_ALLOW_SPEND").ok();
+        #[allow(unsafe_code)]
+        unsafe { std::env::remove_var("VOX_MENS_ALLOW_SPEND"); }
+        let outcome = check_spend_gate(false);
+        assert!(
+            matches!(outcome, Some(CloudOrchestrationOutcome::SpendNotAllowed)),
+            "missing ALLOW_SPEND should return SpendNotAllowed"
+        );
+        // Restore
+        if let Some(val) = was_set {
+            #[allow(unsafe_code)]
+            unsafe { std::env::set_var("VOX_MENS_ALLOW_SPEND", val); }
+        }
+    }
+
+    /// Eval BelowBase → register never called, EvalGateFailed returned.
+    #[test]
+    fn failed_eval_gate_does_not_register_adapter() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mut router = crate::mens::tensor::domain_router::DomainRouter::new();
+        let manifest = test_manifest();
+
+        let outcome = post_training_flow(
+            EvalGateOutcome::BelowBase,
+            &mut router,
+            "vox",
+            tmp.path(),
+            &manifest,
+        )
+        .unwrap();
+
+        assert!(
+            matches!(outcome, CloudOrchestrationOutcome::EvalGateFailed { .. }),
+            "should return EvalGateFailed"
+        );
+        // Router should have nothing registered
+        assert!(router.route("vox").is_none(), "adapter must NOT be registered");
+    }
+
+    /// Eval PassedBase → register called, RegisteredChallenger returned.
+    #[test]
+    fn successful_run_registers_challenger() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mut router = crate::mens::tensor::domain_router::DomainRouter::new();
+        let manifest = test_manifest();
+
+        let outcome = post_training_flow(
+            EvalGateOutcome::PassedBase,
+            &mut router,
+            "vox",
+            tmp.path(),
+            &manifest,
+        )
+        .unwrap();
+
+        assert!(
+            matches!(outcome, CloudOrchestrationOutcome::RegisteredChallenger { .. }),
+            "should return RegisteredChallenger"
+        );
+        assert!(router.route("vox").is_some(), "adapter must be registered");
     }
 
     // ── B5.3 manifest test ────────────────────────────────────────────────────

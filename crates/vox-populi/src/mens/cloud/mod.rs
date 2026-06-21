@@ -36,8 +36,10 @@ pub mod watchdog;
 pub use budget::BudgetLedger;
 pub use estimator::TimeEstimator;
 pub use pipeline_dispatch::{
-    DispatchPlan, TerminateOnDrop, TrainingManifest, dispatch_training, dispatch_with_guard,
-    make_idempotency_key, poll_until_done, read_checkpoint_uri, sync_checkpoint_down,
+    CloudOrchestrationOutcome, DispatchPlan, EvalGateOutcome, TerminateOnDrop, TrainingManifest,
+    check_spend_gate, dispatch_training, dispatch_with_guard, make_idempotency_key,
+    poll_until_done, post_training_flow, read_checkpoint_uri, register_challenger,
+    sync_checkpoint_down,
 };
 pub use resolver::{CloudResolver, ResolveRequest};
 
