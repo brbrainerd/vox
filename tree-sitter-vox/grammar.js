@@ -487,7 +487,7 @@ module.exports = grammar({
     // SSOT listing (for parity tests):
     // @component @tool @mcp.tool @resource @mcp.resource @test @example
     // @query @mutation @server @json_as @field_name @default @skip_if_none
-    // @table @index @native @loading @require @ensure @invariant @forall
+    // @table @index @place @loading @require @ensure @invariant @forall
     // @fuzz @pure @reactive @versioned @tracked @scheduled @deprecated
     // @v0 @ai @prompt @subagent @search @hole @cancellable @form
     // @back_button @deep_link @push @tokens @cors @rate_limit @uses

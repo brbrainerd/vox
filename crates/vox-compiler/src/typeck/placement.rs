@@ -194,16 +194,38 @@ fn walk_expr(e: &HirExpr, out: &mut Vec<String>) {
         }
         Match(scrut, arms, _) => {
             walk_expr(scrut, out);
-            // HirMatchArm holds a body — read its definition in stmt_expr.rs and
-            // recurse into the arm body (expr or Vec<HirStmt>). Add a unit test
-            // proving a call inside a match arm is found.
-            let _ = arms;
+            for arm in arms {
+                if let Some(g) = &arm.guard {
+                    walk_expr(g, out);
+                }
+                walk_expr(&arm.body, out);
+            }
         }
-        // JSX / Async / Try carry nested exprs in their wrapper structs
-        // (HirJsxElement.children, HirAsyncView arms, HirTry.target). These are
-        // gui/async-tier; recurse by reading the three struct defs. The corpus
-        // sweep (Task 11) will surface any missed call site as a fixture finding.
-        Jsx(_) | JsxSelfClosing(_) | AsyncView(_) | Try(_) => {}
+        // JSX is where GUI code lives, so calls embedded in attributes (event
+        // handlers like `onClick={save()}`) and children MUST be visible — they
+        // are exactly the gui→native boundary crossings the pass exists to catch.
+        Jsx(el) => {
+            for attr in &el.attributes {
+                walk_expr(&attr.value, out);
+            }
+            for child in &el.children {
+                walk_expr(child, out);
+            }
+        }
+        JsxSelfClosing(el) => {
+            for attr in &el.attributes {
+                walk_expr(&attr.value, out);
+            }
+        }
+        AsyncView(v) => {
+            walk_expr(&v.source, out);
+            for arm in [&v.fetching_arm, &v.empty_arm, &v.error_arm, &v.ok_arm] {
+                if let Some(a) = arm {
+                    walk_expr(a, out);
+                }
+            }
+        }
+        Try(t) => walk_expr(&t.target, out),
     }
 }
 
@@ -262,23 +284,29 @@ pub fn check_override(f: &HirFn, source: &str) -> Vec<Diagnostic> {
         || f.is_remote
         || f.is_llm
         || f.durability.is_some();
-    let unsat = match hint {
-        PlacementHint::Native => false, // native is always satisfiable
-        PlacementHint::Gui | PlacementHint::Shared => needs_native,
+    // A `@reactive` function is inherently GUI (JSX / browser-only) and cannot
+    // emit to the native tier, so forcing it native — or shared, which requires
+    // BOTH tiers — is unsatisfiable just as surely as native effects block gui.
+    let needs_gui = f.is_reactive;
+    let unsat_reason = match hint {
+        PlacementHint::Native if needs_gui => Some("it is `@reactive` (GUI-only)"),
+        PlacementHint::Native => None,
+        PlacementHint::Gui if needs_native => Some("it uses native-only effects"),
+        PlacementHint::Gui => None,
+        PlacementHint::Shared if needs_native => Some("it uses native-only effects"),
+        PlacementHint::Shared if needs_gui => Some("it is `@reactive` (GUI-only)"),
+        PlacementHint::Shared => None,
     };
-    if unsat {
+    if let Some(reason) = unsat_reason {
         vec![
             Diagnostic::error(
-                format!(
-                    "`@place({hint:?})` on `{}` is unsatisfiable — it uses native-only effects",
-                    f.name
-                ),
+                format!("`@place({hint:?})` on `{}` is unsatisfiable — {reason}", f.name),
                 f.span,
                 source,
             )
             .with_code(codes::PLACEMENT_UNSAT)
             .with_suggestion(
-                "remove the override, use @place(native), or route the effect through an endpoint",
+                "remove the override, pick a tier the declaration's effects allow, or route across an endpoint",
             ),
         ]
     } else {
@@ -292,61 +320,80 @@ pub fn infer(m: &HirModule, source: &str) -> Vec<Diagnostic> {
     let map = PlacementMap::infer(m);
     let mut diags = Vec::new();
 
-    // E-PLACE-CONFLICT: a function is pulled toward both native and gui tiers.
-    for f in &m.functions {
-        let own = seed_fn(f);
-        for callee in callee_names(&f.body) {
-            if let Some(cp) = map.get(&callee) {
-                let incompatible = matches!(
-                    (own, cp),
-                    (Placement::Native, Placement::Gui) | (Placement::Gui, Placement::Native)
-                );
-                if incompatible {
+    // Walk each body once; dedup callees so a function calling the same target
+    // twice does not produce duplicate diagnostics.
+    let fn_callees: Vec<Vec<String>> = m
+        .functions
+        .iter()
+        .map(|f| dedup_preserve_order(callee_names(&f.body)))
+        .collect();
+
+    let endpoint_names: std::collections::HashSet<&str> =
+        m.endpoint_fns.iter().map(|e| e.name.as_str()).collect();
+
+    for (f, callees) in m.functions.iter().zip(&fn_callees) {
+        let placed_gui = map.get(&f.name) == Some(Placement::Gui);
+
+        // E-PLACE-BOUNDARY: a gui function calls a native function directly
+        // (not via an endpoint). This is the precise, actionable form of a
+        // cross-tier call from the gui side, so it takes precedence over the
+        // generic conflict below for gui-placed callers.
+        if placed_gui {
+            for callee in callees {
+                let callee_native = map.get(callee) == Some(Placement::Native);
+                if callee_native && !endpoint_names.contains(callee.as_str()) {
                     diags.push(
                         Diagnostic::error(
                             format!(
-                                "`{}` is {:?}-placed but calls `{}` which is {:?}-placed — split the function or cross via an endpoint",
-                                f.name, own, callee, cp
+                                "GUI function `{}` calls native function `{}` directly — cross the boundary via an endpoint",
+                                f.name, callee
                             ),
                             f.span,
                             source,
                         )
-                        .with_code(codes::PLACEMENT_CONFLICT)
+                        .with_code(codes::PLACEMENT_BOUNDARY)
                         .with_suggestion(format!(
-                            "extract the {cp:?}-tier work, or wrap `{callee}` in `@query fn` and call across the boundary"
+                            "wrap `{callee}` in `@query fn` (or `@server`/`@mutation`) and call the generated client"
                         )),
                     );
                 }
             }
+            continue; // boundary handled this gui-placed caller; skip conflict
         }
-    }
 
-    // E-PLACE-BOUNDARY: a gui function calls a native function directly (not an endpoint).
-    let endpoint_names: std::collections::HashSet<&str> =
-        m.endpoint_fns.iter().map(|e| e.name.as_str()).collect();
-
-    for f in &m.functions {
-        if map.get(&f.name) != Some(Placement::Gui) {
-            continue;
-        }
-        for callee in callee_names(&f.body) {
-            let callee_native = map.get(&callee) == Some(Placement::Native);
-            if callee_native && !endpoint_names.contains(callee.as_str()) {
-                diags.push(
-                    Diagnostic::error(
-                        format!(
-                            "GUI function `{}` calls native function `{}` directly — cross the boundary via an endpoint",
-                            f.name, callee
-                        ),
-                        f.span,
-                        source,
-                    )
-                    .with_code(codes::PLACEMENT_BOUNDARY)
-                    .with_suggestion(format!(
-                        "wrap `{callee}` in `@query fn` (or `@server`/`@mutation`) and call the generated client"
-                    )),
-                );
+        // E-PLACE-CONFLICT: a non-gui-placed function is pulled toward BOTH the
+        // native and gui tiers — either by its own seed plus a contrary callee,
+        // or (the "mixer" case) by a Shared seed that calls one of each. Such a
+        // function has no valid single placement.
+        let own = seed_fn(f);
+        let mut native_culprit: Option<String> = (own == Placement::Native).then(|| f.name.clone());
+        let mut gui_culprit: Option<String> = (own == Placement::Gui).then(|| f.name.clone());
+        for callee in callees {
+            match map.get(callee) {
+                Some(Placement::Native) if native_culprit.is_none() => {
+                    native_culprit = Some(callee.clone());
+                }
+                Some(Placement::Gui) if gui_culprit.is_none() => {
+                    gui_culprit = Some(callee.clone());
+                }
+                _ => {}
             }
+        }
+        if let (Some(n), Some(g)) = (native_culprit, gui_culprit) {
+            diags.push(
+                Diagnostic::error(
+                    format!(
+                        "`{}` is pulled toward both tiers — native via `{n}` and gui via `{g}` — split it or cross via an endpoint",
+                        f.name
+                    ),
+                    f.span,
+                    source,
+                )
+                .with_code(codes::PLACEMENT_CONFLICT)
+                .with_suggestion(
+                    "extract the native and gui work into separate declarations, or cross the boundary with `@query`/`@server`/`@mutation`",
+                ),
+            );
         }
     }
 
@@ -356,6 +403,15 @@ pub fn infer(m: &HirModule, source: &str) -> Vec<Diagnostic> {
     }
 
     diags
+}
+
+/// Drop duplicate names while preserving first-seen order.
+fn dedup_preserve_order(names: Vec<String>) -> Vec<String> {
+    let mut seen = std::collections::HashSet::new();
+    names
+        .into_iter()
+        .filter(|n| seen.insert(n.clone()))
+        .collect()
 }
 
 #[cfg(test)]
@@ -509,6 +565,86 @@ mod tests {
             m.functions[0].placement_override,
             Some(PlacementHint::Native),
             "placement_override should be Some(Native)"
+        );
+    }
+
+    // ── Walker completeness (Match/JSX/Async/Try arms closed) ─────────────────
+
+    #[test]
+    fn walker_finds_calls_in_match_arms() {
+        let m = hir_of("fn pick(x: Int) { match x { _ => handle() } }");
+        let names = callee_names(&m.functions[0].body);
+        assert!(
+            names.iter().any(|n| n == "handle"),
+            "call inside a match arm must be found; got {names:?}"
+        );
+    }
+
+    #[test]
+    fn gui_calling_native_inside_match_is_boundary_error() {
+        // The native call hides inside a match arm; the original walker skipped
+        // match bodies, so this guards the closed walker end-to-end.
+        let m = hir_of(
+            "@reactive fn View(x: Int) { match x { _ => read_db() } }\n\
+             fn read_db() uses db { 0 }",
+        );
+        let diags = infer(&m, "");
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code.as_deref() == Some(codes::PLACEMENT_BOUNDARY)),
+            "native call inside a gui match arm must be caught; got {diags:?}"
+        );
+    }
+
+    // ── Override satisfiability vs gui-natured functions ──────────────────────
+
+    #[test]
+    fn place_native_on_reactive_is_unsat() {
+        let m = hir_of("@place(native) @reactive fn View() { 0 }");
+        let diags = check_override(&m.functions[0], "");
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code.as_deref() == Some(codes::PLACEMENT_UNSAT)),
+            "forcing a @reactive fn to native must be unsatisfiable; got {diags:?}"
+        );
+    }
+
+    // ── Mixer: a Shared fn calling both tiers has no valid placement ──────────
+
+    #[test]
+    fn shared_fn_calling_both_tiers_is_conflict() {
+        let m = hir_of(
+            "fn read_db() uses db { 0 }\n\
+             @reactive fn render_view() { 0 }\n\
+             fn mix() {\n read_db()\n render_view()\n }",
+        );
+        let diags = infer(&m, "");
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code.as_deref() == Some(codes::PLACEMENT_CONFLICT)),
+            "a Shared fn calling both a native and a gui fn must conflict; got {diags:?}"
+        );
+    }
+
+    // ── Dedup: repeated calls do not duplicate diagnostics ────────────────────
+
+    #[test]
+    fn repeated_boundary_call_emits_one_diagnostic() {
+        let m = hir_of(
+            "@reactive fn View() {\n read_db()\n read_db()\n }\n\
+             fn read_db() uses db { 0 }",
+        );
+        let diags = infer(&m, "");
+        let n = diags
+            .iter()
+            .filter(|d| d.code.as_deref() == Some(codes::PLACEMENT_BOUNDARY))
+            .count();
+        assert_eq!(
+            n, 1,
+            "duplicate calls must not duplicate diagnostics; got {n}"
         );
     }
 }

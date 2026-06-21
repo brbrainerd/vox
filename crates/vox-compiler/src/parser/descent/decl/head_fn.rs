@@ -137,15 +137,43 @@ impl Parser {
                     is_mobile_native = true;
                 }
                 Token::AtPlace => {
+                    let kw_span = self.span();
                     self.advance();
                     self.expect(&Token::LParen)?;
-                    if let Token::Ident(p) = self.peek().clone() {
-                        self.advance();
-                        placement_override = Some(match p.as_str() {
-                            "native" => PlacementHint::Native,
-                            "gui" => PlacementHint::Gui,
-                            _ => PlacementHint::Shared,
-                        });
+                    // Accept `Ident`/`TypeIdent` so a capitalized `@place(Native)` is
+                    // diagnosed rather than silently swallowed. Unknown or missing
+                    // arguments are hard errors — placement is correctness-affecting,
+                    // not a soft hint, so a typo must not default to `Shared`.
+                    match self.peek().clone() {
+                        Token::Ident(p) | Token::TypeIdent(p) => {
+                            self.advance();
+                            match p.as_str() {
+                                "native" => placement_override = Some(PlacementHint::Native),
+                                "gui" => placement_override = Some(PlacementHint::Gui),
+                                "shared" => placement_override = Some(PlacementHint::Shared),
+                                other => {
+                                    self.errors.push(crate::parser::error::ParseError::classified(
+                                        kw_span,
+                                        format!(
+                                            "Unknown placement `{other}` in `@place(...)` — expected `native`, `shared`, or `gui`"
+                                        ),
+                                        vec!["native".into(), "shared".into(), "gui".into()],
+                                        Some(other.to_string()),
+                                        crate::parser::error::ParseErrorClass::Declaration,
+                                    ));
+                                }
+                            }
+                        }
+                        other => {
+                            self.errors.push(crate::parser::error::ParseError::classified(
+                                kw_span,
+                                "`@place(...)` requires a placement argument — `native`, `shared`, or `gui`"
+                                    .to_string(),
+                                vec!["native".into(), "shared".into(), "gui".into()],
+                                Some(other.to_string()),
+                                crate::parser::error::ParseErrorClass::Declaration,
+                            ));
+                        }
                     }
                     self.expect(&Token::RParen)?;
                 }
