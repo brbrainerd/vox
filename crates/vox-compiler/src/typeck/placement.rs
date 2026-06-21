@@ -267,18 +267,20 @@ pub fn check_override(f: &HirFn, source: &str) -> Vec<Diagnostic> {
         PlacementHint::Gui | PlacementHint::Shared => needs_native,
     };
     if unsat {
-        vec![Diagnostic::error(
-            format!(
-                "`@place({hint:?})` on `{}` is unsatisfiable — it uses native-only effects",
-                f.name
+        vec![
+            Diagnostic::error(
+                format!(
+                    "`@place({hint:?})` on `{}` is unsatisfiable — it uses native-only effects",
+                    f.name
+                ),
+                f.span,
+                source,
+            )
+            .with_code(codes::PLACEMENT_UNSAT)
+            .with_suggestion(
+                "remove the override, use @place(native), or route the effect through an endpoint",
             ),
-            f.span,
-            source,
-        )
-        .with_code(codes::PLACEMENT_UNSAT)
-        .with_suggestion(
-            "remove the override, use @place(native), or route the effect through an endpoint",
-        )]
+        ]
     } else {
         Vec::new()
     }
