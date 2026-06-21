@@ -6,8 +6,8 @@ use std::path::PathBuf;
 use clap::Parser;
 use vox_plugin_types::skill_manifest::SkillManifest;
 use vox_skill_discovery::{
-    dedup_skills, mine_repeated_code, render_json, render_terminal, validate_ssot, Candidate,
-    DiscoverOptions,
+    Candidate, DiscoverOptions, dedup_skills, mine_repeated_code, render_json, render_terminal,
+    validate_ssot,
 };
 
 #[derive(Parser, Debug)]
