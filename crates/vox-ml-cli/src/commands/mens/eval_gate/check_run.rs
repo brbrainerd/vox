@@ -782,7 +782,45 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
                 .and_then(|m| m.get("base_rung"))
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
-            let gate_result = check_bfcl(run_dir, bfcl_cfg, None, rung_key.as_deref())?;
+
+            // F6: load the captured base-model baseline (baseline_report.json) so
+            // the beat-base comparison actually runs through the integrated gate.
+            // Previously `None` was passed, so beat-base was silently skipped here.
+            // Absent file → None (beat-base skipped, as before). Unparseable file
+            // is non-fatal — we don't want a malformed baseline to crash the gate.
+            let baseline_report = {
+                let path = run_dir.join("baseline_report.json");
+                if path.exists() {
+                    super::baseline::load_baseline(&path).ok()
+                } else {
+                    None
+                }
+            };
+            // Pick the bfcl_accuracy baseline entry. Prefer one whose spoke matches
+            // the run manifest's spoke (when present); otherwise take the first
+            // bfcl_accuracy entry.
+            let manifest_spoke: Option<&str> = manifest
+                .as_ref()
+                .and_then(|m| m.get("spoke"))
+                .and_then(|v| v.as_str());
+            let baseline_entry = baseline_report.as_ref().and_then(|report| {
+                manifest_spoke
+                    .and_then(|spoke| {
+                        report
+                            .entries
+                            .iter()
+                            .find(|e| e.metric_name == "bfcl_accuracy" && e.spoke == spoke)
+                    })
+                    .or_else(|| {
+                        report
+                            .entries
+                            .iter()
+                            .find(|e| e.metric_name == "bfcl_accuracy")
+                    })
+            });
+
+            let gate_result =
+                check_bfcl(run_dir, bfcl_cfg, baseline_entry, rung_key.as_deref())?;
             results.push(gate_result);
         }
     }

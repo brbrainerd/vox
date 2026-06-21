@@ -749,6 +749,117 @@ bfcl_accuracy:
 }
 
 // ---------------------------------------------------------------------------
+// F6: beat-base must gate through the integrated check_run path. check_run
+// previously passed `None` as the baseline into check_bfcl, so a captured
+// baseline never participated and a below-baseline run could pass.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn bfcl_below_baseline_fails_through_check_run() {
+    let dir = tempfile::tempdir().unwrap();
+    // Trained accuracy below the captured baseline; absolute threshold is 0 so
+    // ONLY the beat-base comparison can fail this gate.
+    std::fs::write(
+        dir.path().join("bfcl_results.json"),
+        r#"{"accuracy": 0.50, "total": 200}"#,
+    )
+    .unwrap();
+    // Captured baseline (on the base model) — value 0.60, CI [0.55, 0.65].
+    std::fs::write(
+        dir.path().join("baseline_report.json"),
+        r#"{
+            "entries": [
+                {
+                    "spoke": "tool-selection",
+                    "metric_name": "bfcl_accuracy",
+                    "value": 0.60,
+                    "sample_size": 200,
+                    "ci_low": 0.55,
+                    "ci_high": 0.65,
+                    "pass_at_k": 1
+                }
+            ],
+            "created": "2026-06-21T00:00:00Z"
+        }"#,
+    )
+    .unwrap();
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(
+        &policy_path,
+        r#"version: "1"
+bfcl_accuracy:
+  min_accuracy: 0.0
+  block: true
+"#,
+    )
+    .unwrap();
+    let results = check_run(dir.path(), &policy_path).expect("check_run");
+    let gate = results
+        .iter()
+        .find(|r| r.name == "bfcl_accuracy")
+        .expect("bfcl gate present");
+    assert!(
+        !gate.passed,
+        "0.50 is below baseline 0.60 — beat-base must fail through check_run: {}",
+        gate.message
+    );
+    assert!(
+        gate.message.contains("beat_base"),
+        "message must show the beat-base comparison happened: {}",
+        gate.message
+    );
+}
+
+#[test]
+fn bfcl_above_baseline_passes_through_check_run() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join("bfcl_results.json"),
+        r#"{"accuracy": 0.75, "total": 200}"#,
+    )
+    .unwrap();
+    std::fs::write(
+        dir.path().join("baseline_report.json"),
+        r#"{
+            "entries": [
+                {
+                    "spoke": "tool-selection",
+                    "metric_name": "bfcl_accuracy",
+                    "value": 0.60,
+                    "sample_size": 200,
+                    "ci_low": 0.55,
+                    "ci_high": 0.65,
+                    "pass_at_k": 1
+                }
+            ],
+            "created": "2026-06-21T00:00:00Z"
+        }"#,
+    )
+    .unwrap();
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(
+        &policy_path,
+        r#"version: "1"
+bfcl_accuracy:
+  min_accuracy: 0.0
+  block: true
+"#,
+    )
+    .unwrap();
+    let results = check_run(dir.path(), &policy_path).expect("check_run");
+    let gate = results
+        .iter()
+        .find(|r| r.name == "bfcl_accuracy")
+        .expect("bfcl gate present");
+    assert!(
+        gate.passed,
+        "0.75 beats baseline 0.60 — should pass through check_run: {}",
+        gate.message
+    );
+    assert!(gate.message.contains("beat_base"));
+}
+
+// ---------------------------------------------------------------------------
 // B7.3: Harness safety eval — mocked executor (no side-effecting tools called)
 // ---------------------------------------------------------------------------
 
