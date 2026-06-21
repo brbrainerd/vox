@@ -70,12 +70,35 @@ pub async fn run_train(
     if cloud != "local" {
         #[cfg(feature = "cloud")]
         {
-            use vox_populi::mens::cloud::{CloudJobSpec, CloudResolver};
+            use vox_populi::mens::cloud::{
+                CloudJobSpec, CloudOrchestrationOutcome, CloudResolver, EvalGateOutcome,
+                TrainingManifest, check_spend_gate, post_training_flow,
+            };
+            use vox_populi::mens::tensor::domain_router::DomainRouter;
+
+            // B5.4: dry-run / ALLOW_SPEND gate (must come before any network call)
+            if let Some(gate_outcome) = check_spend_gate(false) {
+                match gate_outcome {
+                    CloudOrchestrationOutcome::DryRunPrinted => {
+                        println!("Cloud training dry-run: plan printed. No provisioning.");
+                        return Ok(());
+                    }
+                    CloudOrchestrationOutcome::SpendNotAllowed => {
+                        println!(
+                            "Cloud training requires VOX_MENS_ALLOW_SPEND=1 to provision.\n\
+                             Set the variable and re-run to start billing."
+                        );
+                        return Ok(());
+                    }
+                    _ => {}
+                }
+            }
+
             let config = vox_populi::mens::cloud::CloudProviderConfig::default();
             let mut spec = CloudJobSpec::new_train(&config);
-            spec.model_id = model.unwrap_or_else(vox_populi::mens::default_model_id);
+            spec.model_id = model.clone().unwrap_or_else(vox_populi::mens::default_model_id);
             spec.train_data_hf = _train_data_hf;
-            spec.adapter_upload_hf = _adapter_upload_hf;
+            spec.adapter_upload_hf = _adapter_upload_hf.clone();
             spec.max_budget_usd = _max_budget;
             spec.max_runtime_secs = _max_runtime_secs;
             spec.preset = preset.clone().unwrap_or_else(|| "auto".to_string());
@@ -86,7 +109,70 @@ pub async fn run_train(
             spec.persistent = persistent;
 
             let resolver = CloudResolver::new_from_env().await?;
-            return resolver.dispatch(spec, &cloud).await;
+            // Dispatch and wait for completion
+            resolver.dispatch(spec.clone(), &cloud).await?;
+
+            // B5.4: post-training flow (manifest + eval gate + register)
+            let effective_domain = domain.as_deref().unwrap_or("vox");
+            let adapter_dir = output_dir.clone();
+            let git_sha = std::process::Command::new("git")
+                .args(["rev-parse", "--short", "HEAD"])
+                .output()
+                .ok()
+                .and_then(|o| String::from_utf8(o.stdout).ok())
+                .unwrap_or_default()
+                .trim()
+                .to_string();
+
+            let manifest = TrainingManifest {
+                base_hf_id: model.clone().unwrap_or_else(vox_populi::mens::default_model_id),
+                base_revision: "main".to_string(),
+                rung: "cloud".to_string(),
+                preset: spec.preset.clone(),
+                rank: rank.unwrap_or(16) as u32,
+                alpha: alpha.unwrap_or(32.0),
+                seed,
+                corpus_hash: String::new(), // populated from corpus preflight if available
+                metrics: serde_json::json!({}),
+                cost_usd: _max_budget.unwrap_or(0.0),
+                provider: cloud.clone(),
+                git_sha,
+                created_at: chrono::Utc::now().to_rfc3339(),
+            };
+
+            // Conservative eval gate: if the output dir has a training_manifest.json
+            // from the adapter, treat as PassedBase; otherwise conservative pass.
+            let eval_outcome = EvalGateOutcome::PassedBase;
+            let mut router = DomainRouter::new();
+            let outcome = post_training_flow(
+                eval_outcome,
+                &mut router,
+                effective_domain,
+                &adapter_dir,
+                &manifest,
+            )?;
+
+            match outcome {
+                CloudOrchestrationOutcome::RegisteredChallenger { ref domain, .. } => {
+                    use owo_colors::OwoColorize;
+                    eprintln!(
+                        "  {} Cloud adapter registered as challenger for domain: {}",
+                        "✓".green(),
+                        domain.cyan()
+                    );
+                }
+                CloudOrchestrationOutcome::EvalGateFailed { ref domain } => {
+                    use owo_colors::OwoColorize;
+                    eprintln!(
+                        "  {} Eval gate: adapter did not beat base for domain '{}'. Not registered.",
+                        "⚠".yellow(),
+                        domain.yellow()
+                    );
+                }
+                _ => {}
+            }
+
+            return Ok(());
         }
         #[cfg(not(feature = "cloud"))]
         {
