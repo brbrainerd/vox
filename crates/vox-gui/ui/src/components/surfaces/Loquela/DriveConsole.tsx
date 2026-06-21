@@ -41,8 +41,9 @@ export function DriveConsole({
             <button
               key={d.id}
               type="button"
+              role="radio"
               title={d.hint}
-              aria-pressed={control.clutch === d.id}
+              aria-checked={control.clutch === d.id}
               onClick={() => onControlChange({ clutch: d.id })}
               className={`min-h-[24px] rounded px-1.5 font-medium ${
                 control.clutch === d.id

@@ -31,4 +31,9 @@ describe('RiskPopover', () => {
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('focuses the selected posture button on open', () => {
+    render(<RiskPopover risk="low" onChange={() => {}} open onClose={() => {}} />);
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: /low risk/i }));
+  });
 });

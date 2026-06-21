@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { RISK_POSTURES, type RiskId, type ControlState } from '../../../lib/driveConsole';
 
 const COPY: Record<RiskId, string> = {
@@ -15,6 +15,14 @@ interface RiskPopoverProps {
 }
 
 export function RiskPopover({ risk, open, onChange, onClose }: RiskPopoverProps) {
+  const activeBtnRef = useRef<HTMLButtonElement>(null);
+
+  // Move focus into the dialog when it opens so keyboard users land on the
+  // currently-selected posture (Escape handling already returns focus out).
+  useEffect(() => {
+    if (open) activeBtnRef.current?.focus();
+  }, [open]);
+
   if (!open) return null;
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -33,6 +41,7 @@ export function RiskPopover({ risk, open, onChange, onClose }: RiskPopoverProps)
         <button
           key={p.id}
           type="button"
+          ref={risk === p.id ? activeBtnRef : undefined}
           onClick={() => { onChange({ risk: p.id }); }}
           aria-pressed={risk === p.id}
           className={`mb-1 flex w-full flex-col rounded-md border px-2 py-1.5 text-left ${

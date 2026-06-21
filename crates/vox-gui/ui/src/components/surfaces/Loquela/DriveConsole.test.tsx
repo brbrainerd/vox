@@ -18,17 +18,27 @@ describe('DriveConsole', () => {
   it('renders all four clutch detents, cost, risk, model', () => {
     render(<DriveConsole {...base} />);
     ['Free', 'Effic.', 'Bal.', 'Genius'].forEach(l =>
-      expect(screen.getByRole('button', { name: new RegExp(l, 'i') })).toBeTruthy()
+      expect(screen.getByRole('radio', { name: new RegExp(l, 'i') })).toBeTruthy()
     );
     expect(screen.getByText(/0\.42/)).toBeTruthy();
     expect(screen.getByText(/Moderate/i)).toBeTruthy();
     expect(screen.getByText(/flash/i)).toBeTruthy();
   });
 
+  it('clutch detents are radios with aria-checked reflecting selection', () => {
+    render(<DriveConsole {...base} control={{ clutch: 'genius', risk: 'moderate' }} />);
+    const radios = screen.getAllByRole('radio');
+    expect(radios).toHaveLength(4);
+    const genius = screen.getByRole('radio', { name: /Genius/i });
+    expect(genius.getAttribute('aria-checked')).toBe('true');
+    const free = screen.getByRole('radio', { name: /Free/i });
+    expect(free.getAttribute('aria-checked')).toBe('false');
+  });
+
   it('emits clutch change', () => {
     const onControlChange = vi.fn();
     render(<DriveConsole {...base} onControlChange={onControlChange} />);
-    fireEvent.click(screen.getByRole('button', { name: /Genius/i }));
+    fireEvent.click(screen.getByRole('radio', { name: /Genius/i }));
     expect(onControlChange).toHaveBeenCalledWith(expect.objectContaining({ clutch: 'genius' }));
   });
 
