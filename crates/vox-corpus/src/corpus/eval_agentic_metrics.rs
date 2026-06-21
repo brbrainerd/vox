@@ -1,10 +1,12 @@
 //! Compute agentic spoke eval metrics (JSON validity, known tool names) from model outputs.
-use std::path::Path;
 use serde_json::Value;
+use std::path::Path;
 
 /// Returns true if the JSON value represents a valid tool call (has required keys).
 pub fn is_valid_tool_call(val: &Value) -> bool {
-    let Some(obj) = val.as_object() else { return false; };
+    let Some(obj) = val.as_object() else {
+        return false;
+    };
     ["tool_name", "arguments", "result", "success"]
         .iter()
         .all(|k| obj.contains_key(*k))
@@ -15,9 +17,13 @@ pub fn tool_name_exists(name: &str) -> bool {
     if name.starts_with("vox ") {
         return true;
     }
-    let static_registry = vox_mcp_registry::TOOL_REGISTRY.iter().any(|entry| entry.name == name);
+    let static_registry = vox_mcp_registry::TOOL_REGISTRY
+        .iter()
+        .any(|entry| entry.name == name);
     let skill_tools = vox_mcp_registry::SKILL_TOOLS.iter().any(|&t| t == name);
-    let orchestrator_tools = vox_mcp_registry::ORCHESTRATOR_TOOLS.iter().any(|&t| t == name);
+    let orchestrator_tools = vox_mcp_registry::ORCHESTRATOR_TOOLS
+        .iter()
+        .any(|&t| t == name);
     static_registry || skill_tools || orchestrator_tools
 }
 
@@ -33,9 +39,7 @@ fn extract_json_block(s: &str) -> String {
 
 /// Compute agentic metrics (tool_call_valid_json_rate, tool_name_exists_rate) for
 /// agentic/tool-use samples in `input_jsonl`.
-pub fn compute_agentic_spoke_metrics(
-    input_jsonl: &Path,
-) -> anyhow::Result<(f64, f64)> {
+pub fn compute_agentic_spoke_metrics(input_jsonl: &Path) -> anyhow::Result<(f64, f64)> {
     let content = std::fs::read_to_string(input_jsonl)?;
     let mut total_checks = 0;
     let mut valid_json_count = 0;
@@ -52,7 +56,7 @@ pub fn compute_agentic_spoke_metrics(
 
         let category = val.get("category").and_then(|c| c.as_str()).unwrap_or("");
         let lane = val.get("lane").and_then(|l| l.as_str()).unwrap_or("");
-        
+
         let is_agentic = category == "agent_trace"
             || category == "tool_trace"
             || lane == "vox_dogfood_agent"
@@ -79,7 +83,8 @@ pub fn compute_agentic_spoke_metrics(
                         total_checks += 1;
                         if is_valid_tool_call(step) {
                             valid_json_count += 1;
-                            let tool_name = step.get("tool_name").and_then(|n| n.as_str()).unwrap_or("");
+                            let tool_name =
+                                step.get("tool_name").and_then(|n| n.as_str()).unwrap_or("");
                             if tool_name_exists(tool_name) {
                                 known_tool_count += 1;
                             }
@@ -89,7 +94,10 @@ pub fn compute_agentic_spoke_metrics(
                     total_checks += 1;
                     if is_valid_tool_call(&json_val) {
                         valid_json_count += 1;
-                        let tool_name = json_val.get("tool_name").and_then(|n| n.as_str()).unwrap_or("");
+                        let tool_name = json_val
+                            .get("tool_name")
+                            .and_then(|n| n.as_str())
+                            .unwrap_or("");
                         if tool_name_exists(tool_name) {
                             known_tool_count += 1;
                         }

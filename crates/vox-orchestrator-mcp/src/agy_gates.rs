@@ -64,7 +64,10 @@ pub async fn run_gate(cwd: &Path, gate: &Gate, timeout_secs: u64) -> GateResult 
                 name: gate.name.clone(),
                 passed: false,
                 exit_code: -1,
-                output_tail: format!("gate '{}' failed to spawn '{}': {e}", gate.name, gate.program),
+                output_tail: format!(
+                    "gate '{}' failed to spawn '{}': {e}",
+                    gate.name, gate.program
+                ),
                 elapsed_ms: started.elapsed().as_millis() as u64,
             };
         }
@@ -95,7 +98,10 @@ pub async fn run_gate(cwd: &Path, gate: &Gate, timeout_secs: u64) -> GateResult 
             name: gate.name.clone(),
             passed: false,
             exit_code: -1,
-            output_tail: format!("gate '{}' exceeded {}s; process killed", gate.name, timeout_secs),
+            output_tail: format!(
+                "gate '{}' exceeded {}s; process killed",
+                gate.name, timeout_secs
+            ),
             elapsed_ms: started.elapsed().as_millis() as u64,
         },
     }
@@ -123,7 +129,12 @@ mod tests {
 
     #[tokio::test]
     async fn passing_gate_reports_pass() {
-        let gate = Gate { name: "probe".into(), program: "git".into(), args: vec!["--version".into()], ..Default::default() };
+        let gate = Gate {
+            name: "probe".into(),
+            program: "git".into(),
+            args: vec!["--version".into()],
+            ..Default::default()
+        };
         let r = run_gate(std::env::temp_dir().as_path(), &gate, 30).await;
         assert!(r.passed, "git --version should pass: {}", r.output_tail);
         assert_eq!(r.exit_code, 0);
@@ -132,7 +143,12 @@ mod tests {
 
     #[tokio::test]
     async fn failing_gate_reports_fail() {
-        let gate = Gate { name: "bad".into(), program: "git".into(), args: vec!["rev-parse".into(), "--definitely-not-a-flag".into()], ..Default::default() };
+        let gate = Gate {
+            name: "bad".into(),
+            program: "git".into(),
+            args: vec!["rev-parse".into(), "--definitely-not-a-flag".into()],
+            ..Default::default()
+        };
         let r = run_gate(std::env::temp_dir().as_path(), &gate, 30).await;
         assert!(!r.passed);
         assert_ne!(r.exit_code, 0);
@@ -140,14 +156,23 @@ mod tests {
 
     #[tokio::test]
     async fn missing_program_is_a_failed_gate_not_a_panic() {
-        let gate = Gate { name: "nope".into(), program: "definitely-no-such-binary-xyz".into(), ..Default::default() };
+        let gate = Gate {
+            name: "nope".into(),
+            program: "definitely-no-such-binary-xyz".into(),
+            ..Default::default()
+        };
         let r = run_gate(std::env::temp_dir().as_path(), &gate, 30).await;
         assert!(!r.passed);
     }
 
     #[tokio::test]
     async fn run_gates_runs_all_in_order() {
-        let g = |n: &str| Gate { name: n.into(), program: "git".into(), args: vec!["--version".into()], ..Default::default() };
+        let g = |n: &str| Gate {
+            name: n.into(),
+            program: "git".into(),
+            args: vec!["--version".into()],
+            ..Default::default()
+        };
         let results = run_gates(std::env::temp_dir().as_path(), &[g("a"), g("b")], 30).await;
         assert_eq!(results.len(), 2);
         assert_eq!(results[0].name, "a");

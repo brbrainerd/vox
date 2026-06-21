@@ -177,7 +177,8 @@ impl crate::VoxDb {
             .next()
             .await?
             .ok_or_else(|| StoreError::NotFound(format!("dictionary {dict_id}")))?;
-        row.get::<Vec<u8>>(0).map_err(|e| StoreError::Db(e.to_string()))
+        row.get::<Vec<u8>>(0)
+            .map_err(|e| StoreError::Db(e.to_string()))
     }
 
     /// Load and cache a prepared `DecoderDictionary` for `dict_id`.

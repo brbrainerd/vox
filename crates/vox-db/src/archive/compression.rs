@@ -41,7 +41,11 @@ pub fn compress(data: &[u8], dict: Option<&[u8]>) -> Result<Vec<u8>, StoreError>
     }
 }
 
-pub fn decompress(data: &[u8], capacity: usize, dict: Option<&[u8]>) -> Result<Vec<u8>, StoreError> {
+pub fn decompress(
+    data: &[u8],
+    capacity: usize,
+    dict: Option<&[u8]>,
+) -> Result<Vec<u8>, StoreError> {
     match dict {
         Some(d) => {
             let dec_dict = zstd::dict::DecoderDictionary::copy(d);

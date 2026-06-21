@@ -1,8 +1,8 @@
 //! Synthesize tool-use SFT rows from the real Vox CLI / skill surface.
 use crate::tool_workflow_corpus::ToolTraceRecord;
-use std::path::Path;
-use std::io::Write;
 use serde_json::json;
+use std::io::Write;
+use std::path::Path;
 
 /// One synthetic supervised tool call over a REAL Vox CLI command (e.g.
 /// "vox ci affected-crates"). `command` MUST be a command verified to exist;
@@ -30,12 +30,28 @@ pub fn generate_agentic_synth_file(output_path: &Path) -> anyhow::Result<usize> 
 
     // 1. Generate CLI command examples
     let cli_examples = vec![
-        ("Find which crates a change affects", "vox ci affected-crates", json!({ "base": "origin/main" })),
-        ("Run command compliance checks", "vox ci command-check", json!({})),
+        (
+            "Find which crates a change affects",
+            "vox ci affected-crates",
+            json!({ "base": "origin/main" }),
+        ),
+        (
+            "Run command compliance checks",
+            "vox ci command-check",
+            json!({}),
+        ),
         ("Show workspace status", "vox status", json!({})),
-        ("Run tests for a crate", "vox test", json!({ "crate_name": "vox-cli" })),
+        (
+            "Run tests for a crate",
+            "vox test",
+            json!({ "crate_name": "vox-cli" }),
+        ),
         ("Sync ignore files", "vox ci sync-ignore-files", json!({})),
-        ("Lint commit messages", "vox ci commit-lint", json!({ "revision": "HEAD~1" })),
+        (
+            "Lint commit messages",
+            "vox ci commit-lint",
+            json!({ "revision": "HEAD~1" }),
+        ),
     ];
 
     for (task, cmd, args) in cli_examples {
@@ -46,10 +62,26 @@ pub fn generate_agentic_synth_file(output_path: &Path) -> anyhow::Result<usize> 
 
     // 2. Generate skill discovery and installation examples
     let skill_examples = vec![
-        ("Install a new development skill", "vox_skill_install", json!({ "bundle_json": "{\"id\":\"vox-lint-fixer\",\"version\":\"1.0.0\"}" })),
-        ("List all installed agent skills", "vox_skill_list", json!({})),
-        ("Search for a git helper skill", "vox_skill_search", json!({ "query": "git helper" })),
-        ("Uninstall an unused skill", "vox_skill_uninstall", json!({ "skill_id": "old-skill" })),
+        (
+            "Install a new development skill",
+            "vox_skill_install",
+            json!({ "bundle_json": "{\"id\":\"vox-lint-fixer\",\"version\":\"1.0.0\"}" }),
+        ),
+        (
+            "List all installed agent skills",
+            "vox_skill_list",
+            json!({}),
+        ),
+        (
+            "Search for a git helper skill",
+            "vox_skill_search",
+            json!({ "query": "git helper" }),
+        ),
+        (
+            "Uninstall an unused skill",
+            "vox_skill_uninstall",
+            json!({ "skill_id": "old-skill" }),
+        ),
     ];
 
     for (task, tool, args) in skill_examples {

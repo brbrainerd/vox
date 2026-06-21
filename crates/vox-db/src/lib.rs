@@ -366,10 +366,7 @@ pub struct VoxDb {
     /// LRU cache of prepared zstd `DecoderDictionary` keyed by `zstd_dictionaries.id`.
     pub(crate) dict_cache: std::sync::Arc<
         std::sync::Mutex<
-            std::collections::HashMap<
-                i64,
-                std::sync::Arc<zstd::dict::DecoderDictionary<'static>>,
-            >,
+            std::collections::HashMap<i64, std::sync::Arc<zstd::dict::DecoderDictionary<'static>>>,
         >,
     >,
 }
@@ -387,9 +384,9 @@ impl VoxDb {
             writer: None,
             breaker: std::sync::Arc::new(DbCircuitBreaker::from_env()),
             sqlite_probe_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-            dict_cache: std::sync::Arc::new(std::sync::Mutex::new(
-                std::collections::HashMap::new(),
-            )),
+            dict_cache: std::sync::Arc::new(
+                std::sync::Mutex::new(std::collections::HashMap::new()),
+            ),
         }
     }
 }

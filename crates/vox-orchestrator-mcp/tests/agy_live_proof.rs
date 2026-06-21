@@ -23,7 +23,10 @@ Use your file-writing tool. Do not run any git commands. — no other files.";
 async fn live_agy_writes_a_file_and_exits_zero() {
     match detect() {
         AgyStatus::Ready { .. } => {}
-        other => panic!("agy not ready ({:?}). Complete Google Sign-In first.", other),
+        other => panic!(
+            "agy not ready ({:?}). Complete Google Sign-In first.",
+            other
+        ),
     }
 
     let repo_root = std::env::current_dir().expect("cwd");
@@ -43,7 +46,11 @@ async fn live_agy_writes_a_file_and_exits_zero() {
     eprintln!("branch:   {}", wt.branch);
 
     let exec = AgyExec::new(&wt.path);
-    let spec = AgySpec { task: PROOF_TASK.into(), model: None, timeout_secs: 180 };
+    let spec = AgySpec {
+        task: PROOF_TASK.into(),
+        model: None,
+        timeout_secs: 180,
+    };
     let out = exec.run(&spec).await.expect("agy spawn failed");
 
     let (diff, files_changed) = wt.capture().await.expect("capture failed");
@@ -57,10 +64,20 @@ async fn live_agy_writes_a_file_and_exits_zero() {
     eprintln!("--- hitl_responses: {:?}", out.hitl_responses);
     eprintln!("--- diff (first 500 chars) ---");
     eprintln!("{}", &diff.chars().take(500).collect::<String>());
-    eprintln!("exit={} timed_out={} files_changed={}", out.exit_code, out.timed_out, files_changed);
+    eprintln!(
+        "exit={} timed_out={} files_changed={}",
+        out.exit_code, out.timed_out, files_changed
+    );
 
-    assert!(!out.timed_out, "agy timed out — increase timeout_secs or simplify the task");
+    assert!(
+        !out.timed_out,
+        "agy timed out — increase timeout_secs or simplify the task"
+    );
     assert_eq!(out.exit_code, 0, "agy exited non-zero");
     assert!(files_changed > 0, "agy ran but wrote no files");
-    assert!(proof_contents.contains("Proof"), "PROOF.md content unexpected: {}", proof_contents);
+    assert!(
+        proof_contents.contains("Proof"),
+        "PROOF.md content unexpected: {}",
+        proof_contents
+    );
 }

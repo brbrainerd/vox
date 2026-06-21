@@ -70,7 +70,10 @@ mod tests {
     }
 
     fn b(name: &str, max: usize) -> Budget {
-        Budget { crate_name: name.to_string(), max_closure: max }
+        Budget {
+            crate_name: name.to_string(),
+            max_closure: max,
+        }
     }
 
     #[test]
@@ -106,13 +109,19 @@ mod tests {
     fn exactly_at_budget_passes() {
         let edges = vec![e("root", "mid"), e("mid", "leaf")];
         let budgets = vec![b("root", 2)];
-        assert!(check(&edges, &budgets).is_empty(), "exactly at budget should pass");
+        assert!(
+            check(&edges, &budgets).is_empty(),
+            "exactly at budget should pass"
+        );
     }
 
     #[test]
     fn unknown_crate_has_zero_closure() {
         let edges: Vec<(String, String)> = vec![];
         let budgets = vec![b("nonexistent", 0)];
-        assert!(check(&edges, &budgets).is_empty(), "unknown crate = 0 closure = passes budget 0");
+        assert!(
+            check(&edges, &budgets).is_empty(),
+            "unknown crate = 0 closure = passes budget 0"
+        );
     }
 }

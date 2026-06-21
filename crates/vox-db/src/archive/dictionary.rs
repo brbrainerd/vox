@@ -6,7 +6,11 @@ use crate::store::types::StoreError;
 use turso::params;
 
 /// Insert a new dictionary version; returns its `id`.
-pub async fn insert_dictionary(db: &VoxDb, bytes: &[u8], sample_count: i64) -> Result<i64, StoreError> {
+pub async fn insert_dictionary(
+    db: &VoxDb,
+    bytes: &[u8],
+    sample_count: i64,
+) -> Result<i64, StoreError> {
     let bytes = bytes.to_vec();
     let breaker = db.breaker.clone();
     let conn = db.conn.clone();
@@ -44,7 +48,8 @@ pub async fn latest_dictionary(db: &VoxDb) -> Result<Option<(i64, Vec<u8>)>, Sto
     match rows.next().await? {
         Some(r) => Ok(Some((
             r.get::<i64>(0).map_err(|e| StoreError::Db(e.to_string()))?,
-            r.get::<Vec<u8>>(1).map_err(|e| StoreError::Db(e.to_string()))?,
+            r.get::<Vec<u8>>(1)
+                .map_err(|e| StoreError::Db(e.to_string()))?,
         ))),
         None => Ok(None),
     }
@@ -78,9 +83,7 @@ mod tests {
             .await
             .expect("db");
         assert!(latest_dictionary(&db).await.unwrap().is_none());
-        let id = insert_dictionary(&db, b"dict-bytes-v1", 10)
-            .await
-            .unwrap();
+        let id = insert_dictionary(&db, b"dict-bytes-v1", 10).await.unwrap();
         let (lid, bytes) = latest_dictionary(&db).await.unwrap().unwrap();
         assert_eq!(lid, id);
         assert_eq!(bytes, b"dict-bytes-v1");
@@ -88,14 +91,18 @@ mod tests {
 
     #[tokio::test]
     async fn trains_when_enough_samples() {
-        let db = crate::VoxDb::connect(crate::DbConfig::Memory).await.expect("db");
+        let db = crate::VoxDb::connect(crate::DbConfig::Memory)
+            .await
+            .expect("db");
         // Insert 16 objects and create membership edges so they appear in top_referenced.
         for i in 0..16u64 {
             let body = format!("context window archive sample number {i} ").repeat(20);
             db.store("s", body.as_bytes()).await.unwrap();
             let h = crate::hash::content_hash(body.as_bytes());
             // Add an edge so it appears in top_referenced.
-            crate::archive::membership::add_edge(&db, &format!("w{i}"), &h).await.unwrap();
+            crate::archive::membership::add_edge(&db, &format!("w{i}"), &h)
+                .await
+                .unwrap();
         }
         let id = train_from_corpus(&db, 64).await.unwrap();
         assert!(id.is_some(), "should train a dictionary from 16 samples");
