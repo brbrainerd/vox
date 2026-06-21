@@ -9,9 +9,13 @@ interface AgentRowProps {
   onResume: (a: Agent) => void;
   /** Optional: open this agent's live stream in the Console surface. */
   onOpenInConsole?: (a: Agent) => void;
+  /** Optional: when set, renders inline Approve/Reject buttons for this approval id. */
+  pendingApprovalId?: string | null;
+  onApprove?: (approvalId: string) => void;
+  onReject?: (approvalId: string) => void;
 }
 
-export function AgentRow({ a, onPause, onResume, onOpenInConsole }: AgentRowProps) {
+export function AgentRow({ a, onPause, onResume, onOpenInConsole, pendingApprovalId, onApprove, onReject }: AgentRowProps) {
   const t = PHASE_TONE[a.phase as PhaseKind] || PHASE_TONE.Paused;
   const pct = a.progress != null ? Math.round(a.progress * 100) : null;
   const bp = a.budget != null && a.budget > 0 ? (a.cost / a.budget) * 100 : null;
@@ -57,6 +61,14 @@ export function AgentRow({ a, onPause, onResume, onOpenInConsole }: AgentRowProp
             >
               <Icon.command className="size-3.5" aria-hidden="true" />
             </button>
+          )}
+          {pendingApprovalId && onApprove && onReject && (
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => onApprove(pendingApprovalId)}
+                className="rounded-md border border-brass/30 bg-brass/10 px-2.5 py-1 font-display text-[10px] uppercase tracking-[0.18em] text-brass transition hover:bg-brass/20">Approve</button>
+              <button type="button" onClick={() => onReject(pendingApprovalId)}
+                className="rounded-md border border-border-subtle px-2.5 py-1 font-display text-[10px] uppercase tracking-[0.18em] text-text-muted transition hover:text-text-secondary">Reject</button>
+            </div>
           )}
         </div>
       </div>

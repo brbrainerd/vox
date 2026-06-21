@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import React from 'react';
+import userEvent from '@testing-library/user-event';
 import { AgentRow } from './AgentRow';
 import type { Agent } from '../../../types/dashboard';
+
+const agent: Agent = { id: 'A-1', codename: 'Atlas', phase: 'Executing', progress: 0.6, task: 'refactor', cost: 1, budget: null, eta: '2m' };
 
 const mockAgent: Agent = {
   id: 'A-1',
@@ -17,6 +19,18 @@ const mockAgent: Agent = {
 };
 
 const pausedAgent: Agent = { ...mockAgent, phase: 'Paused' };
+
+it('shows Approve/Reject only when a pending approval is supplied, and calls onApprove', async () => {
+  const onApprove = vi.fn();
+  render(<AgentRow a={agent} onPause={vi.fn()} onResume={vi.fn()} pendingApprovalId="ap1" onApprove={onApprove} onReject={vi.fn()} />);
+  await userEvent.click(screen.getByRole('button', { name: 'Approve' }));
+  expect(onApprove).toHaveBeenCalledWith('ap1');
+});
+
+it('renders no Approve/Reject without a pending approval', () => {
+  render(<AgentRow a={agent} onPause={vi.fn()} onResume={vi.fn()} />);
+  expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
+});
 
 describe('AgentRow', () => {
   it('renders agent codename', () => {
