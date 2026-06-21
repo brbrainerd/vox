@@ -26,7 +26,7 @@ describe('useMemoryStatus', () => {
   it('reports error and null count when the command rejects', async () => {
     mockGetMemoryStatus.mockRejectedValue(new Error('No workspace db found'));
     const { result } = renderHook(() => useMemoryStatus());
-    await waitFor(() => expect(mockGetMemoryStatus).toHaveBeenCalled());
+    await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.vectorCount).toBeNull();
     expect(result.current.error).toBe('No workspace db found');
   });

@@ -1,15 +1,22 @@
 import { describe, it, expect } from 'vitest';
-import { defaultDashboardLayout } from './dashboardLayout';
+import { defaultDashboardLayout, type DashboardLayout } from './dashboardLayout';
 import { reorderDashboardWidgets, resizeDashboardWidget } from './dashboardGrid';
+
+// Inline fixture so these math tests are independent of the product default layout.
+const fixture = (): DashboardLayout => ({ version: 1, columns: 12, widgets: [
+  { id: 'a', kind: 'stream', grid: { col: 1, row: 1, w: 8, h: 4 } },
+  { id: 'b', kind: 'alerts', grid: { col: 9, row: 1, w: 4, h: 2 } },
+  { id: 'c', kind: 'agents', grid: { col: 9, row: 3, w: 4, h: 2 } },
+] });
 
 describe('reorderDashboardWidgets', () => {
   it('swaps widget order when active and over differ', () => {
-    const layout = defaultDashboardLayout();
+    const layout = fixture();
     const ids = layout.widgets.map((w) => w.id);
-    expect(ids).toEqual(['stream', 'alerts', 'agents']);
+    expect(ids).toEqual(['a', 'b', 'c']);
 
-    const next = reorderDashboardWidgets(layout, 'stream', 'agents');
-    expect(next.widgets.map((w) => w.id)).toEqual(['agents', 'alerts', 'stream']);
+    const next = reorderDashboardWidgets(layout, 'a', 'c');
+    expect(next.widgets.map((w) => w.id)).toEqual(['c', 'b', 'a']);
   });
 
   it('returns the same layout when active and over are identical', () => {
@@ -27,9 +34,9 @@ describe('reorderDashboardWidgets', () => {
 
 describe('resizeDashboardWidget', () => {
   it('increases w and h when deltas are positive', () => {
-    const layout = defaultDashboardLayout();
-    const next = resizeDashboardWidget(layout, 'stream', 1, 1);
-    const stream = next.widgets.find((w) => w.id === 'stream');
+    const layout = fixture();
+    const next = resizeDashboardWidget(layout, 'a', 1, 1);
+    const stream = next.widgets.find((w) => w.id === 'a');
     expect(stream?.grid.w).toBe(9);
     expect(stream?.grid.h).toBe(5);
   });
