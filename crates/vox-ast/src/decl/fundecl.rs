@@ -3,6 +3,14 @@ use crate::span::Span;
 use crate::stmt::Stmt;
 use crate::types::TypeExpr;
 
+/// Explicit `@place(...)` tier override.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum PlacementHint {
+    Shared,
+    Native,
+    Gui,
+}
+
 /// Verification mode for contracts and assertions.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum VerifyMode {
@@ -184,6 +192,9 @@ pub struct FnDecl {
     pub test_strategy: Option<String>,
     /// Whether this function is a mobile native implementation bridge.
     pub is_mobile_native: bool,
+    /// Explicit `@place(...)` override; `None` = inferred.
+    #[serde(default)]
+    pub placement_override: Option<PlacementHint>,
     /// When `Some`, this function is a TS-source FFI extern: the body is empty
     /// and codegen-TS emits an `import { name } from "<module>"` instead of
     /// generating a body. Codegen-Rust treats calls to such functions as an

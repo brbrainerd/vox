@@ -286,7 +286,7 @@ impl Parser {
                     | Token::AtInference
                     | Token::AtTrainingStep
                     | Token::AtDeprecated
-                    | Token::AtNative
+                    | Token::AtPlace
                     | Token::AtUses
                     | Token::AtAuth
                     | Token::AtCors
@@ -395,6 +395,7 @@ impl Parser {
                 verify_mode: VerifyMode::Off,
                 test_strategy: None,
                 is_mobile_native: false,
+                placement_override: None,
                 ts_extern_module: None,
                 effects: vec![],
                 inference_model: None,
@@ -479,6 +480,7 @@ impl Parser {
                 | Token::AtDeprecated
                 | Token::AtLoading
                 | Token::AtTokens
+                | Token::AtPlace
                 | Token::AtUses
                 | Token::AtAuth
                 | Token::AtCors
@@ -676,7 +678,7 @@ impl Parser {
                     | Token::AtInference
                     | Token::AtTrainingStep
                     | Token::AtDeprecated
-                    | Token::AtNative
+                    | Token::AtPlace
                     | Token::AtUses
                     | Token::AtAuth
                     | Token::AtCors
@@ -722,7 +724,7 @@ impl Parser {
             | Token::AtInference
             | Token::AtTrainingStep
             | Token::AtDeprecated
-            | Token::AtNative
+            | Token::AtPlace
             | Token::AtUses
             | Token::AtAuth
             | Token::AtCors
@@ -755,7 +757,7 @@ impl Parser {
                     | Token::AtInference
                     | Token::AtTrainingStep
                     | Token::AtDeprecated
-                    | Token::AtNative
+                    | Token::AtPlace
                     | Token::AtUses
                     | Token::AtAuth
                     | Token::AtCors

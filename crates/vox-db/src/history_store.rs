@@ -142,6 +142,54 @@ pub async fn list_entries(
     Ok(entries)
 }
 
+/// Search entries from the history store matching a query in the redacted text, ordered by newest first.
+pub async fn search_entries(
+    db: &VoxDb,
+    repo_id: &str,
+    query: &str,
+    limit: u32,
+) -> Result<Vec<HistoryEntry>, StoreError> {
+    let repo_id = repo_id.to_string();
+    let query_pattern = format!("%{query}%");
+
+    let mut rows = db.connection()
+        .query(
+            "SELECT id, repo_id, kind, text, redacted_text, created_at, pinned, source, token_estimate
+             FROM history_entries
+             WHERE repo_id = ?1 AND redacted_text LIKE ?2
+             ORDER BY created_at DESC, id DESC
+             LIMIT ?3",
+            params![repo_id.as_str(), query_pattern.as_str(), limit as i64],
+        )
+        .await?;
+
+    let mut entries = Vec::new();
+    while let Some(row) = rows.next().await? {
+        let id: i64 = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+        let repo_id: String = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+        let kind: String = row.get(2).map_err(|e| StoreError::Db(e.to_string()))?;
+        let text: String = row.get(3).map_err(|e| StoreError::Db(e.to_string()))?;
+        let redacted_text: String = row.get(4).map_err(|e| StoreError::Db(e.to_string()))?;
+        let created_at: i64 = row.get(5).map_err(|e| StoreError::Db(e.to_string()))?;
+        let pinned_val: i64 = row.get(6).map_err(|e| StoreError::Db(e.to_string()))?;
+        let source: Option<String> = row.get(7).map_err(|e| StoreError::Db(e.to_string()))?;
+        let token_estimate: i64 = row.get(8).map_err(|e| StoreError::Db(e.to_string()))?;
+
+        entries.push(HistoryEntry {
+            id,
+            repo_id,
+            kind,
+            text,
+            redacted_text,
+            created_at,
+            pinned: pinned_val == 1,
+            source,
+            token_estimate,
+        });
+    }
+    Ok(entries)
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HistoryCaps {
     pub clip: i64,
@@ -305,5 +353,25 @@ mod tests {
         assert!(clips.iter().any(|c| c.text == "c0"));
         assert!(clips.iter().any(|c| c.text == "c4"));
         assert!(clips.iter().any(|c| c.text == "c3"));
+    }
+
+    #[tokio::test]
+    async fn search_redacted_text() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+        add_entry(&db, "r1", "clip", "secret-password token sk-123456789012", "", 1000, "cli")
+            .await
+            .expect("add");
+
+        let results = search_entries(&db, "r1", "sk-123456789012", 50)
+            .await
+            .expect("search");
+        // It should be redacted, so sk-123456789012 is not in redacted_text!
+        assert_eq!(results.len(), 0);
+
+        let results_redacted = search_entries(&db, "r1", "REDACTED", 50)
+            .await
+            .expect("search");
+        assert_eq!(results_redacted.len(), 1);
+        assert!(results_redacted[0].redacted_text.contains("[REDACTED_API_KEY]"));
     }
 }

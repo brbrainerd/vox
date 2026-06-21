@@ -255,6 +255,90 @@ impl crate::orchestrator::Orchestrator {
         }
     }
 
+    /// Signal a running local task to abort by setting its interrupt flag.
+    ///
+    /// The flag is stored in [`Orchestrator::interrupt_flags`]. The running
+    /// [`crate::runtime::AiTaskProcessor`] must poll this flag during inference to
+    /// actually stop early (see `crates/vox-orchestrator/src/interrupt.rs` for the
+    /// full wiring plan).  If the task is queued (not yet in-progress), this
+    /// delegates to `cancel_task` instead.
+    pub fn interrupt_task(&self, task_id: TaskId) -> Result<(), OrchestratorError> {
+        // Try to set the interrupt flag if the task has one registered.
+        let flag = crate::sync_lock::rw_read(&self.interrupt_flags)
+            .get(&task_id)
+            .cloned();
+        if let Some(f) = flag {
+            f.store(true, std::sync::atomic::Ordering::Release);
+            tracing::info!("Interrupt flag set for task {}", task_id);
+            // Only SIGNAL intent here. The authoritative `orch.task.cancelled`
+            // (`local_interrupt`) event is emitted exactly once by
+            // `abort_interrupted_task` when the runtime actually stops the task —
+            // with the real `agent_id` — avoiding a double-count.
+            return Ok(());
+        }
+        // Fall back to cancel for queued tasks.
+        self.cancel_task(task_id)
+    }
+
+    /// Release locks and emit telemetry when an in-progress local task aborts
+    /// because its interrupt flag was set (see `runtime::AiTaskProcessor`).
+    ///
+    /// Mirrors the lock-release path of [`Orchestrator::cancel_task`]: it revokes
+    /// the file lock, affinity, and scope-guard claims held by `agent_id` for the
+    /// interrupted task's write files (unless another queued/running task still
+    /// claims them), drops the task assignment, and emits the
+    /// `orch.task.cancelled` event with `path = "local_interrupt"`.
+    pub fn abort_interrupted_task(&self, task_id: TaskId, agent_id: AgentId) {
+        // Best-effort lock release: locate the task's write files from the
+        // agent's queue (in-progress or queued) and release any no-longer-claimed.
+        if let Some(queue_lock) = self.agent_queue(agent_id) {
+            let queue = crate::sync_lock::rw_read(&queue_lock);
+            let write_files: Vec<std::path::PathBuf> = queue
+                .current_task()
+                .filter(|t| t.id == task_id)
+                .map(|t| t.write_files().into_iter().cloned().collect::<Vec<_>>())
+                .or_else(|| {
+                    queue
+                        .tasks()
+                        .iter()
+                        .find(|t| t.id == task_id)
+                        .map(|t| t.write_files().into_iter().cloned().collect::<Vec<_>>())
+                })
+                .unwrap_or_default();
+            let still_claimed = |path: &std::path::Path| {
+                queue.current_task().is_some_and(|t| {
+                    t.id != task_id && t.write_files().iter().any(|p| p.as_path() == path)
+                }) || queue
+                    .tasks()
+                    .iter()
+                    .any(|t| t.id != task_id && t.write_files().iter().any(|p| p.as_path() == path))
+            };
+            for path in &write_files {
+                if !still_claimed(path) {
+                    self.lock_manager.release(path, agent_id);
+                    self.affinity_map.release(path);
+                    crate::sync_lock::rw_write(&*self.scope_guard).revoke_file(agent_id, path);
+                }
+            }
+        } else {
+            // Agent queue already gone (e.g. agent retired mid-abort): file locks
+            // can't be located here, but assignment + flag cleanup below still run.
+            tracing::warn!(
+                "abort_interrupted_task: no queue for agent {} (task {}); skipping file-lock release",
+                agent_id,
+                task_id
+            );
+        }
+        crate::sync_lock::rw_write(&self.task_assignments).remove(&task_id);
+        crate::sync_lock::rw_write(&self.interrupt_flags).remove(&task_id);
+        tracing::info!(
+            "Aborted interrupted task {} on agent {} (local_interrupt)",
+            task_id,
+            agent_id
+        );
+        emit_task_cancelled(task_id, agent_id, "local_interrupt");
+    }
+
     /// Reorder a queued task with a new priority.
     pub fn reorder_task(
         &self,

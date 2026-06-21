@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue([]) }));
@@ -53,5 +53,38 @@ describe('Loquela', () => {
     expect(
       screen.getByRole('button', { name: /choose skill/i }).getAttribute('aria-expanded'),
     ).toBe('false');
+  });
+
+  it('shows a Stop button while a task is in progress', () => {
+    renderLoquela({ taskInProgress: true, currentTaskId: 7 });
+    expect(screen.getByRole('button', { name: /stop/i })).toBeDefined();
+    expect(screen.queryByRole('button', { name: /run/i })).toBeNull();
+  });
+
+  it('Enter interrupts the running task instead of submitting', () => {
+    const onSubmit = vi.fn();
+    const onInterrupt = vi.fn();
+    renderLoquela({ taskInProgress: true, currentTaskId: 42, onSubmit, onInterrupt });
+    const ta = screen.getByLabelText('Task composer');
+    fireEvent.change(ta, { target: { value: 'next idea' } });
+    fireEvent.keyDown(ta, { key: 'Enter' });
+    expect(onInterrupt).toHaveBeenCalledWith(42);
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('Stop button click interrupts with the current task id', () => {
+    const onInterrupt = vi.fn();
+    renderLoquela({ taskInProgress: true, currentTaskId: 99, onInterrupt });
+    fireEvent.click(screen.getByRole('button', { name: /stop/i }));
+    expect(onInterrupt).toHaveBeenCalledWith(99);
+  });
+
+  it('Enter submits normally when no task is running', () => {
+    const onSubmit = vi.fn();
+    renderLoquela({ onSubmit });
+    const ta = screen.getByLabelText('Task composer');
+    fireEvent.change(ta, { target: { value: 'do a thing' } });
+    fireEvent.keyDown(ta, { key: 'Enter' });
+    expect(onSubmit).toHaveBeenCalled();
   });
 });

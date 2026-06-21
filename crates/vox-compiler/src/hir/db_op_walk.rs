@@ -60,6 +60,7 @@ fn walk_reactive_member(member: &HirReactiveMember, f: &mut impl FnMut(&HirExpr)
         HirReactiveMember::Effect(e) => walk_expr(&e.body, f),
         HirReactiveMember::OnMount(m) => walk_expr(&m.body, f),
         HirReactiveMember::OnCleanup(c) => walk_expr(&c.body, f),
+        HirReactiveMember::OnStream(s) => walk_expr(&s.body, f),
         HirReactiveMember::Stmt(s) => walk_stmt(s, f),
     }
 }
@@ -71,6 +72,7 @@ fn walk_reactive_member_mut(member: &mut HirReactiveMember, f: &mut impl FnMut(&
         HirReactiveMember::Effect(e) => walk_expr_mut(&mut e.body, f),
         HirReactiveMember::OnMount(m) => walk_expr_mut(&mut m.body, f),
         HirReactiveMember::OnCleanup(c) => walk_expr_mut(&mut c.body, f),
+        HirReactiveMember::OnStream(s) => walk_expr_mut(&mut s.body, f),
         HirReactiveMember::Stmt(s) => walk_stmt_mut(s, f),
     }
 }

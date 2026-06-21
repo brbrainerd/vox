@@ -376,6 +376,7 @@ mod semcov_wave12_tests {
             inference_model: None,
             training_step: false,
             distributed_train: None,
+            placement_override: None,
         }
     }
 

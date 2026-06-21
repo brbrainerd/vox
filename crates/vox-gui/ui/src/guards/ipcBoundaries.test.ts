@@ -47,6 +47,7 @@ describe('IPC boundaries (Phase 0B)', () => {
       'components/layout/Sidebar.tsx',
       'components/surfaces/Approvals/ApprovalsView.tsx',
       'components/surfaces/Browser/BrowserView.tsx',
+      'components/surfaces/Chat/ChatAgentEventRow.tsx',
       'components/surfaces/Chat/ChatSurface.tsx',
       'components/surfaces/CommandCardsView.tsx',
       'components/surfaces/Gamify/GamifyView.tsx',
@@ -56,6 +57,7 @@ describe('IPC boundaries (Phase 0B)', () => {
       'components/surfaces/Matrix/Matrix.tsx',
       'components/surfaces/Memory/MemoryView.tsx',
       'components/surfaces/Mesh/MeshView.tsx',
+      'components/surfaces/MissionControl/MissionControlPanel.tsx',
       'components/surfaces/Models/ModelsView.tsx',
       'components/surfaces/Policies/PoliciesView.tsx',
       'components/surfaces/Publications/PublicationsView.tsx',
@@ -74,6 +76,7 @@ describe('IPC boundaries (Phase 0B)', () => {
       'components/surfaces/Search/SearchView.tsx',
       'components/surfaces/Settings/SettingsView.tsx',
       'components/surfaces/SkillsPlugins/SkillsPluginsView.tsx',
+      'components/surfaces/SubAgents/subAgentClient.ts',
       'components/surfaces/Tasks/TasksView.tsx',
     ]);
 

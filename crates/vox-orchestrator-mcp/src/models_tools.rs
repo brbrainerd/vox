@@ -78,6 +78,8 @@ pub async fn suggest_model(state: &ServerState, params: SuggestModelParams) -> S
         free_tier_fill_in_middle: false,
         enforce_free_tier_only: false,
         context_fill_ratio: None,
+        clutch: None,
+        risk: None,
     };
     match resolve_mcp_chat_model_sync(orch, "", None, resolution) {
         Ok((model, _is_free)) => ToolResult::ok(model).to_json(),

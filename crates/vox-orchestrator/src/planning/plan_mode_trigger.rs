@@ -98,6 +98,34 @@ impl PlanModeTrigger {
             PlanModeDecision::React
         }
     }
+
+    /// Like `decide`, but lets the user's `ClutchProfile` override the signal-based
+    /// decision.
+    ///
+    /// - `Balanced`/`Genius` → always `PlanAndExecute` (plan-first).
+    /// - `Free`/`Efficiency` → always `React` (act-first, skip planning).
+    /// - `None` → falls through to signal-based `decide`.
+    #[must_use]
+    pub fn decide_with_clutch(
+        &self,
+        signal: &PlanModeSignal,
+        clutch: Option<crate::mode::ClutchProfile>,
+    ) -> PlanModeDecision {
+        use crate::mode::ClutchProfile;
+        match clutch {
+            Some(ClutchProfile::Balanced | ClutchProfile::Genius) => {
+                PlanModeDecision::PlanAndExecute
+            }
+            Some(ClutchProfile::Free | ClutchProfile::Efficiency) => PlanModeDecision::React,
+            None => self.decide(signal),
+        }
+    }
+}
+
+impl Default for PlanModeTrigger {
+    fn default() -> Self {
+        Self::new(PlanModeTriggerConfig::default())
+    }
 }
 
 /// Metric payload emitted when a plan-mode decision is made.
@@ -226,5 +254,64 @@ mod tests {
         let sig = PlanModeSignal::default();
         let ev = PlanModeEvent::new(PlanModeDecision::React, &sig, None);
         assert_eq!(ev.metric_type, "orch.plan.mode_decision");
+    }
+
+    #[test]
+    fn genius_clutch_forces_plan_and_execute_even_on_simple_task() {
+        let trigger = PlanModeTrigger::default();
+        let simple = PlanModeSignal {
+            complexity: 0,
+            dependency_count: 0,
+            tool_hint_count: 0,
+            prior_adequacy_score: 1.0,
+        };
+        assert_eq!(
+            trigger.decide_with_clutch(&simple, Some(crate::mode::ClutchProfile::Genius)),
+            PlanModeDecision::PlanAndExecute
+        );
+        assert_eq!(
+            trigger.decide_with_clutch(&simple, Some(crate::mode::ClutchProfile::Efficiency)),
+            PlanModeDecision::React
+        );
+    }
+
+    #[test]
+    fn clutch_free_forces_react() {
+        let trigger = PlanModeTrigger::default();
+        // Even a very complex task should React if clutch=Free.
+        let complex = PlanModeSignal {
+            complexity: 10,
+            dependency_count: 10,
+            tool_hint_count: 10,
+            prior_adequacy_score: 0.0,
+        };
+        assert_eq!(
+            trigger.decide_with_clutch(&complex, Some(crate::mode::ClutchProfile::Free)),
+            PlanModeDecision::React
+        );
+    }
+
+    #[test]
+    fn no_clutch_falls_through_to_signal_logic() {
+        let trigger = PlanModeTrigger::default();
+        let complex = PlanModeSignal {
+            complexity: 8,
+            ..Default::default()
+        };
+        // High complexity without a clutch override → PlanAndExecute from signal.
+        assert_eq!(
+            trigger.decide_with_clutch(&complex, None),
+            PlanModeDecision::PlanAndExecute
+        );
+        let simple = PlanModeSignal {
+            complexity: 1,
+            dependency_count: 0,
+            tool_hint_count: 0,
+            prior_adequacy_score: 1.0,
+        };
+        assert_eq!(
+            trigger.decide_with_clutch(&simple, None),
+            PlanModeDecision::React
+        );
     }
 }

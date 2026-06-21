@@ -230,6 +230,7 @@ impl LowerCtx {
             inference_model: f.inference_model.clone(),
             training_step: f.training_step,
             distributed_train: None,
+            placement_override: f.placement_override,
         }
     }
 
@@ -405,6 +406,14 @@ impl LowerCtx {
                     body: self.lower_expr(&c.body),
                     span: c.span,
                 }),
+                ReactiveMemberDecl::OnStream(s) => {
+                    HirReactiveMember::OnStream(crate::hir::HirOnStream {
+                        channel: s.channel.clone(),
+                        binding: s.binding.clone(),
+                        body: self.lower_expr(&s.body),
+                        span: s.span,
+                    })
+                }
                 ReactiveMemberDecl::Stmt(s) => HirReactiveMember::Stmt(self.lower_stmt(s)),
             })
             .collect();
@@ -584,6 +593,7 @@ impl LowerCtx {
             inference_model: None,
             training_step: false,
             distributed_train,
+            placement_override: None,
         }
     }
 
@@ -627,6 +637,7 @@ impl LowerCtx {
             inference_model: None,
             training_step: false,
             distributed_train: None,
+            placement_override: None,
         }
     }
 
@@ -678,6 +689,7 @@ impl LowerCtx {
             inference_model: None,
             training_step: false,
             distributed_train: None,
+            placement_override: None,
         }
     }
 
@@ -732,6 +744,7 @@ impl LowerCtx {
                     inference_model: None,
                     training_step: false,
                     distributed_train: None,
+                    placement_override: None,
                 }
             })
             .collect()

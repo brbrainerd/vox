@@ -36,10 +36,18 @@
       "workspace-hack"
     ],
     "vox-bounded-fs": [
-      "vox-scaling-policy"
+      "vox-scaling-policy",
+      "workspace-hack"
     ],
     "vox-build-meta": [],
+    "vox-build-queue": [
+      "workspace-hack"
+    ],
     "vox-capability-registry": [
+      "workspace-hack"
+    ],
+    "vox-cargo-shim": [
+      "vox-build-queue",
       "workspace-hack"
     ],
     "vox-cli": [
@@ -97,7 +105,7 @@
       "vox-sql",
       "vox-tauri-codegen",
       "vox-telemetry",
-      "vox-telemetry-otlp",
+      "vox-term",
       "workspace-hack"
     ],
     "vox-cli-ci": [
@@ -173,7 +181,6 @@
       "vox-llm-config",
       "vox-llm-egress",
       "vox-secrets",
-      "vox-telemetry",
       "workspace-hack"
     ],
     "vox-constrained-gen": [
@@ -191,7 +198,6 @@
       "vox-bounded-fs",
       "vox-compiler",
       "vox-db",
-      "vox-eval",
       "vox-mcp-registry",
       "vox-repository"
     ],
@@ -296,7 +302,8 @@
       "vox-scientia",
       "vox-search",
       "vox-secrets",
-      "vox-speech"
+      "vox-speech",
+      "vox-terminal-core"
     ],
     "vox-hf-layout": [
       "vox-bounded-fs"
@@ -450,8 +457,6 @@
       "vox-bounded-fs",
       "vox-capability-registry",
       "vox-code-audit",
-      "vox-codegen",
-      "vox-codegen-ts",
       "vox-compiler",
       "vox-config",
       "vox-corpus",
@@ -611,13 +616,11 @@
     ],
     "vox-populi": [
       "vox-bounded-fs",
-      "vox-compiler",
       "vox-config",
       "vox-constrained-gen",
       "vox-corpus",
       "vox-crypto",
       "vox-db",
-      "vox-eval",
       "vox-foundation",
       "vox-grammar-export",
       "vox-hf-layout",
@@ -626,7 +629,6 @@
       "vox-mesh-types",
       "vox-orchestrator-queue",
       "vox-package",
-      "vox-plugin-host",
       "vox-populi-types",
       "vox-quantize",
       "vox-repository",
@@ -693,7 +695,8 @@
       "vox-runtime"
     ],
     "vox-scaling-policy": [
-      "vox-mesh-types"
+      "vox-mesh-types",
+      "workspace-hack"
     ],
     "vox-scientia": [
       "vox-actor-runtime",
@@ -720,15 +723,10 @@
     ],
     "vox-secrets": [
       "vox-bounded-fs",
-      "vox-crypto"
+      "vox-crypto",
+      "workspace-hack"
     ],
     "vox-shell-stdlib-types": [],
-    "vox-similarity": [],
-    "vox-skill-discovery": [
-      "vox-mcp-registry",
-      "vox-plugin-types",
-      "vox-similarity"
-    ],
     "vox-skill-runtime": [
       "workspace-hack"
     ],
@@ -759,15 +757,20 @@
     "vox-telemetry": [
       "workspace-hack"
     ],
-    "vox-telemetry-otlp": [
-      "vox-telemetry",
-      "workspace-hack"
-    ],
     "vox-tensor": [
       "vox-actor-runtime",
       "workspace-hack"
     ],
+    "vox-term": [
+      "vox-terminal-core"
+    ],
+    "vox-terminal-core": [
+      "vox-compiler",
+      "vox-journal",
+      "vox-orchestrator"
+    ],
     "vox-test-harness": [
+      "vox-codegen",
       "vox-compiler",
       "vox-config",
       "vox-secrets",

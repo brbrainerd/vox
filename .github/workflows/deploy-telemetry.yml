@@ -1,0 +1,137 @@
+name: Deploy Telemetry (Coolify)
+
+# Deploys telemetry.voxlang.org to the Hetzner Coolify instance (Vox Foundation
+# project), then verifies the public HTTPS /healthz endpoint.
+#
+# KEY DESIGN: the Coolify deploy is driven by Vox's OWN hardened Rust CLI
+# (`vox ci coolify-eval sync-compose --app-uuid …`), which already PATCHes
+# docker_compose_raw + triggers the deploy with read/write token split and
+# 403/HTML-login tolerance. We do NOT copy-paste the trigger/poll bash from
+# deploy-hetzner.yml — single source of deploy logic, parameterized by app UUID.
+#
+# Runs on ubuntu-latest (vox is public → free minutes; deploy never waits on the
+# self-hosted fleet). See docs/src/ci/compute-placement.md.
+
+on:
+  workflow_run:
+    workflows: ["Build & Push vox-telemetry-server Docker Image"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      skip_public_health_probe:
+        description: "Skip the strict public HTTPS /healthz probe (incidents only)"
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: deploy-telemetry-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-coolify:
+    name: "Gate 2: Deploy & Poll (telemetry)"
+    # Only deploy if the image build succeeded (or on manual dispatch).
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    env:
+      COOLIFY_BASE_URL: ${{ secrets.COOLIFY_BASE_URL }}
+      COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+      COOLIFY_READ_TOKEN: ${{ secrets.COOLIFY_READ_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+          shared-key: "coolify-telemetry"
+
+      - name: Sync compose + deploy the telemetry app
+        run: |
+          set -euo pipefail
+          APP_UUID="${{ secrets.COOLIFY_TELEMETRY_APP_UUID }}"
+          if [ -z "$APP_UUID" ]; then
+            echo "::error::COOLIFY_TELEMETRY_APP_UUID is not set. Create the telemetry"
+            echo "Docker-Compose app in the existing 'Vox Ecosystem' Coolify project"
+            echo "(uuid no88080okk0c0gk4ss0cgw0o), then add its UUID as a repo secret"
+            echo "(see docs/src/ci/deploy-contract.md, Phase 6)."
+            exit 1
+          fi
+          # Reuse Vox's hardened Coolify CLI; --app-uuid targets the telemetry app
+          # (not the default eval app). PATCHes docker_compose_raw + triggers deploy.
+          cargo run -p vox-cli --quiet ci coolify-eval sync-compose \
+            --compose docker/vox-telemetry.compose.yml \
+            --app-uuid "$APP_UUID" \
+            --domains https://telemetry.voxlang.org \
+            --deploy
+
+  health-check:
+    name: "Gate 3: Health Check (telemetry)"
+    needs: [deploy-coolify]
+    if: ${{ always() && needs.deploy-coolify.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for container to settle
+        run: sleep 15
+
+      - name: Probe public telemetry host (HTTPS, verified TLS)
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.skip_public_health_probe != 'true' }}
+        env:
+          PROBE_URL: ${{ secrets.COOLIFY_PUBLIC_TELEMETRY_HEALTH_URL }}
+        run: |
+          set -euo pipefail
+          URL="${PROBE_URL:-https://telemetry.voxlang.org/healthz}"
+          echo "Public HTTPS probe (curl CA verification, no -k): $URL"
+          ok=""
+          for i in $(seq 1 24); do
+            tmp="$(mktemp)"
+            http="$(curl -sS -o "$tmp" -w '%{http_code}' "$URL" || echo "000")"
+            body="$(cat "$tmp" 2>/dev/null || true)"
+            rm -f "$tmp"
+            body_trim="$(printf '%s' "$body" | tr -d '\r\n')"
+            if [ "$http" = "200" ]; then
+              echo "✅ HTTP $http — body (trimmed): ${body_trim} (${#body_trim} bytes)"
+              if [ "$body_trim" != "ok" ]; then
+                echo "::error::telemetry /healthz must return body exactly 'ok' after trimming CRLF (raw ${#body} bytes)"
+                exit 1
+              fi
+              ok="1"
+              break
+            fi
+            echo "[$i/24] HTTP $http — body head: $(printf '%s' "$body" | head -c 120)"
+            sleep 10
+          done
+          if [ -z "$ok" ]; then
+            echo "::error::telemetry /healthz probe failed after ~4m: $URL"
+            echo "Check Coolify: Traefik Host rule for telemetry.voxlang.org, Let's Encrypt"
+            echo "cert (public CA, not self-signed), and the vox-server Docker healthcheck."
+            exit 1
+          fi
+
+  notify:
+    name: "Gate 4: Summary"
+    needs: [deploy-coolify, health-check]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write deployment summary
+        run: |
+          {
+            echo "# 📡 Telemetry Deployment Summary"
+            echo ""
+            echo "| Stage | Result |"
+            echo "|---|---|"
+            echo "| Coolify Deploy | ${{ needs.deploy-coolify.result }} |"
+            echo "| Health Check | ${{ needs.health-check.result }} |"
+            echo ""
+            echo "Host: telemetry.voxlang.org  Commit: \`${{ github.sha }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -39,6 +39,7 @@ pub struct RetiredDecoratorDetector {
     component_fn: Regex,
     endpoint_kind: Regex,
     py_import: Regex,
+    native_decorator: Regex,
     supported_langs: Vec<Language>,
 }
 
@@ -58,6 +59,7 @@ impl RetiredDecoratorDetector {
             endpoint_kind: Regex::new(r"@endpoint\s*\(\s*kind\s*:\s*(server|query|mutation)\s*\)")
                 .expect("valid regex"),
             py_import: Regex::new(r"@py\.import\b").expect("valid regex"),
+            native_decorator: Regex::new(r"@native\b").expect("valid regex"),
             supported_langs: vec![Language::Vox],
         }
     }
@@ -232,6 +234,23 @@ parser would otherwise report the literal text as an unknown token."
                      longer a Vox glue surface. `@py.import` directives leak Python-side state \
                      into the Vox compiler and cannot be analyzed by the effect system.",
                 ));
+            }
+
+            if let Some(m) = self.native_decorator.find(line) {
+                findings.push(
+                    self.build_finding(
+                        file,
+                        line_num,
+                        m.start() + 1,
+                        Severity::Error,
+                        "Retired form `@native` — use `@place(native)` instead.".to_string(),
+                        "@place(native) is the replacement; see AGENTS.md §Retired Surfaces"
+                            .to_string(),
+                        "AGENTS.md §Retired Surfaces: `@native` was retired in favor of the \
+                     `@place(native)` placement decorator introduced by the Vox placement model. \
+                     The `@native` token has been removed from the lexer.",
+                    ),
+                );
             }
         }
 
@@ -426,5 +445,19 @@ mod tests {
         let f = source("@component fn Foo() {}");
         let findings = d.detect(&f, None);
         assert_eq!(findings[0].confidence, Some(FindingConfidence::High));
+    }
+
+    #[test]
+    fn flags_retired_native_decorator() {
+        let d = RetiredDecoratorDetector::new();
+        let f = source("@native fn perf() { 0 }");
+        let findings = d.detect(&f, None);
+        assert!(findings.iter().any(|x| {
+            x.message.contains("@native")
+                && x.suggestion
+                    .as_deref()
+                    .unwrap_or("")
+                    .contains("@place(native)")
+        }));
     }
 }

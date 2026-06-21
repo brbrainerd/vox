@@ -18,6 +18,9 @@ exclude = [
     "crates/vox-plugin-skill-testing",
     "crates/vox-plugin-skill-testing-validate",
     "crates/vox-plugin-skill-v0",
+    # Telemetry ingest server — own self-contained workspace; ClickHouse deps
+    # never enter the main cargo graph / arch-check. See server/telemetry/Cargo.toml.
+    "server/telemetry",
 ]
 default-members = ["crates/vox-cli"]
 
@@ -198,6 +201,11 @@ typify             = "0.7"
 miette             = { version = "7.6", features = ["fancy"] }
 aho-corasick       = "1"
 nucleo             = { version = "0.5" }
+ratatui            = { version = "0.30" }
+crossterm          = { version = "0.29" }
+reedline           = { version = "0.48" }
+alacritty_terminal = { version = "0.26" }
+portable-pty       = "0.9"
 tokio              = { version = "1", features = ["rt", "macros", "sync", "time", "net", "process", "io-util", "fs", "rt-multi-thread", "signal"] }
 tokio-stream       = { version = "0.1", default-features = false }
 tracing            = "0.1"

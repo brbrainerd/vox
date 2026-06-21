@@ -212,6 +212,7 @@ pub fn collect_component_import_refs(
             HirReactiveMember::Effect(e) => visit(&e.body, &mut comps, &mut endpoints),
             HirReactiveMember::OnMount(o) => visit(&o.body, &mut comps, &mut endpoints),
             HirReactiveMember::OnCleanup(o) => visit(&o.body, &mut comps, &mut endpoints),
+            HirReactiveMember::OnStream(o) => visit(&o.body, &mut comps, &mut endpoints),
             HirReactiveMember::Stmt(s) => {
                 collect_jsx_component_refs_stmt(s, known_components, &mut comps);
                 collect_callee_refs_stmt(s, endpoint_names, &mut endpoints);

@@ -286,6 +286,33 @@ pub struct TaskEnqueueHints {
     /// Optional tenant ID for budget tracking.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tenant_id: Option<String>,
+    /// Drive Console clutch label (`free`|`efficiency`|`balanced`|`genius`); parsed in [`AgentTask::apply_hints`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub clutch: Option<String>,
+    /// Drive Console risk label (`high`|`moderate`|`low`); parsed in [`AgentTask::apply_hints`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub risk: Option<String>,
+}
+
+/// Attribution record for which model was actually used to execute a task.
+///
+/// Populated at the inference/dispatch site and stashed on [`AgentTask`] so the
+/// completion handler can copy it onto [`CompletionAttestation`] without a separate
+/// lookup.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SelectedModelRecord {
+    /// The model id that ran this task (e.g. `"anthropic/claude-opus-4-5"`).
+    pub model_id: String,
+    /// Provider family label from `backend_telemetry_labels` (e.g. `"anthropic"`).
+    pub provider: String,
+    /// Short description of why this model was chosen (serialised `SelectionReason`).
+    pub selection_reason: String,
+    /// Input tokens consumed, if known at record time.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub request_tokens: Option<u64>,
+    /// Wall-clock latency in milliseconds, if measured at record time.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub latency_ms: Option<u64>,
 }
 
 /// Completion-time attestation metadata supplied by clients (e.g. MCP) for policy checks.
@@ -318,6 +345,163 @@ pub struct CompletionAttestation {
     /// Populated by the MCP completion handler when an `Observer` was active for this task.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub observation_summary: Option<crate::observer::ObservationSummary>,
+    /// Model that actually completed this task (e.g. "anthropic/claude-opus").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub completing_model: Option<String>,
+    /// Provider route for the completing model.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
+    /// Why this model was selected (`SelectionReason` rendered as a short string).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub selection_reason: Option<String>,
+    /// Input tokens sent for this task.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub request_tokens: Option<u64>,
+    /// Output tokens received for this task.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub response_tokens: Option<u64>,
+    /// End-to-end latency in milliseconds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub latency_ms: Option<u64>,
+    /// Optional pointer to a captured request/response digest (privacy-gated).
+    /// Only populated when the user enables I/O capture; never stores raw payload inline.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub io_digest_ref: Option<String>,
+}
+
+#[cfg(test)]
+mod attribution_tests {
+    use super::*;
+
+    #[test]
+    fn attestation_roundtrips_attribution() {
+        let a = CompletionAttestation {
+            completing_model: Some("anthropic/claude-opus".into()),
+            provider: Some("anthropic".into()),
+            selection_reason: Some("scored".into()),
+            request_tokens: Some(4200),
+            response_tokens: Some(1100),
+            latency_ms: Some(820),
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&a).unwrap();
+        let back: CompletionAttestation = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            back.completing_model.as_deref(),
+            Some("anthropic/claude-opus")
+        );
+        assert_eq!(back.request_tokens, Some(4200));
+    }
+
+    #[test]
+    fn old_attestation_without_attribution_still_parses() {
+        // Backward compatibility: a payload predating these fields must deserialize.
+        let old = r#"{"declared_non_placeholder":true}"#;
+        let a: CompletionAttestation = serde_json::from_str(old).unwrap();
+        assert!(a.completing_model.is_none());
+        assert!(a.declared_non_placeholder);
+    }
+
+    #[test]
+    fn attestation_serializes_new_fields_as_optional() {
+        // All new fields None → they must be absent from the JSON output.
+        let a = CompletionAttestation::default();
+        let json = serde_json::to_string(&a).unwrap();
+        assert!(
+            !json.contains("completing_model"),
+            "completing_model should be absent: {json}"
+        );
+        assert!(
+            !json.contains("provider"),
+            "provider should be absent: {json}"
+        );
+        assert!(
+            !json.contains("selection_reason"),
+            "selection_reason should be absent: {json}"
+        );
+        assert!(
+            !json.contains("request_tokens"),
+            "request_tokens should be absent: {json}"
+        );
+        assert!(
+            !json.contains("response_tokens"),
+            "response_tokens should be absent: {json}"
+        );
+        assert!(
+            !json.contains("latency_ms"),
+            "latency_ms should be absent: {json}"
+        );
+        assert!(
+            !json.contains("io_digest_ref"),
+            "io_digest_ref should be absent: {json}"
+        );
+    }
+
+    #[test]
+    fn selected_model_record_survives_round_trip() {
+        let rec = SelectedModelRecord {
+            model_id: "anthropic/claude-opus-4-5".to_string(),
+            provider: "anthropic".to_string(),
+            selection_reason: "Scored".to_string(),
+            request_tokens: Some(1234),
+            latency_ms: Some(500),
+        };
+        let json = serde_json::to_string(&rec).unwrap();
+        let back: SelectedModelRecord = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.model_id, "anthropic/claude-opus-4-5");
+        assert_eq!(back.provider, "anthropic");
+        assert_eq!(back.selection_reason, "Scored");
+        assert_eq!(back.request_tokens, Some(1234));
+        assert_eq!(back.latency_ms, Some(500));
+    }
+
+    #[test]
+    fn selected_model_record_optional_fields_absent_when_none() {
+        let rec = SelectedModelRecord {
+            model_id: "openai/gpt-4o".to_string(),
+            provider: "openai".to_string(),
+            selection_reason: "LocalOnly".to_string(),
+            request_tokens: None,
+            latency_ms: None,
+        };
+        let json = serde_json::to_string(&rec).unwrap();
+        assert!(
+            !json.contains("request_tokens"),
+            "request_tokens should be absent: {json}"
+        );
+        assert!(
+            !json.contains("latency_ms"),
+            "latency_ms should be absent: {json}"
+        );
+    }
+}
+
+/// Per-task mesh execution policy.
+///
+/// Controls which mesh nodes are eligible to run this task. The default (`Any`) allows
+/// any available node. `LocalOnly` forces local execution. `Exclude` filters out named
+/// nodes from the candidate set.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum MeshPolicy {
+    #[default]
+    Any,
+    LocalOnly,
+    Exclude(Vec<String>),
+}
+
+impl MeshPolicy {
+    /// Returns `true` when `node_id` is eligible to execute this task under the policy.
+    ///
+    /// `"local"` is the conventional id for the current node.
+    #[must_use]
+    pub fn allows_node(&self, node_id: &str) -> bool {
+        match self {
+            Self::Any => true,
+            Self::LocalOnly => node_id == "local",
+            Self::Exclude(list) => !list.iter().any(|n| n == node_id),
+        }
+    }
 }
 
 /// Description of a task before it is assigned an ID and routed in the orchestrator.
@@ -491,6 +675,28 @@ pub struct AgentTask {
     /// Optional tenant ID for budget tracking.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tenant_id: Option<String>,
+    /// Attribution record written by the inference/dispatch layer and copied to
+    /// [`CompletionAttestation`] at task completion.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub selected_model_record: Option<SelectedModelRecord>,
+    /// Live Plan/Act/Verify loop state (Track D). `None` for tasks that predate
+    /// the PAV loop or were submitted without a clutch override.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pav_loop: Option<crate::planning::phase_loop::PavLoopState>,
+    /// Per-task mesh execution policy (local-only / exclude peers).
+    #[serde(default)]
+    pub mesh_policy: MeshPolicy,
+    /// Node that actually executed this task (audit). `None` = local or not yet run.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub executor_node_id: Option<String>,
+    /// User-selected clutch ("how much gas") profile from the Drive Console.
+    /// `None` = no override; routing falls back to the neutral `Balanced` resolution.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub clutch_profile: Option<crate::mode::ClutchProfile>,
+    /// User-selected risk posture ("acceptable risk") from the Drive Console.
+    /// `None` = no override; gating falls back to the neutral `Moderate` resolution.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub risk_posture: Option<crate::mode::RiskPosture>,
 }
 
 impl AgentTask {
@@ -561,6 +767,12 @@ impl AgentTask {
             attachment_manifest: None,
             active_skill: None,
             tenant_id: None,
+            selected_model_record: None,
+            pav_loop: None,
+            mesh_policy: MeshPolicy::Any,
+            executor_node_id: None,
+            clutch_profile: None,
+            risk_posture: None,
         }
     }
 
@@ -718,6 +930,34 @@ impl AgentTask {
         if let Some(ref tenant_id) = h.tenant_id {
             self.tenant_id = Some(tenant_id.clone());
         }
+        if let Some(ref clutch) = h.clutch {
+            if let Some(profile) = crate::mode::ClutchProfile::from_label(clutch) {
+                self.clutch_profile = Some(profile);
+            }
+        }
+        if let Some(ref risk) = h.risk {
+            if let Some(posture) = crate::mode::RiskPosture::from_label(risk) {
+                self.risk_posture = Some(posture);
+            }
+        }
+    }
+
+    /// Resolve the clutch profile to its safety/quality gates, falling back to the
+    /// neutral `Balanced` resolution when no override was supplied.
+    #[must_use]
+    pub fn resolved_clutch(&self) -> crate::mode::ResolvedClutch {
+        self.clutch_profile
+            .unwrap_or(crate::mode::ClutchProfile::Balanced)
+            .resolve()
+    }
+
+    /// Resolve the risk posture to its safety gates, falling back to the neutral
+    /// `Moderate` resolution when no override was supplied.
+    #[must_use]
+    pub fn resolved_risk(&self) -> crate::mode::ResolvedRisk {
+        self.risk_posture
+            .unwrap_or(crate::mode::RiskPosture::Moderate)
+            .resolve()
     }
 
     /// Mark the task as started, recording the start timestamp.
@@ -822,6 +1062,83 @@ mod tests {
     }
 
     #[test]
+    fn apply_hints_parses_clutch_labels() {
+        for (label, expected) in [
+            ("free", crate::mode::ClutchProfile::Free),
+            ("Efficiency", crate::mode::ClutchProfile::Efficiency),
+            ("BALANCED", crate::mode::ClutchProfile::Balanced),
+            ("genius", crate::mode::ClutchProfile::Genius),
+        ] {
+            let mut task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
+            let hints = TaskEnqueueHints {
+                clutch: Some(label.to_string()),
+                ..Default::default()
+            };
+            task.apply_hints(&hints);
+            assert_eq!(task.clutch_profile, Some(expected), "label {label}");
+        }
+    }
+
+    #[test]
+    fn apply_hints_parses_risk_labels() {
+        for (label, expected) in [
+            ("high", crate::mode::RiskPosture::High),
+            ("Moderate", crate::mode::RiskPosture::Moderate),
+            ("LOW", crate::mode::RiskPosture::Low),
+        ] {
+            let mut task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
+            let hints = TaskEnqueueHints {
+                risk: Some(label.to_string()),
+                ..Default::default()
+            };
+            task.apply_hints(&hints);
+            assert_eq!(task.risk_posture, Some(expected), "label {label}");
+        }
+    }
+
+    #[test]
+    fn apply_hints_unknown_clutch_risk_leaves_none() {
+        let mut task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
+        let hints = TaskEnqueueHints {
+            clutch: Some("turbo".to_string()),
+            risk: Some("reckless".to_string()),
+            ..Default::default()
+        };
+        task.apply_hints(&hints);
+        assert_eq!(task.clutch_profile, None);
+        assert_eq!(task.risk_posture, None);
+    }
+
+    #[test]
+    fn resolved_clutch_risk_fall_back_to_neutral_defaults() {
+        let task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
+        assert_eq!(task.clutch_profile, None);
+        assert_eq!(task.risk_posture, None);
+        assert_eq!(
+            task.resolved_clutch(),
+            crate::mode::ClutchProfile::Balanced.resolve()
+        );
+        assert_eq!(
+            task.resolved_risk(),
+            crate::mode::RiskPosture::Moderate.resolve()
+        );
+    }
+
+    #[test]
+    fn agent_task_clutch_risk_serde_round_trip() {
+        let mut task = AgentTask::new(TaskId(7), "t", TaskPriority::Normal, vec![]);
+        task.clutch_profile = Some(crate::mode::ClutchProfile::Genius);
+        task.risk_posture = Some(crate::mode::RiskPosture::Low);
+        let json = serde_json::to_string(&task).unwrap();
+        let back: AgentTask = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            back.clutch_profile,
+            Some(crate::mode::ClutchProfile::Genius)
+        );
+        assert_eq!(back.risk_posture, Some(crate::mode::RiskPosture::Low));
+    }
+
+    #[test]
     fn agent_task_dependency_check() {
         let task = AgentTask::new(TaskId(1), "test task", TaskPriority::Normal, vec![])
             .depends_on(TaskId(10))
@@ -913,6 +1230,8 @@ mod tests {
             budget: None,
             active_skill: None,
             tenant_id: None,
+            clutch: None,
+            risk: None,
         };
         let json = serde_json::to_string(&hints).expect("serialize hints");
         let back: TaskEnqueueHints = serde_json::from_str(&json).expect("deserialize hints");
@@ -930,6 +1249,51 @@ mod tests {
             back.harness_spec_json.as_deref(),
             Some("{\"schema_version\":1}")
         );
+    }
+}
+
+#[cfg(test)]
+mod mesh_policy_tests {
+    use super::*;
+
+    #[test]
+    fn mesh_policy_defaults_to_any() {
+        assert_eq!(MeshPolicy::default(), MeshPolicy::Any);
+    }
+
+    #[test]
+    fn local_only_forbids_remote() {
+        assert!(!MeshPolicy::LocalOnly.allows_node("peer-7"));
+        assert!(MeshPolicy::LocalOnly.allows_node("local"));
+    }
+
+    #[test]
+    fn exclude_peer_blocks_named() {
+        let p = MeshPolicy::Exclude(vec!["peer-7".into()]);
+        assert!(!p.allows_node("peer-7"));
+        assert!(p.allows_node("peer-9"));
+    }
+
+    #[test]
+    fn any_allows_all_nodes() {
+        assert!(MeshPolicy::Any.allows_node("peer-7"));
+        assert!(MeshPolicy::Any.allows_node("local"));
+        assert!(MeshPolicy::Any.allows_node("remote-xyz"));
+    }
+
+    #[test]
+    fn mesh_policy_roundtrips_via_serde() {
+        let p = MeshPolicy::Exclude(vec!["peer-1".into(), "peer-2".into()]);
+        let json = serde_json::to_string(&p).unwrap();
+        let back: MeshPolicy = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, p);
+    }
+
+    #[test]
+    fn agent_task_has_mesh_policy_field_with_default_any() {
+        let task = AgentTask::new(TaskId(1), "test", TaskPriority::Normal, vec![]);
+        assert_eq!(task.mesh_policy, MeshPolicy::Any);
+        assert!(task.executor_node_id.is_none());
     }
 }
 

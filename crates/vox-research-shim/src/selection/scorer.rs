@@ -1,5 +1,5 @@
 use vox_orchestrator::config::CostPreference;
-use vox_orchestrator::mode::ExecutionModeProfile;
+use vox_orchestrator::mode::ResolvedClutch;
 use vox_orchestrator::models::{ModelSpec, ModelTier, ProviderType};
 use vox_orchestrator::types::TaskCategory;
 
@@ -57,8 +57,8 @@ pub struct ScoreParams {
     pub requires_web_search: bool,
     /// Whether the model has an equivalent available via OpenRouter (to avoid duplicates).
     pub has_openrouter_equivalent: bool,
-    /// Optional execution mode profile for specific bonuses.
-    pub mode: Option<ExecutionModeProfile>,
+    /// Optional resolved clutch for quality-driven bonuses.
+    pub mode: Option<ResolvedClutch>,
 }
 
 impl ModelScorer {
@@ -174,25 +174,32 @@ impl ModelScorer {
         score
     }
 
-    /// Mode-specific score adjustment. Efficient/fast favour economy; verbose/precision favour quality.
-    fn mode_bonus(mode: ExecutionModeProfile, model: &ModelSpec) -> f64 {
-        match mode {
-            ExecutionModeProfile::Efficient | ExecutionModeProfile::LegacyDefault => {
-                if model.is_free { 1.0 } else { -0.5 }
+    /// Quality-driven score adjustment, keyed off the resolved clutch's quality.
+    ///
+    /// Preserves the exact deltas of the former `ExecutionModeProfile` path:
+    /// - `Flash`   → old `Fast`      bonuses (tier-keyed)
+    /// - `Balanced`→ old `Efficient` bonuses (free vs. paid; `LegacyDefault` collapsed in)
+    /// - `Premium` → old `Precision` bonuses (tier-keyed)
+    ///
+    /// The old `Verbose` profile had no `QualityLevel` equivalent and was never
+    /// emitted by any production path, so it is dropped.
+    fn mode_bonus(resolved: ResolvedClutch, model: &ModelSpec) -> f64 {
+        use vox_orchestrator::mode::QualityLevel;
+        match resolved.quality {
+            QualityLevel::Balanced => {
+                if model.is_free {
+                    1.0
+                } else {
+                    -0.5
+                }
             }
-            ExecutionModeProfile::Fast => match model.capabilities.tier {
+            QualityLevel::Flash => match model.capabilities.tier {
                 ModelTier::Fast => 1.5,
                 ModelTier::Free => 0.5,
                 ModelTier::Pro => -0.5,
                 _ => 0.0,
             },
-            ExecutionModeProfile::Verbose => match model.capabilities.tier {
-                ModelTier::Pro => 0.5,
-                ModelTier::Fast => 0.0,
-                ModelTier::Free => -0.3,
-                _ => 0.0,
-            },
-            ExecutionModeProfile::Precision => match model.capabilities.tier {
+            QualityLevel::Premium => match model.capabilities.tier {
                 ModelTier::Pro => 1.0,
                 ModelTier::Fast => -0.3,
                 ModelTier::Free => -0.8,
@@ -212,7 +219,7 @@ impl ModelScorer {
         cfg: &vox_orchestrator::mode::InferenceConfig,
         has_openrouter_equivalent: bool,
     ) -> f64 {
-        use vox_orchestrator::mode::{QualityLevel, TierProfile};
+        use vox_orchestrator::mode::{ClutchProfile, QualityLevel, TierProfile};
 
         // Manual tier: only score the exact model ID.
         if let TierProfile::Manual(ref id) = cfg.tier {
@@ -233,11 +240,17 @@ impl ModelScorer {
             return f64::NEG_INFINITY;
         }
 
-        let mode_hint = match cfg.quality {
-            QualityLevel::Flash => Some(ExecutionModeProfile::Fast),
-            QualityLevel::Balanced => Some(ExecutionModeProfile::Efficient),
-            QualityLevel::Premium => Some(ExecutionModeProfile::Precision),
-        };
+        // Map the quality level to the clutch detent that resolves to the same
+        // quality, preserving the former Flash→Fast / Balanced→Efficient /
+        // Premium→Precision bonus mapping in `mode_bonus`.
+        let mode_hint = Some(
+            match cfg.quality {
+                QualityLevel::Flash => ClutchProfile::Efficiency,
+                QualityLevel::Balanced => ClutchProfile::Balanced,
+                QualityLevel::Premium => ClutchProfile::Genius,
+            }
+            .resolve(),
+        );
 
         self.score_with_mode(ScoreParams {
             model: Some(model.clone()),

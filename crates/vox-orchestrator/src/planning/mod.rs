@@ -2,6 +2,8 @@ pub mod content_blocks;
 pub mod executor_bridge;
 pub mod intake_router;
 pub mod orient;
+/// Pure Plan/Act/Verify phase machine (Track D).
+pub mod phase_loop;
 pub mod plan_adequacy;
 /// Plan-mode vs. ReAct mode decision trigger (D2).
 pub mod plan_mode_trigger;

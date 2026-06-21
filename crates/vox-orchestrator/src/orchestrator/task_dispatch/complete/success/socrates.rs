@@ -14,7 +14,10 @@ impl Orchestrator {
         trust_relax_gates: bool,
     ) -> Result<GateOutcome, OrchestratorError> {
         let Some(ref ctx) = task.socrates else {
-            return Ok(GateOutcome { requeue: None });
+            return Ok(GateOutcome {
+                requeue: None,
+                needs_review_approval: false,
+            });
         };
 
         let envelope_raw = task.session_id.as_ref().and_then(|sid| {
@@ -41,11 +44,24 @@ impl Orchestrator {
             } else {
                 (false, false)
             };
+            // Task E: per-task RiskPosture overrides the global enforce flags.
+            // A Low-risk task forces grounding+socrates enforcement true even when
+            // the global default is off; None (Moderate-equivalent) leaves the
+            // global value unchanged so default behavior is preserved.
+            let resolved = task.resolved_risk();
+            let grounding_enforce = task
+                .risk_posture
+                .map(|_| resolved.grounding_enforce)
+                .unwrap_or(config.completion_grounding_enforce);
+            let socrates_enforce = task
+                .risk_posture
+                .map(|_| resolved.socrates_enforce)
+                .unwrap_or(config.socrates_gate_enforce);
             (
                 config.completion_grounding_shadow,
-                config.completion_grounding_enforce,
+                grounding_enforce,
                 config.socrates_gate_shadow,
-                config.socrates_gate_enforce,
+                socrates_enforce,
                 config.effective_socrates_policy(),
                 bb,
                 fr,
@@ -100,6 +116,7 @@ impl Orchestrator {
                     t.status = TaskStatus::Queued;
                     return Ok(GateOutcome {
                         requeue: Some((t, "grounding gate policy violation".into(), 1, 0)),
+                        needs_review_approval: false,
                     });
                 }
             }
@@ -230,9 +247,13 @@ impl Orchestrator {
             t.status = TaskStatus::Queued;
             Ok(GateOutcome {
                 requeue: Some((t, "Socrates risk gate blocked completion".into(), 1, 0)),
+                needs_review_approval: false,
             })
         } else {
-            Ok(GateOutcome { requeue: None })
+            Ok(GateOutcome {
+                requeue: None,
+                needs_review_approval: false,
+            })
         }
     }
 }

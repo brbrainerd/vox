@@ -155,6 +155,8 @@ pub mod judge_model;
 pub use vox_orchestrator_queue::locks;
 /// Unified task hopper — intake funnel for developer-sourced work (Hp-T1).
 pub mod hopper;
+/// Interrupt infrastructure for stopping in-progress local tasks (Track B partial).
+pub mod interrupt;
 /// Multi-agent isolation strategy model + decision (spec §5.1).
 pub mod isolation;
 /// MCP tool surface and plugin-skills bridge stubs (implementation pending SP6).
@@ -177,6 +179,8 @@ pub mod monitor;
 pub mod observer;
 /// Append-only operation log for durable orchestration history.
 pub use vox_orchestrator_queue::oplog;
+/// Drive Console control SSOT — ClutchProfile/RiskPosture parity gate.
+pub mod control;
 pub mod mode;
 /// TCP JSON-line orchestrator daemon (`vox-orchestrator-d`) and client helpers.
 pub mod orch_daemon;
@@ -378,7 +382,7 @@ pub use workspace::{AgentWorkspace, ChangeId, ChangeStatus, WorkspaceManager};
 // ── Orchestrator policy (D1–D10) re-exports ───────────────────────────────────
 // Single ergonomic surface for the autonomous orchestration policy program.
 // See `docs/superpowers/plans/orchestrator/2026-05-08-orchestrator-master-plan.md`.
-pub use mode::{ExecutionModeProfile, InferenceConfig, Modalities, QualityLevel, TierProfile};
+pub use mode::{InferenceConfig, Modalities, QualityLevel, TierProfile};
 pub use orchestration_feature_flags::OrchestrationFeatureFlags;
 pub use orchestrator_policy::{
     OrchestratorPolicy, OrchestratorPolicyConfig, PolicyContext, PolicyDecision,

@@ -377,6 +377,7 @@ impl Parser {
             verify_mode: crate::ast::decl::fundecl::VerifyMode::Off,
             test_strategy: None,
             is_mobile_native: false,
+            placement_override: None,
             ts_extern_module: Some(module),
             inference_model: None,
             training_step: false,

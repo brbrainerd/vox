@@ -3,6 +3,7 @@
 //! [`AgentFleet`](crate::runtime::AgentFleet) keeps [`ProcessHandle`](vox_actor_runtime::ProcessHandle) values aligned with [`Orchestrator`](crate::orchestrator::Orchestrator) registrations
 //! and applies [`ScalingAction`](crate::services::ScalingAction) decisions from the scaling service.
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use vox_actor_runtime::{
@@ -31,6 +32,21 @@ fn short_id_from_str(s: &str) -> &str {
     }
 }
 
+/// RAII guard that removes a task's interrupt flag from the orchestrator's
+/// `interrupt_flags` map when dropped — including on panic/unwind — so an
+/// aborted or panicking task never leaves a stale flag behind (which would
+/// otherwise let a later task reusing the same `TaskId` see a stale signal).
+struct InterruptFlagGuard {
+    flags: Arc<std::sync::RwLock<std::collections::HashMap<TaskId, Arc<AtomicBool>>>>,
+    task_id: TaskId,
+}
+
+impl Drop for InterruptFlagGuard {
+    fn drop(&mut self) {
+        crate::sync_lock::rw_write(&self.flags).remove(&self.task_id);
+    }
+}
+
 /// Message type sent to the ActorAgent to trigger task processing.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum AgentCommand {
@@ -48,10 +64,14 @@ pub enum AgentCommand {
 #[async_trait::async_trait]
 pub trait TaskProcessor: Send + Sync {
     /// Runs `task` on behalf of `agent_id` and returns the finished task id on success.
+    ///
+    /// `cancel` is a per-task interrupt flag; implementations that loop or stream
+    /// should poll it with [`AtomicBool::load`] and abort early when it is `true`.
     async fn process(
         &self,
         agent_id: crate::types::AgentId,
         task: crate::types::AgentTask,
+        cancel: Arc<AtomicBool>,
     ) -> anyhow::Result<crate::types::TaskId>;
 }
 
@@ -64,7 +84,13 @@ impl TaskProcessor for StubTaskProcessor {
         &self,
         _agent_id: crate::types::AgentId,
         task: crate::types::AgentTask,
+        cancel: Arc<AtomicBool>,
     ) -> anyhow::Result<crate::types::TaskId> {
+        // Honor a pre-set interrupt flag so the cancel path is testable even
+        // without a real inference loop.
+        if cancel.load(Ordering::Acquire) {
+            return Err(anyhow::anyhow!("task interrupted"));
+        }
         Ok(task.id)
     }
 }
@@ -106,7 +132,8 @@ impl AiTaskProcessor {
         usage_model: &str,
         prior_notes: &str,
         route: vox_gamify::StreamRoute<'_>,
-    ) -> String {
+        cancel: &Arc<AtomicBool>,
+    ) -> anyhow::Result<String> {
         let mut history_block = String::new();
         if !task.transcript.is_empty() {
             history_block.push_str("### Prior Agent Turns (Context)\n");
@@ -141,6 +168,11 @@ impl AiTaskProcessor {
         let mut stream = client.generate_stream_routed(&prompt, route).await;
         let mut phase_text = String::new();
         while let Some(chunk_result) = stream.next().await {
+            // Poll the interrupt flag after every chunk so a user interrupt
+            // stops streaming promptly.
+            if cancel.load(Ordering::Acquire) {
+                return Err(anyhow::anyhow!("task interrupted"));
+            }
             match chunk_result {
                 Ok(text) => {
                     phase_text.push_str(&text);
@@ -150,7 +182,7 @@ impl AiTaskProcessor {
                 Err(e) => tracing::error!("AI stream error [{}]: {}", phase.as_str(), e),
             }
         }
-        phase_text
+        Ok(phase_text)
     }
 }
 
@@ -160,8 +192,25 @@ impl TaskProcessor for AiTaskProcessor {
         &self,
         agent_id: crate::types::AgentId,
         task: crate::types::AgentTask,
+        cancel: Arc<AtomicBool>,
     ) -> anyhow::Result<crate::types::TaskId> {
-        let cost_pref = crate::sync_lock::rw_read(&*self.orchestrator.config).cost_preference;
+        let mut cost_pref = crate::sync_lock::rw_read(&*self.orchestrator.config).cost_preference;
+        // Drive Console: a task's clutch overrides the global cost preference and can
+        // force the free-only model pool; a Low-risk posture (model_lean=Intelligence)
+        // nudges selection toward Performance. No clutch set ⇒ unchanged global behavior.
+        let force_free_pool = if task.clutch_profile.is_some() {
+            let rc = task.resolved_clutch();
+            cost_pref = rc.cost_preference;
+            rc.force_free_pool
+        } else {
+            false
+        };
+        if matches!(
+            task.resolved_risk().model_lean,
+            crate::mode::ModelLean::Intelligence
+        ) {
+            cost_pref = crate::config::CostPreference::Performance;
+        }
         let mut allowed_providers = std::collections::HashSet::new();
         if let Some(db) = self.orchestrator.db() {
             let tracker = crate::usage::UsageTracker::new_ref(&db);
@@ -190,6 +239,9 @@ impl TaskProcessor for AiTaskProcessor {
                     {
                         return false;
                     }
+                    if force_free_pool && !m.is_free {
+                        return false;
+                    }
                     true
                 })
             } else {
@@ -197,6 +249,9 @@ impl TaskProcessor for AiTaskProcessor {
                     if m.pricing_source == crate::models::spec::PricingSource::Unknown
                         && exploration_spent >= exploration_limit
                     {
+                        return false;
+                    }
+                    if force_free_pool && !m.is_free {
                         return false;
                     }
                     let provider_str = match m.provider_type {
@@ -307,6 +362,29 @@ impl TaskProcessor for AiTaskProcessor {
                 }))
         };
 
+        // Capture attribution for the SelectedModelRecord that the completion handler
+        // copies onto CompletionAttestation (so the GUI ModelBadge can show the real
+        // model/provider instead of "model unknown"). Derived from the actual local
+        // routing decision above — not a re-run of the scorer.
+        let selected_model_id = usage_model.clone();
+        let selected_provider = routed
+            .as_ref()
+            .map(|m| m.provider.clone())
+            .unwrap_or_else(|| usage_provider.clone());
+        let selection_reason = if task
+            .model_override
+            .as_deref()
+            .map(str::trim)
+            .is_some_and(|s| !s.is_empty())
+        {
+            "override".to_string()
+        } else if routed.is_some() {
+            "scored".to_string()
+        } else {
+            "fallback".to_string()
+        };
+        let dispatch_start = std::time::Instant::now();
+
         let mut notes = String::new();
         let phases = [
             crate::types::TaskPhase::Inspect,
@@ -318,6 +396,12 @@ impl TaskProcessor for AiTaskProcessor {
         ];
         // Keep execution bounded: no infinite self-reflection or uncontrolled loops.
         for phase in phases {
+            // Poll the interrupt flag at the top of every phase so a user
+            // interrupt aborts before kicking off the next inference round.
+            if cancel.load(Ordering::Acquire) {
+                self.orchestrator.abort_interrupted_task(task.id, agent_id);
+                return Err(anyhow::anyhow!("task interrupted"));
+            }
             // Update the task's current phase in the orchestrator state for observability.
             if let Some(queue_lock) = self.orchestrator.agent_queue(agent_id) {
                 let mut queue = crate::sync_lock::rw_write(&*queue_lock);
@@ -338,7 +422,7 @@ impl TaskProcessor for AiTaskProcessor {
                 phase,
             });
 
-            let phase_out = self
+            let phase_out = match self
                 .run_phase_stream(
                     &client,
                     agent_id,
@@ -347,8 +431,17 @@ impl TaskProcessor for AiTaskProcessor {
                     usage_model.as_str(),
                     notes.as_str(),
                     route,
+                    &cancel,
                 )
-                .await;
+                .await
+            {
+                Ok(text) => text,
+                Err(e) => {
+                    // Interrupt raised mid-stream: release locks and propagate.
+                    self.orchestrator.abort_interrupted_task(task.id, agent_id);
+                    return Err(e);
+                }
+            };
 
             // Drift detection (Doom-loop protection)
             let drift_decision = self.orchestrator.record_agent_iteration(
@@ -399,6 +492,7 @@ impl TaskProcessor for AiTaskProcessor {
             }
         }
         let full_text = notes;
+        let latency_ms = dispatch_start.elapsed().as_millis() as u64;
 
         let input_tokens =
             crate::compaction::CompactionEngine::estimate_tokens(&task.description) as u32;
@@ -440,14 +534,23 @@ impl TaskProcessor for AiTaskProcessor {
 
         // We update the task transcript in the orchestrator's state so it persists
         // across handoffs if the task is re-queued or migrated.
+        let selected_model_record = crate::types::SelectedModelRecord {
+            model_id: selected_model_id,
+            provider: selected_provider,
+            selection_reason,
+            request_tokens: Some(input_tokens as u64),
+            latency_ms: Some(latency_ms),
+        };
         let turn_opt = {
             if let Some(queue_lock) = self.orchestrator.agent_queue(agent_id) {
                 let mut queue = crate::sync_lock::rw_write(&*queue_lock);
                 if let Some(t) = queue.find_task_mut(task.id) {
+                    t.selected_model_record = Some(selected_model_record.clone());
                     t.append_turn(agent_id, agent_name.clone(), full_text.clone());
                     t.transcript.last().cloned()
                 } else if let Some(t) = queue.current_task_mut() {
                     if t.id == task.id {
+                        t.selected_model_record = Some(selected_model_record.clone());
                         t.append_turn(agent_id, agent_name, full_text.clone());
                         t.transcript.last().cloned()
                     } else {
@@ -560,7 +663,21 @@ impl ActorAgent {
                     let task_id = task.id;
                     tracing::info!("Agent {} processing task {}", agent_id, task_id);
 
-                    match processor.process(agent_id, task).await {
+                    // Register a per-task interrupt flag so `interrupt_task` can
+                    // signal this in-progress task to abort, then clean it up.
+                    let cancel = Arc::new(AtomicBool::new(false));
+                    crate::sync_lock::rw_write(&orchestrator_ref.interrupt_flags)
+                        .insert(task_id, Arc::clone(&cancel));
+                    // Guard removes the flag on EVERY exit path — normal return,
+                    // early `?`, and panic/unwind — preventing a stale-flag leak.
+                    let _flag_guard = InterruptFlagGuard {
+                        flags: Arc::clone(&orchestrator_ref.interrupt_flags),
+                        task_id,
+                    };
+
+                    let result = processor.process(agent_id, task, Arc::clone(&cancel)).await;
+
+                    match result {
                         Ok(completed_id) => {
                             let _ = orchestrator_ref.complete_task(completed_id).await;
                             orchestrator_ref
@@ -901,5 +1018,37 @@ mod tests {
         let s = "1234567890abcdef1234567890abcdef";
         let result = short_id_from_str(s);
         assert_eq!(result, "12345678");
+    }
+
+    #[tokio::test]
+    async fn stub_processor_aborts_when_cancel_flag_preset() {
+        let proc_ = StubTaskProcessor;
+        let task = crate::types::AgentTask::new(
+            crate::types::TaskId(42),
+            "interruptible work",
+            crate::types::TaskPriority::Normal,
+            vec![],
+        );
+        let cancel = Arc::new(AtomicBool::new(true));
+        let result = proc_.process(crate::types::AgentId(1), task, cancel).await;
+        assert!(result.is_err(), "pre-set cancel flag must abort process");
+        assert!(
+            result.unwrap_err().to_string().contains("interrupted"),
+            "error should report interruption"
+        );
+    }
+
+    #[tokio::test]
+    async fn stub_processor_completes_when_not_cancelled() {
+        let proc_ = StubTaskProcessor;
+        let task = crate::types::AgentTask::new(
+            crate::types::TaskId(7),
+            "normal work",
+            crate::types::TaskPriority::Normal,
+            vec![],
+        );
+        let cancel = Arc::new(AtomicBool::new(false));
+        let result = proc_.process(crate::types::AgentId(1), task, cancel).await;
+        assert_eq!(result.unwrap(), crate::types::TaskId(7));
     }
 }

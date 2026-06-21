@@ -110,14 +110,16 @@ type View =
   | 'workspace'
   | 'commands'
   | 'knowledge'
-  | 'compute';
+  | 'compute'
+  | 'mission-control'
+  | 'sub-agents';
 
 const LEGACY_VIEWS: string[] = [
   'dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository',
   'mesh', 'gamify', 'harness', 'browser', 'console', 'scientia', 'discovery-review', 'discovery-inbox', 'archive-panel', 'claims', 'mens',
   'populi', 'research', 'oratio', 'approvals', 'policies', 'skills', 'settings', 'coverage',
   'publications', 'search', 'chat', 'agents', 'workspace', 'commands', 'knowledge', 'compute',
-  'review', 'tasks',
+  'review', 'tasks', 'mission-control', 'sub-agents',
 ];
 
 // Single source of truth for valid view ids (deep-link validation + initial-view).
@@ -706,6 +708,8 @@ export default function App() {
             dry_run: payload.dry_run ?? null,
             active_skill: payload.active_skill ?? activeSkill?.id ?? null,
             allow_duplicate: allowDuplicate,
+            clutch: payload.clutch ?? null,
+            risk: payload.risk ?? null,
           }
         },
         'gui.loquela.submit',
@@ -981,12 +985,45 @@ export default function App() {
     [kpis, chatMeshPeers],
   );
 
+  // Derive the in-flight task from the shared chat transcript: the latest
+  // assistant bubble still streaming/pending whose task_id has resolved is the
+  // task the Stop button (and Enter, when running) should interrupt. No parallel
+  // source of truth — this rides the same EventBus correlation as the bubbles.
+  const inFlightAssistant = useMemo(() => {
+    for (let i = activeChatMessages.length - 1; i >= 0; i -= 1) {
+      const m = activeChatMessages[i];
+      if (
+        m.role === 'assistant' &&
+        (m.status === 'pending' || m.status === 'streaming') &&
+        m.taskId != null
+      ) {
+        return m;
+      }
+    }
+    return undefined;
+  }, [activeChatMessages]);
+  const inFlightTaskId = inFlightAssistant ? Number(inFlightAssistant.taskId) : undefined;
+  const taskInProgress = inFlightTaskId != null && Number.isFinite(inFlightTaskId);
+
+  const handleInterruptTask = useCallback(
+    (taskId?: number) => {
+      if (taskId == null || !Number.isFinite(taskId)) return;
+      invoke('interrupt_orchestrator_task', { taskId })
+        .then(() => pushToast({ tone: 'info', title: 'Interrupting task', body: `Task #${taskId}` }))
+        .catch((err) => pushToast({ tone: 'warn', title: 'Interrupt failed', body: String(err) }));
+    },
+    [pushToast],
+  );
+
   const loquelaComposer = (
     <Loquela
       chips={chips}
       setChips={setChips}
       onSubmit={(p) => handleLoquelaSubmit({ ...p, session_id: activeSessionId })}
       onSlashCommand={handleLoquelaSlash}
+      taskInProgress={taskInProgress}
+      currentTaskId={taskInProgress ? inFlightTaskId : undefined}
+      onInterrupt={handleInterruptTask}
       sessionBudget={{
         spent: kpis.budgetBurn.value,
         cap: kpis.budgetBurn.cap,

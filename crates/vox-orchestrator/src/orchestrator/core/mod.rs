@@ -183,6 +183,7 @@ impl crate::orchestrator::Orchestrator {
                 ),
             )),
             feedback: crate::feedback::FeedbackStore::new(),
+            interrupt_flags: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 

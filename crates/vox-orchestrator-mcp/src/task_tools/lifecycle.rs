@@ -17,6 +17,9 @@ pub async fn complete_task(state: &ServerState, params: CompleteTaskParams) -> S
         force_risky: params.force_risky,
         force_risky_reason: params.force_risky_reason,
         observation_summary: None,
+        // Attribution fields (completing_model/provider/tokens/…) are populated by
+        // the orchestrator from the task's SelectedModelRecord at completion time.
+        ..Default::default()
     };
     let res = state
         .orchestrator

@@ -18,6 +18,7 @@ fn provider_allowed_by_route_policy(model: &ModelSpec) -> bool {
     route_policy_allows_model(model)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_selection_request(
     task: TaskCategory,
     complexity: u8,
@@ -25,12 +26,29 @@ fn build_selection_request(
     cacheable_workload: bool,
     preference: vox_orchestrator::config::CostPreference,
     required_capabilities: Vec<vox_orchestrator::models::Capability>,
+    clutch: Option<vox_orchestrator::mode::ClutchProfile>,
+    risk: Option<vox_orchestrator::mode::RiskPosture>,
 ) -> ModelSelectionRequest {
     let mut intent = SelectionIntent::for_task(task);
     intent.complexity = complexity;
     intent.prefer_local = prefer_local;
     intent.cacheable_workload = cacheable_workload;
-    intent.axes = if preference == vox_orchestrator::config::CostPreference::Economy {
+    intent.axes = if let Some(clutch) = clutch {
+        // Task-driven axes: clutch/risk actually steer the scorer. `effective_axes`
+        // returns the (cost, responsiveness, intelligence) triple AFTER risk's
+        // Intelligence override — the same field order/semantics as `SelectionAxes`,
+        // so this is a by-meaning identity map (cost→cost, responsiveness→
+        // responsiveness, intelligence→intelligence).
+        let (cost, responsiveness, intelligence) = vox_orchestrator::mode::effective_axes(
+            clutch,
+            risk.unwrap_or(vox_orchestrator::mode::RiskPosture::Moderate),
+        );
+        SelectionAxes {
+            cost,
+            responsiveness,
+            intelligence,
+        }
+    } else if preference == vox_orchestrator::config::CostPreference::Economy {
         SelectionAxes::COST_FIRST
     } else {
         SelectionAxes::BALANCED
@@ -191,6 +209,15 @@ fn resolve_mcp_chat_model_sync_inner(
     }
 
     let mut res = res;
+    // Task clutch with `force_free_pool` (the `Free` detent) must never pick a paid
+    // model. Reuse the existing free-tier enforcement seam rather than adding a new
+    // filter path: `enforce_free_tier_only` gates every return through
+    // `enforce_free_tier_if_needed`, which rejects paid models.
+    if let Some(clutch) = res.clutch {
+        if clutch.resolve().force_free_pool {
+            res.enforce_free_tier_only = true;
+        }
+    }
     let routing_policy = vox_orchestrator::routing::RoutingPolicy::load();
     if let (Some(cap), Some(spent)) = (
         routing_policy.max_spend_usd_per_session,
@@ -328,6 +355,8 @@ fn resolve_mcp_chat_model_sync_inner(
         res.free_tier_fill_in_middle,
         preference,
         required_capabilities.clone(),
+        res.clutch,
+        res.risk,
     );
 
     if let Some(decision) = decide(&req, &registry) {
@@ -419,6 +448,8 @@ mod tests {
             true,
             vox_orchestrator::config::CostPreference::Economy,
             vec![Capability::SupportsToolUse],
+            None,
+            None,
         );
         assert_eq!(req.intent.task, TaskCategory::CodeGen);
         assert_eq!(req.intent.complexity, 7);
@@ -426,5 +457,56 @@ mod tests {
         assert!(req.intent.prefer_local);
         assert!(req.intent.cacheable_workload);
         assert_eq!(req.required_capabilities, vec![Capability::SupportsToolUse]);
+    }
+
+    #[test]
+    fn clutch_genius_maps_to_quality_first_axes() {
+        // Genius clutch (15/15/70) should produce QUALITY_FIRST-like axes and
+        // override the binary Performance/Economy fallback.
+        let req = build_selection_request(
+            TaskCategory::CodeGen,
+            7,
+            false,
+            false,
+            vox_orchestrator::config::CostPreference::Economy, // would be COST_FIRST without clutch
+            vec![],
+            Some(vox_orchestrator::mode::ClutchProfile::Genius),
+            Some(vox_orchestrator::mode::RiskPosture::Moderate),
+        );
+        assert_eq!(req.intent.axes, SelectionAxes::QUALITY_FIRST);
+    }
+
+    #[test]
+    fn clutch_free_maps_to_cost_first_axes() {
+        // Free clutch (70/15/15) should produce COST_FIRST-like axes even when the
+        // binary preference would otherwise pick BALANCED.
+        let req = build_selection_request(
+            TaskCategory::CodeGen,
+            3,
+            false,
+            false,
+            vox_orchestrator::config::CostPreference::Performance, // would be BALANCED without clutch
+            vec![],
+            Some(vox_orchestrator::mode::ClutchProfile::Free),
+            Some(vox_orchestrator::mode::RiskPosture::Moderate),
+        );
+        assert_eq!(req.intent.axes, SelectionAxes::COST_FIRST);
+    }
+
+    #[test]
+    fn low_risk_overrides_cheap_clutch_toward_intelligence() {
+        // Free clutch is cost-first, but Low risk's ModelLean::Intelligence must
+        // override toward intelligence-weighted axes.
+        let req = build_selection_request(
+            TaskCategory::CodeGen,
+            3,
+            false,
+            false,
+            vox_orchestrator::config::CostPreference::Economy,
+            vec![],
+            Some(vox_orchestrator::mode::ClutchProfile::Free),
+            Some(vox_orchestrator::mode::RiskPosture::Low),
+        );
+        assert_eq!(req.intent.axes, SelectionAxes::QUALITY_FIRST);
     }
 }

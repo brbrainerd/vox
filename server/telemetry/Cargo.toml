@@ -1,0 +1,48 @@
+# Self-contained workspace — EXCLUDED from the outer vox workspace (see root
+# Cargo.toml [workspace].exclude). ClickHouse deps live here ONLY and never
+# enter the main cargo graph / arch-check / blast-radius.
+[workspace]
+members = ["."]
+resolver = "2"
+
+[package]
+name = "vox-server"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Vox telemetry ingest server — OTLP/HTTP → ClickHouse"
+
+[[bin]]
+name = "vox-server"
+path = "src/main.rs"
+
+[lib]
+name = "vox_server"
+path = "src/lib.rs"
+
+[dependencies]
+# Core async
+tokio              = { version = "1", features = ["full"] }
+# HTTP server
+axum               = { version = "0.7" }
+tower-http         = { version = "0.5", features = ["trace", "cors"] }
+# Serialization
+serde              = { version = "1", features = ["derive"] }
+serde_json         = { version = "1" }
+# ClickHouse client — pinned per telemetry spec §4
+clickhouse         = { version = "0.13.3" }
+# Observability
+tracing            = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+# Error handling
+anyhow             = "1"
+thiserror          = "1"
+# Env / config
+dotenvy            = "0.15"
+# Time
+chrono             = { version = "0.4", features = ["serde"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["test-util"] }
+# Tower's ServiceExt::oneshot for in-process router tests (auth gate).
+tower = { version = "0.4", features = ["util"] }

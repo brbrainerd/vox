@@ -52,6 +52,7 @@ async fn main() {
         })
         .manage(commands::mic::MicCaptureState::default())
         .manage(commands::pty::PtyManager::default())
+        .manage(commands::terminal_core::TerminalSessionManager::default())
         .manage(std::sync::Arc::new(
             commands::daemon::PersistentDaemon::default(),
         ))
@@ -114,6 +115,9 @@ async fn main() {
             commands::pty::pty_spawn,
             commands::pty::pty_write,
             commands::pty::pty_close,
+            commands::terminal_core::term_pty_bytes,
+            commands::terminal_core::term_get_blocks,
+            commands::terminal_core::term_submit,
             commands::console_a2a::send_to_agent,
             commands::action_manifest::get_action_manifest,
             commands::execute::execute_command,
@@ -138,7 +142,11 @@ async fn main() {
             commands::control_plane::list_orchestrator_tasks,
             commands::control_plane::edit_orchestrator_task,
             commands::control_plane::cancel_orchestrator_task,
+            commands::control_plane::interrupt_orchestrator_task,
             commands::control_plane::reorder_orchestrator_task,
+            commands::control_plane::approve_orchestrator_task_plan,
+            commands::control_plane::skip_orchestrator_verify,
+            commands::control_plane::force_orchestrator_verify,
             commands::orchestrator::get_orchestrator_config,
             commands::orchestrator::get_orchestrator_config_catalog,
             commands::llm_settings::get_llm_config,
@@ -248,6 +256,9 @@ async fn main() {
             commands::mesh::untrust_mesh_node,
             commands::mic::start_mic_capture,
             commands::mic::stop_mic_capture_and_transcribe,
+            commands::mission_control::list_subagent_tree,
+            commands::mission_control::list_mc_approvals,
+            commands::mission_control::set_task_mesh_policy,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

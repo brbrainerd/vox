@@ -1,0 +1,40 @@
+{
+  "__inputs": [
+    { "name": "DS_CLICKHOUSE", "label": "ClickHouse", "type": "datasource", "pluginId": "grafana-clickhouse-datasource" }
+  ],
+  "title": "Vox — Harness Usage",
+  "uid": "vox-harness",
+  "description": "MCP tool-call mix and session shape. No tool arguments or results.",
+  "schemaVersion": 38,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Tool call kinds (k≥20)",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "${DS_CLICKHOUSE}" },
+      "targets": [
+        {
+          "rawSql": "SELECT tool_call_kind, sum(cnt) AS total FROM mv_harness_usage WHERE day >= today() - 30 GROUP BY tool_call_kind HAVING total >= 20 ORDER BY total DESC",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Agent vs interactive split",
+      "type": "bargauge",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "${DS_CLICKHOUSE}" },
+      "targets": [
+        {
+          "rawSql": "SELECT mode, sum(cnt) AS total FROM mv_harness_usage WHERE day >= today() - 30 GROUP BY mode HAVING total >= 20",
+          "format": "table"
+        }
+      ]
+    }
+  ],
+  "time": { "from": "now-30d", "to": "now" },
+  "refresh": "1h",
+  "tags": ["vox", "telemetry", "harness"]
+}

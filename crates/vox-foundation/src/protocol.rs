@@ -23,6 +23,10 @@ pub mod orch_daemon_method {
     pub const FAIL_TASK: &str = "orch.fail_task";
     /// Params: `{"task_id": u64}` → `{"ok": true}`.
     pub const CANCEL_TASK: &str = "orch.cancel_task";
+    /// Params: `{"task_id": u64}` → `{"ok": true}`.
+    /// Signals an in-progress local task to abort (fires its `CancellationToken`).
+    /// Unlike `CANCEL_TASK` this works on tasks that are already running, not just queued.
+    pub const INTERRUPT_TASK: &str = "orch.interrupt_task";
     /// Params: `{"task_id": u64, "priority": "urgent|normal|background"}`.
     pub const REORDER_TASK: &str = "orch.reorder_task";
     /// Params: `{}` → `{"tasks": [{id, description, priority, status, lifecycle,
@@ -48,6 +52,15 @@ pub mod orch_daemon_method {
     pub const DOUBT_TASK: &str = "orch.doubt_task";
     /// Params: `{"task_id": u64, "reason": "..."} ` → `{"ok": true}`.
     pub const OVERRULE_TASK: &str = "orch.overrule_task";
+    /// Params: `{"task_id": u64}` → `{"ok": true}`.
+    /// Approves the current planning phase, advancing the PAV loop to Acting.
+    pub const APPROVE_PLAN: &str = "orch.approve_plan";
+    /// Params: `{"task_id": u64}` → `{"ok": true}`.
+    /// Skips the Verifying phase; the task completes immediately.
+    pub const SKIP_VERIFY: &str = "orch.skip_verify";
+    /// Params: `{"task_id": u64}` → `{"ok": true}`.
+    /// Forces a Verifying phase even when risk would normally skip it.
+    pub const FORCE_VERIFY: &str = "orch.force_verify";
     /// Params: `{}` → workspace journey store diagnostics (`.vox/store.db` vs canonical).
     pub const WORKSPACE_JOURNEY: &str = "orch.workspace_journey";
     /// Params: `{}` → `{"ok": true}`. Triggers a hot-reload of Vox.toml configuration.
@@ -92,6 +105,13 @@ pub mod orch_daemon_method {
     /// `agent_id` must be present. Returns the fresh isolation status JSON.
     /// Mirrors `POST /api/v2/vcs/isolation/strategy`.
     pub const VCS_ISOLATION_SET_STRATEGY: &str = "orch.vcs_isolation_set_strategy";
+    /// Params: `{}` → `{"tree": [{task_id, agent_id, parent_task_id?, reason, source_task_id}]}`
+    /// — the current subagent delegation tree from `AgentDelegationBinding` topology records.
+    /// Served via `ExtraDispatch`.
+    pub const SUBAGENT_TREE: &str = "orch.subagent_tree";
+    /// Params: `{"task_id": u64, "policy": "any"|"local_only"|{"exclude": ["node1",...]}}` → `{"ok": true}`.
+    /// Updates the `mesh_policy` of a queued task. Served via `ExtraDispatch`.
+    pub const SET_MESH_POLICY: &str = "orch.set_mesh_policy";
 }
 
 pub mod dei_method {

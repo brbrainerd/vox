@@ -21,6 +21,7 @@ pub mod determinism_lint;
 mod effect_deps_lint;
 pub mod form_check;
 pub mod layer;
+pub mod placement;
 pub mod semantic_ui;
 mod stale_capture_lint;
 
@@ -132,6 +133,7 @@ pub fn typecheck_hir_module_with_path(
 
     let passes: Vec<LintFn<'_>> = vec![
         Box::new(|| effect_check::check_effect_compliance(hir, source)),
+        Box::new(|| placement::infer(hir, source)),
         Box::new(|| cuda_gate::check_training_cuda_tier(hir, source)),
         Box::new(|| state_machine_check::check_state_machines(hir, source)),
         Box::new(|| effect_deps_lint::check_effect_deps(hir, source)),
@@ -493,6 +495,7 @@ fn collect_async_views(hir: &HirModule) -> Vec<crate::hir::nodes::async_view::Hi
                 HirReactiveMember::Effect(e) => visit_expr(&e.body, &mut out),
                 HirReactiveMember::OnMount(m) => visit_expr(&m.body, &mut out),
                 HirReactiveMember::OnCleanup(c) => visit_expr(&c.body, &mut out),
+                HirReactiveMember::OnStream(s) => visit_expr(&s.body, &mut out),
                 HirReactiveMember::Stmt(s) => visit_stmt(s, &mut out),
             }
         }
@@ -654,6 +657,7 @@ fn collect_semantic_ui_callsites(hir: &HirModule) -> Vec<semantic_ui::SemanticUi
                 HirReactiveMember::Effect(e) => visit_expr(&e.body, &mut out),
                 HirReactiveMember::OnMount(m) => visit_expr(&m.body, &mut out),
                 HirReactiveMember::OnCleanup(c) => visit_expr(&c.body, &mut out),
+                HirReactiveMember::OnStream(s) => visit_expr(&s.body, &mut out),
                 HirReactiveMember::Stmt(s) => visit_stmt(s, &mut out),
             }
         }

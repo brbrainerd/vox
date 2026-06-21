@@ -1,0 +1,33 @@
+# contracts/gui/drive-console.v1.yaml
+# SSOT for the chat Drive Console. FE reads this for labels/order; BE asserts parity.
+version: 1
+clutch:
+  - id: free
+    quality: flash
+    axes: [70, 15, 15]
+    force_free_pool: true
+  - id: efficiency
+    quality: flash
+    axes: [70, 15, 15]
+    force_free_pool: false
+  - id: balanced
+    quality: balanced
+    axes: [33, 33, 34]
+    force_free_pool: false
+  - id: genius
+    quality: premium
+    axes: [15, 15, 70]
+    force_free_pool: false
+risk:
+  - id: high
+    approval: auto_approve_more
+    grounding_enforce: false
+    socrates_enforce: false
+  - id: moderate
+    approval: confirm
+    grounding_enforce: true
+    socrates_enforce: false
+  - id: low
+    approval: review
+    grounding_enforce: true
+    socrates_enforce: true

@@ -7,6 +7,35 @@ pub mod healing;
 pub mod persistence;
 pub mod socrates;
 
+/// Copy attribution from the task's [`crate::types::SelectedModelRecord`] (produced at the
+/// inference/dispatch site) onto a [`CompletionAttestation`]. Caller-supplied attestation
+/// values take precedence; the record is used only as a fallback for fields the caller left
+/// unset (each copy is guarded by `is_none()`). This is the producer→consumer contract that
+/// lets the GUI ModelBadge show the real completing model instead of "model unknown".
+fn enrich_attestation_with_attribution(
+    mut att: CompletionAttestation,
+    rec: Option<&crate::types::SelectedModelRecord>,
+) -> CompletionAttestation {
+    if let Some(rec) = rec {
+        if att.completing_model.is_none() {
+            att.completing_model = Some(rec.model_id.clone());
+        }
+        if att.provider.is_none() {
+            att.provider = Some(rec.provider.clone());
+        }
+        if att.selection_reason.is_none() {
+            att.selection_reason = Some(rec.selection_reason.clone());
+        }
+        if att.request_tokens.is_none() {
+            att.request_tokens = rec.request_tokens;
+        }
+        if att.latency_ms.is_none() {
+            att.latency_ms = rec.latency_ms;
+        }
+    }
+    att
+}
+
 impl Orchestrator {
     pub async fn complete_task(&self, task_id: TaskId) -> Result<(), OrchestratorError> {
         self.complete_task_with_attestation(task_id, None).await
@@ -72,6 +101,20 @@ impl Orchestrator {
             }
         };
 
+        // Enrich the attestation with attribution from the task's SelectedModelRecord (if set
+        // by the inference layer). Caller-supplied attestation values take precedence; the
+        // SelectedModelRecord is used only as a fallback for fields the caller left unset
+        // (each copy is guarded by `is_none()`).
+        let completion_attestation = {
+            let att = completion_attestation.unwrap_or_default();
+            Some(enrich_attestation_with_attribution(
+                att,
+                task_clone_opt
+                    .as_ref()
+                    .and_then(|t| t.selected_model_record.as_ref()),
+            ))
+        };
+
         let mut trust_score_opt = None;
         if let Some(db) = self.db() {
             if task_clone_opt.is_some() {
@@ -124,6 +167,9 @@ impl Orchestrator {
                 behavioral_failure = Some(message);
             }
         }
+
+        // Holds info for a Review-tier DB write that must happen after the queue lock is dropped.
+        let mut review_approval_pending: Option<(String, String, u64)> = None;
 
         {
             let queue_lock = {
@@ -190,6 +236,29 @@ impl Orchestrator {
                         completion_attestation.as_ref(),
                         max_debug_iterations,
                     ) {
+                        Ok(outcome) if outcome.needs_review_approval => {
+                            // Review-tier task: surface to the human approval inbox instead of
+                            // re-queuing autonomically.  Collect everything we need from `task`
+                            // before any `.await` so we don't hold the queue lock across it.
+                            let approval_id = format!("REV-{}", task.id.0);
+                            let summary = format!(
+                                "Review required for task {}: {}",
+                                task.id.0,
+                                task.description.chars().take(120).collect::<String>()
+                            );
+                            let task_id_u64 = task.id.0;
+                            let mut task_clone = task.clone();
+                            task_clone.status = TaskStatus::BlockedOnApproval;
+                            auto_debug_requeue = Some((
+                                task_clone,
+                                format!("Review-tier approval required (id={})", approval_id),
+                                0,
+                                0,
+                            ));
+                            // Schedule the DB write outside the queue-lock scope: store info for
+                            // after the lock is released.
+                            review_approval_pending = Some((approval_id, summary, task_id_u64));
+                        }
                         Ok(outcome) => auto_debug_requeue = outcome.requeue,
                         Err(e) => return Err(OrchestratorError::ApprovalAttestationRequired(e)),
                     }
@@ -277,6 +346,22 @@ impl Orchestrator {
                 );
                 queue.enqueue(requeue_task);
                 return Ok(());
+            }
+        }
+
+        // Write the HitlApprovalRow for any Review-tier task that was parked above.
+        // The queue lock is now dropped so we can safely await.
+        if let Some((approval_id, summary, task_id_u64)) = review_approval_pending {
+            tracing::info!(
+                task_id = task_id_u64,
+                approval_id = %approval_id,
+                "approval gate: Review-tier task parked for human review"
+            );
+            if let Some(db) = self.db() {
+                let now_ms = crate::types::now_unix_ms() as i64;
+                let _ = db
+                    .hitl_approval_record(&approval_id, "task_review", &summary, now_ms)
+                    .await;
             }
         }
 
@@ -474,5 +559,99 @@ impl Orchestrator {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod attribution_tests {
+    use super::*;
+    use crate::orchestrator::OrchestratorConfig;
+    use crate::types::{CompletionAttestation, SelectedModelRecord};
+
+    fn record() -> SelectedModelRecord {
+        SelectedModelRecord {
+            model_id: "anthropic/claude-opus-4-5".to_string(),
+            provider: "anthropic".to_string(),
+            selection_reason: "scored".to_string(),
+            request_tokens: Some(4200),
+            latency_ms: Some(1234),
+        }
+    }
+
+    #[test]
+    fn enrich_populates_unset_attribution_from_record() {
+        let att =
+            enrich_attestation_with_attribution(CompletionAttestation::default(), Some(&record()));
+        assert_eq!(
+            att.completing_model.as_deref(),
+            Some("anthropic/claude-opus-4-5")
+        );
+        assert_eq!(att.provider.as_deref(), Some("anthropic"));
+        assert_eq!(att.selection_reason.as_deref(), Some("scored"));
+        assert_eq!(att.request_tokens, Some(4200));
+        assert_eq!(att.latency_ms, Some(1234));
+    }
+
+    #[test]
+    fn enrich_does_not_overwrite_caller_supplied_fields() {
+        let caller = CompletionAttestation {
+            completing_model: Some("caller/model".to_string()),
+            request_tokens: Some(99),
+            ..Default::default()
+        };
+        let att = enrich_attestation_with_attribution(caller, Some(&record()));
+        // Caller values win.
+        assert_eq!(att.completing_model.as_deref(), Some("caller/model"));
+        assert_eq!(att.request_tokens, Some(99));
+        // Unset fields are filled from the record.
+        assert_eq!(att.provider.as_deref(), Some("anthropic"));
+        assert_eq!(att.selection_reason.as_deref(), Some("scored"));
+        assert_eq!(att.latency_ms, Some(1234));
+    }
+
+    #[test]
+    fn enrich_is_noop_without_record() {
+        let att = enrich_attestation_with_attribution(CompletionAttestation::default(), None);
+        assert!(att.completing_model.is_none());
+        assert!(att.provider.is_none());
+    }
+
+    /// End-to-end producer->consumer: a task carrying a SelectedModelRecord (as the inference
+    /// layer now produces in `runtime.rs`) flows through `complete_task_with_attestation`, and
+    /// the attribution-enrichment path runs without error, completing the task.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn complete_with_selected_model_record_runs_enrichment_path() {
+        let orch = Orchestrator::new(OrchestratorConfig::for_testing());
+        let task_id = orch
+            .submit_task(
+                "Attribution task",
+                vec![crate::types::FileAffinity::write("attr.rs")],
+                None,
+                None,
+                None,
+            )
+            .await
+            .unwrap();
+        let agent_id = *orch.task_assignments.read().unwrap().get(&task_id).unwrap();
+
+        // Agent picks up the task; stamp the SelectedModelRecord the way the inference
+        // layer does, then mark current.
+        {
+            let queue_lock = orch.agent_queue(agent_id).unwrap();
+            let mut queue = queue_lock.write().unwrap();
+            queue.dequeue();
+            if let Some(t) = queue.current_task_mut() {
+                t.selected_model_record = Some(record());
+            }
+        }
+
+        let att = CompletionAttestation {
+            checks_passed: vec!["human_review_approved".to_string()],
+            ..Default::default()
+        };
+        orch.complete_task_with_attestation(task_id, Some(att))
+            .await
+            .expect("complete with attribution");
+        assert_eq!(orch.status().total_completed, 1);
     }
 }

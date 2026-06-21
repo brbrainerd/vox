@@ -17,6 +17,13 @@ pub struct McpChatModelResolution {
     pub enforce_free_tier_only: bool,
     /// `tokens_used / effective_max` for the MCP LLM budget agent when known (raises routing complexity).
     pub context_fill_ratio: Option<f32>,
+    /// Task clutch profile ("how much gas"). When `Some`, drives `SelectionAxes`
+    /// from `effective_axes(clutch, risk)` and (for `Free`) constrains to the free
+    /// pool. `None` keeps the legacy binary Economy/Performance fallback.
+    pub clutch: Option<vox_orchestrator::mode::ClutchProfile>,
+    /// Task risk posture. When `Some` alongside `clutch`, a `Low` posture's
+    /// `ModelLean::Intelligence` overrides a cheap clutch toward intelligence-weighted axes.
+    pub risk: Option<vox_orchestrator::mode::RiskPosture>,
 }
 
 impl Default for McpChatModelResolution {
@@ -29,6 +36,8 @@ impl Default for McpChatModelResolution {
             free_tier_fill_in_middle: false,
             enforce_free_tier_only: false,
             context_fill_ratio: None,
+            clutch: None,
+            risk: None,
         }
     }
 }

@@ -424,6 +424,9 @@ pub struct HirFn {
     /// `@distributed_train(...)` metadata when lowered from a workflow — Mn-T5.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub distributed_train: Option<(String, u32)>,
+    /// Explicit `@place(...)` override; `None` = inferred.
+    #[serde(default)]
+    pub placement_override: Option<vox_ast::decl::fundecl::PlacementHint>,
 }
 
 /// A lowered postcondition with optional fallback.
@@ -721,6 +724,8 @@ pub enum HirReactiveMember {
     Effect(HirEffect),
     OnMount(HirOnMount),
     OnCleanup(HirOnCleanup),
+    /// `on stream(channel) as binding: { body }` — subscribe to a named push channel.
+    OnStream(HirOnStream),
     /// `let` / hook calls / assignments before `view:` (Path C prelude).
     Stmt(HirStmt),
 }
@@ -760,6 +765,14 @@ pub struct HirOnMount {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirOnCleanup {
+    pub body: HirExpr,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirOnStream {
+    pub channel: String,
+    pub binding: String,
     pub body: HirExpr,
     pub span: Span,
 }

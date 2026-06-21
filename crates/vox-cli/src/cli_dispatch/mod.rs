@@ -572,6 +572,9 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
         Cli::Dispatch { cmd } => {
             crate::commands::dispatch::run(cmd).await?;
         }
+        Cli::Term => {
+            vox_term::app::run()?;
+        }
         Cli::Grammar { args } => {
             crate::commands::grammar::handle(args);
         }

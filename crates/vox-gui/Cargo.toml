@@ -50,7 +50,8 @@ tauri-plugin-shell = { version = "2" }
 tauri-plugin-dialog = { version = "2" }
 rmp-serde = "1.1"
 serde_bytes = "0.11"
-portable-pty = "0.9"
+portable-pty = { workspace = true }
+vox-terminal-core = { path = "../vox-terminal-core" }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }

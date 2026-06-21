@@ -55,7 +55,6 @@ pub fn token_to_semantic_type(token: &Token) -> Option<u32> {
         | Token::AtTest
         | Token::AtTable
         | Token::AtIndex
-        | Token::AtNative
         | Token::AtLoading
         | Token::AtRequire
         | Token::AtEnsure

@@ -405,6 +405,7 @@ Do **NOT** use the following retired symbols, crates, or env vars. Using them wi
 | `@component fn Name()` | `component Name() {}` |
 | `@endpoint(kind: server\|query\|mutation) fn` (removed v0.6.0) | `@server fn` / `@query fn` / `@mutation fn` |
 | `@py.import` (Python interop) | Removed — Python is no longer a Vox glue surface (see §VoxScript-First Glue Code) |
+| `@native` (decorator) | `@place(native)` |
 | `TURSO_URL` / `VOX_TURSO_URL` / `VOX_TURSO_TOKEN` | `VOX_DB_URL` / `VOX_DB_TOKEN` |
 | `recall()` / `recall_async()` (deprecated memory reads) | `MemoryManager::lookup_fact_by_key` (async) or RAG / retrieval bundle — see `crates/vox-orchestrator/src/memory/manager.rs` |
 | `@capacitor/*`, `npx cap sync` | `@tauri-apps/plugin-*`, `cargo tauri build` |

@@ -656,6 +656,12 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::dispatch::DispatchCmd,
     },
+
+    /// Headless-capable ratatui terminal UI — block-model shell + AI agent strip.
+    ///
+    /// Runs under a real terminal, over SSH, or with TERM=dumb (plain-text output).
+    /// Ctrl-C exits cleanly.
+    Term,
 }
 
 /// A sink that emits each event as a compact JSON line to stderr.

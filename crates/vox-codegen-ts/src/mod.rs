@@ -58,6 +58,10 @@ pub mod route_pattern;
 /// Screen-root horizontal inset opt-out (`bleed`) shared by web + RN emitters.
 pub mod screen_inset;
 
+/// Emits the transport-neutral channel runtime (`vox-channel.ts`).
+pub mod channel_runtime_emit;
+/// Channel-contract SSOT loader (`contracts/channels.v1.yaml`) + transport-parity guard.
+pub mod channels;
 /// One-time SPA / shadcn / Tailwind scaffold (user-owned files).
 pub mod scaffold;
 /// `@table` / VoxDB `schema.ts` generator ([`generate_voxdb_schema`]).
@@ -79,7 +83,7 @@ pub mod web_entry;
 /// Zod schema emission.
 pub mod zod_emit;
 
-pub use emitter::{CodegenOptions, generate, generate_with_options};
+pub use emitter::{CodegenOptions, CodegenOutput, generate, generate_with_options};
 pub use schema::{generate_voxdb_schema, generate_voxdb_schema_from_hir};
 
 /// The set of component names that are SCREEN ROOTS: the top-level view of any

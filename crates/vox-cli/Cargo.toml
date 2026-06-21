@@ -167,6 +167,7 @@ vox-secrets = { workspace = true }
 vox-db = { workspace = true, features = ["legacy-import"] }
 vox-sql = { workspace = true, features = ["postgres", "mysql"] }
 vox-research-events = { workspace = true }
+vox-term             = { path = "../vox-term" }
 # `vox-scientia::ro_crate::MainEntity` is the input shape for the replay
 # handler; not pulled in via the producers crate.
 vox-scientia = { workspace = true }

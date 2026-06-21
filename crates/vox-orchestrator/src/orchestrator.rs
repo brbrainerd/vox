@@ -141,4 +141,12 @@ pub struct Orchestrator {
         std::sync::Arc<std::sync::RwLock<crate::budget_gate::OrchestratorBudgetGate>>,
     /// Soft HITL: feedback requests (clarifications, doubts).
     pub feedback: crate::feedback::FeedbackStore,
+    /// Per-task interrupt flags: set to `true` to signal a running local task to abort.
+    ///
+    /// Populated when a task starts executing; cleared when it completes or is cancelled.
+    /// The running [`crate::runtime::AiTaskProcessor`] should poll this flag periodically
+    /// (see `crates/vox-orchestrator/src/interrupt.rs` for the full wiring design).
+    pub interrupt_flags: std::sync::Arc<
+        std::sync::RwLock<HashMap<TaskId, std::sync::Arc<std::sync::atomic::AtomicBool>>>,
+    >,
 }

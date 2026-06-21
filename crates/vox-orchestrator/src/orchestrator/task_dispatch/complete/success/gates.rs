@@ -10,6 +10,9 @@ use crate::types::{AgentTask, CompletionAttestation, TaskStatus};
 
 pub struct GateOutcome {
     pub requeue: Option<(AgentTask, String, usize, usize)>,
+    /// When `true`, the task requires human Review-tier approval before it can proceed.
+    /// The caller should set `BlockedOnApproval` status and create a `HitlApprovalRow`.
+    pub needs_review_approval: bool,
 }
 
 pub fn check_behavioral_gate(behavioral_failure: &mut Option<String>) -> Option<String> {
@@ -22,7 +25,10 @@ pub fn check_research_json_gate(
     max_debug_iterations: u8,
 ) -> Result<GateOutcome, String> {
     if task.task_category != crate::types::TaskCategory::Research {
-        return Ok(GateOutcome { requeue: None });
+        return Ok(GateOutcome {
+            requeue: None,
+            needs_review_approval: false,
+        });
     }
 
     let is_json = attestation
@@ -54,12 +60,16 @@ pub fn check_research_json_gate(
                     1,
                     0,
                 )),
+                needs_review_approval: false,
             })
         } else {
             Err("Research tasks require a valid JSON completion summary.".to_string())
         }
     } else {
-        Ok(GateOutcome { requeue: None })
+        Ok(GateOutcome {
+            requeue: None,
+            needs_review_approval: false,
+        })
     }
 }
 
@@ -69,11 +79,23 @@ pub fn check_approval_gate(
     max_debug_iterations: u8,
 ) -> Result<GateOutcome, String> {
     let Some(tier) = task.approval_tier else {
-        return Ok(GateOutcome { requeue: None });
+        return Ok(GateOutcome {
+            requeue: None,
+            needs_review_approval: false,
+        });
     };
 
     let ok = completion_attestation_satisfies_tier(tier, attestation);
     if !ok {
+        // Review tier: surface as a human approval request rather than re-queuing
+        // autonomically. The caller will set BlockedOnApproval and create a HitlApprovalRow.
+        if tier == ApprovalTier::Review {
+            return Ok(GateOutcome {
+                requeue: None,
+                needs_review_approval: true,
+            });
+        }
+
         if task.debug_iterations < max_debug_iterations {
             let mut task_clone = task.clone();
             task_clone.debug_iterations += 1;
@@ -100,6 +122,7 @@ pub fn check_approval_gate(
                     1,
                     0,
                 )),
+                needs_review_approval: false,
             })
         } else {
             Err(format!(
@@ -108,7 +131,10 @@ pub fn check_approval_gate(
             ))
         }
     } else {
-        Ok(GateOutcome { requeue: None })
+        Ok(GateOutcome {
+            requeue: None,
+            needs_review_approval: false,
+        })
     }
 }
 
@@ -145,9 +171,13 @@ Provide completion attestation checks_passed[] before completing.",
                 1,
                 0,
             )),
+            needs_review_approval: false,
         }
     } else {
-        GateOutcome { requeue: None }
+        GateOutcome {
+            requeue: None,
+            needs_review_approval: false,
+        }
     }
 }
 
@@ -158,7 +188,10 @@ pub fn check_harness_gate(
 ) -> Result<GateOutcome, String> {
     let guard_mode = harness_completion_guard_mode();
     if guard_mode == HarnessCompletionGuardMode::Off {
-        return Ok(GateOutcome { requeue: None });
+        return Ok(GateOutcome {
+            requeue: None,
+            needs_review_approval: false,
+        });
     }
 
     match harness_completion_issues(task, attestation) {
@@ -183,6 +216,7 @@ pub fn check_harness_gate(
                     task_clone.status = TaskStatus::Queued;
                     Ok(GateOutcome {
                         requeue: Some((task_clone, detail.clone(), 1, 0)),
+                        needs_review_approval: false,
                     })
                 } else {
                     Err(format!(
@@ -191,10 +225,16 @@ pub fn check_harness_gate(
                     ))
                 }
             } else {
-                Ok(GateOutcome { requeue: None })
+                Ok(GateOutcome {
+                    requeue: None,
+                    needs_review_approval: false,
+                })
             }
         }
-        Ok(_) => Ok(GateOutcome { requeue: None }),
+        Ok(_) => Ok(GateOutcome {
+            requeue: None,
+            needs_review_approval: false,
+        }),
         Err(err) => {
             tracing::warn!(task_id = task.id.0, mode = ?guard_mode, error = %err, "harness completion gate evaluation failed");
             if guard_mode == HarnessCompletionGuardMode::Enforce {
@@ -203,7 +243,10 @@ pub fn check_harness_gate(
                     task.id
                 ))
             } else {
-                Ok(GateOutcome { requeue: None })
+                Ok(GateOutcome {
+                    requeue: None,
+                    needs_review_approval: false,
+                })
             }
         }
     }
@@ -228,6 +271,7 @@ pub fn check_toestub_gate(
                 task_clone.status = TaskStatus::Queued;
                 return Ok(GateOutcome {
                     requeue: Some((task_clone, reason, 1, 0)),
+                    needs_review_approval: false,
                 });
             } else {
                 return Err(reason);
@@ -252,9 +296,13 @@ pub fn check_toestub_gate(
         task_clone.status = TaskStatus::Queued;
         Ok(GateOutcome {
             requeue: Some((task_clone, vr.report, vr.error_count, vr.warning_count)),
+            needs_review_approval: false,
         })
     } else {
-        Ok(GateOutcome { requeue: None })
+        Ok(GateOutcome {
+            requeue: None,
+            needs_review_approval: false,
+        })
     }
 }
 
@@ -283,8 +331,70 @@ pub fn check_doc_integrity_gate(
             task_clone.status = TaskStatus::Queued;
             return GateOutcome {
                 requeue: Some((task_clone, detail, 1, 0)),
+                needs_review_approval: false,
             };
         }
     }
-    GateOutcome { requeue: None }
+    GateOutcome {
+        requeue: None,
+        needs_review_approval: false,
+    }
+}
+
+#[cfg(test)]
+mod review_approval_gate_tests {
+    use super::*;
+    use crate::types::{AgentTask, TaskId, TaskPriority, TaskStatus};
+
+    fn make_task_with_tier(tier: crate::ApprovalTier) -> AgentTask {
+        let mut t = AgentTask::new(
+            TaskId(1),
+            "Do something risky",
+            TaskPriority::Normal,
+            vec![],
+        );
+        t.approval_tier = Some(tier);
+        t
+    }
+
+    #[test]
+    fn review_risk_routes_completion_to_pending_approvals() {
+        // Review-tier task with no attestation should signal needs_review_approval=true,
+        // NOT requeue and NOT return an error.
+        let task = make_task_with_tier(crate::ApprovalTier::Review);
+        let outcome = check_approval_gate(&task, None, 3)
+            .expect("check_approval_gate should not error for Review tier");
+        assert!(
+            outcome.needs_review_approval,
+            "Review-tier task must set needs_review_approval=true"
+        );
+        assert!(
+            outcome.requeue.is_none(),
+            "Review-tier task must not be re-queued autonomically"
+        );
+    }
+
+    #[test]
+    fn confirm_tier_still_requeues() {
+        // Confirm-tier should re-queue (not route to human inbox) when no attestation.
+        let task = make_task_with_tier(crate::ApprovalTier::Confirm);
+        let outcome =
+            check_approval_gate(&task, None, 3).expect("should not error on first iteration");
+        assert!(
+            !outcome.needs_review_approval,
+            "Confirm-tier must not set needs_review_approval"
+        );
+        assert!(
+            outcome.requeue.is_some(),
+            "Confirm-tier should requeue when attestation is missing"
+        );
+    }
+
+    #[test]
+    fn auto_approve_tier_always_passes() {
+        let task = make_task_with_tier(crate::ApprovalTier::AutoApprove);
+        let outcome = check_approval_gate(&task, None, 3).expect("AutoApprove should never fail");
+        assert!(!outcome.needs_review_approval);
+        assert!(outcome.requeue.is_none());
+    }
 }

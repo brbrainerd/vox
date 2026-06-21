@@ -15,6 +15,7 @@ import { HarnessRedirect } from '../surfaces/Harness/HarnessRedirect';
 import { BrowserView } from '../surfaces/Browser/BrowserView';
 import { ApprovalsView } from '../surfaces/Approvals/ApprovalsView';
 import { ActivitySurface } from '../surfaces/Activity/ActivitySurface';
+import { MissionControlPanel } from '../surfaces/MissionControl/MissionControlPanel';
 import { SkillsPluginsView } from '../surfaces/SkillsPlugins/SkillsPluginsView';
 import { PoliciesView } from '../surfaces/Policies/PoliciesView';
 import { NeedsYouSurface } from '../surfaces/NeedsYou/NeedsYouSurface';
@@ -159,6 +160,8 @@ function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
       return <ActivitySurface pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'needs-you':
       return <NeedsYouSurface onOpenContext={props.onOpenFeedbackContext!} pushToast={props.pushToast} />;
+    case 'mission-control':
+      return <MissionControlPanel pushToast={props.pushToast} />;
     case 'policies':
       return <PoliciesView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'skills':
