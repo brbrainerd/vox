@@ -53,6 +53,7 @@ pub async fn run(
         PipelineStage::Mix,
         PipelineStage::Eval,
         PipelineStage::AgentTraceIngest,
+        PipelineStage::ReviewToDpo,
         PipelineStage::KbSignals,
         PipelineStage::Train,
     ];
@@ -281,6 +282,26 @@ pub async fn run(
                         },
                     )
                     .await?;
+                }
+            }
+            PipelineStage::ReviewToDpo => {
+                if !dry_run {
+                    let review_input =
+                        PathBuf::from("mens/data/mix_sources/review_findings.jsonl");
+                    let dpo_output =
+                        PathBuf::from("mens/data/mix_sources/rust_review_dpo.jsonl");
+                    if review_input.is_file() {
+                        crate::commands::corpus::run(
+                            crate::commands::corpus::CorpusAction::ReviewToDpo {
+                                input: review_input,
+                                output: dpo_output,
+                            },
+                        )
+                        .await
+                        .map_err(|e| anyhow::anyhow!("pipeline review_to_dpo failed: {e}"))?;
+                    } else {
+                        tracing::debug!("ReviewToDpo: no review_findings.jsonl, skipping");
+                    }
                 }
             }
             PipelineStage::AgentTraceIngest => {

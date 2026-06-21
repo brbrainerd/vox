@@ -19,3 +19,6 @@ sources:
   - path: target/dogfood/rust_authoring.validated.jsonl
     weight: 3.0
     optional: false   # strict: this spoke needs real authoring data
+  - path: mens/data/mix_sources/rust_review_dpo.jsonl
+    weight: 2.0
+    optional: true

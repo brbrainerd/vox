@@ -279,6 +279,24 @@ pub enum CorpusAction {
         #[arg(long)]
         quarantine: Option<std::path::PathBuf>,
     },
+    /// Mine PR code-review findings into Rust-review DPO preference pairs (R.2).
+    #[command(name = "review-to-dpo")]
+    ReviewToDpo {
+        /// Input JSONL from `vox corpus review-export`
+        #[arg(
+            short,
+            long,
+            default_value = "mens/data/mix_sources/review_findings.jsonl"
+        )]
+        input: std::path::PathBuf,
+        /// Output DPO preference-pair JSONL
+        #[arg(
+            short,
+            long,
+            default_value = "mens/data/mix_sources/rust_review_dpo.jsonl"
+        )]
+        output: std::path::PathBuf,
+    },
     /// Ingest agent traces (JSON/JSONL) into SFT rows with semantic diversity gate.
     #[command(name = "trace-ingest")]
     TraceIngest {
@@ -614,6 +632,17 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             min_score,
             quarantine,
         } => generate::run_curate_prose(&input, &output, min_score, quarantine.as_deref()).await,
+        CorpusAction::ReviewToDpo { input, output } => {
+            let count =
+                vox_corpus::corpus::dpo::review_findings_to_dpo(&input, &output)
+                    .with_context(|| format!("review-to-dpo: {}", input.display()))?;
+            println!(
+                "✓ Mined {} rust_review DPO pairs → {}",
+                count,
+                output.display()
+            );
+            Ok(())
+        }
         CorpusAction::TraceIngest {
             input,
             output,
