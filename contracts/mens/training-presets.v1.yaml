@@ -5,7 +5,10 @@ schema_version: 1
 description: >-
   Canonical preset identifiers for `vox mens train --preset` / schola `--preset`.
   Aliases are optional alternate CLI spellings resolving to the same profile.
-default_base_model: Qwen/Qwen2.5-Coder-7B-Instruct
+# USER DECISION (2026-06-21): Qwen3 everywhere — must match vox_populi::mens::DEFAULT_MODEL_ID
+# (the Qwen3 agentic_default 16GB-tier rung). The @PLACEHOLDER revision is fail-closed at the
+# real train/dispatch path until a real HF commit SHA is pinned in gpu-specs.yaml.
+default_base_model: Qwen/Qwen3-8B@PLACEHOLDER-a7b3d091
 presets:
   - id: tiny
   - id: safe
