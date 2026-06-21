@@ -286,7 +286,6 @@ impl Parser {
                     | Token::AtInference
                     | Token::AtTrainingStep
                     | Token::AtDeprecated
-                    | Token::AtNative
                     | Token::AtPlace
                     | Token::AtUses
                     | Token::AtAuth
@@ -679,7 +678,6 @@ impl Parser {
                     | Token::AtInference
                     | Token::AtTrainingStep
                     | Token::AtDeprecated
-                    | Token::AtNative
                     | Token::AtPlace
                     | Token::AtUses
                     | Token::AtAuth
@@ -726,7 +724,6 @@ impl Parser {
             | Token::AtInference
             | Token::AtTrainingStep
             | Token::AtDeprecated
-            | Token::AtNative
             | Token::AtPlace
             | Token::AtUses
             | Token::AtAuth
@@ -760,7 +757,6 @@ impl Parser {
                     | Token::AtInference
                     | Token::AtTrainingStep
                     | Token::AtDeprecated
-                    | Token::AtNative
                     | Token::AtPlace
                     | Token::AtUses
                     | Token::AtAuth

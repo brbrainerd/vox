@@ -176,8 +176,6 @@ pub enum Token {
     AtTable,
     #[token("@index")]
     AtIndex,
-    #[token("@native")]
-    AtNative,
     #[token("@loading")]
     AtLoading,
     #[token("@require")]
@@ -597,7 +595,6 @@ impl std::fmt::Display for Token {
             Token::AtSkipIfNone => write!(f, "@skip_if_none"),
             Token::AtTable => write!(f, "@table"),
             Token::AtIndex => write!(f, "@index"),
-            Token::AtNative => write!(f, "@native"),
             Token::AtLoading => write!(f, "@loading"),
             Token::AtRequire => write!(f, "@require"),
             Token::AtEnsure => write!(f, "@ensure"),

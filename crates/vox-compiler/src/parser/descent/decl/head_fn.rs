@@ -136,10 +136,6 @@ impl Parser {
                     self.advance();
                     is_mobile_native = true;
                 }
-                Token::AtNative => {
-                    self.advance();
-                    is_mobile_native = true;
-                }
                 Token::AtPlace => {
                     self.advance();
                     self.expect(&Token::LParen)?;

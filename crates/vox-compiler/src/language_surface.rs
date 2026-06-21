@@ -202,7 +202,7 @@ pub const LEXER_DECORATORS: &[&str] = &[
     "@table",
     "@index",
     "@placeholder",
-    "@native",
+    "@place",
     "@loading",
     "@ai",
 ];
