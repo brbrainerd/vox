@@ -1,7 +1,7 @@
 ---
 title: "FableForge Combat Knowledge Graph"
 description: "A directed knowledge graph spanning every layer of the Dystopia/FableForge combat engine, from legacy C to TypeScript."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 ---

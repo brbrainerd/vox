@@ -1,7 +1,7 @@
 ---
 title: "VoxMens Serving Topology Decision"
 description: "Decision record for the multi-LoRA spoke serving architecture and base model selection."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 ---
 
