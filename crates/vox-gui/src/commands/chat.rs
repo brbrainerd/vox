@@ -303,7 +303,10 @@ mod tests {
             model_id: Some("anthropic/claude-opus-4-5".to_string()),
         };
         let j = serde_json::to_string(&dto).unwrap();
-        assert!(j.contains("\"model_id\":\"anthropic/claude-opus-4-5\""), "model_id present: {j}");
+        assert!(
+            j.contains("\"model_id\":\"anthropic/claude-opus-4-5\""),
+            "model_id present: {j}"
+        );
         assert!(j.contains("\"task_id\":\"7\""), "task_id present: {j}");
     }
 

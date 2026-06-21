@@ -38,8 +38,8 @@ pub struct SubagentTreeNode {
 /// The daemon serves this via `orch.subagent_tree` (ExtraDispatch hook).
 #[tauri::command]
 pub async fn list_subagent_tree() -> Result<Vec<SubagentTreeNode>, String> {
-    let resp = call_orchestrator_daemon(orch_daemon_method::SUBAGENT_TREE, serde_json::json!({}))
-        .await?;
+    let resp =
+        call_orchestrator_daemon(orch_daemon_method::SUBAGENT_TREE, serde_json::json!({})).await?;
     let nodes = resp
         .get("tree")
         .and_then(|v| serde_json::from_value(v.clone()).ok())
@@ -97,9 +97,7 @@ pub struct MeshPolicyResult {
 /// Updates the `mesh_policy` of a queued task in the orchestrator.
 /// The daemon serves `orch.set_mesh_policy` via ExtraDispatch.
 #[tauri::command]
-pub async fn set_task_mesh_policy(
-    input: SetMeshPolicyInput,
-) -> Result<MeshPolicyResult, String> {
+pub async fn set_task_mesh_policy(input: SetMeshPolicyInput) -> Result<MeshPolicyResult, String> {
     let resp = call_orchestrator_daemon(
         orch_daemon_method::SET_MESH_POLICY,
         serde_json::json!({
