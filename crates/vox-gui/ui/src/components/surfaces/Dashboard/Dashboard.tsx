@@ -24,6 +24,7 @@ import { AreaChartWidget } from '../../dashboard/widgets/AreaChartWidget';
 import { LineChartWidget } from '../../dashboard/widgets/LineChartWidget';
 import { BarChartWidget } from '../../dashboard/widgets/BarChartWidget';
 import { Kpi } from '../../ui/Kpi';
+import { ResourcesWidget } from './ResourcesWidget';
 
 /** Consistent empty-state hint for a panel with no data yet. */
 function EmptyHint({ icon, title, hint }: { icon?: React.ReactNode; title: string; hint?: string }) {
@@ -253,6 +254,8 @@ export function Dashboard({
             series={budgetSeries}
           />
         );
+      case 'resources':
+        return <ResourcesWidget data={data} />;
       default:
         return null;
     }

@@ -22,6 +22,7 @@ widget_kinds:
   - openrouter_spend
   - task_summary
   - custom_text
+  - resources
 
 grid_shape:
   col: integer # 1-based column start

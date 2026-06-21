@@ -266,6 +266,15 @@ describe('Dashboard', () => {
     expect(screen.getByText('1')).toBeInTheDocument();
   });
 
+  it('renders the resources widget when present in the layout', () => {
+    // force a layout containing the resources widget — use the SSOT key symbol, never the literal
+    window.localStorage.setItem(SHELL_PREFERENCE_KEYS.dashboardLayout, JSON.stringify({
+      version: 1, columns: 12, widgets: [{ id: 'resources', kind: 'resources', grid: { col: 1, row: 1, w: 12, h: 2 } }],
+    }));
+    renderDashboard({});
+    expect(screen.getByText('Resources')).toBeInTheDocument();
+  });
+
   it('renders visual sandbox mini-map and handles expand navigation', () => {
     const navigateMock = vi.fn();
     const data = { ...emptyDash };

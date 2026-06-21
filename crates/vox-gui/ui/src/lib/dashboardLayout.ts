@@ -17,6 +17,7 @@ export const DASHBOARD_WIDGET_KINDS = [
   'openrouter_spend',
   'task_summary',
   'custom_text',
+  'resources',
 ] as const;
 
 export type DashboardWidgetKind = (typeof DASHBOARD_WIDGET_KINDS)[number];
