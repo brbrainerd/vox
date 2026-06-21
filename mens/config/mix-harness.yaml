@@ -1,0 +1,24 @@
+# Mix configuration for harness union profile (v1 mono smoke)
+# Union of tool-selection + argument-generation corpora.
+# Used for the end-to-end mono smoke run before decomposed adapters are trained.
+# Not a training target itself — harness profile has no base: in domain-profiles.yaml.
+output: mens/data/train_mixed_harness.jsonl
+sources:
+  - path: mens/data/mix_sources/dogfood_converted.jsonl
+    weight: 5.0
+    optional: true
+  - path: target/dogfood/a2a_traces.jsonl
+    weight: 4.0
+    optional: true
+  - path: mens/data/mix_sources/agent_traces.jsonl
+    weight: 4.0
+    optional: true
+  - path: target/dogfood/tool_routing.jsonl
+    weight: 5.0
+    optional: true
+  - path: target/dogfood/multi_turn.jsonl
+    weight: 5.0
+    optional: true
+  - path: target/dogfood/argument_schema_traces.jsonl
+    weight: 5.0
+    optional: true

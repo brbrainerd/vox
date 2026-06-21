@@ -1,0 +1,19 @@
+# Mix configuration for argument-generation domain (v1 decomposed spoke)
+# Focuses on argument schema filling: schema-grounded argument traces, multi-turn argument refinement
+output: mens/data/train_mixed_argument_generation.jsonl
+sources:
+  - path: mens/data/mix_sources/dogfood_converted.jsonl
+    weight: 4.0
+    optional: true
+  - path: target/dogfood/a2a_traces.jsonl
+    weight: 3.0
+    optional: true
+  - path: mens/data/mix_sources/agent_traces.jsonl
+    weight: 4.0
+    optional: true
+  - path: target/dogfood/multi_turn.jsonl
+    weight: 5.0
+    optional: true
+  - path: target/dogfood/argument_schema_traces.jsonl
+    weight: 5.0
+    optional: true

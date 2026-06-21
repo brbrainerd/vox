@@ -261,17 +261,99 @@ base:
         assert!(file.profiles.contains_key("vox-lang"));
     }
 
+    // NOTE: agents_profile_has_prefer_local removed — the 'agents' profile is
+    // retired by B0.1 and replaced by 'tool-selection' + 'argument-generation'.
+
     #[test]
-    fn agents_profile_has_prefer_local() {
+    fn v1_finetuned_spoke_set_is_exactly_four() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .ancestors()
             .nth(2)
             .unwrap()
             .to_path_buf();
-        let eff = EffectiveDomainProfile::load_domain_profile("agents", Some(&root))
-            .expect("agents profile loads");
-        let router = eff.router.expect("agents router present");
-        assert!(router.prefer_local, "agents spoke should prefer_local");
+        let file = DomainProfilesFile::load(Some(&root)).expect("load file");
+        let finetuned: Vec<&str> = file
+            .profiles
+            .iter()
+            .filter(|(_, p)| {
+                p.base
+                    .as_ref()
+                    .map_or(false, |b| b.method == TrainMethod::Qlora)
+            })
+            .map(|(k, _)| k.as_str())
+            .collect();
+        // The v1 fine-tuned set is exactly these 4 spokes
+        let mut sorted = finetuned.clone();
+        sorted.sort();
+        assert_eq!(
+            sorted,
+            vec!["argument-generation", "rust", "tool-selection", "vox-lang"],
+            "fine-tuned set mismatch: {:?}",
+            sorted
+        );
+    }
+
+    #[test]
+    fn harness_profile_exists_without_base() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap()
+            .to_path_buf();
+        let file = DomainProfilesFile::load(Some(&root)).expect("load file");
+        let harness = file
+            .profiles
+            .get("harness")
+            .expect("harness profile must exist");
+        assert!(
+            harness.base.is_none(),
+            "harness is a union profile — no base/training of its own"
+        );
+    }
+
+    #[test]
+    fn retired_spokes_have_no_base() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap()
+            .to_path_buf();
+        let file = DomainProfilesFile::load(Some(&root)).expect("load file");
+        for retired in &["rocks", "research", "populi-meta", "research-expert"] {
+            if let Some(p) = file.profiles.get(*retired) {
+                assert!(
+                    p.base.is_none(),
+                    "retired spoke '{}' must not have a base",
+                    retired
+                );
+            }
+            // Absent is also fine (profile may be removed entirely)
+        }
+    }
+
+    #[test]
+    fn rust_review_lane_routes_to_no_adapter() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap()
+            .to_path_buf();
+        let file = DomainProfilesFile::load(Some(&root)).expect("load file");
+        // No profile that has a base should trigger on lane:vox_rust_review
+        for (name, profile) in &file.profiles {
+            if profile.base.is_some() {
+                let triggers = profile
+                    .router
+                    .as_ref()
+                    .map(|r| r.triggers.as_slice())
+                    .unwrap_or(&[]);
+                assert!(
+                    !triggers.iter().any(|t| t == "lane:vox_rust_review"),
+                    "spoke '{}' has a base/adapter but also claims lane:vox_rust_review (review must route to base only)",
+                    name
+                );
+            }
+        }
     }
 
     #[test]
