@@ -93,14 +93,15 @@ impl PhaseLoop {
         self.state.phase
     }
 
-    /// Shortcut: advance Planning → Acting.
+    /// Shortcut: advance Planning → Acting. No-op from any other phase (so a
+    /// stray APPROVE_PLAN after acting/verifying cannot rewind the loop).
     pub fn advance_to_acting(&mut self) {
         if self.state.phase == PavPhase::Planning {
             self.state.phase = PavPhase::Acting;
         }
     }
 
-    /// Shortcut: advance Acting → Verifying.
+    /// Shortcut: advance Acting → Verifying. No-op from any other phase.
     pub fn advance_to_verifying(&mut self) {
         if self.state.phase == PavPhase::Acting {
             self.state.phase = PavPhase::Verifying;
@@ -112,10 +113,13 @@ impl PhaseLoop {
         self.state.phase = PavPhase::Done;
     }
 
-    /// Mark verify as skippable and jump to Done if currently verifying.
+    /// User intervention: skip verification. Records the skip and completes the
+    /// loop (→ Done) from either Acting or Verifying — the two phases from which
+    /// "skip verify" is meaningful — so a one-shot intervention never strands the
+    /// task mid-loop. No-op from Planning/Done.
     pub fn skip_verify(&mut self) {
         self.state.verify_skipped = true;
-        if self.state.phase == PavPhase::Verifying {
+        if matches!(self.state.phase, PavPhase::Acting | PavPhase::Verifying) {
             self.state.phase = PavPhase::Done;
         }
     }
@@ -199,6 +203,25 @@ mod tests {
         p.skip_verify();
         p.advance();
         assert_eq!(p.phase(), PavPhase::Done);
+    }
+
+    #[test]
+    fn skip_verify_from_acting_completes_without_a_following_advance() {
+        // A one-shot SKIP_VERIFY intervention while Acting must complete the loop,
+        // not strand the task in Acting waiting for a later advance().
+        let mut p = PhaseLoop::start(ClutchProfile::Genius, RiskPosture::Moderate);
+        p.advance(); // Planning -> Acting
+        assert_eq!(p.phase(), PavPhase::Acting);
+        p.skip_verify();
+        assert_eq!(p.phase(), PavPhase::Done);
+    }
+
+    #[test]
+    fn skip_verify_is_noop_from_planning() {
+        let mut p = PhaseLoop::start(ClutchProfile::Genius, RiskPosture::Moderate);
+        assert_eq!(p.phase(), PavPhase::Planning);
+        p.skip_verify();
+        assert_eq!(p.phase(), PavPhase::Planning); // cannot skip what hasn't started
     }
 
     #[test]

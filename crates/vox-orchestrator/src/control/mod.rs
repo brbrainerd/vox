@@ -51,10 +51,15 @@ mod parity_tests {
             );
             let axes: Vec<u8> = row["axes"]
                 .as_sequence()
-                .unwrap()
+                .unwrap_or_else(|| panic!("clutch[{i}] axes must be a sequence"))
                 .iter()
                 .map(|v| v.as_u64().unwrap() as u8)
                 .collect();
+            assert_eq!(
+                axes.len(),
+                3,
+                "clutch[{i}] axes must have exactly 3 elements (quality, cost, speed)"
+            );
             assert_eq!(
                 (axes[0], axes[1], axes[2]),
                 r.axes,

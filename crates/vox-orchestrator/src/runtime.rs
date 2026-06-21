@@ -32,6 +32,21 @@ fn short_id_from_str(s: &str) -> &str {
     }
 }
 
+/// RAII guard that removes a task's interrupt flag from the orchestrator's
+/// `interrupt_flags` map when dropped — including on panic/unwind — so an
+/// aborted or panicking task never leaves a stale flag behind (which would
+/// otherwise let a later task reusing the same `TaskId` see a stale signal).
+struct InterruptFlagGuard {
+    flags: Arc<std::sync::RwLock<std::collections::HashMap<TaskId, Arc<AtomicBool>>>>,
+    task_id: TaskId,
+}
+
+impl Drop for InterruptFlagGuard {
+    fn drop(&mut self) {
+        crate::sync_lock::rw_write(&self.flags).remove(&self.task_id);
+    }
+}
+
 /// Message type sent to the ActorAgent to trigger task processing.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum AgentCommand {
@@ -600,10 +615,14 @@ impl ActorAgent {
                     let cancel = Arc::new(AtomicBool::new(false));
                     crate::sync_lock::rw_write(&orchestrator_ref.interrupt_flags)
                         .insert(task_id, Arc::clone(&cancel));
+                    // Guard removes the flag on EVERY exit path — normal return,
+                    // early `?`, and panic/unwind — preventing a stale-flag leak.
+                    let _flag_guard = InterruptFlagGuard {
+                        flags: Arc::clone(&orchestrator_ref.interrupt_flags),
+                        task_id,
+                    };
 
                     let result = processor.process(agent_id, task, Arc::clone(&cancel)).await;
-
-                    crate::sync_lock::rw_write(&orchestrator_ref.interrupt_flags).remove(&task_id);
 
                     match result {
                         Ok(completed_id) => {

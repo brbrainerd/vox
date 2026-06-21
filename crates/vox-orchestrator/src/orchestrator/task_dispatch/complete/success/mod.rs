@@ -73,8 +73,9 @@ impl Orchestrator {
         };
 
         // Enrich the attestation with attribution from the task's SelectedModelRecord (if set
-        // by the inference layer). This keeps attribution fields consistent whether or not the
-        // caller supplied them explicitly.
+        // by the inference layer). Caller-supplied attestation values take precedence; the
+        // SelectedModelRecord is used only as a fallback for fields the caller left unset
+        // (each copy is guarded by `is_none()`).
         let completion_attestation = {
             let mut att = completion_attestation.unwrap_or_default();
             if let Some(ref task) = task_clone_opt {

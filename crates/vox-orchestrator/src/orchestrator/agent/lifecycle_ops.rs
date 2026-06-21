@@ -270,7 +270,10 @@ impl crate::orchestrator::Orchestrator {
         if let Some(f) = flag {
             f.store(true, std::sync::atomic::Ordering::Release);
             tracing::info!("Interrupt flag set for task {}", task_id);
-            emit_task_cancelled(task_id, AgentId(0), "local_interrupt");
+            // Only SIGNAL intent here. The authoritative `orch.task.cancelled`
+            // (`local_interrupt`) event is emitted exactly once by
+            // `abort_interrupted_task` when the runtime actually stops the task —
+            // with the real `agent_id` — avoiding a double-count.
             return Ok(());
         }
         // Fall back to cancel for queued tasks.
@@ -318,6 +321,14 @@ impl crate::orchestrator::Orchestrator {
                     crate::sync_lock::rw_write(&*self.scope_guard).revoke_file(agent_id, path);
                 }
             }
+        } else {
+            // Agent queue already gone (e.g. agent retired mid-abort): file locks
+            // can't be located here, but assignment + flag cleanup below still run.
+            tracing::warn!(
+                "abort_interrupted_task: no queue for agent {} (task {}); skipping file-lock release",
+                agent_id,
+                task_id
+            );
         }
         crate::sync_lock::rw_write(&self.task_assignments).remove(&task_id);
         crate::sync_lock::rw_write(&self.interrupt_flags).remove(&task_id);

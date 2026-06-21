@@ -3,6 +3,12 @@
 //! These let a human (via GUI or daemon RPC) approve a plan, skip verification,
 //! or force verification on a running task. All methods publish a
 //! `AgentEventKind::PavPhaseChanged` event on the EventBus.
+//!
+//! Interventions are intentionally **lenient**: each delegates to a `PhaseLoop`
+//! method that is a no-op from phases where the action is meaningless (e.g.
+//! `approve_plan` outside Planning). This keeps the daemon API tolerant of the
+//! GUI issuing an optimistic call on a slightly stale phase, rather than erroring.
+//! Task lookup still fails loudly (`TaskNotFound`/`AgentNotFound`).
 
 use crate::orchestrator::OrchestratorError;
 use crate::planning::phase_loop::PhaseLoop;
@@ -16,7 +22,8 @@ impl crate::orchestrator::Orchestrator {
         })
     }
 
-    /// Skip the Verifying phase for a task (if currently Verifying → Done).
+    /// Skip verification for a task: completes the loop (→ Done) from Acting or
+    /// Verifying; no-op from Planning/Done.
     pub fn pav_skip_verify(&self, task_id: TaskId) -> Result<(), OrchestratorError> {
         self.with_pav_loop(task_id, |loop_, _tid| {
             loop_.skip_verify();
@@ -57,7 +64,9 @@ impl crate::orchestrator::Orchestrator {
             return Err(OrchestratorError::TaskNotFound(task_id));
         };
 
-        // Build a PhaseLoop from existing state or a fresh default.
+        // Build a PhaseLoop from existing state, or a fresh default (Planning) for
+        // tasks that predate the PAV loop / were submitted without a clutch override.
+        // The lenient PhaseLoop methods make a wrong starting phase a safe no-op.
         let mut loop_ = if let Some(state) = task.pav_loop.take() {
             PhaseLoop::from_state(state)
         } else {
