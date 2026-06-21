@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../ui/Glass';
 import { Icon } from '../ui/Icons';
-import { AxisMark } from '../brand/AxisMark';
+import { AxisMark } from '../ui/AxisMark';
 import { DashboardData } from '../../types/dashboard';
 import { SURFACE_REGISTRY } from '../../generated/surfaceRegistry.generated';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
@@ -32,12 +32,12 @@ function NavItem({ active, icon, label, onClick, badge, badgeClass, railBadgeCla
   const effectiveAriaLabel = ariaLabel ?? (collapsed ? label : undefined);
   return (
     <button type="button" ref={innerRef} onClick={onClick} title={collapsed ? label : undefined} aria-label={effectiveAriaLabel}
-      className={`group relative flex w-full items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} py-2.5 rounded-xl transition ${active ? "bg-white/[0.04] text-zinc-100" : "text-zinc-500 hover:bg-white/[0.025] hover:text-zinc-200"}`}>
-      {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[2px] rounded-r bg-brass shadow-[0_0_12px_2px_rgb(var(--brass)_/_0.5)]" />}
-      <span className={`flex size-7 items-center justify-center rounded-lg shrink-0 ${active ? "bg-brass/10 text-brass ring-1 ring-brass/30" : "bg-white/[0.02] ring-1 ring-white/5"}`}>{icon}</span>
+      className={`group relative flex w-full items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} py-2.5 rounded-xl transition ${active ? "bg-overlay-subtle text-text-primary" : "text-text-muted hover:bg-overlay-hover hover:text-text-secondary"}`}>
+      {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[2px] rounded-r bg-brass" />}
+      <span className={`flex size-7 items-center justify-center rounded-lg shrink-0 ${active ? "bg-brass/10 text-brass ring-1 ring-brass/30" : "bg-overlay-subtle ring-1 ring-border-subtle"}`}>{icon}</span>
       {!collapsed && <span className="flex-1 text-left font-display text-[12px] tracking-[0.12em] uppercase whitespace-nowrap overflow-hidden">{label}</span>}
-      {!collapsed && badge != null && <span className={`rounded-full px-1.5 py-0.5 font-mono text-[9px] ${badgeClass ?? 'bg-white/[0.05] text-zinc-400'}`}>{badge}</span>}
-      {collapsed && badge != null && <span className={`absolute right-1 top-1 rounded-full px-1 font-mono text-[8px] ${railBadgeClass ?? 'bg-brass/80 text-zinc-950'}`}>{badge}</span>}
+      {!collapsed && badge != null && <span className={`rounded-full px-1.5 py-0.5 font-mono text-[9px] ${badgeClass ?? 'bg-overlay-subtle text-text-muted'}`}>{badge}</span>}
+      {collapsed && badge != null && <span className={`absolute right-1 top-1 rounded-full px-1 font-mono text-[8px] ${railBadgeClass ?? 'bg-brass/80 text-bg-base'}`}>{badge}</span>}
     </button>
   );
 }
@@ -100,7 +100,7 @@ export function Sidebar({
     usesPolling: orchUsesPolling,
   });
   const orchDotClass =
-    tone === 'live' ? 'bg-emerald-400' : tone === 'poll' ? 'bg-amber-400' : 'bg-zinc-500';
+    tone === 'live' ? 'bg-accent-secondary' : tone === 'poll' ? 'bg-brass' : 'bg-text-muted';
 
   useEffect(() => {
     invoke<{ display_name: string }>('get_identity_summary')
@@ -177,21 +177,19 @@ export function Sidebar({
           )}
           {!collapsed && (
             <div className="flex items-center gap-2 px-1">
-              <div className="relative grid size-6 place-items-center rounded-md bg-white/[0.04] ring-1 ring-brass/40">
-                <AxisMark className="size-4 text-brass" />
-              </div>
+              <AxisMark size={22} />
               <div className="leading-tight">
-                <div className="font-display text-[11px] tracking-[0.22em] text-zinc-200">AXIS</div>
+                <div className="font-display text-[11px] tracking-[0.22em] text-text-secondary">VOX</div>
               </div>
             </div>
           )}
           <div className={`flex items-center ${collapsed ? "flex-col gap-1" : "gap-0.5"}`}>
             <button type="button" onClick={() => cycle(-1)} disabled={mode === "rail"} title="Collapse" aria-label="Collapse sidebar"
-              className={`flex size-6 items-center justify-center rounded-md border border-white/5 ${mode === "rail" ? "opacity-30 cursor-not-allowed" : "hover:bg-white/5 text-zinc-400 hover:text-zinc-100"}`}>
+              className={`flex size-6 items-center justify-center rounded-md border border-border-subtle ${mode === "rail" ? "opacity-30 cursor-not-allowed" : "hover:bg-overlay-hover text-text-muted hover:text-text-primary"}`}>
               <Icon.chevL className="size-3" aria-hidden="true"/>
             </button>
             <button type="button" onClick={() => cycle(1)} disabled={mode === "wide"} title="Expand" aria-label="Expand sidebar"
-              className={`flex size-6 items-center justify-center rounded-md border border-white/5 ${mode === "wide" ? "opacity-30 cursor-not-allowed" : "hover:bg-white/5 text-zinc-400 hover:text-zinc-100"}`}>
+              className={`flex size-6 items-center justify-center rounded-md border border-border-subtle ${mode === "wide" ? "opacity-30 cursor-not-allowed" : "hover:bg-overlay-hover text-text-muted hover:text-text-primary"}`}>
               <Icon.chevR className="size-3" aria-hidden="true"/>
             </button>
           </div>
@@ -204,7 +202,7 @@ export function Sidebar({
               onClick={() => setFilterCollapsed(!filterCollapsed)}
               aria-expanded={!filterCollapsed}
               aria-label="Filter navigation"
-              className="flex w-full items-center justify-between rounded-lg border border-white/5 px-2 py-1.5 text-[10px] uppercase tracking-[0.18em] text-zinc-500 hover:bg-white/[0.02] hover:text-zinc-300 transition"
+              className="flex w-full items-center justify-between rounded-lg border border-border-subtle px-2 py-1.5 text-[10px] uppercase tracking-[0.18em] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
             >
               <span>Filter nav…</span>
               <Icon.chevronDown className={`size-3 transition ${filterCollapsed ? '' : 'rotate-180'}`} aria-hidden="true" />
@@ -217,7 +215,7 @@ export function Sidebar({
                 value={navFilter}
                 onChange={e => setNavFilter(e.target.value)}
                 placeholder="Filter nav…"
-                className="mt-1.5 w-full rounded-lg border border-white/5 bg-white/[0.02] px-2.5 py-1.5 text-[11px] text-zinc-200 placeholder:text-zinc-600 focus:border-brass/30 focus:outline-none"
+                className="mt-1.5 w-full rounded-lg border border-border-subtle bg-overlay-subtle px-2.5 py-1.5 text-[11px] text-text-secondary placeholder:text-text-muted focus:border-brass/30 focus:outline-none text-text-primary placeholder:text-text-muted bg-overlay-subtle border-border-subtle"
               />
             )}
           </div>
@@ -258,8 +256,8 @@ export function Sidebar({
                       onClick={() => setView(child.viewKey)}
                       className={`ml-6 flex w-[calc(100%-1.5rem)] items-center rounded-lg px-2.5 py-1.5 text-left text-[11px] transition ${
                         view === child.viewKey
-                          ? 'bg-white/[0.04] text-zinc-100'
-                          : 'text-zinc-500 hover:bg-white/[0.025] hover:text-zinc-200'
+                          ? 'bg-overlay-subtle text-text-primary'
+                          : 'text-text-muted hover:bg-overlay-hover hover:text-text-secondary'
                       }`}
                     >
                       {child.label}
@@ -272,8 +270,8 @@ export function Sidebar({
 
         <div className="flex flex-col gap-2 pt-3 shrink-0">
           {settingsEntry && (
-            <div className="flex flex-col gap-0.5 border-t border-white/5 pt-2">
-              {!collapsed && <div className="px-2 pb-0.5 font-display text-[9px] uppercase tracking-[0.32em] text-zinc-600">System</div>}
+            <div className={`flex flex-col gap-0.5 pt-2 ${collapsed ? 'border-t border-border-subtle' : ''}`}>
+              {!collapsed && <div className="mx-2 mb-1 border-b border-border-subtle px-0 pb-1 font-display text-[9px] uppercase tracking-[0.32em] text-text-muted">System</div>}
               <NavItem
                 collapsed={collapsed}
                 active={activeParent === 'settings'}
@@ -307,13 +305,13 @@ export function Sidebar({
               <span
                 data-testid="sidebar-orch-freshness-dot"
                 aria-hidden="true"
-                className={`absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-zinc-950 ${orchDotClass}`}
+                className={`absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-bg-base ${orchDotClass}`}
               />
             </div>
             {!collapsed && (
               <div className="flex-1 leading-tight overflow-hidden">
-                <div className="font-display text-[11px] text-zinc-200 truncate">{identity}</div>
-                <div className="font-mono text-[9px] text-zinc-500">Vox Axis · build {appVersion ?? 'unknown'} · tauri 2</div>
+                <div className="font-display text-[11px] text-text-secondary truncate">{identity}</div>
+                <div className="font-mono text-[9px] text-text-muted">build {appVersion ?? 'unknown'} · tauri 2</div>
               </div>
             )}
           </div>

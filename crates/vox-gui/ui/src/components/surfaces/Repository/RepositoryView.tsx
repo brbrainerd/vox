@@ -107,11 +107,11 @@ export function RepositoryView({ pushToast, gamifyEnabled }: RepositoryViewProps
 
   return (
     <section className="space-y-4">
-      <h2 className="font-display text-lg text-zinc-100 tracking-wider uppercase">Repository Harness</h2>
+      <h2 className="font-display text-lg text-text-primary tracking-wider uppercase">Repository Harness</h2>
       <div className="grid gap-2 sm:grid-cols-2">
         <button
           type="button"
-          className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-left text-sm hover:bg-white/[0.06]"
+          className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-2 text-left text-sm hover:bg-overlay-subtle"
           disabled={busy}
           onClick={() => runAction('Workspace status', ['status'])}
         >
@@ -119,7 +119,7 @@ export function RepositoryView({ pushToast, gamifyEnabled }: RepositoryViewProps
         </button>
         <button
           type="button"
-          className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-left text-sm hover:bg-white/[0.06]"
+          className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-2 text-left text-sm hover:bg-overlay-subtle"
           disabled={busy}
           onClick={() => runAction('Repository health', ['check', 'workspace'])}
         >
@@ -127,7 +127,7 @@ export function RepositoryView({ pushToast, gamifyEnabled }: RepositoryViewProps
         </button>
         <button
           type="button"
-          className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-left text-sm hover:bg-white/[0.06]"
+          className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-2 text-left text-sm hover:bg-overlay-subtle"
           disabled={busy}
           onClick={() => runAction('Vox check', ['check'])}
         >
@@ -135,7 +135,7 @@ export function RepositoryView({ pushToast, gamifyEnabled }: RepositoryViewProps
         </button>
         <button
           type="button"
-          className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-left text-sm hover:bg-white/[0.06]"
+          className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-2 text-left text-sm hover:bg-overlay-subtle"
           disabled={busy}
           onClick={() => runAction('List changed files', ['diff'])}
         >
@@ -146,11 +146,11 @@ export function RepositoryView({ pushToast, gamifyEnabled }: RepositoryViewProps
         aria-label="Command output"
         aria-live="polite"
         aria-busy={busy}
-        className="max-h-[420px] overflow-auto rounded-lg border border-white/10 bg-black/40 p-3 text-xs text-zinc-300"
+        className="max-h-[420px] overflow-auto rounded-lg border border-border-subtle bg-black/40 p-3 text-xs text-text-secondary"
       >
         {output}
       </pre>
-      <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+      <div className="rounded-lg border border-border-subtle bg-overlay-subtle p-3">
         <IsolationPanel
           status={isolation}
           onSetDefault={handleSetDefault}

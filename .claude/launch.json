@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "vox-gui-limes",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "crates/vox-gui/ui", "dev"],
+      "port": 1420
+    },
+    {
+      "name": "ds-gallery",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8777", "--directory", "crates/vox-gui/ds"],
+      "port": 8777
+    }
+  ]
+}

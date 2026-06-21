@@ -13,28 +13,71 @@ export const tokens = {
     "brass": {
       "default": "#d4af37"
     },
+    "basalt": {
+      "600": "#2b343a",
+      "700": "#1f262b",
+      "800": "#15191c",
+      "850": "#11151a",
+      "900": "#0c0e10",
+      "950": "#0a0c0d"
+    },
+    "travertine": {
+      "50": "#f6f1e7",
+      "100": "#f4eee1",
+      "200": "#ece5d6",
+      "300": "#e3dbc8",
+      "ink": "#2a2620",
+      "ink-soft": "#4a443a",
+      "ink-muted": "#6b6457"
+    },
+    "gold": {
+      "300": "#e0c478",
+      "400": "#d4af37",
+      "500": "#c9a24a",
+      "600": "#a8842f",
+      "700": "#8a6a26"
+    },
+    "verdigris": {
+      "300": "#79c8ba",
+      "400": "#4a9e8f",
+      "600": "#2f7d6f",
+      "700": "#1f5a50"
+    },
+    "terracotta": {
+      "400": "#d98b6a",
+      "600": "#b25a37"
+    },
+    "oxblood": {
+      "600": "#a3402f",
+      "700": "#7e2d20"
+    },
     "status": {
-      "pass": "#a7f3d0",
-      "fail": "#fca5a5",
-      "warn": "#fde68a",
+      "pass": "#79c8ba",
+      "fail": "#f0a59a",
+      "warn": "#d98b6a",
       "info": "#bfdbfe"
     },
     "bg": {
-      "base": "#09090b",
-      "surface": "#18181b",
-      "elevated": "#27272a"
+      "base": "#0c0e10",
+      "surface": "#15191c",
+      "elevated": "#1f262b"
     },
     "text": {
       "primary": "#fafafa",
-      "secondary": "#d4d4d8",
-      "muted": "#a1a1aa"
+      "secondary": "#c4ccd2",
+      "muted": "#8b949a"
     },
     "border": {
-      "subtle": "#3f3f46",
-      "strong": "#a1a1aa"
+      "subtle": "#1f262b",
+      "strong": "#3a444b"
     },
     "accent": {
-      "default": "#d4af37"
+      "default": "#c9a24a",
+      "secondary": "#4a9e8f"
+    },
+    "overlay": {
+      "subtle": "rgba(255,255,255,0.04)",
+      "hover": "rgba(255,255,255,0.07)"
     }
   },
   "space": {
@@ -71,6 +114,12 @@ export const tokens = {
     "leading": {
       "tight": "1.25",
       "normal": "1.5"
+    },
+    "family": {
+      "display": "Cinzel, Georgia, serif",
+      "sans": "Inter, system-ui, sans-serif",
+      "serif": "EB Garamond, Georgia, serif",
+      "mono": "ui-monospace, Consolas, monospace"
     }
   },
   "motion": {

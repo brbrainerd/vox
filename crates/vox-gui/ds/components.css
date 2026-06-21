@@ -1,0 +1,132 @@
+/*
+ * Limes presentational component classes — self-contained, derived ONLY from
+ * the design tokens (see tokens/). No Tailwind, no app dependency. The repo's
+ * real surfaces express the same look via Tailwind utilities mapped to these
+ * same CSS variables; these `.ds-*` classes let the design components render
+ * standalone in Claude Design.
+ *
+ * Scope switching: wrap in `[data-theme="travertine"]` for the daylight scope;
+ * default (no attribute) is the basalt dark scope.
+ */
+
+/* --- foundational ornaments -------------------------------------------- */
+.ds-rule {
+  height: 1px;
+  background: linear-gradient(90deg, rgb(var(--brass)), rgb(var(--brass) / 0));
+}
+.ds-display {
+  font-family: var(--font-family-display);
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+.ds-tick {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  pointer-events: none;
+}
+.ds-tick-tl { top: 9px; left: 9px;
+  border-top: 1px solid rgb(var(--brass)); border-left: 1px solid rgb(var(--brass)); }
+.ds-tick-tr { top: 9px; right: 9px;
+  border-top: 1px solid var(--color-accent-secondary); border-right: 1px solid var(--color-accent-secondary); }
+
+/* --- section heading ---------------------------------------------------- *
+ * A divider that introduces a section UNDERLINES its heading (border-bottom
+ * beneath the label) — it never caps the section with a top border above the
+ * first label, which crowds the text and hurts readability. Items follow below.
+ */
+.ds-section-head {
+  font-family: var(--font-family-display);
+  font-size: 9px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  padding-bottom: 4px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+/* --- surface (Glass) ---------------------------------------------------- */
+.ds-card {
+  position: relative;
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-overlay-subtle);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 24px 60px -30px rgba(0,0,0,0.9);
+}
+
+/* --- buttons ------------------------------------------------------------ */
+.ds-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-family-display);
+  font-size: 11px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-overlay-subtle);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+.ds-btn:hover { background: var(--color-overlay-hover); color: var(--color-text-primary); }
+.ds-btn-primary {
+  border-color: rgb(var(--brass) / 0.3);
+  background: rgb(var(--brass) / 0.1);
+  color: rgb(var(--brass));
+}
+.ds-btn-primary:hover { background: rgb(var(--brass) / 0.2); color: rgb(var(--brass)); }
+
+/* --- pill / status chip ------------------------------------------------- */
+.ds-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 9999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--color-overlay-subtle);
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-text-secondary);
+}
+.ds-pill-dot { width: 6px; height: 6px; border-radius: 9999px; background: var(--color-text-muted); }
+.ds-pill-pass  { color: var(--color-status-pass); }  .ds-pill-pass  .ds-pill-dot { background: var(--color-status-pass); }
+.ds-pill-warn  { color: var(--color-status-warn); }  .ds-pill-warn  .ds-pill-dot { background: var(--color-status-warn); }
+.ds-pill-fail  { color: var(--color-status-fail); }  .ds-pill-fail  .ds-pill-dot { background: var(--color-status-fail); }
+.ds-pill-accent{ color: var(--color-accent-secondary); } .ds-pill-accent .ds-pill-dot { background: var(--color-accent-secondary); }
+
+/* --- nav item ----------------------------------------------------------- */
+.ds-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px 12px;
+  border-radius: var(--radius-lg);
+  color: var(--color-text-muted);
+  font-family: var(--font-family-display);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+.ds-nav:hover { background: var(--color-overlay-hover); color: var(--color-text-secondary); }
+.ds-nav-active { position: relative; background: var(--color-overlay-subtle); color: var(--color-text-primary); }
+.ds-nav-active::before {
+  content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  height: 20px; width: 2px; border-radius: 0 2px 2px 0; background: rgb(var(--brass));
+}
+
+/* --- kpi tile ----------------------------------------------------------- */
+.ds-kpi { display: flex; flex-direction: column; gap: 4px; padding: var(--space-4); }
+.ds-kpi-label { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--color-text-muted); }
+.ds-kpi-value { font-family: var(--font-family-display); font-size: 20px; font-weight: 600; color: var(--color-text-primary); font-variant-numeric: tabular-nums; }
+.ds-kpi-delta-up   { font-size: 10px; color: var(--color-accent-secondary); }
+.ds-kpi-delta-down { font-size: 10px; color: var(--color-status-fail); }

@@ -78,22 +78,22 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
 
   return (
     <section className="space-y-4">
-      <h2 className="font-display text-lg text-zinc-100 tracking-wider uppercase">Research</h2>
+      <h2 className="font-display text-lg text-text-primary tracking-wider uppercase">Research</h2>
 
       <div className="flex gap-2">
         <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Ask a research question…"
           aria-label="Research question"
           onKeyDown={e => { if (e.key === 'Enter') void run(); }}
-          className="flex-1 rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-zinc-200 outline-none focus:border-brass/40" />
+          className="flex-1 rounded-lg border border-border-subtle bg-black/40 px-3 py-2 text-sm text-text-secondary outline-none focus:border-brass/40" />
         <button type="button" onClick={run} disabled={running}
           className="rounded-lg border border-brass/30 bg-brass/10 px-4 py-2 text-sm text-brass hover:bg-brass/20 disabled:opacity-50">
           {running ? 'Running…' : 'Run'}
         </button>
       </div>
       {running && (
-        <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3" aria-live="polite">
+        <div className="rounded-lg border border-border-subtle bg-overlay-subtle p-3" aria-live="polite">
           <PipelineTimeline stages={RESEARCH_STAGES} statuses={deriveStages('active')} />
-          <div className="mt-2 text-[11px] text-zinc-500">
+          <div className="mt-2 text-[11px] text-text-muted">
             Running in the background{activeSessionId != null ? ` (session ${activeSessionId})` : ''} — the answer opens automatically when it completes.
           </div>
         </div>
@@ -101,11 +101,11 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
 
       <div>
         <div className="mb-2 flex items-center justify-between">
-          <span className="font-display text-[12px] uppercase tracking-wide text-zinc-400">Recent sessions</span>
-          <button type="button" onClick={loadHistory} className="text-[11px] text-zinc-500 hover:text-zinc-200">Refresh</button>
+          <span className="font-display text-[12px] uppercase tracking-wide text-text-muted">Recent sessions</span>
+          <button type="button" onClick={loadHistory} className="text-[11px] text-text-muted hover:text-text-secondary">Refresh</button>
         </div>
         {sessions.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-white/5 py-6 text-center text-[11px] text-zinc-600">
+          <div className="rounded-lg border border-dashed border-border-subtle py-6 text-center text-[11px] text-text-muted">
             No research sessions yet — ask a question above to run one.
           </div>
         ) : (
@@ -113,9 +113,9 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
             {sessions.map(s => (
               <li key={s.id}>
                 <button type="button" onClick={() => openDetail(s.id)}
-                  className="flex w-full items-center justify-between rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-left hover:bg-white/[0.04]">
-                  <span className="truncate text-[12px] text-zinc-300">{s.query_text}</span>
-                  <span className="ml-3 shrink-0 font-mono text-[10px] text-zinc-500">{s.status}</span>
+                  className="flex w-full items-center justify-between rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-2 text-left hover:bg-overlay-subtle">
+                  <span className="truncate text-[12px] text-text-secondary">{s.query_text}</span>
+                  <span className="ml-3 shrink-0 font-mono text-[10px] text-text-muted">{s.status}</span>
                 </button>
               </li>
             ))}
@@ -124,13 +124,13 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
       </div>
 
       {detail && (
-        <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+        <div className="rounded-lg border border-border-subtle bg-overlay-subtle p-3">
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-[12px] text-zinc-300">Session {detail.session.id}</span>
-            <button type="button" onClick={() => setDetail(null)} className="text-[11px] text-zinc-500 hover:text-zinc-200">Close</button>
+            <span className="text-[12px] text-text-secondary">Session {detail.session.id}</span>
+            <button type="button" onClick={() => setDetail(null)} className="text-[11px] text-text-muted hover:text-text-secondary">Close</button>
           </div>
           <PipelineTimeline stages={RESEARCH_STAGES} statuses={deriveStages(detail.session.status)} />
-          <pre className="mt-2 max-h-[360px] overflow-auto whitespace-pre-wrap text-[12px] text-zinc-300">
+          <pre className="mt-2 max-h-[360px] overflow-auto whitespace-pre-wrap text-[12px] text-text-secondary">
             {detail.report_markdown ?? detail.artifact_json ?? '(no artifact persisted)'}
           </pre>
         </div>

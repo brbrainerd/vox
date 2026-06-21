@@ -1,7 +1,7 @@
 x-vox-version: 1
 schema_version: 1
 description: >
-  TopHud tile catalog and layout schema for the vox-gui operator console.
+  TopHud tile catalog and layout schema for the vox-gui dashboard.
   Runtime configs are validated client-side via useHudTiles.ts and persisted
   under gui.hud.tiles.v1 (see shell-persistence.v1.yaml).
 

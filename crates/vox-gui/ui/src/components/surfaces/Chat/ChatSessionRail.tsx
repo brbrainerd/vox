@@ -57,7 +57,7 @@ export function ChatSessionRail({
             aria-label="Collapse sessions rail"
             aria-expanded={true}
             onClick={() => setCollapsed(true)}
-            className="rounded p-1 text-zinc-500 transition hover:bg-white/[0.04] hover:text-zinc-300"
+            className="rounded p-1 text-text-muted transition hover:bg-overlay-subtle hover:text-text-secondary"
           >
             <span className="font-mono text-xs" aria-hidden="true">
               «
@@ -82,12 +82,12 @@ export function ChatSessionRail({
                 className={`w-full justify-start rounded-lg border px-2.5 py-2 text-left text-xs ${
                   isActive
                     ? 'border-brass/40 bg-brass/10 text-brass'
-                    : 'border-border-subtle text-text-muted hover:text-zinc-200'
+                    : 'border-border-subtle text-text-muted hover:text-text-secondary'
                 }`}
               >
                 <span className="block truncate">{s.title}</span>
                 {s.message_count > 0 ? (
-                  <span className="mt-0.5 block font-mono text-[10px] text-zinc-500">
+                  <span className="mt-0.5 block font-mono text-[10px] text-text-muted">
                     {s.message_count} msg{s.message_count === 1 ? '' : 's'}
                   </span>
                 ) : null}

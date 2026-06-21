@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 320" role="img" aria-label="Vox Axis">
+  <title>Vox Axis splash</title>
+  <desc>A large groma mark centered over a faint surveyor's grid on a basalt field, with the wordmark below.</desc>
+  <rect x="0" y="0" width="480" height="320" rx="28" fill="#0c0e10"/>
+  <g stroke="#4a9e8f" stroke-width="1" opacity="0.10">
+    <path d="M60 0 V320 M180 0 V320 M300 0 V320 M420 0 V320"/>
+    <path d="M0 60 H480 M0 140 H480 M0 220 H480 M0 300 H480"/>
+  </g>
+  <g transform="translate(240 132)">
+    <g transform="scale(0.9) translate(-50 -50)" fill="none" stroke="#d4af37">
+      <circle cx="50" cy="50" r="40" stroke-width="6"/>
+      <path d="M50 12 V88 M12 50 H88" stroke-width="8" stroke-linecap="round"/>
+      <circle cx="50" cy="50" r="9" stroke-width="6"/>
+      <path d="M50 6 l6 10 h-12 z M50 94 l6 -10 h-12 z M6 50 l10 6 v-12 z M94 50 l-10 6 v-12 z" fill="#d4af37" stroke="none"/>
+    </g>
+  </g>
+  <text x="240" y="246" text-anchor="middle" font-family="Cinzel, Georgia, serif" font-weight="600" font-size="30" letter-spacing="9" fill="#fafafa">VOX AXIS</text>
+  <line x1="170" y1="266" x2="310" y2="266" stroke="#d4af37" stroke-width="1"/>
+  <text x="240" y="288" text-anchor="middle" font-family="Cinzel, Georgia, serif" font-weight="600" font-size="10" letter-spacing="6" fill="#8b949a">SURVEYOR OF AGENTS</text>
+</svg>

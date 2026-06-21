@@ -62,7 +62,7 @@ interface CommandPaletteProps {
 
 function SourceBadge({ source }: { source: string }) {
   return (
-    <span className="shrink-0 rounded border border-white/10 bg-white/[0.03] px-1.5 py-px font-mono text-[9px] uppercase tracking-widest text-zinc-500">
+    <span className="shrink-0 rounded border border-border-subtle bg-overlay-subtle px-1.5 py-px font-mono text-[9px] uppercase tracking-widest text-text-muted">
       {source}
     </span>
   );
@@ -306,7 +306,7 @@ export function CommandPalette({ open, onClose, onAction, agents, skills, gamify
 
   let rowOffset = 0;
   const rowSelected = (idx: number) => idx === selectedRowIdx;
-  const rowClass = (idx: number, base = 'hover:bg-white/[0.04]') =>
+  const rowClass = (idx: number, base = 'hover:bg-overlay-subtle') =>
     `flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition ${
       rowSelected(idx) ? 'bg-brass/[0.08] border border-brass/20' : base
     }`;
@@ -317,10 +317,10 @@ export function CommandPalette({ open, onClose, onAction, agents, skills, gamify
       onClick={onClose}
     >
       <div
-        className="w-[640px] max-w-[92vw] rounded-2xl border border-white/10 bg-zinc-950/90 shadow-[0_40px_120px_-30px_rgba(0,0,0,0.9)] backdrop-blur-2xl"
+        className="w-[640px] max-w-[92vw] rounded-2xl border border-border-subtle bg-bg-base/90 shadow-[0_40px_120px_-30px_rgba(0,0,0,0.9)] backdrop-blur-2xl"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2 border-b border-white/5 px-4 py-3">
+        <div className="flex items-center gap-2 border-b border-border-subtle px-4 py-3">
           <Icon.command className="size-4 text-brass" />
           <input
             autoFocus
@@ -331,12 +331,12 @@ export function CommandPalette({ open, onClose, onAction, agents, skills, gamify
               setSearchQuery(v);
             }}
             placeholder="Search commands, settings, docs, windows, agents…"
-            className="flex-1 bg-transparent text-[14px] text-zinc-100 placeholder:text-zinc-600 outline-none"
+            className="flex-1 bg-transparent text-[14px] text-text-primary placeholder:text-text-muted outline-none"
           />
           {backendLoading && (
             <div className="size-3 rounded-full border-2 border-brass/20 border-t-brass/80 animate-spin shrink-0" />
           )}
-          <kbd className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500">
+          <kbd className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[10px] text-text-muted">
             esc
           </kbd>
         </div>
@@ -345,14 +345,14 @@ export function CommandPalette({ open, onClose, onAction, agents, skills, gamify
           {q.length === 0 && (
             <div
               data-testid="palette-prefix-legend"
-              className="px-3 py-2 text-[11px] text-zinc-500 border-b border-white/5 mb-1"
+              className="px-3 py-2 text-[11px] text-text-muted border-b border-border-subtle mb-1"
             >
               {'> commands · @ agents · / docs+skills'}
             </div>
           )}
 
           {q.length === 0 && (
-            <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-zinc-500 border-b border-white/5 mb-1">
+            <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-text-muted border-b border-border-subtle mb-1">
               Quick Actions
             </div>
           )}
@@ -360,15 +360,15 @@ export function CommandPalette({ open, onClose, onAction, agents, skills, gamify
           {q.length === 0 && (
             <button
               onClick={() => { onAction({ id: 'submit' }); onClose(); }}
-              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left hover:bg-white/[0.04]"
+              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left hover:bg-overlay-subtle"
             >
-              <span className="text-[13px] text-zinc-200">Submit new task…</span>
-              <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-500">loquela</span>
+              <span className="text-[13px] text-text-secondary">Submit new task…</span>
+              <span className="font-mono text-[9px] uppercase tracking-widest text-text-muted">loquela</span>
             </button>
           )}
 
           {filteredAgents.length > 0 && (
-            <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-zinc-500 mt-2">Agents</div>
+            <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-text-muted mt-2">Agents</div>
           )}
           {filteredAgents.map(a => {
             const idx = rowOffset++;
@@ -378,14 +378,14 @@ export function CommandPalette({ open, onClose, onAction, agents, skills, gamify
                 onClick={() => { onAction(a); onClose(); }}
                 className={rowClass(idx)}
               >
-                <span className="text-[13px] text-zinc-200">{a.codename} ({a.id})</span>
-                <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-500">{a.phase}</span>
+                <span className="text-[13px] text-text-secondary">{a.codename} ({a.id})</span>
+                <span className="font-mono text-[9px] uppercase tracking-widest text-text-muted">{a.phase}</span>
               </button>
             );
           })}
 
           {filteredSkills.length > 0 && (
-            <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-zinc-500 mt-2">Skills</div>
+            <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-text-muted mt-2">Skills</div>
           )}
           {filteredSkills.map(s => {
             const idx = rowOffset++;
@@ -396,10 +396,10 @@ export function CommandPalette({ open, onClose, onAction, agents, skills, gamify
                 className={rowClass(idx)}
               >
                 <div className="flex flex-col">
-                  <span className="text-[13px] text-zinc-200">{s.command}</span>
-                  <span className="text-[11px] text-zinc-500 truncate max-w-[400px]">{s.about}</span>
+                  <span className="text-[13px] text-text-secondary">{s.command}</span>
+                  <span className="text-[11px] text-text-muted truncate max-w-[400px]">{s.about}</span>
                 </div>
-                <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-500">{s.tier}</span>
+                <span className="font-mono text-[9px] uppercase tracking-widest text-text-muted">{s.tier}</span>
               </button>
             );
           })}
@@ -409,7 +409,7 @@ export function CommandPalette({ open, onClose, onAction, agents, skills, gamify
             if (!items?.length) return null;
             return (
               <React.Fragment key={kind}>
-                <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-zinc-500 mt-2">
+                <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-text-muted mt-2">
                   {FED_KIND_LABELS[kind]}
                 </div>
                 {items.map((item, i) => {
@@ -421,16 +421,16 @@ export function CommandPalette({ open, onClose, onAction, agents, skills, gamify
                       className={rowClass(idx)}
                     >
                       <div className="flex flex-col min-w-0">
-                        <span className="text-[13px] text-zinc-200 truncate max-w-[440px]">
+                        <span className="text-[13px] text-text-secondary truncate max-w-[440px]">
                           {item.label}
                         </span>
                         {item.detail ? (
-                          <span className="text-[11px] text-zinc-500 truncate max-w-[440px]">
+                          <span className="text-[11px] text-text-muted truncate max-w-[440px]">
                             {item.detail}
                           </span>
                         ) : null}
                       </div>
-                      <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-500 shrink-0 ml-2">
+                      <span className="font-mono text-[9px] uppercase tracking-widest text-text-muted shrink-0 ml-2">
                         {kind === 'surface' ? item.detail || 'window' : kind}
                       </span>
                     </button>
@@ -443,7 +443,7 @@ export function CommandPalette({ open, onClose, onAction, agents, skills, gamify
           {/* Backend search results */}
           {hasBackendResults && (
             <>
-              <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-zinc-500 mt-2 border-t border-white/5 flex items-center gap-2">
+              <div className="px-3 pt-2 pb-1.5 mt-2 mb-1 text-[10px] uppercase tracking-widest text-text-muted border-b border-border-subtle flex items-center gap-2">
                 <Icon.search className="size-3" />
                 Search results
               </div>
@@ -460,17 +460,17 @@ export function CommandPalette({ open, onClose, onAction, agents, skills, gamify
                   >
                     <div className="flex flex-col min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-[13px] text-zinc-200 truncate">{displayTitle}</span>
+                        <span className="text-[13px] text-text-secondary truncate">{displayTitle}</span>
                         <SourceBadge source={hit.source} />
                       </div>
                       {hit.snippet && (
-                        <span className="text-[11px] text-zinc-500 truncate max-w-[440px]">
+                        <span className="text-[11px] text-text-muted truncate max-w-[440px]">
                           {hit.snippet}
                         </span>
                       )}
                     </div>
                     {isOpenable && (
-                      <Icon.link className="size-3 text-zinc-500 shrink-0 ml-2" />
+                      <Icon.link className="size-3 text-text-muted shrink-0 ml-2" />
                     )}
                   </button>
                 );
@@ -482,7 +482,7 @@ export function CommandPalette({ open, onClose, onAction, agents, skills, gamify
                   onAction({ id: 'search' });
                   onClose();
                 }}
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left hover:bg-white/[0.04] border-t border-white/5 mt-1"
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left hover:bg-overlay-subtle border-t border-border-subtle mt-1"
               >
                 <Icon.search className="size-3 text-brass shrink-0" />
                 <span className="text-[12px] text-brass">See all results for "{q}"</span>
@@ -491,7 +491,7 @@ export function CommandPalette({ open, onClose, onAction, agents, skills, gamify
           )}
 
           {noResults && (
-            <div className="px-3 py-6 text-center text-[12px] text-zinc-500">
+            <div className="px-3 py-6 text-center text-[12px] text-text-muted">
               No matches found for "{q}"
             </div>
           )}

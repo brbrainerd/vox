@@ -86,33 +86,33 @@ export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps
       <Glass className="p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="font-display text-sm tracking-widest text-zinc-200 uppercase">Model Registry</div>
-            <div className="text-xs text-zinc-500 mt-1">
+            <div className="font-display text-sm tracking-widest text-text-secondary uppercase">Model Registry</div>
+            <div className="text-xs text-text-muted mt-1">
               {summary ? `${summary.model_count} models · ${summary.arm_count} routing arms · explore $${(summary.exploration_spent_usd ?? 0).toFixed(2)} / $${(summary.exploration_budget_usd ?? 0).toFixed(0)}` : 'Loading routing summary…'}
             </div>
           </div>
           <div className="text-right">
-            <div className="text-[10px] uppercase tracking-widest text-zinc-500">Active</div>
+            <div className="text-[10px] uppercase tracking-widest text-text-muted">Active</div>
             <div className="font-mono text-xs text-brass">{activeModel ?? 'auto-route'}</div>
           </div>
         </div>
       </Glass>
       {summary?.decision_preview && (
         <Glass className="p-4">
-          <div className="font-display text-[11px] tracking-[0.2em] uppercase text-zinc-400">Decision Preview</div>
-          <div className="mt-2 text-xs text-zinc-200 font-mono">{summary.decision_preview.selected_model}</div>
-          <div className="text-[10px] text-zinc-500 mt-1">
+          <div className="font-display text-[11px] tracking-[0.2em] uppercase text-text-muted">Decision Preview</div>
+          <div className="mt-2 text-xs text-text-secondary font-mono">{summary.decision_preview.selected_model}</div>
+          <div className="text-[10px] text-text-muted mt-1">
             state={summary.decision_preview.discovery_state} · intel={(summary.decision_preview.intelligence_score ?? 0).toFixed(2)} · eff={(summary.decision_preview.efficiency_score ?? 0).toFixed(2)} · lat={(summary.decision_preview.latency_score ?? 0).toFixed(2)}
           </div>
           {summary.decision_preview.alternatives?.length ? (
-            <div className="mt-2 text-[10px] text-zinc-500">
+            <div className="mt-2 text-[10px] text-text-muted">
               alternatives: {summary.decision_preview.alternatives.slice(0, 3).join(', ')}
             </div>
           ) : null}
         </Glass>
       )}
       {loading && models.length === 0 ? (
-        <Glass className="p-8 text-center text-zinc-500 text-sm">Loading model catalog…</Glass>
+        <Glass className="p-8 text-center text-text-muted text-sm">Loading model catalog…</Glass>
       ) : (
         <>
           <ModelGrid title="Hosted" items={hosted} activeModel={activeModel} onSetDefault={setDefault} />
@@ -129,7 +129,7 @@ function ModelGrid({ title, items, activeModel, onSetDefault }: {
   if (items.length === 0) return null;
   return (
     <section>
-      <div className="mb-2 font-display text-[11px] tracking-[0.2em] uppercase text-zinc-400">{title}</div>
+      <div className="mb-2 font-display text-[11px] tracking-[0.2em] uppercase text-text-muted">{title}</div>
       <div role="list" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
         {items.slice(0, 48).map(m => {
           const isActive = activeModel === m.id;
@@ -137,15 +137,15 @@ function ModelGrid({ title, items, activeModel, onSetDefault }: {
             <Glass key={m.id} role="listitem" className={`p-4 flex flex-col gap-3 ${isActive ? 'ring-1 ring-brass/40' : ''}`}>
               <div className="flex justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="font-mono text-xs text-zinc-100 truncate" title={m.id}>{m.id}</div>
-                  <div className="text-[10px] text-zinc-500">{m.provider} · {m.tier}</div>
+                  <div className="font-mono text-xs text-text-primary truncate" title={m.id}>{m.id}</div>
+                  <div className="text-[10px] text-text-muted">{m.provider} · {m.tier}</div>
                 </div>
                 {m.is_free && <span className="text-[9px] uppercase tracking-widest text-emerald-400">free</span>}
               </div>
-              <div className="grid grid-cols-3 gap-2 text-[10px] font-mono text-zinc-400">
-                <div><span className="text-zinc-600">ctx</span> {Math.round(m.max_tokens / 1000)}k</div>
-                <div><span className="text-zinc-600">$/1k</span> {m.cost_per_1k.toFixed(4)}</div>
-                <div><span className="text-zinc-600">p50</span> {m.latency_p50_ms ?? '—'}</div>
+              <div className="grid grid-cols-3 gap-2 text-[10px] font-mono text-text-muted">
+                <div><span className="text-text-muted">ctx</span> {Math.round(m.max_tokens / 1000)}k</div>
+                <div><span className="text-text-muted">$/1k</span> {m.cost_per_1k.toFixed(4)}</div>
+                <div><span className="text-text-muted">p50</span> {m.latency_p50_ms ?? '—'}</div>
               </div>
               <button
                 type="button"
@@ -153,7 +153,7 @@ function ModelGrid({ title, items, activeModel, onSetDefault }: {
                 aria-pressed={isActive}
                 aria-current={isActive ? 'true' : undefined}
                 aria-label={`Set ${m.id} as active model${isActive ? ' (currently active)' : ''}`}
-                className="mt-auto rounded-lg border border-white/10 px-3 py-1.5 text-[10px] uppercase tracking-widest hover:bg-white/5"
+                className="mt-auto rounded-lg border border-border-subtle px-3 py-1.5 text-[10px] uppercase tracking-widest hover:bg-overlay-subtle"
               >
                 {isActive ? 'Active' : 'Set active'}
               </button>

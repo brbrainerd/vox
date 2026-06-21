@@ -8,11 +8,12 @@ import {
 } from './dashboardLayout';
 
 describe('dashboardLayout', () => {
-  it('default layout has stream, agents, and alerts widgets', () => {
-    const layout = defaultDashboardLayout();
-    expect(layout.widgets.map((w) => w.kind)).toEqual(
-      expect.arrayContaining(['stream', 'agents', 'alerts']),
-    );
+  it('default layout is the operator-console composition (resources + agents lead)', () => {
+    const l = defaultDashboardLayout();
+    expect(validateDashboardLayout(l)).toEqual(l); // stays schema-valid
+    expect(l.widgets[0].kind).toBe('resources');
+    expect(l.widgets.some((w) => w.kind === 'agents')).toBe(true);
+    expect(l.widgets.some((w) => w.kind === 'stream')).toBe(true); // no feature loss
   });
 
   it('rejects unknown widget kind', () => {

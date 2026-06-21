@@ -116,7 +116,7 @@ function ScopeChip({
       className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-widest transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-brass/40 ${
         active
           ? 'border-brass/40 bg-brass/10 text-brass'
-          : 'border-white/5 bg-white/[0.01] text-zinc-500 hover:border-white/10 hover:text-zinc-400'
+          : 'border-border-subtle bg-overlay-subtle text-text-muted hover:border-border-subtle hover:text-text-muted'
       }`}
     >
       <span aria-hidden="true" className={`size-1.5 rounded-full ${active ? 'bg-brass' : 'bg-white/15'}`} />
@@ -142,11 +142,11 @@ function FacetChip({
       className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-brass/40 ${
         active
           ? 'border-brass/40 bg-brass/10 text-brass'
-          : 'border-white/5 bg-white/[0.01] text-zinc-500 hover:border-white/10 hover:text-zinc-400'
+          : 'border-border-subtle bg-overlay-subtle text-text-muted hover:border-border-subtle hover:text-text-muted'
       }`}
     >
       {facet.value}
-      <span className="rounded bg-white/10 px-1 py-px text-[9px]">{facet.count}</span>
+      <span className="rounded bg-overlay-subtle px-1 py-px text-[9px]">{facet.count}</span>
     </button>
   );
 }
@@ -155,13 +155,13 @@ function ScoreBar({ score }: { score: number }) {
   const pct = Math.max(0, Math.min(1, score)) * 100;
   return (
     <div className="flex items-center gap-1.5 shrink-0">
-      <div className="h-1 w-12 rounded-full bg-white/[0.06] overflow-hidden">
+      <div className="h-1 w-12 rounded-full bg-overlay-subtle overflow-hidden">
         <div
           className="h-full rounded-full bg-brass/60 transition-all"
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="font-mono text-[9px] text-zinc-500">{scoreToPct(score)}</span>
+      <span className="font-mono text-[9px] text-text-muted">{scoreToPct(score)}</span>
     </div>
   );
 }
@@ -234,31 +234,31 @@ function HitRow({
       className={`group flex items-start gap-3 rounded-xl border px-4 py-3 transition cursor-pointer ${
         selected
           ? 'border-brass/40 bg-brass/[0.05]'
-          : 'border-white/5 bg-white/[0.02] hover:border-white/10 hover:bg-white/[0.035]'
+          : 'border-border-subtle bg-overlay-subtle hover:border-border-subtle hover:bg-overlay-subtle'
       }`}
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
-          <span className="font-semibold text-[13px] text-zinc-100 truncate" title={displayTitle}>
+          <span className="font-semibold text-[13px] text-text-primary truncate" title={displayTitle}>
             {displayTitle}
           </span>
-          <span className="shrink-0 rounded border border-white/8 bg-white/[0.03] px-1.5 py-px font-mono text-[9px] uppercase tracking-widest text-zinc-500">
+          <span className="shrink-0 rounded border border-white/8 bg-overlay-subtle px-1.5 py-px font-mono text-[9px] uppercase tracking-widest text-text-muted">
             {hit.kind}
           </span>
-          <span className="shrink-0 rounded border border-white/5 bg-white/[0.02] px-1.5 py-px font-mono text-[9px] text-zinc-600">
+          <span className="shrink-0 rounded border border-border-subtle bg-overlay-subtle px-1.5 py-px font-mono text-[9px] text-text-muted">
             {hit.source}
           </span>
         </div>
         {hit.path && (
-          <div className="font-mono text-[10px] text-zinc-600 truncate mb-1" title={hit.path}>
+          <div className="font-mono text-[10px] text-text-muted truncate mb-1" title={hit.path}>
             {hit.path}
           </div>
         )}
-        <div className="text-[12px] leading-relaxed text-zinc-400 line-clamp-2">
+        <div className="text-[12px] leading-relaxed text-text-muted line-clamp-2">
           <HighlightedSnippet snippet={hit.snippet} query={query} />
         </div>
         {provenanceStr && (
-          <div className="mt-1 font-mono text-[9px] text-zinc-600 truncate" title={provenanceStr}>
+          <div className="mt-1 font-mono text-[9px] text-text-muted truncate" title={provenanceStr}>
             {provenanceStr}
           </div>
         )}
@@ -272,7 +272,7 @@ function HitRow({
               onClick={e => { e.stopPropagation(); onOpen(); }}
               title={hit.locator.kind === 'web' ? 'Open in browser' : 'Open file'}
               aria-label={hit.locator.kind === 'web' ? 'Open in browser' : 'Open file'}
-              className="rounded p-1 text-zinc-500 hover:text-brass hover:bg-white/[0.04] transition"
+              className="rounded p-1 text-text-muted hover:text-brass hover:bg-overlay-subtle transition"
             >
               <Icon.link className="size-3" aria-hidden="true" />
             </button>
@@ -283,7 +283,7 @@ function HitRow({
               onClick={copyPath}
               title="Copy path"
               aria-label="Copy path"
-              className="rounded p-1 text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04] transition"
+              className="rounded p-1 text-text-muted hover:text-text-secondary hover:bg-overlay-subtle transition"
             >
               <Icon.file className="size-3" aria-hidden="true" />
             </button>
@@ -493,9 +493,9 @@ export function SearchView({ pushToast, gamifyEnabled = false }: SurfaceDecorato
       <Glass className="p-4">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div>
-            <div className="font-display text-sm tracking-widest text-zinc-200 uppercase">Unified Search</div>
+            <div className="font-display text-sm tracking-widest text-text-secondary uppercase">Unified Search</div>
             <div
-              className="text-xs text-zinc-500 mt-1"
+              className="text-xs text-text-muted mt-1"
               aria-live="polite"
               aria-atomic="true"
             >
@@ -506,20 +506,20 @@ export function SearchView({ pushToast, gamifyEnabled = false }: SurfaceDecorato
           </div>
           {/* Path glob filter */}
           <div className="flex items-center gap-2">
-            <span className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">Path</span>
+            <span className="font-mono text-[10px] uppercase tracking-widest text-text-muted">Path</span>
             <input
               type="text"
               value={pathGlob}
               onChange={e => setPathGlob(e.target.value)}
               placeholder="**/*.rs"
               aria-label="Filter results by path glob"
-              className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 font-mono text-[11px] text-zinc-300 outline-none focus:border-brass/40 w-28"
+              className="rounded-lg border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[11px] text-text-secondary outline-none focus:border-brass/40 w-28"
             />
           </div>
         </div>
 
         {/* Search input */}
-        <div className="relative flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 focus-within:border-brass/40 transition-colors">
+        <div className="relative flex items-center gap-2 rounded-xl border border-border-subtle bg-overlay-subtle px-3 py-2.5 focus-within:border-brass/40 transition-colors">
           <Icon.search className="size-4 shrink-0 text-brass" aria-hidden="true" />
           <input
             autoFocus
@@ -528,7 +528,7 @@ export function SearchView({ pushToast, gamifyEnabled = false }: SurfaceDecorato
             onChange={e => setSearchQuery(e.target.value)}
             placeholder="Search everything…"
             aria-label="Search query"
-            className="flex-1 bg-transparent text-[14px] text-zinc-100 placeholder:text-zinc-600 outline-none"
+            className="flex-1 bg-transparent text-[14px] text-text-primary placeholder:text-text-muted outline-none"
           />
           {loading && (
             <div className="size-4 shrink-0 rounded-full border-2 border-brass/20 border-t-brass/80 animate-spin" />
@@ -542,7 +542,7 @@ export function SearchView({ pushToast, gamifyEnabled = false }: SurfaceDecorato
                 setResponse(null);
                 setAllHits([]);
               }}
-              className="text-zinc-500 hover:text-zinc-300 transition"
+              className="text-text-muted hover:text-text-secondary transition"
             >
               <Icon.x className="size-4" aria-hidden="true" />
             </button>
@@ -563,7 +563,7 @@ export function SearchView({ pushToast, gamifyEnabled = false }: SurfaceDecorato
             <button
               type="button"
               onClick={() => setSelectedUserScopes([])}
-              className="font-mono text-[9px] uppercase tracking-widest text-zinc-600 hover:text-zinc-400 transition"
+              className="font-mono text-[9px] uppercase tracking-widest text-text-muted hover:text-text-muted transition"
             >
               clear
             </button>
@@ -578,7 +578,7 @@ export function SearchView({ pushToast, gamifyEnabled = false }: SurfaceDecorato
           <div className="w-44 shrink-0 flex flex-col gap-3">
             {response.facets_by_source.length > 0 && (
               <Glass className="p-3">
-                <div className="font-mono text-[9px] uppercase tracking-widest text-zinc-500 mb-2">Source</div>
+                <div className="font-mono text-[9px] uppercase tracking-widest text-text-muted mb-2">Source</div>
                 <div className="flex flex-col gap-1">
                   {response.facets_by_source.map(f => (
                     <FacetChip
@@ -593,7 +593,7 @@ export function SearchView({ pushToast, gamifyEnabled = false }: SurfaceDecorato
             )}
             {response.facets_by_kind.length > 0 && (
               <Glass className="p-3">
-                <div className="font-mono text-[9px] uppercase tracking-widest text-zinc-500 mb-2">Kind</div>
+                <div className="font-mono text-[9px] uppercase tracking-widest text-text-muted mb-2">Kind</div>
                 <div className="flex flex-col gap-1">
                   {response.facets_by_kind.map(f => (
                     <FacetChip
@@ -643,10 +643,10 @@ export function SearchView({ pushToast, gamifyEnabled = false }: SurfaceDecorato
               {Array.from(grouped.entries()).map(([source, hits]) => (
                 <section key={source}>
                   <div className="mb-2 flex items-center gap-2">
-                    <div className="font-display text-[11px] tracking-[0.2em] uppercase text-zinc-400">
+                    <div className="font-display text-[11px] tracking-[0.2em] uppercase text-text-muted">
                       {source}
                     </div>
-                    <span className="font-mono text-[9px] text-zinc-600">
+                    <span className="font-mono text-[9px] text-text-muted">
                       {hits.length} hit{hits.length !== 1 ? 's' : ''}
                     </span>
                   </div>

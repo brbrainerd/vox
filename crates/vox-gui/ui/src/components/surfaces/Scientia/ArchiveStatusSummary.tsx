@@ -60,50 +60,50 @@ export function ArchiveStatusSummary() {
   const counts = rows ? depositedCount(rows) : null;
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
+    <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-3">
       <div className="mb-2 flex items-center justify-between">
-        <span className="font-mono text-[10px] uppercase tracking-wider text-zinc-500">
+        <span className="font-mono text-[10px] uppercase tracking-wider text-text-muted">
           Archive deposit status
         </span>
         <button
           type="button"
           onClick={load}
           disabled={loading}
-          className="rounded border border-white/10 px-2 py-0.5 font-mono text-[10px] text-zinc-400 hover:bg-white/[0.04] disabled:opacity-40"
+          className="rounded border border-border-subtle px-2 py-0.5 font-mono text-[10px] text-text-muted hover:bg-overlay-subtle disabled:opacity-40"
         >
           {loading ? '…' : 'Refresh'}
         </button>
       </div>
 
       {!rows && loading && (
-        <div className="font-mono text-[11px] text-zinc-600">Loading archive rollup…</div>
+        <div className="font-mono text-[11px] text-text-muted">Loading archive rollup…</div>
       )}
 
       {rows && counts && (
         <>
           <div className="mb-3 grid grid-cols-3 gap-2">
-            <div className="rounded-lg border border-white/5 bg-white/[0.02] px-2 py-1.5 text-center">
+            <div className="rounded-lg border border-border-subtle bg-overlay-subtle px-2 py-1.5 text-center">
               <div className="font-mono text-lg text-emerald-300">{counts.zenodo}</div>
-              <div className="font-mono text-[9px] uppercase tracking-wider text-zinc-500">Zenodo DOI</div>
+              <div className="font-mono text-[9px] uppercase tracking-wider text-text-muted">Zenodo DOI</div>
             </div>
-            <div className="rounded-lg border border-white/5 bg-white/[0.02] px-2 py-1.5 text-center">
+            <div className="rounded-lg border border-border-subtle bg-overlay-subtle px-2 py-1.5 text-center">
               <div className="font-mono text-lg text-cyan">{counts.swh}</div>
-              <div className="font-mono text-[9px] uppercase tracking-wider text-zinc-500">SWHID</div>
+              <div className="font-mono text-[9px] uppercase tracking-wider text-text-muted">SWHID</div>
             </div>
-            <div className="rounded-lg border border-white/5 bg-white/[0.02] px-2 py-1.5 text-center">
+            <div className="rounded-lg border border-border-subtle bg-overlay-subtle px-2 py-1.5 text-center">
               <div className="font-mono text-lg text-amber-300">{counts.pending}</div>
-              <div className="font-mono text-[9px] uppercase tracking-wider text-zinc-500">Not deposited</div>
+              <div className="font-mono text-[9px] uppercase tracking-wider text-text-muted">Not deposited</div>
             </div>
           </div>
 
           {rows.length === 0 ? (
-            <div className="font-mono text-[11px] text-zinc-600">No scientia publications to sample.</div>
+            <div className="font-mono text-[11px] text-text-muted">No scientia publications to sample.</div>
           ) : (
             <ul className="space-y-1">
               {rows.map((r) => (
                 <li key={r.publication_id} className="flex items-center gap-2 font-mono text-[11px]">
-                  <span className="truncate text-zinc-300">{r.publication_id}</span>
-                  <span className="ml-auto shrink-0 text-zinc-500">{r.state}</span>
+                  <span className="truncate text-text-secondary">{r.publication_id}</span>
+                  <span className="ml-auto shrink-0 text-text-muted">{r.state}</span>
                   <span className="shrink-0 text-emerald-300/80">
                     {r.status.zenodo_doi ? 'DOI' : '—'}
                   </span>

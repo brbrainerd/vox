@@ -234,7 +234,7 @@ export const LudusSandbox: React.FC<SandboxProps> = ({ files }) => {
   };
 
   return (
-    <div className="relative w-full h-[500px] bg-[#09090b] overflow-hidden border border-zinc-800 rounded-2xl">
+    <div className="relative w-full h-[500px] bg-[#09090b] overflow-hidden border border-border-subtle rounded-2xl">
       <canvas
         ref={canvasRef}
         width={800}
@@ -253,7 +253,7 @@ export const LudusSandbox: React.FC<SandboxProps> = ({ files }) => {
         />
       </div>
       {bubble && (
-        <div className="absolute top-[180px] left-[380px] bg-zinc-900 border border-zinc-700 text-zinc-100 text-[10px] px-2 py-1 rounded shadow-lg animate-bounce whitespace-nowrap z-20">
+        <div className="absolute top-[180px] left-[380px] bg-bg-base border border-border-subtle text-text-primary text-[10px] px-2 py-1 rounded shadow-lg animate-bounce whitespace-nowrap z-20">
           💬 {bubble}
         </div>
       )}
@@ -267,7 +267,7 @@ export const LudusSandbox: React.FC<SandboxProps> = ({ files }) => {
           <div
             key={task.taskId}
             data-testid="task-clipboard"
-            className="absolute pointer-events-auto cursor-pointer bg-zinc-900 border border-zinc-700 p-1 rounded text-xs select-none z-10"
+            className="absolute pointer-events-auto cursor-pointer bg-bg-base border border-border-subtle p-1 rounded text-xs select-none z-10"
             style={{ left: left - 10, top: top - 20 }}
           >
             📋

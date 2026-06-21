@@ -87,6 +87,8 @@ function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
           loading={props.dashboardLoading}
           onPause={props.onPause!}
           onResume={props.onResume!}
+          onDoubt={props.onDoubt}
+          onOverrule={props.onOverrule}
           onAckLudus={props.onAckLudus!}
           filterKind={props.filterKind!}
           setFilterKind={props.setFilterKind!}

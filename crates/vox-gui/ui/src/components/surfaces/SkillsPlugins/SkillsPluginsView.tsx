@@ -167,7 +167,7 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
       aria-selected={tab === id}
       onClick={() => setTab(id)}
       className={`rounded-md px-3 py-1.5 font-display text-[11px] tracking-wider uppercase transition ${
-        tab === id ? 'bg-brass/10 text-brass ring-1 ring-brass/30' : 'text-zinc-500 hover:text-zinc-200'
+        tab === id ? 'bg-brass/10 text-brass ring-1 ring-brass/30' : 'text-text-muted hover:text-text-secondary'
       }`}
     >
       {label}
@@ -181,7 +181,7 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
           <span className="flex size-7 items-center justify-center rounded-lg bg-brass/10 text-brass ring-1 ring-brass/30">
             <Icon.catalog className="size-4" aria-hidden="true" />
           </span>
-          <div className="font-display text-sm tracking-widest uppercase text-zinc-200">Skills &amp; Plugins</div>
+          <div className="font-display text-sm tracking-widest uppercase text-text-secondary">Skills &amp; Plugins</div>
           <div className="ml-4 flex items-center gap-1" role="tablist" aria-label="Skills and plugins views">
             <TabButton id="installed" label="Installed" />
             <TabButton id="marketplace" label="Marketplace" />
@@ -197,14 +197,14 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
                   ? refreshMarketplace()
                   : refreshDiscovered()
             }
-            className="ml-auto flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5"
+            className="ml-auto flex items-center gap-1.5 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle"
           >
             <Icon.refresh className="size-3" aria-hidden="true" /> refresh
           </button>
         </div>
 
         {loading ? (
-          <div className="text-sm text-zinc-500">Loading…</div>
+          <div className="text-sm text-text-muted">Loading…</div>
         ) : tab === 'discovered' ? (
           <DiscoveredTab
             discovered={discovered}
@@ -324,12 +324,12 @@ function MarketplaceTab(props: {
             onKeyDown={(e) => e.key === 'Enter' && runSearch()}
             placeholder="Search for skills…"
             aria-label="Search for skills"
-            className="flex-1 rounded-md border border-white/10 bg-white/[0.02] px-3 py-1.5 font-mono text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-brass/40"
+            className="flex-1 rounded-md border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-mono text-xs text-text-secondary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-brass/40"
           />
           <button
             type="button"
             onClick={runSearch}
-            className="flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.02] px-3 py-1.5 font-display text-[11px] tracking-wider uppercase text-zinc-300 hover:bg-white/5"
+            className="flex items-center gap-1.5 rounded-md border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-display text-[11px] tracking-wider uppercase text-text-secondary hover:bg-overlay-subtle"
           >
             <Icon.search className="size-3.5" aria-hidden="true" /> Search
           </button>
@@ -409,8 +409,8 @@ function Section({ title, count, children }: { title: string; count: number; chi
   return (
     <div>
       <div className="mb-2 flex items-center gap-2">
-        <div className="font-display text-[11px] tracking-[0.2em] uppercase text-zinc-400">{title}</div>
-        <span className="rounded-full bg-white/[0.05] px-2 py-0.5 font-mono text-[10px] text-zinc-500">{count}</span>
+        <div className="font-display text-[11px] tracking-[0.2em] uppercase text-text-muted">{title}</div>
+        <span className="rounded-full bg-overlay-subtle px-2 py-0.5 font-mono text-[10px] text-text-muted">{count}</span>
       </div>
       <div className="flex flex-col gap-2">{children}</div>
     </div>
@@ -418,7 +418,7 @@ function Section({ title, count, children }: { title: string; count: number; chi
 }
 
 function Empty({ text }: { text: string }) {
-  return <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3 text-xs text-zinc-500">{text}</div>;
+  return <div className="rounded-lg border border-border-subtle bg-overlay-subtle p-3 text-xs text-text-muted">{text}</div>;
 }
 
 interface Action {
@@ -442,20 +442,20 @@ function Row(props: {
       ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20'
       : t === 'danger'
         ? 'border-rose-400/30 bg-rose-400/10 text-rose-300 hover:bg-rose-400/20'
-        : 'border-white/10 bg-white/[0.02] text-zinc-300 hover:bg-white/5';
+        : 'border-border-subtle bg-overlay-subtle text-text-secondary hover:bg-overlay-subtle';
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-white/5 bg-white/[0.02] p-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 rounded-lg border border-border-subtle bg-overlay-subtle p-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="font-mono text-xs text-brass">{title}</span>
-          {version ? <span className="font-mono text-[10px] text-zinc-500">{version}</span> : null}
+          {version ? <span className="font-mono text-[10px] text-text-muted">{version}</span> : null}
         </div>
-        {subtitle ? <div className="mt-1 break-words text-xs text-zinc-300">{subtitle}</div> : null}
-        <div className="mt-1 font-mono text-[10px] text-zinc-600 break-all">{id}</div>
+        {subtitle ? <div className="mt-1 break-words text-xs text-text-secondary">{subtitle}</div> : null}
+        <div className="mt-1 font-mono text-[10px] text-text-muted break-all">{id}</div>
         {tags && tags.length > 0 ? (
           <div className="mt-1.5 flex flex-wrap gap-1">
             {tags.filter(Boolean).map((t, i) => (
-              <span key={`${t}-${i}`} className="rounded bg-white/[0.05] px-1.5 py-0.5 font-mono text-[9px] text-zinc-400">
+              <span key={`${t}-${i}`} className="rounded bg-overlay-subtle px-1.5 py-0.5 font-mono text-[9px] text-text-muted">
                 {t}
               </span>
             ))}

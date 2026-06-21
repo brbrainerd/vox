@@ -64,7 +64,7 @@ function statusTone(status: string): string {
     case 'quarantined':
       return 'border-rose-400/30 bg-rose-400/10 text-rose-300';
     default:
-      return 'border-white/10 bg-white/[0.05] text-zinc-300';
+      return 'border-border-subtle bg-overlay-subtle text-text-secondary';
   }
 }
 
@@ -175,22 +175,22 @@ export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
           <span className="flex size-7 items-center justify-center rounded-lg bg-brass/10 text-brass ring-1 ring-brass/30">
             <Icon.cpu className="size-4" />
           </span>
-          <div className="font-display text-sm tracking-widest uppercase text-zinc-200">
+          <div className="font-display text-sm tracking-widest uppercase text-text-secondary">
             Vox Populi Mesh
           </div>
-          <span className="ml-1 rounded-full bg-white/[0.05] px-2 py-0.5 font-mono text-[10px] text-zinc-400">
+          <span className="ml-1 rounded-full bg-overlay-subtle px-2 py-0.5 font-mono text-[10px] text-text-muted">
             {nodes.length} node{nodes.length === 1 ? '' : 's'}
           </span>
-          <span className="rounded-full bg-white/[0.05] px-2 py-0.5 font-mono text-[10px] text-zinc-400">
+          <span className="rounded-full bg-overlay-subtle px-2 py-0.5 font-mono text-[10px] text-text-muted">
             source: {nodesMeta.source ?? '—'}
           </span>
-          <span className="rounded-full bg-white/[0.05] px-2 py-0.5 font-mono text-[10px] text-zinc-400">
+          <span className="rounded-full bg-overlay-subtle px-2 py-0.5 font-mono text-[10px] text-text-muted">
             pending: {pendingCount ?? '—'}
           </span>
           <button
             type="button"
             onClick={refresh}
-            className="ml-auto flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.03] px-3 py-1.5 font-display text-[11px] tracking-wider uppercase text-zinc-200 transition hover:bg-white/[0.06]"
+            className="ml-auto flex items-center gap-1.5 rounded-md border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-display text-[11px] tracking-wider uppercase text-text-secondary transition hover:bg-overlay-subtle"
           >
             <Icon.refresh aria-hidden="true" className="size-3.5" /> Refresh
           </button>
@@ -211,7 +211,7 @@ export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
             {Object.entries(queue.pending_by_kind).map(([kind, n]) => (
               <span
                 key={kind}
-                className="rounded-full bg-white/[0.04] px-2 py-0.5 font-mono text-[10px] text-zinc-400"
+                className="rounded-full bg-overlay-subtle px-2 py-0.5 font-mono text-[10px] text-text-muted"
               >
                 {kind}: {n}
               </span>
@@ -222,28 +222,28 @@ export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
 
       {/* Node table */}
       <Glass className="col-span-12 overflow-auto p-4" aria-label="Mesh nodes" aria-live="polite" aria-busy={loading}>
-        <div className="mb-3 font-display text-xs tracking-widest uppercase text-zinc-400">
+        <div className="mb-3 font-display text-xs tracking-widest uppercase text-text-muted">
           Nodes
         </div>
         {loading && nodes.length === 0 ? (
-          <div className="text-sm text-zinc-500">Loading mesh nodes…</div>
+          <div className="text-sm text-text-muted">Loading mesh nodes…</div>
         ) : nodes.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-            <span className="flex size-12 items-center justify-center rounded-2xl bg-white/[0.05] text-zinc-400 ring-1 ring-white/10">
+            <span className="flex size-12 items-center justify-center rounded-2xl bg-overlay-subtle text-text-muted ring-1 ring-white/10">
               <Icon.cpu className="size-6" />
             </span>
-            <div className="font-display text-sm tracking-wider text-zinc-300">No mesh nodes</div>
-            <div className="max-w-md text-[11px] leading-relaxed text-zinc-500">
-              Join one with <code className="font-mono text-zinc-400">vox populi join</code>, or
+            <div className="font-display text-sm tracking-wider text-text-secondary">No mesh nodes</div>
+            <div className="max-w-md text-[11px] leading-relaxed text-text-muted">
+              Join one with <code className="font-mono text-text-muted">vox populi join</code>, or
               configure a control plane via{' '}
-              <code className="font-mono text-zinc-400">VOX_ORCHESTRATOR_DAEMON_SOCKET</code> /{' '}
-              <code className="font-mono text-zinc-400">VOX_ORCHESTRATOR_MESH_CONTROL_URL</code>.
+              <code className="font-mono text-text-muted">VOX_ORCHESTRATOR_DAEMON_SOCKET</code> /{' '}
+              <code className="font-mono text-text-muted">VOX_ORCHESTRATOR_MESH_CONTROL_URL</code>.
             </div>
           </div>
         ) : (
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="text-[10px] uppercase tracking-wider text-zinc-500">
+              <tr className="text-[10px] uppercase tracking-wider text-text-muted">
                 <th scope="col" className="px-2 py-1.5 font-display">Node</th>
                 <th scope="col" className="px-2 py-1.5 font-display">Status</th>
                 <th scope="col" className="px-2 py-1.5 font-display">Host</th>
@@ -255,7 +255,7 @@ export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
             </thead>
             <tbody>
               {nodes.map((n) => (
-                <tr key={n.id} className="border-t border-white/5">
+                <tr key={n.id} className="border-t border-border-subtle">
                   <td className="px-2 py-1.5 font-mono text-brass break-all">{n.id}</td>
                   <td className="px-2 py-1.5">
                     <span
@@ -266,19 +266,19 @@ export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
                       {n.status}
                     </span>
                   </td>
-                  <td className="px-2 py-1.5 font-mono text-[11px] text-zinc-400">
+                  <td className="px-2 py-1.5 font-mono text-[11px] text-text-muted">
                     {n.host_triple ?? '—'}
                   </td>
-                  <td className="px-2 py-1.5 font-mono text-[11px] text-zinc-300">
+                  <td className="px-2 py-1.5 font-mono text-[11px] text-text-secondary">
                     {n.gpu_summary ?? '—'}
                   </td>
-                  <td className="px-2 py-1.5 text-[11px] text-zinc-300">{n.trust_tier ?? '—'}</td>
-                  <td className="px-2 py-1.5 text-[11px] text-zinc-400">
+                  <td className="px-2 py-1.5 text-[11px] text-text-secondary">{n.trust_tier ?? '—'}</td>
+                  <td className="px-2 py-1.5 text-[11px] text-text-muted">
                     {n.advertised_models && n.advertised_models.length > 0
                       ? n.advertised_models.join(', ')
                       : '—'}
                   </td>
-                  <td className="px-2 py-1.5 font-mono text-[11px] text-zinc-500">
+                  <td className="px-2 py-1.5 font-mono text-[11px] text-text-muted">
                     {formatLastSeen(n.last_seen_unix_ms)}
                   </td>
                 </tr>
@@ -294,7 +294,7 @@ export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
           <span className="flex size-7 items-center justify-center rounded-lg bg-brass/10 text-brass ring-1 ring-brass/30">
             <Icon.send className="size-4" />
           </span>
-          <div className="font-display text-sm tracking-widest uppercase text-zinc-200">
+          <div className="font-display text-sm tracking-widest uppercase text-text-secondary">
             Dispatch Job
           </div>
         </div>
@@ -313,14 +313,14 @@ export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
 
         <div className="grid grid-cols-12 gap-3">
           <div className="col-span-12 sm:col-span-6">
-            <label className="mb-1 block font-display text-[10px] uppercase tracking-wider text-zinc-500">
+            <label className="mb-1 block font-display text-[10px] uppercase tracking-wider text-text-muted">
               Target node (optional)
             </label>
             <select
               value={targetNode}
               onChange={(e) => setTargetNode(e.target.value)}
               disabled={!dispatchConfigured}
-              className="w-full rounded-md border border-white/10 bg-black/40 px-2 py-1.5 text-xs text-zinc-200 disabled:opacity-40"
+              className="w-full rounded-md border border-border-subtle bg-black/40 px-2 py-1.5 text-xs text-text-secondary disabled:opacity-40"
             >
               <option value="">Auto (control plane picks)</option>
               {nodes.map((n) => (
@@ -331,7 +331,7 @@ export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
             </select>
           </div>
           <div className="col-span-12 sm:col-span-6">
-            <label className="mb-1 block font-display text-[10px] uppercase tracking-wider text-zinc-500">
+            <label className="mb-1 block font-display text-[10px] uppercase tracking-wider text-text-muted">
               Task kind (optional)
             </label>
             <input
@@ -339,11 +339,11 @@ export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
               onChange={(e) => setTaskKind(e.target.value)}
               disabled={!dispatchConfigured}
               placeholder="e.g. text_infer"
-              className="w-full rounded-md border border-white/10 bg-black/40 px-2 py-1.5 font-mono text-xs text-zinc-200 disabled:opacity-40"
+              className="w-full rounded-md border border-border-subtle bg-black/40 px-2 py-1.5 font-mono text-xs text-text-secondary disabled:opacity-40"
             />
           </div>
           <div className="col-span-12">
-            <label className="mb-1 block font-display text-[10px] uppercase tracking-wider text-zinc-500">
+            <label className="mb-1 block font-display text-[10px] uppercase tracking-wider text-text-muted">
               Source (.vox)
             </label>
             <textarea
@@ -352,7 +352,7 @@ export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
               disabled={!dispatchConfigured}
               rows={5}
               placeholder={'fn main() {\n  print("hello from the mesh")\n}'}
-              className="w-full rounded-md border border-white/10 bg-black/40 p-2 font-mono text-xs text-zinc-200 disabled:opacity-40"
+              className="w-full rounded-md border border-border-subtle bg-black/40 p-2 font-mono text-xs text-text-secondary disabled:opacity-40"
             />
           </div>
         </div>
@@ -372,7 +372,7 @@ export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
           <pre
             aria-label="Dispatch result"
             aria-live="polite"
-            className="mt-3 max-h-64 overflow-auto rounded-md border border-white/10 bg-black/40 p-3 text-[11px] text-zinc-300"
+            className="mt-3 max-h-64 overflow-auto rounded-md border border-border-subtle bg-black/40 p-3 text-[11px] text-text-secondary"
           >
             {dispatchResult}
           </pre>

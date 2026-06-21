@@ -473,8 +473,8 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
     <section className="space-y-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-display text-lg tracking-[0.14em] uppercase text-zinc-100">Browser</h1>
-          <p className="text-[12px] text-zinc-500 mt-1">
+          <h1 className="font-display text-lg tracking-[0.14em] uppercase text-text-primary">Browser</h1>
+          <p className="text-[12px] text-text-muted mt-1">
             Preview Vox web apps and mirror agent-driven CDP browser sessions.
           </p>
         </div>
@@ -484,7 +484,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
             role="tab"
             aria-selected={tab === 'preview'}
             onClick={() => setTab('preview')}
-            className={`px-3 py-1.5 rounded-lg text-[11px] uppercase tracking-wider ${tab === 'preview' ? 'bg-brass/15 text-brass ring-1 ring-brass/30' : 'bg-white/[0.03] text-zinc-400'}`}
+            className={`px-3 py-1.5 rounded-lg text-[11px] uppercase tracking-wider ${tab === 'preview' ? 'bg-brass/15 text-brass ring-1 ring-brass/30' : 'bg-overlay-subtle text-text-muted'}`}
           >
             Preview
           </button>
@@ -493,7 +493,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
             role="tab"
             aria-selected={tab === 'agent'}
             onClick={() => setTab('agent')}
-            className={`px-3 py-1.5 rounded-lg text-[11px] uppercase tracking-wider ${tab === 'agent' ? 'bg-brass/15 text-brass ring-1 ring-brass/30' : 'bg-white/[0.03] text-zinc-400'}`}
+            className={`px-3 py-1.5 rounded-lg text-[11px] uppercase tracking-wider ${tab === 'agent' ? 'bg-brass/15 text-brass ring-1 ring-brass/30' : 'bg-overlay-subtle text-text-muted'}`}
           >
             Agent live view
           </button>
@@ -504,22 +504,22 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
         <div className="space-y-3">
           <div className="grid gap-3 md:grid-cols-2">
             <label className="block space-y-1">
-              <span className="text-[10px] uppercase tracking-wider text-zinc-500">Preview URL</span>
+              <span className="text-[10px] uppercase tracking-wider text-text-muted">Preview URL</span>
               <input
                 value={previewUrl}
                 onChange={(e) => setPreviewUrl(e.target.value)}
-                className="w-full rounded-lg bg-white/[0.03] border border-white/10 px-3 py-2 text-sm text-zinc-200"
+                className="w-full rounded-lg bg-overlay-subtle border border-border-subtle px-3 py-2 text-sm text-text-secondary"
                 placeholder="http://127.0.0.1:3000"
               />
             </label>
             <label className="block space-y-1">
-              <span className="text-[10px] uppercase tracking-wider text-zinc-500">
+              <span className="text-[10px] uppercase tracking-wider text-text-muted">
                 App dir (Preview spawn — needs dev:ssr-upstream or dev script)
               </span>
               <input
                 value={appDir}
                 onChange={(e) => setAppDir(e.target.value)}
-                className="w-full rounded-lg bg-white/[0.03] border border-white/10 px-3 py-2 text-sm text-zinc-200"
+                className="w-full rounded-lg bg-overlay-subtle border border-border-subtle px-3 py-2 text-sm text-text-secondary"
                 placeholder="path to a vox web app (leave blank to use the URL above)"
               />
             </label>
@@ -537,7 +537,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
               type="button"
               disabled={busy}
               onClick={stopPreview}
-              className="rounded-lg bg-white/[0.05] text-zinc-300 px-4 py-2 text-[11px] uppercase tracking-wider disabled:opacity-50"
+              className="rounded-lg bg-overlay-subtle text-text-secondary px-4 py-2 text-[11px] uppercase tracking-wider disabled:opacity-50"
             >
               Stop
             </button>
@@ -545,18 +545,18 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
               type="button"
               disabled={busy || !activePreviewUrl}
               onClick={runPlaywrightValidate}
-              className="rounded-lg bg-white/[0.05] text-zinc-300 px-4 py-2 text-[11px] uppercase tracking-wider disabled:opacity-50"
+              className="rounded-lg bg-overlay-subtle text-text-secondary px-4 py-2 text-[11px] uppercase tracking-wider disabled:opacity-50"
             >
               Validate (Playwright)
             </button>
           </div>
           {preview && (
-            <p className="text-[11px] text-zinc-500 font-mono">
+            <p className="text-[11px] text-text-muted font-mono">
               source={preview.source} active={String(preview.active)} url={preview.url ?? '—'}
             </p>
           )}
           {validateOut && (
-            <pre className="max-h-40 overflow-auto rounded-lg bg-black/40 p-3 text-[11px] text-zinc-400 font-mono whitespace-pre-wrap">
+            <pre className="max-h-40 overflow-auto rounded-lg bg-black/40 p-3 text-[11px] text-text-muted font-mono whitespace-pre-wrap">
               {validateOut}
             </pre>
           )}
@@ -565,12 +565,12 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
               key={`${activePreviewUrl}-${previewReloadNonce}`}
               title="Vox app preview"
               src={activePreviewUrl}
-              className="w-full min-h-[480px] rounded-xl border border-white/10 bg-white"
+              className="w-full min-h-[480px] rounded-xl border border-border-subtle bg-white"
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
               onError={() => setPreviewFrameBlocked(true)}
             />
           ) : (
-            <div className="rounded-xl border border-dashed border-white/10 p-8 text-center text-zinc-500 text-sm space-y-3">
+            <div className="rounded-xl border border-dashed border-border-subtle p-8 text-center text-text-muted text-sm space-y-3">
               <div>
                 {activePreviewUrl
                   ? 'Preview frame blocked by page framing policy (X-Frame-Options/CSP).'
@@ -598,11 +598,11 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
         <div className="space-y-3">
           <div className="grid gap-3 md:grid-cols-[1fr_auto]">
             <label className="block space-y-1">
-              <span className="text-[10px] uppercase tracking-wider text-zinc-500">Agent browser URL</span>
+              <span className="text-[10px] uppercase tracking-wider text-text-muted">Agent browser URL</span>
               <input
                 value={agentUrl}
                 onChange={(e) => setAgentUrl(e.target.value)}
-                className="w-full rounded-lg bg-white/[0.03] border border-white/10 px-3 py-2 text-sm text-zinc-200"
+                className="w-full rounded-lg bg-overlay-subtle border border-border-subtle px-3 py-2 text-sm text-text-secondary"
               />
             </label>
             <label className="flex items-end gap-2 pb-1">
@@ -612,7 +612,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
                 onChange={(e) => setHeadless(e.target.checked)}
                 className="rounded"
               />
-              <span className="text-[11px] text-zinc-400">Headless</span>
+              <span className="text-[11px] text-text-muted">Headless</span>
             </label>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -628,7 +628,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
               type="button"
               disabled={busy || !pageId}
               onClick={closeAgentSession}
-              className="rounded-lg bg-white/[0.05] text-zinc-300 px-4 py-2 text-[11px] uppercase tracking-wider disabled:opacity-50"
+              className="rounded-lg bg-overlay-subtle text-text-secondary px-4 py-2 text-[11px] uppercase tracking-wider disabled:opacity-50"
             >
               Close
             </button>
@@ -636,7 +636,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
               type="button"
               disabled={!pageId || busy}
               onClick={captureFrame}
-              className="rounded-lg bg-white/[0.05] text-zinc-300 px-4 py-2 text-[11px] uppercase tracking-wider disabled:opacity-50"
+              className="rounded-lg bg-overlay-subtle text-text-secondary px-4 py-2 text-[11px] uppercase tracking-wider disabled:opacity-50"
             >
               Capture frame
             </button>
@@ -644,7 +644,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
               type="button"
               disabled={!pageId || busy || !(pageInfo?.can_go_back ?? false)}
               onClick={() => navigate('back')}
-              className="rounded-lg bg-white/[0.05] text-zinc-300 px-4 py-2 text-[11px] uppercase tracking-wider disabled:opacity-50"
+              className="rounded-lg bg-overlay-subtle text-text-secondary px-4 py-2 text-[11px] uppercase tracking-wider disabled:opacity-50"
             >
               Back
             </button>
@@ -652,7 +652,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
               type="button"
               disabled={!pageId || busy || !(pageInfo?.can_go_forward ?? false)}
               onClick={() => navigate('forward')}
-              className="rounded-lg bg-white/[0.05] text-zinc-300 px-4 py-2 text-[11px] uppercase tracking-wider disabled:opacity-50"
+              className="rounded-lg bg-overlay-subtle text-text-secondary px-4 py-2 text-[11px] uppercase tracking-wider disabled:opacity-50"
             >
               Forward
             </button>
@@ -660,7 +660,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
               type="button"
               disabled={!pageId || busy}
               onClick={() => navigate('reload')}
-              className="rounded-lg bg-white/[0.05] text-zinc-300 px-4 py-2 text-[11px] uppercase tracking-wider disabled:opacity-50"
+              className="rounded-lg bg-overlay-subtle text-text-secondary px-4 py-2 text-[11px] uppercase tracking-wider disabled:opacity-50"
             >
               Reload
             </button>
@@ -668,7 +668,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
               type="button"
               disabled={!pageId || busy}
               onClick={() => navigate('stop')}
-              className="rounded-lg bg-white/[0.05] text-zinc-300 px-4 py-2 text-[11px] uppercase tracking-wider disabled:opacity-50"
+              className="rounded-lg bg-overlay-subtle text-text-secondary px-4 py-2 text-[11px] uppercase tracking-wider disabled:opacity-50"
             >
               Stop
             </button>
@@ -679,7 +679,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
               className={`rounded-lg px-4 py-2 text-[11px] uppercase tracking-wider ${
                 controlMode === 'you'
                   ? 'bg-brass/20 text-brass'
-                  : 'bg-white/[0.05] text-zinc-300'
+                  : 'bg-overlay-subtle text-text-secondary'
               }`}
             >
               Mode: {controlMode === 'you' ? 'You' : 'Agent'}
@@ -689,14 +689,14 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
             <input
               value={agentNavUrl}
               onChange={(e) => setAgentNavUrl(e.target.value)}
-              className="w-full rounded-lg bg-white/[0.03] border border-white/10 px-3 py-2 text-sm text-zinc-200"
+              className="w-full rounded-lg bg-overlay-subtle border border-border-subtle px-3 py-2 text-sm text-text-secondary"
               placeholder="https://example.com"
             />
             <button
               type="button"
               disabled={!pageId || busy || !agentNavUrl.trim()}
               onClick={gotoUrl}
-              className="rounded-lg bg-white/[0.05] text-zinc-300 px-4 py-2 text-[11px] uppercase tracking-wider disabled:opacity-50"
+              className="rounded-lg bg-overlay-subtle text-text-secondary px-4 py-2 text-[11px] uppercase tracking-wider disabled:opacity-50"
             >
               Go
             </button>
@@ -710,7 +710,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
                   className={`rounded-lg px-3 py-1.5 text-[11px] max-w-[280px] truncate ${
                     active
                       ? 'bg-brass/20 text-brass border border-brass/40'
-                      : 'bg-white/[0.05] text-zinc-300 border border-white/10'
+                      : 'bg-overlay-subtle text-text-secondary border border-border-subtle'
                   }`}
                 >
                   <button
@@ -724,7 +724,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
                   <button
                     type="button"
                     onClick={() => closePage(p.page_id)}
-                    className="align-middle text-zinc-400 hover:text-zinc-100"
+                    className="align-middle text-text-muted hover:text-text-primary"
                     aria-label={`Close ${p.title || p.page_id}`}
                     title="Close tab"
                   >
@@ -734,7 +734,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
               );
             })}
           </div>
-          <p className="text-[11px] text-zinc-500 font-mono">
+          <p className="text-[11px] text-text-muted font-mono">
             page_id={pageId ?? '—'} · can_go_back={String(pageInfo?.can_go_back ?? false)} · can_go_forward={String(pageInfo?.can_go_forward ?? false)}
           </p>
           <div className="grid gap-3 lg:grid-cols-[2fr_1fr]">
@@ -743,7 +743,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
               onClick={onFrameClick}
               onWheel={onFrameWheel}
               onKeyDown={onFrameKeyDown}
-              className="rounded-xl border border-white/10 bg-black/30 min-h-[360px] flex items-center justify-center overflow-hidden focus:outline-none focus:ring-2 focus:ring-brass/30"
+              className="rounded-xl border border-border-subtle bg-black/30 min-h-[360px] flex items-center justify-center overflow-hidden focus:outline-none focus:ring-2 focus:ring-brass/30"
             >
               {frame?.image_base64 ? (
                 <img
@@ -752,14 +752,14 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
                   className="w-full h-full max-h-[480px] object-contain pointer-events-none"
                 />
               ) : (
-                <span className="text-zinc-500 text-sm">
+                <span className="text-text-muted text-sm">
                   {frame?.error ?? 'No frame yet — open a session or wait for the live stream (~3s).'}
                 </span>
               )}
             </div>
-            <div className="rounded-xl border border-white/10 bg-black/20 p-3 max-h-[360px] overflow-auto">
-              <h3 className="text-[10px] uppercase tracking-wider text-zinc-500 mb-2">Action log</h3>
-              <ul role="log" aria-live="polite" aria-label="Browser action log" className="space-y-1 text-[11px] font-mono text-zinc-400">
+            <div className="rounded-xl border border-border-subtle bg-black/20 p-3 max-h-[360px] overflow-auto">
+              <h3 className="text-[10px] uppercase tracking-wider text-text-muted mb-2">Action log</h3>
+              <ul role="log" aria-live="polite" aria-label="Browser action log" className="space-y-1 text-[11px] font-mono text-text-muted">
                 {(actionLog.length ? actionLog : ['(empty)']).map((line, i) => (
                   <li key={`${line}-${i}`}>{line}</li>
                 ))}

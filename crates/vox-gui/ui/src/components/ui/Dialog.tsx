@@ -62,7 +62,7 @@ export const DialogContent = React.forwardRef<
       className={cn(
         'fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2',
         'w-full max-w-lg',
-        'rounded-xl border border-white/10 bg-zinc-900/80 backdrop-blur-xl',
+        'rounded-xl border border-border-subtle bg-bg-base/80 backdrop-blur-xl',
         'shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)]',
         'p-6',
         'data-[state=open]:animate-in data-[state=closed]:animate-out',
@@ -91,7 +91,7 @@ export const DialogTitle = React.forwardRef<
   <RadixDialog.Title
     ref={ref}
     className={cn(
-      'font-display text-base font-semibold tracking-wide text-zinc-100',
+      'font-display text-base font-semibold tracking-wide text-text-primary',
       className
     )}
     {...props}
@@ -108,7 +108,7 @@ export const DialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <RadixDialog.Description
     ref={ref}
-    className={cn('mt-1 text-[13px] text-zinc-400', className)}
+    className={cn('mt-1 text-[13px] text-text-muted', className)}
     {...props}
   />
 ));

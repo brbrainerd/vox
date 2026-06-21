@@ -20,8 +20,8 @@ function MessageBubble({ message }: { message: ChatMessage }) {
   const tone = isSystem
     ? 'self-center border-amber-400/20 bg-amber-400/[0.06] text-amber-100/90 text-center max-w-full'
     : isUser
-      ? 'self-end border-brass/30 bg-brass/[0.08] text-zinc-100'
-      : 'self-start border-white/10 bg-white/[0.03] text-zinc-300';
+      ? 'self-end border-brass/30 bg-brass/[0.08] text-text-primary'
+      : 'self-start border-border-subtle bg-overlay-subtle text-text-secondary';
 
   return (
     <div
@@ -29,7 +29,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       className={`max-w-[80%] rounded-xl border px-3 py-2 text-[12px] leading-relaxed whitespace-pre-wrap break-words ${tone}`}
     >
       {!isSystem && (
-        <div className="mb-0.5 font-mono text-[9px] uppercase tracking-wide text-zinc-500">
+        <div className="mb-0.5 font-mono text-[9px] uppercase tracking-wide text-text-muted">
           {isUser ? 'You' : 'Assistant'}
         </div>
       )}

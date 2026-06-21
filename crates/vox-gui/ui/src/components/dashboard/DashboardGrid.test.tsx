@@ -21,9 +21,10 @@ describe('DashboardGrid', () => {
 
     const nodes = screen.getAllByTestId(/^widget-/);
     expect(nodes.map((n) => n.getAttribute('data-testid'))).toEqual([
-      'widget-stream',
-      'widget-alerts',
+      'widget-resources',
       'widget-agents',
+      'widget-alerts',
+      'widget-stream',
     ]);
   });
 

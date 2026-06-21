@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Limes Design System — Gallery</title>
+  <link rel="icon" type="image/svg+xml" href="./icons/axis-mark.svg" />
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    body { margin: 0; padding: 32px; min-height: 100vh; box-sizing: border-box; }
+    .scope { padding: 28px; border-radius: 24px; background: var(--color-bg-base); margin-bottom: 28px; }
+    h1.title { font-family: var(--font-family-display); letter-spacing: 0.18em; text-transform: uppercase;
+               color: var(--color-text-primary); font-size: 18px; margin: 0 0 4px; }
+    .sub { color: var(--color-text-muted); font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; }
+    .row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin: 18px 0; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    /* presentational mirrors of the React components, same .ds-* classes */
+    .axis { color: rgb(var(--brass)); }
+  </style>
+</head>
+<body>
+  <!-- BASALT (default) -->
+  <section class="scope">
+    <div class="row" style="gap:12px">
+      <svg class="axis" width="34" height="34" viewBox="0 0 100 100" aria-label="Vox Axis">
+        <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" stroke-width="7"/>
+        <path d="M50 12 V88 M12 50 H88" stroke="currentColor" stroke-width="9" stroke-linecap="round"/>
+        <circle cx="50" cy="50" r="9" fill="none" stroke="currentColor" stroke-width="7"/>
+        <path d="M50 6 l6 10 h-12 z M50 94 l6 -10 h-12 z M6 50 l10 6 v-12 z M94 50 l-10 6 v-12 z" fill="currentColor"/>
+      </svg>
+      <div>
+        <h1 class="title">Vox Axis · Limes</h1>
+        <div class="sub">basalt scope</div>
+      </div>
+    </div>
+    <div class="ds-rule"></div>
+    <div class="row">
+      <button class="ds-btn ds-btn-primary">Approve</button>
+      <button class="ds-btn">Reject</button>
+      <span class="ds-pill ds-pill-accent"><span class="ds-pill-dot"></span>Live</span>
+      <span class="ds-pill ds-pill-pass"><span class="ds-pill-dot"></span>Passed</span>
+      <span class="ds-pill ds-pill-warn"><span class="ds-pill-dot"></span>Doubted</span>
+      <span class="ds-pill ds-pill-fail"><span class="ds-pill-dot"></span>Failed</span>
+      <span class="ds-pill"><span class="ds-pill-dot"></span>Paused</span>
+    </div>
+    <div class="grid">
+      <div class="ds-card" style="padding:16px">
+        <div class="ds-nav ds-nav-active">Chat</div>
+        <div class="ds-nav">Agents</div>
+        <div class="ds-nav">Runs &amp; Approvals</div>
+      </div>
+      <div class="ds-card">
+        <div class="ds-kpi">
+          <span class="ds-kpi-label">Active Agents</span>
+          <span class="ds-kpi-value">7<span class="ds-kpi-delta-up" style="margin-left:6px">▲ 2</span></span>
+        </div>
+      </div>
+      <div class="ds-card" style="padding:0">
+        <div style="position:relative;padding:20px">
+          <span class="ds-tick ds-tick-tl"></span>
+          <span class="ds-tick ds-tick-tr"></span>
+          <div class="ds-display" style="font-size:13px;color:var(--color-text-primary)">Operator</div>
+          <div class="sub" style="margin-top:4px">vox operator console</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TRAVERTINE -->
+  <section class="scope" data-theme="travertine">
+    <div class="row" style="gap:12px">
+      <svg class="axis" width="34" height="34" viewBox="0 0 100 100" aria-label="Vox Axis">
+        <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" stroke-width="7"/>
+        <path d="M50 12 V88 M12 50 H88" stroke="currentColor" stroke-width="9" stroke-linecap="round"/>
+        <circle cx="50" cy="50" r="9" fill="none" stroke="currentColor" stroke-width="7"/>
+        <path d="M50 6 l6 10 h-12 z M50 94 l6 -10 h-12 z M6 50 l10 6 v-12 z M94 50 l-10 6 v-12 z" fill="currentColor"/>
+      </svg>
+      <div>
+        <h1 class="title">Vox Axis · Limes</h1>
+        <div class="sub">travertine scope</div>
+      </div>
+    </div>
+    <div class="ds-rule"></div>
+    <div class="row">
+      <button class="ds-btn ds-btn-primary">Approve</button>
+      <button class="ds-btn">Reject</button>
+      <span class="ds-pill ds-pill-accent"><span class="ds-pill-dot"></span>Live</span>
+      <span class="ds-pill ds-pill-pass"><span class="ds-pill-dot"></span>Passed</span>
+      <span class="ds-pill ds-pill-warn"><span class="ds-pill-dot"></span>Doubted</span>
+      <span class="ds-pill ds-pill-fail"><span class="ds-pill-dot"></span>Failed</span>
+      <span class="ds-pill"><span class="ds-pill-dot"></span>Paused</span>
+    </div>
+    <div class="grid">
+      <div class="ds-card" style="padding:16px">
+        <div class="ds-nav ds-nav-active">Chat</div>
+        <div class="ds-nav">Agents</div>
+        <div class="ds-nav">Runs &amp; Approvals</div>
+      </div>
+      <div class="ds-card">
+        <div class="ds-kpi">
+          <span class="ds-kpi-label">Active Agents</span>
+          <span class="ds-kpi-value">7<span class="ds-kpi-delta-up" style="margin-left:6px">▲ 2</span></span>
+        </div>
+      </div>
+      <div class="ds-card" style="padding:0">
+        <div style="position:relative;padding:20px">
+          <span class="ds-tick ds-tick-tl"></span>
+          <span class="ds-tick ds-tick-tr"></span>
+          <div class="ds-display" style="font-size:13px;color:var(--color-text-primary)">Operator</div>
+          <div class="sub" style="margin-top:4px">vox operator console</div>
+        </div>
+      </div>
+    </div>
+  </section>
+</body>
+</html>

@@ -13,6 +13,13 @@ import {
   metricSeriesStorageKey,
 } from '../../../hooks/useMetricSeries';
 
+vi.mock('../../../hooks/useAgentApprovals', () => ({
+  useAgentApprovals: () => ({
+    approvalFor: (k: string) => (k === 'Atlas' ? { approval_id: 'ap1', tool: 't', summary: 'Atlas', requested_at_ms: 0 } : null),
+    resolve: vi.fn(),
+  }),
+}));
+
 vi.mock('recharts', () => ({
   ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   LineChart: ({ children }: { children: React.ReactNode }) => <svg>{children}</svg>,
@@ -41,6 +48,17 @@ const emptyDash: DashboardData = {
   contextChips: [],
   skills: [],
 };
+
+const baseData = emptyDash;
+function renderDashboard(over: Partial<DashboardData> = {}) {
+  return render(
+    <Dashboard
+      data={{ ...baseData, ...over }}
+      onPause={vi.fn()} onResume={vi.fn()} onDoubt={vi.fn()} onOverrule={vi.fn()} onAckLudus={vi.fn()}
+      filterKind="all" setFilterKind={vi.fn()}
+    />,
+  );
+}
 
 describe('Dashboard', () => {
   beforeEach(() => {
@@ -239,6 +257,38 @@ describe('Dashboard', () => {
       { t: 0, v: 3 },
       { t: 1, v: 7 },
     ]);
+  });
+
+  it('renders a 4-tile KPI strip including Mesh Peers', () => {
+    renderDashboard({ peers: [
+      { id: 'p1', name: 'node-a', backend: 'cuda', online: true },
+      { id: 'p2', name: 'node-b', backend: 'cuda', online: false },
+    ] });
+    // 'Active Agents' appears in both the KPI strip label and the agents widget heading
+    expect(screen.getAllByText('Active Agents').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Queue Depth')).toBeInTheDocument();
+    expect(screen.getByText('Budget Spent')).toBeInTheDocument();
+    expect(screen.getByText('Mesh Peers')).toBeInTheDocument();
+    // with the empty base: agents 0, queue 0, budget $0.00 → only Mesh Peers renders "1"
+    expect(screen.getByText('1')).toBeInTheDocument();
+  });
+
+  it('renders the resources widget when present in the layout', () => {
+    // force a layout containing the resources widget — use the SSOT key symbol, never the literal
+    window.localStorage.setItem(SHELL_PREFERENCE_KEYS.dashboardLayout, JSON.stringify({
+      version: 1, columns: 12, widgets: [{ id: 'resources', kind: 'resources', grid: { col: 1, row: 1, w: 12, h: 2 } }],
+    }));
+    renderDashboard({});
+    expect(screen.getByText('Resources')).toBeInTheDocument();
+  });
+
+  it('surfaces inline approval only for the agent with a pending approval', () => {
+    window.localStorage.setItem(SHELL_PREFERENCE_KEYS.dashboardLayout, JSON.stringify({ version: 1, columns: 12, widgets: [{ id: 'agents', kind: 'agents', grid: { col: 1, row: 1, w: 12, h: 4 } }] }));
+    renderDashboard({ agents: [
+      { id: 'A-1', codename: 'Atlas', phase: 'Executing', progress: 0.6, task: 't', cost: 1, budget: null, eta: '1m' },
+      { id: 'A-2', codename: 'Surveyor', phase: 'Validated', progress: 1, task: 't', cost: 1, budget: null, eta: '0m' },
+    ] });
+    expect(screen.getAllByRole('button', { name: 'Approve' })).toHaveLength(1);
   });
 
   it('renders visual sandbox mini-map and handles expand navigation', () => {

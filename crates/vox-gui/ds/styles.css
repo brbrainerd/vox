@@ -1,0 +1,31 @@
+/*
+ * Limes design system — entry stylesheet. This is the single import closure
+ * Claude Design consumes: it pulls in fonts, both token scopes, the `--brass`
+ * opacity-channel bridge, and the presentational component classes.
+ *
+ *   import './styles.css'
+ *
+ * Default scope is basalt (dark). Add `data-theme="travertine"` to any
+ * ancestor to switch that subtree to the daylight scope.
+ */
+@import './fonts/fonts.css';
+@import './tokens/tokens.basalt.css';
+@import './tokens/tokens.travertine.css';
+@import './components.css';
+
+/*
+ * `--brass` is the accent expressed as a space-separated RGB triple so it can
+ * drive `rgb(var(--brass) / <alpha>)` opacity utilities. It is NOT emitted by
+ * the token build (the app defines it in index.css); the bundle restates it
+ * per scope so components are self-contained.
+ */
+:root { --brass: 201 162 74; }                     /* gold.500 — basalt scope */
+[data-theme="travertine"] { --brass: 138 106 38; } /* gold.700 — daylight scope */
+
+:root {
+  color-scheme: dark;
+  background: var(--color-bg-base);
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-sans);
+}
+[data-theme="travertine"] { color-scheme: light; }

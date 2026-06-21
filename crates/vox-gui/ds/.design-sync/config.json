@@ -1,0 +1,5 @@
+{
+  "pkg": "@vox-axis/limes",
+  "globalName": "VoxAxisLimes",
+  "tokensGlob": "tokens/*.css"
+}

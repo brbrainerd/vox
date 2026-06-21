@@ -103,7 +103,7 @@ export function DiscoveryRail({ actionId, nowMs, gamifyEnabled = false, onUseAct
             aria-label="Collapse discovery rail"
             aria-expanded={true}
             onClick={() => setCollapsed(true)}
-            className="rounded p-1 text-zinc-500 transition hover:bg-white/[0.04] hover:text-zinc-300"
+            className="rounded p-1 text-text-muted transition hover:bg-overlay-subtle hover:text-text-secondary"
           >
             <span className="font-mono text-xs" aria-hidden="true">
               «
@@ -115,13 +115,13 @@ export function DiscoveryRail({ actionId, nowMs, gamifyEnabled = false, onUseAct
           <p className="text-text-muted">Start typing a vox command to see help and tips.</p>
         ) : (
           <>
-            <h3 className="text-[13px] font-medium text-zinc-200">{help.example}</h3>
-            <p className="text-zinc-400">{help.about}</p>
+            <h3 className="text-[13px] font-medium text-text-secondary">{help.example}</h3>
+            <p className="text-text-muted">{help.about}</p>
             {help.args.length > 0 && (
-              <ul className="list-disc pl-4 text-zinc-400">
+              <ul className="list-disc pl-4 text-text-muted">
                 {help.args.map((a) => (
                   <li key={a.name}>
-                    <code className="text-zinc-300">{a.name}</code>
+                    <code className="text-text-secondary">{a.name}</code>
                     {a.required ? ' (required)' : ''} — {a.help}
                   </li>
                 ))}

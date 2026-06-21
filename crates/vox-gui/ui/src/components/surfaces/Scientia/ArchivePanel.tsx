@@ -106,8 +106,8 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
   return (
     <section className="space-y-4">
       <div>
-        <h2 className="font-display text-lg tracking-wider text-zinc-100 uppercase">Archive Panel</h2>
-        <p className="font-mono text-xs text-zinc-500">
+        <h2 className="font-display text-lg tracking-wider text-text-primary uppercase">Archive Panel</h2>
+        <p className="font-mono text-xs text-text-muted">
           Metadata completeness, deterministic autofill, and deposit status (Zenodo / Software Heritage).
         </p>
       </div>
@@ -124,12 +124,12 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
           value={pubId}
           onChange={(e) => setPubId(e.target.value)}
           placeholder="publication id"
-          className="flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 font-mono text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-brass/40"
+          className="flex-1 rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-mono text-xs text-text-secondary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-brass/40"
         />
         <button
           type="submit"
           disabled={loading || !pubId.trim()}
-          className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs uppercase tracking-wider hover:bg-white/[0.06] disabled:opacity-40"
+          className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-xs uppercase tracking-wider hover:bg-overlay-subtle disabled:opacity-40"
         >
           {loading ? 'Loading…' : 'Load'}
         </button>
@@ -138,17 +138,17 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
       {report && (
         <div className="space-y-4">
           {/* Completeness meter */}
-          <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+          <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-4">
             <div className="flex items-end justify-between">
-              <span className="font-display text-[10px] uppercase tracking-[0.2em] text-zinc-400">
+              <span className="font-display text-[10px] uppercase tracking-[0.2em] text-text-muted">
                 Metadata completeness
               </span>
-              <span className="font-mono text-2xl text-zinc-100" aria-label="completeness percent">
+              <span className="font-mono text-2xl text-text-primary" aria-label="completeness percent">
                 {pct}
-                <span className="text-sm text-zinc-500">%</span>
+                <span className="text-sm text-text-muted">%</span>
               </span>
             </div>
-            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/[0.06]">
+            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-overlay-subtle">
               <div
                 role="progressbar"
                 aria-valuenow={pct}
@@ -171,8 +171,8 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
           </div>
 
           {/* Required-missing checklist */}
-          <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-            <span className="font-display text-[10px] uppercase tracking-[0.2em] text-zinc-400">
+          <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-4">
+            <span className="font-display text-[10px] uppercase tracking-[0.2em] text-text-muted">
               Required missing ({report.required_missing.length})
             </span>
             {report.required_missing.length === 0 ? (
@@ -193,8 +193,8 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
 
           {/* "Needs human" tags */}
           {report.human_only_pending.length > 0 && (
-            <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-              <span className="font-display text-[10px] uppercase tracking-[0.2em] text-zinc-400">
+            <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-4">
+              <span className="font-display text-[10px] uppercase tracking-[0.2em] text-text-muted">
                 Needs human ({report.human_only_pending.length})
               </span>
               <div className="mt-2 flex flex-wrap gap-1.5">
@@ -212,8 +212,8 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
 
           {/* Field provenance chips */}
           {report.field_provenance.length > 0 && (
-            <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-              <span className="font-display text-[10px] uppercase tracking-[0.2em] text-zinc-400">
+            <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-4">
+              <span className="font-display text-[10px] uppercase tracking-[0.2em] text-text-muted">
                 Field provenance
               </span>
               <div className="mt-2 flex flex-wrap gap-1.5">
@@ -231,26 +231,26 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
           )}
 
           {/* Deposit status */}
-          <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-            <span className="font-display text-[10px] uppercase tracking-[0.2em] text-zinc-400">
+          <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-4">
+            <span className="font-display text-[10px] uppercase tracking-[0.2em] text-text-muted">
               Deposit status
             </span>
             <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 font-mono text-[12px]">
-              <dt className="text-zinc-500">Zenodo DOI</dt>
-              <dd className="text-zinc-200">
-                {status?.zenodo_doi ?? <span className="text-zinc-600">not yet deposited</span>}
+              <dt className="text-text-muted">Zenodo DOI</dt>
+              <dd className="text-text-secondary">
+                {status?.zenodo_doi ?? <span className="text-text-muted">not yet deposited</span>}
               </dd>
-              <dt className="text-zinc-500">Zenodo state</dt>
-              <dd className="text-zinc-200">
-                {status?.zenodo_state ?? <span className="text-zinc-600">—</span>}
+              <dt className="text-text-muted">Zenodo state</dt>
+              <dd className="text-text-secondary">
+                {status?.zenodo_state ?? <span className="text-text-muted">—</span>}
               </dd>
-              <dt className="text-zinc-500">SWHID</dt>
-              <dd className="break-all text-zinc-200">
-                {status?.swhid ?? <span className="text-zinc-600">not yet deposited</span>}
+              <dt className="text-text-muted">SWHID</dt>
+              <dd className="break-all text-text-secondary">
+                {status?.swhid ?? <span className="text-text-muted">not yet deposited</span>}
               </dd>
-              <dt className="text-zinc-500">SWH task</dt>
-              <dd className="text-zinc-200">
-                {status?.swh_task_status ?? <span className="text-zinc-600">—</span>}
+              <dt className="text-text-muted">SWH task</dt>
+              <dd className="text-text-secondary">
+                {status?.swh_task_status ?? <span className="text-text-muted">—</span>}
               </dd>
             </dl>
           </div>
@@ -258,7 +258,7 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
       )}
 
       {!report && !loading && (
-        <div className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-10 text-center font-mono text-[11px] text-zinc-600">
+        <div className="rounded-xl border border-border-subtle bg-overlay-subtle px-4 py-10 text-center font-mono text-[11px] text-text-muted">
           Enter a publication id to view its archive readiness.
         </div>
       )}

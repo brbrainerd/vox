@@ -1,0 +1,26 @@
+/* Limes self-hosted typefaces (SIL OFL). woff2 colocated in this folder. */
+@font-face {
+  font-family: 'Cinzel';
+  font-weight: 600;
+  font-display: swap;
+  src: url('./Cinzel-SemiBold.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-weight: 400;
+  font-display: swap;
+  src: url('./Inter-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-weight: 500;
+  font-display: swap;
+  src: url('./Inter-Medium.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'EB Garamond';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./EBGaramond-Italic.woff2') format('woff2');
+}

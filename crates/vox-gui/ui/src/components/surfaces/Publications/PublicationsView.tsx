@@ -54,9 +54,9 @@ export function PublicationsView({ pushToast }: SurfaceDecoratorProps) {
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="font-display text-lg text-zinc-100 tracking-wider uppercase">Publication Pipeline</h2>
+        <h2 className="font-display text-lg text-text-primary tracking-wider uppercase">Publication Pipeline</h2>
         <button onClick={refresh} disabled={loading}
-          className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs hover:bg-white/[0.06]">
+          className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-xs hover:bg-overlay-subtle">
           {loading ? 'Loading…' : 'Refresh'}
         </button>
       </div>
@@ -64,23 +64,23 @@ export function PublicationsView({ pushToast }: SurfaceDecoratorProps) {
         {PUBLICATION_STAGES.map(stage => (
           <div key={stage} className="w-44 shrink-0">
             <div className="mb-2 flex items-center justify-between">
-              <span className="font-mono text-[10px] uppercase tracking-wide text-zinc-400">{stage.replace(/_/g, ' ')}</span>
-              <span className="rounded-full bg-white/[0.05] px-1.5 font-mono text-[9px] text-zinc-500">{groups[stage].length}</span>
+              <span className="font-mono text-[10px] uppercase tracking-wide text-text-muted">{stage.replace(/_/g, ' ')}</span>
+              <span className="rounded-full bg-overlay-subtle px-1.5 font-mono text-[9px] text-text-muted">{groups[stage].length}</span>
             </div>
             <div className="space-y-2">
               {groups[stage].map(m => (
                 <button
                   key={m.publication_id}
                   onClick={() => setSelected(m)}
-                  className={`w-full rounded-lg border bg-white/[0.02] p-2 text-left transition-colors hover:bg-white/[0.05] ${
-                    selected?.publication_id === m.publication_id ? 'border-cyan/50' : 'border-white/10'
+                  className={`w-full rounded-lg border bg-overlay-subtle p-2 text-left transition-colors hover:bg-overlay-subtle ${
+                    selected?.publication_id === m.publication_id ? 'border-cyan/50' : 'border-border-subtle'
                   }`}
                 >
-                  <div className="truncate font-mono text-[11px] text-zinc-200">{m.publication_id}</div>
-                  <div className="text-[10px] text-zinc-500">{m.content_type}</div>
+                  <div className="truncate font-mono text-[11px] text-text-secondary">{m.publication_id}</div>
+                  <div className="text-[10px] text-text-muted">{m.content_type}</div>
                 </button>
               ))}
-              {groups[stage].length === 0 && <div className="rounded-lg border border-dashed border-white/5 p-2 text-center text-[10px] text-zinc-600">—</div>}
+              {groups[stage].length === 0 && <div className="rounded-lg border border-dashed border-border-subtle p-2 text-center text-[10px] text-text-muted">—</div>}
             </div>
           </div>
         ))}
@@ -168,16 +168,16 @@ function PublicationDetail({
     <div className="rounded-xl border border-cyan/30 bg-cyan/[0.02] p-4">
       <div className="mb-3 flex items-center justify-between">
         <div className="min-w-0">
-          <div className="truncate font-mono text-sm text-zinc-100">{manifest.publication_id}</div>
-          <div className="font-mono text-[11px] text-zinc-500">{manifest.content_type} · {manifest.state}</div>
+          <div className="truncate font-mono text-sm text-text-primary">{manifest.publication_id}</div>
+          <div className="font-mono text-[11px] text-text-muted">{manifest.content_type} · {manifest.state}</div>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={load} disabled={busy}
-            className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs hover:bg-white/[0.06]">
+            className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-xs hover:bg-overlay-subtle">
             {busy ? 'Loading…' : 'Reload'}
           </button>
           <button onClick={onClose}
-            className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs hover:bg-white/[0.06]">
+            className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-xs hover:bg-overlay-subtle">
             Close
           </button>
         </div>
@@ -188,9 +188,9 @@ function PublicationDetail({
         {PUBLICATION_STAGES.map((s, i) => (
           <React.Fragment key={s}>
             <span className={`rounded px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${
-              i <= resolvedStageIdx ? 'bg-cyan/15 text-cyan' : 'bg-white/5 text-zinc-600'
+              i <= resolvedStageIdx ? 'bg-cyan/15 text-cyan' : 'bg-overlay-subtle text-text-muted'
             }`}>{s.replace(/_/g, ' ')}</span>
-            {i < PUBLICATION_STAGES.length - 1 && <span className="text-zinc-600">›</span>}
+            {i < PUBLICATION_STAGES.length - 1 && <span className="text-text-muted">›</span>}
           </React.Fragment>
         ))}
       </div>
@@ -198,20 +198,20 @@ function PublicationDetail({
       <div className="grid gap-4 md:grid-cols-2">
         {/* Claims */}
         <div>
-          <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-zinc-500">
+          <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-text-muted">
             Claims {claims ? `(${claims.claim_count})` : ''}
           </div>
           {!claims || claims.claims.length === 0 ? (
-            <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3 text-[12px] text-zinc-500">
+            <div className="rounded-lg border border-border-subtle bg-overlay-subtle p-3 text-[12px] text-text-muted">
               {busy ? 'Loading…' : 'No extracted claims. Run claim extraction first.'}
             </div>
           ) : (
             <ul className="space-y-1">
               {claims.claims.map((c, i) => (
-                <li key={c.id ?? i} className="rounded-lg border border-white/10 bg-white/[0.02] p-2">
-                  <div className="text-[12px] text-zinc-200">{c.text ?? '(no text)'}</div>
+                <li key={c.id ?? i} className="rounded-lg border border-border-subtle bg-overlay-subtle p-2">
+                  <div className="text-[12px] text-text-secondary">{c.text ?? '(no text)'}</div>
                   {c.verdict_label && (
-                    <div className="mt-0.5 font-mono text-[10px] text-zinc-500">
+                    <div className="mt-0.5 font-mono text-[10px] text-text-muted">
                       {c.verdict_label}{typeof c.confidence === 'number' ? ` · ${c.confidence.toFixed(2)}` : ''}
                     </div>
                   )}
@@ -223,25 +223,25 @@ function PublicationDetail({
 
         {/* Venue routing */}
         <div>
-          <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-zinc-500">Venue routing</div>
+          <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-text-muted">Venue routing</div>
           {!venue ? (
-            <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3 text-[12px] text-zinc-500">
+            <div className="rounded-lg border border-border-subtle bg-overlay-subtle p-3 text-[12px] text-text-muted">
               {busy ? 'Loading…' : `No routing for class "${manifest.content_type}".`}
             </div>
           ) : (
-            <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.02] p-3">
+            <div className="space-y-2 rounded-lg border border-border-subtle bg-overlay-subtle p-3">
               <div className="flex flex-wrap gap-1.5">
                 {venue.recommended_venues.length === 0 ? (
-                  <span className="font-mono text-[11px] text-zinc-500">No recommended venues.</span>
+                  <span className="font-mono text-[11px] text-text-muted">No recommended venues.</span>
                 ) : venue.recommended_venues.map(v => (
                   <span key={v} className="rounded bg-cyan/10 px-2 py-0.5 font-mono text-[11px] text-cyan">{v}</span>
                 ))}
               </div>
-              <div className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[11px] text-zinc-400">
-                <span>Reply window</span><span className="text-zinc-200">{venue.reply_window_days}d</span>
-                <span>Neg-result quota</span><span className="text-zinc-200">{venue.negative_result_quota}</span>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[11px] text-text-muted">
+                <span>Reply window</span><span className="text-text-secondary">{venue.reply_window_days}d</span>
+                <span>Neg-result quota</span><span className="text-text-secondary">{venue.negative_result_quota}</span>
                 <span>Critic allowed</span><span className={venue.critic_allowed ? 'text-emerald-300' : 'text-amber-300'}>{venue.critic_allowed ? 'yes' : 'no'}</span>
-                <span>Atlas gate</span><span className="text-zinc-200">{venue.atlas_gate_applies ? 'applies' : '—'}</span>
+                <span>Atlas gate</span><span className="text-text-secondary">{venue.atlas_gate_applies ? 'applies' : '—'}</span>
               </div>
               {!venue.critic_allowed && (
                 <div className="rounded border border-amber-500/20 bg-amber-500/[0.04] p-2 text-[11px] text-amber-300/90">

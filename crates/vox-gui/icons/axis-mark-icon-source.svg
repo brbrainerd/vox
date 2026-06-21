@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Vox Axis">
+  <rect x="0" y="0" width="1024" height="1024" rx="224" ry="224" fill="#0c0e10"/>
+  <g transform="translate(512 512) scale(8.2) translate(-50 -50)" fill="none" stroke="#d4af37">
+    <circle cx="50" cy="50" r="40" stroke-width="7"/>
+    <path d="M50 12 V88 M12 50 H88" stroke-width="9" stroke-linecap="round"/>
+    <circle cx="50" cy="50" r="9" stroke-width="7"/>
+    <path d="M50 6 l6 10 h-12 z M50 94 l6 -10 h-12 z M6 50 l10 6 v-12 z M94 50 l-10 6 v-12 z" fill="#d4af37" stroke="none"/>
+  </g>
+</svg>

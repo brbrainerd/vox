@@ -1,8 +1,8 @@
 import React from 'react';
 import { Glass } from '../ui/Glass';
+import { AxisMark } from '../ui/AxisMark';
 import { Icon } from '../ui/Icons';
 import { Sparkline } from '../ui/Sparkline';
-import { AxisMark } from '../brand/AxisMark';
 import { formatBudgetCap } from '../../config/budget';
 import { freshnessTone } from '../../hooks/useFreshness';
 import {
@@ -28,21 +28,21 @@ function KPI({ label, value, unit, delta, color, spark, icon, sub, onClick }: KP
   const deltaPos = delta != null && delta >= 0;
   const inner = (
     <div className="flex items-center gap-3 px-4 py-2 first:pl-5 last:pr-5">
-      <div className={`flex size-9 items-center justify-center rounded-lg bg-white/[0.03] ring-1 ring-white/5 ${color}`}>
+      <div className={`flex size-9 items-center justify-center rounded-lg bg-overlay-subtle ring-1 ring-border-subtle ${color}`}>
         {icon}
       </div>
       <div className="flex flex-col leading-none">
-        <span className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">{label}</span>
+        <span className="text-[10px] uppercase tracking-[0.18em] text-text-muted">{label}</span>
         <div className="mt-1 flex items-baseline gap-1.5">
-          <span className="font-display text-[20px] font-semibold text-zinc-50 tabular-nums">{value}</span>
-          {unit && <span className="text-[11px] text-zinc-500">{unit}</span>}
+          <span className="font-display text-[20px] font-semibold text-text-primary tabular-nums">{value}</span>
+          {unit && <span className="text-[11px] text-text-muted">{unit}</span>}
           {delta != null && (
-            <span className={`text-[10px] tabular-nums ${deltaPos ? 'text-emerald-400' : 'text-rose-400'}`}>
+            <span className={`text-[10px] tabular-nums ${deltaPos ? 'text-accent-secondary' : 'text-[var(--color-status-fail)]'}`}>
               {deltaPos ? '▲' : '▼'} {Math.abs(delta)}
             </span>
           )}
         </div>
-        {sub && <span className="mt-0.5 text-[10px] text-zinc-500">{sub}</span>}
+        {sub && <span className="mt-0.5 text-[10px] text-text-muted">{sub}</span>}
       </div>
       <div className={color}>
         <Sparkline data={spark} width={72} height={22} />
@@ -51,7 +51,7 @@ function KPI({ label, value, unit, delta, color, spark, icon, sub, onClick }: KP
   );
   if (onClick) {
     return (
-      <button type="button" onClick={onClick} className="text-left hover:bg-white/[0.02] transition">
+      <button type="button" onClick={onClick} className="text-left hover:bg-overlay-hover transition">
         {inner}
       </button>
     );
@@ -118,9 +118,9 @@ export function TopHud({
       ? 'border-emerald-400/20 bg-emerald-400/[0.04] text-emerald-300'
       : tone === 'poll'
         ? 'border-amber-400/20 bg-amber-400/[0.04] text-amber-300'
-        : 'border-zinc-500/20 bg-zinc-500/[0.04] text-zinc-400';
+        : 'border-border-subtle bg-overlay-subtle text-text-muted';
   const liveDot =
-    tone === 'live' ? 'bg-emerald-400' : tone === 'poll' ? 'bg-amber-400' : 'bg-zinc-500';
+    tone === 'live' ? 'bg-accent-secondary' : tone === 'poll' ? 'bg-brass' : 'bg-text-muted';
   const liveLabel = tone === 'live' ? 'Live' : tone === 'poll' ? 'Poll' : 'Offline';
 
   const renderTile = (kind: HudTileKind): React.ReactNode => {
@@ -145,7 +145,7 @@ export function TopHud({
             label="Queue Depth"
             value={kpis.queueDepth.value}
             delta={kpis.queueDepth.delta}
-            color="text-zinc-300"
+            color="text-text-secondary"
             spark={kpis.queueDepth.spark}
             icon={<Icon.scale className="size-4" />}
             onClick={() => onNavigate?.('runs')}
@@ -217,7 +217,7 @@ export function TopHud({
           type="button"
           onClick={cycleHud}
           aria-label="Show HUD"
-          className="absolute inset-x-0 top-0 mx-auto w-24 rounded-b-md border border-white/10 bg-zinc-950/80 py-0.5 text-[9px] uppercase tracking-widest text-zinc-500 opacity-0 group-hover:opacity-100 transition"
+          className="absolute inset-x-0 top-0 mx-auto w-24 rounded-b-md border border-border-subtle bg-bg-base/80 py-0.5 text-[9px] uppercase tracking-widest text-text-muted opacity-0 group-hover:opacity-100 transition"
         >
           Show HUD
         </button>
@@ -227,15 +227,15 @@ export function TopHud({
 
   if (hudMode === 'slim') {
     return (
-      <Glass className="flex h-7 items-center gap-3 px-4 text-[10px] text-zinc-400">
+      <Glass className="flex h-7 items-center gap-3 px-4 text-[10px] text-text-muted">
         <button
           type="button"
           data-testid="omnisearch-trigger"
           onClick={openPalette}
-          className="inline-flex items-center gap-1.5 rounded border border-white/5 bg-white/[0.02] px-2 py-0.5 text-zinc-500 hover:border-brass/40 hover:text-brass transition"
+          className="inline-flex items-center gap-1.5 rounded border border-border-subtle bg-overlay-subtle px-2 py-0.5 text-text-muted hover:border-brass/40 hover:text-brass transition"
         >
           <span>Search or jump…</span>
-          <span className="rounded border border-white/10 bg-white/5 px-1 text-[9px] tracking-widest text-zinc-500">⌘K</span>
+          <span className="rounded border border-border-subtle bg-overlay-subtle px-1 text-[9px] tracking-widest text-text-muted">⌘K</span>
         </button>
         <span className="font-mono tabular-nums">
           agents {kpis.activeAgents.value} · queue {kpis.queueDepth.value} ·
@@ -245,20 +245,20 @@ export function TopHud({
           <span className={`size-1.5 rounded-full ${liveDot}`} />
           {liveLabel}
         </span>
-        <button type="button" onClick={cycleHud} aria-label="Expand HUD" className="ml-auto text-zinc-600 hover:text-zinc-300" title="Expand HUD"><span aria-hidden="true">▲</span></button>
+        <button type="button" onClick={cycleHud} aria-label="Expand HUD" className="ml-auto text-text-muted hover:text-text-secondary" title="Expand HUD"><span aria-hidden="true">▲</span></button>
       </Glass>
     );
   }
 
   return (
     <Glass className="flex items-stretch overflow-hidden">
-      <div className="flex items-center gap-3 px-5 border-r border-white/5">
-        <div className="relative grid size-8 place-items-center rounded-lg bg-white/[0.04] ring-1 ring-brass/40">
-          <AxisMark className="size-5 text-brass" />
-        </div>
+      <div className="relative flex items-center gap-3 px-5 border-r border-border-subtle">
+        <span className="vox-tick vox-tick-tl" />
+        <span className="vox-tick vox-tick-tr" />
+        <AxisMark size={28} />
         <div className="flex flex-col leading-none">
-          <span className="font-display text-[13px] tracking-[0.22em] text-zinc-100">{workspaceTitle}</span>
-          <span className="text-[9px] uppercase tracking-[0.3em] text-zinc-500">axis operator console</span>
+          <span className="font-display text-[13px] tracking-[0.22em] text-text-primary">{workspaceTitle}</span>
+          <span className="text-[9px] uppercase tracking-[0.3em] text-text-muted">vox operator console</span>
         </div>
       </div>
 
@@ -268,17 +268,17 @@ export function TopHud({
             type="button"
             data-testid="omnisearch-trigger"
             onClick={openPalette}
-            className="group flex min-w-[12rem] items-center gap-2 rounded-lg border border-white/5 bg-white/[0.02] px-3 py-1.5 text-xs text-zinc-400 hover:border-brass/40 hover:text-brass transition"
+            className="group flex min-w-[12rem] items-center gap-2 rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-xs text-text-muted hover:border-brass/40 hover:text-brass transition"
           >
             <Icon.search className="size-3.5 shrink-0" />
             <span className="font-display tracking-wide text-left">Search or jump…</span>
-            <span className="ml-auto rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[9px] tracking-widest text-zinc-500">⌘K</span>
+            <span className="ml-auto rounded border border-white/10 bg-overlay-subtle px-1.5 py-0.5 text-[9px] tracking-widest text-text-muted">⌘K</span>
           </button>
         </div>
         {visibleTiles.map((kind) => renderTile(kind))}
       </div>
 
-      <div className="ml-auto flex items-center gap-2 px-4 border-l border-white/5">
+      <div className="ml-auto flex items-center gap-2 px-4 border-l border-border-subtle">
         <div className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 ${liveClasses}`}>
           <span className={`relative inline-block size-1.5 rounded-full ${liveDot}`}>
             {tone === 'live' && (
@@ -290,7 +290,7 @@ export function TopHud({
         <button
           type="button"
           onClick={cycleHud}
-          className="rounded-md border border-white/5 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-200"
+          className="rounded-md border border-border-subtle px-2 py-1 text-[10px] text-text-muted hover:text-text-secondary"
           title="Collapse HUD (Ctrl+Shift+H)"
           aria-label="Collapse HUD"
         >

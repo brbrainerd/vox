@@ -140,7 +140,7 @@ export function RunsView({ pushToast, gamifyEnabled = false }: RunsViewProps) {
     { 
       key: 'run_id', 
       header: 'Run ID', 
-      render: (r: RunRow) => <span className="font-mono text-zinc-400">#{r.run_id}</span> 
+      render: (r: RunRow) => <span className="font-mono text-text-muted">#{r.run_id}</span> 
     },
     { 
       key: 'workflow_name', 
@@ -178,9 +178,9 @@ export function RunsView({ pushToast, gamifyEnabled = false }: RunsViewProps) {
     <div className="grid grid-cols-12 gap-5 p-4 h-full overflow-auto">
       {decision && (
         <Glass className="col-span-12 p-3">
-          <div className="font-display text-[11px] tracking-[0.2em] uppercase text-zinc-400">Latest Route Decision</div>
-          <div className="mt-1 font-mono text-xs text-zinc-200">{decision.selected_model}</div>
-          <div className="text-[10px] text-zinc-500 mt-1">
+          <div className="font-display text-[11px] tracking-[0.2em] uppercase text-text-muted">Latest Route Decision</div>
+          <div className="mt-1 font-mono text-xs text-text-secondary">{decision.selected_model}</div>
+          <div className="text-[10px] text-text-muted mt-1">
             state={decision.discovery_state}
             {decision.intelligence_score != null && ` · intel=${decision.intelligence_score.toFixed(2)}`}
             {decision.efficiency_score != null && ` · eff=${decision.efficiency_score.toFixed(2)}`}
@@ -190,7 +190,7 @@ export function RunsView({ pushToast, gamifyEnabled = false }: RunsViewProps) {
       )}
 
       <div className="col-span-12 xl:col-span-7 flex flex-col gap-3">
-        <h3 className="font-display text-sm tracking-widest uppercase text-zinc-200">Model Scoreboard (7d)</h3>
+        <h3 className="font-display text-sm tracking-widest uppercase text-text-secondary">Model Scoreboard (7d)</h3>
         <DataTable
           rows={scoreboard}
           columns={scoreboardCols}
@@ -208,7 +208,7 @@ export function RunsView({ pushToast, gamifyEnabled = false }: RunsViewProps) {
       </div>
 
       <div className="col-span-12 xl:col-span-5 flex flex-col gap-3">
-        <h3 className="font-display text-sm tracking-widest uppercase text-zinc-200">Recent Activity</h3>
+        <h3 className="font-display text-sm tracking-widest uppercase text-text-secondary">Recent Activity</h3>
         <DataTable
           rows={runs}
           columns={runsCols}
@@ -224,23 +224,23 @@ export function RunsView({ pushToast, gamifyEnabled = false }: RunsViewProps) {
           }
         />
         {selectedRun && (
-          <Glass size="sm" className="mt-2 rounded-lg border border-white/10 bg-black/30 p-3">
-            <div className="font-display text-[10px] tracking-[0.2em] uppercase text-zinc-400">Run Details</div>
-            <div className="mt-2 text-[11px] text-zinc-200">{selectedRun.workflow_name}</div>
-            <div className="font-mono text-[10px] text-zinc-500 mt-1">{selectedRun.run_id}</div>
-            <div className="text-[10px] text-zinc-500 mt-1">
+          <Glass size="sm" className="mt-2 rounded-lg border border-border-subtle bg-black/30 p-3">
+            <div className="font-display text-[10px] tracking-[0.2em] uppercase text-text-muted">Run Details</div>
+            <div className="mt-2 text-[11px] text-text-secondary">{selectedRun.workflow_name}</div>
+            <div className="font-mono text-[10px] text-text-muted mt-1">{selectedRun.run_id}</div>
+            <div className="text-[10px] text-text-muted mt-1">
               status={selectedRun.status} · steps={selectedRun.completed_steps}/{selectedRun.planned_steps}
             </div>
-            <div className="text-[10px] text-zinc-500 mt-1">
+            <div className="text-[10px] text-text-muted mt-1">
               updated={new Date(selectedRun.updated_at_ms).toLocaleString()}
             </div>
             {selectedRun.command && (
-              <div className="font-mono text-[10px] text-zinc-400 mt-1 break-all">
+              <div className="font-mono text-[10px] text-text-muted mt-1 break-all">
                 cmd={selectedRun.command}
               </div>
             )}
             {selectedRun.model || selectedRun.cost_usd != null ? (
-              <div className="text-[10px] text-zinc-500 mt-1">
+              <div className="text-[10px] text-text-muted mt-1">
                 {selectedRun.model ? `model=${selectedRun.model}` : null}
                 {selectedRun.model && selectedRun.cost_usd != null ? ' · ' : null}
                 {selectedRun.cost_usd != null ? `cost=$${selectedRun.cost_usd.toFixed(4)}` : null}

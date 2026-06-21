@@ -12,6 +12,12 @@
     "brass": {
       "default": { "value": "#d4af37" }
     },
+    "basalt":     { "950": { "value": "#0a0c0d" }, "900": { "value": "#0c0e10" }, "850": { "value": "#11151a" }, "800": { "value": "#15191c" }, "700": { "value": "#1f262b" }, "600": { "value": "#2b343a" } },
+    "travertine": { "50": { "value": "#f6f1e7" }, "100": { "value": "#f4eee1" }, "200": { "value": "#ece5d6" }, "300": { "value": "#e3dbc8" }, "ink": { "value": "#2a2620" }, "ink-soft": { "value": "#4a443a" }, "ink-muted": { "value": "#6b6457" } },
+    "gold":       { "300": { "value": "#e0c478" }, "400": { "value": "#d4af37" }, "500": { "value": "#c9a24a" }, "600": { "value": "#a8842f" }, "700": { "value": "#8a6a26" } },
+    "verdigris":  { "300": { "value": "#79c8ba" }, "400": { "value": "#4a9e8f" }, "600": { "value": "#2f7d6f" }, "700": { "value": "#1f5a50" } },
+    "terracotta": { "400": { "value": "#d98b6a" }, "600": { "value": "#b25a37" } },
+    "oxblood":    { "600": { "value": "#a3402f" }, "700": { "value": "#7e2d20" } },
     "status": {
       "pass": { "value": "#a7f3d0" },
       "fail": { "value": "#fca5a5" },
@@ -35,7 +41,8 @@
     "weight": {
       "regular": { "value": "400" }, "medium": { "value": "500" }, "semibold": { "value": "600" }, "bold": { "value": "700" }
     },
-    "leading": { "tight": { "value": "1.25" }, "normal": { "value": "1.5" } }
+    "leading": { "tight": { "value": "1.25" }, "normal": { "value": "1.5" } },
+    "family": { "display": { "value": "Cinzel, Georgia, serif" }, "sans": { "value": "Inter, system-ui, sans-serif" }, "serif": { "value": "EB Garamond, Georgia, serif" }, "mono": { "value": "ui-monospace, Consolas, monospace" } }
   },
   "motion": {
     "fast": { "value": "120ms" }, "base": { "value": "200ms" }, "slow": { "value": "400ms" }
