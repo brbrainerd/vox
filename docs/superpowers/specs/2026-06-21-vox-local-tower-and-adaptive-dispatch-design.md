@@ -17,25 +17,33 @@ status: "research"
 - **Run on a variety of systems** — the same VoxMens artifacts must scope/scale from a laptop → this tower → cloud.
 - **Budget ≤ $15k (expandable);** the chosen tower is **~$6.3k**, leaving headroom.
 
-## 2 · Hardware — the sweet-spot tower (~$6,289)
-| Part | Pick | Price |
+## 2 · Hardware — the sweet-spot tower (web-verified prices, 2026-06-21)
+Two CPU tiers: **value (24c)** and **"fastest at this price" (32c)**. Real currently-purchasable listings (Newegg/Micro Center/eBay), not historical averages.
+
+| Part | Pick | Real price |
 |---|---|---|
-| CPU | **AMD Threadripper 9000, 24-core / 48-thread** (HEDT, ~4 GHz) | ~$1,499 |
-| Motherboard | **TRX50** (ASUS Pro WS TRX50-SAGE WIFI / ASRock TRX50) — PCIe 5.0, multi-GPU, ECC | ~$700 |
-| RAM | **128 GB DDR5 ECC RDIMM** (4×32, 4-channel) | ~$900 |
-| GPU | **2× used RTX 3090 24 GB → 48 GB** (NVLink optional) | ~$1,900 |
+| CPU (value) | **Threadripper 9960X** 24c/48t (sTR5) | ~$1,499 |
+| CPU (fastest) | **Threadripper 9970X** 32c/64t — swap in for ~15–20% faster full builds | $2,299 |
+| Motherboard | **ASRock TRX50 WS** (PCIe 5.0, multi-GPU, ECC) — or Gigabyte TRX50 Aero D $599 / ASUS SAGE $899 | ~$799 |
+| RAM | **128 GB DDR5-5600 ECC RDIMM** (Kingston Fury Renegade Pro 4×32) | ~$850 |
+| GPU | **2× used RTX 3090 24 GB → 48 GB** (best $/VRAM) | ~$2,300 |
 | Boot + Dev Drive NVMe | Crucial T705 2 TB Gen5 | ~$240 |
 | Models/bulk NVMe | Samsung 990 PRO 4 TB | ~$350 |
-| PSU | 1200–1300 W Platinum, ATX 3.1 | ~$250 |
+| PSU | 1300 W Platinum, ATX 3.1 (mandatory for 2×3090) | ~$250 |
 | Cooling | sTR5 360 mm AIO | ~$200 |
 | Case | high-airflow full tower (dual-GPU) | ~$250 |
-| **Total** | | **~$6,289** |
+| **Total (24c value)** | | **~$6,740** |
+| **Total (32c fastest)** | | **~$7,540** |
 
-- **Power:** ~900 W under full build+inference load (2× 350 W GPU + ~230 W CPU + rest).
-- **Why this over alternatives:** the 24 Threadripper cores give a *real* full-build speedup (cores, not just clock); the 48 GB serves the 32B VoxMens with CUDA/vLLM multi-LoRA; **TRX50 leaves expansion room** (up to 4 GPUs, more NVMe, more RAM) — a $13,250 96 GB Blackwell card or a 3rd/4th GPU can be added later without a platform change.
-- **X-factors:** used 3090s carry no warranty / possible mining wear (budget a spare); high power/heat/noise; new-GPU/ECC purists should price the 96 GB build (~$18k) instead.
+> Was ~$6,289 in v1 — corrected up by used-3090 price rise (~$950→~$1,150 ea) + real board/RAM. **Tip:** Micro Center sells CPU+TRX50+128 GB *bundles* that can shave the platform cost.
 
-**Expansion path:** +2 GPUs (to 4) on TRX50 lanes (bump PSU to 1600 W); +RAM toward 1 TB; +NVMe; later swap to a 96 GB card for public serving.
+- **Power:** ~900 W under full build+inference load (2× ~350 W GPU + ~250 W CPU + rest).
+- **GPU choice (verified):** 2×3090 (48 GB, ~$2,300) beats a single **RTX 5090** (32 GB, $2,909–4,329 — pricier *and* less VRAM) and **RTX 6000 Ada** (48 GB, $6,800) on value. If you find **used RTX 4090s ~$1,100–1,400**, **2×4090** is the upgrade (48 GB, faster, similar price, newer).
+- **CPU choice:** for the stated *"fastest Rust build"* goal, the **9970X 32c** is the honest pick (more cores = faster full builds); the 9960X 24c is the value floor. The 64c 9980X ($4,999) is fastest but breaks "middling."
+
+**Expansion (corrected):** **TRX50 cleanly runs 2 GPUs at full lanes + headroom for a 3rd at reduced lanes** (it is the non-PRO platform). For **4+ GPUs or the future 96 GB Blackwell serving card**, the right platform is **WRX90 (Threadripper PRO, 128 lanes)** — i.e. the ~$18k build. So: build on TRX50 if 2–3 GPUs is the ceiling; start on WRX90 if you *know* you'll scale to 4 GPUs / public serving.
+
+**Durability & risk (real):** used 3090s = no warranty, possible mining wear, known GDDR6X memory-heat (budget a spare and a repad/repaste); ~900 W heat/noise. **Mitigations:** buy 1 newer + 1 used, prefer 2×4090 if cheap, or **go prebuilt** — a warrantied dual-GPU Threadripper from **Custom Lux / AVADirect / Puget runs ~$7,500–9,000** (+15–30% over DIY) and removes used-card + assembly + validation risk (burn-in tested, multi-year warranty). The DIY value build wins on cost; the prebuilt wins on reliability/support.
 
 ## 3 · Software — resource-adaptive dispatch (the implementable part)
 Extends existing Vox machinery; **no new parallel system**:
