@@ -1,0 +1,32 @@
+version: "1"
+# BFCL (Berkeley Function Calling Leaderboard) eval gate.
+#
+# Applied after BFCL evaluation runs against a trained adapter.
+# Beat-base is the primary success criterion (V1 success rail):
+#   trained_accuracy > baseline.value (with CI overlap considered)
+#
+# Source file: bfcl_results.json in the run directory.
+#   Written by: vox mens eval-bfcl (or equivalent BFCL harness output)
+#
+# Per-rung overrides: lower thresholds are acceptable for CPU/small rungs
+# (qwen3_0_6b_cpu, qwen3_1_7b_cpu) which have lower baseline capacity.
+#
+# Regression guard: if prior_adapter_card.json exists in the run dir,
+# a drop > regression_max_drop from the previously registered adapter
+# is treated as a regression failure.
+
+bfcl_accuracy:
+  min_accuracy: 0.0        # Absolute floor (0.0 = beat-base is the only gate)
+  block: true              # Failures block adapter registration
+  metrics_file: bfcl_results.json
+  regression_max_drop: 0.03  # Max tolerated regression vs prior adapter
+
+  # Per-rung minimum accuracy overrides.
+  # Keys must match the rung label in the adapter card (base_rung field).
+  per_rung_overrides:
+    qwen3_0_6b_cpu:   0.0   # Beat-base only — absolute floor waived for smallest rung
+    qwen3_1_7b_cpu:   0.0   # Beat-base only
+    qwen3_4b_cpu:     0.0   # Beat-base only
+    qwen3_4b_4080:    0.0   # Beat-base only
+    qwen3_8b_4080:    0.0   # Beat-base only
+    qwen3_14b_4080:   0.0   # Beat-base only; 16 GB VRAM ceiling
