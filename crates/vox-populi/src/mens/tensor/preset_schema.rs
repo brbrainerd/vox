@@ -729,6 +729,9 @@ mod qwen3_preset_tests {
 /// 2. The `AdapterCard` / `DomainRouter` infrastructure works for `provider: "local"`.
 /// 3. (mens-train only) The execution planner still maps QLoRA+NF4 → CandleQlora backend.
 ///
+/// Note: this module and `local_compat_b07_planner_tests` both require `--features mens-train`
+/// to compile (same gate as the parent `preset_schema` module in `tensor/mod.rs`).
+///
 /// These tests document already-working invariants; no implementation change is expected.
 /// If any test fails, it indicates B0's AdapterCard work broke local training infrastructure.
 #[cfg(test)]
