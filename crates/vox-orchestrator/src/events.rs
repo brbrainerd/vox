@@ -913,7 +913,10 @@ mod tests {
             },
         };
         let json = serde_json::to_string(&event).expect("serialize");
-        assert!(json.contains("pav_phase_changed"), "serde tag missing: {json}");
+        assert!(
+            json.contains("pav_phase_changed"),
+            "serde tag missing: {json}"
+        );
         assert!(json.contains("verifying"), "phase value missing: {json}");
         let back: AgentEvent = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(back.id, EventId(77));

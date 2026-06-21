@@ -57,8 +57,8 @@ impl PhaseLoop {
     #[must_use]
     pub fn start(clutch: ClutchProfile, risk: RiskPosture) -> Self {
         let plan_first = matches!(clutch, ClutchProfile::Balanced | ClutchProfile::Genius);
-        let verify_required = risk.resolve().socrates_enforce
-            || matches!(clutch, ClutchProfile::Genius);
+        let verify_required =
+            risk.resolve().socrates_enforce || matches!(clutch, ClutchProfile::Genius);
         Self {
             state: PavLoopState {
                 phase: if plan_first {

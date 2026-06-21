@@ -14,7 +14,10 @@ impl Orchestrator {
         trust_relax_gates: bool,
     ) -> Result<GateOutcome, OrchestratorError> {
         let Some(ref ctx) = task.socrates else {
-            return Ok(GateOutcome { requeue: None, needs_review_approval: false });
+            return Ok(GateOutcome {
+                requeue: None,
+                needs_review_approval: false,
+            });
         };
 
         let envelope_raw = task.session_id.as_ref().and_then(|sid| {
@@ -234,7 +237,10 @@ impl Orchestrator {
                 needs_review_approval: false,
             })
         } else {
-            Ok(GateOutcome { requeue: None, needs_review_approval: false })
+            Ok(GateOutcome {
+                requeue: None,
+                needs_review_approval: false,
+            })
         }
     }
 }

@@ -380,7 +380,10 @@ mod attribution_tests {
         };
         let json = serde_json::to_string(&a).unwrap();
         let back: CompletionAttestation = serde_json::from_str(&json).unwrap();
-        assert_eq!(back.completing_model.as_deref(), Some("anthropic/claude-opus"));
+        assert_eq!(
+            back.completing_model.as_deref(),
+            Some("anthropic/claude-opus")
+        );
         assert_eq!(back.request_tokens, Some(4200));
     }
 
@@ -398,13 +401,34 @@ mod attribution_tests {
         // All new fields None → they must be absent from the JSON output.
         let a = CompletionAttestation::default();
         let json = serde_json::to_string(&a).unwrap();
-        assert!(!json.contains("completing_model"), "completing_model should be absent: {json}");
-        assert!(!json.contains("provider"), "provider should be absent: {json}");
-        assert!(!json.contains("selection_reason"), "selection_reason should be absent: {json}");
-        assert!(!json.contains("request_tokens"), "request_tokens should be absent: {json}");
-        assert!(!json.contains("response_tokens"), "response_tokens should be absent: {json}");
-        assert!(!json.contains("latency_ms"), "latency_ms should be absent: {json}");
-        assert!(!json.contains("io_digest_ref"), "io_digest_ref should be absent: {json}");
+        assert!(
+            !json.contains("completing_model"),
+            "completing_model should be absent: {json}"
+        );
+        assert!(
+            !json.contains("provider"),
+            "provider should be absent: {json}"
+        );
+        assert!(
+            !json.contains("selection_reason"),
+            "selection_reason should be absent: {json}"
+        );
+        assert!(
+            !json.contains("request_tokens"),
+            "request_tokens should be absent: {json}"
+        );
+        assert!(
+            !json.contains("response_tokens"),
+            "response_tokens should be absent: {json}"
+        );
+        assert!(
+            !json.contains("latency_ms"),
+            "latency_ms should be absent: {json}"
+        );
+        assert!(
+            !json.contains("io_digest_ref"),
+            "io_digest_ref should be absent: {json}"
+        );
     }
 
     #[test]
@@ -435,8 +459,14 @@ mod attribution_tests {
             latency_ms: None,
         };
         let json = serde_json::to_string(&rec).unwrap();
-        assert!(!json.contains("request_tokens"), "request_tokens should be absent: {json}");
-        assert!(!json.contains("latency_ms"), "latency_ms should be absent: {json}");
+        assert!(
+            !json.contains("request_tokens"),
+            "request_tokens should be absent: {json}"
+        );
+        assert!(
+            !json.contains("latency_ms"),
+            "latency_ms should be absent: {json}"
+        );
     }
 }
 

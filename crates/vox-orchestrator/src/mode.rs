@@ -2,8 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::config::CostPreference;
 use crate::attention::ApprovalTier;
+use crate::config::CostPreference;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Modalities {
@@ -346,9 +346,18 @@ mod risk_tests {
     #[test]
     fn approval_lean_maps_to_approval_tier() {
         use crate::attention::ApprovalTier;
-        assert_eq!(ApprovalLean::AutoApproveMore.to_approval_tier(), ApprovalTier::AutoApprove);
-        assert_eq!(ApprovalLean::Confirm.to_approval_tier(), ApprovalTier::Confirm);
-        assert_eq!(ApprovalLean::Review.to_approval_tier(), ApprovalTier::Review);
+        assert_eq!(
+            ApprovalLean::AutoApproveMore.to_approval_tier(),
+            ApprovalTier::AutoApprove
+        );
+        assert_eq!(
+            ApprovalLean::Confirm.to_approval_tier(),
+            ApprovalTier::Confirm
+        );
+        assert_eq!(
+            ApprovalLean::Review.to_approval_tier(),
+            ApprovalTier::Review
+        );
     }
 }
 

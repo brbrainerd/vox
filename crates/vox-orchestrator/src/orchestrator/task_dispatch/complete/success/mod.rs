@@ -242,8 +242,7 @@ impl Orchestrator {
                             ));
                             // Schedule the DB write outside the queue-lock scope: store info for
                             // after the lock is released.
-                            review_approval_pending =
-                                Some((approval_id, summary, task_id_u64));
+                            review_approval_pending = Some((approval_id, summary, task_id_u64));
                         }
                         Ok(outcome) => auto_debug_requeue = outcome.requeue,
                         Err(e) => return Err(OrchestratorError::ApprovalAttestationRequired(e)),

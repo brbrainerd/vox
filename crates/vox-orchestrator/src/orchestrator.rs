@@ -142,6 +142,7 @@ pub struct Orchestrator {
     /// Populated when a task starts executing; cleared when it completes or is cancelled.
     /// The running [`crate::runtime::AiTaskProcessor`] should poll this flag periodically
     /// (see `crates/vox-orchestrator/src/interrupt.rs` for the full wiring design).
-    pub interrupt_flags:
-        std::sync::Arc<std::sync::RwLock<HashMap<TaskId, std::sync::Arc<std::sync::atomic::AtomicBool>>>>,
+    pub interrupt_flags: std::sync::Arc<
+        std::sync::RwLock<HashMap<TaskId, std::sync::Arc<std::sync::atomic::AtomicBool>>>,
+    >,
 }

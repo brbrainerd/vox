@@ -177,9 +177,9 @@ pub mod monitor;
 pub mod observer;
 /// Append-only operation log for durable orchestration history.
 pub use vox_orchestrator_queue::oplog;
-pub mod mode;
 /// Drive Console control SSOT — ClutchProfile/RiskPosture parity gate.
 pub mod control;
+pub mod mode;
 /// TCP JSON-line orchestrator daemon (`vox-orchestrator-d`) and client helpers.
 pub mod orch_daemon;
 pub mod orchestration_feature_flags;

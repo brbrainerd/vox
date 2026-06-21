@@ -127,8 +127,8 @@ mod tests {
 
     #[test]
     fn force_verify_while_acting_goes_to_verifying() {
-        use crate::planning::phase_loop::PhaseLoop;
         use crate::mode::{ClutchProfile, RiskPosture};
+        use crate::planning::phase_loop::PhaseLoop;
         // High risk → verify_required=false for High clutch
         let mut loop_ = PhaseLoop::start(ClutchProfile::Free, RiskPosture::High);
         assert_eq!(loop_.phase(), PavPhase::Acting);

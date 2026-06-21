@@ -354,8 +354,7 @@ impl TaskProcessor for AiTaskProcessor {
             // Poll the interrupt flag at the top of every phase so a user
             // interrupt aborts before kicking off the next inference round.
             if cancel.load(Ordering::Acquire) {
-                self.orchestrator
-                    .abort_interrupted_task(task.id, agent_id);
+                self.orchestrator.abort_interrupted_task(task.id, agent_id);
                 return Err(anyhow::anyhow!("task interrupted"));
             }
             // Update the task's current phase in the orchestrator state for observability.
@@ -394,8 +393,7 @@ impl TaskProcessor for AiTaskProcessor {
                 Ok(text) => text,
                 Err(e) => {
                     // Interrupt raised mid-stream: release locks and propagate.
-                    self.orchestrator
-                        .abort_interrupted_task(task.id, agent_id);
+                    self.orchestrator.abort_interrupted_task(task.id, agent_id);
                     return Err(e);
                 }
             };
@@ -977,9 +975,7 @@ mod tests {
             vec![],
         );
         let cancel = Arc::new(AtomicBool::new(true));
-        let result = proc_
-            .process(crate::types::AgentId(1), task, cancel)
-            .await;
+        let result = proc_.process(crate::types::AgentId(1), task, cancel).await;
         assert!(result.is_err(), "pre-set cancel flag must abort process");
         assert!(
             result.unwrap_err().to_string().contains("interrupted"),
@@ -997,9 +993,7 @@ mod tests {
             vec![],
         );
         let cancel = Arc::new(AtomicBool::new(false));
-        let result = proc_
-            .process(crate::types::AgentId(1), task, cancel)
-            .await;
+        let result = proc_.process(crate::types::AgentId(1), task, cancel).await;
         assert_eq!(result.unwrap(), crate::types::TaskId(7));
     }
 }

@@ -306,13 +306,12 @@ impl crate::orchestrator::Orchestrator {
                 })
                 .unwrap_or_default();
             let still_claimed = |path: &std::path::Path| {
-                queue
-                    .current_task()
-                    .is_some_and(|t| t.id != task_id && t.write_files().iter().any(|p| p.as_path() == path))
-                    || queue
-                        .tasks()
-                        .iter()
-                        .any(|t| t.id != task_id && t.write_files().iter().any(|p| p.as_path() == path))
+                queue.current_task().is_some_and(|t| {
+                    t.id != task_id && t.write_files().iter().any(|p| p.as_path() == path)
+                }) || queue
+                    .tasks()
+                    .iter()
+                    .any(|t| t.id != task_id && t.write_files().iter().any(|p| p.as_path() == path))
             };
             for path in &write_files {
                 if !still_claimed(path) {

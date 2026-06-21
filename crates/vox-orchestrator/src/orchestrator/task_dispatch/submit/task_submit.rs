@@ -620,15 +620,16 @@ impl Orchestrator {
                 if lease_id.is_none() {
                     // Phase 1 Federation Proxy: Try to find a peer mesh if local denies
                     if let Ok(dir) = client.federation_directory().await {
-                        let mut candidates: Vec<_> =
-                            dir.entries.into_iter()
-                                .filter(|e| e.public)
-                                // MeshPolicy::Exclude: skip nodes in the exclusion list.
-                                .filter(|e| {
-                                    task_mesh_policy_excludes.is_empty()
-                                        || !task_mesh_policy_excludes.contains(&e.scope_id)
-                                })
-                                .collect();
+                        let mut candidates: Vec<_> = dir
+                            .entries
+                            .into_iter()
+                            .filter(|e| e.public)
+                            // MeshPolicy::Exclude: skip nodes in the exclusion list.
+                            .filter(|e| {
+                                task_mesh_policy_excludes.is_empty()
+                                    || !task_mesh_policy_excludes.contains(&e.scope_id)
+                            })
+                            .collect();
                         candidates.sort_by_key(|e| e.current_queue_depth.unwrap_or(usize::MAX));
                         for peer in candidates {
                             let peer_client =
@@ -953,99 +954,99 @@ impl Orchestrator {
 
         #[cfg(feature = "populi-transport")]
         if !task_mesh_policy_local_only {
-        if let Some((base, recv_s, timeout_ms, scope, send_opt, _claimer_node_id)) =
-            remote_params.filter(|_| !lease_gated)
-        {
-            let task_id_u = task_id.0;
-            let agent_u = agent_id.0;
-            let desc = remote_relay_desc;
-            let caps = _capability_requirements.clone();
-            let relay_campaign_id = lineage_campaign_id.clone();
-            let relay_session_id = session_id.clone();
-            let relay_thread_id = _relay_thread_id_seed.clone();
-            let relay_harness_spec_json = _relay_harness_spec_json_seed.clone();
-            let relay_context_envelope_json = relay_session_id.as_ref().and_then(|sid| {
-                let key = crate::socrates::session_context_envelope_key(sid);
-                crate::sync_lock::rw_read(&*self.context_store).get(&key)
-            });
-            let send_s = send_opt.unwrap_or_default();
-            tokio::spawn(async move {
-                use std::time::Duration;
+            if let Some((base, recv_s, timeout_ms, scope, send_opt, _claimer_node_id)) =
+                remote_params.filter(|_| !lease_gated)
+            {
+                let task_id_u = task_id.0;
+                let agent_u = agent_id.0;
+                let desc = remote_relay_desc;
+                let caps = _capability_requirements.clone();
+                let relay_campaign_id = lineage_campaign_id.clone();
+                let relay_session_id = session_id.clone();
+                let relay_thread_id = _relay_thread_id_seed.clone();
+                let relay_harness_spec_json = _relay_harness_spec_json_seed.clone();
+                let relay_context_envelope_json = relay_session_id.as_ref().and_then(|sid| {
+                    let key = crate::socrates::session_context_envelope_key(sid);
+                    crate::sync_lock::rw_read(&*self.context_store).get(&key)
+                });
+                let send_s = send_opt.unwrap_or_default();
+                tokio::spawn(async move {
+                    use std::time::Duration;
 
-                let Ok(recv_id) = recv_s.parse::<u64>() else {
-                    tracing::warn!(
-                        "populi remote relay: receiver agent id must be a u64 (got {:?})",
-                        recv_s
-                    );
-                    return;
-                };
-                let send_id = send_s.trim().parse::<u64>().unwrap_or(1);
-                let client = vox_populi::http_client::PopuliHttpClient::new_with_timeout(
-                    &base,
-                    Duration::from_millis(timeout_ms.max(1000)),
-                )
-                .with_env_deliver_token();
-                let now = crate::types::now_unix_ms();
-                let cap_json = caps
-                    .as_ref()
-                    .and_then(|c| serde_json::to_string(c).ok())
-                    .unwrap_or_else(|| "{}".to_string());
-                let idempotency_key = format!("orch-remote-{task_id_u}-{now}");
-                let payload = serde_json::json!({
-                    "task_description": desc,
-                    "assigned_agent_id": agent_u,
-                    "session_id": relay_session_id,
-                    "thread_id": relay_thread_id,
-                    "context_envelope_json": relay_context_envelope_json,
-                    "harness_spec_json": relay_harness_spec_json,
-                })
-                .to_string();
-                let repository_id = scope
-                    .clone()
-                    .unwrap_or_else(|| "orchestrator-local".to_string());
-                let envelope = crate::a2a::RemoteTaskEnvelope {
-                    idempotency_key,
-                    task_id: task_id_u,
-                    repository_id,
-                    capability_requirements_json: cap_json,
-                    payload,
-                    privacy_class: None,
-                    populi_scope_id: scope.clone(),
-                    submitted_unix_ms: Some(now),
-                    exec_lease_id: None,
-                    campaign_id: relay_campaign_id.filter(|s| !s.is_empty()),
-                    artifact_refs_json: None,
-                    session_id: relay_session_id.clone(),
-                    thread_id: relay_thread_id.clone(),
-                    context_envelope_json: relay_context_envelope_json.clone(),
-                    harness_spec_json: relay_harness_spec_json.clone(),
-                    parent_task_id: None,
-                    caller_agent_id: None,
-                    trace_id: None,
-                    span_depth: None,
-                    bundle_ref: None,
-                    bundle_inline_b64: None,
-                    exec_source_b64: None,
-                    exec_source_blake3_hex: None,
-                    exec_bundle_b64: None,
-                    exec_bundle_blake3_hex: None,
-                };
-                if let Err(err) = crate::a2a::relay_remote_task_envelope(
-                    &client,
-                    crate::types::AgentId(send_id),
-                    crate::types::AgentId(recv_id),
-                    &envelope,
-                )
-                .await
-                {
-                    tracing::debug!(
-                        error = %err,
-                        task_id = task_id_u,
-                        "populi experimental remote relay failed (local queue still owns execution)"
-                    );
-                }
-            });
-        }
+                    let Ok(recv_id) = recv_s.parse::<u64>() else {
+                        tracing::warn!(
+                            "populi remote relay: receiver agent id must be a u64 (got {:?})",
+                            recv_s
+                        );
+                        return;
+                    };
+                    let send_id = send_s.trim().parse::<u64>().unwrap_or(1);
+                    let client = vox_populi::http_client::PopuliHttpClient::new_with_timeout(
+                        &base,
+                        Duration::from_millis(timeout_ms.max(1000)),
+                    )
+                    .with_env_deliver_token();
+                    let now = crate::types::now_unix_ms();
+                    let cap_json = caps
+                        .as_ref()
+                        .and_then(|c| serde_json::to_string(c).ok())
+                        .unwrap_or_else(|| "{}".to_string());
+                    let idempotency_key = format!("orch-remote-{task_id_u}-{now}");
+                    let payload = serde_json::json!({
+                        "task_description": desc,
+                        "assigned_agent_id": agent_u,
+                        "session_id": relay_session_id,
+                        "thread_id": relay_thread_id,
+                        "context_envelope_json": relay_context_envelope_json,
+                        "harness_spec_json": relay_harness_spec_json,
+                    })
+                    .to_string();
+                    let repository_id = scope
+                        .clone()
+                        .unwrap_or_else(|| "orchestrator-local".to_string());
+                    let envelope = crate::a2a::RemoteTaskEnvelope {
+                        idempotency_key,
+                        task_id: task_id_u,
+                        repository_id,
+                        capability_requirements_json: cap_json,
+                        payload,
+                        privacy_class: None,
+                        populi_scope_id: scope.clone(),
+                        submitted_unix_ms: Some(now),
+                        exec_lease_id: None,
+                        campaign_id: relay_campaign_id.filter(|s| !s.is_empty()),
+                        artifact_refs_json: None,
+                        session_id: relay_session_id.clone(),
+                        thread_id: relay_thread_id.clone(),
+                        context_envelope_json: relay_context_envelope_json.clone(),
+                        harness_spec_json: relay_harness_spec_json.clone(),
+                        parent_task_id: None,
+                        caller_agent_id: None,
+                        trace_id: None,
+                        span_depth: None,
+                        bundle_ref: None,
+                        bundle_inline_b64: None,
+                        exec_source_b64: None,
+                        exec_source_blake3_hex: None,
+                        exec_bundle_b64: None,
+                        exec_bundle_blake3_hex: None,
+                    };
+                    if let Err(err) = crate::a2a::relay_remote_task_envelope(
+                        &client,
+                        crate::types::AgentId(send_id),
+                        crate::types::AgentId(recv_id),
+                        &envelope,
+                    )
+                    .await
+                    {
+                        tracing::debug!(
+                            error = %err,
+                            task_id = task_id_u,
+                            "populi experimental remote relay failed (local queue still owns execution)"
+                        );
+                    }
+                });
+            }
         } // end: if !task_mesh_policy_local_only
 
         if crate::lineage::orchestration_lineage_persist_enabled() {
@@ -1171,8 +1172,7 @@ mod mesh_dispatch_policy_tests {
 
         // The guard in submit_task_with_agent reads: !task_mesh_policy_local_only
         // where task_mesh_policy_local_only = matches!(task.mesh_policy, MeshPolicy::LocalOnly)
-        let task_mesh_policy_local_only =
-            matches!(task.mesh_policy, MeshPolicy::LocalOnly);
+        let task_mesh_policy_local_only = matches!(task.mesh_policy, MeshPolicy::LocalOnly);
         // Task should NOT be relayed to mesh.
         assert!(
             task_mesh_policy_local_only,
@@ -1182,8 +1182,10 @@ mod mesh_dispatch_policy_tests {
         // Verify the allows_node contract that underpins the guard.
         assert!(!task.mesh_policy.allows_node("remote-peer-7"));
         assert!(!task.mesh_policy.allows_node("node-42"));
-        assert!(task.mesh_policy.allows_node("local"),
-            "LocalOnly must still allow the local node");
+        assert!(
+            task.mesh_policy.allows_node("local"),
+            "LocalOnly must still allow the local node"
+        );
     }
 
     #[test]

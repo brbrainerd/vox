@@ -25,7 +25,10 @@ pub fn check_research_json_gate(
     max_debug_iterations: u8,
 ) -> Result<GateOutcome, String> {
     if task.task_category != crate::types::TaskCategory::Research {
-        return Ok(GateOutcome { requeue: None, needs_review_approval: false });
+        return Ok(GateOutcome {
+            requeue: None,
+            needs_review_approval: false,
+        });
     }
 
     let is_json = attestation
@@ -63,7 +66,10 @@ pub fn check_research_json_gate(
             Err("Research tasks require a valid JSON completion summary.".to_string())
         }
     } else {
-        Ok(GateOutcome { requeue: None, needs_review_approval: false })
+        Ok(GateOutcome {
+            requeue: None,
+            needs_review_approval: false,
+        })
     }
 }
 
@@ -73,7 +79,10 @@ pub fn check_approval_gate(
     max_debug_iterations: u8,
 ) -> Result<GateOutcome, String> {
     let Some(tier) = task.approval_tier else {
-        return Ok(GateOutcome { requeue: None, needs_review_approval: false });
+        return Ok(GateOutcome {
+            requeue: None,
+            needs_review_approval: false,
+        });
     };
 
     let ok = completion_attestation_satisfies_tier(tier, attestation);
@@ -122,7 +131,10 @@ pub fn check_approval_gate(
             ))
         }
     } else {
-        Ok(GateOutcome { requeue: None, needs_review_approval: false })
+        Ok(GateOutcome {
+            requeue: None,
+            needs_review_approval: false,
+        })
     }
 }
 
@@ -162,7 +174,10 @@ Provide completion attestation checks_passed[] before completing.",
             needs_review_approval: false,
         }
     } else {
-        GateOutcome { requeue: None, needs_review_approval: false }
+        GateOutcome {
+            requeue: None,
+            needs_review_approval: false,
+        }
     }
 }
 
@@ -173,7 +188,10 @@ pub fn check_harness_gate(
 ) -> Result<GateOutcome, String> {
     let guard_mode = harness_completion_guard_mode();
     if guard_mode == HarnessCompletionGuardMode::Off {
-        return Ok(GateOutcome { requeue: None, needs_review_approval: false });
+        return Ok(GateOutcome {
+            requeue: None,
+            needs_review_approval: false,
+        });
     }
 
     match harness_completion_issues(task, attestation) {
@@ -207,10 +225,16 @@ pub fn check_harness_gate(
                     ))
                 }
             } else {
-                Ok(GateOutcome { requeue: None, needs_review_approval: false })
+                Ok(GateOutcome {
+                    requeue: None,
+                    needs_review_approval: false,
+                })
             }
         }
-        Ok(_) => Ok(GateOutcome { requeue: None, needs_review_approval: false }),
+        Ok(_) => Ok(GateOutcome {
+            requeue: None,
+            needs_review_approval: false,
+        }),
         Err(err) => {
             tracing::warn!(task_id = task.id.0, mode = ?guard_mode, error = %err, "harness completion gate evaluation failed");
             if guard_mode == HarnessCompletionGuardMode::Enforce {
@@ -219,7 +243,10 @@ pub fn check_harness_gate(
                     task.id
                 ))
             } else {
-                Ok(GateOutcome { requeue: None, needs_review_approval: false })
+                Ok(GateOutcome {
+                    requeue: None,
+                    needs_review_approval: false,
+                })
             }
         }
     }
@@ -272,7 +299,10 @@ pub fn check_toestub_gate(
             needs_review_approval: false,
         })
     } else {
-        Ok(GateOutcome { requeue: None, needs_review_approval: false })
+        Ok(GateOutcome {
+            requeue: None,
+            needs_review_approval: false,
+        })
     }
 }
 
@@ -305,7 +335,10 @@ pub fn check_doc_integrity_gate(
             };
         }
     }
-    GateOutcome { requeue: None, needs_review_approval: false }
+    GateOutcome {
+        requeue: None,
+        needs_review_approval: false,
+    }
 }
 
 #[cfg(test)]
@@ -345,8 +378,8 @@ mod review_approval_gate_tests {
     fn confirm_tier_still_requeues() {
         // Confirm-tier should re-queue (not route to human inbox) when no attestation.
         let task = make_task_with_tier(crate::ApprovalTier::Confirm);
-        let outcome = check_approval_gate(&task, None, 3)
-            .expect("should not error on first iteration");
+        let outcome =
+            check_approval_gate(&task, None, 3).expect("should not error on first iteration");
         assert!(
             !outcome.needs_review_approval,
             "Confirm-tier must not set needs_review_approval"
@@ -360,8 +393,7 @@ mod review_approval_gate_tests {
     #[test]
     fn auto_approve_tier_always_passes() {
         let task = make_task_with_tier(crate::ApprovalTier::AutoApprove);
-        let outcome = check_approval_gate(&task, None, 3)
-            .expect("AutoApprove should never fail");
+        let outcome = check_approval_gate(&task, None, 3).expect("AutoApprove should never fail");
         assert!(!outcome.needs_review_approval);
         assert!(outcome.requeue.is_none());
     }
