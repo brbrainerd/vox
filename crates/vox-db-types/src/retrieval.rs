@@ -96,6 +96,8 @@ pub enum SearchCorpus {
     Memory,
     KnowledgeGraph,
     DocumentChunks,
+    /// Project-scoped archived context windows (via `archive_membership` table).
+    ContextArchive,
     RepoInventory,
     WebResearch,
     SymbolProximity,
@@ -290,6 +292,7 @@ pub fn heuristic_search_plan(
         SearchCorpus::Memory,
         SearchCorpus::KnowledgeGraph,
         SearchCorpus::DocumentChunks,
+        SearchCorpus::ContextArchive,
         SearchCorpus::RepoInventory,
         SearchCorpus::SymbolProximity,
         SearchCorpus::WebResearch,

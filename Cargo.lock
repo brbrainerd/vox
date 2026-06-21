@@ -3642,6 +3642,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "fastcdc"
+version = "4.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77af40d8a8dadb92dc178569a5f5edb5f3056e98255c2de48ab5d59a52892e0c"
+
+[[package]]
 name = "fastdivide"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9563,6 +9569,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "quick_cache"
+version = "0.6.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3a3db184a8b66cfe87f0263a1de147a6b554c864d1767c6f7fa4eb0e5497b565"
+dependencies = [
+ "ahash 0.8.12",
+ "equivalent",
+ "hashbrown 0.16.1",
+ "parking_lot 0.12.5",
+]
+
+[[package]]
 name = "quinn"
 version = "0.11.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -15102,8 +15120,10 @@ dependencies = [
  "blake3",
  "chrono",
  "data-encoding",
+ "fastcdc",
  "hex",
  "keyring",
+ "quick_cache",
  "regex",
  "serde",
  "serde_json",
@@ -15128,6 +15148,7 @@ dependencies = [
  "vox-telemetry",
  "vox-test-harness",
  "workspace-hack",
+ "zstd",
 ]
 
 [[package]]

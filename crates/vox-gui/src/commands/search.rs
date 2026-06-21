@@ -145,6 +145,7 @@ fn scope_to_corpus(s: &str) -> Option<SearchCorpus> {
         "memory" => Some(SearchCorpus::Memory),
         "knowledge" => Some(SearchCorpus::KnowledgeGraph),
         "chunk" => Some(SearchCorpus::DocumentChunks),
+        "archive" => Some(SearchCorpus::ContextArchive),
         "repo" => Some(SearchCorpus::RepoInventory),
         "web" => Some(SearchCorpus::WebResearch),
         "symbol" => Some(SearchCorpus::SymbolProximity),
