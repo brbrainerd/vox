@@ -12,7 +12,6 @@
 ///   a) Add a projection arm and appear in `VARIANTS_WITH_PROJECTION` below, OR
 ///   b) Be intentionally unmapped (opt-out) and appear in `VARIANTS_WITHOUT_PROJECTION`.
 /// Any discrepancy is a compile-time + test failure.
-
 use serde_json::Value;
 use vox_telemetry::*;
 use vox_telemetry_otlp::{project::project_event, redact::redact_event};
@@ -87,7 +86,7 @@ fn skill_activation_no_canary_leak() {
     // But we plant it to confirm the field IS the hash value (not raw input).
     assert_no_canary_leak!(TelemetryEvent::SkillActivation(SkillActivationEvent {
         skill_id_hash: "a1b2c3d4".to_string(), // safe hex hash
-        trigger_source: "pinned".to_string(),   // safe enum slug
+        trigger_source: "pinned".to_string(),  // safe enum slug
         accepted: true,
         surface: "mcp".to_string(), // safe enum slug
     }));
@@ -110,7 +109,10 @@ fn skill_activation_raw_skill_id_not_uploaded() {
     // We do NOT assert no-canary here for skill_id_hash; we document that the field
     // passes through verbatim (the protection is upstream at the emit site).
     let projected = project_event(&ev);
-    assert!(projected.is_some(), "skill_activation must have a projection");
+    assert!(
+        projected.is_some(),
+        "skill_activation must have a projection"
+    );
 }
 
 // ── Track E: EditPattern ──────────────────────────────────────────────────────
@@ -129,8 +131,8 @@ fn edit_pattern_no_canary_leak() {
 #[test]
 fn harness_usage_no_canary_leak() {
     assert_no_canary_leak!(TelemetryEvent::HarnessUsage(HarnessUsageEvent {
-        tool_call_kind: "edit".to_string(),       // safe enum slug
-        mode: "agent".to_string(),                // safe enum slug
+        tool_call_kind: "edit".to_string(), // safe enum slug
+        mode: "agent".to_string(),          // safe enum slug
     }));
 }
 
@@ -139,8 +141,8 @@ fn harness_usage_no_canary_leak() {
 #[test]
 fn error_surface_no_canary_leak() {
     assert_no_canary_leak!(TelemetryEvent::ErrorSurface(ErrorSurfaceEvent {
-        error_class: "internal".to_string(),  // safe enum slug
-        subsystem: "file_ops".to_string(),    // safe enum slug
+        error_class: "internal".to_string(), // safe enum slug
+        subsystem: "file_ops".to_string(),   // safe enum slug
         recoverable: false,
     }));
 }
