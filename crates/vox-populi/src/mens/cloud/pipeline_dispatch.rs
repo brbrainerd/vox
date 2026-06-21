@@ -334,7 +334,12 @@ pub async fn dispatch_with_guard(
                 price_per_hour_usd: offer.price_per_hour_usd,
                 is_persistent: spec.persistent,
             };
-            return Ok(TerminateOnDrop::new(provider, existing_handle, budget));
+            // F7: this caller did NOT provision the pod (it already exists under
+            // this idempotency key), so the guard MUST be disarmed — Drop must
+            // not terminate a job we don't own.
+            let mut guard = TerminateOnDrop::new(provider, existing_handle, budget);
+            guard.disarm();
+            return Ok(guard);
         }
     }
 
@@ -407,12 +412,24 @@ impl DispatchPlan {
     }
 }
 
+/// Serde default for [`TrainingManifest::quantization`] (back-compat).
+fn default_quantization() -> String {
+    "qlora".to_string()
+}
+
 /// Training manifest written after a cloud training run completes.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TrainingManifest {
     pub base_hf_id: String,
     pub base_revision: String,
     pub rung: String,
+    /// Quantization method derived from the resolved [`TrainBase::method`]
+    /// (`"qlora"` for quantized rungs, `"lora"` for the un-quantized 48GB rung).
+    /// Defaults to `"qlora"` for back-compat with manifests written before this
+    /// field existed. Drives the serve-time `AdapterCard::is_compatible_with`
+    /// quantization match.
+    #[serde(default = "default_quantization")]
+    pub quantization: String,
     pub preset: String,
     pub rank: u32,
     pub alpha: f32,
@@ -506,7 +523,10 @@ fn card_from_manifest(
         base_hf_id: manifest.base_hf_id.clone(),
         base_revision: manifest.base_revision.clone(),
         base_rung: manifest.rung.clone(),
-        quantization: "qlora".to_string(),
+        // F9: derive from the resolved TrainBase.method (qlora vs lora) so the
+        // un-quantized 48GB LoRA rung is labelled correctly; otherwise serve-time
+        // AdapterCard::is_compatible_with would reject a valid lora adapter.
+        quantization: manifest.quantization.clone(),
         lora_rank: manifest.rank,
         lora_alpha: manifest.alpha,
         seed: manifest.seed,
@@ -911,6 +931,7 @@ mod tests {
             base_hf_id: "Qwen/Qwen3-4B".into(),
             base_revision: "main".into(),
             rung: "mid".into(),
+            quantization: "qlora".into(),
             preset: "prosumer_24g".into(),
             rank: 32,
             alpha: 64.0,
@@ -1010,6 +1031,116 @@ mod tests {
         assert!(router.route("vox").is_some(), "adapter must be registered");
     }
 
+    /// F9: a lora (48GB un-quantized) manifest must produce an AdapterCard whose
+    /// quantization is "lora" — NOT hardcoded "qlora" — so serve-time
+    /// is_compatible_with accepts the valid lora adapter.
+    #[test]
+    fn lora_manifest_produces_lora_quantization_card() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mut router = crate::mens::tensor::domain_router::DomainRouter::new();
+        let mut manifest = test_manifest();
+        manifest.quantization = "lora".to_string();
+        manifest.rung = "qwen3_48g".to_string();
+
+        let outcome = post_training_flow(
+            EvalGateOutcome::PassedBase,
+            &mut router,
+            "vox",
+            tmp.path(),
+            &manifest,
+        )
+        .unwrap();
+        assert!(matches!(
+            outcome,
+            CloudOrchestrationOutcome::RegisteredChallenger { .. }
+        ));
+
+        // The written sidecar card must carry quantization="lora".
+        let card = crate::mens::tensor::adapter_card::AdapterCard::read_sidecar(
+            &tmp.path().join("adapter_model.safetensors"),
+        )
+        .unwrap()
+        .expect("adapter_card.json must be written");
+        assert_eq!(card.quantization, "lora", "F9: quantization must be lora");
+        assert!(
+            card.is_compatible_with("qwen3_48g", "lora"),
+            "lora card must be serve-compatible with a lora serve request"
+        );
+    }
+
+    /// F7: on the idempotency-reuse path (existing key file → not a fresh
+    /// provision) the returned guard must be DISARMED so Drop does NOT terminate
+    /// a job this caller does not own.
+    #[tokio::test]
+    async fn reuse_path_guard_is_disarmed() {
+        let tmp = tempfile::tempdir().unwrap();
+        let state_dir = tmp.path();
+        let key = make_idempotency_key("vox", "corpus-abc");
+        // Pre-seed an active-job key file to simulate an in-flight job.
+        std::fs::write(state_dir.join(format!("{key}.active_job")), "owned-by-someone-else")
+            .unwrap();
+
+        let provider = Arc::new(AlwaysSucceedProvider::new()) as Arc<dyn CloudProvider>;
+        let config = Arc::new(CloudProviderConfig::default());
+        let budget = Arc::new(BudgetLedger::new(None, &config));
+        let offer = test_offer();
+        let spec = test_spec(&config);
+        let estimator = zero_estimator();
+
+        let guard = dispatch_with_guard(
+            provider,
+            &offer,
+            &spec,
+            budget,
+            &estimator,
+            "vox",
+            "corpus-abc",
+            state_dir,
+        )
+        .await
+        .expect("reuse path should succeed");
+
+        assert!(
+            !guard.armed,
+            "F7: reuse-path guard must be DISARMED so Drop does not kill another job"
+        );
+        assert_eq!(
+            guard.job_id(),
+            "owned-by-someone-else",
+            "reuse path must surface the existing job id"
+        );
+    }
+
+    /// A fresh provision (no existing key file) must arm the guard so a
+    /// preemption/error cleans up the pod we just created.
+    #[tokio::test]
+    async fn fresh_provision_guard_is_armed() {
+        let tmp = tempfile::tempdir().unwrap();
+        let provider = Arc::new(AlwaysSucceedProvider::new()) as Arc<dyn CloudProvider>;
+        let config = Arc::new(CloudProviderConfig::default());
+        let budget = Arc::new(BudgetLedger::new(None, &config));
+        let offer = test_offer();
+        let spec = test_spec(&config);
+        let estimator = zero_estimator();
+
+        let mut guard = dispatch_with_guard(
+            provider,
+            &offer,
+            &spec,
+            budget,
+            &estimator,
+            "vox",
+            "corpus-fresh",
+            tmp.path(),
+        )
+        .await
+        .expect("fresh provision should succeed");
+
+        assert!(guard.armed, "fresh provision must arm the guard");
+        // Disarm before drop so the test does not spawn a terminate thread.
+        guard.disarm();
+    }
+
     // ── B5.3 manifest test ────────────────────────────────────────────────────
 
     #[test]
@@ -1019,6 +1150,7 @@ mod tests {
             base_hf_id: "Qwen/Qwen3-4B".into(),
             base_revision: "main".into(),
             rung: "mid".into(),
+            quantization: "qlora".into(),
             preset: "prosumer_24g".into(),
             rank: 32,
             alpha: 64.0,
