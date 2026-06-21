@@ -94,28 +94,113 @@ pub async fn run_train(
                 }
             }
 
+            let effective_domain = domain.as_deref().unwrap_or("vox");
+            let workspace_root = vox_corpus::training::contract::find_workspace_root();
+
+            // BLOCKER 4 + DEFAULT BASE: resolve the domain spoke base via the REAL
+            // resolver instead of falling back to the legacy default_model_id().
+            // An unresolved/bare default resolves to a Qwen3 agentic_default rung
+            // (DEFAULT_MODEL_ID is now Qwen3-8B).
+            let (resolved_hf_id, resolved_rung, resolved_quant) = resolve_cloud_spoke_base(
+                workspace_root.as_deref(),
+                Some(effective_domain),
+                model.as_deref(),
+                preset.as_deref(),
+            )?;
+
+            // BLOCKER 3: fail-closed placeholder guard on the real (--apply) path.
+            // This fires BEFORE any provisioning/dispatch. A dry-run would have
+            // already returned above via check_spend_gate.
+            vox_populi::mens::tensor::spoke_base_resolver::ensure_not_placeholder(
+                &resolved_hf_id,
+            )?;
+
+            // BLOCKER 2: derive base_revision from the resolved @sha and rung from
+            // the resolved preset/VRAM rung (no fabricated "main"/"cloud").
+            let base_revision = resolved_hf_id
+                .split_once('@')
+                .map(|(_, rev)| rev.to_string())
+                .unwrap_or_else(|| "main".to_string());
+
             let config = vox_populi::mens::cloud::CloudProviderConfig::default();
             let mut spec = CloudJobSpec::new_train(&config);
-            spec.model_id = model
-                .clone()
-                .unwrap_or_else(vox_populi::mens::default_model_id);
+            spec.model_id = resolved_hf_id.clone();
             spec.train_data_hf = _train_data_hf;
             spec.adapter_upload_hf = _adapter_upload_hf.clone();
             spec.max_budget_usd = _max_budget;
             spec.max_runtime_secs = _max_runtime_secs;
-            spec.preset = preset.clone().unwrap_or_else(|| "auto".to_string());
+            spec.preset = preset.clone().unwrap_or_else(|| resolved_rung.clone());
             spec.seq_len = seq_len.unwrap_or(512);
             spec.batch_size = batch_size.unwrap_or(4);
             spec.epochs = epochs.unwrap_or(3);
             spec.num_samples = 5000;
             spec.persistent = persistent;
 
-            let resolver = CloudResolver::new_from_env().await?;
-            // Dispatch and wait for completion
-            resolver.dispatch(spec.clone(), &cloud).await?;
+            // Corpus hash for the idempotency key (stable per input corpus).
+            let corpus_hash = workspace_root
+                .as_deref()
+                .map(vox_corpus::corpus::preflight::compute_corpus_fingerprint)
+                .unwrap_or_default();
 
-            // B5.4: post-training flow (manifest + eval gate + register)
-            let effective_domain = domain.as_deref().unwrap_or("vox");
+            let resolver = CloudResolver::new_from_env().await?;
+
+            // B5 WIRING: route the cloud --apply path through idempotency +
+            // TerminateOnDrop so a spot preemption / mid-flight error cleans up the
+            // pod and a re-run with the same spoke+corpus does not double-provision.
+            // We wire idempotency + TerminateOnDrop here over the resolver's public
+            // surface (resolve + dispatch_top). Full checkpoint-resume is deferred.
+            // TODO(b5-resume): wire sync_checkpoint_down / read_checkpoint_uri so a
+            // preempted job resumes from its last checkpoint instead of restarting.
+            let idem_key =
+                vox_populi::mens::cloud::make_idempotency_key(effective_domain, &corpus_hash);
+            let state_dir = workspace_root
+                .as_deref()
+                .map(|r| r.join("mens/runs/cloud-state"))
+                .unwrap_or_else(|| PathBuf::from("mens/runs/cloud-state"));
+            std::fs::create_dir_all(&state_dir).ok();
+            let key_path = state_dir.join(format!("{idem_key}.active_job"));
+
+            let _guard: Option<vox_populi::mens::cloud::TerminateOnDrop> = if key_path.exists() {
+                // Idempotency: a job for this spoke+corpus is already in flight.
+                // Do NOT provision a second pod and do NOT arm a guard for a job
+                // this caller does not own (F7 semantics at the call site).
+                eprintln!(
+                    "  Reusing in-flight cloud job for '{effective_domain}' (idempotency key present); not re-provisioning."
+                );
+                None
+            } else {
+                let ranked = resolver
+                    .resolve(&vox_populi::mens::cloud::ResolveRequest {
+                        target: std::str::FromStr::from_str(&cloud)?,
+                        min_vram_mb: 24000,
+                        max_acceptable_cost: spec
+                            .max_budget_usd
+                            .unwrap_or(resolver.config.max_budget_usd),
+                        seq_len: spec.seq_len,
+                        batch_size: spec.batch_size,
+                        num_samples: spec.num_samples,
+                        epochs: spec.epochs,
+                    })
+                    .await?;
+                let (handle, watchdog, provider) =
+                    resolver.dispatch_top(&ranked, &spec).await?;
+                // Record the idempotency key so a concurrent / retried invocation
+                // detects the in-flight job and reuses it.
+                std::fs::write(&key_path, &handle.job_id).ok();
+                // Arm TerminateOnDrop for this fresh provision.
+                let guard = vox_populi::mens::cloud::TerminateOnDrop::new(
+                    provider,
+                    handle,
+                    std::sync::Arc::clone(&resolver.budget),
+                );
+                // Wait for the watchdog (job completion / kill); on error the guard
+                // drops armed and terminates the orphaned pod.
+                watchdog
+                    .await
+                    .map_err(|e| anyhow::anyhow!("Cloud watchdog task failed: {e}"))?;
+                Some(guard)
+            };
+
             let adapter_dir = output_dir.clone();
             let git_sha = std::process::Command::new("git")
                 .args(["rev-parse", "--short", "HEAD"])
@@ -127,16 +212,15 @@ pub async fn run_train(
                 .to_string();
 
             let manifest = TrainingManifest {
-                base_hf_id: model
-                    .clone()
-                    .unwrap_or_else(vox_populi::mens::default_model_id),
-                base_revision: "main".to_string(),
-                rung: "cloud".to_string(),
+                base_hf_id: resolved_hf_id.clone(),
+                base_revision,
+                rung: resolved_rung.clone(),
+                quantization: resolved_quant.clone(),
                 preset: spec.preset.clone(),
                 rank: rank.unwrap_or(16) as u32,
                 alpha: alpha.unwrap_or(32.0),
                 seed,
-                corpus_hash: String::new(), // populated from corpus preflight if available
+                corpus_hash,
                 metrics: serde_json::json!({}),
                 cost_usd: _max_budget.unwrap_or(0.0),
                 provider: cloud.clone(),
@@ -144,9 +228,10 @@ pub async fn run_train(
                 created_at: chrono::Utc::now().to_rfc3339(),
             };
 
-            // Conservative eval gate: if the output dir has a training_manifest.json
-            // from the adapter, treat as PassedBase; otherwise conservative pass.
-            let eval_outcome = EvalGateOutcome::PassedBase;
+            // BLOCKER 1: run the REAL eval gate on the trained/downloaded adapter
+            // and map the result to PassedBase / BelowBase / EvalError. Fail-closed:
+            // any eval error → EvalError → adapter is NOT registered.
+            let eval_outcome = run_cloud_eval_gate(&adapter_dir, workspace_root.as_deref());
             let mut router = DomainRouter::new();
             let outcome = post_training_flow(
                 eval_outcome,
@@ -155,6 +240,10 @@ pub async fn run_train(
                 &adapter_dir,
                 &manifest,
             )?;
+
+            // Training reached a terminal, gated outcome; idempotency key may be
+            // cleared so a deliberate re-train can provision again.
+            let _ = std::fs::remove_file(&key_path);
 
             match outcome {
                 CloudOrchestrationOutcome::RegisteredChallenger { ref domain, .. } => {
@@ -585,6 +674,116 @@ pub async fn run_train(
     train_res
 }
 
+/// Resolve the cloud spoke base: returns `(hf_id@revision, rung, quantization)`.
+///
+/// BLOCKER 4 + DEFAULT BASE: routes through the real `resolve_training_selection`
+/// (domain spoke base.model → VRAM-fit rung) instead of the legacy
+/// `default_model_id()` fallback. The rung is the resolved preset; quantization is
+/// derived from the resolved `TrainBase.method` (qlora vs lora) so the un-quantized
+/// 48GB LoRA rung is labelled correctly (F9 at the producer side).
+///
+/// `vram_mb_override` for cloud is fixed to the 24GB tier (matching the resolver's
+/// default `min_vram_mb`) so the rung selection is deterministic and GPU-free.
+#[cfg(feature = "cloud")]
+fn resolve_cloud_spoke_base(
+    workspace_root: Option<&Path>,
+    domain: Option<&str>,
+    cli_model: Option<&str>,
+    cli_preset: Option<&str>,
+) -> anyhow::Result<(String, String, String)> {
+    use crate::commands::mens::training_selection::{TrainingSelection, resolve_training_selection};
+
+    let root = workspace_root
+        .map(Path::to_path_buf)
+        .or_else(vox_corpus::training::contract::find_workspace_root)
+        .ok_or_else(|| anyhow::anyhow!("could not find workspace root for spoke base resolution"))?;
+
+    // Cloud sizing tier: 24GB-class GPU (matches CloudResolver default min_vram_mb).
+    const CLOUD_VRAM_MB: u32 = 24_000;
+
+    let selection = resolve_training_selection(
+        &root,
+        domain,
+        cli_model,
+        cli_preset,
+        Some(CLOUD_VRAM_MB),
+    )?;
+
+    let (model, rung) = match selection {
+        TrainingSelection::Train { model, preset, .. } => (model, preset),
+        TrainingSelection::Skip { reason } => {
+            anyhow::bail!("spoke '{domain:?}' is {reason} — nothing to train in the cloud")
+        }
+    };
+
+    // hf_id: resolved spoke base; fall back to the Qwen3 default (DEFAULT_MODEL_ID)
+    // when the spoke did not pin a base. This is the bare/unresolved default and is
+    // a Qwen3 agentic_default rung per USER DECISION.
+    let hf_id = model.unwrap_or_else(vox_populi::mens::default_model_id);
+
+    // Quantization: derive from the resolved TrainBase.method when the spoke base
+    // is a capability tag; concrete ids default to qlora.
+    let quant = derive_quantization_for_base(&root, domain, &hf_id, CLOUD_VRAM_MB);
+
+    Ok((hf_id, rung, quant))
+}
+
+/// Derive the quantization label ("qlora" / "lora") for the resolved base by
+/// re-inspecting the spoke's base tag in the overlay. Defaults to "qlora".
+#[cfg(feature = "cloud")]
+fn derive_quantization_for_base(
+    root: &Path,
+    domain: Option<&str>,
+    resolved_hf_id: &str,
+    vram_mb: u32,
+) -> String {
+    use vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile;
+    use vox_populi::mens::tensor::spoke_base_resolver::{load_overlay, pick_base};
+
+    let tag = domain
+        .and_then(|d| EffectiveDomainProfile::load_domain_profile(d, Some(root)).ok())
+        .and_then(|e| e.base.as_ref().map(|b| b.model.clone()));
+
+    if let Some(tag) = tag {
+        if let Ok(overlay) = load_overlay(root) {
+            if let Ok(base) = pick_base(&overlay, &tag, vram_mb) {
+                // The resolved id must match the picked base for the method to apply.
+                if base.hf_id == resolved_hf_id {
+                    // Un-quantized rung advertises "lora" / "full_lora"; otherwise qlora.
+                    if base.methods.iter().any(|m| m == "lora" || m == "full_lora") {
+                        return "lora".to_string();
+                    }
+                }
+            }
+        }
+    }
+    "qlora".to_string()
+}
+
+/// Run the REAL eval gate on a cloud-trained adapter (BLOCKER 1).
+///
+/// Maps the gate to [`EvalGateOutcome`]:
+/// - gate passes (exit 0) → `PassedBase`
+/// - gate fails  (exit 1) → `BelowBase`
+/// - gate errors (could not run) → `EvalError` (fail-closed: NOT registered)
+///
+/// Fail-closed: any error running the gate returns `EvalError`, never a default
+/// `PassedBase`. A failed/absent gate must NOT register an adapter.
+#[cfg(feature = "cloud")]
+fn run_cloud_eval_gate(
+    adapter_dir: &Path,
+    workspace_root: Option<&Path>,
+) -> vox_populi::mens::cloud::EvalGateOutcome {
+    use vox_populi::mens::cloud::EvalGateOutcome;
+
+    let policy_path = workspace_root.map(|r| r.join("mens/config/eval-gates.yaml"));
+    match crate::commands::mens::eval_gate::run_eval_gate(adapter_dir.to_path_buf(), policy_path) {
+        Ok(0) => EvalGateOutcome::PassedBase,
+        Ok(_) => EvalGateOutcome::BelowBase,
+        Err(e) => EvalGateOutcome::EvalError(format!("eval gate could not run: {e}")),
+    }
+}
+
 /// Resolve a single training-sizing knob (`seq_len` / `batch_size` / `grad_accum`)
 /// from its candidate sources, applying the canonical precedence:
 ///
@@ -835,4 +1034,77 @@ mod sizing_precedence_tests {
     fn all_none_yields_none() {
         assert_eq!(resolve_training_sizing(None, None, None, None), None);
     }
+}
+
+#[cfg(all(test, feature = "cloud"))]
+mod cloud_eval_gate_tests {
+    use super::run_cloud_eval_gate;
+    use vox_populi::mens::cloud::{EvalGateOutcome, TrainingManifest, post_training_flow};
+    use vox_populi::mens::tensor::domain_router::DomainRouter;
+
+    /// BLOCKER 1: an absent / failing eval gate must NOT map to PassedBase.
+    /// A run dir with no eval-gates.yaml → the gate fails (Ok(1)) → BelowBase,
+    /// never the old hardcoded PassedBase.
+    #[test]
+    fn absent_gate_does_not_pass_base() {
+        let tmp = tempfile::tempdir().unwrap();
+        // workspace_root with no mens/config/eval-gates.yaml → policy not found.
+        let outcome = run_cloud_eval_gate(tmp.path(), Some(tmp.path()));
+        assert!(
+            !matches!(outcome, EvalGateOutcome::PassedBase),
+            "absent gate must NOT be PassedBase (got {outcome:?})"
+        );
+    }
+
+    /// BLOCKER 1: a below-base / errored gate must NOT register an adapter.
+    /// Exercises the real outcome→register decision via post_training_flow.
+    #[test]
+    fn below_base_gate_does_not_register() {
+        let tmp = tempfile::tempdir().unwrap();
+        let outcome = run_cloud_eval_gate(tmp.path(), Some(tmp.path()));
+        let mut router = DomainRouter::new();
+        let manifest = TrainingManifest {
+            base_hf_id: "Qwen/Qwen3-8B@abc123".into(),
+            base_revision: "abc123".into(),
+            rung: "qwen3_16g".into(),
+            quantization: "qlora".into(),
+            preset: "qwen3_16g".into(),
+            rank: 16,
+            alpha: 32.0,
+            seed: 42,
+            corpus_hash: "deadbeef".into(),
+            metrics: serde_json::json!({}),
+            cost_usd: 0.0,
+            provider: "runpod".into(),
+            git_sha: "abc".into(),
+            created_at: "2026-06-21T00:00:00Z".into(),
+        };
+        // EvalError must fail-closed (Err); BelowBase returns EvalGateFailed.
+        match outcome {
+            EvalGateOutcome::EvalError(_) => {
+                let res = post_training_flow(
+                    outcome,
+                    &mut router,
+                    "vox",
+                    tmp.path(),
+                    &manifest,
+                );
+                assert!(res.is_err(), "EvalError must fail-closed (no register)");
+                assert!(router.route("vox").is_none(), "must not register on error");
+            }
+            other => {
+                let res = post_training_flow(other, &mut router, "vox", tmp.path(), &manifest)
+                    .expect("BelowBase returns Ok(EvalGateFailed)");
+                assert!(
+                    !matches!(
+                        res,
+                        vox_populi::mens::cloud::CloudOrchestrationOutcome::RegisteredChallenger { .. }
+                    ),
+                    "below-base gate must NOT register"
+                );
+                assert!(router.route("vox").is_none(), "must not register below base");
+            }
+        }
+    }
+
 }
