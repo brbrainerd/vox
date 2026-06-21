@@ -306,6 +306,14 @@ surfaces:
   parent_surface: null
   notes: null
 - view_key: null
+  cli_group: clip
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
+  notes: null
+- view_key: null
   cli_group: codex
   representation_tier: none
   nav_label: null
@@ -475,6 +483,14 @@ surfaces:
   notes: null
 - view_key: null
   cli_group: graphify
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
+  notes: null
+- view_key: null
+  cli_group: history
   representation_tier: none
   nav_label: null
   nav_icon: null

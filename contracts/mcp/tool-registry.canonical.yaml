@@ -88,6 +88,36 @@ tools:
   product_lane: interop
   http_read_role_eligible: false
   tier: core
+- name: vox_agy_delegate
+  description: Delegate a code-generation or refactoring task to Gemini via the agy CLI. Runs agy -p in an isolated git worktree (jail), auto-accepts all prompts, retries on quota/timeout, and auto-logs to the handoff ledger. Returns the diff for human review.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_agy_delegate_batch
+  description: Fan out multiple file-disjoint agy delegation tasks with bounded concurrency (≤8 workers). Each worker gets its own worktree and ledger entry. All results returned for review before integration.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_agy_doctor
+  description: Detect whether the Antigravity `agy` CLI is installed and ready; returns status plus exact install/auth remediation. Call before vox_agy_delegate.
+  product_lane: ai
+  http_read_role_eligible: true
+  tier: core
+- name: vox_agy_ledger_digest
+  description: Read the handoff ledger and return historical Gemini failure-category frequencies + entry count — the flywheel input injected as explicit avoid-rules into the next launch statement (Stage 1).
+  product_lane: ai
+  http_read_role_eligible: true
+  tier: core
+- name: vox_agy_pipeline
+  description: 'Run one Antigravity delegation end-to-end with deterministic verification: delegate via agy in a worktree jail, capture diff + spend proxy, run the plan-specified gates INSIDE the jail, classify green/partial/failed by effect, write a provisional ledger entry, and return a verdict-ready report for the human merge gate. Use this (not vox_agy_delegate) when you want the result proven, not asserted.'
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_agy_review
+  description: Record the Claude-side adversarial code review of a delegation as an append-only {id}-review ledger addendum (verdict + §B failure categories + findings + prompt lessons). Closes the review phase before the human merge gate and feeds the flywheel.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
 - name: vox_answer_question
   description: Answer a pending question from another agent.
   product_lane: ai
@@ -100,6 +130,11 @@ tools:
   tier: core
 - name: vox_ask_agent
   description: Ask another agent a question.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_ask_clarification
+  description: Raise a clarification question to the user and declare gating task IDs.
   product_lane: ai
   http_read_role_eligible: false
   tier: core
@@ -398,6 +433,11 @@ tools:
   product_lane: app
   http_read_role_eligible: false
   tier: core
+- name: vox_credentials_status
+  description: List every inference provider with a present Clavis credential plus the agy delegation status.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
 - name: vox_db_conversation_edge_insert
   description: Insert conversation_edges between two conversations (V17).
   product_lane: data
@@ -483,21 +523,6 @@ tools:
   product_lane: ai
   http_read_role_eligible: false
   tier: core
-- name: vox_ask_clarification
-  description: Raise a clarification question to the user and declare gating task IDs.
-  product_lane: ai
-  http_read_role_eligible: false
-  tier: core
-- name: vox_resolve_feedback
-  description: Resolve a pending clarification or doubt request with a specific action.
-  product_lane: ai
-  http_read_role_eligible: false
-  tier: core
-- name: vox_feedback_list
-  description: List all pending and withheld feedback requests.
-  product_lane: ai
-  http_read_role_eligible: true
-  tier: core
 - name: vox_drain_agent
   description: Remove all queued tasks from an agent without retiring it.
   product_lane: ai
@@ -525,6 +550,11 @@ tools:
   tier: core
 - name: vox_fail_task
   description: Mark a task as failed with a reason string.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_feedback_list
+  description: List all pending and withheld feedback requests.
   product_lane: ai
   http_read_role_eligible: false
   tier: core
@@ -655,41 +685,6 @@ tools:
   tier: core
 - name: vox_gui_rules
   description: List the registered GUI design rules (gui-design-rule/*) so a generator can read the constraint set before emitting.
-  product_lane: ai
-  http_read_role_eligible: true
-  tier: core
-- name: vox_agy_doctor
-  description: "Detect whether the Antigravity `agy` CLI is installed and ready; returns status plus exact install/auth remediation. Call before vox_agy_delegate."
-  product_lane: ai
-  http_read_role_eligible: true
-  tier: core
-- name: vox_agy_delegate
-  description: "Delegate a code-generation or refactoring task to Gemini via the agy CLI. Runs agy -p in an isolated git worktree (jail), auto-accepts all prompts, retries on quota/timeout, and auto-logs to the handoff ledger. Returns the diff for human review."
-  product_lane: ai
-  http_read_role_eligible: false
-  tier: core
-- name: vox_agy_delegate_batch
-  description: "Fan out multiple file-disjoint agy delegation tasks with bounded concurrency (≤8 workers). Each worker gets its own worktree and ledger entry. All results returned for review before integration."
-  product_lane: ai
-  http_read_role_eligible: false
-  tier: core
-- name: vox_credentials_status
-  description: "List every inference provider with a present Clavis credential plus the agy delegation status — the credential-aware model-selection surface. OpenRouter is one of many."
-  product_lane: ai
-  http_read_role_eligible: true
-  tier: core
-- name: vox_agy_pipeline
-  description: "Run one Antigravity delegation end-to-end with deterministic verification: delegate via agy in a worktree jail, capture diff + spend proxy, run the plan-specified gates INSIDE the jail, classify green/partial/failed by effect, write a provisional ledger entry, and return a verdict-ready report for the human merge gate. Use this (not vox_agy_delegate) when you want the result proven, not asserted."
-  product_lane: ai
-  http_read_role_eligible: false
-  tier: core
-- name: vox_agy_review
-  description: "Record the Claude-side adversarial code review of a delegation as an append-only {id}-review ledger addendum (verdict + §B failure categories + findings + prompt lessons). Closes the review phase before the human merge gate and feeds the flywheel."
-  product_lane: ai
-  http_read_role_eligible: false
-  tier: core
-- name: vox_agy_ledger_digest
-  description: "Read the handoff ledger and return historical Gemini failure-category frequencies + entry count — the flywheel input injected as explicit avoid-rules into the next launch statement (Stage 1)."
   product_lane: ai
   http_read_role_eligible: true
   tier: core
@@ -1205,6 +1200,11 @@ tools:
   tier: core
 - name: vox_resolve_conflict
   description: Resolve a file conflict.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_resolve_feedback
+  description: Resolve a pending clarification or doubt request with a specific action.
   product_lane: ai
   http_read_role_eligible: false
   tier: core

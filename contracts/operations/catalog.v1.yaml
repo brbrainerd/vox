@@ -5872,6 +5872,86 @@ operations:
     http_read_role_eligible: false
     tier: core
   cli: null
+- id: ask.clarification
+  title: Ask Clarification
+  description: Raise a clarification question to the user and declare gating task IDs.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_ask_clarification
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: credentials.status
+  title: Credentials Status
+  description: "List every inference provider with a present Clavis credential plus the agy delegation status."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_credentials_status
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: feedback.list
+  title: Feedback List
+  description: List all pending and withheld feedback requests.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_feedback_list
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: feedback.resolve
+  title: Resolve Feedback
+  description: Resolve a pending clarification or doubt request with a specific action.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_resolve_feedback
+    http_read_role_eligible: false
+    tier: core
+  cli: null
 - id: drain.agent
   title: Drain Agent
   description: Remove all queued tasks from an agent without retiring it.
