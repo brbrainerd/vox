@@ -44,6 +44,27 @@ pub fn load_overlay(root: &std::path::Path) -> anyhow::Result<HashMap<String, Ve
     Ok(parsed.train_bases)
 }
 
+/// Fail-closed placeholder guard for the real train / dispatch path.
+///
+/// All Qwen3 ladder rungs ship with `@PLACEHOLDER-*` revisions in
+/// `gpu-specs.yaml` until a real HF commit SHA is pinned. Spending money to
+/// train against an unpinned base is unsafe (non-reproducible, may resolve to a
+/// moving `main`), so this guard rejects any resolved id/revision whose text
+/// contains "PLACEHOLDER" (case-insensitive).
+///
+/// Call this at the base-resolution boundary on the **actual** train/dispatch
+/// path (after resolving the concrete `hf_id`), NOT on a `--dry-run`/plan path —
+/// planning may still print a plan containing a placeholder id and exit 0.
+pub fn ensure_not_placeholder(resolved_hf_id: &str) -> anyhow::Result<()> {
+    if resolved_hf_id.to_ascii_lowercase().contains("placeholder") {
+        anyhow::bail!(
+            "base revision is a placeholder ('{resolved_hf_id}') — pin a real HF commit SHA \
+             in gpu-specs.yaml (hf_id@<sha>) before training"
+        );
+    }
+    Ok(())
+}
+
 /// Resolve `base.model` to a concrete HF id.
 /// - concrete id (contains '/') -> pass-through (no VRAM needed).
 /// - capability tag -> overlay + VRAM fit.
@@ -181,6 +202,27 @@ mod tests {
             "below 2GB floor must fail-closed, got {:?}",
             result.ok().map(|b| &b.hf_id)
         );
+    }
+
+    #[test]
+    fn placeholder_id_rejected_on_real_path() {
+        // BLOCKER 3: a resolved id whose revision is a placeholder must fail-closed
+        // before any download / dispatch on the real train path.
+        let resolved = "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122";
+        let err = ensure_not_placeholder(resolved).unwrap_err();
+        assert!(
+            err.to_string().to_lowercase().contains("placeholder"),
+            "error must mention placeholder, got: {err}"
+        );
+        // Case-insensitive match.
+        assert!(ensure_not_placeholder("org/Model@placeholder-abc").is_err());
+    }
+
+    #[test]
+    fn pinned_id_passes_placeholder_guard() {
+        // A real pinned revision (no PLACEHOLDER text) must pass.
+        assert!(ensure_not_placeholder("Qwen/Qwen3-14B@a1b2c3d4e5f6").is_ok());
+        assert!(ensure_not_placeholder("Qwen/Qwen2.5-Coder-7B-Instruct").is_ok());
     }
 
     #[test]
