@@ -32,7 +32,7 @@ interface AgentFlowProps {
 
 function Legend({ color, label }: { color: string; label: string }) {
   return (
-    <span className="flex items-center gap-1.5 text-zinc-400">
+    <span className="flex items-center gap-1.5 text-text-muted">
       <span className={`size-1.5 rounded-full ${color}`} />
       <span className="text-[10px]">{label}</span>
     </span>
@@ -77,17 +77,17 @@ function buildGraphFromAgents(agents: Agent[]): AgentGraph {
 
 function AgentInspector({ node, agent }: { node: GraphNode; agent?: Agent }) {
   return (
-    <div className="absolute right-5 top-5 w-72 rounded-xl border border-white/10 bg-zinc-950/85 p-4 backdrop-blur-xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)]">
+    <div className="absolute right-5 top-5 w-72 rounded-xl border border-border-subtle bg-bg-base/85 p-4 backdrop-blur-xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)]">
       <div className="flex items-center justify-between">
         <div>
-          <div className="font-display text-[14px] text-zinc-100">{node.label}</div>
-          <div className="font-mono text-[10px] text-zinc-500">{node.id}</div>
+          <div className="font-display text-[14px] text-text-primary">{node.label}</div>
+          <div className="font-mono text-[10px] text-text-muted">{node.id}</div>
         </div>
         <Pill phase={node.phase as PhaseKind} />
       </div>
       {agent ? (
         <>
-          <div className="mt-3 text-[12px] text-zinc-300 leading-relaxed">{agent.task}</div>
+          <div className="mt-3 text-[12px] text-text-secondary leading-relaxed">{agent.task}</div>
           <div className="mt-3 grid grid-cols-2 gap-2 text-[10px]">
             {[
               ['Cost',   `$${agent.cost.toFixed(2)}`],
@@ -95,20 +95,20 @@ function AgentInspector({ node, agent }: { node: GraphNode; agent?: Agent }) {
               ['ETA',    agent.eta],
               ['Skill',  agent.skill ?? '—'],
             ].map(([label, value]) => (
-              <div key={label} className="rounded-md border border-white/5 bg-white/[0.02] px-2 py-1.5">
-                <div className="text-[9px] uppercase tracking-widest text-zinc-500">{label}</div>
-                <div className="mt-0.5 font-mono text-[11px] text-zinc-200">{value}</div>
+              <div key={label} className="rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1.5">
+                <div className="text-[9px] uppercase tracking-widest text-text-muted">{label}</div>
+                <div className="mt-0.5 font-mono text-[11px] text-text-secondary">{value}</div>
               </div>
             ))}
           </div>
           {/* Progress bar */}
           <div className="mt-3">
-            <div className="flex items-center justify-between text-[9px] uppercase tracking-widest text-zinc-500">
+            <div className="flex items-center justify-between text-[9px] uppercase tracking-widest text-text-muted">
               <span>Progress</span>
-              <span className="font-mono text-zinc-300">{Math.round(agent.progress * 100)}%</span>
+              <span className="font-mono text-text-secondary">{Math.round(agent.progress * 100)}%</span>
             </div>
             <div
-              className="mt-1 h-1 overflow-hidden rounded-full bg-white/5"
+              className="mt-1 h-1 overflow-hidden rounded-full bg-overlay-subtle"
               role="progressbar"
               aria-label={`${node.label} progress`}
               aria-valuenow={Math.round(agent.progress * 100)}
@@ -123,7 +123,7 @@ function AgentInspector({ node, agent }: { node: GraphNode; agent?: Agent }) {
           </div>
         </>
       ) : (
-        <div className="mt-3 text-[11px] text-zinc-500">
+        <div className="mt-3 text-[11px] text-text-muted">
           Root coordinator · routes all task fan-out via file-affinity policy.
         </div>
       )}
@@ -146,12 +146,12 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
 
   return (
     <Glass className="relative overflow-hidden p-0">
-      <div className="flex items-center justify-between border-b border-white/5 px-5 py-3">
+      <div className="flex items-center justify-between border-b border-border-subtle px-5 py-3">
         <div>
-          <h2 className="font-display text-[16px] font-semibold tracking-tight text-zinc-100">
+          <h2 className="font-display text-[16px] font-semibold tracking-tight text-text-primary">
             Mind-Map · Agent Shards
           </h2>
-          <p className="text-[11px] text-zinc-500">
+          <p className="text-[11px] text-text-muted">
             Topology of the active agent graph · click a shard to inspect
           </p>
         </div>
@@ -159,7 +159,7 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
           <Legend color="bg-cyan-400"   label="Planning" />
           <Legend color="bg-brass"      label="Executing" />
           <Legend color="bg-violet-400" label="Verifying" />
-          <Legend color="bg-zinc-500"   label="Paused" />
+          <Legend color="bg-text-muted"   label="Paused" />
           <Legend color="bg-emerald-400" label="Validated" />
         </div>
       </div>

@@ -1,25 +1,21 @@
+@import './styles/fonts.css';
 @import './styles/tokens.generated.css';
 @import './styles/tokens.contrast.generated.css';
+@import './styles/tokens.travertine.generated.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  /* Accent palette as a space-separated RGB triple, switched by data-theme.
-     `arcane` is the default and MUST equal the historical gold (#d4af37 →
-     212 175 55). `rgb(var(--brass) / <alpha>)` is wired in tailwind.config.js. */
-  :root,
-  [data-theme="arcane"]  { --brass: 212 175 55; }   /* #d4af37 gold */
-  [data-theme="void"]    { --brass: 139 92 246; }   /* violet */
-  [data-theme="glacier"] { --brass: 34 211 238; }   /* cyan */
+  :root { --brass: 201 162 74; }                         /* gold.500 → basalt scope */
+  [data-theme="travertine"] { --brass: 138 106 38; }     /* gold.700 → daylight */
 
   html, body, #root {
-    height: 100%; 
-    margin: 0; 
-    overflow: hidden;
-    background: #09090b;
-    color: #a1a1aa;
+    height: 100%; margin: 0; overflow: hidden;
+    background: var(--color-bg-base);
+    color: var(--color-text-muted);
     -webkit-font-smoothing: antialiased;
+    font-family: var(--font-family-sans);
   }
 }
 
@@ -31,11 +27,11 @@
     background: transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(255,255,255,0.05);
+    background: var(--color-overlay-subtle);
     border-radius: 10px;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(255,255,255,0.1);
+    background: var(--color-overlay-hover);
   }
 
   /* dark scrollbar applies app-wide; .custom-scrollbar remains for opt-in slim variant */
@@ -56,26 +52,20 @@
     cursor: pointer;
     box-shadow: 0 0 10px rgb(var(--brass) / 0.5);
   }
-}
 
-/* Theme background overrides (non-layered so they win over the @layer base
-   default of #09090b). Arcane is the default — no override needed. */
-:root[data-theme='void'] html,
-:root[data-theme='void'] body,
-:root[data-theme='void'] #root {
-  background: #050507;
-}
-:root[data-theme='glacier'] html,
-:root[data-theme='glacier'] body,
-:root[data-theme='glacier'] #root {
-  background: #0a0f14;
+  /* Roman ornament utilities */
+  .vox-rule { height: 1px; background: linear-gradient(90deg, rgb(var(--brass)), rgb(var(--brass) / 0)); }
+  .vox-tick { position: absolute; width: 11px; height: 11px; pointer-events: none; }
+  .vox-tick-tl { top: 9px; left: 9px; border-top: 1px solid rgb(var(--brass)); border-left: 1px solid rgb(var(--brass)); }
+  .vox-tick-tr { top: 9px; right: 9px; border-top: 1px solid var(--color-accent-secondary); border-right: 1px solid var(--color-accent-secondary); }
+  .vox-display { font-family: var(--font-family-display); letter-spacing: 0.13em; text-transform: uppercase; }
 }
 
 /* ─── Global accessibility: focus ring ────────────────────────────────────
    Applies a 3 px solid ring in the accent colour to every focusable element
    when reached via keyboard. Per-element Tailwind focus-visible: utilities
    override this; the rule acts as a safe fallback rather than a ceiling.
-   3 px @ #d4af37 on #09090b → contrast ≥ 3:1 (WCAG 1.4.11 UI component). */
+   3 px @ gold on basalt-900 → contrast ≥ 3:1 (WCAG 1.4.11 UI component). */
 *:focus-visible {
   outline: 3px solid var(--color-accent-default);
   outline-offset: 2px;
@@ -84,8 +74,7 @@
 
 /* ─── Respect prefers-reduced-motion ──────────────────────────────────────
    Disables every vox-* keyframe animation for users with vestibular / motion
-   sensitivity settings. Inline `animation-duration: 0.01ms` avoids removing
-   the `animation` property entirely (which breaks JS that reads it). */
+   sensitivity settings. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

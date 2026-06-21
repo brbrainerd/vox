@@ -24,9 +24,9 @@ function num(n: number | null | undefined, digits = 2): string {
 
 function SignalCell({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2">
-      <span className="font-mono text-[9px] uppercase tracking-wider text-zinc-500">{label}</span>
-      <span className="font-mono text-[12px] text-zinc-200">{value}</span>
+    <div className="flex flex-col gap-0.5 rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-2">
+      <span className="font-mono text-[9px] uppercase tracking-wider text-text-muted">{label}</span>
+      <span className="font-mono text-[12px] text-text-secondary">{value}</span>
     </div>
   );
 }
@@ -42,9 +42,9 @@ export function NoveltyEvidencePanel({ assessment }: { assessment: NoveltyAssess
   const s = assessment.signals;
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+    <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-4">
       <div className="mb-3 flex items-center justify-between">
-        <span className="font-display text-[10px] uppercase tracking-[0.2em] text-zinc-400">
+        <span className="font-display text-[10px] uppercase tracking-[0.2em] text-text-muted">
           Novelty Evidence
         </span>
         <span className={`rounded-full border px-3 py-0.5 font-mono text-[11px] ${tone}`}>{label}</span>
@@ -60,7 +60,7 @@ export function NoveltyEvidencePanel({ assessment }: { assessment: NoveltyAssess
       )}
 
       {assessment.closest_hit_uri != null && (
-        <div className="mb-3 font-mono text-[11px] text-zinc-400">
+        <div className="mb-3 font-mono text-[11px] text-text-muted">
           Closest prior art:{' '}
           <a
             href={assessment.closest_hit_uri}
@@ -71,7 +71,7 @@ export function NoveltyEvidencePanel({ assessment }: { assessment: NoveltyAssess
             {assessment.closest_hit_uri}
           </a>
           {assessment.closest_score != null && (
-            <span className="text-zinc-500"> · sim {num(assessment.closest_score)}</span>
+            <span className="text-text-muted"> · sim {num(assessment.closest_score)}</span>
           )}
         </div>
       )}
@@ -87,24 +87,24 @@ export function NoveltyEvidencePanel({ assessment }: { assessment: NoveltyAssess
       </div>
 
       {/* prior art */}
-      <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-zinc-500">Closest prior art</div>
+      <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-text-muted">Closest prior art</div>
       {assessment.prior_art.length === 0 ? (
-        <div className="rounded-lg border border-white/5 px-3 py-2 font-mono text-[11px] text-zinc-600">
+        <div className="rounded-lg border border-border-subtle px-3 py-2 font-mono text-[11px] text-text-muted">
           No prior-art hits.
         </div>
       ) : (
         <ul className="space-y-1.5">
           {assessment.prior_art.map((h, i) => (
-            <li key={`${h.work_uri}-${i}`} className="rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2">
+            <li key={`${h.work_uri}-${i}`} className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-2">
               <a
                 href={h.work_uri}
                 target="_blank"
                 rel="noreferrer"
-                className="text-[12.5px] text-zinc-200 underline decoration-dotted hover:text-brass"
+                className="text-[12.5px] text-text-secondary underline decoration-dotted hover:text-brass"
               >
                 {h.title || h.work_uri}
               </a>
-              <div className="mt-1 flex flex-wrap items-center gap-x-3 font-mono text-[10px] text-zinc-500">
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 font-mono text-[10px] text-text-muted">
                 {h.year != null && <span>{h.year}</span>}
                 {h.cited_by_count != null && <span>{h.cited_by_count} citations</span>}
                 {h.semantic_score != null && <span className="text-brass">sim {num(h.semantic_score)}</span>}
@@ -130,7 +130,7 @@ export function NoveltyEvidencePanel({ assessment }: { assessment: NoveltyAssess
                   <div>
                     <div className="text-emerald-300/80">Supporting ({c.supporting.length})</div>
                     {c.supporting.map((h, j) => (
-                      <div key={j} className="truncate text-zinc-400" title={h.excerpt ?? h.work_uri}>
+                      <div key={j} className="truncate text-text-muted" title={h.excerpt ?? h.work_uri}>
                         {h.work_uri}
                       </div>
                     ))}
@@ -138,7 +138,7 @@ export function NoveltyEvidencePanel({ assessment }: { assessment: NoveltyAssess
                   <div>
                     <div className="text-rose-300/80">Contradicting ({c.contradicting.length})</div>
                     {c.contradicting.map((h, j) => (
-                      <div key={j} className="truncate text-zinc-400" title={h.excerpt ?? h.work_uri}>
+                      <div key={j} className="truncate text-text-muted" title={h.excerpt ?? h.work_uri}>
                         {h.work_uri}
                       </div>
                     ))}

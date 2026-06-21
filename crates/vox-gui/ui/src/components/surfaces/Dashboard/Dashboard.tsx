@@ -24,14 +24,16 @@ import { AreaChartWidget } from '../../dashboard/widgets/AreaChartWidget';
 import { LineChartWidget } from '../../dashboard/widgets/LineChartWidget';
 import { BarChartWidget } from '../../dashboard/widgets/BarChartWidget';
 import { Kpi } from '../../ui/Kpi';
+import { ResourcesWidget } from './ResourcesWidget';
+import { useAgentApprovals } from '../../../hooks/useAgentApprovals';
 
 /** Consistent empty-state hint for a panel with no data yet. */
 function EmptyHint({ icon, title, hint }: { icon?: React.ReactNode; title: string; hint?: string }) {
   return (
-    <div role="status" className="flex flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-white/5 py-8 text-center">
-      {icon && <div className="text-zinc-600">{icon}</div>}
-      <div className="text-[12px] text-zinc-400">{title}</div>
-      {hint && <div className="text-[11px] text-zinc-600">{hint}</div>}
+    <div role="status" className="flex flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border-subtle py-8 text-center">
+      {icon && <div className="text-text-muted">{icon}</div>}
+      <div className="text-[12px] text-text-muted">{title}</div>
+      {hint && <div className="text-[11px] text-text-muted">{hint}</div>}
     </div>
   );
 }
@@ -76,6 +78,7 @@ export function Dashboard({
     SHELL_PREFERENCE_KEYS.dashboardLayout,
     loadDashboardLayout(defaultDashboardLayout()),
   );
+  const approvals = useAgentApprovals(data.agents.map((a) => a.codename));
   const { series: budgetSeries, setSeries: setBudgetSeries, append: appendBudget } =
     useMetricSeries('budget_burn', []);
   const { series: queueSeries, setSeries: setQueueSeries, append: appendQueue } =
@@ -145,12 +148,12 @@ export function Dashboard({
             <div className="flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-3">
-                  <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">The Stream</h2>
-                  <span className="rounded-full border border-white/5 bg-white/[0.02] px-2 py-0.5 font-mono text-[10px] text-zinc-500">{stream.length} events</span>
+                  <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">The Stream</h2>
+                  <span className="rounded-full border border-border-subtle bg-overlay-subtle px-2 py-0.5 font-mono text-[10px] text-text-muted">{stream.length} events</span>
                 </div>
-                <p className="mt-0.5 text-[11px] text-zinc-500">Mission-control feed · live agent telemetry</p>
+                <p className="mt-0.5 text-[11px] text-text-muted">Mission-control feed · live agent telemetry</p>
               </div>
-              <div className="flex gap-1 rounded-lg border border-white/5 bg-white/[0.02] p-1">
+              <div className="flex gap-1 rounded-lg border border-border-subtle bg-overlay-subtle p-1">
                 {filters.map(f => (
                   <button
                     key={f}
@@ -158,7 +161,7 @@ export function Dashboard({
                     aria-pressed={filterKind === f}
                     onClick={() => setFilterKind(f)}
                     className={`rounded-md px-2.5 py-1 text-[10px] font-display uppercase tracking-wider transition ${
-                      filterKind === f ? "bg-white/10 text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
+                      filterKind === f ? "bg-overlay-subtle text-text-primary" : "text-text-muted hover:text-text-secondary"
                     }`}
                   >
                     {f === "in-progress" ? "in-prog" : f}
@@ -185,13 +188,13 @@ export function Dashboard({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Icon.alert className="size-4 text-amber-300" />
-                <h3 className="font-display text-[14px] font-semibold tracking-wide text-zinc-100">System · Telemetry & Alerts</h3>
+                <h3 className="font-display text-[14px] font-semibold tracking-wide text-text-primary">System · Telemetry & Alerts</h3>
               </div>
-              <span className="font-mono text-[10px] text-zinc-500">{data.alerts.length} open</span>
+              <span className="font-mono text-[10px] text-text-muted">{data.alerts.length} open</span>
             </div>
             <div className="mt-3 flex flex-col gap-2">
               {data.alerts.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-white/5 py-4 text-center text-[11px] text-zinc-600">
+                <div className="rounded-lg border border-dashed border-border-subtle py-4 text-center text-[11px] text-text-muted">
                   All clear — no open alerts.
                 </div>
               ) : (
@@ -204,16 +207,24 @@ export function Dashboard({
         return (
           <Glass className="h-full p-5">
             <div className="flex items-center justify-between">
-              <h3 className="font-display text-[14px] font-semibold tracking-wide text-zinc-100">Active Agents</h3>
-              <span className="font-mono text-[10px] text-zinc-500">{data.agents.length} shards</span>
+              <h3 className="font-display text-[14px] font-semibold tracking-wide text-text-primary">Active Agents</h3>
+              <span className="font-mono text-[10px] text-text-muted">{data.agents.length} shards</span>
             </div>
             <div className="mt-3 flex flex-col gap-2">
               {data.agents.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-white/5 py-4 text-center text-[11px] text-zinc-600">
+                <div className="rounded-lg border border-dashed border-border-subtle py-4 text-center text-[11px] text-text-muted">
                   No active agents — open Chat to submit a task.
                 </div>
               ) : (
-                data.agents.map(a => <AgentRow key={a.id} a={a} onPause={onPause} onResume={onResume} onOpenInConsole={onOpenInConsole} />)
+                data.agents.map((a) => {
+                  const ap = approvals.approvalFor(a.codename);
+                  return (
+                    <AgentRow key={a.id} a={a} onPause={onPause} onResume={onResume} onOpenInConsole={onOpenInConsole}
+                      pendingApprovalId={ap?.approval_id ?? null}
+                      onApprove={(id) => approvals.resolve(id, 'approved')}
+                      onReject={(id) => approvals.resolve(id, 'rejected')} />
+                  );
+                })
               )}
             </div>
           </Glass>
@@ -253,6 +264,8 @@ export function Dashboard({
             series={budgetSeries}
           />
         );
+      case 'resources':
+        return <ResourcesWidget data={data} />;
       default:
         return null;
     }
@@ -280,8 +293,8 @@ export function Dashboard({
       {onOpenChat && (
         <div className="mx-5 mb-4 mt-2 flex items-center justify-between gap-4 rounded-xl border border-indigo-500/20 bg-indigo-500/[0.06] px-4 py-3">
           <div>
-            <p className="font-display text-[13px] font-semibold text-zinc-100">Submit tasks in Chat</p>
-            <p className="mt-0.5 text-[11px] text-zinc-500">The Loquela composer lives on the Chat surface — open it to describe work and spin up agents.</p>
+            <p className="font-display text-[13px] font-semibold text-text-primary">Submit tasks in Chat</p>
+            <p className="mt-0.5 text-[11px] text-text-muted">The Loquela composer lives on the Chat surface — open it to describe work and spin up agents.</p>
           </div>
           <button
             type="button"
@@ -293,10 +306,11 @@ export function Dashboard({
           </button>
         </div>
       )}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 px-5">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 px-5">
         <Kpi label="Active Agents" value={data.agents.length} accent="cyan" />
         <Kpi label="Queue Depth" value={data.kpis.queueDepth.value} accent="amber" />
         <Kpi label="Budget Spent" value={typeof data.kpis.budgetBurn.value === 'number' ? `$${data.kpis.budgetBurn.value.toFixed(2)}` : data.kpis.budgetBurn.value} accent="brass" />
+        <Kpi label="Mesh Peers" value={data.peers.filter((p) => p.online).length} accent="emerald" />
       </div>
       <div className="absolute right-5 top-2 z-20 flex items-center gap-2">
         {customizeMode && (
@@ -305,14 +319,14 @@ export function Dashboard({
               type="button"
               aria-expanded={pickerOpen}
               onClick={() => setPickerOpen((v) => !v)}
-              className="rounded-md border border-white/10 bg-zinc-900/80 px-2.5 py-1 text-[11px] text-zinc-300 hover:bg-white/5"
+              className="rounded-md border border-border-subtle bg-bg-base/80 px-2.5 py-1 text-[11px] text-text-secondary hover:bg-overlay-subtle"
             >
               Add widget
             </button>
             <button
               type="button"
               onClick={handleResetLayout}
-              className="rounded-md border border-white/10 bg-zinc-900/80 px-2.5 py-1 text-[11px] text-zinc-300 hover:bg-white/5"
+              className="rounded-md border border-border-subtle bg-bg-base/80 px-2.5 py-1 text-[11px] text-text-secondary hover:bg-overlay-subtle"
             >
               Reset to default
             </button>
@@ -331,19 +345,19 @@ export function Dashboard({
               return next;
             });
           }}
-          className="rounded-md border border-white/10 bg-zinc-900/80 px-2.5 py-1 text-[11px] text-zinc-300 hover:bg-white/5"
+          className="rounded-md border border-border-subtle bg-bg-base/80 px-2.5 py-1 text-[11px] text-text-secondary hover:bg-overlay-subtle"
         >
           {customizeMode ? 'Done customizing' : 'Customize dashboard'}
         </button>
       </div>
 
       {/* Workspace Simulation Mini-Map */}
-      <div className="mx-5 mb-4 border border-zinc-800 bg-[#09090b]/80 rounded-xl overflow-hidden">
-        <div className="flex items-center justify-between bg-zinc-900/60 px-4 py-2 text-xs border-b border-zinc-800">
-          <span className="font-semibold text-zinc-100 uppercase tracking-wide">⬤ Workspace Simulation Mini-Map</span>
+      <div className="mx-5 mb-4 border border-border-subtle bg-[#09090b]/80 rounded-xl overflow-hidden">
+        <div className="flex items-center justify-between bg-bg-base/60 px-4 py-2 text-xs border-b border-border-subtle">
+          <span className="font-semibold text-text-primary uppercase tracking-wide">⬤ Workspace Simulation Mini-Map</span>
           <div className="flex gap-2">
             <button type="button" onClick={() => onNavigate?.('gamify')} className="text-cyan hover:underline">Immersive View</button>
-            <button type="button" onClick={() => setSandboxCollapsed(!sandboxCollapsed)} className="text-zinc-400 hover:text-zinc-200">
+            <button type="button" onClick={() => setSandboxCollapsed(!sandboxCollapsed)} className="text-text-muted hover:text-text-secondary">
               {sandboxCollapsed ? 'Expand' : 'Collapse'}
             </button>
           </div>

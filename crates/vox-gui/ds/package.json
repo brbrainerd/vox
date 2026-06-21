@@ -1,0 +1,12 @@
+{
+  "name": "@vox-axis/limes",
+  "version": "0.1.0",
+  "description": "Limes — the Roman design system for Vox Axis",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "peerDependencies": {
+    "react": ">=18"
+  }
+}

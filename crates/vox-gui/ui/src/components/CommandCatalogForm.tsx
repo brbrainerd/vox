@@ -87,7 +87,7 @@ export function CommandCatalogForm({ catalog }: { catalog: CommandCatalog }) {
                                 key={p}
                                 onClick={() => handleCommandSelect(cmd.path)}
                                 className={`cursor-pointer p-2 mb-1 text-sm font-mono transition-colors border-l-2 ${
-                                    isSelected ? 'bg-cyan/10 border-cyan text-cyan' : 'border-transparent text-steel hover:bg-white/5'
+                                    isSelected ? 'bg-cyan/10 border-cyan text-cyan' : 'border-transparent text-steel hover:bg-overlay-subtle'
                                 }`}
                             >
                                 <div className="flex justify-between items-center">
@@ -123,7 +123,7 @@ export function CommandCatalogForm({ catalog }: { catalog: CommandCatalog }) {
                                         const control = argControl(arg);
                                         const label = arg.long ? `--${arg.long}` : (arg.short ? `-${arg.short}` : arg.name);
                                         const fieldKey = arg.long || arg.name;
-                                        const inputClass = "bg-void border border-border rounded px-3 py-1.5 text-sm text-foreground font-mono focus:border-cyan focus:outline-none transition-colors max-w-md";
+                                        const inputClass = "bg-bg-base border border-border rounded px-3 py-1.5 text-sm text-foreground font-mono focus:border-cyan focus:outline-none transition-colors max-w-md";
                                         return (
                                             <div key={arg.name} className="flex flex-col">
                                                 <div className="flex items-center gap-2 mb-1">
@@ -133,7 +133,7 @@ export function CommandCatalogForm({ catalog }: { catalog: CommandCatalog }) {
                                                             id={arg.name}
                                                             checked={!!argValues[fieldKey]}
                                                             onChange={e => setArgValues(prev => ({ ...prev, [fieldKey]: e.target.checked }))}
-                                                            className="bg-void border border-border rounded focus:border-cyan"
+                                                            className="bg-bg-base border border-border rounded focus:border-cyan"
                                                         />
                                                     )}
                                                     <label htmlFor={arg.name} className="text-xs font-bold tracking-widest text-steel font-mono">{label}</label>
@@ -189,7 +189,7 @@ export function CommandCatalogForm({ catalog }: { catalog: CommandCatalog }) {
                                     placeholder="e.g. --json --force"
                                     value={argsInput}
                                     onChange={e => setArgsInput(e.target.value)}
-                                    className="bg-void border border-border rounded px-3 py-2 text-sm text-foreground font-mono focus:border-cyan focus:outline-none transition-colors w-full"
+                                    className="bg-bg-base border border-border rounded px-3 py-2 text-sm text-foreground font-mono focus:border-cyan focus:outline-none transition-colors w-full"
                                 />
                             </div>
                         </div>
@@ -202,7 +202,7 @@ export function CommandCatalogForm({ catalog }: { catalog: CommandCatalog }) {
                         </button>
 
                         {output && (
-                            <div className="mt-8 p-4 bg-void border border-border rounded">
+                            <div className="mt-8 p-4 bg-bg-base border border-border rounded">
                                 <h4 className="text-sm font-bold tracking-widest text-steel uppercase mb-2">Execution Result</h4>
                                 {output.error ? (
                                     <div className="text-red-500 font-mono text-sm">Error: {output.error}</div>

@@ -13,8 +13,8 @@ export function Catalog({ skills = [] }: any) {
       <Glass className="p-5">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Command Center</h2>
-            <p className="mt-0.5 text-[11px] text-zinc-500">Compiled CLI catalog with generated execution forms</p>
+            <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">Command Center</h2>
+            <p className="mt-0.5 text-[11px] text-text-muted">Compiled CLI catalog with generated execution forms</p>
           </div>
         </div>
       </Glass>

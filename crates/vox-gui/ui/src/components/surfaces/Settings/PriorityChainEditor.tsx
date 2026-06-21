@@ -70,7 +70,7 @@ function stepIcon(s: SelectionStep): string {
 }
 
 const BTN =
-  'rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40';
+  'rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40';
 
 interface Props {
   pushToast: (t: any) => void;
@@ -156,27 +156,27 @@ export function PriorityChainEditor({ pushToast }: Props) {
   };
 
   if (loading) {
-    return <div className="mt-4 text-[12px] text-zinc-500">Loading priority chain…</div>;
+    return <div className="mt-4 text-[12px] text-text-muted">Loading priority chain…</div>;
   }
 
   return (
-    <div className="mt-5 rounded-xl border border-white/5 bg-white/[0.02] p-3">
+    <div className="mt-5 rounded-xl border border-border-subtle bg-overlay-subtle p-3">
       <div className="flex items-center justify-between">
-        <div className="font-display text-[12px] tracking-[0.12em] uppercase text-zinc-300">
+        <div className="font-display text-[12px] tracking-[0.12em] uppercase text-text-secondary">
           Model priority chain
         </div>
         <button type="button" className={BTN} onClick={() => setAdding((a) => !a)} aria-expanded={adding}>
           {adding ? 'close' : '+ add step'}
         </button>
       </div>
-      <p className="mt-1 text-[11px] text-zinc-500">
+      <p className="mt-1 text-[11px] text-text-muted">
         Evaluated top-to-bottom; first match wins. Changes apply on next orchestrator restart.
       </p>
 
       {adding && <AddStepMenu models={models} onAdd={addStep} />}
 
       {steps.length === 0 ? (
-        <div className="mt-3 rounded-md border border-dashed border-white/10 p-3 text-center text-[11px] text-zinc-500">
+        <div className="mt-3 rounded-md border border-dashed border-border-subtle p-3 text-center text-[11px] text-text-muted">
           No steps — the orchestrator uses its default selection cascade. Add a step to override.
         </div>
       ) : (
@@ -197,16 +197,16 @@ export function PriorityChainEditor({ pushToast }: Props) {
                 e.preventDefault();
                 onDrop(i);
               }}
-              className={`flex items-center gap-2 rounded-md border bg-white/[0.02] p-2 transition ${
-                dragOver === i ? 'border-brass/50 bg-brass/[0.05]' : 'border-white/5'
+              className={`flex items-center gap-2 rounded-md border bg-overlay-subtle p-2 transition ${
+                dragOver === i ? 'border-brass/50 bg-brass/[0.05]' : 'border-border-subtle'
               }`}
             >
-              <span aria-hidden="true" className="cursor-grab select-none font-mono text-[11px] text-zinc-600" title="Drag to reorder">
+              <span aria-hidden="true" className="cursor-grab select-none font-mono text-[11px] text-text-muted" title="Drag to reorder">
                 ⠿
               </span>
               <span aria-hidden="true" className="font-mono text-[11px] text-brass">{stepIcon(s)}</span>
-              <span className="font-mono text-[10px] text-zinc-500">{i + 1}.</span>
-              <span className="flex-1 text-[12px] text-zinc-200">{stepLabel(s)}</span>
+              <span className="font-mono text-[10px] text-text-muted">{i + 1}.</span>
+              <span className="flex-1 text-[12px] text-text-secondary">{stepLabel(s)}</span>
               <button type="button" className={BTN} disabled={i === 0} onClick={() => move(i, i - 1)} aria-label={`Move step ${i + 1} up`} title="Move up">
                 ↑
               </button>
@@ -289,12 +289,12 @@ function AddStepMenu({
   };
 
   const sel =
-    'rounded border border-white/10 bg-black/30 px-2 py-1 font-mono text-[11px] text-zinc-100 focus:border-brass/40 focus:outline-none';
+    'rounded border border-border-subtle bg-black/30 px-2 py-1 font-mono text-[11px] text-text-primary focus:border-brass/40 focus:outline-none';
 
   return (
-    <div className="mt-3 space-y-2 rounded-md border border-white/10 bg-black/20 p-3">
+    <div className="mt-3 space-y-2 rounded-md border border-border-subtle bg-black/20 p-3">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-display text-[10px] uppercase tracking-widest text-zinc-500">Step type</span>
+        <span className="font-display text-[10px] uppercase tracking-widest text-text-muted">Step type</span>
         <select className={sel} value={kind} onChange={(e) => setKind(e.target.value as any)}>
           <option value="emphasize_axis">Emphasize axis</option>
           <option value="pin_model">Pin model</option>
@@ -321,7 +321,7 @@ function AddStepMenu({
             aria-label="Axis weight"
             className="vox-range h-1 w-40 appearance-none rounded-full"
           />
-          <span className="w-8 font-mono text-[11px] text-zinc-200">{weight}</span>
+          <span className="w-8 font-mono text-[11px] text-text-secondary">{weight}</span>
         </div>
       )}
 
@@ -348,13 +348,13 @@ function AddStepMenu({
       )}
 
       {kind === 'prefer_free' && (
-        <div className="text-[11px] text-zinc-500">Selects the best eligible free-tier model.</div>
+        <div className="text-[11px] text-text-muted">Selects the best eligible free-tier model.</div>
       )}
 
       {kind === 'fallback_when' && (
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-display text-[10px] uppercase tracking-widest text-zinc-500">When</span>
+            <span className="font-display text-[10px] uppercase tracking-widest text-text-muted">When</span>
             <select className={sel} value={fbCond} onChange={(e) => setFbCond(e.target.value as any)}>
               {SIMPLE_CONDITIONS.map((c) => (
                 <option key={String(c)} value={String(c)}>
@@ -375,7 +375,7 @@ function AddStepMenu({
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-display text-[10px] uppercase tracking-widest text-zinc-500">Then</span>
+            <span className="font-display text-[10px] uppercase tracking-widest text-text-muted">Then</span>
             <select className={sel} value={thenKind} onChange={(e) => setThenKind(e.target.value as any)}>
               <option value="prefer_free">Prefer free</option>
               <option value="pin_model">Pin model</option>
@@ -417,7 +417,7 @@ function AddStepMenu({
                   aria-label="Fallback axis weight"
                   className="vox-range h-1 w-32 appearance-none rounded-full"
                 />
-                <span className="w-8 font-mono text-[11px] text-zinc-200">{thenWeight}</span>
+                <span className="w-8 font-mono text-[11px] text-text-secondary">{thenWeight}</span>
               </>
             )}
           </div>

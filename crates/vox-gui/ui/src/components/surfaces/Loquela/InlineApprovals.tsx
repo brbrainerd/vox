@@ -87,7 +87,7 @@ export function InlineApprovals({ pushToast, onViewAll }: InlineApprovalsProps) 
           <span className="font-mono text-[10px] uppercase tracking-widest text-amber-200/90">
             Approval required
           </span>
-          <span className="rounded-full bg-white/10 px-1.5 py-px font-mono text-[9px] text-zinc-400">
+          <span className="rounded-full bg-overlay-subtle px-1.5 py-px font-mono text-[9px] text-text-muted">
             {approvals.length}
           </span>
         </div>
@@ -95,7 +95,7 @@ export function InlineApprovals({ pushToast, onViewAll }: InlineApprovalsProps) 
           <button
             type="button"
             onClick={onViewAll}
-            className="font-mono text-[9px] uppercase tracking-widest text-zinc-500 hover:text-brass"
+            className="font-mono text-[9px] uppercase tracking-widest text-text-muted hover:text-brass"
           >
             View all
           </button>
@@ -107,18 +107,18 @@ export function InlineApprovals({ pushToast, onViewAll }: InlineApprovalsProps) 
           return (
             <li
               key={a.approval_id}
-              className="flex flex-col gap-2 rounded-lg border border-white/5 bg-black/20 p-2 sm:flex-row sm:items-center sm:justify-between"
+              className="flex flex-col gap-2 rounded-lg border border-border-subtle bg-overlay-subtle p-2 sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="min-w-0">
-                <div className="font-mono text-[11px] text-zinc-200 truncate">{a.tool}</div>
-                <div className="text-[11px] text-zinc-500 truncate">{a.summary}</div>
+                <div className="font-mono text-[11px] text-text-secondary truncate">{a.tool}</div>
+                <div className="text-[11px] text-text-muted truncate">{a.summary}</div>
               </div>
               <div className="flex shrink-0 gap-2">
                 <button
                   type="button"
                   disabled={busy}
                   onClick={() => resolve(a.approval_id, 'rejected')}
-                  className="rounded border border-white/10 px-2 py-1 font-mono text-[9px] uppercase tracking-widest text-zinc-400 hover:border-rose-400/40 hover:text-rose-300 disabled:opacity-40"
+                  className="rounded border border-border-subtle px-2 py-1 font-mono text-[9px] uppercase tracking-widest text-text-muted hover:border-rose-400/40 hover:text-rose-300 disabled:opacity-40"
                 >
                   Reject
                 </button>

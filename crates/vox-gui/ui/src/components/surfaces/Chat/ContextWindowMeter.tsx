@@ -53,14 +53,14 @@ export function ContextWindowMeter({
     >
       {/* Label row */}
       <div className="flex items-center justify-between">
-        <span className="text-[9px] uppercase tracking-[0.14em] text-zinc-500">Context</span>
+        <span className="text-[9px] uppercase tracking-[0.14em] text-text-muted">Context</span>
         <span className={`font-mono text-[10px] tabular-nums ${ZONE_TEXT[zone]}`}>
           {pct}%
         </span>
       </div>
 
       {/* Progress bar track */}
-      <div className="relative h-1 w-full overflow-hidden rounded-full bg-white/[0.06]">
+      <div className="relative h-1 w-full overflow-hidden rounded-full bg-overlay-subtle">
         {/* Fill */}
         <div
           data-zone={zone}
@@ -76,7 +76,7 @@ export function ContextWindowMeter({
       </div>
 
       {/* Strategy label */}
-      <span className="text-[8px] text-zinc-600">{strategy}</span>
+      <span className="text-[8px] text-text-muted">{strategy}</span>
     </div>
   );
 }

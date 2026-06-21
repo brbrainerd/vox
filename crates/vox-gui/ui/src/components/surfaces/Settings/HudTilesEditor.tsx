@@ -8,7 +8,7 @@ import {
 } from '../../../hooks/useHudTiles';
 
 const BTN =
-  'rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40';
+  'rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40';
 
 interface HudTilesEditorProps {
   config: HudTilesConfig;
@@ -22,15 +22,15 @@ export function HudTilesEditor({ config, onChange }: HudTilesEditorProps) {
 
   return (
     <>
-      <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Display</h2>
-      <p className="mt-0.5 text-[11px] text-zinc-500">
+      <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">Display</h2>
+      <p className="mt-0.5 text-[11px] text-text-muted">
         Choose which KPI tiles appear in the top HUD and their order
       </p>
       <div className="mt-4 space-y-2">
         {config.tiles.map((tile, index) => (
           <div
             key={tile.id}
-            className="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-white/[0.02] p-3"
+            className="flex items-center justify-between gap-3 rounded-xl border border-border-subtle bg-overlay-subtle p-3"
           >
             <label className="flex min-w-0 flex-1 items-center gap-3">
               <input
@@ -40,7 +40,7 @@ export function HudTilesEditor({ config, onChange }: HudTilesEditorProps) {
                 onChange={(e) => onChange(toggleHudTile(config, tile.id, e.target.checked))}
                 className="size-4 rounded border-white/20 bg-black/30 accent-[rgb(var(--brass))]"
               />
-              <span className="font-display text-[12px] text-zinc-200">
+              <span className="font-display text-[12px] text-text-secondary">
                 {HUD_TILE_LABELS[tile.kind]}
               </span>
             </label>
@@ -72,7 +72,7 @@ export function HudTilesEditor({ config, onChange }: HudTilesEditorProps) {
       <button
         type="button"
         onClick={() => onChange(defaultHudTiles())}
-        className="mt-4 rounded border border-white/10 bg-white/[0.02] px-3 py-1.5 font-mono text-[10px] text-zinc-300 hover:bg-white/5"
+        className="mt-4 rounded border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle"
       >
         Reset to defaults
       </button>

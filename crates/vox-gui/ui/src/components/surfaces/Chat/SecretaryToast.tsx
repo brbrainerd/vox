@@ -31,16 +31,16 @@ export function SecretaryToast({ intent, itemId: _itemId, onDismiss, onViewTask 
     <div
       role="status"
       aria-live="polite"
-      className="flex items-center gap-2 rounded-lg border border-white/10 bg-zinc-900/95 px-3 py-2 shadow-lg backdrop-blur-sm"
+      className="flex items-center gap-2 rounded-lg border border-border-subtle bg-bg-base/95 px-3 py-2 shadow-lg backdrop-blur-sm"
     >
       {/* Secretary icon */}
-      <span className="shrink-0 text-[10px] text-zinc-400" aria-hidden>📋</span>
+      <span className="shrink-0 text-[10px] text-text-muted" aria-hidden>📋</span>
 
       <div className="min-w-0 flex-1">
-        <p className="text-[10px] text-zinc-500">Task added by secretary</p>
+        <p className="text-[10px] text-text-muted">Task added by secretary</p>
         <p
           data-testid="secretary-toast-intent"
-          className="truncate text-[11px] text-zinc-200"
+          className="truncate text-[11px] text-text-secondary"
         >
           {displayed}
         </p>
@@ -51,7 +51,7 @@ export function SecretaryToast({ intent, itemId: _itemId, onDismiss, onViewTask 
         type="button"
         aria-label="View task in Tasks panel"
         onClick={onViewTask}
-        className="shrink-0 rounded px-2 py-0.5 text-[10px] text-brass hover:bg-white/[0.06] transition"
+        className="shrink-0 rounded px-2 py-0.5 text-[10px] text-brass hover:bg-overlay-subtle transition"
       >
         View task
       </button>
@@ -61,7 +61,7 @@ export function SecretaryToast({ intent, itemId: _itemId, onDismiss, onViewTask 
         type="button"
         aria-label="Dismiss secretary toast"
         onClick={onDismiss}
-        className="shrink-0 rounded p-0.5 text-zinc-500 hover:text-zinc-200 transition"
+        className="shrink-0 rounded p-0.5 text-text-muted hover:text-text-secondary transition"
       >
         ✕
       </button>

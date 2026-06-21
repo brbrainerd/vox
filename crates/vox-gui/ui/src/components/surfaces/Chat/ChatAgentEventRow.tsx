@@ -26,9 +26,9 @@ function toneForItem(item: StreamItem) {
 function renderItemBody(item: StreamItem) {
   return (
     <>
-      <div className="font-display text-[13px] font-medium tracking-tight text-zinc-100">{item.title}</div>
+      <div className="font-display text-[13px] font-medium tracking-tight text-text-primary">{item.title}</div>
       {item.body ? (
-        <div className="text-[12px] leading-relaxed text-zinc-400 whitespace-pre-wrap break-words">{item.body}</div>
+        <div className="text-[12px] leading-relaxed text-text-muted whitespace-pre-wrap break-words">{item.body}</div>
       ) : null}
     </>
   );
@@ -46,7 +46,7 @@ export function ChatAgentEventRow({ row, onOpenAgent }: ChatAgentEventRowProps) 
 
     return (
       <div
-        className="relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-3"
+        className="relative overflow-hidden rounded-xl border border-border-subtle bg-overlay-subtle p-3"
         data-testid="chat-agent-token-group"
       >
         <div className={`pointer-events-none absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b ${tone.bar}`} />
@@ -54,30 +54,30 @@ export function ChatAgentEventRow({ row, onOpenAgent }: ChatAgentEventRowProps) 
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex flex-wrap items-center gap-2">
               <Pill phase={tone.phase} />
-              <span className="font-display text-[10px] tracking-widest uppercase text-zinc-500">TOKEN</span>
-              <span className="font-mono text-[10px] text-zinc-600">{row.items.length} chunks</span>
+              <span className="font-display text-[10px] tracking-widest uppercase text-text-muted">TOKEN</span>
+              <span className="font-mono text-[10px] text-text-muted">{row.items.length} chunks</span>
             </div>
             <button
               type="button"
-              className="text-left text-[12px] text-zinc-400 hover:text-zinc-200"
+              className="text-left text-[12px] text-text-muted hover:text-text-secondary"
               aria-expanded={expanded}
               onClick={() => setExpanded((v) => !v)}
             >
               {expanded ? 'Hide token stream' : summary || 'Show token stream'}
             </button>
             {expanded && (
-              <div className="mt-2 rounded-lg border border-white/5 bg-black/20 p-2 font-mono text-[11px] text-zinc-300 whitespace-pre-wrap break-words">
+              <div className="mt-2 rounded-lg border border-border-subtle bg-black/20 p-2 font-mono text-[11px] text-text-secondary whitespace-pre-wrap break-words">
                 {combinedBody || '(empty)'}
               </div>
             )}
           </div>
           <div className="flex shrink-0 flex-col items-end gap-2">
-            <span className="font-mono text-[10px] text-zinc-500">{head.ts}</span>
+            <span className="font-mono text-[10px] text-text-muted">{head.ts}</span>
             {agentId && onOpenAgent ? (
               <Button
                 type="button"
                 onClick={() => onOpenAgent(agentId)}
-                className="rounded-md border border-white/10 px-2 py-1 text-[10px] text-zinc-300 hover:border-brass/30 hover:text-brass"
+                className="rounded-md border border-border-subtle px-2 py-1 text-[10px] text-text-secondary hover:border-brass/30 hover:text-brass"
               >
                 View in Flow
               </Button>
@@ -106,7 +106,7 @@ export function ChatAgentEventRow({ row, onOpenAgent }: ChatAgentEventRowProps) 
 
   return (
     <div
-      className="relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-3"
+      className="relative overflow-hidden rounded-xl border border-border-subtle bg-overlay-subtle p-3"
       data-testid="chat-agent-event-row"
     >
       <div className={`pointer-events-none absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b ${tone.bar}`} />
@@ -114,8 +114,8 @@ export function ChatAgentEventRow({ row, onOpenAgent }: ChatAgentEventRowProps) 
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex flex-wrap items-center gap-2">
             <Pill phase={tone.phase} />
-            <span className="font-display text-[10px] tracking-widest uppercase text-zinc-500">{row.item.tag}</span>
-            <span className="font-mono text-[10px] text-zinc-600">{row.item.id}</span>
+            <span className="font-display text-[10px] tracking-widest uppercase text-text-muted">{row.item.tag}</span>
+            <span className="font-mono text-[10px] text-text-muted">{row.item.id}</span>
             {pavPhase != null && (
               <PhaseChip
                 phase={pavPhase}
@@ -133,7 +133,7 @@ export function ChatAgentEventRow({ row, onOpenAgent }: ChatAgentEventRowProps) 
               onClick={() => setExpanded((v) => !v)}
             >
               {expanded ? renderItemBody(row.item) : (
-                <div className="text-[12px] text-zinc-400">{row.item.title}</div>
+                <div className="text-[12px] text-text-muted">{row.item.title}</div>
               )}
             </button>
           ) : (
@@ -141,12 +141,12 @@ export function ChatAgentEventRow({ row, onOpenAgent }: ChatAgentEventRowProps) 
           )}
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
-          <span className="font-mono text-[10px] text-zinc-500">{row.item.ts}</span>
+          <span className="font-mono text-[10px] text-text-muted">{row.item.ts}</span>
           {agentId && onOpenAgent ? (
             <Button
               type="button"
               onClick={() => onOpenAgent(agentId)}
-              className="rounded-md border border-white/10 px-2 py-1 text-[10px] text-zinc-300 hover:border-brass/30 hover:text-brass"
+              className="rounded-md border border-border-subtle px-2 py-1 text-[10px] text-text-secondary hover:border-brass/30 hover:text-brass"
             >
               View in Flow
             </Button>

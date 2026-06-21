@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Vox Axis">
+  <path d="M50 10 V90 M10 50 H90" stroke="currentColor" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="50" cy="50" r="11" fill="currentColor"/>
+</svg>

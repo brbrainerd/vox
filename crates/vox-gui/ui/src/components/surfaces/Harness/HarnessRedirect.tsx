@@ -27,7 +27,7 @@ export function HarnessRedirect({ onFocusComposer, gamifyEnabled }: HarnessRedir
             : undefined
         }
       />
-      <p id="harness-redirect-title" className="text-center text-[10px] text-zinc-600">
+      <p id="harness-redirect-title" className="text-center text-[10px] text-text-muted">
         Workspace → Quick Harness retained for deep links; execution surface is Loquela.
       </p>
     </section>

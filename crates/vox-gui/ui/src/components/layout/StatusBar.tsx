@@ -33,8 +33,8 @@ function freshnessClasses(tone: 'live' | 'poll' | 'stale') {
     };
   }
   return {
-    pill: 'border-zinc-500/20 bg-zinc-500/[0.04] text-zinc-400',
-    dot: 'bg-zinc-500',
+    pill: 'border-border-subtle bg-overlay-subtle text-text-muted',
+    dot: 'bg-text-muted',
     label: 'Offline',
   };
 }
@@ -55,10 +55,10 @@ function Segment({
       type="button"
       data-testid={testId}
       onClick={onClick}
-      className="inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-[10px] text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200 transition"
+      className="inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-[10px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
     >
-      <span className="uppercase tracking-[0.14em] text-zinc-500">{label}</span>
-      <span className="font-mono tabular-nums text-zinc-200">{value}</span>
+      <span className="uppercase tracking-[0.14em] text-text-muted">{label}</span>
+      <span className="font-mono tabular-nums text-text-secondary">{value}</span>
     </button>
   );
 }
@@ -90,7 +90,7 @@ export function StatusBar({
       data-testid="status-bar"
       role="status"
       aria-label="Operator status"
-      className="mt-2 flex h-7 items-center gap-1 px-3 text-[10px] text-zinc-400"
+      className="mt-2 flex h-7 items-center gap-1 px-3 text-[10px] text-text-muted"
     >
       <Segment
         testId="status-bar-agents"
@@ -98,7 +98,7 @@ export function StatusBar({
         value={String(kpis.activeAgents.value)}
         onClick={() => onNavigate('agents')}
       />
-      <span className="text-zinc-700" aria-hidden="true">
+      <span className="text-text-muted" aria-hidden="true">
         ·
       </span>
       <Segment
@@ -107,7 +107,7 @@ export function StatusBar({
         value={String(kpis.queueDepth.value)}
         onClick={() => onNavigate('runs')}
       />
-      <span className="text-zinc-700" aria-hidden="true">
+      <span className="text-text-muted" aria-hidden="true">
         ·
       </span>
       <Segment
@@ -116,7 +116,7 @@ export function StatusBar({
         value={budgetValue}
         onClick={() => onNavigate('settings')}
       />
-      <span className="text-zinc-700" aria-hidden="true">
+      <span className="text-text-muted" aria-hidden="true">
         ·
       </span>
       <Segment
@@ -125,7 +125,7 @@ export function StatusBar({
         value={`${kpis.mesh.peers} peers`}
         onClick={() => onNavigate('compute')}
       />
-      <span className="text-zinc-700" aria-hidden="true">
+      <span className="text-text-muted" aria-hidden="true">
         ·
       </span>
       <Segment
@@ -137,7 +137,7 @@ export function StatusBar({
 
       {gamifyEnabled && onOpenAchievements && (
         <>
-          <span className="text-zinc-700" aria-hidden="true">
+          <span className="text-text-muted" aria-hidden="true">
             ·
           </span>
           <button
@@ -145,7 +145,7 @@ export function StatusBar({
             data-testid="achievements-trigger"
             aria-label="Open achievements"
             onClick={onOpenAchievements}
-            className="inline-flex items-center justify-center rounded px-1.5 py-0.5 text-amber-300/80 hover:bg-white/[0.04] hover:text-amber-200 transition"
+            className="inline-flex items-center justify-center rounded px-1.5 py-0.5 text-amber-300/80 hover:bg-overlay-subtle hover:text-amber-200 transition"
           >
             <Icon.trophy className="size-3.5" aria-hidden="true" />
           </button>

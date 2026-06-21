@@ -15,7 +15,7 @@ export function BreadcrumbBar({ viewKey, onNavigate, gamifyEnabled }: Props) {
   const renderSegment = (seg: BreadcrumbSegment, index: number) => {
     const isLast = index === segments.length - 1;
     const content = (
-      <span className={isLast ? 'text-zinc-200' : 'text-zinc-500'}>{seg.label}</span>
+      <span className={isLast ? 'text-text-secondary' : 'text-text-muted'}>{seg.label}</span>
     );
     if (!isLast && onNavigate) {
       return (
@@ -30,7 +30,7 @@ export function BreadcrumbBar({ viewKey, onNavigate, gamifyEnabled }: Props) {
             );
             onNavigate(seg.key);
           }}
-          className="font-display text-[11px] uppercase tracking-[0.14em] hover:text-zinc-300 transition"
+          className="font-display text-[11px] uppercase tracking-[0.14em] hover:text-text-secondary transition"
           aria-label={`Navigate to ${seg.label}`}
         >
           {content}
@@ -52,7 +52,7 @@ export function BreadcrumbBar({ viewKey, onNavigate, gamifyEnabled }: Props) {
     <nav aria-label="Breadcrumb" className="flex items-center gap-2 px-1 pb-2">
       {segments.map((seg, i) => (
         <React.Fragment key={seg.key}>
-          {i > 0 && <span className="text-zinc-600 text-[10px]" aria-hidden="true">›</span>}
+          {i > 0 && <span className="text-text-muted text-[10px]" aria-hidden="true">›</span>}
           {renderSegment(seg, i)}
         </React.Fragment>
       ))}

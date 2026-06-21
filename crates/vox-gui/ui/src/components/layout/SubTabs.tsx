@@ -24,7 +24,7 @@ export function SubTabs({ parentKey, tabs, activeChild, onSelect }: SubTabsProps
   if (tabs.length <= 1) return null;
 
   return (
-    <div className="mb-4 flex flex-wrap gap-1 border-b border-white/5 pb-2">
+    <div className="mb-4 flex flex-wrap gap-1 border-b border-border-subtle pb-2">
       {tabs.map(t => (
         <button
           key={t.viewKey}
@@ -32,8 +32,8 @@ export function SubTabs({ parentKey, tabs, activeChild, onSelect }: SubTabsProps
           onClick={() => select(t.viewKey)}
           className={`rounded-md px-3 py-1.5 font-display text-[10px] uppercase tracking-[0.18em] transition ${
             activeChild === t.viewKey
-              ? 'bg-white/[0.06] text-zinc-100 ring-1 ring-white/10'
-              : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.03]'
+              ? 'bg-overlay-subtle text-text-primary ring-1 ring-white/10'
+              : 'text-text-muted hover:text-text-secondary hover:bg-overlay-subtle'
           }`}
         >
           {t.label}

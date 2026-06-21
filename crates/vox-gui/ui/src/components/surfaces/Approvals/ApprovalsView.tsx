@@ -102,7 +102,7 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
       key: 'approval_id', 
       header: 'Request ID', 
       width: 150,
-      render: (r: PendingApproval) => <span className="font-mono text-zinc-500">#{r.approval_id}</span> 
+      render: (r: PendingApproval) => <span className="font-mono text-text-muted">#{r.approval_id}</span> 
     },
     { 
       key: 'tool', 
@@ -116,7 +116,7 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
       header: 'Requested At', 
       width: 180,
       render: (r: PendingApproval) => (
-        <span className="flex items-center gap-1 font-mono text-[10px] text-zinc-500">
+        <span className="flex items-center gap-1 font-mono text-[10px] text-text-muted">
           <Icon.clock className="size-3" aria-hidden="true" />
           {formatRequestedAt(r.requested_at_ms)}
         </span>
@@ -167,10 +167,10 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
           <span className="flex size-7 items-center justify-center rounded-lg bg-brass/10 text-brass ring-1 ring-brass/30">
             <Icon.shield className="size-4" aria-hidden="true" />
           </span>
-          <h2 className="text-lg font-bold tracking-wide text-zinc-200">Pending Approvals</h2>
+          <h2 className="text-lg font-bold tracking-wide text-text-secondary">Pending Approvals</h2>
         </div>
         <Button variant="ghost" size="xs" onClick={refresh} aria-label="Refresh approvals">
-          <Icon.refresh className="size-4 text-zinc-400" />
+          <Icon.refresh className="size-4 text-text-muted" />
         </Button>
       </div>
 

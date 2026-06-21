@@ -44,9 +44,9 @@ function HexCell({ intention, onSelect, selected }: { intention: RoutingIntentio
     >
       <div className="absolute inset-0 [clip-path:polygon(50%_0,100%_25%,100%_75%,50%_100%,0_75%,0_25%)] opacity-60" style={{ background: `radial-gradient(circle at center, ${phaseTone.glow}33, transparent 70%)` }} />
       <div className="relative flex h-full flex-col items-center justify-center px-4 text-center">
-        <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-zinc-500">{intention.parent}</div>
+        <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-text-muted">{intention.parent}</div>
         <div className={`mt-1 font-display text-[13px] font-semibold tracking-tight ${phaseTone.text}`}>{intention.branch}</div>
-        <div className="mt-1.5 font-display text-[22px] font-bold tabular-nums text-zinc-100">{Math.round(conf*100)}<span className="text-[12px] text-zinc-500">%</span></div>
+        <div className="mt-1.5 font-display text-[22px] font-bold tabular-nums text-text-primary">{Math.round(conf*100)}<span className="text-[12px] text-text-muted">%</span></div>
       </div>
       {selected && (
         <div className="absolute inset-0 [clip-path:polygon(50%_0,100%_25%,100%_75%,50%_100%,0_75%,0_25%)] ring-2 ring-inset" style={{ boxShadow: `inset 0 0 0 2px ${phaseTone.stroke}` }} />
@@ -112,7 +112,7 @@ export function Matrix({ pushToast, gamifyEnabled = false }: MatrixProps) {
   if (loading) return (
     <div className="p-8 text-center">
       <Glass className="p-12 inline-block">
-        <p className="font-display uppercase tracking-[0.2em] text-zinc-500">Loading routing policies…</p>
+        <p className="font-display uppercase tracking-[0.2em] text-text-muted">Loading routing policies…</p>
       </Glass>
     </div>
   );
@@ -120,7 +120,7 @@ export function Matrix({ pushToast, gamifyEnabled = false }: MatrixProps) {
   if (!active) return (
     <div className="p-8 text-center">
         <Glass className="p-12 inline-block">
-            <p className="font-display uppercase tracking-[0.2em] text-zinc-500">No routing policies active</p>
+            <p className="font-display uppercase tracking-[0.2em] text-text-muted">No routing policies active</p>
         </Glass>
     </div>
   );
@@ -133,16 +133,16 @@ export function Matrix({ pushToast, gamifyEnabled = false }: MatrixProps) {
       <Glass className="col-span-12 xl:col-span-8 p-5">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Routing Policies</h2>
-            <p className="mt-0.5 text-[11px] text-zinc-500">Live model-routing priority axes · weight = how strongly the orchestrator favors each axis</p>
+            <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">Routing Policies</h2>
+            <p className="mt-0.5 text-[11px] text-text-muted">Live model-routing priority axes · weight = how strongly the orchestrator favors each axis</p>
           </div>
         </div>
         <div className="mt-5 space-y-6">
           {Object.entries(groups).map(([parent, items]) => (
             <div key={parent}>
-              <div className="mb-2 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+              <div className="mb-2 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-text-muted">
                 <span className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
-                <span className="text-zinc-400">{parent}</span>
+                <span className="text-text-muted">{parent}</span>
                 <span className="h-px flex-1 bg-gradient-to-l from-white/10 to-transparent" />
               </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -155,19 +155,19 @@ export function Matrix({ pushToast, gamifyEnabled = false }: MatrixProps) {
 
       <Glass className="col-span-12 xl:col-span-4 p-5">
         <div className="flex items-center justify-between">
-          <h3 className="font-display text-[14px] font-semibold tracking-wide text-zinc-100">Axis Inspector</h3>
+          <h3 className="font-display text-[14px] font-semibold tracking-wide text-text-primary">Axis Inspector</h3>
           <Pill phase={active.phase} />
         </div>
-        <div className="mt-3 rounded-xl border border-white/5 bg-white/[0.02] p-4">
-          <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-zinc-500">{active.parent}</div>
-          <div className="mt-1 font-display text-[20px] font-semibold tracking-tight text-zinc-50">{active.branch}</div>
-          <div className="mt-2 text-[12px] leading-relaxed text-zinc-400">{active.note}</div>
+        <div className="mt-3 rounded-xl border border-border-subtle bg-overlay-subtle p-4">
+          <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-text-muted">{active.parent}</div>
+          <div className="mt-1 font-display text-[20px] font-semibold tracking-tight text-text-primary">{active.branch}</div>
+          <div className="mt-2 text-[12px] leading-relaxed text-text-muted">{active.note}</div>
           <div className="mt-4">
-            <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-zinc-500">
-              <span>Weight</span><span className="font-mono text-zinc-300">{Math.round(active.conf*100)}%</span>
+            <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-text-muted">
+              <span>Weight</span><span className="font-mono text-text-secondary">{Math.round(active.conf*100)}%</span>
             </div>
             <div
-              className="mt-1.5 h-2 overflow-hidden rounded-full bg-white/5"
+              className="mt-1.5 h-2 overflow-hidden rounded-full bg-overlay-subtle"
               role="progressbar"
               aria-valuenow={Math.round(active.conf * 100)}
               aria-valuemin={0}

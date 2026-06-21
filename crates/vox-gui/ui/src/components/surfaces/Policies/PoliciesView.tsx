@@ -11,7 +11,7 @@ const STATUS_DOT: Record<RunStatus, string> = {
   fail: 'bg-red-500',
   warn: 'bg-amber-400',
   pass: 'bg-emerald-400',
-  not_run: 'bg-zinc-600',
+  not_run: 'bg-text-muted',
 };
 const STATUS_GLYPH: Record<RunStatus, string> = { fail: '●', warn: '▲', pass: '✓', not_run: '—' };
 
@@ -21,7 +21,7 @@ function StatusCount({ counts }: { counts: Record<RunStatus, number> }) {
       {(['fail', 'warn', 'pass', 'not_run'] as RunStatus[])
         .filter(s => counts[s] > 0)
         .map(s => (
-          <span key={s} className={`flex items-center gap-0.5 ${s === 'fail' ? 'text-red-400' : s === 'warn' ? 'text-amber-300' : s === 'pass' ? 'text-emerald-300' : 'text-zinc-500'}`}>
+          <span key={s} className={`flex items-center gap-0.5 ${s === 'fail' ? 'text-red-400' : s === 'warn' ? 'text-amber-300' : s === 'pass' ? 'text-emerald-300' : 'text-text-muted'}`}>
             {STATUS_GLYPH[s]}{counts[s]}
           </span>
         ))}
@@ -98,7 +98,7 @@ export function PoliciesView({
         <Glass className="flex h-full flex-col p-3 gap-3 overflow-hidden">
           <div className="flex items-center justify-between">
             {!railCollapsed && (
-              <span className="font-display text-[10px] uppercase tracking-[0.28em] text-zinc-400">
+              <span className="font-display text-[10px] uppercase tracking-[0.28em] text-text-muted">
                 Policies <span className={`ml-1 inline-block size-1.5 rounded-full align-middle ${STATUS_DOT[worst]}`} />
               </span>
             )}
@@ -106,7 +106,7 @@ export function PoliciesView({
               aria-label={railCollapsed ? 'Expand policy rail' : 'Collapse policy rail'}
               aria-expanded={!railCollapsed}
               title={railCollapsed ? 'Expand' : 'Collapse'}
-              className="flex size-6 items-center justify-center rounded-md border border-white/5 text-zinc-400 hover:bg-white/5 hover:text-zinc-100">
+              className="flex size-6 items-center justify-center rounded-md border border-border-subtle text-text-muted hover:bg-overlay-subtle hover:text-text-primary">
               <Icon.chevL aria-hidden="true" className={`size-3 transition-transform ${railCollapsed ? 'rotate-180' : ''}`} />
             </button>
           </div>
@@ -119,15 +119,15 @@ export function PoliciesView({
                   <button key={b.branch} type="button" onClick={() => toggleBranch(b.branch)}
                     aria-pressed={selectedBranches.includes(b.branch)}
                     aria-label={`Branch: ${b.branch}`}
-                    className={`rounded-full px-2 py-0.5 font-mono text-[9px] border ${selectedBranches.includes(b.branch) ? 'border-brass/40 bg-brass/10 text-brass' : 'border-white/5 text-zinc-500 hover:text-zinc-300'}`}>
+                    className={`rounded-full px-2 py-0.5 font-mono text-[9px] border ${selectedBranches.includes(b.branch) ? 'border-brass/40 bg-brass/10 text-brass' : 'border-border-subtle text-text-muted hover:text-text-secondary'}`}>
                     {b.branch}{b.isCurrent ? ' ◆' : ''}
                   </button>
                 ))}
-                {branches.length === 0 && <span className="font-mono text-[9px] text-zinc-600">no git worktrees</span>}
+                {branches.length === 0 && <span className="font-mono text-[9px] text-text-muted">no git worktrees</span>}
               </div>
 
               {/* ⚠ Needs attention — gracefully shrinks to an all-clear strip */}
-              <div className="rounded-lg border border-white/5 bg-white/[0.02] p-2">
+              <div className="rounded-lg border border-border-subtle bg-overlay-subtle p-2">
                 {attention.length === 0 ? (
                   <div className="flex items-center gap-1.5 font-mono text-[10px] text-emerald-300/80">
                     <Icon.check aria-hidden="true" className="size-3" /> all clear
@@ -137,7 +137,7 @@ export function PoliciesView({
                     <span className="font-display text-[9px] uppercase tracking-[0.2em] text-red-300/90">⚠ Needs attention ({attention.length})</span>
                     {attention.map(r => (
                       <button key={r.id} type="button" onClick={() => setSelectedId(r.id)}
-                        className="text-left font-mono text-[10px] text-zinc-300 hover:text-red-200 truncate">{r.id}</button>
+                        className="text-left font-mono text-[10px] text-text-secondary hover:text-red-200 truncate">{r.id}</button>
                     ))}
                   </div>
                 )}
@@ -152,14 +152,14 @@ export function PoliciesView({
                       <button type="button" onClick={() => toggleGroup(node.group)}
                         aria-expanded={open}
                         aria-label={`${node.group} group`}
-                        className="flex items-center justify-between gap-2 rounded-md px-1.5 py-1 hover:bg-white/[0.03]">
+                        className="flex items-center justify-between gap-2 rounded-md px-1.5 py-1 hover:bg-overlay-subtle">
                         <span className="flex items-center gap-1.5 min-w-0">
                           <span aria-hidden="true" className={`size-1.5 rounded-full shrink-0 ${STATUS_DOT[node.worst]}`} />
-                          <span className="font-display text-[10px] text-zinc-300 truncate">{node.group}</span>
+                          <span className="font-display text-[10px] text-text-secondary truncate">{node.group}</span>
                         </span>
                         <span className="flex items-center gap-1.5 shrink-0">
                           <StatusCount counts={node.counts} />
-                          <Icon.chevronDown aria-hidden="true" className={`size-3 text-zinc-600 transition-transform ${open ? '' : '-rotate-90'}`} />
+                          <Icon.chevronDown aria-hidden="true" className={`size-3 text-text-muted transition-transform ${open ? '' : '-rotate-90'}`} />
                         </span>
                       </button>
                       {open && node.rows.map(r => {
@@ -167,7 +167,7 @@ export function PoliciesView({
                         return (
                           <button key={r.id} type="button" onClick={() => setSelectedId(r.id)}
                             aria-pressed={selectedId === r.id}
-                            className={`flex items-center gap-1.5 rounded-md pl-5 pr-1.5 py-1 text-left ${selectedId === r.id ? 'bg-white/[0.05] text-zinc-100' : 'text-zinc-500 hover:bg-white/[0.02] hover:text-zinc-300'}`}>
+                            className={`flex items-center gap-1.5 rounded-md pl-5 pr-1.5 py-1 text-left ${selectedId === r.id ? 'bg-overlay-subtle text-text-primary' : 'text-text-muted hover:bg-overlay-subtle hover:text-text-secondary'}`}>
                             <span aria-hidden="true" className={`size-1 rounded-full shrink-0 ${STATUS_DOT[s]}`} />
                             <span className="font-mono text-[10px] truncate">{r.title}</span>
                           </button>
@@ -186,44 +186,44 @@ export function PoliciesView({
       <section aria-label="Policy detail" className="flex-1 min-w-0">
         <Glass className="flex h-full flex-col p-5 gap-4 overflow-y-auto custom-scrollbar">
           {!detail ? (
-            <div className="m-auto font-mono text-xs text-zinc-600">select a policy</div>
+            <div className="m-auto font-mono text-xs text-text-muted">select a policy</div>
           ) : (
             <>
-              <header className="flex items-start justify-between gap-4 border-b border-white/5 pb-3">
+              <header className="flex items-start justify-between gap-4 border-b border-border-subtle pb-3">
                 <div className="min-w-0">
-                  <div className="font-mono text-sm text-zinc-100 truncate">{detail.id}</div>
-                  <div className="font-display text-[11px] text-zinc-400">{detail.title}</div>
+                  <div className="font-mono text-sm text-text-primary truncate">{detail.id}</div>
+                  <div className="font-display text-[11px] text-text-muted">{detail.title}</div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <button type="button" disabled title="Editing arrives in Phase 3 (read-only now)"
-                    className="flex items-center gap-1 rounded-md border border-white/5 px-2 py-1 font-mono text-[10px] text-zinc-600 opacity-50 cursor-not-allowed">
+                    className="flex items-center gap-1 rounded-md border border-border-subtle px-2 py-1 font-mono text-[10px] text-text-muted opacity-50 cursor-not-allowed">
                     ✎ Edit
                   </button>
                   <button type="button" disabled title="Enable/disable arrives in Phase 2 (read-only now)"
-                    className="flex items-center gap-1 rounded-md border border-white/5 px-2 py-1 font-mono text-[10px] text-zinc-600 opacity-50 cursor-not-allowed">
+                    className="flex items-center gap-1 rounded-md border border-border-subtle px-2 py-1 font-mono text-[10px] text-text-muted opacity-50 cursor-not-allowed">
                     ⏻ Disable
                   </button>
                 </div>
               </header>
 
               <section className="flex flex-col gap-1.5">
-                <div className="font-display text-[9px] uppercase tracking-[0.28em] text-zinc-500">What it does</div>
-                <p className="text-xs text-zinc-300 leading-relaxed">{detail.description}</p>
-                <div className="flex flex-wrap gap-3 pt-1 font-mono text-[10px] text-zinc-500">
-                  <span>domain: <span className="text-zinc-300">{detail.domain}</span></span>
-                  <span>severity: <span className="text-zinc-300">{detail.severity ?? '—'}</span></span>
+                <div className="font-display text-[9px] uppercase tracking-[0.28em] text-text-muted">What it does</div>
+                <p className="text-xs text-text-secondary leading-relaxed">{detail.description}</p>
+                <div className="flex flex-wrap gap-3 pt-1 font-mono text-[10px] text-text-muted">
+                  <span>domain: <span className="text-text-secondary">{detail.domain}</span></span>
+                  <span>severity: <span className="text-text-secondary">{detail.severity ?? '—'}</span></span>
                   <span>{detail.blocking ? 'blocking' : 'non-blocking'}</span>
                   {detail.protected && <span className="text-amber-300/80">protected</span>}
-                  <span>runs on: <span className="text-zinc-300">{detail.runsOn.join(', ') || '—'}</span></span>
-                  <span>origin: <span className="text-zinc-300">{detail.origin}</span></span>
+                  <span>runs on: <span className="text-text-secondary">{detail.runsOn.join(', ') || '—'}</span></span>
+                  <span>origin: <span className="text-text-secondary">{detail.origin}</span></span>
                 </div>
               </section>
 
               <section className="flex flex-col gap-1.5">
-                <div className="font-display text-[9px] uppercase tracking-[0.28em] text-zinc-500">Contents (edit target)</div>
-                <div className="rounded-lg border border-white/5 bg-black/30 p-3 font-mono text-[11px] text-zinc-300">
-                  <div className="text-zinc-500">kind: <span className="text-zinc-300">{detail.sourceKind}</span></div>
-                  <div className="text-zinc-500">source: <span className="text-zinc-300 break-all">{detail.sourceRef}</span></div>
+                <div className="font-display text-[9px] uppercase tracking-[0.28em] text-text-muted">Contents (edit target)</div>
+                <div className="rounded-lg border border-border-subtle bg-black/30 p-3 font-mono text-[11px] text-text-secondary">
+                  <div className="text-text-muted">kind: <span className="text-text-secondary">{detail.sourceKind}</span></div>
+                  <div className="text-text-muted">source: <span className="text-text-secondary break-all">{detail.sourceRef}</span></div>
                   {detail.sourceDetail && (
                     <pre className="mt-2 whitespace-pre-wrap break-all text-emerald-200/80">{detail.sourceDetail}</pre>
                   )}
@@ -232,16 +232,16 @@ export function PoliciesView({
               </section>
 
               <section className="flex flex-col gap-1.5">
-                <div className="font-display text-[9px] uppercase tracking-[0.28em] text-zinc-500">Last run (per branch)</div>
+                <div className="font-display text-[9px] uppercase tracking-[0.28em] text-text-muted">Last run (per branch)</div>
                 <div className="flex flex-wrap gap-2">
-                  {selectedBranches.length === 0 && <span className="font-mono text-[10px] text-zinc-600">no branch selected</span>}
+                  {selectedBranches.length === 0 && <span className="font-mono text-[10px] text-text-muted">no branch selected</span>}
                   {selectedBranches.map(b => {
                     const s = statusForRow(detail.id, status, [b]);
                     return (
-                      <span key={b} className="flex items-center gap-1.5 rounded-full border border-white/5 px-2 py-0.5 font-mono text-[10px]">
+                      <span key={b} className="flex items-center gap-1.5 rounded-full border border-border-subtle px-2 py-0.5 font-mono text-[10px]">
                         <span className={`size-1.5 rounded-full ${STATUS_DOT[s]}`} />
-                        <span className="text-zinc-300">{b}</span>
-                        <span className="text-zinc-500">{s}</span>
+                        <span className="text-text-secondary">{b}</span>
+                        <span className="text-text-muted">{s}</span>
                       </span>
                     );
                   })}

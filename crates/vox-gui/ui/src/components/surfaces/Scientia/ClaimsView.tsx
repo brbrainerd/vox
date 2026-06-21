@@ -23,12 +23,12 @@ const VERDICT_STYLE: Record<string, string> = {
   Supported: 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30',
   Contested: 'bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30',
   Contradicted: 'bg-red-500/15 text-red-300 ring-1 ring-red-500/30',
-  Abstain: 'bg-zinc-500/15 text-zinc-300 ring-1 ring-zinc-500/30',
+  Abstain: 'bg-overlay-subtle text-text-secondary ring-1 ring-border-subtle/30',
 };
 
 function VerdictBadge({ verdict }: { verdict: string | null }) {
   const label = verdict ?? 'pending';
-  const cls = verdict ? VERDICT_STYLE[verdict] ?? VERDICT_STYLE.Abstain : 'bg-white/5 text-zinc-400 ring-1 ring-white/10';
+  const cls = verdict ? VERDICT_STYLE[verdict] ?? VERDICT_STYLE.Abstain : 'bg-overlay-subtle text-text-muted ring-1 ring-white/10';
   return (
     <span className={`rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${cls}`}>{label}</span>
   );
@@ -90,8 +90,8 @@ export function ClaimsView({ pushToast }: SurfaceDecoratorProps) {
   return (
     <section className="space-y-4">
       <div>
-        <h2 className="font-display text-lg tracking-wider text-zinc-100 uppercase">Scientia Claims</h2>
-        <p className="font-mono text-xs text-zinc-500">Atomic claim extraction + verification ledger</p>
+        <h2 className="font-display text-lg tracking-wider text-text-primary uppercase">Scientia Claims</h2>
+        <p className="font-mono text-xs text-text-muted">Atomic claim extraction + verification ledger</p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -100,11 +100,11 @@ export function ClaimsView({ pushToast }: SurfaceDecoratorProps) {
           value={publicationId}
           onChange={(e) => setPublicationId(e.target.value)}
           placeholder="publication id"
-          className="bg-void min-w-[16rem] flex-1 rounded-lg border border-white/10 bg-black/30 px-3 py-1.5 font-mono text-sm text-zinc-200 focus:border-cyan focus:outline-none"
+          className="bg-bg-base min-w-[16rem] flex-1 rounded-lg border border-border-subtle bg-black/30 px-3 py-1.5 font-mono text-sm text-text-secondary focus:border-cyan focus:outline-none"
         />
         <button
           type="button"
-          className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs uppercase tracking-wider hover:bg-white/[0.06] disabled:opacity-40"
+          className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-xs uppercase tracking-wider hover:bg-overlay-subtle disabled:opacity-40"
           disabled={busy || !publicationId.trim()}
           onClick={extract}
         >
@@ -112,7 +112,7 @@ export function ClaimsView({ pushToast }: SurfaceDecoratorProps) {
         </button>
         <button
           type="button"
-          className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs uppercase tracking-wider hover:bg-white/[0.06] disabled:opacity-40"
+          className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-xs uppercase tracking-wider hover:bg-overlay-subtle disabled:opacity-40"
           disabled={busy || !publicationId.trim()}
           onClick={loadClaims}
         >
@@ -121,36 +121,36 @@ export function ClaimsView({ pushToast }: SurfaceDecoratorProps) {
       </div>
 
       {claims === null && (
-        <div className="font-mono text-xs text-zinc-500">
+        <div className="font-mono text-xs text-text-muted">
           Enter a publication id, then Extract (runs the pipeline) or Load (reads persisted claims).
         </div>
       )}
       {claims !== null && claims.length === 0 && (
-        <div className="font-mono text-xs text-zinc-500">No claims recorded for this publication yet.</div>
+        <div className="font-mono text-xs text-text-muted">No claims recorded for this publication yet.</div>
       )}
       {claims !== null && claims.length > 0 && (
         <div className="space-y-2" role="list" aria-live="polite">
-          <div className="font-mono text-[10px] uppercase tracking-wider text-zinc-500">
+          <div className="font-mono text-[10px] uppercase tracking-wider text-text-muted">
             {claims.length} claim{claims.length === 1 ? '' : 's'}
           </div>
           {claims.map((c) => (
-            <div key={c.claim_id} role="listitem" className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
+            <div key={c.claim_id} role="listitem" className="rounded-xl border border-border-subtle bg-overlay-subtle p-3">
               <div className="mb-1 flex items-center gap-2">
                 <VerdictBadge verdict={c.verdict} />
                 {c.confidence != null && (
-                  <span className="font-mono text-[10px] text-zinc-400">conf {c.confidence.toFixed(2)}</span>
+                  <span className="font-mono text-[10px] text-text-muted">conf {c.confidence.toFixed(2)}</span>
                 )}
                 {c.verifiability_score != null && (
-                  <span className="font-mono text-[10px] text-zinc-500">vscore {c.verifiability_score.toFixed(2)}</span>
+                  <span className="font-mono text-[10px] text-text-muted">vscore {c.verifiability_score.toFixed(2)}</span>
                 )}
                 {c.is_numeric && (
                   <span className="rounded bg-cyan/10 px-1 font-mono text-[9px] uppercase tracking-wider text-cyan">numeric</span>
                 )}
                 {c.verifier_model && (
-                  <span className="ml-auto font-mono text-[9px] text-zinc-600">{c.verifier_model}</span>
+                  <span className="ml-auto font-mono text-[9px] text-text-muted">{c.verifier_model}</span>
                 )}
               </div>
-              <div className="text-sm text-zinc-200">{c.text}</div>
+              <div className="text-sm text-text-secondary">{c.text}</div>
             </div>
           ))}
         </div>

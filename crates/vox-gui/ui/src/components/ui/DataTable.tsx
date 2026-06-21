@@ -46,14 +46,14 @@ export function DataTable<T>({
     return (
       <div className="w-full flex flex-col gap-2 py-4">
         {[1, 2, 3].map(i => (
-          <div key={i} className="h-10 w-full bg-white/[0.02] border border-white/[0.04] rounded-lg animate-pulse" />
+          <div key={i} className="h-10 w-full bg-overlay-subtle border border-border-subtle rounded-lg animate-pulse" />
         ))}
       </div>
     );
   }
 
   if (rows.length === 0) {
-    return <div className="w-full py-6">{emptyState || <div className="text-center text-zinc-500 text-sm">No data available</div>}</div>;
+    return <div className="w-full py-6">{emptyState || <div className="text-center text-text-muted text-sm">No data available</div>}</div>;
   }
 
   const toggleGroup = (group: string) => {
@@ -93,9 +93,9 @@ export function DataTable<T>({
   }
 
   return (
-    <div className="w-full overflow-x-auto rounded-xl border border-white/[0.06] bg-zinc-950/20 backdrop-blur-xl">
+    <div className="w-full overflow-x-auto rounded-xl border border-border-subtle bg-bg-base/20 backdrop-blur-xl">
       {selectable && selectedIds.size > 0 && (
-        <div className="flex items-center justify-between px-4 py-2 border-b border-white/[0.06] bg-brass/10 text-brass text-xs">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-border-subtle bg-brass/10 text-brass text-xs">
           <span>{selectedIds.size} rows selected</span>
           <div className="flex items-center gap-2">
             <Button size="xs" variant="primary" onClick={() => onRowAction?.(Array.from(selectedIds).join(','), 'bulk-pause')}>
@@ -109,14 +109,14 @@ export function DataTable<T>({
       )}
       <table className="w-full border-collapse text-left">
         <thead>
-          <tr className="border-b border-white/[0.06] bg-white/[0.01]">
+          <tr className="border-b border-border-subtle bg-overlay-subtle">
             {selectable && (
               <th className={cn("w-10", DENSITY_CLASS[density])}>
                 <input 
                   type="checkbox" 
                   checked={selectedIds.size === rows.length && rows.length > 0}
                   onChange={toggleSelectAll}
-                  className="rounded border-white/10 bg-zinc-900 text-brass focus:ring-brass/40"
+                  className="rounded border-border-subtle bg-bg-base text-brass focus:ring-brass/40"
                   aria-label="Select all rows"
                 />
               </th>
@@ -124,7 +124,7 @@ export function DataTable<T>({
             {columns.map(col => (
               <th 
                 key={col.key} 
-                className={cn("font-semibold text-zinc-400 tracking-wide uppercase text-[10px]", DENSITY_CLASS[density])}
+                className={cn("font-semibold text-text-muted tracking-wide uppercase text-[10px]", DENSITY_CLASS[density])}
                 style={{ width: col.width }}
               >
                 {col.header}
@@ -138,12 +138,12 @@ export function DataTable<T>({
             return (
               <React.Fragment key={groupName}>
                 {groupBy && (
-                  <tr className="bg-white/[0.02] border-b border-white/[0.04]">
+                  <tr className="bg-overlay-subtle border-b border-border-subtle">
                     <td colSpan={columns.length + (selectable ? 1 : 0)} className="px-3 py-1.5">
                       <button
                         type="button"
                         onClick={() => toggleGroup(groupName)}
-                        className="flex items-center gap-1.5 font-mono text-[10px] tracking-widest uppercase text-zinc-400 hover:text-zinc-200"
+                        className="flex items-center gap-1.5 font-mono text-[10px] tracking-widest uppercase text-text-muted hover:text-text-secondary"
                         aria-expanded={!isCollapsed}
                       >
                         <span>{isCollapsed ? '▶' : '▼'}</span>
@@ -159,7 +159,7 @@ export function DataTable<T>({
                     <tr 
                       key={id} 
                       className={cn(
-                        "border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors",
+                        "border-b border-border-subtle last:border-0 hover:bg-overlay-subtle transition-colors",
                         isSelected && "bg-brass/[0.02]"
                       )}
                     >
@@ -169,7 +169,7 @@ export function DataTable<T>({
                             type="checkbox" 
                             checked={isSelected}
                             onChange={() => toggleSelectRow(id)}
-                            className="rounded border-brass/40 bg-zinc-950 text-brass focus:ring-brass/40"
+                            className="rounded border-brass/40 bg-bg-base text-brass focus:ring-brass/40"
                             aria-label={`Select row ${id}`}
                           />
                         </td>
