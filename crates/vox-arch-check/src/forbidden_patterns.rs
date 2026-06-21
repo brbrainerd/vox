@@ -443,7 +443,11 @@ mod tests {
         let mut rule = abs_path_rule();
         rule.exempt_tests = true;
         let hits = scan(dir.path(), &rule, &crate::built_in_walk_prune_names()).unwrap();
-        assert_eq!(hits.len(), 1, "only shipped /etc/real survives; got {hits:?}");
+        assert_eq!(
+            hits.len(),
+            1,
+            "only shipped /etc/real survives; got {hits:?}"
+        );
         assert!(
             hits[0]
                 .file

@@ -75,9 +75,7 @@ mod tests {
 
     #[test]
     fn clean_publishable_crate_passes() {
-        let crates = vec![
-            rec("vox-crypto", &[], false, true),
-        ];
+        let crates = vec![rec("vox-crypto", &[], false, true)];
         assert!(check(&crates).is_empty());
     }
 
@@ -89,7 +87,10 @@ mod tests {
         ];
         let violations = check(&crates);
         assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0], ("vox-secrets".to_string(), "workspace-hack".to_string()));
+        assert_eq!(
+            violations[0],
+            ("vox-secrets".to_string(), "workspace-hack".to_string())
+        );
     }
 
     #[test]

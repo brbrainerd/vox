@@ -79,7 +79,9 @@ fn dep_status(dep: &str) -> DepStatus {
                 hint: if present {
                     String::new()
                 } else {
-                    format!("Install '{dep}' and ensure it is on PATH. See https://voxlang.org/install for the full-tier install guide.")
+                    format!(
+                        "Install '{dep}' and ensure it is on PATH. See https://voxlang.org/install for the full-tier install guide."
+                    )
                 },
             }
         }

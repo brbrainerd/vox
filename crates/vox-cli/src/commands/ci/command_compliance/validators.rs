@@ -1110,7 +1110,7 @@ pub(crate) fn check_latin_alias_parity_with_catalog(repo_root: &Path, lib_rs: &s
         ("speech", "oratio"), // speech command (English canonical) exposes `oratio` (Latin) alias
         ("gamify", "ludus"),  // gamify command (English canonical) exposes `ludus` (Latin) alias
         ("dei", "orchestrator"), // dei command exposes `orchestrator` alias
-        ("gui", "axis"), // gui command exposes `axis` (Vox Axis product brand alias)
+        ("gui", "axis"),      // gui command exposes `axis` (Vox Axis product brand alias)
     ];
 
     for (clap_name, expected_alias) in REQUIRED_VISIBLE_ALIASES {

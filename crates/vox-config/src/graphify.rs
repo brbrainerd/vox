@@ -560,7 +560,12 @@ mod tests {
             extraction_mode: Some("structural".into()),
             default_for_intents: vec![],
             is_virtual: false,
-            source_root: Some(std::env::temp_dir().join("target").to_string_lossy().into_owned()),
+            source_root: Some(
+                std::env::temp_dir()
+                    .join("target")
+                    .to_string_lossy()
+                    .into_owned(),
+            ),
         }
     }
     fn write_min_registry(repo: &std::path::Path) {
@@ -661,8 +666,14 @@ mod tests {
             ttl_days_default: 30,
             corpora: vec![mk("a", &["code_navigation"]), mk("b", &["gui_surface"])],
         };
-        assert_eq!(select_corpus_for_intent(&reg, "gui_surface").as_deref(), Some("b"));
-        assert_eq!(select_corpus_for_intent(&reg, "code_navigation").as_deref(), Some("a"));
+        assert_eq!(
+            select_corpus_for_intent(&reg, "gui_surface").as_deref(),
+            Some("b")
+        );
+        assert_eq!(
+            select_corpus_for_intent(&reg, "code_navigation").as_deref(),
+            Some("a")
+        );
         assert_eq!(select_corpus_for_intent(&reg, "nonexistent"), None);
     }
 
@@ -678,7 +689,13 @@ mod tests {
         )
         .unwrap();
         let reg = load_graphify_corpora(tmp.path()).unwrap();
-        assert_eq!(select_corpus_for_intent(&reg, "code_navigation").as_deref(), Some("repo-code-graph"));
-        assert_eq!(select_corpus_for_intent(&reg, "gui_surface").as_deref(), Some("vox-gui-surface"));
+        assert_eq!(
+            select_corpus_for_intent(&reg, "code_navigation").as_deref(),
+            Some("repo-code-graph")
+        );
+        assert_eq!(
+            select_corpus_for_intent(&reg, "gui_surface").as_deref(),
+            Some("vox-gui-surface")
+        );
     }
 }

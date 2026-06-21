@@ -534,7 +534,10 @@ impl Report {
         let mut any = false;
         if !self.cycle_errors.is_empty() {
             any = true;
-            eprintln!("[ERROR] Rule 17: dependency cycle(s) detected ({}):", self.cycle_errors.len());
+            eprintln!(
+                "[ERROR] Rule 17: dependency cycle(s) detected ({}):",
+                self.cycle_errors.len()
+            );
             for cycle in &self.cycle_errors {
                 eprintln!("  cycle: {}", cycle.join(" ↔ "));
             }
@@ -551,14 +554,20 @@ impl Report {
         }
         if !self.closure_budget_errors.is_empty() {
             any = true;
-            eprintln!("[ERROR] Rule 19: dep-closure-size budget exceeded ({}):", self.closure_budget_errors.len());
+            eprintln!(
+                "[ERROR] Rule 19: dep-closure-size budget exceeded ({}):",
+                self.closure_budget_errors.len()
+            );
             for msg in &self.closure_budget_errors {
                 eprintln!("  {msg}");
             }
         }
         if !self.profile_forbidden_errors.is_empty() {
             any = true;
-            eprintln!("[ERROR] Rule 20: profile forbidden-crate violations ({}):", self.profile_forbidden_errors.len());
+            eprintln!(
+                "[ERROR] Rule 20: profile forbidden-crate violations ({}):",
+                self.profile_forbidden_errors.len()
+            );
             for msg in &self.profile_forbidden_errors {
                 eprintln!("  {msg}");
             }
@@ -1116,11 +1125,20 @@ fn run(warn_only_flag: bool) -> Result<Report> {
             std::collections::HashMap::new();
         for pkg in metadata_full.workspace_packages() {
             for dep in &pkg.dependencies {
-                if dep.kind != cargo_metadata::DependencyKind::Normal { continue; }
-                if dep.optional { continue; }
+                if dep.kind != cargo_metadata::DependencyKind::Normal {
+                    continue;
+                }
+                if dep.optional {
+                    continue;
+                }
                 let to = dep.name.as_str();
-                if !workspace_members.contains(to) { continue; }
-                ws_required_deps.entry(pkg.name.to_string()).or_default().push(to.to_string());
+                if !workspace_members.contains(to) {
+                    continue;
+                }
+                ws_required_deps
+                    .entry(pkg.name.to_string())
+                    .or_default()
+                    .push(to.to_string());
             }
         }
         // Detect publish_false via cargo_metadata: publish == Some([]) means publish = false.
@@ -1129,12 +1147,17 @@ fn run(warn_only_flag: bool) -> Result<Report> {
             .iter()
             .map(|pkg| {
                 let publish_false = pkg.publish.as_deref() == Some(&[]);
-                let publishable = layers.crates.get(pkg.name.as_str())
+                let publishable = layers
+                    .crates
+                    .get(pkg.name.as_str())
                     .map(|e| e.publishable)
                     .unwrap_or(false);
                 checks::publishable::CrateRec {
                     name: pkg.name.to_string(),
-                    deps: ws_required_deps.get(pkg.name.as_str()).cloned().unwrap_or_default(),
+                    deps: ws_required_deps
+                        .get(pkg.name.as_str())
+                        .cloned()
+                        .unwrap_or_default(),
                     publish_false,
                     publishable,
                 }
@@ -1158,7 +1181,10 @@ fn run(warn_only_flag: bool) -> Result<Report> {
                 .filter_map(|entry| {
                     let name = entry["crate_name"].as_str()?.to_string();
                     let max = entry["max_closure"].as_u64()? as usize;
-                    Some(checks::closure_budget::Budget { crate_name: name, max_closure: max })
+                    Some(checks::closure_budget::Budget {
+                        crate_name: name,
+                        max_closure: max,
+                    })
                 })
                 .collect();
             report.closure_budget_errors =
@@ -1174,39 +1200,51 @@ fn run(warn_only_flag: bool) -> Result<Report> {
         // Run cargo tree for the profile; skip silently if cargo tree fails.
         let tree_out = std::process::Command::new("cargo")
             .args([
-                "tree", "-p", "vox-cli",
-                "--no-default-features", "--features", "script-execution",
-                "-e", "normal", "--prefix", "none",
+                "tree",
+                "-p",
+                "vox-cli",
+                "--no-default-features",
+                "--features",
+                "script-execution",
+                "-e",
+                "normal",
+                "--prefix",
+                "none",
             ])
             .output();
         let lean_tree: Vec<String> = match tree_out {
-            Ok(o) if o.status.success() => {
-                String::from_utf8_lossy(&o.stdout)
-                    .lines()
-                    .filter_map(|l| l.split_whitespace().next())
-                    .map(|s| s.to_string())
-                    .collect()
-            }
+            Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout)
+                .lines()
+                .filter_map(|l| l.split_whitespace().next())
+                .map(|s| s.to_string())
+                .collect(),
             // Feature may not exist; try without --features
             _ => {
                 let o2 = std::process::Command::new("cargo")
-                    .args(["tree", "-p", "vox-cli", "--no-default-features",
-                           "-e", "normal", "--prefix", "none"])
+                    .args([
+                        "tree",
+                        "-p",
+                        "vox-cli",
+                        "--no-default-features",
+                        "-e",
+                        "normal",
+                        "--prefix",
+                        "none",
+                    ])
                     .output();
                 match o2 {
-                    Ok(o2) if o2.status.success() => {
-                        String::from_utf8_lossy(&o2.stdout)
-                            .lines()
-                            .filter_map(|l| l.split_whitespace().next())
-                            .map(|s| s.to_string())
-                            .collect()
-                    }
+                    Ok(o2) if o2.status.success() => String::from_utf8_lossy(&o2.stdout)
+                        .lines()
+                        .filter_map(|l| l.split_whitespace().next())
+                        .map(|s| s.to_string())
+                        .collect(),
                     _ => vec![],
                 }
             }
         };
         if !lean_tree.is_empty() {
-            let mut errs = check_profile_forbidden(profile_name, &lean_tree, &profile_cfg.forbidden);
+            let mut errs =
+                check_profile_forbidden(profile_name, &lean_tree, &profile_cfg.forbidden);
             report.profile_forbidden_errors.append(&mut errs);
         }
     }
@@ -2148,10 +2186,16 @@ plugin_candidate = true
         .expect("parse with publishable/plugin_candidate");
         let crypto = &cfg.crates["vox-crypto"];
         assert!(crypto.publishable, "vox-crypto should be publishable");
-        assert!(!crypto.plugin_candidate, "vox-crypto should not be a plugin_candidate");
+        assert!(
+            !crypto.plugin_candidate,
+            "vox-crypto should not be a plugin_candidate"
+        );
         let gamify = &cfg.crates["vox-gamify"];
         assert!(!gamify.publishable, "vox-gamify should not be publishable");
-        assert!(gamify.plugin_candidate, "vox-gamify should be a plugin_candidate");
+        assert!(
+            gamify.plugin_candidate,
+            "vox-gamify should be a plugin_candidate"
+        );
     }
 
     #[test]
@@ -2165,7 +2209,10 @@ layer = 2
         .expect("parse minimal crate entry");
         let entry = &cfg.crates["plain-crate"];
         assert!(!entry.publishable, "publishable defaults to false");
-        assert!(!entry.plugin_candidate, "plugin_candidate defaults to false");
+        assert!(
+            !entry.plugin_candidate,
+            "plugin_candidate defaults to false"
+        );
     }
 
     #[test]
