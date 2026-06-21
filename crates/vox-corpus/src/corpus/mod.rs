@@ -19,6 +19,7 @@ pub mod preflight;
 pub mod prompt_gen;
 pub mod rust_authoring;
 pub mod structured_eval;
+pub mod argument_generation_synth;
 pub mod tool_selection_synth;
 pub mod trace_ingest;
 
