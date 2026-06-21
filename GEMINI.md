@@ -181,3 +181,5 @@ Reference docs (read before executing unfamiliar plan shapes):
 | My commit message | One imperative line matching the task title; no "also" or "and" |
 
 See [`AGENTS.md`](AGENTS.md) for the instruction-layer model and cross-tool policy.
+
+See [agent-instruction-architecture.md](docs/src/contributors/agent-instruction-architecture.md) for the instruction layering model.
