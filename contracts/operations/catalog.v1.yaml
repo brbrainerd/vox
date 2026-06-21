@@ -13977,9 +13977,12 @@ operations:
   cli: null
 exemptions:
   mcp_tools:
-  # Pre-existing: vox_ask_clarification registered in tool-registry but not yet
-  # cataloged; exempt until a dedicated soft-HITL catalog entry PR lands.
+  # Pre-existing tools registered in tool-registry but not yet cataloged.
+  # Each exempt until a dedicated catalog-entry PR lands.
   - vox_ask_clarification
+  - vox_credentials_status
+  - vox_feedback_list
+  - vox_resolve_feedback
   cli_paths:
   # Pre-existing: ci doctest-md exists as a real command but was never enrolled in
   # the catalog; exempt until a catalog entry is added in a dedicated docs-ci PR.
