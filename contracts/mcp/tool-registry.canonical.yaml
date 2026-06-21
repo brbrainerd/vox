@@ -133,11 +133,6 @@ tools:
   product_lane: ai
   http_read_role_eligible: false
   tier: core
-- name: vox_ask_clarification
-  description: Raise a clarification question to the user and declare gating task IDs.
-  product_lane: ai
-  http_read_role_eligible: false
-  tier: core
 - name: vox_attention_history
   description: Returns the history of attention shifts.
   product_lane: ai
@@ -433,11 +428,6 @@ tools:
   product_lane: app
   http_read_role_eligible: false
   tier: core
-- name: vox_credentials_status
-  description: List every inference provider with a present Clavis credential plus the agy delegation status.
-  product_lane: ai
-  http_read_role_eligible: false
-  tier: core
 - name: vox_db_conversation_edge_insert
   description: Insert conversation_edges between two conversations (V17).
   product_lane: data
@@ -523,6 +513,26 @@ tools:
   product_lane: ai
   http_read_role_eligible: false
   tier: core
+- name: vox_ask_clarification
+  description: Raise a clarification question to the user and declare gating task IDs.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_credentials_status
+  description: "List every inference provider with a present Clavis credential plus the agy delegation status — the credential-aware model-selection surface. OpenRouter is one of many."
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_feedback_list
+  description: List all pending and withheld feedback requests.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_resolve_feedback
+  description: Resolve a pending clarification or doubt request with a specific action.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
 - name: vox_drain_agent
   description: Remove all queued tasks from an agent without retiring it.
   product_lane: ai
@@ -550,11 +560,6 @@ tools:
   tier: core
 - name: vox_fail_task
   description: Mark a task as failed with a reason string.
-  product_lane: ai
-  http_read_role_eligible: false
-  tier: core
-- name: vox_feedback_list
-  description: List all pending and withheld feedback requests.
   product_lane: ai
   http_read_role_eligible: false
   tier: core
@@ -1200,11 +1205,6 @@ tools:
   tier: core
 - name: vox_resolve_conflict
   description: Resolve a file conflict.
-  product_lane: ai
-  http_read_role_eligible: false
-  tier: core
-- name: vox_resolve_feedback
-  description: Resolve a pending clarification or doubt request with a specific action.
   product_lane: ai
   http_read_role_eligible: false
   tier: core
