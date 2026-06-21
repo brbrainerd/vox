@@ -1,6 +1,7 @@
 pub mod action_manifest;
 pub mod activity;
 pub mod app_state;
+pub mod archive;
 pub mod browser;
 pub mod build_info;
 pub mod catalog;

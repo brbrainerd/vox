@@ -258,6 +258,8 @@ async fn main() {
             commands::history::history_search,
             commands::history::history_pin,
             commands::history::history_delete,
+            commands::archive::archive_context_window,
+            commands::archive::get_context_window_info,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

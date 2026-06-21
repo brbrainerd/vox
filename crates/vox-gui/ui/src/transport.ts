@@ -730,3 +730,21 @@ export function listenFeedbackChanged(onChange: () => void): Promise<UnlistenFn>
 
 
 
+
+/** Tauri event name emitted when a context window is archived to cold tier. */
+export const CONTEXT_ARCHIVED_EVENT = 'vox://context-archived';
+
+export interface ContextArchivedPayload {
+  window_id: string;
+  tier: string;
+}
+
+/**
+ * Subscribe to context-window archived events. Emitted after archive_context_window
+ * completes successfully. Returns UnlistenFn for cleanup.
+ */
+export function listenContextArchived(
+  onArchived: (payload: ContextArchivedPayload) => void,
+): Promise<UnlistenFn> {
+  return listen<ContextArchivedPayload>(CONTEXT_ARCHIVED_EVENT, (event) => onArchived(event.payload));
+}
