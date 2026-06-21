@@ -20,3 +20,9 @@ presets:
   - id: distributed
   - id: mobile_edge
   - id: vox-gen
+  # Qwen3 dense ladder presets (revision-pinned hub; additive alongside legacy qwen_* presets)
+  - id: qwen3_dev_cpu
+  - id: qwen3_16g
+  - id: qwen3_24g
+  - id: qwen3_48g
+  - id: qwen3_96g

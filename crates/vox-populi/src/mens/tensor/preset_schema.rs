@@ -69,6 +69,12 @@ pub const KNOWN_PRESETS: &[&str] = &[
     "mobile_edge",
     // Code-generation fine-tune preset (Vox .box target language).
     "vox-gen",
+    // Qwen3 dense ladder presets — additive alongside legacy qwen_* presets.
+    "qwen3_dev_cpu", // Qwen3-0.6B r8, CPU smoke — no quality gate
+    "qwen3_16g",     // Qwen3-8B QLoRA r16 (RTX 4080 Super 16GB)
+    "qwen3_24g",     // Qwen3-14B QLoRA r32 (3090/4090 24GB)
+    "qwen3_48g",     // Qwen3-14B LoRA r32 un-quantized (48GB)
+    "qwen3_96g",     // Qwen3-32B QLoRA r64 (96GB)
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -240,6 +246,56 @@ fn base_for_name(name: &str) -> TrainPresetProfile {
             epochs: 5, // more epochs for code: grammar must be memorized
             warmup: 60,
             lr: 1.5e-4,
+        },
+        "qwen3_dev_cpu" => TrainPresetProfile {
+            rank: 8,
+            alpha: 16.0,
+            seq_len: 128,
+            batch_size: 1,
+            grad_accum: 1,
+            epochs: 1, // smoke only — no quality gate at this tier
+            warmup: 10,
+            lr: 1e-4,
+        },
+        "qwen3_16g" => TrainPresetProfile {
+            rank: 16,
+            alpha: 32.0,
+            seq_len: 512,
+            batch_size: 1,
+            grad_accum: 8,
+            epochs: 3,
+            warmup: 100,
+            lr: 1.5e-4,
+        },
+        "qwen3_24g" => TrainPresetProfile {
+            rank: 32,
+            alpha: 64.0,
+            seq_len: 768,
+            batch_size: 1,
+            grad_accum: 4,
+            epochs: 3,
+            warmup: 100,
+            lr: 1e-4,
+        },
+        "qwen3_48g" => TrainPresetProfile {
+            rank: 32,
+            alpha: 64.0,
+            seq_len: 1024,
+            batch_size: 2,
+            grad_accum: 4,
+            epochs: 3,
+            warmup: 100,
+            lr: 1e-4,
+        },
+        "qwen3_96g" => TrainPresetProfile {
+            rank: 64,
+            alpha: 128.0,
+            seq_len: 2048,
+            batch_size: 4,
+            grad_accum: 2,
+            epochs: 3,
+            warmup: 100,
+            lr: 8e-5,
         },
         _ => TrainPresetProfile {
             rank: 16,
@@ -622,5 +678,46 @@ mod preset_tests {
             resolve_effective_profile(Some("prosumer_16g"), dev, None, CliOverrides::default());
         // For a 7B model on 16GB, it should safely scale parameters down.
         assert!(profile.seq_len <= 384);
+    }
+}
+
+#[cfg(test)]
+mod qwen3_preset_tests {
+    use super::*;
+
+    #[test]
+    fn known_presets_contains_all_qwen3_tiers() {
+        for name in &["qwen3_dev_cpu", "qwen3_16g", "qwen3_24g", "qwen3_48g", "qwen3_96g"] {
+            assert!(
+                KNOWN_PRESETS.contains(name),
+                "KNOWN_PRESETS missing qwen3 preset: {}",
+                name
+            );
+        }
+    }
+
+    #[test]
+    fn qwen3_dev_cpu_is_smoke_only() {
+        let p = base_for_name("qwen3_dev_cpu");
+        assert_eq!(p.rank, 8, "dev cpu must be r8 (smoke only)");
+        assert_eq!(p.epochs, 1, "dev cpu is single-epoch smoke only");
+        assert!(p.seq_len <= 256, "dev cpu must have short seq_len for CPU fit, got {}", p.seq_len);
+    }
+
+    #[test]
+    fn qwen3_96g_is_high_rank() {
+        let p = base_for_name("qwen3_96g");
+        assert!(p.rank >= 64, "qwen3_96g must have rank >= 64, got {}", p.rank);
+    }
+
+    #[test]
+    fn old_qwen_presets_still_load() {
+        // Backwards compat: existing presets must not be broken
+        for name in &["qwen_4080_16g", "qwen_small_8g", "qwen_rtx3090_24g", "qwen_a100_80g"] {
+            let _ = base_for_name(name);
+        }
+        // qwen_4080_16g should still work as it always did
+        let p = base_for_name("qwen_4080_16g");
+        assert_eq!(p.rank, 16);
     }
 }
