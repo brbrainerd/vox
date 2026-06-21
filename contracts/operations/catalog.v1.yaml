@@ -13861,10 +13861,12 @@ exemptions:
   # proper rows are added in a dedicated catalog-enrollment PR (mirrors the
   # `ci doctest-md` cli_path precedent below).
   mcp_tools:
+  - vox_agy_doctor
   - vox_agy_delegate
   - vox_agy_delegate_batch
   - vox_agy_pipeline
   - vox_agy_review
+  - vox_agy_ledger_digest
   cli_paths:
   # Pre-existing: ci doctest-md exists as a real command but was never enrolled in
   # the catalog; exempt until a catalog entry is added in a dedicated docs-ci PR.
