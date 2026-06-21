@@ -105,7 +105,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-repository`](../../../crates/vox-repository/) | Repository discovery, stable identity, layout probes, and agent scope helpers for external and internal Vox workspaces. |
 | [`vox-similarity`](../../../crates/vox-similarity/) | Pure simhash/minhash/LSH near-duplicate similarity core for discovery + marketplace dedup. |
 | [`vox-skill-runtime`](../../../crates/vox-skill-runtime/) | Abstract sandbox runtime trait for skill execution. Implementations ship as plugins (wasm, container). |
-| `vox-free-ai` _(planned)_ | Free-AI provider cascade (Ollama/Gemini/OpenRouter) with cost accounting; no game mechanics. Extracted from `vox-gamify`. See [`2026-06-18-gamify-gui-pluginization-lean-cli.md`](../../../docs/superpowers/plans/2026-06-18-gamify-gui-pluginization-lean-cli.md). |
+| `vox-free-ai` _(planned)_ | Free-AI provider cascade (Ollama/Gemini/OpenRouter) with cost accounting; no game mechanics. Extracted from `vox-gamify`. See the crate-build disentanglement suite (`docs/superpowers/plans/2026-06-19-crate-build-disentanglement-suite-index.md`). |
 
 ### L3 — heavy domain crates
 
@@ -304,7 +304,7 @@ Don't depend on `vox-orchestrator` or `vox-cli` from a plugin.
 | Plugin crate | Provides |
 |---|---|
 | [`vox-plugin-browser`](../../../crates/vox-plugin-browser/) | Browser automation plugin (chromiumoxide CDP). |
-| `vox-plugin-gamify` _(planned)_ | Gamification cdylib plugin: implements the `Gamification` extension point trait (quests/battles/XP/companions). Loaded dynamically by `vox-cli-core`; not a compile-time dep. See [`2026-06-18-gamify-gui-pluginization-lean-cli.md`](../../../docs/superpowers/plans/2026-06-18-gamify-gui-pluginization-lean-cli.md). |
+| `vox-plugin-gamify` _(planned)_ | Gamification cdylib plugin: implements the `Gamification` extension point trait (quests/battles/XP/companions). Loaded dynamically by `vox-cli-core`; not a compile-time dep. See the crate-build disentanglement suite (`docs/superpowers/plans/2026-06-19-crate-build-disentanglement-suite-index.md`). |
 | [`vox-plugin-cloud`](../../../crates/vox-plugin-cloud/) | CloudSync plugin stub: HF Hub / S3 model artifact sync. |
 | [`vox-plugin-mens-candle-cuda`](../../../crates/vox-plugin-mens-candle-cuda/) | ML training backend plugin: Candle + CUDA. Implements MlBackend. |
 | [`vox-plugin-mens-candle-metal`](../../../crates/vox-plugin-mens-candle-metal/) | MENS Apple Silicon Metal execution plugin. |

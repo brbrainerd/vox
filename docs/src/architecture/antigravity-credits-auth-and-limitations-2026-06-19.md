@@ -8,7 +8,7 @@ training_eligible: true
 
 # Antigravity (`agy`) Credits, Auth & Limitations
 
-**Purpose.** Single source of truth for *how Vox uses Antigravity's Gemini credits* and *what it cannot do*. Read this before wiring anything that assumes an `agy` API key, a queryable credit balance, or `agy` as a chat-completion model provider — all three are false. Companion to the delegation plan [`docs/superpowers/plans/2026-06-19-agy-delegation-wedge1-2.md`](../../../superpowers/plans/2026-06-19-agy-delegation-wedge1-2.md).
+**Purpose.** Single source of truth for *how Vox uses Antigravity's Gemini credits* and *what it cannot do*. Read this before wiring anything that assumes an `agy` API key, a queryable credit balance, or `agy` as a chat-completion model provider — all three are false. Companion to the delegation plan [`docs/superpowers/plans/2026-06-19-agy-delegation-wedge1-2.md`](../../superpowers/plans/2026-06-19-agy-delegation-wedge1-2.md).
 
 ## TL;DR
 - `agy` (Antigravity CLI) authenticates with **interactive Google OAuth** (or a GCP project). There is **no headless API-key auth** for `agy` yet — [antigravity-cli#78](https://github.com/google-antigravity/antigravity-cli/issues/78) requests it and is **open**.

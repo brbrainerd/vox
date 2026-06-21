@@ -12,7 +12,7 @@ training_rationale: "Agents planning crate splits or build-time work need the bl
 Joins **measured** build data (`graphify-out/crate_audit.json`, compile self-times) with the
 **committed dependency graph** (`contracts/ci/crate-graph.v1.json`) and a **semantic** community
 layer, to model how the workspace is arranged into crates and where to invest to cut build time and
-disentangle dependencies. Machine artifact: [`graphify-out/crate-build-map.json`](../../../graphify-out/crate-build-map.json)
+disentangle dependencies. Machine artifact: `graphify-out/crate-build-map.json` (generated build output; not committed).
 (graphify-shaped nodes/links with `compile_s`, `loc`, `layer`, `fan_in`, `blast_s`, `community`).
 
 **Freshness:** dependency graph 2026-06-18; `compile_s` 2026-06-15 (directional, re-measure for exact);
