@@ -1,7 +1,7 @@
 ---
 title: "Village Narrative Architecture Research Audit"
 description: "A research audit on game structure for facilitating narrative, focusing on FableForge village."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 ---
