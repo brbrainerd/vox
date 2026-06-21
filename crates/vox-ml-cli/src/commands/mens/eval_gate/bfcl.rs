@@ -30,7 +30,11 @@ pub struct BfclGate {
     /// Maximum tolerated regression from a previously registered adapter.
     #[serde(default = "default_regression_max_drop")]
     pub regression_max_drop: f64,
-    /// Per-rung accuracy overrides. Key = rung label (e.g. "qwen3_0_6b_cpu").
+    /// Per-rung accuracy overrides. Key = the rung label written to the adapter
+    /// card's `base_rung` field, which equals the resolved **preset name** (e.g.
+    /// "qwen3_dev_cpu", "qwen3_16g", "qwen3_24g"). These are the only identifiers
+    /// the resolver actually emits — a key that is not a real preset silently
+    /// no-ops (the default threshold applies instead).
     #[serde(default)]
     pub per_rung_overrides: HashMap<String, f64>,
 }
@@ -285,13 +289,62 @@ mod tests {
         .unwrap();
         let mut g = gate(true);
         g.min_accuracy = 0.70; // default high
+        // DEFAULTS F1: use a REAL rung label (the CPU/dev preset name actually emitted
+        // into base_rung), not the old fictional "qwen3_0_6b_cpu" that no-op'd.
         g.per_rung_overrides
-            .insert("qwen3_0_6b_cpu".to_string(), 0.50); // lower override for CPU
-        let result = check_bfcl(dir.path(), &g, None, Some("qwen3_0_6b_cpu")).unwrap();
+            .insert("qwen3_dev_cpu".to_string(), 0.50); // lower override for CPU
+        let result = check_bfcl(dir.path(), &g, None, Some("qwen3_dev_cpu")).unwrap();
         assert!(
             result.passed,
             "0.55 >= per_rung override 0.50 should pass: {}",
             result.message
+        );
+    }
+
+    #[test]
+    fn per_rung_override_keys_are_real_preset_rungs() {
+        // DEFAULTS F1 guard: every per_rung_override key must be a real rung label,
+        // i.e. a known preset name emitted into the adapter card's base_rung field.
+        // A fictional key (the old "qwen3_8b_4080"/"qwen3_0_6b_cpu") silently no-ops.
+        use vox_populi::mens::KNOWN_PRESETS;
+        for rung in [
+            "qwen3_dev_cpu",
+            "qwen3_16g",
+            "qwen3_24g",
+            "qwen3_48g",
+            "qwen3_96g",
+        ] {
+            assert!(
+                KNOWN_PRESETS.contains(&rung),
+                "override rung '{rung}' must be a real KNOWN_PRESETS id"
+            );
+        }
+
+        // End-to-end: an override keyed on a real rung is actually applied.
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("bfcl_results.json"),
+            r#"{"accuracy": 0.55}"#,
+        )
+        .unwrap();
+        let mut g = gate(true);
+        g.min_accuracy = 0.90; // default would fail
+        g.per_rung_overrides.insert("qwen3_16g".to_string(), 0.50);
+        let applied = check_bfcl(dir.path(), &g, None, Some("qwen3_16g")).unwrap();
+        assert!(
+            applied.passed,
+            "real-rung override (qwen3_16g→0.50) must apply, lowering the gate: {}",
+            applied.message
+        );
+        // And a fictional key must NOT apply (default 0.90 still in force → fail).
+        let mut g2 = gate(true);
+        g2.min_accuracy = 0.90;
+        g2.per_rung_overrides
+            .insert("qwen3_8b_4080".to_string(), 0.50); // fictional
+        let not_applied = check_bfcl(dir.path(), &g2, None, Some("qwen3_16g")).unwrap();
+        assert!(
+            !not_applied.passed,
+            "fictional override key must not apply; default 0.90 should still fail 0.55"
         );
     }
 

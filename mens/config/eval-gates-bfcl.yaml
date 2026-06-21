@@ -8,8 +8,10 @@ version: "1"
 # Source file: bfcl_results.json in the run directory.
 #   Written by: vox mens eval-bfcl (or equivalent BFCL harness output)
 #
-# Per-rung overrides: lower thresholds are acceptable for CPU/small rungs
-# (qwen3_0_6b_cpu, qwen3_1_7b_cpu) which have lower baseline capacity.
+# Per-rung overrides: lower thresholds are acceptable for the CPU/small rung
+# (qwen3_dev_cpu) which has lower baseline capacity. Keys MUST be real rung labels —
+# i.e. preset names actually written to the adapter card's base_rung field — or the
+# override silently no-ops and the default threshold applies.
 #
 # Regression guard: if prior_adapter_card.json exists in the run dir,
 # a drop > regression_max_drop from the previously registered adapter
@@ -22,11 +24,12 @@ bfcl_accuracy:
   regression_max_drop: 0.03  # Max tolerated regression vs prior adapter
 
   # Per-rung minimum accuracy overrides.
-  # Keys must match the rung label in the adapter card (base_rung field).
+  # Keys must match the rung label in the adapter card (base_rung field) — which is the
+  # resolved PRESET name. Real preset rungs only (see vox_populi::mens::KNOWN_PRESETS):
   per_rung_overrides:
-    qwen3_0_6b_cpu:   0.0   # Beat-base only — absolute floor waived for smallest rung
-    qwen3_1_7b_cpu:   0.0   # Beat-base only
-    qwen3_4b_cpu:     0.0   # Beat-base only
-    qwen3_4b_4080:    0.0   # Beat-base only
-    qwen3_8b_4080:    0.0   # Beat-base only
-    qwen3_14b_4080:   0.0   # Beat-base only; 16 GB VRAM ceiling
+    qwen3_dev_cpu:    0.0   # Beat-base only — absolute floor waived for the CPU/dev rung
+    qwen3_16g:        0.0   # Beat-base only; 16 GB VRAM tier (RTX 4080 Super)
+    qwen3_24g:        0.0   # Beat-base only; 24 GB tier
+    qwen3_48g:        0.0   # Beat-base only; 48 GB tier
+    qwen3_96g:        0.0   # Beat-base only; 96 GB tier
+    qwen_4080_16g:    0.0   # Beat-base only; legacy 4080 preset (back-compat)
