@@ -115,7 +115,7 @@ pub async fn poll_until_done(
                 // In unit tests: the mock returns a terminal status immediately,
                 // so this branch is never reached in tests.
                 #[cfg(not(test))]
-                tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+                tokio::time::sleep(vox_config::timeouts::POLL_INTERVAL_STANDARD).await;
             }
         }
     }
