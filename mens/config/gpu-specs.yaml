@@ -248,33 +248,33 @@ train_bases:
   # Qwen3 dense ladder — revision-pinned. NOTE: @<sha> hashes are placeholders;
   # pin to real HF commit hashes (hf_id@sha) before production training runs.
   qwen3_code:
-    - { hf_id: "Qwen/Qwen3-0.6B@PLACEHOLDER-2c59e4f0", floor_mb: 2000,  methods: [qlora] }   # CPU / ≤8 GB dev
-    - { hf_id: "Qwen/Qwen3-8B@PLACEHOLDER-a7b3d091",   floor_mb: 12000, methods: [qlora] }   # 16 GB tier
-    - { hf_id: "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122",  floor_mb: 20000, methods: [qlora] }   # 24 GB tier (QLoRA)
-    - { hf_id: "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122",  floor_mb: 44000, methods: [lora] }    # 48 GB tier (un-quantized; beats 24g entry)
-    - { hf_id: "Qwen/Qwen3-32B@PLACEHOLDER-d9a1b573",  floor_mb: 60000, methods: [qlora] }   # 96 GB tier
+    - { hf_id: "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca", floor_mb: 2000,  methods: [qlora] }   # CPU / ≤8 GB dev
+    - { hf_id: "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",   floor_mb: 12000, methods: [qlora] }   # 16 GB tier
+    - { hf_id: "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",  floor_mb: 20000, methods: [qlora] }   # 24 GB tier (QLoRA)
+    - { hf_id: "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",  floor_mb: 44000, methods: [lora] }    # 48 GB tier (un-quantized; beats 24g entry)
+    - { hf_id: "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",  floor_mb: 60000, methods: [qlora] }   # 96 GB tier
 
   # Alias tags updated to include Qwen3 rungs alongside existing Qwen2.5 bases.
   # Resolver picks largest fitting rung — at ≥12GB a Qwen3 rung wins.
   small_code_default:  # intentionally caps at 8B; strong_code_default escalates to larger rungs
     - { hf_id: "Qwen/Qwen2.5-Coder-3B-Instruct",         floor_mb: 6000,  methods: [qlora, full_sft] }
-    - { hf_id: "Qwen/Qwen3-8B@PLACEHOLDER-a7b3d091",     floor_mb: 12000, methods: [qlora] }
+    - { hf_id: "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",     floor_mb: 12000, methods: [qlora] }
   strong_code_default:
     - { hf_id: "Qwen/Qwen2.5-Coder-7B-Instruct",         floor_mb: 11000, methods: [qlora, dpo, orpo] }
     # USER DECISION (Qwen3 everywhere): the Qwen3-8B rung (floor 12000) outranks the
     # Qwen2.5-Coder-7B rung (floor 11000) so a 16 GB box resolves to Qwen3-8B.
-    - { hf_id: "Qwen/Qwen3-8B@PLACEHOLDER-a7b3d091",     floor_mb: 12000, methods: [qlora] }
-    - { hf_id: "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122",    floor_mb: 20000, methods: [qlora] }
-    - { hf_id: "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122",    floor_mb: 44000, methods: [lora] }
-    - { hf_id: "Qwen/Qwen3-32B@PLACEHOLDER-d9a1b573",    floor_mb: 60000, methods: [qlora] }
+    - { hf_id: "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",     floor_mb: 12000, methods: [qlora] }
+    - { hf_id: "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",    floor_mb: 20000, methods: [qlora] }
+    - { hf_id: "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",    floor_mb: 44000, methods: [lora] }
+    - { hf_id: "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",    floor_mb: 60000, methods: [qlora] }
   agentic_default:
     - { hf_id: "Qwen/Qwen2.5-Coder-7B-Instruct",         floor_mb: 11000, methods: [qlora, dpo] }
     # USER DECISION (Qwen3 everywhere): the Qwen3-8B rung (floor 12000) outranks the
     # Qwen2.5-Coder-7B rung (floor 11000) so a 16 GB box resolves to Qwen3-8B.
-    - { hf_id: "Qwen/Qwen3-8B@PLACEHOLDER-a7b3d091",     floor_mb: 12000, methods: [qlora] }
-    - { hf_id: "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122",    floor_mb: 20000, methods: [qlora] }
-    - { hf_id: "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122",    floor_mb: 44000, methods: [lora] }
-    - { hf_id: "Qwen/Qwen3-32B@PLACEHOLDER-d9a1b573",    floor_mb: 60000, methods: [qlora] }
+    - { hf_id: "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",     floor_mb: 12000, methods: [qlora] }
+    - { hf_id: "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",    floor_mb: 20000, methods: [qlora] }
+    - { hf_id: "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",    floor_mb: 44000, methods: [lora] }
+    - { hf_id: "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",    floor_mb: 60000, methods: [qlora] }
 
 # TODO: B6.0 vLLM compat spike
 # B6.0 requires standing up a real vLLM instance with Qwen3 + a trained QLoRA adapter.

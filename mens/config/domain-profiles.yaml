@@ -7,10 +7,10 @@
 
 # Hub: one pinned Qwen3 dense base + one small embedder.
 # embedder: used by the retrieval layer (B3) — not fine-tuned.
-# NOTE: @PLACEHOLDER-* revisions must be replaced with real HF commit hashes before production use.
+# Revisions are pinned to real HF commit SHAs. Update here + gpu-specs.yaml when upgrading a model.
 hub:
-  base: "Qwen/Qwen3-8B@PLACEHOLDER-a7b3d091"       # Default hub base (16 GB tier)
-  embedder: "Qwen/Qwen3-0.6B@PLACEHOLDER-2c59e4f0"  # ~0.6B embedder for tool retrieval
+  base: "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"       # Default hub base (16 GB tier)
+  embedder: "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca"  # ~0.6B embedder for tool retrieval
 
 defaults:
   min_rating: 3

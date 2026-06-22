@@ -46,11 +46,12 @@ pub fn load_overlay(root: &std::path::Path) -> anyhow::Result<HashMap<String, Ve
 
 /// Fail-closed placeholder guard for the real train / dispatch path.
 ///
-/// All Qwen3 ladder rungs ship with `@PLACEHOLDER-*` revisions in
-/// `gpu-specs.yaml` until a real HF commit SHA is pinned. Spending money to
-/// train against an unpinned base is unsafe (non-reproducible, may resolve to a
-/// moving `main`), so this guard rejects any resolved id/revision whose text
-/// contains "PLACEHOLDER" (case-insensitive).
+/// All Qwen3 ladder rungs now carry real pinned HF commit SHAs in
+/// `gpu-specs.yaml`. This guard remains in place to reject any future rung added
+/// with an `@PLACEHOLDER-*` revision before it is pinned. Training against an
+/// unpinned base is unsafe (non-reproducible, may resolve to a moving `main`),
+/// so this guard rejects any resolved id/revision whose text contains "PLACEHOLDER"
+/// (case-insensitive).
 ///
 /// Call this at the base-resolution boundary on the **actual** train/dispatch
 /// path (after resolving the concrete `hf_id`), NOT on a `--dry-run`/plan path —
@@ -208,7 +209,7 @@ mod tests {
     fn placeholder_id_rejected_on_real_path() {
         // BLOCKER 3: a resolved id whose revision is a placeholder must fail-closed
         // before any download / dispatch on the real train path.
-        let resolved = "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122";
+        let resolved = "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18";
         let err = ensure_not_placeholder(resolved).unwrap_err();
         assert!(
             err.to_string().to_lowercase().contains("placeholder"),

@@ -8,7 +8,7 @@ description: >-
 # USER DECISION (2026-06-21): Qwen3 everywhere — must match vox_populi::mens::DEFAULT_MODEL_ID
 # (the Qwen3 agentic_default 16GB-tier rung). The @PLACEHOLDER revision is fail-closed at the
 # real train/dispatch path until a real HF commit SHA is pinned in gpu-specs.yaml.
-default_base_model: Qwen/Qwen3-8B@PLACEHOLDER-a7b3d091
+default_base_model: Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218
 presets:
   - id: tiny
   - id: safe

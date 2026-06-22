@@ -23,7 +23,7 @@ This snapshot is generated from code-level constants and canonical CLI defaults.
 
 | Setting | Value | Source |
 |---|---|---|
-| Default model id | `Qwen/Qwen3-8B@PLACEHOLDER-a7b3d091` | `contracts/mens/training-presets.v1.yaml::default_base_model` |
+| Default model id | `Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218` | `contracts/mens/training-presets.v1.yaml::default_base_model` |
 | Canonical train data dir | `target/dogfood` | `vox_corpus::training::CANONICAL_TRAIN_DATA_DIR` |
 | Canonical backend | `qlora` | `vox mens train` command defaults |
 | Canonical tokenizer | `hf` | `vox mens train` command defaults |

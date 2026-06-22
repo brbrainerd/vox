@@ -268,15 +268,15 @@ pub fn plan_qwen25coder(vram_gib: f64, max_params_b: f64) -> ModelPlan {
 /// resolver picks). The previous list contained FICTIONAL unpinned ids (0.5/1.5/3/7/72B)
 /// that do not exist in the real dense ladder, so the planner that runs trained against
 /// models that were never going to be downloaded. The real dense rungs are 0.6/8/14/32B.
-/// Revisions carry `@PLACEHOLDER-*` until pinned (same as gpu-specs); the fail-closed
-/// placeholder guard rejects them on the real train/dispatch path.
+/// Revisions are now pinned to real HF commit SHAs (same as gpu-specs). The fail-closed
+/// placeholder guard still rejects any future rung added before it is pinned.
 ///
 /// Parity is enforced by `qwen3_ladder_matches_gpu_specs_train_bases`.
 pub const QWEN3_LADDER: &[(f64, &str)] = &[
-    (32.0, "Qwen/Qwen3-32B@PLACEHOLDER-d9a1b573"),
-    (14.0, "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122"),
-    (8.0, "Qwen/Qwen3-8B@PLACEHOLDER-a7b3d091"),
-    (0.6, "Qwen/Qwen3-0.6B@PLACEHOLDER-2c59e4f0"),
+    (32.0, "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137"),
+    (14.0, "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18"),
+    (8.0, "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"),
+    (0.6, "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca"),
 ];
 
 /// True when a model id belongs to the Qwen3 family this ladder manages.

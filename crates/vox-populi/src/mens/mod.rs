@@ -36,15 +36,14 @@ pub mod serving;
 /// the spoke ladders in `gpu-specs.yaml` so a 16 GB box defaults to Qwen3-8B
 /// instead of the legacy Qwen2.5-Coder-7B.
 ///
-/// The `@PLACEHOLDER-*` revision is deliberate: every Qwen3 rung is unpinned
-/// until a real HF commit SHA is recorded. The fail-closed placeholder guard
-/// ([`tensor::spoke_base_resolver::ensure_not_placeholder`]) rejects this id on
-/// any real train/dispatch path, so a money run cannot proceed against an
-/// unpinned base — dry-run / planning paths still print the plan and exit 0.
+/// Revision is pinned to a real HF commit SHA. The fail-closed placeholder guard
+/// ([`tensor::spoke_base_resolver::ensure_not_placeholder`]) still rejects any
+/// id whose revision text contains "PLACEHOLDER", so a money run cannot proceed
+/// against an unpinned base — dry-run / planning paths still print the plan and exit 0.
 ///
 /// Local backwards-compat (USER DECISION): the `CandleQlora` path and the
 /// `qwen_4080_16g` preset remain unchanged; `qwen3_*` rungs are additive.
-pub const DEFAULT_MODEL_ID: &str = "Qwen/Qwen3-8B@PLACEHOLDER-a7b3d091";
+pub const DEFAULT_MODEL_ID: &str = "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218";
 
 /// Resolve the default training/inference base model id from a raw env override,
 /// falling back to [`DEFAULT_MODEL_ID`]. Blank/whitespace overrides fall back.

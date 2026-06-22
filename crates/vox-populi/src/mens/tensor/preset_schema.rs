@@ -744,10 +744,10 @@ mod qwen3_preset_tests {
         // the ladder — so the OOM safety clamps never fired.
         use super::QwenSizeClass;
         let cases = [
-            ("Qwen/Qwen3-0.6B@PLACEHOLDER-2c59e4f0", QwenSizeClass::S0p6),
-            ("Qwen/Qwen3-8B@PLACEHOLDER-a7b3d091", QwenSizeClass::S8),
-            ("Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122", QwenSizeClass::S14),
-            ("Qwen/Qwen3-32B@PLACEHOLDER-d9a1b573", QwenSizeClass::S32),
+            ("Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca", QwenSizeClass::S0p6),
+            ("Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218", QwenSizeClass::S8),
+            ("Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18", QwenSizeClass::S14),
+            ("Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137", QwenSizeClass::S32),
         ];
         for (id, expected) in cases {
             let got = super::detect_qwen_size_class(Some(id));
@@ -766,7 +766,7 @@ mod qwen3_preset_tests {
         let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384);
         #[allow(unsafe_code)]
         unsafe {
-            std::env::set_var("VOX_BASE_MODEL", "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122");
+            std::env::set_var("VOX_BASE_MODEL", "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18");
         }
         let p = resolve_effective_profile(Some("qwen3_24g"), dev, None, CliOverrides::default());
         #[allow(unsafe_code)]

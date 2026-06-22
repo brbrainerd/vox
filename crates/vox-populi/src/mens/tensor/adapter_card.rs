@@ -4,7 +4,7 @@ use anyhow::Result;
 /// alongside the adapter weights. Fail-closed: required fields must be non-empty.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AdapterCard {
-    /// HF repo id of the base model (e.g., "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122").
+    /// HF repo id of the base model (e.g., "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18").
     pub base_hf_id: String,
     /// HF commit revision the adapter was trained against.
     pub base_revision: String,
