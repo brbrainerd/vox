@@ -21,6 +21,27 @@ pub enum PopuliMensTail {
         policy: Option<PathBuf>,
     },
 
+    /// Capture a base-model BFCL baseline so the beat-base eval gate has a real
+    /// point of comparison.
+    ///
+    /// Run the BFCL eval harness against the BASE model (no adapter) to produce
+    /// `bfcl_results.json` in `--base-eval-dir`, then run this to write
+    /// `baseline_report.json`. Without a captured baseline, beat-base silently
+    /// skips.
+    #[command(name = "baseline")]
+    Baseline {
+        /// Spoke identifier this baseline applies to (e.g. vox-lang, tool-selection).
+        #[arg(long)]
+        spoke: String,
+        /// Directory containing the base-model `bfcl_results.json`.
+        #[arg(long)]
+        base_eval_dir: PathBuf,
+        /// Output path for baseline_report.json
+        /// (default: <base-eval-dir>/baseline_report.json).
+        #[arg(long)]
+        out: Option<PathBuf>,
+    },
+
     /// Check for catastrophic forgetting against a static benchmark
     #[command(name = "eval-collateral-damage", visible_alias = "eval")]
     EvalCollateralDamage {

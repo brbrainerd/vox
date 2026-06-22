@@ -27,8 +27,8 @@ The evidence points to a clean split that should drive the spoke architecture:
 
 ## 1. Hubs — candidate base models by capability type
 
-- 🟡 **Qwen3 offers a resource-scalable dense ladder** (0.6B, 1.7B, 4B, 8B, 14B, 32B) plus MoE (30B-A3B, 235B-A22B), each evaluated on BFCL in both native function-calling (FC) and prompt modes. *(source: Qwen3-Coder repo SUPPORTED_MODELS.md — primary)* → strongest candidate for a **single shared dense ladder** that lets intelligence scale up/down by local VRAM.
-- 🟡 **Qwen3-Coder exposes a native FC mode** (built-in tool/function calling via dedicated definitions) distinct from prompt mode. *(Qwen3-Coder repo — primary)* → relevant to whether the harness can lean on the base model's native tool-call formatting.
+- ✅ **Qwen3 offers a resource-scalable dense ladder** (0.6B, 1.7B, 4B, 8B, 14B, 32B) plus MoE (30B-A3B, 235B-A22B). *(re-verified 2026-06-21 via qwenlm.github.io/blog/qwen3/)* → strongest candidate for a **single shared dense ladder** that lets intelligence scale up/down by local VRAM. Note: the BFCL FC-vs-prompt-mode claim was from the Qwen3-Coder repo specifically (not verified here); see next bullet.
+- 🟡 **Qwen3-Coder exposes a native FC mode** (built-in tool/function calling via dedicated definitions) distinct from prompt mode. *(Qwen3-Coder repo — primary; still unverified)* The general Qwen3 blog describes only thinking/non-thinking (`enable_thinking`) modes and recommends Qwen-Agent for tool use — does not confirm a dedicated "FC mode" label. Confirm via Qwen3-Coder repo directly before betting harness design on it. → relevant to whether the harness can lean on the base model's native tool-call formatting.
 - 🟡 For low-resource/domain languages, the literature's **fine-tuning approaches predominantly use open-weight families (LLaMA, DeepSeek, StarCoder)**; prompting-only approaches lean on proprietary GPT. *(2410.03981 — primary)*
 
 > Note: blog rankings of "best agentic-coding open models 2026" were retrieved (benchlm.ai, mindstudio.ai, seldo.com) but are low-trust; do not cite for model selection without a primary BFCL/SWE-bench check.
@@ -36,7 +36,7 @@ The evidence points to a clean split that should drive the spoke architecture:
 ## 2. The harness / tool-use generalization boundary
 
 - 🟠 **Retrieval-based tool selection is independently worth +23–104%** over static retrievers (DTDR). *(✅ number verified, 2512.17052)* — the abstract does **not** itself assert "new tools without retraining"; that premise is sourced below.
-- 🟡 **Tool use can be driven by RAG (embed query ↔ tool descriptions) with no change to the LLM**, and **a retrieval-based selector supports dynamic tool inventories — new tools added/selected without retraining.** *(2509.20415 — primary; the core "no-retrain for new tools" lead)*
+- ✅ **Tool use can be driven by RAG (embed query ↔ tool descriptions) with no change to the LLM**, and **a retrieval-based selector supports dynamic tool inventories — new tools added/selected without retraining.** *(2509.20415, re-verified 2026-06-21)* Abstract confirms: "supports dynamic tool inventories" and "requires no changes to the underlying LLM"; uses lightweight online gradient updates to adapt embeddings per query.
 - 🟡 **On-device/local agents use a retrieval module to select relevant tools** (improves accuracy, cuts context length) rather than packing all tools in context or fine-tuning per tool. *(2512.17052 — primary)*
 - 🟡 **Decoupling tool-calling into (tool-selection) + (argument-generation), each a LoRA adapter, improved a 7B's tool-calling by 46% on MCP-Bench**, beating same-size and most 2× models. *(2510.00229 — primary)* → if we DO fine-tune the harness, decomposing it is the lever.
 - 🟡 **Untuned open-weight models consistently underperform frontier on tool-calling**, failing specifically at (a) selection from large tool sets and (b) complex argument structures. *(2510.00229 — primary)* → these two failure modes are exactly what retrieval (a) and a thin harness fine-tune (b) target.
@@ -51,15 +51,18 @@ The evidence points to a clean split that should drive the spoke architecture:
 ## 4. Low-resource / novel-language (Vox, Rust) adaptation
 
 - ✅ **Fine-tuning on synthetic textbook-quality demonstrations beats standard RAG** for an unfamiliar low-resource language (Excel Formulas); retrieval gives "only modest improvement" because the model can't *internalize* novel-domain knowledge from retrieved context alone. *(2503.18760, re-verified)* — **the core reason Vox needs a spoke, not just retrieval.**
-- ✅ **Agnostics (language-agnostic RL post-training) lifts Qwen3-4B to rival 16B–70B models on 5 low-resource languages (Lua, Julia, R, OCaml, Fortran) without per-language data/engineering.** *(2508.04865, re-verified)* — a fine-tuned *small* model punches far above its class on narrow coding, and a **single RL environment can cover many languages** (cuts per-language curation).
+- ✅ **Agnostics (language-agnostic RL post-training) lifts Qwen3-4B to rival 16B–70B models on 5 low-resource languages (Lua, Julia, R, OCaml, Fortran) without per-language data/engineering.** *(2508.04865, re-verified 2026-06-21)* — a fine-tuned *small* model punches far above its class on narrow coding, and **a single RL verifier covers many languages** (judges code by externally observable behavior; each new language needs only a short compile/run config). **Design inference for Rust+Vox:** the paper's verifier architecture is language-agnostic, but it does not address Rust (high-resource) or novel DSLs (Vox). The "single RL env covers many languages" finding makes a shared Rust+Vox adapter *plausible* but the paper provides no direct evidence. Treat the Rust/Vox sharing question as 🟡 — plausible inference, not verified.
 - 🟡 **MultiPL-T**: generate synthetic low-resource training data by translating + test-validating from a high-resource language, filtering faulty/low-coverage items; fine-tuned StarCoderBase/Code-Llama then beat other open models on MultiPL-E. *(2308.09895 — primary)* → concrete data-synthesis recipe for Vox/Rust.
 - 🟡 **Measurable Python≫Rust/R capability gap** for most models, and **scarce training data for Rust/R + DSLs (Ansible, Verilog)** motivating synthesis/transfer. *(2410.03981 — primary)*
 
 ## 5. Multi-adapter serving topology
 
-*(sources retrieved but not yet re-verified — 🟡 throughout; LoRAX, vLLM LoRA docs, AWS SageMaker multi-LoRA, 2311.03285, 2310.18547 are all primary/secondary)*
+*(LoRAX and SageMaker multi-LoRA still 🟡; vLLM LoRA re-verified 2026-06-21 — see below)*
 
-- 🟡 **Shared-base + hot-swappable LoRA adapters** is a supported, cost-effective multi-tenant serving pattern (LoRAX; vLLM dynamic LoRA; SageMaker multi-tenant LoRA). → favors **one hub + many spoke adapters** when spokes share a base, with per-domain adapter hot-swap rather than N full servers.
+- ✅ **vLLM supports shared-base + hot-swappable LoRA adapters** at runtime: dynamic loading via `POST /v1/load_lora_adapter`, `VLLM_ALLOW_RUNTIME_LORA_UPDATING=True`, per-request adapter selection, and in-place reloading without interrupting inference. Multiple adapters can run in parallel with base-model requests. *(docs.vllm.ai/en/latest/features/lora.html, re-verified 2026-06-21; docs dated May 18 2026)*
+- 🟡 **guided_json + LoRA combination in vLLM** — not covered in the LoRA docs page; structured-output + adapter combination is unverified. Confirm separately if the harness spoke needs both simultaneously.
+- 🟡 **LoRAX** (Predibase) and **SageMaker multi-tenant LoRA** as alternative serving stacks — sources retrieved but not re-verified. vLLM is sufficient for the initial design; these are fallback options.
+- → favors **one hub + many spoke adapters** when spokes share a base, with per-domain adapter hot-swap rather than N full servers.
 - Open question for the plan: this only works if Vox/Rust/harness/conversation spokes **share a base**. If a spoke needs a *different* base (e.g., a code-specialized vs chat-specialized hub), it needs a separate server — a real cost the topology decision must weigh.
 
 ## 6. Can a fine-tuned ~32B reach Flash / Sonnet tier?
@@ -74,7 +77,22 @@ Primary: `gorilla.cs.berkeley.edu/leaderboard.html`; Qwen3-Coder `SUPPORTED_MODE
 
 ## Open items to confirm before the plan bets on them
 
-1. 🟡 Qwen3 dense ladder + native-FC claim (re-fetch Qwen3 repo) — drives the hub choice.
-2. 🟡 The "new tools without retraining via retrieval" premise (re-fetch 2509.20415 full text) — the keystone of the no-fine-tune-harness thesis.
-3. 🟡 Multi-adapter serving viability on our stack (LoRAX/vLLM) — drives shared-base-vs-separate-servers.
-4. Whether Rust truly needs a *separate* spoke from Vox, or a shared code base + two adapters suffices (Agnostics suggests one RL env may cover both).
+1. ✅ Qwen3 dense ladder (0.6B→32B + MoE) confirmed — hub choice validated. 🟡 Native FC mode label still unverified (Qwen3-Coder repo only; confirm before harness design locks in).
+2. ✅ "New tools without retraining via retrieval" confirmed (2509.20415) — keystone of no-fine-tune-harness thesis is solid.
+3. ✅ vLLM dynamic LoRA confirmed — shared-base hot-swap is viable on our stack. 🟡 guided_json + LoRA combination unverified (check separately if harness needs structured output with adapter active).
+4. 🟡 Rust+Vox shared adapter — plausible inference from Agnostics' language-agnostic verifier, but paper covers only 5 low-resource languages (not Rust/Vox). Treat as design hypothesis, not confirmed finding.
+
+## B0.0 Verification Results (2026-06-21)
+
+Targeted re-verification of the 4 load-bearing 🟡 claims using small-cluster WebFetch (rate-safe). Sources fetched: `qwenlm.github.io/blog/qwen3/`, `arxiv.org/abs/2509.20415`, `docs.vllm.ai/en/latest/features/lora.html`, `arxiv.org/abs/2508.04865`.
+
+| # | Claim | Status | Notes |
+|---|-------|--------|-------|
+| 1a | Qwen3 dense ladder (0.6B, 1.7B, 4B, 8B, 14B, 32B) + MoE (30B-A3B, 235B-A22B) | ✅ Confirmed | Official Qwen3 blog lists all 8 model sizes exactly as claimed. |
+| 1b | Qwen3-Coder native FC mode distinct from prompt mode | 🟡 Still unverified | General Qwen3 blog only describes thinking/non-thinking (`enable_thinking`); recommends Qwen-Agent for tool use. No "FC mode" label found. Source is Qwen3-Coder repo specifically — fetch that repo to confirm before locking harness design. |
+| 2 | New tools without retraining via retrieval (2509.20415) | ✅ Confirmed | Abstract explicitly states: "supports dynamic tool inventories" and "requires no changes to the underlying LLM." Online-optimized RAG adapts embeddings per query with negligible latency. Core no-retrain thesis is solid. |
+| 3a | vLLM shared-base + hot-swappable LoRA at runtime | ✅ Confirmed | `docs.vllm.ai` (May 2026): runtime load/unload via `/v1/load_lora_adapter`, `VLLM_ALLOW_RUNTIME_LORA_UPDATING=True`, in-place reload, parallel per-request adapter dispatch. |
+| 3b | vLLM guided_json + LoRA combination | 🟡 Unverified | LoRA docs page does not address structured-output + adapter combination. Confirm separately if harness spoke needs both. |
+| 4 | Rust+Vox can share a base adapter (Agnostics single-RL-env inference) | 🟡 Unverified (design inference) | Agnostics confirms single verifier judges code "by externally observable behavior" — each language needs only a compile/run config. Paper covers Lua/Julia/R/OCaml/Fortran only; Rust and novel DSLs not addressed. Sharing is architecturally plausible but unconfirmed. |
+
+**Net result:** 3 of 4 top-level claims confirmed (1a, 2, 3a). Two sub-claims remain 🟡 (1b native-FC-mode label; 3b guided_json+LoRA). Claim 4 is a design inference — document as hypothesis, not evidence. The plan may proceed on confirmed claims; flag 1b before harness formatting is finalized.

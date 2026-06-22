@@ -96,7 +96,7 @@ fn merge_qlora_cli_roundtrip_lm_head_subset() {
         "wte.weight".into(),
         TensorView::new(Dtype::F32, vec![vocab, d], wb.as_slice()).unwrap(),
     );
-    let base_path = dir.path().join("base.safetensors");
+    let base_path = dir.path().join("model.safetensors");
     std::fs::write(
         &base_path,
         safetensors::serialize(&base_map, None).unwrap(),
@@ -129,8 +129,10 @@ fn merge_qlora_cli_roundtrip_lm_head_subset() {
     std::fs::write(
         &meta_path,
         serde_json::to_string_pretty(&json!({
-            "format": "vox_mens_qlora_lora_only_v2",
-            "version": 2,
+            "format": "vox_mens_adapter",
+            "version": 3,
+            "adapter_method": "qlora",
+            "quant": { "base_quant": "nf4", "double_quant": true },
             "embed_key": "wte.weight",
             "vocab": vocab,
             "d_model": d,
@@ -197,7 +199,7 @@ fn merge_qlora_cli_roundtrip_lm_head_subset_adapter_manifest_v3() {
         "wte.weight".into(),
         TensorView::new(Dtype::F32, vec![vocab, d], wb.as_slice()).unwrap(),
     );
-    let base_path = dir.path().join("base.safetensors");
+    let base_path = dir.path().join("model.safetensors");
     std::fs::write(
         &base_path,
         safetensors::serialize(&base_map, None).unwrap(),
@@ -231,8 +233,7 @@ fn merge_qlora_cli_roundtrip_lm_head_subset_adapter_manifest_v3() {
         "format": "vox_mens_adapter",
         "version": 3,
         "adapter_method": "qlora",
-        "base_quant": "nf4",
-        "double_quant": true,
+        "quant": { "base_quant": "nf4", "double_quant": true },
         "base_key_map": { "lm_head": "wte.weight" },
         "layer_order": ["lm_head"],
         "vocab": vocab,

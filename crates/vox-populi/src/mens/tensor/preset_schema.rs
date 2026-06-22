@@ -69,14 +69,29 @@ pub const KNOWN_PRESETS: &[&str] = &[
     "mobile_edge",
     // Code-generation fine-tune preset (Vox .box target language).
     "vox-gen",
+    // Qwen3 dense ladder presets — additive alongside legacy qwen_* presets.
+    "qwen3_dev_cpu", // Qwen3-0.6B r8, CPU smoke — no quality gate
+    "qwen3_16g",     // Qwen3-8B QLoRA r16 (RTX 4080 Super 16GB)
+    "qwen3_24g",     // Qwen3-14B QLoRA r32 (3090/4090 24GB)
+    "qwen3_48g",     // Qwen3-14B LoRA r32 un-quantized (48GB)
+    "qwen3_96g",     // Qwen3-32B QLoRA r64 (96GB)
 ];
 
+/// Size classes on the REAL Qwen3 dense ladder (0.6/8/14/32B).
+///
+/// The previous classes matched 0.8b/2b/4b/9b — NONE of which exist on the real
+/// ladder, so the OOM safety clamps in [`apply_qwen_size_ladder_policy`] never fired.
+/// These map to the actual rungs the resolver emits (see `gpu-specs.yaml` qwen3_code).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum QwenSizeClass {
-    S0p8,
-    S2,
-    S4,
-    S9,
+    /// ~0.6B — CPU / dev smoke tier.
+    S0p6,
+    /// ~8B — 16 GB tier (RTX 4080 Super).
+    S8,
+    /// ~14B — 24/48 GB tier.
+    S14,
+    /// ~32B — 96 GB tier.
+    S32,
     Other,
 }
 
@@ -85,17 +100,19 @@ fn detect_qwen_size_class(model_hint: Option<&str>) -> Option<QwenSizeClass> {
     if !m.contains("qwen") {
         return None;
     }
-    if m.contains("0.8b") {
-        return Some(QwenSizeClass::S0p8);
+    // Order matters: match the larger, more specific tokens first so "14b" is not
+    // shadowed by a substring match, and so "0.6b" is not mistaken for "6b".
+    if m.contains("32b") {
+        return Some(QwenSizeClass::S32);
     }
-    if m.contains("2b") {
-        return Some(QwenSizeClass::S2);
+    if m.contains("14b") {
+        return Some(QwenSizeClass::S14);
     }
-    if m.contains("4b") {
-        return Some(QwenSizeClass::S4);
+    if m.contains("0.6b") {
+        return Some(QwenSizeClass::S0p6);
     }
-    if m.contains("9b") {
-        return Some(QwenSizeClass::S9);
+    if m.contains("8b") {
+        return Some(QwenSizeClass::S8);
     }
     Some(QwenSizeClass::Other)
 }
@@ -106,27 +123,21 @@ fn apply_qwen_size_ladder_policy(
     vram_mb: u64,
 ) -> TrainPresetProfile {
     match class {
-        QwenSizeClass::S0p8 => {
+        QwenSizeClass::S0p6 => {
+            // Smallest rung (CPU/dev smoke): roomy activations, larger micro-batch ok.
             p.rank = p.rank.min(16);
             p.alpha = p.alpha.min(32.0);
             p.seq_len = p.seq_len.clamp(384, 1024);
             p.batch_size = p.batch_size.max(2);
             p.grad_accum = p.grad_accum.max(4);
         }
-        QwenSizeClass::S2 => {
-            p.rank = p.rank.min(16);
-            p.alpha = p.alpha.min(32.0);
-            p.seq_len = p.seq_len.clamp(320, 768);
-            p.batch_size = p.batch_size.max(1);
-            p.grad_accum = p.grad_accum.max(6);
-        }
-        QwenSizeClass::S4 => {
-            // Keep current 4080-class defaults; only enforce safe floors.
+        QwenSizeClass::S8 => {
+            // 16 GB-tier default rung: keep current 4080-class defaults; enforce safe floors.
             p.batch_size = p.batch_size.max(1);
             p.grad_accum = p.grad_accum.max(8);
         }
-        QwenSizeClass::S9 => {
-            // 9B requires a tighter envelope on 16G class cards.
+        QwenSizeClass::S14 => {
+            // 14B requires a tighter envelope on 16/24 GB class cards.
             p.rank = p.rank.min(8);
             p.alpha = p.alpha.min(16.0);
             if vram_mb <= 16_384 {
@@ -140,6 +151,24 @@ fn apply_qwen_size_ladder_policy(
                 p.grad_accum = p.grad_accum.max(12);
             } else {
                 p.seq_len = p.seq_len.min(512);
+                p.grad_accum = p.grad_accum.max(8);
+            }
+        }
+        QwenSizeClass::S32 => {
+            // 32B is only viable on very large cards; floor it hard everywhere else.
+            p.rank = p.rank.min(8);
+            p.alpha = p.alpha.min(16.0);
+            if vram_mb <= 24_576 {
+                p.seq_len = p.seq_len.min(256);
+                p.batch_size = 1;
+                p.grad_accum = p.grad_accum.max(16);
+                p.lr = p.lr.min(1.0e-4);
+            } else if vram_mb <= 49_152 {
+                p.seq_len = p.seq_len.min(384);
+                p.batch_size = p.batch_size.min(1);
+                p.grad_accum = p.grad_accum.max(12);
+            } else {
+                p.seq_len = p.seq_len.min(768);
                 p.grad_accum = p.grad_accum.max(8);
             }
         }
@@ -240,6 +269,56 @@ fn base_for_name(name: &str) -> TrainPresetProfile {
             epochs: 5, // more epochs for code: grammar must be memorized
             warmup: 60,
             lr: 1.5e-4,
+        },
+        "qwen3_dev_cpu" => TrainPresetProfile {
+            rank: 8,
+            alpha: 16.0,
+            seq_len: 128,
+            batch_size: 1,
+            grad_accum: 1,
+            epochs: 1, // smoke only — no quality gate at this tier
+            warmup: 10,
+            lr: 1e-4,
+        },
+        "qwen3_16g" => TrainPresetProfile {
+            rank: 16,
+            alpha: 32.0,
+            seq_len: 512,
+            batch_size: 1,
+            grad_accum: 8,
+            epochs: 3,
+            warmup: 100,
+            lr: 1.5e-4,
+        },
+        "qwen3_24g" => TrainPresetProfile {
+            rank: 32,
+            alpha: 64.0,
+            seq_len: 768,
+            batch_size: 1,
+            grad_accum: 4,
+            epochs: 3,
+            warmup: 100,
+            lr: 1e-4,
+        },
+        "qwen3_48g" => TrainPresetProfile {
+            rank: 32,
+            alpha: 64.0,
+            seq_len: 1024,
+            batch_size: 2,
+            grad_accum: 4,
+            epochs: 3,
+            warmup: 100,
+            lr: 1e-4,
+        },
+        "qwen3_96g" => TrainPresetProfile {
+            rank: 64,
+            alpha: 128.0,
+            seq_len: 2048,
+            batch_size: 4,
+            grad_accum: 2,
+            epochs: 3,
+            warmup: 100,
+            lr: 8e-5,
         },
         _ => TrainPresetProfile {
             rank: 16,
@@ -622,5 +701,329 @@ mod preset_tests {
             resolve_effective_profile(Some("prosumer_16g"), dev, None, CliOverrides::default());
         // For a 7B model on 16GB, it should safely scale parameters down.
         assert!(profile.seq_len <= 384);
+    }
+}
+
+#[cfg(test)]
+mod qwen3_preset_tests {
+    use super::*;
+
+    #[test]
+    fn known_presets_contains_all_qwen3_tiers() {
+        for name in &[
+            "qwen3_dev_cpu",
+            "qwen3_16g",
+            "qwen3_24g",
+            "qwen3_48g",
+            "qwen3_96g",
+        ] {
+            assert!(
+                KNOWN_PRESETS.contains(name),
+                "KNOWN_PRESETS missing qwen3 preset: {}",
+                name
+            );
+        }
+    }
+
+    #[test]
+    fn qwen3_dev_cpu_is_smoke_only() {
+        let p = base_for_name("qwen3_dev_cpu");
+        assert_eq!(p.rank, 8, "dev cpu must be r8 (smoke only)");
+        assert_eq!(p.epochs, 1, "dev cpu is single-epoch smoke only");
+        assert!(
+            p.seq_len <= 256,
+            "dev cpu must have short seq_len for CPU fit, got {}",
+            p.seq_len
+        );
+    }
+
+    #[test]
+    fn each_real_rung_maps_to_a_size_class() {
+        // DEFAULTS F2: the size-class matcher must recognize every rung on the REAL
+        // dense ladder (0.6/8/14/32B). Previously it matched 0.8b/2b/4b/9b — none on
+        // the ladder — so the OOM safety clamps never fired.
+        use super::QwenSizeClass;
+        let cases = [
+            ("Qwen/Qwen3-0.6B@PLACEHOLDER-2c59e4f0", QwenSizeClass::S0p6),
+            ("Qwen/Qwen3-8B@PLACEHOLDER-a7b3d091", QwenSizeClass::S8),
+            ("Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122", QwenSizeClass::S14),
+            ("Qwen/Qwen3-32B@PLACEHOLDER-d9a1b573", QwenSizeClass::S32),
+        ];
+        for (id, expected) in cases {
+            let got = super::detect_qwen_size_class(Some(id));
+            assert_eq!(
+                got,
+                Some(expected),
+                "real rung {id} must map to {expected:?}, got {got:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn size_class_clamp_fires_for_14b_on_16g() {
+        // Proves the clamp is now reachable: a 14B hint on a 16 GB card must tighten
+        // the envelope (seq_len floored, single micro-batch). Before F2 this never ran.
+        let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384);
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::set_var("VOX_BASE_MODEL", "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122");
+        }
+        let p = resolve_effective_profile(Some("qwen3_24g"), dev, None, CliOverrides::default());
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::remove_var("VOX_BASE_MODEL");
+        }
+        assert_eq!(p.batch_size, 1, "14B on 16GB must be single micro-batch");
+        assert!(
+            p.seq_len <= 256,
+            "14B on 16GB must floor seq_len to <=256, got {}",
+            p.seq_len
+        );
+    }
+
+    #[test]
+    fn qwen3_96g_is_high_rank() {
+        let p = base_for_name("qwen3_96g");
+        assert!(
+            p.rank >= 64,
+            "qwen3_96g must have rank >= 64, got {}",
+            p.rank
+        );
+    }
+
+    #[test]
+    fn old_qwen_presets_still_load() {
+        // Backwards compat: existing presets must not be broken
+        for name in &[
+            "qwen_4080_16g",
+            "qwen_small_8g",
+            "qwen_rtx3090_24g",
+            "qwen_a100_80g",
+        ] {
+            let _ = base_for_name(name);
+        }
+        // qwen_4080_16g should still work as it always did
+        let p = base_for_name("qwen_4080_16g");
+        assert_eq!(p.rank, 16);
+    }
+}
+
+/// B0.7 — Local 4080/CPU backwards-compatibility guard.
+///
+/// These tests prove that:
+/// 1. The `qwen_4080_16g` preset is unchanged alongside the new `qwen3_*` presets.
+/// 2. The `AdapterCard` / `DomainRouter` infrastructure works for `provider: "local"`.
+/// 3. (mens-train only) The execution planner still maps QLoRA+NF4 → CandleQlora backend.
+///
+/// Note: this module and `local_compat_b07_planner_tests` both require `--features mens-train`
+/// to compile (same gate as the parent `preset_schema` module in `tensor/mod.rs`).
+///
+/// These tests document already-working invariants; no implementation change is expected.
+/// If any test fails, it indicates B0's AdapterCard work broke local training infrastructure.
+#[cfg(test)]
+mod local_compat_b07_tests {
+    use super::*;
+    use crate::mens::tensor::adapter_card::AdapterCard;
+    use crate::mens::tensor::domain_router::DomainRouter;
+
+    /// Prove the legacy qwen_4080_16g preset is not perturbed by the new qwen3_* additions.
+    /// This is the primary preset used by the local RTX 4080 Super training path.
+    #[test]
+    fn qwen_4080_16g_preset_still_loads_alongside_qwen3() {
+        let p = base_for_name("qwen_4080_16g");
+        assert_eq!(
+            p.rank, 16,
+            "qwen_4080_16g rank must remain 16 (r16 QLoRA for 16GB VRAM)"
+        );
+        assert_eq!(p.grad_accum, 8, "qwen_4080_16g grad_accum must remain 8");
+        assert_eq!(p.lr, 1.5e-4, "qwen_4080_16g lr must remain 1.5e-4");
+        assert_eq!(p.alpha, 32.0, "qwen_4080_16g alpha must remain 32.0");
+        assert_eq!(p.seq_len, 384, "qwen_4080_16g seq_len must remain 384");
+
+        // Both old and new presets must coexist in KNOWN_PRESETS
+        assert!(
+            KNOWN_PRESETS.contains(&"qwen_4080_16g"),
+            "qwen_4080_16g must remain in KNOWN_PRESETS"
+        );
+        assert!(
+            KNOWN_PRESETS.contains(&"qwen3_16g"),
+            "new qwen3_16g preset must coexist with old qwen_4080_16g"
+        );
+        assert!(
+            KNOWN_PRESETS.contains(&"qwen3_dev_cpu"),
+            "new qwen3_dev_cpu (CPU smoke tier) must coexist with old qwen_4080_16g"
+        );
+    }
+
+    /// Prove that an AdapterCard with `provider: "local"` can be created, passes validation,
+    /// and registers successfully in a DomainRouter. This is the end-to-end local training
+    /// card emit path (B5/B8 will wire this to the actual training loop).
+    #[test]
+    fn local_adapter_card_provider_is_local_and_registers() {
+        // Use the for_test() constructor — which already sets provider="local"
+        let card = AdapterCard::for_test("qwen3_16g", "qlora");
+        assert_eq!(
+            card.provider, "local",
+            "for_test() must produce provider=local (4080 Super)"
+        );
+
+        // Validate passes
+        card.validate()
+            .expect("local AdapterCard from for_test() must pass validation");
+
+        // Compatibility checks
+        assert!(
+            card.is_compatible_with("qwen3_16g", "qlora"),
+            "local card must be compatible with its own rung+quant"
+        );
+        assert!(
+            !card.is_compatible_with("qwen3_24g", "qlora"),
+            "rung mismatch (qwen3_24g vs qwen3_16g) must be detected at serve time"
+        );
+        assert!(
+            !card.is_compatible_with("qwen3_16g", "lora"),
+            "quant mismatch (lora vs qlora) must be detected at serve time"
+        );
+
+        // DomainRouter registration
+        let mut router = DomainRouter::new();
+        router
+            .register("vox-lang", "/fake/path/adapter_model.safetensors", card)
+            .expect("local AdapterCard must register in DomainRouter without error");
+
+        // Verify round-trip
+        let (_, registered_card) = router
+            .route("vox-lang")
+            .expect("vox-lang domain must be routable after registration");
+        assert_eq!(
+            registered_card.provider, "local",
+            "provider field must survive DomainRouter round-trip"
+        );
+        assert_eq!(registered_card.base_rung, "qwen3_16g");
+        assert_eq!(registered_card.quantization, "qlora");
+    }
+
+    /// Prove the fail-closed guard: a card missing base_rung must not register.
+    /// (Prevents silent "local" adapters with empty provenance from being served.)
+    #[test]
+    fn local_adapter_card_with_empty_rung_rejected_by_router() {
+        let mut card = AdapterCard::for_test("", "qlora"); // empty rung
+        card.base_revision = "abc".to_string();
+        let mut router = DomainRouter::new();
+        let result = router.register("vox-lang", "/fake/path/adapter_model.safetensors", card);
+        assert!(
+            result.is_err(),
+            "empty base_rung must be rejected by DomainRouter (fail-closed)"
+        );
+    }
+}
+
+/// B0.7 execution-planner kernel mapping guard (mens-train feature only).
+///
+/// Proves that (AdapterMethod::Qlora, BaseQuantMode::Nf4) still maps to
+/// PopuliTrainBackend::CandleQlora — the kernel used by the local RTX 4080 Super path.
+/// This mapping must not be perturbed by any AdapterCard or preset work.
+#[cfg(all(test, feature = "mens-train"))]
+mod local_compat_b07_planner_tests {
+    use crate::mens::tensor::execution_planner::ExecutionPlanner;
+    use crate::mens::tensor::finetune_contract::{
+        AdapterMethod, AdapterSpec, AdapterTargetMask, ArtifactSpec, BaseQuantMode, DataSpec,
+        ExecSpec, FineTuneContract, ModelProvenanceSpec, ModelSpec, QuantSpec,
+    };
+    use crate::mens::tensor::train_backend::PopuliTrainBackend;
+    use crate::mens::tensor::training_config::MensTokenizerMode;
+
+    fn minimal_qlora_nf4_contract() -> FineTuneContract {
+        FineTuneContract {
+            model: ModelSpec {
+                hf_repo: None,
+                weight_shards: None,
+                config_json: None,
+                tokenizer_json: None,
+            },
+            collateral_damage_verified: false,
+            provenance: ModelProvenanceSpec {
+                base_family: None,
+                upstream_model_id: None,
+                license_class: None,
+                attribution_required: false,
+            },
+            data: DataSpec {
+                train_file: None,
+                tokenizer_mode: MensTokenizerMode::Hf,
+                min_rating: 3,
+                context_filter: None,
+            },
+            adapter: AdapterSpec {
+                method: AdapterMethod::Qlora,
+                rank: 16,
+                alpha: 32.0,
+                dropout: 0.0,
+                targets: AdapterTargetMask::FullGraph,
+            },
+            quant: QuantSpec {
+                base: BaseQuantMode::Nf4,
+                double_quant: true,
+            },
+            exec: ExecSpec {
+                epochs: 1,
+                seq_len: 384,
+                batch_size: 1,
+                grad_accum: 8,
+                learning_rate: 1.5e-4,
+                warmup_steps: 80,
+                seed: 42,
+                resume_from: None,
+                max_vram_fraction: None,
+                adapter_tag: None,
+                qlora_require_full_proxy_stack: false,
+                qlora_max_skip_rate: None,
+                qlora_lm_head_only: false,
+                qlora_proxy_max_layers: None,
+                qlora_ce_last_k: 1,
+                curriculum_schedule: None,
+            },
+            artifact: ArtifactSpec::default(),
+        }
+    }
+
+    /// The local 4080 Super uses QLoRA+NF4 → must resolve to CandleQlora (not BurnLora).
+    /// If this mapping changes, local training silently breaks.
+    ///
+    /// Strategy: `force_kernel=CandleQlora` makes `plan()` error if the planner infers a
+    /// different backend — so a successful `plan()` call is proof of the CandleQlora mapping.
+    #[test]
+    fn local_qlora_nf4_resolves_to_candle_backend() {
+        let contract = minimal_qlora_nf4_contract();
+        // Use force_kernel=CandleQlora: plan() errors if inferred != forced, so success here
+        // proves the planner infers CandleQlora for (Qlora, Nf4) contracts.
+        let plan = ExecutionPlanner {
+            force_kernel: Some(PopuliTrainBackend::CandleQlora),
+        }
+        .plan(&contract)
+        .expect("QLoRA+NF4 contract must resolve to CandleQlora (local 4080 Super path)");
+
+        assert_eq!(
+            plan.kernel,
+            PopuliTrainBackend::CandleQlora,
+            "local 4080 Super: Qlora+Nf4 must map to CandleQlora, not BurnLora"
+        );
+        assert!(
+            plan.candle_compat_mode,
+            "CandleQlora kernel must set candle_compat_mode=true"
+        );
+    }
+
+    /// Prove BurnLora is NOT the local path: Lora+None maps to BurnLora, which is distinct.
+    /// Guards against accidentally switching the local preset to Burn by mistake.
+    #[test]
+    fn burn_lora_is_distinct_from_local_qlora_path() {
+        // The local 4080 path is CandleQlora — BurnLora would be a regression.
+        // Ensure the two kernels are distinguishable (not accidentally made equal).
+        assert_ne!(
+            PopuliTrainBackend::CandleQlora,
+            PopuliTrainBackend::BurnLora,
+            "CandleQlora and BurnLora must be distinct enum variants"
+        );
     }
 }

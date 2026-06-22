@@ -24,8 +24,9 @@ impl FlywheelMonitor {
 
         // Initialize tracked domains
         // Ideally we'd load this from domain-profiles.yaml, but for now we'll
-        // hardcode the three core domains requested.
-        let domains = vec!["vox-lang", "rust-expert", "agents"];
+        // hardcode the v1 fine-tuned spokes (B0.1: "agents" retired → tool-selection,
+        // argument-generation; rust-expert renamed → rust).
+        let domains = vec!["vox-lang", "rust", "tool-selection", "argument-generation"];
         for domain in domains {
             states.insert(domain.to_string(), FlywheelState::new(base_config.clone()));
         }

@@ -261,14 +261,22 @@ pub fn plan_qwen25coder(vram_gib: f64, max_params_b: f64) -> ModelPlan {
     )
 }
 
+/// REAL Qwen3 dense ladder (largest → smallest): (parameter count in billions, HF repo id).
+///
+/// SSOT parity: these rungs MUST mirror the `qwen3_code` ladder in
+/// `mens/config/gpu-specs.yaml` `train_bases` (the actual revision-pinned bases the
+/// resolver picks). The previous list contained FICTIONAL unpinned ids (0.5/1.5/3/7/72B)
+/// that do not exist in the real dense ladder, so the planner that runs trained against
+/// models that were never going to be downloaded. The real dense rungs are 0.6/8/14/32B.
+/// Revisions carry `@PLACEHOLDER-*` until pinned (same as gpu-specs); the fail-closed
+/// placeholder guard rejects them on the real train/dispatch path.
+///
+/// Parity is enforced by `qwen3_ladder_matches_gpu_specs_train_bases`.
 pub const QWEN3_LADDER: &[(f64, &str)] = &[
-    (72.0, "Qwen/Qwen3-72B-Instruct"),
-    (32.0, "Qwen/Qwen3-32B-Instruct"),
-    (14.0, "Qwen/Qwen3-14B-Instruct"),
-    (7.0, "Qwen/Qwen3-7B-Instruct"),
-    (3.0, "Qwen/Qwen3-3B-Instruct"),
-    (1.5, "Qwen/Qwen3-1.5B-Instruct"),
-    (0.5, "Qwen/Qwen3-0.5B-Instruct"),
+    (32.0, "Qwen/Qwen3-32B@PLACEHOLDER-d9a1b573"),
+    (14.0, "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122"),
+    (8.0, "Qwen/Qwen3-8B@PLACEHOLDER-a7b3d091"),
+    (0.6, "Qwen/Qwen3-0.6B@PLACEHOLDER-2c59e4f0"),
 ];
 
 /// True when a model id belongs to the Qwen3 family this ladder manages.
@@ -818,7 +826,62 @@ mod semcov_wave15_tests {
 
     #[test]
     fn qwen3_ladder_retreats_and_scales() {
-        let p = plan_qwen3(16.0, 7.0);
-        assert_eq!(p.model_id, "Qwen/Qwen3-1.5B-Instruct");
+        // Real dense ladder is 0.6/8/14/32B. Requesting up to 8B on a 16 GB card:
+        // 8B does not fit full-graph backprop on 16 GiB, so the ladder retreats to the
+        // next real rung that fits (0.6B). The fictional 1.5B rung no longer exists.
+        let p = plan_qwen3(16.0, 8.0);
+        assert!(
+            p.model_id.contains("Qwen3-0.6B"),
+            "16 GiB / 8B request must retreat to the 0.6B real rung, got {}",
+            p.model_id
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "mens-train")]
+    fn qwen3_ladder_matches_gpu_specs_train_bases() {
+        // HUB-3 parity: memory_budget::QWEN3_LADDER must reflect the REAL dense ladder
+        // sourced from gpu-specs.yaml `train_bases.qwen3_code`. The distinct parameter
+        // sizes in the planner ladder must equal the distinct floor-tier sizes declared
+        // in the SSOT overlay (0.6/8/14/32B) — no fictional unpinned rungs.
+        use crate::mens::tensor::spoke_base_resolver::load_overlay;
+
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap();
+        let overlay = load_overlay(root).expect("load gpu-specs train_bases");
+        let qwen3_code = overlay
+            .get("qwen3_code")
+            .expect("gpu-specs train_bases must declare qwen3_code");
+
+        // Distinct param sizes parsed from the SSOT overlay hf_ids.
+        let mut spec_sizes: Vec<f64> = qwen3_code
+            .iter()
+            .filter_map(|b| params_b_from_model_hint(&b.hf_id))
+            .collect();
+        spec_sizes.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        spec_sizes.dedup_by(|a, b| (*a - *b).abs() < 1e-9);
+
+        let mut ladder_sizes: Vec<f64> = QWEN3_LADDER.iter().map(|(b, _)| *b).collect();
+        ladder_sizes.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        ladder_sizes.dedup_by(|a, b| (*a - *b).abs() < 1e-9);
+
+        assert_eq!(
+            ladder_sizes, spec_sizes,
+            "QWEN3_LADDER sizes {ladder_sizes:?} must match gpu-specs qwen3_code sizes {spec_sizes:?}"
+        );
+
+        // And the ids themselves must be the real revision-pinned bases (carry '@').
+        for (_, id) in QWEN3_LADDER {
+            assert!(
+                id.contains('@'),
+                "QWEN3_LADDER id must be revision-pinned (real dense base), got {id}"
+            );
+            assert!(
+                is_qwen3(id),
+                "QWEN3_LADDER id must be a Qwen3 base, got {id}"
+            );
+        }
     }
 }

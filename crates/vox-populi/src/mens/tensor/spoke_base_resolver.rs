@@ -44,6 +44,27 @@ pub fn load_overlay(root: &std::path::Path) -> anyhow::Result<HashMap<String, Ve
     Ok(parsed.train_bases)
 }
 
+/// Fail-closed placeholder guard for the real train / dispatch path.
+///
+/// All Qwen3 ladder rungs ship with `@PLACEHOLDER-*` revisions in
+/// `gpu-specs.yaml` until a real HF commit SHA is pinned. Spending money to
+/// train against an unpinned base is unsafe (non-reproducible, may resolve to a
+/// moving `main`), so this guard rejects any resolved id/revision whose text
+/// contains "PLACEHOLDER" (case-insensitive).
+///
+/// Call this at the base-resolution boundary on the **actual** train/dispatch
+/// path (after resolving the concrete `hf_id`), NOT on a `--dry-run`/plan path —
+/// planning may still print a plan containing a placeholder id and exit 0.
+pub fn ensure_not_placeholder(resolved_hf_id: &str) -> anyhow::Result<()> {
+    if resolved_hf_id.to_ascii_lowercase().contains("placeholder") {
+        anyhow::bail!(
+            "base revision is a placeholder ('{resolved_hf_id}') — pin a real HF commit SHA \
+             in gpu-specs.yaml (hf_id@<sha>) before training"
+        );
+    }
+    Ok(())
+}
+
 /// Resolve `base.model` to a concrete HF id.
 /// - concrete id (contains '/') -> pass-through (no VRAM needed).
 /// - capability tag -> overlay + VRAM fit.
@@ -143,6 +164,141 @@ mod tests {
         assert_eq!(
             resolve_base_model(root, "org/My-Model", None).unwrap(),
             "org/My-Model"
+        );
+    }
+
+    #[test]
+    fn qwen3_code_24g_returns_14b_qlora() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap();
+        let overlay = load_overlay(root).expect("load overlay");
+        let base = pick_base(&overlay, "qwen3_code", 24_000).expect("14B fits at 24GB");
+        assert!(
+            base.hf_id.contains("Qwen3-14B"),
+            "expected Qwen3-14B at 24GB, got: {}",
+            base.hf_id
+        );
+        assert!(
+            base.hf_id.contains('@'),
+            "hf_id must be revision-pinned (contains @): {}",
+            base.hf_id
+        );
+    }
+
+    #[test]
+    fn qwen3_code_fail_closed_below_floor() {
+        // Lowest qwen3_code rung has floor_mb=2000 (CPU/dev tier, ~0.6B QLoRA).
+        // Anything below 2000 MB must fail-closed — no base should be returned.
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap();
+        let overlay = load_overlay(root).expect("load overlay");
+        let result = pick_base(&overlay, "qwen3_code", 1_000);
+        assert!(
+            result.is_err(),
+            "below 2GB floor must fail-closed, got {:?}",
+            result.ok().map(|b| &b.hf_id)
+        );
+    }
+
+    #[test]
+    fn placeholder_id_rejected_on_real_path() {
+        // BLOCKER 3: a resolved id whose revision is a placeholder must fail-closed
+        // before any download / dispatch on the real train path.
+        let resolved = "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122";
+        let err = ensure_not_placeholder(resolved).unwrap_err();
+        assert!(
+            err.to_string().to_lowercase().contains("placeholder"),
+            "error must mention placeholder, got: {err}"
+        );
+        // Case-insensitive match.
+        assert!(ensure_not_placeholder("org/Model@placeholder-abc").is_err());
+    }
+
+    #[test]
+    fn pinned_id_passes_placeholder_guard() {
+        // A real pinned revision (no PLACEHOLDER text) must pass.
+        assert!(ensure_not_placeholder("Qwen/Qwen3-14B@a1b2c3d4e5f6").is_ok());
+        assert!(ensure_not_placeholder("Qwen/Qwen2.5-Coder-7B-Instruct").is_ok());
+    }
+
+    #[test]
+    fn strong_code_default_16g_resolves_qwen3_8b() {
+        // USER DECISION (Qwen3 everywhere): a 16GB box must resolve to Qwen3-8B,
+        // not fall to Qwen2.5-Coder-7B. The Qwen3-8B rung (floor 12000) must outrank
+        // the Qwen2.5-Coder-7B rung (floor 11000) at 16384 MB.
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap();
+        let overlay = load_overlay(root).expect("load overlay");
+        let base = pick_base(&overlay, "strong_code_default", 16384).expect("a base fits at 16GB");
+        assert!(
+            base.hf_id.contains("Qwen3-8B"),
+            "16GB strong_code_default must resolve Qwen3-8B (Qwen3 everywhere), got: {}",
+            base.hf_id
+        );
+    }
+
+    #[test]
+    fn agentic_default_16g_resolves_qwen3_8b() {
+        // USER DECISION (Qwen3 everywhere): the agentic_default ladder must also
+        // resolve Qwen3-8B at 16GB (the bare no-domain default tier).
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap();
+        let overlay = load_overlay(root).expect("load overlay");
+        let base = pick_base(&overlay, "agentic_default", 16384).expect("a base fits at 16GB");
+        assert!(
+            base.hf_id.contains("Qwen3-8B"),
+            "16GB agentic_default must resolve Qwen3-8B (Qwen3 everywhere), got: {}",
+            base.hf_id
+        );
+    }
+
+    #[test]
+    fn small_code_default_caps_at_8b() {
+        // small_code_default is documented to cap at 8B — adding the Qwen3-8B rung to
+        // the strong/agentic ladders must NOT change small_code_default's cap.
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap();
+        let overlay = load_overlay(root).expect("load overlay");
+        // Even on a huge card, small_code_default must not exceed an 8B rung.
+        let base = pick_base(&overlay, "small_code_default", 96_000).expect("a base fits");
+        assert!(
+            !base.hf_id.contains("14B")
+                && !base.hf_id.contains("32B")
+                && !base.hf_id.contains("72B"),
+            "small_code_default must cap at 8B, got: {}",
+            base.hf_id
+        );
+    }
+
+    #[test]
+    fn qwen3_code_48g_prefers_unquantized_14b() {
+        // At 48GB: 14B-LoRA (floor ~44GB) should beat 14B-QLoRA (floor ~20GB)
+        // because max_by_key(floor_mb) picks the highest floor that fits.
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap();
+        let overlay = load_overlay(root).expect("load overlay");
+        let base = pick_base(&overlay, "qwen3_code", 49_152).expect("14B-LoRA fits at 48GB"); // 48 GB GPU expressed in MB; the LoRA un-quantized rung has floor_mb=44_000
+        assert!(
+            base.methods.iter().any(|m| m == "lora" || m == "full_lora"),
+            "at 48GB should prefer LoRA (un-quantized) over QLoRA, but got methods: {:?}",
+            base.methods
+        );
+        assert!(
+            base.hf_id.contains("Qwen3-14B"),
+            "should be 14B, got: {}",
+            base.hf_id
         );
     }
 }

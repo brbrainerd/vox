@@ -6,6 +6,8 @@ use std::path::Path;
 
 use vox_bounded_fs::read_utf8_path_capped;
 
+use super::bfcl::BfclGate;
+
 /// Eval gate policy schema (from eval-gates.yaml).
 #[derive(Debug, Clone, Deserialize)]
 pub struct EvalGatePolicy {
@@ -53,6 +55,10 @@ pub struct EvalGatePolicy {
     /// Agentic spoke: fraction of tool names that exist in the MCP registry.
     #[serde(default)]
     pub tool_name_exists_rate: AgentToolNameGate,
+    /// BFCL (Berkeley Function Calling Leaderboard) accuracy gate.
+    /// Beat-base is the primary check; absolute threshold is optional.
+    #[serde(default)]
+    pub bfcl_accuracy: BfclGate,
 }
 
 /// Gate on optional `mcp_tool_schema_kpi.json` in the run directory (from `vox-mcp` diagnostics).

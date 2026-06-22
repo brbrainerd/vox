@@ -1,6 +1,16 @@
 # SSOT for all domain-specialized training configurations.
 # Each profile overrides LoraTrainingConfig defaults for its domain.
 # Add new profiles here — no Rust code changes required.
+#
+# v1 sequencing: train mono 'harness' adapter first (union corpus) as the end-to-end smoke,
+# then train decomposed 'tool-selection' + 'argument-generation' adapters and keep whichever wins.
+
+# Hub: one pinned Qwen3 dense base + one small embedder.
+# embedder: used by the retrieval layer (B3) — not fine-tuned.
+# NOTE: @PLACEHOLDER-* revisions must be replaced with real HF commit hashes before production use.
+hub:
+  base: "Qwen/Qwen3-8B@PLACEHOLDER-a7b3d091"       # Default hub base (16 GB tier)
+  embedder: "Qwen/Qwen3-0.6B@PLACEHOLDER-2c59e4f0"  # ~0.6B embedder for tool retrieval
 
 defaults:
   min_rating: 3
@@ -23,6 +33,8 @@ defaults:
     role_assistant: "assistant"
 
 profiles:
+  # ── v1 fine-tuned spokes (4 total, each has base: + method: qlora) ──────────
+
   vox-lang:
     description: "Vox language code generation — syntax, constructs, idioms"
     # Filter by these category substrings (OR logic)
@@ -42,14 +54,16 @@ profiles:
     base:
       model: small_code_default     # resolved in Phase 3 (model-registry.yaml)
       method: qlora
-      preset: qwen_4080_16g
+      # USER DECISION (adopt qwen3_* presets): 16 GB tier auto-selects the Qwen3 preset.
+      # Legacy qwen_4080_16g remains loadable in KNOWN_PRESETS for 4080/CPU back-compat.
+      preset: qwen3_16g
     eval_gate: mens/config/eval-gates.yaml
     router:
       triggers: ["lane:vox_codegen", "lane:vox_lang_tier_b", "*.vox"]
       priority: 10
 
-  rust-expert:
-    description: "Rust patterns in the Vox workspace + direct dependencies"
+  rust:
+    description: "Rust patterns in the Vox workspace + direct dependencies (authoring only; review routes to base)"
     context_filter:
       categories: [rust_source, rust_pairs, rust_doc]
     mix_config: mens/config/mix-rust.yaml
@@ -60,22 +74,24 @@ profiles:
     base:
       model: strong_code_default    # resolved in Phase 3
       method: qlora
-      preset: qwen_4080_16g
+      # USER DECISION (adopt qwen3_* presets): 16 GB tier auto-selects the Qwen3 preset.
+      preset: qwen3_16g
     eval_gate: mens/config/eval-gates-rust.yaml
     router:
-      triggers: ["lane:vox_rust_authoring", "lane:vox_rust_review", "*.rs"]
+      # lane:vox_rust_review intentionally omitted — review signals route to base (no adapter)
+      triggers: ["lane:vox_rust_authoring", "*.rs"]
       priority: 10
 
-  agents:
-    description: "MCP tool-use, multi-turn orchestration, A2A, durable workflows"
+  tool-selection:
+    description: "MCP tool selection — choosing the right tool and routing decisions"
     context_filter:
-      categories: [tool_trace, multi_turn, agent, workflow, a2a, routing_decision]
-      difficulty_min: 5  # agents domain skips easy warmup
-    mix_config: mens/config/mix-agents.yaml
+      categories: [tool_trace, routing_decision, tool_catalog]
+      difficulty_min: 5
+    mix_config: mens/config/mix-tool-selection.yaml
     system_prompt: scripts/agent_system_prompt.txt
     min_rating: 4
     ce_last_k: 64
-    max_grad_norm: 0.5  # tighter clipping for long trajectory stability
+    max_grad_norm: 0.5
     trajectory_weighting: true
     trajectory_tool_trace_boost: 1.5
     curriculum_schedule:
@@ -86,12 +102,57 @@ profiles:
     base:
       model: agentic_default        # resolved in Phase 3
       method: qlora
-      preset: qwen_4080_16g
+      # USER DECISION (adopt qwen3_* presets): 16 GB tier auto-selects the Qwen3 preset.
+      preset: qwen3_16g
     eval_gate: mens/config/eval-gates-agents.yaml
     router:
-      triggers: ["lane:vox_tooling", "lane:vox_dogfood_agent"]
+      triggers: ["lane:vox_tool_selection", "lane:vox_tooling"]
+      priority: 8
+
+  argument-generation:
+    description: "MCP argument generation — filling tool arguments from schema + context"
+    context_filter:
+      categories: [tool_trace, argument_schema, multi_turn]
+      difficulty_min: 5
+    mix_config: mens/config/mix-argument-generation.yaml
+    system_prompt: scripts/agent_system_prompt.txt
+    min_rating: 4
+    ce_last_k: 64
+    max_grad_norm: 0.5
+    trajectory_weighting: true
+    trajectory_tool_trace_boost: 1.5
+    curriculum_schedule:
+      epoch_1_max_difficulty: 6
+      epoch_2_max_difficulty: 8
+      epoch_3_max_difficulty: 10
+      curriculum_phases: ["tool_call", "multi_turn", "orchestration"]
+    base:
+      model: agentic_default        # resolved in Phase 3
+      method: qlora
+      # USER DECISION (adopt qwen3_* presets): 16 GB tier auto-selects the Qwen3 preset.
+      preset: qwen3_16g
+    eval_gate: mens/config/eval-gates-agents.yaml
+    router:
+      triggers: ["lane:vox_argument_generation"]
+      priority: 8
+
+  # ── v1 union profile (mono smoke — no base, runs both decomposed corpora) ───
+
+  harness:
+    description: "Union corpus of tool-selection + argument-generation for v1 mono smoke"
+    # No base: — this is not a training target; it is used to run the end-to-end
+    # mono smoke test over the combined dataset before the decomposed adapters are trained.
+    context_filter:
+      categories: [tool_trace, routing_decision, tool_catalog, argument_schema, multi_turn]
+      difficulty_min: 5
+    mix_config: mens/config/mix-harness.yaml
+    min_rating: 4
+    ce_last_k: 64
+    router:
+      triggers: ["lane:vox_harness"]
       priority: 5
-      prefer_local: true
+
+  # ── Retired from fine-tuning (no base:) — kept for data curation / retrieval ─
 
   rocks:
     description: "Rocks database interaction and optimization patterns"
@@ -126,4 +187,3 @@ profiles:
     ce_last_k: 128 # larger context window for evidence
     reward_hook: "research_synthesis_eval" # GRPO+RLVR harness
     trajectory_weighting: true
-

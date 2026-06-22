@@ -17,14 +17,24 @@ use vox_populi::mens::MERGE_QLORA_REJECTS_BURN_BIN;
 // ---------------------------------------------------------------------------
 
 /// On-disk adapter bundle descriptor v3 (current, canonical).
+///
+/// Used here only for structural validation before dispatching to the plugin.
+/// The plugin owns the authoritative schema; this struct must accept both the
+/// flat legacy layout (`base_quant` at top level) and the canonical nested layout
+/// (`quant: { base_quant, double_quant }`) without failing.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PopuliAdapterManifestV3 {
     pub format: String,
     pub version: u32,
+    // Flattened from AdapterMethodFields in the canonical plugin schema.
+    #[serde(default)]
     pub adapter_method: String,
+    // Legacy flat layout — empty when the canonical nested `quant` field is used instead.
+    #[serde(default)]
     pub base_quant: String,
-    #[serde(default = "vox_config::serde_defaults::default_true")]
-    pub double_quant: bool,
+    // Canonical nested quant layout (plugin schema).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quant: Option<serde_json::Value>,
     pub base_key_map: std::collections::HashMap<String, String>,
     pub layer_order: Vec<String>,
     pub vocab: usize,

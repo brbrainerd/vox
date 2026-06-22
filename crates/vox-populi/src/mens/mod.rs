@@ -27,19 +27,24 @@ pub mod cloud;
 #[cfg(feature = "mesh-discovery-publish")]
 pub mod discovery_publish;
 
+pub mod serving;
+
 /// Default HuggingFace model for Mens training and serving (VoxMens QLoRA SSOT).
 ///
-/// Qwen2.5-Coder is the coding-focused dense family the candle QLoRA trainer
-/// supports end-to-end (full-attention, no MoE/MTP/vision). The VRAM-aware ladder
-/// retreats this 7B request to the largest variant that fits the card — at the
-/// current memory-budget calibration that is **1.5B** on a 16 GiB consumer GPU
-/// (test `qwen25coder_retreats_3b_to_1_5b_on_16gb`), and 7B on 24-32 GiB. The BF16
-/// activation/embedding bundle plus a budget recalibration are expected to lift the
-/// 16 GiB ceiling toward 3B, pending on-hardware VRAM measurement. The previous
-/// default, Qwen3.5-4B,
-/// is a `*ForConditionalGeneration` vision-language checkpoint that the text
-/// trainer cannot train (it is rejected up front by the vox-hf-layout VL guard).
-pub const DEFAULT_MODEL_ID: &str = "Qwen/Qwen2.5-Coder-7B-Instruct";
+/// **USER DECISION (2026-06-21): Qwen3 everywhere.** The bare no-domain default
+/// resolves to the Qwen3 `agentic_default` 16 GB-tier rung (Qwen3-8B), matching
+/// the spoke ladders in `gpu-specs.yaml` so a 16 GB box defaults to Qwen3-8B
+/// instead of the legacy Qwen2.5-Coder-7B.
+///
+/// The `@PLACEHOLDER-*` revision is deliberate: every Qwen3 rung is unpinned
+/// until a real HF commit SHA is recorded. The fail-closed placeholder guard
+/// ([`tensor::spoke_base_resolver::ensure_not_placeholder`]) rejects this id on
+/// any real train/dispatch path, so a money run cannot proceed against an
+/// unpinned base — dry-run / planning paths still print the plan and exit 0.
+///
+/// Local backwards-compat (USER DECISION): the `CandleQlora` path and the
+/// `qwen_4080_16g` preset remain unchanged; `qwen3_*` rungs are additive.
+pub const DEFAULT_MODEL_ID: &str = "Qwen/Qwen3-8B@PLACEHOLDER-a7b3d091";
 
 /// Resolve the default training/inference base model id from a raw env override,
 /// falling back to [`DEFAULT_MODEL_ID`]. Blank/whitespace overrides fall back.

@@ -43,6 +43,7 @@ pub mod checkpoint_state;
 // candle_model_qwen + candle_inference_serve deleted (SP3 Units 1+3).
 //
 // candle_qlora_merge deleted: plugin owns merge impl; vox-ml-cli/merge_qlora.rs dispatches via plugin.
+pub mod adapter_card;
 #[cfg(feature = "mens-train")]
 pub mod domain_profiles;
 pub mod domain_router;

@@ -644,6 +644,29 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 std::process::exit(code);
             }
 
+            super::mens_tail_subcommands::PopuliMensTail::Baseline {
+                spoke,
+                base_eval_dir,
+                out,
+            } => {
+                let created = chrono::Utc::now().to_rfc3339();
+                let report = eval_gate::capture_baseline(&base_eval_dir, &spoke, &created, None)?;
+                let out_path = out.unwrap_or_else(|| base_eval_dir.join("baseline_report.json"));
+                eval_gate::save_baseline(&out_path, &report)?;
+                let entry = &report.entries[0];
+                println!("Captured baseline → {}", out_path.display());
+                println!(
+                    "  spoke={} metric={} value={:.4} ci=[{:.4},{:.4}] sample_size={}",
+                    entry.spoke,
+                    entry.metric_name,
+                    entry.value,
+                    entry.ci_low,
+                    entry.ci_high,
+                    entry.sample_size,
+                );
+                Ok(())
+            }
+
             super::mens_tail_subcommands::PopuliMensTail::EvalCollateralDamage {
                 pre_score,
                 post_adapter,

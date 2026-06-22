@@ -165,6 +165,11 @@ pub use vox_mcp_registry::TOOL_REGISTRY;
 pub use dispatch::handle_tool_call;
 pub use registry::tool_registry;
 pub use tool_aliases::canonical_tool_name;
+/// VoxMens runtime integration — semantic tool retrieval (B3+).
+pub mod mens;
+/// B4 — Schema-constrained decoding helpers (`GuidedDecodingSpec`, `attach_guided_decoding`).
+pub mod schema_guided;
+
 pub mod agy_doctor;
 pub mod agy_exec;
 pub mod agy_gates;

@@ -314,6 +314,28 @@ pub enum CorpusAction {
         #[arg(long, default_value_t = 0.40)]
         min_diversity: f64,
     },
+    /// Check whether a spoke's corpus meets readiness thresholds before training spend.
+    ///
+    /// Exits non-zero when the corpus is not ready.  Writes corpus_readiness.json
+    /// to the working directory (or --output path if given).
+    #[command(name = "readiness")]
+    ReadinessCheck {
+        /// Spoke name (vox-lang, rust-expert, agents, tool-selection, argument-generation …)
+        #[arg(long)]
+        spoke: String,
+        /// Input JSONL corpus to assess (if omitted, uses an empty in-memory sample)
+        #[arg(long)]
+        input: Option<std::path::PathBuf>,
+        /// Minimum rows required (overrides per-spoke default)
+        #[arg(long)]
+        min_rows: Option<usize>,
+        /// Minimum AST diversity required (overrides per-spoke default)
+        #[arg(long)]
+        min_diversity: Option<f64>,
+        /// Output path for the readiness report JSON
+        #[arg(long, default_value = "corpus_readiness.json")]
+        output: std::path::PathBuf,
+    },
 }
 
 /// Execute the native training data extraction or validation logic.
@@ -664,5 +686,142 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             );
             Ok(())
         }
+        CorpusAction::ReadinessCheck {
+            spoke,
+            input,
+            min_rows,
+            min_diversity,
+            output,
+        } => {
+            // Resolve per-spoke defaults then apply overrides.
+            let (default_rows, default_diversity) = spoke_readiness_defaults(&spoke);
+            let effective_rows = min_rows.unwrap_or(default_rows);
+            let effective_diversity = min_diversity.unwrap_or(default_diversity);
+
+            // Load corpus rows if an input file was provided.
+            let rows: Vec<serde_json::Value> = if let Some(ref path) = input {
+                let raw = read_utf8_path_capped_async(path)
+                    .await
+                    .with_context(|| format!("readiness: cannot read {}", path.display()))?;
+                raw.lines()
+                    .filter(|l| !l.trim().is_empty())
+                    .map(|l| {
+                        serde_json::from_str(l)
+                            .with_context(|| format!("readiness: bad JSONL line: {l}"))
+                    })
+                    .collect::<Result<Vec<_>>>()?
+            } else {
+                Vec::new()
+            };
+
+            let report = run_readiness_check(&spoke, &rows, effective_rows, effective_diversity);
+
+            // Serialise the report.
+            let json = serde_json::to_string_pretty(&serde_json::json!({
+                "spoke": spoke,
+                "rows": report.rows,
+                "ast_diversity": report.ast_diversity,
+                "rows_ok": report.rows_ok,
+                "diversity_ok": report.diversity_ok,
+                "ready": report.ready,
+                "thresholds": {
+                    "min_rows": effective_rows,
+                    "min_ast_diversity": effective_diversity,
+                },
+            }))?;
+
+            if let Some(p) = output.parent() {
+                if !p.as_os_str().is_empty() {
+                    tokio::fs::create_dir_all(p).await?;
+                }
+            }
+            tokio::fs::write(&output, &json).await?;
+
+            if report.ready {
+                println!(
+                    "✓ Corpus READY — spoke={spoke} rows={} diversity={:.3} → {}",
+                    report.rows,
+                    report.ast_diversity,
+                    output.display()
+                );
+                Ok(())
+            } else {
+                eprintln!(
+                    "✗ Corpus NOT READY — spoke={spoke} rows={}/{} diversity={:.3}/{:.3} → {}",
+                    report.rows,
+                    effective_rows,
+                    report.ast_diversity,
+                    effective_diversity,
+                    output.display()
+                );
+                std::process::exit(1);
+            }
+        }
+    }
+}
+
+/// Default (min_rows, min_ast_diversity) thresholds for each B2 spoke.
+///
+/// These mirror the B2.5 spike thresholds.  The caller may override either
+/// value via CLI flags.
+pub(crate) fn spoke_readiness_defaults(spoke: &str) -> (usize, f64) {
+    match spoke {
+        "tool-selection" | "argument-generation" => (500, 0.30),
+        "vox-lang" => (1000, 0.50),
+        "rust" => (800, 0.40),
+        "agents" => (500, 0.30),
+        _ => (500, 0.30), // safe default for unknown spokes
+    }
+}
+
+/// Synchronous readiness check that can be called from tests without async.
+///
+/// Accepts pre-loaded rows and explicit thresholds so tests don't need I/O.
+pub fn run_readiness_check(
+    _spoke: &str,
+    rows: &[serde_json::Value],
+    min_rows: usize,
+    min_ast_diversity: f64,
+) -> vox_corpus::corpus::corpus_readiness::ReadinessReport {
+    vox_corpus::corpus::corpus_readiness::assess_corpus_readiness(
+        rows,
+        &vox_corpus::corpus::corpus_readiness::MinReadiness {
+            min_rows,
+            min_ast_diversity,
+        },
+    )
+}
+
+#[cfg(test)]
+mod readiness_tests {
+    use super::*;
+
+    #[test]
+    fn readiness_command_exits_nonzero_when_not_ready() {
+        // Empty corpus should never be ready.
+        let report = run_readiness_check("vox-lang", &[], 1000, 0.5);
+        assert!(!report.ready, "empty corpus should not be ready");
+        assert_eq!(report.rows, 0);
+    }
+
+    #[test]
+    fn spoke_defaults_vox_lang() {
+        let (rows, div) = spoke_readiness_defaults("vox-lang");
+        assert_eq!(rows, 1000);
+        assert!((div - 0.50).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn spoke_defaults_rust() {
+        let (rows, div) = spoke_readiness_defaults("rust");
+        assert_eq!(rows, 800);
+        assert!((div - 0.40).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn spoke_defaults_tool_selection() {
+        let (rows, div) = spoke_readiness_defaults("tool-selection");
+        assert_eq!(rows, 500);
+        assert!((div - 0.30).abs() < f64::EPSILON);
     }
 }

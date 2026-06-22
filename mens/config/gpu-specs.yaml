@@ -245,10 +245,56 @@ presets:
 # variant whose floor_mb <= detected VRAM. methods = train methods this base supports.
 # Keys match domain-profiles.yaml base.model values exactly.
 train_bases:
-  small_code_default:
-    - { hf_id: "Qwen/Qwen2.5-Coder-3B-Instruct", floor_mb: 6000, methods: [qlora, full_sft] }
-  strong_code_default:
-    - { hf_id: "Qwen/Qwen2.5-Coder-7B-Instruct", floor_mb: 11000, methods: [qlora, dpo, orpo] }
-  agentic_default:
-    - { hf_id: "Qwen/Qwen2.5-Coder-7B-Instruct", floor_mb: 11000, methods: [qlora, dpo] }
+  # Qwen3 dense ladder — revision-pinned. NOTE: @<sha> hashes are placeholders;
+  # pin to real HF commit hashes (hf_id@sha) before production training runs.
+  qwen3_code:
+    - { hf_id: "Qwen/Qwen3-0.6B@PLACEHOLDER-2c59e4f0", floor_mb: 2000,  methods: [qlora] }   # CPU / ≤8 GB dev
+    - { hf_id: "Qwen/Qwen3-8B@PLACEHOLDER-a7b3d091",   floor_mb: 12000, methods: [qlora] }   # 16 GB tier
+    - { hf_id: "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122",  floor_mb: 20000, methods: [qlora] }   # 24 GB tier (QLoRA)
+    - { hf_id: "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122",  floor_mb: 44000, methods: [lora] }    # 48 GB tier (un-quantized; beats 24g entry)
+    - { hf_id: "Qwen/Qwen3-32B@PLACEHOLDER-d9a1b573",  floor_mb: 60000, methods: [qlora] }   # 96 GB tier
 
+  # Alias tags updated to include Qwen3 rungs alongside existing Qwen2.5 bases.
+  # Resolver picks largest fitting rung — at ≥12GB a Qwen3 rung wins.
+  small_code_default:  # intentionally caps at 8B; strong_code_default escalates to larger rungs
+    - { hf_id: "Qwen/Qwen2.5-Coder-3B-Instruct",         floor_mb: 6000,  methods: [qlora, full_sft] }
+    - { hf_id: "Qwen/Qwen3-8B@PLACEHOLDER-a7b3d091",     floor_mb: 12000, methods: [qlora] }
+  strong_code_default:
+    - { hf_id: "Qwen/Qwen2.5-Coder-7B-Instruct",         floor_mb: 11000, methods: [qlora, dpo, orpo] }
+    # USER DECISION (Qwen3 everywhere): the Qwen3-8B rung (floor 12000) outranks the
+    # Qwen2.5-Coder-7B rung (floor 11000) so a 16 GB box resolves to Qwen3-8B.
+    - { hf_id: "Qwen/Qwen3-8B@PLACEHOLDER-a7b3d091",     floor_mb: 12000, methods: [qlora] }
+    - { hf_id: "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122",    floor_mb: 20000, methods: [qlora] }
+    - { hf_id: "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122",    floor_mb: 44000, methods: [lora] }
+    - { hf_id: "Qwen/Qwen3-32B@PLACEHOLDER-d9a1b573",    floor_mb: 60000, methods: [qlora] }
+  agentic_default:
+    - { hf_id: "Qwen/Qwen2.5-Coder-7B-Instruct",         floor_mb: 11000, methods: [qlora, dpo] }
+    # USER DECISION (Qwen3 everywhere): the Qwen3-8B rung (floor 12000) outranks the
+    # Qwen2.5-Coder-7B rung (floor 11000) so a 16 GB box resolves to Qwen3-8B.
+    - { hf_id: "Qwen/Qwen3-8B@PLACEHOLDER-a7b3d091",     floor_mb: 12000, methods: [qlora] }
+    - { hf_id: "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122",    floor_mb: 20000, methods: [qlora] }
+    - { hf_id: "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122",    floor_mb: 44000, methods: [lora] }
+    - { hf_id: "Qwen/Qwen3-32B@PLACEHOLDER-d9a1b573",    floor_mb: 60000, methods: [qlora] }
+
+# TODO: B6.0 vLLM compat spike
+# B6.0 requires standing up a real vLLM instance with Qwen3 + a trained QLoRA adapter.
+# This is a PROCEDURE step requiring human action and hardware — it cannot be automated.
+#
+# Steps (pending human execution):
+#   1. Stand up a vLLM instance: `vllm serve <base_model> --enable-lora --max-lora-rank 64`
+#   2. Load a trained adapter via the /v1/models API or --lora-modules flag
+#   3. Send a test request with `model=<adapter_name>` and verify the adapter is applied
+#   4. Validate guided_json decoding works end-to-end (schema-constrained output)
+#   5. Confirm multi-LoRA slot exhaustion behavior (what happens when max_loaded is exceeded)
+#   6. Record measured latency and throughput vs. base model for the gate metric
+#
+# Pre-requisites:
+#   - At least one trained QLoRA adapter from B2+ pipeline stages
+#   - vLLM >= 0.4.0 with LoRA support enabled
+#   - GPU with sufficient VRAM for base model + adapter overhead
+#   - VOX_MENS_VLLM_BASE_URL env var set to the running vLLM endpoint
+#
+# Once completed, update this comment with:
+#   - vLLM version confirmed working
+#   - Max simultaneous adapters tested
+#   - Latency overhead of LoRA vs. base (expected: <5ms per token)

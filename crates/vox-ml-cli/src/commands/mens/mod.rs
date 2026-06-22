@@ -36,6 +36,9 @@ pub mod plugin_heal;
 #[cfg(feature = "mens-base")]
 pub(crate) mod training_selection;
 
+pub mod parity_report;
+pub mod preflight;
+
 mod probe;
 mod status;
 mod system_prompt_template;
