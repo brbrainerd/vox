@@ -1,0 +1,14 @@
+{
+  "entries": [
+    {
+      "spoke": "tool-selection",
+      "metric_name": "bfcl_accuracy",
+      "value": 0.9,
+      "sample_size": 10,
+      "ci_low": 0.5958436145024278,
+      "ci_high": 0.9821242504842788,
+      "pass_at_k": 1
+    }
+  ],
+  "created": "2026-06-22T11:18:40.039027200+00:00"
+}

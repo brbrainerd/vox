@@ -1,0 +1,14 @@
+{
+  "entries": [
+    {
+      "spoke": "argument-generation",
+      "metric_name": "bfcl_accuracy",
+      "value": 1.0,
+      "sample_size": 8,
+      "ci_low": 0.6755843804891231,
+      "ci_high": 1.0,
+      "pass_at_k": 1
+    }
+  ],
+  "created": "2026-06-22T11:18:51.717097300+00:00"
+}

@@ -1,0 +1,14 @@
+{
+  "entries": [
+    {
+      "spoke": "vox-lang",
+      "metric_name": "bfcl_accuracy",
+      "value": 0.75,
+      "sample_size": 8,
+      "ci_low": 0.40926987910258916,
+      "ci_high": 0.9285223111419724,
+      "pass_at_k": 1
+    }
+  ],
+  "created": "2026-06-22T11:18:17.124316500+00:00"
+}
