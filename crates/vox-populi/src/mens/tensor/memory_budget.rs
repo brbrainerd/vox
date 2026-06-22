@@ -273,10 +273,22 @@ pub fn plan_qwen25coder(vram_gib: f64, max_params_b: f64) -> ModelPlan {
 ///
 /// Parity is enforced by `qwen3_ladder_matches_gpu_specs_train_bases`.
 pub const QWEN3_LADDER: &[(f64, &str)] = &[
-    (32.0, "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137"),
-    (14.0, "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18"),
-    (8.0, "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"),
-    (0.6, "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca"),
+    (
+        32.0,
+        "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",
+    ),
+    (
+        14.0,
+        "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",
+    ),
+    (
+        8.0,
+        "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",
+    ),
+    (
+        0.6,
+        "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca",
+    ),
 ];
 
 /// True when a model id belongs to the Qwen3 family this ladder manages.
