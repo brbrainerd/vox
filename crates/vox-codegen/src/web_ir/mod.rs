@@ -21,6 +21,7 @@
 //! notes: [`RouteContract`] JSON in [`RouteNode::RouteTree`] must stay serde-stable for tooling (OP-S153).
 
 pub mod async_state;
+pub mod diagnostic_convert;
 pub mod emit_tsx;
 pub mod href_emit;
 pub mod layer_emit;

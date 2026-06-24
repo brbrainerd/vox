@@ -9,6 +9,7 @@ use vox_compiler::app_contract::APP_CONTRACT_SCHEMA_VERSION;
 use vox_compiler::runtime_projection::RUNTIME_PROJECTION_SCHEMA_VERSION;
 use vox_compiler::target::Target;
 use vox_compiler::tokens::TokenRegistry;
+use vox_compiler::typeck::diagnostics::Diagnostic;
 
 use crate::projection_bundle::ProjectionBundle;
 use crate::web_ir::validate::{
@@ -71,6 +72,28 @@ impl EmissionProfile {
         registry: Option<&TokenRegistry>,
     ) -> Vec<ProfileDiagnostic> {
         validate_web_for_bundle(web, registry)
+    }
+
+    /// Return web-IR diagnostics converted into the unified [`Diagnostic`] envelope
+    /// so that `vox check --for-llm` callers see web-IR failures alongside typeck errors.
+    ///
+    /// Only the TypeScript / RustTauri targets produce WebIR; other targets return an empty vec.
+    #[must_use]
+    pub fn web_ir_as_diagnostics(
+        &self,
+        bundle: &ProjectionBundle,
+        registry: Option<&TokenRegistry>,
+    ) -> Vec<Diagnostic> {
+        match self.target {
+            Target::TypeScript | Target::RustTauri => {
+                let raw = match registry {
+                    Some(reg) => validate_web_ir_with_registry(&bundle.web, Some(reg)),
+                    None => validate_web_ir(&bundle.web),
+                };
+                raw.into_iter().map(Into::into).collect()
+            }
+            Target::RustAxum | Target::Interpreter => vec![],
+        }
     }
 }
 
@@ -266,6 +289,41 @@ mod tests {
                 .iter()
                 .any(|d| d.code == "vox/emission/duplicate_http_route"),
             "{diags:?}"
+        );
+    }
+
+    /// Verify that a known web-IR error appears in the converted [`Diagnostic`] vec
+    /// produced by [`EmissionProfile::web_ir_as_diagnostics`].
+    #[test]
+    fn web_ir_as_diagnostics_surfaces_literal_color_error() {
+        use vox_compiler::typeck::diagnostics::TypeckSeverity;
+
+        let mut web = WebIrModule::default();
+        web.style_nodes.push(StyleNode::Rule {
+            specificity: (0, 1, 0),
+            selector: StyleSelector::Class("bad".into()),
+            declarations: vec![(
+                "color".into(),
+                StyleDeclarationValue::Color(CssColor::Hex("#ff0000".into())),
+            )],
+            is_raw_css: false,
+            span: None,
+        });
+
+        // Wrap in a minimal ProjectionBundle using project_bundle_from_hir so
+        // we don't need to keep the struct literal in sync with upstream changes.
+        let base_bundle = project_bundle_from_hir(&HirModule::default());
+        let bundle = ProjectionBundle { web, ..base_bundle };
+
+        let diags =
+            EmissionProfile::for_target(Target::TypeScript).web_ir_as_diagnostics(&bundle, None);
+
+        assert!(
+            diags.iter().any(|d| {
+                d.code.as_deref() == Some("web_ir_validate.style.literal_color_value")
+                    && d.severity == TypeckSeverity::Error
+            }),
+            "expected literal_color_value as Diagnostic::Error; got: {diags:?}"
         );
     }
 }
