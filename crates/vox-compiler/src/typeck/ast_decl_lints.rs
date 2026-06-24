@@ -609,6 +609,8 @@ pub fn lint_ast_declarations(module: &Module, _source: &str) -> Vec<Diagnostic> 
             check_mens_decorator_unimplemented(f, &mut diags);
             // P4-E: @pii / @embed have no Rust codegen runtime wired — surface the gap.
             check_pii_embed_unimplemented(f, &mut diags);
+            // P4-F: @offline_capable / @collaborative are parsed but have no effect yet.
+            check_unimplemented_fn_decorators(f, &mut diags);
         });
         if let Decl::Workflow(w) = decl {
             if w.distributed_train_strategy.is_some() || w.distributed_train_peers.is_some() {
@@ -809,6 +811,54 @@ fn check_mens_decorator_unimplemented(f: &FnDecl, diags: &mut Vec<Diagnostic>) {
             ],
             category: DiagnosticCategory::Lint,
             code: Some(codes::MENS_DECORATOR_UNIMPLEMENTED.into()),
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
+        });
+    }
+}
+
+/// Emit `vox/decorator/offline-capable-unimplemented` and
+/// `vox/decorator/collaborative-unimplemented` when the respective decorators are applied to a
+/// function. Both are parsed and stored on `FnDecl` but have no effect on any codegen target yet.
+fn check_unimplemented_fn_decorators(f: &FnDecl, diags: &mut Vec<Diagnostic>) {
+    if f.is_offline_capable {
+        diags.push(Diagnostic {
+            message: format!(
+                "fn `{}`: `@offline_capable` is parsed but not implemented on any target yet; \
+                 it currently has no effect.",
+                f.name
+            ),
+            span: f.span,
+            severity: TypeckSeverity::Warning,
+            expected_type: None,
+            found_type: None,
+            context: None,
+            suggestions: vec!["Remove `@offline_capable` until offline sync lands.".into()],
+            category: DiagnosticCategory::Lint,
+            code: Some(codes::DECORATOR_OFFLINE_CAPABLE_UNIMPLEMENTED.into()),
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
+        });
+    }
+    if f.is_collaborative {
+        diags.push(Diagnostic {
+            message: format!(
+                "fn `{}`: `@collaborative` is parsed but not implemented on any target yet; \
+                 it currently has no effect.",
+                f.name
+            ),
+            span: f.span,
+            severity: TypeckSeverity::Warning,
+            expected_type: None,
+            found_type: None,
+            context: None,
+            suggestions: vec!["Remove `@collaborative` until CRDT collaboration lands.".into()],
+            category: DiagnosticCategory::Lint,
+            code: Some(codes::DECORATOR_COLLABORATIVE_UNIMPLEMENTED.into()),
             fixes: vec![],
             line_col: None,
             missing_cases: vec![],
