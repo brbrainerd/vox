@@ -37,3 +37,7 @@ channels:
     uri: "vox://pty-exit"
     payload: PtyExitFrame
     semantics: fold
+  - name: activity_appended
+    uri: "vox://activity-appended"
+    payload: ActivityRow
+    semantics: fold
