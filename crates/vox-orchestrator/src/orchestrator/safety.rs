@@ -83,11 +83,12 @@ impl Orchestrator {
                         resource_id: resource_id.to_string(),
                     });
                 // Wire LockAcquired to the event bus so activity_log receives it.
-                self.event_bus.emit(crate::events::AgentEventKind::LockAcquired {
-                    agent_id,
-                    path: std::path::PathBuf::from(resource_id),
-                    exclusive: matches!(kind, crate::locks::ResourceLockKind::Exclusive),
-                });
+                self.event_bus
+                    .emit(crate::events::AgentEventKind::LockAcquired {
+                        agent_id,
+                        path: std::path::PathBuf::from(resource_id),
+                        exclusive: matches!(kind, crate::locks::ResourceLockKind::Exclusive),
+                    });
                 true
             }
             Err(_) => false,
@@ -103,9 +104,10 @@ impl Orchestrator {
                 resource_id: resource_id.to_string(),
             });
         // Wire LockReleased to the event bus so activity_log receives it.
-        self.event_bus.emit(crate::events::AgentEventKind::LockReleased {
-            agent_id,
-            path: std::path::PathBuf::from(resource_id),
-        });
+        self.event_bus
+            .emit(crate::events::AgentEventKind::LockReleased {
+                agent_id,
+                path: std::path::PathBuf::from(resource_id),
+            });
     }
 }
