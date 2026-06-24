@@ -5,6 +5,7 @@ use std::collections::BTreeSet;
 
 use super::web_ir::{RouteContract, RouteNode, WebIrModule};
 use vox_compiler::hir::{HirEndpointKind, HirModule};
+use vox_compiler::typeck::diagnostics::codes;
 
 pub const ROUTE_MANIFEST_FILENAME: &str = "routes.manifest.ts";
 
@@ -395,7 +396,14 @@ pub fn emit_route_manifest_json(web: &WebIrModule, _hir: &HirModule) -> Option<S
         "routes": top.iter().map(|c| get_contract_route_json(c)).collect::<Vec<_>>()
     });
 
-    Some(serde_json::to_string_pretty(&json_obj).unwrap())
+    Some(serde_json::to_string_pretty(&json_obj).unwrap_or_else(|e| {
+        // Safety: `json!({...})` with string/array values is always serializable.
+        // Emit a diagnostic comment rather than panicking if serialization fails.
+        format!(
+            "/* {}: TypeScript emitter: route manifest emit failed — {e} */",
+            codes::CODEGEN_TS_UNSUPPORTED
+        )
+    }))
 }
 
 fn get_contract_route_json(e: &RouteContract) -> serde_json::Value {

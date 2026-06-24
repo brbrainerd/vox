@@ -24,6 +24,7 @@ use vox_compiler::contract_ir::{
     WireType,
 };
 use vox_compiler::hir::HirModule;
+use vox_compiler::typeck::diagnostics::codes;
 
 /// Emit an OpenAPI 3.1 specification for a Vox HIR module.
 ///
@@ -64,7 +65,15 @@ fn emit_from_contract(
             "schemas": Value::Object(schemas),
         }),
     );
-    serde_json::to_string_pretty(&Value::Object(spec)).expect("OpenAPI emit must serialize")
+    serde_json::to_string_pretty(&Value::Object(spec)).unwrap_or_else(|e| {
+        // Safety: `Value::Object` (BTreeMap<String, Value>) is always serializable by serde_json.
+        // If serialization somehow fails (e.g. f64::NAN keys in the future), emit a diagnostic
+        // comment rather than panicking — the caller can detect this by the `{}` prefix.
+        format!(
+            "{{/* {}: TypeScript emitter: OpenAPI emit failed — {e} */}}",
+            codes::CODEGEN_TS_UNSUPPORTED
+        )
+    })
 }
 
 fn error_envelope_component_schema() -> Value {

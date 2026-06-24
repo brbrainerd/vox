@@ -6,7 +6,9 @@
 //! cannot drift.
 
 use serde::Deserialize;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use vox_compiler::ast::span::Span;
+use vox_compiler::typeck::diagnostics::{Diagnostic, codes};
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct ChannelPoll {
@@ -35,12 +37,49 @@ fn workspace_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
+/// Parse a channel contract from YAML text.
+///
+/// Returns `Err(Diagnostic)` with code [`codes::CODEGEN_TS_UNSUPPORTED`] when the
+/// text is not valid YAML or does not match the [`ChannelContract`] schema.
+/// Previously this was only reachable via the panicking [`load_channel_contract`] path.
+pub fn parse_channel_contract(text: &str) -> Result<ChannelContract, Diagnostic> {
+    serde_yaml::from_str(text).map_err(|e| {
+        Diagnostic::warning(
+            format!("TypeScript emitter: could not parse channel contract — {e}"),
+            Span::new(0, 0),
+            "",
+        )
+        .with_code(codes::CODEGEN_TS_UNSUPPORTED)
+    })
+}
+
+/// Load and parse the channel contract from an explicit path.
+///
+/// Returns `Err(Diagnostic)` when the file cannot be read or is not valid YAML.
+pub fn load_channel_contract_from_path(path: &Path) -> Result<ChannelContract, Diagnostic> {
+    let text = std::fs::read_to_string(path).map_err(|e| {
+        Diagnostic::warning(
+            format!(
+                "TypeScript emitter: could not read channel contract '{}' — {e}",
+                path.display()
+            ),
+            Span::new(0, 0),
+            "",
+        )
+        .with_code(codes::CODEGEN_TS_UNSUPPORTED)
+    })?;
+    parse_channel_contract(&text)
+}
+
 /// Load and parse the channel contract from the workspace `contracts/` dir.
+///
+/// # Panics
+/// Panics if the contract file cannot be read or parsed. Use
+/// [`load_channel_contract_from_path`] or [`parse_channel_contract`] for
+/// recoverable error handling.
 pub fn load_channel_contract() -> ChannelContract {
     let path = workspace_root().join("contracts/channels.v1.yaml");
-    let text =
-        std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
-    serde_yaml::from_str(&text).unwrap_or_else(|e| panic!("parse {}: {e}", path.display()))
+    load_channel_contract_from_path(&path).unwrap_or_else(|d| panic!("{}", d.message))
 }
 
 /// Look up a channel by its `.vox`-facing name.
