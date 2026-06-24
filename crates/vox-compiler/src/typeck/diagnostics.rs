@@ -776,6 +776,20 @@ pub mod codes {
     /// An explicit `@place(...)` override cannot be satisfied by the declaration's effects.
     pub const PLACEMENT_UNSAT: &str = "vox/placement/unsat";
 
+    /// `@offline_capable` decorator present but the function has no offline implementation.
+    pub const DECORATOR_OFFLINE_CAPABLE_UNIMPLEMENTED: &str =
+        "vox/decorator/offline-capable-unimplemented";
+    /// `@collaborative` decorator present but real-time sync is not wired for this target.
+    pub const DECORATOR_COLLABORATIVE_UNIMPLEMENTED: &str =
+        "vox/decorator/collaborative-unimplemented";
+    /// `@scheduled` decorator applied to a declaration whose target does not support scheduling.
+    pub const DECORATOR_SCHEDULED_TARGET_UNSUPPORTED: &str =
+        "vox/decorator/scheduled-target-unsupported";
+    /// TypeScript codegen encountered a Vox construct it cannot lower to TS.
+    pub const CODEGEN_TS_UNSUPPORTED: &str = "vox/codegen-ts/unsupported";
+    /// An internal compiler invariant was violated (ICE).
+    pub const INTERNAL_COMPILER_ERROR: &str = "vox/internal/ice";
+
     /// All Phase-1 codes registered for stability, used by the namespace guard test.
     pub const ALL_PHASE_1: &[&str] = &[
         // Core type errors (v0.6, LLM-target CR-L criteria)
@@ -956,6 +970,12 @@ pub mod codes {
         PLACEMENT_CONFLICT,
         PLACEMENT_BOUNDARY,
         PLACEMENT_UNSAT,
+        // Wiring-gap codes (decorator + codegen + ICE)
+        DECORATOR_OFFLINE_CAPABLE_UNIMPLEMENTED,
+        DECORATOR_COLLABORATIVE_UNIMPLEMENTED,
+        DECORATOR_SCHEDULED_TARGET_UNSUPPORTED,
+        CODEGEN_TS_UNSUPPORTED,
+        INTERNAL_COMPILER_ERROR,
     ];
 
     #[cfg(test)]
@@ -980,6 +1000,22 @@ pub mod codes {
                 assert!(
                     ALL_COMPILER_DIAGNOSTIC_CODES.contains(&code),
                     "{code} must be registered in ALL_COMPILER_DIAGNOSTIC_CODES"
+                );
+            }
+        }
+
+        #[test]
+        fn new_wiring_gap_codes_are_registered() {
+            for c in [
+                DECORATOR_OFFLINE_CAPABLE_UNIMPLEMENTED,
+                DECORATOR_COLLABORATIVE_UNIMPLEMENTED,
+                DECORATOR_SCHEDULED_TARGET_UNSUPPORTED,
+                CODEGEN_TS_UNSUPPORTED,
+                INTERNAL_COMPILER_ERROR,
+            ] {
+                assert!(
+                    ALL_COMPILER_DIAGNOSTIC_CODES.contains(&c),
+                    "code {c} must be registered"
                 );
             }
         }
