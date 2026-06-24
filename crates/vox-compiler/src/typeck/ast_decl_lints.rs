@@ -873,6 +873,36 @@ fn check_unimplemented_fn_decorators(f: &FnDecl, diags: &mut Vec<Diagnostic>) {
             ast_node_kind: None,
         });
     }
+    // P4-G: @webhook is parsed, HIR-lowered, and structurally typechecked, but the codegen
+    // backend always emits `endpoint.webhook = None` — the runtime (secret verification,
+    // replay-window enforcement, idempotency) is never generated. Surface this gap loudly.
+    if f.webhook.is_some() {
+        diags.push(Diagnostic {
+            message: format!(
+                "fn `{}`: `@webhook` is not yet implemented in Rust codegen; \
+                 the webhook verification runtime is not wired. The decorator is stored \
+                 on the AST/HIR but silently dropped during code generation, so no \
+                 secret-verification, replay-window, or idempotency logic is emitted.",
+                f.name
+            ),
+            span: f.span,
+            severity: TypeckSeverity::Warning,
+            expected_type: None,
+            found_type: None,
+            context: None,
+            suggestions: vec![
+                "Remove `@webhook` until the webhook runtime is wired in vox-actor-runtime, \
+                 or implement the verification layer."
+                    .into(),
+            ],
+            category: DiagnosticCategory::Lint,
+            code: Some(codes::DECORATOR_WEBHOOK_RUNTIME_UNIMPLEMENTED.into()),
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
+        });
+    }
 }
 
 /// Emit `vox/codegen/pii-unimplemented` / `vox/codegen/embed-unimplemented` when `@pii` or

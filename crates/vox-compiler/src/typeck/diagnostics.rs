@@ -790,6 +790,13 @@ pub mod codes {
     /// An internal compiler invariant was violated (ICE).
     pub const INTERNAL_COMPILER_ERROR: &str = "vox/internal/ice";
 
+    /// `@webhook` decorator is parsed and HIR-lowered but the codegen backend has no runtime
+    /// wired (the `endpoint.webhook` field is always `None` at emit time). This diagnostic
+    /// makes the gap loud rather than silently producing a server endpoint with no webhook
+    /// verification, replay protection, or secret validation.
+    pub const DECORATOR_WEBHOOK_RUNTIME_UNIMPLEMENTED: &str =
+        "vox/decorator/webhook-runtime-unimplemented";
+
     /// All Phase-1 codes registered for stability, used by the namespace guard test.
     pub const ALL_PHASE_1: &[&str] = &[
         // Core type errors (v0.6, LLM-target CR-L criteria)
@@ -976,6 +983,7 @@ pub mod codes {
         DECORATOR_SCHEDULED_TARGET_UNSUPPORTED,
         CODEGEN_TS_UNSUPPORTED,
         INTERNAL_COMPILER_ERROR,
+        DECORATOR_WEBHOOK_RUNTIME_UNIMPLEMENTED,
     ];
 
     #[cfg(test)]
@@ -1012,6 +1020,7 @@ pub mod codes {
                 DECORATOR_SCHEDULED_TARGET_UNSUPPORTED,
                 CODEGEN_TS_UNSUPPORTED,
                 INTERNAL_COMPILER_ERROR,
+                DECORATOR_WEBHOOK_RUNTIME_UNIMPLEMENTED,
             ] {
                 assert!(
                     ALL_COMPILER_DIAGNOSTIC_CODES.contains(&c),
