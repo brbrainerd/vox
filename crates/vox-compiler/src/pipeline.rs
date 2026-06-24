@@ -150,32 +150,9 @@ pub fn run_frontend_str_with_options(
     let mut diagnostics =
         crate::typeck::typecheck_hir_module_with_path(source, &mut hir, typeck_path);
 
-    // 5. Deprecated Usage Detector (Item 16, @deprecated)
+    let jsx_leaks = ["className=", "onClick=", "onChange=", "onSubmit="];
     for line in source.lines() {
         let line_start_byte = (line.as_ptr() as usize).saturating_sub(source.as_ptr() as usize);
-        if line.trim_start().starts_with("@deprecated") {
-            let start = line_start_byte + line.find("@deprecated").unwrap_or(0);
-            diagnostics.push(Diagnostic {
-                severity: TypeckSeverity::Warning,
-                message: "Found @deprecated annotation. Consider removing this obsolete code."
-                    .to_string(),
-                span: crate::ast::span::Span::new(start, start + 11),
-                expected_type: None,
-                found_type: None,
-                context: None,
-                suggestions: vec![
-                    "Refactor dependents and remove this deprecated item.".to_string(),
-                ],
-                category: crate::typeck::diagnostics::DiagnosticCategory::Parse,
-                code: Some("W092".to_string()),
-                fixes: vec![],
-                line_col: None,
-                missing_cases: vec![],
-                ast_node_kind: None,
-            });
-        }
-
-        let jsx_leaks = ["className=", "onClick=", "onChange=", "onSubmit="];
         for leak in jsx_leaks {
             if let Some(idx) = line.find(leak) {
                 let start = line_start_byte + idx;
