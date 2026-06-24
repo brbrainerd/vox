@@ -1,6 +1,6 @@
 //! AST-only declaration checks not represented in HIR (`@search_index`, `@index`).
 
-use crate::ast::decl::{Decl, FnDecl, Module, SearchIndexDecl, TableDecl};
+use crate::ast::decl::{Decl, FnDecl, Module, ScheduledDecl, SearchIndexDecl, TableDecl};
 use crate::ast::expr::{Expr, StringPart};
 use crate::ast::stmt::Stmt;
 use crate::ast::types::TypeExpr;
@@ -636,6 +636,14 @@ pub fn lint_ast_declarations(module: &Module, _source: &str) -> Vec<Diagnostic> 
                     ast_node_kind: None,
                 });
             }
+        }
+    }
+
+    // Task 1.2: @scheduled on a @reactive fn — warn that the durable scheduler only runs on the
+    // native backend, so cron will never fire on the GUI/TypeScript target.
+    for decl in &module.declarations {
+        if let Decl::Scheduled(s) = decl {
+            check_scheduled_on_reactive_fn(s, &mut diags);
         }
     }
 
@@ -1356,6 +1364,37 @@ fn check_side_effect_outside_workflow_expr(
             }
         }
         _ => {}
+    }
+}
+
+/// Emit `vox/decorator/scheduled-target-unsupported` when `@scheduled` wraps a `@reactive` fn.
+///
+/// The durable scheduler only runs on the native backend. A `@reactive` function seeds a
+/// `Placement::Gui` (GUI/TypeScript) target — on that target the cron never fires and the
+/// `@scheduled` decorator is silently ignored. Surface a warning so the author knows.
+fn check_scheduled_on_reactive_fn(s: &ScheduledDecl, diags: &mut Vec<Diagnostic>) {
+    if s.func.is_reactive {
+        diags.push(Diagnostic {
+            message: format!(
+                "`@scheduled` on `{}` has no scheduler on the GUI/TypeScript target; \
+                 cron only runs on the native backend.",
+                s.func.name
+            ),
+            span: s.func.span,
+            severity: TypeckSeverity::Warning,
+            expected_type: None,
+            found_type: None,
+            context: None,
+            suggestions: vec![
+                "Move the scheduled work into a native (non-@reactive) function.".into(),
+            ],
+            category: DiagnosticCategory::Lint,
+            code: Some(codes::DECORATOR_SCHEDULED_TARGET_UNSUPPORTED.into()),
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
+        });
     }
 }
 

@@ -29,3 +29,26 @@ fn collaborative_is_surfaced_not_silent() {
         "expected vox/decorator/collaborative-unimplemented diagnostic"
     );
 }
+
+#[test]
+fn scheduled_on_reactive_fn_is_warned() {
+    // @reactive comes between @scheduled(...) and fn — the fn-level decorator loop consumes it.
+    let codes = codes_for("@scheduled(\"1h\") @reactive fn tick() { 1 }");
+    assert!(
+        codes
+            .iter()
+            .any(|c| c == "vox/decorator/scheduled-target-unsupported"),
+        "got {codes:?}"
+    );
+}
+
+#[test]
+fn native_scheduled_is_not_warned() {
+    let codes = codes_for("@scheduled(\"1h\")\nfn tick() to Unit { return Unit }");
+    assert!(
+        !codes
+            .iter()
+            .any(|c| c == "vox/decorator/scheduled-target-unsupported"),
+        "native @scheduled must not trigger scheduled-target-unsupported, got {codes:?}"
+    );
+}
