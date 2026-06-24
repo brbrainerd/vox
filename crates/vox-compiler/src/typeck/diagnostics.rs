@@ -597,6 +597,25 @@ impl Diagnostic {
         }
     }
 
+    /// Internal compiler error — wraps an invariant panic site as a recoverable diagnostic.
+    ///
+    /// Use at sites that previously `panic!`/`unreachable!` on invariants the compiler owns.
+    /// The emitted code is always `"vox/internal/ice"` so tooling can triage ICEs uniformly.
+    #[must_use]
+    pub fn ice(message: impl Into<String>, span: Span, source: &str) -> Self {
+        let mut d = Self::error(
+            format!(
+                "internal compiler error — please report: {}",
+                message.into()
+            ),
+            span,
+            source,
+        );
+        d.category = DiagnosticCategory::HirInvariant;
+        d.code = Some(codes::INTERNAL_COMPILER_ERROR.into());
+        d
+    }
+
     /// HIR structural invariant violation (after lowering).
     #[must_use]
     pub fn hir_invariant(
@@ -1247,6 +1266,20 @@ mod explain_url_tests {
         assert_eq!(
             payload.explain_url.as_deref(),
             Some("https://vox-lang.org/diag/vox/types/type-mismatch")
+        );
+    }
+
+    #[test]
+    fn ice_has_correct_code_and_category() {
+        use crate::ast::span::Span;
+        let d = Diagnostic::ice("test invariant", Span { start: 0, end: 0 }, "");
+        assert_eq!(d.code.as_deref(), Some("vox/internal/ice"));
+        assert!(matches!(d.category, DiagnosticCategory::HirInvariant));
+        assert!(matches!(d.severity, super::TypeckSeverity::Error));
+        assert!(
+            d.message.contains("internal compiler error"),
+            "message was: {}",
+            d.message
         );
     }
 }
