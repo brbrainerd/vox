@@ -610,15 +610,6 @@ export function listenActivityAppended(onAppend: () => void): Promise<UnlistenFn
   return listen<void>(ACTIVITY_APPENDED_EVENT, () => onAppend());
 }
 
-/**
- * Subscribe to live agent events (`vox://agent-events`). The callback receives
- * the raw serialised `AgentEvent` payload. Callers that only need to trigger a
- * refetch can ignore the argument.
- */
-export function listenAgentEvents(onEvent: (payload: unknown) => void): Promise<UnlistenFn> {
-  return listen<unknown>(AGENT_EVENTS_EVENT, (event) => onEvent(event.payload));
-}
-
 export async function getGraphifyStatus(): Promise<GraphifyStatusDto> {
   return invoke<GraphifyStatusDto>('vox_graphify_status');
 }
