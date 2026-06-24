@@ -282,6 +282,12 @@ pub fn emit_fn(
     } else {
         ""
     };
+    if func.is_deprecated {
+        match func.deprecated_reason.as_deref() {
+            Some(reason) => out.push_str(&format!("#[deprecated(note = {reason:?})]\n")),
+            None => out.push_str("#[deprecated]\n"),
+        }
+    }
     if func.is_traced {
         out.push_str(&format!(
             "#[tracing::instrument(skip_all, name = \"{}\", fields(trace_id = tracing::field::Empty))]\n",

@@ -1,6 +1,7 @@
 //! Optional `package.json` for Library (`client` target / `vox emit client`) outputs.
 
 use serde_json::{Map, Value, json};
+use vox_compiler::typeck::diagnostics::codes;
 
 /// Emit a **`private`** npm manifest so consumers can run `pnpm install` / link the folder as a workspace package.
 ///
@@ -52,7 +53,14 @@ pub fn emit_library_package_json(config: LibraryPackageConfig) -> String {
         }
     });
 
-    serde_json::to_string_pretty(&pkg).expect("library package.json serializes")
+    serde_json::to_string_pretty(&pkg).unwrap_or_else(|e| {
+        // Safety: `Value::Object` (Map<String, Value>) is always serializable by serde_json.
+        // Emit a diagnostic comment rather than panicking if serialization fails.
+        format!(
+            "{{/* {}: TypeScript emitter: library package.json emit failed — {e} */}}",
+            codes::CODEGEN_TS_UNSUPPORTED
+        )
+    })
 }
 
 pub struct LibraryPackageConfig {

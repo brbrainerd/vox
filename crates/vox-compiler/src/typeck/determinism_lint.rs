@@ -18,6 +18,7 @@
 //! See `docs/superpowers/plans/2026-05-23-durable-functions-completion.md`
 //! Task 6.1 for context.
 
+use crate::ast::span::Span;
 use crate::hir::nodes::durability::DurabilityKind;
 use crate::hir::{HirArg, HirExpr, HirFn, HirModule, HirStmt};
 use crate::typeck::diagnostics::{Diagnostic, DiagnosticCategory, TypeckSeverity};
@@ -150,7 +151,16 @@ fn walk_expr<'a>(
             let span = match expr {
                 HirExpr::MethodCall(_, _, _, _, s) => *s,
                 HirExpr::Call(_, _, _, s) => *s,
-                _ => unreachable!(),
+                _ => {
+                    // callee_path() returned Some but expr is neither Call nor MethodCall —
+                    // this violates the callee_path invariant; surface as ICE instead of panic.
+                    diags.push(Diagnostic::ice(
+                        "callee_path returned Some for non-call expr in determinism_lint walk_expr",
+                        Span { start: 0, end: 0 },
+                        "",
+                    ));
+                    return;
+                }
             };
             emit_diag(&path, span, diags);
         } else if let Some(callee) = by_name.get(path.as_str()).copied() {

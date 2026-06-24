@@ -82,6 +82,9 @@ fn reactive_component_name_set_for_web_ir(
             HirReactiveMember::State(s) => {
                 names.insert(s.name.clone());
             }
+            HirReactiveMember::Derived(d) => {
+                names.insert(d.name.clone());
+            }
             HirReactiveMember::Stmt(st) => collect_hir_stmt_binding_names(st, &mut names),
             _ => {}
         }
@@ -873,7 +876,12 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
                         span: None,
                     });
                 }
-                HirReactiveMember::Stmt(_) => {}
+                HirReactiveMember::Stmt(stmt) => {
+                    m.behavior_nodes.push(BehaviorNode::PreludeStmt {
+                        stmt: stmt.clone(),
+                        span: None,
+                    });
+                }
             }
         }
 

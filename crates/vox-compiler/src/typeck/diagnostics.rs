@@ -597,6 +597,25 @@ impl Diagnostic {
         }
     }
 
+    /// Internal compiler error — wraps an invariant panic site as a recoverable diagnostic.
+    ///
+    /// Use at sites that previously `panic!`/`unreachable!` on invariants the compiler owns.
+    /// The emitted code is always `"vox/internal/ice"` so tooling can triage ICEs uniformly.
+    #[must_use]
+    pub fn ice(message: impl Into<String>, span: Span, source: &str) -> Self {
+        let mut d = Self::error(
+            format!(
+                "internal compiler error — please report: {}",
+                message.into()
+            ),
+            span,
+            source,
+        );
+        d.category = DiagnosticCategory::HirInvariant;
+        d.code = Some(codes::INTERNAL_COMPILER_ERROR.into());
+        d
+    }
+
     /// HIR structural invariant violation (after lowering).
     #[must_use]
     pub fn hir_invariant(
@@ -775,6 +794,27 @@ pub mod codes {
     pub const PLACEMENT_BOUNDARY: &str = "vox/placement/boundary";
     /// An explicit `@place(...)` override cannot be satisfied by the declaration's effects.
     pub const PLACEMENT_UNSAT: &str = "vox/placement/unsat";
+
+    /// `@offline_capable` decorator present but the function has no offline implementation.
+    pub const DECORATOR_OFFLINE_CAPABLE_UNIMPLEMENTED: &str =
+        "vox/decorator/offline-capable-unimplemented";
+    /// `@collaborative` decorator present but real-time sync is not wired for this target.
+    pub const DECORATOR_COLLABORATIVE_UNIMPLEMENTED: &str =
+        "vox/decorator/collaborative-unimplemented";
+    /// `@scheduled` decorator applied to a declaration whose target does not support scheduling.
+    pub const DECORATOR_SCHEDULED_TARGET_UNSUPPORTED: &str =
+        "vox/decorator/scheduled-target-unsupported";
+    /// TypeScript codegen encountered a Vox construct it cannot lower to TS.
+    pub const CODEGEN_TS_UNSUPPORTED: &str = "vox/codegen-ts/unsupported";
+    /// An internal compiler invariant was violated (ICE).
+    pub const INTERNAL_COMPILER_ERROR: &str = "vox/internal/ice";
+
+    /// `@webhook` decorator is parsed and HIR-lowered but the codegen backend has no runtime
+    /// wired (the `endpoint.webhook` field is always `None` at emit time). This diagnostic
+    /// makes the gap loud rather than silently producing a server endpoint with no webhook
+    /// verification, replay protection, or secret validation.
+    pub const DECORATOR_WEBHOOK_RUNTIME_UNIMPLEMENTED: &str =
+        "vox/decorator/webhook-runtime-unimplemented";
 
     /// All Phase-1 codes registered for stability, used by the namespace guard test.
     pub const ALL_PHASE_1: &[&str] = &[
@@ -956,6 +996,13 @@ pub mod codes {
         PLACEMENT_CONFLICT,
         PLACEMENT_BOUNDARY,
         PLACEMENT_UNSAT,
+        // Wiring-gap codes (decorator + codegen + ICE)
+        DECORATOR_OFFLINE_CAPABLE_UNIMPLEMENTED,
+        DECORATOR_COLLABORATIVE_UNIMPLEMENTED,
+        DECORATOR_SCHEDULED_TARGET_UNSUPPORTED,
+        CODEGEN_TS_UNSUPPORTED,
+        INTERNAL_COMPILER_ERROR,
+        DECORATOR_WEBHOOK_RUNTIME_UNIMPLEMENTED,
     ];
 
     #[cfg(test)]
@@ -980,6 +1027,23 @@ pub mod codes {
                 assert!(
                     ALL_COMPILER_DIAGNOSTIC_CODES.contains(&code),
                     "{code} must be registered in ALL_COMPILER_DIAGNOSTIC_CODES"
+                );
+            }
+        }
+
+        #[test]
+        fn new_wiring_gap_codes_are_registered() {
+            for c in [
+                DECORATOR_OFFLINE_CAPABLE_UNIMPLEMENTED,
+                DECORATOR_COLLABORATIVE_UNIMPLEMENTED,
+                DECORATOR_SCHEDULED_TARGET_UNSUPPORTED,
+                CODEGEN_TS_UNSUPPORTED,
+                INTERNAL_COMPILER_ERROR,
+                DECORATOR_WEBHOOK_RUNTIME_UNIMPLEMENTED,
+            ] {
+                assert!(
+                    ALL_COMPILER_DIAGNOSTIC_CODES.contains(&c),
+                    "code {c} must be registered"
                 );
             }
         }
@@ -1202,6 +1266,20 @@ mod explain_url_tests {
         assert_eq!(
             payload.explain_url.as_deref(),
             Some("https://vox-lang.org/diag/vox/types/type-mismatch")
+        );
+    }
+
+    #[test]
+    fn ice_has_correct_code_and_category() {
+        use crate::ast::span::Span;
+        let d = Diagnostic::ice("test invariant", Span { start: 0, end: 0 }, "");
+        assert_eq!(d.code.as_deref(), Some("vox/internal/ice"));
+        assert!(matches!(d.category, DiagnosticCategory::HirInvariant));
+        assert!(matches!(d.severity, super::TypeckSeverity::Error));
+        assert!(
+            d.message.contains("internal compiler error"),
+            "message was: {}",
+            d.message
         );
     }
 }

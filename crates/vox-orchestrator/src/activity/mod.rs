@@ -20,25 +20,21 @@ pub fn is_loggable(kind: &AgentEventKind) -> bool {
             | TaskPhaseChanged { .. }
             | TaskCompleted { .. }
             | TaskFailed { .. }
-            | TaskReprioritized { .. }
-            | TaskDelegated { .. }
             | PlanHandoff { .. }
             | CostIncurred { .. }
             | BudgetAlert { .. }
-            | AttentionBudgetAlert { .. }
             | LockAcquired { .. }
             | LockReleased { .. }
             | ConflictDetected { .. }
-            | BuildStage { .. }
-            | MeshTopologyChanged { .. }
-            | WorkflowStarted { .. }
-            | WorkflowCompleted { .. }
-            | WorkflowFailed { .. }
             | FeedbackRequested { .. }
             | FeedbackResolved { .. }
     )
     // High-frequency telemetry deliberately excluded:
     // AgentHeartbeat, ThroughputTick, CostTick, FileDiagChanged → false (fall-through).
+    //
+    // Retired dark variants (no producer in scope this cycle — Task 4.2):
+    // BuildStage, WorkflowStarted, WorkflowCompleted, WorkflowFailed,
+    // TaskDelegated, MeshTopologyChanged, TaskReprioritized, AttentionBudgetAlert.
 }
 
 #[cfg(test)]

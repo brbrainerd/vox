@@ -91,6 +91,11 @@ const fn unverified() -> Row {
 }
 
 /// Decorators explicitly proven by [`contracts/pipeline/canonical-ladder.v1.yaml`].
+///
+/// Note: `Scheduled` is NOT in this list even though the interpreter/Rust emitters handle
+/// it — the TypeScript emitter has no scheduled-job emit path (codegen-ts never reads
+/// `WebIrModule::scheduled_jobs`), so it cannot be `Implemented` on all targets.  Its
+/// row is handled explicitly in [`decorator_row`].
 const fn is_ladder_proven_decorator(d: DecoratorFeature) -> bool {
     use DecoratorFeature::*;
     matches!(
@@ -102,7 +107,6 @@ const fn is_ladder_proven_decorator(d: DecoratorFeature) -> bool {
             | Index
             | Component
             | Reactive
-            | Scheduled
             | Auth
             | McpTool
             | Tool
@@ -562,6 +566,31 @@ fn decorator_row(d: DecoratorFeature) -> Row {
         }
         Pii => none_yet(codes::PII_UNIMPLEMENTED),
         Embed => none_yet(codes::EMBED_UNIMPLEMENTED),
+
+        // `@scheduled`: the interpreter and both Rust backends handle scheduled declarations,
+        // but the TypeScript emitter (codegen-ts) never reads `WebIrModule::scheduled_jobs`
+        // — there is no TS emit path.  The typeck lint
+        // `DECORATOR_SCHEDULED_TARGET_UNSUPPORTED` (Phase 1.2) already warns when
+        // `@scheduled` appears on a TS-only (`@reactive`) fn.
+        Scheduled => Row {
+            interpreter: Support::Implemented,
+            rust_axum: Support::Implemented,
+            rust_tauri: Support::Implemented,
+            typescript: Support::Unsupported(codes::DECORATOR_SCHEDULED_TARGET_UNSUPPORTED),
+        },
+
+        // `@webhook`: `webhook: None` is hardcoded on every Rust route struct in
+        // `codegen_rust/mod.rs`; the field is never populated.  Surface
+        // `DECORATOR_WEBHOOK_RUNTIME_UNIMPLEMENTED` on both compiled targets so consumers
+        // get a stable diagnostic code rather than a silent no-op.
+        // The interpreter and TypeScript paths are unverified — no evidence either way.
+        Webhook => Row {
+            interpreter: Support::Unverified,
+            rust_axum: Support::Unsupported(codes::DECORATOR_WEBHOOK_RUNTIME_UNIMPLEMENTED),
+            rust_tauri: Support::Unsupported(codes::DECORATOR_WEBHOOK_RUNTIME_UNIMPLEMENTED),
+            typescript: Support::Unverified,
+        },
+
         d if is_ladder_proven_decorator(d) => all_targets(),
         _ => unverified(),
     }
@@ -765,5 +794,71 @@ mod tests {
             support(Feature::Expr(ExprFeature::Spawn), Target::TypeScript),
             Support::Unsupported(_)
         ));
+    }
+
+    /// Task 5.2: decorator emit-parity — each cell marked Implemented must have a real
+    /// emit path.  Cells with no verified emit path must be Unsupported (with a
+    /// registered diagnostic code) or Unverified.
+    ///
+    /// Specifically asserts the three confirmed over-claims are corrected:
+    ///
+    /// 1. `@scheduled / TypeScript` — TS codegen-ts has no scheduled-job emit path
+    ///    (emit_tsx.rs never touches `WebIrModule::scheduled_jobs`); the lint
+    ///    `DECORATOR_SCHEDULED_TARGET_UNSUPPORTED` (Phase 1.2) already warns about
+    ///    mixing `@scheduled` with TS-only targets.  Must not be Implemented.
+    ///
+    /// 2. `@versioned` and `@tracked` / compiled Rust targets — `is_versioned` is
+    ///    hardcoded to `false` throughout `codegen_rust`; no emit path exists.
+    ///    Must not be Implemented.
+    ///
+    /// 3. `@webhook` / Rust targets — `webhook: None` is set on every Rust route struct
+    ///    in `codegen_rust/mod.rs`; the field is never populated.
+    ///    Must be Unsupported (with a registered code), not Unverified/Implemented.
+    #[test]
+    fn decorator_emit_parity_no_overclaimed_implemented() {
+        // 1. @scheduled must NOT be Implemented on the TypeScript target.
+        assert_ne!(
+            support(
+                Feature::Decorator(DecoratorFeature::Scheduled),
+                Target::TypeScript,
+            ),
+            Support::Implemented,
+            "@scheduled/TypeScript is Implemented in the matrix but codegen-ts has no \
+             scheduled-job emit path (WebIrModule::scheduled_jobs is never consumed by \
+             emit_tsx). Correct the matrix to Unsupported(DECORATOR_SCHEDULED_TARGET_UNSUPPORTED)."
+        );
+
+        // 2. @versioned must NOT be Implemented on compiled Rust targets.
+        for t in [Target::RustAxum, Target::RustTauri] {
+            assert_ne!(
+                support(Feature::Decorator(DecoratorFeature::Versioned), t),
+                Support::Implemented,
+                "@versioned/{t:?} is Implemented but codegen_rust hardcodes \
+                 `is_versioned: false` everywhere — no versioning emit path exists."
+            );
+        }
+        // @tracked mirrors @versioned — same situation.
+        for t in [Target::RustAxum, Target::RustTauri] {
+            assert_ne!(
+                support(Feature::Decorator(DecoratorFeature::Tracked), t),
+                Support::Implemented,
+                "@tracked/{t:?} is Implemented but no tracked-field emit path exists \
+                 in codegen_rust."
+            );
+        }
+
+        // 3. @webhook on Rust targets must be Unsupported (with a registered code),
+        //    not Unverified or Implemented — `webhook: None` in codegen_rust/mod.rs
+        //    is a deliberate no-op, not an unproven path.
+        for t in [Target::RustAxum, Target::RustTauri] {
+            assert!(
+                matches!(
+                    support(Feature::Decorator(DecoratorFeature::Webhook), t),
+                    Support::Unsupported(_)
+                ),
+                "@webhook/{t:?} should be Unsupported (webhook: None in codegen_rust) \
+                 but is not. Expected Unsupported(DECORATOR_WEBHOOK_RUNTIME_UNIMPLEMENTED)."
+            );
+        }
     }
 }

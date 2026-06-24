@@ -1,6 +1,6 @@
 //! AST-only declaration checks not represented in HIR (`@search_index`, `@index`).
 
-use crate::ast::decl::{Decl, FnDecl, Module, SearchIndexDecl, TableDecl};
+use crate::ast::decl::{Decl, FnDecl, Module, ScheduledDecl, SearchIndexDecl, TableDecl};
 use crate::ast::expr::{Expr, StringPart};
 use crate::ast::stmt::Stmt;
 use crate::ast::types::TypeExpr;
@@ -609,6 +609,8 @@ pub fn lint_ast_declarations(module: &Module, _source: &str) -> Vec<Diagnostic> 
             check_mens_decorator_unimplemented(f, &mut diags);
             // P4-E: @pii / @embed have no Rust codegen runtime wired — surface the gap.
             check_pii_embed_unimplemented(f, &mut diags);
+            // P4-F: @offline_capable / @collaborative are parsed but have no effect yet.
+            check_unimplemented_fn_decorators(f, &mut diags);
         });
         if let Decl::Workflow(w) = decl {
             if w.distributed_train_strategy.is_some() || w.distributed_train_peers.is_some() {
@@ -634,6 +636,14 @@ pub fn lint_ast_declarations(module: &Module, _source: &str) -> Vec<Diagnostic> 
                     ast_node_kind: None,
                 });
             }
+        }
+    }
+
+    // Task 1.2: @scheduled on a @reactive fn — warn that the durable scheduler only runs on the
+    // native backend, so cron will never fire on the GUI/TypeScript target.
+    for decl in &module.declarations {
+        if let Decl::Scheduled(s) = decl {
+            check_scheduled_on_reactive_fn(s, &mut diags);
         }
     }
 
@@ -809,6 +819,84 @@ fn check_mens_decorator_unimplemented(f: &FnDecl, diags: &mut Vec<Diagnostic>) {
             ],
             category: DiagnosticCategory::Lint,
             code: Some(codes::MENS_DECORATOR_UNIMPLEMENTED.into()),
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
+        });
+    }
+}
+
+/// Emit `vox/decorator/offline-capable-unimplemented` and
+/// `vox/decorator/collaborative-unimplemented` when the respective decorators are applied to a
+/// function. Both are parsed and stored on `FnDecl` but have no effect on any codegen target yet.
+fn check_unimplemented_fn_decorators(f: &FnDecl, diags: &mut Vec<Diagnostic>) {
+    if f.is_offline_capable {
+        diags.push(Diagnostic {
+            message: format!(
+                "fn `{}`: `@offline_capable` is parsed but not implemented on any target yet; \
+                 it currently has no effect.",
+                f.name
+            ),
+            span: f.span,
+            severity: TypeckSeverity::Warning,
+            expected_type: None,
+            found_type: None,
+            context: None,
+            suggestions: vec!["Remove `@offline_capable` until offline sync lands.".into()],
+            category: DiagnosticCategory::Lint,
+            code: Some(codes::DECORATOR_OFFLINE_CAPABLE_UNIMPLEMENTED.into()),
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
+        });
+    }
+    if f.is_collaborative {
+        diags.push(Diagnostic {
+            message: format!(
+                "fn `{}`: `@collaborative` is parsed but not implemented on any target yet; \
+                 it currently has no effect.",
+                f.name
+            ),
+            span: f.span,
+            severity: TypeckSeverity::Warning,
+            expected_type: None,
+            found_type: None,
+            context: None,
+            suggestions: vec!["Remove `@collaborative` until CRDT collaboration lands.".into()],
+            category: DiagnosticCategory::Lint,
+            code: Some(codes::DECORATOR_COLLABORATIVE_UNIMPLEMENTED.into()),
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
+        });
+    }
+    // P4-G: @webhook is parsed, HIR-lowered, and structurally typechecked, but the codegen
+    // backend always emits `endpoint.webhook = None` — the runtime (secret verification,
+    // replay-window enforcement, idempotency) is never generated. Surface this gap loudly.
+    if f.webhook.is_some() {
+        diags.push(Diagnostic {
+            message: format!(
+                "fn `{}`: `@webhook` is not yet implemented in Rust codegen; \
+                 the webhook verification runtime is not wired. The decorator is stored \
+                 on the AST/HIR but silently dropped during code generation, so no \
+                 secret-verification, replay-window, or idempotency logic is emitted.",
+                f.name
+            ),
+            span: f.span,
+            severity: TypeckSeverity::Warning,
+            expected_type: None,
+            found_type: None,
+            context: None,
+            suggestions: vec![
+                "Remove `@webhook` until the webhook runtime is wired in vox-actor-runtime, \
+                 or implement the verification layer."
+                    .into(),
+            ],
+            category: DiagnosticCategory::Lint,
+            code: Some(codes::DECORATOR_WEBHOOK_RUNTIME_UNIMPLEMENTED.into()),
             fixes: vec![],
             line_col: None,
             missing_cases: vec![],
@@ -1306,6 +1394,37 @@ fn check_side_effect_outside_workflow_expr(
             }
         }
         _ => {}
+    }
+}
+
+/// Emit `vox/decorator/scheduled-target-unsupported` when `@scheduled` wraps a `@reactive` fn.
+///
+/// The durable scheduler only runs on the native backend. A `@reactive` function seeds a
+/// `Placement::Gui` (GUI/TypeScript) target — on that target the cron never fires and the
+/// `@scheduled` decorator is silently ignored. Surface a warning so the author knows.
+fn check_scheduled_on_reactive_fn(s: &ScheduledDecl, diags: &mut Vec<Diagnostic>) {
+    if s.func.is_reactive {
+        diags.push(Diagnostic {
+            message: format!(
+                "`@scheduled` on `{}` has no scheduler on the GUI/TypeScript target; \
+                 cron only runs on the native backend.",
+                s.func.name
+            ),
+            span: s.func.span,
+            severity: TypeckSeverity::Warning,
+            expected_type: None,
+            found_type: None,
+            context: None,
+            suggestions: vec![
+                "Move the scheduled work into a native (non-@reactive) function.".into(),
+            ],
+            category: DiagnosticCategory::Lint,
+            code: Some(codes::DECORATOR_SCHEDULED_TARGET_UNSUPPORTED.into()),
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
+        });
     }
 }
 

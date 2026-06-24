@@ -5,6 +5,7 @@ import { Icon } from '../../ui/Icons';
 import {
   activityQuery,
   listenActivityAppended,
+  listenAgentEvents,
   type ActivityRowDto as ActivityRow,
   type ActivityFilterDto as ActivityFilter,
 } from '../../../transport';
@@ -280,6 +281,19 @@ export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
   // Reactive updates on "vox://activity-appended"
   useEffect(() => {
     const unlistenPromise = listenActivityAppended(() => {
+      fetchLogs();
+    });
+    return () => {
+      unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [fetchLogs]);
+
+  // Also refresh on "vox://agent-events" — this event IS already emitted by the
+  // Rust daemon bridge (spawn_agent_event_stream), whereas "vox://activity-appended"
+  // has no Rust emitter yet. This makes the timeline update live without any new
+  // backend work (Option B: lazy reactive refresh).
+  useEffect(() => {
+    const unlistenPromise = listenAgentEvents(() => {
       fetchLogs();
     });
     return () => {

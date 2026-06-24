@@ -1156,6 +1156,8 @@ mod tests {
         }
 
         #[test]
+        #[serial]
+        #[allow(unsafe_code)]
         fn from_env_ignores_unknown_key_without_panicking() {
             // Catches: unknown keys in VOX_MODEL_AXES causing a panic or
             // silently overwriting a known axis due to partial-match logic.
@@ -1172,6 +1174,8 @@ mod tests {
         }
 
         #[test]
+        #[serial]
+        #[allow(unsafe_code)]
         fn from_env_invalid_numeric_value_falls_back_to_default_for_that_axis() {
             // Catches: invalid parse (e.g. "cost:abc") panicking instead of
             // leaving the axis at the running default.

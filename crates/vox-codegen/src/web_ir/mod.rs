@@ -21,6 +21,7 @@
 //! notes: [`RouteContract`] JSON in [`RouteNode::RouteTree`] must stay serde-stable for tooling (OP-S153).
 
 pub mod async_state;
+pub mod diagnostic_convert;
 pub mod emit_tsx;
 pub mod href_emit;
 pub mod layer_emit;
@@ -283,6 +284,11 @@ pub enum BehaviorNode {
         binding: String,
         /// Emitted handler body (TS source string), with `binding` in scope.
         body: String,
+        span: Option<SourceSpanId>,
+    },
+    /// Prelude statement from a reactive view: block (Stmt path). Was silently dropped at lower.rs:876.
+    PreludeStmt {
+        stmt: vox_compiler::hir::nodes::HirStmt,
         span: Option<SourceSpanId>,
     },
 }
