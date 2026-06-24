@@ -285,6 +285,11 @@ pub enum BehaviorNode {
         body: String,
         span: Option<SourceSpanId>,
     },
+    /// Prelude statement from a reactive view: block (Stmt path). Was silently dropped at lower.rs:876.
+    PreludeStmt {
+        stmt: vox_compiler::hir::nodes::HirStmt,
+        span: Option<SourceSpanId>,
+    },
 }
 
 // ---------------------------------------------------------------------------
