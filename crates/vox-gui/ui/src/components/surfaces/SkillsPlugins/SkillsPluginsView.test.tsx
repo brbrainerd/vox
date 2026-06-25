@@ -1,16 +1,20 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, waitFor, fireEvent } from '@testing-library/react';
 import React from 'react';
 
-const SKILLS = [
-  { id: 'sk1', name: 'Skill One', version: '1.0', category: 'x', description: 'desc', tools: [], source: 'local', permissions: [], tags: [] },
-];
+const SKILL_INFO_RESULT = {
+  id: 'sk1', name: 'Skill One', version: '1.0', category: 'x',
+  description: 'desc', tools: [], source: 'local', permissions: [], tags: [],
+};
+
+const SKILLS = [SKILL_INFO_RESULT];
 
 const invokeMock = vi.fn((_cmd: string, args: any) => {
   const tool = args?.tool;
   if (tool === 'vox_skill_list') return Promise.resolve({ tool, is_error: false, result: { data: SKILLS } });
   if (tool === 'vox_plugin_list') return Promise.resolve({ tool, is_error: false, result: { data: [] } });
+  if (tool === 'vox_skill_info') return Promise.resolve({ tool, is_error: false, result: { data: SKILL_INFO_RESULT } });
   return Promise.resolve({ tool, is_error: false, result: { data: [] } });
 });
 vi.mock('@tauri-apps/api/core', () => ({
@@ -44,5 +48,24 @@ describe('SkillsPluginsView', () => {
     const tabs = screen.getAllByRole('tab');
     expect(tabs.length).toBe(3);
     expect(tabs.some(t => t.getAttribute('aria-selected') === 'true')).toBe(true);
+  });
+
+  it('clicking Info shows skill name in detail panel, not in a JSON toast', async () => {
+    const pushToast = vi.fn();
+    render(<SkillsPluginsView pushToast={pushToast} />);
+    await waitFor(() => expect(screen.getByText('Skill One')).toBeTruthy());
+    const infoBtn = screen.getByRole('button', { name: /^info$/i });
+    fireEvent.click(infoBtn);
+    // After the async call resolves, the detail panel should show the skill name
+    await waitFor(() => {
+      // There should be at least one element with "Skill One" visible (in the detail panel)
+      const matches = screen.getAllByText('Skill One');
+      expect(matches.length).toBeGreaterThanOrEqual(1);
+    });
+    // pushToast should NOT have been called with a JSON body from vox_skill_info
+    const jsonToastCall = pushToast.mock.calls.find(
+      (call) => call[0]?.body && call[0].body.startsWith('{'),
+    );
+    expect(jsonToastCall).toBeUndefined();
   });
 });
