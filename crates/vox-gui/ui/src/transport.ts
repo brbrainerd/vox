@@ -574,6 +574,18 @@ export function listenPtyExit(onExit: (tabId: string) => void): Promise<Unlisten
   return listen<{ tab_id: string }>(PTY_EXIT_EVENT, (e) => onExit(e.payload.tab_id));
 }
 
+// ---------------------------------------------------------------------------
+// Policy enable/disable + edit transport wrappers.
+// ---------------------------------------------------------------------------
+
+export function policySetEnabled(id: string, enabled: boolean): Promise<void> {
+  return invoke('policy_set_enabled', { id, enabled });
+}
+
+export function policyEdit(id: string, title?: string, description?: string): Promise<void> {
+  return invoke('policy_edit', { id, title: title ?? null, description: description ?? null });
+}
+
 /** Send a free-form note to an agent's A2A inbox. Resolves to the message id. */
 export function sendToAgent(agentId: string, body: string): Promise<string> {
   return invoke<string>('send_to_agent', { agentId, body });

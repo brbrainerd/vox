@@ -5,6 +5,7 @@ import { Icon } from '../../ui/Icons';
 import { useLocalStorage } from '../../../hooks/useLocalStorage';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import { buildGroupTree, needsAttention, overallWorst, statusForRow } from './policyTree';
+import { policySetEnabled, policyEdit } from '../../../transport';
 import type { PolicyRow, PolicyDetail, PolicyStatus, BranchInfo, RunStatus } from './types';
 
 const STATUS_DOT: Record<RunStatus, string> = {
@@ -44,6 +45,9 @@ export function PoliciesView({
   const [detail, setDetail] = useState<PolicyDetail | null>(null);
   const [railCollapsed, setRailCollapsed] = useLocalStorage<boolean>('vox_policy_rail_collapsed', false);
   const [collapsedGroups, setCollapsedGroups] = useLocalStorage<Record<string, boolean>>('vox_policy_groups', {});
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDesc, setEditDesc] = useState('');
 
   // Load catalog + branches once.
   useEffect(() => {
@@ -85,6 +89,13 @@ export function PoliciesView({
   const tree = useMemo(() => buildGroupTree(rows, status, selectedBranches), [rows, status, selectedBranches]);
   const attention = useMemo(() => needsAttention(rows, status, selectedBranches), [rows, status, selectedBranches]);
   const worst = useMemo(() => overallWorst(rows, status, selectedBranches), [rows, status, selectedBranches]);
+
+  const refresh = () => {
+    if (!selectedId) return;
+    invoke<PolicyDetail>('policy_show', { id: selectedId })
+      .then(setDetail)
+      .catch(err => pushToast({ tone: 'warn', title: 'Detail failed', body: String(err) }));
+  };
 
   const toggleBranch = (b: string) =>
     setSelectedBranches(prev => prev.includes(b) ? prev.filter(x => x !== b) : [...prev, b]);
@@ -195,16 +206,54 @@ export function PoliciesView({
                   <div className="font-display text-[11px] text-text-muted">{detail.title}</div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <button type="button" disabled title="Editing arrives in Phase 3 (read-only now)"
-                    className="flex items-center gap-1 rounded-md border border-border-subtle px-2 py-1 font-mono text-[10px] text-text-muted opacity-50 cursor-not-allowed">
+                  <button type="button"
+                    disabled={detail.protected}
+                    title={detail.protected ? 'Protected policies cannot be edited' : 'Edit title and description'}
+                    onClick={() => { setEditTitle(detail.title); setEditDesc(detail.description); setEditOpen(o => !o); }}
+                    className={`flex items-center gap-1 rounded-md border border-border-subtle px-2 py-1 font-mono text-[10px] ${detail.protected ? 'text-text-muted opacity-50 cursor-not-allowed' : 'text-text-secondary hover:text-text-primary hover:bg-overlay-subtle'}`}>
                     ✎ Edit
                   </button>
-                  <button type="button" disabled title="Enable/disable arrives in Phase 2 (read-only now)"
-                    className="flex items-center gap-1 rounded-md border border-border-subtle px-2 py-1 font-mono text-[10px] text-text-muted opacity-50 cursor-not-allowed">
-                    ⏻ Disable
+                  <button type="button"
+                    disabled={detail.protected}
+                    title={detail.protected ? 'Protected policies cannot be toggled' : (detail.enabled ? 'Disable this policy' : 'Enable this policy')}
+                    onClick={() => policySetEnabled(detail.id, !detail.enabled).then(refresh)}
+                    className={`flex items-center gap-1 rounded-md border border-border-subtle px-2 py-1 font-mono text-[10px] ${detail.protected ? 'text-text-muted opacity-50 cursor-not-allowed' : 'text-text-secondary hover:text-text-primary hover:bg-overlay-subtle'}`}>
+                    ⏻ {detail.enabled ? 'Disable' : 'Enable'}
                   </button>
                 </div>
               </header>
+
+              {editOpen && !detail.protected && (
+                <section aria-label="Edit policy" className="flex flex-col gap-2 rounded-lg border border-border-subtle bg-overlay-subtle p-3">
+                  <div className="font-display text-[9px] uppercase tracking-[0.28em] text-text-muted">Edit title / description</div>
+                  <input
+                    type="text"
+                    aria-label="Policy title"
+                    value={editTitle}
+                    onChange={e => setEditTitle(e.target.value)}
+                    className="rounded border border-border-subtle bg-black/30 px-2 py-1 font-mono text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-brass/40"
+                  />
+                  <textarea
+                    aria-label="Policy description"
+                    value={editDesc}
+                    onChange={e => setEditDesc(e.target.value)}
+                    rows={3}
+                    className="rounded border border-border-subtle bg-black/30 px-2 py-1 font-mono text-xs text-text-secondary focus:outline-none focus:ring-1 focus:ring-brass/40 resize-y"
+                  />
+                  <div className="flex gap-2">
+                    <button type="button"
+                      onClick={() => policyEdit(detail.id, editTitle, editDesc).then(() => { setEditOpen(false); refresh(); })}
+                      className="rounded-md border border-brass/40 bg-brass/10 px-2 py-1 font-mono text-[10px] text-brass hover:bg-brass/20">
+                      Save
+                    </button>
+                    <button type="button"
+                      onClick={() => setEditOpen(false)}
+                      className="rounded-md border border-border-subtle px-2 py-1 font-mono text-[10px] text-text-muted hover:text-text-primary">
+                      Cancel
+                    </button>
+                  </div>
+                </section>
+              )}
 
               <section className="flex flex-col gap-1.5">
                 <div className="font-display text-[9px] uppercase tracking-[0.28em] text-text-muted">What it does</div>
