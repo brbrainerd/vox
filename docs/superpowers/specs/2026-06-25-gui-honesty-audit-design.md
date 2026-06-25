@@ -73,18 +73,22 @@ export type Toast = {
 };
 ```
 
-A toast is legitimate only if it reports the result of a *real* effect. The enforcement
-layer adds a required, typed `cause` so a toast that does not name a real effect cannot be
+The "too many toasts" complaint is a **frequency** problem, not a persistence one — toasts
+already auto-dismiss at 5s (`App.tsx`). The causes are: (a) routine, synchronous,
+already-visible actions toast anyway (e.g. "Command", nav confirmations); (b) the stack is
+uncapped; (c) the tones are off the Limes palette (emerald/cyan/amber). The toast pass
+therefore: downgrades routine toasts to silent/inline, caps the visible stack, re-tones to DS
+tokens, AND adds a required typed `cause` so a toast that names no real effect cannot be
 written:
 
 ```ts
 export type ToastCause =
-  | 'backend-ok'      // a Tauri command / mutation succeeded
-  | 'backend-error'   // a Tauri command / mutation failed
+  | 'backend-ok'      // an async Tauri command / mutation succeeded
+  | 'backend-error'   // an async Tauri command / mutation failed
   | 'validation'      // user input rejected before any effect
-  | 'navigation'      // confirmed a view/route change
   | 'clipboard'       // copied to clipboard (a real OS effect)
   | 'external';       // opened an external app/url
+// Deliberately NO 'navigation'/'synchronous-action' cause — those must not toast at all.
 
 export type Toast = {
   tone: 'ok' | 'warn' | 'info';
@@ -95,8 +99,9 @@ export type Toast = {
 };
 ```
 
-There is no `cause` value for "a thing that did nothing", so a no-op toast becomes
-unwritable. This is the "compiler-level" catch.
+There is no `cause` value for "a thing that did nothing" or "a routine sync action", so those
+toasts become unwritable. **Honest scope:** the type stops *causeless* toasts at compile/edit
+time; it does not stop a *false* cause — that is caught by `code-reviewer`.
 
 ## Workflow (6 phases)
 
@@ -110,13 +115,17 @@ Capture before-screenshots via the existing `playwright.screens.config.ts`.
 green. *(automated)*
 
 ### Phase 1 — Audit *(parallel, one sub-agent per surface ≈28, cap 8)*
-Each surface sub-agent: (a) visual critique via `vox ci gui-visual-review` output for that
-surface; (b) behavioral trace — follow every handler to a real `invoke`/event or prove it is
-dead/noop-toast/placeholder. Returns findings JSON per the Definitions above. Surfaces are
-independent → clean fan-out, no shared state.
-**Gate G1:** every surface has a findings file; a second adversarial agent re-checks a
-sample of `dead` verdicts so we never "fix" something merely hard to trace.
-*(automated + sampling)*
+Each surface sub-agent does (a) a **behavioral trace** — follow every handler to a real
+`invoke`/event or prove it dead/noop-toast/placeholder — scoped by the surface's
+`SURFACE_REGISTRY.tier`: `live_backend` must be fully functional (dead = bug),
+`curated_decorator` is expected-partial, `none` skipped; and (b) a **visual audit** on a fixed
+rubric — DS-token conformance (hardcoded hex / arbitrary tailwind vs Limes tokens), a11y
+(contrast, target size, aria), overflow/truncation, hierarchy — folding in this surface's
+existing `--ai` critique from `contracts/reports/gui-visual-review/ledger.jsonl`. Surfaces are
+independent → clean fan-out.
+**Gate G1:** every surface has a findings file; a second adversarial agent re-checks a sample
+spanning **both `dead` and `works`** verdicts so we never "fix" something merely hard to trace
+nor pass something secretly broken. *(automated + sampling)*
 
 ### Phase 2 — Triage & synthesis *(serial, main loop — barrier; needs all findings)*
 Merge/dedup into one decision table, one row per element:
@@ -124,23 +133,29 @@ Merge/dedup into one decision table, one row per element:
 **Gate G2 (human):** user reviews the triage table before any code change — it decides which
 intended features get hidden.
 
-### Phase 3 — Fix *(parallel, one sub-agent per surface; TDD)*
-Per element: write the e2e/vitest assertion first (element does X, or is absent), then
-apply its triage decision. Shared files (`App.tsx`, `surfaceComponents.tsx`, `Toasts.tsx`,
-`types/tauri.ts`, registries) are pulled OUT into one serial task — never edited by two
-agents at once.
-**Gate G3:** per surface, `pnpm test` green + `vox ci gui-visual-review` re-critique not
-worse; then `superpowers:code-reviewer` pass. *(automated + review)*
+### Phase 3 — Fix *(serial toast overhaul → parallel per-surface → serial shared files; TDD)*
+First, one **serial toast-overhaul task** (before any per-surface work): introduce required
+`ToastCause`, cap the visible stack, drop routine toasts, re-tone to DS — so fix agents write
+against the final API. Then per element: write the vitest/RTL assertion first (element does X,
+or is absent), then apply its triage decision. **HIDE = move the unfinished markup to a sibling
+`<Name>.unfinished.tsx`** (excluded from the guard scan) and stop importing it — not an env
+flag leaving placeholder text in a shipped file. Shared files (`App.tsx`,
+`surfaceComponents.tsx`, `Toasts.tsx`, `types/tauri.ts`, registries) are pulled OUT into one
+serial task — never edited by two agents at once.
+**Gate G3:** per surface, `pnpm test` green + the surface's `--ai` visual-review ledger entry
+has no unaddressed findings; then `superpowers:code-reviewer` pass. *(automated + review)*
 
 ### Phase 4 — Durable prevention *(serial, single agent; TDD)*
-- **Layer A (type, tsc):** add required `ToastCause` (above). Update all real toast sites.
-  A causeless toast now fails `tsc --noEmit`.
+- **Layer A (type, tsc):** required `ToastCause` (done in the Phase 3 toast task). A causeless
+  toast fails `tsc --noEmit` and shows a red squiggle in the IDE at edit time — the
+  "before implementation, dynamically" win. (Does not catch a *lying* cause → code review.)
 - **Layer B (vitest guard):** `surfaceHonesty.guard.test.ts` scans
-  `src/components/surfaces/**` source for banned placeholder literals and dead handlers,
-  asserting none outside an explicit `HIDDEN_ALLOWLIST` (flag-gated, non-shipped paths).
-- **Layer C (CI gate):** add `vox ci gui-honesty` (Rust subcommand mirroring
-  `gui-surface-registry`) that runs the typecheck + the guard test and exits non-zero on
-  violation; register it in the CI gate list.
+  `src/components/surfaces/**` (skipping `*.test.tsx` and `*.unfinished.tsx`) for *literal*
+  no-op handlers and placeholder text, asserting none outside an explicit `HIDDEN_ALLOWLIST`.
+  Regex is a floor for cheap regressions; semantic dead code stays the audit's + review's job.
+- **Layer C (CI gate + pre-commit):** add `vox ci gui-honesty` (Rust subcommand mirroring
+  `gui-surface-registry`) that runs typecheck + guard; register it in CI **and** in the
+  existing lefthook pre-commit so violations are caught before push.
 **Gate G4:** the gate fails-red on a planted violation and passes-green on the clean tree.
 *(automated self-test)*
 
