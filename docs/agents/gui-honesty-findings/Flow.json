@@ -1,0 +1,112 @@
+{
+  "surface": "Flow",
+  "tier": "live_backend",
+  "behavioral": [
+    {
+      "file": "crates/vox-gui/ui/src/components/surfaces/Flow/AgentFlow.tsx",
+      "line": 231,
+      "label": "Node onClick (graph node / agent shard selection)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "onClick calls setSel(n.id) (local state) and onSelect?.(n.id) (prop callback). Both are pure UI selection — no backend call needed. Inspector panel renders immediately from the agents prop already in scope."
+    },
+    {
+      "file": "crates/vox-gui/ui/src/components/surfaces/Flow/AgentFlow.tsx",
+      "line": 232,
+      "label": "Node onKeyDown (keyboard nav: Enter / Space to select shard)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "Mirrors onClick — calls setSel + onSelect on Enter/Space; e.preventDefault() prevents scroll on Space. Correct."
+    }
+  ],
+  "visual": [
+    {
+      "dimension": "hardcoded color",
+      "file": "crates/vox-gui/ui/src/components/surfaces/Flow/AgentFlow.tsx",
+      "line": 119,
+      "issue": "Progress bar uses literal Tailwind classes `from-violet-400 to-emerald-400` instead of design-token classes. These bypass the theme layer and will not adapt to light/dark or brand token changes.",
+      "severity": "med"
+    },
+    {
+      "dimension": "hardcoded color",
+      "file": "crates/vox-gui/ui/src/components/surfaces/Flow/AgentFlow.tsx",
+      "line": 159,
+      "issue": "Legend uses `bg-cyan-400` for Planning and `bg-emerald-400` for Validated as Tailwind utility classes. The SVG nodes resolve the same phases through `viz.cyan400` (#22d3ee) and the brass CSS var, but the Legend diverges — `bg-emerald-400` has no counterpart in visualTokens, so Legend color for Validated is inconsistent with the actual node stroke color (`viz.emerald400` is not defined; node uses a fallback).",
+      "severity": "med"
+    },
+    {
+      "dimension": "hardcoded color",
+      "file": "crates/vox-gui/ui/src/components/surfaces/Flow/AgentFlow.tsx",
+      "line": 203,
+      "issue": "SVG edge base-stroke is a bare `rgba(255,255,255,0.06)` literal. Should use a CSS-var-based token for dark/light theme correctness.",
+      "severity": "low"
+    },
+    {
+      "dimension": "hardcoded color",
+      "file": "crates/vox-gui/ui/src/components/surfaces/Flow/AgentFlow.tsx",
+      "line": 179,
+      "issue": "`viz.cyan400` is a hex literal (#22d3ee) baked into an SVG linearGradient stop. The value matches the Tailwind `cyan-400` swatch but is not a CSS variable, so it ignores theme overrides.",
+      "severity": "low"
+    },
+    {
+      "dimension": "hardcoded color",
+      "file": "crates/vox-gui/ui/src/components/surfaces/Flow/AgentFlow.tsx",
+      "line": 183,
+      "issue": "`viz.white` (#ffffff) is a hardcoded hex used as the radial gradient inner stop for the root node glow. Breaks on non-dark backgrounds.",
+      "severity": "low"
+    },
+    {
+      "dimension": "a11y",
+      "file": "crates/vox-gui/ui/src/components/surfaces/Flow/AgentFlow.tsx",
+      "line": 171,
+      "issue": "The outer `<svg>` has no `role`, `aria-label`, or `title` element. Screen readers encounter an unlabelled SVG containing interactive buttons. Should add `role='img'` with `aria-label='Agent topology graph'` or wrap nodes in a `role='group'` with a caption.",
+      "severity": "high"
+    },
+    {
+      "dimension": "a11y",
+      "file": "crates/vox-gui/ui/src/components/surfaces/Flow/AgentFlow.tsx",
+      "line": 218,
+      "issue": "SVG `<g>` nodes have `role='button'` and `tabIndex={0}` which is correct, but there is no visible focus ring defined via CSS for the SVG context — only `focus-visible:[outline:...]` on the group element; SVG groups do not reliably display CSS outlines in all browsers. A `<rect>` or `<circle>` with stroke as a focus indicator would be more robust.",
+      "severity": "med"
+    },
+    {
+      "dimension": "a11y",
+      "file": "crates/vox-gui/ui/src/components/surfaces/Flow/AgentFlow.tsx",
+      "line": 288,
+      "issue": "AgentInspector panel has no `role='dialog'` or `aria-live` region. When a node is selected the panel appears absolutely positioned but focus is not moved to it, and screen readers receive no announcement. Add `aria-live='polite'` or move focus into the panel on selection.",
+      "severity": "med"
+    },
+    {
+      "dimension": "overflow",
+      "file": "crates/vox-gui/ui/src/components/surfaces/Flow/AgentFlow.tsx",
+      "line": 80,
+      "issue": "AgentInspector is positioned `absolute right-5 top-5 w-72`. At narrow viewport widths (<320px) it can overflow the parent container. The parent Glass uses `overflow-hidden` which clips it silently rather than reflowing.",
+      "severity": "low"
+    },
+    {
+      "dimension": "hierarchy",
+      "file": "crates/vox-gui/ui/src/components/surfaces/Flow/AgentFlow.tsx",
+      "line": 151,
+      "issue": "Header uses `<h2>` with hardcoded copy 'Mind-Map · Agent Shards' but the surface navLabel in the registry is 'Agents'. The heading copy is inconsistent with nav labelling, breaking information scent for users navigating by headings.",
+      "severity": "low"
+    },
+    {
+      "dimension": "hardcoded value",
+      "file": "crates/vox-gui/ui/src/components/surfaces/Flow/AgentFlow.tsx",
+      "line": 138,
+      "issue": "SVG viewBox is hardcoded to `1200 × 640`. The containing div is `h-[600px]` (bracket value). These are not responsive — no ResizeObserver or viewBox scaling from container dimensions. At narrow widths the SVG shrinks via `preserveAspectRatio` but nodes become too small to read.",
+      "severity": "med"
+    },
+    {
+      "dimension": "hardcoded value",
+      "file": "crates/vox-gui/ui/src/components/surfaces/Flow/AgentFlow.tsx",
+      "line": 167,
+      "issue": "`h-[600px]` bracket Tailwind value for the SVG wrapper height is hardcoded. Should use a responsive or CSS-var-driven height.",
+      "severity": "low"
+    }
+  ]
+}

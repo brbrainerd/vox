@@ -1,0 +1,175 @@
+{
+  "surface": "Tasks",
+  "tier": "live_backend",
+  "behavioral": [
+    {
+      "file": "TasksView.tsx",
+      "line": 54,
+      "label": "Load tasks (hopper_list)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "hopper_list",
+      "evidence": "invoke<HopperTaskDto[]>('hopper_list') called on mount and on vox://tasks-changed event"
+    },
+    {
+      "file": "TasksView.tsx",
+      "line": 124,
+      "label": "Add task (TaskComposer onSubmit)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "hopper_submit",
+      "evidence": "addTask calls invoke('hopper_submit', { intent, affinity: [] }) then refreshes"
+    },
+    {
+      "file": "TasksView.tsx",
+      "line": 129,
+      "label": "Cancel task (X button per row)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "hopper_cancel",
+      "evidence": "remove() calls invoke('hopper_cancel', { itemId: String(id) })"
+    },
+    {
+      "file": "TasksView.tsx",
+      "line": 151,
+      "label": "Reprioritize task (priority select onChange)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "hopper_reprioritize",
+      "evidence": "onChange calls reprioritize() which calls invoke('hopper_reprioritize', { itemId, priority })"
+    },
+    {
+      "file": "TasksView.tsx",
+      "line": 262,
+      "label": "Refresh button onClick",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "hopper_list",
+      "evidence": "onClick={refresh} where refresh invokes hopper_list"
+    },
+    {
+      "file": "TasksView.tsx",
+      "line": 281,
+      "label": "Session filter pills onClick",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "setSessionFilter(sid) is meaningful local state that gates filteredRows; no backend needed"
+    },
+    {
+      "file": "TasksView.tsx",
+      "line": 300,
+      "label": "Show blocked tasks checkbox onChange",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "setShowBlocked(e.target.checked) is meaningful local filter state"
+    },
+    {
+      "file": "TasksView.tsx",
+      "line": 179,
+      "label": "Description span onClick (focus file in Ludus)",
+      "verdict": "works",
+      "expected_partial": true,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "Calls useLudusStore.getState().setFocusedFile() only when write_files is non-empty; guard is correct but backend DTO maps write_files=[] always (line 79), so this branch is currently unreachable with live data"
+    },
+    {
+      "file": "TaskComposer.tsx",
+      "line": 12,
+      "label": "Form onSubmit / Add button onClick",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "hopper_submit",
+      "evidence": "handleSubmit validates non-empty then calls props.onSubmit(trimmed) which maps to addTask → invoke('hopper_submit')"
+    }
+  ],
+  "visual": [
+    {
+      "dimension": "ds-token",
+      "file": "TasksView.tsx",
+      "line": 156,
+      "issue": "Priority select uses hardcoded Tailwind colors 'bg-zinc-900 text-zinc-100' instead of design-system tokens (bg-bg-base / text-text-primary)",
+      "severity": "med"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "TasksView.tsx",
+      "line": 190,
+      "issue": "'text-amber-400' hardcoded for blocked badge; should use a semantic token",
+      "severity": "low"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "TasksView.tsx",
+      "line": 213,
+      "issue": "Overlap warning badge uses hardcoded 'border-amber-400/30 bg-amber-400/10 text-amber-300' instead of ds tokens",
+      "severity": "low"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "TasksView.tsx",
+      "line": 222,
+      "issue": "Remote mesh badge uses hardcoded 'border-cyan-400/30 bg-cyan-400/10 text-cyan-300' instead of ds tokens",
+      "severity": "low"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "TaskComposer.tsx",
+      "line": 21,
+      "issue": "Form container uses 'bg-white/[0.02] border-white/10' arbitrary bracket value instead of ds overlay tokens",
+      "severity": "med"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "TaskComposer.tsx",
+      "line": 27,
+      "issue": "Textarea uses hardcoded 'text-zinc-100 placeholder:text-zinc-600' instead of text-text-primary / text-text-muted",
+      "severity": "med"
+    },
+    {
+      "dimension": "a11y",
+      "file": "TasksView.tsx",
+      "line": 237,
+      "issue": "Cancel-task Button contains only an Icon (Icon.x) with no visible text label. It has title=\"Cancel task\" but no aria-label attribute; title is not reliably exposed to screen readers",
+      "severity": "med"
+    },
+    {
+      "dimension": "a11y",
+      "file": "TasksView.tsx",
+      "line": 179,
+      "issue": "Description span is interactive (onClick, cursor-pointer, hover style) but is a <span> not a <button>; no role, no keyboard activation support",
+      "severity": "med"
+    },
+    {
+      "dimension": "overflow",
+      "file": "TasksView.tsx",
+      "line": 148,
+      "issue": "Priority column has fixed width=110 which may clip the 'Background' option label on some locales or font sizes",
+      "severity": "low"
+    },
+    {
+      "dimension": "overflow",
+      "file": "TasksView.tsx",
+      "line": 161,
+      "issue": "Task ID column has fixed width=80; UUID-style IDs truncated to 8 chars which is fine, but the fixed width leaves no flex room",
+      "severity": "low"
+    },
+    {
+      "dimension": "hierarchy",
+      "file": "TasksView.tsx",
+      "line": 235,
+      "issue": "The only row-level action is Cancel (destructive). There is no primary action (e.g. view detail, open in agent); unclear hierarchy — the only affordance is destructive",
+      "severity": "med"
+    }
+  ]
+}

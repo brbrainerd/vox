@@ -1,0 +1,218 @@
+{
+  "surface": "Dashboard",
+  "tier": "live_backend",
+  "behavioral": [
+    {
+      "file": "Dashboard/Dashboard.tsx",
+      "line": 303,
+      "label": "Open Chat CTA button",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "onClick calls onOpenChat which is wired in App.tsx:1059 to () => navigateTo('chat') — pure local navigation, no backend needed."
+    },
+    {
+      "file": "Dashboard/Dashboard.tsx",
+      "line": 349,
+      "label": "Customize dashboard toggle",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "onClick toggles customizeMode local state; when toggled off also closes pickerOpen. Pure local state change, persists via useLocalStorage."
+    },
+    {
+      "file": "Dashboard/Dashboard.tsx",
+      "line": 330,
+      "label": "Add widget button",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "onClick toggles pickerOpen local state. WidgetPickerDrawer then calls handleAddWidget -> addWidgetToLayout -> persistDashboardLayout. Fully wired."
+    },
+    {
+      "file": "Dashboard/Dashboard.tsx",
+      "line": 336,
+      "label": "Reset to default button",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "onClick calls handleResetLayout -> resetDashboardLayout -> persistDashboardLayout. Fully wired local state + localStorage."
+    },
+    {
+      "file": "Dashboard/Dashboard.tsx",
+      "line": 162,
+      "label": "Stream filter buttons (all/validated/in-progress/doubted/speculative)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "onClick calls setFilterKind (prop from App.tsx). Filters in-memory stream array. Pure local state."
+    },
+    {
+      "file": "Dashboard/Dashboard.tsx",
+      "line": 368,
+      "label": "Immersive View link (Workspace Simulation Mini-Map)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "onClick calls onNavigate?.('gamify'). onNavigate is wired in App.tsx:1058 to navigateTo. Works as navigation."
+    },
+    {
+      "file": "Dashboard/Dashboard.tsx",
+      "line": 369,
+      "label": "Collapse/Expand button (Workspace Simulation Mini-Map)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "onClick toggles sandboxCollapsed local state. Pure local state."
+    },
+    {
+      "file": "Dashboard/AgentRow.tsx",
+      "line": 49,
+      "label": "Pause/Resume agent button",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "pause_orchestrator_agent / resume_orchestrator_agent",
+      "evidence": "onClick routes to onPause/onResume. App.tsx:898/910: handlePause/handleResume call executeIpcWithRun('pause_orchestrator_agent'/'resume_orchestrator_agent', {agentId}). Real Tauri invoke backed by optimistic local state update."
+    },
+    {
+      "file": "Dashboard/AgentRow.tsx",
+      "line": 57,
+      "label": "Open in Console button",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "onClick calls onOpenInConsole(a). App.tsx:1060: wired to navigateTo('console') with agent selection. Pure navigation."
+    },
+    {
+      "file": "Dashboard/AgentRow.tsx",
+      "line": 67,
+      "label": "Approve button (inline approval)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "vox_resolve_approval (MCP)",
+      "evidence": "onClick calls onApprove(pendingApprovalId). In Dashboard.tsx:229 wired to approvals.resolve(id, 'approved'). useAgentApprovals.resolve calls voxTransport.invokeMcpTool('vox_resolve_approval', {approval_id, outcome:'approved'})."
+    },
+    {
+      "file": "Dashboard/AgentRow.tsx",
+      "line": 69,
+      "label": "Reject button (inline approval)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "vox_resolve_approval (MCP)",
+      "evidence": "onClick calls onReject(pendingApprovalId). Wired to approvals.resolve(id, 'rejected'). Same MCP path as Approve."
+    },
+    {
+      "file": "Dashboard/StreamCard.tsx",
+      "line": 39,
+      "label": "Doubt button on StreamCard",
+      "verdict": "dead",
+      "expected_partial": true,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "onClick calls onDoubt?.(item). onDoubt is defined as optional on Dashboard props (line 48) but is NOT passed from App.tsx (no handleDoubt exists in App.tsx). The optional chaining ?. silently no-ops. The button renders and is visible but has zero effect."
+    },
+    {
+      "file": "Dashboard/StreamCard.tsx",
+      "line": 44,
+      "label": "Overrule button on StreamCard",
+      "verdict": "dead",
+      "expected_partial": true,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "onClick calls onOverrule?.(item). onOverrule is defined as optional on Dashboard props (line 49) but is NOT passed from App.tsx (no handleOverrule exists). The ?. silently no-ops. Button appears on hover for doubted items but does nothing."
+    },
+    {
+      "file": "Dashboard/LudusBanner.tsx",
+      "line": 27,
+      "label": "Acknowledge alert (X) button",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "ack_ludus_notification",
+      "evidence": "onClick calls onAck(note). Wired in App.tsx:1051 to handleAckAlert, which calls invoke('ack_ludus_notification', {notificationId}) and optimistically removes from local state."
+    }
+  ],
+  "visual": [
+    {
+      "dimension": "ds-token",
+      "file": "Dashboard/Dashboard.tsx",
+      "line": 364,
+      "issue": "Hardcoded hex color bg-[#09090b]/80 used for Workspace Simulation Mini-Map background instead of a ds-token (e.g. bg-bg-base/80).",
+      "severity": "med"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "Dashboard/Dashboard.tsx",
+      "line": 194,
+      "issue": "text-amber-300 used directly for the alert icon in the Alerts widget header; should use a semantic token like text-status-warn.",
+      "severity": "low"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "Dashboard/AgentRow.tsx",
+      "line": 99,
+      "issue": "Budget burn bar uses raw Tailwind colors bg-rose-400 / bg-amber-400 / bg-emerald-400 for threshold states instead of semantic tokens (text-status-fail / text-status-warn / text-status-pass).",
+      "severity": "med"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "Dashboard/StreamCard.tsx",
+      "line": 14,
+      "issue": "toneMap uses raw Tailwind gradient colors (from-emerald-400/40, from-brass/40, from-amber-400/40, from-violet-400/40) for the left-accent bar; no ds-tokens for status colors exist for gradient stops, but emerald/amber/violet bypasses the token system.",
+      "severity": "low"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "Dashboard/StreamCard.tsx",
+      "line": 39,
+      "issue": "Doubt button hover uses hover:border-amber-400/30 hover:text-amber-300; Overrule button uses border-amber-400/20 bg-amber-400/5 text-amber-300. All direct Tailwind color references without ds-tokens.",
+      "severity": "low"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "Dashboard/LudusBanner.tsx",
+      "line": 12,
+      "issue": "stylingMap uses raw emerald-400/300, amber-400/300, cyan-400/300, rose-400/300 for ring/bg/text in all four alert level variants. Should use semantic status tokens.",
+      "severity": "med"
+    },
+    {
+      "dimension": "a11y",
+      "file": "Dashboard/Dashboard.tsx",
+      "line": 368,
+      "issue": "'Immersive View' link is a plain <button> with only text content — no aria-label needed here, but the 'Collapse'/'Expand' button (line 369) likewise has only text, so both are fine on their own. However the section header uses a Unicode bullet ⬤ (line 366) inside a <span> with no aria-hidden='true', which will be read aloud as 'black circle' by screen readers.",
+      "severity": "low"
+    },
+    {
+      "dimension": "a11y",
+      "file": "Dashboard/Dashboard.tsx",
+      "line": 368,
+      "issue": "The 'Immersive View' button (text-cyan class, line 368) is styled with an arbitrary text-cyan class. If that resolves to a Tailwind cyan color rather than a ds-token, it is both a ds-token violation and potentially insufficient contrast on dark backgrounds.",
+      "severity": "low"
+    },
+    {
+      "dimension": "hierarchy",
+      "file": "Dashboard/StreamCard.tsx",
+      "line": 37,
+      "issue": "Doubt and Overrule action buttons are opacity-0 by default and only appear on group-hover. Since onDoubt and onOverrule are both dead (not wired from App.tsx), these hidden controls provide false affordance — they appear interactive but have no effect.",
+      "severity": "high"
+    },
+    {
+      "dimension": "hierarchy",
+      "file": "Dashboard/Dashboard.tsx",
+      "line": 324,
+      "issue": "Customize dashboard controls (absolute top-right, z-20) overlap the KPI row and AttentionBudgetMeter on narrower viewports since the KPIs and meter have no right-side clearance accounting for the absolutely-positioned button cluster.",
+      "severity": "med"
+    }
+  ]
+}

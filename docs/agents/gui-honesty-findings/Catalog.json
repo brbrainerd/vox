@@ -1,0 +1,186 @@
+{
+  "surface": "Catalog",
+  "tier": "live_backend",
+  "behavioral": [
+    {
+      "file": "crates/vox-gui/ui/src/components/surfaces/Catalog/Catalog.tsx",
+      "line": 5,
+      "label": "skills prop (catalog data source)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "tauri:get_command_catalog",
+      "evidence": "App.tsx:340 calls voxTransport.getCatalog() → invoke('get_command_catalog') on mount, stores result in data.skills, passed through surfaceComponents.tsx:110 as <Catalog skills={props.data.skills} />. CatalogEntry = CommandCatalogEntry (alias). Live backend feed confirmed."
+    },
+    {
+      "file": "crates/vox-gui/ui/src/components/CommandCatalogForm.tsx",
+      "line": 88,
+      "label": "Command list item onClick → handleCommandSelect",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "onClick calls handleCommandSelect(cmd.path) which sets selectedPath, seeds argValues from cmd.arguments defaults, and clears output. Pure local state — no backend call needed. Works correctly."
+    },
+    {
+      "file": "crates/vox-gui/ui/src/components/CommandCatalogForm.tsx",
+      "line": 197,
+      "label": "Execute button onClick → handleExecute",
+      "verdict": "works",
+      "expected_partial": true,
+      "cheap_to_wire": false,
+      "backend_command": "tauri:execute_command / tauri:invoke_mcp_tool",
+      "evidence": "Calls voxTransport.callTool(selectedPath.replace(/ /g,'_'), {...argsObj, __argv:parsedArgs}). Transport resolves via action manifest → mcp (invoke_mcp_tool) or cli path (execute_command). Structured argValues are merged with raw __argv input. Partial: callTool has hardcoded fast-paths only for vox_list_models/vox_set_active_model/vox_explain_model/vox_suggest_model; all other commands fall through to manifest lookup. If manifest lookup misses (action not found, no cli_path, resolvePath fails) transport still tries invoke('execute_command') — may error at runtime. Output panel correctly displays exit_code, stdout, stderr."
+    },
+    {
+      "file": "crates/vox-gui/ui/src/components/CommandCatalogForm.tsx",
+      "line": 135,
+      "label": "Flag checkbox onChange → setArgValues",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "Local state update via setArgValues; value read back in handleExecute as boolean coerced to CLI flag."
+    },
+    {
+      "file": "crates/vox-gui/ui/src/components/CommandCatalogForm.tsx",
+      "line": 147,
+      "label": "Select dropdown onChange → setArgValues",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "Local state update; value passed through to argsObj as string in handleExecute."
+    },
+    {
+      "file": "crates/vox-gui/ui/src/components/CommandCatalogForm.tsx",
+      "line": 162,
+      "label": "Count number input onChange → setArgValues",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "Local state update; value passed through as string in argsObj."
+    },
+    {
+      "file": "crates/vox-gui/ui/src/components/CommandCatalogForm.tsx",
+      "line": 170,
+      "label": "Text input onChange → setArgValues",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "Local state update; value passed through as string in argsObj."
+    },
+    {
+      "file": "crates/vox-gui/ui/src/components/CommandCatalogForm.tsx",
+      "line": 191,
+      "label": "Additional Raw Arguments text input onChange → setArgsInput",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "Local state; split on whitespace and passed as __argv array in handleExecute."
+    }
+  ],
+  "visual": [
+    {
+      "dimension": "hardcoded color token",
+      "file": "crates/vox-gui/ui/src/components/CommandCatalogForm.tsx",
+      "line": 90,
+      "issue": "Uses Tailwind color `bg-cyan/10`, `border-cyan`, `text-cyan` inline in className string. These are design-system token names (not hex), but `cyan` is a raw palette alias rather than a semantic token (e.g. `text-accent`). If the palette renames, this breaks silently.",
+      "severity": "low"
+    },
+    {
+      "dimension": "hardcoded color token",
+      "file": "crates/vox-gui/ui/src/components/CommandCatalogForm.tsx",
+      "line": 140,
+      "issue": "`text-red-400` for REQUIRED label — hardcoded Tailwind color, not a semantic token. Should use `text-destructive` or equivalent.",
+      "severity": "low"
+    },
+    {
+      "dimension": "hardcoded color token",
+      "file": "crates/vox-gui/ui/src/components/CommandCatalogForm.tsx",
+      "line": 208,
+      "issue": "`text-red-500` for error output — hardcoded color, not semantic token.",
+      "severity": "low"
+    },
+    {
+      "dimension": "hardcoded color token",
+      "file": "crates/vox-gui/ui/src/components/CommandCatalogForm.tsx",
+      "line": 211,
+      "issue": "`text-green-500` for exit_code 0 and `text-red-500` for non-zero — hardcoded Tailwind colors, not semantic.",
+      "severity": "low"
+    },
+    {
+      "dimension": "hardcoded color token",
+      "file": "crates/vox-gui/ui/src/components/CommandCatalogForm.tsx",
+      "line": 217,
+      "issue": "`text-cyan` for stdout pre block — raw palette alias, not semantic token.",
+      "severity": "low"
+    },
+    {
+      "dimension": "hardcoded color token",
+      "file": "crates/vox-gui/ui/src/components/CommandCatalogForm.tsx",
+      "line": 223,
+      "issue": "`text-red-400` for stderr pre block — hardcoded color, not semantic token.",
+      "severity": "low"
+    },
+    {
+      "dimension": "a11y",
+      "file": "crates/vox-gui/ui/src/components/CommandCatalogForm.tsx",
+      "line": 82,
+      "issue": "Command list items use `<li onClick=...>` with no `role=\"button\"` or `tabIndex`. Not keyboard-navigable; screen readers see a non-interactive list item.",
+      "severity": "high"
+    },
+    {
+      "dimension": "a11y",
+      "file": "crates/vox-gui/ui/src/components/CommandCatalogForm.tsx",
+      "line": 129,
+      "issue": "Flag checkbox `<input type=\"checkbox\">` shares `id={arg.name}` with downstream text/select/count inputs for the same argument. If two controls share the same `id`, label `htmlFor` association is ambiguous.",
+      "severity": "med"
+    },
+    {
+      "dimension": "a11y",
+      "file": "crates/vox-gui/ui/src/components/CommandCatalogForm.tsx",
+      "line": 197,
+      "issue": "Execute button has no `disabled` state or `aria-busy` while the async handleExecute is in flight. User can double-submit; no loading indicator.",
+      "severity": "med"
+    },
+    {
+      "dimension": "hierarchy",
+      "file": "crates/vox-gui/ui/src/components/CommandCatalogForm.tsx",
+      "line": 115,
+      "issue": "Detail pane uses `<h2>` for command name but the page-level heading in Catalog.tsx is also `<h2>` (line 16). Two sibling h2s on the same surface breaks document outline.",
+      "severity": "med"
+    },
+    {
+      "dimension": "overflow",
+      "file": "crates/vox-gui/ui/src/components/surfaces/Catalog/Catalog.tsx",
+      "line": 21,
+      "issue": "`h-[calc(100vh-290px)] min-h-[560px]` — hardcoded bracket value `290px` is brittle; depends on header+glass heights not tracked semantically. Will overflow or clip if surrounding layout changes.",
+      "severity": "med"
+    },
+    {
+      "dimension": "overflow",
+      "file": "crates/vox-gui/ui/src/components/CommandCatalogForm.tsx",
+      "line": 217,
+      "issue": "stdout `<pre>` uses `whitespace-pre-wrap` but has no `max-h` + `overflow-y-auto`. Very long output will push the pane unboundedly and force the outer `overflow-y-auto` to scroll the whole right panel instead of just the output block.",
+      "severity": "med"
+    },
+    {
+      "dimension": "hardcoded color token",
+      "file": "crates/vox-gui/ui/src/components/CommandCatalogForm.tsx",
+      "line": 98,
+      "issue": "`bg-black/30` hardcoded — should use a `bg-overlay-*` token or design-system surface token.",
+      "severity": "low"
+    },
+    {
+      "dimension": "hierarchy",
+      "file": "crates/vox-gui/ui/src/components/surfaces/Catalog/Catalog.tsx",
+      "line": 16,
+      "issue": "Title reads 'Command Center' but surface nav label is 'Commands' and the inner panel header reads 'Command Catalog' (line 80 of CommandCatalogForm.tsx). Three different names for the same surface — confusing hierarchy and labeling.",
+      "severity": "med"
+    }
+  ]
+}

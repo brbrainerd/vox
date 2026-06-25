@@ -1,0 +1,150 @@
+{
+  "surface": "SkillsPlugins",
+  "tier": "live_backend",
+  "behavioral": [
+    {
+      "file": "SkillsPluginsView.tsx",
+      "line": 193,
+      "label": "Refresh button",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "invoke_mcp_tool(vox_skill_list|vox_plugin_catalog|vox_skill_discover)",
+      "evidence": "onClick dispatches to refreshInstalled/refreshMarketplace/refreshDiscovered; each calls invoke('invoke_mcp_tool', ...) with real MCP tool names"
+    },
+    {
+      "file": "SkillsPluginsView.tsx",
+      "line": 218,
+      "label": "Uninstall skill button",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "invoke_mcp_tool(vox_skill_uninstall)",
+      "evidence": "doAction(id, 'vox_skill_uninstall', {id}, ...) → invoke('invoke_mcp_tool', ...) → refreshInstalled on completion"
+    },
+    {
+      "file": "SkillsPluginsView.tsx",
+      "line": 220,
+      "label": "Remove plugin button",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "invoke_mcp_tool(vox_plugin_remove)",
+      "evidence": "doAction(id, 'vox_plugin_remove', {id}, ...) → invoke('invoke_mcp_tool', ...)"
+    },
+    {
+      "file": "SkillsPluginsView.tsx",
+      "line": 222,
+      "label": "Skill Info button (installed tab)",
+      "verdict": "noop-toast",
+      "expected_partial": false,
+      "cheap_to_wire": true,
+      "backend_command": "invoke_mcp_tool(vox_skill_info)",
+      "evidence": "showInfo calls vox_skill_info then pushToast({ body: JSON.stringify(result) }). Backend IS called but the only visible output is a raw JSON toast — no detail panel, modal, or structured display. Functionally a noop from the user's perspective."
+    },
+    {
+      "file": "SkillsPluginsView.tsx",
+      "line": 223,
+      "label": "Plugin Info button (installed tab)",
+      "verdict": "noop-toast",
+      "expected_partial": false,
+      "cheap_to_wire": true,
+      "backend_command": "invoke_mcp_tool(vox_plugin_info)",
+      "evidence": "showInfo calls vox_plugin_info then pushToast({ body: JSON.stringify(result) }). Same raw-JSON-to-toast pattern."
+    },
+    {
+      "file": "SkillsPluginsView.tsx",
+      "line": 233,
+      "label": "Install plugin button (marketplace tab)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "invoke_mcp_tool(vox_plugin_install)",
+      "evidence": "doAction(id, 'vox_plugin_install', {id}, ...) → invoke('invoke_mcp_tool', ...) → refreshInstalled"
+    },
+    {
+      "file": "SkillsPluginsView.tsx",
+      "line": 236,
+      "label": "Plugin Info button (marketplace tab)",
+      "verdict": "noop-toast",
+      "expected_partial": false,
+      "cheap_to_wire": true,
+      "backend_command": "invoke_mcp_tool(vox_plugin_info)",
+      "evidence": "Same showInfo/raw-JSON-to-toast pattern as installed tab."
+    },
+    {
+      "file": "SkillsPluginsView.tsx",
+      "line": 329,
+      "label": "Search button / Enter key in search input",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "invoke_mcp_tool(vox_skill_search)",
+      "evidence": "runSearch calls callTool('vox_skill_search', {query}) → invoke('invoke_mcp_tool', ...); results populate searchHits state"
+    },
+    {
+      "file": "SkillsPluginsView.tsx",
+      "line": 346,
+      "label": "Installed skills rows (search results)",
+      "verdict": "dead",
+      "expected_partial": true,
+      "cheap_to_wire": true,
+      "backend_command": "invoke_mcp_tool(vox_skill_install)",
+      "evidence": "Only installed skills section at line 346 has `actions=[]` — click is dead for installed skills. Catalog plugin rows (line 364+) and skill-use rows (line 398) have real onClick actions wired."
+    },
+    {
+      "file": "SkillsPluginsView.tsx",
+      "line": 398,
+      "label": "View button (discovered tab)",
+      "verdict": "noop-toast",
+      "expected_partial": false,
+      "cheap_to_wire": true,
+      "backend_command": "invoke_mcp_tool(vox_skill_use)",
+      "evidence": "onSkillUse calls showInfo('vox_skill_use', {id}) → pushToast({body: JSON.stringify(result)}). Same raw-JSON-to-toast pattern; no structured view."
+    }
+  ],
+  "visual": [
+    {
+      "dimension": "ds-token",
+      "file": "SkillsPluginsView.tsx",
+      "line": 442,
+      "issue": "Hardcoded Tailwind color classes: 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20' used for 'ok' tone action buttons. Should use ds-token semantic color variables.",
+      "severity": "med"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "SkillsPluginsView.tsx",
+      "line": 443,
+      "issue": "Hardcoded Tailwind color classes: 'border-rose-400/30 bg-rose-400/10 text-rose-300 hover:bg-rose-400/20' used for 'danger' tone action buttons. Should use ds-token semantic color variables.",
+      "severity": "med"
+    },
+    {
+      "dimension": "hierarchy",
+      "file": "SkillsPluginsView.tsx",
+      "line": 337,
+      "issue": "Skill search results render with no action buttons (actions=[]). The primary expected action (install or view) is absent, leaving a dead end after a search. Users cannot act on discovered search results.",
+      "severity": "high"
+    },
+    {
+      "dimension": "hierarchy",
+      "file": "SkillsPluginsView.tsx",
+      "line": 154,
+      "issue": "Info buttons (skill/plugin) surface raw JSON via toast rather than a structured detail panel. Unusable as a real information surface; obscures the primary content hierarchy.",
+      "severity": "high"
+    },
+    {
+      "dimension": "a11y",
+      "file": "SkillsPluginsView.tsx",
+      "line": 163,
+      "issue": "TabButton renders as <button role='tab'> but is not inside a <div role='tablist'> at the same level — the tablist is on the parent container at line 185. The TabButton component itself does not receive the tablist context, which may confuse AT traversal.",
+      "severity": "low"
+    },
+    {
+      "dimension": "overflow",
+      "file": "SkillsPluginsView.tsx",
+      "line": 454,
+      "issue": "Plugin install_dir shown as subtitle; it uses break-words but the id line below (line 454) uses break-all which can produce visually fragmented mono text on narrow columns. Not clipping but readability degrades on long paths.",
+      "severity": "low"
+    }
+  ]
+}
