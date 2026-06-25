@@ -588,9 +588,9 @@ pub struct ContextBudgetPayload {
     pub usable_tokens: usize,
     /// Human-readable compaction strategy name: "aggressive", "balanced", or "conservative".
     pub strategy: String,
-    /// Actual tokens used in the most recent interaction for the given session
-    /// (sum of input_tokens from the latest llm_interactions row). Zero when
-    /// no session is provided or no rows exist.
+    /// Tokens currently occupying the context window for the given session:
+    /// input + output of the most recent llm_interactions row. Zero when no
+    /// session is provided or no rows exist.
     pub used_tokens: usize,
 }
 
@@ -606,11 +606,15 @@ pub async fn get_context_budget(session_id: Option<String>) -> Result<ContextBud
     let used_tokens: usize = if let Some(sid) = session_id.as_deref() {
         match vox_db::VoxDb::connect_canonical().await {
             Ok(db) => {
+                // Most recent interaction only: input + output of the latest call is
+                // what currently occupies the context window. A SUM over all rows would
+                // grow unbounded across turns and peg the meter at 100% — dishonest.
                 let rows = db
                     .query_all(
-                        "SELECT COALESCE(SUM(input_tokens + output_tokens), 0) \
+                        "SELECT COALESCE(input_tokens, 0) + COALESCE(output_tokens, 0) \
                          FROM llm_interactions \
-                         WHERE session_id = ?1",
+                         WHERE session_id = ?1 \
+                         ORDER BY rowid DESC LIMIT 1",
                         turso::params![sid],
                     )
                     .await
