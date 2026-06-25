@@ -1,4 +1,4 @@
-use super::ast::{EXTRACTOR_VERSION, ExtractedEdge, extract_ast_in_module};
+use super::ast::{EXTRACTOR_VERSION, ExtractedEdge, ExtractedNode, extract_ast_in_module};
 use super::cache::CacheManager;
 use super::cluster::{ClusterEdge, ClusterNode, cluster_nodes};
 use std::fs;
@@ -68,43 +68,7 @@ pub fn rebuild_graph(
         }
     }
 
-    // Resolve each bare call target to a qualified definition id. Preference: same-module
-    // definition; else the unique global definition. Ambiguous, unresolved, and self-edges
-    // are dropped (honesty rule: never invent an edge).
-    fn module_of(id: &str) -> &str {
-        id.rsplit_once("::").map(|(m, _)| m).unwrap_or("")
-    }
-    let mut defs_by_name: std::collections::HashMap<String, Vec<String>> =
-        std::collections::HashMap::new();
-    for n in &all_nodes {
-        let bare = n.id.rsplit("::").next().unwrap_or(&n.id).to_string();
-        defs_by_name.entry(bare).or_default().push(n.id.clone());
-    }
-    let all_edges: Vec<ExtractedEdge> = all_edges
-        .iter()
-        .filter_map(|e| {
-            let candidates = defs_by_name.get(&e.target)?;
-            let src_mod = module_of(&e.source);
-            let same: Vec<&String> = candidates
-                .iter()
-                .filter(|id| module_of(id) == src_mod)
-                .collect();
-            let target = if same.len() == 1 {
-                same[0].clone()
-            } else if candidates.len() == 1 {
-                candidates[0].clone()
-            } else {
-                return None;
-            };
-            if target == e.source {
-                return None; // self-edge
-            }
-            Some(ExtractedEdge {
-                source: e.source.clone(),
-                target,
-            })
-        })
-        .collect();
+    let all_edges = resolve_edges(&all_nodes, &all_edges);
 
     // Convert nodes to ClusterNode format for Leiden clustering
     let cluster_nodes_input: Vec<ClusterNode> = all_nodes
@@ -198,4 +162,98 @@ pub fn rebuild_graph(
     fs::write(manifest_path, serde_json::to_string_pretty(&manifest_val)?)?;
 
     Ok(())
+}
+
+/// Module path of a qualified node id: everything before the final `::` segment. Node ids
+/// are `module_id::symbol` where `module_id` is the file path relative to the source dir
+/// (e.g. `a/b.rs::foo` -> `a/b.rs`). A bare id with no `::` has an empty module.
+fn module_of(id: &str) -> &str {
+    id.rsplit_once("::").map(|(m, _)| m).unwrap_or("")
+}
+
+/// Resolve each bare call target to a qualified definition id.
+///
+/// Honesty rule: never invent a cross-module edge. We only bind a call to a definition
+/// that lives in the *same module* as the call site. A bare target with a single global
+/// candidate in some *unrelated* module is dropped rather than collapsed (two `run` fns in
+/// different files must not merge; a `len()` call must not bind to an unrelated local
+/// `len`). Ambiguous, unresolved, and self-edges are also dropped.
+fn resolve_edges(nodes: &[ExtractedNode], edges: &[ExtractedEdge]) -> Vec<ExtractedEdge> {
+    let mut defs_by_name: std::collections::HashMap<String, Vec<String>> =
+        std::collections::HashMap::new();
+    for n in nodes {
+        let bare = n.id.rsplit("::").next().unwrap_or(&n.id).to_string();
+        defs_by_name.entry(bare).or_default().push(n.id.clone());
+    }
+    edges
+        .iter()
+        .filter_map(|e| {
+            let candidates = defs_by_name.get(&e.target)?;
+            let src_mod = module_of(&e.source);
+            // Only same-module definitions are honest resolutions. A single global
+            // candidate in a different module is dropped, not invented.
+            let same: Vec<&String> = candidates
+                .iter()
+                .filter(|id| module_of(id) == src_mod)
+                .collect();
+            let target = if same.len() == 1 {
+                same[0].clone()
+            } else {
+                return None;
+            };
+            if target == e.source {
+                return None; // self-edge
+            }
+            Some(ExtractedEdge {
+                source: e.source.clone(),
+                target,
+            })
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod resolve_tests {
+    use super::*;
+
+    fn node(id: &str) -> ExtractedNode {
+        ExtractedNode {
+            id: id.to_string(),
+            label: id.rsplit("::").next().unwrap_or(id).to_string(),
+            kind: "fn".to_string(),
+        }
+    }
+
+    fn edge(source: &str, target: &str) -> ExtractedEdge {
+        ExtractedEdge {
+            source: source.to_string(),
+            target: target.to_string(),
+        }
+    }
+
+    #[test]
+    fn same_module_single_candidate_resolves() {
+        // caller `a.rs::caller` calls bare `helper`; the only definition lives in the
+        // SAME module `a.rs` -> edge is emitted, qualified to that definition.
+        let nodes = vec![node("a.rs::caller"), node("a.rs::helper")];
+        let edges = vec![edge("a.rs::caller", "helper")];
+        let resolved = resolve_edges(&nodes, &edges);
+        assert_eq!(resolved.len(), 1);
+        assert_eq!(resolved[0].source, "a.rs::caller");
+        assert_eq!(resolved[0].target, "a.rs::helper");
+    }
+
+    #[test]
+    fn cross_module_single_candidate_dropped() {
+        // caller `a.rs::caller` calls bare `helper`; the ONLY definition lives in a
+        // DIFFERENT module `b.rs`. The old code invented a cross-module edge; we now
+        // drop it (honesty rule). No edge must be produced.
+        let nodes = vec![node("a.rs::caller"), node("b.rs::helper")];
+        let edges = vec![edge("a.rs::caller", "helper")];
+        let resolved = resolve_edges(&nodes, &edges);
+        assert!(
+            resolved.is_empty(),
+            "cross-module single candidate must not produce an edge, got {resolved:?}"
+        );
+    }
 }

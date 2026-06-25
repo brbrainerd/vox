@@ -1,5 +1,74 @@
-import React from 'react';
-import { useGraphifyStatus } from '../../../hooks/useGraphifyStatus';
+import React, { useCallback, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { useQueryClient } from '@tanstack/react-query';
+import { useGraphifyStatus, GRAPHIFY_STATUS_QUERY_KEY } from '../../../hooks/useGraphifyStatus';
+
+/**
+ * Render an RFC3339 `built_at` timestamp as a coarse relative time
+ * ("3h ago"). Returns an em dash for missing/unparseable input.
+ */
+function relativeBuiltAt(iso: string | null): string {
+  if (!iso) return '—';
+  const ts = Date.parse(iso);
+  if (!Number.isFinite(ts)) return '—';
+  const deltaSec = Math.round((Date.now() - ts) / 1000);
+  if (deltaSec < 0) return 'just now';
+  if (deltaSec < 60) return `${deltaSec}s ago`;
+  if (deltaSec < 3600) return `${Math.floor(deltaSec / 60)}m ago`;
+  if (deltaSec < 86_400) return `${Math.floor(deltaSec / 3600)}h ago`;
+  return `${Math.floor(deltaSec / 86_400)}d ago`;
+}
+
+/**
+ * Per-corpus rebuild button. Treats freshness as a progress/health signal:
+ * a stale corpus needs attention, and this is the action affordance.
+ *
+ * The `vox_graphify_rebuild` MCP tool is wired here by name. A parallel agent
+ * is landing that tool; until it does, a runtime 404 surfaces as an inline
+ * error and the panel keeps working.
+ */
+function RebuildButton({ corpusId }: { corpusId: string }) {
+  const queryClient = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleRebuild = useCallback(async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      // ponytail: rebuild tool wired by name; lands with P1
+      await invoke('invoke_mcp_tool', {
+        tool: 'vox_graphify_rebuild',
+        args: { corpus: corpusId },
+      });
+      // Refresh freshness so the card flips fresh once the rebuild completes.
+      await queryClient.invalidateQueries({ queryKey: GRAPHIFY_STATUS_QUERY_KEY });
+    } catch (e) {
+      setError(String((e as Error)?.message ?? e));
+    } finally {
+      setBusy(false);
+    }
+  }, [corpusId, queryClient]);
+
+  return (
+    <div className="mt-2 flex items-center gap-2">
+      <button
+        type="button"
+        disabled={busy}
+        aria-label={`Rebuild ${corpusId}`}
+        onClick={handleRebuild}
+        className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-300 transition hover:bg-amber-500/20 disabled:opacity-50"
+      >
+        {busy ? 'Rebuilding…' : 'Rebuild'}
+      </button>
+      {error && (
+        <span role="alert" className="text-[10px] text-red-400">
+          {error}
+        </span>
+      )}
+    </div>
+  );
+}
 
 export function GraphifyStatusPanel() {
   const { data, isLoading, isError, error } = useGraphifyStatus();
@@ -26,10 +95,8 @@ export function GraphifyStatusPanel() {
 
   return (
     <div className="flex flex-col gap-4 p-4">
-      <div className="flex items-center justify-between border-b border-white/5 pb-2">
-        <h2 className="text-sm font-semibold tracking-wide text-zinc-100 uppercase">
-          Graphify Corpus Health
-        </h2>
+      <div className="flex items-center justify-between">
+        <h2 className="ds-section-head">Graphify Corpus Health</h2>
         <span className="font-mono text-[10px] text-zinc-500">
           Default: {data.default_corpus_id}
         </span>
@@ -66,7 +133,7 @@ export function GraphifyStatusPanel() {
               </span>
             </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-2 border-t border-white/5 pt-3 font-mono text-[11px] text-zinc-400">
+            <div className="mt-3 grid grid-cols-3 gap-2 border-t border-white/5 pt-3 font-mono text-[11px] text-zinc-400">
               <div>
                 <span className="text-zinc-500 block text-[9px] uppercase">Nodes</span>
                 <span className="font-semibold text-zinc-300">
@@ -77,6 +144,15 @@ export function GraphifyStatusPanel() {
                 <span className="text-zinc-500 block text-[9px] uppercase">Edges</span>
                 <span className="font-semibold text-zinc-300">
                   {c.edge_count?.toLocaleString() ?? '—'}
+                </span>
+              </div>
+              <div>
+                <span className="text-zinc-500 block text-[9px] uppercase">Built</span>
+                <span
+                  className="font-semibold text-zinc-300"
+                  title={c.built_at ?? undefined}
+                >
+                  {relativeBuiltAt(c.built_at)}
                 </span>
               </div>
             </div>
@@ -96,6 +172,8 @@ export function GraphifyStatusPanel() {
                     ))}
                   </div>
                 </div>
+
+                <RebuildButton corpusId={c.corpus_id} />
 
                 <div className="relative mt-2 rounded bg-zinc-950/40 p-2 border border-white/5">
                   <span className="text-[9px] text-zinc-500 block uppercase mb-1">Rebuild Command</span>

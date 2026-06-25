@@ -104,6 +104,47 @@ fn query_looks_like_code_navigation(query: &str) -> bool {
         || q.contains("::")
 }
 
+/// Heuristic: does this query express a RELATIONAL / structural information need that a
+/// Graphify knowledge graph (call-paths, dependents, blast-radius, hubs) can serve better
+/// than plain grep/text search? Kept deliberately conservative — text/literal/just-edited
+/// queries return `false` so grep stays the default.
+fn query_looks_relational(query: &str) -> bool {
+    let q = query.to_ascii_lowercase();
+    q.contains("what calls")
+        || q.contains("who calls")
+        || q.contains("callers of")
+        || q.contains("called by")
+        || q.contains("call path")
+        || q.contains("call-path")
+        || q.contains("blast radius")
+        || q.contains("blast-radius")
+        || q.contains("depends on")
+        || q.contains("dependents")
+        || q.contains("dependency")
+        || q.contains("dependencies")
+        || q.contains("reachable")
+        || q.contains("downstream")
+        || q.contains("upstream")
+        || q.contains("hub")
+        || q.contains("keystone")
+        || q.contains("impact of")
+}
+
+/// Augment a [`SearchPlan`]'s corpora with the optional [`SearchCorpus::GraphifyStructural`]
+/// structural backend when the query is relational AND graphify would help. This is purely
+/// additive: it never removes an existing corpus, and it is a no-op for text/literal queries.
+///
+// ponytail: route on closest existing intent; refine when a dedicated relational intent exists
+pub fn route_graphify_structural(plan: &mut SearchPlan, query: &str) {
+    // CodeNavigation / RepoStructure are the closest existing intents to a "relational/structural"
+    // need, but the relational query *phrasing* is the load-bearing signal: a plain text lookup
+    // that happens to be classified CodeNavigation should still stay on grep. So gate on the
+    // relational phrasing only; a dedicated relational intent would let us also key off `plan.intent`.
+    if query_looks_relational(query) && !plan.corpora.contains(&SearchCorpus::GraphifyStructural) {
+        plan.corpora.push(SearchCorpus::GraphifyStructural);
+    }
+}
+
 fn memory_hit_flags(hits: &[HybridSearchHit]) -> (bool, bool, usize, Option<f64>) {
     let mut used_vector = false;
     let mut used_bm25 = false;
@@ -645,6 +686,50 @@ pub async fn execute_search_plan(
         Vec::new()
     };
 
+    // Structural (graphify) corpus: lexical-over-labels hits from the default graph.
+    // Inert unless the planner routed GraphifyStructural (relational queries on a graph).
+    let graphify_lines = if plan.corpora.contains(&SearchCorpus::GraphifyStructural) {
+        let hits = vox_config::graphify::load_graphify_corpora(&ctx.repo_root)
+            .ok()
+            .and_then(|reg| {
+                let corpus = reg
+                    .corpora
+                    .iter()
+                    .find(|c| c.id == reg.default_corpus_id)
+                    .cloned()?;
+                let raw = std::fs::read_to_string(ctx.repo_root.join(&corpus.graph_path)).ok()?;
+                let value: serde_json::Value = serde_json::from_str(&raw).ok()?;
+                Some(vox_config::graphify::lexical_search_graph(
+                    &value,
+                    &corpus.id,
+                    query,
+                    limit.max(1),
+                ))
+            })
+            .unwrap_or_default();
+        let lines: Vec<String> = hits
+            .into_iter()
+            .map(|h| {
+                unified_hits.push(UnifiedHit {
+                    source: "graphify".to_string(),
+                    kind: "structural".to_string(),
+                    path: Some(h.node_id.clone()),
+                    title: Some(h.label.clone()),
+                    snippet: h.label.clone(),
+                    score: h.score as f64,
+                    provenance: vec!["graphify:label".to_string()],
+                });
+                format!("graphify[{}] {} (score {})", h.node_id, h.label, h.score)
+            })
+            .collect();
+        if !lines.is_empty() {
+            backend_mix.push(SearchBackend::Graphify);
+        }
+        lines
+    } else {
+        Vec::new()
+    };
+
     let rrf_fused_lines: Vec<String> = if policy.prefer_rrf_merge {
         let lists = vec![
             memory_lines.clone(),
@@ -655,6 +740,7 @@ pub async fn execute_search_plan(
             qdrant_lines.clone(),
             web_lines.clone(),
             symbol_proximity_lines.clone(),
+            graphify_lines.clone(),
         ];
         let non_empty: Vec<_> = lists.into_iter().filter(|v| !v.is_empty()).collect();
         if non_empty.len() >= 2 {
@@ -677,7 +763,8 @@ pub async fn execute_search_plan(
         + usize::from(!tantivy_doc_lines.is_empty())
         + usize::from(!qdrant_lines.is_empty())
         + usize::from(!web_lines.is_empty())
-        + usize::from(!symbol_proximity_lines.is_empty());
+        + usize::from(!symbol_proximity_lines.is_empty())
+        + usize::from(!graphify_lines.is_empty());
 
     let evidence_total = memory_lines.len()
         + knowledge_lines.len()
@@ -686,7 +773,8 @@ pub async fn execute_search_plan(
         + tantivy_doc_lines.len()
         + qdrant_lines.len()
         + web_lines.len()
-        + symbol_proximity_lines.len();
+        + symbol_proximity_lines.len()
+        + graphify_lines.len();
 
     let citation_coverage = if evidence_total == 0 {
         0.0
@@ -792,5 +880,37 @@ mod tests {
         );
         assert!(scores[0] > scores[1], "scores must decrease with rank");
         assert!(scores[1] > scores[2], "scores must decrease with rank");
+    }
+
+    #[test]
+    fn relational_intent_routes_to_graphify_structural() {
+        // A relational/structural query gets the optional Graphify backend added,
+        // while existing corpora are preserved (additive, never replacing grep/text).
+        let mut plan = vox_db::heuristic_search_plan("what calls MemorySearchEngine", false, None);
+        let before = plan.corpora.clone();
+        route_graphify_structural(&mut plan, "what calls MemorySearchEngine");
+        assert!(
+            plan.corpora.contains(&SearchCorpus::GraphifyStructural),
+            "relational query must route to GraphifyStructural; got {:?}",
+            plan.corpora
+        );
+        for c in &before {
+            assert!(
+                plan.corpora.contains(c),
+                "routing must be additive; dropped {c:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn text_intent_does_not_route_to_graphify_structural() {
+        // A plain text/literal lookup stays on grep/text corpora (no graphify).
+        let mut plan = vox_db::heuristic_search_plan("authentication error message", false, None);
+        route_graphify_structural(&mut plan, "authentication error message");
+        assert!(
+            !plan.corpora.contains(&SearchCorpus::GraphifyStructural),
+            "text query must NOT route to GraphifyStructural; got {:?}",
+            plan.corpora
+        );
     }
 }

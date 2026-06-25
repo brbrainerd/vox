@@ -28,11 +28,14 @@ pub async fn run_search_with_verification(
     lexical_fallback: Option<&dyn LexicalMemoryFallback>,
     budget: Option<&crate::tavily_budget::TavilySessionBudget>,
 ) -> Result<(SearchExecution, SearchDiagnostics, SearchPlan), String> {
-    let plan = heuristic_search_plan(
+    let mut plan = heuristic_search_plan(
         query,
         trigger == RetrievalTriggerMode::VerificationPass,
         None,
     );
+    // Augment with the optional structural (graphify) corpus for relational queries
+    // ("what calls X", blast-radius, dependents). Additive — never removes a corpus.
+    crate::execution::route_graphify_structural(&mut plan, query);
     let mut execution =
         execute_search_plan(ctx, query, &plan, limit, policy, lexical_fallback).await?;
     let corpora_line = plan

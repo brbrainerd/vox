@@ -15580,6 +15580,7 @@ dependencies = [
  "tokio",
  "toml 0.8.23",
  "tracing",
+ "vox-git",
  "vox-llm-config",
  "vox-llm-egress",
  "vox-secrets",
