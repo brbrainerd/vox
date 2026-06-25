@@ -3,10 +3,11 @@ import { Glass } from '../../ui/Glass';
 import { EmptyState } from '../../ui/EmptyState';
 import { FeedbackCard } from './FeedbackCard';
 import { feedbackList, feedbackResolve, listenFeedbackChanged, type FeedbackRow } from '../../../transport';
+import type { Toast } from '../../../types/tauri';
 
 interface Props {
   onOpenContext: (id: string) => void;
-  pushToast: (toast: { tone: 'ok' | 'warn' | 'info'; title: string; body?: string }) => void;
+  pushToast: (toast: Toast) => void;
 }
 
 export function NeedsYouSurface({ onOpenContext, pushToast }: Props) {
@@ -48,10 +49,10 @@ export function NeedsYouSurface({ onOpenContext, pushToast }: Props) {
   const handleResolve = async (id: string, action: Record<string, any>) => {
     try {
       await feedbackResolve(id, action);
-      pushToast({ tone: 'ok', title: `Feedback ${id} resolved` });
+      pushToast({ tone: 'ok', title: `Feedback ${id} resolved`, cause: 'backend-ok' });
       refresh();
     } catch (e: any) {
-      pushToast({ tone: 'warn', title: 'Failed to resolve feedback', body: e.message || String(e) });
+      pushToast({ tone: 'warn', title: 'Failed to resolve feedback', body: e.message || String(e), cause: 'backend-error' });
     }
   };
 

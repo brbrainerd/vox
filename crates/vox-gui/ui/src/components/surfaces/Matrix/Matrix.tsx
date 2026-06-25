@@ -72,7 +72,7 @@ export function Matrix({ pushToast, gamifyEnabled = false }: MatrixProps) {
       setIntentions(Array.isArray(cells) ? cells : []);
       setSel(prev => (prev && cells.some(c => c.id === prev) ? prev : cells[0]?.id));
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Routing policies load failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Routing policies load failed', body: String(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
@@ -98,10 +98,11 @@ export function Matrix({ pushToast, gamifyEnabled = false }: MatrixProps) {
         title: direction === 'promote' ? 'Axis promoted' : 'Axis doubted',
         body: `${axis.branch} routing weight ${direction === 'promote' ? 'increased' : 'reduced'}.`,
         cmd: `vox config routing ${axis.id} ${direction}`,
+        cause: 'backend-ok',
       });
       await refresh();
     } catch (err) {
-      pushToast({ tone: 'warn', title: `Routing ${direction} failed`, body: String(err) });
+      pushToast({ tone: 'warn', title: `Routing ${direction} failed`, body: String(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }

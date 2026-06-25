@@ -51,7 +51,7 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
       });
       setApprovals(parsePendingApprovals(res));
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Approvals load failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Approvals load failed', body: String(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
@@ -73,12 +73,13 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
         });
         const data = unwrapMcpEnvelope(res.result) as { resolved?: boolean } | null;
         if (res.is_error || data?.resolved === false) {
-          pushToast({ tone: 'warn', title: 'Resolve failed', body: `Could not ${outcome.replace('ed', '')} ${approvalId}` });
+          pushToast({ tone: 'warn', title: 'Resolve failed', body: `Could not ${outcome.replace('ed', '')} ${approvalId}`, cause: 'backend-error' });
         } else {
           pushToast({
             tone: outcome === 'approved' ? 'ok' : 'warn',
             title: outcome === 'approved' ? 'Approved' : 'Rejected',
             body: approvalId,
+            cause: 'backend-ok',
           });
           void recordGamifyGuiEvent(
             'approval_decision',
@@ -89,7 +90,7 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
         setApprovals((prev) => prev.filter((a) => a.approval_id !== approvalId));
         await refresh();
       } catch (err) {
-        pushToast({ tone: 'warn', title: 'Resolve failed', body: String(err) });
+        pushToast({ tone: 'warn', title: 'Resolve failed', body: String(err), cause: 'backend-error' });
       } finally {
         setResolving(null);
       }

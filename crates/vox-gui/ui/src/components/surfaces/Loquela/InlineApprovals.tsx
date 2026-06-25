@@ -9,9 +9,10 @@ import {
   parsePendingApprovals,
   unwrapMcpEnvelope,
 } from '../../../lib/mcpToolResult';
+import type { Toast } from '../../../types/tauri';
 
 interface InlineApprovalsProps {
-  pushToast: (t: { tone: 'ok' | 'warn' | 'info'; title: string; body?: string }) => void;
+  pushToast: (t: Toast) => void;
   onViewAll?: () => void;
 }
 
@@ -51,18 +52,20 @@ export function InlineApprovals({ pushToast, onViewAll }: InlineApprovalsProps) 
             tone: 'warn',
             title: 'Resolve failed',
             body: approvalId,
+            cause: 'backend-error',
           });
         } else {
           pushToast({
             tone: outcome === 'approved' ? 'ok' : 'warn',
             title: outcome === 'approved' ? 'Approved' : 'Rejected',
             body: approvalId,
+            cause: 'backend-ok',
           });
         }
         setApprovals(prev => prev.filter(a => a.approval_id !== approvalId));
         await refresh();
       } catch (err) {
-        pushToast({ tone: 'warn', title: 'Resolve failed', body: String(err) });
+        pushToast({ tone: 'warn', title: 'Resolve failed', body: String(err), cause: 'backend-error' });
       } finally {
         setResolving(null);
       }

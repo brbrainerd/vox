@@ -257,7 +257,8 @@ export default function App() {
   // ── Toast helper ─────────────────────────────────────────────────────────
   const pushToast = useCallback((t: Toast) => {
     const id = nextId('toast');
-    setToasts(curr => [...curr, { ...t, id }]);
+    const MAX_TOASTS = 3;
+    setToasts(curr => [...curr, { ...t, id }].slice(-MAX_TOASTS));
     setTimeout(() => setToasts(curr => curr.filter(x => x.id !== id)), 5000);
   }, []);
 
@@ -364,10 +365,10 @@ export default function App() {
         } else {
           invoke<Session>('chat_create_session', { title: 'Chat' })
             .then((s) => setActiveSessionId(s.session_id))
-            .catch((err) => pushToast({ tone: 'warn', title: 'Chat session', body: String(err) }));
+            .catch((err) => pushToast({ tone: 'warn', title: 'Chat session', body: String(err), cause: 'backend-error' }));
         }
       })
-      .catch((err) => pushToast({ tone: 'warn', title: 'Chat sessions', body: String(err) }));
+      .catch((err) => pushToast({ tone: 'warn', title: 'Chat sessions', body: String(err), cause: 'backend-error' }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -676,23 +677,22 @@ export default function App() {
       setDiffText(text);
     } catch (err) {
       setDiffText('');
-      pushToast({ tone: 'warn', title: 'Diff failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Diff failed', body: String(err), cause: 'backend-error' });
     } finally {
       setDiffLoading(false);
     }
   }, [pushToast]);
 
   const handleLoquelaSubmit = useCallback(async (payload: ChatPayload) => {
-    pushToast({ tone: 'info', title: 'Task Dispatched', body: payload.description, cmd: 'vox submit-task' });
     let runId = '';
     const sessionId = payload.session_id ?? activeSessionId;
     if (!sessionId) {
-      pushToast({ tone: 'warn', title: 'No chat session', body: 'Create or select a chat session first.' });
+      pushToast({ tone: 'warn', title: 'No chat session', body: 'Create or select a chat session first.', cause: 'validation' });
       return;
     }
     invoke('chat_append_message', {
       input: { session_id: sessionId, role: 'user', content: String(payload.description ?? ''), task_id: null },
-    }).catch((err) => pushToast({ tone: 'warn', title: 'Message not saved', body: String(err) }));
+    }).catch((err) => pushToast({ tone: 'warn', title: 'Message not saved', body: String(err), cause: 'backend-error' }));
     recordGamifyGuiEvent('chat_message_sent', { session_id: sessionId }, { enabled: gamifySettings.enabled });
     const contextFiles = contextRefsFromPayload(payload);
 
@@ -747,7 +747,7 @@ export default function App() {
           `This looks like a near-duplicate of task #${result.duplicate_of}.\n\nSubmit it anyway?`,
         );
         if (!proceed) {
-          pushToast({ tone: 'info', title: 'Duplicate skipped', body: `Kept existing task #${result.duplicate_of}.` });
+          pushToast({ tone: 'info', title: 'Duplicate skipped', body: `Kept existing task #${result.duplicate_of}.`, cause: 'backend-ok' });
           return;
         }
         result = await dispatchAttempt(true);
@@ -766,7 +766,7 @@ export default function App() {
         );
       }
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Dispatch Failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Dispatch Failed', body: String(err), cause: 'backend-error' });
     }
   }, [executeIpcWithRun, pushToast, activeSessionId, activeSkill, gamifySettings.enabled]);
 
@@ -801,20 +801,16 @@ export default function App() {
             body: res.is_error
               ? (typeof res.result === 'string' ? res.result : JSON.stringify(res.result))
               : 'Reverted to last durable checkpoint.',
+            cause: res.is_error ? 'backend-error' : 'backend-ok',
           });
         } catch (err) {
-          pushToast({ tone: 'warn', title: 'Rollback failed', body: String(err) });
+          pushToast({ tone: 'warn', title: 'Rollback failed', body: String(err), cause: 'backend-error' });
         }
       })();
       return true;
     }
     if (base === '/doubt') {
       ctx.setText('/doubt ');
-      pushToast({
-        tone: 'info',
-        title: 'Doubt injection',
-        body: 'Add a threshold (e.g. /doubt 3) and submit, or doubt a stream item from the feed.',
-      });
       return true;
     }
     if (base === '/audit') {
@@ -829,6 +825,7 @@ export default function App() {
             tone: out.exit_code === 0 ? 'ok' : 'warn',
             title: out.exit_code === 0 ? 'Audit passed' : 'Audit findings',
             body: text.slice(0, 400) || 'vox check completed',
+            cause: out.exit_code === 0 ? 'backend-ok' : 'backend-error',
           });
         } catch {
           try {
@@ -840,9 +837,10 @@ export default function App() {
               tone: res.is_error ? 'warn' : 'ok',
               title: res.is_error ? 'Audit failed' : 'Audit complete',
               body: body || 'vox_check finished',
+              cause: res.is_error ? 'backend-error' : 'backend-ok',
             });
           } catch (err) {
-            pushToast({ tone: 'warn', title: 'Audit unavailable', body: String(err) });
+            pushToast({ tone: 'warn', title: 'Audit unavailable', body: String(err), cause: 'backend-error' });
           }
         }
       })();
@@ -897,31 +895,30 @@ export default function App() {
       title: items.length === 1 ? 'Pinned to context' : `${items.length} pinned to context`,
       body: items.length === 1 ? items[0].label : `${items.length} citations → Loquela`,
       cmd: 'context.attach',
+      cause: 'backend-ok',
     });
   }, [pushToast]);
 
   const handlePause = useCallback(async (a: Agent) => {
     setData(prev => ({ ...prev, agents: prev.agents.map(x => x.id === a.id ? { ...x, phase: 'Paused' } : x) }));
-    pushToast({ tone: 'warn', title: `${a.codename} paused`, cmd: `vox pause-agent ${a.id}` });
     const id = Number(a.id.replace('A-', ''));
     if (!Number.isFinite(id)) {
-      pushToast({ tone: 'warn', title: 'Pause unavailable', body: 'Selected agent has non-numeric id; cannot route pause command.' });
+      pushToast({ tone: 'warn', title: 'Pause unavailable', body: 'Selected agent has non-numeric id; cannot route pause command.', cause: 'validation' });
       return;
     }
     await executeIpcWithRun('pause_orchestrator_agent', { agentId: id }, 'gui.agent.pause')
-      .catch((err) => pushToast({ tone: 'warn', title: 'Pause failed', body: String(err) }));
+      .catch((err) => pushToast({ tone: 'warn', title: 'Pause failed', body: String(err), cause: 'backend-error' }));
   }, [executeIpcWithRun, pushToast]);
 
   const handleResume = useCallback(async (a: Agent) => {
     setData(prev => ({ ...prev, agents: prev.agents.map(x => x.id === a.id ? { ...x, phase: 'Executing' } : x) }));
-    pushToast({ tone: 'ok', title: `${a.codename} resumed`, cmd: `vox resume-agent ${a.id}` });
     const id = Number(a.id.replace('A-', ''));
     if (!Number.isFinite(id)) {
-      pushToast({ tone: 'warn', title: 'Resume unavailable', body: 'Selected agent has non-numeric id; cannot route resume command.' });
+      pushToast({ tone: 'warn', title: 'Resume unavailable', body: 'Selected agent has non-numeric id; cannot route resume command.', cause: 'validation' });
       return;
     }
     await executeIpcWithRun('resume_orchestrator_agent', { agentId: id }, 'gui.agent.resume')
-      .catch((err) => pushToast({ tone: 'warn', title: 'Resume failed', body: String(err) }));
+      .catch((err) => pushToast({ tone: 'warn', title: 'Resume failed', body: String(err), cause: 'backend-error' }));
   }, [executeIpcWithRun, pushToast]);
 
   // Wire ⌘. (handled in the global keybind effect above) to pause/resume the
@@ -938,7 +935,7 @@ export default function App() {
   const handleAckAlert = useCallback(async (note: LudusAlert) => {
     setData(prev => ({ ...prev, alerts: prev.alerts.filter(x => x.id !== note.id) }));
     await invoke('ack_ludus_notification', { notificationId: note.id })
-      .catch((err) => pushToast({ tone: 'warn', title: 'Alert ack failed', body: String(err) }));
+      .catch((err) => pushToast({ tone: 'warn', title: 'Alert ack failed', body: String(err), cause: 'backend-error' }));
   }, [pushToast]);
 
   const focusComposer = useCallback(() => {
@@ -984,7 +981,6 @@ export default function App() {
       navigateTo('catalog');
     } else if ('label' in cmd || 'type' in cmd) {
       const action = cmd as { label?: string; type?: string };
-      pushToast({ tone: 'info', title: 'Command', body: action.label ?? action.type ?? 'action' });
     }
   }, [data, installedSkillEntries, handlePause, handleResume, handleAckAlert, handleLoquelaSubmit, pushToast, navigateTo, focusComposer]);
 
@@ -1023,8 +1019,8 @@ export default function App() {
     (taskId?: number) => {
       if (taskId == null || !Number.isFinite(taskId)) return;
       invoke('interrupt_orchestrator_task', { taskId })
-        .then(() => pushToast({ tone: 'info', title: 'Interrupting task', body: `Task #${taskId}` }))
-        .catch((err) => pushToast({ tone: 'warn', title: 'Interrupt failed', body: String(err) }));
+        .then(() => pushToast({ tone: 'info', title: 'Interrupting task', body: `Task #${taskId}`, cause: 'backend-ok' }))
+        .catch((err) => pushToast({ tone: 'warn', title: 'Interrupt failed', body: String(err), cause: 'backend-error' }));
     },
     [pushToast],
   );

@@ -11,6 +11,7 @@ import { ResearchView } from './Research/ResearchView';
 import { PublicationsView } from './Publications/PublicationsView';
 import { SearchView } from './Search/SearchView';
 import { SubAgentsView } from './SubAgents/SubAgentsView';
+import type { Toast } from '../../types/tauri';
 
 /**
  * Props every surface decorator receives. Decorators are hand-built views that
@@ -19,7 +20,7 @@ import { SubAgentsView } from './SubAgents/SubAgentsView';
  * every surface stays on one run seam.
  */
 export interface SurfaceDecoratorProps {
-  pushToast: (item: { tone: 'ok' | 'warn' | 'info'; title: string; body?: string }) => void;
+  pushToast: (item: Toast) => void;
   /** When false, gamify GUI event hooks are no-ops (Settings SSOT polled in App). */
   gamifyEnabled?: boolean;
 }

@@ -209,7 +209,7 @@ function HitRow({
     } else if (hit.path) {
       try {
         await navigator.clipboard.writeText(hit.path);
-        pushToast({ tone: 'ok', title: 'Path copied', body: hit.path });
+        pushToast({ tone: 'ok', title: 'Path copied', body: hit.path, cause: 'clipboard' });
       } catch {
         // Clipboard unavailable; silently ignore.
       }
@@ -221,7 +221,7 @@ function HitRow({
     if (hit.path) {
       try {
         await navigator.clipboard.writeText(hit.path);
-        pushToast({ tone: 'ok', title: 'Path copied', body: hit.path });
+        pushToast({ tone: 'ok', title: 'Path copied', body: hit.path, cause: 'clipboard' });
       } catch {
         // silently ignore
       }
@@ -400,6 +400,7 @@ export function SearchView({ pushToast, gamifyEnabled = false }: SurfaceDecorato
           tone: 'warn',
           title: 'Repo scan truncated',
           body: `Results show the first ${(20_000).toLocaleString()} repo files. Narrow your search or use a path glob to find files in deep directories.`,
+          cause: 'backend-ok',
         });
       }
     }
@@ -432,7 +433,7 @@ export function SearchView({ pushToast, gamifyEnabled = false }: SurfaceDecorato
       try {
         await voxTransport.openLocator(hit.locator);
       } catch (err) {
-        pushToast({ tone: 'warn', title: 'Could not open', body: String(err) });
+        pushToast({ tone: 'warn', title: 'Could not open', body: String(err), cause: 'backend-error' });
       }
     } else if (hit.locator.kind === 'chat') {
       try {
@@ -440,13 +441,11 @@ export function SearchView({ pushToast, gamifyEnabled = false }: SurfaceDecorato
       } catch {
         /* ignore */
       }
-      pushToast({ tone: 'info', title: 'Chat session', body: 'Open Chat from the sidebar' });
     } else if (hit.locator.kind === 'command' || hit.kind === 'command') {
       try {
         await navigator.clipboard.writeText(hit.path ?? hit.title ?? '');
-        pushToast({ tone: 'ok', title: 'Command copied', body: hit.path ?? hit.title ?? '' });
+        pushToast({ tone: 'ok', title: 'Command copied', body: hit.path ?? hit.title ?? '', cause: 'clipboard' });
       } catch {
-        pushToast({ tone: 'info', title: 'Command', body: hit.path ?? hit.title ?? '' });
       }
     } else if (hit.locator.kind === 'setting' || hit.kind === 'setting') {
       try {
@@ -455,11 +454,10 @@ export function SearchView({ pushToast, gamifyEnabled = false }: SurfaceDecorato
       } catch {
         /* ignore */
       }
-      pushToast({ tone: 'info', title: 'Settings', body: 'Open Settings from the sidebar' });
     } else if (hit.path) {
       try {
         await navigator.clipboard.writeText(hit.path);
-        pushToast({ tone: 'ok', title: 'Path copied', body: hit.path });
+        pushToast({ tone: 'ok', title: 'Path copied', body: hit.path, cause: 'clipboard' });
       } catch {
         // silently ignore
       }

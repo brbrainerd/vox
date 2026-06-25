@@ -3,9 +3,10 @@ import { invoke } from '@tauri-apps/api/core';
 import { IsolationPanel } from './IsolationPanel';
 import type { IsolationStatus, IsolationStrategy } from './isolationHelpers';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
+import type { Toast } from '../../../types/tauri';
 
 interface RepositoryViewProps {
-  pushToast: (item: { tone: 'ok' | 'warn' | 'info'; title: string; body?: string }) => void;
+  pushToast: (item: Toast) => void;
   gamifyEnabled?: boolean;
 }
 
@@ -60,7 +61,7 @@ export function RepositoryView({ pushToast, gamifyEnabled }: RepositoryViewProps
         });
         setIsolation(status);
         setIsolationError(null);
-        pushToast({ tone: 'ok', title: 'Isolation strategy', body: `Default → ${strategy}` });
+        pushToast({ tone: 'ok', title: 'Isolation strategy', body: `Default → ${strategy}`, cause: 'backend-ok' });
         void recordGamifyGuiEvent(
           'isolation_strategy_set',
           { strategy, scope: 'default' },
@@ -68,7 +69,7 @@ export function RepositoryView({ pushToast, gamifyEnabled }: RepositoryViewProps
         );
       } catch (err) {
         setIsolationError(String(err));
-        pushToast({ tone: 'warn', title: 'Isolation strategy', body: String(err) });
+        pushToast({ tone: 'warn', title: 'Isolation strategy', body: String(err), cause: 'backend-error' });
         // Reconcile against authoritative daemon state after a failed write.
         void refetchIsolation();
       } finally {
@@ -89,6 +90,7 @@ export function RepositoryView({ pushToast, gamifyEnabled }: RepositoryViewProps
         tone: result.exit_code === 0 ? 'ok' : 'warn',
         title: label,
         body: result.exit_code === 0 ? 'Completed' : `Failed (exit ${result.exit_code})`,
+        cause: 'backend-ok',
       });
       if (result.exit_code === 0) {
         void recordGamifyGuiEvent(
@@ -99,7 +101,7 @@ export function RepositoryView({ pushToast, gamifyEnabled }: RepositoryViewProps
       }
     } catch (err) {
       setOutput(String(err));
-      pushToast({ tone: 'warn', title: label, body: String(err) });
+      pushToast({ tone: 'warn', title: label, body: String(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }

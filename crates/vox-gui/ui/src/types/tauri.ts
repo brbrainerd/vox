@@ -9,12 +9,22 @@ import type { Agent, LudusAlert, Peer, StreamItem } from './dashboard';
 export type { Agent, StreamItem, LudusAlert };
 export type CatalogEntry = CommandCatalogEntry;
 
+export type ToastCause =
+  | 'backend-ok'      // an async Tauri command / mutation succeeded
+  | 'backend-error'   // an async Tauri command / mutation failed
+  | 'validation'      // user input rejected before any effect
+  | 'clipboard'       // copied to clipboard (real OS effect)
+  | 'external';       // opened an external app/url
+// NOTE: deliberately NO cause for navigation or a routine, already-visible synchronous
+// action — those must NOT toast. A toast with no honest cause is a compile error.
+
 /** Toast input before the shell assigns an `id`. */
 export type Toast = {
   tone: 'ok' | 'warn' | 'info';
   title: string;
   body?: string;
   cmd?: string;
+  cause: ToastCause; // required
 };
 
 /** Mirrors `ChatSessionDto` from `commands/chat.rs`. */

@@ -268,6 +268,7 @@ export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
         tone: 'warn',
         title: 'Query Failed',
         body: String(err),
+        cause: 'backend-error',
       });
     } finally {
       setLoading(false);

@@ -209,7 +209,7 @@ export function MissionControlPanel({ pushToast }: MissionControlPanelProps) {
         });
         await refresh();
       } catch (e) {
-        pushToast?.({ tone: 'warn', title: `Failed to resolve approval: ${String(e)}` });
+        pushToast?.({ tone: 'warn', title: `Failed to resolve approval: ${String(e)}`, cause: 'backend-error' });
       }
     },
     [refresh, pushToast],

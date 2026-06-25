@@ -13,7 +13,7 @@ import {
   orchestratorStatusErrorMessage,
   useOrchestratorStatus,
 } from '../../../hooks/useOrchestratorStatus';
-import type { OrchestratorStatus, RawAgentSummary } from '../../../types/tauri';
+import type { OrchestratorStatus, RawAgentSummary, Toast } from '../../../types/tauri';
 import { viz } from '../../../lib/visualTokens';
 
 function agentsFromStatus(status: OrchestratorStatus | undefined): AgentChip[] {
@@ -25,7 +25,7 @@ function agentsFromStatus(status: OrchestratorStatus | undefined): AgentChip[] {
 }
 
 interface Props {
-  pushToast: (item: { tone: 'ok' | 'warn' | 'info'; title: string; body?: string }) => void;
+  pushToast: (item: Toast) => void;
   gamifyEnabled?: boolean;
   /** When set (e.g. via the Dashboard "Open in Console" deep link), open this
    *  agent's live event tab on mount. */
@@ -74,7 +74,6 @@ export function Console({ pushToast, gamifyEnabled = false, initialAgentId = nul
 
   const openAgentTab = (agentId: string) => {
     setOpenAgentId(agentId);
-    pushToast({ tone: 'info', title: 'Agent', body: `streaming events for ${agentId}` });
   };
 
   // What "send to agent" / "copy block" act on: the latest completed shell
@@ -85,22 +84,22 @@ export function Console({ pushToast, gamifyEnabled = false, initialAgentId = nul
   const copyLastBlock = async () => {
     const writeText = navigator.clipboard?.writeText?.bind(navigator.clipboard);
     if (!writeText) {
-      pushToast({ tone: 'warn', title: 'Copy failed', body: 'clipboard unavailable' });
+      pushToast({ tone: 'warn', title: 'Copy failed', body: 'clipboard unavailable', cause: 'backend-error' });
       return;
     }
     try {
       await writeText(blockBody);
-      pushToast({ tone: 'ok', title: 'Copied', body: 'last block to clipboard' });
+      pushToast({ tone: 'ok', title: 'Copied', body: 'last block to clipboard', cause: 'clipboard' });
     } catch {
-      pushToast({ tone: 'warn', title: 'Copy failed' });
+      pushToast({ tone: 'warn', title: 'Copy failed', cause: 'backend-error' });
     }
   };
 
   const handleSend = (agentId: string, body: string) => {
     setComposing(false);
     sendToAgent(agentId, body)
-      .then(() => pushToast({ tone: 'ok', title: 'Sent', body: `to agent ${agentId}` }))
-      .catch((e) => pushToast({ tone: 'warn', title: 'Send failed', body: String(e) }));
+      .then(() => pushToast({ tone: 'ok', title: 'Sent', body: `to agent ${agentId}`, cause: 'backend-ok' }))
+      .catch((e) => pushToast({ tone: 'warn', title: 'Send failed', body: String(e), cause: 'backend-error' }));
   };
 
   return (

@@ -20,7 +20,7 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
     try {
       setSessions(await invoke<ResearchSession[]>('list_research_sessions', { limit: 25 }));
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'History load failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'History load failed', body: String(err), cause: 'backend-error' });
     }
   }, [pushToast]);
 
@@ -28,7 +28,7 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
     try {
       setDetail(await invoke<ResearchDetail>('get_research_session_detail', { sessionId: id }));
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Session load failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Session load failed', body: String(err), cause: 'backend-error' });
     }
   }, [pushToast]);
 
@@ -72,7 +72,7 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
       await loadHistory();
     } catch (err) {
       setRunning(false);
-      pushToast({ tone: 'warn', title: 'Research run failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Research run failed', body: String(err), cause: 'backend-error' });
     }
   };
 

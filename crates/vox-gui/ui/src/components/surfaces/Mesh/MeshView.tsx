@@ -3,9 +3,10 @@ import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
+import type { Toast } from '../../../types/tauri';
 
 interface MeshViewProps {
-  pushToast: (item: { tone: 'ok' | 'warn' | 'info'; title: string; body?: string }) => void;
+  pushToast: (item: Toast) => void;
   gamifyEnabled?: boolean;
 }
 
@@ -98,7 +99,7 @@ export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
       setNodes(Array.isArray(meta.nodes) ? meta.nodes : []);
       setQueue(queueRes?.result ?? {});
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Mesh refresh failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Mesh refresh failed', body: String(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
@@ -122,7 +123,7 @@ export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
 
   const dispatch = useCallback(async () => {
     if (!source.trim()) {
-      pushToast({ tone: 'warn', title: 'Dispatch needs source', body: 'Enter .vox source to run.' });
+      pushToast({ tone: 'warn', title: 'Dispatch needs source', body: 'Enter .vox source to run.', cause: 'validation' });
       return;
     }
     setDispatching(true);
@@ -138,7 +139,7 @@ export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
       if (res?.is_error) {
         const msg = res?.result?.error ?? JSON.stringify(res?.result);
         setDispatchResult(String(msg));
-        pushToast({ tone: 'warn', title: 'Dispatch failed', body: String(msg) });
+        pushToast({ tone: 'warn', title: 'Dispatch failed', body: String(msg), cause: 'backend-error' });
       } else {
         const r = res?.result ?? {};
         const id = r.node_id ?? '(unknown node)';
@@ -149,6 +150,7 @@ export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
           tone: r.success ? 'ok' : 'warn',
           title: r.success ? 'Dispatched' : 'Dispatch returned failure',
           body: `node ${id}`,
+          cause: 'backend-ok',
         });
         if (r.success) {
           void recordGamifyGuiEvent(
@@ -161,7 +163,7 @@ export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
       await refresh();
     } catch (err) {
       setDispatchResult(String(err));
-      pushToast({ tone: 'warn', title: 'Dispatch failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Dispatch failed', body: String(err), cause: 'backend-error' });
     } finally {
       setDispatching(false);
     }

@@ -6,9 +6,10 @@ import { invoke } from '@tauri-apps/api/core';
 import { LudusProfile } from '../../../lib/ludus';
 import { LudusHud } from './LudusHud';
 import { GAMIFY_POLL_MS } from '../../../config/constants';
+import type { Toast } from '../../../types/tauri';
 
 interface GamifyViewProps {
-  pushToast: (item: { tone: 'ok' | 'warn' | 'info'; title: string; body?: string }) => void;
+  pushToast: (item: Toast) => void;
 }
 
 interface LudusNotification {
@@ -84,7 +85,7 @@ export function GamifyView({ pushToast }: GamifyViewProps) {
       setCompanions(comp ?? []);
       setQuests(q ?? []);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Ludus load failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Ludus load failed', body: String(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
@@ -101,7 +102,7 @@ export function GamifyView({ pushToast }: GamifyViewProps) {
       await invoke('ack_ludus_notification', { notificationId: id });
       setNotes(curr => curr.filter(x => x.id !== id));
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Ack failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Ack failed', body: String(err), cause: 'backend-error' });
     }
   };
 

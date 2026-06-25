@@ -284,7 +284,7 @@ export function Loquela({
       const paths = Array.isArray(selected) ? selected : selected ? [selected] : [];
       if (paths.length) {
         paths.forEach(addContextRef);
-        toast?.({ tone: 'ok', title: paths.length === 1 ? 'Attached to context' : `${paths.length} attached`, body: paths.join(', '), cmd: 'context.attach' });
+        toast?.({ tone: 'ok', title: paths.length === 1 ? 'Attached to context' : `${paths.length} attached`, body: paths.join(', '), cmd: 'context.attach', cause: 'backend-ok' });
         taRef.current?.focus();
         return;
       }
@@ -296,7 +296,7 @@ export function Loquela({
     const ref = raw?.trim();
     if (!ref) return;
     addContextRef(ref);
-    toast?.({ tone: 'ok', title: 'Attached to context', body: ref, cmd: 'context.attach' });
+    toast?.({ tone: 'ok', title: 'Attached to context', body: ref, cmd: 'context.attach', cause: 'backend-ok' });
     taRef.current?.focus();
   };
 
@@ -306,7 +306,7 @@ export function Loquela({
     const ref = raw?.trim();
     if (!ref) return;
     addContextRef(ref);
-    toast?.({ tone: 'ok', title: 'Attached to context', body: ref, cmd: 'context.attach' });
+    toast?.({ tone: 'ok', title: 'Attached to context', body: ref, cmd: 'context.attach', cause: 'backend-ok' });
     taRef.current?.focus();
   };
 
@@ -318,9 +318,9 @@ export function Loquela({
       try {
         await invoke('start_mic_capture');
         setRecording(true);
-        toast?.({ tone: 'info', title: 'Recording', body: 'Listening — tap the mic again to stop.', cmd: 'oratio.transcribe' });
+        toast?.({ tone: 'info', title: 'Recording', body: 'Listening — tap the mic again to stop.', cmd: 'oratio.transcribe', cause: 'backend-ok' });
       } catch (e) {
-        toast?.({ tone: 'warn', title: 'Microphone unavailable', body: String(e), cmd: 'oratio.transcribe' });
+        toast?.({ tone: 'warn', title: 'Microphone unavailable', body: String(e), cmd: 'oratio.transcribe', cause: 'backend-error' });
       }
       return;
     }
@@ -333,12 +333,12 @@ export function Loquela({
       if (t) {
         setText(prev => (prev ? `${prev.replace(/\s*$/, '')} ${t}` : t));
         taRef.current?.focus();
-        toast?.({ tone: 'ok', title: 'Transcribed', body: t, cmd: 'oratio.transcribe' });
+        toast?.({ tone: 'ok', title: 'Transcribed', body: t, cmd: 'oratio.transcribe', cause: 'backend-ok' });
       } else {
-        toast?.({ tone: 'info', title: 'No speech detected', body: 'The recording produced no transcript.', cmd: 'oratio.transcribe' });
+        toast?.({ tone: 'info', title: 'No speech detected', body: 'The recording produced no transcript.', cmd: 'oratio.transcribe', cause: 'backend-ok' });
       }
     } catch (e) {
-      toast?.({ tone: 'warn', title: 'Transcription failed', body: String(e), cmd: 'oratio.transcribe' });
+      toast?.({ tone: 'warn', title: 'Transcription failed', body: String(e), cmd: 'oratio.transcribe', cause: 'backend-error' });
     } finally {
       setTranscribing(false);
     }
@@ -359,7 +359,6 @@ export function Loquela({
       );
       setText('');
       setSlashOpen(false);
-      toast?.({ tone: 'info', title: 'Skill selected', body: name, cmd: 'skill.pin' });
       taRef.current?.focus();
       return;
     }
@@ -371,7 +370,6 @@ export function Loquela({
       setText('');
       setSlashOpen(false);
       const hint = LQ_MODES.find(m => m.id === internalMode)?.hint;
-      toast?.({ tone: 'info', title: `${internalMode} mode`, body: hint, cmd });
       taRef.current?.focus();
       return;
     }

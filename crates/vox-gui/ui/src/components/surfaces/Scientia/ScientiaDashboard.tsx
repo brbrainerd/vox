@@ -63,7 +63,7 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
         args: { __argv: [] },
       });
       if (out.exit_code !== 0) {
-        pushToast({ tone: 'warn', title: 'Scientia dashboard', body: out.stderr || `exit ${out.exit_code}` });
+        pushToast({ tone: 'warn', title: 'Scientia dashboard', body: out.stderr || `exit ${out.exit_code}`, cause: 'backend-error' });
         setSnap(null);
       } else {
         setSnap(JSON.parse(out.stdout) as QueueSnapshot);
@@ -73,11 +73,11 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
       try {
         setCost(await fetchCostRollup());
       } catch (costErr) {
-        pushToast({ tone: 'warn', title: 'Scientia cost', body: String(costErr) });
+        pushToast({ tone: 'warn', title: 'Scientia cost', body: String(costErr), cause: 'backend-error' });
         setCost(null);
       }
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Scientia dashboard', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Scientia dashboard', body: String(err), cause: 'backend-error' });
       setSnap(null);
     } finally {
       setLoading(false);

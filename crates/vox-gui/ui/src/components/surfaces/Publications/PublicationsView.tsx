@@ -41,7 +41,7 @@ export function PublicationsView({ pushToast }: SurfaceDecoratorProps) {
     try {
       setManifests(await invoke<PublicationManifest[]>('list_publication_manifests', { limit: 200 }));
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Publications load failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Publications load failed', body: String(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
@@ -129,10 +129,10 @@ function PublicationDetail({
         try {
           setClaims(JSON.parse(claimsOut.stdout) as ClaimsPayload);
         } catch (parseErr) {
-          pushToast({ tone: 'warn', title: 'Claims (parse error)', body: `${String(parseErr)} — raw: ${claimsOut.stdout.slice(0, 200)}` });
+          pushToast({ tone: 'warn', title: 'Claims (parse error)', body: `${String(parseErr)} — raw: ${claimsOut.stdout.slice(0, 200)}`, cause: 'backend-error' });
         }
       } else {
-        pushToast({ tone: 'warn', title: 'Claims', body: claimsOut.stderr || `exit ${claimsOut.exit_code}` });
+        pushToast({ tone: 'warn', title: 'Claims', body: claimsOut.stderr || `exit ${claimsOut.exit_code}`, cause: 'backend-error' });
       }
 
       const venueOut = await invoke<ExecuteOutput>('execute_command', {
@@ -143,13 +143,13 @@ function PublicationDetail({
         try {
           setVenue(JSON.parse(venueOut.stdout) as VenueRecommendation);
         } catch (parseErr) {
-          pushToast({ tone: 'warn', title: 'Venue (parse error)', body: `${String(parseErr)} — raw: ${venueOut.stdout.slice(0, 200)}` });
+          pushToast({ tone: 'warn', title: 'Venue (parse error)', body: `${String(parseErr)} — raw: ${venueOut.stdout.slice(0, 200)}`, cause: 'backend-error' });
         }
       }
       // A non-zero venue exit is expected when content_type isn't a known
       // finding class; leave venue null and show the "no routing" state.
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Publication detail', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Publication detail', body: String(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }

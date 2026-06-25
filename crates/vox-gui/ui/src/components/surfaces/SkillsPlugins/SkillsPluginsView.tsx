@@ -76,7 +76,7 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
       setSkills(Array.isArray(skillList) ? skillList : []);
       setPlugins(Array.isArray(pluginList) ? pluginList : []);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Installed load failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Installed load failed', body: String(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
@@ -89,7 +89,7 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
       const data = unwrap(cat?.result);
       setCatalogPlugins(Array.isArray(data?.plugins) ? data.plugins : []);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Marketplace load failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Marketplace load failed', body: String(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
@@ -101,7 +101,7 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
       const res = await callTool('vox_skill_discover');
       setDiscovered(mapDiscoveredSkills(unwrap(res?.result)));
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Discovery failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Discovery failed', body: String(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
@@ -124,7 +124,7 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
       const hits = unwrap(res?.result);
       setSearchHits(Array.isArray(hits) ? hits : []);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Skill search failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Skill search failed', body: String(err), cause: 'backend-error' });
     }
   }, [searchQuery, pushToast]);
 
@@ -134,13 +134,13 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
       try {
         const res = await callTool(tool, args);
         if (res?.is_error) {
-          pushToast({ tone: 'warn', title: `${okTitle} failed`, body: JSON.stringify(unwrap(res.result)) });
+          pushToast({ tone: 'warn', title: `${okTitle} failed`, body: JSON.stringify(unwrap(res.result)), cause: 'backend-error' });
         } else {
-          pushToast({ tone: 'ok', title: okTitle, body: key });
+          pushToast({ tone: 'ok', title: okTitle, body: key, cause: 'backend-ok' });
         }
         await refreshInstalled();
       } catch (err) {
-        pushToast({ tone: 'warn', title: `${okTitle} failed`, body: String(err) });
+        pushToast({ tone: 'warn', title: `${okTitle} failed`, body: String(err), cause: 'backend-error' });
       } finally {
         setBusy(null);
       }
@@ -152,9 +152,9 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
     async (tool: string, args: Record<string, any>) => {
       try {
         const res = await callTool(tool, args);
-        pushToast({ tone: 'ok', title: 'Info', body: JSON.stringify(unwrap(res?.result)) });
+        pushToast({ tone: 'ok', title: 'Info', body: JSON.stringify(unwrap(res?.result)), cause: 'backend-ok' });
       } catch (err) {
-        pushToast({ tone: 'warn', title: 'Info failed', body: String(err) });
+        pushToast({ tone: 'warn', title: 'Info failed', body: String(err), cause: 'backend-error' });
       }
     },
     [pushToast],

@@ -66,6 +66,7 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
               tone: 'info',
               title: 'New research candidate',
               body: `${r.publication_id}${r.signal_codes.length ? ` · ${r.signal_codes.join(', ')}` : ''}`,
+              cause: 'backend-ok',
             });
           }
         }
@@ -76,7 +77,7 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
       primedRef.current = true;
       setRows(next);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Discovery inbox', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Discovery inbox', body: String(err), cause: 'backend-error' });
       setRows([]);
     } finally {
       setLoading(false);
@@ -114,6 +115,7 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
           tone: 'info',
           title: 'New research candidate',
           body: `${row.publication_id}${row.signal_codes.length ? ` · ${row.signal_codes.join(', ')}` : ''}`,
+          cause: 'backend-ok',
         });
       }
       if (row.intake_tier === STRONG_TIER) seenStrongIds.current.add(row.id);
@@ -149,7 +151,7 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
         setRows((prev) => prev.filter((r) => r.id !== id));
         seenStrongIds.current.delete(id);
       } catch (err) {
-        pushToast({ tone: 'warn', title: 'Acknowledge failed', body: String(err) });
+        pushToast({ tone: 'warn', title: 'Acknowledge failed', body: String(err), cause: 'backend-error' });
       } finally {
         setBusyId(null);
       }
