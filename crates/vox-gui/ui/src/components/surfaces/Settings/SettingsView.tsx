@@ -14,6 +14,7 @@ import { useVoxMutation } from '../../../hooks/useVoxQuery';
 import { searchSettings } from './settingsIndex';
 import type { HudTilesConfig } from '../../../hooks/useHudTiles';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
+import { ACTION_REGISTRY, DEFAULT_BINDINGS, type Bindings, parseBindings, serializeBindings, chordFromEvent } from '../../../lib/keybinds';
 
 const GUI_PREF_KEYS = ['theme', 'telemetry', 'sign', 'checkpointMins'] as const;
 
@@ -33,16 +34,6 @@ const SECTIONS = [
   { id: 'gamify',       icon: 'bolt',    label: 'Gamification' },
 ];
 
-const KEYBINDS = [
-  ['⌘K',   'Open command palette'],
-  ['⌘↵',  'Dispatch intent'],
-  ['⇧↵',  'Newline in composer'],
-  ['/',     'Slash command'],
-  ['@',     'Mention agent'],
-  ['↑/↓', 'History recall'],
-  ['⌘B',   'Toggle sidebar'],
-  ['⌘.',   'Pause/resume selected agent'],
-];
 
 interface SettingsState {
   doubt: boolean;
@@ -962,6 +953,27 @@ interface SettingsViewProps {
 export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTilesChange }: SettingsViewProps) {
   const [section, setSection] = useState('orchestrator');
   const [filter, setFilter] = useState('');
+  const [keybindings, setKeybindings] = useState<Bindings>(DEFAULT_BINDINGS);
+  const [capturingId, setCapturingId] = useState<string | null>(null);
+  useEffect(() => {
+    voxTransport.getGuiPreference('gui.keybinds')
+      .then(json => setKeybindings(parseBindings(json)))
+      .catch(() => setKeybindings(DEFAULT_BINDINGS));
+  }, []);
+  useEffect(() => {
+    if (!capturingId) return;
+    const onKey = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const chord = chordFromEvent(e);
+      const next = { ...keybindings, [capturingId]: chord };
+      setKeybindings(next);
+      setCapturingId(null);
+      voxTransport.setGuiPreference('gui.keybinds', serializeBindings(next)).catch(() => {});
+    };
+    window.addEventListener('keydown', onKey, { capture: true });
+    return () => window.removeEventListener('keydown', onKey, { capture: true });
+  }, [capturingId, keybindings]);
 
   // Deep link from omni-search: { section } seed in localStorage. Read on mount
   // AND on the 'vox-settings-seed' event, so deep-linking works even when the
@@ -1430,15 +1442,37 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
         {section === 'keybinds' && (
           <>
             <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">Keybinds</h2>
-            <p className="mt-0.5 text-[11px] text-text-muted">Global shortcuts</p>
+            <p className="mt-0.5 text-[11px] text-text-muted">Click a shortcut to rebind it. Press any key combination to set the new chord.</p>
             <div className="mt-4 grid grid-cols-1 gap-1.5 md:grid-cols-2">
-              {KEYBINDS.map(([k, d]) => (
-                <div key={k} className="flex items-center justify-between rounded-md border border-border-subtle bg-overlay-subtle px-3 py-2">
-                  <span className="text-[12px] text-text-secondary">{d}</span>
-                  <kbd className="rounded border border-border-subtle bg-overlay-subtle px-2 py-0.5 font-mono text-[10px] text-text-secondary">{k}</kbd>
+              {ACTION_REGISTRY.map(a => (
+                <div key={a.id} className="flex items-center justify-between rounded-md border border-border-subtle bg-overlay-subtle px-3 py-2">
+                  <span className="text-[12px] text-text-secondary">{a.label}</span>
+                  <button
+                    type="button"
+                    data-testid={`keybind-btn-${a.id}`}
+                    onClick={() => setCapturingId(capturingId === a.id ? null : a.id)}
+                    className={`rounded border px-2 py-0.5 font-mono text-[10px] transition ${
+                      capturingId === a.id
+                        ? 'border-brass/60 bg-brass/10 text-brass animate-pulse'
+                        : 'border-border-subtle bg-overlay-subtle text-text-secondary hover:border-white/20'
+                    }`}
+                  >
+                    {capturingId === a.id ? 'press keys…' : (keybindings[a.id] ?? DEFAULT_BINDINGS[a.id])}
+                  </button>
                 </div>
               ))}
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                setKeybindings(DEFAULT_BINDINGS);
+                setCapturingId(null);
+                voxTransport.setGuiPreference('gui.keybinds', serializeBindings(DEFAULT_BINDINGS)).catch(() => {});
+              }}
+              className="mt-3 rounded-md border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-[11px] text-text-muted hover:text-text-secondary transition"
+            >
+              Reset to defaults
+            </button>
           </>
         )}
 
