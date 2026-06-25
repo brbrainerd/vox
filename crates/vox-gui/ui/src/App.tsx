@@ -921,6 +921,20 @@ export default function App() {
       .catch((err) => pushToast({ tone: 'warn', title: 'Resume failed', body: String(err), cause: 'backend-error' }));
   }, [executeIpcWithRun, pushToast]);
 
+  const handleDoubt = useCallback((item: StreamItem) => {
+    if (item.taskId == null) return;
+    voxTransport.doubtTask(item.taskId)
+      .then(() => pushToast({ tone: 'ok', title: 'Doubt cast', body: item.title, cause: 'backend-ok' }))
+      .catch((e) => pushToast({ tone: 'warn', title: 'Doubt failed', body: String(e), cause: 'backend-error' }));
+  }, [pushToast]);
+
+  const handleOverrule = useCallback((item: StreamItem) => {
+    if (item.taskId == null) return;
+    voxTransport.overruleTask(item.taskId, 'overruled from dashboard')
+      .then(() => pushToast({ tone: 'ok', title: 'Overruled', body: item.title, cause: 'backend-ok' }))
+      .catch((e) => pushToast({ tone: 'warn', title: 'Overrule failed', body: String(e), cause: 'backend-error' }));
+  }, [pushToast]);
+
   // Wire ⌘. (handled in the global keybind effect above) to pause/resume the
   // selected agent. Reassigned each render so the stable listener sees live state.
   togglePauseSelectedRef.current = () => {
@@ -1056,6 +1070,8 @@ export default function App() {
     dashboardLoading: orchQuery.isLoading,
     onPause: handlePause,
     onResume: handleResume,
+    onDoubt: handleDoubt,
+    onOverrule: handleOverrule,
     onOpenFeedbackContext: onOpenFeedbackContext,
     focusedFeedbackId: focusedFeedbackId,
     onAckLudus: handleAckAlert,

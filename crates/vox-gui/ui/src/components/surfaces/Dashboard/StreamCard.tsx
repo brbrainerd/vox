@@ -35,12 +35,12 @@ export function StreamCard({ item, onDoubt, onOverrule }: StreamCardProps) {
         <div className="flex shrink-0 flex-col items-end gap-2">
           <span className="font-mono text-[10px] text-text-muted">{item.ts}</span>
           <div className="flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
-            {item.kind !== "doubted" && (
+            {item.taskId != null && item.kind !== "doubted" && (
               <button type="button" aria-label="Doubt this action" onClick={() => onDoubt?.(item)} className="rounded-md border border-border-subtle bg-overlay-subtle p-1.5 text-text-muted hover:border-amber-400/30 hover:text-amber-300 transition" title="Doubt">
                 <Icon.doubt className="size-3.5" aria-hidden="true" />
               </button>
             )}
-            {item.kind === "doubted" && (
+            {item.taskId != null && item.kind === "doubted" && (
               <button type="button" aria-label="Overrule this action" onClick={() => onOverrule?.(item)} className="rounded-md border border-amber-400/20 bg-amber-400/5 p-1.5 text-amber-300 hover:bg-amber-400/15 transition" title="Overrule">
                 <Icon.gavel className="size-3.5" aria-hidden="true" />
               </button>
