@@ -660,7 +660,8 @@ Run: `cd crates/vox-gui/ui && pnpm vitest run src/lib/keybinds.test.ts`
 ```ts
 // keybinds.ts
 export type ActionId =
-  | 'open-palette' | 'toggle-sidebar' | 'toggle-hud' | 'dispatch-intent';
+  | 'open-palette' | 'toggle-sidebar' | 'toggle-hud' | 'dispatch-intent'
+  | 'pause-resume-agent';
 
 export interface ActionDef { id: ActionId; label: string }
 
@@ -671,6 +672,7 @@ export const ACTION_REGISTRY: ActionDef[] = [
   { id: 'toggle-sidebar', label: 'Toggle sidebar width' },
   { id: 'toggle-hud',    label: 'Cycle HUD display' },
   { id: 'dispatch-intent', label: 'Dispatch intent (in composer)' },
+  { id: 'pause-resume-agent', label: 'Pause/resume selected agent' },
 ];
 
 export type Bindings = Record<string, string>; // actionId -> chord, e.g. 'Mod+K'
@@ -680,6 +682,7 @@ export const DEFAULT_BINDINGS: Bindings = {
   'toggle-sidebar': 'Mod+B',
   'toggle-hud': 'Mod+Shift+H',
   'dispatch-intent': 'Mod+Enter',
+  'pause-resume-agent': 'Mod+.',
 };
 
 export function chordFromEvent(e: Pick<KeyboardEvent, 'key'|'metaKey'|'ctrlKey'|'shiftKey'|'altKey'>): string {
@@ -788,12 +791,15 @@ const actionHandlers = useMemo(() => ({
   'open-palette': () => setIsCommandOpen(true),
   'toggle-sidebar': () => setSidebarMode(m => m === 'rail' ? 'default' : m === 'default' ? 'wide' : 'rail'),
   'toggle-hud': () => setHudMode(m => m === 'full' ? 'slim' : m === 'slim' ? 'hidden' : 'full'),
+  'pause-resume-agent': () => togglePauseSelectedRef.current(),
   // 'dispatch-intent' stays in the composer (Loquela) where the textarea context lives
 }), []);
 
 useKeybinds(actionHandlers, bindings);
 ```
 Delete the old hardcoded `addEventListener('keydown')` `useEffect`. (Leave Loquela's composer Enter handling alone — it needs textarea-local context; `dispatch-intent` is documented in the registry but handled there.)
+
+**Keep `togglePauseSelectedRef`.** A prior fix (`fix(gui): wire ⌘. to pause/resume the selected agent`) already added `togglePauseSelectedRef` and its per-render reassignment near `handleResume`, plus the `mod && e.key === '.'` branch in the old keydown effect. When you delete that effect, do NOT delete the ref or its reassignment — the new `'pause-resume-agent'` action handler calls `togglePauseSelectedRef.current()`. Also delete the now-redundant `⌘.` regression assertion in `App.test.tsx` only if you replace it with an equivalent assertion that the `pause-resume-agent` binding fires through the dispatcher; otherwise keep it.
 
 - [ ] **Step 3: Typecheck + run App tests.**
 
