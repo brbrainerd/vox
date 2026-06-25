@@ -2,7 +2,7 @@ import React from 'react';
 
 export function AxisMark({ size = 24, className }: { size?: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100" role="img" aria-label="Vox Axis"
+    <svg width={size} height={size} viewBox="0 0 100 100" role="img" aria-label="Axis"
       className={className} style={{ color: 'rgb(var(--brass))' }}>
       <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" strokeWidth="7" />
       <path d="M50 12 V88 M12 50 H88" stroke="currentColor" strokeWidth="9" strokeLinecap="round" />

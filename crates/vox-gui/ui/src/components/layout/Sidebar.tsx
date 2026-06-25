@@ -34,7 +34,7 @@ function NavItem({ active, icon, label, onClick, badge, badgeClass, railBadgeCla
       className={`group relative flex w-full items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} py-2.5 rounded-xl transition ${active ? "bg-overlay-subtle text-text-primary" : "text-text-muted hover:bg-overlay-hover hover:text-text-secondary"}`}>
       {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[2px] rounded-r bg-brass" />}
       <span className={`flex size-7 items-center justify-center rounded-lg shrink-0 ${active ? "bg-brass/10 text-brass ring-1 ring-brass/30" : "bg-overlay-subtle ring-1 ring-border-subtle"}`}>{icon}</span>
-      {!collapsed && <span className="flex-1 text-left font-display text-[12px] tracking-[0.12em] uppercase whitespace-nowrap overflow-hidden">{label}</span>}
+      {!collapsed && <span className="flex-1 min-w-0 text-left font-display text-[12px] tracking-[0.12em] uppercase whitespace-nowrap overflow-hidden text-ellipsis">{label}</span>}
       {!collapsed && badge != null && <span className={`rounded-full px-1.5 py-0.5 font-mono text-[9px] ${badgeClass ?? 'bg-overlay-subtle text-text-muted'}`}>{badge}</span>}
       {collapsed && badge != null && <span className={`absolute right-1 top-1 rounded-full px-1 font-mono text-[8px] ${railBadgeClass ?? 'bg-brass/80 text-bg-base'}`}>{badge}</span>}
     </button>
@@ -132,7 +132,7 @@ export function Sidebar({
             <div className="flex items-center gap-2 px-1">
               <AxisMark size={22} />
               <div className="leading-tight">
-                <div className="font-display text-[11px] tracking-[0.22em] text-text-secondary">VOX</div>
+                <div className="font-display text-[11px] tracking-[0.22em] text-text-secondary">AXIS</div>
               </div>
             </div>
           )}
@@ -222,7 +222,7 @@ export function Sidebar({
             {!collapsed && (
               <div className="flex-1 leading-tight overflow-hidden">
                 <div className="font-display text-[11px] text-text-secondary truncate">{identity}</div>
-                <div className="font-mono text-[9px] text-text-muted">build {appVersion ?? 'unknown'} · tauri 2</div>
+                <div className="font-mono text-[9px] text-text-muted">Vox Axis · build {appVersion ?? 'unknown'}</div>
               </div>
             )}
           </div>

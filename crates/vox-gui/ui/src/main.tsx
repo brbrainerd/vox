@@ -16,6 +16,14 @@ const queryClient = new QueryClient({
   },
 })
 
+// Bare-browser detection: Tauri injects window.__TAURI_INTERNALS__. Outside it
+// (vite preview, headless screenshot capture) tag <html> so index.css can
+// neutralize backdrop-filter — software compositing cannot rasterize the glass
+// blur and hangs screenshot capture. The real Tauri app is unaffected.
+if (typeof (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ === 'undefined') {
+  document.documentElement.classList.add('no-tauri')
+}
+
 // Mirror webview console errors/warnings into the backend log stream (no-op outside Tauri).
 installConsoleBridge()
 
