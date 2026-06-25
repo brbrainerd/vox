@@ -668,6 +668,11 @@ tools:
   product_lane: platform
   http_read_role_eligible: true
   tier: core
+- name: vox_graphify_rebuild
+  description: Rebuild a graphify corpus graph (AST extract + cluster), snapshot the prior graph, and refresh freshness manifest (write).
+  product_lane: platform
+  http_read_role_eligible: false
+  tier: core
 - name: vox_graphify_search
   description: Lexically search a graphify corpus graph on disk (read-only).
   product_lane: platform

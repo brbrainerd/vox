@@ -1116,6 +1116,11 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_graphify_rebuild",
+      "mcp_tool": "vox_graphify_rebuild",
+      "implicit": true
+    },
+    {
       "capability_id": "mcp.vox_graphify_search",
       "mcp_tool": "vox_graphify_search",
       "implicit": false,

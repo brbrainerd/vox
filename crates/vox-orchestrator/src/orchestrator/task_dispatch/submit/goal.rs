@@ -74,6 +74,9 @@ fn socrates_task_from_search_pass(
             vox_db::SearchCorpus::RepoInventory => repo_hits > 0,
             vox_db::SearchCorpus::WebResearch => false,
             vox_db::SearchCorpus::SymbolProximity => false,
+            // Structural Graphify backend is not wired into this hit-accounting path yet;
+            // treat as no-hits so it never falsely reports coverage.
+            vox_db::SearchCorpus::GraphifyStructural => false,
         };
         let label = format!("{c:?}").to_ascii_lowercase();
         if has {

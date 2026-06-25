@@ -6334,6 +6334,28 @@ operations:
     http_read_role_eligible: true
     tier: core
   cli: null
+- id: graphify.rebuild
+  title: Graphify Rebuild
+  description: Rebuild a graphify corpus graph (AST extract + cluster), snapshot the prior graph, and refresh freshness manifest (write).
+  description_human: null
+  product_lane: platform
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: writes_files
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_graphify_rebuild
+    http_read_role_eligible: false
+    tier: core
+  cli: null
 - id: get.active.model
   title: Get Active Model
   description: Show sticky MCP chat override and resolved ModelSpec (no LLM call).

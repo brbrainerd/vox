@@ -15,6 +15,7 @@ vox-secrets    = { workspace = true }
 vox-llm-config = { workspace = true }
 vox-llm-egress = { workspace = true }
 vox-telemetry  = { workspace = true }
+vox-git        = { workspace = true }
 workspace-hack = { workspace = true }
 serde_yaml = { workspace = true }
 dirs = { workspace = true }
