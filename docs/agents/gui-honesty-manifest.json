@@ -1,0 +1,3194 @@
+[
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Activity\\ActivitySurface.tsx",
+    "line": 210,
+    "kind": "handler",
+    "snippet": "onClick={() => toggleExpand(item.key)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Activity\\ActivitySurface.tsx",
+    "line": 267,
+    "kind": "toast",
+    "snippet": "pushToast({"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Activity\\ActivitySurface.tsx",
+    "line": 330,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setAgentFilter(e.target.value)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Activity\\ActivitySurface.tsx",
+    "line": 348,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setKindFilter(e.target.value)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Activity\\ActivitySurface.tsx",
+    "line": 362,
+    "kind": "handler",
+    "snippet": "onClick={fetchLogs}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Approvals\\ApprovalsView.tsx",
+    "line": 54,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Approvals load failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Approvals\\ApprovalsView.tsx",
+    "line": 76,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Resolve failed', body: `Could not ${outcome.replace('ed', '')} ${approvalId}` });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Approvals\\ApprovalsView.tsx",
+    "line": 78,
+    "kind": "toast",
+    "snippet": "pushToast({"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Approvals\\ApprovalsView.tsx",
+    "line": 92,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Resolve failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Approvals\\ApprovalsView.tsx",
+    "line": 138,
+    "kind": "handler",
+    "snippet": "onClick={() => resolve(r.approval_id, 'approved')}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Approvals\\ApprovalsView.tsx",
+    "line": 148,
+    "kind": "handler",
+    "snippet": "onClick={() => resolve(r.approval_id, 'rejected')}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Approvals\\ApprovalsView.tsx",
+    "line": 172,
+    "kind": "handler",
+    "snippet": "<Button variant=\"ghost\" size=\"xs\" onClick={refresh} aria-label=\"Refresh approvals\">"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 243,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'ok', title: 'Preview started', body: status.url ?? undefined });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 250,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Preview failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 261,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'info', title: 'Preview stopped' });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 263,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Stop failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 277,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'ok', title: 'Browser session opened', body: result.page_id ?? undefined });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 282,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Open failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 295,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'info', title: 'Browser session closed' });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 298,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Close failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 314,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Screenshot failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 325,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'ok', title: 'Attached session', body: selectedPageId });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 327,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Attach failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 342,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'info', title: 'Page closed', body: selectedPageId });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 344,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Close page failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 355,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Failed to set control mode', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 367,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: `Navigation ${action} failed`, body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 380,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Goto failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 403,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Click failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 416,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Scroll failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 457,
+    "kind": "toast",
+    "snippet": "pushToast({"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 464,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Validate failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 486,
+    "kind": "handler",
+    "snippet": "onClick={() => setTab('preview')}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 495,
+    "kind": "handler",
+    "snippet": "onClick={() => setTab('agent')}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 510,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setPreviewUrl(e.target.value)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 521,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setAppDir(e.target.value)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 531,
+    "kind": "handler",
+    "snippet": "onClick={startPreview}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 539,
+    "kind": "handler",
+    "snippet": "onClick={stopPreview}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 547,
+    "kind": "handler",
+    "snippet": "onClick={runPlaywrightValidate}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 582,
+    "kind": "handler",
+    "snippet": "onClick={async () => {"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 604,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setAgentUrl(e.target.value)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 612,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setHeadless(e.target.checked)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 622,
+    "kind": "handler",
+    "snippet": "onClick={openAgentSession}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 630,
+    "kind": "handler",
+    "snippet": "onClick={closeAgentSession}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 638,
+    "kind": "handler",
+    "snippet": "onClick={captureFrame}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 646,
+    "kind": "handler",
+    "snippet": "onClick={() => navigate('back')}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 654,
+    "kind": "handler",
+    "snippet": "onClick={() => navigate('forward')}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 662,
+    "kind": "handler",
+    "snippet": "onClick={() => navigate('reload')}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 670,
+    "kind": "handler",
+    "snippet": "onClick={() => navigate('stop')}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 678,
+    "kind": "handler",
+    "snippet": "onClick={() => setControlModeRemote(controlMode === 'you' ? 'agent' : 'you')}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 691,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setAgentNavUrl(e.target.value)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 698,
+    "kind": "handler",
+    "snippet": "onClick={gotoUrl}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 718,
+    "kind": "handler",
+    "snippet": "onClick={() => attachPage(p.page_id)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 726,
+    "kind": "handler",
+    "snippet": "onClick={() => closePage(p.page_id)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Browser\\BrowserView.tsx",
+    "line": 743,
+    "kind": "handler",
+    "snippet": "onClick={onFrameClick}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Chat\\ChatAgentEventRow.tsx",
+    "line": 64,
+    "kind": "handler",
+    "snippet": "onClick={() => setExpanded((v) => !v)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Chat\\ChatAgentEventRow.tsx",
+    "line": 79,
+    "kind": "handler",
+    "snippet": "onClick={() => onOpenAgent(agentId)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Chat\\ChatAgentEventRow.tsx",
+    "line": 133,
+    "kind": "handler",
+    "snippet": "onClick={() => setExpanded((v) => !v)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Chat\\ChatAgentEventRow.tsx",
+    "line": 148,
+    "kind": "handler",
+    "snippet": "onClick={() => onOpenAgent(agentId)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Chat\\ChatExecutionRail.tsx",
+    "line": 51,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" data-testid={testId} onClick={onClick} className={className}>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Chat\\ChatExecutionRail.tsx",
+    "line": 95,
+    "kind": "handler",
+    "snippet": "onClick={() => setCollapsed(false)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Chat\\ChatExecutionRail.tsx",
+    "line": 116,
+    "kind": "handler",
+    "snippet": "onClick={() => setCollapsed(true)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Chat\\ChatExecutionRail.tsx",
+    "line": 165,
+    "kind": "handler",
+    "snippet": "onClick={() => onNavigate('matrix')}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Chat\\ChatExecutionRail.tsx",
+    "line": 183,
+    "kind": "handler",
+    "snippet": "onClick={() => onNavigate('agents')}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Chat\\ChatExecutionRail.tsx",
+    "line": 191,
+    "kind": "handler",
+    "snippet": "onClick={() => onNavigate('runs')}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Chat\\ChatExecutionRail.tsx",
+    "line": 198,
+    "kind": "handler",
+    "snippet": "onClick={() => onNavigate('compute')}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Chat\\ChatExecutionRail.tsx",
+    "line": 205,
+    "kind": "handler",
+    "snippet": "onClick={() => onNavigate('models')}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Chat\\ChatExecutionRail.tsx",
+    "line": 213,
+    "kind": "handler",
+    "snippet": "onClick={() => onNavigate('settings')}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Chat\\ChatSessionRail.tsx",
+    "line": 38,
+    "kind": "handler",
+    "snippet": "onClick={() => setCollapsed(false)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Chat\\ChatSessionRail.tsx",
+    "line": 59,
+    "kind": "handler",
+    "snippet": "onClick={() => setCollapsed(true)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Chat\\ChatSessionRail.tsx",
+    "line": 81,
+    "kind": "handler",
+    "snippet": "onClick={() => onSessionChange(s.session_id)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Chat\\ChatSessionRail.tsx",
+    "line": 101,
+    "kind": "handler",
+    "snippet": "onClick={onCreateSession}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Chat\\ChatSurface.tsx",
+    "line": 74,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Chat sessions', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Chat\\ChatSurface.tsx",
+    "line": 136,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'New session failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Chat\\ChatSurface.tsx",
+    "line": 151,
+    "kind": "handler",
+    "snippet": "onSessionChange={id => onSessionChange?.(id)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Chat\\ModelBadge.tsx",
+    "line": 32,
+    "kind": "handler",
+    "snippet": "onClick={() => setOpen(o => !o)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Chat\\PhaseChip.tsx",
+    "line": 49,
+    "kind": "handler",
+    "snippet": "onClick={onApprovePlan}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Chat\\PhaseChip.tsx",
+    "line": 60,
+    "kind": "handler",
+    "snippet": "onClick={onForceVerify}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Chat\\PhaseChip.tsx",
+    "line": 71,
+    "kind": "handler",
+    "snippet": "onClick={onSkipVerify}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Chat\\SecretaryToast.tsx",
+    "line": 53,
+    "kind": "handler",
+    "snippet": "onClick={onViewTask}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Chat\\SecretaryToast.tsx",
+    "line": 63,
+    "kind": "handler",
+    "snippet": "onClick={onDismiss}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\CommandCardsView.tsx",
+    "line": 62,
+    "kind": "toast",
+    "snippet": "pushToast({"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\CommandCardsView.tsx",
+    "line": 84,
+    "kind": "handler",
+    "snippet": "onClick={refresh}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Console\\AgentStrip.tsx",
+    "line": 34,
+    "kind": "handler",
+    "snippet": "onClick={() => onOpen(a.id)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Console\\Console.tsx",
+    "line": 77,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'info', title: 'Agent', body: `streaming events for ${agentId}` });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Console\\Console.tsx",
+    "line": 88,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Copy failed', body: 'clipboard unavailable' });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Console\\Console.tsx",
+    "line": 93,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'ok', title: 'Copied', body: 'last block to clipboard' });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Console\\Console.tsx",
+    "line": 95,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Copy failed' });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Console\\Console.tsx",
+    "line": 102,
+    "kind": "toast",
+    "snippet": ".then(() => pushToast({ tone: 'ok', title: 'Sent', body: `to agent ${agentId}` }))"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Console\\Console.tsx",
+    "line": 103,
+    "kind": "toast",
+    "snippet": ".catch((e) => pushToast({ tone: 'warn', title: 'Send failed', body: String(e) }));"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Console\\Console.tsx",
+    "line": 122,
+    "kind": "handler",
+    "snippet": "<Button onClick={copyLastBlock} style={{ fontSize: 11 }}>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Console\\Console.tsx",
+    "line": 127,
+    "kind": "handler",
+    "snippet": "onClick={() => setComposing(true)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Console\\Console.tsx",
+    "line": 157,
+    "kind": "handler",
+    "snippet": "onClick={() => setOpenAgentId(null)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Console\\Console.tsx",
+    "line": 172,
+    "kind": "handler",
+    "snippet": "onSubmit={submit}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Console\\DiscoveryRail.tsx",
+    "line": 69,
+    "kind": "handler",
+    "snippet": "onClick={() => setCollapsed(false)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Console\\DiscoveryRail.tsx",
+    "line": 105,
+    "kind": "handler",
+    "snippet": "onClick={() => setCollapsed(true)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Console\\DiscoveryRail.tsx",
+    "line": 132,
+    "kind": "handler",
+    "snippet": "onClick={handleUse}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Console\\InputEditor.tsx",
+    "line": 103,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setValue(e.target.value)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Console\\SendToAgent.tsx",
+    "line": 41,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setTarget(e.target.value)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Console\\SendToAgent.tsx",
+    "line": 53,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setBody(e.target.value)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Console\\SendToAgent.tsx",
+    "line": 59,
+    "kind": "handler",
+    "snippet": "<Button disabled={!canSend} onClick={() => onSend(target, body)}>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Console\\SendToAgent.tsx",
+    "line": 62,
+    "kind": "handler",
+    "snippet": "<Button onClick={onClose}>Cancel</Button>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Dashboard\\AgentRow.tsx",
+    "line": 49,
+    "kind": "handler",
+    "snippet": "onClick={() => (a.phase === \"Paused\" ? onResume(a) : onPause(a))}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Dashboard\\AgentRow.tsx",
+    "line": 57,
+    "kind": "handler",
+    "snippet": "onClick={() => onOpenInConsole(a)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Dashboard\\AgentRow.tsx",
+    "line": 67,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" onClick={() => onApprove(pendingApprovalId)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Dashboard\\AgentRow.tsx",
+    "line": 69,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" onClick={() => onReject(pendingApprovalId)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Dashboard\\Dashboard.tsx",
+    "line": 166,
+    "kind": "handler",
+    "snippet": "onClick={() => setFilterKind(f)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Dashboard\\Dashboard.tsx",
+    "line": 306,
+    "kind": "handler",
+    "snippet": "onClick={onOpenChat}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Dashboard\\Dashboard.tsx",
+    "line": 330,
+    "kind": "handler",
+    "snippet": "onClick={() => setPickerOpen((v) => !v)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Dashboard\\Dashboard.tsx",
+    "line": 337,
+    "kind": "handler",
+    "snippet": "onClick={handleResetLayout}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Dashboard\\Dashboard.tsx",
+    "line": 348,
+    "kind": "handler",
+    "snippet": "onClick={() => {"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Dashboard\\Dashboard.tsx",
+    "line": 368,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" onClick={() => onNavigate?.('gamify')} className=\"text-cyan hover:underline\">Immersive View</button>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Dashboard\\Dashboard.tsx",
+    "line": 369,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" onClick={() => setSandboxCollapsed(!sandboxCollapsed)} className=\"text-text-muted hover:text-text-secondary\">"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Dashboard\\LudusBanner.tsx",
+    "line": 27,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" aria-label=\"Acknowledge alert\" onClick={() => onAck(note)} className=\"rounded-md border border-border-subtle bg-overlay-subtle p-1 text-text-muted hover:text-text-secondary transition\" title=\"Ack\">"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Dashboard\\StreamCard.tsx",
+    "line": 39,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" aria-label=\"Doubt this action\" onClick={() => onDoubt?.(item)} className=\"rounded-md border border-border-subtle bg-overlay-subtle p-1.5 text-text-muted hover:border-amber-400/30 hover:text-amber-300 transition\" title=\"Doubt\">"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Dashboard\\StreamCard.tsx",
+    "line": 44,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" aria-label=\"Overrule this action\" onClick={() => onOverrule?.(item)} className=\"rounded-md border border-amber-400/20 bg-amber-400/5 p-1.5 text-amber-300 hover:bg-amber-400/15 transition\" title=\"Overrule\">"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Flow\\AgentFlow.tsx",
+    "line": 231,
+    "kind": "handler",
+    "snippet": "onClick={() => { setSel(n.id); onSelect?.(n.id); }}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Gamify\\GamifyView.tsx",
+    "line": 87,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Ludus load failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Gamify\\GamifyView.tsx",
+    "line": 104,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Ack failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Gamify\\GamifyView.tsx",
+    "line": 112,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" onClick={refresh} disabled={loading}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Gamify\\GamifyView.tsx",
+    "line": 141,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" onClick={() => ack(n.id)} aria-label={`Acknowledge ${n.title}`} className=\"shrink-0 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 text-[10px] text-text-muted hover:text-text-primary\">Ack</button>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Loquela\\DiffReview.tsx",
+    "line": 27,
+    "kind": "handler",
+    "snippet": "onClick={onClose}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Loquela\\DiffReview.tsx",
+    "line": 48,
+    "kind": "handler",
+    "snippet": "onClick={onClose}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Loquela\\DriveConsole.tsx",
+    "line": 47,
+    "kind": "handler",
+    "snippet": "onClick={() => onControlChange({ clutch: d.id })}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Loquela\\DriveConsole.tsx",
+    "line": 83,
+    "kind": "handler",
+    "snippet": "onClick={() => setRiskOpen(o => !o)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Loquela\\DriveConsole.tsx",
+    "line": 104,
+    "kind": "handler",
+    "snippet": "onChange={(n) => { onControlChange(n); setRiskOpen(false); }}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Loquela\\InlineApprovals.tsx",
+    "line": 50,
+    "kind": "toast",
+    "snippet": "pushToast({"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Loquela\\InlineApprovals.tsx",
+    "line": 56,
+    "kind": "toast",
+    "snippet": "pushToast({"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Loquela\\InlineApprovals.tsx",
+    "line": 65,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Resolve failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Loquela\\InlineApprovals.tsx",
+    "line": 97,
+    "kind": "handler",
+    "snippet": "onClick={onViewAll}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Loquela\\InlineApprovals.tsx",
+    "line": 120,
+    "kind": "handler",
+    "snippet": "onClick={() => resolve(a.approval_id, 'rejected')}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Loquela\\InlineApprovals.tsx",
+    "line": 128,
+    "kind": "handler",
+    "snippet": "onClick={() => resolve(a.approval_id, 'approved')}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Loquela\\Loquela.tsx",
+    "line": 62,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" aria-label={`Remove ${chip.label}`} onClick={() => onRemove(chip)} className=\"ml-0.5 opacity-40 hover:opacity-100\"><Icon.x className=\"size-2.5\" aria-hidden=\"true\" /></button>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Loquela\\Loquela.tsx",
+    "line": 73,
+    "kind": "handler",
+    "snippet": "onChange={e => setValue(parseFloat(e.target.value))}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Loquela\\Loquela.tsx",
+    "line": 456,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" aria-label=\"Attach local file(s) to context\" onClick={attachContext} title=\"Attach local file(s) to context (native picker)\" className=\"flex size-8 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-white/25 transition\">"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Loquela\\Loquela.tsx",
+    "line": 459,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" aria-label=\"Attach a URL to context\" onClick={attachUrl} title=\"Attach a URL to context\" className=\"flex size-8 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-white/25 transition\">"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Loquela\\Loquela.tsx",
+    "line": 465,
+    "kind": "handler",
+    "snippet": "onClick={toggleMic}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Loquela\\Loquela.tsx",
+    "line": 486,
+    "kind": "handler",
+    "snippet": "onChange={e => setText(e.target.value)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Loquela\\Loquela.tsx",
+    "line": 501,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" key={s.cmd} onMouseEnter={() => setSlashIdx(i)} onClick={() => void runSlash(s)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Loquela\\Loquela.tsx",
+    "line": 518,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" key={a.id} onClick={() => insertAt(a)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Loquela\\Loquela.tsx",
+    "line": 536,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" key={p} onClick={() => insertAtFile(p)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Loquela\\Loquela.tsx",
+    "line": 554,
+    "kind": "handler",
+    "snippet": "onClick={() => onInterrupt?.(currentTaskId)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Loquela\\Loquela.tsx",
+    "line": 565,
+    "kind": "handler",
+    "snippet": "onClick={send}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Loquela\\Loquela.tsx",
+    "line": 590,
+    "kind": "handler",
+    "snippet": "onClick={onOpenTasks}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Loquela\\Loquela.tsx",
+    "line": 599,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" aria-expanded={tierOpen} aria-label=\"Choose model tier\" onClick={() => { setTierOpen(o => !o); setSkillOpen(false); }} className=\"inline-flex items-center gap-1 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 text-text-secondary hover:border-white/20\">"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Loquela\\Loquela.tsx",
+    "line": 605,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" key={t.id} onClick={() => { setTier(t.id); setTierOpen(false); }} className={`flex w-full items-start gap-2 rounded px-2 py-1.5 text-left hover:bg-overlay-subtle ${tier === t.id ? \"bg-overlay-subtle\" : \"\"}`}>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Loquela\\Loquela.tsx",
+    "line": 616,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" aria-expanded={skillOpen} aria-label=\"Choose skill\" onClick={() => { setSkillOpen(o => !o); setTierOpen(false); }} className=\"inline-flex items-center gap-1 rounded-md border border-brass/25 bg-brass/[0.06] px-2 py-1 text-brass hover:bg-brass/[0.12]\">"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Loquela\\Loquela.tsx",
+    "line": 621,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" onClick={() => { setActiveSkill(null); setSkillOpen(false); }} className=\"block w-full rounded px-2 py-1.5 text-left text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-primary\">auto</button>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Loquela\\Loquela.tsx",
+    "line": 625,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" key={skillId} onClick={() => { setActiveSkill({ id: skillId, name: s.command, command: s.command }); setSkillOpen(false); }} className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-[11px] hover:bg-overlay-subtle ${activeSkill?.id === skillId ? \"bg-overlay-subtle text-brass\" : \"text-text-secondary\"}`}>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Loquela\\RiskPopover.tsx",
+    "line": 45,
+    "kind": "handler",
+    "snippet": "onClick={() => { onChange({ risk: p.id }); }}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Matrix\\Matrix.tsx",
+    "line": 39,
+    "kind": "handler",
+    "snippet": "onClick={() => onSelect(intention.id)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Matrix\\Matrix.tsx",
+    "line": 75,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Routing policies load failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Matrix\\Matrix.tsx",
+    "line": 96,
+    "kind": "toast",
+    "snippet": "pushToast({"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Matrix\\Matrix.tsx",
+    "line": 104,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: `Routing ${direction} failed`, body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Matrix\\Matrix.tsx",
+    "line": 181,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" disabled={busy} onClick={() => nudge(active, 'promote')} className=\"flex-1 rounded-md border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 font-display text-[11px] uppercase tracking-[0.18em] text-emerald-300 hover:bg-emerald-400/20 transition disabled:opacity-40\">Promote</button>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Matrix\\Matrix.tsx",
+    "line": 182,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" disabled={busy} onClick={() => nudge(active, 'doubt')}   className=\"flex-1 rounded-md border border-amber-400/30 bg-amber-400/10 px-3 py-2 font-display text-[11px] uppercase tracking-[0.18em] text-amber-300 hover:bg-amber-400/20 transition disabled:opacity-40\">Doubt</button>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Memory\\MemoryView.tsx",
+    "line": 35,
+    "kind": "handler",
+    "snippet": "onClick={onToggle}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Memory\\MemoryView.tsx",
+    "line": 78,
+    "kind": "handler",
+    "snippet": "onClick={isOpenable ? onOpen : undefined}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Memory\\MemoryView.tsx",
+    "line": 112,
+    "kind": "handler",
+    "snippet": "onClick={e => { e.stopPropagation(); onOpen(); }}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Memory\\MemoryView.tsx",
+    "line": 120,
+    "kind": "handler",
+    "snippet": "onClick={e => { e.stopPropagation(); onPin(); }}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Memory\\MemoryView.tsx",
+    "line": 192,
+    "kind": "toast",
+    "snippet": ".catch((err) => pushToast({ tone: 'warn', title: 'Memory status unavailable', body: String(err) }));"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Memory\\MemoryView.tsx",
+    "line": 206,
+    "kind": "toast",
+    "snippet": ".catch((err) => pushToast({ tone: 'warn', title: 'Could not persist auto-recall', body: String(err) }));"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Memory\\MemoryView.tsx",
+    "line": 240,
+    "kind": "toast",
+    "snippet": "pushToast({"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Memory\\MemoryView.tsx",
+    "line": 247,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Recall backend error', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Memory\\MemoryView.tsx",
+    "line": 271,
+    "kind": "toast",
+    "snippet": "pushToast({"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Memory\\MemoryView.tsx",
+    "line": 279,
+    "kind": "toast",
+    "snippet": "pushToast({"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Memory\\MemoryView.tsx",
+    "line": 294,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Could not open', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Memory\\MemoryView.tsx",
+    "line": 315,
+    "kind": "handler",
+    "snippet": "onClick={toggleAutoRecall}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Memory\\MemoryView.tsx",
+    "line": 328,
+    "kind": "handler",
+    "snippet": "onClick={() =>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Memory\\MemoryView.tsx",
+    "line": 330,
+    "kind": "toast",
+    "snippet": ".then(() => pushToast({ tone: 'ok', title: 'Reindex complete', cmd: 'mnemosyne reindex' }))"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Memory\\MemoryView.tsx",
+    "line": 331,
+    "kind": "toast",
+    "snippet": ".catch((err) => pushToast({ tone: 'warn', title: 'Reindex failed', body: String(err) }))"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Memory\\MemoryView.tsx",
+    "line": 345,
+    "kind": "handler",
+    "snippet": "onChange={e => setQuery(e.target.value)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Memory\\MemoryView.tsx",
+    "line": 354,
+    "kind": "handler",
+    "snippet": "onChange={e => setTopK(parseInt(e.target.value) || 8)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Memory\\MemoryView.tsx",
+    "line": 360,
+    "kind": "handler",
+    "snippet": "onClick={() => recall()}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Memory\\MemoryView.tsx",
+    "line": 419,
+    "kind": "handler",
+    "snippet": "onClick={() => { setQuery(r.q); recall(r.q); }}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Memory\\MemoryView.tsx",
+    "line": 445,
+    "kind": "handler",
+    "snippet": "onClick={() => pinHits(hits)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Mesh\\MeshView.tsx",
+    "line": 101,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Mesh refresh failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Mesh\\MeshView.tsx",
+    "line": 125,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Dispatch needs source', body: 'Enter .vox source to run.' });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Mesh\\MeshView.tsx",
+    "line": 141,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Dispatch failed', body: String(msg) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Mesh\\MeshView.tsx",
+    "line": 148,
+    "kind": "toast",
+    "snippet": "pushToast({"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Mesh\\MeshView.tsx",
+    "line": 164,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Dispatch failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Mesh\\MeshView.tsx",
+    "line": 192,
+    "kind": "handler",
+    "snippet": "onClick={refresh}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Mesh\\MeshView.tsx",
+    "line": 321,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setTargetNode(e.target.value)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Mesh\\MeshView.tsx",
+    "line": 339,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setTaskKind(e.target.value)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Mesh\\MeshView.tsx",
+    "line": 351,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setSource(e.target.value)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Mesh\\MeshView.tsx",
+    "line": 363,
+    "kind": "handler",
+    "snippet": "onClick={dispatch}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\MissionControl\\MissionControlPanel.tsx",
+    "line": 99,
+    "kind": "handler",
+    "snippet": "onClick={() => onResolve(a.approval_id, 'approved')}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\MissionControl\\MissionControlPanel.tsx",
+    "line": 106,
+    "kind": "handler",
+    "snippet": "onClick={() => onResolve(a.approval_id, 'rejected')}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\MissionControl\\MissionControlPanel.tsx",
+    "line": 150,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setTaskId(e.target.value)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\MissionControl\\MissionControlPanel.tsx",
+    "line": 156,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setPolicy(e.target.value as 'any' | 'local_only')}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\MissionControl\\MissionControlPanel.tsx",
+    "line": 161,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" onClick={handleApply}>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Models\\ModelsView.tsx",
+    "line": 58,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Models load failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Models\\ModelsView.tsx",
+    "line": 75,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'ok', title: 'Active model set', body: id });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Models\\ModelsView.tsx",
+    "line": 77,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Set active failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Models\\ModelsView.tsx",
+    "line": 152,
+    "kind": "handler",
+    "snippet": "onClick={() => onSetDefault(m.id)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\NeedsYou\\FeedbackCard.tsx",
+    "line": 27,
+    "kind": "handler",
+    "snippet": "onClick={() => onOpenContext(row.feedbackId)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\NeedsYou\\FeedbackCard.tsx",
+    "line": 37,
+    "kind": "handler",
+    "snippet": "onClick={() => onResolve(row.feedbackId, { action: 'overrule' })}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\NeedsYou\\FeedbackCard.tsx",
+    "line": 44,
+    "kind": "handler",
+    "snippet": "onClick={() => onResolve(row.feedbackId, { action: 'let_verify' })}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\NeedsYou\\FeedbackCard.tsx",
+    "line": 56,
+    "kind": "handler",
+    "snippet": "onClick={() => onResolve(row.feedbackId, { action: 'answer', option: i, text: null })}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\NeedsYou\\FeedbackCard.tsx",
+    "line": 64,
+    "kind": "handler",
+    "snippet": "onClick={() => onOpenContext(row.feedbackId)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\NeedsYou\\FeedbackCard.tsx",
+    "line": 71,
+    "kind": "handler",
+    "snippet": "onClick={() => onResolve(row.feedbackId, { action: 'skip' })}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\NeedsYou\\NeedsYouSurface.tsx",
+    "line": 51,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'ok', title: `Feedback ${id} resolved` });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\NeedsYou\\NeedsYouSurface.tsx",
+    "line": 54,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Failed to resolve feedback', body: e.message || String(e) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Policies\\PoliciesView.tsx",
+    "line": 56,
+    "kind": "toast",
+    "snippet": ".catch(err => pushToast({ tone: 'warn', title: 'Policy catalog failed', body: String(err) }));"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Policies\\PoliciesView.tsx",
+    "line": 81,
+    "kind": "toast",
+    "snippet": ".catch(err => pushToast({ tone: 'warn', title: 'Detail failed', body: String(err) }));"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Policies\\PoliciesView.tsx",
+    "line": 105,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" onClick={() => setRailCollapsed(c => !c)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Policies\\PoliciesView.tsx",
+    "line": 119,
+    "kind": "handler",
+    "snippet": "<button key={b.branch} type=\"button\" onClick={() => toggleBranch(b.branch)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Policies\\PoliciesView.tsx",
+    "line": 139,
+    "kind": "handler",
+    "snippet": "<button key={r.id} type=\"button\" onClick={() => setSelectedId(r.id)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Policies\\PoliciesView.tsx",
+    "line": 152,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" onClick={() => toggleGroup(node.group)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Policies\\PoliciesView.tsx",
+    "line": 168,
+    "kind": "handler",
+    "snippet": "<button key={r.id} type=\"button\" onClick={() => setSelectedId(r.id)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Publications\\PublicationsView.tsx",
+    "line": 44,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Publications load failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Publications\\PublicationsView.tsx",
+    "line": 58,
+    "kind": "handler",
+    "snippet": "<button onClick={refresh} disabled={loading}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Publications\\PublicationsView.tsx",
+    "line": 74,
+    "kind": "handler",
+    "snippet": "onClick={() => setSelected(m)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Publications\\PublicationsView.tsx",
+    "line": 132,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Claims (parse error)', body: `${String(parseErr)} — raw: ${claimsOut.stdout.slice(0, 200)}` });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Publications\\PublicationsView.tsx",
+    "line": 135,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Claims', body: claimsOut.stderr || `exit ${claimsOut.exit_code}` });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Publications\\PublicationsView.tsx",
+    "line": 146,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Venue (parse error)', body: `${String(parseErr)} — raw: ${venueOut.stdout.slice(0, 200)}` });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Publications\\PublicationsView.tsx",
+    "line": 152,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Publication detail', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Publications\\PublicationsView.tsx",
+    "line": 175,
+    "kind": "handler",
+    "snippet": "<button onClick={load} disabled={busy}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Publications\\PublicationsView.tsx",
+    "line": 179,
+    "kind": "handler",
+    "snippet": "<button onClick={onClose}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Repository\\IsolationPanel.tsx",
+    "line": 70,
+    "kind": "handler",
+    "snippet": "onChange={(e) => {"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Repository\\IsolationPanel.tsx",
+    "line": 133,
+    "kind": "handler",
+    "snippet": "onClick={() => setPending(null)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Repository\\IsolationPanel.tsx",
+    "line": 140,
+    "kind": "handler",
+    "snippet": "onClick={() => {"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Repository\\RepositoryView.tsx",
+    "line": 63,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'ok', title: 'Isolation strategy', body: `Default → ${strategy}` });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Repository\\RepositoryView.tsx",
+    "line": 71,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Isolation strategy', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Repository\\RepositoryView.tsx",
+    "line": 88,
+    "kind": "toast",
+    "snippet": "pushToast({"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Repository\\RepositoryView.tsx",
+    "line": 102,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: label, body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Repository\\RepositoryView.tsx",
+    "line": 116,
+    "kind": "handler",
+    "snippet": "onClick={() => runAction('Workspace status', ['status'])}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Repository\\RepositoryView.tsx",
+    "line": 124,
+    "kind": "handler",
+    "snippet": "onClick={() => runAction('Repository health', ['check', 'workspace'])}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Repository\\RepositoryView.tsx",
+    "line": 132,
+    "kind": "handler",
+    "snippet": "onClick={() => runAction('Vox check', ['check'])}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Repository\\RepositoryView.tsx",
+    "line": 140,
+    "kind": "handler",
+    "snippet": "onClick={() => runAction('List changed files', ['diff'])}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Research\\ResearchView.tsx",
+    "line": 23,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'History load failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Research\\ResearchView.tsx",
+    "line": 31,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Session load failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Research\\ResearchView.tsx",
+    "line": 75,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Research run failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Research\\ResearchView.tsx",
+    "line": 84,
+    "kind": "handler",
+    "snippet": "<input value={query} onChange={e => setQuery(e.target.value)} placeholder=\"Ask a research question…\""
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Research\\ResearchView.tsx",
+    "line": 88,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" onClick={run} disabled={running}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Research\\ResearchView.tsx",
+    "line": 105,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" onClick={loadHistory} className=\"text-[11px] text-text-muted hover:text-text-secondary\">Refresh</button>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Research\\ResearchView.tsx",
+    "line": 115,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" onClick={() => openDetail(s.id)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Research\\ResearchView.tsx",
+    "line": 130,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" onClick={() => setDetail(null)} className=\"text-[11px] text-text-muted hover:text-text-secondary\">Close</button>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Runs\\RunsView.tsx",
+    "line": 73,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Runs load failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Runs\\RunsView.tsx",
+    "line": 151,
+    "kind": "handler",
+    "snippet": "onClick={() => setSelectedRunId(r.run_id)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\ArchivePanel.tsx",
+    "line": 67,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Archive panel', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\ArchivePanel.tsx",
+    "line": 90,
+    "kind": "toast",
+    "snippet": "pushToast({"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\ArchivePanel.tsx",
+    "line": 98,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Autofill failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\ArchivePanel.tsx",
+    "line": 118,
+    "kind": "handler",
+    "snippet": "onSubmit={(e) => {"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\ArchivePanel.tsx",
+    "line": 125,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setPubId(e.target.value)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\ArchivePanel.tsx",
+    "line": 164,
+    "kind": "handler",
+    "snippet": "onClick={autofill}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\ArchiveStatusSummary.tsx",
+    "line": 70,
+    "kind": "handler",
+    "snippet": "onClick={load}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\ClaimsView.tsx",
+    "line": 56,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Load claims failed', body: out.stderr || `exit ${out.exit_code}` });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\ClaimsView.tsx",
+    "line": 63,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Load claims failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\ClaimsView.tsx",
+    "line": 75,
+    "kind": "toast",
+    "snippet": "pushToast({"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\ClaimsView.tsx",
+    "line": 84,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Extraction failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\ClaimsView.tsx",
+    "line": 101,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setPublicationId(e.target.value)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\ClaimsView.tsx",
+    "line": 109,
+    "kind": "handler",
+    "snippet": "onClick={extract}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\ClaimsView.tsx",
+    "line": 117,
+    "kind": "handler",
+    "snippet": "onClick={loadClaims}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryInbox.tsx",
+    "line": 65,
+    "kind": "toast",
+    "snippet": "pushToast({"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryInbox.tsx",
+    "line": 79,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Discovery inbox', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryInbox.tsx",
+    "line": 113,
+    "kind": "toast",
+    "snippet": "pushToast({"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryInbox.tsx",
+    "line": 152,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Acknowledge failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryInbox.tsx",
+    "line": 179,
+    "kind": "handler",
+    "snippet": "onClick={refresh}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryInbox.tsx",
+    "line": 247,
+    "kind": "handler",
+    "snippet": "onClick={() => openReview(r.publication_id)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryInbox.tsx",
+    "line": 255,
+    "kind": "handler",
+    "snippet": "onClick={() => acknowledge(r.id)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReview.tsx",
+    "line": 79,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Review queue', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReview.tsx",
+    "line": 155,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'ok', title: `Claim #${selectedId} ${decision}`, body: `Publication ${pubId.trim()}` });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReview.tsx",
+    "line": 162,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Review decision failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReview.tsx",
+    "line": 176,
+    "kind": "toast",
+    "snippet": "pushToast({"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReview.tsx",
+    "line": 182,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Nanopublish failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReview.tsx",
+    "line": 195,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'info', title: 'No evidence suggestions', body: 'The model returned nothing to act on.' });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReview.tsx",
+    "line": 199,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Evidence assist unavailable', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReview.tsx",
+    "line": 229,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setPubId(e.target.value)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReview.tsx",
+    "line": 235,
+    "kind": "handler",
+    "snippet": "onClick={refresh}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReview.tsx",
+    "line": 270,
+    "kind": "handler",
+    "snippet": "onClick={() => {"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReview.tsx",
+    "line": 355,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setReason(e.target.value)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReview.tsx",
+    "line": 365,
+    "kind": "handler",
+    "snippet": "onClick={() => decide('approved')}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReview.tsx",
+    "line": 373,
+    "kind": "handler",
+    "snippet": "onClick={() => decide('rejected')}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReview.tsx",
+    "line": 381,
+    "kind": "handler",
+    "snippet": "onClick={() => decide('deferred')}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReview.tsx",
+    "line": 389,
+    "kind": "handler",
+    "snippet": "onClick={doSuggest}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReview.tsx",
+    "line": 422,
+    "kind": "handler",
+    "snippet": "onClick={() => setConfirmOpen(true)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReview.tsx",
+    "line": 443,
+    "kind": "handler",
+    "snippet": "onClick={() => setConfirmOpen(false)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReview.tsx",
+    "line": 449,
+    "kind": "handler",
+    "snippet": "onClick={(e) => e.stopPropagation()}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReview.tsx",
+    "line": 467,
+    "kind": "handler",
+    "snippet": "onClick={() => setConfirmOpen(false)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReview.tsx",
+    "line": 475,
+    "kind": "handler",
+    "snippet": "onClick={doNanopublish}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReviewView.tsx",
+    "line": 72,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Load claims failed', body: out.stderr || `exit ${out.exit_code}` });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReviewView.tsx",
+    "line": 80,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Load claims failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReviewView.tsx",
+    "line": 98,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Review failed', body: out.stderr || `exit ${out.exit_code}` });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReviewView.tsx",
+    "line": 102,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'ok', title: 'Claim review', body: `claim ${claimId} → ${decision}` });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReviewView.tsx",
+    "line": 111,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Review failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReviewView.tsx",
+    "line": 126,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Nanopub build failed', body: out.stderr || `exit ${out.exit_code}` });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReviewView.tsx",
+    "line": 134,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'ok', title: 'Nanopublication built', body: uri });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReviewView.tsx",
+    "line": 141,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Nanopub build failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReviewView.tsx",
+    "line": 160,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setPublicationId(e.target.value)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReviewView.tsx",
+    "line": 167,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setOrcid(e.target.value)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReviewView.tsx",
+    "line": 175,
+    "kind": "handler",
+    "snippet": "onClick={loadClaims}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReviewView.tsx",
+    "line": 214,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setReasons((prev) => ({ ...prev, [c.claim_id]: e.target.value }))}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReviewView.tsx",
+    "line": 224,
+    "kind": "handler",
+    "snippet": "onClick={() => review(c.claim_id, 'approve')}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReviewView.tsx",
+    "line": 232,
+    "kind": "handler",
+    "snippet": "onClick={() => review(c.claim_id, 'reject')}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReviewView.tsx",
+    "line": 240,
+    "kind": "handler",
+    "snippet": "onClick={() => review(c.claim_id, 'defer')}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\DiscoveryReviewView.tsx",
+    "line": 249,
+    "kind": "handler",
+    "snippet": "onClick={() => buildNanopub(c.claim_id)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\ScientiaDashboard.tsx",
+    "line": 66,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Scientia dashboard', body: out.stderr || `exit ${out.exit_code}` });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\ScientiaDashboard.tsx",
+    "line": 76,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Scientia cost', body: String(costErr) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\ScientiaDashboard.tsx",
+    "line": 80,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Scientia dashboard', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Scientia\\ScientiaDashboard.tsx",
+    "line": 123,
+    "kind": "handler",
+    "snippet": "onClick={refresh}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Search\\SearchView.tsx",
+    "line": 114,
+    "kind": "handler",
+    "snippet": "onClick={onToggle}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Search\\SearchView.tsx",
+    "line": 140,
+    "kind": "handler",
+    "snippet": "onClick={onToggle}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Search\\SearchView.tsx",
+    "line": 212,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'ok', title: 'Path copied', body: hit.path });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Search\\SearchView.tsx",
+    "line": 224,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'ok', title: 'Path copied', body: hit.path });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Search\\SearchView.tsx",
+    "line": 233,
+    "kind": "handler",
+    "snippet": "onClick={handleClick}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Search\\SearchView.tsx",
+    "line": 272,
+    "kind": "handler",
+    "snippet": "onClick={e => { e.stopPropagation(); onOpen(); }}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Search\\SearchView.tsx",
+    "line": 283,
+    "kind": "handler",
+    "snippet": "onClick={copyPath}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Search\\SearchView.tsx",
+    "line": 399,
+    "kind": "toast",
+    "snippet": "pushToast({"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Search\\SearchView.tsx",
+    "line": 435,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Could not open', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Search\\SearchView.tsx",
+    "line": 443,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'info', title: 'Chat session', body: 'Open Chat from the sidebar' });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Search\\SearchView.tsx",
+    "line": 447,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'ok', title: 'Command copied', body: hit.path ?? hit.title ?? '' });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Search\\SearchView.tsx",
+    "line": 449,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'info', title: 'Command', body: hit.path ?? hit.title ?? '' });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Search\\SearchView.tsx",
+    "line": 458,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'info', title: 'Settings', body: 'Open Settings from the sidebar' });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Search\\SearchView.tsx",
+    "line": 462,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'ok', title: 'Path copied', body: hit.path });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Search\\SearchView.tsx",
+    "line": 513,
+    "kind": "handler",
+    "snippet": "onChange={e => setPathGlob(e.target.value)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Search\\SearchView.tsx",
+    "line": 528,
+    "kind": "handler",
+    "snippet": "onChange={e => setSearchQuery(e.target.value)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Search\\SearchView.tsx",
+    "line": 540,
+    "kind": "handler",
+    "snippet": "onClick={() => {"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Search\\SearchView.tsx",
+    "line": 565,
+    "kind": "handler",
+    "snippet": "onClick={() => setSelectedUserScopes([])}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\HudTilesEditor.tsx",
+    "line": 40,
+    "kind": "handler",
+    "snippet": "onChange={(e) => onChange(toggleHudTile(config, tile.id, e.target.checked))}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\HudTilesEditor.tsx",
+    "line": 52,
+    "kind": "handler",
+    "snippet": "onClick={() => move(index, index - 1)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\HudTilesEditor.tsx",
+    "line": 62,
+    "kind": "handler",
+    "snippet": "onClick={() => move(index, index + 1)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\HudTilesEditor.tsx",
+    "line": 74,
+    "kind": "handler",
+    "snippet": "onClick={() => onChange(defaultHudTiles())}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\PriorityChainEditor.tsx",
+    "line": 102,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Could not load priority chain', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\PriorityChainEditor.tsx",
+    "line": 129,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Priority chain save failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\PriorityChainEditor.tsx",
+    "line": 168,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" className={BTN} onClick={() => setAdding((a) => !a)} aria-expanded={adding}>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\PriorityChainEditor.tsx",
+    "line": 210,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" className={BTN} disabled={i === 0} onClick={() => move(i, i - 1)} aria-label={`Move step ${i + 1} up`} title=\"Move up\">"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\PriorityChainEditor.tsx",
+    "line": 217,
+    "kind": "handler",
+    "snippet": "onClick={() => move(i, i + 1)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\PriorityChainEditor.tsx",
+    "line": 226,
+    "kind": "handler",
+    "snippet": "onClick={() => removeStep(i)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\PriorityChainEditor.tsx",
+    "line": 298,
+    "kind": "handler",
+    "snippet": "<select className={sel} value={kind} onChange={(e) => setKind(e.target.value as any)}>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\PriorityChainEditor.tsx",
+    "line": 308,
+    "kind": "handler",
+    "snippet": "<select className={sel} value={axis} onChange={(e) => setAxis(e.target.value as AxisKind)}>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\PriorityChainEditor.tsx",
+    "line": 320,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setWeight(Number(e.target.value))}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\PriorityChainEditor.tsx",
+    "line": 331,
+    "kind": "handler",
+    "snippet": "<select className={`${sel} min-w-[16rem]`} value={pin} onChange={(e) => setPin(e.target.value)}>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\PriorityChainEditor.tsx",
+    "line": 344,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setPin(e.target.value)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\PriorityChainEditor.tsx",
+    "line": 358,
+    "kind": "handler",
+    "snippet": "<select className={sel} value={fbCond} onChange={(e) => setFbCond(e.target.value as any)}>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\PriorityChainEditor.tsx",
+    "line": 372,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setFbCost(Number(e.target.value))}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\PriorityChainEditor.tsx",
+    "line": 379,
+    "kind": "handler",
+    "snippet": "<select className={sel} value={thenKind} onChange={(e) => setThenKind(e.target.value as any)}>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\PriorityChainEditor.tsx",
+    "line": 386,
+    "kind": "handler",
+    "snippet": "<select className={`${sel} min-w-[14rem]`} value={thenPin} onChange={(e) => setThenPin(e.target.value)}>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\PriorityChainEditor.tsx",
+    "line": 399,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setThenPin(e.target.value)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\PriorityChainEditor.tsx",
+    "line": 404,
+    "kind": "handler",
+    "snippet": "<select className={sel} value={thenAxis} onChange={(e) => setThenAxis(e.target.value as AxisKind)}>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\PriorityChainEditor.tsx",
+    "line": 416,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setThenWeight(Number(e.target.value))}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\PriorityChainEditor.tsx",
+    "line": 431,
+    "kind": "handler",
+    "snippet": "onClick={() => {"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 79,
+    "kind": "handler",
+    "snippet": "<button type=\"button\" aria-label={on ? 'Toggle on' : 'Toggle off'} aria-pressed={on} onClick={onClick} className={`relative h-5 w-9 rounded-full transition ${on ? 'bg-brass/40' : 'bg-overlay-subtle'}`}>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 95,
+    "kind": "handler",
+    "snippet": "onChange={e => onChange(Number(e.target.value))}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 179,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Mesh load failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 193,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'ok', title: 'Peer untrusted', body: n.id });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 200,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'ok', title: 'Peer trusted', body: n.id });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 204,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Trust update failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 259,
+    "kind": "handler",
+    "snippet": "onClick={() => toggleTrust(p)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 284,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Could not load signing key', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 305,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'ok', title: `Key ${verb}d`, body: next.nodeId || next.fingerprint });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 315,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: `Key ${verb} failed`, body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 334,
+    "kind": "handler",
+    "snippet": "onClick={rotate}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 352,
+    "kind": "handler",
+    "snippet": "onClick={rotate}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 359,
+    "kind": "handler",
+    "snippet": "<Toggle on={vals.sign} onClick={() => update({ sign: !vals.sign })} />"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 432,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Could not load secrets', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 481,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'ok', title: 'Auth store migrated', body: `${moved} entr${moved === 1 ? 'y' : 'ies'} moved to vault` });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 484,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Migrate failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 496,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'No managed secrets found', body: envPath || '.env' });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 500,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Preview failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 511,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'ok', title: 'Secrets imported', body: `${res.count} value${res.count === 1 ? '' : 's'} stored in vault` });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 514,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Import failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 528,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'ok', title: 'Secret saved', body: key });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 532,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Save failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 542,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'ok', title: 'Secret removed', body: key });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 545,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Remove failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 578,
+    "kind": "handler",
+    "snippet": "onChange={e => setDrafts(d => ({ ...d, [r.canonicalEnv]: e.target.value }))}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 584,
+    "kind": "handler",
+    "snippet": "onClick={() => save(r.canonicalEnv)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 590,
+    "kind": "handler",
+    "snippet": "onClick={() => remove(r.canonicalEnv)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 629,
+    "kind": "handler",
+    "snippet": "onClick={migrate}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 636,
+    "kind": "handler",
+    "snippet": "onChange={e => { setEnvPath(e.target.value); setPreview(null); }}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 642,
+    "kind": "handler",
+    "snippet": "onClick={runPreview}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 649,
+    "kind": "handler",
+    "snippet": "onClick={runImport}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 685,
+    "kind": "handler",
+    "snippet": "onClick={() => toggleGroup(g.slug)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 751,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Could not load runtime config', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 778,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'ok', title: 'Setting saved', body: f.label });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 782,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Save failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 792,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'ok', title: 'Reset to default', body: f.label });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 795,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Reset failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 812,
+    "kind": "handler",
+    "snippet": "onClick={() => save(f, opt)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 828,
+    "kind": "handler",
+    "snippet": "onChange={e => setDrafts(d => ({ ...d, [f.key]: e.target.value }))}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 834,
+    "kind": "handler",
+    "snippet": "onClick={() => save(f, draftFor(f))}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 876,
+    "kind": "handler",
+    "snippet": "onClick={() => reset(f)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 926,
+    "kind": "toast",
+    "snippet": "}).catch((err) => pushToast({ tone: 'warn', title: 'LLM save failed', body: String(err) }));"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 935,
+    "kind": "handler",
+    "snippet": "<RangeInline value={cfg.maxConcurrentRequests} min={1} max={64} onChange={v => save({ ...cfg, maxConcurrentRequests: v })} />"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 938,
+    "kind": "handler",
+    "snippet": "<RangeInline value={cfg.openrouterMaxConcurrent ?? 0} min={0} max={64} onChange={v => save({ ...cfg, openrouterMaxConcurrent: v === 0 ? null : v })} />"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 941,
+    "kind": "handler",
+    "snippet": "<RangeInline value={cfg.retryMaxAttempts} min={0} max={10} onChange={v => save({ ...cfg, retryMaxAttempts: v })} />"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1057,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Save failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1139,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Gamify save failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1160,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'ok', title: 'Routing weights saved', body: 'VOX_AUTO_ROUTING_PRIORITY persisted' });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1167,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Routing save failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1205,
+    "kind": "handler",
+    "snippet": "onChange={e => setFilter(e.target.value)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1216,
+    "kind": "handler",
+    "snippet": "onClick={() => { setSection(entry.section); setFilter(''); }}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1236,
+    "kind": "handler",
+    "snippet": "onClick={() => setSection(s.id)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1258,
+    "kind": "handler",
+    "snippet": "<RangeInline value={vals.concurrency} min={1} max={16} onChange={v => update({ concurrency: v })} />"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1261,
+    "kind": "handler",
+    "snippet": "<RangeInline value={vals.capUsd} min={1} max={50} step={1} suffix=\"$\" onChange={v => update({ capUsd: v })} />"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1264,
+    "kind": "handler",
+    "snippet": "<RangeInline value={Math.round(vals.doubtThresh * 100)} min={0} max={100} step={5} suffix=\"%\" onChange={v => update({ doubtThresh: v / 100 })} />"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1267,
+    "kind": "handler",
+    "snippet": "<RangeInline value={vals.checkpointMins} min={1} max={30} step={1} suffix=\" min\" onChange={v => update({ checkpointMins: v })} />"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1275,
+    "kind": "handler",
+    "snippet": "onClick={() => update({ isolation: id })}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1286,
+    "kind": "handler",
+    "snippet": "<Toggle on={vals.doubt} onClick={() => update({ doubt: !vals.doubt })} />"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1289,
+    "kind": "handler",
+    "snippet": "<Toggle on={vals.autobudget} onClick={() => update({ autobudget: !vals.autobudget })} />"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1301,
+    "kind": "handler",
+    "snippet": "<Toggle on={vals.scalingEnabled} onClick={() => update({ scalingEnabled: !vals.scalingEnabled })} />"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1304,
+    "kind": "handler",
+    "snippet": "<RangeInline value={vals.minAgents} min={0} max={8} onChange={v => update({ minAgents: v })} />"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1307,
+    "kind": "handler",
+    "snippet": "<RangeInline value={vals.concurrency} min={1} max={16} onChange={v => update({ concurrency: v })} />"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1310,
+    "kind": "handler",
+    "snippet": "<RangeInline value={vals.scalingThreshold} min={1} max={20} onChange={v => update({ scalingThreshold: v })} />"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1313,
+    "kind": "handler",
+    "snippet": "<RangeInline value={vals.scaleCpuCeilingPct} min={0} max={100} step={5} suffix=\"%\" onChange={v => update({ scaleCpuCeilingPct: v })} />"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1316,
+    "kind": "handler",
+    "snippet": "<RangeInline value={vals.scaleMemFloorMb} min={0} max={16384} step={256} suffix=\" MiB\" onChange={v => update({ scaleMemFloorMb: v })} />"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1337,
+    "kind": "handler",
+    "snippet": "onClick={() => applyEmphasis(preset)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1348,
+    "kind": "handler",
+    "snippet": "<RangeInline value={emphasis.intelligence} min={0} max={100} onChange={v => applyEmphasis({ ...emphasis, intelligence: v })} />"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1351,
+    "kind": "handler",
+    "snippet": "<RangeInline value={emphasis.efficiency} min={0} max={100} onChange={v => applyEmphasis({ ...emphasis, efficiency: v })} />"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1354,
+    "kind": "handler",
+    "snippet": "<RangeInline value={emphasis.responsiveness} min={0} max={100} onChange={v => applyEmphasis({ ...emphasis, responsiveness: v })} />"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1361,
+    "kind": "handler",
+    "snippet": "onClick={() => setAdvanced(a => !a)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1370,
+    "kind": "handler",
+    "snippet": "<RangeInline value={routing.efficiency} min={0} max={100} onChange={v => updateRouting({ efficiency: v })} />"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1373,
+    "kind": "handler",
+    "snippet": "<RangeInline value={routing.precision} min={0} max={100} onChange={v => updateRouting({ precision: v })} />"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1376,
+    "kind": "handler",
+    "snippet": "<RangeInline value={routing.latency} min={0} max={100} onChange={v => updateRouting({ latency: v })} />"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1379,
+    "kind": "handler",
+    "snippet": "<RangeInline value={routing.availability} min={0} max={100} onChange={v => updateRouting({ availability: v })} />"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1382,
+    "kind": "handler",
+    "snippet": "<RangeInline value={routing.balance} min={0} max={100} onChange={v => updateRouting({ balance: v })} />"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1385,
+    "kind": "handler",
+    "snippet": "<RangeInline value={routing.mobile} min={0} max={100} onChange={v => updateRouting({ mobile: v })} />"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1417,
+    "kind": "handler",
+    "snippet": "onClick={() => update({ telemetry: id })}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1449,
+    "kind": "handler",
+    "snippet": "<input type=\"checkbox\" checked={gamify.enabled} onChange={e => updateGamify({ enabled: e.target.checked })} />"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1454,
+    "kind": "handler",
+    "snippet": "onChange={e => updateGamify({ mode: e.target.value })}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1478,
+    "kind": "handler",
+    "snippet": "onClick={() => update({ theme: t.id })}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Settings\\SettingsView.tsx",
+    "line": 1492,
+    "kind": "handler",
+    "snippet": "<HudTilesEditor config={hudTilesConfig} onChange={onHudTilesChange} />"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\SkillsPlugins\\SkillsPluginsView.tsx",
+    "line": 79,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Installed load failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\SkillsPlugins\\SkillsPluginsView.tsx",
+    "line": 92,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Marketplace load failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\SkillsPlugins\\SkillsPluginsView.tsx",
+    "line": 104,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Discovery failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\SkillsPlugins\\SkillsPluginsView.tsx",
+    "line": 127,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Skill search failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\SkillsPlugins\\SkillsPluginsView.tsx",
+    "line": 137,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: `${okTitle} failed`, body: JSON.stringify(unwrap(res.result)) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\SkillsPlugins\\SkillsPluginsView.tsx",
+    "line": 139,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'ok', title: okTitle, body: key });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\SkillsPlugins\\SkillsPluginsView.tsx",
+    "line": 143,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: `${okTitle} failed`, body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\SkillsPlugins\\SkillsPluginsView.tsx",
+    "line": 155,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'ok', title: 'Info', body: JSON.stringify(unwrap(res?.result)) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\SkillsPlugins\\SkillsPluginsView.tsx",
+    "line": 157,
+    "kind": "toast",
+    "snippet": "pushToast({ tone: 'warn', title: 'Info failed', body: String(err) });"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\SkillsPlugins\\SkillsPluginsView.tsx",
+    "line": 168,
+    "kind": "handler",
+    "snippet": "onClick={() => setTab(id)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\SkillsPlugins\\SkillsPluginsView.tsx",
+    "line": 193,
+    "kind": "handler",
+    "snippet": "onClick={() =>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\SkillsPlugins\\SkillsPluginsView.tsx",
+    "line": 323,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setSearchQuery(e.target.value)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\SkillsPlugins\\SkillsPluginsView.tsx",
+    "line": 331,
+    "kind": "handler",
+    "snippet": "onClick={runSearch}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\SkillsPlugins\\SkillsPluginsView.tsx",
+    "line": 471,
+    "kind": "handler",
+    "snippet": "onClick={a.onClick}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\SubAgents\\SubAgentContextEditor.tsx",
+    "line": 26,
+    "kind": "handler",
+    "snippet": "<button aria-label={`pin ${i.itemId}`} onClick={() => togglePin(i.itemId)}><Pin size={12} /></button>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\SubAgents\\SubAgentContextEditor.tsx",
+    "line": 30,
+    "kind": "handler",
+    "snippet": "<button aria-label={`remove ${i.itemId}`} onClick={() => remove(i.itemId)}><X size={12} /></button>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\SubAgents\\SubAgentControls.tsx",
+    "line": 10,
+    "kind": "handler",
+    "snippet": "? <button aria-label={`resume ${windowId}`} onClick={() => control(windowId, { kind: 'resume' })}>Resume</button>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\SubAgents\\SubAgentControls.tsx",
+    "line": 11,
+    "kind": "handler",
+    "snippet": ": <button aria-label={`pause ${windowId}`} onClick={() => control(windowId, { kind: 'pause' })}>Pause</button>}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\SubAgents\\SubAgentControls.tsx",
+    "line": 12,
+    "kind": "handler",
+    "snippet": "<button aria-label={`kill ${windowId}`} onClick={() => control(windowId, { kind: 'kill' }).catch(console.error)}>Kill</button>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\SubAgents\\SubAgentControls.tsx",
+    "line": 13,
+    "kind": "handler",
+    "snippet": "<input aria-label=\"overrule note\" value={note} onChange={(e) => setNote(e.target.value)} placeholder=\"overrule…\" />"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\SubAgents\\SubAgentControls.tsx",
+    "line": 14,
+    "kind": "handler",
+    "snippet": "<button aria-label={`overrule ${windowId}`} disabled={!note.trim()} onClick={() => control(windowId, { kind: 'overrule', note }).catch(console.error)}>Overrule</button>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\SubAgents\\SubAgentTree.tsx",
+    "line": 33,
+    "kind": "handler",
+    "snippet": "onClick={() => select(r.windowId)}>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\SubAgents\\SubAgentTree.tsx",
+    "line": 35,
+    "kind": "handler",
+    "snippet": "<button aria-label={`expand ${r.node.title}`} onClick={(e) => { e.stopPropagation(); toggleExpand(r.windowId); }}>"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Tasks\\TaskComposer.tsx",
+    "line": 21,
+    "kind": "handler",
+    "snippet": "<form onSubmit={handleSubmit} className=\"flex flex-col gap-2 bg-white/[0.02] border border-white/10 rounded-xl p-3\">"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Tasks\\TaskComposer.tsx",
+    "line": 24,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setText(e.target.value)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Tasks\\TaskComposer.tsx",
+    "line": 40,
+    "kind": "handler",
+    "snippet": "onClick={() => handleSubmit()}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Tasks\\TasksView.tsx",
+    "line": 151,
+    "kind": "handler",
+    "snippet": "onChange={(e) => {"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Tasks\\TasksView.tsx",
+    "line": 179,
+    "kind": "handler",
+    "snippet": "onClick={() => {"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Tasks\\TasksView.tsx",
+    "line": 240,
+    "kind": "handler",
+    "snippet": "onClick={() => remove(r.id)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Tasks\\TasksView.tsx",
+    "line": 263,
+    "kind": "handler",
+    "snippet": "onClick={refresh}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Tasks\\TasksView.tsx",
+    "line": 272,
+    "kind": "handler",
+    "snippet": "<TaskComposer onSubmit={addTask} busy={busy} />"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Tasks\\TasksView.tsx",
+    "line": 284,
+    "kind": "handler",
+    "snippet": "onClick={() => setSessionFilter(sid)}"
+  },
+  {
+    "surface": "?",
+    "file": "src\\components\\surfaces\\Tasks\\TasksView.tsx",
+    "line": 302,
+    "kind": "handler",
+    "snippet": "onChange={(e) => setShowBlocked(e.target.checked)}"
+  }
+]
