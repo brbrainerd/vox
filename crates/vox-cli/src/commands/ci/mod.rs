@@ -37,6 +37,7 @@ mod free_binary;
 mod generate_plugin_catalog_docs;
 mod grammar_ssot_parity;
 mod gui_catalog_parity;
+mod gui_honesty;
 mod gui_smoke;
 mod gui_surface_coverage;
 pub mod gui_surface_registry;

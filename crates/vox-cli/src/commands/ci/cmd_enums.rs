@@ -82,6 +82,9 @@ pub enum CiCmd {
         #[arg(long)]
         write: bool,
     },
+    /// Gate: GUI honesty — typed toasts + no placeholder/dead elements in surfaces.
+    #[command(name = "gui-honesty")]
+    GuiHonesty,
     /// Validate the YAML contract schema against the system's expected defaults.
     #[command(name = "model-routing-check")]
     ModelRoutingCheck,
