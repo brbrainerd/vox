@@ -13,12 +13,6 @@ use vox_telemetry::{RepairAttemptEvent, RepairOutcomeEvent, TelemetryEvent, reco
 #[derive(Debug, Deserialize)]
 struct SpanPayload {
     start_line: usize,
-    #[allow(dead_code)]
-    start_col: usize,
-    #[allow(dead_code)]
-    end_line: usize,
-    #[allow(dead_code)]
-    end_col: usize,
 }
 
 #[derive(Debug, Deserialize)]

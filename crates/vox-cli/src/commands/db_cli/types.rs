@@ -6,12 +6,8 @@ pub use vox_cli_core::db_types::{
     ScholarlyVenueCli,
 };
 
-pub trait DbPreflightProfileExt {
-    fn to_profile(self) -> vox_publisher::publication_preflight::PreflightProfile;
-}
-
-impl DbPreflightProfileExt for DbPreflightProfileCli {
-    fn to_profile(self) -> vox_publisher::publication_preflight::PreflightProfile {
+impl DbPreflightProfileCli {
+    pub fn to_profile(self) -> vox_publisher::publication_preflight::PreflightProfile {
         match self {
             DbPreflightProfileCli::Default => {
                 vox_publisher::publication_preflight::PreflightProfile::Default
@@ -29,12 +25,8 @@ impl DbPreflightProfileExt for DbPreflightProfileCli {
     }
 }
 
-pub trait DiscoveryIntakeGateExt {
-    fn to_gate(self) -> vox_publisher::scientia_discovery::DiscoveryIntakeGate;
-}
-
-impl DiscoveryIntakeGateExt for DiscoveryIntakeGateCli {
-    fn to_gate(self) -> vox_publisher::scientia_discovery::DiscoveryIntakeGate {
+impl DiscoveryIntakeGateCli {
+    pub fn to_gate(self) -> vox_publisher::scientia_discovery::DiscoveryIntakeGate {
         match self {
             DiscoveryIntakeGateCli::None => {
                 vox_publisher::scientia_discovery::DiscoveryIntakeGate::None
@@ -49,12 +41,8 @@ impl DiscoveryIntakeGateExt for DiscoveryIntakeGateCli {
     }
 }
 
-pub trait ScholarlyVenueExt {
-    fn to_venue(self) -> vox_publisher::submission::ScholarlyVenue;
-}
-
-impl ScholarlyVenueExt for ScholarlyVenueCli {
-    fn to_venue(self) -> vox_publisher::submission::ScholarlyVenue {
+impl ScholarlyVenueCli {
+    pub fn to_venue(self) -> vox_publisher::submission::ScholarlyVenue {
         match self {
             ScholarlyVenueCli::Zenodo => vox_publisher::submission::ScholarlyVenue::Zenodo,
             ScholarlyVenueCli::OpenReview => vox_publisher::submission::ScholarlyVenue::OpenReview,
@@ -65,12 +53,8 @@ impl ScholarlyVenueExt for ScholarlyVenueCli {
     }
 }
 
-pub trait ArxivHandoffStageExt {
-    fn slug(self) -> &'static str;
-}
-
-impl ArxivHandoffStageExt for ArxivHandoffStageCli {
-    fn slug(self) -> &'static str {
+impl ArxivHandoffStageCli {
+    pub fn slug(self) -> &'static str {
         match self {
             Self::StagingExported => "staging_exported",
             Self::OperatorAck => "operator_ack",

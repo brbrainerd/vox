@@ -22,12 +22,9 @@ pub(crate) enum DecodeTask {
     Translate,
 }
 
-/// Loaded Whisper weights (full precision or quantized GGUF).
+/// Loaded Whisper weights (full precision).
 pub enum WhisperModel {
     Normal(m::model::Whisper),
-    /// Reserved for GGUF checkpoints (`VOX_ORATIO_QUANTIZED`); not wired in the default path yet.
-    #[allow(dead_code)]
-    Quantized(m::quantized_model::Whisper),
 }
 
 impl WhisperModel {
@@ -35,14 +32,12 @@ impl WhisperModel {
     pub fn config(&self) -> &Config {
         match self {
             Self::Normal(m) => &m.config,
-            Self::Quantized(m) => &m.config,
         }
     }
 
     pub fn encoder_forward(&mut self, x: &Tensor, flush: bool) -> candle_core::Result<Tensor> {
         match self {
             Self::Normal(m) => m.encoder.forward(x, flush),
-            Self::Quantized(m) => m.encoder.forward(x, flush),
         }
     }
 
@@ -54,14 +49,12 @@ impl WhisperModel {
     ) -> candle_core::Result<Tensor> {
         match self {
             Self::Normal(m) => m.decoder.forward(x, xa, flush),
-            Self::Quantized(m) => m.decoder.forward(x, xa, flush),
         }
     }
 
     pub fn decoder_final_linear(&self, x: &Tensor) -> candle_core::Result<Tensor> {
         match self {
             Self::Normal(m) => m.decoder.final_linear(x),
-            Self::Quantized(m) => m.decoder.final_linear(x),
         }
     }
 }
