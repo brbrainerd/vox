@@ -28,6 +28,8 @@ import { contextRefsFromPayload } from './lib/loquelaContext';
 import { overallWorst, worstCount } from './components/surfaces/Policies/policyTree';
 import type { PolicyRow, PolicyStatus, BranchInfo, RunStatus } from './components/surfaces/Policies/types';
 import { voxTransport, listenAgentEvents, type AgentEventFrame, feedbackList, listenFeedbackChanged } from './transport';
+import { useKeybinds } from './hooks/useKeybinds';
+import { parseBindings, DEFAULT_BINDINGS, type Bindings } from './lib/keybinds';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { SHELL_PREFERENCE_KEYS } from './lib/shellPersistence';
@@ -199,6 +201,12 @@ export default function App() {
   // Master-sidebar Policies badge: worst-status count for the current branch.
   const [policyBadge, setPolicyBadge] = useState<{ count: number; status: RunStatus } | null>(null);
   const [lastOrchEventAt, setLastOrchEventAt] = useState<number | null>(null);
+  const [bindings, setBindings] = useState<Bindings>(DEFAULT_BINDINGS);
+  useEffect(() => {
+    voxTransport.getGuiPreference('gui.keybinds')
+      .then(json => setBindings(parseBindings(json)))
+      .catch(() => setBindings(DEFAULT_BINDINGS));
+  }, []);
   const orchQuery = useOrchestratorStatus();
   const orchUsesPolling = orchQuery.usesPolling;
   const { workspaceTitle } = useWorkspaceIdentity();
@@ -498,28 +506,9 @@ export default function App() {
   }, []);
 
   // ── Global keybinds ───────────────────────────────────────────────────────
-  // ⌘. toggles pause/resume of the selected agent. The listener below has empty
-  // deps (stable), so it reads the live data/selection through this ref, which is
-  // refreshed every render after handlePause/handleResume are defined.
+  // togglePauseSelectedRef is reassigned each render (after handlePause/handleResume
+  // are defined) so the data-driven dispatcher sees live state via stable ref.
   const togglePauseSelectedRef = useRef<() => void>(() => {});
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const mod = e.metaKey || e.ctrlKey;
-      if (mod && e.key.toLowerCase() === 'k') { e.preventDefault(); setIsCommandOpen(true); }
-      if (mod && e.key.toLowerCase() === 'b') {
-        e.preventDefault();
-        setSidebarMode(m => m === 'rail' ? 'default' : m === 'default' ? 'wide' : 'rail');
-      }
-      if (mod && e.shiftKey && e.key.toLowerCase() === 'h') {
-        e.preventDefault();
-        setHudMode(m => (m === 'full' ? 'slim' : m === 'slim' ? 'hidden' : 'full'));
-      }
-      if (mod && e.key === '.') { e.preventDefault(); togglePauseSelectedRef.current(); }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // ── Navigation (hash-synced) ─────────────────────────────────────────────
   const navigateTo = useCallback((viewKey: string) => {
@@ -935,14 +924,21 @@ export default function App() {
       .catch((e) => pushToast({ tone: 'warn', title: 'Overrule failed', body: String(e), cause: 'backend-error' }));
   }, [pushToast]);
 
-  // Wire ⌘. (handled in the global keybind effect above) to pause/resume the
-  // selected agent. Reassigned each render so the stable listener sees live state.
+  // Wire pause/resume to the stable ref so the data-driven dispatcher sees live state.
   togglePauseSelectedRef.current = () => {
     const agent = data.agents.find(a => a.id === selectedAgentId);
     if (!agent) return;
     if (agent.phase === 'Paused') handleResume(agent);
     else handlePause(agent);
   };
+
+  const actionHandlers = useMemo(() => ({
+    'open-palette': () => setIsCommandOpen(true),
+    'toggle-sidebar': () => setSidebarMode(m => m === 'rail' ? 'default' : m === 'default' ? 'wide' : 'rail'),
+    'toggle-hud': () => setHudMode(m => m === 'full' ? 'slim' : m === 'slim' ? 'hidden' : 'full'),
+    'pause-resume-agent': () => togglePauseSelectedRef.current(),
+  }), []);
+  useKeybinds(actionHandlers, bindings);
 
 
 
