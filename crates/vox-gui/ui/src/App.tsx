@@ -497,6 +497,10 @@ export default function App() {
   }, []);
 
   // ── Global keybinds ───────────────────────────────────────────────────────
+  // ⌘. toggles pause/resume of the selected agent. The listener below has empty
+  // deps (stable), so it reads the live data/selection through this ref, which is
+  // refreshed every render after handlePause/handleResume are defined.
+  const togglePauseSelectedRef = useRef<() => void>(() => {});
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
@@ -509,6 +513,7 @@ export default function App() {
         e.preventDefault();
         setHudMode(m => (m === 'full' ? 'slim' : m === 'slim' ? 'hidden' : 'full'));
       }
+      if (mod && e.key === '.') { e.preventDefault(); togglePauseSelectedRef.current(); }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -918,6 +923,15 @@ export default function App() {
     await executeIpcWithRun('resume_orchestrator_agent', { agentId: id }, 'gui.agent.resume')
       .catch((err) => pushToast({ tone: 'warn', title: 'Resume failed', body: String(err) }));
   }, [executeIpcWithRun, pushToast]);
+
+  // Wire ⌘. (handled in the global keybind effect above) to pause/resume the
+  // selected agent. Reassigned each render so the stable listener sees live state.
+  togglePauseSelectedRef.current = () => {
+    const agent = data.agents.find(a => a.id === selectedAgentId);
+    if (!agent) return;
+    if (agent.phase === 'Paused') handleResume(agent);
+    else handlePause(agent);
+  };
 
 
 

@@ -65,10 +65,23 @@ beforeAll(() => {
 });
 
 describe('App shell', () => {
-  it('renders without throwing', () => {
+  const renderApp = () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const wrapper = ({ children }: { children: React.ReactNode }) =>
       React.createElement(QueryClientProvider, { client: qc }, children);
-    expect(() => render(<App />, { wrapper })).not.toThrow();
+    return render(<App />, { wrapper });
+  };
+
+  it('renders without throwing', () => {
+    expect(() => renderApp()).not.toThrow();
+  });
+
+  // Regression: ⌘. used to be displayed in Settings but wired to no handler.
+  // It must now be claimed by the global keydown handler (preventDefault fires).
+  it('handles ⌘. (Cmd+Period) globally', () => {
+    renderApp();
+    const ev = new KeyboardEvent('keydown', { key: '.', metaKey: true, cancelable: true, bubbles: true });
+    window.dispatchEvent(ev);
+    expect(ev.defaultPrevented).toBe(true);
   });
 });
