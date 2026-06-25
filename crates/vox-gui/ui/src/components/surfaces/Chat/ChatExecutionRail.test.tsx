@@ -10,6 +10,7 @@ const mockBudget = vi.hoisted(() => ({
   threshold_tokens: 102_400,
   usable_tokens: 118_000,
   strategy: 'balanced',
+  used_tokens: 0,
 }));
 
 vi.mock('@tauri-apps/api/core', () => ({
@@ -198,6 +199,41 @@ describe('ChatExecutionRail', () => {
     render(<ChatExecutionRail {...defaultProps} />);
     await waitFor(() => {
       expect(screen.getByRole('meter')).toBeInTheDocument();
+    });
+  });
+
+  it('passes used_tokens to ContextWindowMeter so it reflects real fill percentage', async () => {
+    // Override the mock to return 25% usage (250 / 1000).
+    const { invoke } = await import('@tauri-apps/api/core');
+    vi.mocked(invoke).mockImplementation((cmd: string) => {
+      if (cmd === 'get_context_budget') {
+        return Promise.resolve({
+          max_context_tokens: 1000,
+          reserved_tokens: 0,
+          threshold_tokens: 800,
+          usable_tokens: 1000,
+          strategy: 'balanced',
+          used_tokens: 250,
+        });
+      }
+      return Promise.resolve(null);
+    });
+
+    render(
+      <ChatExecutionRail
+        tasks={[]}
+        kpis={{ activeAgents: { value: 0 }, queueDepth: { value: 0 }, mesh: { peers: 0 } }}
+        onNavigate={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      const meter = screen.getByRole('meter');
+      expect(meter).toBeInTheDocument();
+      // aria-label should say 25% full
+      expect(meter.getAttribute('aria-label')).toContain('25%');
+      // aria-valuenow should be the real used_tokens value
+      expect(meter.getAttribute('aria-valuenow')).toBe('250');
     });
   });
 });

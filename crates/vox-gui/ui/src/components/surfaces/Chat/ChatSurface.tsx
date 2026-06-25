@@ -179,6 +179,7 @@ export function ChatSurface({
           activeModel={activeModel}
           openrouterSpendUsd={openrouterSpendUsd}
           onNavigate={onNavigate}
+          sessionId={activeSessionId}
         />
       )}
 

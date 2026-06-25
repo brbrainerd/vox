@@ -577,10 +577,12 @@ export interface ContextBudgetPayload {
   threshold_tokens: number;
   usable_tokens: number;
   strategy: string;
+  /** Cumulative input+output tokens used in the session from llm_interactions. Zero when no session. */
+  used_tokens: number;
 }
 
-export function getContextBudget(): Promise<ContextBudgetPayload> {
-  return invoke<ContextBudgetPayload>('get_context_budget');
+export function getContextBudget(sessionId?: string | null): Promise<ContextBudgetPayload> {
+  return invoke<ContextBudgetPayload>('get_context_budget', sessionId != null ? { sessionId } : {});
 }
 
 export interface ActivityRowDto {
