@@ -151,3 +151,18 @@
   color: #a1a1aa;
 }
 
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Bare-browser / preview escape hatch.
+   Tauri injects window.__TAURI_INTERNALS__; outside it (vite preview, headless
+   screenshot capture) main.tsx tags <html> with `.no-tauri`. backdrop-filter
+   blur cannot be composited under software rendering and hangs screenshot
+   capture, so neutralize it there. The real Tauri app keeps the glass blur.
+   ────────────────────────────────────────────────────────────────────────── */
+.no-tauri,
+.no-tauri *,
+.no-tauri *::before,
+.no-tauri *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}

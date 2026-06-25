@@ -269,7 +269,7 @@ export function TopHud({
         <AxisMark size={28} />
         <div className="flex flex-col leading-none">
           <span className="font-display text-[13px] tracking-[0.22em] text-text-primary">{workspaceTitle}</span>
-          <span className="text-[9px] uppercase tracking-[0.3em] text-text-muted">vox operator console</span>
+          <span className="text-[9px] uppercase tracking-[0.3em] text-text-muted">axis operator console</span>
         </div>
       </div>
 
