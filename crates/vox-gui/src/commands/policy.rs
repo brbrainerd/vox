@@ -9,6 +9,7 @@ use serde::Serialize;
 use std::path::{Path, PathBuf};
 use tauri::command;
 use vox_config::{PolicyEntry, PolicyRegistry};
+use vox_config::policy::overrides;
 
 /// One catalog row for the GUI list/group rail. Non-sensitive metadata only.
 #[derive(Debug, Clone, Serialize)]
@@ -21,6 +22,7 @@ pub struct PolicyRowDto {
     pub severity: Option<String>,
     pub blocking: bool,
     pub protected: bool,
+    pub enabled: bool,
 }
 
 /// Full detail incl. the rule *contents* (the edit target shown in the primary pane).
@@ -41,6 +43,7 @@ pub struct PolicyDetailDto {
     pub source_kind: String,
     pub source_ref: String,
     pub source_detail: Option<String>,
+    pub enabled: bool,
 }
 
 fn domain_str(e: &PolicyEntry) -> String {
@@ -55,38 +58,47 @@ fn sev_str(e: &PolicyEntry) -> Option<String> {
     e.severity.map(|s| format!("{s:?}").to_lowercase())
 }
 
-impl From<&PolicyEntry> for PolicyRowDto {
-    fn from(e: &PolicyEntry) -> Self {
-        Self {
-            id: e.id.clone(),
-            domain: domain_str(e),
-            title: e.title.clone(),
-            group: e.group.clone(),
-            severity: sev_str(e),
-            blocking: e.blocking,
-            protected: e.protected,
-        }
+fn row_dto(e: &PolicyEntry, root: &Path) -> PolicyRowDto {
+    let enabled = overrides::get_override(root, &e.id)
+        .ok()
+        .flatten()
+        .unwrap_or(e.default_enabled);
+    PolicyRowDto {
+        id: e.id.clone(),
+        domain: domain_str(e),
+        title: e.title.clone(),
+        group: e.group.clone(),
+        severity: sev_str(e),
+        blocking: e.blocking,
+        protected: e.protected,
+        enabled,
     }
 }
 
-impl From<&PolicyEntry> for PolicyDetailDto {
-    fn from(e: &PolicyEntry) -> Self {
-        Self {
-            id: e.id.clone(),
-            domain: domain_str(e),
-            title: e.title.clone(),
-            group: e.group.clone(),
-            description: e.description.clone(),
-            severity: sev_str(e),
-            blocking: e.blocking,
-            runs_on: e.runs_on.clone(),
-            protected: e.protected,
-            origin: e.origin.clone(),
-            docs: e.docs.clone(),
-            source_kind: format!("{:?}", e.source.kind).to_lowercase(),
-            source_ref: e.source.reference.clone(),
-            source_detail: e.source.detail.clone(),
-        }
+fn detail_dto(e: &PolicyEntry, root: &Path) -> PolicyDetailDto {
+    let enabled = overrides::get_override(root, &e.id)
+        .ok()
+        .flatten()
+        .unwrap_or(e.default_enabled);
+    let ov = overrides::get_entry(root, &e.id).ok().flatten();
+    let title = ov.as_ref().and_then(|o| o.title.clone()).unwrap_or_else(|| e.title.clone());
+    let description = ov.as_ref().and_then(|o| o.description.clone()).unwrap_or_else(|| e.description.clone());
+    PolicyDetailDto {
+        id: e.id.clone(),
+        domain: domain_str(e),
+        title,
+        group: e.group.clone(),
+        description,
+        severity: sev_str(e),
+        blocking: e.blocking,
+        runs_on: e.runs_on.clone(),
+        protected: e.protected,
+        origin: e.origin.clone(),
+        docs: e.docs.clone(),
+        source_kind: format!("{:?}", e.source.kind).to_lowercase(),
+        source_ref: e.source.reference.clone(),
+        source_detail: e.source.detail.clone(),
+        enabled,
     }
 }
 
@@ -117,6 +129,8 @@ pub fn policy_list(
     group: Option<String>,
 ) -> Result<Vec<PolicyRowDto>, String> {
     let reg = load_registry()?;
+    let cwd = std::env::current_dir().map_err(|e| e.to_string())?;
+    let root = find_repo_root(&cwd);
     let dom = domain.map(|d| d.to_lowercase());
     let grp = group.map(|g| g.to_lowercase());
     let mut rows: Vec<PolicyRowDto> = reg
@@ -131,7 +145,7 @@ pub fn policy_list(
                     .map(|g| e.group.to_lowercase().contains(g))
                     .unwrap_or(true)
         })
-        .map(PolicyRowDto::from)
+        .map(|e| row_dto(e, &root))
         .collect();
     rows.sort_by(|a, b| a.id.cmp(&b.id));
     Ok(rows)
@@ -141,11 +155,29 @@ pub fn policy_list(
 #[command]
 pub fn policy_show(id: String) -> Result<PolicyDetailDto, String> {
     let reg = load_registry()?;
+    let cwd = std::env::current_dir().map_err(|e| e.to_string())?;
+    let root = find_repo_root(&cwd);
     reg.policies
         .iter()
         .find(|e| e.id == id)
-        .map(PolicyDetailDto::from)
+        .map(|e| detail_dto(e, &root))
         .ok_or_else(|| format!("no policy with id `{id}`"))
+}
+
+/// `policy_set_enabled` — toggle a policy on or off (stored in `.vox/policy-overrides.json`).
+#[command]
+pub fn policy_set_enabled(id: String, enabled: bool) -> Result<(), String> {
+    let cwd = std::env::current_dir().map_err(|e| e.to_string())?;
+    let root = find_repo_root(&cwd);
+    overrides::set_enabled(&root, &id, enabled).map_err(|e| e.to_string())
+}
+
+/// `policy_edit` — persist a user-facing title/description override for a policy.
+#[command]
+pub fn policy_edit(id: String, title: Option<String>, description: Option<String>) -> Result<(), String> {
+    let cwd = std::env::current_dir().map_err(|e| e.to_string())?;
+    let root = find_repo_root(&cwd);
+    overrides::set_fields(&root, &id, title, description).map_err(|e| e.to_string())
 }
 
 /// One selectable branch/worktree in the multi-branch selector.
@@ -371,7 +403,8 @@ mod tests {
             protected: true,
             origin: "builtin".into(),
         };
-        let dto = PolicyDetailDto::from(&e);
+        let dir = tempfile::tempdir().unwrap();
+        let dto = detail_dto(&e, dir.path());
         assert_eq!(dto.domain, "code-audit-rule");
         assert_eq!(dto.severity.as_deref(), Some("error"));
         assert_eq!(
@@ -379,6 +412,7 @@ mod tests {
             Some("todo!()|unimplemented!()")
         );
         assert!(dto.protected);
+        assert!(dto.enabled); // default_enabled=true, no override
     }
 
     #[test]

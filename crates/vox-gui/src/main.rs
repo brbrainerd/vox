@@ -228,6 +228,8 @@ async fn main() {
             commands::policy::policy_show,
             commands::policy::policy_status,
             commands::policy::list_branches,
+            commands::policy::policy_set_enabled,
+            commands::policy::policy_edit,
             commands::vcs_isolation::get_vcs_isolation,
             commands::vcs_isolation::set_vcs_isolation_strategy,
             commands::browser::preview_status,
