@@ -16,7 +16,7 @@ function walk(dir) {
 
 const rows = [];
 for (const file of walk(ROOT)) {
-  const surface = file.split('/')[3] ?? '?';
+  const surface = file.split(/[/\\]/)[3] ?? '?';
   readFileSync(file, 'utf8').split('\n').forEach((raw, i) => {
     if (TOAST.test(raw)) rows.push({ surface, file, line: i + 1, kind: 'toast', snippet: raw.trim() });
     if (HANDLER.test(raw)) rows.push({ surface, file, line: i + 1, kind: 'handler', snippet: raw.trim() });
