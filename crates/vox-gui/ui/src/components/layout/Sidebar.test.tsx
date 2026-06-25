@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import React from 'react';
 
 vi.mock('@tauri-apps/api/core', () => ({
@@ -76,40 +75,23 @@ describe('Sidebar badges', () => {
   });
 });
 
-describe('Sidebar nav filter', () => {
+describe('Sidebar has no nav filter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     Element.prototype.scrollIntoView = vi.fn();
     window.localStorage.clear();
   });
 
-  it('shows only matching top-level nav items when filter has text', async () => {
-    const user = userEvent.setup();
+  it('renders no nav filter input or toggle', () => {
     render(<Sidebar {...baseProps} />);
-    await user.type(screen.getByTestId('sidebar-nav-filter'), 'chat');
-    expect(screen.getByRole('button', { name: 'Chat' })).toBeDefined();
-    expect(screen.queryByRole('button', { name: 'Agents' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Runs and Approvals' })).toBeNull();
-  });
-
-  it('shows parent when a child tab label matches the filter', async () => {
-    const user = userEvent.setup();
-    render(<Sidebar {...baseProps} />);
-    await user.type(screen.getByTestId('sidebar-nav-filter'), 'memory');
-    expect(screen.getByRole('button', { name: 'Search' })).toBeDefined();
-    expect(screen.getByRole('button', { name: 'Memory' })).toBeDefined();
-    expect(screen.queryByRole('button', { name: 'Agents' })).toBeNull();
-  });
-
-  it('filter section collapses via button with aria-expanded', async () => {
-    const user = userEvent.setup();
-    render(<Sidebar {...baseProps} />);
-    const toggle = screen.getByRole('button', { name: /filter navigation/i });
-    expect(toggle.getAttribute('aria-expanded')).toBe('true');
-    expect(screen.getByTestId('sidebar-nav-filter')).toBeDefined();
-    await user.click(toggle);
-    expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(screen.queryByTestId('sidebar-nav-filter')).toBeNull();
+    expect(screen.queryByRole('button', { name: /filter navigation/i })).toBeNull();
+  });
+
+  it('still renders top-level nav items', () => {
+    render(<Sidebar {...baseProps} />);
+    expect(screen.getByRole('button', { name: 'Chat' })).toBeDefined();
+    expect(screen.getByRole('button', { name: /Agents/ })).toBeDefined();
   });
 });
 

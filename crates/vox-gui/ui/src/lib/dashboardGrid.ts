@@ -2,6 +2,30 @@ import type { DashboardLayout } from './dashboardLayout';
 
 const MIN_WIDGET_SPAN = 2;
 
+/**
+ * Minimum rendered width (px) for a single grid column. The render-time
+ * effective column count is derived so that no column is ever narrower than
+ * this, preventing widgets from cramping at narrow container widths. Single
+ * source of truth — reused as the grid track minimum in DashboardGrid.
+ */
+export const MIN_COL_PX = 240;
+
+/**
+ * Derive the render-time effective column count from the measured container
+ * width. Returns at least 1 column, never more than `maxColumns` (the user's
+ * configured/stored upper bound), and as many columns as fit while keeping each
+ * column at least `MIN_COL_PX` wide. This is a pure derivation — it is NOT
+ * persisted; `layout.columns` remains the stored max.
+ */
+export function effectiveColumns(containerWidth: number, maxColumns: number): number {
+  const maxCols = Math.max(1, Math.floor(maxColumns));
+  if (!Number.isFinite(containerWidth) || containerWidth <= 0) {
+    return maxCols;
+  }
+  const fit = Math.floor(containerWidth / MIN_COL_PX);
+  return Math.min(maxCols, Math.max(1, fit));
+}
+
 function clampSpan(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }

@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { chatRailVisibility } from './chatRailVisibility';
 import { invoke } from '@tauri-apps/api/core';
 import { type UnlistenFn } from '@tauri-apps/api/event';
 import { ChatTranscript } from './ChatTranscript';
@@ -62,6 +63,32 @@ export function ChatSurface({
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [secretaryToast, setSecretaryToast] = useState<SecretaryProposedPayload | null>(null);
   const activeId = activeSessionId ?? '';
+
+  // Responsive rails: measure the surface container (NOT the window) so the app
+  // shell sidebar width is accounted for, then auto-hide rails when narrow.
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const [sessionOverlayOpen, setSessionOverlayOpen] = useState(false);
+  const [executionOverlayOpen, setExecutionOverlayOpen] = useState(false);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(entries => {
+      const w = entries[0]?.contentRect.width ?? el.clientWidth;
+      setContainerWidth(w);
+    });
+    ro.observe(el);
+    setContainerWidth(el.clientWidth);
+    return () => ro.disconnect();
+  }, []);
+
+  const railVis = chatRailVisibility(containerWidth);
+  // Close overlays automatically once the container is wide enough to show inline.
+  useEffect(() => {
+    if (railVis.sessionRail) setSessionOverlayOpen(false);
+    if (railVis.executionRail) setExecutionOverlayOpen(false);
+  }, [railVis.sessionRail, railVis.executionRail]);
 
   const loadSessions = useCallback(async () => {
     try {
@@ -143,14 +170,57 @@ export function ChatSurface({
     mesh: { peers: 0 },
   };
 
+  const sessionRailNode = (
+    <ChatSessionRail
+      sessions={sessions}
+      activeSessionId={activeId}
+      onSessionChange={id => {
+        onSessionChange?.(id);
+        setSessionOverlayOpen(false);
+      }}
+      onCreateSession={() => void createSession()}
+    />
+  );
+
+  const executionRailNode = onNavigate ? (
+    <ChatExecutionRail
+      tasks={tasks}
+      kpis={railKpis}
+      intents={intents}
+      activeModel={activeModel}
+      openrouterSpendUsd={openrouterSpendUsd}
+      onNavigate={onNavigate}
+    />
+  ) : null;
+
   return (
-    <div className="relative flex min-h-[60vh] gap-4" data-testid="chat-surface-layout">
-      <ChatSessionRail
-        sessions={sessions}
-        activeSessionId={activeId}
-        onSessionChange={id => onSessionChange?.(id)}
-        onCreateSession={() => void createSession()}
-      />
+    <div
+      ref={containerRef}
+      className="relative flex min-h-[60vh] gap-4"
+      data-testid="chat-surface-layout"
+    >
+      {railVis.sessionRail ? (
+        sessionRailNode
+      ) : (
+        <button
+          type="button"
+          data-testid="chat-session-rail-toggle"
+          aria-label="Show sessions rail"
+          aria-expanded={sessionOverlayOpen}
+          onClick={() => setSessionOverlayOpen(o => !o)}
+          className="absolute left-0 top-0 z-30 rounded-lg border border-border-subtle bg-overlay-subtle p-2 text-text-muted transition hover:border-brass/40 hover:text-brass"
+        >
+          <span className="font-mono text-sm" aria-hidden="true">»</span>
+        </button>
+      )}
+      {!railVis.sessionRail && sessionOverlayOpen ? (
+        <div
+          data-testid="chat-session-rail-overlay"
+          className="absolute left-0 top-0 z-40 max-h-full"
+        >
+          {sessionRailNode}
+        </div>
+      ) : null}
 
       <div className="flex min-w-0 flex-1 flex-col gap-4">
         {messages.length === 0 && !(agentStreamItems?.length ?? 0) ? (
@@ -171,16 +241,27 @@ export function ChatSurface({
         ) : null}
       </div>
 
-      {onNavigate && (
-        <ChatExecutionRail
-          tasks={tasks}
-          kpis={railKpis}
-          intents={intents}
-          activeModel={activeModel}
-          openrouterSpendUsd={openrouterSpendUsd}
-          onNavigate={onNavigate}
-        />
-      )}
+      {executionRailNode != null && railVis.executionRail ? executionRailNode : null}
+      {executionRailNode != null && !railVis.executionRail ? (
+        <button
+          type="button"
+          data-testid="chat-execution-rail-toggle"
+          aria-label="Show execution rail"
+          aria-expanded={executionOverlayOpen}
+          onClick={() => setExecutionOverlayOpen(o => !o)}
+          className="absolute right-0 top-0 z-30 rounded-lg border border-border-subtle bg-overlay-subtle p-2 text-text-muted transition hover:border-brass/40 hover:text-brass"
+        >
+          <span className="font-mono text-sm" aria-hidden="true">«</span>
+        </button>
+      ) : null}
+      {executionRailNode != null && !railVis.executionRail && executionOverlayOpen ? (
+        <div
+          data-testid="chat-execution-rail-overlay"
+          className="absolute right-0 top-0 z-40 max-h-full"
+        >
+          {executionRailNode}
+        </div>
+      ) : null}
 
       {secretaryToast && (
         <div className="absolute bottom-4 left-1/2 z-50 w-[480px] -translate-x-1/2">

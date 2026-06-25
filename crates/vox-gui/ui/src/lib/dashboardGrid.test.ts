@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { defaultDashboardLayout, type DashboardLayout } from './dashboardLayout';
-import { reorderDashboardWidgets, resizeDashboardWidget } from './dashboardGrid';
+import {
+  reorderDashboardWidgets,
+  resizeDashboardWidget,
+  effectiveColumns,
+  MIN_COL_PX,
+} from './dashboardGrid';
 
 // Inline fixture so these math tests are independent of the product default layout.
 const fixture = (): DashboardLayout => ({ version: 1, columns: 12, widgets: [
@@ -29,6 +34,34 @@ describe('reorderDashboardWidgets', () => {
     const layout = defaultDashboardLayout();
     const next = reorderDashboardWidgets(layout, 'missing', 'stream');
     expect(next).toBe(layout);
+  });
+});
+
+describe('effectiveColumns', () => {
+  it('returns 1 column at a narrow 300px width', () => {
+    expect(effectiveColumns(300, 12)).toBe(1);
+  });
+
+  it('returns 2 columns at ~520px width', () => {
+    expect(effectiveColumns(520, 12)).toBe(2);
+  });
+
+  it('returns the max column count at a wide width', () => {
+    expect(effectiveColumns(12 * MIN_COL_PX, 12)).toBe(12);
+    expect(effectiveColumns(99999, 12)).toBe(12);
+  });
+
+  it('never exceeds the configured max even when many columns fit', () => {
+    expect(effectiveColumns(99999, 4)).toBe(4);
+  });
+
+  it('clamps to at least 1 column', () => {
+    expect(effectiveColumns(10, 12)).toBe(1);
+    expect(effectiveColumns(0, 12)).toBe(12);
+  });
+
+  it('keeps each column at least MIN_COL_PX wide', () => {
+    expect(effectiveColumns(3 * MIN_COL_PX + 10, 12)).toBe(3);
   });
 });
 

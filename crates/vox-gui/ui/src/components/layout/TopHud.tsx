@@ -12,6 +12,21 @@ import {
 
 export type HudMode = 'full' | 'slim' | 'hidden';
 
+/**
+ * Tile kinds whose metrics are already shown by the canonical StatusBar
+ * "Operator status" row (Agents / Queue / Budget / Mesh / Model). These are
+ * filtered out of the TopHud KPI strip to avoid duplicating the same metrics
+ * twice in the top area. Only non-duplicated tiles (e.g. openrouter_spend)
+ * render in the HUD.
+ */
+const STATUS_BAR_TILE_KINDS = new Set<HudTileKind>([
+  'active_agents',
+  'queue_depth',
+  'budget_burn',
+  'mesh_peers',
+  'active_model',
+]);
+
 interface KPIProps {
   label: string;
   value: string | number;
@@ -237,15 +252,11 @@ export function TopHud({
           <span>Search or jump…</span>
           <span className="rounded border border-border-subtle bg-overlay-subtle px-1 text-[9px] tracking-widest text-text-muted">⌘K</span>
         </button>
-        <span className="font-mono tabular-nums">
-          agents {kpis.activeAgents.value} · queue {kpis.queueDepth.value} ·
-          ${kpis.budgetBurn.value.toFixed(2)}/{capDisplay} · mesh {kpis.mesh.peers} peers
-        </span>
-        <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 ${liveClasses}`}>
+        <span className={`ml-auto inline-flex items-center gap-1 rounded px-1.5 py-0.5 ${liveClasses}`}>
           <span className={`size-1.5 rounded-full ${liveDot}`} />
           {liveLabel}
         </span>
-        <button type="button" onClick={cycleHud} aria-label="Expand HUD" className="ml-auto text-text-muted hover:text-text-secondary" title="Expand HUD"><span aria-hidden="true">▲</span></button>
+        <button type="button" onClick={cycleHud} aria-label="Expand HUD" className="text-text-muted hover:text-text-secondary" title="Expand HUD"><span aria-hidden="true">▲</span></button>
       </Glass>
     );
   }
@@ -275,7 +286,9 @@ export function TopHud({
             <span className="ml-auto rounded border border-white/10 bg-overlay-subtle px-1.5 py-0.5 text-[9px] tracking-widest text-text-muted">⌘K</span>
           </button>
         </div>
-        {visibleTiles.map((kind) => renderTile(kind))}
+        {visibleTiles
+          .filter((kind) => !STATUS_BAR_TILE_KINDS.has(kind))
+          .map((kind) => renderTile(kind))}
       </div>
 
       <div className="ml-auto flex items-center gap-2 px-4 border-l border-border-subtle">
