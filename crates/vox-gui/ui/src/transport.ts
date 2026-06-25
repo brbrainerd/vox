@@ -501,6 +501,14 @@ class VoxTransport {
   getMemoryStatus(): Promise<{ corpus_counts: Record<string, number> }> {
     return invoke<{ corpus_counts: Record<string, number> }>('get_memory_status');
   }
+
+  doubtTask(taskId: number, reason?: string): Promise<unknown> {
+    return invoke('doubt_orchestrator_task', { taskId, reason: reason ?? null });
+  }
+
+  overruleTask(taskId: number, reason: string): Promise<unknown> {
+    return invoke('overrule_orchestrator_task', { taskId, reason });
+  }
 }
 
 export const voxTransport = new VoxTransport();
