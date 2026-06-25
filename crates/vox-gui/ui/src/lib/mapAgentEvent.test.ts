@@ -41,4 +41,24 @@ describe('mapAgentEvent', () => {
     expect(item.tag).toBe('FAILED');
     expect(item.body).toContain('boom');
   });
+
+  it('carries numeric taskId on task events', () => {
+    const frame: AgentEventFrame = {
+      id: 1,
+      timestamp_ms: 0,
+      kind: { type: 'task_started', task_id: 42, agent_id: 'a' },
+    };
+    const item = mapAgentEvent(frame);
+    expect(item.taskId).toBe(42);
+  });
+
+  it('leaves taskId undefined for non-task events', () => {
+    const frame: AgentEventFrame = {
+      id: 2,
+      timestamp_ms: 0,
+      kind: { type: 'agent_spawned', agent_id: 'a' },
+    };
+    const item = mapAgentEvent(frame);
+    expect(item.taskId).toBeUndefined();
+  });
 });

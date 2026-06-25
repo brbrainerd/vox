@@ -59,6 +59,9 @@ export function mapAgentEvent(e: AgentEventFrame): StreamItem {
   }
 
   const isFailed = type === 'task_failed';
+  const rawTaskId = kind.task_id;
+  const taskId = rawTaskId != null ? Number(rawTaskId) : undefined;
+
   return {
     id: String(e.id),
     kind: isFailed ? 'doubted' : 'agent',
@@ -68,6 +71,7 @@ export function mapAgentEvent(e: AgentEventFrame): StreamItem {
     ts: e.timestamp_ms
       ? new Date(e.timestamp_ms).toLocaleTimeString()
       : 'now',
+    ...(taskId != null ? { taskId } : {}),
     metadata: {
       eventType: type,
       agentId,
