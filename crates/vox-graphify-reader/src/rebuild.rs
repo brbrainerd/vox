@@ -4,6 +4,26 @@ use super::cluster::{ClusterEdge, ClusterNode, cluster_nodes};
 use std::fs;
 use std::path::Path;
 
+/// Collect the source files that the extractor understands, skipping vendored/VCS dirs.
+pub(crate) fn walk_source_files(source_dir: &std::path::Path) -> Vec<std::path::PathBuf> {
+    walkdir::WalkDir::new(source_dir)
+        .into_iter()
+        .filter_entry(|e| {
+            let n = e.file_name().to_string_lossy();
+            n != ".git" && n != "target" && n != ".vox" && n != "node_modules"
+        })
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().is_file())
+        .filter(|e| {
+            matches!(
+                e.path().extension().and_then(|x| x.to_str()),
+                Some("rs" | "ts" | "tsx" | "js" | "jsx" | "py")
+            )
+        })
+        .map(|e| e.path().to_path_buf())
+        .collect()
+}
+
 /// Caller-supplied metadata so the manifest is freshness-correct. Field names of the
 /// written manifest match `vox_config::graphify::GraphifyManifest`.
 #[derive(Debug, Clone, Default)]
@@ -26,46 +46,32 @@ pub fn rebuild_graph(
     let mut all_nodes = Vec::new();
     let mut all_edges = Vec::new();
 
-    for entry in walkdir::WalkDir::new(source_dir)
-        .into_iter()
-        .filter_entry(|e| {
-            let name = e.file_name().to_string_lossy();
-            name != ".git" && name != "target" && name != ".vox" && name != "node_modules"
-        })
-        .filter_map(|e| e.ok())
-    {
-        let path = entry.path();
-        if path.is_file() {
-            if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                if ext == "rs" || ext == "ts" || ext == "js" || ext == "py" {
-                    let content = fs::read_to_string(path)?;
+    for path in walk_source_files(source_dir) {
+        let path = path.as_path();
+        let content = fs::read_to_string(path)?;
 
-                    // Cache key includes EXTRACTOR_VERSION so a scheme change invalidates
-                    // stale cached graphs even when file content is unchanged.
-                    let hash =
-                        blake3::hash(format!("{EXTRACTOR_VERSION}\u{0}{content}").as_bytes())
-                            .to_hex()
-                            .to_string();
-                    let module_id = path
-                        .strip_prefix(source_dir)
-                        .unwrap_or(path)
-                        .to_string_lossy()
-                        .replace('\\', "/");
-                    let graph = if manager.get_cached_hash(path).as_deref() == Some(&hash) {
-                        manager
-                            .load_cache(path)
-                            .unwrap_or_else(|| extract_ast_in_module(path, &content, &module_id))
-                    } else {
-                        let g = extract_ast_in_module(path, &content, &module_id);
-                        manager.write_cache(path, &hash, &g);
-                        g
-                    };
+        // Cache key includes EXTRACTOR_VERSION so a scheme change invalidates
+        // stale cached graphs even when file content is unchanged.
+        let hash = blake3::hash(format!("{EXTRACTOR_VERSION}\u{0}{content}").as_bytes())
+            .to_hex()
+            .to_string();
+        let module_id = path
+            .strip_prefix(source_dir)
+            .unwrap_or(path)
+            .to_string_lossy()
+            .replace('\\', "/");
+        let graph = if manager.get_cached_hash(path).as_deref() == Some(&hash) {
+            manager
+                .load_cache(path)
+                .unwrap_or_else(|| extract_ast_in_module(path, &content, &module_id))
+        } else {
+            let g = extract_ast_in_module(path, &content, &module_id);
+            manager.write_cache(path, &hash, &g);
+            g
+        };
 
-                    all_nodes.extend(graph.nodes);
-                    all_edges.extend(graph.edges);
-                }
-            }
-        }
+        all_nodes.extend(graph.nodes);
+        all_edges.extend(graph.edges);
     }
 
     // Resolve each bare call target to a qualified definition id. Preference: same-module

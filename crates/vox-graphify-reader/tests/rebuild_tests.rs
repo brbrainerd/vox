@@ -164,3 +164,19 @@ fn graph_digest_is_stable_and_distinct() {
     assert_ne!(a, c);
     assert!(a.len() >= 32);
 }
+
+#[test]
+#[cfg(feature = "tree-sitter-grammars")]
+fn tsx_files_contribute_nodes() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = tmp.path().join("src");
+    std::fs::create_dir_all(&src).unwrap();
+    std::fs::write(src.join("C.tsx"), "function Widget(){ return null; }").unwrap();
+    let out = tmp.path().join("out/graph.json");
+    let cache = tmp.path().join("out/file_cache");
+    let meta = RebuildMeta { corpus_id: "t".into(), git_sha: None, scope_path: "src".into(),
+        extraction_mode: Some("structural".into()), built_at_rfc3339: "2026-06-26T00:00:00+00:00".into() };
+    rebuild_graph(tmp.path(), &src, &out, &cache, &meta).unwrap();
+    let g: serde_json::Value = serde_json::from_slice(&std::fs::read(&out).unwrap()).unwrap();
+    assert!(g["nodes"].as_array().unwrap().iter().any(|n| n["label"] == "Widget"), "tsx not walked");
+}
