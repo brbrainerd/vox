@@ -1,0 +1,166 @@
+{
+  "dimension": "journey-coherence",
+  "method_note": "Journey signals derived from (a) explicit cross-surface navigation edges in behavioral findings (onNavigate/navigateTo/onOpenInConsole/onOpenChat — a user is bounced to another surface to continue one job), and (b) shared command-set / redundancy_peers clusters where one job is fragmented across surfaces that all call the same backend (a context-shuttle proxy). Graphify supplies the structure (edges, shared command sets, communities); every judgment about whether a shuttle is a coherence defect worth MERGE/MOVE is labeled explicitly. No telemetry exists, so 'job' boundaries are reasoned, not measured.",
+  "findings": [
+    {
+      "unit": "chat -> tasks",
+      "unit_kind": "surface",
+      "observation": "Chat surface bounces the user out to the 'tasks' surface to act on an agent task it just surfaced (SecretaryToast 'View task' and onViewTask both call onNavigate('tasks')). The triage/approve loop starts in Chat but the user must leave Chat to see/act on the task.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json chat record behavioral_findings line 279 'onNavigate?.(\\'tasks\\') — navigates to tasks surface' and SecretaryToast.tsx:54; Chat.json:33,163. Chat already hosts orchestrator task controls inline (cmd:approve_orchestrator_task_plan, force/skip_orchestrator_verify) — so the task-action job is split: some controls inline in Chat, full view only on 'tasks'.",
+      "recommendation": "MERGE",
+      "rationale": "JUDGMENT: Chat already owns part of the task-action job (plan approval + verify gating render inline as PhaseChips). Forcing a surface-hop to 'tasks' for the rest is a shuttle. Fold the tasks list into Chat's execution rail (or make 'tasks' a panel/tab of Chat) so the conversational-task job completes on one surface. MERGE preferred over CUT because tasks has structural richness (cross-surface navigation target).",
+      "confidence": "med"
+    },
+    {
+      "unit": "chat -> matrix",
+      "unit_kind": "surface",
+      "observation": "ChatExecutionRail 'intent button' navigates to the 'matrix' surface (routing-intention view) to let the user nudge routing while reading a chat run.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json chat behavioral_findings line 359 'onClick={() => onNavigate(\\'matrix\\')}'; matrix record has command_count 1 (cmd:nudge_routing_intention only). The single matrix action is reachable as a deep-link from chat.",
+      "recommendation": "MERGE",
+      "rationale": "JUDGMENT: matrix exposes exactly one command (nudge_routing_intention). A whole top-level surface for one nudge that the user reaches FROM chat is a thin shuttle target. Surface the routing-intention nudge as an inline control in Chat's execution rail (where it is already linked from). Structural richness=1 (thin) and the only entry path observed is chat — strong MERGE-into-caller signal.",
+      "confidence": "med"
+    },
+    {
+      "unit": "chat -> agents",
+      "unit_kind": "surface",
+      "observation": "ChatExecutionRail 'Agents KPI' click navigates to the 'agents' top-level (dashboard child). The agent-monitoring job starts as a KPI glance in Chat and completes on the dashboard.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence.json chat behavioral_findings line 369 'onClick={() => onNavigate(\\'agents\\')}'; Chat.json:123.",
+      "recommendation": "KEEP",
+      "rationale": "JUDGMENT: This is a legitimate drill-down (glance->full view), not a defect-shuttle: a KPI badge linking to its full surface is sound information scent. No MERGE — agents/dashboard is genuinely richer than a chat panel should hold.",
+      "confidence": "high"
+    },
+    {
+      "unit": "dashboard -> chat",
+      "unit_kind": "surface",
+      "observation": "Dashboard 'Open Chat' CTA navigates to chat; chat in turn navigates back to agents/tasks/matrix. There is a bidirectional bounce loop between the agents/dashboard cluster and chat.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence.json dashboard behavioral_findings line 559 'navigateTo(\\'chat\\')'; Dashboard.json:13. Combined with chat->agents (line 369) this forms a chat<->dashboard round trip.",
+      "recommendation": "KEEP",
+      "rationale": "JUDGMENT: Top-level entry CTA, expected. Flag only as context for the chat<->tasks MERGE above — the loop tightens once tasks live in chat.",
+      "confidence": "high"
+    },
+    {
+      "unit": "dashboard -> console (Open in Console)",
+      "unit_kind": "surface",
+      "observation": "Dashboard AgentRow 'Open in Console' navigates to the 'console' surface (under workspace) carrying an agent selection. The per-agent operate job spans agents/dashboard -> workspace/console, crossing two different top-level nav groups.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json dashboard behavioral_findings line 639 'onOpenInConsole(a). App.tsx:1060: wired to navigateTo(\\'console\\') with agent selection'; Dashboard.json:93. console is nav_parent 'workspace'; dashboard is nav_parent 'agents'. console redundancy_peers ['workspace'].",
+      "recommendation": "MOVE",
+      "rationale": "JUDGMENT: An agent-centric drill-down crosses from the 'agents' group into the 'workspace' group. The console-with-agent-selection is an agent-operation continuation, not a generic workspace tool when reached this way. MOVE 'console' adjacency closer to the agents cluster (or expose an agent-scoped console panel within agents) so the operate-one-agent journey stays in one group. Structural: the cross-group edge is real; whether to MOVE vs accept the hop is the judgment.",
+      "confidence": "low"
+    },
+    {
+      "unit": "dashboard inline-approval / approvals surface",
+      "unit_kind": "surface",
+      "observation": "The approve/reject job exists in two places: Dashboard AgentRow Approve/Reject buttons call vox_resolve_approval (MCP) inline, AND there is a dedicated 'approvals' surface (under runs). The same approval job is served both inline and on a separate surface the user can shuttle to.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json dashboard behavioral_findings lines 648-659 (Approve/Reject -> approvals.resolve -> vox_resolve_approval MCP). approvals record (line 81): tier orphan_backend, command_count 0, component Approvals, reachable true under 'runs'. The approvals surface itself surfaces NO command in the graph while dashboard does the real resolve.",
+      "recommendation": "MERGE",
+      "rationale": "STRUCTURAL fact + JUDGMENT: dashboard performs the live approval resolve while the dedicated 'approvals' surface shows command_count 0 (no wired command of its own in the coverage graph). The approval job is functionally centered on dashboard; the separate approvals surface is a thin/duplicate destination. MERGE approvals' content into the dashboard/needs-you flow (or make approvals the single home and remove the inline duplication) — the user should not shuttle to 'approvals' to do what dashboard already does. Note 'needs-you' surface exists (orphan, unreachable) and is the natural absorber.",
+      "confidence": "med"
+    },
+    {
+      "unit": "needs-you",
+      "unit_kind": "surface",
+      "observation": "A 'needs-you' surface exists but is orphan (nav_parent null, reachable false). Approval/doubt/overrule actions are scattered: dashboard inline approve (live), dashboard StreamCard Doubt/Overrule buttons (DEAD — no handler), and a separate approvals surface. The 'attend to what needs me' job has no single coherent home and partly does not work.",
+      "evidence_basis": "structural+audit",
+      "evidence": "joined-evidence.json needs-you record (line 1077): nav_parent null, reachable false, command_count 0. dashboard StreamCard Doubt (line 665) and Overrule (line 678) verdict 'dead' — onDoubt/onOverrule not passed from App.tsx, silently no-op. approvals surface separate (line 81).",
+      "recommendation": "EXPAND",
+      "rationale": "JUDGMENT: The unifying 'needs-you' surface is the correct home for the approve/doubt/overrule journey but is unreachable and empty, so the job is fragmented across dashboard (partly dead) and approvals. EXPAND needs-you into the live attention inbox, make it reachable, absorb approvals (see MERGE above) and wire the dead doubt/overrule path. This collapses three shuttle points into one. Audit confirms the dead buttons; structure confirms the orphan surface.",
+      "confidence": "med"
+    },
+    {
+      "unit": "memory / search",
+      "unit_kind": "surface",
+      "observation": "Two surfaces serve one recall job: 'memory' (under search, live, rich: vox_search_query, reindex, pin-to-context) and 'search' (orphan, nav_parent null, reachable false, surfaces cmd:vox_search_query + cmd:open_locator). They are explicit redundancy_peers and share the search query command. The user could shuttle between a working Memory and a dead Search for the same task.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence.json memory record (line 872, nav_parent search, command_count 5) redundancy peers none listed but search record (line 1335) lists redundancy_peers ['memory'] and command_set [cmd:open_locator, cmd:vox_search_query] — identical core to memory. search reachable false.",
+      "recommendation": "MERGE",
+      "rationale": "STRUCTURAL: search and memory are declared redundancy_peers sharing vox_search_query+open_locator; search is unreachable/orphan while memory is the live implementation. MERGE search into memory (memory is the absorber) — one recall surface, no shuttle, and resolve the Search-vs-Memory naming collision flagged elsewhere. The recall journey already lives wholly inside Memory (recall, scope chips, pin-to-context).",
+      "confidence": "high"
+    },
+    {
+      "unit": "memory pin-to-context -> chat context window",
+      "unit_kind": "surface",
+      "observation": "Memory's 'Pin all to context' / per-hit pin builds attach-items and calls onAttachContext, feeding the chat/run context window — a recall-then-use job that spans Memory and Chat. But Chat's ContextWindowMeter is DEAD (hardcoded usedTokens={0}), so the receiving end of this cross-surface journey gives no feedback.",
+      "evidence_basis": "structural+audit",
+      "evidence": "joined-evidence.json memory behavioral_findings line 932-947 (pinHits -> onAttachContext). chat behavioral_findings line 375 ContextWindowMeter usedTokens={0} verdict 'dead' — meter always 0% regardless of pinned context.",
+      "recommendation": "KEEP",
+      "rationale": "JUDGMENT: The pin-into-context cross-surface flow is a legitimate, desirable journey (search elsewhere, use in chat) — keep the cross-surface link. The defect is the dead meter on the receiving end (a wiring bug, out of scope for IA reorg). Flag as a journey whose feedback loop is broken, not a surface to merge. No reorg verb.",
+      "confidence": "med"
+    },
+    {
+      "unit": "knowledge cluster (scientia / claims / knowledge / research / repository)",
+      "unit_kind": "nav-group",
+      "observation": "The research->claim->publish job is fragmented across five mutually-redundant surfaces. scientia, claims, and the top-level 'knowledge' all map to the SAME component (Scientia) and the SAME 12-command set (discovery/novelty/publication-review/nanopublish). research and repository additionally share cmd:execute_command and list each other plus scientia as redundancy_peers. The user shuttles among near-identical surfaces to complete one discovery-to-publication workflow.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence.json: claims (line 435), knowledge (line 826), scientia (line 1305) ALL component Scientia with identical 12-command set and mutual redundancy_peers; research (line 1182) redundancy_peers [claims,knowledge,repository,scientia]; repository (line 1161) redundancy_peers [claims,knowledge,research,scientia]. Five surfaces, one command surface.",
+      "recommendation": "MERGE",
+      "rationale": "STRUCTURAL fact: claims/knowledge/scientia are the same component with the same 12 commands — a triplicate. The whole knowledge nav-group is a single fragmented journey (discover -> assess novelty -> review -> publish). MERGE claims+knowledge into scientia (one home for the discovery/publication pipeline) and condense research/repository's overlap. This is the strongest structural shuttle signal in the GUI: one job, five doors.",
+      "confidence": "high"
+    },
+    {
+      "unit": "knowledge cluster (discovery surfaces: activity / archive-panel / discovery-inbox / discovery-review)",
+      "unit_kind": "nav-group",
+      "observation": "Four surfaces (activity, archive-panel, discovery-inbox, discovery-review) all render the SAME Activity component with the SAME single command cmd:activity_query and are mutual redundancy_peers. The 'review discoveries / browse activity' job is split across four near-identical filtered views, three of them under 'knowledge' and one orphan.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence.json: activity (line 6, orphan), archive-panel (line 95), discovery-inbox (line 695), discovery-review (line 715) — all component Activity, command_set [cmd:activity_query], each listing the other three as redundancy_peers.",
+      "recommendation": "MERGE",
+      "rationale": "STRUCTURAL fact: four surfaces = one component + one command, distinguished only by filter. CONDENSE into a single Activity/Discovery surface with filter tabs (inbox/review/archive as in-surface filters) rather than four nav destinations the user shuttles between. MERGE the three discovery-* + archive-panel into one reachable Activity surface.",
+      "confidence": "high"
+    },
+    {
+      "unit": "compute cluster (models / compute / oratio / settings)",
+      "unit_kind": "nav-group",
+      "observation": "The model-selection job spans four surfaces sharing model commands. models and the top-level 'compute' both use the Models component with the identical 4-command set (get_active_model, get_routing_summary_live, list_model_cards, set_active_model); oratio (Loquela) also surfaces list_model_cards; settings ALSO surfaces list_model_cards + set routing/selection policy. A user choosing/configuring a model can end up on any of four surfaces.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence.json: models (line 1055) and compute (line 479) both component Models, identical 4-command set, redundancy_peers each other + settings; oratio (line 1091) redundancy_peers [compute,models,settings] (shares list_model_cards); settings (line 1354) command_set includes list_model_cards, set_routing_priority, set_selection_policy, set_active_model-adjacent config.",
+      "recommendation": "MERGE",
+      "rationale": "STRUCTURAL: models and compute are the same component with the same 4 commands (a duplicate top-level/child pair). MERGE compute(top)->models as the single model surface. Model-policy controls currently in Settings (routing priority, selection policy) are part of the same model-config journey — MOVE those into the model surface so the user does not shuttle to Settings to finish model configuration. oratio's list_model_cards overlap is incidental (voice surface) — KEEP oratio separate.",
+      "confidence": "med"
+    },
+    {
+      "unit": "settings",
+      "unit_kind": "surface",
+      "observation": "Settings is a kitchen-sink surface (17 commands spanning orchestrator config, telemetry, theme, secrets, trusted nodes, gamify, model routing/selection policy). Several of its commands belong to journeys owned elsewhere: model routing/selection (model surface), gamify settings (gamify surface), secrets/trusted-nodes (no home). Configuration journeys terminate in Settings from many starting surfaces.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json settings record (line 1354) command_count 17 incl. set_routing_priority, set_selection_policy, list_model_cards (model journey), get/set_gamify_settings (gamify journey), list_secret_status, secrets_backend_status, list_trusted_nodes (mesh/security journey). Settings shares list_model_cards with the compute cluster.",
+      "recommendation": "CONDENSE",
+      "rationale": "JUDGMENT: Settings absorbs the tail of several unrelated journeys, so users shuttle INTO settings to finish model/gamify/mesh config. CONDENSE by relocating journey-specific config to its owning surface (routing/selection -> model surface; gamify settings -> gamify; trusted-nodes -> mesh) and leaving Settings for genuinely global prefs (theme, telemetry, orchestrator). Reduces inbound shuttles. Default-KEEP downgrade not warranted because the structural command-overlap with model surface is a fact, but the split is a judgment.",
+      "confidence": "low"
+    },
+    {
+      "unit": "mesh / settings (trusted nodes)",
+      "unit_kind": "surface",
+      "observation": "The mesh-operation job spans mesh and settings: mesh surface dispatches via vox_mesh_nodes/queue_stats/dispatch (MCP), while settings holds list_trusted_nodes and references tool:vox_mesh_nodes as a dead-end. Configuring trusted mesh nodes (settings) is separated from operating the mesh (mesh surface).",
+      "evidence_basis": "structural+audit",
+      "evidence": "joined-evidence.json mesh record (line 987) dead_ends [tool:vox_mesh_nodes, tool:vox_mesh_queue_stats]; settings record (line 1354) dead_ends [tool:vox_mesh_nodes] and command_set includes cmd:list_trusted_nodes. The same vox_mesh_nodes tool appears as a dead-end on both surfaces.",
+      "recommendation": "MOVE",
+      "rationale": "JUDGMENT + structural: trusted-node config (settings) and mesh operation (mesh surface) are one administration journey split across two nav groups (compute/mesh vs settings). MOVE list_trusted_nodes config into the mesh surface so node trust + node operation live together. Audit also shows vox_mesh_nodes dead-ends on BOTH — a shared wiring gap reinforcing they should be one surface.",
+      "confidence": "low"
+    },
+    {
+      "unit": "console (workspace) ",
+      "unit_kind": "surface",
+      "observation": "Console mixes two journeys: terminal/pty operation (pty_spawn/write/close, send_to_agent) AND discovery capture (discovery_help/record/suggest). The discovery_* commands belong to the knowledge/discovery journey but live on a workspace terminal surface, so capturing a discovery requires being in Console.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json console record (line 501) command_set mixes cmd:pty_spawn/write/close, send_to_agent (terminal) with cmd:discovery_help/record/suggest (discovery). discovery_* journey otherwise lives in the knowledge cluster (scientia: list_discovery_inbox, acknowledge_discovery).",
+      "recommendation": "MOVE",
+      "rationale": "JUDGMENT: discovery capture is part of the knowledge/discovery journey, not terminal operation. MOVE the discovery_* capture controls to the discovery/Activity surface (or expose them there too) so the capture-then-review discovery journey is contiguous instead of starting in a workspace terminal. Structural: command-set straddles two journeys; the split is the judgment.",
+      "confidence": "low"
+    },
+    {
+      "unit": "agents nav-group (dashboard / flow / matrix / tasks / gamify)",
+      "unit_kind": "nav-group",
+      "observation": "The agents group is the journey hub: dashboard links out to chat/gamify/console, chat links back to agents/tasks/matrix, flow is a selection-only view. The monitor->inspect->operate->gamify agent journey is spread across five children plus chat (outside the group) plus console (workspace group).",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence.json cross-surface edges: dashboard->gamify (line 609), dashboard->console (line 639), chat->agents (line 369), chat->matrix (line 359); matrix command_count 1, flow command_count 0 (selection only). The agent journey's nav edges leave and re-enter the group repeatedly.",
+      "recommendation": "KEEP",
+      "rationale": "JUDGMENT: The agents group is correctly the center of gravity; most intra-group hops (dashboard<->flow<->tasks) are legitimate drill-downs. Do not regroup the hub itself. The real coherence wins are at its edges, already captured above: pull matrix(thin) and tasks into chat/dashboard, and pull console-with-agent nearer the group (MOVE). KEEP the group; act on the edge findings.",
+      "confidence": "med"
+    }
+  ]
+}

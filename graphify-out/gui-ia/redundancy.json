@@ -1,0 +1,106 @@
+{
+  "dimension": "redundancy",
+  "method_note": "Redundancy = surfaces sharing command and/or data sets. Structural evidence comes from joined-evidence.json: the per-surface `redundancy_peers` field (graphify-derived), the `command_set`, and `component_dir` (which UI component tree a surface renders). Command-set overlap was quantified as a Jaccard ratio |A intersect B| / |A union B| computed directly from `command_set`. A pair sharing the SAME component_dir AND identical command_set (Jaccard 1.0) is a structural near-duplicate (same component, same backend). Partial overlaps (Jaccard < 1.0) are flagged but judged individually. RULE applied: graphify gives STRUCTURE (shared dir, shared commands, community); every UTILITY/UX judgment (which to keep, whether a rename suffices) is labeled `judgment` or `structural+judgment`. Default verb is KEEP; MERGE is preferred to CUT where richness > 0; a CUT requires a named disqualifier.",
+  "findings": [
+    {
+      "unit": "Activity-component cluster: activity / archive-panel / discovery-inbox / discovery-review",
+      "unit_kind": "surface",
+      "observation": "Four distinct view keys all render the SAME component (component_dir=Activity for all four) and all expose the IDENTICAL command set {cmd:activity_query} (Jaccard 1.0 across every pair). graphify already flags all four as mutual redundancy_peers. They differ only by which filter/preset the shared ActivitySurface is opened with.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence.json: activity{dir=Activity,cmds=[cmd:activity_query],peers=[archive-panel,discovery-inbox,discovery-review]}; archive-panel/discovery-inbox/discovery-review each {dir=Activity,cmds=[cmd:activity_query]} and list the other three as redundancy_peers. Pairwise command Jaccard = 1/1 = 1.0 for all 6 pairs. Communities c_486/c_489/c_499/c_500 (Leiden split them only because they are separate view keys, not separate code).",
+      "recommendation": "MERGE",
+      "rationale": "STRUCTURAL: one component + one command, surfaced under four names = textbook near-duplication. JUDGMENT: collapse to a single Activity surface that takes a filter/preset param (agent, event-kind, discovery-state); archive/discovery-inbox/discovery-review become saved filter presets or query params on that one surface rather than separate nav entries. richness=1 (>0) so MERGE over CUT. Note discovery-review and discovery-inbox carry distinct user intents (a review queue vs an inbox) per their labels — preserve those as named presets, do not silently drop the intent.",
+      "confidence": "high"
+    },
+    {
+      "unit": "Scientia-component cluster: knowledge / scientia / claims",
+      "unit_kind": "surface",
+      "observation": "Three view keys render the SAME component (component_dir=Scientia for all three) and expose the IDENTICAL 12-command set (Jaccard 12/12 = 1.0 across every pair). graphify flags them as mutual redundancy_peers. `knowledge` is also the nav top-level parent label, while `scientia` is its default child and `claims` another child under the same parent — so the parent group, its default child, and a sibling are the same screen.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence.json: knowledge/scientia/claims each {dir=Scientia, command_count=12, identical command_set incl. cmd:nanopublish_approved_claim, cmd:list_publication_review_queue, cmd:get_novelty_assessment ...}. Pairwise command Jaccard = 12/12 = 1.0. navigation.ts: knowledge=parent(child scientia default), scientia & claims both PARENT_CHILD_MAP -> parent 'knowledge'. Communities c_493/c_504/c_519.",
+      "recommendation": "MERGE",
+      "rationale": "STRUCTURAL: identical component and identical 12-command backend under three names is the largest exact duplication in the GUI. JUDGMENT: keep ONE knowledge/scientia surface; 'claims' is not a different screen — fold it into the same surface (a tab/filter for the claim-review subset of those 12 commands) rather than a separate nav child. The Latin 'scientia' label vs the English 'knowledge' parent is a semantic-clarity issue (defer the rename decision to dim 4); for redundancy the action is: one surface, not three.",
+      "confidence": "high"
+    },
+    {
+      "unit": "Models-component cluster: compute / models",
+      "unit_kind": "surface",
+      "observation": "The `compute` top-level nav parent and its `models` child render the SAME component (component_dir=Models) with the IDENTICAL 4-command set {get_active_model, get_routing_summary_live, list_model_cards, set_active_model} (Jaccard 4/4 = 1.0). graphify flags them as redundancy_peers. compute is the parent group; models is its default child — the group landing IS the child surface.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence.json: compute{dir=Models,cmds 4,peers=[models,settings]}, models{dir=Models,cmds 4,peers=[compute,settings]}. Command Jaccard = 4/4 = 1.0. navigation.ts: DEFAULT_CHILD_BY_PARENT.compute='models'. Communities c_495/c_509.",
+      "recommendation": "KEEP",
+      "rationale": "STRUCTURAL: the overlap is real but it is the EXPECTED parent->default-child identity (a top-level group key resolving to its first child renders that child). This is a navigation-resolution artifact, not two competing surfaces. JUDGMENT: no merge needed; the duplicate `compute` record is the group node, not a second screen. Flag only: ensure `compute` is never independently reachable as a distinct surface (it currently has nav_parent=None / reachable=false, consistent with being a group). Cross-ref dim 1 (orphan-nav) rather than acting here.",
+      "confidence": "high"
+    },
+    {
+      "unit": "Console-component cluster: workspace / console",
+      "unit_kind": "surface",
+      "observation": "The `workspace` top-level nav parent and its `console` child render the SAME component (component_dir=Console) with the IDENTICAL 8-command set (Jaccard 8/8 = 1.0). graphify flags them as redundancy_peers. console is workspace's default child.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence.json: workspace{dir=Console,cmds 8,peers=[console]}, console{dir=Console,cmds 8,peers=[workspace]}. Command Jaccard = 8/8 = 1.0 (pty_spawn/pty_write/pty_close/send_to_agent/discovery_* ...). navigation.ts: DEFAULT_CHILD_BY_PARENT.workspace='console'. Communities c_496/c_515-adjacent.",
+      "recommendation": "KEEP",
+      "rationale": "Same parent->default-child identity artifact as compute/models: `workspace` is the group, `console` its landing child; the shared component_dir/commands are the resolution rendering the same child. STRUCTURAL overlap is expected, not a duplicated surface. No merge. Flag to dim 1 that the `workspace` group record should not be treated as an independent surface.",
+      "confidence": "high"
+    },
+    {
+      "unit": "search / memory",
+      "unit_kind": "surface",
+      "observation": "graphify flags search and memory as redundancy_peers, but they render DIFFERENT components (Search vs Memory) and their command sets only partially overlap: shared {cmd:open_locator} but memory adds get_memory_status/mnemosyne_reindex/get_gui_preference/set_gui_preference and search adds vox_search_query (Jaccard 1/6 = 0.17). `search` is the top-level nav parent whose default child is `memory`.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: search{dir=Search,cmds=[open_locator,vox_search_query],peers=[memory]}; memory{dir=Memory,cmds=5,peers=[]}. Command Jaccard = 1/6. navigation.ts: search=parent, DEFAULT_CHILD_BY_PARENT.search='memory', PARENT_CHILD_MAP.memory->parent 'search'.",
+      "recommendation": "MERGE",
+      "rationale": "STRUCTURAL: low command overlap (0.17) means these are NOT exact duplicates — but the parent label 'Search' and child 'Memory' are two names for one capability (recall over a corpus). The Search surface's vox_search_query and Memory's recall (also vox_search_query per Memory behavioral_findings) are the SAME query path. JUDGMENT (also a known semantic-clarity smell flagged in the blueprint, 'Search->Memory'): collapse to one surface — Search should not be a separate parent from Memory; memory IS the search experience. MERGE the Search top-level into Memory (or rename the group) so the user has one recall surface. Defer the final label to dim 4; for redundancy the action is: do not keep Search and Memory as separate destinations. CUT avoided because both carry richness.",
+      "confidence": "med"
+    },
+    {
+      "unit": "oratio (peers: compute / models / settings)",
+      "unit_kind": "surface",
+      "observation": "oratio (component_dir=Loquela) is flagged as a redundancy_peer of compute/models/settings, but the overlap is shallow: it shares only {cmd:list_model_cards} with models (Jaccard 1/5 = 0.2) plus its own cmd:start_mic_capture. It is a distinct speech/voice surface, not a model-management duplicate.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: oratio{dir=Loquela,cmds=[list_model_cards,start_mic_capture],peers=[compute,models,settings]}. Command Jaccard with models = 1/5 = 0.2; the only shared command is the read-only list_model_cards. Community c_511 (distinct from Models c_509).",
+      "recommendation": "KEEP",
+      "rationale": "STRUCTURAL: low overlap (0.2) on a single read-only command (list_model_cards is a shared lookup, not a shared function) — this is a weak peer link, not duplication. JUDGMENT: oratio is a genuinely distinct voice-capture surface (start_mic_capture is unique). KEEP as its own surface. The redundancy_peers entry here is a false positive of the shared-lookup-command heuristic; no merge. (Naming 'oratio'/'Loquela' is a dim-4 concern.)",
+      "confidence": "high"
+    },
+    {
+      "unit": "research / repository (and their peer links to claims/knowledge/scientia)",
+      "unit_kind": "surface",
+      "observation": "research and repository are flagged as redundancy_peers of each other and of the Scientia cluster, but the linkage is driven almost entirely by the shared generic command cmd:execute_command, not by shared function. research shares only execute_command with repository (Jaccard 1/2 = 0.5) and only execute_command with scientia (1/12 = 0.08). They render different components (Research, Repository, Scientia).",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: research{dir=Research,cmds=[execute_command,start_research_async],peers=[claims,knowledge,repository,scientia]}; repository{dir=Repository,cmds=[execute_command],peers=[claims,knowledge,research,scientia]}. The common denominator across every one of these peer links is cmd:execute_command (a generic CLI-passthrough command), e.g. research<->scientia Jaccard 1/12.",
+      "recommendation": "KEEP",
+      "rationale": "STRUCTURAL: the peer edges here are an ARTIFACT of cmd:execute_command being a shared generic dispatcher, not evidence of duplicated surfaces (distinct components, distinct real commands start_research_async vs the Scientia 12-set). JUDGMENT: do not merge on the strength of a shared generic command. RECOMMEND (process, not a surface change): the redundancy heuristic should exclude generic dispatchers (execute_command, invoke_mcp_tool) when computing redundancy_peers, or those edges produce false MERGE pressure. KEEP research and repository as distinct surfaces.",
+      "confidence": "med"
+    },
+    {
+      "unit": "models / settings (and compute / settings)",
+      "unit_kind": "surface",
+      "observation": "models and settings are flagged as redundancy_peers, but settings is a large 17-command surface that merely shares 2 model-related commands (list_model_cards, get_routing_summary_live, get_active_model overlap) with the Models surface; Jaccard models/settings = 2/19 = 0.11.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: settings{dir=Settings,cmds=17,peers=[]}, models{dir=Models,cmds=4,peers=[compute,settings]}, compute{peers=[models,settings]}. Command Jaccard models/settings = 2/19 = 0.11. Different components (Models vs Settings), different communities (c_509 vs c_521).",
+      "recommendation": "KEEP",
+      "rationale": "STRUCTURAL: 0.11 overlap on a couple of shared read commands is well below any duplication threshold; Settings is a broad config surface that legitimately reads model state. JUDGMENT: not redundant — KEEP both. The peer flag is again a shared-read-command false positive. No action beyond noting the heuristic over-reports.",
+      "confidence": "high"
+    },
+    {
+      "unit": "knowledge nav-group (knowledge / scientia / claims / discovery-inbox / discovery-review / archive-panel / research / repository[workspace] / publications)",
+      "unit_kind": "nav-group",
+      "observation": "The 'knowledge' nav parent currently contains BOTH exact duplicates (scientia & claims = the same Scientia component as the knowledge default child) AND three Activity-component clones (discovery-inbox, discovery-review, archive-panel all render component_dir=Activity). So a single nav group holds two separate near-duplicate clusters plus genuinely distinct members (research, publications).",
+      "evidence_basis": "structural",
+      "evidence": "navigation.ts PARENT_CHILD_MAP: parent 'knowledge' children = research, scientia, discovery-review, claims, publications, discovery-inbox, archive-panel. joined-evidence.json: scientia/claims share Scientia component+12-cmds with the knowledge default; discovery-inbox/discovery-review/archive-panel share the Activity component+activity_query. That is 5 of the 7 knowledge children participating in two exact-duplicate clusters.",
+      "recommendation": "CONDENSE",
+      "rationale": "STRUCTURAL: the knowledge group is bloated by redundancy — 5 of 7 children are clones within two clusters. JUDGMENT (post-MERGE of the two clusters above): the group should condense to roughly {Knowledge/Scientia (one surface, claims folded in), Activity/Discovery (one surface with review+inbox+archive presets), Research, Publications}. This addresses the blueprint's 'lopsided knowledge group' smell structurally. CONDENSE (not CUT) because the underlying distinct capabilities survive as presets/tabs. Depends on executing the two MERGE findings above.",
+      "confidence": "high"
+    },
+    {
+      "unit": "redundancy_peers heuristic (graphify gui-wiring extraction)",
+      "unit_kind": "command",
+      "observation": "Across the dataset, redundancy_peers links fall into two sharply different classes: (a) genuine near-duplicates — same component_dir AND command Jaccard 1.0 (Activity x4, Scientia x3, Models parent/child, Console parent/child); and (b) false positives — peers linked only through a generic shared command (execute_command) or a single shared read-only lookup (list_model_cards), with Jaccard 0.08-0.5 and different components.",
+      "evidence_basis": "structural",
+      "evidence": "Computed Jaccard over command_set: genuine cluster pairs all = 1.0 with identical component_dir; false-positive pairs (research/scientia 0.08, models/settings 0.11, oratio/models 0.2, research/repository 0.5) all hinge on execute_command or list_model_cards and have differing component_dir.",
+      "recommendation": "CONDENSE",
+      "rationale": "STRUCTURAL observation -> process RECOMMEND (not a GUI surface change): when Plan 3 acts on redundancy, trust peer links ONLY where component_dir matches AND command Jaccard is high; treat shared-generic-command links (execute_command, invoke_mcp_tool, list_model_cards as a pure read) as non-evidence. JUDGMENT: this prevents over-aggressive MERGE recommendations. Suggest the heuristic exclude commands appearing in >N surfaces (god-commands) from redundancy scoring. CONDENSE = tighten the signal, do not act on weak peers.",
+      "confidence": "high"
+    }
+  ]
+}

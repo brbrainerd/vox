@@ -1,0 +1,156 @@
+{
+  "dimension": "structural-coverage",
+  "method_note": "Pure structural facts from graphify coverage (command-coverage.json, tool-coverage.json, surface-coverage.json, orphans.json) joined with joined-evidence.json and the honesty findings. Graphify gives STRUCTURE (what connects to what, status). JUDGMENT (whether a dead-end/orphan should be cut, merged, or wired) is labeled explicitly. Important graph caveat verified against joined-evidence.json: every surface node is tagged orphan_backend in surface-coverage.json because the gui-wiring extractor models surface->command edges, not nav->surface edges, so 'orphan_backend' on a SURFACE is NOT evidence the surface is unreachable. Reachability comes from navigation.ts PARENT_CHILD_MAP + TOP_LEVEL_VIEWS, captured in joined-evidence 'reachable'/'nav_parent'.",
+  "findings": [
+    {
+      "unit": "activity",
+      "unit_kind": "surface",
+      "observation": "Surface in the registry, has a live backend command (cmd:activity_query, status surfaced) and 4 working behavioral findings, but is absent from navigation.ts PARENT_CHILD_MAP and TOP_LEVEL_VIEWS -> unreachable via nav.",
+      "evidence_basis": "structural",
+      "evidence": "orphans.json orphan_nav includes surface:activity; joined-evidence record activity: nav_parent=null, reachable=false, command_set=[cmd:activity_query], 4 behavioral_findings all verdict=works; redundancy_peers=[archive-panel,discovery-inbox,discovery-review].",
+      "recommendation": "MERGE",
+      "rationale": "Richness>0 (working command + working UI) so MERGE beats CUT per the utility rubric. Structurally it shares cmd:activity_query and the Activity component_dir with archive-panel/discovery-inbox/discovery-review (a 4-way redundancy cluster on one backend), so the live wiring should be folded into one reachable Activity surface rather than left as a dark duplicate.",
+      "confidence": "high"
+    },
+    {
+      "unit": "needs-you",
+      "unit_kind": "surface",
+      "observation": "Surface in the registry but absent from PARENT_CHILD_MAP and TOP_LEVEL_VIEWS, no commands, no behavioral or visual findings, component_dir=NeedsYou.",
+      "evidence_basis": "structural",
+      "evidence": "orphans.json orphan_nav includes surface:needs-you; joined-evidence record needs-you: nav_parent=null, reachable=false, command_set=[], command_count=0, behavioral_findings=null, visual_findings_count=0.",
+      "recommendation": "CUT",
+      "rationale": "Named disqualifier met: dead (0 commands) AND orphan-nav (unreachable). The honesty audit set tracked attention/needs-you work; structurally the surface is wired to nothing and reachable from nowhere. JUDGMENT: if the soft-HITL inbox is still intended, re-ADD with a cited command; as it stands it is a dead orphan.",
+      "confidence": "med"
+    },
+    {
+      "unit": "review",
+      "unit_kind": "surface",
+      "observation": "Surface in the registry but absent from PARENT_CHILD_MAP and TOP_LEVEL_VIEWS, no commands, no component_dir, no findings.",
+      "evidence_basis": "structural",
+      "evidence": "orphans.json orphan_nav includes surface:review; joined-evidence record review: nav_parent=null, reachable=false, command_set=[], component_dir=null, behavioral_findings=null, visual_findings_count=0.",
+      "recommendation": "CUT",
+      "rationale": "Named disqualifier met: dead (0 commands, no component_dir) AND orphan-nav. A registry entry with no component and no backend is a phantom; nothing to MERGE.",
+      "confidence": "high"
+    },
+    {
+      "unit": "sub-agents",
+      "unit_kind": "surface",
+      "observation": "Surface in the registry but absent from PARENT_CHILD_MAP and TOP_LEVEL_VIEWS. It has a real component_dir=SubAgents but command_set=[] (command_count=0) in joined-evidence — NO structural edge ties it to any backend command. A separate command cmd:list_subagent_tree is status=surfaced in command-coverage, but 'surfaced' means it has a caller edge SOMEWHERE; that caller is not this surface (sub-agents.command_set is empty), so list_subagent_tree's surfaced-status is NOT evidence that the sub-agents SURFACE is wired.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "orphans.json orphan_nav includes surface:sub-agents; surface-coverage.json lists surface:sub-agents orphan_backend; joined-evidence record sub-agents EXISTS: component_dir=SubAgents, command_set=[], command_count=0, behavioral_findings=null, redundancy_peers=[], reachable=false. command-coverage.json cmd:list_subagent_tree status=surfaced is an UNRELATED node (no graph edge from surface:sub-agents to it).",
+      "recommendation": "KEEP",
+      "rationale": "CORRECTED (adversarial recheck): the prior MERGE asserted 'richness>0 because list_subagent_tree is surfaced' — judgment dressed as structural fact. STRUCTURE shows the surface has 0 commands and no edge to that command; there is nothing structural to MERGE. The surface is a component shell (dir=SubAgents) that is dead (0 cmds) AND orphan-nav, so by the rubric it is a CUT-candidate (matches utility dim). JUDGMENT: it carries a real component, so default KEEP-and-flag: either wire list_subagent_tree to it and add to nav under agents, or CUT if it stays hollow. Do NOT MERGE on a falsely-attributed command.",
+      "confidence": "med"
+    },
+    {
+      "unit": "orphans.json false-positive parents (agents, chat, commands, compute, knowledge, runs, search, settings, workspace)",
+      "unit_kind": "nav-group",
+      "observation": "orphans.json flags 13 surfaces as orphan-nav, but 9 of them are TOP_LEVEL_VIEWS nav parents (agents, chat, commands, compute, knowledge, runs, search, settings, workspace). They are absent from PARENT_CHILD_MAP by design because they ARE the parents, not leaves. Only 4 (activity, needs-you, review, sub-agents) are genuine orphan-nav leaves.",
+      "evidence_basis": "structural",
+      "evidence": "navigation.ts TOP_LEVEL_VIEWS = [chat,agents,runs,workspace,commands,search,knowledge,compute,settings]; orphans.json orphan_nav list intersected with TOP_LEVEL_VIEWS = those 9. The orphan-nav detector (PARENT_CHILD_MAP keys only) does not subtract TOP_LEVEL_VIEWS.",
+      "recommendation": "KEEP",
+      "rationale": "These are reachable nav parents (resolveNavigation falls through to DEFAULT_CHILD_BY_PARENT). The structural fact to record for downstream dimensions: the orphan-nav count is 4, not 13; the detector overcounts. No surface action; flag the detector for correction in any future run.",
+      "confidence": "high"
+    },
+    {
+      "unit": "SkillsPlugins skill/plugin commands (vox_skill_list, vox_skill_search, vox_skill_info, vox_skill_use, vox_skill_discover, vox_plugin_list, vox_plugin_catalog, vox_plugin_info)",
+      "unit_kind": "command",
+      "observation": "Eight skill/plugin commands are referenced by GUI call sites but resolve to dead_end (boundary edge target node absent -> defined-but-unregistered, or the referenced name has no command definition).",
+      "evidence_basis": "structural+judgment",
+      "evidence": "command-coverage.json status=dead_end for cmd:vox_skill_{list,search,info,use,discover} and cmd:vox_plugin_{list,catalog,info}. These are the SkillsPlugins panel commands (honesty finding SkillsPlugins.json). dead_end = a boundary edge points at a missing command node.",
+      "recommendation": "KEEP",
+      "rationale": "STRUCTURE says dead-end (missing/unregistered target). JUDGMENT (from the honesty audit, which WIRED the SkillsPlugins panel end-to-end on the honesty branch): these are likely MCP tools invoked via invoke_mcp_tool, not #[tauri::command]s, so the graph cannot see a cmd: definition and mislabels them dead-end. Do NOT cut the panel on this signal alone; flag for verification that each name is registered as an MCP tool in dispatch.rs. If verification fails, they are genuinely dead and the panel buttons are no-ops.",
+      "confidence": "med"
+    },
+    {
+      "unit": "mesh/settings tool dead-ends (vox_mesh_nodes, vox_mesh_queue_stats, vox_resolve_approval)",
+      "unit_kind": "command",
+      "observation": "Three MCP tools are flagged dead_end in tool-coverage, yet the joined behavioral evidence shows the surfaces that call them work (Mesh Refresh/Dispatch, Dashboard inline Approve/Reject).",
+      "evidence_basis": "structural+judgment",
+      "evidence": "tool-coverage.json status=dead_end for tool:vox_mesh_nodes, tool:vox_mesh_queue_stats, tool:vox_resolve_approval; joined-evidence mesh.dead_ends=[tool:vox_mesh_nodes,tool:vox_mesh_queue_stats] and settings.dead_ends=[tool:vox_mesh_nodes]; BUT mesh behavioral_findings (Refresh line190, Dispatch line362) and dashboard AgentRow Approve/Reject (vox_resolve_approval) all verdict=works.",
+      "recommendation": "KEEP",
+      "rationale": "STRUCTURE labels these dead-end because no tool: definition node was ingested (the MCP dispatch.rs match arms were not extracted as nodes, so every invoke_mcp_tool target dangles). The audit confirms the calls succeed at runtime. This is a graph-coverage gap, not a product defect. Flag: ingest dispatch.rs match arms as tool: nodes so these stop registering as false dead-ends.",
+      "confidence": "high"
+    },
+    {
+      "unit": "orphan-backend commands (~55: e.g. submit_orchestrator_task, cancel_orchestrator_task, edit_orchestrator_task, reorder_orchestrator_task, get_task_diff, pause/resume_orchestrator_agent, mnemosyne_recall, list_gui_runs, list_research_sessions, get_research_session_detail, preview_start/status/stop, term_*, set_secret/remove_secret/rotate_signing_key/signing_key_status, trust/untrust_mesh_node, get_llm_config, get_user_config, get_orchestrator_config*, oratio_transcribe, stop_mic_capture_and_transcribe, openrouter_key_status, import_env, migrate_auth_store, get_vcs_isolation/set_vcs_isolation_strategy, set_task_mesh_policy, get_routing_intentions, list_repo_files, chat_get_messages/chat_rename_session/chat_archive_session/chat_append_message, browser_open_session/list_pages/page_info/screenshot_frame/session_status/validate_playwright, gamify_due_actions/gamify_kpi_summary, invoke_mcp_tool)",
+      "unit_kind": "command",
+      "observation": "Roughly 55 #[tauri::command]s are defined/registered but have no GUI caller edge in the graph (status orphan_backend) -> backend capability with no surfaced entry point.",
+      "evidence_basis": "structural",
+      "evidence": "command-coverage.json status=orphan_backend for these (counted from the entries list). Distinct from dead_end (which is referenced-but-missing); orphan_backend = exists-but-uncalled.",
+      "recommendation": "KEEP",
+      "rationale": "STRUCTURE only proves no GUI caller; it does not prove uselessness (many are CLI-reachable, polling internals like invoke_mcp_tool/log_frontend, or pair-with-a-surfaced-sibling like pause vs resume where only one shows surfaced due to call-site extraction). JUDGMENT default KEEP. Two sub-patterns worth flagging to the synthesizer for possible EXPAND: (a) orchestrator task lifecycle (submit/cancel/edit/reorder/get_task_diff) is a coherent uncalled cluster that a Tasks surface could EXPAND to expose; (b) pause/resume asymmetry (resume_orchestrator_agent orphan while pause_orchestrator_agent also orphan but Dashboard AgentRow calls both per joined-evidence) indicates the extractor under-counts caller edges, so these orphan_backend labels are partly extraction artifacts, not true gaps.",
+      "confidence": "med"
+    },
+    {
+      "unit": "Activity redundancy cluster (activity, archive-panel, discovery-inbox, discovery-review)",
+      "unit_kind": "surface",
+      "observation": "Four registry surfaces all map to component_dir=Activity and the single command cmd:activity_query, and list each other as redundancy_peers.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence: activity, archive-panel, discovery-inbox, discovery-review each command_set=[cmd:activity_query], component_dir=Activity, redundancy_peers = the other three. activity reachable=false; archive-panel/discovery-inbox/discovery-review reachable=true under knowledge.",
+      "recommendation": "MERGE",
+      "rationale": "STRUCTURE: one backend (activity_query), one component, four nav entries = a structural redundancy cluster. JUDGMENT: collapse to a single Activity/Discovery surface with filters (the audit already shows activity's onChange filters drive the same activity_query). Detailed peer-set comparison belongs to the redundancy dimension; recorded here as the structural backing.",
+      "confidence": "high"
+    },
+    {
+      "unit": "Scientia/Knowledge redundancy cluster (knowledge, scientia, claims)",
+      "unit_kind": "surface",
+      "observation": "knowledge, scientia, and claims share an identical 12-command set and component_dir=Scientia.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence: knowledge, scientia, claims each command_count=12 with the same command_set (acknowledge_discovery, get_archive_status, list_publication_*, nanopublish_approved_claim, run_autofill, suggest_evidence_improvements, etc.), component_dir=Scientia; redundancy_peers cross-reference. knowledge is the parent (reachable=false as leaf, it is a TOP_LEVEL_VIEW parent); scientia is its DEFAULT_CHILD.",
+      "recommendation": "MERGE",
+      "rationale": "STRUCTURE: claims and scientia are the same backend surface mounted twice under the knowledge parent. JUDGMENT: keep one (scientia, the default child) and absorb claims, unless the redundancy/utility dimensions show claims has a distinct view. Recorded as structural backing for the redundancy dimension.",
+      "confidence": "med"
+    },
+    {
+      "unit": "Models/Compute redundancy (compute parent, models, oratio sharing list_model_cards)",
+      "unit_kind": "surface",
+      "observation": "compute (parent) and models share the identical 4-command model set; oratio also pulls list_model_cards; all list compute/models/settings as redundancy_peers.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence: compute and models each command_set=[get_active_model,get_routing_summary_live,list_model_cards,set_active_model]; oratio command_set=[list_model_cards,start_mic_capture], redundancy_peers=[compute,models,settings]. compute is a TOP_LEVEL_VIEW parent; models is a child under compute.",
+      "recommendation": "KEEP",
+      "rationale": "The compute=models overlap is just the parent inheriting its default child's commands (expected, not true redundancy). oratio sharing list_model_cards is incidental (it lists models for ASR routing). JUDGMENT: no structural cut warranted; defer to the redundancy dimension for the oratio/models overlap call.",
+      "confidence": "med"
+    },
+    {
+      "unit": "agents",
+      "unit_kind": "surface",
+      "observation": "Top-level nav parent 'agents' appears as a registry surface with 0 commands and component_dir=Dashboard; its default child dashboard carries the live wiring.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence agents: nav_parent=null, reachable=false, command_count=0, component_dir=Dashboard. navigation.ts: agents is a TOP_LEVEL_VIEW, DEFAULT_CHILD_BY_PARENT.agents=dashboard which is live_backend with 14 behavioral findings.",
+      "recommendation": "KEEP",
+      "rationale": "Parent shells legitimately carry 0 commands; the child (dashboard) holds the wiring. Not an orphan. Recorded to pre-empt a false CUT from the raw orphan-nav list.",
+      "confidence": "high"
+    },
+    {
+      "unit": "approvals",
+      "unit_kind": "surface",
+      "observation": "Reachable surface under runs with 0 commands and no behavioral/visual findings (no audit record beyond the structural stub).",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence approvals: nav_parent=runs, reachable=true, command_count=0, behavioral_findings=null, visual_findings_count=0. Approvals are actually resolved via tool:vox_resolve_approval (a dead_end tool node), invoked from Dashboard AgentRow per joined-evidence.",
+      "recommendation": "KEEP",
+      "rationale": "STRUCTURE shows 0 commands, but that is because approvals run through invoke_mcp_tool(vox_resolve_approval), which the graph cannot resolve to a node (same tool-ingestion gap as the mesh tools). JUDGMENT: reachable + has a real (MCP) backend = KEEP; flag the missing tool-node ingestion as the reason it looks empty.",
+      "confidence": "med"
+    },
+    {
+      "unit": "populi, mens",
+      "unit_kind": "surface",
+      "observation": "Two reachable surfaces under compute with 0 commands, no component_dir, no findings.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence populi: nav_parent=compute, reachable=true, command_count=0, component_dir=null, no findings. mens: nav_parent=compute, reachable=true, command_count=0, component_dir=null, no findings.",
+      "recommendation": "KEEP",
+      "rationale": "Reachable (so not orphan-nav) but dead (0 commands, no component) = thin-but-reachable, not a named CUT disqualifier (CUT requires dead AND orphan-nav). JUDGMENT default KEEP; flag as EXPAND candidates (they are nav placeholders awaiting a backend) for the utility dimension.",
+      "confidence": "med"
+    },
+    {
+      "unit": "publications, coverage",
+      "unit_kind": "surface",
+      "observation": "Reachable leaf surfaces with 0 commands but a real component_dir (Publications, Coverage).",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence publications: nav_parent=knowledge, reachable=true, command_count=0, component_dir=Publications. coverage: nav_parent=settings, reachable=true, command_count=0, component_dir=Coverage.",
+      "recommendation": "KEEP",
+      "rationale": "Reachable with a component but no backend command edge -> either render-only views or data passed via props (the graph misses prop-threaded data). Not orphan-nav, so not a CUT. JUDGMENT default KEEP; defer richness call to the utility dimension.",
+      "confidence": "med"
+    }
+  ]
+}

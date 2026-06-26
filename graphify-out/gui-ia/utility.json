@@ -1,0 +1,415 @@
+{
+  "dimension": "utility",
+  "findings": [
+    {
+      "unit": "ALL surfaces",
+      "unit_kind": "surface",
+      "observation": "No usage telemetry exists; this utility analysis is structural (graph coverage, command counts, redundancy peers, nav reachability) + audit (honesty findings), NOT measured use.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence.json has no usage/frequency fields; rubric states no telemetry. richness=command_count buckets; reachability from navigation.ts; uniqueness from redundancy_peers.",
+      "recommendation": "KEEP",
+      "rationale": "Methodological disclosure; KEEP is the analytic default.",
+      "confidence": "high"
+    },
+    {
+      "unit": "activity",
+      "unit_kind": "surface",
+      "observation": "Utility triple for activity: richness=thin(1 cmds) x reachability=orphan-nav x uniqueness=redundant.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: activity command_count=1, redundancy_peers=['archive-panel', 'discovery-inbox', 'discovery-review'], graph_community=c_486; navigation.ts reachability=orphan-nav; dead_ends=0",
+      "recommendation": "MERGE",
+      "rationale": "redundant AND thin, but richness>0 so MERGE preferred to CUT. Absorb activity (1 cmds) into a peer in ['archive-panel', 'discovery-inbox', 'discovery-review']. richness=thin(1 cmds) x reachability=orphan-nav x uniqueness=redundant.",
+      "confidence": "med"
+    },
+    {
+      "unit": "agents",
+      "unit_kind": "surface",
+      "observation": "Utility triple for agents: richness=dead(0 cmds) x reachability=reachable(top-level nav container) x uniqueness=unique.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: agents command_count=0, redundancy_peers=[], graph_community=c_487; navigation.ts reachability=reachable(top-level nav container); dead_ends=0",
+      "recommendation": "KEEP",
+      "rationale": "No disqualifier. richness=dead(0 cmds) x reachability=reachable(top-level nav container) x uniqueness=unique. KEEP is default.",
+      "confidence": "high"
+    },
+    {
+      "unit": "approvals",
+      "unit_kind": "surface",
+      "observation": "Utility triple for approvals: richness=dead(0 cmds) x reachability=reachable x uniqueness=unique.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: approvals command_count=0, redundancy_peers=[], graph_community=c_488; navigation.ts reachability=reachable; dead_ends=0",
+      "recommendation": "KEEP",
+      "rationale": "No disqualifier. richness=dead(0 cmds) x reachability=reachable x uniqueness=unique. KEEP is default.",
+      "confidence": "med"
+    },
+    {
+      "unit": "archive-panel",
+      "unit_kind": "surface",
+      "observation": "Utility triple for archive-panel: richness=thin(1 cmds) x reachability=reachable x uniqueness=redundant.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: archive-panel command_count=1, redundancy_peers=['activity', 'discovery-inbox', 'discovery-review'], graph_community=c_489; navigation.ts reachability=reachable; dead_ends=0",
+      "recommendation": "MERGE",
+      "rationale": "redundant AND thin, but richness>0 so MERGE preferred to CUT. Absorb archive-panel (1 cmds) into a peer in ['activity', 'discovery-inbox', 'discovery-review']. richness=thin(1 cmds) x reachability=reachable x uniqueness=redundant.",
+      "confidence": "med"
+    },
+    {
+      "unit": "browser",
+      "unit_kind": "surface",
+      "observation": "Utility triple for browser: richness=rich(10 cmds) x reachability=reachable x uniqueness=unique.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: browser command_count=10, redundancy_peers=[], graph_community=c_490; navigation.ts reachability=reachable; dead_ends=0",
+      "recommendation": "KEEP",
+      "rationale": "No disqualifier. richness=rich(10 cmds) x reachability=reachable x uniqueness=unique. KEEP is default.",
+      "confidence": "med"
+    },
+    {
+      "unit": "catalog",
+      "unit_kind": "surface",
+      "observation": "Utility triple for catalog: richness=dead(0 cmds) x reachability=reachable x uniqueness=unique.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: catalog command_count=0, redundancy_peers=[], graph_community=c_491; navigation.ts reachability=reachable; dead_ends=0",
+      "recommendation": "KEEP",
+      "rationale": "No disqualifier. richness=dead(0 cmds) x reachability=reachable x uniqueness=unique. KEEP is default.",
+      "confidence": "med"
+    },
+    {
+      "unit": "chat",
+      "unit_kind": "surface",
+      "observation": "Utility triple for chat: richness=rich(4 cmds) x reachability=reachable(top-level nav container) x uniqueness=unique.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: chat command_count=4, redundancy_peers=[], graph_community=c_492; navigation.ts reachability=reachable(top-level nav container); dead_ends=0",
+      "recommendation": "KEEP",
+      "rationale": "No disqualifier. richness=rich(4 cmds) x reachability=reachable(top-level nav container) x uniqueness=unique. KEEP is default.",
+      "confidence": "high"
+    },
+    {
+      "unit": "claims",
+      "unit_kind": "surface",
+      "observation": "Utility triple for claims: richness=rich(12 cmds) x reachability=reachable x uniqueness=redundant.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: claims command_count=12, redundancy_peers=['knowledge', 'scientia'], graph_community=c_493; navigation.ts reachability=reachable; dead_ends=0",
+      "recommendation": "KEEP",
+      "rationale": "Redundant but rich (12 cmds): MERGE only if dim-2 confirms true command overlap; default KEEP. Flag peers ['knowledge', 'scientia']. richness=rich(12 cmds) x reachability=reachable x uniqueness=redundant.",
+      "confidence": "med"
+    },
+    {
+      "unit": "commands",
+      "unit_kind": "surface",
+      "observation": "Utility triple for commands: richness=dead(0 cmds) x reachability=reachable(top-level nav container) x uniqueness=unique.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: commands command_count=0, redundancy_peers=[], graph_community=c_494; navigation.ts reachability=reachable(top-level nav container); dead_ends=0",
+      "recommendation": "KEEP",
+      "rationale": "No disqualifier. richness=dead(0 cmds) x reachability=reachable(top-level nav container) x uniqueness=unique. KEEP is default.",
+      "confidence": "high"
+    },
+    {
+      "unit": "compute",
+      "unit_kind": "surface",
+      "observation": "Utility triple for compute: richness=rich(4 cmds) x reachability=reachable(top-level nav container) x uniqueness=redundant.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: compute command_count=4, redundancy_peers=['models', 'settings'], graph_community=c_495; navigation.ts reachability=reachable(top-level nav container); dead_ends=0",
+      "recommendation": "KEEP",
+      "rationale": "Redundant but rich (4 cmds): MERGE only if dim-2 confirms true command overlap; default KEEP. Flag peers ['models', 'settings']. richness=rich(4 cmds) x reachability=reachable(top-level nav container) x uniqueness=redundant.",
+      "confidence": "med"
+    },
+    {
+      "unit": "console",
+      "unit_kind": "surface",
+      "observation": "Utility triple for console: richness=rich(8 cmds) x reachability=reachable x uniqueness=redundant.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: console command_count=8, redundancy_peers=['workspace'], graph_community=c_496; navigation.ts reachability=reachable; dead_ends=0",
+      "recommendation": "KEEP",
+      "rationale": "Redundant but rich (8 cmds): MERGE only if dim-2 confirms true command overlap; default KEEP. Flag peers ['workspace']. richness=rich(8 cmds) x reachability=reachable x uniqueness=redundant.",
+      "confidence": "med"
+    },
+    {
+      "unit": "coverage",
+      "unit_kind": "surface",
+      "observation": "Utility triple for coverage: richness=dead(0 cmds) x reachability=reachable x uniqueness=unique.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: coverage command_count=0, redundancy_peers=[], graph_community=c_497; navigation.ts reachability=reachable; dead_ends=0",
+      "recommendation": "KEEP",
+      "rationale": "No disqualifier. richness=dead(0 cmds) x reachability=reachable x uniqueness=unique. KEEP is default.",
+      "confidence": "med"
+    },
+    {
+      "unit": "dashboard",
+      "unit_kind": "surface",
+      "observation": "Utility triple for dashboard: richness=dead(0 cmds) x reachability=reachable x uniqueness=unique.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: dashboard command_count=0, redundancy_peers=[], graph_community=c_498; navigation.ts reachability=reachable; dead_ends=0",
+      "recommendation": "KEEP",
+      "rationale": "No disqualifier. richness=dead(0 cmds) x reachability=reachable x uniqueness=unique. KEEP is default.",
+      "confidence": "med"
+    },
+    {
+      "unit": "discovery-inbox",
+      "unit_kind": "surface",
+      "observation": "Utility triple for discovery-inbox: richness=thin(1 cmds) x reachability=reachable x uniqueness=redundant.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: discovery-inbox command_count=1, redundancy_peers=['activity', 'archive-panel', 'discovery-review'], graph_community=c_499; navigation.ts reachability=reachable; dead_ends=0",
+      "recommendation": "MERGE",
+      "rationale": "redundant AND thin, but richness>0 so MERGE preferred to CUT. Absorb discovery-inbox (1 cmds) into a peer in ['activity', 'archive-panel', 'discovery-review']. richness=thin(1 cmds) x reachability=reachable x uniqueness=redundant.",
+      "confidence": "med"
+    },
+    {
+      "unit": "discovery-review",
+      "unit_kind": "surface",
+      "observation": "Utility triple for discovery-review: richness=thin(1 cmds) x reachability=reachable x uniqueness=redundant.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: discovery-review command_count=1, redundancy_peers=['activity', 'archive-panel', 'discovery-inbox'], graph_community=c_500; navigation.ts reachability=reachable; dead_ends=0",
+      "recommendation": "MERGE",
+      "rationale": "redundant AND thin, but richness>0 so MERGE preferred to CUT. Absorb discovery-review (1 cmds) into a peer in ['activity', 'archive-panel', 'discovery-inbox']. richness=thin(1 cmds) x reachability=reachable x uniqueness=redundant.",
+      "confidence": "med"
+    },
+    {
+      "unit": "flow",
+      "unit_kind": "surface",
+      "observation": "Utility triple for flow: richness=dead(0 cmds) x reachability=reachable x uniqueness=unique.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: flow command_count=0, redundancy_peers=[], graph_community=c_501; navigation.ts reachability=reachable; dead_ends=0",
+      "recommendation": "KEEP",
+      "rationale": "No disqualifier. richness=dead(0 cmds) x reachability=reachable x uniqueness=unique. KEEP is default.",
+      "confidence": "med"
+    },
+    {
+      "unit": "gamify",
+      "unit_kind": "surface",
+      "observation": "Utility triple for gamify: richness=rich(6 cmds) x reachability=reachable x uniqueness=unique.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: gamify command_count=6, redundancy_peers=[], graph_community=c_502; navigation.ts reachability=reachable; dead_ends=0",
+      "recommendation": "KEEP",
+      "rationale": "No disqualifier. richness=rich(6 cmds) x reachability=reachable x uniqueness=unique. KEEP is default.",
+      "confidence": "med"
+    },
+    {
+      "unit": "harness",
+      "unit_kind": "surface",
+      "observation": "Utility triple for harness: richness=dead(0 cmds) x reachability=reachable x uniqueness=unique.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: harness command_count=0, redundancy_peers=[], graph_community=c_503; navigation.ts reachability=reachable; dead_ends=0",
+      "recommendation": "KEEP",
+      "rationale": "No disqualifier. richness=dead(0 cmds) x reachability=reachable x uniqueness=unique. KEEP is default.",
+      "confidence": "med"
+    },
+    {
+      "unit": "knowledge",
+      "unit_kind": "surface",
+      "observation": "Utility triple for knowledge: richness=rich(12 cmds) x reachability=reachable(top-level nav container) x uniqueness=redundant.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: knowledge command_count=12, redundancy_peers=['claims', 'scientia'], graph_community=c_504; navigation.ts reachability=reachable(top-level nav container); dead_ends=0",
+      "recommendation": "KEEP",
+      "rationale": "Redundant but rich (12 cmds): MERGE only if dim-2 confirms true command overlap; default KEEP. Flag peers ['claims', 'scientia']. richness=rich(12 cmds) x reachability=reachable(top-level nav container) x uniqueness=redundant.",
+      "confidence": "med"
+    },
+    {
+      "unit": "matrix",
+      "unit_kind": "surface",
+      "observation": "Utility triple for matrix: richness=thin(1 cmds) x reachability=reachable x uniqueness=unique.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: matrix command_count=1, redundancy_peers=[], graph_community=c_505; navigation.ts reachability=reachable; dead_ends=0",
+      "recommendation": "KEEP",
+      "rationale": "No disqualifier. richness=thin(1 cmds) x reachability=reachable x uniqueness=unique. KEEP is default.",
+      "confidence": "med"
+    },
+    {
+      "unit": "memory",
+      "unit_kind": "surface",
+      "observation": "Utility triple for memory: richness=rich(5 cmds) x reachability=reachable x uniqueness=unique.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: memory command_count=5, redundancy_peers=[], graph_community=c_506; navigation.ts reachability=reachable; dead_ends=0",
+      "recommendation": "KEEP",
+      "rationale": "No disqualifier. richness=rich(5 cmds) x reachability=reachable x uniqueness=unique. KEEP is default.",
+      "confidence": "med"
+    },
+    {
+      "unit": "mens",
+      "unit_kind": "surface",
+      "observation": "Utility triple for mens: richness=dead(0 cmds) x reachability=reachable x uniqueness=unique.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: mens command_count=0, redundancy_peers=[], graph_community=c_507; navigation.ts reachability=reachable; dead_ends=0",
+      "recommendation": "KEEP",
+      "rationale": "No disqualifier. richness=dead(0 cmds) x reachability=reachable x uniqueness=unique. KEEP is default.",
+      "confidence": "med"
+    },
+    {
+      "unit": "mesh",
+      "unit_kind": "surface",
+      "observation": "Utility triple for mesh: richness=dead(0 cmds) x reachability=reachable x uniqueness=unique.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: mesh command_count=0, redundancy_peers=[], graph_community=c_508; navigation.ts reachability=reachable; dead_ends=2",
+      "recommendation": "KEEP",
+      "rationale": "No disqualifier. richness=dead(0 cmds) x reachability=reachable x uniqueness=unique. KEEP is default.",
+      "confidence": "med"
+    },
+    {
+      "unit": "models",
+      "unit_kind": "surface",
+      "observation": "Utility triple for models: richness=rich(4 cmds) x reachability=reachable x uniqueness=redundant.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: models command_count=4, redundancy_peers=['compute', 'settings'], graph_community=c_509; navigation.ts reachability=reachable; dead_ends=0",
+      "recommendation": "KEEP",
+      "rationale": "Redundant but rich (4 cmds): MERGE only if dim-2 confirms true command overlap; default KEEP. Flag peers ['compute', 'settings']. richness=rich(4 cmds) x reachability=reachable x uniqueness=redundant.",
+      "confidence": "med"
+    },
+    {
+      "unit": "needs-you",
+      "unit_kind": "surface",
+      "observation": "Utility triple for needs-you: richness=dead(0 cmds) x reachability=orphan-nav x uniqueness=unique.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: needs-you command_count=0, component_dir=NeedsYou (a real component shell), redundancy_peers=[], graph_community=c_510; navigation.ts reachability=orphan-nav; dead_ends=0",
+      "recommendation": "CUT",
+      "rationale": "NAMED DISQUALIFIER MET: dead (0 commands) AND orphan-nav (absent from navigation.ts). CORRECTED (adversarial recheck): the prior 'No richness to preserve' overstated — a real component_dir=NeedsYou exists, so this is a component SHELL, not a phantom. CUT remains the rubric default (0 cmds + orphan), but if the soft-HITL attention inbox is still intended, prefer re-ADD-to-nav with a wired command over a hard delete (cf. structural-coverage + new-nav, which flag MOVE/conditional-CUT). richness=dead(0 cmds) x reachability=orphan-nav x uniqueness=unique.",
+      "confidence": "high"
+    },
+    {
+      "unit": "oratio",
+      "unit_kind": "surface",
+      "observation": "Utility triple for oratio: richness=thin(2 cmds) x reachability=reachable x uniqueness=redundant.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: oratio command_count=2, redundancy_peers=['compute', 'models', 'settings'], graph_community=c_511; navigation.ts reachability=reachable; dead_ends=0",
+      "recommendation": "MERGE",
+      "rationale": "redundant AND thin, but richness>0 so MERGE preferred to CUT. Absorb oratio (2 cmds) into a peer in ['compute', 'models', 'settings']. richness=thin(2 cmds) x reachability=reachable x uniqueness=redundant.",
+      "confidence": "med"
+    },
+    {
+      "unit": "policies",
+      "unit_kind": "surface",
+      "observation": "Utility triple for policies: richness=rich(6 cmds) x reachability=reachable x uniqueness=unique.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: policies command_count=6, redundancy_peers=[], graph_community=c_512; navigation.ts reachability=reachable; dead_ends=0",
+      "recommendation": "KEEP",
+      "rationale": "No disqualifier. richness=rich(6 cmds) x reachability=reachable x uniqueness=unique. KEEP is default.",
+      "confidence": "med"
+    },
+    {
+      "unit": "populi",
+      "unit_kind": "surface",
+      "observation": "Utility triple for populi: richness=dead(0 cmds) x reachability=reachable x uniqueness=unique.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: populi command_count=0, redundancy_peers=[], graph_community=c_513; navigation.ts reachability=reachable; dead_ends=0",
+      "recommendation": "KEEP",
+      "rationale": "No disqualifier. richness=dead(0 cmds) x reachability=reachable x uniqueness=unique. KEEP is default.",
+      "confidence": "med"
+    },
+    {
+      "unit": "publications",
+      "unit_kind": "surface",
+      "observation": "Utility triple for publications: richness=dead(0 cmds) x reachability=reachable x uniqueness=unique.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: publications command_count=0, redundancy_peers=[], graph_community=c_514; navigation.ts reachability=reachable; dead_ends=0",
+      "recommendation": "KEEP",
+      "rationale": "No disqualifier. richness=dead(0 cmds) x reachability=reachable x uniqueness=unique. KEEP is default.",
+      "confidence": "med"
+    },
+    {
+      "unit": "repository",
+      "unit_kind": "surface",
+      "observation": "Utility triple for repository: richness=thin(1 cmds) x reachability=reachable x uniqueness=redundant.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: repository command_count=1, redundancy_peers=['claims', 'knowledge', 'research', 'scientia'], graph_community=c_515; navigation.ts reachability=reachable; dead_ends=0",
+      "recommendation": "MERGE",
+      "rationale": "redundant AND thin, but richness>0 so MERGE preferred to CUT. Absorb repository (1 cmds) into a peer in ['claims', 'knowledge', 'research', 'scientia']. richness=thin(1 cmds) x reachability=reachable x uniqueness=redundant.",
+      "confidence": "med"
+    },
+    {
+      "unit": "research",
+      "unit_kind": "surface",
+      "observation": "Utility triple for research: richness=thin(2 cmds) x reachability=reachable x uniqueness=redundant.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: research command_count=2, redundancy_peers=['claims', 'knowledge', 'repository', 'scientia'], graph_community=c_516; navigation.ts reachability=reachable; dead_ends=0",
+      "recommendation": "MERGE",
+      "rationale": "redundant AND thin, but richness>0 so MERGE preferred to CUT. Absorb research (2 cmds) into a peer in ['claims', 'knowledge', 'repository', 'scientia']. richness=thin(2 cmds) x reachability=reachable x uniqueness=redundant.",
+      "confidence": "med"
+    },
+    {
+      "unit": "review",
+      "unit_kind": "surface",
+      "observation": "Utility triple for review: richness=dead(0 cmds) x reachability=orphan-nav x uniqueness=unique.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: review command_count=0, redundancy_peers=[], graph_community=c_517; navigation.ts reachability=orphan-nav; dead_ends=0",
+      "recommendation": "CUT",
+      "rationale": "NAMED DISQUALIFIER: dead AND orphan-nav. 0 commands, absent from navigation.ts. richness=dead(0 cmds) x reachability=orphan-nav x uniqueness=unique. No richness to preserve, MERGE n/a.",
+      "confidence": "high"
+    },
+    {
+      "unit": "runs",
+      "unit_kind": "surface",
+      "observation": "Utility triple for runs: richness=thin(1 cmds) x reachability=reachable(top-level nav container) x uniqueness=unique.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: runs command_count=1, redundancy_peers=[], graph_community=c_518; navigation.ts reachability=reachable(top-level nav container); dead_ends=0",
+      "recommendation": "KEEP",
+      "rationale": "No disqualifier. richness=thin(1 cmds) x reachability=reachable(top-level nav container) x uniqueness=unique. KEEP is default.",
+      "confidence": "high"
+    },
+    {
+      "unit": "scientia",
+      "unit_kind": "surface",
+      "observation": "Utility triple for scientia: richness=rich(12 cmds) x reachability=reachable x uniqueness=redundant.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: scientia command_count=12, redundancy_peers=['claims', 'knowledge'], graph_community=c_519; navigation.ts reachability=reachable; dead_ends=0",
+      "recommendation": "KEEP",
+      "rationale": "Redundant but rich (12 cmds): MERGE only if dim-2 confirms true command overlap; default KEEP. Flag peers ['claims', 'knowledge']. richness=rich(12 cmds) x reachability=reachable x uniqueness=redundant.",
+      "confidence": "med"
+    },
+    {
+      "unit": "search",
+      "unit_kind": "surface",
+      "observation": "Utility triple for search: richness=thin(2 cmds) x reachability=reachable(top-level nav container) x uniqueness=redundant.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: search command_count=2, redundancy_peers=['memory'], graph_community=c_520; navigation.ts reachability=reachable(top-level nav container); dead_ends=0",
+      "recommendation": "MERGE",
+      "rationale": "redundant AND thin, but richness>0 so MERGE preferred to CUT. Absorb search (2 cmds) into a peer in ['memory']. richness=thin(2 cmds) x reachability=reachable(top-level nav container) x uniqueness=redundant.",
+      "confidence": "med"
+    },
+    {
+      "unit": "settings",
+      "unit_kind": "surface",
+      "observation": "Utility triple for settings: richness=rich(17 cmds) x reachability=reachable(top-level nav container) x uniqueness=unique.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: settings command_count=17, redundancy_peers=[], graph_community=c_521; navigation.ts reachability=reachable(top-level nav container); dead_ends=1",
+      "recommendation": "KEEP",
+      "rationale": "No disqualifier. richness=rich(17 cmds) x reachability=reachable(top-level nav container) x uniqueness=unique. KEEP is default.",
+      "confidence": "high"
+    },
+    {
+      "unit": "skills",
+      "unit_kind": "surface",
+      "observation": "Utility triple for skills: richness=dead(0 cmds) x reachability=reachable x uniqueness=unique.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: skills command_count=0, redundancy_peers=[], graph_community=c_522; navigation.ts reachability=reachable; dead_ends=8",
+      "recommendation": "KEEP",
+      "rationale": "No disqualifier. richness=dead(0 cmds) x reachability=reachable x uniqueness=unique. KEEP is default.",
+      "confidence": "med"
+    },
+    {
+      "unit": "sub-agents",
+      "unit_kind": "surface",
+      "observation": "Utility triple for sub-agents: richness=dead(0 cmds) x reachability=orphan-nav x uniqueness=unique.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: sub-agents command_count=0, component_dir=SubAgents (a real component shell), redundancy_peers=[], graph_community=c_523; navigation.ts reachability=orphan-nav; dead_ends=0. (Note: cmd:list_subagent_tree is status=surfaced in command-coverage but has NO edge to this surface — it is not richness for sub-agents.)",
+      "recommendation": "CUT",
+      "rationale": "NAMED DISQUALIFIER MET: dead (0 commands) AND orphan-nav. CORRECTED (adversarial recheck): 'No richness to preserve' overstated — component_dir=SubAgents is a real shell. CUT remains the rubric default; prefer re-ADD-to-nav under agents WITH list_subagent_tree wired (which the structural-coverage dim was also corrected to recommend) over a hard delete. The surfaced-status of list_subagent_tree is NOT evidence this surface is rich. richness=dead(0 cmds) x reachability=orphan-nav x uniqueness=unique.",
+      "confidence": "high"
+    },
+    {
+      "unit": "tasks",
+      "unit_kind": "surface",
+      "observation": "Utility triple for tasks: richness=rich(4 cmds) x reachability=reachable x uniqueness=unique.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: tasks command_count=4, redundancy_peers=[], graph_community=c_524; navigation.ts reachability=reachable; dead_ends=0",
+      "recommendation": "KEEP",
+      "rationale": "No disqualifier. richness=rich(4 cmds) x reachability=reachable x uniqueness=unique. KEEP is default.",
+      "confidence": "med"
+    },
+    {
+      "unit": "workspace",
+      "unit_kind": "surface",
+      "observation": "Utility triple for workspace: richness=rich(8 cmds) x reachability=reachable(top-level nav container) x uniqueness=redundant.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence.json: workspace command_count=8, redundancy_peers=['console'], graph_community=c_525; navigation.ts reachability=reachable(top-level nav container); dead_ends=0",
+      "recommendation": "KEEP",
+      "rationale": "Redundant but rich (8 cmds): MERGE only if dim-2 confirms true command overlap; default KEEP. Flag peers ['console']. richness=rich(8 cmds) x reachability=reachable(top-level nav container) x uniqueness=redundant.",
+      "confidence": "med"
+    }
+  ]
+}
