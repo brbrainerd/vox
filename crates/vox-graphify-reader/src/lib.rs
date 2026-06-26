@@ -21,6 +21,7 @@ pub mod lens;
 pub mod overlay;
 pub mod reachability;
 pub mod rebuild;
+pub mod registry;
 pub mod snapshot;
 
 use std::collections::HashMap;
