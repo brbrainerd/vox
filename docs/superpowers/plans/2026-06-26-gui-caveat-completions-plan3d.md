@@ -66,16 +66,21 @@ self-contained and committable by a single sub-agent (write-through-workflow).
 | FG2 surfaceVisual guard inside gui-honesty | **[SEQUENTIAL]** | needs C0 |
 
 `*` B2 is file-disjoint and parallel-safe to author, but its *assertion correctness* is gated on the
-post-3A `SURFACE_REGISTRY`; place it in Batch 5 if you want a single pass, or author in Batch 1 and
-reconcile after 3A.
+post-3A `SURFACE_REGISTRY`. **Default: author B2 in Batch 5 (post-3A), not Batch 1.** Authoring it in
+Batch 1 against the pre-3A registry produces a **stale GREEN** that silently passes until 3A's CUTs/MERGEs
+land — at which point the manifest==registry assertion is asserting the wrong (pre-reorg) surface set.
+Authoring it post-3A means the drift guard is correct on first commit. (Batch-1 authoring + reconcile is
+the fallback only if B1/B3 wiring needs the manifest test scaffold earlier.)
 
 ### Fan-out batches (what a workflow can dispatch together)
 
 Batches run in order; tasks **inside** a batch fan out in parallel. A batch's join (all sub-agents
 committed) is the gate for the next batch.
 
-- **Batch 1 — infra fan-out (no 3A dependency).** Dispatch in parallel: **A2**, **B1**, **B2** (author).
-  Independent files, independent commits.
+- **Batch 1 — infra fan-out (no 3A dependency).** Dispatch in parallel: **A2**, **B1**.
+  Independent files, independent commits. **B2 is NOT in Batch 1 by default** — it defaults to Batch 5
+  (post-3A) so its manifest==registry assertion is authored against the final, reorged `SURFACE_REGISTRY`
+  (authoring it here would produce a stale GREEN; see the `*` note above).
 - **Batch 2 — Workstream A spine (sequential chain).** Run A-chain in order: **A1 → A3 → A4 → A5**.
   (A2 already landed in Batch 1.) This batch is internally sequential; it may overlap Batch 1/3 in
   wall-clock since it shares no files with B or C, but its own tasks must serialize.
@@ -87,7 +92,8 @@ committed) is the gate for the next batch.
 - **Batch 5 — Workstream C surface fan-out (12-way parallel).** Dispatch per-surface sub-agents in
   parallel across **C1/C2/C3** grouped *by surface* (each sub-agent owns one surface's ds-token + a11y +
   overflow/hierarchy commits, so file ownership is disjoint and allowlist deletions don't collide).
-  Also reconcile **B2** here against the post-3A registry. **C4** (optional axe) may join this batch.
+  **Author B2 here** (post-3A) — its manifest==registry assertion reads the final reorged
+  `SURFACE_REGISTRY`. **C4** (optional axe) may join this batch.
   Suggested smallest-first surface order is retained in C1.
 - **Batch 6 — close-out (sequential).** **B4 "after"** snapshot → **FG1** → **FG2**.
 
@@ -253,8 +259,20 @@ make the existing CI sidecar build the *fallback* path so the real bundle stays 
 - Wire `gui_rust_check::run` into the same dispatch site as `gui_honesty::run` (mirror the match arm in
   the ci command module; `mod gui_rust_check;` next to `mod gui_honesty;`).
 - Update the CI fixture if the command catalog is asserted:
-  `crates/vox-cli/tests/fixtures/command_catalog_paths_baseline.txt` — add the new subcommand path; run
-  the catalog test, regenerate if it has a `--write` mode.
+  `crates/vox-cli/tests/fixtures/command_catalog_paths_baseline.txt`. **Do NOT hand-edit this file — it
+  is a generated baseline.** Verify first by reading `crates/vox-cli/tests/command_catalog_paths_baseline.rs`:
+  it regenerates the whole fixture when run with the bless env var (confirmed:
+  `UPDATE_CLI_CATALOG_BASELINE=1`). So the correct flow is — add the `GuiRustCheck` subcommand to the clap
+  tree, then **regenerate** the baseline, not edit it by hand:
+  ```bash
+  # Windows note (per the test's own module doc): build_catalog walks the full clap tree and overflows
+  # the default test-thread stack — bump it. Bash:
+  RUST_MIN_STACK=33554432 UPDATE_CLI_CATALOG_BASELINE=1 cargo test -p vox-cli --test command_catalog_paths_baseline
+  ```
+  The test writes the fixture and `panic!`s "wrote …; commit this file" — that panic is expected on a
+  bless run. Then run it **without** the env var to confirm it passes against the regenerated baseline,
+  and stage the regenerated `command_catalog_paths_baseline.txt` with the rest of A4. Hand-editing a
+  single line would leave the file out of canonical sort/format and fail the plain (non-bless) run.
 - Verify: `cargo run -p vox-cli -- ci gui-rust-check` exits 0; introduce a type error → exits non-zero.
 - Commit: `feat(ci): add gui-rust-check gate (cargo check -p vox-gui, sidecar-skipped)`.
 
@@ -292,7 +310,12 @@ Plan 3A's registry regen.
   ```
 - Commit: `test(gui): add webServer to screens playwright config for headless CI capture`.
 
-### B2. Test: the capture manifest covers every surviving surface  [PARALLEL-SAFE] (reconcile vs post-3A registry)
+### B2. Test: the capture manifest covers every surviving surface  [PARALLEL-SAFE] (author in Batch 5, post-3A)
+- **Author this in Batch 5 (after Plan 3A lands), not Batch 1.** The assertion compares against
+  `SURFACE_REGISTRY`; authoring it before 3A's CUTs/MERGEs would lock in the pre-reorg surface set and
+  pass as a **stale GREEN** that asserts the wrong thing. Writing it post-3A makes the drift guard correct
+  on first commit. (If B1/B3 need the manifest scaffold earlier, the fallback is to author in Batch 1 and
+  re-run + amend after 3A — but the default is Batch 5.)
 - There is already `e2e/lib/screenshotManifest.ts` + `screenshotManifest.test.ts`. Extend the test to
   assert the manifest's surface list equals the post-3A `SURFACE_REGISTRY` viewKeys (drift guard), so a
   surface added/renamed by Plan 3A can't silently drop out of the capture set.

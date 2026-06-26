@@ -182,8 +182,11 @@ Verified wiring facts (de-risks the conditional ADDs):
   `cmd:list_subagent_tree`; the **actual** command name is `subagent_tree`. The honesty gate is satisfied —
   the component already surfaces a real command. **ADD passes.**
 - `needs-you`: `NeedsYouSurface` is wired in `surfaceComponents.tsx` line 163 (`case 'needs-you'`). The
-  approve/reject resolve path goes through `vox_resolve_approval` / `vox_pending_approvals`
-  (`useAgentApprovals.ts` line 18, dispatch in `crates/vox-orchestrator-mcp/src/dispatch.rs`). **ADD passes.**
+  approve/reject resolve path goes through `vox_resolve_approval` (`useAgentApprovals.ts` **line 44**,
+  `resolve`) / `vox_pending_approvals` (`useAgentApprovals.ts` **line 18**, `refresh`), dispatch in
+  `crates/vox-orchestrator-mcp/src/dispatch.rs`). **ADD passes.** Note: the nav ADD is honesty-gated, but
+  the key is **not** yet in App.tsx `LEGACY_VIEWS`/`KNOWN_VIEWS` (verified — lines 119–125 lack it), so
+  Task 2.2 must also add it there to avoid a dead deep-link.
 - `activity` Discovery merge: all four clones already render the **same** `ActivitySurface`/Activity
   component (decorators `discovery-review`/`discovery-inbox`/`archive-panel` in `decoratorRegistry.ts` map to
   distinct Scientia sub-components, while `activity` → `ActivitySurface`). The merge collapses the **nav
@@ -435,11 +438,29 @@ at a surviving surface (blueprint §5 row "knowledge").
     expect(nav.parent).toBe('knowledge');
     expect(nav.child).toBe('scientia');
   });
+  it('knowledge keeps its surviving children as siblings of scientia', () => {
+    // After 3A: knowledge is a GROUP KEY (its surface row is cut in 6.2), with
+    // scientia (default), memory (reparented in 4.1), and activity/Discovery
+    // (reparented in 3b.2) as children. `database` is added as a 4th sibling by
+    // Plan 3F (P6-7), NOT here — see the dependency note below.
+    for (const child of ['memory', 'activity']) {
+      expect(resolveNavigation(child).parent).toBe('knowledge');
+    }
+  });
 ```
-`DEFAULT_CHILD_BY_PARENT.knowledge` is already `'scientia'` (line 42) — this test likely passes already;
-keep it as a **regression guard** so a later edit can't silently break it. Run it green now.
+`DEFAULT_CHILD_BY_PARENT.knowledge` is already `'scientia'` (line 42) — this guard likely passes already;
+keep it as a **regression guard** so a later edit can't silently break it. The second assertion locks the
+surviving Knowledge children. Run green now.
 
-**Commit:** `test(gui-reorg): guard knowledge default child = scientia`
+> **Dependency note (3A ↔ 3F):** 3A **cuts the `knowledge` surface row** (Task 6.2) but **keeps
+> `knowledge` as a nav group key** with `DEFAULT_CHILD_BY_PARENT.knowledge = 'scientia'`. The Knowledge
+> group's children after 3A are `scientia` (default), `memory` (reparented in 4.1), and `activity`
+> (Discovery, reparented in 3b.2). **Plan 3F (P6-7) adds `database` as a 4th sibling under Knowledge**
+> (`PARENT_CHILD_MAP.database = { parent: 'knowledge', child: 'database' }`). `database` is therefore a
+> sibling of `scientia`/`memory`/`activity`, NOT the default child — the default stays `scientia`. This
+> test asserts only the 3A-owned siblings; 3F extends the same group.
+
+**Commit:** `test(gui-reorg): guard knowledge default child = scientia + surviving siblings`
 
 ---
 
@@ -765,9 +786,17 @@ Run vitest green. `pnpm typecheck` green.
 
 **Gate check (do first, record evidence).** Confirm the command is wired:
 `cd /c/Users/Owner/vox-graphify-gui && rg -n "vox_resolve_approval|vox_pending_approvals" crates/vox-gui/ui/src crates/vox-orchestrator-mcp/src`
-Expected: hits in `useAgentApprovals.ts` (line 18) and `dispatch.rs`. **Gate passes → ADD (not CUT).**
+Expected: hits in `useAgentApprovals.ts` — **`vox_pending_approvals` at line 18** (refresh) and
+**`vox_resolve_approval` at line 44** (resolve) — and in `dispatch.rs`. **Gate passes → ADD (not CUT).**
 
-**Test (red).** Add to `navigation.test.ts`:
+> **CORRECTION (verified by reading `App.tsx` this session):** `'needs-you'` is **NOT** currently in
+> `LEGACY_VIEWS`/`KNOWN_VIEWS` (App.tsx lines 119–125) and is **NOT** in the `View` union (lines 92ff).
+> An earlier draft of this task wrongly asserted "`needs-you` … is in `LEGACY_VIEWS` (App.tsx line 124)".
+> It is not. Adding the nav entry **without** adding it to `KNOWN_VIEWS` ships a **dead deep-link**:
+> `isKnownView('needs-you')` returns `false`, so the bootstrap `parseViewFromLocation` validation rejects
+> `#view=needs-you` and the surface is unreachable by URL. This task therefore **must** also edit App.tsx.
+
+**Test (red) — navigation.** Add to `navigation.test.ts`:
 
 ```ts
   it('needs-you is wired under Runs', () => {
@@ -778,18 +807,34 @@ Expected: hits in `useAgentApprovals.ts` (line 18) and `dispatch.rs`. **Gate pas
 ```
 Run red.
 
+**Test (red) — App known-view (NEW, required).** Add to `crates/vox-gui/ui/src/App.test.tsx` (or the
+existing App-bootstrap test file; if none exists, add this assertion to `navigation.test.ts` by importing
+the exported `isKnownView`/`KNOWN_VIEWS` — export them from `App.tsx` if not already exported):
+
+```ts
+  it('needs-you is a known view (deep-link validates)', () => {
+    expect(isKnownView('needs-you')).toBe(true);
+  });
+```
+Run red — currently `isKnownView('needs-you')` is `false` (key absent from `LEGACY_VIEWS`).
+
 **Implement (navigation.ts):** ADD `  'needs-you': { parent: 'runs', child: 'needs-you' },` to
 `PARENT_CHILD_MAP`; ADD `  'needs-you': 'Needs You',` to `NAV_LABELS`.
+
+**Implement (App.tsx — REQUIRED, not optional):**
+- Add `  | 'needs-you'` to the `View` union (around lines 92–117) **if not already present**.
+- Add `'needs-you'` to the `LEGACY_VIEWS` array (lines 119–125) — `KNOWN_VIEWS = LEGACY_VIEWS`
+  (line 128), so this is what makes `isKnownView('needs-you')` return `true` and the deep-link validate.
 
 **Implement (registry YAML):** `needs-you` row (lines 156-163) has `parent_surface: null`; set
 `parent_surface: runs` so the Sidebar lists it under Runs. Regen.
 
-`needs-you` already dispatches (`surfaceComponents.tsx` line 163 `case 'needs-you'`) and is in `LEGACY_VIEWS`
-(App.tsx line 124). No dispatch/App edit needed.
+`needs-you` already dispatches (`surfaceComponents.tsx` line 163 `case 'needs-you'`). With the App.tsx edit
+above, the deep-link now validates too.
 
-Run vitest green. `pnpm typecheck` green.
+Run vitest (nav + App known-view) green. `pnpm typecheck` green.
 
-**Commit:** `feat(gui-reorg): ADD needs-you to nav under Runs (wired vox_resolve_approval) (Bundle 2)`
+**Commit:** `feat(gui-reorg): ADD needs-you to nav under Runs + KNOWN_VIEWS (wired vox_resolve_approval) (Bundle 2)`
 
 ### Task 2.3 — ADD `sub-agents` under Agents (honesty gate: `subagent_tree` wired) [SEQUENTIAL] (Batch C)
 
@@ -871,7 +916,7 @@ If any surface that was cut still appears: grep the four sync sites:
 | `gamify` agents→settings (nav) | MOVE | 5.1 | PARENT_CHILD_MAP + YAML parent_surface |
 | `matrix` → chat rail | MERGE | 5.2 + redirect 6.1 | PARENT_CHILD_MAP, YAML, surfaceComponents (+ deferred rail TODO) |
 | `runs` parent-shell→named child | MOVE | 2.1 | PARENT_CHILD_MAP + DEFAULT_CHILD_BY_PARENT |
-| `needs-you` EXPAND + ADD-to-nav | ADD (gated) | 2.2 | PARENT_CHILD_MAP, NAV_LABELS, YAML; gate `vox_resolve_approval` |
+| `needs-you` EXPAND + ADD-to-nav | ADD (gated) | 2.2 | PARENT_CHILD_MAP, NAV_LABELS, YAML, **App.tsx View union + LEGACY_VIEWS/KNOWN_VIEWS**; gate `vox_resolve_approval` (`useAgentApprovals.ts:44`) |
 | `sub-agents` ADD-to-nav conditional | ADD (gated) | 2.3 | PARENT_CHILD_MAP, NAV_LABELS, YAML; gate `subagent_tree` |
 | Migration ledger (all removed keys) | — | 6.1 | parseViewFromLocation redirect map + tests |
 
@@ -892,3 +937,8 @@ If any surface that was cut still appears: grep the four sync sites:
    the **YAML** (`contracts/gui/surface-registry.v1.yaml`) + regen, never the generated TS.
 4. The registry already shows `matrix` navLabel "Routing" and `parentSurface: agents` (a prior partial edit);
    Task 5.2 removes the row entirely, superseding that.
+5. **`needs-you` is NOT in App.tsx `LEGACY_VIEWS`/`KNOWN_VIEWS`** (verified — lines 119–125 lack it) and
+   not in the `View` union, contrary to an earlier draft of Task 2.2 that claimed it was at "App.tsx line
+   124". Task 2.2 therefore adds it to the `View` union + `LEGACY_VIEWS` and a `isKnownView('needs-you')`
+   test, so the ADD does not ship a dead deep-link. (`sub-agents` IS already in `LEGACY_VIEWS` — line 124 —
+   so Task 2.3 needs no App.tsx edit.)

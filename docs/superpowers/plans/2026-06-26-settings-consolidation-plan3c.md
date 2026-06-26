@@ -27,6 +27,7 @@ with **add + commit only** — never `git push`, never `git rebase`, never
 | Dependency | Requirement |
 | --- | --- |
 | **Plan 3A (gamify nav move)** | **MUST precede Phase 5** of this plan. 3A owns the gamify row in `contracts/gui/surface-registry.v1.yaml` + `surfaceRegistry.generated.ts`; Phase 5 edits the `policies` row in the same YAML and regenerates. Landing 3A first avoids a generated-TS merge collision. **Phases 0–4 do NOT touch the YAML and have NO dependency on 3A** — they may run before, during, or after 3A. |
+| **Plan 3F (P6, CLI-governance)** | **MUST precede Phase 5** as well — 3F and 3C are **mutually SEQUENTIAL on the generated registry, NOT parallel.** Both regenerate the single re-sorted `surfaceRegistry.generated.ts` (the generator re-sorts by `(cli_group, view_key)` on every `--write`, so it is **not** append-only and concurrent regens collide). 3F adds the CI/Database (+ secrets/auth/cli-only) rows; this plan's Phase 5 then reparents the `policies` row and regenerates **on top of** 3F's rows. INDEX DAG order: **3A → 3F → 3C**. |
 | **Plan 3B (VoxMens identity/keys)** | No hard ordering with 3C, but 3B routes its key handling into the **Secrets** domain that Phase 0 declares. If 3B and 3C both land, 3C's Secrets domain (single key store) is the home; no merge conflict (different files). |
 | **Spec** | `docs/superpowers/specs/2026-06-26-settings-consolidation-policies-unification-design.md` (ratified; not re-opened). |
 
@@ -134,11 +135,17 @@ control** (the `enabled` + `mode` toggles already inside `SettingsView`'s
   the Settings "Gamification" domain).
 
 **Ordering:** If 3A and 3C both edit `contracts/gui/surface-registry.v1.yaml`
-(3A for the gamify surface row, 3C for the `policies` row in Phase 4),
+(3A for the gamify surface row, 3C for the `policies` row in **Phase 5**),
 **land 3A first** to avoid a generated-TS merge collision in
-`surfaceRegistry.generated.ts`. If 3A has already landed, proceed; if not,
-execute Phases 0–3 (which do not touch the YAML) first, then rebase Phase 4 onto
-3A's YAML before regenerating. Phase 4 below assumes 3A is merged.
+`surfaceRegistry.generated.ts`. Likewise **land Plan 3F first** (it adds the
+CI/Database/secrets/auth rows and regenerates the same file) — 3F and this plan
+are mutually sequential on the generated registry. **Only Phase 5 touches the
+YAML/generated registry** in this plan: Phases 0–4 edit `SettingsView.tsx` /
+`settingsIndex.ts` / surface components only (Phase 4 is the **active-model**
+selector — additive, no registry edit). So execute Phases 0–4 first (no YAML
+dependency on 3A/3F), then run Phase 5 only after both 3A and 3F's registry
+writes have landed, then regenerate. Phase 5 below assumes 3A **and** 3F are
+merged.
 
 ## Working directory & commands
 

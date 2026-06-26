@@ -99,6 +99,14 @@ ADDS rows/cases for its own keys** (`ci`, `database`, `console`-build-panel addi
 own block and regenerates; conflicts are append-only and trivially resolvable. Within P6, the
 [SEQUENTIAL] registry/regenerate tasks are explicitly ordered to serialize the generated-file writes.
 
+> **CRITICAL — mutually SEQUENTIAL with Plan 3C on the generated registry (NOT parallel).** Both this
+> plan (3F) and Plan 3C regenerate the **single** `crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts`
+> via `vox ci gui-surface-registry --write`. That file is **not append-only**: the generator re-sorts
+> the entire registry by `(cli_group, view_key)` on every write, so two concurrent regens collide
+> deterministically. **Run 3F first, then 3C.** 3F adds the CI/Database (+ secrets/auth/cli-only) rows;
+> 3C's **Phase 5** then reparents the `policies` row and regenerates *on top of* 3F's rows. The INDEX DAG
+> encodes this as **3A → 3F → 3C** (3D stays parallel-after-3A; it does not regenerate the registry).
+
 ---
 
 ## Task fan-out structure (for the workflow)
@@ -780,6 +788,16 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 **Goal:** wire the two read decorators into the nav + the surface-registry SSOT so they are reachable and
 visible to `vox ci gui-honesty`. **This is the first generated-file write — serialize after Batch 1.**
 
+> **Dependency note (3A ↔ 3F on the Knowledge group):** Plan 3A **cuts the `knowledge` *surface* row**
+> (3A Task 6.2) but **keeps `knowledge` as a nav GROUP KEY** with `DEFAULT_CHILD_BY_PARENT.knowledge =
+> 'scientia'`. After 3A the Knowledge children are `scientia` (default), `memory` (3A Task 4.1), and
+> `activity`/Discovery (3A Task 3b.2). This task adds **`database` as a 4th sibling** under the same
+> group key — `database: { parent: 'knowledge', child: 'database' }` — it is a sibling of
+> `scientia`/`memory`/`activity`, **NOT** the default child (the default stays `scientia`). 3A's Task 6.3
+> guard test was extended to lock the surviving Knowledge siblings; this `database` row extends that same
+> group. Because 3A's Task 6.2 already cut the `knowledge` surface row, do **not** re-add a `knowledge`
+> surface row here — only add the `database` child row.
+
 1. Append to `contracts/gui/surface-registry.v1.yaml` (`surfaces:` list), keeping alpha-ish ordering with
    the generator's sort (the generator re-sorts on `--write`, so order in the yaml is not load-bearing):
 
@@ -1015,11 +1033,16 @@ import { AccountPanel } from '../surfaces/Settings/AccountPanel';
       return <AccountPanel />;
 ```
 
-> `ci` and `database` are rendered through `decoratorRegistry` (App.tsx consults `SURFACE_DECORATORS`
-> before the built-in switch — confirm via `grep -n "SURFACE_DECORATORS" crates/vox-gui/ui/src/App.tsx`).
-> No explicit `case` is needed for them; if App's resolution requires a switch fallthrough, add
-> `case 'ci': case 'database':` returning the decorator the same way `mens`/`populi` resolve. Verify the
-> existing `case 'mens'`/`case 'populi'` handling and mirror it exactly.
+> **`ci` and `database` need NO switch case** — decorator-first dispatch is in
+> **`surfaceComponents.tsx::childRenderer` (line ~78)**, NOT App.tsx. That function does
+> `const Decorator = surfaceDecorators[viewKey]; if (Decorator) return <Decorator … />;` **before** the
+> `switch (viewKey)` (line ~82). Since P6-1/P6-2 registered `ci`/`database` in `surfaceDecorators`
+> (`decoratorRegistry.ts`), they resolve via that decorator branch exactly like `mens`/`populi`/`oratio`
+> (which also have **no** `case` in the switch — they are decorator-resolved). Confirm with
+> `grep -n "surfaceDecorators\|case 'mens'\|case 'populi'" crates/vox-gui/ui/src/components/layout/surfaceComponents.tsx`:
+> you will see the `surfaceDecorators[viewKey]` lookup but **no** `case 'mens'`/`case 'populi'`. Do **not**
+> add `case 'ci'`/`case 'database'`. Only the bespoke, non-decorator panels (`cli-only`,
+> `settings-account`) need explicit `case`s below.
 
 3. Mount `BuildSpinePanel` inside the Console surface — open
    `crates/vox-gui/ui/src/components/surfaces/Console/ConsoleView.tsx` (grep for the Console component

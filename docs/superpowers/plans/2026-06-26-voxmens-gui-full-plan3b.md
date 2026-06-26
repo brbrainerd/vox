@@ -806,37 +806,37 @@ git -C /c/Users/Owner/vox-graphify-gui commit -m "feat(gui): scaffold mens/popul
 Dependency: P5A.1. Edits only `mens.rs` + `main.rs` handler list (the latter is a
 shared file — see "shared-file note" below).
 
-**Step P5A.2a — failing test.** Append to the `tests` mod in `mens.rs`:
-
-```rust
-#[test]
-fn train_run_record_uses_workflow_and_command() {
-    // The run we persist must carry a stable workflow name + the assembled command
-    // so the Runs surface and cost ribbon can attribute spend.
-    let cfg = MensTrainConfig {
-        preset: Some("safe".into()), domain: None, device: None,
-        cloud: Some("vast".into()), max_budget: Some(3.0),
-    };
-    let argv = build_train_argv(&cfg);
-    let command = argv.join(" ");
-    assert!(command.contains("--cloud vast"));
-    assert!(command.starts_with("mens train --background"));
-}
-```
-
-Run (expect fail — references only existing fns, should compile+pass; if it
-passes immediately that is acceptable — its purpose is to pin the command string
-shape before adding the command). Then add the real failing assertion by writing
-the command test that calls a not-yet-existing helper `train_workflow_name`:
+**Step P5A.2a — failing test.** Lead with a **single genuinely-red** test that
+calls a not-yet-existing helper, so the TDD red→green is real:
 
 ```rust
 #[test]
 fn train_workflow_name_is_stable() {
+    // The persisted run must carry a stable workflow name so the Runs surface
+    // and cost ribbon can attribute the launch. `train_workflow_name` does not
+    // exist yet → this fails to compile (RED).
     assert_eq!(train_workflow_name(), "mens-train");
 }
 ```
 
-Run `cargo test -p vox-gui train_workflow_name` (expect fail — undefined).
+Run `cargo test -p vox-gui train_workflow_name` (expect FAIL — `train_workflow_name`
+undefined). This is the one red test that gates the implementation.
+
+> **Dropped (deliberately):** the earlier `train_run_record_uses_workflow_and_command`
+> assertion is a **no-op pseudo-test** — it only exercises `build_train_argv` (which
+> already exists before this task), so it passes *before* any implementation and proves
+> nothing about the new command. Do not add it. If you want a command-string guard,
+> fold the `command.contains("--cloud vast")` / `starts_with("mens train --background")`
+> assertions into the existing `build_train_argv` unit test (that helper's own test),
+> not here.
+
+> **Semantics of the persisted run (document in the commit body):** the `success`
+> flag passed to `finish_gui_run` records **launch-accepted** (the `--background`
+> sidecar spawn returned exit 0), **NOT** the training outcome — training runs on
+> after the GUI returns. The real, attributable **cost** comes from the
+> `get_llm_spend` SSOT (`commands/user_config.rs`, surfaced by the CostRibbon in
+> P5D), never from this launch record. Do not present the launch `success` as
+> "training succeeded".
 
 **Step P5A.2b — implementation.** In `mens.rs` add the streaming command. It
 spawns the sidecar via `tauri_plugin_shell::ShellExt` (like `execute.rs`),
