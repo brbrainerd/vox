@@ -149,7 +149,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-orchestrator`](../../../crates/vox-orchestrator/) | Multi-agent file-affinity router. `types::RoutingProfile` (7 routing intent variants), `ModelTier` (Unknown→Local→Free→Fast→Light→Pro→Elite, generated from model-routing.v1.yaml), `CostPreference::Economy` (default — free-by-default policy). Extraction plan: see [2026-05-15-orchestrator-tier-d-plan.md](./2026-05-15-orchestrator-tier-d-plan.md). |
 | [`vox-orchestrator-driver`](../../../crates/vox-orchestrator-driver/) | Thin L3 driver for embedding vox-orchestrator in CLI and MCP hosts. |
 | [`vox-orchestrator-mcp`](../../../crates/vox-orchestrator-mcp/) | MCP (Model Context Protocol) tool layer for vox-orchestrator. Extracted in 2026-05-08 reorg Phase 4. |
-| [`vox-mcp-llm-bridge`](../../../crates/vox-mcp-llm-bridge/) | MCP LLM inference bridge — provider routing, free-tier policy, and per-vendor HTTP adapters. Extracted from vox-orchestrator-mcp to reduce its blast radius. |
+| `vox-mcp-llm-bridge` | MCP LLM inference bridge — provider routing, free-tier policy, and per-vendor HTTP adapters. Extracted from vox-orchestrator-mcp to reduce its blast radius. |
 | [`vox-orchestrator-queue`](../../../crates/vox-orchestrator-queue/) | Locks, oplog, and affinity tracking for vox-orchestrator. Extracted in 2026-05-08 reorg Phase 5. |
 | [`vox-orchestrator-test-helpers`](../../../crates/vox-orchestrator-test-helpers/) | Test-only fixtures and mocks for vox-orchestrator: MockBulletinBoard, load_golden_fixture. |
 | [`vox-speech`](../../../crates/vox-speech/) | Speech-to-text (Oratio) — Candle Whisper (Rust) STT and transcript refinement. |
@@ -310,7 +310,7 @@ Don't depend on `vox-orchestrator` or `vox-cli` from a plugin.
 |---|---|
 | [`vox-plugin-browser`](../../../crates/vox-plugin-browser/) | Browser automation plugin (chromiumoxide CDP). |
 | `vox-plugin-gamify` _(planned)_ | Gamification cdylib plugin: implements the `Gamification` extension point trait (quests/battles/XP/companions). Loaded dynamically by `vox-cli-core`; not a compile-time dep. See the crate-build disentanglement suite (`docs/superpowers/plans/2026-06-19-crate-build-disentanglement-suite-index.md`). |
-| [`vox-plugin-cloud`](../../../crates/vox-plugin-cloud/) | CloudSync plugin stub: HF Hub / S3 model artifact sync. |
+| `vox-plugin-cloud` _(planned)_ | CloudSync plugin stub: HF Hub / S3 model artifact sync. |
 | [`vox-plugin-mens-candle-cuda`](../../../crates/vox-plugin-mens-candle-cuda/) | ML training backend plugin: Candle + CUDA. Implements MlBackend. |
 | [`vox-plugin-mens-candle-metal`](../../../crates/vox-plugin-mens-candle-metal/) | MENS Apple Silicon Metal execution plugin. |
 | [`vox-plugin-nvml-probe`](../../../crates/vox-plugin-nvml-probe/) | Hardware probe plugin: NVML for NVIDIA GPU introspection. |
