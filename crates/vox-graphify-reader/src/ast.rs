@@ -1,5 +1,10 @@
+use std::collections::HashMap;
 use std::path::Path;
 use syn::visit::Visit;
+
+/// Frontend callees that mark a backend boundary crossing. The arg0 string literal becomes
+/// the target. TODO: a declarative config when a 3rd boundary kind lands — see spec §non-fork.
+const BOUNDARY_CALLEES: &[&str] = &["invoke", "callTool"];
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct ExtractedNode {
@@ -94,6 +99,18 @@ pub fn extract_ast(path: &Path, content: &str) -> ExtractedGraph {
 /// Per-file AST. Definition ids and edge sources are qualified with `module_id`; edge
 /// targets are left bare for global resolution in `rebuild`.
 pub fn extract_ast_in_module(path: &Path, content: &str, module_id: &str) -> ExtractedGraph {
+    extract_ast_in_module_with_wrappers(path, content, module_id, &HashMap::new())
+}
+
+/// Like `extract_ast_in_module`, but with a `voxTransport.<method>` → target map so wrapper
+/// calls become declared boundary edges. `invoke`/`callTool` boundary crossings are detected
+/// from their arg0 string literal regardless of the map.
+pub fn extract_ast_in_module_with_wrappers(
+    path: &Path,
+    content: &str,
+    module_id: &str,
+    wrappers: &HashMap<String, String>,
+) -> ExtractedGraph {
     let mut nodes = Vec::new();
     let mut edges = Vec::new();
 
@@ -204,6 +221,53 @@ pub fn extract_ast_in_module(path: &Path, content: &str, module_id: &str) -> Ext
                                             if let Ok(callee) =
                                                 function_node.utf8_text(content.as_bytes())
                                             {
+                                                let bare = callee.rsplit('.').next().unwrap_or(callee);
+                                                let args = node.child_by_field_name("arguments");
+                                                if BOUNDARY_CALLEES.contains(&bare) {
+                                                    // invoke('cmd') / callTool('cmd'); special-case
+                                                    // invoke('invoke_mcp_tool', { tool: '...' }).
+                                                    if let Some(arg0) = args
+                                                        .and_then(|a| arg_string_literal(a, 0, content))
+                                                    {
+                                                        if arg0 == "invoke_mcp_tool" {
+                                                            if let Some(tool) = args.and_then(|a| {
+                                                                arg_object_string_field(
+                                                                    a, 1, "tool", content,
+                                                                )
+                                                            }) {
+                                                                edges.push(ExtractedEdge {
+                                                                    source: source_fn.clone(),
+                                                                    target: format!("tool:{tool}"),
+                                                                    confidence: "declared".into(),
+                                                                });
+                                                            }
+                                                        } else {
+                                                            edges.push(ExtractedEdge {
+                                                                source: source_fn.clone(),
+                                                                target: format!("cmd:{arg0}"),
+                                                                confidence: "declared".into(),
+                                                            });
+                                                        }
+                                                    }
+                                                    // Boundary call handled: do NOT also emit the
+                                                    // bare-call edge (prevents the double-count).
+                                                    for child in node.children(&mut cursor) {
+                                                        stack.push(child);
+                                                    }
+                                                    continue;
+                                                } else if callee.starts_with("voxTransport.") {
+                                                    if let Some(target) = wrappers.get(bare) {
+                                                        edges.push(ExtractedEdge {
+                                                            source: source_fn.clone(),
+                                                            target: target.clone(),
+                                                            confidence: "declared".into(),
+                                                        });
+                                                    }
+                                                    for child in node.children(&mut cursor) {
+                                                        stack.push(child);
+                                                    }
+                                                    continue;
+                                                }
                                                 edges.push(ExtractedEdge {
                                                     source: source_fn.clone(),
                                                     target: callee.to_string(),
@@ -225,4 +289,62 @@ pub fn extract_ast_in_module(path: &Path, content: &str, module_id: &str) -> Ext
     }
 
     ExtractedGraph { nodes, edges }
+}
+
+/// Text of a `string` literal node, stripped of its quote delimiters. Uses the A0d-recorded
+/// kind names (string literal == "string").
+#[cfg(feature = "tree-sitter-grammars")]
+fn string_literal_value(node: tree_sitter::Node, content: &str) -> Option<String> {
+    if node.kind() != "string" {
+        return None;
+    }
+    let raw = node.utf8_text(content.as_bytes()).ok()?;
+    let trimmed = raw
+        .strip_prefix('\'')
+        .or_else(|| raw.strip_prefix('"'))
+        .or_else(|| raw.strip_prefix('`'))
+        .unwrap_or(raw);
+    let trimmed = trimmed
+        .strip_suffix('\'')
+        .or_else(|| trimmed.strip_suffix('"'))
+        .or_else(|| trimmed.strip_suffix('`'))
+        .unwrap_or(trimmed);
+    Some(trimmed.to_string())
+}
+
+/// Value of the positional argument at `idx` in a `call_expression`'s `arguments` node, if it
+/// is a string literal. Template-string / computed args → None (honest miss).
+#[cfg(feature = "tree-sitter-grammars")]
+fn arg_string_literal(args: tree_sitter::Node, idx: usize, content: &str) -> Option<String> {
+    let mut cursor = args.walk();
+    let arg = args.named_children(&mut cursor).nth(idx)?;
+    string_literal_value(arg, content)
+}
+
+/// Value of `field`'s string entry inside the object literal positional argument at `idx`.
+#[cfg(feature = "tree-sitter-grammars")]
+fn arg_object_string_field(
+    args: tree_sitter::Node,
+    idx: usize,
+    field: &str,
+    content: &str,
+) -> Option<String> {
+    let mut cursor = args.walk();
+    let obj = args.named_children(&mut cursor).nth(idx)?;
+    if obj.kind() != "object" {
+        return None;
+    }
+    let mut obj_cursor = obj.walk();
+    for pair in obj.named_children(&mut obj_cursor) {
+        if pair.kind() != "pair" {
+            continue;
+        }
+        let key = pair.child_by_field_name("key")?;
+        let key_text = key.utf8_text(content.as_bytes()).ok()?;
+        if key_text == field {
+            let value = pair.child_by_field_name("value")?;
+            return string_literal_value(value, content);
+        }
+    }
+    None
 }
