@@ -96,7 +96,7 @@ fn strip_ansi(s: &str) -> String {
             match chars.peek() {
                 Some('[') => {
                     chars.next(); // consume '['
-                                  // CSI: consume until a byte in 0x40–0x7E
+                    // CSI: consume until a byte in 0x40–0x7E
                     for ch in chars.by_ref() {
                         if ('\x40'..='\x7e').contains(&ch) {
                             break;
@@ -105,7 +105,7 @@ fn strip_ansi(s: &str) -> String {
                 }
                 Some(']') => {
                     chars.next(); // consume ']'
-                                  // OSC: consume until BEL (0x07) or ST (ESC \)
+                    // OSC: consume until BEL (0x07) or ST (ESC \)
                     for ch in chars.by_ref() {
                         if ch == '\x07' {
                             break;

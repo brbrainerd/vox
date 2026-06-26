@@ -4,7 +4,7 @@
 use std::collections::{BTreeSet, HashMap};
 
 use crate::fragment::Fragment;
-use crate::signature::{jaccard_estimate, Signature};
+use crate::signature::{Signature, jaccard_estimate};
 
 /// A confirmed near-duplicate match for a query fragment.
 #[derive(Debug, Clone, PartialEq)]

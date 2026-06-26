@@ -1,6 +1,6 @@
 use vox_orchestrator::events::{AgentEvent, AgentEventKind, EventId};
 use vox_orchestrator::types::AgentId;
-use vox_terminal_core::agent::{translate_event, AgentAdapterConfig};
+use vox_terminal_core::agent::{AgentAdapterConfig, translate_event};
 use vox_terminal_core::session::SessionEvent;
 
 fn fake_agent_id() -> AgentId {

@@ -12,9 +12,10 @@ fn parses_command_and_exit_markers() {
     assert!(evs.contains(&Osc633Event::PromptStart));
     assert!(evs.contains(&Osc633Event::CommandLine("ls -la".into())));
     assert!(evs.contains(&Osc633Event::PreExec));
-    assert!(evs
-        .iter()
-        .any(|e| matches!(e, Osc633Event::Output(s) if s == "total 0\n")));
+    assert!(
+        evs.iter()
+            .any(|e| matches!(e, Osc633Event::Output(s) if s == "total 0\n"))
+    );
     assert!(evs.contains(&Osc633Event::Exit(0)));
 }
 
@@ -46,9 +47,10 @@ fn non_633_osc_passes_through_as_output() {
     evs.extend(p.feed(b"\x1b]2;My Terminal\x07plain text after"));
     // The plain text after must appear as Output; the OSC 2 may be emitted
     // or silently dropped, but must NOT block subsequent content.
-    assert!(evs
-        .iter()
-        .any(|e| matches!(e, Osc633Event::Output(s) if s.contains("plain text after"))));
+    assert!(
+        evs.iter()
+            .any(|e| matches!(e, Osc633Event::Output(s) if s.contains("plain text after")))
+    );
 }
 
 #[test]
@@ -56,8 +58,9 @@ fn output_passthrough_between_markers() {
     let mut p = Osc633Parser::new();
     let mut evs = vec![];
     evs.extend(p.feed(b"\x1b]633;C\x07hello world\n\x1b]633;D;1\x07"));
-    assert!(evs
-        .iter()
-        .any(|e| matches!(e, Osc633Event::Output(s) if s == "hello world\n")));
+    assert!(
+        evs.iter()
+            .any(|e| matches!(e, Osc633Event::Output(s) if s == "hello world\n"))
+    );
     assert!(evs.contains(&Osc633Event::Exit(1)));
 }

@@ -7,15 +7,15 @@
 //! one ratatui `Span` for efficiency.
 
 use alacritty_terminal::{
+    Term,
     event::{Event, EventListener},
     grid::Dimensions,
     index::{Column, Line, Point},
     term::{
-        cell::{Cell, Flags},
         Config,
+        cell::{Cell, Flags},
     },
     vte::ansi::{Color, NamedColor, Processor, Rgb},
-    Term,
 };
 use ratatui::{
     style::{Color as RColor, Modifier, Style},

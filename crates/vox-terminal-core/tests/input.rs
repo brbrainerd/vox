@@ -1,4 +1,4 @@
-use vox_terminal_core::input::{classify, InputIntent};
+use vox_terminal_core::input::{InputIntent, classify};
 
 #[test]
 fn default_is_vox_native() {

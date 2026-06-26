@@ -7,4 +7,4 @@ pub mod signature;
 
 pub use fragment::{Fragment, FragmentKind};
 pub use index::{Cluster, LshIndex, Match};
-pub use signature::{hamming, jaccard_estimate, minhash, shingle, simhash64, tokenize, Signature};
+pub use signature::{Signature, hamming, jaccard_estimate, minhash, shingle, simhash64, tokenize};
