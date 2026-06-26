@@ -1,0 +1,63 @@
+{
+  "surface": "Harness",
+  "tier": "live_backend",
+  "behavioral": [
+    {
+      "file": "HarnessRedirect.tsx",
+      "line": 26,
+      "label": "Focus composer",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "onClick={onFocusComposer} — prop is passed through EmptyState's action={...} → actualPrimary → Button onClick. Handler is caller-supplied (not a Tauri command). Test at line 17-23 confirms the click fires the prop. Verdict works when prop is provided; button is hidden when prop is absent (guarded by ternary at line 25-27)."
+    },
+    {
+      "file": "HarnessRedirect.tsx",
+      "line": 16,
+      "label": "recordGamifyGuiEvent('harness_redirect_viewed')",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "voxTransport.recordGuiEvent",
+      "evidence": "useEffect fires on mount/gamifyEnabled change; calls gamifyGuiEvents.ts recordGamifyGuiEvent which delegates to voxTransport.recordGuiEvent. Short-circuits with Promise.resolve(null) when enabled===false. No user-visible interaction — purely a telemetry side-effect. Verdict works."
+    }
+  ],
+  "visual": [
+    {
+      "dimension": "bracket-tailwind",
+      "file": "HarnessRedirect.tsx",
+      "line": 30,
+      "issue": "text-[10px] — bracket sizing for the footnote paragraph. Should use a design-token font size (e.g. text-[10px] is not in the standard Tailwind scale; prefer text-xs=12px or a custom ds-* token).",
+      "severity": "low"
+    },
+    {
+      "dimension": "a11y",
+      "file": "HarnessRedirect.tsx",
+      "line": 30,
+      "issue": "The <p id=\"harness-redirect-title\"> is placed AFTER the <EmptyState> but is referenced by aria-labelledby=\"harness-redirect-title\" on the <section> at line 19. In DOM order the labelling element appears after the labelled element, which is unconventional and may confuse some AT implementations that read the label before encountering the section.",
+      "severity": "med"
+    },
+    {
+      "dimension": "a11y",
+      "file": "HarnessRedirect.tsx",
+      "line": 19,
+      "issue": "<section aria-labelledby=\"harness-redirect-title\"> — the label text ('Workspace → Quick Harness retained for deep links; execution surface is Loquela.') is a footnote, not a meaningful section heading. The actual heading ('Quick Harness lives in the composer') is inside EmptyState and not the aria-labelledby target, so the section's accessible name is the footnote string rather than the primary title.",
+      "severity": "med"
+    },
+    {
+      "dimension": "amber-tailwind",
+      "file": "EmptyState.tsx",
+      "line": 19,
+      "issue": "DEFAULT_ICONS['no-connection'] uses text-amber-400. HarnessRedirect does not use the no-connection variant, so this does not fire here, but it is in the shared component used by this surface. Flagged for completeness.",
+      "severity": "low"
+    },
+    {
+      "dimension": "hierarchy",
+      "file": "HarnessRedirect.tsx",
+      "line": 19,
+      "issue": "Surface is registered as tier='live_backend' but the component renders purely as a redirect/empty-state with no live data. The surface is a tombstone pointing users elsewhere; tier should arguably be 'none' or 'generic_form' to accurately reflect that no live backend data is displayed.",
+      "severity": "med"
+    }
+  ]
+}

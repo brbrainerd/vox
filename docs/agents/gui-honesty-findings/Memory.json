@@ -1,0 +1,137 @@
+{
+  "surface": "Memory",
+  "tier": "live_backend",
+  "behavioral": [
+    {
+      "file": "crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.tsx",
+      "line": 202,
+      "label": "Auto-recall toggle",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "voxTransport.setGuiPreference",
+      "evidence": "toggleAutoRecall calls voxTransport.setGuiPreference('gui.memory.autoRecall', ...) and updates local state; hydrated from DB on mount via getGuiPreference"
+    },
+    {
+      "file": "crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.tsx",
+      "line": 328,
+      "label": "Reindex button",
+      "verdict": "works",
+      "expected_partial": true,
+      "cheap_to_wire": false,
+      "backend_command": "mnemosyne_reindex",
+      "evidence": "Calls invoke('mnemosyne_reindex') directly; Command function confirmed to exist in crates/vox-gui/src-tauri/src/commands/memory.rs:L206; registration in generate_handler![] not yet verified but risk reduced."
+    },
+    {
+      "file": "crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.tsx",
+      "line": 360,
+      "label": "Recall button / Enter key",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "vox_search_query",
+      "evidence": "recall() calls invoke<SearchResponse>('vox_search_query', { query, scope, limit }) and updates hits state; Enter key (line 346) also dispatches recall()"
+    },
+    {
+      "file": "crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.tsx",
+      "line": 419,
+      "label": "Recent recall row click",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "vox_search_query",
+      "evidence": "onClick sets query and immediately calls recall(r.q) which invokes vox_search_query"
+    },
+    {
+      "file": "crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.tsx",
+      "line": 445,
+      "label": "Pin all to context button",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "pinHits() calls attachItemsFromHits then onAttachContext(items); honestly warns via pushToast if items are empty or onAttachContext is absent — no silent noop"
+    },
+    {
+      "file": "crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.tsx",
+      "line": 120,
+      "label": "HitCard per-item pin button",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "Calls onPin() which is () => pinHits([h]) — same honest pinHits path as 'Pin all'"
+    },
+    {
+      "file": "crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.tsx",
+      "line": 110,
+      "label": "HitCard open button",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "voxTransport.openLocator",
+      "evidence": "openHit() calls voxTransport.openLocator(hit.locator) for file/web locators; errors surface via pushToast"
+    },
+    {
+      "file": "crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.tsx",
+      "line": 375,
+      "label": "Corpus scope chip toggle",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "toggleScope updates local scope state array; auto-recall useEffect re-triggers recall when scope changes if recallOn"
+    }
+  ],
+  "visual": [
+    {
+      "dimension": "ds-token",
+      "file": "crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.tsx",
+      "line": 104,
+      "issue": "Score bar uses raw Tailwind palette tokens 'from-violet-400 to-emerald-400' instead of design-system semantic tokens",
+      "severity": "med"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.tsx",
+      "line": 446,
+      "issue": "Pin-all button uses raw 'border-cyan-400/30 bg-cyan-400/10 text-cyan-300' instead of ds semantic tokens",
+      "severity": "med"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.tsx",
+      "line": 515,
+      "issue": "Dirty shard card uses raw 'border-amber-400/30 bg-amber-400/[0.04]' instead of ds semantic tokens",
+      "severity": "low"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.tsx",
+      "line": 522,
+      "issue": "Dirty shard badge uses raw 'bg-amber-400/15 text-amber-300' instead of ds semantic tokens",
+      "severity": "low"
+    },
+    {
+      "dimension": "a11y",
+      "file": "crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.tsx",
+      "line": 427,
+      "issue": "Recent recall row chevron icon (Icon.chevR) has no aria-hidden attribute; will be read by screen readers as unlabeled icon",
+      "severity": "low"
+    },
+    {
+      "dimension": "a11y",
+      "file": "crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.tsx",
+      "line": 390,
+      "issue": "Section heading icon Icon.clock has no aria-hidden; read as unlabeled icon alongside the 'Recent recalls' heading",
+      "severity": "low"
+    },
+    {
+      "dimension": "hierarchy",
+      "file": "crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.tsx",
+      "line": 358,
+      "issue": "Recall button is styled with brass/40 border only when query is non-empty; when empty it blends with surrounding controls — disabled state styling reduces primary-action discoverability",
+      "severity": "low"
+    }
+  ]
+}

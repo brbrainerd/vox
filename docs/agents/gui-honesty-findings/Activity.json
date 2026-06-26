@@ -1,0 +1,111 @@
+{
+  "surface": "Activity",
+  "tier": "live_backend",
+  "behavioral": [
+    {
+      "file": "ActivitySurface.tsx",
+      "line": 328,
+      "label": "Agent filter onChange",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "activity_query",
+      "evidence": "onChange sets agentFilter state → triggers fetchLogs useCallback → invoke('activity_query', {filter}) with agent_id set"
+    },
+    {
+      "file": "ActivitySurface.tsx",
+      "line": 346,
+      "label": "Event Type filter onChange",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "activity_query",
+      "evidence": "onChange sets kindFilter state → triggers fetchLogs useCallback → invoke('activity_query', {filter}) with kind set"
+    },
+    {
+      "file": "ActivitySurface.tsx",
+      "line": 361,
+      "label": "Refresh button onClick",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "activity_query",
+      "evidence": "onClick calls fetchLogs directly → invoke('activity_query', {filter}); disabled while loading"
+    },
+    {
+      "file": "ActivitySurface.tsx",
+      "line": 209,
+      "label": "Fold/Expand toggle button onClick",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "onClick calls toggleExpand(item.key) → setExpandedKeys local state toggle; purely presentational, correct behavior"
+    }
+  ],
+  "visual": [
+    {
+      "dimension": "ds-token",
+      "file": "ActivitySurface.tsx",
+      "line": 103,
+      "issue": "Hardcoded Tailwind color classes: 'border-emerald-500/30 bg-emerald-500/5 text-emerald-300' used for success-state rows instead of design-system tokens",
+      "severity": "med"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "ActivitySurface.tsx",
+      "line": 106,
+      "issue": "Hardcoded 'border-rose-500/30 bg-rose-500/5 text-rose-300' for failure rows — no ds-token equivalent",
+      "severity": "med"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "ActivitySurface.tsx",
+      "line": 110,
+      "issue": "Hardcoded 'border-amber-500/30 bg-amber-500/5 text-amber-300' for warning/alert rows — no ds-token equivalent",
+      "severity": "med"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "ActivitySurface.tsx",
+      "line": 113,
+      "issue": "Hardcoded 'border-sky-500/30 bg-sky-500/5 text-sky-300' for CostIncurred rows — no ds-token equivalent",
+      "severity": "med"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "ActivitySurface.tsx",
+      "line": 315,
+      "issue": "'text-emerald-400' hardcoded on the bolt icon in the heading — should use a semantic token",
+      "severity": "low"
+    },
+    {
+      "dimension": "a11y",
+      "file": "ActivitySurface.tsx",
+      "line": 156,
+      "issue": "Icon container div (kind icon per row) has no aria-label; icon-only rendering with no accessible text for screen readers",
+      "severity": "med"
+    },
+    {
+      "dimension": "a11y",
+      "file": "ActivitySurface.tsx",
+      "line": 364,
+      "issue": "Refresh button uses Icon.alert (triangle-warning icon) as loading spinner — misleading icon semantics; no aria-label distinguishing 'loading' vs 'refresh' state",
+      "severity": "med"
+    },
+    {
+      "dimension": "a11y",
+      "file": "ActivitySurface.tsx",
+      "line": 374,
+      "issue": "Loading spinner uses Icon.alert (same warning icon) with animate-spin — semantically wrong icon for a loading state; no aria-busy or role='status'",
+      "severity": "high"
+    },
+    {
+      "dimension": "hierarchy",
+      "file": "ActivitySurface.tsx",
+      "line": 362,
+      "issue": "Refresh is the only action but styled identically to filter controls (same visual weight as selects); no primary-action prominence",
+      "severity": "low"
+    }
+  ]
+}

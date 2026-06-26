@@ -26,6 +26,8 @@ export interface ChatExecutionRailProps {
   activeModel?: string | null;
   openrouterSpendUsd?: number | null;
   onNavigate: (viewKey: string) => void;
+  /** Active chat session id — passed to get_context_budget so the meter shows real token usage. */
+  sessionId?: string | null;
 }
 
 function formatOpenRouterSpend(usd: number): string {
@@ -72,15 +74,16 @@ export function ChatExecutionRail({
   activeModel,
   openrouterSpendUsd,
   onNavigate,
+  sessionId,
 }: ChatExecutionRailProps) {
   const [collapsed, setCollapsed] = useLocalStorage<boolean>(EXECUTION_RAIL_COLLAPSED_KEY, false);
   const [budget, setBudget] = useState<ContextBudgetPayload | null>(null);
 
   useEffect(() => {
-    getContextBudget()
+    getContextBudget(sessionId)
       .then(setBudget)
       .catch(() => {/* daemon unavailable; meter stays hidden */});
-  }, []);
+  }, [sessionId]);
 
   const peerLabel = kpis.mesh.peers === 1 ? '1 peer' : `${kpis.mesh.peers} peers`;
 
@@ -217,7 +220,7 @@ export function ChatExecutionRail({
 
         {budget && (
           <ContextWindowMeter
-            usedTokens={0}
+            usedTokens={budget.used_tokens}
             maxTokens={budget.max_context_tokens}
             thresholdTokens={budget.threshold_tokens}
             strategy={budget.strategy}

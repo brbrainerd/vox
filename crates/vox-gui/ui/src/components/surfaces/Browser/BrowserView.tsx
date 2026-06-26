@@ -10,9 +10,10 @@ import {
   type PreviewAvailablePayload,
 } from '../../../transport';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
+import type { Toast } from '../../../types/tauri';
 
 interface BrowserViewProps {
-  pushToast: (item: { tone: 'ok' | 'warn' | 'info'; title: string; body?: string }) => void;
+  pushToast: (item: Toast) => void;
   gamifyEnabled?: boolean;
 }
 
@@ -240,14 +241,14 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
         },
       });
       setPreview(status);
-      pushToast({ tone: 'ok', title: 'Preview started', body: status.url ?? undefined });
+      pushToast({ tone: 'ok', title: 'Preview started', body: status.url ?? undefined, cause: 'backend-ok' });
       void recordGamifyGuiEvent(
         'browser_preview_loaded',
         { url: status.url, source: status.source },
         { enabled: gamifyEnabled },
       );
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Preview failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Preview failed', body: String(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }
@@ -258,9 +259,9 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
     try {
       const status = await invoke<PreviewStatus>('preview_stop');
       setPreview(status);
-      pushToast({ tone: 'info', title: 'Preview stopped' });
+      pushToast({ tone: 'info', title: 'Preview stopped', cause: 'backend-ok' });
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Stop failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Stop failed', body: String(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }
@@ -274,12 +275,12 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
       });
       setPageId(result.page_id ?? null);
       setTab('agent');
-      pushToast({ tone: 'ok', title: 'Browser session opened', body: result.page_id ?? undefined });
+      pushToast({ tone: 'ok', title: 'Browser session opened', body: result.page_id ?? undefined, cause: 'backend-ok' });
       await refreshSessionStatus();
       await refreshPages();
       await refreshPageInfo(result.page_id ?? null);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Open failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Open failed', body: String(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }
@@ -292,10 +293,10 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
       setPageId(null);
       setFrame(null);
       setPageInfo(null);
-      pushToast({ tone: 'info', title: 'Browser session closed' });
+      pushToast({ tone: 'info', title: 'Browser session closed', cause: 'backend-ok' });
       await refreshPages();
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Close failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Close failed', body: String(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }
@@ -311,7 +312,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
         await refreshPageInfo(payload.page_id);
       }
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Screenshot failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Screenshot failed', body: String(err), cause: 'backend-error' });
     }
   };
 
@@ -322,9 +323,9 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
       setPageId(selectedPageId);
       await refreshSessionStatus();
       await refreshPageInfo(selectedPageId);
-      pushToast({ tone: 'ok', title: 'Attached session', body: selectedPageId });
+      pushToast({ tone: 'ok', title: 'Attached session', body: selectedPageId, cause: 'backend-ok' });
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Attach failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Attach failed', body: String(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }
@@ -339,9 +340,9 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
         setPageInfo(null);
       }
       await refreshPages();
-      pushToast({ tone: 'info', title: 'Page closed', body: selectedPageId });
+      pushToast({ tone: 'info', title: 'Page closed', body: selectedPageId, cause: 'backend-ok' });
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Close page failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Close page failed', body: String(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }
@@ -352,7 +353,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
     try {
       await invoke('browser_set_control_mode', { input: { mode: nextMode } });
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Failed to set control mode', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Failed to set control mode', body: String(err), cause: 'backend-error' });
       await refreshSessionStatus();
     }
   };
@@ -364,7 +365,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
       await invoke('browser_navigate', { input: { action } });
       await refreshPageInfo(pageId);
     } catch (err) {
-      pushToast({ tone: 'warn', title: `Navigation ${action} failed`, body: String(err) });
+      pushToast({ tone: 'warn', title: `Navigation ${action} failed`, body: String(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }
@@ -377,7 +378,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
       await invoke('browser_goto_url', { input: { url: agentNavUrl.trim() } });
       await refreshPageInfo(pageId);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Goto failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Goto failed', body: String(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }
@@ -400,7 +401,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
       await invoke('browser_click_xy', { input: mapped });
       await captureFrame();
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Click failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Click failed', body: String(err), cause: 'backend-error' });
     }
   };
 
@@ -413,7 +414,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
       });
       await captureFrame();
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Scroll failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Scroll failed', body: String(err), cause: 'backend-error' });
     }
   };
 
@@ -458,10 +459,11 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
         tone: result.exit_code === 0 ? 'ok' : 'warn',
         title: result.exit_code === 0 ? 'Playwright passed' : 'Playwright failed',
         body: result.preview_url ?? undefined,
+        cause: result.exit_code === 0 ? 'backend-ok' : 'backend-error',
       });
     } catch (err) {
       setValidateOut(String(err));
-      pushToast({ tone: 'warn', title: 'Validate failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Validate failed', body: String(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }

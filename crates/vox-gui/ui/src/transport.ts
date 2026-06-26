@@ -501,6 +501,14 @@ class VoxTransport {
   getMemoryStatus(): Promise<{ corpus_counts: Record<string, number> }> {
     return invoke<{ corpus_counts: Record<string, number> }>('get_memory_status');
   }
+
+  doubtTask(taskId: number, reason?: string): Promise<unknown> {
+    return invoke('doubt_orchestrator_task', { taskId, reason: reason ?? null });
+  }
+
+  overruleTask(taskId: number, reason: string): Promise<unknown> {
+    return invoke('overrule_orchestrator_task', { taskId, reason });
+  }
 }
 
 export const voxTransport = new VoxTransport();
@@ -566,6 +574,18 @@ export function listenPtyExit(onExit: (tabId: string) => void): Promise<Unlisten
   return listen<{ tab_id: string }>(PTY_EXIT_EVENT, (e) => onExit(e.payload.tab_id));
 }
 
+// ---------------------------------------------------------------------------
+// Policy enable/disable + edit transport wrappers.
+// ---------------------------------------------------------------------------
+
+export function policySetEnabled(id: string, enabled: boolean): Promise<void> {
+  return invoke('policy_set_enabled', { id, enabled });
+}
+
+export function policyEdit(id: string, title?: string, description?: string): Promise<void> {
+  return invoke('policy_edit', { id, title: title ?? null, description: description ?? null });
+}
+
 /** Send a free-form note to an agent's A2A inbox. Resolves to the message id. */
 export function sendToAgent(agentId: string, body: string): Promise<string> {
   return invoke<string>('send_to_agent', { agentId, body });
@@ -577,10 +597,12 @@ export interface ContextBudgetPayload {
   threshold_tokens: number;
   usable_tokens: number;
   strategy: string;
+  /** Cumulative input+output tokens used in the session from llm_interactions. Zero when no session. */
+  used_tokens: number;
 }
 
-export function getContextBudget(): Promise<ContextBudgetPayload> {
-  return invoke<ContextBudgetPayload>('get_context_budget');
+export function getContextBudget(sessionId?: string | null): Promise<ContextBudgetPayload> {
+  return invoke<ContextBudgetPayload>('get_context_budget', sessionId != null ? { sessionId } : {});
 }
 
 export interface ActivityRowDto {

@@ -175,4 +175,33 @@ describe('SettingsView', () => {
     });
     vi.unstubAllGlobals();
   });
+
+  it('keybinds section shows a row for each ACTION_REGISTRY entry', async () => {
+    const user = userEvent.setup();
+    render(<SettingsView pushToast={vi.fn()} />, { wrapper });
+    await user.click(screen.getByRole('button', { name: /keybinds/i }));
+    // Each action should have a button with its default chord
+    const { ACTION_REGISTRY, DEFAULT_BINDINGS } = await import('../../../lib/keybinds');
+    for (const a of ACTION_REGISTRY) {
+      const btn = await screen.findByTestId(`keybind-btn-${a.id}`);
+      expect(btn.textContent).toBe(DEFAULT_BINDINGS[a.id]);
+    }
+  });
+
+  it('keybinds section: clicking a row enters capture mode and saves on keydown', async () => {
+    const user = userEvent.setup();
+    mockSetGuiPreference.mockClear();
+    render(<SettingsView pushToast={vi.fn()} />, { wrapper });
+    await user.click(screen.getByRole('button', { name: /keybinds/i }));
+    const captureBtn = await screen.findByTestId('keybind-btn-open-palette');
+    await user.click(captureBtn);
+    expect(captureBtn.textContent).toBe('press keys…');
+    // Fire a new key combo
+    fireEvent.keyDown(window, { key: 'p', ctrlKey: true, cancelable: true }, { capture: true });
+    await waitFor(() => expect(captureBtn.textContent).toBe('Mod+P'));
+    await waitFor(() => expect(mockSetGuiPreference).toHaveBeenCalledWith(
+      'gui.keybinds',
+      expect.stringContaining('"open-palette":"Mod+P"'),
+    ));
+  });
 });

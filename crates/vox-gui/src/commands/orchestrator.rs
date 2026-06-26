@@ -588,14 +588,48 @@ pub struct ContextBudgetPayload {
     pub usable_tokens: usize,
     /// Human-readable compaction strategy name: "aggressive", "balanced", or "conservative".
     pub strategy: String,
+    /// Tokens currently occupying the context window for the given session:
+    /// input + output of the most recent llm_interactions row. Zero when no
+    /// session is provided or no rows exist.
+    pub used_tokens: usize,
 }
 
 /// Return the active context-window budget from the current compaction config.
 ///
-/// Reads directly from the local in-memory config snapshot.
+/// Reads directly from the local in-memory config snapshot. When `session_id`
+/// is provided, also queries `llm_interactions` for the latest input token count
+/// so the frontend can render a real context-window fill percentage.
 #[tauri::command]
-pub async fn get_context_budget() -> Result<ContextBudgetPayload, String> {
+pub async fn get_context_budget(session_id: Option<String>) -> Result<ContextBudgetPayload, String> {
     let cfg = vox_orchestrator::config::OrchestratorConfig::snapshot().compaction;
+
+    let used_tokens: usize = if let Some(sid) = session_id.as_deref() {
+        match vox_db::VoxDb::connect_canonical().await {
+            Ok(db) => {
+                // Most recent interaction only: input + output of the latest call is
+                // what currently occupies the context window. A SUM over all rows would
+                // grow unbounded across turns and peg the meter at 100% — dishonest.
+                let rows = db
+                    .query_all(
+                        "SELECT COALESCE(input_tokens, 0) + COALESCE(output_tokens, 0) \
+                         FROM llm_interactions \
+                         WHERE session_id = ?1 \
+                         ORDER BY rowid DESC LIMIT 1",
+                        turso::params![sid],
+                    )
+                    .await
+                    .unwrap_or_default();
+                rows.into_iter()
+                    .next()
+                    .and_then(|row| row.get::<i64>(0).ok())
+                    .map(|n| n.max(0) as usize)
+                    .unwrap_or(0)
+            }
+            Err(_) => 0,
+        }
+    } else {
+        0
+    };
 
     Ok(ContextBudgetPayload {
         max_context_tokens: cfg.max_context_tokens,
@@ -603,6 +637,7 @@ pub async fn get_context_budget() -> Result<ContextBudgetPayload, String> {
         threshold_tokens: cfg.trigger_at(),
         usable_tokens: cfg.usable_budget(),
         strategy: cfg.strategy.to_string(),
+        used_tokens,
     })
 }
 

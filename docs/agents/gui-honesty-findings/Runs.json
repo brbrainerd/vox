@@ -1,0 +1,134 @@
+{
+  "surface": "Runs",
+  "tier": "live_backend",
+  "behavioral": [
+    {
+      "file": "crates/vox-gui/ui/src/components/surfaces/Runs/RunsView.tsx",
+      "line": 56,
+      "label": "get_model_scoreboard (auto-poll)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "get_model_scoreboard",
+      "evidence": "invoke('get_model_scoreboard', { windowDays: SCOREBOARD_WINDOW_DAYS }) called in refresh() on mount and every RUNS_POLL_MS (10s). Result drives scoreboard state."
+    },
+    {
+      "file": "crates/vox-gui/ui/src/components/surfaces/Runs/RunsView.tsx",
+      "line": 58,
+      "label": "list_gui_runs (auto-poll)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "list_gui_runs",
+      "evidence": "invoke('list_gui_runs', { limit: RUNS_LIST_LIMIT }) called in same refresh() loop. Result drives runs table."
+    },
+    {
+      "file": "crates/vox-gui/ui/src/components/surfaces/Runs/RunsView.tsx",
+      "line": 70,
+      "label": "get_routing_summary_live (auto-poll)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "get_routing_summary_live",
+      "evidence": "invoke('get_routing_summary_live') called in refresh(). decision_preview?.selected_model shown in route-decision banner when non-null."
+    },
+    {
+      "file": "crates/vox-gui/ui/src/components/surfaces/Runs/RunsView.tsx",
+      "line": 91,
+      "label": "get_gui_run (row click → detail panel)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "get_gui_run",
+      "evidence": "invoke('get_gui_run', { runId: selectedRunId }) fired in useEffect whenever selectedRunId changes. Sets fetchedRun, shown in detail Glass panel."
+    },
+    {
+      "file": "crates/vox-gui/ui/src/components/surfaces/Runs/RunsView.tsx",
+      "line": 151,
+      "label": "Workflow name button → setSelectedRunId",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "get_gui_run",
+      "evidence": "onClick={() => setSelectedRunId(r.run_id)} triggers the get_gui_run useEffect. aria-pressed reflects selection state."
+    },
+    {
+      "file": "crates/vox-gui/ui/src/components/surfaces/Runs/RunsView.tsx",
+      "line": 62,
+      "label": "recordGamifyGuiEvent('workflow_completed') on completed runs",
+      "verdict": "works",
+      "expected_partial": true,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "Called only when gamifyEnabled=true (passed from parent). Guard checks rewardedRunIds ref to avoid double-firing. Partial because gamifyEnabled defaults false and caller must opt in."
+    },
+    {
+      "file": "crates/vox-gui/ui/src/components/surfaces/Runs/RunsView.tsx",
+      "line": 73,
+      "label": "pushToast on load failure",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "catch block calls pushToast({ tone: 'warn', title: 'Runs load failed', body: String(err) }). Genuine error reporting."
+    }
+  ],
+  "visual": [
+    {
+      "dimension": "hardcoded-color",
+      "file": "crates/vox-gui/ui/src/components/surfaces/Runs/RunsView.tsx",
+      "line": 117,
+      "issue": "success_rate conditional uses raw Tailwind palette classes 'text-emerald-400', 'text-amber-400', 'text-rose-400' instead of design-token classes (e.g. ds-text-pass, ds-text-warn, ds-text-fail). These bypass the Limes token layer.",
+      "severity": "med"
+    },
+    {
+      "dimension": "hardcoded-color",
+      "file": "crates/vox-gui/ui/src/components/surfaces/Runs/RunsView.tsx",
+      "line": 250,
+      "issue": "Error pre block uses hardcoded 'border-rose-300/20 bg-rose-950/20 text-rose-200' palette classes instead of design tokens. Last-error 'no error' text uses 'text-emerald-300' (line 254).",
+      "severity": "med"
+    },
+    {
+      "dimension": "typography/hierarchy",
+      "file": "crates/vox-gui/ui/src/components/surfaces/Runs/RunsView.tsx",
+      "line": 181,
+      "issue": "Route-decision banner renders selected_model in font-mono text-xs and all status fields as plain concatenated text with '=' separators (line 184-188). No semantic label/value grouping; cognitive hierarchy is flat.",
+      "severity": "low"
+    },
+    {
+      "dimension": "overflow",
+      "file": "crates/vox-gui/ui/src/components/surfaces/Runs/RunsView.tsx",
+      "line": 178,
+      "issue": "Root div uses 'h-full overflow-auto' which makes the entire page scroll as one unit. At narrow viewports the 12-col grid stacks to 12+12 cols (each full-width) and the scoreboard table has no max-height/scroll — it expands unbounded before the outer scroll kicks in, causing the runs table to be pushed far off screen.",
+      "severity": "med"
+    },
+    {
+      "dimension": "a11y",
+      "file": "crates/vox-gui/ui/src/components/surfaces/Runs/RunsView.tsx",
+      "line": 149,
+      "issue": "Workflow-name <button> uses aria-pressed but is semantically acting as a selection/navigation control, not a toggle. Should use role='option' inside a listbox, or a <tr> with aria-selected, rather than aria-pressed on a button inside a table cell.",
+      "severity": "med"
+    },
+    {
+      "dimension": "a11y",
+      "file": "crates/vox-gui/ui/src/components/surfaces/Runs/RunsView.tsx",
+      "line": 227,
+      "issue": "Run detail Glass panel has no aria-live region or aria-label. When a user selects a run the panel appears/updates silently; screen readers get no announcement.",
+      "severity": "med"
+    },
+    {
+      "dimension": "hardcoded-color",
+      "file": "crates/vox-gui/ui/src/components/surfaces/Runs/RunsView.tsx",
+      "line": 135,
+      "issue": "Quality score uses 'text-brass' — this is a Limes token, so acceptable — but rendered with 'font-mono font-bold' without any design-token class; verify 'text-brass' is in the Limes token scope (likely fine but flagged for consistency).",
+      "severity": "low"
+    },
+    {
+      "dimension": "typography/hierarchy",
+      "file": "crates/vox-gui/ui/src/components/surfaces/Runs/RunsView.tsx",
+      "line": 229,
+      "issue": "Run detail panel uses text-[11px], text-[10px] bracket sizes throughout — five distinct bracket sizes. Should use ds-* scale tokens (ds-text-xs, ds-text-2xs etc.) for consistency with the design system.",
+      "severity": "low"
+    }
+  ]
+}

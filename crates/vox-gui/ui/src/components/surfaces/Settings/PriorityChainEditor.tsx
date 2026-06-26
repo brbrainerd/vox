@@ -99,7 +99,7 @@ export function PriorityChainEditor({ pushToast }: Props) {
         setSteps(hydrated);
         lastConfirmed.current = hydrated;
       } catch (err) {
-        pushToast({ tone: 'warn', title: 'Could not load priority chain', body: String(err) });
+        pushToast({ tone: 'warn', title: 'Could not load priority chain', body: String(err), cause: 'backend-error' });
       } finally {
         setLoading(false);
       }
@@ -126,7 +126,7 @@ export function PriorityChainEditor({ pushToast }: Props) {
     } catch (err) {
       if (id !== writeId.current) return; // stale failure; a newer write owns state
       setSteps(lastConfirmed.current);
-      pushToast({ tone: 'warn', title: 'Priority chain save failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Priority chain save failed', body: String(err), cause: 'backend-error' });
     }
   };
 

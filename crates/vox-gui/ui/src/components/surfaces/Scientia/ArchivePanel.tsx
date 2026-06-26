@@ -64,7 +64,7 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
       setStatus(st);
     } catch (err) {
       if (token !== loadTokenRef.current) return;
-      pushToast({ tone: 'warn', title: 'Archive panel', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Archive panel', body: String(err), cause: 'backend-error' });
       setReport(null);
       setStatus(null);
     } finally {
@@ -93,9 +93,10 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
         body: `${result.fills.length} field(s) filled · completeness ${result.completeness_before}% → ${result.completeness_after}%${
           delta > 0 ? ` (+${delta})` : ''
         }`,
+        cause: 'backend-ok',
       });
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Autofill failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Autofill failed', body: String(err), cause: 'backend-error' });
     } finally {
       setAutofilling(false);
     }

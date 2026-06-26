@@ -98,7 +98,7 @@ export function ChatSurface({
         onSessionChange?.(list[0].session_id);
       }
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Chat sessions', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Chat sessions', body: String(err), cause: 'backend-error' });
     }
   }, [activeId, onSessionChange, pushToast]);
 
@@ -160,7 +160,7 @@ export function ChatSurface({
       setSessions(prev => [s, ...prev]);
       onSessionChange?.(s.session_id);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'New session failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'New session failed', body: String(err), cause: 'backend-error' });
     }
   };
 
@@ -190,6 +190,7 @@ export function ChatSurface({
       activeModel={activeModel}
       openrouterSpendUsd={openrouterSpendUsd}
       onNavigate={onNavigate}
+      sessionId={activeSessionId}
     />
   ) : null;
 

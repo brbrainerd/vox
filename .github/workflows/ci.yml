@@ -441,6 +441,9 @@ jobs:
       - name: Retired symbol documentation guard
         run: ./target/debug/vox --quiet ci retired-symbol-check
 
+      - name: GUI honesty gate
+        run: cargo run -p vox-cli -- ci gui-honesty
+
       # contracts-index, exec-policy, scientia contracts, plugin-catalog run inside ssot-drift.
       - name: SSOT drift bundle (operations-verify, sql-surface + query-all --all, capability-sync, nested guards)
         run: ./target/debug/vox --quiet ci ssot-drift

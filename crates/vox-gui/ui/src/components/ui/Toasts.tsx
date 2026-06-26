@@ -1,5 +1,6 @@
 import React from 'react';
 import { Icon } from './Icons';
+import type { ToastCause } from '../../types/tauri';
 
 export interface ToastItem {
   id: string;
@@ -7,7 +8,15 @@ export interface ToastItem {
   title: string;
   body?: string;
   cmd?: string;
+  cause: ToastCause;
 }
+
+// DS token classes from STATUS_TONE (tokens.ts) — ok=emerald, warn=amber, info=sky
+const TONE_ICON_CLASS: Record<ToastItem['tone'], string> = {
+  ok:   'bg-emerald-400/15 text-emerald-300',
+  warn: 'bg-amber-400/15 text-amber-300',
+  info: 'bg-sky-400/15 text-sky-300',
+};
 
 interface ToastsProps {
   items: ToastItem[];
@@ -20,12 +29,12 @@ export function Toasts({ items, onClose }: ToastsProps) {
       aria-live="polite"
       aria-atomic="false"
       role="status"
-      className="pointer-events-none fixed bottom-[200px] right-6 z-40 flex w-[320px] flex-col gap-2"
+      className="pointer-events-none fixed bottom-20 right-6 z-40 flex w-[320px] flex-col gap-2"
     >
       {items.map(t => (
         <div key={t.id} className="pointer-events-auto rounded-xl border border-border-subtle bg-bg-base/90 p-3 backdrop-blur-xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)] animate-vox-toast-in">
           <div className="flex items-start gap-2">
-            <div className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded ${t.tone === "ok" ? "bg-emerald-400/15 text-emerald-300" : t.tone === "warn" ? "bg-amber-400/15 text-amber-300" : "bg-cyan-400/15 text-cyan-300"}`}>
+            <div className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded ${TONE_ICON_CLASS[t.tone]}`}>
               {t.tone === "ok" ? <Icon.check className="size-3.5" aria-hidden="true"/> : t.tone === "warn" ? <Icon.alert className="size-3.5" aria-hidden="true"/> : <Icon.bolt className="size-3.5" aria-hidden="true"/>}
             </div>
             <div className="flex-1 leading-tight">

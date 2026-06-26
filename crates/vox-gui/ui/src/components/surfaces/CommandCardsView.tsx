@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import type { Toast } from '../../types/tauri';
 
 interface ExecuteOutput {
   exit_code: number;
@@ -24,7 +25,7 @@ interface CommandCardsViewProps {
   title: string;
   subtitle: string;
   cards: SurfaceCard[];
-  pushToast: (item: { tone: 'ok' | 'warn' | 'info'; title: string; body?: string }) => void;
+  pushToast: (item: Toast) => void;
 }
 
 /**
@@ -63,6 +64,7 @@ export function CommandCardsView({ title, subtitle, cards, pushToast }: CommandC
         tone: 'warn',
         title,
         body: `${failures} of ${cards.length} reads did not complete cleanly`,
+        cause: 'backend-error',
       });
     }
   }, [cards, title, pushToast]);

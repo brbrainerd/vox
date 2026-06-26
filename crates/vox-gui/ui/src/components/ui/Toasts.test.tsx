@@ -6,9 +6,27 @@ import React from 'react';
 import { Toasts, type ToastItem } from './Toasts';
 
 const baseItems: ToastItem[] = [
-  { id: 'a', tone: 'ok', title: 'Build succeeded' },
-  { id: 'b', tone: 'warn', title: 'Lint warning', body: 'Line 42' },
+  { id: 'a', tone: 'ok', title: 'Build succeeded', cause: 'backend-ok' },
+  { id: 'b', tone: 'warn', title: 'Lint warning', body: 'Line 42', cause: 'backend-error' },
 ];
+
+describe('Toasts MAX_TOASTS cap', () => {
+  it('renders only the last 3 items when more than 3 are provided', () => {
+    const manyItems: ToastItem[] = [
+      { id: '1', tone: 'ok', title: 'First', cause: 'backend-ok' },
+      { id: '2', tone: 'ok', title: 'Second', cause: 'backend-ok' },
+      { id: '3', tone: 'ok', title: 'Third', cause: 'backend-ok' },
+      { id: '4', tone: 'warn', title: 'Fourth', cause: 'backend-error' },
+    ];
+    // Simulate the .slice(-3) cap applied by the App before passing to Toasts
+    const capped = manyItems.slice(-3);
+    render(<Toasts items={capped} onClose={vi.fn()} />);
+    expect(screen.queryByText('First')).toBeNull();
+    expect(screen.getByText('Second')).toBeInTheDocument();
+    expect(screen.getByText('Third')).toBeInTheDocument();
+    expect(screen.getByText('Fourth')).toBeInTheDocument();
+  });
+});
 
 describe('Toasts', () => {
   it('renders the outer container with aria-live="polite"', () => {

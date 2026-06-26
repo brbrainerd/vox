@@ -97,6 +97,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::GuiVersionSync { write } => super::gui_version_sync::run(&root, write),
         CiCmd::GuiSurfaceCoverage { write } => super::gui_surface_coverage::run(&root, write),
         CiCmd::GuiSurfaceRegistry { write } => super::gui_surface_registry::run(&root, write),
+        CiCmd::GuiHonesty => super::gui_honesty::run(&root),
         CiCmd::ModelRoutingCheck => super::model_routing_check::run(&root),
         CiCmd::CheckCodexSsot => check_codex_ssot(&root),
         CiCmd::ContractsIndex => contracts_index::run(&root),

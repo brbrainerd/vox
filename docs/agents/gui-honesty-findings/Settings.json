@@ -1,0 +1,382 @@
+{
+  "surface": "Settings",
+  "tier": "live_backend",
+  "behavioral": [
+    {
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 1258,
+      "label": "Orchestrator — Max concurrent agents slider",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "set_orchestrator_config",
+      "evidence": "onChange calls update({concurrency:v}); update() calls invoke('set_orchestrator_config', {config:next}) after hydration gate"
+    },
+    {
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 1261,
+      "label": "Orchestrator — Global budget cap slider",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "set_orchestrator_config",
+      "evidence": "Same update() path as concurrency; persists to Vox.toml via invoke('set_orchestrator_config')"
+    },
+    {
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 1286,
+      "label": "Orchestrator — Auto-doubt toggle",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "set_orchestrator_config",
+      "evidence": "onClick calls update({doubt:!vals.doubt}); update() persists via invoke('set_orchestrator_config')"
+    },
+    {
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 1271,
+      "label": "Orchestrator — Default isolation tier buttons (WASM/Container/Native)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "set_orchestrator_config",
+      "evidence": "onClick calls update({isolation:id}); persisted via set_orchestrator_config"
+    },
+    {
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 1413,
+      "label": "Telemetry — Off/Local/Cloud selector buttons",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "voxTransport.setGuiPreference (gui.telemetry)",
+      "evidence": "onClick calls update({telemetry:id}); 'telemetry' is in GUI_PREF_KEYS so guiPrefMutation persists via voxTransport.setGuiPreference"
+    },
+    {
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 1475,
+      "label": "Theme — Arcane/Void/Glacier selector",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "voxTransport.setGuiPreference (gui.theme)",
+      "evidence": "onClick calls update({theme:t.id}); triggers applyTheme() immediately, then persists via setGuiPreference; theme is in GUI_PREF_KEYS"
+    },
+    {
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 1338,
+      "label": "Routing — Emphasis preset buttons (Balanced/Intelligence/Efficiency/Responsiveness)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "voxTransport.setRoutingPriority",
+      "evidence": "onClick calls applyEmphasis -> updateRouting; updateRouting calls voxTransport.setRoutingPriority(next)"
+    },
+    {
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 1448,
+      "label": "Gamification — enabled checkbox",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "set_gamify_settings",
+      "evidence": "onChange calls updateGamify({enabled}); updateGamify calls invoke('set_gamify_settings', {enabled, mode})"
+    },
+    {
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 1453,
+      "label": "Gamification — Mode select (Balanced/Serious/Learning)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "set_gamify_settings",
+      "evidence": "onChange calls updateGamify({mode}); persisted via invoke('set_gamify_settings')"
+    },
+    {
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 1430,
+      "label": "Keybinds section — all entries",
+      "verdict": "dead",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": null,
+      "evidence": "Keybinds section is a static read-only display list (div/kbd elements, no interactive handlers). No onClick, no onChange, no way to edit or rebind shortcuts from this surface. The KEYBINDS array is a hardcoded constant."
+    },
+    {
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 259,
+      "label": "Mesh — trust/untrust button per peer",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "trust_mesh_node / untrust_mesh_node",
+      "evidence": "onClick calls toggleTrust(p); invokes invoke('trust_mesh_node',...) or invoke('untrust_mesh_node',{nodeId}) then reloads"
+    },
+    {
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 303,
+      "label": "Signing keys — create/rotate identity button",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "rotate_signing_key",
+      "evidence": "onClick calls rotate(); uses window.prompt for password then invoke('rotate_signing_key', {password})"
+    },
+    {
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 358,
+      "label": "Signing — Require signature toggle",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "set_orchestrator_config",
+      "evidence": "onClick calls update({sign:!vals.sign}); 'sign' is in GUI_PREF_KEYS so persists via setGuiPreference; also included in set_orchestrator_config payload"
+    },
+    {
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 525,
+      "label": "Keys & Secrets — save button (per secret)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "set_secret",
+      "evidence": "onClick calls save(r.canonicalEnv); invokes invoke<boolean>('set_secret', {key, value}) then reloads list"
+    },
+    {
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 589,
+      "label": "Keys & Secrets — remove button (per secret)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "remove_secret",
+      "evidence": "onClick calls remove(r.canonicalEnv); invokes invoke<boolean>('remove_secret', {key})"
+    },
+    {
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 629,
+      "label": "Keys & Secrets — Migrate auth.json button",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "migrate_auth_store",
+      "evidence": "onClick calls migrate(); invokes invoke<number>('migrate_auth_store') with toast feedback"
+    },
+    {
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 640,
+      "label": "Keys & Secrets — Preview .env button",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "import_env",
+      "evidence": "onClick calls runPreview(); invokes invoke<ImportEnvResultDto>('import_env', {path, apply:false})"
+    },
+    {
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 648,
+      "label": "Keys & Secrets — Import N button (conditional)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "import_env",
+      "evidence": "onClick calls runImport(); invokes invoke<ImportEnvResultDto>('import_env', {path, apply:true}) then reloads"
+    },
+    {
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 775,
+      "label": "Runtime config — save button per field",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "set_user_config",
+      "evidence": "onClick calls save(f, draftFor(f)); invokes invoke('set_user_config', {key, value}) then reloads"
+    },
+    {
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 873,
+      "label": "Runtime config — reset button per field",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "reset_user_config",
+      "evidence": "onClick calls reset(f); invokes invoke('reset_user_config', {key})"
+    },
+    {
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 809,
+      "label": "Runtime config — enum option buttons (save-on-click)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "set_user_config",
+      "evidence": "onClick calls save(f, opt) directly; no separate save step needed"
+    },
+    {
+      "file": "src/components/surfaces/Settings/PriorityChainEditor.tsx",
+      "line": 133,
+      "label": "Priority chain — remove step button",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "voxTransport.setSelectionPolicy",
+      "evidence": "removeStep calls persist(steps.filter(...)); persist calls voxTransport.setSelectionPolicy(JSON.stringify({steps:next}))"
+    },
+    {
+      "file": "src/components/surfaces/Settings/PriorityChainEditor.tsx",
+      "line": 135,
+      "label": "Priority chain — move up/down buttons",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "voxTransport.setSelectionPolicy",
+      "evidence": "onClick calls move(i, i-1/i+1); move() calls persist() -> voxTransport.setSelectionPolicy"
+    },
+    {
+      "file": "src/components/surfaces/Settings/PriorityChainEditor.tsx",
+      "line": 430,
+      "label": "Priority chain — 'add to chain' button",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "voxTransport.setSelectionPolicy",
+      "evidence": "onClick builds a SelectionStep via build() and calls onAdd(s) -> persist([...steps, s])"
+    },
+    {
+      "file": "src/components/surfaces/Settings/HudTilesEditor.tsx",
+      "line": 40,
+      "label": "HUD tiles — enable/disable checkbox",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": null,
+      "evidence": "onChange calls onChange(toggleHudTile(config, tile.id, checked)); state propagated up to parent via onHudTilesChange prop (local + persisted via useHudTiles hook in parent)"
+    },
+    {
+      "file": "src/components/surfaces/Settings/HudTilesEditor.tsx",
+      "line": 51,
+      "label": "HUD tiles — move up/down buttons",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": null,
+      "evidence": "onClick calls move(index, index-1/+1) -> onChange(reorderHudTile(...)); propagated to parent"
+    },
+    {
+      "file": "src/components/surfaces/Settings/HudTilesEditor.tsx",
+      "line": 74,
+      "label": "HUD tiles — Reset to defaults button",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": null,
+      "evidence": "onClick calls onChange(defaultHudTiles()); resets config to factory defaults via parent"
+    },
+    {
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 1491,
+      "label": "HudTiles section",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": null,
+      "evidence": "Both hudTilesConfig and onHudTilesChange are threaded from App.tsx surfaceProps (lines 1084-1085); the conditional guard renders the HudTilesEditor correctly."
+    },
+    {
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 303,
+      "label": "Signing key rotation — uses window.prompt for password input",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "rotate_signing_key",
+      "evidence": "Functionally works but uses native window.prompt() for password — a UX regression: no styled input, no accessible label, no cancel state feedback, and breaks in Tauri webview environments that restrict dialogs"
+    }
+  ],
+  "visual": [
+    {
+      "dimension": "ds-token",
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 80,
+      "issue": "Toggle thumb uses hardcoded `bg-[#fafafa]` instead of a Limes design token (e.g. `bg-text-primary` or a surface token)",
+      "severity": "low"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 97,
+      "issue": "RangeInline uses `rgb(var(--brass))` inline style via JS template literal — not a Tailwind token class; this pattern bypasses Tailwind purge and is inconsistent with the rest of the token usage",
+      "severity": "low"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 246,
+      "issue": "Mesh peer online indicator uses `bg-emerald-400` (raw Tailwind color) instead of a Limes semantic token (e.g. `bg-status-ok` or equivalent)",
+      "severity": "med"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 253,
+      "issue": "Trusted peer badge uses `bg-emerald-400/15 text-emerald-300` raw color classes — repeated across Mesh, Signing, and Secrets sections (6+ occurrences). Should use a semantic token.",
+      "severity": "med"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 341,
+      "issue": "Signing key icon uses `text-amber-300` raw Tailwind color instead of a Limes token (e.g. `text-caution` or similar)",
+      "severity": "low"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 557,
+      "issue": "Secrets 'required' badge uses `bg-amber-400/15 text-amber-300`; 'set' badge uses `bg-emerald-400/15 text-emerald-300`; 'missing' uses `bg-bg-elevated/40` — inconsistent raw colors vs tokens",
+      "severity": "med"
+    },
+    {
+      "dimension": "a11y",
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 1430,
+      "issue": "Keybinds section is purely display — no interactive elements, but there is no note, heading structure, or ARIA to indicate it is read-only. Users may expect to click/edit entries.",
+      "severity": "low"
+    },
+    {
+      "dimension": "a11y",
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 303,
+      "issue": "Signing key rotation uses window.prompt() for password entry — not accessible (no aria-*, no focus management, no screen-reader-friendly modal). Should be replaced with an in-surface form.",
+      "severity": "high"
+    },
+    {
+      "dimension": "a11y",
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 683,
+      "issue": "Taxonomy group collapse toggle button (Keys & Secrets) has no aria-expanded attribute — screen readers cannot tell whether the group is collapsed or expanded",
+      "severity": "med"
+    },
+    {
+      "dimension": "hierarchy",
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 1447,
+      "issue": "Gamification section uses a plain `<label>/<input type=checkbox>` and `<select>` without the Row component used everywhere else, creating visual inconsistency (no border card, no hint text style)",
+      "severity": "low"
+    },
+    {
+      "dimension": "overflow",
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 92,
+      "issue": "RangeInline has a fixed `w-52` container. On narrow viewports (Settings nav in 3-col layout) combined values plus suffix may overflow or clip, especially in the Scaling section where suffixes are ' MiB' (4 chars) with a `w-14` readout.",
+      "severity": "low"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "src/components/surfaces/Settings/SettingsView.tsx",
+      "line": 215,
+      "issue": "Control-plane error banner uses `border-amber-400/20 bg-amber-400/5 text-amber-300` raw Tailwind colors — no Limes caution token applied",
+      "severity": "low"
+    }
+  ]
+}

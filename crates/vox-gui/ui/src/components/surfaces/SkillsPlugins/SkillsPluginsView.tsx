@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
 import { mapDiscoveredSkills, type DiscoveredSkill } from './discovery';
+import { SkillDetailPanel, type SkillDetail } from './SkillDetailPanel';
 
 // ── Wire types (mirror the MCP tool JSON envelopes) ────────────────────────
 interface SkillInfo {
@@ -57,6 +58,8 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
 
+  const [detail, setDetail] = useState<SkillDetail | null>(null);
+
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [plugins, setPlugins] = useState<PluginRow[]>([]);
   const [catalogPlugins, setCatalogPlugins] = useState<CatalogPlugin[]>([]);
@@ -76,7 +79,7 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
       setSkills(Array.isArray(skillList) ? skillList : []);
       setPlugins(Array.isArray(pluginList) ? pluginList : []);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Installed load failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Installed load failed', body: String(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
@@ -89,7 +92,7 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
       const data = unwrap(cat?.result);
       setCatalogPlugins(Array.isArray(data?.plugins) ? data.plugins : []);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Marketplace load failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Marketplace load failed', body: String(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
@@ -101,7 +104,7 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
       const res = await callTool('vox_skill_discover');
       setDiscovered(mapDiscoveredSkills(unwrap(res?.result)));
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Discovery failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Discovery failed', body: String(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
@@ -124,7 +127,7 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
       const hits = unwrap(res?.result);
       setSearchHits(Array.isArray(hits) ? hits : []);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Skill search failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Skill search failed', body: String(err), cause: 'backend-error' });
     }
   }, [searchQuery, pushToast]);
 
@@ -134,13 +137,13 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
       try {
         const res = await callTool(tool, args);
         if (res?.is_error) {
-          pushToast({ tone: 'warn', title: `${okTitle} failed`, body: JSON.stringify(unwrap(res.result)) });
+          pushToast({ tone: 'warn', title: `${okTitle} failed`, body: JSON.stringify(unwrap(res.result)), cause: 'backend-error' });
         } else {
-          pushToast({ tone: 'ok', title: okTitle, body: key });
+          pushToast({ tone: 'ok', title: okTitle, body: key, cause: 'backend-ok' });
         }
         await refreshInstalled();
       } catch (err) {
-        pushToast({ tone: 'warn', title: `${okTitle} failed`, body: String(err) });
+        pushToast({ tone: 'warn', title: `${okTitle} failed`, body: String(err), cause: 'backend-error' });
       } finally {
         setBusy(null);
       }
@@ -148,13 +151,49 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
     [pushToast, refreshInstalled],
   );
 
-  const showInfo = useCallback(
-    async (tool: string, args: Record<string, any>) => {
+  const showSkillInfo = useCallback(
+    async (id: string) => {
       try {
-        const res = await callTool(tool, args);
-        pushToast({ tone: 'ok', title: 'Info', body: JSON.stringify(unwrap(res?.result)) });
+        const res = await callTool('vox_skill_info', { id });
+        const data = unwrap(res?.result);
+        if (data && typeof data === 'object') {
+          setDetail({ kind: 'skill-info', id, ...data } as SkillDetail);
+        }
       } catch (err) {
-        pushToast({ tone: 'warn', title: 'Info failed', body: String(err) });
+        pushToast({ tone: 'warn', title: 'Info failed', body: String(err), cause: 'backend-error' });
+      }
+    },
+    [pushToast],
+  );
+
+  const showPluginInfo = useCallback(
+    async (id: string) => {
+      try {
+        const res = await callTool('vox_plugin_info', { id });
+        const data = unwrap(res?.result);
+        if (data && typeof data === 'object') {
+          setDetail({ kind: 'plugin-info', name: id, description: '', ...data } as SkillDetail);
+        }
+      } catch (err) {
+        pushToast({ tone: 'warn', title: 'Info failed', body: String(err), cause: 'backend-error' });
+      }
+    },
+    [pushToast],
+  );
+
+  const showSkillUse = useCallback(
+    async (id: string) => {
+      try {
+        const res = await callTool('vox_skill_use', { id });
+        const data = unwrap(res?.result);
+        setDetail({
+          kind: 'skill-use',
+          name: id,
+          description: '',
+          body: typeof data === 'string' ? data : JSON.stringify(data, null, 2),
+        });
+      } catch (err) {
+        pushToast({ tone: 'warn', title: 'Skill use failed', body: String(err), cause: 'backend-error' });
       }
     },
     [pushToast],
@@ -176,7 +215,7 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
 
   return (
     <div className="grid grid-cols-12 gap-5">
-      <Glass className="col-span-12 p-4 overflow-auto">
+      <Glass className={`${detail ? 'col-span-8' : 'col-span-12'} p-4 overflow-auto`}>
         <div className="mb-3 flex items-center gap-2">
           <span className="flex size-7 items-center justify-center rounded-lg bg-brass/10 text-brass ring-1 ring-brass/30">
             <Icon.catalog className="size-4" aria-hidden="true" />
@@ -208,7 +247,7 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
         ) : tab === 'discovered' ? (
           <DiscoveredTab
             discovered={discovered}
-            onSkillUse={(id) => showInfo('vox_skill_use', { id })}
+            onSkillUse={(id) => showSkillUse(id)}
           />
         ) : tab === 'installed' ? (
           <InstalledTab
@@ -219,8 +258,8 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
               doAction(id, 'vox_skill_uninstall', { id }, 'Skill uninstalled')
             }
             onRemovePlugin={(id) => doAction(id, 'vox_plugin_remove', { id }, 'Plugin removed')}
-            onSkillInfo={(id) => showInfo('vox_skill_info', { id })}
-            onPluginInfo={(id) => showInfo('vox_plugin_info', { id })}
+            onSkillInfo={(id) => showSkillInfo(id)}
+            onPluginInfo={(id) => showPluginInfo(id)}
           />
         ) : (
           <MarketplaceTab
@@ -233,10 +272,30 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
             onInstallPlugin={(id) =>
               doAction(id, 'vox_plugin_install', { id }, 'Plugin installed')
             }
-            onPluginInfo={(id) => showInfo('vox_plugin_info', { id })}
+            onPluginInfo={(id) => showPluginInfo(id)}
+            onInstallSkill={(id) =>
+              doAction(id, 'vox_skill_install', { id }, 'Skill installed')
+            }
+            onSkillInfo={(id) => showSkillInfo(id)}
           />
         )}
       </Glass>
+      {detail && (
+        <Glass className="col-span-4 p-4 overflow-auto">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="font-display text-[11px] tracking-widest uppercase text-text-muted">Detail</span>
+            <button
+              type="button"
+              aria-label="Close detail panel"
+              onClick={() => setDetail(null)}
+              className="flex items-center rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle"
+            >
+              ✕
+            </button>
+          </div>
+          <SkillDetailPanel detail={detail} />
+        </Glass>
+      )}
     </div>
   );
 }
@@ -311,8 +370,10 @@ function MarketplaceTab(props: {
   busy: string | null;
   onInstallPlugin: (id: string) => void;
   onPluginInfo: (id: string) => void;
+  onInstallSkill: (id: string) => void;
+  onSkillInfo: (id: string) => void;
 }) {
-  const { catalogPlugins, searchQuery, setSearchQuery, runSearch, searchHits, busy, onInstallPlugin, onPluginInfo } =
+  const { catalogPlugins, searchQuery, setSearchQuery, runSearch, searchHits, busy, onInstallPlugin, onPluginInfo, onInstallSkill, onSkillInfo } =
     props;
   return (
     <div className="flex flex-col gap-5">
@@ -342,8 +403,11 @@ function MarketplaceTab(props: {
             subtitle={s.description}
             version={s.version}
             tags={[s.source, ...(s.tags || [])]}
-            busy={false}
-            actions={[]}
+            busy={busy === s.id}
+            actions={[
+              { label: 'Info', onClick: () => onSkillInfo(s.id), tone: 'neutral' },
+              { label: 'Install', onClick: () => onInstallSkill(s.id), tone: 'ok' },
+            ]}
           />
         ))}
       </Section>

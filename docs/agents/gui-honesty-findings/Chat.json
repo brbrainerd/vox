@@ -1,0 +1,314 @@
+{
+  "surface": "Chat",
+  "tier": "live_backend",
+  "behavioral": [
+    {
+      "file": "ChatSurface.tsx",
+      "line": 66,
+      "label": "loadSessions (useEffect on mount)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "chat_list_sessions",
+      "evidence": "await invoke<ChatSession[]>('chat_list_sessions', { limit: 40 })"
+    },
+    {
+      "file": "ChatSurface.tsx",
+      "line": 128,
+      "label": "createSession (onCreateSession handler)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "chat_create_session",
+      "evidence": "await invoke<ChatSession & { conversation_id: number }>('chat_create_session', { title: 'New chat' })"
+    },
+    {
+      "file": "ChatSurface.tsx",
+      "line": 191,
+      "label": "SecretaryToast onViewTask",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "onNavigate?.('tasks') — navigates to tasks surface"
+    },
+    {
+      "file": "ChatAgentEventRow.tsx",
+      "line": 97,
+      "label": "handleApprovePlan (PhaseChip planning button)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "approve_orchestrator_task_plan",
+      "evidence": "invoke('approve_orchestrator_task_plan', { taskId }).catch(console.error)"
+    },
+    {
+      "file": "ChatAgentEventRow.tsx",
+      "line": 100,
+      "label": "handleSkipVerify (PhaseChip verifying button)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "skip_orchestrator_verify",
+      "evidence": "invoke('skip_orchestrator_verify', { taskId }).catch(console.error)"
+    },
+    {
+      "file": "ChatAgentEventRow.tsx",
+      "line": 103,
+      "label": "handleForceVerify (PhaseChip acting button)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "force_orchestrator_verify",
+      "evidence": "invoke('force_orchestrator_verify', { taskId }).catch(console.error)"
+    },
+    {
+      "file": "ChatAgentEventRow.tsx",
+      "line": 79,
+      "label": "View in Flow button onClick (token_group row)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "onClick={() => onOpenAgent(agentId)} — passes agentId to parent onOpenAgentInFlow"
+    },
+    {
+      "file": "ChatAgentEventRow.tsx",
+      "line": 150,
+      "label": "View in Flow button onClick (agent event row)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "onClick={() => onOpenAgent(agentId)} — passes agentId to parent onOpenAgentInFlow"
+    },
+    {
+      "file": "ChatAgentEventRow.tsx",
+      "line": 60,
+      "label": "token_group expand/collapse button",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "onClick={() => setExpanded((v) => !v)} — local state toggle"
+    },
+    {
+      "file": "ChatAgentEventRow.tsx",
+      "line": 130,
+      "label": "agent event row expand/collapse button (when collapsed=true)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "onClick={() => setExpanded((v) => !v)} — local state toggle"
+    },
+    {
+      "file": "ChatExecutionRail.tsx",
+      "line": 165,
+      "label": "intent button onClick",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "onClick={() => onNavigate('matrix')} — navigates to matrix surface"
+    },
+    {
+      "file": "ChatExecutionRail.tsx",
+      "line": 183,
+      "label": "Agents KPI onClick",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "onClick={() => onNavigate('agents')}"
+    },
+    {
+      "file": "ChatExecutionRail.tsx",
+      "line": 221,
+      "label": "ContextWindowMeter usedTokens prop",
+      "verdict": "dead",
+      "expected_partial": true,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "<ContextWindowMeter usedTokens={0} ... /> — hardcoded 0; meter always renders 0% full regardless of actual context usage. budget.used_tokens is not plumbed from the payload."
+    },
+    {
+      "file": "ChatSessionRail.tsx",
+      "line": 81,
+      "label": "session tab Button onClick",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "onClick={() => onSessionChange(s.session_id)} — triggers parent hydration via onHydrateSession"
+    },
+    {
+      "file": "ChatSessionRail.tsx",
+      "line": 101,
+      "label": "New chat session Button onClick",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "chat_create_session",
+      "evidence": "onClick={onCreateSession} → createSession() in ChatSurface → invoke('chat_create_session', ...)"
+    },
+    {
+      "file": "SecretaryToast.tsx",
+      "line": 54,
+      "label": "View task button onClick",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "onClick={onViewTask} → onNavigate?.('tasks') in ChatSurface"
+    },
+    {
+      "file": "SecretaryToast.tsx",
+      "line": 63,
+      "label": "Dismiss button onClick",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "onClick={onDismiss} → setSecretaryToast(null)"
+    },
+    {
+      "file": "ModelBadge.tsx",
+      "line": 33,
+      "label": "model badge toggle button onClick",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "onClick={() => setOpen(o => !o)} — local state toggle to show/hide detail popover"
+    }
+  ],
+  "visual": [
+    {
+      "dimension": "ds-token",
+      "file": "ChatTranscript.tsx",
+      "line": 21,
+      "issue": "System message bubble uses hardcoded semantic colors: border-amber-400/20, bg-amber-400/[0.06], text-amber-100/90 — not design-token values",
+      "severity": "med"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "ChatTranscript.tsx",
+      "line": 38,
+      "issue": "Streaming indicator uses hardcoded text-cyan-300 and bg-cyan-300 — should use a ds token (e.g. text-accent-info or text-stream)",
+      "severity": "med"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "ChatAgentEventRow.tsx",
+      "line": 18,
+      "issue": "Doubted item bar uses hardcoded from-amber-400/40 to-amber-400/0 gradient — not a ds token",
+      "severity": "med"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "ChatAgentEventRow.tsx",
+      "line": 19,
+      "issue": "Token item bar uses hardcoded from-cyan-400/40 to-cyan-400/0 gradient — not a ds token",
+      "severity": "med"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "ModelBadge.tsx",
+      "line": 25,
+      "issue": "Fallback 'model unknown' uses text-zinc-600 — not a ds token",
+      "severity": "low"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "ModelBadge.tsx",
+      "line": 39,
+      "issue": "Token counts and cost use text-zinc-500 — not a ds token",
+      "severity": "low"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "ModelBadge.tsx",
+      "line": 49,
+      "issue": "Detail popover background is hardcoded hex bg-[#0b0b0e] — should use bg-bg-base or a surface token",
+      "severity": "high"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "ModelBadge.tsx",
+      "line": 50,
+      "issue": "Popover text uses text-zinc-300 and border-white/10 — not ds tokens",
+      "severity": "med"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "PhaseChip.tsx",
+      "line": 48,
+      "issue": "Intervention buttons use text-zinc-400 hover:text-zinc-200 — not ds tokens",
+      "severity": "low"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "PhaseChip.tsx",
+      "line": 78,
+      "issue": "Done checkmark uses text-emerald-400 — not a ds token (should be text-status-success or similar)",
+      "severity": "med"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "ContextWindowMeter.tsx",
+      "line": 23,
+      "issue": "Zone fill colors use arbitrary bracket oklch values: bg-[oklch(0.7_0.15_140)], bg-[oklch(0.75_0.15_60)], bg-[oklch(0.65_0.2_25)] — not ds tokens",
+      "severity": "med"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "ContextWindowMeter.tsx",
+      "line": 28,
+      "issue": "Zone text colors use arbitrary bracket oklch values: text-[oklch(0.7_0.15_140)], etc. — not ds tokens",
+      "severity": "med"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "ChatSurface.tsx",
+      "line": 117,
+      "issue": "Focus highlight animation adds hardcoded ring-amber-400 and ring-offset-zinc-950 classes via classList.add — not ds tokens",
+      "severity": "low"
+    },
+    {
+      "dimension": "overflow",
+      "file": "ChatSurface.tsx",
+      "line": 186,
+      "issue": "SecretaryToast container is fixed w-[480px] — may clip on narrow viewports or small sidebar configurations",
+      "severity": "med"
+    },
+    {
+      "dimension": "overflow",
+      "file": "ChatTranscript.tsx",
+      "line": 69,
+      "issue": "Transcript Glass has max-h-[40vh] which may be very small on constrained layouts — messages near limit will be cut off without clear affordance",
+      "severity": "low"
+    },
+    {
+      "dimension": "a11y",
+      "file": "ChatAgentEventRow.tsx",
+      "line": 60,
+      "issue": "Token group expand/collapse button has no aria-label — only shows dynamic text (summary or 'Hide token stream'); non-visual users lack a stable label",
+      "severity": "med"
+    },
+    {
+      "dimension": "a11y",
+      "file": "SecretaryToast.tsx",
+      "line": 63,
+      "issue": "Dismiss button renders only '✕' character — has aria-label='Dismiss secretary toast' so this is fine; no issue",
+      "severity": "low"
+    },
+    {
+      "dimension": "hierarchy",
+      "file": "ChatExecutionRail.tsx",
+      "line": 221,
+      "issue": "ContextWindowMeter always displays 0% (usedTokens hardcoded to 0) — misleads user into thinking context is empty; the budget.used_tokens field is not wired from the getContextBudget payload",
+      "severity": "high"
+    }
+  ]
+}

@@ -1,0 +1,100 @@
+{
+  "surface": "Mesh",
+  "tier": "live_backend",
+  "behavioral": [
+    {
+      "file": "MeshView.tsx",
+      "line": 190,
+      "label": "Refresh button",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "invoke_mcp_tool(vox_mesh_nodes) + invoke_mcp_tool(vox_mesh_queue_stats)",
+      "evidence": "onClick={refresh}; refresh() calls invoke('invoke_mcp_tool', {tool:'vox_mesh_nodes',...}) and invoke_mcp_tool('vox_mesh_queue_stats') via Promise.all, then sets nodes+queue state."
+    },
+    {
+      "file": "MeshView.tsx",
+      "line": 321,
+      "label": "Target node select (onChange)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "onChange sets targetNode state; value is used in dispatch() args as node_id. Meaningful local state change feeding a real backend call."
+    },
+    {
+      "file": "MeshView.tsx",
+      "line": 338,
+      "label": "Task kind input (onChange)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "onChange sets taskKind state; value is passed to dispatch() as task_kind arg."
+    },
+    {
+      "file": "MeshView.tsx",
+      "line": 350,
+      "label": "Source textarea (onChange)",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "null",
+      "evidence": "onChange sets source state; required field for dispatch(); passed as args.source to vox_mesh_dispatch."
+    },
+    {
+      "file": "MeshView.tsx",
+      "line": 362,
+      "label": "Dispatch button",
+      "verdict": "works",
+      "expected_partial": false,
+      "cheap_to_wire": false,
+      "backend_command": "invoke_mcp_tool(vox_mesh_dispatch)",
+      "evidence": "onClick={dispatch}; dispatch() calls invoke('invoke_mcp_tool', {tool:'vox_mesh_dispatch', args:{source, node_id?, task_kind?}}), handles success/failure toasts, sets dispatchResult, calls refresh()."
+    }
+  ],
+  "visual": [
+    {
+      "dimension": "ds-token",
+      "file": "MeshView.tsx",
+      "line": 61,
+      "issue": "statusTone() returns hardcoded Tailwind color classes: 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300' (online), 'border-amber-400/30 bg-amber-400/10 text-amber-300' (maintenance), 'border-rose-400/30 bg-rose-400/10 text-rose-300' (quarantined). These bypass the design-system token layer.",
+      "severity": "med"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "MeshView.tsx",
+      "line": 200,
+      "issue": "Control plane error banner uses hardcoded 'border-amber-400/20 bg-amber-400/5 text-amber-300 text-amber-200/80'. Should use ds-token warn surface variables.",
+      "severity": "med"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "MeshView.tsx",
+      "line": 303,
+      "issue": "Dispatch-disabled warning banner repeats the same hardcoded amber palette classes. Duplicate of line 200 pattern.",
+      "severity": "med"
+    },
+    {
+      "dimension": "a11y",
+      "file": "MeshView.tsx",
+      "line": 195,
+      "issue": "Icon.refresh inside Refresh button has aria-hidden=\"true\" but the button has no aria-label. The visible text 'Refresh' is sufficient for sighted users, but if Icon is the only content in a narrow breakpoint collapse, no accessible name would survive. Low risk given visible text label.",
+      "severity": "low"
+    },
+    {
+      "dimension": "a11y",
+      "file": "MeshView.tsx",
+      "line": 367,
+      "issue": "Icon.send inside Dispatch button has aria-hidden=\"true\"; visible text 'Dispatch'/'Dispatching…' provides the accessible name — no issue in practice. Noted for completeness.",
+      "severity": "low"
+    },
+    {
+      "dimension": "ds-token",
+      "file": "MeshView.tsx",
+      "line": 323,
+      "issue": "Select and inputs use 'bg-black/40' directly instead of a ds-token surface variable (e.g. bg-overlay-deep or bg-surface-input).",
+      "severity": "low"
+    }
+  ]
+}

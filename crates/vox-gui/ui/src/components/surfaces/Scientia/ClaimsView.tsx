@@ -53,14 +53,14 @@ export function ClaimsView({ pushToast }: SurfaceDecoratorProps) {
     try {
       const out = await run(['scientia', 'claims']);
       if (out.exit_code !== 0) {
-        pushToast({ tone: 'warn', title: 'Load claims failed', body: out.stderr || `exit ${out.exit_code}` });
+        pushToast({ tone: 'warn', title: 'Load claims failed', body: out.stderr || `exit ${out.exit_code}`, cause: 'backend-error' });
         setClaims([]);
       } else {
         const parsed = JSON.parse(out.stdout) as { claims?: ClaimRow[] };
         setClaims(parsed.claims ?? []);
       }
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Load claims failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Load claims failed', body: String(err), cause: 'backend-error' });
       setClaims([]);
     } finally {
       setBusy(false);
@@ -76,12 +76,13 @@ export function ClaimsView({ pushToast }: SurfaceDecoratorProps) {
         tone: out.exit_code === 0 ? 'ok' : 'warn',
         title: 'Claim extraction',
         body: out.exit_code === 0 ? 'Extraction complete' : out.stderr || `exit ${out.exit_code}`,
+        cause: out.exit_code === 0 ? 'backend-ok' : 'backend-error',
       });
       if (out.exit_code === 0) {
         await loadClaims();
       }
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Extraction failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Extraction failed', body: String(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }

@@ -49,6 +49,10 @@ pre-commit:
       glob: "{crates/**/*.rs,examples/golden/**/*.vox}"
       fail_text: "Test-First Policy violation. Add a #[test] (or @test in golden Vox) before the new pub fn lands. See AGENTS.md §Test-First Policy."
 
+    honesty-guard:
+      glob: "crates/vox-gui/ui/src/components/surfaces/**/*.tsx"
+      run: cd crates/vox-gui/ui && pnpm vitest run src/components/surfaces/__guards__/surfaceHonesty.guard.test.ts
+
 # Optional secondary gate when using lefthook directly on push (thin Rust drift).
 # The authoritative hook installed by `vox ci install-hooks` delegates to `vox ci pre-push`
 # (fast profile: fmt, line-endings, ssot-drift, scoped docs, vox-drift-check).

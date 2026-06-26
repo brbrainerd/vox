@@ -69,7 +69,7 @@ export function DiscoveryReviewView({ pushToast, gamifyEnabled }: SurfaceDecorat
         args: { __argv: ['--publication-id', pubId] },
       });
       if (out.exit_code !== 0) {
-        pushToast({ tone: 'warn', title: 'Load claims failed', body: out.stderr || `exit ${out.exit_code}` });
+        pushToast({ tone: 'warn', title: 'Load claims failed', body: out.stderr || `exit ${out.exit_code}`, cause: 'backend-error' });
         setClaims([]);
         return;
       }
@@ -77,7 +77,7 @@ export function DiscoveryReviewView({ pushToast, gamifyEnabled }: SurfaceDecorat
       setClaims(parsed.claims ?? []);
       setReviews({});
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Load claims failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Load claims failed', body: String(err), cause: 'backend-error' });
       setClaims([]);
     } finally {
       setBusy(false);
@@ -95,11 +95,11 @@ export function DiscoveryReviewView({ pushToast, gamifyEnabled }: SurfaceDecorat
         },
       });
       if (out.exit_code !== 0) {
-        pushToast({ tone: 'warn', title: 'Review failed', body: out.stderr || `exit ${out.exit_code}` });
+        pushToast({ tone: 'warn', title: 'Review failed', body: out.stderr || `exit ${out.exit_code}`, cause: 'backend-error' });
         return;
       }
       setReviews((prev) => ({ ...prev, [claimId]: { decision, trustyUri: null } }));
-      pushToast({ tone: 'ok', title: 'Claim review', body: `claim ${claimId} → ${decision}` });
+      pushToast({ tone: 'ok', title: 'Claim review', body: `claim ${claimId} → ${decision}`, cause: 'backend-ok' });
       if (decision === 'approve') {
         void recordGamifyGuiEvent(
           'claim_approved',
@@ -108,7 +108,7 @@ export function DiscoveryReviewView({ pushToast, gamifyEnabled }: SurfaceDecorat
         );
       }
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Review failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Review failed', body: String(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }
@@ -123,7 +123,7 @@ export function DiscoveryReviewView({ pushToast, gamifyEnabled }: SurfaceDecorat
         args: { __argv: buildNanopubBuildArgv({ publicationId: pubId, claimId, orcid }) },
       });
       if (out.exit_code !== 0) {
-        pushToast({ tone: 'warn', title: 'Nanopub build failed', body: out.stderr || `exit ${out.exit_code}` });
+        pushToast({ tone: 'warn', title: 'Nanopub build failed', body: out.stderr || `exit ${out.exit_code}`, cause: 'backend-error' });
         return;
       }
       const uri = extractTrustyUri(out.stdout);
@@ -131,14 +131,14 @@ export function DiscoveryReviewView({ pushToast, gamifyEnabled }: SurfaceDecorat
         ...prev,
         [claimId]: { decision: prev[claimId]?.decision ?? 'approve', trustyUri: uri },
       }));
-      pushToast({ tone: 'ok', title: 'Nanopublication built', body: uri });
+      pushToast({ tone: 'ok', title: 'Nanopublication built', body: uri, cause: 'backend-ok' });
       void recordGamifyGuiEvent(
         'nanopub_built',
         { publication_id: pubId, claim_id: claimId, trusty_uri: uri },
         { enabled: gamifyEnabled },
       );
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Nanopub build failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Nanopub build failed', body: String(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }

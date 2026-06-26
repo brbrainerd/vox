@@ -76,7 +76,7 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
       for (const r of rows) detailCache.current.set(r.claim_id, r);
       setQueue(rows);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Review queue', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Review queue', body: String(err), cause: 'backend-error' });
       setQueue([]);
     } finally {
       setLoading(false);
@@ -152,14 +152,14 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
       setBusy(true);
       try {
         await recordDecision(pubId.trim(), selectedId, decision, reason.trim() || undefined);
-        pushToast({ tone: 'ok', title: `Claim #${selectedId} ${decision}`, body: `Publication ${pubId.trim()}` });
+        pushToast({ tone: 'ok', title: `Claim #${selectedId} ${decision}`, body: `Publication ${pubId.trim()}`, cause: 'backend-ok' });
         if (decision === 'approved') {
           setApprovedIds((prev) => new Set(prev).add(selectedId));
         }
         setReason('');
         await refresh();
       } catch (err) {
-        pushToast({ tone: 'warn', title: 'Review decision failed', body: String(err) });
+        pushToast({ tone: 'warn', title: 'Review decision failed', body: String(err), cause: 'backend-error' });
       } finally {
         setBusy(false);
       }
@@ -177,9 +177,10 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
         tone: 'ok',
         title: `Nanopublished claim #${selectedId}`,
         body: `${res.published_state} · ${res.validated_offline ? 'validated offline' : 'unvalidated'} · ${res.trusty_uri}`,
+        cause: 'backend-ok',
       });
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Nanopublish failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Nanopublish failed', body: String(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }
@@ -192,11 +193,11 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
       const out = await suggestEvidence(pubId.trim(), selectedId);
       setSuggestions(out);
       if (out.length === 0) {
-        pushToast({ tone: 'info', title: 'No evidence suggestions', body: 'The model returned nothing to act on.' });
+        pushToast({ tone: 'info', title: 'No evidence suggestions', body: 'The model returned nothing to act on.', cause: 'backend-ok' });
       }
     } catch (err) {
       setSuggestions([]);
-      pushToast({ tone: 'warn', title: 'Evidence assist unavailable', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Evidence assist unavailable', body: String(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }

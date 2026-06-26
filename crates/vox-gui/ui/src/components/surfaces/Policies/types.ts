@@ -7,6 +7,7 @@ export interface PolicyRow {
   severity: string | null;
   blocking: boolean;
   protected: boolean;
+  enabled: boolean;
 }
 
 export interface PolicyDetail extends PolicyRow {

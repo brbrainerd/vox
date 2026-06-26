@@ -44,6 +44,8 @@ export interface StreamItem {
   title: string;
   body: string;
   ts: string;
+  /** Numeric orchestrator task id — present only for task-related events; used to gate doubt/overrule controls. */
+  taskId?: number;
   metadata?: Record<string, any>;
 }
 

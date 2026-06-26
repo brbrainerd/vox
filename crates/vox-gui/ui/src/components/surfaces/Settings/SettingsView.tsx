@@ -14,6 +14,7 @@ import { useVoxMutation } from '../../../hooks/useVoxQuery';
 import { searchSettings } from './settingsIndex';
 import type { HudTilesConfig } from '../../../hooks/useHudTiles';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
+import { ACTION_REGISTRY, DEFAULT_BINDINGS, type Bindings, parseBindings, serializeBindings, chordFromEvent } from '../../../lib/keybinds';
 
 const GUI_PREF_KEYS = ['theme', 'telemetry', 'sign', 'checkpointMins'] as const;
 
@@ -33,16 +34,6 @@ const SECTIONS = [
   { id: 'gamify',       icon: 'bolt',    label: 'Gamification' },
 ];
 
-const KEYBINDS = [
-  ['⌘K',   'Open command palette'],
-  ['⌘↵',  'Dispatch intent'],
-  ['⇧↵',  'Newline in composer'],
-  ['/',     'Slash command'],
-  ['@',     'Mention agent'],
-  ['↑/↓', 'History recall'],
-  ['⌘B',   'Toggle sidebar'],
-  ['⌘.',   'Pause/resume selected agent'],
-];
 
 interface SettingsState {
   doubt: boolean;
@@ -176,7 +167,7 @@ function MeshPeersSection({ pushToast }: { pushToast: (t: Toast) => void }) {
       for (const t of trustedList) map[t.nodeId] = t;
       setTrusted(map);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Mesh load failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Mesh load failed', body: String(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
@@ -190,18 +181,18 @@ function MeshPeersSection({ pushToast }: { pushToast: (t: Toast) => void }) {
     try {
       if (isTrusted) {
         await invoke<boolean>('untrust_mesh_node', { nodeId: n.id });
-        pushToast({ tone: 'ok', title: 'Peer untrusted', body: n.id });
+        pushToast({ tone: 'ok', title: 'Peer untrusted', body: n.id, cause: 'backend-ok' });
       } else {
         await invoke<boolean>('trust_mesh_node', {
           nodeId: n.id,
           pubkeyHex: n.ed25519_pub_key_b64 ?? '',
           label: n.host_triple ?? null,
         });
-        pushToast({ tone: 'ok', title: 'Peer trusted', body: n.id });
+        pushToast({ tone: 'ok', title: 'Peer trusted', body: n.id, cause: 'backend-ok' });
       }
       await reload();
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Trust update failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Trust update failed', body: String(err), cause: 'backend-error' });
     } finally {
       setBusy(null);
     }
@@ -281,7 +272,7 @@ function SigningKeysSection({ vals, update, pushToast, gamifyEnabled }: {
     try {
       setKey(await invoke<SigningKeyDto>('signing_key_status'));
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Could not load signing key', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Could not load signing key', body: String(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
@@ -302,7 +293,7 @@ function SigningKeysSection({ vals, update, pushToast, gamifyEnabled }: {
     try {
       const next = await invoke<SigningKeyDto>('rotate_signing_key', { password });
       setKey(next);
-      pushToast({ tone: 'ok', title: `Key ${verb}d`, body: next.nodeId || next.fingerprint });
+      pushToast({ tone: 'ok', title: `Key ${verb}d`, body: next.nodeId || next.fingerprint, cause: 'backend-ok' });
       if (present) {
         void recordGamifyGuiEvent(
           'signing_key_rotated',
@@ -312,7 +303,7 @@ function SigningKeysSection({ vals, update, pushToast, gamifyEnabled }: {
       }
       await reload();
     } catch (err) {
-      pushToast({ tone: 'warn', title: `Key ${verb} failed`, body: String(err) });
+      pushToast({ tone: 'warn', title: `Key ${verb} failed`, body: String(err), cause: 'backend-error' });
     } finally {
       setRotating(false);
     }
@@ -429,7 +420,7 @@ function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t: Toast
       setRows(next);
       if (st) setStatus(st);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Could not load secrets', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Could not load secrets', body: String(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
@@ -478,10 +469,10 @@ function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t: Toast
     setImportBusy(true);
     try {
       const moved = await invoke<number>('migrate_auth_store');
-      pushToast({ tone: 'ok', title: 'Auth store migrated', body: `${moved} entr${moved === 1 ? 'y' : 'ies'} moved to vault` });
+      pushToast({ tone: 'ok', title: 'Auth store migrated', body: `${moved} entr${moved === 1 ? 'y' : 'ies'} moved to vault`, cause: 'backend-ok' });
       await reload();
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Migrate failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Migrate failed', body: String(err), cause: 'backend-error' });
     } finally {
       setImportBusy(false);
     }
@@ -493,11 +484,11 @@ function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t: Toast
       const res = await invoke<ImportEnvResultDto>('import_env', { path: envPath || null, apply: false });
       setPreview(res);
       if (res.count === 0) {
-        pushToast({ tone: 'warn', title: 'No managed secrets found', body: envPath || '.env' });
+        pushToast({ tone: 'warn', title: 'No managed secrets found', body: envPath || '.env', cause: 'validation' });
       }
     } catch (err) {
       setPreview(null);
-      pushToast({ tone: 'warn', title: 'Preview failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Preview failed', body: String(err), cause: 'backend-error' });
     } finally {
       setImportBusy(false);
     }
@@ -508,10 +499,10 @@ function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t: Toast
     try {
       const res = await invoke<ImportEnvResultDto>('import_env', { path: envPath || null, apply: true });
       setPreview(null);
-      pushToast({ tone: 'ok', title: 'Secrets imported', body: `${res.count} value${res.count === 1 ? '' : 's'} stored in vault` });
+      pushToast({ tone: 'ok', title: 'Secrets imported', body: `${res.count} value${res.count === 1 ? '' : 's'} stored in vault`, cause: 'backend-ok' });
       await reload();
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Import failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Import failed', body: String(err), cause: 'backend-error' });
     } finally {
       setImportBusy(false);
     }
@@ -525,11 +516,11 @@ function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t: Toast
       await invoke<boolean>('set_secret', { key, value });
       // Clear the field immediately — the value never lives in UI state beyond this.
       setDrafts(d => { const n = { ...d }; delete n[key]; return n; });
-      pushToast({ tone: 'ok', title: 'Secret saved', body: key });
+      pushToast({ tone: 'ok', title: 'Secret saved', body: key, cause: 'backend-ok' });
       void recordGamifyGuiEvent('secret_rotated', { key }, { enabled: gamifyEnabled });
       await reload();
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Save failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Save failed', body: String(err), cause: 'backend-error' });
     } finally {
       setBusy(null);
     }
@@ -539,10 +530,10 @@ function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t: Toast
     setBusy(key);
     try {
       await invoke<boolean>('remove_secret', { key });
-      pushToast({ tone: 'ok', title: 'Secret removed', body: key });
+      pushToast({ tone: 'ok', title: 'Secret removed', body: key, cause: 'backend-ok' });
       await reload();
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Remove failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Remove failed', body: String(err), cause: 'backend-error' });
     } finally {
       setBusy(null);
     }
@@ -748,7 +739,7 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
       setFields(next);
       setDrafts({});
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Could not load runtime config', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Could not load runtime config', body: String(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
@@ -775,11 +766,11 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
       await invoke('set_user_config', { key: f.key, value });
       if (savedToast.current) clearTimeout(savedToast.current);
       savedToast.current = setTimeout(() => {
-        pushToast({ tone: 'ok', title: 'Setting saved', body: f.label });
+        pushToast({ tone: 'ok', title: 'Setting saved', body: f.label, cause: 'backend-ok' });
       }, 600);
       await reload();
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Save failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Save failed', body: String(err), cause: 'backend-error' });
     } finally {
       setBusy(null);
     }
@@ -789,10 +780,10 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
     setBusy(f.key);
     try {
       await invoke('reset_user_config', { key: f.key });
-      pushToast({ tone: 'ok', title: 'Reset to default', body: f.label });
+      pushToast({ tone: 'ok', title: 'Reset to default', body: f.label, cause: 'backend-ok' });
       await reload();
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Reset failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Reset failed', body: String(err), cause: 'backend-error' });
     } finally {
       setBusy(null);
     }
@@ -923,7 +914,7 @@ function LlmSettingsSection({ pushToast }: { pushToast: (t: any) => void }) {
         openrouterMaxConcurrent: next.openrouterMaxConcurrent,
         retryMaxAttempts: next.retryMaxAttempts,
       },
-    }).catch((err) => pushToast({ tone: 'warn', title: 'LLM save failed', body: String(err) }));
+    }).catch((err) => pushToast({ tone: 'warn', title: 'LLM save failed', body: String(err), cause: 'backend-error' }));
   };
 
   return (
@@ -962,6 +953,27 @@ interface SettingsViewProps {
 export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTilesChange }: SettingsViewProps) {
   const [section, setSection] = useState('orchestrator');
   const [filter, setFilter] = useState('');
+  const [keybindings, setKeybindings] = useState<Bindings>(DEFAULT_BINDINGS);
+  const [capturingId, setCapturingId] = useState<string | null>(null);
+  useEffect(() => {
+    voxTransport.getGuiPreference('gui.keybinds')
+      .then(json => setKeybindings(parseBindings(json)))
+      .catch(() => setKeybindings(DEFAULT_BINDINGS));
+  }, []);
+  useEffect(() => {
+    if (!capturingId) return;
+    const onKey = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const chord = chordFromEvent(e);
+      const next = { ...keybindings, [capturingId]: chord };
+      setKeybindings(next);
+      setCapturingId(null);
+      voxTransport.setGuiPreference('gui.keybinds', serializeBindings(next)).catch(() => {});
+    };
+    window.addEventListener('keydown', onKey, { capture: true });
+    return () => window.removeEventListener('keydown', onKey, { capture: true });
+  }, [capturingId, keybindings]);
 
   // Deep link from omni-search: { section } seed in localStorage. Read on mount
   // AND on the 'vox-settings-seed' event, so deep-linking works even when the
@@ -1054,7 +1066,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
         await invoke('set_orchestrator_config', { config: next });
       }
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Save failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Save failed', body: String(err), cause: 'backend-error' });
     }
   };
 
@@ -1136,7 +1148,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
     try {
       await invoke('set_gamify_settings', { enabled: next.enabled, mode: next.mode });
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Gamify save failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Gamify save failed', body: String(err), cause: 'backend-error' });
     }
   };
 
@@ -1157,14 +1169,14 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
       await voxTransport.setRoutingPriority(next);
       if (savedToastTimer.current) clearTimeout(savedToastTimer.current);
       savedToastTimer.current = setTimeout(() => {
-        pushToast({ tone: 'ok', title: 'Routing weights saved', body: 'VOX_AUTO_ROUTING_PRIORITY persisted' });
+        pushToast({ tone: 'ok', title: 'Routing weights saved', body: 'VOX_AUTO_ROUTING_PRIORITY persisted', cause: 'backend-ok' });
       }, 600);
     } catch (err) {
       if (savedToastTimer.current) {
         clearTimeout(savedToastTimer.current);
         savedToastTimer.current = null;
       }
-      pushToast({ tone: 'warn', title: 'Routing save failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Routing save failed', body: String(err), cause: 'backend-error' });
     }
   }, [routing, pushToast]);
 
@@ -1430,15 +1442,37 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
         {section === 'keybinds' && (
           <>
             <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">Keybinds</h2>
-            <p className="mt-0.5 text-[11px] text-text-muted">Global shortcuts</p>
+            <p className="mt-0.5 text-[11px] text-text-muted">Click a shortcut to rebind it. Press any key combination to set the new chord.</p>
             <div className="mt-4 grid grid-cols-1 gap-1.5 md:grid-cols-2">
-              {KEYBINDS.map(([k, d]) => (
-                <div key={k} className="flex items-center justify-between rounded-md border border-border-subtle bg-overlay-subtle px-3 py-2">
-                  <span className="text-[12px] text-text-secondary">{d}</span>
-                  <kbd className="rounded border border-border-subtle bg-overlay-subtle px-2 py-0.5 font-mono text-[10px] text-text-secondary">{k}</kbd>
+              {ACTION_REGISTRY.map(a => (
+                <div key={a.id} className="flex items-center justify-between rounded-md border border-border-subtle bg-overlay-subtle px-3 py-2">
+                  <span className="text-[12px] text-text-secondary">{a.label}</span>
+                  <button
+                    type="button"
+                    data-testid={`keybind-btn-${a.id}`}
+                    onClick={() => setCapturingId(capturingId === a.id ? null : a.id)}
+                    className={`rounded border px-2 py-0.5 font-mono text-[10px] transition ${
+                      capturingId === a.id
+                        ? 'border-brass/60 bg-brass/10 text-brass animate-pulse'
+                        : 'border-border-subtle bg-overlay-subtle text-text-secondary hover:border-white/20'
+                    }`}
+                  >
+                    {capturingId === a.id ? 'press keys…' : (keybindings[a.id] ?? DEFAULT_BINDINGS[a.id])}
+                  </button>
                 </div>
               ))}
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                setKeybindings(DEFAULT_BINDINGS);
+                setCapturingId(null);
+                voxTransport.setGuiPreference('gui.keybinds', serializeBindings(DEFAULT_BINDINGS)).catch(() => {});
+              }}
+              className="mt-3 rounded-md border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-[11px] text-text-muted hover:text-text-secondary transition"
+            >
+              Reset to defaults
+            </button>
           </>
         )}
 
