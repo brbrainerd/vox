@@ -42,3 +42,59 @@ pub fn tauri_command_nodes(src: &str, registered: &[&str]) -> Vec<RegistryNode> 
     }
     out
 }
+
+/// Parse an MCP dispatch table: for each line, take the quoted literal left of
+/// `=>`; if it starts with `vox_`, emit a `tool:` node.
+pub fn mcp_tool_nodes(src: &str) -> Vec<RegistryNode> {
+    let mut out = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for line in src.lines() {
+        let Some(arrow) = line.find("=>") else {
+            continue;
+        };
+        let left = &line[..arrow];
+        // take the last quoted literal on the left of `=>`
+        let Some(close) = left.rfind('"') else {
+            continue;
+        };
+        let Some(open) = left[..close].rfind('"') else {
+            continue;
+        };
+        let name = &left[open + 1..close];
+        if name.starts_with("vox_") && seen.insert(name.to_string()) {
+            out.push(RegistryNode::new("tool", name, "tool"));
+        }
+    }
+    out
+}
+
+/// Parse the generated surface registry: match `viewKey:` (NOT `id:`), skip when
+/// the value starts with `null`, else take the quoted id → `surface:` node.
+pub fn surface_nodes(src: &str) -> Vec<RegistryNode> {
+    let mut out = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for line in src.lines() {
+        let Some(idx) = line.find("viewKey:") else {
+            continue;
+        };
+        let rest = line[idx + "viewKey:".len()..].trim_start();
+        if rest.starts_with("null") {
+            continue;
+        }
+        // take the first quoted literal (single or double quote)
+        let bytes = rest.as_bytes();
+        let Some(q) = bytes.iter().position(|&c| c == b'\'' || c == b'"') else {
+            continue;
+        };
+        let quote = bytes[q];
+        let after = &rest[q + 1..];
+        let Some(end) = after.find(quote as char) else {
+            continue;
+        };
+        let id = &after[..end];
+        if !id.is_empty() && seen.insert(id.to_string()) {
+            out.push(RegistryNode::new("surface", id, "surface"));
+        }
+    }
+    out
+}
