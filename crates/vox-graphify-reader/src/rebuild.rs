@@ -24,6 +24,50 @@ pub(crate) fn walk_source_files(source_dir: &std::path::Path) -> Vec<std::path::
         .collect()
 }
 
+/// Resolve each bare call target to a qualified definition id. Preference: same-module
+/// definition; else the unique global definition. Ambiguous, unresolved, and self-edges
+/// are dropped (honesty rule: never invent an edge). Pure refactor — behavior identical
+/// to the former inline closure in `rebuild_graph`.
+fn resolve_edges(
+    nodes: &[crate::ast::ExtractedNode],
+    edges: &[crate::ast::ExtractedEdge],
+) -> Vec<crate::ast::ExtractedEdge> {
+    use std::collections::HashMap;
+    fn module_of(id: &str) -> &str {
+        id.rsplit_once("::").map(|(m, _)| m).unwrap_or("")
+    }
+    let mut defs_by_name: HashMap<String, Vec<String>> = HashMap::new();
+    for n in nodes {
+        let bare = n.id.rsplit("::").next().unwrap_or(&n.id).to_string();
+        defs_by_name.entry(bare).or_default().push(n.id.clone());
+    }
+    edges
+        .iter()
+        .filter_map(|e| {
+            let candidates = defs_by_name.get(&e.target)?;
+            let src_mod = module_of(&e.source);
+            let same: Vec<&String> = candidates
+                .iter()
+                .filter(|id| module_of(id) == src_mod)
+                .collect();
+            let target = if same.len() == 1 {
+                same[0].clone()
+            } else if candidates.len() == 1 {
+                candidates[0].clone()
+            } else {
+                return None;
+            };
+            if target == e.source {
+                return None; // self-edge
+            }
+            Some(ExtractedEdge {
+                source: e.source.clone(),
+                target,
+            })
+        })
+        .collect()
+}
+
 /// Caller-supplied metadata so the manifest is freshness-correct. Field names of the
 /// written manifest match `vox_config::graphify::GraphifyManifest`.
 #[derive(Debug, Clone, Default)]
@@ -77,40 +121,7 @@ pub fn rebuild_graph(
     // Resolve each bare call target to a qualified definition id. Preference: same-module
     // definition; else the unique global definition. Ambiguous, unresolved, and self-edges
     // are dropped (honesty rule: never invent an edge).
-    fn module_of(id: &str) -> &str {
-        id.rsplit_once("::").map(|(m, _)| m).unwrap_or("")
-    }
-    let mut defs_by_name: std::collections::HashMap<String, Vec<String>> =
-        std::collections::HashMap::new();
-    for n in &all_nodes {
-        let bare = n.id.rsplit("::").next().unwrap_or(&n.id).to_string();
-        defs_by_name.entry(bare).or_default().push(n.id.clone());
-    }
-    let all_edges: Vec<ExtractedEdge> = all_edges
-        .iter()
-        .filter_map(|e| {
-            let candidates = defs_by_name.get(&e.target)?;
-            let src_mod = module_of(&e.source);
-            let same: Vec<&String> = candidates
-                .iter()
-                .filter(|id| module_of(id) == src_mod)
-                .collect();
-            let target = if same.len() == 1 {
-                same[0].clone()
-            } else if candidates.len() == 1 {
-                candidates[0].clone()
-            } else {
-                return None;
-            };
-            if target == e.source {
-                return None; // self-edge
-            }
-            Some(ExtractedEdge {
-                source: e.source.clone(),
-                target,
-            })
-        })
-        .collect();
+    let all_edges: Vec<ExtractedEdge> = resolve_edges(&all_nodes, &all_edges);
 
     // Convert nodes to ClusterNode format for Leiden clustering
     let cluster_nodes_input: Vec<ClusterNode> = all_nodes
@@ -204,4 +215,32 @@ pub fn rebuild_graph(
     fs::write(manifest_path, serde_json::to_string_pretty(&manifest_val)?)?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod resolve_tests {
+    use super::*;
+    use crate::ast::{ExtractedEdge, ExtractedNode};
+    #[test]
+    fn same_module_unique_resolves_and_drops_ambiguous() {
+        let nodes = vec![
+            ExtractedNode {
+                id: "m.rs::a".into(),
+                label: "a".into(),
+                kind: "fn".into(),
+            },
+            ExtractedNode {
+                id: "m.rs::b".into(),
+                label: "b".into(),
+                kind: "fn".into(),
+            },
+        ];
+        let edges = vec![ExtractedEdge {
+            source: "m.rs::a".into(),
+            target: "b".into(),
+        }];
+        let out = resolve_edges(&nodes, &edges);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].target, "m.rs::b");
+    }
 }
