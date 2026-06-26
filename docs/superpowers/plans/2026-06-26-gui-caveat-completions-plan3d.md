@@ -22,6 +22,82 @@ sources:
 
 # Plan 3D — GUI Honesty-Audit Caveat Completions
 
+## Workflow Execution (read first — orchestration contract)
+
+This section is normative for a workflow orchestrator dispatching sub-agents. It does **not** restate or
+rewrite the task bodies below; it classifies them, declares cross-plan ordering, and groups independent
+tasks into fan-out batches. Every task ends in a concrete `git -C C:/Users/Owner/vox-graphify-gui add` +
+`commit` (add+commit only — no `push`, `rebase`, `reset`, `checkout`, `clean`, or `merge`). Each task is
+self-contained and committable by a single sub-agent (write-through-workflow).
+
+### Cross-plan dependency header
+
+- **Plan 3A (reorg execution) MUST land before Workstream C** (tasks C0–C4 and Final-gate task FG2 that
+  touches surface markup). 3A's CUT/MERGE/RENAME moves the exact lines the 118 findings cite, and
+  regenerates `SURFACE_REGISTRY` (which B2's drift guard asserts against). Do **not** fix a doomed/moved
+  surface before 3A.
+- **Workstreams A and B have NO dependency on Plan 3A** — they touch build/test/CI infrastructure, not
+  surface markup — and may run in parallel with, or before, 3A.
+- **Within Workstream B, B2's drift guard depends on the post-3A registry.** B2 may be authored anytime,
+  but its assertion must be reconciled against the *final* registry; if B2 runs before 3A lands, re-run
+  its vitest after 3A and amend in a follow-up commit (or sequence B2 after 3A — see batches).
+- **Final-gate tasks** depend on the gates they wire: FG1 (gui-rust-check ordering) needs A4; FG2
+  (surfaceVisual guard inside gui-honesty) needs C0.
+
+### Per-task PARALLEL-SAFE / SEQUENTIAL classification
+
+| Task | Class | Why / blocked-by |
+|------|-------|------------------|
+| A1 Reproduce failure (RED) | **[SEQUENTIAL]** | feeds the baseline error pasted into A3's commit body |
+| A2 Check-only contract test | **[PARALLEL-SAFE]** | new test file, no shared edit; independent of A1 content |
+| A3 `build.rs` skip guard | **[SEQUENTIAL]** | needs A1 baseline error in commit body; edits `build.rs` |
+| A4 `gui-rust-check` gate | **[SEQUENTIAL]** | gate invokes the A3 skip path; adds ci enum + module + fixture |
+| A5 Document beside gui-honesty | **[SEQUENTIAL]** | references the A4 gate name |
+| B1 Verify sweep headless + webServer | **[PARALLEL-SAFE]** | edits `playwright.screens.config.ts` only |
+| B2 Manifest == registry drift guard | **[PARALLEL-SAFE]*** | edits `screenshotManifest.test.ts` only; *reconcile vs post-3A registry |
+| B3 Wire captures into gui-visual-review | **[SEQUENTIAL]** | depends on B1 sweep being green; edits `gui_visual_review.rs` |
+| B4 Before/after capture | **[SEQUENTIAL]** | "before" must precede C edits; "after" follows C; spans C |
+| C0 surfaceVisual guard + allowlist (RED) | **[SEQUENTIAL]** | after 3A; all C1 commits shrink its allowlist |
+| C1 ds-token sweep (per surface) | **[PARALLEL-SAFE]** | 12 surface-scoped commits, disjoint files; each deletes its own allowlist lines |
+| C2 a11y sweep (per surface) | **[PARALLEL-SAFE]** | per-surface, disjoint files |
+| C3 overflow + hierarchy (per surface) | **[PARALLEL-SAFE]** | per-surface, disjoint files (Dashboard z-overlap + false-affordance noted) |
+| C4 (optional) axe in sweep | **[PARALLEL-SAFE]** | edits `screenshots.spec.ts`; advisory |
+| FG1 gui-rust-check in CI sequence | **[SEQUENTIAL]** | needs A4 |
+| FG2 surfaceVisual guard inside gui-honesty | **[SEQUENTIAL]** | needs C0 |
+
+`*` B2 is file-disjoint and parallel-safe to author, but its *assertion correctness* is gated on the
+post-3A `SURFACE_REGISTRY`; place it in Batch 5 if you want a single pass, or author in Batch 1 and
+reconcile after 3A.
+
+### Fan-out batches (what a workflow can dispatch together)
+
+Batches run in order; tasks **inside** a batch fan out in parallel. A batch's join (all sub-agents
+committed) is the gate for the next batch.
+
+- **Batch 1 — infra fan-out (no 3A dependency).** Dispatch in parallel: **A2**, **B1**, **B2** (author).
+  Independent files, independent commits.
+- **Batch 2 — Workstream A spine (sequential chain).** Run A-chain in order: **A1 → A3 → A4 → A5**.
+  (A2 already landed in Batch 1.) This batch is internally sequential; it may overlap Batch 1/3 in
+  wall-clock since it shares no files with B or C, but its own tasks must serialize.
+- **Batch 3 — Workstream B wiring (sequential within B).** After B1 is green: **B3**, then **B4 "before"**
+  snapshot. B3 depends on B1; B4-before must precede any C edit.
+- **GATE: Plan 3A lands** (external). Required before Batch 4.
+- **Batch 4 — Workstream C seed (sequential).** **C0** (guard + seed allowlist, RED→GREEN). Single task,
+  no fan-out; everything in Batch 5 depends on it.
+- **Batch 5 — Workstream C surface fan-out (12-way parallel).** Dispatch per-surface sub-agents in
+  parallel across **C1/C2/C3** grouped *by surface* (each sub-agent owns one surface's ds-token + a11y +
+  overflow/hierarchy commits, so file ownership is disjoint and allowlist deletions don't collide).
+  Also reconcile **B2** here against the post-3A registry. **C4** (optional axe) may join this batch.
+  Suggested smallest-first surface order is retained in C1.
+- **Batch 6 — close-out (sequential).** **B4 "after"** snapshot → **FG1** → **FG2**.
+
+> Allowlist-collision note for Batch 5: `visualScan.allowlist.ts` is a *shared* file that every C1
+> surface sub-agent edits (deleting its own lines). To keep file ownership disjoint, either (i) shard the
+> allowlist per surface at C0 time, or (ii) serialize only the allowlist-delete commit while keeping the
+> surface markup edits parallel. Prefer (i).
+
+---
+
 Completes the three caveats deferred at the end of the GUI honesty audit. **Scoped to surfaces that
 SURVIVE the ratified reorg** (`docs/agents/gui-ia-blueprint.md` §0 RATIFIED, §6 after-tree). This plan
 does not invent surfaces and does not fix surfaces being cut.
@@ -99,12 +175,12 @@ is a large refactor of every `#[tauri::command]`; option (b) (build the sidecar 
 needs the full toolchain. Option (a) is a ~10-line `build.rs` guard plus a CI step. We implement (a) and
 make the existing CI sidecar build the *fallback* path so the real bundle stays verified too.
 
-### A1. Reproduce the failure (RED)
+### A1. Reproduce the failure (RED)  [SEQUENTIAL]
 - Run `cargo check -p vox-gui` from repo root. Capture the error (expected: `tauri_build::try_build`
   panic / missing manifest or sidecar). Paste the exact error into the commit body of A3 as the baseline
   this change fixes.
 
-### A2. Test: a check-only build path exists
+### A2. Test: a check-only build path exists  [PARALLEL-SAFE]
 - Create `crates/vox-gui/tests/check_only_build.rs`:
   ```rust
   //! Guards that `VOX_GUI_SKIP_SIDECAR=1 cargo check -p vox-gui` succeeds without a Tauri bundle.
@@ -119,7 +195,7 @@ make the existing CI sidecar build the *fallback* path so the real bundle stays 
   (The substantive verification is the CI `cargo check` in A4 — this file documents the contract and
   fails to compile if the crate itself breaks.)
 
-### A3. Implement the `build.rs` skip guard
+### A3. Implement the `build.rs` skip guard  [SEQUENTIAL]
 - Edit `crates/vox-gui/build.rs`:
   ```rust
   fn main() {
@@ -147,7 +223,7 @@ make the existing CI sidecar build the *fallback* path so the real bundle stays 
   `used_tokens` return type to `String`, see it fail, revert).
 - Commit: `fix(vox-gui): add VOX_GUI_SKIP_SIDECAR check-only build path`.
 
-### A4. Add the gate `vox ci gui-rust-check`
+### A4. Add the gate `vox ci gui-rust-check`  [SEQUENTIAL]
 - Add to `crates/vox-cli/src/commands/ci/cmd_enums.rs` a `GuiRustCheck` variant next to `GuiHonesty`.
 - Create `crates/vox-cli/src/commands/ci/gui_rust_check.rs`:
   ```rust
@@ -182,7 +258,7 @@ make the existing CI sidecar build the *fallback* path so the real bundle stays 
 - Verify: `cargo run -p vox-cli -- ci gui-rust-check` exits 0; introduce a type error → exits non-zero.
 - Commit: `feat(ci): add gui-rust-check gate (cargo check -p vox-gui, sidecar-skipped)`.
 
-### A5. Document next to gui-honesty
+### A5. Document next to gui-honesty  [SEQUENTIAL]
 - In `gui_honesty.rs` module doc and the CI runner that lists gates, note `gui-rust-check` runs alongside
   `gui-honesty`. If a `vox ci gui` umbrella exists, add `gui-rust-check` to its sequence.
 - Commit: `docs(ci): note gui-rust-check beside gui-honesty`.
@@ -197,7 +273,7 @@ the sweep runs green, captures before/after for the audited surfaces, and routes
 review gate. Scoped to the **12 surviving surfaces** plus whatever else `SURFACE_REGISTRY` yields after
 Plan 3A's registry regen.
 
-### B1. Verify the existing sweep runs headless (RED→GREEN baseline)
+### B1. Verify the existing sweep runs headless (RED→GREEN baseline)  [PARALLEL-SAFE]
 - From `crates/vox-gui/ui`, start the dev server on 1420 (the config's `baseURL`):
   `pnpm dev` (or the project's dev script) in one shell.
 - In another: `pnpm exec playwright test --config=playwright.screens.config.ts`.
@@ -216,7 +292,7 @@ Plan 3A's registry regen.
   ```
 - Commit: `test(gui): add webServer to screens playwright config for headless CI capture`.
 
-### B2. Test: the capture manifest covers every surviving surface
+### B2. Test: the capture manifest covers every surviving surface  [PARALLEL-SAFE] (reconcile vs post-3A registry)
 - There is already `e2e/lib/screenshotManifest.ts` + `screenshotManifest.test.ts`. Extend the test to
   assert the manifest's surface list equals the post-3A `SURFACE_REGISTRY` viewKeys (drift guard), so a
   surface added/renamed by Plan 3A can't silently drop out of the capture set.
@@ -224,7 +300,7 @@ Plan 3A's registry regen.
   stale list), then align.
 - Commit: `test(gui): assert screenshot manifest == surface registry`.
 
-### B3. Wire captures into `vox ci gui-visual-review`
+### B3. Wire captures into `vox ci gui-visual-review`  [SEQUENTIAL]
 - Read `crates/vox-cli-ci/src/gui_visual_review.rs` to find where it expects PNGs (the audit notes it
   reads from `contracts/reports/gui-visual-review/` with a sha256 cache and reviews only changed/new
   surfaces).
@@ -237,7 +313,7 @@ Plan 3A's registry regen.
   changed surfaces (advisory/non-gating, exit 0 — preserve that contract).
 - Commit: `feat(ci): feed real per-surface screenshots into gui-visual-review`.
 
-### B4. Capture before/after for the audited surfaces
+### B4. Capture before/after for the audited surfaces  [SEQUENTIAL] (spans Workstream C)
 - Before starting Workstream C, snapshot the 12 surviving surfaces to a `before/` dir
   (`e2e/screens/before/<view>.png`). After Workstream C, snapshot to `after/`. These are the visual
   proof the audit could not produce.
@@ -269,7 +345,7 @@ the 12 surviving surfaces. **Runs after Plan 3A.** Canonical token rules come fr
 | **overflow** | 10 | fixed-width / no-wrap clipping on narrow viewports | `min-w-0`/`truncate`/`flex-wrap` |
 | **total** | **118** | | |
 
-### C0. Per-type guard tests FIRST (RED), mirroring `surfaceHonesty.guard.test.ts`
+### C0. Per-type guard tests FIRST (RED), mirroring `surfaceHonesty.guard.test.ts`  [SEQUENTIAL] (after Plan 3A)
 
 Create `crates/vox-gui/ui/src/components/surfaces/__guards__/surfaceVisual.guard.test.ts`. It walks
 `src/components/surfaces` exactly like the honesty guard (skip `*.test.tsx` / `*.unfinished.tsx`) and
@@ -319,7 +395,7 @@ describe('surface visual guard (DS-token migration)', () => {
 > playwright sweep (B1) plus an optional axe pass (C4). Hierarchy/overflow are verified visually via the
 > before/after captures (B4).
 
-### C1. ds-token sweep (66 findings) — shrink the allowlist to zero, surface by surface
+### C1. ds-token sweep (66 findings) — shrink the allowlist to zero, surface by surface  [PARALLEL-SAFE] (per surface; after C0)
 Process surfaces in ascending finding count so early commits are small. For each surviving surface, open
 the cited file:line from its JSON, replace the raw class with the DS token, then **delete that line's
 allowlist entry**. The guard stays GREEN only if the replacement is a real token.
@@ -339,7 +415,7 @@ Harness, Mesh → Memory → Dashboard, Activity → Catalog, Settings, Tasks, S
 - Commit per surface: `style(gui): migrate <Surface> raw Tailwind hues to DS tokens`.
 - When the allowlist reaches empty for ds-token entries, the guard now BLOCKS all future raw tokens.
 
-### C2. a11y sweep (27 findings)
+### C2. a11y sweep (27 findings)  [PARALLEL-SAFE] (per surface; after C0)
 For each a11y finding, apply the cited fix:
 - decorative glyphs (e.g. `⬤`, bullets) → wrap span gets `aria-hidden="true"`.
 - icon-only buttons → add `aria-label="<action>"`.
@@ -350,7 +426,7 @@ For each a11y finding, apply the cited fix:
   a dependency.
 - Commit per surface: `a11y(gui): label/hide <Surface> controls per honesty audit`.
 
-### C3. overflow sweep (10 findings) + hierarchy (15 findings)
+### C3. overflow sweep (10 findings) + hierarchy (15 findings)  [PARALLEL-SAFE] (per surface; after C0)
 - overflow: add `min-w-0` to flex children that clip, `truncate`/`flex-wrap` per finding; verify against
   the before/after captures (B4) at the audited viewport (1440×900 and a narrow 768 capture — add a narrow
   variant to the sweep if not present).
@@ -364,7 +440,7 @@ For each a11y finding, apply the cited fix:
   the absolute customize-cluster (`Dashboard.tsx:324`).
 - Commit per surface: `fix(gui): resolve <Surface> overflow/hierarchy findings`.
 
-### C4. (optional) elevate a11y to the playwright sweep
+### C4. (optional) elevate a11y to the playwright sweep  [PARALLEL-SAFE]
 - If axe is available, add a `@axe-core/playwright` assertion into `screenshots.spec.ts` so every surface
   capture also fails on critical a11y violations. Keep it advisory at first (log, don't fail) to avoid a
   big-bang CI break; flip to failing once C2 lands.
@@ -374,10 +450,14 @@ For each a11y finding, apply the cited fix:
 
 # Final gate wiring
 
+### FG1. Order gui-rust-check into the CI sequence  [SEQUENTIAL] (needs A4)
 - Ensure the CI sequence that runs `gui-honesty` also runs `gui-rust-check` (A4) and that
   `gui-visual-review` (B3) is invoked with real captures. If there is a `vox ci gui` umbrella, the order
   is: `gui-rust-check` → `gui-honesty` → `surfaceVisual.guard` (inside gui-honesty or its own step) →
   `gui-visual-review` (advisory).
+- Commit: `feat(ci): order gui-rust-check into the gui CI sequence`.
+
+### FG2. Run surfaceVisual guard inside gui-honesty  [SEQUENTIAL] (needs C0)
 - Add `surfaceVisual.guard.test.ts` to the vitest invocation inside `gui_honesty.rs` (it already runs one
   guard; add the second path) OR keep it as its own step — prefer co-locating in `gui-honesty` so one gate
   covers honesty + visual regressions.

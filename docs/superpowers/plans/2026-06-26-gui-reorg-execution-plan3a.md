@@ -13,6 +13,108 @@ scopes_out:
 
 # GUI Reorg Execution Plan 3A
 
+## Workflow Execution
+
+This section is the dispatch contract for a workflow orchestrator. It states cross-plan ordering, classifies
+every existing task `[PARALLEL-SAFE]`/`[SEQUENTIAL]`, and groups independent tasks into fan-out batches. **It
+adds no new tasks and changes no task body** — it only sequences and parallelizes what already exists below.
+
+### Cross-plan dependency header
+
+- **Predecessors (must land first):** none. 3A is the **first** plan of the reorg trilogy and depends on no
+  other plan. It only requires the ratified blueprint `docs/agents/gui-ia-blueprint.md` (§0/§3/§4/§5/§6),
+  which is an input artifact, not a plan to execute.
+- **Successors (must wait on 3A):** **Plan 3B** (mens/populi GUI-from-CLI parity, Amendment A) and **Plan 3C**
+  (Settings consolidation + Settings/Policies unification, Amendment B). Both depend on 3A's surviving surface
+  set + nav skeleton being stable. Do **not** dispatch 3B/3C until 3A's Bundle 7 gate (Task 7.1) is green.
+- **Intra-plan keystone:** **Task 6.1** (the `parseViewFromLocation` redirect-map seam) is the keystone. It
+  must land before any task that deletes a `#view=` key, because every deletion relies on the redirect to keep
+  old deep-links resolving. Tasks 6.2, 4.1, 3a.1, 3b.2, 5.2 each cut a key the redirect map covers.
+
+### Shared-file reality (why most tasks are SEQUENTIAL)
+
+A workflow sub-agent edits + commits one task end-to-end. The plan's tasks overwhelmingly touch the **same
+four sync sites** — `crates/vox-gui/ui/src/lib/navigation.ts`, `crates/vox-gui/ui/src/lib/navigation.test.ts`,
+`contracts/gui/surface-registry.v1.yaml` (+ its regenerated `surfaceRegistry.generated.ts`), and
+`crates/vox-gui/ui/src/components/layout/Sidebar.tsx`. Two sub-agents that both edit `navigation.ts` (or both
+run `gui-surface-registry --write` on the YAML) will collide on commit. Therefore a task is **`[PARALLEL-SAFE]`
+only if it touches a file set disjoint from its batch-mates**; otherwise it is **`[SEQUENTIAL]`** and the
+workflow runs it in series on the navigation/YAML hot path. The redirect keystone (6.1) is a hard barrier
+gating the entire structural phase.
+
+### Per-task classification
+
+| Task | Class | Touches (hot files) | Gating reason |
+|---|---|---|---|
+| 1.1 scientia→Findings | `[PARALLEL-SAFE]` | navigation.ts NAV_LABELS, YAML, test | label-only; conflict-free *if* serialized regen (see batch note) |
+| 1.2 oratio→Voice | `[PARALLEL-SAFE]` | navigation.ts NAV_LABELS, YAML, test | label-only |
+| 1.3 runs→"Runs" | `[PARALLEL-SAFE]` | navigation.ts NAV_LABELS, **Sidebar.tsx**, test | label-only; Sidebar edit is disjoint from 1.1/1.2 |
+| 6.1 redirect seam | `[SEQUENTIAL]` | navigation.ts (new exports + parseViewFromLocation), new test | **KEYSTONE barrier** — blocks all cuts |
+| 6.2 cut 6 registry rows | `[SEQUENTIAL]` | YAML→regen, new test | after 6.1; YAML hot path |
+| 6.3 knowledge default child guard | `[PARALLEL-SAFE]` | navigation.test.ts only (regression guard) | guard-only; no prod edit |
+| 4.1 search→memory reparent | `[SEQUENTIAL]` | navigation.ts (4 maps), Sidebar.tsx, YAML→regen, App note | after 6.1; navigation.ts + YAML hot path |
+| 3a.1 claims→scientia | `[SEQUENTIAL]` | navigation.ts, YAML→regen, decoratorRegistry.ts | after 6.1; navigation.ts + YAML hot path |
+| 3b.1 Discovery presets | `[PARALLEL-SAFE]` | ActivitySurface.tsx + new test (no nav/YAML) | disjoint file set — can run beside the nav serial chain |
+| 3b.2 retire 3 clones, move activity | `[SEQUENTIAL]` | navigation.ts, YAML→regen, decoratorRegistry.ts | after 6.1; navigation.ts + YAML hot path; needs 3b.1's `activity` surface intent |
+| 5.1 gamify nav→settings | `[SEQUENTIAL]` | navigation.ts, YAML→regen | navigation.ts + YAML hot path |
+| 5.2 matrix→chat rail | `[SEQUENTIAL]` | navigation.ts, YAML→regen, surfaceComponents.tsx | after 6.1; navigation.ts + YAML hot path |
+| 2.1 runs named child | `[SEQUENTIAL]` | navigation.ts, YAML→regen (no-op) | navigation.ts hot path |
+| 2.2 ADD needs-you | `[SEQUENTIAL]` | navigation.ts, YAML→regen | navigation.ts + YAML hot path |
+| 2.3 ADD sub-agents | `[SEQUENTIAL]` | navigation.ts, YAML→regen | navigation.ts + YAML hot path |
+| 7.1 full gate | `[SEQUENTIAL]` | runs whole suite, no edits | terminal gate — must run last |
+
+### Fan-out batch grouping
+
+The workflow dispatches batches in order. Within a `parallel` batch, sub-agents run concurrently (their file
+sets are disjoint); a `serial` batch runs its tasks one-by-one on the navigation.ts/YAML hot path. Each task
+ends in its own commit (write-through-workflow), so the workflow can checkpoint per task.
+
+- **Batch A — `parallel` (fan-out 3):** Tasks **1.1, 1.2, 1.3**. All label-only, disjoint enough to dispatch
+  together. 1.1/1.2 both touch `NAV_LABELS` + YAML; if the orchestrator cannot guarantee line-disjoint merges
+  on `navigation.ts`/YAML, demote A to serial (run 1.1→1.2→1.3). 1.3's Sidebar.tsx edit is independent. Each
+  task regenerates the registry; if regen runs concurrently, serialize the `--write` step (run it once after
+  all three land, or let the last committer regen). **Safe-degrade default: run A serially if unsure.**
+- **Barrier — Task 6.1 (KEYSTONE):** dispatch **alone**, must complete + commit before Batch C. This is the
+  redirect seam every cut depends on.
+- **Batch B — `parallel` (fan-out 2), may overlap the serial chain:** Tasks **3b.1** (ActivitySurface presets)
+  and **6.3** (knowledge-default-child regression guard). Both touch file sets disjoint from `navigation.ts`'s
+  structural edits (3b.1 = ActivitySurface.tsx; 6.3 = navigation.test.ts guard-only). They can run any time
+  after Batch A and (for the orchestrator's convenience) alongside the start of Batch C, since neither mutates
+  the nav structural maps. 3b.1 must precede 3b.2 (3b.2 relies on the `activity` Discovery surface existing).
+- **Batch C — `serial` (the navigation.ts / YAML hot path), strictly after 6.1:** Tasks in this order —
+  **6.2 → 4.1 → 3a.1 → 3b.2 → 5.2 → 5.1 → 2.1 → 2.2 → 2.3**. Every one of these mutates `navigation.ts` and/or
+  the YAML registry and regenerates the TS, so they are serialized to avoid commit/regen collisions. 3b.2 must
+  follow 3b.1 (Batch B) and 6.2 (the clone rows are cut/repointed coherently). Order within C is otherwise the
+  blueprint's bundle order with the redirect-dependent cuts (6.2/4.1/3a.1/3b.2/5.2) up front.
+- **Batch D — `serial` terminal:** Task **7.1** (whole-suite vitest + typecheck + registry drift gate). Runs
+  last, after every Batch C task has landed. Its green output is the precondition for dispatching Plan 3B/3C.
+
+Dependency edges (for a DAG-driven scheduler): `{1.1,1.2,1.3} → 6.1`; `6.1 → {6.2,4.1,3a.1,3b.2,5.2}`;
+`3b.1 → 3b.2`; `6.2 → 3b.2`; `{all C tasks} → 7.1`; `6.3` and `3b.1` depend only on Batch A completing.
+Tasks **5.1, 2.1, 2.2, 2.3** do not strictly require 6.1 (they ADD/reparent rather than cut a redirected key)
+but are placed in serial Batch C because they share the navigation.ts/YAML hot path.
+
+### Commit & git discipline (per task, write-through-workflow)
+
+Every task is self-contained: write failing test → run red → implement → run green → **commit**. A sub-agent
+commits its own task using **add + commit only** (never push, never branch-switch, never `git commit -a`),
+staging exactly the files that task touched:
+
+```
+git -C /c/Users/Owner/vox-graphify-gui add <only-the-files-this-task-edited>
+git -C /c/Users/Owner/vox-graphify-gui commit -m "<the task's listed commit message>"
+```
+
+Use the exact commit message printed in each task's **Commit:** line. Stage only that task's files (the listed
+sync sites + regenerated TS + new/edited test) — do not `git add -A`. No `push`, no `--amend`, no rebase, no
+branch creation; the workflow owns branch/merge.
+
+> NOTE: this supersedes the "the human commits — do NOT run `git commit`" discipline note in the Tasks header
+> below **for workflow (sub-agent) execution**. Under workflow dispatch each sub-agent DOES commit its own
+> task (add + commit only). For manual/human execution, the original "human commits" note still applies.
+
+---
+
 ## Goal
 
 Execute the **ratified** structural moves/merges/renames/cuts from `docs/agents/gui-ia-blueprint.md`
@@ -119,7 +221,7 @@ Verified wiring facts (de-risks the conditional ADDs):
 
 ## Bundle 1 — Retire Latin labels (label-only, no redirects)
 
-### Task 1.1 — `scientia` label → "Findings"
+### Task 1.1 — `scientia` label → "Findings" [PARALLEL-SAFE] (Batch A)
 
 **Test (red).** Edit `crates/vox-gui/ui/src/lib/navigation.test.ts`, add inside the existing `describe`:
 
@@ -147,7 +249,7 @@ Run vitest again → PASS. Run `pnpm typecheck` → green.
 
 **Commit:** `feat(gui-reorg): relabel scientia → Findings (Bundle 1)`
 
-### Task 1.2 — `oratio` label → "Voice"
+### Task 1.2 — `oratio` label → "Voice" [PARALLEL-SAFE] (Batch A)
 
 **Test (red).** Add to `navigation.test.ts`:
 
@@ -166,7 +268,7 @@ Run red.
 
 **Commit:** `feat(gui-reorg): relabel oratio → Voice (Bundle 1)`
 
-### Task 1.3 — `runs` group label "Runs & Approvals" → "Runs" (touches TWO sites)
+### Task 1.3 — `runs` group label "Runs & Approvals" → "Runs" (touches TWO sites) [PARALLEL-SAFE] (Batch A)
 
 **Test (red).** Add to `navigation.test.ts`:
 
@@ -195,7 +297,7 @@ Run vitest green. `pnpm typecheck` green.
 
 ## Bundle 6 — Delete registry phantom + 5 parent-shells (Group C, structural)
 
-### Task 6.1 — Add the redirect-map seam + a deep-link redirect test FIRST
+### Task 6.1 — Add the redirect-map seam + a deep-link redirect test FIRST [SEQUENTIAL] (KEYSTONE barrier)
 
 This must precede the deletions so removed keys never break.
 
@@ -274,7 +376,7 @@ Run both nav test files → green. `pnpm typecheck` → green.
 
 **Commit:** `feat(gui-reorg): add migration redirect map in parseViewFromLocation (ledger §5)`
 
-### Task 6.2 — CUT the 6 registry rows (phantom `review` + 5 parent-shells)
+### Task 6.2 — CUT the 6 registry rows (phantom `review` + 5 parent-shells) [SEQUENTIAL] (Batch C, after 6.1)
 
 **Test (red).** New `crates/vox-gui/ui/src/generated/surfaceRegistry.cut.test.ts`:
 
@@ -320,7 +422,7 @@ Run vitest green. Note `surfaceComponents.tsx` has **no** `case 'review'`/`'agen
 
 **Commit:** `feat(gui-reorg): cut phantom review + 5 parent-shell registry rows (Bundle 6)`
 
-### Task 6.3 — Set `DEFAULT_CHILD_BY_PARENT.knowledge` to a surviving child
+### Task 6.3 — Set `DEFAULT_CHILD_BY_PARENT.knowledge` to a surviving child [PARALLEL-SAFE] (Batch B)
 
 After `knowledge`(surface) is cut and `claims` merges away, the `knowledge` group's default child must point
 at a surviving surface (blueprint §5 row "knowledge").
@@ -343,7 +445,7 @@ keep it as a **regression guard** so a later edit can't silently break it. Run i
 
 ## Bundle 4 — Kill Search↔Memory collision (`search`→`memory`, MOVE memory under knowledge)
 
-### Task 4.1 — Reparent `memory` to knowledge; retire `search` top-level
+### Task 4.1 — Reparent `memory` to knowledge; retire `search` top-level [SEQUENTIAL] (Batch C, after 6.1)
 
 **Test (red).** Add to `navigation.test.ts`:
 
@@ -389,7 +491,7 @@ Run vitest (`navigation.test.ts` + redirect test) green. `pnpm typecheck` green.
 
 ## Bundle 3a — MERGE claims + knowledge(surface) → scientia (Findings)
 
-### Task 3a.1 — Retire `claims` nav child; redirect to `scientia`
+### Task 3a.1 — Retire `claims` nav child; redirect to `scientia` [SEQUENTIAL] (Batch C, after 6.1)
 
 **Test (red).** Add to `navigation.test.ts`:
 
@@ -425,7 +527,7 @@ decorator entries leaves `ClaimsView`/`DiscoveryReviewView` imports unused, dele
 
 ## Bundle 3b — MERGE 4 activity clones → one Discovery surface (Inbox/Review/Archive presets)
 
-### Task 3b.1 — Add filter presets to the Activity (Discovery) surface
+### Task 3b.1 — Add filter presets to the Activity (Discovery) surface [PARALLEL-SAFE] (Batch B, before 3b.2)
 
 The four clones all already render via the `activity` key's `ActivitySurface` OR via Scientia decorators
 (`discovery-inbox`/`discovery-review`/`archive-panel`). The merge: keep `activity` → `ActivitySurface` as the
@@ -514,7 +616,7 @@ Rename the surface heading text (line 318 `Agent Activity Timeline`) → `Discov
 
 **Commit:** `feat(gui-reorg): Discovery surface with Inbox/Review/Archive presets (Bundle 3b)`
 
-### Task 3b.2 — Retire the 3 absorbed nav keys; MOVE `activity` into knowledge
+### Task 3b.2 — Retire the 3 absorbed nav keys; MOVE `activity` into knowledge [SEQUENTIAL] (Batch C, after 6.1+6.2+3b.1)
 
 **Test (red).** Add to `navigation.test.ts`:
 
@@ -559,7 +661,7 @@ Run vitest (nav + redirect + presets) green. `pnpm typecheck` green.
 
 ## Bundle 5 — Tighten Agents (`gamify`→settings nav reparent; `matrix`→chat rail)
 
-### Task 5.1 — Reparent `gamify` agents→settings (NAV ONLY — config move is Plan 3C)
+### Task 5.1 — Reparent `gamify` agents→settings (NAV ONLY — config move is Plan 3C) [SEQUENTIAL] (Batch C)
 
 **Test (red).** Replace the existing `gamify resolves under agents parent` test (lines 34-37 of
 `navigation.test.ts`) with:
@@ -587,7 +689,7 @@ Run vitest green. `pnpm typecheck` green.
 
 **Commit:** `feat(gui-reorg): reparent gamify nav agents→settings (Bundle 5, nav only)`
 
-### Task 5.2 — Fold `matrix` into the chat execution rail; retire the matrix nav key
+### Task 5.2 — Fold `matrix` into the chat execution rail; retire the matrix nav key [SEQUENTIAL] (Batch C, after 6.1)
 
 The blueprint folds the single `nudge_routing_intention` command inline into the chat rail. Minimal honest
 move: retire `matrix` as a nav destination (redirect → `chat`, already done in 6.1), keep the `Matrix`
@@ -627,7 +729,7 @@ Run vitest (nav + redirect) green. `pnpm typecheck` green.
 
 ## Bundle 2 — Fold orphan-nav surfaces (runs child + conditional ADDs)
 
-### Task 2.1 — `runs` parent-shell → named `runs` child; default child = runs
+### Task 2.1 — `runs` parent-shell → named `runs` child; default child = runs [SEQUENTIAL] (Batch C)
 
 **Test (red).** Add to `navigation.test.ts`:
 
@@ -659,7 +761,7 @@ Run vitest green. `pnpm typecheck` green.
 
 **Commit:** `feat(gui-reorg): make runs a named child, default Runs landing = scoreboard (Bundle 2)`
 
-### Task 2.2 — ADD `needs-you` under Runs (honesty gate: `vox_resolve_approval` wired)
+### Task 2.2 — ADD `needs-you` under Runs (honesty gate: `vox_resolve_approval` wired) [SEQUENTIAL] (Batch C)
 
 **Gate check (do first, record evidence).** Confirm the command is wired:
 `cd /c/Users/Owner/vox-graphify-gui && rg -n "vox_resolve_approval|vox_pending_approvals" crates/vox-gui/ui/src crates/vox-orchestrator-mcp/src`
@@ -689,7 +791,7 @@ Run vitest green. `pnpm typecheck` green.
 
 **Commit:** `feat(gui-reorg): ADD needs-you to nav under Runs (wired vox_resolve_approval) (Bundle 2)`
 
-### Task 2.3 — ADD `sub-agents` under Agents (honesty gate: `subagent_tree` wired)
+### Task 2.3 — ADD `sub-agents` under Agents (honesty gate: `subagent_tree` wired) [SEQUENTIAL] (Batch C)
 
 **Gate check.** `rg -n "subagent_tree|list_subagent_tree" crates/vox-gui/ui/src crates/vox-orchestrator-mcp/src`
 Expected: `subAgentClient.ts:13` invokes `'subagent_tree'`; dispatch in orchestrator. The blueprint's cited
@@ -725,7 +827,7 @@ Run vitest green. `pnpm typecheck` green.
 
 ## Bundle 7 (final) — Whole-suite + drift gate
 
-### Task 7.1 — Full vitest + typecheck + registry drift gate
+### Task 7.1 — Full vitest + typecheck + registry drift gate [SEQUENTIAL] (Batch D, terminal)
 
 Run, in order, and paste the tail of each into the commit body:
 

@@ -11,6 +11,97 @@ Implementation plan for GUI-IA Amendment B (spec:
 `docs/superpowers/specs/2026-06-26-settings-consolidation-policies-unification-design.md`).
 Ratified decisions are baked in below; this plan does not re-open them.
 
+## Workflow Execution
+
+This section makes Plan 3C dispatchable by a write-through workflow: every phase
+is classified `[PARALLEL-SAFE]` or `[SEQUENTIAL]`, grouped into fan-out batches a
+workflow can launch concurrently, and each phase ends in a concrete sub-agent
+commit (the commit commands already embedded in each phase). Sub-agents commit
+with **add + commit only** — never `git push`, never `git rebase`, never
+`git reset`. Use the worktree-scoped form in every command:
+`git -C /c/Users/Owner/vox-graphify-gui add <paths>` then
+`git -C /c/Users/Owner/vox-graphify-gui commit -m "…"`.
+
+### Cross-plan dependency header
+
+| Dependency | Requirement |
+| --- | --- |
+| **Plan 3A (gamify nav move)** | **MUST precede Phase 5** of this plan. 3A owns the gamify row in `contracts/gui/surface-registry.v1.yaml` + `surfaceRegistry.generated.ts`; Phase 5 edits the `policies` row in the same YAML and regenerates. Landing 3A first avoids a generated-TS merge collision. **Phases 0–4 do NOT touch the YAML and have NO dependency on 3A** — they may run before, during, or after 3A. |
+| **Plan 3B (VoxMens identity/keys)** | No hard ordering with 3C, but 3B routes its key handling into the **Secrets** domain that Phase 0 declares. If 3B and 3C both land, 3C's Secrets domain (single key store) is the home; no merge conflict (different files). |
+| **Spec** | `docs/superpowers/specs/2026-06-26-settings-consolidation-policies-unification-design.md` (ratified; not re-opened). |
+
+If 3A has not landed when the workflow reaches Batch C, **hold Phase 5** until 3A
+merges, then proceed (see the Phase 4-internal ordering note already in this
+plan, repeated at Phase 5.5).
+
+### Per-phase classification
+
+| Phase | Concern | Class | Depends on | Touches (conflict surface) |
+| --- | --- | --- | --- | --- |
+| **Phase 0** | 8-domain SSOT (`settingsDomains.ts` + test) | **[SEQUENTIAL]** (foundation) | — | new files only |
+| **Phase 1** | Re-group nav into 8 domains | **[SEQUENTIAL]** | Phase 0 | `SettingsView.tsx`, `SettingsView.test.tsx`, `settingsIndex.ts` |
+| **Phase 2** | Stray #1: Memory auto-recall → Settings | **[PARALLEL-SAFE]** within Batch B | Phase 1 | `SettingsView.tsx`, `SettingsView.domains.test.tsx`, `settingsIndex.ts`, `MemoryView.*` |
+| **Phase 3** | Stray #2: VCS isolation default → Settings | **[PARALLEL-SAFE]** within Batch B | Phase 1 | `SettingsView.tsx`, `SettingsView.domains.test.tsx`, `settingsIndex.ts`, `Repository/*` |
+| **Phase 4** | Stray #3: Active model → Settings | **[PARALLEL-SAFE]** within Batch B | Phase 1 | `SettingsView.tsx`, `SettingsView.domains.test.tsx`, `settingsIndex.ts` |
+| **Phase 5** | Policies co-location (nav group) | **[SEQUENTIAL]** | Phase 1 + **Plan 3A** | `navigation.*`, `Sidebar.*`, `surface-registry.v1.yaml`, generated TS |
+| **Phase 6** | Final regression + drift gate | **[SEQUENTIAL]** (terminal) | Phases 0–5 | no source edits (verify only) |
+
+### Fan-out batches
+
+The workflow dispatches batches in order; within a batch, listed phases run
+concurrently. A batch is complete only when **all** its phases are green and
+committed.
+
+- **Batch A — foundation (sequential, 1 agent):** `Phase 0 → Phase 1`.
+  These are strictly ordered (Phase 1 imports the SSOT Phase 0 creates and
+  deletes the flat `SECTIONS` array). Run them as a single sequential agent, or
+  two agents where the Phase 1 agent starts only after Phase 0's commit lands.
+  **Gate:** Phase 1 nav-grouping test green before Batch B fans out.
+
+- **Batch B — stray-setting migrations (fan-out, up to 3 agents):**
+  `Phase 2 ∥ Phase 3 ∥ Phase 4`. These are logically independent (distinct
+  section blocks, distinct source surfaces: Memory / Repository / Models). They
+  are **[PARALLEL-SAFE]** in intent but **share three files**
+  (`SettingsView.tsx`, `SettingsView.domains.test.tsx`, `settingsIndex.ts`).
+  Two safe dispatch modes for a write-through workflow:
+  - **Mode B1 (recommended — isolated worktrees):** give each phase its own
+    git worktree off the post-Batch-A commit, run all three concurrently, then
+    integrate sequentially (the workflow merges the three commits back; the
+    shared-file hunks are additive — a new `section ===` block, a new
+    `SETTINGS_INDEX` entry, a new test — and merge cleanly because each appends
+    in a distinct region). Each phase still ends in its own commit.
+  - **Mode B2 (serialized commits, shared tree):** if worktree isolation is
+    unavailable, run the three phases' *implementation* in parallel but
+    **serialize their commits** (Phase 2 commit → Phase 3 commit → Phase 4
+    commit) so each `git -C … add` stages only that phase's hunks. The phases do
+    not depend on each other's code, only on Batch A.
+  - **Gate:** all three commits present and the full Settings regression green
+    before Batch C.
+
+- **Batch C — nav co-location (sequential, 1 agent):** `Phase 5`.
+  Blocked on **Plan 3A** (YAML/generated-TS). Runs after Batch B (Phase 5 reads
+  no Batch-B code, but sharing one integration head keeps the registry
+  regeneration deterministic). Ends in its own commit.
+
+- **Batch D — gate (sequential, 1 agent):** `Phase 6`. Whole-suite vitest +
+  typecheck + surface-registry drift no-write check. No source edits; produces
+  no commit (verification only) — reports branch state to the user.
+
+### Write-through commit rule (every phase)
+
+Each phase already terminates in an `add` + `commit` step (Steps 0.3, 1.4, 2.5,
+3.5, 4.4, 5.6). For workflow dispatch, rewrite those commands to the
+worktree-scoped, push-free form, e.g.:
+
+```
+git -C /c/Users/Owner/vox-graphify-gui add <the exact paths listed in that step>
+git -C /c/Users/Owner/vox-graphify-gui commit -m "<the message already given in that step>"
+```
+
+No sub-agent runs `git push`, `git merge`, `git rebase`, `git reset`, or
+`git clean`. Integration of Batch-B worktrees and the final merge are the
+workflow/human's responsibility, not a sub-agent's.
+
 ## Ratified scope (decisions, not options)
 
 1. **Unification = option (b) co-located, distinct.** Settings and Policies
@@ -83,7 +174,9 @@ the history is bisectable). Never `git push`.
 
 ---
 
-## Phase 0 — Domain model SSOT (no UI behavior change yet)
+## Phase 0 — Domain model SSOT (no UI behavior change yet) [SEQUENTIAL]
+
+_Batch A (foundation). Depends on: nothing. Must precede Phase 1._
 
 The 8 domains must be a single declarative structure so the nav, the search
 index `domain` field, and the tests all read from one place.
@@ -273,7 +366,9 @@ git commit -m "feat(gui-settings): add 8-domain SSOT for Settings consolidation 
 
 ---
 
-## Phase 1 — Re-group SettingsView nav into 8 domains
+## Phase 1 — Re-group SettingsView nav into 8 domains [SEQUENTIAL]
+
+_Batch A (foundation). Depends on: Phase 0. Gates Batch B (Phases 2/3/4)._
 
 Replace the flat `SECTIONS` left-nav with a 2-level domain → section nav, driven
 by `SETTINGS_DOMAINS`. The right-pane `section ===` blocks are **unchanged** in
@@ -439,7 +534,12 @@ git commit -m "feat(gui-settings): re-group 13 sections into 8 nav domains (Plan
 
 ---
 
-## Phase 2 — Stray setting #1: Memory auto-recall → Settings (Memory & Context)
+## Phase 2 — Stray setting #1: Memory auto-recall → Settings (Memory & Context) [PARALLEL-SAFE]
+
+_Batch B (fan-out). Depends on: Phase 1. Independent of Phases 3 & 4 (distinct
+section block + Memory surface); shares `SettingsView.tsx` / `settingsIndex.ts` /
+`SettingsView.domains.test.tsx` — isolate via worktree (Mode B1) or serialize the
+commit (Mode B2)._
 
 The pref key `gui.memory.autoRecall` is the SSOT and does **not** change. We add
 a toggle in Settings, and replace the Memory surface's toggle button with a
@@ -597,7 +697,12 @@ git commit -m "feat(gui-settings): move memory auto-recall toggle into Settings,
 
 ---
 
-## Phase 3 — Stray setting #2: VCS isolation default → Settings (Agents & Orchestration)
+## Phase 3 — Stray setting #2: VCS isolation default → Settings (Agents & Orchestration) [PARALLEL-SAFE]
+
+_Batch B (fan-out). Depends on: Phase 1. Independent of Phases 2 & 4 (distinct
+section block + Repository surface); shares `SettingsView.tsx` /
+`settingsIndex.ts` / `SettingsView.domains.test.tsx` — isolate via worktree
+(Mode B1) or serialize the commit (Mode B2)._
 
 The command `set_vcs_isolation_strategy` ({ default, agentId: null, strategy:
 null }) and the read `get_vcs_isolation` are the SSOT and do not change. The
@@ -703,7 +808,12 @@ git commit -m "feat(gui-settings): move VCS isolation default into Settings unde
 
 ---
 
-## Phase 4 — Stray setting #3: Active model selection → Settings (Models & Routing)
+## Phase 4 — Stray setting #3: Active model selection → Settings (Models & Routing) [PARALLEL-SAFE]
+
+_Batch B (fan-out). Depends on: Phase 1. Independent of Phases 2 & 3 (additive —
+Models surface unchanged); shares `SettingsView.tsx` / `settingsIndex.ts` /
+`SettingsView.domains.test.tsx` — isolate via worktree (Mode B1) or serialize the
+commit (Mode B2)._
 
 `get_active_model` / `set_active_model` ({ modelId }) are the SSOT. The Models
 surface keeps its **per-card "set default"** buttons (contextual, like the
@@ -770,7 +880,11 @@ git commit -m "feat(gui-settings): add active-model selector to Settings Models 
 
 ---
 
-## Phase 5 — Policies co-location (nav group, sibling-distinct)
+## Phase 5 — Policies co-location (nav group, sibling-distinct) [SEQUENTIAL]
+
+_Batch C. Depends on: Phase 1 + **Plan 3A** (shared `surface-registry.v1.yaml` /
+`surfaceRegistry.generated.ts`). Hold this phase until 3A has landed; if 3A is
+not merged when the workflow reaches Batch C, pause and land 3A first._
 
 Reparent the `policies` surface so it is a sibling of `settings` under the
 "Configuration & Governance" group. The surface internals, the
@@ -905,7 +1019,10 @@ git commit -m "feat(gui-nav): co-locate Policies with Settings under Configurati
 
 ---
 
-## Phase 6 — Final regression + drift gate
+## Phase 6 — Final regression + drift gate [SEQUENTIAL]
+
+_Batch D (terminal). Depends on: Phases 0–5 all green and committed. Verification
+only — produces no commit._
 
 ### Step 6.1 — Full vitest + typecheck
 
