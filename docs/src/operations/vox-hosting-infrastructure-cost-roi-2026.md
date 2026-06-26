@@ -1,7 +1,7 @@
 ---
 title: "Vox Hosting & Infrastructure Cost / ROI Audit (2026)"
 description: "Point-in-time 2026 price audit and tiered own-vs-colocate-vs-rent advisory for hosting Vox compute, GPU serving, fine-tuning, control plane, and network, under a strict 24-month ROI hurdle."
-category: "reference"
+category: "Operations"
 status: "research"
 training_eligible: false
 training_rationale: "Time-sensitive procurement/cost data, not durable architecture or product behavior."
