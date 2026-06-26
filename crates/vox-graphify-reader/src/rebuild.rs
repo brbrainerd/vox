@@ -1,8 +1,44 @@
-use super::ast::{EXTRACTOR_VERSION, ExtractedEdge, extract_ast_in_module};
+use super::ast::{
+    EXTRACTOR_VERSION, ExtractedEdge, extract_ast_in_module, extract_ast_in_module_with_wrappers,
+};
 use super::cache::CacheManager;
 use super::cluster::{ClusterEdge, ClusterNode, cluster_nodes};
+use super::registry::{
+    RegistryNode, mcp_tool_nodes, surface_nodes, tauri_command_nodes, transport_wrapper_map,
+};
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
+
+/// Parse the `generate_handler![...]` invocation in `main.rs`, returning the final path
+/// segment of each registered entry (e.g. `commands::x::do_it` → `do_it`). This is the set
+/// of Tauri commands actually wired into the app; commands absent from it are dead.
+fn parse_registered_handlers(main_rs: &str) -> Vec<String> {
+    let Some(start) = main_rs.find("generate_handler!") else {
+        return Vec::new();
+    };
+    let after = &main_rs[start + "generate_handler!".len()..];
+    // The macro takes a `[...]` (or `(...)`) list; capture up to the matching close.
+    let (open, close) = match after.trim_start().chars().next() {
+        Some('[') => ('[', ']'),
+        Some('(') => ('(', ')'),
+        _ => return Vec::new(),
+    };
+    let Some(o) = after.find(open) else {
+        return Vec::new();
+    };
+    let Some(c) = after[o..].find(close) else {
+        return Vec::new();
+    };
+    let list = &after[o + 1..o + c];
+    list.split(',')
+        .map(|e| e.trim())
+        .filter(|e| !e.is_empty())
+        .filter_map(|e| e.rsplit("::").next())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect()
+}
 
 /// Collect the source files that the extractor understands, skipping vendored/VCS dirs.
 pub(crate) fn walk_source_files(source_dir: &std::path::Path) -> Vec<std::path::PathBuf> {
@@ -111,9 +147,33 @@ pub fn rebuild_graph(
     let mut all_nodes = Vec::new();
     let mut all_edges = Vec::new();
 
+    let gui_wiring = meta.extraction_mode.as_deref() == Some("gui-wiring");
+
+    // In gui-wiring mode, build the registered-command set and the transport-wrapper map
+    // ONCE, up front, then reuse them across every file in the single walk loop below.
+    let registered: Vec<String> = if gui_wiring {
+        fs::read_to_string(source_dir.join("src/main.rs"))
+            .map(|s| parse_registered_handlers(&s))
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+    let registered_refs: Vec<&str> = registered.iter().map(String::as_str).collect();
+    let wrappers: HashMap<String, String> = if gui_wiring {
+        fs::read_to_string(source_dir.join("ui/src/transport.ts"))
+            .map(|s| transport_wrapper_map(&s))
+            .unwrap_or_default()
+    } else {
+        HashMap::new()
+    };
+    // Accumulated registry nodes (commands/tools/surfaces) carrying the unregistered flag.
+    let mut reg: Vec<RegistryNode> = Vec::new();
+
     for path in walk_source_files(source_dir) {
         let path = path.as_path();
         let content = fs::read_to_string(path)?;
+        let ext = path.extension().and_then(|x| x.to_str()).unwrap_or("");
+        let is_ts = matches!(ext, "ts" | "tsx" | "js" | "jsx");
 
         // Cache key includes EXTRACTOR_VERSION so a scheme change invalidates
         // stale cached graphs even when file content is unchanged.
@@ -125,7 +185,12 @@ pub fn rebuild_graph(
             .unwrap_or(path)
             .to_string_lossy()
             .replace('\\', "/");
-        let graph = if manager.get_cached_hash(path).as_deref() == Some(&hash) {
+
+        // Wrapper-aware boundary extraction is only meaningful for TS/TSX in gui-wiring
+        // mode; everything else (and all non-gui-wiring builds) uses the cached path.
+        let graph = if gui_wiring && is_ts {
+            extract_ast_in_module_with_wrappers(path, &content, &module_id, &wrappers)
+        } else if manager.get_cached_hash(path).as_deref() == Some(&hash) {
             manager
                 .load_cache(path)
                 .unwrap_or_else(|| extract_ast_in_module(path, &content, &module_id))
@@ -135,14 +200,79 @@ pub fn rebuild_graph(
             g
         };
 
+        // Run the registry adapters on this same file's content (no second walk).
+        if gui_wiring {
+            if ext == "rs" {
+                reg.extend(tauri_command_nodes(&content, &registered_refs));
+                reg.extend(mcp_tool_nodes(&content));
+            } else if module_id.ends_with("surfaceRegistry.generated.ts") {
+                reg.extend(surface_nodes(&content));
+            }
+        }
+
         all_nodes.extend(graph.nodes);
         all_edges.extend(graph.edges);
+    }
+
+    // Fold registry nodes (commands/tools/surfaces) into the node set. A registry node may
+    // appear in multiple files (e.g. a command and an mcp tool name collision) — dedup by id,
+    // keeping any `unregistered` flag if set.
+    let mut reg_by_id: std::collections::BTreeMap<String, RegistryNode> =
+        std::collections::BTreeMap::new();
+    for n in reg {
+        reg_by_id
+            .entry(n.id.clone())
+            .and_modify(|e| e.unregistered |= n.unregistered)
+            .or_insert(n);
+    }
+    let reg_nodes: Vec<RegistryNode> = reg_by_id.into_values().collect();
+    for n in &reg_nodes {
+        all_nodes.push(crate::ast::ExtractedNode {
+            id: n.id.clone(),
+            label: n.label.clone(),
+            kind: n.kind.clone(),
+        });
     }
 
     // Resolve each bare call target to a qualified definition id. Preference: same-module
     // definition; else the unique global definition. Ambiguous, unresolved, and self-edges
     // are dropped (honesty rule: never invent an edge).
     let all_edges: Vec<ExtractedEdge> = resolve_edges(&all_nodes, &all_edges);
+
+    // For every dangling boundary edge whose target node is absent, synthesize a
+    // `missing`-flagged node so coverage can see the dead-end. The node id is the
+    // boundary target (e.g. `cmd:gone`); its kind is derived from the prefix.
+    let mut missing_ids: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    {
+        use std::collections::HashSet;
+        let existing: HashSet<&str> = all_nodes.iter().map(|n| n.id.as_str()).collect();
+        for e in &all_edges {
+            if e.confidence == "dangling" && !existing.contains(e.target.as_str()) {
+                missing_ids.insert(e.target.clone());
+            }
+        }
+        for id in &missing_ids {
+            let (prefix, name) = id.split_once(':').unwrap_or(("", id.as_str()));
+            let kind = match prefix {
+                "cmd" => "command",
+                "tool" => "tool",
+                "surface" => "surface",
+                _ => "unknown",
+            };
+            all_nodes.push(crate::ast::ExtractedNode {
+                id: id.clone(),
+                label: name.to_string(),
+                kind: kind.to_string(),
+            });
+        }
+    }
+
+    // Index the per-node honesty flags so they can be serialized onto the output nodes.
+    let unregistered_ids: std::collections::HashSet<&str> = reg_nodes
+        .iter()
+        .filter(|n| n.unregistered)
+        .map(|n| n.id.as_str())
+        .collect();
 
     // Convert nodes to ClusterNode format for Leiden clustering
     let cluster_nodes_input: Vec<ClusterNode> = all_nodes
@@ -171,12 +301,19 @@ pub fn rebuild_graph(
                 .get(&n.id)
                 .cloned()
                 .unwrap_or_else(|| "c_0".to_string());
-            serde_json::json!({
+            let mut node = serde_json::json!({
                 "id": n.id,
                 "label": n.label,
                 "kind": n.kind,
                 "community": comm
-            })
+            });
+            if missing_ids.contains(&n.id) {
+                node["missing"] = serde_json::json!(true);
+            }
+            if unregistered_ids.contains(n.id.as_str()) {
+                node["unregistered"] = serde_json::json!(true);
+            }
+            node
         })
         .collect();
 
