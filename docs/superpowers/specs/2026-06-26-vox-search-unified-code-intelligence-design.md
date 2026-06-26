@@ -91,10 +91,12 @@ left to the executing plan; the *external* surface is uniformly `vox search` /
 | `vox graphify semantic-related` *(planned)* | `vox search semantic-related` |
 | — | `vox search discover` *(new: the fused graph-RAG verb)* |
 
-The existing user-facing `vox search …` retrieval verbs (the lexical/vector
-query path) stay; the structural verbs above join the **same `vox search`
-group** as subcommands. A one-release **alias** keeps `vox graphify …` resolving
-(deprecation warning) so scripts and the freshness-panel copy-string don't break.
+`vox search` is a **NEW top-level command group created by RENAMING the
+`Graphify` clap variant** — there is no prior `vox search` CLI command to merge
+into. The structural verbs above become subcommands of this renamed group; the
+lexical/vector query path is reached through the same group's verbs. A
+one-release **alias** keeps `vox graphify …` resolving (deprecation warning) so
+scripts and the freshness-panel copy-string don't break.
 
 **MCP tools.** `vox_graphify_*` → `vox_search_*`:
 
@@ -192,6 +194,13 @@ store}` — the `control` vs `store` distinction is the crux). Detectors:
 `ignored_result`, `write_only_field`, **`accumulator_never_gates`** (the
 canonical swallowed-error-accumulator shape — the one that flags the
 frontend-emit `reactive_view_emit_failures` bug the call graph is blind to).
+**Load-bearing caveat (from the data-flow sibling):** the
+`accumulator_never_gates` / frontend-emit catch holds **only when the
+accumulation write and the store-read are in the SAME function** (the
+frontend-emit shape). A **cross-function accumulator** — where the value is
+accumulated in one function and read in another — is an **accepted
+intra-procedural miss** (under-reported, never falsely flagged), consistent with
+the general callee-return-miss below.
 Output: `DeadSignalReport` via `compute_dead_signals(graph)`, surfaced by
 `vox search dead-signals` + a non-blocking CI advisory (promotable to blocking
 once false-positive rate is measured).
@@ -213,6 +222,16 @@ freshness model). Every result is stamped `layer: "semantic"`, `source`,
 *"find things related to X"* (embedding kNN over the node corpus) and *"what's
 the auth flow"* (semantic seeds + 1–2-hop **structural** expansion — the seeds
 are guesses, the connective tissue is ground truth).
+
+**The semantic layer ships in two success bars:**
+
+- **P3a — embedding-kNN `vox_search_semantic_related`.** Rides the
+  `GraphifyNodes` embedding corpus (no new embedding stack), answers "related to
+  X" via kNN, fully overlay-labeled and staleness-stamped. **Shippable** on its
+  own — this is the deliverable bar for the semantic layer.
+- **P3b — LLM-typed-relation overlay.** Adds LLM-labeled *typed* relations
+  (the "what's the auth flow" connective semantics) on top of P3a. A **separate,
+  deferrable tail** — not required for the layer to ship.
 
 ### 2.5 The honesty boundary (one statement for all five layers)
 
@@ -300,8 +319,9 @@ decisions:
 - **Tool descriptions that route** ("PREFER THIS over grep/Glob for 'where is X'")
   — comparative/imperative copy, kept in the catalog `description`/`agent_hint`
   SSOT (descriptions are GENERATED; never hand-edit the canonical YAML).
-- **A pinned `graph-first-discovery` skill** shipped under
-  `crates/vox-skills/skills/`, **pinned-by-default** so its body (the
+- **A pinned `graph-first-discovery` skill** shipped under `assets/skills/`
+  (the auto-hydrated skill root — shipping it under `crates/vox-skills/skills/`
+  would drop it where it is **not** loaded), **pinned-by-default** so its body (the
   `search→neighbors→path` call-order playbook) is injected, **size-gated** to
   keep the cache prefix stable. Its frontmatter description is itself a steering
   one-liner so even unloaded it nudges graph-first via the Tier-1 catalog.
@@ -488,17 +508,45 @@ branch (noted); the new umbrella adds the rename/absorption + the cross-cutting
 auto-availability/governance work. Each plan produces working software and is
 authored/executed via `superpowers:writing-plans` → `subagent-driven-development`.
 
+### 9.0 Canonical plan-ID crosswalk (SSOT)
+
+This table is the **single source of truth** mapping the master spec's `P-id`s to
+the layer/track plan ids (`vs*` / `3*`), the on-branch plan files, and the sibling
+spec each was distilled from. **The index references this table; do not re-derive
+the mapping** anywhere else.
+
+| P-id | vs/3x-id | Plan file | Sibling spec |
+|---|---|---|---|
+| **P0** | **vs1** | `2026-06-26-vox-search-absorption-and-cli-ingest.md` | `2026-06-26-graphify-general-enhancement-and-gui-ia-blueprint-design.md` |
+| **P1** | **vs2** | `2026-06-26-vox-search-dataflow-layer.md` | `2026-06-26-graphify-dataflow-semantic-overlay-design.md` |
+| **P2** | **vs3** | `2026-06-26-vox-search-fusion-discover.md` | `2026-06-26-graphify-voxsearch-fusion-design.md` |
+| **P3** | **vs4** | `2026-06-26-vox-search-semantic-overlay.md` | `2026-06-26-graphify-dataflow-semantic-overlay-design.md` |
+| **P4** | **vs5** | `2026-06-26-vox-search-agent-tool-surface.md` | `2026-06-26-graphify-agent-tool-surface-design.md` |
+| **P5** | **3A / 3D** *(split)* | `2026-06-26-gui-reorg-execution-plan3a.md` + `2026-06-26-gui-caveat-completions-plan3d.md` | `docs/agents/gui-ia-blueprint.md` |
+| **P6** | **3F** | `2026-06-26-gui-cli-governance-surfaces-plan3f.md` | `docs/agents/cli-gui-governance-audit.md` |
+| **P7** | **3B** | `2026-06-26-voxmens-gui-full-plan3b.md` | `2026-06-26-voxmens-gui-cli-parity-design.md` |
+| **P8** | **3C** | `2026-06-26-settings-consolidation-plan3c.md` | `2026-06-26-settings-consolidation-policies-unification-design.md` |
+
+> **Note:** P5 (GUI Vox Search surface) is **split across 3A and 3D** — 3A lands the
+> reorg skeleton + nav placement, 3D completes the honesty-caveat panes. P7/P8 are
+> **related programs**, mapped here only for traceability; they are **not** part of
+> the Vox Search service (§ appendix).
+
+### 9.1 Plan table
+
 | Plan | Title | Scope | Depends on |
 |---|---|---|---|
 | **P0** | **Absorption + structural-core enrichment** | graphify→Vox Search rename map (CLI alias, MCP tool rename, GUI re-key, brand copy); boundary + composition + registry edges; edge-confidence; `vox search coverage`. *(Extends the existing `2026-06-26-graphify-general-enhancement-and-gui-ia-blueprint` Plan 1 / Phases A0–F with the rename.)* | — |
 | **P1** | **Data-flow / def-use layer** | `dataflow.rs`: def-use edges + 3 detectors + `compute_dead_signals` + `vox_search_dataflow`/`vox_search_dead_signals` + CI advisory; frontend-emit fixture e2e. | P0 (structural node/edge schema + confidence) |
 | **P2** | **Fusion — `vox_discover` (lexical-seed first)** | `resolve.rs` (hit→node_id), `graph_overlay.rs` composite ranker, `GraphifyNodes` Vox-Search corpus, `vox_discover` tool+schema, KG-score-0.0 fix; embedding lane behind a flag. | P0 (structural index + coverage); Vox-Search corpus model |
-| **P3** | **Semantic overlay** | `semantic-overlay.json` writer/reader, freshness sha, `vox_search_semantic_related`, mixed seed-then-structural-expand query, overlay staleness GUI warn. | **P2** (the `GraphifyNodes` embedding corpus must exist) |
+| **P3** | **Semantic overlay** | **P3a** (shippable): `semantic-overlay.json` writer/reader, freshness sha, embedding-kNN `vox_search_semantic_related` over `GraphifyNodes`, overlay staleness GUI warn. **P3b** (deferrable tail): LLM-typed-relation overlay + mixed seed-then-structural-expand "auth flow" query. | **P2** (the `GraphifyNodes` embedding corpus must exist) |
 | **P4** | **Auto-availability + agent steering** | repo-root `.mcp.json` + `vox ci mcp-client-config`; `vox mcp install`; pinned `graph-first-discovery` skill; always-on code-map injection; tiered self-healing freshness; CI tier-presence assertion. | P0 (tool names final) |
 | **P5** | **GUI Vox Search surface** | retire `getGraphifyStatus` split-brain; `VoxSearchPanel` tabbed panes (all via `invokeMcpTool`); fix the `graphify` orphan; place under Knowledge per ratified IA; regen surface registry. | P0 (tools), P1/P2/P3 panes land incrementally |
 | **P6** | **CLI governance — `cli:` ingestion + coverage surfaces** | clap-tree `cli:` registry adapter + unified coverage matrix (+`CliOnly`, honest not-in-GUI); `Develop > CI`, `Knowledge > Database`, build-spine actions, typed secret/auth wrappers. | P0 (coverage capability + registry-adapter pattern) |
-| **P7** | **VoxMens GUI — FULL launch + cost** *(sibling spec `2026-06-26-voxmens-gui-cli-parity-design.md`)* | streaming Tauri wrappers (`mens_train`/`serve`, `populi_up`/`down` emitting `vox://` progress), opencode-style no-nag cost tracking, gamification; keys central in Settings/Secrets. | P6 (typed wrappers + `cli:` parity map); Settings IA (P8) for key placement |
-| **P8** | **Settings / Policies — co-located "Configuration & Governance"** *(sibling spec `2026-06-26-settings-consolidation-policies-unification-design.md`)* | option (b): Settings + Policies co-located, **distinct**, under one "Configuration & Governance" area; central secret/key store. | P6 (secret/auth wrappers) |
+
+**Vox Search = P0–P6.** P7 (VoxMens GUI) and P8 (Settings/Policies) are **related
+programs, not part of the Vox Search service** — see the
+[Related programs](#related-programs-not-part-of-vox-search) appendix.
 
 ### Dependency DAG
 
@@ -506,17 +554,18 @@ authored/executed via `superpowers:writing-plans` → `subagent-driven-developme
 P0 ──┬─► P1 ─────────────────────────────► P5 (panes)
      ├─► P2 ─► P3 ─────────────────────────► P5 (panes)
      ├─► P4
-     └─► P6 ─┬─► P7
-             └─► P8 ─► (P7 key placement)
+     └─► P6
 
 P5 consumes tools from P0/P1/P2/P3 as they land (incremental panes).
-P7 depends on both P6 (parity map + wrappers) and P8 (Settings/Secrets home for keys).
+(Related programs P7/P8 ride on P6's governance/wrapper foundation — see appendix.)
 ```
 
 **Critical path:** `P0 → P2 → P3` (semantic overlay is gated on the fusion
 corpus). **Parallelizable off P0:** P1, P4, P6. **GUI (P5)** trails its tools.
-**Amendment workstreams** P7 (VoxMens FULL launch + cost) and P8 (Settings/
-Policies co-located) ride on P6's governance/wrapper foundation.
+The **related programs** P7 (VoxMens FULL launch + cost) and P8 (Settings/
+Policies co-located) — **not part of the Vox Search service** — ride on P6's
+governance/wrapper foundation; see the
+[Related programs](#related-programs-not-part-of-vox-search) appendix.
 
 ---
 
@@ -532,9 +581,14 @@ Policies co-located) ride on P6's governance/wrapper foundation.
    clap `cli:` ∪ MCP `tool:` ∪ `cmd:` ∪ surfaces, cross-checked against the
    registries with no false "wired" claims and honest `CliOnly`.
 4. The data-flow layer flags the frontend-emit `accumulator_never_gates` class
-   deterministically; `vox_discover` fuses lexical-seed→graph-expand with
-   provenance labels; the semantic overlay answers fuzzy queries from a separate,
-   staleness-stamped artifact.
+   deterministically **when the accumulation write and the store-read are in the
+   same function** (the frontend-emit shape) — cross-function accumulators are an
+   accepted intra-procedural miss; the general callee-return-miss statement still
+   holds. `vox_discover` fuses lexical-seed→graph-expand with provenance labels;
+   the semantic overlay answers fuzzy queries from a separate, staleness-stamped
+   artifact, split into **P3a** (`vox_search_semantic_related` embedding-kNN over
+   `GraphifyNodes` — shippable) and **P3b** (LLM-typed-relation overlay — a
+   separate, deferrable tail).
 5. Every Vox-hosted agent has the full `vox_search_*` set with zero setup;
    external harnesses get it via shipped `.mcp.json` / `vox mcp install`; the
    always-on code-map + pinned skill steer graph-first discovery.
@@ -551,6 +605,20 @@ Policies co-located) ride on P6's governance/wrapper foundation.
 
 ## 11. Relationship to prior specs/plans
 
+### 11.0 Base / rebase
+
+- **Base = `origin/main` @ `063a3c3235`.** The GUI honesty/wiring work is
+  **MERGED to `main`** — `main` now compiles. (Supersedes the earlier note that
+  this project was based on the compiling honesty branch because `main` did not
+  build; that is no longer true.)
+- **Rebase `claude/graphify-general-gui-ia` onto `main` before executing.**
+- **NOTE: the `GraphifyStatusPanel → voxTransport` seam ALREADY landed on
+  `main`** (commit `30a46cc88d`). Plan **P5 / vs5** and the 3D panes must
+  **CONSUME** that seam, **not redo it** — the GUI re-key/retire work builds on
+  the already-routed transport, not a fresh re-implementation.
+
+### 11.1 Prior specs/plans
+
 - **Composes & renames** the four `2026-06-26-graphify-*` designs (general
   enhancement, data-flow/semantic, voxsearch-fusion, agent-tool-surface) under
   one brand; their engine decisions are authoritative and preserved.
@@ -562,7 +630,31 @@ Policies co-located) ride on P6's governance/wrapper foundation.
 - **Ratifies-into** `docs/agents/gui-ia-blueprint.md` (the GUI placement under
   Knowledge) and **fills** `docs/agents/cli-gui-governance-audit.md` (the `cli:`
   ingestion + governance surfaces).
-- **Hosts** the two amendment sibling specs (`voxmens-gui-cli-parity`,
-  `settings-consolidation-policies-unification`) as P7/P8 in its plan index.
+- **References** (does not own) the two amendment sibling specs
+  (`voxmens-gui-cli-parity`, `settings-consolidation-policies-unification`) as the
+  **related programs** P7/P8 — see the appendix below.
+
+---
+
+## Related programs (NOT part of Vox Search)
+
+**Scope guard.** The Vox Search service is **P0–P6**. The two programs below are
+**adjacent GUI-track programs**, distilled from their own sibling specs and
+executed by their own plans. They ride on P6's governance/wrapper foundation but
+are **out of the Vox Search service scope**; they are listed here only for
+traceability (and appear as GUI-track peers in the program index).
+
+| Program | vs/3x-id | Plan file | Sibling spec |
+|---|---|---|---|
+| **P7 — VoxMens GUI (FULL launch + cost)** | **3B** | `2026-06-26-voxmens-gui-full-plan3b.md` | `2026-06-26-voxmens-gui-cli-parity-design.md` |
+| **P8 — Settings / Policies co-located** | **3C** | `2026-06-26-settings-consolidation-plan3c.md` | `2026-06-26-settings-consolidation-policies-unification-design.md` |
+
+- **P7 (VoxMens GUI):** streaming Tauri wrappers (`mens_train`/`serve`,
+  `populi_up`/`down` emitting `vox://` progress), opencode-style no-nag cost
+  tracking, gamification; keys central in Settings/Secrets. Depends on P6 (typed
+  wrappers + `cli:` parity map) and P8 (Settings IA for key placement).
+- **P8 (Settings/Policies):** Settings + Policies co-located, **distinct**, under
+  one "Configuration & Governance" area; central secret/key store. Depends on P6
+  (secret/auth wrappers).
 </content>
 </invoke>

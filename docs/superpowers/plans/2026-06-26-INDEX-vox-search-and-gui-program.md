@@ -26,7 +26,7 @@ ends in its own commit.
 
 | Spec (path) | One-line purpose |
 |---|---|
-| `docs/superpowers/specs/2026-06-26-vox-search-unified-code-intelligence-design.md` | **Umbrella master spec.** Absorbs the four sibling graphify designs into one "Vox Search" service; defines P0–P6, the 5 retrieval layers, the honesty firewall, and §10.4 frontend-emit success criterion. |
+| `docs/superpowers/specs/2026-06-26-vox-search-unified-code-intelligence-design.md` | **Umbrella master spec.** Absorbs the four sibling graphify designs into one "Vox Search" service; defines P0–P8 (Vox Search = P0–P6; P7/P8 are related programs), the 5 retrieval layers, the honesty firewall, and the frontend-emit success criterion #4. The master spec §9.0 holds the **canonical plan-ID crosswalk** (P-id ↔ vs/3x-id ↔ plan-file ↔ sibling-spec) — this index references that table; do not re-derive the mapping. |
 | `docs/superpowers/specs/2026-06-26-graphify-general-enhancement-and-gui-ia-blueprint-design.md` | The executed general-enhancement + GUI-IA blueprint (P0 structural core + coverage); the foundation the master spec builds on. |
 | `docs/superpowers/specs/2026-06-26-graphify-dataflow-semantic-overlay-design.md` | Data-flow / def-use layer (L4) + semantic overlay (L5): new node/edge kinds, `accumulator_never_gates` detector, separate `semantic-overlay.json`. |
 | `docs/superpowers/specs/2026-06-26-graphify-voxsearch-fusion-design.md` | Graph-augmented retrieval: `vox_discover` (search-seed → graph-expand → composite re-rank), structural-overlay ranking, KnowledgeGraph corpus fix. |
@@ -37,6 +37,12 @@ ends in its own commit.
 ---
 
 ## 2. Plans (workflow-ready, TDD, per-task commits)
+
+> **Plan-ID mapping is owned by the master spec §9.0 crosswalk** (P-id ↔ vs/3x-id
+> ↔ plan-file ↔ sibling-spec). The "Master-spec scope" labels below are a
+> convenience echo; if they ever disagree with §9.0, **§9.0 wins** — do not
+> re-derive the mapping here. (Recall P5 = split across 3A/3D; P7↔3B and P8↔3C are
+> *related programs*, not Vox Search service plans.)
 
 ### 2.1 Vox Search layers (vs1 → vs5)
 
@@ -95,17 +101,27 @@ data-flow)   fusion           surface) — PARALLEL          vs1 tool names)
 3A (reorg skeleton — Bundle 7 gate, Task 7.1)
    │   do NOT dispatch 3C/3D/3F until 3A Bundle 7 green
    ▼
- ┌──────────┬──────────┬──────────┐
- ▼          ▼          ▼
-3C         3D         3F (P6)
-(settings) (caveats)  (CLI-governance)
+ ┌──────────┬───────────────────────────┐
+ ▼          ▼                            ▼
+3D         3F (P6)  ───────────────►  3C
+(caveats)  (CLI-governance)           (settings)
+           adds CI/Database rows      Phase 5 regen ON TOP
 
 3B  ── independent (VoxMens/Populi GUI; no 3A dependency)
 3E  ── independent (frontend-emit runtime gate)
 ```
 
-- **3A → {3C, 3D, 3F}** — 3A is the first reorg plan, depends on nothing; its
-  Bundle 7 gate (Task 7.1) must be green before 3C/3D/3F dispatch.
+- **3A → 3F → 3C** — 3F and 3C are **mutually SEQUENTIAL on the generated registry**,
+  not parallel. Both regenerate the *single* re-sorted
+  `surfaceRegistry.generated.ts` (which is **not** append-only — the generator
+  re-sorts by `(cli_group, view_key)` on every `--write`), so two concurrent
+  regens are a **guaranteed collision**. Order: **3F first** (adds the CI/Database
+  + secrets/auth/cli-only rows), then **3C** (its Phase 5 reparents the `policies`
+  row and regenerates on top of 3F's rows). Run 3C's Phase 5 only after 3F's
+  registry writes have landed.
+- **3A → 3D** stays **parallel-after-3A** — 3D's Workstream C touches surface
+  markup but does **not** regenerate the surface registry, so it does not collide
+  with the 3F→3C registry chain and may run alongside it.
 - **3B and 3E are independent** — they touch disjoint surfaces and gate nothing in
   the reorg trilogy.
 
@@ -115,7 +131,7 @@ data-flow)   fusion           surface) — PARALLEL          vs1 tool names)
   that never gates the build). **3E is the runtime fix** (land now, self-contained);
   **vs2 is the structural-detection complement** (`vox_search_dead_signals` /
   `accumulator_never_gates`) that finds the class across the whole codebase and, per
-  master spec §10.4, proves the detector against this very fixture. Sibling plans,
+  master spec success criterion #4, proves the detector against this very fixture. Sibling plans,
   not a hard dependency — either can land first.
 
 ---
@@ -140,14 +156,39 @@ data-flow)   fusion           surface) — PARALLEL          vs1 tool names)
 > plan's **Workflow Batch Plan** table for the exact per-batch task membership before
 > dispatching concurrently.
 
+**Shared-file merge-contention points (serialize even when handler work is parallel):**
+
+- **`dispatch.rs` + `input_schemas.rs` are appended by vs2, vs3, vs4, AND vs5.**
+  Their handler/schema bodies are independent and parallel-safe, but each plan's
+  **final dispatch-arm + schema-arm commit** touches these two shared files —
+  **serialize those specific commits** (land one plan's dispatch/schema arm before
+  the next plan's) to avoid guaranteed merge collisions, even while the rest of
+  each plan runs concurrently.
+- **vs4 phase split vs vs3:** vs4 **Phases A/B/D depend only on P0** and run in
+  **parallel with vs3**; only **vs4 Phase C** needs vs3's `GraphifyNodes` corpus
+  (see §3.1). Dispatch A/B/D alongside vs3; hold C until vs3's corpus lands.
+- **P4 ↔ P5 is a (non-)edge:** **P5 uses the existing `invokeMcpTool` seam, not
+  P4's new `.mcp.json`.** **P4 and P5 are independent** — neither gates the other;
+  P5's dependency is on vs1's final tool names + the already-landed `voxTransport`
+  seam (commit `30a46cc88d`), not on P4's harness-registration work.
+
 ---
 
 ## 5. Dispatch summary
+
+> **Base / rebase.** Base = `origin/main` @ `063a3c3235` — the GUI honesty work is
+> **MERGED to `main`** and `main` now compiles. **Rebase
+> `claude/graphify-general-gui-ia` onto `main` before executing.** NOTE: the
+> `GraphifyStatusPanel → voxTransport` seam **ALREADY landed on `main`** (commit
+> `30a46cc88d`) — plan **P5 / vs5** and 3D must **CONSUME** it, **not redo it**.
 
 1. **Start vs1** (engine spine) and, in the GUI track, **3A** — both have no
    predecessors. 3B and 3E may also start immediately (independent).
 2. Once **vs1 Batch 1** (tool names final) merges → fan out **vs2, vs3, vs5** in
    parallel; begin **vs4 Phases A/B/D** alongside vs3.
 3. Once **vs3** lands `SearchCorpus::GraphifyNodes` → unblock **vs4 Phase C**.
-4. Once **3A Bundle 7 gate (Task 7.1)** is green → fan out **3C, 3D, 3F**.
-5. Land **3E** any time; pair with **vs2** for the frontend-emit class (§10.4).
+4. Once **3A Bundle 7 gate (Task 7.1)** is green → dispatch **3D** (parallel) and the
+   **3F → 3C** registry chain in series (3F adds CI/Database rows; 3C Phase 5
+   regenerates the registry on top — never run 3F and 3C's registry regens
+   concurrently).
+5. Land **3E** any time; pair with **vs2** for the frontend-emit class (success criterion #4).

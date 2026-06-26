@@ -119,7 +119,7 @@ The writing-plans output for *this* spec covers **Plan 1 and Plan 2** (the gener
 
 ## Dependencies / assumptions
 
-- Builds conceptually on the GUI honesty/wiring work (branch `claude/jolly-jackson-f4b3fb`, the base of this branch): the wiring it added is what makes the GUI worth mapping and what the coverage map should reflect. The follow-on (Plan 3) assumes that work is merged. NOTE: `main` currently does not compile (`vox-cli` `db_cli` WIP breakage at `07ef88d7e2`); this project is based on the compiling honesty branch instead.
+- Builds conceptually on the GUI honesty/wiring work: the wiring it added is what makes the GUI worth mapping and what the coverage map should reflect. **That honesty work is now MERGED to `main`, and `main` compiles** — base = `origin/main` @ `063a3c3235`. (Supersedes the earlier note that `main` did not build and this project was based on the compiling honesty branch instead; rebase `claude/graphify-general-gui-ia` onto `main` before executing.)
 - Canonical command/tool registries exist (the tool-registry SSOT, clap tree, `get_command_catalog`) and are the coverage source-of-truth.
 - `vox` CLI + the Rust Graphify path are healthy (verified this session).
 
