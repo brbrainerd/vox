@@ -46,7 +46,7 @@ This is **P3** in the umbrella plan index (`vox-search-unified-code-intelligence
 **Created**
 - `crates/vox-graphify-reader/src/semantic_overlay.rs` — `OverlayNode`, `OverlayRelation`, `SemanticOverlay` (the file model); `OverlayStaleness`; `overlay_freshness(overlay, graph_json_sha256) -> OverlayStaleness`; `read_overlay(path) -> Result<SemanticOverlay,_>`; `write_overlay(path, &SemanticOverlay)`; `cosine(a,b)`, `knn_over_overlay(overlay, query_vec, k, min_similarity) -> Vec<ScoredOverlayNode>`; `expand_seeds_structural(reader, seed_ids, hops, limit) -> Vec<MixedHit>` (mixed structural-expand). Pure, deterministic given inputs; no I/O beyond read/write helpers.
 - `crates/vox-graphify-reader/tests/semantic_overlay.rs` — overlay round-trip, freshness-sha mismatch → stale, kNN ordering + min-similarity floor, mixed-expand labels structural vs semantic, overlay-never-touches-graph invariant.
-- `crates/vox-orchestrator-mcp/src/semantic_overlay_tools.rs` — `SemanticRelatedParams`, `pub async fn semantic_related(state, params) -> String` (the `vox_search_semantic_related` handler).
+- `crates/vox-orchestrator-mcp/src/semantic_overlay_tools.rs` — `SemanticRelatedParams`, `pub async fn semantic_related(state, params) -> String` (the `vox_search_semantic_related` handler). A **search-named sibling** of `graphify_tools.rs` (NOT appended into it — external name says search → file says search, fix #7); reuses P1's `search_tools::load_corpus_graph` + `vox_graphify_reader::graph_accessors` where applicable (DRY, fix #6).
 - `crates/vox-cli/tests/` — (if a CLI integration harness exists) or inline arm test; otherwise the CLI arm is covered by a `--help` smoke + manual e2e step.
 
 **Modified**
@@ -63,16 +63,19 @@ This is **P3** in the umbrella plan index (`vox-search-unified-code-intelligence
 
 | Phase | Tasks | Tag | Depends on | Batch |
 |---|---|---|---|---|
-| **A — Overlay file model + freshness** | A1, A2, A3 | A1 `[SEQUENTIAL]` (anchor), A2/A3 `[PARALLEL-SAFE]` after A1 | P0 only | Batch-1 |
-| **B — kNN + mixed structural-expand** | B1, B2 | `[PARALLEL-SAFE]` (after A1) | P0 only | Batch-1 |
-| **C — Embedding-seed wiring** | C1 | `[SEQUENTIAL]` | **P2** (`GraphifyNodes` corpus) + A,B | Batch-2 |
-| **D — MCP tool** | D1, D2, D3 | D1 `[SEQUENTIAL]`, D2/D3 `[PARALLEL-SAFE]` after D1 | A,B,C | Batch-3 |
+| **A — Overlay file model + freshness** | A1, A2, A3 | A1 `[SEQUENTIAL]` (anchor), A2/A3 `[PARALLEL-SAFE]` after A1 | **P0 only** | Batch-1 |
+| **B — kNN + mixed structural-expand** | B1, B2 | `[PARALLEL-SAFE]` (after A1) | **P0 only** | Batch-1 |
+| **C — Embedding-seed wiring (live-embed seed)** | C1 | `[SEQUENTIAL]` | **P2/vs3** (`GraphifyNodes` corpus) + A,B | Batch-2 |
+| **D — MCP tool** | D1, D2, D3 | D1 `[SEQUENTIAL]`, D2/D3 `[PARALLEL-SAFE]` after D1 | **P0 only** (A,B; the unit test injects `query_embedding`, so D does NOT block on C/vs3) | Batch-3 |
 | **E — CLI mirror + overlay writer** | E1, E2 | `[SEQUENTIAL]` | C, D | Batch-4 |
 | **F — Honesty/e2e gates + docs** | F1, F2 | F1 `[PARALLEL-SAFE]`, F2 `[SEQUENTIAL]` (verification) | E | Batch-5 |
+
+> **Cross-plan parallelism (fix #8):** **Phases A, B, and D depend only on P0 and can run fully in parallel with vs3 (P2)'s execution** — Phase D's handler compiles and its unit test passes using the `query_embedding` test-injection path, which never calls the embedding lane. **Only Phase C (the live-embed seed wiring) blocks on vs3's `SearchCorpus::GraphifyNodes` corpus** (and the live-embed path that E's overlay writer exercises). So a workflow may dispatch A→B→D against P0 immediately and hold only C (and the C-dependent parts of E) until vs3 lands. The D1 handler's `embed_query` path is compile-checked only until C wires the real corpus.
 
 **Fan-out batches a workflow can dispatch in parallel:**
 - **Batch-1 (after A1 lands):** `{A2, A3, B1, B2}` — all touch `semantic_overlay.rs` *additively* in disjoint functions + their own tests; safe to fan out across 4 sub-agents, each committing its function + test. (If the workflow serializes file writes, run A2→A3→B1→B2; they have no logic dependency on each other, only on A1's type definitions.)
 - **Batch-3 (after D1 lands):** `{D2, D3}` — schema arm and dispatch arm in two different files.
+- **Cross-plan:** Batch-1 + Batch-3 (A/B/D) run concurrently with vs3; Batch-2 (C) and the live-embed half of Batch-4 (E) are the only vs3-gated work.
 - All other phases are sequential gates.
 
 > **Note on Batch-1 file contention:** A2, A3, B1, B2 all append to the single new file `semantic_overlay.rs`. They are logically independent (different `pub fn`s) but share the file. The workflow MUST either (a) dispatch them serially against the file, or (b) dispatch in parallel and resolve the trivial append-merge. Each task is written to be self-contained (its own function + its own `#[cfg(test)]` test or test-file block) so a 4-way merge is mechanical. Tag remains `[PARALLEL-SAFE]` for logic; the orchestrator picks the IO strategy.
@@ -590,7 +593,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 ## Task C1: embed the query via `llm_embed`, seed from `GraphifyNodes` (TDD) `[SEQUENTIAL]`
 
-> **BLOCKS ON P2.** This task consumes the `SearchCorpus::GraphifyNodes` embedding seam P2 builds. If P2 has not landed, the workflow holds this task; Phases A/B/D (with a `query_vec`-injected handler) can ship a working tool whose embedding lane is gated. Verify P2 first: `grep -rn "GraphifyNodes" crates/ --include=*.rs` must return the enum variant + the corpus embed path.
+> **BLOCKS ON vs3 (P2) — this is the ONLY vs3-gated task in this plan (fix #8).** Phase C is the **live-embed seed** wiring: it consumes the `SearchCorpus::GraphifyNodes` embedding seam vs3 builds. Phases A, B, and D are P0-only and run in parallel with vs3's execution; only C (and the C-dependent live-embed half of E) waits. If vs3 has not landed, the workflow holds **only** this task; the tool already ships and passes tests via the `query_embedding`-injected handler (D1), whose embedding lane is gated off. Verify vs3 first: `grep -rn "GraphifyNodes" crates/ --include=*.rs` must return the enum variant + the corpus embed path.
 
 **Files:** Modify `crates/vox-graphify-reader/src/semantic_overlay.rs` (add a pure `seed_node_ids_from_scored(&[ScoredOverlayNode], usize) -> Vec<String>` helper) + a thin embed adapter in the MCP crate (Phase D consumes it). Embedding I/O stays out of the reader crate (it has no async/network deps) — the reader only does vector math; the `llm_embed` call lives in the MCP handler (Task D1).
 
@@ -638,11 +641,13 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 # Phase D — MCP tool `vox_search_semantic_related`
 
-## Task D1: handler `semantic_related` (TDD) `[SEQUENTIAL]`
+## Task D1: handler `semantic_related` (TDD) `[SEQUENTIAL]` (P0-only — does NOT block on vs3/C)
 
 The thin adapter (umbrella §3.1 row; design §3): load the corpus graph + sibling overlay; assess overlay freshness vs the live core sha; embed the query (via injected vector in unit tests, `llm_embed` in prod); kNN → seeds → mixed structural-expand; return layer-labeled hits + `stale`.
 
-**Files:** Create `crates/vox-orchestrator-mcp/src/semantic_overlay_tools.rs`; modify the MCP crate mod list (`lib.rs`/`main.rs`).
+> **Dependency clarification (fix #8):** D1 depends only on Phases A+B (P0). The unit test in Step 2 injects `query_embedding`, so the `embed_query`/`llm_embed` (live-embed) path is **compile-checked only** here and is **not** exercised until Phase C wires the vs3 `GraphifyNodes` corpus. D1 may therefore be authored and merged in parallel with vs3's execution.
+
+**Files:** Create `crates/vox-orchestrator-mcp/src/semantic_overlay_tools.rs` (a **search-named sibling** of `graphify_tools.rs` — NOT appended into `graphify_tools.rs`); modify the MCP crate mod list (`lib.rs`/`main.rs`).
 
 - [ ] **Step 1: Wire module** — add `mod semantic_overlay_tools;` to the MCP crate root (find it: `grep -n "mod graphify_tools" crates/vox-orchestrator-mcp/src/lib.rs crates/vox-orchestrator-mcp/src/main.rs` and add the new `mod` line beside it).
 
@@ -688,6 +693,14 @@ pub struct SemanticRelatedParams {
     pub query_embedding: Option<Vec<f32>>,
 }
 
+// DRY (fix #6): the registry-load + corpus-resolve below mirror P1's
+// `search_tools::load_corpus_graph(state, &corpus)` helper. This handler additionally needs the
+// resolved `corpus.graph_path` (to locate the sibling `semantic-overlay.json`) and the raw graph
+// bytes (for the `graph_digest` freshness sha), which the basic helper does not surface — so it
+// resolves the corpus once and derives both from it. If P1 later widens `load_corpus_graph` to
+// also return the `&GraphifyCorpus`, collapse the registry/resolve lines here onto that helper
+// rather than re-pasting them. Reuse `vox_graphify_reader::graph_accessors` for any
+// nodes()/links()/str_field() needs instead of re-pasting copies.
 pub async fn semantic_related(state: &ServerState, params: SemanticRelatedParams) -> String {
     let repo_root = &state.repository.root;
     let reg = match load_graphify_corpora(repo_root) {

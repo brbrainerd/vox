@@ -4,7 +4,7 @@
 
 **Goal:** Add Vox Search's **Layer 4 — data-flow / def-use** index to the structural-index library (`crates/vox-graphify-reader/`). Intra-procedural def-use (`syn` for Rust, tree-sitter walk for TS) emits new deterministic node kinds (`field:<Struct>::<f>`, `binding:<fn>::<n>@<k>`) and edge kinds (`def-write`, `use-read` sub-typed by `read_kind ∈ {control, consume, store}`), plus three local detectors (`ignored_result`, `write_only_field`, `accumulator_never_gates`) feeding `compute_dead_signals(&Value) -> DeadSignalReport`. Surface it via two MCP tools (`vox_search_dataflow`, `vox_search_dead_signals`), two CLI subcommands (`dataflow`, `dead-signals`), and a **non-blocking CI advisory**. **A mandatory end-to-end test reproduces the frontend-emit bug class**: `accumulator_never_gates` fires on a `reactive_view_emit_failures`-like field that is `.push`-accumulated and only `store`-read into an output struct, never read for control flow.
 
-**Architecture:** Pure Rust, additive. A new module `crates/vox-graphify-reader/src/dataflow.rs` runs **per function** (no whole-program fixpoint) and **drops on ambiguity** (a missed defect is acceptable; a false "dead signal" is not). Def-use nodes/edges are merged into the **same** `graph.json` family (same honesty firewall, `confidence`-labeled), routed **around** `resolve_edges` (they are pre-resolved to `field:`/`binding:` ids). The link serializer in `rebuild.rs` is extended to carry `kind` + `read_kind`. `compute_dead_signals` mirrors `compute_coverage`'s shape and honesty firewall: it reports what the def-use edges say, makes no judgment about intent, and labels `confidence` so an agent or CI gate can pick a threshold. MCP tools land in `graphify_tools.rs` (sibling handlers) + one dispatch arm + one inline JSON schema each; CLI subcommands extend the existing command enum; the advisory is a non-blocking `vox ci` print (mirroring the coverage advisory).
+**Architecture:** Pure Rust, additive. A new module `crates/vox-graphify-reader/src/dataflow.rs` runs **per function** (no whole-program fixpoint) and **drops on ambiguity** (a missed defect is acceptable; a false "dead signal" is not). Def-use nodes/edges are merged into the **same** `graph.json` family (same honesty firewall, `confidence`-labeled), routed **around** `resolve_edges` (they are pre-resolved to `field:`/`binding:` ids). The link serializer in `rebuild.rs` is extended to carry `kind` + `read_kind` + `op`. `compute_dead_signals` mirrors `compute_coverage`'s shape and honesty firewall: it reports what the def-use edges say, makes no judgment about intent, and labels `confidence` so an agent or CI gate can pick a threshold. MCP tools land in a **new sibling `search_tools.rs`** (NOT appended into the legacy-named `graphify_tools.rs` — the external name is `vox_search_*`, so the file name should say `search`, not `graphify`) + one dispatch arm + one inline JSON schema each; CLI subcommands extend the existing command enum; the advisory is a non-blocking `vox ci` print (mirroring the coverage advisory).
 
 **Tech Stack:** Rust — `syn` (`full`/`visit`/`clone-impls`, already a dep) for the Rust def-use visitor; `tree-sitter` + `tree-sitter-typescript` 0.23.2 (already deps, behind `tree-sitter-grammars`, default-on) for the TS walk; `serde`/`serde_json` for `DeadSignal`/`DeadSignalReport` + graph I/O; `tempfile` (dev-dep) for fixtures; `clap`/`anyhow` for the CLI; `chrono`/`vox-config` reused by the MCP handlers.
 
@@ -41,11 +41,16 @@
 - `crates/vox-graphify-reader/tests/dataflow_ts.rs` — TS def-use tests (gated `#[cfg(feature = "tree-sitter-grammars")]`).
 - `crates/vox-graphify-reader/tests/dead_signals.rs` — `compute_dead_signals` whole-graph fixture tests.
 
+**Created (shared helpers — DRY, see Task A0)**
+- `crates/vox-graphify-reader/src/graph_accessors.rs` — `pub(crate)` (re-exported `pub` for handlers) `nodes(&Value)`, `links(&Value)` (`links`-or-`edges` fallback), `str_field(&Value, &str)` graph-accessor helpers, lifted out of `coverage.rs` so `dataflow.rs` (and P2/P3) reuse them instead of re-pasting copies.
+- `crates/vox-orchestrator-mcp/src/search_tools.rs` — the NEW sibling home for all `vox_search_*` data-flow/discover/semantic handlers (external name says search → file says search). Hosts the shared `load_corpus_graph(state, corpus)` MCP helper (load-registry → resolve-corpus → load-graph-json) reused by every handler.
+
 **Modified**
-- `crates/vox-graphify-reader/src/ast.rs` — add `read_kind: Option<String>` + `kind: Option<String>` to `ExtractedEdge`; bump `EXTRACTOR_VERSION` to `"4"`.
-- `crates/vox-graphify-reader/src/lib.rs` — `pub mod dataflow;`.
-- `crates/vox-graphify-reader/src/rebuild.rs` — merge def-use nodes/edges (routed around `resolve_edges`); extend the link serializer with `kind`/`read_kind`.
-- `crates/vox-orchestrator-mcp/src/graphify_tools.rs` — `vox_search_dataflow` + `vox_search_dead_signals` handlers + params + unit tests.
+- `crates/vox-graphify-reader/src/ast.rs` — add `kind: Option<String>` + `read_kind: Option<String>` + `op: Option<String>` to `ExtractedEdge`; bump `EXTRACTOR_VERSION` to `"4"`.
+- `crates/vox-graphify-reader/src/lib.rs` — `pub mod dataflow;` + `pub mod graph_accessors;` (or `pub(crate)` with a `pub use`).
+- `crates/vox-graphify-reader/src/coverage.rs` — switch to the shared `graph_accessors` helpers (delete the private `nodes()`/`links()`/`str_field()` copies).
+- `crates/vox-graphify-reader/src/rebuild.rs` — merge def-use nodes/edges (routed around `resolve_edges`); extend the link serializer with `kind`/`read_kind`/`op`.
+- `crates/vox-orchestrator-mcp/src/search_tools.rs` — `vox_search_dataflow` + `vox_search_dead_signals` handlers + params + unit tests (NOT `graphify_tools.rs`).
 - `crates/vox-orchestrator-mcp/src/dispatch.rs` — two dispatch arms.
 - `crates/vox-orchestrator-mcp/src/input_schemas.rs` — two schema arms.
 - `crates/vox-cli/src/commands/graphify/mod.rs` — `Dataflow` + `DeadSignals` subcommands + run arms.
@@ -56,14 +61,14 @@
 ## Workflow-readiness: dependency DAG + fan-out batches
 
 ```
-Phase A (schema)  A1 ──► A2 ──► A3            [SEQUENTIAL within A]
-                          │
-Phase B (Rust)    B1 ─────┴► B2 ─► B3 ─► B4   [SEQUENTIAL within B; whole phase needs A]
+Phase A (schema)  A0 ──► A1 ──► A2 ──► A3     [SEQUENTIAL within A; A0 = shared graph_accessors]
+                                 │
+Phase B (Rust)    B1 ───────────┴► B2 ─► B3 ─► B4   [SEQUENTIAL within B; whole phase needs A]
 Phase C (TS)      C1 ─► C2                     [needs A; PARALLEL with B]
 Phase D (dead-    D1 ─► D2                     [needs B (+C optional); the detectors]
   signals+e2e)    D3 (frontend-emit e2e)       [needs D1+D2]
 Phase E (rebuild) E1                           [needs A3, B, C, D]
-Phase F (MCP)     F1 ─► F2 ─► F3               [needs D; PARALLEL with G]
+Phase F (MCP)     F0 ─► F1 ─► F2 ─► F3         [needs D; F0=search_tools.rs; PARALLEL with G]
 Phase G (CLI)     G1 ─► G2                     [needs D + E; PARALLEL with F]
 Phase H (CI)      H1                           [needs G]
 Phase I (close)   I1                           [needs all]
@@ -78,11 +83,66 @@ Each task below is independently committable by a sub-agent. Tags: **[SEQUENTIAL
 
 ---
 
-# PHASE A — Edge schema for `read_kind` / `kind` (load-bearing, separately committed)
+# PHASE A — Edge schema for `read_kind` / `kind` / `op` (load-bearing, separately committed)
 
-## Task A1: `ExtractedEdge` carries optional `kind` + `read_kind` (TDD) [SEQUENTIAL]
+## Task A0: Extract shared `graph_accessors` helper (DRY) (TDD) [SEQUENTIAL]
 
-Def-use edges need an edge `kind` (`def-write` / `use-read`) and, for reads, a `read_kind`. Adding them as `Option<String>` with `skip_serializing_if` keeps existing call edges byte-identical (no `kind`/`read_kind` key emitted), so all current `rebuild`/`ast`/`coverage` golden tests stay green.
+Both `coverage.rs` (today) and `dataflow.rs` (this plan), plus P2/P3, need the same three graph accessors: `nodes(&Value)`, `links(&Value)` (with the `links`-or-`edges` fallback), and `str_field(&Value, &str)`. Today they live privately in `coverage.rs`. Lift them once into a shared module so `dataflow.rs` (D1) reuses them by `use crate::graph_accessors::{nodes, links, str_field}` instead of re-pasting copies — and the MCP/P2/P3 handlers reuse them too.
+
+**Files:** Create `crates/vox-graphify-reader/src/graph_accessors.rs`; modify `crates/vox-graphify-reader/src/lib.rs` (`pub mod graph_accessors;`) and `crates/vox-graphify-reader/src/coverage.rs` (delete the private copies, import the shared ones).
+
+- [ ] **Step 1: Failing test** — create `crates/vox-graphify-reader/src/graph_accessors.rs` with the three fns + an inline `#[cfg(test)]` test asserting the `edges`-fallback works:
+
+```rust
+//! Shared, dependency-free accessors over a `graph.json` `serde_json::Value`.
+//! Single home for the `links`-or-`edges` fallback so `coverage.rs`, `dataflow.rs`,
+//! and the MCP handlers do not each re-paste their own copy.
+
+use serde_json::Value;
+
+/// Nodes array (`graph["nodes"]`), or an empty slice when absent/malformed.
+pub fn nodes(graph: &Value) -> &[Value] {
+    graph.get("nodes").and_then(Value::as_array).map(Vec::as_slice).unwrap_or(&[])
+}
+
+/// Links array — `graph["links"]` with a fallback to `graph["edges"]` — or empty.
+pub fn links(graph: &Value) -> &[Value] {
+    graph.get("links").or_else(|| graph.get("edges"))
+        .and_then(Value::as_array).map(Vec::as_slice).unwrap_or(&[])
+}
+
+/// A string field on an object value, or `None`.
+pub fn str_field<'a>(v: &'a Value, k: &str) -> Option<&'a str> {
+    v.get(k).and_then(Value::as_str)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn links_falls_back_to_edges_key() {
+        let g = json!({ "nodes": [], "edges": [{"source":"a","target":"b"}] });
+        assert_eq!(links(&g).len(), 1, "edges fallback must work");
+        let g2 = json!({ "nodes": [{"id":"x"}], "links": [] });
+        assert_eq!(nodes(&g2).len(), 1);
+        assert_eq!(str_field(&g2["nodes"][0], "id"), Some("x"));
+    }
+}
+```
+
+- [ ] **Step 2: Register + refactor `coverage.rs`** — add `pub mod graph_accessors;` to `lib.rs`. In `coverage.rs`, delete the private `nodes()`/`links()`/`str_field()` definitions and add `use crate::graph_accessors::{nodes, links, str_field};` (rename any local `sf` alias call-sites to `str_field`, or `use … as sf`). Confirm the existing coverage tests are untouched in behavior.
+
+- [ ] **Step 3: Run, verify** — `cargo test -p vox-graphify-reader graph_accessors` then the full `cargo test -p vox-graphify-reader` (coverage goldens must stay green after the refactor). Expected: all pass.
+
+- [ ] **Step 4: Commit** —
+  `git -C /c/Users/Owner/vox-graphify-gui add crates/vox-graphify-reader/src/graph_accessors.rs crates/vox-graphify-reader/src/lib.rs crates/vox-graphify-reader/src/coverage.rs`
+  `git -C /c/Users/Owner/vox-graphify-gui commit -m "refactor(vox-search): extract shared graph_accessors (nodes/links/str_field) from coverage.rs"`
+
+## Task A1: `ExtractedEdge` carries optional `kind` + `read_kind` + `op` (TDD) [SEQUENTIAL]
+
+Def-use edges need an edge `kind` (`def-write` / `use-read`); for `use-read` edges a `read_kind` (`control`/`consume`/`store`); and for `def-write` edges an **`op`** marker (`accumulate`) that records the *write operation* (a `.push`/`.extend`/`+=` accumulation vs an ordinary assignment). **`op` is a distinct field — NOT `read_kind`** — because `read_kind` is documented for `use-read` edges only; overloading `read_kind` on a `def-write` edge to carry the accumulation marker conflates two orthogonal axes (read-classification vs write-operation) and makes the detector logic ambiguous. All three are `Option<String>` with `skip_serializing_if` so existing call edges stay byte-identical (no `kind`/`read_kind`/`op` key emitted), and all current `rebuild`/`ast`/`coverage` golden tests stay green.
 
 **Files:** Modify `crates/vox-graphify-reader/src/ast.rs`. Test: extend the inline `#[cfg(test)]` module at the bottom of `ast.rs` (add one if absent).
 
@@ -101,24 +161,46 @@ mod edge_schema_tests {
             confidence: "resolved".into(),
             kind: None,
             read_kind: None,
+            op: None,
         };
         let v = serde_json::to_value(&e).unwrap();
         assert!(v.get("kind").is_none(), "kind must be omitted when None");
         assert!(v.get("read_kind").is_none(), "read_kind must be omitted when None");
+        assert!(v.get("op").is_none(), "op must be omitted when None");
     }
 
     #[test]
-    fn defuse_edge_carries_kind_and_read_kind() {
+    fn defuse_read_edge_carries_kind_and_read_kind() {
         let e = ExtractedEdge {
             source: "m::f".into(),
             target: "field:S::x".into(),
             confidence: "resolved".into(),
             kind: Some("use-read".into()),
             read_kind: Some("control".into()),
+            op: None,
         };
         let v = serde_json::to_value(&e).unwrap();
         assert_eq!(v["kind"], "use-read");
         assert_eq!(v["read_kind"], "control");
+        assert!(v.get("op").is_none(), "use-read edges carry no op marker");
+    }
+
+    #[test]
+    fn accumulating_def_write_edge_carries_op_not_read_kind() {
+        // The accumulation marker rides on `op`, never on `read_kind` (which is
+        // documented for use-read edges only).
+        let e = ExtractedEdge {
+            source: "m::f".into(),
+            target: "field:S::x".into(),
+            confidence: "resolved".into(),
+            kind: Some("def-write".into()),
+            read_kind: None,
+            op: Some("accumulate".into()),
+        };
+        let v = serde_json::to_value(&e).unwrap();
+        assert_eq!(v["kind"], "def-write");
+        assert_eq!(v["op"], "accumulate");
+        assert!(v.get("read_kind").is_none(), "def-write edges carry no read_kind");
     }
 }
 ```
@@ -142,10 +224,16 @@ pub struct ExtractedEdge {
     /// For `use-read` edges only: `"control"` | `"consume"` | `"store"`. `None` otherwise.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub read_kind: Option<String>,
+    /// For `def-write` edges only: the write operation, currently `"accumulate"`
+    /// (`.push`/`.extend`/`.insert`/`+=`). `None` for an ordinary assignment def-write
+    /// and for all non-def-write edges. Distinct from `read_kind` so the accumulation
+    /// marker never overloads the read-classification axis.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub op: Option<String>,
 }
 ```
 
-- [ ] **Step 4: Fix every `ExtractedEdge { … }` literal** — the new fields have `#[serde(default)]` for deserialize but the **struct literals** need them. Construct-sites are in `ast.rs` (the 6 `ExtractedEdge { … }` literals in the Rust visitor + TS walk) and `rebuild.rs::resolve_edges` (3 literals). For each, add `kind: None, read_kind: None,`. Build to find them all:
+- [ ] **Step 4: Fix every `ExtractedEdge { … }` literal** — the new fields have `#[serde(default)]` for deserialize but the **struct literals** need them. Construct-sites are in `ast.rs` (the 6 `ExtractedEdge { … }` literals in the Rust visitor + TS walk) and `rebuild.rs::resolve_edges` (3 literals). For each, add `kind: None, read_kind: None, op: None,`. Build to find them all:
   `cargo build -p vox-graphify-reader 2>&1 | grep -E "missing field|ExtractedEdge" | head`.
 
 - [ ] **Step 5: Run, verify pass** — `cargo test -p vox-graphify-reader`.
@@ -168,9 +256,10 @@ Create the module with the `DeadSignal` shape from the source design §1.3 and r
 //!
 //! Runs PER FUNCTION (no whole-program fixpoint) and DROPS ON AMBIGUITY: a missed defect is
 //! acceptable; a false "dead signal" that sends an agent on a wrong hunt is not. New node kinds
-//! `field:<Struct>::<field>` and `binding:<fn-id>::<name>@<n>` and edge kinds `def-write` /
-//! `use-read` (sub-typed by `read_kind ∈ {control, consume, store}`) join the SAME graph.json
-//! family — deterministic, `confidence`-labeled, never an overlay.
+//! `field:<Struct>::<field>` and `binding:<fn-id>::<name>@<n>` and edge kinds `def-write`
+//! (with `op ∈ {accumulate}` for accumulating writes) / `use-read` (sub-typed by
+//! `read_kind ∈ {control, consume, store}`) join the SAME graph.json family — deterministic,
+//! `confidence`-labeled, never an overlay.
 
 use serde::Serialize;
 use serde_json::Value;
@@ -183,8 +272,10 @@ pub enum DeadSignalKind {
     IgnoredResult,
     /// A `field:` node with ≥1 `def-write` and zero `use-read` edges of any kind.
     WriteOnlyField,
-    /// A `field:`/`binding:` node accumulated (`.push`/`.extend`/`+=`) that flows to a `store`/
-    /// `consume` read but is NEVER read with `read_kind: "control"`. The frontend-emit class.
+    /// A `field:`/`binding:` node whose `def-write` carries `op: "accumulate"`
+    /// (`.push`/`.extend`/`+=`) that flows to a `store` read (and, if B3/C2 emit it, a
+    /// `consume` read) but is NEVER read with `read_kind: "control"`. The frontend-emit class.
+    /// (If `consume` is not produced on this branch, drop the word here — see D2's consistency note.)
     AccumulatorNeverGates,
 }
 
@@ -302,9 +393,10 @@ fn collect(s: &mut Stats) {
     let w = writes.iter().find(|e| e.target == "field:Stats::failures")
         .expect("def-write to field:Stats::failures");
     assert_eq!(w.source, "m::collect");
-    // accumulation marker rides on read_kind=None but confidence carries the op via a side field;
-    // we encode the accumulation op into the edge's `read_kind`-free `confidence` of "resolved"
-    // and a dedicated marker on the field node (see Step 3).
+    // The accumulation marker rides on the def-write edge's `op` field (NOT read_kind).
+    assert_eq!(w.op.as_deref(), Some("accumulate"),
+        "accumulating def-write must carry op=accumulate");
+    assert!(w.read_kind.is_none(), "def-write edges carry no read_kind");
     assert!(g.nodes.iter().any(|n| n.id == "field:Stats::failures"
         && n.label == "failures"));
 }
@@ -313,7 +405,7 @@ fn collect(s: &mut Stats) {
 - [ ] **Step 2: Run, verify fail** — `cargo test -p vox-graphify-reader --test dataflow_rust push_onto_field_is_accumulating_def_write`.
   Expected: **compile error / FAIL** — `extract_dataflow_in_module` does not exist.
 
-- [ ] **Step 3: Implement** — add to `dataflow.rs` a Rust def-use visitor. Accumulation ops are recorded as a per-field flag (used by the detector in D2) on a side map returned alongside the graph; to keep the public surface an `ExtractedGraph`, encode the accumulation marker by emitting the `def-write` edge with `confidence: "resolved"` **and** marking the field node `kind: "field"` while recording accumulating-write field ids via a node-label convention is NOT used — instead the detector recomputes accumulation from the edge set, so here we simply record def-writes whose write-site is a `.push`/`.extend`/`.insert`/method-chain ending in those, plus `+=`. Emit a companion `def-write` edge with `read_kind: Some("accumulate")` to carry the op losslessly (the detector reads `read_kind == "accumulate"` on `def-write` edges; ordinary assignments emit `def-write` with `read_kind: None`).
+- [ ] **Step 3: Implement** — add to `dataflow.rs` a Rust def-use visitor. The accumulation marker is carried **losslessly on the `def-write` edge's `op` field** (`op: Some("accumulate")`), NOT on `read_kind` (which is reserved for `use-read` edges). Record def-writes whose write-site is a `.push`/`.extend`/`.insert`/method-chain ending in those, plus `+=`, as `def-write` edges with `op: Some("accumulate")`; ordinary assignment def-writes emit `op: None`. The detector (D2) reads `op == "accumulate"` on `def-write` edges to recompute accumulation from the edge set.
 
 ```rust
 use std::path::Path;
@@ -435,7 +527,8 @@ impl<'ast> Visit<'ast> for DfRustVisitor {
                             target: fid,
                             confidence: "resolved".into(),
                             kind: Some("def-write".into()),
-                            read_kind: Some("accumulate".into()), // op marker
+                            read_kind: None,
+                            op: Some("accumulate".into()), // write-op marker (distinct from read_kind)
                         });
                     }
                 }
@@ -516,12 +609,7 @@ pub fn extract_dataflow_in_module(path: &Path, content: &str, module_id: &str) -
 }
 ```
 
-  Note the test in Step 1 asserting on the `accumulate` marker via the edge: update the test's last assertion to check the edge marker explicitly. Replace the final `assert!` of Step 1 with:
-
-```rust
-    assert_eq!(w.read_kind.as_deref(), Some("accumulate"),
-        "accumulating def-write must carry read_kind=accumulate");
-```
+  The Step-1 test already asserts the `op == "accumulate"` marker on the def-write edge (and that `read_kind` is `None`); no further edit to the test is needed.
 
 - [ ] **Step 4: Run, verify pass** — `cargo test -p vox-graphify-reader --test dataflow_rust push_onto_field_is_accumulating_def_write`.
   Expected: PASS.
@@ -589,6 +677,7 @@ fn build() -> Out {
                                 confidence: "resolved".into(),
                                 kind: Some("use-read".into()),
                                 read_kind: Some("store".into()),
+                                op: None,
                             });
                         }
                     }
@@ -680,7 +769,7 @@ fn gate(s: &Stats) -> Result<(), String> {
     // analogous visit_expr_match / visit_expr_while / visit_expr_try
 ```
 
-  In the field-read sink, emit the edge with `read_kind` = `"control"` if `self.control_depth > 0` else skip (B3 only needs `control`; `consume` is recorded when the read is a direct call-arg — optional, may be added if a test needs it). Reuse `owner_of` + `field_name`; emit `field:<owner>::<field>` (dedup via `field_node`).
+  In the field-read sink, emit the `use-read` edge with `read_kind` = `"control"` if `self.control_depth > 0` else skip, and always `op: None` (the `op` field is for `def-write` edges only). Reuse `owner_of` + `field_name`; emit `field:<owner>::<field>` (dedup via `field_node`). **`consume` consistency:** B3 emits `consume` for a field/binding read that is a **direct call-argument or a `return` operand** (with the test in this task asserting one such case) so that the `read_kind` vocabulary the detector consumes (D2's `has_store_or_consume`) is actually produced. If, on this branch, classifying `consume` reliably proves too noisy to emit without false positives, then **drop `consume` from the produced surface AND from D2's `has_store_or_consume` + the `DeadSignalKind` doc** (see the matching note in D2) so the produced vocabulary and the consumed vocabulary stay in lockstep — do not leave `consume` consumed-but-never-produced.
 
 - [ ] **Step 4: Run, verify pass** — `cargo test -p vox-graphify-reader --test dataflow_rust`. Expected: all 3 PASS, and re-run B2's `no control read expected` assertion still holds (the store case has no `if`/`match`).
 
@@ -755,7 +844,7 @@ function collect(errors: string[]) {
     let g = extract_dataflow_in_module(Path::new("m.ts"), src, "m");
     assert!(g.edges.iter().any(|e|
         e.kind.as_deref() == Some("def-write")
-        && e.read_kind.as_deref() == Some("accumulate")
+        && e.op.as_deref() == Some("accumulate")
         && e.source == "m::collect"),
         "expected accumulating def-write in TS: {:?}", g.edges);
 }
@@ -763,7 +852,7 @@ function collect(errors: string[]) {
 
 - [ ] **Step 2: Run, verify fail** — `cargo test -p vox-graphify-reader --test dataflow_ts ts_push_is_accumulating_def_write`. Expected: FAIL (TS branch empty).
 
-- [ ] **Step 3: Implement** — in `extract_dataflow_in_module`, add the TS branch (mirroring `ast.rs`'s tree-sitter stack-walk under `#[cfg(feature = "tree-sitter-grammars")]`): parse with the same `language` match (`ts`/`tsx`/`js`/`jsx`/`py`), track `current_fn` on `function_declaration`/`method_definition`/`function_definition`. For a `call_expression` whose `function` child is a `member_expression` ending in `.push`/`.extend`/`.add`/`.set` (TS accumulators; keep a `TS_ACCUMULATING` const), and whose member object is an `identifier` or `member_expression` rooted at `this`, emit a `binding:`/`field:` `def-write` with `read_kind: "accumulate"`. TS field-owner resolution is weaker than Rust (no struct types): for `this.<f>.push` emit `field:<EnclosingClass>::<f>`; for `<local>.push` emit `binding:<fn>::<local>@1`. Drop when neither shape matches.
+- [ ] **Step 3: Implement** — in `extract_dataflow_in_module`, add the TS branch (mirroring `ast.rs`'s tree-sitter stack-walk under `#[cfg(feature = "tree-sitter-grammars")]`): parse with the same `language` match (`ts`/`tsx`/`js`/`jsx`/`py`), track `current_fn` on `function_declaration`/`method_definition`/`function_definition`. For a `call_expression` whose `function` child is a `member_expression` ending in `.push`/`.extend`/`.add`/`.set` (TS accumulators; keep a `TS_ACCUMULATING` const), and whose member object is an `identifier` or `member_expression` rooted at `this`, emit a `binding:`/`field:` `def-write` with `op: Some("accumulate")` (and `read_kind: None`) — the accumulation marker is the `op` field, mirroring the Rust path. TS field-owner resolution is weaker than Rust (no struct types): for `this.<f>.push` emit `field:<EnclosingClass>::<f>`; for `<local>.push` emit `binding:<fn>::<local>@1`. Drop when neither shape matches.
 
 - [ ] **Step 4: Run, verify pass** — `cargo test -p vox-graphify-reader --test dataflow_ts`. Expected: PASS.
 
@@ -864,17 +953,10 @@ fn field_with_any_read_is_not_write_only() {
 
 - [ ] **Step 2: Run, verify fail** — `cargo test -p vox-graphify-reader --test dead_signals`. Expected: FAIL (`compute_dead_signals` absent).
 
-- [ ] **Step 3: Implement** — add to `dataflow.rs` (reuse the `coverage.rs` `nodes()`/`links()`/`str_field()` helper pattern — copy them in, or `pub(crate)` them from `coverage.rs`; copying keeps modules decoupled):
+- [ ] **Step 3: Implement** — add to `dataflow.rs`. **Reuse the shared graph accessors from Task A0** — do NOT re-paste copies; at the top of the module add `use crate::graph_accessors::{nodes, links, str_field as sf};`:
 
 ```rust
-fn nodes(graph: &Value) -> &[Value] {
-    graph.get("nodes").and_then(Value::as_array).map(Vec::as_slice).unwrap_or(&[])
-}
-fn links(graph: &Value) -> &[Value] {
-    graph.get("links").or_else(|| graph.get("edges"))
-        .and_then(Value::as_array).map(Vec::as_slice).unwrap_or(&[])
-}
-fn sf<'a>(v: &'a Value, k: &str) -> Option<&'a str> { v.get(k).and_then(Value::as_str) }
+use crate::graph_accessors::{links, nodes, str_field as sf};
 
 /// Compute the dead-signal lint report from the data-flow edges in `graph`. Honesty firewall:
 /// reports what the def-use edges say; makes no judgment about whether a swallow is intentional;
@@ -895,7 +977,8 @@ pub fn compute_dead_signals(graph: &Value) -> DeadSignalReport {
             match sf(l, "kind") {
                 Some("def-write") => {
                     if let Some(s) = sf(l, "source") { writes.push(s.to_string()); }
-                    if sf(l, "read_kind") == Some("accumulate") { accumulates = true; }
+                    // Accumulation marker is the def-write `op` field (distinct from read_kind).
+                    if sf(l, "op") == Some("accumulate") { accumulates = true; }
                 }
                 Some("use-read") => {
                     if let Some(rk) = sf(l, "read_kind") {
@@ -943,7 +1026,7 @@ fn accumulator_never_gates_fires() {
     let g = json!({
         "nodes": [{"id":"field:S::errs","label":"errs","kind":"field"}],
         "links": [
-            {"source":"m::f","target":"field:S::errs","kind":"def-write","read_kind":"accumulate"},
+            {"source":"m::f","target":"field:S::errs","kind":"def-write","op":"accumulate"},
             {"source":"m::f","target":"field:S::errs","kind":"use-read","read_kind":"store"}
         ]
     });
@@ -959,7 +1042,7 @@ fn accumulator_with_control_read_does_not_fire() {
     let g = json!({
         "nodes": [{"id":"field:S::errs","label":"errs","kind":"field"}],
         "links": [
-            {"source":"m::f","target":"field:S::errs","kind":"def-write","read_kind":"accumulate"},
+            {"source":"m::f","target":"field:S::errs","kind":"def-write","op":"accumulate"},
             {"source":"m::g","target":"field:S::errs","kind":"use-read","read_kind":"control"}
         ]
     });
@@ -971,10 +1054,13 @@ fn accumulator_with_control_read_does_not_fire() {
 
 - [ ] **Step 2: Run, verify fail** — `cargo test -p vox-graphify-reader --test dead_signals accumulator`. Expected: FAIL.
 
-- [ ] **Step 3: Implement** — in `compute_dead_signals`, after the `write_only_field` block, add (using `accumulates` + `read_kinds`):
+- [ ] **Step 3: Implement** — in `compute_dead_signals`, after the `write_only_field` block, add (using `accumulates` + `read_kinds`).
+
+  > **`consume` consistency (must match B3/C2):** `has_store_or_consume` below tests for `"consume"`. Only keep `"consume"` in this test **if** B3 (Rust) and C2 (TS) actually **emit** a `use-read` edge with `read_kind:"consume"` for call-arg/return reads (and have a test proving it). If the executor chose to NOT produce `consume` (B3's stated fallback), then **remove `|| k == "consume"`** here, drop the word "consume" from the `AccumulatorNeverGates` rationale string and from the `DeadSignalKind::AccumulatorNeverGates` doc-comment (Task A2), so the consumed vocabulary equals the produced vocabulary. The `store` read alone is sufficient to fire the frontend-emit case (its only read is a `store`), so dropping `consume` does not weaken the headline detector.
 
 ```rust
         let has_control = read_kinds.iter().any(|k| k == "control");
+        // NOTE: keep `|| k == "consume"` ONLY if B3/C2 emit read_kind:"consume" (see note above).
         let has_store_or_consume = read_kinds.iter().any(|k| k == "store" || k == "consume");
         if accumulates && !has_control && has_store_or_consume {
             findings.push(DeadSignal {
@@ -1034,13 +1120,14 @@ fn generate_with_options() -> Result<CodegenOutput, String> {
     // 1. Extract def-use from the source.
     let g = extract_dataflow_in_module(std::path::Path::new("emitter.rs"), src, "emitter");
 
-    // 2. Convert to the graph.json shape (nodes + links with kind/read_kind) the detector reads.
+    // 2. Convert to the graph.json shape (nodes + links with kind/read_kind/op) the detector reads.
     let nodes: Vec<serde_json::Value> = g.nodes.iter()
         .map(|n| serde_json::json!({"id":n.id,"label":n.label,"kind":n.kind})).collect();
     let links: Vec<serde_json::Value> = g.edges.iter().map(|e| {
         let mut o = serde_json::json!({"source":e.source,"target":e.target,"confidence":e.confidence});
         if let Some(k) = &e.kind { o["kind"] = serde_json::json!(k); }
         if let Some(rk) = &e.read_kind { o["read_kind"] = serde_json::json!(rk); }
+        if let Some(op) = &e.op { o["op"] = serde_json::json!(op); }
         o
     }).collect();
     let graph = serde_json::json!({"nodes":nodes,"links":links});
@@ -1100,7 +1187,7 @@ fn collect(s: &mut Stats) { s.failures.push(String::from("x")); }
     assert!(g["nodes"].as_array().unwrap().iter().any(|n| n["id"]=="field:Stats::failures"),
         "field node missing from graph.json");
     assert!(g["links"].as_array().unwrap().iter().any(|l|
-        l["kind"]=="def-write" && l["target"]=="field:Stats::failures" && l["read_kind"]=="accumulate"),
+        l["kind"]=="def-write" && l["target"]=="field:Stats::failures" && l["op"]=="accumulate"),
         "def-write edge missing from graph.json: {}", g["links"]);
 }
 ```
@@ -1139,7 +1226,7 @@ fn collect(s: &mut Stats) { s.failures.push(String::from("x")); }
     all_edges.extend(df_edges);
 ```
 
-  (c) Extend the **link serializer** (`:320`) to carry `kind`/`read_kind` when present:
+  (c) Extend the **link serializer** (`:320`) to carry `kind`/`read_kind`/`op` when present:
 
 ```rust
     let links_val: Vec<serde_json::Value> = all_edges
@@ -1150,6 +1237,7 @@ fn collect(s: &mut Stats) { s.failures.push(String::from("x")); }
             });
             if let Some(k) = &e.kind { l["kind"] = serde_json::json!(k); }
             if let Some(rk) = &e.read_kind { l["read_kind"] = serde_json::json!(rk); }
+            if let Some(op) = &e.op { l["op"] = serde_json::json!(op); }
             l
         })
         .collect();
@@ -1157,7 +1245,7 @@ fn collect(s: &mut Stats) { s.failures.push(String::from("x")); }
 
   Note: the def-use nodes flow through Leiden clustering (`cluster_nodes`, `:294`) like any node — harmless; they get a `community` like everything else. The `cluster_edges_input` (`:286`) will include def-use edges (extra adjacency) — acceptable and deterministic.
 
-- [ ] **Step 4: Run, verify pass** — `cargo test -p vox-graphify-reader`. Expected: the new test PASSES and **all pre-existing `rebuild_tests` goldens still pass** (call edges still serialize without `kind`/`read_kind`; node/edge counts for structural-only fixtures with no `.push`/struct-field writes are unchanged because such fixtures emit no def-use edges).
+- [ ] **Step 4: Run, verify pass** — `cargo test -p vox-graphify-reader`. Expected: the new test PASSES and **all pre-existing `rebuild_tests` goldens still pass** (call edges still serialize without `kind`/`read_kind`/`op`; node/edge counts for structural-only fixtures with no `.push`/struct-field writes are unchanged because such fixtures emit no def-use edges).
 
 - [ ] **Step 5: Commit** —
   `git -C /c/Users/Owner/vox-graphify-gui add crates/vox-graphify-reader/src/rebuild.rs crates/vox-graphify-reader/tests/rebuild_tests.rs`
@@ -1167,13 +1255,58 @@ fn collect(s: &mut Stats) { s.failures.push(String::from("x")); }
 
 # PHASE F — MCP tools `vox_search_dataflow` + `vox_search_dead_signals` — Batch δ, [PARALLEL-SAFE] with Phase G
 
-## Task F1: `vox_search_dataflow` handler + schema + dispatch (TDD) [SEQUENTIAL]
+## Task F0: New `search_tools.rs` module + shared `load_corpus_graph` helper (TDD) [SEQUENTIAL]
 
-Returns the def-use edges (`def-write`/`use-read` with `read_kind`) incident to a `node_id`. `layer: "structural"`. Mirrors `graphify_query`'s load-graph-from-disk pattern.
+The new `vox_search_*` handlers must NOT be appended into the legacy-named `graphify_tools.rs` (external name says *search*; a file named *graphify* holding `vox_search_*` handlers is confusing). Create a sibling `search_tools.rs` and put the shared load-graph boilerplate there once, so F1/F2 (and P2's `discover_tools.rs` / P3's `semantic_overlay_tools.rs`) call one helper instead of re-pasting the registry→resolve→load-graph dance.
 
-**Files:** Modify `crates/vox-orchestrator-mcp/src/graphify_tools.rs`, `dispatch.rs`, `input_schemas.rs`.
+**Files:** Create `crates/vox-orchestrator-mcp/src/search_tools.rs`; modify the MCP crate mod list (`lib.rs`/`main.rs` — add `mod search_tools;` beside `mod graphify_tools;`).
 
-- [ ] **Step 1: Failing test** — append a `#[tokio::test]` to the `mod tests` in `graphify_tools.rs` (reuse `write_registry` + `test_state_for_repo`; write a `graph.json` with a def-write edge to `field:S::x`):
+- [ ] **Step 1: Add the shared helper + module header.** In `search_tools.rs`, re-export/import the existing `graphify_tools` building blocks (they remain in `graphify_tools.rs` for now — only the NEW handlers move here) and add the shared loader:
+
+```rust
+//! `vox_search_*` MCP handlers (data-flow now; discover/semantic land here too).
+//! Sibling of `graphify_tools.rs`: the external tool names are `vox_search_*`, so
+//! the file is named for the surface, not the legacy `graphify` brand.
+
+use crate::graphify_tools::{load_graph_json, resolve_search_corpus, REM_GRAPHIFY};
+use crate::params::ToolResult;
+use crate::server_state::ServerState;
+use vox_config::graphify::load_graphify_corpora;
+
+/// Shared MCP corpus loader: load the registry, resolve the (optional) corpus, and
+/// read its `graph.json` into a `serde_json::Value`. Returns `(graph, corpus_id)` or a
+/// ready-to-return `ToolResult` error JSON string. Used by every `vox_search_*` handler
+/// (F1/F2 here, plus P2/P3) so the registry→resolve→load dance is written once.
+pub(crate) fn load_corpus_graph(
+    state: &ServerState,
+    corpus: &Option<String>,
+) -> Result<(serde_json::Value, String), String> {
+    let repo_root = &state.repository.root;
+    let reg = load_graphify_corpora(repo_root)
+        .map_err(|e| ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_GRAPHIFY).to_json())?;
+    let (c, corpus_id) = resolve_search_corpus(&reg, corpus, &None)
+        .map_err(|e| ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_GRAPHIFY).to_json())?;
+    let graph = load_graph_json(repo_root, c)
+        .map_err(|e| ToolResult::<serde_json::Value>::err_with_remediation(e, REM_GRAPHIFY).to_json())?;
+    Ok((graph, corpus_id))
+}
+```
+
+  > Confirm the exact visibility/paths of `load_graph_json`/`resolve_search_corpus`/`REM_GRAPHIFY` in `graphify_tools.rs` (they may need `pub(crate)` exposure — make them `pub(crate)` if they are private, a one-line change, committed here). If `load_graph_json` takes a `&GraphifyCorpus` rather than returning the corpus id, adjust the helper's return tuple to whatever the real signatures yield; the goal is one shared loader, not a specific signature.
+
+- [ ] **Step 2: Wire the module** — add `mod search_tools;` to the MCP crate root next to `mod graphify_tools;` (grep to place it). Build: `cargo build -p vox-orchestrator-mcp`.
+
+- [ ] **Step 3: Commit** —
+  `git -C /c/Users/Owner/vox-graphify-gui add crates/vox-orchestrator-mcp/src/search_tools.rs crates/vox-orchestrator-mcp/src/lib.rs crates/vox-orchestrator-mcp/src/graphify_tools.rs`
+  `git -C /c/Users/Owner/vox-graphify-gui commit -m "feat(vox-search): search_tools.rs sibling module + shared load_corpus_graph MCP helper"`
+
+## Task F1: `vox_search_dataflow` handler + schema + dispatch (TDD) [SEQUENTIAL] (after F0)
+
+Returns the def-use edges (`def-write`/`use-read` with `read_kind`, `def-write` with `op`) incident to a `node_id`. `layer: "structural"`. Mirrors `graphify_query`'s load-graph-from-disk pattern via the shared `load_corpus_graph` helper.
+
+**Files:** Modify `crates/vox-orchestrator-mcp/src/search_tools.rs`, `dispatch.rs`, `input_schemas.rs`.
+
+- [ ] **Step 1: Failing test** — append a `#[tokio::test]` to the `mod tests` in `search_tools.rs` (reuse `write_registry` + `test_state_for_repo` — re-export or factor them as `pub(crate)` test helpers from `graphify_tools.rs`'s test module; write a `graph.json` with a def-write edge to `field:S::x`):
 
 ```rust
     #[tokio::test]
@@ -1184,7 +1317,7 @@ Returns the def-use edges (`def-write`/`use-read` with `read_kind`) incident to 
         fs::create_dir_all(&dir).unwrap();
         fs::write(dir.join("graph.json"),
             r#"{"nodes":[{"id":"field:S::x","label":"x","kind":"field"},{"id":"m::w","kind":"fn"}],
-                "links":[{"source":"m::w","target":"field:S::x","kind":"def-write","read_kind":"accumulate","confidence":"resolved"}]}"#).unwrap();
+                "links":[{"source":"m::w","target":"field:S::x","kind":"def-write","op":"accumulate","confidence":"resolved"}]}"#).unwrap();
         let state = test_state_for_repo(tmp.path().to_path_buf());
         let json = vox_search_dataflow(&state, GraphifyDataflowParams {
             corpus: Some("repo-code-graph".into()), node_id: "field:S::x".into() }).await;
@@ -1193,13 +1326,13 @@ Returns the def-use edges (`def-write`/`use-read` with `read_kind`) incident to 
         assert_eq!(p["data"]["layer"], serde_json::json!("structural"));
         let edges = p["data"]["edges"].as_array().expect("edges");
         assert_eq!(edges[0]["kind"], serde_json::json!("def-write"));
-        assert_eq!(edges[0]["read_kind"], serde_json::json!("accumulate"));
+        assert_eq!(edges[0]["op"], serde_json::json!("accumulate"));
     }
 ```
 
 - [ ] **Step 2: Run, verify fail** — `cargo test -p vox-orchestrator-mcp dataflow_returns_incident_defuse_edges`. Expected: FAIL (handler absent).
 
-- [ ] **Step 3: Implement handler** — add to `graphify_tools.rs`:
+- [ ] **Step 3: Implement handler** — add to `search_tools.rs`:
 
 ```rust
 #[derive(Debug, Deserialize)]
@@ -1209,21 +1342,12 @@ pub struct GraphifyDataflowParams {
     pub node_id: String,
 }
 
-/// `vox_search_dataflow`: def-use edges (def-write / use-read w/ read_kind) incident to a node.
-/// Deterministic; `layer: "structural"`.
+/// `vox_search_dataflow`: def-use edges (def-write w/ op, use-read w/ read_kind) incident to a node.
+/// Deterministic; `layer: "structural"`. Uses the shared `load_corpus_graph` helper (Task F0).
 pub async fn vox_search_dataflow(state: &ServerState, params: GraphifyDataflowParams) -> String {
-    let repo_root = &state.repository.root;
-    let reg = match load_graphify_corpora(repo_root) {
-        Ok(r) => r,
-        Err(e) => return ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_GRAPHIFY).to_json(),
-    };
-    let (corpus, corpus_id) = match resolve_search_corpus(&reg, &params.corpus, &None) {
+    let (graph, corpus_id) = match load_corpus_graph(state, &params.corpus) {
         Ok(v) => v,
-        Err(e) => return ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_GRAPHIFY).to_json(),
-    };
-    let graph = match load_graph_json(repo_root, corpus) {
-        Ok(v) => v,
-        Err(e) => return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_GRAPHIFY).to_json(),
+        Err(err_json) => return err_json,
     };
     let links = graph.get("links").or_else(|| graph.get("edges"))
         .and_then(|v| v.as_array()).cloned().unwrap_or_default();
@@ -1247,7 +1371,7 @@ pub async fn vox_search_dataflow(state: &ServerState, params: GraphifyDataflowPa
 
 ```rust
         "vox_search_dataflow" => {
-            Ok(crate::graphify_tools::vox_search_dataflow(state, serde_json::from_value(args)?).await)
+            Ok(crate::search_tools::vox_search_dataflow(state, serde_json::from_value(args)?).await)
         }
 ```
 
@@ -1262,14 +1386,14 @@ pub async fn vox_search_dataflow(state: &ServerState, params: GraphifyDataflowPa
 - [ ] **Step 6: Run, verify pass** — `cargo test -p vox-orchestrator-mcp dataflow_returns_incident_defuse_edges`. Expected: PASS.
 
 - [ ] **Step 7: Commit** —
-  `git -C /c/Users/Owner/vox-graphify-gui add crates/vox-orchestrator-mcp/src/graphify_tools.rs crates/vox-orchestrator-mcp/src/dispatch.rs crates/vox-orchestrator-mcp/src/input_schemas.rs`
+  `git -C /c/Users/Owner/vox-graphify-gui add crates/vox-orchestrator-mcp/src/search_tools.rs crates/vox-orchestrator-mcp/src/dispatch.rs crates/vox-orchestrator-mcp/src/input_schemas.rs`
   `git -C /c/Users/Owner/vox-graphify-gui commit -m "feat(vox-search): vox_search_dataflow MCP tool (def-use edges, layer=structural)"`
 
 ## Task F2: `vox_search_dead_signals` handler + schema + dispatch (TDD) [SEQUENTIAL]
 
 Returns `DeadSignalReport.findings[]`, optionally filtered by `detector` / `min_confidence`. `layer: "structural"`.
 
-**Files:** Modify `crates/vox-orchestrator-mcp/src/graphify_tools.rs`, `dispatch.rs`, `input_schemas.rs`.
+**Files:** Modify `crates/vox-orchestrator-mcp/src/search_tools.rs`, `dispatch.rs`, `input_schemas.rs`.
 
 - [ ] **Step 1: Failing test** — append to `mod tests`:
 
@@ -1282,7 +1406,7 @@ Returns `DeadSignalReport.findings[]`, optionally filtered by `detector` / `min_
         fs::create_dir_all(&dir).unwrap();
         fs::write(dir.join("graph.json"),
             r#"{"nodes":[{"id":"field:S::errs","label":"errs","kind":"field"}],
-                "links":[{"source":"m::f","target":"field:S::errs","kind":"def-write","read_kind":"accumulate"},
+                "links":[{"source":"m::f","target":"field:S::errs","kind":"def-write","op":"accumulate"},
                          {"source":"m::f","target":"field:S::errs","kind":"use-read","read_kind":"store"}]}"#).unwrap();
         let state = test_state_for_repo(tmp.path().to_path_buf());
         let json = vox_search_dead_signals(&state, GraphifyDeadSignalsParams {
@@ -1297,7 +1421,7 @@ Returns `DeadSignalReport.findings[]`, optionally filtered by `detector` / `min_
 
 - [ ] **Step 2: Run, verify fail** — `cargo test -p vox-orchestrator-mcp dead_signals_reports_accumulator_finding`. Expected: FAIL.
 
-- [ ] **Step 3: Implement handler** — add to `graphify_tools.rs`:
+- [ ] **Step 3: Implement handler** — add to `search_tools.rs`:
 
 ```rust
 #[derive(Debug, Deserialize)]
@@ -1312,19 +1436,11 @@ pub struct GraphifyDeadSignalsParams {
 }
 
 /// `vox_search_dead_signals`: the def-use lint report. `layer: "structural"`.
+/// Uses the shared `load_corpus_graph` helper (Task F0).
 pub async fn vox_search_dead_signals(state: &ServerState, params: GraphifyDeadSignalsParams) -> String {
-    let repo_root = &state.repository.root;
-    let reg = match load_graphify_corpora(repo_root) {
-        Ok(r) => r,
-        Err(e) => return ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_GRAPHIFY).to_json(),
-    };
-    let (corpus, corpus_id) = match resolve_search_corpus(&reg, &params.corpus, &None) {
+    let (graph, corpus_id) = match load_corpus_graph(state, &params.corpus) {
         Ok(v) => v,
-        Err(e) => return ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_GRAPHIFY).to_json(),
-    };
-    let graph = match load_graph_json(repo_root, corpus) {
-        Ok(v) => v,
-        Err(e) => return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_GRAPHIFY).to_json(),
+        Err(err_json) => return err_json,
     };
     let report = vox_graphify_reader::dataflow::compute_dead_signals(&graph);
     // Serialize then filter (DeadSignalKind serializes snake_case == the filter string).
@@ -1349,7 +1465,7 @@ pub async fn vox_search_dead_signals(state: &ServerState, params: GraphifyDeadSi
 
 ```rust
         "vox_search_dead_signals" => {
-            Ok(crate::graphify_tools::vox_search_dead_signals(state, serde_json::from_value(args)?).await)
+            Ok(crate::search_tools::vox_search_dead_signals(state, serde_json::from_value(args)?).await)
         }
 ```
 
@@ -1364,7 +1480,7 @@ pub async fn vox_search_dead_signals(state: &ServerState, params: GraphifyDeadSi
 - [ ] **Step 6: Run, verify pass** — `cargo test -p vox-orchestrator-mcp dead_signals_reports_accumulator_finding`. Expected: PASS.
 
 - [ ] **Step 7: Commit** —
-  `git -C /c/Users/Owner/vox-graphify-gui add crates/vox-orchestrator-mcp/src/graphify_tools.rs crates/vox-orchestrator-mcp/src/dispatch.rs crates/vox-orchestrator-mcp/src/input_schemas.rs`
+  `git -C /c/Users/Owner/vox-graphify-gui add crates/vox-orchestrator-mcp/src/search_tools.rs crates/vox-orchestrator-mcp/src/dispatch.rs crates/vox-orchestrator-mcp/src/input_schemas.rs`
   `git -C /c/Users/Owner/vox-graphify-gui commit -m "feat(vox-search): vox_search_dead_signals MCP tool (DeadSignalReport, layer=structural)"`
 
 ## Task F3: Tier-presence assertion — both tools in the default tier (TDD) [SEQUENTIAL]
@@ -1655,8 +1771,8 @@ Mapping every P1 requirement in the source design (`2026-06-26-graphify-dataflow
 
 ## Workflow dispatch summary
 
-- **Total tasks:** 18 (A1–A3, B1–B4, C1–C2, D1–D3, E1, F1–F3, G1–G2, H1, I1).
-- **Sequential backbone:** A1→A2→A3 → (β) → D1→D2→D3 → E1 → (δ) → H1 → I1.
+- **Total tasks:** 20 (A0–A3, B1–B4, C1–C2, D1–D3, E1, F0–F3, G1–G2, H1, I1).
+- **Sequential backbone:** A0→A1→A2→A3 → (β) → D1→D2→D3 → E1 → (δ) → H1 → I1.
 - **Parallel fan-out batch β** (after A3): `{B1→B2→B3→B4}` ∥ `{C1→C2}` — two independent file regions, dispatch concurrently.
-- **Parallel fan-out batch δ** (after E1): `{F1→F2→F3}` (vox-orchestrator-mcp) ∥ `{G1→G2}` (vox-cli) — two independent crates, dispatch concurrently.
+- **Parallel fan-out batch δ** (after E1): `{F0→F1→F2→F3}` (vox-orchestrator-mcp) ∥ `{G1→G2}` (vox-cli) — two independent crates, dispatch concurrently.
 - Every task ends in an add+commit; the workflow performs the final integration commit. No push/branch/merge inside tasks.

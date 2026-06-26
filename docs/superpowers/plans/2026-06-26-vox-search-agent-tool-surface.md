@@ -1587,8 +1587,12 @@ exactly these touch points — nothing else:
    descriptions + meta).
 3. **Schema** — add the inline JSON schema arm in
    `crates/vox-orchestrator-mcp/src/input_schemas.rs::tool_input_schema`.
-4. **Handler + dispatch** — add the handler fn (`graphify_tools.rs` or a sibling
-   `*_tools.rs`) and one `"vox_search_<x>" => …` arm in `dispatch.rs`.
+4. **Handler + dispatch** — add the handler fn in the **search-named sibling
+   `search_tools.rs`** (NOT the legacy-named `graphify_tools.rs` — external name
+   says search, so the file should too; P1/P2/P3 follow this) and one
+   `"vox_search_<x>" => …` arm in `dispatch.rs`. Reuse the shared
+   `search_tools::load_corpus_graph` loader rather than re-pasting registry/resolve
+   /load-graph boilerplate.
 5. **(Optional) GUI** — add a pane in `VoxSearchPanel.tsx` calling
    `invokeMcpTool('vox_search_<x>', …)`. No backend duplication.
 

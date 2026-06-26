@@ -281,7 +281,9 @@ Run: `cargo test -p vox-db fts_orders_by_relevance` → **expected: FAILS** (str
 
 (`bm25()` returns a score where **lower = more relevant**, so `ASC` puts the best match first; `created_at DESC` is the stable tiebreak.) Leave `query_knowledge_nodes_like` ordering as-is (LIKE has no relevance signal; `created_at DESC` is the honest fallback) — the composite ranker (D1) supplies the structural signal when FTS is absent.
 
-Run: `cargo test -p vox-db fts_orders_by_relevance` → **expected: `test result: ok. 1 passed`** (FTS path). If FTS is unavailable in the in-memory build and the test exercises LIKE, mark the test `#[ignore]` with a comment `// requires FTS5; covered by execution-layer test F2` rather than weakening the assertion.
+Run: `cargo test -p vox-db fts_orders_by_relevance` → **expected: `test result: ok. 1 passed`** (FTS path). If FTS is unavailable in the in-memory build and the test exercises LIKE, mark the test `#[ignore]` with a comment `// requires FTS5; acceptance is the execution-layer test F2` rather than weakening the assertion.
+
+> **Acceptance gate for the 0.0/meaningless-score fix is Task F2 (the execution-layer integration test), NOT this B1 unit test.** B1's `fts_orders_by_relevance` may be `#[ignore]`d when the local in-memory build lacks FTS5, so a green B1 alone does not prove the fix. The bug-fix acceptance criterion is **F2 green** (`kg_hits[0].score > 0.0` and the strong match ranks first through `execute_search_plan`). Do not consider the KG-score bug closed until F2 passes.
 
 **Commit:**
 ```
@@ -458,6 +460,15 @@ fn label_resolves_only_when_node_present() {
     let none = resolve_seed(&r, "repo-code-graph", &SeedCandidate::node_id("ghost", 0.9));
     assert!(none.is_none());
 }
+
+#[test]
+fn seed_why_serializes_through_typed_vocabulary() {
+    // The Exact variant exists for the discover structure_only lane and has a stable token.
+    assert_eq!(SeedWhy::Exact.as_str(), "exact");
+    assert_eq!(SeedWhy::Direct.as_str(), "direct");
+    assert_eq!(SeedWhy::PathSymbol.as_str(), "path_symbol");
+    assert_eq!(SeedWhy::Label.as_str(), "label");
+}
 ```
 
 Run: `cargo test -p vox-graphify-reader --test resolve` → **expected: fails to compile**.
@@ -472,15 +483,34 @@ Run: `cargo test -p vox-graphify-reader --test resolve` → **expected: fails to
 
 use crate::GraphifyReader;
 
-/// Why a candidate resolved to a node (provenance for the seed).
+/// Why a candidate resolved to a node (provenance for the seed). This is the single
+/// typed vocabulary the discover handler (E1) serializes through — `structure_only`
+/// mode emits `Exact`, the lexical-seed lane emits `Direct`/`PathSymbol`/`Label`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SeedWhy {
+    /// `structure_only` mode: the query string was treated as an exact node id and is
+    /// present in the graph. (Serialized as `"exact"`.)
+    Exact,
     /// The hit was already a graph node id (or a `graphify:…:node:<id>` knowledge id).
+    /// (Serialized `"direct"`; the discover lexical-seed lane re-labels it `"search"` at the
+    /// tool boundary via `discover_why` — see E1.)
     Direct,
     /// The hit's file/symbol path matched a node id by suffix.
     PathSymbol,
     /// The hit was resolved from a label match (caller-supplied candidate node id).
     Label,
+}
+
+impl SeedWhy {
+    /// The stable provenance string emitted in tool responses.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            SeedWhy::Exact => "exact",
+            SeedWhy::Direct => "direct",
+            SeedWhy::PathSymbol => "path_symbol",
+            SeedWhy::Label => "label",
+        }
+    }
 }
 
 /// One search hit reduced to a resolvable candidate.
@@ -783,9 +813,11 @@ git -C /c/Users/Owner/vox-graphify-gui commit -m "feat(vox-search): composite ov
 
 ## Task E1 — `discover_tools.rs` handler (TDD) — [SEQUENTIAL] (depends A2, D1, B1)
 
-**Files:** `crates/vox-orchestrator-mcp/src/discover_tools.rs` (new), `crates/vox-orchestrator-mcp/src/lib.rs` (`mod discover_tools;`).
+**Files:** `crates/vox-orchestrator-mcp/src/discover_tools.rs` (new, a **sibling** of `graphify_tools.rs`/`search_tools.rs` — the handler lives in its own search-named file, NOT appended into the legacy-named `graphify_tools.rs`), `crates/vox-orchestrator-mcp/src/lib.rs` (`mod discover_tools;`).
 
 `vox_discover` composes: lexical-seed (`lexical_search_graph` over the corpus graph — Vox Search BM25 seeding is folded in at F3 behind the flag) → resolve (`resolve::resolve_seed`) → BFS expand (`reader.bfs_from_seeds`) → composite rank (`graph_overlay::rank_overlay`). `mode:"structure_only"` skips the lexical-seed step (seed = the query string treated as an exact node id). Persist seeds as `graphify_search_hit` via the existing path (reused for recall).
+
+> **DRY (shared loader):** if P1's `search_tools::load_corpus_graph(state, &corpus)` helper has landed (it returns `(graph_value, corpus_id)` via registry→resolve→load-graph), call it here instead of re-pasting the registry-load / corpus-resolve / read-graph boilerplate below — then build the reader with `GraphifyReader::from_value(graph_value.clone())`. The inline block below is the standalone fallback for when P1 has not yet merged on this branch; collapse it to the shared helper once available. Either way `discover_tools.rs` stays a search-named sibling file (fix #7) and does not duplicate the loader (fix #6).
 
 **Step 1 — failing test.** Create `crates/vox-orchestrator-mcp/src/discover_tools.rs` with the handler stub `todo!()` plus an inline `#[cfg(test)]` module modeled on `graphify_tools.rs`'s tests (reuse `write_registry`, `write_sample_graph`, `test_state_for_repo` — copy them, or factor a shared `pub(crate)` test helper). Test body:
 
@@ -938,7 +970,7 @@ use std::fs;
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
 use vox_config::graphify::{lexical_search_graph, load_graphify_corpora};
-use vox_graphify_reader::resolve::{resolve_seed, SeedCandidate};
+use vox_graphify_reader::resolve::{resolve_seed, SeedCandidate, SeedWhy};
 use vox_graphify_reader::GraphifyReader;
 use vox_search::graph_overlay::{rank_overlay, GraphOverlayWeights, RankInput, SeedRef};
 
@@ -992,18 +1024,22 @@ pub async fn discover(state: &ServerState, params: DiscoverParams) -> String {
 
     // ── Seed step ────────────────────────────────────────────────────────────
     // structure_only: the query is treated as an exact node id (no search lane).
-    let mut seeds: Vec<(String, &'static str, f64)> = Vec::new(); // (node_id, why, score)
+    // `why` is the typed `SeedWhy` (serialized via `.as_str()`) so the provenance
+    // vocabulary is consistent with the resolver — no ad-hoc string literals.
+    let mut seeds: Vec<(String, SeedWhy, f64)> = Vec::new(); // (node_id, why, score)
     if mode == "structure_only" {
         if reader.contains(&params.query) {
-            seeds.push((params.query.clone(), "exact", 1.0));
+            seeds.push((params.query.clone(), SeedWhy::Exact, 1.0));
         }
     } else {
         // lexical-seed first (label overlap over the graph). The embedding lane is F3.
         let lex = lexical_search_graph(&graph_value, &corpus_id, &params.query, limit);
         for h in &lex {
             let cand = SeedCandidate::node_id(h.node_id.clone(), h.score as f64);
+            // The lexical lane resolves NodeId candidates → SeedWhy::Direct; the discover
+            // surface reports these as the "search" provenance (lexical-seed origin).
             if let Some((id, _why, sc)) = resolve_seed(&reader, &corpus_id, &cand) {
-                seeds.push((id, "search", sc));
+                seeds.push((id, SeedWhy::Direct, sc));
             }
         }
     }
@@ -1052,7 +1088,7 @@ pub async fn discover(state: &ServerState, params: DiscoverParams) -> String {
     }
 
     let seeds_json: Vec<serde_json::Value> = seeds.iter().map(|(id, why, sc)| serde_json::json!({
-        "node_id": id, "label": reader.label_of(id), "why": why, "search_score": sc,
+        "node_id": id, "label": reader.label_of(id), "why": discover_why(*why), "search_score": sc,
     })).collect();
     let results_json: Vec<serde_json::Value> = ranked.iter().map(|r| serde_json::json!({
         "node_id": r.node_id,
@@ -1077,11 +1113,23 @@ pub async fn discover(state: &ServerState, params: DiscoverParams) -> String {
     })).to_json()
 }
 
+/// Map the typed `SeedWhy` to the discover tool's seed-provenance vocabulary.
+/// `structure_only` exact match → `"exact"`; everything resolved by the search lane → `"search"`.
+/// Routing both surfaces (response JSON + persisted hit) through this one mapping keeps the
+/// provenance vocabulary consistent and typed (no ad-hoc string literals at call sites).
+fn discover_why(why: SeedWhy) -> &'static str {
+    match why {
+        SeedWhy::Exact => "exact",
+        // Direct/PathSymbol/Label all originate from the lexical-seed (search) lane here.
+        _ => "search",
+    }
+}
+
 async fn persist_seeds(
     state: &ServerState,
     corpus_id: &str,
     query: &str,
-    seeds: &[(String, &'static str, f64)],
+    seeds: &[(String, SeedWhy, f64)],
 ) {
     // Best-effort; DB unavailability must not fail discovery.
     let searched_at = chrono::Utc::now().to_rfc3339();
@@ -1089,7 +1137,7 @@ async fn persist_seeds(
         for (node_id, why, _) in seeds {
             let kid = format!("graphify:{corpus_id}:discover:{node_id}");
             let metadata = serde_json::json!({
-                "corpus_id": corpus_id, "query": query, "why": why,
+                "corpus_id": corpus_id, "query": query, "why": discover_why(*why),
                 "searched_at": searched_at, "source": "vox_discover_seed",
             }).to_string();
             let _ = db.upsert_knowledge_node(
@@ -1277,7 +1325,7 @@ git -C /c/Users/Owner/vox-graphify-gui commit -m "feat(vox-db-types): SearchCorp
 
 **Files:** `crates/vox-search/tests/kg_relevance.rs` (new).
 
-B1 fixed the SQL ordering; this proves the KG corpus, end-to-end through `execute_search_plan`, now yields a relevance-ordered, non-degenerate KG lane (the masked-by-ranker case is separately covered by E1). This is the standalone-corpus half of design fork §6.3.
+B1 fixed the SQL ordering; this proves the KG corpus, end-to-end through `execute_search_plan`, now yields a relevance-ordered, non-degenerate KG lane (the masked-by-ranker case is separately covered by E1). This is the standalone-corpus half of design fork §6.3. **This F2 test — not the possibly-`#[ignore]`d B1 unit test — is the MANDATORY acceptance gate for the KG-0.0/meaningless-score bug fix:** the bug is considered closed only when F2 is green (non-zero top score, strong match first). F2 must NOT be `#[ignore]`d; if the harness needs an FTS-enabled DB build, gate the *build* but keep the assertion live (or fold into B1's module per the fallback below, still as a non-ignored test).
 
 **Step 1 — write the test.** Create `crates/vox-search/tests/kg_relevance.rs`. Model the harness on existing `vox-search` integration tests that build a `SearchRuntimeContext` with an attached `VoxDb` (grep `crates/vox-search/tests` for the constructor pattern — reuse it verbatim; do NOT invent one). Seed two `knowledge_nodes` (one strong, one weak match), run a `SearchPlan` containing `SearchCorpus::KnowledgeGraph` through `execute_search_plan`, and assert:
 
