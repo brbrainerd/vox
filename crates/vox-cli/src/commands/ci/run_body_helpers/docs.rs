@@ -502,39 +502,53 @@ fn verify_baseline_policy_alignment(root: &Path) -> Result<()> {
 }
 
 pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
-    check_docs_ssot(root)?;
-    check_codex_ssot(root)?;
+    // ponytail: local macro for per-sub-step timing; ssot-drift is the slowest gate (~35s)
+    macro_rules! ds {
+        ($label:literal, $expr:expr) => {{
+            let _t = std::time::Instant::now();
+            let _r = $expr;
+            eprintln!("ssot-drift  {:>6}ms  {}", _t.elapsed().as_millis(), $label);
+            _r
+        }};
+    }
+    ds!("check_docs_ssot", check_docs_ssot(root))?;
+    ds!("check_codex_ssot", check_codex_ssot(root))?;
     // Full-workspace scan; transitional allowlist in docs/agents/sql-connection-api-allowlist.txt
-    run_sql_surface_guard(root, true)?;
-    super::guards::run_query_all_guard(root, true)?;
-    super::guards::run_turso_import_guard(root, true)?;
-    crate::commands::ci::policy_allowlist_parity::run(root)?;
-    crate::commands::ci::db_schema_coverage::run(root)?;
-    vox_cli_ci::nomenclature_guard::run(root, false)?;
-    crate::commands::ci::operations_catalog::verify(root)?;
-    crate::commands::ci::mcp_vox_surface_parity::run()?;
-    command_compliance::run(root)?;
-    crate::commands::ci::gui_version_sync::run(root, false)?;
-    crate::commands::ci::gui_catalog_parity::run(root)?;
-    crate::commands::ci::gui_surface_coverage::run(root, false)?;
-    crate::commands::ci::gui_surface_registry::run(root, false)?;
-    crate::commands::ci::capability_sync::run(root, false)?;
-    crate::commands::ci::plugin_surface::run(root, false)?;
-    crate::commands::ci::plugin_catalog_sync::run(root, false)?;
+    ds!("run_sql_surface_guard", run_sql_surface_guard(root, true))?;
+    ds!("run_query_all_guard", super::guards::run_query_all_guard(root, true))?;
+    ds!("run_turso_import_guard", super::guards::run_turso_import_guard(root, true))?;
+    ds!("policy_allowlist_parity", crate::commands::ci::policy_allowlist_parity::run(root))?;
+    ds!("db_schema_coverage", crate::commands::ci::db_schema_coverage::run(root))?;
+    ds!("nomenclature_guard", vox_cli_ci::nomenclature_guard::run(root, false))?;
+    ds!("operations_catalog::verify", crate::commands::ci::operations_catalog::verify(root))?;
+    ds!("mcp_vox_surface_parity", crate::commands::ci::mcp_vox_surface_parity::run())?;
+    ds!("command_compliance", command_compliance::run(root))?;
+    ds!("gui_version_sync", crate::commands::ci::gui_version_sync::run(root, false))?;
+    ds!("gui_catalog_parity", crate::commands::ci::gui_catalog_parity::run(root))?;
+    ds!("gui_surface_coverage", crate::commands::ci::gui_surface_coverage::run(root, false))?;
+    ds!("gui_surface_registry", crate::commands::ci::gui_surface_registry::run(root, false))?;
+    ds!("capability_sync", crate::commands::ci::capability_sync::run(root, false))?;
+    ds!("plugin_surface", crate::commands::ci::plugin_surface::run(root, false))?;
+    ds!("plugin_catalog_sync", crate::commands::ci::plugin_catalog_sync::run(root, false))?;
     // Catalog-derived reference docs must stay fresh when catalog.toml changes; this check
     // otherwise lives only in docs-quality.yml, so catalog edits could pass ssot-drift while
     // leaving the generated docs stale (the exact drift PR #218 left on main).
-    crate::commands::ci::generate_plugin_catalog_docs::run(None, None, true)?;
-    crate::commands::ci::plugin_skill_parity::run(false)?;
-    contracts_index::run(root)?;
-    crate::commands::ci::docs_reality_audit::run_verify(root)?;
-    exec_policy_contract::run(root)?;
-    completion_quality::run_audit_verify_ssot(root)?;
-    scientia_worthiness_contract::run(root)?;
-    scientia_novelty_ledger_contract::run(root)?;
-    super::run_data_ssot_guards(root)?;
-    vox_cli_ci::affected_cmd::check_graph(root.join("contracts/ci/crate-graph.v1.json").as_path())
-        .map_err(|e| anyhow::anyhow!(e))?;
+    ds!("generate_plugin_catalog_docs", crate::commands::ci::generate_plugin_catalog_docs::run(None, None, true))?;
+    ds!("plugin_skill_parity", crate::commands::ci::plugin_skill_parity::run(false))?;
+    ds!("contracts_index", contracts_index::run(root))?;
+    ds!("docs_reality_audit", crate::commands::ci::docs_reality_audit::run_verify(root))?;
+    ds!("exec_policy_contract", exec_policy_contract::run(root))?;
+    ds!("completion_quality", completion_quality::run_audit_verify_ssot(root))?;
+    ds!("scientia_worthiness_contract", scientia_worthiness_contract::run(root))?;
+    ds!("scientia_novelty_ledger_contract", scientia_novelty_ledger_contract::run(root))?;
+    ds!("run_data_ssot_guards", super::run_data_ssot_guards(root))?;
+    ds!(
+        "affected_cmd::check_graph",
+        vox_cli_ci::affected_cmd::check_graph(
+            root.join("contracts/ci/crate-graph.v1.json").as_path()
+        )
+        .map_err(|e| anyhow::anyhow!(e))
+    )?;
     // Advisory: GitHub-hosted runner drift (default warn-only).
     let _ = vox_cli_ci::runner_policy_check::run(root, false);
     println!("ssot-drift: nested SSOT guards OK");

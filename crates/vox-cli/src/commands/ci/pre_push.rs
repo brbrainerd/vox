@@ -185,14 +185,33 @@ pub fn run(root: &Path, opts: PrePushOpts) -> Result<()> {
         )?;
         return Ok(());
     }
+    const WARN_AT_SECS: u64 = 20 * 60;
+    const FAIL_AT_SECS: u64 = 25 * 60;
     let total = Instant::now();
     for s in steps {
+        let elapsed_secs = total.elapsed().as_secs();
+        if elapsed_secs >= FAIL_AT_SECS {
+            bail!(
+                "pre-push: global 25m timeout exceeded at {:02}:{:02} before step `{}`",
+                elapsed_secs / 60,
+                elapsed_secs % 60,
+                s.label
+            );
+        }
+        if elapsed_secs >= WARN_AT_SECS {
+            eprintln!(
+                "pre-push: WARNING — {:02}:{:02} elapsed, hard timeout at 25:00; running `{}`",
+                elapsed_secs / 60,
+                elapsed_secs % 60,
+                s.label
+            );
+        }
         let started = Instant::now();
         let label = s.label.clone();
         let scope = s.scope.clone();
         println!("==> {}", label);
         let run = s.run;
-        match run_step_with_heartbeat(&label, || run(root))
+        match run_step_with_heartbeat(&label, total, || run(root))
             .with_context(|| format!("step `{label}`"))
         {
             Ok(()) => {
@@ -289,7 +308,11 @@ fn print_pr_review_discipline_hint(root: &Path) {
     eprintln!("          `@coderabbitai review` on the PR when it's ready for a fresh review.");
 }
 
-fn run_step_with_heartbeat(label: &str, f: impl FnOnce() -> Result<()>) -> Result<()> {
+fn run_step_with_heartbeat(
+    label: &str,
+    push_start: Instant,
+    f: impl FnOnce() -> Result<()>,
+) -> Result<()> {
     let stop = Arc::new(AtomicBool::new(false));
     let stop_bg = Arc::clone(&stop);
     let label_owned = label.to_string();
@@ -300,10 +323,15 @@ fn run_step_with_heartbeat(label: &str, f: impl FnOnce() -> Result<()>) -> Resul
             if stop_bg.load(Ordering::Relaxed) {
                 break;
             }
+            let step_s = t0.elapsed().as_secs();
+            let total_s = push_start.elapsed().as_secs();
             eprintln!(
-                "pre-push: still running `{}` ({:.0}s elapsed)",
+                "pre-push: still running `{}` — step {:02}:{:02} | total {:02}:{:02}",
                 label_owned,
-                t0.elapsed().as_secs_f64()
+                step_s / 60,
+                step_s % 60,
+                total_s / 60,
+                total_s % 60,
             );
         }
     });
