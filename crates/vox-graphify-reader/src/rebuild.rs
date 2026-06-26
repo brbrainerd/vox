@@ -41,9 +41,29 @@ fn resolve_edges(
         let bare = n.id.rsplit("::").next().unwrap_or(&n.id).to_string();
         defs_by_name.entry(bare).or_default().push(n.id.clone());
     }
+    use std::collections::HashSet;
+    let node_ids: HashSet<&str> = nodes.iter().map(|n| n.id.as_str()).collect();
     edges
         .iter()
         .filter_map(|e| {
+            // Boundary targets (cmd:/tool:/surface:) are dead-end-preserving: keep the
+            // edge whether or not the target node exists. If it is missing, downgrade the
+            // confidence to "dangling" so coverage can find the dead-end.
+            if e.target.starts_with("cmd:")
+                || e.target.starts_with("tool:")
+                || e.target.starts_with("surface:")
+            {
+                let confidence = if node_ids.contains(e.target.as_str()) {
+                    e.confidence.clone()
+                } else {
+                    "dangling".to_string()
+                };
+                return Some(ExtractedEdge {
+                    source: e.source.clone(),
+                    target: e.target.clone(),
+                    confidence,
+                });
+            }
             let candidates = defs_by_name.get(&e.target)?;
             let src_mod = module_of(&e.source);
             let same: Vec<&String> = candidates
@@ -254,5 +274,37 @@ mod resolve_tests {
         let out = resolve_edges(&nodes, &edges);
         assert_eq!(out.len(), 1);
         assert_eq!(out[0].target, "m.rs::b");
+    }
+
+    #[test]
+    fn prefixed_target_resolves_or_dangles() {
+        use crate::ast::{ExtractedEdge, ExtractedNode};
+        let nodes = vec![ExtractedNode {
+            id: "cmd:real".into(),
+            label: "real".into(),
+            kind: "command".into(),
+        }];
+        let edges = vec![
+            ExtractedEdge {
+                source: "S.tsx::a".into(),
+                target: "cmd:real".into(),
+                confidence: "declared".into(),
+            },
+            ExtractedEdge {
+                source: "S.tsx::b".into(),
+                target: "cmd:gone".into(),
+                confidence: "declared".into(),
+            },
+        ];
+        let out = resolve_edges(&nodes, &edges);
+        assert!(
+            out.iter()
+                .any(|e| e.target == "cmd:real" && e.confidence == "declared")
+        );
+        let dangling = out
+            .iter()
+            .find(|e| e.target == "cmd:gone")
+            .expect("dead-end edge must survive");
+        assert_eq!(dangling.confidence, "dangling");
     }
 }
