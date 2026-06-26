@@ -1,0 +1,1952 @@
+{
+  "generated_by": "graphify gui-coverage joined-evidence pass",
+  "surface_count": 40,
+  "records": [
+    {
+      "surface": "activity",
+      "tier": "live_backend",
+      "nav_parent": null,
+      "reachable": false,
+      "component_dir": "Activity",
+      "command_set": [
+        "cmd:activity_query"
+      ],
+      "command_count": 1,
+      "dead_ends": [],
+      "redundancy_peers": [
+        "archive-panel",
+        "discovery-inbox",
+        "discovery-review"
+      ],
+      "graph_community": "c_486",
+      "behavioral_findings": [
+        {
+          "file": "ActivitySurface.tsx",
+          "line": 328,
+          "label": "Agent filter onChange",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "activity_query",
+          "evidence": "onChange sets agentFilter state \u2192 triggers fetchLogs useCallback \u2192 invoke('activity_query', {filter}) with agent_id set"
+        },
+        {
+          "file": "ActivitySurface.tsx",
+          "line": 346,
+          "label": "Event Type filter onChange",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "activity_query",
+          "evidence": "onChange sets kindFilter state \u2192 triggers fetchLogs useCallback \u2192 invoke('activity_query', {filter}) with kind set"
+        },
+        {
+          "file": "ActivitySurface.tsx",
+          "line": 361,
+          "label": "Refresh button onClick",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "activity_query",
+          "evidence": "onClick calls fetchLogs directly \u2192 invoke('activity_query', {filter}); disabled while loading"
+        },
+        {
+          "file": "ActivitySurface.tsx",
+          "line": 209,
+          "label": "Fold/Expand toggle button onClick",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "onClick calls toggleExpand(item.key) \u2192 setExpandedKeys local state toggle; purely presentational, correct behavior"
+        }
+      ],
+      "visual_findings_count": 9
+    },
+    {
+      "surface": "agents",
+      "tier": "orphan_backend",
+      "nav_parent": null,
+      "reachable": false,
+      "component_dir": "Dashboard",
+      "command_set": [],
+      "command_count": 0,
+      "dead_ends": [],
+      "redundancy_peers": [],
+      "graph_community": "c_487",
+      "behavioral_findings": null,
+      "visual_findings_count": 0
+    },
+    {
+      "surface": "approvals",
+      "tier": "orphan_backend",
+      "nav_parent": "runs",
+      "reachable": true,
+      "component_dir": "Approvals",
+      "command_set": [],
+      "command_count": 0,
+      "dead_ends": [],
+      "redundancy_peers": [],
+      "graph_community": "c_488",
+      "behavioral_findings": null,
+      "visual_findings_count": 0
+    },
+    {
+      "surface": "archive-panel",
+      "tier": "orphan_backend",
+      "nav_parent": "knowledge",
+      "reachable": true,
+      "component_dir": "Activity",
+      "command_set": [
+        "cmd:activity_query"
+      ],
+      "command_count": 1,
+      "dead_ends": [],
+      "redundancy_peers": [
+        "activity",
+        "discovery-inbox",
+        "discovery-review"
+      ],
+      "graph_community": "c_489",
+      "behavioral_findings": null,
+      "visual_findings_count": 0
+    },
+    {
+      "surface": "browser",
+      "tier": "orphan_backend",
+      "nav_parent": "workspace",
+      "reachable": true,
+      "component_dir": "Browser",
+      "command_set": [
+        "cmd:browser_attach_session",
+        "cmd:browser_click_xy",
+        "cmd:browser_close_page",
+        "cmd:browser_close_session",
+        "cmd:browser_goto_url",
+        "cmd:browser_input_key",
+        "cmd:browser_navigate",
+        "cmd:browser_scroll",
+        "cmd:browser_set_control_mode",
+        "cmd:browser_type_text"
+      ],
+      "command_count": 10,
+      "dead_ends": [],
+      "redundancy_peers": [],
+      "graph_community": "c_490",
+      "behavioral_findings": null,
+      "visual_findings_count": 0
+    },
+    {
+      "surface": "catalog",
+      "tier": "live_backend",
+      "nav_parent": "commands",
+      "reachable": true,
+      "component_dir": "Catalog",
+      "command_set": [],
+      "command_count": 0,
+      "dead_ends": [],
+      "redundancy_peers": [],
+      "graph_community": "c_491",
+      "behavioral_findings": [
+        {
+          "file": "crates/vox-gui/ui/src/components/surfaces/Catalog/Catalog.tsx",
+          "line": 5,
+          "label": "skills prop (catalog data source)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "tauri:get_command_catalog",
+          "evidence": "App.tsx:340 calls voxTransport.getCatalog() \u2192 invoke('get_command_catalog') on mount, stores result in data.skills, passed through surfaceComponents.tsx:110 as <Catalog skills={props.data.skills} />. CatalogEntry = CommandCatalogEntry (alias). Live backend feed confirmed."
+        },
+        {
+          "file": "crates/vox-gui/ui/src/components/CommandCatalogForm.tsx",
+          "line": 88,
+          "label": "Command list item onClick \u2192 handleCommandSelect",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "onClick calls handleCommandSelect(cmd.path) which sets selectedPath, seeds argValues from cmd.arguments defaults, and clears output. Pure local state \u2014 no backend call needed. Works correctly."
+        },
+        {
+          "file": "crates/vox-gui/ui/src/components/CommandCatalogForm.tsx",
+          "line": 197,
+          "label": "Execute button onClick \u2192 handleExecute",
+          "verdict": "works",
+          "expected_partial": true,
+          "cheap_to_wire": false,
+          "backend_command": "tauri:execute_command / tauri:invoke_mcp_tool",
+          "evidence": "Calls voxTransport.callTool(selectedPath.replace(/ /g,'_'), {...argsObj, __argv:parsedArgs}). Transport resolves via action manifest \u2192 mcp (invoke_mcp_tool) or cli path (execute_command). Structured argValues are merged with raw __argv input. Partial: callTool has hardcoded fast-paths only for vox_list_models/vox_set_active_model/vox_explain_model/vox_suggest_model; all other commands fall through to manifest lookup. If manifest lookup misses (action not found, no cli_path, resolvePath fails) transport still tries invoke('execute_command') \u2014 may error at runtime. Output panel correctly displays exit_code, stdout, stderr."
+        },
+        {
+          "file": "crates/vox-gui/ui/src/components/CommandCatalogForm.tsx",
+          "line": 135,
+          "label": "Flag checkbox onChange \u2192 setArgValues",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "Local state update via setArgValues; value read back in handleExecute as boolean coerced to CLI flag."
+        },
+        {
+          "file": "crates/vox-gui/ui/src/components/CommandCatalogForm.tsx",
+          "line": 147,
+          "label": "Select dropdown onChange \u2192 setArgValues",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "Local state update; value passed through to argsObj as string in handleExecute."
+        },
+        {
+          "file": "crates/vox-gui/ui/src/components/CommandCatalogForm.tsx",
+          "line": 162,
+          "label": "Count number input onChange \u2192 setArgValues",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "Local state update; value passed through as string in argsObj."
+        },
+        {
+          "file": "crates/vox-gui/ui/src/components/CommandCatalogForm.tsx",
+          "line": 170,
+          "label": "Text input onChange \u2192 setArgValues",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "Local state update; value passed through as string in argsObj."
+        },
+        {
+          "file": "crates/vox-gui/ui/src/components/CommandCatalogForm.tsx",
+          "line": 191,
+          "label": "Additional Raw Arguments text input onChange \u2192 setArgsInput",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "Local state; split on whitespace and passed as __argv array in handleExecute."
+        }
+      ],
+      "visual_findings_count": 14
+    },
+    {
+      "surface": "chat",
+      "tier": "live_backend",
+      "nav_parent": null,
+      "reachable": false,
+      "component_dir": "Chat",
+      "command_set": [
+        "cmd:approve_orchestrator_task_plan",
+        "cmd:force_orchestrator_verify",
+        "cmd:get_context_budget",
+        "cmd:skip_orchestrator_verify"
+      ],
+      "command_count": 4,
+      "dead_ends": [],
+      "redundancy_peers": [],
+      "graph_community": "c_492",
+      "behavioral_findings": [
+        {
+          "file": "ChatSurface.tsx",
+          "line": 66,
+          "label": "loadSessions (useEffect on mount)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "chat_list_sessions",
+          "evidence": "await invoke<ChatSession[]>('chat_list_sessions', { limit: 40 })"
+        },
+        {
+          "file": "ChatSurface.tsx",
+          "line": 128,
+          "label": "createSession (onCreateSession handler)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "chat_create_session",
+          "evidence": "await invoke<ChatSession & { conversation_id: number }>('chat_create_session', { title: 'New chat' })"
+        },
+        {
+          "file": "ChatSurface.tsx",
+          "line": 191,
+          "label": "SecretaryToast onViewTask",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "onNavigate?.('tasks') \u2014 navigates to tasks surface"
+        },
+        {
+          "file": "ChatAgentEventRow.tsx",
+          "line": 97,
+          "label": "handleApprovePlan (PhaseChip planning button)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "approve_orchestrator_task_plan",
+          "evidence": "invoke('approve_orchestrator_task_plan', { taskId }).catch(console.error)"
+        },
+        {
+          "file": "ChatAgentEventRow.tsx",
+          "line": 100,
+          "label": "handleSkipVerify (PhaseChip verifying button)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "skip_orchestrator_verify",
+          "evidence": "invoke('skip_orchestrator_verify', { taskId }).catch(console.error)"
+        },
+        {
+          "file": "ChatAgentEventRow.tsx",
+          "line": 103,
+          "label": "handleForceVerify (PhaseChip acting button)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "force_orchestrator_verify",
+          "evidence": "invoke('force_orchestrator_verify', { taskId }).catch(console.error)"
+        },
+        {
+          "file": "ChatAgentEventRow.tsx",
+          "line": 79,
+          "label": "View in Flow button onClick (token_group row)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "onClick={() => onOpenAgent(agentId)} \u2014 passes agentId to parent onOpenAgentInFlow"
+        },
+        {
+          "file": "ChatAgentEventRow.tsx",
+          "line": 150,
+          "label": "View in Flow button onClick (agent event row)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "onClick={() => onOpenAgent(agentId)} \u2014 passes agentId to parent onOpenAgentInFlow"
+        },
+        {
+          "file": "ChatAgentEventRow.tsx",
+          "line": 60,
+          "label": "token_group expand/collapse button",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "onClick={() => setExpanded((v) => !v)} \u2014 local state toggle"
+        },
+        {
+          "file": "ChatAgentEventRow.tsx",
+          "line": 130,
+          "label": "agent event row expand/collapse button (when collapsed=true)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "onClick={() => setExpanded((v) => !v)} \u2014 local state toggle"
+        },
+        {
+          "file": "ChatExecutionRail.tsx",
+          "line": 165,
+          "label": "intent button onClick",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "onClick={() => onNavigate('matrix')} \u2014 navigates to matrix surface"
+        },
+        {
+          "file": "ChatExecutionRail.tsx",
+          "line": 183,
+          "label": "Agents KPI onClick",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "onClick={() => onNavigate('agents')}"
+        },
+        {
+          "file": "ChatExecutionRail.tsx",
+          "line": 221,
+          "label": "ContextWindowMeter usedTokens prop",
+          "verdict": "dead",
+          "expected_partial": true,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "<ContextWindowMeter usedTokens={0} ... /> \u2014 hardcoded 0; meter always renders 0% full regardless of actual context usage. budget.used_tokens is not plumbed from the payload."
+        },
+        {
+          "file": "ChatSessionRail.tsx",
+          "line": 81,
+          "label": "session tab Button onClick",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "onClick={() => onSessionChange(s.session_id)} \u2014 triggers parent hydration via onHydrateSession"
+        },
+        {
+          "file": "ChatSessionRail.tsx",
+          "line": 101,
+          "label": "New chat session Button onClick",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "chat_create_session",
+          "evidence": "onClick={onCreateSession} \u2192 createSession() in ChatSurface \u2192 invoke('chat_create_session', ...)"
+        },
+        {
+          "file": "SecretaryToast.tsx",
+          "line": 54,
+          "label": "View task button onClick",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "onClick={onViewTask} \u2192 onNavigate?.('tasks') in ChatSurface"
+        },
+        {
+          "file": "SecretaryToast.tsx",
+          "line": 63,
+          "label": "Dismiss button onClick",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "onClick={onDismiss} \u2192 setSecretaryToast(null)"
+        },
+        {
+          "file": "ModelBadge.tsx",
+          "line": 33,
+          "label": "model badge toggle button onClick",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "onClick={() => setOpen(o => !o)} \u2014 local state toggle to show/hide detail popover"
+        }
+      ],
+      "visual_findings_count": 18
+    },
+    {
+      "surface": "claims",
+      "tier": "orphan_backend",
+      "nav_parent": "knowledge",
+      "reachable": true,
+      "component_dir": "Scientia",
+      "command_set": [
+        "cmd:acknowledge_discovery",
+        "cmd:execute_command",
+        "cmd:get_archive_status",
+        "cmd:get_completion_report",
+        "cmd:get_novelty_assessment",
+        "cmd:list_discovery_inbox",
+        "cmd:list_publication_manifests",
+        "cmd:list_publication_review_queue",
+        "cmd:nanopublish_approved_claim",
+        "cmd:record_publication_claim_review",
+        "cmd:run_autofill",
+        "cmd:suggest_evidence_improvements"
+      ],
+      "command_count": 12,
+      "dead_ends": [],
+      "redundancy_peers": [
+        "knowledge",
+        "scientia"
+      ],
+      "graph_community": "c_493",
+      "behavioral_findings": null,
+      "visual_findings_count": 0
+    },
+    {
+      "surface": "commands",
+      "tier": "orphan_backend",
+      "nav_parent": null,
+      "reachable": false,
+      "component_dir": "Catalog",
+      "command_set": [],
+      "command_count": 0,
+      "dead_ends": [],
+      "redundancy_peers": [],
+      "graph_community": "c_494",
+      "behavioral_findings": null,
+      "visual_findings_count": 0
+    },
+    {
+      "surface": "compute",
+      "tier": "orphan_backend",
+      "nav_parent": null,
+      "reachable": false,
+      "component_dir": "Models",
+      "command_set": [
+        "cmd:get_active_model",
+        "cmd:get_routing_summary_live",
+        "cmd:list_model_cards",
+        "cmd:set_active_model"
+      ],
+      "command_count": 4,
+      "dead_ends": [],
+      "redundancy_peers": [
+        "models",
+        "settings"
+      ],
+      "graph_community": "c_495",
+      "behavioral_findings": null,
+      "visual_findings_count": 0
+    },
+    {
+      "surface": "console",
+      "tier": "orphan_backend",
+      "nav_parent": "workspace",
+      "reachable": true,
+      "component_dir": "Console",
+      "command_set": [
+        "cmd:discovery_help",
+        "cmd:discovery_record",
+        "cmd:discovery_suggest",
+        "cmd:get_orchestrator_status_bin",
+        "cmd:pty_close",
+        "cmd:pty_spawn",
+        "cmd:pty_write",
+        "cmd:send_to_agent"
+      ],
+      "command_count": 8,
+      "dead_ends": [],
+      "redundancy_peers": [
+        "workspace"
+      ],
+      "graph_community": "c_496",
+      "behavioral_findings": null,
+      "visual_findings_count": 0
+    },
+    {
+      "surface": "coverage",
+      "tier": "orphan_backend",
+      "nav_parent": "settings",
+      "reachable": true,
+      "component_dir": "Coverage",
+      "command_set": [],
+      "command_count": 0,
+      "dead_ends": [],
+      "redundancy_peers": [],
+      "graph_community": "c_497",
+      "behavioral_findings": null,
+      "visual_findings_count": 0
+    },
+    {
+      "surface": "dashboard",
+      "tier": "live_backend",
+      "nav_parent": "agents",
+      "reachable": true,
+      "component_dir": "Dashboard",
+      "command_set": [],
+      "command_count": 0,
+      "dead_ends": [],
+      "redundancy_peers": [],
+      "graph_community": "c_498",
+      "behavioral_findings": [
+        {
+          "file": "Dashboard/Dashboard.tsx",
+          "line": 303,
+          "label": "Open Chat CTA button",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "onClick calls onOpenChat which is wired in App.tsx:1059 to () => navigateTo('chat') \u2014 pure local navigation, no backend needed."
+        },
+        {
+          "file": "Dashboard/Dashboard.tsx",
+          "line": 349,
+          "label": "Customize dashboard toggle",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "onClick toggles customizeMode local state; when toggled off also closes pickerOpen. Pure local state change, persists via useLocalStorage."
+        },
+        {
+          "file": "Dashboard/Dashboard.tsx",
+          "line": 330,
+          "label": "Add widget button",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "onClick toggles pickerOpen local state. WidgetPickerDrawer then calls handleAddWidget -> addWidgetToLayout -> persistDashboardLayout. Fully wired."
+        },
+        {
+          "file": "Dashboard/Dashboard.tsx",
+          "line": 336,
+          "label": "Reset to default button",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "onClick calls handleResetLayout -> resetDashboardLayout -> persistDashboardLayout. Fully wired local state + localStorage."
+        },
+        {
+          "file": "Dashboard/Dashboard.tsx",
+          "line": 162,
+          "label": "Stream filter buttons (all/validated/in-progress/doubted/speculative)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "onClick calls setFilterKind (prop from App.tsx). Filters in-memory stream array. Pure local state."
+        },
+        {
+          "file": "Dashboard/Dashboard.tsx",
+          "line": 368,
+          "label": "Immersive View link (Workspace Simulation Mini-Map)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "onClick calls onNavigate?.('gamify'). onNavigate is wired in App.tsx:1058 to navigateTo. Works as navigation."
+        },
+        {
+          "file": "Dashboard/Dashboard.tsx",
+          "line": 369,
+          "label": "Collapse/Expand button (Workspace Simulation Mini-Map)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "onClick toggles sandboxCollapsed local state. Pure local state."
+        },
+        {
+          "file": "Dashboard/AgentRow.tsx",
+          "line": 49,
+          "label": "Pause/Resume agent button",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "pause_orchestrator_agent / resume_orchestrator_agent",
+          "evidence": "onClick routes to onPause/onResume. App.tsx:898/910: handlePause/handleResume call executeIpcWithRun('pause_orchestrator_agent'/'resume_orchestrator_agent', {agentId}). Real Tauri invoke backed by optimistic local state update."
+        },
+        {
+          "file": "Dashboard/AgentRow.tsx",
+          "line": 57,
+          "label": "Open in Console button",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "onClick calls onOpenInConsole(a). App.tsx:1060: wired to navigateTo('console') with agent selection. Pure navigation."
+        },
+        {
+          "file": "Dashboard/AgentRow.tsx",
+          "line": 67,
+          "label": "Approve button (inline approval)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "vox_resolve_approval (MCP)",
+          "evidence": "onClick calls onApprove(pendingApprovalId). In Dashboard.tsx:229 wired to approvals.resolve(id, 'approved'). useAgentApprovals.resolve calls voxTransport.invokeMcpTool('vox_resolve_approval', {approval_id, outcome:'approved'})."
+        },
+        {
+          "file": "Dashboard/AgentRow.tsx",
+          "line": 69,
+          "label": "Reject button (inline approval)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "vox_resolve_approval (MCP)",
+          "evidence": "onClick calls onReject(pendingApprovalId). Wired to approvals.resolve(id, 'rejected'). Same MCP path as Approve."
+        },
+        {
+          "file": "Dashboard/StreamCard.tsx",
+          "line": 39,
+          "label": "Doubt button on StreamCard",
+          "verdict": "dead",
+          "expected_partial": true,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "onClick calls onDoubt?.(item). onDoubt is defined as optional on Dashboard props (line 48) but is NOT passed from App.tsx (no handleDoubt exists in App.tsx). The optional chaining ?. silently no-ops. The button renders and is visible but has zero effect."
+        },
+        {
+          "file": "Dashboard/StreamCard.tsx",
+          "line": 44,
+          "label": "Overrule button on StreamCard",
+          "verdict": "dead",
+          "expected_partial": true,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "onClick calls onOverrule?.(item). onOverrule is defined as optional on Dashboard props (line 49) but is NOT passed from App.tsx (no handleOverrule exists). The ?. silently no-ops. Button appears on hover for doubted items but does nothing."
+        },
+        {
+          "file": "Dashboard/LudusBanner.tsx",
+          "line": 27,
+          "label": "Acknowledge alert (X) button",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "ack_ludus_notification",
+          "evidence": "onClick calls onAck(note). Wired in App.tsx:1051 to handleAckAlert, which calls invoke('ack_ludus_notification', {notificationId}) and optimistically removes from local state."
+        }
+      ],
+      "visual_findings_count": 10
+    },
+    {
+      "surface": "discovery-inbox",
+      "tier": "orphan_backend",
+      "nav_parent": "knowledge",
+      "reachable": true,
+      "component_dir": "Activity",
+      "command_set": [
+        "cmd:activity_query"
+      ],
+      "command_count": 1,
+      "dead_ends": [],
+      "redundancy_peers": [
+        "activity",
+        "archive-panel",
+        "discovery-review"
+      ],
+      "graph_community": "c_499",
+      "behavioral_findings": null,
+      "visual_findings_count": 0
+    },
+    {
+      "surface": "discovery-review",
+      "tier": "orphan_backend",
+      "nav_parent": "knowledge",
+      "reachable": true,
+      "component_dir": "Activity",
+      "command_set": [
+        "cmd:activity_query"
+      ],
+      "command_count": 1,
+      "dead_ends": [],
+      "redundancy_peers": [
+        "activity",
+        "archive-panel",
+        "discovery-inbox"
+      ],
+      "graph_community": "c_500",
+      "behavioral_findings": null,
+      "visual_findings_count": 0
+    },
+    {
+      "surface": "flow",
+      "tier": "live_backend",
+      "nav_parent": "agents",
+      "reachable": true,
+      "component_dir": "Flow",
+      "command_set": [],
+      "command_count": 0,
+      "dead_ends": [],
+      "redundancy_peers": [],
+      "graph_community": "c_501",
+      "behavioral_findings": [
+        {
+          "file": "crates/vox-gui/ui/src/components/surfaces/Flow/AgentFlow.tsx",
+          "line": 231,
+          "label": "Node onClick (graph node / agent shard selection)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "onClick calls setSel(n.id) (local state) and onSelect?.(n.id) (prop callback). Both are pure UI selection \u2014 no backend call needed. Inspector panel renders immediately from the agents prop already in scope."
+        },
+        {
+          "file": "crates/vox-gui/ui/src/components/surfaces/Flow/AgentFlow.tsx",
+          "line": 232,
+          "label": "Node onKeyDown (keyboard nav: Enter / Space to select shard)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "Mirrors onClick \u2014 calls setSel + onSelect on Enter/Space; e.preventDefault() prevents scroll on Space. Correct."
+        }
+      ],
+      "visual_findings_count": 12
+    },
+    {
+      "surface": "gamify",
+      "tier": "orphan_backend",
+      "nav_parent": "agents",
+      "reachable": true,
+      "component_dir": "Gamify",
+      "command_set": [
+        "cmd:ack_ludus_notification",
+        "cmd:get_ludus_profile",
+        "cmd:list_gamify_companions",
+        "cmd:list_gamify_leaderboard",
+        "cmd:list_gamify_quests",
+        "cmd:list_ludus_notifications"
+      ],
+      "command_count": 6,
+      "dead_ends": [],
+      "redundancy_peers": [],
+      "graph_community": "c_502",
+      "behavioral_findings": null,
+      "visual_findings_count": 0
+    },
+    {
+      "surface": "harness",
+      "tier": "live_backend",
+      "nav_parent": "workspace",
+      "reachable": true,
+      "component_dir": "Harness",
+      "command_set": [],
+      "command_count": 0,
+      "dead_ends": [],
+      "redundancy_peers": [],
+      "graph_community": "c_503",
+      "behavioral_findings": [
+        {
+          "file": "HarnessRedirect.tsx",
+          "line": 26,
+          "label": "Focus composer",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "onClick={onFocusComposer} \u2014 prop is passed through EmptyState's action={...} \u2192 actualPrimary \u2192 Button onClick. Handler is caller-supplied (not a Tauri command). Test at line 17-23 confirms the click fires the prop. Verdict works when prop is provided; button is hidden when prop is absent (guarded by ternary at line 25-27)."
+        },
+        {
+          "file": "HarnessRedirect.tsx",
+          "line": 16,
+          "label": "recordGamifyGuiEvent('harness_redirect_viewed')",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "voxTransport.recordGuiEvent",
+          "evidence": "useEffect fires on mount/gamifyEnabled change; calls gamifyGuiEvents.ts recordGamifyGuiEvent which delegates to voxTransport.recordGuiEvent. Short-circuits with Promise.resolve(null) when enabled===false. No user-visible interaction \u2014 purely a telemetry side-effect. Verdict works."
+        }
+      ],
+      "visual_findings_count": 5
+    },
+    {
+      "surface": "knowledge",
+      "tier": "orphan_backend",
+      "nav_parent": null,
+      "reachable": false,
+      "component_dir": "Scientia",
+      "command_set": [
+        "cmd:acknowledge_discovery",
+        "cmd:execute_command",
+        "cmd:get_archive_status",
+        "cmd:get_completion_report",
+        "cmd:get_novelty_assessment",
+        "cmd:list_discovery_inbox",
+        "cmd:list_publication_manifests",
+        "cmd:list_publication_review_queue",
+        "cmd:nanopublish_approved_claim",
+        "cmd:record_publication_claim_review",
+        "cmd:run_autofill",
+        "cmd:suggest_evidence_improvements"
+      ],
+      "command_count": 12,
+      "dead_ends": [],
+      "redundancy_peers": [
+        "claims",
+        "scientia"
+      ],
+      "graph_community": "c_504",
+      "behavioral_findings": null,
+      "visual_findings_count": 0
+    },
+    {
+      "surface": "matrix",
+      "tier": "orphan_backend",
+      "nav_parent": "agents",
+      "reachable": true,
+      "component_dir": "Matrix",
+      "command_set": [
+        "cmd:nudge_routing_intention"
+      ],
+      "command_count": 1,
+      "dead_ends": [],
+      "redundancy_peers": [],
+      "graph_community": "c_505",
+      "behavioral_findings": null,
+      "visual_findings_count": 0
+    },
+    {
+      "surface": "memory",
+      "tier": "live_backend",
+      "nav_parent": "search",
+      "reachable": true,
+      "component_dir": "Memory",
+      "command_set": [
+        "cmd:get_gui_preference",
+        "cmd:get_memory_status",
+        "cmd:mnemosyne_reindex",
+        "cmd:open_locator",
+        "cmd:set_gui_preference"
+      ],
+      "command_count": 5,
+      "dead_ends": [],
+      "redundancy_peers": [],
+      "graph_community": "c_506",
+      "behavioral_findings": [
+        {
+          "file": "crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.tsx",
+          "line": 202,
+          "label": "Auto-recall toggle",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "voxTransport.setGuiPreference",
+          "evidence": "toggleAutoRecall calls voxTransport.setGuiPreference('gui.memory.autoRecall', ...) and updates local state; hydrated from DB on mount via getGuiPreference"
+        },
+        {
+          "file": "crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.tsx",
+          "line": 328,
+          "label": "Reindex button",
+          "verdict": "works",
+          "expected_partial": true,
+          "cheap_to_wire": false,
+          "backend_command": "mnemosyne_reindex",
+          "evidence": "Calls invoke('mnemosyne_reindex') directly; Command function confirmed to exist in crates/vox-gui/src-tauri/src/commands/memory.rs:L206; registration in generate_handler![] not yet verified but risk reduced."
+        },
+        {
+          "file": "crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.tsx",
+          "line": 360,
+          "label": "Recall button / Enter key",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "vox_search_query",
+          "evidence": "recall() calls invoke<SearchResponse>('vox_search_query', { query, scope, limit }) and updates hits state; Enter key (line 346) also dispatches recall()"
+        },
+        {
+          "file": "crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.tsx",
+          "line": 419,
+          "label": "Recent recall row click",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "vox_search_query",
+          "evidence": "onClick sets query and immediately calls recall(r.q) which invokes vox_search_query"
+        },
+        {
+          "file": "crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.tsx",
+          "line": 445,
+          "label": "Pin all to context button",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "pinHits() calls attachItemsFromHits then onAttachContext(items); honestly warns via pushToast if items are empty or onAttachContext is absent \u2014 no silent noop"
+        },
+        {
+          "file": "crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.tsx",
+          "line": 120,
+          "label": "HitCard per-item pin button",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "Calls onPin() which is () => pinHits([h]) \u2014 same honest pinHits path as 'Pin all'"
+        },
+        {
+          "file": "crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.tsx",
+          "line": 110,
+          "label": "HitCard open button",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "voxTransport.openLocator",
+          "evidence": "openHit() calls voxTransport.openLocator(hit.locator) for file/web locators; errors surface via pushToast"
+        },
+        {
+          "file": "crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.tsx",
+          "line": 375,
+          "label": "Corpus scope chip toggle",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "toggleScope updates local scope state array; auto-recall useEffect re-triggers recall when scope changes if recallOn"
+        }
+      ],
+      "visual_findings_count": 7
+    },
+    {
+      "surface": "mens",
+      "tier": "orphan_backend",
+      "nav_parent": "compute",
+      "reachable": true,
+      "component_dir": null,
+      "command_set": [],
+      "command_count": 0,
+      "dead_ends": [],
+      "redundancy_peers": [],
+      "graph_community": "c_507",
+      "behavioral_findings": null,
+      "visual_findings_count": 0
+    },
+    {
+      "surface": "mesh",
+      "tier": "live_backend",
+      "nav_parent": "compute",
+      "reachable": true,
+      "component_dir": "Mesh",
+      "command_set": [],
+      "command_count": 0,
+      "dead_ends": [
+        "tool:vox_mesh_nodes",
+        "tool:vox_mesh_queue_stats"
+      ],
+      "redundancy_peers": [],
+      "graph_community": "c_508",
+      "behavioral_findings": [
+        {
+          "file": "MeshView.tsx",
+          "line": 190,
+          "label": "Refresh button",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "invoke_mcp_tool(vox_mesh_nodes) + invoke_mcp_tool(vox_mesh_queue_stats)",
+          "evidence": "onClick={refresh}; refresh() calls invoke('invoke_mcp_tool', {tool:'vox_mesh_nodes',...}) and invoke_mcp_tool('vox_mesh_queue_stats') via Promise.all, then sets nodes+queue state."
+        },
+        {
+          "file": "MeshView.tsx",
+          "line": 321,
+          "label": "Target node select (onChange)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "onChange sets targetNode state; value is used in dispatch() args as node_id. Meaningful local state change feeding a real backend call."
+        },
+        {
+          "file": "MeshView.tsx",
+          "line": 338,
+          "label": "Task kind input (onChange)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "onChange sets taskKind state; value is passed to dispatch() as task_kind arg."
+        },
+        {
+          "file": "MeshView.tsx",
+          "line": 350,
+          "label": "Source textarea (onChange)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "onChange sets source state; required field for dispatch(); passed as args.source to vox_mesh_dispatch."
+        },
+        {
+          "file": "MeshView.tsx",
+          "line": 362,
+          "label": "Dispatch button",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "invoke_mcp_tool(vox_mesh_dispatch)",
+          "evidence": "onClick={dispatch}; dispatch() calls invoke('invoke_mcp_tool', {tool:'vox_mesh_dispatch', args:{source, node_id?, task_kind?}}), handles success/failure toasts, sets dispatchResult, calls refresh()."
+        }
+      ],
+      "visual_findings_count": 6
+    },
+    {
+      "surface": "models",
+      "tier": "orphan_backend",
+      "nav_parent": "compute",
+      "reachable": true,
+      "component_dir": "Models",
+      "command_set": [
+        "cmd:get_active_model",
+        "cmd:get_routing_summary_live",
+        "cmd:list_model_cards",
+        "cmd:set_active_model"
+      ],
+      "command_count": 4,
+      "dead_ends": [],
+      "redundancy_peers": [
+        "compute",
+        "settings"
+      ],
+      "graph_community": "c_509",
+      "behavioral_findings": null,
+      "visual_findings_count": 0
+    },
+    {
+      "surface": "needs-you",
+      "tier": "orphan_backend",
+      "nav_parent": null,
+      "reachable": false,
+      "component_dir": "NeedsYou",
+      "command_set": [],
+      "command_count": 0,
+      "dead_ends": [],
+      "redundancy_peers": [],
+      "graph_community": "c_510",
+      "behavioral_findings": null,
+      "visual_findings_count": 0
+    },
+    {
+      "surface": "oratio",
+      "tier": "orphan_backend",
+      "nav_parent": "compute",
+      "reachable": true,
+      "component_dir": "Loquela",
+      "command_set": [
+        "cmd:list_model_cards",
+        "cmd:start_mic_capture"
+      ],
+      "command_count": 2,
+      "dead_ends": [],
+      "redundancy_peers": [
+        "compute",
+        "models",
+        "settings"
+      ],
+      "graph_community": "c_511",
+      "behavioral_findings": null,
+      "visual_findings_count": 0
+    },
+    {
+      "surface": "policies",
+      "tier": "orphan_backend",
+      "nav_parent": "runs",
+      "reachable": true,
+      "component_dir": "Policies",
+      "command_set": [
+        "cmd:list_branches",
+        "cmd:policy_edit",
+        "cmd:policy_list",
+        "cmd:policy_set_enabled",
+        "cmd:policy_show",
+        "cmd:policy_status"
+      ],
+      "command_count": 6,
+      "dead_ends": [],
+      "redundancy_peers": [],
+      "graph_community": "c_512",
+      "behavioral_findings": null,
+      "visual_findings_count": 0
+    },
+    {
+      "surface": "populi",
+      "tier": "orphan_backend",
+      "nav_parent": "compute",
+      "reachable": true,
+      "component_dir": null,
+      "command_set": [],
+      "command_count": 0,
+      "dead_ends": [],
+      "redundancy_peers": [],
+      "graph_community": "c_513",
+      "behavioral_findings": null,
+      "visual_findings_count": 0
+    },
+    {
+      "surface": "publications",
+      "tier": "orphan_backend",
+      "nav_parent": "knowledge",
+      "reachable": true,
+      "component_dir": "Publications",
+      "command_set": [],
+      "command_count": 0,
+      "dead_ends": [],
+      "redundancy_peers": [],
+      "graph_community": "c_514",
+      "behavioral_findings": null,
+      "visual_findings_count": 0
+    },
+    {
+      "surface": "repository",
+      "tier": "orphan_backend",
+      "nav_parent": "workspace",
+      "reachable": true,
+      "component_dir": "Repository",
+      "command_set": [
+        "cmd:execute_command"
+      ],
+      "command_count": 1,
+      "dead_ends": [],
+      "redundancy_peers": [
+        "claims",
+        "knowledge",
+        "research",
+        "scientia"
+      ],
+      "graph_community": "c_515",
+      "behavioral_findings": null,
+      "visual_findings_count": 0
+    },
+    {
+      "surface": "research",
+      "tier": "orphan_backend",
+      "nav_parent": "knowledge",
+      "reachable": true,
+      "component_dir": "Research",
+      "command_set": [
+        "cmd:execute_command",
+        "cmd:start_research_async"
+      ],
+      "command_count": 2,
+      "dead_ends": [],
+      "redundancy_peers": [
+        "claims",
+        "knowledge",
+        "repository",
+        "scientia"
+      ],
+      "graph_community": "c_516",
+      "behavioral_findings": null,
+      "visual_findings_count": 0
+    },
+    {
+      "surface": "review",
+      "tier": "orphan_backend",
+      "nav_parent": null,
+      "reachable": false,
+      "component_dir": null,
+      "command_set": [],
+      "command_count": 0,
+      "dead_ends": [],
+      "redundancy_peers": [],
+      "graph_community": "c_517",
+      "behavioral_findings": null,
+      "visual_findings_count": 0
+    },
+    {
+      "surface": "runs",
+      "tier": "live_backend",
+      "nav_parent": null,
+      "reachable": false,
+      "component_dir": "Runs",
+      "command_set": [
+        "cmd:get_gui_run"
+      ],
+      "command_count": 1,
+      "dead_ends": [],
+      "redundancy_peers": [],
+      "graph_community": "c_518",
+      "behavioral_findings": [
+        {
+          "file": "crates/vox-gui/ui/src/components/surfaces/Runs/RunsView.tsx",
+          "line": 56,
+          "label": "get_model_scoreboard (auto-poll)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "get_model_scoreboard",
+          "evidence": "invoke('get_model_scoreboard', { windowDays: SCOREBOARD_WINDOW_DAYS }) called in refresh() on mount and every RUNS_POLL_MS (10s). Result drives scoreboard state."
+        },
+        {
+          "file": "crates/vox-gui/ui/src/components/surfaces/Runs/RunsView.tsx",
+          "line": 58,
+          "label": "list_gui_runs (auto-poll)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "list_gui_runs",
+          "evidence": "invoke('list_gui_runs', { limit: RUNS_LIST_LIMIT }) called in same refresh() loop. Result drives runs table."
+        },
+        {
+          "file": "crates/vox-gui/ui/src/components/surfaces/Runs/RunsView.tsx",
+          "line": 70,
+          "label": "get_routing_summary_live (auto-poll)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "get_routing_summary_live",
+          "evidence": "invoke('get_routing_summary_live') called in refresh(). decision_preview?.selected_model shown in route-decision banner when non-null."
+        },
+        {
+          "file": "crates/vox-gui/ui/src/components/surfaces/Runs/RunsView.tsx",
+          "line": 91,
+          "label": "get_gui_run (row click \u2192 detail panel)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "get_gui_run",
+          "evidence": "invoke('get_gui_run', { runId: selectedRunId }) fired in useEffect whenever selectedRunId changes. Sets fetchedRun, shown in detail Glass panel."
+        },
+        {
+          "file": "crates/vox-gui/ui/src/components/surfaces/Runs/RunsView.tsx",
+          "line": 151,
+          "label": "Workflow name button \u2192 setSelectedRunId",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "get_gui_run",
+          "evidence": "onClick={() => setSelectedRunId(r.run_id)} triggers the get_gui_run useEffect. aria-pressed reflects selection state."
+        },
+        {
+          "file": "crates/vox-gui/ui/src/components/surfaces/Runs/RunsView.tsx",
+          "line": 62,
+          "label": "recordGamifyGuiEvent('workflow_completed') on completed runs",
+          "verdict": "works",
+          "expected_partial": true,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "Called only when gamifyEnabled=true (passed from parent). Guard checks rewardedRunIds ref to avoid double-firing. Partial because gamifyEnabled defaults false and caller must opt in."
+        },
+        {
+          "file": "crates/vox-gui/ui/src/components/surfaces/Runs/RunsView.tsx",
+          "line": 73,
+          "label": "pushToast on load failure",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "catch block calls pushToast({ tone: 'warn', title: 'Runs load failed', body: String(err) }). Genuine error reporting."
+        }
+      ],
+      "visual_findings_count": 8
+    },
+    {
+      "surface": "scientia",
+      "tier": "orphan_backend",
+      "nav_parent": "knowledge",
+      "reachable": true,
+      "component_dir": "Scientia",
+      "command_set": [
+        "cmd:acknowledge_discovery",
+        "cmd:execute_command",
+        "cmd:get_archive_status",
+        "cmd:get_completion_report",
+        "cmd:get_novelty_assessment",
+        "cmd:list_discovery_inbox",
+        "cmd:list_publication_manifests",
+        "cmd:list_publication_review_queue",
+        "cmd:nanopublish_approved_claim",
+        "cmd:record_publication_claim_review",
+        "cmd:run_autofill",
+        "cmd:suggest_evidence_improvements"
+      ],
+      "command_count": 12,
+      "dead_ends": [],
+      "redundancy_peers": [
+        "claims",
+        "knowledge"
+      ],
+      "graph_community": "c_519",
+      "behavioral_findings": null,
+      "visual_findings_count": 0
+    },
+    {
+      "surface": "search",
+      "tier": "orphan_backend",
+      "nav_parent": null,
+      "reachable": false,
+      "component_dir": "Search",
+      "command_set": [
+        "cmd:open_locator",
+        "cmd:vox_search_query"
+      ],
+      "command_count": 2,
+      "dead_ends": [],
+      "redundancy_peers": [
+        "memory"
+      ],
+      "graph_community": "c_520",
+      "behavioral_findings": null,
+      "visual_findings_count": 0
+    },
+    {
+      "surface": "settings",
+      "tier": "live_backend",
+      "nav_parent": null,
+      "reachable": false,
+      "component_dir": "Settings",
+      "command_set": [
+        "cmd:get_gamify_settings",
+        "cmd:get_gui_preference",
+        "cmd:get_orchestrator_status_bin",
+        "cmd:get_routing_summary_live",
+        "cmd:get_selection_policy",
+        "cmd:list_model_cards",
+        "cmd:list_secret_status",
+        "cmd:list_trusted_nodes",
+        "cmd:reset_user_config",
+        "cmd:secrets_backend_status",
+        "cmd:set_gamify_settings",
+        "cmd:set_gui_preference",
+        "cmd:set_llm_config",
+        "cmd:set_orchestrator_config",
+        "cmd:set_routing_priority",
+        "cmd:set_selection_policy",
+        "cmd:set_user_config"
+      ],
+      "command_count": 17,
+      "dead_ends": [
+        "tool:vox_mesh_nodes"
+      ],
+      "redundancy_peers": [],
+      "graph_community": "c_521",
+      "behavioral_findings": [
+        {
+          "file": "src/components/surfaces/Settings/SettingsView.tsx",
+          "line": 1258,
+          "label": "Orchestrator \u2014 Max concurrent agents slider",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "set_orchestrator_config",
+          "evidence": "onChange calls update({concurrency:v}); update() calls invoke('set_orchestrator_config', {config:next}) after hydration gate"
+        },
+        {
+          "file": "src/components/surfaces/Settings/SettingsView.tsx",
+          "line": 1261,
+          "label": "Orchestrator \u2014 Global budget cap slider",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "set_orchestrator_config",
+          "evidence": "Same update() path as concurrency; persists to Vox.toml via invoke('set_orchestrator_config')"
+        },
+        {
+          "file": "src/components/surfaces/Settings/SettingsView.tsx",
+          "line": 1286,
+          "label": "Orchestrator \u2014 Auto-doubt toggle",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "set_orchestrator_config",
+          "evidence": "onClick calls update({doubt:!vals.doubt}); update() persists via invoke('set_orchestrator_config')"
+        },
+        {
+          "file": "src/components/surfaces/Settings/SettingsView.tsx",
+          "line": 1271,
+          "label": "Orchestrator \u2014 Default isolation tier buttons (WASM/Container/Native)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "set_orchestrator_config",
+          "evidence": "onClick calls update({isolation:id}); persisted via set_orchestrator_config"
+        },
+        {
+          "file": "src/components/surfaces/Settings/SettingsView.tsx",
+          "line": 1413,
+          "label": "Telemetry \u2014 Off/Local/Cloud selector buttons",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "voxTransport.setGuiPreference (gui.telemetry)",
+          "evidence": "onClick calls update({telemetry:id}); 'telemetry' is in GUI_PREF_KEYS so guiPrefMutation persists via voxTransport.setGuiPreference"
+        },
+        {
+          "file": "src/components/surfaces/Settings/SettingsView.tsx",
+          "line": 1475,
+          "label": "Theme \u2014 Arcane/Void/Glacier selector",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "voxTransport.setGuiPreference (gui.theme)",
+          "evidence": "onClick calls update({theme:t.id}); triggers applyTheme() immediately, then persists via setGuiPreference; theme is in GUI_PREF_KEYS"
+        },
+        {
+          "file": "src/components/surfaces/Settings/SettingsView.tsx",
+          "line": 1338,
+          "label": "Routing \u2014 Emphasis preset buttons (Balanced/Intelligence/Efficiency/Responsiveness)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "voxTransport.setRoutingPriority",
+          "evidence": "onClick calls applyEmphasis -> updateRouting; updateRouting calls voxTransport.setRoutingPriority(next)"
+        },
+        {
+          "file": "src/components/surfaces/Settings/SettingsView.tsx",
+          "line": 1448,
+          "label": "Gamification \u2014 enabled checkbox",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "set_gamify_settings",
+          "evidence": "onChange calls updateGamify({enabled}); updateGamify calls invoke('set_gamify_settings', {enabled, mode})"
+        },
+        {
+          "file": "src/components/surfaces/Settings/SettingsView.tsx",
+          "line": 1453,
+          "label": "Gamification \u2014 Mode select (Balanced/Serious/Learning)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "set_gamify_settings",
+          "evidence": "onChange calls updateGamify({mode}); persisted via invoke('set_gamify_settings')"
+        },
+        {
+          "file": "src/components/surfaces/Settings/SettingsView.tsx",
+          "line": 1430,
+          "label": "Keybinds section \u2014 all entries",
+          "verdict": "dead",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": null,
+          "evidence": "Keybinds section is a static read-only display list (div/kbd elements, no interactive handlers). No onClick, no onChange, no way to edit or rebind shortcuts from this surface. The KEYBINDS array is a hardcoded constant."
+        },
+        {
+          "file": "src/components/surfaces/Settings/SettingsView.tsx",
+          "line": 259,
+          "label": "Mesh \u2014 trust/untrust button per peer",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "trust_mesh_node / untrust_mesh_node",
+          "evidence": "onClick calls toggleTrust(p); invokes invoke('trust_mesh_node',...) or invoke('untrust_mesh_node',{nodeId}) then reloads"
+        },
+        {
+          "file": "src/components/surfaces/Settings/SettingsView.tsx",
+          "line": 303,
+          "label": "Signing keys \u2014 create/rotate identity button",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "rotate_signing_key",
+          "evidence": "onClick calls rotate(); uses window.prompt for password then invoke('rotate_signing_key', {password})"
+        },
+        {
+          "file": "src/components/surfaces/Settings/SettingsView.tsx",
+          "line": 358,
+          "label": "Signing \u2014 Require signature toggle",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "set_orchestrator_config",
+          "evidence": "onClick calls update({sign:!vals.sign}); 'sign' is in GUI_PREF_KEYS so persists via setGuiPreference; also included in set_orchestrator_config payload"
+        },
+        {
+          "file": "src/components/surfaces/Settings/SettingsView.tsx",
+          "line": 525,
+          "label": "Keys & Secrets \u2014 save button (per secret)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "set_secret",
+          "evidence": "onClick calls save(r.canonicalEnv); invokes invoke<boolean>('set_secret', {key, value}) then reloads list"
+        },
+        {
+          "file": "src/components/surfaces/Settings/SettingsView.tsx",
+          "line": 589,
+          "label": "Keys & Secrets \u2014 remove button (per secret)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "remove_secret",
+          "evidence": "onClick calls remove(r.canonicalEnv); invokes invoke<boolean>('remove_secret', {key})"
+        },
+        {
+          "file": "src/components/surfaces/Settings/SettingsView.tsx",
+          "line": 629,
+          "label": "Keys & Secrets \u2014 Migrate auth.json button",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "migrate_auth_store",
+          "evidence": "onClick calls migrate(); invokes invoke<number>('migrate_auth_store') with toast feedback"
+        },
+        {
+          "file": "src/components/surfaces/Settings/SettingsView.tsx",
+          "line": 640,
+          "label": "Keys & Secrets \u2014 Preview .env button",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "import_env",
+          "evidence": "onClick calls runPreview(); invokes invoke<ImportEnvResultDto>('import_env', {path, apply:false})"
+        },
+        {
+          "file": "src/components/surfaces/Settings/SettingsView.tsx",
+          "line": 648,
+          "label": "Keys & Secrets \u2014 Import N button (conditional)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "import_env",
+          "evidence": "onClick calls runImport(); invokes invoke<ImportEnvResultDto>('import_env', {path, apply:true}) then reloads"
+        },
+        {
+          "file": "src/components/surfaces/Settings/SettingsView.tsx",
+          "line": 775,
+          "label": "Runtime config \u2014 save button per field",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "set_user_config",
+          "evidence": "onClick calls save(f, draftFor(f)); invokes invoke('set_user_config', {key, value}) then reloads"
+        },
+        {
+          "file": "src/components/surfaces/Settings/SettingsView.tsx",
+          "line": 873,
+          "label": "Runtime config \u2014 reset button per field",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "reset_user_config",
+          "evidence": "onClick calls reset(f); invokes invoke('reset_user_config', {key})"
+        },
+        {
+          "file": "src/components/surfaces/Settings/SettingsView.tsx",
+          "line": 809,
+          "label": "Runtime config \u2014 enum option buttons (save-on-click)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "set_user_config",
+          "evidence": "onClick calls save(f, opt) directly; no separate save step needed"
+        },
+        {
+          "file": "src/components/surfaces/Settings/PriorityChainEditor.tsx",
+          "line": 133,
+          "label": "Priority chain \u2014 remove step button",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "voxTransport.setSelectionPolicy",
+          "evidence": "removeStep calls persist(steps.filter(...)); persist calls voxTransport.setSelectionPolicy(JSON.stringify({steps:next}))"
+        },
+        {
+          "file": "src/components/surfaces/Settings/PriorityChainEditor.tsx",
+          "line": 135,
+          "label": "Priority chain \u2014 move up/down buttons",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "voxTransport.setSelectionPolicy",
+          "evidence": "onClick calls move(i, i-1/i+1); move() calls persist() -> voxTransport.setSelectionPolicy"
+        },
+        {
+          "file": "src/components/surfaces/Settings/PriorityChainEditor.tsx",
+          "line": 430,
+          "label": "Priority chain \u2014 'add to chain' button",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "voxTransport.setSelectionPolicy",
+          "evidence": "onClick builds a SelectionStep via build() and calls onAdd(s) -> persist([...steps, s])"
+        },
+        {
+          "file": "src/components/surfaces/Settings/HudTilesEditor.tsx",
+          "line": 40,
+          "label": "HUD tiles \u2014 enable/disable checkbox",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": null,
+          "evidence": "onChange calls onChange(toggleHudTile(config, tile.id, checked)); state propagated up to parent via onHudTilesChange prop (local + persisted via useHudTiles hook in parent)"
+        },
+        {
+          "file": "src/components/surfaces/Settings/HudTilesEditor.tsx",
+          "line": 51,
+          "label": "HUD tiles \u2014 move up/down buttons",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": null,
+          "evidence": "onClick calls move(index, index-1/+1) -> onChange(reorderHudTile(...)); propagated to parent"
+        },
+        {
+          "file": "src/components/surfaces/Settings/HudTilesEditor.tsx",
+          "line": 74,
+          "label": "HUD tiles \u2014 Reset to defaults button",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": null,
+          "evidence": "onClick calls onChange(defaultHudTiles()); resets config to factory defaults via parent"
+        },
+        {
+          "file": "src/components/surfaces/Settings/SettingsView.tsx",
+          "line": 1491,
+          "label": "HudTiles section",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": null,
+          "evidence": "Both hudTilesConfig and onHudTilesChange are threaded from App.tsx surfaceProps (lines 1084-1085); the conditional guard renders the HudTilesEditor correctly."
+        },
+        {
+          "file": "src/components/surfaces/Settings/SettingsView.tsx",
+          "line": 303,
+          "label": "Signing key rotation \u2014 uses window.prompt for password input",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "rotate_signing_key",
+          "evidence": "Functionally works but uses native window.prompt() for password \u2014 a UX regression: no styled input, no accessible label, no cancel state feedback, and breaks in Tauri webview environments that restrict dialogs"
+        }
+      ],
+      "visual_findings_count": 12
+    },
+    {
+      "surface": "skills",
+      "tier": "live_backend",
+      "nav_parent": "commands",
+      "reachable": true,
+      "component_dir": "SkillsPlugins",
+      "command_set": [],
+      "command_count": 0,
+      "dead_ends": [
+        "cmd:vox_plugin_catalog",
+        "cmd:vox_plugin_info",
+        "cmd:vox_plugin_list",
+        "cmd:vox_skill_discover",
+        "cmd:vox_skill_info",
+        "cmd:vox_skill_list",
+        "cmd:vox_skill_search",
+        "cmd:vox_skill_use"
+      ],
+      "redundancy_peers": [],
+      "graph_community": "c_522",
+      "behavioral_findings": [
+        {
+          "file": "SkillsPluginsView.tsx",
+          "line": 193,
+          "label": "Refresh button",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "invoke_mcp_tool(vox_skill_list|vox_plugin_catalog|vox_skill_discover)",
+          "evidence": "onClick dispatches to refreshInstalled/refreshMarketplace/refreshDiscovered; each calls invoke('invoke_mcp_tool', ...) with real MCP tool names"
+        },
+        {
+          "file": "SkillsPluginsView.tsx",
+          "line": 218,
+          "label": "Uninstall skill button",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "invoke_mcp_tool(vox_skill_uninstall)",
+          "evidence": "doAction(id, 'vox_skill_uninstall', {id}, ...) \u2192 invoke('invoke_mcp_tool', ...) \u2192 refreshInstalled on completion"
+        },
+        {
+          "file": "SkillsPluginsView.tsx",
+          "line": 220,
+          "label": "Remove plugin button",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "invoke_mcp_tool(vox_plugin_remove)",
+          "evidence": "doAction(id, 'vox_plugin_remove', {id}, ...) \u2192 invoke('invoke_mcp_tool', ...)"
+        },
+        {
+          "file": "SkillsPluginsView.tsx",
+          "line": 222,
+          "label": "Skill Info button (installed tab)",
+          "verdict": "noop-toast",
+          "expected_partial": false,
+          "cheap_to_wire": true,
+          "backend_command": "invoke_mcp_tool(vox_skill_info)",
+          "evidence": "showInfo calls vox_skill_info then pushToast({ body: JSON.stringify(result) }). Backend IS called but the only visible output is a raw JSON toast \u2014 no detail panel, modal, or structured display. Functionally a noop from the user's perspective."
+        },
+        {
+          "file": "SkillsPluginsView.tsx",
+          "line": 223,
+          "label": "Plugin Info button (installed tab)",
+          "verdict": "noop-toast",
+          "expected_partial": false,
+          "cheap_to_wire": true,
+          "backend_command": "invoke_mcp_tool(vox_plugin_info)",
+          "evidence": "showInfo calls vox_plugin_info then pushToast({ body: JSON.stringify(result) }). Same raw-JSON-to-toast pattern."
+        },
+        {
+          "file": "SkillsPluginsView.tsx",
+          "line": 233,
+          "label": "Install plugin button (marketplace tab)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "invoke_mcp_tool(vox_plugin_install)",
+          "evidence": "doAction(id, 'vox_plugin_install', {id}, ...) \u2192 invoke('invoke_mcp_tool', ...) \u2192 refreshInstalled"
+        },
+        {
+          "file": "SkillsPluginsView.tsx",
+          "line": 236,
+          "label": "Plugin Info button (marketplace tab)",
+          "verdict": "noop-toast",
+          "expected_partial": false,
+          "cheap_to_wire": true,
+          "backend_command": "invoke_mcp_tool(vox_plugin_info)",
+          "evidence": "Same showInfo/raw-JSON-to-toast pattern as installed tab."
+        },
+        {
+          "file": "SkillsPluginsView.tsx",
+          "line": 329,
+          "label": "Search button / Enter key in search input",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "invoke_mcp_tool(vox_skill_search)",
+          "evidence": "runSearch calls callTool('vox_skill_search', {query}) \u2192 invoke('invoke_mcp_tool', ...); results populate searchHits state"
+        },
+        {
+          "file": "SkillsPluginsView.tsx",
+          "line": 346,
+          "label": "Installed skills rows (search results)",
+          "verdict": "dead",
+          "expected_partial": true,
+          "cheap_to_wire": true,
+          "backend_command": "invoke_mcp_tool(vox_skill_install)",
+          "evidence": "Only installed skills section at line 346 has `actions=[]` \u2014 click is dead for installed skills. Catalog plugin rows (line 364+) and skill-use rows (line 398) have real onClick actions wired."
+        },
+        {
+          "file": "SkillsPluginsView.tsx",
+          "line": 398,
+          "label": "View button (discovered tab)",
+          "verdict": "noop-toast",
+          "expected_partial": false,
+          "cheap_to_wire": true,
+          "backend_command": "invoke_mcp_tool(vox_skill_use)",
+          "evidence": "onSkillUse calls showInfo('vox_skill_use', {id}) \u2192 pushToast({body: JSON.stringify(result)}). Same raw-JSON-to-toast pattern; no structured view."
+        }
+      ],
+      "visual_findings_count": 6
+    },
+    {
+      "surface": "sub-agents",
+      "tier": "orphan_backend",
+      "nav_parent": null,
+      "reachable": false,
+      "component_dir": "SubAgents",
+      "command_set": [],
+      "command_count": 0,
+      "dead_ends": [],
+      "redundancy_peers": [],
+      "graph_community": "c_523",
+      "behavioral_findings": null,
+      "visual_findings_count": 0
+    },
+    {
+      "surface": "tasks",
+      "tier": "live_backend",
+      "nav_parent": "agents",
+      "reachable": true,
+      "component_dir": "Tasks",
+      "command_set": [
+        "cmd:hopper_cancel",
+        "cmd:hopper_list",
+        "cmd:hopper_reprioritize",
+        "cmd:hopper_submit"
+      ],
+      "command_count": 4,
+      "dead_ends": [],
+      "redundancy_peers": [],
+      "graph_community": "c_524",
+      "behavioral_findings": [
+        {
+          "file": "TasksView.tsx",
+          "line": 54,
+          "label": "Load tasks (hopper_list)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "hopper_list",
+          "evidence": "invoke<HopperTaskDto[]>('hopper_list') called on mount and on vox://tasks-changed event"
+        },
+        {
+          "file": "TasksView.tsx",
+          "line": 124,
+          "label": "Add task (TaskComposer onSubmit)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "hopper_submit",
+          "evidence": "addTask calls invoke('hopper_submit', { intent, affinity: [] }) then refreshes"
+        },
+        {
+          "file": "TasksView.tsx",
+          "line": 129,
+          "label": "Cancel task (X button per row)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "hopper_cancel",
+          "evidence": "remove() calls invoke('hopper_cancel', { itemId: String(id) })"
+        },
+        {
+          "file": "TasksView.tsx",
+          "line": 151,
+          "label": "Reprioritize task (priority select onChange)",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "hopper_reprioritize",
+          "evidence": "onChange calls reprioritize() which calls invoke('hopper_reprioritize', { itemId, priority })"
+        },
+        {
+          "file": "TasksView.tsx",
+          "line": 262,
+          "label": "Refresh button onClick",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "hopper_list",
+          "evidence": "onClick={refresh} where refresh invokes hopper_list"
+        },
+        {
+          "file": "TasksView.tsx",
+          "line": 281,
+          "label": "Session filter pills onClick",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "setSessionFilter(sid) is meaningful local state that gates filteredRows; no backend needed"
+        },
+        {
+          "file": "TasksView.tsx",
+          "line": 300,
+          "label": "Show blocked tasks checkbox onChange",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "setShowBlocked(e.target.checked) is meaningful local filter state"
+        },
+        {
+          "file": "TasksView.tsx",
+          "line": 179,
+          "label": "Description span onClick (focus file in Ludus)",
+          "verdict": "works",
+          "expected_partial": true,
+          "cheap_to_wire": false,
+          "backend_command": "null",
+          "evidence": "Calls useLudusStore.getState().setFocusedFile() only when write_files is non-empty; guard is correct but backend DTO maps write_files=[] always (line 79), so this branch is currently unreachable with live data"
+        },
+        {
+          "file": "TaskComposer.tsx",
+          "line": 12,
+          "label": "Form onSubmit / Add button onClick",
+          "verdict": "works",
+          "expected_partial": false,
+          "cheap_to_wire": false,
+          "backend_command": "hopper_submit",
+          "evidence": "handleSubmit validates non-empty then calls props.onSubmit(trimmed) which maps to addTask \u2192 invoke('hopper_submit')"
+        }
+      ],
+      "visual_findings_count": 11
+    },
+    {
+      "surface": "workspace",
+      "tier": "orphan_backend",
+      "nav_parent": null,
+      "reachable": false,
+      "component_dir": "Console",
+      "command_set": [
+        "cmd:discovery_help",
+        "cmd:discovery_record",
+        "cmd:discovery_suggest",
+        "cmd:get_orchestrator_status_bin",
+        "cmd:pty_close",
+        "cmd:pty_spawn",
+        "cmd:pty_write",
+        "cmd:send_to_agent"
+      ],
+      "command_count": 8,
+      "dead_ends": [],
+      "redundancy_peers": [
+        "console"
+      ],
+      "graph_community": "c_525",
+      "behavioral_findings": null,
+      "visual_findings_count": 0
+    }
+  ]
+}
