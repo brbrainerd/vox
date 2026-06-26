@@ -820,6 +820,7 @@
     "graphify.ingest",
     "graphify.path",
     "graphify.query",
+    "graphify.rebuild",
     "graphify.search",
     "graphify.status",
     "gui.components",
