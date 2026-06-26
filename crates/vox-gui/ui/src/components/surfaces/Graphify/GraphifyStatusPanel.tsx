@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import { useQueryClient } from '@tanstack/react-query';
+import { voxTransport } from '../../../transport';
 import { useGraphifyStatus, GRAPHIFY_STATUS_QUERY_KEY } from '../../../hooks/useGraphifyStatus';
 
 /**
@@ -37,10 +37,7 @@ function RebuildButton({ corpusId }: { corpusId: string }) {
     setError(null);
     try {
       // ponytail: rebuild tool wired by name; lands with P1
-      await invoke('invoke_mcp_tool', {
-        tool: 'vox_graphify_rebuild',
-        args: { corpus: corpusId },
-      });
+      await voxTransport.invokeMcpTool('vox_graphify_rebuild', { corpus: corpusId });
       // Refresh freshness so the card flips fresh once the rebuild completes.
       await queryClient.invalidateQueries({ queryKey: GRAPHIFY_STATUS_QUERY_KEY });
     } catch (e) {
