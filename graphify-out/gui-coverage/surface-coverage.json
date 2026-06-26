@@ -1,0 +1,204 @@
+{
+  "entries": [
+    {
+      "id": "surface:activity",
+      "label": "activity",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:agents",
+      "label": "agents",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:approvals",
+      "label": "approvals",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:archive-panel",
+      "label": "archive-panel",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:browser",
+      "label": "browser",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:catalog",
+      "label": "catalog",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:chat",
+      "label": "chat",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:claims",
+      "label": "claims",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:commands",
+      "label": "commands",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:compute",
+      "label": "compute",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:console",
+      "label": "console",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:coverage",
+      "label": "coverage",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:dashboard",
+      "label": "dashboard",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:discovery-inbox",
+      "label": "discovery-inbox",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:discovery-review",
+      "label": "discovery-review",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:flow",
+      "label": "flow",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:gamify",
+      "label": "gamify",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:harness",
+      "label": "harness",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:knowledge",
+      "label": "knowledge",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:matrix",
+      "label": "matrix",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:memory",
+      "label": "memory",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:mens",
+      "label": "mens",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:mesh",
+      "label": "mesh",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:models",
+      "label": "models",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:needs-you",
+      "label": "needs-you",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:oratio",
+      "label": "oratio",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:policies",
+      "label": "policies",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:populi",
+      "label": "populi",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:publications",
+      "label": "publications",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:repository",
+      "label": "repository",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:research",
+      "label": "research",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:review",
+      "label": "review",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:runs",
+      "label": "runs",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:scientia",
+      "label": "scientia",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:search",
+      "label": "search",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:settings",
+      "label": "settings",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:skills",
+      "label": "skills",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:sub-agents",
+      "label": "sub-agents",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:tasks",
+      "label": "tasks",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:workspace",
+      "label": "workspace",
+      "status": "orphan_backend"
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "generated_by": "graphify gui-coverage orphans pass",
+  "description": "Surfaces present in the surface registry but ABSENT from navigation.ts PARENT_CHILD_MAP (orphan-nav).",
+  "parent_child_map_keys": 27,
+  "surface_registry_count": 40,
+  "orphan_nav_count": 13,
+  "orphan_nav": [
+    {
+      "id": "surface:activity",
+      "label": "activity",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:agents",
+      "label": "agents",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:chat",
+      "label": "chat",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:commands",
+      "label": "commands",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:compute",
+      "label": "compute",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:knowledge",
+      "label": "knowledge",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:needs-you",
+      "label": "needs-you",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:review",
+      "label": "review",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:runs",
+      "label": "runs",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:search",
+      "label": "search",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:settings",
+      "label": "settings",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:sub-agents",
+      "label": "sub-agents",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "surface:workspace",
+      "label": "workspace",
+      "status": "orphan_backend"
+    }
+  ]
+}

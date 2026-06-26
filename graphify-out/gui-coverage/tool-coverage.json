@@ -1,0 +1,24 @@
+{
+  "entries": [
+    {
+      "id": "tool:vox_populi::inference_PROFILE",
+      "label": "vox_populi::inference_PROFILE",
+      "status": "orphan_backend"
+    },
+    {
+      "id": "tool:vox_mesh_nodes",
+      "label": "vox_mesh_nodes",
+      "status": "dead_end"
+    },
+    {
+      "id": "tool:vox_mesh_queue_stats",
+      "label": "vox_mesh_queue_stats",
+      "status": "dead_end"
+    },
+    {
+      "id": "tool:vox_resolve_approval",
+      "label": "vox_resolve_approval",
+      "status": "dead_end"
+    }
+  ]
+}
