@@ -63,6 +63,7 @@ fn resolve_edges(
             Some(ExtractedEdge {
                 source: e.source.clone(),
                 target,
+                confidence: e.confidence.clone(),
             })
         })
         .collect()
@@ -164,7 +165,8 @@ pub fn rebuild_graph(
         .map(|e| {
             serde_json::json!({
                 "source": e.source,
-                "target": e.target
+                "target": e.target,
+                "confidence": e.confidence
             })
         })
         .collect();
@@ -198,6 +200,14 @@ pub fn rebuild_graph(
     // use the same algorithm so `lexical_lag` comparisons are valid.
     let graph_digest = crate::graph_digest(graph_bytes.as_bytes());
 
+    // Tally edge confidence so freshness/coverage consumers can see how many edges are
+    // resolved vs declared vs dangling without reparsing graph.json.
+    let mut confidence_counts: std::collections::BTreeMap<String, usize> =
+        std::collections::BTreeMap::new();
+    for e in &all_edges {
+        *confidence_counts.entry(e.confidence.clone()).or_insert(0) += 1;
+    }
+
     let manifest_val = serde_json::json!({
         "corpus_id": meta.corpus_id,
         "built_at": meta.built_at_rfc3339,
@@ -207,6 +217,7 @@ pub fn rebuild_graph(
         "edge_count": edge_count,
         "graph_json_sha256": graph_digest,
         "extraction_mode": meta.extraction_mode,
+        "confidence_counts": confidence_counts,
     });
     let manifest_path = output_file
         .parent()
@@ -238,6 +249,7 @@ mod resolve_tests {
         let edges = vec![ExtractedEdge {
             source: "m.rs::a".into(),
             target: "b".into(),
+            confidence: "resolved".into(),
         }];
         let out = resolve_edges(&nodes, &edges);
         assert_eq!(out.len(), 1);

@@ -15,3 +15,18 @@ fn test_rust_syn_extraction() {
     assert!(node_labels.contains(&"hello".to_string()));
     assert!(node_labels.contains(&"World".to_string()));
 }
+
+#[test]
+fn edges_default_to_resolved_confidence() {
+    use vox_graphify_reader::ast::extract_ast_in_module;
+    let g = extract_ast_in_module(
+        std::path::Path::new("m.rs"),
+        "fn a(){ b(); }\nfn b(){}",
+        "m.rs",
+    );
+    assert!(
+        g.edges.iter().all(|e| e.confidence == "resolved"),
+        "edges: {:?}",
+        g.edges
+    );
+}

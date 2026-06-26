@@ -12,6 +12,12 @@ pub struct ExtractedNode {
 pub struct ExtractedEdge {
     pub source: String,
     pub target: String,
+    #[serde(default = "default_confidence")]
+    pub confidence: String,
+}
+
+pub(crate) fn default_confidence() -> String {
+    "resolved".into()
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
@@ -71,6 +77,7 @@ impl<'ast> Visit<'ast> for RustVisitor {
                     self.edges.push(ExtractedEdge {
                         source: current_fn.clone(),
                         target: segment.ident.to_string(), // BARE; resolved in rebuild
+                        confidence: "resolved".into(),
                     });
                 }
             }
@@ -171,6 +178,7 @@ pub fn extract_ast_in_module(path: &Path, content: &str, module_id: &str) -> Ext
                                                 edges.push(ExtractedEdge {
                                                     source: source_fn.clone(),
                                                     target: callee.to_string(),
+                                                    confidence: "resolved".into(),
                                                 });
                                             }
                                         }
