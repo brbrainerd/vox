@@ -12,10 +12,12 @@
 //! enum arm exists so consumers can match exhaustively, but `compute_coverage`
 //! never produces it today.
 
+use serde::Serialize;
 use serde_json::Value;
 
 /// Coverage status for a single backend node.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum CoverageStatus {
     /// No caller edge targets this node.
     OrphanBackend,
@@ -29,7 +31,7 @@ pub enum CoverageStatus {
 }
 
 /// One coverage entry per node of the requested `kind`.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct CoverageEntry {
     pub id: String,
     pub label: String,
@@ -37,7 +39,7 @@ pub struct CoverageEntry {
 }
 
 /// Result of [`compute_coverage`].
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct CoverageReport {
     pub entries: Vec<CoverageEntry>,
 }

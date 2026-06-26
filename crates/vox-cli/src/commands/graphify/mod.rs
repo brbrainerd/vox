@@ -38,6 +38,18 @@ pub enum GraphifyCmd {
         #[arg(long)]
         corpus: Option<String>,
     },
+    /// Classify each backend node of a `kind` as Surfaced/OrphanBackend/DeadEnd.
+    Coverage {
+        /// Corpus id (default: registry `default_corpus_id`).
+        #[arg(long)]
+        corpus: Option<String>,
+        /// Node kind to score (command | tool | surface).
+        #[arg(long, default_value = "command")]
+        kind: String,
+        /// Write JSON to this path instead of printing to stdout.
+        #[arg(long)]
+        out: Option<String>,
+    },
     /// Register an external target repository as a corpus and build it.
     Index {
         /// Path to the target repository (or subdirectory) to index.
@@ -380,6 +392,39 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
             )
             .map_err(|e| anyhow::anyhow!("Rebuild failed: {}", e))?;
             println!("Graphify rebuild successful!");
+        }
+        GraphifyCmd::Coverage { corpus, kind, out } => {
+            let reg = load_all_corpora(repo_root).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            let corpus_id = resolve_ingest_corpus_id(&reg, corpus)
+                .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            let corpus =
+                corpus_by_id(&reg, &corpus_id).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+
+            let graph_path = repo_root.join(&corpus.graph_path);
+            let raw = std::fs::read_to_string(&graph_path)
+                .with_context(|| format!("read graph {}", graph_path.display()))?;
+            let graph: serde_json::Value = serde_json::from_str(&raw)
+                .with_context(|| format!("parse graph JSON {}", graph_path.display()))?;
+
+            let report = vox_graphify_reader::coverage::compute_coverage(&graph, &kind);
+            let json = serde_json::to_string_pretty(&report)?;
+            match out {
+                Some(path) => {
+                    let abs = repo_root.join(&path);
+                    if let Some(parent) = abs.parent() {
+                        std::fs::create_dir_all(parent)
+                            .with_context(|| format!("create dir {}", parent.display()))?;
+                    }
+                    std::fs::write(&abs, &json)
+                        .with_context(|| format!("write coverage {}", abs.display()))?;
+                    println!(
+                        "coverage: corpus={corpus_id} kind={kind} entries={} -> {}",
+                        report.entries.len(),
+                        path
+                    );
+                }
+                None => println!("{json}"),
+            }
         }
         GraphifyCmd::Index { path, id, mode } => {
             let abs = std::fs::canonicalize(&path)
