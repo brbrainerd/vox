@@ -26,7 +26,7 @@ mod tests {
 
 use crossterm::{
     execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
 /// RAII guard: enters raw mode + alternate screen; restores both on drop.

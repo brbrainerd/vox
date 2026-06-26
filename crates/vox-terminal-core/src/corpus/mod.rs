@@ -6,6 +6,6 @@ pub mod curate;
 pub mod redact;
 pub mod writer;
 
-pub use curate::{CurationPolicy, Decision, DefaultPolicy, curate};
+pub use curate::{curate, CurationPolicy, Decision, DefaultPolicy};
 pub use redact::redact_owned;
 pub use writer::CorpusWriter;

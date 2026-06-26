@@ -4,7 +4,7 @@
 
 use std::path::Path;
 
-use vox_similarity::{Fragment, FragmentKind, LshIndex, tokenize};
+use vox_similarity::{tokenize, Fragment, FragmentKind, LshIndex};
 
 use crate::candidate::{Candidate, CandidateKind, DraftFrontmatter};
 use crate::options::DiscoverOptions;

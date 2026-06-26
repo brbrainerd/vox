@@ -1,6 +1,6 @@
 //! Block list widget — renders `Session::blocks()` via the VT grid.
 
-use ratatui::{Frame, layout::Rect};
+use ratatui::{layout::Rect, Frame};
 use vox_terminal_core::block::{Block, BlockStatus};
 
 use crate::vt::VtGrid;

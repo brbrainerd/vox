@@ -10,12 +10,12 @@
 use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
-    Terminal,
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
     style::{Color, Style},
     text::{Line, Span},
     widgets::Paragraph,
+    Terminal,
 };
 use std::io;
 use tokio::sync::broadcast::error::TryRecvError;

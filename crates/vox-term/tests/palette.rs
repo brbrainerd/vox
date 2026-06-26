@@ -1,5 +1,5 @@
 /// Task 2.6 — nucleo command palette fuzzy search.
-use vox_term::ui::palette::{Palette, default_commands};
+use vox_term::ui::palette::{default_commands, Palette};
 
 #[test]
 fn fuzzy_mdl_matches_model() {

@@ -1,9 +1,11 @@
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::Path;
-use serde::{Deserialize, Serialize};
 
 #[derive(Default, Serialize, Deserialize)]
-struct Overrides { entries: BTreeMap<String, PolicyOverride> }
+struct Overrides {
+    entries: BTreeMap<String, PolicyOverride>,
+}
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct PolicyOverride {
@@ -12,7 +14,9 @@ pub struct PolicyOverride {
     pub description: Option<String>,
 }
 
-fn path(root: &Path) -> std::path::PathBuf { root.join(".vox").join("policy-overrides.json") }
+fn path(root: &Path) -> std::path::PathBuf {
+    root.join(".vox").join("policy-overrides.json")
+}
 
 fn load(root: &Path) -> std::io::Result<Overrides> {
     match std::fs::read(path(root)) {
@@ -24,7 +28,9 @@ fn load(root: &Path) -> std::io::Result<Overrides> {
 
 fn store(root: &Path, ov: &Overrides) -> std::io::Result<()> {
     let p = path(root);
-    if let Some(parent) = p.parent() { std::fs::create_dir_all(parent)?; }
+    if let Some(parent) = p.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
     std::fs::write(p, serde_json::to_vec_pretty(ov)?)
 }
 
@@ -42,11 +48,20 @@ pub fn set_enabled(root: &Path, id: &str, enabled: bool) -> std::io::Result<()> 
     store(root, &ov)
 }
 
-pub fn set_fields(root: &Path, id: &str, title: Option<String>, description: Option<String>) -> std::io::Result<()> {
+pub fn set_fields(
+    root: &Path,
+    id: &str,
+    title: Option<String>,
+    description: Option<String>,
+) -> std::io::Result<()> {
     let mut ov = load(root)?;
     let e = ov.entries.entry(id.to_string()).or_default();
-    if title.is_some() { e.title = title; }
-    if description.is_some() { e.description = description; }
+    if title.is_some() {
+        e.title = title;
+    }
+    if description.is_some() {
+        e.description = description;
+    }
     store(root, &ov)
 }
 
@@ -59,8 +74,14 @@ mod tests {
         let root = dir.path();
         assert_eq!(get_override(root, "code-audit/stub/todo").unwrap(), None);
         set_enabled(root, "code-audit/stub/todo", false).unwrap();
-        assert_eq!(get_override(root, "code-audit/stub/todo").unwrap(), Some(false));
+        assert_eq!(
+            get_override(root, "code-audit/stub/todo").unwrap(),
+            Some(false)
+        );
         set_enabled(root, "code-audit/stub/todo", true).unwrap();
-        assert_eq!(get_override(root, "code-audit/stub/todo").unwrap(), Some(true));
+        assert_eq!(
+            get_override(root, "code-audit/stub/todo").unwrap(),
+            Some(true)
+        );
     }
 }

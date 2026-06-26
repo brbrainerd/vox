@@ -1,7 +1,7 @@
 //! Input box using reedline — submits via `classify()` → `Session`.
 
-use ratatui::{Frame, layout::Rect, style::Style, widgets::Paragraph};
-use vox_terminal_core::input::{InputIntent, classify};
+use ratatui::{layout::Rect, style::Style, widgets::Paragraph, Frame};
+use vox_terminal_core::input::{classify, InputIntent};
 
 /// Single-line input state backed by a reedline buffer.
 ///

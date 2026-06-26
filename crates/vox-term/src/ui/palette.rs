@@ -1,8 +1,8 @@
 //! Nucleo command palette — fuzzy search over registered slash-commands.
 
 use nucleo_matcher::{
-    Config as NuConfig, Matcher, Utf32String,
     pattern::{CaseMatching, Normalization, Pattern},
+    Config as NuConfig, Matcher, Utf32String,
 };
 
 /// A registered slash-command entry.
