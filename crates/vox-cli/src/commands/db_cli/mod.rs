@@ -10,8 +10,9 @@ pub use publication_subcommands::DbCliPublication;
 
 pub use subcommands::DbCli;
 pub use types::{
-    ArxivHandoffStageCli, DbPreflightProfileCli, DiscoveryIntakeGateCli,
-    PublicationPrepareBodyCli, ScholarlyVenueCli,
+    ArxivHandoffStageCli, ArxivHandoffStageExt, DbPreflightProfileCli, DbPreflightProfileExt,
+    DiscoveryIntakeGateCli, DiscoveryIntakeGateExt, PublicationPrepareBodyCli, ScholarlyVenueCli,
+    ScholarlyVenueExt,
 };
 
 /// Dispatch `vox db` subcommands to `commands::db` implementations.

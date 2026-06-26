@@ -1,4 +1,5 @@
 use super::*;
+use crate::commands::db_cli::ScholarlyVenueExt;
 use anyhow::Result;
 
 pub async fn publication_zenodo_metadata(publication_id: &str) -> Result<()> {

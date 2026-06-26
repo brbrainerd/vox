@@ -1,4 +1,5 @@
 use super::*;
+use crate::commands::db_cli::ArxivHandoffStageExt;
 use anyhow::{Context, Result};
 
 /// Preflight + worthiness + discovery rank with optional live prior-art refresh (stdout JSON).
