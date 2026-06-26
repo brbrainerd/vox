@@ -23,9 +23,18 @@ corpora:
     scope_path: crates/vox-gui
     graph_path: ".vox/cache/graphify/vox-gui-surface/graph.json"
     manifest_path: ".vox/cache/graphify/vox-gui-surface/.graphify_manifest.v1.json"
-    extraction_mode: structural
+    extraction_mode: gui-wiring
     default_for_intents:
       - gui_surface
+
+  - id: vox-config-graph
+    title: vox-config structural graph (non-GUI generality check)
+    scope_path: crates/vox-config
+    graph_path: ".vox/cache/graphify/vox-config-graph/graph.json"
+    manifest_path: ".vox/cache/graphify/vox-config-graph/.graphify_manifest.v1.json"
+    extraction_mode: structural
+    default_for_intents:
+      - config_graph
 
   - id: config-audit
     title: Config hardcoded-values audit graph
