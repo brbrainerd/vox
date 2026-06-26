@@ -25,6 +25,24 @@ authored *after* the Phase J gate, scoped to surviving surfaces.
 
 ---
 
+## 0. RATIFICATION (Gate J) — DECIDED 2026-06-26
+
+The human ratifier **approved the recommended set** with three amendments. Status: **RATIFIED**.
+
+**Approved as recommended (no change):**
+- **Bundle 1** (Latin renames — except mens/populi, see Amendment A), **Bundle 3** (cluster merges: `claims`+`knowledge`→`scientia`; 4 activity clones→one Discovery surface), **Bundle 4** (`search`→`memory`), **Bundle 6** (phantom `review` + 5 parent-shell deletes) — ALL ACCEPTED.
+- **Bundle 2:** `needs-you` + `sub-agents` **conditional wire-or-cut APPROVED** — Plan 3 wires `tool:vox_resolve_approval` (needs-you attention inbox) and `cmd:list_subagent_tree` (sub-agents); if wiring fails verification, they CUT. `activity`/`runs` moves accepted.
+
+**Amendment A — `mens`/`populi` are NOT cut; they are the model train/run surfaces.** Their purpose is to **train/run the custom model(s)** (VoxMens). They need a GUI frontend **derived from the CLI** to establish **GUI/CLI parity**. Decision: **RENAME** (de-Latinize to clear labels) **+ WIRE to the model train/run CLI commands** — a new ADD workstream in Plan 3 that mirrors the CLI surface-for-surface. Converts two empty shells into real, honest surfaces. `dissent:structural:CUT-candidate` → **RESOLVED to WIRE.** (Plan 3 must find the CLI commands for VoxMens train/run and build the GUI to parity.)
+
+**Amendment B — Settings consolidation + Policies-unification (elevates Bundles 5 & 7 to a first-class workstream).** `gamify` config → Settings (approved). Beyond that: **ALL settings for ALL subsections/pages must live in one well-organized Settings surface**, and Plan 3 should **evaluate unifying Settings + Policies** into one place — *only if it stays visually and conceptually clear what each is for* (Settings = user config; Policies = enforced rules). `gamify`'s visual elements/concepts may be applied app-wide (not confined to a single surface). Bundle 7 (settings CONDENSE) is therefore **no longer optional** — it becomes a Settings information-architecture pass: gather scattered per-surface settings, organize them, and resolve the Settings↔Policies relationship.
+
+**Amendment C — `matrix`:** left at recommended default (fold the single routing-nudge into the chat execution rail); Plan 3 may instead rename→"Routing" and keep it a surface if folding proves awkward. (Not explicitly ratified; recommended default stands.)
+
+**→ Plan 3 (execution) is AUTHORIZED**, scoped to: the ratified moves/merges/renames/cuts below, PLUS two amendment workstreams — (1) VoxMens model train/run GUI built from the CLI for parity; (2) a Settings consolidation + Settings/Policies-unification IA pass. The caveat completions (vox-gui Rust compile-verify path, Playwright proof, 109 visual/DS-token/a11y findings) fold in, scoped to surviving surfaces.
+
+---
+
 ## 1. Summary header
 
 **Counts per verb (recommended defaults, one decision per unit):**
