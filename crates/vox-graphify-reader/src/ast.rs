@@ -167,6 +167,35 @@ pub fn extract_ast_in_module(path: &Path, content: &str, module_id: &str) -> Ext
                                         }
                                     }
                                 }
+                                // JSX element usage => composition edge (only for
+                                // Capitalized names; lowercase = DOM tags).
+                                let is_jsx = matches!(
+                                    node.kind(),
+                                    "jsx_self_closing_element" | "jsx_opening_element"
+                                );
+                                if is_jsx {
+                                    if let Some(ref source_fn) = current_fn {
+                                        if let Some(name_node) =
+                                            node.child_by_field_name("name")
+                                        {
+                                            if let Ok(name) =
+                                                name_node.utf8_text(content.as_bytes())
+                                            {
+                                                if name
+                                                    .chars()
+                                                    .next()
+                                                    .is_some_and(|c| c.is_uppercase())
+                                                {
+                                                    edges.push(ExtractedEdge {
+                                                        source: source_fn.clone(),
+                                                        target: name.to_string(),
+                                                        confidence: "resolved".into(),
+                                                    });
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                                 if is_call {
                                     if let Some(ref source_fn) = current_fn {
                                         if let Some(function_node) =
