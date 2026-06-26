@@ -1,0 +1,4639 @@
+{
+  "generated_from": "vox commands --format json --include-nested + surfaceRegistry.generated.ts + vox-gui/src/commands wrappers + vox-ml-cli clap enums (gated mens/populi/oratio)",
+  "totals": {
+    "cli_groups": 74,
+    "total_leaf_commands": 549,
+    "group_governance": {
+      "ungoverned": 62,
+      "governed-wrapper": 8,
+      "governed-exec": 4
+    },
+    "command_weighted": {
+      "ungoverned": 389,
+      "governed-wrapper": 104,
+      "governed-exec": 56
+    },
+    "pct_governed": 29.1,
+    "pct_ungoverned": 70.9
+  },
+  "groups": [
+    {
+      "group": "add",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Repository (deps)",
+      "recommendation": "action"
+    },
+    {
+      "group": "ars",
+      "leaf_commands": 7,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "CLI-only",
+      "recommendation": "codegen dev tooling"
+    },
+    {
+      "group": "audit",
+      "leaf_commands": 6,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Audits) NEW",
+      "recommendation": "read-only panel"
+    },
+    {
+      "group": "auth",
+      "leaf_commands": 7,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Account) NEW",
+      "recommendation": "needs-wrapper"
+    },
+    {
+      "group": "build",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace",
+      "recommendation": "action"
+    },
+    {
+      "group": "bundle",
+      "leaf_commands": 4,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace (export)",
+      "recommendation": "action"
+    },
+    {
+      "group": "bundle-app",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace (export)",
+      "recommendation": "action"
+    },
+    {
+      "group": "catalog",
+      "leaf_commands": 4,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Commands",
+      "recommendation": "governed"
+    },
+    {
+      "group": "check",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace",
+      "recommendation": "action"
+    },
+    {
+      "group": "ci",
+      "leaf_commands": 157,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)",
+      "recommendation": "read-only dashboard + run actions"
+    },
+    {
+      "group": "codex",
+      "leaf_commands": 8,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Harness",
+      "recommendation": "codex runner action"
+    },
+    {
+      "group": "commands",
+      "leaf_commands": 1,
+      "governance": "governed-wrapper",
+      "surface_home": "catalog",
+      "recommended_home": "Develop > Commands",
+      "recommendation": "governed"
+    },
+    {
+      "group": "compile",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace",
+      "recommendation": "action"
+    },
+    {
+      "group": "completions",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "CLI-only",
+      "recommendation": "shell setup"
+    },
+    {
+      "group": "component",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace",
+      "recommendation": "scaffold action"
+    },
+    {
+      "group": "config",
+      "leaf_commands": 5,
+      "governance": "governed-wrapper",
+      "surface_home": "settings",
+      "recommended_home": "System > Settings",
+      "recommendation": "governed"
+    },
+    {
+      "group": "container",
+      "leaf_commands": 2,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Compute > Deploy",
+      "recommendation": "admin action"
+    },
+    {
+      "group": "db",
+      "leaf_commands": 77,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW",
+      "recommendation": "read-only query panel + admin actions"
+    },
+    {
+      "group": "deploy",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Compute > Deploy NEW",
+      "recommendation": "action"
+    },
+    {
+      "group": "dev",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace",
+      "recommendation": "action"
+    },
+    {
+      "group": "diag",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Health)",
+      "recommendation": "read-only panel"
+    },
+    {
+      "group": "dispatch",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Operate > Agents",
+      "recommendation": "action"
+    },
+    {
+      "group": "doctor",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Health)",
+      "recommendation": "read-only panel"
+    },
+    {
+      "group": "drift-check",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Coverage)",
+      "recommendation": "read-only panel"
+    },
+    {
+      "group": "emit",
+      "leaf_commands": 2,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace",
+      "recommendation": "advanced action"
+    },
+    {
+      "group": "ext",
+      "leaf_commands": 11,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Extensions) NEW",
+      "recommendation": "panel"
+    },
+    {
+      "group": "fabrica",
+      "leaf_commands": 9,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace",
+      "recommendation": "alias of build/check/test/run"
+    },
+    {
+      "group": "fmt",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace",
+      "recommendation": "action"
+    },
+    {
+      "group": "generate",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace",
+      "recommendation": "scaffold action"
+    },
+    {
+      "group": "grammar",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "CLI-only",
+      "recommendation": "dev-only"
+    },
+    {
+      "group": "graphify",
+      "leaf_commands": 8,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Graph NEW",
+      "recommendation": "read-only graph viewer + build action"
+    },
+    {
+      "group": "init",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace",
+      "recommendation": "new-project action"
+    },
+    {
+      "group": "llm",
+      "leaf_commands": 1,
+      "governance": "governed-wrapper",
+      "surface_home": null,
+      "recommended_home": "System > Settings (LLM)",
+      "recommendation": "governed"
+    },
+    {
+      "group": "lock",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Repository (deps)",
+      "recommendation": "action"
+    },
+    {
+      "group": "login",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Account)",
+      "recommendation": "action"
+    },
+    {
+      "group": "logout",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Account)",
+      "recommendation": "action"
+    },
+    {
+      "group": "lsp",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "CLI-only",
+      "recommendation": "editor integration"
+    },
+    {
+      "group": "mcp",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Skills (MCP tab)",
+      "recommendation": "fold into Skills"
+    },
+    {
+      "group": "memory",
+      "leaf_commands": 1,
+      "governance": "governed-wrapper",
+      "surface_home": "memory",
+      "recommended_home": "Knowledge > Memory",
+      "recommendation": "governed"
+    },
+    {
+      "group": "mens",
+      "leaf_commands": 22,
+      "governance": "governed-exec",
+      "surface_home": "mens",
+      "recommended_home": "(unmapped)",
+      "recommendation": "review"
+    },
+    {
+      "group": "migrate",
+      "leaf_commands": 2,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings",
+      "recommendation": "admin action"
+    },
+    {
+      "group": "model",
+      "leaf_commands": 20,
+      "governance": "governed-wrapper",
+      "surface_home": "models",
+      "recommended_home": "(unmapped)",
+      "recommendation": "review"
+    },
+    {
+      "group": "new",
+      "leaf_commands": 3,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace",
+      "recommendation": "new-project action"
+    },
+    {
+      "group": "plan",
+      "leaf_commands": 3,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Operate > Tasks (plan)",
+      "recommendation": "panel"
+    },
+    {
+      "group": "play",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "CLI-only",
+      "recommendation": "dev playground"
+    },
+    {
+      "group": "plugin",
+      "leaf_commands": 7,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Skills (Plugins tab)",
+      "recommendation": "fold into Skills"
+    },
+    {
+      "group": "pm",
+      "leaf_commands": 9,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Operate > Project Mgmt NEW",
+      "recommendation": "panel"
+    },
+    {
+      "group": "policy",
+      "leaf_commands": 5,
+      "governance": "governed-wrapper",
+      "surface_home": null,
+      "recommended_home": "Operate > Policies",
+      "recommendation": "governed"
+    },
+    {
+      "group": "populi",
+      "leaf_commands": 18,
+      "governance": "governed-exec",
+      "surface_home": "populi",
+      "recommended_home": "(unmapped)",
+      "recommendation": "review"
+    },
+    {
+      "group": "remove",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Repository (deps)",
+      "recommendation": "action"
+    },
+    {
+      "group": "repair",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Health)",
+      "recommendation": "action"
+    },
+    {
+      "group": "repl",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Console",
+      "recommendation": "action"
+    },
+    {
+      "group": "repo",
+      "leaf_commands": 7,
+      "governance": "governed-exec",
+      "surface_home": "repository",
+      "recommended_home": "(unmapped)",
+      "recommendation": "review"
+    },
+    {
+      "group": "research",
+      "leaf_commands": 10,
+      "governance": "governed-wrapper",
+      "surface_home": "research",
+      "recommended_home": "(unmapped)",
+      "recommendation": "review"
+    },
+    {
+      "group": "rollback",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings",
+      "recommendation": "admin action"
+    },
+    {
+      "group": "run",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Console",
+      "recommendation": "action"
+    },
+    {
+      "group": "scientia",
+      "leaf_commands": 61,
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)",
+      "recommendation": "review"
+    },
+    {
+      "group": "script",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "(unmapped)",
+      "recommendation": "review"
+    },
+    {
+      "group": "secrets",
+      "leaf_commands": 8,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Secrets) NEW",
+      "recommendation": "needs-wrapper"
+    },
+    {
+      "group": "share",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace",
+      "recommendation": "action"
+    },
+    {
+      "group": "shell",
+      "leaf_commands": 2,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Console",
+      "recommendation": "action"
+    },
+    {
+      "group": "snapshot",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings",
+      "recommendation": "admin action"
+    },
+    {
+      "group": "snippet",
+      "leaf_commands": 3,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace",
+      "recommendation": "panel"
+    },
+    {
+      "group": "speech",
+      "leaf_commands": 9,
+      "governance": "governed-exec",
+      "surface_home": "oratio",
+      "recommended_home": "Compute > Oratio",
+      "recommendation": "governed"
+    },
+    {
+      "group": "stop",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Operate > Agents",
+      "recommendation": "action"
+    },
+    {
+      "group": "sync",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Repository (deps)",
+      "recommendation": "action"
+    },
+    {
+      "group": "telemetry",
+      "leaf_commands": 8,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Telemetry) NEW",
+      "recommendation": "read-only/toggle panel"
+    },
+    {
+      "group": "term",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Console",
+      "recommendation": "have PTY already"
+    },
+    {
+      "group": "test",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace",
+      "recommendation": "action"
+    },
+    {
+      "group": "train",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Compute > Mens",
+      "recommendation": "folds into mens"
+    },
+    {
+      "group": "update",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings",
+      "recommendation": "admin action"
+    },
+    {
+      "group": "upgrade",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings",
+      "recommendation": "admin action"
+    },
+    {
+      "group": "wasm",
+      "leaf_commands": 1,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "CLI-only",
+      "recommendation": "dev"
+    },
+    {
+      "group": "workflow",
+      "leaf_commands": 3,
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Operate > Tasks (workflow)",
+      "recommendation": "panel"
+    }
+  ],
+  "commands": [
+    {
+      "group": "add",
+      "command": "add",
+      "full": "vox add",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Repository (deps)"
+    },
+    {
+      "group": "ars",
+      "command": "ars share feedback",
+      "full": "vox ars share feedback",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "CLI-only"
+    },
+    {
+      "group": "ars",
+      "command": "ars share list",
+      "full": "vox ars share list",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "CLI-only"
+    },
+    {
+      "group": "ars",
+      "command": "ars share publish",
+      "full": "vox ars share publish",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "CLI-only"
+    },
+    {
+      "group": "ars",
+      "command": "ars share search",
+      "full": "vox ars share search",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "CLI-only"
+    },
+    {
+      "group": "ars",
+      "command": "ars snippet export",
+      "full": "vox ars snippet export",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "CLI-only"
+    },
+    {
+      "group": "ars",
+      "command": "ars snippet save",
+      "full": "vox ars snippet save",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "CLI-only"
+    },
+    {
+      "group": "ars",
+      "command": "ars snippet search",
+      "full": "vox ars snippet search",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "CLI-only"
+    },
+    {
+      "group": "audit",
+      "command": "audit arch",
+      "full": "vox audit arch",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Audits) NEW"
+    },
+    {
+      "group": "audit",
+      "command": "audit code",
+      "full": "vox audit code",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Audits) NEW"
+    },
+    {
+      "group": "audit",
+      "command": "audit core",
+      "full": "vox audit core",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Audits) NEW"
+    },
+    {
+      "group": "audit",
+      "command": "audit effort",
+      "full": "vox audit effort",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Audits) NEW"
+    },
+    {
+      "group": "audit",
+      "command": "audit effort-route",
+      "full": "vox audit effort-route",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Audits) NEW"
+    },
+    {
+      "group": "audit",
+      "command": "audit retirement",
+      "full": "vox audit retirement",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Audits) NEW"
+    },
+    {
+      "group": "auth",
+      "command": "auth connect",
+      "full": "vox auth connect",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Account) NEW"
+    },
+    {
+      "group": "auth",
+      "command": "auth init",
+      "full": "vox auth init",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Account) NEW"
+    },
+    {
+      "group": "auth",
+      "command": "auth trust",
+      "full": "vox auth trust",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Account) NEW"
+    },
+    {
+      "group": "auth",
+      "command": "auth trust-list",
+      "full": "vox auth trust-list",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Account) NEW"
+    },
+    {
+      "group": "auth",
+      "command": "auth unlock",
+      "full": "vox auth unlock",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Account) NEW"
+    },
+    {
+      "group": "auth",
+      "command": "auth untrust",
+      "full": "vox auth untrust",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Account) NEW"
+    },
+    {
+      "group": "auth",
+      "command": "auth whoami",
+      "full": "vox auth whoami",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Account) NEW"
+    },
+    {
+      "group": "build",
+      "command": "build",
+      "full": "vox build",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace"
+    },
+    {
+      "group": "bundle",
+      "command": "bundle apply",
+      "full": "vox bundle apply",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace (export)"
+    },
+    {
+      "group": "bundle",
+      "command": "bundle build",
+      "full": "vox bundle build",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace (export)"
+    },
+    {
+      "group": "bundle",
+      "command": "bundle list",
+      "full": "vox bundle list",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace (export)"
+    },
+    {
+      "group": "bundle",
+      "command": "bundle verify",
+      "full": "vox bundle verify",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace (export)"
+    },
+    {
+      "group": "bundle-app",
+      "command": "bundle-app",
+      "full": "vox bundle-app",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace (export)"
+    },
+    {
+      "group": "catalog",
+      "command": "catalog add",
+      "full": "vox catalog add",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Commands"
+    },
+    {
+      "group": "catalog",
+      "command": "catalog focus",
+      "full": "vox catalog focus",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Commands"
+    },
+    {
+      "group": "catalog",
+      "command": "catalog list",
+      "full": "vox catalog list",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Commands"
+    },
+    {
+      "group": "catalog",
+      "command": "catalog remove",
+      "full": "vox catalog remove",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Commands"
+    },
+    {
+      "group": "check",
+      "command": "check",
+      "full": "vox check",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace"
+    },
+    {
+      "group": "ci",
+      "command": "ci affected-crates",
+      "full": "vox ci affected-crates",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci agentskills-compliance",
+      "full": "vox ci agentskills-compliance",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci ai-fixtures-coverage",
+      "full": "vox ci ai-fixtures-coverage",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci artifact-audit",
+      "full": "vox ci artifact-audit",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci artifact-prune",
+      "full": "vox ci artifact-prune",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci attention-config-parity",
+      "full": "vox ci attention-config-parity",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci attention-event-ledger-parity",
+      "full": "vox ci attention-event-ledger-parity",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci backend-tests",
+      "full": "vox ci backend-tests",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci bom-check",
+      "full": "vox ci bom-check",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci build-bench",
+      "full": "vox ci build-bench",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci build-cache-doctor",
+      "full": "vox ci build-cache-doctor",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci build-docs",
+      "full": "vox ci build-docs",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci build-timings",
+      "full": "vox ci build-timings",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci canonical-map-verify",
+      "full": "vox ci canonical-map-verify",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci capability-snapshot",
+      "full": "vox ci capability-snapshot",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci capability-sync",
+      "full": "vox ci capability-sync",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci check-codex-ssot",
+      "full": "vox ci check-codex-ssot",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci check-docs-ssot",
+      "full": "vox ci check-docs-ssot",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci check-frozen",
+      "full": "vox ci check-frozen",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci check-links",
+      "full": "vox ci check-links",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci check-summary-drift",
+      "full": "vox ci check-summary-drift",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci collateral-damage-gate",
+      "full": "vox ci collateral-damage-gate",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci command-compliance",
+      "full": "vox ci command-compliance",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci command-sync",
+      "full": "vox ci command-sync",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci commit-lint",
+      "full": "vox ci commit-lint",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci compile-matrix",
+      "full": "vox ci compile-matrix",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci completion-audit",
+      "full": "vox ci completion-audit",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci completion-gates",
+      "full": "vox ci completion-gates",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci completion-ingest",
+      "full": "vox ci completion-ingest",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci config-gui-codegen",
+      "full": "vox ci config-gui-codegen",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci config-hygiene",
+      "full": "vox ci config-hygiene",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci config-registry-parity",
+      "full": "vox ci config-registry-parity",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci constrained-gen-smoke",
+      "full": "vox ci constrained-gen-smoke",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci contracts-index",
+      "full": "vox ci contracts-index",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci coolify-eval discover",
+      "full": "vox ci coolify-eval discover",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci coolify-eval sync-compose",
+      "full": "vox ci coolify-eval sync-compose",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci corpus-decl-coverage",
+      "full": "vox ci corpus-decl-coverage",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci coverage-gates",
+      "full": "vox ci coverage-gates",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci crate-budget",
+      "full": "vox ci crate-budget",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci crate-build-map-parity",
+      "full": "vox ci crate-build-map-parity",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci cuda-features",
+      "full": "vox ci cuda-features",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci cuda-release-build",
+      "full": "vox ci cuda-release-build",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci data-ssot-guards",
+      "full": "vox ci data-ssot-guards",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci data-storage-guard",
+      "full": "vox ci data-storage-guard",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci db-schema-coverage",
+      "full": "vox ci db-schema-coverage",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci dep-cycles",
+      "full": "vox ci dep-cycles",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci dep-sprawl",
+      "full": "vox ci dep-sprawl",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci deploy-status",
+      "full": "vox ci deploy-status",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci detect-rules-bench",
+      "full": "vox ci detect-rules-bench",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci determinism-audit",
+      "full": "vox ci determinism-audit",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci dev-loop-audit",
+      "full": "vox ci dev-loop-audit",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci doc-inventory generate",
+      "full": "vox ci doc-inventory generate",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci doc-inventory verify",
+      "full": "vox ci doc-inventory verify",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci docs-reality-audit metrics",
+      "full": "vox ci docs-reality-audit metrics",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci docs-reality-audit verify",
+      "full": "vox ci docs-reality-audit verify",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci doctest-md",
+      "full": "vox ci doctest-md",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci eval-matrix run",
+      "full": "vox ci eval-matrix run",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci eval-matrix verify",
+      "full": "vox ci eval-matrix verify",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci exec-policy-contract",
+      "full": "vox ci exec-policy-contract",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci fan-in-budget",
+      "full": "vox ci fan-in-budget",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci feature-matrix",
+      "full": "vox ci feature-matrix",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci flake-budget",
+      "full": "vox ci flake-budget",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci fmt-check",
+      "full": "vox ci fmt-check",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci free-binary",
+      "full": "vox ci free-binary",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci generate-plugin-catalog-docs",
+      "full": "vox ci generate-plugin-catalog-docs",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci grammar-drift",
+      "full": "vox ci grammar-drift",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci grammar-export-check",
+      "full": "vox ci grammar-export-check",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci grammar-ssot-parity",
+      "full": "vox ci grammar-ssot-parity",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci grpo-reward-baseline",
+      "full": "vox ci grpo-reward-baseline",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci gui-catalog-parity",
+      "full": "vox ci gui-catalog-parity",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci gui-honesty",
+      "full": "vox ci gui-honesty",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci gui-smoke",
+      "full": "vox ci gui-smoke",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci gui-surface-coverage",
+      "full": "vox ci gui-surface-coverage",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci gui-surface-registry",
+      "full": "vox ci gui-surface-registry",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci gui-version-sync",
+      "full": "vox ci gui-version-sync",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci gui-visual-review",
+      "full": "vox ci gui-visual-review",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci ignored-test-age",
+      "full": "vox ci ignored-test-age",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci install-hooks",
+      "full": "vox ci install-hooks",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci job-timings",
+      "full": "vox ci job-timings",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci json-parse-check",
+      "full": "vox ci json-parse-check",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci k-complexity-budget",
+      "full": "vox ci k-complexity-budget",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci kill-stuck-tests",
+      "full": "vox ci kill-stuck-tests",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci line-endings",
+      "full": "vox ci line-endings",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci manifest",
+      "full": "vox ci manifest",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci mcp-vox-surface-parity",
+      "full": "vox ci mcp-vox-surface-parity",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci mens-corpus-health",
+      "full": "vox ci mens-corpus-health",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci mens-scorecard burn-rnd",
+      "full": "vox ci mens-scorecard burn-rnd",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci mens-scorecard decide",
+      "full": "vox ci mens-scorecard decide",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci mens-scorecard ingest-trust",
+      "full": "vox ci mens-scorecard ingest-trust",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci mens-scorecard run",
+      "full": "vox ci mens-scorecard run",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci mens-scorecard verify",
+      "full": "vox ci mens-scorecard verify",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci mesh-gate",
+      "full": "vox ci mesh-gate",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci model-routing-check",
+      "full": "vox ci model-routing-check",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci no-dei-import",
+      "full": "vox ci no-dei-import",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci no-plugin-cdylib-as-compile-dep",
+      "full": "vox ci no-plugin-cdylib-as-compile-dep",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci no-tauri-in-core",
+      "full": "vox ci no-tauri-in-core",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci nomenclature-guard",
+      "full": "vox ci nomenclature-guard",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci openclaw-contract",
+      "full": "vox ci openclaw-contract",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci operations-sync",
+      "full": "vox ci operations-sync",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci operations-verify",
+      "full": "vox ci operations-verify",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci operator-env-guard",
+      "full": "vox ci operator-env-guard",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci parse-status",
+      "full": "vox ci parse-status",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci pipeline-parity",
+      "full": "vox ci pipeline-parity",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci plugin-abi-parity",
+      "full": "vox ci plugin-abi-parity",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci plugin-catalog-parity",
+      "full": "vox ci plugin-catalog-parity",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci plugin-catalog-sync",
+      "full": "vox ci plugin-catalog-sync",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci plugin-dep-boundary",
+      "full": "vox ci plugin-dep-boundary",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci plugin-skill-parity",
+      "full": "vox ci plugin-skill-parity",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci plugin-surface-sync",
+      "full": "vox ci plugin-surface-sync",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci pm-provenance",
+      "full": "vox ci pm-provenance",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci policy-allowlist-parity",
+      "full": "vox ci policy-allowlist-parity",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci policy-registry",
+      "full": "vox ci policy-registry",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci policy-registry-parity",
+      "full": "vox ci policy-registry-parity",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci policy-smoke",
+      "full": "vox ci policy-smoke",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci pre-push",
+      "full": "vox ci pre-push",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci profile-parity",
+      "full": "vox ci profile-parity",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci query-all-guard",
+      "full": "vox ci query-all-guard",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci release-build",
+      "full": "vox ci release-build",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci repo-guards",
+      "full": "vox ci repo-guards",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci retired-symbol-check",
+      "full": "vox ci retired-symbol-check",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci retirement-audit",
+      "full": "vox ci retirement-audit",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci row-serde-lint",
+      "full": "vox ci row-serde-lint",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci runner-policy-check",
+      "full": "vox ci runner-policy-check",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci runner-preflight",
+      "full": "vox ci runner-preflight",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci runner-scale",
+      "full": "vox ci runner-scale",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci runner-status",
+      "full": "vox ci runner-status",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci runtime-regress",
+      "full": "vox ci runtime-regress",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci rust-ecosystem-policy",
+      "full": "vox ci rust-ecosystem-policy",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci safety-inventory",
+      "full": "vox ci safety-inventory",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci scaling-audit emit-reports",
+      "full": "vox ci scaling-audit emit-reports",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci scaling-audit verify",
+      "full": "vox ci scaling-audit verify",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci scientia-heuristics-parity",
+      "full": "vox ci scientia-heuristics-parity",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci scientia-novelty-ledger-contracts",
+      "full": "vox ci scientia-novelty-ledger-contracts",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci scientia-worthiness-contract",
+      "full": "vox ci scientia-worthiness-contract",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci script-hygiene",
+      "full": "vox ci script-hygiene",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci secret-env-guard",
+      "full": "vox ci secret-env-guard",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci secrets-contracts",
+      "full": "vox ci secrets-contracts",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci secrets-cutover-audit",
+      "full": "vox ci secrets-cutover-audit",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci secrets-cutover-gates",
+      "full": "vox ci secrets-cutover-gates",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci secrets-parity",
+      "full": "vox ci secrets-parity",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci speech-runtime-suite",
+      "full": "vox ci speech-runtime-suite",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci spoke-check",
+      "full": "vox ci spoke-check",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci sql-surface-guard",
+      "full": "vox ci sql-surface-guard",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci ssot-audit",
+      "full": "vox ci ssot-audit",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci ssot-drift",
+      "full": "vox ci ssot-drift",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci string-id-lint",
+      "full": "vox ci string-id-lint",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci sync-ignore-files",
+      "full": "vox ci sync-ignore-files",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci test-inventory",
+      "full": "vox ci test-inventory",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci test-runtime-report",
+      "full": "vox ci test-runtime-report",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci tier-budget-check",
+      "full": "vox ci tier-budget-check",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci toestub-budget",
+      "full": "vox ci toestub-budget",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci toestub-scoped",
+      "full": "vox ci toestub-scoped",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci toestub-self-apply",
+      "full": "vox ci toestub-self-apply",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci turso-import-guard",
+      "full": "vox ci turso-import-guard",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci watch-run",
+      "full": "vox ci watch-run",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci workflow-scripts",
+      "full": "vox ci workflow-scripts",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "ci",
+      "command": "ci yaml-parse-check",
+      "full": "vox ci yaml-parse-check",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > CI NEW (BIGGEST gap)"
+    },
+    {
+      "group": "codex",
+      "command": "codex cutover",
+      "full": "vox codex cutover",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Harness"
+    },
+    {
+      "group": "codex",
+      "command": "codex export-legacy",
+      "full": "vox codex export-legacy",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Harness"
+    },
+    {
+      "group": "codex",
+      "command": "codex import-legacy",
+      "full": "vox codex import-legacy",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Harness"
+    },
+    {
+      "group": "codex",
+      "command": "codex import-orchestrator-memory",
+      "full": "vox codex import-orchestrator-memory",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Harness"
+    },
+    {
+      "group": "codex",
+      "command": "codex import-skill-bundle",
+      "full": "vox codex import-skill-bundle",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Harness"
+    },
+    {
+      "group": "codex",
+      "command": "codex socrates-eval-snapshot",
+      "full": "vox codex socrates-eval-snapshot",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Harness"
+    },
+    {
+      "group": "codex",
+      "command": "codex socrates-metrics",
+      "full": "vox codex socrates-metrics",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Harness"
+    },
+    {
+      "group": "codex",
+      "command": "codex verify",
+      "full": "vox codex verify",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Harness"
+    },
+    {
+      "group": "commands",
+      "command": "commands",
+      "full": "vox commands",
+      "governance": "governed-wrapper",
+      "surface_home": "catalog",
+      "recommended_home": "Develop > Commands"
+    },
+    {
+      "group": "compile",
+      "command": "compile",
+      "full": "vox compile",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace"
+    },
+    {
+      "group": "completions",
+      "command": "completions",
+      "full": "vox completions",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "CLI-only"
+    },
+    {
+      "group": "component",
+      "command": "component",
+      "full": "vox component",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace"
+    },
+    {
+      "group": "config",
+      "command": "config get",
+      "full": "vox config get",
+      "governance": "governed-wrapper",
+      "surface_home": "settings",
+      "recommended_home": "System > Settings"
+    },
+    {
+      "group": "config",
+      "command": "config list",
+      "full": "vox config list",
+      "governance": "governed-wrapper",
+      "surface_home": "settings",
+      "recommended_home": "System > Settings"
+    },
+    {
+      "group": "config",
+      "command": "config set",
+      "full": "vox config set",
+      "governance": "governed-wrapper",
+      "surface_home": "settings",
+      "recommended_home": "System > Settings"
+    },
+    {
+      "group": "config",
+      "command": "config sync",
+      "full": "vox config sync",
+      "governance": "governed-wrapper",
+      "surface_home": "settings",
+      "recommended_home": "System > Settings"
+    },
+    {
+      "group": "config",
+      "command": "config unset",
+      "full": "vox config unset",
+      "governance": "governed-wrapper",
+      "surface_home": "settings",
+      "recommended_home": "System > Settings"
+    },
+    {
+      "group": "container",
+      "command": "container build",
+      "full": "vox container build",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Compute > Deploy"
+    },
+    {
+      "group": "container",
+      "command": "container run",
+      "full": "vox container run",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Compute > Deploy"
+    },
+    {
+      "group": "db",
+      "command": "db audit",
+      "full": "vox db audit",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db build-health",
+      "full": "vox db build-health",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db build-regressions",
+      "full": "vox db build-regressions",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db capability-list",
+      "full": "vox db capability-list",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db discovery-watch",
+      "full": "vox db discovery-watch",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db exec-history",
+      "full": "vox db exec-history",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db explain",
+      "full": "vox db explain",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db export",
+      "full": "vox db export",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db feed-source-add",
+      "full": "vox db feed-source-add",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db feed-source-list",
+      "full": "vox db feed-source-list",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db import",
+      "full": "vox db import",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db ingest-tick",
+      "full": "vox db ingest-tick",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db introspect",
+      "full": "vox db introspect",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db mens-metrics",
+      "full": "vox db mens-metrics",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db mens-runs",
+      "full": "vox db mens-runs",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db migrate",
+      "full": "vox db migrate",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db mirror-search-corpus",
+      "full": "vox db mirror-search-corpus",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db pref-get",
+      "full": "vox db pref-get",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db pref-list",
+      "full": "vox db pref-list",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db pref-set",
+      "full": "vox db pref-set",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db prune",
+      "full": "vox db prune",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db prune-apply",
+      "full": "vox db prune-apply",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db prune-plan",
+      "full": "vox db prune-plan",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-approve",
+      "full": "vox db publication-approve",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-archive-code",
+      "full": "vox db publication-archive-code",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-archive-run",
+      "full": "vox db publication-archive-run",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-arxiv-handoff-record",
+      "full": "vox db publication-arxiv-handoff-record",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-autofill",
+      "full": "vox db publication-autofill",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-decision-explain",
+      "full": "vox db publication-decision-explain",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-discovery-explain",
+      "full": "vox db publication-discovery-explain",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-discovery-publish-rss",
+      "full": "vox db publication-discovery-publish-rss",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-discovery-refresh-evidence",
+      "full": "vox db publication-discovery-refresh-evidence",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-discovery-scan",
+      "full": "vox db publication-discovery-scan",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-external-jobs-dead-letter",
+      "full": "vox db publication-external-jobs-dead-letter",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-external-jobs-due",
+      "full": "vox db publication-external-jobs-due",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-external-jobs-replay",
+      "full": "vox db publication-external-jobs-replay",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-external-jobs-tick",
+      "full": "vox db publication-external-jobs-tick",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-external-pipeline-metrics",
+      "full": "vox db publication-external-pipeline-metrics",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-media-delete",
+      "full": "vox db publication-media-delete",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-media-list",
+      "full": "vox db publication-media-list",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-media-upsert",
+      "full": "vox db publication-media-upsert",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-novelty-fetch",
+      "full": "vox db publication-novelty-fetch",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-novelty-happy-path",
+      "full": "vox db publication-novelty-happy-path",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-openreview-profile",
+      "full": "vox db publication-openreview-profile",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-preflight",
+      "full": "vox db publication-preflight",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-prepare",
+      "full": "vox db publication-prepare",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-prepare-validated",
+      "full": "vox db publication-prepare-validated",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-publish",
+      "full": "vox db publication-publish",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-retry-failed",
+      "full": "vox db publication-retry-failed",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-route-simulate",
+      "full": "vox db publication-route-simulate",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-scholarly-pipeline-run",
+      "full": "vox db publication-scholarly-pipeline-run",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-scholarly-remote-status",
+      "full": "vox db publication-scholarly-remote-status",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-scholarly-remote-status-sync-all",
+      "full": "vox db publication-scholarly-remote-status-sync-all",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-scholarly-remote-status-sync-batch",
+      "full": "vox db publication-scholarly-remote-status-sync-batch",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-scholarly-staging-export",
+      "full": "vox db publication-scholarly-staging-export",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-status",
+      "full": "vox db publication-status",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-submit-local",
+      "full": "vox db publication-submit-local",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-transform-preview",
+      "full": "vox db publication-transform-preview",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-worthiness-evaluate",
+      "full": "vox db publication-worthiness-evaluate",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db publication-zenodo-metadata",
+      "full": "vox db publication-zenodo-metadata",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db reliability-agents",
+      "full": "vox db reliability-agents",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db reliability-list",
+      "full": "vox db reliability-list",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db research-ingest-file",
+      "full": "vox db research-ingest-file",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db research-ingest-url",
+      "full": "vox db research-ingest-url",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db research-list",
+      "full": "vox db research-list",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db research-map-add",
+      "full": "vox db research-map-add",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db research-map-list",
+      "full": "vox db research-map-list",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db research-metrics",
+      "full": "vox db research-metrics",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db research-refresh",
+      "full": "vox db research-refresh",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db reset",
+      "full": "vox db reset",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db retrieval-status",
+      "full": "vox db retrieval-status",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db sample",
+      "full": "vox db sample",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db schema",
+      "full": "vox db schema",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db status",
+      "full": "vox db status",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db sync-invocables",
+      "full": "vox db sync-invocables",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db vacuum",
+      "full": "vox db vacuum",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "db",
+      "command": "db verify",
+      "full": "vox db verify",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Database NEW"
+    },
+    {
+      "group": "deploy",
+      "command": "deploy",
+      "full": "vox deploy",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Compute > Deploy NEW"
+    },
+    {
+      "group": "dev",
+      "command": "dev",
+      "full": "vox dev",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace"
+    },
+    {
+      "group": "diag",
+      "command": "diag doctor",
+      "full": "vox diag doctor",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Health)"
+    },
+    {
+      "group": "dispatch",
+      "command": "dispatch preview",
+      "full": "vox dispatch preview",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Operate > Agents"
+    },
+    {
+      "group": "doctor",
+      "command": "doctor",
+      "full": "vox doctor",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Health)"
+    },
+    {
+      "group": "drift-check",
+      "command": "drift-check",
+      "full": "vox drift-check",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Coverage)"
+    },
+    {
+      "group": "emit",
+      "command": "emit client",
+      "full": "vox emit client",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace"
+    },
+    {
+      "group": "emit",
+      "command": "emit openapi",
+      "full": "vox emit openapi",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace"
+    },
+    {
+      "group": "ext",
+      "command": "ext ars share feedback",
+      "full": "vox ext ars share feedback",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Extensions) NEW"
+    },
+    {
+      "group": "ext",
+      "command": "ext ars share list",
+      "full": "vox ext ars share list",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Extensions) NEW"
+    },
+    {
+      "group": "ext",
+      "command": "ext ars share publish",
+      "full": "vox ext ars share publish",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Extensions) NEW"
+    },
+    {
+      "group": "ext",
+      "command": "ext ars share search",
+      "full": "vox ext ars share search",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Extensions) NEW"
+    },
+    {
+      "group": "ext",
+      "command": "ext ars snippet export",
+      "full": "vox ext ars snippet export",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Extensions) NEW"
+    },
+    {
+      "group": "ext",
+      "command": "ext ars snippet save",
+      "full": "vox ext ars snippet save",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Extensions) NEW"
+    },
+    {
+      "group": "ext",
+      "command": "ext ars snippet search",
+      "full": "vox ext ars snippet search",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Extensions) NEW"
+    },
+    {
+      "group": "ext",
+      "command": "ext mens",
+      "full": "vox ext mens",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Extensions) NEW"
+    },
+    {
+      "group": "ext",
+      "command": "ext oratio",
+      "full": "vox ext oratio",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Extensions) NEW"
+    },
+    {
+      "group": "ext",
+      "command": "ext populi",
+      "full": "vox ext populi",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Extensions) NEW"
+    },
+    {
+      "group": "ext",
+      "command": "ext train",
+      "full": "vox ext train",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Extensions) NEW"
+    },
+    {
+      "group": "fabrica",
+      "command": "fabrica build",
+      "full": "vox fabrica build",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace"
+    },
+    {
+      "group": "fabrica",
+      "command": "fabrica bundle",
+      "full": "vox fabrica bundle",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace"
+    },
+    {
+      "group": "fabrica",
+      "command": "fabrica check",
+      "full": "vox fabrica check",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace"
+    },
+    {
+      "group": "fabrica",
+      "command": "fabrica compile",
+      "full": "vox fabrica compile",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace"
+    },
+    {
+      "group": "fabrica",
+      "command": "fabrica dev",
+      "full": "vox fabrica dev",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace"
+    },
+    {
+      "group": "fabrica",
+      "command": "fabrica fmt",
+      "full": "vox fabrica fmt",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace"
+    },
+    {
+      "group": "fabrica",
+      "command": "fabrica run",
+      "full": "vox fabrica run",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace"
+    },
+    {
+      "group": "fabrica",
+      "command": "fabrica script",
+      "full": "vox fabrica script",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace"
+    },
+    {
+      "group": "fabrica",
+      "command": "fabrica test",
+      "full": "vox fabrica test",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace"
+    },
+    {
+      "group": "fmt",
+      "command": "fmt",
+      "full": "vox fmt",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace"
+    },
+    {
+      "group": "generate",
+      "command": "generate",
+      "full": "vox generate",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace"
+    },
+    {
+      "group": "grammar",
+      "command": "grammar",
+      "full": "vox grammar",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "CLI-only"
+    },
+    {
+      "group": "graphify",
+      "command": "graphify coverage",
+      "full": "vox graphify coverage",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Graph NEW"
+    },
+    {
+      "group": "graphify",
+      "command": "graphify crate-map",
+      "full": "vox graphify crate-map",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Graph NEW"
+    },
+    {
+      "group": "graphify",
+      "command": "graphify gc",
+      "full": "vox graphify gc",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Graph NEW"
+    },
+    {
+      "group": "graphify",
+      "command": "graphify index",
+      "full": "vox graphify index",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Graph NEW"
+    },
+    {
+      "group": "graphify",
+      "command": "graphify ingest",
+      "full": "vox graphify ingest",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Graph NEW"
+    },
+    {
+      "group": "graphify",
+      "command": "graphify rebuild",
+      "full": "vox graphify rebuild",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Graph NEW"
+    },
+    {
+      "group": "graphify",
+      "command": "graphify refresh",
+      "full": "vox graphify refresh",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Graph NEW"
+    },
+    {
+      "group": "graphify",
+      "command": "graphify status",
+      "full": "vox graphify status",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Knowledge > Graph NEW"
+    },
+    {
+      "group": "init",
+      "command": "init",
+      "full": "vox init",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace"
+    },
+    {
+      "group": "llm",
+      "command": "llm prompt",
+      "full": "vox llm prompt",
+      "governance": "governed-wrapper",
+      "surface_home": null,
+      "recommended_home": "System > Settings (LLM)"
+    },
+    {
+      "group": "lock",
+      "command": "lock",
+      "full": "vox lock",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Repository (deps)"
+    },
+    {
+      "group": "login",
+      "command": "login",
+      "full": "vox login",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Account)"
+    },
+    {
+      "group": "logout",
+      "command": "logout",
+      "full": "vox logout",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Account)"
+    },
+    {
+      "group": "lsp",
+      "command": "lsp",
+      "full": "vox lsp",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "CLI-only"
+    },
+    {
+      "group": "mcp",
+      "command": "mcp",
+      "full": "vox mcp",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Skills (MCP tab)"
+    },
+    {
+      "group": "memory",
+      "command": "memory search",
+      "full": "vox memory search",
+      "governance": "governed-wrapper",
+      "surface_home": "memory",
+      "recommended_home": "Knowledge > Memory"
+    },
+    {
+      "group": "mens",
+      "command": "mens",
+      "full": "vox mens",
+      "governance": "governed-exec",
+      "surface_home": "mens",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "migrate",
+      "command": "migrate names",
+      "full": "vox migrate names",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings"
+    },
+    {
+      "group": "migrate",
+      "command": "migrate web",
+      "full": "vox migrate web",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings"
+    },
+    {
+      "group": "model",
+      "command": "model cas ls",
+      "full": "vox model cas ls",
+      "governance": "governed-wrapper",
+      "surface_home": "models",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "model",
+      "command": "model cas pull",
+      "full": "vox model cas pull",
+      "governance": "governed-wrapper",
+      "surface_home": "models",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "model",
+      "command": "model cas push",
+      "full": "vox model cas push",
+      "governance": "governed-wrapper",
+      "surface_home": "models",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "model",
+      "command": "model classify",
+      "full": "vox model classify",
+      "governance": "governed-wrapper",
+      "surface_home": "models",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "model",
+      "command": "model costs",
+      "full": "vox model costs",
+      "governance": "governed-wrapper",
+      "surface_home": "models",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "model",
+      "command": "model council-report",
+      "full": "vox model council-report",
+      "governance": "governed-wrapper",
+      "surface_home": "models",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "model",
+      "command": "model discover",
+      "full": "vox model discover",
+      "governance": "governed-wrapper",
+      "surface_home": "models",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "model",
+      "command": "model eval",
+      "full": "vox model eval",
+      "governance": "governed-wrapper",
+      "surface_home": "models",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "model",
+      "command": "model explain",
+      "full": "vox model explain",
+      "governance": "governed-wrapper",
+      "surface_home": "models",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "model",
+      "command": "model list",
+      "full": "vox model list",
+      "governance": "governed-wrapper",
+      "surface_home": "models",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "model",
+      "command": "model preferences reset",
+      "full": "vox model preferences reset",
+      "governance": "governed-wrapper",
+      "surface_home": "models",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "model",
+      "command": "model preferences set",
+      "full": "vox model preferences set",
+      "governance": "governed-wrapper",
+      "surface_home": "models",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "model",
+      "command": "model pricing check",
+      "full": "vox model pricing check",
+      "governance": "governed-wrapper",
+      "surface_home": "models",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "model",
+      "command": "model pricing refresh",
+      "full": "vox model pricing refresh",
+      "governance": "governed-wrapper",
+      "surface_home": "models",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "model",
+      "command": "model pricing rollup",
+      "full": "vox model pricing rollup",
+      "governance": "governed-wrapper",
+      "surface_home": "models",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "model",
+      "command": "model pricing show",
+      "full": "vox model pricing show",
+      "governance": "governed-wrapper",
+      "surface_home": "models",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "model",
+      "command": "model rollup",
+      "full": "vox model rollup",
+      "governance": "governed-wrapper",
+      "surface_home": "models",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "model",
+      "command": "model scoreboard",
+      "full": "vox model scoreboard",
+      "governance": "governed-wrapper",
+      "surface_home": "models",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "model",
+      "command": "model shadow",
+      "full": "vox model shadow",
+      "governance": "governed-wrapper",
+      "surface_home": "models",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "model",
+      "command": "model show",
+      "full": "vox model show",
+      "governance": "governed-wrapper",
+      "surface_home": "models",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "new",
+      "command": "new fn",
+      "full": "vox new fn",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace"
+    },
+    {
+      "group": "new",
+      "command": "new skill",
+      "full": "vox new skill",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace"
+    },
+    {
+      "group": "new",
+      "command": "new web",
+      "full": "vox new web",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace"
+    },
+    {
+      "group": "plan",
+      "command": "plan create",
+      "full": "vox plan create",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Operate > Tasks (plan)"
+    },
+    {
+      "group": "plan",
+      "command": "plan replan",
+      "full": "vox plan replan",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Operate > Tasks (plan)"
+    },
+    {
+      "group": "plan",
+      "command": "plan status",
+      "full": "vox plan status",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Operate > Tasks (plan)"
+    },
+    {
+      "group": "play",
+      "command": "play",
+      "full": "vox play",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "CLI-only"
+    },
+    {
+      "group": "plugin",
+      "command": "plugin doctor",
+      "full": "vox plugin doctor",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Skills (Plugins tab)"
+    },
+    {
+      "group": "plugin",
+      "command": "plugin info",
+      "full": "vox plugin info",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Skills (Plugins tab)"
+    },
+    {
+      "group": "plugin",
+      "command": "plugin install",
+      "full": "vox plugin install",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Skills (Plugins tab)"
+    },
+    {
+      "group": "plugin",
+      "command": "plugin list",
+      "full": "vox plugin list",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Skills (Plugins tab)"
+    },
+    {
+      "group": "plugin",
+      "command": "plugin publish",
+      "full": "vox plugin publish",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Skills (Plugins tab)"
+    },
+    {
+      "group": "plugin",
+      "command": "plugin remove",
+      "full": "vox plugin remove",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Skills (Plugins tab)"
+    },
+    {
+      "group": "plugin",
+      "command": "plugin scaffold",
+      "full": "vox plugin scaffold",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Skills (Plugins tab)"
+    },
+    {
+      "group": "pm",
+      "command": "pm cache clear",
+      "full": "vox pm cache clear",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Operate > Project Mgmt NEW"
+    },
+    {
+      "group": "pm",
+      "command": "pm cache status",
+      "full": "vox pm cache status",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Operate > Project Mgmt NEW"
+    },
+    {
+      "group": "pm",
+      "command": "pm info",
+      "full": "vox pm info",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Operate > Project Mgmt NEW"
+    },
+    {
+      "group": "pm",
+      "command": "pm mirror",
+      "full": "vox pm mirror",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Operate > Project Mgmt NEW"
+    },
+    {
+      "group": "pm",
+      "command": "pm publish",
+      "full": "vox pm publish",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Operate > Project Mgmt NEW"
+    },
+    {
+      "group": "pm",
+      "command": "pm search",
+      "full": "vox pm search",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Operate > Project Mgmt NEW"
+    },
+    {
+      "group": "pm",
+      "command": "pm vendor",
+      "full": "vox pm vendor",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Operate > Project Mgmt NEW"
+    },
+    {
+      "group": "pm",
+      "command": "pm verify",
+      "full": "vox pm verify",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Operate > Project Mgmt NEW"
+    },
+    {
+      "group": "pm",
+      "command": "pm yank",
+      "full": "vox pm yank",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Operate > Project Mgmt NEW"
+    },
+    {
+      "group": "policy",
+      "command": "policy domains",
+      "full": "vox policy domains",
+      "governance": "governed-wrapper",
+      "surface_home": null,
+      "recommended_home": "Operate > Policies"
+    },
+    {
+      "group": "policy",
+      "command": "policy groups",
+      "full": "vox policy groups",
+      "governance": "governed-wrapper",
+      "surface_home": null,
+      "recommended_home": "Operate > Policies"
+    },
+    {
+      "group": "policy",
+      "command": "policy list",
+      "full": "vox policy list",
+      "governance": "governed-wrapper",
+      "surface_home": null,
+      "recommended_home": "Operate > Policies"
+    },
+    {
+      "group": "policy",
+      "command": "policy show",
+      "full": "vox policy show",
+      "governance": "governed-wrapper",
+      "surface_home": null,
+      "recommended_home": "Operate > Policies"
+    },
+    {
+      "group": "policy",
+      "command": "policy status",
+      "full": "vox policy status",
+      "governance": "governed-wrapper",
+      "surface_home": null,
+      "recommended_home": "Operate > Policies"
+    },
+    {
+      "group": "populi",
+      "command": "populi",
+      "full": "vox populi",
+      "governance": "governed-exec",
+      "surface_home": "populi",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "remove",
+      "command": "remove",
+      "full": "vox remove",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Repository (deps)"
+    },
+    {
+      "group": "repair",
+      "command": "repair",
+      "full": "vox repair",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Health)"
+    },
+    {
+      "group": "repl",
+      "command": "repl",
+      "full": "vox repl",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Console"
+    },
+    {
+      "group": "repo",
+      "command": "repo catalog list",
+      "full": "vox repo catalog list",
+      "governance": "governed-exec",
+      "surface_home": "repository",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "repo",
+      "command": "repo catalog refresh",
+      "full": "vox repo catalog refresh",
+      "governance": "governed-exec",
+      "surface_home": "repository",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "repo",
+      "command": "repo init",
+      "full": "vox repo init",
+      "governance": "governed-exec",
+      "surface_home": "repository",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "repo",
+      "command": "repo query file",
+      "full": "vox repo query file",
+      "governance": "governed-exec",
+      "surface_home": "repository",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "repo",
+      "command": "repo query history",
+      "full": "vox repo query history",
+      "governance": "governed-exec",
+      "surface_home": "repository",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "repo",
+      "command": "repo query text",
+      "full": "vox repo query text",
+      "governance": "governed-exec",
+      "surface_home": "repository",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "repo",
+      "command": "repo status",
+      "full": "vox repo status",
+      "governance": "governed-exec",
+      "surface_home": "repository",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "research",
+      "command": "research down",
+      "full": "vox research down",
+      "governance": "governed-wrapper",
+      "surface_home": "research",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "research",
+      "command": "research eval",
+      "full": "vox research eval",
+      "governance": "governed-wrapper",
+      "surface_home": "research",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "research",
+      "command": "research history",
+      "full": "vox research history",
+      "governance": "governed-wrapper",
+      "surface_home": "research",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "research",
+      "command": "research preview",
+      "full": "vox research preview",
+      "governance": "governed-wrapper",
+      "surface_home": "research",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "research",
+      "command": "research result",
+      "full": "vox research result",
+      "governance": "governed-wrapper",
+      "surface_home": "research",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "research",
+      "command": "research run",
+      "full": "vox research run",
+      "governance": "governed-wrapper",
+      "surface_home": "research",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "research",
+      "command": "research show",
+      "full": "vox research show",
+      "governance": "governed-wrapper",
+      "surface_home": "research",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "research",
+      "command": "research status",
+      "full": "vox research status",
+      "governance": "governed-wrapper",
+      "surface_home": "research",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "research",
+      "command": "research up",
+      "full": "vox research up",
+      "governance": "governed-wrapper",
+      "surface_home": "research",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "research",
+      "command": "research watch",
+      "full": "vox research watch",
+      "governance": "governed-wrapper",
+      "surface_home": "research",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "rollback",
+      "command": "rollback",
+      "full": "vox rollback",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings"
+    },
+    {
+      "group": "run",
+      "command": "run",
+      "full": "vox run",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Console"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia capability-list",
+      "full": "vox scientia capability-list",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia claims",
+      "full": "vox scientia claims",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia cost",
+      "full": "vox scientia cost",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia dashboard",
+      "full": "vox scientia dashboard",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia diagnose",
+      "full": "vox scientia diagnose",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia discovery-watch",
+      "full": "vox scientia discovery-watch",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia evidence-assist",
+      "full": "vox scientia evidence-assist",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia feed-source-add",
+      "full": "vox scientia feed-source-add",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia feed-source-list",
+      "full": "vox scientia feed-source-list",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia finding-candidate-validate",
+      "full": "vox scientia finding-candidate-validate",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia ingest-tick",
+      "full": "vox scientia ingest-tick",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia mirror-search-corpus",
+      "full": "vox scientia mirror-search-corpus",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia novelty-evidence-bundle-validate",
+      "full": "vox scientia novelty-evidence-bundle-validate",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-approve",
+      "full": "vox scientia publication-approve",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-archive-code",
+      "full": "vox scientia publication-archive-code",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-archive-run",
+      "full": "vox scientia publication-archive-run",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-arxiv-bundle",
+      "full": "vox scientia publication-arxiv-bundle",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-arxiv-handoff-record",
+      "full": "vox scientia publication-arxiv-handoff-record",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-autofill",
+      "full": "vox scientia publication-autofill",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-claim-review",
+      "full": "vox scientia publication-claim-review",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-critic-approve",
+      "full": "vox scientia publication-critic-approve",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-critic-gate-check",
+      "full": "vox scientia publication-critic-gate-check",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-dashboard-snapshot",
+      "full": "vox scientia publication-dashboard-snapshot",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-decision-explain",
+      "full": "vox scientia publication-decision-explain",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-discovery-explain",
+      "full": "vox scientia publication-discovery-explain",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-discovery-publish-rss",
+      "full": "vox scientia publication-discovery-publish-rss",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-discovery-scan",
+      "full": "vox scientia publication-discovery-scan",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-external-jobs-dead-letter",
+      "full": "vox scientia publication-external-jobs-dead-letter",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-external-jobs-due",
+      "full": "vox scientia publication-external-jobs-due",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-external-jobs-replay",
+      "full": "vox scientia publication-external-jobs-replay",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-external-jobs-tick",
+      "full": "vox scientia publication-external-jobs-tick",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-external-pipeline-metrics",
+      "full": "vox scientia publication-external-pipeline-metrics",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-extract-claims",
+      "full": "vox scientia publication-extract-claims",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-finding-page-render",
+      "full": "vox scientia publication-finding-page-render",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-manuscript-draft",
+      "full": "vox scientia publication-manuscript-draft",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-nanopub-build",
+      "full": "vox scientia publication-nanopub-build",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-novelty-fetch",
+      "full": "vox scientia publication-novelty-fetch",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-novelty-happy-path",
+      "full": "vox scientia publication-novelty-happy-path",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-openreview-profile",
+      "full": "vox scientia publication-openreview-profile",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-preflight",
+      "full": "vox scientia publication-preflight",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-prepare",
+      "full": "vox scientia publication-prepare",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-prepare-validated",
+      "full": "vox scientia publication-prepare-validated",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-render-latex",
+      "full": "vox scientia publication-render-latex",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-replay-execute",
+      "full": "vox scientia publication-replay-execute",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-review-queue",
+      "full": "vox scientia publication-review-queue",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-scholarly-pipeline-run",
+      "full": "vox scientia publication-scholarly-pipeline-run",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-scholarly-remote-status",
+      "full": "vox scientia publication-scholarly-remote-status",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-scholarly-remote-status-sync-all",
+      "full": "vox scientia publication-scholarly-remote-status-sync-all",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-scholarly-remote-status-sync-batch",
+      "full": "vox scientia publication-scholarly-remote-status-sync-batch",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-scholarly-staging-export",
+      "full": "vox scientia publication-scholarly-staging-export",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-status",
+      "full": "vox scientia publication-status",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-submit-local",
+      "full": "vox scientia publication-submit-local",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-transform-preview",
+      "full": "vox scientia publication-transform-preview",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-venue-recommend",
+      "full": "vox scientia publication-venue-recommend",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-worthiness-evaluate",
+      "full": "vox scientia publication-worthiness-evaluate",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia publication-zenodo-metadata",
+      "full": "vox scientia publication-zenodo-metadata",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia research-list",
+      "full": "vox scientia research-list",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia research-map-list",
+      "full": "vox scientia research-map-list",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia research-refresh",
+      "full": "vox scientia research-refresh",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia retrieval-status",
+      "full": "vox scientia retrieval-status",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "scientia",
+      "command": "scientia scout",
+      "full": "vox scientia scout",
+      "governance": "governed-wrapper",
+      "surface_home": "scientia",
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "script",
+      "command": "script",
+      "full": "vox script",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "(unmapped)"
+    },
+    {
+      "group": "secrets",
+      "command": "secrets backend-status",
+      "full": "vox secrets backend-status",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Secrets) NEW"
+    },
+    {
+      "group": "secrets",
+      "command": "secrets get",
+      "full": "vox secrets get",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Secrets) NEW"
+    },
+    {
+      "group": "secrets",
+      "command": "secrets import-env",
+      "full": "vox secrets import-env",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Secrets) NEW"
+    },
+    {
+      "group": "secrets",
+      "command": "secrets login",
+      "full": "vox secrets login",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Secrets) NEW"
+    },
+    {
+      "group": "secrets",
+      "command": "secrets migrate-auth-store",
+      "full": "vox secrets migrate-auth-store",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Secrets) NEW"
+    },
+    {
+      "group": "secrets",
+      "command": "secrets set",
+      "full": "vox secrets set",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Secrets) NEW"
+    },
+    {
+      "group": "secrets",
+      "command": "secrets status",
+      "full": "vox secrets status",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Secrets) NEW"
+    },
+    {
+      "group": "secrets",
+      "command": "secrets sync",
+      "full": "vox secrets sync",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Secrets) NEW"
+    },
+    {
+      "group": "share",
+      "command": "share",
+      "full": "vox share",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace"
+    },
+    {
+      "group": "shell",
+      "command": "shell check",
+      "full": "vox shell check",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Console"
+    },
+    {
+      "group": "shell",
+      "command": "shell repl",
+      "full": "vox shell repl",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Console"
+    },
+    {
+      "group": "snapshot",
+      "command": "snapshot orphans",
+      "full": "vox snapshot orphans",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings"
+    },
+    {
+      "group": "snippet",
+      "command": "snippet export",
+      "full": "vox snippet export",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace"
+    },
+    {
+      "group": "snippet",
+      "command": "snippet save",
+      "full": "vox snippet save",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace"
+    },
+    {
+      "group": "snippet",
+      "command": "snippet search",
+      "full": "vox snippet search",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace"
+    },
+    {
+      "group": "speech",
+      "command": "speech",
+      "full": "vox speech",
+      "governance": "governed-exec",
+      "surface_home": "oratio",
+      "recommended_home": "Compute > Oratio"
+    },
+    {
+      "group": "stop",
+      "command": "stop",
+      "full": "vox stop",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Operate > Agents"
+    },
+    {
+      "group": "sync",
+      "command": "sync",
+      "full": "vox sync",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Repository (deps)"
+    },
+    {
+      "group": "telemetry",
+      "command": "telemetry consent deny",
+      "full": "vox telemetry consent deny",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Telemetry) NEW"
+    },
+    {
+      "group": "telemetry",
+      "command": "telemetry consent grant",
+      "full": "vox telemetry consent grant",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Telemetry) NEW"
+    },
+    {
+      "group": "telemetry",
+      "command": "telemetry consent status",
+      "full": "vox telemetry consent status",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Telemetry) NEW"
+    },
+    {
+      "group": "telemetry",
+      "command": "telemetry doctor",
+      "full": "vox telemetry doctor",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Telemetry) NEW"
+    },
+    {
+      "group": "telemetry",
+      "command": "telemetry enqueue",
+      "full": "vox telemetry enqueue",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Telemetry) NEW"
+    },
+    {
+      "group": "telemetry",
+      "command": "telemetry export",
+      "full": "vox telemetry export",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Telemetry) NEW"
+    },
+    {
+      "group": "telemetry",
+      "command": "telemetry status",
+      "full": "vox telemetry status",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Telemetry) NEW"
+    },
+    {
+      "group": "telemetry",
+      "command": "telemetry upload",
+      "full": "vox telemetry upload",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings (Telemetry) NEW"
+    },
+    {
+      "group": "term",
+      "command": "term",
+      "full": "vox term",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Console"
+    },
+    {
+      "group": "test",
+      "command": "test",
+      "full": "vox test",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Develop > Workspace"
+    },
+    {
+      "group": "train",
+      "command": "train",
+      "full": "vox train",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Compute > Mens"
+    },
+    {
+      "group": "update",
+      "command": "update",
+      "full": "vox update",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings"
+    },
+    {
+      "group": "upgrade",
+      "command": "upgrade",
+      "full": "vox upgrade",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "System > Settings"
+    },
+    {
+      "group": "wasm",
+      "command": "wasm",
+      "full": "vox wasm",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "CLI-only"
+    },
+    {
+      "group": "workflow",
+      "command": "workflow drain",
+      "full": "vox workflow drain",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Operate > Tasks (workflow)"
+    },
+    {
+      "group": "workflow",
+      "command": "workflow ls",
+      "full": "vox workflow ls",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Operate > Tasks (workflow)"
+    },
+    {
+      "group": "workflow",
+      "command": "workflow preview",
+      "full": "vox workflow preview",
+      "governance": "ungoverned",
+      "surface_home": null,
+      "recommended_home": "Operate > Tasks (workflow)"
+    }
+  ]
+}
