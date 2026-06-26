@@ -53,7 +53,7 @@ ends in its own commit.
 | Plan (path) | One-line purpose |
 |---|---|
 | `docs/superpowers/plans/2026-06-26-gui-reorg-execution-plan3a.md` | **3A** — ratified GUI moves/merges/renames/cuts + nav skeleton. First of the reorg trilogy; gates 3C/3D/3F. |
-| `docs/superpowers/plans/2026-06-26-voxmens-gui-full-plan3b.md` | **3B (FULL, no-deferral)** — complete `mens` ("Model Lab") + `populi` ("Mesh") GUI: launch + monitor + cost UI, admin ops confirm-gated. (Lighter alternative: `…-voxmens-gui-v1-plan3b.md` = monitor + light actions, zero new Rust.) |
+| `docs/superpowers/plans/2026-06-26-voxmens-gui-full-plan3b.md` | **3B (FULL, no-deferral — the ratified plan)** — complete `mens` ("Model Lab") + `populi` ("Mesh") GUI: launch + monitor + streaming Tauri wrappers + opencode-style no-nag cost UI + gamification, admin ops confirm-gated, keys central in Settings/Secrets. (The earlier monitor-only `voxmens-gui-v1` plan is **retired/superseded** by this one.) |
 | `docs/superpowers/plans/2026-06-26-settings-consolidation-plan3c.md` | **3C** — Settings consolidation + Settings/Policies co-location (TDD). Depends on 3A. |
 | `docs/superpowers/plans/2026-06-26-gui-caveat-completions-plan3d.md` | **3D** — GUI honesty-audit caveat completions over surviving surfaces. Depends on 3A. |
 | `docs/superpowers/plans/2026-06-26-frontend-emit-validation-gate-plan3e.md` | **3E** — runtime `strict_view_validation` gate making "bad UI doesn't compile" true at `vox build --target client`. Independent; cross-refs vs2 (structural-detection complement of the same bug class). |
