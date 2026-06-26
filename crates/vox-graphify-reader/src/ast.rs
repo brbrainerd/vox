@@ -112,6 +112,21 @@ pub fn extract_ast_in_module(path: &Path, content: &str, module_id: &str) -> Ext
                     "py" => Some(tree_sitter_python::LANGUAGE),
                     _ => None,
                 };
+                // tree-sitter-typescript 0.23.2 node-kind names (discovered via A0d
+                // print-test against LANGUAGE_TSX; use these verbatim in B1/D1):
+                //   JSX self-closing element : "jsx_self_closing_element"
+                //     - component name        : child_by_field_name("name") -> "identifier"
+                //       (Capitalized => component; lowercase => DOM tag)
+                //     - opening element       : "jsx_opening_element"
+                //   import statement          : "import_statement"
+                //     - named import ident    : "import_clause" > "named_imports" >
+                //                               "import_specifier"; the bound name is the
+                //                               specifier's child_by_field_name("name") -> "identifier"
+                //   call_expression           : "call_expression"
+                //     - args field            : "arguments" (positional children, named)
+                //     - string literal kind   : "string" (text via "string_fragment" child)
+                //     - object literal kind    : "object"
+                //     - object entry kind      : "pair" (key "property_identifier", value e.g. "string")
                 if let Some(lang) = language {
                     let mut parser = tree_sitter::Parser::new();
                     if parser.set_language(&lang.into()).is_ok() {
