@@ -68,6 +68,126 @@ pub fn mcp_tool_nodes(src: &str) -> Vec<RegistryNode> {
     out
 }
 
+/// Parse `transport.ts` wrapper methods of the form `name(...){ ... invoke('CMD'... }`.
+/// Maps each wrapper method name to its underlying command/tool target:
+/// - `invoke('CMD'...)` → `name -> cmd:CMD`
+/// - `invoke('invoke_mcp_tool', { tool: 'T'...)` → `name -> tool:T`
+///
+/// The wrappers in `transport.ts` are one-liners, so a region scan from each
+/// method header to its `invoke(...)` call is sufficient.
+pub fn transport_wrapper_map(ts_src: &str) -> std::collections::HashMap<String, String> {
+    let mut out = std::collections::HashMap::new();
+    // The current open wrapper method name (set by a header line, cleared once an
+    // invoke is matched or another header is seen). Wrappers are short, so the
+    // first `invoke(...)` after a header is taken as that wrapper's target.
+    let mut current: Option<String> = None;
+    for line in ts_src.lines() {
+        // A header line opens (or replaces) the current wrapper context.
+        if let Some((name, after_open)) = method_header(line) {
+            current = Some(name.to_string());
+            // a single-line wrapper may also carry the invoke on the same line
+            if try_map_invoke(&mut out, &name.to_string(), after_open) {
+                current = None;
+            }
+            continue;
+        }
+        if let Some(name) = current.clone() {
+            if try_map_invoke(&mut out, &name, line) {
+                current = None;
+            }
+        }
+    }
+    out
+}
+
+/// If `region` contains an `invoke(...)`/`invoke<…>(...)` call, record the mapping
+/// for `name` and return true. Handles command and `invoke_mcp_tool` tool forms.
+fn try_map_invoke(
+    out: &mut std::collections::HashMap<String, String>,
+    name: &str,
+    region: &str,
+) -> bool {
+    // locate `invoke` followed (possibly after a `<...>` generic) by `(`
+    let Some(pos) = region.find("invoke") else {
+        return false;
+    };
+    let after = region[pos + "invoke".len()..].trim_start();
+    // skip an optional generic `<...>`
+    let after = if let Some(stripped) = after.strip_prefix('<') {
+        match stripped.find('>') {
+            Some(gt) => stripped[gt + 1..].trim_start(),
+            None => return false,
+        }
+    } else {
+        after
+    };
+    let Some(rest) = after.strip_prefix('(') else {
+        return false;
+    };
+    let Some(first) = first_quoted(rest) else {
+        return false;
+    };
+    if first == "invoke_mcp_tool" {
+        if let Some(tpos) = rest.find("tool:") {
+            let after_tool = &rest[tpos + "tool:".len()..];
+            if let Some(tool) = first_quoted(after_tool) {
+                out.insert(name.to_string(), format!("tool:{tool}"));
+                return true;
+            }
+        }
+        false
+    } else {
+        out.insert(name.to_string(), format!("cmd:{first}"));
+        true
+    }
+}
+
+/// If `line` begins (after whitespace and optional `async`) with `ident(`,
+/// return `(ident, slice_after_the_open_paren)`.
+fn method_header(line: &str) -> Option<(&str, &str)> {
+    let mut s = line.trim_start();
+    if let Some(stripped) = s.strip_prefix("async ") {
+        s = stripped.trim_start();
+    }
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        let c = bytes[i];
+        let ident_char = c.is_ascii_alphanumeric() || c == b'_' || c == b'$';
+        if ident_char {
+            i += 1;
+        } else {
+            break;
+        }
+    }
+    if i == 0 || i >= bytes.len() || bytes[i] != b'(' {
+        return None;
+    }
+    // first char must not be a digit
+    if bytes[0].is_ascii_digit() {
+        return None;
+    }
+    let name = &s[..i];
+    // exclude JS keywords that are also followed by `(` (control flow / calls)
+    if matches!(
+        name,
+        "if" | "for" | "while" | "switch" | "catch" | "return" | "await" | "function" | "invoke"
+    ) {
+        return None;
+    }
+    Some((name, &s[i + 1..]))
+}
+
+/// Return the contents of the first single- or double-quoted literal in `s`.
+fn first_quoted(s: &str) -> Option<&str> {
+    let bytes = s.as_bytes();
+    let q = bytes.iter().position(|&c| c == b'\'' || c == b'"')?;
+    let quote = bytes[q];
+    let after = &s[q + 1..];
+    let end = after.find(quote as char)?;
+    Some(&after[..end])
+}
+
 /// Parse the generated surface registry: match `viewKey:` (NOT `id:`), skip when
 /// the value starts with `null`, else take the quoted id → `surface:` node.
 pub fn surface_nodes(src: &str) -> Vec<RegistryNode> {

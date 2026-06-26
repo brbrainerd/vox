@@ -38,6 +38,45 @@ fn extracts_tools_and_surfaces_viewkey() {
 }
 
 #[test]
+fn maps_wrapper_methods_to_commands() {
+    use vox_graphify_reader::registry::transport_wrapper_map;
+    let ts = "doubtTask(taskId: number){ return invoke('doubt_orchestrator_task', { taskId }); }\n  getCatalog(){ return invoke('get_command_catalog'); }";
+    let m = transport_wrapper_map(ts);
+    assert_eq!(
+        m.get("doubtTask").map(String::as_str),
+        Some("cmd:doubt_orchestrator_task")
+    );
+    assert_eq!(
+        m.get("getCatalog").map(String::as_str),
+        Some("cmd:get_command_catalog")
+    );
+}
+
+#[test]
+fn maps_wrapper_methods_to_tools() {
+    use vox_graphify_reader::registry::transport_wrapper_map;
+    let ts = "feedbackList(){ return invoke('invoke_mcp_tool', { tool: 'vox_feedback_list', args: {} }); }";
+    let m = transport_wrapper_map(ts);
+    assert_eq!(
+        m.get("feedbackList").map(String::as_str),
+        Some("tool:vox_feedback_list")
+    );
+}
+
+#[test]
+fn real_transport_yields_sane_wrapper_map() {
+    use std::path::PathBuf;
+    use vox_graphify_reader::registry::transport_wrapper_map;
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..");
+    let ts_src =
+        std::fs::read_to_string(root.join("crates/vox-gui/ui/src/transport.ts")).expect("read transport.ts");
+    let m = transport_wrapper_map(&ts_src);
+    assert!(m.len() >= 20, "under-extracted wrappers: {}", m.len());
+}
+
+#[test]
 fn real_files_yield_sane_counts() {
     use std::path::PathBuf;
     use vox_graphify_reader::registry::{mcp_tool_nodes, surface_nodes};
