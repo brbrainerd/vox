@@ -33,6 +33,7 @@ ends in its own commit.
 | `docs/superpowers/specs/2026-06-26-graphify-agent-tool-surface-design.md` | Auto-availability + agent steering (graph-first over grep) + GUI consumption of the one MCP tool layer; layer-tool registry pattern. |
 | `docs/superpowers/specs/2026-06-26-settings-consolidation-policies-unification-design.md` | Settings consolidation + Settings/Policies co-location (drives GUI Plan 3C). |
 | `docs/superpowers/specs/2026-06-26-voxmens-gui-cli-parity-design.md` | VoxMens / Populi GUI ↔ CLI parity surface (drives GUI Plan 3B). |
+| `docs/superpowers/specs/2026-06-27-vox-graph-omnibar-dashboard-design.md` | **Vox Graph + Omnibar + Task-Monitor Dashboard** — amendment to the master spec. Finishes the *graphify → Vox Graph* naming (crate `vox-graphify-reader → vox-graph-reader`, `.vox/cache/graphify → vox-graph`, a pinned `vox-graph` skill); defines the hybrid content index (`gui-content-manifest.json` build artifact + `useSearchable()` runtime registry); the global top-bar Omnibar (5 provenance facets, `vox_discover` GRAPH facet); and the registry-driven Task-Monitor Dashboard (config in Settings/3C). Drives the VG-1→VG-3 plans below. |
 
 ---
 
@@ -64,6 +65,31 @@ ends in its own commit.
 | `docs/superpowers/plans/2026-06-26-gui-caveat-completions-plan3d.md` | **3D** — GUI honesty-audit caveat completions over surviving surfaces. Depends on 3A. |
 | `docs/superpowers/plans/2026-06-26-frontend-emit-validation-gate-plan3e.md` | **3E** — runtime `strict_view_validation` gate making "bad UI doesn't compile" true at `vox build --target client`. Independent; cross-refs vs2 (structural-detection complement of the same bug class). |
 | `docs/superpowers/plans/2026-06-26-gui-cli-governance-surfaces-plan3f.md` | **3F = P6** — GUI CLI-governance surfaces (Develop>CI, Knowledge>Database, build-spine, typed secret/auth wrappers, honest "not-in-GUI"). Depends on 3A. |
+
+### 2.3 Vox Graph GUI extensions (VG-1 → VG-3)
+
+Amendments to the program from spec `2026-06-27-vox-graph-omnibar-dashboard-design.md`. All three land **on top of vs1's `graphify → search` rename** and **coordinate with the 3A/3F→3C registry chain** (no concurrent `surfaceRegistry.generated.ts` regen — see §3.2 / §3.4).
+
+| Plan (path) | One-line purpose |
+|---|---|
+| _(plan file NOT YET AUTHORED)_ | **VG-1 — Vox Graph rename + skill + content-manifest emission.** **Extends vs1's rename** (crate `vox-graphify-reader → vox-graph-reader`, `.vox/cache/graphify → vox-graph` with one-release back-compat read, `graphify-corpora.v1.yaml → vox-graph-corpora.v1.yaml`, `vox graphify → vox search graph`); ships a pinned `vox-graph` skill (graph-first discovery); emits the build-time `gui-content-manifest.json` + a Tauri reader (`voxContentManifest`, modeled on `vox_docs_index`). **The manifest is the new capability VG-2 consumes.** ⚠ **No plan file on disk yet** — only the spec describes it; author before dispatch. |
+| `docs/superpowers/plans/2026-06-27-omnibar-plan-vg2.md` | **VG-2 — Top-bar Omnibar.** Global faceted palette (SURFACES/COMMANDS/ON-SCREEN/GRAPH/DOCS), provenance-labeled, facets fail independently; merges `useSearchController` (`vox_search_query`) + VG-1's `gui-content-manifest.json` (via `useContentManifest`, defaults `[]` pre-VG-1) + the new no-op `useSearchable()` runtime registry + `vox_discover` (GRAPH). Consolidates the orphaned Search surface + `CommandPalette`. Registry touch is one `notes:`/redirect row authored in `surface-registry.v1.yaml` then regenerated — **never hand-edits the generated TS**. |
+| `docs/superpowers/plans/2026-06-27-task-monitor-dashboard-plan-vg3.md` | **VG-3 — Task-Monitor Dashboard.** Registry-driven composable widget grid: purpose-built compact widgets for the five high-value monitorables (agents/cost/mesh/approvals/coverage) **else** an auto-fallback mini-render of any `SURFACE_REGISTRY` surface; adds `pending_approvals` to the minimized HUD strip (**config in Settings via 3C — no bespoke settings island**); error boundary → compact error tile; sections derived from registry `navGroup`. **Reads `SURFACE_REGISTRY` only — never writes the generated TS.** |
+
+**DAG:** **VG-1 → VG-2** (the Omnibar needs the manifest; VG-2 is independently testable/landable before VG-1 via the `[]`-default `useContentManifest` hook, with the live ON-SCREEN facet lighting up once VG-1 ships). **VG-3 is independent of VG-2** — it shares **only** the surface registry and depends on neither VG-1's manifest nor VG-2's Omnibar.
+
+```
+vs1 (graphify→search rename) ──┐
+                               ▼
+                         VG-1 (Vox Graph rename + skill + manifest)
+                               │  (gui-content-manifest.json)
+                               ▼
+                         VG-2 (Omnibar) ── consumes manifest
+
+VG-3 (Task-Monitor Dashboard) ── independent; shares only SURFACE_REGISTRY
+```
+
+**Registry-chain coordination:** VG-1 **extends vs1's rename** (does not redo it). VG-2's single registry change and any VG-x registry touch must **serialize with the 3A → 3F → 3C chain** — `surfaceRegistry.generated.ts` is re-sorted on every `--write` (not append-only, see §3.2), so two concurrent regens collide. Edit the `surface-registry.v1.yaml` SSOT and regenerate; **never run a VG registry regen concurrently with 3F's or 3C's** (rebase the YAML edit and re-run the generator instead).
 
 ---
 
