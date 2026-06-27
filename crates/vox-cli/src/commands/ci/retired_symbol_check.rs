@@ -339,6 +339,12 @@ pub fn run(root: &Path) -> Result<()> {
                 if filename.starts_with("2026-05-08-crate-org-followup") {
                     continue;
                 }
+                // GUI honesty-audit artifacts name retired symbols as *evidence of
+                // what the audit found* in a surface, not as user-facing guidance —
+                // the audits/findings carve-out applies (same as is_historical_or_audit_doc).
+                if rel_display.starts_with("docs/agents/gui-honesty-") {
+                    continue;
+                }
                 if let Ok(body) = fs::read_to_string(&path) {
                     let is_md = path.extension().and_then(|e| e.to_str()) == Some("md");
                     failures.extend(scan_source_lines(
