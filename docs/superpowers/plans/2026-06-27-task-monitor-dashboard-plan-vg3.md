@@ -85,16 +85,16 @@ cd /c/Users/Owner/vox-graphify-gui/crates/vox-gui/ui && pnpm vitest run <file> &
 ## Workflow-readiness: dependency DAG + fan-out batches
 
 ```
-Phase A (foundation)   T1 ──► T2 ──► T3 ──► T4        [SEQUENTIAL within A]
-                              (kinds) (purpose) (mini) (wire)
-Phase B (sections+pick) T5 ─► T6                       [needs T4]
-Phase C (strip)         T7 ─► T8                       [PARALLEL with A/B — different files]
-Phase D (close)         T9                             [needs all]
+Phase A (foundation)   T1 ──► T2 ──► T3 ──► T4 ──► T5  [SEQUENTIAL within A]
+                       (kind) (mini) (errb) (reg)  (wire)
+Phase B (sections+pick) T6 ─► T7                        [needs T5]
+Phase C (strip)         T8                              [PARALLEL with A/B — different files]
+Phase D (close)         T9                              [needs all]
 ```
 
 **Explicit parallel fan-out batches a workflow can dispatch concurrently:**
-- **Batch β (independent files):** Phase **C** (HUD strip: `useHudTiles.ts` / `hud-tiles.v1.yaml` / `TopHud.tsx` / `App.tsx`) shares **no files** with Phase A/B (the dashboard registry + grid). Dispatch **T7** in parallel with **T1**. They only re-converge at T9 (final regression).
-- Everything else is sequential per the DAG (T2 needs T1's `surface_widget` kind; T3 builds the fallback T4 wires; T5/T6 need the routed grid from T4).
+- **Batch β (independent files):** Phase **C** (HUD strip: `useHudTiles.ts` / `hud-tiles.v1.yaml` / `TopHud.tsx` / `App.tsx`) shares **no files** with Phase A/B (the dashboard registry + grid). Dispatch **T8** in parallel with **T1**. They only re-converge at T9 (final regression).
+- Everything else is sequential per the DAG (T2 needs T1's `surface_widget` kind; T3 builds the fallback T4 wires; T5/T6 need the routed grid from T5).
 
 Each task below is independently committable by a sub-agent. Tags: **[SEQUENTIAL]** = must follow its predecessor in-phase; **[PARALLEL-SAFE]** = no in-flight conflict with its batch siblings.
 
