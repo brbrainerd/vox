@@ -41,6 +41,7 @@ export const DEFAULT_CHILD_BY_PARENT: Record<string, string> = {
   search: 'memory',
   knowledge: 'scientia',
   compute: 'models',
+  mercatus: 'mercatus',
   settings: 'settings',
 };
 
@@ -53,6 +54,7 @@ export const TOP_LEVEL_VIEWS = [
   'search',
   'knowledge',
   'compute',
+  'mercatus',
   'settings',
 ] as const;
 
@@ -68,6 +70,7 @@ export const NAV_LABELS: Record<string, string> = {
   search: 'Search',
   knowledge: 'Knowledge',
   compute: 'Compute',
+  mercatus: 'Mercatus',
   settings: 'Settings',
   dashboard: 'Dashboard',
   flow: 'Flow',

@@ -53,6 +53,7 @@ const TOP_NAV_META: Record<string, { label: string; icon: string }> = {
   search: { label: 'Search', icon: 'search' },
   knowledge: { label: 'Knowledge', icon: 'book' },
   compute: { label: 'Compute', icon: 'cpu' },
+  mercatus: { label: 'Mercatus', icon: 'scale' },
   settings: { label: 'Settings', icon: 'settings' },
 };
 
