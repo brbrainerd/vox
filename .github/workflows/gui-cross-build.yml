@@ -74,9 +74,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-gui-
 
-      - name: Install WebKitGTK (Ubuntu)
+      - name: Install WebKitGTK + ALSA (Ubuntu)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev
+        # libasound2-dev: vox-gui's cpal mic-capture (desktop speech-to-text) pulls
+        # alsa-sys, whose build script needs the ALSA dev headers.
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev libasound2-dev
 
       - uses: pnpm/action-setup@v6
         with:
