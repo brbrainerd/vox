@@ -11,7 +11,7 @@ status: plan
 
 **Goal:** Turn the existing single-purpose Dashboard surface into a **registry-driven, composable Task-Monitor**: a widget grid where each slot renders **either** a purpose-built compact widget (for the five high-value monitorables) **or** a live mini-render of the real surface component in a new `compact` mode — with a brand-new GUI surface **auto-appearing** as a mini-render fallback off `SURFACE_REGISTRY` (no dashboard edit). Add `pending_approvals` to the always-available **minimized strip** (the existing top-HUD tiles, config in Settings per Plan 3C), wrap every widget in an **error boundary** → compact error tile, and **section** the gallery (Operations / Cost / Knowledge / Surfaces) derived from the surface registry's `navGroup`. No `vox ci gui-honesty` regression.
 
-**Architecture:** Pure GUI-frontend, additive over already-shipped infra. The existing `DashboardGrid` (`lib/dashboardLayout.ts` + `components/dashboard/DashboardGrid.tsx`), `WidgetPickerDrawer`, and the dockview-based `DockShell` tiling are **reused** — VG-3 does not re-implement tiling. The load-bearing new piece is a **widget registry** (`dashboardWidgetRegistry.ts`) that maps a slot's `surfaceKey` to one of two render paths:
+**Architecture:** Pure GUI-frontend, additive over already-shipped infra. VG-3 **reuses the existing widget grid** — `DashboardGrid` (`components/dashboard/DashboardGrid.tsx`, an `@dnd-kit` drag-and-drop grid) plus its layout SSOT (`lib/dashboardLayout.ts`) and `WidgetPickerDrawer` — and does **not** re-implement tiling. (Note: the dockview-based `DockShell` (`AppShell.tsx:135`) is a **different, unrelated** system — it tiles the *main surface shell*, not dashboard widgets. VG-3 touches `DashboardGrid` only; it never uses `DockShell`.) The load-bearing new piece is a **widget registry** (`dashboardWidgetRegistry.ts`) that maps a slot's `surfaceKey` to one of two render paths:
 
 1. **Purpose-built** — a registered compact widget component, for exactly: agent runs/streams · cost/spend (reuses `useLlmSpend` → `get_llm_spend`) · mesh · approvals/doubt feedback · coverage/build-spine.
 2. **Mini-render fallback** — for every other `SURFACE_REGISTRY` row, render the real surface component via the existing `childRenderer(props, viewKey)` (the single home that maps `viewKey → surface component` in `surfaceComponents.tsx`) inside a `compact`-scaled, scroll-clipped, **non-interactive** wrapper. Because the catalog is **derived from `SURFACE_REGISTRY`** at render time (not a hard-coded `switch`), a new surface row auto-appears with zero dashboard edits.
@@ -20,11 +20,12 @@ The new dashboard kind family (`surface_widget`) carries a `surfaceKey` in `conf
 
 **Tech Stack:** TypeScript/React 18, vitest + @testing-library/react (the GUI test stack already in `crates/vox-gui/ui`); `@dnd-kit/*` (already a dep, used by `DashboardGrid`); `dockview` (already a dep, `DockShell`). Strip/HUD config rides the existing `contracts/gui/hud-tiles.v1.yaml` SSOT; widget kinds ride `contracts/gui/dashboard-layout.v1.yaml`. No new npm deps. GUI package manager is **pnpm** (never `npm`). Surface-registry edits (none required for VG-3, but if a kind is added it is via `contracts/gui/*.v1.yaml` → regenerate, never hand-edit generated TS).
 
-**Spec:** Source design — `docs/superpowers/specs/2026-06-27-vox-graph-omnibar-dashboard-design.md` §4 (the dashboard), §5 (architecture/isolation), §6 (error handling/honesty), §7 (testing — the four dashboard cases). Read §4–§7 first. VG-3 is **independent of VG-2** (the Omnibar) and shares only `SURFACE_REGISTRY`; it does **not** depend on VG-1's content manifest.
+**Spec:** Source design — `docs/superpowers/specs/2026-06-27-vox-graph-omnibar-dashboard-design.md` §4 (the dashboard), §5 (architecture/isolation), §6 (error handling/honesty), §7 (testing — the four dashboard cases). Read §4–§7 first. VG-3 is **functionally independent of VG-2** (the Omnibar) — no shared data flow — but it is **not** file-isolated: it edits `surfaceComponents.tsx` (a one-word `export function childRenderer` + a `pushToast` forward in the `dashboard` arm). That file is **shared-file contention** with VG-1 G10 (case-arm edit) and Plan 3A/3D (reorg/caveats markup). See "Shared-file contention" below. VG-3 does **not** depend on VG-1's content manifest.
 
 **Dependencies (cross-plan):**
 - **Requires nothing from VG-1/VG-2.** It reads `SURFACE_REGISTRY` (already generated, on this branch) and `useLlmSpend` (already shipped). The only soft coupling to Plan 3C is the **strip config home**: the HUD-tile editor already lives in Settings (`HudTilesEditor` is threaded into `SettingsView` via `hudTilesConfig`/`onHudTilesChange`), so "config in Settings" is **already satisfied**; VG-3 keeps it there and adds one tile kind. If Plan 3C's Settings re-grouping has not landed, the editor still renders under the current Settings `display`/`theme` section — VG-3 does not move it.
 - **Blocks nothing.** A later plan may register more purpose-built widgets by adding entries to `dashboardWidgetRegistry.ts`; the fallback covers them until then.
+- **Shared-file contention (cross-plan):** VG-3 Task 5 edits **`crates/vox-gui/ui/src/components/layout/surfaceComponents.tsx`** (export `childRenderer` + forward `pushToast` in the `dashboard` arm). The **same file** is touched by **VG-1 G10** (adds a `case` arm + import) and Plans **3A** (reorg) / **3D** (caveats markup). This is a serialization point — the program INDEX §2.3 must list `surfaceComponents.tsx` as a shared-file contention surface (VG-3 ↔ VG-1 G10 ↔ 3A/3D), and the one-word export edit should be serialized (land VG-3 T5's export, then VG-1 G10 consumes the exported symbol, rather than both re-exporting). VG-3's earlier "shares only `SURFACE_REGISTRY`" framing was overstated and is corrected here.
 
 **Base branch note:** Authored/executed on `claude/graphify-general-gui-ia` at `/c/Users/Owner/vox-graphify-gui`. **Confirm the branch before the first commit:** `git -C /c/Users/Owner/vox-graphify-gui rev-parse --abbrev-ref HEAD` must print `claude/graphify-general-gui-ia`. All UI work and the verify loop run from `crates/vox-gui/ui`:
 
@@ -40,10 +41,12 @@ cd /c/Users/Owner/vox-graphify-gui/crates/vox-gui/ui && pnpm vitest run <file> &
 - **`crates/vox-gui/ui/src/components/dashboard/DashboardGrid.tsx`** — `DashboardGrid({ layout, customizeMode, onLayoutChange, renderWidget })` (`:209`); `renderWidget(widget) => React.ReactNode` is the injection point (`:25`, `:237`); `persistDashboardLayout`/`loadDashboardLayout` (`:186`, `:197`). VG-3 reuses this verbatim; the only change is what `renderWidget` returns (Task 4 routes through the registry).
 - **`crates/vox-gui/ui/src/components/dashboard/WidgetPickerDrawer.tsx`** — `WidgetPickerDrawer({ layout, open, onClose, onAdd })` (`:12`) lists `availableWidgetKinds(layout)`. VG-3 extends the picker to also list surface widgets grouped by section (Task 6).
 - **`crates/vox-gui/ui/src/components/surfaces/Dashboard/Dashboard.tsx`** — the surface; `renderWidget(widget)` is a hard-coded `switch (widget.kind)` (`:147`–`:275`) with a `default: return null` (`:273`); it already wires `DashboardGrid` (`:387`), `WidgetPickerDrawer` (`:381`), `customizeMode` (`:76`), and a `loadDashboardLayout(defaultDashboardLayout())` localStorage layout (`:81`). VG-3 makes the `default:` arm delegate to the registry (purpose-built → mini-render fallback) instead of returning `null`.
-- **`crates/vox-gui/ui/src/components/layout/surfaceComponents.tsx`** — `childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode` (`:77`) is the **single** map from `viewKey` to a surface component (the `switch (viewKey)` at `:82`); `SurfaceProps` (`:36`) is the full prop bag; `renderSurfaceView` (`:196`). The mini-render fallback (Task 3) calls `childRenderer` with a compact-scoped prop subset, so a new surface needs no new wiring here.
+- **`crates/vox-gui/ui/src/components/layout/surfaceComponents.tsx`** — `childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode` (`:77`, module-private — Task 5 exports it) is the **single** map from `viewKey` to a surface component (the `switch (viewKey)` at `:82`); `SurfaceProps` (`:36`) is the full prop bag; `renderSurfaceView` (`:196`). **Critically, `childRenderer` passes `pushToast={props.pushToast}` into nearly every surface arm** (e.g. `:80,:112,:118`) — `RepositoryView`, `MeshView`, etc. call `pushToast(...)` at runtime. The mini-render fallback (Task 5) therefore must supply a **real** `pushToast` in its `SurfaceProps` bag, or a `repository`/`mesh`/… mini-render throws `undefined is not a function` (the error boundary then renders an error tile instead of the live thumbnail — the headline feature silently degrades). The `dashboard` arm itself must be updated to forward `pushToast={props.pushToast}` to `<Dashboard>` so the Dashboard has a real handler to thread down (it already has `props.pushToast` in scope).
 - **`crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts`** — `SurfaceRegistryEntry { viewKey, cliGroup, tier, navLabel, navIcon, navGroup, parentSurface }` (`:3`); `SURFACE_REGISTRY` (`:12`). `navGroup` values present: `operate`, `develop`, `knowledge`, `compute`, `system`. **AUTO-GENERATED — never hand-edit** (header `:1`); regenerate via `vox ci gui-surface-registry --write`. VG-3 reads it; it does **not** edit it.
 - **`crates/vox-gui/ui/src/hooks/useHudTiles.ts`** — `HUD_TILE_KINDS` (`:6`) = `active_agents`, `queue_depth`, `budget_burn`, `mesh_peers`, `active_model`, `openrouter_spend`; `HUD_TILE_LABELS` (`:17`); `HudTilesConfig { version: 1, tiles: HudTileEntry[] }` (`:32`); `validateHudTilesConfig` (`:54`) checks `KIND_SET.has(id)` (`:76`) **and** `KIND_SET.has(kind)` (`:79`); `defaultHudTiles` (`:43`); `resolveVisibleHudTiles` (`:91`) → enabled kinds only; `toggleHudTile` (`:100`). **VG-3 adds `pending_approvals`** to `HUD_TILE_KINDS` + `HUD_TILE_LABELS` (Task 7).
-- **`crates/vox-gui/ui/src/hooks/useHudTilesConfig.ts`** — wraps `useLocalStorage(SHELL_PREFERENCE_KEYS.hudTiles, …)` and returns `{ config, setConfig, visibleTiles }` (`resolveVisibleHudTiles`-filtered). `App.tsx:214` consumes it; `App.tsx:1154` passes `visibleTiles` into `TopHud`. Disabling a tile in `HudTilesEditor` flows through `toggleHudTile` → `setConfig` → `visibleTiles` drops it → `TopHud` stops rendering it. **This is the "disabling a core widget removes it from the strip" mechanism** — VG-3's only job is to make `pending_approvals` participate in it.
+- **`crates/vox-gui/ui/src/hooks/useHudTilesConfig.ts`** — wraps `useLocalStorage(SHELL_PREFERENCE_KEYS.hudTiles, …)` and returns `{ config, setConfig, visibleTiles }` (`resolveVisibleHudTiles`-filtered). `App.tsx:214` consumes it; `App.tsx:1154` passes `visibleTiles` into **`<AppShell>`** (NOT directly into `TopHud`). Disabling a tile in `HudTilesEditor` flows through `toggleHudTile` → `setConfig` → `visibleTiles` drops it → `TopHud` stops rendering it. **This is the "disabling a core widget removes it from the strip" mechanism** — VG-3's only job is to make `pending_approvals` participate in it.
+- **`crates/vox-gui/ui/src/components/layout/AppShell.tsx`** — `AppShellProps` (`:17`) is where shell-level props are declared; `AppShell` is the **only** component that instantiates `<TopHud …>` (`:106`–`:119`), forwarding `visibleTiles`/`kpis`. `TopHud` is **never** instantiated directly in `App.tsx`. So a new `TopHud` prop (`pendingApprovals`) must be added to `AppShellProps`, destructured, and forwarded to `<TopHud>` at `:106`, **then** passed from `App.tsx` into `<AppShell>` (Task 8 Steps 5–6).
+- **`crates/vox-gui/ui/src/components/surfaces/Dashboard/Dashboard.tsx` props are destructured** — `function Dashboard({ data, onPause, onResume, … })` (`:59`–`:73`); there is **no `props` object binding** in scope. The `renderWidget` closure (`:147`) sees the destructured names, not a `props` bag. So a `miniPropsFor(...)` helper must close over the destructured names directly (or the signature must change to `function Dashboard(props: DashboardProps)` and destructure inside) — Task 5 must not reference an undefined `props`.
 - **`crates/vox-gui/ui/src/components/layout/TopHud.tsx`** — `renderTile(kind)` `switch` (`:126`–`:211`) renders each HUD tile; `visibleTiles.map(renderTile)` (`:278`). VG-3 adds a `case 'pending_approvals':` arm (Task 7).
 - **`crates/vox-gui/ui/src/components/surfaces/Settings/HudTilesEditor.tsx`** — checkbox-per-tile editor (`:30`) using `HUD_TILE_LABELS` + `toggleHudTile`; it iterates `config.tiles`, so it picks up the new `pending_approvals` tile automatically once `defaultHudTiles()` includes it. Threaded into `SettingsView` via `hudTilesConfig`/`onHudTilesChange` (`surfaceComponents.tsx:128`). **This is the "config in Settings" home** — no new settings island.
 - **`crates/vox-gui/ui/src/hooks/useLlmSpend.ts`** — `useLlmSpend(): { totalUsd: number | null }` (`:6`) polls `voxTransport.getLlmSpend()` (`get_llm_spend`) every 60s. The cost purpose-built widget reuses this (Task 2 — cost) instead of inventing a spend source.
@@ -73,12 +76,14 @@ cd /c/Users/Owner/vox-graphify-gui/crates/vox-gui/ui && pnpm vitest run <file> &
 **Modified**
 - `crates/vox-gui/ui/src/lib/dashboardLayout.ts` — add `surface_widget` to `DASHBOARD_WIDGET_KINDS`; add `surfaceKey` typing helpers.
 - `contracts/gui/dashboard-layout.v1.yaml` — add `surface_widget` to `widget_kinds`.
-- `crates/vox-gui/ui/src/components/surfaces/Dashboard/Dashboard.tsx` — `renderWidget` routes `surface_widget` (and the `default:` arm) through `resolveWidget` + `WidgetErrorBoundary`; section-grouped picker.
+- `crates/vox-gui/ui/src/components/surfaces/Dashboard/Dashboard.tsx` — `renderWidget` routes `surface_widget` (and the `default:` arm) through `resolveWidget` + `WidgetErrorBoundary`; section-grouped picker. **Also: add `pushToast` to `DashboardProps`** so the mini-render's `SurfaceProps` bag carries a real toast handler (the mini-render mounts real surfaces that call `pushToast`).
+- `crates/vox-gui/ui/src/components/layout/surfaceComponents.tsx` — **export** `childRenderer` (one-word edit, Task 5) **and** pass `pushToast={props.pushToast}` into the `dashboard` arm (it already has `props.pushToast` in scope) so the Dashboard receives a real toast handler.
 - `crates/vox-gui/ui/src/components/dashboard/WidgetPickerDrawer.tsx` — list surface widgets grouped by section.
 - `crates/vox-gui/ui/src/hooks/useHudTiles.ts` — add `pending_approvals` kind + label.
-- `contracts/gui/hud-tiles.v1.yaml` — add `pending_approvals`.
+- `contracts/gui/hud-tiles.v1.yaml` — add `pending_approvals` to **`tile_kinds`**, **`data_bindings`**, and **`default_profile.tiles`** (the contract has three lockstep sections — see Task 8 Step 3).
 - `crates/vox-gui/ui/src/components/layout/TopHud.tsx` — `renderTile` arm for `pending_approvals`.
-- `crates/vox-gui/ui/src/App.tsx` — pass a `pendingApprovals` count into `TopHud` (it already plumbs `visibleTiles`/`kpis`).
+- `crates/vox-gui/ui/src/components/layout/AppShell.tsx` — add `pendingApprovals?: number | null` to `AppShellProps`, destructure it, and forward it to `<TopHud pendingApprovals={…}>` (AppShell, **not** App.tsx, instantiates `TopHud`).
+- `crates/vox-gui/ui/src/App.tsx` — pass a `pendingApprovals` count into `<AppShell>` (it already plumbs `visibleTiles`/`kpis` to AppShell).
 
 ---
 
@@ -253,6 +258,8 @@ export function SurfaceMiniRender({ surfaceKey, label, children, scale = 0.6 }: 
 ## Task 3: `WidgetErrorBoundary` → compact error tile (TDD) [SEQUENTIAL]
 
 A broken widget must degrade to a compact error tile, never crash the dashboard (spec §6). The tile is honest: it names the surface and shows the real error message.
+
+> **Why a second boundary?** `ui/ErrorBoundary.tsx` already exports a `SurfaceErrorBoundary` class (`getDerivedStateFromError`, retry button, `:23-52`). `WidgetErrorBoundary` is intentionally **separate**, not a reuse miss: `SurfaceErrorBoundary` is full-page-styled (it fills a whole surface), whereas a dashboard slot needs a **compact tile** sized to a single grid cell. The shared `getDerivedStateFromError` pattern could be factored later; keep them distinct for now.
 
 **Files:** Create `crates/vox-gui/ui/src/components/dashboard/WidgetErrorBoundary.tsx` + `WidgetErrorBoundary.test.tsx`.
 
@@ -500,7 +507,7 @@ export function AgentsStreamWidget({ data }: { data: DashboardData }) {
           data.agents.slice(0, 6).map((a) => (
             <div key={a.id} className="flex items-center justify-between rounded border border-border-subtle bg-overlay-subtle px-2 py-1 text-[11px]">
               <span className="truncate text-text-secondary">{a.codename}</span>
-              <span className="font-mono text-[10px] text-text-muted">{a.status}</span>
+              <span className="font-mono text-[10px] text-text-muted">{a.phase}</span>
             </div>
           ))
         )}
@@ -560,7 +567,11 @@ export function resolveWidget(surfaceKey: string): ResolvedWidget {
 }
 ```
 
-- [ ] **Step 5: Run, verify pass** — `pnpm vitest run src/components/dashboard/dashboardWidgetRegistry.test.tsx && pnpm typecheck`. Expected: PASS. (If `DashboardData`'s `agents[].status`/`codename` or `peers[].online` field names differ, read `src/types/dashboard.ts` first and match the real fields — do not invent them.)
+- [ ] **Step 5: Run, verify pass** — `pnpm vitest run src/components/dashboard/dashboardWidgetRegistry.test.tsx && pnpm typecheck`. Expected: PASS.
+
+  > **Verified correction:** `DashboardData.agents[]` has **no `status` field** — the `Agent` type (`src/types/dashboard.ts:26-38`) exposes `phase` (plus `codename`, `id`, `task`, `eta`), **not** `status`. The `AgentsStreamWidget` snippet above renders `{a.phase}` accordingly; do **not** revert it to `a.status` (it will not typecheck). `peers[].online` and `agents[].codename`/`.id` and `alerts` all exist as written. Read `src/types/dashboard.ts` first to confirm before coding; never invent a field.
+
+  > **`agents` purpose-built / `childRenderer` note:** `agents` is a real `viewKey` (`surfaceRegistry.generated.ts:14`) **but has no `childRenderer` arm** (only `flow` renders agents). This is harmless because `agents` is purpose-built (`PURPOSE_BUILT`), so it never falls back to `childRenderer`. If `agents` were ever removed from `PURPOSE_BUILT`, its fallback would render `null` (childRenderer's `default` returns `null`) — acceptable honest degradation, not a crash.
 
 - [ ] **Step 6: Commit** —
   `git -C /c/Users/Owner/vox-graphify-gui add crates/vox-gui/ui/src/components/dashboard/dashboardWidgetRegistry.tsx crates/vox-gui/ui/src/components/dashboard/dashboardWidgetRegistry.test.tsx crates/vox-gui/ui/src/components/dashboard/widgets/CostWidget.tsx crates/vox-gui/ui/src/components/dashboard/widgets/MeshWidget.tsx crates/vox-gui/ui/src/components/dashboard/widgets/ApprovalsWidget.tsx crates/vox-gui/ui/src/components/dashboard/widgets/CoverageWidget.tsx crates/vox-gui/ui/src/components/dashboard/widgets/AgentsStreamWidget.tsx`
@@ -598,8 +609,14 @@ it('renders a mini-render fallback for an unregistered surface_widget (repositor
   renderDashboard();
   // The fallback frame is present and marked compact/inert.
   expect(screen.getByTestId('surface-mini-repository').getAttribute('data-compact')).toBe('true');
+  // AND it actually rendered the live surface — it did NOT fall into the error
+  // boundary (which is what happens if pushToast is undefined). This guards
+  // Finding #1: the mini-render must mount with a real pushToast.
+  expect(screen.queryByTestId('widget-error-tile')).toBeNull();
 });
 ```
+
+> The `widget-error-tile` assertion is load-bearing: in jsdom an inert surface may render empty and a missing `pushToast` would otherwise be masked. The test must pass a real `pushToast` into `renderDashboard()` (extend the scaffold's props if needed) so this asserts the wired path, not the inert-empty accident.
 
 > Confirm the localStorage key: `SHELL_PREFERENCE_KEYS.dashboardLayout` resolves to `gui.dashboard.layout.v1` (verify in `src/lib/shellPersistence.ts`). If the test scaffold seeds layout differently, follow its convention.
 
@@ -620,30 +637,65 @@ import { SURFACE_REGISTRY } from '../../../generated/surfaceRegistry.generated';
 
 > `childRenderer` is currently a module-private function in `surfaceComponents.tsx`. **Export it** (change `function childRenderer` at `:77` to `export function childRenderer`) so the Dashboard can mini-render any surface through the single map. This is a one-word edit; do it in this step and include `surfaceComponents.tsx` in the commit.
 
-2. Add a helper that builds the `SurfaceProps` subset a mini-render needs from the Dashboard's own props (most are optional; the mini-render is inert so handlers can be no-op-free by simply omitting them). Place it above `renderWidget`:
+**1a. Add `pushToast` to `DashboardProps` and forward it from `surfaceComponents.tsx` (Critical — without this, mini-renders crash).** `childRenderer` passes `pushToast={props.pushToast}` into almost every surface arm, and those surfaces call `pushToast(...)` at runtime — but `DashboardProps` (`:43`–`:57`) does **not** currently include `pushToast`. Add it:
+
+```ts
+// in DashboardProps (Dashboard.tsx:43-57)
+  pushToast: (toast: Toast) => void;   // import the Toast type from the same place the other surfaces do
+```
+
+Then in the `dashboard` arm of `childRenderer` (`surfaceComponents.tsx`), pass it through (it already has `props.pushToast` in scope):
+
+```tsx
+case 'dashboard':
+  return <Dashboard /* …existing props… */ pushToast={props.pushToast} />;
+```
+
+> Read `DashboardProps` and the `Toast` import path first; reuse whatever `Toast` type the rest of `surfaceComponents.tsx`/the toast system uses — do not invent a new shape.
+
+2. Add helpers that build the `SurfaceProps` subset a mini-render needs **from the Dashboard's destructured props** (the Dashboard signature destructures its props — there is **no `props` object binding** in scope; close over the destructured names directly). Place them above `renderWidget`, inside the component so they close over the live values:
 
 ```tsx
 function surfaceLabel(surfaceKey: string): string {
+  // synthetic 'cost' has no registry row → give it a real label, not the raw key
+  if (surfaceKey === 'cost') return 'OpenRouter Spend';
   const row = SURFACE_REGISTRY.find((e) => e.viewKey === surfaceKey);
   return row?.navLabel ?? surfaceKey;
 }
 
-function renderSurfaceWidget(surfaceKey: string, miniProps: SurfaceProps): React.ReactNode {
+// Build the SurfaceProps bag the mini-render mounts real surfaces with.
+// Closes over the Dashboard's destructured props (data, pushToast, and the
+// handlers the Dashboard already holds — onPause/onResume/onDoubt/onOverrule/
+// onAckLudus/filterKind/setFilterKind). pushToast is REQUIRED here.
+function miniPropsFor(): SurfaceProps {
+  return {
+    data,
+    pushToast,
+    onPause, onResume, onDoubt, onOverrule, onAckLudus,
+    filterKind, setFilterKind,
+    // …any other non-optional SurfaceProps fields the Dashboard holds; read the
+    // SurfaceProps type (surfaceComponents.tsx:36) and supply only real values —
+    // never a fabricated handler. If a genuinely-required handler is absent, the
+    // error boundary catches it (honest degradation) rather than faking it.
+  } as SurfaceProps;
+}
+
+function renderSurfaceWidget(surfaceKey: string): React.ReactNode {
   const resolved = resolveWidget(surfaceKey);
   if (resolved.kind === 'purpose-built') {
-    return <resolved.Component data={miniProps.data} />;
+    return <resolved.Component data={data} />;
   }
   return (
     <SurfaceMiniRender surfaceKey={surfaceKey} label={surfaceLabel(surfaceKey)}>
-      {childRenderer(miniProps, surfaceKey)}
+      {childRenderer(miniPropsFor(), surfaceKey)}
     </SurfaceMiniRender>
   );
 }
 ```
 
-> `SurfaceProps` is exported from `surfaceComponents.tsx` (`:36`). Build `miniProps` from what the Dashboard already has (`data`, `pushToast` via a prop or a no-op-free shim — the Dashboard already receives `data`; thread `pushToast` down as a Dashboard prop if it is not already present, reading `DashboardProps` first). For surfaces whose `childRenderer` arm requires a handler that the Dashboard lacks, the mini-render is inert so the surface renders read-only; if a required non-optional prop is genuinely missing, prefer the purpose-built path or accept the error boundary catching it (honest degradation) rather than fabricating a handler.
+> `SurfaceProps` is exported from `surfaceComponents.tsx` (`:36`). The mini-render is inert (pointer-events disabled), but the surface still **mounts** and may call `pushToast` during render/effects — so `pushToast` must be a real function, not omitted. Read `SurfaceProps` and `DashboardProps` first and supply only fields the Dashboard genuinely holds.
 
-3. Change the `renderWidget` `switch` (`:147`): add a `case 'surface_widget':` before `default`, and make `default` also delegate:
+3. Change the `renderWidget` `switch` (`:147`): add a `case 'surface_widget':` before `default`, and keep `default` as `null`:
 
 ```tsx
       case 'surface_widget': {
@@ -651,7 +703,7 @@ function renderSurfaceWidget(surfaceKey: string, miniProps: SurfaceProps): React
         if (!key) return null;
         return (
           <WidgetErrorBoundary label={surfaceLabel(key)}>
-            {renderSurfaceWidget(key, miniPropsFor(props))}
+            {renderSurfaceWidget(key)}
           </WidgetErrorBoundary>
         );
       }
@@ -659,7 +711,7 @@ function renderSurfaceWidget(surfaceKey: string, miniProps: SurfaceProps): React
         return null;
 ```
 
-> Provide `miniPropsFor(props)` as a small builder inside the component (closure over the Dashboard's props) returning the `SurfaceProps` subset. Keep the existing legacy-kind arms (`stream`/`agents`/`alerts`/`budget_burn`/…) unchanged — only `surface_widget` is new; `default` stays `null` for any unknown legacy kind (a surface-backed slot always carries `surface_widget`, never an unknown literal).
+> `renderSurfaceWidget`/`miniPropsFor` close over the destructured names directly — there is **no `props` argument** (the Dashboard has no `props` binding). Keep the existing legacy-kind arms (`stream`/`agents`/`alerts`/`budget_burn`/…) unchanged — only `surface_widget` is new; `default` stays `null` for any unknown legacy kind (a surface-backed slot always carries `surface_widget`, never an unknown literal).
 
 - [ ] **Step 4: Run, verify pass** — `pnpm vitest run src/components/surfaces/Dashboard/Dashboard.test.tsx && pnpm typecheck`. Expected: PASS. Re-run the existing Dashboard tests to confirm no regression on the legacy kinds.
 
@@ -797,10 +849,12 @@ it('lists surface widgets grouped by section, including a new surface', () => {
   // The synthetic Cost widget is offered.
   expect(screen.getByTestId('picker-surface-cost')).toBeTruthy();
   // Adding a surface widget calls onAddSurface with the surface key.
-  fireEvent.click(screen.getByTestId('picker-surface-mesh'));
+  await userEvent.click(screen.getByTestId('picker-surface-mesh'));
   expect(onAddSurface).toHaveBeenCalledWith('mesh');
 });
 ```
+
+> Use the already-imported `userEvent` (the file imports `userEvent` at line 4, **not** `fireEvent` / `import { fireEvent } from '@testing-library/react'`), so the click matches the file's convention and compiles. Mark the `it(...)` callback `async`. `vi` is already imported (line 2).
 
 - [ ] **Step 2: Run, verify fail** — `pnpm vitest run src/components/dashboard/WidgetPickerDrawer.test.tsx`. Expected: FAIL (no `onAddSurface`/section markup).
 
@@ -944,7 +998,9 @@ and pass `onAddSurface={handleAddSurface}` to `<WidgetPickerDrawer …>` (`:381`
 
 The five core monitorables the spec names are mesh peers · agents running · OpenRouter spend · queue depth · **pending approvals**. The first four already exist as HUD tiles (`mesh_peers`, `active_agents`, `openrouter_spend`, `queue_depth`). VG-3 adds the missing **`pending_approvals`** tile to the same SSOT so it appears in the strip, is disableable via the existing `HudTilesEditor` in Settings, and drops from the strip when disabled (the existing `resolveVisibleHudTiles` mechanism).
 
-**Files:** Modify `crates/vox-gui/ui/src/hooks/useHudTiles.ts`, `contracts/gui/hud-tiles.v1.yaml`, `crates/vox-gui/ui/src/components/layout/TopHud.tsx`, `crates/vox-gui/ui/src/App.tsx`. Tests: `crates/vox-gui/ui/src/hooks/useHudTiles.test.ts` (extend if present, else create) + `crates/vox-gui/ui/src/components/layout/TopHud.test.tsx`.
+> **Strip cardinality, no contradiction:** `defaultHudTiles()` already ships **6** tiles (it adds `active_model` + `budget_burn` beyond the spec's 5); adding `pending_approvals` makes **7**. The strip is the *full HUD-tile set* (7 after this), of which the spec's named 5 are a subset — readers should **not** expect the strip to equal exactly 5. The only count assertion to bump is any explicit "6 tile kinds" test (e.g. `HudTilesEditor.test.tsx:15`) → 7 (Step 7).
+
+**Files:** Modify `crates/vox-gui/ui/src/hooks/useHudTiles.ts`, `contracts/gui/hud-tiles.v1.yaml`, `crates/vox-gui/ui/src/components/layout/TopHud.tsx`, `crates/vox-gui/ui/src/components/layout/AppShell.tsx`, `crates/vox-gui/ui/src/App.tsx`. Tests: `crates/vox-gui/ui/src/hooks/useHudTiles.test.ts` (extend if present, else create) + `crates/vox-gui/ui/src/components/layout/TopHud.test.tsx`.
 
 - [ ] **Step 1: Failing test (SSOT + disable removes from strip)** — append to (or create) `crates/vox-gui/ui/src/hooks/useHudTiles.test.ts`:
 
@@ -975,16 +1031,27 @@ describe('pending_approvals HUD tile', () => {
 
 - [ ] **Step 2: Run, verify fail** — `pnpm vitest run src/hooks/useHudTiles.test.ts`. Expected: FAIL.
 
-- [ ] **Step 3: Implement the SSOT** — in `useHudTiles.ts`: add `'pending_approvals'` to `HUD_TILE_KINDS` (`:6`, append after `'openrouter_spend'`) and add `pending_approvals: 'Pending approvals',` to `HUD_TILE_LABELS` (`:17`). `defaultHudTiles` (`:43`) maps over `HUD_TILE_KINDS`, so the new tile becomes enabled-by-default automatically. Mirror it in `contracts/gui/hud-tiles.v1.yaml` (add `pending_approvals` to its kinds list).
+- [ ] **Step 3: Implement the SSOT** — in `useHudTiles.ts`: add `'pending_approvals'` to `HUD_TILE_KINDS` (`:6`, append after `'openrouter_spend'`) and add `pending_approvals: 'Pending approvals',` to `HUD_TILE_LABELS` (`:17`). `defaultHudTiles` (`:43`) maps over `HUD_TILE_KINDS`, so the new tile becomes enabled-by-default automatically.
 
-- [ ] **Step 4: Failing test (TopHud renders the tile)** — append to `crates/vox-gui/ui/src/components/layout/TopHud.test.tsx` (reuse its `kpis` fixture; add a `pendingApprovals` field to the fixture):
+  **Mirror it in `contracts/gui/hud-tiles.v1.yaml` — the contract has THREE lockstep sections, not one.** Adding `pending_approvals` to only `tile_kinds` leaves the YAML internally inconsistent (kinds=7, default_profile=6, no binding) and can trip a contract/SSOT-parity check. Add all three:
+  - `tile_kinds:` — add `- pending_approvals`.
+  - `data_bindings:` — add a `pending_approvals:` entry whose `source`/`field` matches whatever real count Step 6 wires (e.g. `source: dashboard_data, field: alerts_length` if Step 6 uses `data.alerts.length`; keep the binding source and the App.tsx source in agreement).
+  - `default_profile.tiles:` — add a `pending_approvals` entry so the default profile enumerates all 7 kinds (consistent with TS `defaultHudTiles()` enabling it by default).
+
+- [ ] **Step 4: Failing test (TopHud renders the tile)** — append to `crates/vox-gui/ui/src/components/layout/TopHud.test.tsx`. The file's real prop fixture is **`baseProps`** (spreads `INITIAL_KPIS`, `TopHud.test.tsx:33`) — there is **no `kpisFixture`**. The file also **mocks `Icon`** with only a subset of icons, so `Icon.shield` (used by the new render arm) renders `undefined` unless `shield` is added to the mock. First add `shield` to the test's `Icon` mock:
+
+```tsx
+// in the existing vi.mock('.../Icons', …) Icon factory, add:
+  shield: () => <span data-testid="icon-shield" />,
+```
+
+Then the test (spread `baseProps`, override `visibleTiles`/`pendingApprovals`):
 
 ```tsx
 it('renders the pending-approvals tile when visible', () => {
   render(
     <TopHud
-      kpis={kpisFixture}
-      onCommand={() => {}}
+      {...baseProps}
       visibleTiles={['pending_approvals']}
       pendingApprovals={3}
     />,
@@ -993,6 +1060,8 @@ it('renders the pending-approvals tile when visible', () => {
   expect(screen.getByText('3')).toBeTruthy();
 });
 ```
+
+> `Icon.shield` is a real export (`Icons.tsx:191`), so the production arm is fine — only the test's mock needs `shield` added. Do **not** invent `kpisFixture`; use `{...baseProps}`.
 
 - [ ] **Step 5: Implement the render arm** — in `TopHud.tsx`: add `pendingApprovals?: number | null;` to `TopHudProps` (`:62`), default it in the destructure (`:85`), and add a `case` to `renderTile` (`:126`):
 
@@ -1011,14 +1080,16 @@ it('renders the pending-approvals tile when visible', () => {
         );
 ```
 
-> Confirm `Icon.shield` exists (it is used in `surfaceRegistry` navIcons and the Sidebar); if the icon export name differs, use `Icon.alert` (already used by TopHud-adjacent code). Read `src/components/ui/Icons.tsx` before picking.
+> `Icon.shield` is real (`Icons.tsx:191`), used in `surfaceRegistry` navIcons and the Sidebar — the production arm is fine. (Only the **test** mock needs `shield` added — see Step 4.)
 
-- [ ] **Step 6: Wire the count in `App.tsx`** — pass a real pending-approvals count into `TopHud` (`:1154`, alongside `visibleTiles`). Source it from the same data the Dashboard uses for alerts/approvals (read the App root: the dashboard `data.alerts` / a `useAgentApprovals`-style hook is already in scope; if a precise count is not readily available, pass `data.alerts.length` which the existing dashboard already treats as the pending-attention count — honest, no fabrication). Add `pendingApprovals={…}` to the `<TopHud …>` props.
+- [ ] **Step 6: Thread the count through `AppShell` → `TopHud`, then from `App.tsx` → `AppShell` (Critical — `App.tsx` does NOT instantiate `TopHud`).** `App.tsx:1154` passes `visibleTiles` to **`<AppShell>`**, and `AppShell.tsx:106`–`:119` is the only place `<TopHud>` is rendered. So:
+  1. **`AppShell.tsx`:** add `pendingApprovals?: number | null;` to `AppShellProps` (`:17`), destructure it (`:44`–`:46`), and forward it at the `<TopHud …>` call site (`:106`) as `pendingApprovals={pendingApprovals}`.
+  2. **`App.tsx`:** add `pendingApprovals={…}` to the `<AppShell …>` props (`:1154`, alongside `visibleTiles`). Source a real count from the same data the Dashboard uses for alerts/approvals (the dashboard `data.alerts` / a `useAgentApprovals`-style hook already in scope; if a precise count is not readily available, pass `data.alerts.length` which the existing dashboard treats as the pending-attention count — honest, no fabrication). **Keep this source in agreement with the `data_bindings.pending_approvals` entry added to the YAML in Step 3.**
 
 - [ ] **Step 7: Run, verify pass** — `pnpm vitest run src/hooks/useHudTiles.test.ts src/components/layout/TopHud.test.tsx && pnpm typecheck`. Expected: PASS. Also run the `HudTilesEditor` test if present (`src/components/surfaces/Settings/HudTilesEditor.test.tsx`) — it iterates `config.tiles`, so the new tile shows up in Settings automatically; confirm no count-assertion regresses (update an explicit tile-count assertion from 6→7 if one exists).
 
 - [ ] **Step 8: Commit** —
-  `git -C /c/Users/Owner/vox-graphify-gui add crates/vox-gui/ui/src/hooks/useHudTiles.ts crates/vox-gui/ui/src/hooks/useHudTiles.test.ts contracts/gui/hud-tiles.v1.yaml crates/vox-gui/ui/src/components/layout/TopHud.tsx crates/vox-gui/ui/src/components/layout/TopHud.test.tsx crates/vox-gui/ui/src/App.tsx`
+  `git -C /c/Users/Owner/vox-graphify-gui add crates/vox-gui/ui/src/hooks/useHudTiles.ts crates/vox-gui/ui/src/hooks/useHudTiles.test.ts contracts/gui/hud-tiles.v1.yaml crates/vox-gui/ui/src/components/layout/TopHud.tsx crates/vox-gui/ui/src/components/layout/TopHud.test.tsx crates/vox-gui/ui/src/components/layout/AppShell.tsx crates/vox-gui/ui/src/App.tsx`
   `git -C /c/Users/Owner/vox-graphify-gui commit -m "feat(gui-hud): add pending_approvals core monitorable to the minimized strip (config in Settings) (VG-3 T8)"`
 
 ---
@@ -1067,7 +1138,7 @@ _Depends on: T1–T8 all green and committed. Verification only — produces no 
 - **Tagged + batched:** every task is `[SEQUENTIAL]`/`[PARALLEL-SAFE]`; the Batch Plan table closes the plan with an explicit parallel fan-out (A ∥ β).
 
 **Against the spec (§4–§7) and the scope:**
-- ✅ **Registry-driven composable grid reusing existing tiling:** reuses `DashboardGrid` + `DockShell` (verified); no new tiling engine. The catalog is derived from `SURFACE_REGISTRY` (not a hard-coded switch), so it is "dynamically expandable."
+- ✅ **Registry-driven composable grid reusing existing tiling:** reuses `DashboardGrid` (`@dnd-kit`) for the widget grid; no new tiling engine. (`DockShell`/dockview is the unrelated main-shell tiler at `AppShell.tsx:135` and is **not** used here — the earlier draft's "reuses … `DockShell`" claim was incorrect and has been dropped.) The catalog is derived from `SURFACE_REGISTRY` (not a hard-coded switch), so it is "dynamically expandable."
 - ✅ **Two render paths + auto-fallback:** `resolveWidget` → purpose-built **else** `SurfaceMiniRender(childRenderer(...))`; a new surface auto-appears as a mini-render (tested explicitly in T6's auto-expansion test + T5's unregistered-surface test).
 - ✅ **Purpose-built shortlist exactly:** agents/cost/mesh/approvals/coverage (cost reuses `useLlmSpend` → `get_llm_spend`); everything else falls back (T4 test).
 - ✅ **Core monitorables strip, config in Settings (Plan 3C):** reuses the shipped HUD-tile system (`useHudTiles`/`HudTilesEditor` in `SettingsView`); adds the missing `pending_approvals`; disabling drops it from the strip via `resolveVisibleHudTiles` (T8 test) — no bespoke dashboard settings island.
@@ -1078,9 +1149,15 @@ _Depends on: T1–T8 all green and committed. Verification only — produces no 
 - ✅ **Independent of VG-2;** shares only the surface registry.
 
 **Risks the executor must verify before coding (called out inline):**
-1. `DashboardData` field names (`agents[].codename`/`.status`, `peers[].online`, `alerts`) — read `src/types/dashboard.ts` first; match real fields (T4 Step 5 note).
+1. `DashboardData` field names — `Agent` exposes `phase` (NOT `status`), plus `codename`/`id`; `peers[].online`, `alerts` exist. The `AgentsStreamWidget` snippet already renders `{a.phase}` (corrected). Read `src/types/dashboard.ts` first (T4 Step 5 note).
 2. `childRenderer` is module-private — export it in T5 (one-word edit; commit `surfaceComponents.tsx`).
-3. The dashboard layout localStorage key — confirm `SHELL_PREFERENCE_KEYS.dashboardLayout` = `gui.dashboard.layout.v1` before seeding it in tests (T5 Step 1 note).
-4. `Icon.shield` vs `Icon.alert` — read `Icons.tsx` before the TopHud arm (T8 Step 5 note).
-5. Any explicit "6 tiles" count assertion in `HudTilesEditor`/HUD tests must move to 7 (T8 Step 7 note).
-6. The mini-render's `miniProps` subset — some surfaces' `childRenderer` arms require non-optional handlers; the mini-render is inert, so prefer the purpose-built path or accept honest error-boundary degradation rather than fabricating a handler (T5 Step 3 note).
+3. **`pushToast` (Critical):** `childRenderer` passes `pushToast` into nearly every surface arm; `DashboardProps` lacks it. T5 adds `pushToast` to `DashboardProps`, forwards it from `surfaceComponents.tsx`'s `dashboard` arm, and includes it in `miniPropsFor()` — otherwise mini-renders crash into the error boundary. The T5 fallback test asserts **no** `widget-error-tile` (T5 Step 1/Step 3).
+4. **`AppShell` vs `TopHud` (Critical):** `App.tsx` does NOT instantiate `TopHud`; `AppShell` does. `pendingApprovals` must be added to `AppShellProps`, forwarded to `<TopHud>`, then passed from `App.tsx` → `<AppShell>` (T8 Step 6).
+5. The dashboard layout localStorage key — confirm `SHELL_PREFERENCE_KEYS.dashboardLayout` = `gui.dashboard.layout.v1` before seeding it in tests (T5 Step 1 note).
+6. `Icon.shield` is real (`Icons.tsx:191`) — the production arm is fine; only the **test** `Icon` mock needs `shield` added (T8 Step 4 note).
+7. **`hud-tiles.v1.yaml` has 3 lockstep sections** — add `pending_approvals` to `tile_kinds`, `data_bindings`, AND `default_profile.tiles`, keeping the binding source in agreement with the App.tsx count (T8 Step 3).
+8. **TopHud test fixture is `baseProps`**, not an invented `kpisFixture`; spread `{...baseProps}` (T8 Step 4 note).
+9. **WidgetPickerDrawer test convention is `userEvent`**, not `fireEvent`; the appended test uses `await userEvent.click(...)` and an `async` callback (T7 note).
+10. Strip cardinality is 6→7 (not the spec's 5); any explicit "6 tiles" count assertion (e.g. `HudTilesEditor.test.tsx:15`) moves to 7 (T8 intro + Step 7).
+11. The mini-render's `miniProps` subset — supply only real values the Dashboard holds (incl. `pushToast`); the mini-render is inert, so prefer the purpose-built path or accept honest error-boundary degradation rather than fabricating a handler (T5 Step 2 note).
+12. `surfaceComponents.tsx` is a **shared-file contention** point with VG-1 G10 / Plans 3A/3D — serialize the export edit (Dependencies → "Shared-file contention").
