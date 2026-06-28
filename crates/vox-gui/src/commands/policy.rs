@@ -8,8 +8,8 @@
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use tauri::command;
-use vox_config::{PolicyEntry, PolicyRegistry};
 use vox_config::policy::overrides;
+use vox_config::{PolicyEntry, PolicyRegistry};
 
 /// One catalog row for the GUI list/group rail. Non-sensitive metadata only.
 #[derive(Debug, Clone, Serialize)]
@@ -81,8 +81,14 @@ fn detail_dto(e: &PolicyEntry, root: &Path) -> PolicyDetailDto {
         .flatten()
         .unwrap_or(e.default_enabled);
     let ov = overrides::get_entry(root, &e.id).ok().flatten();
-    let title = ov.as_ref().and_then(|o| o.title.clone()).unwrap_or_else(|| e.title.clone());
-    let description = ov.as_ref().and_then(|o| o.description.clone()).unwrap_or_else(|| e.description.clone());
+    let title = ov
+        .as_ref()
+        .and_then(|o| o.title.clone())
+        .unwrap_or_else(|| e.title.clone());
+    let description = ov
+        .as_ref()
+        .and_then(|o| o.description.clone())
+        .unwrap_or_else(|| e.description.clone());
     PolicyDetailDto {
         id: e.id.clone(),
         domain: domain_str(e),
@@ -174,7 +180,11 @@ pub fn policy_set_enabled(id: String, enabled: bool) -> Result<(), String> {
 
 /// `policy_edit` — persist a user-facing title/description override for a policy.
 #[command]
-pub fn policy_edit(id: String, title: Option<String>, description: Option<String>) -> Result<(), String> {
+pub fn policy_edit(
+    id: String,
+    title: Option<String>,
+    description: Option<String>,
+) -> Result<(), String> {
     let cwd = std::env::current_dir().map_err(|e| e.to_string())?;
     let root = find_repo_root(&cwd);
     overrides::set_fields(&root, &id, title, description).map_err(|e| e.to_string())

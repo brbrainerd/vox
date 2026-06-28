@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vox Pipeline Brainstorm — Companion</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel2:#1c232c; --ink:#e6edf3; --mut:#8b97a6;
+    --line:#30363d; --rust:#d98a4f; --ts:#4f9dd9; --interp:#9d7fd9; --good:#3fb950;
+    --warn:#d29922; --bad:#f85149; --accent:#58a6ff;
+    font-synthesis:none;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.5 ui-sans-serif,system-ui,Segoe UI,Roboto,sans-serif;padding:28px 32px 80px}
+  h1{font-size:24px;margin:0 0 4px} h2{font-size:18px;margin:30px 0 10px;border-bottom:1px solid var(--line);padding-bottom:6px}
+  .sub{color:var(--mut);margin:0 0 18px}
+  .row{display:flex;gap:14px;flex-wrap:wrap}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;flex:1;min-width:210px}
+  .card h3{margin:0 0 6px;font-size:14px;letter-spacing:.3px;text-transform:uppercase;color:var(--mut)}
+  .pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:12px;font-weight:600;margin:2px 3px 2px 0}
+  .p-rust{background:rgba(217,138,79,.16);color:var(--rust);border:1px solid rgba(217,138,79,.4)}
+  .p-ts{background:rgba(79,157,217,.16);color:var(--ts);border:1px solid rgba(79,157,217,.4)}
+  .p-interp{background:rgba(157,127,217,.16);color:var(--interp);border:1px solid rgba(157,127,217,.4)}
+  .p-good{background:rgba(63,185,80,.16);color:var(--good);border:1px solid rgba(63,185,80,.4)}
+  .p-warn{background:rgba(210,153,34,.16);color:var(--warn);border:1px solid rgba(210,153,34,.4)}
+  .p-bad{background:rgba(248,81,73,.16);color:var(--bad);border:1px solid rgba(248,81,73,.4)}
+  code{background:#0a0d11;border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:#c9d6e3;font-size:13px}
+  .flow{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;margin:6px 0}
+  .node{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 14px;min-width:120px;text-align:center}
+  .node small{display:block;color:var(--mut);font-size:11px;margin-top:3px}
+  .arrow{align-self:center;color:var(--mut);padding:0 10px;font-size:20px}
+  .split{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+  .branch{flex:1;min-width:200px;border-radius:10px;padding:10px 14px;border:1px solid}
+  .b-rust{border-color:rgba(217,138,79,.5);background:rgba(217,138,79,.06)}
+  .b-ts{border-color:rgba(79,157,217,.5);background:rgba(79,157,217,.06)}
+  .b-interp{border-color:rgba(157,127,217,.5);background:rgba(157,127,217,.06)}
+  table{border-collapse:collapse;width:100%;margin-top:6px;font-size:13px}
+  th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);color:var(--mut);font-weight:600}
+  .gap{border-left:3px solid var(--warn);background:var(--panel);padding:10px 14px;border-radius:0 8px 8px 0;margin:8px 0}
+  .gap b{color:var(--warn)}
+  .q{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:14px 0}
+  .q .qn{display:inline-block;width:26px;height:26px;line-height:26px;text-align:center;border-radius:50%;
+    background:var(--accent);color:#06101f;font-weight:700;margin-right:8px}
+  .q h3{display:inline;font-size:16px}
+  .opt{margin:8px 0 8px 34px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel2)}
+  .opt b{color:var(--accent)} .rec{color:var(--good);font-weight:600;font-size:12px;margin-left:6px}
+  .muted{color:var(--mut)} .legend{font-size:12px;color:var(--mut);margin-top:6px}
+</style>
+</head>
+<body>
+<h1>Vox End-to-End Pipeline — Brainstorm Companion</h1>
+<p class="sub">Grounded in the real code: <code>vox-compiler</code> · <code>vox-codegen</code> · <code>feature_matrix.rs</code> · <code>canonical-ladder.v1.yaml</code></p>
+
+<h2>1 · How it works today</h2>
+<div class="flow">
+  <div class="node"><b>.vox source</b><small>one grammar</small></div>
+  <div class="arrow">→</div>
+  <div class="node"><b>vox-compiler</b><small>lex · parse · HIR · typeck</small></div>
+  <div class="arrow">→</div>
+  <div class="node"><b>HirModule</b><small>shared IR</small></div>
+  <div class="arrow">→</div>
+  <div class="node" style="border-color:var(--accent)"><b>Target enum</b><small>target.rs — picks backend</small></div>
+</div>
+<div class="split">
+  <div class="branch b-interp"><span class="pill p-interp">Interpreter</span><br>tree-walk HIR · <code>--mode interp</code> · ~50ms cold · no compile</div>
+  <div class="branch b-rust"><span class="pill p-rust">RustAxum / RustTauri</span><br><code>codegen_rust</code> → <code>target/generated/</code> → <b>cargo build</b> (the slow arm)</div>
+  <div class="branch b-ts"><span class="pill p-ts">TypeScript</span><br><code>codegen-ts</code> → <code>dist/</code> → <b>Vite</b> (pnpm) · HMR on :3001</div>
+</div>
+<p class="legend">Perf-heavy work lands on the Rust/interp arms; GUI lands on the TS arm. Today that division is <b>convention + CLI flag</b>, not enforced by the language.</p>
+
+<h2>2 · The parity machine you already have</h2>
+<div class="row">
+  <div class="card">
+    <h3>Breadth axis <span class="pill p-good">strong</span></h3>
+    <code>feature_matrix.rs</code>: a compile-time-<b>exhaustive</b> <code>support(Feature × Target)</code> match over <b>133</b> features. No <code>_</code> catch-all → adding a feature or a target <b>won't compile</b> until every cell is filled. Encodes <span class="pill p-ts">FRONTEND_ONLY</span> <span class="pill p-rust">BACKEND_ONLY</span> <span class="pill p-warn">Unverified</span>.
+  </div>
+  <div class="card">
+    <h3>Depth axis <span class="pill p-warn">partial</span></h3>
+    <code>canonical-ladder.v1.yaml</code>: 11 golden fixtures that <b>actually emit</b> per target + golden/smoke/WebIR-contract tests. Proves "does it emit," largely structural.
+  </div>
+</div>
+
+<h2>3 · The three gaps this brainstorm targets</h2>
+<div class="gap"><b>Gap A — Boundary is convention, not language.</b> <code>@native</code> is a token that is <code>Unverified</code> on every target (no semantics). Nothing stops a perf function from being expected in TS, or a GUI component from being called server-side. The placement of code is decided by humans + CLI flags, so it can't be checked.</div>
+<div class="gap"><b>Gap B — The Rust arm is slow and has no middle gear.</b> Two speeds only: interp (~50ms, no native perf) and full <code>cargo</code> AOT (cold builds dominate). No incremental/JIT tier; <code>vox-db</code> is the #1 build-blast-radius keystone.</div>
+<div class="gap"><b>Gap C — Parity proves emission, not agreement.</b> A feature can emit on both Rust and TS yet behave differently. There is no differential oracle asserting interp ≡ Rust ≡ TS on the same input.</div>
+
+<h2>4 · Open design questions</h2>
+
+<div class="q">
+  <span class="qn">1</span><h3>Scope — one spec or three?</h3>
+  <div class="opt"><b>A.</b> Treat A/B/C as <b>one program</b>, decompose into 3 sub-specs (boundary → speed → parity-oracle), brainstorm the first now.<span class="rec">my lean</span></div>
+  <div class="opt"><b>B.</b> Pick the single highest-pain gap and go deep on only that one today.</div>
+  <div class="opt"><b>C.</b> One combined spec covering all three.</div>
+</div>
+
+<div class="q">
+  <span class="qn">2</span><h3>Gap A — how do we represent "perf-native vs GUI" at the language level?</h3>
+  <div class="opt"><b>A.</b> Status quo+docs: keep convention + <code>--target</code> flags, just write it down. (cheapest, no enforcement)</div>
+  <div class="opt"><b>B.</b> First-class <b>placement decorators</b> — promote <code>@native</code>/<code>@gui</code> (or <code>@server</code>/<code>@client</code>) to compiler-enforced placement; a function's placement decides which backend(s) MUST emit it, and cross-placement calls become a checked RPC/boundary.<span class="rec">my lean</span></div>
+  <div class="opt"><b>C.</b> <b>Infer</b> placement from the existing effect/capability system (<code>@pure</code>, <code>@uses(net)</code>, JSX usage) — derive it, annotate only the exceptions.</div>
+  <div class="opt"><b>D.</b> Combo: infer by default (C) with an explicit override decorator (B) when inference is wrong.</div>
+</div>
+
+<div class="q">
+  <span class="qn">3</span><h3>Gap B — what's the new "middle gear" for speed?</h3>
+  <div class="opt"><b>A.</b> Make <b>interp the default dev loop</b>; Rust AOT only on <code>--release</code>/explicit. (reuses what exists)</div>
+  <div class="opt"><b>B.</b> Invest in <b>incremental/warm cargo</b> (build-broker L1 + cached codegen + split the <code>vox-db</code> keystone).</div>
+  <div class="opt"><b>C.</b> Add a real <b>JIT tier</b> (Cranelift/WASM) between interp and AOT — native-ish speed, no cargo.</div>
+  <div class="opt"><b>D.</b> A + B together (interp-default now, broker as the durable win), JIT deferred.<span class="rec">my lean</span></div>
+</div>
+
+<div class="q">
+  <span class="qn">4</span><h3>Gap C — what does "guaranteed at parity" mean to you?</h3>
+  <div class="opt"><b>A.</b> <b>Emission parity</b> — every construct compiles/emits on each declared target (≈ what you have). Cheap, already mostly built.</div>
+  <div class="opt"><b>B.</b> <b>Behavioral parity</b> — a differential oracle runs the same fixture through interp + Rust + headless-TS and asserts equal observable output.<span class="rec">my lean</span></div>
+  <div class="opt"><b>C.</b> Both, tiered: emission gate stays blocking; behavioral oracle runs on the canonical ladder + grows over time.</div>
+</div>
+
+<div class="q">
+  <span class="qn">5</span><h3>How should a NEW language element be forced into the pipeline?</h3>
+  <div class="opt"><b>A.</b> Keep the compile-time exhaustive matrix as the sole gate (add feature → won't compile until every cell filled).</div>
+  <div class="opt"><b>B.</b> Matrix + a required <b>ladder fixture</b> per new feature (CI fails if a feature has <code>Implemented</code> but no proving fixture).<span class="rec">my lean</span></div>
+  <div class="opt"><b>C.</b> B + a "parity dashboard" generated from the matrix/ladder so drift is visible, not just red CI.</div>
+</div>
+
+<div class="q">
+  <span class="qn">6</span><h3>Visual assets — throwaway or living artifact?</h3>
+  <div class="opt"><b>A.</b> Brainstorm-only HTML like this one; discard after.</div>
+  <div class="opt"><b>B.</b> Make the <b>parity matrix a live generated HTML dashboard</b> (rendered from <code>feature_matrix.rs</code> + ladder) that ships as a real surface.<span class="rec">my lean</span></div>
+  <div class="opt"><b>C.</b> Both: this stays scratch; the dashboard becomes a deliverable in the spec.</div>
+</div>
+
+<p class="muted" style="margin-top:24px">Answer in the chat by number (e.g. “1A, 2D, 3D, 4C, 5B, 6C”) — short notes welcome where you disagree.</p>
+</body>
+</html>

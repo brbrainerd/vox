@@ -600,7 +600,9 @@ pub struct ContextBudgetPayload {
 /// is provided, also queries `llm_interactions` for the latest input token count
 /// so the frontend can render a real context-window fill percentage.
 #[tauri::command]
-pub async fn get_context_budget(session_id: Option<String>) -> Result<ContextBudgetPayload, String> {
+pub async fn get_context_budget(
+    session_id: Option<String>,
+) -> Result<ContextBudgetPayload, String> {
     let cfg = vox_orchestrator::config::OrchestratorConfig::snapshot().compaction;
 
     let used_tokens: usize = if let Some(sid) = session_id.as_deref() {

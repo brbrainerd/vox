@@ -99,6 +99,9 @@ pub enum SearchCorpus {
     RepoInventory,
     WebResearch,
     SymbolProximity,
+    /// Optional structural/relational backend backed by a Graphify knowledge graph
+    /// (call-paths, dependents, blast-radius, hubs). Augments — never replaces — grep/text search.
+    GraphifyStructural,
 }
 
 /// Concrete retrieval backends or ranking legs used during execution.
@@ -116,6 +119,8 @@ pub enum SearchBackend {
     Web,
     LexicalFallback,
     SymbolProximity,
+    /// Structural graph (graphify) lexical-over-labels hits for relational queries.
+    Graphify,
 }
 
 /// Recommended next move after evaluating search quality.

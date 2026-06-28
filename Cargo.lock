@@ -15580,6 +15580,7 @@ dependencies = [
  "tokio",
  "toml 0.8.23",
  "tracing",
+ "vox-git",
  "vox-llm-config",
  "vox-llm-egress",
  "vox-secrets",
@@ -16181,13 +16182,6 @@ dependencies = [
  "vox-foundation",
  "vox-gamify",
  "vox-secrets",
- "workspace-hack",
-]
-
-[[package]]
-name = "vox-mcp-llm-bridge"
-version = "0.6.0"
-dependencies = [
  "workspace-hack",
 ]
 

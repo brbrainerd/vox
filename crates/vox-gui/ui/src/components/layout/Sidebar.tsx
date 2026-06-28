@@ -1,11 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../ui/Glass';
 import { Icon } from '../ui/Icons';
 import { AxisMark } from '../ui/AxisMark';
 import { DashboardData } from '../../types/dashboard';
 import { SURFACE_REGISTRY } from '../../generated/surfaceRegistry.generated';
-import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { TOP_LEVEL_VIEWS, resolveNavigation } from '../../lib/navigation';
 import { STATUS_BADGE_CLASS, STATUS_RAIL_BADGE_CLASS } from '../../styles/tokens';
 import { useFreshness } from '../../hooks/useFreshness';
@@ -35,7 +34,7 @@ function NavItem({ active, icon, label, onClick, badge, badgeClass, railBadgeCla
       className={`group relative flex w-full items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} py-2.5 rounded-xl transition ${active ? "bg-overlay-subtle text-text-primary" : "text-text-muted hover:bg-overlay-hover hover:text-text-secondary"}`}>
       {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[2px] rounded-r bg-brass" />}
       <span className={`flex size-7 items-center justify-center rounded-lg shrink-0 ${active ? "bg-brass/10 text-brass ring-1 ring-brass/30" : "bg-overlay-subtle ring-1 ring-border-subtle"}`}>{icon}</span>
-      {!collapsed && <span className="flex-1 text-left font-display text-[12px] tracking-[0.12em] uppercase whitespace-nowrap overflow-hidden">{label}</span>}
+      {!collapsed && <span className="flex-1 min-w-0 text-left font-display text-[12px] tracking-[0.12em] uppercase whitespace-nowrap overflow-hidden text-ellipsis">{label}</span>}
       {!collapsed && badge != null && <span className={`rounded-full px-1.5 py-0.5 font-mono text-[9px] ${badgeClass ?? 'bg-overlay-subtle text-text-muted'}`}>{badge}</span>}
       {collapsed && badge != null && <span className={`absolute right-1 top-1 rounded-full px-1 font-mono text-[8px] ${railBadgeClass ?? 'bg-brass/80 text-bg-base'}`}>{badge}</span>}
     </button>
@@ -44,11 +43,6 @@ function NavItem({ active, icon, label, onClick, badge, badgeClass, railBadgeCla
 
 const SIDEBAR_WIDTHS = { rail: 64, default: 212, wide: 280 };
 const SIDEBAR_ORDER: SidebarMode[] = ["rail", "default", "wide"];
-const SIDEBAR_FILTER_COLLAPSED_KEY = 'gui.sidebar.filter_collapsed.v1';
-
-function matchesNavFilter(label: string, query: string): boolean {
-  return label.toLowerCase().includes(query.toLowerCase());
-}
 
 const TOP_NAV_META: Record<string, { label: string; icon: string }> = {
   chat: { label: 'Chat', icon: 'message' },
@@ -115,49 +109,8 @@ export function Sidebar({
   };
 
   const activeRef = useRef<HTMLButtonElement>(null);
-  const [navFilter, setNavFilter] = useState('');
-  const [filterCollapsed, setFilterCollapsed] = useLocalStorage<boolean>(
-    SIDEBAR_FILTER_COLLAPSED_KEY,
-    false,
-  );
-  const filterQuery = navFilter.trim();
 
-  const childTabsByParent = useMemo(() => {
-    const map = new Map<string, Array<{ viewKey: string; label: string }>>();
-    for (const entry of SURFACE_REGISTRY) {
-      if (!entry.parentSurface || !entry.viewKey || !entry.navLabel) continue;
-      const parent = entry.parentSurface as string;
-      const list = map.get(parent) ?? [];
-      list.push({ viewKey: entry.viewKey as string, label: entry.navLabel as string });
-      map.set(parent, list);
-    }
-    return map;
-  }, []);
-
-  const visibleTopLevel = useMemo(() => {
-    const keys = TOP_LEVEL_VIEWS.filter(k => k !== 'settings');
-    if (!filterQuery) return keys;
-    return keys.filter(key => {
-      const label = TOP_NAV_META[key]?.label ?? key;
-      if (matchesNavFilter(label, filterQuery)) return true;
-      const children = childTabsByParent.get(key) ?? [];
-      return children.some(child => matchesNavFilter(child.label, filterQuery));
-    });
-  }, [childTabsByParent, filterQuery]);
-
-  const visibleChildTabs = (parentKey: string) => {
-    const children = childTabsByParent.get(parentKey) ?? [];
-    if (!filterQuery) return [];
-    const parentLabel = TOP_NAV_META[parentKey]?.label ?? parentKey;
-    if (matchesNavFilter(parentLabel, filterQuery)) {
-      return children.filter(
-        child =>
-          matchesNavFilter(child.label, filterQuery) ||
-          matchesNavFilter(parentLabel, filterQuery),
-      );
-    }
-    return children.filter(child => matchesNavFilter(child.label, filterQuery));
-  };
+  const visibleTopLevel = TOP_LEVEL_VIEWS.filter(k => k !== 'settings');
 
   useEffect(() => {
     activeRef.current?.scrollIntoView({ block: 'nearest' });
@@ -179,7 +132,7 @@ export function Sidebar({
             <div className="flex items-center gap-2 px-1">
               <AxisMark size={22} />
               <div className="leading-tight">
-                <div className="font-display text-[11px] tracking-[0.22em] text-text-secondary">VOX</div>
+                <div className="font-display text-[11px] tracking-[0.22em] text-text-secondary">AXIS</div>
               </div>
             </div>
           )}
@@ -194,32 +147,6 @@ export function Sidebar({
             </button>
           </div>
         </div>
-
-        {!collapsed && (
-          <div className="pb-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => setFilterCollapsed(!filterCollapsed)}
-              aria-expanded={!filterCollapsed}
-              aria-label="Filter navigation"
-              className="flex w-full items-center justify-between rounded-lg border border-border-subtle px-2 py-1.5 text-[10px] uppercase tracking-[0.18em] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
-            >
-              <span>Filter nav…</span>
-              <Icon.chevronDown className={`size-3 transition ${filterCollapsed ? '' : 'rotate-180'}`} aria-hidden="true" />
-            </button>
-            {!filterCollapsed && (
-              <input
-                data-testid="sidebar-nav-filter"
-                aria-label="Filter navigation"
-                type="search"
-                value={navFilter}
-                onChange={e => setNavFilter(e.target.value)}
-                placeholder="Filter nav…"
-                className="mt-1.5 w-full rounded-lg border border-border-subtle bg-overlay-subtle px-2.5 py-1.5 text-[11px] text-text-secondary placeholder:text-text-muted focus:border-brass/30 focus:outline-none text-text-primary placeholder:text-text-muted bg-overlay-subtle border-border-subtle"
-              />
-            )}
-          </div>
-        )}
 
         <nav className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar flex flex-col gap-0.5 -mr-1 pr-1">
           {visibleTopLevel.map(key => {
@@ -237,33 +164,17 @@ export function Sidebar({
                   : 'Runs and Approvals'
                 : undefined;
             return (
-              <React.Fragment key={key}>
-                <NavItem
-                  innerRef={isActive ? activeRef : undefined}
-                  collapsed={collapsed}
-                  active={isActive}
-                  onClick={() => setView(key)}
-                  icon={<IconCmp className="size-4" />}
-                  label={meta.label}
-                  badge={badge}
-                  ariaLabel={navAriaLabel}
-                />
-                {!collapsed &&
-                  visibleChildTabs(key).map(child => (
-                    <button
-                      key={child.viewKey}
-                      type="button"
-                      onClick={() => setView(child.viewKey)}
-                      className={`ml-6 flex w-[calc(100%-1.5rem)] items-center rounded-lg px-2.5 py-1.5 text-left text-[11px] transition ${
-                        view === child.viewKey
-                          ? 'bg-overlay-subtle text-text-primary'
-                          : 'text-text-muted hover:bg-overlay-hover hover:text-text-secondary'
-                      }`}
-                    >
-                      {child.label}
-                    </button>
-                  ))}
-              </React.Fragment>
+              <NavItem
+                key={key}
+                innerRef={isActive ? activeRef : undefined}
+                collapsed={collapsed}
+                active={isActive}
+                onClick={() => setView(key)}
+                icon={<IconCmp className="size-4" />}
+                label={meta.label}
+                badge={badge}
+                ariaLabel={navAriaLabel}
+              />
             );
           })}
         </nav>
@@ -311,7 +222,7 @@ export function Sidebar({
             {!collapsed && (
               <div className="flex-1 leading-tight overflow-hidden">
                 <div className="font-display text-[11px] text-text-secondary truncate">{identity}</div>
-                <div className="font-mono text-[9px] text-text-muted">build {appVersion ?? 'unknown'} · tauri 2</div>
+                <div className="font-mono text-[9px] text-text-muted">Vox Axis · build {appVersion ?? 'unknown'}</div>
               </div>
             )}
           </div>

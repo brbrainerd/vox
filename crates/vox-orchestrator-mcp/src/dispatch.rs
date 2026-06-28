@@ -639,6 +639,9 @@ async fn handle_tool_call_inner(
         "vox_graphify_compare" => {
             Ok(crate::graphify_tools::graphify_compare(state, serde_json::from_value(args)?).await)
         }
+        "vox_graphify_rebuild" => {
+            Ok(crate::graphify_tools::graphify_rebuild(state, serde_json::from_value(args)?).await)
+        }
         "vox_project_init" => Ok(project_init_tools::project_init(state, args).await),
         "vox_repo_catalog_list" => Ok(repo_catalog_tools::repo_catalog_list(state).await),
         "vox_repo_catalog_refresh" => Ok(repo_catalog_tools::repo_catalog_refresh(state).await),

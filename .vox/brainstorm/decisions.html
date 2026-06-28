@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vox Pipeline — Decisions & Design</title>
+<style>
+ :root{--bg:#0e1116;--panel:#161b22;--panel2:#1c232c;--ink:#e6edf3;--mut:#8b97a6;--line:#30363d;
+  --rust:#d98a4f;--ts:#4f9dd9;--shared:#3fb950;--accent:#58a6ff;--warn:#d29922;--bad:#f85149}
+ *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);
+  font:15px/1.55 ui-sans-serif,system-ui,Segoe UI,Roboto,sans-serif;padding:26px 32px 80px}
+ h1{font-size:23px;margin:0 0 4px}h2{font-size:18px;margin:28px 0 10px;border-bottom:1px solid var(--line);padding-bottom:6px}
+ .sub{color:var(--mut);margin:0 0 16px}
+ .row{display:flex;gap:12px;flex-wrap:wrap}
+ .dec{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--shared);border-radius:0 10px 10px 0;padding:10px 14px;flex:1;min-width:240px}
+ .dec b{color:var(--accent)} .tag{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.4px}
+ .pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:12px;font-weight:600;margin:2px 3px 2px 0;border:1px solid}
+ .p-rust{background:rgba(217,138,79,.16);color:var(--rust);border-color:rgba(217,138,79,.45)}
+ .p-ts{background:rgba(79,157,217,.16);color:var(--ts);border-color:rgba(79,157,217,.45)}
+ .p-shared{background:rgba(63,185,80,.16);color:var(--shared);border-color:rgba(63,185,80,.45)}
+ code{background:#0a0d11;border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:#c9d6e3;font-size:13px}
+ .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;flex:1;min-width:260px}
+ .card h3{margin:0 0 8px;font-size:14px}
+ .lane{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+ .b{flex:1;min-width:210px;border-radius:10px;padding:10px 14px;border:1px solid}
+ .b-rust{border-color:rgba(217,138,79,.5);background:rgba(217,138,79,.06)}
+ .b-ts{border-color:rgba(79,157,217,.5);background:rgba(79,157,217,.06)}
+ .b-shared{border-color:rgba(63,185,80,.5);background:rgba(63,185,80,.06)}
+ table{border-collapse:collapse;width:100%;margin-top:6px;font-size:13px}
+ th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+ th{background:var(--panel2);color:var(--mut)} .mut{color:var(--mut)}
+ .step{display:flex;align-items:center;gap:0;flex-wrap:wrap;margin:6px 0}
+ .n{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px 12px;text-align:center;min-width:120px}
+ .n small{display:block;color:var(--mut);font-size:11px} .ar{color:var(--mut);padding:0 9px;font-size:18px}
+ .err{color:var(--bad);font-weight:600}
+</style></head><body>
+<h1>Vox Pipeline — Decisions Locked & Sub-Spec 1 Design</h1>
+<p class="sub">1A · 2D · 3D · 4B · 5B · 6B — dashboard lives in <b>Vox Axis</b> GUI</p>
+
+<h2>Decisions</h2>
+<div class="row">
+ <div class="dec"><span class="tag">1A · Scope</span><br>Decompose into <b>3 sub-specs</b>, brainstorm #1 now.</div>
+ <div class="dec"><span class="tag">2D · Boundary</span><br><b>Infer placement</b> from effects + <b>@place override</b>.</div>
+ <div class="dec"><span class="tag">3D · Speed</span><br><b>Interp default</b> dev loop + <b>warm/incremental cargo</b> broker.</div>
+ <div class="dec"><span class="tag">4B · Parity</span><br><b>Behavioral differential oracle</b>: interp ≡ Rust ≡ TS.</div>
+ <div class="dec"><span class="tag">5B · New element</span><br>Exhaustive matrix + <b>required ladder fixture</b> per feature.</div>
+ <div class="dec"><span class="tag">6B · Visual</span><br><b>Live parity dashboard</b> as a Vox Axis panel.</div>
+</div>
+
+<h2>The three sub-specs (1A)</h2>
+<div class="step">
+ <div class="n"><b>Sub-spec 1</b><small>Placement model</small></div><div class="ar">→</div>
+ <div class="n"><b>Sub-spec 2</b><small>Speed tiers + broker</small></div><div class="ar">→</div>
+ <div class="n"><b>Sub-spec 3</b><small>Parity oracle + dashboard</small></div>
+</div>
+<p class="mut">Order is by dependency: placement defines <i>which tier owns each function</i>, which the speed tiers schedule and the oracle verifies. #1 is the keystone — we design it now.</p>
+
+<h2>Sub-Spec 1 — Placement: perf-native vs GUI as a language property</h2>
+<p>Every declaration gets one <b>placement</b>, inferred from the effect/capability system you already have, overridable with <code>@place(...)</code>.</p>
+<div class="lane">
+ <div class="b b-rust"><span class="pill p-rust">native</span><br>Rust + interp. <code>db</code>, <code>fs</code>, <code>net</code>, <code>spawn</code>, <code>@server/@query/@mutation</code>, <code>@table</code>, <code>@scheduled</code>, <code>actor</code>, <code>workflow</code>.</div>
+ <div class="b b-shared"><span class="pill p-shared">shared</span><br>Emits to <b>both</b>. <code>@pure</code> logic, types/ADTs, validation, formatting — no tier-specific calls.</div>
+ <div class="b b-ts"><span class="pill p-ts">gui</span><br>TypeScript. <code>component</code>, <code>@reactive</code>, JSX, DOM/browser-only state.</div>
+</div>
+
+<h3 style="margin-top:18px">Inference → conflict → override</h3>
+<table>
+<tr><th>Rule</th><th>Result</th></tr>
+<tr><td>Body uses JSX / is <code>component</code> / <code>@reactive</code></td><td><span class="pill p-ts">gui</span></td></tr>
+<tr><td>Uses <code>db/fs/net/spawn</code> or carries <code>@server/@table/@scheduled</code>…</td><td><span class="pill p-rust">native</span></td></tr>
+<tr><td><code>@pure</code> + only calls shared/builtin-pure</td><td><span class="pill p-shared">shared</span></td></tr>
+<tr><td>Placement propagates along the call graph (callee constrains caller)</td><td>narrows shared → native/gui</td></tr>
+<tr><td>A <code>shared</code> fn forced toward <b>both</b> native-only and gui-only</td><td class="err">placement conflict → diagnostic + fix-it</td></tr>
+</table>
+
+<h3 style="margin-top:18px">The boundary becomes typed</h3>
+<div class="step">
+ <div class="n b-ts" style="border:1px solid"><b>gui</b> fn<small>component</small></div>
+ <div class="ar">— direct call →</div>
+ <div class="n b-rust" style="border:1px solid"><b>native</b> fn<small>db read</small></div>
+ <div class="ar"></div><div class="n" style="border:1px dashed var(--bad);color:var(--bad)">ERROR<small>no endpoint</small></div>
+</div>
+<p class="mut">A GUI→native direct call is rejected with a fix-it: “wrap in <code>@query fn</code>.” Crossing the boundary <b>must</b> go through the existing RPC decorators — so the client/server split stops being convention and becomes a compiler-checked contract. Placement is literally <code>feature_matrix</code>’s per-feature FRONTEND/BACKEND-ONLY, lifted to the per-declaration level and computed automatically.</p>
+
+<h3 style="margin-top:18px">Where it lives in Vox Axis</h3>
+<p class="mut">Sub-spec 3’s dashboard renders a generated <code>parity-report.v1.json</code> (from <code>feature_matrix.rs</code> + ladder + oracle runs) inside a dockable <b>Parity</b> panel in vox-gui — same pattern as the existing gui-surface-registry reports. Placement (sub-spec 1) shows up there as a per-declaration <span class="pill p-rust">native</span>/<span class="pill p-shared">shared</span>/<span class="pill p-ts">gui</span> overlay.</p>
+</body></html>

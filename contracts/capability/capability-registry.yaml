@@ -7245,6 +7245,24 @@ curated:
   mcp_tool: vox_graphify_query
   cli_path: null
   parameters: null
+- id: mcp.vox_graphify_rebuild
+  title: Graphify Rebuild
+  description_human: null
+  description_model: Rebuild a graphify corpus graph (AST extract + cluster), snapshot the prior graph, and refresh freshness manifest (write).
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: writes_files
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: vox_graphify_rebuild
+  cli_path: null
+  parameters: null
 - id: mcp.vox_graphify_search
   title: Graphify Search
   description_human: null

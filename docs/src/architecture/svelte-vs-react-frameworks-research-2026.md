@@ -43,7 +43,7 @@ Grounded in the current codebase, not aspirational:
 | `state_machine` keyword, typed states + transitions, discriminated-union types **and reducer function stub** | [crates/vox-ast/src/decl/state_machine.rs](../../../crates/vox-ast/src/decl/state_machine.rs) + [state_machine_emit.rs:1–110](../../../crates/vox-codegen-ts/src/state_machine_emit.rs) | Implemented as types + reducer skeleton; no instantiable runtime object or live state field |
 | Design tokens (JSON → CSS custom properties + typed `voxTokens` constant) | [codegen_ts/tokens_emit.rs](../../../crates/vox-codegen-ts/src/tokens_emit.rs) | Implemented |
 | Component-scoped CSS via `style { }` blocks, `raw_css { }` escape hatch | codegen_ts | Implemented |
-| Diff-based autofix suggestions on diagnostics | [crates/vox-compiler/src/typeck/autofix.rs](../../../crates/vox-compiler/src/typeck/autofix.rs) | Implemented; rule-driven baseline |
+| Diff-based autofix suggestions on diagnostics | `crates/vox-compiler/src/typeck/autofix.rs` | Implemented; rule-driven baseline |
 | `vox dev` hot loop (compilerd + JSON-RPC, watches and rebuilds) | [crates/vox-cli/src/commands/dev.rs](../../../crates/vox-cli/src/commands/dev.rs) | Implemented |
 | **MCP compile-and-validate tool: `vox_validate_file`** ("Validate a .vox file using the full compiler pipeline") **plus `vox_compiler::ast_inspect`** | Registry: [contracts/mcp/tool-registry.canonical.yaml:1211](../../../contracts/mcp/tool-registry.canonical.yaml); dispatch: [crates/vox-orchestrator-mcp/src/dispatch.rs:237](../../../crates/vox-orchestrator-mcp/src/dispatch.rs); MCP crates: `vox-mcp-meta`, `vox-mcp-registry`; stdio server: [crates/vox-cli/src/commands/mcp_server/mod.rs](../../../crates/vox-cli/src/commands/mcp_server/mod.rs) | Implemented; surfaced through the existing stdio MCP server |
 | External-frontend interop pipeline (target split, OpenAPI/JSON Schema emit, bidirectional component interop) | [external-frontend-interop-plan-2026.md](external-frontend-interop-plan-2026.md), [phase5-react-interop-spec-2026.md](../archive/phase5-react-interop-spec-2026.md) | Plan / specs; Phase 1 in flight |
@@ -232,7 +232,7 @@ A fragment value is typed, passable as a prop, callable multiple times with diff
 
 **Real gaps.**
 
-- The diagnostic-result shape returned by `vox_validate_file` does not currently surface the existing autofix suggestions ([typeck/autofix.rs](../../../crates/vox-compiler/src/typeck/autofix.rs)) in a structured form an AI client can apply.
+- The diagnostic-result shape returned by `vox_validate_file` does not currently surface the existing autofix suggestions (`typeck/autofix.rs`) in a structured form an AI client can apply.
 - There is no documented "point your coding agent at this MCP" how-to.
 - There is no in-memory variant of the tool — every call goes through `resolve_existing_path_in_repository`, which means an AI cannot validate a snippet without first writing it to a file. A `vox_validate_source` (text-in, diagnostics-out) tool is the missing piece for the iterative-loop use case.
 

@@ -1116,6 +1116,24 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_graphify_rebuild",
+      "mcp_tool": "vox_graphify_rebuild",
+      "implicit": false,
+      "title": "Graphify Rebuild",
+      "description_model": "Rebuild a graphify corpus graph (AST extract + cluster), snapshot the prior graph, and refresh freshness manifest (write).",
+      "intent_tags": [
+        "retrieval",
+        "graph"
+      ],
+      "side_effect_class": "writes_files",
+      "scope_kind": "repository",
+      "reversible": true,
+      "requires_repo": true,
+      "preferred_for_models": true,
+      "human_takeover_friendly": true,
+      "curated": true
+    },
+    {
       "capability_id": "mcp.vox_graphify_search",
       "mcp_tool": "vox_graphify_search",
       "implicit": false,

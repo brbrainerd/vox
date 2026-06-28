@@ -398,6 +398,80 @@ pub fn lexical_lag_stale_reason(manifest: &GraphifyManifest) -> Option<String> {
     }
 }
 
+/// Stale-reason string for uncommitted working-tree edits within a corpus scope.
+pub const WORKTREE_DRIFT_REASON: &str = "worktree_drift";
+
+/// Map a tri-state working-tree dirtiness signal to a stale reason.
+///
+/// - `Some(true)`  => the corpus scope has uncommitted changes => `Some("worktree_drift")`.
+/// - `Some(false)` => scope is clean => `None`.
+/// - `None`        => git could not be consulted (unknown) => `None` (never flips `is_fresh`
+///   to false on a git failure alone; the caller records a non-fatal warning instead).
+///
+/// Pure and deterministic so it can be unit-tested without invoking git.
+#[must_use]
+pub fn worktree_drift_stale_reason(scope_dirty: Option<bool>) -> Option<String> {
+    match scope_dirty {
+        Some(true) => Some(WORKTREE_DRIFT_REASON.to_string()),
+        _ => None,
+    }
+}
+
+/// Decide whether `git status --porcelain` output indicates changes within `scope_path`.
+///
+/// `porcelain` is the raw stdout of `git status --porcelain -- <scope_path>` (already
+/// scope-filtered by git) OR an unscoped `git status --porcelain` that we filter here.
+/// A `scope_path` of `"."` (whole repo) treats any non-empty output as dirty.
+///
+/// Porcelain lines look like `" M crates/foo/bar.rs"` or `"?? new.rs"`; the path begins
+/// at column 3. Rename lines (`R  old -> new`) are treated as dirty if either side falls
+/// within scope. Pure and deterministic.
+#[must_use]
+pub fn porcelain_indicates_scope_dirty(porcelain: &str, scope_path: &str) -> bool {
+    let scope = scope_path.trim_end_matches('/');
+    let whole_repo = scope.is_empty() || scope == ".";
+    for line in porcelain.lines() {
+        if line.len() < 4 {
+            continue;
+        }
+        // Strip the 2-char XY status + 1 space prefix.
+        let rest = &line[3..];
+        // Rename/copy entries carry "old -> new"; check both operands.
+        let candidates: Vec<&str> = rest.split(" -> ").collect();
+        for raw in candidates {
+            let path = raw.trim().trim_matches('"');
+            if path.is_empty() {
+                continue;
+            }
+            if whole_repo {
+                return true;
+            }
+            let norm = path.trim_start_matches("./");
+            if norm == scope || norm.starts_with(&format!("{scope}/")) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Consult git for uncommitted changes within `scope_path` (read-only, resilient).
+///
+/// Returns `Some(true|false)` when git answers, or `None` when git is unavailable/errors
+/// (caller treats `None` as "unknown" and must NOT mark the corpus stale on that basis).
+fn scope_worktree_dirty(repo_root: &Path, scope_path: &str) -> Option<bool> {
+    // Prefer a scope-filtered porcelain query; fall back to whole-repo + local filter.
+    let scoped = vox_git::read_only(repo_root, &["status", "--porcelain", "--", scope_path]);
+    let porcelain = match scoped {
+        Ok(out) => out,
+        Err(_) => match vox_git::read_only(repo_root, &["status", "--porcelain"]) {
+            Ok(out) => out,
+            Err(_) => return None,
+        },
+    };
+    Some(porcelain_indicates_scope_dirty(&porcelain, scope_path))
+}
+
 /// Assess on-disk freshness for one corpus (read-only).
 pub fn assess_corpus_status(
     repo_root: &Path,
@@ -496,6 +570,15 @@ pub fn assess_corpus_status(
         && let Some(reason) = lexical_lag_stale_reason(m)
     {
         stale_reasons.push(reason);
+    }
+
+    // Working-tree-aware staleness (finding B2): uncommitted edits within the corpus
+    // scope mean the on-disk graph no longer matches the source, even at the same HEAD.
+    // Resilient: git failure => `None` => "unknown" => warn but never flip is_fresh.
+    match scope_worktree_dirty(repo_root, &corpus.scope_path) {
+        Some(true) => stale_reasons.push(WORKTREE_DRIFT_REASON.to_string()),
+        Some(false) => {}
+        None => warnings.push("worktree_status_unknown".into()),
     }
 
     if let (Some(m), Some(nc), Some(ec)) = (&manifest, node_count, edge_count) {
@@ -645,6 +728,39 @@ mod tests {
             lexical_lag_stale_reason(&after2).as_deref(),
             Some("lexical_lag")
         );
+    }
+
+    #[test]
+    fn worktree_drift_reason_only_fires_on_dirty() {
+        assert_eq!(
+            worktree_drift_stale_reason(Some(true)).as_deref(),
+            Some("worktree_drift")
+        );
+        // Clean and unknown both yield no stale reason (unknown must not flip is_fresh).
+        assert_eq!(worktree_drift_stale_reason(Some(false)), None);
+        assert_eq!(worktree_drift_stale_reason(None), None);
+    }
+
+    #[test]
+    fn porcelain_scope_filtering() {
+        let out = " M crates/vox-config/src/graphify.rs\n?? docs/new.md\n";
+        // In-scope edit => dirty.
+        assert!(porcelain_indicates_scope_dirty(out, "crates/vox-config"));
+        // Out-of-scope edit only => clean for that scope.
+        assert!(!porcelain_indicates_scope_dirty(out, "crates/vox-gui"));
+        // Whole-repo scope => any output is dirty.
+        assert!(porcelain_indicates_scope_dirty(out, "."));
+        // Empty porcelain => clean regardless of scope.
+        assert!(!porcelain_indicates_scope_dirty("", "."));
+        assert!(!porcelain_indicates_scope_dirty("", "crates/vox-config"));
+    }
+
+    #[test]
+    fn porcelain_rename_checks_both_operands() {
+        let out = "R  crates/old/a.rs -> crates/vox-config/b.rs\n";
+        assert!(porcelain_indicates_scope_dirty(out, "crates/vox-config"));
+        assert!(porcelain_indicates_scope_dirty(out, "crates/old"));
+        assert!(!porcelain_indicates_scope_dirty(out, "crates/unrelated"));
     }
 
     #[test]

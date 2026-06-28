@@ -14,7 +14,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { DashboardLayout, DashboardWidget } from '../../lib/dashboardLayout';
-import { reorderDashboardWidgets, resizeDashboardWidget } from '../../lib/dashboardGrid';
+import { reorderDashboardWidgets, resizeDashboardWidget, effectiveColumns, MIN_COL_PX } from '../../lib/dashboardGrid';
 import { SHELL_PREFERENCE_KEYS } from '../../lib/shellPersistence';
 import { validateDashboardLayout } from '../../lib/dashboardLayout';
 
@@ -25,10 +25,14 @@ export interface DashboardGridProps {
   renderWidget: (widget: DashboardWidget) => React.ReactNode;
 }
 
-function gridCellStyle(widget: DashboardWidget): React.CSSProperties {
+function gridCellStyle(widget: DashboardWidget, effectiveCols: number): React.CSSProperties {
   const { col, row, w, h } = widget.grid;
+  // Clamp the starting column and span to the effective column count so a
+  // widget configured for a wider grid never overflows a narrower render.
+  const startCol = Math.min(col, effectiveCols);
+  const span = Math.max(1, Math.min(w, effectiveCols - startCol + 1));
   return {
-    gridColumn: `${col} / span ${w}`,
+    gridColumn: `${startCol} / span ${span}`,
     gridRow: `${row} / span ${h}`,
   };
 }
@@ -63,6 +67,7 @@ interface SortableWidgetCellProps {
   widget: DashboardWidget;
   customizeMode: boolean;
   layout: DashboardLayout;
+  effectiveCols: number;
   gridRef: React.RefObject<HTMLDivElement | null>;
   onResize: (layout: DashboardLayout) => void;
   children: React.ReactNode;
@@ -72,6 +77,7 @@ function SortableWidgetCell({
   widget,
   customizeMode,
   layout,
+  effectiveCols,
   gridRef,
   onResize,
   children,
@@ -88,7 +94,7 @@ function SortableWidgetCell({
   } | null>(null);
 
   const style: React.CSSProperties = {
-    ...gridCellStyle(widget),
+    ...gridCellStyle(widget, effectiveCols),
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.6 : undefined,
@@ -175,9 +181,17 @@ function SortableWidgetCell({
   );
 }
 
-function StaticWidgetCell({ widget, children }: { widget: DashboardWidget; children: React.ReactNode }) {
+function StaticWidgetCell({
+  widget,
+  effectiveCols,
+  children,
+}: {
+  widget: DashboardWidget;
+  effectiveCols: number;
+  children: React.ReactNode;
+}) {
   return (
-    <div style={gridCellStyle(widget)} data-widget-id={widget.id}>
+    <div style={gridCellStyle(widget, effectiveCols)} data-widget-id={widget.id}>
       {children}
     </div>
   );
@@ -217,6 +231,27 @@ export function DashboardGrid({
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
   );
 
+  // Measure the grid container and derive the render-time effective column
+  // count so widgets never get narrower than MIN_COL_PX. layout.columns stays
+  // the persisted maximum; this is purely a render derivation.
+  const [containerWidth, setContainerWidth] = React.useState(0);
+  React.useEffect(() => {
+    const el = gridRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+    setContainerWidth(el.getBoundingClientRect().width);
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerWidth(entry.contentRect.width);
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const effectiveCols = effectiveColumns(containerWidth, layout.columns);
+
   const widgetIds = layout.widgets.map((w) => w.id);
 
   function handleDragEnd(event: DragEndEvent) {
@@ -243,6 +278,7 @@ export function DashboardGrid({
           widget={widget}
           customizeMode
           layout={layout}
+          effectiveCols={effectiveCols}
           gridRef={gridRef}
           onResize={handleResize}
         >
@@ -251,7 +287,7 @@ export function DashboardGrid({
       );
     }
     return (
-      <StaticWidgetCell key={widget.id} widget={widget}>
+      <StaticWidgetCell key={widget.id} widget={widget} effectiveCols={effectiveCols}>
         {content}
       </StaticWidgetCell>
     );
@@ -262,7 +298,7 @@ export function DashboardGrid({
       ref={gridRef}
       className="grid gap-5 p-5"
       style={{
-        gridTemplateColumns: `repeat(${layout.columns}, minmax(0, 1fr))`,
+        gridTemplateColumns: `repeat(${effectiveCols}, minmax(${MIN_COL_PX}px, 1fr))`,
       }}
       data-customize-mode={customizeMode ? 'true' : 'false'}
     >

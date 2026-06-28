@@ -185,14 +185,33 @@ pub fn run(root: &Path, opts: PrePushOpts) -> Result<()> {
         )?;
         return Ok(());
     }
+    const WARN_AT_SECS: u64 = 20 * 60;
+    const FAIL_AT_SECS: u64 = 25 * 60;
     let total = Instant::now();
     for s in steps {
+        let elapsed_secs = total.elapsed().as_secs();
+        if elapsed_secs >= FAIL_AT_SECS {
+            bail!(
+                "pre-push: global 25m timeout exceeded at {:02}:{:02} before step `{}`",
+                elapsed_secs / 60,
+                elapsed_secs % 60,
+                s.label
+            );
+        }
+        if elapsed_secs >= WARN_AT_SECS {
+            eprintln!(
+                "pre-push: WARNING — {:02}:{:02} elapsed, hard timeout at 25:00; running `{}`",
+                elapsed_secs / 60,
+                elapsed_secs % 60,
+                s.label
+            );
+        }
         let started = Instant::now();
         let label = s.label.clone();
         let scope = s.scope.clone();
         println!("==> {}", label);
         let run = s.run;
-        match run_step_with_heartbeat(&label, || run(root))
+        match run_step_with_heartbeat(&label, total, || run(root))
             .with_context(|| format!("step `{label}`"))
         {
             Ok(()) => {
@@ -289,7 +308,11 @@ fn print_pr_review_discipline_hint(root: &Path) {
     eprintln!("          `@coderabbitai review` on the PR when it's ready for a fresh review.");
 }
 
-fn run_step_with_heartbeat(label: &str, f: impl FnOnce() -> Result<()>) -> Result<()> {
+fn run_step_with_heartbeat(
+    label: &str,
+    push_start: Instant,
+    f: impl FnOnce() -> Result<()>,
+) -> Result<()> {
     let stop = Arc::new(AtomicBool::new(false));
     let stop_bg = Arc::clone(&stop);
     let label_owned = label.to_string();
@@ -300,10 +323,15 @@ fn run_step_with_heartbeat(label: &str, f: impl FnOnce() -> Result<()>) -> Resul
             if stop_bg.load(Ordering::Relaxed) {
                 break;
             }
+            let step_s = t0.elapsed().as_secs();
+            let total_s = push_start.elapsed().as_secs();
             eprintln!(
-                "pre-push: still running `{}` ({:.0}s elapsed)",
+                "pre-push: still running `{}` — step {:02}:{:02} | total {:02}:{:02}",
                 label_owned,
-                t0.elapsed().as_secs_f64()
+                step_s / 60,
+                step_s % 60,
+                total_s / 60,
+                total_s % 60,
             );
         }
     });
@@ -898,6 +926,84 @@ fn step_fmt(root: &Path) -> Result<()> {
     check_fmt(root)
 }
 
+/// Assert that every workspace crate's `Cargo.toml` `edition` matches the one
+/// declared in the workspace `rustfmt.toml`.
+///
+/// **Why this matters (edition-split false-positives):**
+/// `cargo fmt --all` passes each *package's* edition to rustfmt, so a crate
+/// that declares `edition = "2021"` will be checked with 2021 rules even when
+/// the workspace `rustfmt.toml` says `edition = "2024"`.  Files already
+/// formatted correctly for 2024 will be flagged as unformatted — a confusing
+/// false-positive that blocks `git push`.  The fix is always: bump the lagging
+/// crate's `Cargo.toml` edition to match `rustfmt.toml`, then verify with
+/// `cargo check -p <crate>` (Edition 2024 has breaking changes; use
+/// `cargo fix --edition` if needed, or defer the bump and note it here).
+///
+/// This function is called at the top of `check_fmt` so new lagging crates
+/// are caught immediately with a clear error rather than a cryptic fmt diff.
+fn check_edition_alignment(root: &Path) -> Result<()> {
+    // Read the expected edition from rustfmt.toml.
+    let rustfmt_toml = root.join("rustfmt.toml");
+    let toml_text = std::fs::read_to_string(&rustfmt_toml)
+        .with_context(|| format!("read {}", rustfmt_toml.display()))?;
+    let expected_edition = toml_text
+        .lines()
+        .find_map(|line| {
+            let line = line.trim();
+            line.strip_prefix("edition")
+                .and_then(|rest| rest.trim_start().strip_prefix('='))
+                .map(|v| v.trim().trim_matches('"').to_string())
+        })
+        .context("rustfmt.toml has no `edition = …` line")?;
+
+    // Walk workspace member Cargo.tomls and collect any with a different edition.
+    let meta = MetadataCommand::new()
+        .manifest_path(root.join("Cargo.toml"))
+        .no_deps()
+        .exec()
+        .context("cargo metadata for edition alignment check")?;
+
+    let mut mismatched: Vec<String> = Vec::new();
+    for pkg in meta.workspace_packages() {
+        let manifest = std::fs::read_to_string(pkg.manifest_path.as_std_path())
+            .with_context(|| format!("read {}", pkg.manifest_path))?;
+        // Look for `edition = "…"` in the [package] section.
+        if let Some(pkg_edition) = manifest.lines().find_map(|line| {
+            let line = line.trim();
+            line.strip_prefix("edition")
+                .and_then(|rest| rest.trim_start().strip_prefix('='))
+                .map(|v| v.trim().trim_matches('"').to_string())
+        }) {
+            if pkg_edition != expected_edition {
+                mismatched.push(format!(
+                    "  {} — edition = {:?} (want {:?}); bump Cargo.toml \
+                     and run `cargo check -p {}`",
+                    pkg.manifest_path, pkg_edition, expected_edition, pkg.name
+                ));
+            }
+        }
+        // Packages with no explicit edition inherit the workspace default; no
+        // action needed because rustfmt will also use the workspace default.
+    }
+
+    if !mismatched.is_empty() {
+        bail!(
+            "Edition mismatch: the following workspace crates declare an \
+             edition that does not match `rustfmt.toml` (edition = {:?}).\n\
+             This causes `cargo fmt --all` to check those crates with the \
+             wrong edition rules, producing false-positive fmt failures.\n\
+             Fix: bump each crate's `Cargo.toml` edition to {:?}, then run \
+             `cargo check -p <crate>` to confirm it compiles. Use \
+             `cargo fix --edition` if Edition 2024 has breaking changes.\n\n\
+             Lagging crates:\n{}",
+            expected_edition,
+            expected_edition,
+            mismatched.join("\n")
+        );
+    }
+    Ok(())
+}
+
 /// Cross-platform, crate-agnostic `rustfmt --check` over the whole workspace.
 ///
 /// `cargo fmt --all` collects every `.rs` file in the workspace and passes them all
@@ -911,6 +1017,10 @@ fn step_fmt(root: &Path) -> Result<()> {
 /// the workspace `rustfmt.toml` (via `--config-path`). Robust to crates being added
 /// or removed because the target set comes from metadata, never a hard-coded list.
 pub(crate) fn check_fmt(root: &Path) -> Result<()> {
+    // Fail fast if any workspace crate's edition lags behind rustfmt.toml.
+    // A mismatch causes `cargo fmt --all` to check that crate with the wrong
+    // edition rules, producing confusing false-positive "unformatted" errors.
+    check_edition_alignment(root)?;
     let meta = MetadataCommand::new()
         .manifest_path(root.join("Cargo.toml"))
         .no_deps()

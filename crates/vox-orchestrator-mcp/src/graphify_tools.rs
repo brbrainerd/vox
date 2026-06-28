@@ -91,6 +91,28 @@ fn knowledge_id(corpus_id: &str, node_id: &str) -> String {
     format!("graphify:{corpus_id}:node:{node_id}")
 }
 
+/// Build a `corpus_health` block from a single corpus's freshness assessment so query/search/path
+/// payloads carry a recency signal the AI caller can act on. Never fails the query — staleness is
+/// reported, not enforced.
+fn corpus_health_block(
+    repo_root: &std::path::Path,
+    reg: &vox_config::graphify::GraphifyCorporaRegistry,
+    corpus: &vox_config::graphify::GraphifyCorpus,
+    head_sha: Option<&str>,
+) -> serde_json::Value {
+    let now = Utc::now();
+    let ttl = vox_config::graphify::resolve_ttl_days(reg.ttl_days_default);
+    let status = assess_corpus_status(repo_root, corpus, head_sha, now, ttl);
+    let confidence = if status.is_fresh { "fresh" } else { "stale" };
+    serde_json::json!({
+        "is_fresh": status.is_fresh,
+        "stale_reasons": status.stale_reasons,
+        "built_at": status.built_at,
+        "head_git_sha": status.head_git_sha,
+        "confidence": confidence,
+    })
+}
+
 async fn resolve_head_sha(state: &ServerState) -> Option<String> {
     let cwd = state
         .repository
@@ -151,10 +173,25 @@ pub async fn graphify_status(state: &ServerState, params: GraphifyStatusParams) 
             .to_json();
         }
     };
+    // Augment each corpus with `rebuild_recommended` (true when not fresh) so the AI caller can
+    // close the loop via `vox_graphify_rebuild` without re-deriving freshness.
+    let corpora: Vec<serde_json::Value> = statuses
+        .iter()
+        .map(|s| {
+            let mut v = serde_json::to_value(s).unwrap_or_else(|_| serde_json::json!({}));
+            if let Some(obj) = v.as_object_mut() {
+                obj.insert(
+                    "rebuild_recommended".to_string(),
+                    serde_json::json!(!s.is_fresh),
+                );
+            }
+            v
+        })
+        .collect();
     let payload = serde_json::json!({
         "head_git_sha": head,
         "default_corpus_id": reg.default_corpus_id,
-        "corpora": statuses,
+        "corpora": corpora,
     });
     ToolResult::ok(payload).to_json()
 }
@@ -293,9 +330,11 @@ pub async fn graphify_search(state: &ServerState, params: GraphifySearchParams) 
             })
         })
         .collect();
+    let corpus_health = corpus_health_block(repo_root, &reg, corpus, head_sha_for_meta.as_deref());
     let payload = serde_json::json!({
         "corpus_id": corpus_id,
         "searched_at": searched_at,
+        "corpus_health": corpus_health,
         "hits": payload_hits,
     });
     ToolResult::ok(payload).to_json()
@@ -395,9 +434,12 @@ pub async fn graphify_query(state: &ServerState, params: GraphifyQueryParams) ->
             })
         })
         .collect();
+    let head = resolve_head_sha(state).await;
+    let corpus_health = corpus_health_block(repo_root, &reg, corpus, head.as_deref());
     ToolResult::ok(serde_json::json!({
         "corpus_id": corpus_id,
         "seeds": params.seeds,
+        "corpus_health": corpus_health,
         "hits": payload_hits,
     }))
     .to_json()
@@ -445,12 +487,15 @@ pub async fn graphify_path(state: &ServerState, params: GraphifyPathParams) -> S
     };
     let path = reader.shortest_path(&params.from, &params.to);
     let reachable = path.is_some();
+    let head = resolve_head_sha(state).await;
+    let corpus_health = corpus_health_block(repo_root, &reg, corpus, head.as_deref());
     ToolResult::ok(serde_json::json!({
         "corpus_id": corpus_id,
         "from": params.from,
         "to": params.to,
         "path": path,
         "reachable": reachable,
+        "corpus_health": corpus_health,
     }))
     .to_json()
 }
@@ -522,6 +567,120 @@ pub async fn graphify_compare(state: &ServerState, params: GraphifyCompareParams
             "edge_delta": diff.edge_delta,
             "community_delta": diff.community_delta,
         },
+    }))
+    .to_json()
+}
+
+// ── Graphify Rebuild (P1 close-the-loop) ──────────────────────────────────
+
+#[derive(Debug, Deserialize)]
+pub struct GraphifyRebuildParams {
+    /// Corpus id to rebuild; omit to rebuild the registry `default_corpus_id`.
+    pub corpus: Option<String>,
+}
+
+/// `vox_graphify_rebuild`: WRITE/mutating — rebuild a corpus's AST code graph (same entrypoint as
+/// the CLI `vox graphify rebuild`). Snapshots the previous graph, regenerates it, and reports the
+/// fresh node/edge counts so an agent can close the staleness loop after seeing
+/// `rebuild_recommended: true` in `vox_graphify_status`.
+pub async fn graphify_rebuild(state: &ServerState, params: GraphifyRebuildParams) -> String {
+    let repo_root = &state.repository.root;
+    let reg = match load_graphify_corpora(repo_root) {
+        Ok(r) => r,
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                e.to_string(),
+                REM_GRAPHIFY,
+            )
+            .to_json();
+        }
+    };
+    let corpus_id = match &params.corpus {
+        Some(id) => id.clone(),
+        None => reg.default_corpus_id.clone(),
+    };
+    let corpus = match corpus_by_id(&reg, &corpus_id) {
+        Ok(c) => c,
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                e.to_string(),
+                REM_GRAPHIFY,
+            )
+            .to_json();
+        }
+    };
+
+    let source_dir = corpus
+        .source_root
+        .as_ref()
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| repo_root.to_path_buf())
+        .join(&corpus.scope_path);
+    let output_file = repo_root.join(&corpus.graph_path);
+    let cache_dir = match output_file.parent() {
+        Some(p) => p.join("file_cache"),
+        None => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                "graph_path has no parent directory".to_string(),
+                REM_GRAPHIFY,
+            )
+            .to_json();
+        }
+    };
+
+    let head = resolve_head_sha(state).await;
+    let built_at = Utc::now().to_rfc3339();
+    let meta = vox_graphify_reader::rebuild::RebuildMeta {
+        corpus_id: corpus_id.clone(),
+        git_sha: head,
+        scope_path: corpus.scope_path.clone(),
+        extraction_mode: corpus.extraction_mode.clone(),
+        built_at_rfc3339: built_at.clone(),
+    };
+
+    // Preserve the previous graph as a bounded history before overwriting (mirrors the CLI).
+    if output_file.is_file() {
+        if let Some(corpus_dir) = output_file.parent() {
+            let stamp = Utc::now().to_rfc3339().replace(':', "-");
+            let _ = vox_graphify_reader::snapshot::snapshot_corpus(corpus_dir, &stamp);
+            let _ = vox_graphify_reader::snapshot::prune_snapshots(corpus_dir, 5);
+        }
+    }
+
+    if let Err(e) = vox_graphify_reader::rebuild::rebuild_graph(
+        repo_root,
+        &source_dir,
+        &output_file,
+        &cache_dir,
+        &meta,
+    ) {
+        return ToolResult::<serde_json::Value>::err_with_remediation(
+            format!("rebuild {corpus_id} failed: {e}"),
+            REM_GRAPHIFY,
+        )
+        .to_json();
+    }
+
+    // Re-read the freshly written graph to report node/edge counts.
+    let (node_count, edge_count) = match load_graph_json(repo_root, corpus) {
+        Ok(g) => {
+            let n = g.get("nodes").and_then(|v| v.as_array()).map(|a| a.len());
+            let e = g
+                .get("links")
+                .or_else(|| g.get("edges"))
+                .and_then(|v| v.as_array())
+                .map(|a| a.len());
+            (n, e)
+        }
+        Err(_) => (None, None),
+    };
+
+    ToolResult::ok(serde_json::json!({
+        "corpus_id": corpus_id,
+        "rebuilt": true,
+        "built_at": built_at,
+        "node_count": node_count,
+        "edge_count": edge_count,
     }))
     .to_json()
 }
@@ -702,6 +861,78 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn graphify_search_payload_includes_corpus_health() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_registry(tmp.path());
+        write_sample_graph(tmp.path());
+        let state = test_state_for_repo(tmp.path().to_path_buf());
+        let json = graphify_search(
+            &state,
+            GraphifySearchParams {
+                corpus: Some("repo-code-graph".into()),
+                intent: None,
+                query: "authentication".into(),
+                limit: None,
+                persist: false,
+            },
+        )
+        .await;
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid json");
+        let health = parsed["data"]["corpus_health"]
+            .as_object()
+            .expect("corpus_health object");
+        assert!(
+            health.get("is_fresh").and_then(|v| v.as_bool()).is_some(),
+            "is_fresh present: {json}"
+        );
+        assert!(
+            health
+                .get("stale_reasons")
+                .and_then(|v| v.as_array())
+                .is_some(),
+            "stale_reasons present: {json}"
+        );
+        assert!(
+            health.get("confidence").and_then(|v| v.as_str()).is_some(),
+            "confidence present: {json}"
+        );
+    }
+
+    #[tokio::test]
+    async fn graphify_path_payload_includes_corpus_health() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_registry(tmp.path());
+        let dir = tmp.path().join(".vox/cache/graphify/repo-code-graph");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(
+            dir.join("graph.json"),
+            r#"{"nodes":[{"id":"a"},{"id":"b"}],"links":[{"source":"a","target":"b"}]}"#,
+        )
+        .unwrap();
+        let state = test_state_for_repo(tmp.path().to_path_buf());
+        let json = graphify_path(
+            &state,
+            GraphifyPathParams {
+                corpus: Some("repo-code-graph".into()),
+                from: "a".into(),
+                to: "b".into(),
+            },
+        )
+        .await;
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid json");
+        let health = parsed["data"]["corpus_health"]
+            .as_object()
+            .expect("corpus_health object");
+        assert!(health.get("is_fresh").and_then(|v| v.as_bool()).is_some());
+        assert!(
+            health
+                .get("stale_reasons")
+                .and_then(|v| v.as_array())
+                .is_some()
+        );
+    }
+
+    #[tokio::test]
     async fn graphify_query_returns_bfs_neighbors() {
         let tmp = tempfile::tempdir().unwrap();
         write_registry(tmp.path());
@@ -824,6 +1055,81 @@ mod tests {
             parsed["success"],
             serde_json::json!(false),
             "expected error: {json}"
+        );
+    }
+
+    #[tokio::test]
+    async fn graphify_query_payload_includes_corpus_health() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_registry(tmp.path());
+        let dir = tmp.path().join(".vox/cache/graphify/repo-code-graph");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(
+            dir.join("graph.json"),
+            r#"{"nodes":[{"id":"auth","label":"auth"},{"id":"crypto","label":"crypto"}],"links":[{"source":"auth","target":"crypto"}]}"#,
+        )
+        .unwrap();
+        let state = test_state_for_repo(tmp.path().to_path_buf());
+        let json = graphify_query(
+            &state,
+            GraphifyQueryParams {
+                corpus: Some("repo-code-graph".into()),
+                seeds: vec!["auth".into()],
+                max_depth: Some(1),
+                limit: Some(10),
+            },
+        )
+        .await;
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid json");
+        let health = parsed["data"]["corpus_health"]
+            .as_object()
+            .expect("corpus_health object");
+        assert!(health.get("is_fresh").and_then(|v| v.as_bool()).is_some());
+        assert!(
+            health
+                .get("stale_reasons")
+                .and_then(|v| v.as_array())
+                .is_some()
+        );
+    }
+
+    #[tokio::test]
+    async fn graphify_status_reports_rebuild_recommended() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_registry(tmp.path());
+        // No graph files written → every corpus is stale → rebuild_recommended must be true.
+        let state = test_state_for_repo(tmp.path().to_path_buf());
+        let json = graphify_status(&state, GraphifyStatusParams { corpus: None }).await;
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid json");
+        let corpora = parsed["data"]["corpora"].as_array().expect("corpora array");
+        assert!(!corpora.is_empty(), "expected corpora: {json}");
+        for c in corpora {
+            assert!(
+                c.get("rebuild_recommended")
+                    .and_then(|v| v.as_bool())
+                    .is_some(),
+                "rebuild_recommended present: {c}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn graphify_rebuild_unknown_corpus_returns_error() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_registry(tmp.path());
+        let state = test_state_for_repo(tmp.path().to_path_buf());
+        let json = graphify_rebuild(
+            &state,
+            GraphifyRebuildParams {
+                corpus: Some("no-such-corpus".into()),
+            },
+        )
+        .await;
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid json");
+        assert_eq!(
+            parsed["success"],
+            serde_json::json!(false),
+            "expected error for unknown corpus: {json}"
         );
     }
 }
