@@ -1,4 +1,4 @@
-# CR-L8 corpus-feedback pipeline (P2.1c, ratified 2026-05-15).
+﻿# CR-L8 corpus-feedback pipeline (P2.1c, ratified 2026-05-15).
 #
 # Exercises the full diagnostic→repair→corpus loop:
 #
@@ -77,6 +77,8 @@ jobs:
             ${{ runner.os }}-cargo-cr-l8-
             ${{ runner.os }}-cargo-
 
+      - name: Install system deps (dbus, required by wry/keyring on Linux)
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
       # ────────────────────────────────────────────────────────────────────
       # Step 1: build the crates that emit and aggregate.
       # ────────────────────────────────────────────────────────────────────
@@ -229,6 +231,8 @@ jobs:
             ${{ runner.os }}-cargo-stdlib-coverage-
             ${{ runner.os }}-cargo-
 
+      - name: Install system deps (dbus, required by wry/keyring on Linux)
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
       # Build only what's needed. Static analysis; no LLM, no integration tests.
       - name: Build vox-audit + vox-code-audit
         run: |
@@ -347,7 +351,7 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Install system deps (dbus, required by wry/keyring on Linux)
-        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
       - name: Build vox CLI
         run: cargo build -p vox-cli --bin vox
 

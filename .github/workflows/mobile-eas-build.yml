@@ -1,4 +1,4 @@
-name: Mobile EAS Build (RN/Expo)
+﻿name: Mobile EAS Build (RN/Expo)
 
 # Builds the React-Native/Expo mobile target end to end:
 #   1. `bundle` job (ALWAYS runs, no account needed) — generates the Expo app
@@ -51,7 +51,7 @@ jobs:
           node-version: 20
 
       - name: Install system deps (dbus, required by wry/keyring on Linux)
-        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
       - name: Build vox CLI
         run: cargo build -p vox-cli
 
