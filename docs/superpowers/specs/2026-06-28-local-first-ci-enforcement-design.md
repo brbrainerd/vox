@@ -41,30 +41,34 @@ Therefore Win/macOS CI stays GitHub-hosted, but is moved **off per-PR** to
 ## Decisions (ratified)
 
 1. **Enforcement:** Hard gate — flip `runner-policy-check` to `--strict` in pre-push +
-   ssot-drift after drift is cleared.
+   ssot-drift after the exception registry is complete.
 2. **Win/macOS:** Keep hosted, run only on `merge_group` + nightly `schedule`, not per-PR.
-3. **`ci.yml` `docker compose config` job:** Keep hosted (register exception) rather than
-   installing the compose plugin on the self-hosted docker runner — it only parses YAML
-   (no daemon), and the hosted runner ships compose v2.
+3. **The 6 flagged workflows are deliberately hosted, not drift.** A second discovery
+   during planning: all 6 carry documented rationale and are covered by
+   `docs/src/ci/compute-placement.md` (deploy critical path on free public minutes;
+   Invariant 1 = "the merge gate never hard-depends on the workstation"; Invariant 4 =
+   "the self-hosted fleet is never on the path between a green main and a live deploy").
+   **Decision: honor the policy — register all 6 as exceptions, do NOT migrate.** This
+   keeps fleet-outage resilience intact while making local-first *enforced* for everything
+   new.
 
 ## Workstreams
 
-### A — Migrate Linux-portable workflows → self-hosted
-Four PR/push-gating jobs: `ubuntu-latest` → self-hosted. Add the apt GTK step
-(`libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev
-libsoup-3.0-dev libjavascriptcoregtk-4.1-dev`) **only** where the job builds `vox`.
+### A — Register the 6 deliberately-hosted workflows as exceptions
+Add rows to `github-hosted-exceptions.md` (no `runs-on` edits). Each row cites its
+`compute-placement.md` rationale. Result: `runner-policy-check` exits clean.
 
-| Workflow | New runner | GTK step? |
-|----------|-----------|-----------|
-| `distribution-parity.yml` | `[self-hosted, linux, x64]` | yes if it builds vox |
-| `version-tag-guard.yml` | `[self-hosted, linux, x64]` | no (guard only) |
-| `workflow-lint.yml` | `[self-hosted, linux, x64]` | no (actionlint/zizmor) |
-| `docker-telemetry.yml` | `[self-hosted, linux, x64, docker]` | n/a (image build) |
+| Workflow | Runner | Documented reason |
+|----------|--------|-------------------|
+| `deploy-telemetry.yml` | `ubuntu-latest` | Coolify deploy critical path; free public minutes; Invariant 4 |
+| `docker-telemetry.yml` | `ubuntu-latest` | GHCR image build on deploy path; free public minutes |
+| `distribution-parity.yml` | `ubuntu-latest` | Fleet-independent required parity check (Invariant 1) |
+| `version-tag-guard.yml` | `ubuntu-latest` | Lightweight tag-only release guard; fleet-independent |
+| `workflow-lint.yml` | `ubuntu-latest` | actionlint/zizmor; install in seconds, no fleet resources |
+| `ci.yml` | `ubuntu-latest` (1 job) | `docker compose config` parse; self-hosted docker runner lacks compose plugin |
 
-### B — Register genuinely-hosted workflows
-Add exception rows: `deploy-telemetry.yml` (remote Coolify deploy) and `ci.yml`
-(single `docker compose config` job — self-hosted docker runner lacks compose plugin).
-Result: `runner-policy-check` exits clean.
+### B — (folded into A)
+Registration is now the whole of A; there is no separate migration step.
 
 ### C — Win/macOS off per-PR
 Add a tiny `matrix-setup` job that emits the matrix `include` JSON, omitting Win/macOS
@@ -79,8 +83,8 @@ hosted workflow, and the migrated tree returns `Ok`.
 
 ### E — Update the rules
 - `runner-contract.md` §Local-first: "advisory enforcement" → "enforced (strict)".
-- `github-hosted-exceptions.md`: add new rows; move the 4 migrated workflows to the
-  "migrated" list; document the Win/macOS "not per-PR" policy.
+- `github-hosted-exceptions.md`: rows added in A; document the Win/macOS "not per-PR"
+  policy and cross-link `compute-placement.md` as the placement SSOT.
 - `AGENTS.md` §"Run CI locally first": strengthen to reflect the hard gate.
 
 ### F — Confirm "runs locally first" works
