@@ -1,0 +1,122 @@
+---
+category: "CI & Quality"
+title: "Local-First CI Enforcement — Design"
+date: 2026-06-28
+status: design
+---
+
+# Local-First CI Enforcement — Design
+
+**Goal:** Make the existing (advisory) local-first runner policy real: prefer the
+self-hosted Linux Docker fleet throughout CI/CD, run CI locally first, and turn the
+already-built `runner-policy-check` from a warning into a hard gate — without
+pretending Windows/macOS can run in a Linux Docker fleet.
+
+## Premise (what already exists)
+
+The local-first apparatus is already built and only needs tightening:
+
+- `vox ci runner-policy-check` (`crates/vox-cli-ci/src/runner_policy_check.rs`) —
+  scans `.github/workflows/*.yml`, warns on GitHub-hosted `runs-on` without a row in
+  `docs/src/ci/github-hosted-exceptions.md`. `run(root, strict)`; default `strict=false`.
+  Wired into `vox ci ssot-drift` and the fast `vox ci pre-push` tier (advisory).
+- `vox ci pre-push --act` — mirrors hosted-runner workflows locally in Docker (nektos/act).
+- `docs/src/ci/github-hosted-exceptions.md` — the exception registry.
+- `ci-fallback-hosted.yml` — manual degraded-mode mirror when the fleet is down.
+- `AGENTS.md` §"Run CI locally first" + `runner-contract.md` §"Local-first CI".
+
+**Current drift:** `runner-policy-check` flags 6 workflows with no exception row:
+`ci.yml`, `deploy-telemetry.yml`, `distribution-parity.yml`, `docker-telemetry.yml`,
+`version-tag-guard.yml`, `workflow-lint.yml`.
+
+## Hard technical constraint (shapes scope)
+
+The self-hosted fleet is **Linux Docker on WSL2**. It **cannot** host Windows or macOS:
+- Windows containers require a Windows Docker host (Hyper-V/process isolation).
+- macOS cannot be containerized at all (Apple license + no runtime).
+
+Therefore Win/macOS CI stays GitHub-hosted, but is moved **off per-PR** to
+`merge_group` + weekly `schedule` only (decision: "Scheduled + merge-queue only").
+
+## Decisions (ratified)
+
+1. **Enforcement:** Hard gate — flip `runner-policy-check` to `--strict` in pre-push +
+   ssot-drift after drift is cleared.
+2. **Win/macOS:** Keep hosted, run only on `merge_group` + nightly `schedule`, not per-PR.
+3. **`ci.yml` `docker compose config` job:** Keep hosted (register exception) rather than
+   installing the compose plugin on the self-hosted docker runner — it only parses YAML
+   (no daemon), and the hosted runner ships compose v2.
+
+## Workstreams
+
+### A — Migrate Linux-portable workflows → self-hosted
+Four PR/push-gating jobs: `ubuntu-latest` → self-hosted. Add the apt GTK step
+(`libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev
+libsoup-3.0-dev libjavascriptcoregtk-4.1-dev`) **only** where the job builds `vox`.
+
+| Workflow | New runner | GTK step? |
+|----------|-----------|-----------|
+| `distribution-parity.yml` | `[self-hosted, linux, x64]` | yes if it builds vox |
+| `version-tag-guard.yml` | `[self-hosted, linux, x64]` | no (guard only) |
+| `workflow-lint.yml` | `[self-hosted, linux, x64]` | no (actionlint/zizmor) |
+| `docker-telemetry.yml` | `[self-hosted, linux, x64, docker]` | n/a (image build) |
+
+### B — Register genuinely-hosted workflows
+Add exception rows: `deploy-telemetry.yml` (remote Coolify deploy) and `ci.yml`
+(single `docker compose config` job — self-hosted docker runner lacks compose plugin).
+Result: `runner-policy-check` exits clean.
+
+### C — Win/macOS off per-PR
+Add a tiny `matrix-setup` job that emits the matrix `include` JSON, omitting Win/macOS
+legs when `github.event_name == 'pull_request'`. Apply to `cross-platform-check.yml`,
+`gui-cross-build.yml`, `compile-matrix.yml`. Linux self-hosted leg stays per-PR;
+Win/macOS run on `merge_group` + `schedule` only. (`setup-e2e.yml` already nightly-only.)
+
+### D — Flip enforcement to strict
+`pre_push.rs:1084` `run(root, false)` → `run(root, true)`; mirror in the ssot-drift
+inclusion. TDD: a unit test asserting strict mode returns `Err` on an unregistered
+hosted workflow, and the migrated tree returns `Ok`.
+
+### E — Update the rules
+- `runner-contract.md` §Local-first: "advisory enforcement" → "enforced (strict)".
+- `github-hosted-exceptions.md`: add new rows; move the 4 migrated workflows to the
+  "migrated" list; document the Win/macOS "not per-PR" policy.
+- `AGENTS.md` §"Run CI locally first": strengthen to reflect the hard gate.
+
+### F — Confirm "runs locally first" works
+Verify `vox ci pre-push --act` mirrors the hosted lanes locally. This is the gate before
+D/E land.
+
+## Sequencing
+
+`A + B + C` (parallel-safe, independent files) → **verify** (`runner-policy-check` clean +
+`--act` smoke) → `D` (strict flip, depends on clean check) → `E` (docs, depends on D).
+
+## Execution model (sub-agents + workflows)
+
+- **A, B, C** are file-isolated and independent → run as a **Workflow** `parallel()`
+  fan-out: one agent per workflow file (migrate or register), each returning a structured
+  edit summary. Each agent uses `isolation: 'worktree'` only if they touch shared files
+  (they don't — distinct workflow files), so plain parallel agents suffice.
+- **Verification** is a single agent: runs `runner-policy-check` + an `--act` smoke,
+  returns pass/fail. Barrier after A/B/C.
+- **D** (strict flip + test) is one TDD agent, gated on verification passing.
+- **E** (docs) is one agent, gated on D.
+- A final **review** agent (superpowers:code-reviewer) audits the whole diff before push.
+
+The Workflow uses `pipeline()` for the A/B/C→verify→D→E dependency chain where each
+stage gates the next, with the A/B/C migration fanned out via `parallel()` inside stage 1.
+
+## Testing
+
+- D ships a Rust unit test (strict-mode Err on unregistered hosted, Ok on clean tree).
+- Verification agent proves `runner-policy-check` exits 0 and `--act` runs a hosted lane.
+- Final review agent confirms no workflow lost coverage (every migrated job still triggers
+  on the same events, minus the deliberate Win/macOS per-PR removal).
+
+## Out of scope
+
+- Installing a Windows/macOS self-hosted runner fleet (no spare hardware decision).
+- Installing the docker-compose plugin on the self-hosted docker runner (registered as
+  an exception instead).
+- Rewriting the runner autoscaler or the `--act` mechanism.
