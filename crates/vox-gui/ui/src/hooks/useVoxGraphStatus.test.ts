@@ -4,37 +4,38 @@ import { renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-// VG-1 G9: this file now guards the DEPRECATED one-release back-compat
-// re-export. The real behavior is tested in useVoxGraphStatus.test.ts; here we
-// only assert the deprecated `useGraphifyStatus` / `GRAPHIFY_STATUS_QUERY_KEY`
-// aliases still resolve to the renamed hook (T8 MCP-dispatch path preserved).
+// T8: the status read must flow through the shared MCP dispatch
+// (`voxTransport.invokeMcpTool('vox_search_status', …)`), NOT a separate
+// `vox_graphify_status` Tauri command. Mock the transport seam and assert
+// both the tool name and that the unwrapped payload reaches the hook.
 const mockInvokeMcpTool = vi.fn();
 vi.mock('../transport', () => ({
   voxTransport: { invokeMcpTool: (...a: unknown[]) => mockInvokeMcpTool(...a) },
 }));
 
-import { useGraphifyStatus, GRAPHIFY_STATUS_QUERY_KEY } from './useGraphifyStatus';
+import { useVoxGraphStatus, VOX_GRAPH_STATUS_QUERY_KEY } from './useVoxGraphStatus';
 
 function wrapper({ children }: { children: React.ReactNode }) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return React.createElement(QueryClientProvider, { client }, children);
 }
 
-describe('useGraphifyStatus (deprecated re-export)', () => {
+describe('useVoxGraphStatus', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('re-exports the renamed query key', () => {
-    expect(GRAPHIFY_STATUS_QUERY_KEY).toEqual(['vox-graph', 'status']);
+  it('exports the renamed query key', () => {
+    expect(VOX_GRAPH_STATUS_QUERY_KEY).toEqual(['vox-graph', 'status']);
   });
 
-  it('still fetches through the vox_search_status MCP dispatch via the alias', async () => {
+  it('fetches status through the vox_search_status MCP dispatch', async () => {
+    // Daemon envelope: { success, data: { default_corpus_id, corpora } } under `.result`.
     mockInvokeMcpTool.mockResolvedValue({
       tool: 'vox_search_status',
       is_error: false,
       result: { success: true, data: { default_corpus_id: 'repo-code-graph', corpora: [] } },
     });
 
-    const { result } = renderHook(() => useGraphifyStatus(), { wrapper });
+    const { result } = renderHook(() => useVoxGraphStatus(), { wrapper });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(mockInvokeMcpTool).toHaveBeenCalledWith('vox_search_status', {});
