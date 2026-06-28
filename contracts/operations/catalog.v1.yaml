@@ -6196,8 +6196,8 @@ operations:
     ref_cli_required: true
     reachability_required: null
 - id: graphify.status
-  title: Graphify Status
-  description: Report graphify corpus freshness (read-only; `--strict` fails when stale).
+  title: Vox Search Status
+  description: Report Vox Search structural-index freshness (read-only; `--strict` fails when stale).
   description_human: null
   product_lane: platform
   intent_tags:
@@ -6213,13 +6213,13 @@ operations:
   canonical_name: null
   latin_aliases: null
   mcp:
-    name: vox_graphify_status
+    name: vox_search_status
     http_read_role_eligible: true
     tier: core
   cli: null
 - id: graphify.search
-  title: Graphify Search
-  description: Lexically search a graphify corpus graph on disk (read-only).
+  title: Vox Search Structural
+  description: Lexically search the Vox Search structural index on disk (read-only).
   description_human: null
   product_lane: platform
   intent_tags:
@@ -6235,7 +6235,7 @@ operations:
   canonical_name: null
   latin_aliases: null
   mcp:
-    name: vox_graphify_search
+    name: vox_search_structural
     http_read_role_eligible: true
     tier: core
   cli: null
@@ -6269,7 +6269,7 @@ operations:
     ref_cli_required: true
     reachability_required: null
 - id: graphify.query
-  title: Graphify Query
+  title: Vox Search Neighbors
   description: BFS neighbor expansion from seed node IDs (read-only; layered navigation).
   description_human: null
   product_lane: platform
@@ -6286,13 +6286,13 @@ operations:
   canonical_name: null
   latin_aliases: null
   mcp:
-    name: vox_graphify_query
+    name: vox_search_neighbors
     http_read_role_eligible: true
     tier: core
   cli: null
 - id: graphify.path
-  title: Graphify Path
-  description: Shortest path between two node IDs in a graphify corpus (read-only).
+  title: Vox Search Path
+  description: Shortest path between two node IDs in the Vox Search structural index (read-only).
   description_human: null
   product_lane: platform
   intent_tags:
@@ -6308,13 +6308,13 @@ operations:
   canonical_name: null
   latin_aliases: null
   mcp:
-    name: vox_graphify_path
+    name: vox_search_path
     http_read_role_eligible: true
     tier: core
   cli: null
 - id: graphify.compare
-  title: Graphify Compare
-  description: Diff two graphify corpus manifests for node/edge/community delta (read-only).
+  title: Vox Search Compare
+  description: Diff two Vox Search structural-index manifests for node/edge/community delta (read-only).
   description_human: null
   product_lane: platform
   intent_tags:
@@ -6330,13 +6330,13 @@ operations:
   canonical_name: null
   latin_aliases: null
   mcp:
-    name: vox_graphify_compare
+    name: vox_search_compare
     http_read_role_eligible: true
     tier: core
   cli: null
 - id: graphify.rebuild
-  title: Graphify Rebuild
-  description: Rebuild a graphify corpus graph (AST extract + cluster), snapshot the prior graph, and refresh freshness manifest (write).
+  title: Vox Search Rebuild
+  description: Rebuild a Vox Search structural index (AST extract + cluster), snapshot the prior graph, and refresh freshness manifest (write).
   description_human: null
   product_lane: platform
   intent_tags:
@@ -6352,7 +6352,7 @@ operations:
   canonical_name: null
   latin_aliases: null
   mcp:
-    name: vox_graphify_rebuild
+    name: vox_search_rebuild
     http_read_role_eligible: false
     tier: core
   cli: null
