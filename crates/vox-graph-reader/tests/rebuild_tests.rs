@@ -21,6 +21,7 @@ fn manifest_has_freshness_fields() {
         extraction_mode: Some("structural".to_string()),
         built_at_rfc3339: "2026-06-18T00:00:00+00:00".to_string(),
         cli_catalog_json: None,
+        ..Default::default()
     };
     rebuild_graph(tmp.path(), &src, &out, &cache, &meta).unwrap();
 
@@ -132,6 +133,7 @@ fn modules_mode_produces_module_graph() {
         extraction_mode: Some("modules".to_string()),
         built_at_rfc3339: "2026-06-18T00:00:00+00:00".to_string(),
         cli_catalog_json: None,
+        ..Default::default()
     };
     rebuild_graph(tmp.path(), &src, &out, &cache, &meta).unwrap();
 
@@ -183,6 +185,7 @@ fn tsx_files_contribute_nodes() {
         extraction_mode: Some("structural".into()),
         built_at_rfc3339: "2026-06-26T00:00:00+00:00".into(),
         cli_catalog_json: None,
+        ..Default::default()
     };
     rebuild_graph(tmp.path(), &src, &out, &cache, &meta).unwrap();
     let g: serde_json::Value = serde_json::from_slice(&std::fs::read(&out).unwrap()).unwrap();

@@ -65,6 +65,7 @@ fn cli_leaf_joins_to_same_named_command() {
         extraction_mode: Some("gui-wiring".into()),
         built_at_rfc3339: "2026-06-26T00:00:00Z".into(),
         cli_catalog_json: Some(catalog.to_string()),
+        ..Default::default()
     };
     rebuild_graph(&tmp, &gui, &out, &cache, &meta).unwrap();
 

@@ -71,6 +71,7 @@ fn gui_wiring_registry_ingest_and_missing_nodes() {
         extraction_mode: Some("gui-wiring".into()),
         built_at_rfc3339: "2026-06-26T00:00:00Z".into(),
         cli_catalog_json: None,
+        ..Default::default()
     };
     rebuild_graph(&tmp, &gui, &out, &cache, &meta).unwrap();
 

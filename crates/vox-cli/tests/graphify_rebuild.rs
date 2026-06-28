@@ -45,6 +45,7 @@ fn rebuild_then_assess_is_fresh_and_detects_drift() {
         extraction_mode: Some("structural".to_string()),
         built_at_rfc3339: Utc::now().to_rfc3339(),
         cli_catalog_json: None,
+        ..Default::default()
     };
     rebuild_graph(
         tmp.path(),

@@ -138,6 +138,12 @@ pub struct RebuildMeta {
     /// gui-wiring mode, the CLI tree is folded in as `cli:` nodes with declared
     /// join edges to same-named `cmd:`/`tool:` impls.
     pub cli_catalog_json: Option<String>,
+    /// Path to the GUI `ui/src/` directory for heading scans (content-manifest emit;
+    /// only used in gui-wiring mode). When `None`, no content manifest is emitted.
+    pub gui_source_dir: Option<std::path::PathBuf>,
+    /// Contents of `contracts/gui/surface-registry.v1.yaml` (content-manifest emit).
+    /// When `None`, no content manifest is emitted.
+    pub surface_registry_yaml: Option<String>,
 }
 
 pub fn rebuild_graph(
@@ -413,6 +419,29 @@ pub fn rebuild_graph(
         .ok_or("output_file has no parent directory")?
         .join(".graphify_manifest.v1.json");
     fs::write(manifest_path, serde_json::to_string_pretty(&manifest_val)?)?;
+
+    // Emit the GUI content manifest alongside the graph (gui-wiring mode only — gated on the
+    // caller supplying both the surface-registry YAML and the GUI source dir). The emitter is
+    // fed the FULL `final_graph` value, which keys edges under "links" (NOT just nodes_val);
+    // passing nodes alone would leave every surface's `commands` array empty.
+    if let (Some(registry_yaml), Some(surface_dir)) =
+        (&meta.surface_registry_yaml, &meta.gui_source_dir)
+    {
+        let graph_str = serde_json::to_string(&final_graph)?;
+        let content_manifest_out = output_file
+            .parent()
+            .ok_or("output_file has no parent directory")?
+            .join("gui-content-manifest.json");
+        if let Err(e) = crate::manifest::emit_content_manifest(
+            &graph_str,
+            registry_yaml,
+            surface_dir.as_path(),
+            &content_manifest_out,
+        ) {
+            // Non-fatal: the graph is still written; the manifest is optional for the Omnibar.
+            eprintln!("[vox-graph] WARN: content manifest emit failed: {e}");
+        }
+    }
 
     Ok(())
 }

@@ -288,6 +288,28 @@ pub(crate) fn resolve_source_dir(
         .join(&corpus.scope_path)
 }
 
+/// Compute the GUI content-manifest emit inputs for a rebuild.
+///
+/// Returns `(gui_source_dir, surface_registry_yaml)` — both `Some` only when the corpus is in
+/// `gui-wiring` extraction mode (so `emit_content_manifest` runs only for the GUI surface graph).
+/// `gui_source_dir` is the `ui/src/` root under the corpus source dir (where surface component
+/// modules referenced by the graph's `surface:→module:` edges live); `surface_registry_yaml` is
+/// the contents of `contracts/gui/surface-registry.v1.yaml`. Outside gui-wiring mode both are
+/// `None` and `rebuild_graph` skips the content-manifest emit.
+fn gui_manifest_inputs(
+    repo_root: &std::path::Path,
+    extraction_mode: Option<&str>,
+    source_dir: &std::path::Path,
+) -> (Option<std::path::PathBuf>, Option<String>) {
+    if extraction_mode != Some("gui-wiring") {
+        return (None, None);
+    }
+    let gui_source_dir = Some(source_dir.join("ui/src"));
+    let surface_registry_yaml =
+        std::fs::read_to_string(repo_root.join("contracts/gui/surface-registry.v1.yaml")).ok();
+    (gui_source_dir, surface_registry_yaml)
+}
+
 /// `git -C <dir> rev-parse HEAD`, or Ok(None) if not a git repo.
 fn resolve_head_sha_in(dir: &std::path::Path) -> anyhow::Result<Option<String>> {
     // vox_git::read_only already runs `git -C <repo> <args>`; pass `dir` as the repo.
@@ -512,6 +534,8 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
             let cache_dir = output_file.parent().unwrap().join("file_cache");
 
             println!("Rebuilding Graphify graph for corpus: {}...", corpus_id);
+            let (gui_source_dir, surface_registry_yaml) =
+                gui_manifest_inputs(repo_root, corpus.extraction_mode.as_deref(), &source_dir);
             let meta = vox_graph_reader::rebuild::RebuildMeta {
                 corpus_id: corpus_id.clone(),
                 git_sha: resolve_head_sha()?,
@@ -519,6 +543,8 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                 extraction_mode: corpus.extraction_mode.clone(),
                 built_at_rfc3339: Utc::now().to_rfc3339(),
                 cli_catalog_json: Some(cli_catalog_json()),
+                gui_source_dir,
+                surface_registry_yaml,
             };
             // Preserve the previous graph as a bounded history before overwriting.
             if output_file.is_file() {
@@ -612,6 +638,8 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                 .parent()
                 .ok_or_else(|| anyhow::anyhow!("graph_path has no parent"))?
                 .join("file_cache");
+            let (gui_source_dir, surface_registry_yaml) =
+                gui_manifest_inputs(repo_root, corpus.extraction_mode.as_deref(), &source_dir);
             let meta = vox_graph_reader::rebuild::RebuildMeta {
                 corpus_id: corpus_id.clone(),
                 git_sha: resolve_head_sha_in(&abs).ok().flatten(),
@@ -619,6 +647,8 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                 extraction_mode: corpus.extraction_mode.clone(),
                 built_at_rfc3339: Utc::now().to_rfc3339(),
                 cli_catalog_json: Some(cli_catalog_json()),
+                gui_source_dir,
+                surface_registry_yaml,
             };
             println!("Indexing '{}' as corpus '{}'...", abs.display(), corpus_id);
             vox_graph_reader::rebuild::rebuild_graph(
@@ -661,6 +691,11 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                             .parent()
                             .ok_or_else(|| anyhow::anyhow!("graph_path has no parent"))?
                             .join("file_cache");
+                        let (gui_source_dir, surface_registry_yaml) = gui_manifest_inputs(
+                            repo_root,
+                            c.extraction_mode.as_deref(),
+                            &source_dir,
+                        );
                         let meta = vox_graph_reader::rebuild::RebuildMeta {
                             corpus_id: c.id.clone(),
                             git_sha: head.clone(),
@@ -668,6 +703,8 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                             extraction_mode: c.extraction_mode.clone(),
                             built_at_rfc3339: Utc::now().to_rfc3339(),
                             cli_catalog_json: Some(cli_catalog_json()),
+                            gui_source_dir,
+                            surface_registry_yaml,
                         };
                         vox_graph_reader::rebuild::rebuild_graph(
                             repo_root,
