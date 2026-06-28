@@ -482,14 +482,6 @@ surfaces:
   parent_surface: null
   notes: null
 - view_key: null
-  cli_group: graphify
-  representation_tier: none
-  nav_label: null
-  nav_icon: null
-  nav_group: null
-  parent_surface: null
-  notes: null
-- view_key: null
   cli_group: init
   representation_tier: none
   nav_label: null
@@ -745,6 +737,14 @@ surfaces:
   nav_group: null
   parent_surface: null
   notes: null
+- view_key: vox-search
+  cli_group: search
+  representation_tier: live_backend
+  nav_label: Search Index
+  nav_icon: search
+  nav_group: knowledge
+  parent_surface: knowledge
+  notes: code-intelligence over the structural index (re-keyed from graphify)
 - view_key: null
   cli_group: secrets
   representation_tier: none

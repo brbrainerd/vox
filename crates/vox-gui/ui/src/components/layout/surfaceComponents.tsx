@@ -112,6 +112,8 @@ function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
       return <Matrix pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'memory':
       return <MemoryView pushToast={props.pushToast} onAttachContext={props.onAttachContext} />;
+    case 'vox-search':
+    // `graphify` retained as a one-release alias falling through to the same panel.
     case 'graphify':
       return <GraphifyStatusPanel />;
     case 'models':
