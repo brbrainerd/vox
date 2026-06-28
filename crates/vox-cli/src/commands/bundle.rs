@@ -315,9 +315,11 @@ async fn build_tauri_app(
 
     let cargo = if cfg!(windows) { "cargo.exe" } else { "cargo" };
     let mut cmd = Command::new(cargo);
+    // tauri-cli v2 `build` produces a release build by default and REJECTS `--release`
+    // (`error: unexpected argument '--release'`). Debug builds use `--debug` instead.
     cmd.args(["tauri", "build", "--no-bundle"]);
-    if release {
-        cmd.arg("--release");
+    if !release {
+        cmd.arg("--debug");
     }
     if let Some(target_triple) = target {
         cmd.args(["--target", target_triple]);
