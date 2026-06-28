@@ -2,7 +2,7 @@
 title: "Graphify Capabilities Audit & Vertical-Integration SSOT (2026-06-18)"
 description: "How Graphify works, how agents use code graphs to search efficiently, formalized best/worst-case usage, Rust-native status, and a BUILT/PLANNED/GAP audit of the cache lifecycle (caching, expiry, automated rerun, GUI prompting, visualization, retention with learnable history)."
 category: "Architecture SSOTs"
-status: "audit"
+status: "current"
 training_eligible: true
 training_rationale: "Single audit SSOT agents consult to decide when to trust/rebuild a graphify corpus, how to query it cheaply, and what cache-lifecycle machinery exists vs is still a gap."
 ---
