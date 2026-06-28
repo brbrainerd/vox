@@ -119,6 +119,20 @@ pub fn workflow_uses_hosted_runner(text: &str) -> bool {
     false
 }
 
+/// True when a workflow's `on:` triggers include `merge_group` but NOT `pull_request`,
+/// meaning its jobs never report a status on PRs. Such a job must never be wired as a
+/// branch-protection required context: a required-but-skipped context leaves the merge
+/// queue permanently "expected" and deadlocks it.
+pub fn workflow_is_merge_group_only(text: &str) -> bool {
+    let has_merge_group = text
+        .lines()
+        .any(|l| l.trim_start().starts_with("merge_group:"));
+    let has_pull_request = text
+        .lines()
+        .any(|l| l.trim_start().starts_with("pull_request:"));
+    has_merge_group && !has_pull_request
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -173,5 +187,15 @@ jobs:
     #[test]
     fn hosted_markers_include_macos_variants() {
         assert!(HOSTED_MARKERS.contains(&"macos-13"));
+    }
+
+    #[test]
+    fn detects_merge_group_only_job() {
+        let mg = "on:\n  merge_group:\njobs:\n  heavy:\n    runs-on: ubuntu-latest\n";
+        assert!(workflow_is_merge_group_only(mg));
+        let pr = "on:\n  pull_request:\n  merge_group:\njobs:\n  j:\n    runs-on: ubuntu-latest\n";
+        assert!(!workflow_is_merge_group_only(pr));
+        let pr_only = "on:\n  pull_request:\njobs:\n  j:\n    runs-on: ubuntu-latest\n";
+        assert!(!workflow_is_merge_group_only(pr_only));
     }
 }
