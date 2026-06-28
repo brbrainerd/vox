@@ -1,4 +1,4 @@
-# Smoke matrix for `vox compile` — keeps CLI wiring honest across OS hosts.
+﻿# Smoke matrix for `vox compile` — keeps CLI wiring honest across OS hosts.
 # Full installer builds (MSI/DMG/APK) stay opt-in / fixture-driven per application-packaging SSOT.
 
 name: Compile matrix smoke
@@ -36,7 +36,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Install system deps (dbus, required by wry/keyring on Linux)
-        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
       - run: cargo build -p vox-cli
       - run: cargo run -p vox-cli ci compile-matrix
       - name: Compile suite workspace native-binary smoke
