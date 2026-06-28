@@ -101,6 +101,8 @@ jobs:
           key: ${{ steps.k.outputs.key }}
           restore-keys: |
             ${{ runner.os }}-cargo-
+      - name: Install system deps (dbus, required by wry/keyring on Linux)
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config
       - name: Build vox-cli (warms sccache + downstream artifact)
         run: cargo build -p vox-cli --locked --features completion-toestub
 
