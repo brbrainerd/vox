@@ -6,11 +6,10 @@
 //! graph says (callers / missing flags); it makes no judgment about whether a
 //! surface "should" exist.
 //!
-//! `CliOnly` is reserved: it would mark a command node that also appears in the
-//! ingested clap/command-catalog set but has no GUI caller. CLI-union scoring is
-//! deferred until the command-catalog adapter is ingested (see plan D3/F1); the
-//! enum arm exists so consumers can match exhaustively, but `compute_coverage`
-//! never produces it today.
+//! `CliOnly` marks a `cli-command` node that no `surface:` node reaches (no GUI
+//! path) — even when it joins to a `cmd:`/`tool:` impl. CLI-union scoring is now
+//! live: passing `kind = "cli-command"` classifies the ingested clap tree as
+//! `Surfaced` (a surface reaches it) or `CliOnly` (honest not-in-GUI).
 
 use serde::Serialize;
 use serde_json::Value;
@@ -25,8 +24,9 @@ pub enum CoverageStatus {
     DeadEnd,
     /// At least one caller edge targets this node.
     Surfaced,
-    /// Reserved: command present in the CLI catalog but with no GUI caller.
-    /// Not currently produced (CLI-union scoring deferred).
+    /// `cli-command` node present in the CLI catalog but reached by no
+    /// `surface:` node — honest "not in the GUI". Produced for `kind =
+    /// "cli-command"`; a name-match join to an impl is not itself a GUI path.
     CliOnly,
 }
 
@@ -65,6 +65,34 @@ fn str_field<'a>(node: &'a Value, key: &str) -> Option<&'a str> {
     node.get(key).and_then(Value::as_str)
 }
 
+/// True when a `surface:` node reaches the cli node `id` — directly (a
+/// `surface:` edge targets it) or via a joined impl (the cli node points
+/// outbound to an impl that a `surface:` node also targets).
+fn surface_reaches_cli(links: &[Value], id: &str) -> bool {
+    // Direct: surface:* -> id.
+    let direct = links.iter().any(|l| {
+        str_field(l, "target") == Some(id)
+            && str_field(l, "source").is_some_and(|s| s.starts_with("surface:"))
+    });
+    if direct {
+        return true;
+    }
+    // Indirect: id -> impl, and surface:* -> impl (same impl node).
+    for join in links.iter().filter(|l| str_field(l, "source") == Some(id)) {
+        let Some(impl_id) = str_field(join, "target") else {
+            continue;
+        };
+        let surfaced_impl = links.iter().any(|l| {
+            str_field(l, "target") == Some(impl_id)
+                && str_field(l, "source").is_some_and(|s| s.starts_with("surface:"))
+        });
+        if surfaced_impl {
+            return true;
+        }
+    }
+    false
+}
+
 /// Classify every node whose `"kind"` equals `kind`.
 ///
 /// For each such node: collect caller edges whose `target` is the node id; if the
@@ -86,6 +114,16 @@ pub fn compute_coverage(graph: &Value, kind: &str) -> CoverageReport {
 
         let status = if node.get("missing").and_then(Value::as_bool) == Some(true) {
             CoverageStatus::DeadEnd
+        } else if kind == "cli-command" {
+            // CLI-union scoring: a `cli:` node is honestly Surfaced only when a
+            // `surface:` node reaches it — directly, or via a joined `cmd:`/`tool:`
+            // impl that a surface also reaches. A name-match join to an impl is NOT
+            // by itself a GUI path; absent any surface, the node is CliOnly.
+            if surface_reaches_cli(links, id) {
+                CoverageStatus::Surfaced
+            } else {
+                CoverageStatus::CliOnly
+            }
         } else {
             let has_caller = links
                 .iter()
