@@ -144,6 +144,18 @@ export function Dashboard({
     setPickerOpen(false);
   }
 
+  function handleAddSurface(surfaceKey: string) {
+    const next = addWidgetToLayout(layout, 'surface_widget');
+    const placed = {
+      ...next,
+      widgets: next.widgets.map((w, i) =>
+        i === next.widgets.length - 1 ? { ...w, config: { ...(w.config ?? {}), surfaceKey } } : w,
+      ),
+    };
+    updateLayout(placed);
+    setPickerOpen(false);
+  }
+
   function handleResetLayout() {
     updateLayout(resetDashboardLayout());
     setPickerOpen(false);
@@ -442,6 +454,7 @@ export function Dashboard({
         open={customizeMode && pickerOpen}
         onClose={() => setPickerOpen(false)}
         onAdd={handleAddWidget}
+        onAddSurface={handleAddSurface}
       />
       <DashboardGrid
         layout={layout}
