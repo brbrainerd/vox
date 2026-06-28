@@ -1,480 +1,803 @@
-# Local-First CI Enforcement Implementation Plan
+# Local-First CI: Resilient Enforcement + Estate Tuning — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Turn the existing advisory `runner-policy-check` into an enforced hard gate by registering the 6 deliberately-hosted workflows, moving Win/macOS CI off per-PR to merge-queue + schedule, and flipping the check to `--strict`.
+**Goal:** Make the merge gate fleet-independent, move expensive per-PR work to merge_group/nightly (for wall-clock, not cost), cut/merge redundant checks, add feedback-loop guards, and only then enforce the local-first runner policy.
 
-**Architecture:** No `runs-on` migrations — the 6 flagged workflows are deliberately hosted per `docs/src/ci/compute-placement.md` and only need exception rows. The change is: (1) complete the exception registry, (2) dynamic matrix so Win/macOS legs skip `pull_request`, (3) flip the Rust check to strict at its two call sites, (4) update the rule docs. Verification proves `runner-policy-check` exits 0 before strict lands.
+**Architecture:** Sequenced so the safety-critical resiliency precondition (B) lands before the strict flip (F). Reuses the existing `full-ci` label idiom for tiering (no new mechanism). Every destructive cut has a verify-then-act gate. vox is PUBLIC → hosted minutes are free; **no change is justified by cost** — only wall-clock + feedback latency + resilience.
 
-**Tech Stack:** GitHub Actions YAML, Rust (`vox-cli-ci`), `vox ci runner-policy-check`, nektos/act.
+**Tech Stack:** GitHub Actions YAML, branch-protection API (`gh api`), Rust (`vox-cli-ci`, `vox-cli`), `vox ci` subcommands.
 
-**Execution:** Run via the **Workflow** tool — see "Execution via Workflow" at the end. Tasks A and C1–C3 are file-isolated and fan out in parallel; a barrier verify gates the strict flip (D); E (docs) follows D; a final code-reviewer agent audits the diff.
+**Branch/worktree:** Land on a fresh branch off `main` (recommended — this is a CI-policy change reviewable on its own), or fold into PR #404. Build a fresh release binary before any push so the strict gate is exercised, not `--no-verify`-bypassed.
 
-**Branch/worktree:** All edits land on `claude/graphify-general-gui-ia` via the worktree `C:/Users/Owner/vox-graphify-gui` (the open PR #404 branch), OR a fresh branch off `main` if the user prefers a standalone PR. Cherry-pick from local `main` as established this session. Push with `--no-verify` only for the known stale-binary `graphify` SSOT false-positive.
+**Verified facts (hand-checked against the live repo, 2026-06-28):**
+- Sole required context: `["Check, Build, and Test (Rust)"]` = `ci-summary` job, `ci.yml:1287`, `runs-on: [self-hosted, linux, x64]`, 2-min aggregator. **Invariant 1 is FALSE today.**
+- `main-merge-queue` ruleset = active. Fleet down → queue never drains.
+- ci.yml full `nextest --workspace` runs **only on merge_group** (lines 984/994); per-PR is targeted/affected.
+- `ci-fallback-hosted.yml` = `workflow_dispatch`-only, not a required context.
 
 ---
 
 ## File Structure
 
-| File | Responsibility | Task |
-|------|----------------|------|
-| `docs/src/ci/github-hosted-exceptions.md` | Exception registry — 6 new rows + Win/macOS policy note | A, E |
-| `.github/workflows/cross-platform-check.yml` | Dynamic matrix: Win/macOS off per-PR | C1 |
-| `.github/workflows/gui-cross-build.yml` | Dynamic matrix: Win/macOS off per-PR | C2 |
-| `.github/workflows/compile-matrix.yml` | Dynamic matrix: Win/macOS off per-PR | C3 |
-| `crates/vox-cli-ci/src/runner_policy_check.rs` | Strict-mode unit test | D |
-| `crates/vox-cli/src/commands/ci/pre_push.rs:1084` | Strict flip (call site 1) | D |
-| `crates/vox-cli/src/commands/ci/run_body_helpers/docs.rs:613` | Strict flip (call site 2, ssot-drift) | D |
-| `docs/src/ci/runner-contract.md` | "advisory" → "enforced (strict)" | E |
-| `AGENTS.md` | Strengthen §"Run CI locally first" | E |
+| File | Responsibility | Workstream |
+|------|----------------|-----------|
+| `.github/workflows/ci.yml` | `ci-summary`→hosted; relocate advisory scans; per-PR voxup step | B, D |
+| `.github/workflows/ci-fallback-hosted.yml` | nightly + fleet-down trigger, required-equivalent name | B |
+| `.github/workflows/cross-platform-check.yml` | keep per-PR cargo check; defer heavy legs; drop os_compat/push | C |
+| `.github/workflows/gui-cross-build.yml` | Win/macOS → merge_group | C |
+| `.github/workflows/compile-matrix.yml` | cut Win/macOS jobs | C |
+| `.github/workflows/codeql.yml` | drop pull_request (merge_group + weekly) | C |
+| `.github/workflows/mobile-e2e-android.yml` | drop pull_request → merge_group + nightly | C |
+| `.github/workflows/distribution-parity.yml` | cut after replacement step lands | D |
+| `crates/vox-cli-ci/src/runner_policy_check.rs` | strict tests + "merge_group-only ≠ required" rule | B, F |
+| `crates/vox-cli/src/commands/ci/run_body_helpers/docs.rs:613` | strict flip (CI side only) | F |
+| `crates/vox-cli/src/commands/ci/pre_push.rs` | keep advisory; add env-doctor first | F, G |
+| `crates/vox-cli/src/commands/ci/` (new `env_doctor.rs`) | system-dep probe | G |
+| `docs/src/ci/{github-hosted-exceptions,runner-contract,compute-placement}.md` | registry + enforcement note + runbook | A, B |
 
 ---
 
-## Task A: Register the 6 deliberately-hosted workflows
+## Workstream B — Resiliency precondition (HARD-BLOCKS Workstream F)
 
-**Files:**
-- Modify: `docs/src/ci/github-hosted-exceptions.md`
+### Task B1: Move the required aggregator to a hosted runner
 
-- [ ] **Step 1: Add 6 rows to the exceptions table**
+**Files:** Modify `.github/workflows/ci.yml:1287` (`ci-summary` job)
 
-Insert these rows into the markdown table (after the existing `| `scorecard.yml` ... |` row, before the closing paragraph). Each cites its `compute-placement.md` rationale:
+- [ ] **Step 1: Confirm the required context identity**
 
-```markdown
-| `deploy-telemetry.yml` | `ubuntu-latest` | Coolify deploy critical path; free public minutes; never put the fleet between green main and live deploy (compute-placement.md Invariant 4). |
-| `docker-telemetry.yml` | `ubuntu-latest` | GHCR telemetry image build on the deploy path; free public minutes by policy (compute-placement.md §vox placement). |
-| `distribution-parity.yml` | `ubuntu-latest` | Fleet-independent required parity check — stays green when the fleet is down (compute-placement.md Invariant 1). |
-| `version-tag-guard.yml` | `ubuntu-latest` | Lightweight tag-only release guard; fleet-independent by design. |
-| `workflow-lint.yml` | `ubuntu-latest` | actionlint + zizmor; install in seconds, need no self-hosted resources. Non-required early-warning surface. |
-| `ci.yml` | `ubuntu-latest` (1 job: `docker compose config`) | `docker compose config` only parses YAML; the self-hosted docker runner lacks the compose plugin (exit 127). All other `ci.yml` jobs are self-hosted. |
+Run: `gh api repos/vox-foundation/vox/branches/main/protection --jq '.required_status_checks.contexts'`
+Expected: `["Check, Build, and Test (Rust)"]`. If it lists anything else, STOP and re-plan — the rest of B assumes this exact single context.
+
+- [ ] **Step 2: Flip `ci-summary` to hosted**
+
+In `ci.yml`, the `ci-summary` job — change ONLY its runner (keep `name:`, `needs:`, `if: always()`, steps unchanged):
+
+```yaml
+  ci-summary:
+    name: Check, Build, and Test (Rust)
+    needs: [guards-fast, lints, compiler-gates, tests, audits]
+    if: always()
+    # Hosted so the SOLE required context is fleet-independent (compute-placement.md
+    # Invariant 1). The 5 heavy needs stay self-hosted; this 2-min aggregator only
+    # reads their results, so it must not itself require the workstation.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
 ```
 
-- [ ] **Step 2: Add the Win/macOS per-PR policy note**
+> Note: with the needs self-hosted, a fleet outage still fails the needs → ci-summary reports failure on hosted. B1 alone makes the *aggregator* drainable; B2 provides the actual green-during-outage path. Both are required.
 
-Below the table, after the existing `**Enforcement:**` line, add:
-
-```markdown
-**Cross-OS (Windows/macOS) cadence:** Win/macOS matrix legs in `cross-platform-check.yml`,
-`gui-cross-build.yml`, and `compile-matrix.yml` run on **`merge_group` + nightly `schedule`
-only — never per-PR** (the Linux self-hosted leg covers per-PR signal). The self-hosted
-Linux fleet cannot host Windows/macOS containers; see [compute-placement.md](compute-placement.md)
-for the placement SSOT.
-```
-
-- [ ] **Step 3: Verify the check passes**
-
-Run: `VOX_SKIP_FRESHNESS_CHECK=1 ./target/release/vox.exe ci runner-policy-check`
-Expected: `runner-policy-check OK (N exception workflow(s) registered)` — exit 0, no warnings.
-
-> Note: this uses the **installed** binary's parser (regex over the table). No rebuild needed — the parser reads the doc at runtime.
-
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
-git add docs/src/ci/github-hosted-exceptions.md
-git commit -m "docs(ci): register 6 deliberately-hosted workflows in exception registry
+git add .github/workflows/ci.yml
+git commit -m "ci: run the required ci-summary aggregator on a hosted runner
 
-Per compute-placement.md these run hosted on purpose (deploy resilience +
-free public minutes). They were missing exception-doc rows, tripping
-runner-policy-check. Register them and document the Win/macOS not-per-PR
-cadence. No runs-on migration — honors Invariants 1 & 4.
+The sole branch-protection context 'Check, Build, and Test (Rust)' was
+self-hosted, so the merge gate hard-depended on the workstation
+(compute-placement.md Invariant 1, false in YAML). Move the 2-min
+aggregator to ubuntu-latest; its heavy needs stay self-hosted.
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+```
+
+### Task B2: Make `ci-fallback-hosted.yml` a reachable, required-equivalent valve
+
+**Files:** Modify `.github/workflows/ci-fallback-hosted.yml`
+
+- [ ] **Step 1: Read the current triggers + gate job name**
+
+Run: `sed -n '1,60p' .github/workflows/ci-fallback-hosted.yml`
+Identify the `on:` block (currently `workflow_dispatch:` only) and the gate job's `name:`.
+
+- [ ] **Step 2: Add reachable triggers + matching context name**
+
+Change `on:` to add a nightly schedule and a label-gated PR trigger; rename the gate job's `name:` to the required context so a green fallback run satisfies branch protection during an outage:
+
+```yaml
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * *'   # Nightly hosted mirror — recent portable green signal on main
+  pull_request:
+    types: [labeled, synchronize, reopened]
+```
+
+In the gate job, gate the PR path on the label and rename the context:
+
+```yaml
+  gate:
+    name: Check, Build, and Test (Rust)   # required-equivalent: satisfies branch protection
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'fleet-down')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+```
+
+> Effect: applying the `fleet-down` label to a PR makes the hosted fallback report the
+> required context green, unblocking merges when the self-hosted fleet is down. The nightly
+> schedule keeps a recent portable signal on main.
+
+- [ ] **Step 3: Validate + commit**
+
+Run: `docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:latest .github/workflows/ci-fallback-hosted.yml` → no errors.
+
+```bash
+git add .github/workflows/ci-fallback-hosted.yml
+git commit -m "ci(fallback): make hosted fallback reachable + required-equivalent
+
+Nightly schedule + a fleet-down-labelled PR trigger, and rename the gate
+job to the required context name so a green fallback run satisfies branch
+protection during a fleet outage. Was workflow_dispatch-only (theater).
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+```
+
+### Task B3: Enforce "merge_group-only jobs are never required contexts"
+
+**Files:** Test + impl in `crates/vox-cli-ci/src/runner_policy_check.rs`; document in `docs/src/ci/runner-contract.md`
+
+- [ ] **Step 1: Write the failing test**
+
+Append to `mod tests` in `runner_policy_check.rs`:
+
+```rust
+    #[test]
+    fn detects_merge_group_only_job() {
+        // A job that only runs on merge_group (no pull_request reachability) must be
+        // flaggable so it is never wired as a required branch-protection context.
+        let yml = "on:\n  merge_group:\njobs:\n  heavy:\n    runs-on: ubuntu-latest\n";
+        assert!(workflow_is_merge_group_only(yml));
+        let pr = "on:\n  pull_request:\n  merge_group:\njobs:\n  j:\n    runs-on: ubuntu-latest\n";
+        assert!(!workflow_is_merge_group_only(pr));
+    }
+```
+
+- [ ] **Step 2: Run it to verify it fails**
+
+Run: `cargo nextest run -p vox-cli-ci detects_merge_group_only_job --profile ci`
+Expected: FAIL — `workflow_is_merge_group_only` not defined.
+
+- [ ] **Step 3: Implement the predicate**
+
+Add to `runner_policy_check.rs`:
+
+```rust
+/// True when a workflow's `on:` triggers include `merge_group` but NOT `pull_request`,
+/// meaning its jobs never report on PRs and must never be branch-protection required
+/// contexts (a required-but-skipped context leaves the merge queue permanently pending).
+pub fn workflow_is_merge_group_only(text: &str) -> bool {
+    let has_merge_group = text.lines().any(|l| l.trim_start().starts_with("merge_group:"));
+    let has_pull_request = text.lines().any(|l| l.trim_start().starts_with("pull_request:"));
+    has_merge_group && !has_pull_request
+}
+```
+
+- [ ] **Step 4: Run the test to verify it passes**
+
+Run: `cargo nextest run -p vox-cli-ci detects_merge_group_only_job --profile ci`
+Expected: PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add crates/vox-cli-ci/src/runner_policy_check.rs
+git commit -m "feat(ci): detect merge_group-only workflows (queue-deadlock guard)
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+```
+
+### Task B4: Merge-queue break-glass runbook
+
+**Files:** Modify `docs/src/ci/runner-contract.md` (new §)
+
+- [ ] **Step 1: Add the runbook section**
+
+Append to `runner-contract.md`:
+
+```markdown
+## Merge-queue break-glass (fleet outage)
+
+The `main-merge-queue` ruleset is active and serializes every merge through a `merge_group`
+ci.yml run on the self-hosted fleet. The admin bypass (`enforce_admins=false`) does NOT
+apply inside a required merge queue. If the fleet is down:
+
+1. **Preferred:** label the PR `fleet-down` → `ci-fallback-hosted.yml` reports the required
+   context `"Check, Build, and Test (Rust)"` green on hosted infra; merge normally.
+2. **If the queue is wedged:** temporarily set the `main-merge-queue` ruleset to
+   `enforcement: evaluate` (or disable it) via
+   `gh api -X PUT repos/vox-foundation/vox/rulesets/<id> ...`, merge, then re-enable.
+3. Restore the fleet (`vox ci runner-scale` / autoscaler) and remove the `fleet-down` label.
+```
+
+- [ ] **Step 2: Doc-lint + commit**
+
+Run: `cargo run -q -p vox-doc-pipeline -- --lint-only`
+```bash
+git add docs/src/ci/runner-contract.md
+git commit -m "docs(ci): merge-queue break-glass runbook for fleet outages
 
 Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ```
 
 ---
 
-## Task C1: Dynamic matrix for `cross-platform-check.yml`
+## Workstream C — Per-PR → merge_group/nightly tiering
 
-**Files:**
-- Modify: `.github/workflows/cross-platform-check.yml`
+> **Precondition (run once before any C task):**
+> `gh api repos/vox-foundation/vox/branches/main/protection --jq '.required_status_checks.contexts'`
+> must NOT contain any `cross-platform-check` / `gui-cross-build` / `compile-matrix`
+> Win/macOS context. Verified today = only `["Check, Build, and Test (Rust)"]`. If that
+> changes, abort C — demoting a required context to merge_group-only deadlocks the queue.
 
-Current state (already edited this session): static `include` matrix with `windows-latest`, `macos-latest`, and `[self-hosted, linux, x64]` legs. This task makes Win/macOS legs appear only off-`pull_request`.
+### Task C1: cross-platform-check — keep cheap per-PR check, defer heavy legs
 
-- [ ] **Step 1: Add a `matrix-setup` job that emits the include list**
+**Files:** Modify `.github/workflows/cross-platform-check.yml`
 
-Insert this job as the FIRST job under `jobs:` (before `cross-check:`):
+- [ ] **Step 1: Revert the static self-hosted-Linux matrix edit from this session to the label idiom**
+
+The matrix currently has win/mac/self-hosted legs running every event. Keep all three legs in the matrix, but gate the EXPENSIVE steps and drop the redundant triggers. First, in `on:`, remove the `push: branches: [main]` trigger (merge_group already gates main):
 
 ```yaml
-  matrix-setup:
-    name: Compute cross-OS matrix (Win/macOS off per-PR)
-    runs-on: [self-hosted, linux, x64]
-    outputs:
-      include: ${{ steps.gen.outputs.include }}
-    steps:
-      - id: gen
-        shell: bash
+on:
+  pull_request:
+    paths: [ ... keep existing ... ]
+  merge_group:
+  schedule:
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+```
+
+- [ ] **Step 2: Keep `cargo check` unconditional; gate the heavy legs**
+
+The `cargo check (workspace) — every event` step (line ~77) stays unconditional on ALL matrix legs — this is the only per-PR `#[cfg(windows)]`/`#[cfg(macos)]` compile proof. Add an `if:` to the platform-sensitive nextest + merge-queue clippy/nextest steps so the Win/macOS legs do only the cheap `cargo check` on PRs:
+
+```yaml
+      - name: nextest (platform-sensitive crates) — non-PR or Linux
+        if: runner.os == 'Linux' || github.event_name != 'pull_request'
         run: |
-          set -euo pipefail
-          linux='{"os":["self-hosted","linux","x64"],"target":"x86_64-unknown-linux-gnu","sccache_gha":"false"}'
-          win='{"os":"windows-latest","target":"x86_64-pc-windows-msvc","sccache_gha":"true"}'
-          mac='{"os":"macos-latest","target":"aarch64-apple-darwin","sccache_gha":"true"}'
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            # Per-PR: Linux self-hosted only. Win/macOS run on merge_group + schedule.
-            echo "include=[$linux]" >> "$GITHUB_OUTPUT"
-          else
-            echo "include=[$linux,$win,$mac]" >> "$GITHUB_OUTPUT"
-          fi
+          cargo nextest run -p vox-config
+          cargo nextest run -p vox-cli-core
+          cargo nextest run -p vox-populi --lib
 ```
 
-- [ ] **Step 2: Point `cross-check` at the dynamic matrix**
+(The merge_group-only clippy/nextest steps at lines ~96-102 already carry `if: github.event_name == 'merge_group'` — leave them.)
 
-Change the `cross-check` job's `needs`/`strategy`. Replace the static `matrix: include: [...]` block with:
+- [ ] **Step 3: Remove the per-merge `os_compat.py` step**
 
-```yaml
-  cross-check:
-    name: Cross-Platform (Win/macOS/Ubuntu)
-    needs: matrix-setup
-    strategy:
-      fail-fast: false
-      matrix:
-        include: ${{ fromJson(needs.matrix-setup.outputs.include) }}
-    runs-on: ${{ matrix.os }}
-```
-
-Leave the rest of `cross-check` (env, steps, the `if: runner.os == 'Linux'` GTK install step from this session) unchanged.
-
-- [ ] **Step 3: Validate YAML locally**
-
-Run: `VOX_SKIP_FRESHNESS_CHECK=1 ./target/release/vox.exe ci runner-policy-check`
-Expected: still OK (cross-platform-check.yml is already a registered exception; the JSON literals in the setup script do not change its exception status).
-
-Optionally lint: `docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:latest .github/workflows/cross-platform-check.yml` → expect no `matrix` schema errors.
-
-- [ ] **Step 4: Commit**
-
-```bash
-git add .github/workflows/cross-platform-check.yml
-git commit -m "ci(cross-platform): Win/macOS legs off per-PR via dynamic matrix
-
-A matrix-setup job emits the include list — Linux self-hosted always,
-Win/macOS only on merge_group + schedule. Cuts hosted-minute spend
-without losing per-PR Linux signal.
-
-Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
-```
-
----
-
-## Task C2: Dynamic matrix for `gui-cross-build.yml`
-
-**Files:**
-- Modify: `.github/workflows/gui-cross-build.yml`
-
-- [ ] **Step 1: Read the current matrix**
-
-Run: `sed -n '1,60p' .github/workflows/gui-cross-build.yml`
-Identify the `strategy.matrix` block and the per-OS `target`/extra fields it carries (Tauri GUI legs differ from C1 — preserve the existing per-leg fields verbatim).
-
-- [ ] **Step 2: Add a `matrix-setup` job**
-
-Insert as the first job under `jobs:`. Use the SAME pattern as C1 Step 1, but populate each leg's JSON with the fields this workflow's matrix actually uses (copy them from the block you read in Step 1 — do not invent fields). Linux leg uses `"os":["self-hosted","linux","x64"]`; Win/macOS legs keep their existing `windows-latest` / `macos-latest` values. Gate Win/macOS behind the same `if [ "${{ github.event_name }}" = "pull_request" ]` check.
-
-> If the Linux leg here currently uses `ubuntu-latest` and genuinely needs native WebKitGTK that the self-hosted fleet provides, keep it `ubuntu-latest` in BOTH branches (this workflow is a registered exception). The only behavior change required by this task is: **Win/macOS legs absent when `github.event_name == 'pull_request'`.**
-
-- [ ] **Step 3: Point the build job at `fromJson(needs.matrix-setup.outputs.include)`**
-
-Same edit shape as C1 Step 2: add `needs: matrix-setup` and `matrix: include: ${{ fromJson(needs.matrix-setup.outputs.include) }}`.
+Delete the `Run portability scanner (os_compat.py)` + `Upload portability report` steps (lines ~104-116). Coverage is preserved by the weekly `os-compat-report.yml`. Add a one-line comment pointing there.
 
 - [ ] **Step 4: Validate + commit**
 
 Run: `VOX_SKIP_FRESHNESS_CHECK=1 ./target/release/vox.exe ci runner-policy-check` → OK.
 
 ```bash
-git add .github/workflows/gui-cross-build.yml
-git commit -m "ci(gui-cross-build): Win/macOS legs off per-PR via dynamic matrix
+git add .github/workflows/cross-platform-check.yml
+git commit -m "ci(cross-platform): keep per-PR cargo check, defer heavy legs to merge_group
+
+Win/macOS legs do only the cheap per-PR cargo check (the sole per-PR
+cfg(windows) compile proof); full clippy+nextest stay merge_group-only.
+Drop the redundant push:main trigger and the per-merge os_compat.py
+(weekly os-compat-report.yml covers it). Coverage deferred: full Win/macOS
+test run moves from per-PR to merge_group + weekly.
 
 Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ```
 
----
+### Task C2: gui-cross-build — Win/macOS to merge_group
 
-## Task C3: Dynamic matrix for `compile-matrix.yml`
+**Files:** Modify `.github/workflows/gui-cross-build.yml`
 
-**Files:**
-- Modify: `.github/workflows/compile-matrix.yml`
+- [ ] **Step 0: Read the file and branch the implementation**
 
-This workflow has THREE separate jobs (`compile-help-linux` self-hosted, `compile-help-windows`, `compile-help-macos`) — not a matrix. The Win/macOS jobs are separate `runs-on: windows-latest` / `macos-latest` jobs.
+Run: `sed -n '1,80p' .github/workflows/gui-cross-build.yml`
+- If it is ONE matrixed job: add a job-level `if:` is not enough (it would skip the Linux leg too). Instead gate per-leg via a `full-ci`-style label OR split the matrix include by event. Prefer: keep Linux leg per-PR, add `if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')` on the Win/macOS-only steps.
+- If it is N discrete jobs (like compile-matrix): add `if: github.event_name != 'pull_request'` to the Win/macOS jobs only.
 
-- [ ] **Step 1: Gate the two hosted jobs off `pull_request`**
+Implement whichever matches the actual structure. Do NOT assume C1's shape.
 
-Add a job-level `if:` to `compile-help-windows` and `compile-help-macos`:
+- [ ] **Step 1: Validate + commit**
 
-```yaml
-  compile-help-windows:
-    name: vox compile --help (windows-latest)
-    if: github.event_name != 'pull_request'
-    runs-on: windows-latest
+Run: `VOX_SKIP_FRESHNESS_CHECK=1 ./target/release/vox.exe ci runner-policy-check` → OK.
+
+```bash
+git add .github/workflows/gui-cross-build.yml
+git commit -m "ci(gui-cross-build): Win/macOS Tauri legs off per-PR (merge_group)
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ```
 
-```yaml
-  compile-help-macos:
-    name: vox compile --help (macos-latest)
-    if: github.event_name != 'pull_request'
-    runs-on: macos-latest
-```
+### Task C3: compile-matrix — cut Win/macOS jobs
 
-> Simpler than a dynamic matrix because these are already discrete jobs. `compile-matrix.yml`'s triggers are `workflow_dispatch` + `pull_request` — add `merge_group:` and a nightly `schedule:` to its `on:` block so Win/macOS still get real coverage:
+**Files:** Modify `.github/workflows/compile-matrix.yml`
 
-```yaml
-on:
-  workflow_dispatch:
-  merge_group:
-  schedule:
-    - cron: '0 5 * * 1'   # Weekly Monday Win/macOS compile smoke
-  pull_request:
-    paths:
-      # ... keep existing paths unchanged ...
-```
+- [ ] **Step 1: Delete the two hosted jobs**
 
-`compile-help-linux` (self-hosted) keeps running per-PR — it has no `if:` guard.
+Remove `compile-help-windows` and `compile-help-macos` jobs entirely. Their `vox compile --help` smoke is subsumed by cross-platform-check's per-PR `cargo check --workspace`. Keep `compile-help-linux` (self-hosted). No `merge_group` trigger is added (avoids the deadlock class).
 
 - [ ] **Step 2: Validate + commit**
 
-Run: `VOX_SKIP_FRESHNESS_CHECK=1 ./target/release/vox.exe ci runner-policy-check` → OK (compile-matrix.yml already a registered exception).
-
 ```bash
 git add .github/workflows/compile-matrix.yml
-git commit -m "ci(compile-matrix): Win/macOS compile smoke off per-PR (merge_group + schedule)
+git commit -m "ci(compile-matrix): cut Win/macOS help-smoke jobs (subsumed by cross-platform cargo check)
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+```
+
+### Task C4: codeql + mobile-e2e-android off per-PR
+
+**Files:** Modify `.github/workflows/codeql.yml`, `.github/workflows/mobile-e2e-android.yml`
+
+- [ ] **Step 1: codeql — drop pull_request**
+
+In `codeql.yml` `on:`, remove the `pull_request:` block; keep `push: branches:[main]`, `schedule:` (weekly), `merge_group:` (add if absent), `workflow_dispatch:`. CodeQL's 60-min Rust analysis leaves the per-PR critical path; main + merge_group + weekly retain coverage.
+
+- [ ] **Step 2: mobile-e2e-android — drop pull_request**
+
+In `mobile-e2e-android.yml` `on:`, replace `pull_request:` with `merge_group:` + a nightly `schedule:` (mirror `mobile-e2e-ios.yml`'s cadence — read it first to match).
+
+- [ ] **Step 3: Validate + commit**
+
+Run: `VOX_SKIP_FRESHNESS_CHECK=1 ./target/release/vox.exe ci runner-policy-check` → OK.
+
+```bash
+git add .github/workflows/codeql.yml .github/workflows/mobile-e2e-android.yml
+git commit -m "ci: codeql + android-e2e off per-PR (merge_group + schedule)
 
 Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ```
 
 ---
 
-## VERIFY GATE (barrier — must pass before Task D)
+## Workstream D — Test cuts (verify-then-act)
 
-- [ ] **V1: runner-policy-check is clean**
+### Task D1: Cut distribution-parity with a per-PR replacement step
 
-Run: `VOX_SKIP_FRESHNESS_CHECK=1 ./target/release/vox.exe ci runner-policy-check`
-Expected: `runner-policy-check OK (N exception workflow(s) registered)` — exit 0.
-If ANY warning remains, the offending workflow needs a row in Task A — fix before proceeding.
+**Files:** Modify `.github/workflows/ci.yml`; delete `.github/workflows/distribution-parity.yml`
 
-- [ ] **V2: strict mode would pass too (dry-run the future gate)**
+- [ ] **Step 1: VERIFY the merge_group workspace nextest covers the test**
 
-Run: `VOX_SKIP_FRESHNESS_CHECK=1 ./target/release/vox.exe ci runner-policy-check --strict; echo "exit=$?"`
-Expected: `exit=0`. This proves flipping to strict won't break the gate.
+Run: `cargo nextest run -p voxup --test distribution_parity --profile ci`
+Expected: PASS (the test exists at `crates/voxup/tests/distribution_parity.rs`). Confirm ci.yml's merge_group `cargo nextest run --workspace --profile ci` (line 994) includes `voxup` (it is not in any `--exclude`). If `voxup` is excluded, STOP — do not cut.
 
-- [ ] **V3: `--act` local-mirror smoke (confirms "runs locally first")**
+- [ ] **Step 2: Add a per-PR replacement step to ci.yml `tests` job**
 
-Run: `VOX_SKIP_FRESHNESS_CHECK=1 ./target/release/vox.exe ci pre-push --act --dry-run` (or `--quick` if `--dry-run` unsupported)
-Expected: enumerates the hosted-mirror lanes without error. If `act`/Docker is unavailable on this host, record that and proceed — V3 is advisory (the strict flip does not depend on it).
+So PR-time signal survives on the fleet (merge_group nextest is full-only), add to the `tests` job a path-filtered fast step:
+
+```yaml
+      - name: Distribution SSOT parity (voxup) — fast PR signal
+        if: needs.setup.outputs.affects_contracts == 'true' || needs.setup.outputs.full == 'true'
+        run: cargo nextest run -p voxup --test distribution_parity --profile ci
+```
+
+- [ ] **Step 3: Delete the standalone workflow**
+
+```bash
+git rm .github/workflows/distribution-parity.yml
+```
+
+- [ ] **Step 4: Remove its exception/registry references**
+
+If `distribution-parity.yml` appears in `github-hosted-exceptions.md`, remove that row.
+
+- [ ] **Step 5: Validate + commit**
+
+Run: `VOX_SKIP_FRESHNESS_CHECK=1 ./target/release/vox.exe ci runner-policy-check` → OK.
+
+```bash
+git add .github/workflows/ci.yml docs/src/ci/github-hosted-exceptions.md
+git commit -m "ci: fold distribution-parity into ci.yml per-PR tests; cut standalone hosted workflow
+
+voxup distribution_parity runs in ci.yml merge_group workspace nextest;
+add a path-filtered per-PR step so fast signal survives on the fleet, then
+remove the cold-build hosted workflow.
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+```
+
+### Task D2: Relocate advisory scans out of the merge-gate hot path
+
+**Files:** Modify `.github/workflows/ci.yml`, `.github/workflows/bench-nightly.yml`
+
+- [ ] **Step 1: Identify the `continue-on-error` advisory steps in ci.yml `tests`/`audits`**
+
+Run: `grep -n "continue-on-error" .github/workflows/ci.yml`
+Target the advisory scans named in the audit (crate-build-audit, plugin-candidacy, build-bench, graphify-freshness, cargo-outdated) — confirm each is `continue-on-error: true` (non-blocking) before moving it.
+
+- [ ] **Step 2: Move them to bench-nightly.yml**
+
+Cut each confirmed advisory step from ci.yml and add it to `bench-nightly.yml` (already self-hosted, nightly). Keep the exact command. Leave any that are NOT `continue-on-error` (those are real gates).
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add .github/workflows/ci.yml .github/workflows/bench-nightly.yml
+git commit -m "ci: relocate advisory scans from merge-gate to bench-nightly
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+```
 
 ---
 
-## Task D: Flip `runner-policy-check` to strict
+## Workstream E — Speedups
 
-**Files:**
-- Test: `crates/vox-cli-ci/src/runner_policy_check.rs` (append to `mod tests`)
-- Modify: `crates/vox-cli/src/commands/ci/pre_push.rs:1084`
-- Modify: `crates/vox-cli/src/commands/ci/run_body_helpers/docs.rs:613`
+### Task E1: sccache hit-rate telemetry
+
+**Files:** Modify `.github/workflows/ci.yml` (setup, lints, compiler-gates, tests, audits jobs)
+
+- [ ] **Step 1: Add a stats step to each heavy job**
+
+After the build/test steps in each of the 5 jobs, add:
+
+```yaml
+      - name: sccache stats
+        if: always()
+        run: sccache --show-stats || true
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add .github/workflows/ci.yml
+git commit -m "ci: emit sccache --show-stats on heavy jobs (hit-rate telemetry)
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+```
+
+### Task E2: Split guards-fast (keep deterministic guards blocking)
+
+**Files:** Modify `.github/workflows/ci.yml`
+
+- [ ] **Step 1: Read the guards-fast job**
+
+Run: `grep -n "guards-fast" .github/workflows/ci.yml` then read the job. Identify slow members (cargo-deny, cargo-audit, cargo-shear, `.vox` audits, plugin-abi-parity `--build`).
+
+- [ ] **Step 2: Extract slow members into a non-required `guards-slow` job**
+
+Create a parallel `guards-slow` job (self-hosted) NOT in `ci-summary` needs. Move the slow steps there. Keep deterministic fast guards (line-endings, BOM, manifest, ssot-drift, config gates) in `guards-fast`.
+
+- [ ] **Step 3: Verify guards-slow is not a required context**
+
+Run: `gh api repos/vox-foundation/vox/branches/main/protection --jq '.required_status_checks.contexts'` → still only `["Check, Build, and Test (Rust)"]`. `guards-slow` must not be added to `ci-summary` needs.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add .github/workflows/ci.yml
+git commit -m "ci: split guards-slow off the blocking guards-fast path
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+```
+
+---
+
+## Workstream G — Feedback-loop / coverage backfill
+
+### Task G1: `vox ci env-doctor` — system-dep probe
+
+**Files:** Create `crates/vox-cli/src/commands/ci/env_doctor.rs`; wire into `cmd_enums.rs`, `run_body.rs`, `pre_push.rs`
 
 - [ ] **Step 1: Write the failing test**
 
-Append to the `#[cfg(test)] mod tests` block in `runner_policy_check.rs`:
+Create `crates/vox-cli/tests/env_doctor_test.rs`:
 
 ```rust
-    #[test]
-    fn strict_mode_errors_on_unregistered_hosted_workflow() {
-        // Build a throwaway repo tree: one hosted workflow, empty exceptions table.
-        let tmp = std::env::temp_dir().join(format!("rpc-strict-{}", std::process::id()));
-        let wf = tmp.join(".github/workflows");
-        std::fs::create_dir_all(&wf).unwrap();
-        std::fs::create_dir_all(tmp.join("docs/src/ci")).unwrap();
-        std::fs::write(
-            tmp.join(EXCEPTIONS_DOC),
-            "# exceptions\n\n| Workflow | Runner | Reason |\n|--|--|--|\n",
-        )
-        .unwrap();
-        std::fs::write(
-            wf.join("rogue.yml"),
-            "jobs:\n  j:\n    runs-on: ubuntu-latest\n",
-        )
-        .unwrap();
-
-        // Advisory mode tolerates it (Ok); strict mode rejects it (Err).
-        assert!(run(&tmp, false).is_ok(), "advisory should pass");
-        assert!(run(&tmp, true).is_err(), "strict should fail on unregistered hosted");
-
-        std::fs::remove_dir_all(&tmp).ok();
+#[test]
+fn env_doctor_reports_each_required_dep() {
+    // The probe must check exactly the deps ci.yml installs, from one SSOT list.
+    let report = vox_cli::commands::ci::env_doctor::probe();
+    let names: Vec<&str> = report.iter().map(|d| d.name.as_str()).collect();
+    for dep in ["libdbus-1", "glib-2.0", "gtk+-3.0", "webkit2gtk-4.1"] {
+        assert!(names.contains(&dep), "missing probe for {dep}");
     }
-
-    #[test]
-    fn strict_mode_ok_when_registered() {
-        let tmp = std::env::temp_dir().join(format!("rpc-strict-ok-{}", std::process::id()));
-        let wf = tmp.join(".github/workflows");
-        std::fs::create_dir_all(&wf).unwrap();
-        std::fs::create_dir_all(tmp.join("docs/src/ci")).unwrap();
-        std::fs::write(
-            tmp.join(EXCEPTIONS_DOC),
-            "# exceptions\n\n| Workflow | Runner | Reason |\n|--|--|--|\n| `rogue.yml` | `ubuntu-latest` | test |\n",
-        )
-        .unwrap();
-        std::fs::write(
-            wf.join("rogue.yml"),
-            "jobs:\n  j:\n    runs-on: ubuntu-latest\n",
-        )
-        .unwrap();
-        assert!(run(&tmp, true).is_ok(), "strict should pass when registered");
-        std::fs::remove_dir_all(&tmp).ok();
-    }
-```
-
-- [ ] **Step 2: Run the test to verify it passes**
-
-Run: `cargo nextest run -p vox-cli-ci runner_policy_check --profile ci`
-Expected: PASS — these tests exercise the EXISTING `run(root, strict)` signature, so they pass immediately. They lock the strict contract before the call sites flip.
-
-- [ ] **Step 3: Flip call site 1 — pre-push**
-
-In `crates/vox-cli/src/commands/ci/pre_push.rs`, function `step_runner_policy_check` (~line 1081):
-
-```rust
-fn step_runner_policy_check(root: &Path) -> Result<()> {
-    // Local-first is an ENFORCED gate (was advisory). Unregistered GitHub-hosted
-    // runs-on fail pre-push; register in docs/src/ci/github-hosted-exceptions.md.
-    vox_cli_ci::runner_policy_check::run(root, true)
 }
 ```
 
-(Change the `false` argument to `true`. Keep any surrounding lines.)
+- [ ] **Step 2: Run it to verify it fails**
 
-- [ ] **Step 4: Flip call site 2 — ssot-drift**
+Run: `cargo nextest run -p vox-cli --test env_doctor_test --profile ci`
+Expected: FAIL — module not found.
+
+- [ ] **Step 3: Implement the probe**
+
+Create `env_doctor.rs`:
+
+```rust
+//! `vox ci env-doctor` — probe the system libraries CI installs, so a missing dep
+//! fails fast LOCALLY instead of after a CI round-trip (the libdbus/GTK class).
+
+pub struct DepStatus {
+    pub name: String,
+    pub present: bool,
+}
+
+/// SSOT list — must match the apt packages installed in .github/workflows/ci.yml.
+const PKG_CONFIG_DEPS: &[&str] = &[
+    "libdbus-1", "glib-2.0", "gtk+-3.0", "webkit2gtk-4.1",
+    "libsoup-3.0", "javascriptcoregtk-4.1",
+];
+
+pub fn probe() -> Vec<DepStatus> {
+    PKG_CONFIG_DEPS
+        .iter()
+        .map(|name| {
+            // On non-Linux (dev workstation is Windows) pkg-config is absent; report
+            // present=true so the probe is a no-op off the CI platform.
+            let present = if cfg!(target_os = "linux") {
+                std::process::Command::new("pkg-config")
+                    .args(["--exists", name])
+                    .status()
+                    .map(|s| s.success())
+                    .unwrap_or(false)
+            } else {
+                true
+            };
+            DepStatus { name: (*name).to_string(), present }
+        })
+        .collect()
+}
+
+/// CLI entry: print a table, return Err if any Linux dep is missing.
+pub fn run() -> anyhow::Result<()> {
+    let report = probe();
+    let mut missing = Vec::new();
+    for d in &report {
+        println!("{:<24} {}", d.name, if d.present { "ok" } else { "MISSING" });
+        if !d.present { missing.push(d.name.clone()); }
+    }
+    if missing.is_empty() {
+        Ok(())
+    } else {
+        anyhow::bail!(
+            "env-doctor: missing system deps: {}. Install: sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev",
+            missing.join(", ")
+        )
+    }
+}
+```
+
+- [ ] **Step 4: Wire the subcommand**
+
+Add `EnvDoctor` to the `CiCmd` enum (`cmd_enums.rs`) and dispatch in `run_body.rs`:
+```rust
+CiCmd::EnvDoctor => super::env_doctor::run(),
+```
+Add `pub mod env_doctor;` to the ci module root.
+
+- [ ] **Step 5: Run the test to verify it passes**
+
+Run: `cargo nextest run -p vox-cli --test env_doctor_test --profile ci`
+Expected: PASS.
+
+- [ ] **Step 6: Run env-doctor first in pre-push (advisory)**
+
+In `pre_push.rs`, add an early step that calls `env_doctor::probe()` and prints warnings (do NOT hard-fail on the Windows workstation — it's a no-op there; on Linux CI mirror it surfaces missing deps).
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add crates/vox-cli/src/commands/ci/env_doctor.rs crates/vox-cli/src/commands/ci/cmd_enums.rs crates/vox-cli/src/commands/ci/run_body.rs crates/vox-cli/src/commands/ci/pre_push.rs crates/vox-cli/tests/env_doctor_test.rs
+git commit -m "feat(ci): vox ci env-doctor — probe CI system deps locally
+
+Closes the libdbus/GTK env-only-failure class: a missing system lib now
+fails fast in pre-push instead of after a CI round-trip.
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+```
+
+### Task G2: Per-PR GUI vitest lane (verify-then-act)
+
+**Files:** Possibly `.github/workflows/ci.yml`
+
+- [ ] **Step 1: VERIFY whether the unit vitest suite runs in any workflow**
+
+Run: `grep -rn "vitest" .github/workflows/ crates/vox-gui/ui/package.json` and check whether ci.yml's GUI steps run `vitest run` (vs only Playwright e2e + `test:ingest`).
+- If a `vitest run` lane already exists → SKIP this task (no gap).
+- If NOT → proceed to Step 2.
+
+- [ ] **Step 2: Add a per-PR GUI unit lane**
+
+Add to ci.yml (or the existing GUI job) a step gated on `needs.setup.outputs.affects_gui == 'true'`:
+
+```yaml
+      - name: GUI unit tests (vitest) + typecheck
+        if: needs.setup.outputs.affects_gui == 'true'
+        working-directory: crates/vox-gui/ui
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec vitest run
+          pnpm exec tsc --noEmit
+```
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add .github/workflows/ci.yml
+git commit -m "ci(gui): per-PR vitest + tsc lane on GUI-affecting PRs
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+```
+
+---
+
+## Workstream A — Register hosted exceptions
+
+### Task A1: Complete the exception registry + fix the enforcement note
+
+**Files:** Modify `docs/src/ci/github-hosted-exceptions.md`
+
+- [ ] **Step 1: Add rows for still-unregistered hosted workflows**
+
+Run: `VOX_SKIP_FRESHNESS_CHECK=1 ./target/release/vox.exe ci runner-policy-check` to list current offenders. Add table rows for each remaining one (`version-tag-guard.yml`, `workflow-lint.yml`, and any others surfaced), each citing its `compute-placement.md` rationale (tag-only release guard / neutral-infra lint).
+
+- [ ] **Step 2: Update the enforcement note (line ~40)**
+
+Change `**Enforcement:** ... default advisory; --strict to fail.` to:
+
+```markdown
+**Enforcement:** `vox ci runner-policy-check` runs `--strict` inside `vox ci ssot-drift`
+(and therefore CI) — an unregistered GitHub-hosted `runs-on` FAILS the gate. The fast
+pre-push tier runs it advisory-but-loud. Register genuine exceptions above; placement
+rationale lives in [compute-placement.md](compute-placement.md).
+```
+
+- [ ] **Step 3: Verify clean against the full estate**
+
+Run: `VOX_SKIP_FRESHNESS_CHECK=1 ./target/release/vox.exe ci runner-policy-check --strict; echo "exit=$?"`
+Expected: `exit=0`. Paste the output into the PR description.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add docs/src/ci/github-hosted-exceptions.md
+git commit -m "docs(ci): complete hosted-exception registry + enforcement note
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+```
+
+---
+
+## Workstream F — Strict flip (LAST; CI-side only)
+
+### Task F1: Flip `--strict` in ssot-drift only, keep pre-push advisory
+
+**Files:** Test in `runner_policy_check.rs`; modify `run_body_helpers/docs.rs:613`; LEAVE `pre_push.rs:1084` as `false`
+
+- [ ] **Step 1: Confirm B preconditions are met**
+
+Run:
+```bash
+gh api repos/vox-foundation/vox/branches/main/protection --jq '.required_status_checks.contexts'
+```
+Assert the required context is satisfiable on hosted infra (B1: ci-summary hosted; B2: fallback required-equivalent). If B is not merged, STOP — do not flip strict.
+
+- [ ] **Step 2: Write the strict-direction tests**
+
+Append to `mod tests` in `runner_policy_check.rs`:
+
+```rust
+    #[test]
+    fn strict_errors_on_unregistered_hosted() {
+        let tmp = std::env::temp_dir().join(format!("rpc-{}", std::process::id()));
+        let wf = tmp.join(".github/workflows");
+        std::fs::create_dir_all(&wf).unwrap();
+        std::fs::create_dir_all(tmp.join("docs/src/ci")).unwrap();
+        std::fs::write(tmp.join(EXCEPTIONS_DOC),
+            "| Workflow | Runner | Reason |\n|--|--|--|\n").unwrap();
+        std::fs::write(wf.join("rogue.yml"),
+            "jobs:\n  j:\n    runs-on: ubuntu-latest\n").unwrap();
+        assert!(run(&tmp, false).is_ok());   // advisory tolerates
+        assert!(run(&tmp, true).is_err());   // strict rejects
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+```
+
+- [ ] **Step 3: Run it to verify it passes (signature already supports strict)**
+
+Run: `cargo nextest run -p vox-cli-ci strict_errors_on_unregistered_hosted --profile ci`
+Expected: PASS (exercises existing `run(root, strict)`).
+
+- [ ] **Step 4: Flip the CI-side call site ONLY**
 
 In `crates/vox-cli/src/commands/ci/run_body_helpers/docs.rs:613`, change:
 
 ```rust
     let _ = vox_cli_ci::runner_policy_check::run(root, false);
 ```
-
 to:
-
 ```rust
-    // Enforced: propagate the error so ssot-drift fails on unregistered hosted runners.
+    // Enforced on the CI side: ssot-drift fails on unregistered hosted runners.
+    // NOTE: ssot-drift is reachable from the fast pre-push tier; that propagation is
+    // intentional and bounded. We deliberately do NOT flip pre_push.rs's standalone
+    // step_runner_policy_check (it stays advisory) so the gate is never silently
+    // bypassed by the known stale-binary --no-verify pattern.
     vox_cli_ci::runner_policy_check::run(root, true)?;
 ```
 
-> Verify the enclosing function returns `Result<()>` (it does — ssot-drift checks use `?`). If this is the last statement, ensure the function still returns `Ok(())` afterward.
+Confirm the enclosing function returns `Result<()>` and still ends `Ok(())`.
 
-- [ ] **Step 5: Build + run the affected crates**
+- [ ] **Step 5: LEAVE pre_push.rs advisory**
 
-Run: `cargo build -p vox-cli && cargo nextest run -p vox-cli-ci --profile ci`
-Expected: clean build, tests pass.
+Verify `pre_push.rs:1084` still reads `run(root, false)`. Do not change it. (Optional: upgrade its log line to a loud warning.)
 
-- [ ] **Step 6: Smoke the real gate against the live tree**
+- [ ] **Step 6: Build + verify the real path**
 
-Run: `cargo run -q -p vox-cli -- ci runner-policy-check --strict; echo "exit=$?"`
-Expected: `exit=0` (the freshly-built binary now knows the 6 registrations).
+Run: `cargo build -p vox-cli && cargo run -q -p vox-cli -- ci ssot-drift; echo "exit=$?"`
+Expected: `exit=0` (the registry is complete from Workstream A; the rest of ssot-drift already passes on this branch).
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add crates/vox-cli-ci/src/runner_policy_check.rs \
-        crates/vox-cli/src/commands/ci/pre_push.rs \
-        crates/vox-cli/src/commands/ci/run_body_helpers/docs.rs
-git commit -m "feat(ci): enforce local-first runner policy (advisory -> strict)
+git add crates/vox-cli-ci/src/runner_policy_check.rs crates/vox-cli/src/commands/ci/run_body_helpers/docs.rs
+git commit -m "feat(ci): enforce local-first runner policy in ssot-drift (CI-side strict)
 
-runner-policy-check now fails pre-push and ssot-drift when a workflow
-uses a GitHub-hosted runs-on without a row in github-hosted-exceptions.md.
-Registry completed in the prior commit, so the live tree passes strict.
+Flips runner-policy-check to --strict inside ssot-drift only. The fast
+pre-push step stays advisory so the gate is never bypassed by the known
+stale-binary --no-verify pattern. Preconditioned on Workstream B
+(required gate is now fleet-independent).
 
 Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ```
 
----
+### Task F2: Update runner-contract + AGENTS rules
 
-## Task E: Update the rules
+**Files:** Modify `docs/src/ci/runner-contract.md`, `AGENTS.md`
 
-**Files:**
-- Modify: `docs/src/ci/runner-contract.md` (§"Local-first CI", line ~36-44)
-- Modify: `AGENTS.md` (§"Run CI locally first", line ~308-316)
+- [ ] **Step 1: runner-contract.md §Local-first → enforced (CI side)**
 
-- [ ] **Step 1: runner-contract.md — flip "advisory" to "enforced"**
+Update the heading and enforcement paragraph to state: enforced via `--strict` inside
+`ssot-drift`/CI; fast pre-push advisory-but-loud; deliberate hosted jobs registered per
+`compute-placement.md`; the required context is fleet-independent (ci-summary hosted) with
+`ci-fallback-hosted` as the reachable outage valve.
 
-Replace the `**Enforcement (not forced by default):**` sentence in §"Local-first CI (required policy, advisory enforcement)" — and the heading itself — with:
+- [ ] **Step 2: AGENTS.md §"Run CI locally first"**
 
-```markdown
-## Local-first CI (required policy, ENFORCED)
+Change the advisory-drift line to: enforced via `ssot-drift` strict; register exceptions in
+`github-hosted-exceptions.md`; note pre-push stays advisory.
 
-**Enforcement (hard gate):** `vox ci runner-policy-check` scans `.github/workflows/*.yml`
-and **fails** (non-zero) when a workflow uses a GitHub-hosted `runs-on` without a row in
-[GitHub-hosted exceptions](github-hosted-exceptions.md). It runs `--strict` inside both
-`vox ci ssot-drift` and the fast `vox ci pre-push` tier, so an unregistered hosted runner
-blocks the push. Deliberately-hosted jobs (deploy critical path, cross-OS release, security
-scans) are enumerated in the exceptions registry per [compute-placement.md](compute-placement.md).
-```
+- [ ] **Step 3: Doc-lint + commit**
 
-- [ ] **Step 2: AGENTS.md — strengthen the rule**
-
-In the `**Run CI locally first ...**` block, change the line describing enforcement (currently "Advisory drift check: `vox ci runner-policy-check` (warn by default; `--strict` to fail).") to:
-
-```markdown
-Enforced gate: `vox ci runner-policy-check` runs `--strict` in `ssot-drift` + fast pre-push —
-an unregistered GitHub-hosted `runs-on` fails the push. Register genuine exceptions in
-`docs/src/ci/github-hosted-exceptions.md` (placement rationale: `docs/src/ci/compute-placement.md`).
-```
-
-- [ ] **Step 3: Doc-lint (frontmatter + links)**
-
-Run: `cargo run -q -p vox-doc-pipeline -- --lint-only` then `cargo run -q -p vox-cli -- ci check-links`
-Expected: no new errors on the two edited docs.
-
-- [ ] **Step 4: Commit**
-
+Run: `cargo run -q -p vox-doc-pipeline -- --lint-only && cargo run -q -p vox-cli -- ci check-links`
 ```bash
 git add docs/src/ci/runner-contract.md AGENTS.md
-git commit -m "docs(ci): runner policy is now enforced, not advisory
+git commit -m "docs(ci): document enforced (CI-side) local-first policy + resilient gate
 
 Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ```
 
 ---
 
-## FINAL: Code review + push
+## FINAL: review + push
 
-- [ ] **Step 1: Dispatch a code-reviewer agent** over `BASE_SHA..HEAD` (the Task A→E commits). Confirm: no workflow lost its trigger coverage (only Win/macOS per-PR removed by design), the two strict call sites both flipped, the test asserts both directions, no `runs-on` was migrated against compute-placement.md.
-
-- [ ] **Step 2: Cherry-pick the commits into the PR worktree** (`C:/Users/Owner/vox-graphify-gui`) and push. Use `--no-verify` ONLY for the known stale-binary `graphify` SSOT false-positive; the runner-policy strict gate itself must pass.
-
-- [ ] **Step 3: Watch the new CI run** — `cross-platform-check` on a PR event should now show ONLY the Linux self-hosted leg; `runner-policy-check` (in ssot-drift) green.
-
----
-
-## Execution via Workflow (sub-agents + workflows)
-
-The user asked to work sub-agents and workflows into the plan. Orchestrate with ONE `Workflow` call:
-
-```
-phase('Register + matrix')          // independent files → parallel()
-  A   = agent(Task A)               // exceptions registry
-  C1  = agent(Task C1)              // cross-platform-check dynamic matrix
-  C2  = agent(Task C2)              // gui-cross-build dynamic matrix
-  C3  = agent(Task C3)              // compile-matrix job guards
-  await parallel([A, C1, C2, C3])   // BARRIER — all 4 touch distinct files, no worktree isolation needed
-
-phase('Verify')                     // single agent, gates the rest
-  V = agent(VERIFY GATE V1–V3, schema:{clean:bool, strictClean:bool, actOk:bool})
-  if (!V.strictClean) abort         // do not flip strict on a dirty tree
-
-phase('Strict flip')                // depends on V
-  D = agent(Task D, schema:{built:bool, testsPass:bool})
-
-phase('Rules')                      // depends on D
-  E = agent(Task E)
-
-phase('Review')                     // adversarial audit before push
-  R = agent('code-reviewer over A..E diff', agentType:'superpowers:code-reviewer', schema:VERDICT)
-```
-
-Rationale for the shape:
-- **parallel() barrier** for A+C1+C2+C3: they edit four disjoint files but the verify stage needs ALL of them done before `runner-policy-check` can be meaningfully clean — a true cross-item dependency, so a barrier (not a pipeline) is correct.
-- **Sequential verify → D → E**: each gates the next (can't flip strict until the registry is clean; can't doc "enforced" until strict lands). One agent each.
-- **No worktree isolation**: agents touch distinct files; no parallel writes to the same file.
-- Subagents in this repo's worktree sandbox are read-only ([[feedback_subagents_readonly_in_sandbox]]) — so the Workflow agents PRODUCE the edits/commits content and the main session applies+commits, OR run the Workflow from the main (writable) worktree. Confirm write capability before relying on agent-side commits.
+- [ ] **Step 1: Build a fresh release binary** so the strict gate is exercised, not `--no-verify`-bypassed: `cargo build --release -p vox-cli` (or `cargo install --locked --path crates/vox-cli --force`). This kills the stale-binary `graphify` ssot-drift false-positive.
+- [ ] **Step 2: Dispatch a code-reviewer agent** over the full B→F diff. Confirm: required context is hosted; fallback reachable + required-equivalent name; no merge_group-only job is a required context; strict flipped ONLY in ssot-drift; every cut has its replacement; no cost/minute framing in any message.
+- [ ] **Step 3: Push** (pre-push should now pass without `--no-verify`). If it still trips on an unrelated stale guard, run `vox ci ssot-drift` manually post-push to prove the new gate is green and note it in the PR.
+- [ ] **Step 4: Verify branch protection post-merge** — `ci-summary` reports on hosted; apply a `fleet-down` label to a test PR and confirm `ci-fallback-hosted` reports the required context.
 
 ---
 
-## Self-Review (completed)
+## Execution via Workflow (sub-agents)
 
-- **Spec coverage:** A (register 6) ↔ spec Workstream A; C1–C3 ↔ Workstream C; D ↔ Workstream D; E ↔ Workstream E; VERIFY ↔ Workstream F. All covered.
-- **Placeholder scan:** C2 Step 2 intentionally says "copy the fields you read" because gui-cross-build's matrix fields aren't known without reading the file — the step gives the exact pattern + guardrail, not a vague TODO. All code steps show real code.
-- **Type consistency:** `run(root, strict)` signature used identically in D's tests and both call sites; `needs.matrix-setup.outputs.include` / `fromJson` consistent across C1/C2.
+Orchestrate with one `Workflow` call, respecting the hard dependency B→F:
+
+```
+phase('B: resiliency')   // sequential within B (B1..B4), but B is a barrier before F
+  B = pipeline([B1,B2,B3,B4])         // each gates the next where they share ci.yml
+phase('C+D+E+G: improvements')        // independent of each other → parallel()
+  await parallel([C1,C2,C3,C4, D1,D2, E1,E2, G1,G2])   // distinct files; G1 is Rust TDD
+phase('Verify')                        // barrier: runner-policy-check --strict clean + ssot-drift exit 0
+phase('A+F: register + strict')        // sequential, gated on Verify + B
+  A1 ; F1 ; F2
+phase('Review')                        // code-reviewer over the whole diff
+```
+
+Notes: subagents are read-only in the worktree sandbox ([[feedback_subagents_readonly_in_sandbox]]) — run the Workflow from the writable main worktree, or have agents emit edits the main session applies. B and F are safety-critical: do them with the main session in the loop, not fully autonomous.
+
+---
+
+## Self-Review
+
+- **Spec coverage:** every spec workstream (A–G) maps to tasks here; resiliency guardrails 1–7 are realized in B1 (guardrail 1), B2 (2, 6), B3 (3), C (4), B4 (5), and the "nothing GPU on merge_group" note (7, enforced by not adding such triggers).
+- **Verified vs unverified:** load-bearing claims (required-context identity, ci-summary runner, merge-queue active, merge_group-only nextest) hand-verified and cited. Destructive cuts (D1 distribution-parity, G2 vitest) carry explicit VERIFY steps before action.
+- **No cost framing:** all commit messages cite wall-clock/feedback/resilience, never minutes.
+- **Correctness:** strict flipped only in `docs.rs:613` (not `pre_push.rs:1084`); double-invocation called out as intentional+bounded; matrix replaced by label idiom / job-`if:`; C2 reads-then-branches; compile-matrix cut (no merge_group-required deadlock).
+- **Type consistency:** `run(root, strict)`, `workflow_is_merge_group_only`, `env_doctor::{probe, run, DepStatus}` used consistently across tasks.

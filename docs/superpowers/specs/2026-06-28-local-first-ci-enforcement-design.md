@@ -1,126 +1,176 @@
 ---
 category: "CI & Quality"
-title: "Local-First CI Enforcement — Design"
+title: "Local-First CI: Resilient Enforcement + Estate Tuning — Design"
 date: 2026-06-28
 status: design
 ---
 
-# Local-First CI Enforcement — Design
+# Local-First CI: Resilient Enforcement + Estate Tuning — Design
 
-**Goal:** Make the existing (advisory) local-first runner policy real: prefer the
-self-hosted Linux Docker fleet throughout CI/CD, run CI locally first, and turn the
-already-built `runner-policy-check` from a warning into a hard gate — without
-pretending Windows/macOS can run in a Linux Docker fleet.
+**Goal:** Move more CI onto the fast local self-hosted fleet **for speed and feedback
+latency** (never cost), make the merge gate genuinely fleet-independent so doing so does
+not break resilience, cut/re-tier redundant per-PR work, and only then turn the local-first
+runner policy into an enforced gate.
 
-## Premise (what already exists)
+> **Economic truth (anchors every decision):** vox is a **PUBLIC** repo — GitHub-hosted
+> Actions minutes are **unlimited and free**. Cost is **never** a reason to prefer local.
+> We optimize **per-PR wall-clock, merge-queue latency, and local feedback fidelity**, and
+> keep jobs hosted **only** for neutral-infra resilience (the merge gate and the deploy
+> critical path must survive the operator's workstation being off). This corrects the
+> earlier draft's "prefer local throughout" framing, which contradicted the cited
+> `compute-placement.md`.
 
-The local-first apparatus is already built and only needs tightening:
+## What changed from the first draft (and why)
 
-- `vox ci runner-policy-check` (`crates/vox-cli-ci/src/runner_policy_check.rs`) —
-  scans `.github/workflows/*.yml`, warns on GitHub-hosted `runs-on` without a row in
-  `docs/src/ci/github-hosted-exceptions.md`. `run(root, strict)`; default `strict=false`.
-  Wired into `vox ci ssot-drift` and the fast `vox ci pre-push` tier (advisory).
-- `vox ci pre-push --act` — mirrors hosted-runner workflows locally in Docker (nektos/act).
-- `docs/src/ci/github-hosted-exceptions.md` — the exception registry.
-- `ci-fallback-hosted.yml` — manual degraded-mode mirror when the fleet is down.
-- `AGENTS.md` §"Run CI locally first" + `runner-contract.md` §"Local-first CI".
+An 11-agent adversarial audit (7 dimension auditors + 3 plan/spec skeptics + synthesis)
+found the first draft was **broken**, not just incomplete. Three findings were verified by
+hand against the live repo:
 
-**Current drift:** `runner-policy-check` flags 6 workflows with no exception row:
-`ci.yml`, `deploy-telemetry.yml`, `distribution-parity.yml`, `docker-telemetry.yml`,
-`version-tag-guard.yml`, `workflow-lint.yml`.
+1. **Invariant 1 is FALSE in the YAML.** Branch protection requires exactly one context,
+   `"Check, Build, and Test (Rust)"` (verified: `gh api .../branches/main/protection` →
+   `["Check, Build, and Test (Rust)"]`). That context is the `ci-summary` job at
+   `.github/workflows/ci.yml:1287`, `runs-on: [self-hosted, linux, x64]` (2-min aggregator).
+   The `main-merge-queue` ruleset is **active**, so every merge serializes through a
+   `merge_group` ci.yml run on the fleet. **If the workstation is off, the merge queue
+   never drains and `ci-fallback-hosted.yml` cannot help — it is `workflow_dispatch`-only
+   and not a required context.** The first draft cited Invariant 1 as the reason it was
+   *safe* to register-not-migrate; in reality registration only silences the linter while
+   cementing a broken invariant. **Tightening enforcement on top of this is the central
+   defect.**
 
-## Hard technical constraint (shapes scope)
+2. **The strict-flip footgun.** The first draft flipped `runner-policy-check` to `--strict`
+   inside the **fast pre-push tier** — the exact path developers already bypass with
+   `--no-verify` for the known stale-binary `graphify` SSOT false-positive. A hard gate
+   there is bypassed precisely when a real hosted-runner regression appears. Worse,
+   `ssot-drift` is *called by* the fast pre-push tier, so flipping both call sites runs the
+   check twice and turns every `vox ci ssot-drift` caller into a hard gate as a side effect.
 
-The self-hosted fleet is **Linux Docker on WSL2**. It **cannot** host Windows or macOS:
-- Windows containers require a Windows Docker host (Hyper-V/process isolation).
-- macOS cannot be containerized at all (Apple license + no runtime).
+3. **Scope was far narrower than the ask.** The user wants test **cuts**, **speedups**,
+   **per-PR→nightly tiering**, and **coverage-gap closure**. The first draft delivered only
+   register + matrix + strict + docs — and the "matrix" was a bespoke `fromJson` job
+   re-inventing the `full-ci` label idiom ci.yml already uses estate-wide (YAGNI), while
+   silently dropping the *cheap* per-PR Win/macOS `cargo check` (the only per-PR
+   `#[cfg(windows)]` compile proof — a real coverage regression).
 
-Therefore Win/macOS CI stays GitHub-hosted, but is moved **off per-PR** to
-`merge_group` + weekly `schedule` only (decision: "Scheduled + merge-queue only").
+**Audit claims that did NOT survive hand-verification** (folded in as *verify-then-act*,
+never blind action): "distribution-parity is a pure duplicate — CUT it" (ci.yml's
+full-workspace nextest runs **only on merge_group**, so distribution-parity gives unique
+per-PR `voxup` signal → CUT *with a path-filtered replacement step*, not delete); "the GUI
+vitest suite is in no workflow" (ci.yml runs Playwright + gui-honesty; the *unit* vitest
+suite specifically is unconfirmed → verify before adding a lane).
 
 ## Decisions (ratified)
 
-1. **Enforcement:** Hard gate — flip `runner-policy-check` to `--strict` in pre-push +
-   ssot-drift after the exception registry is complete.
-2. **Win/macOS:** Keep hosted, run only on `merge_group` + nightly `schedule`, not per-PR.
-3. **The 6 flagged workflows are deliberately hosted, not drift.** A second discovery
-   during planning: all 6 carry documented rationale and are covered by
-   `docs/src/ci/compute-placement.md` (deploy critical path on free public minutes;
-   Invariant 1 = "the merge gate never hard-depends on the workstation"; Invariant 4 =
-   "the self-hosted fleet is never on the path between a green main and a live deploy").
-   **Decision: honor the policy — register all 6 as exceptions, do NOT migrate.** This
-   keeps fleet-outage resilience intact while making local-first *enforced* for everything
-   new.
+1. **Resilience precondition before enforcement.** The required gate must become
+   fleet-independent and the fallback reachable **before** `--strict` lands.
+2. **Strict only on the CI side.** Flip `runner-policy-check --strict` in the `ssot-drift`
+   gate (which CI runs); keep the fast pre-push step **advisory-but-loud**. No `--no-verify`
+   path silently bypasses the real gate.
+3. **Speed/feedback, not cost.** Every migration and demotion is justified by wall-clock and
+   feedback latency. No commit message or doc may cite "minutes" or "cost."
+4. **Reuse the `full-ci` label idiom**, not a new dynamic-matrix mechanism, for per-PR
+   tiering. Keep cheap per-PR `cargo check` for Win/macOS; defer only the expensive legs.
+5. **Verify-then-act for every destructive cut.** No check is deleted or demoted without a
+   step proving its signal is preserved elsewhere (or consciously, documented, dropped).
 
 ## Workstreams
 
-### A — Register the 6 deliberately-hosted workflows as exceptions
-Add rows to `github-hosted-exceptions.md` (no `runs-on` edits). Each row cites its
-`compute-placement.md` rationale. Result: `runner-policy-check` exits clean.
+Sequenced for max feedback-speed gain first; **B and F are the safety-critical core**, the
+rest are independent improvements that can land incrementally.
 
-| Workflow | Runner | Documented reason |
-|----------|--------|-------------------|
-| `deploy-telemetry.yml` | `ubuntu-latest` | Coolify deploy critical path; free public minutes; Invariant 4 |
-| `docker-telemetry.yml` | `ubuntu-latest` | GHCR image build on deploy path; free public minutes |
-| `distribution-parity.yml` | `ubuntu-latest` | Fleet-independent required parity check (Invariant 1) |
-| `version-tag-guard.yml` | `ubuntu-latest` | Lightweight tag-only release guard; fleet-independent |
-| `workflow-lint.yml` | `ubuntu-latest` | actionlint/zizmor; install in seconds, no fleet resources |
-| `ci.yml` | `ubuntu-latest` (1 job) | `docker compose config` parse; self-hosted docker runner lacks compose plugin |
+### A — Register hosted exceptions (cosmetic; unblocks the linter)
+Add `github-hosted-exceptions.md` rows for the deliberately-hosted workflows still missing
+them (`version-tag-guard.yml`, `workflow-lint.yml`, and the 6 from the first pass —
+`codeql.yml` already landed this session). Update the registry's own **Enforcement** note
+(line ~40) from "default advisory" to "ENFORCED (`--strict`) in ssot-drift + CI." Re-run
+`runner-policy-check --strict` against the **full** estate and record the exit code — do not
+assume only 6 trip it.
 
-### B — (folded into A)
-Registration is now the whole of A; there is no separate migration step.
+### B — Resiliency precondition (NEW; hard-blocks F)
+1. Make the required context fleet-independent: move the trivial `ci-summary` aggregator
+   (`ci.yml:1287`, 2-min) to `runs-on: ubuntu-latest`; its 5 heavy `needs` stay self-hosted.
+2. Make `ci-fallback-hosted.yml` a real safety valve: add a nightly `schedule:` and a
+   `pull_request` trigger gated by an `if:` `fleet-down` label, and give its gate job the
+   **same `name:`** as the required context so it can satisfy branch protection during an
+   outage.
+3. Add a `runner-policy-check` rule (+ unit test): a `merge_group`-only or
+   conditionally-skipped job must **never** be a branch-protection required context (prevents
+   the permanently-"expected" queue-deadlock class).
+4. Document a **merge-queue break-glass runbook** (how to relax the `main-merge-queue`
+   ruleset during a fleet outage; the admin bypass does NOT apply inside a required queue).
 
-### C — Win/macOS off per-PR
-Add a tiny `matrix-setup` job that emits the matrix `include` JSON, omitting Win/macOS
-legs when `github.event_name == 'pull_request'`. Apply to `cross-platform-check.yml`,
-`gui-cross-build.yml`, `compile-matrix.yml`. Linux self-hosted leg stays per-PR;
-Win/macOS run on `merge_group` + `schedule` only. (`setup-e2e.yml` already nightly-only.)
+### C — Per-PR → merge_group/nightly tiering (reuse `full-ci` label idiom)
+Precondition: `gh api .../branches/main/protection` confirms no Win/macOS context is required.
+- `cross-platform-check.yml`: **keep** per-PR `cargo check --workspace --exclude vox-gui
+  --target <win/mac>`; move only full clippy + full nextest legs to merge_group + weekly
+  schedule. Drop the redundant `push:main` trigger. Remove the per-merge `os_compat.py`
+  step (keep weekly `os-compat-report.yml`).
+- `gui-cross-build.yml`: keep one fast Linux GUI compile per-PR; Win/macOS Tauri legs →
+  merge_group. (Step 0: read the file; it may be N discrete jobs — branch the impl.)
+- `compile-matrix.yml`: CUT `compile-help-windows`/`-macos` (their `vox compile --help`
+  smoke is subsumed by cross-platform-check's per-PR `cargo check --workspace`); keep the
+  Linux native-binary/Tauri smoke. (No `merge_group` trigger needed → avoids the deadlock
+  class entirely.)
+- `codeql.yml`: drop `pull_request`; run on `merge_group` + the existing weekly cron.
+- `mobile-e2e-android.yml`: drop `pull_request` → merge_group + nightly (mirror the iOS
+  sibling).
 
-### D — Flip enforcement to strict
-`pre_push.rs:1084` `run(root, false)` → `run(root, true)`; mirror in the ssot-drift
-inclusion. TDD: a unit test asserting strict mode returns `Err` on an unregistered
-hosted workflow, and the migrated tree returns `Ok`.
+### D — Test cuts / merges (verify-then-act)
+- `distribution-parity.yml`: **verify** ci.yml's merge_group `nextest --workspace` covers
+  `voxup`'s `distribution_parity` test, then CUT the standalone workflow **and** add a
+  path-filtered `-p voxup --test distribution_parity` step to ci.yml's per-PR `tests` job so
+  PR-time signal survives on the fleet.
+- Relocate `continue-on-error` advisory scans (crate-build-audit, plugin-candidacy,
+  build-bench, graphify-freshness, cargo-outdated) out of ci.yml's merge-gate `tests` job
+  into `bench-nightly.yml`.
 
-### E — Update the rules
-- `runner-contract.md` §Local-first: "advisory enforcement" → "enforced (strict)".
-- `github-hosted-exceptions.md`: rows added in A; document the Win/macOS "not per-PR"
-  policy and cross-link `compute-placement.md` as the placement SSOT.
-- `AGENTS.md` §"Run CI locally first": strengthen to reflect the hard gate.
+### E — Speedups
+- Add `sccache --show-stats` (`if: always()`) to setup/lints/compiler-gates/tests/audits —
+  there is **zero** sccache hit-rate telemetry today and a documented history of silent
+  sccache failure. (Cheapest change; proves the whole local-first speed thesis.)
+- Split `guards-fast`: keep deterministic fast guards blocking; move cargo-deny/audit/shear
+  + `.vox` audits + plugin-abi-parity `--build` to a parallel non-required `guards-slow`.
+- Fix or delete `all-features-matrix` (24 per-crate target caches vs one shared target +
+  sccache; workspace `--all-features` already runs in `audits`).
 
-### F — Confirm "runs locally first" works
-Verify `vox ci pre-push --act` mirrors the hosted lanes locally. This is the gate before
-D/E land.
+### F — Strict flip (was the whole point; now LAST and CI-only)
+Flip `runner-policy-check --strict` in the `ssot-drift` gate (`docs.rs:613`,
+`run(root, false)` → `run(root, true)?`). **Do NOT** flip `pre_push.rs:1084` — keep it
+advisory-but-loud. Hard preconditions: Workstream B landed + branch-protection verified
+fleet-independent. Ship a Rust unit test for both strict directions. Verify via the real
+path: `cargo run -p vox-cli -- ci ssot-drift` exits 0.
+
+### G — Feedback-loop / coverage backfill
+- `vox ci env-doctor`: probe the same system deps `ci.yml:105` installs
+  (libdbus/glib/gtk/webkit/soup/javascriptcoregtk) from one SSOT list; run first in
+  pre-push. Closes the libdbus/GTK env-only-failure class we hit repeatedly this session.
+- Per-PR GUI lane (verify-then-act): if the unit `vitest` suite is in no workflow, add
+  `vitest run` + `tsc --noEmit` on PRs touching `crates/vox-gui/ui/**`.
+- Derive `ACT_WORKFLOWS` from registered ubuntu-eligible exception rows (not the hardcoded
+  3); gate Workstream-F verification on it or honestly downgrade that check to advisory.
+
+## Resiliency guardrails (every migration MUST satisfy)
+
+1. The required status context is fleet-independent (hosted aggregator OR a second
+   always-hosted required check).
+2. `ci-fallback-hosted` is required-EQUIVALENT and auto-reachable (nightly schedule +
+   fleet-down-label trigger + matching job name). An exception row is NOT sufficient.
+3. merge_group-only / conditionally-skipped jobs are NEVER required contexts (enforced).
+4. Every per-PR→merge_group demotion pairs with a weekly hosted `schedule:`
+   belt-and-suspenders.
+5. A merge-queue break-glass runbook exists before `--strict`.
+6. Nightly hosted mirror of the core Rust build/test gate so a multi-day outage still
+   yields a recent portable green signal on main.
+7. Nothing GPU/bench/mutation moves onto merge_group (keep the queue light).
 
 ## Sequencing
 
-`A + B + C` (parallel-safe, independent files) → **verify** (`runner-policy-check` clean +
-`--act` smoke) → `D` (strict flip, depends on clean check) → `E` (docs, depends on D).
-
-## Execution model (sub-agents + workflows)
-
-- **A, B, C** are file-isolated and independent → run as a **Workflow** `parallel()`
-  fan-out: one agent per workflow file (migrate or register), each returning a structured
-  edit summary. Each agent uses `isolation: 'worktree'` only if they touch shared files
-  (they don't — distinct workflow files), so plain parallel agents suffice.
-- **Verification** is a single agent: runs `runner-policy-check` + an `--act` smoke,
-  returns pass/fail. Barrier after A/B/C.
-- **D** (strict flip + test) is one TDD agent, gated on verification passing.
-- **E** (docs) is one agent, gated on D.
-- A final **review** agent (superpowers:code-reviewer) audits the whole diff before push.
-
-The Workflow uses `pipeline()` for the A/B/C→verify→D→E dependency chain where each
-stage gates the next, with the A/B/C migration fanned out via `parallel()` inside stage 1.
-
-## Testing
-
-- D ships a Rust unit test (strict-mode Err on unregistered hosted, Ok on clean tree).
-- Verification agent proves `runner-policy-check` exits 0 and `--act` runs a hosted lane.
-- Final review agent confirms no workflow lost coverage (every migrated job still triggers
-  on the same events, minus the deliberate Win/macOS per-PR removal).
+`B (resiliency) → C+D (latency cuts) → E (speedups) → G (feedback) → A+F (register + strict
+flip, last)`. B unblocks F; everything else is independent and incremental.
 
 ## Out of scope
 
-- Installing a Windows/macOS self-hosted runner fleet (no spare hardware decision).
-- Installing the docker-compose plugin on the self-hosted docker runner (registered as
-  an exception instead).
-- Rewriting the runner autoscaler or the `--act` mechanism.
+- Self-hosted Windows/macOS runners (no spare-hardware decision).
+- Installing the docker-compose plugin on the self-hosted docker runner (registered
+  exception instead).
+- Rewriting the autoscaler or `--act` engine (G only widens `--act` coverage).
