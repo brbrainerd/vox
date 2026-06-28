@@ -966,5 +966,4 @@ mod vg1_cache_path_tests {
         let actual = primary_cache_dir(tmp.path(), corpus_id);
         assert_eq!(actual, expected);
     }
-
 }
