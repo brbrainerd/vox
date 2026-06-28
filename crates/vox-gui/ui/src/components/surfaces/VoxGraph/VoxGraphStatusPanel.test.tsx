@@ -84,7 +84,7 @@ describe('VoxGraphStatusPanel', () => {
     expect(screen.getByText('3h ago')).toBeDefined();
   });
 
-  it('invokes vox_graphify_rebuild by name when Rebuild is clicked', async () => {
+  it('invokes vox_search_rebuild by name when Rebuild is clicked', async () => {
     mockUse.mockReturnValue({
       isLoading: false,
       isError: false,
@@ -97,7 +97,7 @@ describe('VoxGraphStatusPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Rebuild repo-code-graph' }));
     await waitFor(() => {
       expect(mockInvoke).toHaveBeenCalledWith('invoke_mcp_tool', {
-        tool: 'vox_graphify_rebuild',
+        tool: 'vox_search_rebuild',
         args: { corpus: 'repo-code-graph' },
       });
     });

@@ -23,9 +23,9 @@ function relativeBuiltAt(iso: string | null): string {
  * Per-corpus rebuild button. Treats freshness as a progress/health signal:
  * a stale corpus needs attention, and this is the action affordance.
  *
- * The `vox_graphify_rebuild` MCP tool is wired here by name. A parallel agent
- * is landing that tool; until it does, a runtime 404 surfaces as an inline
- * error and the panel keeps working.
+ * The `vox_search_rebuild` MCP tool is wired here by name (the registered
+ * dispatch name). If it errors at runtime, a 404/error surfaces as an inline
+ * message and the panel keeps working.
  */
 function RebuildButton({ corpusId }: { corpusId: string }) {
   const queryClient = useQueryClient();
@@ -36,8 +36,7 @@ function RebuildButton({ corpusId }: { corpusId: string }) {
     setBusy(true);
     setError(null);
     try {
-      // ponytail: rebuild tool wired by name; lands with P1
-      await voxTransport.invokeMcpTool('vox_graphify_rebuild', { corpus: corpusId });
+      await voxTransport.invokeMcpTool('vox_search_rebuild', { corpus: corpusId });
       // Refresh freshness so the card flips fresh once the rebuild completes.
       await queryClient.invalidateQueries({ queryKey: VOX_GRAPH_STATUS_QUERY_KEY });
     } catch (e) {

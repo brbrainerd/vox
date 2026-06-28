@@ -174,7 +174,7 @@ pub async fn graphify_status(state: &ServerState, params: GraphifyStatusParams) 
         }
     };
     // Augment each corpus with `rebuild_recommended` (true when not fresh) so the AI caller can
-    // close the loop via `vox_graphify_rebuild` without re-deriving freshness.
+    // close the loop via `vox_search_rebuild` without re-deriving freshness.
     let corpora: Vec<serde_json::Value> = statuses
         .iter()
         .map(|s| {
@@ -579,7 +579,7 @@ pub struct GraphifyRebuildParams {
     pub corpus: Option<String>,
 }
 
-/// `vox_graphify_rebuild`: WRITE/mutating — rebuild a corpus's AST code graph (same entrypoint as
+/// `vox_search_rebuild`: WRITE/mutating — rebuild a corpus's AST code graph (same entrypoint as
 /// the CLI `vox graphify rebuild`). Snapshots the previous graph, regenerates it, and reports the
 /// fresh node/edge counts so an agent can close the staleness loop after seeing
 /// `rebuild_recommended: true` in `vox_graphify_status`.
