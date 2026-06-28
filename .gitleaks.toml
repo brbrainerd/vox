@@ -34,4 +34,7 @@ paths = [
   # (e.g. `p50_latency_ms`) trip the generic-api-key rule. Verified false positive —
   # presentation-only React component, holds metric identifiers, not credentials.
   '''/components/surfaces/Runs/RunsView\.tsx$''',
+  # Redaction module test fixtures — fake GitHub PAT strings used to prove the
+  # redactor actually masks tokens. These are not real credentials.
+  '''/vox-db/src/redact\.rs$''',
 ]
