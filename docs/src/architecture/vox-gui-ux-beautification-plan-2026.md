@@ -4,7 +4,7 @@ description: "Comprehensive code review, bug catalog, and phased plan to take th
 category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
-last_updated: 2026-06-17
+last_updated: "2026-06-17"
 training_rationale: "Canonical roadmap for Vox GUI UX work — captures current state, bugs, user-journey gaps, design-system gaps, and a phased rollout that any agent can resume."
 ---
 
