@@ -66,6 +66,7 @@ fn gui_wiring_registry_ingest_and_missing_nodes() {
         scope_path: "crates/vox-gui".into(),
         extraction_mode: Some("gui-wiring".into()),
         built_at_rfc3339: "2026-06-26T00:00:00Z".into(),
+        cli_catalog_json: None,
     };
     rebuild_graph(&tmp, &gui, &out, &cache, &meta).unwrap();
 

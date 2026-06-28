@@ -134,6 +134,10 @@ pub struct RebuildMeta {
     pub scope_path: String,
     pub extraction_mode: Option<String>,
     pub built_at_rfc3339: String,
+    /// Serialized clap `CommandCatalog` JSON (gated-corrected). When present in
+    /// gui-wiring mode, the CLI tree is folded in as `cli:` nodes with declared
+    /// join edges to same-named `cmd:`/`tool:` impls.
+    pub cli_catalog_json: Option<String>,
 }
 
 pub fn rebuild_graph(
@@ -232,6 +236,34 @@ pub fn rebuild_graph(
             label: n.label.clone(),
             kind: n.kind.clone(),
         });
+    }
+
+    // Fold the clap CLI tree (gui-wiring only) once, after the registry fold so the
+    // join edges can resolve against the `cmd:`/`tool:` impl nodes already present.
+    // Each `cli:<group>:<command>` leaf gets a `declared`-confidence join edge to a
+    // same-named `cmd:<command>` impl (name-match candidate — never a proven call;
+    // coverage treats an unmatched `cli:` node as CliOnly).
+    if gui_wiring {
+        if let Some(cat) = meta.cli_catalog_json.as_deref() {
+            for cn in crate::registry::cli_command_nodes(cat) {
+                if let Some(cmd) = cn.id.rsplit(':').next() {
+                    // Only leaf command nodes (cli:<group>:<command>) get a join edge;
+                    // group nodes (cli:<group>) are surfaced as nodes only.
+                    if cn.kind == "cli-command" {
+                        all_edges.push(crate::ast::ExtractedEdge {
+                            source: cn.id.clone(),
+                            target: format!("cmd:{cmd}"),
+                            confidence: "declared".to_string(),
+                        });
+                    }
+                    all_nodes.push(crate::ast::ExtractedNode {
+                        id: cn.id.clone(),
+                        label: cn.label.clone(),
+                        kind: cn.kind.clone(),
+                    });
+                }
+            }
+        }
     }
 
     // Resolve each bare call target to a qualified definition id. Preference: same-module

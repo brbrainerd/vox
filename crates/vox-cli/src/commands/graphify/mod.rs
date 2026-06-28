@@ -374,6 +374,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                 scope_path: corpus.scope_path.clone(),
                 extraction_mode: corpus.extraction_mode.clone(),
                 built_at_rfc3339: Utc::now().to_rfc3339(),
+                cli_catalog_json: None,
             };
             // Preserve the previous graph as a bounded history before overwriting.
             if output_file.is_file() {
@@ -473,6 +474,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                 scope_path: corpus.scope_path.clone(),
                 extraction_mode: corpus.extraction_mode.clone(),
                 built_at_rfc3339: Utc::now().to_rfc3339(),
+                cli_catalog_json: None,
             };
             println!("Indexing '{}' as corpus '{}'...", abs.display(), corpus_id);
             vox_graphify_reader::rebuild::rebuild_graph(
@@ -521,6 +523,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                             scope_path: c.scope_path.clone(),
                             extraction_mode: c.extraction_mode.clone(),
                             built_at_rfc3339: Utc::now().to_rfc3339(),
+                            cli_catalog_json: None,
                         };
                         vox_graphify_reader::rebuild::rebuild_graph(
                             repo_root,

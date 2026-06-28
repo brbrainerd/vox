@@ -188,6 +188,44 @@ fn first_quoted(s: &str) -> Option<&str> {
     Some(&after[..end])
 }
 
+/// Ingest the clap command catalog (`vox commands --format json --include-nested`,
+/// i.e. the serialized `CommandCatalog`) as `cli:<group>:<command>` leaf nodes.
+/// Top-level groups (path.len()==1) are emitted as `cli:<group>` group nodes; deeper
+/// paths become leaves keyed by the first (group) and last (command) segments.
+/// Malformed JSON yields an empty Vec — never panics (honesty: under-report).
+pub fn cli_command_nodes(catalog_json: &str) -> Vec<RegistryNode> {
+    let mut out = Vec::new();
+    let Ok(v) = serde_json::from_str::<serde_json::Value>(catalog_json) else {
+        return out;
+    };
+    let Some(entries) = v.get("entries").and_then(|e| e.as_array()) else {
+        return out;
+    };
+    for e in entries {
+        let Some(path) = e.get("path").and_then(|p| p.as_array()) else {
+            continue;
+        };
+        let segs: Vec<String> = path
+            .iter()
+            .filter_map(|s| s.as_str().map(str::to_string))
+            .collect();
+        match segs.as_slice() {
+            [] => {}
+            [group] => {
+                let mut n = RegistryNode::new("cli", group, "cli-group");
+                n.id = format!("cli:{group}");
+                out.push(n);
+            }
+            [group, .., command] => {
+                let mut n = RegistryNode::new("cli", command, "cli-command");
+                n.id = format!("cli:{group}:{command}");
+                out.push(n);
+            }
+        }
+    }
+    out
+}
+
 /// Parse the generated surface registry: match `viewKey:` (NOT `id:`), skip when
 /// the value starts with `null`, else take the quoted id → `surface:` node.
 pub fn surface_nodes(src: &str) -> Vec<RegistryNode> {

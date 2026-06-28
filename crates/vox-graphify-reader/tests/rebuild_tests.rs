@@ -20,6 +20,7 @@ fn manifest_has_freshness_fields() {
         scope_path: "src".to_string(),
         extraction_mode: Some("structural".to_string()),
         built_at_rfc3339: "2026-06-18T00:00:00+00:00".to_string(),
+        cli_catalog_json: None,
     };
     rebuild_graph(tmp.path(), &src, &out, &cache, &meta).unwrap();
 
@@ -130,6 +131,7 @@ fn modules_mode_produces_module_graph() {
         scope_path: "src".to_string(),
         extraction_mode: Some("modules".to_string()),
         built_at_rfc3339: "2026-06-18T00:00:00+00:00".to_string(),
+        cli_catalog_json: None,
     };
     rebuild_graph(tmp.path(), &src, &out, &cache, &meta).unwrap();
 
@@ -175,7 +177,8 @@ fn tsx_files_contribute_nodes() {
     let out = tmp.path().join("out/graph.json");
     let cache = tmp.path().join("out/file_cache");
     let meta = RebuildMeta { corpus_id: "t".into(), git_sha: None, scope_path: "src".into(),
-        extraction_mode: Some("structural".into()), built_at_rfc3339: "2026-06-26T00:00:00+00:00".into() };
+        extraction_mode: Some("structural".into()), built_at_rfc3339: "2026-06-26T00:00:00+00:00".into(),
+        cli_catalog_json: None };
     rebuild_graph(tmp.path(), &src, &out, &cache, &meta).unwrap();
     let g: serde_json::Value = serde_json::from_slice(&std::fs::read(&out).unwrap()).unwrap();
     assert!(g["nodes"].as_array().unwrap().iter().any(|n| n["label"] == "Widget"), "tsx not walked");

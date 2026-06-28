@@ -636,6 +636,7 @@ pub async fn graphify_rebuild(state: &ServerState, params: GraphifyRebuildParams
         scope_path: corpus.scope_path.clone(),
         extraction_mode: corpus.extraction_mode.clone(),
         built_at_rfc3339: built_at.clone(),
+        cli_catalog_json: None,
     };
 
     // Preserve the previous graph as a bounded history before overwriting (mirrors the CLI).
