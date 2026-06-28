@@ -47,6 +47,8 @@ jobs:
           node-version: 24
           package-manager-cache: false
 
+      - name: Install system deps (dbus, required by wry/keyring on Linux)
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config
       - name: Build docs tooling
         run: cargo build -p vox-cli -p vox-doc-pipeline
 
@@ -92,6 +94,8 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install system deps (dbus, required by wry/keyring on Linux)
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config
       - name: Build CLI
         run: cargo build -p vox-cli
 

@@ -346,6 +346,8 @@ jobs:
             ${{ runner.os }}-cargo-scripts-check-
             ${{ runner.os }}-cargo-
 
+      - name: Install system deps (dbus, required by wry/keyring on Linux)
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config
       - name: Build vox CLI
         run: cargo build -p vox-cli --bin vox
 
