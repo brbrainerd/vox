@@ -39,7 +39,10 @@ permissions:
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
-    runs-on: [self-hosted, linux, x64]
+    # GitHub-hosted (16 GB) by policy: CodeQL is a neutral-infra security scan
+    # (compute-placement.md §vox placement), and the Rust extractor's PR diff-range
+    # analysis OOMs in the self-hosted job container (capped ~4 GB, exit 99).
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
       fail-fast: false
