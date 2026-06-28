@@ -4,8 +4,6 @@ import { parsePendingApprovals, type PendingApprovalRow, type McpInvokeResult } 
 import { APPROVALS_POLL_MS } from '../config/constants';
 
 export interface UseAgentApprovals {
-  /** Total number of pending approvals in the real `vox_pending_approvals` feed. */
-  count: number;
   approvalFor(agentKey: string): PendingApprovalRow | null;
   resolve(approvalId: string, outcome: 'approved' | 'rejected'): Promise<void>;
 }
@@ -50,5 +48,5 @@ export function useAgentApprovals(agentKeys: string[]): UseAgentApprovals {
     [refresh],
   );
 
-  return { count: rows.length, approvalFor, resolve };
+  return { approvalFor, resolve };
 }

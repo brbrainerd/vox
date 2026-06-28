@@ -5,13 +5,11 @@ import type { SurfaceDecoratorProps } from '../decoratorRegistry';
 import { PipelineTimeline } from '../../PipelineTimeline';
 import { RESEARCH_STAGES, deriveStages } from '../../../lib/pipeline';
 import { startResearchAsync } from './researchActions';
-import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 
 interface ResearchSession { id: number; status: string; query_text: string; started_at_ms: number; finished_at_ms: number | null; }
 interface ResearchDetail { session: ResearchSession; report_markdown: string | null; artifact_json: string | null; }
 
 export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
-  const embedded = useIsEmbeddedSurface();
   const [query, setQuery] = useState('');
   const [running, setRunning] = useState(false);
   const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
@@ -40,16 +38,13 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
   // signals a research-session transition; a 10 s interval is the fallback
   // (e.g. outside Tauri, where listen() rejects), mirroring ScientiaDashboard.
   useEffect(() => {
-    // Embedded mini-render: the initial loadHistory() (separate effect above)
-    // already populated the thumbnail; skip the repeating poll + subscription.
-    if (embedded) return;
     const id = setInterval(loadHistory, 10_000);
     let unlisten: (() => void) | undefined;
     listenScientiaQueue(() => { void loadHistory(); })
       .then((fn) => { unlisten = fn; })
       .catch(() => { /* not in Tauri — interval fallback covers it */ });
     return () => { clearInterval(id); unlisten?.(); };
-  }, [loadHistory, embedded]);
+  }, [loadHistory]);
 
   // Once the active run reaches a terminal status, stop the running indicator
   // and open its detail so the answer (report_markdown ?? artifact_json) shows.

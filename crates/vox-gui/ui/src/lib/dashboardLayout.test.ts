@@ -5,8 +5,6 @@ import {
   addWidgetToLayout,
   resetDashboardLayout,
   DASHBOARD_WIDGET_KINDS,
-  surfaceKeyOf,
-  type DashboardLayout,
 } from './dashboardLayout';
 
 describe('dashboardLayout', () => {
@@ -57,29 +55,6 @@ describe('dashboardLayout', () => {
     const mutated = addWidgetToLayout(defaultDashboardLayout(), 'bar_chart');
     expect(resetDashboardLayout()).toEqual(defaultDashboardLayout());
     expect(mutated.widgets.length).toBeGreaterThan(defaultDashboardLayout().widgets.length);
-  });
-});
-
-describe('surface_widget kind', () => {
-  it('includes surface_widget in the kind SSOT', () => {
-    expect(DASHBOARD_WIDGET_KINDS).toContain('surface_widget');
-  });
-
-  it('validates a surface_widget slot carrying a surfaceKey in config', () => {
-    const raw = {
-      version: 1,
-      columns: 12,
-      widgets: [
-        { id: 'mesh-mini', kind: 'surface_widget', grid: { col: 1, row: 1, w: 4, h: 2 }, config: { surfaceKey: 'mesh' } },
-      ],
-    };
-    const layout: DashboardLayout = validateDashboardLayout(raw);
-    expect(layout.widgets[0].kind).toBe('surface_widget');
-    expect(surfaceKeyOf(layout.widgets[0])).toBe('mesh');
-  });
-
-  it('surfaceKeyOf returns null when config has no string surfaceKey', () => {
-    expect(surfaceKeyOf({ id: 'x', kind: 'agents', grid: { col: 1, row: 1, w: 4, h: 2 } })).toBeNull();
   });
 });
 

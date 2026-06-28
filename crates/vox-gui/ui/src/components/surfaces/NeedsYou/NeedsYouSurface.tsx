@@ -4,7 +4,6 @@ import { EmptyState } from '../../ui/EmptyState';
 import { FeedbackCard } from './FeedbackCard';
 import { feedbackList, feedbackResolve, listenFeedbackChanged, type FeedbackRow } from '../../../transport';
 import type { Toast } from '../../../types/tauri';
-import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 
 interface Props {
   onOpenContext: (id: string) => void;
@@ -12,7 +11,6 @@ interface Props {
 }
 
 export function NeedsYouSurface({ onOpenContext, pushToast }: Props) {
-  const embedded = useIsEmbeddedSurface();
   const [needsYou, setNeedsYou] = useState<FeedbackRow[]>([]);
   const [withheld, setWithheld] = useState<FeedbackRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,9 +31,6 @@ export function NeedsYouSurface({ onOpenContext, pushToast }: Props) {
 
   useEffect(() => {
     refresh();
-    // Embedded mini-render: one initial fetch only — no repeating poll and no
-    // pushed feedback-changed subscription.
-    if (embedded) return;
     let unlisten: (() => void) | null = null;
     listenFeedbackChanged(() => {
       refresh();
@@ -49,7 +44,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast }: Props) {
       if (unlisten) unlisten();
       clearInterval(timer);
     };
-  }, [refresh, embedded]);
+  }, [refresh]);
 
   const handleResolve = async (id: string, action: Record<string, any>) => {
     try {

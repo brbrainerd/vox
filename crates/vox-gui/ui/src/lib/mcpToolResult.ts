@@ -30,23 +30,6 @@ export function parsePendingApprovals(invokeResult: McpInvokeResult): PendingApp
   return Array.isArray(list) ? list : [];
 }
 
-export interface GraphifyStatusPayload {
-  default_corpus_id: string;
-  corpora: unknown[];
-}
-
-/** Parse the `vox_search_status` envelope into the panel's status shape. */
-export function parseGraphifyStatus(invokeResult: McpInvokeResult): GraphifyStatusPayload {
-  if (invokeResult.is_error) {
-    throw new Error('vox_search_status reported an error');
-  }
-  const data = unwrapMcpEnvelope(invokeResult.result) as Partial<GraphifyStatusPayload> | null;
-  return {
-    default_corpus_id: data?.default_corpus_id ?? '',
-    corpora: Array.isArray(data?.corpora) ? data.corpora : [],
-  };
-}
-
 /** Extract string payload from `vox_git_diff` and similar text tools. */
 export function parseMcpToolText(invokeResult: McpInvokeResult): string | null {
   const inner = invokeResult.result;

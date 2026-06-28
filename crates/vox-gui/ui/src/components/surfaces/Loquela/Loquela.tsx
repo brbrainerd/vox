@@ -19,7 +19,6 @@ import {
 } from '../../../lib/slashRouter';
 import { DriveConsole } from './DriveConsole';
 import { defaultControl, type ControlState } from '../../../lib/driveConsole';
-import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 
 // LQ_MODES kept for slash command hint lookup (/plan, /verify, /act).
 // The Segment UI has been replaced by DriveConsole. Remove in Track D when
@@ -129,7 +128,6 @@ export function Loquela({
   currentTaskId,
   onInterrupt,
 }: LoquelaProps) {
-  const embedded = useIsEmbeddedSurface();
   const [text, setText] = useState("");
   const [mode, setMode] = useState("act");
   const [tier, setTier] = useState("auto");
@@ -231,8 +229,6 @@ export function Loquela({
       }).catch(() => {});
     };
     loadTiers();
-    // Embedded mini-render: one initial load only — no 60s poll, no focus refresh.
-    if (embedded) return () => { cancelled = true; };
     const interval = setInterval(loadTiers, 60_000);
     const onFocus = () => loadTiers();
     window.addEventListener('focus', onFocus);
@@ -242,7 +238,7 @@ export function Loquela({
       window.removeEventListener('focus', onFocus);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [embedded]);
+  }, []);
 
   const allSlash = useMemo(() => buildSlashEntries(skills), [skills]);
   const filteredSlash = useMemo(() => {

@@ -3,7 +3,6 @@ import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
-import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import type { Toast } from '../../../types/tauri';
 
 interface MeshViewProps {
@@ -71,7 +70,6 @@ function statusTone(status: string): string {
 }
 
 export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
-  const embedded = useIsEmbeddedSurface();
   const [nodes, setNodes] = useState<MeshNode[]>([]);
   const [nodesMeta, setNodesMeta] = useState<NodesResult>({});
   const [queue, setQueue] = useState<QueueStatsResult>({});
@@ -109,11 +107,9 @@ export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
 
   useEffect(() => {
     refresh();
-    // Embedded mini-render: one initial fetch only, no repeating poll.
-    if (embedded) return;
     const id = setInterval(refresh, REFRESH_MS);
     return () => clearInterval(id);
-  }, [refresh, embedded]);
+  }, [refresh]);
 
   // Dispatch availability: the local-registry source means no control plane is
   // reachable, so dispatch (a write) cannot succeed and should be disabled.

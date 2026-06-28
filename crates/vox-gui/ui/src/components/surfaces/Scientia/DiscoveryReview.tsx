@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
 import { listenScientiaQueue } from '../../../transport';
-import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import {
   listReviewQueue,
   recordDecision,
@@ -34,7 +33,6 @@ function verdictTone(verdict: string | null): string {
  * brass post-approval zone remain visible for the rest of the session.
  */
 export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
-  const embedded = useIsEmbeddedSurface();
   // Seed the publication id from a cross-surface deep-link (Discovery Inbox's
   // "Open review" stashes it in localStorage before switching here). Consumed
   // once so a manual edit later isn't clobbered.
@@ -89,17 +87,13 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
   // Initial fetch + 10 s interval fallback; cleared on unmount / pub change.
   useEffect(() => {
     refresh();
-    // Embedded mini-render: one initial fetch only, no repeating poll.
-    if (embedded) return;
     const t = setInterval(refresh, 10_000);
     return () => clearInterval(t);
-  }, [refresh, embedded]);
+  }, [refresh]);
 
   // Event-driven refresh — refetch on the F2 scientia-queue ping. Interval above
   // covers the non-Tauri / no-bridge case. Cleans up on unmount.
   useEffect(() => {
-    // Embedded mini-render: no pushed subscription either — stays static.
-    if (embedded) return;
     let unlisten: (() => void) | undefined;
     listenScientiaQueue(() => {
       void refresh();
@@ -111,7 +105,7 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
         /* not in Tauri — interval fallback covers it */
       });
     return () => unlisten?.();
-  }, [refresh, embedded]);
+  }, [refresh]);
 
   const selected: ClaimAwaitingReview | null = useMemo(() => {
     if (selectedId == null) return null;

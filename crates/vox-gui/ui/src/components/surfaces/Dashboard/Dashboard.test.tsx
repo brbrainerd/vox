@@ -291,49 +291,6 @@ describe('Dashboard', () => {
     expect(screen.getAllByRole('button', { name: 'Approve' })).toHaveLength(1);
   });
 
-  it('renders a purpose-built widget for a registered surface_widget (mesh)', () => {
-    // Seed a layout with a mesh surface_widget so the registry's purpose-built path fires.
-    const layout = {
-      version: 1 as const, columns: 12,
-      widgets: [{ id: 'mesh-mini', kind: 'surface_widget' as const, grid: { col: 1, row: 1, w: 4, h: 2 }, config: { surfaceKey: 'mesh' } }],
-    };
-    window.localStorage.setItem(SHELL_PREFERENCE_KEYS.dashboardLayout, JSON.stringify(layout));
-    render(
-      <Dashboard
-        data={emptyDash}
-        onPause={vi.fn()} onResume={vi.fn()} onDoubt={vi.fn()} onOverrule={vi.fn()} onAckLudus={vi.fn()}
-        filterKind="all" setFilterKind={vi.fn()} pushToast={vi.fn()}
-      />,
-    );
-    // The purpose-built MeshWidget shows its own "Mesh Peers" label IN ADDITION to
-    // the always-present KPI-strip "Mesh Peers" tile — so there are at least two.
-    // (A mini-render fallback would instead show a "live" badge, not a second label.)
-    expect(screen.getAllByText('Mesh Peers').length).toBeGreaterThanOrEqual(2);
-    // And it is NOT a mini-render fallback frame for mesh.
-    expect(screen.queryByTestId('surface-mini-mesh')).toBeNull();
-  });
-
-  it('renders a mini-render fallback for an unregistered surface_widget (repository)', () => {
-    const layout = {
-      version: 1 as const, columns: 12,
-      widgets: [{ id: 'repo-mini', kind: 'surface_widget' as const, grid: { col: 1, row: 1, w: 4, h: 2 }, config: { surfaceKey: 'repository' } }],
-    };
-    window.localStorage.setItem(SHELL_PREFERENCE_KEYS.dashboardLayout, JSON.stringify(layout));
-    render(
-      <Dashboard
-        data={emptyDash}
-        onPause={vi.fn()} onResume={vi.fn()} onDoubt={vi.fn()} onOverrule={vi.fn()} onAckLudus={vi.fn()}
-        filterKind="all" setFilterKind={vi.fn()} pushToast={vi.fn()}
-      />,
-    );
-    // The fallback frame is present and marked compact/inert.
-    expect(screen.getByTestId('surface-mini-repository').getAttribute('data-compact')).toBe('true');
-    // AND it actually rendered the live surface — it did NOT fall into the error
-    // boundary (which is what happens if pushToast is undefined). This guards
-    // Finding #1: the mini-render must mount with a real pushToast.
-    expect(screen.queryByTestId('widget-error-tile')).toBeNull();
-  });
-
   it('renders visual sandbox mini-map and handles expand navigation', () => {
     const navigateMock = vi.fn();
     const data = { ...emptyDash };

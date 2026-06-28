@@ -88,7 +88,6 @@ interface TopHudProps {
   visibleTiles?: HudTileKind[];
   activeModel?: string | null;
   openrouterSpendUsd?: number | null;
-  pendingApprovals?: number | null;
 }
 
 function formatOpenRouterSpend(usd: number | null | undefined): string {
@@ -112,7 +111,6 @@ export function TopHud({
   visibleTiles = [...HUD_TILE_KINDS],
   activeModel = null,
   openrouterSpendUsd = null,
-  pendingApprovals = null,
 }: TopHudProps) {
   const openPalette = onOpenCommandPalette ?? onCommand;
   const cycleHud = () => {
@@ -220,18 +218,6 @@ export function TopHud({
             spark={kpis.budgetBurn.spark}
             icon={<Icon.globe className="size-4" />}
             onClick={() => onNavigate?.('settings')}
-          />
-        );
-      case 'pending_approvals':
-        return (
-          <KPI
-            key={kind}
-            label="Pending Approvals"
-            value={pendingApprovals ?? 0}
-            color="text-amber-300"
-            spark={kpis.queueDepth.spark}
-            icon={<Icon.shield className="size-4" />}
-            onClick={() => onNavigate?.('approvals')}
           />
         );
       default:

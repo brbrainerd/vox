@@ -5,7 +5,6 @@ import { Pill } from '../../ui/Pill';
 import { phaseFill, phaseStroke } from '../../../lib/visualTokens';
 import { MATRIX_POLL_MS } from '../../../config/constants';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
-import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 
 /** One routing-priority axis projected onto the hex grid (mirrors the Rust
  *  `RoutingIntentionDto`). */
@@ -62,7 +61,6 @@ interface MatrixProps {
 }
 
 export function Matrix({ pushToast, gamifyEnabled = false }: MatrixProps) {
-  const embedded = useIsEmbeddedSurface();
   const [intentions, setIntentions] = useState<RoutingIntention[]>([]);
   const [sel, setSel] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
@@ -82,11 +80,9 @@ export function Matrix({ pushToast, gamifyEnabled = false }: MatrixProps) {
 
   useEffect(() => {
     refresh();
-    // Embedded mini-render: one initial fetch only, no repeating poll.
-    if (embedded) return;
     const id = setInterval(refresh, MATRIX_POLL_MS);
     return () => clearInterval(id);
-  }, [refresh, embedded]);
+  }, [refresh]);
 
   const nudge = useCallback(async (axis: RoutingIntention, direction: 'promote' | 'doubt') => {
     setBusy(true);

@@ -10,7 +10,6 @@ import {
   unwrapMcpEnvelope,
 } from '../../../lib/mcpToolResult';
 import type { Toast } from '../../../types/tauri';
-import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 
 interface InlineApprovalsProps {
   pushToast: (t: Toast) => void;
@@ -18,7 +17,6 @@ interface InlineApprovalsProps {
 }
 
 export function InlineApprovals({ pushToast, onViewAll }: InlineApprovalsProps) {
-  const embedded = useIsEmbeddedSurface();
   const [approvals, setApprovals] = useState<PendingApprovalRow[]>([]);
   const [resolving, setResolving] = useState<string | null>(null);
 
@@ -36,11 +34,9 @@ export function InlineApprovals({ pushToast, onViewAll }: InlineApprovalsProps) 
 
   useEffect(() => {
     refresh();
-    // Embedded mini-render: one initial fetch only, no repeating poll.
-    if (embedded) return;
     const id = setInterval(refresh, APPROVALS_POLL_MS);
     return () => clearInterval(id);
-  }, [refresh, embedded]);
+  }, [refresh]);
 
   const resolve = useCallback(
     async (approvalId: string, outcome: 'approved' | 'rejected') => {

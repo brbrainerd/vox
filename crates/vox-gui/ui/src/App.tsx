@@ -6,8 +6,7 @@ import { AttentionStrip } from './components/layout/AttentionStrip';
 import { type HudMode } from './components/layout/TopHud';
 import { renderSurfaceView } from './components/layout/surfaceComponents';
 import { resolveNavigation, parseViewFromLocation, syncViewToLocation } from './lib/navigation';
-import { Omnibar } from './components/layout/Omnibar';
-import { redirectSearchViewToOmnibar } from './components/layout/omnibarRedirect';
+import { CommandPalette } from './components/layout/CommandPalette';
 import { Loquela } from './components/surfaces/Loquela/Loquela';
 import { Toasts, ToastItem } from './components/ui/Toasts';
 import { Transcript } from './components/surfaces/Loquela/Transcript';
@@ -121,7 +120,7 @@ const LEGACY_VIEWS: string[] = [
   'dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository',
   'mesh', 'gamify', 'harness', 'browser', 'console', 'scientia', 'discovery-review', 'discovery-inbox', 'archive-panel', 'claims', 'mens',
   'populi', 'research', 'oratio', 'approvals', 'policies', 'skills', 'settings', 'coverage',
-  'publications', 'search', 'vox-search', 'chat', 'agents', 'workspace', 'commands', 'knowledge', 'compute',
+  'publications', 'search', 'chat', 'agents', 'workspace', 'commands', 'knowledge', 'compute',
   'review', 'tasks', 'mission-control', 'sub-agents',
 ];
 
@@ -356,21 +355,6 @@ export default function App() {
 
     invoke<string>('get_initial_view').then((view) => {
       const fromHash = parseViewFromLocation(window.location);
-      // VG-2: a fresh load on #view=search opens the Omnibar instead of the
-      // retired Search surface.
-      if (
-        fromHash &&
-        redirectSearchViewToOmnibar(fromHash, {
-          openOmnibar: () => setIsCommandOpen(true),
-          navigateTo: (vk) => {
-            setActiveView(vk as View);
-            syncViewToLocation(vk);
-          },
-          fallbackChild: 'memory',
-        })
-      ) {
-        return;
-      }
       if (fromHash && LEGACY_VIEWS.includes(fromHash)) {
         setActiveView(fromHash as View);
         syncViewToLocation(fromHash);
@@ -619,22 +603,6 @@ export default function App() {
   useEffect(() => {
     const onHashChange = () => {
       const fromHash = parseViewFromLocation(window.location);
-      // VG-2: #view=search no longer renders a surface — open the Omnibar and
-      // park on a real child. Real setters only (no setActiveViewRaw, no
-      // navigateTo recursion — finding #7).
-      if (
-        fromHash &&
-        redirectSearchViewToOmnibar(fromHash, {
-          openOmnibar: () => setIsCommandOpen(true),
-          navigateTo: (vk) => {
-            setActiveView(vk as View);
-            syncViewToLocation(vk);
-          },
-          fallbackChild: 'memory',
-        })
-      ) {
-        return;
-      }
       if (fromHash && LEGACY_VIEWS.includes(fromHash)) {
         const { child } = resolveNavigation(fromHash);
         setActiveView(child as View);
@@ -1014,6 +982,8 @@ export default function App() {
         setDeployedSet(prev => new Set([...prev, deployId]));
         handleLoquelaSubmit({ description: `Deploy skill: ${s.command}`, active_skill: deployId });
       }
+    } else if ('id' in cmd && cmd.id === 'search') {
+      navigateTo('search');
     } else if ('codename' in cmd) {
       navigateTo('flow');
       setSelectedAgentId(cmd.id);
@@ -1197,33 +1167,10 @@ export default function App() {
         onManageInSettings={manageGamifyInSettings}
       />
 
-      <Omnibar
+      <CommandPalette
         open={isCommandOpen}
         onClose={() => setIsCommandOpen(false)}
-        onNavigate={(vk, anchorId) => {
-          navigateTo(vk);
-          if (anchorId) {
-            requestAnimationFrame(() => {
-              const el = document.getElementById(anchorId);
-              el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-            });
-          }
-        }}
-        onRunCommand={(command) => {
-          handleCommandAction({
-            id: 'hit',
-            type: 'hit',
-            locator: { kind: 'command', value: command },
-            viewKey: 'console',
-          });
-        }}
-        onSendToChat={(query) => {
-          navigateTo('chat');
-          handleLoquelaSubmit({ description: query, session_id: activeSessionId });
-        }}
-        onOpenDoc={(path) => {
-          voxTransport.openLocator({ kind: 'file', value: path }).catch(() => {});
-        }}
+        onAction={cmd => { handleCommandAction(cmd); setIsCommandOpen(false); }}
         agents={data.agents}
         skills={installedSkillEntries}
         gamifyEnabled={gamifySettings.enabled}

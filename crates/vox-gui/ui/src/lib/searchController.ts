@@ -1,6 +1,8 @@
 /**
- * Shared search state for the Omnibar backend-search lane (useSearchController).
+ * Shared search state for CommandPalette and SearchView.
  */
+
+import { searchSettings } from '../components/surfaces/Settings/settingsIndex';
 
 export type UserScope =
   | 'code'
@@ -108,3 +110,72 @@ export const ALL_USER_SCOPES: UserScope[] = [
   'settings',
 ];
 
+export interface CommandCatalogHitInput {
+  command: string;
+  about: string;
+}
+
+/** Client-side command catalog matches (backend has no commands corpus yet). */
+export function filterCommandCatalogHits(
+  entries: CommandCatalogHitInput[],
+  query: string,
+): Array<{
+  source: string;
+  kind: string;
+  path: string;
+  title: string;
+  snippet: string;
+  score: number;
+  provenance: string[];
+  locator: { kind: string; value: string };
+}> {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  return entries
+    .filter(
+      (e) =>
+        e.command.toLowerCase().includes(q) ||
+        e.about.toLowerCase().includes(q),
+    )
+    .slice(0, 30)
+    .map((e) => ({
+      source: 'commands',
+      kind: 'command',
+      path: e.command,
+      title: e.command,
+      snippet: e.about,
+      score: 0.85,
+      provenance: ['commands:catalog'],
+      locator: { kind: 'command', value: e.command },
+    }));
+}
+
+/** Client-side SETTINGS_INDEX matches (no backend settings corpus in v1). */
+export function filterSettingsIndexHits(
+  query: string,
+): Array<{
+  source: string;
+  kind: string;
+  path: string;
+  title: string;
+  snippet: string;
+  score: number;
+  provenance: string[];
+  locator: { kind: string; value: string };
+}> {
+  return searchSettings(query)
+    .slice(0, 30)
+    .map((s) => ({
+      source: 'settings',
+      kind: 'setting',
+      path: s.id,
+      title: s.label,
+      snippet: s.hint,
+      score: 0.85,
+      provenance: ['settings:index'],
+      locator: {
+        kind: 'setting',
+        value: JSON.stringify({ section: s.section, settingId: s.id }),
+      },
+    }));
+}

@@ -21,7 +21,7 @@ import { PoliciesView } from '../surfaces/Policies/PoliciesView';
 import { NeedsYouSurface } from '../surfaces/NeedsYou/NeedsYouSurface';
 import { ParentSurface } from './ParentSurface';
 import { surfaceDecorators } from '../surfaces/decoratorRegistry';
-import { VoxGraphStatusPanel } from '../surfaces/VoxGraph/VoxGraphStatusPanel';
+import { GraphifyStatusPanel } from '../surfaces/Graphify/GraphifyStatusPanel';
 import { ChatSurface } from '../surfaces/Chat/ChatSurface';
 import type {
   ChatExecutionRailKpis,
@@ -74,7 +74,7 @@ export interface SurfaceProps {
   focusedFeedbackId?: string | null;
 }
 
-export function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
+function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
   const Decorator = surfaceDecorators[viewKey];
   if (Decorator) {
     return <Decorator pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
@@ -96,7 +96,6 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
           onOpenChat={props.onOpenChat}
           onNavigate={props.onNavigate}
           attention_budget={props.attention_budget}
-          pushToast={props.pushToast}
         />
       );
     case 'flow':
@@ -113,10 +112,8 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
       return <Matrix pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'memory':
       return <MemoryView pushToast={props.pushToast} onAttachContext={props.onAttachContext} />;
-    case 'vox-search':
-    // `graphify` retained as a one-release alias falling through to the same panel.
     case 'graphify':
-      return <VoxGraphStatusPanel />;
+      return <GraphifyStatusPanel />;
     case 'models':
       return <ModelsView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'runs':

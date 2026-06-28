@@ -9,6 +9,7 @@ import { ArchivePanel } from './Scientia/ArchivePanel';
 import { CoverageView } from './Coverage/CoverageView';
 import { ResearchView } from './Research/ResearchView';
 import { PublicationsView } from './Publications/PublicationsView';
+import { SearchView } from './Search/SearchView';
 import { SubAgentsView } from './SubAgents/SubAgentsView';
 import type { Toast } from '../../types/tauri';
 
@@ -49,6 +50,7 @@ export const surfaceDecorators: Record<string, React.ComponentType<SurfaceDecora
   claims: ClaimsView,
   review: DiscoveryReviewView,
   coverage: CoverageView,
+  search: SearchView,
   mens: commandSurface('Vox Mens', 'ML training & local models', [
     { key: 'status', title: 'Training Status', description: 'Latest run telemetry', path: ['mens', 'status'] },
     { key: 'models', title: 'Model Registry', description: 'Locally trained models', path: ['mens', 'models'] },
