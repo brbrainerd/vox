@@ -9,6 +9,40 @@ use vox_config::graphify::{
     project_graph_nodes_for_ingest, upsert_registered_corpus, write_manifest,
 };
 
+/// Returns the primary (post-migration) cache directory for a corpus.
+///
+/// Primary path: `<repo_root>/.vox/cache/vox-graph/<corpus_id>`.
+fn primary_cache_dir(repo_root: &std::path::Path, corpus_id: &str) -> std::path::PathBuf {
+    repo_root.join(".vox/cache/vox-graph").join(corpus_id)
+}
+
+/// Returns the resolved cache directory for `corpus_id`, with one-release back-compat.
+///
+/// Resolution order:
+/// 1. If `<repo_root>/.vox/cache/vox-graph/<corpus_id>` exists → return it.
+/// 2. If `<repo_root>/.vox/cache/graphify/<corpus_id>` exists → print a migration notice
+///    and return the legacy path. (The caller is responsible for migrating files if desired;
+///    this function only resolves the path, it does not move data.)
+/// 3. Otherwise → return the new primary path (callers will create it on first write).
+///
+/// **One-release contract:** the legacy fallback is removed in the release after VG-1 ships.
+fn cache_dir_with_migration(repo_root: &std::path::Path, corpus_id: &str) -> std::path::PathBuf {
+    let new_path = primary_cache_dir(repo_root, corpus_id);
+    if new_path.exists() {
+        return new_path;
+    }
+    let legacy = repo_root.join(".vox/cache/graphify").join(corpus_id);
+    if legacy.exists() {
+        eprintln!(
+            "[vox-graph] INFO: cache at legacy path '.vox/cache/graphify/{corpus_id}' — \
+             run `vox search rebuild --corpus {corpus_id}` to migrate to \
+             '.vox/cache/vox-graph/{corpus_id}'. Legacy path support will be removed in the next release."
+        );
+        return legacy;
+    }
+    new_path
+}
+
 #[derive(Debug, Subcommand)]
 pub enum GraphifyCmd {
     /// Report graphify corpus freshness (read-only).
@@ -561,9 +595,9 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                 id: corpus_id.clone(),
                 title: format!("Indexed target: {}", abs.display()),
                 scope_path: ".".to_string(),
-                graph_path: format!(".vox/cache/graphify/{corpus_id}/graph.json"),
+                graph_path: format!(".vox/cache/vox-graph/{corpus_id}/graph.json"),
                 manifest_path: format!(
-                    ".vox/cache/graphify/{corpus_id}/.graphify_manifest.v1.json"
+                    ".vox/cache/vox-graph/{corpus_id}/.graphify_manifest.v1.json"
                 ),
                 extraction_mode: Some(mode),
                 default_for_intents: vec![],
@@ -705,7 +739,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
 
             // 3. Build + persist.
             let map = vox_graph_reader::crate_model::build_crate_map(&crate_graph, &audit);
-            let out_dir = repo_root.join(".vox/cache/graphify/crate-map");
+            let out_dir = primary_cache_dir(repo_root, "crate-map");
             std::fs::create_dir_all(&out_dir).context("create crate-map cache dir")?;
             let bytes = serde_json::to_string_pretty(&map)?;
             std::fs::write(out_dir.join("graph.json"), &bytes)
@@ -726,7 +760,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
             write_manifest(&out_dir.join(".graphify_manifest.v1.json"), &manifest)
                 .map_err(|e| anyhow::anyhow!(e.to_string()))?;
             println!(
-                "crate-map: {node_count} crates, {edge_count} edges -> .vox/cache/graphify/crate-map/graph.json"
+                "crate-map: {node_count} crates, {edge_count} edges -> .vox/cache/vox-graph/crate-map/graph.json"
             );
             println!("persist for agent recall: vox graphify ingest --corpus crate-map");
 
@@ -904,5 +938,43 @@ mod tests {
             refresh_action(&["git_drift".into(), "lexical_lag".into()]),
             RefreshAction::Rebuild
         );
+    }
+}
+
+#[cfg(test)]
+mod vg1_cache_path_tests {
+    use super::*;
+
+    #[test]
+    fn new_cache_path_is_vox_graph() {
+        let tmp = tempfile::tempdir().unwrap();
+        let corpus_id = "repo-code-graph";
+        // The primary path must be .vox/cache/vox-graph/<corpus_id>
+        let expected = tmp.path().join(".vox/cache/vox-graph").join(corpus_id);
+        let actual = primary_cache_dir(tmp.path(), corpus_id);
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn legacy_path_is_detected_as_fallback() {
+        let tmp = tempfile::tempdir().unwrap();
+        let corpus_id = "repo-code-graph";
+        // If the legacy path exists and the new path does not, fallback returns the legacy path.
+        let legacy = tmp.path().join(".vox/cache/graphify").join(corpus_id);
+        std::fs::create_dir_all(&legacy).unwrap();
+        let result = cache_dir_with_migration(tmp.path(), corpus_id);
+        assert_eq!(result, legacy, "should fall back to legacy graphify path");
+    }
+
+    #[test]
+    fn new_path_preferred_over_legacy() {
+        let tmp = tempfile::tempdir().unwrap();
+        let corpus_id = "repo-code-graph";
+        let new_path = tmp.path().join(".vox/cache/vox-graph").join(corpus_id);
+        std::fs::create_dir_all(&new_path).unwrap();
+        let legacy = tmp.path().join(".vox/cache/graphify").join(corpus_id);
+        std::fs::create_dir_all(&legacy).unwrap();
+        let result = cache_dir_with_migration(tmp.path(), corpus_id);
+        assert_eq!(result, new_path, "new path must take priority over legacy");
     }
 }

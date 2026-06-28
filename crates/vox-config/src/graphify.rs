@@ -13,7 +13,10 @@ use serde::{Deserialize, Serialize};
 pub const CORPORA_REL_PATH: &str = "contracts/retrieval/graphify-corpora.v1.yaml";
 
 /// Runtime registration overlay (corpora created by `vox graphify index`).
-pub const REGISTERED_REL_PATH: &str = ".vox/cache/graphify/registered.v1.json";
+pub const REGISTERED_REL_PATH: &str = ".vox/cache/vox-graph/registered.v1.json";
+
+/// One-release legacy path for the registry overlay back-compat (VG-1 G3).
+const LEGACY_REGISTERED_REL_PATH: &str = ".vox/cache/graphify/registered.v1.json";
 
 /// Legacy graphify output directory (shared with non-graphify CI artifacts — see research doc).
 pub const LEGACY_GRAPHIFY_OUT_DIR: &str = "graphify-out";
@@ -179,6 +182,13 @@ pub fn select_corpus_for_intent(reg: &GraphifyCorporaRegistry, intent: &str) -> 
 /// Load runtime-registered corpora (empty if the overlay file is absent/unparseable).
 pub fn load_registered_corpora(repo_root: &Path) -> Vec<GraphifyCorpus> {
     let path = repo_root.join(REGISTERED_REL_PATH);
+    // One-release back-compat (VG-1 G3): if the new overlay is absent, read the legacy path.
+    let path = if path.exists() {
+        path
+    } else {
+        let legacy = repo_root.join(LEGACY_REGISTERED_REL_PATH);
+        if legacy.exists() { legacy } else { path }
+    };
     let Ok(raw) = fs::read_to_string(&path) else {
         return Vec::new();
     };
@@ -631,6 +641,35 @@ mod tests {
         assert!(s.contains(".vox"));
         assert!(s.contains("graphify"));
         assert!(s.ends_with("repo-code-graph") || s.contains("repo-code-graph"));
+    }
+
+    #[test]
+    fn registered_overlay_writes_new_vox_graph_path() {
+        let tmp = tempfile::tempdir().unwrap();
+        upsert_registered_corpus(tmp.path(), &sample_corpus("ext")).unwrap();
+        // The overlay must be written at the new .vox/cache/vox-graph path.
+        let new_overlay = tmp.path().join(".vox/cache/vox-graph/registered.v1.json");
+        assert!(new_overlay.exists(), "overlay must write to vox-graph path");
+        let loaded = load_registered_corpora(tmp.path());
+        assert!(loaded.iter().any(|c| c.id == "ext"));
+    }
+
+    #[test]
+    fn registered_overlay_falls_back_to_legacy_path() {
+        let tmp = tempfile::tempdir().unwrap();
+        // Write ONLY the legacy overlay; the new path is absent.
+        let legacy = tmp.path().join(".vox/cache/graphify/registered.v1.json");
+        std::fs::create_dir_all(legacy.parent().unwrap()).unwrap();
+        let body = serde_json::to_string_pretty(&RegisteredCorporaFile {
+            corpora: vec![sample_corpus("legacy-ext")],
+        })
+        .unwrap();
+        std::fs::write(&legacy, body).unwrap();
+        let loaded = load_registered_corpora(tmp.path());
+        assert!(
+            loaded.iter().any(|c| c.id == "legacy-ext"),
+            "must fall back to legacy registered.v1.json overlay"
+        );
     }
 
     fn sample_corpus(id: &str) -> GraphifyCorpus {
