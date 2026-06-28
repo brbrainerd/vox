@@ -24,7 +24,7 @@ const PURPOSE_BUILT: Record<string, PurposeBuiltComponent> = {
   agents: ({ data }) => <AgentsStreamWidget data={data} />,
   cost: () => <CostWidget />,
   mesh: ({ data }) => <MeshWidget data={data} />,
-  approvals: ({ data }) => <ApprovalsWidget data={data} />,
+  approvals: () => <ApprovalsWidget />,
   coverage: ({ data }) => <CoverageWidget data={data} />,
 };
 
