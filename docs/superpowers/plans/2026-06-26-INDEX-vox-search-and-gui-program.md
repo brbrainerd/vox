@@ -73,8 +73,8 @@ Amendments to the program from spec `2026-06-27-vox-graph-omnibar-dashboard-desi
 | Plan (path) | One-line purpose |
 |---|---|
 | `docs/superpowers/plans/2026-06-27-vox-graph-rename-and-manifest-plan-vg1.md` | **VG-1 — Vox Graph rename + skill + content-manifest emission.** **Extends vs1's rename** (crate `vox-graphify-reader → vox-graph-reader`, `.vox/cache/graphify → vox-graph` with one-release back-compat read, `graphify-corpora.v1.yaml → vox-graph-corpora.v1.yaml`, `vox graphify → vox search graph`); ships a pinned `vox-graph` skill (graph-first discovery); emits the build-time `gui-content-manifest.json` + a Tauri reader (`voxContentManifest`, modeled on `vox_docs_index`). **The manifest is the new capability VG-2 consumes.** |
-| `docs/superpowers/plans/2026-06-27-omnibar-plan-vg2.md` | **VG-2 — Top-bar Omnibar.** Global faceted palette (SURFACES/COMMANDS/ON-SCREEN/GRAPH/DOCS), provenance-labeled, facets fail independently; merges `useSearchController` (`vox_search_query`) + VG-1's `gui-content-manifest.json` (via `useContentManifest`, defaults `[]` pre-VG-1) + the new no-op `useSearchable()` runtime registry + `vox_discover` (GRAPH). Consolidates the orphaned Search surface + `CommandPalette`. Registry touch is one `notes:`/redirect row authored in `surface-registry.v1.yaml` then regenerated — **never hand-edits the generated TS**. |
-| `docs/superpowers/plans/2026-06-27-task-monitor-dashboard-plan-vg3.md` | **VG-3 — Task-Monitor Dashboard.** Registry-driven composable widget grid: purpose-built compact widgets for the five high-value monitorables (agents/cost/mesh/approvals/coverage) **else** an auto-fallback mini-render of any `SURFACE_REGISTRY` surface; adds `pending_approvals` to the minimized HUD strip (**config in Settings via 3C — no bespoke settings island**); error boundary → compact error tile; sections derived from registry `navGroup`. **Reads `SURFACE_REGISTRY` only — never writes the generated TS.** |
+| `docs/superpowers/plans/2026-06-27-omnibar-plan-vg2.md` | **VG-2 — Top-bar Omnibar.** Global faceted palette (SURFACES/COMMANDS/ON-SCREEN/GRAPH/DOCS), provenance-labeled, facets fail independently; merges `useSearchController` (`vox_search_query`) + VG-1's `gui-content-manifest.json` (via `useContentManifest`, defaults `[]` pre-VG-1) + the new no-op `useSearchable()` runtime registry + `vox_discover` (GRAPH). Consolidates the orphaned Search surface + `CommandPalette`. Registry touch is one `notes:`/redirect row authored in `surface-registry.v1.yaml` then regenerated — **never hand-edits the generated TS**. ⚠️ **`vox_discover` contract is unresolved** — VG-2 codes the GRAPH facet + ⌥→ expansion against the master spec's tool shape; the apply phase must reconcile input (`{query,corpus?,radius,mode,limit}` — no `seed`/`mode:'expand'`; use `vox_search_neighbors` for neighbor expansion) and output (`result.results[].node_id` — **no `result.neighbors`/`view_key`/`label`**) before the GRAPH facet is real. |
+| `docs/superpowers/plans/2026-06-27-task-monitor-dashboard-plan-vg3.md` | **VG-3 — Task-Monitor Dashboard.** Registry-driven composable widget grid: purpose-built compact widgets for the five high-value monitorables (agents/cost/mesh/approvals/coverage) **else** an auto-fallback mini-render of any `SURFACE_REGISTRY` surface; adds `pending_approvals` to the minimized HUD strip (**config in Settings via 3C — no bespoke settings island**); error boundary → compact error tile; sections derived from registry `navGroup`. **Reads `SURFACE_REGISTRY` as data; does not regenerate the surface registry** — but it **does edit `surfaceComponents.tsx`** (T5 exports `childRenderer`), a shared-file contention point with VG-1 G10 and 3A/3D (see below). |
 
 **DAG:** **VG-1 → VG-2** (the Omnibar needs the manifest; VG-2 is independently testable/landable before VG-1 via the `[]`-default `useContentManifest` hook, with the live ON-SCREEN facet lighting up once VG-1 ships). **VG-3 is independent of VG-2** — it shares **only** the surface registry and depends on neither VG-1's manifest nor VG-2's Omnibar.
 
@@ -89,7 +89,21 @@ vs1 (graphify→search rename) ──┐
 VG-3 (Task-Monitor Dashboard) ── independent; shares only SURFACE_REGISTRY
 ```
 
-**Registry-chain coordination:** VG-1 **extends vs1's rename** (does not redo it). VG-2's single registry change and any VG-x registry touch must **serialize with the 3A → 3F → 3C chain** — `surfaceRegistry.generated.ts` is re-sorted on every `--write` (not append-only, see §3.2), so two concurrent regens collide. Edit the `surface-registry.v1.yaml` SSOT and regenerate; **never run a VG registry regen concurrently with 3F's or 3C's** (rebase the YAML edit and re-run the generator instead).
+**Registry-chain coordination:** VG-1 **extends vs1's rename** (does not redo it). VG-2's single registry change and any VG-x registry touch must **serialize with the 3A → 3F → 3C chain** — `surfaceRegistry.generated.ts` is re-sorted on every `--write` (not append-only, see §3.2), so two concurrent regens collide. Edit the `surface-registry.v1.yaml` SSOT and regenerate; **never run a VG registry regen concurrently with 3F's or 3C's** (rebase the YAML edit and re-run the generator instead). Only **VG-2 O8** regenerates the registry inside VG; run it **only after 3F and 3C registry writes have landed** (they re-sort the whole file). VG-1 and VG-3 do **not** regenerate.
+
+**Cache-path rename serialization (not just registry regen).** VG-1's `.vox/cache/graphify → .vox/cache/vox-graph` rename is **not purely additive to vs1** — its back-compat fallback is **read-only** ("does not move data"), while **vs3 and vs4 hardcode the legacy `.vox/cache/graphify/...` write/test-fixture path**. If a sibling vs-plan lands after VG-1, a fresh rebuild writes to the deprecated dir and the one-release deletion window mis-counts. Therefore: **either land VG-1 after vs3/vs4, or co-update the vs3/vs4 cache-path string sites in the same landing as VG-1.** The cache-path string is a serialization point alongside the registry regen — see §3.1.
+
+**Final surface-key table (prevents double-rekey of `graphify`/`search`/`vox-search`).** Three surface keys are in play across vs1/VG-1/VG-2; ownership is fixed as:
+
+| Surface key | Final state | Owner |
+|---|---|---|
+| `graphify` | re-keyed → `vox-search` (`case 'graphify'` in `surfaceComponents.tsx` is transitional, removed once vs1 re-keys) | **vs1** |
+| `search` | redirect `#view=search` → open Omnibar; surface deleted/consolidated | **VG-2** |
+| `vox-search` | the live unified surface key produced by the vs1 rename | **vs1** |
+
+VG-1 G10 must **consume** vs1's re-key, not re-key again; VG-2 O8 annotates only the `search` redirect row. Do not double-rekey.
+
+**`surfaceComponents.tsx` shared-file contention.** This file is touched by **3A** (reorg), **3D** (caveat markup), **VG-1 G10** (import + `case` arm), and **VG-3 T5** (one-word `export function childRenderer`). VG-3's "reads registry only" framing applies to the *generated TS* — VG-3 still edits `surfaceComponents.tsx`. Serialize the VG-3 export edit against VG-1 G10 and the 3A/3D markup edits to that file.
 
 ---
 
@@ -120,6 +134,12 @@ data-flow)   fusion           surface) — PARALLEL          vs1 tool names)
 - **vs5 is parallel** to vs2/vs3/vs4 — it only needs vs1's final tool names; it adds
   config/steering/GUI plumbing, no engine-layer dependency.
 - Critical path: **vs1 → vs3 → vs4**.
+- **Cache-path serialization with VG-1.** vs3 and vs4 hardcode the legacy
+  `.vox/cache/graphify/...` write/fixture path, which **VG-1 renames** to
+  `.vox/cache/vox-graph/` (read-only back-compat fallback). To avoid a fresh
+  rebuild landing in the deprecated dir, **either land VG-1 after vs3/vs4 or
+  co-update the vs3/vs4 cache-path strings in VG-1's landing** (see §2.3
+  "Cache-path rename serialization").
 
 ### 3.2 GUI track
 

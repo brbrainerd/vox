@@ -60,11 +60,21 @@ The Omnibar must search "any text revealed in the GUI." Two cooperating sources,
 
 **2.1 Build-time content manifest** — `gui-content-manifest.json`, produced by the **same Vox Graph walk** that builds the surface graph. For each surface it extracts: surface label + route, subsection headings, static on-screen copy, the command names it invokes, and (optional, flag-gated) linked doc titles. Deterministic, ships with the build, **regenerates for free when a surface is added** (it rides the existing walk). Misses values that exist only at runtime.
 
+Two consistency notes the VG-1/VG-2 plans must honor:
+- **Headings are keyed off the graph's surface→module edge, not a TSX-filename heuristic.** The Vox Graph already maps each surface to its component module; subsection headings must join on that node id (so multi-word kebab view keys like `sub-agents` / `vox-search` resolve correctly), never on a `stem.replace("view","")` filename guess. The manifest golden test must cover at least one multi-word view key with a real heading.
+- **The `docs` field is always emitted (possibly `[]`).** VG-2's `ContentManifestEntry` declares `docs: string[]`, so the manifest artifact must always emit a `docs` array even when empty/flag-off. The Omnibar's live **DOCS facet is sourced from the federated docs index, not this field** — the manifest `docs` is the optional flag-gated linked-title set, kept present so the consuming type matches the artifact.
+
 **2.2 Thin runtime registry** — a `useSearchable(entries)` hook. A surface that has watch-worthy *dynamic* text (live counts, fetched rows, streamed status) registers those strings while mounted; the registry is a plain in-memory map keyed by surface. The Omnibar queries the registry alongside the manifest.
 
 `ponytail:` the registry starts as a no-op map. Only surfaces with genuinely dynamic, searchable text opt in — do **not** instrument all 33 up front. A surface with nothing dynamic contributes only its manifest rows.
 
 **2.3 Query path.** Omnibar query → `vox_search` (corpora + the manifest as a corpus) **and** the runtime registry **and** `vox_discover` for the graph facet → merge → rank → faceted results. The graph facet ("relates to: …") is the one thing only Vox Graph can answer and is labeled as such.
+
+> **`vox_discover` contract (canonical = master spec §2.6/§3.1).** The GRAPH facet must consume the real tool shape, **not** an invented `result.neighbors[]`/`view_key` shape:
+> - **Output:** `{ seeds[], results[{ node_id, fused_score, components, hops, community, reachability_class, provenance }] }`. There is **no `result.neighbors`, no `view_key`, no `label`** — map `node_id` → id and derive the view key from the `surface:<vk>` node-id prefix.
+> - **Input:** `{ query, corpus?, radius=1, community_scope?, mode: "auto"|"search_seed"|"structure_only", limit }`. There is **no `seed` param and no `mode:'expand'`** — neighbor expansion (the ⌥→ affordance) uses **`vox_search_neighbors({ corpus, node_ids, max_depth })`**, the actual neighbor primitive, not a re-seeded `vox_discover`.
+>
+> The VG-2 plan's GRAPH-facet parser and ⌥→ expansion are reconciled to this contract in the apply phase.
 
 ---
 
@@ -73,6 +83,8 @@ The Omnibar must search "any text revealed in the GUI." Two cooperating sources,
 **3.1 Placement — top bar, not sidebar (design-principle grounded).** Search is a *query* affordance; the sidebar is a *navigation* affordance — putting a query field in the sidebar conflates them and fights the sidebar's collapse. Search wants a wide target (results, facets, preview); the top bar is wide, the sidebar narrows. Convention (Linear, VS Code, GitHub, Raycast) is top-anchored + ⌘K; meeting it is the lazy-correct choice. The Omnibar lives in the top bar on **every** view.
 
 **3.2 Consolidation.** Today there are three overlapping entry points — `CommandPalette.tsx` (⌘K, already global, already seeds `vox_search`), the dedicated `Search` *surface* (`SearchView.tsx`, the "awkward placement"), and per-view inputs. The Omnibar **replaces all three**: delete the `Search` surface (migration-ledger redirect `#view=search` → open Omnibar), fold `CommandPalette` into the Omnibar, and leave per-surface filters where they are (they filter one surface; the Omnibar searches everything).
+
+**Final surface-key ownership.** Three surface keys touch this work — `graphify`, `search`, `vox-search`. To prevent a double-rekey, ownership is fixed: **`graphify` → `vox-search` is owned by vs1** (the rename); the transitional `case 'graphify'` arm is removed once vs1 re-keys, and VG-1 G10 **consumes** that re-key rather than re-keying again. **`search` → Omnibar redirect (`#view=search`) is owned by VG-2** (§3.2). `vox-search` is the live unified surface key from vs1. This table is mirrored in INDEX §2.3; if they disagree, INDEX §2.3 + vs1 win.
 
 **3.3 Behaviour.** A slim persistent field, top-right; ⌘K (or click) expands it into a faceted palette:
 
@@ -134,6 +146,7 @@ Each is independently testable: the manifest is a pure function of the walk; the
 - Omnibar facets fail **independently** — if `vox_discover` errors, the GRAPH facet shows an honest empty/error row; SURFACES/ON-SCREEN still work. No facet's failure blanks the bar.
 - Mini-render fallback wraps each widget in an error boundary; a broken surface renders a compact error tile, not a crashed dashboard.
 - No honesty-gate regression: the Omnibar's ON-SCREEN/GRAPH results are real (manifest/registry/graph), never fabricated; the dashboard widgets render real data or an explicit empty state (subject to the existing `vox ci gui-honesty` scanner).
+- **Provenance-axis mapping (firewall consistency).** The Omnibar's facet badges name a *UI source* (`corpus` / `manifest` / `runtime` / `graph` / `docs`); the master firewall classifies determinism on a *structural vs overlay* axis. They must agree: `manifest`, `corpus`, and `runtime` rows are deterministic/static reads → **structural**; the `graph` facet (`vox_discover` fusion) is a query-time overlay → it must be labeled **overlay / derived**, never implied deterministic. The Omnibar's GRAPH badge therefore renders as an explicitly derived result, consistent with the master spec's `structural | overlay` provenance and `declared | heuristic | resolved` confidence vocabulary.
 
 ---
 
