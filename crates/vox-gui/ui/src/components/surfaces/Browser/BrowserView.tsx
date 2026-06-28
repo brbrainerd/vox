@@ -11,6 +11,7 @@ import {
 } from '../../../transport';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import type { Toast } from '../../../types/tauri';
+import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 
 interface BrowserViewProps {
   pushToast: (item: Toast) => void;
@@ -61,6 +62,7 @@ export function mapClickToViewport(
 }
 
 export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
+  const embedded = useIsEmbeddedSurface();
   const [tab, setTab] = useState<BrowserTab>('preview');
   const [previewUrl, setPreviewUrl] = useState('http://127.0.0.1:3000');
   const [appDir, setAppDir] = useState('');
@@ -148,12 +150,15 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
   }, [refreshPreviewStatus, refreshSessionStatus, refreshPages]);
 
   useEffect(() => {
+    // Embedded mini-render: the initial fetch (effect above) already populated
+    // the thumbnail; skip the 2s poll.
+    if (embedded) return;
     const id = window.setInterval(() => {
       refreshPages();
       refreshSessionStatus();
     }, 2000);
     return () => window.clearInterval(id);
-  }, [refreshPages, refreshSessionStatus]);
+  }, [refreshPages, refreshSessionStatus, embedded]);
 
   useEffect(() => {
     refreshPageInfo(pageId);

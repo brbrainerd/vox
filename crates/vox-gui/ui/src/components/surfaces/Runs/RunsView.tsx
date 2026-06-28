@@ -8,6 +8,7 @@ import { Button } from '../../ui/Button';
 import { Icon } from '../../ui/Icons';
 import { RUNS_POLL_MS, RUNS_LIST_LIMIT, SCOREBOARD_WINDOW_DAYS } from '../../../config/constants';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
+import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 
 interface ScoreboardRow {
   model_id: string;
@@ -43,6 +44,7 @@ function isRunCompleted(status: string): boolean {
 }
 
 export function RunsView({ pushToast, gamifyEnabled = false }: RunsViewProps) {
+  const embedded = useIsEmbeddedSurface();
   const [scoreboard, setScoreboard] = useState<ScoreboardRow[]>([]);
   const [runs, setRuns] = useState<RunRow[]>([]);
   const [decision, setDecision] = useState<any>(null);
@@ -78,9 +80,11 @@ export function RunsView({ pushToast, gamifyEnabled = false }: RunsViewProps) {
 
   useEffect(() => {
     refresh();
+    // Embedded mini-render: one initial fetch only, no repeating poll.
+    if (embedded) return;
     const id = setInterval(refresh, RUNS_POLL_MS);
     return () => clearInterval(id);
-  }, [refresh]);
+  }, [refresh, embedded]);
 
   useEffect(() => {
     if (!selectedRunId) {

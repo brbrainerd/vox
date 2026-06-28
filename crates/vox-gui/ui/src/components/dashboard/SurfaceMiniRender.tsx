@@ -1,5 +1,6 @@
 import React from 'react';
 import { Glass } from '../ui/Glass';
+import { EmbeddedSurfaceContext } from './EmbeddedSurfaceContext';
 
 export interface SurfaceMiniRenderProps {
   surfaceKey: string;
@@ -15,16 +16,16 @@ export interface SurfaceMiniRenderProps {
  * surface output (honesty: never a fabricated value), scaled down and
  * scroll-clipped.
  *
- * Honest scope of "inertness":
+ * Inertness (genuinely inert, not just click-blocked):
  *  - INPUT is blocked: `pointer-events-none` disables clicks, and the parent
  *    passes INERT no-op action callbacks (no live onPause/onResume/onDoubt/
  *    onOverrule/onAckLudus/pushToast), so the thumbnail cannot mutate state.
- *  - It is NOT fully passive: mounting the real surface issues that surface's
- *    own read-only mount polls (e.g. status/`vox_pending_approvals` fetches).
- *    These are read-only and harmless, but they are real network calls — this
- *    is a monitor, not a frozen snapshot.
- *  ponytail: per-surface poll-gating (an `embedded`/`compact` prop that skips
- *    intervals) is a follow-up; no surface honors such a flag today.
+ *  - POLLING is suppressed: the children are wrapped in
+ *    `EmbeddedSurfaceContext`, which every polling surface reads via
+ *    `useIsEmbeddedSurface()` to SKIP its repeating mount-time `setInterval`
+ *    poll loops / streaming subscriptions. A single initial fetch may run to
+ *    populate the thumbnail with real data, but the recurring poll does not —
+ *    so a dashboard full of mini-renders does not multiply background traffic.
  *
  * Click-through to the full, interactive surface is the parent's job (onOpen).
  */
@@ -45,7 +46,9 @@ export function SurfaceMiniRender({ surfaceKey, label, children, scale = 0.6 }: 
           className="pointer-events-none origin-top-left"
           style={{ transform: `scale(${scale})`, width: `${100 / scale}%`, height: `${100 / scale}%` }}
         >
-          {children}
+          <EmbeddedSurfaceContext.Provider value={true}>
+            {children}
+          </EmbeddedSurfaceContext.Provider>
         </div>
       </div>
     </Glass>

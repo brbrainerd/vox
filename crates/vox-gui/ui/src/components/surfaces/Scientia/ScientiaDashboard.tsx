@@ -5,6 +5,7 @@ import { listenScientiaQueue } from '../../../transport';
 import { fetchCostRollup, providerRows, quarterlyRows } from './costRollup';
 import type { CostRollup } from './costRollup';
 import { ArchiveStatusSummary } from './ArchiveStatusSummary';
+import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 
 interface ExecuteOutput {
   exit_code: number;
@@ -47,6 +48,7 @@ function Kpi({ label, value, tone }: { label: string; value: number; tone?: stri
  * `vox scientia dashboard` (the shared execute_command path) and renders it.
  */
 export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
+  const embedded = useIsEmbeddedSurface();
   const [snap, setSnap] = useState<QueueSnapshot | null>(null);
   const [cost, setCost] = useState<CostRollup | null>(null);
   const [loading, setLoading] = useState(false);
@@ -88,14 +90,18 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
   // Initial fetch + 10 s auto-refresh; interval is cleared on unmount.
   useEffect(() => {
     refresh();
+    // Embedded mini-render: one initial fetch only, no repeating poll.
+    if (embedded) return;
     const id = setInterval(refresh, 10_000);
     return () => clearInterval(id);
-  }, [refresh]);
+  }, [refresh, embedded]);
 
   // F2: event-driven refresh — refetch immediately when the Rust DB watcher
   // pushes a "vox://scientia-queue" ping. The 10 s interval above stays as a
   // fallback (e.g. outside Tauri, where listen() rejects). Cleans up on unmount.
   useEffect(() => {
+    // Embedded mini-render: no pushed subscription either — stays static.
+    if (embedded) return;
     let unlisten: (() => void) | undefined;
     listenScientiaQueue(() => {
       void refresh();
@@ -107,7 +113,7 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
         /* not in Tauri or no event bridge — interval fallback covers it */
       });
     return () => unlisten?.();
-  }, [refresh]);
+  }, [refresh, embedded]);
 
   return (
     <section className="space-y-4">
