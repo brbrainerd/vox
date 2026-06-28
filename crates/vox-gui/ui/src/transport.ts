@@ -450,6 +450,11 @@ class VoxTransport {
     return invoke('vox_docs_index');
   }
 
+  /** VG-1 build-time GUI content manifest (gui-content-manifest.json). */
+  voxContentManifest(): Promise<import('./hooks/useContentManifest').ContentManifestEntry[]> {
+    return invoke('vox_content_manifest');
+  }
+
   /** Policy catalog rows for federated OmniSearch (see policy_list IPC). */
   listPolicies(): Promise<{ name: string; status?: string }[]> {
     return invoke<{ id: string }[]>('policy_list', { domain: null, group: null }).then(rows => {
