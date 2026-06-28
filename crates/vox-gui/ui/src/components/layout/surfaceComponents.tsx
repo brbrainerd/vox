@@ -74,7 +74,7 @@ export interface SurfaceProps {
   focusedFeedbackId?: string | null;
 }
 
-function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
+export function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
   const Decorator = surfaceDecorators[viewKey];
   if (Decorator) {
     return <Decorator pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
@@ -96,6 +96,7 @@ function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
           onOpenChat={props.onOpenChat}
           onNavigate={props.onNavigate}
           attention_budget={props.attention_budget}
+          pushToast={props.pushToast}
         />
       );
     case 'flow':
