@@ -17,24 +17,35 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  # Emit the build matrix: Linux (WebKitGTK) every event for per-PR GUI compile signal;
+  # Win/macOS only off-PR (merge_group + dispatch) — they cannot run on the Linux fleet
+  # and their per-PR cost buys little over the Linux compile.
+  matrix-setup:
+    name: Compute GUI matrix (Win/macOS off per-PR)
+    runs-on: ubuntu-latest
+    outputs:
+      include: ${{ steps.gen.outputs.include }}
+    steps:
+      - id: gen
+        shell: bash
+        run: |
+          set -euo pipefail
+          linux='{"os":"ubuntu-latest","target":"x86_64-unknown-linux-gnu","sidecar_src":"target/x86_64-unknown-linux-gnu/release/vox","sidecar_dst":"target/x86_64-unknown-linux-gnu/release/vox-x86_64-unknown-linux-gnu"}'
+          win='{"os":"windows-latest","target":"x86_64-pc-windows-msvc","sidecar_src":"target/x86_64-pc-windows-msvc/release/vox.exe","sidecar_dst":"target/x86_64-pc-windows-msvc/release/vox-x86_64-pc-windows-msvc.exe"}'
+          mac='{"os":"macos-latest","target":"aarch64-apple-darwin","sidecar_src":"target/aarch64-apple-darwin/release/vox","sidecar_dst":"target/aarch64-apple-darwin/release/vox-aarch64-apple-darwin"}'
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "include=[$linux]" >> "$GITHUB_OUTPUT"
+          else
+            echo "include=[$linux,$win,$mac]" >> "$GITHUB_OUTPUT"
+          fi
+
   gui-cross-build:
     name: GUI Build (${{ matrix.os }})
+    needs: matrix-setup
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            sidecar_src: target/x86_64-pc-windows-msvc/release/vox.exe
-            sidecar_dst: target/x86_64-pc-windows-msvc/release/vox-x86_64-pc-windows-msvc.exe
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            sidecar_src: target/aarch64-apple-darwin/release/vox
-            sidecar_dst: target/aarch64-apple-darwin/release/vox-aarch64-apple-darwin
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            sidecar_src: target/x86_64-unknown-linux-gnu/release/vox
-            sidecar_dst: target/x86_64-unknown-linux-gnu/release/vox-x86_64-unknown-linux-gnu
+        include: ${{ fromJson(needs.matrix-setup.outputs.include) }}
     runs-on: ${{ matrix.os }}
     env:
       RUSTC_WRAPPER: sccache
