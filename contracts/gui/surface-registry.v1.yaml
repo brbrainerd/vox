@@ -200,7 +200,7 @@ surfaces:
   nav_icon: search
   nav_group: knowledge
   parent_surface: null
-  notes: unified hybrid search (vox-search)
+  notes: redirects to the global Omnibar (top bar, Cmd-K) — deep links to the search view open the Omnibar (VG-2)
 - view_key: sub-agents
   cli_group: null
   representation_tier: live_backend
