@@ -16,30 +16,40 @@ sources:
 
 ## Goal
 
-Build the **Omnibar** — a single global top-bar query affordance present on **every** view — that expands (⌘K / click) into a **faceted palette** over five provenance-labeled facets: **SURFACES / COMMANDS / ON-SCREEN / GRAPH / DOCS**. It merges three live sources at query time — the real `useSearchController` backend lane (`vox_search_query`), the VG-1 build-time **content manifest** (`gui-content-manifest.json`, consumed as a corpus), and a **NEW** in-memory `useSearchable()` runtime registry (opt-in per surface, ships as a no-op) — plus `vox_discover` for the GRAPH facet. Each facet is **independently capped** and **fails independently** (a `vox_discover` error shows an honest empty/error GRAPH row, never blanking the bar). `Enter` activates the top hit (navigate / run / `scrollIntoView`); `⇧Enter` sends the raw query to chat; `⌥→` expands graph neighbors.
+Build the **Omnibar** — a single global top-bar query affordance present on **every** view — that expands (⌘K / click) into a **faceted palette** over five provenance-labeled facets: **SURFACES / COMMANDS / ON-SCREEN / GRAPH / DOCS**. It merges three live sources at query time — the real `useSearchController` backend lane (`vox_search_query`), the VG-1 build-time **content manifest** (`gui-content-manifest.json`, consumed as a corpus), and a **NEW** in-memory `useSearchable()` runtime registry (opt-in per surface, ships as a no-op) — plus the **graph-discover MCP tool** for the GRAPH facet. Each facet is **independently capped** and **fails independently** (a graph-tool error shows an honest empty/error GRAPH row, never blanking the bar). `Enter` activates the top hit (navigate / run / `scrollIntoView`); `⇧Enter` sends the raw query to chat; `⌥→` expands graph neighbors.
 
-It **consolidates** today's three overlapping entry points: it **folds** `components/layout/CommandPalette.tsx` into the Omnibar, and **deletes** the orphaned dedicated Search surface (`components/surfaces/Search/SearchView.tsx`) with a migration-ledger redirect so any deep link to `#view=search` opens the Omnibar instead of dead-ending.
+> **GRAPH facet — VG-1 dependency, not wireable as-is (CRITICAL).** This plan was originally drafted against a tool named `vox_discover` with a `result.neighbors[]` output. **Neither exists.** The MCP dispatch (`crates/vox-orchestrator-mcp/src/dispatch.rs:627–639`, `input_schemas.rs`) registers only `vox_graphify_status/search/query/path/compare`; the only `vox_discover` in the repo is the **`vox-skill-discovery` binary** (`Cargo.toml:18`), unrelated and not an MCP tool. The graph-discover tool name and its I/O contract are owned by **VG-1** (see Dependencies). Until VG-1 lands, the GRAPH facet **degrades to an honest empty/error row** (it fails-soft through the `.catch`) — it is wired against `GRAPH_DISCOVER_TOOL` (a single constant) and the **real master-spec output shape** (`result.results[]`, not `result.neighbors[]` — see O4/O5 and §2.6 of the umbrella spec). Do not present the GRAPH facet as functional pre-VG-1.
+
+It **consolidates** today's three overlapping entry points: it **folds** `components/layout/CommandPalette.tsx` into the Omnibar (including its agents/skills/settings/policies arms — see O4 reconciliation), and **deletes** the dedicated Search surface (`components/surfaces/Search/SearchView.tsx`) with a migration-ledger redirect so any deep link to `#view=search` opens the Omnibar instead of the Search shell.
+
+> **SearchView is LIVE, not orphaned (CRITICAL).** Contrary to the original draft, `SearchView.tsx` is a **reachable, routed** surface: `childRenderer` (`components/layout/surfaceComponents.tsx:78`) consults `surfaceDecorators[viewKey]` **before** its built-in switch, and `surfaceDecorators` (imported from `components/surfaces/decoratorRegistry.ts:23`) registers `search: SearchView` (`decoratorRegistry.ts:53`, import `:12`). So `#view=search` renders SearchView **live**. Deleting it is removing a *live* surface and changing behavior (the redirect). **This is a behavior change requiring human sign-off** — confirm the redirect is acceptable before O6 executes, and O6 MUST also delete the `decoratorRegistry.ts` registration + import or the build/typecheck breaks on a dangling import.
+
+## Base branch note (X8)
+
+Before any task: `git -C /c/Users/Owner/vox-graphify-gui rev-parse --abbrev-ref HEAD` MUST print `claude/graphify-general-gui-ia`. This branch is **rebased onto main @ `063a3c3235`**. The transport seam `30a46cc88d` (GraphifyStatusPanel → voxTransport) **already landed on main** — VG-1 G9/G10 must *consume* it, not redo it; VG-2 reuses `voxTransport.invokeMcpTool` as-is. Add+commit only — no checkout/reset/clean/push/rebase.
 
 ## Architecture
 
 **The Omnibar is the renamed, extended evolution of the already-global CommandPalette.** Verified on this branch:
 
 - `components/layout/TopHud.tsx` (lines 233–239, 266–277) **already** renders the global trigger button (`data-testid="omnisearch-trigger"`, ⌘K hint) in both `full` and `slim` HUD modes, wired through `onOpenCommandPalette` (TopHud props line 65). `App.tsx` line 1143 passes `onOpenCommandPalette={() => setIsCommandOpen(true)}` and mounts `<CommandPalette …>` at line ~1170. **No new top-bar mount is needed** — the Omnibar replaces the component the trigger already opens.
-- `components/layout/CommandPalette.tsx` is already a faceted palette: it composes `useSearchController` (backend `vox_search_query` lane, via `hooks/useSearchController.ts`) **and** `useFederatedSearchIndex` (client lane over surfaces/settings/policies/commands/actions/docs/skills, via `hooks/useFederatedSearchIndex.ts` + `lib/federatedSearchIndex.ts`), with prefix modes from `lib/paletteSources.ts` (`parsePaletteQuery`). The Omnibar **adds two facets** (ON-SCREEN, GRAPH) and **standardizes** facet headers/caps/provenance, then is renamed.
-- The dedicated Search surface (`SearchView.tsx`) is **already orphaned**: `components/layout/surfaceComponents.tsx` has **no `case 'search'`** — the `search` top-level view (`lib/navigation.ts` line 41) defaults its child to `memory` → `MemoryView`. So "deleting the surface" is removing dead code + its tests + retiring its `SEARCH_SEED_KEY` plumbing, and adding an explicit redirect so `#view=search` opens the Omnibar.
+- `components/layout/CommandPalette.tsx` is already a faceted palette: it composes `useSearchController` (backend `vox_search_query` lane, via `hooks/useSearchController.ts`) **and** `useFederatedSearchIndex` (client lane over surfaces/settings/policies/commands/actions/docs/skills, via `hooks/useFederatedSearchIndex.ts` + `lib/federatedSearchIndex.ts`), with prefix modes from `components/layout/paletteSources.ts` (`parsePaletteQuery`; CommandPalette imports it as `./paletteSources`). It also seeds **agents** and **skills** and routes `setting`/`policy`/`skill` activation arms — these MUST be carried into the Omnibar (see O4 reconciliation, finding #5). The Omnibar **adds two facets** (ON-SCREEN, GRAPH) and **standardizes** facet headers/caps/provenance, then is renamed.
+- The dedicated Search surface (`SearchView.tsx`) is **LIVE, not orphaned** (correcting the original draft). `components/layout/surfaceComponents.tsx`'s built-in switch has no `case 'search'`, **but** `childRenderer` (line 78) consults `surfaceDecorators[viewKey]` **first**, and `surfaceDecorators` (from `components/surfaces/decoratorRegistry.ts`, line 23) registers `search: SearchView` (`decoratorRegistry.ts:53`, import `:12`). So `#view=search` renders SearchView **live**. "Deleting the surface" therefore (a) removes a *reachable* surface (a **behavior change** — human sign-off, see O6/Dependencies), (b) **must** delete the `decoratorRegistry.ts` entry + import (else the build/typecheck breaks on a dangling import), (c) retires its `SEARCH_SEED_KEY` plumbing, and (d) adds an explicit redirect so `#view=search` opens the Omnibar. The grep gate must cover `.ts` files too (see O6).
 
-**Three merge lanes, one ranker, five facets.** A new pure module `lib/omnibarFacets.ts` takes the three injected sources (backend hits, manifest corpus, runtime registry) + a graph-facet result, buckets them into the five facets, caps each, and stamps each row with `provenance` (`corpus` | `manifest` | `runtime` | `graph` | `docs`). The Omnibar component is a thin shell over this pure function — every merge/cap/provenance assertion is a unit test on `omnibarFacets.ts` with **injected** sources (no transport, no DOM), and the routing assertions (`Enter`/`⇧Enter`/`⌥→`) are component tests with a mocked `vox_discover`.
+**Three merge lanes, one ranker, five facets.** A new pure module `lib/omnibarFacets.ts` takes the three injected sources (backend hits, manifest corpus, runtime registry) + a graph-facet result, buckets them into the five facets, caps each, and stamps each row with `provenance` (`corpus` | `manifest` | `runtime` | `graph` | `docs`). The Omnibar component is a thin shell over this pure function — every merge/cap/provenance assertion is a unit test on `omnibarFacets.ts` with **injected** sources (no transport, no DOM), and the routing assertions (`Enter`/`⇧Enter`/`⌥→`) are component tests with the graph-discover MCP tool mocked.
+
+> **Provenance label ↔ honesty-firewall axis (X6).** The Omnibar's `provenance` labels (`corpus`/`manifest`/`runtime`/`graph`/`docs`) are *UI-source* labels, not the master spec's *determinism* axis (`structural` | `overlay`, spec §2.5/§7). Map them so the badges stay honest: `manifest`/`corpus`/`docs` → **structural-or-static** (declared/build-time); `runtime` → **structural** (real live read); `graph` → **overlay/derived** (it is fusion output from the graph-discover tool, never implied deterministic). A GRAPH row is honestly *derived*, not authoritative.
 
 **The runtime registry is a no-op-by-default singleton.** `lib/searchableRegistry.ts` exports a module-level `Map<string, SearchableEntry[]>` keyed by surface id, plus `useSearchable(surfaceId, entries)` (registers on mount, clears on unmount) and `querySearchableRegistry(query)`. Ships with **zero** call sites — a surface with nothing dynamic contributes only its manifest rows (per spec §2.2 `ponytail:`). The Omnibar reads it synchronously; tests seed it directly.
 
 **The VG-1 manifest is consumed, not produced, here.** VG-1 emits `gui-content-manifest.json` and (per VG-1) a Tauri reader modeled on `commands::docs_index::vox_docs_index` (`crates/vox-gui/src/commands/docs_index.rs`). VG-2 adds a thin `hooks/useContentManifest.ts` that loads it via `voxTransport.voxContentManifest()` and **defaults to `[]`** when the command is absent/errors — so VG-2 is independently testable and degrades honestly if executed before VG-1 lands. The merge code treats the manifest purely as an injected array.
 
-**Honesty firewall (spec §6).** Facets fail independently: `omnibarFacets.ts` accepts a per-facet `{ rows, error }` shape; a facet with `error` renders an honest empty/error row and never removes the other facets. ON-SCREEN/GRAPH rows are **real** (manifest/registry/`vox_discover`), never fabricated — enforced by the existing `vox ci gui-honesty` scanner (`crates/vox-cli/src/commands/ci/gui_honesty.rs`) which we must not regress.
+**Honesty firewall (spec §6).** Facets fail independently: `omnibarFacets.ts` accepts a per-facet `{ rows, error }` shape; a facet with `error` renders an honest empty/error row and never removes the other facets. ON-SCREEN/GRAPH rows are **real** (manifest/registry/graph-discover tool), never fabricated — enforced by the existing `vox ci gui-honesty` scanner (`crates/vox-cli/src/commands/ci/gui_honesty.rs`) which we must not regress. Note: pre-VG-1 the GRAPH facet renders only its honest "pending VG-1" error row (the graph-discover tool does not exist yet) — that is honest, not a regression. The scanner is typecheck + `surfaceHonesty.guard.test.ts`; the O6 SearchView deletion break (dangling `decoratorRegistry` import) is caught by **typecheck**, not the targeted suite — so do not treat a green targeted suite as proof O6 is clean.
 
 ## Tech Stack
 
-- **UI:** React + TypeScript (Vite), Vitest (`crates/vox-gui/ui`). GUI is **pnpm** (never npm). Existing seams reused verbatim: `useSearchController` (`hooks/useSearchController.ts`), `useFederatedSearchIndex` (`hooks/useFederatedSearchIndex.ts`), `buildFederatedIndex`/`searchFederatedIndex` (`lib/federatedSearchIndex.ts`), `parsePaletteQuery` (`lib/paletteSources.ts`), `viewKeyForLocator` (`lib/locatorNavigation.ts`), `UnifiedHit` (`components/surfaces/Search/searchHelpers.ts`), `voxTransport.invokeMcpTool` / `voxTransport.voxSearchQuery` (`transport.ts`).
-- **Transport:** `vox_discover` is invoked via `voxTransport.invokeMcpTool('vox_discover', args)` (`transport.ts` line 439). The manifest reader (`voxContentManifest`) is a thin add modeled on `voxDocsIndex` (`transport.ts` line 450).
+- **UI:** React + TypeScript (Vite), Vitest (`crates/vox-gui/ui`). GUI is **pnpm** (never npm). Existing seams reused verbatim: `useSearchController` (`hooks/useSearchController.ts`), `useFederatedSearchIndex` (`hooks/useFederatedSearchIndex.ts`), `buildFederatedIndex`/`searchFederatedIndex` (`lib/federatedSearchIndex.ts`), `parsePaletteQuery` (`components/layout/paletteSources.ts`), `viewKeyForLocator` (`lib/locatorNavigation.ts`), `UnifiedHit` (`components/surfaces/Search/searchHelpers.ts`), `voxTransport.invokeMcpTool` / `voxTransport.voxSearchQuery` (`transport.ts`).
+- **Transport:** the GRAPH facet calls `voxTransport.invokeMcpTool(GRAPH_DISCOVER_TOOL, args)` where `invokeMcpTool` is the generic MCP shim (`transport.ts:439` is its *definition*, not a tool registration). **`GRAPH_DISCOVER_TOOL` is a VG-1-owned constant** — there is no `vox_discover` MCP tool today (dispatch registers only `vox_graphify_*`). Until VG-1 renames a graph tool, set `GRAPH_DISCOVER_TOOL = 'vox_graphify_query'` (the real existing tool) and parse the **master-spec discover output** (`result.results[]`, see O4) — or, if VG-1 has landed its graph-discover tool, use that name. The manifest reader (`voxContentManifest`) is a thin add modeled on `voxDocsIndex` (`transport.ts` line 450).
 - **SSOT/codegen:** surface-registry edits go via `contracts/gui/surface-registry.v1.yaml` → `vox ci gui-surface-registry --write` (regenerates `crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts` — **never hand-edit** the `// AUTO-GENERATED … DO NOT EDIT` file).
 - **Gates:** `vox ci gui-honesty` (typecheck + `surfaceHonesty.guard.test.ts`), `pnpm vitest run`. Windows fmt rule: **never** `cargo fmt --all`; use `cargo fmt -p <crate>` for the one Rust touch (Task O8). Per-crate Rust tests only.
 - **Tests:** `pnpm -C crates/vox-gui/ui vitest run <file>` for each TDD step; `vox ci gui-honesty` before the final commit.
@@ -50,22 +60,34 @@ Primary: `docs/superpowers/specs/2026-06-27-vox-graph-omnibar-dashboard-design.m
 
 ## Dependencies (cross-plan)
 
-- **MUST PRECEDE this plan:** **VG-1** (Vox Graph rename + skill + content-manifest emission) — provides `gui-content-manifest.json` and its Tauri reader. **Mitigation so VG-2 is executable/testable now:** the manifest is consumed through `useContentManifest.ts`, which returns `[]` when `voxContentManifest` is unavailable; every manifest assertion in this plan uses an **injected** fixture array, not the real file. VG-2's merge logic, facets, routing, and consolidation all land and test green without VG-1; the live manifest simply lights up the ON-SCREEN facet once VG-1 ships.
-- **Registry-chain coordination (3A / 3F):** Plans **P5 (3A) GUI reorg** and **P6 (3F) CLI-governance surfaces** also edit `contracts/gui/surface-registry.v1.yaml` and regenerate `surfaceRegistry.generated.ts`. **Do not collide:** VG-2's only registry change (Task O8) is a **one-line `notes:`/redirect annotation** on the existing `search` row authored in the **YAML**, then `vox ci gui-surface-registry --write` to regenerate. Never hand-edit `surfaceRegistry.generated.ts`. If a 3A/3F branch is mid-flight, rebase the YAML edit and re-run the generator; the generated file is a pure function of the YAML, so there is no semantic merge — only a regen.
+- **MUST PRECEDE this plan:** **VG-1** (Vox Graph rename + skill + content-manifest emission), on **two** axes:
+  1. **Content manifest** — VG-1 provides `gui-content-manifest.json` and its Tauri reader. **Mitigation so VG-2 is executable/testable now:** the manifest is consumed through `useContentManifest.ts`, which returns `[]` when `voxContentManifest` is unavailable; every manifest assertion uses an **injected** fixture array, not the real file. VG-2's merge logic, facets, routing, and consolidation all land and test green without VG-1; the live manifest lights up the ON-SCREEN facet once VG-1 ships.
+  2. **Graph-discover MCP tool (CRITICAL, was undeclared)** — the GRAPH facet + `⌥→` expansion need a graph-discover/neighbor MCP tool. **None exists today** (`dispatch.rs:627–639` registers only `vox_graphify_status/search/query/path/compare`; `vox_discover` is an unrelated `vox-skill-discovery` binary). **VG-1 owns** introducing/renaming the graph-discover tool and its I/O contract. VG-2 isolates this behind a single constant `GRAPH_DISCOVER_TOOL` and the master-spec output shape (`result.results[]`). Until VG-1 lands: either point `GRAPH_DISCOVER_TOOL` at the existing `vox_graphify_query` (documenting the VG-1 rename) **or** let the GRAPH lane degrade to its honest "graph facet pending VG-1" empty/error row (it already fails-soft via `.catch`). For neighbor-expansion (`⌥→`), the correct primitive is **`vox_search_neighbors`** (`{ corpus, node_ids, max_depth }`, umbrella spec §3.1), not a `vox_discover({seed, mode})` call — see O5.
+- **Final surface-key table (X7 — prevents double-rekey across VG-1 / VG-2 / vs1):**
+
+  | surface key | final disposition | owner |
+  |---|---|---|
+  | `graphify` | re-keyed → `vox-search` (status panel surface) | **vs1** |
+  | `search` | retained as a registry row; `#view=search` **redirects** to the Omnibar | **VG-2** (Task O8 annotates; O7 wires the redirect) |
+  | `vox-search` | the live status surface key after vs1's re-key (VG-1 G10 keeps `case 'graphify'` only until vs1 re-keys) | **vs1 / VG-1** |
+
+  VG-2 touches **only** the `search` row. Do not re-key `graphify`/`vox-search` from this plan.
+- **Registry-chain coordination (3A / 3F / 3C):** Plans **P5 (3A) GUI reorg**, **P6 (3F) CLI-governance surfaces**, and **3C** also edit `contracts/gui/surface-registry.v1.yaml` and regenerate `surfaceRegistry.generated.ts`. **Do not collide:** VG-2's only registry change (Task O8) is a **one-line `notes:`/redirect annotation** on the existing `search` row authored in the **YAML**, then `vox ci gui-surface-registry --write` to regenerate. Never hand-edit `surfaceRegistry.generated.ts`. **O8 MUST run *after* 3F and 3C registry writes have landed** (they re-sort the whole generated array; running O8 first guarantees a noisy rebase). If a 3A/3F/3C branch is mid-flight, rebase the YAML edit and **re-run the generator** as a hard step (not a parenthetical); the generated file is a pure function of the YAML, so there is no semantic merge — only a regen. Keep O8 the **last** registry touch in the batch ordering.
 - **Independent of VG-3** (Task-Monitor Dashboard) — VG-3 shares only the surface registry, not the Omnibar.
 
 ## Key internals (verified against the code — exact)
 
 - **`components/layout/TopHud.tsx`** — `data-testid="omnisearch-trigger"` button at lines 233–239 (slim) and 266–277 (full), both `onClick={openPalette}` where `openPalette = onOpenCommandPalette ?? onCommand` (line 100). Prop `onOpenCommandPalette?: () => void` (line 65). No change required to TopHud for placement.
-- **`App.tsx`** — line 1143 `onOpenCommandPalette={() => setIsCommandOpen(true)}`; `<CommandPalette …>` mounted at line ~1170; `handleCommandAction` (lines 959–995) is the action sink — note the existing arm `else if ('id' in cmd && cmd.id === 'search') { navigateTo('search'); }` (lines 985–986) which the "See all results" footer triggers; this arm is **removed/repointed** in Task O7. `scrollToElement`-style helper exists near line 955 (`el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })`).
+- **`App.tsx`** — line 1143 `onOpenCommandPalette={() => setIsCommandOpen(true)}`; `<CommandPalette …>` mounted at line ~1170; `handleCommandAction` (lines 959–995) is the action sink — note the existing arm `else if ('id' in cmd && cmd.id === 'search') { navigateTo('search'); }` (lines 985–986). Its **only producer** was CommandPalette's "See all results" footer (`CommandPalette.tsx:481–482`), which O6 deletes. With the producer gone, O7 **removes this arm entirely** (repointing it to re-open an already-open Omnibar is a confusing no-op) and optionally prunes `'search'` from the `CommandPaletteAction` union (`types/tauri.ts:193`). `scrollToElement`-style helper exists near line 955 (`el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })`).
 - **`components/layout/CommandPalette.tsx`** — `SEARCH_SEED_KEY = 'vox_search_seed'` (line 18); composes `useSearchController({ enabled: backendSearchEnabled })` (line 79) and `useFederatedSearchIndex(skillSources)` (line 98); `parsePaletteQuery` from `./paletteSources` (line 8); `activateFedEntry` (lines 123–183) routes by `entry.payload.type`; `openHit` (lines 221–237) routes `UnifiedHit`; keyboard handler lines 262–286 (`ArrowDown`/`ArrowUp`/`Enter`/`Escape`); the "See all results" footer (lines 479–489) sets `SEARCH_SEED_KEY` then `onAction({ id: 'search' })`.
 - **`hooks/useSearchController.ts`** — `useSearchController({ enabled })` → `{ state: { query, scopes, hits, loading, requestToken, repoTruncated }, setQuery, setScopes, runSearch }`; debounced (200 ms) `voxTransport.voxSearchQuery(q, 30, backendScopes)`; on error → empty hits (already fails soft).
 - **`lib/federatedSearchIndex.ts`** — `FederatedIndexEntry { kind, id, label, detail, score?, payload, keywords? }`; `FederatedIndexKind = 'surface'|'setting'|'policy'|'command'|'action'|'skill'|'doc'`; `searchFederatedIndex(entries, query, { kinds })`.
-- **`lib/paletteSources.ts`** — `parsePaletteQuery(raw) -> { mode: 'default'|'commands'|'agents'|'skills', query }` (strips `>` `@` `/`).
+- **`components/layout/paletteSources.ts`** — `parsePaletteQuery(raw) -> { mode: 'default'|'commands'|'agents'|'skills', query }` (strips `>` `@` `/`). CommandPalette imports it as `./paletteSources` (`CommandPalette.tsx:8`); Omnibar (also in `components/layout/`) does likewise. (There is **no** `lib/paletteSources.ts`.) CommandPalette also derives `fedKinds` from the prefix mode (`federatedKindsForMode`, `CommandPalette.tsx:103`) and passes `{ kinds: fedKinds }` to `searchFederated` — O4 MUST preserve this (finding #4).
 - **`components/surfaces/Search/searchHelpers.ts`** — `UnifiedHit { source, kind, path, title: string|null, snippet, score, provenance: string[], locator: OpenLocator }`.
 - **`lib/navigation.ts`** — `PARENT_CHILD_MAP.memory = { parent: 'search', child: 'memory' }` (line 17); `DEFAULT_CHILD_BY_PARENT.search = 'memory'` (line 41); `TOP_LEVEL_VIEWS` includes `'search'` (line 53); `parseViewFromLocation` (line 125) reads `#view=` / `?view=`.
-- **`components/layout/surfaceComponents.tsx`** — switch has **no `case 'search'`**; `case 'memory'` → `<MemoryView …>` (line 113); `default: return null` (line 191). Confirms `SearchView.tsx` is unrouted dead code.
-- **`components/surfaces/Search/SearchView.tsx`** — `SEARCH_SEED_KEY` plumbing at lines 34, 302–303, 440; imports `useSearchController`, `filterCommandCatalogHits`, `filterSettingsIndexHits` from `lib/searchController`. Has a sibling `SearchView.test.tsx`.
+- **`components/layout/surfaceComponents.tsx`** — `childRenderer` (line 77) does `const Decorator = surfaceDecorators[viewKey]; if (Decorator) return <Decorator …>` (line 78) **before** the built-in switch. So even though the switch has no `case 'search'`, `search` resolves via the decorator lookup. `surfaceDecorators` is imported from `../surfaces/decoratorRegistry` (line 23). **`SearchView.tsx` is LIVE, not dead code.**
+- **`components/surfaces/decoratorRegistry.ts`** — imports `SearchView` (line 12) and registers `search: SearchView` (line 53). **O6 must delete both the import (`:12`) and the registration (`:53`)**, or `git rm SearchView.tsx` leaves a dangling import that breaks build/typecheck. This file is a `.ts` (not `.tsx`), so the O6 grep gate must not filter by `.tsx`.
+- **`components/surfaces/Search/SearchView.tsx`** — `SEARCH_SEED_KEY` plumbing at lines 34, 302–303, 440; imports `useSearchController`, `filterCommandCatalogHits`, `filterSettingsIndexHits` from `lib/searchController`. Has a sibling `SearchView.test.tsx`. **Reachable via `#view=search` → `decoratorRegistry` → SearchView** — deletion is a behavior change (human sign-off).
 - **`transport.ts`** — `invokeMcpTool(tool, args)` (line 439); `voxSearchQuery(query, limit, scope)` (line 462); `voxDocsIndex()` (line 450) — the model for the new `voxContentManifest()`.
 - **`contracts/gui/surface-registry.v1.yaml`** — `search` row at lines 196–203 (`representation_tier: live_backend`, `nav_label: Search`, `nav_group: knowledge`, `notes: unified hybrid search (vox-search)`).
 - **CI:** `crates/vox-cli/src/commands/ci/gui_honesty.rs` (`gui-honesty`), `crates/vox-cli/src/commands/ci/gui_surface_registry.rs` (writes `crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts` + report).
@@ -86,10 +108,12 @@ Primary: `docs/superpowers/specs/2026-06-27-vox-graph-omnibar-dashboard-design.m
 - `crates/vox-gui/ui/src/transport.ts` — add `voxContentManifest()`.
 - `crates/vox-gui/ui/src/App.tsx` — swap `<CommandPalette>` → `<Omnibar>`; add `⇧Enter`→chat + `#view=search`→open-Omnibar redirect; repoint the `cmd.id === 'search'` arm.
 - `crates/vox-gui/ui/src/components/layout/TopHud.tsx` — (rename-only) keep `omnisearch-trigger`; no behavior change.
+- `crates/vox-gui/ui/src/components/surfaces/decoratorRegistry.ts` — **remove** the `SearchView` import (`:12`) + `search: SearchView` registration (`:53`) as part of O6 (else dangling import breaks the build).
+- `crates/vox-gui/ui/src/types/tauri.ts` — (optional) prune `'search'` from the `CommandPaletteAction` union (`:193`) once its only producer is deleted (finding #6).
 - `contracts/gui/surface-registry.v1.yaml` — annotate the `search` row (`notes:` redirect) → regenerate via `vox ci gui-surface-registry --write`.
 
 **Deleted**
-- `crates/vox-gui/ui/src/components/surfaces/Search/SearchView.tsx` + `SearchView.test.tsx` (orphaned surface).
+- `crates/vox-gui/ui/src/components/surfaces/Search/SearchView.tsx` + `SearchView.test.tsx` (**LIVE surface** routed via `decoratorRegistry`, not orphaned — deletion is a behavior change requiring human sign-off; the `#view=search` redirect replaces it).
 - `crates/vox-gui/ui/src/components/layout/CommandPalette.tsx` + `CommandPalette.test.tsx` (folded into Omnibar — moved, not lost).
 
 ## Workflow batch structure (fan-out plan)
@@ -103,11 +127,11 @@ BATCH 1  (parallel — independent new files, no shared edits)
 BATCH 2  (sequential — all build/rename the Omnibar component)
   ├─ O4  Omnibar.tsx = renamed CommandPalette + ON-SCREEN+GRAPH facets (depends O1,O2,O3)
   ├─ O5  ⌥→ graph-neighbor expansion in Omnibar (depends O4)
-  └─ O6  delete Search surface + tests; retire SEARCH_SEED_KEY orphan (depends O4)
+  └─ O6  delete LIVE Search surface + decoratorRegistry entry + tests; retire SEARCH_SEED_KEY (human-gated; depends O4)
 
 BATCH 3  (sequential — App wiring touches App.tsx once, then registry)
-  ├─ O7  App: mount Omnibar, ⇧Enter→chat, #view=search redirect, repoint 'search' arm (depends O4,O6)
-  └─ O8  surface-registry YAML annotate + regen (depends O7)
+  ├─ O7  App: mount Omnibar, ⇧Enter→chat, #view=search redirect, REMOVE 'search' arm (depends O4,O6)
+  └─ O8  surface-registry YAML annotate + regen (YAML+report only; after 3F/3C) (depends O7)
 
 BATCH 4  (sequential — final gate)
   └─ O9  full vitest + vox ci gui-honesty + self-review checklist (depends O7,O8)
@@ -397,6 +421,14 @@ git -C /c/Users/Owner/vox-graphify-gui commit -m "feat(omnibar): useContentManif
 
 The heart of the Omnibar: a pure function that takes the five sources (federated index hits already split by kind, backend `UnifiedHit[]`, manifest rows, runtime registry hits, and a graph-facet result that may carry an error) and produces five capped, provenance-stamped facets. No transport, no DOM — fully unit-testable with injected data.
 
+> **Agents / skills / settings / policies in the fold-in (finding #5 — HUMAN GATE).** CommandPalette today seeds `filteredAgents` + `filteredSkills` and routes `setting`→localStorage seed + `settings` nav, `policy`→`policies` nav, `skill`→`skill:<id>` (`CommandPalette.tsx:130–207, 185–207`). The five-facet spec (§3.3) and this module's COMMANDS/SURFACES buckets **omit agents and skills**, so "folded in (moved, not lost)" is **not yet true** for them. Resolve one of two ways before O4 ships, and **confirm the choice with the human** (the spec §3.3 itself under-specifies this):
+> - **(a) Carry them** — surface agents (`@`) and skills (`/`) as activatable rows (extend `OmnibarActivation` with `agent`/`skill` arms below) and keep `setting`/`policy` activation routing. The COMMANDS facet already covers `>`; the `@`/`/` prefix modes (finding #4) must keep restricting kinds.
+> - **(b) Scope them OUT explicitly** — state in the plan that agents/skills/settings/policies are deferred to a follow-up ticket with a rationale. Silent loss violates the "consolidates three entry points" goal and the no-stubs rule.
+>
+> The `OmnibarActivation` union below includes `setting`/`policy`/`agent`/`skill` arms so option (a) is the default; delete them if the human picks (b).
+
+> **Provenance ↔ honesty axis (X6).** The `Provenance` UI labels map to the master firewall (spec §2.5/§7): `manifest`/`corpus`/`docs` = structural-or-static (declared/build-time), `runtime` = structural (live read), `graph` = **overlay/derived** (fusion output — never implied deterministic).
+
 **Step 1 — write the failing test.** Create `crates/vox-gui/ui/src/lib/omnibarFacets.test.ts`:
 
 ```ts
@@ -503,12 +535,12 @@ describe('buildOmnibarFacets', () => {
     const facets = buildOmnibarFacets(
       sources({
         federated: [surface('approvals', 'Approvals')],
-        graph: { rows: [], error: 'vox_discover unavailable' },
+        graph: { rows: [], error: 'graph facet pending VG-1' },
       }),
     );
     const graph = facets.find((f) => f.key === 'graph')!;
     const surfaces = facets.find((f) => f.key === 'surfaces')!;
-    expect(graph.error).toBe('vox_discover unavailable');
+    expect(graph.error).toBe('graph facet pending VG-1');
     expect(graph.rows).toHaveLength(0);
     expect(surfaces.rows.length).toBeGreaterThan(0); // not blanked
   });
@@ -569,7 +601,13 @@ export type OmnibarActivation =
   | { type: 'navigate'; viewKey: string; anchorId?: string }
   | { type: 'command'; command: string }
   | { type: 'doc'; path: string }
-  | { type: 'graph'; node: GraphNeighbor };
+  | { type: 'graph'; node: GraphNeighbor }
+  // finding #5: carry CommandPalette's agents/skills/settings/policies arms.
+  // Delete these four if the human scopes them OUT (option b above).
+  | { type: 'agent'; agentId: string }
+  | { type: 'skill'; skillId: string }
+  | { type: 'setting'; settingKey: string }
+  | { type: 'policy'; policyId: string };
 
 export interface OmnibarRow {
   id: string;
@@ -701,7 +739,7 @@ export function buildOmnibarFacets(src: OmnibarSources): OmnibarFacet[] {
     });
   }
 
-  // GRAPH — vox_discover neighbors; error carried, never propagated.
+  // GRAPH — graph-discover neighbors; error carried, never propagated.
   const graphRows: OmnibarRow[] = src.graph.error
     ? []
     : src.graph.rows.map((n) => ({
@@ -766,7 +804,9 @@ git -C /c/Users/Owner/vox-graphify-gui commit -m "feat(omnibar): pure faceted me
 
 **Files:** `crates/vox-gui/ui/src/components/layout/Omnibar.tsx` (new — content moved from CommandPalette + extended), `crates/vox-gui/ui/src/components/layout/Omnibar.test.tsx` (new). **Depends on O1, O2, O3.**
 
-The Omnibar is CommandPalette folded forward: same backend + federated lanes, plus the runtime registry (O1), the manifest (O2), `vox_discover` for the GRAPH facet, all merged via `buildOmnibarFacets` (O3). It renders one labeled section per facet with a provenance hint, and routes `Enter`/`⇧Enter` (⌥→ lands in O5). The component delegates all merge logic to O3 and all data to injectable hooks, so tests inject sources directly.
+The Omnibar is CommandPalette folded forward: same backend + federated lanes, plus the runtime registry (O1), the manifest (O2), and the graph-discover MCP tool (`GRAPH_DISCOVER_TOOL`) for the GRAPH facet, all merged via `buildOmnibarFacets` (O3). It renders one labeled section per facet with a provenance hint, and routes `Enter`/`⇧Enter` (⌥→ lands in O5). The component delegates all merge logic to O3 and all data to injectable hooks, so tests inject sources directly.
+
+**Carry the agents/skills/settings/policies arms (finding #5).** Moving the CommandPalette body forward MUST bring its `filteredAgents`/`filteredSkills` seeding and its `setting`/`policy`/`skill` activation routing (`CommandPalette.tsx:130–207`), unless the human chose to scope them OUT (O3 note). The `OmnibarActivation` union already has the arms; wire `activateRow`'s `switch` to handle `agent`/`skill`/`setting`/`policy` (route `setting`→localStorage seed + `settings` nav, `policy`→`policies` nav, `skill`→`skill:<id>`, mirroring CommandPalette). Also MOVE `federatedKindsForMode` (the private `CommandPalette.tsx:41` helper) into this file (finding #4).
 
 **Step 1 — write the failing test.** Create `crates/vox-gui/ui/src/components/layout/Omnibar.test.tsx`:
 
@@ -796,18 +836,29 @@ vi.mock('../../hooks/useSearchController', () => ({
   })),
 }));
 
+// finding #8: the mock must HONOR the query and the { kinds } filter, mirroring
+// the real searchFederatedIndex(entries, query, { kinds }) — otherwise the test
+// proves nothing about query filtering or prefix-mode kind restriction (#4).
 vi.mock('../../hooks/useFederatedSearchIndex', () => ({
   useFederatedSearchIndex: () => ({
     entries: [],
-    search: () => [
-      {
-        kind: 'surface',
-        id: 'surface:approvals',
-        label: 'Approvals',
-        detail: 'Runs',
-        payload: { type: 'surface', viewKey: 'approvals' },
-      },
-    ],
+    search: (query: string, options?: { kinds?: string[] }) => {
+      const q = (query ?? '').toLowerCase();
+      const all = [
+        {
+          kind: 'surface',
+          id: 'surface:approvals',
+          label: 'Approvals',
+          detail: 'Runs',
+          payload: { type: 'surface', viewKey: 'approvals' },
+        },
+      ];
+      const byQuery = q ? all.filter((e) => e.label.toLowerCase().includes(q)) : [];
+      const kinds = options?.kinds;
+      return kinds && kinds.length > 0
+        ? byQuery.filter((e) => kinds.includes(e.kind))
+        : byQuery;
+    },
   }),
 }));
 
@@ -849,7 +900,8 @@ describe('Omnibar', () => {
   beforeEach(() => {
     clearSearchableRegistry();
     invokeMcpTool.mockReset();
-    invokeMcpTool.mockResolvedValue({ result: { neighbors: [] } });
+    // master-spec discover shape: { result: { results: [...] } } (NOT `neighbors`).
+    invokeMcpTool.mockResolvedValue({ result: { results: [] } });
   });
 
   it('renders SURFACES and ON-SCREEN facets from federated + manifest', async () => {
@@ -883,6 +935,15 @@ describe('Omnibar', () => {
     fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: 'peers' } });
     await waitFor(() => expect(screen.getByText('mesh: 4 peers online')).toBeTruthy());
   });
+
+  // finding #4: a `/` (skills) prefix must restrict federated kinds so the
+  // surface row is NOT returned — proves prefix modes aren't decorative.
+  it('skills prefix (/) restricts kinds — surface row is filtered out', async () => {
+    renderOmnibar();
+    fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: '/approvals' } });
+    // With kinds=['skill'], the surface:approvals entry is excluded.
+    await waitFor(() => expect(screen.queryByText('Approvals')).toBeNull());
+  });
 });
 ```
 
@@ -911,6 +972,35 @@ import {
 import { recordGamifyGuiEvent } from '../../lib/gamifyGuiEvents';
 
 const FACET_ORDER = ['surfaces', 'commands', 'onScreen', 'graph', 'docs'] as const;
+
+/**
+ * VG-1-owned graph-discover MCP tool name. There is NO `vox_discover` MCP tool
+ * today (dispatch.rs registers only `vox_graphify_*`). Until VG-1 renames a graph
+ * tool, point this at the real existing tool and let the parser consume the
+ * master-spec discover output (`result.results[]`). When VG-1 lands its
+ * graph-discover tool, change this one constant.
+ */
+const GRAPH_DISCOVER_TOOL = 'vox_graphify_query';
+
+/**
+ * Parse a graph-discover MCP response into GraphNeighbor[] against the MASTER
+ * SPEC output shape (umbrella spec §2.6/§3.1): `{ seeds[], results[{ node_id,
+ * fused_score, components, hops, community, reachability_class, provenance }] }`.
+ * There is NO `result.neighbors`, NO `view_key`, NO `label` on a result —
+ * derive the label from the node_id and the viewKey from a `surface:<vk>` prefix.
+ */
+function parseDiscoverResults(res: unknown): GraphNeighbor[] {
+  const r = res as { is_error?: boolean; result?: { results?: unknown[] } };
+  if (r?.is_error || !Array.isArray(r?.result?.results)) return [];
+  return r.result!.results!
+    .map((n) => n as { node_id?: string; id?: string })
+    .map((n) => n.node_id ?? n.id)
+    .filter((id): id is string => typeof id === 'string' && id.length > 0)
+    .map((id) => {
+      const vk = id.startsWith('surface:') ? id.slice('surface:'.length) : undefined;
+      return { id, label: vk ?? id, viewKey: vk };
+    });
+}
 
 interface OmnibarProps {
   open: boolean;
@@ -963,9 +1053,20 @@ export function Omnibar({
     [skills],
   );
   const { search: searchFederated } = useFederatedSearchIndex(skillSources);
+  // finding #4: preserve CommandPalette's prefix-mode → kind restriction.
+  // `federatedKindsForMode` is a private helper inside CommandPalette.tsx:41 — MOVE
+  // it into this file verbatim (it is not exported from paletteSources). It maps
+  // `>`=commands, `@`=agents, `/`=skills so the federated lane actually narrows.
+  // Dropping `{ kinds }` makes the prefix modes decorative — a regression vs the
+  // folded-in CommandPalette. (See CommandPalette.tsx:102–105 for the exact guard:
+  // only pass `{ kinds }` when `fedKinds.length > 0`.)
+  const fedKinds = useMemo(() => federatedKindsForMode(prefixMode), [prefixMode]);
   const federated = useMemo(
-    () => (effectiveQ.trim() ? searchFederated(effectiveQ) : []),
-    [searchFederated, effectiveQ],
+    () =>
+      effectiveQ.trim() && fedKinds.length > 0
+        ? searchFederated(effectiveQ, { kinds: fedKinds })
+        : [],
+    [searchFederated, effectiveQ, fedKinds],
   );
 
   const manifest = useContentManifest();
@@ -974,7 +1075,9 @@ export function Omnibar({
     [effectiveQ],
   );
 
-  // GRAPH facet: vox_discover, independently fallible.
+  // GRAPH facet: graph-discover MCP tool, independently fallible. Parses the
+  // master-spec discover output (`result.results[]`) — see parseDiscoverResults.
+  // Pre-VG-1 this resolves to honest empty/error (no graph-discover tool exists).
   useEffect(() => {
     if (!open || !effectiveQ.trim()) {
       setGraph({ rows: [], error: null });
@@ -982,25 +1085,20 @@ export function Omnibar({
     }
     let cancelled = false;
     voxTransport
-      .invokeMcpTool('vox_discover', { query: effectiveQ, limit: 6 })
+      .invokeMcpTool(GRAPH_DISCOVER_TOOL, { query: effectiveQ, limit: 6 })
       .then((res) => {
         if (cancelled) return;
-        const r = res as { is_error?: boolean; result?: { neighbors?: unknown[] } };
+        const r = res as { is_error?: boolean };
         if (r?.is_error) {
-          setGraph({ rows: [], error: 'vox_discover unavailable' });
+          setGraph({ rows: [], error: 'graph facet pending VG-1 — graph-discover tool unavailable' });
           return;
         }
-        const neighbors = Array.isArray(r?.result?.neighbors) ? r.result!.neighbors! : [];
-        setGraph({
-          rows: neighbors
-            .map((n) => n as { id?: string; node_id?: string; label?: string; view_key?: string })
-            .filter((n) => n.id || n.node_id)
-            .map((n) => ({ id: String(n.id ?? n.node_id), label: n.label ?? String(n.id ?? n.node_id), viewKey: n.view_key })),
-          error: null,
-        });
+        setGraph({ rows: parseDiscoverResults(res), error: null });
       })
       .catch(() => {
-        if (!cancelled) setGraph({ rows: [], error: 'vox_discover unavailable' });
+        if (!cancelled) {
+          setGraph({ rows: [], error: 'graph facet pending VG-1 — graph-discover tool unavailable' });
+        }
       });
     return () => {
       cancelled = true;
@@ -1190,24 +1288,28 @@ git -C /c/Users/Owner/vox-graphify-gui commit -m "feat(omnibar): faceted Omnibar
 
 **Files:** `crates/vox-gui/ui/src/components/layout/Omnibar.tsx` (modify), `crates/vox-gui/ui/src/components/layout/Omnibar.test.tsx` (append). **Depends on O4.**
 
-`⌥→` (Alt+ArrowRight) on the selected (or top) GRAPH row expands its neighbors in-place by re-querying `vox_discover` seeded from that node, appending the new neighbors to the graph facet.
+`⌥→` (Alt+ArrowRight) on the selected (or top) GRAPH row expands its neighbors in-place, appending the new neighbors to the graph facet.
+
+> **Use the real neighbor primitive (X2).** The original draft called `vox_discover({ seed, mode: 'expand' })` — but `vox_discover` has **no `seed`/`mode` input** (it derives seeds from `query`), and the tool doesn't exist anyway. The correct neighbor-expansion primitive is **`vox_search_neighbors`** (umbrella spec §3.1): input `{ corpus, node_ids, max_depth }`, where `node_ids` is the seed node's id. Like `GRAPH_DISCOVER_TOOL`, gate this behind a `GRAPH_NEIGHBORS_TOOL` constant (VG-1-owned name) so it fails-soft pre-VG-1. The `corpus` value comes from the same default the discover lane uses (pass the repo/default corpus; omit if the tool defaults it). Parse the neighbor response with the same master-spec shape (`result.results[]` via `parseDiscoverResults`), not `result.neighbors`.
 
 **Step 1 — add the failing test** to `Omnibar.test.tsx`:
 
 ```tsx
   it('Alt+ArrowRight expands graph neighbors of the selected node', async () => {
+    // First call (discover, query lane) seeds the graph facet; second call
+    // (neighbors lane) returns the expansion — both in master-spec `results` shape.
     invokeMcpTool
-      .mockResolvedValueOnce({ result: { neighbors: [{ id: 'n1', label: 'Chat rail', view_key: 'chat' }] } })
-      .mockResolvedValueOnce({ result: { neighbors: [{ id: 'n2', label: 'doubt_task', view_key: 'approvals' }] } });
+      .mockResolvedValueOnce({ result: { results: [{ node_id: 'surface:chat' }] } })
+      .mockResolvedValueOnce({ result: { results: [{ node_id: 'surface:approvals' }] } });
     renderOmnibar();
     fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: 'pending' } });
-    await waitFor(() => expect(screen.getByText('Chat rail')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('chat')).toBeTruthy()); // label derived from surface:<vk>
     // Select the graph row (ArrowDown until it lands on the graph facet is brittle;
     // instead assert expansion appends without losing existing rows).
     fireEvent.keyDown(window, { key: 'ArrowDown' });
     fireEvent.keyDown(window, { key: 'ArrowRight', altKey: true });
-    await waitFor(() => expect(screen.getByText('doubt_task')).toBeTruthy());
-    expect(screen.getByText('Chat rail')).toBeTruthy(); // original neighbor retained
+    await waitFor(() => expect(screen.getByText('approvals')).toBeTruthy());
+    expect(screen.getByText('chat')).toBeTruthy(); // original neighbor retained
   });
 ```
 
@@ -1220,19 +1322,17 @@ git -C /c/Users/Owner/vox-graphify-gui commit -m "feat(omnibar): faceted Omnibar
     (row: OmnibarRow) => {
       if (row.activate.type !== 'graph') return;
       const seed = row.activate.node;
+      // X2: vox_search_neighbors is the real neighbor primitive:
+      // { corpus, node_ids, max_depth }. Gated behind a VG-1-owned constant so
+      // it fails-soft pre-VG-1. Parse with the master-spec `result.results[]` shape.
       voxTransport
-        .invokeMcpTool('vox_discover', { seed: seed.id, mode: 'expand', limit: 6 })
+        .invokeMcpTool(GRAPH_NEIGHBORS_TOOL, { node_ids: [seed.id], max_depth: 1 })
         .then((res) => {
-          const r = res as { is_error?: boolean; result?: { neighbors?: unknown[] } };
-          if (r?.is_error) return;
-          const neighbors = Array.isArray(r?.result?.neighbors) ? r.result!.neighbors! : [];
+          const added0 = parseDiscoverResults(res);
           setGraph((prev) => {
             if (prev.error) return prev;
             const seen = new Set(prev.rows.map((n) => n.id));
-            const added = neighbors
-              .map((n) => n as { id?: string; node_id?: string; label?: string; view_key?: string })
-              .filter((n) => (n.id || n.node_id) && !seen.has(String(n.id ?? n.node_id)))
-              .map((n) => ({ id: String(n.id ?? n.node_id), label: n.label ?? String(n.id ?? n.node_id), viewKey: n.view_key }));
+            const added = added0.filter((n) => !seen.has(n.id));
             return { rows: [...prev.rows, ...added], error: null };
           });
         })
@@ -1240,6 +1340,13 @@ git -C /c/Users/Owner/vox-graphify-gui commit -m "feat(omnibar): faceted Omnibar
     },
     [],
   );
+```
+
+Add the neighbor-tool constant near `GRAPH_DISCOVER_TOOL`:
+
+```tsx
+/** VG-1-owned neighbor-expansion MCP tool (umbrella spec §3.1: { corpus, node_ids, max_depth }). */
+const GRAPH_NEIGHBORS_TOOL = 'vox_search_neighbors';
 ```
 
 Then inside the `onKey` handler, before the final `Enter` arm, add:
@@ -1259,27 +1366,27 @@ Then inside the `onKey` handler, before the final `Enter` arm, add:
 
 ```bash
 git -C /c/Users/Owner/vox-graphify-gui add crates/vox-gui/ui/src/components/layout/Omnibar.tsx crates/vox-gui/ui/src/components/layout/Omnibar.test.tsx
-git -C /c/Users/Owner/vox-graphify-gui commit -m "feat(omnibar): Alt+ArrowRight expands graph neighbors via vox_discover [VG-2 O5]"
+git -C /c/Users/Owner/vox-graphify-gui commit -m "feat(omnibar): Alt+ArrowRight expands graph neighbors via vox_search_neighbors [VG-2 O5]"
 ```
 
 ---
 
-## Task O6 — Delete the orphaned Search surface + retire `SEARCH_SEED_KEY` dead path (TDD) — [SEQUENTIAL]
+## Task O6 — Delete the LIVE Search surface (decoratorRegistry-routed; HUMAN-GATED) + retire `SEARCH_SEED_KEY` dead path (TDD) — [SEQUENTIAL]
 
-**Files:** delete `crates/vox-gui/ui/src/components/surfaces/Search/SearchView.tsx` + `SearchView.test.tsx`; delete `crates/vox-gui/ui/src/components/layout/CommandPalette.tsx` + `CommandPalette.test.tsx`; verify `lib/searchController.ts` helpers (`filterCommandCatalogHits`, `filterSettingsIndexHits`) have no remaining importers. **Depends on O4.**
+**Files:** delete `crates/vox-gui/ui/src/components/surfaces/Search/SearchView.tsx` + `SearchView.test.tsx`; delete `crates/vox-gui/ui/src/components/layout/CommandPalette.tsx` + `CommandPalette.test.tsx`; **edit `crates/vox-gui/ui/src/components/surfaces/decoratorRegistry.ts`** to remove the `SearchView` import + registration; verify `lib/searchController.ts` helpers (`filterCommandCatalogHits`, `filterSettingsIndexHits`) have no remaining importers. **Depends on O4.**
 
-`SearchView.tsx` is unrouted (no `case 'search'` in `surfaceComponents.tsx`; `search` → `memory`). With the Omnibar live, both the dedicated surface and `CommandPalette` are superseded.
+> **HUMAN GATE — SearchView is LIVE (finding #1).** `SearchView.tsx` is **routed and reachable**: `childRenderer` (`surfaceComponents.tsx:78`) resolves `surfaceDecorators['search']` from `decoratorRegistry.ts:53` **before** its switch, so `#view=search` renders SearchView today. Deleting it is a **behavior change** (the surface is replaced by an Omnibar redirect), not dead-code removal. Confirm with the human that the redirect is acceptable before executing O6. The `CommandPalette` deletion is a pure fold-in (no behavior change).
 
-**Step 1 — prove no live importers (the "test" is a grep gate).** Run and confirm **zero** non-test, non-self hits:
+**Step 1 — prove no live importers (the "test" is a grep gate).** Run and confirm hits are only the expected ones. **The gate MUST cover `.ts` files** (`decoratorRegistry.ts` is `.ts`, not `.tsx`) — use a path filter with no extension restriction:
 
 ```bash
-git -C /c/Users/Owner/vox-graphify-gui grep -n "SearchView" -- 'crates/vox-gui/ui/src/**/*.tsx' ':!*SearchView*'
-git -C /c/Users/Owner/vox-graphify-gui grep -n "CommandPalette" -- 'crates/vox-gui/ui/src/**/*.tsx' ':!*CommandPalette*' ':!App.tsx'
+git -C /c/Users/Owner/vox-graphify-gui grep -n "SearchView" -- crates/vox-gui/ui/src ':!*SearchView*'
+git -C /c/Users/Owner/vox-graphify-gui grep -n "CommandPalette" -- crates/vox-gui/ui/src ':!*CommandPalette*' ':!App.tsx'
 ```
 
-(Expect: `SearchView` → no hits; `CommandPalette` → only `App.tsx`, handled in O7. If `SearchView` shows any live importer, STOP — re-scope and report; do not delete.)
+(Expect: `SearchView` → **only `decoratorRegistry.ts` (the import + `search:` registration)**, removed in Step 2 below — any *other* live importer means STOP, re-scope and report. `CommandPalette` → only `App.tsx`, handled in O7.)
 
-**Step 2 — delete the files.**
+**Step 2 — delete the files AND remove the decoratorRegistry registration.** The registration is the live importer; remove both the `import { SearchView } …` line (`decoratorRegistry.ts:12`) and the `search: SearchView,` entry (`:53`) **before** the `git rm`, else the build/typecheck breaks on a dangling import.
 
 ```bash
 git -C /c/Users/Owner/vox-graphify-gui rm \
@@ -1287,7 +1394,11 @@ git -C /c/Users/Owner/vox-graphify-gui rm \
   crates/vox-gui/ui/src/components/surfaces/Search/SearchView.test.tsx \
   crates/vox-gui/ui/src/components/layout/CommandPalette.tsx \
   crates/vox-gui/ui/src/components/layout/CommandPalette.test.tsx
+# then edit decoratorRegistry.ts to drop the SearchView import (:12) + `search:` row (:53)
+git -C /c/Users/Owner/vox-graphify-gui add crates/vox-gui/ui/src/components/surfaces/decoratorRegistry.ts
 ```
+
+After this, re-run the `SearchView` grep — it must now return **zero** hits.
 
 **Step 3 — clean up now-dead helpers.** `filterCommandCatalogHits` and `filterSettingsIndexHits` in `lib/searchController.ts` existed only for `SearchView`. Confirm:
 
@@ -1308,8 +1419,10 @@ Expect green except the App-level CommandPalette mount, fixed in O7 (if O7 not y
 **Step 5 — commit.**
 
 ```bash
-git -C /c/Users/Owner/vox-graphify-gui add -A crates/vox-gui/ui/src/lib/searchController.ts
-git -C /c/Users/Owner/vox-graphify-gui commit -m "refactor(omnibar): delete orphaned Search surface + CommandPalette, retire dead SEARCH_SEED_KEY helpers [VG-2 O6]"
+git -C /c/Users/Owner/vox-graphify-gui add -A \
+  crates/vox-gui/ui/src/lib/searchController.ts \
+  crates/vox-gui/ui/src/components/surfaces/decoratorRegistry.ts
+git -C /c/Users/Owner/vox-graphify-gui commit -m "refactor(omnibar): delete LIVE Search surface (decoratorRegistry-routed) + CommandPalette, retire dead SEARCH_SEED_KEY helpers [VG-2 O6]"
 ```
 
 ---
@@ -1320,7 +1433,9 @@ git -C /c/Users/Owner/vox-graphify-gui commit -m "refactor(omnibar): delete orph
 
 **Files:** `crates/vox-gui/ui/src/App.tsx` (modify), `crates/vox-gui/ui/src/components/layout/OmnibarRedirect.test.tsx` (new). **Depends on O4, O6.**
 
-Swap the `<CommandPalette>` mount for `<Omnibar>` with the activation callbacks; add the migration-ledger redirect so any deep link to `#view=search` opens the Omnibar instead of dead-ending into `memory`; repoint the old `cmd.id === 'search'` arm (it used to navigate to the Search surface) to open the Omnibar.
+Swap the `<CommandPalette>` mount for `<Omnibar>` with the activation callbacks; add the migration-ledger redirect so any deep link to `#view=search` opens the Omnibar instead of dead-ending into the (deleted) Search surface; **remove** the old `cmd.id === 'search'` arm (finding #6 — its only producer, CommandPalette's "See all results" footer, was deleted in O6; re-opening an already-open Omnibar is a confusing no-op).
+
+> **Redirect placement (finding #7 — avoid recursion).** There is **no `setActiveViewRaw`** in the repo. `navigateTo` (`App.tsx:514–518`) is `resolveNavigation(viewKey) → setActiveView(child) → syncViewToLocation`; `setActiveView` IS the underlying setter. Since `#view=search` already resolves via `resolveNavigation('search') → 'memory'`, the cleanest hook is the **hashchange / `parseViewFromLocation`** path, not inside `navigateTo`. If you do guard inside `navigateTo`, the fallback must call the **real** setters (`setActiveView('memory' as View); syncViewToLocation('memory'); setIsCommandOpen(true); return;`) — never a fictional raw setter, and never `navigateTo` itself (infinite recursion).
 
 **Step 1 — write the failing redirect test.** Create `crates/vox-gui/ui/src/components/layout/OmnibarRedirect.test.tsx`:
 
@@ -1384,24 +1499,27 @@ import { Omnibar } from './components/layout/Omnibar';
 import { redirectSearchViewToOmnibar } from './components/layout/omnibarRedirect';
 ```
 
-2. In `navigateTo` (wherever it resolves a view; it is defined above `handleCommandAction`), add the redirect as the first guard so requesting `search` opens the Omnibar:
+2. Hook the redirect on the **hashchange / `parseViewFromLocation`** path (preferred — `#view=search` already resolves to `memory` via `resolveNavigation`, so guarding there avoids `navigateTo` recursion). In the effect that reacts to location changes, before applying the parsed view:
 ```tsx
-  // (inside navigateTo, before the normal resolution)
+  // (in the hashchange effect, after parsing viewKey from location)
   if (redirectSearchViewToOmnibar(viewKey, {
     openOmnibar: () => setIsCommandOpen(true),
-    navigateTo: (vk) => setActiveViewRaw(vk),   // the underlying non-redirecting setter
+    navigateTo: (vk) => {                 // real setters, NOT a fictional raw setter
+      setActiveView(vk as View);
+      syncViewToLocation(vk);
+    },
     fallbackChild: 'memory',
   })) {
     return;
   }
 ```
-(Use whatever the underlying state setter is named; the redirect must call the *non-redirecting* setter to avoid recursion. If `navigateTo` is the only setter, inline the resolution: `setActiveView('memory'); setIsCommandOpen(true); return;`.)
+If you must guard inside `navigateTo` instead, call the **real** setters (`setActiveView('memory' as View); syncViewToLocation('memory'); setIsCommandOpen(true); return;`) — there is no `setActiveViewRaw`, and recursing into `navigateTo` will infinite-loop (finding #7).
 
-3. Repoint the legacy arm at lines 985–986 of `handleCommandAction`:
+3. **Remove** the legacy arm at lines 985–986 of `handleCommandAction` (finding #6). Its only producer (CommandPalette's footer) is deleted in O6, so delete the arm entirely rather than repointing it to a self-reopening no-op:
 ```tsx
-    } else if ('id' in cmd && cmd.id === 'search') {
-      setIsCommandOpen(true);
+    // DELETE: } else if ('id' in cmd && cmd.id === 'search') { navigateTo('search'); }
 ```
+Optionally prune `'search'` from the `CommandPaletteAction` union (`types/tauri.ts:193`) now that nothing produces it.
 
 4. Replace the `<CommandPalette …>` mount (line ~1170) with:
 ```tsx
@@ -1452,6 +1570,10 @@ git -C /c/Users/Owner/vox-graphify-gui commit -m "feat(omnibar): mount Omnibar i
 
 The `search` row stays in the registry (so `vox ci gui-honesty` keeps seeing a real `viewKey` and deep links resolve), but its `notes` now record the redirect so the SSOT documents that `#view=search` opens the Omnibar. **Edit the YAML, never the generated TS.**
 
+> **The generated TS does NOT carry `notes` (finding #10).** `SurfaceRegistryEntry` (`surfaceRegistry.generated.ts:3–11`) is `{ viewKey, cliGroup, tier, navLabel, navIcon, navGroup, parentSurface }` — **no `notes`**. So a YAML-only `notes:` change produces **zero diff** in the generated TS. This task is therefore **YAML-only (plus the regenerated report)**: do NOT assert "the generated TS changed", and do NOT `git add surfaceRegistry.generated.ts` (it won't change). Still run `--write` (idempotent) to confirm the YAML is well-formed and the report is current. Confirm the report path `contracts/reports/gui-surface-registry.v1.json` exists before committing it; if the regen does not emit/refresh a report, commit the YAML alone.
+
+> **Ordering (X9): run O8 only AFTER 3F + 3C registry writes have landed.** They re-sort the whole generated array; running O8 first guarantees a noisy rebase. Keep O8 the last registry touch (see Dependencies). If a 3A/3F/3C branch lands after you, rebase the YAML edit and re-run `--write`.
+
 **Step 1 — edit the YAML.** In `contracts/gui/surface-registry.v1.yaml`, change the `search` row's `notes` (line 203):
 
 ```yaml
@@ -1465,30 +1587,31 @@ The `search` row stays in the registry (so `vox ci gui-honesty` keeps seeing a r
   notes: redirects to the global Omnibar (top bar, ⌘K) — VG-2; deep links to #view=search open the Omnibar
 ```
 
-**Step 2 — regenerate** (this is the codegen; do **not** hand-edit the generated file):
+**Step 2 — regenerate** (idempotent codegen; do **not** hand-edit the generated file):
 
 ```bash
 git -C /c/Users/Owner/vox-graphify-gui --no-pager diff --stat -- contracts/gui/surface-registry.v1.yaml
 ( cd /c/Users/Owner/vox-graphify-gui && cargo run -q -p vox-cli -- ci gui-surface-registry --write )
 ```
 
-(If a build broker shim breaks `cargo` in the main dir, run from this worktree as already cwd'd. The command rewrites `surfaceRegistry.generated.ts` + `contracts/reports/gui-surface-registry.v1.json`.)
+(If a build broker shim breaks `cargo` in the main dir, run from this worktree as already cwd'd. The command refreshes `contracts/reports/gui-surface-registry.v1.json`; the generated TS has **no `notes` field** so it will NOT change from a `notes:`-only edit.)
 
-**Step 3 — verify** the generated file changed only the `notes` for `search` and re-typecheck:
+**Step 3 — verify.** Confirm the generated TS is **unchanged** (expected — no `notes` field) and the YAML/report carry the new note:
 
 ```bash
+# Expect NO diff here (generated TS has no `notes` key):
 git -C /c/Users/Owner/vox-graphify-gui --no-pager diff -- crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts
+git -C /c/Users/Owner/vox-graphify-gui --no-pager diff -- contracts/gui/surface-registry.v1.yaml contracts/reports/gui-surface-registry.v1.json
 pnpm -C crates/vox-gui/ui run typecheck
 ```
 
-**Step 4 — commit.**
+**Step 4 — commit (YAML + report only; the generated TS does not change).** If the regen did not produce/refresh a report, commit the YAML alone.
 
 ```bash
 git -C /c/Users/Owner/vox-graphify-gui add \
   contracts/gui/surface-registry.v1.yaml \
-  crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts \
   contracts/reports/gui-surface-registry.v1.json
-git -C /c/Users/Owner/vox-graphify-gui commit -m "chore(omnibar): annotate search surface row as Omnibar redirect + regen registry [VG-2 O8]"
+git -C /c/Users/Owner/vox-graphify-gui commit -m "chore(omnibar): annotate search surface row as Omnibar redirect (YAML+report; no generated-TS diff) [VG-2 O8]"
 ```
 
 ---
@@ -1513,13 +1636,16 @@ Expect `gui-honesty: OK`. This runs `pnpm run typecheck` + `surfaceHonesty.guard
 
 **Step 3 — self-review checklist** (assert each, fix before final commit):
 - [ ] Omnibar present on every view: it is the component the global TopHud `omnisearch-trigger` opens; TopHud is mounted on all views — no per-view wiring needed.
-- [ ] Five facets render with provenance badges; each capped at `FACET_CAP`.
-- [ ] `vox_discover` error → GRAPH shows honest empty/error row; SURFACES/ON-SCREEN/COMMANDS/DOCS still populate (the O3 isolation test + O4 mock cover this).
-- [ ] `Enter` activates top hit; `⇧Enter` sends raw query to chat; `⌥→` expands graph neighbors.
-- [ ] Search surface deleted; `#view=search` redirect opens the Omnibar (OmnibarRedirect test).
+- [ ] Five facets render with provenance badges; each capped at `FACET_CAP`. Provenance labels map to the honesty axis (X6): `graph` is shown as derived/overlay, never deterministic.
+- [ ] GRAPH facet uses `GRAPH_DISCOVER_TOOL` (no literal `vox_discover`) and parses the master-spec `result.results[]` shape (NOT `result.neighbors`). Pre-VG-1 it shows the honest "graph facet pending VG-1" row; SURFACES/ON-SCREEN/COMMANDS/DOCS still populate (O3 isolation test + O4 mock cover this).
+- [ ] `Enter` activates top hit; `⇧Enter` sends raw query to chat; `⌥→` expands graph neighbors via `GRAPH_NEIGHBORS_TOOL` (`vox_search_neighbors`, `{ node_ids, max_depth }`).
+- [ ] Prefix modes restrict federated kinds (`>`/`@`/`/` → `{ kinds }`); `federatedKindsForMode` was moved in, not dropped (finding #4 test green).
+- [ ] Agents/skills/settings/policies either carried into the Omnibar (activation arms wired) **or** explicitly scoped OUT with the human's sign-off (finding #5) — not silently lost.
+- [ ] **Search surface deletion sign-off (finding #1):** SearchView was LIVE (decoratorRegistry-routed); human confirmed the redirect is acceptable. `decoratorRegistry.ts` import + `search:` registration removed; `git grep SearchView -- crates/vox-gui/ui/src ':!*SearchView*'` returns **zero** hits; typecheck is green (a dangling import would fail here — `gui-honesty`'s targeted suite alone would NOT catch it).
+- [ ] `#view=search` redirect opens the Omnibar (OmnibarRedirect test); the legacy `cmd.id === 'search'` arm was **removed** (finding #6), not repointed; no `setActiveViewRaw` introduced (finding #7).
 - [ ] `CommandPalette` folded in; no live importer remains (grep clean).
 - [ ] Runtime registry ships as no-op (zero call sites); manifest defaults `[]` pre-VG-1.
-- [ ] Registry change went via YAML→`--write`; generated TS not hand-edited.
+- [ ] Registry change went via YAML→`--write`; generated TS **not** committed (no `notes` field → no diff, finding #10); O8 ran after 3F/3C.
 - [ ] No `cargo fmt --all` was run; no `.ps1`/`.sh`/`.py` added.
 
 **Step 4 — final marker commit** (only if Steps 1–3 are green and any fixups were made; if no fixups, skip).
@@ -1539,9 +1665,9 @@ git -C /c/Users/Owner/vox-graphify-gui commit -m "test(omnibar): full vitest + g
 | 1 | O3 | `omnibarFacets.ts` pure merge/cap/provenance, isolated errors | [PARALLEL-SAFE] | `lib/omnibarFacets.ts` (+test) | — |
 | 2 | O4 | `Omnibar.tsx` faceted component (folds CommandPalette + ON-SCREEN/GRAPH; Enter/⇧Enter) | [SEQUENTIAL] | `components/layout/Omnibar.tsx` (+test) | O1, O2, O3 |
 | 2 | O5 | `⌥→` graph-neighbor expansion | [SEQUENTIAL] | `components/layout/Omnibar.tsx` (+test) | O4 |
-| 2 | O6 | Delete orphaned Search surface + CommandPalette; retire dead helpers | [SEQUENTIAL] | (deletions) + `lib/searchController.ts` | O4 |
-| 3 | O7 | App: mount Omnibar, ⇧Enter→chat, `#view=search` redirect, repoint 'search' arm | [SEQUENTIAL] | `App.tsx`, `components/layout/omnibarRedirect.ts` (+test) | O4, O6 |
-| 3 | O8 | Annotate `search` registry row + regen (YAML→`--write`) | [SEQUENTIAL] | `surface-registry.v1.yaml`, generated TS, report | O7 |
+| 2 | O6 | Delete LIVE Search surface (decoratorRegistry-routed; human-gated) + CommandPalette; retire dead helpers | [SEQUENTIAL] | (deletions) + `surfaces/decoratorRegistry.ts` + `lib/searchController.ts` | O4 |
+| 3 | O7 | App: mount Omnibar, ⇧Enter→chat, `#view=search` redirect (hashchange path, no recursion), **remove** 'search' arm | [SEQUENTIAL] | `App.tsx`, `components/layout/omnibarRedirect.ts` (+test) | O4, O6 |
+| 3 | O8 | Annotate `search` registry row + regen (YAML→`--write`; YAML+report only — generated TS has no `notes` field; run after 3F/3C) | [SEQUENTIAL] | `surface-registry.v1.yaml`, report | O7 |
 | 4 | O9 | Full vitest + `gui-honesty` + self-review | [SEQUENTIAL] | (verification) | O7, O8 |
 
 **Concurrency cap: 3 sub-agents.** Batch 1 fans out 3-wide (no shared files). Batch 2 serializes on `Omnibar.tsx` (O4→O5) with O6 after O4. Batch 3 serializes on `App.tsx` then the registry. Batch 4 is the gate.
