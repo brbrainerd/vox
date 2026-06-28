@@ -23,6 +23,7 @@ vi.mock('../ui/Icons', () => ({
     search: () => <span data-testid="icon-search" />,
     cpu: () => <span data-testid="icon-cpu" />,
     globe: () => <span data-testid="icon-globe" />,
+    shield: () => <span data-testid="icon-shield" />,
   },
 }));
 
@@ -78,5 +79,19 @@ describe('TopHud branding', () => {
     render(<TopHud {...baseProps} workspaceTitle="Acme Workspace" />);
     expect(screen.getByText('Acme Workspace')).toBeInTheDocument();
     expect(screen.queryByText('Operator')).not.toBeInTheDocument();
+  });
+});
+
+describe('TopHud pending approvals tile', () => {
+  it('renders the pending-approvals tile when visible', () => {
+    render(
+      <TopHud
+        {...baseProps}
+        visibleTiles={['pending_approvals']}
+        pendingApprovals={3}
+      />,
+    );
+    expect(screen.getByText('Pending Approvals')).toBeTruthy();
+    expect(screen.getByText('3')).toBeTruthy();
   });
 });

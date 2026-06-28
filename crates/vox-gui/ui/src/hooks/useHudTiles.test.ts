@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
+  HUD_TILE_KINDS,
+  HUD_TILE_LABELS,
   defaultHudTiles,
   validateHudTilesConfig,
   filterKpisByTiles,
@@ -8,8 +10,22 @@ import {
   reorderHudTile,
 } from './useHudTiles';
 
+describe('pending_approvals HUD tile', () => {
+  it('is part of the HUD tile SSOT with a label', () => {
+    expect(HUD_TILE_KINDS).toContain('pending_approvals');
+    expect(HUD_TILE_LABELS.pending_approvals).toBe('Pending approvals');
+  });
+
+  it('appears in the strip by default and DROPS when disabled', () => {
+    const cfg = defaultHudTiles();
+    expect(resolveVisibleHudTiles(cfg)).toContain('pending_approvals');
+    const disabled = toggleHudTile(cfg, 'pending_approvals', false);
+    expect(resolveVisibleHudTiles(disabled)).not.toContain('pending_approvals');
+  });
+});
+
 describe('useHudTiles', () => {
-  it('defaultHudTiles() returns all 6 kinds in order', () => {
+  it('defaultHudTiles() returns all 7 kinds in order', () => {
     const config = defaultHudTiles();
     expect(config.tiles.map((t) => t.kind)).toEqual([
       'active_agents',
@@ -18,6 +34,7 @@ describe('useHudTiles', () => {
       'mesh_peers',
       'active_model',
       'openrouter_spend',
+      'pending_approvals',
     ]);
   });
 
@@ -67,6 +84,7 @@ describe('useHudTiles', () => {
       'mesh_peers',
       'active_model',
       'openrouter_spend',
+      'pending_approvals',
     ]);
   });
 });

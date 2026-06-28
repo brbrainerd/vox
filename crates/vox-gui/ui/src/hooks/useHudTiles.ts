@@ -10,6 +10,7 @@ export const HUD_TILE_KINDS = [
   'mesh_peers',
   'active_model',
   'openrouter_spend',
+  'pending_approvals',
 ] as const;
 
 export type HudTileKind = (typeof HUD_TILE_KINDS)[number];
@@ -21,6 +22,7 @@ export const HUD_TILE_LABELS: Record<HudTileKind, string> = {
   mesh_peers: 'Mesh peers',
   active_model: 'Active model',
   openrouter_spend: 'OpenRouter spend',
+  pending_approvals: 'Pending approvals',
 };
 
 export interface HudTileEntry {

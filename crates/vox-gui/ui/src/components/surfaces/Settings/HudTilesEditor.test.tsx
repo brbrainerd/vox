@@ -12,7 +12,7 @@ import {
 describe('HudTilesEditor', () => {
   beforeEach(() => cleanup());
 
-  it('lists all 6 tile kinds from HUD_TILE_KINDS', () => {
+  it('lists all 7 tile kinds from HUD_TILE_KINDS', () => {
     const config = defaultHudTiles();
     render(<HudTilesEditor config={config} onChange={vi.fn()} />);
     for (const kind of HUD_TILE_KINDS) {

@@ -12,6 +12,7 @@ tile_kinds:
   - mesh_peers
   - active_model
   - openrouter_spend
+  - pending_approvals
 
 data_bindings:
   active_agents:
@@ -32,6 +33,9 @@ data_bindings:
   openrouter_spend:
     source: transport
     method: get_llm_spend
+  pending_approvals:
+    source: orchestrator_status
+    field: approvals_pending
 
 tile_shape:
   id: string # must match a tile_kinds entry
@@ -63,4 +67,7 @@ default_profile:
       enabled: true
     - id: openrouter_spend
       kind: openrouter_spend
+      enabled: true
+    - id: pending_approvals
+      kind: pending_approvals
       enabled: true
