@@ -33,11 +33,12 @@ The repository defaults to **self-hosted** runners for CI (see [runner contract]
 | `docker-eval.yml` | `ubuntu-latest` | Isolated Docker eval harness (not merge-gated). |
 | `coolify-eval-sync.yml` | `ubuntu-latest` | Remote Coolify deploy hook; not merge-gated. |
 | `scorecard.yml` | `ubuntu-latest` | OpenSSF Scorecard weekly supply-chain signal; read-only SARIF upload, not merge-gated. |
+| `codeql.yml` | `ubuntu-latest` | Neutral-infra security scan (compute-placement.md). The Rust extractor's PR diff-range analysis OOMs in the ~4 GB self-hosted job container; 16 GB hosted runner fixes it. |
 
 Any new workflow using GitHub-hosted runners (`ubuntu-latest`, `windows-latest`, `macos-*`) must add a row here **or** migrate to `[self-hosted, linux, x64]` (plus `docker` / `browser` when needed).
 
 **Enforcement:** `vox ci runner-policy-check` warns when a workflow uses a hosted `runs-on` without a table row (default advisory; `--strict` to fail).
 
-**Migrated to self-hosted (no exception row):** `ci.yml`, `gitleaks.yml`, `link_checker.yml`, `docs-quality.yml`, `ts-emit-noemit.yml`, `cr-l-gates.yml`, `mobile-eas-build.yml`, `codeql.yml` (main push + weekly schedule only), `mutation-pr.yml`, and most advisory/nightly Rust jobs.
+**Migrated to self-hosted (no exception row):** `ci.yml`, `gitleaks.yml`, `link_checker.yml`, `docs-quality.yml`, `ts-emit-noemit.yml`, `cr-l-gates.yml`, `mobile-eas-build.yml`, `mutation-pr.yml`, and most advisory/nightly Rust jobs.
 
 **Not GitHub-hosted:** [`ci.yml`](../../../.github/workflows/ci.yml) and [`ml_data_extraction.yml`](../../../.github/workflows/ml_data_extraction.yml) use **`[self-hosted, linux, x64]`** (plus **`docker`** / **`browser`** / **`gpu`** per [runner contract](runner-contract.md)). See [workflow enumeration](workflow-enumeration.md) for step-level detail.
