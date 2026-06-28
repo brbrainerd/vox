@@ -172,6 +172,42 @@ fn manifest_headings_multiword_view_key() {
     );
 }
 
+/// End-to-end: a heading with a NESTED element and a NON-ASCII heading must
+/// both survive the manifest join (regression for the old first-`<` truncation
+/// and the is_ascii() drop).
+#[test]
+fn manifest_headings_nested_and_non_ascii() {
+    let dir = TempDir::new().unwrap();
+    let comp = dir
+        .path()
+        .join("components/surfaces/SubAgents/SubAgentsView.tsx");
+    std::fs::create_dir_all(comp.parent().unwrap()).unwrap();
+    std::fs::write(
+        &comp,
+        "export function SubAgentsView() {\n  return (\n    <section>\n      <h2><span>Sub-Agent</span> Roster</h2>\n      <h3>Café — Diagnóstico 🌦</h3>\n    </section>\n  );\n}\n",
+    )
+    .unwrap();
+
+    const YAML: &str = "x_vox_version: 2\nschema_version: 1\nsurfaces:\n- view_key: sub-agents\n  nav_label: Sub-Agents\n  nav_group: operate\n";
+
+    let manifest = emit_and_parse(FIXTURE_GRAPH_MULTIWORD, YAML, dir.path());
+    let surfaces = manifest["surfaces"].as_array().unwrap();
+    let entry = surfaces
+        .iter()
+        .find(|s| s["view_key"].as_str() == Some("sub-agents"))
+        .expect("sub-agents must appear in the manifest");
+    let headings = entry["headings"].as_array().expect("headings array");
+    let texts: Vec<&str> = headings.iter().filter_map(|h| h.as_str()).collect();
+    assert!(
+        texts.contains(&"Sub-Agent Roster"),
+        "nested-element heading must flatten to 'Sub-Agent Roster'; got {texts:?}"
+    );
+    assert!(
+        texts.contains(&"Café — Diagnóstico 🌦"),
+        "non-ASCII heading must be retained; got {texts:?}"
+    );
+}
+
 #[test]
 fn manifest_module_exists() {
     let _ = emit_content_manifest

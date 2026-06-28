@@ -258,42 +258,142 @@ fn scan_surface_headings(
     out
 }
 
+/// Strip inner JSX/HTML tags from a heading's inner content, collapsing
+/// whitespace. `<span>Foo</span> Bar` → `Foo Bar`.
+fn strip_inner_tags(inner: &str) -> String {
+    let mut text = String::with_capacity(inner.len());
+    let mut depth = 0usize;
+    for ch in inner.chars() {
+        match ch {
+            '<' => depth += 1,
+            '>' => depth = depth.saturating_sub(1),
+            _ if depth == 0 => text.push(ch),
+            _ => {}
+        }
+    }
+    // Collapse runs of whitespace to single spaces.
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
 /// Extract heading text from a TSX source string.
-/// Matches `<h1>…</h1>` through `<h6>…</h6>` and simple `aria-label="…"` attributes.
+/// Matches `<h1>…</h1>` through `<h6>…</h6>` (stripping any nested elements so
+/// `<h2><span>Foo</span> Bar</h2>` yields "Foo Bar") and simple
+/// `aria-label="…"` attributes (terminated at the closing quote).
 fn extract_headings(src: &str) -> Vec<String> {
     let mut out = Vec::new();
 
-    for tag_open in &["<h", "aria-label="] {
-        let tag_open = *tag_open;
-        let mut rest = src;
-        while let Some(start) = rest.find(tag_open) {
-            let after = &rest[start..];
-            // For h-tags, ensure the next byte is a digit 1-6 (avoid matching e.g. <header>).
-            if tag_open == "<h" {
-                let next = after.as_bytes().get(2).copied();
-                if !matches!(next, Some(b'1'..=b'6')) {
-                    rest = &rest[start + tag_open.len()..];
-                    continue;
+    // ── <hN>…</hN> headings ────────────────────────────────────────────────
+    let bytes = src.as_bytes();
+    let mut search = src;
+    while let Some(rel) = search.find("<h") {
+        let abs_after = &search[rel..];
+        // Advance the search cursor past this "<h" for the next iteration.
+        let next_search_offset = rel + 2;
+
+        // Next byte must be a heading level digit 1-6 (avoid <header>, <hr>, …).
+        let level = abs_after.as_bytes().get(2).copied();
+        if !matches!(level, Some(b'1'..=b'6')) {
+            search = &search[next_search_offset..];
+            continue;
+        }
+        let level_digit = level.unwrap();
+        let close_tag = format!("</h{}>", level_digit as char);
+
+        // Find the end of the opening tag's `>`.
+        if let Some(open_gt) = abs_after.find('>') {
+            let inner_start = open_gt + 1;
+            // Find the MATCHING `</hN>` close, not the first `<`.
+            if let Some(close_rel) = abs_after[inner_start..].find(&close_tag) {
+                let inner = &abs_after[inner_start..inner_start + close_rel];
+                let text = strip_inner_tags(inner);
+                if !text.is_empty() && !text.starts_with('{') && text.chars().count() <= 120 {
+                    out.push(text);
                 }
             }
-            // Find the closing > for the opening tag.
-            if let Some(close_bracket) = after.find('>') {
-                let after_open = &after[close_bracket + 1..];
-                // End of content: < for h-tags (closing tag), newline for aria-label.
-                let end_marker = if tag_open == "<h" { "<" } else { "\n" };
-                if let Some(end) = after_open.find(end_marker) {
-                    let text = after_open[..end].trim().to_string();
-                    if !text.is_empty()
-                        && !text.starts_with('{')
-                        && text.len() <= 120
-                        && text.is_ascii()
-                    {
-                        out.push(text);
-                    }
-                }
+        }
+        search = &search[next_search_offset..];
+    }
+
+    // ── aria-label="…" attributes ──────────────────────────────────────────
+    const ARIA: &str = "aria-label=";
+    let mut idx = 0usize;
+    while let Some(rel) = src[idx..].find(ARIA) {
+        let attr_start = idx + rel + ARIA.len();
+        idx = attr_start;
+        // Expect an opening quote (single or double); terminate at the MATCHING quote.
+        let Some(&quote) = bytes.get(attr_start) else {
+            break;
+        };
+        if quote != b'"' && quote != b'\'' {
+            continue;
+        }
+        let value_start = attr_start + 1;
+        if let Some(end_rel) = src[value_start..].find(quote as char) {
+            let text = src[value_start..value_start + end_rel].trim().to_string();
+            idx = value_start + end_rel + 1;
+            if !text.is_empty() && !text.starts_with('{') && text.chars().count() <= 120 {
+                out.push(text);
             }
-            rest = &rest[start + tag_open.len()..];
         }
     }
     out
+}
+
+#[cfg(test)]
+mod extract_headings_tests {
+    use super::extract_headings;
+
+    #[test]
+    fn nested_element_heading_is_flattened() {
+        let src = "return <h2><span>Foo</span> Bar</h2>;";
+        let h = extract_headings(src);
+        assert!(
+            h.iter().any(|s| s == "Foo Bar"),
+            "nested-element heading should flatten to 'Foo Bar'; got {h:?}"
+        );
+    }
+
+    #[test]
+    fn non_ascii_heading_is_kept() {
+        // em-dash, accented letter, emoji — previously dropped by an is_ascii() gate.
+        let src = "<h1>Café — Météo 🌦</h1>";
+        let h = extract_headings(src);
+        assert!(
+            h.iter().any(|s| s == "Café — Météo 🌦"),
+            "non-ASCII heading must be retained; got {h:?}"
+        );
+    }
+
+    #[test]
+    fn matches_closing_tag_not_first_angle_bracket() {
+        // The inner `<strong>` must not prematurely terminate the heading.
+        let src = "<h3>Alpha <strong>Beta</strong> Gamma</h3>";
+        let h = extract_headings(src);
+        assert!(
+            h.iter().any(|s| s == "Alpha Beta Gamma"),
+            "should match </h3>, stripping inner tags; got {h:?}"
+        );
+    }
+
+    #[test]
+    fn aria_label_terminates_at_matching_quote() {
+        // A newline inside other attrs must NOT bleed into the captured value.
+        let src = "<button aria-label=\"Close dialog\" onClick={fn}>\n  x\n</button>";
+        let h = extract_headings(src);
+        assert!(
+            h.iter().any(|s| s == "Close dialog"),
+            "aria-label must terminate at the closing quote; got {h:?}"
+        );
+        assert!(
+            !h.iter().any(|s| s.contains("onClick")),
+            "aria-label capture must not run past the closing quote; got {h:?}"
+        );
+    }
+
+    #[test]
+    fn single_quoted_aria_label_supported() {
+        let src = "<div aria-label='Settings panel' />";
+        let h = extract_headings(src);
+        assert!(h.iter().any(|s| s == "Settings panel"), "got {h:?}");
+    }
 }
