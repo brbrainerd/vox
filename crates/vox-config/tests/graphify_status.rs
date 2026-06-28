@@ -12,8 +12,8 @@ fn write_minimal_registry(repo: &Path) {
     let dir = repo.join("contracts/retrieval");
     fs::create_dir_all(&dir).unwrap();
     fs::write(
-        dir.join("graphify-corpora.v1.yaml"),
-        include_str!("../../../contracts/retrieval/graphify-corpora.v1.yaml"),
+        dir.join("vox-graph-corpora.v1.yaml"),
+        include_str!("../../../contracts/retrieval/vox-graph-corpora.v1.yaml"),
     )
     .unwrap();
 }

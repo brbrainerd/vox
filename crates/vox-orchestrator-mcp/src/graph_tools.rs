@@ -13,7 +13,7 @@ use vox_config::graphify::{
 };
 
 const REM_GRAPHIFY: &str =
-    "Ensure `contracts/retrieval/graphify-corpora.v1.yaml` exists and graph paths are readable.";
+    "Ensure `contracts/retrieval/vox-graph-corpora.v1.yaml` exists and graph paths are readable.";
 
 const DEFAULT_SEARCH_LIMIT: u32 = 10;
 
@@ -703,8 +703,8 @@ mod tests {
         let dir = repo.join("contracts/retrieval");
         fs::create_dir_all(&dir).unwrap();
         fs::write(
-            dir.join("graphify-corpora.v1.yaml"),
-            include_str!("../../../contracts/retrieval/graphify-corpora.v1.yaml"),
+            dir.join("vox-graph-corpora.v1.yaml"),
+            include_str!("../../../contracts/retrieval/vox-graph-corpora.v1.yaml"),
         )
         .unwrap();
     }

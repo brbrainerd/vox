@@ -1,6 +1,6 @@
 //! Graphify corpus registry and freshness assessment (Tier D cache maps).
 //!
-//! SSOT contract: `contracts/retrieval/graphify-corpora.v1.yaml`
+//! SSOT contract: `contracts/retrieval/vox-graph-corpora.v1.yaml`
 
 use std::collections::HashSet;
 use std::fs;
@@ -10,7 +10,10 @@ use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 
 /// Relative path to the corpora registry YAML from repo root.
-pub const CORPORA_REL_PATH: &str = "contracts/retrieval/graphify-corpora.v1.yaml";
+pub const CORPORA_REL_PATH: &str = "contracts/retrieval/vox-graph-corpora.v1.yaml";
+
+/// One-release legacy path for corpora-registry back-compat (VG-1 G4).
+const LEGACY_CORPORA_REL_PATH: &str = "contracts/retrieval/graphify-corpora.v1.yaml";
 
 /// Runtime registration overlay (corpora created by `vox graphify index`).
 pub const REGISTERED_REL_PATH: &str = ".vox/cache/vox-graph/registered.v1.json";
@@ -155,6 +158,13 @@ impl std::error::Error for GraphifyError {
 /// Load the corpora registry from the repo contract file.
 pub fn load_graphify_corpora(repo_root: &Path) -> Result<GraphifyCorporaRegistry, GraphifyError> {
     let path = repo_root.join(CORPORA_REL_PATH);
+    // One-release back-compat (VG-1 G4): if the new path is absent, try the legacy name.
+    let path = if path.exists() {
+        path
+    } else {
+        let legacy = repo_root.join(LEGACY_CORPORA_REL_PATH);
+        if legacy.exists() { legacy } else { path }
+    };
     let raw = fs::read_to_string(&path).map_err(|source| GraphifyError::Io {
         path: path.clone(),
         source,
@@ -644,6 +654,43 @@ mod tests {
     }
 
     #[test]
+    fn loads_from_vox_graph_corpora_path() {
+        let tmp = tempfile::tempdir().unwrap();
+        // Write to the NEW path only — must load without fallback.
+        let new_path = tmp
+            .path()
+            .join("contracts/retrieval/vox-graph-corpora.v1.yaml");
+        std::fs::create_dir_all(new_path.parent().unwrap()).unwrap();
+        std::fs::write(
+            &new_path,
+            include_str!("../../../contracts/retrieval/vox-graph-corpora.v1.yaml"),
+        )
+        .unwrap();
+        let result = load_graphify_corpora(tmp.path());
+        assert!(result.is_ok(), "must load from new path: {result:?}");
+    }
+
+    #[test]
+    fn falls_back_to_legacy_graphify_corpora() {
+        let tmp = tempfile::tempdir().unwrap();
+        // Write ONLY to the legacy path — fallback must find it.
+        let legacy_path = tmp
+            .path()
+            .join("contracts/retrieval/graphify-corpora.v1.yaml");
+        std::fs::create_dir_all(legacy_path.parent().unwrap()).unwrap();
+        std::fs::write(
+            &legacy_path,
+            include_str!("../../../contracts/retrieval/vox-graph-corpora.v1.yaml"),
+        )
+        .unwrap();
+        let result = load_graphify_corpora(tmp.path());
+        assert!(
+            result.is_ok(),
+            "must fall back to legacy graphify-corpora.v1.yaml: {result:?}"
+        );
+    }
+
+    #[test]
     fn registered_overlay_writes_new_vox_graph_path() {
         let tmp = tempfile::tempdir().unwrap();
         upsert_registered_corpus(tmp.path(), &sample_corpus("ext")).unwrap();
@@ -694,7 +741,7 @@ mod tests {
         let dir = repo.join("contracts/retrieval");
         fs::create_dir_all(&dir).unwrap();
         fs::write(
-            dir.join("graphify-corpora.v1.yaml"),
+            dir.join("vox-graph-corpora.v1.yaml"),
             "default_corpus_id: repo-code-graph\nttl_days_default: 30\ncorpora:\n  - id: repo-code-graph\n    title: Repo\n    scope_path: \".\"\n    graph_path: \"g\"\n    manifest_path: \"m\"\n"
         ).unwrap();
     }
@@ -839,8 +886,8 @@ mod tests {
         let dir = tmp.path().join("contracts/retrieval");
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(
-            dir.join("graphify-corpora.v1.yaml"),
-            include_str!("../../../contracts/retrieval/graphify-corpora.v1.yaml"),
+            dir.join("vox-graph-corpora.v1.yaml"),
+            include_str!("../../../contracts/retrieval/vox-graph-corpora.v1.yaml"),
         )
         .unwrap();
         let reg = load_graphify_corpora(tmp.path()).unwrap();
