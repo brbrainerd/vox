@@ -25,7 +25,11 @@ pub struct TauriEmitParams<'a> {
     pub frontend_dist_relative: &'a str,
 }
 
+// Tauri CLI v2 validates tauri.conf.json against a camelCase schema
+// (`productName`, `frontendDist`); snake_case keys are rejected as
+// "additional properties not allowed".
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct TauriConfigV2 {
     #[serde(rename = "$schema")]
     schema: &'static str,
@@ -36,6 +40,7 @@ struct TauriConfigV2 {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct TauriBuild {
     frontend_dist: String,
 }
