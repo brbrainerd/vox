@@ -48,7 +48,7 @@ fn universal_reward_command_path(cli: &Cli) -> Option<&'static str> {
         Cli::Scientia { .. } => Some("scientia"),
         Cli::Audit { .. } => Some("audit"),
         Cli::Policy { .. } => Some("policy"),
-        Cli::Graphify { .. } => Some("graphify"),
+        Cli::Search { .. } => Some("search"),
         Cli::Ci { .. } => Some("ci"),
         Cli::Db { .. } => Some("db"),
         Cli::Mens { .. } => Some("mens"),
@@ -131,7 +131,7 @@ fn command_verb(cli: &Cli) -> &'static str {
         Cli::Scientia { .. } => "scientia",
         Cli::Audit { .. } => "audit",
         Cli::Policy { .. } => "policy",
-        Cli::Graphify { .. } => "graphify",
+        Cli::Search { .. } => "search",
         Cli::Ci { .. } => "ci",
         Cli::Db { .. } => "db",
         Cli::Mens { .. } => "mens",
@@ -258,7 +258,12 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
             let root = crate::commands::ci::repo_root();
             crate::commands::policy::run(cmd, &root)?;
         }
-        Cli::Graphify { cmd } => {
+        Cli::Search { cmd } => {
+            if std::env::args().nth(1).as_deref() == Some("graphify") {
+                eprintln!(
+                    "warning: `vox graphify` is deprecated; use `vox search` (alias removed next release)."
+                );
+            }
             let root = crate::commands::ci::repo_root();
             crate::commands::graphify::run(cmd, &root).await?;
         }
