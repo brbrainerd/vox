@@ -136,4 +136,21 @@ describe('Omnibar', () => {
     // With kinds=['doc','skill'], the surface:approvals entry is excluded.
     await waitFor(() => expect(screen.queryByText('Approvals')).toBeNull());
   });
+
+  it('Alt+ArrowRight expands graph neighbors of the selected node', async () => {
+    // First call (discover, query lane) seeds the graph facet; second call
+    // (neighbors lane) returns the expansion — both in master-spec `results` shape.
+    invokeMcpTool
+      .mockResolvedValueOnce({ result: { results: [{ node_id: 'surface:chat' }] } })
+      .mockResolvedValueOnce({ result: { results: [{ node_id: 'surface:approvals' }] } });
+    renderOmnibar();
+    // Use a token that matches ONLY the graph-discover lane (federated/manifest
+    // do not match), so the GRAPH row is the top row — deterministic selection.
+    fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: 'znode' } });
+    await waitFor(() => expect(screen.getByText('chat')).toBeTruthy()); // label derived from surface:<vk>
+    // Top row is the graph node; Alt+ArrowRight (idx -1 → list[0]) expands it.
+    fireEvent.keyDown(window, { key: 'ArrowRight', altKey: true });
+    await waitFor(() => expect(screen.getByText('approvals')).toBeTruthy());
+    expect(screen.getByText('chat')).toBeTruthy(); // original neighbor retained
+  });
 });

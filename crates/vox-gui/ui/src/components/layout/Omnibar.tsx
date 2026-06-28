@@ -33,6 +33,9 @@ const SETTINGS_SEED_KEY = 'vox_settings_seed';
  */
 const GRAPH_DISCOVER_TOOL = 'vox_graphify_query';
 
+/** VG-1-owned neighbor-expansion MCP tool (umbrella spec §3.1: { corpus, node_ids, max_depth }). */
+const GRAPH_NEIGHBORS_TOOL = 'vox_search_neighbors';
+
 /**
  * finding #4: preserve CommandPalette's prefix-mode → kind restriction. Moved in
  * verbatim from CommandPalette.tsx (it was a private helper, not exported). Maps
@@ -260,6 +263,28 @@ export function Omnibar({
     [onNavigate, onRunCommand, onOpenDoc, onClose, gamifyEnabled],
   );
 
+  const expandGraphNeighbors = useCallback((row: OmnibarRow) => {
+    if (row.activate.type !== 'graph') return;
+    const seed = row.activate.node;
+    // X2: vox_search_neighbors is the real neighbor primitive:
+    // { corpus, node_ids, max_depth }. Gated behind a VG-1-owned constant so it
+    // fails-soft pre-VG-1. Parse with the master-spec `result.results[]` shape.
+    voxTransport
+      .invokeMcpTool(GRAPH_NEIGHBORS_TOOL, { node_ids: [seed.id], max_depth: 1 })
+      .then((res) => {
+        const added0 = parseDiscoverResults(res);
+        setGraph((prev) => {
+          if (prev.error) return prev;
+          const seen = new Set(prev.rows.map((n) => n.id));
+          const added = added0.filter((n) => !seen.has(n.id));
+          return { rows: [...prev.rows, ...added], error: null };
+        });
+      })
+      .catch(() => {
+        /* facet stays as-is — honest no-op */
+      });
+  }, []);
+
   const rowsRef = useRef(rows);
   const idxRef = useRef(selectedRowIdx);
   rowsRef.current = rows;
@@ -296,6 +321,10 @@ export function Omnibar({
         idx = idx < 0 ? list.length - 1 : Math.max(idx - 1, 0);
         idxRef.current = idx;
         setSelectedRowIdx(idx);
+      } else if (e.key === 'ArrowRight' && e.altKey) {
+        e.preventDefault();
+        const target = idx >= 0 && idx < list.length ? list[idx] : list[0];
+        if (target && target.activate.type === 'graph') expandGraphNeighbors(target);
       } else if (e.key === 'Enter') {
         e.preventDefault();
         const target = idx >= 0 && idx < list.length ? list[idx] : list[0];
@@ -304,7 +333,7 @@ export function Omnibar({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose, onSendToChat, activateRow, q]);
+  }, [open, onClose, onSendToChat, activateRow, expandGraphNeighbors, q]);
 
   if (!open) return null;
 
