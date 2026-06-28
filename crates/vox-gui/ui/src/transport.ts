@@ -7,7 +7,6 @@ import type {
   OpenOutcome,
   OrchestratorStatus,
   RoutingSummary,
-  GraphifyStatusDto,
 } from './types/tauri';
 import type { TaskRow } from './components/surfaces/Tasks/tasksHelpers';
 
@@ -632,9 +631,9 @@ export function listenActivityAppended(onAppend: () => void): Promise<UnlistenFn
   return listen<void>(ACTIVITY_APPENDED_EVENT, () => onAppend());
 }
 
-export async function getGraphifyStatus(): Promise<GraphifyStatusDto> {
-  return invoke<GraphifyStatusDto>('vox_graphify_status');
-}
+// `getGraphifyStatus` (direct `vox_graphify_status` Tauri command) retired in
+// T8 — the GUI now reads status through `useGraphifyStatus` →
+// `voxTransport.invokeMcpTool('vox_search_status')` (the shared MCP dispatch).
 
 export interface FeedbackRow {
   feedbackId: string;

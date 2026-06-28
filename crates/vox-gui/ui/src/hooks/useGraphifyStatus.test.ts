@@ -4,8 +4,14 @@ import { renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-const mockGet = vi.fn();
-vi.mock('../transport', () => ({ getGraphifyStatus: () => mockGet() }));
+// T8: the status read must flow through the shared MCP dispatch
+// (`voxTransport.invokeMcpTool('vox_search_status', …)`), NOT a separate
+// `vox_graphify_status` Tauri command. Mock the transport seam and assert
+// both the tool name and that the unwrapped payload reaches the hook.
+const mockInvokeMcpTool = vi.fn();
+vi.mock('../transport', () => ({
+  voxTransport: { invokeMcpTool: (...a: unknown[]) => mockInvokeMcpTool(...a) },
+}));
 
 import { useGraphifyStatus } from './useGraphifyStatus';
 
@@ -16,10 +22,19 @@ function wrapper({ children }: { children: React.ReactNode }) {
 
 describe('useGraphifyStatus', () => {
   beforeEach(() => vi.clearAllMocks());
-  it('fetches graphify status via transport', async () => {
-    mockGet.mockResolvedValue({ default_corpus_id: 'repo-code-graph', corpora: [] });
+
+  it('fetches status through the vox_search_status MCP dispatch', async () => {
+    // Daemon envelope: { success, data: { default_corpus_id, corpora } } under `.result`.
+    mockInvokeMcpTool.mockResolvedValue({
+      tool: 'vox_search_status',
+      is_error: false,
+      result: { success: true, data: { default_corpus_id: 'repo-code-graph', corpora: [] } },
+    });
+
     const { result } = renderHook(() => useGraphifyStatus(), { wrapper });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(mockInvokeMcpTool).toHaveBeenCalledWith('vox_search_status', {});
     expect(result.current.data?.default_corpus_id).toBe('repo-code-graph');
   });
 });
