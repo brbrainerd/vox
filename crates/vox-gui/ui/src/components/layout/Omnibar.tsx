@@ -113,6 +113,15 @@ export function Omnibar({
   const { mode: prefixMode, query: effectiveQ } = parsePaletteQuery(q);
   const backendSearchEnabled = open && prefixMode === 'default';
 
+  // Debounced copy of effectiveQ used ONLY to throttle the GRAPH discover MCP
+  // call so it does not fire an `invokeMcpTool` per keystroke. Local-only facets
+  // (federated/runtime/manifest) keep using effectiveQ directly — they are cheap.
+  const [debouncedQ, setDebouncedQ] = useState(effectiveQ);
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedQ(effectiveQ), 200);
+    return () => clearTimeout(id);
+  }, [effectiveQ]);
+
   const { state: searchState, setQuery: setSearchQuery } = useSearchController({
     enabled: backendSearchEnabled,
   });
@@ -169,13 +178,13 @@ export function Omnibar({
   // master-spec discover output (`result.results[]`) — see parseDiscoverResults.
   // Pre-VG-1 this resolves to honest empty/error (no graph-discover tool exists).
   useEffect(() => {
-    if (!open || !effectiveQ.trim()) {
+    if (!open || !debouncedQ.trim()) {
       setGraph({ rows: [], error: null });
       return;
     }
     let cancelled = false;
     voxTransport
-      .invokeMcpTool(GRAPH_DISCOVER_TOOL, { query: effectiveQ, limit: 6 })
+      .invokeMcpTool(GRAPH_DISCOVER_TOOL, { query: debouncedQ, limit: 6 })
       .then((res) => {
         if (cancelled) return;
         const r = res as { is_error?: boolean };
@@ -193,7 +202,7 @@ export function Omnibar({
     return () => {
       cancelled = true;
     };
-  }, [open, effectiveQ]);
+  }, [open, debouncedQ]);
 
   const facets = useMemo(() => {
     const base = buildOmnibarFacets({
@@ -209,7 +218,7 @@ export function Omnibar({
     // FACET_CAP would drop real commands — agents lead, then existing commands.
     return base.map((f) =>
       f.key === 'commands'
-        ? { ...f, rows: [...agentRows, ...f.rows].slice(0, agentRows.length + f.rows.length) }
+        ? { ...f, rows: [...agentRows, ...f.rows] }
         : f,
     );
   }, [effectiveQ, federated, backendHits, manifest, runtimeHits, graph, agentRows]);
@@ -269,6 +278,9 @@ export function Omnibar({
     // X2: vox_search_neighbors is the real neighbor primitive:
     // { corpus, node_ids, max_depth }. Gated behind a VG-1-owned constant so it
     // fails-soft pre-VG-1. Parse with the master-spec `result.results[]` shape.
+    // TODO(VG-1): pass `corpus` once the omnibar carries an active/seed corpus.
+    // The discover call (GRAPH_DISCOVER_TOOL) also omits corpus today and relies
+    // on the tool default; both should be threaded the same active corpus.
     voxTransport
       .invokeMcpTool(GRAPH_NEIGHBORS_TOOL, { node_ids: [seed.id], max_depth: 1 })
       .then((res) => {

@@ -137,6 +137,23 @@ describe('Omnibar', () => {
     await waitFor(() => expect(screen.queryByText('Approvals')).toBeNull());
   });
 
+  it('debounces the GRAPH discover MCP call — one fire per burst, not per keystroke', async () => {
+    renderOmnibar();
+    const input = screen.getByPlaceholderText(/search/i);
+    const discoverCalls = () =>
+      invokeMcpTool.mock.calls.filter((c) => c[0] === 'vox_graphify_query');
+    // Type a 4-char burst fast (well within the 200ms debounce window).
+    for (const v of ['z', 'zn', 'zno', 'znod']) {
+      fireEvent.change(input, { target: { value: v } });
+    }
+    // Wait for the debounce to settle and a discover call to land.
+    await waitFor(() => expect(discoverCalls().length).toBeGreaterThan(0));
+    // Debounced: the burst collapses to a SINGLE discover call for the final
+    // query — NOT one call per keystroke (which would be 4).
+    expect(discoverCalls().length).toBe(1);
+    expect(discoverCalls()[0][1]).toEqual({ query: 'znod', limit: 6 });
+  });
+
   it('Alt+ArrowRight expands graph neighbors of the selected node', async () => {
     // First call (discover, query lane) seeds the graph facet; second call
     // (neighbors lane) returns the expansion — both in master-spec `results` shape.
