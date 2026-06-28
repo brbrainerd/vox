@@ -167,7 +167,6 @@ vox-journal             = { layer = 2 }                          # append-only J
 vox-effort-audit        = { layer = 3, kind = "library", max_loc = 4_000 }
 vox-effort-route        = { layer = 3, kind = "library", max_loc = 4_000 }
 vox-eval                = { layer = 2 }
-vox-graph-reader        = { layer = 2 }
 vox-similarity          = { layer = 2, max_loc = 6_000 }          # L2 pure simhash/minhash/LSH; no async runtime deps
 vox-skill-discovery     = { layer = 3, kind = "binary", max_loc = 8_000 }  # L3 code-block miner + dedup (vox-discover bin)
 
