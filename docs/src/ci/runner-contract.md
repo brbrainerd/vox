@@ -170,6 +170,29 @@ For routing/telemetry/capability-policy changes, prefer narrow reruns before ful
 
 Use these focused lanes during iteration, then finish with `vox ci pre-push` (or CI lane equivalent) before merge.
 
+## Merge-queue break-glass (fleet outage)
+
+The `main-merge-queue` ruleset is active and serializes every merge through a `merge_group`
+`ci.yml` run. The sole required context is **`Check, Build, and Test (Rust)`** (the
+`ci-summary` aggregator, now on `ubuntu-latest` so the gate itself is fleet-independent),
+but its heavy `needs` (guards-fast/lints/compiler-gates/tests/audits) run on the self-hosted
+fleet. The admin bypass (`enforce_admins=false`) does NOT apply inside a required merge
+queue. If the fleet is down:
+
+1. **Preferred — the outage valve:** apply the **`fleet-down`** label to the PR.
+   [`ci-fallback-hosted.yml`](../../../.github/workflows/ci-fallback-hosted.yml) then runs
+   its `gate` job (named `"Check, Build, and Test (Rust)"`) on hosted infra and reports the
+   required context green; merge normally.
+2. **If the queue is wedged:** temporarily relax the ruleset —
+   `gh api repos/vox-foundation/vox/rulesets` to find the `main-merge-queue` id, then
+   `gh api -X PUT repos/vox-foundation/vox/rulesets/<id> -f enforcement=evaluate` — merge,
+   and restore `enforcement=active` afterward.
+3. Bring the fleet back (`vox ci runner-scale` / autoscaler), then remove the `fleet-down`
+   label so subsequent PRs use the full self-hosted gate again.
+
+A nightly `schedule:` on `ci-fallback-hosted.yml` keeps a recent portable green signal on
+`main` even during a multi-day outage.
+
 ## Workflow list
 
 See [workflow enumeration](workflow-enumeration.md).
