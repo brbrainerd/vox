@@ -10,16 +10,10 @@
 name: "CodeQL"
 
 on:
-  pull_request:
-    paths:
-      - 'crates/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - '.cargo/**'
-      - 'rust-toolchain.toml'
-      - '.config/hakari.toml'
-      - 'contracts/**'
-      - 'examples/golden/**'
+  # Off per-PR: CodeQL's Rust extractor is a ~60-min analysis and OOMs on large PR
+  # diff-ranges. Coverage retained via merge_group (pre-merge), push:main, and the
+  # weekly schedule — the per-PR critical path keeps its fast signal instead.
+  merge_group:
   push:
     branches: [main]
   schedule:
