@@ -198,4 +198,38 @@ jobs:
         let pr_only = "on:\n  pull_request:\njobs:\n  j:\n    runs-on: ubuntu-latest\n";
         assert!(!workflow_is_merge_group_only(pr_only));
     }
+
+    #[test]
+    fn strict_errors_on_unregistered_hosted_but_advisory_tolerates() {
+        let tmp = std::env::temp_dir().join(format!("rpc-strict-{}", std::process::id()));
+        let wf = tmp.join(".github/workflows");
+        std::fs::create_dir_all(&wf).unwrap();
+        std::fs::create_dir_all(tmp.join("docs/src/ci")).unwrap();
+        // Empty exceptions table — the rogue hosted workflow is unregistered.
+        std::fs::write(
+            tmp.join(EXCEPTIONS_DOC),
+            "| Workflow | Runner | Reason |\n|--|--|--|\n",
+        )
+        .unwrap();
+        std::fs::write(wf.join("rogue.yml"), "jobs:\n  j:\n    runs-on: ubuntu-latest\n").unwrap();
+        assert!(run(&tmp, false).is_ok(), "advisory mode must tolerate");
+        assert!(run(&tmp, true).is_err(), "strict mode must reject");
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    #[test]
+    fn strict_ok_when_registered() {
+        let tmp = std::env::temp_dir().join(format!("rpc-ok-{}", std::process::id()));
+        let wf = tmp.join(".github/workflows");
+        std::fs::create_dir_all(&wf).unwrap();
+        std::fs::create_dir_all(tmp.join("docs/src/ci")).unwrap();
+        std::fs::write(
+            tmp.join(EXCEPTIONS_DOC),
+            "| Workflow | Runner | Reason |\n|--|--|--|\n| `rogue.yml` | `ubuntu-latest` | test |\n",
+        )
+        .unwrap();
+        std::fs::write(wf.join("rogue.yml"), "jobs:\n  j:\n    runs-on: ubuntu-latest\n").unwrap();
+        assert!(run(&tmp, true).is_ok(), "strict must pass when registered");
+        std::fs::remove_dir_all(&tmp).ok();
+    }
 }

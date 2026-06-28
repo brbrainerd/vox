@@ -609,8 +609,15 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
         )
         .map_err(|e| anyhow::anyhow!(e))
     )?;
-    // Advisory: GitHub-hosted runner drift (default warn-only).
-    let _ = vox_cli_ci::runner_policy_check::run(root, false);
+    // ENFORCED on the CI side: an unregistered GitHub-hosted `runs-on` fails ssot-drift
+    // (and therefore CI). ssot-drift is reachable from the fast pre-push tier; that
+    // propagation is intentional and bounded. The standalone pre-push step
+    // (pre_push.rs step_runner_policy_check) stays ADVISORY so the gate is never
+    // silently bypassed by the known stale-binary `--no-verify` pattern.
+    ds!(
+        "runner_policy_check",
+        vox_cli_ci::runner_policy_check::run(root, true)
+    )?;
     println!("ssot-drift: nested SSOT guards OK");
     Ok(())
 }
