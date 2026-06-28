@@ -36,6 +36,7 @@ struct TauriConfigV2 {
     product_name: String,
     identifier: String,
     build: TauriBuild,
+    bundle: TauriBundle,
     app: TauriApp,
 }
 
@@ -43,6 +44,13 @@ struct TauriConfigV2 {
 #[serde(rename_all = "camelCase")]
 struct TauriBuild {
     frontend_dist: String,
+}
+
+// Empty icon list suppresses tauri-build's default icon file probing at
+// compile time (the proc macro panics if listed icons are missing).
+#[derive(Serialize)]
+struct TauriBundle {
+    icon: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -69,6 +77,7 @@ pub fn tauri_desktop_config_value(params: &TauriEmitParams<'_>) -> serde_json::V
         build: TauriBuild {
             frontend_dist: params.frontend_dist_relative.to_string(),
         },
+        bundle: TauriBundle { icon: vec![] },
         app: TauriApp {
             windows: vec![TauriWindow {
                 label: "main".to_string(),
