@@ -31,9 +31,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          linux='{"os":"ubuntu-latest","target":"x86_64-unknown-linux-gnu","sidecar_src":"target/x86_64-unknown-linux-gnu/release/vox","sidecar_dst":"target/x86_64-unknown-linux-gnu/release/vox-x86_64-unknown-linux-gnu"}'
-          win='{"os":"windows-latest","target":"x86_64-pc-windows-msvc","sidecar_src":"target/x86_64-pc-windows-msvc/release/vox.exe","sidecar_dst":"target/x86_64-pc-windows-msvc/release/vox-x86_64-pc-windows-msvc.exe"}'
-          mac='{"os":"macos-latest","target":"aarch64-apple-darwin","sidecar_src":"target/aarch64-apple-darwin/release/vox","sidecar_dst":"target/aarch64-apple-darwin/release/vox-aarch64-apple-darwin"}'
+          linux='{"os":"ubuntu-latest","target":"x86_64-unknown-linux-gnu","sidecar_src":"target/x86_64-unknown-linux-gnu/release/vox","sidecar_dst":"target/release/vox-x86_64-unknown-linux-gnu"}'
+          win='{"os":"windows-latest","target":"x86_64-pc-windows-msvc","sidecar_src":"target/x86_64-pc-windows-msvc/release/vox.exe","sidecar_dst":"target/release/vox-x86_64-pc-windows-msvc.exe"}'
+          mac='{"os":"macos-latest","target":"aarch64-apple-darwin","sidecar_src":"target/aarch64-apple-darwin/release/vox","sidecar_dst":"target/release/vox-aarch64-apple-darwin"}'
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             echo "include=[$linux]" >> "$GITHUB_OUTPUT"
           else
@@ -106,7 +106,9 @@ jobs:
 
       - name: Stage Tauri external sidecar (Unix)
         if: runner.os != 'Windows'
-        run: cp ${{ matrix.sidecar_src }} ${{ matrix.sidecar_dst }}
+        run: |
+          mkdir -p target/release
+          cp ${{ matrix.sidecar_src }} ${{ matrix.sidecar_dst }}
 
       - name: Build vox-gui (Tauri)
         run: cargo build -p vox-gui
