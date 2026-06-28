@@ -1062,114 +1062,6 @@
       "curated": true
     },
     {
-      "capability_id": "mcp.vox_graphify_compare",
-      "mcp_tool": "vox_graphify_compare",
-      "implicit": false,
-      "title": "Graphify Compare",
-      "description_model": "Diff two graphify corpus manifests for node/edge/community delta (read-only).",
-      "intent_tags": [
-        "retrieval",
-        "graph"
-      ],
-      "side_effect_class": "none",
-      "scope_kind": "repository",
-      "reversible": true,
-      "requires_repo": true,
-      "preferred_for_models": true,
-      "human_takeover_friendly": true,
-      "curated": true
-    },
-    {
-      "capability_id": "mcp.vox_graphify_path",
-      "mcp_tool": "vox_graphify_path",
-      "implicit": false,
-      "title": "Graphify Path",
-      "description_model": "Shortest path between two node IDs in a graphify corpus (read-only).",
-      "intent_tags": [
-        "retrieval",
-        "graph"
-      ],
-      "side_effect_class": "none",
-      "scope_kind": "repository",
-      "reversible": true,
-      "requires_repo": true,
-      "preferred_for_models": true,
-      "human_takeover_friendly": true,
-      "curated": true
-    },
-    {
-      "capability_id": "mcp.vox_graphify_query",
-      "mcp_tool": "vox_graphify_query",
-      "implicit": false,
-      "title": "Graphify Query",
-      "description_model": "BFS neighbor expansion from seed node IDs (read-only; layered navigation).",
-      "intent_tags": [
-        "retrieval",
-        "graph"
-      ],
-      "side_effect_class": "none",
-      "scope_kind": "repository",
-      "reversible": true,
-      "requires_repo": true,
-      "preferred_for_models": true,
-      "human_takeover_friendly": true,
-      "curated": true
-    },
-    {
-      "capability_id": "mcp.vox_graphify_rebuild",
-      "mcp_tool": "vox_graphify_rebuild",
-      "implicit": false,
-      "title": "Graphify Rebuild",
-      "description_model": "Rebuild a graphify corpus graph (AST extract + cluster), snapshot the prior graph, and refresh freshness manifest (write).",
-      "intent_tags": [
-        "retrieval",
-        "graph"
-      ],
-      "side_effect_class": "writes_files",
-      "scope_kind": "repository",
-      "reversible": true,
-      "requires_repo": true,
-      "preferred_for_models": true,
-      "human_takeover_friendly": true,
-      "curated": true
-    },
-    {
-      "capability_id": "mcp.vox_graphify_search",
-      "mcp_tool": "vox_graphify_search",
-      "implicit": false,
-      "title": "Graphify Search",
-      "description_model": "Lexically search a graphify corpus graph on disk (read-only).",
-      "intent_tags": [
-        "retrieval",
-        "graph"
-      ],
-      "side_effect_class": "none",
-      "scope_kind": "repository",
-      "reversible": true,
-      "requires_repo": true,
-      "preferred_for_models": true,
-      "human_takeover_friendly": true,
-      "curated": true
-    },
-    {
-      "capability_id": "mcp.vox_graphify_status",
-      "mcp_tool": "vox_graphify_status",
-      "implicit": false,
-      "title": "Graphify Status",
-      "description_model": "Report graphify corpus freshness (read-only; `--strict` fails when stale).",
-      "intent_tags": [
-        "retrieval",
-        "graph"
-      ],
-      "side_effect_class": "none",
-      "scope_kind": "repository",
-      "reversible": true,
-      "requires_repo": true,
-      "preferred_for_models": true,
-      "human_takeover_friendly": true,
-      "curated": true
-    },
-    {
       "capability_id": "mcp.vox_gui_components",
       "mcp_tool": "vox_gui_components",
       "implicit": false,
@@ -2408,6 +2300,114 @@
       "implicit": false,
       "title": "Scientia Worthiness Evaluate",
       "description_model": "Evaluate publication-worthiness.contract YAML (repo-relative or default) against WorthinessInputs metrics JSON; returns Publish / AskForEvidence / Abstain decision (no writes).",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_search_compare",
+      "mcp_tool": "vox_search_compare",
+      "implicit": false,
+      "title": "Vox Search Compare",
+      "description_model": "Diff two Vox Search structural-index manifests for node/edge/community delta (read-only).",
+      "intent_tags": [
+        "retrieval",
+        "graph"
+      ],
+      "side_effect_class": "none",
+      "scope_kind": "repository",
+      "reversible": true,
+      "requires_repo": true,
+      "preferred_for_models": true,
+      "human_takeover_friendly": true,
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_search_neighbors",
+      "mcp_tool": "vox_search_neighbors",
+      "implicit": false,
+      "title": "Vox Search Neighbors",
+      "description_model": "BFS neighbor expansion from seed node IDs (read-only; layered navigation).",
+      "intent_tags": [
+        "retrieval",
+        "graph"
+      ],
+      "side_effect_class": "none",
+      "scope_kind": "repository",
+      "reversible": true,
+      "requires_repo": true,
+      "preferred_for_models": true,
+      "human_takeover_friendly": true,
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_search_path",
+      "mcp_tool": "vox_search_path",
+      "implicit": false,
+      "title": "Vox Search Path",
+      "description_model": "Shortest path between two node IDs in the Vox Search structural index (read-only).",
+      "intent_tags": [
+        "retrieval",
+        "graph"
+      ],
+      "side_effect_class": "none",
+      "scope_kind": "repository",
+      "reversible": true,
+      "requires_repo": true,
+      "preferred_for_models": true,
+      "human_takeover_friendly": true,
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_search_rebuild",
+      "mcp_tool": "vox_search_rebuild",
+      "implicit": false,
+      "title": "Vox Search Rebuild",
+      "description_model": "Rebuild a Vox Search structural index (AST extract + cluster), snapshot the prior graph, and refresh freshness manifest (write).",
+      "intent_tags": [
+        "retrieval",
+        "graph"
+      ],
+      "side_effect_class": "writes_files",
+      "scope_kind": "repository",
+      "reversible": true,
+      "requires_repo": true,
+      "preferred_for_models": true,
+      "human_takeover_friendly": true,
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_search_status",
+      "mcp_tool": "vox_search_status",
+      "implicit": false,
+      "title": "Vox Search Status",
+      "description_model": "Report Vox Search structural-index freshness (read-only; `--strict` fails when stale).",
+      "intent_tags": [
+        "retrieval",
+        "graph"
+      ],
+      "side_effect_class": "none",
+      "scope_kind": "repository",
+      "reversible": true,
+      "requires_repo": true,
+      "preferred_for_models": true,
+      "human_takeover_friendly": true,
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_search_structural",
+      "mcp_tool": "vox_search_structural",
+      "implicit": false,
+      "title": "Vox Search Structural",
+      "description_model": "Lexically search the Vox Search structural index on disk (read-only).",
+      "intent_tags": [
+        "retrieval",
+        "graph"
+      ],
+      "side_effect_class": "none",
+      "scope_kind": "repository",
+      "reversible": true,
+      "requires_repo": true,
+      "preferred_for_models": true,
+      "human_takeover_friendly": true,
       "curated": true
     },
     {

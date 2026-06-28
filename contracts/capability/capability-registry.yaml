@@ -7191,114 +7191,6 @@ curated:
   mcp_tool: vox_git_status
   cli_path: null
   parameters: null
-- id: mcp.vox_graphify_compare
-  title: Graphify Compare
-  description_human: null
-  description_model: Diff two graphify corpus manifests for node/edge/community delta (read-only).
-  intent_tags:
-  - retrieval
-  - graph
-  side_effect_class: none
-  scope_kind: repository
-  reversible: true
-  requires_repo: true
-  requires_git: null
-  preferred_for_models: true
-  human_takeover_friendly: true
-  mens_planner_visible: null
-  mcp_tool: vox_graphify_compare
-  cli_path: null
-  parameters: null
-- id: mcp.vox_graphify_path
-  title: Graphify Path
-  description_human: null
-  description_model: Shortest path between two node IDs in a graphify corpus (read-only).
-  intent_tags:
-  - retrieval
-  - graph
-  side_effect_class: none
-  scope_kind: repository
-  reversible: true
-  requires_repo: true
-  requires_git: null
-  preferred_for_models: true
-  human_takeover_friendly: true
-  mens_planner_visible: null
-  mcp_tool: vox_graphify_path
-  cli_path: null
-  parameters: null
-- id: mcp.vox_graphify_query
-  title: Graphify Query
-  description_human: null
-  description_model: BFS neighbor expansion from seed node IDs (read-only; layered navigation).
-  intent_tags:
-  - retrieval
-  - graph
-  side_effect_class: none
-  scope_kind: repository
-  reversible: true
-  requires_repo: true
-  requires_git: null
-  preferred_for_models: true
-  human_takeover_friendly: true
-  mens_planner_visible: null
-  mcp_tool: vox_graphify_query
-  cli_path: null
-  parameters: null
-- id: mcp.vox_graphify_rebuild
-  title: Graphify Rebuild
-  description_human: null
-  description_model: Rebuild a graphify corpus graph (AST extract + cluster), snapshot the prior graph, and refresh freshness manifest (write).
-  intent_tags:
-  - retrieval
-  - graph
-  side_effect_class: writes_files
-  scope_kind: repository
-  reversible: true
-  requires_repo: true
-  requires_git: null
-  preferred_for_models: true
-  human_takeover_friendly: true
-  mens_planner_visible: null
-  mcp_tool: vox_graphify_rebuild
-  cli_path: null
-  parameters: null
-- id: mcp.vox_graphify_search
-  title: Graphify Search
-  description_human: null
-  description_model: Lexically search a graphify corpus graph on disk (read-only).
-  intent_tags:
-  - retrieval
-  - graph
-  side_effect_class: none
-  scope_kind: repository
-  reversible: true
-  requires_repo: true
-  requires_git: null
-  preferred_for_models: true
-  human_takeover_friendly: true
-  mens_planner_visible: null
-  mcp_tool: vox_graphify_search
-  cli_path: null
-  parameters: null
-- id: mcp.vox_graphify_status
-  title: Graphify Status
-  description_human: null
-  description_model: Report graphify corpus freshness (read-only; `--strict` fails when stale).
-  intent_tags:
-  - retrieval
-  - graph
-  side_effect_class: none
-  scope_kind: repository
-  reversible: true
-  requires_repo: true
-  requires_git: null
-  preferred_for_models: true
-  human_takeover_friendly: true
-  mens_planner_visible: null
-  mcp_tool: vox_graphify_status
-  cli_path: null
-  parameters: null
 - id: mcp.vox_gui_components
   title: GUI Component Registry
   description_human: null
@@ -9555,6 +9447,114 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_scientia_worthiness_evaluate
+  cli_path: null
+  parameters: null
+- id: mcp.vox_search_compare
+  title: Vox Search Compare
+  description_human: null
+  description_model: Diff two Vox Search structural-index manifests for node/edge/community delta (read-only).
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: vox_search_compare
+  cli_path: null
+  parameters: null
+- id: mcp.vox_search_neighbors
+  title: Vox Search Neighbors
+  description_human: null
+  description_model: BFS neighbor expansion from seed node IDs (read-only; layered navigation).
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: vox_search_neighbors
+  cli_path: null
+  parameters: null
+- id: mcp.vox_search_path
+  title: Vox Search Path
+  description_human: null
+  description_model: Shortest path between two node IDs in the Vox Search structural index (read-only).
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: vox_search_path
+  cli_path: null
+  parameters: null
+- id: mcp.vox_search_rebuild
+  title: Vox Search Rebuild
+  description_human: null
+  description_model: Rebuild a Vox Search structural index (AST extract + cluster), snapshot the prior graph, and refresh freshness manifest (write).
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: writes_files
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: vox_search_rebuild
+  cli_path: null
+  parameters: null
+- id: mcp.vox_search_status
+  title: Vox Search Status
+  description_human: null
+  description_model: Report Vox Search structural-index freshness (read-only; `--strict` fails when stale).
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: vox_search_status
+  cli_path: null
+  parameters: null
+- id: mcp.vox_search_structural
+  title: Vox Search Structural
+  description_human: null
+  description_model: Lexically search the Vox Search structural index on disk (read-only).
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: vox_search_structural
   cli_path: null
   parameters: null
 - id: mcp.vox_secrets_doctor
