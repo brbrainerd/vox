@@ -33,6 +33,9 @@ fn catalog_has_no_graphify_tool_prefix() {
         "vox_search_compare",
         "vox_search_rebuild",
     ] {
-        assert!(yaml.contains(&format!("name: {t}")), "missing renamed tool {t}");
+        assert!(
+            yaml.contains(&format!("name: {t}")),
+            "missing renamed tool {t}"
+        );
     }
 }

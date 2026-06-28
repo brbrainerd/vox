@@ -118,6 +118,116 @@ pub(crate) fn refresh_action(stale_reasons: &[String]) -> RefreshAction {
     }
 }
 
+/// Top-level subcommands of the feature-gated AI/ML groups (`mens`, `populi`,
+/// `oratio`) that are compiled out of a default (non-`mens`/`gpu`/`oratio`) binary
+/// and therefore absent from `build_catalog()`'s clap walk. Recovered by hand from
+/// the `vox-ml-cli` subcommand enums so the structural index sees the full CLI tree
+/// even in a default build:
+/// - `mens`   ← `PopuliAction`   (`commands/mens/populi/action_populi_enum.rs`)
+/// - `populi` ← `PopuliCli`      (`commands/populi_cli.rs`)
+/// - `oratio` ← `OratioAction`   (`commands/oratio_cmd.rs`)
+///
+/// Listing the leaf NAMES here (rather than importing the enums) avoids a
+/// `vox-cli → vox-ml-cli` build coupling in the default binary. The audit counts
+/// (PopuliAction≈22, PopuliCli≈18, OratioAction≈9) are the acceptance check; the
+/// `cli_catalog_json_includes_gated_*` test pins the group names + entry-count floor.
+const GATED_CLI_SUBCOMMANDS: &[(&str, &[&str])] = &[
+    (
+        "mens",
+        &[
+            "pipeline",
+            "train",
+            "dogfood",
+            "train-uv",
+            "serve",
+            "corpus",
+            "probe",
+            "status",
+            "watch-telemetry",
+            "models",
+            "merge-qlora",
+            "export-gguf",
+            "generate",
+            "review",
+            "workflow",
+            "check",
+            "fix",
+            "eval-local",
+        ],
+    ),
+    (
+        "populi",
+        &[
+            "init",
+            "up",
+            "down",
+            "status",
+            "registry-snapshot",
+            "serve",
+            "config",
+            "admin",
+            "node",
+            "dispatch",
+            "result",
+            "stats",
+            "pair",
+            "federation",
+            "corpus",
+            "identity",
+            "attest",
+            "join",
+        ],
+    ),
+    (
+        "oratio",
+        &[
+            "transcribe",
+            "listen",
+            "record-transcribe",
+            "doctor",
+            "status",
+            "eval",
+            "eval-history",
+            "subtitle",
+            "serve",
+        ],
+    ),
+];
+
+/// Serialize the clap command catalog to JSON for `cli:` ingest, substituting the
+/// gated-corrected `mens`/`populi`/`oratio` leaf rows so a default binary still
+/// emits the full leaf set. Consumed by `vox_graphify_reader::registry::cli_command_nodes`.
+pub fn cli_catalog_json() -> String {
+    use crate::command_catalog::{CatalogTier, CommandCatalog, CommandCatalogEntry, build_catalog};
+    let mut catalog: CommandCatalog = build_catalog();
+    // Index the leaf paths already present so synthetic rows never duplicate a
+    // compiled-in gated subcommand (honesty: don't double-count).
+    let existing: std::collections::HashSet<Vec<String>> =
+        catalog.entries.iter().map(|e| e.path.clone()).collect();
+    for (group, subs) in GATED_CLI_SUBCOMMANDS {
+        for sub in *subs {
+            let path = vec![(*group).to_string(), (*sub).to_string()];
+            if existing.contains(&path) {
+                continue;
+            }
+            catalog.entries.push(CommandCatalogEntry {
+                command: format!("vox {group} {sub}"),
+                about: "(feature-gated; recovered for structural ingest)".to_string(),
+                aliases: Vec::new(),
+                has_subcommands: false,
+                compiled_in: false,
+                source_group: (*group).to_string(),
+                feature_gate: Some((*group).to_string()),
+                path,
+                tier: CatalogTier::FeatureGated,
+                capability_id: None,
+                arguments: Vec::new(),
+            });
+        }
+    }
+    serde_json::to_string(&catalog).unwrap_or_else(|_| "{\"entries\":[]}".to_string())
+}
+
 fn resolve_head_sha() -> anyhow::Result<Option<String>> {
     // Route through vox_git read-only exec (honors the concurrency policy), not a
     // raw git subprocess — enforced by the arch-check raw-git-exec rule.
@@ -374,7 +484,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                 scope_path: corpus.scope_path.clone(),
                 extraction_mode: corpus.extraction_mode.clone(),
                 built_at_rfc3339: Utc::now().to_rfc3339(),
-                cli_catalog_json: None,
+                cli_catalog_json: Some(cli_catalog_json()),
             };
             // Preserve the previous graph as a bounded history before overwriting.
             if output_file.is_file() {
@@ -474,7 +584,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                 scope_path: corpus.scope_path.clone(),
                 extraction_mode: corpus.extraction_mode.clone(),
                 built_at_rfc3339: Utc::now().to_rfc3339(),
-                cli_catalog_json: None,
+                cli_catalog_json: Some(cli_catalog_json()),
             };
             println!("Indexing '{}' as corpus '{}'...", abs.display(), corpus_id);
             vox_graphify_reader::rebuild::rebuild_graph(
@@ -523,7 +633,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                             scope_path: c.scope_path.clone(),
                             extraction_mode: c.extraction_mode.clone(),
                             built_at_rfc3339: Utc::now().to_rfc3339(),
-                            cli_catalog_json: None,
+                            cli_catalog_json: Some(cli_catalog_json()),
                         };
                         vox_graphify_reader::rebuild::rebuild_graph(
                             repo_root,
