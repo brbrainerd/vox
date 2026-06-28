@@ -92,15 +92,15 @@ jobs:
           cargo nextest run -p vox-cli-core
           cargo nextest run -p vox-populi --lib
 
-      # Merge-queue depth (thorough but amortized): full clippy + full nextest run
-      # ONCE per merge batch, so hosted Windows (2x) / macOS (10x) minutes are not
-      # spent on every push to a PR.
-      - name: clippy (workspace, -D warnings) — merge_group only
-        if: github.event_name == 'merge_group'
+      # Full depth (thorough but amortized): full clippy + full nextest run on
+      # merge_group (once per merge batch) AND on the weekly schedule (the true
+      # full Win/macOS sweep) — not on every PR push.
+      - name: clippy (workspace, -D warnings) — merge_group + weekly
+        if: github.event_name == 'merge_group' || github.event_name == 'schedule'
         run: cargo clippy --workspace --exclude vox-gui --target ${{ matrix.target }} -- -D warnings
 
-      - name: nextest (workspace) — merge_group only
-        if: github.event_name == 'merge_group'
+      - name: nextest (workspace) — merge_group + weekly
+        if: github.event_name == 'merge_group' || github.event_name == 'schedule'
         run: cargo nextest run --workspace --exclude vox-gui
 
       - name: sccache stats

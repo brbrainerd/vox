@@ -22,7 +22,8 @@ jobs:
   # and their per-PR cost buys little over the Linux compile.
   matrix-setup:
     name: Compute GUI matrix (Win/macOS off per-PR)
-    runs-on: ubuntu-latest
+    # Pure-bash compute job — runs on the local fleet per local-first policy.
+    runs-on: [self-hosted, linux, x64]
     outputs:
       include: ${{ steps.gen.outputs.include }}
     steps:

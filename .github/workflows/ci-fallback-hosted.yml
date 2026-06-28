@@ -21,7 +21,14 @@ on:
   schedule:
     - cron: '0 6 * * *'   # Nightly hosted mirror — recent portable green signal on main
   pull_request:
-    types: [labeled, synchronize, reopened]
+    # `unlabeled` so removing `fleet-down` re-fires the workflow (the gate then skips,
+    # leaving the required context to ci.yml's ci-summary). NOTE: a skipped job cannot
+    # clear a previously-posted green status, so after removing the label either push a
+    # commit (fires `synchronize` → ci-summary re-posts) or use the ruleset-relax in the
+    # break-glass runbook. We deliberately do NOT auto-post a failing status here: this
+    # job shares the `Check, Build, and Test (Rust)` context name with ci-summary, and a
+    # red duplicate on normal PRs would conflict with ci-summary's green.
+    types: [labeled, unlabeled, synchronize, reopened]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
