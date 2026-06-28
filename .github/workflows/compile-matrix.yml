@@ -37,6 +37,12 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Install system deps (dbus, required by wry/keyring on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
+      # The desktop Tauri-generation smoke shells out to `cargo tauri build`; the
+      # self-hosted image does not ship the tauri CLI. Install the prebuilt binary.
+      - name: Install tauri-cli (for desktop Tauri smoke)
+        uses: taiki-e/install-action@v2
+        with:
+          tool: tauri-cli
       - run: cargo build -p vox-cli
       - run: cargo run -p vox-cli ci compile-matrix
       - name: Compile suite workspace native-binary smoke
