@@ -19,6 +19,7 @@ pub mod coverage;
 pub mod crate_model;
 pub mod gc;
 pub mod lens;
+pub mod manifest;
 pub mod overlay;
 pub mod reachability;
 pub mod rebuild;
