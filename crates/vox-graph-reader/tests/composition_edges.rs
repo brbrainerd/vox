@@ -1,6 +1,6 @@
 #![cfg(feature = "tree-sitter-grammars")]
 use std::path::Path;
-use vox_graphify_reader::ast::extract_ast_in_module;
+use vox_graph_reader::ast::extract_ast_in_module;
 
 #[test]
 fn jsx_usage_emits_composition_edge() {

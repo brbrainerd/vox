@@ -125,9 +125,7 @@ pub fn compute_coverage(graph: &Value, kind: &str) -> CoverageReport {
                 CoverageStatus::CliOnly
             }
         } else {
-            let has_caller = links
-                .iter()
-                .any(|l| str_field(l, "target") == Some(id));
+            let has_caller = links.iter().any(|l| str_field(l, "target") == Some(id));
             if has_caller {
                 CoverageStatus::Surfaced
             } else {
@@ -147,7 +145,7 @@ pub fn compute_coverage(graph: &Value, kind: &str) -> CoverageReport {
 
 #[cfg(test)]
 mod tests {
-    use super::{compute_coverage, CoverageStatus};
+    use super::{CoverageStatus, compute_coverage};
     use serde_json::json;
 
     #[test]
@@ -161,7 +159,14 @@ mod tests {
             {"source":"S::go","target":"cmd:wired","confidence":"declared"},
             {"source":"S::go","target":"cmd:gone","confidence":"dangling"}]});
         let r = compute_coverage(&g, "command");
-        let f = |id: &str| r.entries.iter().find(|e| e.id == id).unwrap().status.clone();
+        let f = |id: &str| {
+            r.entries
+                .iter()
+                .find(|e| e.id == id)
+                .unwrap()
+                .status
+                .clone()
+        };
         assert_eq!(f("cmd:wired"), CoverageStatus::Surfaced);
         assert_eq!(f("cmd:orphan"), CoverageStatus::OrphanBackend);
         assert_eq!(f("cmd:gone"), CoverageStatus::DeadEnd);

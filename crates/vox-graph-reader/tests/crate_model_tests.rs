@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use vox_graphify_reader::crate_model::crate_metrics;
+use vox_graph_reader::crate_model::crate_metrics;
 
 #[test]
 fn crate_metrics_count_and_seconds() {
@@ -35,7 +35,7 @@ fn crate_metrics_handles_cycles() {
 }
 
 use serde_json::json;
-use vox_graphify_reader::crate_model::build_crate_map;
+use vox_graph_reader::crate_model::build_crate_map;
 
 #[test]
 fn build_crate_map_is_complete_and_deterministic() {

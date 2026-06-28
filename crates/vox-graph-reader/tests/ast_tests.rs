@@ -1,5 +1,5 @@
 use std::path::Path;
-use vox_graphify_reader::ast::extract_ast;
+use vox_graph_reader::ast::extract_ast;
 
 #[test]
 fn test_rust_syn_extraction() {
@@ -18,7 +18,7 @@ fn test_rust_syn_extraction() {
 
 #[test]
 fn edges_default_to_resolved_confidence() {
-    use vox_graphify_reader::ast::extract_ast_in_module;
+    use vox_graph_reader::ast::extract_ast_in_module;
     let g = extract_ast_in_module(
         std::path::Path::new("m.rs"),
         "fn a(){ b(); }\nfn b(){}",

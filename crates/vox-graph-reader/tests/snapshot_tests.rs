@@ -1,5 +1,5 @@
 use std::fs;
-use vox_graphify_reader::snapshot::{list_snapshots, prune_snapshots, snapshot_corpus};
+use vox_graph_reader::snapshot::{list_snapshots, prune_snapshots, snapshot_corpus};
 
 fn seed(dir: &std::path::Path) {
     fs::create_dir_all(dir).unwrap();

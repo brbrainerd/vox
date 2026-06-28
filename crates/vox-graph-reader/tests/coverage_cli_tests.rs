@@ -5,7 +5,7 @@
 //! when its joined impl is itself reached by a `surface:` node.
 
 use serde_json::json;
-use vox_graphify_reader::coverage::{CoverageStatus, compute_coverage};
+use vox_graph_reader::coverage::{CoverageStatus, compute_coverage};
 
 #[test]
 fn cli_only_command_classified_cli_only() {

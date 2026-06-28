@@ -1,5 +1,5 @@
 use std::fs;
-use vox_graphify_reader::rebuild::{RebuildMeta, rebuild_graph};
+use vox_graph_reader::rebuild::{RebuildMeta, rebuild_graph};
 
 fn read_graph(path: &std::path::Path) -> serde_json::Value {
     serde_json::from_str(&fs::read_to_string(path).unwrap()).unwrap()
@@ -159,9 +159,9 @@ fn modules_mode_produces_module_graph() {
 
 #[test]
 fn graph_digest_is_stable_and_distinct() {
-    let a = vox_graphify_reader::graph_digest(b"{\"nodes\":[]}");
-    let b = vox_graphify_reader::graph_digest(b"{\"nodes\":[]}");
-    let c = vox_graphify_reader::graph_digest(b"{\"nodes\":[{}]}");
+    let a = vox_graph_reader::graph_digest(b"{\"nodes\":[]}");
+    let b = vox_graph_reader::graph_digest(b"{\"nodes\":[]}");
+    let c = vox_graph_reader::graph_digest(b"{\"nodes\":[{}]}");
     assert_eq!(a, b);
     assert_ne!(a, c);
     assert!(a.len() >= 32);
@@ -176,10 +176,22 @@ fn tsx_files_contribute_nodes() {
     std::fs::write(src.join("C.tsx"), "function Widget(){ return null; }").unwrap();
     let out = tmp.path().join("out/graph.json");
     let cache = tmp.path().join("out/file_cache");
-    let meta = RebuildMeta { corpus_id: "t".into(), git_sha: None, scope_path: "src".into(),
-        extraction_mode: Some("structural".into()), built_at_rfc3339: "2026-06-26T00:00:00+00:00".into(),
-        cli_catalog_json: None };
+    let meta = RebuildMeta {
+        corpus_id: "t".into(),
+        git_sha: None,
+        scope_path: "src".into(),
+        extraction_mode: Some("structural".into()),
+        built_at_rfc3339: "2026-06-26T00:00:00+00:00".into(),
+        cli_catalog_json: None,
+    };
     rebuild_graph(tmp.path(), &src, &out, &cache, &meta).unwrap();
     let g: serde_json::Value = serde_json::from_slice(&std::fs::read(&out).unwrap()).unwrap();
-    assert!(g["nodes"].as_array().unwrap().iter().any(|n| n["label"] == "Widget"), "tsx not walked");
+    assert!(
+        g["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|n| n["label"] == "Widget"),
+        "tsx not walked"
+    );
 }

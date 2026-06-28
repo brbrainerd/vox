@@ -1,6 +1,6 @@
 //! Integration tests for vox-graphify-reader (BFS, path, compare).
 
-use vox_graphify_reader::{GraphifyReader, GraphifyReaderError};
+use vox_graph_reader::{GraphifyReader, GraphifyReaderError};
 
 fn three_node_graph() -> serde_json::Value {
     serde_json::json!({
@@ -128,7 +128,7 @@ fn community_members_unknown_community_returns_empty() {
 
 #[test]
 fn compare_diff_manifests_computes_deltas() {
-    use vox_graphify_reader::compare::{ManifestSummary, diff_manifests};
+    use vox_graph_reader::compare::{ManifestSummary, diff_manifests};
     let old = ManifestSummary {
         node_count: 100,
         edge_count: 50,
@@ -147,7 +147,7 @@ fn compare_diff_manifests_computes_deltas() {
 
 #[test]
 fn compare_negative_delta_when_graph_shrinks() {
-    use vox_graphify_reader::compare::{ManifestSummary, diff_manifests};
+    use vox_graph_reader::compare::{ManifestSummary, diff_manifests};
     let old = ManifestSummary {
         node_count: 200,
         edge_count: 100,

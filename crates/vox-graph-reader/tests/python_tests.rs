@@ -1,6 +1,6 @@
 #![cfg(feature = "tree-sitter-grammars")]
 use std::path::Path;
-use vox_graphify_reader::ast::extract_ast_in_module;
+use vox_graph_reader::ast::extract_ast_in_module;
 
 #[test]
 fn extracts_python_functions_classes_and_calls() {

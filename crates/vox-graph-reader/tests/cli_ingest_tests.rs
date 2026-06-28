@@ -1,4 +1,4 @@
-use vox_graphify_reader::registry::cli_command_nodes;
+use vox_graph_reader::registry::cli_command_nodes;
 
 const CATALOG_JSON: &str = r#"{
   "entries": [
@@ -12,7 +12,10 @@ const CATALOG_JSON: &str = r#"{
 fn cli_nodes_have_group_scoped_ids_and_skip_top_level_groups() {
     let nodes = cli_command_nodes(CATALOG_JSON);
     let ids: Vec<&str> = nodes.iter().map(|n| n.id.as_str()).collect();
-    assert!(ids.contains(&"cli:ci:lint"), "expected cli:ci:lint, got {ids:?}");
+    assert!(
+        ids.contains(&"cli:ci:lint"),
+        "expected cli:ci:lint, got {ids:?}"
+    );
     assert!(ids.contains(&"cli:db:query"));
     // Top-level group with no subcommand (len==1) is the group node, not a leaf.
     assert!(!ids.iter().any(|i| *i == "cli:search:search"));
@@ -34,17 +37,13 @@ fn malformed_json_yields_empty_not_panic() {
 #[cfg(feature = "tree-sitter-grammars")]
 #[test]
 fn cli_leaf_joins_to_same_named_command() {
-    use vox_graphify_reader::rebuild::{RebuildMeta, rebuild_graph};
+    use vox_graph_reader::rebuild::{RebuildMeta, rebuild_graph};
 
     let tmp = std::env::temp_dir().join(format!("vox-cli-join-{}", std::process::id()));
     let gui = tmp.join("crates/vox-gui");
     std::fs::create_dir_all(gui.join("ui/src")).unwrap();
     std::fs::create_dir_all(gui.join("src/commands")).unwrap();
-    std::fs::write(
-        gui.join("ui/src/S.tsx"),
-        "function go(){ invoke('lint'); }",
-    )
-    .unwrap();
+    std::fs::write(gui.join("ui/src/S.tsx"), "function go(){ invoke('lint'); }").unwrap();
     std::fs::write(
         gui.join("src/commands/x.rs"),
         "#[tauri::command]\npub fn lint() {}\n",

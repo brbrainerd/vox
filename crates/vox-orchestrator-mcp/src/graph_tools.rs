@@ -3,7 +3,7 @@
 use chrono::Utc;
 use serde::Deserialize;
 use std::fs;
-use vox_graphify_reader;
+use vox_graph_reader;
 
 use crate::git_exec::{GitExec, GitExecError};
 use crate::params::ToolResult;
@@ -408,7 +408,7 @@ pub async fn graphify_query(state: &ServerState, params: GraphifyQueryParams) ->
                 .to_json();
         }
     };
-    let reader = match vox_graphify_reader::GraphifyReader::from_value(graph) {
+    let reader = match vox_graph_reader::GraphifyReader::from_value(graph) {
         Ok(r) => r,
         Err(e) => {
             return ToolResult::<serde_json::Value>::err_with_remediation(
@@ -475,7 +475,7 @@ pub async fn graphify_path(state: &ServerState, params: GraphifyPathParams) -> S
                 .to_json();
         }
     };
-    let reader = match vox_graphify_reader::GraphifyReader::from_value(graph) {
+    let reader = match vox_graph_reader::GraphifyReader::from_value(graph) {
         Ok(r) => r,
         Err(e) => {
             return ToolResult::<serde_json::Value>::err_with_remediation(
@@ -538,17 +538,17 @@ pub async fn graphify_compare(state: &ServerState, params: GraphifyCompareParams
     let head = resolve_head_sha(state).await;
     let status_a = assess_corpus_status(repo_root, corpus_a, head.as_deref(), now, ttl);
     let status_b = assess_corpus_status(repo_root, corpus_b, head.as_deref(), now, ttl);
-    let summary_a = vox_graphify_reader::compare::ManifestSummary {
+    let summary_a = vox_graph_reader::compare::ManifestSummary {
         node_count: status_a.node_count.unwrap_or(0),
         edge_count: status_a.edge_count.unwrap_or(0),
         community_count: 0, // not in CorpusStatus; reserved for future manifest field
     };
-    let summary_b = vox_graphify_reader::compare::ManifestSummary {
+    let summary_b = vox_graph_reader::compare::ManifestSummary {
         node_count: status_b.node_count.unwrap_or(0),
         edge_count: status_b.edge_count.unwrap_or(0),
         community_count: 0,
     };
-    let diff = vox_graphify_reader::compare::diff_manifests(&summary_a, &summary_b);
+    let diff = vox_graph_reader::compare::diff_manifests(&summary_a, &summary_b);
     ToolResult::ok(serde_json::json!({
         "corpus_a": {
             "id": params.corpus_a,
@@ -630,7 +630,7 @@ pub async fn graphify_rebuild(state: &ServerState, params: GraphifyRebuildParams
 
     let head = resolve_head_sha(state).await;
     let built_at = Utc::now().to_rfc3339();
-    let meta = vox_graphify_reader::rebuild::RebuildMeta {
+    let meta = vox_graph_reader::rebuild::RebuildMeta {
         corpus_id: corpus_id.clone(),
         git_sha: head,
         scope_path: corpus.scope_path.clone(),
@@ -643,12 +643,12 @@ pub async fn graphify_rebuild(state: &ServerState, params: GraphifyRebuildParams
     if output_file.is_file() {
         if let Some(corpus_dir) = output_file.parent() {
             let stamp = Utc::now().to_rfc3339().replace(':', "-");
-            let _ = vox_graphify_reader::snapshot::snapshot_corpus(corpus_dir, &stamp);
-            let _ = vox_graphify_reader::snapshot::prune_snapshots(corpus_dir, 5);
+            let _ = vox_graph_reader::snapshot::snapshot_corpus(corpus_dir, &stamp);
+            let _ = vox_graph_reader::snapshot::prune_snapshots(corpus_dir, 5);
         }
     }
 
-    if let Err(e) = vox_graphify_reader::rebuild::rebuild_graph(
+    if let Err(e) = vox_graph_reader::rebuild::rebuild_graph(
         repo_root,
         &source_dir,
         &output_file,

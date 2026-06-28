@@ -1,4 +1,4 @@
-use vox_graphify_reader::registry::{tauri_command_nodes, RegistryNode};
+use vox_graph_reader::registry::{RegistryNode, tauri_command_nodes};
 
 #[test]
 fn extracts_tauri_commands_and_flags_unregistered() {
@@ -26,20 +26,25 @@ fn registry_node_fields_are_public() {
 
 #[test]
 fn extracts_tools_and_surfaces_viewkey() {
-    use vox_graphify_reader::registry::{mcp_tool_nodes, surface_nodes};
+    use vox_graph_reader::registry::{mcp_tool_nodes, surface_nodes};
     let dispatch = "  \"vox_resolve_feedback\" => f::r(a),\n  \"vox_skill_info\" => s::i(a),";
-    assert!(mcp_tool_nodes(dispatch)
-        .iter()
-        .any(|n| n.id == "tool:vox_resolve_feedback" && n.kind == "tool"));
+    assert!(
+        mcp_tool_nodes(dispatch)
+            .iter()
+            .any(|n| n.id == "tool:vox_resolve_feedback" && n.kind == "tool")
+    );
     let reg = "{ viewKey: 'chat', cliGroup: null, tier: 'live_backend' },\n  { viewKey: null, cliGroup: 'add', tier: 'none' },";
     let s = surface_nodes(reg);
     assert!(s.iter().any(|n| n.id == "surface:chat"));
-    assert!(!s.iter().any(|n| n.label == "null"), "null viewKey must be skipped");
+    assert!(
+        !s.iter().any(|n| n.label == "null"),
+        "null viewKey must be skipped"
+    );
 }
 
 #[test]
 fn maps_wrapper_methods_to_commands() {
-    use vox_graphify_reader::registry::transport_wrapper_map;
+    use vox_graph_reader::registry::transport_wrapper_map;
     let ts = "doubtTask(taskId: number){ return invoke('doubt_orchestrator_task', { taskId }); }\n  getCatalog(){ return invoke('get_command_catalog'); }";
     let m = transport_wrapper_map(ts);
     assert_eq!(
@@ -54,7 +59,7 @@ fn maps_wrapper_methods_to_commands() {
 
 #[test]
 fn maps_wrapper_methods_to_tools() {
-    use vox_graphify_reader::registry::transport_wrapper_map;
+    use vox_graph_reader::registry::transport_wrapper_map;
     let ts = "feedbackList(){ return invoke('invoke_mcp_tool', { tool: 'vox_feedback_list', args: {} }); }";
     let m = transport_wrapper_map(ts);
     assert_eq!(
@@ -66,12 +71,12 @@ fn maps_wrapper_methods_to_tools() {
 #[test]
 fn real_transport_yields_sane_wrapper_map() {
     use std::path::PathBuf;
-    use vox_graphify_reader::registry::transport_wrapper_map;
+    use vox_graph_reader::registry::transport_wrapper_map;
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("..")
         .join("..");
-    let ts_src =
-        std::fs::read_to_string(root.join("crates/vox-gui/ui/src/transport.ts")).expect("read transport.ts");
+    let ts_src = std::fs::read_to_string(root.join("crates/vox-gui/ui/src/transport.ts"))
+        .expect("read transport.ts");
     let m = transport_wrapper_map(&ts_src);
     assert!(m.len() >= 20, "under-extracted wrappers: {}", m.len());
 }
@@ -79,7 +84,7 @@ fn real_transport_yields_sane_wrapper_map() {
 #[test]
 fn real_files_yield_sane_counts() {
     use std::path::PathBuf;
-    use vox_graphify_reader::registry::{mcp_tool_nodes, surface_nodes};
+    use vox_graph_reader::registry::{mcp_tool_nodes, surface_nodes};
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("..")
         .join("..");

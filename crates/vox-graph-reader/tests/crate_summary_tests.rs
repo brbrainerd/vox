@@ -1,6 +1,6 @@
 use serde_json::json;
 use std::collections::HashMap;
-use vox_graphify_reader::crate_model::build_crate_summary;
+use vox_graph_reader::crate_model::build_crate_summary;
 
 fn compile_times(entries: &[(&str, f64)]) -> HashMap<String, f64> {
     entries.iter().map(|(k, v)| (k.to_string(), *v)).collect()

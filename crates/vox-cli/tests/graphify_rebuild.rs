@@ -11,12 +11,12 @@ fn test_cli_graphify_rebuild_success() {
     let output_file = tmp.path().join("graph.json");
     let cache_dir = tmp.path().join("cache");
 
-    let res = vox_graphify_reader::rebuild::rebuild_graph(
+    let res = vox_graph_reader::rebuild::rebuild_graph(
         tmp.path(),
         &src,
         &output_file,
         &cache_dir,
-        &vox_graphify_reader::rebuild::RebuildMeta::default(),
+        &vox_graph_reader::rebuild::RebuildMeta::default(),
     );
 
     assert!(res.is_ok());
@@ -29,7 +29,7 @@ fn test_cli_graphify_rebuild_success() {
 fn rebuild_then_assess_is_fresh_and_detects_drift() {
     use chrono::Utc;
     use vox_config::graphify::{GraphifyCorpus, assess_corpus_status};
-    use vox_graphify_reader::rebuild::{RebuildMeta, rebuild_graph};
+    use vox_graph_reader::rebuild::{RebuildMeta, rebuild_graph};
 
     let tmp = tempfile::tempdir().unwrap();
     let src = tmp.path().join("src");

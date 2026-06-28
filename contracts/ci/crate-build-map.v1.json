@@ -249,7 +249,7 @@
       "fan_in": 5
     },
     {
-      "crate": "vox-graphify-reader",
+      "crate": "vox-graph-reader",
       "compile_s": 0.0,
       "dependents": 6,
       "blast_s": 128.0,

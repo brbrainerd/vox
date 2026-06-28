@@ -192,9 +192,7 @@ pub fn extract_ast_in_module_with_wrappers(
                                 );
                                 if is_jsx {
                                     if let Some(ref source_fn) = current_fn {
-                                        if let Some(name_node) =
-                                            node.child_by_field_name("name")
-                                        {
+                                        if let Some(name_node) = node.child_by_field_name("name") {
                                             if let Ok(name) =
                                                 name_node.utf8_text(content.as_bytes())
                                             {
@@ -221,14 +219,15 @@ pub fn extract_ast_in_module_with_wrappers(
                                             if let Ok(callee) =
                                                 function_node.utf8_text(content.as_bytes())
                                             {
-                                                let bare = callee.rsplit('.').next().unwrap_or(callee);
+                                                let bare =
+                                                    callee.rsplit('.').next().unwrap_or(callee);
                                                 let args = node.child_by_field_name("arguments");
                                                 if BOUNDARY_CALLEES.contains(&bare) {
                                                     // invoke('cmd') / callTool('cmd'); special-case
                                                     // invoke('invoke_mcp_tool', { tool: '...' }).
-                                                    if let Some(arg0) = args
-                                                        .and_then(|a| arg_string_literal(a, 0, content))
-                                                    {
+                                                    if let Some(arg0) = args.and_then(|a| {
+                                                        arg_string_literal(a, 0, content)
+                                                    }) {
                                                         if arg0 == "invoke_mcp_tool" {
                                                             if let Some(tool) = args.and_then(|a| {
                                                                 arg_object_string_field(

@@ -1,4 +1,4 @@
-use vox_graphify_reader::cluster::{ClusterEdge, ClusterNode, cluster_nodes};
+use vox_graph_reader::cluster::{ClusterEdge, ClusterNode, cluster_nodes};
 
 #[test]
 fn cluster_nodes_is_deterministic() {

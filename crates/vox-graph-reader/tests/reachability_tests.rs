@@ -1,5 +1,5 @@
 use serde_json::json;
-use vox_graphify_reader::reachability::ingest_lcov_reachability;
+use vox_graph_reader::reachability::ingest_lcov_reachability;
 
 #[test]
 fn test_lcov_reachability_ingest() {

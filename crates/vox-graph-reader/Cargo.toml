@@ -1,9 +1,9 @@
 [package]
-name = "vox-graphify-reader"
+name = "vox-graph-reader"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Read-only BFS traversal, path-finding, and cross-manifest comparison for Graphify graph.json exports"
+description = "Read-only BFS traversal, path-finding, and cross-manifest comparison for Vox Graph graph.json exports"
 
 [dependencies]
 serde_json = { workspace = true }

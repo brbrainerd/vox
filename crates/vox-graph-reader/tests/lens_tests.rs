@@ -1,5 +1,5 @@
 use serde_json::json;
-use vox_graphify_reader::lens::collapse_to_modules;
+use vox_graph_reader::lens::collapse_to_modules;
 
 #[test]
 fn collapses_to_modules_with_weighted_edges() {

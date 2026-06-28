@@ -69,7 +69,7 @@ vox-db.workspace = true
 vox-scientia.workspace = true
 vox-search = { workspace = true }  # tantivy/web-scrape gated graph-wide via vox-cli heavy-retrieval (WS2-T3)
 vox-config.workspace = true
-vox-graphify-reader.workspace = true
+vox-graph-reader.workspace = true
 vox-repository = { workspace = true, features = ["json-schema"] }
 vox-package.workspace = true
 vox-gamify.workspace = true

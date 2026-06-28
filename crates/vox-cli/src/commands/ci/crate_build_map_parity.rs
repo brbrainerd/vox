@@ -90,7 +90,7 @@ pub fn run_crate_build_map_parity(root: &Path) -> Result<()> {
     }
 
     let recomputed =
-        vox_graphify_reader::crate_model::build_crate_summary(&crate_graph, &compile_times);
+        vox_graph_reader::crate_model::build_crate_summary(&crate_graph, &compile_times);
     let drift = diff_summaries(&committed, &recomputed);
 
     if drift.is_empty() {

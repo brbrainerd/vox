@@ -6,7 +6,10 @@ fn dispatch_routes_vox_search_keys_not_graphify() {
     let dispatch = include_str!("../src/dispatch.rs");
     let schemas = include_str!("../src/input_schemas.rs");
     for s in [dispatch, schemas] {
-        assert!(!s.contains("\"vox_graphify_"), "old vox_graphify_ key still present");
+        assert!(
+            !s.contains("\"vox_graphify_"),
+            "old vox_graphify_ key still present"
+        );
     }
     for k in [
         "\"vox_search_status\"",

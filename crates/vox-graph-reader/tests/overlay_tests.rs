@@ -1,5 +1,5 @@
 use serde_json::json;
-use vox_graphify_reader::overlay::overlay_test_targets;
+use vox_graph_reader::overlay::overlay_test_targets;
 
 #[test]
 fn test_static_overlay_targeting() {

@@ -625,22 +625,22 @@ async fn handle_tool_call_inner(
             Ok(crate::agy_pipeline::vox_agy_ledger_digest(state, args).await)
         }
         "vox_search_status" => {
-            Ok(crate::graphify_tools::graphify_status(state, serde_json::from_value(args)?).await)
+            Ok(crate::graph_tools::graphify_status(state, serde_json::from_value(args)?).await)
         }
         "vox_search_structural" => {
-            Ok(crate::graphify_tools::graphify_search(state, serde_json::from_value(args)?).await)
+            Ok(crate::graph_tools::graphify_search(state, serde_json::from_value(args)?).await)
         }
         "vox_search_neighbors" => {
-            Ok(crate::graphify_tools::graphify_query(state, serde_json::from_value(args)?).await)
+            Ok(crate::graph_tools::graphify_query(state, serde_json::from_value(args)?).await)
         }
         "vox_search_path" => {
-            Ok(crate::graphify_tools::graphify_path(state, serde_json::from_value(args)?).await)
+            Ok(crate::graph_tools::graphify_path(state, serde_json::from_value(args)?).await)
         }
         "vox_search_compare" => {
-            Ok(crate::graphify_tools::graphify_compare(state, serde_json::from_value(args)?).await)
+            Ok(crate::graph_tools::graphify_compare(state, serde_json::from_value(args)?).await)
         }
         "vox_search_rebuild" => {
-            Ok(crate::graphify_tools::graphify_rebuild(state, serde_json::from_value(args)?).await)
+            Ok(crate::graph_tools::graphify_rebuild(state, serde_json::from_value(args)?).await)
         }
         "vox_project_init" => Ok(project_init_tools::project_init(state, args).await),
         "vox_repo_catalog_list" => Ok(repo_catalog_tools::repo_catalog_list(state).await),

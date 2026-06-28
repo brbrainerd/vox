@@ -1,7 +1,7 @@
 use std::path::Path;
 use tempfile::tempdir;
-use vox_graphify_reader::ast::{ExtractedGraph, ExtractedNode};
-use vox_graphify_reader::cache::CacheManager;
+use vox_graph_reader::ast::{ExtractedGraph, ExtractedNode};
+use vox_graph_reader::cache::CacheManager;
 
 #[test]
 fn test_cache_management_cycle() {

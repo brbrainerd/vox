@@ -1,4 +1,4 @@
-use vox_graphify_reader::gc::{Retention, pick_lens, retention_decision, value_score};
+use vox_graph_reader::gc::{Retention, pick_lens, retention_decision, value_score};
 
 #[test]
 fn value_score_rewards_usage_and_recency() {

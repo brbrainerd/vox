@@ -1,8 +1,8 @@
 #![cfg(feature = "tree-sitter-grammars")]
 use std::collections::HashMap;
 use std::path::Path;
-use vox_graphify_reader::ast::extract_ast_in_module_with_wrappers;
-use vox_graphify_reader::rebuild::{RebuildMeta, rebuild_graph};
+use vox_graph_reader::ast::extract_ast_in_module_with_wrappers;
+use vox_graph_reader::rebuild::{RebuildMeta, rebuild_graph};
 
 #[test]
 fn invoke_and_wrapper_boundary_edges() {
@@ -21,7 +21,11 @@ fn invoke_and_wrapper_boundary_edges() {
         "edges: {:?}",
         g.edges
     );
-    assert!(t.contains(&"tool:vox_resolve_feedback"), "edges: {:?}", g.edges);
+    assert!(
+        t.contains(&"tool:vox_resolve_feedback"),
+        "edges: {:?}",
+        g.edges
+    );
     assert!(
         g.edges
             .iter()

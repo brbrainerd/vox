@@ -196,7 +196,7 @@ const GATED_CLI_SUBCOMMANDS: &[(&str, &[&str])] = &[
 
 /// Serialize the clap command catalog to JSON for `cli:` ingest, substituting the
 /// gated-corrected `mens`/`populi`/`oratio` leaf rows so a default binary still
-/// emits the full leaf set. Consumed by `vox_graphify_reader::registry::cli_command_nodes`.
+/// emits the full leaf set. Consumed by `vox_graph_reader::registry::cli_command_nodes`.
 pub fn cli_catalog_json() -> String {
     use crate::command_catalog::{CatalogTier, CommandCatalog, CommandCatalogEntry, build_catalog};
     let mut catalog: CommandCatalog = build_catalog();
@@ -345,7 +345,7 @@ async fn run_graphify_ingest(
     let corpus = corpus_by_id(&reg, &corpus_id).map_err(|e| anyhow::anyhow!(e.to_string()))?;
     let graph_bytes = std::fs::read(repo_root.join(&corpus.graph_path))
         .with_context(|| format!("read graph for digest: {}", corpus.graph_path))?;
-    let digest = vox_graphify_reader::graph_digest(&graph_bytes);
+    let digest = vox_graph_reader::graph_digest(&graph_bytes);
     vox_config::graphify::set_lexical_ingest_sha256(
         &repo_root.join(&corpus.manifest_path),
         &digest,
@@ -478,7 +478,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
             let cache_dir = output_file.parent().unwrap().join("file_cache");
 
             println!("Rebuilding Graphify graph for corpus: {}...", corpus_id);
-            let meta = vox_graphify_reader::rebuild::RebuildMeta {
+            let meta = vox_graph_reader::rebuild::RebuildMeta {
                 corpus_id: corpus_id.clone(),
                 git_sha: resolve_head_sha()?,
                 scope_path: corpus.scope_path.clone(),
@@ -490,11 +490,11 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
             if output_file.is_file() {
                 if let Some(corpus_dir) = output_file.parent() {
                     let stamp = Utc::now().to_rfc3339().replace(':', "-");
-                    let _ = vox_graphify_reader::snapshot::snapshot_corpus(corpus_dir, &stamp);
-                    let _ = vox_graphify_reader::snapshot::prune_snapshots(corpus_dir, 5);
+                    let _ = vox_graph_reader::snapshot::snapshot_corpus(corpus_dir, &stamp);
+                    let _ = vox_graph_reader::snapshot::prune_snapshots(corpus_dir, 5);
                 }
             }
-            vox_graphify_reader::rebuild::rebuild_graph(
+            vox_graph_reader::rebuild::rebuild_graph(
                 repo_root,
                 &source_dir,
                 &output_file,
@@ -517,7 +517,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
             let graph: serde_json::Value = serde_json::from_str(&raw)
                 .with_context(|| format!("parse graph JSON {}", graph_path.display()))?;
 
-            let report = vox_graphify_reader::coverage::compute_coverage(&graph, &kind);
+            let report = vox_graph_reader::coverage::compute_coverage(&graph, &kind);
             let json = serde_json::to_string_pretty(&report)?;
             match out {
                 Some(path) => {
@@ -578,7 +578,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                 .parent()
                 .ok_or_else(|| anyhow::anyhow!("graph_path has no parent"))?
                 .join("file_cache");
-            let meta = vox_graphify_reader::rebuild::RebuildMeta {
+            let meta = vox_graph_reader::rebuild::RebuildMeta {
                 corpus_id: corpus_id.clone(),
                 git_sha: resolve_head_sha_in(&abs).ok().flatten(),
                 scope_path: corpus.scope_path.clone(),
@@ -587,7 +587,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                 cli_catalog_json: Some(cli_catalog_json()),
             };
             println!("Indexing '{}' as corpus '{}'...", abs.display(), corpus_id);
-            vox_graphify_reader::rebuild::rebuild_graph(
+            vox_graph_reader::rebuild::rebuild_graph(
                 repo_root,
                 &source_dir,
                 &output_file,
@@ -627,7 +627,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                             .parent()
                             .ok_or_else(|| anyhow::anyhow!("graph_path has no parent"))?
                             .join("file_cache");
-                        let meta = vox_graphify_reader::rebuild::RebuildMeta {
+                        let meta = vox_graph_reader::rebuild::RebuildMeta {
                             corpus_id: c.id.clone(),
                             git_sha: head.clone(),
                             scope_path: c.scope_path.clone(),
@@ -635,7 +635,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                             built_at_rfc3339: Utc::now().to_rfc3339(),
                             cli_catalog_json: Some(cli_catalog_json()),
                         };
-                        vox_graphify_reader::rebuild::rebuild_graph(
+                        vox_graph_reader::rebuild::rebuild_graph(
                             repo_root,
                             &source_dir,
                             &output_file,
@@ -652,7 +652,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                             .with_context(|| format!("read graph for digest: {}", c.graph_path))?;
                         vox_config::graphify::set_lexical_ingest_sha256(
                             &repo_root.join(&c.manifest_path),
-                            &vox_graphify_reader::graph_digest(&graph_bytes),
+                            &vox_graph_reader::graph_digest(&graph_bytes),
                         )
                         .map_err(|e| anyhow::anyhow!(e.to_string()))?;
                         println!("  ingested {} ({} nodes)", c.id, upserted);
@@ -666,7 +666,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
             for c in selected_corpora(&reg, &corpus).map_err(|e| anyhow::anyhow!(e.to_string()))? {
                 let output_file = repo_root.join(&c.graph_path);
                 if let Some(corpus_dir) = output_file.parent() {
-                    let removed = vox_graphify_reader::snapshot::prune_snapshots(corpus_dir, keep)
+                    let removed = vox_graph_reader::snapshot::prune_snapshots(corpus_dir, keep)
                         .map_err(|e| anyhow::anyhow!("prune {}: {e}", c.id))?;
                     println!("gc {} kept<= {keep} removed={removed}", c.id);
                 }
@@ -704,7 +704,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
             };
 
             // 3. Build + persist.
-            let map = vox_graphify_reader::crate_model::build_crate_map(&crate_graph, &audit);
+            let map = vox_graph_reader::crate_model::build_crate_map(&crate_graph, &audit);
             let out_dir = repo_root.join(".vox/cache/graphify/crate-map");
             std::fs::create_dir_all(&out_dir).context("create crate-map cache dir")?;
             let bytes = serde_json::to_string_pretty(&map)?;
@@ -719,7 +719,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                 scope_path: Some(".".to_string()),
                 node_count: Some(node_count),
                 edge_count: Some(edge_count),
-                graph_json_sha256: Some(vox_graphify_reader::graph_digest(bytes.as_bytes())),
+                graph_json_sha256: Some(vox_graph_reader::graph_digest(bytes.as_bytes())),
                 extraction_mode: Some("crate-map".to_string()),
                 lexical_ingest_sha256: None,
             };
@@ -747,7 +747,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                         }
                     }
                 }
-                let summary = vox_graphify_reader::crate_model::build_crate_summary(
+                let summary = vox_graph_reader::crate_model::build_crate_summary(
                     &crate_graph,
                     &compile_times,
                 );
