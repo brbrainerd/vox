@@ -177,18 +177,24 @@ export function Dashboard({
   // over the Dashboard's destructured props; pushToast must be a real function
   // (mini-rendered surfaces call it during render/effects), so fall back to a
   // no-op handler when the Dashboard was not given one (honest: no fabricated data).
+  // Props for an embedded mini-render. The action callbacks are deliberately
+  // INERT no-ops: a thumbnail must never pause/resume an agent, doubt/overrule a
+  // task, ack a Ludus note, or push a toast. (The mini still issues read-only
+  // mount polls — see SurfaceMiniRender's docstring.) Click-through to the live
+  // surface, where the real callbacks apply, is the parent's job (onOpen).
+  const noop = () => {};
   function miniPropsFor(): SurfaceProps {
     return {
       data,
-      pushToast: pushToast ?? (() => {}),
-      onPause,
-      onResume,
-      onDoubt,
-      onOverrule,
-      onAckLudus,
+      pushToast: noop,
+      onPause: noop,
+      onResume: noop,
+      onDoubt: noop,
+      onOverrule: noop,
+      onAckLudus: noop,
       filterKind,
       setFilterKind,
-      onOpenInConsole,
+      onOpenInConsole: noop,
       onNavigate,
       attention_budget,
     } as SurfaceProps;

@@ -11,11 +11,22 @@ export interface SurfaceMiniRenderProps {
 }
 
 /**
- * A live, compact, NON-INTERACTIVE thumbnail of a real surface component.
- * It renders the genuine surface output (honesty: never a fabricated value),
- * scaled down and scroll-clipped, with pointer events disabled so the
- * dashboard slot behaves as a monitor, not a second copy of the surface.
- * Click-through to the full surface is the parent's job (onOpen).
+ * A live, compact thumbnail of a real surface component. It mounts the genuine
+ * surface output (honesty: never a fabricated value), scaled down and
+ * scroll-clipped.
+ *
+ * Honest scope of "inertness":
+ *  - INPUT is blocked: `pointer-events-none` disables clicks, and the parent
+ *    passes INERT no-op action callbacks (no live onPause/onResume/onDoubt/
+ *    onOverrule/onAckLudus/pushToast), so the thumbnail cannot mutate state.
+ *  - It is NOT fully passive: mounting the real surface issues that surface's
+ *    own read-only mount polls (e.g. status/`vox_pending_approvals` fetches).
+ *    These are read-only and harmless, but they are real network calls — this
+ *    is a monitor, not a frozen snapshot.
+ *  ponytail: per-surface poll-gating (an `embedded`/`compact` prop that skips
+ *    intervals) is a follow-up; no surface honors such a flag today.
+ *
+ * Click-through to the full, interactive surface is the parent's job (onOpen).
  */
 export function SurfaceMiniRender({ surfaceKey, label, children, scale = 0.6 }: SurfaceMiniRenderProps) {
   return (
