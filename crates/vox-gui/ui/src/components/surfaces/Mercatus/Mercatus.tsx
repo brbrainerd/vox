@@ -92,7 +92,6 @@ export function Mercatus() {
               </thead>
               <tbody>
                 {parts.map((part, i) => {
-                  const hasAnyId = Object.keys(part.ids ?? {}).length > 0;
                   return (
                     <tr
                       key={part.id}
