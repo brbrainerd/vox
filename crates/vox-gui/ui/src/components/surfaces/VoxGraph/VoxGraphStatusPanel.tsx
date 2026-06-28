@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { voxTransport } from '../../../transport';
-import { useGraphifyStatus, GRAPHIFY_STATUS_QUERY_KEY } from '../../../hooks/useGraphifyStatus';
+import { useVoxGraphStatus, VOX_GRAPH_STATUS_QUERY_KEY } from '../../../hooks/useVoxGraphStatus';
 
 /**
  * Render an RFC3339 `built_at` timestamp as a coarse relative time
@@ -39,7 +39,7 @@ function RebuildButton({ corpusId }: { corpusId: string }) {
       // ponytail: rebuild tool wired by name; lands with P1
       await voxTransport.invokeMcpTool('vox_graphify_rebuild', { corpus: corpusId });
       // Refresh freshness so the card flips fresh once the rebuild completes.
-      await queryClient.invalidateQueries({ queryKey: GRAPHIFY_STATUS_QUERY_KEY });
+      await queryClient.invalidateQueries({ queryKey: VOX_GRAPH_STATUS_QUERY_KEY });
     } catch (e) {
       setError(String((e as Error)?.message ?? e));
     } finally {
@@ -67,8 +67,8 @@ function RebuildButton({ corpusId }: { corpusId: string }) {
   );
 }
 
-export function GraphifyStatusPanel() {
-  const { data, isLoading, isError, error } = useGraphifyStatus();
+export function VoxGraphStatusPanel() {
+  const { data, isLoading, isError, error } = useVoxGraphStatus();
 
   if (isLoading) {
     return (

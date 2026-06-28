@@ -21,7 +21,7 @@ import { PoliciesView } from '../surfaces/Policies/PoliciesView';
 import { NeedsYouSurface } from '../surfaces/NeedsYou/NeedsYouSurface';
 import { ParentSurface } from './ParentSurface';
 import { surfaceDecorators } from '../surfaces/decoratorRegistry';
-import { GraphifyStatusPanel } from '../surfaces/Graphify/GraphifyStatusPanel';
+import { VoxGraphStatusPanel } from '../surfaces/VoxGraph/VoxGraphStatusPanel';
 import { ChatSurface } from '../surfaces/Chat/ChatSurface';
 import type {
   ChatExecutionRailKpis,
@@ -115,7 +115,7 @@ function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
     case 'vox-search':
     // `graphify` retained as a one-release alias falling through to the same panel.
     case 'graphify':
-      return <GraphifyStatusPanel />;
+      return <VoxGraphStatusPanel />;
     case 'models':
       return <ModelsView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'runs':
