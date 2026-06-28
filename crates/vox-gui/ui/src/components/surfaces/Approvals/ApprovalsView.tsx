@@ -7,6 +7,7 @@ import { DataTable } from '../../ui/DataTable';
 import { Button } from '../../ui/Button';
 import { Icon } from '../../ui/Icons';
 import { APPROVALS_POLL_MS } from '../../../config/constants';
+import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import {
   type McpInvokeResult,
   parsePendingApprovals,
@@ -39,6 +40,7 @@ function formatRequestedAt(ms: number): string {
 }
 
 export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsViewProps) {
+  const embedded = useIsEmbeddedSurface();
   const [approvals, setApprovals] = useState<PendingApproval[]>([]);
   const [loading, setLoading] = useState(true);
   const [resolving, setResolving] = useState<string | null>(null);
@@ -59,9 +61,11 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
 
   useEffect(() => {
     refresh();
+    // Embedded mini-render: one initial fetch only, no repeating poll.
+    if (embedded) return;
     const id = setInterval(refresh, APPROVALS_POLL_MS);
     return () => clearInterval(id);
-  }, [refresh]);
+  }, [refresh, embedded]);
 
   const resolve = useCallback(
     async (approvalId: string, outcome: 'approved' | 'rejected') => {

@@ -117,6 +117,7 @@ export function AppShell({
             visibleTiles={visibleTiles}
             activeModel={activeModel}
             openrouterSpendUsd={openrouterSpendUsd}
+            pendingApprovals={approvalsPending}
           />
           <BreadcrumbBar viewKey={activeView} onNavigate={onNavigate} gamifyEnabled={gamifyEnabled} />
           <StatusBar

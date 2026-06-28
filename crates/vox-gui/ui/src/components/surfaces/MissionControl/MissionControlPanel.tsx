@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { EmptyState } from '../../ui/EmptyState';
 import type { Toast } from '../../../types/tauri';
+import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -175,6 +176,7 @@ export interface MissionControlPanelProps {
 }
 
 export function MissionControlPanel({ pushToast }: MissionControlPanelProps) {
+  const embedded = useIsEmbeddedSurface();
   const [agents, setAgents] = useState<SubagentTreeNode[]>([]);
   const [approvals, setApprovals] = useState<McApprovalRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -196,9 +198,11 @@ export function MissionControlPanel({ pushToast }: MissionControlPanelProps) {
 
   useEffect(() => {
     void refresh();
+    // Embedded mini-render: one initial fetch only, no repeating poll.
+    if (embedded) return;
     const id = setInterval(() => void refresh(), POLL_MS);
     return () => clearInterval(id);
-  }, [refresh]);
+  }, [refresh, embedded]);
 
   const handleResolve = useCallback(
     async (approvalId: string, outcome: 'approved' | 'rejected') => {

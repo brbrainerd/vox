@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
+import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 
 interface ModelCard {
   id: string;
@@ -38,6 +39,7 @@ interface ModelsViewProps {
 }
 
 export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps) {
+  const embedded = useIsEmbeddedSurface();
   const [models, setModels] = useState<ModelCard[]>([]);
   const [summary, setSummary] = useState<RoutingSummary | null>(null);
   const [activeModel, setActiveModel] = useState<string | null>(null);
@@ -63,9 +65,11 @@ export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps
 
   useEffect(() => {
     refresh();
+    // Embedded mini-render: one initial fetch only, no repeating poll.
+    if (embedded) return;
     const id = setInterval(refresh, 8000);
     return () => clearInterval(id);
-  }, [refresh]);
+  }, [refresh, embedded]);
 
   const setDefault = async (id: string) => {
     try {

@@ -28,6 +28,13 @@ import { AttentionBudgetMeter } from '../AttentionBudgetMeter';
 import type { AttentionBudgetSnapshot } from '../../../types/tauri';
 import { ResourcesWidget } from './ResourcesWidget';
 import { useAgentApprovals } from '../../../hooks/useAgentApprovals';
+import { surfaceKeyOf } from '../../../lib/dashboardLayout';
+import { resolveWidget } from '../../dashboard/dashboardWidgetRegistry';
+import { SurfaceMiniRender } from '../../dashboard/SurfaceMiniRender';
+import { WidgetErrorBoundary } from '../../dashboard/WidgetErrorBoundary';
+import { childRenderer, type SurfaceProps } from '../../layout/surfaceComponents';
+import { SURFACE_REGISTRY } from '../../../generated/surfaceRegistry.generated';
+import type { Toast } from '../../../types/tauri';
 
 /** Consistent empty-state hint for a panel with no data yet. */
 function EmptyHint({ icon, title, hint }: { icon?: React.ReactNode; title: string; hint?: string }) {
@@ -54,6 +61,8 @@ interface DashboardProps {
   onOpenChat?: () => void;
   onNavigate?: (viewKey: string) => void;
   attention_budget?: AttentionBudgetSnapshot | null;
+  /** Real toast handler, threaded into mini-rendered surfaces (which call pushToast). */
+  pushToast?: (toast: Toast) => void;
 }
 
 export function Dashboard({
@@ -70,6 +79,7 @@ export function Dashboard({
   onOpenChat,
   onNavigate,
   attention_budget,
+  pushToast,
 }: DashboardProps) {
   const filters = ["all", "validated", "in-progress", "doubted", "speculative"];
   const stream = data.stream.filter(s => filterKind === "all" ? true : s.kind === filterKind);
@@ -134,6 +144,18 @@ export function Dashboard({
     setPickerOpen(false);
   }
 
+  function handleAddSurface(surfaceKey: string) {
+    const next = addWidgetToLayout(layout, 'surface_widget');
+    const placed = {
+      ...next,
+      widgets: next.widgets.map((w, i) =>
+        i === next.widgets.length - 1 ? { ...w, config: { ...(w.config ?? {}), surfaceKey } } : w,
+      ),
+    };
+    updateLayout(placed);
+    setPickerOpen(false);
+  }
+
   function handleResetLayout() {
     updateLayout(resetDashboardLayout());
     setPickerOpen(false);
@@ -142,6 +164,52 @@ export function Dashboard({
   function chartTitle(widget: DashboardWidget, fallback: string): string {
     const configured = widget.config?.title;
     return typeof configured === 'string' && configured.trim() !== '' ? configured : fallback;
+  }
+
+  function surfaceLabel(surfaceKey: string): string {
+    // synthetic 'cost' has no registry row → give it a real label, not the raw key
+    if (surfaceKey === 'cost') return 'OpenRouter Spend';
+    const row = SURFACE_REGISTRY.find((e) => e.viewKey === surfaceKey);
+    return row?.navLabel ?? surfaceKey;
+  }
+
+  // Build the SurfaceProps bag the mini-render mounts real surfaces with. Closes
+  // over the Dashboard's destructured props; pushToast must be a real function
+  // (mini-rendered surfaces call it during render/effects), so fall back to a
+  // no-op handler when the Dashboard was not given one (honest: no fabricated data).
+  // Props for an embedded mini-render. The action callbacks are deliberately
+  // INERT no-ops: a thumbnail must never pause/resume an agent, doubt/overrule a
+  // task, ack a Ludus note, or push a toast. (The mini still issues read-only
+  // mount polls — see SurfaceMiniRender's docstring.) Click-through to the live
+  // surface, where the real callbacks apply, is the parent's job (onOpen).
+  const noop = () => {};
+  function miniPropsFor(): SurfaceProps {
+    return {
+      data,
+      pushToast: noop,
+      onPause: noop,
+      onResume: noop,
+      onDoubt: noop,
+      onOverrule: noop,
+      onAckLudus: noop,
+      filterKind,
+      setFilterKind,
+      onOpenInConsole: noop,
+      onNavigate,
+      attention_budget,
+    } as SurfaceProps;
+  }
+
+  function renderSurfaceWidget(surfaceKey: string): React.ReactNode {
+    const resolved = resolveWidget(surfaceKey);
+    if (resolved.kind === 'purpose-built') {
+      return <resolved.Component data={data} />;
+    }
+    return (
+      <SurfaceMiniRender surfaceKey={surfaceKey} label={surfaceLabel(surfaceKey)}>
+        {childRenderer(miniPropsFor(), surfaceKey)}
+      </SurfaceMiniRender>
+    );
   }
 
   function renderWidget(widget: DashboardWidget) {
@@ -270,6 +338,15 @@ export function Dashboard({
         );
       case 'resources':
         return <ResourcesWidget data={data} />;
+      case 'surface_widget': {
+        const key = surfaceKeyOf(widget);
+        if (!key) return null;
+        return (
+          <WidgetErrorBoundary label={surfaceLabel(key)}>
+            {renderSurfaceWidget(key)}
+          </WidgetErrorBoundary>
+        );
+      }
       default:
         return null;
     }
@@ -383,6 +460,7 @@ export function Dashboard({
         open={customizeMode && pickerOpen}
         onClose={() => setPickerOpen(false)}
         onAdd={handleAddWidget}
+        onAddSurface={handleAddSurface}
       />
       <DashboardGrid
         layout={layout}

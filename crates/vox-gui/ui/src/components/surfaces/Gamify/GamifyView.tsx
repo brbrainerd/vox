@@ -7,6 +7,7 @@ import { LudusProfile } from '../../../lib/ludus';
 import { LudusHud } from './LudusHud';
 import { GAMIFY_POLL_MS } from '../../../config/constants';
 import type { Toast } from '../../../types/tauri';
+import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 
 interface GamifyViewProps {
   pushToast: (item: Toast) => void;
@@ -58,6 +59,7 @@ interface Quest {
 }
 
 export function GamifyView({ pushToast }: GamifyViewProps) {
+  const embedded = useIsEmbeddedSurface();
   const [profile, setProfile] = useState<LudusProfile | null>(null);
   const buildings = useStore(useLudusStore, (state) => state.buildings);
   const buildingFiles = React.useMemo(() => Object.keys(buildings), [buildings]);
@@ -93,9 +95,11 @@ export function GamifyView({ pushToast }: GamifyViewProps) {
 
   useEffect(() => {
     refresh();
+    // Embedded mini-render: one initial fetch only, no repeating poll.
+    if (embedded) return;
     const id = setInterval(refresh, GAMIFY_POLL_MS);
     return () => clearInterval(id);
-  }, [refresh]);
+  }, [refresh, embedded]);
 
   const ack = async (id: string) => {
     try {

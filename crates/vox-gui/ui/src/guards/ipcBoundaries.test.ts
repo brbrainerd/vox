@@ -9,7 +9,7 @@ const MUST_USE_TRANSPORT = [
   'lib/consoleBridge.ts',
   'hooks/usePersistedDbState.ts',
   'components/layout/DockShell.tsx',
-  'components/layout/CommandPalette.tsx',
+  'components/layout/Omnibar.tsx',
   'main.tsx',
 ];
 
@@ -73,7 +73,6 @@ describe('IPC boundaries (Phase 0B)', () => {
       'components/surfaces/Scientia/discoveryInboxApi.ts',
       'components/surfaces/Scientia/discoveryReviewApi.ts',
       'components/surfaces/Scientia/noveltyApi.ts',
-      'components/surfaces/Search/SearchView.tsx',
       'components/surfaces/Settings/SettingsView.tsx',
       'components/surfaces/SkillsPlugins/SkillsPluginsView.tsx',
       'components/surfaces/SubAgents/subAgentClient.ts',

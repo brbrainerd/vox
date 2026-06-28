@@ -6,6 +6,7 @@ import {
   acknowledgeDiscovery,
   type DiscoveryInboxRow,
 } from './discoveryInboxApi';
+import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 
 /** The intake tier we treat as "strong" — gets a highlighted badge + a toast on arrival. */
 const STRONG_TIER = 'strong_candidate';
@@ -43,6 +44,7 @@ function relativeTime(ms: number): string {
  * for a degradable nicety — the toast is the graceful baseline.
  */
 export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
+  const embedded = useIsEmbeddedSurface();
   const [rows, setRows] = useState<DiscoveryInboxRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -88,12 +90,16 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
   // Initial fetch + 10 s interval fallback.
   useEffect(() => {
     refresh();
+    // Embedded mini-render: one initial fetch only, no repeating poll.
+    if (embedded) return;
     const t = setInterval(refresh, 10_000);
     return () => clearInterval(t);
-  }, [refresh]);
+  }, [refresh, embedded]);
 
   // Event-driven refresh on discovery-surfaced rows + scientia-queue ping.
   useEffect(() => {
+    // Embedded mini-render: no pushed subscriptions either — stays static.
+    if (embedded) return;
     let unlistenDiscovery: (() => void) | undefined;
     let unlistenQueue: (() => void) | undefined;
 
@@ -141,7 +147,7 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
       unlistenDiscovery?.();
       unlistenQueue?.();
     };
-  }, [pushToast, refresh]);
+  }, [pushToast, refresh, embedded]);
 
   const acknowledge = useCallback(
     async (id: number) => {
