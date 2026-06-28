@@ -18,6 +18,7 @@ export const DASHBOARD_WIDGET_KINDS = [
   'task_summary',
   'custom_text',
   'resources',
+  'surface_widget',
 ] as const;
 
 export type DashboardWidgetKind = (typeof DASHBOARD_WIDGET_KINDS)[number];
@@ -124,6 +125,12 @@ export function addWidgetToLayout(
     ...layout,
     widgets: [...layout.widgets, widget],
   };
+}
+
+/** The surface key a `surface_widget` slot is backed by, or null. */
+export function surfaceKeyOf(widget: DashboardWidget): string | null {
+  const key = widget.config?.surfaceKey;
+  return typeof key === 'string' && key.length > 0 ? key : null;
 }
 
 export function widgetKindLabel(kind: DashboardWidgetKind): string {

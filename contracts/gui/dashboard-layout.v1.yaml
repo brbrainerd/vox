@@ -23,6 +23,7 @@ widget_kinds:
   - task_summary
   - custom_text
   - resources
+  - surface_widget
 
 grid_shape:
   col: integer # 1-based column start
