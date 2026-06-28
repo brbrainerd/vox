@@ -100,9 +100,31 @@ pub fn serialize_tauri_desktop_config(params: &TauriEmitParams<'_>) -> Result<St
 pub fn write_tauri_desktop_config(path: &Path, params: &TauriEmitParams<'_>) -> Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).with_context(|| format!("mkdir {}", parent.display()))?;
+        seed_placeholder_icon(parent)?;
     }
     let raw = serialize_tauri_desktop_config(params)?;
     fs::write(path, raw).with_context(|| format!("write {}", path.display()))?;
+    Ok(())
+}
+
+// tauri-build probes icons/icon.png at compile time regardless of bundle.icon config.
+// Copy the repo icon so the proc macro doesn't panic; this file is never bundled here.
+fn seed_placeholder_icon(src_tauri_dir: &Path) -> Result<()> {
+    let icon_dst = src_tauri_dir.join("icons/icon.png");
+    if icon_dst.is_file() {
+        return Ok(());
+    }
+    fs::create_dir_all(src_tauri_dir.join("icons"))?;
+    // Walk up: src-tauri/ → generated/ → target/ → workspace root
+    let icon_src = src_tauri_dir
+        .parent()
+        .and_then(|p| p.parent())
+        .and_then(|p| p.parent())
+        .map(|ws| ws.join("crates/vox-gui/icons/icon.png"));
+    if let Some(src) = icon_src.filter(|p| p.is_file()) {
+        fs::copy(&src, &icon_dst)
+            .with_context(|| format!("copy placeholder icon to {}", icon_dst.display()))?;
+    }
     Ok(())
 }
 
