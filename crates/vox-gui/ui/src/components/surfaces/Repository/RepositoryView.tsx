@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { IsolationPanel } from './IsolationPanel';
 import type { IsolationStatus, IsolationStrategy } from './isolationHelpers';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
+import { useLabel } from '../../../hooks/useLanguage';
 import type { Toast } from '../../../types/tauri';
 
 interface RepositoryViewProps {
@@ -109,7 +110,7 @@ export function RepositoryView({ pushToast, gamifyEnabled }: RepositoryViewProps
 
   return (
     <section className="space-y-4">
-      <h2 className="font-display text-lg text-text-primary tracking-wider uppercase">Repository Harness</h2>
+      <h2 className="font-display text-lg text-text-primary tracking-wider uppercase">{useLabel('repo-harness')}</h2>
       <div className="grid gap-2 sm:grid-cols-2">
         <button
           type="button"

@@ -8,6 +8,7 @@ import { Button } from '../../ui/Button';
 import { Icon } from '../../ui/Icons';
 import { APPROVALS_POLL_MS } from '../../../config/constants';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
+import { useLabel } from '../../../hooks/useLanguage';
 import {
   type McpInvokeResult,
   parsePendingApprovals,
@@ -172,7 +173,7 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
           <span className="flex size-7 items-center justify-center rounded-lg bg-brass/10 text-brass ring-1 ring-brass/30">
             <Icon.shield className="size-4" aria-hidden="true" />
           </span>
-          <h2 className="text-lg font-bold tracking-wide text-text-secondary">Pending Approvals</h2>
+          <h2 className="text-lg font-bold tracking-wide text-text-secondary">{useLabel('appr-pending')}</h2>
         </div>
         <Button variant="ghost" size="xs" onClick={refresh} aria-label="Refresh approvals">
           <Icon.refresh className="size-4 text-text-muted" />

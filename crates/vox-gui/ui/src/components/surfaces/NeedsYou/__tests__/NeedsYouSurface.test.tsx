@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { NeedsYouSurface } from '../NeedsYouSurface';
 import * as transport from '../../../../transport';
+import { LanguageProvider } from '../../../../hooks/useLanguage';
 
 beforeEach(() => {
   vi.spyOn(transport, 'feedbackList').mockResolvedValue({
@@ -37,14 +38,14 @@ beforeEach(() => {
 
 describe('NeedsYouSurface', () => {
   it('lists open items + withheld section', async () => {
-    render(<NeedsYouSurface onOpenContext={() => {}} pushToast={() => {}} />);
+    render(<LanguageProvider><NeedsYouSurface onOpenContext={() => {}} pushToast={() => {}} /></LanguageProvider>);
     await waitFor(() => expect(screen.getByText('schema?')).toBeTruthy());
     expect(screen.getByText(/Withheld by policy/i)).toBeTruthy();
   });
 
   it('empty state when nothing needs you', async () => {
     vi.spyOn(transport, 'feedbackList').mockResolvedValue({ needsYou: [], withheld: [] });
-    render(<NeedsYouSurface onOpenContext={() => {}} pushToast={() => {}} />);
+    render(<LanguageProvider><NeedsYouSurface onOpenContext={() => {}} pushToast={() => {}} /></LanguageProvider>);
     await waitFor(() => expect(screen.getByText(/Nothing needs you/i)).toBeTruthy());
   });
 });

@@ -53,6 +53,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 }));
 
 import { ArchivePanel } from './ArchivePanel';
+import { LanguageProvider } from '../../../hooks/useLanguage';
 
 describe('ArchivePanel', () => {
   beforeEach(() => {
@@ -62,7 +63,7 @@ describe('ArchivePanel', () => {
   });
 
   async function loadPub() {
-    render(<ArchivePanel pushToast={vi.fn()} />);
+    render(<LanguageProvider><ArchivePanel pushToast={vi.fn()} /></LanguageProvider>);
     fireEvent.change(screen.getByPlaceholderText('publication id'), {
       target: { value: 'pub-1' },
     });

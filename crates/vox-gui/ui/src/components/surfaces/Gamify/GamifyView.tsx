@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useStore } from 'zustand';
 import { useLudusStore } from '../../gamify/store';
+import { useLabel } from '../../../hooks/useLanguage';
 import { LudusSandbox } from '../../gamify/LudusSandbox';
 import { invoke } from '@tauri-apps/api/core';
 import { LudusProfile } from '../../../lib/ludus';
@@ -113,7 +114,7 @@ export function GamifyView({ pushToast }: GamifyViewProps) {
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="font-display text-lg text-text-primary tracking-wider uppercase">Gamification</h2>
+        <h2 className="font-display text-lg text-text-primary tracking-wider uppercase">{useLabel('gamification')}</h2>
         <button type="button" onClick={refresh} disabled={loading}
           className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-xs hover:bg-overlay-subtle">
           {loading ? 'Loading…' : 'Refresh'}

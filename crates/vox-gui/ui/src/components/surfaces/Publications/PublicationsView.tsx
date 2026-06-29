@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
 import { PUBLICATION_STAGES, groupByStage, PublicationManifest } from '../../../lib/pipeline';
+import { useLabel } from '../../../hooks/useLanguage';
 
 interface ExecuteOutput {
   exit_code: number;
@@ -54,7 +55,7 @@ export function PublicationsView({ pushToast }: SurfaceDecoratorProps) {
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="font-display text-lg text-text-primary tracking-wider uppercase">Publication Pipeline</h2>
+        <h2 className="font-display text-lg text-text-primary tracking-wider uppercase">{useLabel('pub-pipeline')}</h2>
         <button onClick={refresh} disabled={loading}
           className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-xs hover:bg-overlay-subtle">
           {loading ? 'Loading…' : 'Refresh'}

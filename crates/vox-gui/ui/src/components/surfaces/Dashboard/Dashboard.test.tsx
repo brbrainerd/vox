@@ -5,6 +5,7 @@ import { act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { Dashboard } from './Dashboard';
+import { LanguageProvider } from '../../../hooks/useLanguage';
 import type { DashboardData, KPI } from '../../../types/dashboard';
 import { addWidgetToLayout, defaultDashboardLayout } from '../../../lib/dashboardLayout';
 import { SHELL_PREFERENCE_KEYS } from '../../../lib/shellPersistence';
@@ -52,11 +53,13 @@ const emptyDash: DashboardData = {
 const baseData = emptyDash;
 function renderDashboard(over: Partial<DashboardData> = {}) {
   return render(
-    <Dashboard
-      data={{ ...baseData, ...over }}
-      onPause={vi.fn()} onResume={vi.fn()} onDoubt={vi.fn()} onOverrule={vi.fn()} onAckLudus={vi.fn()}
-      filterKind="all" setFilterKind={vi.fn()}
-    />,
+    <LanguageProvider>
+      <Dashboard
+        data={{ ...baseData, ...over }}
+        onPause={vi.fn()} onResume={vi.fn()} onDoubt={vi.fn()} onOverrule={vi.fn()} onAckLudus={vi.fn()}
+        filterKind="all" setFilterKind={vi.fn()}
+      />
+    </LanguageProvider>,
   );
 }
 
@@ -67,32 +70,36 @@ describe('Dashboard', () => {
 
   it('renders "The Stream" heading', () => {
     render(
-      <Dashboard
-        data={emptyDash}
-        onPause={vi.fn()}
-        onResume={vi.fn()}
-        onDoubt={vi.fn()}
-        onOverrule={vi.fn()}
-        onAckLudus={vi.fn()}
-        filterKind="all"
-        setFilterKind={vi.fn()}
-      />
+      <LanguageProvider>
+        <Dashboard
+          data={emptyDash}
+          onPause={vi.fn()}
+          onResume={vi.fn()}
+          onDoubt={vi.fn()}
+          onOverrule={vi.fn()}
+          onAckLudus={vi.fn()}
+          filterKind="all"
+          setFilterKind={vi.fn()}
+        />
+      </LanguageProvider>
     );
     expect(screen.getByText('The Stream')).toBeDefined();
   });
 
   it('shows empty state for The Stream when stream is empty', () => {
     render(
-      <Dashboard
-        data={emptyDash}
-        onPause={vi.fn()}
-        onResume={vi.fn()}
-        onDoubt={vi.fn()}
-        onOverrule={vi.fn()}
-        onAckLudus={vi.fn()}
-        filterKind="all"
-        setFilterKind={vi.fn()}
-      />
+      <LanguageProvider>
+        <Dashboard
+          data={emptyDash}
+          onPause={vi.fn()}
+          onResume={vi.fn()}
+          onDoubt={vi.fn()}
+          onOverrule={vi.fn()}
+          onAckLudus={vi.fn()}
+          filterKind="all"
+          setFilterKind={vi.fn()}
+        />
+      </LanguageProvider>
     );
     expect(screen.getByText(/No events yet/i)).toBeDefined();
     expect(
@@ -104,17 +111,19 @@ describe('Dashboard', () => {
     const user = userEvent.setup();
     const onOpenChat = vi.fn();
     render(
-      <Dashboard
-        data={emptyDash}
-        onPause={vi.fn()}
-        onResume={vi.fn()}
-        onDoubt={vi.fn()}
-        onOverrule={vi.fn()}
-        onAckLudus={vi.fn()}
-        filterKind="all"
-        setFilterKind={vi.fn()}
-        onOpenChat={onOpenChat}
-      />
+      <LanguageProvider>
+        <Dashboard
+          data={emptyDash}
+          onPause={vi.fn()}
+          onResume={vi.fn()}
+          onDoubt={vi.fn()}
+          onOverrule={vi.fn()}
+          onAckLudus={vi.fn()}
+          filterKind="all"
+          setFilterKind={vi.fn()}
+          onOpenChat={onOpenChat}
+        />
+      </LanguageProvider>
     );
 
     await user.click(screen.getByTestId('open-chat-cta'));
@@ -123,33 +132,37 @@ describe('Dashboard', () => {
 
   it('shows loading skeleton when loading prop is true', () => {
     render(
-      <Dashboard
-        data={emptyDash}
-        loading
-        onPause={vi.fn()}
-        onResume={vi.fn()}
-        onDoubt={vi.fn()}
-        onOverrule={vi.fn()}
-        onAckLudus={vi.fn()}
-        filterKind="all"
-        setFilterKind={vi.fn()}
-      />
+      <LanguageProvider>
+        <Dashboard
+          data={emptyDash}
+          loading
+          onPause={vi.fn()}
+          onResume={vi.fn()}
+          onDoubt={vi.fn()}
+          onOverrule={vi.fn()}
+          onAckLudus={vi.fn()}
+          filterKind="all"
+          setFilterKind={vi.fn()}
+        />
+      </LanguageProvider>
     );
     expect(screen.getByRole('status', { name: /loading dashboard/i })).toBeDefined();
   });
 
   it('filter buttons have type="button"', () => {
     render(
-      <Dashboard
-        data={emptyDash}
-        onPause={vi.fn()}
-        onResume={vi.fn()}
-        onDoubt={vi.fn()}
-        onOverrule={vi.fn()}
-        onAckLudus={vi.fn()}
-        filterKind="all"
-        setFilterKind={vi.fn()}
-      />
+      <LanguageProvider>
+        <Dashboard
+          data={emptyDash}
+          onPause={vi.fn()}
+          onResume={vi.fn()}
+          onDoubt={vi.fn()}
+          onOverrule={vi.fn()}
+          onAckLudus={vi.fn()}
+          filterKind="all"
+          setFilterKind={vi.fn()}
+        />
+      </LanguageProvider>
     );
     const filterBtns = screen.getAllByRole('button');
     filterBtns.forEach(btn => {
@@ -160,16 +173,18 @@ describe('Dashboard', () => {
   it('shows reset and add-widget controls when customizing', async () => {
     const user = userEvent.setup();
     render(
-      <Dashboard
-        data={emptyDash}
-        onPause={vi.fn()}
-        onResume={vi.fn()}
-        onDoubt={vi.fn()}
-        onOverrule={vi.fn()}
-        onAckLudus={vi.fn()}
-        filterKind="all"
-        setFilterKind={vi.fn()}
-      />,
+      <LanguageProvider>
+        <Dashboard
+          data={emptyDash}
+          onPause={vi.fn()}
+          onResume={vi.fn()}
+          onDoubt={vi.fn()}
+          onOverrule={vi.fn()}
+          onAckLudus={vi.fn()}
+          filterKind="all"
+          setFilterKind={vi.fn()}
+        />
+      </LanguageProvider>,
     );
 
     expect(screen.queryByRole('button', { name: /reset to default/i })).toBeNull();
@@ -195,16 +210,18 @@ describe('Dashboard', () => {
     };
 
     render(
-      <Dashboard
-        data={dashData}
-        onPause={vi.fn()}
-        onResume={vi.fn()}
-        onDoubt={vi.fn()}
-        onOverrule={vi.fn()}
-        onAckLudus={vi.fn()}
-        filterKind="all"
-        setFilterKind={vi.fn()}
-      />,
+      <LanguageProvider>
+        <Dashboard
+          data={dashData}
+          onPause={vi.fn()}
+          onResume={vi.fn()}
+          onDoubt={vi.fn()}
+          onOverrule={vi.fn()}
+          onAckLudus={vi.fn()}
+          filterKind="all"
+          setFilterKind={vi.fn()}
+        />
+      </LanguageProvider>,
     );
 
     const stored = JSON.parse(
@@ -229,24 +246,28 @@ describe('Dashboard', () => {
     };
 
     const { rerender } = render(
-      <Dashboard
-        {...baseProps}
-        data={{
-          ...emptyDash,
-          kpis: { ...emptyDash.kpis, queueDepth: { value: 3, spark: [] } },
-        }}
-      />,
-    );
-
-    act(() => {
-      rerender(
+      <LanguageProvider>
         <Dashboard
           {...baseProps}
           data={{
             ...emptyDash,
-            kpis: { ...emptyDash.kpis, queueDepth: { value: 7, spark: [] } },
+            kpis: { ...emptyDash.kpis, queueDepth: { value: 3, spark: [] } },
           }}
-        />,
+        />
+      </LanguageProvider>,
+    );
+
+    act(() => {
+      rerender(
+        <LanguageProvider>
+          <Dashboard
+            {...baseProps}
+            data={{
+              ...emptyDash,
+              kpis: { ...emptyDash.kpis, queueDepth: { value: 7, spark: [] } },
+            }}
+          />
+        </LanguageProvider>,
       );
     });
 
@@ -299,11 +320,13 @@ describe('Dashboard', () => {
     };
     window.localStorage.setItem(SHELL_PREFERENCE_KEYS.dashboardLayout, JSON.stringify(layout));
     render(
-      <Dashboard
-        data={emptyDash}
-        onPause={vi.fn()} onResume={vi.fn()} onDoubt={vi.fn()} onOverrule={vi.fn()} onAckLudus={vi.fn()}
-        filterKind="all" setFilterKind={vi.fn()} pushToast={vi.fn()}
-      />,
+      <LanguageProvider>
+        <Dashboard
+          data={emptyDash}
+          onPause={vi.fn()} onResume={vi.fn()} onDoubt={vi.fn()} onOverrule={vi.fn()} onAckLudus={vi.fn()}
+          filterKind="all" setFilterKind={vi.fn()} pushToast={vi.fn()}
+        />
+      </LanguageProvider>,
     );
     // The purpose-built MeshWidget shows its own "Mesh Peers" label IN ADDITION to
     // the always-present KPI-strip "Mesh Peers" tile — so there are at least two.
@@ -320,11 +343,13 @@ describe('Dashboard', () => {
     };
     window.localStorage.setItem(SHELL_PREFERENCE_KEYS.dashboardLayout, JSON.stringify(layout));
     render(
-      <Dashboard
-        data={emptyDash}
-        onPause={vi.fn()} onResume={vi.fn()} onDoubt={vi.fn()} onOverrule={vi.fn()} onAckLudus={vi.fn()}
-        filterKind="all" setFilterKind={vi.fn()} pushToast={vi.fn()}
-      />,
+      <LanguageProvider>
+        <Dashboard
+          data={emptyDash}
+          onPause={vi.fn()} onResume={vi.fn()} onDoubt={vi.fn()} onOverrule={vi.fn()} onAckLudus={vi.fn()}
+          filterKind="all" setFilterKind={vi.fn()} pushToast={vi.fn()}
+        />
+      </LanguageProvider>,
     );
     // The fallback frame is present and marked compact/inert.
     expect(screen.getByTestId('surface-mini-repository').getAttribute('data-compact')).toBe('true');
@@ -339,17 +364,19 @@ describe('Dashboard', () => {
     const data = { ...emptyDash };
     
     render(
-      <Dashboard
-        data={data}
-        onPause={vi.fn()}
-        onResume={vi.fn()}
-        onDoubt={vi.fn()}
-        onOverrule={vi.fn()}
-        onAckLudus={vi.fn()}
-        filterKind="all"
-        setFilterKind={vi.fn()}
-        onNavigate={navigateMock}
-      />
+      <LanguageProvider>
+        <Dashboard
+          data={data}
+          onPause={vi.fn()}
+          onResume={vi.fn()}
+          onDoubt={vi.fn()}
+          onOverrule={vi.fn()}
+          onAckLudus={vi.fn()}
+          filterKind="all"
+          setFilterKind={vi.fn()}
+          onNavigate={navigateMock}
+        />
+      </LanguageProvider>
     );
 
     const expandBtn = screen.getByText('Immersive View');

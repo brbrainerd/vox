@@ -21,6 +21,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 }));
 
 import { ChatExecutionRail } from './ChatExecutionRail';
+import { LanguageProvider } from '../../../hooks/useLanguage';
 
 const sampleKpis = {
   activeAgents: { value: 3 },
@@ -35,11 +36,13 @@ describe('ChatExecutionRail', () => {
 
   it('renders task list section with aria-label Active tasks', () => {
     render(
-      <ChatExecutionRail
-        tasks={[{ id: 't1', title: 'Fix CI', status: 'running' }]}
-        kpis={sampleKpis}
-        onNavigate={vi.fn()}
-      />,
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[{ id: 't1', title: 'Fix CI', status: 'running' }]}
+          kpis={sampleKpis}
+          onNavigate={vi.fn()}
+        />
+      </LanguageProvider>,
     );
     expect(screen.getByRole('region', { name: /active tasks/i })).toBeInTheDocument();
     expect(screen.getByText('Fix CI')).toBeInTheDocument();
@@ -48,11 +51,13 @@ describe('ChatExecutionRail', () => {
 
   it('shows resource strip with agents, queue depth, and mesh peers from props', () => {
     render(
-      <ChatExecutionRail
-        tasks={[]}
-        kpis={sampleKpis}
-        onNavigate={vi.fn()}
-      />,
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[]}
+          kpis={sampleKpis}
+          onNavigate={vi.fn()}
+        />
+      </LanguageProvider>,
     );
     expect(screen.getByTestId('execution-rail-agents')).toHaveTextContent('3');
     expect(screen.getByTestId('execution-rail-queue')).toHaveTextContent('7');
@@ -61,12 +66,14 @@ describe('ChatExecutionRail', () => {
 
   it('shows OpenRouter cost segment when openrouterSpendUsd is provided', () => {
     render(
-      <ChatExecutionRail
-        tasks={[]}
-        kpis={sampleKpis}
-        openrouterSpendUsd={1.25}
-        onNavigate={vi.fn()}
-      />,
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[]}
+          kpis={sampleKpis}
+          openrouterSpendUsd={1.25}
+          onNavigate={vi.fn()}
+        />
+      </LanguageProvider>,
     );
     const segment = screen.getByTestId('execution-rail-openrouter');
     expect(segment).toHaveTextContent(/openrouter/i);
@@ -75,23 +82,27 @@ describe('ChatExecutionRail', () => {
 
   it('hides OpenRouter segment when openrouterSpendUsd is omitted', () => {
     render(
-      <ChatExecutionRail
-        tasks={[]}
-        kpis={sampleKpis}
-        onNavigate={vi.fn()}
-      />,
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[]}
+          kpis={sampleKpis}
+          onNavigate={vi.fn()}
+        />
+      </LanguageProvider>,
     );
     expect(screen.queryByTestId('execution-rail-openrouter')).toBeNull();
   });
 
   it('shows current model label when activeModel is provided', () => {
     render(
-      <ChatExecutionRail
-        tasks={[]}
-        kpis={sampleKpis}
-        activeModel="claude-sonnet-4"
-        onNavigate={vi.fn()}
-      />,
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[]}
+          kpis={sampleKpis}
+          activeModel="claude-sonnet-4"
+          onNavigate={vi.fn()}
+        />
+      </LanguageProvider>,
     );
     const segment = screen.getByTestId('execution-rail-model');
     expect(segment).toHaveTextContent(/model/i);
@@ -102,11 +113,13 @@ describe('ChatExecutionRail', () => {
     const onNavigate = vi.fn();
     const user = userEvent.setup();
     render(
-      <ChatExecutionRail
-        tasks={[]}
-        kpis={sampleKpis}
-        onNavigate={onNavigate}
-      />,
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[]}
+          kpis={sampleKpis}
+          onNavigate={onNavigate}
+        />
+      </LanguageProvider>,
     );
 
     await user.click(screen.getByTestId('execution-rail-agents'));
@@ -123,12 +136,14 @@ describe('ChatExecutionRail', () => {
     const onNavigate = vi.fn();
     const user = userEvent.setup();
     render(
-      <ChatExecutionRail
-        tasks={[]}
-        kpis={sampleKpis}
-        intents={['claude-sonnet-4 · exploit', 'Alt: gpt-4o', 'Alt: gemini-pro', 'extra']}
-        onNavigate={onNavigate}
-      />,
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[]}
+          kpis={sampleKpis}
+          intents={['claude-sonnet-4 · exploit', 'Alt: gpt-4o', 'Alt: gemini-pro', 'extra']}
+          onNavigate={onNavigate}
+        />
+      </LanguageProvider>,
     );
 
     const region = screen.getByRole('region', { name: /intent map/i });
@@ -144,12 +159,14 @@ describe('ChatExecutionRail', () => {
 
   it('omits intent map when intents prop is empty', () => {
     render(
-      <ChatExecutionRail
-        tasks={[]}
-        kpis={sampleKpis}
-        intents={[]}
-        onNavigate={vi.fn()}
-      />,
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[]}
+          kpis={sampleKpis}
+          intents={[]}
+          onNavigate={vi.fn()}
+        />
+      </LanguageProvider>,
     );
     expect(screen.queryByRole('region', { name: /intent map/i })).toBeNull();
   });
@@ -157,11 +174,13 @@ describe('ChatExecutionRail', () => {
   it('can collapse and expand the rail panel', async () => {
     const user = userEvent.setup();
     render(
-      <ChatExecutionRail
-        tasks={[]}
-        kpis={sampleKpis}
-        onNavigate={vi.fn()}
-      />,
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[]}
+          kpis={sampleKpis}
+          onNavigate={vi.fn()}
+        />
+      </LanguageProvider>,
     );
 
     expect(screen.getByRole('region', { name: /active tasks/i })).toBeInTheDocument();
@@ -179,11 +198,13 @@ describe('ChatExecutionRail', () => {
   it('persists collapsed state in localStorage', async () => {
     const user = userEvent.setup();
     render(
-      <ChatExecutionRail
-        tasks={[]}
-        kpis={sampleKpis}
-        onNavigate={vi.fn()}
-      />,
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[]}
+          kpis={sampleKpis}
+          onNavigate={vi.fn()}
+        />
+      </LanguageProvider>,
     );
 
     await user.click(screen.getByRole('button', { name: /collapse execution rail/i }));
@@ -196,7 +217,7 @@ describe('ChatExecutionRail', () => {
       kpis: { activeAgents: { value: 0 }, queueDepth: { value: 0 }, mesh: { peers: 0 } },
       onNavigate: vi.fn(),
     };
-    render(<ChatExecutionRail {...defaultProps} />);
+    render(<LanguageProvider><ChatExecutionRail {...defaultProps} /></LanguageProvider>);
     await waitFor(() => {
       expect(screen.getByRole('meter')).toBeInTheDocument();
     });
@@ -220,11 +241,13 @@ describe('ChatExecutionRail', () => {
     });
 
     render(
-      <ChatExecutionRail
-        tasks={[]}
-        kpis={{ activeAgents: { value: 0 }, queueDepth: { value: 0 }, mesh: { peers: 0 } }}
-        onNavigate={vi.fn()}
-      />,
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[]}
+          kpis={{ activeAgents: { value: 0 }, queueDepth: { value: 0 }, mesh: { peers: 0 } }}
+          onNavigate={vi.fn()}
+        />
+      </LanguageProvider>,
     );
 
     await waitFor(() => {

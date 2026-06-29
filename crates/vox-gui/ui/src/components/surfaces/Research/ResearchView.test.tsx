@@ -18,6 +18,7 @@ vi.mock('@tauri-apps/api/event', () => ({
   listen: vi.fn().mockResolvedValue(() => {}),
 }));
 
+import { LanguageProvider } from '../../../hooks/useLanguage';
 import { ResearchView } from './ResearchView';
 
 describe('ResearchView', () => {
@@ -27,12 +28,12 @@ describe('ResearchView', () => {
   });
 
   it('renders the Research heading', () => {
-    render(<ResearchView pushToast={vi.fn()} />);
+    render(<LanguageProvider><ResearchView pushToast={vi.fn()} /></LanguageProvider>);
     expect(screen.getByText('Research')).toBeTruthy();
   });
 
   it('every button carries an explicit type="button"', async () => {
-    render(<ResearchView pushToast={vi.fn()} />);
+    render(<LanguageProvider><ResearchView pushToast={vi.fn()} /></LanguageProvider>);
     await waitFor(() => expect(screen.getByText('What is Vox?')).toBeTruthy());
     for (const b of screen.getAllByRole('button')) {
       expect(b.getAttribute('type')).toBe('button');
@@ -40,12 +41,12 @@ describe('ResearchView', () => {
   });
 
   it('the research query input is labeled', () => {
-    render(<ResearchView pushToast={vi.fn()} />);
+    render(<LanguageProvider><ResearchView pushToast={vi.fn()} /></LanguageProvider>);
     expect(screen.getByLabelText('Research question')).toBeTruthy();
   });
 
   it('exposes the session history as role=list', async () => {
-    render(<ResearchView pushToast={vi.fn()} />);
+    render(<LanguageProvider><ResearchView pushToast={vi.fn()} /></LanguageProvider>);
     await waitFor(() => expect(screen.getAllByRole('list').length).toBeGreaterThan(0));
     expect(screen.getAllByRole('listitem').length).toBe(SESSIONS.length);
   });

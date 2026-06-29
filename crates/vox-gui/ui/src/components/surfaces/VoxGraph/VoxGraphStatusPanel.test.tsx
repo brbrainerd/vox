@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { LanguageProvider } from '../../../hooks/useLanguage';
 
 const mockUse = vi.fn();
 vi.mock('../../../hooks/useVoxGraphStatus', () => ({
@@ -19,7 +20,7 @@ import { VoxGraphStatusPanel } from './VoxGraphStatusPanel';
 
 function renderWithClient(ui: React.ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+  return render(<LanguageProvider><QueryClientProvider client={client}>{ui}</QueryClientProvider></LanguageProvider>);
 }
 
 const STALE_CORPUS = {

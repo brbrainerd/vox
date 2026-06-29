@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
+import { useLabel } from '../../../hooks/useLanguage';
 import {
   getCompletionReport,
   runAutofill,
@@ -107,7 +108,7 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
   return (
     <section className="space-y-4">
       <div>
-        <h2 className="font-display text-lg tracking-wider text-text-primary uppercase">Archive Panel</h2>
+        <h2 className="font-display text-lg tracking-wider text-text-primary uppercase">{useLabel('archive-panel')}</h2>
         <p className="font-mono text-xs text-text-muted">
           Metadata completeness, deterministic autofill, and deposit status (Zenodo / Software Heritage).
         </p>

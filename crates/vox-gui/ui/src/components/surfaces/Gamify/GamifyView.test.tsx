@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
+import { LanguageProvider } from '../../../hooks/useLanguage';
 
 const invoke = vi.fn();
 vi.mock('@tauri-apps/api/core', () => ({ invoke: (...a: unknown[]) => invoke(...a) }));
@@ -53,14 +54,14 @@ beforeEach(() => {
 
 describe('GamifyView', () => {
   it('renders the heading and a typed refresh control', () => {
-    render(<GamifyView pushToast={() => {}} />);
+    render(<LanguageProvider><GamifyView pushToast={() => {}} /></LanguageProvider>);
     expect(screen.getByText(/gamification/i)).toBeDefined();
     const refresh = screen.getByRole('button', { name: /refresh|loading/i });
     expect(refresh.getAttribute('type')).toBe('button');
   });
 
   it('exposes companion bars as accessible progressbars', async () => {
-    render(<GamifyView pushToast={() => {}} />);
+    render(<LanguageProvider><GamifyView pushToast={() => {}} /></LanguageProvider>);
     await waitFor(() => expect(screen.getByText('Sparky')).toBeDefined());
     const bars = screen.getAllByRole('progressbar');
     expect(bars.length).toBeGreaterThan(0);
@@ -69,7 +70,7 @@ describe('GamifyView', () => {
   });
 
   it('every button carries an explicit type="button"', async () => {
-    render(<GamifyView pushToast={() => {}} />);
+    render(<LanguageProvider><GamifyView pushToast={() => {}} /></LanguageProvider>);
     await waitFor(() => expect(screen.getByText('Sparky')).toBeDefined());
     for (const b of screen.getAllByRole('button')) {
       expect(b.getAttribute('type')).toBe('button');
@@ -78,7 +79,7 @@ describe('GamifyView', () => {
 
   it('renders immersive fullscreen sandbox visualizer', () => {
     const { render } = require('@testing-library/react');
-    const { container } = render(<GamifyView pushToast={vi.fn()} />);
+    const { container } = render(<LanguageProvider><GamifyView pushToast={vi.fn()} /></LanguageProvider>);
     const canvas = container.querySelector('canvas');
     expect(canvas).not.toBeNull();
   });

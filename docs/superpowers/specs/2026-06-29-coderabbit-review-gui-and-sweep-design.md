@@ -1,137 +1,162 @@
 ---
-title: CodeRabbit review — bring-forward, date-scoped importance sweep, and GUI panel
+title: CodeRabbit review — date-scoped importance sweep + GUI panel
 date: 2026-06-29
-status: approved-design
+status: approved-design (revised after adversarial codebase audit)
+supersedes_draft: the original "bring-forward" framing was wrong; see Audit Correction.
 ---
 
-# CodeRabbit review: bring-forward + date-scoped sweep + GUI panel
+# CodeRabbit review: date-scoped importance sweep + GUI panel
 
-## Problem
+## Audit correction (read first)
 
-A complete CodeRabbit integration exists but is **stranded** on branch
-`claude/skill-discovery-engine` (worktree `wt-skill-discovery-engine`): 33 commits
-ahead of `main`, 669 behind, never PR'd. None of it is on `main`. We want to:
+An adversarial audit against the actual code overturned the original premise:
 
-1. Bring it forward to `main`.
-2. Periodically (date-controlled) review the **most important, recently-modified**
-   files in the repo, sliced under CodeRabbit's per-PR file cap, as discrete PRs so
-   CodeRabbit reviews each slice from scratch.
-3. Surface it as a review option in the vox GUI.
-4. Handle the API key (it is GitHub-side; minimal work needed).
+- **The `coderabbit` CLI module is already on `main`**, gated behind cargo feature
+  `coderabbit` (`crates/vox-cli/src/commands/review/coderabbit/**`, registered in
+  `review/mod.rs` under `#[cfg(feature = "coderabbit")]`). There is **nothing to
+  bring forward**.
+- **`vox-db` `external_review` schema/store is already on `main`** at baseline
+  schema **v80**, byte-identical to the branch. The branch
+  `claude/skill-discovery-engine` is **v77 and 669 commits behind** (missing
+  `activity_log`/`history` domains) — it is obsolete; **do not copy from it** (that
+  would downgrade the schema and fail the baseline digest check).
+- The only files that differ between main and that branch are `config.rs` and
+  `limits.rs`; **main is canonical**. The `limits.rs` **bugs still exist on main**.
+
+So this work is **purely additive on `main`**: extend the existing feature-gated
+module, fix the limits constants, and add a GUI surface.
 
 ## Verified constraints (ground truth)
 
-CodeRabbit's published numbers are inconsistent across its own docs and aggregators
-(free = "150 files" vs "200 files/hour"; Pro = "300" with no per-PR cap stated; a
-separate ~3000-file processing ceiling). The only cleanly-documented figure is
-**Pro = 5 PR reviews/hour**. Owner's lived experience on Pro: **~150 files per PR
-cap, full line-by-line reviews on every tier (not summary-only)**.
+CodeRabbit's published numbers are self-contradictory across its own pages. The one
+cleanly-documented figure is **Pro = 5 PR reviews/hour**. Owner's lived experience on
+Pro: **~150 files per PR cap; full line-by-line reviews on every tier (not
+summary-only)**. Treat the per-PR cap as **config-driven, default 140** (margin under
+150). No adaptive backoff is needed: `pack_oversized_files`
+(`semantic_planner/rules.rs:282`) already guarantees no slice exceeds the configured
+cap, so an oversized-PR rejection cannot occur by construction.
 
-**Design consequence:** do not trust hardcoded vendor constants. The per-PR cap is
-**config-driven (default 140, margin under 150)** with **adaptive backoff** — if a
-PR is bounced/cancelled as too large, halve the slice and retry.
+### `limits.rs` bugs to fix on main (`coderabbit/limits.rs`)
 
-### Bugs in existing `limits.rs` (fix during bring-forward)
-
-| Constant | Code | Correct |
+| Constant | Code (main) | Correct |
 |---|---|---|
 | `files_per_review(Pro)` | 300 | 150 |
 | `reviews_per_hour(Pro)` | 8 | 5 |
 | `min_delay_between_prs_secs(Pro)` | 450 | 720 (3600/5) |
 | `recommended_max_files_per_pr(Pro)` | 250 | 140 |
-| `Enterprise` reviews/hour | 12 | 12 (keep; unverified, leave note) |
-| doc comment "summary only" (Free) | present | wrong; remove |
+| `Enterprise` reviews/hour | 12 | 12 (keep; mark `// unverified`) |
+| doc comment "(summary only)" on Free | present | wrong; remove |
 
-## What we reuse (≈95%, already built)
+## What we reuse (unchanged, already on main, behind `coderabbit` feature)
 
-`vox review coderabbit` subcommands, unchanged: `semantic-submit` (the GUI path),
+`semantic-submit` (the GUI path; plan-only by default, `--execute` to open PRs),
 `historical-submit`, `batch-submit`, `submit`, `ingest`, `db-backfill`, `db-report`,
-`db-status`, `learning-sync`, `deadletter-retry`, `tasks`, `wait`. Plus the
-worktree-isolated PR creation, clean-baseline topology, rate-limit delays, resume
-run-state, and the `external_review_*` VoxDB schema/store + `vox-code-audit/review`.
+`db-status`, `learning-sync`, `deadletter-retry`, `tasks`, `wait`; worktree-isolated
+PR creation, clean-baseline topology, rate-limit delays (`limits.rs`), resume
+run-state (`.coderabbit/run-state.json`), `external_review_*` VoxDB tables.
+`stack-submit` stays but is **never wired to the GUI** (confirmed destructive:
+`mod.rs:128`).
 
-`stack-submit` stays but is **never wired to the GUI** (destructive/deprecated).
+Key verified facts the new code builds on:
+- Collectors are **async**: `collect_changed_files`/`collect_all_files` in
+  `semantic_planner/collector.rs`; full-repo-vs-changed branch at `submit.rs:29-37`.
+- `SemanticSubmitConfig` in `semantic_planner/types.rs:217` (17 fields;
+  `max_files_per_pr: usize`, `tier: CodeRabbitTier`).
+- Manifest path: `.coderabbit/semantic-manifest.json` (`manifest.rs:10`).
+- Churn source: `git.rs` `DiffEntry.weight = insertions + deletions`.
+- **Chunk order is by rule `order`, files reordered by prefix-packing**
+  (`types.rs:184`, `rules.rs:282`). Input ranking does NOT control PR order.
 
-## New work (four small pieces)
+## New work (four additive features + GUI wiring)
 
 ### 1. Date scope — `--since`
-New collector `collect_files_modified_since(repo, since: &str) -> Vec<String>` in
-`semantic_planner/collector.rs`, using `git log --since=<date> --name-only
---diff-filter=ACMR` (drop deletions). Wire `--since <DATE>` into `semantic-submit`.
-When set, it replaces the default changed-files collection as the candidate set.
+New **async** collector `collect_files_modified_since(repo, since)` in
+`collector.rs`, using `git log --since=<date> --name-only --diff-filter=ACMR
+--pretty=format:`. Add `since: Option<String>` to `SemanticSubmitConfig` and
+`--since <DATE>` to `semantic-submit`; when set it is the candidate set (takes
+priority over `--full-repo`/changed-files at `submit.rs:29-37`).
 
-### 2. Importance ranker — `ranker.rs`
-`score(file) = w_recency·norm(recency) + w_churn·norm(churn) + w_central·norm(centrality)`
+### 2. Importance ranker — `ranker.rs` + `--top`/`--rank-weights`
+`score(file) = w_recency·norm(recency) + w_churn·norm(churn) + w_central·norm(central)`
 
-- recency: commits-since / days-since from `git log --since`.
-- churn: insertions+deletions (reuse existing `DiffEntry.weight` / numstat).
-- centrality: degree of the file's node in the existing graphify graph
-  (`graphify-out/`). **Degrades gracefully**: if no graph present, drop the term and
-  renormalize over the remaining two.
-- Weights: equal by default (`1/1/1`), overridable via `Vox.toml`
-  `[review.coderabbit.ranking]` and `--rank-weights r,c,g`.
+- recency: commits-touching-file since `since` (from `git log --since --name-only`).
+- churn: insertions+deletions since `since` (from `git log --since --numstat`).
+- centrality: file-aggregated node degree from the **existing `vox-graph-reader`
+  crate** — `GraphifyReader::from_value(graph.json)` then sum `god_nodes(n)` degrees
+  per file; node ids are `file::symbol`, split on `::`, normalize a leading
+  `.claude/worktrees/<seg>/` prefix. Graph read from
+  `.vox/cache/graphify/repo-code-graph/graph.json`. **Loaded only when
+  `w_central > 0`.** Any missing-file/parse case → the centrality term is omitted.
+  **VERIFIED 2026-06-29** against the real 342MB cache: centrality covers only **39% of
+  tracked files** (cache is 84% stale worktree paths). Uncovered files are therefore
+  **imputed at the median of covered candidates, NOT zero** — absence must be neutral,
+  never a penalty (zeroing would wrongly sink 61% of files). Coverage % is **logged each
+  run** with a hint to regenerate the graph (`vox graph`). Consequence: with today's
+  stale graph, recency+churn carry the real signal and centrality is a light tiebreaker;
+  it strengthens only after a fresh main-scoped graph.
+- Weights default equal (`1/1/1`); override via `--rank-weights r,c,g` and
+  `Vox.toml [review.coderabbit]`.
+- `--top N`: rank candidates, keep highest-scoring N, then plan as usual.
 
-Add `--top N` to `semantic-submit`: rank candidates, keep top N, then hand to the
-existing semantic chunker (so slices still group semantically and stay ≤cap).
-Ranking determines **which files** and **slice order** (highest-importance PRs first).
+vox-cli gains a `vox-graph-reader` dependency **inside the `coderabbit` feature**.
 
-### 3. Adaptive backoff
-In the per-chunk submit loop: detect a CodeRabbit "too large / cancelled" outcome
-(via `wait`/`ingest` signal or PR comment marker). On detection, split the chunk in
-half and resubmit the halves; record the split in run-state. Bounded to 2 splits per
-chunk, then surface a warning rather than looping.
+### 3. Importance-first PR order (post-plan chunk re-sort)
+Because the planner orders chunks by rule `order`, add an **opt-in** re-sort: when
+ranking is active, compute each chunk's aggregate score (mean of its files' scores)
+and re-sort the manifest chunks descending before submission, so the most important
+slices become the earliest PRs (and are the ones that land first under the 5/hr
+budget). Behind `--rank-order` (default on when `--top`/`--rank-weights`/`--since`
+set). Pure manifest post-processing; does not touch grouping.
 
-### 4. GUI panel + Tauri commands
-New vox-gui route "CodeRabbit review". Three Tauri commands that **shell out** to the
-CLI (no review logic in TS):
+### 4. GUI panel + async Tauri commands (in `crates/vox-gui/src/`)
+Mirror existing patterns exactly:
+- `coderabbit_plan(since, cap, rank_weights) -> manifest JSON`: async, shells out via
+  `app.shell().sidecar("vox").args(["review","coderabbit","semantic-submit","--since",
+  …,"--max-files-per-pr",…,"--rank-weights",…])` (NO `--execute`, NO `--plan`), then
+  reads `.coderabbit/semantic-manifest.json` (CWD-relative is safe — existing
+  commands use `std::env::current_dir()`).
+- `coderabbit_run_async(...) -> {task_id, status:"running"}`: returns immediately,
+  `tokio::spawn`s the `--execute` run (hours, rate-limited), emits progress via
+  `app_handle.emit("coderabbit://progress", …)`. Mirrors `commands/research.rs`
+  `start_research_async` + `commands/control_plane.rs`.
+- `coderabbit_report() -> {run_state, db_status}`: reads `.coderabbit/run-state.json`
+  (slice/PR statuses) + `db-status --json` (findings totals).
+- `coderabbit_token_present() -> bool`: `FORGE_TOKEN`/`GITHUB_TOKEN` presence.
 
-- `coderabbit_plan(since, cap, rank_weights, dry) -> Manifest JSON`
-  → `semantic-submit --since … --top … --max-files-per-pr … --plan`
-- `coderabbit_run(...) -> run-state JSON` → same with `--execute`
-- `coderabbit_report(repo) -> findings + slice status JSON` → `db-report --json`
+Register in `crates/vox-gui/src/main.rs` `generate_handler!`. Frontend uses raw
+`invoke(...)` (no tauri-specta) + `listen("coderabbit://progress")`. Route added via
+`ui/src/lib/navigation.ts` (`PARENT_CHILD_MAP`/`NAV_LABELS`) + the `View` union in
+`ui/src/App.tsx`. Panel matches the approved mockup; uses existing vox-gui ("Limes")
+tokens; status pills map to PR/CR states. **Token handling is read-only** — no
+key-editor (CodeRabbit auth is a GitHub App install + the existing `ForgeToken`
+secret).
 
-GUI renders the manifest (slice list + importance bars + status), the 5/hr budget,
-and the findings summary. Status colors map to CDS git-state roles. Respects the
-existing vox-gui ("Limes") token system; uses CDS accent/pro roles where they map.
+### 5. Sidecar feature wiring (gap)
+The GUI sidecar is `target/release/vox` (`tauri.conf.json` `externalBin`). `coderabbit`
+is **not** a default feature, so the bundled binary must be built with
+`--features coderabbit`, and all coderabbit tests/clippy must pass `--features
+coderabbit`. Document the build step; if a sidecar build script exists, add the flag
+there.
 
-**Token (key) handling:** read-only. GUI shows FORGE_TOKEN present/absent via
-`vox-secrets` (`SecretId::ForgeToken`). **No key-editor UI** — CodeRabbit auth is a
-GitHub App install + one secret already managed via Clavis (`github-ci`). Link to
-docs for setup.
-
-## Bring-forward plan
-
-Copy-forward (not rebase) onto a fresh branch off current `main`, in a **worktree**
-(the vox-broker shim breaks `cargo` in the main dir):
-
-- `crates/vox-cli/src/commands/review/coderabbit/**`
-- `crates/vox-db` `external_review` schema + store + tests
-- `crates/vox-code-audit/src/review/**`
-- contracts: `coderabbit-semantic-groups.v1.yaml`, registry/catalog entries
-- `crates/vox-cli/tests/coderabbit_e2e.rs`
-
-Fix the `limits.rs` bugs in the same pass. Rebuild, run `coderabbit_e2e` + `clippy -p`
-the touched crates, then PR.
-
-## Testing
-
-- Keep `coderabbit_e2e` (DB ingest + dataset export).
-- New: `ranker.rs` unit test (deterministic ordering for a fixed file/churn/graph
-  fixture; graceful-degrade case with no graph).
-- New: `collect_files_modified_since` test against a fixture repo.
-- New: one integration test for worktree PR-manifest creation (currently zero
-  coverage) — manifest-only (no live GitHub) to stay hermetic.
-- Backoff: unit test that an oversized signal halves the chunk and stops at 2 splits.
+## Testing (all with `--features coderabbit`)
+- `limits.rs` unit tests updated to the corrected constants (TDD: edit expectations
+  first, watch fail, fix).
+- `collect_files_modified_since` test against a temp 2-commit repo.
+- `ranker::rank_files` test: churn dominates ordering; centrality term dropped when
+  graph absent (deterministic).
+- `file path extraction` test: `a/b.rs::sym` → `a/b.rs`; worktree-prefixed id
+  normalized.
+- chunk re-sort test: higher-aggregate-score chunk sorts first.
+- Existing `coderabbit_e2e` still green.
 
 ## Cadence
+Manual / on-demand: `vox review coderabbit semantic-submit --since <DATE> --top <N>
+--execute`. No scheduler.
 
-Manual / on-demand: documented
-`vox review coderabbit semantic-submit --since <DATE> --top <N> --execute`.
-No scheduler. Add one later only if it earns its keep.
-
-## Explicitly out of scope (skipped)
-
-- Key-management UI (GitHub-side).
-- Scheduler / cron.
-- A new `sweep` subcommand (extend `semantic-submit` instead).
-- Wiring `stack-submit` to the GUI.
+## Explicitly out of scope (skipped, with reason)
+- Bring-forward / schema copy — **already on main** (audit).
+- Adaptive backoff — impossible-by-construction given the cap + packer.
+- Key-management UI — GitHub-side.
+- Scheduler — manual chosen.
+- New `sweep` subcommand — extend `semantic-submit`.
+- Wiring `stack-submit` to the GUI — destructive.
