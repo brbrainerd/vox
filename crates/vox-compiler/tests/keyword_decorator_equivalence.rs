@@ -111,6 +111,25 @@ fn resource() {
     );
 }
 
+#[test]
+fn soft_keyword_recognized_in_script_mode() {
+    use vox_compiler::parser::parse_script;
+    // Soft keywords must be decl-position in SCRIPT mode too (not just module mode) —
+    // parse_module_script has its own is_decl_position gate. Assert the keyword form
+    // parses identically to the decorator form there, not as a statement.
+    let mut old = serde_json::to_value(
+        parse_script(lex("@query fn c() to int { return 0 }")).expect("decorator parses (script)"),
+    )
+    .unwrap();
+    let mut new = serde_json::to_value(
+        parse_script(lex("query c() to int { return 0 }")).expect("keyword parses (script)"),
+    )
+    .unwrap();
+    strip_spans(&mut old);
+    strip_spans(&mut new);
+    assert_eq!(old, new, "soft keyword must parse like the decorator in script mode");
+}
+
 // ── Identifier preservation (these must PASS even before the heads land:
 //    the words stay Token::Ident; this is the proof soft keywords don't steal
 //    the value namespace). Task 0 confirmed zero decl-head collisions. ──

@@ -298,7 +298,12 @@ impl Parser {
                     | Token::AtCollaborative
                     | Token::AtLayer
                     | Token::AtPublic
-            ) || matches!(self.peek(), Token::Ident(n) if n == "routes" || n == "url" || n == "state_machine");
+            ) || matches!(self.peek(), Token::Ident(n) if matches!(n.as_str(),
+                "routes" | "url" | "state_machine"
+                // Soft (contextual) keywords — must be decl-position in SCRIPT mode too,
+                // mirroring parse_decl's Ident dispatch. Omitting them silently routes the
+                // keyword form (`query f()`, `table User {}`) to parse_stmt and breaks it.
+                | "table" | "index" | "query" | "mutation" | "server" | "tool" | "resource"));
 
             let is_tombstoned = matches!(
                 self.peek(),

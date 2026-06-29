@@ -180,18 +180,15 @@ pub(crate) fn run_source_token_budget(root: &Path, tolerance: f64, update: bool)
         new_budgets.insert(fixture_id.clone(), measured);
 
         if let Some(allowed) = budget.fixtures.get(&fixture_id) {
+            // The TOKEN count is the ratchet (structural; comment-independent because
+            // lex() strips comments). The BYTE count is recorded for visibility only —
+            // raw bytes shift on any benign comment/whitespace edit, so gating on them
+            // would make CI fragile. It surfaces in the budget JSON diff instead.
             let tok_limit = (allowed.tokens as f64 * (1.0 + tolerance / 100.0)).ceil() as usize;
-            let byte_limit = (allowed.bytes as f64 * (1.0 + tolerance / 100.0)).ceil() as usize;
             if measured.tokens > tok_limit {
                 failures.push(format!(
                     "Fixture '{fixture_id}' exceeded token budget: {} > {tok_limit} (allowed: {})",
                     measured.tokens, allowed.tokens
-                ));
-            }
-            if measured.bytes > byte_limit {
-                failures.push(format!(
-                    "Fixture '{fixture_id}' exceeded byte budget: {} > {byte_limit} (allowed: {})",
-                    measured.bytes, allowed.bytes
                 ));
             }
         } else if !update {
