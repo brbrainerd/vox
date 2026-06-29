@@ -90,6 +90,15 @@ impl Parser {
             .unwrap_or(&Token::Eof)
     }
 
+    /// Look `n` tokens ahead (`peek_nth(0) == peek()`). Used for the small lookahead
+    /// that keeps script-mode soft keywords declaration-head-only.
+    pub(crate) fn peek_nth(&self, n: usize) -> &Token {
+        self.tokens
+            .get(self.pos + n)
+            .map(|s| &s.token)
+            .unwrap_or(&Token::Eof)
+    }
+
     pub(crate) fn span(&self) -> Span {
         self.tokens
             .get(self.pos)
@@ -298,12 +307,16 @@ impl Parser {
                     | Token::AtCollaborative
                     | Token::AtLayer
                     | Token::AtPublic
-            ) || matches!(self.peek(), Token::Ident(n) if matches!(n.as_str(),
-                "routes" | "url" | "state_machine"
-                // Soft (contextual) keywords — must be decl-position in SCRIPT mode too,
-                // mirroring parse_decl's Ident dispatch. Omitting them silently routes the
-                // keyword form (`query f()`, `table User {}`) to parse_stmt and breaks it.
-                | "table" | "index" | "query" | "mutation" | "server" | "tool" | "resource"));
+            ) || matches!(self.peek(), Token::Ident(n) if n == "routes" || n == "url" || n == "state_machine")
+                // Soft (contextual) keywords must be decl-position in SCRIPT mode too,
+                // mirroring parse_decl's Ident dispatch — BUT only at a real declaration
+                // head. They are decl-heads only when followed by a name (Ident) or, for
+                // tool/resource, a leading string; never before `(`/`.`/operators. This
+                // keeps script-mode calls/refs like `query(x)` or `table.foo` on the
+                // statement path instead of stealing them into parse_decl.
+                || (matches!(self.peek(), Token::Ident(n) if matches!(n.as_str(),
+                        "table" | "index" | "query" | "mutation" | "server" | "tool" | "resource"))
+                    && matches!(self.peek_nth(1), Token::Ident(_) | Token::StringLit(_)));
 
             let is_tombstoned = matches!(
                 self.peek(),

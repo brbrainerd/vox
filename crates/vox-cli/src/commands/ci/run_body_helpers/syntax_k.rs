@@ -144,6 +144,9 @@ struct SourceTokenBudgetFile {
 /// Ratchet-down: fail when a fixture exceeds its budget beyond `tolerance`. `--update`
 /// rebaselines (run after the decorator→keyword codemod to record the shrunk counts).
 pub(crate) fn run_source_token_budget(root: &Path, tolerance: f64, update: bool) -> Result<()> {
+    // Extra headroom (percentage points) the byte budget gets on top of the token
+    // tolerance — raw bytes are noisier than structural tokens, so they gate loosely.
+    const BYTE_HEADROOM_PCT: f64 = 10.0;
     let budget_path = root.join("contracts/eval/source-token-budget.v1.json");
     let mut budget = if budget_path.exists() {
         serde_json::from_str::<SourceTokenBudgetFile>(&fs::read_to_string(&budget_path)?)?
@@ -180,15 +183,25 @@ pub(crate) fn run_source_token_budget(root: &Path, tolerance: f64, update: bool)
         new_budgets.insert(fixture_id.clone(), measured);
 
         if let Some(allowed) = budget.fixtures.get(&fixture_id) {
-            // The TOKEN count is the ratchet (structural; comment-independent because
-            // lex() strips comments). The BYTE count is recorded for visibility only —
-            // raw bytes shift on any benign comment/whitespace edit, so gating on them
-            // would make CI fragile. It surfaces in the budget JSON diff instead.
+            // TOKEN count is the tight ratchet (structural; comment-independent because
+            // lex() strips comments). BYTE count is also enforced, but with generous
+            // headroom (+BYTE_HEADROOM_PCT beyond the token tolerance) so a benign
+            // comment/whitespace edit to a golden does not fail CI while a gross size
+            // regression still does. `--update` rebaselines on legitimate growth.
             let tok_limit = (allowed.tokens as f64 * (1.0 + tolerance / 100.0)).ceil() as usize;
             if measured.tokens > tok_limit {
                 failures.push(format!(
                     "Fixture '{fixture_id}' exceeded token budget: {} > {tok_limit} (allowed: {})",
                     measured.tokens, allowed.tokens
+                ));
+            }
+            let byte_limit = (allowed.bytes as f64
+                * (1.0 + (tolerance + BYTE_HEADROOM_PCT) / 100.0))
+                .ceil() as usize;
+            if measured.bytes > byte_limit {
+                failures.push(format!(
+                    "Fixture '{fixture_id}' exceeded byte budget: {} > {byte_limit} (allowed: {} + {BYTE_HEADROOM_PCT}% headroom)",
+                    measured.bytes, allowed.bytes
                 ));
             }
         } else if !update {
@@ -290,5 +303,52 @@ fixtures:
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
         run_k_complexity_budget(&root, 0.0, false)
             .expect("real repo k-complexity budget should pass");
+    }
+
+    fn write_source_token_budget(root: &Path, fixtures_json: &str) {
+        fs::create_dir_all(root.join("contracts/eval")).expect("eval dir");
+        fs::write(
+            root.join("contracts/eval/source-token-budget.v1.json"),
+            format!(r#"{{ "fixtures": {fixtures_json} }}"#),
+        )
+        .expect("source-token budget json");
+    }
+
+    #[test]
+    fn source_token_budget_passes_under_generous_budget() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let root = dir.path();
+        write_minimal_ladder_workspace(root, "{}");
+        write_source_token_budget(root, r#"{ "hello": { "tokens": 9999, "bytes": 99999 } }"#);
+        run_source_token_budget(root, 0.0, false).expect("under-budget hello must pass");
+    }
+
+    #[test]
+    fn source_token_budget_fails_over_budget() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let root = dir.path();
+        write_minimal_ladder_workspace(root, "{}");
+        write_source_token_budget(root, r#"{ "hello": { "tokens": 1, "bytes": 1 } }"#);
+        let err =
+            run_source_token_budget(root, 0.0, false).expect_err("over-budget hello must fail");
+        let msg = format!("{err:#}");
+        assert!(
+            msg.contains("hello") && msg.contains("exceeded"),
+            "expected over-budget failure for hello, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn source_token_budget_missing_entry_fails_when_not_updating() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let root = dir.path();
+        write_minimal_ladder_workspace(root, "{}");
+        write_source_token_budget(root, "{}");
+        let err = run_source_token_budget(root, 0.0, false).expect_err("missing budget must fail");
+        let msg = format!("{err:#}");
+        assert!(
+            msg.contains("hello") && msg.contains("no source-token budget"),
+            "expected missing-budget failure for hello, got: {msg}"
+        );
     }
 }

@@ -139,3 +139,43 @@ impl std::fmt::Display for ParseError {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ast::span::Span;
+
+    #[test]
+    fn retired_decorator_builds_machine_readable_payload() {
+        let e = ParseError::retired_decorator(
+            Span::new(0, 6),
+            "@table",
+            "table",
+            "vox/decorator/table-retired",
+            ParseSeverity::Warning,
+        );
+        assert_eq!(e.class, ParseErrorClass::Tombstoned);
+        assert_eq!(e.severity, ParseSeverity::Warning);
+        assert_eq!(e.message, "`@table` is retired; use `table`");
+        assert_eq!(e.expected, vec!["table".to_string()]);
+        assert_eq!(e.found.as_deref(), Some("@table"));
+        let r = e.replacement.as_ref().expect("replacement payload present");
+        assert_eq!(r.from, "@table");
+        assert_eq!(r.to, "table");
+        assert_eq!(r.code, "vox/decorator/table-retired");
+    }
+
+    #[test]
+    fn retired_decorator_can_be_hard_error_at_flip() {
+        // The warning→error flip passes ParseSeverity::Error; the payload is unchanged.
+        let e = ParseError::retired_decorator(
+            Span::new(0, 6),
+            "@query",
+            "query",
+            "vox/decorator/query-retired",
+            ParseSeverity::Error,
+        );
+        assert_eq!(e.severity, ParseSeverity::Error);
+        assert_eq!(e.replacement.unwrap().to, "query");
+    }
+}

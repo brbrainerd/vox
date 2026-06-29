@@ -34,6 +34,18 @@ pub const LSP_KEYWORD_SNIPPETS: &[(&str, &str)] = &[
     ("pub", "pub $0"),
     ("with", "with $1 { \n\t$0 \n}"),
     ("on", "on $1($2) { \n\t$0 \n}"),
+    // ── Soft (contextual) data-layer keywords — the migration path that replaces the
+    //    retired @table/@index/@query/@mutation/@server/@tool/@resource decorators. ──
+    ("table", "table $1 { \n\t$0 \n}"),
+    ("index", "index $1.$2 on ($0)"),
+    ("query", "query $1($2) to $3 { \n\t$0 \n}"),
+    ("mutation", "mutation $1($2) to $3 { \n\t$0 \n}"),
+    ("server", "server $1($2) to $3 { \n\t$0 \n}"),
+    ("tool", "tool $1($2) to $3 { \n\t$0 \n}"),
+    (
+        "resource",
+        "resource \"${1:uri}\" \"${2:desc}\" $3() to $4 { \n\t$0 \n}",
+    ),
     // ── Parser-only identifiers (lexed as Ident) ──
     ("struct", "struct $1 { \n\t$0 \n}"),
     ("enum", "enum $1 { \n\t$0 \n}"),
@@ -49,23 +61,15 @@ pub const LSP_KEYWORD_SNIPPETS: &[(&str, &str)] = &[
 ];
 
 /// Decorators with dedicated lexer tokens — `(spelling, LSP doc)`.
+///
+/// The retired data-layer decorators (`@server`/`@table`/`@index`/`@query`/`@mutation`/
+/// `@tool`/`@resource`) are intentionally absent: they live in
+/// [`LEXER_DEPRECATED_DECORATORS`], and LSP should steer users to the soft-keyword
+/// forms in [`LSP_KEYWORD_SNIPPETS`] instead.
 pub const LSP_DECORATOR_DOCS: &[(&str, &str)] = &[
     (
         "@loading",
         "Route suspense UI (`fn` → `*.tsx`); TanStack Router `pendingComponent` when `routes:` exists.",
-    ),
-    (
-        "@server",
-        "Server function (Axum route + TS client wrapper).",
-    ),
-    ("@table", "Declares a persistent database table."),
-    ("@index", "Declares a database index."),
-    ("@query", "Declares a database query function."),
-    ("@mutation", "Declares a database mutation function."),
-    ("@tool", "Exposes a function as an MCP tool."),
-    (
-        "@resource",
-        "Read-only MCP resource (URI + description; nullary fn body).",
     ),
     ("@test", "Marks a function as a test case."),
     (
@@ -109,16 +113,10 @@ pub const LSP_DECORATOR_DOCS: &[(&str, &str)] = &[
     ),
 ];
 
-/// LSP decorator snippets: `(label, snippet)`.
+/// LSP decorator snippets: `(label, snippet)`. The retired data-layer decorators are
+/// omitted in favor of the soft-keyword snippets in [`LSP_KEYWORD_SNIPPETS`].
 pub const LSP_DECORATOR_SNIPPETS: &[(&str, &str)] = &[
     ("@loading", "@loading"),
-    ("@server", "@server"),
-    ("@table", "@table"),
-    ("@index", "@index"),
-    ("@query", "@query"),
-    ("@mutation", "@mutation"),
-    ("@tool", "@tool(\"${1:tool_name}\")"),
-    ("@resource", "@resource(\"${1:uri}\")"),
     ("@test", "@test"),
     ("@placeholder", "@placeholder(\"${1:component_id}\")"),
     ("@require", "@require(${1:condition})"),
