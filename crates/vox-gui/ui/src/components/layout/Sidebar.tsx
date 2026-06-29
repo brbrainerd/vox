@@ -8,6 +8,8 @@ import { SURFACE_REGISTRY } from '../../generated/surfaceRegistry.generated';
 import { TOP_LEVEL_VIEWS, resolveNavigation } from '../../lib/navigation';
 import { STATUS_BADGE_CLASS, STATUS_RAIL_BADGE_CLASS } from '../../styles/tokens';
 import { useFreshness } from '../../hooks/useFreshness';
+import { useLang } from '../../hooks/useLanguage';
+import { LEXICON, labelFor } from '../../lib/lexicon';
 
 export type SidebarMode = 'rail' | 'default' | 'wide';
 
@@ -44,18 +46,25 @@ function NavItem({ active, icon, label, onClick, badge, badgeClass, railBadgeCla
 const SIDEBAR_WIDTHS = { rail: 64, default: 212, wide: 280 };
 const SIDEBAR_ORDER: SidebarMode[] = ["rail", "default", "wide"];
 
-const TOP_NAV_META: Record<string, { label: string; icon: string }> = {
-  chat: { label: 'Chat', icon: 'message' },
-  agents: { label: 'Agents', icon: 'users' },
-  runs: { label: 'Runs & Approvals', icon: 'scale' },
-  workspace: { label: 'Workspace', icon: 'folder' },
-  commands: { label: 'Commands', icon: 'terminal' },
-  search: { label: 'Search', icon: 'search' },
-  knowledge: { label: 'Knowledge', icon: 'book' },
-  compute: { label: 'Compute', icon: 'cpu' },
-  mercatus: { label: 'Mercatus', icon: 'scale' },
-  settings: { label: 'Settings', icon: 'settings' },
+// Curated nav icons (labels now come from the lexicon by viewKey).
+// ponytail: nav English now lives in lexicon.ts; the generated registry navLabel still feeds
+// federated search keywords. Reconcile only if they drift. Upgrade path: thread nav_label_la
+// through crates/vox-cli/src/commands/ci/gui_surface_registry.rs so the registry carries la natively.
+const TOP_NAV_ICON: Record<string, string> = {
+  chat: 'message',
+  agents: 'users',
+  runs: 'scale',
+  workspace: 'folder',
+  commands: 'terminal',
+  search: 'search',
+  knowledge: 'book',
+  compute: 'cpu',
+  mercatus: 'scale',
+  settings: 'settings',
 };
+
+const navLabelFor = (key: string, lang: 'en' | 'la') =>
+  labelFor(LEXICON[`nav:${key}`] ? `nav:${key}` : key, lang);
 
 interface SidebarProps {
   view: string;
@@ -109,6 +118,7 @@ export function Sidebar({
     setMode(SIDEBAR_ORDER[ni]);
   };
 
+  const { lang } = useLang();
   const activeRef = useRef<HTMLButtonElement>(null);
 
   const visibleTopLevel = TOP_LEVEL_VIEWS.filter(k => k !== 'settings');
@@ -151,8 +161,8 @@ export function Sidebar({
 
         <nav className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar flex flex-col gap-0.5 -mr-1 pr-1">
           {visibleTopLevel.map(key => {
-            const meta = TOP_NAV_META[key] ?? { label: key, icon: 'file' };
-            const IconCmp = (Icon as Record<string, any>)[meta.icon] ?? Icon.file;
+            const label = navLabelFor(key, lang);
+            const IconCmp = (Icon as Record<string, any>)[TOP_NAV_ICON[key] ?? 'file'] ?? Icon.file;
             const isActive = activeParent === key;
             const badge =
               key === 'agents' ? agentsCount
@@ -172,7 +182,7 @@ export function Sidebar({
                 active={isActive}
                 onClick={() => setView(key)}
                 icon={<IconCmp className="size-4" />}
-                label={meta.label}
+                label={label}
                 badge={badge}
                 ariaLabel={navAriaLabel}
               />
@@ -183,13 +193,13 @@ export function Sidebar({
         <div className="flex flex-col gap-2 pt-3 shrink-0">
           {settingsEntry && (
             <div className={`flex flex-col gap-0.5 pt-2 ${collapsed ? 'border-t border-border-subtle' : ''}`}>
-              {!collapsed && <div className="mx-2 mb-1 border-b border-border-subtle px-0 pb-1 font-display text-[9px] uppercase tracking-[0.32em] text-text-muted">System</div>}
+              {!collapsed && <div className="mx-2 mb-1 border-b border-border-subtle px-0 pb-1 font-display text-[9px] uppercase tracking-[0.32em] text-text-muted">{labelFor('group:system', lang)}</div>}
               <NavItem
                 collapsed={collapsed}
                 active={activeParent === 'settings'}
                 onClick={() => setView('settings')}
                 icon={<Icon.settings className="size-4" />}
-                label={settingsEntry.navLabel as string}
+                label={labelFor('settings', lang)}
                 badge={policyBadge && policyBadge.count > 0 ? policyBadge.count : undefined}
                 badgeClass={policyBadge ? STATUS_BADGE_CLASS[policyBadge.status] : undefined}
                 railBadgeClass={policyBadge ? STATUS_RAIL_BADGE_CLASS[policyBadge.status] : undefined}
@@ -205,7 +215,7 @@ export function Sidebar({
                   active={view === 'coverage'}
                   onClick={() => setView('coverage')}
                   icon={<Icon.check className="size-4" />}
-                  label={coverageEntry.navLabel as string}
+                  label={labelFor('coverage', lang)}
                   ariaLabel="Coverage, CI surface gaps"
                 />
               )}
