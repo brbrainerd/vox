@@ -2,6 +2,8 @@ import React, { useMemo } from 'react';
 import { SURFACE_REGISTRY } from '../../generated/surfaceRegistry.generated';
 import { SubTabs } from './SubTabs';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { useLang } from '../../hooks/useLanguage';
+import { labelFor } from '../../lib/lexicon';
 
 interface ParentSurfaceProps {
   parentKey: string;
@@ -16,14 +18,15 @@ export function ParentSurface({
   onChildChange,
   renderChild,
 }: ParentSurfaceProps) {
+  const { lang } = useLang();
   const [lastTabs] = useLocalStorage<Record<string, string>>('vox_parent_tabs', {});
 
   const tabs = useMemo(
     () =>
       SURFACE_REGISTRY
         .filter(e => e.parentSurface === parentKey && e.viewKey && e.navLabel)
-        .map(e => ({ viewKey: e.viewKey as string, label: e.navLabel as string })),
-    [parentKey],
+        .map(e => ({ viewKey: e.viewKey as string, label: labelFor(e.viewKey as string, lang) })),
+    [parentKey, lang],
   );
 
   const child =
