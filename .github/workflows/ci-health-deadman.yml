@@ -33,7 +33,7 @@ jobs:
             https://ntfy.sh/*|https://api.pushover.net/*) : ;;
             *) echo "::error::PUSH_URL not allowlisted"; exit 1 ;;
           esac
-          last=$(gh run list --workflow ci-health-watchdog.yml --limit 1 --json status,conclusion,updatedAt)
+          last=$(gh run list -R "$GITHUB_REPOSITORY" --workflow ci-health-watchdog.yml --limit 1 --json status,conclusion,updatedAt)
           status=$(jq -r '.[0].status // "none"'   <<<"$last")
           concl=$(jq -r '.[0].conclusion // "none"' <<<"$last")
           updated=$(jq -r '.[0].updatedAt // empty' <<<"$last")
