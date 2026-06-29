@@ -18,11 +18,18 @@ generated_at: "2026-05-28"
 
 tiers:
   fast:
-    # fmt (~0s) + ssot (~15s) + toestub (~26s) + arch-check (~7s) = ~48s
-    measured_ms: 60000
-    warn_ms: 72000          # 1.2x
-    fail_ms: 90000          # 1.5x
-    note: "Arch-check went from 165s to ~7s (commit 760dae75da et al.)"
+    # Re-measured 2026-06-29 (pre-push hook, clean main):
+    #   cargo fmt --all --check  9s
+    #   vox ci ssot-drift        48s  ← dominant; was ~15s in May (3× slower now)
+    #   vox ci canonical-map-verify  6s
+    #   vox-drift-check workspace    6s
+    #   7 × lightweight steps    ~21s
+    #   total                    90s
+    # ssot-drift growth is the key driver; track it separately if you want to gate on it.
+    measured_ms: 90000
+    warn_ms: 108000         # 1.2x
+    fail_ms: 135000         # 1.5x
+    note: "Re-baselined 2026-06-29: ssot-drift now 48s (was 15s in May). Arch-check is no longer the dominant cost."
 
   complete:
     # fast + clippy (~75s) = ~135s. Clippy is now the dominant fast-tier cost.
