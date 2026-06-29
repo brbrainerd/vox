@@ -11,30 +11,27 @@
 // ---
 // @training_prompt: Write a minimal CRUD-oriented Vox module: @table, @query, @mutation, one query endpoint, and db.Table operations (get/all, insert).
 // ANCHOR: display
-@table type User {
+table User {
     name: str
     active: bool
 }
 
-@query
-fn user_count() to int {
+query user_count() to int {
     return len(db.User.all())
 }
 
-@query
-fn all_users() to int {
+query all_users() to int {
     // Returns count of all users; filter by active is application-side logic
     let users = db.User.all()
     return len(users)
 }
 
-@mutation
-fn seed_user(name: str) to str {
+mutation seed_user(name: str) to str {
     db.User.insert({ name: name, active: true })
     return "created"
 }
 
-@query fn handler() to int {
+query handler() to int {
     return len(db.User.all())
 }
 // ANCHOR_END: display

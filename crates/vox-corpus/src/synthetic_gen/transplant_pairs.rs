@@ -42,7 +42,7 @@ pub fn generate_transplant_pairs(
 
         // Very basic transplant: if source has a 'fn' and target has an 'actor' or '@table'
         if source_code.contains("fn ")
-            && (target_code.contains("actor ") || target_code.contains("@table type "))
+            && (target_code.contains("actor ") || target_code.contains("table "))
         {
             // Find the function block
             if let Some(fn_start) = source_code.find("fn ") {

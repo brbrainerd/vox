@@ -159,7 +159,7 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
                 message: "index table_name is empty".into(),
                 span: idx.span,
                 correction_hint: Some(
-                    "Specify the table for the index, e.g. @index MyTable.idx_name on (field)"
+                    "Specify the table for the index, e.g. index MyTable.idx_name on (field)"
                         .into(),
                 ),
             });

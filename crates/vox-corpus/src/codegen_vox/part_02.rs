@@ -205,7 +205,7 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
         }
         "mcp_tool" => (
             format!(
-                "@tool\nfn {name}({params}) to str {{\n    /// {name}: {verb} data.\n    return \"done\"\n}}"
+                "tool {name}({params}) to str {{\n    /// {name}: {verb} data.\n    return \"done\"\n}}"
             ),
             format!("Define a Vox MCP tool called `{name}`"),
         ),
@@ -217,13 +217,13 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
         ),
         "query" => (
             format!(
-                "@query\nfn get_{noun}(id: int) to str {{\n    let result = db.{type_name}.find(id)\n    return result\n}}"
+                "query get_{noun}(id: int) to str {{\n    let result = db.{type_name}.find(id)\n    return result\n}}"
             ),
             format!("Write a Vox query to read from `{type_name}`"),
         ),
         "mutation" => (
             format!(
-                "@mutation\nfn update_{noun}(id: int, value: str) to Unit {{\n    db.{type_name}.update(id, value)\n}}"
+                "mutation update_{noun}(id: int, value: str) to Unit {{\n    db.{type_name}.update(id, value)\n}}"
             ),
             format!("Write a Vox mutation to write to `{type_name}`"),
         ),
@@ -275,7 +275,7 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
         "server_fn" => {
             let body = gen_body(rng, &ret_type, complexity, &mut tags);
             (
-                format!("@server\nfn {name}({params}) to {ret_type} {{\n{body}\n}}"),
+                format!("server {name}({params}) to {ret_type} {{\n{body}\n}}"),
                 format!("Write a Vox server called `{name}`"),
             )
         }

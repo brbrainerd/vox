@@ -47,8 +47,7 @@ fn settle_trade(amount: int) to str {
 // ANCHOR_END: workflow_layer
 
 // ANCHOR: mcp_layer
-@tool "propose_merge: Propose a stack merge and return primary+overflow"
-fn propose_merge(kind: str, current: int, incoming: int, max_stack: int) to str {
+tool "propose_merge: Propose a stack merge and return primary+overflow" propose_merge(kind: str, current: int, incoming: int, max_stack: int) to str {
     let total = current + incoming
     if total <= max_stack {
         return kind + ":" + str(total) + "+0"

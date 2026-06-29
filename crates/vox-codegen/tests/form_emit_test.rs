@@ -17,7 +17,7 @@ fn emit(src: &str) -> String {
 fn form_emits_react_component_with_inputs_and_labels() {
     let src = r#"
 mutation save_mood(score: int, note: str) to int { return 1 }
-@form Mood {
+form Mood {
     field score: int range(1..10) required label("How are you feeling?")
     field note: str max_len(280) optional label("Anything to share?")
     on_submit: save_mood
@@ -55,7 +55,7 @@ mutation save_mood(score: int, note: str) to int { return 1 }
 fn form_validates_required_field_before_submit() {
     let src = r#"
 mutation save(s: int) to int { return 1 }
-@form F {
+form F {
     field s: int required
     on_submit: save
 }
@@ -71,7 +71,7 @@ mutation save(s: int) to int { return 1 }
 fn form_error_message_appears_in_emitted_banner() {
     let src = r#"
 mutation save(s: int) to int { return 1 }
-@form F {
+form F {
     field s: int required
     on_submit: save
     error_message: "Could not save."

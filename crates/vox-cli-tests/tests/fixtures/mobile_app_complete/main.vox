@@ -4,7 +4,7 @@
 //   - Multiple components with state
 //   - View primitives (column, row, text, heading, button, panel, image)
 //   - for-loop with key over a state list
-//   - @form with required + label + min_len + max_len + on_submit
+//   - form with required + label + min_len + max_len + on_submit
 //   - @routes with literal + parameter segments
 //   - @back_button (one of three @vox/runtime mobile primitives)
 //   - @push (push-notification wiring)
@@ -18,13 +18,13 @@
 
 import std.mobile
 
-@query fn list_entries() to int { return 0 }
+query list_entries() to int { return 0 }
 
-@mutation fn record_entry(text: str, mood: int, pinned: bool) to int { return 0 }
+mutation record_entry(text: str, mood: int, pinned: bool) to int { return 0 }
 
-@mutation fn on_back() to bool { return false }
+mutation on_back() to bool { return false }
 
-@mutation fn on_push_token(token: str) to int { return 0 }
+mutation on_push_token(token: str) to int { return 0 }
 
 @back_button {
     on_press: on_back
@@ -34,7 +34,7 @@ import std.mobile
     on_register: on_push_token
 }
 
-@form NewEntry {
+form NewEntry {
     field text: str required label("Entry text") max_len(280)
     field mood: int required label("Mood (1-10)")
     field pinned: bool label("Pin this entry")

@@ -603,14 +603,18 @@ impl Parser {
     /// still parses during the rollout; the diagnostic carries a machine-readable
     /// [`crate::parser::error::Replacement`] so tooling/LLMs can auto-fix. The final
     /// flip changes these to hard errors once the corpus is codemodded.
-    fn warn_retired_decorator(&mut self, from: &str, to: &str, code: &str) {
+    /// Hard-error flip: retired `@` decorators are now a parse ERROR carrying the
+    /// machine-readable replacement payload (from→to→code). The arm still parses the
+    /// decl so recovery is clean, but the Error-severity diagnostic makes `parse()`
+    /// return `Err` (see parse_module's severity check). Warning-first rollout is over.
+    fn reject_retired_decorator(&mut self, from: &str, to: &str, code: &str) {
         let span = self.span();
         self.errors.push(ParseError::retired_decorator(
             span,
             from,
             to,
             code,
-            ParseSeverity::Warning,
+            ParseSeverity::Error,
         ));
     }
 
@@ -667,11 +671,11 @@ impl Parser {
                 Ok(decl)
             }
             Token::AtQuery => {
-                self.warn_retired_decorator("@query", "query", "vox/decorator/query-retired");
+                self.reject_retired_decorator("@query", "query", "vox/decorator/query-retired");
                 self.parse_query()
             }
             Token::AtMutation => {
-                self.warn_retired_decorator(
+                self.reject_retired_decorator(
                     "@mutation",
                     "mutation",
                     "vox/decorator/mutation-retired",
@@ -679,18 +683,18 @@ impl Parser {
                 self.parse_mutation()
             }
             Token::AtServer => {
-                self.warn_retired_decorator("@server", "server", "vox/decorator/server-retired");
+                self.reject_retired_decorator("@server", "server", "vox/decorator/server-retired");
                 self.parse_server_endpoint()
             }
             Token::AtForall => self.parse_forall(),
             Token::AtScheduled => self.parse_scheduled(),
             Token::AtTool => {
-                self.warn_retired_decorator("@tool", "tool", "vox/decorator/tool-retired");
+                self.reject_retired_decorator("@tool", "tool", "vox/decorator/tool-retired");
                 self.parse_mcp_tool(false)
             }
             Token::AtMcpTool => self.parse_mcp_tool(true),
             Token::AtResource => {
-                self.warn_retired_decorator(
+                self.reject_retired_decorator(
                     "@resource",
                     "resource",
                     "vox/decorator/resource-retired",
@@ -868,11 +872,11 @@ impl Parser {
                 }
             }
             Token::AtIndex => {
-                self.warn_retired_decorator("@index", "index", "vox/decorator/index-retired");
+                self.reject_retired_decorator("@index", "index", "vox/decorator/index-retired");
                 self.parse_index()
             }
             Token::AtForm => {
-                self.warn_retired_decorator("@form", "form", "vox/decorator/form-retired");
+                self.reject_retired_decorator("@form", "form", "vox/decorator/form-retired");
                 self.parse_form_decl()
             }
             Token::AtBackButton => self.parse_back_button_decl(),
@@ -920,7 +924,7 @@ impl Parser {
                 }
             }
             Token::AtTable => {
-                self.warn_retired_decorator("@table", "table", "vox/decorator/table-retired");
+                self.reject_retired_decorator("@table", "table", "vox/decorator/table-retired");
                 self.parse_table()
             }
             // Phase M (json-as-rfc-2026-05-24): `@json_as(MyType, ...)`

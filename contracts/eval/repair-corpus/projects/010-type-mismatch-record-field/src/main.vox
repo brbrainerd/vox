@@ -3,7 +3,7 @@
 // the int 42 to that field. Expected repair: pass a str such as
 // "ada@example.com" instead of 42.
 
-@table type User {
+table User {
     id: int
     email: str
 }

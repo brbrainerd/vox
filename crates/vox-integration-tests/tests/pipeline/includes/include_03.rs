@@ -107,15 +107,15 @@ routes {
     "/about" to About
 }
 
-@query fn api_todos() to str {
+query api_todos() to str {
     return "[]"
 }
 
-@mutation fn create_todo() to str {
+mutation create_todo() to str {
     return "created"
 }
 
-@server fn get_stats() to int {
+server get_stats() to int {
     return 42
 }
 "#;

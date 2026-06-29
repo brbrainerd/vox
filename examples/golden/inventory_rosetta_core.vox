@@ -49,20 +49,18 @@ fn merge_stacks(kind_a: str, qty_a: int, kind_b: str, qty_b: int, max_stack: int
 // ANCHOR_END: types_and_merge
 
 // ANCHOR: table_layer
-@table type InventoryStack {
+table InventoryStack {
     kind: str
     qty: int
     max_stack: int
 }
 
-@query
-fn stack_count() to int {
+query stack_count() to int {
     // Returns total stack count; filter by kind is application-side
     return len(db.InventoryStack.all())
 }
 
-@mutation
-fn seed_stack(kind: str, qty: int, max_stack: int) to Result[str] {
+mutation seed_stack(kind: str, qty: int, max_stack: int) to Result[str] {
     if qty < 0 {
         return Error("invalid stack shape")
     }

@@ -197,7 +197,7 @@ activity do_work() to Result[str] {
 #[test]
 fn codegen_ts_table_produces_schema_file() {
     let src = r#"
-@table type Task {
+table Task {
     title: str
     done: bool
     priority: int
@@ -258,15 +258,15 @@ fn codegen_v0_placeholder_from_image() {
     insta::assert_snapshot!("v0_dashboard_tsx_from_image", dash.1);
 }
 
-// --- @table / @index end-to-end pipeline tests ---
+// --- @table / index end-to-end pipeline tests ---
 
-const DATA_LAYER_SRC: &str = r#"@table type Task {
+const DATA_LAYER_SRC: &str = r#"table Task {
     title: str
     done: bool
     priority: int
 }
 
-@index Task.by_done on (done, priority)
+index Task.by_done on (done, priority)
 "#;
 
 #[test]
@@ -519,7 +519,7 @@ fn codegen_use_effect_maps_to_react_hook() {
 
 #[test]
 fn dashboard_full_pipeline_e2e() {
-    let src = "type Message = | User(text: str) | Bot(text: str)\n\ncomponent Dashboard() {\n    state n: int = 0\n    view: column(raw_class=\"dash\") { n }\n}\n\ncomponent ChatWidget() {\n    let (messages, set_messages) = use_state([])\n    let (input, set_input) = use_state(\"\")\n    view: column(raw_class=\"chat\") {\n        input(bind=input, raw_class=\"chat-input\", aria_label=\"Chat message\")\n        button(raw_class=\"send-btn\", on_click={fn(e) set_input(\"\")}) { \"Send\" }\n    }\n}\n\n@query fn api_stats() to str {\n    return \"[]\"\n}\n\nroutes {\n    \"/\" to Dashboard\n    \"/chat\" to ChatWidget\n}";
+    let src = "type Message = | User(text: str) | Bot(text: str)\n\ncomponent Dashboard() {\n    state n: int = 0\n    view: column(raw_class=\"dash\") { n }\n}\n\ncomponent ChatWidget() {\n    let (messages, set_messages) = use_state([])\n    let (input, set_input) = use_state(\"\")\n    view: column(raw_class=\"chat\") {\n        input(bind=input, raw_class=\"chat-input\", aria_label=\"Chat message\")\n        button(raw_class=\"send-btn\", on_click={fn(e) set_input(\"\")}) { \"Send\" }\n    }\n}\n\nquery api_stats() to str {\n    return \"[]\"\n}\n\nroutes {\n    \"/\" to Dashboard\n    \"/chat\" to ChatWidget\n}";
 
     let tokens = lex(src);
     let module = parse(tokens).unwrap();
@@ -648,7 +648,7 @@ routes {
     "/" to Dash
 }
 
-@mutation fn api_x() to str {
+mutation api_x() to str {
     return "ok"
 }
 "#;
