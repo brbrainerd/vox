@@ -384,7 +384,13 @@ jobs:
         # workspace. The per-manifest form keeps each invocation tiny and stays
         # identical on Linux/macOS/Windows runners. Local writer: `vox run
         # scripts/fmt.vox`. See AGENTS.md "Formatting Rust (Windows-safe)".
+        #
+        # RUSTUP_TOOLCHAIN is unset here so cargo reads rust-toolchain.toml
+        # (1.96.0) instead of the stable override from dtolnay/rust-toolchain@stable
+        # above. Format check must use the pinned toolchain to match local dev.
         shell: bash
+        env:
+          RUSTUP_TOOLCHAIN: ""
         run: |
           set -euo pipefail
           FULL="${{ needs.setup.outputs.full }}"
