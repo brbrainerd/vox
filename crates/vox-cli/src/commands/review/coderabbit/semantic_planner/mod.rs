@@ -130,18 +130,18 @@ mod tests {
         assert_eq!(g("mens/data/sft_pairs.jsonl"), "12_populi_ml");
         assert_eq!(g("tests/fixtures/minimal.vox"), "13_tests");
         assert_eq!(g("crates/vox-compiler/src/lib.rs"), "crate_vox_compiler");
-        assert_eq!(
-            g("crates/vox-primitives/src/lib.rs"),
-            "crate_vox_primitives"
-        );
+        assert_eq!(g("crates/vox-config/src/lib.rs"), "crate_vox_config");
         assert_eq!(
             g("crates/vox-actor-runtime/src/lib.rs"),
-            "crate_vox_runtime"
+            "crate_vox_actor_runtime"
         );
         assert_eq!(g("crates/vox-lsp/src/lib.rs"), "crate_vox_lsp");
-        assert_eq!(g("crates/vox-mcp/src/lib.rs"), "crate_vox_mcp");
+        assert_eq!(g("crates/vox-db/src/lib.rs"), "crate_vox_db");
         assert_eq!(g("crates/vox-cli/src/main.rs"), "crate_vox_cli");
-        assert_eq!(g("crates/vox-bootstrap/src/main.rs"), "crate_vox_bootstrap");
+        assert_eq!(
+            g("crates/vox-graph-reader/src/lib.rs"),
+            "crate_vox_graph_reader"
+        );
     }
 
     #[test]

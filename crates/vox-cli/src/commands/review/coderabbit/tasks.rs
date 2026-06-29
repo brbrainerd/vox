@@ -26,6 +26,7 @@ fn to_finding(item: &NormalizedReviewItem) -> Finding {
     };
     Finding {
         rule_id,
+        diagnostic_id: None,
         rule_name: format!("CodeRabbit: {}", item.category),
         severity: map_severity(&item.severity),
         file: std::path::PathBuf::from(&item.file_path),
@@ -33,6 +34,8 @@ fn to_finding(item: &NormalizedReviewItem) -> Finding {
         column: 0,
         message,
         suggestion: item.suggested_fix.clone(),
+        alternatives: Vec::new(),
+        rationale: None,
         context: String::new(),
         confidence: None,
         evidence: None,
