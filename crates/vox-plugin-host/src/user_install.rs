@@ -151,6 +151,11 @@ fn clone_repo(url: &str) -> Result<tempfile::TempDir, String> {
     let tmp = tempfile::tempdir().map_err(|e| e.to_string())?;
     let mut cmd = std::process::Command::new("git");
     cmd.args(["clone", "--depth", "1", url]).arg(tmp.path());
+    // ponytail: git-native stall guard, not a wall-clock cap. Aborts if a
+    // transfer drops below 1 KB/s for 30s (hostile/dead remote); a fast huge
+    // repo still completes — the add is user-initiated and HITL-gated.
+    cmd.env("GIT_HTTP_LOW_SPEED_LIMIT", "1000")
+        .env("GIT_HTTP_LOW_SPEED_TIME", "30");
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;

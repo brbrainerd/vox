@@ -351,15 +351,14 @@ pub async fn skill_add(state: &ServerState, params: SkillAddParams) -> String {
     .await;
     match result {
         Ok(Ok(installed)) => {
-            // Load the freshly installed skills into the registry.
-            let roots = vox_config::paths::skill_search_roots(
-                &state
-                    .workspace_root
-                    .clone()
-                    .unwrap_or_else(|| std::path::PathBuf::from(".")),
-            );
-            for ext in vox_plugin_host::external_skills::discover_external_skills(&roots) {
-                let _ = state.skill_registry.install_bundle(&ext.bundle).await;
+            // Load ONLY the just-installed skills into the registry (not a full
+            // re-scan of every root — that is O(all skills) for a one-skill add).
+            for s in &installed {
+                if let Ok(body) = std::fs::read_to_string(s.dest.join("SKILL.md")) {
+                    if let Ok(bundle) = vox_plugin_host::skill_parser::parse_skill_md(&body) {
+                        let _ = state.skill_registry.install_bundle(&bundle).await;
+                    }
+                }
             }
             state.rebuild_skill_search_index();
             let names: Vec<String> = installed.into_iter().map(|s| s.name).collect();

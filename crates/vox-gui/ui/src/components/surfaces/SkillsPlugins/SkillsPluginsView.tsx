@@ -498,6 +498,9 @@ function DiscoveredTab(props: {
   onSkillUse: (id: string) => void;
 }) {
   const { discovered, busy, addSource, setAddSource, onAdd, onRemove, onSkillUse } = props;
+  // Two-click confirm: Remove deletes the skill directory on disk, so require a
+  // deliberate second click rather than firing on the first.
+  const [confirmId, setConfirmId] = useState<string | null>(null);
   return (
     <div className="flex flex-col gap-5">
       <div>
@@ -532,14 +535,26 @@ function DiscoveredTab(props: {
               id={s.id}
               title={s.name || s.id}
               subtitle={s.description}
-              version={s.installed ? 'active' : 'discovered'}
-              tags={[s.source_root, s.license, s.path].filter(Boolean)}
+              tags={[
+                s.installed ? 'active' : 'available',
+                s.source_root,
+                s.license ? 'licensed' : '',
+              ].filter(Boolean)}
               busy={busy === s.id}
               actions={
                 s.removable
                   ? [
                       { label: 'View', onClick: () => onSkillUse(s.id), tone: 'neutral' },
-                      { label: 'Remove', onClick: () => onRemove(s.id), tone: 'danger' },
+                      confirmId === s.id
+                        ? {
+                            label: 'Confirm?',
+                            onClick: () => {
+                              setConfirmId(null);
+                              onRemove(s.id);
+                            },
+                            tone: 'danger',
+                          }
+                        : { label: 'Remove', onClick: () => setConfirmId(s.id), tone: 'danger' },
                     ]
                   : [{ label: 'View', onClick: () => onSkillUse(s.id), tone: 'neutral' }]
               }
