@@ -46,6 +46,7 @@ export const LEXICON: Record<string, LexEntry> = {
   skills: { en: 'Skills', la: 'Artes' },
   'sub-agents': { en: 'Sub-Agents', la: 'Subagentes' },
   'vox-search': { en: 'Search Index', la: 'Index' },
+  tasks: { en: 'Tasks', la: 'Munera' },
   'group:operate': { en: 'Operate', la: 'Operatio' },
   'group:develop': { en: 'Develop', la: 'Fabrica' },
   'group:knowledge': { en: 'Knowledge', la: 'Scientia' },

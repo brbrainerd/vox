@@ -13,6 +13,7 @@ import { defaultDashboardLayout, type DashboardWidget, addWidgetToLayout, resetD
 import { DashboardGrid, persistDashboardLayout } from '../../dashboard/DashboardGrid';
 import { WidgetPickerDrawer } from '../../dashboard/WidgetPickerDrawer';
 import { useLocalStorage } from '../../../hooks/useLocalStorage';
+import { labelFor, currentLang } from '../../../lib/lexicon';
 import { SHELL_PREFERENCE_KEYS } from '../../../lib/shellPersistence';
 import { loadDashboardLayout } from '../../dashboard/DashboardGrid';
 import {
@@ -170,7 +171,7 @@ export function Dashboard({
     // synthetic 'cost' has no registry row → give it a real label, not the raw key
     if (surfaceKey === 'cost') return 'OpenRouter Spend';
     const row = SURFACE_REGISTRY.find((e) => e.viewKey === surfaceKey);
-    return row?.navLabel ?? surfaceKey;
+    return labelFor(surfaceKey, currentLang());
   }
 
   // Build the SurfaceProps bag the mini-render mounts real surfaces with. Closes

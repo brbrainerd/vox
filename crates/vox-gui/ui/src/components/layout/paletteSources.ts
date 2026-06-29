@@ -1,4 +1,5 @@
 import { SettingEntry } from '../surfaces/Settings/settingsIndex';
+import { LEXICON, labelFor, currentLang } from '../../lib/lexicon';
 
 export interface SurfaceEntryLike {
   viewKey: string | null;
@@ -54,8 +55,11 @@ export function buildPaletteItems(query: string, sources: PaletteSources): Palet
 
   for (const s of sources.surfaces) {
     if (!s.viewKey || !s.navLabel) continue;
-    if (s.navLabel.toLowerCase().includes(q) || (s.navGroup ?? '').toLowerCase().includes(q)) {
-      items.push({ kind: 'surface', label: s.navLabel, detail: s.navGroup ?? '', viewKey: s.viewKey });
+    const lex = LEXICON[s.viewKey];
+    const en = (lex?.en ?? s.navLabel).toLowerCase();
+    const la = (lex?.la ?? '').toLowerCase();
+    if (en.includes(q) || la.includes(q) || s.navLabel.toLowerCase().includes(q) || (s.navGroup ?? '').toLowerCase().includes(q)) {
+      items.push({ kind: 'surface', label: labelFor(s.viewKey, currentLang()), detail: s.navGroup ?? '', viewKey: s.viewKey });
     }
   }
 

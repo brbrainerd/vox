@@ -4,6 +4,7 @@
 
 import type { SettingEntry } from '../components/surfaces/Settings/settingsIndex';
 import type { DocEntryLike, SurfaceEntryLike } from '../components/layout/paletteSources';
+import { LEXICON } from './lexicon';
 
 /** v1 client builder subset (see omnisearch-index.v1.yaml index_kinds_v1). */
 export const FEDERATED_INDEX_KINDS_V1 = [
@@ -96,6 +97,7 @@ export function buildFederatedIndex(sources: FederatedIndexSources): FederatedIn
       id: `surface:${s.viewKey}`,
       label: s.navLabel,
       detail: s.navGroup ?? '',
+      keywords: [LEXICON[s.viewKey]?.en, LEXICON[s.viewKey]?.la, s.navLabel].filter(Boolean) as string[],
       payload: { type: 'surface', viewKey: s.viewKey },
     });
   }

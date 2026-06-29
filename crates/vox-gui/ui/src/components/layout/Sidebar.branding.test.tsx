@@ -18,6 +18,7 @@ vi.mock('../../generated/surfaceRegistry.generated', () => ({
 }));
 
 import { Sidebar } from './Sidebar';
+import { LanguageProvider } from '../../hooks/useLanguage';
 
 const baseProps = {
   view: 'dashboard',
@@ -30,21 +31,25 @@ const baseProps = {
   appVersion: '0.6.0',
 } as React.ComponentProps<typeof Sidebar>;
 
+function renderSidebar(extraProps: Partial<React.ComponentProps<typeof Sidebar>> = {}) {
+  return render(<LanguageProvider><Sidebar {...baseProps} {...extraProps} /></LanguageProvider>);
+}
+
 describe('Axis branding — sidebar', () => {
   it('renders the AxisMark glyph + AXIS wordmark, no VOX/V letterform', () => {
-    const { container } = render(<Sidebar {...baseProps} />);
+    const { container } = renderSidebar();
     expect(container.querySelector('svg[aria-label="Axis"]')).toBeTruthy();
     expect(screen.getByText('AXIS')).toBeTruthy();
     expect(screen.queryByText('VOX')).toBeNull();
   });
 
   it('footer spells out the Vox Axis full brand', () => {
-    render(<Sidebar {...baseProps} />);
+    renderSidebar();
     expect(screen.getByText(/Vox Axis/)).toBeTruthy();
   });
 
   it('keeps the mark visible in rail (collapsed) mode', () => {
-    const { container } = render(<Sidebar {...baseProps} mode={'rail' as const} />);
+    const { container } = renderSidebar({ mode: 'rail' as const });
     expect(container.querySelector('svg[aria-label="Axis"]')).toBeTruthy();
   });
 });
