@@ -12,6 +12,92 @@ use std::time::Instant;
 
 use anyhow::{Context, Result};
 
+// ── cargo --timings HTML ingest ───────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TimingEntry {
+    pub name: String,
+    pub duration_ms: u64,
+}
+
+/// Parse the embedded UNIT_DATA JS array from a cargo --timings HTML file.
+/// Skips entries with mode "todo" (sccache hits) and zero-duration entries.
+pub fn extract_unit_data(html: &str) -> Vec<TimingEntry> {
+    let marker = "var UNIT_DATA = [";
+    let start = match html.find(marker) {
+        Some(i) => i + marker.len() - 1, // include the '['
+        None => return vec![],
+    };
+    let slice = &html[start..];
+    let end = match slice.find("];\n") {
+        Some(i) => i + 1,
+        None => match slice.find("];") {
+            Some(i) => i + 1,
+            None => return vec![],
+        },
+    };
+    let array_json = &slice[..end];
+    let raw: Vec<serde_json::Value> = match serde_json::from_str(array_json) {
+        Ok(v) => v,
+        Err(_) => return vec![],
+    };
+    raw.into_iter()
+        .filter_map(|v| {
+            let mode = v["mode"].as_str()?;
+            if mode == "todo" {
+                return None; // sccache hit — no real timing
+            }
+            let duration_ms = v["duration"].as_u64()?;
+            if duration_ms == 0 {
+                return None;
+            }
+            let name = v["name"].as_str()?.to_string();
+            Some(TimingEntry { name, duration_ms })
+        })
+        .collect()
+}
+
+/// Return the most-recently-modified `cargo-timing-*.html` under `target/cargo-timings/`.
+pub fn find_newest_timings_html(repo_root: &Path) -> Option<std::path::PathBuf> {
+    let dir = repo_root.join("target/cargo-timings");
+    let entries = std::fs::read_dir(&dir).ok()?;
+    entries
+        .filter_map(|e| e.ok())
+        .filter(|e| {
+            e.file_name().to_string_lossy().starts_with("cargo-timing-")
+                && e.path().extension().map_or(false, |x| x == "html")
+        })
+        .max_by_key(|e| e.metadata().and_then(|m| m.modified()).ok())
+        .map(|e| e.path())
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct HistoryRecord {
+    pub run_id: String,
+    pub entries: Vec<TimingEntry>,
+}
+
+/// Append one JSONL record to the history file (create if absent).
+pub fn append_to_history(history_path: &Path, run_id: &str, entries: &[TimingEntry]) -> Result<()> {
+    use std::io::Write;
+    if let Some(parent) = history_path.parent() {
+        std::fs::create_dir_all(parent).ok();
+    }
+    let record = HistoryRecord {
+        run_id: run_id.to_string(),
+        entries: entries.to_vec(),
+    };
+    let line = serde_json::to_string(&record)? + "\n";
+    let mut f = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(history_path)
+        .with_context(|| format!("open history {}", history_path.display()))?;
+    f.write_all(line.as_bytes())
+        .with_context(|| "write history line")?;
+    Ok(())
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Scenario {
     pub id: String,
@@ -136,6 +222,7 @@ pub fn run_build_bench(
     write: Option<String>,
     compare: Option<String>,
     repeat: u32,
+    ingest: bool,
 ) -> Result<()> {
     let sf = load_scenarios(root)?;
     let label = label.unwrap_or_else(|| "adhoc".to_string());
@@ -194,6 +281,30 @@ pub fn run_build_bench(
         let _ = std::fs::write(report_dir.join(format!("{label}.json")), snap_json);
     }
 
+    if ingest {
+        let history_path = root.join("contracts/ci/build-timings-history.v1.jsonl");
+        if let Some(html_path) = find_newest_timings_html(root) {
+            match std::fs::read_to_string(&html_path) {
+                Ok(html) => {
+                    let entries = extract_unit_data(&html);
+                    eprintln!(
+                        "build-bench --ingest: {} non-cached units from {}",
+                        entries.len(),
+                        html_path.display()
+                    );
+                    if let Err(e) = append_to_history(&history_path, &label, &entries) {
+                        eprintln!("build-bench --ingest: WARN failed to write history: {e}");
+                    }
+                }
+                Err(e) => eprintln!("build-bench --ingest: WARN could not read HTML: {e}"),
+            }
+        } else {
+            eprintln!(
+                "build-bench --ingest: no cargo-timing HTML found under target/cargo-timings/"
+            );
+        }
+    }
+
     Ok(())
 }
 
@@ -247,5 +358,56 @@ mod tests {
         assert!(md.contains("-400 ms"));
         assert!(md.contains("-40.0%"));
         assert!(!md.contains("+-400"), "improvement must not get a + prefix");
+    }
+
+    #[test]
+    fn extract_unit_data_skips_todo_and_zero() {
+        let html = r#"<html><body><script>
+var UNIT_DATA = [
+  {"name":"vox-config 0.1.0","mode":"run","duration":12345,"rmeta_time":null,"codegen_time":null,"features":""},
+  {"name":"vox-cli 0.1.0","mode":"todo","duration":0,"rmeta_time":null,"codegen_time":null,"features":""},
+  {"name":"vox-db 0.1.0","mode":"run","duration":67890,"rmeta_time":null,"codegen_time":null,"features":""}
+];
+</script></body></html>"#;
+        let records = extract_unit_data(html);
+        assert_eq!(records.len(), 2, "todo (sccache) entries must be excluded");
+        let config = records
+            .iter()
+            .find(|r| r.name.starts_with("vox-config"))
+            .unwrap();
+        assert_eq!(config.duration_ms, 12345);
+        let db = records
+            .iter()
+            .find(|r| r.name.starts_with("vox-db"))
+            .unwrap();
+        assert_eq!(db.duration_ms, 67890);
+    }
+
+    #[test]
+    fn extract_unit_data_returns_empty_when_no_marker() {
+        assert!(extract_unit_data("<html>no data here</html>").is_empty());
+    }
+
+    #[test]
+    fn find_newest_timings_html_returns_none_when_dir_missing() {
+        let result = find_newest_timings_html(std::path::Path::new("/nonexistent/path/xyz123"));
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn append_to_history_creates_and_appends() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("history.jsonl");
+        let entries = vec![TimingEntry {
+            name: "vox-config 0.1.0".into(),
+            duration_ms: 100,
+        }];
+        append_to_history(&path, "ci-run-1", &entries).unwrap();
+        let content = std::fs::read_to_string(&path).unwrap();
+        assert!(content.contains("vox-config"));
+        assert!(content.contains("ci-run-1"));
+        append_to_history(&path, "ci-run-2", &entries).unwrap();
+        let content2 = std::fs::read_to_string(&path).unwrap();
+        assert_eq!(content2.lines().count(), 2, "two appends = two JSONL lines");
     }
 }

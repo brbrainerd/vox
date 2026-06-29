@@ -554,7 +554,8 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             write,
             compare,
             repeat,
-        } => super::build_bench::run_build_bench(&root, label, write, compare, repeat),
+            ingest,
+        } => super::build_bench::run_build_bench(&root, label, write, compare, repeat, ingest),
         CiCmd::CrateBudget { exit_zero } => super::crate_budget::run_crate_budget(&root, exit_zero),
         CiCmd::CrateBuildMapParity => {
             super::crate_build_map_parity::run_crate_build_map_parity(&root)

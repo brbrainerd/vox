@@ -757,6 +757,9 @@ pub enum CiCmd {
         /// Run each scenario N times and keep the min wall time (default 3).
         #[arg(long, default_value_t = 3)]
         repeat: u32,
+        /// After build: parse the newest cargo-timings HTML and append to history JSONL.
+        #[arg(long)]
+        ingest: bool,
     },
     /// Gate keystone crates' blast-radius-seconds against committed thresholds.
     /// Reads `.vox/cache/graphify/crate-map/graph.json` (produced by `vox graphify crate-map`).
