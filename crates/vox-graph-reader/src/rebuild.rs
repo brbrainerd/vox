@@ -41,12 +41,17 @@ fn parse_registered_handlers(main_rs: &str) -> Vec<String> {
 }
 
 /// Collect the source files that the extractor understands, skipping vendored/VCS dirs.
+///
+/// Worktrees nested inside the repo (`.claude/worktrees/`, `.worktrees/`) are excluded:
+/// indexing them duplicates the same files under stale agent-branch paths and pollutes
+/// node degree / centrality (observed: 84% of nodes were stale worktree paths).
 pub(crate) fn walk_source_files(source_dir: &std::path::Path) -> Vec<std::path::PathBuf> {
     walkdir::WalkDir::new(source_dir)
         .into_iter()
         .filter_entry(|e| {
             let n = e.file_name().to_string_lossy();
             n != ".git" && n != "target" && n != ".vox" && n != "node_modules"
+                && n != ".claude" && n != ".worktrees"
         })
         .filter_map(|e| e.ok())
         .filter(|e| e.path().is_file())
