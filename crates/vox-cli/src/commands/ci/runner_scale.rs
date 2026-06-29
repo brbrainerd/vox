@@ -268,7 +268,8 @@ fn docker(args: &[&str]) -> Result<String> {
 
 /// CI demand = count of **queued jobs** (not workflow runs) that the pool's
 /// label set can serve, across queued and in-progress runs. Early-exits once
-/// `max` matching jobs are found — demand beyond the cap changes nothing.
+/// `max` matching jobs are found — demand beyond the cap changes nothing *for
+/// the spawn decision*. Pass `u32::MAX` to count the true backlog (status only).
 fn query_queued_job_demand(max: u32) -> Result<u32> {
     let mut total = 0u32;
     for status in ["queued", "in_progress"] {
@@ -901,6 +902,7 @@ pub fn format_status_table(
     running: &[String],
     exited: &[String],
     demand: u32,
+    max: u32,
     history_tail: &[String],
     now: i64,
 ) -> String {
@@ -908,6 +910,16 @@ pub fn format_status_table(
 
     out.push_str("=== CI Runner Fleet Status ===\n");
     out.push_str(&format!("  queued jobs : {demand}\n"));
+    out.push_str(&format!("  fleet max   : {max}\n"));
+    if demand > max {
+        // The backlog the spawn-decision clamp hides: demand beyond `max` can't
+        // be served concurrently, so it drains `max`-wide. This is throughput
+        // saturation, not a stall.
+        out.push_str(&format!(
+            "  backlog     : {} job(s) over capacity — draining {max}-wide\n",
+            demand - max
+        ));
+    }
     out.push_str(&format!("  timestamp   : {now}\n\n"));
 
     // Per-runner table.
@@ -976,7 +988,11 @@ pub fn run_status() -> Result<()> {
     let rows = runner_rows().unwrap_or_default();
     let running = managed_containers("running");
     let exited = managed_containers("exited");
-    let demand = query_queued_job_demand(max_runners()).unwrap_or(0);
+    // Status is a human dashboard: count the TRUE backlog (uncapped), not the
+    // spawn-decision value clamped at max. That clamp is what makes a deep queue
+    // look like a freeze.
+    let demand = query_queued_job_demand(u32::MAX).unwrap_or(0);
+    let max = max_runners();
 
     // Read the last 10 lines of the history file for display.
     let history_raw = std::fs::read_to_string(history_path()).unwrap_or_default();
@@ -990,7 +1006,7 @@ pub fn run_status() -> Result<()> {
         .rev()
         .collect();
 
-    let table = format_status_table(&rows, &running, &exited, demand, &history_tail, now);
+    let table = format_status_table(&rows, &running, &exited, demand, max, &history_tail, now);
     print!("{table}");
     Ok(())
 }
@@ -1314,12 +1330,27 @@ mod tests {
         ];
         let exited: Vec<String> = vec![];
         let now = i64::from_str_radix("abc", 16).unwrap() + 100;
-        let table = format_status_table(&rows, &running, &exited, 2, &[], now);
+        let table = format_status_table(&rows, &running, &exited, 2, 6, &[], now);
 
         // Both containers must appear.
         assert!(table.contains("vox-runner-auto-abc-0"), "missing runner 0");
         assert!(table.contains("vox-runner-auto-abc-1"), "missing runner 1");
         // Queue depth shown.
         assert!(table.contains("queued jobs"), "missing queue depth");
+    }
+
+    #[test]
+    fn status_table_surfaces_backlog_when_demand_exceeds_max() {
+        // demand 18 > max 6 → the over-capacity backlog must be spelled out so a
+        // deep queue is legible as throughput saturation, not a freeze.
+        let table = format_status_table(&[], &[], &[], 18, 6, &[], 0);
+        assert!(table.contains("fleet max"), "must show the cap");
+        assert!(
+            table.contains("12 job(s) over capacity"),
+            "must surface backlog = demand - max"
+        );
+        // No backlog line when demand fits.
+        let ok = format_status_table(&[], &[], &[], 4, 6, &[], 0);
+        assert!(!ok.contains("over capacity"), "no backlog line when within cap");
     }
 }
