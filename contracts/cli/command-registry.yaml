@@ -1692,7 +1692,7 @@ operations:
   handler_rust: commands::extras::ludus_cli
 - surface: vox-cli
   path:
-  - graphify
+  - graph
   status: active
   latin_ns: pm
   product_lane: platform
@@ -1703,7 +1703,7 @@ operations:
   handler_rust: commands::graphify
 - surface: vox-cli
   path:
-  - graphify
+  - graph
   - ingest
   status: active
   latin_ns: pm

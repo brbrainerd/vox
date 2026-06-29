@@ -195,8 +195,8 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::policy::PolicyCmd,
     },
-    /// Vox Search — code-intelligence over the structural index (`vox graphify`; alias: `search`).
-    #[command(name = "graphify", alias = "search")]
+    /// Vox Graph — code-intelligence over the structural index (`vox graph`; formerly `vox graphify`).
+    #[command(name = "graph", alias = "graphify", alias = "search")]
     Search {
         #[command(subcommand)]
         cmd: commands::graphify::GraphifyCmd,

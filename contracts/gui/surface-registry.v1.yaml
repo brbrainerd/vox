@@ -490,7 +490,7 @@ surfaces:
   parent_surface: null
   notes: null
 - view_key: null
-  cli_group: graphify
+  cli_group: graph
   representation_tier: none
   nav_label: null
   nav_icon: null

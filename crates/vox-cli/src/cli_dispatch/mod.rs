@@ -259,10 +259,11 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
             crate::commands::policy::run(cmd, &root)?;
         }
         Cli::Search { cmd } => {
-            if std::env::args().nth(1).as_deref() == Some("graphify") {
-                eprintln!(
-                    "warning: `vox graphify` is deprecated; use `vox search` (alias removed next release)."
-                );
+            match std::env::args().nth(1).as_deref() {
+                Some("graphify") | Some("search") => eprintln!(
+                    "warning: `vox graphify`/`vox search` are deprecated aliases; use `vox graph`."
+                ),
+                _ => {}
             }
             let root = crate::commands::ci::repo_root();
             crate::commands::graphify::run(cmd, &root).await?;

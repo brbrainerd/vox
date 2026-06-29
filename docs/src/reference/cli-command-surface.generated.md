@@ -166,8 +166,8 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox fmt` | active | — | fabrica | app | — |
 | `vox gamify` | active | extras-ludus | ars | ai | — |
 | `vox gamify hud` | active | ludus-hud | ars | ai | — |
-| `vox graphify` | active | — | pm | platform | — |
-| `vox graphify ingest` | active | — | pm | platform | — |
+| `vox graph` | active | — | pm | platform | — |
+| `vox graph ingest` | active | — | pm | platform | — |
 | `vox init` | active | — | pm | platform | — |
 | `vox live` | active | live | — | ai | — |
 | `vox lock` | active | — | pm | platform | — |

@@ -175,15 +175,15 @@ When **`VOX_MESH_ENABLED=1`** and the binary is built with **`--features populi`
 
 Interpreted **`vox mens workflow run`** (journal + `mesh_*` activity hooks; there is no top-level `vox workflow`) requires **`--features workflow-runtime`** (implies `mens-dei` + `vox-workflow-runtime`). The runtime emits versioned journal events (`journal_version: 1`) and durable rows keyed by a **run id** plus **`activity_id`**. Use `--run-id <id>` to resume the same interpreted workflow run; omit it to start a fresh run id. The interpreted runner can replay stored step results for linear workflows. Mens steps use **env-derived** `VOX_MESH_CONTROL_ADDR` / `Vox.toml` `[mens]` only — use `with { timeout: …, retries: …, initial_backoff: …, activity_id: …, id: …, mens: "noop" | "join" | "snapshot" | "heartbeat" }` on `mesh_*` calls (`id` is an alias for `activity_id`). Retry/backoff support currently applies to interpreted `mesh_*` activity execution; other interpreted activities remain journal-only no-ops. Codex append is enabled by default when DB config resolves and can be disabled with **`VOX_WORKFLOW_JOURNAL_CODEX_OFF=1`** ([orchestration SSOT](orchestration-unified.md), [durable execution](../explanation/expl-durable-execution.md)).
 
-### `vox graphify …`
+### `vox graph …`
 
-Corpus registry and freshness status/ingest operations for graphify knowledge maps (`contracts/retrieval/graphify-corpora.v1.yaml`).
+Corpus registry and freshness status/ingest operations for Vox Graph knowledge maps (`contracts/retrieval/graphify-corpora.v1.yaml`). Aliases: `vox graphify`, `vox search`.
 
 | Subcommand | Role |
 |------------|------|
-| `vox graphify status` | Report per-corpus freshness (node/edge counts, graph path). `--corpus <id>` limits output; `--strict` exits non-zero when any corpus is stale; `--json` emits machine-readable status. |
-| `vox graphify ingest` | Project graph nodes into Turso `knowledge_nodes` via VoxDb. |
-| `vox graphify rebuild` | Rebuild the base AST code graph and cluster it. |
+| `vox graph status` | Report per-corpus freshness (node/edge counts, graph path). `--corpus <id>` limits output; `--strict` exits non-zero when any corpus is stale; `--json` emits machine-readable status. |
+| `vox graph ingest` | Project graph nodes into Turso `knowledge_nodes` via VoxDb. |
+| `vox graph rebuild` | Rebuild the base AST code graph and cluster it. |
 
 ### `vox ci …`
 
@@ -825,7 +825,7 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `bundle` | default | `commands::bundle` |
 | `compile` | default | `commands::compile` — **`vox compile`** packaging umbrella (also **`vox fabrica compile`**) |
 | `fmt` | default | `commands::fmt` (`vox_compiler::fmt::try_format`; `--check` supported) |
-| `graphify` | default | `commands::graphify` |
+| `graph` | default | `commands::graphify` (aliases: `graphify`, `search`) |
 | `add` | default | `commands::add` |
 | `audit` | default | `commands::audit` |
 | `auth` | default | `commands::auth` |

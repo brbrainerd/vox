@@ -4379,13 +4379,13 @@
       "curated": true
     },
     {
-      "capability_id": "cli.graphify",
+      "capability_id": "cli.graph",
       "cli_path": [
-        "graphify"
+        "graph"
       ],
       "implicit": false,
-      "title": "Graphify",
-      "description_model": "CLI operation `vox graphify`",
+      "title": "Vox Graph",
+      "description_model": "CLI operation `vox graph` (formerly `vox graphify`)",
       "intent_tags": [
         "retrieval",
         "graph"
@@ -4399,13 +4399,13 @@
       "curated": true
     },
     {
-      "capability_id": "cli.graphify.ingest",
+      "capability_id": "cli.graph.ingest",
       "cli_path": [
-        "graphify",
+        "graph",
         "ingest"
       ],
       "implicit": false,
-      "title": "Graphify Ingest",
+      "title": "Vox Graph Ingest",
       "description_model": "Project graph nodes into Turso knowledge_nodes via VoxDb (CLI only; no MCP surface).",
       "intent_tags": [
         "retrieval",

@@ -6167,9 +6167,9 @@ operations:
     http_read_role_eligible: false
     tier: core
   cli: null
-- id: graphify
-  title: Graphify
-  description: CLI operation `vox graphify`
+- id: graph
+  title: Vox Graph
+  description: CLI operation `vox graph` (formerly `vox graphify`)
   description_human: null
   product_lane: platform
   intent_tags:
@@ -6187,7 +6187,7 @@ operations:
   mcp: null
   cli:
     path:
-    - graphify
+    - graph
     status: active
     latin_ns: pm
     handler_rust: commands::graphify
@@ -6195,7 +6195,7 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: null
-- id: graphify.status
+- id: graph.status
   title: Vox Search Status
   description: Report Vox Search structural-index freshness (read-only; `--strict` fails when stale).
   description_human: null
@@ -6217,7 +6217,7 @@ operations:
     http_read_role_eligible: true
     tier: core
   cli: null
-- id: graphify.search
+- id: graph.search
   title: Vox Search Structural
   description: Lexically search the Vox Search structural index on disk (read-only).
   description_human: null
@@ -6239,8 +6239,8 @@ operations:
     http_read_role_eligible: true
     tier: core
   cli: null
-- id: graphify.ingest
-  title: Graphify Ingest
+- id: graph.ingest
+  title: Vox Graph Ingest
   description: Project graph nodes into Turso knowledge_nodes via VoxDb (CLI only; no MCP surface).
   description_human: null
   product_lane: platform
@@ -6259,7 +6259,7 @@ operations:
   mcp: null
   cli:
     path:
-    - graphify
+    - graph
     - ingest
     status: active
     latin_ns: pm
@@ -6268,7 +6268,7 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: null
-- id: graphify.query
+- id: graph.query
   title: Vox Search Neighbors
   description: BFS neighbor expansion from seed node IDs (read-only; layered navigation).
   description_human: null
@@ -6290,7 +6290,7 @@ operations:
     http_read_role_eligible: true
     tier: core
   cli: null
-- id: graphify.path
+- id: graph.path
   title: Vox Search Path
   description: Shortest path between two node IDs in the Vox Search structural index (read-only).
   description_human: null
@@ -6312,7 +6312,7 @@ operations:
     http_read_role_eligible: true
     tier: core
   cli: null
-- id: graphify.compare
+- id: graph.compare
   title: Vox Search Compare
   description: Diff two Vox Search structural-index manifests for node/edge/community delta (read-only).
   description_human: null
@@ -6334,7 +6334,7 @@ operations:
     http_read_role_eligible: true
     tier: core
   cli: null
-- id: graphify.rebuild
+- id: graph.rebuild
   title: Vox Search Rebuild
   description: Rebuild a Vox Search structural index (AST extract + cluster), snapshot the prior graph, and refresh freshness manifest (write).
   description_human: null

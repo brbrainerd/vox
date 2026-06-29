@@ -2540,10 +2540,10 @@ curated:
   - gamify
   - hud
   parameters: null
-- id: cli.graphify
-  title: Graphify
+- id: cli.graph
+  title: Vox Graph
   description_human: null
-  description_model: CLI operation `vox graphify`
+  description_model: CLI operation `vox graph` (formerly `vox graphify`)
   intent_tags:
   - retrieval
   - graph
@@ -2557,10 +2557,10 @@ curated:
   mens_planner_visible: null
   mcp_tool: null
   cli_path:
-  - graphify
+  - graph
   parameters: null
-- id: cli.graphify.ingest
-  title: Graphify Ingest
+- id: cli.graph.ingest
+  title: Vox Graph Ingest
   description_human: null
   description_model: Project graph nodes into Turso knowledge_nodes via VoxDb (CLI only; no MCP surface).
   intent_tags:
@@ -2576,7 +2576,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: null
   cli_path:
-  - graphify
+  - graph
   - ingest
   parameters: null
 - id: cli.init

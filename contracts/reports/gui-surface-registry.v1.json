@@ -33,7 +33,7 @@
     "fmt",
     "generate",
     "grammar",
-    "graphify",
+    "graph",
     "init",
     "llm",
     "lock",
@@ -81,8 +81,6 @@
     "workflow"
   ],
   "surface_count": 113,
-  "unclassified_backfilled": [
-    "graphify"
-  ],
+  "unclassified_backfilled": [],
   "wiring_violations": []
 }
