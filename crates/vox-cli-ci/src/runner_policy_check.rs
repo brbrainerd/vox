@@ -211,7 +211,11 @@ jobs:
             "| Workflow | Runner | Reason |\n|--|--|--|\n",
         )
         .unwrap();
-        std::fs::write(wf.join("rogue.yml"), "jobs:\n  j:\n    runs-on: ubuntu-latest\n").unwrap();
+        std::fs::write(
+            wf.join("rogue.yml"),
+            "jobs:\n  j:\n    runs-on: ubuntu-latest\n",
+        )
+        .unwrap();
         assert!(run(&tmp, false).is_ok(), "advisory mode must tolerate");
         assert!(run(&tmp, true).is_err(), "strict mode must reject");
         std::fs::remove_dir_all(&tmp).ok();
@@ -228,7 +232,11 @@ jobs:
             "| Workflow | Runner | Reason |\n|--|--|--|\n| `rogue.yml` | `ubuntu-latest` | test |\n",
         )
         .unwrap();
-        std::fs::write(wf.join("rogue.yml"), "jobs:\n  j:\n    runs-on: ubuntu-latest\n").unwrap();
+        std::fs::write(
+            wf.join("rogue.yml"),
+            "jobs:\n  j:\n    runs-on: ubuntu-latest\n",
+        )
+        .unwrap();
         assert!(run(&tmp, true).is_ok(), "strict must pass when registered");
         std::fs::remove_dir_all(&tmp).ok();
     }
