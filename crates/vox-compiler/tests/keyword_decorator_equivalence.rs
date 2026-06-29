@@ -37,7 +37,10 @@ fn ast_eq(old_src: &str, new_src: &str) {
     let mut vb = serde_json::to_value(&b).expect("serialize new AST");
     strip_spans(&mut va);
     strip_spans(&mut vb);
-    assert_eq!(va, vb, "keyword form must be AST-equivalent to decorator form");
+    assert_eq!(
+        va, vb,
+        "keyword form must be AST-equivalent to decorator form"
+    );
 }
 
 // ── Tier-1 equivalence (these FAIL until the soft-keyword heads land) ──
@@ -57,7 +60,10 @@ fn table_pk() {
 
 #[test]
 fn index() {
-    ast_eq("@index User.by_name on (name)", "index User.by_name on (name)");
+    ast_eq(
+        "@index User.by_name on (name)",
+        "index User.by_name on (name)",
+    );
 }
 
 #[test]
@@ -127,7 +133,10 @@ fn soft_keyword_recognized_in_script_mode() {
     .unwrap();
     strip_spans(&mut old);
     strip_spans(&mut new);
-    assert_eq!(old, new, "soft keyword must parse like the decorator in script mode");
+    assert_eq!(
+        old, new,
+        "soft keyword must parse like the decorator in script mode"
+    );
 }
 
 // ── Identifier preservation (these must PASS even before the heads land:
@@ -167,10 +176,22 @@ fn keyword_form_shrinks_tokens_and_bytes() {
     // gate witnesses once the corpus migrates.
     let cases = [
         ("@table type User { name: str }", "table User { name: str }"),
-        ("@query fn c() to int { return 0 }", "query c() to int { return 0 }"),
-        ("@mutation fn m() to int { return 0 }", "mutation m() to int { return 0 }"),
-        ("@server fn s() to int { return 0 }", "server s() to int { return 0 }"),
-        ("@tool fn t() to int { return 0 }", "tool t() to int { return 0 }"),
+        (
+            "@query fn c() to int { return 0 }",
+            "query c() to int { return 0 }",
+        ),
+        (
+            "@mutation fn m() to int { return 0 }",
+            "mutation m() to int { return 0 }",
+        ),
+        (
+            "@server fn s() to int { return 0 }",
+            "server s() to int { return 0 }",
+        ),
+        (
+            "@tool fn t() to int { return 0 }",
+            "tool t() to int { return 0 }",
+        ),
     ];
     for (decorated, keyword) in cases {
         let d_tokens = lex(decorated).len();
@@ -192,8 +213,10 @@ fn keyword_form_shrinks_tokens_and_bytes() {
 fn mcp_resource_still_parses_after_arm_split() {
     // The dispatch split of `AtResource | AtMcpResource` (so only @resource warns) must
     // not change @mcp.resource — it still routes to the non-headless parse_mcp_resource.
-    parse(lex("@mcp.resource \"vox://x\" \"d\" fn load() to str { return \"\" }"))
-        .unwrap_or_else(|e| panic!("@mcp.resource must still parse: {e:?}"));
+    parse(lex(
+        "@mcp.resource \"vox://x\" \"d\" fn load() to str { return \"\" }",
+    ))
+    .unwrap_or_else(|e| panic!("@mcp.resource must still parse: {e:?}"));
 }
 
 #[test]

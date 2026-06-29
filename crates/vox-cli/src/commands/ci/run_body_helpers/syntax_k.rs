@@ -207,7 +207,10 @@ pub(crate) fn run_source_token_budget(root: &Path, tolerance: f64, update: bool)
             fs::create_dir_all(parent)?;
         }
         fs::write(&budget_path, content)?;
-        println!("Updated source-token budget baseline: {}", budget_path.display());
+        println!(
+            "Updated source-token budget baseline: {}",
+            budget_path.display()
+        );
     }
 
     if !failures.is_empty() {

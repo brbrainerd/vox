@@ -30,8 +30,7 @@ fn retired_table_decorator_emits_warning_payload() {
     assert!(
         p.errors.iter().any(|e| e.severity == ParseSeverity::Warning
             && e.class == ParseErrorClass::Tombstoned
-            && e
-                .replacement
+            && e.replacement
                 .as_ref()
                 .is_some_and(|r| r.from == "@table" && r.to == "table")),
         "warning-first must emit a Tombstoned warning carrying the @table→table replacement; got: {:?}",
