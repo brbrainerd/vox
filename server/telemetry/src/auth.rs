@@ -14,6 +14,9 @@ use axum::{
     response::Response,
 };
 
+// drift-allow(bearer-header-inline): standalone workspace, cannot import vox-http-client; BEARER_SCHEME is the scheme prefix, not an API token
+const BEARER_SCHEME: &str = "Bearer ";
+
 /// The expected ingest token. `None` ⇒ no token configured ⇒ local-dev mode,
 /// all requests pass. Cloned into the axum router state.
 #[derive(Clone)]
@@ -34,7 +37,7 @@ pub async fn require_bearer(
         .headers()
         .get(AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.strip_prefix("Bearer "));
+        .and_then(|v| v.strip_prefix(BEARER_SCHEME));
     match provided {
         Some(t) if constant_time_eq(t.as_bytes(), expected.as_bytes()) => Ok(next.run(req).await),
         _ => Err(StatusCode::UNAUTHORIZED),

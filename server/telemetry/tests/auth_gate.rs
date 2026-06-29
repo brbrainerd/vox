@@ -29,7 +29,7 @@ async fn rejects_wrong_bearer() {
     let res = app(Some("secret"))
         .oneshot(
             Request::post("/v1/logs")
-                .header("authorization", "Bearer nope")
+                .header("authorization", "Bearer nope") // drift-allow(bearer-header-inline): test fixture, not a real token
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -43,7 +43,7 @@ async fn accepts_correct_bearer() {
     let res = app(Some("secret"))
         .oneshot(
             Request::post("/v1/logs")
-                .header("authorization", "Bearer secret")
+                .header("authorization", "Bearer secret") // drift-allow(bearer-header-inline): test fixture, not a real token
                 .body(Body::empty())
                 .unwrap(),
         )

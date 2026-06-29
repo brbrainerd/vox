@@ -5,6 +5,7 @@ use reqwest::Client;
 use serde::Deserialize;
 
 const API_LATEST: &str = "https://api.github.com/repos/vox-foundation/vox/releases/latest";
+const CLIENT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct GhAsset {
@@ -37,7 +38,7 @@ pub fn asset_name(tag: &str) -> String {
 }
 
 pub fn make_client() -> Result<Client> {
-    let mut builder = Client::builder().timeout(std::time::Duration::from_secs(30));
+    let mut builder = Client::builder().timeout(CLIENT_TIMEOUT);
 
     // Support GITHUB_TOKEN/GH_TOKEN for auth header
     if let Ok(token) = std::env::var("GITHUB_TOKEN").or_else(|_| std::env::var("GH_TOKEN")) {

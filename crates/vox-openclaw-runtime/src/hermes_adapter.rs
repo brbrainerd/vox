@@ -30,7 +30,7 @@ impl DefaultHermesRuntimeAdapter {
     pub fn new(cfg: AgentRuntimeConfig) -> Self {
         Self {
             cfg,
-            http: reqwest::Client::new(),
+            http: vox_http_client::client(),
         }
     }
 }
@@ -45,13 +45,13 @@ impl AgentRuntimeAdapter for DefaultHermesRuntimeAdapter {
         } else {
             // Workspace roots
             if let Ok(cwd) = std::env::current_dir() {
-                paths_to_scan.push(cwd.join(".vox/skills"));
+                paths_to_scan.push(cwd.join(vox_config::paths::REPO_SKILLS_DIR));
                 paths_to_scan.push(cwd.join(".agents/skills"));
                 paths_to_scan.push(cwd.join(".claude/skills"));
             }
             // Home directory roots
             if let Some(home) = dirs::home_dir() {
-                paths_to_scan.push(home.join(".vox/skills"));
+                paths_to_scan.push(home.join(vox_config::paths::REPO_SKILLS_DIR));
                 paths_to_scan.push(home.join(".agents/skills"));
                 paths_to_scan.push(home.join(".claude/skills"));
             }

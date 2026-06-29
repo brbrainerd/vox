@@ -38,12 +38,13 @@ impl RevocationGossip {
 mod semcov_behavior_tests {
     use super::*;
     use std::time::Duration;
+    use vox_config::timeouts::D_3600S;
 
     #[test]
     fn tombstone_then_is_revoked_reports_true_only_for_that_key() {
         // Catches: is_revoked ignoring the key argument (e.g. returning
         // `!map.is_empty()` for any input) so an unrelated key reads as revoked.
-        let mut g = RevocationGossip::new(Duration::from_secs(3600));
+        let mut g = RevocationGossip::new(D_3600S);
         g.tombstone("aa11".to_string());
         assert!(g.is_revoked("aa11"), "tombstoned key must read revoked");
         assert!(
@@ -69,7 +70,7 @@ mod semcov_behavior_tests {
     fn gc_with_long_retention_keeps_fresh_tombstone() {
         // Catches: gc over-aggressively retaining nothing (e.g. inverted retain
         // predicate) so a brand-new tombstone is dropped under a 1-hour window.
-        let mut g = RevocationGossip::new(Duration::from_secs(3600));
+        let mut g = RevocationGossip::new(D_3600S);
         g.tombstone("fresh".to_string());
         g.gc();
         assert!(

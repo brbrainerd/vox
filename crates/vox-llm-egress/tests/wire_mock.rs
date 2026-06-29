@@ -23,7 +23,7 @@ async fn chat_once_sends_bearer_headers_and_parses_usage() {
     let server = MockServer::start().await;
     Mock::given(method("POST"))
         .and(path("/chat/completions"))
-        .and(header("authorization", "Bearer secret"))
+        .and(header("authorization", vox_http_client::bearer_auth_header_string("secret")))
         .and(header("x-title", "vox"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "model": "test/model",

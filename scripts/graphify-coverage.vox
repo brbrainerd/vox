@@ -36,7 +36,7 @@ fn main() {
 
     print("Rebuild completed successfully. Verifying generated files...");
 
-    let manifest_path = ".vox/cache/graphify/repo-code-graph/.graphify_manifest.v1.json";
+    let manifest_path = ".vox/cache/graphify/repo-code-graph/.graphify_manifest.v1.json"; // drift-allow(vox-path-literal): Vox script cannot import Rust constants
     if not fs.exists(manifest_path) {
         log.error("Manifest not found at " + manifest_path);
         process.exit(1);

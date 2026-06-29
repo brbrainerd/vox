@@ -61,7 +61,7 @@ impl TavilyResearchClient {
         }
         let api_key = resolve_secret(SecretId::TavilyApiKey).expose()?.to_string();
         Some(Self {
-            http: reqwest::Client::builder()
+            http: vox_http_client::client_builder()
                 .timeout(vox_config::timeouts::D_30S)
                 .build()
                 .ok()?,
@@ -72,7 +72,7 @@ impl TavilyResearchClient {
 
     pub fn with_base_url(api_key: impl Into<String>, base_url: impl Into<String>) -> Self {
         Self {
-            http: reqwest::Client::builder()
+            http: vox_http_client::client_builder()
                 .timeout(vox_config::timeouts::D_30S)
                 .build()
                 .expect("reqwest client"),

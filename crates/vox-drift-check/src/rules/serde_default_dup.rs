@@ -5,6 +5,8 @@ use vox_code_audit::rules::{Finding, FindingConfidence, Language, Severity};
 pub struct SerdeDefaultDupRule;
 
 const ALLOWED_CRATES: &[&str] = &["vox-config"];
+/// Path prefix for vendored `[patch]` crates — these are upstream source we don't modify.
+const VENDORED_PATH_PREFIX: &str = "patches";
 const COMMON_PREFIXES: &[&str] = &[
     "default_true",
     "default_false",
@@ -27,6 +29,10 @@ impl DriftRule for SerdeDefaultDupRule {
     fn check(&self, features: &ExtractedFeatures, _ctx: &WorkspaceContext) -> Vec<Finding> {
         let crate_name = features.crate_name.as_deref().unwrap_or("");
         if ALLOWED_CRATES.contains(&crate_name) {
+            return vec![];
+        }
+        // Skip vendored [patch] crates — upstream source we cannot modify.
+        if features.file.to_str().map_or(false, |p| p.contains(VENDORED_PATH_PREFIX)) {
             return vec![];
         }
 

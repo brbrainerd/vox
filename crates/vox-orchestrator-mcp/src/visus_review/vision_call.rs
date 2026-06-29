@@ -62,7 +62,7 @@ pub async fn call_vision_model(
         "temperature": 0.2,
         "usage": { "include": true }
     });
-    let client = reqwest::Client::new();
+    let client = vox_http_client::client();
     let resp = client
         .post(&url)
         .bearer_auth(key)

@@ -61,7 +61,7 @@ pub fn config_dir() -> Option<PathBuf> {
 /// skills always win.
 pub fn skill_search_roots(workspace_root: &Path) -> Vec<PathBuf> {
     const SUBDIRS: [&str; 4] = [
-        ".vox/skills",
+        REPO_SKILLS_DIR,
         ".cursor/skills",
         ".agents/skills",
         ".claude/skills",
@@ -241,6 +241,32 @@ pub const REPO_SPEECH_LEXICON_FILE: &str = ".vox/speech_lexicon.json";
 pub const REPO_TOOLCHAIN_ROLLBACK_FILE: &str = ".vox/toolchain-upgrade-rollback.json";
 /// Project-level VOX.md memory file (agent memory for this repository).
 pub const REPO_VOX_MD_FILE: &str = ".vox/VOX.md";
+
+/// `.vox/skills` — repo-local Vox skill discovery root (highest precedence in skill search).
+pub const REPO_SKILLS_DIR: &str = ".vox/skills";
+/// `.vox/cache/vox-graph` — legacy Vox code-graph cache root (pre-graphify migration).
+pub const REPO_VOX_GRAPH_CACHE_DIR: &str = ".vox/cache/vox-graph";
+/// `.vox/cache/vox-graph/registered.v1.json` — Vox graph corpus registry overlay.
+pub const REPO_VOX_GRAPH_REGISTERED_FILE: &str = ".vox/cache/vox-graph/registered.v1.json";
+/// `.vox/cache/graphify/repo-code-graph` — Graphify repository code-graph corpus directory.
+pub const REPO_GRAPHIFY_REPO_CODE_GRAPH_DIR: &str = ".vox/cache/graphify/repo-code-graph";
+/// `.vox/cache/graphify/registered.v1.json` — Graphify legacy corpus registry overlay.
+pub const REPO_GRAPHIFY_REGISTERED_FILE: &str = ".vox/cache/graphify/registered.v1.json";
+/// `.vox/cache/graphify/ext` — Graphify external-source corpus cache directory.
+pub const REPO_GRAPHIFY_EXT_DIR: &str = ".vox/cache/graphify/ext";
+/// `.vox/cache/graphify/ext/graph.json` — Graphify external-source graph file.
+pub const REPO_GRAPHIFY_EXT_GRAPH_FILE: &str = ".vox/cache/graphify/ext/graph.json";
+/// `.vox/cache/graphify/ext/.graphify_manifest.v1.json` — Graphify external-source manifest.
+pub const REPO_GRAPHIFY_EXT_MANIFEST_FILE: &str =
+    ".vox/cache/graphify/ext/.graphify_manifest.v1.json";
+/// `.vox/cache/graphify/vox-gui-surface` — Graphify GUI surface corpus cache directory.
+pub const REPO_GRAPHIFY_GUI_SURFACE_DIR: &str = ".vox/cache/graphify/vox-gui-surface";
+/// `.vox/cache/graphify-src` — Graphify source-scan cache directory.
+pub const REPO_GRAPHIFY_SRC_CACHE_DIR: &str = ".vox/cache/graphify-src";
+/// `.vox/corpus/heal_pairs.jsonl` — MENS heal-pair training corpus (repo-local).
+pub const REPO_CORPUS_HEAL_PAIRS_FILE: &str = ".vox/corpus/heal_pairs.jsonl";
+/// `.vox/db/vox.db` — repo-scoped database path (distinct from the user data-dir DB).
+pub const REPO_DB_PATH: &str = ".vox/db/vox.db";
 
 /// MCP session persistence: `.vox/sessions/<repository_id>` (relative to repository root).
 pub fn mcp_sessions_dir(repository_id: &str) -> PathBuf {

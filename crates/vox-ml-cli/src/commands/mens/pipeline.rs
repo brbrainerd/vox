@@ -226,7 +226,7 @@ pub async fn run(
             PipelineStage::HealToDpo => {
                 if !dry_run {
                     let input = dirs::home_dir()
-                        .map(|h| h.join(".vox/corpus/heal_pairs.jsonl"))
+                        .map(|h| h.join(vox_config::paths::REPO_CORPUS_HEAL_PAIRS_FILE))
                         .unwrap_or_else(|| PathBuf::from("heal_pairs.jsonl"));
                     crate::commands::corpus::run(
                         crate::commands::corpus::CorpusAction::HealToDpo {
@@ -541,7 +541,7 @@ async fn run_kb_signals_stage(data_dir: &std::path::Path) -> anyhow::Result<()> 
     use std::collections::HashMap;
     use std::io::{BufWriter, Write};
 
-    let db_path = ".vox/db/vox.db";
+    let db_path = vox_config::paths::REPO_DB_PATH;
     if !std::path::Path::new(db_path).exists() {
         tracing::info!("KbSignals: VoxDb at {db_path} does not exist; skipping KbSignals stage");
         return Ok(());
@@ -652,7 +652,7 @@ mod tests {
     #[test]
     fn test_heal_pairs_path_has_no_tilde() {
         let input = dirs::home_dir()
-            .map(|h| h.join(".vox/corpus/heal_pairs.jsonl"))
+            .map(|h| h.join(vox_config::paths::REPO_CORPUS_HEAL_PAIRS_FILE))
             .unwrap_or_else(|| PathBuf::from("heal_pairs.jsonl"));
         assert!(!input.to_string_lossy().starts_with('~'));
     }

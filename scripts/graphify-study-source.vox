@@ -12,7 +12,7 @@ fn vox_binary_path() to str {
 
 fn main() {
     let bin = vox_binary_path();
-    let src_dir = ".vox/cache/graphify-src";
+    let src_dir = ".vox/cache/graphify-src"; // drift-allow(vox-path-literal): Vox script cannot import Rust constants
 
     if not fs.exists(src_dir) {
         print("Cloning Graphify upstream source into " + src_dir + " ...");
