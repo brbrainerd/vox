@@ -10,6 +10,7 @@ import { PriorityChainEditor } from './PriorityChainEditor';
 import { HudTilesEditor } from './HudTilesEditor';
 import { applyTheme } from '../../../lib/theme';
 import { useLocalStorage } from '../../../hooks/useLocalStorage';
+import { useLang } from '../../../hooks/useLanguage';
 import { useVoxMutation } from '../../../hooks/useVoxQuery';
 import { searchSettings } from './settingsIndex';
 import type { HudTilesConfig } from '../../../hooks/useHudTiles';
@@ -951,6 +952,7 @@ interface SettingsViewProps {
 }
 
 export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTilesChange }: SettingsViewProps) {
+  const { lang, setLang } = useLang();
   const [section, setSection] = useState('orchestrator');
   const [filter, setFilter] = useState('');
   const [keybindings, setKeybindings] = useState<Bindings>(DEFAULT_BINDINGS);
@@ -1522,8 +1524,15 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           </>
         )}
 
-        {section === 'display' && hudTilesConfig && onHudTilesChange && (
-          <HudTilesEditor config={hudTilesConfig} onChange={onHudTilesChange} />
+        {section === 'display' && (
+          <>
+            <Row label="Latin labels" hint="Show nav and section names in Latin">
+              <Toggle on={lang === 'la'} onClick={() => setLang(lang === 'la' ? 'en' : 'la')} />
+            </Row>
+            {hudTilesConfig && onHudTilesChange && (
+              <HudTilesEditor config={hudTilesConfig} onChange={onHudTilesChange} />
+            )}
+          </>
         )}
       </Glass>
     </div>
