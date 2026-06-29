@@ -28,26 +28,34 @@ A config knob is declared **once** — as an annotated field on its domain's con
 ### 1. The standard: `#[derive(VoxConfig)]`
 
 ```rust
-#[derive(VoxConfig, Default, Clone)]
-#[vox_config(prefix = "VOX_SPEECH", group = "Speech")]
+// NOTE: structs with a hand-written `Default` impl (e.g. OrchestratorConfig) do NOT
+// add `Default` to the derive list — VoxConfig generates no Default, and a derived one
+// would conflict. `group` must be an existing `Group` enum variant (extend the enum for
+// a genuinely new domain — there is no `Speech` variant today; use e.g. `Tuning`).
+#[derive(VoxConfig, Clone)]
+#[vox_config(prefix = "VOX_SPEECH", group = "Tuning")]
 pub struct SpeechConfig {
     #[config(default = 8, label = "Max bias phrases", hint = "…")]
-    pub max_bias_phrases: u32,
+    pub max_bias_phrases: u32,   // #[config(default)] MUST equal this field's Default value
     #[config(env = "VOX_ORATIO_CUDA", default = false)] // explicit env preserves legacy names
     pub cuda: bool,
     #[config(default = 0.5, bound = "0.0..=1.0")]
     pub contextual_bias: f32,
+    #[config(skip)]              // non-scalar (Vec/HashMap/Option<nested>/nested struct) — not env-resolvable
+    pub backends: Vec<String>,
 }
 ```
 
 The derive (new crate `vox-config-derive`, re-exported from `vox-config`) generates, for the struct:
 
-- `pub fn merge_env(&mut self)` — for each field, `self.field = resolve_config_<kind>("<env>", self.field)` where `<env>` defaults to `<prefix>_<FIELD_SCREAMING>` (overridable per field) and `<kind>` is inferred from the field type (bool/int/float/string; `Option<T>` → the `resolve_config_opt_*` helpers).
-- `pub fn get() -> &'static Self` — a `OnceLock<Self>` snapshot built from `Self::default()` then `merge_env()`. The single centralized read path; point-of-use becomes `SpeechConfig::get().max_bias_phrases`.
-- `pub fn catalog(&self) -> Vec<ConfigField>` — current/default/kind/group/label/hint per field, for GUI surfacing + introspection (mirrors `OrchestratorConfig::to_catalog`).
-- `pub const fn config_keys() -> &'static [ConfigKey]` — one `ConfigKey { key, kind, default, bound, group, class: NodeLocal, home: Env, gui, secret: false, status: Active, label, hint }` per field, for the registry.
+- `pub fn merge_env(&mut self)` — for each non-`skip` field, `self.field = resolve_config_<kind>("<env>", self.field)` where `<env>` defaults to `<prefix>_<FIELD_SCREAMING>` (overridable per field) and `<kind>` is inferred from the field type.
+- `pub fn get() -> &'static Self where Self: Default` + `from_env_uncached()` — a `OnceLock<Self>` snapshot. Point-of-use becomes `SpeechConfig::get().max_bias_phrases`. `get()` is process-lifetime; `from_env_uncached()` is the test/hot-reload path.
+- `pub fn catalog(&self) -> Vec<ConfigField>` — current/default/kind/group/label/hint per field. The current value is rendered with `{:?}` (Debug — universal across field types incl. enums/`Option`), **not** `{}` (most config field types don't impl `Display`).
+- `pub fn config_keys() -> &'static [ConfigKey]` — one `ConfigKey` per non-`skip` field, with `group` mapped from the `#[vox_config(group=…)]` string to the matching `Group` enum variant (**compile error if the variant doesn't exist** — this is what makes the orchestrator's keys come out `Group::Orchestrator`, not `General`), `class: NodeLocal`, `home: Env` (read via `resolve_config_*` = env→`config.toml`→default; `Home::Env` denotes "externally settable", not env-only), `secret: false`, `status: Active`.
 
-Field-type → `ConfigKind`/resolver mapping is fixed (bool→Bool, integer→Int, f32/f64→Float, String/enum/Path→String). Nested sub-structs (oratio has 6) are supported via a `#[config(flatten)]` field attribute that recurses (prefix composes).
+**Type-kind mapping (fixed):** bool→Bool; `i*`→Int via `resolve_config_i64`; `u*`→Int via `resolve_config_u64`; `f32`→Float via `resolve_config_f32`; `f64`→Float via `resolve_config_f64` (**separate resolver — no f32 precision loss**); `String`→String; any other `T: FromStr` (enums)→String via `resolve_config_str` + parse. `Option<T>` requires `T: FromStr` (via `resolve_config_opt_str` + parse). Non-resolvable fields (`Vec`, `HashMap`, `Option<non-scalar>`, nested structs) MUST be `#[config(skip)]`. Nested-struct `#[config(flatten)]` recursion is **deferred to SP-B** (oratio's 6 sub-structs).
+
+**Default-divergence guard:** `#[config(default=X)]` is a *second* source of the default beside the field's `Default`. The derive's tests assert `Self::default().<field> == #[config(default)]` so the two cannot drift (`DefaultValue::Literal` MUST equal the in-code constant).
 
 ### 2. Credential boundary
 
@@ -74,15 +82,16 @@ Single source per knob; auto-registry (no manual rows / no drift); `config.toml`
 
 ## Decomposition (each its own spec → plan)
 
-- **SP-A (foundation):** the `vox-config-derive` proc-macro + the `vox-cli` aggregator + a standardization lint (a `config-hygiene` check that flags *new* non-credential `resolve_secret(SecretId::Vox…)` point-of-use reads outside `vox-secrets`) + **re-derive the already-migrated `OrchestratorConfig`** to validate the macro end-to-end and auto-generate its 76 `ConfigKey`s. Proves the machinery on a known-good domain.
+- **SP-A (foundation):** the `vox-config-derive` proc-macro + the `vox-cli` aggregator + a standardization lint (a `config-hygiene` check that flags *new* non-credential `resolve_secret(SecretId::Vox…)` point-of-use reads outside `vox-secrets`) + **re-derive the `OrchestratorConfig`'s non-secret (`cfg_opt`) fields** to validate the macro end-to-end and auto-generate its ~75 `ConfigKey`s. Proves the machinery on a real, type-diverse domain (141 fields: bool/numeric/enum/`Option`/`Vec`/`HashMap`/nested — most `#[config(skip)]`).
 - **SP-B … SP-E:** migrate each remaining domain to the macro — oratio (vox-speech), search (vox-search), MCP, dashboard/runner/mesh — one per spec/plan, mirroring the orchestrator bucket but boilerplate-free.
-- **SP-F (optional):** surface the aggregated `catalog()` in the GUI as a config editor.
+- **SP-F (optional):** surface the aggregated `catalog()` in the GUI as a config editor, **and (AI-first) expose the aggregated catalog as a read-only MCP resource / orchestrator method `get_config_schema()`** so agents can introspect their own tunable space at runtime instead of hardcoding knob names. YAGNI-gated: build only once an in-repo agent consumer exists (today's agents are tool-driven, not config-introspecting — so this stays a stub-free deferral, not a speculative build).
 
 ## What does NOT change
 
 - `vox_config::env_parse::resolve_config_*` (the resolver the macro emits calls to) and `toml_config` — reused as-is.
 - `vox-secrets`/`resolve_secret` — still the path for real credentials.
-- The orchestrator's *behavior* (SP-A re-derives its config to the same env names/defaults; output is equivalent).
+- The orchestrator's hand-written `impl_default.rs` — **retained as-is** (its elaborate field defaults are orthogonal; the macro generates no `Default`, so the struct keeps its manual impl and does NOT add `Default` to the derive list).
+- The orchestrator's *behavior* (SP-A re-derives its config to the same env names/defaults; verified by a full `(key, default)` set-equality regression pin, not a sample).
 - The provider-routing program (SP1–SP6) — separate.
 
 ## Non-goals

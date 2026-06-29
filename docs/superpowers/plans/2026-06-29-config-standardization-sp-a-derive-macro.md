@@ -16,6 +16,68 @@
 
 ---
 
+## Audit corrections (AUTHORITATIVE — these override the inline code below where they conflict)
+
+An adversarial audit against the codebase (2026-06-29, 8 parallel agents) confirmed the gate/edition/path assumptions but found 8 real bugs in the draft codegen. Apply these; they supersede the older inline snippets in Tasks 3/4/6/9.
+
+**C1 — `catalog()` must use `{:?}`, not `{}`.** Enums (`CostPreference`…), `Option<T>`, `Vec<T>`, `HashMap`, and nested structs do **not** impl `Display` (verified: `crates/vox-orchestrator/src/config/enums.rs` derives only `Debug/Clone/PartialEq/Serialize/Deserialize`). The catalog's `current` field must be `format!("{:?}", self.#id)` — `Debug` is universal (the orchestrator struct derives it). In Task 4 codegen, replace `current: format!("{}", self.#id)` with `current: format!("{:?}", self.#id)`.
+
+**C2 — split `Kind::Float` into `Float32`/`Float64`; add `resolve_config_f64`.** Routing `f64` through `resolve_config_f32` loses precision (verified: `vox-search/policy.rs` + orchestrator have `f64` tuning fields). In Task 3 `classify`, map `"f32" => Kind::Float32, "f64" => Kind::Float64`. In Task 4 `resolver_call`, `Kind::Float32 => resolve_config_f32(...)`, `Kind::Float64 => resolve_config_f64(...)`. In `kind_tokens`, both → `ConfigKind::Float`.
+
+**C3 — map the `group` string to a `Group` variant (don't hardcode `Group::General`).** The draft emits `Group::General` for every key, which would regress the orchestrator's `Group::Orchestrator`. Add to `model.rs`:
+```rust
+fn group_token(s: &str) -> syn::Result<TokenStream> {
+    let variant = match s {
+        "General" => "General", "ModelsAndEndpoints" => "ModelsAndEndpoints",
+        "Tuning" => "Tuning", "Training" => "Training", "Orchestrator" => "Orchestrator",
+        "Runtime" => "Runtime", "Storage" => "Storage", "Mesh" => "Mesh",
+        "Security" => "Security", "Telemetry" => "Telemetry",
+        other => return Err(syn::Error::new(proc_macro2::Span::call_site(),
+            format!("unknown config group {other:?}; add a variant to vox_config::config_key::Group"))),
+    };
+    let id = quote::format_ident!("{variant}");
+    Ok(quote::quote!(::vox_config::config_key::Group::#id))
+}
+```
+In codegen, compute `let group_tok = group_token(&self.group)?;` (propagate the error) and use `group: #group_tok,` in the `ConfigKey` instead of `Group::General`. (`Group` has **no `Speech` variant** today — domains needing one extend the enum first.)
+
+**C4 — add a `#[config(skip)]` field attribute.** Non-resolvable fields (`Vec`, `HashMap`, `Option<non-scalar>`, nested structs) must be skipped. In `model.rs` `Field`, add `pub skip: bool`; in `from_ast`, recognize `m.path.is_ident("skip")`; in codegen, iterate `self.fields.iter().filter(|f| !f.skip)` for merges/keys/catalog.
+
+**C5 — `resolve_config_opt_str`, `resolve_config_i64`, `resolve_config_f64` do NOT exist** (verified: `env_parse.rs` has only `_str/_u64/_usize/_bool/_f32/_i32` + `_opt_f32/_opt_i32`). Task 4 Step 4 **adds** all three (not "confirm/add"). `resolve_config_f64`:
+```rust
+/// Resolve an f64 config value using layered precedence (env → ~/.vox/config.toml → default).
+#[must_use]
+pub fn resolve_config_f64(name: &str, default: f64) -> f64 {
+    if let Ok(v) = std::env::var(name) && let Ok(p) = v.trim().parse::<f64>() { return p; }
+    if let Some(v) = toml_config::load_user_config().values.get(name) {
+        if let Some(f) = v.as_float() { return f; }
+        if let Some(i) = v.as_integer() { return i as f64; }
+        if let Some(s) = v.as_str() && let Ok(p) = s.trim().parse::<f64>() { return p; }
+    }
+    default
+}
+```
+
+**C6 — `Option<T>` requires `T: FromStr`; document & restrict.** The `Option` resolver does `resolve_config_opt_str(env).map(|s| s.parse().ok()).unwrap_or(#cur)` — only valid for `Option<scalar>` (`String`/bool/int/enum). `Option<PathBuf>`, `Option<nested>` etc. must be `#[config(skip)]`. No silent support.
+
+**C7 — orchestrator keeps `impl_default.rs` and does NOT derive `Default`.** `OrchestratorConfig` has a hand-written `impl Default` (`impl_default.rs`) using `default_*()` helpers. Task 9 adds `#[derive(VoxConfig)]` only (NOT `Default`) and the `#[vox_config(...)]` attr; `impl_default.rs` is untouched. Mark every non-`cfg_opt` field (the ~39 `secrets_opt` reads + all `Vec`/`HashMap`/`Option<nested>`/nested-struct/enum-without-`FromStr` fields) `#[config(skip)]`.
+
+**C8 — strengthen Task 9's regression pin to full set-equality.** Replace the 2-key sample with: collect the exact `cfg_opt("VOX_ORCHESTRATOR_*")` env-name→default pairs from `impl_env.rs`/`impl_default.rs` (the audit counts **77 `cfg_opt` calls** vs **75 `CONFIG_KEYS` rows** — reconcile the real list, don't hardcode "76"), and assert the derived `config_keys()` set of `(key, default-as-string)` equals it. Also add the **aggregator-coverage test** from C9.
+
+**C9 — aggregator-coverage test (add to Task 6).** A test that greps the workspace for `#[derive(VoxConfig)]` structs and asserts each appears in `all_domain_config_keys()` (prevents a new domain silently missing from the parity set):
+```rust
+#[test]
+fn every_voxconfig_struct_is_aggregated() {
+    // ponytail: grep the crates dir; assert each derived struct's prefix shows up in the aggregate keys.
+    // (Implementation: walk crates/*/src for "#[derive(.*VoxConfig.*)]" + capture the next `struct Name`,
+    //  map Name -> its #[vox_config(prefix=...)], assert all_domain_config_keys() has >=1 key per prefix.)
+}
+```
+
+**Confirmed-correct (no change needed):** edition 2024 + `unsafe set_var` ✓; `config-registry-parity` sees `resolve_config_*("VOX_…")` string literals via its `VOX_[A-Z0-9_]+` scan ✓; `config-hygiene` Check-D regex excludes `resolve_config_*` so migrated reads need no `registry.v1.yaml` rows and SecretSpec removal creates no violations ✓; `ConfigClass::NodeLocal`/`Home`/`Status`/`GuiSurface` variants all real ✓; `vox_orchestrator::config::OrchestratorConfig` path public ✓; the `#[ignore]`→un-ignore task ordering is sound ✓; no leftover orchestrator SecretSpecs to remove ✓.
+
+---
+
 ## File Structure
 
 | File | Responsibility |
