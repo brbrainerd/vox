@@ -2,13 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Demote 11 kind-defining decorators (`@table @index @query @mutation @tool @resource @server @webhook @form @search @subagent`) to keywords that subsume the `fn`/`type` they sat on, hard-error the old `@` spellings, codemod the corpus, and add a source-token budget CI gate — without changing HIR, typeck, or any codegen backend.
+**Goal:** Demote the 7 **Tier-1** kind-defining decorators (`@table @index @query @mutation @server @tool @resource`) to **soft (contextual) keywords** that subsume the `fn`/`type` they sat on, hard-error the old `@` spellings (and 5 dead decorators) with a machine-readable replacement payload, codemod the `.vox` **and Rust** corpus, and add a source-token budget CI gate — all without changing HIR, typeck, or any codegen backend, and without breaking any existing identifier use of those words.
 
-**Architecture:** Front-of-pipe rename only. Each new keyword parser produces the *same* AST node (`Decl::Endpoint{kind}`, table `Decl`, `Decl::McpTool`, `Decl::McpResource`) the decorator produced, so everything downstream is untouched and golden *outputs* stay byte-identical. The single enabling mechanic: `parse_fn_decl` consumes `Token::Fn` optionally, so `query user_count()` parses the same body `@query fn user_count()` did.
+**Architecture:** Soft keywords, per the `get/post/put/delete` precedent: the words get **no `logos #[token]`** — they stay `Token::Ident` and are recognized **positionally** by the top-level decl dispatcher. The existing parser heads (`parse_table`/`parse_query`/…) already produce the correct `Decl` node; the soft-keyword head reuses them via a thin `parse_fn_decl_headless` wrapper that makes `fn` optional **only on the keyword path**. Tier-2 (`@webhook @subagent @form @search`) is OUT of scope — it is real AST work, not a rename (separate spec).
 
-**Tech Stack:** Rust (`vox-compiler` lexer/parser, `vox-cli` CI), VoxScript (codemod), JSON budget files.
+**Tech Stack:** Rust (`vox-compiler` parser/lexer-metadata, `vox-cli` CI, `vox-grammar-export`, `vox-orchestrator-mcp`), VoxScript (codemod), JSON budget files.
 
-**Spec:** `docs/superpowers/specs/2026-06-29-core-surface-taxonomy-design.md`
+**Spec:** `docs/superpowers/specs/2026-06-29-core-surface-taxonomy-design.md` (revision 2 — post-audit).
 
 ---
 
@@ -16,725 +16,353 @@
 
 | File | Responsibility | Change |
 |---|---|---|
-| `crates/vox-compiler/tests/keyword_decorator_equivalence.rs` | Proves new keyword ≡ old decorator AST | Create |
-| `crates/vox-compiler/src/lexer/token.rs` | `Token` variants for 11 keywords | Modify |
-| `crates/vox-compiler/src/lexer/cursor.rs` | str→keyword-token mapping | Modify |
-| `crates/vox-compiler/src/language_surface.rs` | SSOT keyword/decorator/deprecated lists | Modify |
-| `crates/vox-compiler/src/parser/descent/decl/head_fn.rs` | optional-`fn` consumption | Modify |
-| `crates/vox-compiler/src/parser/descent/decl/head.rs` | endpoint/tool/resource keyword heads | Modify |
-| `crates/vox-compiler/src/parser/descent/decl/mid.rs` | `table`/`index` keyword heads | Modify |
-| `crates/vox-compiler/src/parser/descent/mod.rs` | dispatch new keyword tokens; tombstone old `@` | Modify |
-| `crates/vox-compiler/src/hir/validate.rs:32-34` | diagnostic strings → new keyword spellings | Modify |
-| `scripts/migrate-decorator-keywords.vox` | one-shot corpus rewrite | Create |
-| `crates/vox-cli/src/commands/ci/cmd_enums.rs` | `CiCmd::SourceTokenBudget` | Modify |
-| `crates/vox-cli/src/commands/ci/run_body.rs` | dispatch the new CI subcommand | Modify |
-| `crates/vox-cli/src/commands/ci/run_body_helpers/source_tokens.rs` | the gate logic | Create |
-| `crates/vox-cli/src/commands/ci/run_body_helpers/mod.rs` | re-export | Modify |
-| `crates/vox-cli/src/commands/ci/pipeline_parity.rs` | wire gate into parity run | Modify |
-| `contracts/eval/source-token-budget.v1.json` | per-fixture token budget | Create |
+| `crates/vox-compiler/tests/keyword_decorator_equivalence.rs` | serde AST-equality + identifier-preservation | Create |
+| `crates/vox-compiler/src/parser/descent/decl/head_fn.rs:1097` | `parse_fn_decl_headless` wrapper (optional `fn`) | Modify |
+| `crates/vox-compiler/src/parser/descent/mod.rs` | positional soft-keyword dispatch in `parse_decl`; tombstone `@` arms | Modify |
+| `crates/vox-compiler/src/parser/descent/decl/head.rs` | `tool`/`resource` keyword heads (correct fields) | Modify |
+| `crates/vox-compiler/src/parser/descent/decl/mid.rs:392` | `table` keyword head (`TypeKw` optional; pk-before-name) | Modify |
+| `crates/vox-compiler/src/parser/descent/decl/tail.rs:11` | `index` keyword head (reuse `parse_index`) | Modify |
+| `crates/vox-compiler/src/parser/error.rs` | typed `replacement` payload on `Tombstoned` | Modify |
+| `crates/vox-compiler/src/language_surface.rs` | keyword/deprecated SSOT lists | Modify |
+| `crates/vox-grammar-export/src/ssot_markdown.rs:78` | hardcoded keyword copy + slice boundaries | Modify |
+| `crates/vox-orchestrator-mcp/src/introspection_tools.rs` | MCP keyword/decorator lists | Modify (verify tests) |
+| `scripts/migrate-decorator-keywords.vox` | one-shot corpus rewrite (vox + rust + multiline) | Create |
+| `crates/vox-cli/src/commands/ci/run_body_helpers/source_tokens.rs` | source-token + byte gate | Create |
+| `crates/vox-cli/src/commands/ci/{cmd_enums.rs:512,run_body.rs:356,run_body_helpers/mod.rs,pipeline_parity.rs:43}` | wire the gate | Modify |
+| `contracts/eval/source-token-budget.v1.json` | per-fixture token + byte budget | Create |
+| ~57 Rust test/source files embedding `@kw` string literals | codemod targets | Modify (via codemod) |
 
 ---
 
 ## Pre-flight
 
 - [ ] **Baseline green.** Run: `cargo test -p vox-compiler` — Expected: PASS.
-- [ ] **Gate harness works.** Run: `cargo test -p vox-cli k_complexity_budget` — Expected: PASS (this is the template we mirror in Task 7).
-- [ ] Skip the stale-binary freshness warning; it does not block (`VOX_SKIP_FRESHNESS_CHECK=1` already set in this repo).
+- [ ] **Gate template works.** Run: `cargo test -p vox-cli k_complexity_budget` — Expected: PASS.
+- [ ] **Confirm the soft-keyword precedent.** Run: `grep -n '#\[token("get")\]\|#\[token("query")\]\|#\[token("table")\]' crates/vox-compiler/src/lexer/token.rs` — Expected: NO matches (these are NOT lexer tokens). This is why the design uses positional dispatch, not `#[token]`.
 
----
+## Task 0: Corpus collision scan (gating — do not skip)
 
-## Task 1: Parser-equivalence harness (the safety property)
+**Files:** none (analysis). Output: a checklist of identifier uses to preserve.
 
-**Files:**
-- Create: `crates/vox-compiler/tests/keyword_decorator_equivalence.rs`
+- [ ] **Step 1:** Grep the 7 Tier-1 words as identifiers across the corpus:
 
-- [ ] **Step 1: Write the failing test**
+Run: `grep -rnE '\b(table|index|query|mutation|server|tool|resource)\b\s*:' examples/golden contracts/eval` (field/param uses) and `grep -rnE '\.(query|index)\(' examples/golden contracts/eval` (method uses).
+Expected: hits incl. `json_as_typed.vox` (`query:` field), `index_showcase.vox` (`query` param), `multi_tenancy.vox` (`resource` param), `020-pure-calls-db` (`db.query()`).
 
-```rust
-// Proves: a demoted keyword parses to the SAME AST as its old decorator form.
-// `{:?}` of the Decl, with spans normalized to 0, is our structural equality.
-use vox_compiler::lexer::cursor::lex;
-use vox_compiler::parser::parse;
+- [ ] **Step 2:** Record each as a required identifier-preservation case for Task 1. These MUST still parse after the change. If any of the 7 words is used in **declaration-head position** as a plain identifier (it should not be), flag it — that is the only true ambiguity.
 
-fn ast_debug_no_spans(src: &str) -> String {
-    let module = parse(lex(src)).expect("source parses");
-    // Span fields render as `span: Span { .. }`; strip every Span {...} payload
-    // so only the structural shape remains.
-    let raw = format!("{module:#?}");
-    let mut out = String::with_capacity(raw.len());
-    let mut chars = raw.char_indices().peekable();
-    while let Some((i, _)) = chars.peek().copied() {
-        if raw[i..].starts_with("Span {") {
-            // skip to the matching close brace
-            let mut depth = 0;
-            for (j, c) in raw[i..].char_indices() {
-                if c == '{' { depth += 1; }
-                if c == '}' { depth -= 1; if depth == 0 { 
-                    for _ in 0..=j { chars.next(); }
-                    break; 
-                }}
-            }
-            out.push_str("Span{}");
-        } else {
-            out.push(chars.next().unwrap().1);
-        }
-    }
-    out
-}
+## Task 1: AST-equivalence + identifier-preservation harness (failing first)
 
-fn assert_equivalent(old_src: &str, new_src: &str) {
-    assert_eq!(
-        ast_debug_no_spans(old_src),
-        ast_debug_no_spans(new_src),
-        "keyword form must parse identically to decorator form"
-    );
-}
+**Files:** Create `crates/vox-compiler/tests/keyword_decorator_equivalence.rs`.
 
-#[test]
-fn query_equivalence() {
-    assert_equivalent(
-        "@query fn user_count() to int { return 0 }",
-        "query user_count() to int { return 0 }",
-    );
-}
-```
+- [ ] **Step 1: Write the harness** (serde-based, per spec Appendix B — copy that code verbatim, including `strip_spans`, `ast_eq`, the 7 equivalence tests, and `ident_uses_preserved`).
 
-- [ ] **Step 2: Run the test, verify it fails**
+- [ ] **Step 2: Run, verify it fails the right way**
 
-Run: `cargo test -p vox-compiler --test keyword_decorator_equivalence query_equivalence`
-Expected: FAIL — `new_src` does not parse (`query` lexes as a bare identifier today).
+Run: `cargo test -p vox-compiler --test keyword_decorator_equivalence`
+Expected: the `ast_eq` tests FAIL (new `table`/`query`/… forms don't parse yet); **`ident_uses_preserved` PASSES already** (the words are still `Ident` today). If `ident_uses_preserved` fails now, stop — the corpus is already broken.
 
 - [ ] **Step 3: Commit the failing harness**
 
 ```bash
 git add crates/vox-compiler/tests/keyword_decorator_equivalence.rs
-git commit -m "test: keyword/decorator AST equivalence harness (failing)"
+git commit -m "test: serde AST-equivalence + identifier-preservation harness (failing)"
 ```
 
----
+## Task 2: `parse_fn_decl_headless` wrapper (optional `fn`, keyword path only)
 
-## Task 2: `parse_fn_decl` consumes `fn` optionally
+The `fn` token is consumed at `head_fn.rs:1097` (`self.expect(&Token::Fn)?`), **after** a ~1025-line decorator loop (69-1095). Do NOT weaken the shared `expect` — that would silently legalize `@pure foo()` for all 13 callers. Add a wrapper.
 
-This is the single enabling mechanic. Today `parse_fn_decl` mandates `Token::Fn`. After this, the `fn` token is optional, so a keyword head can call it directly.
+**Files:** Modify `crates/vox-compiler/src/parser/descent/decl/head_fn.rs`.
 
-**Files:**
-- Modify: `crates/vox-compiler/src/parser/descent/decl/head_fn.rs:10`
-
-- [ ] **Step 1: Write the failing test** (append to the equivalence test file)
+- [ ] **Step 1: Failing test** (append to harness)
 
 ```rust
-#[test]
-fn headless_fn_parses() {
-    // `parse_fn_decl` reached via a keyword head must accept a missing `fn`.
-    // We assert via the public surface: a `query` with no `fn` parses.
-    let m = parse(lex("query f() to int { return 1 }")).expect("headless query parses");
-    assert_eq!(format!("{m:#?}").contains("Query"), true);
+#[test] fn headless_query_parses() {
+    parse(lex("query f() to int { return 1 }")).expect("headless query parses");
+}
+#[test] fn bare_call_still_rejected_at_toplevel() {
+    // optional-fn must NOT widen the grammar: a bare `foo() {}` with no keyword/fn errors.
+    assert!(parse(lex("foo() { }")).is_err(), "bare headless decl must still error");
 }
 ```
 
-- [ ] **Step 2: Run, verify it fails**
+- [ ] **Step 2: Run, verify fail.** Run: `cargo test -p vox-compiler --test keyword_decorator_equivalence headless_query_parses` — Expected: FAIL.
 
-Run: `cargo test -p vox-compiler --test keyword_decorator_equivalence headless_fn_parses`
-Expected: FAIL — `query` not yet a keyword (covered by Tasks 3–4; this test goes green at Task 4).
-
-- [ ] **Step 3: Make `fn` optional in `parse_fn_decl`**
-
-Find where `parse_fn_decl` consumes the `fn` token (an `expect(&Token::Fn)` or equivalent near the top of `head_fn.rs`). Replace the mandatory consume with an optional eat:
+- [ ] **Step 3: Add the wrapper.** Refactor `parse_fn_decl` so its body after the `fn`-consume is reusable, then:
 
 ```rust
-// BEFORE (mandatory):
-//   self.expect(&Token::Fn)?;
-// AFTER (optional — keyword heads subsume `fn`; bare `fn name` still works):
-self.eat(&Token::Fn); // `fn` is optional: a kind keyword (query/server/…) replaces it
+/// Keyword-headed declarations (query/mutation/server/tool) call this: the kind
+/// keyword has already subsumed `fn`, so the `fn` token is optional here ONLY.
+pub(crate) fn parse_fn_decl_headless(&mut self, is_pub: bool) -> Result<FnDecl, ()> {
+    // identical to parse_fn_decl except the fn-token consume is `eat` not `expect`:
+    //   self.eat(&Token::Fn);  // optional on the keyword path
+    // Implement by extracting the shared tail (decorator loop already ran) into a
+    // helper both call, OR duplicate the one differing line. Keep `expect` in
+    // parse_fn_decl unchanged so plain `fn`/`@decorator`/`pub fn` still require `fn`.
+}
 ```
 
-- [ ] **Step 4: Run the standalone-fn regression**
+- [ ] **Step 4: Run.** Run: `cargo test -p vox-compiler` — Expected: PASS (existing `fn` callers unchanged; wrapper compiles). `bare_call_still_rejected_at_toplevel` passes because the top-level dispatcher never routes a bare `Ident(` into the headless path (Task 3).
 
-Run: `cargo test -p vox-compiler`
-Expected: PASS — existing `fn name()` declarations still parse (the eat consumes `fn` when present).
-
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Commit.**
 
 ```bash
 git add crates/vox-compiler/src/parser/descent/decl/head_fn.rs crates/vox-compiler/tests/keyword_decorator_equivalence.rs
-git commit -m "feat(parser): parse_fn_decl consumes `fn` optionally for kind keywords"
+git commit -m "feat(parser): parse_fn_decl_headless wrapper (optional fn on keyword path)"
 ```
 
----
+## Task 3: Positional soft-keyword dispatch (the 7 Tier-1 heads)
 
-## Task 3: Lex the 11 keyword tokens
+**Files:** Modify `crates/vox-compiler/src/parser/descent/mod.rs` (`parse_decl`), `head.rs`, `mid.rs`, `tail.rs`.
 
-**Files:**
-- Modify: `crates/vox-compiler/src/lexer/token.rs`
-- Modify: `crates/vox-compiler/src/lexer/cursor.rs`
-- Modify: `crates/vox-compiler/src/language_surface.rs`
-
-- [ ] **Step 1: Write the failing lexer test** (in `cursor.rs` test module, near `test_keywords` at line 114)
+- [ ] **Step 1:** In `parse_decl`, before the fallback that treats a leading `Ident` as an expression/error, add positional recognition:
 
 ```rust
-#[test]
-fn kind_keywords_lex() {
-    use crate::lexer::token::Token;
-    let toks = lex_tokens("table query mutation server webhook form search subagent tool resource index");
-    assert_eq!(toks[0], Token::Table);
-    assert_eq!(toks[1], Token::Query);
-    assert_eq!(toks[9], Token::Resource);
-    assert_eq!(toks[10], Token::Index);
+// Soft keywords (no logos token; recognized only at declaration-head position).
+if let Token::Ident(s) = self.peek() {
+    match s.as_str() {
+        "table"    => return self.parse_table_kw(),
+        "index"    => return self.parse_index_kw(),
+        "query"    => return self.parse_endpoint_kw(EndpointKind::Query),
+        "mutation" => return self.parse_endpoint_kw(EndpointKind::Mutation),
+        "server"   => return self.parse_endpoint_kw(EndpointKind::Server),
+        "tool"     => return self.parse_tool_kw(),
+        "resource" => return self.parse_resource_kw(),
+        _ => {} // any other ident falls through unchanged
+    }
 }
 ```
 
-- [ ] **Step 2: Run, verify it fails**
+> Guard against false positives: only enter this match where `parse_decl` is parsing
+> a *top-level declaration*, never in expression/statement position. Confirm the
+> dispatch site is the top-level decl loop (the same place `Token::AtTable` dispatches
+> at `mod.rs:855`), so `let query = 1` (statement) and `db.query()` (expr) never reach
+> it.
 
-Run: `cargo test -p vox-compiler kind_keywords_lex`
-Expected: FAIL — `Token::Table` etc. do not exist / strings lex as `Ident`.
-
-- [ ] **Step 3: Add the `Token` variants**
-
-In `token.rs`, add to the `Token` enum (place near the other declaration keywords like `Component`):
-
-```rust
-    Table,
-    Index,
-    Query,
-    Mutation,
-    Server,
-    Webhook,
-    Form,
-    Search,
-    Subagent,
-    Tool,
-    Resource,
-```
-
-Add matching `Display` arms in the `impl fmt::Display for Token` block (near line 577):
+- [ ] **Step 2:** Implement the endpoint head (reuses the existing body):
 
 ```rust
-            Token::Table => write!(f, "table"),
-            Token::Index => write!(f, "index"),
-            Token::Query => write!(f, "query"),
-            Token::Mutation => write!(f, "mutation"),
-            Token::Server => write!(f, "server"),
-            Token::Webhook => write!(f, "webhook"),
-            Token::Form => write!(f, "form"),
-            Token::Search => write!(f, "search"),
-            Token::Subagent => write!(f, "subagent"),
-            Token::Tool => write!(f, "tool"),
-            Token::Resource => write!(f, "resource"),
+fn parse_endpoint_kw(&mut self, kind: EndpointKind) -> Result<Decl, ()> {
+    self.advance(); // eat the soft keyword (query/mutation/server)
+    self.skip_newlines();
+    let f = self.parse_fn_decl_headless(false)?;
+    Ok(Decl::Endpoint(EndpointDecl { kind, func: f }))
+}
 ```
 
-- [ ] **Step 4: Map the strings to tokens**
+- [ ] **Step 3: Run the endpoint equivalence tests.** Run: `cargo test -p vox-compiler --test keyword_decorator_equivalence query` — Expected: `query` PASSES.
 
-In `cursor.rs`, find the identifier→keyword resolution (the place that maps `"component"` → `Token::Component`). Add the 11 spellings to that mapping, following the exact mechanism already used (match arm or lookup table):
-
-```rust
-            "table" => Token::Table,
-            "index" => Token::Index,
-            "query" => Token::Query,
-            "mutation" => Token::Mutation,
-            "server" => Token::Server,
-            "webhook" => Token::Webhook,
-            "form" => Token::Form,
-            "search" => Token::Search,
-            "subagent" => Token::Subagent,
-            "tool" => Token::Tool,
-            "resource" => Token::Resource,
-```
-
-- [ ] **Step 5: Register in the SSOT**
-
-In `language_surface.rs`, add the 11 spellings to `LEXER_KEYWORDS` (the array starting line 135) and add snippets to `LSP_KEYWORD_SNIPPETS` (line 10), e.g.:
-
-```rust
-    ("table", "table $1 { \n\t$0 \n}"),
-    ("query", "query $1($2) to $3 { \n\t$0 \n}"),
-    // …one per keyword
-```
-
-- [ ] **Step 6: Run, verify it passes**
-
-Run: `cargo test -p vox-compiler kind_keywords_lex`
-Expected: PASS.
-
-- [ ] **Step 7: Commit**
+- [ ] **Step 4: Commit.**
 
 ```bash
-git add crates/vox-compiler/src/lexer/token.rs crates/vox-compiler/src/lexer/cursor.rs crates/vox-compiler/src/language_surface.rs
-git commit -m "feat(lexer): add 11 kind keyword tokens"
+git add crates/vox-compiler/src/parser/descent/mod.rs crates/vox-compiler/src/parser/descent/decl/head_fn.rs
+git commit -m "feat(parser): positional soft-keyword dispatch + endpoint heads (query/mutation/server)"
 ```
 
----
+## Task 4: `table` / `index` / `tool` / `resource` heads (correct nodes)
 
-## Task 4: Parser heads + dispatch (endpoint kinds)
+**Files:** `mid.rs:392`, `tail.rs:11`, `head.rs:40-150`.
 
-`parse_query`/`parse_mutation`/`parse_server_endpoint` already exist (`head.rs:249-279`) and eat `@query` etc. We make them eat the *keyword* token instead and add dispatch. The body (`parse_fn_decl` + `EndpointKind`) is unchanged.
-
-**Files:**
-- Modify: `crates/vox-compiler/src/parser/descent/decl/head.rs:249-279` (and add `parse_webhook`/`parse_form`/`parse_search`/`parse_subagent`)
-- Modify: `crates/vox-compiler/src/parser/descent/mod.rs:632`
-
-- [ ] **Step 1: Point existing heads at the keyword token**
-
-The `self.advance()` in each head eats whatever token triggered dispatch. Update the comments and ensure dispatch passes the keyword token. In `head.rs`, the bodies stay structurally identical — only the leading comment changes:
+- [ ] **Step 1: `table` head.** Add `parse_table_kw`: copy `parse_table` (`mid.rs:392`) but eat the soft keyword instead of `@table`, and relax the type consume — note the token is **`Token::TypeKw`**, not `Token::Type`:
 
 ```rust
-    pub(crate) fn parse_query(&mut self) -> Result<Decl, ()> {
-        self.advance(); // eat `query` keyword (was `@query`)
-        self.skip_newlines();
-        let f = self.parse_fn_decl(false)?;
-        Ok(Decl::Endpoint(EndpointDecl { kind: EndpointKind::Query, func: f }))
-    }
-```
-
-Add the four missing endpoint heads in the same shape (they map to existing `EndpointKind` variants — confirm the variant names in `head_types.rs`; `Webhook`/`Form`/`Search`/`Subagent` may need adding to `EndpointKind` if absent, in which case mirror `Query` through HIR `HirEndpointKind` and `ContractEndpointKind` per `contract_ir/mod.rs:181`):
-
-```rust
-    pub(crate) fn parse_webhook(&mut self) -> Result<Decl, ()> {
-        self.advance(); // eat `webhook`
-        self.skip_newlines();
-        let f = self.parse_fn_decl(false)?;
-        Ok(Decl::Endpoint(EndpointDecl { kind: EndpointKind::Webhook, func: f }))
-    }
-    // parse_form / parse_search / parse_subagent identical, with their kind.
-```
-
-> NOTE: `@webhook @form @search @subagent` currently parse through a different
-> path than `EndpointDecl` (verify each in `descent/mod.rs`). If a construct does
-> NOT lower to `EndpointDecl` today, its keyword head MUST reproduce that
-> construct's existing `Decl` node, not force it into `EndpointDecl`. The
-> equivalence test in Step 4 is what proves you matched it.
-
-- [ ] **Step 2: Add dispatch for the keyword tokens**
-
-In `descent/mod.rs`, alongside `Token::AtQuery => self.parse_query()` (line 632), add:
-
-```rust
-            Token::Query => self.parse_query(),
-            Token::Mutation => self.parse_mutation(),
-            Token::Server => self.parse_server_endpoint(),
-            Token::Webhook => self.parse_webhook(),
-            Token::Form => self.parse_form(),
-            Token::Search => self.parse_search(),
-            Token::Subagent => self.parse_subagent(),
-```
-
-- [ ] **Step 3: Run the equivalence + headless tests**
-
-Run: `cargo test -p vox-compiler --test keyword_decorator_equivalence query_equivalence headless_fn_parses`
-Expected: PASS.
-
-- [ ] **Step 4: Add equivalence tests for the other endpoint kinds**
-
-```rust
-#[test] fn mutation_equivalence() {
-    assert_equivalent(
-        "@mutation fn add(b: str) to int { return 0 }",
-        "mutation add(b: str) to int { return 0 }",
-    );
+fn parse_table_kw(&mut self) -> Result<Decl, ()> {
+    self.advance(); // eat `table`
+    // ... existing (pk:)/(extern)/(source:) arg loop (mid.rs:404-495) UNCHANGED —
+    //     args come BEFORE the name, so `table(pk: uid) User { ... }` ...
+    self.eat(&Token::TypeKw); // was expect(&Token::TypeKw) at mid.rs:497 — now optional
+    // ... existing name + `{` body parsing UNCHANGED, producing Decl::Table(TableDecl)
 }
-#[test] fn server_equivalence() {
-    assert_equivalent(
-        "@server fn handler() to int { return 0 }",
-        "server handler() to int { return 0 }",
-    );
-}
-// webhook / form / search / subagent — one each, mirroring their old @form.
 ```
 
-Run: `cargo test -p vox-compiler --test keyword_decorator_equivalence`
-Expected: PASS (all).
+- [ ] **Step 2: `index` head.** `@index` is `index Table.name on (cols)` → `Decl::Index` (`tail.rs:11`), structurally unlike `table` — **do not clone `parse_table`**. Reuse the existing body:
 
-- [ ] **Step 5: Commit**
+```rust
+fn parse_index_kw(&mut self) -> Result<Decl, ()> {
+    self.advance(); // eat `index` (the rest of tail.rs:11 parse_index body verbatim)
+    // ... Table.name on (cols) -> Decl::Index(IndexDecl{...})
+}
+```
+
+- [ ] **Step 3: `tool` head.** Map the optional leading string to **`description`** (empty default), never to a name:
+
+```rust
+fn parse_tool_kw(&mut self) -> Result<Decl, ()> {
+    self.advance(); // eat `tool`
+    let description = if let Token::StringLit(s) = self.peek().clone() { self.advance(); s }
+                      else { String::new() };
+    self.skip_newlines();
+    let f = self.parse_fn_decl_headless(false)?;
+    Ok(Decl::McpTool(McpToolDecl { description, func: f })) // name is func.name downstream
+}
+```
+
+- [ ] **Step 4: `resource` head.** `McpResourceDecl{uri, description, func}` — both strings required (mirror `head.rs:65-139`):
+
+```rust
+fn parse_resource_kw(&mut self) -> Result<Decl, ()> {
+    self.advance(); // eat `resource`
+    let uri = self.expect_string("resource URI")?;
+    let description = self.expect_string("resource description")?;
+    self.skip_newlines();
+    let f = self.parse_fn_decl_headless(false)?;
+    Ok(Decl::McpResource(McpResourceDecl { uri, description, func: f }))
+}
+```
+
+- [ ] **Step 5: Run all Tier-1 equivalence + ident tests.** Run: `cargo test -p vox-compiler --test keyword_decorator_equivalence` — Expected: PASS (all 7 equivalence + `table_pk` ordering + `ident_uses_preserved`).
+
+- [ ] **Step 6: Commit.**
 
 ```bash
-git add crates/vox-compiler/src/parser/descent/decl/head.rs crates/vox-compiler/src/parser/descent/mod.rs crates/vox-compiler/tests/keyword_decorator_equivalence.rs
-git commit -m "feat(parser): endpoint kind keywords (query/mutation/server/webhook/form/search/subagent)"
+git add crates/vox-compiler/src/parser/descent/decl/
+git commit -m "feat(parser): table/index/tool/resource soft-keyword heads (correct AST nodes)"
 ```
 
----
+## Task 5: Tombstones with machine-readable replacement payload
 
-## Task 5: `table`/`index` + `tool`/`resource` heads
+**Files:** `error.rs`, `descent/mod.rs`, `language_surface.rs`.
 
-`table` has a richer head (`parse_table` at `mid.rs:392`, with `(pk: …)` args). `tool`/`resource` carry an optional/required string.
-
-**Files:**
-- Modify: `crates/vox-compiler/src/parser/descent/decl/mid.rs:392` (`parse_table`; clone for `index`)
-- Modify: `crates/vox-compiler/src/parser/descent/decl/head.rs` (`parse_mcp_tool`, `parse_mcp_resource`)
-- Modify: `crates/vox-compiler/src/parser/descent/mod.rs:855`
-
-- [ ] **Step 1: Failing equivalence tests**
+- [ ] **Step 1: Typed payload.** Add to `ParseError` (`error.rs`):
 
 ```rust
-#[test] fn table_equivalence() {
-    assert_equivalent(
-        "@table type User { name: str }",
-        "table User { name: str }",
-    );
-}
-#[test] fn tool_name_defaults_to_ident() {
-    // `tool search(...)` ≡ `@tool("search") fn search(...)` when name == ident.
-    assert_equivalent(
-        "@tool(\"search\") fn search(q: str) to str { return q }",
-        "tool search(q: str) to str { return q }",
-    );
-}
-#[test] fn resource_keeps_uri() {
-    assert_equivalent(
-        "@resource(\"vox://x\") fn load() to str { return \"\" }",
-        "resource \"vox://x\" load() to str { return \"\" }",
-    );
-}
+pub struct Replacement { pub from: String, pub to: String, pub code: String }
+// field: pub replacement: Option<Replacement>
+// constructor: ParseError::tombstone(span, from, to, code)
 ```
 
-Run: `cargo test -p vox-compiler --test keyword_decorator_equivalence table_equivalence`
-Expected: FAIL.
-
-- [ ] **Step 2: `table`/`index` keyword heads**
-
-`parse_table` (`mid.rs:392`) eats `@table` then parses a `type` decl. For the keyword form `table User { … }`, the keyword replaces `type`. After `self.advance()` (eats `table`), ensure the head does NOT also require a `type` token — make the `type` consumption optional exactly as Task 2 did for `fn`:
+- [ ] **Step 2: Failing test** (harness):
 
 ```rust
-    pub(crate) fn parse_table(&mut self) -> Result<Decl, ()> {
-        let start = self.span();
-        self.advance(); // eat `table` keyword (was `@table`)
-        // …existing (pk: …) arg parsing unchanged…
-        self.eat(&Token::Type); // `type` is optional: `table` subsumes it
-        // …existing type-body parsing unchanged…
+use vox_compiler::parser::error::ParseErrorClass;
+#[test] fn table_decorator_tombstoned() {
+    let errs = parse(lex("@table type User { name: str }")).unwrap_err();
+    assert!(errs.iter().any(|e| e.class == ParseErrorClass::Tombstoned
+        && e.replacement.as_ref().map(|r| r.to == "table").unwrap_or(false)));
+}
+#[test] fn v0_and_place_killed() {
+    for src in ["@v0 fn C() to Element {}", "@place fn f() {}"] {
+        assert!(parse(lex(src)).is_err(), "{src} must be tombstoned");
     }
+}
 ```
 
-Clone as `parse_index` for `Token::Index` (mirror whatever `@index` does today).
+- [ ] **Step 3: Replace dispatch arms.** In `descent/mod.rs`, change the Tier-1 `@` arms (`AtTable`/`AtQuery`/…/`AtResource`) AND the 5 kill arms — **including the still-live `Token::AtV0 => parse_v0_component` (`mod.rs:613`) and `@place`** — to push `ParseError::tombstone(...)` and return `Err(())`. Upgrade `@mcp.tool`/`@mcp.resource` from warning to tombstone. Each names its replacement (`@table`→`table`, `@v0`→none/removed).
 
-- [ ] **Step 3: `tool` head defaults name to ident; `resource` keeps URI**
+- [ ] **Step 4: SSOT.** Add the 7 Tier-1 spellings + `@place` to `LEXER_DEPRECATED_DECORATORS`; add the 7 soft keywords to `LEXER_KEYWORDS` + `LSP_KEYWORD_SNIPPETS`; remove the 7 from `LSP_DECORATOR_DOCS`/`LSP_DECORATOR_SNIPPETS`. **Do NOT remove anything from `DecoratorFeature::ALL` or `LEXER_AT_DECORATORS`** (the real parity lever).
 
-In `parse_mcp_tool` (`head.rs:40`), the current code reads an optional leading `StringLit` as the description/name, then `parse_fn_decl`. The keyword form already supports "optional string then fn" — so eating `tool` instead of `@tool` and relying on `parse_fn_decl`'s now-optional `fn` is sufficient. When no string is present, default the name to the fn identifier (read `f.name` after parsing):
+- [ ] **Step 5: Run.** Run: `cargo test -p vox-compiler --test keyword_decorator_equivalence table_decorator_tombstoned v0_and_place_killed && cargo test -p vox-compiler decorator_feature_lexer_parity` — Expected: PASS; `ALL.len()==56`; parity `None`.
 
-```rust
-        self.advance(); // eat `tool` (was `@tool`)
-        let explicit = if let Token::StringLit(s) = self.peek().clone() {
-            self.advance(); Some(s)
-        } else { None };
-        self.skip_newlines();
-        let f = self.parse_fn_decl(false)?;
-        let name = explicit.unwrap_or_else(|| f.name.clone()); // default to ident
-        Ok(Decl::McpTool(McpToolDecl { description: name, func: f }))
-```
-
-For `parse_mcp_resource`, eat `resource`, require the URI string (existing logic), then `parse_fn_decl`.
-
-- [ ] **Step 4: Dispatch**
-
-In `descent/mod.rs` near line 855 (`Token::AtTable => self.parse_table()`):
-
-```rust
-            Token::Table => self.parse_table(),
-            Token::Index => self.parse_index(),
-            Token::Tool => self.parse_mcp_tool(false),
-            Token::Resource => self.parse_mcp_resource(),
-```
-
-- [ ] **Step 5: Run, verify pass**
-
-Run: `cargo test -p vox-compiler --test keyword_decorator_equivalence`
-Expected: PASS (all 11 constructs).
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Commit.**
 
 ```bash
-git add crates/vox-compiler/src/parser/descent/decl/mid.rs crates/vox-compiler/src/parser/descent/decl/head.rs crates/vox-compiler/src/parser/descent/mod.rs crates/vox-compiler/tests/keyword_decorator_equivalence.rs
-git commit -m "feat(parser): table/index + tool/resource kind keywords"
+git add crates/vox-compiler/src/parser/error.rs crates/vox-compiler/src/parser/descent/mod.rs crates/vox-compiler/src/language_surface.rs crates/vox-compiler/tests/keyword_decorator_equivalence.rs
+git commit -m "feat(parser): tombstone retired decorators with machine-readable replacement payload"
 ```
 
----
+## Task 6: SSOT lockstep — grammar export + MCP introspection
 
-## Task 6: Tombstone the old `@` spellings
+**Files:** `vox-grammar-export/src/ssot_markdown.rs:78`, `vox-orchestrator-mcp/src/introspection_tools.rs`, `tree-sitter-vox/GRAMMAR_SSOT.md` (generated).
 
-**Files:**
-- Modify: `crates/vox-compiler/src/parser/descent/mod.rs` (the `Token::AtTable`/`AtQuery`/… arms)
-- Modify: `crates/vox-compiler/src/language_surface.rs` (`LEXER_DEPRECATED_DECORATORS`)
-- Modify: `crates/vox-compiler/src/hir/validate.rs:32-34` (diagnostic spellings)
-
-- [ ] **Step 1: Failing test**
-
-```rust
-#[test]
-fn old_table_decorator_is_tombstoned() {
-    let res = parse(lex("@table type User { name: str }"));
-    let err = res.expect_err("@table must now error");
-    assert!(format!("{err:?}").contains("table"), "diagnostic names the replacement");
-}
-```
-
-Run: `cargo test -p vox-compiler --test keyword_decorator_equivalence old_table_decorator_is_tombstoned`
-Expected: FAIL — `@table` still parses successfully.
-
-- [ ] **Step 2: Replace the `@`-dispatch arms with tombstone errors**
-
-In `descent/mod.rs`, change each demoted decorator arm from `self.parse_*()` to a tombstone push. Follow the existing `Tombstoned` pattern (used by `@mcp.tool` at `head.rs:44`):
-
-```rust
-            Token::AtTable => {
-                let span = self.span();
-                self.errors.push(ParseError::classified(
-                    span,
-                    "`@table` is retired; use the `table` keyword",
-                    vec!["table".into()],
-                    Some("@table".into()),
-                    ParseErrorClass::Tombstoned,
-                ));
-                Err(())
-            }
-            // repeat for AtQuery→`query`, AtMutation→`mutation`, AtServer→`server`,
-            // AtWebhook→`webhook`, AtForm→`form`, AtSearch→`search`,
-            // AtSubagent→`subagent`, AtTool→`tool`, AtResource→`resource`, AtIndex→`index`.
-```
-
-- [ ] **Step 3: Move spellings into the deprecated SSOT list**
-
-In `language_surface.rs`, add all 11 `@`-spellings to `LEXER_DEPRECATED_DECORATORS` (line 303) and remove them from `LSP_DECORATOR_DOCS`/`LSP_DECORATOR_SNIPPETS`. **Do not** remove their `DecoratorFeature`/`Token::At*` variants or their `LEXER_AT_DECORATORS` entries — they stay as zombies so `decorator_feature_lexer_parity_mismatch()` stays `None` and `ALL.len() == 56` holds.
-
-- [ ] **Step 4: Update HIR diagnostic strings**
-
-In `hir/validate.rs:32-34`, change the user-facing spellings:
-
-```rust
-            crate::hir::HirEndpointKind::Server => "server fn",   // already keyword-ish
-            crate::hir::HirEndpointKind::Query => "query",        // was "@query fn"
-            crate::hir::HirEndpointKind::Mutation => "mutation",  // was "@mutation fn"
-```
-
-- [ ] **Step 5: Confirm the 5 "kill" decorators are dead**
-
-`@component @mcp.tool @mcp.resource @v0` are already in `LEXER_DEPRECATED_DECORATORS`. `@place` is **not** — add it. Verify each errors:
-
-```rust
-#[test]
-fn killed_decorators_error() {
-    for src in ["@place fn f() {}", "@v0 fn C() to Element {}"] {
-        assert!(parse(lex(src)).is_err(), "{src} must error");
-    }
-}
-```
-
-Ensure `@place` is appended to `LEXER_DEPRECATED_DECORATORS` in `language_surface.rs` and dispatched to a `Tombstoned` error in `descent/mod.rs` (mirror Step 2). The other four already have this path — just confirm with the test.
-
-- [ ] **Step 6: Run parity + tombstone tests**
-
-Run: `cargo test -p vox-compiler && cargo test -p vox-compiler decorator_feature_lexer_parity`
-Expected: PASS — tombstone fires; `ALL.len()==56`; parity `None`.
-
-- [ ] **Step 7: Commit**
+- [ ] **Step 1:** Update the **hardcoded** `LEXER_KEYWORDS`/`LEXER_DECORATORS` copies in `ssot_markdown.rs` AND fix the fixed slice boundaries `[..19]/[19..36]/[36..]` (`ssot_markdown.rs:78-84`) for the 7 new keywords. Regenerate `GRAMMAR_SSOT.md` via the generator (do not hand-edit).
+- [ ] **Step 2:** Confirm `introspection_tools.rs` still lists `@tool`/`@resource` (its test at `:247`) — demoted decorators stay in `LEXER_DECORATORS` (zombie), so the MCP list is unaffected; add the 7 keywords to its keyword surface if it enumerates them.
+- [ ] **Step 3: Run.** Run: `cargo test -p vox-grammar-export -p vox-orchestrator-mcp && vox ci grammar-ssot-parity` — Expected: PASS.
+- [ ] **Step 4: Commit.**
 
 ```bash
-git add crates/vox-compiler/src/parser/descent/mod.rs crates/vox-compiler/src/language_surface.rs crates/vox-compiler/src/hir/validate.rs crates/vox-compiler/tests/keyword_decorator_equivalence.rs
-git commit -m "feat(parser): hard-error retired decorators (@table/@query/… → keywords)"
+git add crates/vox-grammar-export crates/vox-orchestrator-mcp tree-sitter-vox/GRAMMAR_SSOT.md
+git commit -m "chore(ssot): grammar-export + MCP introspection lockstep for soft keywords"
 ```
 
----
+## Task 7: Codemod (vox + Rust + multiline + frontmatter)
 
-## Task 7: Codemod the corpus
+**Files:** Create `scripts/migrate-decorator-keywords.vox`.
 
-**Files:**
-- Create: `scripts/migrate-decorator-keywords.vox`
+- [ ] **Step 1: Write the codemod.** Targets: `examples/golden/**.vox`, `contracts/eval/**.vox`, doc anchors, **and Rust string literals in ~57 `.rs` files** (e.g. `crates/vox-compiler/tests/{interpreter_db_test,db_query_safety_test,projection_parity_test}.rs`, `src/app_contract.rs`, `src/hir/lower/mod.rs`, `src/parser/descent/tests.rs`). Rules:
+  - `@(table|index|query|mutation|server)\s+(fn|type)` → keyword (match **across newlines+whitespace** — most goldens are multiline, `crud_api.vox:12-14`).
+  - `@table(<args>)\s+type` → `table(<args>)` (carry `pk:`/`extern`/`source:`).
+  - `@tool("x")\s+fn` → `tool "x"` ; `@tool\s+fn` → `tool` ; `@resource("u","d")\s+fn` → `resource "u" "d"`.
+  - `@index ... on (...)` → drop only the `@`.
+  - Update `constructs:` frontmatter + `@training_prompt` prose deliberately to keyword spelling.
+  - Idempotent; `--apply` writes, default dry-run.
 
-- [ ] **Step 1: Write the codemod (VoxScript — no .ps1/.sh/.py)**
-
-```vox
-// scripts/migrate-decorator-keywords.vox
-// Rewrites retired decorator spellings to keyword forms across .vox sources.
-// Idempotent. Pass --apply to write; default is dry-run (prints diffs).
-//   @table type X   -> table X
-//   @index type X   -> index X
-//   @query fn f      -> query f      (and mutation/server/webhook/form/search/subagent)
-//   @tool("n") fn n  -> tool n       (drops the string when it equals the fn name)
-//   @tool("n") fn f  -> tool "n" f   (keeps the string when it differs)
-//   @resource("u") fn f -> resource "u" f
-```
-
-Implement with the standard library file walk + regex replace used by other
-`scripts/*.vox` (mirror `scripts/sync-cursor-skills.vox` structure). Targets:
-`examples/golden/**.vox`, `contracts/eval/**.vox`, and doc anchors under `docs/`.
-
-- [ ] **Step 2: Dry-run and review**
-
-Run: `vox run scripts/migrate-decorator-keywords.vox`
-Expected: prints the set of rewrites; no files changed.
-
-- [ ] **Step 3: Apply**
-
-Run: `vox run scripts/migrate-decorator-keywords.vox --apply`
-Expected: every `@table/@query/…` occurrence rewritten.
-
-- [ ] **Step 4: Prove outputs unchanged (the invariant in action)**
-
-Run: `cargo test -p vox-codegen golden && cargo test -p vox-cli golden`
-Expected: PASS — emitted TS/rust/interp artifacts are byte-identical; only `.vox` *sources* changed.
-
-- [ ] **Step 5: Commit**
+- [ ] **Step 2: Dry-run + review.** Run: `vox run scripts/migrate-decorator-keywords.vox` — Expected: prints rewrites incl. multiline and Rust literals; no writes.
+- [ ] **Step 3: Apply.** Run: `vox run scripts/migrate-decorator-keywords.vox --apply`.
+- [ ] **Step 4: Completeness assertion.** Run: `grep -rnE '@(table|index|query|mutation|server)\b' examples/golden contracts/eval crates --include=*.vox --include=*.rs` — Expected: **zero** code-position hits (only allowed inside the codemod script's own pattern strings).
+- [ ] **Step 5: Prove outputs unchanged.** Run: `cargo test -p vox-codegen golden && cargo test -p vox-compiler` — Expected: PASS; emitted artifacts byte-identical; the ~57 Rust fixtures now parse the keyword form.
+- [ ] **Step 6: Commit.**
 
 ```bash
-git add scripts/migrate-decorator-keywords.vox examples/golden contracts/eval docs
-git commit -m "refactor: codemod retired decorators to keyword forms across corpus"
+git add scripts/migrate-decorator-keywords.vox examples/golden contracts/eval docs crates
+git commit -m "refactor: codemod Tier-1 decorators to soft keywords (vox + rust + multiline)"
 ```
 
----
+## Task 8: Source-token + byte budget gate
 
-## Task 8: Source-token budget gate
+**Files:** Create `run_body_helpers/source_tokens.rs`; modify `cmd_enums.rs:512`, `run_body.rs:356`, `run_body_helpers/mod.rs`, `pipeline_parity.rs:43`; create `contracts/eval/source-token-budget.v1.json`.
 
-**Files:**
-- Create: `crates/vox-cli/src/commands/ci/run_body_helpers/source_tokens.rs`
-- Modify: `crates/vox-cli/src/commands/ci/run_body_helpers/mod.rs`
-- Modify: `crates/vox-cli/src/commands/ci/cmd_enums.rs:512`
-- Modify: `crates/vox-cli/src/commands/ci/run_body.rs:356`
-- Modify: `crates/vox-cli/src/commands/ci/pipeline_parity.rs:43`
-- Create: `contracts/eval/source-token-budget.v1.json`
-
-- [ ] **Step 1: Write the gate (mirror `syntax_k.rs`)**
-
-```rust
-// source_tokens.rs — measure = lex(source).len() per golden ladder fixture.
-use anyhow::{Result, anyhow};
-use std::{collections::HashMap, fs, path::Path};
-use vox_compiler::lexer::cursor::lex;
-
-#[derive(serde::Deserialize, serde::Serialize, Default)]
-struct TokenBudget { #[serde(default)] fixtures: HashMap<String, usize> }
-
-pub(crate) fn run_source_token_budget(root: &Path, tolerance: f64, update: bool) -> Result<()> {
-    let budget_path = root.join("contracts/eval/source-token-budget.v1.json");
-    let mut budget: TokenBudget = if budget_path.exists() {
-        serde_json::from_str(&fs::read_to_string(&budget_path)?)?
-    } else { TokenBudget::default() };
-
-    let ladder = vox_codegen::canonical_ladder::CanonicalLadder::load_from_repo_root(root)
-        .map_err(|e| anyhow!("load ladder: {e}"))?;
-    let ladder_ids = ladder.fixture_ids();
-
-    let mut failures = Vec::new();
-    let mut measured = HashMap::new();
-    for entry in fs::read_dir(root.join("examples/golden"))? {
-        let path = entry?.path();
-        if path.extension().and_then(|s| s.to_str()) != Some("vox") { continue; }
-        let id = path.file_stem().unwrap().to_str().unwrap().to_string();
-        if !ladder_ids.contains(&id) { continue; }
-        let n = lex(&fs::read_to_string(&path)?).len();
-        measured.insert(id.clone(), n);
-        if let Some(&allowed) = budget.fixtures.get(&id) {
-            let limit = (allowed as f64 * (1.0 + tolerance / 100.0)).ceil() as usize;
-            if n > limit { failures.push(format!("{id}: {n} > {limit} (budget {allowed})")); }
-        } else if !update {
-            failures.push(format!("{id}: no source-token budget defined"));
-        }
-    }
-    if update {
-        budget.fixtures = measured;
-        fs::write(&budget_path, serde_json::to_string_pretty(&budget)?)?;
-        println!("Updated source-token budget: {}", budget_path.display());
-    }
-    if !failures.is_empty() { anyhow::bail!("source-token budget failed: {}", failures.join("; ")); }
-    println!("source-token budget OK");
-    Ok(())
-}
-```
-
-- [ ] **Step 2: Re-export + subcommand + dispatch**
-
-In `run_body_helpers/mod.rs`: `pub(crate) use source_tokens::run_source_token_budget;` and `mod source_tokens;`.
-In `cmd_enums.rs` (mirror `KComplexityBudget` at line 512):
-
-```rust
-    #[command(name = "source-token-budget")]
-    SourceTokenBudget { #[arg(long, default_value_t = 0.0)] tolerance_percent: f64, #[arg(long)] update: bool },
-```
-
-In `run_body.rs` (mirror line 356):
-
-```rust
-        CiCmd::SourceTokenBudget { tolerance_percent, update } =>
-            run_source_token_budget(&root, tolerance_percent, update),
-```
-
-- [ ] **Step 3: Baseline AFTER the codemod**
-
-Run: `vox ci source-token-budget --update`
-Expected: writes `source-token-budget.v1.json` with the *shrunk* counts.
-
-- [ ] **Step 4: Wire into parity (mirror `pipeline_parity.rs:44`)**
-
-```rust
-    println!("pipeline-parity: source-token budget (ladder-scoped)…");
-    super::run_body::run_body_helpers::run_source_token_budget(root, 0.0, false)?;
-```
-
-- [ ] **Step 5: Run the gate**
-
-Run: `cargo test -p vox-cli && vox ci source-token-budget`
-Expected: PASS.
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 1: Write the gate** mirroring `syntax_k.rs`, with **two measures** per ladder fixture: `tokens = lex(src).len()` (import `vox_compiler::lexer::lex` for consistency) and `bytes = src.len()`. Budget JSON shape `{ fixtures: { id: { tokens, bytes } } }`. Ratchet-down on both; `--update` rebaselines; include the `golden_dir.is_dir()` guard from `syntax_k.rs:32`.
+- [ ] **Step 2: Subcommand + dispatch** mirroring `KComplexityBudget` (`cmd_enums.rs:512`, `run_body.rs:356`) → `CiCmd::SourceTokenBudget { tolerance_percent, update }`.
+- [ ] **Step 3: Baseline AFTER the codemod.** Run: `vox ci source-token-budget --update` — writes the shrunk counts.
+- [ ] **Step 4: Wire into parity** next to the k-complexity call (`pipeline_parity.rs:44`).
+- [ ] **Step 5: Run.** Run: `cargo test -p vox-cli && vox ci source-token-budget` — Expected: PASS.
+- [ ] **Step 6: Commit.**
 
 ```bash
 git add crates/vox-cli/src/commands/ci contracts/eval/source-token-budget.v1.json
-git commit -m "feat(ci): source-token budget gate (lex-token count per ladder fixture)"
+git commit -m "feat(ci): source-token + byte budget gate (ladder-scoped)"
 ```
 
----
+## Task 9: Shrink-witness + AI-first probe
 
-## Task 9: Shrink-proof test
+**Files:** Create `crates/vox-cli/tests/source_token_shrink_test.rs`.
 
-**Files:**
-- Create: `crates/vox-cli/tests/source_token_shrink_test.rs`
-
-- [ ] **Step 1: Capture pre-migration counts (one-time measurement)**
-
-Before Task 7 runs, you recorded each migrated fixture's `lex().len()`. Encode the deltas as a guard that the post-migration count is strictly lower for at least the fixtures that use the 11 constructs:
+- [ ] **Step 1: Auto-baselined shrink test.** For ladder fixtures that actually contain Tier-1 decorators — **`crud_api`, `db_native_ir`, `mcp_tools`, `web_routing_fullstack`** (NOT `db_operations` (not in ladder) or `dashboard_ui` (no demoted constructs)) — measure PRE from git instead of hardcoding:
 
 ```rust
-#[test]
-fn migrated_fixtures_shrank() {
-    // (fixture, pre_migration_token_count) — measured once on the commit before Task 7.
-    const PRE: &[(&str, usize)] = &[
-        ("crud_api", 0 /* replace with measured value */),
-        ("db_operations", 0 /* … */),
-    ];
+#[test] fn migrated_fixtures_shrank() {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-    for (id, pre) in PRE {
-        let src = std::fs::read_to_string(root.join(format!("examples/golden/{id}.vox"))).unwrap();
-        let now = vox_compiler::lexer::cursor::lex(&src).len();
-        assert!(now < *pre, "{id}: expected shrink, {now} !< {pre}");
+    for id in ["crud_api","db_native_ir","mcp_tools","web_routing_fullstack"] {
+        let now = vox_compiler::lexer::lex(
+            &std::fs::read_to_string(root.join(format!("examples/golden/{id}.vox"))).unwrap()).len();
+        // PRE = the same source with keyword→@decorator inverse substitution, re-lexed.
+        // (self-maintaining; no git/magic constants)
+        let pre = inflate_to_decorator_form_and_lex(id, &root);
+        assert!(now < pre, "{id}: expected shrink, {now} !< {pre}");
     }
 }
 ```
 
-- [ ] **Step 2: Fill in real `PRE` values**
+- [ ] **Step 2: AI-first reserved-word probe (min viable acceptance criterion).** Add a test asserting common-word identifiers still parse (this is the gate that catches a reserved-word regression):
 
-Measure on the pre-Task-7 commit: `git stash; <count>; git stash pop`, or read from the k-complexity baseline diff. Replace the `0` placeholders with the actual counts.
-
-- [ ] **Step 3: Run, verify pass**
-
-Run: `cargo test -p vox-cli migrated_fixtures_shrank`
-Expected: PASS.
-
-- [ ] **Step 4: Commit**
-
-```bash
-git add crates/vox-cli/tests/source_token_shrink_test.rs
-git commit -m "test: prove migrated golden fixtures shrank in source tokens"
+```rust
+#[test] fn common_word_identifiers_do_not_regress() {
+    for src in ["fn f(query: str) to int { return 0 }",
+                "type Search { query: str }",
+                "@query fn g() to int { return len(db.query()) }"] {
+        vox_compiler::parser::parse(vox_compiler::lexer::lex(src)).expect(src);
+    }
+}
 ```
 
----
+- [ ] **Step 3: Run + commit.**
 
-## Task 10: Full verification
+```bash
+cargo test -p vox-cli source_token_shrink
+git add crates/vox-cli/tests/source_token_shrink_test.rs
+git commit -m "test: auto-baselined shrink witness + reserved-word regression probe"
+```
 
-- [ ] `cargo test -p vox-compiler -p vox-lsp -p vox-cli -p vox-codegen` — Expected: PASS.
-- [ ] `vox ci pipeline-parity` — Expected: PASS (k-complexity **and** source-token gates).
-- [ ] `cargo clippy -p vox-compiler -- -D warnings` (repeat per touched crate). Do **not** `cargo fmt --all` (Windows arg-limit, os error 206) — use `cargo fmt -p vox-compiler` / `vox run scripts/fmt.vox`.
-- [ ] `git log --oneline -12` — confirm one commit per task.
+## Task 10: Full verification (expanded gate set)
+
+- [ ] `cargo test -p vox-compiler -p vox-cli -p vox-orchestrator-mcp -p vox-grammar-export -p vox-lsp -p vox-codegen` — Expected: PASS (audit-found asserting surfaces).
+- [ ] `vox ci pipeline-parity` (k-complexity + source-token) and `vox ci grammar-ssot-parity` — Expected: PASS.
+- [ ] `cargo clippy -p vox-compiler -- -D warnings` (repeat per touched crate). Do **not** `cargo fmt --all` (Windows os error 206) — use `cargo fmt -p <crate>` / `vox run scripts/fmt.vox`.
+- [ ] Confirm one commit per task: `git log --oneline -12`.
 
 ---
 
 ## Out of scope (separate plans)
 
-P1 reactive streams (`plans/2026-06-20-vox-native-frontend-ssot-subproject-b.md`),
-P2 form primitives (`plans/2026-06-29-vox-form-primitives.md`),
-P3 render control-flow lowering (`plans/2026-06-29-render-control-flow-lowering.md`),
-P4 interop hardening / P5 mobile-PWA / P6 fallback gate (roadmap; need own brainstorm).
+**Tier-2** (`@webhook @subagent @form @search` — real AST work, `@search` possibly mis-classified): own spec+plan. P1 reactive streams (`plans/2026-06-20-…-subproject-b.md`), P2 form primitives, P3 render control-flow lowering (existing plans). P4/P5/P6 roadmap.
