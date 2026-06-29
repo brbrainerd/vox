@@ -225,6 +225,51 @@ pub fn capabilities_for_secret(id: SecretId) -> &'static [Capability] {
     }
 }
 
+/// The canonical taxonomy class for a secret. Derives from the secret's primary
+/// capability (the classification SSOT), with numeric tuning knobs forced to
+/// `OperatorTuning` so they stay out of the credential surfaces. This is the
+/// single source the GUI panel grouping and the GUI search codegen both read.
+#[must_use]
+pub fn taxonomy_class_for(id: SecretId) -> TaxonomyClass {
+    // Tuning knobs (e.g. GEMINI_TUNING_TEMPERATURE) live in the secret registry
+    // but are operator config, not credentials.
+    if id.spec().canonical_env.contains("_TUNING_") {
+        return TaxonomyClass::OperatorTuning;
+    }
+    match capabilities_for_secret(id).first() {
+        Some(cap) => TaxonomyClass::from_capability(*cap),
+        None => TaxonomyClass::AuxTooling,
+    }
+}
+
+/// Whether a spec is a real, user-facing credential worth surfacing in the GUI
+/// (panel + search), as opposed to a non-credential env placeholder that exists
+/// only for `managed_secret_env_names()` parity.
+///
+/// A spec is user-facing if it is a persistable account credential
+/// (`metadata().persistable_account_secret` — true for every curated credential
+/// incl. the binding-less identity tokens), has a vault/keyring storage binding,
+/// or carries a curated (non-default) capability. Non-credential env placeholders
+/// and config knobs fall to the `Operator`/`Orchestration` defaults with no
+/// binding, so they are excluded. Config-only tuning knobs are never shown.
+///
+/// Note: `scope_description`/`remediation` are deliberately NOT signals here —
+/// config knobs (e.g. "Repository root path") also carry descriptions.
+#[must_use]
+pub fn is_user_facing_secret(id: SecretId) -> bool {
+    if taxonomy_class_for(id).is_config_only() {
+        return false;
+    }
+    let spec = id.spec();
+    id.metadata().persistable_account_secret
+        || spec.auth_registry.is_some()
+        || spec.backend_key.is_some()
+        || !matches!(
+            capabilities_for_secret(id).first(),
+            Some(Capability::Orchestration) | None
+        )
+}
+
 pub fn required_for(workflow: Workflow) -> Vec<SecretId> {
     required_for_profile(workflow, Profile::Dev)
 }
@@ -252,6 +297,72 @@ pub const fn secret_reads_populi_env_file(id: SecretId) -> bool {
             | SecretId::VoxMeshAdminToken
             | SecretId::VoxMeshScopeId
     )
+}
+
+#[cfg(test)]
+mod taxonomy_tests {
+    use super::*;
+
+    #[test]
+    fn taxonomy_is_not_degenerate() {
+        // Known providers must classify into their real categories.
+        assert_eq!(taxonomy_class_for(SecretId::GeminiApiKey).slug(), "llm");
+        assert_eq!(taxonomy_class_for(SecretId::VoxRunpodApiKey).slug(), "gpu");
+        assert_eq!(
+            taxonomy_class_for(SecretId::VoxSocialRedditClientId).slug(),
+            "social"
+        );
+        // Tuning knobs are operator config, not credentials.
+        assert!(taxonomy_class_for(SecretId::GeminiTuningTemperature).is_config_only());
+
+        // Distribution is measured over the SURFACED (user-facing) set — the
+        // ~423 non-credential placeholders are excluded, so categories must be
+        // genuinely diverse, not dominated by one catch-all bucket.
+        let surfaced: Vec<_> = all_specs()
+            .into_iter()
+            .filter(|s| is_user_facing_secret(s.id))
+            .collect();
+        let mut counts: std::collections::BTreeMap<&str, usize> = std::collections::BTreeMap::new();
+        for s in &surfaced {
+            *counts.entry(taxonomy_class_for(s.id).slug()).or_default() += 1;
+        }
+        let total = surfaced.len();
+        let max = counts.values().copied().max().unwrap_or(0);
+        assert!(
+            (40..=200).contains(&total),
+            "surfaced credential count {total} outside sane range — filter over/under-matched: {counts:?}"
+        );
+        assert!(
+            counts.len() >= 6,
+            "expected >=6 distinct taxonomy slugs, got {}: {:?}",
+            counts.len(),
+            counts
+        );
+        assert!(
+            max * 100 / total <= 70,
+            "one slug holds {}% of surfaced specs (degenerate): {:?}",
+            max * 100 / total,
+            counts
+        );
+    }
+
+    #[test]
+    fn real_credentials_surface_and_placeholders_do_not() {
+        // Real, curated credentials must be surfaced...
+        for id in [
+            SecretId::GeminiApiKey,
+            SecretId::OpenRouterApiKey,
+            SecretId::VoxGithubOauthToken, // identity: no binding, but has scope+remediation
+            SecretId::VoxRunpodApiKey,
+            SecretId::VoxSocialRedditClientId,
+        ] {
+            assert!(is_user_facing_secret(id), "{id:?} should be surfaced");
+        }
+        // ...and non-credential env placeholders must not.
+        for id in [SecretId::VoxMeshEnabled, SecretId::VoxMeshMode] {
+            assert!(!is_user_facing_secret(id), "{id:?} should be filtered out");
+        }
+    }
 }
 
 #[cfg(test)]

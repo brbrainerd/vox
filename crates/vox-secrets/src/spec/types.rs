@@ -33,6 +33,24 @@ impl TaxonomyClass {
     pub const fn is_config_only(self) -> bool {
         matches!(self, Self::OperatorTuning)
     }
+
+    /// Map a secret's primary [`Capability`] to its taxonomy class. This is the
+    /// single classification SSOT: `capabilities_for_secret` already groups every
+    /// `SecretId`, so taxonomy is derived from it rather than re-enumerated.
+    pub const fn from_capability(cap: Capability) -> Self {
+        match cap {
+            Capability::ChatCloudPrimary | Capability::ChatCloudAlt => Self::LlmProviderKey,
+            Capability::GpuCloud => Self::CloudGpuInfra,
+            Capability::Mesh => Self::MeshTransport,
+            Capability::ScholarlyPublication => Self::ScholarlyPublication,
+            Capability::ScientiaSyndication => Self::SocialSyndication,
+            Capability::DbRemote => Self::TelemetrySearch,
+            Capability::RuntimeIngress | Capability::PublishReview | Capability::Orchestration => {
+                Self::PlatformIdentity
+            }
+            Capability::AuxTools | Capability::AutonomousResearch => Self::AuxTooling,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

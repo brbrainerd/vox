@@ -488,7 +488,7 @@ pub struct SecretStatusRow {
 pub fn list_secret_status() -> Vec<SecretStatusRow> {
     let mut out = Vec::new();
     for spec in all_specs() {
-        if spec.id.metadata().taxonomy_class.is_config_only() {
+        if !crate::spec::is_user_facing_secret(spec.id) {
             continue;
         }
         let resolved = resolve_secret(spec.id);
@@ -496,7 +496,7 @@ pub fn list_secret_status() -> Vec<SecretStatusRow> {
             id: format!("{:?}", spec.id),
             canonical_env: spec.canonical_env,
             scope_description: spec.scope_description,
-            taxonomy_slug: spec.id.metadata().taxonomy_class.slug(),
+            taxonomy_slug: crate::spec::taxonomy_class_for(spec.id).slug(),
             auth_registry: spec.auth_registry,
             required: spec.policy.required,
             is_present: resolved.is_present(),
