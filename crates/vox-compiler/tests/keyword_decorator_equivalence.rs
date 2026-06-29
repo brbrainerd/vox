@@ -124,7 +124,39 @@ fn ident_uses_preserved() {
         "fn f(query: str, resource: str, table: str) to int { return 0 }",
         // method call on the db surface
         "@query fn g() to int { return len(db.query()) }",
+        // local `let` binding named with a soft keyword (must not be stolen in body)
+        "fn h() to int { let table = 1\n return table }",
     ] {
         parse(lex(src)).unwrap_or_else(|e| panic!("must still parse: {src}\n{e:?}"));
     }
+}
+
+// ── Invariant-2 guards: the optional-`fn` relaxation is keyword-path-ONLY and did
+//    NOT widen the grammar. (Flagged by code review — these were specified in the
+//    plan but missing from the harness.) ──
+
+#[test]
+fn headless_query_parses() {
+    parse(lex("query f() to int { return 1 }")).expect("headless query parses standalone");
+}
+
+#[test]
+fn bare_call_still_rejected_at_toplevel() {
+    // A bare `foo() {}` (no keyword, no `fn`) must STILL error — the optional-`fn`
+    // change must not legalize top-level calls. `foo` is an Ident matching no soft
+    // keyword, so it never reaches the headless path.
+    assert!(
+        parse(lex("foo() { }")).is_err(),
+        "bare top-level call must remain a parse error"
+    );
+}
+
+#[test]
+fn decorator_without_fn_still_errors() {
+    // `@pure foo()` (decorator, missing `fn`) routes through the MANDATORY-fn path
+    // and must error — proving expect→eat was not weakened globally.
+    assert!(
+        parse(lex("@pure foo() to int { return 0 }")).is_err(),
+        "decorator without `fn` must remain a parse error"
+    );
 }
