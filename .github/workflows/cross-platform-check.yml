@@ -11,10 +11,8 @@ on:
       - 'contracts/**'
       - 'examples/golden/**'
   merge_group:
-  push:
-    branches: [main]
   schedule:
-    - cron: '0 4 * * 1'   # Weekly Monday belt-and-suspenders run
+    - cron: '0 4 * * 1'   # Weekly Monday belt-and-suspenders run (full Win/macOS)
   workflow_dispatch:
 
 concurrency:
@@ -83,41 +81,30 @@ jobs:
         with:
           tool: cargo-nextest
 
-      - name: nextest (platform-sensitive crates) — PR/push
-        if: github.event_name != 'merge_group'
+      # Per-PR: only the Linux (self-hosted) leg runs the platform nextest. Win/macOS
+      # legs do ONLY the cheap `cargo check` above on PRs (the per-PR cfg(windows)/
+      # cfg(macos) compile proof); their full test run is deferred to merge_group +
+      # the weekly schedule. Coverage deferred: full Win/macOS nextest moves off per-PR.
+      - name: nextest (platform-sensitive crates) — Linux per-PR; all OS off-PR
+        if: runner.os == 'Linux' || github.event_name != 'pull_request'
         run: |
           cargo nextest run -p vox-config
           cargo nextest run -p vox-cli-core
           cargo nextest run -p vox-populi --lib
 
-      # Merge-queue depth (thorough but amortized): full clippy + full nextest run
-      # ONCE per merge batch, so hosted Windows (2x) / macOS (10x) minutes are not
-      # spent on every push to a PR.
-      - name: clippy (workspace, -D warnings) — merge_group only
-        if: github.event_name == 'merge_group'
+      # Full depth (thorough but amortized): full clippy + full nextest run on
+      # merge_group (once per merge batch) AND on the weekly schedule (the true
+      # full Win/macOS sweep) — not on every PR push.
+      - name: clippy (workspace, -D warnings) — merge_group + weekly
+        if: github.event_name == 'merge_group' || github.event_name == 'schedule'
         run: cargo clippy --workspace --exclude vox-gui --target ${{ matrix.target }} -- -D warnings
 
-      - name: nextest (workspace) — merge_group only
-        if: github.event_name == 'merge_group'
+      - name: nextest (workspace) — merge_group + weekly
+        if: github.event_name == 'merge_group' || github.event_name == 'schedule'
         run: cargo nextest run --workspace --exclude vox-gui
 
       - name: sccache stats
         if: always()
         run: sccache --show-stats
-
-      # Non-blocking portability report — only on Linux, always exits 0.
-      - name: Run portability scanner (os_compat.py)
-        if: runner.os == 'Linux'
-        continue-on-error: true
-        run: |
-          mkdir -p graphify-out
-          python scripts/coverage-graph/os_compat.py
-        working-directory: ${{ github.workspace }}
-
-      - name: Upload portability report
-        if: runner.os == 'Linux'
-        uses: actions/upload-artifact@v7
-        with:
-          name: os-compat-report
-          path: graphify-out/OS_COMPATIBILITY.md
-          if-no-files-found: warn
+      # Portability report (os_compat.py) removed from the per-merge path — the weekly
+      # os-compat-report.yml is the canonical portability scan.

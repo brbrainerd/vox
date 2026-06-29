@@ -1,10 +1,13 @@
 # CI Fallback (GitHub-hosted)
 #
-# Manual-only degraded-mode mirror of the self-hosted `ci.yml` merge gate.
-# Branch protection requires **Check, Build, and Test (Rust)** on the self-hosted
-# fleet ([self-hosted, linux, x64]) — this workflow is NOT a required check and
-# does NOT run on pull_request/push. Trigger it with workflow_dispatch when the
-# fleet is down and you want a portable Rust smoke on GitHub-hosted runners.
+# Reachable degraded-mode mirror of the self-hosted `ci.yml` merge gate. The `gate`
+# job's `name:` matches the required branch-protection context ("Check, Build, and
+# Test (Rust)"), so a green fallback run can SATISFY branch protection when the
+# self-hosted fleet is down — apply the `fleet-down` label to a PR (see the
+# merge-queue break-glass runbook in docs/src/ci/runner-contract.md).
+#
+# Triggers: nightly schedule (keeps a recent portable green signal on main),
+# workflow_dispatch (manual), and a `fleet-down`-labelled pull_request (outage valve).
 #
 # It intentionally omits the lanes that require the self-hosted fleet's hardware and
 # preinstalled services: GPU jobs, Docker-based integration, Playwright/browser E2E,
@@ -15,6 +18,17 @@ name: "CI Fallback (GitHub-hosted)"
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * *'   # Nightly hosted mirror — recent portable green signal on main
+  pull_request:
+    # `unlabeled` so removing `fleet-down` re-fires the workflow (the gate then skips,
+    # leaving the required context to ci.yml's ci-summary). NOTE: a skipped job cannot
+    # clear a previously-posted green status, so after removing the label either push a
+    # commit (fires `synchronize` → ci-summary re-posts) or use the ruleset-relax in the
+    # break-glass runbook. We deliberately do NOT auto-post a failing status here: this
+    # job shares the `Check, Build, and Test (Rust)` context name with ci-summary, and a
+    # red duplicate on normal PRs would conflict with ci-summary's green.
+    types: [labeled, unlabeled, synchronize, reopened]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -25,6 +39,11 @@ permissions:
 
 jobs:
   gate:
+    # Required-equivalent: matches the branch-protection context so a green run on
+    # hosted infra satisfies the gate during a fleet outage. On PRs it only runs when
+    # the `fleet-down` label is applied (the outage valve); schedule/dispatch always run.
+    name: Check, Build, and Test (Rust)
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'fleet-down')
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:

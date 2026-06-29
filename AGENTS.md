@@ -311,7 +311,11 @@ minutes on iteration noise. Before every push, reproduce the relevant gates loca
 and only push once they are green. **Local-first runner policy:** CI jobs default to
 the self-hosted Docker fleet; GitHub-hosted `runs-on` requires a registered exception
 ([`docs/src/ci/github-hosted-exceptions.md`](docs/src/ci/github-hosted-exceptions.md)).
-Advisory drift check: `vox ci runner-policy-check` (warn by default; `--strict` to fail).
+Enforced gate: `vox ci runner-policy-check` runs `--strict` inside `ssot-drift`. Both CI and
+the fast pre-push tier run `ssot-drift`, so an unregistered GitHub-hosted `runs-on` hard-fails
+both — but **CI is authoritative** (pre-push can be `--no-verify`-skipped). The required gate
+(`ci-summary`) runs hosted so a fleet outage cannot block merges (see runner-contract.md
+break-glass). Local is for speed, not cost — vox is public, hosted minutes are free.
 See [`docs/src/ci/runner-contract.md`](docs/src/ci/runner-contract.md) §Local-first CI.
 We have Docker available, so the full GitHub workflow suite can be run locally with `act`:
 

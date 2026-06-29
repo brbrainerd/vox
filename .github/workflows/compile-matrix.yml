@@ -52,22 +52,7 @@ jobs:
         working-directory: examples/compile-suite/packages/desktop
         run: ../../../../target/debug/vox compile --target desktop -o dist src/main.vox
 
-  compile-help-windows:
-    name: vox compile --help (windows-latest)
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo build -p vox-cli
-      - run: cargo run -p vox-cli ci compile-matrix
-
-  compile-help-macos:
-    name: vox compile --help (macos-latest)
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo build -p vox-cli
-      - run: cargo run -p vox-cli ci compile-matrix
+  # compile-help-windows / compile-help-macos removed: their `vox compile --help`
+  # smoke is subsumed by cross-platform-check.yml's per-PR `cargo check --workspace
+  # --target <win/mac>`, which proves the CLI compiles on those hosts. Keeping them
+  # here duplicated hosted compile time for no extra signal.

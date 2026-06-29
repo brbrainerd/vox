@@ -119,6 +119,20 @@ pub fn workflow_uses_hosted_runner(text: &str) -> bool {
     false
 }
 
+/// True when a workflow's `on:` triggers include `merge_group` but NOT `pull_request`,
+/// meaning its jobs never report a status on PRs. Such a job must never be wired as a
+/// branch-protection required context: a required-but-skipped context leaves the merge
+/// queue permanently "expected" and deadlocks it.
+pub fn workflow_is_merge_group_only(text: &str) -> bool {
+    let has_merge_group = text
+        .lines()
+        .any(|l| l.trim_start().starts_with("merge_group:"));
+    let has_pull_request = text
+        .lines()
+        .any(|l| l.trim_start().starts_with("pull_request:"));
+    has_merge_group && !has_pull_request
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -173,5 +187,49 @@ jobs:
     #[test]
     fn hosted_markers_include_macos_variants() {
         assert!(HOSTED_MARKERS.contains(&"macos-13"));
+    }
+
+    #[test]
+    fn detects_merge_group_only_job() {
+        let mg = "on:\n  merge_group:\njobs:\n  heavy:\n    runs-on: ubuntu-latest\n";
+        assert!(workflow_is_merge_group_only(mg));
+        let pr = "on:\n  pull_request:\n  merge_group:\njobs:\n  j:\n    runs-on: ubuntu-latest\n";
+        assert!(!workflow_is_merge_group_only(pr));
+        let pr_only = "on:\n  pull_request:\njobs:\n  j:\n    runs-on: ubuntu-latest\n";
+        assert!(!workflow_is_merge_group_only(pr_only));
+    }
+
+    #[test]
+    fn strict_errors_on_unregistered_hosted_but_advisory_tolerates() {
+        let tmp = std::env::temp_dir().join(format!("rpc-strict-{}", std::process::id()));
+        let wf = tmp.join(".github/workflows");
+        std::fs::create_dir_all(&wf).unwrap();
+        std::fs::create_dir_all(tmp.join("docs/src/ci")).unwrap();
+        // Empty exceptions table — the rogue hosted workflow is unregistered.
+        std::fs::write(
+            tmp.join(EXCEPTIONS_DOC),
+            "| Workflow | Runner | Reason |\n|--|--|--|\n",
+        )
+        .unwrap();
+        std::fs::write(wf.join("rogue.yml"), "jobs:\n  j:\n    runs-on: ubuntu-latest\n").unwrap();
+        assert!(run(&tmp, false).is_ok(), "advisory mode must tolerate");
+        assert!(run(&tmp, true).is_err(), "strict mode must reject");
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    #[test]
+    fn strict_ok_when_registered() {
+        let tmp = std::env::temp_dir().join(format!("rpc-ok-{}", std::process::id()));
+        let wf = tmp.join(".github/workflows");
+        std::fs::create_dir_all(&wf).unwrap();
+        std::fs::create_dir_all(tmp.join("docs/src/ci")).unwrap();
+        std::fs::write(
+            tmp.join(EXCEPTIONS_DOC),
+            "| Workflow | Runner | Reason |\n|--|--|--|\n| `rogue.yml` | `ubuntu-latest` | test |\n",
+        )
+        .unwrap();
+        std::fs::write(wf.join("rogue.yml"), "jobs:\n  j:\n    runs-on: ubuntu-latest\n").unwrap();
+        assert!(run(&tmp, true).is_ok(), "strict must pass when registered");
+        std::fs::remove_dir_all(&tmp).ok();
     }
 }

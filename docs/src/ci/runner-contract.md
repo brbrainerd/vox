@@ -33,13 +33,13 @@ Upstream JavaScript actions in this repo (for example **`actions/checkout@v6`**,
 
 If a runner is too old, jobs fail early when invoking Node 24–based actions, or GitHub emits deprecation notices for obsolete Node runtimes—see GitHub’s [Actions runner changelog](https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/) for the Node 20 deprecation timeline.
 
-## Local-first CI (required policy, advisory enforcement)
+## Local-first CI (required policy, ENFORCED)
 
-**Default:** all CI/CD jobs run on the **local self-hosted fleet** (Docker ephemeral runners on the operator host, autoscaled via `vox ci runner-scale`). GitHub-hosted runners (`ubuntu-latest`, `windows-latest`, `macos-*`) are **slow, minute-limited, and not the primary feedback loop**.
+**Default:** heavy CI/CD jobs run on the **local self-hosted fleet** (Docker ephemeral runners on the operator host, autoscaled via `vox ci runner-scale`) for **speed and feedback latency** — not cost (vox is a public repo, so GitHub-hosted minutes are free). Jobs stay hosted **only** for neutral-infra resilience: the **required gate aggregator** (`ci-summary`) and the deploy critical path run hosted so the merge gate and deploys survive the workstation being off (compute-placement.md Invariants 1 & 4).
 
 **Contributor workflow:** reproduce gates locally with **`vox ci pre-push`** (fast / `--complete` / `--full`) before pushing. Use **`vox ci pre-push --act`** only for the small set of workflows that still mirror GitHub-hosted behavior in containers.
 
-**Enforcement (not forced by default):** `vox ci runner-policy-check` scans `.github/workflows/*.yml` and **warns** when a workflow uses a GitHub-hosted `runs-on` without a row in [GitHub-hosted exceptions](github-hosted-exceptions.md). Pass **`--strict`** to fail (opt-in hard gate). Wired into **`vox ci ssot-drift`** and the **fast** pre-push tier as advisory output.
+**Enforcement (hard gate):** `vox ci runner-policy-check` scans `.github/workflows/*.yml` and runs **`--strict` inside `vox ci ssot-drift`**. Because both CI and the fast `vox ci pre-push` tier run `ssot-drift`, an unregistered GitHub-hosted `runs-on` **hard-fails both** — pre-push surfaces it early. **CI is authoritative** (it cannot be bypassed); a local pre-push *can* be `--no-verify`-skipped, so the CI `ssot-drift` pass is the real gate. (A separate standalone `runner-policy-check` step in pre-push is intentionally left **advisory** — it would otherwise double-report the same finding.) Register genuine exceptions in [github-hosted-exceptions.md](github-hosted-exceptions.md).
 
 **Registering exceptions:** any workflow that genuinely requires GitHub-hosted runners (Pages deploy, Windows/macOS release matrix, macOS mobile E2E, chicken-and-egg runner image publish) **must** add a row to [github-hosted-exceptions.md](github-hosted-exceptions.md). Prefer migrating to `[self-hosted, linux, x64]` (or `docker` / `browser` profiles) instead.
 
@@ -169,6 +169,40 @@ For routing/telemetry/capability-policy changes, prefer narrow reruns before ful
 - `cargo test -p vox-orchestrator`
 
 Use these focused lanes during iteration, then finish with `vox ci pre-push` (or CI lane equivalent) before merge.
+
+## Merge-queue break-glass (fleet outage)
+
+The `main-merge-queue` ruleset is active and serializes every merge through a `merge_group`
+`ci.yml` run. The sole required context is **`Check, Build, and Test (Rust)`** (the
+`ci-summary` aggregator, now on `ubuntu-latest` so the gate itself is fleet-independent),
+but its heavy `needs` (guards-fast/lints/compiler-gates/tests/audits) run on the self-hosted
+fleet. The admin bypass (`enforce_admins=false`) does NOT apply inside a required merge
+queue. If the fleet is down:
+
+1. **Preferred — the outage valve:** apply the **`fleet-down`** label to the PR.
+   [`ci-fallback-hosted.yml`](../../../.github/workflows/ci-fallback-hosted.yml) then runs
+   its `gate` job (named `"Check, Build, and Test (Rust)"`) on hosted infra and reports the
+   required context green; merge normally.
+2. **If the queue is wedged:** temporarily relax the ruleset. `PUT /rulesets/{id}`
+   replaces the whole resource, so a partial `-f enforcement=evaluate` would wipe other
+   fields — GET the full ruleset, change only `enforcement`, and PUT the complete body back:
+
+   ```bash
+   RID=$(gh api repos/vox-foundation/vox/rulesets --jq '.[] | select(.name=="main-merge-queue") | .id')
+   # Relax:
+   gh api repos/vox-foundation/vox/rulesets/$RID \
+     | jq '{name, target, enforcement: "evaluate", conditions, rules, bypass_actors}' \
+     | gh api -X PUT repos/vox-foundation/vox/rulesets/$RID --input -
+   # ...merge..., then restore:
+   gh api repos/vox-foundation/vox/rulesets/$RID \
+     | jq '{name, target, enforcement: "active", conditions, rules, bypass_actors}' \
+     | gh api -X PUT repos/vox-foundation/vox/rulesets/$RID --input -
+   ```
+3. Bring the fleet back (`vox ci runner-scale` / autoscaler), then remove the `fleet-down`
+   label so subsequent PRs use the full self-hosted gate again.
+
+A nightly `schedule:` on `ci-fallback-hosted.yml` keeps a recent portable green signal on
+`main` even during a multi-day outage.
 
 ## Workflow list
 

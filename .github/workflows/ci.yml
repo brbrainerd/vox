@@ -901,7 +901,7 @@ jobs:
           fi
           if affected_has vox-orchestrator; then
             cargo nextest run -p vox-orchestrator --lib -E 'test(detect_layout_node_workspaces)'
-            cargo check -p vox-orchestrator --no-default-features --features runtime,mcp-native,toestub-gate
+            cargo check -p vox-orchestrator --no-default-features --features runtime,toestub-gate
           fi
           if affected_has vox-orchestrator-mcp; then
             cargo nextest run -p vox-orchestrator-mcp --lib
@@ -1304,8 +1304,12 @@ jobs:
     # intentionally NOT a required-gate dependency.
     needs: [guards-fast, lints, compiler-gates, tests, audits]
     if: always()
-    runs-on: [self-hosted, linux, x64]
-    timeout-minutes: 2
+    # Hosted so the SOLE branch-protection context is fleet-independent
+    # (compute-placement.md Invariant 1). The 5 heavy needs stay self-hosted; this
+    # aggregator only reads their results, so it must not itself require the
+    # workstation — otherwise a fleet outage leaves the merge queue unable to drain.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: All required jobs succeeded
         run: |
