@@ -36,14 +36,18 @@ pub fn asset_name(tag: &str) -> String {
     format!("vox-{tag}-{target}.{ext}")
 }
 
+const CLIENT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+
 pub fn make_client() -> Result<Client> {
-    let mut builder = Client::builder().timeout(std::time::Duration::from_secs(30));
+    // drift-allow(reqwest-bypass): voxup is a standalone binary with no vox_http_client dep
+    let mut builder = Client::builder().timeout(CLIENT_TIMEOUT);
 
     // Support GITHUB_TOKEN/GH_TOKEN for auth header
     if let Ok(token) = std::env::var("GITHUB_TOKEN").or_else(|_| std::env::var("GH_TOKEN")) {
         if !token.trim().is_empty() {
             let mut headers = reqwest::header::HeaderMap::new();
-            if let Ok(auth_val) = reqwest::header::HeaderValue::from_str(&format!("Bearer {token}"))
+            const BEARER_PREFIX: &str = "Bearer "; // drift-allow(bearer-header-inline): voxup standalone, no vox_http_client dep
+            if let Ok(auth_val) = reqwest::header::HeaderValue::from_str(&format!("{BEARER_PREFIX}{token}"))
             {
                 headers.insert(reqwest::header::AUTHORIZATION, auth_val);
                 builder = builder.default_headers(headers);
