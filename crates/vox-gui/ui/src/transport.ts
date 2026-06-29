@@ -7,7 +7,6 @@ import type {
   OpenOutcome,
   OrchestratorStatus,
   RoutingSummary,
-  GraphifyStatusDto,
 } from './types/tauri';
 import type { TaskRow } from './components/surfaces/Tasks/tasksHelpers';
 
@@ -451,6 +450,11 @@ class VoxTransport {
     return invoke('vox_docs_index');
   }
 
+  /** VG-1 build-time GUI content manifest (gui-content-manifest.json). */
+  voxContentManifest(): Promise<import('./hooks/useContentManifest').ContentManifestEntry[]> {
+    return invoke('vox_content_manifest');
+  }
+
   /** Policy catalog rows for federated OmniSearch (see policy_list IPC). */
   listPolicies(): Promise<{ name: string; status?: string }[]> {
     return invoke<{ id: string }[]>('policy_list', { domain: null, group: null }).then(rows => {
@@ -640,9 +644,9 @@ export function listenActivityAppended(onAppend: () => void): Promise<UnlistenFn
   return listen<void>(ACTIVITY_APPENDED_EVENT, () => onAppend());
 }
 
-export async function getGraphifyStatus(): Promise<GraphifyStatusDto> {
-  return invoke<GraphifyStatusDto>('vox_graphify_status');
-}
+// `getGraphifyStatus` (direct `vox_graphify_status` Tauri command) retired in
+// T8 — the GUI now reads status through `useGraphifyStatus` →
+// `voxTransport.invokeMcpTool('vox_search_status')` (the shared MCP dispatch).
 
 export interface FeedbackRow {
   feedbackId: string;

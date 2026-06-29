@@ -5,9 +5,9 @@ import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const mockUse = vi.fn();
-vi.mock('../../../hooks/useGraphifyStatus', () => ({
-  useGraphifyStatus: () => mockUse(),
-  GRAPHIFY_STATUS_QUERY_KEY: ['graphify', 'status'],
+vi.mock('../../../hooks/useVoxGraphStatus', () => ({
+  useVoxGraphStatus: () => mockUse(),
+  VOX_GRAPH_STATUS_QUERY_KEY: ['vox-graph', 'status'],
 }));
 
 const mockInvoke = vi.fn();
@@ -15,7 +15,7 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: (...args: unknown[]) => mockInvoke(...args),
 }));
 
-import { GraphifyStatusPanel } from './GraphifyStatusPanel';
+import { VoxGraphStatusPanel } from './VoxGraphStatusPanel';
 
 function renderWithClient(ui: React.ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -37,7 +37,7 @@ const STALE_CORPUS = {
   is_fresh: false,
 };
 
-describe('GraphifyStatusPanel', () => {
+describe('VoxGraphStatusPanel', () => {
   beforeEach(() => {
     mockInvoke.mockReset();
     mockInvoke.mockResolvedValue(undefined);
@@ -52,7 +52,7 @@ describe('GraphifyStatusPanel', () => {
         corpora: [STALE_CORPUS],
       },
     });
-    renderWithClient(<GraphifyStatusPanel />);
+    renderWithClient(<VoxGraphStatusPanel />);
     expect(screen.getByText('Repo')).toBeDefined();
     expect(screen.getByText('Stale')).toBeDefined();
     expect(screen.getByText(/graph_missing/)).toBeDefined();
@@ -79,12 +79,12 @@ describe('GraphifyStatusPanel', () => {
         ],
       },
     });
-    renderWithClient(<GraphifyStatusPanel />);
+    renderWithClient(<VoxGraphStatusPanel />);
     expect(screen.getByText('Fresh')).toBeDefined();
     expect(screen.getByText('3h ago')).toBeDefined();
   });
 
-  it('invokes vox_graphify_rebuild by name when Rebuild is clicked', async () => {
+  it('invokes vox_search_rebuild by name when Rebuild is clicked', async () => {
     mockUse.mockReturnValue({
       isLoading: false,
       isError: false,
@@ -93,11 +93,11 @@ describe('GraphifyStatusPanel', () => {
         corpora: [STALE_CORPUS],
       },
     });
-    renderWithClient(<GraphifyStatusPanel />);
+    renderWithClient(<VoxGraphStatusPanel />);
     fireEvent.click(screen.getByRole('button', { name: 'Rebuild repo-code-graph' }));
     await waitFor(() => {
       expect(mockInvoke).toHaveBeenCalledWith('invoke_mcp_tool', {
-        tool: 'vox_graphify_rebuild',
+        tool: 'vox_search_rebuild',
         args: { corpus: 'repo-code-graph' },
       });
     });
@@ -105,7 +105,7 @@ describe('GraphifyStatusPanel', () => {
 
   it('shows loading state', () => {
     mockUse.mockReturnValue({ isLoading: true, isError: false });
-    renderWithClient(<GraphifyStatusPanel />);
+    renderWithClient(<VoxGraphStatusPanel />);
     expect(screen.getByText(/Loading graphify status/i)).toBeDefined();
   });
 });

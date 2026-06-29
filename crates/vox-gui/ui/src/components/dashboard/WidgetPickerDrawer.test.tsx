@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { WidgetPickerDrawer } from './WidgetPickerDrawer';
 import { defaultDashboardLayout, DASHBOARD_WIDGET_KINDS } from '../../lib/dashboardLayout';
+import { DASHBOARD_SECTIONS } from '../../lib/dashboardSections';
 
 describe('WidgetPickerDrawer', () => {
   it('lists widget kinds from the dashboard-layout contract', () => {
@@ -57,5 +58,28 @@ describe('WidgetPickerDrawer', () => {
     expect(screen.queryByRole('button', { name: /^stream$/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /^agents$/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /^alerts$/i })).toBeNull();
+  });
+
+  it('lists surface widgets grouped by section, including a new surface', async () => {
+    const user = userEvent.setup();
+    const onAddSurface = vi.fn();
+    render(
+      <WidgetPickerDrawer
+        layout={{ version: 1, columns: 12, widgets: [] }}
+        open
+        onClose={() => {}}
+        onAdd={() => {}}
+        onAddSurface={onAddSurface}
+      />,
+    );
+    // The four dashboard sections exist as a contract.
+    expect(DASHBOARD_SECTIONS).toContain('operations');
+    // Section headers render for each dashboard section that has offerings.
+    expect(screen.getByTestId('picker-section-operations')).toBeTruthy();
+    // The synthetic Cost widget is offered.
+    expect(screen.getByTestId('picker-surface-cost')).toBeTruthy();
+    // Adding a surface widget calls onAddSurface with the surface key.
+    await user.click(screen.getByTestId('picker-surface-mesh'));
+    expect(onAddSurface).toHaveBeenCalledWith('mesh');
   });
 });
