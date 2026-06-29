@@ -179,6 +179,16 @@ pub const LEXER_KEYWORDS: &[&str] = &[
     "post",
     "put",
     "delete",
+    // Soft (contextual) keywords — recognized only at declaration-head position
+    // (no logos `#[token]`; they remain `Token::Ident` as field/param/method names).
+    // Introspection metadata only; the binding mechanic is positional dispatch.
+    "table",
+    "index",
+    "query",
+    "mutation",
+    "server",
+    "tool",
+    "resource",
 ];
 
 /// `@decorator` spellings from the lexer (stable order).
@@ -307,6 +317,16 @@ pub const LEXER_DEPRECATED_DECORATORS: &[&str] = &[
     "@mobile.native",
     "@v0",
     "@llm",
+    // Tier-1 decorators demoted to soft keywords (warning-first; hard error at flip).
+    // They stay in DecoratorFeature::ALL and LEXER_AT_DECORATORS (parity lever) — only
+    // listed here to suppress LSP suggestion and mark the deprecation.
+    "@table",
+    "@index",
+    "@query",
+    "@mutation",
+    "@server",
+    "@tool",
+    "@resource",
 ];
 
 /// Builtin names for LSP / MCP “surface” introspection (aligned with common runtime helpers).
