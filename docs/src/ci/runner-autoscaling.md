@@ -147,3 +147,34 @@ it permanently blocked the merge queue. Keep it scheduled; do not re-add it to
 branch protection or the merge-queue ruleset's required checks. To enforce it
 per-batch instead, add a `merge_group:` trigger to the workflow first, then
 re-require it — never require it while it is schedule-only.
+
+## CI Health Watchdog invariants
+
+The watchdog (`.github/workflows/ci-health-watchdog.yml`) and the autoscaler guard
+each other. These invariants prevent a repeat of the 2026-06-29 silent cascade — do
+not relax them without understanding why they exist:
+
+- **`VoxCIRunnerScale` `ExecutionTimeLimit` must stay `< the repetition interval`**
+  (currently `PT2M` limit vs `PT2M` interval — keep the limit ≤ the interval). With
+  `MultipleInstancesPolicy=IgnoreNew`, a tick that outlives the interval silently
+  drops every later tick → no reaping → runaway zombies. This is what hung for 4h.
+- **A reconcile tick must never block on a build.** It only queries GitHub and
+  `docker run`/`rm` a pre-built image (seconds). If a tick triggers `cargo`/image
+  builds inline (observed during the incident), a cold build can exceed the limit and
+  get killed — fix the build path, do not raise the limit.
+- **The scheduler `ExecutionTimeLimit` frees the task *slot*, not necessarily the
+  child tree.** Authoritative worker-kill is the in-process `VOX_RUNNER_TICK_TIMEOUT_SECS`
+  timeout that kills the child process group.
+- **Reap only `vox-runner-auto-` runners past the grace window.** The watchdog's
+  managed-prefix gate mirrors the Rust reaper's `MANAGED_PREFIX`; never deregister an
+  arbitrary offline runner (a real or rebooting runner would be destroyed).
+- **Failover uses the `fleet-down` PR label, not a `--ref main` dispatch.** `main` is
+  merge-queue-gated and `ci.yml` has no `push:main`; a main-ref status does not clear a
+  queue entry's required context. Recovery (`online>0`) removes the label.
+- **The watchdog needs an authenticated push endpoint and a dead-man's-switch
+  heartbeat.** A public ntfy topic leaks CI internals; a silently-disabled or
+  PAT-expired watchdog is the original blind spot one level up. The runner-admin PAT
+  (`SSOT_AUTOREGEN_TOKEN`) has an expiry — record and rotate it; an expired PAT 401s
+  the watchdog into silence.
+- **PAT expiry date:** _record here when set_ (fine-grained, this repo only,
+  Administration r/w + Actions w).
