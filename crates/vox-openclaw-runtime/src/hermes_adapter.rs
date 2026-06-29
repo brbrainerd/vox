@@ -7,11 +7,10 @@ use serde_json::Value;
 
 fn resolve_tilde(path: &std::path::Path) -> std::path::PathBuf {
     let path_str = path.to_string_lossy();
-    if path_str.starts_with('~') {
+    if let Some(remainder) = path_str.strip_prefix('~') {
         if let Some(home) = dirs::home_dir() {
             let mut new_path = home;
-            if path_str.len() > 1 {
-                let remainder = &path_str[1..];
+            if !remainder.is_empty() {
                 let remainder = remainder.trim_start_matches('/').trim_start_matches('\\');
                 new_path.push(remainder);
             }
@@ -165,7 +164,7 @@ impl AgentRuntimeAdapter for DefaultHermesRuntimeAdapter {
         if method == "generate" || method == "chat" {
             let mut req = self
                 .http
-                .post(&format!(
+                .post(format!(
                     "{}/chat/completions",
                     self.cfg.http_gateway_url.trim_end_matches('/')
                 ))
