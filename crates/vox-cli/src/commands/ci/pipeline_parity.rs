@@ -43,6 +43,9 @@ pub async fn run(root: &Path) -> Result<()> {
     println!("pipeline-parity: k-complexity budget (ladder-scoped)…");
     super::run_body::run_body_helpers::run_k_complexity_budget(root, 0.0, false)?;
 
+    println!("pipeline-parity: source-token budget (ladder-scoped)…");
+    super::run_body::run_body_helpers::run_source_token_budget(root, 0.0, false)?;
+
     print_matrix_coverage();
     println!("pipeline-parity OK");
     Ok(())

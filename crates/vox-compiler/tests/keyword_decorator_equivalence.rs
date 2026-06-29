@@ -141,6 +141,35 @@ fn headless_query_parses() {
 }
 
 #[test]
+fn keyword_form_shrinks_tokens_and_bytes() {
+    // The program's whole point: the soft-keyword form costs fewer lexer tokens AND
+    // fewer source bytes than the decorator form it replaces (the keyword subsumes
+    // the `@` + `fn`/`type` token pair). This is what the `vox ci source-token-budget`
+    // gate witnesses once the corpus migrates.
+    let cases = [
+        ("@table type User { name: str }", "table User { name: str }"),
+        ("@query fn c() to int { return 0 }", "query c() to int { return 0 }"),
+        ("@mutation fn m() to int { return 0 }", "mutation m() to int { return 0 }"),
+        ("@server fn s() to int { return 0 }", "server s() to int { return 0 }"),
+        ("@tool fn t() to int { return 0 }", "tool t() to int { return 0 }"),
+    ];
+    for (decorated, keyword) in cases {
+        let d_tokens = lex(decorated).len();
+        let k_tokens = lex(keyword).len();
+        assert!(
+            k_tokens < d_tokens,
+            "keyword fewer tokens: {keyword} ({k_tokens}) !< {decorated} ({d_tokens})"
+        );
+        assert!(
+            keyword.len() < decorated.len(),
+            "keyword fewer bytes: {keyword} ({}) !< {decorated} ({})",
+            keyword.len(),
+            decorated.len()
+        );
+    }
+}
+
+#[test]
 fn tier1_decorators_still_parse_during_warning_first() {
     // Warning-first rollout: the retired `@` forms emit a deprecation warning but
     // STILL parse, so the suite stays green while the codemod migrates the corpus.
