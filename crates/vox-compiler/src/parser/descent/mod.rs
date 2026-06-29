@@ -273,6 +273,7 @@ impl Parser {
                     | Token::Http
                     | Token::AtTable
                     | Token::AtIndex
+                    | Token::AtForm
                     | Token::Async
                     // Phase M (json-as-rfc-2026-05-24): `@json_as(...)` always precedes `type`.
                     | Token::AtJsonAs
@@ -315,8 +316,10 @@ impl Parser {
                 // keeps script-mode calls/refs like `query(x)` or `table.foo` on the
                 // statement path instead of stealing them into parse_decl.
                 || (matches!(self.peek(), Token::Ident(n) if matches!(n.as_str(),
-                        "table" | "index" | "query" | "mutation" | "server" | "tool" | "resource"
-                        | "form"))
+                        "table" | "index" | "query" | "mutation" | "server" | "form"))
+                    && matches!(self.peek_nth(1), Token::Ident(_)))
+                // Only tool/resource take a leading string literal (`tool "desc" fn …`).
+                || (matches!(self.peek(), Token::Ident(n) if matches!(n.as_str(), "tool" | "resource"))
                     && matches!(self.peek_nth(1), Token::Ident(_) | Token::StringLit(_)));
 
             let is_tombstoned = matches!(

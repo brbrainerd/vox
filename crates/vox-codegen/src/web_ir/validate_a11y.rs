@@ -55,6 +55,17 @@ fn has_aria_name(attrs: &[(String, String)]) -> bool {
     has_attr(attrs, "aria-label") || has_attr(attrs, "aria-labelledby")
 }
 
+/// True if some `<label for="...">` in the arena targets this element's `id`.
+/// A bare `id` only *enables* a `<label for>`; it does not prove one exists.
+fn has_associated_label(module: &WebIrModule, id: Option<&str>) -> bool {
+    let Some(id) = id else { return false };
+    module.dom_nodes.iter().any(|n| {
+        matches!(n, DomNode::Element { tag, attrs, .. }
+            if tag.eq_ignore_ascii_case("label")
+                && attrs.iter().any(|(k, v)| k.eq_ignore_ascii_case("for") && v == id))
+    })
+}
+
 /// Recursively check whether a set of child DOM nodes contains any non-empty text content
 /// or expression nodes (which may produce text at runtime).
 fn has_non_empty_text_child(module: &WebIrModule, child_ids: &[DomNodeId]) -> bool {
@@ -148,8 +159,7 @@ pub fn validate_a11y(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
                 }
             }
             "input" | "textarea" | "select" => {
-                let has_label =
-                    has_aria_name(attrs) || attrs.iter().any(|(k, _)| k.eq_ignore_ascii_case("id"));
+                let has_label = has_aria_name(attrs) || has_associated_label(module, get_a("id"));
                 if !has_label {
                     out.push(WebIrDiagnostic {
                         code: format!("web_ir_validate.a11y.{tag}_missing_label"),
