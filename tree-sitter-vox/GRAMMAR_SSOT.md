@@ -5,13 +5,13 @@ This document defines the canonical vocabulary for the Vox programming language.
 ## Keywords
 
 ### Control Flow
-`fn`, `let`, `mut`, `if`, `else`, `match`, `for`, `in`, `to`, `return`, `while`, `loop`, `break`, `continue`, `type`, `import`, `actor`, `workflow`, `activity`
+`fn`, `let`, `mut`, `if`, `else`, `match`, `for`, `in`, `to`, `return`, `while`, `loop`, `break`, `continue`
 
 ### Declaration
-`spawn`, `http`, `pub`, `with`, `on`, `state`, `derived`, `effect`, `mount`, `cleanup`, `view`, `component`, `and`, `or`, `not`, `is`, `isnt`
+`type`, `import`, `actor`, `workflow`, `activity`, `spawn`, `http`, `pub`, `with`, `on`, `state`, `derived`, `effect`, `mount`, `cleanup`, `view`, `component`, `agent`, `async`, `migrate`, `env`, `dec`
 
 ### Web & Reactive (Path C)
-`true`, `false`, `get`, `post`, `put`, `delete`
+`and`, `or`, `not`, `is`, `true`, `false`, `get`, `post`, `put`, `delete`, `table`, `index`, `query`, `mutation`, `server`, `tool`, `resource`
 
 ## Primitive Types
 `int`, `str`, `bool`, `float`, `Unit`, `Element`
@@ -23,7 +23,7 @@ This document defines the canonical vocabulary for the Vox programming language.
 `true`, `false`
 
 ## Decorators
-`@deprecated`, `@tool` (canonical; replaces deprecated `@mcp.tool`), `@resource` (canonical; replaces deprecated `@mcp.resource`), `@pure`, `@require`, `@scheduled`, `@ensure`, `@invariant`, `@forall`, `@fuzz`, `@test`, `@server`, `@query`, `@mutation`, `@table`, `@index`, `@v0`, `@mobile.native`, `@loading`
+`@deprecated`, `@tool`, `@resource`, `@pure`, `@traced`, `@require`, `@scheduled`, `@ensure`, `@invariant`, `@forall`, `@fuzz`, `@test`, `@example`, `@server`, `@query`, `@mutation`, `@table`, `@index`, `@placeholder`, `@place`, `@loading`, `@ai`
 
 ## Operators
 `->`, `|>`, `==`, `!=`, `<=`, `>=`, `<`, `>`, `=`, `+=`, `-=`, `*=`, `/=`, `+`, `-`, `*`, `/`, `%`

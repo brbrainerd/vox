@@ -27,7 +27,12 @@ pub async fn run() -> Result<()> {
     let expected_ssot = ssot_markdown::emit_ssot_markdown();
 
     if current_ssot.trim() != expected_ssot.trim() {
-        eprintln!("Error: GRAMMAR_SSOT.md is out of sync with language_surface.rs.");
+        eprintln!(
+            "Error: GRAMMAR_SSOT.md is stale vs the language-surface SSOT (vox-language-surface, \
+             re-exported by vox-compiler::language_surface). The exporter now renders directly \
+             from that SSOT, so this means the checked-in doc was not regenerated after a \
+             keyword/decorator change."
+        );
         eprintln!(
             "Run `vox grammar --format ssot-markdown --output tree-sitter-vox/GRAMMAR_SSOT.md` to update."
         );
@@ -36,7 +41,7 @@ pub async fn run() -> Result<()> {
 
     check_decorator_feature_lexer_parity()?;
 
-    println!("GRAMMAR_SSOT.md is in sync with language_surface.rs.");
+    println!("GRAMMAR_SSOT.md is in sync with the language-surface SSOT.");
     println!(
         "script surface enum parity OK ({} decorators, {} total features)",
         DecoratorFeature::ALL.len(),

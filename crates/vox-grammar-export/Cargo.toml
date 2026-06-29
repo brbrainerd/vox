@@ -12,4 +12,5 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
 anyhow = { workspace = true }
+vox-language-surface = { workspace = true }
 workspace-hack = { workspace = true }

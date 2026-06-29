@@ -1,71 +1,12 @@
-// Hardcoded tokens to avoid circular dependency with vox-compiler.
-// These MUST be kept in sync with vox-compiler/src/language_surface.rs.
-const LEXER_KEYWORDS: &[&str] = &[
-    "fn",
-    "let",
-    "mut",
-    "if",
-    "else",
-    "match",
-    "for",
-    "in",
-    "to",
-    "return",
-    "while",
-    "loop",
-    "break",
-    "continue",
-    "type",
-    "import",
-    "actor",
-    "workflow",
-    "activity",
-    "spawn",
-    "http",
-    "pub",
-    "with",
-    "on",
-    "state",
-    "derived",
-    "effect",
-    "mount",
-    "cleanup",
-    "view",
-    "component",
-    "and",
-    "or",
-    "not",
-    "is",
-    "isnt",
-    "true",
-    "false",
-    "get",
-    "post",
-    "put",
-    "delete",
-];
+//! Renders `tree-sitter-vox/GRAMMAR_SSOT.md` from the single source of truth in
+//! [`vox_language_surface`]. There are no longer any hardcoded copies of the
+//! keyword/decorator lists here — the category arrays ARE the source, so the doc can
+//! never silently drift from the compiler's surface, and the former magic slice
+//! indices (`[..19]`/`[19..36]`/`[36..]`) are gone.
 
-const LEXER_DECORATORS: &[&str] = &[
-    "@deprecated",
-    "@mcp.tool",
-    "@mcp.resource",
-    "@pure",
-    "@require",
-    "@scheduled",
-    "@ensure",
-    "@invariant",
-    "@forall",
-    "@fuzz",
-    "@test",
-    "@server",
-    "@query",
-    "@mutation",
-    "@table",
-    "@index",
-    "@v0",
-    "@mobile.native",
-    "@loading",
-];
+use vox_language_surface::{
+    CONTROL_FLOW_KEYWORDS, DECLARATION_KEYWORDS, LEXER_DECORATORS, WEB_REACTIVE_KEYWORDS,
+};
 
 pub fn emit_ssot_markdown() -> String {
     let mut g = String::with_capacity(4096);
@@ -75,13 +16,13 @@ pub fn emit_ssot_markdown() -> String {
     g.push_str("## Keywords\n\n");
 
     g.push_str("### Control Flow\n");
-    g.push_str(&format!("`{}`\n\n", LEXER_KEYWORDS[..19].join("`, `")));
+    g.push_str(&format!("`{}`\n\n", CONTROL_FLOW_KEYWORDS.join("`, `")));
 
     g.push_str("### Declaration\n");
-    g.push_str(&format!("`{}`\n\n", LEXER_KEYWORDS[19..36].join("`, `")));
+    g.push_str(&format!("`{}`\n\n", DECLARATION_KEYWORDS.join("`, `")));
 
     g.push_str("### Web & Reactive (Path C)\n");
-    g.push_str(&format!("`{}`\n\n", LEXER_KEYWORDS[36..].join("`, `")));
+    g.push_str(&format!("`{}`\n\n", WEB_REACTIVE_KEYWORDS.join("`, `")));
 
     g.push_str("## Primitive Types\n");
     g.push_str("`int`, `str`, `bool`, `float`, `Unit`, `Element`\n\n");

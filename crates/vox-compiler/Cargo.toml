@@ -13,6 +13,7 @@ logos = { workspace = true }
 vox-ast = { workspace = true }
 vox-eval = { workspace = true }
 vox-grammar-export = { workspace = true }
+vox-language-surface = { workspace = true }
 vox-repository = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

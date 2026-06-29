@@ -1,0 +1,9 @@
+[package]
+name = "vox-language-surface"
+description = "Zero-dependency single source of truth for Vox keyword/decorator/builtin surface strings (shared by vox-compiler and vox-grammar-export to avoid a cyclic dependency)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+workspace-hack = { workspace = true }
