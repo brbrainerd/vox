@@ -54,11 +54,27 @@ fn scan_env_uses(root: &Path) -> BTreeSet<String> {
     used
 }
 
-/// The set of registered knob names from the federated config registry SSOT.
-fn registered_set() -> BTreeSet<String> {
-    vox_config::config_registry::registered_keys()
-        .map(|k| k.to_string())
-        .collect()
+/// The federated set of registered env-knob names, unioned across all three SSOT
+/// sources so the parity gate doesn't falsely flag a var that is registered in
+/// only one of them:
+///   1. the YAML registry (`contracts/config/registry.v1.yaml`, config-hygiene Check D),
+///   2. Clavis-managed secret env names,
+///   3. the typed Rust `CONFIG_KEYS` registry.
+pub fn unified_registered_set(root: &Path) -> BTreeSet<String> {
+    let mut set = BTreeSet::new();
+    // Source 1: YAML registry — parse via the same helper Check D uses.
+    if let Ok(yaml) = std::fs::read_to_string(root.join("contracts/config/registry.v1.yaml")) {
+        set.extend(super::config_hygiene::load_registered_env_vars(&yaml));
+    }
+    // Source 2: Clavis-managed secret env names.
+    set.extend(
+        vox_secrets::managed_secret_env_names()
+            .into_iter()
+            .map(|s| s.to_string()),
+    );
+    // Source 3: typed Rust CONFIG_KEYS registry.
+    set.extend(vox_config::config_registry::registered_keys().map(|k| k.to_string()));
+    set
 }
 
 /// Path to the registration-backlog baseline, relative to repo root.
@@ -90,7 +106,7 @@ fn load_baseline(root: &Path) -> BTreeSet<String> {
 pub fn run(update_baseline: bool) -> anyhow::Result<()> {
     let root = std::env::current_dir()?;
     let used = scan_env_uses(&root);
-    let registered = registered_set();
+    let registered = unified_registered_set(&root);
 
     // Unregistered = used names not covered by any registered exact/prefix row.
     let unregistered: BTreeSet<String> = used
