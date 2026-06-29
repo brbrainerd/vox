@@ -28,6 +28,18 @@ pub enum ParseSeverity {
     Warning,
 }
 
+/// Machine-readable fix for a retired construct, so an LLM/codemod can auto-apply
+/// the replacement from data rather than parsing the English message.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Replacement {
+    /// The retired spelling, e.g. `@table`.
+    pub from: String,
+    /// The replacement spelling, e.g. `table`.
+    pub to: String,
+    /// Stable diagnostic code, e.g. `vox/decorator/table-retired`.
+    pub code: String,
+}
+
 /// A parse error with detailed context.
 #[derive(Debug, Clone)]
 pub struct ParseError {
@@ -37,6 +49,8 @@ pub struct ParseError {
     pub found: Option<String>,
     pub class: ParseErrorClass,
     pub severity: ParseSeverity,
+    /// Set on `Tombstoned` diagnostics so tooling can auto-fix from data.
+    pub replacement: Option<Replacement>,
 }
 
 impl ParseError {
@@ -67,6 +81,7 @@ impl ParseError {
             found,
             class,
             severity: ParseSeverity::Error,
+            replacement: None,
         }
     }
 
@@ -80,6 +95,34 @@ impl ParseError {
             found: None,
             class,
             severity: ParseSeverity::Warning,
+            replacement: None,
+        }
+    }
+
+    /// A retired-construct diagnostic carrying a machine-readable [`Replacement`].
+    /// During the warning-first rollout `severity` is `Warning` (both spellings
+    /// parse); the final flip passes `Error` to make the old spelling illegal.
+    #[must_use]
+    pub fn retired_decorator(
+        span: Span,
+        from: impl Into<String>,
+        to: impl Into<String>,
+        code: impl Into<String>,
+        severity: ParseSeverity,
+    ) -> Self {
+        let (from, to) = (from.into(), to.into());
+        Self {
+            message: format!("`{from}` is retired; use `{to}`"),
+            span,
+            expected: vec![to.clone()],
+            found: Some(from.clone()),
+            class: ParseErrorClass::Tombstoned,
+            severity,
+            replacement: Some(Replacement {
+                from,
+                to,
+                code: code.into(),
+            }),
         }
     }
 }

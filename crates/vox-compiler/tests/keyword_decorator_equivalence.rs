@@ -141,6 +141,24 @@ fn headless_query_parses() {
 }
 
 #[test]
+fn tier1_decorators_still_parse_during_warning_first() {
+    // Warning-first rollout: the retired `@` forms emit a deprecation warning but
+    // STILL parse, so the suite stays green while the codemod migrates the corpus.
+    // (The machine-readable replacement payload is asserted at the hard-error flip.)
+    for src in [
+        "@table type User { name: str }",
+        "@index User.by_name on (name)",
+        "@query fn c() to int { return 0 }",
+        "@mutation fn m(b: str) to int { return 0 }",
+        "@server fn h() to int { return 0 }",
+        "@tool fn t(q: str) to str { return q }",
+        "@resource \"u\" \"d\" fn r() to str { return \"\" }",
+    ] {
+        parse(lex(src)).unwrap_or_else(|e| panic!("@ form must still parse: {src}\n{e:?}"));
+    }
+}
+
+#[test]
 fn bare_call_still_rejected_at_toplevel() {
     // A bare `foo() {}` (no keyword, no `fn`) must STILL error — the optional-`fn`
     // change must not legalize top-level calls. `foo` is an Ident matching no soft
