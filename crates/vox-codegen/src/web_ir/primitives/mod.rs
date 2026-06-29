@@ -352,6 +352,73 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
             aria_role: Some("main"),
             surface_ref: surface_name.clone(),
         }),
+        // ── Form ──────────────────────────────────────────────────────────
+        // Two-way binding via `bind=` is handled by the existing bind expansion
+        // (jsx.rs expand_bind_attribute); these arms give the controls semantic
+        // base styling and a known html_tag. a11y is enforced in validate_a11y.
+        "input" => Some(PrimitiveEmission {
+            html_tag: "input",
+            base_classes: vec![
+                "flex".to_string(),
+                "h-9".to_string(),
+                "w-full".to_string(),
+                "rounded-md".to_string(),
+                "border".to_string(),
+                "border-input".to_string(),
+                "bg-transparent".to_string(),
+                "px-3".to_string(),
+                "py-1".to_string(),
+                "text-sm".to_string(),
+                "shadow-sm".to_string(),
+                "focus-visible:outline-none".to_string(),
+                "focus-visible:ring-1".to_string(),
+                "focus-visible:ring-ring".to_string(),
+            ],
+            aria_role: None,
+            surface_ref: surface_name.clone(),
+        }),
+        "textarea" => Some(PrimitiveEmission {
+            html_tag: "textarea",
+            base_classes: vec![
+                "flex".to_string(),
+                "min-h-16".to_string(),
+                "w-full".to_string(),
+                "rounded-md".to_string(),
+                "border".to_string(),
+                "border-input".to_string(),
+                "bg-transparent".to_string(),
+                "px-3".to_string(),
+                "py-2".to_string(),
+                "text-sm".to_string(),
+                "shadow-sm".to_string(),
+                "focus-visible:outline-none".to_string(),
+                "focus-visible:ring-1".to_string(),
+                "focus-visible:ring-ring".to_string(),
+            ],
+            aria_role: None,
+            surface_ref: surface_name.clone(),
+        }),
+        "select" => Some(PrimitiveEmission {
+            html_tag: "select",
+            base_classes: vec![
+                "flex".to_string(),
+                "h-9".to_string(),
+                "w-full".to_string(),
+                "rounded-md".to_string(),
+                "border".to_string(),
+                "border-input".to_string(),
+                "bg-transparent".to_string(),
+                "px-3".to_string(),
+                "py-1".to_string(),
+                "text-sm".to_string(),
+                "shadow-sm".to_string(),
+                "focus-visible:outline-none".to_string(),
+                "focus-visible:ring-1".to_string(),
+                "focus-visible:ring-ring".to_string(),
+            ],
+            aria_role: None,
+            surface_ref: surface_name.clone(),
+        }),
         // ── Overlay ───────────────────────────────────────────────────────
         "overlay" => Some(PrimitiveEmission {
             html_tag: "div",
@@ -864,6 +931,23 @@ mod tests {
             "{:?}",
             e.base_classes
         );
+    }
+
+    #[test]
+    fn form_controls_resolve_to_their_html_tags() {
+        for (tag, html) in [
+            ("input", "input"),
+            ("textarea", "textarea"),
+            ("select", "select"),
+        ] {
+            let e = resolve(tag, &[]).unwrap_or_else(|| panic!("{tag} must be a primitive"));
+            assert_eq!(e.html_tag, html, "{tag} html_tag");
+            assert!(
+                e.base_classes.contains(&"border".to_string()),
+                "{tag} should carry form-control base styling: {:?}",
+                e.base_classes
+            );
+        }
     }
 
     #[test]

@@ -147,13 +147,15 @@ pub fn validate_a11y(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
                     check_accessible_name(module, tag, attrs, children, out);
                 }
             }
-            "input" => {
+            "input" | "textarea" | "select" => {
                 let has_label =
                     has_aria_name(attrs) || attrs.iter().any(|(k, _)| k.eq_ignore_ascii_case("id"));
                 if !has_label {
                     out.push(WebIrDiagnostic {
-                        code: "web_ir_validate.a11y.input_missing_label".to_string(),
-                        message: "`input` element requires an `aria-label`, `aria-labelledby`, or associated `<label>` (via `id`)".to_string(),
+                        code: format!("web_ir_validate.a11y.{tag}_missing_label"),
+                        message: format!(
+                            "`{tag}` element requires an `aria-label`, `aria-labelledby`, or associated `<label>` (via `id`)"
+                        ),
                         span: None,
                         category: Some("a11y".to_string()),
                     });
@@ -404,6 +406,33 @@ mod tests {
                 .any(|d| d.code == "web_ir_validate.a11y.img_missing_alt"),
             "expected img_missing_alt: {diags:?}"
         );
+    }
+
+    #[test]
+    fn unlabeled_form_controls_are_errors() {
+        for tag in ["input", "textarea", "select"] {
+            let m = module_with_nodes(vec![elem(0, tag, vec![], vec![])]);
+            let mut out = Vec::new();
+            validate_a11y(&m, &mut out);
+            assert!(
+                out.iter()
+                    .any(|d| d.code == format!("web_ir_validate.a11y.{tag}_missing_label")),
+                "expected {tag}_missing_label: {out:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn labeled_form_controls_are_ok() {
+        for tag in ["input", "textarea", "select"] {
+            let m = module_with_nodes(vec![elem(0, tag, vec![("aria-label", "Email")], vec![])]);
+            let mut out = Vec::new();
+            validate_a11y(&m, &mut out);
+            assert!(
+                !out.iter().any(|d| d.code.ends_with("_missing_label")),
+                "labeled {tag} should pass: {out:?}"
+            );
+        }
     }
 
     #[test]
