@@ -268,6 +268,12 @@ pub struct DiscoveredSkill {
     pub path: String,
     /// True when a skill with this id is already in the registry.
     pub installed: bool,
+    /// Ecosystem root the skill lives under: `bundled|cursor|claude|agents|vox|unknown`.
+    pub source_root: String,
+    /// True only when the skill is under a `.vox/skills` root (safe to delete).
+    pub removable: bool,
+    /// Best-effort license signal: name of a LICENSE file in the dir, else "".
+    pub license: String,
 }
 
 /// `vox_skill_discover` — list bare SKILL.md skills found under the standard
@@ -294,6 +300,10 @@ pub fn skill_discover(state: &ServerState) -> String {
                     installed: installed.contains(&id),
                     name: ext.bundle.manifest.name,
                     description: ext.bundle.manifest.description,
+                    source_root: vox_plugin_host::user_install::source_root_label(&ext.path)
+                        .to_string(),
+                    removable: vox_plugin_host::user_install::is_removable(&ext.path),
+                    license: vox_plugin_host::user_install::license_hint(&ext.path),
                     path: ext.path.display().to_string(),
                     id,
                 }
@@ -327,5 +337,22 @@ pub async fn skill_run(state: &ServerState, params: SkillRunParams) -> String {
         .to_json(),
         Ok(Err(e)) => ToolResult::<String>::err(format!("sandbox run failed: {e}")).to_json(),
         Err(e) => ToolResult::<String>::err(format!("sandbox task failed: {e}")).to_json(),
+    }
+}
+
+#[cfg(test)]
+mod provenance_tests {
+    use std::path::Path;
+
+    use vox_plugin_host::user_install::{is_removable, license_hint, source_root_label};
+
+    #[test]
+    fn discovered_fields_derive_from_path() {
+        // A .vox/skills skill is removable and labelled "vox".
+        let dir = Path::new("/ws/.vox/skills/mine");
+        assert_eq!(source_root_label(dir), "vox");
+        assert!(is_removable(dir));
+        // license_hint returns "" for a path with no LICENSE file.
+        assert_eq!(license_hint(dir), "");
     }
 }
