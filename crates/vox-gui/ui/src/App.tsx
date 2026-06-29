@@ -108,6 +108,7 @@ type View =
   | 'coverage'
   | 'publications'
   | 'search'
+  | 'vox-search'
   | 'chat'
   | 'agents'
   | 'workspace'
