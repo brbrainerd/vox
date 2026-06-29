@@ -219,10 +219,11 @@ fn walk_expr(e: &HirExpr, out: &mut Vec<String>) {
         }
         AsyncView(v) => {
             walk_expr(&v.source, out);
-            for arm in [&v.fetching_arm, &v.empty_arm, &v.error_arm, &v.ok_arm] {
-                if let Some(a) = arm {
-                    walk_expr(a, out);
-                }
+            for arm in [&v.fetching_arm, &v.empty_arm, &v.error_arm, &v.ok_arm]
+                .into_iter()
+                .flatten()
+            {
+                walk_expr(arm, out);
             }
         }
         Try(t) => walk_expr(&t.target, out),

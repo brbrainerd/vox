@@ -1,13 +1,10 @@
 name: Mobile E2E - Android
+# Heavy GitHub-hosted macOS job. Per the tier note it runs only in the merge queue
+# and on 'full-ci'-labeled PRs — NOT on every direct push to main. The former `push:`
+# trigger cold-compiled vox-cli on macos-13 with no cache and no timeout, so a routine
+# main push could run for hours. Removed `push:`; added a build cache and a timeout.
 on:
   merge_group:
-  push:
-    paths:
-      - 'apps/vox-mental-tracker/**'
-      - 'crates/vox-cli/**'
-      - 'crates/vox-codegen/**'
-      - 'crates/vox-tauri-codegen/**'
-      - '.github/workflows/mobile-e2e-android.yml'
   pull_request:
     paths:
       - 'apps/vox-mental-tracker/**'
@@ -28,16 +25,27 @@ jobs:
     # Tier: heavy (GitHub-hosted macOS). merge_group + 'full-ci' label only; skip routine PR pushes.
     if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
     runs-on: macos-13
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: pnpm/action-setup@v6
+        with:
+          version: 9
       - uses: actions/setup-node@v6
         with:
           node-version: '24'
           cache: 'pnpm'
       - name: Install dependencies
         run: cd apps/vox-mental-tracker && pnpm install --frozen-lockfile
+      - name: Cargo Cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-tauri-android-${{ hashFiles('**/Cargo.lock') }}
       - name: Build vox CLI
         run: cargo build -p vox-cli
       - name: Build web bundle

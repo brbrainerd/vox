@@ -47,11 +47,8 @@ export const LEXICON: Record<string, LexEntry> = {
   'sub-agents': { en: 'Sub-Agents', la: 'Subagentes' },
   'vox-search': { en: 'Search Index', la: 'Index' },
   tasks: { en: 'Tasks', la: 'Munera' },
-  // Phase 2 heading slugs
+  // Phase 2 heading slugs (agents/needs-you/mesh reuse the nav keys above)
   'mc-mission': { en: 'Mission Control', la: 'Praefectura' },
-  'mc-agents': { en: 'Agents', la: 'Agentes' },
-  'mc-needs-you': { en: 'Needs You', la: 'Postulata' },
-  'mc-mesh': { en: 'Mesh', la: 'Rete' },
   'vg-corpus-health': { en: 'Graphify Corpus Health', la: 'Sanitas Corporis' },
   'sci-claims': { en: 'Findings Claims', la: 'Assertiones Inventorum' },
   'sci-home': { en: 'Vox Findings', la: 'Inventa Vox' },

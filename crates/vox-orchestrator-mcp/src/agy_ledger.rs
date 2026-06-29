@@ -141,7 +141,10 @@ pub fn digest_from_body(body: &str) -> LedgerDigest {
         if t.starts_with("# --- AGH-") && !t.contains("-review") && !t.contains("AGH-NNNN") {
             total += 1;
         }
-        if t.contains("categor") {
+        // Match only real `category:`/`categories:` fields (the inline
+        // `- { ... category: "x" ... }` error maps and the `categories: [...]`
+        // review lists), not free text that merely contains "categorize".
+        if t.contains("category:") || t.contains("categories:") {
             for cat in KNOWN_CATEGORIES {
                 if t.contains(cat) {
                     *counts.entry((*cat).to_string()).or_insert(0) += 1;
@@ -307,6 +310,23 @@ id: AGH-0002
         assert_eq!(d.total_entries, 2); // AGH-0001 + AGH-0002 (sentinel + -review excluded)
         assert_eq!(*d.category_counts.get("hallucinated-api").unwrap(), 2);
         assert_eq!(*d.category_counts.get("scope-creep").unwrap(), 1);
+    }
+
+    #[test]
+    fn digest_ignores_category_word_mid_line() {
+        // A free-text field that merely *mentions* "categorize" must NOT be
+        // tallied as a category, even when it also contains a known category
+        // token like "robustness" or "perf". Only real `category:`/`categories:`
+        // fields count.
+        let body = "\
+# --- AGH-0001 ---
+id: AGH-0001
+task: \"categorize the robustness work and rerun perf passes\"
+";
+        let d = digest_from_body(body);
+        assert_eq!(d.total_entries, 1);
+        assert_eq!(d.category_counts.get("robustness"), None);
+        assert_eq!(d.category_counts.get("perf"), None);
     }
 
     #[tokio::test]

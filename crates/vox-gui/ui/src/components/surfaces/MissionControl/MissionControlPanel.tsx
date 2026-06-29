@@ -226,7 +226,7 @@ export function MissionControlPanel({ pushToast }: MissionControlPanelProps) {
 
       <section aria-labelledby="mc-agents-heading">
         <h3 id="mc-agents-heading" className="ds-section-head">
-          {useLabel('mc-agents')}
+          {useLabel('agents')}
         </h3>
         {loading ? (
           <span aria-live="polite">Loading...</span>
@@ -237,7 +237,7 @@ export function MissionControlPanel({ pushToast }: MissionControlPanelProps) {
 
       <section aria-labelledby="mc-needs-you-heading">
         <h3 id="mc-needs-you-heading" className="ds-section-head">
-          {useLabel('mc-needs-you')}
+          {useLabel('needs-you')}
         </h3>
         {loading ? (
           <span aria-live="polite">Loading...</span>
@@ -248,7 +248,7 @@ export function MissionControlPanel({ pushToast }: MissionControlPanelProps) {
 
       <section aria-labelledby="mc-mesh-heading">
         <h3 id="mc-mesh-heading" className="ds-section-head">
-          {useLabel('mc-mesh')}
+          {useLabel('mesh')}
         </h3>
         <MeshSection />
       </section>
