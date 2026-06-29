@@ -170,6 +170,14 @@ fn keyword_form_shrinks_tokens_and_bytes() {
 }
 
 #[test]
+fn mcp_resource_still_parses_after_arm_split() {
+    // The dispatch split of `AtResource | AtMcpResource` (so only @resource warns) must
+    // not change @mcp.resource — it still routes to the non-headless parse_mcp_resource.
+    parse(lex("@mcp.resource \"vox://x\" \"d\" fn load() to str { return \"\" }"))
+        .unwrap_or_else(|e| panic!("@mcp.resource must still parse: {e:?}"));
+}
+
+#[test]
 fn tier1_decorators_still_parse_during_warning_first() {
     // Warning-first rollout: the retired `@` forms emit a deprecation warning but
     // STILL parse, so the suite stays green while the codemod migrates the corpus.
