@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
+import { useLabel } from '../../../hooks/useLanguage';
 import { listenDiscoverySurfaced, listenScientiaQueue } from '../../../transport';
 import {
   listDiscoveryInbox,
@@ -177,7 +178,7 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
     <section className="space-y-4">
       <div className="flex items-end justify-between">
         <div>
-          <h2 className="font-display text-lg tracking-wider text-text-primary uppercase">Discovery Inbox</h2>
+          <h2 className="font-display text-lg tracking-wider text-text-primary uppercase">{useLabel('discovery-inbox')}</h2>
           <p className="font-mono text-xs text-text-muted">
             Unacknowledged surfaced research candidates. Open one for review, or acknowledge to dismiss.
           </p>

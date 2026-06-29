@@ -5,6 +5,7 @@ import { Glass } from '../../ui/Glass';
 import { EmptyState } from '../../ui/EmptyState';
 import type { Toast } from '../../../types/tauri';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
+import { useLabel } from '../../../hooks/useLanguage';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -221,11 +222,11 @@ export function MissionControlPanel({ pushToast }: MissionControlPanelProps) {
 
   return (
     <Glass className="mission-control-panel" aria-label="Mission Control">
-      <h2 className="ds-section-head">Mission Control</h2>
+      <h2 className="ds-section-head">{useLabel('mc-mission')}</h2>
 
       <section aria-labelledby="mc-agents-heading">
         <h3 id="mc-agents-heading" className="ds-section-head">
-          Agents
+          {useLabel('mc-agents')}
         </h3>
         {loading ? (
           <span aria-live="polite">Loading...</span>
@@ -236,7 +237,7 @@ export function MissionControlPanel({ pushToast }: MissionControlPanelProps) {
 
       <section aria-labelledby="mc-needs-you-heading">
         <h3 id="mc-needs-you-heading" className="ds-section-head">
-          Needs You
+          {useLabel('mc-needs-you')}
         </h3>
         {loading ? (
           <span aria-live="polite">Loading...</span>
@@ -247,7 +248,7 @@ export function MissionControlPanel({ pushToast }: MissionControlPanelProps) {
 
       <section aria-labelledby="mc-mesh-heading">
         <h3 id="mc-mesh-heading" className="ds-section-head">
-          Mesh
+          {useLabel('mc-mesh')}
         </h3>
         <MeshSection />
       </section>
