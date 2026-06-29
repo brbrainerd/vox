@@ -241,14 +241,75 @@ impl DomArena {
                     span: None,
                 })
             }
-            // `match subject { … }` → DomNode::Expr via TS string (Task 8B / R14)
-            // Full DomNode::Conditional lowering is deferred (arm patterns may not be JSX).
-            // Count this as a fallback so the WebIR parity metric is honest.
-            HirExpr::Match(_, _, _) => {
-                self.expr_fallback_count += 1;
+            // `match subject { … }` → a right-nested DomNode::Conditional chain, so each
+            // arm body is a real child node the validators walk (palette/a11y/layer).
+            // v1 lowers ONLY non-binding patterns (Literal / nullary Constructor /
+            // Wildcard) with no guard — predicates reuse the `_tag` discriminator the TS
+            // emission relies on. Anything else keeps the honest raw-Expr fallback so
+            // bindings (`Some(x)`) and guards never silently lose their semantics.
+            // Design: docs/superpowers/specs/2026-06-29-p3-match-render-design.md
+            HirExpr::Match(scrutinee, arms, _) => {
+                use vox_compiler::hir::HirPattern as P;
                 let ctx = EmitCtx::new(state_names);
-                let ts = emit_hir_expr(expr, &ctx);
-                self.push(DomNode::Expr { ts, span: None })
+                let is_non_binding = |p: &P| match p {
+                    P::Literal(_, _) | P::Wildcard(_) => true,
+                    P::Constructor(_, fields, _) => {
+                        fields.iter().all(|f| matches!(f, P::Wildcard(_)))
+                    }
+                    P::Ident(_, _) | P::Tuple(_, _) => false,
+                };
+                let supported = arms
+                    .iter()
+                    .all(|a| a.guard.is_none() && is_non_binding(&a.pattern));
+                if !supported {
+                    self.expr_fallback_count += 1;
+                    let ts = emit_hir_expr(expr, &ctx);
+                    return self.push(DomNode::Expr { ts, span: None });
+                }
+                let scrut_ts = emit_hir_expr(scrutinee, &ctx);
+                // Base `else` = the wildcard arm's body (if any); empty otherwise (the
+                // typechecker guarantees exhaustiveness, matching TS `default: undefined`).
+                let mut else_children: Vec<DomNodeId> = arms
+                    .iter()
+                    .find(|a| matches!(a.pattern, P::Wildcard(_)))
+                    .map(|a| vec![self.lower_expr(&a.body, state_names, async_fn_names)])
+                    .unwrap_or_default();
+                // Fold the non-wildcard arms right-to-left into the Conditional chain.
+                let mut chain: Option<DomNodeId> = None;
+                for arm in arms.iter().rev() {
+                    if matches!(arm.pattern, P::Wildcard(_)) {
+                        continue;
+                    }
+                    let predicate = match &arm.pattern {
+                        P::Literal(lit, _) => {
+                            format!("{scrut_ts} === {}", emit_hir_expr(lit, &ctx))
+                        }
+                        P::Constructor(name, _, _) => {
+                            format!("({scrut_ts} as any)._tag === \"{name}\"")
+                        }
+                        _ => unreachable!("guarded by is_non_binding"),
+                    };
+                    let then_children =
+                        vec![self.lower_expr(&arm.body, state_names, async_fn_names)];
+                    let node = self.push(DomNode::Conditional {
+                        predicate,
+                        then_children,
+                        else_children: std::mem::take(&mut else_children),
+                        span: None,
+                    });
+                    else_children = vec![node];
+                    chain = Some(node);
+                }
+                match chain {
+                    Some(id) => id,
+                    // Only a wildcard arm (`match x { _ => <A/> }`): the body itself.
+                    None if !else_children.is_empty() => else_children[0],
+                    None => {
+                        self.expr_fallback_count += 1;
+                        let ts = emit_hir_expr(expr, &ctx);
+                        self.push(DomNode::Expr { ts, span: None })
+                    }
+                }
             }
             _ => {
                 self.expr_fallback_count += 1;

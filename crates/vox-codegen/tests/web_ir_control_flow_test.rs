@@ -10,7 +10,8 @@
 use vox_codegen::web_ir::{BehaviorNode, DomNode, lower::lower_hir_to_web_ir};
 use vox_compiler::ast::span::Span;
 use vox_compiler::hir::{
-    DefId, HirDerived, HirExpr, HirModule, HirReactiveComponent, HirReactiveMember, HirStmt,
+    DefId, HirDerived, HirExpr, HirMatchArm, HirModule, HirPattern, HirReactiveComponent,
+    HirReactiveMember, HirStmt,
 };
 
 fn s() -> Span {
@@ -168,5 +169,92 @@ fn reactive_derived_name_collected_into_name_set() {
         has_derived_decl,
         "HirReactiveMember::Derived must produce BehaviorNode::DerivedDecl with the correct name\nnodes: {:?}",
         web.behavior_nodes
+    );
+}
+
+// ── P3: match-in-render lowering (design: …/2026-06-29-p3-match-render-design.md) ──
+
+#[test]
+fn match_on_variant_lowers_to_conditional_chain() {
+    // match status { Loading => "l"  Ready => "r"  _ => "e" } → nested Conditional,
+    // NOT a raw DomNode::Expr blob — so the arm bodies are validated.
+    let arm = |pat, body: &str| HirMatchArm {
+        pattern: pat,
+        guard: None,
+        body: Box::new(HirExpr::StringLit(body.to_string(), s())),
+        span: s(),
+    };
+    let view = HirExpr::Match(
+        Box::new(HirExpr::Ident("status".to_string(), s())),
+        vec![
+            arm(HirPattern::Constructor("Loading".into(), vec![], s()), "l"),
+            arm(HirPattern::Constructor("Ready".into(), vec![], s()), "r"),
+            arm(HirPattern::Wildcard(s()), "e"),
+        ],
+        s(),
+    );
+    let web = lower_hir_to_web_ir(&component_with_view("StatusView", view));
+    let conds = web
+        .dom_nodes
+        .iter()
+        .filter(|n| matches!(n, DomNode::Conditional { .. }))
+        .count();
+    assert!(
+        conds >= 2,
+        "match must lower to a nested Conditional chain (>=2), got {conds}\n{:?}",
+        web.dom_nodes
+    );
+    let has_tag_pred = web.dom_nodes.iter().any(|n| {
+        matches!(n, DomNode::Conditional { predicate, .. } if predicate.contains("_tag === \"Loading\""))
+    });
+    assert!(
+        has_tag_pred,
+        "predicate must use the _tag discriminator\n{:?}",
+        web.dom_nodes
+    );
+}
+
+#[test]
+fn match_with_binding_keeps_expr_fallback() {
+    // match opt { Some(x) => x  None => "n" } binds `x` → must stay DomNode::Expr (v1).
+    let view = HirExpr::Match(
+        Box::new(HirExpr::Ident("opt".to_string(), s())),
+        vec![
+            HirMatchArm {
+                pattern: HirPattern::Constructor(
+                    "Some".into(),
+                    vec![HirPattern::Ident("x".into(), s())],
+                    s(),
+                ),
+                guard: None,
+                body: Box::new(HirExpr::Ident("x".into(), s())),
+                span: s(),
+            },
+            HirMatchArm {
+                pattern: HirPattern::Constructor("None".into(), vec![], s()),
+                guard: None,
+                body: Box::new(HirExpr::StringLit("n".into(), s())),
+                span: s(),
+            },
+        ],
+        s(),
+    );
+    let web = lower_hir_to_web_ir(&component_with_view("OptView", view));
+    let conds = web
+        .dom_nodes
+        .iter()
+        .filter(|n| matches!(n, DomNode::Conditional { .. }))
+        .count();
+    assert_eq!(
+        conds, 0,
+        "binding pattern must NOT lower to Conditional\n{:?}",
+        web.dom_nodes
+    );
+    assert!(
+        web.dom_nodes
+            .iter()
+            .any(|n| matches!(n, DomNode::Expr { .. })),
+        "binding match must keep the raw-Expr fallback\n{:?}",
+        web.dom_nodes
     );
 }
