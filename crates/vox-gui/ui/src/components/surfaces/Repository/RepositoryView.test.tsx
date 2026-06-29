@@ -18,6 +18,7 @@ vi.mock('../../../lib/gamifyGuiEvents', () => ({
   recordGamifyGuiEvent: (...args: unknown[]) => recordGamifyMock(...args),
 }));
 
+import { LanguageProvider } from '../../../hooks/useLanguage';
 import { RepositoryView } from './RepositoryView';
 
 describe('RepositoryView', () => {
@@ -28,12 +29,12 @@ describe('RepositoryView', () => {
   });
 
   it('renders the Repository Harness heading', () => {
-    render(<RepositoryView pushToast={vi.fn()} />);
+    render(<LanguageProvider><RepositoryView pushToast={vi.fn()} /></LanguageProvider>);
     expect(screen.getByText('Repository Harness')).toBeTruthy();
   });
 
   it('every action button carries an explicit type="button"', async () => {
-    render(<RepositoryView pushToast={vi.fn()} />);
+    render(<LanguageProvider><RepositoryView pushToast={vi.fn()} /></LanguageProvider>);
     await waitFor(() => expect(screen.getByText('Workspace status')).toBeTruthy());
     for (const b of screen.getAllByRole('button')) {
       expect(b.getAttribute('type')).toBe('button');
@@ -41,13 +42,13 @@ describe('RepositoryView', () => {
   });
 
   it('marks the command output region as a polite live region', () => {
-    render(<RepositoryView pushToast={vi.fn()} />);
+    render(<LanguageProvider><RepositoryView pushToast={vi.fn()} /></LanguageProvider>);
     const out = screen.getByLabelText('Command output');
     expect(out.getAttribute('aria-live')).toBe('polite');
   });
 
   it('fires isolation_scan_complete when a repository action succeeds', async () => {
-    render(<RepositoryView pushToast={vi.fn()} gamifyEnabled />);
+    render(<LanguageProvider><RepositoryView pushToast={vi.fn()} gamifyEnabled /></LanguageProvider>);
     await waitFor(() => expect(screen.getByText('Workspace status')).toBeTruthy());
     fireEvent.click(screen.getByText('Workspace status'));
     await vi.waitFor(() => {

@@ -53,6 +53,7 @@ vi.mock('../../../transport', async (importOriginal) => {
 });
 
 import { ChatSurface } from './ChatSurface';
+import { LanguageProvider } from '../../../hooks/useLanguage';
 
 /** Minimal ResizeObserver mock driven to a controllable width. */
 let lastRoCallback: ResizeObserverCallback | null = null;
@@ -88,7 +89,7 @@ describe('ChatSurface responsive rails', () => {
   });
 
   it('shows the session toggle and reveals the rail as an overlay when narrow', async () => {
-    render(<ChatSurface pushToast={() => {}} activeSessionId="s1" onNavigate={() => {}} />);
+    render(<LanguageProvider><ChatSurface pushToast={() => {}} activeSessionId="s1" onNavigate={() => {}} /></LanguageProvider>);
     await screen.findByTestId('chat-surface-layout');
 
     emitWidth(375);
@@ -103,7 +104,7 @@ describe('ChatSurface responsive rails', () => {
   });
 
   it('keeps both rails inline (no toggles) at desktop width', async () => {
-    render(<ChatSurface pushToast={() => {}} activeSessionId="s1" onNavigate={() => {}} />);
+    render(<LanguageProvider><ChatSurface pushToast={() => {}} activeSessionId="s1" onNavigate={() => {}} /></LanguageProvider>);
     await screen.findByTestId('chat-surface-layout');
 
     emitWidth(1400);

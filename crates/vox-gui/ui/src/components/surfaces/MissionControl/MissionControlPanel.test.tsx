@@ -10,6 +10,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 }));
 
 import { MissionControlPanel } from './MissionControlPanel';
+import { LanguageProvider } from '../../../hooks/useLanguage';
 
 describe('MissionControlPanel', () => {
   beforeEach(() => {
@@ -23,7 +24,7 @@ describe('MissionControlPanel', () => {
   });
 
   it('renders the three section headings', async () => {
-    render(<MissionControlPanel />);
+    render(<LanguageProvider><MissionControlPanel /></LanguageProvider>);
     await waitFor(() => {
       expect(screen.getByText('Agents')).toBeDefined();
       expect(screen.getByText('Needs You')).toBeDefined();
@@ -32,14 +33,14 @@ describe('MissionControlPanel', () => {
   });
 
   it('shows empty state for agents when tree is empty', async () => {
-    render(<MissionControlPanel />);
+    render(<LanguageProvider><MissionControlPanel /></LanguageProvider>);
     await waitFor(() => {
       expect(screen.getByText(/No active subagent delegations/i)).toBeDefined();
     });
   });
 
   it('shows empty state for approvals when list is empty', async () => {
-    render(<MissionControlPanel />);
+    render(<LanguageProvider><MissionControlPanel /></LanguageProvider>);
     await waitFor(() => {
       expect(screen.getByText(/No pending approvals/i)).toBeDefined();
     });
@@ -54,7 +55,7 @@ describe('MissionControlPanel', () => {
       }
       return Promise.resolve([]);
     });
-    render(<MissionControlPanel />);
+    render(<LanguageProvider><MissionControlPanel /></LanguageProvider>);
     await waitFor(() => {
       // The reason text is rendered in its own span
       expect(screen.getByText('delegate-writes')).toBeDefined();
@@ -75,7 +76,7 @@ describe('MissionControlPanel', () => {
       }
       return Promise.resolve([]);
     });
-    render(<MissionControlPanel />);
+    render(<LanguageProvider><MissionControlPanel /></LanguageProvider>);
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /Approve REV-42/i })).toBeDefined();
       expect(screen.getByRole('button', { name: /Reject REV-42/i })).toBeDefined();
@@ -83,7 +84,7 @@ describe('MissionControlPanel', () => {
   });
 
   it('renders the mesh policy Apply button', async () => {
-    render(<MissionControlPanel />);
+    render(<LanguageProvider><MissionControlPanel /></LanguageProvider>);
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /Apply/i })).toBeDefined();
     });

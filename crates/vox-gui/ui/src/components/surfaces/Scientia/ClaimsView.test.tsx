@@ -25,6 +25,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 }));
 
 import { ClaimsView } from './ClaimsView';
+import { LanguageProvider } from '../../../hooks/useLanguage';
 
 describe('ClaimsView', () => {
   beforeEach(() => {
@@ -33,14 +34,14 @@ describe('ClaimsView', () => {
   });
 
   it('action buttons are explicit type="button"', () => {
-    render(<ClaimsView pushToast={vi.fn()} />);
+    render(<LanguageProvider><ClaimsView pushToast={vi.fn()} /></LanguageProvider>);
     for (const b of screen.getAllByRole('button')) {
       expect(b.getAttribute('type')).toBe('button');
     }
   });
 
   it('renders loaded claims inside an aria-live list', async () => {
-    render(<ClaimsView pushToast={vi.fn()} />);
+    render(<LanguageProvider><ClaimsView pushToast={vi.fn()} /></LanguageProvider>);
     fireEvent.change(screen.getByPlaceholderText('publication id'), { target: { value: 'pub-1' } });
     fireEvent.click(screen.getByText('Load'));
     const claim = await screen.findByText('The widget improves throughput by 12%.');

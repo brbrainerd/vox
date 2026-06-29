@@ -12,6 +12,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 const noopToast = () => {};
 
 import { ApprovalsView } from './ApprovalsView';
+import { LanguageProvider } from '../../../hooks/useLanguage';
 
 function envelope(approvals: unknown[]) {
   return {
@@ -27,7 +28,7 @@ describe('ApprovalsView', () => {
 
   it('shows the empty state when there are no pending approvals', async () => {
     invokeMock.mockResolvedValue(envelope([]));
-    render(<ApprovalsView pushToast={noopToast} />);
+    render(<LanguageProvider><ApprovalsView pushToast={noopToast} /></LanguageProvider>);
     await waitFor(() => {
       expect(screen.getByText(/No pending approvals/i)).toBeDefined();
     });
@@ -39,7 +40,7 @@ describe('ApprovalsView', () => {
         { approval_id: 'ap-1', tool: 'shell', summary: 'rm -rf', requested_at_ms: Date.now() },
       ]),
     );
-    render(<ApprovalsView pushToast={noopToast} />);
+    render(<LanguageProvider><ApprovalsView pushToast={noopToast} /></LanguageProvider>);
     await waitFor(() => {
       expect(screen.getByText('rm -rf')).toBeDefined();
     });
@@ -53,7 +54,7 @@ describe('ApprovalsView', () => {
         { approval_id: 'ap-1', tool: 'shell', summary: 'do thing', requested_at_ms: Date.now() },
       ]),
     );
-    render(<ApprovalsView pushToast={noopToast} />);
+    render(<LanguageProvider><ApprovalsView pushToast={noopToast} /></LanguageProvider>);
     const approve = await screen.findByRole('button', { name: /approve do thing|approve ap-1/i });
     const reject = await screen.findByRole('button', { name: /reject do thing|reject ap-1/i });
     expect(approve.getAttribute('type')).toBe('button');
@@ -66,7 +67,7 @@ describe('ApprovalsView', () => {
         { approval_id: 'ap-1', tool: 'shell', summary: 'do thing', requested_at_ms: Date.now() },
       ]),
     );
-    render(<ApprovalsView pushToast={vi.fn()} />);
+    render(<LanguageProvider><ApprovalsView pushToast={vi.fn()} /></LanguageProvider>);
     await waitFor(() => {
       expect(screen.getByText('Request ID')).toBeDefined();
       expect(screen.getByText('Action Description')).toBeDefined();

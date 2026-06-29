@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { LanguageProvider } from '../../../hooks/useLanguage';
 
 vi.mock('@msgpack/msgpack', () => ({
   decode: vi.fn(() => ({ agents: [] })),
@@ -53,9 +54,11 @@ import { Console } from './Console';
 function renderConsole(props: React.ComponentProps<typeof Console>) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <QueryClientProvider client={client}>
-      <Console {...props} />
-    </QueryClientProvider>,
+    <LanguageProvider>
+      <QueryClientProvider client={client}>
+        <Console {...props} />
+      </QueryClientProvider>
+    </LanguageProvider>,
   );
 }
 

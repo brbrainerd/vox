@@ -4,6 +4,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { ChatSessionRail } from './ChatSessionRail';
+import { LanguageProvider } from '../../../hooks/useLanguage';
 
 const sessions = [
   { session_id: 's1', title: 'First', message_count: 2 },
@@ -17,12 +18,14 @@ describe('ChatSessionRail', () => {
 
   it('marks the active session tab with aria-pressed', () => {
     render(
-      <ChatSessionRail
-        sessions={sessions}
-        activeSessionId="s1"
-        onSessionChange={vi.fn()}
-        onCreateSession={vi.fn()}
-      />,
+      <LanguageProvider>
+        <ChatSessionRail
+          sessions={sessions}
+          activeSessionId="s1"
+          onSessionChange={vi.fn()}
+          onCreateSession={vi.fn()}
+        />
+      </LanguageProvider>,
     );
     const active = screen.getByRole('tab', { name: /First/ });
     expect(active.getAttribute('aria-pressed')).toBe('true');
@@ -31,12 +34,14 @@ describe('ChatSessionRail', () => {
   it('can collapse and expand the sessions rail', async () => {
     const user = userEvent.setup();
     render(
-      <ChatSessionRail
-        sessions={sessions}
-        activeSessionId="s1"
-        onSessionChange={vi.fn()}
-        onCreateSession={vi.fn()}
-      />,
+      <LanguageProvider>
+        <ChatSessionRail
+          sessions={sessions}
+          activeSessionId="s1"
+          onSessionChange={vi.fn()}
+          onCreateSession={vi.fn()}
+        />
+      </LanguageProvider>,
     );
 
     expect(screen.getByRole('tablist', { name: /chat sessions/i })).toBeInTheDocument();
@@ -54,12 +59,14 @@ describe('ChatSessionRail', () => {
   it('persists collapsed state in localStorage', async () => {
     const user = userEvent.setup();
     render(
-      <ChatSessionRail
-        sessions={sessions}
-        activeSessionId="s1"
-        onSessionChange={vi.fn()}
-        onCreateSession={vi.fn()}
-      />,
+      <LanguageProvider>
+        <ChatSessionRail
+          sessions={sessions}
+          activeSessionId="s1"
+          onSessionChange={vi.fn()}
+          onCreateSession={vi.fn()}
+        />
+      </LanguageProvider>,
     );
 
     await user.click(screen.getByRole('button', { name: /collapse sessions rail/i }));

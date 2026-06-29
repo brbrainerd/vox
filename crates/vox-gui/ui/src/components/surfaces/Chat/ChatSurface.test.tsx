@@ -41,6 +41,7 @@ const noopToast = () => {};
 
 import { ChatSurface } from './ChatSurface';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
+import { LanguageProvider } from '../../../hooks/useLanguage';
 
 
 describe('ChatSurface', () => {
@@ -58,7 +59,7 @@ describe('ChatSurface', () => {
   });
 
   it('marks the active session tab with aria-pressed', async () => {
-    render(<ChatSurface pushToast={noopToast} activeSessionId="s1" />);
+    render(<LanguageProvider><ChatSurface pushToast={noopToast} activeSessionId="s1" /></LanguageProvider>);
     const active = await screen.findByRole('tab', { name: /First/ });
     expect(active.getAttribute('aria-pressed')).toBe('true');
     const inactive = screen.getByRole('tab', { name: /Second/ });
@@ -66,13 +67,13 @@ describe('ChatSurface', () => {
   });
 
   it('gives the New session button an explicit type', async () => {
-    render(<ChatSurface pushToast={noopToast} activeSessionId="s1" />);
+    render(<LanguageProvider><ChatSurface pushToast={noopToast} activeSessionId="s1" /></LanguageProvider>);
     const newBtn = await screen.findByRole('button', { name: /new chat session/i });
     expect(newBtn.getAttribute('type')).toBe('button');
   });
 
   it('renders an empty state when the session has no messages', async () => {
-    render(<ChatSurface pushToast={noopToast} activeSessionId="s1" messages={[]} />);
+    render(<LanguageProvider><ChatSurface pushToast={noopToast} activeSessionId="s1" messages={[]} /></LanguageProvider>);
     await waitFor(() => {
       expect(screen.getByText(/no messages yet/i)).toBeDefined();
     });
@@ -82,29 +83,31 @@ describe('ChatSurface', () => {
     const messages: ChatMessage[] = [
       { id: 'm1', role: 'user', text: 'hi', status: 'done' } as ChatMessage,
     ];
-    render(<ChatSurface pushToast={noopToast} activeSessionId="s1" messages={messages} />);
+    render(<LanguageProvider><ChatSurface pushToast={noopToast} activeSessionId="s1" messages={messages} /></LanguageProvider>);
     const log = await screen.findByRole('log', { name: /chat transcript/i });
     expect(log.getAttribute('aria-live')).toBe('polite');
   });
 
   it('renders an agent event row when agentStreamItems is provided', async () => {
     render(
-      <ChatSurface
-        pushToast={noopToast}
-        activeSessionId="s1"
-        messages={[]}
-        agentStreamItems={[
-          {
-            id: 'evt-1',
-            kind: 'agent',
-            tag: 'TASK',
-            title: 'TASK · task 7',
-            body: 'agent agent-1',
-            ts: '12:00',
-            metadata: { eventType: 'task_started', agentId: 'agent-1', timestampMs: 1000 },
-          },
-        ]}
-      />,
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={noopToast}
+          activeSessionId="s1"
+          messages={[]}
+          agentStreamItems={[
+            {
+              id: 'evt-1',
+              kind: 'agent',
+              tag: 'TASK',
+              title: 'TASK · task 7',
+              body: 'agent agent-1',
+              ts: '12:00',
+              metadata: { eventType: 'task_started', agentId: 'agent-1', timestampMs: 1000 },
+            },
+          ]}
+        />
+      </LanguageProvider>,
     );
     await waitFor(() => {
       expect(screen.getByTestId('chat-agent-event-row')).toBeDefined();
@@ -114,11 +117,13 @@ describe('ChatSurface', () => {
 
   it('renders embedded composer when composer slot is provided', async () => {
     render(
-      <ChatSurface
-        pushToast={noopToast}
-        activeSessionId="s1"
-        composer={<div data-testid="loquela-composer">composer</div>}
-      />,
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={noopToast}
+          activeSessionId="s1"
+          composer={<div data-testid="loquela-composer">composer</div>}
+        />
+      </LanguageProvider>,
     );
     await waitFor(() => {
       expect(screen.getByTestId('loquela-composer')).toBeDefined();
@@ -127,7 +132,7 @@ describe('ChatSurface', () => {
 
   it('shows SecretaryToast when secretary-proposed-task event fires', async () => {
     const onNavigate = vi.fn();
-    render(<ChatSurface pushToast={noopToast} onNavigate={onNavigate} activeSessionId="s1" />);
+    render(<LanguageProvider><ChatSurface pushToast={noopToast} onNavigate={onNavigate} activeSessionId="s1" /></LanguageProvider>);
     // Wait for the listen subscriptions to be set up
     await waitFor(() => expect(getSecretaryEventHandler()).not.toBeNull());
     // Simulate the event
