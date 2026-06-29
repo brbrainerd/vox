@@ -3,6 +3,7 @@ import { Glass } from '../../ui/Glass';
 import { Kpi } from '../../ui/Kpi';
 import { useLocalStorage } from '../../../hooks/useLocalStorage';
 import { ContextWindowMeter } from './ContextWindowMeter';
+import { useLabel } from '../../../hooks/useLanguage';
 import { getContextBudget, type ContextBudgetPayload } from '../../../transport';
 
 
@@ -111,7 +112,7 @@ export function ChatExecutionRail({
     <aside className="w-56 shrink-0">
       <Glass className="flex h-full flex-col gap-3 p-3">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-[10px] uppercase tracking-[0.18em] text-brass">Execution</h2>
+          <h2 className="text-[10px] uppercase tracking-[0.18em] text-brass">{useLabel('chat-execution')}</h2>
           <button
             type="button"
             aria-label="Collapse execution rail"

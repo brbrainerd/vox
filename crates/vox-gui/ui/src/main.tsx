@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './index.css'
 import App from './App'
 import { installConsoleBridge } from './lib/consoleBridge'
+import { LanguageProvider } from './hooks/useLanguage'
 import { applyTheme } from './lib/theme'
 import { voxTransport } from './transport'
 
@@ -38,8 +39,10 @@ voxTransport
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
+    <LanguageProvider>
+      <QueryClientProvider client={queryClient}>
+        <App />
+      </QueryClientProvider>
+    </LanguageProvider>
   </React.StrictMode>,
 )

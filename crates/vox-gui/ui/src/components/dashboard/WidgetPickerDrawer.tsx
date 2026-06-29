@@ -2,6 +2,7 @@ import React from 'react';
 import type { DashboardLayout, DashboardWidgetKind } from '../../lib/dashboardLayout';
 import { availableWidgetKinds, widgetKindLabel } from '../../lib/dashboardLayout';
 import { DASHBOARD_SECTIONS, surfacesForSection, type DashboardSection } from '../../lib/dashboardSections';
+import { labelFor, currentLang } from '../../lib/lexicon';
 
 export interface WidgetPickerDrawerProps {
   layout: DashboardLayout;
@@ -22,7 +23,7 @@ const SECTION_LABELS: Record<DashboardSection, string> = {
 /** Surfaces offered per section, with the synthetic Cost monitorable injected. */
 function surfaceOfferings(section: DashboardSection): Array<{ key: string; label: string }> {
   if (section === 'cost') return [{ key: 'cost', label: 'OpenRouter Spend' }];
-  return surfacesForSection(section).map((r) => ({ key: r.viewKey as string, label: r.navLabel as string }));
+  return surfacesForSection(section).map((r) => ({ key: r.viewKey as string, label: labelFor(r.viewKey as string, currentLang()) }));
 }
 
 export function WidgetPickerDrawer({ layout, open, onClose, onAdd, onAddSurface }: WidgetPickerDrawerProps) {

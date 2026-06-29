@@ -31,6 +31,7 @@ vi.mock('../../../transport', () => ({
   listenDiscoverySurfaced: (...args: unknown[]) => listenDiscoverySurfacedMock(...args),
 }));
 
+import { LanguageProvider } from '../../../hooks/useLanguage';
 import { DiscoveryInbox } from './DiscoveryInbox';
 
 describe('DiscoveryInbox', () => {
@@ -40,7 +41,7 @@ describe('DiscoveryInbox', () => {
   });
 
   it('renders an unacknowledged strong_candidate row (tier badge + research origin)', async () => {
-    render(<DiscoveryInbox pushToast={vi.fn()} />);
+    render(<LanguageProvider><DiscoveryInbox pushToast={vi.fn()} /></LanguageProvider>);
     expect(await screen.findByText('commit-abc123')).toBeTruthy();
     expect(screen.getByText('strong candidate')).toBeTruthy();
     expect(screen.getByText('research')).toBeTruthy();
@@ -49,7 +50,7 @@ describe('DiscoveryInbox', () => {
   });
 
   it('all controls are explicit type="button" and rows form an aria-live list', async () => {
-    render(<DiscoveryInbox pushToast={vi.fn()} />);
+    render(<LanguageProvider><DiscoveryInbox pushToast={vi.fn()} /></LanguageProvider>);
     await screen.findByText('commit-abc123');
     for (const b of screen.getAllByRole('button')) {
       expect(b.getAttribute('type')).toBe('button');
@@ -59,7 +60,7 @@ describe('DiscoveryInbox', () => {
   });
 
   it('acknowledging calls the acknowledge command and removes the row', async () => {
-    render(<DiscoveryInbox pushToast={vi.fn()} />);
+    render(<LanguageProvider><DiscoveryInbox pushToast={vi.fn()} /></LanguageProvider>);
     const pub = await screen.findByText('commit-abc123');
     expect(pub).toBeTruthy();
 

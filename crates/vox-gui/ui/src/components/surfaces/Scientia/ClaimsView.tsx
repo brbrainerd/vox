@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
+import { useLabel } from '../../../hooks/useLanguage';
 
 interface ExecuteOutput {
   exit_code: number;
@@ -91,7 +92,7 @@ export function ClaimsView({ pushToast }: SurfaceDecoratorProps) {
   return (
     <section className="space-y-4">
       <div>
-        <h2 className="font-display text-lg tracking-wider text-text-primary uppercase">Scientia Claims</h2>
+        <h2 className="font-display text-lg tracking-wider text-text-primary uppercase">{useLabel('sci-claims')}</h2>
         <p className="font-mono text-xs text-text-muted">Atomic claim extraction + verification ledger</p>
       </div>
 

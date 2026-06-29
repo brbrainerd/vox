@@ -19,6 +19,7 @@ vi.mock('../../../lib/gamifyGuiEvents', () => ({
   recordGamifyGuiEvent: (...args: unknown[]) => recordGamifyMock(...args),
 }));
 
+import { LanguageProvider } from '../../../hooks/useLanguage';
 import { DiscoveryRail } from './DiscoveryRail';
 
 describe('DiscoveryRail', () => {
@@ -30,13 +31,13 @@ describe('DiscoveryRail', () => {
   });
 
   it('renders help for the active action id', async () => {
-    render(<DiscoveryRail actionId="vox.scientia.review" nowMs={1000} />);
+    render(<LanguageProvider><DiscoveryRail actionId="vox.scientia.review" nowMs={1000} /></LanguageProvider>);
     await waitFor(() => expect(screen.getByText('Review queued nanopubs')).toBeTruthy());
     expect(screen.getByText('vox scientia review')).toBeTruthy();
   });
 
   it('records a seen exposure for the displayed action', async () => {
-    render(<DiscoveryRail actionId="vox.scientia.review" nowMs={1000} />);
+    render(<LanguageProvider><DiscoveryRail actionId="vox.scientia.review" nowMs={1000} /></LanguageProvider>);
     // The "seen" exposure fires after a 2s dwell timer, so wait past it.
     await waitFor(() => expect(recordMock).toHaveBeenCalled(), { timeout: 3000 });
     expect(recordMock.mock.calls[0][0]).toBe('vox.scientia.review');
@@ -46,12 +47,14 @@ describe('DiscoveryRail', () => {
   it('fires discovery_action_used when Use is clicked', async () => {
     const onUse = vi.fn();
     render(
-      <DiscoveryRail
-        actionId="vox.scientia.review"
-        nowMs={1000}
-        gamifyEnabled
-        onUseAction={onUse}
-      />,
+      <LanguageProvider>
+        <DiscoveryRail
+          actionId="vox.scientia.review"
+          nowMs={1000}
+          gamifyEnabled
+          onUseAction={onUse}
+        />
+      </LanguageProvider>,
     );
     await waitFor(() => expect(screen.getByRole('button', { name: /Use suggested action/i })).toBeTruthy());
     screen.getByRole('button', { name: /Use suggested action/i }).click();
@@ -64,7 +67,7 @@ describe('DiscoveryRail', () => {
   });
 
   it('announces help updates via a polite live region', async () => {
-    render(<DiscoveryRail actionId="vox.scientia.review" nowMs={1000} />);
+    render(<LanguageProvider><DiscoveryRail actionId="vox.scientia.review" nowMs={1000} /></LanguageProvider>);
     const rail = screen.getByLabelText('discovery');
     expect(rail.getAttribute('aria-live')).toBe('polite');
     await waitFor(() => expect(screen.getByText('Review queued nanopubs')).toBeTruthy());
@@ -72,7 +75,7 @@ describe('DiscoveryRail', () => {
 
   it('can collapse and expand the discovery rail with aria-expanded', async () => {
     const user = userEvent.setup();
-    render(<DiscoveryRail actionId="vox.scientia.review" nowMs={1000} />);
+    render(<LanguageProvider><DiscoveryRail actionId="vox.scientia.review" nowMs={1000} /></LanguageProvider>);
     await waitFor(() => expect(screen.getByText('Review queued nanopubs')).toBeTruthy());
 
     const collapse = screen.getByRole('button', { name: /collapse discovery rail/i });
@@ -88,7 +91,7 @@ describe('DiscoveryRail', () => {
 
   it('persists collapsed state in localStorage', async () => {
     const user = userEvent.setup();
-    render(<DiscoveryRail actionId="vox.scientia.review" nowMs={1000} />);
+    render(<LanguageProvider><DiscoveryRail actionId="vox.scientia.review" nowMs={1000} /></LanguageProvider>);
     await waitFor(() => expect(screen.getByText('Review queued nanopubs')).toBeTruthy());
 
     await user.click(screen.getByRole('button', { name: /collapse discovery rail/i }));

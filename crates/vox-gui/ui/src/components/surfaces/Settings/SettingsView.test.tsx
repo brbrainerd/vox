@@ -88,10 +88,15 @@ vi.mock('./PriorityChainEditor', () => ({
 }));
 
 import { SettingsView } from './SettingsView';
+import { LanguageProvider } from '../../../hooks/useLanguage';
 
 function wrapper({ children }: { children: React.ReactNode }) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={qc}>
+      <LanguageProvider>{children}</LanguageProvider>
+    </QueryClientProvider>
+  );
 }
 
 describe('SettingsView', () => {
@@ -203,5 +208,16 @@ describe('SettingsView', () => {
       'gui.keybinds',
       expect.stringContaining('"open-palette":"Mod+P"'),
     ));
+  });
+
+  it('toggles display language and persists vox.lang', () => {
+    window.localStorage.clear();
+    render(<SettingsView pushToast={vi.fn()} />, { wrapper });
+    fireEvent.click(screen.getByRole('button', { name: /^Display$/i }));
+    expect(screen.getByText('Latin labels')).toBeInTheDocument();
+    // Toggle is aria-pressed=false initially; it's the only toggle in the display section
+    const toggle = screen.getByRole('button', { name: /^Toggle off$/i });
+    fireEvent.click(toggle);
+    expect(window.localStorage.getItem('vox.lang')).toBe('la');
   });
 });

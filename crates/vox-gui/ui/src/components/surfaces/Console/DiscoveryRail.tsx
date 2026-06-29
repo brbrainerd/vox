@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { discoveryHelp, discoveryRecord, type ActionHelp } from '../../../transport';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
+import { useLabel } from '../../../hooks/useLanguage';
 import { Glass } from '../../ui/Glass';
 import { useLocalStorage } from '../../../hooks/useLocalStorage';
 
@@ -97,7 +98,7 @@ export function DiscoveryRail({ actionId, nowMs, gamifyEnabled = false, onUseAct
     >
       <Glass className="flex h-full flex-col gap-2 p-3 text-xs">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-[10px] uppercase tracking-[0.18em] text-brass">Discovery</h2>
+          <h2 className="text-[10px] uppercase tracking-[0.18em] text-brass">{useLabel('con-discovery')}</h2>
           <button
             type="button"
             aria-label="Collapse discovery rail"

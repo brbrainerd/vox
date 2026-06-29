@@ -13,6 +13,8 @@ import { defaultDashboardLayout, type DashboardWidget, addWidgetToLayout, resetD
 import { DashboardGrid, persistDashboardLayout } from '../../dashboard/DashboardGrid';
 import { WidgetPickerDrawer } from '../../dashboard/WidgetPickerDrawer';
 import { useLocalStorage } from '../../../hooks/useLocalStorage';
+import { labelFor } from '../../../lib/lexicon';
+import { useLang } from '../../../hooks/useLanguage';
 import { SHELL_PREFERENCE_KEYS } from '../../../lib/shellPersistence';
 import { loadDashboardLayout } from '../../dashboard/DashboardGrid';
 import {
@@ -33,7 +35,6 @@ import { resolveWidget } from '../../dashboard/dashboardWidgetRegistry';
 import { SurfaceMiniRender } from '../../dashboard/SurfaceMiniRender';
 import { WidgetErrorBoundary } from '../../dashboard/WidgetErrorBoundary';
 import { childRenderer, type SurfaceProps } from '../../layout/surfaceComponents';
-import { SURFACE_REGISTRY } from '../../../generated/surfaceRegistry.generated';
 import type { Toast } from '../../../types/tauri';
 
 /** Consistent empty-state hint for a panel with no data yet. */
@@ -81,6 +82,7 @@ export function Dashboard({
   attention_budget,
   pushToast,
 }: DashboardProps) {
+  const { lang } = useLang();
   const filters = ["all", "validated", "in-progress", "doubted", "speculative"];
   const stream = data.stream.filter(s => filterKind === "all" ? true : s.kind === filterKind);
   const [customizeMode, setCustomizeMode] = useState(false);
@@ -169,8 +171,7 @@ export function Dashboard({
   function surfaceLabel(surfaceKey: string): string {
     // synthetic 'cost' has no registry row → give it a real label, not the raw key
     if (surfaceKey === 'cost') return 'OpenRouter Spend';
-    const row = SURFACE_REGISTRY.find((e) => e.viewKey === surfaceKey);
-    return row?.navLabel ?? surfaceKey;
+    return labelFor(surfaceKey, lang);
   }
 
   // Build the SurfaceProps bag the mini-render mounts real surfaces with. Closes

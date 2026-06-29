@@ -1,6 +1,7 @@
 import React from 'react';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
 import { SURFACE_REGISTRY, RepresentationTier } from '../../../generated/surfaceRegistry.generated';
+import { useLabel } from '../../../hooks/useLanguage';
 
 const TIER_STYLE: Record<RepresentationTier, { label: string; cls: string }> = {
   none:              { label: 'Unrepresented', cls: 'text-text-muted ring-white/10' },
@@ -17,7 +18,7 @@ export function CoverageView(_props: SurfaceDecoratorProps) {
   }, {});
   return (
     <section className="space-y-4">
-      <h2 className="font-display text-lg text-text-primary tracking-wider uppercase">Surface Coverage</h2>
+      <h2 className="font-display text-lg text-text-primary tracking-wider uppercase">{useLabel('cov-surface')}</h2>
       <div className="flex flex-wrap gap-2 text-[11px]">
         {(Object.keys(TIER_STYLE) as RepresentationTier[]).map(t => (
           <span key={t} className={`rounded-full px-2 py-0.5 ring-1 ${TIER_STYLE[t].cls}`}>

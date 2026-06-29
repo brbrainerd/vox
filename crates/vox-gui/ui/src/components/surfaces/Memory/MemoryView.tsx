@@ -3,6 +3,7 @@ import { useVirtualList } from '../../../hooks/useVirtualList';
 import { shardSparkColor } from '../../../lib/visualTokens';
 import { invoke } from '@tauri-apps/api/core';
 import { voxTransport } from '../../../transport';
+import { useLabel } from '../../../hooks/useLanguage';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
 import { Sparkline } from '../../ui/Sparkline';
@@ -479,7 +480,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
       {/* Memory shards */}
       <Glass className="col-span-12 p-5">
         <div className="flex items-center justify-between">
-          <h3 className="font-display text-[13px] uppercase tracking-[0.18em] text-text-secondary">Memory shards</h3>
+          <h3 className="font-display text-[13px] uppercase tracking-[0.18em] text-text-secondary">{useLabel('mem-shards')}</h3>
           <span className="font-mono text-[10px] text-text-muted">
             {(memStatus?.shards ?? []).length} live · HNSW
             {memStatus?.embedding_dim != null ? ` · dim ${memStatus.embedding_dim}` : ''}

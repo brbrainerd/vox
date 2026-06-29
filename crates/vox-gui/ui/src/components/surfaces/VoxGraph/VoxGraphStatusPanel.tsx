@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { voxTransport } from '../../../transport';
 import { useVoxGraphStatus, VOX_GRAPH_STATUS_QUERY_KEY } from '../../../hooks/useVoxGraphStatus';
+import { useLabel } from '../../../hooks/useLanguage';
 
 /**
  * Render an RFC3339 `built_at` timestamp as a coarse relative time
@@ -92,7 +93,7 @@ export function VoxGraphStatusPanel() {
   return (
     <div className="flex flex-col gap-4 p-4">
       <div className="flex items-center justify-between">
-        <h2 className="ds-section-head">Graphify Corpus Health</h2>
+        <h2 className="ds-section-head">{useLabel('vg-corpus-health')}</h2>
         <span className="font-mono text-[10px] text-zinc-500">
           Default: {data.default_corpus_id}
         </span>

@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import React from 'react';
+import { LanguageProvider } from '../../../hooks/useLanguage';
 
 const INTENTIONS = [
   { id: 'a', parent: 'Routing', branch: 'Cost', phase: 'Active', conf: 0.6, note: 'Favor cheap models' },
@@ -25,12 +26,12 @@ describe('Matrix', () => {
   });
 
   it('renders the Routing Policies heading after load', async () => {
-    render(<Matrix pushToast={vi.fn()} />);
+    render(<LanguageProvider><Matrix pushToast={vi.fn()} /></LanguageProvider>);
     expect(await screen.findByText('Routing Policies')).toBeTruthy();
   });
 
   it('every button carries an explicit type="button"', async () => {
-    render(<Matrix pushToast={vi.fn()} />);
+    render(<LanguageProvider><Matrix pushToast={vi.fn()} /></LanguageProvider>);
     await screen.findByText('Routing Policies');
     for (const b of screen.getAllByRole('button')) {
       expect(b.getAttribute('type')).toBe('button');
@@ -38,19 +39,19 @@ describe('Matrix', () => {
   });
 
   it('hex cells expose aria-pressed and an aria-label', async () => {
-    render(<Matrix pushToast={vi.fn()} />);
+    render(<LanguageProvider><Matrix pushToast={vi.fn()} /></LanguageProvider>);
     const cell = await screen.findByLabelText(/Cost routing axis/i);
     expect(cell.getAttribute('aria-pressed')).toBeDefined();
   });
 
   it('weight meter exposes role=progressbar', async () => {
-    render(<Matrix pushToast={vi.fn()} />);
+    render(<LanguageProvider><Matrix pushToast={vi.fn()} /></LanguageProvider>);
     await waitFor(() => expect(screen.getAllByRole('progressbar').length).toBeGreaterThan(0));
   });
 
   it('shows an empty state when there are no intentions', async () => {
     invokeMock.mockImplementationOnce(() => Promise.resolve([]));
-    render(<Matrix pushToast={vi.fn()} />);
+    render(<LanguageProvider><Matrix pushToast={vi.fn()} /></LanguageProvider>);
     expect(await screen.findByText(/No routing policies active/i)).toBeTruthy();
   });
 });

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
+import { useLabel } from '../../../hooks/useLanguage';
 import { listenScientiaQueue } from '../../../transport';
 import { fetchCostRollup, providerRows, quarterlyRows } from './costRollup';
 import type { CostRollup } from './costRollup';
@@ -119,7 +120,7 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
     <section className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="font-display text-lg tracking-wider text-text-primary uppercase">Vox Scientia</h2>
+          <h2 className="font-display text-lg tracking-wider text-text-primary uppercase">{useLabel('sci-home')}</h2>
           <p className="font-mono text-xs text-text-muted">Publication pipeline queue snapshot</p>
         </div>
         <button

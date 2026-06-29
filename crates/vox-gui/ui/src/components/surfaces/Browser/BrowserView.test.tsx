@@ -2,6 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import React from 'react';
+import { LanguageProvider } from '../../../hooks/useLanguage';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(null) }));
 vi.mock('../../../transport', () => ({
@@ -14,7 +15,7 @@ import { BrowserView, mapClickToViewport } from './BrowserView';
 
 describe('BrowserView component', () => {
   it('renders the view tabs as a tablist with aria-selected', () => {
-    render(<BrowserView pushToast={() => {}} />);
+    render(<LanguageProvider><BrowserView pushToast={() => {}} /></LanguageProvider>);
     const tablist = screen.getByRole('tablist', { name: /browser view/i });
     expect(tablist).toBeDefined();
     const preview = screen.getByRole('tab', { name: /^preview$/i });
@@ -22,7 +23,7 @@ describe('BrowserView component', () => {
   });
 
   it('every button carries an explicit type="button"', () => {
-    render(<BrowserView pushToast={() => {}} />);
+    render(<LanguageProvider><BrowserView pushToast={() => {}} /></LanguageProvider>);
     for (const b of screen.getAllByRole('button')) {
       expect(b.getAttribute('type')).toBe('button');
     }

@@ -33,6 +33,7 @@ vi.mock('./ArchiveStatusSummary', () => ({
   ArchiveStatusSummary: () => React.createElement('div', { 'data-testid': 'archive-status-summary' }),
 }));
 
+import { LanguageProvider } from '../../../hooks/useLanguage';
 import { ScientiaDashboard } from './ScientiaDashboard';
 
 describe('ScientiaDashboard', () => {
@@ -42,13 +43,13 @@ describe('ScientiaDashboard', () => {
   });
 
   it('Refresh control is an explicit type="button"', async () => {
-    render(<ScientiaDashboard pushToast={vi.fn()} />);
+    render(<LanguageProvider><ScientiaDashboard pushToast={vi.fn()} /></LanguageProvider>);
     const btn = await screen.findByRole('button', { name: /refresh/i });
     expect(btn.getAttribute('type')).toBe('button');
   });
 
   it('includes the archive status summary panel', async () => {
-    render(<ScientiaDashboard pushToast={vi.fn()} />);
+    render(<LanguageProvider><ScientiaDashboard pushToast={vi.fn()} /></LanguageProvider>);
     await waitFor(() => {
       expect(screen.getByTestId('archive-status-summary')).toBeTruthy();
     });

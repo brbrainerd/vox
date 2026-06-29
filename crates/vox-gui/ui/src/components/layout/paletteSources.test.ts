@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+// @vitest-environment jsdom
+import { describe, it, expect, beforeEach } from 'vitest';
 import { buildPaletteItems, DocEntryLike, parsePaletteQuery, SurfaceEntryLike } from './paletteSources';
 import { SettingEntry } from '../surfaces/Settings/settingsIndex';
 
@@ -12,6 +13,8 @@ const settings: SettingEntry[] = [
 const docs: DocEntryLike[] = [{ title: 'Mesh SSOT', description: 'phases', path: 'C:/x/mesh.md' }];
 
 describe('buildPaletteItems', () => {
+  beforeEach(() => window.localStorage.clear());
+
   it('matches surfaces by navLabel and excludes non-navigable entries', () => {
     const items = buildPaletteItems('task', { surfaces, settings, docs });
     const surfaceHits = items.filter(i => i.kind === 'surface');
@@ -44,5 +47,27 @@ describe('buildPaletteItems', () => {
 
   it('/ prefix yields skills mode for docs and catalog', () => {
     expect(parsePaletteQuery('/ mesh')).toEqual({ mode: 'skills', query: 'mesh' });
+  });
+});
+
+describe('palette dual-language search', () => {
+  const mercatusSources = {
+    surfaces: [
+      { viewKey: 'mercatus', navLabel: 'Mercatus', navGroup: 'operate', navIcon: null, cliGroup: null, tier: 'live_backend' } as SurfaceEntryLike,
+    ],
+    settings: [],
+    docs: [],
+  };
+
+  beforeEach(() => window.localStorage.clear());
+
+  it('matches the English label even when navLabel is the Latin form', () => {
+    const hits = buildPaletteItems('market', mercatusSources);
+    expect(hits.some(h => h.kind === 'surface' && h.viewKey === 'mercatus')).toBe(true);
+  });
+
+  it('matches the Latin label too', () => {
+    const hits = buildPaletteItems('mercatus', mercatusSources);
+    expect(hits.some(h => h.kind === 'surface' && h.viewKey === 'mercatus')).toBe(true);
   });
 });

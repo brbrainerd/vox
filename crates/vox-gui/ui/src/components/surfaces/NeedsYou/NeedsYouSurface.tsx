@@ -3,6 +3,7 @@ import { Glass } from '../../ui/Glass';
 import { EmptyState } from '../../ui/EmptyState';
 import { FeedbackCard } from './FeedbackCard';
 import { feedbackList, feedbackResolve, listenFeedbackChanged, type FeedbackRow } from '../../../transport';
+import { useLabel } from '../../../hooks/useLanguage';
 import type { Toast } from '../../../types/tauri';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 
@@ -80,7 +81,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast }: Props) {
   return (
     <div className="flex flex-col h-full overflow-hidden bg-zinc-950/80">
       <div className="flex items-center justify-between border-b border-white/[0.08] px-4 py-3">
-        <h2 className="text-sm font-semibold tracking-wider uppercase text-zinc-100">Needs You</h2>
+        <h2 className="text-sm font-semibold tracking-wider uppercase text-zinc-100">{useLabel('needs-you')}</h2>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
