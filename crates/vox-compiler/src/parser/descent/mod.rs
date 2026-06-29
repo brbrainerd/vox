@@ -315,7 +315,8 @@ impl Parser {
                 // keeps script-mode calls/refs like `query(x)` or `table.foo` on the
                 // statement path instead of stealing them into parse_decl.
                 || (matches!(self.peek(), Token::Ident(n) if matches!(n.as_str(),
-                        "table" | "index" | "query" | "mutation" | "server" | "tool" | "resource"))
+                        "table" | "index" | "query" | "mutation" | "server" | "tool" | "resource"
+                        | "form"))
                     && matches!(self.peek_nth(1), Token::Ident(_) | Token::StringLit(_)));
 
             let is_tombstoned = matches!(
@@ -867,7 +868,10 @@ impl Parser {
                 self.warn_retired_decorator("@index", "index", "vox/decorator/index-retired");
                 self.parse_index()
             }
-            Token::AtForm => self.parse_form_decl(),
+            Token::AtForm => {
+                self.warn_retired_decorator("@form", "form", "vox/decorator/form-retired");
+                self.parse_form_decl()
+            }
             Token::AtBackButton => self.parse_back_button_decl(),
             Token::AtDeepLink => self.parse_deep_link_decl(),
             Token::AtPush => self.parse_push_decl(),
@@ -933,6 +937,10 @@ impl Parser {
             Token::Ident(ref name) if name == "index" => self.parse_index(),
             Token::Ident(ref name) if name == "tool" => self.parse_tool_kw(),
             Token::Ident(ref name) if name == "resource" => self.parse_resource_kw(),
+            // Tier-2: `form Name { field … on_submit: … }` — the soft-keyword form of the
+            // retired `@form` decorator. parse_form_decl eats the leading token regardless,
+            // so it serves both the `@form` and bare `form` heads (like `index`).
+            Token::Ident(ref name) if name == "form" => self.parse_form_decl(),
             _ => {
                 self.errors.push(ParseError::classified(
                     self.span(),
