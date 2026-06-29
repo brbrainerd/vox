@@ -50,8 +50,12 @@ pub(crate) fn walk_source_files(source_dir: &std::path::Path) -> Vec<std::path::
         .into_iter()
         .filter_entry(|e| {
             let n = e.file_name().to_string_lossy();
-            n != ".git" && n != "target" && n != ".vox" && n != "node_modules"
-                && n != ".claude" && n != ".worktrees"
+            n != ".git"
+                && n != "target"
+                && n != ".vox"
+                && n != "node_modules"
+                && n != ".claude"
+                && n != ".worktrees"
         })
         .filter_map(|e| e.ok())
         .filter(|e| e.path().is_file())

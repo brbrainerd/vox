@@ -150,7 +150,11 @@ pub(crate) fn reorder_chunks_by_score(chunks: &mut [SemanticChunk], score: &Hash
         if c.files.is_empty() {
             return 0.0;
         }
-        c.files.iter().map(|f| score.get(f).copied().unwrap_or(0.0)).sum::<f64>() / c.files.len() as f64
+        c.files
+            .iter()
+            .map(|f| score.get(f).copied().unwrap_or(0.0))
+            .sum::<f64>()
+            / c.files.len() as f64
     };
     chunks.sort_by(|a, b| {
         agg(b)
@@ -214,7 +218,13 @@ mod tests {
         let churn: HashMap<String, u64> = [("covered".into(), 1), ("bare".into(), 1)].into();
         let central: HashMap<String, f64> = [("covered".into(), 100.0)].into();
         let files = vec!["covered".to_string(), "bare".to_string()];
-        let ranked = rank_files(&files, &recency, &churn, Some(&central), RankWeights::default());
+        let ranked = rank_files(
+            &files,
+            &recency,
+            &churn,
+            Some(&central),
+            RankWeights::default(),
+        );
         // "bare" imputed to the median (100/gmax = 1.0) → identical score → tie by name.
         assert_eq!(ranked, vec!["bare".to_string(), "covered".to_string()]);
     }
@@ -233,9 +243,21 @@ mod tests {
         let score: HashMap<String, f64> =
             [("a".into(), 10.0), ("b".into(), 1.0), ("c".into(), 5.0)].into();
         let mut chunks = vec![
-            SemanticChunk { order: 1, name: "low".into(), files: vec!["b".into()] },
-            SemanticChunk { order: 2, name: "high".into(), files: vec!["a".into()] },
-            SemanticChunk { order: 3, name: "mid".into(), files: vec!["c".into()] },
+            SemanticChunk {
+                order: 1,
+                name: "low".into(),
+                files: vec!["b".into()],
+            },
+            SemanticChunk {
+                order: 2,
+                name: "high".into(),
+                files: vec!["a".into()],
+            },
+            SemanticChunk {
+                order: 3,
+                name: "mid".into(),
+                files: vec!["c".into()],
+            },
         ];
         reorder_chunks_by_score(&mut chunks, &score);
         assert_eq!(chunks[0].name, "high");

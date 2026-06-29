@@ -217,7 +217,10 @@ pub async fn collect_files_modified_since(repo: &Path, since: &str) -> Result<Ve
 }
 
 /// Sum of (insertions + deletions) per file since `since` (churn signal).
-pub async fn churn_since(repo: &Path, since: &str) -> Result<std::collections::HashMap<String, u64>> {
+pub async fn churn_since(
+    repo: &Path,
+    since: &str,
+) -> Result<std::collections::HashMap<String, u64>> {
     let out = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
     .args([

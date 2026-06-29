@@ -72,8 +72,10 @@ pub async fn run_semantic_submit(repo: &Path, cfg: &SemanticSubmitConfig) -> Res
     }
 
     // ── 1b. Importance ranking (recency + churn + graph centrality) ─────────
-    let ranking_active =
-        cfg.rank_order || cfg.top.is_some() || cfg.since.is_some() || !cfg.rank_weights.is_default();
+    let ranking_active = cfg.rank_order
+        || cfg.top.is_some()
+        || cfg.since.is_some()
+        || !cfg.rank_weights.is_default();
     let rank_score: Option<std::collections::HashMap<String, f64>> = if ranking_active {
         // Recency/churn window: the `--since` value when scoping by date, else a
         // 3-month default so ranking still has signal for full-repo / changed-files runs.
@@ -86,8 +88,13 @@ pub async fn run_semantic_submit(repo: &Path, cfg: &SemanticSubmitConfig) -> Res
             None
         };
         ranker::log_centrality_coverage(&all_files, central.as_ref());
-        let score =
-            ranker::score_map(&all_files, &recency, &churn, central.as_ref(), cfg.rank_weights);
+        let score = ranker::score_map(
+            &all_files,
+            &recency,
+            &churn,
+            central.as_ref(),
+            cfg.rank_weights,
+        );
         ranker::sort_files_by_score(&mut all_files, &score);
         if let Some(n) = cfg.top {
             all_files.truncate(n);
@@ -222,7 +229,9 @@ async fn run_semantic_submit_core(
     if cfg.rank_order {
         if let Some(score) = rank_score.as_ref() {
             ranker::reorder_chunks_by_score(&mut sem_manifest.chunks, score);
-            eprintln!("[semantic-submit] Re-ordered chunks by importance (highest-value PRs first).");
+            eprintln!(
+                "[semantic-submit] Re-ordered chunks by importance (highest-value PRs first)."
+            );
         }
     }
     let ignored_reasons = summarize_ignored_reasons(&plan_snapshot, &planner);
