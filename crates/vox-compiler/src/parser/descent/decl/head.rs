@@ -61,9 +61,37 @@ impl Parser {
         }))
     }
 
+    /// Soft-keyword form: `tool [\"desc\"] name(...)`. The optional leading string is
+    /// the DESCRIPTION (empty default); the tool name is always `func.name`
+    /// downstream. Produces the same `Decl::McpTool` node `@tool` did.
+    pub(crate) fn parse_tool_kw(&mut self) -> Result<Decl, ()> {
+        self.advance(); // eat `tool`
+        let desc = if let Token::StringLit(s) = self.peek().clone() {
+            self.advance();
+            s
+        } else {
+            String::new()
+        };
+        self.skip_newlines();
+        let f = self.parse_fn_decl_headless(false)?;
+        Ok(Decl::McpTool(McpToolDecl {
+            description: desc,
+            func: f,
+        }))
+    }
+
     /// `@mcp.resource ("uri", "desc") fn ...` or `@mcp.resource "uri" "desc" fn ...`.
     pub(crate) fn parse_mcp_resource(&mut self) -> Result<Decl, ()> {
-        self.advance(); // eat @mcp.resource
+        self.parse_mcp_resource_inner(false)
+    }
+
+    /// Soft-keyword form: `resource "uri" "desc" name(...)` — keeps both strings.
+    pub(crate) fn parse_resource_kw(&mut self) -> Result<Decl, ()> {
+        self.parse_mcp_resource_inner(true)
+    }
+
+    fn parse_mcp_resource_inner(&mut self, headless: bool) -> Result<Decl, ()> {
+        self.advance(); // eat @mcp.resource / @resource / soft `resource`
         let (uri, description) = match self.peek().clone() {
             Token::LParen => {
                 self.advance();
@@ -141,7 +169,11 @@ impl Parser {
             }
         };
         self.skip_newlines();
-        let f = self.parse_fn_decl(false)?;
+        let f = if headless {
+            self.parse_fn_decl_headless(false)?
+        } else {
+            self.parse_fn_decl(false)?
+        };
         Ok(Decl::McpResource(McpResourceDecl {
             uri,
             description,

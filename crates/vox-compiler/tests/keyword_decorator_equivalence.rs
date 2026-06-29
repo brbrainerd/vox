@@ -95,8 +95,10 @@ fn tool_empty_description() {
 
 #[test]
 fn tool_with_description() {
+    // The @tool decorator takes a BARE string (no parens) per parse_mcp_tool
+    // (head.rs:50) — the LSP snippet's `@tool("…")` form does not actually parse.
     ast_eq(
-        "@tool(\"web\") fn search(q: str) to str { return q }",
+        "@tool \"web\" fn search(q: str) to str { return q }",
         "tool \"web\" search(q: str) to str { return q }",
     );
 }

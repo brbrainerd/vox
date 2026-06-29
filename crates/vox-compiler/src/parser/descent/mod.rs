@@ -866,6 +866,10 @@ impl Parser {
             Token::Ident(ref name) if name == "query" => self.parse_query_kw(),
             Token::Ident(ref name) if name == "mutation" => self.parse_mutation_kw(),
             Token::Ident(ref name) if name == "server" => self.parse_server_kw(),
+            Token::Ident(ref name) if name == "table" => self.parse_table_kw(),
+            Token::Ident(ref name) if name == "index" => self.parse_index(),
+            Token::Ident(ref name) if name == "tool" => self.parse_tool_kw(),
+            Token::Ident(ref name) if name == "resource" => self.parse_resource_kw(),
             _ => {
                 self.errors.push(ParseError::classified(
                     self.span(),
