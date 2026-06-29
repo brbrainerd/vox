@@ -7,7 +7,22 @@ use crate::ast::decl::fundecl::PlacementHint;
 use crate::lexer::token::Token;
 
 impl Parser {
+    /// Parse a function declaration that begins with the `fn` keyword (plain
+    /// `fn`/`pub fn`/`async fn` and every `@decorator fn` head). The `fn` token is
+    /// mandatory here.
     pub(crate) fn parse_fn_decl(&mut self, is_pub: bool) -> Result<FnDecl, ()> {
+        self.parse_fn_decl_inner(is_pub, false)
+    }
+
+    /// Parse a function declaration reached via a kind keyword (`query`/`mutation`/
+    /// `server`/`tool`) that has already subsumed the `fn` keyword. The `fn` token is
+    /// optional here — see `parse_fn_decl_inner`. Do NOT use for plain functions: a
+    /// missing `fn` must stay an error for those (it gates malformed `@pure foo()`).
+    pub(crate) fn parse_fn_decl_headless(&mut self, is_pub: bool) -> Result<FnDecl, ()> {
+        self.parse_fn_decl_inner(is_pub, true)
+    }
+
+    fn parse_fn_decl_inner(&mut self, is_pub: bool, fn_optional: bool) -> Result<FnDecl, ()> {
         let start = self.span();
         let mut is_pub = is_pub;
         let mut is_auth_exempt = false; // set ONLY by @public decorator, not by `pub fn`
@@ -1094,7 +1109,14 @@ impl Parser {
             }
         }
 
-        self.expect(&Token::Fn)?;
+        // A kind keyword (query/mutation/server/tool) has already subsumed `fn`, so
+        // it is optional on that path; for plain/decorator fns it stays mandatory so
+        // a missing `fn` (e.g. `@pure foo()`) remains an error.
+        if fn_optional {
+            self.eat(&Token::Fn);
+        } else {
+            self.expect(&Token::Fn)?;
+        }
         let name = self.parse_ident_name()?;
 
         let generics = if self.eat(&Token::Lt) {

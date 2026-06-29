@@ -243,6 +243,28 @@ impl Parser {
         Ok(Decl::Scheduled(ScheduledDecl { interval, func: f }))
     }
 
+    /// Soft-keyword endpoint head: `query`/`mutation`/`server` already subsumed
+    /// `fn`. Produces the SAME `Decl::Endpoint` node the `@query`/`@mutation`/
+    /// `@server` decorators did (byte-identical-HIR invariant).
+    pub(crate) fn parse_endpoint_kw(&mut self, kind: EndpointKind) -> Result<Decl, ()> {
+        self.advance(); // eat the soft keyword (query/mutation/server)
+        self.skip_newlines();
+        let f = self.parse_fn_decl_headless(false)?;
+        Ok(Decl::Endpoint(EndpointDecl { kind, func: f }))
+    }
+
+    pub(crate) fn parse_query_kw(&mut self) -> Result<Decl, ()> {
+        self.parse_endpoint_kw(EndpointKind::Query)
+    }
+
+    pub(crate) fn parse_mutation_kw(&mut self) -> Result<Decl, ()> {
+        self.parse_endpoint_kw(EndpointKind::Mutation)
+    }
+
+    pub(crate) fn parse_server_kw(&mut self) -> Result<Decl, ()> {
+        self.parse_endpoint_kw(EndpointKind::Server)
+    }
+
     /// Parse `@query fn ...` — first-class GET-style endpoint, no kind param.
     /// Equivalent to `@endpoint(kind: query) fn ...` but lower K-complexity
     /// (audit doc §11.2). Introduced 2026-05-23.

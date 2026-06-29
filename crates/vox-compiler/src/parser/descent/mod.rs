@@ -859,6 +859,13 @@ impl Parser {
             // attaches the annotation to the produced TypeDefDecl.
             Token::AtJsonAs => self.parse_json_as(),
             Token::Ident(ref name) if name == "routes" => self.parse_routes(),
+            // Soft (contextual) keywords: recognized ONLY here, at declaration-head
+            // position. They have no logos `#[token]`, so they remain ordinary
+            // identifiers as field/param/method names everywhere else (the
+            // get/post/put/delete precedent). See spec §"Soft keywords".
+            Token::Ident(ref name) if name == "query" => self.parse_query_kw(),
+            Token::Ident(ref name) if name == "mutation" => self.parse_mutation_kw(),
+            Token::Ident(ref name) if name == "server" => self.parse_server_kw(),
             _ => {
                 self.errors.push(ParseError::classified(
                     self.span(),
