@@ -1,0 +1,66 @@
+# Fixture test for the watchdog's assessment logic — runs the REAL shared composite
+# action (.github/actions/ci-health-assess) against a canned fleet via a stubbed `gh`
+# on PATH, with NO live fleet. This is the safe pre-req for the live incident drill:
+# the reap/failover selectors must be proven on fixtures before anything touches prod.
+name: CI Health Watchdog (test)
+
+on:
+  pull_request:
+    paths:
+      - '.github/actions/ci-health-assess/**'
+      - '.github/workflows/ci-health-watchdog*.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  assess-logic:
+    runs-on: ubuntu-latest
+    env:
+      REPO: vox-foundation/vox
+      GH_TOKEN: stub
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stub gh with a 5-zombie / 0-online fixture
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/fixture-runners.json" <<'JSON'
+          { "total_count": 6, "runners": [
+            {"name":"vox-runner-auto-a-0","status":"offline","busy":true},
+            {"name":"vox-runner-auto-a-1","status":"offline","busy":true},
+            {"name":"vox-runner-auto-a-2","status":"offline","busy":true},
+            {"name":"vox-runner-auto-a-3","status":"offline","busy":true},
+            {"name":"vox-runner-auto-a-4","status":"offline","busy":true},
+            {"name":"some-other-org-runner","status":"online","busy":false}
+          ]}
+          JSON
+          mkdir -p "$RUNNER_TEMP/bin"
+          cat > "$RUNNER_TEMP/bin/gh" <<'SH'
+          #!/usr/bin/env bash
+          # Minimal gh stub: serve the runner fixture; report no queued runs.
+          case "$*" in
+            *api*actions/runners*) cat "$RUNNER_TEMP/fixture-runners.json" ;;
+            *"run list"*)          echo "" ;;                # no queued runs -> queue_age=0
+            *)                     echo "{}" ;;
+          esac
+          SH
+          chmod +x "$RUNNER_TEMP/bin/gh"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Assess (the real composite-action logic)
+        id: check
+        uses: ./.github/actions/ci-health-assess
+
+      - name: Assert verdict
+        run: |
+          set -euo pipefail
+          echo "online=${{ steps.check.outputs.online }} zombies=${{ steps.check.outputs.zombies }} problems=[${{ steps.check.outputs.problems }}]"
+          # The non-managed 'some-other-org-runner' must NOT be counted as online (managed prefix gate).
+          test "${{ steps.check.outputs.online }}"  = "0"
+          test "${{ steps.check.outputs.zombies }}" = "5"
+          test "${{ steps.check.outputs.queue_age }}" = "0"
+          echo "${{ steps.check.outputs.problems }}" | grep -q "zombies=5"
+          echo "${{ steps.check.outputs.problems }}" | grep -q "no_online_runners"
+          echo "assess logic OK"

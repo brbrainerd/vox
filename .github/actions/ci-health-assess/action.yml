@@ -1,0 +1,44 @@
+# Composite action: compute the CI fleet/queue health verdict from read-only `gh api`.
+# Shared by the watchdog workflow AND its fixture test, so the test exercises the REAL
+# logic (no drift). Requires env GH_TOKEN + REPO from the calling job; on the test path
+# `gh` is a stub on PATH that serves canned fixtures.
+name: CI Health Assess
+description: Read-only fleet/queue health verdict (managed runners only).
+outputs:
+  online:
+    description: managed online runner count
+    value: ${{ steps.a.outputs.online }}
+  zombies:
+    description: managed offline+busy zombie count
+    value: ${{ steps.a.outputs.zombies }}
+  queue_age:
+    description: oldest queued run age in minutes
+    value: ${{ steps.a.outputs.queue_age }}
+  problems:
+    description: space-joined breached thresholds (empty = healthy)
+    value: ${{ steps.a.outputs.problems }}
+runs:
+  using: composite
+  steps:
+    - id: a
+      shell: bash
+      run: |
+        set -euo pipefail
+        runners=$(gh api "repos/$REPO/actions/runners" --paginate)
+        online=$(jq '[.runners[]|select(.status=="online"  and (.name|startswith("vox-runner-auto-")))]|length' <<<"$runners")
+        zombies=$(jq '[.runners[]|select(.status=="offline" and .busy==true and (.name|startswith("vox-runner-auto-")))]|length' <<<"$runners")
+        oldest=$(gh run list --status queued --limit 50 --json createdAt --jq '[.[].createdAt]|min // empty')
+        queue_age=0
+        if [ -n "$oldest" ]; then
+          queue_age=$(( ( $(date -u +%s) - $(date -u -d "$oldest" +%s) ) / 60 )) # GNU date — ubuntu only
+        fi
+        problems=""
+        [ "$zombies" -gt 3 ]    && problems="$problems zombies=$zombies"
+        [ "$queue_age" -gt 20 ] && problems="$problems queue_age=${queue_age}m"
+        [ "$online" -eq 0 ]     && problems="$problems no_online_runners"
+        {
+          echo "online=$online"
+          echo "zombies=$zombies"
+          echo "queue_age=$queue_age"
+          echo "problems=${problems# }"
+        } >> "$GITHUB_OUTPUT"

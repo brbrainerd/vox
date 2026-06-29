@@ -1,0 +1,140 @@
+# CI Health Watchdog — out-of-band fleet/queue/toolchain health, push alert, and
+# bounded self-healing. Runs on GitHub-hosted runners so it survives a dead
+# self-hosted fleet AND a dead dev machine — the exact blind spot of the
+# 2026-06-29 incident. Adds ZERO latency to real CI/CD runs.
+#
+# Design + rationale: docs/superpowers/specs/2026-06-29-ci-health-watchdog-design.md
+# Plan:               docs/superpowers/plans/2026-06-29-ci-health-watchdog.md
+#
+# PREREQUISITES before this is merged to main (else every scheduled run fails loud):
+#   - secret CI_HEALTH_PUSH_URL  : an AUTHENTICATED push endpoint (auth'd ntfy / Pushover).
+#   - secret SSOT_AUTOREGEN_TOKEN: PAT with repo Administration r/w (runner DELETE) + Actions:write.
+#   - secret CI_HEALTH_HEARTBEAT_UUID: a healthchecks.io ping uuid (dead-man's switch).
+#   - variable CI_HEALTH_STATE   : seed with "healthy" (durable de-dupe state).
+# Verify the PAT can DELETE a runner + `gh workflow run` once before trusting self-heal.
+
+name: CI Health Watchdog
+
+on:
+  schedule:
+    # Floor cadence. GitHub does NOT guarantee scheduled punctuality (often 5-30m late),
+    # so real MTTA is ~20m. For true sub-minute detection add a workflow_run trigger on CI failure.
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Echo intended gh actions instead of executing (reap/failover)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: ci-health-watchdog
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ secrets.SSOT_AUTOREGEN_TOKEN }}   # GITHUB_TOKEN lacks `administration` for runner DELETE
+      PUSH_URL: ${{ secrets.CI_HEALTH_PUSH_URL }}
+      DRY_RUN: ${{ inputs.dry_run || 'false' }}
+      REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4   # needed for the local composite action below
+
+      # --- A1: detection — shared logic (also exercised by ci-health-watchdog-test.yml) ---
+      - name: Assess CI health
+        id: check
+        uses: ./.github/actions/ci-health-assess
+
+      - name: Summarise
+        run: echo "## CI health — online=${{ steps.check.outputs.online }} zombies=${{ steps.check.outputs.zombies }} queue_age=${{ steps.check.outputs.queue_age }}m problems=[${{ steps.check.outputs.problems }}]" >> "$GITHUB_STEP_SUMMARY"
+
+      # --- A2: authenticated push, de-duped on a DURABLE variable (not actions/cache) ---
+      - name: Push on healthy->unhealthy transition
+        run: |
+          set -euo pipefail
+          # Allowlist guards against a poisoned PUSH_URL becoming SSRF/exfil. Add your own host here.
+          case "$PUSH_URL" in
+            https://ntfy.sh/*|https://api.pushover.net/*) : ;;
+            *) echo "::error::PUSH_URL not in allowlist — refusing to curl"; exit 1 ;;
+          esac
+          prev=$(gh variable get CI_HEALTH_STATE 2>/dev/null || echo healthy)
+          now=$([ -n "${{ steps.check.outputs.problems }}" ] && echo unhealthy || echo healthy)
+          if [ "$now" = unhealthy ] && [ "$prev" != unhealthy ]; then
+            # Body intentionally omits exact admin commands (channel may be shared).
+            curl -fsS -H "Title: CI fleet unhealthy" -H "Priority: high" \
+              -d "online=${{ steps.check.outputs.online }} zombies=${{ steps.check.outputs.zombies }} queue=${{ steps.check.outputs.queue_age }}m" \
+              "$PUSH_URL"
+          fi
+          gh variable set CI_HEALTH_STATE --body "$now"
+
+      # --- B1: reap ONLY managed offline runners (a bare offline-select would delete REAL runners) ---
+      - name: Auto-reap managed offline runners
+        if: ${{ steps.check.outputs.zombies != '0' && env.DRY_RUN != 'true' }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$REPO/actions/runners" --paginate \
+            --jq '.runners[]|select(.status=="offline" and (.name|startswith("vox-runner-auto-")))|.id' | while read -r id; do
+              if gh api -X DELETE "repos/$REPO/actions/runners/$id" 2>/dev/null; then
+                echo "::notice::{\"action\":\"reap\",\"runner\":$id}"
+                echo "{\"ts\":\"$(date -u +%FT%TZ)\",\"action\":\"reap\",\"runner\":$id}" >> watchdog-audit.jsonl
+              else
+                echo "::warning::runner $id still mid-job (422) — defers until its run is cancelled"
+              fi
+            done
+
+      - name: Auto-reap (dry-run preview)
+        if: ${{ steps.check.outputs.zombies != '0' && env.DRY_RUN == 'true' }}
+        run: |
+          gh api "repos/$REPO/actions/runners" --paginate \
+            --jq '.runners[]|select(.status=="offline" and (.name|startswith("vox-runner-auto-")))|.id' \
+            | sed 's/^/[dry-run] would DELETE runner /'
+
+      # --- B2: failover via the fleet-down PR label (NOT --ref main: main is merge-queue-gated). ---
+      #     Idempotent: skip a PR whose fallback is already in-flight (ci-fallback has cancel-in-progress,
+      #     so blind re-dispatch would cancel its own build and the check would never complete).
+      - name: Failover stuck PRs to hosted runners
+        if: ${{ (steps.check.outputs.online == '0' || fromJSON(steps.check.outputs.queue_age) > 30) && env.DRY_RUN != 'true' }}
+        run: |
+          set -euo pipefail
+          acted=0
+          gh pr list --state open --json number,headRefOid --jq '.[]|[.number,.headRefOid]|@tsv' | while IFS=$'\t' read -r num sha; do
+            inflight=$(gh run list --workflow ci-fallback-hosted.yml --json status,headSha \
+              --jq "[.[]|select(.headSha==\"$sha\" and (.status==\"in_progress\" or .status==\"queued\"))]|length")
+            if [ "$inflight" = 0 ]; then
+              gh pr edit "$num" --add-label fleet-down && echo "::notice::{\"action\":\"failover\",\"pr\":$num}"
+              echo "{\"ts\":\"$(date -u +%FT%TZ)\",\"action\":\"failover\",\"pr\":$num}" >> watchdog-audit.jsonl
+              acted=1
+            fi
+          done
+          [ "$acted" = 1 ] && curl -fsS -H "Title: CI failed over to hosted runners" \
+            -d "self-hosted fleet down; labelled stuck PRs fleet-down" "$PUSH_URL" || true
+
+      # --- Recovery: fleet healthy again -> remove fleet-down so PRs return to self-hosted. ---
+      #     Do NOT blind-cancel queued work elsewhere: GitHub holds queued merge_group/PR runs and
+      #     they drain when reaped runners scale back up.
+      - name: Recover (clear fleet-down once healthy)
+        if: ${{ steps.check.outputs.online != '0' && env.DRY_RUN != 'true' }}
+        run: |
+          set -euo pipefail
+          gh pr list --state open --label fleet-down --json number --jq '.[].number' | while read -r num; do
+            gh pr edit "$num" --remove-label fleet-down && echo "::notice::{\"action\":\"recover\",\"pr\":$num}"
+          done
+
+      # --- Durable audit sink (the local ~/.vox/ci-runner-history.jsonl is unreachable from here). ---
+      - name: Upload watchdog audit
+        if: ${{ always() && hashFiles('watchdog-audit.jsonl') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: watchdog-audit-${{ github.run_id }}
+          path: watchdog-audit.jsonl
+          retention-days: 90
+
+      # --- B4: dead-man's switch is GitHub-native (no external account / no heartbeat secret):
+      #     a separate cron `.github/workflows/ci-health-deadman.yml` watches THIS workflow's
+      #     freshness via `gh api` and alerts to the same CI_HEALTH_PUSH_URL when it goes silent. ---
