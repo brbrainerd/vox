@@ -116,7 +116,13 @@ the existing parser and produces the **same** node.
 | `@tool` | `Decl::McpTool(McpToolDecl)` (`head.rs:40`) | `tool search(q: str) to str { … }` |
 | `@resource` | `Decl::McpResource(McpResourceDecl)` (`head.rs:65`) | `resource "uri" "desc" load() to str { … }` |
 
-### Tier 2 — real AST work, NOT a head-swap (separate spec/plan, out of P0)
+### Tier 2 — resolved in `…-tier2-design.md` (read that for the final disposition)
+
+> **Amendment:** the Tier-2 spec applied a sharpened litmus (*kind-defining ⟺
+> produces a distinct `Decl` variant*) and found only `@form` is a true demotion
+> (`Decl::Form`). `@webhook`/`@subagent`/`@search` are **modifiers on `Decl::Function`**
+> and are **reclassified as keep-decorators** — no demotion. The original
+> "4 hard demotions" framing below is superseded; it is kept for the lowering detail.
 
 The audit proved these do **not** share a lowering target and are **not** front-of-
 pipe renames:
@@ -335,10 +341,10 @@ surface and must move in lockstep or their gates break:
 | `@server` | T1 | `Decl::Endpoint{Server}` |
 | `@tool` | T1 | `Decl::McpTool{description, func}` (no name field) |
 | `@resource` | T1 | `Decl::McpResource{uri, description, func}` (both strings required) |
-| `@webhook` | T2 | `FnDecl.webhook: Option<AstWebhookSpec>` modifier → `Decl::Function` |
-| `@subagent` | T2 | `FnDecl.subagent_*` modifiers → `Decl::Function` |
-| `@form` | T2 | `Decl::Form(FormDecl)` block (not fn-shaped) |
-| `@search` | T2 | standalone `@search(corpus=,query=,into=,top_k=)` directive — re-derive; possibly mis-classified |
+| `@form` | **demote (Tier-2 plan)** | `Decl::Form(FormDecl)` block — distinct node → `form` keyword. See `…-tier2-design.md`. |
+| `@webhook` | K *(reclassified)* | modifier: sets `FnDecl.webhook` on `Decl::Function`; not a distinct kind |
+| `@subagent` | K *(reclassified)* | modifier: sets `FnDecl.subagent_*` on `Decl::Function`; not a distinct kind |
+| `@search` | K *(reclassified)* | modifier: sets `is_llm`/corpus args on `Decl::Function`; not a distinct kind |
 | `@component` | X | already keyword; live `@v0`-style component path — add tombstone |
 | `@mcp.tool` | X | superseded by `@tool`/`tool`; today only warns — upgrade to error |
 | `@mcp.resource` | X | superseded; today only warns — upgrade to error |
@@ -346,8 +352,10 @@ surface and must move in lockstep or their gates break:
 | `@place` | X | **still parses live** — add tombstone; rev-1 "retired" was false |
 | `@pure` `@deprecated` `@require` `@ensure` `@invariant` `@forall` `@fuzz` `@test` `@example` `@json_as` `@field_name` `@default` `@skip_if_none` `@ai` `@prompt` `@hole` `@reactive` `@versioned` `@tracked` `@scheduled` `@uses` `@embed` `@cancellable` `@loading` `@back_button` `@deep_link` `@push` `@tokens` `@cors` `@rate_limit` `@pii` `@public` `@auth` `@offline_capable` `@collaborative` `@layer` `@remote` `@inference` `@training_step` `@distributed_train` | K | true cross-cutting modifiers |
 
-Totals: **T1 = 7, T2 = 4, X = 5, K = 40 → 56.** (Demoted/killed remain zombie
-variants for the hard-error path; `ALL.len()` unchanged.)
+Totals (after Tier-2 reclassification — see `…-tier2-design.md`): **demotions = 8**
+(7 Tier-1 here + `@form` in the Tier-2 plan), **X = 5**, **K = 43** (40 + the three
+reclassified modifiers `@webhook`/`@subagent`/`@search`) **→ 56.** (Demoted/killed
+remain zombie variants for the hard-error path; `ALL.len()` unchanged.)
 
 ## Appendix B — AST-equivalence harness (serde-based)
 
