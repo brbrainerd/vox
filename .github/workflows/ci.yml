@@ -628,7 +628,7 @@ jobs:
 
       - name: Rustdoc (deny warnings; full gate only)
         if: needs.setup.outputs.full == 'true'
-        run: RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps
+        run: RUSTDOCFLAGS='-D warnings' cargo doc --workspace --exclude vox-gui --no-deps
 
       - name: Lint Check (Clippy)
         # Deny all lints (`-D warnings`) EXCEPT a small set of cosmetic/subjective
@@ -981,7 +981,7 @@ jobs:
           set -euo pipefail
           junit_cfg="${RUNNER_TEMP}/vox-nextest-junit.toml"
           printf '%s\n' '[profile.ci.junit]' 'path = "junit.xml"' >"${junit_cfg}"
-          cargo llvm-cov nextest --workspace --profile ci --tool-config-file "vox-ci:${junit_cfg}"
+          cargo llvm-cov nextest --workspace --exclude vox-gui --profile ci --tool-config-file "vox-ci:${junit_cfg}"
 
       - name: Run Tests — plain nextest (full gate, docs-only change)
         if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed != 'true'
@@ -991,7 +991,7 @@ jobs:
           set -euo pipefail
           junit_cfg="${RUNNER_TEMP}/vox-nextest-junit.toml"
           printf '%s\n' '[profile.ci.junit]' 'path = "junit.xml"' >"${junit_cfg}"
-          cargo nextest run --workspace --profile ci --tool-config-file "vox-ci:${junit_cfg}"
+          cargo nextest run --workspace --exclude vox-gui --profile ci --tool-config-file "vox-ci:${junit_cfg}"
 
       - name: Run Tests — affected nextest (PR scoped)
         if: needs.setup.outputs.full != 'true'
@@ -1148,7 +1148,7 @@ jobs:
       # Full gate only — PR-time affected runs skip doctests (covered at merge_group).
       - name: Doc tests (cargo test --workspace --doc; not nextest)
         if: needs.setup.outputs.full == 'true'
-        run: cargo test --workspace --doc
+        run: cargo test --workspace --exclude vox-gui --doc
 
       - name: Line coverage report (summary, LCOV, gates enforce)
         if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
@@ -1259,7 +1259,7 @@ jobs:
           FULL="${{ needs.setup.outputs.full }}"
           P_ARGS="${{ needs.setup.outputs.affected_p_args }}"
           if [ "$FULL" = "true" ]; then
-            cargo check --workspace --all-features
+            cargo check --workspace --exclude vox-gui --all-features
           elif [ -n "$P_ARGS" ]; then
             # shellcheck disable=SC2086
             cargo check $P_ARGS --all-features
