@@ -89,7 +89,7 @@ impl Printer {
                 if t.is_pub {
                     self.out.push_str("pub ");
                 }
-                self.out.push_str("@table type ");
+                self.out.push_str("table ");
                 self.out.push_str(&t.name);
                 self.out.push_str(
                     " {
