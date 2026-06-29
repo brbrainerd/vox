@@ -75,6 +75,10 @@ else
   rc=0
   CR="$(printf '\r')"
   bad=""
+  # ponytail: paths with special chars get git-quoted by core.quotePath, so the
+  # `git show ":$f"` below would miss them. Only the fresh-clone pre-build path
+  # hits this (the autofix path is normal); set `git config core.quotePath false`
+  # if that ever matters.
   while IFS= read -r f; do
     [ -z "$f" ] && continue
     # -I treats binary files as non-matching, so we only flag text blobs.
