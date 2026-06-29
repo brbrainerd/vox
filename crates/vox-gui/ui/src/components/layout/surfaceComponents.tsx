@@ -14,6 +14,7 @@ import { GamifyView } from '../surfaces/Gamify/GamifyView';
 import { HarnessRedirect } from '../surfaces/Harness/HarnessRedirect';
 import { BrowserView } from '../surfaces/Browser/BrowserView';
 import { ApprovalsView } from '../surfaces/Approvals/ApprovalsView';
+import { CodeRabbitView } from '../surfaces/CodeRabbit/CodeRabbitView';
 import { ActivitySurface } from '../surfaces/Activity/ActivitySurface';
 import { MissionControlPanel } from '../surfaces/MissionControl/MissionControlPanel';
 import { SkillsPluginsView } from '../surfaces/SkillsPlugins/SkillsPluginsView';
@@ -164,6 +165,8 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
       );
     case 'approvals':
       return <ApprovalsView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
+    case 'coderabbit':
+      return <CodeRabbitView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'activity':
       return <ActivitySurface pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'needs-you':
