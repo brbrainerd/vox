@@ -30,9 +30,22 @@ pub async fn run_semantic_submit(repo: &Path, cfg: &SemanticSubmitConfig) -> Res
     };
     eprintln!("[semantic-submit] Collecting files ({mode_label})…");
     let mut all_files = if let Some(since) = cfg.since.as_deref() {
-        collect_files_modified_since(repo, since)
+        // Union committed-since-date with current working-tree edits, so an
+        // `--since … --execute` sweep never omits staged/unstaged/untracked local work.
+        let mut seen = std::collections::BTreeSet::new();
+        for f in collect_files_modified_since(repo, since)
             .await
             .context("collect files modified since date")?
+        {
+            seen.insert(f);
+        }
+        for f in collect_changed_files(repo)
+            .await
+            .context("collect changed files")?
+        {
+            seen.insert(f);
+        }
+        seen.into_iter().collect()
     } else if cfg.full_repo {
         collect_all_files(repo)
             .await

@@ -216,6 +216,24 @@ pub async fn collect_files_modified_since(repo: &Path, since: &str) -> Result<Ve
     Ok(seen.into_iter().collect())
 }
 
+/// Resolve the destination path from a `git --numstat` path field, which renders
+/// renames as `old => new` or `pre/{old => new}/post`. Non-rename fields pass through.
+fn numstat_new_path(raw: &str) -> String {
+    if !raw.contains("=>") {
+        return raw.to_string();
+    }
+    if let (Some(lb), Some(rb)) = (raw.find('{'), raw.find('}')) {
+        if lb < rb {
+            let pre = &raw[..lb];
+            let inner = &raw[lb + 1..rb];
+            let post = &raw[rb + 1..];
+            let new = inner.split("=>").nth(1).unwrap_or(inner).trim();
+            return format!("{pre}{new}{post}").replace("//", "/");
+        }
+    }
+    raw.split("=>").nth(1).unwrap_or(raw).trim().to_string()
+}
+
 /// Sum of (insertions + deletions) per file since `since` (churn signal).
 pub async fn churn_since(
     repo: &Path,
@@ -247,8 +265,10 @@ pub async fn churn_since(
             continue;
         }
         let w = a.parse::<u64>().unwrap_or(0) + b.parse::<u64>().unwrap_or(0);
-        *m.entry(super::super::path_policy::normalize_repo_rel_path(p))
-            .or_insert(0) += w;
+        *m.entry(super::super::path_policy::normalize_repo_rel_path(
+            &numstat_new_path(p),
+        ))
+        .or_insert(0) += w;
     }
     Ok(m)
 }
@@ -330,5 +350,34 @@ mod since_tests {
         assert_eq!(churn.get("new.rs").copied().unwrap_or(0), 2);
         let rec = recency_since(p, "1 day ago").await.unwrap();
         assert!(rec.get("new.rs").copied().unwrap_or(0.0) >= 1.0);
+    }
+
+    #[test]
+    fn numstat_new_path_resolves_renames() {
+        assert_eq!(numstat_new_path("src/a.rs"), "src/a.rs");
+        assert_eq!(numstat_new_path("old.rs => new.rs"), "new.rs");
+        assert_eq!(numstat_new_path("src/{old => new}.rs"), "src/new.rs");
+        assert_eq!(numstat_new_path("{a => b}/file.rs"), "b/file.rs");
+    }
+
+    #[tokio::test]
+    async fn churn_counts_renamed_file_under_new_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path();
+        git(p, &["init", "-q"]);
+        git(p, &["config", "user.email", "t@t"]);
+        git(p, &["config", "user.name", "t"]);
+        std::fs::write(p.join("old.rs"), "a\nb\n").unwrap();
+        git(p, &["add", "-A"]);
+        git_old_commit(p, "base");
+        git(p, &["mv", "old.rs", "new.rs"]);
+        std::fs::write(p.join("new.rs"), "a\nb\nc\n").unwrap();
+        git(p, &["add", "-A"]);
+        git(p, &["commit", "-qm", "rename+edit"]);
+
+        let churn = churn_since(p, "1 day ago").await.unwrap();
+        // The added line is attributed to the NEW path, not "old.rs => new.rs".
+        assert!(churn.get("new.rs").copied().unwrap_or(0) >= 1);
+        assert!(!churn.keys().any(|k| k.contains("=>")));
     }
 }

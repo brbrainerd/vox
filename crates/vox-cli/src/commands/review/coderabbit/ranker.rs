@@ -40,9 +40,13 @@ impl RankWeights {
         self.recency == 1.0 && self.churn == 1.0 && self.centrality == 1.0
     }
 
-    /// Parse `"r,c,g"` (any missing component defaults to 1.0). Non-numeric → 1.0.
+    /// Parse `"r,c,g"` (any missing component defaults to 1.0). Non-numeric or
+    /// non-finite (NaN/inf) → 1.0 (non-finite would poison score ordering).
     pub fn parse(s: &str) -> Self {
-        let mut it = s.split(',').map(|p| p.trim().parse::<f64>().unwrap_or(1.0));
+        let mut it = s.split(',').map(|p| match p.trim().parse::<f64>() {
+            Ok(v) if v.is_finite() => v,
+            _ => 1.0,
+        });
         RankWeights {
             recency: it.next().unwrap_or(1.0),
             churn: it.next().unwrap_or(1.0),
@@ -99,7 +103,12 @@ pub fn score_map(
                 0.0
             } else {
                 v.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-                v[v.len() / 2]
+                let mid = v.len() / 2;
+                if v.len() % 2 == 0 {
+                    (v[mid - 1] + v[mid]) / 2.0
+                } else {
+                    v[mid]
+                }
             }
         }
         _ => 0.0,
@@ -166,7 +175,9 @@ pub(crate) fn reorder_chunks_by_score(chunks: &mut [SemanticChunk], score: &Hash
 
 /// File-aggregated node degree from the AST graph cache. `None` on any failure / zero matches.
 pub fn load_file_centrality(repo: &Path) -> Option<HashMap<String, f64>> {
-    let path = repo.join(".vox/cache/graphify/repo-code-graph/graph.json");
+    let path = repo
+        .join(vox_config::paths::REPO_GRAPHIFY_REPO_CODE_GRAPH_DIR)
+        .join("graph.json");
     let text = std::fs::read_to_string(path).ok()?;
     let value: serde_json::Value = serde_json::from_str(&text).ok()?;
     let reader = vox_graph_reader::GraphifyReader::from_value(value).ok()?;
