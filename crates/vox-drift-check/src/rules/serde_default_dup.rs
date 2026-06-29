@@ -32,7 +32,11 @@ impl DriftRule for SerdeDefaultDupRule {
             return vec![];
         }
         // Skip vendored [patch] crates — upstream source we cannot modify.
-        if features.file.to_str().map_or(false, |p| p.contains(VENDORED_PATH_PREFIX)) {
+        if features
+            .file
+            .to_str()
+            .map_or(false, |p| p.contains(VENDORED_PATH_PREFIX))
+        {
             return vec![];
         }
 

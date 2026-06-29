@@ -695,7 +695,9 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         upsert_registered_corpus(tmp.path(), &sample_corpus("ext")).unwrap();
         // The overlay must be written at the new .vox/cache/vox-graph path.
-        let new_overlay = tmp.path().join(crate::paths::REPO_VOX_GRAPH_REGISTERED_FILE);
+        let new_overlay = tmp
+            .path()
+            .join(crate::paths::REPO_VOX_GRAPH_REGISTERED_FILE);
         assert!(new_overlay.exists(), "overlay must write to vox-graph path");
         let loaded = load_registered_corpora(tmp.path());
         assert!(loaded.iter().any(|c| c.id == "ext"));

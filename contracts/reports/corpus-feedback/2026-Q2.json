@@ -1,10 +1,41 @@
 {
   "schema_version": 1,
-  "measured_at": "2026-05-27T21:22:11.909358300+00:00",
-  "total_lint_findings": 0,
+  "measured_at": "2026-06-29T07:53:37.729539900+00:00",
+  "total_lint_findings": 28,
   "total_autofix_observations": 0,
   "total_repair_sessions": 0,
-  "top_50_diagnostics": [],
+  "top_50_diagnostics": [
+    {
+      "rule_id": "arch/schema_compliance",
+      "finding_count": 16,
+      "autofix_applied_count": 0,
+      "autofix_rejected_count": 0
+    },
+    {
+      "rule_id": "skeleton/untested-pub-api",
+      "finding_count": 7,
+      "autofix_applied_count": 0,
+      "autofix_rejected_count": 0
+    },
+    {
+      "rule_id": "rust/unwrap-call",
+      "finding_count": 3,
+      "autofix_applied_count": 0,
+      "autofix_rejected_count": 0
+    },
+    {
+      "rule_id": "ai-laziness/assertion-only-body",
+      "finding_count": 1,
+      "autofix_applied_count": 0,
+      "autofix_rejected_count": 0
+    },
+    {
+      "rule_id": "arch/god_object",
+      "finding_count": 1,
+      "autofix_applied_count": 0,
+      "autofix_rejected_count": 0
+    }
+  ],
   "repair_outcomes": {
     "success": 0,
     "partial": 0,
@@ -13,5 +44,51 @@
     "other": 0,
     "total_sessions": 0
   },
-  "by_repository": {}
+  "by_repository": {
+    "(unattributed)": {
+      "total_lint_findings": 28,
+      "total_autofix_observations": 0,
+      "total_repair_sessions": 0,
+      "repair_outcomes": {
+        "success": 0,
+        "partial": 0,
+        "abandoned": 0,
+        "infra_error": 0,
+        "other": 0,
+        "total_sessions": 0
+      },
+      "top_10_diagnostics": [
+        {
+          "rule_id": "arch/schema_compliance",
+          "finding_count": 16,
+          "autofix_applied_count": 0,
+          "autofix_rejected_count": 0
+        },
+        {
+          "rule_id": "skeleton/untested-pub-api",
+          "finding_count": 7,
+          "autofix_applied_count": 0,
+          "autofix_rejected_count": 0
+        },
+        {
+          "rule_id": "rust/unwrap-call",
+          "finding_count": 3,
+          "autofix_applied_count": 0,
+          "autofix_rejected_count": 0
+        },
+        {
+          "rule_id": "ai-laziness/assertion-only-body",
+          "finding_count": 1,
+          "autofix_applied_count": 0,
+          "autofix_rejected_count": 0
+        },
+        {
+          "rule_id": "arch/god_object",
+          "finding_count": 1,
+          "autofix_applied_count": 0,
+          "autofix_rejected_count": 0
+        }
+      ]
+    }
+  }
 }

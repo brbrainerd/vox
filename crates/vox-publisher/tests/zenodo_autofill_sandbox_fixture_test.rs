@@ -98,7 +98,10 @@ fn sandbox_fixture_autofill_fills_zenodo_required_fields_with_provenance() {
         "Zenodo body must carry publication_date"
     );
     assert!(!body.metadata.keywords.is_empty());
-    assert_eq!(body.metadata.version.as_deref(), Some(env!("CARGO_PKG_VERSION")));
+    assert_eq!(
+        body.metadata.version.as_deref(),
+        Some(env!("CARGO_PKG_VERSION"))
+    );
     assert!(
         body.metadata
             .related_identifiers

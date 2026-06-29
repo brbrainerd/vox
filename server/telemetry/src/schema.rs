@@ -72,8 +72,7 @@ pub fn gen_ddl(taxonomy: &Taxonomy) -> String {
     }
 
     // Build a name → type map (first definition wins if there is a conflict).
-    let mut field_map: std::collections::BTreeMap<String, &str> =
-        std::collections::BTreeMap::new();
+    let mut field_map: std::collections::BTreeMap<String, &str> = std::collections::BTreeMap::new();
     for cat in &taxonomy.categories {
         for f in &cat.fields {
             field_map
@@ -110,10 +109,7 @@ pub fn gen_ddl(taxonomy: &Taxonomy) -> String {
         }
         out.push_str("    count()      AS cnt\n");
         out.push_str("FROM events_raw\n");
-        out.push_str(&format!(
-            "WHERE event_name = '{}'\n",
-            cat.otlp_event_name
-        ));
+        out.push_str(&format!("WHERE event_name = '{}'\n", cat.otlp_event_name));
         out.push_str("GROUP BY ALL;\n");
     }
 
@@ -155,8 +151,7 @@ pub async fn ensure_schema(ch: &clickhouse::Client) -> anyhow::Result<()> {
 // Path is relative to this source file. After flattening the formerly
 // double-nested crate into `server/telemetry/`, `contracts/` sits one level up
 // from `src/` (was two levels in the old `vox-server/vox-server/` layout).
-const TAXONOMY_JSON: &str =
-    include_str!("../contracts/collection-taxonomy.v1.json");
+const TAXONOMY_JSON: &str = include_str!("../contracts/collection-taxonomy.v1.json");
 
 pub fn load_taxonomy() -> Result<Taxonomy, serde_json::Error> {
     serde_json::from_str(TAXONOMY_JSON)
@@ -184,8 +179,14 @@ mod tests {
     fn ddl_has_install_id_and_ts_columns() {
         let t = load_taxonomy().expect("taxonomy must parse");
         let ddl = gen_ddl(&t);
-        assert!(ddl.contains("install_id"), "events_raw must have install_id column");
-        assert!(ddl.contains("DateTime64(3, 'UTC')"), "events_raw must have DateTime64 ts column");
+        assert!(
+            ddl.contains("install_id"),
+            "events_raw must have install_id column"
+        );
+        assert!(
+            ddl.contains("DateTime64(3, 'UTC')"),
+            "events_raw must have DateTime64 ts column"
+        );
     }
 
     #[test]

@@ -7,8 +7,8 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use axum::{Router, routing::post};
-use serde_json::{Value, json};
+use axum::{routing::post, Router};
+use serde_json::{json, Value};
 use vox_server::ingest::AppState;
 use vox_server::redact::{build_allowlist, filter_record};
 use vox_server::schema::load_taxonomy;
@@ -31,7 +31,10 @@ fn command_usage_record_accepted_and_filtered() {
     raw.insert("duration_bucket".into(), Value::String("lt1s".into()));
     // Inject a field that MUST be dropped.
     raw.insert("user_name".into(), Value::String("alice".into()));
-    raw.insert("cwd".into(), Value::String("/home/alice/projects/secret".into()));
+    raw.insert(
+        "cwd".into(),
+        Value::String("/home/alice/projects/secret".into()),
+    );
 
     let rec = filter_record("install_xyz", "vox.command", 1_700_000_000_000, raw, &al)
         .expect("known category must be accepted");
@@ -52,21 +55,24 @@ fn command_usage_record_accepted_and_filtered() {
 fn skill_activation_hash_field_accepted() {
     let al = allowlist();
     let mut raw = HashMap::new();
-    raw.insert(
-        "skill_id_hash".into(),
-        Value::String("a1b2c3d4e5f6".into()),
-    );
+    raw.insert("skill_id_hash".into(), Value::String("a1b2c3d4e5f6".into()));
     raw.insert("trigger_source".into(), Value::String("pinned".into()));
     raw.insert("accepted".into(), Value::Bool(true));
     raw.insert("surface".into(), Value::String("mcp".into()));
     // Inject fields that MUST be dropped.
-    raw.insert("skill_name".into(), Value::String("my-private-skill".into()));
+    raw.insert(
+        "skill_name".into(),
+        Value::String("my-private-skill".into()),
+    );
     raw.insert("user_id".into(), Value::String("user-123".into()));
 
-    let rec = filter_record("install_xyz", "vox.skill", 0, raw, &al)
-        .expect("vox.skill must be accepted");
+    let rec =
+        filter_record("install_xyz", "vox.skill", 0, raw, &al).expect("vox.skill must be accepted");
 
-    assert!(rec.attrs.contains_key("skill_id_hash"), "hash field must survive");
+    assert!(
+        rec.attrs.contains_key("skill_id_hash"),
+        "hash field must survive"
+    );
     assert!(
         !rec.attrs.contains_key("skill_name"),
         "skill_name must be dropped"
@@ -90,7 +96,10 @@ fn unknown_category_is_rejected() {
 fn default_decision_integer_magnitude_bucket_accepted() {
     let al = allowlist();
     let mut raw = HashMap::new();
-    raw.insert("decision_id".into(), Value::String("llm_max_concurrent".into()));
+    raw.insert(
+        "decision_id".into(),
+        Value::String("llm_max_concurrent".into()),
+    );
     raw.insert("chosen".into(), Value::String("medium_8".into()));
     raw.insert("outcome".into(), Value::String("comfortable".into()));
     raw.insert("magnitude_bucket".into(), Value::Number(1.into()));
@@ -100,7 +109,10 @@ fn default_decision_integer_magnitude_bucket_accepted() {
     let rec = filter_record("install_xyz", "vox.default_decision", 0, raw, &al)
         .expect("default_decision must be accepted");
 
-    assert!(rec.attrs.contains_key("magnitude_bucket"), "magnitude_bucket must survive");
+    assert!(
+        rec.attrs.contains_key("magnitude_bucket"),
+        "magnitude_bucket must survive"
+    );
     assert!(
         !rec.attrs.contains_key("raw_value"),
         "raw_value must be dropped — only enum slugs allowed"
@@ -185,7 +197,10 @@ fn server_side_filter_is_independent_of_client_sending_extra_fields() {
     raw.insert("duration_bucket".into(), Value::String("lt1s".into()));
     // Malicious extra fields:
     raw.insert("api_key".into(), Value::String("sk-live-secret".into()));
-    raw.insert("file_contents".into(), Value::String("password: hunter2".into()));
+    raw.insert(
+        "file_contents".into(),
+        Value::String("password: hunter2".into()),
+    );
     raw.insert("home_dir".into(), Value::String("/home/alice".into()));
 
     let rec = filter_record("install_xyz", "vox.command", 0, raw, &al).unwrap();
@@ -196,5 +211,9 @@ fn server_side_filter_is_independent_of_client_sending_extra_fields() {
             "server-side filter must drop '{secret_key}' even when client sends it"
         );
     }
-    assert_eq!(rec.attrs.len(), 3, "exactly the 3 allowlisted fields must survive");
+    assert_eq!(
+        rec.attrs.len(),
+        3,
+        "exactly the 3 allowlisted fields must survive"
+    );
 }

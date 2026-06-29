@@ -1351,6 +1351,9 @@ mod tests {
         );
         // No backlog line when demand fits.
         let ok = format_status_table(&[], &[], &[], 4, 6, &[], 0);
-        assert!(!ok.contains("over capacity"), "no backlog line when within cap");
+        assert!(
+            !ok.contains("over capacity"),
+            "no backlog line when within cap"
+        );
     }
 }

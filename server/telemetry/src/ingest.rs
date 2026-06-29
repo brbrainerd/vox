@@ -137,9 +137,10 @@ pub async fn ingest_logs(
             .resource
             .as_ref()
             .and_then(|r| {
-                r.attributes.iter().find(|kv| kv.key == "install_id").and_then(|kv| {
-                    kv.value.string_value.as_deref().map(str::to_string)
-                })
+                r.attributes
+                    .iter()
+                    .find(|kv| kv.key == "install_id")
+                    .and_then(|kv| kv.value.string_value.as_deref().map(str::to_string))
             })
             .unwrap_or_default();
 
@@ -160,11 +161,7 @@ pub async fn ingest_logs(
                     if kv.key == "event_type" {
                         // client sends event_type; map to otlp_event_name via taxonomy lookup
                         // For now we forward the event_name field as-is and let filter_record handle it.
-                        event_name = kv
-                            .value
-                            .string_value
-                            .clone()
-                            .unwrap_or_default();
+                        event_name = kv.value.string_value.clone().unwrap_or_default();
                     } else {
                         raw.insert(kv.key.clone(), kv.value.clone().into());
                     }
@@ -211,7 +208,10 @@ pub async fn ingest_logs(
     }
 
     info!(accepted, discarded, "ingest batch complete");
-    (StatusCode::OK, Json(serde_json::json!({"accepted": accepted, "discarded": discarded})))
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({"accepted": accepted, "discarded": discarded})),
+    )
         .into_response()
 }
 
@@ -260,12 +260,9 @@ impl EventRow {
         let s = |k: &str| -> Option<String> {
             r.attrs.get(k).and_then(|v| v.as_str().map(String::from))
         };
-        let b = |k: &str| -> Option<u8> {
-            r.attrs.get(k).and_then(|v| v.as_bool()).map(|b| b as u8)
-        };
-        let i = |k: &str| -> Option<i64> {
-            r.attrs.get(k).and_then(|v| v.as_i64())
-        };
+        let b =
+            |k: &str| -> Option<u8> { r.attrs.get(k).and_then(|v| v.as_bool()).map(|b| b as u8) };
+        let i = |k: &str| -> Option<i64> { r.attrs.get(k).and_then(|v| v.as_i64()) };
         Self {
             install_id: r.install_id.clone(),
             event_name: r.event_name.clone(),

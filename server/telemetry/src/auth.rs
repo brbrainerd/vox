@@ -9,7 +9,7 @@
 
 use axum::{
     extract::{Request, State},
-    http::{StatusCode, header::AUTHORIZATION},
+    http::{header::AUTHORIZATION, StatusCode},
     middleware::Next,
     response::Response,
 };

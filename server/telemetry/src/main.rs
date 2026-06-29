@@ -1,12 +1,12 @@
 use std::net::SocketAddr;
 
-use axum::{Router, routing::get, routing::post};
+use axum::{routing::get, routing::post, Router};
 use clickhouse::Client;
 use tower_http::trace::TraceLayer;
 use tracing::info;
-use tracing_subscriber::{EnvFilter, fmt, prelude::*};
+use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
-use vox_server::ingest::{AppState, ingest_logs};
+use vox_server::ingest::{ingest_logs, AppState};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -19,8 +19,8 @@ async fn main() -> anyhow::Result<()> {
         .with(fmt::layer())
         .init();
 
-    let ch_url = std::env::var("CLICKHOUSE_URL")
-        .unwrap_or_else(|_| "http://localhost:8123".to_string());
+    let ch_url =
+        std::env::var("CLICKHOUSE_URL").unwrap_or_else(|_| "http://localhost:8123".to_string());
     let ch_db = std::env::var("CLICKHOUSE_DB").unwrap_or_else(|_| "vox_telemetry".to_string());
     let ch_user = std::env::var("CLICKHOUSE_USER").unwrap_or_else(|_| "default".to_string());
     let ch_pass = std::env::var("CLICKHOUSE_PASSWORD").unwrap_or_default();

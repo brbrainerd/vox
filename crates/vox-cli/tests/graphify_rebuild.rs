@@ -36,7 +36,10 @@ fn rebuild_then_assess_is_fresh_and_detects_drift() {
     fs::create_dir_all(&src).unwrap();
     fs::write(src.join("lib.rs"), "fn one() { two(); }\nfn two() {}").unwrap();
 
-    let graph_rel = &format!("{}/graph.json", vox_config::paths::REPO_GRAPHIFY_REPO_CODE_GRAPH_DIR);
+    let graph_rel = &format!(
+        "{}/graph.json",
+        vox_config::paths::REPO_GRAPHIFY_REPO_CODE_GRAPH_DIR
+    );
     let out = tmp.path().join(graph_rel);
     let meta = RebuildMeta {
         corpus_id: "repo-code-graph".to_string(),
@@ -61,7 +64,10 @@ fn rebuild_then_assess_is_fresh_and_detects_drift() {
         title: "t".to_string(),
         scope_path: "src".to_string(),
         graph_path: graph_rel.to_string(),
-        manifest_path: format!("{}/.graphify_manifest.v1.json", vox_config::paths::REPO_GRAPHIFY_REPO_CODE_GRAPH_DIR),
+        manifest_path: format!(
+            "{}/.graphify_manifest.v1.json",
+            vox_config::paths::REPO_GRAPHIFY_REPO_CODE_GRAPH_DIR
+        ),
         extraction_mode: Some("structural".to_string()),
         default_for_intents: vec![],
         is_virtual: false,

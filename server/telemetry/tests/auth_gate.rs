@@ -3,7 +3,7 @@
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use tower::ServiceExt; // oneshot
-use vox_server::auth::{IngestToken, require_bearer};
+use vox_server::auth::{require_bearer, IngestToken};
 
 fn app(token: Option<&str>) -> axum::Router {
     axum::Router::new()

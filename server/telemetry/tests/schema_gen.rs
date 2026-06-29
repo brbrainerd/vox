@@ -25,7 +25,10 @@ fn gen_ddl_has_required_primary_columns() {
     let ddl = gen_ddl(&t);
     assert!(ddl.contains("install_id"), "must have install_id");
     assert!(ddl.contains("event_name"), "must have event_name");
-    assert!(ddl.contains("DateTime64(3, 'UTC')"), "must have DateTime64 ts");
+    assert!(
+        ddl.contains("DateTime64(3, 'UTC')"),
+        "must have DateTime64 ts"
+    );
 }
 
 #[test]
@@ -57,7 +60,10 @@ fn gen_ddl_bool_fields_use_uint8() {
     let t = load_taxonomy().expect("taxonomy");
     let ddl = gen_ddl(&t);
     // 'accepted' in skill_activation and 'recoverable' in error_surface are bool.
-    assert!(ddl.contains("Nullable(UInt8)"), "bool fields must use Nullable(UInt8)");
+    assert!(
+        ddl.contains("Nullable(UInt8)"),
+        "bool fields must use Nullable(UInt8)"
+    );
 }
 
 #[test]
@@ -65,7 +71,10 @@ fn gen_ddl_int_fields_use_nullable_int64() {
     let t = load_taxonomy().expect("taxonomy");
     let ddl = gen_ddl(&t);
     // magnitude_bucket is the int field in default_decision.
-    assert!(ddl.contains("Nullable(Int64)"), "int fields must use Nullable(Int64)");
+    assert!(
+        ddl.contains("Nullable(Int64)"),
+        "int fields must use Nullable(Int64)"
+    );
 }
 
 #[test]
@@ -80,7 +89,10 @@ fn taxonomy_has_expected_categories() {
         "error_surface",
         "default_decision",
     ] {
-        assert!(names.contains(expected), "taxonomy must have category '{expected}'");
+        assert!(
+            names.contains(expected),
+            "taxonomy must have category '{expected}'"
+        );
     }
 }
 
@@ -88,7 +100,10 @@ fn taxonomy_has_expected_categories() {
 fn gen_ddl_uses_merge_tree_engine() {
     let t = load_taxonomy().expect("taxonomy");
     let ddl = gen_ddl(&t);
-    assert!(ddl.contains("ENGINE = MergeTree()"), "must use MergeTree engine");
+    assert!(
+        ddl.contains("ENGINE = MergeTree()"),
+        "must use MergeTree engine"
+    );
 }
 
 #[test]
@@ -97,14 +112,21 @@ fn ddl_splits_into_executable_statements() {
     let tax = load_taxonomy().expect("taxonomy loads");
     let stmts = split_statements(&gen_ddl(&tax));
     // events_raw + at least one materialized view.
-    assert!(stmts.len() >= 2, "expected >=2 statements, got {}", stmts.len());
+    assert!(
+        stmts.len() >= 2,
+        "expected >=2 statements, got {}",
+        stmts.len()
+    );
     assert!(
         stmts
             .iter()
             .any(|s| s.contains("CREATE TABLE IF NOT EXISTS events_raw")),
         "one statement must create events_raw"
     );
-    assert!(stmts.iter().all(|s| !s.trim().is_empty()), "no empty statements");
+    assert!(
+        stmts.iter().all(|s| !s.trim().is_empty()),
+        "no empty statements"
+    );
     // No bare comment-only fragments survive splitting, and no statement carries a
     // trailing ';' (clickhouse .query() wants one statement, no terminator).
     assert!(stmts.iter().all(|s| !s.trim_start().starts_with("--")));

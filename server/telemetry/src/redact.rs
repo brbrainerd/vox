@@ -70,8 +70,14 @@ mod tests {
         let al = taxonomy_allowlist();
         let mut raw = HashMap::new();
         raw.insert("verb".to_string(), Value::String("build".to_string()));
-        raw.insert("exit_class".to_string(), Value::String("success".to_string()));
-        raw.insert("duration_bucket".to_string(), Value::String("lt1s".to_string()));
+        raw.insert(
+            "exit_class".to_string(),
+            Value::String("success".to_string()),
+        );
+        raw.insert(
+            "duration_bucket".to_string(),
+            Value::String("lt1s".to_string()),
+        );
         let rec = filter_record("install123", "vox.command", 0, raw, &al);
         assert!(rec.is_some(), "known category must survive");
         let r = rec.unwrap();
@@ -92,8 +98,14 @@ mod tests {
         let mut raw = HashMap::new();
         raw.insert("verb".to_string(), Value::String("build".to_string()));
         // Inject a field that is not in the taxonomy for this category.
-        raw.insert("user_email".to_string(), Value::String("secret@example.com".to_string()));
-        raw.insert("raw_path".to_string(), Value::String("/home/secret/project".to_string()));
+        raw.insert(
+            "user_email".to_string(),
+            Value::String("secret@example.com".to_string()),
+        );
+        raw.insert(
+            "raw_path".to_string(),
+            Value::String("/home/secret/project".to_string()),
+        );
         let rec = filter_record("install123", "vox.command", 0, raw, &al).unwrap();
         assert!(
             !rec.attrs.contains_key("user_email"),
@@ -103,7 +115,10 @@ mod tests {
             !rec.attrs.contains_key("raw_path"),
             "unlisted 'raw_path' must be dropped"
         );
-        assert!(rec.attrs.contains_key("verb"), "allowlisted 'verb' must survive");
+        assert!(
+            rec.attrs.contains_key("verb"),
+            "allowlisted 'verb' must survive"
+        );
     }
 
     #[test]

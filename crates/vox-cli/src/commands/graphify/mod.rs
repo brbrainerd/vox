@@ -15,7 +15,9 @@ use vox_config::graphify::{
 /// authoritative registry `graph_path` (`output_file.parent()`). This helper is
 /// only used by the crate-map ingest path.
 fn primary_cache_dir(repo_root: &std::path::Path, corpus_id: &str) -> std::path::PathBuf {
-    repo_root.join(vox_config::paths::REPO_VOX_GRAPH_CACHE_DIR).join(corpus_id)
+    repo_root
+        .join(vox_config::paths::REPO_VOX_GRAPH_CACHE_DIR)
+        .join(corpus_id)
 }
 
 #[derive(Debug, Subcommand)]
@@ -866,7 +868,9 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         write_registry(tmp.path());
         // After path migration, repo-code-graph lives at .vox/cache/graphify/repo-code-graph/
-        let graph_dir = tmp.path().join(vox_config::paths::REPO_GRAPHIFY_REPO_CODE_GRAPH_DIR);
+        let graph_dir = tmp
+            .path()
+            .join(vox_config::paths::REPO_GRAPHIFY_REPO_CODE_GRAPH_DIR);
         fs::create_dir_all(&graph_dir).unwrap();
         fs::write(
             graph_dir.join("graph.json"),
@@ -882,7 +886,9 @@ mod tests {
     fn ingest_graph_corpus_projects_minimal_graph_nodes() {
         let tmp = tempfile::tempdir().unwrap();
         write_registry(tmp.path());
-        let graph_dir = tmp.path().join(vox_config::paths::REPO_GRAPHIFY_REPO_CODE_GRAPH_DIR);
+        let graph_dir = tmp
+            .path()
+            .join(vox_config::paths::REPO_GRAPHIFY_REPO_CODE_GRAPH_DIR);
         fs::create_dir_all(&graph_dir).unwrap();
         fs::write(
             graph_dir.join("graph.json"),
@@ -962,7 +968,10 @@ mod vg1_cache_path_tests {
         let tmp = tempfile::tempdir().unwrap();
         let corpus_id = "repo-code-graph";
         // The primary path must be .vox/cache/vox-graph/<corpus_id>
-        let expected = tmp.path().join(vox_config::paths::REPO_VOX_GRAPH_CACHE_DIR).join(corpus_id);
+        let expected = tmp
+            .path()
+            .join(vox_config::paths::REPO_VOX_GRAPH_CACHE_DIR)
+            .join(corpus_id);
         let actual = primary_cache_dir(tmp.path(), corpus_id);
         assert_eq!(actual, expected);
     }
