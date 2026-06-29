@@ -26,7 +26,10 @@ mod rules;
 mod submit;
 mod types;
 
-pub use collector::{collect_all_files, collect_changed_files};
+pub use collector::{
+    churn_since, collect_all_files, collect_changed_files, collect_files_modified_since,
+    recency_since,
+};
 pub use rules::{SemanticRuleSet, resolve_semantic_rule_set, unassigned_prefix_histogram};
 pub use submit::run_semantic_submit;
 pub use types::{SemanticChunk, SemanticManifest, SemanticPlanner, SemanticSubmitConfig};
