@@ -86,7 +86,7 @@ pub fn transport_wrapper_map(ts_src: &str) -> std::collections::HashMap<String, 
         if let Some((name, after_open)) = method_header(line) {
             current = Some(name.to_string());
             // a single-line wrapper may also carry the invoke on the same line
-            if try_map_invoke(&mut out, &name.to_string(), after_open) {
+            if try_map_invoke(&mut out, name, after_open) {
                 current = None;
             }
             continue;

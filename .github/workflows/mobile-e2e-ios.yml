@@ -24,6 +24,8 @@ jobs:
           targets: aarch64-apple-ios, x86_64-apple-ios, aarch64-apple-ios-sim
 
       - uses: pnpm/action-setup@v6
+        with:
+          version: 9
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
