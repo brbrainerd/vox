@@ -86,8 +86,14 @@ priority over `--full-repo`/changed-files at `submit.rs:29-37`).
   per file; node ids are `file::symbol`, split on `::`, normalize a leading
   `.claude/worktrees/<seg>/` prefix. Graph read from
   `.vox/cache/graphify/repo-code-graph/graph.json`. **Loaded only when
-  `w_central > 0`.** Any missing-file/parse/zero-match case → centrality term
-  contributes 0 (no renormalization; weights are independent multipliers).
+  `w_central > 0`.** Any missing-file/parse case → the centrality term is omitted.
+  **VERIFIED 2026-06-29** against the real 342MB cache: centrality covers only **39% of
+  tracked files** (cache is 84% stale worktree paths). Uncovered files are therefore
+  **imputed at the median of covered candidates, NOT zero** — absence must be neutral,
+  never a penalty (zeroing would wrongly sink 61% of files). Coverage % is **logged each
+  run** with a hint to regenerate the graph (`vox graph`). Consequence: with today's
+  stale graph, recency+churn carry the real signal and centrality is a light tiebreaker;
+  it strengthens only after a fresh main-scoped graph.
 - Weights default equal (`1/1/1`); override via `--rank-weights r,c,g` and
   `Vox.toml [review.coderabbit]`.
 - `--top N`: rank candidates, keep highest-scoring N, then plan as usual.

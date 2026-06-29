@@ -215,6 +215,19 @@ mod tests {
     }
 
     #[test]
+    fn missing_centrality_is_imputed_neutral_not_zero() {
+        // "covered" is a high-centrality outlier; "bare" has NO node. With churn/recency
+        // equal, "bare" must NOT be sunk below a low-churn covered file — imputation = median.
+        let recency: HashMap<String,f64> = [("covered".into(),1.0),("bare".into(),1.0)].into();
+        let churn:   HashMap<String,u64> = [("covered".into(),1),("bare".into(),1)].into();
+        let central: HashMap<String,f64> = [("covered".into(),100.0)].into(); // median of covered = 100
+        let files = vec!["covered".to_string(), "bare".to_string()];
+        let ranked = rank_files(&files, &recency, &churn, Some(&central), RankWeights::default());
+        // identical scores (bare imputed to the median 100/gmax=1.0) -> stable tie by name
+        assert_eq!(ranked, vec!["bare".to_string(), "covered".to_string()]);
+    }
+
+    #[test]
     fn file_part_strips_symbol_and_worktree() {
         assert_eq!(file_of_node("crates/x/a.rs::foo"), "crates/x/a.rs");
         assert_eq!(file_of_node(".claude/worktrees/w1/crates/x/a.rs::foo"), "crates/x/a.rs");
@@ -261,9 +274,24 @@ pub fn rank_files(
     let rmax = recency.values().cloned().fold(0.0, f64::max);
     let cmax = churn_f.values().cloned().fold(0.0, f64::max);
     let gmax = centrality.map(|g| g.values().cloned().fold(0.0, f64::max)).unwrap_or(0.0);
+    // Median normalized centrality over the CANDIDATE files that are covered, used to
+    // impute uncovered files (neutral, not zero). 0.0 if nothing covered.
+    let cmed_norm = match centrality {
+        Some(g) if gmax > 0.0 => {
+            let mut v: Vec<f64> = files.iter().filter_map(|f| g.get(f)).map(|x| x / gmax).collect();
+            if v.is_empty() { 0.0 } else { v.sort_by(|a,b| a.partial_cmp(b).unwrap()); v[v.len()/2] }
+        }
+        _ => 0.0,
+    };
     let mut scored: Vec<(f64, String)> = files.iter().map(|f| {
         let mut s = w.recency * norm(recency, f, rmax) + w.churn * norm(&churn_f, f, cmax);
-        if let Some(g) = centrality { s += w.centrality * norm(g, f, gmax); }
+        // Centrality covers only ~39% of tracked files (verified 2026-06-29) and the
+        // cache is mostly stale worktree paths. Missing != low: impute the MEDIAN of
+        // covered candidates so absence is NEUTRAL, never a penalty.
+        if let Some(g) = centrality {
+            let cov = g.get(f).map(|v| v / gmax).unwrap_or(cmed_norm);
+            s += w.centrality * cov;
+        }
         (s, f.clone())
     }).collect();
     scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal).then(a.1.cmp(&b.1)));
@@ -283,9 +311,26 @@ pub fn load_file_centrality(repo: &Path) -> Option<HashMap<String, f64>> {
     }
     if by_file.is_empty() { None } else { Some(by_file) }
 }
+
+/// Strip a leading ".vox/cache"-style staleness: log coverage so the operator sees
+/// how much signal centrality actually contributes for THIS candidate set.
+pub fn log_centrality_coverage(candidates: &[String], central: Option<&HashMap<String, f64>>) {
+    if let Some(g) = central {
+        let hit = candidates.iter().filter(|f| g.contains_key(*f)).count();
+        let pct = if candidates.is_empty() { 0.0 } else { 100.0 * hit as f64 / candidates.len() as f64 };
+        eprintln!("coderabbit: centrality covers {hit}/{} candidate files ({pct:.0}%); \
+                   uncovered files imputed at median. Regenerate the graph (vox graph) \
+                   for fresh coverage.", candidates.len());
+    }
+}
 ```
 
-> Verified: `vox-graph-reader` exposes `from_value`, `node_count`, `god_nodes(top_n) -> Vec<(String, usize)>`. Graph nodes are `file::symbol` with no stored degree (degree is computed by `god_nodes`).
+> Verified 2026-06-29 against the real 342MB cache: `vox-graph-reader` exposes
+> `from_value`, `node_count`, `god_nodes(top_n) -> Vec<(String, usize)>`; nodes are
+> `file::symbol` with no stored degree. Join coverage is only **39%** of tracked files
+> (cache is 84% stale worktree paths), which is why uncovered files are **median-imputed,
+> not zeroed**, and why centrality coverage is logged each run. Call
+> `log_centrality_coverage(&all_files, central.as_ref())` right after loading in Task 4.
 
 - [ ] **Step 5: Run to verify pass**
 
