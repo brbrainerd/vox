@@ -1,22 +1,22 @@
-# CodeRabbit Review (Bring-Forward + Date-Scoped Importance Sweep + GUI) Implementation Plan
+# CodeRabbit Review — Date-Scoped Importance Sweep + GUI (Implementation Plan)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Bring the stranded CodeRabbit subsystem onto `main`, then add a date-scoped, importance-ranked repo-sweep and a GUI review panel.
+**Goal:** Add a date-scoped, importance-ranked CodeRabbit repo sweep and a GUI review panel to the `coderabbit` subsystem that already lives on `main`.
 
-**Architecture:** Copy the self-contained `coderabbit` module + `vox-db` `external_review` schema + `vox-code-audit/review` from branch `claude/skill-discovery-engine` onto a fresh branch off `main`, fixing the `limits.rs` constants in the same pass. Then extend `semantic-submit` with `--since` (git-log date scope), `--top N` + an importance ranker (recency + churn + graphify centrality, graceful-degrade), adaptive backoff on oversized-PR rejection, and a vox-gui panel backed by three shell-out Tauri commands.
+**Architecture:** Purely additive on `main`. The `coderabbit` CLI module and the `vox-db external_review` schema are already merged behind cargo feature `coderabbit`. We (1) fix the `limits.rs` constants, (2) add `--since`, (3) add an importance ranker (`--top`/`--rank-weights`) using the existing `vox-graph-reader` crate, (4) re-sort planned chunks by importance, (5) add async GUI Tauri commands + a React panel, (6) ensure the GUI sidecar is built with the feature.
 
-**Tech Stack:** Rust (vox-cli, vox-db, vox-code-audit), git CLI, SQLite (VoxDB), Tauri 2 + React 19/TS (vox-gui), CodeRabbit (GitHub App).
+**Tech Stack:** Rust (vox-cli `coderabbit` feature, vox-graph-reader), git CLI, Tauri 2 (`crates/vox-gui/src/`), React 19/TS (`crates/vox-gui/ui`, pnpm).
 
 **Spec:** `docs/superpowers/specs/2026-06-29-coderabbit-review-gui-and-sweep-design.md`
 
-**Source of truth for existing code:** worktree `wt-skill-discovery-engine` (branch `claude/skill-discovery-engine`). Paths below without a worktree prefix are on the new branch off `main`.
+**CRITICAL — feature flag:** `coderabbit` is NOT a default feature. EVERY cargo command in this plan must include `--features coderabbit`. The `claude/skill-discovery-engine` branch is obsolete (schema v77, 669 behind) — **never copy from it**.
 
 ---
 
-## Pre-flight (do once, before Task 1)
+## Pre-flight
 
-- [ ] **Create the worktree off current `main`** (vox-broker shim breaks `cargo` in the main dir):
+- [ ] **Create a worktree off current `main`** (vox-broker shim breaks `cargo` in the main dir):
 
 ```bash
 cd /c/Users/Owner/vox
@@ -25,118 +25,23 @@ git worktree add -b claude/coderabbit-review ../vox-coderabbit origin/main
 cd ../vox-coderabbit
 ```
 
-All subsequent work happens in `../vox-coderabbit`. `$SRC` below = `/c/Users/Owner/vox/wt-skill-discovery-engine`.
+- [ ] **Confirm the module is present and builds with the feature:**
+
+```bash
+ls crates/vox-cli/src/commands/review/coderabbit/limits.rs   # exists
+cargo build -p vox-cli --features coderabbit 2>&1 | tail -5    # PASS
+```
 
 ---
 
-## Phase A — Bring-forward (foundation)
-
-### Task A1: Copy the coderabbit CLI module
-
-**Files:**
-- Create: `crates/vox-cli/src/commands/review/coderabbit/**` (entire tree)
-- Modify: `crates/vox-cli/src/commands/review/mod.rs` (register the `coderabbit` subcommand)
-
-- [ ] **Step 1: Copy the module tree**
-
-```bash
-mkdir -p crates/vox-cli/src/commands/review
-cp -r "$SRC/crates/vox-cli/src/commands/review/coderabbit" crates/vox-cli/src/commands/review/
-```
-
-- [ ] **Step 2: Wire the subcommand into `review/mod.rs`**
-
-Open `$SRC/crates/vox-cli/src/commands/review/mod.rs`, copy the `pub mod coderabbit;` declaration and the `Coderabbit(...)` clap variant + its dispatch arm into the new branch's `review/mod.rs`. Keep the existing `dei` module intact.
-
-- [ ] **Step 3: Build (expect failures — deps not yet copied)**
-
-Run: `cargo build -p vox-cli 2>&1 | tail -30`
-Expected: errors referencing `vox_db` external_review items and/or `vox_code_audit::review`. That is fine — fixed in A2/A3.
-
-- [ ] **Step 4: Commit**
-
-```bash
-git add crates/vox-cli/src/commands/review
-git commit -m "feat(coderabbit): copy CLI module from skill-discovery-engine"
-```
-
-### Task A2: Copy the vox-db external_review schema + store
-
-**Files:**
-- Create: `crates/vox-db/src/schema/domains/external_review.rs`
-- Create: `crates/vox-db/src/store/ops_external_review.rs`
-- Create: `crates/vox-db/tests/ops_external_review_tests.rs`
-- Modify: `crates/vox-db/src/schema/domains/mod.rs`, `crates/vox-db/src/store/mod.rs` (register modules)
-
-- [ ] **Step 1: Copy files**
-
-```bash
-cp "$SRC/crates/vox-db/src/schema/domains/external_review.rs" crates/vox-db/src/schema/domains/
-cp "$SRC/crates/vox-db/src/store/ops_external_review.rs" crates/vox-db/src/store/
-cp "$SRC/crates/vox-db/tests/ops_external_review_tests.rs" crates/vox-db/tests/
-```
-
-- [ ] **Step 2: Register modules**
-
-Add `pub mod external_review;` to `crates/vox-db/src/schema/domains/mod.rs` and `pub mod ops_external_review;` to `crates/vox-db/src/store/mod.rs` (match the exact `pub mod`/`mod` style already used in each file). If the schema is registered in a migration/registry list (search `domains::` references in `schema/mod.rs`), add `external_review` there too — copy how a sibling domain is registered.
-
-- [ ] **Step 3: Build vox-db**
-
-Run: `cargo build -p vox-db 2>&1 | tail -30`
-Expected: PASS (or only `vox-cli`-side errors remain).
-
-- [ ] **Step 4: Run the DB tests**
-
-Run: `cargo test -p vox-db ops_external_review 2>&1 | tail -20`
-Expected: PASS.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add crates/vox-db
-git commit -m "feat(coderabbit): copy external_review schema + store into vox-db"
-```
-
-### Task A3: Copy vox-code-audit review types + contracts
-
-**Files:**
-- Create: `crates/vox-code-audit/src/review/**`
-- Modify: `crates/vox-code-audit/src/lib.rs` (register `review` module)
-- Create: `contracts/review/coderabbit-semantic-groups.v1.yaml`
-
-- [ ] **Step 1: Copy files**
-
-```bash
-cp -r "$SRC/crates/vox-code-audit/src/review" crates/vox-code-audit/src/
-mkdir -p contracts/review
-cp "$SRC/contracts/review/coderabbit-semantic-groups.v1.yaml" contracts/review/ 2>/dev/null || \
-  find "$SRC" -name 'coderabbit-semantic-groups*.yaml' -exec cp {} contracts/review/ \;
-```
-
-- [ ] **Step 2: Register module**
-
-Add `pub mod review;` to `crates/vox-code-audit/src/lib.rs` if not already present (check `$SRC` version for the exact line).
-
-- [ ] **Step 3: Build the workspace touched crates**
-
-Run: `cargo build -p vox-code-audit -p vox-cli 2>&1 | tail -40`
-Expected: PASS. Resolve any remaining import-path drift by matching `$SRC`.
-
-- [ ] **Step 4: Commit**
-
-```bash
-git add crates/vox-code-audit contracts/review
-git commit -m "feat(coderabbit): copy review types + semantic-groups contract"
-```
-
-### Task A4: Fix the limits.rs constants (the verified bugs)
+## Task 1: Fix the limits.rs constants
 
 **Files:**
 - Modify: `crates/vox-cli/src/commands/review/coderabbit/limits.rs`
 
-- [ ] **Step 1: Update the failing-value tests first (TDD)**
+- [ ] **Step 1: Update the test expectations first (TDD)**
 
-In the `tests` module of `limits.rs`, change the expectations to the corrected values:
+In the `tests` module, set the corrected values:
 
 ```rust
 #[test]
@@ -144,19 +49,16 @@ fn tier_files_per_review() {
     assert_eq!(CodeRabbitTier::Free.files_per_review(), 150);
     assert_eq!(CodeRabbitTier::Pro.files_per_review(), 150);
 }
-
 #[test]
 fn tier_min_delay_secs() {
     assert_eq!(CodeRabbitTier::Pro.min_delay_between_prs_secs(), 720);
 }
-
 #[test]
 fn clamp_max_respects_tier_cap() {
     assert_eq!(clamp_max_files_per_pr(CodeRabbitTier::Pro, 500), 150);
     assert_eq!(clamp_max_files_per_pr(CodeRabbitTier::Oss, 500), 150);
     assert_eq!(clamp_max_files_per_pr(CodeRabbitTier::Pro, 0), 1);
 }
-
 #[test]
 fn clamp_batch_caps_both_bounded() {
     let (max, hard) = clamp_batch_caps(CodeRabbitTier::Pro, 400, 500);
@@ -165,148 +67,116 @@ fn clamp_batch_caps_both_bounded() {
 }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [ ] **Step 2: Run to verify fail**
 
-Run: `cargo test -p vox-cli --lib coderabbit::limits 2>&1 | tail -20`
-Expected: FAIL (current code returns 300 / 450).
+Run: `cargo test -p vox-cli --features coderabbit --lib coderabbit::limits 2>&1 | tail -20`
+Expected: FAIL (code still returns 300/450).
 
 - [ ] **Step 3: Fix the constants**
 
 In `files_per_review`: `Pro | Enterprise => 150`.
-In `reviews_per_hour`: `Pro => 5` (leave `Enterprise => 12` with a `// unverified` comment).
+In `reviews_per_hour`: `Pro => 5` (keep `Enterprise => 12` with `// unverified`).
 In `recommended_max_files_per_pr`: `Pro | Enterprise => 140`.
-Update the doc comments on the `Pro`/`Enterprise`/`Free` enum variants to match; delete the "(summary only)" note on `Free` (reviews are full on all tiers). Update the `Last verified` header to `2026-06-29` and cite owner-observed Pro cap = 150 + FAQ Pro = 5/hr.
+Update the enum doc comments to match; delete "(summary only)" on `Free`. Set the
+header `Last verified: 2026-06-29` and cite owner-observed Pro=150 + FAQ Pro=5/hr.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [ ] **Step 4: Run to verify pass**
 
-Run: `cargo test -p vox-cli --lib coderabbit::limits 2>&1 | tail -20`
+Run: `cargo test -p vox-cli --features coderabbit --lib coderabbit::limits 2>&1 | tail -20`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add crates/vox-cli/src/commands/review/coderabbit/limits.rs
-git commit -m "fix(coderabbit): correct Pro tier limits (150 files, 5/hr, 720s delay)"
-```
-
-### Task A5: Green the e2e + clippy, then PR the foundation
-
-**Files:**
-- Create: `crates/vox-cli/tests/coderabbit_e2e.rs` (copy)
-
-- [ ] **Step 1: Copy the e2e test**
-
-```bash
-cp "$SRC/crates/vox-cli/tests/coderabbit_e2e.rs" crates/vox-cli/tests/
-```
-
-- [ ] **Step 2: Run e2e + clippy on touched crates**
-
-Run: `cargo test -p vox-cli --test coderabbit_e2e 2>&1 | tail -20`
-Expected: PASS.
-Run: `cargo clippy -p vox-cli -p vox-db -p vox-code-audit -- -D warnings 2>&1 | tail -30`
-Expected: no warnings. (Per house rule, do NOT `cargo fmt --all`; use `cargo fmt -p <crate>` on each touched crate.)
-
-- [ ] **Step 3: Commit + push + open foundation PR**
-
-```bash
-git add -A && git commit -m "test(coderabbit): bring forward e2e test"
-git push -u origin claude/coderabbit-review
-gh pr create --fill --title "feat(coderabbit): bring review subsystem to main + fix Pro limits"
+git commit -m "fix(coderabbit): correct Pro tier limits (150 files, 5/hr, 720s, 140 rec)"
 ```
 
 ---
 
-## Phase B — Date scope (`--since`)
-
-### Task B1: `collect_files_modified_since`
+## Task 2: `--since` date-scoped candidate collection
 
 **Files:**
 - Modify: `crates/vox-cli/src/commands/review/coderabbit/semantic_planner/collector.rs`
-- Test: same file (`#[cfg(test)]` module) or `semantic_planner/mod.rs` tests
+- Modify: `.../semantic_planner/types.rs` (`SemanticSubmitConfig`)
+- Modify: `.../semantic_planner/mod.rs` (`pub use`)
+- Modify: `.../semantic_planner/submit.rs` (branch at lines 29-37)
+- Modify: `.../coderabbit/mod.rs` (clap flag)
 
-- [ ] **Step 1: Write the failing test**
-
-Add to `collector.rs` tests (use the existing test-repo helper in this module if present; otherwise init a temp git repo):
+- [ ] **Step 1: Write the failing test in `collector.rs`**
 
 ```rust
-#[test]
-fn modified_since_lists_recent_files() {
-    let repo = init_temp_repo_with_two_commits(); // helper: commit "old.rs" then "new.rs"
-    let files = collect_files_modified_since(repo.path(), "1 hour ago").unwrap();
+#[tokio::test]
+async fn modified_since_lists_recent_files() {
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path();
+    let run = |args: &[&str]| { std::process::Command::new("git").current_dir(p).args(args).output().unwrap(); };
+    run(&["init", "-q"]); run(&["config","user.email","t@t"]); run(&["config","user.name","t"]);
+    std::fs::write(p.join("old.rs"), "x").unwrap();
+    run(&["add","-A"]); run(&["commit","-qm","old","--date=2020-01-01T00:00:00"]);
+    std::fs::write(p.join("new.rs"), "y").unwrap();
+    run(&["add","-A"]); run(&["commit","-qm","new"]);
+    let files = collect_files_modified_since(p, "1 day ago").await.unwrap();
     assert!(files.iter().any(|f| f.ends_with("new.rs")));
+    assert!(!files.iter().any(|f| f.ends_with("old.rs")));
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [ ] **Step 2: Run to verify fail**
 
-Run: `cargo test -p vox-cli --lib modified_since_lists_recent_files 2>&1 | tail -20`
-Expected: FAIL (function not defined).
+Run: `cargo test -p vox-cli --features coderabbit --lib modified_since_lists_recent_files 2>&1 | tail -20`
+Expected: FAIL (not defined).
 
-- [ ] **Step 3: Implement**
+- [ ] **Step 3: Implement (async, mirrors existing collectors)**
 
 ```rust
-/// Files added/copied/modified/renamed since `since` (any git date expr, e.g.
-/// "2026-04-01" or "2 weeks ago"). Deletions excluded.
-pub fn collect_files_modified_since(repo: &std::path::Path, since: &str) -> anyhow::Result<Vec<String>> {
-    let out = std::process::Command::new("git")
+use anyhow::{Context, Result};
+
+/// Files added/copied/modified/renamed since `since` (any git date expr).
+pub async fn collect_files_modified_since(repo: &std::path::Path, since: &str) -> Result<Vec<String>> {
+    let out = tokio::process::Command::new("git")
         .current_dir(repo)
         .args(["log", &format!("--since={since}"), "--name-only",
                "--diff-filter=ACMR", "--pretty=format:"])
-        .output()?;
+        .output().await.context("git log --since")?;
     anyhow::ensure!(out.status.success(), "git log --since failed");
     let mut seen = std::collections::BTreeSet::new();
     for line in String::from_utf8_lossy(&out.stdout).lines() {
         let p = line.trim();
-        if !p.is_empty() { seen.insert(crate::commands::review::coderabbit::path_policy::normalize_repo_rel_path(p)); }
+        if !p.is_empty() {
+            seen.insert(super::super::path_policy::normalize_repo_rel_path(p));
+        }
     }
     Ok(seen.into_iter().collect())
 }
 ```
 
-- [ ] **Step 4: Run to verify it passes**
+(Adjust the `path_policy` path to match the existing `use` style in `collector.rs`.)
 
-Run: `cargo test -p vox-cli --lib modified_since_lists_recent_files 2>&1 | tail -20`
-Expected: PASS.
+- [ ] **Step 4: Export + config field + flag + branch**
 
-- [ ] **Step 5: Commit**
-
-```bash
-git add crates/vox-cli/src/commands/review/coderabbit/semantic_planner/collector.rs
-git commit -m "feat(coderabbit): collect_files_modified_since for date-scoped sweeps"
-```
-
-### Task B2: Wire `--since` into semantic-submit
-
-**Files:**
-- Modify: `crates/vox-cli/src/commands/review/coderabbit/mod.rs` (clap flag)
-- Modify: `crates/vox-cli/src/commands/review/coderabbit/semantic_planner/types.rs` (`SemanticSubmitConfig.since`)
-- Modify: `crates/vox-cli/src/commands/review/coderabbit/semantic_planner/submit.rs` (use it)
-
-- [ ] **Step 1: Add the config field + flag**
-
-In `SemanticSubmitConfig` add `pub since: Option<String>`. In `mod.rs` `semantic-submit` args add `#[arg(long)] since: Option<String>,` and pass it into the config.
-
-- [ ] **Step 2: Use it in the collector branch of `run_semantic_submit`**
-
-Where `submit.rs` currently chooses `collect_all_files` (full-repo) vs `collect_changed_files`, add a higher-priority branch:
+In `mod.rs`: add `collect_files_modified_since` to the `pub use collector::{…}`.
+In `types.rs` `SemanticSubmitConfig`: add `pub since: Option<String>,`.
+In `coderabbit/mod.rs` `semantic-submit` args: add `#[arg(long)] since: Option<String>,`
+and pass it into the config.
+In `submit.rs:29-37`, make it the top-priority branch:
 
 ```rust
-let candidates = if let Some(since) = cfg.since.as_deref() {
-    collect_files_modified_since(repo, since)?
+let mut all_files = if let Some(since) = cfg.since.as_deref() {
+    collect_files_modified_since(repo, since).await.context("collect files since date")?
 } else if cfg.full_repo {
-    collect_all_files(repo)?
+    collect_all_files(repo).await.context("collect all tracked files")?
 } else {
-    collect_changed_files(repo)?
+    collect_changed_files(repo).await.context("collect changed files")?
 };
 ```
 
-- [ ] **Step 3: Build + manual smoke (plan-only)**
+- [ ] **Step 5: Verify**
 
-Run: `cargo run -p vox-cli -- review coderabbit semantic-submit --since "2026-04-01" --plan 2>&1 | tail -20`
-Expected: writes `.coderabbit/semantic-manifest.json` scoped to recent files; no PRs opened.
+Run: `cargo test -p vox-cli --features coderabbit --lib modified_since_lists_recent_files 2>&1 | tail -10` → PASS.
+Run: `cargo run -p vox-cli --features coderabbit -- review coderabbit semantic-submit --since "2026-04-01" 2>&1 | tail -10` → writes `.coderabbit/semantic-manifest.json`, no PRs (plan-only default).
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add crates/vox-cli/src/commands/review/coderabbit
@@ -315,285 +185,369 @@ git commit -m "feat(coderabbit): --since date-scoped candidate selection"
 
 ---
 
-## Phase C — Importance ranker (`--top`)
-
-### Task C1: Centrality loader (graceful-degrade)
+## Task 3: Importance ranker (`ranker.rs`)
 
 **Files:**
 - Create: `crates/vox-cli/src/commands/review/coderabbit/ranker.rs`
 - Modify: `coderabbit/mod.rs` (`mod ranker;`)
+- Modify: `crates/vox-cli/Cargo.toml` (`vox-graph-reader` dep under `coderabbit` feature)
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Add the dependency (feature-gated)**
+
+In `crates/vox-cli/Cargo.toml`: add `vox-graph-reader = { workspace = true, optional = true }`
+and append `"dep:vox-graph-reader"` to the `coderabbit = [ … ]` feature list.
+
+- [ ] **Step 2: Write failing tests**
 
 ```rust
-#[test]
-fn centrality_absent_returns_none() {
-    let repo = tempfile::tempdir().unwrap();
-    assert!(load_centrality(repo.path()).is_none());
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn churn_dominates_and_degrades_without_graph() {
+        let recency: HashMap<String,f64> = [("a.rs".into(),1.0),("b.rs".into(),1.0)].into();
+        let churn:   HashMap<String,u64> = [("a.rs".into(),10),("b.rs".into(),100)].into();
+        let files = vec!["a.rs".to_string(), "b.rs".to_string()];
+        let ranked = rank_files(&files, &recency, &churn, None, RankWeights::default());
+        assert_eq!(ranked[0], "b.rs");
+    }
+
+    #[test]
+    fn missing_centrality_is_imputed_neutral_not_zero() {
+        // "covered" is a high-centrality outlier; "bare" has NO node. With churn/recency
+        // equal, "bare" must NOT be sunk below a low-churn covered file — imputation = median.
+        let recency: HashMap<String,f64> = [("covered".into(),1.0),("bare".into(),1.0)].into();
+        let churn:   HashMap<String,u64> = [("covered".into(),1),("bare".into(),1)].into();
+        let central: HashMap<String,f64> = [("covered".into(),100.0)].into(); // median of covered = 100
+        let files = vec!["covered".to_string(), "bare".to_string()];
+        let ranked = rank_files(&files, &recency, &churn, Some(&central), RankWeights::default());
+        // identical scores (bare imputed to the median 100/gmax=1.0) -> stable tie by name
+        assert_eq!(ranked, vec!["bare".to_string(), "covered".to_string()]);
+    }
+
+    #[test]
+    fn file_part_strips_symbol_and_worktree() {
+        assert_eq!(file_of_node("crates/x/a.rs::foo"), "crates/x/a.rs");
+        assert_eq!(file_of_node(".claude/worktrees/w1/crates/x/a.rs::foo"), "crates/x/a.rs");
+    }
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [ ] **Step 3: Run to verify fail**
 
-Run: `cargo test -p vox-cli --lib coderabbit::ranker::tests::centrality_absent 2>&1 | tail -20`
-Expected: FAIL (not defined).
+Run: `cargo test -p vox-cli --features coderabbit --lib coderabbit::ranker 2>&1 | tail -20`
+Expected: FAIL.
 
-- [ ] **Step 3: Implement loader**
+- [ ] **Step 4: Implement**
 
 ```rust
 use std::collections::HashMap;
 use std::path::Path;
 
-pub type CentralityMap = HashMap<String, f64>;
-
-/// Best-effort: read node degrees from an existing graphify graph under
-/// `graphify-out/`. Any missing-file / parse error -> None (ranker drops the term).
-pub fn load_centrality(repo: &Path) -> Option<CentralityMap> {
-    let root = repo.join("graphify-out");
-    let mut graph_json = None;
-    for entry in walkdir_shallow(&root)? {
-        if entry.file_name().to_string_lossy() == "graph.json" { graph_json = Some(entry.path()); break; }
-    }
-    let text = std::fs::read_to_string(graph_json?).ok()?;
-    let v: serde_json::Value = serde_json::from_str(&text).ok()?;
-    let nodes = v.get("nodes")?.as_array()?;
-    let mut m = CentralityMap::new();
-    for n in nodes {
-        if let (Some(id), Some(deg)) = (n.get("id").and_then(|x| x.as_str()),
-                                        n.get("degree").and_then(|x| x.as_f64())) {
-            m.insert(crate::commands::review::coderabbit::path_policy::normalize_repo_rel_path(id), deg);
-        }
-    }
-    if m.is_empty() { None } else { Some(m) }
-}
-
-fn walkdir_shallow(dir: &Path) -> Option<Vec<std::fs::DirEntry>> {
-    let mut out = vec![];
-    for e in std::fs::read_dir(dir).ok()? { let e = e.ok()?;
-        if e.path().is_dir() { for inner in std::fs::read_dir(e.path()).ok()? { out.push(inner.ok()?); } }
-        else { out.push(e); } }
-    Some(out)
-}
-```
-
-> Note: the graphify graph node schema (`id`/`degree`) is assumed. If the real schema differs, adjust the two `.get(...)` keys only; the graceful-degrade contract (None on any mismatch) keeps the rest safe.
-
-- [ ] **Step 4: Run to verify it passes**
-
-Run: `cargo test -p vox-cli --lib coderabbit::ranker::tests::centrality_absent 2>&1 | tail -20`
-Expected: PASS.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add crates/vox-cli/src/commands/review/coderabbit/ranker.rs crates/vox-cli/src/commands/review/coderabbit/mod.rs
-git commit -m "feat(coderabbit): centrality loader with graceful-degrade"
-```
-
-### Task C2: Rank + select top-N
-
-**Files:**
-- Modify: `crates/vox-cli/src/commands/review/coderabbit/ranker.rs`
-
-- [ ] **Step 1: Write the failing test**
-
-```rust
-#[test]
-fn rank_orders_by_weighted_signal_and_degrades_without_graph() {
-    // higher churn => earlier; centrality term dropped when graph is None.
-    let churn: HashMap<String,u64> = [("a.rs".into(),10u64),("b.rs".into(),100u64)].into();
-    let recency: HashMap<String,f64> = [("a.rs".into(),1.0),("b.rs".into(),1.0)].into();
-    let files = vec!["a.rs".to_string(), "b.rs".to_string()];
-    let ranked = rank_files(&files, &recency, &churn, None, RankWeights::default());
-    assert_eq!(ranked[0], "b.rs");
-}
-```
-
-- [ ] **Step 2: Run to verify it fails**
-
-Run: `cargo test -p vox-cli --lib rank_orders_by_weighted 2>&1 | tail -20`
-Expected: FAIL.
-
-- [ ] **Step 3: Implement**
-
-```rust
 #[derive(Clone, Copy)]
 pub struct RankWeights { pub recency: f64, pub churn: f64, pub centrality: f64 }
 impl Default for RankWeights { fn default() -> Self { Self { recency: 1.0, churn: 1.0, centrality: 1.0 } } }
+
+/// "<file>::<symbol>" -> "<file>", stripping a leading ".claude/worktrees/<seg>/".
+pub(crate) fn file_of_node(id: &str) -> String {
+    let file = id.split("::").next().unwrap_or(id);
+    if let Some(rest) = file.strip_prefix(".claude/worktrees/") {
+        if let Some((_, tail)) = rest.split_once('/') { return tail.to_string(); }
+    }
+    file.to_string()
+}
 
 fn norm(map: &HashMap<String, f64>, key: &str, max: f64) -> f64 {
     if max <= 0.0 { 0.0 } else { map.get(key).copied().unwrap_or(0.0) / max }
 }
 
-/// Returns `files` sorted by descending importance. `centrality = None` drops that
-/// term and renormalizes implicitly (its weight contributes 0).
 pub fn rank_files(
     files: &[String],
     recency: &HashMap<String, f64>,
     churn: &HashMap<String, u64>,
-    centrality: Option<&CentralityMap>,
+    centrality: Option<&HashMap<String, f64>>,
     w: RankWeights,
 ) -> Vec<String> {
-    let churn_f: HashMap<String, f64> = churn.iter().map(|(k,v)| (k.clone(), *v as f64)).collect();
+    let churn_f: HashMap<String, f64> = churn.iter().map(|(k, v)| (k.clone(), *v as f64)).collect();
     let rmax = recency.values().cloned().fold(0.0, f64::max);
     let cmax = churn_f.values().cloned().fold(0.0, f64::max);
     let gmax = centrality.map(|g| g.values().cloned().fold(0.0, f64::max)).unwrap_or(0.0);
+    // Median normalized centrality over the CANDIDATE files that are covered, used to
+    // impute uncovered files (neutral, not zero). 0.0 if nothing covered.
+    let cmed_norm = match centrality {
+        Some(g) if gmax > 0.0 => {
+            let mut v: Vec<f64> = files.iter().filter_map(|f| g.get(f)).map(|x| x / gmax).collect();
+            if v.is_empty() { 0.0 } else { v.sort_by(|a,b| a.partial_cmp(b).unwrap()); v[v.len()/2] }
+        }
+        _ => 0.0,
+    };
     let mut scored: Vec<(f64, String)> = files.iter().map(|f| {
         let mut s = w.recency * norm(recency, f, rmax) + w.churn * norm(&churn_f, f, cmax);
-        if let Some(g) = centrality { s += w.centrality * norm(g, f, gmax); }
+        // Centrality covers only ~39% of tracked files (verified 2026-06-29) and the
+        // cache is mostly stale worktree paths. Missing != low: impute the MEDIAN of
+        // covered candidates so absence is NEUTRAL, never a penalty.
+        if let Some(g) = centrality {
+            let cov = g.get(f).map(|v| v / gmax).unwrap_or(cmed_norm);
+            s += w.centrality * cov;
+        }
         (s, f.clone())
     }).collect();
     scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal).then(a.1.cmp(&b.1)));
     scored.into_iter().map(|(_, f)| f).collect()
 }
-```
 
-- [ ] **Step 4: Run to verify it passes**
+/// File-aggregated node degree from the graphify cache. None on any failure or zero matches.
+pub fn load_file_centrality(repo: &Path) -> Option<HashMap<String, f64>> {
+    let path = repo.join(".vox/cache/graphify/repo-code-graph/graph.json");
+    let text = std::fs::read_to_string(path).ok()?;
+    let value: serde_json::Value = serde_json::from_str(&text).ok()?;
+    let reader = vox_graph_reader::GraphifyReader::from_value(value).ok()?;
+    let n = reader.node_count();
+    let mut by_file: HashMap<String, f64> = HashMap::new();
+    for (id, deg) in reader.god_nodes(n) {
+        *by_file.entry(file_of_node(&id)).or_insert(0.0) += deg as f64;
+    }
+    if by_file.is_empty() { None } else { Some(by_file) }
+}
 
-Run: `cargo test -p vox-cli --lib rank_orders_by_weighted 2>&1 | tail -20`
-Expected: PASS.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add crates/vox-cli/src/commands/review/coderabbit/ranker.rs
-git commit -m "feat(coderabbit): weighted importance ranker"
-```
-
-### Task C3: Wire `--top` + `--rank-weights` into semantic-submit
-
-**Files:**
-- Modify: `coderabbit/mod.rs`, `semantic_planner/types.rs`, `semantic_planner/submit.rs`
-
-- [ ] **Step 1: Add config + flags**
-
-`SemanticSubmitConfig`: add `pub top: Option<usize>` and `pub rank_weights: ranker::RankWeights`. In `mod.rs`: `#[arg(long)] top: Option<usize>,` and `#[arg(long, value_parser = parse_weights)] rank_weights: Option<RankWeights>,` (write `parse_weights` to split `"r,c,g"` into three f64; default to `RankWeights::default()`).
-
-- [ ] **Step 2: Apply ranking after candidate collection in `run_semantic_submit`**
-
-```rust
-if cfg.top.is_some() || cfg.since.is_some() {
-    let churn = collect_churn(repo, cfg.since.as_deref())?; // numstat sums; reuse git::collect_git_diffs weights
-    let recency = collect_recency(repo, cfg.since.as_deref())?; // commits-per-file count
-    let central = ranker::load_centrality(repo);
-    let mut ranked = ranker::rank_files(&candidates, &recency, &churn, central.as_ref(), cfg.rank_weights);
-    if let Some(n) = cfg.top { ranked.truncate(n); }
-    candidates = ranked;
+/// Strip a leading ".vox/cache"-style staleness: log coverage so the operator sees
+/// how much signal centrality actually contributes for THIS candidate set.
+pub fn log_centrality_coverage(candidates: &[String], central: Option<&HashMap<String, f64>>) {
+    if let Some(g) = central {
+        let hit = candidates.iter().filter(|f| g.contains_key(*f)).count();
+        let pct = if candidates.is_empty() { 0.0 } else { 100.0 * hit as f64 / candidates.len() as f64 };
+        eprintln!("coderabbit: centrality covers {hit}/{} candidate files ({pct:.0}%); \
+                   uncovered files imputed at median. Regenerate the graph (vox graph) \
+                   for fresh coverage.", candidates.len());
+    }
 }
 ```
 
-Implement `collect_churn` and `collect_recency` as small helpers in `collector.rs` (parse `git log --numstat --since` and `git log --since --name-only` respectively; both keyed by normalized path). Ranking determines slice order (highest-importance PRs first) because the chunker preserves input order within a group.
+> Verified 2026-06-29 against the real 342MB cache: `vox-graph-reader` exposes
+> `from_value`, `node_count`, `god_nodes(top_n) -> Vec<(String, usize)>`; nodes are
+> `file::symbol` with no stored degree. Join coverage is only **39%** of tracked files
+> (cache is 84% stale worktree paths), which is why uncovered files are **median-imputed,
+> not zeroed**, and why centrality coverage is logged each run. Call
+> `log_centrality_coverage(&all_files, central.as_ref())` right after loading in Task 4.
 
-- [ ] **Step 3: Smoke test**
+- [ ] **Step 5: Run to verify pass**
 
-Run: `cargo run -p vox-cli -- review coderabbit semantic-submit --since "2026-04-01" --top 300 --plan 2>&1 | tail -20`
-Expected: manifest with ≤300 files, highest-importance chunks ordered first.
+Run: `cargo test -p vox-cli --features coderabbit --lib coderabbit::ranker 2>&1 | tail -10`
+Expected: PASS.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add crates/vox-cli/src/commands/review/coderabbit
-git commit -m "feat(coderabbit): --top N importance selection + --rank-weights"
+git add crates/vox-cli/src/commands/review/coderabbit/ranker.rs crates/vox-cli/src/commands/review/coderabbit/mod.rs crates/vox-cli/Cargo.toml
+git commit -m "feat(coderabbit): importance ranker (recency+churn+graph centrality)"
 ```
 
 ---
 
-## Phase D — Adaptive backoff
-
-### Task D1: Split oversized chunk on rejection
+## Task 4: git churn/recency helpers + wire `--top`/`--rank-weights`/`--rank-order`
 
 **Files:**
-- Modify: `crates/vox-cli/src/commands/review/coderabbit/semantic_planner/submit.rs`
-- Modify/Create test: `coderabbit/semantic_planner/mod.rs` tests
+- Modify: `collector.rs` (helpers), `types.rs` (config), `mod.rs` (flags), `submit.rs` (apply)
 
-- [ ] **Step 1: Write the failing test for the split helper**
+- [ ] **Step 1: Add the two async helpers in `collector.rs` (with tests)**
+
+```rust
+/// Sum of (insertions+deletions) per file since `since`.
+pub async fn churn_since(repo: &std::path::Path, since: &str) -> Result<std::collections::HashMap<String,u64>> {
+    let out = tokio::process::Command::new("git").current_dir(repo)
+        .args(["log", &format!("--since={since}"), "--numstat", "--pretty=format:"])
+        .output().await.context("git log --numstat")?;
+    let mut m = std::collections::HashMap::new();
+    for line in String::from_utf8_lossy(&out.stdout).lines() {
+        let mut parts = line.splitn(3, '\t');
+        let (a, b, p) = (parts.next().unwrap_or(""), parts.next().unwrap_or(""), parts.next().unwrap_or(""));
+        if p.is_empty() { continue; }
+        let w = a.parse::<u64>().unwrap_or(0) + b.parse::<u64>().unwrap_or(0);
+        *m.entry(super::super::path_policy::normalize_repo_rel_path(p)).or_insert(0) += w;
+    }
+    Ok(m)
+}
+
+/// Count of commits touching each file since `since` (recency proxy).
+pub async fn recency_since(repo: &std::path::Path, since: &str) -> Result<std::collections::HashMap<String,f64>> {
+    let out = tokio::process::Command::new("git").current_dir(repo)
+        .args(["log", &format!("--since={since}"), "--name-only", "--pretty=format:"])
+        .output().await.context("git log --name-only")?;
+    let mut m = std::collections::HashMap::new();
+    for line in String::from_utf8_lossy(&out.stdout).lines() {
+        let p = line.trim();
+        if !p.is_empty() { *m.entry(super::super::path_policy::normalize_repo_rel_path(p)).or_insert(0.0) += 1.0; }
+    }
+    Ok(m)
+}
+```
+
+Add a `#[tokio::test]` that commits a file twice and asserts `churn_since` and
+`recency_since` both report it. Run with `--features coderabbit`; expect PASS after impl.
+
+- [ ] **Step 2: Add config fields + flags**
+
+`types.rs` `SemanticSubmitConfig`: add `pub top: Option<usize>`,
+`pub rank_weights: ranker::RankWeights`, `pub rank_order: bool`.
+`coderabbit/mod.rs` `semantic-submit` args: `#[arg(long)] top: Option<usize>`,
+`#[arg(long)] rank_weights: Option<String>`, `#[arg(long)] rank_order: Option<bool>`.
+Write a small `parse_rank_weights(&str) -> RankWeights` (split `"r,c,g"` on commas,
+parse 3 f64, default missing to 1.0). Default `rank_order` to
+`top.is_some() || rank_weights.is_some() || since.is_some()`.
+
+- [ ] **Step 3: Apply ranking after collection in `run_semantic_submit`** (after the Task 2 branch, before `planner.plan(...)`)
+
+```rust
+if cfg.top.is_some() || cfg.rank_weights.recency != 1.0 || cfg.rank_weights.churn != 1.0
+   || cfg.rank_weights.centrality != 1.0 || cfg.since.is_some() {
+    let win = cfg.since.as_deref().unwrap_or("3 months ago");
+    let churn = collector::churn_since(repo, win).await?;
+    let recency = collector::recency_since(repo, win).await?;
+    let central = if cfg.rank_weights.centrality > 0.0 { ranker::load_file_centrality(repo) } else { None };
+    let mut ranked = ranker::rank_files(&all_files, &recency, &churn, central.as_ref(), cfg.rank_weights);
+    if let Some(n) = cfg.top { ranked.truncate(n); }
+    all_files = ranked;
+}
+```
+
+- [ ] **Step 4: Verify**
+
+Run: `cargo run -p vox-cli --features coderabbit -- review coderabbit semantic-submit --since "2026-04-01" --top 300 --rank-weights 1,2,1 2>&1 | tail -10`
+Expected: manifest with ≤300 files.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add crates/vox-cli/src/commands/review/coderabbit
+git commit -m "feat(coderabbit): --top/--rank-weights importance selection"
+```
+
+---
+
+## Task 5: Importance-first chunk order (post-plan re-sort)
+
+**Files:**
+- Modify: `semantic_planner/submit.rs` (after `planner.plan(...)`, gated by `cfg.rank_order`)
+- Test: `semantic_planner/mod.rs` tests
+
+- [ ] **Step 1: Write the failing test** (use the public `SemanticChunk` + a helper)
 
 ```rust
 #[test]
-fn split_chunk_halves_and_bounds() {
-    let files: Vec<String> = (0..10).map(|i| format!("f{i}.rs")).collect();
-    let (a, b) = split_chunk_files(&files);
-    assert_eq!(a.len(), 5);
-    assert_eq!(b.len(), 5);
+fn reorder_chunks_by_aggregate_score_desc() {
+    let score: std::collections::HashMap<String,f64> =
+        [("a".into(),10.0),("b".into(),1.0),("c".into(),5.0)].into();
+    let mut chunks = vec![
+        SemanticChunk { order: 1, name: "low".into(), files: vec!["b".into()] },
+        SemanticChunk { order: 2, name: "high".into(), files: vec!["a".into()] },
+        SemanticChunk { order: 3, name: "mid".into(), files: vec!["c".into()] },
+    ];
+    reorder_chunks_by_score(&mut chunks, &score);
+    assert_eq!(chunks[0].name, "high");
+    assert_eq!(chunks[2].name, "low");
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [ ] **Step 2: Run to verify fail**
 
-Run: `cargo test -p vox-cli --lib split_chunk_halves 2>&1 | tail -20`
+Run: `cargo test -p vox-cli --features coderabbit --lib reorder_chunks_by_aggregate 2>&1 | tail -20`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement helper + wire into the per-chunk loop**
+- [ ] **Step 3: Implement helper + call it**
 
 ```rust
-pub(crate) fn split_chunk_files(files: &[String]) -> (Vec<String>, Vec<String>) {
-    let mid = files.len().div_ceil(2);
-    (files[..mid].to_vec(), files[mid..].to_vec())
+pub(crate) fn reorder_chunks_by_score(
+    chunks: &mut [SemanticChunk],
+    score: &std::collections::HashMap<String, f64>,
+) {
+    let agg = |c: &SemanticChunk| -> f64 {
+        if c.files.is_empty() { return 0.0; }
+        c.files.iter().map(|f| score.get(f).copied().unwrap_or(0.0)).sum::<f64>() / c.files.len() as f64
+    };
+    chunks.sort_by(|a, b| agg(b).partial_cmp(&agg(a)).unwrap_or(std::cmp::Ordering::Equal)
+        .then(a.order.cmp(&b.order)));
 }
 ```
 
-In the per-chunk submit loop: after `create_chunk_pr_via_worktree` + `wait`, if the review outcome reports oversized/cancelled (detect via the ingest/`wait` signal — a CodeRabbit comment containing the too-many-files marker), and the chunk has not already been split twice, split it and resubmit the two halves as new chunks; record `split_depth` in run-state. Cap at depth 2, then log a warning and continue.
+In `run_semantic_submit`, when `cfg.rank_order` and ranking ran, build a
+`score: HashMap<String,f64>` from the same recency/churn/central inputs (reuse a
+`ranker::score_map(...)` extracted from `rank_files`), then call
+`reorder_chunks_by_score(&mut manifest.chunks, &score)` before the submit loop. (Add
+`ranker::score_map` returning the per-file score map; have `rank_files` call it.)
 
-- [ ] **Step 4: Run to verify it passes**
+- [ ] **Step 4: Run to verify pass**
 
-Run: `cargo test -p vox-cli --lib split_chunk_halves 2>&1 | tail -20`
+Run: `cargo test -p vox-cli --features coderabbit --lib reorder_chunks_by_aggregate 2>&1 | tail -10`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add crates/vox-cli/src/commands/review/coderabbit
-git commit -m "feat(coderabbit): adaptive backoff splits oversized PRs (max depth 2)"
+git commit -m "feat(coderabbit): --rank-order puts highest-importance PRs first"
 ```
 
 ---
 
-## Phase E — GUI panel + Tauri commands
-
-### Task E1: Explore the existing vox-gui command + route patterns
-
-- [ ] **Step 1: Find the registration pattern (no code yet)**
-
-Run: `ls crates/vox-gui/src-tauri/src` and grep for an existing `#[tauri::command]` plus its `.invoke_handler(tauri::generate_handler![...])` registration, and find how a React route/panel is added under `crates/vox-gui/ui/src`. Record the exact files to mirror. (vox-gui frontend is pnpm-managed — never `npm`.)
-
-### Task E2: Three shell-out Tauri commands
+## Task 6: GUI sidecar feature build + async Tauri commands
 
 **Files:**
-- Create: `crates/vox-gui/src-tauri/src/commands/coderabbit.rs`
-- Modify: the Tauri command module index + `generate_handler!` list (paths from E1)
+- Create: `crates/vox-gui/src/commands/coderabbit.rs`
+- Modify: `crates/vox-gui/src/commands/mod.rs` (`pub mod coderabbit;`), `crates/vox-gui/src/main.rs` (`generate_handler!`)
 
-- [ ] **Step 1: Write the command module**
+- [ ] **Step 1: Confirm the registration + sidecar patterns**
+
+Read `crates/vox-gui/src/commands/execute.rs` (sidecar shell-out pattern) and
+`crates/vox-gui/src/commands/research.rs::start_research_async` (return-immediately +
+background). Note the exact `app.shell().sidecar("vox")` call and the
+`app_handle.emit(...)` usage.
+
+- [ ] **Step 2: Write the command module** (async; mirror `execute.rs`)
 
 ```rust
-use std::process::Command;
+use tauri::AppHandle;
+use tauri_plugin_shell::ShellExt;
 use serde_json::Value;
 
-fn vox_review(args: &[&str]) -> Result<String, String> {
-    let out = Command::new("vox").args(["review", "coderabbit"]).args(args)
-        .output().map_err(|e| e.to_string())?;
+async fn vox(app: &AppHandle, args: Vec<String>) -> Result<String, String> {
+    let out = app.shell().sidecar("vox").map_err(|e| e.to_string())?
+        .args(args).output().await.map_err(|e| e.to_string())?;
     if !out.status.success() { return Err(String::from_utf8_lossy(&out.stderr).into()); }
     Ok(String::from_utf8_lossy(&out.stdout).into())
 }
 
 #[tauri::command]
-pub fn coderabbit_plan(since: String, cap: u32, rank_weights: String) -> Result<Value, String> {
-    vox_review(&["semantic-submit", "--since", &since, "--max-files-per-pr",
-                 &cap.to_string(), "--rank-weights", &rank_weights, "--plan"])?;
+pub async fn coderabbit_plan(app: AppHandle, since: String, cap: u32, rank_weights: String) -> Result<Value, String> {
+    vox(&app, vec!["review".into(),"coderabbit".into(),"semantic-submit".into(),
+        "--since".into(),since,"--max-files-per-pr".into(),cap.to_string(),
+        "--rank-weights".into(),rank_weights]).await?;
     let m = std::fs::read_to_string(".coderabbit/semantic-manifest.json").map_err(|e| e.to_string())?;
     serde_json::from_str(&m).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn coderabbit_run(since: String, cap: u32, rank_weights: String, top: u32) -> Result<Value, String> {
-    let s = vox_review(&["semantic-submit", "--since", &since, "--top", &top.to_string(),
-                 "--max-files-per-pr", &cap.to_string(), "--rank-weights", &rank_weights, "--execute"])?;
-    Ok(Value::String(s))
+pub async fn coderabbit_run_async(app: AppHandle, since: String, cap: u32, rank_weights: String, top: u32) -> Result<Value, String> {
+    tauri::async_runtime::spawn(async move {
+        let res = vox(&app, vec!["review".into(),"coderabbit".into(),"semantic-submit".into(),
+            "--since".into(),since,"--top".into(),top.to_string(),
+            "--max-files-per-pr".into(),cap.to_string(),"--rank-weights".into(),rank_weights,
+            "--execute".into()]).await;
+        let payload = match &res { Ok(_) => serde_json::json!({"status":"done"}),
+                                   Err(e) => serde_json::json!({"status":"error","error":e}) };
+        let _ = tauri::Emitter::emit(&app, "coderabbit://progress", payload);
+    });
+    Ok(serde_json::json!({"status":"running"}))
 }
 
 #[tauri::command]
-pub fn coderabbit_report() -> Result<Value, String> {
-    let s = vox_review(&["db-report", "--json"])?;
-    serde_json::from_str(&s).map_err(|e| e.to_string())
+pub async fn coderabbit_report(app: AppHandle) -> Result<Value, String> {
+    let run_state = std::fs::read_to_string(".coderabbit/run-state.json").ok()
+        .and_then(|s| serde_json::from_str::<Value>(&s).ok()).unwrap_or(Value::Null);
+    let db = vox(&app, vec!["review".into(),"coderabbit".into(),"db-status".into(),"--json".into()]).await
+        .ok().and_then(|s| serde_json::from_str::<Value>(&s).ok()).unwrap_or(Value::Null);
+    Ok(serde_json::json!({"run_state": run_state, "db_status": db}))
 }
 
 #[tauri::command]
@@ -602,35 +556,53 @@ pub fn coderabbit_token_present() -> bool {
 }
 ```
 
-- [ ] **Step 2: Register the four commands** in the `generate_handler!` list (pattern from E1).
+> Adjust `ShellExt`/`Emitter` imports to match what `execute.rs`/`research.rs` already
+> import (the repo's Tauri version may re-export these differently — copy their `use`).
 
-- [ ] **Step 3: Build the Tauri side**
+- [ ] **Step 3: Register the four commands** in `main.rs` `generate_handler![…]` and `pub mod coderabbit;` in `commands/mod.rs`.
 
-Run: `cargo build -p vox-gui 2>&1 | tail -20` (note: clippy on vox-gui needs `--exclude vox-gui` workspace-wide; build is fine).
-Expected: PASS.
-
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Build the GUI Rust side with the sidecar built for the feature**
 
 ```bash
-git add crates/vox-gui/src-tauri
-git commit -m "feat(gui): coderabbit_plan/run/report/token Tauri commands"
+cargo build -p vox-cli --features coderabbit --release   # produces target/release/vox sidecar
+cargo build -p vox-gui 2>&1 | tail -10
+```
+Expected: PASS. (Document that release packaging must build the sidecar with
+`--features coderabbit`; if a packaging script pins sidecar features, add the flag.)
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add crates/vox-gui/src
+git commit -m "feat(gui): async CodeRabbit Tauri commands (sidecar shell-out)"
 ```
 
-### Task E3: React panel
+---
+
+## Task 7: React panel + nav
 
 **Files:**
-- Create: `crates/vox-gui/ui/src/routes/CodeRabbitReview.tsx` (path style from E1)
-- Modify: the route registry + nav entry (paths from E1)
+- Create: `crates/vox-gui/ui/src/views/CodeRabbitReview.tsx`
+- Modify: `crates/vox-gui/ui/src/lib/navigation.ts`, `crates/vox-gui/ui/src/App.tsx`
+- Test: `crates/vox-gui/ui/src/views/CodeRabbitReview.test.ts` (data mapping)
 
-- [ ] **Step 1: Build the panel** from the approved mockup
-  (`coderabbit_review_panel_vox_gui` in the design session): a `<input type="date">` for "modified since", numeric cap (default 140), ranking chips (recency+churn, centrality), Plan/Run buttons, dry-run checkbox, the slice list with importance bars + status pills, the 5/hr budget line, and 3 findings metric cards. Use existing vox-gui ("Limes") design tokens; map status pills to added/modified/merged/changes colors. Wire buttons to `invoke('coderabbit_plan' | 'coderabbit_run' | 'coderabbit_report')`. Show a read-only "token: present/absent" indicator from `coderabbit_token_present`.
+- [ ] **Step 1: Add the route** — entry in `PARENT_CHILD_MAP` + `NAV_LABELS` in `navigation.ts`; add `'coderabbit'` to the `View` union in `App.tsx`; render `<CodeRabbitReview/>` for that view (mirror an existing view's wiring).
 
-- [ ] **Step 2: Add the nav/route entry** mirroring an existing route.
+- [ ] **Step 2: Build the panel** from the approved mockup (`coderabbit_review_panel_vox_gui`):
+`<input type="date">` (modified since), numeric cap (default 140), ranking weight
+chips, Plan/Run buttons, dry-run note, slice list with importance bars + status pills,
+5/hr budget line, findings metric cards. Wire:
+`invoke('coderabbit_plan', { since, cap, rankWeights })`,
+`invoke('coderabbit_run_async', {…})`, `invoke('coderabbit_report')`,
+`invoke('coderabbit_token_present')`, and
+`listen('coderabbit://progress', …)` for run updates. Use existing vox-gui ("Limes")
+tokens; map run-state chunk `status` to pill colors.
 
-- [ ] **Step 3: Typecheck + unit test the data mapping**
+- [ ] **Step 3: Add the mapping unit test**
 
-Run: `cd crates/vox-gui/ui && pnpm test 2>&1 | tail -20`
-Add one vitest that maps a sample manifest JSON to slice rows (counts + status). Expected: PASS.
+Write a vitest that maps a sample `{run_state:{chunks:[…]}, db_status:{…}}` to slice
+rows (name, file count, status). Run: `cd crates/vox-gui/ui && pnpm test 2>&1 | tail -15`
+Expected: PASS. (pnpm only — never npm.)
 
 - [ ] **Step 4: Commit**
 
@@ -639,30 +611,50 @@ git add crates/vox-gui/ui
 git commit -m "feat(gui): CodeRabbit review panel"
 ```
 
-### Task E4: Docs + final verification
+---
+
+## Task 8: Docs + full verification
 
 **Files:**
-- Modify: `docs/src/reference/cli.md` (document `--since`, `--top`, `--rank-weights`) — regenerate the generated CLI surface, do not hand-edit `*.generated.md`.
+- Modify: `docs/src/reference/cli.md` (document `--since`, `--top`, `--rank-weights`, `--rank-order`) — rerun the CLI-surface generator; never hand-edit `*.generated.md`.
 
-- [ ] **Step 1: Document the new flags** in the hand-authored CLI doc; rerun the CLI-surface generator if one exists (search `cli-command-surface.generated`).
+- [ ] **Step 1: Document the new flags** in the hand-authored CLI doc; rerun the generator if one exists (search `cli-command-surface.generated`).
 
-- [ ] **Step 2: Full verification on touched crates**
-
-Run: `cargo test -p vox-cli -p vox-db -p vox-code-audit 2>&1 | tail -20` → PASS.
-Run: `cargo clippy -p vox-cli -p vox-db -p vox-code-audit -- -D warnings 2>&1 | tail -20` → clean.
-Run: `cd crates/vox-gui/ui && pnpm test 2>&1 | tail -10` → PASS.
-
-- [ ] **Step 3: Commit + push**
+- [ ] **Step 2: Full verification**
 
 ```bash
-git add -A && git commit -m "docs(coderabbit): document --since/--top/--rank-weights"
-git push
+cargo test -p vox-cli --features coderabbit 2>&1 | tail -15          # PASS
+cargo clippy -p vox-cli --features coderabbit -- -D warnings 2>&1 | tail -20   # clean
+cargo build -p vox-gui 2>&1 | tail -5                                 # PASS (clippy on vox-gui needs --exclude vox-gui workspace-wide)
+cd crates/vox-gui/ui && pnpm test 2>&1 | tail -10                     # PASS
+```
+
+- [ ] **Step 3: Commit + push + PR**
+
+```bash
+git add -A && git commit -m "docs(coderabbit): document --since/--top/--rank-weights/--rank-order"
+git push -u origin claude/coderabbit-review
+gh pr create --fill --title "feat(coderabbit): date-scoped importance sweep + GUI review panel"
 ```
 
 ---
 
 ## Self-Review notes (author)
 
-- **Spec coverage:** bring-forward (A1–A5), `--since` (B), ranker+`--top`+weights (C), backoff (D), GUI+Tauri+read-only token (E2/E3), limits bugs (A4), worktree-PR test gap (covered by manifest test in C3/D1 smoke — add a dedicated manifest integration test if the executing agent finds the existing e2e insufficient), cadence = manual (documented in E4). All spec sections map to a task.
-- **Assumptions flagged inline:** graphify node schema (`id`/`degree`) in C1 and the oversized-rejection signal in D1 — both guarded by graceful-degrade / depth cap, so a wrong guess fails safe.
-- **Type consistency:** `RankWeights`, `CentralityMap`, `rank_files`, `load_centrality`, `collect_files_modified_since`, `split_chunk_files`, `SemanticSubmitConfig.{since,top,rank_weights}` used consistently across B/C/D/E.
+- **Spec coverage:** limits fix (T1), `--since` (T2), ranker+`--top`/weights (T3/T4),
+  importance-first order (T5), sidecar feature + async Tauri commands incl.
+  non-blocking `--execute` (T6), GUI panel + nav + read-only token (T7), docs/cadence
+  (T8). Bring-forward/schema/backoff intentionally absent (audit: already-on-main /
+  impossible-by-construction).
+- **Placeholder scan:** real code in every code step; the only "match existing `use`"
+  notes are in T6 (Tauri import paths) and T2/T4 (`path_policy` use style) — genuine
+  per-repo style alignment, not deferred logic.
+- **Type consistency:** `RankWeights`, `rank_files`, `score_map`, `load_file_centrality`,
+  `file_of_node`, `collect_files_modified_since`, `churn_since`, `recency_since`,
+  `reorder_chunks_by_score`, `SemanticSubmitConfig.{since,top,rank_weights,rank_order}`,
+  `SemanticChunk{order,name,files}` used consistently across T2–T7.
+- **Feature flag:** every cargo invocation carries `--features coderabbit`; the sidecar
+  build (T6) is the single point that makes the GUI path functional.
+- **Residual assumption:** graph node ids are `file::symbol` and worktree paths start
+  `.claude/worktrees/<seg>/` — guarded by graceful-degrade (None on zero matches) and a
+  unit test (`file_part_strips_symbol_and_worktree`).
