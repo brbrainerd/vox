@@ -104,6 +104,9 @@ file://.*docs/src/feed\.xml
 # Help Net Security returns 429 to CI bots; links are valid for humans
 .*helpnetsecurity\.com/.*
 
+# Appwrite blog returns HTTP/2 errors to CI bots; link is valid for humans
+.*appwrite\.io/.*
+
 # ScienceDirect article URLs often return 400 to automated clients; citations remain valid
 .*sciencedirect\.com/science/article/.*
 

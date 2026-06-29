@@ -34,6 +34,9 @@ jobs:
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.10
 
+      - name: Install system deps (libdbus/GTK)
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
+
       - uses: pnpm/action-setup@v6
         with:
           version: 9
@@ -123,6 +126,9 @@ jobs:
 
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.10
+
+      - name: Install system deps (libdbus/GTK)
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
 
       - uses: pnpm/action-setup@v6
         with:

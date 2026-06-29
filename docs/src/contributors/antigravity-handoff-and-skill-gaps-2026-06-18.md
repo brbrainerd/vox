@@ -25,6 +25,7 @@ The plans will be executed by **Gemini 3.5 Flash inside Antigravity**, not Claud
 ## 3. Parallel vs sequential — the dispatch rule
 
 Each plan task is tagged **`[PARALLEL-SAFE]`** or **`[SEQUENTIAL]`**:
+
 - **`[PARALLEL-SAFE]`** — touches a disjoint file set from other parallel-safe tasks in the same wave; an isolated-context subagent can own it. Dispatch these together.
 - **`[SEQUENTIAL]`** — modifies a file an earlier task also modifies, or depends on an earlier task's output; run in order on one agent.
 
@@ -33,7 +34,7 @@ Each plan task is tagged **`[PARALLEL-SAFE]`** or **`[SEQUENTIAL]`**:
 ## 4. In-repo skill map
 
 | Plan reference | In-repo path (use this) |
-|---|---|
+| --- | --- |
 | Writing plans | `crates/vox-skills/skills/superpowers/writing-plans.skill.md` |
 | Subagent-driven execution | `crates/vox-skills/skills/superpowers/subagent-driven-development.skill.md` |
 | TDD (red-green-refactor) | `crates/vox-skills/skills/superpowers/test-driven-development.skill.md` |
@@ -57,22 +58,27 @@ Policy the agent must obey throughout: `AGENTS.md` (root), plus the Vox-specific
 These five skills are now native (paths in §4). The summaries below are a fast reference; load the full `.skill.md` for complete guidance.
 
 ### 5.1 brainstorming
+
 **Use when:** a task requires a design choice the plan did not fully specify.
 **Do:** (1) State the decision in one sentence. (2) List 2–3 concrete options with one-line trade-offs. (3) Pick one and record *why* in a comment or commit message. **Do NOT** start coding until the choice is written down. For Gemini 3.5 Flash: never invent a fourth "clever" option that requires APIs you have not verified exist.
 
 ### 5.2 dispatching-parallel-agents
+
 **Use when:** 2+ tasks are tagged `[PARALLEL-SAFE]` in the same wave.
 **Do:** (1) Confirm their file sets are disjoint (re-read each task's **Files** block). (2) Spawn one subagent per task with ONLY that task's text as context (isolated window). (3) Wait for all to return green. (4) Integrate sequentially: pull each result, run the full crate test suite once, resolve any surprise overlap. **Never** parallelize tasks that share a file. **Two-strike rule:** if a subagent fails twice, stop it and surface its handoff note rather than re-dispatching.
 
 ### 5.3 verification-before-completion
+
 **Use when:** about to mark any task done or commit.
 **Do, in order, and paste the actual output:** (1) `cargo test -p <crate>` → must show PASS counts. (2) `cargo clippy -p <crate> -- -D warnings` → must be clean. (3) `cargo fmt -p <crate>` (never `--all`). (4) `vox stub-check` → must report no stubs. (5) confirm the tree compiles (`cargo check -p <crate>`). **Rule:** evidence before assertion — do not claim "done" without pasted command output. If any fails, the task is NOT done.
 
 ### 5.4 code-review (self-review pass for a fast model)
+
 **Use when:** a task's implementation step is written, before its commit.
 **Checklist:** (1) Does every symbol/path I referenced actually exist? (re-grep if unsure — anti-hallucination). (2) Did I add a stub/placeholder? (forbidden — see `AGENTS.md`/`feedback_no_stubs`). (3) Does the change match the task's stated Files block exactly? (4) Did I duplicate logic that already exists (DRY)? Fix inline; do not expand scope.
 
 ### 5.5 using-git-worktrees
+
 **Use when:** the plan says to isolate parallel file-mutating work.
 **Do:** for `[PARALLEL-SAFE]` waves that each mutate files, give each subagent its own worktree: `git worktree add ../wt-<task> <branch>`; work there; commit; then integrate. Clean up with `git worktree remove`. For this repo's two plans, most tasks touch disjoint files in one crate, so worktrees are optional — use only if two parallel tasks would otherwise race the same target dir. On Windows, prune stale worktrees before deleting branches.
 

@@ -4,6 +4,8 @@
 FROM rust:1.96.0-slim-bookworm AS builder
 # Install system dependencies (required by openssl-sys and other C-bound crates)
 RUN apt-get update && apt-get install -y pkg-config libssl-dev build-essential && rm -rf /var/lib/apt/lists/*
+# Install libdbus and GTK dependencies (required by wry/keyring on Linux)
+RUN apt-get update && apt-get install -y libdbus-1-dev libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 ARG VOX_CLI_FEATURES=

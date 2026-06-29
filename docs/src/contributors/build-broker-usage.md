@@ -23,6 +23,7 @@ error — falls straight through to real cargo. It is never a hard dependency.
 
 State lives **outside any repo** at `~/.vox/build-broker/` (overridable via
 `VOX_BROKER_HOME`) so concurrent agents' `git clean`/checkout can't wipe it:
+
 - `slots/slot_*` — the N-slot semaphore.
 - `inflight/*` — in-flight build identities (for coalescing metrics).
 - `metrics.jsonl` — one record per build (machine-readable).
@@ -51,6 +52,7 @@ cp target/release/cargo[.exe] ~/.vox/build-broker/bin/
 
 Prepend the shim dir to PATH **ahead of `~/.cargo/bin`** so cargo invocations are
 intercepted:
+
 - **Persistent user scope:** prepend `…\.vox\build-broker\bin` to the user `PATH`
   env var (covers all future-launched shells/agents).
 - **VS Code / Cursor / Antigravity / Windsurf:** add the same dir to
@@ -71,9 +73,11 @@ grep -v 'ahead=0' ~/.vox/build-broker/broker.log | wc -l
 ```
 
 A line reads e.g.:
+
 ```text
 <ts> test   wait=  4200ms ran= 18000ms ahead=3 cap=4 coalesce=false exit=0 <worktree>
 ```
+
 `ahead>0` / `wait>0` means the cap absorbed contention that would otherwise have
 blocked opaquely on cargo's locks or thrashed the machine.
 

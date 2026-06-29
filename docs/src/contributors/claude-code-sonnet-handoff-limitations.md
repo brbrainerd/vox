@@ -21,7 +21,7 @@ Reusable across handoffs. When you hand any implementation plan to **Claude 4.6 
 ## 2. Parallelism guidance
 
 - **Sequential when tasks churn shared types.** A plan's foundation track (new crate, new public API) must run one task at a time — parallel agents conflict on the same files.
-- **Parallel only after an API freezes**, and only across **disjoint files**, each worker in its **own worktree** (`isolation: "worktree"`). 
+- **Parallel only after an API freezes**, and only across **disjoint files**, each worker in its **own worktree** (`isolation: "worktree"`).
 - Multi-agent **Workflow** orchestration requires **explicit owner opt-in** ("use a workflow" / ultracode). Do not spin one up unprompted.
 
 ## 3. This repo's hard rules (from AGENTS.md / CLAUDE.md)
@@ -48,6 +48,7 @@ Reusable across handoffs. When you hand any implementation plan to **Claude 4.6 
 ## 6. Handoff-prompt checklist
 
 A good Sonnet 4.6 handoff prompt states, explicitly:
+
 1. The plan file path and the **required sub-skill** (`superpowers:subagent-driven-development` or `executing-plans`).
 2. Which track/task to start at, and that tasks are **strictly ordered** until the named API freeze.
 3. The sandbox/parallelism limits from §1–2 (so it doesn't assume parallel writers).

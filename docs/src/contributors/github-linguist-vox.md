@@ -49,18 +49,18 @@ npx tree-sitter test
 2. Add `vendor/grammars/tree-sitter-vox` as a git submodule pointing at this repo’s `tree-sitter-vox` directory (or the published mirror once split).
 3. Edit `languages.yml` with a new entry:
 
-```yaml
-Vox:
-  type: programming
-  color: "#5B4FCF"
-  extensions:
-    - ".vox"
-  tm_scope: source.vox
-  ace_mode: text
-  codemirror_mode: null
-  codemirror_mime_type: text/x-vox
-  language_id: <next free id — check linguist languages.yml>
-```
+   ```yaml
+   Vox:
+     type: programming
+     color: "#5B4FCF"
+     extensions:
+       - ".vox"
+     tm_scope: source.vox
+     ace_mode: text
+     codemirror_mode: null
+     codemirror_mime_type: text/x-vox
+     language_id: <next free id — check linguist languages.yml>
+   ```
 
 4. Add a **sample** under `samples/Vox/` (≥25 lines of representative `.vox` from `examples/golden/`).
 5. Run Linguist’s test suite locally: `script/cibuild` or `bundle exec rake test` per upstream docs.

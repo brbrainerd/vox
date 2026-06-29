@@ -26,7 +26,7 @@ only after precision is proven.
 ## Covered classes
 
 | Bug class | Detector id | Kind | Severity | Enforcement | Notes |
-|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- |
 | Cross-crate split-brain (byte-identical body in ≥2 crates) | `vox/cross-crate/duplicate-logic` | Rust batch (`detectors::cross_crate_dup`) | Info | CI full scan | Skips platform-sibling crates (`*-cuda`/`*-metal`) + trivial bodies. Exact string equality. |
 | Catch-all-swallow (`match _ =>` returns empty while real arms exist) | `vox/catch-all-swallow` | Rust AST per-file | Info | pre-push complete / CI | Neutral set = `None`/empty std containers/`Default::default()`/`0`/`false`/`""`/`()`/`{}`. Skips diverging + guarded arms. |
 | Toolchain-bump lint wave (new clippy/rustdoc lints on `rust-toolchain.toml` bump) | — (CI gate `toolchain-lint-wave`) | CI job | blocking (non-required) | CI, only on toolchain change | Fresh `cargo clean` + sccache-defeated clippy+rustdoc. |
@@ -44,7 +44,7 @@ only after precision is proven.
 ## Open gaps (deliberately not yet automated)
 
 | Bug class | Why still a GAP | Owner / plan |
-|---|---|---|
+| --- | --- | --- |
 | **Test asserts nothing** (reached-but-unproven symbols — ~7,950 in the graph) | High value but high FP; "meaningful assertion" is hard to define statically. Actively worked as a **coverage ratchet** (not a TOESTUB detector) on the `semantic-coverage-wave0` branch — building a detector here would collide. | `semantic-coverage.v1.json` ratchet + `docs/src/architecture/semantic-coverage-remediation-plan-2026-06-13.md` |
 | **Semantic-equivalence split-brain** (same logic, different body) | `cross-crate-dup` only catches *byte-identical* bodies; logically-equivalent-but-reworded copies escape it. Needs a normalized-AST or behavioral oracle. | guardrail-capability-plan (future) |
 | **Per-symbol assertion depth** | `catch-all-swallow` + the coverage ratchet cover slices; a per-symbol "is this return value asserted" detector is a larger effort. | guardrail-capability-plan (future) |

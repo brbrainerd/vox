@@ -47,6 +47,8 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
+      - name: Install system deps (libdbus/GTK)
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
       # Merge to main is already gated by `.github/workflows/ci.yml` (fmt, clippy, full guards).
       # Gate 1 only checks that `vox-cli` still builds on GitHub-hosted Ubuntu before triggering Coolify.
       - name: Build vox-cli (ubuntu-latest portability + lockfile)

@@ -51,7 +51,6 @@ This file tracks the single source of truth for Vox architecture, research findi
 - [FableForge Combat Knowledge Graph](combat-knowledge-graph-research-2026.md) — A directed knowledge graph spanning every layer of the Dystopia/FableForge combat engine, from legacy C to TypeScript.
 - [KI: Village Narrative Architecture — Research Audit](village-narrative-architecture-findings-2026.md) — A research audit on game structure for facilitating narrative, focusing on FableForge village.
 
-
 ## AI-First Language Fixtures
 
 - [AI-First Fixtures — Research (2026)](ai-first-fixtures-research-2026.md) — Evidence-grounded design for author-time AI fixtures across lexer/parser/HIR/codegen, `vox-actor-runtime` LLM substrate, orchestrator routing, MCP/ACI, and telemetry. Ships a machine-readable candidate catalog ([`contracts/agentos/ai-first-fixtures.v1.yaml`](../../../contracts/agentos/ai-first-fixtures.v1.yaml)) with JSON Schema, five fixture classes (agent control, model selection, query templates, deferred fill, search substitution), spike backlog S1–S8, and ADR drafts for proposed decorators (`@subagent`, `@prompt`, `@hole`, `@search`). **Implemented and observed (v0.7)** — typed `TelemetryEvent::AiFixture`, Rust codegen wired to memory/search/cascade/subagent dispatch; TS lowering still advisory (`vox/codegen/missing-ts-ai-lowering`). Follow-on: `ai-fixtures-ts-lowering-follow-on-2026.md`.
@@ -257,20 +256,22 @@ Ready-to-use TypeScript drop-ins in `docs/src/architecture/fableforge-impl/`. Ve
 - [Plugin System Redesign — SP4 Implementation Plan (2026)](plugin-system-redesign-sp4-plan-2026.md) — TDD task plan for Sub-Project 4 (skill-compiler migration — first skill plugin). 11 tasks covering the directory-only `vox-plugin-skill-compiler/` plugin (verbatim port of the existing `vox.compiler` SKILL.md), removal from `vox-skills` builtins, orchestrator + runtime + integration-tests consumer migration to `vox-plugin-host::SkillRegistry` with fallback dispatch through the existing `vox-skills` registry for the 8 unmigrated skills, and end-to-end MCP behavioral-parity test. Independent of SP3; can ship in either order after SP2.
 - [Plugin System Redesign (2026)](plugin-system-redesign-2026.md) — Unifies Cargo features, `vox-skills`, and capability registries into one runtime-loadable plugin system (`vox plugin`, `vox bundle`), `vox-plugin-catalog` SSOT, `abi_stable` host ABI, bundles (`vox-base`, `vox-fullstack`, `vox-mesh`, `vox-server`), eight-sub-project sequencing (CUDA spike in SP3). **SP7 (2026-05-04, complete):** ABI v6; extension traits `TensorBackend`, `AudioCapture`, `CloudSync`, `ScriptExecutor`; five stub plugin crates (`TODO(SP7-followup)` for code-motion). Retires `vox-build-meta` and `vox-skills` when migration completes.
 
-
 ## omni-search-audit-and-roadmap-2026.md
+
 - **Title:** Omni-Search Audit & Roadmap (2026)
 - **Status:** current
 - **Date:** 2026-06-17
 - **Description:** Comprehensive audit of Vox search capabilities, surfaces, gaps, bugs (20 items), and enhancement roadmap. Covers the full stack from vox-db contracts through vox-search execution to GUI omni-search. Establishes what is and is not searched; gestures toward phased implementation plan.
 
 ## code-search-omnisearch-research-2026-06-17.md
+
 - **Title:** Code Search & Omni-Search Research (2026-06-17)
 - **Status:** current
 - **Date:** 2026-06-17
 - **Description:** Synthesized web research (13 searches) on 2026 best practices: three-pillar hybrid search (BM25+vector+AST), RRF best practices, cross-encoder reranking, tree-sitter symbol indexing, MCP agent search patterns, GUI UX patterns, Rust-specific stack recommendations, and Vox-specific gap matrix.
 
 ## mens-corpus-health-plan-2026-06-18.md
+
 - **Title:** MENS Training Corpus Health Implementation Plan (2026-06-18)
 - **Status:** current
 - **Date:** 2026-06-18

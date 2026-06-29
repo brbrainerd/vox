@@ -88,7 +88,7 @@ external crates requires a few extra steps to satisfy crates.io closure requirem
 ## Current publishable crates (leaf-first order)
 
 | Crate | Status | Notes |
-|-------|--------|-------|
+| --- | --- | --- |
 | `vox-crypto` | prepared, ready to publish | no workspace deps |
 | `vox-mesh-types` | prepared | no workspace deps |
 | `vox-scaling-policy` | prepared | requires `vox-mesh-types` live |
