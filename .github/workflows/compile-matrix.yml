@@ -1,4 +1,4 @@
-﻿# Smoke matrix for `vox compile` — keeps CLI wiring honest across OS hosts.
+# Smoke matrix for `vox compile` — keeps CLI wiring honest across OS hosts.
 # Full installer builds (MSI/DMG/APK) stay opt-in / fixture-driven per application-packaging SSOT.
 
 name: Compile matrix smoke
