@@ -1,0 +1,52 @@
+# CI Health Dead-man's switch — watches the watchdog itself. A watchdog that silently
+# dies/disables/PAT-expires is the original 2026-06-29 blind spot one level up, so a
+# second, independent hosted cron alerts when the watchdog stops running. GitHub-native:
+# no external account, no extra secret — it reuses the watchdog's CI_HEALTH_PUSH_URL.
+#
+# Design: docs/superpowers/specs/2026-06-29-ci-health-secrets-provisioning-design.md (§3)
+name: CI Health Dead-man
+
+on:
+  schedule:
+    - cron: '7-59/15 * * * *'   # offset from the watchdog's */10 so they don't collide
+  workflow_dispatch:
+
+permissions:
+  actions: read
+
+concurrency:
+  group: ci-health-deadman
+  cancel-in-progress: true
+
+jobs:
+  deadman:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ secrets.SSOT_AUTOREGEN_TOKEN }}
+      PUSH_URL: ${{ secrets.CI_HEALTH_PUSH_URL }}
+    steps:
+      - name: Alert if the watchdog is down
+        run: |
+          set -euo pipefail
+          case "$PUSH_URL" in
+            https://ntfy.sh/*|https://api.pushover.net/*) : ;;
+            *) echo "::error::PUSH_URL not allowlisted"; exit 1 ;;
+          esac
+          last=$(gh run list --workflow ci-health-watchdog.yml --limit 1 --json status,conclusion,updatedAt)
+          status=$(jq -r '.[0].status // "none"'   <<<"$last")
+          concl=$(jq -r '.[0].conclusion // "none"' <<<"$last")
+          updated=$(jq -r '.[0].updatedAt // empty' <<<"$last")
+          age="none"; stale=1
+          if [ -n "$updated" ]; then
+            age=$(( ( $(date -u +%s) - $(date -u -d "$updated" +%s) ) / 60 ))   # GNU date (ubuntu only)
+            [ "$age" -le 25 ] && stale=0
+          fi
+          if [ "$stale" = 1 ] || { [ "$status" = completed ] && [ "$concl" != success ]; }; then
+            curl -fsS -H "Title: CI Health Watchdog is DOWN" -H "Priority: max" \
+              -d "watchdog last run: status=$status conclusion=$concl age=${age}m — it is no longer watching the fleet" \
+              "$PUSH_URL"
+            echo "::error::watchdog appears down (status=$status conclusion=$concl age=${age}m)"
+            exit 1
+          fi
+          echo "watchdog healthy (status=$status conclusion=$concl age=${age}m)"

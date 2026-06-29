@@ -135,8 +135,6 @@ jobs:
           path: watchdog-audit.jsonl
           retention-days: 90
 
-      # --- B4: dead-man's switch. Heartbeat only on full success; absence-alert is the backstop
-      #     for a watchdog that itself dies/disables/expires-PAT (the original blind spot, one level up). ---
-      - name: Heartbeat
-        if: ${{ success() }}
-        run: curl -fsS "https://hc-ping.com/${{ secrets.CI_HEALTH_HEARTBEAT_UUID }}" || true
+      # --- B4: dead-man's switch is GitHub-native (no external account / no heartbeat secret):
+      #     a separate cron `.github/workflows/ci-health-deadman.yml` watches THIS workflow's
+      #     freshness via `gh api` and alerts to the same CI_HEALTH_PUSH_URL when it goes silent. ---
