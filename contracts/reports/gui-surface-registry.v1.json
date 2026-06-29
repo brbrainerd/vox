@@ -80,7 +80,9 @@
     "wasm",
     "workflow"
   ],
-  "surface_count": 112,
-  "unclassified_backfilled": [],
+  "surface_count": 113,
+  "unclassified_backfilled": [
+    "graphify"
+  ],
   "wiring_violations": []
 }
