@@ -1,6 +1,6 @@
 [package]
 name = "vox-term"
-version = "0.1.0"
+version.workspace = true
 edition = "2024"
 description = "Headless-capable ratatui TUI front-end for vox-terminal-core."
 license = "Apache-2.0"
