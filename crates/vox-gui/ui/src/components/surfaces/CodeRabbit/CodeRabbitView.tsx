@@ -66,6 +66,7 @@ export function CodeRabbitView(_props: CodeRabbitViewProps): React.ReactElement 
 
   useEffect(() => {
     let un: UnlistenFn | undefined;
+    let cancelled = false;
     listen<{ status: string; error?: string }>('coderabbit://progress', (e) => {
       setRunning(false);
       _props.pushToast({
@@ -73,9 +74,18 @@ export function CodeRabbitView(_props: CodeRabbitViewProps): React.ReactElement 
         message: e.payload.status === 'error' ? `CodeRabbit run failed: ${e.payload.error}` : 'CodeRabbit run finished',
       });
       invoke<Report>('coderabbit_report').then(setReport).catch(() => {});
-    }).then((u) => (un = u));
-    return () => un?.();
-  }, [_props]);
+    }).then((u) => {
+      // If we unmounted before listen() resolved, unlisten immediately (no leak).
+      if (cancelled) u();
+      else un = u;
+    });
+    return () => {
+      cancelled = true;
+      un?.();
+    };
+    // pushToast is treated as stable; depending on [_props] would re-subscribe every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const plan = useCallback(async () => {
     setBusy(true);
@@ -122,17 +132,17 @@ export function CodeRabbitView(_props: CodeRabbitViewProps): React.ReactElement 
         </label>
         <label style={{ fontSize: 13 }}>
           <div style={{ color: 'var(--text-secondary, #5F5E5A)', marginBottom: 4 }}>Max files / PR</div>
-          <input type="number" min={1} max={150} value={cap} onChange={(e) => setCap(Number(e.target.value))} style={{ width: 90 }} />
+          <input type="number" min={1} max={150} value={cap} onChange={(e) => { const n = Number(e.target.value); setCap(Number.isFinite(n) ? Math.max(1, Math.min(150, Math.trunc(n))) : 1); }} style={{ width: 90 }} />
         </label>
         <label style={{ fontSize: 13 }}>
           <div style={{ color: 'var(--text-secondary, #5F5E5A)', marginBottom: 4 }}>Top N</div>
-          <input type="number" min={1} value={top} onChange={(e) => setTop(Number(e.target.value))} style={{ width: 90 }} />
+          <input type="number" min={1} value={top} onChange={(e) => { const n = Number(e.target.value); setTop(Number.isFinite(n) ? Math.max(1, Math.trunc(n)) : 1); }} style={{ width: 90 }} />
         </label>
         <label style={{ fontSize: 13 }}>
           <div style={{ color: 'var(--text-secondary, #5F5E5A)', marginBottom: 4 }}>Rank weights (r,c,g)</div>
           <input type="text" value={weights} onChange={(e) => setWeights(e.target.value)} style={{ width: 110 }} />
         </label>
-        <button onClick={plan} disabled={busy}>{busy ? 'Planning…' : 'Plan sweep'}</button>
+        <button onClick={plan} disabled={busy || !since}>{busy ? 'Planning…' : 'Plan sweep'}</button>
         <button onClick={run} disabled={running || !rows.length}>{running ? 'Running…' : 'Run'}</button>
       </div>
 
@@ -150,7 +160,7 @@ export function CodeRabbitView(_props: CodeRabbitViewProps): React.ReactElement 
               <div key={r.name} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderTop: i ? '0.5px solid var(--border, #d3d1c7)' : 'none' }}>
                 <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 13, flex: 1 }}>{r.name}</span>
                 <span style={{ fontSize: 12, color: 'var(--text-muted, #888780)', width: 70, textAlign: 'right' }}>{r.files} files</span>
-                {r.pr ? <a href={`#pr-${r.pr}`} style={{ fontSize: 12 }}>#{r.pr}</a> : <span style={{ width: 28 }} />}
+                {r.pr ? <span style={{ fontSize: 12, color: 'var(--text-muted, #888780)' }}>#{r.pr}</span> : <span style={{ width: 28 }} />}
                 <span style={{ background: pill.bg, color: pill.fg, fontSize: 11, padding: '3px 9px', borderRadius: 20, width: 84, textAlign: 'center' }}>{r.status}</span>
               </div>
             );
