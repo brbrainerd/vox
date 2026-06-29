@@ -9749,6 +9749,22 @@ curated:
   mcp_tool: vox_set_model
   cli_path: null
   parameters: null
+- id: mcp.vox_skill_add
+  title: Skill Add
+  description_human: null
+  description_model: Add a skill from a git URL or local path into the user .vox/skills root.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_skill_add
+  cli_path: null
+  parameters: null
 - id: mcp.vox_skill_discover
   title: Skill Discover
   description_human: null
@@ -9827,6 +9843,22 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_skill_parse
+  cli_path: null
+  parameters: null
+- id: mcp.vox_skill_remove
+  title: Skill Remove
+  description_human: null
+  description_model: Remove a user-installed skill directory (ownership-scoped to .vox/skills).
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_skill_remove
   cli_path: null
   parameters: null
 - id: mcp.vox_skill_run

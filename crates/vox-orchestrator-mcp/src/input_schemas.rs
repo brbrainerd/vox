@@ -583,6 +583,12 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         ),
 
         // ── Skills ───────────────────────────────────────────────────────────
+        "vox_skill_add" => parse_obj(
+            r#"{"type":"object","properties":{"source":{"type":"string"},"global":{"type":"boolean"},"skill":{"type":"string"}},"required":["source"],"additionalProperties":true}"#,
+        ),
+        "vox_skill_remove" => parse_obj(
+            r#"{"type":"object","properties":{"id":{"type":"string"}},"required":["id"],"additionalProperties":true}"#,
+        ),
         "vox_skill_uninstall"
         | "vox_skill_info"
         | "vox_skill_use"

@@ -14,6 +14,8 @@ fn is_skill_infrastructure_tool(tool_name: &str) -> bool {
             | "vox_skill_parse"
             | "vox_skill_install"
             | "vox_skill_uninstall"
+            | "vox_skill_add"
+            | "vox_skill_remove"
             | "vox_skill_run"
             | "vox_workspace_mcp_refresh"
     ) || tool_name.starts_with("vox_chat_")

@@ -43,6 +43,23 @@ pub struct SkillRunParams {
 pub struct SkillParseParams {
     pub skill_md: String,
 }
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SkillAddParams {
+    /// Git URL or local path to a skill (or repo of skills).
+    pub source: String,
+    /// Install into `~/.vox/skills` instead of the workspace `.vox/skills`.
+    #[serde(default)]
+    pub global: bool,
+    /// Optional: install only the skill whose `name` matches.
+    #[serde(default)]
+    pub skill: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SkillRemoveParams {
+    pub id: String,
+}
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SkillInfo {
     pub id: String,
@@ -310,6 +327,79 @@ pub fn skill_discover(state: &ServerState) -> String {
             })
             .collect();
     ToolResult::ok(items).to_json()
+}
+
+/// `vox_skill_add` — install skill(s) from a git URL or local path into the user
+/// root (`.vox/skills`, or `~/.vox/skills` when `global`). Validates frontmatter;
+/// never runs `scripts/`. Re-discovers so the new skills load without restart.
+pub async fn skill_add(state: &ServerState, params: SkillAddParams) -> String {
+    let ws_root = state
+        .workspace_root
+        .clone()
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+    let source = params.source.clone();
+    let global = params.global;
+    let filter = params.skill.clone();
+    let result = tokio::task::spawn_blocking(move || {
+        vox_plugin_host::user_install::install_to_user_root(
+            &source,
+            &ws_root,
+            global,
+            filter.as_deref(),
+        )
+    })
+    .await;
+    match result {
+        Ok(Ok(installed)) => {
+            // Load the freshly installed skills into the registry.
+            let roots = vox_config::paths::skill_search_roots(
+                &state
+                    .workspace_root
+                    .clone()
+                    .unwrap_or_else(|| std::path::PathBuf::from(".")),
+            );
+            for ext in vox_plugin_host::external_skills::discover_external_skills(&roots) {
+                let _ = state.skill_registry.install_bundle(&ext.bundle).await;
+            }
+            state.rebuild_skill_search_index();
+            let names: Vec<String> = installed.into_iter().map(|s| s.name).collect();
+            ToolResult::ok(serde_json::json!({ "installed": names })).to_json()
+        }
+        Ok(Err(e)) => ToolResult::<String>::err_with_remediation(
+            e,
+            "Pass a valid git URL or local path; the source must contain a SKILL.md with valid frontmatter.",
+        )
+        .to_json(),
+        Err(e) => ToolResult::<String>::err(format!("add task failed: {e}")).to_json(),
+    }
+}
+
+/// `vox_skill_remove` — delete a user-installed skill's directory (ownership-scoped
+/// to `.vox/skills`), then drop its registry row. Bundled / other-tool skills are
+/// read-only and refused.
+pub async fn skill_remove(state: &ServerState, params: SkillRemoveParams) -> String {
+    let ws_root = state
+        .workspace_root
+        .clone()
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+    let roots = vox_config::paths::skill_search_roots(&ws_root);
+    let id = params.id.clone();
+    let removed =
+        tokio::task::spawn_blocking(move || vox_plugin_host::user_install::remove_user_skill(&id, &roots))
+            .await;
+    match removed {
+        Ok(Ok(path)) => {
+            let _ = state.skill_registry.uninstall(&params.id).await;
+            state.rebuild_skill_search_index();
+            ToolResult::ok(format!("Removed '{}' ({})", params.id, path.display())).to_json()
+        }
+        Ok(Err(e)) => ToolResult::<String>::err_with_remediation(
+            e,
+            "Only skills under .vox/skills are removable; bundled and other-tool skills are read-only.",
+        )
+        .to_json(),
+        Err(e) => ToolResult::<String>::err(format!("remove task failed: {e}")).to_json(),
+    }
 }
 
 /// `vox_skill_run` — execute a skill script in the sandbox (parity with CLI `vox skill run`).
