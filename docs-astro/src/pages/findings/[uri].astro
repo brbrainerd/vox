@@ -37,12 +37,17 @@ function renderFindingHtml(pagePath: string): string {
 }
 
 export async function getStaticPaths() {
-  if (!existsSync(fixturesDir)) {
+  // Recompute locally — Astro 6 extracts getStaticPaths into a separate prerender
+  // chunk where frontmatter-scope consts are not in scope.
+  const _here = dirname(fileURLToPath(import.meta.url));
+  const _repoRoot = join(_here, '..', '..', '..');
+  const _fixturesDir = join(_repoRoot, 'contracts', 'scientia', 'fixtures', 'findings');
+  if (!existsSync(_fixturesDir)) {
     return [];
   }
-  const files = readdirSync(fixturesDir).filter((f) => f.endsWith('.json'));
+  const files = readdirSync(_fixturesDir).filter((f) => f.endsWith('.json'));
   return files.map((file) => {
-    const pagePath = join(fixturesDir, file);
+    const pagePath = join(_fixturesDir, file);
     const page = JSON.parse(readFileSync(pagePath, 'utf8'));
     return {
       params: { uri: page.trusty_uri },
