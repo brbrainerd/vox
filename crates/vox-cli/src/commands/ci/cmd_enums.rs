@@ -518,6 +518,16 @@ pub enum CiCmd {
         #[arg(long)]
         update: bool,
     },
+    /// Audit source-token budget: verify lex(source).len() + raw byte count per ladder fixture vs `contracts/eval/source-token-budget.v1.json`.
+    #[command(name = "source-token-budget")]
+    SourceTokenBudget {
+        /// Fail if any fixture exceeds its budget by more than this percentage (default 0%).
+        #[arg(long, default_value_t = 0.0)]
+        tolerance_percent: f64,
+        /// Update baseline budgets in `contracts/eval/source-token-budget.v1.json`.
+        #[arg(long)]
+        update: bool,
+    },
     /// Validate grammar export crate: emit all formats, verify rule counts are non-zero, assert semver alignment.
     #[command(name = "grammar-export-check")]
     GrammarExportCheck,

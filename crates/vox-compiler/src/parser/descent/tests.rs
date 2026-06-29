@@ -17,6 +17,34 @@ fn assert_parse_fails(source: &str) {
     );
 }
 
+/// Warning-first rollout: a retired Tier-1 decorator must still parse but emit a
+/// `Warning`-severity `Tombstoned` diagnostic carrying the machine-readable
+/// `Replacement{from,to,code}` payload that the future hard-error flip + codemod
+/// consume. Asserted at the parser-internal layer because warnings are discarded on
+/// a successful public `parse()`.
+#[test]
+fn retired_table_decorator_emits_warning_payload() {
+    use crate::parser::error::{ParseErrorClass, ParseSeverity};
+    let mut p = Parser::new(lex("@table type User { name: str }"));
+    let _ = p.parse_module();
+    // Warning-first: it must STILL parse (no hard error) ...
+    assert!(
+        !p.errors.iter().any(|e| e.severity == ParseSeverity::Error),
+        "@table must still parse during warning-first; got: {:?}",
+        p.errors
+    );
+    // ... and carry the full machine-readable replacement payload (incl. stable code).
+    assert!(
+        p.errors.iter().any(|e| e.severity == ParseSeverity::Warning
+            && e.class == ParseErrorClass::Tombstoned
+            && e.replacement.as_ref().is_some_and(|r| r.from == "@table"
+                && r.to == "table"
+                && r.code == "vox/decorator/table-retired")),
+        "warning-first must emit a Tombstoned warning with the @table→table replacement; got: {:?}",
+        p.errors
+    );
+}
+
 #[test]
 fn test_parse_simple_fn() {
     let m = parse_str("fn add(a, b) to int { return a + b }");

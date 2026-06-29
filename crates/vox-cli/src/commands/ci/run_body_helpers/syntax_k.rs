@@ -122,6 +122,125 @@ pub(crate) fn run_k_complexity_budget(root: &Path, tolerance: f64, update: bool)
     Ok(())
 }
 
+/// Per-fixture source-token budget: structural lexer-token count plus raw source
+/// byte count (a coarse BPE correlate; `bytes/4` ≈ model tokens).
+#[derive(Debug, Serialize, Deserialize, Default, Clone, Copy)]
+struct SourceTokenEntry {
+    tokens: usize,
+    bytes: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+struct SourceTokenBudgetFile {
+    #[serde(default)]
+    fixtures: HashMap<String, SourceTokenEntry>,
+}
+
+/// Source-token budget gate (ladder-scoped), mirroring [`run_k_complexity_budget`].
+///
+/// Measures `lex(source).len()` (structural lexer tokens — a lower bound on grammar
+/// verbosity, NOT model BPE tokens) and the raw source byte count for each golden
+/// ladder fixture, comparing both against `contracts/eval/source-token-budget.v1.json`.
+/// Ratchet-down: fail when a fixture exceeds its budget beyond `tolerance`. `--update`
+/// rebaselines (run after the decorator→keyword codemod to record the shrunk counts).
+pub(crate) fn run_source_token_budget(root: &Path, tolerance: f64, update: bool) -> Result<()> {
+    // Extra headroom (percentage points) the byte budget gets on top of the token
+    // tolerance — raw bytes are noisier than structural tokens, so they gate loosely.
+    const BYTE_HEADROOM_PCT: f64 = 10.0;
+    let budget_path = root.join("contracts/eval/source-token-budget.v1.json");
+    let mut budget = if budget_path.exists() {
+        serde_json::from_str::<SourceTokenBudgetFile>(&fs::read_to_string(&budget_path)?)?
+    } else {
+        SourceTokenBudgetFile::default()
+    };
+
+    let ladder = vox_codegen::canonical_ladder::CanonicalLadder::load_from_repo_root(root)
+        .map_err(|e| anyhow!("failed to load canonical ladder: {e}"))?;
+    let ladder_ids = ladder.fixture_ids();
+
+    let golden_dir = root.join("examples/golden");
+    if !golden_dir.is_dir() {
+        return Err(anyhow!("examples/golden directory not found"));
+    }
+
+    let mut failures = Vec::new();
+    let mut new_budgets = HashMap::new();
+
+    for entry in fs::read_dir(golden_dir)? {
+        let path = entry?.path();
+        if path.extension().and_then(|s| s.to_str()) != Some("vox") {
+            continue;
+        }
+        let fixture_id = path.file_stem().unwrap().to_str().unwrap().to_string();
+        if !ladder_ids.contains(&fixture_id) {
+            continue;
+        }
+        let source = fs::read_to_string(&path)?;
+        let measured = SourceTokenEntry {
+            tokens: lex(&source).len(),
+            bytes: source.as_bytes().len(),
+        };
+        new_budgets.insert(fixture_id.clone(), measured);
+
+        if let Some(allowed) = budget.fixtures.get(&fixture_id) {
+            // TOKEN count is the tight ratchet (structural; comment-independent because
+            // lex() strips comments). BYTE count is also enforced, but with generous
+            // headroom (+BYTE_HEADROOM_PCT beyond the token tolerance) so a benign
+            // comment/whitespace edit to a golden does not fail CI while a gross size
+            // regression still does. `--update` rebaselines on legitimate growth.
+            let tok_limit = (allowed.tokens as f64 * (1.0 + tolerance / 100.0)).ceil() as usize;
+            if measured.tokens > tok_limit {
+                failures.push(format!(
+                    "Fixture '{fixture_id}' exceeded token budget: {} > {tok_limit} (allowed: {})",
+                    measured.tokens, allowed.tokens
+                ));
+            }
+            let byte_limit = (allowed.bytes as f64
+                * (1.0 + (tolerance + BYTE_HEADROOM_PCT) / 100.0))
+                .ceil() as usize;
+            if measured.bytes > byte_limit {
+                failures.push(format!(
+                    "Fixture '{fixture_id}' exceeded byte budget: {} > {byte_limit} (allowed: {} + {BYTE_HEADROOM_PCT}% headroom)",
+                    measured.bytes, allowed.bytes
+                ));
+            }
+        } else if !update {
+            failures.push(format!(
+                "Fixture '{fixture_id}' has no source-token budget defined in {}",
+                budget_path.display()
+            ));
+        }
+    }
+
+    let total_fixtures = new_budgets.len();
+    if update {
+        budget.fixtures = new_budgets;
+        let content = serde_json::to_string_pretty(&budget)?;
+        if let Some(parent) = budget_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&budget_path, content)?;
+        println!(
+            "Updated source-token budget baseline: {}",
+            budget_path.display()
+        );
+    }
+
+    if !failures.is_empty() {
+        for f in &failures {
+            eprintln!("  [SourceToken] ERROR: {f}");
+        }
+        anyhow::bail!(
+            "Source-token budget audit failed ({} violations): {}",
+            failures.len(),
+            failures.join("; ")
+        );
+    }
+
+    println!("Source-token budget OK ({total_fixtures} ladder fixtures validated)");
+    Ok(())
+}
+
 #[cfg(test)]
 mod k_complexity_budget_tests {
     use super::*;
@@ -184,5 +303,52 @@ fixtures:
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
         run_k_complexity_budget(&root, 0.0, false)
             .expect("real repo k-complexity budget should pass");
+    }
+
+    fn write_source_token_budget(root: &Path, fixtures_json: &str) {
+        fs::create_dir_all(root.join("contracts/eval")).expect("eval dir");
+        fs::write(
+            root.join("contracts/eval/source-token-budget.v1.json"),
+            format!(r#"{{ "fixtures": {fixtures_json} }}"#),
+        )
+        .expect("source-token budget json");
+    }
+
+    #[test]
+    fn source_token_budget_passes_under_generous_budget() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let root = dir.path();
+        write_minimal_ladder_workspace(root, "{}");
+        write_source_token_budget(root, r#"{ "hello": { "tokens": 9999, "bytes": 99999 } }"#);
+        run_source_token_budget(root, 0.0, false).expect("under-budget hello must pass");
+    }
+
+    #[test]
+    fn source_token_budget_fails_over_budget() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let root = dir.path();
+        write_minimal_ladder_workspace(root, "{}");
+        write_source_token_budget(root, r#"{ "hello": { "tokens": 1, "bytes": 1 } }"#);
+        let err =
+            run_source_token_budget(root, 0.0, false).expect_err("over-budget hello must fail");
+        let msg = format!("{err:#}");
+        assert!(
+            msg.contains("hello") && msg.contains("exceeded"),
+            "expected over-budget failure for hello, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn source_token_budget_missing_entry_fails_when_not_updating() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let root = dir.path();
+        write_minimal_ladder_workspace(root, "{}");
+        write_source_token_budget(root, "{}");
+        let err = run_source_token_budget(root, 0.0, false).expect_err("missing budget must fail");
+        let msg = format!("{err:#}");
+        assert!(
+            msg.contains("hello") && msg.contains("no source-token budget"),
+            "expected missing-budget failure for hello, got: {msg}"
+        );
     }
 }
