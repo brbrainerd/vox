@@ -8,11 +8,6 @@ read_role_tools:
   - vox_feedback_list
   - vox_git_diff
   - vox_git_status
-  - vox_graphify_status
-  - vox_graphify_search
-  - vox_graphify_query
-  - vox_graphify_path
-  - vox_graphify_compare
   - vox_gui_components
   - vox_gui_rules
   - vox_gui_tokens
@@ -35,6 +30,11 @@ read_role_tools:
   - vox_repo_query_history
   - vox_repo_query_text
   - vox_repo_status
+  - vox_search_compare
+  - vox_search_neighbors
+  - vox_search_path
+  - vox_search_status
+  - vox_search_structural
   - vox_semantic_fs_discover
   - vox_skill_discover
   - vox_skill_use

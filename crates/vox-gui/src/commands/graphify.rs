@@ -51,7 +51,7 @@ mod tests {
         let dir = tmp.path().join("contracts/retrieval");
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(
-            dir.join("graphify-corpora.v1.yaml"),
+            dir.join("vox-graph-corpora.v1.yaml"),
             "default_corpus_id: repo-code-graph\nttl_days_default: 30\ncorpora:\n  - id: repo-code-graph\n    title: Repo\n    scope_path: \".\"\n    graph_path: \".vox/cache/graphify/repo-code-graph/graph.json\"\n    manifest_path: \".vox/cache/graphify/repo-code-graph/.graphify_manifest.v1.json\"\n",
         )
         .unwrap();

@@ -26,15 +26,15 @@ jobs:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             sidecar_src: target/x86_64-pc-windows-msvc/release/vox.exe
-            sidecar_dst: target/x86_64-pc-windows-msvc/release/vox-x86_64-pc-windows-msvc.exe
+            sidecar_dst: target/release/vox-x86_64-pc-windows-msvc.exe
           - os: macos-latest
             target: aarch64-apple-darwin
             sidecar_src: target/aarch64-apple-darwin/release/vox
-            sidecar_dst: target/aarch64-apple-darwin/release/vox-aarch64-apple-darwin
+            sidecar_dst: target/release/vox-aarch64-apple-darwin
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             sidecar_src: target/x86_64-unknown-linux-gnu/release/vox
-            sidecar_dst: target/x86_64-unknown-linux-gnu/release/vox-x86_64-unknown-linux-gnu
+            sidecar_dst: target/release/vox-x86_64-unknown-linux-gnu
     runs-on: ${{ matrix.os }}
     env:
       RUSTC_WRAPPER: sccache
@@ -62,9 +62,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-gui-
 
-      - name: Install WebKitGTK (Ubuntu)
+      - name: Install WebKitGTK + ALSA (Ubuntu)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev
+        # libasound2-dev: vox-gui's cpal mic-capture (desktop speech-to-text) pulls
+        # alsa-sys, whose build script needs the ALSA dev headers.
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev libasound2-dev
 
       - uses: pnpm/action-setup@v6
         with:
@@ -88,11 +90,15 @@ jobs:
       - name: Stage Tauri external sidecar (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: Copy-Item ${{ matrix.sidecar_src }} ${{ matrix.sidecar_dst }} -Force
+        run: |
+          New-Item -ItemType Directory -Force target/release | Out-Null
+          Copy-Item ${{ matrix.sidecar_src }} ${{ matrix.sidecar_dst }} -Force
 
       - name: Stage Tauri external sidecar (Unix)
         if: runner.os != 'Windows'
-        run: cp ${{ matrix.sidecar_src }} ${{ matrix.sidecar_dst }}
+        run: |
+          mkdir -p target/release
+          cp ${{ matrix.sidecar_src }} ${{ matrix.sidecar_dst }}
 
       - name: Build vox-gui (Tauri)
         run: cargo build -p vox-gui

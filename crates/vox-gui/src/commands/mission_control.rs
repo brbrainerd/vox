@@ -23,7 +23,7 @@ async fn call_orchestrator_daemon(
 // ---------------------------------------------------------------------------
 
 /// One edge in the subagent delegation tree returned by `list_subagent_tree`.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SubagentTreeNode {
     pub task_id: u64,
     pub agent_id: u64,
@@ -52,7 +52,7 @@ pub async fn list_subagent_tree() -> Result<Vec<SubagentTreeNode>, String> {
 // ---------------------------------------------------------------------------
 
 /// Raw approval row forwarded from the orchestrator's PendingApprovals registry.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct McApprovalRow {
     pub approval_id: String,
     pub tool: String,

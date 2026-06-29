@@ -1,4 +1,4 @@
-﻿name: CI
+name: CI
 
 on:
   pull_request:
@@ -384,7 +384,13 @@ jobs:
         # workspace. The per-manifest form keeps each invocation tiny and stays
         # identical on Linux/macOS/Windows runners. Local writer: `vox run
         # scripts/fmt.vox`. See AGENTS.md "Formatting Rust (Windows-safe)".
+        #
+        # RUSTUP_TOOLCHAIN is unset here so cargo reads rust-toolchain.toml
+        # (1.96.0) instead of the stable override from dtolnay/rust-toolchain@stable
+        # above. Format check must use the pinned toolchain to match local dev.
         shell: bash
+        env:
+          RUSTUP_TOOLCHAIN: ""
         run: |
           set -euo pipefail
           FULL="${{ needs.setup.outputs.full }}"
@@ -616,6 +622,8 @@ jobs:
           path: target/debug
       - name: Ensure vox-cli executable
         run: chmod +x target/debug/vox
+      - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy, llvm-tools-preview
@@ -628,7 +636,7 @@ jobs:
 
       - name: Rustdoc (deny warnings; full gate only)
         if: needs.setup.outputs.full == 'true'
-        run: RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps
+        run: RUSTDOCFLAGS='-D warnings' cargo doc --workspace --exclude vox-gui --no-deps
 
       - name: Lint Check (Clippy)
         # Deny all lints (`-D warnings`) EXCEPT a small set of cosmetic/subjective
@@ -762,6 +770,8 @@ jobs:
           path: target/debug
       - name: Ensure vox-cli executable
         run: chmod +x target/debug/vox
+      - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -862,6 +872,8 @@ jobs:
           path: target/debug
       - name: Ensure vox-cli executable
         run: chmod +x target/debug/vox
+      - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy, llvm-tools-preview
@@ -981,7 +993,7 @@ jobs:
           set -euo pipefail
           junit_cfg="${RUNNER_TEMP}/vox-nextest-junit.toml"
           printf '%s\n' '[profile.ci.junit]' 'path = "junit.xml"' >"${junit_cfg}"
-          cargo llvm-cov nextest --workspace --profile ci --tool-config-file "vox-ci:${junit_cfg}"
+          cargo llvm-cov nextest --workspace --exclude vox-gui --profile ci --tool-config-file "vox-ci:${junit_cfg}"
 
       - name: Run Tests — plain nextest (full gate, docs-only change)
         if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed != 'true'
@@ -991,7 +1003,7 @@ jobs:
           set -euo pipefail
           junit_cfg="${RUNNER_TEMP}/vox-nextest-junit.toml"
           printf '%s\n' '[profile.ci.junit]' 'path = "junit.xml"' >"${junit_cfg}"
-          cargo nextest run --workspace --profile ci --tool-config-file "vox-ci:${junit_cfg}"
+          cargo nextest run --workspace --exclude vox-gui --profile ci --tool-config-file "vox-ci:${junit_cfg}"
 
       - name: Run Tests — affected nextest (PR scoped)
         if: needs.setup.outputs.full != 'true'
@@ -1148,7 +1160,7 @@ jobs:
       # Full gate only — PR-time affected runs skip doctests (covered at merge_group).
       - name: Doc tests (cargo test --workspace --doc; not nextest)
         if: needs.setup.outputs.full == 'true'
-        run: cargo test --workspace --doc
+        run: cargo test --workspace --exclude vox-gui --doc
 
       - name: Line coverage report (summary, LCOV, gates enforce)
         if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
@@ -1201,6 +1213,8 @@ jobs:
           path: target/debug
       - name: Ensure vox-cli executable
         run: chmod +x target/debug/vox
+      - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -1259,7 +1273,7 @@ jobs:
           FULL="${{ needs.setup.outputs.full }}"
           P_ARGS="${{ needs.setup.outputs.affected_p_args }}"
           if [ "$FULL" = "true" ]; then
-            cargo check --workspace --all-features
+            cargo check --workspace --exclude vox-gui --all-features
           elif [ -n "$P_ARGS" ]; then
             # shellcheck disable=SC2086
             cargo check $P_ARGS --all-features

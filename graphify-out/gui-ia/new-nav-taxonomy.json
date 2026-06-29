@@ -1,0 +1,231 @@
+{
+  "dimension": "new-nav-taxonomy",
+  "method": {
+    "primary": "UX-first grouping by user job-to-be-done. Principles: (a) task coherence, (b) label predicts content, (c) 7±2 balanced groups, (d) information scent.",
+    "secondary": "Leiden communities used as a FALSIFIER only. Every surface sits in its own singleton community (c_486–c_525 are 1:1 with surfaces — the GUI graph is near-fully fragmented after the gui-wiring pass), so communities provide almost NO grouping signal here; they cannot dictate or even meaningfully cost any UX regroup. This is itself a structural finding: code-level cohesion does not exist between surfaces, so the nav tree is free to optimize purely for UX. Where a proposed group would split a tight community it is recorded as migration_cost; no such split exists in this dataset.",
+    "agreement_note": "Because each surface is its own dominant community, 'agreement' for every proposed group is reported as 'crosses-community(low)' — every multi-member group necessarily spans singleton communities, but the migration cost is structurally LOW (no shared code to disentangle). 'aligned' is reserved for single-member groups."
+  },
+  "proposed_tree": {
+    "Chat": ["chat"],
+    "Agents": ["dashboard", "flow", "matrix", "tasks"],
+    "Runs": ["runs", "approvals", "policies"],
+    "Workspace": ["console", "repository", "browser", "harness"],
+    "Commands": ["catalog", "skills"],
+    "Knowledge": ["memory", "research", "scientia", "claims", "publications", "discovery-inbox", "discovery-review", "archive-panel"],
+    "Compute": ["models", "mesh", "oratio", "mens", "populi"],
+    "Settings": ["settings", "coverage", "gamify"]
+  },
+  "proposed_groups": [
+    {
+      "group": "Knowledge",
+      "members": ["memory", "research", "scientia(→Library/Findings)", "claims", "publications", "discovery-inbox", "discovery-review", "archive-panel"],
+      "ux_rationale": "JUDGMENT: 'find / recall / review what the system knows' is one job. Folding the orphan 'search' parent's only child (memory) here kills the lopsided 1-child Search group and the Search↔Memory naming collision in one move. Still 8 children (top of 7±2) → the 4 activity-backed surfaces (activity/archive-panel/discovery-inbox/discovery-review) should CONDENSE into one 'Discovery' tabbed surface (separate redundancy-dimension rec), bringing this to ~5.",
+      "dominant_community": "mixed singletons (c_493 claims, c_504 knowledge, c_506 memory, c_516 research, c_519 scientia, c_489/499/500 activity-clones)",
+      "agreement": "crosses-community(low)"
+    },
+    {
+      "group": "Compute",
+      "members": ["models", "mesh", "oratio(→Voice/Speech)", "mens(→Reasoning?)", "populi(→Crowd?)"],
+      "ux_rationale": "JUDGMENT: 'run / route / inspect models and the node mesh' is one job. Latin labels oratio/mens/populi fail 'label predicts content' — RENAME each. mens & populi are dead (0 commands, null component_dir) — flag for CUT by the utility dimension; if kept, they belong here.",
+      "dominant_community": "singletons c_509 models, c_508 mesh, c_511 oratio, c_507 mens, c_513 populi",
+      "agreement": "crosses-community(low)"
+    },
+    {
+      "group": "Agents",
+      "members": ["dashboard", "flow", "matrix", "tasks"],
+      "ux_rationale": "JUDGMENT: 'watch / steer the running agent swarm'. Drop gamify out (immersive/reward concern, not core agent ops) to Settings. dashboard+flow are the richest live_backend surfaces — strong scent.",
+      "dominant_community": "singletons c_498 dashboard, c_501 flow, c_505 matrix, c_524 tasks",
+      "agreement": "crosses-community(low)"
+    },
+    {
+      "group": "Workspace",
+      "members": ["console", "repository", "browser", "harness"],
+      "ux_rationale": "JUDGMENT: 'act on the dev environment — terminal, repo, browser, harness'. console default child (richest: 8 cmds). Coherent as-is; KEEP.",
+      "dominant_community": "singletons c_496 console, c_515 repository, c_490 browser, c_503 harness",
+      "agreement": "crosses-community(low)"
+    },
+    {
+      "group": "Runs",
+      "members": ["runs", "approvals", "policies"],
+      "ux_rationale": "JUDGMENT: 'review outcomes + gate them'. runs (live scoreboard/runs table) is a real surface and should be a child here, not just a parent shell; approvals + policies are the gating siblings.",
+      "dominant_community": "singletons c_518 runs, c_488 approvals, c_512 policies",
+      "agreement": "crosses-community(low)"
+    },
+    {
+      "group": "Commands",
+      "members": ["catalog", "skills"],
+      "ux_rationale": "JUDGMENT: 'browse + run commands and skills/plugins'. Coherent; KEEP. (skills has 8 dead-end MCP tools — wiring issue for structural dim, not a grouping issue.)",
+      "dominant_community": "singletons c_491 catalog, c_522 skills",
+      "agreement": "crosses-community(low)"
+    },
+    {
+      "group": "Settings",
+      "members": ["settings", "coverage", "gamify"],
+      "ux_rationale": "JUDGMENT: 'configure the system'. coverage (dev/QA self-report) and gamify (opt-in immersive mode, off by default) are configuration-adjacent, low-traffic → park them here instead of inflating Agents.",
+      "dominant_community": "singletons c_521 settings, c_497 coverage, c_502 gamify",
+      "agreement": "crosses-community(low)"
+    }
+  ],
+  "findings": [
+    {
+      "unit": "search",
+      "unit_kind": "nav-group",
+      "observation": "Top-level 'Search' parent contains exactly one child, 'memory'; the two are redundancy_peers (both surface cmd:vox_search_query + cmd:open_locator) and 'search' itself is tier=orphan_backend / reachable=false (a parent shell, not a real destination).",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence: surface 'search' redundancy_peers=['memory'], command_set=[cmd:open_locator, cmd:vox_search_query]; surface 'memory' command_count=5 live_backend; navigation.ts PARENT_CHILD_MAP memory:{parent:'search'}, TOP_LEVEL_VIEWS includes 'search', DEFAULT_CHILD_BY_PARENT search:'memory'.",
+      "recommendation": "MERGE",
+      "rationale": "JUDGMENT: a 1-child top-level group violates 7±2 balance and the Search/Memory labels collide (semantic-clarity smell). Fold 'memory' into a renamed 'Knowledge' group and retire the 'search' parent. Migration: search top-level removed, memory reparented; structural cost LOW (singleton communities).",
+      "confidence": "high"
+    },
+    {
+      "unit": "memory",
+      "unit_kind": "surface",
+      "observation": "Live_backend, 5 commands, fully wired (recall, reindex, pin-to-context, auto-recall). The real search destination; mislabeled by being nested under a redundant 'search' parent.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence behavioral_findings all verdict=works (vox_search_query, mnemosyne_reindex, open_locator); command_count=5.",
+      "recommendation": "MOVE",
+      "rationale": "Reparent memory from 'search' to 'Knowledge'. PARENT_CHILD_MAP edit memory:{parent:'knowledge'}. Resolves the Search→Memory smell while preserving the rich surface.",
+      "confidence": "high"
+    },
+    {
+      "unit": "scientia",
+      "unit_kind": "surface",
+      "observation": "Latin label; 12-command knowledge/claims surface. Label fails 'label predicts content'.",
+      "evidence_basis": "judgment",
+      "evidence": "navigation.ts NAV_LABELS scientia:'Scientia'; joined-evidence scientia command_count=12, redundancy_peers=[claims,knowledge].",
+      "recommendation": "RENAME",
+      "rationale": "JUDGMENT: rename to 'Library' or 'Findings'. Key unchanged (no redirect needed) — only NAV_LABELS diff. Part of the 'retire Latin labels' bundle.",
+      "confidence": "high"
+    },
+    {
+      "unit": "oratio",
+      "unit_kind": "surface",
+      "observation": "Latin label; component dir 'Loquela'; surfaces list_model_cards + start_mic_capture (voice/speech capture).",
+      "evidence_basis": "judgment",
+      "evidence": "navigation.ts NAV_LABELS oratio:'Oratio'; joined-evidence oratio command_set=[cmd:list_model_cards, cmd:start_mic_capture], redundancy_peers=[compute,models,settings].",
+      "recommendation": "RENAME",
+      "rationale": "JUDGMENT: rename to 'Voice' / 'Speech'. NAV_LABELS-only diff, key stable. Latin-label bundle.",
+      "confidence": "high"
+    },
+    {
+      "unit": "mens",
+      "unit_kind": "surface",
+      "observation": "Latin label; tier=orphan_backend, command_count=0, component_dir=null. Dead AND Latin-named.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence mens command_set=[], component_dir=null, command_count=0.",
+      "recommendation": "RENAME",
+      "rationale": "If utility-dimension does not CUT it (dead+0cmds is a CUT candidate), at minimum RENAME from Latin and keep under Compute. Flag dissent: structural says CUT-candidate, this dimension defers the cut to the utility dimension and only de-Latinizes. Low confidence on KEEP.",
+      "confidence": "low"
+    },
+    {
+      "unit": "populi",
+      "unit_kind": "surface",
+      "observation": "Latin label; tier=orphan_backend, command_count=0, component_dir=null. Dead AND Latin-named.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence populi command_set=[], component_dir=null, command_count=0.",
+      "recommendation": "RENAME",
+      "rationale": "Same as mens: defer CUT to utility dimension; de-Latinize if retained, under Compute. Dissent: structural=CUT-candidate.",
+      "confidence": "low"
+    },
+    {
+      "unit": "knowledge",
+      "unit_kind": "nav-group",
+      "observation": "Lopsided: 7 children (scientia, research, discovery-review, claims, publications, discovery-inbox, archive-panel) vs Search's 1. Four of them (discovery-inbox, discovery-review, archive-panel + orphan 'activity') share a single command cmd:activity_query and the identical 'Activity' component_dir.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "navigation.ts PARENT_CHILD_MAP 7 knowledge children; joined-evidence activity/archive-panel/discovery-inbox/discovery-review all command_set=[cmd:activity_query], component_dir='Activity', mutual redundancy_peers.",
+      "recommendation": "CONDENSE",
+      "rationale": "JUDGMENT: collapse the 4 activity_query clones into ONE 'Discovery' tabbed surface (hand the mechanics to the redundancy dimension). After de-Latinizing scientia and absorbing memory, Knowledge balances at ~5 (Memory, Findings, Research, Discovery, Publications). Fixes the lopsided-knowledge smell.",
+      "confidence": "high"
+    },
+    {
+      "unit": "compute",
+      "unit_kind": "nav-group",
+      "observation": "Mixed-quality 5-child group: models (4 cmds, real), mesh (live, 2 dead-end tools), oratio (2 cmds, Latin), mens (dead), populi (dead). Two dead Latin members inflate it.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "navigation.ts PARENT_CHILD_MAP compute children [models,mens,populi,oratio,mesh]; joined-evidence mens/populi command_count=0; mesh dead_ends=[tool:vox_mesh_nodes, tool:vox_mesh_queue_stats] yet behavioral_findings show MeshView refresh/dispatch work.",
+      "recommendation": "KEEP",
+      "rationale": "JUDGMENT: the group itself is coherent ('models + mesh + voice'); imbalance is driven by dead members, not by mis-grouping. KEEP the group; the dead-member cuts/renames are per-surface findings above. Default-KEEP for the container.",
+      "confidence": "med"
+    },
+    {
+      "unit": "activity",
+      "unit_kind": "surface",
+      "observation": "Orphan-nav: real live_backend surface (cmd:activity_query, 4 working behavioral findings, 9 visual findings) but absent from navigation.ts PARENT_CHILD_MAP — unreachable.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence activity nav_parent=null, reachable=false, tier=live_backend; navigation.ts has no 'activity' key.",
+      "recommendation": "MOVE",
+      "rationale": "Make it the canonical surface of the condensed 'Discovery' tabbed view under Knowledge; add to PARENT_CHILD_MAP. Resolves an orphan-nav smell.",
+      "confidence": "high"
+    },
+    {
+      "unit": "needs-you",
+      "unit_kind": "surface",
+      "observation": "Orphan-nav: component_dir='NeedsYou' exists, but nav_parent=null, reachable=false, tier=orphan_backend, 0 commands.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence needs-you nav_parent=null reachable=false command_count=0 component_dir='NeedsYou'; absent from navigation.ts.",
+      "recommendation": "MOVE",
+      "rationale": "JUDGMENT: a 'needs you' attention inbox is a coherent destination — if its commands get wired (defer to structural dim) it belongs at top-level or under Runs/Agents as an attention queue. Pending wiring, flag as orphan-nav for ADD-to-nav; if structural dim confirms it is hollow, downgrade to CUT. Default: MOVE into nav under Runs.",
+      "confidence": "low"
+    },
+    {
+      "unit": "sub-agents",
+      "unit_kind": "surface",
+      "observation": "Orphan-nav: component_dir='SubAgents', nav_parent=null, reachable=false, 0 commands.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence sub-agents nav_parent=null reachable=false command_count=0; absent from navigation.ts.",
+      "recommendation": "MOVE",
+      "rationale": "JUDGMENT: if real, belongs under Agents (sub-agent fan-out view). Hollow today (0 cmds) — flag orphan-nav; structural/utility dims decide ADD-to-Agents vs CUT. This dim places it under Agents if retained.",
+      "confidence": "low"
+    },
+    {
+      "unit": "review",
+      "unit_kind": "surface",
+      "observation": "Orphan-nav: nav_parent=null, reachable=false, component_dir=null, 0 commands — a registry ghost with no component.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence review component_dir=null command_count=0 reachable=false; absent from navigation.ts.",
+      "recommendation": "CUT",
+      "rationale": "STRUCTURAL: no component, no commands, not in nav — dead AND orphan (named CUT disqualifier). Remove from surface registry. Highest-confidence cut among orphans.",
+      "confidence": "high"
+    },
+    {
+      "unit": "agents",
+      "unit_kind": "surface",
+      "observation": "A 'agents' surface entry (component_dir='Dashboard', 0 cmds, reachable=false) duplicates the 'agents' top-level parent and the real 'dashboard' child — a parent-shell/surface naming collision.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence surface 'agents' tier=orphan_backend component_dir='Dashboard' command_count=0; navigation.ts uses 'agents' as a TOP_LEVEL_VIEW with DEFAULT_CHILD_BY_PARENT agents:'dashboard'.",
+      "recommendation": "CUT",
+      "rationale": "STRUCTURAL: redundant with the agents parent + dashboard child; same applies to the 'commands','compute','workspace','knowledge' surface entries which are parent-shell duplicates (tier orphan_backend, reachable=false, mirroring a child's component_dir). Remove the surface-registry shells; the parent keys live in navigation.ts only.",
+      "confidence": "med"
+    },
+    {
+      "unit": "runs",
+      "unit_kind": "surface",
+      "observation": "'runs' is both a top-level parent (DEFAULT_CHILD_BY_PARENT runs:'approvals') AND a real live_backend surface (RunsView: get_model_scoreboard, list_gui_runs, get_routing_summary_live, get_gui_run — all working) that is NOT in PARENT_CHILD_MAP as a child, so the rich Runs scoreboard view is only reachable as the parent's incidental default-fallthrough, not a named tab.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence runs tier=live_backend, 7 working behavioral_findings, nav_parent=null reachable=false; navigation.ts DEFAULT_CHILD_BY_PARENT runs:'approvals' (so runs view is NOT the default child).",
+      "recommendation": "MOVE",
+      "rationale": "JUDGMENT: add a named 'runs' child under the Runs parent (PARENT_CHILD_MAP runs:{parent:'runs',child:'runs'}) so the live scoreboard is a first-class tab beside approvals/policies. Currently the most-wired surface in the group is the least reachable.",
+      "confidence": "med"
+    },
+    {
+      "unit": "gamify",
+      "unit_kind": "surface",
+      "observation": "Under Agents today; opt-in immersive/reward mode (gamifyEnabled defaults false per Runs/Harness findings), 6 commands.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "navigation.ts PARENT_CHILD_MAP gamify:{parent:'agents'}; joined-evidence gamify command_count=6; Runs finding notes gamifyEnabled defaults false.",
+      "recommendation": "MOVE",
+      "rationale": "JUDGMENT: gamification is a configuration/opt-in concern, not core agent ops. Move from Agents to Settings to tighten Agents' task coherence (watch/steer the swarm). Low blast radius (PARENT_CHILD_MAP edit + DEFAULT_CHILD impact none).",
+      "confidence": "med"
+    },
+    {
+      "unit": "Knowledge|Compute split",
+      "unit_kind": "nav-group",
+      "observation": "The two large groups (knowledge 7, compute 5) carry the bulk of Latin labels and dead/redundant surfaces; the rest of the tree (chat, runs, workspace, commands) is already balanced and label-clear.",
+      "evidence_basis": "judgment",
+      "evidence": "navigation.ts group sizes; joined-evidence Latin surfaces (scientia,oratio,mens,populi) all sit in these two groups; activity-clones cluster in knowledge.",
+      "recommendation": "CONDENSE",
+      "rationale": "JUDGMENT: after MERGE(search→memory into Knowledge), CONDENSE(4 activity clones→1 Discovery), RENAME(scientia/oratio/mens/populi), and CUT(mens/populi if hollow), both groups land at 5–6 children — 7±2 balanced, every label predicting content. This is the synthesizer's headline before/after.",
+      "confidence": "high"
+    }
+  ]
+}

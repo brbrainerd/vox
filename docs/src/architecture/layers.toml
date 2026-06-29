@@ -167,7 +167,6 @@ vox-journal             = { layer = 2 }                          # append-only J
 vox-effort-audit        = { layer = 3, kind = "library", max_loc = 4_000 }
 vox-effort-route        = { layer = 3, kind = "library", max_loc = 4_000 }
 vox-eval                = { layer = 2 }
-vox-graphify-reader     = { layer = 2 }
 vox-similarity          = { layer = 2, max_loc = 6_000 }          # L2 pure simhash/minhash/LSH; no async runtime deps
 vox-skill-discovery     = { layer = 3, kind = "binary", max_loc = 8_000 }  # L3 code-block miner + dedup (vox-discover bin)
 
@@ -259,7 +258,7 @@ vox-integration-tests = { layer = 5, kind = "test-only" }
 vox-orchestrator-d    = { layer = 5, kind = "binary" }
 vox-cargo-shim        = { layer = 5, kind = "binary", staleness_exempt = true }  # fair-FIFO cargo shim (build broker)
 vox-build-queue       = { layer = 1, staleness_exempt = true }                   # queue/metrics lib for the build broker
-vox-graphify-reader   = { layer = 1, staleness_exempt = true }                   # read-only Graphify graph.json traversal
+vox-graph-reader      = { layer = 1, staleness_exempt = true }                   # read-only Vox Graph graph.json traversal
 vox-audit             = { layer = 5, kind = "binary" }                   # umbrella CR-L gate runner; contracts/ci/vox-audit-contract.v1.yaml
 voxup                 = { layer = 5, kind = "binary" }
 vox-langtool          = { layer = 5, kind = "binary" }                   # DB-free CLI for Vox language: check, fmt, run, build

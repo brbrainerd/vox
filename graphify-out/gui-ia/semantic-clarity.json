@@ -1,0 +1,166 @@
+{
+  "dimension": "semantic-clarity",
+  "method_note": "Semantic clarity = does the nav label predict the surface's content? Graphify supplies STRUCTURE (nav tree from navigation.ts, component_dir, command_set, redundancy_peers, graph_community from joined-evidence.json). It does NOT supply JUDGMENT about whether a label reads clearly to a user. Every label/naming verdict below is explicitly marked judgment or structural+judgment. Latin surface names (mens/populi/oratio/scientia) and the Search-vs-Memory collision are the headline smells named in the blueprint Phase H.4.",
+  "findings": [
+    {
+      "unit": "search",
+      "unit_kind": "nav-group",
+      "observation": "Top-level parent 'search' (NAV_LABELS: 'Search', DEFAULT_CHILD_BY_PARENT.search='memory') has exactly one child, 'memory' (NAV_LABELS: 'Memory'). The user clicks a group labeled 'Search' and lands on a surface labeled 'Memory'. The parent label and its only child label name two different concepts.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "navigation.ts: PARENT_CHILD_MAP.memory={parent:'search',child:'memory'}; DEFAULT_CHILD_BY_PARENT.search='memory'; NAV_LABELS.search='Search', NAV_LABELS.memory='Memory'. joined-evidence: surface 'search' lists redundancy_peers=['memory'] and surface 'memory' is its only reachable child. The 'search' surface itself is nav_parent:null, reachable:false (it is a dead top-level container whose default child is Memory).",
+      "recommendation": "RENAME",
+      "rationale": "A one-child group whose label disagrees with its child label is a naming collision (the exact Search-vs-Memory case the blueprint calls out). Collapse the distinction: either rename the parent to 'Memory' (label predicts content) or, since 'memory' surface owns vox_search_query + get_memory_status, merge the recall/search concept under a single honest label. Default child should match the group name.",
+      "confidence": "high"
+    },
+    {
+      "unit": "memory",
+      "unit_kind": "surface",
+      "observation": "Surface labeled 'Memory' actually houses the search/recall UI: its command_set is dominated by vox_search_query (recall), open_locator, mnemosyne_reindex, plus get/set_gui_preference. The behavioral findings ('Recall button', 'Corpus scope chip', 'Recent recall row') are search-engine interactions, not a memory store. Meanwhile a separate top-level 'search' surface exists and is its parent.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence memory.command_set=[get_gui_preference,get_memory_status,mnemosyne_reindex,open_locator,set_gui_preference]; behavioral_findings include vox_search_query-backed Recall/Recent-recall/Corpus-scope. Its parent 'search' surface command_set=[open_locator,vox_search_query] — overlapping commands → the two are the same feature split across two names.",
+      "recommendation": "MERGE",
+      "rationale": "Two labels (Search parent + Memory child) describing one recall feature with overlapping commands (open_locator, vox_search_query both appear). Pick one label that predicts content and fold the other; structural overlap (shared commands, redundancy_peers cross-reference) is the falsifiable evidence the names collide.",
+      "confidence": "high"
+    },
+    {
+      "unit": "mens",
+      "unit_kind": "surface",
+      "observation": "Surface key 'mens' (Latin for 'mind'), NAV_LABELS.mens='MENS', parented under 'compute'. component_dir is null (no backing component dir resolved), command_count=0. The label is an opaque Latin word that gives a user zero information scent about what the surface does.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "navigation.ts: mens={parent:'compute',child:'mens'}, NAV_LABELS.mens='MENS'. joined-evidence: surface 'mens' tier=orphan_backend, component_dir=null, command_set=[], command_count=0, behavioral_findings=null, visual_findings_count=0. graph_community c_507 isolated (no neighbors evidenced).",
+      "recommendation": "RENAME",
+      "rationale": "Latin label fails 'label predicts content' (blueprint principle b). Compounding: zero commands and null component_dir mean there is no content to predict — structurally a shell. Rename to a plain-English term tied to whatever it is meant to surface; if it stays content-empty it is also a CUT candidate for the structural-coverage dimension. Judgment: 'MENS' in allcaps reads like an acronym, worsening scent.",
+      "confidence": "high"
+    },
+    {
+      "unit": "populi",
+      "unit_kind": "surface",
+      "observation": "Surface key 'populi' (Latin 'of the people'), NAV_LABELS.populi='Populi', under 'compute'. component_dir null, command_count=0. Opaque Latin label with no content scent and no resolved component.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "navigation.ts: populi={parent:'compute',child:'populi'}, NAV_LABELS.populi='Populi'. joined-evidence: surface 'populi' tier=orphan_backend, component_dir=null, command_set=[], command_count=0, behavioral_findings=null. graph_community c_513.",
+      "recommendation": "RENAME",
+      "rationale": "Same Latin-opacity smell as mens; label predicts nothing and there is no backing component/commands. Rename to plain English (or CUT per structural-coverage). Judgment: 'Populi' under a 'Compute' group gives no hint it relates to compute/agents/people.",
+      "confidence": "high"
+    },
+    {
+      "unit": "oratio",
+      "unit_kind": "surface",
+      "observation": "Surface key 'oratio' (Latin 'speech'), NAV_LABELS.oratio='Oratio', under 'compute', but its component_dir is 'Loquela' (another Latin word). So the surface has TWO different Latin names — the nav key/label says 'Oratio', the implementing component dir says 'Loquela'. It surfaces mic capture (start_mic_capture) + model cards.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "navigation.ts: oratio={parent:'compute',child:'oratio'}, NAV_LABELS.oratio='Oratio'. joined-evidence: surface 'oratio' component_dir='Loquela', command_set=[list_model_cards,start_mic_capture], redundancy_peers=[compute,models,settings].",
+      "recommendation": "RENAME",
+      "rationale": "Double Latin naming (nav 'Oratio' vs code 'Loquela') is a self-inflicted collision: the same feature is named two different opaque ways, hurting both user scent and developer navigation. Commands (start_mic_capture) suggest a 'Voice' / 'Speech' surface — rename to that plain-English term and align the component dir name. Judgment on the user-facing term; structural on the key≠dir mismatch.",
+      "confidence": "high"
+    },
+    {
+      "unit": "scientia",
+      "unit_kind": "surface",
+      "observation": "Surface key 'scientia' (Latin 'knowledge'), NAV_LABELS.scientia='Scientia', and it is the DEFAULT child of the 'knowledge' group (DEFAULT_CHILD_BY_PARENT.knowledge='scientia'). So the user opens a group labeled 'Knowledge' and lands on a surface labeled 'Scientia' — a Latin restatement of the same word. Two labels for one concept.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "navigation.ts: scientia={parent:'knowledge',child:'scientia'}, NAV_LABELS.scientia='Scientia', DEFAULT_CHILD_BY_PARENT.knowledge='scientia'. joined-evidence: surface 'scientia' redundancy_peers=[claims,knowledge] and shares an IDENTICAL 12-command set with surfaces 'knowledge' and 'claims' (acknowledge_discovery, list_discovery_inbox, nanopublish_approved_claim, ...).",
+      "recommendation": "RENAME",
+      "rationale": "'Knowledge'→'Scientia' is the Latin-for-the-same-English-word collision: parent label and default-child label mean the same thing in two languages. Structurally, scientia/knowledge/claims share an identical command_set (12 cmds) → they are one feature under three names; renaming Scientia to a distinguishing English label (or merging per redundancy dimension) removes the collision. Judgment: user cannot tell Knowledge from Scientia.",
+      "confidence": "high"
+    },
+    {
+      "unit": "knowledge",
+      "unit_kind": "nav-group",
+      "observation": "The 'knowledge' parent group fans out to scientia, research, discovery-review, claims, publications, discovery-inbox, archive-panel (7 children). Several children's labels do not cleanly partition: 'Scientia'='Knowledge' (Latin dup), 'claims'/'scientia'/'knowledge' share an identical command set, and 'discovery-review'/'discovery-inbox'/'archive-panel' all reuse component_dir 'Activity' with the single command activity_query.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "navigation.ts PARENT_CHILD_MAP: scientia, research, discovery-review, claims, publications, discovery-inbox, archive-panel all parent='knowledge'. joined-evidence: discovery-review/discovery-inbox/archive-panel/activity all component_dir='Activity', command_set=['cmd:activity_query'], mutual redundancy_peers; claims/scientia/knowledge share identical 12-cmd set.",
+      "recommendation": "CONDENSE",
+      "rationale": "The group is lopsided (7 children) AND several labels promise distinct content but resolve to the same component+command (Activity/activity_query x4; the 12-cmd Scientia/Claims/Knowledge trio). Labels that map to the same content are not semantically distinct — condense the duplicate-labeled children. Note: the actual merge belongs to the redundancy dimension; here the finding is that the LABELS mislead (three 'discovery'/'archive' names for one Activity view).",
+      "confidence": "med"
+    },
+    {
+      "unit": "compute",
+      "unit_kind": "nav-group",
+      "observation": "The 'compute' parent groups models, mens, populi, oratio, mesh. Of these, three children (mens, populi, oratio) carry opaque Latin labels and two of them (mens, populi) are content-empty. The group label 'Compute' does not obviously encompass speech (oratio/Loquela mic capture) or the empty mens/populi.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "navigation.ts: models,mens,populi,oratio,mesh all parent='compute', DEFAULT_CHILD_BY_PARENT.compute='models'. joined-evidence: mens/populi component_dir=null command_count=0; oratio component_dir='Loquela' (speech, not compute); models/oratio share redundancy_peers including 'settings'.",
+      "recommendation": "RENAME",
+      "rationale": "Three of five children have labels that fail to predict content, dragging down the group's information scent. After the per-child renames (mens/populi/oratio), reassess whether 'Compute' is the right umbrella — oratio (speech) and mesh (distributed dispatch) are not naturally 'compute'. Judgment-heavy; structural support = the null-component/empty children and the speech command set under a compute label.",
+      "confidence": "med"
+    },
+    {
+      "unit": "runs",
+      "unit_kind": "nav-group",
+      "observation": "Top-level parent label is 'Runs & Approvals' (NAV_LABELS.runs) but its children are 'approvals' and 'policies' — neither child is labeled 'Runs'. The actual 'runs' surface (RunsView, get_gui_run/list_gui_runs/scoreboard) is nav_parent:null and unreachable from this group. So the group promises 'Runs' in its label but does not contain a Runs surface.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "navigation.ts: NAV_LABELS.runs='Runs & Approvals'; PARENT_CHILD_MAP children of 'runs' = approvals, policies. joined-evidence: surface 'runs' nav_parent=null, reachable=false, but has live command_set=[get_gui_run] + behavioral findings (list_gui_runs, get_model_scoreboard). The Runs surface is orphan-nav while a group named after it omits it.",
+      "recommendation": "RENAME",
+      "rationale": "Label-content mismatch: 'Runs & Approvals' contains Approvals + Policies but not Runs. Either drop 'Runs' from the label (it's really 'Approvals & Policies' / 'Governance'), or wire the orphaned Runs surface into this group so the label becomes true. Structural fact = Runs surface is unreachable yet named in the parent label; judgment = which way to resolve.",
+      "confidence": "high"
+    },
+    {
+      "unit": "harness",
+      "unit_kind": "surface",
+      "observation": "Surface key/label 'Harness' under 'workspace'. Its component is HarnessRedirect.tsx whose behavioral findings are a 'Focus composer' button and a telemetry event 'harness_redirect_viewed' — i.e. it is a redirect stub, not a test/execution harness. The label 'Harness' implies a substantial tooling surface; the content is a redirect.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence harness: component_dir='Harness', command_count=0, behavioral_findings reference HarnessRedirect.tsx 'Focus composer' + recordGamifyGuiEvent('harness_redirect_viewed'). No backing command set.",
+      "recommendation": "RENAME",
+      "rationale": "Label over-promises relative to content (a redirect with one button). Either rename to reflect that it redirects (low information value) or it is a CUT/MERGE candidate for structural-coverage. Judgment that 'Harness' misleads; structural support = zero commands + redirect-only component.",
+      "confidence": "med"
+    },
+    {
+      "unit": "matrix",
+      "unit_kind": "surface",
+      "observation": "Surface 'Matrix' under 'agents' surfaces a single command, nudge_routing_intention — i.e. a routing-control view. 'Matrix' is a generic, content-agnostic label (could mean a grid, a routing matrix, an org matrix) and does not predict 'routing intention nudging'.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "navigation.ts: matrix={parent:'agents',child:'matrix'}, NAV_LABELS.matrix='Matrix'. joined-evidence: matrix.command_set=['cmd:nudge_routing_intention'], command_count=1.",
+      "recommendation": "RENAME",
+      "rationale": "Low information scent: 'Matrix' is ambiguous; the one backing command is about routing intention. A label like 'Routing' would predict content. Judgment on clarity; structural evidence = the single routing command defining the surface's real purpose.",
+      "confidence": "low"
+    },
+    {
+      "unit": "flow",
+      "unit_kind": "surface",
+      "observation": "Surface 'Flow' under 'agents' renders AgentFlow.tsx (a node/agent-shard graph with node selection). 'Flow' is acceptable but generic; co-located under 'Agents' with 'Matrix' and 'Dashboard' the three labels (Dashboard/Flow/Matrix) do not clearly differentiate to a user which is the agent graph vs the routing view vs the overview.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "navigation.ts: dashboard/flow/matrix/tasks/gamify all parent='agents'. joined-evidence: flow.component_dir='Flow', behavioral_findings = AgentFlow node onClick/onKeyDown (graph selection).",
+      "recommendation": "KEEP",
+      "rationale": "'Flow' reasonably predicts an agent-flow graph; lower priority than the Latin renames. Flag only for adjacency clarity (Dashboard/Flow/Matrix differentiation) rather than a standalone rename. Default KEEP per blueprint (no named disqualifier; richness>0).",
+      "confidence": "low"
+    },
+    {
+      "unit": "console",
+      "unit_kind": "surface",
+      "observation": "Surface 'Console' (workspace) has command_set built around pty_spawn/pty_write/pty_close + discovery_* + send_to_agent. The label 'Console' predicts a terminal, which matches the pty commands. redundancy_peers=['workspace'] indicates possible label overlap with its own parent group name.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence console.command_set=[discovery_help,discovery_record,discovery_suggest,get_orchestrator_status_bin,pty_close,pty_spawn,pty_write,send_to_agent]; redundancy_peers=['workspace']; parent='workspace'.",
+      "recommendation": "KEEP",
+      "rationale": "'Console' correctly predicts a PTY terminal surface — label↔content match is good. The only note is the redundancy_peer with its parent 'workspace', which is a redundancy-dimension concern, not a clarity defect. KEEP.",
+      "confidence": "med"
+    },
+    {
+      "unit": "catalog",
+      "unit_kind": "surface",
+      "observation": "Surface 'Catalog' under 'commands' is the command catalog/execution form (get_command_catalog, execute_command/invoke_mcp_tool). Parent group is 'Commands'. 'Catalog' as the default/only meaningful child of 'Commands' is a near-synonym pairing (a catalog of commands under Commands).",
+      "evidence_basis": "structural+judgment",
+      "evidence": "navigation.ts: catalog={parent:'commands',child:'catalog'}, skills={parent:'commands'}, DEFAULT_CHILD_BY_PARENT.commands='catalog'. joined-evidence catalog behavioral_findings reference get_command_catalog + voxTransport.callTool execution.",
+      "recommendation": "KEEP",
+      "rationale": "'Catalog' under 'Commands' predicts content well (a browsable command catalog). Mild parent/child near-synonymy but not a misleading collision. KEEP; defer any group rename to new-nav-taxonomy.",
+      "confidence": "low"
+    },
+    {
+      "unit": "repository",
+      "unit_kind": "surface",
+      "observation": "Surface 'Repository' (workspace) has only execute_command and lists redundancy_peers=[claims,knowledge,research,scientia] — i.e. graph-wise it clusters with the knowledge/research surfaces rather than with workspace tooling. The label 'Repository' (under Workspace) may not match what it shares data with.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence repository: parent='workspace', command_set=['cmd:execute_command'], redundancy_peers=['claims','knowledge','research','scientia'].",
+      "recommendation": "KEEP",
+      "rationale": "Pure-structural observation that 'Repository' shares command(execute_command) with knowledge-cluster surfaces; this is a structural-cohesion/redundancy signal, not by itself a label-clarity defect (the redundancy_peers overlap is only via the generic execute_command). Logged for cross-dimension correlation; no clarity rename warranted on this evidence alone.",
+      "confidence": "low"
+    },
+    {
+      "unit": "gamify",
+      "unit_kind": "surface",
+      "observation": "Surface key 'gamify' / label 'Gamify' is parented under 'agents'. The label is a developer term ('gamify' = the act of gamifying) rather than a user-facing noun for what the surface shows (ludus profile, quests, leaderboard, companions).",
+      "evidence_basis": "structural+judgment",
+      "evidence": "navigation.ts: gamify={parent:'agents',child:'gamify'}, NAV_LABELS.gamify='Gamify'. joined-evidence gamify.command_set=[get_ludus_profile,list_gamify_quests,list_gamify_leaderboard,list_gamify_companions,list_ludus_notifications,ack_ludus_notification].",
+      "recommendation": "RENAME",
+      "rationale": "'Gamify' is a verb/jargon label; the content is a quests/leaderboard/companions surface. A user-facing noun (e.g. 'Quests' or 'Arena') would predict content better. Judgment on the label; structural support = the ludus/quest/leaderboard command set. Lower priority than the Latin renames.",
+      "confidence": "low"
+    }
+  ]
+}

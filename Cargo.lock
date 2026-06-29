@@ -15323,7 +15323,7 @@ dependencies = [
  "vox-gamify",
  "vox-git",
  "vox-grammar-export",
- "vox-graphify-reader",
+ "vox-graph-reader",
  "vox-http-client",
  "vox-identity",
  "vox-jsonschema-util",
@@ -15950,7 +15950,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-graphify-reader"
+name = "vox-graph-reader"
 version = "0.6.0"
 dependencies = [
  "blake3",
@@ -16493,7 +16493,7 @@ dependencies = [
  "vox-foundation",
  "vox-gamify",
  "vox-grammar-export",
- "vox-graphify-reader",
+ "vox-graph-reader",
  "vox-http-client",
  "vox-jsonschema-util",
  "vox-lsp",
@@ -17329,7 +17329,7 @@ dependencies = [
 
 [[package]]
 name = "vox-similarity"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "blake3",
  "serde",
@@ -17337,7 +17337,7 @@ dependencies = [
 
 [[package]]
 name = "vox-skill-discovery"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -17494,7 +17494,7 @@ dependencies = [
 
 [[package]]
 name = "vox-term"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "alacritty_terminal",
  "anyhow",

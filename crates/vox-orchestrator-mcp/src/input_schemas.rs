@@ -468,22 +468,22 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_validate_vuv" => parse_obj(
             r#"{"type":"object","properties":{"source":{"type":"string","minLength":1,"description":"Vox/VUV source to validate against the compile-time GUI guarantees (contrast, layer-occlusion, a11y, structural web-IR). No files are written."}},"required":["source"],"additionalProperties":false}"#,
         ),
-        "vox_graphify_status" => parse_obj(
+        "vox_search_status" => parse_obj(
             r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id from contracts/retrieval/graphify-corpora.v1.yaml; omit for all corpora"}},"additionalProperties":false}"#,
         ),
-        "vox_graphify_search" => parse_obj(
+        "vox_search_structural" => parse_obj(
             r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id from contracts/retrieval/graphify-corpora.v1.yaml; omit for default corpus"},"query":{"type":"string","minLength":1,"description":"Lexical search query matched against node labels"},"limit":{"type":"integer","minimum":1,"description":"Maximum hits to return (default 10)"},"persist":{"type":"boolean","default":true,"description":"When true (default), upsert hits into knowledge_nodes for future agent recall. Pass false for ephemeral searches. Recall consumers must compare metadata.git_sha against HEAD to detect stale hits."}},"required":["query"],"additionalProperties":false}"#,
         ),
-        "vox_graphify_query" => parse_obj(
+        "vox_search_neighbors" => parse_obj(
             r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id; omit for default"},"seeds":{"type":"array","items":{"type":"string"},"minItems":1,"description":"Seed node IDs to BFS-expand from"},"max_depth":{"type":"integer","minimum":1,"maximum":5,"description":"BFS hop limit (default 2)"},"limit":{"type":"integer","minimum":1,"description":"Max hits returned (default 20)"}},"required":["seeds"],"additionalProperties":false}"#,
         ),
-        "vox_graphify_path" => parse_obj(
+        "vox_search_path" => parse_obj(
             r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id; omit for default"},"from":{"type":"string","description":"Source node ID"},"to":{"type":"string","description":"Destination node ID"}},"required":["from","to"],"additionalProperties":false}"#,
         ),
-        "vox_graphify_compare" => parse_obj(
+        "vox_search_compare" => parse_obj(
             r#"{"type":"object","properties":{"corpus_a":{"type":"string","description":"First corpus id to compare"},"corpus_b":{"type":"string","description":"Second corpus id to compare"}},"required":["corpus_a","corpus_b"],"additionalProperties":false}"#,
         ),
-        "vox_graphify_rebuild" => parse_obj(
+        "vox_search_rebuild" => parse_obj(
             r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id to rebuild; omit for the registry default_corpus_id. WRITE/mutating: regenerates the on-disk AST code graph and snapshots the previous one."}},"additionalProperties":false}"#,
         ),
         "vox_project_init" => parse_obj(

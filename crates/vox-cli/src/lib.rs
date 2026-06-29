@@ -195,8 +195,9 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::policy::PolicyCmd,
     },
-    /// Graphify corpus registry and map freshness (`vox graphify`).
-    Graphify {
+    /// Vox Search — code-intelligence over the structural index (`vox search`).
+    #[command(alias = "graphify")]
+    Search {
         #[command(subcommand)]
         cmd: commands::graphify::GraphifyCmd,
     },

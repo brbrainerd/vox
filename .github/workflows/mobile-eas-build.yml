@@ -1,4 +1,4 @@
-﻿name: Mobile EAS Build (RN/Expo)
+name: Mobile EAS Build (RN/Expo)
 
 # Builds the React-Native/Expo mobile target end to end:
 #   1. `bundle` job (ALWAYS runs, no account needed) — generates the Expo app

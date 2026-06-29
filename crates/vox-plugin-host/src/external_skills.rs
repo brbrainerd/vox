@@ -3,7 +3,7 @@
 //! ecosystem layout (Claude Code, Cursor, Codex, Copilot, …) that every other
 //! harness reads from `.claude/skills`/`.agents/skills`.
 //!
-//! Complements [`crate::discover`], which owns `Plugin.toml`-based plugin
+//! Complements [`crate::discover()`], which owns `Plugin.toml`-based plugin
 //! skills. Both feed the same [`crate::SkillRegistry`] (SSOT).
 
 use crate::skill_bundle::VoxSkillBundle;

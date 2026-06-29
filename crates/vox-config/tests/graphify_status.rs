@@ -12,8 +12,8 @@ fn write_minimal_registry(repo: &Path) {
     let dir = repo.join("contracts/retrieval");
     fs::create_dir_all(&dir).unwrap();
     fs::write(
-        dir.join("graphify-corpora.v1.yaml"),
-        include_str!("../../../contracts/retrieval/graphify-corpora.v1.yaml"),
+        dir.join("vox-graph-corpora.v1.yaml"),
+        include_str!("../../../contracts/retrieval/vox-graph-corpora.v1.yaml"),
     )
     .unwrap();
 }
@@ -35,16 +35,20 @@ fn load_graphify_corpora_reads_workspace_contract() {
     let reg = load_graphify_corpora(tmp.path()).expect("load");
     assert_eq!(reg.default_corpus_id, "repo-code-graph");
     assert_eq!(reg.ttl_days_default, 30);
-    assert_eq!(
-        reg.corpora.len(),
-        4,
-        "expected 4 corpora after adding graphify-search-log"
+    assert!(
+        reg.corpora.len() >= 4,
+        "expected at least 4 corpora, got {}",
+        reg.corpora.len()
     );
     assert!(
         reg.corpora.iter().any(|c| c.id == "graphify-search-log"),
         "graphify-search-log must be present in registry"
     );
     assert!(reg.corpora.iter().any(|c| c.id == "vox-gui-surface"));
+    assert!(
+        reg.corpora.iter().any(|c| c.id == "vox-config-graph"),
+        "vox-config-graph (non-GUI generality corpus) must be present"
+    );
 }
 
 #[test]

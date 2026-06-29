@@ -9,6 +9,15 @@ use vox_config::graphify::{
     project_graph_nodes_for_ingest, upsert_registered_corpus, write_manifest,
 };
 
+/// Returns the cache directory for a corpus: `<repo_root>/.vox/cache/vox-graph/<corpus_id>`.
+///
+/// Note: the Rebuild/Index/IngestAll paths do NOT call this — they write to the
+/// authoritative registry `graph_path` (`output_file.parent()`). This helper is
+/// only used by the crate-map ingest path.
+fn primary_cache_dir(repo_root: &std::path::Path, corpus_id: &str) -> std::path::PathBuf {
+    repo_root.join(".vox/cache/vox-graph").join(corpus_id)
+}
+
 #[derive(Debug, Subcommand)]
 pub enum GraphifyCmd {
     /// Report graphify corpus freshness (read-only).
@@ -37,6 +46,18 @@ pub enum GraphifyCmd {
         /// Corpus id (default: registry `default_corpus_id`).
         #[arg(long)]
         corpus: Option<String>,
+    },
+    /// Classify each backend node of a `kind` as Surfaced/OrphanBackend/DeadEnd.
+    Coverage {
+        /// Corpus id (default: registry `default_corpus_id`).
+        #[arg(long)]
+        corpus: Option<String>,
+        /// Node kind to score (command | tool | surface).
+        #[arg(long, default_value = "command")]
+        kind: String,
+        /// Write JSON to this path instead of printing to stdout.
+        #[arg(long)]
+        out: Option<String>,
     },
     /// Register an external target repository as a corpus and build it.
     Index {
@@ -106,6 +127,116 @@ pub(crate) fn refresh_action(stale_reasons: &[String]) -> RefreshAction {
     }
 }
 
+/// Top-level subcommands of the feature-gated AI/ML groups (`mens`, `populi`,
+/// `oratio`) that are compiled out of a default (non-`mens`/`gpu`/`oratio`) binary
+/// and therefore absent from `build_catalog()`'s clap walk. Recovered by hand from
+/// the `vox-ml-cli` subcommand enums so the structural index sees the full CLI tree
+/// even in a default build:
+/// - `mens`   ← `PopuliAction`   (`commands/mens/populi/action_populi_enum.rs`)
+/// - `populi` ← `PopuliCli`      (`commands/populi_cli.rs`)
+/// - `oratio` ← `OratioAction`   (`commands/oratio_cmd.rs`)
+///
+/// Listing the leaf NAMES here (rather than importing the enums) avoids a
+/// `vox-cli → vox-ml-cli` build coupling in the default binary. The audit counts
+/// (PopuliAction≈22, PopuliCli≈18, OratioAction≈9) are the acceptance check; the
+/// `cli_catalog_json_includes_gated_*` test pins the group names + entry-count floor.
+const GATED_CLI_SUBCOMMANDS: &[(&str, &[&str])] = &[
+    (
+        "mens",
+        &[
+            "pipeline",
+            "train",
+            "dogfood",
+            "train-uv",
+            "serve",
+            "corpus",
+            "probe",
+            "status",
+            "watch-telemetry",
+            "models",
+            "merge-qlora",
+            "export-gguf",
+            "generate",
+            "review",
+            "workflow",
+            "check",
+            "fix",
+            "eval-local",
+        ],
+    ),
+    (
+        "populi",
+        &[
+            "init",
+            "up",
+            "down",
+            "status",
+            "registry-snapshot",
+            "serve",
+            "config",
+            "admin",
+            "node",
+            "dispatch",
+            "result",
+            "stats",
+            "pair",
+            "federation",
+            "corpus",
+            "identity",
+            "attest",
+            "join",
+        ],
+    ),
+    (
+        "oratio",
+        &[
+            "transcribe",
+            "listen",
+            "record-transcribe",
+            "doctor",
+            "status",
+            "eval",
+            "eval-history",
+            "subtitle",
+            "serve",
+        ],
+    ),
+];
+
+/// Serialize the clap command catalog to JSON for `cli:` ingest, substituting the
+/// gated-corrected `mens`/`populi`/`oratio` leaf rows so a default binary still
+/// emits the full leaf set. Consumed by `vox_graph_reader::registry::cli_command_nodes`.
+pub fn cli_catalog_json() -> String {
+    use crate::command_catalog::{CatalogTier, CommandCatalog, CommandCatalogEntry, build_catalog};
+    let mut catalog: CommandCatalog = build_catalog();
+    // Index the leaf paths already present so synthetic rows never duplicate a
+    // compiled-in gated subcommand (honesty: don't double-count).
+    let existing: std::collections::HashSet<Vec<String>> =
+        catalog.entries.iter().map(|e| e.path.clone()).collect();
+    for (group, subs) in GATED_CLI_SUBCOMMANDS {
+        for sub in *subs {
+            let path = vec![(*group).to_string(), (*sub).to_string()];
+            if existing.contains(&path) {
+                continue;
+            }
+            catalog.entries.push(CommandCatalogEntry {
+                command: format!("vox {group} {sub}"),
+                about: "(feature-gated; recovered for structural ingest)".to_string(),
+                aliases: Vec::new(),
+                has_subcommands: false,
+                compiled_in: false,
+                source_group: (*group).to_string(),
+                feature_gate: Some((*group).to_string()),
+                path,
+                tier: CatalogTier::FeatureGated,
+                capability_id: None,
+                arguments: Vec::new(),
+            });
+        }
+    }
+    serde_json::to_string(&catalog).unwrap_or_else(|_| "{\"entries\":[]}".to_string())
+}
+
 fn resolve_head_sha() -> anyhow::Result<Option<String>> {
     // Route through vox_git read-only exec (honors the concurrency policy), not a
     // raw git subprocess — enforced by the arch-check raw-git-exec rule.
@@ -130,6 +261,28 @@ pub(crate) fn resolve_source_dir(
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|| repo_root.to_path_buf())
         .join(&corpus.scope_path)
+}
+
+/// Compute the GUI content-manifest emit inputs for a rebuild.
+///
+/// Returns `(gui_source_dir, surface_registry_yaml)` — both `Some` only when the corpus is in
+/// `gui-wiring` extraction mode (so `emit_content_manifest` runs only for the GUI surface graph).
+/// `gui_source_dir` is the `ui/src/` root under the corpus source dir (where surface component
+/// modules referenced by the graph's `surface:→module:` edges live); `surface_registry_yaml` is
+/// the contents of `contracts/gui/surface-registry.v1.yaml`. Outside gui-wiring mode both are
+/// `None` and `rebuild_graph` skips the content-manifest emit.
+fn gui_manifest_inputs(
+    repo_root: &std::path::Path,
+    extraction_mode: Option<&str>,
+    source_dir: &std::path::Path,
+) -> (Option<std::path::PathBuf>, Option<String>) {
+    if extraction_mode != Some("gui-wiring") {
+        return (None, None);
+    }
+    let gui_source_dir = Some(source_dir.join("ui/src"));
+    let surface_registry_yaml =
+        std::fs::read_to_string(repo_root.join("contracts/gui/surface-registry.v1.yaml")).ok();
+    (gui_source_dir, surface_registry_yaml)
 }
 
 /// `git -C <dir> rev-parse HEAD`, or Ok(None) if not a git repo.
@@ -223,7 +376,7 @@ async fn run_graphify_ingest(
     let corpus = corpus_by_id(&reg, &corpus_id).map_err(|e| anyhow::anyhow!(e.to_string()))?;
     let graph_bytes = std::fs::read(repo_root.join(&corpus.graph_path))
         .with_context(|| format!("read graph for digest: {}", corpus.graph_path))?;
-    let digest = vox_graphify_reader::graph_digest(&graph_bytes);
+    let digest = vox_graph_reader::graph_digest(&graph_bytes);
     vox_config::graphify::set_lexical_ingest_sha256(
         &repo_root.join(&corpus.manifest_path),
         &digest,
@@ -356,22 +509,27 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
             let cache_dir = output_file.parent().unwrap().join("file_cache");
 
             println!("Rebuilding Graphify graph for corpus: {}...", corpus_id);
-            let meta = vox_graphify_reader::rebuild::RebuildMeta {
+            let (gui_source_dir, surface_registry_yaml) =
+                gui_manifest_inputs(repo_root, corpus.extraction_mode.as_deref(), &source_dir);
+            let meta = vox_graph_reader::rebuild::RebuildMeta {
                 corpus_id: corpus_id.clone(),
                 git_sha: resolve_head_sha()?,
                 scope_path: corpus.scope_path.clone(),
                 extraction_mode: corpus.extraction_mode.clone(),
                 built_at_rfc3339: Utc::now().to_rfc3339(),
+                cli_catalog_json: Some(cli_catalog_json()),
+                gui_source_dir,
+                surface_registry_yaml,
             };
             // Preserve the previous graph as a bounded history before overwriting.
             if output_file.is_file() {
                 if let Some(corpus_dir) = output_file.parent() {
                     let stamp = Utc::now().to_rfc3339().replace(':', "-");
-                    let _ = vox_graphify_reader::snapshot::snapshot_corpus(corpus_dir, &stamp);
-                    let _ = vox_graphify_reader::snapshot::prune_snapshots(corpus_dir, 5);
+                    let _ = vox_graph_reader::snapshot::snapshot_corpus(corpus_dir, &stamp);
+                    let _ = vox_graph_reader::snapshot::prune_snapshots(corpus_dir, 5);
                 }
             }
-            vox_graphify_reader::rebuild::rebuild_graph(
+            vox_graph_reader::rebuild::rebuild_graph(
                 repo_root,
                 &source_dir,
                 &output_file,
@@ -380,6 +538,39 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
             )
             .map_err(|e| anyhow::anyhow!("Rebuild failed: {}", e))?;
             println!("Graphify rebuild successful!");
+        }
+        GraphifyCmd::Coverage { corpus, kind, out } => {
+            let reg = load_all_corpora(repo_root).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            let corpus_id = resolve_ingest_corpus_id(&reg, corpus)
+                .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            let corpus =
+                corpus_by_id(&reg, &corpus_id).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+
+            let graph_path = repo_root.join(&corpus.graph_path);
+            let raw = std::fs::read_to_string(&graph_path)
+                .with_context(|| format!("read graph {}", graph_path.display()))?;
+            let graph: serde_json::Value = serde_json::from_str(&raw)
+                .with_context(|| format!("parse graph JSON {}", graph_path.display()))?;
+
+            let report = vox_graph_reader::coverage::compute_coverage(&graph, &kind);
+            let json = serde_json::to_string_pretty(&report)?;
+            match out {
+                Some(path) => {
+                    let abs = repo_root.join(&path);
+                    if let Some(parent) = abs.parent() {
+                        std::fs::create_dir_all(parent)
+                            .with_context(|| format!("create dir {}", parent.display()))?;
+                    }
+                    std::fs::write(&abs, &json)
+                        .with_context(|| format!("write coverage {}", abs.display()))?;
+                    println!(
+                        "coverage: corpus={corpus_id} kind={kind} entries={} -> {}",
+                        report.entries.len(),
+                        path
+                    );
+                }
+                None => println!("{json}"),
+            }
         }
         GraphifyCmd::Index { path, id, mode } => {
             let abs = std::fs::canonicalize(&path)
@@ -405,9 +596,9 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                 id: corpus_id.clone(),
                 title: format!("Indexed target: {}", abs.display()),
                 scope_path: ".".to_string(),
-                graph_path: format!(".vox/cache/graphify/{corpus_id}/graph.json"),
+                graph_path: format!(".vox/cache/vox-graph/{corpus_id}/graph.json"),
                 manifest_path: format!(
-                    ".vox/cache/graphify/{corpus_id}/.graphify_manifest.v1.json"
+                    ".vox/cache/vox-graph/{corpus_id}/.graphify_manifest.v1.json"
                 ),
                 extraction_mode: Some(mode),
                 default_for_intents: vec![],
@@ -422,15 +613,20 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                 .parent()
                 .ok_or_else(|| anyhow::anyhow!("graph_path has no parent"))?
                 .join("file_cache");
-            let meta = vox_graphify_reader::rebuild::RebuildMeta {
+            let (gui_source_dir, surface_registry_yaml) =
+                gui_manifest_inputs(repo_root, corpus.extraction_mode.as_deref(), &source_dir);
+            let meta = vox_graph_reader::rebuild::RebuildMeta {
                 corpus_id: corpus_id.clone(),
                 git_sha: resolve_head_sha_in(&abs).ok().flatten(),
                 scope_path: corpus.scope_path.clone(),
                 extraction_mode: corpus.extraction_mode.clone(),
                 built_at_rfc3339: Utc::now().to_rfc3339(),
+                cli_catalog_json: Some(cli_catalog_json()),
+                gui_source_dir,
+                surface_registry_yaml,
             };
             println!("Indexing '{}' as corpus '{}'...", abs.display(), corpus_id);
-            vox_graphify_reader::rebuild::rebuild_graph(
+            vox_graph_reader::rebuild::rebuild_graph(
                 repo_root,
                 &source_dir,
                 &output_file,
@@ -470,14 +666,22 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                             .parent()
                             .ok_or_else(|| anyhow::anyhow!("graph_path has no parent"))?
                             .join("file_cache");
-                        let meta = vox_graphify_reader::rebuild::RebuildMeta {
+                        let (gui_source_dir, surface_registry_yaml) = gui_manifest_inputs(
+                            repo_root,
+                            c.extraction_mode.as_deref(),
+                            &source_dir,
+                        );
+                        let meta = vox_graph_reader::rebuild::RebuildMeta {
                             corpus_id: c.id.clone(),
                             git_sha: head.clone(),
                             scope_path: c.scope_path.clone(),
                             extraction_mode: c.extraction_mode.clone(),
                             built_at_rfc3339: Utc::now().to_rfc3339(),
+                            cli_catalog_json: Some(cli_catalog_json()),
+                            gui_source_dir,
+                            surface_registry_yaml,
                         };
-                        vox_graphify_reader::rebuild::rebuild_graph(
+                        vox_graph_reader::rebuild::rebuild_graph(
                             repo_root,
                             &source_dir,
                             &output_file,
@@ -494,7 +698,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                             .with_context(|| format!("read graph for digest: {}", c.graph_path))?;
                         vox_config::graphify::set_lexical_ingest_sha256(
                             &repo_root.join(&c.manifest_path),
-                            &vox_graphify_reader::graph_digest(&graph_bytes),
+                            &vox_graph_reader::graph_digest(&graph_bytes),
                         )
                         .map_err(|e| anyhow::anyhow!(e.to_string()))?;
                         println!("  ingested {} ({} nodes)", c.id, upserted);
@@ -508,7 +712,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
             for c in selected_corpora(&reg, &corpus).map_err(|e| anyhow::anyhow!(e.to_string()))? {
                 let output_file = repo_root.join(&c.graph_path);
                 if let Some(corpus_dir) = output_file.parent() {
-                    let removed = vox_graphify_reader::snapshot::prune_snapshots(corpus_dir, keep)
+                    let removed = vox_graph_reader::snapshot::prune_snapshots(corpus_dir, keep)
                         .map_err(|e| anyhow::anyhow!("prune {}: {e}", c.id))?;
                     println!("gc {} kept<= {keep} removed={removed}", c.id);
                 }
@@ -546,8 +750,8 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
             };
 
             // 3. Build + persist.
-            let map = vox_graphify_reader::crate_model::build_crate_map(&crate_graph, &audit);
-            let out_dir = repo_root.join(".vox/cache/graphify/crate-map");
+            let map = vox_graph_reader::crate_model::build_crate_map(&crate_graph, &audit);
+            let out_dir = primary_cache_dir(repo_root, "crate-map");
             std::fs::create_dir_all(&out_dir).context("create crate-map cache dir")?;
             let bytes = serde_json::to_string_pretty(&map)?;
             std::fs::write(out_dir.join("graph.json"), &bytes)
@@ -561,14 +765,14 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                 scope_path: Some(".".to_string()),
                 node_count: Some(node_count),
                 edge_count: Some(edge_count),
-                graph_json_sha256: Some(vox_graphify_reader::graph_digest(bytes.as_bytes())),
+                graph_json_sha256: Some(vox_graph_reader::graph_digest(bytes.as_bytes())),
                 extraction_mode: Some("crate-map".to_string()),
                 lexical_ingest_sha256: None,
             };
             write_manifest(&out_dir.join(".graphify_manifest.v1.json"), &manifest)
                 .map_err(|e| anyhow::anyhow!(e.to_string()))?;
             println!(
-                "crate-map: {node_count} crates, {edge_count} edges -> .vox/cache/graphify/crate-map/graph.json"
+                "crate-map: {node_count} crates, {edge_count} edges -> .vox/cache/vox-graph/crate-map/graph.json"
             );
             println!("persist for agent recall: vox graphify ingest --corpus crate-map");
 
@@ -589,7 +793,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                         }
                     }
                 }
-                let summary = vox_graphify_reader::crate_model::build_crate_summary(
+                let summary = vox_graph_reader::crate_model::build_crate_summary(
                     &crate_graph,
                     &compile_times,
                 );
@@ -628,8 +832,8 @@ mod tests {
         let dir = repo.join("contracts/retrieval");
         fs::create_dir_all(&dir).unwrap();
         fs::write(
-            dir.join("graphify-corpora.v1.yaml"),
-            include_str!("../../../../../contracts/retrieval/graphify-corpora.v1.yaml"),
+            dir.join("vox-graph-corpora.v1.yaml"),
+            include_str!("../../../../../contracts/retrieval/vox-graph-corpora.v1.yaml"),
         )
         .unwrap();
     }
@@ -746,5 +950,20 @@ mod tests {
             refresh_action(&["git_drift".into(), "lexical_lag".into()]),
             RefreshAction::Rebuild
         );
+    }
+}
+
+#[cfg(test)]
+mod vg1_cache_path_tests {
+    use super::*;
+
+    #[test]
+    fn new_cache_path_is_vox_graph() {
+        let tmp = tempfile::tempdir().unwrap();
+        let corpus_id = "repo-code-graph";
+        // The primary path must be .vox/cache/vox-graph/<corpus_id>
+        let expected = tmp.path().join(".vox/cache/vox-graph").join(corpus_id);
+        let actual = primary_cache_dir(tmp.path(), corpus_id);
+        assert_eq!(actual, expected);
     }
 }

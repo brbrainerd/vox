@@ -51,7 +51,7 @@ pub mod git_tools;
 /// Grammar export tools
 pub mod grammar_tools;
 /// Graphify corpus freshness and lexical search (`vox_graphify_status`, `vox_graphify_search`).
-pub mod graphify_tools;
+pub mod graph_tools;
 /// GUI registry + validation tools (`vox_gui_components`, `vox_gui_tokens`, `vox_gui_rules`, `vox_validate_vuv`).
 pub mod gui_registry_tools;
 pub mod input_schemas;

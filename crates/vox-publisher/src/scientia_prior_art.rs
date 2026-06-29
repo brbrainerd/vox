@@ -717,21 +717,21 @@ mod tests {
         )
         .expect("write graph");
         std::fs::copy(
-            std::path::Path::new("contracts/retrieval/graphify-corpora.v1.yaml"),
+            std::path::Path::new("contracts/retrieval/vox-graph-corpora.v1.yaml"),
             tmp.path()
-                .join("contracts/retrieval/graphify-corpora.v1.yaml"),
+                .join("contracts/retrieval/vox-graph-corpora.v1.yaml"),
         )
         .ok();
         // Minimal corpora file for the temp repo when contract copy fails in sandbox.
         if !tmp
             .path()
-            .join("contracts/retrieval/graphify-corpora.v1.yaml")
+            .join("contracts/retrieval/vox-graph-corpora.v1.yaml")
             .exists()
         {
             std::fs::create_dir_all(tmp.path().join("contracts/retrieval"))
                 .expect("mkdir contracts");
             std::fs::write(
-                tmp.path().join("contracts/retrieval/graphify-corpora.v1.yaml"),
+                tmp.path().join("contracts/retrieval/vox-graph-corpora.v1.yaml"),
                 format!(
                     "default_corpus_id: repo-code-graph\ncorpora:\n  - id: repo-code-graph\n    title: test\n    scope_path: .\n    graph_path: {}\n    manifest_path: graphify-out/.graphify_manifest.v1.json\n",
                     graph_path.strip_prefix(tmp.path()).unwrap().display()

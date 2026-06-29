@@ -25,19 +25,32 @@ pub struct TauriEmitParams<'a> {
     pub frontend_dist_relative: &'a str,
 }
 
+// Tauri CLI v2 validates tauri.conf.json against a camelCase schema
+// (`productName`, `frontendDist`); snake_case keys are rejected as
+// "additional properties not allowed".
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct TauriConfigV2 {
     #[serde(rename = "$schema")]
     schema: &'static str,
     product_name: String,
     identifier: String,
     build: TauriBuild,
+    bundle: TauriBundle,
     app: TauriApp,
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct TauriBuild {
     frontend_dist: String,
+}
+
+// Empty icon list suppresses tauri-build's default icon file probing at
+// compile time (the proc macro panics if listed icons are missing).
+#[derive(Serialize)]
+struct TauriBundle {
+    icon: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -64,6 +77,7 @@ pub fn tauri_desktop_config_value(params: &TauriEmitParams<'_>) -> serde_json::V
         build: TauriBuild {
             frontend_dist: params.frontend_dist_relative.to_string(),
         },
+        bundle: TauriBundle { icon: vec![] },
         app: TauriApp {
             windows: vec![TauriWindow {
                 label: "main".to_string(),
@@ -86,9 +100,33 @@ pub fn serialize_tauri_desktop_config(params: &TauriEmitParams<'_>) -> Result<St
 pub fn write_tauri_desktop_config(path: &Path, params: &TauriEmitParams<'_>) -> Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).with_context(|| format!("mkdir {}", parent.display()))?;
+        seed_placeholder_icon(parent)?;
     }
     let raw = serialize_tauri_desktop_config(params)?;
     fs::write(path, raw).with_context(|| format!("write {}", path.display()))?;
+    Ok(())
+}
+
+// tauri-build probes icons/icon.png at compile time regardless of bundle.icon config.
+// Copy the repo icon so the proc macro doesn't panic; this file is never bundled here.
+// Public so the bundle path can seed the generated src-tauri dir BEFORE `cargo tauri build`
+// runs (the emit/write paths run too late for the desktop compile smoke).
+pub fn seed_placeholder_icon(src_tauri_dir: &Path) -> Result<()> {
+    let icon_dst = src_tauri_dir.join("icons/icon.png");
+    if icon_dst.is_file() {
+        return Ok(());
+    }
+    fs::create_dir_all(src_tauri_dir.join("icons"))?;
+    // Walk up: src-tauri/ → generated/ → target/ → workspace root
+    let icon_src = src_tauri_dir
+        .parent()
+        .and_then(|p| p.parent())
+        .and_then(|p| p.parent())
+        .map(|ws| ws.join("crates/vox-gui/icons/icon.png"));
+    if let Some(src) = icon_src.filter(|p| p.is_file()) {
+        fs::copy(&src, &icon_dst)
+            .with_context(|| format!("copy placeholder icon to {}", icon_dst.display()))?;
+    }
     Ok(())
 }
 

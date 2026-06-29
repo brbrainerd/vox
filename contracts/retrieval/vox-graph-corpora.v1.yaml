@@ -1,0 +1,66 @@
+x-vox-version: 1
+schema_version: 1
+
+# Named Graphify knowledge-graph corpora for agent retrieval and freshness gates.
+# See docs/src/architecture/graphify-integration-research-2026-06-16.md
+
+default_corpus_id: repo-code-graph
+ttl_days_default: 30
+
+corpora:
+  - id: repo-code-graph
+    title: Repository code graph
+    scope_path: "."
+    graph_path: ".vox/cache/graphify/repo-code-graph/graph.json"
+    manifest_path: ".vox/cache/graphify/repo-code-graph/.graphify_manifest.v1.json"
+    extraction_mode: structural
+    default_for_intents:
+      - code_navigation
+      - repo_structure
+
+  - id: vox-gui-surface
+    title: vox-gui surface map
+    scope_path: crates/vox-gui
+    graph_path: ".vox/cache/graphify/vox-gui-surface/graph.json"
+    manifest_path: ".vox/cache/graphify/vox-gui-surface/.graphify_manifest.v1.json"
+    extraction_mode: gui-wiring
+    default_for_intents:
+      - gui_surface
+
+  - id: vox-config-graph
+    title: vox-config structural graph (non-GUI generality check)
+    scope_path: crates/vox-config
+    graph_path: ".vox/cache/graphify/vox-config-graph/graph.json"
+    manifest_path: ".vox/cache/graphify/vox-config-graph/.graphify_manifest.v1.json"
+    extraction_mode: structural
+    default_for_intents:
+      - config_graph
+
+  - id: config-audit
+    title: Config hardcoded-values audit graph
+    scope_path: "."
+    graph_path: ".vox/cache/graphify/config-audit/graph.json"
+    manifest_path: ".vox/cache/graphify/config-audit/.graphify_manifest.v1.json"
+    extraction_mode: audit
+    default_for_intents:
+      - config_audit
+
+  - id: crate-map
+    title: Crate build-time x dependency map
+    scope_path: "."
+    graph_path: ".vox/cache/graphify/crate-map/graph.json"
+    manifest_path: ".vox/cache/graphify/crate-map/.graphify_manifest.v1.json"
+    extraction_mode: crate-map
+    default_for_intents:
+      - build_time
+      - crate_arrangement
+
+  - id: graphify-search-log
+    title: "Graphify search-hit log (agent memory)"
+    scope_path: ".vox/cache/graphify/search-log/"
+    graph_path: ".vox/cache/graphify/search-log/graph.json"
+    manifest_path: ".vox/cache/graphify/search-log/.graphify_manifest.v1.json"
+    is_virtual: true
+    default_for_intents:
+      - search_history
+      - agent_recall

@@ -620,6 +620,23 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: audit-check/spoke-check
+  domain: audit-check
+  title: spoke-check
+  group: Audit checks / arch
+  description: vox ci spoke-check (VoxMens domain-profile SSOT vs GPU-specs drift validation)
+  severity: error
+  blocking: true
+  runs_on:
+  - pre-push
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/check-targets.v1.yaml#spoke-check
+    detail: cargo run -q -p vox-cli -- ci spoke-check
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: audit-check/ssot-drift
   domain: audit-check
   title: ssot-drift
@@ -2191,6 +2208,23 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: gui-design-rule/a11y
+  domain: gui-design-rule
+  title: Accessibility (a11y)
+  group: GUI Design Rules
+  description: Validates accessibility properties (aria roles, labels, contrast)
+  severity: error
+  blocking: true
+  runs_on:
+  - pre-commit
+  - ci
+  source:
+    kind: guard
+    ref: crates/vox-codegen/src/web_ir/validate_a11y.rs
+    detail: web_ir::validate_a11y
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: gui-design-rule/contrast
   domain: gui-design-rule
   title: Contrast Ratio
@@ -2222,23 +2256,6 @@ policies:
     kind: guard
     ref: crates/vox-codegen/src/web_ir/validate_layer.rs
     detail: web_ir::validate_layer
-  default_enabled: true
-  protected: false
-  origin: builtin
-- id: gui-design-rule/a11y
-  domain: gui-design-rule
-  title: Accessibility (a11y)
-  group: GUI Design Rules
-  description: Validates accessibility properties (aria roles, labels, contrast)
-  severity: error
-  blocking: true
-  runs_on:
-  - pre-commit
-  - ci
-  source:
-    kind: guard
-    ref: crates/vox-codegen/src/web_ir/validate_a11y.rs
-    detail: web_ir::validate_a11y
   default_enabled: true
   protected: false
   origin: builtin

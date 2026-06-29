@@ -2,7 +2,7 @@
 title: "Vox GUI Design Review (annotated mockups + component specs)"
 description: "Visual design review for the Vox Tauri GUI. No code, no commits — annotated ASCII mockups for the top 5 operator surfaces, design-system foundations, component API proposals, and a checklist of open design decisions for the operator/owner."
 category: "Architecture SSOTs"
-status: "research"
+status: "current"
 training_eligible: true
 last_updated: "2026-06-17"
 training_rationale: "Captures the visual design intent for Vox GUI surfaces — high-value for any LLM doing follow-up implementation work, and the canonical place to start when bringing on a designer."

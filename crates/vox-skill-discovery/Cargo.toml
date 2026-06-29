@@ -1,6 +1,6 @@
 [package]
 name = "vox-skill-discovery"
-version = "0.1.0"
+version.workspace = true
 edition = "2024"
 description = "Local on-demand discovery + dedup engine: repeated .vox blocks, installed-skill dedup, MCP SSOT drift. Advisory only."
 

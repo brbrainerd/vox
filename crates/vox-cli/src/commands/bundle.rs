@@ -315,9 +315,11 @@ async fn build_tauri_app(
 
     let cargo = if cfg!(windows) { "cargo.exe" } else { "cargo" };
     let mut cmd = Command::new(cargo);
+    // tauri-cli v2 `build` produces a release build by default and REJECTS `--release`
+    // (`error: unexpected argument '--release'`). Debug builds use `--debug` instead.
     cmd.args(["tauri", "build", "--no-bundle"]);
-    if release {
-        cmd.arg("--release");
+    if !release {
+        cmd.arg("--debug");
     }
     if let Some(target_triple) = target {
         cmd.args(["--target", target_triple]);
@@ -325,6 +327,13 @@ async fn build_tauri_app(
     cmd.current_dir(generated_dir)
         .stdout(std::process::Stdio::inherit())
         .stderr(std::process::Stdio::inherit());
+
+    // tauri-build's `generate_context!()` proc macro probes src-tauri/icons/icon.png at
+    // compile time. The codegen emit path writes tauri.conf.json but not the icon, so seed
+    // it here — right before the build — or the desktop compile smoke panics with
+    // "failed to open icon ... No such file or directory".
+    vox_tauri_codegen::seed_placeholder_icon(&generated_dir.join("src-tauri"))
+        .context("seed placeholder tauri icon before cargo tauri build")?;
 
     println!(
         "  Running `cargo tauri build` in {} (install tauri-cli v2 if this fails: `cargo install tauri-cli --version '^2'`)",

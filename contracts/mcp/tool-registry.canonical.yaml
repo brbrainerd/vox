@@ -653,36 +653,6 @@ tools:
   product_lane: app
   http_read_role_eligible: true
   tier: core
-- name: vox_graphify_compare
-  description: Diff two graphify corpus manifests for node/edge/community delta (read-only).
-  product_lane: platform
-  http_read_role_eligible: true
-  tier: core
-- name: vox_graphify_path
-  description: Shortest path between two node IDs in a graphify corpus (read-only).
-  product_lane: platform
-  http_read_role_eligible: true
-  tier: core
-- name: vox_graphify_query
-  description: BFS neighbor expansion from seed node IDs (read-only; layered navigation).
-  product_lane: platform
-  http_read_role_eligible: true
-  tier: core
-- name: vox_graphify_rebuild
-  description: Rebuild a graphify corpus graph (AST extract + cluster), snapshot the prior graph, and refresh freshness manifest (write).
-  product_lane: platform
-  http_read_role_eligible: false
-  tier: core
-- name: vox_graphify_search
-  description: Lexically search a graphify corpus graph on disk (read-only).
-  product_lane: platform
-  http_read_role_eligible: true
-  tier: core
-- name: vox_graphify_status
-  description: Report graphify corpus freshness (read-only; `--strict` fails when stale).
-  product_lane: platform
-  http_read_role_eligible: true
-  tier: core
 - name: vox_gui_components
   description: Retrieve the components registered in the primitive component registry.
   product_lane: ai
@@ -1382,6 +1352,36 @@ tools:
   description: Evaluate publication-worthiness.contract YAML (repo-relative or default) against WorthinessInputs metrics JSON; returns Publish / AskForEvidence / Abstain decision (no writes).
   product_lane: data
   http_read_role_eligible: false
+  tier: core
+- name: vox_search_compare
+  description: Diff two Vox Search structural-index manifests for node/edge/community delta (read-only).
+  product_lane: platform
+  http_read_role_eligible: true
+  tier: core
+- name: vox_search_neighbors
+  description: BFS neighbor expansion from seed node IDs (read-only; layered navigation).
+  product_lane: platform
+  http_read_role_eligible: true
+  tier: core
+- name: vox_search_path
+  description: Shortest path between two node IDs in the Vox Search structural index (read-only).
+  product_lane: platform
+  http_read_role_eligible: true
+  tier: core
+- name: vox_search_rebuild
+  description: Rebuild a Vox Search structural index (AST extract + cluster), snapshot the prior graph, and refresh freshness manifest (write).
+  product_lane: platform
+  http_read_role_eligible: false
+  tier: core
+- name: vox_search_status
+  description: Report Vox Search structural-index freshness (read-only; `--strict` fails when stale).
+  product_lane: platform
+  http_read_role_eligible: true
+  tier: core
+- name: vox_search_structural
+  description: Lexically search the Vox Search structural index on disk (read-only).
+  product_lane: platform
+  http_read_role_eligible: true
   tier: core
 - name: vox_secrets_doctor
   description: Returns a JSON snapshot of all managed secret resolution statuses. Agents should use this instead of probing environment variables directly.

@@ -1,0 +1,166 @@
+{
+  "dimension": "structural-cohesion",
+  "method_note": "Cohesion = does each surface's graph neighborhood (shared command/data nodes) match its current nav group? In this corpus Leiden produced 40 singleton communities (distinct=40 of 40), so cross-surface code-community is a NULL signal and is NOT used as evidence. The usable structural signal is `redundancy_peers` (surfaces sharing a command/data set in the wiring graph) and `command_set` identity, read against `nav_parent` from navigation.ts. Structural facts cited verbatim from graphify-out/gui-coverage/joined-evidence.json; every grouping/UX call is labeled judgment. Naming/utility are out of scope for this dimension.",
+  "findings": [
+    {
+      "unit": "knowledge nav-group (claims, scientia, knowledge surfaces)",
+      "unit_kind": "nav-group",
+      "observation": "claims, scientia, and the bare `knowledge` parent-surface all carry the IDENTICAL 12-command Scientia set (acknowledge_discovery, get_archive_status, get_novelty_assessment, list_discovery_inbox, nanopublish_approved_claim, run_autofill, ... ) and component_dir 'Scientia'. They are mutual redundancy_peers and structurally indistinguishable.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence: claims.command_set == scientia.command_set == knowledge.command_set (12 identical cmd: nodes); claims.redundancy_peers=[knowledge,scientia]; scientia.redundancy_peers=[claims,knowledge]; all component_dir='Scientia'. nav: claims->knowledge, scientia->knowledge, knowledge=top-level parent (no nav_parent).",
+      "recommendation": "MERGE",
+      "rationale": "Three nav entries backed by one identical command neighborhood is a cohesion failure: the group splits a single structural unit into three labels. Collapse claims+scientia into one surface under knowledge (judgment: pick the surfaced one as absorber); the bare `knowledge` orphan-parent is the default child, not a separate destination.",
+      "confidence": "high"
+    },
+    {
+      "unit": "activity surface",
+      "unit_kind": "surface",
+      "observation": "activity is orphaned from nav (nav_parent=null, reachable=false) yet shares its entire command neighborhood (cmd:activity_query) with archive-panel, discovery-inbox, and discovery-review — all three of which live under the `knowledge` nav-group.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence: activity.command_set=[cmd:activity_query], nav_parent=null, reachable=false; activity.redundancy_peers=[archive-panel,discovery-inbox,discovery-review]; each of those has nav_parent=knowledge and the same single cmd:activity_query.",
+      "recommendation": "MOVE",
+      "rationale": "The structure says activity belongs with its three peers under knowledge; it is the only member of that 4-surface activity_query cluster left out of nav. Move it under knowledge (or MERGE into one of the peers — see redundancy dimension) so the nav group matches the graph neighborhood.",
+      "confidence": "high"
+    },
+    {
+      "unit": "knowledge nav-group (activity_query cluster: activity, archive-panel, discovery-inbox, discovery-review)",
+      "unit_kind": "nav-group",
+      "observation": "Four surfaces (activity, archive-panel, discovery-inbox, discovery-review) are ALL backed solely by cmd:activity_query and share component_dir 'Activity'. They form one tight structural cluster currently spread as 3 nav entries under knowledge plus 1 orphan.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence: archive-panel/discovery-inbox/discovery-review each command_set=[cmd:activity_query], component_dir='Activity', mutual redundancy_peers; activity identical but nav_parent=null.",
+      "recommendation": "CONDENSE",
+      "rationale": "Structurally one feature (an activity_query log viewer) is presented as four nav destinations. The group does not match the structure — condense the four into a single filtered Activity surface (judgment: filters by view) rather than four sibling tabs.",
+      "confidence": "high"
+    },
+    {
+      "unit": "repository surface",
+      "unit_kind": "surface",
+      "observation": "repository sits in the `workspace` nav-group but its command neighborhood (cmd:execute_command) ties it to research/claims/knowledge/scientia, all in the `knowledge` group — a cross-group redundancy edge.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence: repository.nav_parent=workspace, command_set=[cmd:execute_command], redundancy_peers=[claims,knowledge,research,scientia] (all knowledge-group). research.redundancy_peers includes repository (nav=workspace) symmetrically.",
+      "recommendation": "KEEP",
+      "rationale": "The shared edge is only the generic cmd:execute_command (a low-specificity dispatch node shared by many CLI-backed surfaces), not a feature-specific command set. Judgment: this redundancy edge is an artifact of a shared dispatch primitive, not true cohesion, so it does NOT justify moving repository out of workspace. Flag the weak edge; default KEEP.",
+      "confidence": "med"
+    },
+    {
+      "unit": "search surface / memory surface",
+      "unit_kind": "surface",
+      "observation": "search (nav_parent=null, orphan, reachable=false) and memory (nav_parent=search) are mutual redundancy_peers but are split by the parent/child boundary: search is the orphaned parent stub while memory is its only child.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence: search.command_set=[cmd:open_locator,cmd:vox_search_query], nav_parent=null, redundancy_peers=[memory]; memory.command_set includes open_locator + recall via vox_search_query, nav_parent=search, redundancy_peers=[memory's listed none but search lists memory]. navigation.ts: search is a TOP_LEVEL_VIEW whose DEFAULT_CHILD_BY_PARENT is 'memory'; memory is its sole child.",
+      "recommendation": "MERGE",
+      "rationale": "A top-level `search` group containing exactly one child (memory) that shares search's own command neighborhood is a degenerate group: the parent adds a nav level without structural justification. Collapse search into memory (or promote memory to top-level), eliminating the single-child group. Naming overlap (Search vs Memory) is flagged for semantic-clarity; here the basis is the redundant 1-child structure.",
+      "confidence": "high"
+    },
+    {
+      "unit": "compute nav-group (models, oratio vs settings)",
+      "unit_kind": "nav-group",
+      "observation": "models and oratio (both nav=compute) share the model-card command set with `settings` (nav=top-level). oratio additionally lists models as a redundancy_peer. The model-management command neighborhood spans the compute group AND settings.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence: models.command_set=[get_active_model,get_routing_summary_live,list_model_cards,set_active_model], redundancy_peers=[compute,settings]; oratio.command_set=[list_model_cards,start_mic_capture], redundancy_peers=[compute,models,settings]; settings.command_set includes list_model_cards,get_routing_summary_live,set_routing_priority,set_llm_config (17 cmds).",
+      "recommendation": "KEEP",
+      "rationale": "Structural overlap is real but partial: settings is a large 17-command catch-all that legitimately touches model config among many domains; oratio's only model tie is list_model_cards (a read for a model picker). Judgment: the overlap reflects settings being a config hub, not mis-grouping of models/oratio. KEEP the compute group; the models<->settings duplication is a redundancy-dimension concern, not a cohesion regrouping signal.",
+      "confidence": "med"
+    },
+    {
+      "unit": "oratio surface",
+      "unit_kind": "surface",
+      "observation": "oratio (nav=compute, component_dir='Loquela') has command_set [list_model_cards, start_mic_capture] — a speech/mic capability sharing only the generic model-list read with the rest of compute. Its structural neighborhood (mic capture) is unique and unrelated to mens/models/populi/mesh.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence: oratio.command_set=[cmd:list_model_cards,cmd:start_mic_capture]; redundancy_peers are all model-list overlaps (compute,models,settings); no peer shares start_mic_capture. compute group siblings: mens (0 cmds), populi (0 cmds), mesh (mesh tools), models (model cmds).",
+      "recommendation": "KEEP",
+      "rationale": "oratio's only cross-surface edge is the low-specificity list_model_cards read; start_mic_capture is structurally isolated. The compute group is heterogeneous (mens/populi are empty stubs, mesh is dispatch, models is config) so oratio is no worse a fit than its siblings. Structure gives no neighbor to move it to; default KEEP. (Group heterogeneity itself flagged below.)",
+      "confidence": "med"
+    },
+    {
+      "unit": "compute nav-group (mens, populi as empty members)",
+      "unit_kind": "nav-group",
+      "observation": "The compute group's members have no shared command neighborhood: models (4 model cmds), mesh (mesh MCP tools), oratio (mic+model-list), mens (0 cmds, component_dir=null), populi (0 cmds, component_dir=null). There is zero structural cohesion binding these five under one parent.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence: mens.command_count=0,component_dir=null; populi.command_count=0,component_dir=null; no redundancy_peers among mens/populi/mesh/models within the group except the model-list overlap (models<->oratio). No command node is shared across all five compute members.",
+      "recommendation": "MOVE",
+      "rationale": "compute is a label-of-convenience, not a structural cluster — mens and populi are empty (0 cmds, no component) and contribute no edges. Structure cannot keep them cohesive because they have no structure. Move/flag the empty stubs (mens, populi) for removal-or-fill (CUT is redundancy/utility's call); the surviving compute members do not form a community. Judgment: group is held together by naming, not wiring.",
+      "confidence": "med"
+    },
+    {
+      "unit": "console surface / workspace parent",
+      "unit_kind": "surface",
+      "observation": "console (nav=workspace) lists redundancy_peer [workspace]; workspace top-level stub lists [console]. The workspace parent-surface's neighborhood overlaps only its own child console — the parent is a thin stub over its child.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence: console.nav_parent=workspace, redundancy_peers=[workspace]; workspace.nav_parent=null, redundancy_peers=[console]. workspace group children in navigation.ts: repository,browser,harness,console (4 real children).",
+      "recommendation": "KEEP",
+      "rationale": "Unlike search/memory, workspace has FOUR distinct children (browser/harness/repository/console) with non-overlapping command sets (browser has 10 browser_* cmds, console has pty_*/discovery_*), so the group is structurally justified. The workspace<->console peer edge is just the parent-stub artifact. KEEP the group; the bare `workspace` parent-surface is a default-child redirect, not a real destination.",
+      "confidence": "high"
+    },
+    {
+      "unit": "workspace nav-group",
+      "unit_kind": "nav-group",
+      "observation": "workspace group members (browser, console, harness, repository) have DISTINCT, non-overlapping command neighborhoods — the only structurally cohesive multi-member group in the GUI.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence: browser.command_set=10 browser_* cmds (no redundancy_peers); console.command_set=pty_*/discovery_*/send_to_agent (peer only workspace-parent); harness.command_count=0 live_backend; repository.command_set=[execute_command]. No internal redundancy except repository's generic execute_command edge to knowledge.",
+      "recommendation": "KEEP",
+      "rationale": "Each member is its own tool with its own backend surface; the grouping matches the structure (developer workbench tools). No regrouping warranted. Sole caveat: repository's execute_command edge to the knowledge cluster (flagged above as weak).",
+      "confidence": "high"
+    },
+    {
+      "unit": "agents nav-group (dashboard, flow, matrix, tasks, gamify)",
+      "unit_kind": "nav-group",
+      "observation": "agents group members have largely disjoint command neighborhoods: dashboard (0 direct cmds, uses pause/resume/MCP via handlers), flow (0 cmds, visual), matrix (cmd:nudge_routing_intention), tasks (4 hopper_* cmds), gamify (6 ludus/gamify cmds). No shared command binds them; cohesion is conceptual (agent monitoring) not structural.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence: tasks.command_set=[hopper_cancel,hopper_list,hopper_reprioritize,hopper_submit] (no redundancy_peers); matrix.command_set=[nudge_routing_intention]; gamify.command_set=6 ludus/gamify cmds; dashboard/flow command_count=0. No redundancy_peers among any agents-group members.",
+      "recommendation": "KEEP",
+      "rationale": "Members are structurally independent but each is a coherent single-purpose surface and none has a redundancy edge pulling it toward another group, so structure offers no MOVE target. Judgment: gamify (ludus/quest cmds) is the weakest conceptual fit but has no structural peer elsewhere; flag for utility, default KEEP. The group is held by domain concept, which is acceptable when no cross-edges contradict it.",
+      "confidence": "med"
+    },
+    {
+      "unit": "runs nav-group (approvals, policies)",
+      "unit_kind": "nav-group",
+      "observation": "approvals (0 cmds, orphan_backend) and policies (6 policy_*/list_branches cmds) share no command neighborhood; no redundancy_peers between them.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence: approvals.command_count=0, redundancy_peers=[]; policies.command_set=[list_branches,policy_edit,policy_list,policy_set_enabled,policy_show,policy_status], redundancy_peers=[].",
+      "recommendation": "KEEP",
+      "rationale": "No structural edge contradicts the grouping and no edge pulls either elsewhere; approvals being command-empty is a wiring/utility concern, not a cohesion-grouping one. Structure is neutral here -> default KEEP.",
+      "confidence": "med"
+    },
+    {
+      "unit": "commands nav-group (catalog, skills)",
+      "unit_kind": "nav-group",
+      "observation": "catalog (live_backend, get_command_catalog + execute_command/invoke_mcp_tool via transport) and skills (0 cmds) share no extracted command neighborhood and have no redundancy_peers.",
+      "evidence_basis": "structural+judgment",
+      "evidence": "joined-evidence: catalog.command_count=0 in node set but behavioral_findings show voxTransport.getCatalog->get_command_catalog and callTool->execute_command/invoke_mcp_tool; skills.command_count=0, redundancy_peers=[].",
+      "recommendation": "KEEP",
+      "rationale": "Both are command/skill-launching surfaces (conceptually cohesive), and neither has a structural edge to another group. Skills' empty extracted command set is a coverage/utility flag, not a cohesion regrouping signal. Default KEEP.",
+      "confidence": "med"
+    },
+    {
+      "unit": "mesh surface",
+      "unit_kind": "surface",
+      "observation": "mesh (nav=compute) has dead-end MCP tool edges (tool:vox_mesh_nodes, tool:vox_mesh_queue_stats) and is the only compute member using mesh dispatch tools; settings also references tool:vox_mesh_nodes as a dead-end, a faint cross-edge to settings rather than to compute siblings.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence: mesh.dead_ends=[tool:vox_mesh_nodes,tool:vox_mesh_queue_stats]; settings.dead_ends=[tool:vox_mesh_nodes]. No compute sibling shares any mesh tool.",
+      "recommendation": "KEEP",
+      "rationale": "mesh's neighborhood (mesh MCP tools) is unique within compute; its only cross-surface tool overlap is a dead-end shared with settings, too weak and broken to justify a move. KEEP in compute; the dead-end tools are a wiring concern for structural-coverage dimension.",
+      "confidence": "med"
+    },
+    {
+      "unit": "coverage surface",
+      "unit_kind": "surface",
+      "observation": "coverage (nav=settings, 0 cmds, orphan_backend) is the sole non-`settings` child of the settings group and has no command neighborhood or redundancy_peers tying it anywhere.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence: coverage.nav_parent=settings, command_count=0, redundancy_peers=[]. settings parent itself is a 17-command surface.",
+      "recommendation": "KEEP",
+      "rationale": "Structurally isolated (no edges), so structure gives no MOVE target and no contradiction; placement under settings is unobjectionable on cohesion grounds. Its emptiness is a utility/coverage flag. Default KEEP.",
+      "confidence": "low"
+    },
+    {
+      "unit": "sub-agents surface",
+      "unit_kind": "surface",
+      "observation": "sub-agents exists in the surface set (nav_parent=null, reachable=false, 0 cmds, no redundancy_peers) with no nav placement and no structural neighborhood.",
+      "evidence_basis": "structural",
+      "evidence": "joined-evidence record sub-agents: nav_parent=null, command_count=0, redundancy_peers=[], reachable=false.",
+      "recommendation": "KEEP",
+      "rationale": "Structure is silent (no edges, no nav). Cohesion dimension cannot recommend a group for an edgeless, orphan surface; whether it should be added to agents or cut is a utility/coverage call. Flag only.",
+      "confidence": "low"
+    }
+  ]
+}
