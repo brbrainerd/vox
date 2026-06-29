@@ -5,7 +5,8 @@
 //!
 //! Centrality comes from the AST code graph via [`vox_graph_reader`]. Verified
 //! 2026-06-29: the graph covers ~83% of code files (`.rs/.ts/.js/.py`) but only ~42%
-//! of all tracked files (docs/configs are not extractable). So a file with **no** node
+//! of all tracked files (docs/configs are not extractable; refresh via
+//! `vox graphify rebuild`). So a file with **no** node
 //! is imputed at the **median** of covered candidates — absence is neutral, never a
 //! penalty (zeroing would wrongly sink the majority of files).
 
@@ -115,6 +116,20 @@ pub fn score_map(
     out
 }
 
+/// Sort `files` in place by descending score (stable tie-break by path). Shared by
+/// `rank_files` and the `semantic-submit` selection path so both use one ordering.
+pub(crate) fn sort_files_by_score(files: &mut [String], score: &HashMap<String, f64>) {
+    files.sort_by(|a, b| {
+        let (sa, sb) = (
+            score.get(a).copied().unwrap_or(0.0),
+            score.get(b).copied().unwrap_or(0.0),
+        );
+        sb.partial_cmp(&sa)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then(a.cmp(b))
+    });
+}
+
 /// `files` sorted by descending importance (stable tie-break by path).
 pub fn rank_files(
     files: &[String],
@@ -125,10 +140,7 @@ pub fn rank_files(
 ) -> Vec<String> {
     let score = score_map(files, recency, churn, centrality, w);
     let mut v = files.to_vec();
-    v.sort_by(|a, b| {
-        let (sa, sb) = (score.get(a).copied().unwrap_or(0.0), score.get(b).copied().unwrap_or(0.0));
-        sb.partial_cmp(&sa).unwrap_or(std::cmp::Ordering::Equal).then(a.cmp(b))
-    });
+    sort_files_by_score(&mut v, &score);
     v
 }
 
@@ -177,7 +189,7 @@ pub fn log_centrality_coverage(candidates: &[String], central: Option<&HashMap<S
         };
         eprintln!(
             "[semantic-submit] centrality covers {hit}/{} candidate files ({pct:.0}%); \
-             uncovered imputed at median. Run `vox graphify rebuild` for fresh coverage.",
+             uncovered imputed at median. Run `vox graphify rebuild` to refresh coverage.",
             candidates.len()
         );
     }

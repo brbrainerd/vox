@@ -75,6 +75,8 @@ pub async fn run_semantic_submit(repo: &Path, cfg: &SemanticSubmitConfig) -> Res
     let ranking_active =
         cfg.rank_order || cfg.top.is_some() || cfg.since.is_some() || !cfg.rank_weights.is_default();
     let rank_score: Option<std::collections::HashMap<String, f64>> = if ranking_active {
+        // Recency/churn window: the `--since` value when scoping by date, else a
+        // 3-month default so ranking still has signal for full-repo / changed-files runs.
         let win = cfg.since.as_deref().unwrap_or("3 months ago");
         let churn = churn_since(repo, win).await.context("compute churn")?;
         let recency = recency_since(repo, win).await.context("compute recency")?;
@@ -86,15 +88,7 @@ pub async fn run_semantic_submit(repo: &Path, cfg: &SemanticSubmitConfig) -> Res
         ranker::log_centrality_coverage(&all_files, central.as_ref());
         let score =
             ranker::score_map(&all_files, &recency, &churn, central.as_ref(), cfg.rank_weights);
-        all_files.sort_by(|a, b| {
-            let (sa, sb) = (
-                score.get(a).copied().unwrap_or(0.0),
-                score.get(b).copied().unwrap_or(0.0),
-            );
-            sb.partial_cmp(&sa)
-                .unwrap_or(std::cmp::Ordering::Equal)
-                .then(a.cmp(b))
-        });
+        ranker::sort_files_by_score(&mut all_files, &score);
         if let Some(n) = cfg.top {
             all_files.truncate(n);
         }

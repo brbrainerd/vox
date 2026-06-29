@@ -324,6 +324,9 @@ pub async fn run(action: CodeRabbitAction) -> Result<()> {
             cfg.groups_config = vox.groups_config.as_ref().map(PathBuf::from);
             cfg.semantic_workspace_crates = vox.semantic_workspace_crates;
             cfg.max_unassigned_ratio = vox.max_unassigned_ratio;
+            if top == Some(0) {
+                anyhow::bail!("--top must be >= 1 (0 would select no files and open no PRs)");
+            }
             cfg.since = since;
             cfg.top = top;
             if let Some(w) = rank_weights.as_deref() {
