@@ -23,11 +23,27 @@
 | v1.0 block-GA gates are all `threshold.met=true` (last snapshot); cr-l-gates red = self-hosted build-break (no libdbus apt) + 13 stale artifacts (>30d). | Cluster-E agent assessment |
 | Batches 1+2 already committed locally: system-deps (7 workflows + Dockerfile), pnpm, appwrite link, ~25 markdownlint. | git log origin/main..main |
 
-**Universal pre-step for any task that runs cargo:** `rm -rf crates/.vox` first. Use `C:/Users/Owner/.cargo/bin/cargo` (bypasses the build-broker recursion). Never pipe cargo to head/grep (Windows orphan-process leak) — redirect to a scratchpad file.
+**Universal pre-step for any task that runs cargo:** `rm -rf crates/.vox` first. Use `C:/Users/Owner/.cargo/bin/cargo` (bypasses the build-broker recursion). Never pipe cargo to head/grep (Windows orphan-process leak) — redirect to a file under the gitignored `target/` dir (always writable; `$TMPDIR` is empty under git-bash and writes to `/` fail with "Permission denied"). E.g. `OUT="target/_scratch_drift.txt"`.
+
+---
+
+## Execution methodology (workflows + subagent-driven + TDD)
+
+This plan is executed with three tools, matched to the shape of each phase:
+
+- **Workflows (`Workflow` tool)** — for *breadth*: independent, parallelizable mechanical work. **Phase D** (80 drift fixes across 6 rule categories) is the canonical case: launch a workflow that fans out one agent per category **with `isolation: 'worktree'`** so each agent edits its own writable worktree, runs the category's `drift-check` verify to 0, and returns its diff; the main session reconciles diffs onto `main` and re-runs the full gate. Workflow subagents are otherwise read-only in this sandbox, so worktree isolation is required for any agent that must write.
+- **Subagent-driven development (`superpowers:subagent-driven-development`)** — for *depth with review*: one fresh subagent per numbered task, two-stage review (self-review then code-review) between tasks. Use for **Phase H** (greenfield `dep-audit`) and any **Phase G** fix that touches real logic.
+- **TDD (`superpowers:test-driven-development`)** — write the failing test first wherever there is *new behavior*:
+  - **Phase H/dep-audit**: full red-green-refactor (pure functions: rdep counting, critical-path BFS, sorting) — already scaffolded in `docs/superpowers/plans/2026-06-29-build-timings-auto-record-dep-audit.md`.
+  - **Phase D path-literals**: add ONE regression test asserting the new `paths.rs` constants resolve to the expected `.vox/...` strings (guards typos in the 14 new constants), then do the mechanical replacements.
+  - **Pure refactors** (reqwest/bearer/timeout/serde-dedup): no new behavior → no new unit test; the `drift-check → 0` gate + existing crate tests (`cargo nextest run -p <crate>`) are the guard. Do NOT invent tests for behavior that didn't change (YAGNI).
+- **The drift/lint gate IS the acceptance test** for Phase D — every D-task ends by re-running the exact CI command and asserting the rule count is 0; that is the executable check, not a hand-written assertion.
 
 ---
 
 ## Phase D — drift-check warnings (Lints gate)
+
+> **Orchestration:** After D1 captures the list, the recommended execution is a single `Workflow` with `isolation: 'worktree'` fanning out D2–D7 (one agent per rule category), each agent applying its category's fixes and verifying `drift-check | grep -v worktrees | grep -c <rule> == 0` in its worktree, returning a unified diff. D7 (path-literals) shares `paths.rs`, so run it **last / alone** to avoid a write conflict on that file — or have the path-literal agent own `paths.rs` exclusively and the others never touch it. The main session applies the returned diffs, runs D8 (full gate), and commits per category. If not using a workflow, execute D2–D7 inline as subagent-driven tasks with the same per-category verify.
 
 **Files:**
 - Modify: `crates/vox-config/src/paths.rs` (add constants)
@@ -40,12 +56,12 @@
 
 ```bash
 cd C:/Users/Owner/vox && rm -rf crates/.vox
-OUT="$TMPDIR/drift.txt"   # use the session scratchpad dir
+OUT="target/_scratch_drift.txt"   # gitignored, always writable
 C:/Users/Owner/.cargo/bin/cargo run -p vox-drift-check --quiet -- . --severity warning --fail-on warning > "$OUT" 2>&1
 grep "⚠" "$OUT" | grep -v worktrees > "$OUT.real"
 grep -oE "drift/[a-z-]+" "$OUT.real" | sort | uniq -c | sort -rn
 ```
-Expected: 80 lines in `$OUT.real`; counts 45/12/8/6/5/4 as in Verified Facts. This is the work list for D2–D6; re-run after each task and confirm the relevant rule drops to 0.
+Expected: 80 lines in `$OUT.real`; counts 45/12/8/6/5/4 as in Verified Facts. This is the work list for D2–D7; re-run after each task and confirm the relevant rule drops to 0. (NOTE: the gate command's own exit is non-zero while local `.worktrees/` warnings exist; the authoritative signal is **0 real (non-worktree) warnings**, which is what CI sees on its clean checkout.)
 
 ### Task D2: version-string (12) → `env!("CARGO_PKG_VERSION")`
 
@@ -301,6 +317,30 @@ pub const REPO_CORPUS_HEAL_PAIRS_FILE: &str = ".vox/corpus/heal_pairs.jsonl";
 ```
 (Cross-check against the live `grep -oE '"\.vox/[^"]*"' "$OUT.real" | sort -u` list — add a constant for any literal not covered above.)
 
+- [ ] **Step 1b (TDD): add a regression test pinning the constant values**
+
+In `crates/vox-config/src/paths.rs` `#[cfg(test)] mod tests` (create if absent), assert each new constant equals its literal — this guards against typos in the 14 additions and documents intent:
+
+```rust
+#[test]
+fn graphify_path_constants_resolve() {
+    assert_eq!(REPO_GRAPHIFY_CACHE_DIR, ".vox/cache/graphify");
+    assert_eq!(REPO_GRAPHIFY_REPO_GRAPH_DIR, ".vox/cache/graphify/repo-code-graph");
+    assert_eq!(REPO_GRAPHIFY_REPO_GRAPH_MANIFEST, ".vox/cache/graphify/repo-code-graph/.graphify_manifest.v1.json");
+    assert_eq!(REPO_DB_FILE, ".vox/db/vox.db");
+    assert_eq!(REPO_SKILLS_DIR, ".vox/skills");
+    assert_eq!(REPO_CORPUS_HEAL_PAIRS_FILE, ".vox/corpus/heal_pairs.jsonl");
+    // …one assert per new constant added in Step 1
+}
+```
+
+Run it (expect PASS — constants are simple bindings):
+
+```bash
+rm -rf crates/.vox && C:/Users/Owner/.cargo/bin/cargo nextest run -p vox-config graphify_path_constants_resolve 2>&1 | tail -5
+```
+This is a guard, not red-green (constants have no behavior); its value is catching a mistyped literal before 45 call sites depend on it.
+
 - [ ] **Step 2: Build vox-config**
 
 ```bash
@@ -347,8 +387,8 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - [ ] **Step 1: Run the exact CI gate command**
 
 ```bash
-rm -rf crates/.vox && C:/Users/Owner/.cargo/bin/cargo run -p vox-drift-check --quiet -- . --severity warning --fail-on warning > "$TMPDIR/drift2.txt" 2>&1; echo "exit=$?"
-grep "⚠" "$TMPDIR/drift2.txt" | grep -v worktrees | wc -l
+rm -rf crates/.vox && C:/Users/Owner/.cargo/bin/cargo run -p vox-drift-check --quiet -- . --severity warning --fail-on warning > target/_scratch_drift2.txt 2>&1; echo "exit=$?"
+grep "⚠" target/_scratch_drift2.txt | grep -v worktrees | wc -l
 ```
 Expected: `exit=0` AND `0` real warnings. (The command's own exit is non-zero only while worktree warnings exist locally; the authoritative check is `0` real warnings — CI runs on the clean tree.) If any remain, return to the matching D-task.
 
@@ -363,7 +403,7 @@ Expected: `exit=0` AND `0` real warnings. (The command's own exit is non-zero on
 - [ ] **Step 1: Run it on the clean tree**
 
 ```bash
-rm -rf crates/.vox && C:/Users/Owner/.cargo/bin/cargo run -p vox-audit --quiet -- stdlib-coverage > "$TMPDIR/stdlib.txt" 2>&1; echo "exit=$?"; tail -40 "$TMPDIR/stdlib.txt"
+rm -rf crates/.vox && C:/Users/Owner/.cargo/bin/cargo run -p vox-audit --quiet -- stdlib-coverage > target/_scratch_stdlib.txt 2>&1; echo "exit=$?"; tail -40 target/_scratch_stdlib.txt
 ```
 
 - [ ] **Step 2: Interpret the exit code**
@@ -486,14 +526,14 @@ Expected: each block-GA gate `met=true`, `block_ga_violations: 0`. If true, the 
 ls -lt contracts/reports/_snapshot/ 2>/dev/null | head
 ```
 
-- [ ] **Step 3: HUMAN GATE — decide artifact refresh strategy**
+- [ ] **Step 3: Refresh artifacts (user chose "attempt") — cost-notify, not hard block**
 
-Refreshing requires RE-RUNNING the gate measurements (LLM panels via OpenRouter — CR-L1 ~$1, others vary) on CI. This costs money and is the user's call. Present:
-  - (a) trigger the gate workflows on CI to regenerate fresh artifacts, commit the refreshed snapshots; OR
-  - (b) widen the freshness window in the evidence-ledger lint config if the measurements are still valid (cheaper, but weakens the freshness guarantee); OR
-  - (c) accept cr-l-gates as a known non-required red (it is NOT the branch-protection context) and stop here.
+The user has chosen to attempt satisfying these gates, so the default is **(a) regenerate fresh artifacts via CI**. Because this spends real money (LLM panels via OpenRouter — CR-L1 ~$1, full set possibly several $), FIRST post a one-line cost estimate and get a brief go-ahead (this is a notify, not a redesign decision). Then:
+  - (a) **DEFAULT:** `gh workflow run cr-l-gates.yml --repo vox-foundation/vox` (and any per-gate measurement workflows), download the regenerated snapshots, commit them. This makes the evidence-ledger freshness lint pass honestly.
+  - (b) **If the user declines the spend:** widen the freshness window in the evidence-ledger lint (find via `grep -rn "freshness\|days" crates/vox-arch-check/src`) since the measurements are still valid (met=true) — cheaper, weaker guarantee.
+  - (c) **Last resort:** accept cr-l-gates as a known non-required red (NOT the branch-protection context) and document it.
 
-Do not proceed past this gate without the user's explicit choice. Record the decision.
+Record which path was taken.
 
 - [ ] **Step 4: Execute the chosen strategy**
 
@@ -501,23 +541,158 @@ For (a): `gh workflow run cr-l-gates.yml --repo vox-foundation/vox` after E1 is 
 
 ---
 
-## Phase F — advisory jobs disposition
+## Phase F — advisory jobs: attempt to satisfy (user chose "attempt"), else document
 
-These are `continue-on-error`/scheduled and NOT branch-protection contexts: Scorecard (weekly OpenSSF), visus-audit (`continue-on-error`, needs `VOX_VISUS_STAGING_URL`), OS-compat (`continue-on-error`).
+Per the user's choice, ATTEMPT to make each advisory job actually green; fall back to documented-advisory only where satisfying it requires infra/secrets outside the repo. Order by feasibility.
 
-### Task F1: Confirm non-blocking + document
+> **Orchestration:** dispatch one read-only investigation subagent per job (parallel `Agent` calls or a small `Workflow` phase) to pull each job's latest failing log and produce an exact fix-or-infeasible verdict; apply fixes in the main session.
 
-- [ ] **Step 1: Verify each is non-required and non-blocking**
+### Task F1: OS compatibility scan (most likely fixable)
+
+- [ ] **Step 1: Get the real failure**
 
 ```bash
-for f in scorecard vox-visus-audit os-compat-report; do echo "=== $f ==="; grep -nE "continue-on-error|schedule:|on:|workflow_dispatch" .github/workflows/$f.yml 2>/dev/null | head; done
-gh api repos/vox-foundation/vox/branches/main/protection/required_status_checks --jq '.contexts' 
+gh run list --repo vox-foundation/vox --workflow os-compat-report.yml --limit 3
+gh run view <id> --repo vox-foundation/vox --log-failed 2>&1 | grep -iE "error|fail|panic|not found" | head -20
 ```
-Expected: none of these appear in required contexts; each is `continue-on-error` or schedule-only.
 
-- [ ] **Step 2: Record the disposition (no code change)**
+- [ ] **Step 2: Apply the fix it names** (likely the same libdbus/system-deps pattern, or a script path). If it's `continue-on-error`, it does not block, but make the underlying step pass anyway. Verify by re-running: `gh workflow run os-compat-report.yml --repo vox-foundation/vox` then check the run.
 
-Append a short note to `docs/src/ci/github-hosted-exceptions.md` (or the green-pass memory) stating these three are advisory-by-design and intentionally not gated. Commit if a doc was edited.
+- [ ] **Step 3: Commit if a repo file changed.**
+
+### Task F2: visus-audit (needs `VOX_VISUS_STAGING_URL`)
+
+- [ ] **Step 1: Confirm the gating condition**
+
+```bash
+grep -nE "VOX_VISUS_STAGING_URL|continue-on-error|if:" .github/workflows/vox-visus-audit.yml | head
+gh secret list --repo vox-foundation/vox 2>&1 | grep -i visus || echo "secret not set"
+```
+
+- [ ] **Step 2: Decide feasibility (HUMAN INPUT if secret missing)**
+
+If the job is skipped/neutral when `VOX_VISUS_STAGING_URL` is unset (not failing), it is already non-red — record that. If it genuinely FAILS without the secret, satisfying it requires the user to provision a staging URL secret (external infra) — this is **infeasible in-repo**; surface it to the user with the exact secret name and what a staging URL would point at, and fall back to documenting it as advisory.
+
+### Task F3: Scorecard analysis (OpenSSF supply-chain)
+
+- [ ] **Step 1: Get the current score + failing checks**
+
+```bash
+gh run view <scorecard-run-id> --repo vox-foundation/vox --log 2>&1 | grep -iE "score|Warn|Fail|Branch-Protection|Token-Permissions|Pinned-Dependencies" | head -30
+```
+
+- [ ] **Step 2: Apply the cheap, real improvements Scorecard flags** (these are genuine hardening, not gaming): e.g. pin GitHub Actions to commit SHAs (`Pinned-Dependencies`), set `permissions:` blocks on workflows (`Token-Permissions`), enable branch protection (already on). Apply only the ones that are clearly correct and low-risk; each is its own small commit.
+
+- [ ] **Step 3: HUMAN GATE** — Scorecard is a *score*, not pass/fail, and runs weekly/`branch_protection_rule`. Reaching a target score may need org-level changes (signed releases, SECURITY.md, fuzzing). Report the current score, what's cheaply fixable (done in Step 2), and what needs org decisions; let the user decide how far to push vs accept as advisory.
+
+### Task F4: Record final advisory dispositions
+
+- [ ] **Step 1:** For any job that remains red because satisfying it needs external infra/secrets/org-policy, append a row to `docs/src/ci/github-hosted-exceptions.md` stating it is advisory-by-design + what it would take. Commit.
+
+---
+
+## Phase H — build-timings auto-record + dep-audit (the secondary request)
+
+The user's original secondary ask: "whenever we build a crate, that timing is recorded… gather all timings for all crates, but also audit their dependencies." Component A (`vox ci build-bench --ingest`) is DONE + committed locally (`721a512469`, fixed `6a1a771c61`). Components **B, C, D are outstanding** — verified 2026-06-29: `dep_audit.rs` does not exist, `--timings`/`--ingest` are not in ci.yml, baseline still has 6 `wall_ms:0`. The detailed, code-complete tasks live in [`docs/superpowers/plans/2026-06-29-build-timings-auto-record-dep-audit.md`](2026-06-29-build-timings-auto-record-dep-audit.md) (already corrected: the `cargo metadata --no-deps=false` bug was fixed to plain `--format-version 1`, and the `extract_unit_data` const/float-seconds bugs were fixed in Component A).
+
+> **Orchestration:** Component B is greenfield with pure, unit-testable functions → execute via **`superpowers:subagent-driven-development` + TDD** (fresh subagent per task, red-green-refactor, code-review between tasks). Components C/D are CI-config and one-shot → execute inline.
+
+### Task H1: Component B — `vox ci dep-audit` (TDD, subagent-driven)
+
+**Files (exact code in the referenced plan, Task B-1):**
+- Create: `crates/vox-cli/src/commands/ci/dep_audit.rs`
+- Modify: `crates/vox-cli/src/commands/ci/cmd_enums.rs` (add `DepAudit` variant), `run_body.rs` (dispatch), `mod.rs` (declare module)
+- Output: `contracts/ci/dep-audit.v1.json`
+
+- [ ] **Step 1: Write the failing unit tests first** (red) — copy the three pure-logic tests from the referenced plan's Task B-1 Step 1 verbatim: `rdep_count_is_correct`, `critical_path_includes_transitive_deps`, `report_is_sorted_by_rdep_count_descending`. They exercise `build_audit(meta, target)` on synthetic `cargo metadata` JSON.
+
+```bash
+rm -rf crates/.vox && C:/Users/Owner/.cargo/bin/cargo test -p vox-cli dep_audit::tests:: 2>&1 | tail -5
+```
+Expected: FAIL (module not found).
+
+- [ ] **Step 2: Implement `dep_audit.rs`** — copy the implementation from the referenced plan (the `CrateAudit`/`DepAuditReport` structs, `build_audit()`, `run_dep_audit()`), **using `["metadata","--format-version","1"]`** (NOT the invalid `--no-deps=false` — already corrected in that plan). Wire the module (`mod.rs`), the `DepAudit { output: Option<String> }` variant (`cmd_enums.rs`), and the dispatch arm (`run_body.rs`).
+
+- [ ] **Step 3: Tests green**
+
+```bash
+rm -rf crates/.vox && C:/Users/Owner/.cargo/bin/cargo test -p vox-cli dep_audit::tests:: 2>&1 | tail -5
+```
+Expected: 3 passed.
+
+- [ ] **Step 4: fmt + clippy + real-workspace smoke**
+
+```bash
+C:/Users/Owner/.cargo/bin/cargo fmt -p vox-cli
+C:/Users/Owner/.cargo/bin/cargo clippy -p vox-cli -- -D warnings 2>&1 | grep -E "error|warning:" | head
+rm -rf crates/.vox && C:/Users/Owner/.cargo/bin/cargo run -p vox-cli -- ci dep-audit 2>&1 | tail -15
+```
+Expected: clippy clean; writes `contracts/ci/dep-audit.v1.json`; vox-config shows a high `workspace_rdep_count`, vox-cli shows `on_vox_cli_critical_path=true`.
+
+- [ ] **Step 5: Code-review (subagent-driven two-stage) then commit**
+
+```bash
+git add crates/vox-cli/src/commands/ci/dep_audit.rs crates/vox-cli/src/commands/ci/cmd_enums.rs crates/vox-cli/src/commands/ci/run_body.rs crates/vox-cli/src/commands/ci/mod.rs contracts/ci/dep-audit.v1.json
+git commit -m "feat(ci): dep-audit — per-crate blast-radius + critical-path report
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+```
+
+### Task H2: Component C — wire `--timings` + `--ingest` into CI
+
+**Files:** `.github/workflows/ci.yml` (the "Check, Build, and Test" build step). Coordinate with Phase A/E ci.yml edits — apply after them to avoid conflicts; re-confirm line anchors at edit time.
+
+- [ ] **Step 1: Add `--timings` to the vox-cli build step**
+
+Find the `cargo build -p vox-cli` invocation in the build job and append `--timings` (preserve existing flags/features).
+
+- [ ] **Step 2: Add a post-build ingest step**
+
+```yaml
+      - name: Ingest build timings
+        if: always()
+        run: ./target/debug/vox ci build-bench --ingest --label "ci-${{ github.run_id }}"
+```
+(Use the already-built binary path the job uses; do not rebuild.)
+
+- [ ] **Step 3: Upload the cargo-timings HTML artifact**
+
+```yaml
+      - name: Upload cargo-timings HTML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cargo-timings-${{ github.run_id }}
+          path: target/cargo-timings/cargo-timing-*.html
+          if-no-files-found: warn
+```
+
+- [ ] **Step 4: Validate + BOM-check + commit**
+
+```bash
+python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml',encoding='utf-8'))" && echo OK
+rm -rf crates/.vox && ./target/debug/vox --quiet ci bom-check 2>&1 | tail -1
+git add .github/workflows/ci.yml && git commit -m "ci: record --timings on vox-cli build + ingest to history + upload HTML
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+```
+
+### Task H3: Component D — populate the all-zero baseline (cold build)
+
+**Files:** `contracts/ci/build-bench-baseline.v1.json` (6 entries currently `wall_ms:0`).
+
+- [ ] **Step 1: Add a manual-dispatch cold-build job** (or reuse an existing self-hosted lane) that runs `vox ci build-bench --repeat 3 --label baseline --write contracts/ci/build-bench-baseline.v1.json` with sccache disabled for that step (`RUSTC_WRAPPER: ""`). The exact job YAML is in the referenced plan, Component D Task D-1 Step 1.
+
+- [ ] **Step 2: HUMAN/CI step — trigger it** (`gh workflow run …`), download the artifact, replace the baseline file. This needs a real cold build on CI (minutes) and a manual trigger — flag to the user; it cannot be done purely locally with meaningful numbers.
+
+- [ ] **Step 3: Commit the populated baseline**
+
+```bash
+grep -c '"wall_ms": 0' contracts/ci/build-bench-baseline.v1.json   # expect 0
+git add contracts/ci/build-bench-baseline.v1.json && git commit -m "chore(ci): populate build-bench baseline with real cold-build measurements
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+```
 
 ---
 
@@ -576,7 +751,14 @@ Record in `~/.claude/.../memory/project_main_green_pass_2026_06_29.md`: what wen
 
 ## Execution order
 
-D1 → (D2 ∥ D3 ∥ D4 ∥ D5 ∥ D6 are independent; D7 last as it adds shared constants) → D8 → G1 → G2 → E1 → E2(HUMAN GATE) → F1 → Z1 → Z2. D-tasks can be parallelized across worktrees if isolated; the drift-check verify after EACH catches regressions.
+1. **Phase D** (drift) — D1 captures the list → **Workflow w/ worktree isolation** fans out D2–D6 (independent) ∥, with **D7 path-literals run alone** (owns `paths.rs`) → D8 full-gate verify. Drift-check verify after each category catches regressions.
+2. **Phase G** (stdlib + audits) — G1 ∥ G2, subagent-driven for any real-logic fix.
+3. **Phase H** (build-timings/dep-audit) — H1 (Component B) via **subagent-driven + TDD**; then H2 (Component C, after D/E ci.yml edits land to avoid conflicts); H3 (Component D, needs CI trigger).
+4. **Phase E** (v1.0 gates) — E1 (apt) → E2 (refresh, cost-notify).
+5. **Phase F** (advisory) — F1 ∥ F2 ∥ F3 investigation subagents → apply → F4 document residuals.
+6. **Phase Z** (finalize) — Z1 full local verify → Z2 push + drive main green.
+
+Phases D, G, H1, F are largely independent and can overlap; serialize only the **ci.yml writers** (A/E/H2) and the **`paths.rs` writer** (D7) to avoid file conflicts.
 
 ## Acceptance criteria
 
@@ -584,5 +766,7 @@ D1 → (D2 ∥ D3 ∥ D4 ∥ D5 ∥ D6 are independent; D7 last as it adds share
 - `vox ci bom-check` OK; `markdownlint-cli2` 0 errors
 - `vox audit --gate all` → all block-GA `met=true`, 0 violations (Phase E build fixed)
 - stdlib-coverage + Audits sub-gate exit 0 locally
-- After push: required context `Check, Build, and Test (Rust)` green on main; only advisory/by-design jobs (documented) remain red
-- local `main` == `origin/main` (synced)
+- **`vox ci dep-audit` writes `contracts/ci/dep-audit.v1.json` (Component B); ci.yml records `--timings` + ingests on every build (Component C); baseline has 0 `wall_ms:0` (Component D)**
+- Advisory jobs (F): each either green, or documented in `github-hosted-exceptions.md` with what satisfying it needs
+- After push: required context `Check, Build, and Test (Rust)` green on main; only documented advisory/by-design jobs remain red
+- local `main` == `origin/main` (synced), including the previously-unpushed Component A (`721a512469`,`6a1a771c61`) + runner-status (`8811471439`) + green-pass batches
