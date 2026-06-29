@@ -66,6 +66,7 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchHits, setSearchHits] = useState<SkillInfo[]>([]);
   const [discovered, setDiscovered] = useState<DiscoveredSkill[]>([]);
+  const [addSource, setAddSource] = useState('');
 
   const refreshInstalled = useCallback(async () => {
     setLoading(true);
@@ -109,6 +110,46 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
       setLoading(false);
     }
   }, [pushToast]);
+
+  const addSkill = useCallback(async () => {
+    const src = addSource.trim();
+    if (!src) return;
+    setBusy(src);
+    try {
+      const res = await callTool('vox_skill_add', { source: src });
+      if (res?.is_error) {
+        pushToast({ tone: 'warn', title: 'Add failed', body: JSON.stringify(unwrap(res.result)), cause: 'backend-error' });
+      } else {
+        pushToast({ tone: 'ok', title: 'Skill added', body: src, cause: 'backend-ok' });
+        setAddSource('');
+        await refreshDiscovered();
+      }
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Add failed', body: String(err), cause: 'backend-error' });
+    } finally {
+      setBusy(null);
+    }
+  }, [addSource, pushToast, refreshDiscovered]);
+
+  const removeSkill = useCallback(
+    async (id: string) => {
+      setBusy(id);
+      try {
+        const res = await callTool('vox_skill_remove', { id });
+        if (res?.is_error) {
+          pushToast({ tone: 'warn', title: 'Remove failed', body: JSON.stringify(unwrap(res.result)), cause: 'backend-error' });
+        } else {
+          pushToast({ tone: 'ok', title: 'Skill removed', body: id, cause: 'backend-ok' });
+          await refreshDiscovered();
+        }
+      } catch (err) {
+        pushToast({ tone: 'warn', title: 'Remove failed', body: String(err), cause: 'backend-error' });
+      } finally {
+        setBusy(null);
+      }
+    },
+    [pushToast, refreshDiscovered],
+  );
 
   useEffect(() => {
     if (tab === 'installed') refreshInstalled();
@@ -247,6 +288,11 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
         ) : tab === 'discovered' ? (
           <DiscoveredTab
             discovered={discovered}
+            busy={busy}
+            addSource={addSource}
+            setAddSource={setAddSource}
+            onAdd={addSkill}
+            onRemove={removeSkill}
             onSkillUse={(id) => showSkillUse(id)}
           />
         ) : tab === 'installed' ? (
@@ -442,10 +488,40 @@ function MarketplaceTab(props: {
 // (.vox/.agents/.claude × workspace+home). Skills under these roots auto-load
 // into the registry at daemon start; this tab surfaces what is discoverable
 // on disk and whether each is currently active.
-function DiscoveredTab(props: { discovered: DiscoveredSkill[]; onSkillUse: (id: string) => void }) {
-  const { discovered, onSkillUse } = props;
+function DiscoveredTab(props: {
+  discovered: DiscoveredSkill[];
+  busy: string | null;
+  addSource: string;
+  setAddSource: (s: string) => void;
+  onAdd: () => void;
+  onRemove: (id: string) => void;
+  onSkillUse: (id: string) => void;
+}) {
+  const { discovered, busy, addSource, setAddSource, onAdd, onRemove, onSkillUse } = props;
   return (
     <div className="flex flex-col gap-5">
+      <div>
+        <div className="mb-2 font-display text-[11px] tracking-[0.2em] uppercase text-text-muted">Add from URL or path</div>
+        <div className="mb-2 flex items-center gap-2">
+          <input
+            value={addSource}
+            onChange={(e) => setAddSource(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && onAdd()}
+            placeholder="https://github.com/owner/repo  or  C:/path/to/skill"
+            aria-label="Skill git URL or path"
+            className="flex-1 rounded-md border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-mono text-xs text-text-secondary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-brass/40"
+          />
+          <button
+            type="button"
+            onClick={onAdd}
+            disabled={!!busy}
+            className="flex items-center gap-1.5 rounded-md border border-emerald-400/30 bg-emerald-400/10 px-3 py-1.5 font-display text-[11px] tracking-wider uppercase text-emerald-300 hover:bg-emerald-400/20 disabled:opacity-40"
+          >
+            Add
+          </button>
+        </div>
+      </div>
+
       <Section title="Discovered skills" count={discovered.length}>
         {discovered.length === 0 ? (
           <Empty text="No SKILL.md skills found under .vox/.agents/.claude roots." />
@@ -457,9 +533,16 @@ function DiscoveredTab(props: { discovered: DiscoveredSkill[]; onSkillUse: (id: 
               title={s.name || s.id}
               subtitle={s.description}
               version={s.installed ? 'active' : 'discovered'}
-              tags={[s.installed ? 'installed' : 'not-installed', s.path].filter(Boolean)}
-              busy={false}
-              actions={[{ label: 'View', onClick: () => onSkillUse(s.id), tone: 'neutral' }]}
+              tags={[s.source_root, s.license, s.path].filter(Boolean)}
+              busy={busy === s.id}
+              actions={
+                s.removable
+                  ? [
+                      { label: 'View', onClick: () => onSkillUse(s.id), tone: 'neutral' },
+                      { label: 'Remove', onClick: () => onRemove(s.id), tone: 'danger' },
+                    ]
+                  : [{ label: 'View', onClick: () => onSkillUse(s.id), tone: 'neutral' }]
+              }
             />
           ))
         )}

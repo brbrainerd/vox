@@ -8,6 +8,9 @@ export interface DiscoveredSkill {
   description: string;
   path: string;
   installed: boolean;
+  source_root: string;
+  removable: boolean;
+  license: string;
 }
 
 interface RawDiscovered {
@@ -16,6 +19,9 @@ interface RawDiscovered {
   description?: unknown;
   path?: unknown;
   installed?: unknown;
+  source_root?: unknown;
+  removable?: unknown;
+  license?: unknown;
 }
 
 function str(v: unknown): string {
@@ -36,6 +42,9 @@ export function mapDiscoveredSkills(raw: unknown): DiscoveredSkill[] {
       description: str(r?.description),
       path: str(r?.path),
       installed: r?.installed === true,
+      source_root: str(r?.source_root),
+      removable: r?.removable === true,
+      license: str(r?.license),
     });
   }
   return out;
