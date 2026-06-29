@@ -808,3 +808,52 @@ Phases D, G, H1, F are largely independent and can overlap; serialize only the *
 - Advisory jobs (F): each either green, or documented in `github-hosted-exceptions.md` with what satisfying it needs
 - After push: required context `Check, Build, and Test (Rust)` green on main; only documented advisory/by-design jobs remain red
 - local `main` == `origin/main` (synced), including the previously-unpushed Component A (`721a512469`,`6a1a771c61`) + runner-status (`8811471439`) + green-pass batches
+
+---
+
+## Addendum (2026-06-29): pre-commit hook timing + worktree cleanup
+
+### Hook arrangement fix (DONE, pushed `2c4a30ba55`)
+
+**Problem:** `pre-commit` ran `vox ci line-endings`, which fell back to
+`cargo run -p vox-cli` when a worktree had no local `target/debug/vox` —
+compiling the whole workspace on every commit (1–2+ min) and failing when the
+worktree's WIP code didn't compile. A text scan must never depend on a build.
+
+**Fix** (`crates/vox-cli/src/commands/ci/install_hooks.rs`):
+- Resolve the **main worktree's** prebuilt binary via `git rev-parse --git-common-dir`
+  (worktrees share the main `.git`; the canonical binary always exists there).
+- Replaced the `cargo run` fallback with a **pure-git CRLF scan** of staged blobs.
+- Test `pre_commit_hook_never_compiles` enforces no `cargo run`/`cargo build`
+  invocation on executable lines. **Verified: commit latency 1–2 min → 0.82 s.**
+
+**Tiering decisions (user, 2026-06-29):**
+- pre-commit: text-only, never compiles (enforced).
+- pre-push correctness gate (clippy + workspace tests): **CI / merge-queue is the
+  authority**; default fast pre-push should shed `--complete` static checks.
+- pre-push fast-tier budget (currently 20-min warn / 25-min fail): **re-baseline
+  after measuring a real fast run** before tightening (TODO).
+
+### Worktree audit (7 parallel haiku subagents) + cleanup
+
+Safety nets before removal:
+- `C:/Users/Owner/vox-worktree-rescue-20260629.bundle` — the 6 branches with
+  commits NOT on any origin/* (refactor/vox-db-maintainability [201],
+  claude/llm-ssot-roadmap-plans, worktree-agent-a209…, worktree-wf_3ef284bc-62b-2,
+  worktree-wf_6c5436d1-fb7-6/-7).
+- `C:/Users/Owner/vox-worktree-rescue-20260629/uncommitted-diffs/` — uncommitted
+  diffs from every removal candidate (+ scratchpad WIP patches: agy-pipeline,
+  GUI tsx, vox-db, arch-check).
+
+**KEEP (active/recent or in-use):** main, vox-pra, vox-prb, vox-localfirst-ci,
+vox-jolly-jackson, vox-build-broker, vox-terminal, vox-graphify-gui,
+wt-skill-discovery-engine, .worktrees/telemetry-track-f, ci-fleet-fix,
+infallible-colden-e3be46, archive-engine, wf_6c5436d1-fb7-7.
+
+**REMOVED:** clean+synced (on origin, recoverable via fetch) + bundled at-risk +
+WIP-rescued worktrees — ~31 trees across `.claude/worktrees/`, `.worktrees/`,
+and external `C:/Users/Owner/vox-*`, then `git worktree prune`.
+
+**Audit correction:** the initial assumption that the external `vox-pr*` trees
+were all disposable was WRONG — `vox-pra/prb/localfirst-ci/jolly-jackson` are
+active; only `vox-pr350`/`vox-browser-pr` were stale. The audit prevented data loss.
