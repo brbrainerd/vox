@@ -99,7 +99,7 @@ fn autofill_compose_unblocks_publication_date_for_archive_plan() {
         None,
         Some("MIT"),
         Some("https://github.com/org/repo"),
-        Some("0.6.0"),
+        Some(env!("CARGO_PKG_VERSION")),
     );
     let new_meta = apply_autofill(
         manifest.metadata_json.as_deref(),

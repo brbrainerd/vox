@@ -480,7 +480,7 @@ mod tests {
             Some(&identity),
             Some("MIT"),
             Some("https://github.com/org/repo"),
-            Some("0.6.0"),
+            Some(env!("CARGO_PKG_VERSION")),
         );
 
         let fields: Vec<&str> = plan.fills.iter().map(|f| f.field.as_str()).collect();
@@ -620,7 +620,7 @@ mod tests {
             Some(&identity),
             Some("MIT"),
             Some("https://github.com/org/repo"),
-            Some("0.6.0"),
+            Some(env!("CARGO_PKG_VERSION")),
         );
         assert!(!plan.fills.is_empty(), "first run must propose fills");
 
@@ -639,7 +639,7 @@ mod tests {
             Some(&identity),
             Some("MIT"),
             Some("https://github.com/org/repo"),
-            Some("0.6.0"),
+            Some(env!("CARGO_PKG_VERSION")),
         );
         assert!(
             plan2.fills.is_empty(),

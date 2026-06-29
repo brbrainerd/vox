@@ -35,7 +35,7 @@ fn sandbox_fixture_autofill_fills_zenodo_required_fields_with_provenance() {
         None,
         Some("MIT"),
         Some("https://github.com/vox-foundation/vox"),
-        Some("0.6.0"),
+        Some(env!("CARGO_PKG_VERSION")),
     );
     assert!(
         plan.fills.iter().any(|f| f.field == "publication_date"),
@@ -98,7 +98,7 @@ fn sandbox_fixture_autofill_fills_zenodo_required_fields_with_provenance() {
         "Zenodo body must carry publication_date"
     );
     assert!(!body.metadata.keywords.is_empty());
-    assert_eq!(body.metadata.version.as_deref(), Some("0.6.0"));
+    assert_eq!(body.metadata.version.as_deref(), Some(env!("CARGO_PKG_VERSION")));
     assert!(
         body.metadata
             .related_identifiers
