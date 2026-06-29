@@ -21,20 +21,24 @@ pub struct TimingEntry {
 }
 
 /// Parse the embedded UNIT_DATA JS array from a cargo --timings HTML file.
-/// Skips entries with mode "todo" (sccache hits) and zero-duration entries.
+///
+/// cargo emits `const UNIT_DATA = [ {..}, .. ];` where each entry's `duration`
+/// is **float seconds** (e.g. `9.37`). We convert to whole milliseconds and
+/// drop zero-duration units (cached / no-rebuild). We do NOT filter on `mode`:
+/// in a cached/sccache build the real compile rows carry `mode:"todo"` with a
+/// nonzero duration, so a mode filter would discard exactly the data we want.
 pub fn extract_unit_data(html: &str) -> Vec<TimingEntry> {
-    let marker = "var UNIT_DATA = [";
+    // Accept either `const`/`var`/`let UNIT_DATA = [` — anchor on the assignment.
+    let marker = "UNIT_DATA = [";
     let start = match html.find(marker) {
         Some(i) => i + marker.len() - 1, // include the '['
         None => return vec![],
     };
     let slice = &html[start..];
-    let end = match slice.find("];\n") {
+    // The array closes at the first `];` after the opening `[`.
+    let end = match slice.find("];") {
         Some(i) => i + 1,
-        None => match slice.find("];") {
-            Some(i) => i + 1,
-            None => return vec![],
-        },
+        None => return vec![],
     };
     let array_json = &slice[..end];
     let raw: Vec<serde_json::Value> = match serde_json::from_str(array_json) {
@@ -43,13 +47,11 @@ pub fn extract_unit_data(html: &str) -> Vec<TimingEntry> {
     };
     raw.into_iter()
         .filter_map(|v| {
-            let mode = v["mode"].as_str()?;
-            if mode == "todo" {
-                return None; // sccache hit — no real timing
-            }
-            let duration_ms = v["duration"].as_u64()?;
+            // duration is float seconds; convert to whole ms.
+            let secs = v["duration"].as_f64()?;
+            let duration_ms = (secs * 1000.0).round() as u64;
             if duration_ms == 0 {
-                return None;
+                return None; // cached / no-rebuild unit
             }
             let name = v["name"].as_str()?.to_string();
             Some(TimingEntry { name, duration_ms })
@@ -361,26 +363,28 @@ mod tests {
     }
 
     #[test]
-    fn extract_unit_data_skips_todo_and_zero() {
+    fn extract_unit_data_parses_real_cargo_format() {
+        // Mirrors the real cargo --timings emission: `const`, float-seconds
+        // durations, and `mode:"todo"` on rows that DID record a build time.
+        // A zero-duration row (cached / no rebuild) must be dropped regardless
+        // of mode — we filter on duration, NOT mode.
         let html = r#"<html><body><script>
-var UNIT_DATA = [
-  {"name":"vox-config 0.1.0","mode":"run","duration":12345,"rmeta_time":null,"codegen_time":null,"features":""},
-  {"name":"vox-cli 0.1.0","mode":"todo","duration":0,"rmeta_time":null,"codegen_time":null,"features":""},
-  {"name":"vox-db 0.1.0","mode":"run","duration":67890,"rmeta_time":null,"codegen_time":null,"features":""}
+const UNIT_DATA = [
+  {"i":1,"name":"vox-config","version":"0.1.0","mode":"todo","target":"lib","duration":9.37,"start":0.0},
+  {"i":2,"name":"vox-cli","version":"0.1.0","mode":"todo","target":"lib","duration":0.0,"start":0.0},
+  {"i":3,"name":"vox-db","version":"0.1.0","mode":"run-custom-build","target":" build-script","duration":2.5,"start":0.0}
 ];
 </script></body></html>"#;
         let records = extract_unit_data(html);
-        assert_eq!(records.len(), 2, "todo (sccache) entries must be excluded");
-        let config = records
-            .iter()
-            .find(|r| r.name.starts_with("vox-config"))
-            .unwrap();
-        assert_eq!(config.duration_ms, 12345);
-        let db = records
-            .iter()
-            .find(|r| r.name.starts_with("vox-db"))
-            .unwrap();
-        assert_eq!(db.duration_ms, 67890);
+        assert_eq!(
+            records.len(),
+            2,
+            "zero-duration (cached) entries must be excluded"
+        );
+        let config = records.iter().find(|r| r.name == "vox-config").unwrap();
+        assert_eq!(config.duration_ms, 9370, "9.37s -> 9370ms");
+        let db = records.iter().find(|r| r.name == "vox-db").unwrap();
+        assert_eq!(db.duration_ms, 2500, "2.5s -> 2500ms");
     }
 
     #[test]

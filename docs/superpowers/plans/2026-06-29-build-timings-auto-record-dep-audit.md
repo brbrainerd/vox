@@ -22,8 +22,9 @@
 |---|---|
 | `vox ci build-bench` exists at `crates/vox-cli/src/commands/ci/build_bench.rs` | Read |
 | Baseline is all `wall_ms: 0` — never measured | `contracts/ci/build-bench-baseline.v1.json` read |
-| Cargo `--timings` HTML embeds `UNIT_DATA = [...]` JS array in a `<script>` block | Confirmed from `target/cargo-timings/cargo-timing-*.html` |
-| Each UNIT_DATA entry has `{name, mode, duration, ...}` where `mode: "todo"` = sccache hit (duration: 0) | Confirmed |
+| Cargo `--timings` HTML embeds **`const UNIT_DATA = [...]`** JS array in a `<script>` block | Verified 2026-06-29 against real `cargo-timing-*.html` (NOT `var` — the original draft was wrong) |
+| Each UNIT_DATA entry is `{i, name, version, mode, target, duration, start, ...}`; **`duration` is FLOAT SECONDS** (e.g. `9.37`), not integer ms | Verified 2026-06-29. Parse with `as_f64()`, convert `*1000.0`. `as_u64()` returns `None` on floats — do NOT use it. |
+| Filter on `duration > 0`, **NOT on `mode`** | Verified 2026-06-29: in a cached/sccache build the real compile rows carry `mode:"todo"` WITH nonzero duration (`tauri` 9.37s). A `mode=="todo"` skip discards exactly the data we want. The earlier "todo = sccache hit, duration 0" claim was FALSE. |
 | `dep_graph_fingerprint()` in `build_timings.rs:65` already shells `cargo metadata` correctly | Read |
 | Subcommand dispatch pattern: `CiCmd::BuildBench { ... }` → `run_build_bench(root, ...)` in `run_body.rs` | Read |
 | `cargo_bin()` is `pub(super)` in `ci/mod.rs` | Read |
@@ -56,19 +57,21 @@ In `crates/vox-cli/src/commands/ci/build_bench.rs`, add to the `#[cfg(test)]` bl
 
 ```rust
 #[test]
-fn ingest_extracts_nonzero_duration_units() {
-    // Minimal cargo-timings HTML excerpt with UNIT_DATA
+fn extract_unit_data_parses_real_cargo_format() {
+    // MUST mirror real cargo output: `const`, float-seconds duration,
+    // mode:"todo" on rows that DID build. Zero-duration rows are dropped
+    // by duration (NOT by mode).
     let html = r#"<html><body><script>
-var UNIT_DATA = [
-  {"name":"vox-config 0.1.0","mode":"run","duration":12345,"rmeta_time":null,"codegen_time":null,"features":""},
-  {"name":"vox-cli 0.1.0","mode":"todo","duration":0,"rmeta_time":null,"codegen_time":null,"features":""},
-  {"name":"vox-db 0.1.0","mode":"run","duration":67890,"rmeta_time":null,"codegen_time":null,"features":""}
+const UNIT_DATA = [
+  {"i":1,"name":"vox-config","version":"0.1.0","mode":"todo","target":"lib","duration":9.37,"start":0.0},
+  {"i":2,"name":"vox-cli","version":"0.1.0","mode":"todo","target":"lib","duration":0.0,"start":0.0},
+  {"i":3,"name":"vox-db","version":"0.1.0","mode":"run-custom-build","target":" build-script","duration":2.5,"start":0.0}
 ];
 </script></body></html>"#;
     let records = extract_unit_data(html);
-    assert_eq!(records.len(), 2, "todo (sccache) entries must be excluded");
-    let config = records.iter().find(|r| r.name.starts_with("vox-config")).unwrap();
-    assert_eq!(config.duration_ms, 12345);
+    assert_eq!(records.len(), 2, "zero-duration (cached) entries dropped");
+    let config = records.iter().find(|r| r.name == "vox-config").unwrap();
+    assert_eq!(config.duration_ms, 9370); // 9.37s -> 9370ms
 }
 ```
 
@@ -87,15 +90,17 @@ pub struct TimingEntry {
 }
 
 /// Parse the embedded UNIT_DATA JS array from a cargo --timings HTML file.
-/// Skips entries with mode "todo" (sccache hits, duration == 0).
+/// cargo emits `const UNIT_DATA = [...]` with float-seconds `duration`.
+/// Drop zero-duration (cached/no-rebuild) units; filter on duration, NOT mode.
 pub fn extract_unit_data(html: &str) -> Vec<TimingEntry> {
-    // Find the UNIT_DATA array between the assignment and the closing semicolon.
-    let start = match html.find("var UNIT_DATA = [") {
-        Some(i) => i + "var UNIT_DATA = [".len() - 1, // include the '['
+    // Anchor on the assignment — accepts const/var/let UNIT_DATA = [.
+    let marker = "UNIT_DATA = [";
+    let start = match html.find(marker) {
+        Some(i) => i + marker.len() - 1, // include the '['
         None => return vec![],
     };
     let slice = &html[start..];
-    let end = match slice.find("];\n") {
+    let end = match slice.find("];") {
         Some(i) => i + 1,
         None => return vec![],
     };
@@ -106,13 +111,11 @@ pub fn extract_unit_data(html: &str) -> Vec<TimingEntry> {
     };
     raw.into_iter()
         .filter_map(|v| {
-            let mode = v["mode"].as_str()?;
-            if mode == "todo" {
-                return None; // sccache hit — no real timing
-            }
-            let duration_ms = v["duration"].as_u64()?;
+            // duration is FLOAT SECONDS — as_u64() would return None on floats.
+            let secs = v["duration"].as_f64()?;
+            let duration_ms = (secs * 1000.0).round() as u64;
             if duration_ms == 0 {
-                return None;
+                return None; // cached / no-rebuild unit
             }
             let name = v["name"].as_str()?.to_string();
             Some(TimingEntry { name, duration_ms })
@@ -513,9 +516,12 @@ pub fn build_audit(meta: &serde_json::Value, target_crate: &str) -> Vec<CrateAud
 
 pub fn run_dep_audit(root: &Path, output: Option<String>) -> Result<()> {
     eprintln!("dep-audit: running cargo metadata…");
+    // NOTE: `--no-deps=false` is INVALID (cargo: "unexpected value 'false'").
+    // Omit --no-deps entirely to include the full resolve graph. This matches
+    // the verified pattern in build_timings.rs:68.
     let out = Command::new(super::cargo_bin())
         .current_dir(root)
-        .args(["metadata", "--format-version", "1", "--no-deps=false"])
+        .args(["metadata", "--format-version", "1"])
         .output()
         .context("cargo metadata")?;
     if !out.status.success() {
