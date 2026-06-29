@@ -16,7 +16,11 @@
 |---|---|
 | `crates/.vox/` (untracked cache) breaks ALL local cargo via the `crates/*` glob; CI is unaffected (clean checkout). `rm -rf crates/.vox` before any cargo run. | Verified 2026-06-29: `cargo metadata` failed, passed after removal |
 | `vox-drift-check .` recurses into `.worktrees/` (stale branch checkouts), inflating counts ~14×. Filter `\| grep -v worktrees`. Do NOT `grep -v ".vox"` (drops legit path-literal warnings whose *message* contains `.vox`). | Verified: 1097 raw → 80 real |
-| REAL drift-check inventory (clean tree): **80 warnings, all mechanical** — 45 vox-path-literal, 12 version-string, 8 reqwest-bypass, 6 timeout-literal, 5 bearer-header-inline, 4 serde-default-dup. Zero duplicate-body in real tree. | `cargo run -p vox-drift-check -- . --severity warning --fail-on warning \| grep -v worktrees` |
+| REAL drift-check inventory (clean tree): **47 warnings** — 28 vox-path-literal, 6 version-string (DONE, commit `50ed5efacf`), 4 reqwest-bypass, 4 bearer-header-inline, 3 timeout-literal, 2 serde-default-dup. The "80" figure included `wt-skill-discovery-engine/` duplicates — a THIRD local-pollution source (untracked stray worktree, CI-invisible). Filter `\| grep -vE "worktrees\|wt-skill-discovery-engine"`. | Verified 2026-06-29 during execution |
+| Drift rules: reqwest-bypass + vox-path-literal + duplicated_* are in `drift-patterns.toml` (root); **version-string/bearer-header-inline/timeout-literal/serde-default-dup are BUILT-IN** in `crates/vox-drift-check/src/rules/*.rs`. reqwest rule has `allow_in_test=true` (test files exempt); vox-path-literal has `allow_in_crate=["vox-config","vox-db"]`. | Read drift-patterns.toml + src/rules/ |
+| Real http-helper crate = **`vox-http-client`** (`client()`, `client_builder()`, `bearer_auth_header()` in src/lib.rs). The `drift-patterns.toml` suggestion text says "vox_reqwest_defaults" but that crate does NOT exist — the suggestion string is stale; use `vox-http-client`. | Verified: `ls crates/` |
+| serde-default-dup (2) are in `patches/peft-rs-1.0.3/` — VENDORED `[patch]` override code. Do NOT edit vendored code; FIX = teach `rules/serde_default_dup.rs` (or a config) to skip `patches/**` (vendored external crates). | Read Cargo.toml `[patch]` + warning paths |
+| NEW SCOPE: 2 PRE-EXISTING vox-publisher test failures block the **Tests** gate beyond mcp-native: `route_simulation_matches_golden_snapshot` (golden drift) + `scientia_future_dated_hit_dropped_by_chronofilter` (time-bomb test, today 2026-06-29 passed its hardcoded future date). Verified pre-existing (fail on pre-edit tree). Must fix for a green Tests gate — see Task D9. | Verified via git stash + nextest |
 | Path constants live in `crates/vox-config/src/paths.rs`; existing: `REPO_DOT_VOX_DIR=".vox"`, `REPO_CACHE_DIR=".vox/cache"`, `REPO_GRAPHIFY_CACHE_SUBDIR="graphify"`, `REPO_MEMORY_DIR=".vox/memory"`, `REPO_MODELS_DIR=".vox/models"`. No constant exists for `.vox/cache/graphify/repo-code-graph` etc. — must ADD. | Read paths.rs |
 | http helpers in `crates/vox-http-client`: `client()`, `client_builder()`, `bearer_auth_header(token)`. | Cluster-D agent + spec |
 | Only REQUIRED branch-protection context = `Check, Build, and Test (Rust)` (ci-summary aggregator over guards-fast/lints/compiler-gates/tests/audits). lints + audits failing ⇒ required gate red. | branch protection API |
@@ -236,41 +240,38 @@ git add -A && git commit -m "fix(drift): inline timeouts -> named vox_config::ti
 Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ```
 
-### Task D6: serde-default-dup (4)
+### Task D6: serde-default-dup (2) — exclude vendored `patches/` (do NOT edit vendored code)
 
-**Files:** `grep "serde-default-dup" "$OUT.real"`.
+Both sites are in `patches/peft-rs-1.0.3/src/adapters/{ia3,prefix_tuning}.rs` — VENDORED `[patch]` copies of the external `peft-rs` crate. We must not impose our `vox_config::serde_defaults` convention on vendored upstream code. The correct fix is to make the built-in `serde_default_dup` rule skip `patches/**`.
 
-- [ ] **Step 1: Read each site + the detector's intent**
+- [ ] **Step 1: Read the rule to find its path-filtering hook**
 
 ```bash
-grep "serde-default-dup" "$OUT.real"
-grep -rnA8 "serde-default-dup" crates/vox-drift-check/src | head -30   # what the rule wants
+sed -n '1,120p' crates/vox-drift-check/src/rules/serde_default_dup.rs
+grep -rn "ignore\|skip\|patches\|allow_in\|path" crates/vox-drift-check/src/rules/serde_default_dup.rs crates/vox-drift-check/src/walker.rs crates/vox-drift-check/src/lib.rs 2>/dev/null | head
 ```
-This rule flags duplicated `#[serde(default = "...")]` default-fn bodies (same default value defined repeatedly). The fix is to extract the duplicated default into a single shared fn and reference it from each field.
 
-- [ ] **Step 2: Extract the shared default fn per duplicated value**
+- [ ] **Step 2: Add `patches/` to the skip set**
+
+Prefer a SINGLE global skip for vendored dirs in the walker/scan layer (so ALL rules ignore `patches/`, `.worktrees/`, `target/`, `crates/.vox/`), since those are not our code. If the walker already skips some (`target`, `.git`), add `patches` (and confirm `.worktrees`/`crates/.vox` — though CI never has the latter two). If skipping is per-rule, add a path guard to `serde_default_dup.rs` that returns early for paths containing `/patches/`.
 
 ```rust
-// before (in N structs)
-#[serde(default = "default_true")]
-field: bool,
-fn default_true() -> bool { true }   // repeated
-
-// after: one shared fn (e.g. in the crate's a small `serde_defaults` module), referenced everywhere
+// example global guard in the walker's dir filter
+const VENDORED_SKIP: &[&str] = &["target", ".git", ".worktrees", "patches"];
 ```
-Place the shared fn where both structs can reference it (a sibling `mod serde_defaults`), delete the duplicates.
+Write a unit test asserting a finding under `patches/foo/bar.rs` is suppressed (TDD: add the test, see it fail, add the skip, see it pass).
 
 - [ ] **Step 3: Verify + build + test**
 
 ```bash
-rm -rf crates/.vox && C:/Users/Owner/.cargo/bin/cargo run -p vox-drift-check --quiet -- . --severity warning --fail-on warning 2>&1 | grep -v worktrees | grep -c "serde-default-dup"   # expect 0
-C:/Users/Owner/.cargo/bin/cargo check -p <touched-crate> 2>&1 | tail -3
+rm -rf crates/.vox && C:/Users/Owner/.cargo/bin/cargo run -p vox-drift-check --quiet -- . --severity warning --fail-on warning 2>&1 | grep -vE "worktrees|wt-skill-discovery-engine" | grep -c "serde-default-dup"   # expect 0
+C:/Users/Owner/.cargo/bin/cargo nextest run -p vox-drift-check 2>&1 | tail -4
 ```
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add -A && git commit -m "fix(drift): deduplicate serde default fns
+git add -A && git commit -m "fix(drift): skip vendored patches/ in drift-check (serde-default-dup false positives)
 
 Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ```
@@ -391,6 +392,43 @@ rm -rf crates/.vox && C:/Users/Owner/.cargo/bin/cargo run -p vox-drift-check --q
 grep "⚠" target/_scratch_drift2.txt | grep -v worktrees | wc -l
 ```
 Expected: `exit=0` AND `0` real warnings. (The command's own exit is non-zero only while worktree warnings exist locally; the authoritative check is `0` real warnings — CI runs on the clean tree.) If any remain, return to the matching D-task.
+
+### Task D9: pre-existing vox-publisher Tests-gate failures (discovered during D2)
+
+Two tests fail on a clean tree, independent of the drift work; they block the `Tests` gate. Subagent-driven (real-logic), debug each.
+
+- [ ] **Step 1: Reproduce + read each**
+
+```bash
+rm -rf crates/.vox && C:/Users/Owner/.cargo/bin/cargo nextest run -p vox-publisher route_simulation_matches_golden_snapshot scientia_future_dated_hit_dropped_by_chronofilter --no-capture 2>&1 | tail -40
+```
+
+- [ ] **Step 2: `scientia_future_dated_hit_dropped_by_chronofilter` — fix the time-bomb**
+
+This asserts a "future-dated" item is dropped by a chronofilter. It used a hardcoded date that is now in the PAST (today is past 2026-06-29). Find the date literal in the test and make it relative to "now" (e.g. `now + chrono::Duration::days(365)`), so it stays future-dated. Read the test:
+
+```bash
+grep -rn "future_dated_hit_dropped_by_chronofilter" crates/vox-publisher/ 
+```
+Replace the hardcoded future date with a now-relative one. Verify the test passes.
+
+- [ ] **Step 3: `route_simulation_matches_golden_snapshot` — reconcile the golden**
+
+Determine WHY the golden drifted (read the assertion diff from Step 1). If the simulation output legitimately changed (e.g. new fields like `distribution_derivation_digest`/`social_retry_max_attempts` that are deterministic), regenerate the golden via its update mechanism:
+
+```bash
+grep -rn "route_simulation_matches_golden_snapshot\|UPDATE_GOLDEN\|insta\|expect_test\|golden" crates/vox-publisher/tests/ crates/vox-publisher/src/ | head
+```
+Use the test's documented update flag (e.g. `INSTA_UPDATE=always`, `UPDATE_EXPECT=1`, or a `--bless`), confirm the new golden is correct (deterministic, no secrets), and re-run to PASS. If the drift indicates a real regression (non-deterministic output, a bug), fix the code instead.
+
+- [ ] **Step 4: Verify both pass + commit**
+
+```bash
+rm -rf crates/.vox && C:/Users/Owner/.cargo/bin/cargo nextest run -p vox-publisher 2>&1 | tail -4   # 0 failed
+git add -A && git commit -m "fix(test): vox-publisher chronofilter time-bomb + route-simulation golden
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+```
 
 ---
 
