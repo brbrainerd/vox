@@ -10,7 +10,8 @@ import { PriorityChainEditor } from './PriorityChainEditor';
 import { HudTilesEditor } from './HudTilesEditor';
 import { applyTheme } from '../../../lib/theme';
 import { useLocalStorage } from '../../../hooks/useLocalStorage';
-import { useLang } from '../../../hooks/useLanguage';
+import { useLang, useLabel } from '../../../hooks/useLanguage';
+import { labelFor } from '../../../lib/lexicon';
 import { useVoxMutation } from '../../../hooks/useVoxQuery';
 import { searchSettings } from './settingsIndex';
 import type { HudTilesConfig } from '../../../hooks/useHudTiles';
@@ -201,7 +202,7 @@ function MeshPeersSection({ pushToast }: { pushToast: (t: Toast) => void }) {
 
   return (
     <>
-      <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">Mesh &amp; peers</h2>
+      <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-mesh-peers')}</h2>
       <p className="mt-0.5 text-[11px] text-text-muted">Discover and authorise peer compute on the local mesh (source: {meta.source ?? '—'})</p>
       {meta.control_plane_error && (
         <div className="mt-3 rounded-md border border-amber-400/20 bg-amber-400/5 px-3 py-2 text-[11px] text-amber-300">
@@ -312,7 +313,7 @@ function SigningKeysSection({ vals, update, pushToast, gamifyEnabled }: {
 
   return (
     <>
-      <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">Signing keys</h2>
+      <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-signing')}</h2>
       <p className="mt-0.5 text-[11px] text-text-muted">ed25519 capability gate for high-risk dispatch (local node identity)</p>
       <div className="mt-4 space-y-2">
         {loading ? (
@@ -589,7 +590,7 @@ function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t: Toast
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">Keys &amp; Secrets</h2>
+        <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-secrets')}</h2>
         {status && (
           <>
             <span className="rounded-full bg-overlay-subtle px-2 py-0.5 font-display text-[9px] uppercase tracking-widest text-text-secondary" title="Active secrets backend mode">
@@ -836,7 +837,7 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
 
   return (
     <>
-      <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">Runtime</h2>
+      <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-runtime')}</h2>
       <p className="mt-0.5 text-[11px] text-text-muted">
         Core user config persisted to your Vox user config (effective values: ENV &gt; Vox.toml &gt; global &gt; defaults)
       </p>
@@ -920,7 +921,7 @@ function LlmSettingsSection({ pushToast }: { pushToast: (t: any) => void }) {
 
   return (
     <>
-      <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">LLM &amp; providers</h2>
+      <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-llm')}</h2>
       <p className="mt-0.5 text-[11px] text-text-muted">Concurrency throttle for LLM egress. OpenRouter paid tier has no platform request cap, so parallelism is the real dial.</p>
       <div className="mt-4 space-y-3">
         <Row label="Max parallel LLM requests" hint="Global ceiling across all providers (AIMD throttle)">
@@ -1265,7 +1266,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
       <Glass className="col-span-12 md:col-span-9 p-5">
         {section === 'orchestrator' && (
           <>
-            <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">Orchestrator</h2>
+            <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-orchestrator')}</h2>
             <p className="mt-0.5 text-[11px] text-text-muted">Global scheduling, budget, and verification policy</p>
             <div className="mt-4 space-y-3">
               <Row label="Max concurrent agents" hint="Hard cap before scheduler back-pressure">
@@ -1308,7 +1309,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
 
         {section === 'scaling' && (
           <>
-            <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">Scaling</h2>
+            <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-scaling')}</h2>
             <p className="mt-0.5 text-[11px] text-text-muted">Spawn and retire agents automatically based on queue load and local host resources</p>
             <div className="mt-4 space-y-3">
               <Row label="Auto-scaling" hint="Let the orchestrator add/remove agents dynamically">
@@ -1337,7 +1338,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
 
         {section === 'routing' && (
           <>
-            <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">Model routing</h2>
+            <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-routing')}</h2>
             <p className="mt-0.5 text-[11px] text-text-muted">Emphasis tunes how the scorer trades off intelligence, efficiency, and responsiveness (persisted to VOX_AUTO_ROUTING_PRIORITY)</p>
 
             {/* Emphasis: presets + three labeled characteristic sliders */}
@@ -1421,7 +1422,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
 
         {section === 'telemetry' && (
           <>
-            <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">Telemetry</h2>
+            <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-telemetry')}</h2>
             <p className="mt-0.5 text-[11px] text-text-muted">Where Vox sends spans, metrics, and traces</p>
             <div className="mt-4 grid grid-cols-3 gap-2">
               {([['off', 'Off', 'Nothing leaves the device'], ['local', 'Local', 'OTLP → localhost:4317'], ['cloud', 'Cloud', 'Encrypted → vendor']] as [string, string, string][]).map(([id, l, h]) => (
@@ -1443,7 +1444,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
 
         {section === 'keybinds' && (
           <>
-            <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">Keybinds</h2>
+            <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-keybinds')}</h2>
             <p className="mt-0.5 text-[11px] text-text-muted">Click a shortcut to rebind it. Press any key combination to set the new chord.</p>
             <div className="mt-4 grid grid-cols-1 gap-1.5 md:grid-cols-2">
               {ACTION_REGISTRY.map(a => (
@@ -1500,7 +1501,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
 
         {section === 'theme' && (
           <>
-            <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">Theme</h2>
+            <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-theme')}</h2>
             <p className="mt-0.5 text-[11px] text-text-muted">Aesthetic mode for the GUI layer</p>
             <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3">
               {[

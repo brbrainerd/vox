@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLabel } from '../../../hooks/useLanguage';
 import {
   defaultHudTiles,
   HUD_TILE_LABELS,
@@ -22,7 +23,7 @@ export function HudTilesEditor({ config, onChange }: HudTilesEditorProps) {
 
   return (
     <>
-      <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">Display</h2>
+      <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-display')}</h2>
       <p className="mt-0.5 text-[11px] text-text-muted">
         Choose which KPI tiles appear in the top HUD and their order
       </p>

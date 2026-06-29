@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listenScientiaQueue } from '../../../transport';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
+import { useLabel } from '../../../hooks/useLanguage';
 import { PipelineTimeline } from '../../PipelineTimeline';
 import { RESEARCH_STAGES, deriveStages } from '../../../lib/pipeline';
 import { startResearchAsync } from './researchActions';
@@ -83,7 +84,7 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
 
   return (
     <section className="space-y-4">
-      <h2 className="font-display text-lg text-text-primary tracking-wider uppercase">Research</h2>
+      <h2 className="font-display text-lg text-text-primary tracking-wider uppercase">{useLabel('research')}</h2>
 
       <div className="flex gap-2">
         <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Ask a research question…"
