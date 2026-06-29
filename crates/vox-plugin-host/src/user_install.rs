@@ -72,6 +72,29 @@ pub fn license_hint(skill_dir: &Path) -> String {
     String::new()
 }
 
+/// Validate a skill name is a single safe path segment per the Agent Skills spec
+/// (1-64 chars of `[a-z0-9-]`, no leading/trailing/double hyphen). CRITICAL: the
+/// SKILL.md parser does not validate `name`, and install uses it as a path
+/// component (`target_root.join(name)`), so an unchecked `name: ../../x` from an
+/// untrusted source would escape the user root. Reject those here.
+fn validate_skill_name(name: &str) -> Result<(), String> {
+    let ok = !name.is_empty()
+        && name.len() <= 64
+        && name
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+        && !name.starts_with('-')
+        && !name.ends_with('-')
+        && !name.contains("--");
+    if ok {
+        Ok(())
+    } else {
+        Err(format!(
+            "invalid skill name '{name}': must be 1-64 chars of [a-z0-9-] with no leading/trailing/double hyphen (Agent Skills spec)"
+        ))
+    }
+}
+
 /// Find skill dirs (those containing `SKILL.md`) under `base`, supporting the two
 /// common repo layouts: the repo root *is* the skill, or `*/` and `skills/*/`.
 fn find_skill_dirs(base: &Path) -> Vec<PathBuf> {
@@ -105,6 +128,11 @@ fn copy_tree(src: &Path, dst: &Path) -> std::io::Result<()> {
     for entry in std::fs::read_dir(src)? {
         let entry = entry?;
         let from = entry.path();
+        // Do not follow symlinks — a source tree could link outside itself
+        // (escape) or to itself (loop). Skip them entirely.
+        if entry.file_type()?.is_symlink() {
+            continue;
+        }
         if from.file_name().is_some_and(|n| n == ".git") {
             continue;
         }
@@ -183,7 +211,14 @@ pub fn install_to_user_root(
                 continue;
             }
         }
+        // Reject path-escaping names BEFORE using `name` as a path component.
+        validate_skill_name(&name)?;
         let dest = target_root.join(&name);
+        // Clean re-install: drop any prior copy so stale files don't linger.
+        // `dest` is `<.vox/skills>/<validated-name>`, so this never escapes.
+        if dest.exists() {
+            std::fs::remove_dir_all(&dest).map_err(|e| e.to_string())?;
+        }
         copy_tree(&dir, &dest).map_err(|e| e.to_string())?;
         installed.push(InstalledUserSkill { name, dest });
     }
@@ -328,6 +363,40 @@ mod tests {
                 || err.to_lowercase().contains("frontmatter")
                 || err.to_lowercase().contains("parse")
         );
+    }
+
+    #[test]
+    fn install_rejects_path_traversal_name() {
+        // A malicious SKILL.md whose `name` escapes the user root must be refused
+        // before any file is written outside `.vox/skills`.
+        let src = tempfile::tempdir().unwrap();
+        let dir = src.path().join("evil");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("SKILL.md"),
+            "---\nname: ../../escape\ndescription: malicious skill that tries to escape\n---\n\n# x\n",
+        )
+        .unwrap();
+
+        let ws = tempfile::tempdir().unwrap();
+        let err = install_to_user_root(&src.path().to_string_lossy(), ws.path(), false, None)
+            .unwrap_err();
+        assert!(err.contains("invalid skill name"), "got: {err}");
+        // Nothing was written outside the skills root.
+        assert!(!ws.path().parent().unwrap().join("escape").exists());
+    }
+
+    #[test]
+    fn validate_skill_name_accepts_spec_names_rejects_unsafe() {
+        assert!(validate_skill_name("test-driven-development").is_ok());
+        assert!(validate_skill_name("pdf").is_ok());
+        assert!(validate_skill_name("../../escape").is_err());
+        assert!(validate_skill_name("Foo").is_err()); // uppercase
+        assert!(validate_skill_name("-lead").is_err());
+        assert!(validate_skill_name("trail-").is_err());
+        assert!(validate_skill_name("double--hyphen").is_err());
+        assert!(validate_skill_name("has/slash").is_err());
+        assert!(validate_skill_name("").is_err());
     }
 
     #[test]
