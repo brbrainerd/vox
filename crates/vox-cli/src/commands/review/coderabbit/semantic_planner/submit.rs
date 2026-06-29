@@ -184,6 +184,45 @@ fn maybe_write_ignored_paths_json(
     Ok(())
 }
 
+/// Exclusive on-disk lock so a second `--execute` PROCESS cannot run concurrently
+/// (complements the GUI's in-process guard). Removed on drop, including error unwind.
+struct RunLock(std::path::PathBuf);
+
+impl RunLock {
+    fn acquire(repo: &Path) -> Result<Self> {
+        let dir = repo.join(".coderabbit");
+        std::fs::create_dir_all(&dir).ok();
+        let path = dir.join("run.lock");
+        match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+        {
+            Ok(mut f) => {
+                use std::io::Write;
+                let _ = writeln!(
+                    f,
+                    "pid={} at={}",
+                    std::process::id(),
+                    chrono::Utc::now().to_rfc3339()
+                );
+                Ok(RunLock(path))
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => anyhow::bail!(
+                "another `--execute` sweep is running ({} exists); remove it if stale",
+                path.display()
+            ),
+            Err(e) => Err(e).context("create .coderabbit/run.lock"),
+        }
+    }
+}
+
+impl Drop for RunLock {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.0);
+    }
+}
+
 async fn run_semantic_submit_core(
     repo: &Path,
     cfg: &SemanticSubmitConfig,
@@ -344,6 +383,9 @@ async fn run_semantic_submit_core(
         );
         return Ok(());
     }
+
+    // Hold an exclusive on-disk lock for the whole execute phase (cross-process guard).
+    let _run_lock = RunLock::acquire(repo).context("acquire run lock")?;
 
     // ── 4. Resolve default branch + publish baseline at origin tip ───────────
     let bridge = GitBridge::open(repo).context("open git repo")?;

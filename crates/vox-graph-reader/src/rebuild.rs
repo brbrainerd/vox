@@ -50,11 +50,19 @@ pub(crate) fn walk_source_files(source_dir: &std::path::Path) -> Vec<std::path::
         .into_iter()
         .filter_entry(|e| {
             let n = e.file_name().to_string_lossy();
-            n != ".git"
+            // Exclude `.claude/worktrees` specifically (nested agent worktrees) rather than
+            // all of `.claude`, so genuine tracked source under `.claude/` is still indexed.
+            let is_claude_worktrees = n == "worktrees"
+                && e.path()
+                    .parent()
+                    .and_then(|p| p.file_name())
+                    .map(|f| f == ".claude")
+                    .unwrap_or(false);
+            !is_claude_worktrees
+                && n != ".git"
                 && n != "target"
                 && n != ".vox"
                 && n != "node_modules"
-                && n != ".claude"
                 && n != ".worktrees"
         })
         .filter_map(|e| e.ok())

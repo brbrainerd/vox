@@ -164,7 +164,9 @@ pub async fn coderabbit_report(app: AppHandle) -> Result<Value, String> {
         .ok()
         .and_then(|s| serde_json::from_str::<Value>(&s).ok())
         .unwrap_or(Value::Null);
-    let db_status = run_vox(
+    // Distinguish "db-status failed" from "0 findings" so the panel can show the
+    // difference instead of silently rendering an error as an empty report.
+    let (db_status, db_error) = match run_vox(
         &app,
         vec![
             "review".into(),
@@ -174,10 +176,14 @@ pub async fn coderabbit_report(app: AppHandle) -> Result<Value, String> {
         ],
     )
     .await
-    .ok()
-    .and_then(|s| serde_json::from_str::<Value>(&s).ok())
-    .unwrap_or(Value::Null);
-    Ok(serde_json::json!({ "run_state": run_state, "db_status": db_status }))
+    {
+        Ok(s) => match serde_json::from_str::<Value>(&s) {
+            Ok(v) => (v, Value::Null),
+            Err(e) => (Value::Null, Value::String(format!("parse db-status: {e}"))),
+        },
+        Err(e) => (Value::Null, Value::String(e)),
+    };
+    Ok(serde_json::json!({ "run_state": run_state, "db_status": db_status, "db_error": db_error }))
 }
 
 /// Read-only token presence via the secrets layer (never a direct env read).
