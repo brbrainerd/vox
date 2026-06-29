@@ -15,6 +15,7 @@ pub mod skill_manifest;
 pub mod skill_parser;
 pub mod skill_registry;
 pub mod telemetry;
+pub mod user_install;
 
 pub use discover::discover;
 pub use errors::{AbiMismatchError, LoadError, PluginMissingError, SkillNotInstalledError};
