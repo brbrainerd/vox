@@ -20,7 +20,7 @@ fn lower_src(src: &str) -> vox_compiler::hir::TypedCoreIR_v2 {
 #[test]
 fn projection_triplet_is_deterministic_and_schema_versioned() {
     let src = r#"
-@table type Task { title: str done: bool }
+table Task { title: str done: bool }
 
 fn Home_render() to str {
     let rows = db.Task.filter({ done: false }).select("title", "done")
@@ -31,10 +31,10 @@ routes {
     "/" to Home_render
 }
 
-@query fn ping() to int { return 1 }
-@server fn sf_ping() to int { return 1 }
-@query fn list_tasks() to int { return 0 }
-@mutation fn save_task(title: str) to int {
+query ping() to int { return 1 }
+server sf_ping() to int { return 1 }
+query list_tasks() to int { return 0 }
+mutation save_task(title: str) to int {
     db.Task.insert({ title: title, done: false })
     return 1
 }
@@ -87,7 +87,7 @@ routes {
 #[test]
 fn projection_triplet_with_back_button_is_deterministic() {
     let src = r#"
-@query fn on_back() to bool { return true }
+query on_back() to bool { return true }
 @back_button {
     on_press: on_back
 }
@@ -114,8 +114,8 @@ fn projection_bundle_fixture_is_deterministic_and_distinct() {
     let src = r#"
 @query @uses(net) fn api_ping() to int { return 1 }
 
-@query fn handle_link(url: str) to str { return "/" }
-@mutation fn store_token(token: str) to str { return token }
+query handle_link(url: str) to str { return "/" }
+mutation store_token(token: str) to str { return token }
 
 @deep_link { scheme: "vox" on_link: handle_link }
 @push { on_register: store_token }

@@ -11,8 +11,8 @@ fn diagnostics_for(source: &str) -> Vec<vox_compiler::typeck::Diagnostic> {
 #[test]
 fn db_table_query_clause_is_lint_error() {
     let src = r#"
-@table type User { name: str active: bool }
-@query fn q() to int {
+table User { name: str active: bool }
+query q() to int {
     db.User.query("active = 1")
     return 0
 }
@@ -28,8 +28,8 @@ fn db_table_query_clause_is_lint_error() {
 #[test]
 fn query_decl_rejects_insert_write_ops() {
     let src = r#"
-@table type User { name: str active: bool }
-@query fn q() to int {
+table User { name: str active: bool }
+query q() to int {
     db.User.insert({ name: "a", active: true })
     return 0
 }
@@ -45,7 +45,7 @@ fn query_decl_rejects_insert_write_ops() {
 #[test]
 fn db_chained_limit_no_longer_reports_unsupported_chain_error() {
     let src = r#"
-@table type User { name: str active: bool }
+table User { name: str active: bool }
 fn q() to int {
     return len(db.User.filter({ active: true }).limit(5))
 }
@@ -61,7 +61,7 @@ fn q() to int {
 #[test]
 fn db_select_typechecks_when_non_optional_columns_included() {
     let src = r#"
-@table type User { name: str active: bool }
+table User { name: str active: bool }
 fn q() to int {
     return len(db.User.all().select("name", "active"))
 }
@@ -76,7 +76,7 @@ fn q() to int {
 #[test]
 fn db_select_allows_partial_projection_records() {
     let src = r#"
-@table type User { name: str active: bool }
+table User { name: str active: bool }
 fn q() to int {
     return len(db.User.all().select("name"))
 }
@@ -91,7 +91,7 @@ fn q() to int {
 #[test]
 fn table_pk_unknown_field_reports_e1041() {
     let src = r#"
-@table(pk: email) type User { name: str active: bool }
+table(pk: email) User { name: str active: bool }
 "#;
     let diags = diagnostics_for(src);
     assert!(diags.iter().any(|d| {
@@ -104,7 +104,7 @@ fn table_pk_unknown_field_reports_e1041() {
 #[test]
 fn table_pk_optional_field_reports_e1042() {
     let src = r#"
-@table(pk: email) type User { email: Option[str] name: str }
+table(pk: email) User { email: Option[str] name: str }
 "#;
     let diags = diagnostics_for(src);
     assert!(diags.iter().any(|d| {
@@ -117,7 +117,7 @@ fn table_pk_optional_field_reports_e1042() {
 #[test]
 fn table_pk_controls_get_delete_argument_type() {
     let src = r#"
-@table(pk: email) type User { email: str name: str }
+table(pk: email) User { email: str name: str }
 fn bad() to Unit {
     db.User.get(42)
     db.User.delete(9)
@@ -135,7 +135,7 @@ fn bad() to Unit {
 #[test]
 fn db_where_unknown_field_reports_error() {
     let src = r#"
-@table type User { name: str active: bool }
+table User { name: str active: bool }
 fn bad() to Unit {
     db.User.where({ nope: { eq: "x" } })
 }

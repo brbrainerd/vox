@@ -39,7 +39,7 @@ fn emit_file(src: &str, path: &str) -> String {
 #[test]
 fn on_mount_endpoint_call_emits_vox_client_import() {
     let src = r#"
-@query fn load_count() to int { return 0 }
+query load_count() to int { return 0 }
 
 component Dashboard() {
     state count: int = 0
@@ -86,7 +86,7 @@ fn multi_arg_endpoint_call_is_rewritten_to_named_object() {
     // the call site matches the client signature (otherwise `args.field` is
     // undefined at runtime).
     let src = r#"
-@mutation fn record_event(kind: str, payload: str) to Result[str] { return Ok("x") }
+mutation record_event(kind: str, payload: str) to Result[str] { return Ok("x") }
 
 component Logger() {
     view: column {
@@ -114,7 +114,7 @@ fn zero_arg_endpoint_call_stays_bare() {
     // Zero-param endpoint fns take no args object — a bare call is correct and
     // must not be wrapped into `f({})`.
     let src = r#"
-@query fn refresh() to int { return 0 }
+query refresh() to int { return 0 }
 
 component Panel() {
     state n: int = 0

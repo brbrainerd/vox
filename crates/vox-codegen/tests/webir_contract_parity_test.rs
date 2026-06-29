@@ -44,14 +44,11 @@ fn endpoint_names_from_contract(src: &str) -> BTreeSet<String> {
 }
 
 const MIXED_ENDPOINT_SRC: &str = r#"
-@server
-fn get_user(id: Int) -> Str { "user" }
+server get_user(id: Int) -> Str { "user" }
 
-@query
-fn search_users(q: Str) -> Str { "results" }
+query search_users(q: Str) -> Str { "results" }
 
-@mutation
-fn create_user(name: Str) -> Str { "created" }
+mutation create_user(name: Str) -> Str { "created" }
 "#;
 
 #[test]

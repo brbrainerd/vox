@@ -37,7 +37,7 @@ routes {
 #[test]
 fn runtime_projection_sort_json_roundtrip() {
     let src = r#"
-@table type T { a: str }
+table T { a: str }
 
 fn f() to Unit {
     db.T.all().sync()
@@ -55,7 +55,7 @@ fn f() to Unit {
 #[test]
 fn module_task_capability_hints_inferred_from_db_using_and_scope() {
     let src = r#"
-@table type T { a: str }
+table T { a: str }
 
 fn q() to Unit {
     db.T.all().using("vector").scope("training").sync()

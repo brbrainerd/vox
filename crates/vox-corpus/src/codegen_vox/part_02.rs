@@ -191,7 +191,7 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
             let fc = 2 + variant % 4;
             let fields = gen_fields(rng, fc);
             (
-                format!("@table type {type_name} {{\n{fields}\n}}"),
+                format!("table {type_name} {{\n{fields}\n}}"),
                 format!("Define a Vox @table schema `{type_name}` with {fc} fields"),
             )
         }
@@ -219,13 +219,13 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
             format!(
                 "@query\nfn get_{noun}(id: int) to str {{\n    let result = db.{type_name}.find(id)\n    return result\n}}"
             ),
-            format!("Write a Vox @query fn to read from `{type_name}`"),
+            format!("Write a Vox query to read from `{type_name}`"),
         ),
         "mutation" => (
             format!(
                 "@mutation\nfn update_{noun}(id: int, value: str) to Unit {{\n    db.{type_name}.update(id, value)\n}}"
             ),
-            format!("Write a Vox @mutation fn to write to `{type_name}`"),
+            format!("Write a Vox mutation to write to `{type_name}`"),
         ),
         "action" => {
             let body = gen_body(rng, &ret_type, complexity, &mut tags);
@@ -276,7 +276,7 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
             let body = gen_body(rng, &ret_type, complexity, &mut tags);
             (
                 format!("@server\nfn {name}({params}) to {ret_type} {{\n{body}\n}}"),
-                format!("Write a Vox @server fn called `{name}`"),
+                format!("Write a Vox server called `{name}`"),
             )
         }
         "const" => {
@@ -302,8 +302,8 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
         "index" => {
             let (f, _) = FIELD_POOL[rng.usize(FIELD_POOL.len())];
             (
-                format!("@index {type_name}.by_{f} on ({f})"),
-                format!("Define a Vox @index on `{type_name}.{f}`"),
+                format!("index {type_name}.by_{f} on ({f})"),
+                format!("Define a Vox index on `{type_name}.{f}`"),
             )
         }
         "vector_index" => (
