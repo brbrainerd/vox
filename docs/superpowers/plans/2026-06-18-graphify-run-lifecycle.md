@@ -1,4 +1,4 @@
-﻿---
+---
 title: "Graphify Graph Run Lifecycle Implementation Plan"
 description: "Implementation plan for corpus path migration, lexical-lag surfacing, TTL env var, VoxScript auto-refresh, and CI freshness gate."
 category: "superpowers"

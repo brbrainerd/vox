@@ -1,4 +1,4 @@
-﻿---
+---
 title: "MENS Training Corpus Health"
 description: "Implementation plan for raising the Vox parse rate from 75.1% to 90%, fixing mix imbalance, adding deduplication, and expanding decorator construct coverage."
 category: "plans"

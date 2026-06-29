@@ -33,6 +33,7 @@
     "fmt",
     "generate",
     "grammar",
+    "graphify",
     "init",
     "llm",
     "lock",
@@ -61,7 +62,6 @@
     "safety",
     "scientia",
     "script",
-    "search",
     "secrets",
     "share",
     "shell",
@@ -80,7 +80,7 @@
     "wasm",
     "workflow"
   ],
-  "surface_count": 111,
+  "surface_count": 112,
   "unclassified_backfilled": [],
   "wiring_violations": []
 }

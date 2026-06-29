@@ -20,6 +20,7 @@ pub mod identity;
 pub mod llm_settings;
 pub mod mcp;
 pub mod memory;
+pub mod mercatus;
 pub mod mesh;
 pub mod mic;
 pub mod mission_control;

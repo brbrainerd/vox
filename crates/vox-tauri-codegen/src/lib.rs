@@ -109,7 +109,9 @@ pub fn write_tauri_desktop_config(path: &Path, params: &TauriEmitParams<'_>) -> 
 
 // tauri-build probes icons/icon.png at compile time regardless of bundle.icon config.
 // Copy the repo icon so the proc macro doesn't panic; this file is never bundled here.
-fn seed_placeholder_icon(src_tauri_dir: &Path) -> Result<()> {
+// Public so the bundle path can seed the generated src-tauri dir BEFORE `cargo tauri build`
+// runs (the emit/write paths run too late for the desktop compile smoke).
+pub fn seed_placeholder_icon(src_tauri_dir: &Path) -> Result<()> {
     let icon_dst = src_tauri_dir.join("icons/icon.png");
     if icon_dst.is_file() {
         return Ok(());

@@ -513,6 +513,14 @@ class VoxTransport {
   overruleTask(taskId: number, reason: string): Promise<unknown> {
     return invoke('overrule_orchestrator_task', { taskId, reason });
   }
+
+  mercatusLoadConfig(): Promise<unknown> {
+    return invoke('mercatus_load_config');
+  }
+
+  mercatusSaveConfig(config: unknown): Promise<void> {
+    return invoke('mercatus_save_config', { config });
+  }
 }
 
 export const voxTransport = new VoxTransport();

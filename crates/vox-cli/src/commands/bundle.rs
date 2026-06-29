@@ -328,6 +328,13 @@ async fn build_tauri_app(
         .stdout(std::process::Stdio::inherit())
         .stderr(std::process::Stdio::inherit());
 
+    // tauri-build's `generate_context!()` proc macro probes src-tauri/icons/icon.png at
+    // compile time. The codegen emit path writes tauri.conf.json but not the icon, so seed
+    // it here — right before the build — or the desktop compile smoke panics with
+    // "failed to open icon ... No such file or directory".
+    vox_tauri_codegen::seed_placeholder_icon(&generated_dir.join("src-tauri"))
+        .context("seed placeholder tauri icon before cargo tauri build")?;
+
     println!(
         "  Running `cargo tauri build` in {} (install tauri-cli v2 if this fails: `cargo install tauri-cli --version '^2'`)",
         generated_dir.display()

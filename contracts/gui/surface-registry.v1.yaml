@@ -145,6 +145,14 @@ surfaces:
   nav_group: operate
   parent_surface: agents
   notes: policy/intention matrix
+- view_key: mercatus
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Mercatus
+  nav_icon: scale
+  nav_group: operate
+  parent_surface: null
+  notes: Price-watch surface; IPC-backed coverage matrix over price-watch.config.json
 - view_key: mesh
   cli_group: null
   representation_tier: live_backend
