@@ -258,19 +258,9 @@ impl DomArena {
                     }
                     P::Ident(_, _) | P::Tuple(_, _) => false,
                 };
-                // A non-terminal wildcard makes later arms unreachable in source order,
-                // but the chain hoists `_` into the base `else` — which would resurrect them.
-                // So only fast-path when the wildcard (if any) is the last arm.
                 let supported = arms
                     .iter()
-                    .all(|a| a.guard.is_none() && is_non_binding(&a.pattern))
-                    && match arms
-                        .iter()
-                        .position(|a| matches!(a.pattern, P::Wildcard(_)))
-                    {
-                        None => true,
-                        Some(idx) => idx == arms.len() - 1,
-                    };
+                    .all(|a| a.guard.is_none() && is_non_binding(&a.pattern));
                 if !supported {
                     self.expr_fallback_count += 1;
                     let ts = emit_hir_expr(expr, &ctx);
