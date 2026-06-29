@@ -1,10 +1,12 @@
 //! Stage-2/3 deterministic harness: the pure outcome classifier plus the
 //! vox_agy_pipeline / vox_agy_review / vox_agy_ledger_digest tools.
 
-use crate::agy_doctor::{detect, remediation, AgyStatus};
+use crate::agy_doctor::{AgyStatus, detect, remediation};
 use crate::agy_exec::{AgyExec, AgySpec};
-use crate::agy_gates::{run_gates, Gate, GateResult};
-use crate::agy_ledger::{append_entry_locked, append_review_locked, ledger_digest, LedgerEntry, ReviewRecord};
+use crate::agy_gates::{Gate, GateResult, run_gates};
+use crate::agy_ledger::{
+    LedgerEntry, ReviewRecord, append_entry_locked, append_review_locked, ledger_digest,
+};
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -15,7 +17,11 @@ use std::sync::atomic::{AtomicU64, Ordering};
 ///
 /// agy's own exit code is intentionally NOT used — it's an agent wrapper whose
 /// exit code doesn't reliably reflect correctness; the EFFECT is the signal (B-9).
-pub fn classify_outcome(files_changed: usize, gates: &[GateResult], timed_out: bool) -> &'static str {
+pub fn classify_outcome(
+    files_changed: usize,
+    gates: &[GateResult],
+    timed_out: bool,
+) -> &'static str {
     if timed_out || files_changed == 0 {
         return "failed";
     }
@@ -31,8 +37,7 @@ pub fn classify_outcome(files_changed: usize, gates: &[GateResult], timed_out: b
 
 static PIPELINE_SEQ: AtomicU64 = AtomicU64::new(1);
 
-const REM_TASK: &str =
-    "Provide a non-empty 'task' with an exact, zero-ambiguity spec, and 'gates' \
+const REM_TASK: &str = "Provide a non-empty 'task' with an exact, zero-ambiguity spec, and 'gates' \
      scoped to the touched crate (e.g. cargo build -p <crate>, with env CARGO_TARGET_DIR \
      set to the main target) so the result is verified.";
 
@@ -57,12 +62,23 @@ fn doctor_status_label() -> (&'static str, String) {
 pub fn pipeline_validate(
     args: &serde_json::Value,
 ) -> Result<(String, Option<String>, u64, Vec<Gate>), String> {
-    let task = args.get("task").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+    let task = args
+        .get("task")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
     if task.is_empty() {
         return Err("Missing non-empty 'task'.".into());
     }
-    let model = args.get("model").and_then(|v| v.as_str()).map(|s| s.to_string());
-    let timeout_secs = args.get("timeout_secs").and_then(|v| v.as_u64()).unwrap_or(900);
+    let model = args
+        .get("model")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    let timeout_secs = args
+        .get("timeout_secs")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(900);
     let gates: Vec<Gate> = match args.get("gates") {
         Some(g) => serde_json::from_value(g.clone())
             .map_err(|e| format!("'gates' must be [{{name, program, args, env}}]: {e}"))?,
@@ -75,7 +91,9 @@ pub fn pipeline_validate(
 pub async fn vox_agy_pipeline(state: &ServerState, args: serde_json::Value) -> String {
     let (task, model, timeout_secs, gates) = match pipeline_validate(&args) {
         Ok(v) => v,
-        Err(e) => return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_TASK).to_json(),
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_TASK).to_json();
+        }
     };
 
     let (label, rem) = doctor_status_label();
@@ -96,7 +114,7 @@ pub async fn vox_agy_pipeline(state: &ServerState, args: serde_json::Value) -> S
                 format!("could not create delegation worktree: {e}"),
                 "Ensure the repo is a git work tree with a committed HEAD.",
             )
-            .to_json()
+            .to_json();
         }
     };
 
@@ -105,7 +123,11 @@ pub async fn vox_agy_pipeline(state: &ServerState, args: serde_json::Value) -> S
     let mut attempt = 0u32;
     let max_attempts = 3u32;
     let out = loop {
-        let spec = AgySpec { task: task.clone(), model: model.clone(), timeout_secs };
+        let spec = AgySpec {
+            task: task.clone(),
+            model: model.clone(),
+            timeout_secs,
+        };
         let o = exec.run(&spec).await;
         let (stderr, exit, timed) = match &o {
             Ok(x) => (x.stderr.clone(), x.exit_code, x.timed_out),
@@ -145,7 +167,14 @@ pub async fn vox_agy_pipeline(state: &ServerState, args: serde_json::Value) -> S
     let id = append_entry_locked(
         &repo_root,
         LedgerEntry::new(
-            "agy-pipeline", &task, outcome, timed_out, exit_code, files_changed, timeout_secs, &today(),
+            "agy-pipeline",
+            &task,
+            outcome,
+            timed_out,
+            exit_code,
+            files_changed,
+            timeout_secs,
+            &today(),
         )
         .with_verification(gate_summary.clone()),
     )
@@ -185,24 +214,45 @@ pub async fn vox_agy_pipeline(state: &ServerState, args: serde_json::Value) -> S
 
 /// (ledger_id, ReviewRecord) from a vox_agy_review call.
 pub fn review_validate(args: &serde_json::Value) -> Result<(String, ReviewRecord), String> {
-    let id = args.get("ledger_id").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+    let id = args
+        .get("ledger_id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
     if id.is_empty() {
         return Err("Missing 'ledger_id' (the AGH id returned by vox_agy_pipeline).".into());
     }
-    let verdict = args.get("verdict").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+    let verdict = args
+        .get("verdict")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
     if verdict.is_empty() {
-        return Err("Missing 'verdict' (approve | approve-with-followups | request-changes).".into());
+        return Err(
+            "Missing 'verdict' (approve | approve-with-followups | request-changes).".into(),
+        );
     }
     let str_list = |key: &str| -> Vec<String> {
         args.get(key)
             .and_then(|v| v.as_array())
-            .map(|a| a.iter().filter_map(|x| x.as_str()).map(|s| s.to_string()).collect())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|x| x.as_str())
+                    .map(|s| s.to_string())
+                    .collect()
+            })
             .unwrap_or_default()
     };
     let rec = ReviewRecord {
         verdict,
         categories: str_list("categories"),
-        findings: args.get("findings").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        findings: args
+            .get("findings")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
         lessons: str_list("lessons"),
         date: today(),
     };
@@ -260,7 +310,13 @@ mod tests {
     use crate::agy_gates::GateResult;
 
     fn gate(passed: bool) -> GateResult {
-        GateResult { name: "g".into(), passed, exit_code: if passed { 0 } else { 1 }, output_tail: String::new(), elapsed_ms: 0 }
+        GateResult {
+            name: "g".into(),
+            passed,
+            exit_code: if passed { 0 } else { 1 },
+            output_tail: String::new(),
+            elapsed_ms: 0,
+        }
     }
 
     #[test]
@@ -277,11 +333,17 @@ mod tests {
     }
     #[test]
     fn changes_with_all_gates_passing_is_green() {
-        assert_eq!(classify_outcome(3, &[gate(true), gate(true)], false), "green");
+        assert_eq!(
+            classify_outcome(3, &[gate(true), gate(true)], false),
+            "green"
+        );
     }
     #[test]
     fn changes_with_a_failing_gate_is_partial() {
-        assert_eq!(classify_outcome(3, &[gate(true), gate(false)], false), "partial");
+        assert_eq!(
+            classify_outcome(3, &[gate(true), gate(false)], false),
+            "partial"
+        );
     }
 
     #[test]
@@ -290,7 +352,8 @@ mod tests {
         let (task, model, t, gates) = pipeline_validate(&serde_json::json!({
             "task": "do X",
             "gates": [{"name": "build", "program": "cargo", "args": ["build", "-p", "foo"]}]
-        })).unwrap();
+        }))
+        .unwrap();
         assert_eq!(task, "do X");
         assert!(model.is_none());
         assert_eq!(t, 900);
@@ -308,7 +371,8 @@ mod tests {
             "categories": ["hallucinated-api"],
             "findings": "no import emitted",
             "lessons": ["verify framework primitive"]
-        })).unwrap();
+        }))
+        .unwrap();
         assert_eq!(id, "AGH-0007");
         assert_eq!(rec.verdict, "request-changes");
         assert_eq!(rec.categories, vec!["hallucinated-api"]);

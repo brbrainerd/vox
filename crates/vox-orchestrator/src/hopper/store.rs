@@ -249,7 +249,14 @@ impl HopperIntake for SwappableHopper {
             let guard = self.inner.read().await;
             guard.clone()
         };
-        inner.replay_overridden(item_id, new_priority, override_at_unix_ms, override_by_node_id).await
+        inner
+            .replay_overridden(
+                item_id,
+                new_priority,
+                override_at_unix_ms,
+                override_by_node_id,
+            )
+            .await
     }
 
     async fn replay_transitioned(
@@ -481,7 +488,9 @@ impl HopperIntake for InMemoryHopper {
             .find(|i| &i.item_id == item_id)
             .ok_or_else(|| HopperError::NotFound(item_id.0.clone()))?;
 
-        if item.classified_priority == new_priority && item.priority_source == PrioritySource::Developer {
+        if item.classified_priority == new_priority
+            && item.priority_source == PrioritySource::Developer
+        {
             return Ok(item.clone());
         }
 

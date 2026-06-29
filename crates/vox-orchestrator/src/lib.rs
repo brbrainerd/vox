@@ -53,8 +53,8 @@ pub mod json_vcs_facade;
 /// Pure conflict-recording core for workspace merge-back.
 pub mod merge_conflicts;
 
-pub mod lineage;
 pub mod feedback;
+pub mod lineage;
 
 /// `VOX_ROUTE_*` alignment helpers for registry/MCP paths (see contracts orchestration routing YAML).
 pub mod route_policy;

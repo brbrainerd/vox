@@ -134,7 +134,10 @@ impl AgyExec {
                 tracing::warn!(target: "vox.agy.exec", timeout_secs = spec.timeout_secs, "agy delegation timed out; child killed");
                 Ok(AgyOutput {
                     stdout: String::new(),
-                    stderr: format!("agy delegation exceeded {}s; process killed", spec.timeout_secs),
+                    stderr: format!(
+                        "agy delegation exceeded {}s; process killed",
+                        spec.timeout_secs
+                    ),
                     exit_code: -1,
                     timed_out: true,
                     elapsed_ms: started.elapsed().as_millis() as u64,
@@ -146,7 +149,9 @@ impl AgyExec {
 
 /// Classify outcome for retry + ledger category. None on success.
 pub fn classify_failure(stderr: &str, exit_code: i32, timed_out: bool) -> Option<&'static str> {
-    if timed_out { return Some("timeout"); }
+    if timed_out {
+        return Some("timeout");
+    }
     let s = stderr.to_ascii_lowercase();
     if s.contains("quota") || s.contains("rate limit") || s.contains("resource_exhausted") {
         return Some("quota");
@@ -156,7 +161,9 @@ pub fn classify_failure(stderr: &str, exit_code: i32, timed_out: bool) -> Option
 
 /// Pure retry decision. `attempt` 0-based; `max_attempts` the cap.
 pub fn should_retry(class: &str, attempt: u32, max_attempts: u32) -> bool {
-    if attempt + 1 >= max_attempts { return false; }
+    if attempt + 1 >= max_attempts {
+        return false;
+    }
     match class {
         "quota" => true,
         "timeout" => attempt < 1,
@@ -170,7 +177,11 @@ mod tests {
 
     #[test]
     fn builds_headless_autoaccept_args_without_sandbox() {
-        let spec = AgySpec { task: "Refactor foo".into(), model: None, timeout_secs: 600 };
+        let spec = AgySpec {
+            task: "Refactor foo".into(),
+            model: None,
+            timeout_secs: 600,
+        };
         let args = build_args(&spec);
         assert_eq!(args[0], "-p");
         assert_eq!(args[1], "Refactor foo");
@@ -180,7 +191,14 @@ mod tests {
 
     #[test]
     fn rejects_empty_task() {
-        assert!(validate_spec(&AgySpec { task: "  ".into(), model: None, timeout_secs: 1 }).is_err());
+        assert!(
+            validate_spec(&AgySpec {
+                task: "  ".into(),
+                model: None,
+                timeout_secs: 1
+            })
+            .is_err()
+        );
     }
 
     #[test]
@@ -193,7 +211,11 @@ mod tests {
     #[tokio::test]
     async fn run_reports_timeout_or_notfound_fast() {
         let exec = AgyExec::new(std::env::temp_dir());
-        let spec = AgySpec { task: "noop".into(), model: None, timeout_secs: 1 };
+        let spec = AgySpec {
+            task: "noop".into(),
+            model: None,
+            timeout_secs: 1,
+        };
         match exec.run(&spec).await {
             Ok(o) => assert!(o.timed_out || o.exit_code != 0 || o.exit_code == 0),
             Err(e) => assert!(matches!(e, AgyExecError::NotFound | AgyExecError::Spawn(_))),
@@ -203,7 +225,10 @@ mod tests {
     #[test]
     fn classifies_quota_timeout_error_success() {
         assert_eq!(classify_failure("quota exceeded", 1, false), Some("quota"));
-        assert_eq!(classify_failure("RESOURCE_EXHAUSTED", 1, false), Some("quota"));
+        assert_eq!(
+            classify_failure("RESOURCE_EXHAUSTED", 1, false),
+            Some("quota")
+        );
         assert_eq!(classify_failure("", -1, true), Some("timeout"));
         assert_eq!(classify_failure("boom", 2, false), Some("error"));
         assert_eq!(classify_failure("fine", 0, false), None);
@@ -212,9 +237,9 @@ mod tests {
     #[test]
     fn retry_policy() {
         assert!(should_retry("quota", 0, 3));
-        assert!(!should_retry("quota", 2, 3));   // hit cap
+        assert!(!should_retry("quota", 2, 3)); // hit cap
         assert!(should_retry("timeout", 0, 3));
         assert!(!should_retry("timeout", 1, 3)); // one extra try only
-        assert!(!should_retry("error", 0, 3));   // non-retryable
+        assert!(!should_retry("error", 0, 3)); // non-retryable
     }
 }

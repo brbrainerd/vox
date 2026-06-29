@@ -1,13 +1,13 @@
 //! MCP tools for delegating to Antigravity `agy` (doctor + single + batch).
 
-use crate::agy_doctor::{detect, remediation, AgyStatus};
+use crate::agy_doctor::{AgyStatus, detect, remediation};
 use crate::agy_exec::{AgyExec, AgySpec};
-use crate::agy_ledger::{append_entry_locked, LedgerEntry};
+use crate::agy_ledger::{LedgerEntry, append_entry_locked};
 use crate::agy_worktree::DelegationWorktree;
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::Semaphore;
 
 static DELEGATION_SEQ: AtomicU64 = AtomicU64::new(1);
@@ -33,13 +33,26 @@ pub async fn vox_agy_doctor(_state: &ServerState, _args: serde_json::Value) -> S
     ToolResult::ok(doctor_report_json()).to_json()
 }
 
-pub fn delegate_validate(args: &serde_json::Value) -> Result<(String, Option<String>, u64), String> {
-    let task = args.get("task").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+pub fn delegate_validate(
+    args: &serde_json::Value,
+) -> Result<(String, Option<String>, u64), String> {
+    let task = args
+        .get("task")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
     if task.is_empty() {
         return Err("Missing non-empty 'task'.".into());
     }
-    let model = args.get("model").and_then(|v| v.as_str()).map(|s| s.to_string());
-    let timeout_secs = args.get("timeout_secs").and_then(|v| v.as_u64()).unwrap_or(900);
+    let model = args
+        .get("model")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    let timeout_secs = args
+        .get("timeout_secs")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(900);
     Ok((task, model, timeout_secs))
 }
 
@@ -56,7 +69,9 @@ fn fresh_slug(hint: &str) -> String {
 
 fn tail(s: &str, n: usize) -> String {
     let len = s.chars().count();
-    if len <= n { return s.to_string(); }
+    if len <= n {
+        return s.to_string();
+    }
     s.chars().skip(len - n).collect()
 }
 
@@ -66,25 +81,34 @@ const REM_TASK: &str = "Provide a non-empty 'task' string with an exact, zero-am
 pub async fn vox_agy_delegate(state: &ServerState, args: serde_json::Value) -> String {
     let (task, model, timeout_secs) = match delegate_validate(&args) {
         Ok(v) => v,
-        Err(e) => return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_TASK).to_json(),
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_TASK).to_json();
+        }
     };
     // Doctor gate: fail fast with actionable remediation, not an opaque spawn error.
     let report = doctor_report_json();
     if report["status"] != "ready" {
         return ToolResult::<serde_json::Value>::err_with_remediation(
             format!("agy not ready (status: {}).", report["status"]),
-            report["remediation"].as_str().unwrap_or("Run vox_agy_doctor.").to_string(),
-        ).to_json();
+            report["remediation"]
+                .as_str()
+                .unwrap_or("Run vox_agy_doctor.")
+                .to_string(),
+        )
+        .to_json();
     }
 
     let repo_root = state.repository.root.clone();
     let slug = fresh_slug(&task);
     let wt = match DelegationWorktree::create(&repo_root, &slug).await {
         Ok(w) => w,
-        Err(e) => return ToolResult::<serde_json::Value>::err_with_remediation(
-            format!("could not create delegation worktree: {e}"),
-            "Ensure the repo is a git work tree with a committed HEAD.",
-        ).to_json(),
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                format!("could not create delegation worktree: {e}"),
+                "Ensure the repo is a git work tree with a committed HEAD.",
+            )
+            .to_json();
+        }
     };
 
     // Retry loop (quota/timeout-aware).
@@ -92,7 +116,11 @@ pub async fn vox_agy_delegate(state: &ServerState, args: serde_json::Value) -> S
     let mut attempt = 0u32;
     let max_attempts = 3u32;
     let out = loop {
-        let spec = AgySpec { task: task.clone(), model: model.clone(), timeout_secs };
+        let spec = AgySpec {
+            task: task.clone(),
+            model: model.clone(),
+            timeout_secs,
+        };
         let o = exec.run(&spec).await;
         let (stderr, exit, timed) = match &o {
             Ok(x) => (x.stderr.clone(), x.exit_code, x.timed_out),
@@ -110,16 +138,36 @@ pub async fn vox_agy_delegate(state: &ServerState, args: serde_json::Value) -> S
 
     let (outcome, exit_code, timed_out, stderr) = match &out {
         Ok(o) => (
-            if o.timed_out { "failed" } else if o.exit_code == 0 { "partial" } else { "failed" },
-            o.exit_code, o.timed_out, o.stderr.clone()
+            if o.timed_out {
+                "failed"
+            } else if o.exit_code == 0 {
+                "partial"
+            } else {
+                "failed"
+            },
+            o.exit_code,
+            o.timed_out,
+            o.stderr.clone(),
         ),
         Err(e) => ("failed", -1, false, e.to_string()),
     };
     let (diff, files_changed) = wt.capture().await.unwrap_or_else(|_| (String::new(), 0));
 
-    let id = append_entry_locked(&repo_root, LedgerEntry::new(
-        "agy-delegation", &task, outcome, timed_out, exit_code, files_changed, timeout_secs, &today(),
-    )).await.unwrap_or_else(|_| "AGH-unwritten".into());
+    let id = append_entry_locked(
+        &repo_root,
+        LedgerEntry::new(
+            "agy-delegation",
+            &task,
+            outcome,
+            timed_out,
+            exit_code,
+            files_changed,
+            timeout_secs,
+            &today(),
+        ),
+    )
+    .await
+    .unwrap_or_else(|_| "AGH-unwritten".into());
 
     ToolResult::ok(serde_json::json!({
         "ledger_id": id,
@@ -139,14 +187,28 @@ pub async fn vox_agy_delegate(state: &ServerState, args: serde_json::Value) -> S
 }
 
 pub fn batch_validate(args: &serde_json::Value) -> Result<(Vec<String>, usize, u64), String> {
-    let tasks: Vec<String> = args.get("tasks").and_then(|v| v.as_array())
-        .map(|a| a.iter().filter_map(|x| x.as_str()).map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect())
+    let tasks: Vec<String> = args
+        .get("tasks")
+        .and_then(|v| v.as_array())
+        .map(|a| {
+            a.iter()
+                .filter_map(|x| x.as_str())
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect()
+        })
         .unwrap_or_default();
     if tasks.is_empty() {
         return Err("Provide a non-empty 'tasks' array of file-disjoint spec strings.".into());
     }
-    let conc = args.get("max_concurrency").and_then(|v| v.as_u64()).unwrap_or(3) as usize;
-    let timeout_secs = args.get("timeout_secs").and_then(|v| v.as_u64()).unwrap_or(900);
+    let conc = args
+        .get("max_concurrency")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(3) as usize;
+    let timeout_secs = args
+        .get("timeout_secs")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(900);
     Ok((tasks, conc.clamp(1, MAX_CONCURRENCY), timeout_secs))
 }
 
@@ -163,8 +225,12 @@ pub async fn vox_agy_delegate_batch(state: &ServerState, args: serde_json::Value
     if report["status"] != "ready" {
         return ToolResult::<serde_json::Value>::err_with_remediation(
             format!("agy not ready (status: {}).", report["status"]),
-            report["remediation"].as_str().unwrap_or("Run vox_agy_doctor.").to_string(),
-        ).to_json();
+            report["remediation"]
+                .as_str()
+                .unwrap_or("Run vox_agy_doctor.")
+                .to_string(),
+        )
+        .to_json();
     }
 
     let sem = Arc::new(Semaphore::new(conc));
@@ -180,7 +246,11 @@ pub async fn vox_agy_delegate_batch(state: &ServerState, args: serde_json::Value
     }
     let mut results = Vec::new();
     for h in handles {
-        results.push(h.await.unwrap_or_else(|e| format!("{{\"ok\":false,\"error\":\"worker join failed: {e}\"}}")));
+        results.push(
+            h.await.unwrap_or_else(|e| {
+                format!("{{\"ok\":false,\"error\":\"worker join failed: {e}\"}}")
+            }),
+        );
     }
     ToolResult::ok(serde_json::json!({
         "workers": results.len(),
@@ -193,17 +263,20 @@ pub async fn vox_agy_delegate_batch(state: &ServerState, args: serde_json::Value
 pub fn credentials_status_json() -> serde_json::Value {
     let secret_rows: Vec<serde_json::Value> = vox_secrets::list_secret_status()
         .into_iter()
-        .map(|row| serde_json::json!({
-            "id": row.id,
-            "env": row.canonical_env,
-            "present": row.is_present,
-            "required": row.required,
-        }))
+        .map(|row| {
+            serde_json::json!({
+                "id": row.id,
+                "env": row.canonical_env,
+                "present": row.is_present,
+                "required": row.required,
+            })
+        })
         .collect();
-    let inference: Vec<String> = vox_orchestrator::models::key_guard::available_inference_providers()
-        .into_iter()
-        .map(|p| format!("{p:?}"))
-        .collect();
+    let inference: Vec<String> =
+        vox_orchestrator::models::key_guard::available_inference_providers()
+            .into_iter()
+            .map(|p| format!("{p:?}"))
+            .collect();
     serde_json::json!({
         "inference_providers": inference,
         "secrets": secret_rows,
@@ -239,7 +312,9 @@ mod tests {
     #[test]
     fn batch_validate_requires_tasks_and_clamps_concurrency() {
         assert!(batch_validate(&serde_json::json!({"tasks": []})).is_err());
-        let (tasks, conc, _t) = batch_validate(&serde_json::json!({"tasks":["a","b","c"],"max_concurrency":99})).unwrap();
+        let (tasks, conc, _t) =
+            batch_validate(&serde_json::json!({"tasks":["a","b","c"],"max_concurrency":99}))
+                .unwrap();
         assert_eq!(tasks.len(), 3);
         assert!(conc <= 8 && conc >= 1);
     }
