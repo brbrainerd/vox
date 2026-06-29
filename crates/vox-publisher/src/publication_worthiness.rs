@@ -357,6 +357,11 @@ pub fn apply_prior_art_to_worthiness_inputs(
             "novelty_chrono_filtered: dropped {} future-dated hit(s) (claim_year={claim_year})",
             assessment.excluded_future_hits
         ));
+        // All hits were future-dated and filtered away — no genuine prior art remains.
+        // Absence of past evidence does not suppress novelty; return without capping.
+        if assessment.excluded_future_hits == bundle.normalized_hits.len() {
+            return out;
+        }
     }
 
     let before = inputs.novelty;
