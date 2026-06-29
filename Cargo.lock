@@ -17329,7 +17329,7 @@ dependencies = [
 
 [[package]]
 name = "vox-similarity"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "blake3",
  "serde",
@@ -17337,7 +17337,7 @@ dependencies = [
 
 [[package]]
 name = "vox-skill-discovery"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -17494,7 +17494,7 @@ dependencies = [
 
 [[package]]
 name = "vox-term"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "alacritty_terminal",
  "anyhow",
