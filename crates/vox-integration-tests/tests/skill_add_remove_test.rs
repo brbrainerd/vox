@@ -35,7 +35,10 @@ async fn add_then_remove_local_skill() {
     let list_resp = tools(&state, "vox_skill_list", serde_json::json!({}))
         .await
         .unwrap();
-    assert!(list_resp.contains("fixture-skill"), "not listed: {list_resp}");
+    assert!(
+        list_resp.contains("fixture-skill"),
+        "not listed: {list_resp}"
+    );
 
     // 3. The directory landed under the isolated workspace's .vox/skills.
     let installed_dir = ws.path().join(".vox/skills/fixture-skill");
