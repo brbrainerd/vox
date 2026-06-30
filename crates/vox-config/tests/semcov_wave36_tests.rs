@@ -2,6 +2,8 @@
 //! routing policy, project manifest parsing, and secrets cutover migration helpers.
 //!
 //! Module: semcov_wave36_tests
+// Rust 2024 made std::env::{set_var,remove_var} unsafe; serialized via ENV_LOCK below.
+#![allow(unsafe_code)]
 
 use std::path::Path;
 use std::sync::Mutex;
