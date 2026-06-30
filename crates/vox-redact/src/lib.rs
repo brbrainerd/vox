@@ -10,6 +10,7 @@ use std::sync::OnceLock;
 
 static RE_EMAIL: OnceLock<Regex> = OnceLock::new();
 static RE_API_KEY: OnceLock<Regex> = OnceLock::new();
+static RE_TOKEN: OnceLock<Regex> = OnceLock::new();
 static RE_IPV4: OnceLock<Regex> = OnceLock::new();
 static RE_HOME: OnceLock<Regex> = OnceLock::new();
 
@@ -43,10 +44,30 @@ fn re_home() -> &'static Regex {
     })
 }
 
+fn re_token() -> &'static Regex {
+    // High-precision, low-false-positive vendor token shapes that appear as bare
+    // VALUES (no `key=` prefix) — catches secrets stored under non-secret JSON keys.
+    RE_TOKEN.get_or_init(|| {
+        Regex::new(
+            r"(?x)
+            \b(?:
+              gh[posru]_[A-Za-z0-9]{20,}      # GitHub PAT / OAuth / server / refresh
+            | github_pat_[A-Za-z0-9_]{20,}     # GitHub fine-grained PAT
+            | sk-[A-Za-z0-9-]{20,}             # OpenAI-style secret key
+            | xox[baprs]-[A-Za-z0-9-]{10,}     # Slack tokens
+            | AKIA[0-9A-Z]{16}                 # AWS access key id
+            | eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}  # JWT
+            )\b",
+        )
+        .unwrap()
+    })
+}
+
 /// Redact PII/secret patterns in free text. Conservative: unknown patterns pass through.
 pub fn redact_owned(text: &str) -> String {
     let s = re_email().replace_all(text, "[REDACTED_EMAIL]");
     let s = re_api_key().replace_all(&s, "[REDACTED_KEY]");
+    let s = re_token().replace_all(&s, "[REDACTED_KEY]");
     let s = re_ipv4().replace_all(&s, "[REDACTED_IP]");
     let s = re_home().replace_all(&s, "~[REDACTED_PATH]");
     s.into_owned()
@@ -144,6 +165,19 @@ mod tests {
             out["note"].as_str().unwrap().contains("[REDACTED_KEY]"),
             "got {out}"
         );
+    }
+
+    #[test]
+    fn bare_vendor_tokens_redacted_without_key_prefix() {
+        // Secret as a bare value under a non-secret key — caught by re_token.
+        let out = redact_args(&json!({ "data": "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" }));
+        assert!(
+            out["data"].as_str().unwrap().contains("[REDACTED_KEY]"),
+            "got {out}"
+        );
+        assert!(redact_owned("token is AKIAIOSFODNN7EXAMPLE here").contains("[REDACTED_KEY]"));
+        // A plain non-secret value is untouched.
+        assert_eq!(redact_owned("just some normal text"), "just some normal text");
     }
 
     #[test]

@@ -9,7 +9,13 @@ const MAX_FIELD: usize = 8 * 1024;
 
 fn cap(mut s: String) -> String {
     if s.len() > MAX_FIELD {
-        s.truncate(MAX_FIELD);
+        // Back up to a UTF-8 char boundary — `truncate` panics mid-codepoint,
+        // and tool args/results routinely contain multibyte text (paths, CJK, emoji).
+        let mut end = MAX_FIELD;
+        while end > 0 && !s.is_char_boundary(end) {
+            end -= 1;
+        }
+        s.truncate(end);
         s.push_str("…[truncated]");
     }
     s
@@ -71,6 +77,16 @@ mod tests {
         let out = cap(big);
         assert!(out.len() <= MAX_FIELD + "…[truncated]".len());
         assert!(out.ends_with("[truncated]"));
+    }
+
+    #[test]
+    fn cap_does_not_panic_on_multibyte_boundary() {
+        // 3-byte chars: byte 8192 lands mid-codepoint → naive truncate would panic.
+        let big = "あ".repeat(MAX_FIELD); // 3 bytes each, well over MAX_FIELD bytes
+        let out = cap(big); // must not panic
+        assert!(out.ends_with("[truncated]"));
+        // The truncated prefix is still valid UTF-8 (String guarantees it).
+        assert!(out.len() <= MAX_FIELD + "…[truncated]".len());
     }
 
     #[tokio::test]
