@@ -44,16 +44,17 @@ fn infer_vox_category(path: &Path, source: &str) -> String {
     if content_lower.contains("@mcp.tool") {
         return "mcp_tool".to_string();
     }
-    if content_lower.contains("@table") {
+    let line_starts = |kw: &str| source.lines().any(|l| l.trim_start().starts_with(kw));
+    if content_lower.contains("@table") || line_starts("table ") || line_starts("table(") {
         return "table".to_string();
     }
     if content_lower.contains("@component") || content_lower.contains("component fn") {
         return "component".to_string();
     }
-    if content_lower.contains("@query") {
+    if content_lower.contains("@query") || line_starts("query ") {
         return "query".to_string();
     }
-    if content_lower.contains("@mutation") {
+    if content_lower.contains("@mutation") || line_starts("mutation ") {
         return "mutation".to_string();
     }
 
@@ -98,7 +99,10 @@ fn extract_construct_blocks_heuristic(source: &str) -> Vec<(String, String, Stri
         } else if trimmed.starts_with("@workflow") || trimmed.contains("workflow fn") {
             let n = extract_vox_name(trimmed, "fn ");
             ("workflow", n)
-        } else if trimmed.starts_with("@table") {
+        } else if trimmed.starts_with("@table")
+            || trimmed.starts_with("table ")
+            || trimmed.starts_with("table(")
+        {
             let n = extract_vox_type_name(trimmed);
             ("table", n)
         } else if trimmed.starts_with("type ") {
@@ -110,11 +114,11 @@ fn extract_construct_blocks_heuristic(source: &str) -> Vec<(String, String, Stri
         } else if trimmed.starts_with("@mcp.tool") {
             let n = extract_vox_name(trimmed, "fn ");
             ("mcp_tool", n)
-        } else if trimmed.starts_with("@query") {
-            let n = extract_vox_name(trimmed, "fn ");
+        } else if trimmed.starts_with("@query") || trimmed.starts_with("query ") {
+            let n = extract_vox_name(trimmed, if trimmed.starts_with("query ") { "query " } else { "fn " });
             ("query", n)
-        } else if trimmed.starts_with("@mutation") {
-            let n = extract_vox_name(trimmed, "fn ");
+        } else if trimmed.starts_with("@mutation") || trimmed.starts_with("mutation ") {
+            let n = extract_vox_name(trimmed, if trimmed.starts_with("mutation ") { "mutation " } else { "fn " });
             ("mutation", n)
         } else if trimmed.starts_with("@test") || trimmed.starts_with("test fn") {
             let n = extract_vox_name(trimmed, "fn ");
@@ -178,6 +182,22 @@ fn extract_vox_name(line: &str, after_kw: &str) -> String {
 }
 
 fn extract_vox_type_name(line: &str) -> String {
+    let t = line.trim_start();
+    // Soft-keyword form: `table Name {` or `table(args) Name {`.
+    let kw_rest = t
+        .strip_prefix("table(")
+        .and_then(|r| r.split_once(')').map(|(_, after)| after))
+        .or_else(|| t.strip_prefix("table "));
+    if let Some(rest) = kw_rest {
+        let rest = rest.trim_start();
+        let end = rest
+            .find(|c: char| !c.is_alphanumeric() && c != '_')
+            .unwrap_or(rest.len());
+        if end > 0 {
+            return rest[..end].to_string();
+        }
+    }
+    // Legacy decorator form: `@table type Name`.
     if let Some(pos) = line.find("type ") {
         let rest = &line[pos + 5..];
         let end = rest
