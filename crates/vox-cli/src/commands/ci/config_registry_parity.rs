@@ -54,12 +54,14 @@ fn scan_env_uses(root: &Path) -> BTreeSet<String> {
     used
 }
 
-/// The federated set of registered env-knob names, unioned across all three SSOT
+/// The federated set of registered env-knob names, unioned across all SSOT
 /// sources so the parity gate doesn't falsely flag a var that is registered in
 /// only one of them:
 ///   1. the YAML registry (`contracts/config/registry.v1.yaml`, config-hygiene Check D),
 ///   2. Clavis-managed secret env names,
-///   3. the typed Rust `CONFIG_KEYS` registry.
+///   3. the typed Rust `CONFIG_KEYS` registry,
+///   4. keys contributed by every `#[derive(VoxConfig)]` domain (so derived knobs
+///      need no hand-written `CONFIG_KEYS` rows).
 pub fn unified_registered_set(root: &Path) -> BTreeSet<String> {
     let mut set = BTreeSet::new();
     // Source 1: YAML registry — parse via the same helper Check D uses.
@@ -74,6 +76,10 @@ pub fn unified_registered_set(root: &Path) -> BTreeSet<String> {
     );
     // Source 3: typed Rust CONFIG_KEYS registry.
     set.extend(vox_config::config_registry::registered_keys().map(|k| k.to_string()));
+    // Source 4: keys from every #[derive(VoxConfig)] domain.
+    for k in super::config_aggregate::all_domain_config_keys() {
+        set.insert(k.key.to_string());
+    }
     set
 }
 

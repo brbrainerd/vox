@@ -27,6 +27,9 @@ pub struct Field {
     pub hint: String,
     pub secret: bool,
     pub skip: bool,
+    /// A field is a config knob only if it carries a `#[config(...)]` attr (opt-in)
+    /// and is not `skip`. Un-annotated fields are ignored — safe for big structs.
+    pub include: bool,
 }
 
 pub struct ConfigModel {
@@ -119,8 +122,10 @@ impl ConfigModel {
             let mut hint = String::new();
             let mut secret = false;
             let mut skip = false;
+            let mut has_config_attr = false;
             for attr in &f.attrs {
                 if attr.path().is_ident("config") {
+                    has_config_attr = true;
                     attr.parse_nested_meta(|m| {
                         if m.path.is_ident("env") {
                             env = m.value()?.parse::<LitStr>()?.value();
@@ -154,6 +159,7 @@ impl ConfigModel {
                 hint,
                 secret,
                 skip,
+                include: has_config_attr && !skip,
             });
         }
         Ok(ConfigModel {
@@ -174,7 +180,7 @@ impl ConfigModel {
         let ty = &self.struct_ident;
         let group_tok = group_token(&self.group)?;
         let group_lit = &self.group;
-        let active: Vec<&Field> = self.fields.iter().filter(|f| !f.skip).collect();
+        let active: Vec<&Field> = self.fields.iter().filter(|f| f.include).collect();
 
         let merges = active.iter().map(|f| {
             let id = &f.ident;
