@@ -242,7 +242,7 @@ pub enum CodeRabbitAction {
 }
 
 fn resolve_repo(path: &std::path::Path) -> Result<std::path::PathBuf> {
-    if path.as_os_str().is_empty() || path.as_path() == Path::new(".") {
+    if path.as_os_str().is_empty() || path == Path::new(".") {
         return std::env::current_dir().context("current_dir");
     }
     path.canonicalize()
