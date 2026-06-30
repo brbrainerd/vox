@@ -11,7 +11,7 @@ mod semcov_wave47_tests {
         BuildOpts, RunOpts,
         detect::RuntimePreference,
         exec_grammar::{
-            self, ExecPolicy, PolicyViolation, RiskLevel, ViolationKind, parse, parse_pipeline,
+            self, ExecPolicy, RiskLevel, ViolationKind, parse, parse_pipeline,
             risk,
         },
     };

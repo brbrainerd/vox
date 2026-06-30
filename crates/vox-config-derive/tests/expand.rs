@@ -69,6 +69,7 @@ struct TestDomain {
     #[config(env = "VOX_LEGACY_NAME", default = "info")]
     log_level: String,
     #[config(skip)]
+    #[allow(dead_code)] // constructed in Default, exercised by the divergence guard only
     backends: Vec<String>,
 }
 
@@ -88,7 +89,7 @@ fn default_matches_config_default_attrs() {
     // C-divergence guard: #[config(default=X)] MUST equal the field's Default value.
     let d = TestDomain::default();
     assert_eq!(d.max_things, 3);
-    assert_eq!(d.verbose, false);
+    assert!(!d.verbose);
     assert_eq!(d.log_level, "info");
 }
 

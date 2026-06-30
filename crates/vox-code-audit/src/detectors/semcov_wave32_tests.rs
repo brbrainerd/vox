@@ -420,7 +420,7 @@ mod semcov_wave32_tests {
         // triggering on words like "Done" in API documentation.
         let d = VictoryClaimDetector::new();
         // Use concat! to avoid the detector firing on this source file itself.
-        let text = concat!("/// Done — returns the computed value.\nfn get() -> u32 { 42 }\n");
+        let text = "/// Done — returns the computed value.\nfn get() -> u32 { 42 }\n";
         let f = src("rs", text);
         let findings = d.detect(&f, None);
         assert!(

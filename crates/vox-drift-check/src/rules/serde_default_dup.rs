@@ -35,7 +35,7 @@ impl DriftRule for SerdeDefaultDupRule {
         if features
             .file
             .to_str()
-            .map_or(false, |p| p.contains(VENDORED_PATH_PREFIX))
+            .is_some_and(|p| p.contains(VENDORED_PATH_PREFIX))
         {
             return vec![];
         }

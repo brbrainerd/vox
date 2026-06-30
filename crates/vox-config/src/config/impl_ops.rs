@@ -816,10 +816,12 @@ mod semcov_wave1f_tests {
 
     #[test]
     fn to_map_contains_required_keys_with_correct_values() {
-        let mut cfg = VoxConfig::default();
-        cfg.model = "test-model".to_string();
-        cfg.daily_budget_usd = 3.5;
-        cfg.llm_max_concurrent_requests = 12;
+        let cfg = VoxConfig {
+            model: "test-model".to_string(),
+            daily_budget_usd: 3.5,
+            llm_max_concurrent_requests: 12,
+            ..Default::default()
+        };
 
         let map = cfg.to_map();
 
@@ -835,9 +837,11 @@ mod semcov_wave1f_tests {
 
     #[test]
     fn to_map_includes_optional_keys_when_present() {
-        let mut cfg = VoxConfig::default();
-        cfg.db_url = Some("postgres://localhost/vox".to_string());
-        cfg.llm_openrouter_max_concurrent = Some(4);
+        let cfg = VoxConfig {
+            db_url: Some("postgres://localhost/vox".to_string()),
+            llm_openrouter_max_concurrent: Some(4),
+            ..Default::default()
+        };
 
         let map = cfg.to_map();
 

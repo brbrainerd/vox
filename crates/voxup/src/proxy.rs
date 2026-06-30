@@ -25,8 +25,7 @@ pub fn resolve_vox_bin(home: &std::path::Path) -> PathBuf {
         let mut versions = Vec::new();
         for entry in entries.flatten() {
             if let Some(name) = entry.file_name().to_str() {
-                if name.starts_with("vox-") {
-                    let ver_str = &name[4..];
+                if let Some(ver_str) = name.strip_prefix("vox-") {
                     if let Ok(ver) = semver::Version::parse(ver_str) {
                         versions.push((ver, entry.path()));
                     }

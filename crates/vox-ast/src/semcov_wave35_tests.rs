@@ -7,8 +7,7 @@
 mod semcov_wave35_tests {
     #![allow(clippy::module_inception)]
     use crate::expr::{
-        BinOp, Expr, JsxElement, JsxSelfClosingElement, MatchArm, Param, StringPart, UnOp,
-        WorkflowVersionCall,
+        BinOp, Expr, JsxElement, JsxSelfClosingElement, StringPart, UnOp, WorkflowVersionCall,
     };
     use crate::pattern::Pattern;
     use crate::scalar_mapping::VoxScalar;
