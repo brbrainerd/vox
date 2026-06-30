@@ -26,9 +26,13 @@ struct JobsResponse {
     jobs: Vec<JobRow>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
 struct JobRow {
+    #[serde(default)]
     name: String,
+    /// Stamped when the run is enqueued — used for queue-wait (`started_at - created_at`).
+    #[serde(default)]
+    created_at: Option<String>,
     /// `None`/absent until the runner picks the job up.
     started_at: Option<String>,
     completed_at: Option<String>,
@@ -43,6 +47,8 @@ struct JobRow {
 pub struct JobTiming {
     pub name: String,
     pub run_secs: i64,
+    /// Seconds queued before a runner picked the job up (fleet-starvation signal).
+    pub queue_secs: i64,
     pub conclusion: String,
     pub run_id: u64,
 }
@@ -58,6 +64,16 @@ pub fn run_seconds(started_at: Option<&str>, completed_at: Option<&str>) -> Opti
     let c = DateTime::parse_from_rfc3339(completed_at?).ok()?;
     let secs = (c - s).num_seconds();
     (secs >= 0).then_some(secs)
+}
+
+/// Seconds a job waited in queue before a runner picked it up
+/// (`started_at - created_at`). `None` if either timestamp is absent/unparseable.
+/// Clamped at 0 to absorb clock skew. (`run_seconds` measures execution; this
+/// measures the fleet-starvation wait.)
+pub fn queue_wait_seconds(created_at: Option<&str>, started_at: Option<&str>) -> Option<i64> {
+    let created = DateTime::parse_from_rfc3339(created_at?).ok()?;
+    let started = DateTime::parse_from_rfc3339(started_at?).ok()?;
+    Some((started - created).num_seconds().max(0))
 }
 
 /// True when a job's run time exceeds the budget.
@@ -101,10 +117,16 @@ fn parse_jobs(raw: &str) -> Vec<JobRow> {
 fn timings_from_rows(rows: &[JobRow]) -> Vec<JobTiming> {
     let mut t: Vec<JobTiming> = rows
         .iter()
+        // SSOT: cancelled-exclusion mirrored in .github/workflows/ci-timings.yml jq
+        // (keep the "cancelled" literal in sync). Concurrency-cancelled runs have
+        // truncated durations that skew the dataset.
+        .filter(|j| j.conclusion.as_deref() != Some("cancelled"))
         .filter_map(|j| {
             run_seconds(j.started_at.as_deref(), j.completed_at.as_deref()).map(|secs| JobTiming {
                 name: j.name.clone(),
                 run_secs: secs,
+                queue_secs: queue_wait_seconds(j.created_at.as_deref(), j.started_at.as_deref())
+                    .unwrap_or(0),
                 conclusion: j.conclusion.clone().unwrap_or_else(|| "—".into()),
                 run_id: j.run_id.unwrap_or(0),
             })
@@ -173,6 +195,7 @@ pub fn run(
                 serde_json::json!({
                     "name": t.name,
                     "run_secs": t.run_secs,
+                    "queue_secs": t.queue_secs,
                     "slow": is_slow(t.run_secs, threshold),
                     "conclusion": t.conclusion,
                     "run_id": t.run_id,
@@ -278,6 +301,7 @@ mod tests {
                 completed_at: Some("2026-06-06T01:02:00Z".into()),
                 conclusion: Some("success".into()),
                 run_id: Some(1),
+                ..Default::default()
             },
             JobRow {
                 name: "slow".into(),
@@ -285,6 +309,7 @@ mod tests {
                 completed_at: Some("2026-06-06T01:25:00Z".into()),
                 conclusion: Some("success".into()),
                 run_id: Some(1),
+                ..Default::default()
             },
             JobRow {
                 name: "queued".into(),
@@ -292,11 +317,59 @@ mod tests {
                 completed_at: None,
                 conclusion: None,
                 run_id: Some(1),
+                ..Default::default()
             },
         ];
         let t = timings_from_rows(&rows);
         assert_eq!(t.len(), 2); // queued job dropped
         assert_eq!(t[0].name, "slow"); // sorted desc
         assert_eq!(t[0].run_secs, 1500);
+    }
+
+    #[test]
+    fn queue_wait_is_started_minus_created() {
+        assert_eq!(
+            queue_wait_seconds(Some("2026-06-30T10:00:00Z"), Some("2026-06-30T10:00:30Z")),
+            Some(30)
+        );
+    }
+
+    #[test]
+    fn queue_wait_none_when_either_missing() {
+        assert_eq!(queue_wait_seconds(None, Some("2026-06-30T10:00:30Z")), None);
+        assert_eq!(queue_wait_seconds(Some("2026-06-30T10:00:00Z"), None), None);
+    }
+
+    #[test]
+    fn queue_wait_never_negative() {
+        // clock skew: started before created => clamp to 0
+        assert_eq!(
+            queue_wait_seconds(Some("2026-06-30T10:00:30Z"), Some("2026-06-30T10:00:00Z")),
+            Some(0)
+        );
+    }
+
+    #[test]
+    fn cancelled_jobs_excluded_from_timings() {
+        let rows = vec![
+            JobRow {
+                name: "ok".into(),
+                started_at: Some("2026-06-30T10:00:00Z".into()),
+                completed_at: Some("2026-06-30T10:05:00Z".into()),
+                ..Default::default()
+            },
+            JobRow {
+                name: "killed".into(),
+                started_at: Some("2026-06-30T10:00:00Z".into()),
+                completed_at: Some("2026-06-30T10:01:00Z".into()),
+                conclusion: Some("cancelled".into()),
+                ..Default::default()
+            },
+        ];
+        assert_eq!(
+            timings_from_rows(&rows).len(),
+            1,
+            "cancelled run must not pollute dataset"
+        );
     }
 }

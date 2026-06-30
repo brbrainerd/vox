@@ -39,8 +39,10 @@ jobs:
           # Only jobs that actually STARTED (have started_at) are measured; the
           # delta is execution time, not queue/startup wait.
           gh api "repos/${{ github.repository }}/actions/runs/${RUN_ID}/jobs" --paginate \
-            --jq '.jobs[] | select(.started_at != null and .completed_at != null)
-                  | {name, conclusion, secs: ((.completed_at|fromdateiso8601) - (.started_at|fromdateiso8601))}' \
+            --jq '.jobs[] | select(.started_at != null and .completed_at != null and .conclusion != "cancelled")
+                  | {name, conclusion,
+                     secs: ((.completed_at|fromdateiso8601) - (.started_at|fromdateiso8601)),
+                     queue_secs: ((if .created_at != null then ((.started_at|fromdateiso8601) - (.created_at|fromdateiso8601)) else 0 end) | if . < 0 then 0 else . end)}' \
             | jq -s 'sort_by(-.secs)' > jobs.json
 
           total=$(jq 'length' jobs.json)
@@ -56,7 +58,7 @@ jobs:
           {
             echo "### CI job run-times (budget ${mins}m)"
             echo ""
-            echo "| run-time | job | conclusion |"
-            echo "|---:|---|---|"
-            jq -r ".[] | \"| \((.secs/60)|floor)m\((.secs%60)|floor)s | \(.name) | \(.conclusion) |\"" jobs.json
+            echo "| run-time | queue-wait | job | conclusion |"
+            echo "|---:|---:|---|---|"
+            jq -r ".[] | \"| \((.secs/60)|floor)m\((.secs%60)|floor)s | \((.queue_secs)|floor)s | \(.name) | \(.conclusion) |\"" jobs.json
           } >> "$GITHUB_STEP_SUMMARY"
