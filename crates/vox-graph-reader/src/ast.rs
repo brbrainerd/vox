@@ -34,7 +34,7 @@ pub struct ExtractedGraph {
 /// Bump when the extraction scheme changes (node-id format, edge rules). Folded into the
 /// per-file cache key in `rebuild` so unchanged files re-extract instead of returning a
 /// graph built under the old scheme.
-pub const EXTRACTOR_VERSION: &str = "3";
+pub const EXTRACTOR_VERSION: &str = "4";
 
 /// Qualify a symbol with its module path. Empty `module_id` yields the bare symbol so the
 /// legacy `extract_ast` wrapper keeps its old output.
@@ -88,6 +88,16 @@ impl<'ast> Visit<'ast> for RustVisitor {
             }
         }
         syn::visit::visit_expr_call(self, node);
+    }
+    fn visit_expr_method_call(&mut self, node: &'ast syn::ExprMethodCall) {
+        if let Some(ref current_fn) = self.current_fn {
+            self.edges.push(ExtractedEdge {
+                source: current_fn.clone(),
+                target: node.method.to_string(), // BARE; resolved in rebuild
+                confidence: "resolved".into(),
+            });
+        }
+        syn::visit::visit_expr_method_call(self, node);
     }
 }
 
@@ -346,4 +356,21 @@ fn arg_object_string_field(
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::extract_ast;
+
+    #[test]
+    fn method_calls_emit_edges() {
+        let src = "fn caller() { let v = thing(); v.do_work(); }";
+        let g = extract_ast(std::path::Path::new("m.rs"), src);
+        assert!(
+            g.edges
+                .iter()
+                .any(|e| e.source.ends_with("caller") && e.target == "do_work"),
+            "method call v.do_work() must emit caller→do_work"
+        );
+    }
 }
