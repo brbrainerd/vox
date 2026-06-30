@@ -76,8 +76,8 @@ fn allowlist_skips(
         if src != source_rel || tgt != target_full {
             continue;
         }
-        if let Ok(exp) = NaiveDate::parse_from_str(&e.expires, "%Y-%m-%d") {
-            if exp < today {
+        if let Ok(exp) = NaiveDate::parse_from_str(&e.expires, "%Y-%m-%d")
+            && exp < today {
                 println!(
                     "{} allowlist entry expired (still skipping): {} -> {} (expired {})",
                     "WARN".yellow(),
@@ -86,7 +86,6 @@ fn allowlist_skips(
                     e.expires
                 );
             }
-        }
         return true;
     }
     false
@@ -218,8 +217,8 @@ pub fn run(repo_root: &Path, target: Option<&Path>) -> Result<()> {
                         target_path,
                         "missing_file",
                     ));
-                } else if let Some(anchor_text) = anchor {
-                    if !check_anchor(&target_path, anchor_text) {
+                } else if let Some(anchor_text) = anchor
+                    && !check_anchor(&target_path, anchor_text) {
                         broken_links.push((
                             path.to_path_buf(),
                             target_full.to_string(),
@@ -227,7 +226,6 @@ pub fn run(repo_root: &Path, target: Option<&Path>) -> Result<()> {
                             "missing_anchor",
                         ));
                     }
-                }
             }
         }
     }

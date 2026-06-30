@@ -745,8 +745,8 @@ pub fn build_inventory(root: &Path) -> Result<TestInventoryReport> {
                 .strip_prefix("crates/")
                 .and_then(|s| s.split('/').next())
                 .map(|s| s.to_string());
-            if let Some(cn) = crate_name {
-                if let Some(entry) = crates_map.get_mut(&cn) {
+            if let Some(cn) = crate_name
+                && let Some(entry) = crates_map.get_mut(&cn) {
                     entry.unit_tests += scan.unit_tests;
                     entry.integration_tests += scan.integration_tests;
                     entry.bench_tests += scan.bench_tests;
@@ -755,7 +755,6 @@ pub fn build_inventory(root: &Path) -> Result<TestInventoryReport> {
                         entry.integration_rs_files += 1;
                     }
                 }
-            }
         }
     }
 
