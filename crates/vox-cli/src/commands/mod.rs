@@ -165,8 +165,6 @@ pub mod update;
 
 pub mod grammar;
 
-/// Unified research operations: infrastructure and evaluation.
-
 /// Manual plan bridging via PlanningOrchestrator
 pub mod plan;
 

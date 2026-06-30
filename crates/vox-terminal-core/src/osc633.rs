@@ -59,6 +59,9 @@ impl Osc633Parser {
         self.parse()
     }
 
+    // `pos = abs_start` after emitting pre-marker output is defensive: it keeps the
+    // cursor past already-emitted bytes for the incomplete-sequence (None) path.
+    #[allow(unused_assignments)]
     fn parse(&mut self) -> Vec<Osc633Event> {
         let mut events = Vec::new();
         let mut pos = 0;

@@ -94,6 +94,7 @@ vox-bounded-fs = { path = "../vox-bounded-fs" }
 
     // Write lib.rs declaring all modules and each snippet_i.rs
     let mut lib_content = String::new();
+    #[allow(clippy::needless_range_loop)]
     for i in 0..n {
         lib_content.push_str(&format!("pub mod snippet_{};\n", i));
 
