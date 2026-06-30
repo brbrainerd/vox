@@ -76,10 +76,7 @@ pub const CONSTRUCT_DOCS: &[(&str, &str)] = &[
         "skill",
         "`@skill fn Name() to Type:` — reusable publishable skill",
     ),
-    (
-        "table",
-        "`table Name:` — database table with typed fields",
-    ),
+    ("table", "`table Name:` — database table with typed fields"),
     (
         "test",
         "`@test fn name() to Unit:` — unit test with `assert()` for validation",

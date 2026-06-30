@@ -64,8 +64,7 @@ fn auth_without_args_sets_presence_marker() {
 
 #[test]
 fn auth_provider_only_leaves_roles_empty() {
-    let f =
-        first_endpoint_fn("server @auth(provider: \"supabase\") api() -> Str { \"ok\" }\n");
+    let f = first_endpoint_fn("server @auth(provider: \"supabase\") api() -> Str { \"ok\" }\n");
     assert!(
         f.roles.is_empty(),
         "roles must be empty when not specified in @auth"

@@ -264,7 +264,10 @@ impl DomArena {
                 let supported = arms
                     .iter()
                     .all(|a| a.guard.is_none() && is_non_binding(&a.pattern))
-                    && match arms.iter().position(|a| matches!(a.pattern, P::Wildcard(_))) {
+                    && match arms
+                        .iter()
+                        .position(|a| matches!(a.pattern, P::Wildcard(_)))
+                    {
                         None => true,
                         Some(idx) => idx == arms.len() - 1,
                     };

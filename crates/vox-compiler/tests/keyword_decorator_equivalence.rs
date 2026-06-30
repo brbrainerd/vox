@@ -57,19 +57,31 @@ fn query() {
 #[test]
 fn mutation() {
     keyword_parses("mutation add(b: str) to int { return 0 }");
-    decorator_rejected("@mutation fn add(b: str) to int { return 0 }", "@mutation", "mutation");
+    decorator_rejected(
+        "@mutation fn add(b: str) to int { return 0 }",
+        "@mutation",
+        "mutation",
+    );
 }
 
 #[test]
 fn server() {
     keyword_parses("server handler() to int { return 0 }");
-    decorator_rejected("@server fn handler() to int { return 0 }", "@server", "server");
+    decorator_rejected(
+        "@server fn handler() to int { return 0 }",
+        "@server",
+        "server",
+    );
 }
 
 #[test]
 fn tool_empty_description() {
     keyword_parses("tool search(q: str) to str { return q }");
-    decorator_rejected("@tool fn search(q: str) to str { return q }", "@tool", "tool");
+    decorator_rejected(
+        "@tool fn search(q: str) to str { return q }",
+        "@tool",
+        "tool",
+    );
 }
 
 #[test]
@@ -109,11 +121,23 @@ fn tier1_decorators_now_rejected() {
     decorator_rejected("@table type User { name: str }", "@table", "table");
     decorator_rejected("@index User.by_name on (name)", "@index", "index");
     decorator_rejected("@query fn c() to int { return 0 }", "@query", "query");
-    decorator_rejected("@mutation fn m(b: str) to int { return 0 }", "@mutation", "mutation");
+    decorator_rejected(
+        "@mutation fn m(b: str) to int { return 0 }",
+        "@mutation",
+        "mutation",
+    );
     decorator_rejected("@server fn h() to int { return 0 }", "@server", "server");
     decorator_rejected("@tool fn t(q: str) to str { return q }", "@tool", "tool");
-    decorator_rejected("@resource \"u\" \"d\" fn r() to str { return \"\" }", "@resource", "resource");
-    decorator_rejected("@form Signup { field a: str\n on_submit: x }", "@form", "form");
+    decorator_rejected(
+        "@resource \"u\" \"d\" fn r() to str { return \"\" }",
+        "@resource",
+        "resource",
+    );
+    decorator_rejected(
+        "@form Signup { field a: str\n on_submit: x }",
+        "@form",
+        "form",
+    );
 }
 
 #[test]
@@ -167,10 +191,22 @@ fn keyword_form_shrinks_tokens_and_bytes() {
     // still works — the flip is a *parse* error, not a lex error.)
     let cases = [
         ("@table type User { name: str }", "table User { name: str }"),
-        ("@query fn c() to int { return 0 }", "query c() to int { return 0 }"),
-        ("@mutation fn m() to int { return 0 }", "mutation m() to int { return 0 }"),
-        ("@server fn s() to int { return 0 }", "server s() to int { return 0 }"),
-        ("@tool fn t() to int { return 0 }", "tool t() to int { return 0 }"),
+        (
+            "@query fn c() to int { return 0 }",
+            "query c() to int { return 0 }",
+        ),
+        (
+            "@mutation fn m() to int { return 0 }",
+            "mutation m() to int { return 0 }",
+        ),
+        (
+            "@server fn s() to int { return 0 }",
+            "server s() to int { return 0 }",
+        ),
+        (
+            "@tool fn t() to int { return 0 }",
+            "tool t() to int { return 0 }",
+        ),
     ];
     for (decorated, keyword) in cases {
         assert!(
