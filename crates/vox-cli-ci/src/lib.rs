@@ -1,6 +1,15 @@
 //! Repository CI guard checks extracted from `vox-cli` (`vox ci *` implementation wedge).
 
 pub mod affected;
+pub mod test_inventory;
+pub mod install_hooks;
+pub mod kill_stuck_tests;
+pub mod parse_status;
+pub mod free_binary;
+pub mod contracts_index;
+pub mod canonical_docs;
+pub mod doctest_md;
+pub mod check_links;
 pub mod cmd_enums;
 pub mod affected_cmd;
 pub mod ai_fixtures_coverage;

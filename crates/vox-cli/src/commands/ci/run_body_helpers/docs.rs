@@ -5,14 +5,14 @@ use std::process::{Command, Stdio};
 use std::sync::LazyLock;
 
 use super::guards::run_sql_surface_guard;
-use crate::commands::ci::canonical_docs;
+use vox_cli_ci::canonical_docs;
 use crate::commands::ci::cargo_bin;
 use crate::commands::ci::command_compliance;
 use crate::commands::ci::completion_quality;
 use crate::commands::ci::constants::{
     CODEX_SSOT_FILES, DOCS_SSOT_FILES, MANIFEST_SNIPPETS, OPENAPI_SUBSTRINGS,
 };
-use crate::commands::ci::contracts_index;
+use vox_cli_ci::contracts_index;
 use crate::commands::ci::exec_policy_contract;
 use crate::commands::ci::scientia_novelty_ledger_contract;
 use crate::commands::ci::scientia_worthiness_contract;

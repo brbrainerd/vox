@@ -4,8 +4,8 @@ use anyhow::{Result, anyhow};
 use std::process::Command;
 
 use super::build_timings;
-use super::canonical_docs;
-use super::check_links;
+use vox_cli_ci::canonical_docs;
+use vox_cli_ci::check_links;
 use vox_cli_ci::cmd_enums::{
     CiCmd, DocInventoryCmd, DocsRealityAuditCmd, EvalMatrixCmd, MensScorecardCmd,
     OperationsSyncTarget,
@@ -13,15 +13,15 @@ use vox_cli_ci::cmd_enums::{
 use super::command_compliance;
 use super::command_sync;
 use super::completion_quality;
-use super::contracts_index;
+use vox_cli_ci::contracts_index;
 use super::coverage_gates;
 use super::determinism_audit;
-use super::doctest_md;
+use vox_cli_ci::doctest_md;
 use super::eval_matrix;
 use super::exec_policy_contract;
 use super::grammar_ssot_parity;
 use super::mens_scorecard;
-use super::parse_status;
+use vox_cli_ci::parse_status;
 use super::release_build;
 use super::scaling_audit;
 use super::scientia_heuristics_parity;
@@ -303,7 +303,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         }
         CiCmd::BomCheck => vox_cli_ci::line_endings::check_bom(&root),
         CiCmd::SpokeCheck => run_spoke_check(&root),
-        CiCmd::FreeBinary { target, apply } => super::free_binary::run(&root, target, apply),
+        CiCmd::FreeBinary { target, apply } => vox_cli_ci::free_binary::run(&root, target, apply),
         CiCmd::ParseStatus { write } => parse_status::run(&root, write),
         CiCmd::MeshGate {
             profile,
@@ -622,8 +622,8 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::NomenclatureGuard { json } => vox_cli_ci::nomenclature_guard::run(&root, json),
         CiCmd::RetiredSymbolCheck => retired_symbol_check::run(&root),
         CiCmd::SyncIgnoreFiles { verify } => vox_cli_ci::sync_ignore_files::run(&root, verify),
-        CiCmd::KillStuckTests { what_if } => super::kill_stuck_tests::run(&root, what_if),
-        CiCmd::InstallHooks => super::install_hooks::run(&root),
+        CiCmd::KillStuckTests { what_if } => vox_cli_ci::kill_stuck_tests::run(&root, what_if),
+        CiCmd::InstallHooks => vox_cli_ci::install_hooks::run(&root),
         CiCmd::ScriptHygiene { retired_check } => run_script_hygiene(&root, retired_check),
         CiCmd::DeterminismAudit => determinism_audit::run(&root),
         CiCmd::DepSprawl { cap } => vox_cli_ci::dep_sprawl::run(&root, cap),
@@ -633,9 +633,9 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             output,
             markdown,
             check,
-        } => super::test_inventory::run(
+        } => vox_cli_ci::test_inventory::run(
             &root,
-            super::test_inventory::TestInventoryOpts {
+            vox_cli_ci::test_inventory::TestInventoryOpts {
                 json_stdout: json,
                 output,
                 markdown,

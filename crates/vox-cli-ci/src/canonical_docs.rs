@@ -36,7 +36,7 @@ struct DomainEntry {
     owning_crate_globs: Vec<String>,
 }
 
-pub(crate) fn run(repo_root: &Path) -> Result<()> {
+pub fn run(repo_root: &Path) -> Result<()> {
     let map_path = repo_root.join(MAP_REL);
     let map_raw =
         read_utf8_path_capped(&map_path).with_context(|| format!("read {}", map_path.display()))?;

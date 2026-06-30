@@ -15401,14 +15401,26 @@ name = "vox-cli-ci"
 version = "0.6.0"
 dependencies = [
  "anyhow",
+ "chrono",
  "clap",
  "glob",
+ "insta",
+ "owo-colors 4.3.0",
+ "proptest",
  "regex",
  "serde",
  "serde_json",
  "serde_yaml_ng",
+ "sysinfo",
  "tempfile",
+ "tokio",
+ "vox-bounded-fs",
  "vox-cli-core",
+ "vox-compiler",
+ "vox-config",
+ "vox-doc-pipeline",
+ "vox-git",
+ "vox-jsonschema-util",
  "walkdir",
 ]
 

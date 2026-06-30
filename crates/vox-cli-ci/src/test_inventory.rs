@@ -292,7 +292,7 @@ pub fn scan_ignored_tests_per_file(root: &Path) -> Result<BTreeMap<String, u64>>
 }
 
 /// Internal: shared walk for ignored-test governance + per-file histogram.
-pub(super) fn scan_ignored_test_governance_findings_with_histogram(
+pub fn scan_ignored_test_governance_findings_with_histogram(
     root: &Path,
 ) -> Result<(
     u64,
