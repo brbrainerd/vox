@@ -749,18 +749,14 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
     // (the single non-deterministic seam) so the writer/merge stay pure.
     if let Some(id) = gate_id {
         if std::env::var("VOX_NO_POLICY_STATUS").is_err() {
+            use vox_cli_contracts::GateStatusWriter;
+            let providers = super::providers::VoxCliProviders;
             let duration_ms = started.elapsed().as_millis() as u64;
             let policy_result = gate_status_result(id, result.is_ok(), duration_ms);
-            let branch = crate::commands::policy::status_writer::current_branch(&root);
-            let commit = crate::commands::policy::status_writer::head_commit(&root);
+            let branch = providers.current_branch(&root);
+            let commit = providers.head_commit(&root);
             let ran_at = chrono::Utc::now().to_rfc3339();
-            let _ = crate::commands::policy::status_writer::write_results(
-                &root,
-                &branch,
-                &commit,
-                &ran_at,
-                vec![policy_result],
-            );
+            let _ = providers.write_results(&root, &branch, &commit, &ran_at, vec![policy_result]);
         }
     }
 

@@ -60,6 +60,7 @@ mod plugin_surface;
 mod pm_provenance;
 mod policy_allowlist_parity;
 mod policy_registry;
+mod providers;
 mod pre_push;
 mod profile_parity;
 mod release_build;
