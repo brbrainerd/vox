@@ -82,6 +82,15 @@ pub enum SkillCmd {
     },
     /// Scan workspace for `.skill.md` files.
     Discover,
+    /// Suggest skills from recurring captured operation sequences (advisory).
+    Suggest {
+        /// Max recent operations to analyze.
+        #[arg(long, default_value_t = 5000)]
+        limit: i64,
+        /// Output format: terminal | json
+        #[arg(long, default_value = "terminal")]
+        format: String,
+    },
 }
 
 /// Dispatch `vox skill …`.
@@ -118,5 +127,6 @@ pub async fn run(cmd: SkillCmd) -> Result<()> {
             agent_id,
         } => ars::context_assemble(&tier, policy_json.as_deref(), agent_id.as_deref()).await,
         SkillCmd::Discover => ars::discover().await,
+        SkillCmd::Suggest { limit, format } => ars::skill_suggest(limit, &format).await,
     }
 }

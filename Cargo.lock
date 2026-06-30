@@ -15371,6 +15371,7 @@ dependencies = [
  "vox-scientia",
  "vox-search",
  "vox-secrets",
+ "vox-skill-discovery",
  "vox-skills",
  "vox-sql",
  "vox-tauri-codegen",

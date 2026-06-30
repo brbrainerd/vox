@@ -92,7 +92,7 @@ completion-toestub = ["dep:vox-code-audit"]
 # Native Tauri 2 GUI (replaces dashboard SPA)
 gui = []
 # OpenClaw / skill registry (`openclaw`); ARS runtime types live in `vox-openclaw-runtime`; `vox-skills` is the marketplace registry.
-ars = ["dep:vox-skills", "dep:vox-openclaw-runtime"]
+ars = ["dep:vox-skills", "dep:vox-openclaw-runtime", "dep:vox-skill-discovery"]
 # Ludus gamification CLI (`commands::extras::ludus`); implies `vox-gamify` (uses `vox-db`).
 extras-ludus = ["dep:vox-gamify", "dep:vox-code-audit"]
 # Ludus terminal HUD over the in-process orchestrator bulletin (`vox ludus hud`).
@@ -161,6 +161,7 @@ vox-wasm-engine = { workspace = true, optional = true }
 vox-deploy-codegen = { workspace = true }
 vox-skills = { workspace = true, optional = true }
 vox-openclaw-runtime = { workspace = true, optional = true }
+vox-skill-discovery = { workspace = true, optional = true }
 vox-gamify = { workspace = true, optional = true }
 vox-config = { workspace = true }
 vox-secrets = { workspace = true }

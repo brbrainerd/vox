@@ -834,7 +834,10 @@ mod operation_tests {
         let rows = db.list_recent_operations(2).await.expect("list");
         assert_eq!(rows.len(), 2, "respects limit");
         assert!(rows.iter().all(|r| r.session_id.as_deref() == Some("s1")));
-        assert!(rows.iter().any(|r| r.tool_name == "c"), "includes most recent");
+        assert!(
+            rows.iter().any(|r| r.tool_name == "c"),
+            "includes most recent"
+        );
     }
 }
 

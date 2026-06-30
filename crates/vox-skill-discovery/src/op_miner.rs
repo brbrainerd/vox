@@ -115,7 +115,8 @@ pub fn mine_repeated_operations(ops: &[MinedOp], opts: &OpMiningOptions) -> Vec<
                 e.count += 1;
                 e.sessions.insert((*sid).to_string());
                 if e.anchors.len() < 20 {
-                    e.anchors.push(format!("session:{}@{}", sid, list[start].ts_ms));
+                    e.anchors
+                        .push(format!("session:{}@{}", sid, list[start].ts_ms));
                 }
             }
         }
@@ -257,9 +258,7 @@ mod tests {
         let cands = mine_repeated_operations(&ops, &default_opts());
         let rw: Vec<_> = cands
             .iter()
-            .filter(|c| {
-                c.draft_frontmatter.as_ref().map(|d| d.name.as_str()) == Some("read-write")
-            })
+            .filter(|c| c.draft_frontmatter.as_ref().map(|d| d.name.as_str()) == Some("read-write"))
             .collect();
         assert_eq!(rw.len(), 1, "arg-shapes must not merge; got {cands:?}");
         assert!(
@@ -276,7 +275,10 @@ mod tests {
 
     #[test]
     fn arg_keys_parses_sorts_dedups() {
-        assert_eq!(arg_keys(r#"{"b":1,"a":2}"#), vec!["a".to_string(), "b".to_string()]);
+        assert_eq!(
+            arg_keys(r#"{"b":1,"a":2}"#),
+            vec!["a".to_string(), "b".to_string()]
+        );
         assert_eq!(arg_keys("not json"), Vec::<String>::new());
         assert_eq!(arg_keys("[1,2]"), Vec::<String>::new());
     }
