@@ -214,15 +214,78 @@ pub(crate) async fn compile_probe(checks: &mut Vec<Check>) {
     checks.push(c);
 }
 
+// ── auto-heal (--heal) ────────────────────────────────────────────────────────
+
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum HealAction {
+    DisableSccache,
+    RestartWslDistro,
+    FlagOnly,
+}
+
+/// Pure planner: which heal a diagnosis id maps to. Shim-shadowed toolchains are
+/// `FlagOnly` — running rustup-init unattended is too invasive.
+pub(crate) fn heal_action(diagnosis_id: &str) -> HealAction {
+    match diagnosis_id {
+        "sccache.pathological" => HealAction::DisableSccache,
+        "docker.wsl_wedged" => HealAction::RestartWslDistro,
+        _ => HealAction::FlagOnly,
+    }
+}
+
+/// Extract the `id` from a structured detail tag `… [diag id=<id> sev=… heal=…]`.
+pub(crate) fn parse_diag_id(detail: &str) -> Option<&str> {
+    let start = detail.find("[diag id=")? + "[diag id=".len();
+    let rest = &detail[start..];
+    let end = rest.find(' ')?;
+    Some(&rest[..end])
+}
+
+async fn execute_heal(action: &HealAction) {
+    match action {
+        HealAction::DisableSccache => {
+            // Exactly the by-hand fix: stop server (comment-out + cache clear is left
+            // to the operator since it edits ~/.cargo/config.toml).
+            let _ = Command::new("sccache").arg("--stop-server").output().await;
+        }
+        HealAction::RestartWslDistro => {
+            // Targeted: only the wedged distro, not all of WSL.
+            let _ = Command::new("wsl")
+                .args(["--terminate", "podman-machine-default"])
+                .output()
+                .await;
+        }
+        HealAction::FlagOnly => {}
+    }
+}
+
 /// Aggregate entrypoint, registered in `run_checks`.
-pub async fn run(_auto_heal: bool, checks: &mut Vec<Check>) {
+pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
     toolchain_integrity(checks).await;
     docker_health(checks).await;
     schema_health(checks).await;
     sccache_guard(checks).await;
     compile_probe(checks).await;
-    // Heal is staged separately (Task 9); when _auto_heal, the planner runs the
-    // sccache-disable / wsl-terminate actions keyed off the emitted diagnosis ids.
+
+    if auto_heal {
+        // Heal the failing checks whose diagnosis is auto-healable.
+        let actions: Vec<HealAction> = checks
+            .iter()
+            .filter(|c| !c.pass && c.detail.contains("heal=true"))
+            .filter_map(|c| parse_diag_id(&c.detail))
+            .map(heal_action)
+            .filter(|a| *a != HealAction::FlagOnly)
+            .collect();
+        for action in &actions {
+            execute_heal(action).await;
+        }
+        if !actions.is_empty() {
+            checks.push(Check::pass(
+                "build-health: auto-heal",
+                format!("ran {} heal action(s); re-run `vox doctor` to confirm", actions.len()),
+            ));
+        }
+    }
 }
 
 #[cfg(test)]
@@ -267,5 +330,20 @@ mod tests {
         assert!(!KNOWN_DIAGNOSIS_IDS.is_empty());
         let set: std::collections::HashSet<_> = KNOWN_DIAGNOSIS_IDS.iter().collect();
         assert_eq!(set.len(), KNOWN_DIAGNOSIS_IDS.len());
+    }
+
+    #[test]
+    fn heal_plan_maps_ids() {
+        assert_eq!(heal_action("sccache.pathological"), HealAction::DisableSccache);
+        assert_eq!(heal_action("docker.wsl_wedged"), HealAction::RestartWslDistro);
+        // shim-shadowed toolchain must never auto-run rustup-init
+        assert_eq!(heal_action("toolchain.rustc_shadowed"), HealAction::FlagOnly);
+    }
+
+    #[test]
+    fn parses_diag_id_from_tag() {
+        let d = diag("docker.wsl_wedged", "error", "wedged", "wsl --terminate x", true);
+        assert_eq!(parse_diag_id(&d), Some("docker.wsl_wedged"));
+        assert_eq!(parse_diag_id("no tag here"), None);
     }
 }
