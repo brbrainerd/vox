@@ -228,7 +228,10 @@ mod tests {
             .iter()
             .find(|c| c.draft_frontmatter.as_ref().map(|d| d.name.as_str()) == Some("a-b-c"))
             .expect("expected a-b-c candidate");
-        assert_eq!(abc.members, vec!["a".to_string(), "b".to_string(), "c".to_string()]);
+        assert_eq!(
+            abc.members,
+            vec!["a".to_string(), "b".to_string(), "c".to_string()]
+        );
         assert!(abc.members.iter().all(|m| !m.starts_with("session:")));
     }
 

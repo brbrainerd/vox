@@ -24,7 +24,6 @@ pub use host_impl::DefaultVoxHost;
 pub use loader::{LoadedCodePlugin, Loader};
 pub use registry::{PluginEntry, Registry};
 pub use skill_author::author_skill_md;
-pub use user_install::{InstalledUserSkill, install_to_user_root};
 pub use skill_bundle::{SkillBundle, SkillBundleError, VoxSkillBundle};
 pub use skill_manifest::{SkillCategory, SkillManifest, SkillPermission};
 pub use skill_parser::{ParseSkillError, parse_skill_md};
@@ -32,6 +31,7 @@ pub use skill_registry::{
     BundleInstallError, HydrateError, InstallResult, RegisteredSkill, SkillRegistry, SkillSource,
     UninstallError, UninstallResult, new_registry_arc,
 };
+pub use user_install::{InstalledUserSkill, install_to_user_root};
 pub use vox_plugin_api::VOX_PLUGIN_ABI_VERSION;
 
 /// Resolve the plugin install root, respecting `$VOX_PLUGINS_DIR` if set.

@@ -187,7 +187,10 @@ pub async fn resolve_feedback(state: &ServerState, params: ResolveFeedbackParams
     state.feedback().promote_withheld(|item| item.surface);
 
     if req.kind == FeedbackKind::SkillProposal
-        && matches!(action, vox_orchestrator::feedback::FeedbackAction::AcceptSkill)
+        && matches!(
+            action,
+            vox_orchestrator::feedback::FeedbackAction::AcceptSkill
+        )
     {
         let Some(candidate) = req.meta.as_ref() else {
             return ToolResult::<serde_json::Value>::err("skill proposal has no candidate payload")
@@ -242,15 +245,12 @@ pub async fn propose_skill(
     state: &ServerState,
     params: crate::params::ProposeSkillParams,
 ) -> String {
-    match state
-        .orchestrator
-        .propose_skill(
-            &params.name,
-            &params.description,
-            params.session_id,
-            params.candidate,
-        )
-    {
+    match state.orchestrator.propose_skill(
+        &params.name,
+        &params.description,
+        params.session_id,
+        params.candidate,
+    ) {
         Some(fid) => ToolResult::ok(serde_json::json!({ "feedback_id": fid.0 })).to_json(),
         None => ToolResult::ok(serde_json::json!({ "skipped": "duplicate proposal already open" }))
             .to_json(),
@@ -386,7 +386,10 @@ mod tests {
         let v = serde_json::json!({"action": "accept_skill"});
         let a: crate::params::McpFeedbackAction = serde_json::from_value(v).unwrap();
         let core: vox_orchestrator::feedback::FeedbackAction = a.into();
-        assert_eq!(core, vox_orchestrator::feedback::FeedbackAction::AcceptSkill);
+        assert_eq!(
+            core,
+            vox_orchestrator::feedback::FeedbackAction::AcceptSkill
+        );
     }
 
     #[test]
