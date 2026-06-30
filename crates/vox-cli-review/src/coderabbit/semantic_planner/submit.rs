@@ -371,19 +371,21 @@ async fn run_semantic_submit_core(
             .collect(),
     };
 
-    if cfg.resume && !cfg.force_chunks
+    if cfg.resume
+        && !cfg.force_chunks
         && let Some(prev) = cr_run_state::CoderabbitRunState::load(repo)?
-            && prev.baseline_branch == baseline_branch {
-                for rec in &mut run_state.chunks {
-                    if let Some(o) = prev
-                        .chunks
-                        .iter()
-                        .find(|p| p.name == rec.name && p.status == "completed")
-                    {
-                        *rec = o.clone();
-                    }
-                }
+        && prev.baseline_branch == baseline_branch
+    {
+        for rec in &mut run_state.chunks {
+            if let Some(o) = prev
+                .chunks
+                .iter()
+                .find(|p| p.name == rec.name && p.status == "completed")
+            {
+                *rec = o.clone();
             }
+        }
+    }
     run_state.save(repo).context("write initial run-state")?;
 
     // ── 6. Isolated worktree PRs (independent base = baseline) ─────────────

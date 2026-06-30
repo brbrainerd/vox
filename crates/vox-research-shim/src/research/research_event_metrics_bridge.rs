@@ -80,14 +80,14 @@ pub(crate) async fn persist_research_event_metrics(
                         db, sid,
                     )
                     .await
-                {
-                    tracing::debug!(
-                        target: "vox_orchestrator::research_metrics_bridge",
-                        session_id = sid,
-                        error = %err,
-                        "research_session_complete_kudos_failed"
-                    );
-                }
+            {
+                tracing::debug!(
+                    target: "vox_orchestrator::research_metrics_bridge",
+                    session_id = sid,
+                    error = %err,
+                    "research_session_complete_kudos_failed"
+                );
+            }
         }
         ResearchEvent::AggregateComputed {
             provider,

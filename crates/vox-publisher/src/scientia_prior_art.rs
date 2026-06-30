@@ -532,11 +532,11 @@ pub async fn fetch_prior_art_federated(
     if let Some(repo_root) = options.repo_root.as_deref()
         && let Some((graphify_hits, trace)) =
             graphify_lexical_prior_art(repo_root, &search, heuristics)
-        {
-            hits.extend(graphify_hits);
-            traces.push(trace);
-            sources_done.push(PriorArtSource::Other);
-        }
+    {
+        hits.extend(graphify_hits);
+        traces.push(trace);
+        sources_done.push(PriorArtSource::Other);
+    }
 
     if let Some(emb) = embedder {
         crate::scientia_semantic::enrich_semantic_scores(&search, &mut hits, emb).await;

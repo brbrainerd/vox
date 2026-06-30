@@ -445,8 +445,7 @@ pub fn resolve_effective_profile(
             vram_gib *= frac as f64;
         }
 
-        let hint = model_hint
-            .unwrap_or(crate::mens::DEFAULT_MODEL_ID);
+        let hint = model_hint.unwrap_or(crate::mens::DEFAULT_MODEL_ID);
         let params_b =
             crate::mens::tensor::memory_budget::params_b_from_model_hint(hint).unwrap_or(7.0);
 

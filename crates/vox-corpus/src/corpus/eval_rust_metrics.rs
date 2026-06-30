@@ -47,12 +47,12 @@ pub fn compute_rust_spoke_metrics(
                     .get("response")
                     .or_else(|| val.get("output"))
                     .and_then(|r| r.as_str())
-                {
-                    let cleaned = extract_rust_from_markdown(response);
-                    if !cleaned.trim().is_empty() {
-                        snippets.push(cleaned);
-                    }
+            {
+                let cleaned = extract_rust_from_markdown(response);
+                if !cleaned.trim().is_empty() {
+                    snippets.push(cleaned);
                 }
+            }
         }
     }
 

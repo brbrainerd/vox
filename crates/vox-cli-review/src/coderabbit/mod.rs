@@ -272,9 +272,10 @@ pub async fn run(action: CodeRabbitAction) -> Result<()> {
             let vox = config::load_from_dir(&repo);
             let mut cfg = semantic_planner::SemanticSubmitConfig::default();
             if let Some(ref t) = vox.tier
-                && let Ok(parsed) = t.parse::<limits::CodeRabbitTier>() {
-                    cfg.tier = parsed;
-                }
+                && let Ok(parsed) = t.parse::<limits::CodeRabbitTier>()
+            {
+                cfg.tier = parsed;
+            }
             if let Some(t) = tier {
                 cfg.tier = t
                     .parse::<limits::CodeRabbitTier>()
@@ -321,9 +322,10 @@ pub async fn run(action: CodeRabbitAction) -> Result<()> {
             let vox = config::load_from_dir(&repo);
             let mut cfg = semantic_planner::SemanticSubmitConfig::default();
             if let Some(ref t) = vox.tier
-                && let Ok(parsed) = t.parse::<limits::CodeRabbitTier>() {
-                    cfg.tier = parsed;
-                }
+                && let Ok(parsed) = t.parse::<limits::CodeRabbitTier>()
+            {
+                cfg.tier = parsed;
+            }
             if let Some(t) = tier {
                 cfg.tier = t
                     .parse::<limits::CodeRabbitTier>()

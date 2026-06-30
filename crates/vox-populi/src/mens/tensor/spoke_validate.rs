@@ -35,17 +35,19 @@ pub fn validate(file: &DomainProfilesFile, workspace_root: &Path) -> Vec<SpokeVi
             }
         }
         if let Some(mc) = &p.mix_config
-            && !workspace_root.join(mc).is_file() {
-                v.push(SpokeViolation(format!(
-                    "spoke '{name}': mix_config '{mc}' not found"
-                )));
-            }
+            && !workspace_root.join(mc).is_file()
+        {
+            v.push(SpokeViolation(format!(
+                "spoke '{name}': mix_config '{mc}' not found"
+            )));
+        }
         if let Some(eg) = &p.eval_gate
-            && !workspace_root.join(eg).is_file() {
-                v.push(SpokeViolation(format!(
-                    "spoke '{name}': eval_gate '{eg}' not found"
-                )));
-            }
+            && !workspace_root.join(eg).is_file()
+        {
+            v.push(SpokeViolation(format!(
+                "spoke '{name}': eval_gate '{eg}' not found"
+            )));
+        }
         // Rule 5: base.model resolvability check
         if !base.model.contains('/') {
             match crate::mens::tensor::spoke_base_resolver::load_overlay(workspace_root) {

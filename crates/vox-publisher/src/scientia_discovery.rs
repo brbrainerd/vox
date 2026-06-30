@@ -458,9 +458,9 @@ pub fn merge_field_provenance_from_metadata(
                 .field_provenance
                 .iter()
                 .any(|p| p.field == prov.field && p.origin == prov.origin)
-            {
-                report.field_provenance.push(prov);
-            }
+        {
+            report.field_provenance.push(prov);
+        }
     }
     report
 }

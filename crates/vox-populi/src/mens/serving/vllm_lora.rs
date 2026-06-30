@@ -111,9 +111,10 @@ impl VllmLoraClient {
 
         // Evict LRU entry if at capacity.
         if self.loaded.len() >= self.max_loaded
-            && let Some(evict_name) = self.lru_order.pop_front() {
-                self.loaded.remove(&evict_name);
-            }
+            && let Some(evict_name) = self.lru_order.pop_front()
+        {
+            self.loaded.remove(&evict_name);
+        }
 
         // Insert new entry.
         self.lru_order.push_back(name.to_string());

@@ -115,15 +115,16 @@ pub async fn uplift_low_quality_snippets(
             info!(count = extracted.len(), "tavily extract uplift succeeded");
             for hit in extracted {
                 if let Some(row) = results.iter_mut().find(|r| r.url == hit.url)
-                    && !hit.content.trim().is_empty() {
-                        row.content = hit.content;
-                        row.engine = Some(
-                            row.engine
-                                .clone()
-                                .map(|e| format!("{e}+tavily_extract"))
-                                .unwrap_or_else(|| "tavily_extract".to_string()),
-                        );
-                    }
+                    && !hit.content.trim().is_empty()
+                {
+                    row.content = hit.content;
+                    row.engine = Some(
+                        row.engine
+                            .clone()
+                            .map(|e| format!("{e}+tavily_extract"))
+                            .unwrap_or_else(|| "tavily_extract".to_string()),
+                    );
+                }
             }
         }
         Err(e) => warn!(error = %e, "tavily extract uplift failed (fail-open)"),
