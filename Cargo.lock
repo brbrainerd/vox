@@ -16096,6 +16096,7 @@ name = "vox-graph-reader"
 version = "0.6.0"
 dependencies = [
  "blake3",
+ "ignore",
  "lcov-parser",
  "leiden-rs",
  "petgraph 0.8.3",
