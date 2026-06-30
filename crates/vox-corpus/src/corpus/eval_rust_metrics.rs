@@ -42,8 +42,8 @@ pub fn compute_rust_spoke_metrics(
         if let Ok(val) = serde_json::from_str::<serde_json::Value>(line) {
             let category = val.get("category").and_then(|c| c.as_str()).unwrap_or("");
             let lane = val.get("lane").and_then(|l| l.as_str()).unwrap_or("");
-            if category == "rust_authoring" || lane == "vox_rust_authoring" {
-                if let Some(response) = val
+            if (category == "rust_authoring" || lane == "vox_rust_authoring")
+                && let Some(response) = val
                     .get("response")
                     .or_else(|| val.get("output"))
                     .and_then(|r| r.as_str())
@@ -53,7 +53,6 @@ pub fn compute_rust_spoke_metrics(
                         snippets.push(cleaned);
                     }
                 }
-            }
         }
     }
 

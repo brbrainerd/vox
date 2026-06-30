@@ -144,8 +144,8 @@ pub fn validate_against_schema(
     if let (Some(val_obj), Some(prop_map)) = (value.as_object(), props.and_then(|p| p.as_object()))
     {
         for (key, field_val) in val_obj {
-            if let Some(field_schema) = prop_map.get(key) {
-                if let Some(expected_type) = field_schema.get("type").and_then(|t| t.as_str()) {
+            if let Some(field_schema) = prop_map.get(key)
+                && let Some(expected_type) = field_schema.get("type").and_then(|t| t.as_str()) {
                     let type_ok = match expected_type {
                         "string" => field_val.is_string(),
                         "integer" => field_val.is_i64() || field_val.is_u64(),
@@ -165,13 +165,11 @@ pub fn validate_against_schema(
                         ));
                     }
                     // Recurse into nested object if the schema has sub-properties
-                    if expected_type == "object" {
-                        if let Some(sub_schema) = field_schema.as_object() {
-                            if sub_schema.contains_key("properties") {
+                    if expected_type == "object"
+                        && let Some(sub_schema) = field_schema.as_object()
+                            && sub_schema.contains_key("properties") {
                                 validate_against_schema(field_val, field_schema)?;
                             }
-                        }
-                    }
                     // Check minimum for integers
                     if let Some(min) = field_schema.get("minimum").and_then(|m| m.as_i64()) {
                         let int_val = field_val.as_i64().unwrap_or(0);
@@ -185,7 +183,6 @@ pub fn validate_against_schema(
                         }
                     }
                 }
-            }
         }
     }
 

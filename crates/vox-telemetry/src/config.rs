@@ -303,11 +303,10 @@ pub fn install_salt() -> [u8; 16] {
     let path = vox_config_dir().join("install-salt");
     if let Ok(s) = std::fs::read_to_string(&path) {
         let s = s.trim();
-        if s.len() == 32 {
-            if let Ok(bytes) = hex_decode_16(s) {
+        if s.len() == 32
+            && let Ok(bytes) = hex_decode_16(s) {
                 return bytes;
             }
-        }
     }
     // Generate via a UUID v4 (16 random bytes).
     let salt = *uuid::Uuid::new_v4().as_bytes();

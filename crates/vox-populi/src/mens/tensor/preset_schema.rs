@@ -427,7 +427,7 @@ pub fn resolve_effective_profile(
         p.lr = l;
     }
 
-    if let Some(class) = detect_qwen_size_class(model_hint.as_deref()) {
+    if let Some(class) = detect_qwen_size_class(model_hint) {
         p = apply_qwen_size_ladder_policy(p, class, device.vram_mb);
     }
 
@@ -446,7 +446,6 @@ pub fn resolve_effective_profile(
         }
 
         let hint = model_hint
-            .as_deref()
             .unwrap_or(crate::mens::DEFAULT_MODEL_ID);
         let params_b =
             crate::mens::tensor::memory_budget::params_b_from_model_hint(hint).unwrap_or(7.0);

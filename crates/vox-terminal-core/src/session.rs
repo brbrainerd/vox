@@ -76,11 +76,10 @@ impl Session {
                 let _ = self.tx.send(SessionEvent::BlockOpened { id });
             }
             Osc633Event::CommandLine(cmd) => {
-                if let Some(id) = self.open_id {
-                    if let Some(b) = self.blocks.iter_mut().find(|b| b.id == id) {
+                if let Some(id) = self.open_id
+                    && let Some(b) = self.blocks.iter_mut().find(|b| b.id == id) {
                         b.input = cmd;
                     }
-                }
             }
             Osc633Event::PreExec => {
                 // Output capture begins; nothing structural to do here

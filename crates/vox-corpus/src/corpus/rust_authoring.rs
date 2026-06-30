@@ -114,7 +114,7 @@ vox-bounded-fs = { path = "../vox-bounded-fs" }
     // Spawn command
     let mut cmd = std::process::Command::new("cargo");
     if clippy {
-        cmd.args(&[
+        cmd.args([
             "clippy",
             "-p",
             "_corpus_verify_tmp",
@@ -124,7 +124,7 @@ vox-bounded-fs = { path = "../vox-bounded-fs" }
             "warnings",
         ]);
     } else {
-        cmd.args(&["check", "-p", "_corpus_verify_tmp", "--message-format=json"]);
+        cmd.args(["check", "-p", "_corpus_verify_tmp", "--message-format=json"]);
     }
     cmd.current_dir(workspace_root);
 
@@ -150,29 +150,24 @@ vox-bounded-fs = { path = "../vox-bounded-fs" }
     let mut error_modules = std::collections::HashSet::new();
 
     for line in stdout_str.lines() {
-        if let Ok(val) = serde_json::from_str::<serde_json::Value>(line) {
-            if val.get("reason").and_then(|r| r.as_str()) == Some("compiler-message") {
-                if let Some(msg) = val.get("message") {
+        if let Ok(val) = serde_json::from_str::<serde_json::Value>(line)
+            && val.get("reason").and_then(|r| r.as_str()) == Some("compiler-message")
+                && let Some(msg) = val.get("message") {
                     let level = msg.get("level").and_then(|l| l.as_str()).unwrap_or("");
-                    if level == "error" {
-                        if let Some(spans) = msg.get("spans").and_then(|s| s.as_array()) {
+                    if level == "error"
+                        && let Some(spans) = msg.get("spans").and_then(|s| s.as_array()) {
                             for span in spans {
                                 if let Some(file_name) =
                                     span.get("file_name").and_then(|f| f.as_str())
-                                {
-                                    if let Some(start_idx) = file_name.find("snippet_") {
+                                    && let Some(start_idx) = file_name.find("snippet_") {
                                         let sub = &file_name[start_idx..];
                                         let end_idx = sub.find(".rs").unwrap_or(sub.len());
                                         let name = &sub[..end_idx];
                                         error_modules.insert(name.to_string());
                                     }
-                                }
                             }
                         }
-                    }
                 }
-            }
-        }
     }
 
     // Clean up temporary crate directory

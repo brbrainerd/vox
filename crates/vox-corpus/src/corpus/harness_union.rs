@@ -62,8 +62,8 @@ fn arg_to_harness(r: crate::corpus::argument_generation_synth::ArgGenRow) -> Har
 pub fn generate_harness_rows(n: usize) -> Vec<HarnessRow> {
     // Generate a pool large enough to fill n rows from both lanes.
     // We interleave 2 selection rows then 2 argument-gen rows, repeating.
-    let sel_needed = (n + 1) / 2 + 1;
-    let arg_needed = (n + 1) / 2 + 1;
+    let sel_needed = n.div_ceil(2) + 1;
+    let arg_needed = n.div_ceil(2) + 1;
 
     let sel_rows: Vec<_> = generate_tool_selection_rows(sel_needed)
         .into_iter()

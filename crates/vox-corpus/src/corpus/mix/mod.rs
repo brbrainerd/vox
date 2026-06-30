@@ -795,8 +795,8 @@ pub fn run_mix_with_options(
                 let mut cap_reached = false;
                 for _ in 0..repeats {
                     for row in &processed_chunk {
-                        if cfg.dedup {
-                            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(row) {
+                        if cfg.dedup
+                            && let Ok(parsed) = serde_json::from_str::<serde_json::Value>(row) {
                                 let prompt =
                                     parsed.get("prompt").and_then(|v| v.as_str()).unwrap_or("");
                                 let response = parsed
@@ -810,13 +810,11 @@ pub fn run_mix_with_options(
                                     continue; // Duplicate -- skip
                                 }
                             }
-                        }
-                        if let Some(cap) = src.max_lines {
-                            if emitted_this_src >= cap {
+                        if let Some(cap) = src.max_lines
+                            && emitted_this_src >= cap {
                                 cap_reached = true;
                                 break;
                             }
-                        }
                         writeln!(out, "{row}")?;
                         total_out += 1;
                         emitted_this_src += 1;

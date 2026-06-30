@@ -16,7 +16,7 @@ fn activity_inner_return_type(ret: Option<&HirType>) -> String {
         Some(HirType::Generic(name, args)) if name == "Result" => {
             let ok = args
                 .first()
-                .map(|t| emit_type(t))
+                .map(emit_type)
                 .unwrap_or_else(|| "serde_json::Value".into());
             format!("Result<{ok}, anyhow::Error>")
         }

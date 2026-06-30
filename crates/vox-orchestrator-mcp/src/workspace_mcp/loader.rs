@@ -77,7 +77,7 @@ impl WorkspaceMcpLoader {
         repo: &Path,
         config: &WorkspaceMcpScanConfig,
     ) -> Result<WorkspaceMcpLoadResult, String> {
-        let static_names: HashSet<&str> = TOOL_REGISTRY.iter().map(|t| t.name.as_ref()).collect();
+        let static_names: HashSet<&str> = TOOL_REGISTRY.iter().map(|t| t.name).collect();
         let mut surface = WorkspaceMcpSurface::default();
         let mut errors = Vec::new();
         let mut seen_tools: HashSet<String> = HashSet::new();

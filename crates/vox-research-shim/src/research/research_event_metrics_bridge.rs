@@ -74,8 +74,8 @@ pub(crate) async fn persist_research_event_metrics(
                 .await
                 .map_err(|e| e.to_string())?;
             #[cfg(feature = "gamify")]
-            if metric_type == "research_session_completed" {
-                if let Err(err) =
+            if metric_type == "research_session_completed"
+                && let Err(err) =
                     vox_gamify::discovery::scientia_kudos::emit_research_session_complete_kudos(
                         db, sid,
                     )
@@ -88,7 +88,6 @@ pub(crate) async fn persist_research_event_metrics(
                         "research_session_complete_kudos_failed"
                     );
                 }
-            }
         }
         ResearchEvent::AggregateComputed {
             provider,

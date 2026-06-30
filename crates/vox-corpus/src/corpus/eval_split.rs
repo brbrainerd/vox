@@ -74,7 +74,7 @@ pub fn split_surface(
     // 1. Collect unique keys in stable order (BTreeSet for reproducibility)
     let unique_keys: Vec<String> = rows
         .iter()
-        .map(|r| tool_key(r))
+        .map(tool_key)
         .collect::<BTreeSet<_>>()
         .into_iter()
         .collect();

@@ -525,13 +525,11 @@ pub fn params_b_from_model_hint(hint: &str) -> Option<f64> {
                     break;
                 }
             }
-            if seen_digit {
-                if let Ok(v) = lower[j..i].parse::<f64>() {
-                    if v > 0.0 && v < 2000.0 {
+            if seen_digit
+                && let Ok(v) = lower[j..i].parse::<f64>()
+                    && v > 0.0 && v < 2000.0 {
                         return Some(v);
                     }
-                }
-            }
         }
         i += 1;
     }
