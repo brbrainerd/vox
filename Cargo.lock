@@ -15420,7 +15420,9 @@ dependencies = [
  "vox-config",
  "vox-doc-pipeline",
  "vox-git",
+ "vox-http-client",
  "vox-jsonschema-util",
+ "vox-secrets",
  "walkdir",
 ]
 

@@ -98,7 +98,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::GuiSurfaceCoverage { write } => super::gui_surface_coverage::run(&root, write),
         CiCmd::GuiSurfaceRegistry { write } => super::gui_surface_registry::run(&root, write),
         CiCmd::GuiHonesty => super::gui_honesty::run(&root),
-        CiCmd::ModelRoutingCheck => super::model_routing_check::run(&root),
+        CiCmd::ModelRoutingCheck => vox_cli_ci::model_routing_check::run(&root),
         CiCmd::CheckCodexSsot => check_codex_ssot(&root),
         CiCmd::ContractsIndex => contracts_index::run(&root),
         CiCmd::AiFixturesCoverage => vox_cli_ci::ai_fixtures_coverage::run(&root),
@@ -164,7 +164,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             },
         ),
         CiCmd::TierBudgetCheck { junit, profile } => {
-            super::tier_budget_check::run(&root, &junit, &profile)
+            vox_cli_ci::tier_budget_check::run(&root, &junit, &profile)
         }
         CiCmd::DevLoopAudit { json } => super::dev_loop_audit::run(&root, json),
         CiCmd::SsotAudit => run_ssot_audit(&root).await,
@@ -186,7 +186,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::CompileMatrix => super::compile_matrix::run(&root),
         CiCmd::RetirementAudit => vox_cli_ci::retirement_audit::run(&root),
         CiCmd::NoDeiImport => check_no_vox_dei(&root),
-        CiCmd::AttentionEventLedgerParity => super::attention_ledger_parity::run(&root),
+        CiCmd::AttentionEventLedgerParity => vox_cli_ci::attention_ledger_parity::run(&root),
         CiCmd::CheckSummaryDrift => {
             let cargo = cargo_bin();
             let st = Command::new(&cargo)
@@ -389,8 +389,8 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::SecretsCutoverGates => run_secrets_cutover_gates(&root),
         CiCmd::SecretsCutoverAudit { all } => run_secrets_cutover_audit(&root, all),
         CiCmd::CapabilitySync { write } => super::capability_sync::run(&root, write),
-        CiCmd::CapabilitySnapshot => super::capability_snapshot::run(&root),
-        CiCmd::AttentionConfigParity => super::attention_parity::run(&root),
+        CiCmd::CapabilitySnapshot => vox_cli_ci::capability_snapshot::run(&root),
+        CiCmd::AttentionConfigParity => vox_cli_ci::attention_parity::run(&root),
         CiCmd::CommandCompliance => command_compliance::run(&root),
         CiCmd::CompletionAudit { scan_extra } => completion_quality::run_audit(&root, &scan_extra),
         CiCmd::CompletionGates { mode } => completion_quality::run_gates(&root, mode),
@@ -517,7 +517,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::PmProvenance {
             strict,
             root: provenance_root,
-        } => super::pm_provenance::run(&root, &provenance_root, strict),
+        } => vox_cli_ci::pm_provenance::run(&root, &provenance_root, strict),
         CiCmd::CheckLinks { target } => check_links::run(&root, target.as_deref()),
         CiCmd::CanonicalMapVerify => canonical_docs::run(&root),
         CiCmd::ReleaseBuild {
@@ -560,12 +560,12 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             repeat,
             ingest,
         } => super::build_bench::run_build_bench(&root, label, write, compare, repeat, ingest),
-        CiCmd::CrateBudget { exit_zero } => super::crate_budget::run_crate_budget(&root, exit_zero),
+        CiCmd::CrateBudget { exit_zero } => vox_cli_ci::crate_budget::run_crate_budget(&root, exit_zero),
         CiCmd::CrateBuildMapParity => {
             super::crate_build_map_parity::run_crate_build_map_parity(&root)
         }
         CiCmd::FanInBudget { exit_zero } => {
-            super::fan_in_budget::run_fan_in_budget(&root, exit_zero)
+            vox_cli_ci::fan_in_budget::run_fan_in_budget(&root, exit_zero)
         }
         CiCmd::DepCycles {
             deny_new,
@@ -646,9 +646,9 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             json,
             output,
             check,
-        } => super::safety_inventory::run(
+        } => vox_cli_ci::safety_inventory::run(
             &root,
-            super::safety_inventory::SafetyInventoryOpts {
+            vox_cli_ci::safety_inventory::SafetyInventoryOpts {
                 json_stdout: json,
                 output,
                 check,
@@ -708,7 +708,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             absolute_ms,
             json,
         ),
-        CiCmd::DeployStatus { write_to } => super::deploy_status::run(write_to).await,
+        CiCmd::DeployStatus { write_to } => vox_cli_ci::deploy_status::run(write_to).await,
         CiCmd::GeneratePluginCatalogDocs {
             catalog_out,
             bundles_out,
@@ -725,7 +725,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::PluginSurfaceSync { write } => super::plugin_surface::run(&root, write),
         CiCmd::PluginCatalogSync { write } => super::plugin_catalog_sync::run(&root, write),
         CiCmd::PluginSkillParity { write } => super::plugin_skill_parity::run(write),
-        CiCmd::AgentSkillsCompliance => super::agentskills_compliance::run(),
+        CiCmd::AgentSkillsCompliance => vox_cli_ci::agentskills_compliance::run(),
         CiCmd::McpVoxSurfaceParity => super::mcp_vox_surface_parity::run(),
         CiCmd::CoolifyEval { cmd } => super::coolify_eval::run(cmd).await,
         CiCmd::WatchRun {

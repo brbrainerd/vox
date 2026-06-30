@@ -26,8 +26,8 @@ pub fn run(root: &Path) -> Result<()> {
 
     for path in all_rs_files {
         let content = fs::read_to_string(&path)?;
-        if content.contains("evaluate_interruption") {
-            if !content.contains("record_attention_event")
+        if content.contains("evaluate_interruption")
+            && !content.contains("record_attention_event")
                 && !content.contains("AttentionEventType::")
                 && !path.to_string_lossy().contains("interruption_policy.rs")
                 && !path.to_string_lossy().contains("lib.rs")
@@ -36,7 +36,6 @@ pub fn run(root: &Path) -> Result<()> {
             {
                 evaluate_files.push(path.to_path_buf());
             }
-        }
     }
 
     if !evaluate_files.is_empty() {

@@ -19,6 +19,8 @@ vox-jsonschema-util = { workspace = true }
 vox-compiler = { workspace = true }
 vox-git = { workspace = true }
 vox-config = { workspace = true }
+vox-http-client = { workspace = true }
+vox-secrets = { workspace = true }
 owo-colors = { workspace = true }
 sysinfo = { workspace = true }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "process", "fs", "io-util", "time"] }

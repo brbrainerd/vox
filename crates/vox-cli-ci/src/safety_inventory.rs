@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
 
-use vox_cli_ci::test_inventory::scan_ignored_test_governance_findings_with_histogram;
+use crate::test_inventory::scan_ignored_test_governance_findings_with_histogram;
 
 /// CLI options for [`run`].
 #[derive(Debug, Clone, Default)]
