@@ -882,6 +882,15 @@ impl BuiltinTypes {
                 ),
             );
         }
+        // `fs.read_bytes` — byte-exact escape hatch (preserves BOM/CR; errors on
+        // non-UTF-8). Reachable on the native surface, not just the interpreter.
+        fs_methods.insert(
+            "read_bytes".into(),
+            Ty::Fn(
+                vec![Ty::Str],
+                Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str))),
+            ),
+        );
         // `fs.write` / `fs.write_file` / `fs.write_to_file` are or-pattern aliases.
         for name in ["write", "write_file", "write_to_file"] {
             fs_methods.insert(
