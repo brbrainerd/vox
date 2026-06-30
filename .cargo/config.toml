@@ -24,9 +24,15 @@ rustdocflags = ["-D", "warnings"]
 rustflags = ["-C", "link-arg=-fuse-ld=lld"]
 
 [target.x86_64-pc-windows-msvc]
-# lld-link is available (C:\Program Files\LLVM\bin\lld-link.exe) but causes
-# permission-denied errors on Windows when overwriting locked test binaries.
-# Keeping MSVC linker (default). Revisit when lld-link Windows file-locking is fixed.
+# lld-link (LLVM 22, on PATH) — ADOPTED 2026-06-30. The historical "permission-denied
+# overwriting a locked test binary" error was the zombie-test-process / orphan class
+# (handles held by stale `target/**/deps/*.exe` test processes), not an intrinsic
+# lld-link bug; fixed via the orphan cleanup + process-hygiene work. Re-verified:
+# 15/15 trivial-crate relinks + 5/5 real-crate (run-the-tests) relinks, zero lock.
+# lld-link links the large (~115 MB) vox binaries much faster than MSVC link.exe.
+# `vox doctor`'s linker check guards this; revert to the default link.exe only if the
+# lock recurs.
+linker = "lld-link"
 rustflags = ["-C", "link-arg=/DEBUG:NONE", "-C", "link-arg=/STACK:8388608"]
 
 [env]

@@ -90,6 +90,15 @@ impl Parser {
             .unwrap_or(&Token::Eof)
     }
 
+    /// Look `n` tokens ahead (`peek_nth(0) == peek()`). Used for the small lookahead
+    /// that keeps script-mode soft keywords declaration-head-only.
+    pub(crate) fn peek_nth(&self, n: usize) -> &Token {
+        self.tokens
+            .get(self.pos + n)
+            .map(|s| &s.token)
+            .unwrap_or(&Token::Eof)
+    }
+
     pub(crate) fn span(&self) -> Span {
         self.tokens
             .get(self.pos)
@@ -298,7 +307,16 @@ impl Parser {
                     | Token::AtCollaborative
                     | Token::AtLayer
                     | Token::AtPublic
-            ) || matches!(self.peek(), Token::Ident(n) if n == "routes" || n == "url" || n == "state_machine");
+            ) || matches!(self.peek(), Token::Ident(n) if n == "routes" || n == "url" || n == "state_machine")
+                // Soft (contextual) keywords must be decl-position in SCRIPT mode too,
+                // mirroring parse_decl's Ident dispatch — BUT only at a real declaration
+                // head. They are decl-heads only when followed by a name (Ident) or, for
+                // tool/resource, a leading string; never before `(`/`.`/operators. This
+                // keeps script-mode calls/refs like `query(x)` or `table.foo` on the
+                // statement path instead of stealing them into parse_decl.
+                || (matches!(self.peek(), Token::Ident(n) if matches!(n.as_str(),
+                        "table" | "index" | "query" | "mutation" | "server" | "tool" | "resource"))
+                    && matches!(self.peek_nth(1), Token::Ident(_) | Token::StringLit(_)));
 
             let is_tombstoned = matches!(
                 self.peek(),
@@ -577,6 +595,21 @@ impl Parser {
         }
     }
 
+    /// Warning-first deprecation for a retired Tier-1 decorator. The decorator
+    /// still parses during the rollout; the diagnostic carries a machine-readable
+    /// [`crate::parser::error::Replacement`] so tooling/LLMs can auto-fix. The final
+    /// flip changes these to hard errors once the corpus is codemodded.
+    fn warn_retired_decorator(&mut self, from: &str, to: &str, code: &str) {
+        let span = self.span();
+        self.errors.push(ParseError::retired_decorator(
+            span,
+            from,
+            to,
+            code,
+            ParseSeverity::Warning,
+        ));
+    }
+
     pub(crate) fn parse_decl(&mut self) -> Result<Decl, ()> {
         self.skip_newlines();
         // ADR-032: in `.vox.ui` files, top-level `state` / `derived` / `effect` /
@@ -629,14 +662,38 @@ impl Parser {
                 }
                 Ok(decl)
             }
-            Token::AtQuery => self.parse_query(),
-            Token::AtMutation => self.parse_mutation(),
-            Token::AtServer => self.parse_server_endpoint(),
+            Token::AtQuery => {
+                self.warn_retired_decorator("@query", "query", "vox/decorator/query-retired");
+                self.parse_query()
+            }
+            Token::AtMutation => {
+                self.warn_retired_decorator(
+                    "@mutation",
+                    "mutation",
+                    "vox/decorator/mutation-retired",
+                );
+                self.parse_mutation()
+            }
+            Token::AtServer => {
+                self.warn_retired_decorator("@server", "server", "vox/decorator/server-retired");
+                self.parse_server_endpoint()
+            }
             Token::AtForall => self.parse_forall(),
             Token::AtScheduled => self.parse_scheduled(),
-            Token::AtTool => self.parse_mcp_tool(false),
+            Token::AtTool => {
+                self.warn_retired_decorator("@tool", "tool", "vox/decorator/tool-retired");
+                self.parse_mcp_tool(false)
+            }
             Token::AtMcpTool => self.parse_mcp_tool(true),
-            Token::AtResource | Token::AtMcpResource => self.parse_mcp_resource(),
+            Token::AtResource => {
+                self.warn_retired_decorator(
+                    "@resource",
+                    "resource",
+                    "vox/decorator/resource-retired",
+                );
+                self.parse_mcp_resource()
+            }
+            Token::AtMcpResource => self.parse_mcp_resource(),
             Token::Let => {
                 let start = self.span();
                 self.advance(); // eat 'let'
@@ -806,7 +863,10 @@ impl Parser {
                     }
                 }
             }
-            Token::AtIndex => self.parse_index(),
+            Token::AtIndex => {
+                self.warn_retired_decorator("@index", "index", "vox/decorator/index-retired");
+                self.parse_index()
+            }
             Token::AtForm => self.parse_form_decl(),
             Token::AtBackButton => self.parse_back_button_decl(),
             Token::AtDeepLink => self.parse_deep_link_decl(),
@@ -852,13 +912,27 @@ impl Parser {
                     }
                 }
             }
-            Token::AtTable => self.parse_table(),
+            Token::AtTable => {
+                self.warn_retired_decorator("@table", "table", "vox/decorator/table-retired");
+                self.parse_table()
+            }
             // Phase M (json-as-rfc-2026-05-24): `@json_as(MyType, ...)`
             // immediately precedes a `type` definition. parse_json_as parses
             // the decorator block, then delegates to parse_typedef and
             // attaches the annotation to the produced TypeDefDecl.
             Token::AtJsonAs => self.parse_json_as(),
             Token::Ident(ref name) if name == "routes" => self.parse_routes(),
+            // Soft (contextual) keywords: recognized ONLY here, at declaration-head
+            // position. They have no logos `#[token]`, so they remain ordinary
+            // identifiers as field/param/method names everywhere else (the
+            // get/post/put/delete precedent). See spec §"Soft keywords".
+            Token::Ident(ref name) if name == "query" => self.parse_query_kw(),
+            Token::Ident(ref name) if name == "mutation" => self.parse_mutation_kw(),
+            Token::Ident(ref name) if name == "server" => self.parse_server_kw(),
+            Token::Ident(ref name) if name == "table" => self.parse_table_kw(),
+            Token::Ident(ref name) if name == "index" => self.parse_index(),
+            Token::Ident(ref name) if name == "tool" => self.parse_tool_kw(),
+            Token::Ident(ref name) if name == "resource" => self.parse_resource_kw(),
             _ => {
                 self.errors.push(ParseError::classified(
                     self.span(),

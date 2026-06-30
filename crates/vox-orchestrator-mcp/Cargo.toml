@@ -61,11 +61,13 @@ vox-project-scaffold.workspace = true
 vox-skills.workspace = true
 vox-openclaw-runtime.workspace = true
 vox-plugin-host.workspace = true
+vox-skill-discovery.workspace = true
 vox-plugin-types.workspace = true
 vox-plugin-catalog.workspace = true
 vox-orchestrator-types.workspace = true
 
 vox-db.workspace = true
+vox-redact.workspace = true
 vox-scientia.workspace = true
 vox-search = { workspace = true }  # tantivy/web-scrape gated graph-wide via vox-cli heavy-retrieval (WS2-T3)
 vox-config.workspace = true

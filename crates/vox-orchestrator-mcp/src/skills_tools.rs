@@ -43,6 +43,23 @@ pub struct SkillRunParams {
 pub struct SkillParseParams {
     pub skill_md: String,
 }
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SkillAddParams {
+    /// Git URL or local path to a skill (or repo of skills).
+    pub source: String,
+    /// Install into `~/.vox/skills` instead of the workspace `.vox/skills`.
+    #[serde(default)]
+    pub global: bool,
+    /// Optional: install only the skill whose `name` matches.
+    #[serde(default)]
+    pub skill: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SkillRemoveParams {
+    pub id: String,
+}
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SkillInfo {
     pub id: String,
@@ -268,6 +285,12 @@ pub struct DiscoveredSkill {
     pub path: String,
     /// True when a skill with this id is already in the registry.
     pub installed: bool,
+    /// Ecosystem root the skill lives under: `bundled|cursor|claude|agents|vox|unknown`.
+    pub source_root: String,
+    /// True only when the skill is under a `.vox/skills` root (safe to delete).
+    pub removable: bool,
+    /// Best-effort license signal: name of a LICENSE file in the dir, else "".
+    pub license: String,
 }
 
 /// `vox_skill_discover` — list bare SKILL.md skills found under the standard
@@ -294,12 +317,92 @@ pub fn skill_discover(state: &ServerState) -> String {
                     installed: installed.contains(&id),
                     name: ext.bundle.manifest.name,
                     description: ext.bundle.manifest.description,
+                    source_root: vox_plugin_host::user_install::source_root_label(&ext.path)
+                        .to_string(),
+                    removable: vox_plugin_host::user_install::is_removable(&ext.path),
+                    license: vox_plugin_host::user_install::license_hint(&ext.path),
                     path: ext.path.display().to_string(),
                     id,
                 }
             })
             .collect();
     ToolResult::ok(items).to_json()
+}
+
+/// `vox_skill_add` — install skill(s) from a git URL or local path into the user
+/// root (`.vox/skills`, or `~/.vox/skills` when `global`). Validates frontmatter;
+/// never runs `scripts/`. Re-discovers so the new skills load without restart.
+pub async fn skill_add(state: &ServerState, params: SkillAddParams) -> String {
+    let ws_root = state
+        .workspace_root
+        .clone()
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+    let source = params.source.clone();
+    let global = params.global;
+    let filter = params.skill.clone();
+    let result = tokio::task::spawn_blocking(move || {
+        vox_plugin_host::user_install::install_to_user_root(
+            &source,
+            &ws_root,
+            global,
+            filter.as_deref(),
+        )
+    })
+    .await;
+    match result {
+        Ok(Ok(installed)) => {
+            // Load ONLY the just-installed skills into the registry (not a full
+            // re-scan of every root — that is O(all skills) for a one-skill add).
+            for s in &installed {
+                if let Ok(body) = std::fs::read_to_string(s.dest.join("SKILL.md")) {
+                    if let Ok(bundle) = vox_plugin_host::skill_parser::parse_skill_md(&body) {
+                        let _ = state.skill_registry.install_bundle(&bundle).await;
+                    }
+                }
+            }
+            state.rebuild_skill_search_index();
+            let names: Vec<String> = installed.into_iter().map(|s| s.name).collect();
+            ToolResult::ok(serde_json::json!({ "installed": names })).to_json()
+        }
+        Ok(Err(e)) => ToolResult::<String>::err_with_remediation(
+            e,
+            "Pass a valid git URL or local path; the source must contain a SKILL.md with valid frontmatter.",
+        )
+        .to_json(),
+        Err(e) => ToolResult::<String>::err(format!("add task failed: {e}")).to_json(),
+    }
+}
+
+/// `vox_skill_remove` — delete a user-installed skill's directory (ownership-scoped
+/// to `.vox/skills`), then drop its registry row. Bundled / other-tool skills are
+/// read-only and refused.
+pub async fn skill_remove(state: &ServerState, params: SkillRemoveParams) -> String {
+    let ws_root = state
+        .workspace_root
+        .clone()
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+    let roots = vox_config::paths::skill_search_roots(&ws_root);
+    let id = params.id.clone();
+    let removed = tokio::task::spawn_blocking(move || {
+        vox_plugin_host::user_install::remove_user_skill(&id, &roots)
+    })
+    .await;
+    match removed {
+        Ok(Ok(removed)) => {
+            // Uninstall by the RESOLVED canonical id (uninstall keys by id, not
+            // name); using params.id when a name was passed would leave a stale row.
+            let _ = state.skill_registry.uninstall(&removed.id).await;
+            state.rebuild_skill_search_index();
+            ToolResult::ok(format!("Removed '{}' ({})", removed.id, removed.path.display()))
+                .to_json()
+        }
+        Ok(Err(e)) => ToolResult::<String>::err_with_remediation(
+            e,
+            "Only skills under .vox/skills are removable; bundled and other-tool skills are read-only.",
+        )
+        .to_json(),
+        Err(e) => ToolResult::<String>::err(format!("remove task failed: {e}")).to_json(),
+    }
 }
 
 /// `vox_skill_run` — execute a skill script in the sandbox (parity with CLI `vox skill run`).
@@ -327,5 +430,22 @@ pub async fn skill_run(state: &ServerState, params: SkillRunParams) -> String {
         .to_json(),
         Ok(Err(e)) => ToolResult::<String>::err(format!("sandbox run failed: {e}")).to_json(),
         Err(e) => ToolResult::<String>::err(format!("sandbox task failed: {e}")).to_json(),
+    }
+}
+
+#[cfg(test)]
+mod provenance_tests {
+    use std::path::Path;
+
+    use vox_plugin_host::user_install::{is_removable, license_hint, source_root_label};
+
+    #[test]
+    fn discovered_fields_derive_from_path() {
+        // A .vox/skills skill is removable and labelled "vox".
+        let dir = Path::new("/ws/.vox/skills/mine");
+        assert_eq!(source_root_label(dir), "vox");
+        assert!(is_removable(dir));
+        // license_hint returns "" for a path with no LICENSE file.
+        assert_eq!(license_hint(dir), "");
     }
 }

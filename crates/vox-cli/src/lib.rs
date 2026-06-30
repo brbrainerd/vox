@@ -182,7 +182,7 @@ pub enum Cli {
     Recensio {
         /// Subcommand.
         #[command(subcommand)]
-        cmd: commands::review::ReviewCli,
+        cmd: vox_cli_review::ReviewCli,
     },
     /// Manage global configuration and preferences.
     Config {
@@ -587,7 +587,7 @@ pub enum Cli {
     Research {
         /// Subcommand.
         #[command(subcommand)]
-        cmd: commands::research::ResearchCmd,
+        cmd: vox_cli_research::ResearchCmd,
     },
 
     /// CodeRabbit batch PRs + ingest (`--features coderabbit`).
@@ -595,7 +595,7 @@ pub enum Cli {
     Review {
         /// Subcommand.
         #[command(subcommand)]
-        cmd: commands::review::ReviewCli,
+        cmd: vox_cli_review::ReviewCli,
     },
     /// Emergency stop the orchestrator (MCP/daemon local stop request)
     Stop {

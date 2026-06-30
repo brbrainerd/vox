@@ -149,6 +149,66 @@ pub fn resolve_config_opt_f32(name: &str) -> Option<f32> {
     None
 }
 
+/// Resolve an optional string config value: env var → `~/.vox/config.toml` → `None`.
+/// Used by `#[derive(VoxConfig)]` for `Option<T>` and enum (`FromStr`) fields.
+#[must_use]
+pub fn resolve_config_opt_str(name: &str) -> Option<String> {
+    if let Ok(v) = std::env::var(name) {
+        let t = v.trim();
+        if !t.is_empty() {
+            return Some(t.to_string());
+        }
+    }
+    if let Some(v) = toml_config::load_user_config().values.get(name)
+        && let Some(s) = v.as_str()
+    {
+        return Some(s.to_string());
+    }
+    None
+}
+
+/// Resolve an i64 config value using layered precedence (env → `~/.vox/config.toml` → default).
+#[must_use]
+pub fn resolve_config_i64(name: &str, default: i64) -> i64 {
+    if let Ok(v) = std::env::var(name)
+        && let Ok(p) = v.trim().parse::<i64>()
+    {
+        return p;
+    }
+    if let Some(v) = toml_config::load_user_config().values.get(name) {
+        if let Some(i) = v.as_integer() {
+            return i;
+        } else if let Some(s) = v.as_str()
+            && let Ok(p) = s.trim().parse::<i64>()
+        {
+            return p;
+        }
+    }
+    default
+}
+
+/// Resolve an f64 config value using layered precedence (env → `~/.vox/config.toml` → default).
+#[must_use]
+pub fn resolve_config_f64(name: &str, default: f64) -> f64 {
+    if let Ok(v) = std::env::var(name)
+        && let Ok(p) = v.trim().parse::<f64>()
+    {
+        return p;
+    }
+    if let Some(v) = toml_config::load_user_config().values.get(name) {
+        if let Some(f) = v.as_float() {
+            return f;
+        } else if let Some(i) = v.as_integer() {
+            return i as f64;
+        } else if let Some(s) = v.as_str()
+            && let Ok(p) = s.trim().parse::<f64>()
+        {
+            return p;
+        }
+    }
+    default
+}
+
 /// Resolve an optional i32 config value: env var → `~/.vox/config.toml` → `None`.
 ///
 /// Accepts integer, float (truncated), or string-coerced TOML values.

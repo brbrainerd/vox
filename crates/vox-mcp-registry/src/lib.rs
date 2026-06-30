@@ -43,6 +43,8 @@ pub const A2A_MESSAGE_TYPES: &[&str] = &[
 pub const SKILL_TOOLS: &[&str] = &[
     "vox_skill_install",
     "vox_skill_uninstall",
+    "vox_skill_add",
+    "vox_skill_remove",
     "vox_skill_list",
     "vox_skill_search",
     "vox_skill_info",

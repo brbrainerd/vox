@@ -9,5 +9,6 @@ mod handoff;
 mod lifecycle_ops;
 /// PAV phase-boundary interventions (approve_plan / skip_verify / force_verify).
 mod pav_interventions;
+mod propose;
 mod registration;
 mod spawn;

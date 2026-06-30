@@ -286,6 +286,23 @@ pub async fn handle_tool_call(
 
     let duration_ms = start_time.elapsed().as_millis() as i64;
 
+    // Operation capture (sub-project 1): best-effort, redacted, fire-and-forget.
+    // Runs only for executed tools (guard rejections returned earlier).
+    crate::operation_capture::spawn_capture(
+        state.db.clone(),
+        state.orchestrator_config.operations_capture_enabled,
+        name_canonical.to_string(),
+        args.clone(),
+        match &result {
+            Ok(s) => s.clone(),
+            Err(e) => e.to_string(),
+        },
+        session_id.map(|s| s.to_string()),
+        agent_id.map(|s| s.to_string()),
+        duration_ms,
+        result.is_err(),
+    );
+
     // Track E — emit structured telemetry for every MCP tool call.
     {
         let tool_call_kind = tool_call_kind_for(name_canonical);
@@ -480,6 +497,9 @@ async fn handle_tool_call_inner(
         }
         "vox_fail_task" => Ok(task_tools::fail_task(state, serde_json::from_value(args)?).await),
         "vox_doubt_task" => Ok(task_tools::doubt_task(state, serde_json::from_value(args)?).await),
+        "vox_propose_skill" => {
+            Ok(feedback_tools::propose_skill(state, serde_json::from_value(args)?).await)
+        }
         "vox_ask_clarification" => {
             Ok(feedback_tools::ask_clarification(state, serde_json::from_value(args)?).await)
         }
@@ -1329,6 +1349,10 @@ async fn handle_tool_call_inner(
         )),
         "vox_skill_run" => Ok(crate::skills::skill_run(state, serde_json::from_value(args)?).await),
         "vox_skill_discover" => Ok(crate::skills::skill_discover(state)),
+        "vox_skill_add" => Ok(crate::skills::skill_add(state, serde_json::from_value(args)?).await),
+        "vox_skill_remove" => {
+            Ok(crate::skills::skill_remove(state, serde_json::from_value(args)?).await)
+        }
 
         "vox_workspace_mcp_refresh" => {
             let root = state

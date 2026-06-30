@@ -2,6 +2,15 @@ import { describe, it, expect } from 'vitest';
 import { mapDiscoveredSkills } from './discovery';
 
 describe('mapDiscoveredSkills', () => {
+  it('maps the new provenance fields with safe defaults', () => {
+    const rows = mapDiscoveredSkills([
+      { id: 'a', name: 'a', description: 'd', path: '/ws/.vox/skills/a', installed: true, source_root: 'vox', removable: true, license: 'LICENSE' },
+      { id: 'b', name: 'b', description: '', path: '/ws/assets/skills/b', installed: true }, // missing new fields
+    ]);
+    expect(rows[0]).toMatchObject({ source_root: 'vox', removable: true, license: 'LICENSE' });
+    expect(rows[1]).toMatchObject({ source_root: '', removable: false, license: '' });
+  });
+
   it('maps well-formed rows', () => {
     const rows = mapDiscoveredSkills([
       { id: 'tdd', name: 'tdd', description: 'RED-GREEN', path: '/r/.agents/skills/tdd', installed: true },

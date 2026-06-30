@@ -2,6 +2,7 @@
   "schema_version": 1,
   "crates": {
     "vox-actor-runtime": [
+      "vox-bounded-fs",
       "vox-config",
       "vox-foundation",
       "vox-http-client",
@@ -159,6 +160,7 @@
     ],
     "vox-compiler": [
       "vox-ast",
+      "vox-bounded-fs",
       "vox-codegen",
       "vox-codegen-ts",
       "vox-config",
@@ -166,6 +168,7 @@
       "vox-foundation",
       "vox-grammar-export",
       "vox-jsonschema-util",
+      "vox-language-surface",
       "vox-repository",
       "vox-secrets",
       "vox-shell-stdlib-types",
@@ -174,12 +177,16 @@
       "workspace-hack"
     ],
     "vox-config": [
+      "vox-config-derive",
       "vox-git",
       "vox-llm-config",
       "vox-llm-egress",
       "vox-secrets",
       "vox-telemetry",
       "workspace-hack"
+    ],
+    "vox-config-derive": [
+      "vox-config"
     ],
     "vox-constrained-gen": [
       "vox-grammar-export",
@@ -278,6 +285,7 @@
       "workspace-hack"
     ],
     "vox-grammar-export": [
+      "vox-language-surface",
       "workspace-hack"
     ],
     "vox-graph-reader": [],
@@ -346,6 +354,9 @@
       "vox-compiler",
       "vox-foundation",
       "vox-lsp"
+    ],
+    "vox-language-surface": [
+      "workspace-hack"
     ],
     "vox-llm-config": [
       "workspace-hack"
@@ -482,12 +493,14 @@
       "vox-populi",
       "vox-project-scaffold",
       "vox-publisher",
+      "vox-redact",
       "vox-repository",
       "vox-research-events",
       "vox-research-shim",
       "vox-scientia",
       "vox-search",
       "vox-secrets",
+      "vox-skill-discovery",
       "vox-skills",
       "vox-telemetry",
       "workspace-hack"
@@ -661,6 +674,7 @@
       "workspace-hack"
     ],
     "vox-quantize": [],
+    "vox-redact": [],
     "vox-rename-registry": [],
     "vox-repository": [
       "vox-bounded-fs",
@@ -776,7 +790,8 @@
     "vox-terminal-core": [
       "vox-compiler",
       "vox-journal",
-      "vox-orchestrator"
+      "vox-orchestrator",
+      "vox-redact"
     ],
     "vox-test-harness": [
       "vox-compiler",

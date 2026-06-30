@@ -921,7 +921,7 @@ pub fn std_namespace_runtime_call(
             args[0]
         )),
         ("fs", "read_bytes") if !args.is_empty() => Some(format!(
-            "::std::fs::read({}).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)",
+            "::vox_actor_runtime::builtins::vox_fs_read_bytes(({}).as_str())",
             args[0]
         )),
         ("fs", "mkdir") if !args.is_empty() => Some(format!(

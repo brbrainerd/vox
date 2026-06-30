@@ -67,6 +67,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_complete_task" => derived_tool_schema!(crate::params::CompleteTaskParams),
         "vox_fail_task" => derived_tool_schema!(crate::params::FailTaskParams),
         "vox_doubt_task" => derived_tool_schema!(crate::params::DoubtTaskParams),
+        "vox_propose_skill" => derived_tool_schema!(crate::params::ProposeSkillParams),
         "vox_ask_clarification" => derived_tool_schema!(crate::params::AskClarificationParams),
         "vox_resolve_feedback" => derived_tool_schema!(crate::params::ResolveFeedbackParams),
         "vox_feedback_list" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
@@ -583,6 +584,12 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         ),
 
         // ── Skills ───────────────────────────────────────────────────────────
+        "vox_skill_add" => parse_obj(
+            r#"{"type":"object","properties":{"source":{"type":"string"},"global":{"type":"boolean"},"skill":{"type":"string"}},"required":["source"],"additionalProperties":true}"#,
+        ),
+        "vox_skill_remove" => parse_obj(
+            r#"{"type":"object","properties":{"id":{"type":"string"}},"required":["id"],"additionalProperties":true}"#,
+        ),
         "vox_skill_uninstall"
         | "vox_skill_info"
         | "vox_skill_use"

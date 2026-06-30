@@ -2,18 +2,30 @@
 //!
 //! Prefer these helpers over ad hoc `fmt().with_env_filter(...).try_init()` copies.
 
+use std::io::IsTerminal;
 use tracing_subscriber::EnvFilter;
+
+/// ANSI color belongs only on a real terminal. Scheduled tasks, pipes, and file
+/// redirects are NOT terminals, so emitting escape codes there produces literal
+/// `\x1b[2m…\x1b[0m` garbage in logs (observed in the VoxCIRunnerScale task output).
+pub(crate) fn ansi_enabled_for(is_terminal: bool) -> bool {
+    is_terminal
+}
 
 /// CLI preset: honor `RUST_LOG` when valid; otherwise default filter **`info`**.
 pub fn try_init_cli_default_info_fallback() {
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
-    let _ = tracing_subscriber::fmt().with_env_filter(filter).try_init();
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_ansi(ansi_enabled_for(std::io::stdout().is_terminal()))
+        .try_init();
 }
 
 /// Daemon/service preset: [`EnvFilter::from_default_env`] (unset ⇒ subscriber default levels).
 pub fn try_init_from_default_env() {
     let _ = tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
+        .with_ansi(ansi_enabled_for(std::io::stdout().is_terminal()))
         .try_init();
 }
 
@@ -22,6 +34,7 @@ pub fn try_init_from_default_env_stderr() {
     let _ = tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
         .with_writer(std::io::stderr)
+        .with_ansi(ansi_enabled_for(std::io::stderr().is_terminal()))
         .try_init();
 }
 
@@ -61,6 +74,13 @@ pub fn init_otel_layer() -> Option<
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ansi_disabled_when_not_a_tty() {
+        // The actual scheduled-task / pipe scenario: not a terminal ⇒ no ANSI.
+        assert!(!ansi_enabled_for(false));
+        assert!(ansi_enabled_for(true));
+    }
 
     #[test]
     fn cli_init_can_be_called_twice_without_panic() {

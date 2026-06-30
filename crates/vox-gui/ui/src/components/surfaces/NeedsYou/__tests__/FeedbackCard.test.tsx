@@ -26,7 +26,33 @@ const doubt = {
   infoGainBits: 0,
 };
 
+const proposal = {
+  feedbackId: 'F-9',
+  kind: 'skill_proposal' as const,
+  prompt: "Recurring procedure 'read-edit-run': read → edit → run. Consider saving it as a reusable skill.",
+  options: ['Dismiss'],
+  gates: [],
+  doubtedTaskId: null,
+  surface: 'needs_you' as const,
+  infoGainBits: 0,
+};
+
 describe('FeedbackCard', () => {
+  it('skill_proposal: Dismiss resolves with skip action', () => {
+    const onResolve = vi.fn();
+    render(<FeedbackCard row={proposal} onResolve={onResolve} onOpenContext={() => {}} />);
+    expect(screen.getByText(/Recurring procedure/)).toBeTruthy();
+    fireEvent.click(screen.getByText('Dismiss'));
+    expect(onResolve).toHaveBeenCalledWith('F-9', { action: 'skip' });
+  });
+
+  it('skill_proposal: Save as skill resolves with accept_skill action', () => {
+    const onResolve = vi.fn();
+    render(<FeedbackCard row={proposal} onResolve={onResolve} onOpenContext={() => {}} />);
+    fireEvent.click(screen.getByText('Save as skill'));
+    expect(onResolve).toHaveBeenCalledWith('F-9', { action: 'accept_skill' });
+  });
+
   it('clarification: option click resolves with answer action', () => {
     const onResolve = vi.fn();
     render(<FeedbackCard row={clar} onResolve={onResolve} onOpenContext={() => {}} />);

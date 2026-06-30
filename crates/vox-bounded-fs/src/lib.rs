@@ -34,6 +34,34 @@ pub fn read_utf8_path_capped(path: &Path) -> Result<String> {
         .map_err(|e| anyhow::anyhow!("{}: invalid UTF-8: {}", path.display(), e))
 }
 
+/// Normalize source/text bytes for cross-platform consistency: strip one
+/// leading UTF-8 BOM and convert CRLF/CR line endings to LF. Pure, idempotent,
+/// and allocation-light (returns input unchanged when already clean). Shared by
+/// the compiler lexer and the runtime text-read functions.
+#[must_use]
+pub fn normalize_text(s: String) -> String {
+    let s = match s.strip_prefix('\u{feff}') {
+        Some(rest) => rest.to_string(),
+        None => s,
+    };
+    if !s.contains('\r') {
+        return s;
+    }
+    let mut out = String::with_capacity(s.len());
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\r' {
+            if chars.peek() == Some(&'\n') {
+                chars.next();
+            }
+            out.push('\n');
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
 /// Same as [`read_utf8_path_capped`] but returns an empty string on any failure.
 #[must_use]
 pub fn read_utf8_path_capped_or_empty(path: &Path) -> String {
@@ -82,5 +110,35 @@ mod tests {
         let p = dir.path().join("x.txt");
         fs::write(&p, "hello").unwrap();
         assert_eq!(read_utf8_path_capped(&p).unwrap(), "hello");
+    }
+
+    #[test]
+    fn normalize_strips_leading_bom() {
+        assert_eq!(normalize_text("\u{feff}hello".to_string()), "hello");
+    }
+    #[test]
+    fn normalize_crlf_to_lf() {
+        assert_eq!(normalize_text("a\r\nb\r\n".to_string()), "a\nb\n");
+    }
+    #[test]
+    fn normalize_lone_cr_to_lf() {
+        assert_eq!(normalize_text("a\rb".to_string()), "a\nb");
+    }
+    #[test]
+    fn normalize_bom_and_crlf_together() {
+        assert_eq!(normalize_text("\u{feff}x\r\ny".to_string()), "x\ny");
+    }
+    #[test]
+    fn normalize_clean_string_is_noop() {
+        assert_eq!(normalize_text("a\nb\n".to_string()), "a\nb\n");
+    }
+    #[test]
+    fn normalize_only_leading_bom_not_interior() {
+        assert_eq!(normalize_text("a\u{feff}b".to_string()), "a\u{feff}b");
+    }
+    #[test]
+    fn normalize_is_idempotent() {
+        let once = normalize_text("\u{feff}a\r\nb\rc".to_string());
+        assert_eq!(normalize_text(once.clone()), once);
     }
 }

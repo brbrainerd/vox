@@ -92,7 +92,7 @@ completion-toestub = ["dep:vox-code-audit"]
 # Native Tauri 2 GUI (replaces dashboard SPA)
 gui = []
 # OpenClaw / skill registry (`openclaw`); ARS runtime types live in `vox-openclaw-runtime`; `vox-skills` is the marketplace registry.
-ars = ["dep:vox-skills", "dep:vox-openclaw-runtime"]
+ars = ["dep:vox-skills", "dep:vox-openclaw-runtime", "dep:vox-skill-discovery"]
 # Ludus gamification CLI (`commands::extras::ludus`); implies `vox-gamify` (uses `vox-db`).
 extras-ludus = ["dep:vox-gamify", "dep:vox-code-audit"]
 # Ludus terminal HUD over the in-process orchestrator bulletin (`vox ludus hud`).
@@ -109,10 +109,10 @@ workflow-runtime = ["mens-dei", "dep:vox-workflow-runtime"]
 codex = []
 
 # GitHub CodeRabbit batch PRs (`vox review coderabbit …`).
+# The implementation lives in the vox-cli-review crate; this feature just pulls it in
+# (it carries vox-forge/blake3/vox-code-audit, so those are no longer vox-cli's concern).
 coderabbit = [
-    "dep:vox-forge",
-    "dep:blake3",
-    "dep:vox-code-audit",
+    "dep:vox-cli-review",
 ]
 # Stub for non-functional inference server when refactoring or debugging.
 # Enables all social platform adapters for publication and diagnostics.
@@ -151,6 +151,9 @@ sha2.workspace = true
 tokio = { workspace = true, features = ["io-std"] }
 vox-cli-core = { workspace = true }
 vox-cli-ci = { workspace = true }
+vox-cli-share = { workspace = true }
+vox-cli-research = { workspace = true }
+vox-cli-review = { workspace = true, optional = true }
 base64 = { workspace = true }
 futures = { workspace = true }
 vox-package = { workspace = true }
@@ -161,6 +164,7 @@ vox-wasm-engine = { workspace = true, optional = true }
 vox-deploy-codegen = { workspace = true }
 vox-skills = { workspace = true, optional = true }
 vox-openclaw-runtime = { workspace = true, optional = true }
+vox-skill-discovery = { workspace = true, optional = true }
 vox-gamify = { workspace = true, optional = true }
 vox-config = { workspace = true }
 vox-secrets = { workspace = true }
@@ -246,9 +250,7 @@ dirs = { workspace = true }
 walkdir = { workspace = true }
 sysinfo = { workspace = true }
 
-vox-forge = { workspace = true, optional = true, features = ["github", "gitlab"] }
 vox-git = { workspace = true }
-blake3 = { workspace = true, optional = true }
 xxhash-rust = { workspace = true, optional = true }
 which = { workspace = true }
 wasmtime = { workspace = true, optional = true }

@@ -92,6 +92,7 @@ pub async fn ask_clarification(state: &ServerState, params: AskClarificationPara
         params.session_id,
         Some(agent_id),
         ts,
+        None,
     );
 
     let surface_str = match surface {
@@ -185,10 +186,75 @@ pub async fn resolve_feedback(state: &ServerState, params: ResolveFeedbackParams
 
     state.feedback().promote_withheld(|item| item.surface);
 
+    if req.kind == FeedbackKind::SkillProposal
+        && matches!(
+            action,
+            vox_orchestrator::feedback::FeedbackAction::AcceptSkill
+        )
+    {
+        let Some(candidate) = req.meta.as_ref() else {
+            return ToolResult::<serde_json::Value>::err("skill proposal has no candidate payload")
+                .to_json();
+        };
+        let Some(ws_root) = state.workspace_root.clone() else {
+            return ToolResult::<serde_json::Value>::err("no workspace root; cannot install skill")
+                .to_json();
+        };
+        return match author_and_install_skill(candidate, &ws_root) {
+            Ok(names) => {
+                ToolResult::ok(serde_json::json!({"resolved": true, "installed": names})).to_json()
+            }
+            Err(e) => ToolResult::<serde_json::Value>::err(&e).to_json(),
+        };
+    }
+
     ToolResult::ok(serde_json::json!({
         "resolved": true
     }))
     .to_json()
+}
+
+/// Author a `SKILL.md` from a serialized mined `Candidate` and install it
+/// workspace-local under `<ws_root>/.vox/skills/<name>/`. Returns installed names.
+pub(crate) fn author_and_install_skill(
+    candidate: &serde_json::Value,
+    ws_root: &std::path::Path,
+) -> Result<Vec<String>, String> {
+    use vox_skill_discovery::candidate::Candidate;
+    let cand: Candidate = serde_json::from_value(candidate.clone())
+        .map_err(|e| format!("bad candidate payload: {e}"))?;
+    let df = cand
+        .draft_frontmatter
+        .ok_or_else(|| "candidate has no draft frontmatter".to_string())?;
+    let md = vox_plugin_host::author_skill_md(&df.name, &df.description, &cand.members);
+
+    // Author into a fresh, unique temp dir. `TempDir` is RAII: it self-cleans on
+    // drop, including every early-return error path below. The dir holds only our
+    // one SKILL.md, so the installer discovers exactly one skill.
+    let tmp = tempfile::tempdir().map_err(|e| e.to_string())?;
+    let skill_dir = tmp.path().join("skill");
+    std::fs::create_dir_all(&skill_dir).map_err(|e| e.to_string())?;
+    std::fs::write(skill_dir.join("SKILL.md"), md).map_err(|e| e.to_string())?;
+
+    let src = tmp.path().to_string_lossy();
+    let installed = vox_plugin_host::install_to_user_root(&src, ws_root, false, None)?;
+    Ok(installed.into_iter().map(|i| i.name).collect())
+}
+
+pub async fn propose_skill(
+    state: &ServerState,
+    params: crate::params::ProposeSkillParams,
+) -> String {
+    match state.orchestrator.propose_skill(
+        &params.name,
+        &params.description,
+        params.session_id,
+        params.candidate,
+    ) {
+        Some(fid) => ToolResult::ok(serde_json::json!({ "feedback_id": fid.0 })).to_json(),
+        None => ToolResult::ok(serde_json::json!({ "skipped": "duplicate proposal already open" }))
+            .to_json(),
+    }
 }
 
 pub async fn feedback_list(state: &ServerState, _params: serde_json::Value) -> String {
@@ -302,6 +368,7 @@ mod tests {
             None,
             None,
             1,
+            None,
         );
 
         let resolve_params = ResolveFeedbackParams {
@@ -312,5 +379,42 @@ mod tests {
         let res_json = resolve_feedback(&state, resolve_params).await;
         let res_val: serde_json::Value = serde_json::from_str(&res_json).unwrap();
         assert!(res_val.get("success").unwrap().as_bool().unwrap());
+    }
+
+    #[test]
+    fn mcp_accept_skill_deserializes() {
+        let v = serde_json::json!({"action": "accept_skill"});
+        let a: crate::params::McpFeedbackAction = serde_json::from_value(v).unwrap();
+        let core: vox_orchestrator::feedback::FeedbackAction = a.into();
+        assert_eq!(
+            core,
+            vox_orchestrator::feedback::FeedbackAction::AcceptSkill
+        );
+    }
+
+    #[test]
+    fn author_and_install_writes_workspace_skill() {
+        let tmp = tempfile::tempdir().unwrap();
+        let candidate = serde_json::json!({
+            "kind": "RepeatedOperations",
+            "members": ["read", "edit", "run"],
+            "score": 6.0,
+            "suggested_action": "Save recurring procedure as a skill",
+            "draft_frontmatter": {
+                "name": "read-edit-run",
+                "description": "Recurring procedure: read → edit → run (seen 4× across 2 sessions)",
+                "category": "workflow",
+                "tags": ["auto-discovered", "operations"]
+            }
+        });
+        let names = super::author_and_install_skill(&candidate, tmp.path()).unwrap();
+        assert_eq!(names, vec!["read-edit-run".to_string()]);
+        let f = tmp
+            .path()
+            .join(".vox")
+            .join("skills")
+            .join("read-edit-run")
+            .join("SKILL.md");
+        assert!(f.exists(), "expected {f:?} to exist");
     }
 }

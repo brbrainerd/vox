@@ -16,6 +16,12 @@ pub fn render_terminal(candidates: &[Candidate]) -> String {
             c.score,
             c.suggested_action
         ));
+        if let Some(df) = &c.draft_frontmatter {
+            out.push_str(&format!(
+                "    suggested skill: {} — {}\n",
+                df.name, df.description
+            ));
+        }
         for m in &c.members {
             out.push_str(&format!("      - {m}\n"));
         }
@@ -59,5 +65,24 @@ mod tests {
     fn json_round_trips() {
         let j = render_json(&sample()).unwrap();
         assert!(j.contains("RepeatedCode"));
+    }
+
+    #[test]
+    fn terminal_report_shows_draft_skill() {
+        use crate::candidate::DraftFrontmatter;
+        let c = Candidate {
+            kind: CandidateKind::RepeatedOperations,
+            members: vec!["session:s1@0".into()],
+            score: 6.0,
+            suggested_action: "Save recurring procedure as a skill".into(),
+            draft_frontmatter: Some(DraftFrontmatter {
+                name: "a-b-c".into(),
+                description: "Recurring procedure: a → b → c (seen 3× across 2 sessions)".into(),
+                category: "workflow".into(),
+                tags: vec!["auto-discovered".into()],
+            }),
+        };
+        let out = render_terminal(std::slice::from_ref(&c));
+        assert!(out.contains("suggested skill: a-b-c"), "got: {out}");
     }
 }

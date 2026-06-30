@@ -43,6 +43,7 @@ impl FeedbackStore {
         session_id: Option<String>,
         agent_id: Option<AgentId>,
         created_at_ms: u64,
+        meta: Option<serde_json::Value>,
     ) -> FeedbackId {
         let mut inner = self.inner.write();
         inner.seq += 1;
@@ -61,6 +62,7 @@ impl FeedbackStore {
             agent_id,
             created_at_ms,
             resolution: None,
+            meta,
         };
         inner.items.push(req);
         id
@@ -134,6 +136,7 @@ mod tests {
             None,
             None,
             1,
+            None,
         )
     }
 

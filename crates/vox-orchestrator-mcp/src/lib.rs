@@ -64,6 +64,8 @@ pub(crate) mod lock_guard;
 pub mod news_tools;
 /// OpenClaw native gateway and skill tools.
 pub mod openclaw_tools;
+/// Best-effort, redacted capture of every MCP tool call into `agent_operations`.
+pub mod operation_capture;
 /// Oratio speech-to-text (Candle Whisper).
 #[cfg(feature = "oratio-rerank")]
 pub mod oratio_tools;

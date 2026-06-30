@@ -302,6 +302,21 @@ CREATE TABLE IF NOT EXISTS agent_session_events (
 
 CREATE INDEX IF NOT EXISTS idx_agent_session_events_session ON agent_session_events(session_id);
 
+CREATE TABLE IF NOT EXISTS agent_operations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts_ms INTEGER NOT NULL,
+    session_id TEXT,
+    agent_id TEXT,
+    tool_name TEXT NOT NULL,
+    args_redacted TEXT NOT NULL,
+    result_redacted TEXT,
+    duration_ms INTEGER,
+    is_error INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_operations_session ON agent_operations(session_id, ts_ms);
+CREATE INDEX IF NOT EXISTS idx_agent_operations_tool ON agent_operations(tool_name);
+
 CREATE TABLE IF NOT EXISTS cost_records (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     agent_id TEXT NOT NULL,

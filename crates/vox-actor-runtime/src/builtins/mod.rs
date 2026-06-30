@@ -1718,7 +1718,45 @@ pub fn vox_fs_glob(pattern: &str) -> Result<Vec<String>, String> {
 }
 
 pub fn vox_fs_read(path: &str) -> Result<String, String> {
-    std::fs::read_to_string(path).map_err(|e| e.to_string())
+    // Universal-newlines read: strip BOM, CRLF/CR -> LF. Byte-exact round-trips
+    // use `vox_fs_read_bytes`.
+    std::fs::read_to_string(path)
+        .map(vox_bounded_fs::normalize_text)
+        .map_err(|e| e.to_string())
+}
+
+/// Byte-exact text read (`std.fs.read_bytes`): preserves BOM/CR. Vox has no
+/// Bytes value, so a non-UTF-8 file surfaces as an error rather than corruption
+/// (do NOT use `from_utf8_lossy`).
+pub fn vox_fs_read_bytes(path: &str) -> Result<String, String> {
+    let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
+    String::from_utf8(bytes).map_err(|e| format!("read_bytes: {path}: invalid UTF-8: {e}"))
+}
+
+/// Force the Windows console output code page to UTF-8 so program output renders
+/// Unicode/emoji instead of mojibake. The code page is a property of the console
+/// (inherited by child processes), so one call from the `vox run` entry covers
+/// both the interpreter and the spawned native binary. Idempotent; a no-op off
+/// Windows and a harmless no-op when stdout is redirected (bytes were UTF-8).
+//
+// ponytail: SetConsoleOutputCP covers redirect + the common console case. Full
+// supplementary-plane emoji glyph correctness needs WriteConsoleW (both
+// surrogate halves in one call) — deferred; upgrade path is a console writer.
+#[cfg_attr(windows, allow(unsafe_code))]
+pub fn vox_console_init_utf8() {
+    #[cfg(windows)]
+    {
+        use std::sync::Once;
+        static INIT: Once = Once::new();
+        INIT.call_once(|| {
+            const CP_UTF8: u32 = 65001;
+            // SAFETY: single FFI call with a constant code page; failure (no
+            // console attached / output redirected) is ignored on purpose.
+            unsafe {
+                let _ = windows_sys::Win32::System::Console::SetConsoleOutputCP(CP_UTF8);
+            }
+        });
+    }
 }
 
 pub fn vox_fs_write(path: &str, content: &str) -> Result<(), String> {
@@ -1906,3 +1944,46 @@ pub fn vox_meta_tools() -> String {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod fs_text_robustness_tests {
+    use super::*;
+
+    #[test]
+    fn vox_fs_read_normalizes_bom_and_crlf() {
+        let dir = std::env::temp_dir().join("vox_rt_read_norm");
+        std::fs::create_dir_all(&dir).unwrap();
+        let p = dir.join("a.txt");
+        std::fs::write(&p, b"\xEF\xBB\xBFa\r\nb\r\n").unwrap();
+        assert_eq!(vox_fs_read(p.to_str().unwrap()).unwrap(), "a\nb\n");
+    }
+
+    #[test]
+    fn vox_fs_read_bytes_is_byte_exact() {
+        let dir = std::env::temp_dir().join("vox_rt_read_raw");
+        std::fs::create_dir_all(&dir).unwrap();
+        let p = dir.join("b.txt");
+        std::fs::write(&p, b"\xEF\xBB\xBFa\r\nb\r\n").unwrap();
+        assert_eq!(
+            vox_fs_read_bytes(p.to_str().unwrap()).unwrap(),
+            "\u{feff}a\r\nb\r\n"
+        );
+    }
+
+    #[test]
+    fn vox_fs_read_bytes_errors_on_non_utf8() {
+        let dir = std::env::temp_dir().join("vox_rt_read_badutf8");
+        std::fs::create_dir_all(&dir).unwrap();
+        let p = dir.join("c.bin");
+        std::fs::write(&p, [0xFF, 0xFE, 0x00]).unwrap();
+        assert!(vox_fs_read_bytes(p.to_str().unwrap()).is_err());
+    }
+
+    #[test]
+    fn console_init_is_idempotent_and_safe() {
+        // No panic; safe to call repeatedly (Once-guarded). No-op off Windows.
+        // The real emoji-rendering check is the manual Windows smoke test.
+        vox_console_init_utf8();
+        vox_console_init_utf8();
+    }
+}

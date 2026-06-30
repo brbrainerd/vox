@@ -4,8 +4,8 @@
 //! S8: bundle/dev integration — pass a .vox FILE to auto-build and serve.
 
 use crate::cli_args::BundleMode;
-use crate::utils::share::auth::AuthMode;
-use crate::utils::share::{BackendKind, ShareConfig, ShareSession};
+use vox_cli_share::auth::AuthMode;
+use vox_cli_share::{BackendKind, ShareConfig, ShareSession};
 use anyhow::{Context as _, Result};
 use clap::Args;
 use std::time::Duration;
@@ -70,7 +70,7 @@ pub async fn run(args: ShareArgs) -> Result<()> {
     println!("[vox share] Backend: {}", backend);
 
     if matches!(backend, BackendKind::Cloudflare) {
-        crate::utils::share::consent::ensure_consent(args.accept_tos, false)
+        vox_cli_share::consent::ensure_consent(args.accept_tos, false)
             .map_err(|e| anyhow::anyhow!("{}", e))?;
     }
 
@@ -136,7 +136,7 @@ pub async fn run(args: ShareArgs) -> Result<()> {
     if let Some(d) = duration {
         println!(
             "[vox share] Auto-shutdown in {}",
-            crate::utils::share::lifecycle::format_duration(d)
+            vox_cli_share::lifecycle::format_duration(d)
         );
     }
     session.wait().await;

@@ -1058,6 +1058,11 @@ tools:
   product_lane: platform
   http_read_role_eligible: false
   tier: core
+- name: vox_propose_skill
+  description: Surface a mined recurring operation procedure as a non-blocking "save as skill?" suggestion in the NeedsYou inbox.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
 - name: vox_publish_message
   description: Publish a message to the bulletin board for all agents to receive.
   product_lane: ai
@@ -1443,6 +1448,11 @@ tools:
   product_lane: ai
   http_read_role_eligible: false
   tier: core
+- name: vox_skill_add
+  description: Add a skill from a git URL or local path into the user .vox/skills root.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
 - name: vox_skill_discover
   description: List bare SKILL.md skills found under the standard interop roots, with install status.
   product_lane: interop
@@ -1465,6 +1475,11 @@ tools:
   tier: core
 - name: vox_skill_parse
   description: Parse a SKILL.md and preview its manifest before installing.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_skill_remove
+  description: Remove a user-installed skill directory (ownership-scoped to .vox/skills).
   product_lane: interop
   http_read_role_eligible: false
   tier: core

@@ -1,0 +1,52 @@
+{
+  "fixtures": {
+    "auth_patterns": {
+      "tokens": 219,
+      "bytes": 1574
+    },
+    "mcp_tools": {
+      "tokens": 78,
+      "bytes": 798
+    },
+    "reactive_counter": {
+      "tokens": 186,
+      "bytes": 1360
+    },
+    "hello": {
+      "tokens": 67,
+      "bytes": 621
+    },
+    "error_propagation": {
+      "tokens": 686,
+      "bytes": 3110
+    },
+    "durable_workflow_real": {
+      "tokens": 123,
+      "bytes": 932
+    },
+    "json_as_typed": {
+      "tokens": 1208,
+      "bytes": 8624
+    },
+    "crud_api": {
+      "tokens": 250,
+      "bytes": 1551
+    },
+    "scheduled_tick": {
+      "tokens": 35,
+      "bytes": 712
+    },
+    "web_routing_fullstack": {
+      "tokens": 180,
+      "bytes": 1093
+    },
+    "db_native_ir": {
+      "tokens": 95,
+      "bytes": 872
+    },
+    "dashboard_ui": {
+      "tokens": 111,
+      "bytes": 851
+    }
+  }
+}

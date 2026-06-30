@@ -12966,6 +12966,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "adb6935a6f5c20170eeceb1a3835a49e12e19d792f6dd344ccc76a985ca5a6ca"
 
 [[package]]
+name = "target-triple"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "591ef38edfb78ca4771ee32cf494cb8771944bee237a9b91fc9c1424ac4b777b"
+
+[[package]]
 name = "tauri"
 version = "2.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -14191,6 +14197,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
+name = "trybuild"
+version = "1.0.117"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0710d4dfbeae4f9c390baa784c49858a7468fa433f3fe5d0ec5ebef651cf59f9"
+dependencies = [
+ "glob",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "target-triple",
+ "termcolor",
+ "toml 1.1.2+spec-1.1.0",
+]
+
+[[package]]
 name = "tstr"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -15124,6 +15145,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+ "vox-bounded-fs",
  "vox-config",
  "vox-db",
  "vox-foundation",
@@ -15138,6 +15160,7 @@ dependencies = [
  "vox-skills",
  "vox-telemetry",
  "which 8.0.4",
+ "windows-sys 0.59.0",
  "workspace-hack",
  "xxhash-rust",
 ]
@@ -15247,7 +15270,6 @@ dependencies = [
  "axum",
  "axum-extra",
  "base64 0.22.1",
- "blake3",
  "cargo_metadata 0.23.1",
  "chrono",
  "clap",
@@ -15302,6 +15324,9 @@ dependencies = [
  "vox-capability-registry",
  "vox-cli-ci",
  "vox-cli-core",
+ "vox-cli-research",
+ "vox-cli-review",
+ "vox-cli-share",
  "vox-code-audit",
  "vox-codegen",
  "vox-compiler",
@@ -15318,7 +15343,6 @@ dependencies = [
  "vox-effort-audit",
  "vox-effort-route",
  "vox-eval",
- "vox-forge",
  "vox-foundation",
  "vox-gamify",
  "vox-git",
@@ -15350,6 +15374,7 @@ dependencies = [
  "vox-scientia",
  "vox-search",
  "vox-secrets",
+ "vox-skill-discovery",
  "vox-skills",
  "vox-sql",
  "vox-tauri-codegen",
@@ -15409,6 +15434,82 @@ dependencies = [
  "vox-orchestrator-driver",
  "vox-repository",
  "vox-secrets",
+ "which 8.0.4",
+]
+
+[[package]]
+name = "vox-cli-research"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "owo-colors 4.3.0",
+ "reqwest 0.12.28",
+ "serde_json",
+ "tokio",
+ "uuid",
+ "vox-config",
+ "vox-db",
+ "vox-foundation",
+ "vox-orchestrator",
+ "vox-publisher",
+ "vox-repository",
+ "vox-research-shim",
+ "vox-search",
+ "vox-secrets",
+]
+
+[[package]]
+name = "vox-cli-review"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "blake3",
+ "chrono",
+ "clap",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "tempfile",
+ "tokio",
+ "toml 0.8.23",
+ "tracing",
+ "vox-bounded-fs",
+ "vox-code-audit",
+ "vox-config",
+ "vox-corpus",
+ "vox-db",
+ "vox-forge",
+ "vox-git",
+ "vox-http-client",
+ "vox-secrets",
+ "walkdir",
+]
+
+[[package]]
+name = "vox-cli-share"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "base64 0.22.1",
+ "dirs",
+ "form_urlencoded",
+ "hex",
+ "http",
+ "hyper-util",
+ "rand 0.8.6",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "vox-config",
+ "vox-http-client",
  "which 8.0.4",
 ]
 
@@ -15550,6 +15651,7 @@ dependencies = [
  "toml 0.8.23",
  "tracing",
  "vox-ast",
+ "vox-bounded-fs",
  "vox-codegen",
  "vox-codegen-ts",
  "vox-config",
@@ -15557,6 +15659,7 @@ dependencies = [
  "vox-foundation",
  "vox-grammar-export",
  "vox-jsonschema-util",
+ "vox-language-surface",
  "vox-repository",
  "vox-secrets",
  "vox-shell-stdlib-types",
@@ -15580,12 +15683,24 @@ dependencies = [
  "tokio",
  "toml 0.8.23",
  "tracing",
+ "vox-config-derive",
  "vox-git",
  "vox-llm-config",
  "vox-llm-egress",
  "vox-secrets",
  "vox-telemetry",
  "workspace-hack",
+]
+
+[[package]]
+name = "vox-config-derive"
+version = "0.6.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.118",
+ "trybuild",
+ "vox-config",
 ]
 
 [[package]]
@@ -15946,6 +16061,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.11.0",
+ "vox-language-surface",
  "workspace-hack",
 ]
 
@@ -16139,6 +16255,13 @@ dependencies = [
  "vox-compiler",
  "vox-foundation",
  "vox-lsp",
+]
+
+[[package]]
+name = "vox-language-surface"
+version = "0.6.0"
+dependencies = [
+ "workspace-hack",
 ]
 
 [[package]]
@@ -16512,12 +16635,14 @@ dependencies = [
  "vox-populi",
  "vox-project-scaffold",
  "vox-publisher",
+ "vox-redact",
  "vox-repository",
  "vox-research-events",
  "vox-research-shim",
  "vox-scientia",
  "vox-search",
  "vox-secrets",
+ "vox-skill-discovery",
  "vox-skills",
  "vox-speech",
  "vox-telemetry",
@@ -17084,6 +17209,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-redact"
+version = "0.6.0"
+dependencies = [
+ "regex",
+ "serde_json",
+]
+
+[[package]]
 name = "vox-rename-registry"
 version = "0.6.0"
 dependencies = [
@@ -17513,13 +17646,13 @@ version = "0.6.0"
 dependencies = [
  "anyhow",
  "portable-pty",
- "regex",
  "serde",
  "serde_json",
  "tokio",
  "vox-compiler",
  "vox-journal",
  "vox-orchestrator",
+ "vox-redact",
 ]
 
 [[package]]

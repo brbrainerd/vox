@@ -41,9 +41,9 @@ use run_body_helpers::{
     run_k_complexity_budget, run_manifest, run_mens_corpus_health, run_mens_gate,
     run_operator_env_guard, run_query_all_guard, run_repo_guards, run_script_hygiene,
     run_secret_env_guard, run_secrets_contracts, run_secrets_cutover_audit,
-    run_secrets_cutover_gates, run_secrets_parity, run_spoke_check, run_sql_surface_guard,
-    run_ssot_audit, run_ssot_drift, run_toestub_scoped_roots, run_toestub_self_apply,
-    run_turso_import_guard,
+    run_secrets_cutover_gates, run_secrets_parity, run_source_token_budget, run_spoke_check,
+    run_sql_surface_guard, run_ssot_audit, run_ssot_drift, run_toestub_scoped_roots,
+    run_toestub_self_apply, run_turso_import_guard,
 };
 
 use super::retired_symbol_check;
@@ -357,6 +357,10 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             tolerance_percent,
             update,
         } => run_k_complexity_budget(&root, tolerance_percent, update),
+        CiCmd::SourceTokenBudget {
+            tolerance_percent,
+            update,
+        } => run_source_token_budget(&root, tolerance_percent, update),
         CiCmd::GrammarExportCheck => run_grammar_export_check(&root),
         CiCmd::CorpusDeclCoverage => run_corpus_decl_coverage(&root),
         CiCmd::RepoGuards => run_repo_guards(&root),

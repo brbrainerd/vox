@@ -1,0 +1,9 @@
+[package]
+name = "vox-language-surface"
+description = "Single source of truth for Vox keyword/decorator/builtin surface strings. Has no logic dependencies (only the workspace-hack unifier), so vox-compiler and vox-grammar-export can share one SSOT without a cyclic dependency."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+workspace-hack = { workspace = true }

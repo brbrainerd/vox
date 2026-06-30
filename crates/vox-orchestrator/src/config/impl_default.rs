@@ -23,6 +23,7 @@ impl Default for OrchestratorConfig {
             fallback_to_single_agent: true,
             toestub_gate: true,
             behavioral_gate_on_complete: default_true(),
+            operations_capture_enabled: default_true(),
             completion_markdown_link_audit_enabled: default_true(),
             max_debug_iterations: 3,
             max_toestub_debug_iterations: default_max_toestub_debug_iterations(),

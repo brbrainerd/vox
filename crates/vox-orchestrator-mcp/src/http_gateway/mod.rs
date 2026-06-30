@@ -74,6 +74,7 @@ const DEFAULT_ALLOWED_TOOLS: &[&str] = &[
     "vox_emergency_stop",
     "vox_rebalance",
     "vox_doubt_task",
+    "vox_propose_skill",
     "vox_gamify_progress_snapshot",
     "vox_gamify_notification_ack",
     "vox_gamify_notifications_ack_all",

@@ -39,6 +39,9 @@ The repository defaults to **self-hosted** runners for CI (see [runner contract]
 | `distribution-parity.yml` | `ubuntu-latest` | Fleet-independent required parity check — stays green when the fleet is down (Invariant 1). |
 | `version-tag-guard.yml` | `ubuntu-latest` | Lightweight tag-only release guard; fleet-independent by design. |
 | `workflow-lint.yml` | `ubuntu-latest` | actionlint + zizmor; install in seconds, need no self-hosted resources. Non-required early-warning surface. |
+| `ci-health-deadman.yml` | `ubuntu-latest` | CI fleet health deadman switch; must run on a GitHub-hosted runner so it stays live when the self-hosted fleet is down. |
+| `ci-health-watchdog.yml` | `ubuntu-latest` | CI health watchdog monitor; fleet-independent by design (Invariant 1). |
+| `ci-health-watchdog-test.yml` | `ubuntu-latest` | Watchdog integration test; isolated harness that needs no self-hosted resources. |
 
 > `compile-matrix.yml` no longer appears here: its Windows/macOS help-smoke jobs were cut (the Linux lane is self-hosted), so it uses no hosted runner. `cross-platform-check.yml` / `gui-cross-build.yml` keep their rows but now run Win/macOS legs only on `merge_group` + schedule (not per-PR).
 

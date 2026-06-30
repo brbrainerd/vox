@@ -15,6 +15,11 @@ const invokeMock = vi.fn((_cmd: string, args: any) => {
   if (tool === 'vox_skill_list') return Promise.resolve({ tool, is_error: false, result: { data: SKILLS } });
   if (tool === 'vox_plugin_list') return Promise.resolve({ tool, is_error: false, result: { data: [] } });
   if (tool === 'vox_skill_info') return Promise.resolve({ tool, is_error: false, result: { data: SKILL_INFO_RESULT } });
+  if (tool === 'vox_skill_discover')
+    return Promise.resolve({ tool, is_error: false, result: { data: [
+      { id: 'mine', name: 'mine', description: 'd', path: '/ws/.vox/skills/mine', installed: true, source_root: 'vox', removable: true, license: '' },
+      { id: 'bundled', name: 'bundled', description: 'd', path: '/ws/assets/skills/bundled', installed: true, source_root: 'bundled', removable: false, license: 'LICENSE' },
+    ] } });
   return Promise.resolve({ tool, is_error: false, result: { data: [] } });
 });
 vi.mock('@tauri-apps/api/core', () => ({
@@ -67,5 +72,39 @@ describe('SkillsPluginsView', () => {
       (call) => call[0]?.body && call[0].body.startsWith('{'),
     );
     expect(jsonToastCall).toBeUndefined();
+  });
+
+  it('shows Remove only on removable discovered skills', async () => {
+    render(<SkillsPluginsView pushToast={vi.fn()} />);
+    fireEvent.click(screen.getByRole('tab', { name: /discovered/i }));
+    await waitFor(() => {
+      expect(screen.queryAllByRole('button', { name: /^remove$/i }).length).toBe(1);
+    });
+    // 'mine' (removable) has a Remove button; 'bundled' (read-only) does not.
+    const removeButtons = screen.queryAllByRole('button', { name: /^remove$/i });
+    expect(removeButtons.length).toBe(1);
+  });
+
+  it('Remove requires a second confirm click before it deletes', async () => {
+    render(<SkillsPluginsView pushToast={vi.fn()} />);
+    fireEvent.click(screen.getByRole('tab', { name: /discovered/i }));
+    const removeBtn = await screen.findByRole('button', { name: /^remove$/i });
+
+    // First click arms confirmation and must NOT call vox_skill_remove.
+    fireEvent.click(removeBtn);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^confirm\?$/i })).toBeTruthy(),
+    );
+    expect(invokeMock.mock.calls.some(([, a]: any) => a?.tool === 'vox_skill_remove')).toBe(false);
+
+    // Second click (Confirm?) actually removes by id.
+    fireEvent.click(screen.getByRole('button', { name: /^confirm\?$/i }));
+    await waitFor(() =>
+      expect(
+        invokeMock.mock.calls.some(
+          ([, a]: any) => a?.tool === 'vox_skill_remove' && a?.args?.id === 'mine',
+        ),
+      ).toBe(true),
+    );
   });
 });

@@ -14,6 +14,8 @@ pub enum CandidateKind {
     ///
     /// Advisory only — never auto-applied; surfaced by `vox model-layer suggest`.
     ModelPromptVariant,
+    /// A recurring sequence of tool calls (a procedure) that could become a skill.
+    RepeatedOperations,
 }
 
 /// Advisory draft frontmatter the user MAY accept (never auto-applied).

@@ -12,6 +12,7 @@ database = ["dep:vox-db"]
 
 [dependencies]
 tokio = { workspace = true }
+vox-bounded-fs = { workspace = true }
 tokio-stream = { workspace = true }
 async-stream = { workspace = true }
 vox-openai = { workspace = true }
@@ -49,6 +50,9 @@ regex = { workspace = true }
 bytes = { workspace = true }
 anyhow = { workspace = true }
 vox-shell-stdlib-types = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true, features = ["Win32_System_Console"] }
 
 [lints]
 workspace = true

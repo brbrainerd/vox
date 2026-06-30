@@ -15,6 +15,17 @@ pub enum SkillCmd {
         #[arg(required = true)]
         path: PathBuf,
     },
+    /// Add a skill from a git URL or local path into `.vox/skills`.
+    Add {
+        #[arg(required = true)]
+        source: String,
+        /// Install into `~/.vox/skills` instead of the workspace.
+        #[arg(long, default_value_t = false)]
+        global: bool,
+        /// Install only the skill whose `name` matches.
+        #[arg(long)]
+        skill: Option<String>,
+    },
     /// Uninstall by skill id.
     Uninstall {
         #[arg(required = true)]
@@ -71,6 +82,15 @@ pub enum SkillCmd {
     },
     /// Scan workspace for `.skill.md` files.
     Discover,
+    /// Suggest skills from recurring captured operation sequences (advisory).
+    Suggest {
+        /// Max recent operations to analyze.
+        #[arg(long, default_value_t = 5000)]
+        limit: i64,
+        /// Output format: terminal | json
+        #[arg(long, default_value = "terminal")]
+        format: String,
+    },
 }
 
 /// Dispatch `vox skill …`.
@@ -79,6 +99,11 @@ pub async fn run(cmd: SkillCmd) -> Result<()> {
     match cmd {
         SkillCmd::List => ars::list().await,
         SkillCmd::Install { path } => ars::install(&path).await,
+        SkillCmd::Add {
+            source,
+            global,
+            skill,
+        } => ars::add(&source, global, skill.as_deref()).await,
         SkillCmd::Uninstall { id } => ars::uninstall(&id).await,
         SkillCmd::Search { query } => ars::search(&query).await,
         SkillCmd::Info { id } => ars::info(&id).await,
@@ -102,5 +127,6 @@ pub async fn run(cmd: SkillCmd) -> Result<()> {
             agent_id,
         } => ars::context_assemble(&tier, policy_json.as_deref(), agent_id.as_deref()).await,
         SkillCmd::Discover => ars::discover().await,
+        SkillCmd::Suggest { limit, format } => ars::skill_suggest(limit, &format).await,
     }
 }

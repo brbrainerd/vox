@@ -390,8 +390,17 @@ impl Parser {
     }
 
     pub(crate) fn parse_table(&mut self) -> Result<Decl, ()> {
+        self.parse_table_inner(false)
+    }
+
+    /// Soft-keyword form: `table User { … }` — `table` subsumes `type`.
+    pub(crate) fn parse_table_kw(&mut self) -> Result<Decl, ()> {
+        self.parse_table_inner(true)
+    }
+
+    fn parse_table_inner(&mut self, type_optional: bool) -> Result<Decl, ()> {
         let start = self.span();
-        self.advance(); // eat @table
+        self.advance(); // eat `@table` decorator or the soft `table` keyword
 
         // Optional `(pk: <ident>)` argument — names the primary-key column
         // when it differs from the default `"id"`. The typeck enforces
@@ -494,7 +503,12 @@ impl Parser {
             }
         }
 
-        self.expect(&Token::TypeKw)?;
+        // The soft `table` keyword subsumes `type`; the `@table` decorator requires it.
+        if type_optional {
+            self.eat(&Token::TypeKw);
+        } else {
+            self.expect(&Token::TypeKw)?;
+        }
         let name = self.parse_ident_name()?;
         self.expect(&Token::LBrace)?;
         let mut fields = Vec::new();

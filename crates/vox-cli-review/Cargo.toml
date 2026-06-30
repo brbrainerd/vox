@@ -1,0 +1,38 @@
+[package]
+name = "vox-cli-review"
+description = "GitHub CodeRabbit batch-PR review (`vox review coderabbit`), extracted from vox-cli."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+anyhow = { workspace = true }
+blake3 = { workspace = true, features = ["pure"] }
+chrono = { workspace = true, features = ["clock", "std", "serde"] }
+clap = { workspace = true, features = ["derive"] }
+reqwest = { workspace = true, features = ["json", "rustls-tls", "stream"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["rt", "macros", "sync", "time", "net", "process", "io-util", "fs", "rt-multi-thread", "signal"] }
+toml = { workspace = true }
+tracing = { workspace = true }
+walkdir = { workspace = true }
+vox-bounded-fs = { workspace = true }
+vox-code-audit = { workspace = true }
+vox-config = { workspace = true }
+vox-corpus = { workspace = true, features = ["database", "ast-extract"] }
+vox-db = { workspace = true }
+vox-forge = { workspace = true, features = ["github"] }
+vox-git = { workspace = true }
+vox-graph-reader = { workspace = true }
+vox-http-client = { workspace = true }
+vox-secrets = { workspace = true }
+
+[lints]
+workspace = true

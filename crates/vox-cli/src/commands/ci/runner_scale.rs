@@ -453,7 +453,8 @@ fn container_host_ip() -> String {
 /// containers use to reach host-published ports (MinIO). Returns `None` (caller
 /// falls back) if Docker is unavailable or the output isn't an IP.
 fn resolve_container_host_ip() -> Option<String> {
-    let out = std::process::Command::new("docker")
+    // quiet_command: no flashing console window on Windows (CREATE_NO_WINDOW).
+    let out = quiet_command("docker")
         .args([
             "network",
             "inspect",
