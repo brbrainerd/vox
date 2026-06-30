@@ -8,7 +8,43 @@ use turso::params;
 
 use crate::store::types::{StoreError, TrainingPair};
 
+/// One captured operation row (subset used by sequence mining).
+#[derive(Debug, Clone)]
+pub struct OperationRow {
+    pub ts_ms: i64,
+    pub session_id: Option<String>,
+    pub agent_id: Option<String>,
+    pub tool_name: String,
+    pub args_redacted: String,
+}
+
 impl crate::VoxDb {
+    /// Most-recent `limit` captured operations, newest first. Mining regroups by session.
+    pub async fn list_recent_operations(
+        &self,
+        limit: i64,
+    ) -> Result<Vec<OperationRow>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT ts_ms, session_id, agent_id, tool_name, args_redacted
+                 FROM agent_operations ORDER BY ts_ms DESC, id DESC LIMIT ?1",
+                params![limit],
+            )
+            .await?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next().await? {
+            out.push(OperationRow {
+                ts_ms: row.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
+                session_id: row.get(1).ok(),
+                agent_id: row.get(2).ok(),
+                tool_name: row.get(3).map_err(|e| StoreError::Db(e.to_string()))?,
+                args_redacted: row.get(4).map_err(|e| StoreError::Db(e.to_string()))?,
+            });
+        }
+        Ok(out)
+    }
+
     // ── Agent Events (agent_events) ──────────────────────────────────────────
 
     /// Insert a row into `agent_events` for telemetry tracking.
@@ -785,6 +821,20 @@ mod operation_tests {
 
         // prune must not error on a small table and must keep the fresh row.
         db.prune_operations().await.expect("prune");
+    }
+
+    #[tokio::test]
+    async fn list_recent_operations_orders_and_limits() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+        for (i, tool) in ["a", "b", "c"].iter().enumerate() {
+            db.record_operation(Some("s1"), None, tool, "{}", Some("ok"), i as i64, false)
+                .await
+                .expect("record");
+        }
+        let rows = db.list_recent_operations(2).await.expect("list");
+        assert_eq!(rows.len(), 2, "respects limit");
+        assert!(rows.iter().all(|r| r.session_id.as_deref() == Some("s1")));
+        assert!(rows.iter().any(|r| r.tool_name == "c"), "includes most recent");
     }
 }
 
