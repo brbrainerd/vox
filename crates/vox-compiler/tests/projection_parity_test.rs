@@ -112,7 +112,7 @@ query on_back() to bool { return true }
 #[test]
 fn projection_bundle_fixture_is_deterministic_and_distinct() {
     let src = r#"
-@query @uses(net) fn api_ping() to int { return 1 }
+query @uses(net) api_ping() to int { return 1 }
 
 query handle_link(url: str) to str { return "/" }
 mutation store_token(token: str) to str { return token }

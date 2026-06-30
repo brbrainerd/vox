@@ -30,23 +30,23 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
     for s in &module.endpoint_fns {
         let label = match s.kind {
             crate::hir::HirEndpointKind::Server => "server fn",
-            crate::hir::HirEndpointKind::Query => "@query fn",
-            crate::hir::HirEndpointKind::Mutation => "@mutation fn",
+            crate::hir::HirEndpointKind::Query => "query fn",
+            crate::hir::HirEndpointKind::Mutation => "mutation fn",
         };
         validate_name_and_params(&s.name, &s.params, s.span, label, &mut errors);
         if s.route_path.is_empty() {
             let (hint, kind_str) = match s.kind {
                 crate::hir::HirEndpointKind::Server => (
                     "route_path is synthesized during lowering; this indicates an internal lowering bug",
-                    "@server fn",
+                    "server fn",
                 ),
                 crate::hir::HirEndpointKind::Query => (
                     "route_path is synthesized during lowering; this indicates an internal lowering bug",
-                    "@query fn",
+                    "query fn",
                 ),
                 crate::hir::HirEndpointKind::Mutation => (
                     "route_path is synthesized during lowering; this indicates an internal lowering bug",
-                    "@mutation fn",
+                    "mutation fn",
                 ),
             };
             errors.push(HirValidationError {
@@ -107,7 +107,7 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
                 message: "Table name is empty".into(),
                 span: table.span,
                 correction_hint: Some(
-                    "Define a name for the table, e.g. @table User { ... }".into(),
+                    "Define a name for the table, e.g. table User { ... }".into(),
                 ),
             });
         }

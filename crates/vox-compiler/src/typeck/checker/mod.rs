@@ -435,7 +435,7 @@ impl<'a> Checker<'a> {
             self.diags.push(Diagnostic {
                 severity: TypeckSeverity::Error,
                 message: format!(
-                    "@query '{}' must be read-only; use @mutation for db.insert/db.delete or raw `.query(...)`",
+                    "query '{}' must be read-only; use mutation for db.insert/db.delete or raw `.query(...)`",
                     sf.name
                 ),
                 span: sf.span,
@@ -443,7 +443,7 @@ impl<'a> Checker<'a> {
                 found_type: None,
                 context: Some(Diagnostic::capture_context(self.source, sf.span)),
                 suggestions: vec![
-                    "Move write operations into an @mutation function.".into(),
+                    "Move write operations into a mutation function.".into(),
                     "Replace `.query(clause)` with typed table operations.".into(),
                 ],
                 category: DiagnosticCategory::Lint,

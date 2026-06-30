@@ -33,7 +33,7 @@ fn first_fn(src: &str) -> vox_compiler::ast::decl::FnDecl {
 #[test]
 fn auth_provider_is_parsed() {
     // @server is consumed first by dispatch; @auth is handled inside parse_fn_decl
-    let f = first_endpoint_fn("@server @auth(provider: \"clerk\")\nfn admin() -> Str { \"ok\" }\n");
+    let f = first_endpoint_fn("server @auth(provider: \"clerk\") admin() -> Str { \"ok\" }\n");
     assert_eq!(
         f.auth_provider.as_deref(),
         Some("clerk"),
@@ -44,7 +44,7 @@ fn auth_provider_is_parsed() {
 #[test]
 fn auth_roles_are_parsed() {
     let f = first_endpoint_fn(
-        "@server @auth(provider: \"clerk\", roles: [\"admin\", \"editor\"])\nfn admin_only() -> Str { \"ok\" }\n",
+        "server @auth(provider: \"clerk\", roles: [\"admin\", \"editor\"]) admin_only() -> Str { \"ok\" }\n",
     );
     assert_eq!(
         f.roles,
@@ -65,7 +65,7 @@ fn auth_without_args_sets_presence_marker() {
 #[test]
 fn auth_provider_only_leaves_roles_empty() {
     let f =
-        first_endpoint_fn("@server @auth(provider: \"supabase\")\nfn api() -> Str { \"ok\" }\n");
+        first_endpoint_fn("server @auth(provider: \"supabase\") api() -> Str { \"ok\" }\n");
     assert!(
         f.roles.is_empty(),
         "roles must be empty when not specified in @auth"

@@ -354,7 +354,7 @@ pub fn infer(m: &HirModule, source: &str) -> Vec<Diagnostic> {
                         )
                         .with_code(codes::PLACEMENT_BOUNDARY)
                         .with_suggestion(format!(
-                            "wrap `{callee}` in `@query fn` (or `@server`/`@mutation`) and call the generated client"
+                            "wrap `{callee}` in `query` (or `server`/`mutation`) and call the generated client"
                         )),
                     );
                 }
