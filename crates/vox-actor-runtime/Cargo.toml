@@ -12,6 +12,7 @@ database = ["dep:vox-db"]
 
 [dependencies]
 tokio = { workspace = true }
+vox-bounded-fs = { workspace = true }
 tokio-stream = { workspace = true }
 async-stream = { workspace = true }
 vox-openai = { workspace = true }

@@ -1718,7 +1718,19 @@ pub fn vox_fs_glob(pattern: &str) -> Result<Vec<String>, String> {
 }
 
 pub fn vox_fs_read(path: &str) -> Result<String, String> {
-    std::fs::read_to_string(path).map_err(|e| e.to_string())
+    // Universal-newlines read: strip BOM, CRLF/CR -> LF. Byte-exact round-trips
+    // use `vox_fs_read_bytes`.
+    std::fs::read_to_string(path)
+        .map(vox_bounded_fs::normalize_text)
+        .map_err(|e| e.to_string())
+}
+
+/// Byte-exact text read (`std.fs.read_bytes`): preserves BOM/CR. Vox has no
+/// Bytes value, so a non-UTF-8 file surfaces as an error rather than corruption
+/// (do NOT use `from_utf8_lossy`).
+pub fn vox_fs_read_bytes(path: &str) -> Result<String, String> {
+    let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
+    String::from_utf8(bytes).map_err(|e| format!("read_bytes: {path}: invalid UTF-8: {e}"))
 }
 
 pub fn vox_fs_write(path: &str, content: &str) -> Result<(), String> {
@@ -1906,3 +1918,38 @@ pub fn vox_meta_tools() -> String {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod fs_text_robustness_tests {
+    use super::*;
+
+    #[test]
+    fn vox_fs_read_normalizes_bom_and_crlf() {
+        let dir = std::env::temp_dir().join("vox_rt_read_norm");
+        std::fs::create_dir_all(&dir).unwrap();
+        let p = dir.join("a.txt");
+        std::fs::write(&p, b"\xEF\xBB\xBFa\r\nb\r\n").unwrap();
+        assert_eq!(vox_fs_read(p.to_str().unwrap()).unwrap(), "a\nb\n");
+    }
+
+    #[test]
+    fn vox_fs_read_bytes_is_byte_exact() {
+        let dir = std::env::temp_dir().join("vox_rt_read_raw");
+        std::fs::create_dir_all(&dir).unwrap();
+        let p = dir.join("b.txt");
+        std::fs::write(&p, b"\xEF\xBB\xBFa\r\nb\r\n").unwrap();
+        assert_eq!(
+            vox_fs_read_bytes(p.to_str().unwrap()).unwrap(),
+            "\u{feff}a\r\nb\r\n"
+        );
+    }
+
+    #[test]
+    fn vox_fs_read_bytes_errors_on_non_utf8() {
+        let dir = std::env::temp_dir().join("vox_rt_read_badutf8");
+        std::fs::create_dir_all(&dir).unwrap();
+        let p = dir.join("c.bin");
+        std::fs::write(&p, [0xFF, 0xFE, 0x00]).unwrap();
+        assert!(vox_fs_read_bytes(p.to_str().unwrap()).is_err());
+    }
+}
