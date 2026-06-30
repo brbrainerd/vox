@@ -39,6 +39,11 @@ pub struct OrchestratorConfig {
     /// Disabled in [`OrchestratorConfig::for_testing`] so integration tests do not recurse into Cargo.
     #[serde(default = "default_true")]
     pub behavioral_gate_on_complete: bool,
+    /// When true, every MCP tool call is captured (redacted) into the
+    /// `agent_operations` table — the local signal for skill suggestion.
+    /// On by default; set false to disable.
+    #[serde(default = "default_true")]
+    pub operations_capture_enabled: bool,
     /// When true, completion verifies Markdown writes via nested `vox ci check-links` (default: true).
     /// Disabled in [`OrchestratorConfig::for_testing`] so integration/stress tests avoid subprocess-heavy audits.
     #[serde(default = "default_true")]
