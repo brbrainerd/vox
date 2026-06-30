@@ -650,7 +650,7 @@ export function listenActivityAppended(onAppend: () => void): Promise<UnlistenFn
 
 export interface FeedbackRow {
   feedbackId: string;
-  kind: 'clarification' | 'doubt';
+  kind: 'clarification' | 'doubt' | 'skill_proposal';
   prompt: string;
   options: string[];
   gates: number[];
