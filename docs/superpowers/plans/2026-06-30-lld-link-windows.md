@@ -134,3 +134,23 @@ If Defender exclusion is policy-blocked OR no bounded retry survives the race OR
 
 ## Verification
 `cargo build -p vox-cli` relinks ≥25% faster under lld-link; `cargo test -p vox-cli` green 5×; `.cargo/config.toml` uses `linker = "lld-link"` with the holder/fix documented; `vox doctor` shows `✓ linker`.
+
+---
+
+## EXECUTED 2026-06-30 — adopted
+
+- **Pre-checks:** lld-link 22.1.7 on PATH; rust-lld bundled in every toolchain (spec
+  corrected); Windows Defender active.
+- **Phase 0–2:** the lock **did not reproduce** — 15/15 trivial-crate relinks + 5/5
+  real-crate (tests actually run) relinks, zero permission-denied. Diagnosis = the
+  **zombie-test-process / orphan class (Hypothesis B)**, already fixed this session
+  (orphan cleanup + reboot + process hygiene). **No Phase-2 code needed.**
+- **Phase 3 bench (steady-state `vox-cli` touch-relink, link-dominated):**
+  **lld-link ~23–29 s vs MSVC link.exe ~49 s → ≈2× faster (~50% cut)** — clears the
+  ≥25% gate. Cold build 399 s; binary runs (`vox 0.6.0+build.3612`).
+- **Adopted:** `.cargo/config.toml` `[target.x86_64-pc-windows-msvc] linker = "lld-link"`,
+  comment replaced with the measured holder/fix. Phase 4 doctor linker-guard added.
+- **Build-time note:** `[profile.dev]` was already tuned (debug=1 line-tables,
+  split-debuginfo, incremental). lld-link is the concrete remaining lever; the larger
+  win (splitting the vox-cli monolith so cargo parallelizes + caches sub-crates) is a
+  separate refactor, out of scope here.

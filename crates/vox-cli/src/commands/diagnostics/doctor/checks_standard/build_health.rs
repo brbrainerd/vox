@@ -26,6 +26,7 @@ pub(crate) const KNOWN_DIAGNOSIS_IDS: &[&str] = &[
     "docker.absent",
     "sccache.pathological",
     "vox.schema_drift",
+    "linker.lld_missing",
 ];
 
 /// Encode a machine-parseable diagnosis tag into a check `detail` string.
@@ -405,12 +406,31 @@ async fn execute_heal(action: &HealAction) {
     }
 }
 
+/// On Windows the build uses `lld-link` (`.cargo/config.toml`); if it vanished from
+/// PATH, links fail confusingly. Elsewhere this is a no-op pass.
+pub(crate) async fn linker_health(checks: &mut Vec<Check>) {
+    if !cfg!(target_os = "windows") {
+        return;
+    }
+    let ok = quiet("lld-link").arg("--version").output().await.map(|o| o.status.success()).unwrap_or(false);
+    checks.push(if ok {
+        Check::pass("linker: lld-link", "present (fast Windows linker)")
+    } else {
+        Check::fail("linker: lld-link", diag(
+            "linker.lld_missing", "warn",
+            "`.cargo/config.toml` sets linker = \"lld-link\" but it is not on PATH — links will fail",
+            "install LLVM (lld-link) or drop the `linker = \"lld-link\"` line to fall back to MSVC link.exe",
+            false))
+    });
+}
+
 /// Aggregate entrypoint, registered in `run_checks`.
 pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
     toolchain_integrity(checks).await;
     docker_health(checks).await;
     schema_health(checks).await;
     sccache_guard(checks).await;
+    linker_health(checks).await;
     compile_probe(checks).await;
 
     if auto_heal {
