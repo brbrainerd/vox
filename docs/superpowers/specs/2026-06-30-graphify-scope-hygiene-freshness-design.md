@@ -75,20 +75,23 @@ dir asserts hidden dirs are skipped.
 
 1. **Concurrency lock (Task 2).** Acquire an advisory lockfile in
    `.vox/cache/graphify/` (e.g. `refresh.lock` holding the PID) before a rebuild; if already
-   held, skip with a logged message. Prevents a scheduled run from stacking on a manual rebuild
-   or CI. Released on completion (and stale-lock tolerant: ignore a lock whose PID is dead).
-2. **Stop worktree-drift thrash (Task 3).** With `scope_path:"."`, `worktree_drift` fires on
-   any uncommitted file, so an hourly task would rebuild continuously while editing. Change the
-   **auto path only** so `worktree_drift` *alone* maps to `RefreshAction::Skip`; rebuild still
-   triggers on `git_drift`, `ttl_expired`, `lexical_lag`, or `graph_missing`. Manual
-   `vox graphify rebuild` remains forceful (unchanged). This keeps the freshness signal honest
-   in `status` (still *reported* as drift) while not thrashing the auto rebuild.
-3. **Hidden child processes (Task 3).** Ensure rebuild-spawned children use `CREATE_NO_WINDOW`
-   via the existing `quiet_command` helper so a scheduled run never flashes consoles on Windows.
-4. **Trigger (Task 4, documented host step).** A one-time Windows Task Scheduler registration
-   runs `vox graphify refresh --auto` every 60 minutes, hidden, whether-or-not-logged-on. Per
-   AGENTS.md (VoxScript-only automation; no new `.ps1/.sh/.py`) the task invokes the `vox`
-   binary directly — no wrapper script. The spec/docs provide the exact
+   held by a live PID, skip with a logged message. Prevents a scheduled run from stacking on a
+   manual rebuild or CI and corrupting `graph.json`/manifest via concurrent writes. Released on
+   completion; stale-lock tolerant (a lock whose PID is dead is reclaimed). Applied to BOTH the
+   `refresh --auto` rebuild arm and the manual `vox graphify rebuild` handler so the two cannot
+   race each other.
+2. **No worktree-drift thrash — ALREADY CORRECT (verified, no change).** It might seem an hourly
+   task would rebuild constantly because `scope_path:"."` makes `worktree_drift` fire on any
+   uncommitted file. But `refresh_action` (`graphify/mod.rs:121-130`) already rebuilds only on
+   `graph_missing`/`graph_corrupt`/`git_drift`/`ttl_expired` and re-ingests only on
+   `lexical_lag` — `worktree_drift` alone falls through to `RefreshAction::Skip`. So the auto
+   path does not thrash on uncommitted edits today. The plan adds a regression test locking this
+   behavior (`["worktree_drift"]` → Skip); no logic change.
+3. **Trigger (Task 3, documented host step).** A one-time Windows Task Scheduler registration
+   runs `vox graphify refresh --auto` every 60 minutes, **hidden** and whether-or-not-logged-on
+   (running hidden is what suppresses console windows for the brief `git rev-parse` the refresh
+   shells; no code change). Per AGENTS.md (VoxScript-only automation; no new `.ps1/.sh/.py`) the
+   task invokes the `vox` binary directly — no wrapper script. The spec/docs provide the exact
    `schtasks`/`Register-ScheduledTask` command; the user runs it once. This is host-only, like
    the existing CI autoscaler task.
 
@@ -96,11 +99,10 @@ dir asserts hidden dirs are skipped.
 
 - `walk_source_files` (`vox-graph-reader/src/rebuild.rs`): one focused function; swap the walker,
   keep the signature `(&Path) -> Vec<PathBuf>`. Consumers unchanged.
-- Refresh lock + auto-path staleness mapping (`vox-cli/src/commands/graphify/mod.rs`): the lock
-  helper and the `refresh_action`-for-auto adjustment live next to the existing
-  `refresh`/`refresh_action` code. `refresh_action` keeps its current behavior for any non-auto
-  caller; the auto path gets the worktree_drift-skip via a dedicated wrapper or an `auto: bool`
-  parameter so the change is explicit and testable.
+- Refresh lock (`vox-cli/src/commands/graphify/mod.rs`): a small `with_graph_lock(cache_dir, ||
+  …)` helper lives next to the existing `refresh`/`refresh_action` code and wraps both rebuild
+  call sites (the `refresh --auto` `Rebuild` arm and the manual `GraphifyCmd::Rebuild` handler).
+  `refresh_action` is unchanged.
 
 ## Edge cases & correctness
 
@@ -120,9 +122,10 @@ dir asserts hidden dirs are skipped.
   output sorted).
 - **Lock:** unit test — acquire lock, assert a second acquire returns "held/skip"; assert a lock
   with a dead PID is reclaimable.
-- **Auto staleness mapping:** unit test on the auto wrapper — `["worktree_drift"]` → Skip;
-  `["git_drift"]` → Rebuild; `["worktree_drift","git_drift"]` → Rebuild. Assert the non-auto
-  `refresh_action` is unchanged for `["worktree_drift"]` (still its current value).
+- **Staleness mapping (regression guard, no logic change):** unit test on the existing
+  `refresh_action` — `["worktree_drift"]` → Skip; `["git_drift"]` → Rebuild;
+  `["worktree_drift","git_drift"]` → Rebuild; `["lexical_lag"]` → Ingest. Locks that the auto
+  path never rebuilds on uncommitted-edit drift alone.
 - **Determinism:** rebuild a fixture tree twice; assert identical node/edge counts (regression
   guard against the non-determinism finding).
 
@@ -131,8 +134,8 @@ dir asserts hidden dirs are skipped.
 - `crates/vox-graph-reader/src/rebuild.rs` — `walk_source_files` (Part A) + a determinism test.
 - `crates/vox-graph-reader/Cargo.toml` — add `ignore = { workspace = true }`; drop `walkdir` if
   unused elsewhere in the crate.
-- `crates/vox-cli/src/commands/graphify/mod.rs` — refresh lock + auto-path worktree_drift skip +
-  `quiet_command` for spawns; tests.
+- `crates/vox-cli/src/commands/graphify/mod.rs` — `with_graph_lock` helper wrapping both rebuild
+  call sites; `refresh_action` regression test. (No `refresh_action` logic change.)
 - `docs/` (e.g. a how-to under `docs/src/how-to/`) — the one-time Task Scheduler registration
   command, with required frontmatter.
 
