@@ -17,6 +17,8 @@ use tokio::process::Command;
 pub(crate) const KNOWN_DIAGNOSIS_IDS: &[&str] = &[
     "toolchain.rustc_shadowed",
     "toolchain.rustup_shadowed",
+    "toolchain.rustc_absent",
+    "toolchain.rustup_absent",
     "toolchain.compile_failed",
     "toolchain.compile_timeout",
     "docker.wsl_wedged",
@@ -87,40 +89,57 @@ pub(crate) fn sccache_verdict(requests: u64, hits: u64, compile_failures: u64) -
 
 // ── checks (compose classifiers + IO) ─────────────────────────────────────────
 
+/// A tokio `Command` that never flashes a console window on Windows
+/// (`vox doctor`'s own subprocess spawns must stay quiet too).
+fn quiet(program: &str) -> Command {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        let mut std_cmd = std::process::Command::new(program);
+        std_cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+        Command::from(std_cmd)
+    }
+    #[cfg(not(windows))]
+    {
+        Command::new(program)
+    }
+}
+
+/// Some(version) when the binary runs and prints a version; None when absent.
 async fn version_of(bin: &str) -> Option<String> {
-    let out = Command::new(bin).arg("--version").output().await.ok()?;
+    let out = quiet(bin).arg("--version").output().await.ok()?;
     out.status
         .success()
         .then(|| String::from_utf8_lossy(&out.stdout).trim().to_string())
 }
 
+async fn toolchain_check(
+    checks: &mut Vec<Check>,
+    bin: &str,
+    is_real: fn(&str) -> bool,
+    shadowed_id: &str,
+    absent_id: &str,
+) {
+    let name = format!("toolchain: {bin} identity");
+    match version_of(bin).await {
+        // Absent ≠ shadowed: don't cry "shim" when the binary just isn't installed.
+        None => checks.push(Check::fail(&name, diag(absent_id, "error",
+            &format!("`{bin}` not found on PATH (or did not run)"),
+            "install the Rust toolchain: rustup-init -y --no-modify-path", false))),
+        Some(v) if is_real(&v) => checks.push(Check::pass(&name, v)),
+        Some(v) => checks.push(Check::fail(&name, diag(shadowed_id, "error",
+            &format!("`{bin} --version` printed `{v}` — {bin} is shadowed by a shim/forwarder"),
+            "rustup-init -y --no-modify-path --default-toolchain none --profile minimal", false))),
+    }
+}
+
 pub(crate) async fn toolchain_integrity(checks: &mut Vec<Check>) {
-    let rustc = version_of("rustc").await.unwrap_or_default();
-    checks.push(if is_real_rustc(&rustc) {
-        Check::pass("toolchain: rustc identity", &rustc)
-    } else {
-        Check::fail(
-            "toolchain: rustc identity",
-            diag("toolchain.rustc_shadowed", "error",
-                &format!("`rustc --version` printed `{rustc}` — rustc is shadowed by a shim/forwarder"),
-                "rustup-init -y --no-modify-path --default-toolchain none --profile minimal", false),
-        )
-    });
-    let rustup = version_of("rustup").await.unwrap_or_default();
-    checks.push(if is_real_rustup(&rustup) {
-        Check::pass("toolchain: rustup identity", &rustup)
-    } else {
-        Check::fail(
-            "toolchain: rustup identity",
-            diag("toolchain.rustup_shadowed", "error",
-                &format!("`rustup --version` printed `{rustup}` — rustup is missing/forwarding to cargo"),
-                "rustup-init -y --no-modify-path --default-toolchain none --profile minimal", false),
-        )
-    });
+    toolchain_check(checks, "rustc", is_real_rustc, "toolchain.rustc_shadowed", "toolchain.rustc_absent").await;
+    toolchain_check(checks, "rustup", is_real_rustup, "toolchain.rustup_shadowed", "toolchain.rustup_absent").await;
 }
 
 pub(crate) async fn docker_health(checks: &mut Vec<Check>) {
-    match Command::new("docker").arg("info").output().await {
+    match quiet("docker").arg("info").output().await {
         Ok(o) if o.status.success() => {
             checks.push(Check::pass("docker: reachable", "docker info ok"))
         }
@@ -164,7 +183,7 @@ pub(crate) async fn schema_health(checks: &mut Vec<Check>) {
 
 pub(crate) async fn sccache_guard(checks: &mut Vec<Check>) {
     // Reuse the existing setup advisor (do not duplicate).
-    let on_path = Command::new("sccache").arg("--version").output().await.map(|o| o.status.success()).unwrap_or(false);
+    let on_path = quiet("sccache").arg("--version").output().await.map(|o| o.status.success()).unwrap_or(false);
     let wrapper = std::env::var("RUSTC_WRAPPER").ok();
     let incremental = std::env::var("CARGO_INCREMENTAL").ok();
     let advice = crate::commands::ci::doctor_build_cache::advise(on_path, wrapper.as_deref(), incremental.as_deref());
@@ -176,12 +195,16 @@ pub(crate) async fn sccache_guard(checks: &mut Vec<Check>) {
         return;
     }
     // Runtime health (the new part): crash + hit-rate from --show-stats.
-    if let Ok(o) = Command::new("sccache").args(["--show-stats", "--stats-format=json"]).output().await {
+    if let Ok(o) = quiet("sccache").args(["--show-stats", "--stats-format=json"]).output().await {
         if let Ok(v) = serde_json::from_slice::<serde_json::Value>(&o.stdout) {
             let stats = v.get("stats").unwrap_or(&v);
             let req = stats.get("compile_requests").and_then(serde_json::Value::as_u64).unwrap_or(0);
-            let hits = stats.get("cache_hits").and_then(|h| h.get("counts")).and_then(|_| None)
-                .or_else(|| stats.get("cache_hits").and_then(serde_json::Value::as_u64)).unwrap_or(0);
+            // `cache_hits` is a number in some sccache versions, `{counts: N}` in others.
+            let hits = stats
+                .get("cache_hits")
+                .and_then(serde_json::Value::as_u64)
+                .or_else(|| stats.get("cache_hits").and_then(|h| h.get("counts")).and_then(serde_json::Value::as_u64))
+                .unwrap_or(0);
             let fails = stats.get("compile_fails").or_else(|| stats.get("compilation_failures"))
                 .and_then(serde_json::Value::as_u64).unwrap_or(0);
             checks.push(match sccache_verdict(req, hits, fails) {
@@ -202,7 +225,7 @@ pub(crate) async fn compile_probe(checks: &mut Vec<Check>) {
     let _ = tokio::fs::write(dir.join("Cargo.toml"),
         "[package]\nname=\"probe\"\nversion=\"0.0.0\"\nedition=\"2021\"\n[[bin]]\nname=\"probe\"\npath=\"src/main.rs\"\n").await;
     let _ = tokio::fs::write(dir.join("src/main.rs"), "fn main(){}\n").await;
-    let fut = Command::new("cargo").args(["build", "--quiet"]).current_dir(&dir).output();
+    let fut = quiet("cargo").args(["build", "--quiet"]).current_dir(&dir).output();
     let c = match tokio::time::timeout(std::time::Duration::from_secs(secs), fut).await {
         Ok(Ok(o)) if o.status.success() => Check::pass("toolchain: compile probe", "trivial crate compiled"),
         Ok(Ok(o)) => Check::fail("toolchain: compile probe", diag(
@@ -249,11 +272,11 @@ async fn execute_heal(action: &HealAction) {
         HealAction::DisableSccache => {
             // Exactly the by-hand fix: stop server (comment-out + cache clear is left
             // to the operator since it edits ~/.cargo/config.toml).
-            let _ = Command::new("sccache").arg("--stop-server").output().await;
+            let _ = quiet("sccache").arg("--stop-server").output().await;
         }
         HealAction::RestartWslDistro => {
             // Targeted: only the wedged distro, not all of WSL.
-            let _ = Command::new("wsl")
+            let _ = quiet("wsl")
                 .args(["--terminate", "podman-machine-default"])
                 .output()
                 .await;
