@@ -191,18 +191,17 @@ pub async fn resolve_feedback(state: &ServerState, params: ResolveFeedbackParams
     .to_json()
 }
 
-pub async fn propose_skill(state: &ServerState, params: crate::params::ProposeSkillParams) -> String {
+pub async fn propose_skill(
+    state: &ServerState,
+    params: crate::params::ProposeSkillParams,
+) -> String {
     match state
         .orchestrator
         .propose_skill(&params.name, &params.description, params.session_id)
     {
-        Some(fid) => {
-            ToolResult::ok(serde_json::json!({ "feedback_id": fid.0 })).to_json()
-        }
-        None => {
-            ToolResult::ok(serde_json::json!({ "skipped": "duplicate proposal already open" }))
-                .to_json()
-        }
+        Some(fid) => ToolResult::ok(serde_json::json!({ "feedback_id": fid.0 })).to_json(),
+        None => ToolResult::ok(serde_json::json!({ "skipped": "duplicate proposal already open" }))
+            .to_json(),
     }
 }
 
