@@ -98,6 +98,7 @@ impl crate::orchestrator::Orchestrator {
             task.session_id.clone(),
             Some(agent_id),
             ts,
+            None,
         );
         self.event_bus
             .emit(crate::events::AgentEventKind::FeedbackRequested {

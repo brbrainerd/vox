@@ -29,6 +29,8 @@ pub enum FeedbackAction {
     Skip,
     Overrule,
     LetVerify,
+    /// Accept a `SkillProposal`: author + install the skill from the item's `meta`.
+    AcceptSkill,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -53,6 +55,9 @@ pub struct FeedbackRequest {
     pub agent_id: Option<AgentId>,
     pub created_at_ms: u64,
     pub resolution: Option<FeedbackResolution>,
+    /// Opaque per-item payload. For `SkillProposal`, the serialized mined `Candidate`.
+    #[serde(default)]
+    pub meta: Option<serde_json::Value>,
 }
 
 #[cfg(test)]
@@ -74,6 +79,7 @@ mod tests {
             agent_id: None,
             created_at_ms: 1,
             resolution: None,
+            meta: None,
         };
         let j = serde_json::to_string(&req).unwrap();
         assert!(j.contains("\"kind\":\"clarification\""));
@@ -97,5 +103,36 @@ mod tests {
                 .unwrap()
                 .contains("overrule")
         );
+    }
+
+    #[test]
+    fn accept_skill_serializes_to_tagged_action() {
+        let j = serde_json::to_string(&FeedbackAction::AcceptSkill).unwrap();
+        assert!(j.contains("\"action\":\"accept_skill\""), "got {j}");
+        let back: FeedbackAction = serde_json::from_str(&j).unwrap();
+        assert_eq!(back, FeedbackAction::AcceptSkill);
+    }
+
+    #[test]
+    fn request_round_trips_with_meta() {
+        let req = FeedbackRequest {
+            id: FeedbackId("F-000002".into()),
+            kind: FeedbackKind::SkillProposal,
+            prompt: "p".into(),
+            options: vec!["Dismiss".into()],
+            gates: vec![],
+            doubted_task_id: None,
+            info_gain_bits: 0.0,
+            scaled_cost_ms: 0,
+            surface: Surface::NeedsYou,
+            session_id: None,
+            agent_id: None,
+            created_at_ms: 1,
+            resolution: None,
+            meta: Some(serde_json::json!({"kind": "RepeatedOperations"})),
+        };
+        let j = serde_json::to_string(&req).unwrap();
+        let back: FeedbackRequest = serde_json::from_str(&j).unwrap();
+        assert_eq!(back.meta, req.meta);
     }
 }

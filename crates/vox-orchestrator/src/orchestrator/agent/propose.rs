@@ -9,6 +9,7 @@ impl crate::orchestrator::Orchestrator {
         name: &str,
         description: &str,
         session_id: Option<String>,
+        meta: Option<serde_json::Value>,
     ) -> Option<FeedbackId> {
         let prompt = format!(
             "Recurring procedure '{name}': {description}. Consider saving it as a reusable skill."
@@ -37,6 +38,7 @@ impl crate::orchestrator::Orchestrator {
             session_id,
             None,
             ts,
+            meta,
         );
         self.event_bus
             .emit(crate::events::AgentEventKind::FeedbackRequested {
@@ -59,11 +61,11 @@ mod tests {
     fn propose_skill_registers_needs_you_and_dedups() {
         let orch = Orchestrator::new(OrchestratorConfig::for_testing());
         let desc = "Recurring procedure: read → edit → run (seen 4× across 2 sessions)";
-        let f1 = orch.propose_skill("read-edit-run", desc, Some("s1".into()));
+        let f1 = orch.propose_skill("read-edit-run", desc, Some("s1".into()), None);
         assert!(f1.is_some());
         let open = orch.feedback().open_needs_you();
         assert!(open.iter().any(|f| f.kind == FeedbackKind::SkillProposal));
-        let f2 = orch.propose_skill("read-edit-run", desc, Some("s1".into()));
+        let f2 = orch.propose_skill("read-edit-run", desc, Some("s1".into()), None);
         assert!(f2.is_none(), "duplicate proposal must be skipped");
         assert_eq!(
             orch.feedback()
