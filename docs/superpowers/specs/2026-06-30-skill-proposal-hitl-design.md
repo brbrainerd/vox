@@ -117,11 +117,16 @@ Mirror the full `vox_doubt_task` registration surface:
 - `crates/vox-gui/ui/src/transport.ts`: add `'skill_proposal'` to the
   `FeedbackRow.kind` union (`~:653`). `toRow` and `feedbackList`/`feedbackResolve`
   are kind-agnostic — no change.
-- `crates/vox-gui/ui/src/components/surfaces/NeedsYou/FeedbackCard.tsx`: a
-  `skill_proposal` row falls into the existing `else` (Answer) branch and renders
-  its `options` (`["Dismiss"]`) as buttons — works with zero card change. Optional:
-  a small labeled branch for a distinct "suggested skill" visual.
-- `NeedsYouSurface.tsx` shows it automatically (it lists all NeedsYou rows).
+- `crates/vox-gui/ui/src/components/surfaces/NeedsYou/FeedbackCard.tsx`: add an
+  explicit `row.kind === 'skill_proposal'` branch (props are `{ row, onResolve,
+  onOpenContext }`; `onResolve(id, action)` takes an inline action literal). It
+  renders `row.prompt` + a single "Dismiss" button → `onResolve(id, { action:
+  'skip' })` (the GUI's `skip` maps to Rust `FeedbackAction::Skip`). A bare
+  non-doubt kind would otherwise hit the options/Skip branch (messy), hence the
+  dedicated branch. Sub-project 4 adds a "Save as skill" button here.
+- `NeedsYouSurface.tsx` shows it automatically (lists all NeedsYou rows, kind-agnostic).
+- An existing `__tests__/FeedbackCard.test.tsx` (renders the component directly with
+  a `vi.fn()` `onResolve`, no transport mock) is extended with a skill_proposal case.
 
 ## Error handling
 

@@ -64,27 +64,39 @@ In `crates/vox-orchestrator/src/feedback/types.rs`, add to `FeedbackKind`:
 
 - [ ] **Step 2: Write the failing producer test**
 
-Create `crates/vox-orchestrator/src/orchestrator/agent/propose.rs` with the test first. Build a minimal `Orchestrator` the same way the existing orchestrator unit tests do (grep `Orchestrator::new`/`for_testing` in `crates/vox-orchestrator/src` and copy that constructor):
+VERIFIED: `Orchestrator::new(OrchestratorConfig::for_testing())` is synchronous (no DB/bootstrap); `feedback()`/`event_bus` are public, initialized unconditionally; near-exact precedent: `crates/vox-orchestrator/src/orchestrator/tests/doubt_feedback_projection.rs` (builds an Orchestrator, calls a producer, asserts on `feedback().open_needs_you()`). Add the test module to `crates/vox-orchestrator/src/orchestrator/agent/propose.rs`:
 
 ```rust
 #[cfg(test)]
 mod tests {
-    // Construct an Orchestrator via the same helper the other agent tests use.
-    // Then:
+    use crate::config::OrchestratorConfig;
+    use crate::feedback::FeedbackKind;
+    use crate::orchestrator::Orchestrator;
+
     #[test]
     fn propose_skill_registers_needs_you_and_dedups() {
-        let orch = /* <copy the test Orchestrator constructor used by sibling tests> */;
-        let f1 = orch.propose_skill("read-edit-run", "Recurring procedure: read → edit → run (seen 4× across 2 sessions)", Some("s1".into()));
+        let orch = Orchestrator::new(OrchestratorConfig::for_testing());
+        let desc = "Recurring procedure: read → edit → run (seen 4× across 2 sessions)";
+        let f1 = orch.propose_skill("read-edit-run", desc, Some("s1".into()));
         assert!(f1.is_some());
         let open = orch.feedback().open_needs_you();
-        assert!(open.iter().any(|f| f.kind == crate::feedback::FeedbackKind::SkillProposal));
-        // Dedup: identical proposal is skipped.
-        let f2 = orch.propose_skill("read-edit-run", "Recurring procedure: read → edit → run (seen 4× across 2 sessions)", Some("s1".into()));
+        assert!(open.iter().any(|f| f.kind == FeedbackKind::SkillProposal));
+        // Dedup: an identical proposal is skipped.
+        let f2 = orch.propose_skill("read-edit-run", desc, Some("s1".into()));
         assert!(f2.is_none(), "duplicate proposal must be skipped");
-        assert_eq!(orch.feedback().open_needs_you().iter().filter(|f| f.kind == crate::feedback::FeedbackKind::SkillProposal).count(), 1);
+        assert_eq!(
+            orch.feedback()
+                .open_needs_you()
+                .iter()
+                .filter(|f| f.kind == FeedbackKind::SkillProposal)
+                .count(),
+            1
+        );
     }
 }
 ```
+
+> Confirm the exact module paths for `OrchestratorConfig` / `Orchestrator` against the precedent test's `use` lines (it uses `Orchestrator::new(OrchestratorConfig::for_testing())`).
 
 - [ ] **Step 3: Run it to verify it fails**
 
@@ -171,17 +183,24 @@ git commit -m "feat(orchestrator): SkillProposal feedback kind + propose_skill p
 
 - [ ] **Step 1: Params struct**
 
-In `crates/vox-orchestrator-mcp/src/params.rs`, mirror `DoubtTaskParams` (grep it for the exact derive attributes — likely `#[derive(Debug, Deserialize, JsonSchema)]`):
+In `crates/vox-orchestrator-mcp/src/params.rs`, mirror `DoubtTaskParams` (VERIFIED: it derives `Debug, Deserialize, JsonSchema` + `#[schemars(deny_unknown_fields)]`):
 
 ```rust
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+/// Surface a mined recurring procedure as a non-blocking "save as skill?" proposal.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct ProposeSkillParams {
+    /// Draft skill name (kebab, Agent Skills name rule).
     pub name: String,
+    /// Human description of the recurring procedure.
     pub description: String,
+    /// Optional originating session id.
     #[serde(default)]
     pub session_id: Option<String>,
 }
 ```
+
+(`Deserialize`/`JsonSchema` are already imported in `params.rs` — match the existing `use`.)
 
 - [ ] **Step 2: Handler**
 
@@ -215,15 +234,32 @@ pub async fn propose_skill(state: &ServerState, params: crate::params::ProposeSk
 
 - [ ] **Step 4: Catalog SSOT + regenerate**
 
-In `contracts/operations/catalog.v1.yaml`, add an operation entry mirroring `vox_doubt_task`'s (search `name: vox_doubt_task`) — same field set, with:
+In `contracts/operations/catalog.v1.yaml`, the `vox_doubt_task` entry is `id: doubt.task` (verbatim verified). Add a sibling entry. IMPORTANT: entries are ordered alphabetically by `id` within the block — place `id: propose.skill` in alphabetical position (after `p…` siblings, e.g. near other `propose.`/`p*` ids), not next to `doubt.task`:
+
 ```yaml
+- id: propose.skill
+  title: Propose Skill
+  description: Surface a mined recurring operation procedure as a non-blocking "save as skill?" suggestion in the NeedsYou inbox.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
   mcp:
     name: vox_propose_skill
     http_read_role_eligible: false
     tier: core
   cli: null
 ```
-Then: `vox ci operations-sync --target all --write` (regenerates `tool-registry.canonical.yaml` etc.).
+
+Then regenerate (satisfies `verify_derived_registry_artifacts`): `vox ci operations-sync --target all --write`. ORDERING: the dispatch arm (Step 3) + input-schema arm (Step 3) must already exist — `operations-verify` requires the literal `"vox_propose_skill"` in both `dispatch.rs` and `input_schemas.rs` for every catalog `mcp:` row.
 
 - [ ] **Step 5: Integration test**
 
@@ -268,42 +304,66 @@ git commit -m "feat(mcp): vox_propose_skill — raise a non-blocking skill propo
 
 - [ ] **Step 1: Extend the kind union**
 
-In `transport.ts` (~line 653), change the `FeedbackRow.kind` union:
+VERIFIED `FeedbackRow` (`transport.ts:651-660`) has 8 fields and `kind: 'clarification' | 'doubt'`. Change the union to add the new kind:
 
 ```ts
   kind: 'clarification' | 'doubt' | 'skill_proposal';
 ```
 
-`toRow`, `feedbackList`, `feedbackResolve` are kind-agnostic — no change.
+`toRow`, `feedbackList`, `feedbackResolve` are kind-agnostic — no change. (`normalizeFeedback`'s sort only pins `doubt`; `skill_proposal` sorts by `infoGainBits` like clarification — fine.)
 
-- [ ] **Step 2: Write the failing card test**
+- [ ] **Step 2: Add an explicit `skill_proposal` branch in `FeedbackCard`**
 
-In `FeedbackCard.test.tsx` (mirror the existing NeedsYou test idiom — Vitest + `@testing-library/react`, mocking `invoke`):
+VERIFIED signature (`FeedbackCard.tsx:7-13`): `function FeedbackCard({ row, onResolve, onOpenContext }: Props)` where `onResolve: (id: string, action: Record<string, any>) => void`. A bare non-doubt kind falls into the options/Skip branch (messy for a proposal), so add a dedicated branch. After the `const isDoubt = row.kind === 'doubt';` line, render a clean proposal card when `row.kind === 'skill_proposal'` — its prompt + one "Dismiss" button that resolves via the existing `skip` action (maps to Rust `FeedbackAction::Skip`):
 
 ```tsx
-it('renders a skill_proposal row with its prompt and a Dismiss action', () => {
+  if (row.kind === 'skill_proposal') {
+    return (
+      <div className="feedback-card feedback-card--proposal">
+        <p className="feedback-card__prompt">{row.prompt}</p>
+        <div className="feedback-card__actions">
+          <button type="button" onClick={() => onResolve(row.feedbackId, { action: 'skip' })}>
+            Dismiss
+          </button>
+        </div>
+      </div>
+    );
+  }
+```
+
+> Match the existing card's className/markup idiom (copy from the `isDoubt` branch's JSX). Sub-project 4 will add a "Save as skill" button alongside Dismiss here.
+
+- [ ] **Step 3: Extend the EXISTING card test**
+
+VERIFIED a test already exists at `crates/vox-gui/ui/src/components/surfaces/NeedsYou/__tests__/FeedbackCard.test.tsx`. It renders `FeedbackCard` directly with a literal `row` + a `vi.fn()` `onResolve` (NO transport/invoke mock). Add a case (literal row must supply all 8 `FeedbackRow` fields, `as const` on `kind`/`surface`):
+
+```tsx
+it('renders a skill_proposal with a Dismiss action', () => {
   const row = {
-    id: 'f1', kind: 'skill_proposal' as const,
+    feedbackId: 'F-9',
+    kind: 'skill_proposal' as const,
     prompt: "Recurring procedure 'read-edit-run': read → edit → run. Consider saving it as a reusable skill.",
-    options: ['Dismiss'], surface: 'needs_you' as const,
+    options: ['Dismiss'],
+    gates: [],
+    doubtedTaskId: null,
+    surface: 'needs_you' as const,
+    infoGainBits: 0,
   };
-  render(<FeedbackCard row={row as any} onResolved={() => {}} />);
+  const onResolve = vi.fn();
+  render(<FeedbackCard row={row} onResolve={onResolve} onOpenContext={() => {}} />);
   expect(screen.getByText(/Recurring procedure/)).toBeTruthy();
-  expect(screen.getByRole('button', { name: /dismiss/i })).toBeTruthy();
+  fireEvent.click(screen.getByText('Dismiss'));
+  expect(onResolve).toHaveBeenCalledWith('F-9', { action: 'skip' });
 });
 ```
 
-> Match `FeedbackCard`'s actual prop names (grep its signature — `row`, `onResolved`/`onResolve`). Adjust the row literal to the real `FeedbackRow` shape.
-
-- [ ] **Step 3: Run it**
+- [ ] **Step 4: Run + commit**
 
 Run (from `crates/vox-gui/ui`): `pnpm vitest run src/components/surfaces/NeedsYou`
-Expected: PASS if the `else`/options branch already renders it; if `FeedbackCard` hard-fails on an unknown kind, add a `skill_proposal` branch (mirror the `doubt` branch at `FeedbackCard.tsx:14`) that renders `row.prompt` + the `options` buttons.
-
-- [ ] **Step 4: Commit**
+Expected: PASS (existing cases + the new one).
 
 ```bash
-git add crates/vox-gui/ui/src/transport.ts crates/vox-gui/ui/src/components/surfaces/NeedsYou/FeedbackCard.tsx crates/vox-gui/ui/src/components/surfaces/NeedsYou/FeedbackCard.test.tsx
+git add crates/vox-gui/ui/src/transport.ts crates/vox-gui/ui/src/components/surfaces/NeedsYou/FeedbackCard.tsx crates/vox-gui/ui/src/components/surfaces/NeedsYou/__tests__/FeedbackCard.test.tsx
 git commit -m "feat(gui): render skill_proposal kind in the NeedsYou inbox"
 ```
 
