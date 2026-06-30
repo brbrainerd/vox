@@ -41,6 +41,10 @@ pub fn lex_preserving(source: &str) -> Vec<Spanned> {
 /// `Indent`/`Dedent` tokens are emitted. Comments are stripped. A final
 /// [`Token::Eof`] sentinel is always appended.
 pub fn lex(source: &str) -> Vec<Spanned> {
+    // Seam S: BOM-free, LF-only source so string-literal values and spans are
+    // platform-independent. `lex_preserving` stays raw (formatter byte contract).
+    let normalized = vox_bounded_fs::normalize_text(source.to_owned());
+    let source = normalized.as_str();
     let mut result: Vec<Spanned> = Token::lexer(source)
         .spanned()
         .filter_map(|(result, span)| match result {
@@ -441,5 +445,43 @@ http post "/api/chat" to Result {
             tokens,
             vec![Token::Activity, Token::With, Token::Workflow, Token::Eof,]
         );
+    }
+
+    /// Helper: first StringLit content in a token stream.
+    fn first_string_lit(spans: &[Spanned]) -> String {
+        spans
+            .iter()
+            .find_map(|s| match &s.token {
+                Token::StringLit(v) => Some(v.clone()),
+                _ => None,
+            })
+            .expect("expected a StringLit token")
+    }
+
+    /// Seam S: CRLF+BOM source lexes to the same tokens as the clean LF twin.
+    #[test]
+    fn lex_normalizes_crlf_and_bom_equivalently() {
+        let dirty = "\u{feff}let x = 1\r\nlet y = 2\r\n";
+        let clean = "let x = 1\nlet y = 2\n";
+        assert_eq!(lex_tokens(dirty), lex_tokens(clean));
+    }
+
+    /// Seam S (the real guard): a string literal authored with a raw CRLF must
+    /// carry LF, not CR, in its runtime value. Note: assert on the StringLit's
+    /// String content directly — `Debug` escapes CR to "\\r", so a byte-level
+    /// `contains('\r')` on the Debug string would falsely pass.
+    #[test]
+    fn lex_normalizes_string_literal_contents() {
+        let lit = first_string_lit(&lex("let s = \"a\r\nb\""));
+        assert!(!lit.contains('\r'), "string literal retained raw CR: {lit:?}");
+        assert_eq!(lit, "a\nb");
+    }
+
+    /// The formatter relies on byte preservation — `lex_preserving` must NOT
+    /// strip a raw CR from a string literal.
+    #[test]
+    fn lex_preserving_keeps_raw_cr() {
+        let lit = first_string_lit(&lex_preserving("let s = \"a\r\nb\""));
+        assert!(lit.contains('\r'), "lex_preserving must retain raw CR");
     }
 }
