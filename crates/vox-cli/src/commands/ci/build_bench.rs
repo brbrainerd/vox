@@ -67,7 +67,7 @@ pub fn find_newest_timings_html(repo_root: &Path) -> Option<std::path::PathBuf> 
         .filter_map(|e| e.ok())
         .filter(|e| {
             e.file_name().to_string_lossy().starts_with("cargo-timing-")
-                && e.path().extension().map_or(false, |x| x == "html")
+                && e.path().extension().is_some_and(|x| x == "html")
         })
         .max_by_key(|e| e.metadata().and_then(|m| m.modified()).ok())
         .map(|e| e.path())
