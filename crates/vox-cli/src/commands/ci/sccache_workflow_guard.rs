@@ -11,10 +11,7 @@
 /// True if the workflow's top-level env is sccache-safe: either it does not turn
 /// sccache on at the top level, or it pins `CARGO_INCREMENTAL: "0"` there too.
 pub fn top_env_pins_incremental(workflow_text: &str) -> bool {
-    let header = workflow_text
-        .split("\njobs:")
-        .next()
-        .unwrap_or(workflow_text);
+    let header = workflow_text.split("\njobs:").next().unwrap_or(workflow_text);
     let on = header.contains("\n  RUSTC_WRAPPER: sccache");
     let pinned = header.contains("\n  CARGO_INCREMENTAL: \"0\"");
     !on || pinned
@@ -26,9 +23,7 @@ mod tests {
 
     #[test]
     fn flags_sccache_without_incremental() {
-        assert!(!top_env_pins_incremental(
-            "env:\n  RUSTC_WRAPPER: sccache\njobs:\n  x: {}"
-        ));
+        assert!(!top_env_pins_incremental("env:\n  RUSTC_WRAPPER: sccache\njobs:\n  x: {}"));
     }
 
     #[test]
