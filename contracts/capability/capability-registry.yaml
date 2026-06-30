@@ -9465,6 +9465,42 @@ curated:
   mcp_tool: vox_scientia_worthiness_evaluate
   cli_path: null
   parameters: null
+- id: mcp.vox_search_callees
+  title: Vox Search Callees
+  description_human: null
+  description_model: Functions called by the given symbol(s) — forward call edges, constructor noise filtered (read-only).
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: vox_search_callees
+  cli_path: null
+  parameters: null
+- id: mcp.vox_search_callers
+  title: Vox Search Callers
+  description_human: null
+  description_model: Functions that call the given symbol(s) — reverse call edges, constructor noise filtered (read-only).
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: vox_search_callers
+  cli_path: null
+  parameters: null
 - id: mcp.vox_search_compare
   title: Vox Search Compare
   description_human: null

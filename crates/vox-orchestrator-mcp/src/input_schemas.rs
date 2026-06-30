@@ -481,6 +481,9 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_search_path" => parse_obj(
             r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id; omit for default"},"from":{"type":"string","description":"Source node ID"},"to":{"type":"string","description":"Destination node ID"},"direction":{"type":"string","enum":["in","out","both"],"description":"in=callers, out=callees, both=undirected (default)"}},"required":["from","to"],"additionalProperties":false}"#,
         ),
+        "vox_search_callers" | "vox_search_callees" => parse_obj(
+            r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id; omit for default"},"seeds":{"type":"array","items":{"type":"string"},"minItems":1,"description":"Symbol node IDs to find callers/callees of"},"max_depth":{"type":"integer","minimum":1,"maximum":5,"description":"Transitive hop limit (default 2)"},"limit":{"type":"integer","minimum":1,"description":"Max hits returned (default 20)"}},"required":["seeds"],"additionalProperties":false}"#,
+        ),
         "vox_search_compare" => parse_obj(
             r#"{"type":"object","properties":{"corpus_a":{"type":"string","description":"First corpus id to compare"},"corpus_b":{"type":"string","description":"Second corpus id to compare"}},"required":["corpus_a","corpus_b"],"additionalProperties":false}"#,
         ),
