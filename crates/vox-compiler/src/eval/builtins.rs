@@ -976,8 +976,11 @@ pub fn call_builtin_method(
                             Some(VoxValue::Str(s)) => s,
                             _ => return Some(VoxValue::Null),
                         };
+                        // Universal-newlines read: strip BOM, CRLF/CR -> LF
+                        // (same rule as native `vox_fs_read`). read_bytes is the
+                        // byte-exact escape hatch.
                         let res = match std::fs::read_to_string(path) {
-                            Ok(s) => Ok(Box::new(VoxValue::Str(s))),
+                            Ok(s) => Ok(Box::new(VoxValue::Str(vox_bounded_fs::normalize_text(s)))),
                             Err(e) => Err(e.to_string()),
                         };
                         Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
@@ -989,10 +992,16 @@ pub fn call_builtin_method(
                             Some(VoxValue::Str(s)) => s,
                             _ => return Some(VoxValue::Null),
                         };
+                        // Byte-exact escape hatch: preserve BOM/CR; error on
+                        // non-UTF-8 (Vox has no Bytes value). Matches native
+                        // `vox_fs_read_bytes`; do NOT use from_utf8_lossy.
                         let res = match std::fs::read(&path) {
-                            Ok(bytes) => Ok(Box::new(VoxValue::Str(
-                                String::from_utf8_lossy(&bytes).to_string(),
-                            ))),
+                            Ok(bytes) => match String::from_utf8(bytes) {
+                                Ok(s) => Ok(Box::new(VoxValue::Str(s))),
+                                Err(e) => {
+                                    Err(format!("read_bytes: {path}: invalid UTF-8: {e}"))
+                                }
+                            },
                             Err(e) => Err(e.to_string()),
                         };
                         Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
@@ -2788,5 +2797,73 @@ mod time_namespace_interp_tests {
             Some(VoxValue::List(items)) => assert_eq!(items.len(), 2, "find_all count"),
             other => panic!("regex.find_all did not return a list: {other:?}"),
         }
+    }
+}
+
+#[cfg(test)]
+mod fs_text_robustness_tests {
+    use super::*;
+
+    fn fs_namespace() -> VoxValue {
+        VoxValue::object(vec![(
+            "__namespace__".to_string(),
+            VoxValue::Str("fs".to_string()),
+        )])
+    }
+    fn result_ok_str(v: Option<VoxValue>) -> String {
+        match v {
+            Some(VoxValue::Result(Ok(boxed))) => match *boxed {
+                VoxValue::Str(s) => s,
+                other => panic!("expected Str, got {other:?}"),
+            },
+            other => panic!("expected Result(Ok(Str)), got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn interp_fs_read_normalizes() {
+        let dir = std::env::temp_dir().join("vox_interp_read_norm");
+        std::fs::create_dir_all(&dir).unwrap();
+        let p = dir.join("a.txt");
+        std::fs::write(&p, b"\xEF\xBB\xBFa\r\nb\r\n").unwrap();
+        let got = result_ok_str(call_builtin_method(
+            &fs_namespace(),
+            "read",
+            vec![VoxValue::Str(p.to_string_lossy().to_string())],
+            None,
+        ));
+        assert_eq!(got, "a\nb\n");
+    }
+
+    #[test]
+    fn interp_fs_read_bytes_is_byte_exact() {
+        let dir = std::env::temp_dir().join("vox_interp_read_raw");
+        std::fs::create_dir_all(&dir).unwrap();
+        let p = dir.join("b.txt");
+        std::fs::write(&p, b"\xEF\xBB\xBFa\r\nb\r\n").unwrap();
+        let got = result_ok_str(call_builtin_method(
+            &fs_namespace(),
+            "read_bytes",
+            vec![VoxValue::Str(p.to_string_lossy().to_string())],
+            None,
+        ));
+        assert_eq!(got, "\u{feff}a\r\nb\r\n");
+    }
+
+    #[test]
+    fn interp_fs_write_preserves_no_cr_inserted() {
+        let dir = std::env::temp_dir().join("vox_interp_write_preserve");
+        std::fs::create_dir_all(&dir).unwrap();
+        let p = dir.join("c.txt");
+        let _ = call_builtin_method(
+            &fs_namespace(),
+            "write",
+            vec![
+                VoxValue::Str(p.to_string_lossy().to_string()),
+                VoxValue::Str("x\ny\n".to_string()),
+            ],
+            None,
+        );
+        assert_eq!(std::fs::read(&p).unwrap(), b"x\ny\n");
     }
 }

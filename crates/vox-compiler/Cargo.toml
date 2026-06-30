@@ -10,6 +10,7 @@ default = []
 
 [dependencies]
 logos = { workspace = true }
+vox-bounded-fs = { workspace = true }
 vox-ast = { workspace = true }
 vox-eval = { workspace = true }
 vox-grammar-export = { workspace = true }
