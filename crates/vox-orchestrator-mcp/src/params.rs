@@ -386,6 +386,19 @@ pub struct DoubtTaskParams {
     pub reason: Option<String>,
 }
 
+/// Surface a mined recurring procedure as a non-blocking "save as skill?" proposal.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct ProposeSkillParams {
+    /// Draft skill name (kebab-case, Agent Skills name rule).
+    pub name: String,
+    /// Human description of the recurring procedure.
+    pub description: String,
+    /// Optional originating session id.
+    #[serde(default)]
+    pub session_id: Option<String>,
+}
+
 /// Cancel a queued or in-progress task.
 #[derive(Debug, Deserialize)]
 pub struct CancelTaskParams {

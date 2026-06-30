@@ -497,6 +497,9 @@ async fn handle_tool_call_inner(
         }
         "vox_fail_task" => Ok(task_tools::fail_task(state, serde_json::from_value(args)?).await),
         "vox_doubt_task" => Ok(task_tools::doubt_task(state, serde_json::from_value(args)?).await),
+        "vox_propose_skill" => {
+            Ok(feedback_tools::propose_skill(state, serde_json::from_value(args)?).await)
+        }
         "vox_ask_clarification" => {
             Ok(feedback_tools::ask_clarification(state, serde_json::from_value(args)?).await)
         }

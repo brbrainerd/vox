@@ -8499,6 +8499,22 @@ curated:
   mcp_tool: vox_project_init
   cli_path: null
   parameters: null
+- id: mcp.vox_propose_skill
+  title: Propose Skill
+  description_human: null
+  description_model: Surface a mined recurring operation procedure as a non-blocking "save as skill?" suggestion in the NeedsYou inbox.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_propose_skill
+  cli_path: null
+  parameters: null
 - id: mcp.vox_publish_message
   title: Publish Message
   description_human: null
