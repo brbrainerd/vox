@@ -187,6 +187,7 @@
     "ci secrets-cutover-audit",
     "ci secrets-cutover-gates",
     "ci secrets-parity",
+    "ci source-token-budget",
     "ci speech-runtime-suite",
     "ci spoke-check",
     "ci sql-surface-guard",
