@@ -822,6 +822,8 @@ pub fn select_with_default_registry(intent: &SelectionIntent) -> Option<Selectio
 
 #[cfg(test)]
 mod tests {
+    // Rust 2024 made std::env::{set_var,remove_var} unsafe; #[serial] tests below.
+    #![allow(unsafe_code)]
     // Env-mutating tests exercise `from_env` cascades; they are `#[serial]` so no
     // other env-mutating test runs concurrently, and each restores the prior value.
     use serial_test::serial;

@@ -81,7 +81,6 @@ impl Osc633Parser {
                             events.push(Osc633Event::Output(s.into_owned()));
                         }
                     }
-                    pos = abs_start;
                 }
 
                 // Try to extract the complete OSC sequence

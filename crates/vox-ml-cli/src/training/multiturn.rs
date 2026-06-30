@@ -25,11 +25,11 @@ fn first_decl_is_fn(code: &str) -> bool {
             }
             continue;
         }
-        if trimmed.starts_with("/*") {
+        if let Some(rest) = trimmed.strip_prefix("/*") {
             in_block_comment = true;
-            if let Some(idx) = trimmed[2..].find("*/") {
+            if let Some(idx) = rest.find("*/") {
                 in_block_comment = false;
-                let after = trimmed[2 + idx + 2..].trim();
+                let after = rest[idx + 2..].trim();
                 if after.is_empty() {
                     continue;
                 }

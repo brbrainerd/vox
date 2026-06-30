@@ -55,7 +55,8 @@ pub async fn classify_models(models: &mut [ModelSpec]) {
 
 #[cfg(test)]
 mod semcov_wave1b_tests {
-    #![allow(unused_imports)]
+    // Rust 2024 made std::env::{set_var,remove_var} unsafe; nextest isolates each test process.
+    #![allow(unused_imports, unsafe_code)]
     use super::*;
 
     #[tokio::test]

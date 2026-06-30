@@ -5,7 +5,7 @@
 
 #[cfg(test)]
 mod semcov_wave22_tests {
-    #![allow(clippy::module_inception)]
+    #![allow(clippy::module_inception, clippy::assertions_on_constants)]
     // ── artifact_policy ────────────────────────────────────────────────────────
 
     use crate::artifact_policy::{
@@ -268,7 +268,7 @@ mod semcov_wave22_tests {
 
     // ── cli_args serde round-trips ─────────────────────────────────────────────
 
-    use crate::cli_args::{BuildMode, BundleMode, CompileKind, UpgradeLane};
+    use crate::cli_args::{BuildMode, CompileKind, UpgradeLane};
 
     // Catches: serde kebab-case rename on CompileKind not round-tripping correctly
     // (e.g. NativeBinary serialises to "NativeBinary" instead of "native-binary").
@@ -304,7 +304,7 @@ mod semcov_wave22_tests {
 
     // ── diagnostics ───────────────────────────────────────────────────────────
 
-    use crate::diagnostics::{ColorChoice, should_color_stderr, should_color_stdout};
+    use crate::diagnostics::ColorChoice;
 
     // Catches: ColorChoice::Never not suppressing color even when COLOR_CHOICE is
     // Never — test that the *return value* reflects Never regardless of TTY state.

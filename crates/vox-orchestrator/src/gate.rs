@@ -5,7 +5,6 @@
 
 use crate::attention::AttentionBudget;
 use crate::budget::BudgetManager;
-use crate::process_util::quiet_tokio_command;
 use crate::types::AgentId;
 use crate::usage::{DEFAULT_RATE_LIMIT_RETRY_SECS, LlmUsageKey, UsageTracker};
 use async_trait::async_trait;

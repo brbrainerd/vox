@@ -1,6 +1,8 @@
 //! B7.0 — Leakage assertion: verifies no tool appears in both training and eval sets.
 //!
 //! Must run before any gate result is trusted.
+// Built + tested ahead of being wired into the gate path; keep until then.
+#![allow(dead_code)]
 
 use anyhow::{Result, bail};
 use std::collections::{HashMap, HashSet};

@@ -69,7 +69,7 @@ pub async fn decompose_query_with_config(
                 true
             }
         };
-        return Ok(passthrough_plan(query, degraded));
+        Ok(passthrough_plan(query, degraded))
     }
 
     #[cfg(not(feature = "runtime"))]

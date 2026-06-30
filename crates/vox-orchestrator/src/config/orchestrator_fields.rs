@@ -1574,6 +1574,8 @@ impl OrchestratorConfig {
 
 #[cfg(test)]
 mod vox_config_derive_tests {
+    // Rust 2024 made std::env::{set_var,remove_var} unsafe; single-threaded test.
+    #![allow(unsafe_code)]
     use super::*;
     use vox_config::VoxConfigDomain;
 
@@ -1594,7 +1596,7 @@ mod vox_config_derive_tests {
         let d = OrchestratorConfig::default();
         assert_eq!(d.max_agents, 8);
         assert_eq!(d.lock_timeout_ms, 30000);
-        assert_eq!(d.toestub_gate, true);
+        assert!(d.toestub_gate);
         assert_eq!(d.max_debug_iterations, 3);
         assert_eq!(d.socrates_reputation_weight, 1.0);
     }
