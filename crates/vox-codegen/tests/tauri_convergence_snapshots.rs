@@ -22,7 +22,7 @@ fn tauri_convergence_snapshots() {
 #[test]
 fn tauri_setup_includes_schema_drift_validation_when_tables_exist() {
     let src = r#"
-        @table type Task {
+        table Task {
             title: str
         }
     "#;

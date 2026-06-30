@@ -5,7 +5,7 @@
 // file for the v1.0 panel evaluation (the multi-file variant lives at
 // contracts/eval/repair-corpus for related coverage).
 
-@table type Todo {
+table Todo {
   id: str,
   owner: str,
   title: str,

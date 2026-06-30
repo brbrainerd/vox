@@ -171,7 +171,7 @@ fn f() to int {
 #[test]
 fn test_table_registration_no_errors() {
     let src = r#"
-@table type Task {
+table Task {
     title: str
     done: bool
     priority: int
@@ -188,12 +188,12 @@ fn test_table_registration_no_errors() {
 #[test]
 fn test_index_on_known_table_no_errors() {
     let src = r#"
-@table type Task {
+table Task {
     title: str
     done: bool
 }
 
-@index Task.by_done on (done)
+index Task.by_done on (done)
 "#;
     let errs = errors(src);
     assert!(
@@ -206,7 +206,7 @@ fn test_index_on_known_table_no_errors() {
 #[test]
 fn test_index_on_unknown_table_error() {
     let src = r#"
-@index Missing.by_name on (name)
+index Missing.by_name on (name)
 "#;
     let errs = errors(src);
     assert!(

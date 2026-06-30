@@ -52,13 +52,13 @@ pub const CONSTRUCT_DOCS: &[(&str, &str)] = &[
     ("mock", "`@mock fn name()` — mock function for testing"),
     (
         "mutation",
-        "`@mutation fn name() to Type:` — database write operation",
+        "`mutation name() to Type:` — database write operation",
     ),
     ("page", "`@page fn name()` — page declaration"),
     ("provider", "`@provider fn name()` — context provider"),
     (
         "query",
-        "`@query fn name() to Type:` — read-only database query",
+        "`query name() to Type:` — read-only database query",
     ),
     (
         "routes",
@@ -70,16 +70,13 @@ pub const CONSTRUCT_DOCS: &[(&str, &str)] = &[
     ),
     (
         "server_fn",
-        "`@server fn name() to Type:` — generates API route + typed client wrapper",
+        "`server name() to Type:` — generates API route + typed client wrapper",
     ),
     (
         "skill",
         "`@skill fn Name() to Type:` — reusable publishable skill",
     ),
-    (
-        "table",
-        "`@table type Name:` — database table with typed fields",
-    ),
+    ("table", "`table Name:` — database table with typed fields"),
     (
         "test",
         "`@test fn name() to Unit:` — unit test with `assert()` for validation",

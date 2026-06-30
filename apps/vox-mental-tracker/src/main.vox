@@ -8,7 +8,7 @@ type ParsedVoice {
     confidence: float,
 }
 
-@table type HealthEventLog {
+table HealthEventLog {
     event_id: str
     event_kind: str
     schema_version: int
@@ -23,7 +23,7 @@ type ParsedVoice {
     correction_of: str
 }
 
-@table type RawTranscript {
+table RawTranscript {
     transcript_id: str
     captured_at: str
     transcript_text: str
@@ -31,14 +31,14 @@ type ParsedVoice {
     confidence: float
 }
 
-@query fn health_event_count() to int {
+query health_event_count() to int {
     match db.HealthEventLog.all() {
         Ok(rows) => len(rows)
         Error(_) => 0
     }
 }
 
-@mutation fn record_health_event(event_kind: str, payload_json: str, event_at: str, source: str, raw_transcript_id: str, correction_of: str, tz_iana: str, tz_offset_minutes: int) to Result[str] {
+mutation record_health_event(event_kind: str, payload_json: str, event_at: str, source: str, raw_transcript_id: str, correction_of: str, tz_iana: str, tz_offset_minutes: int) to Result[str] {
     let eid = std.crypto.uuid()
     let rec_ms = std.time.now_ms()
     db.HealthEventLog.insert({
@@ -58,11 +58,11 @@ type ParsedVoice {
     return Ok(eid)
 }
 
-@mutation fn record_event(event_kind: str, payload_json: str, event_at: str, source: str, raw_transcript_id: str, correction_of: str, tz_iana: str, tz_offset_minutes: int) to Result[str] {
+mutation record_event(event_kind: str, payload_json: str, event_at: str, source: str, raw_transcript_id: str, correction_of: str, tz_iana: str, tz_offset_minutes: int) to Result[str] {
     return record_health_event(event_kind, payload_json, event_at, source, raw_transcript_id, correction_of, tz_iana, tz_offset_minutes)
 }
 
-@mutation fn record_correction(of_event_id: str, event_kind: str, payload_json: str, event_at: str, source: str, tz_iana: str, tz_offset_minutes: int) to Result[str] {
+mutation record_correction(of_event_id: str, event_kind: str, payload_json: str, event_at: str, source: str, tz_iana: str, tz_offset_minutes: int) to Result[str] {
     return record_health_event(event_kind, payload_json, event_at, source, "", of_event_id, tz_iana, tz_offset_minutes)
 }
 
@@ -72,11 +72,11 @@ type ParsedVoice {
 /// event disappears from the timeline, weekly rollup, and clinical export
 /// without ever mutating or removing a physical row (db.Delete is unsupported
 /// on-device). Returns the tombstone's own event id.
-@mutation fn record_deletion(of_event_id: str, tz_iana: str, tz_offset_minutes: int) to Result[str] {
+mutation record_deletion(of_event_id: str, tz_iana: str, tz_offset_minutes: int) to Result[str] {
     return record_health_event("_deleted", "{}", "", "app", "", of_event_id, tz_iana, tz_offset_minutes)
 }
 
-@mutation fn record_raw_transcript(transcript_text: str, parser_decisions_json: str, confidence: float) to Result[str] {
+mutation record_raw_transcript(transcript_text: str, parser_decisions_json: str, confidence: float) to Result[str] {
     let tid = std.crypto.uuid()
     let ms = std.time.now_ms()
     db.RawTranscript.insert({
@@ -213,7 +213,7 @@ fn test_csv_quote_inner_quotes() to Unit {
 
 /// Authoritative voice classifier (mirrors src/ts/intent_parser.ts). Returns a
 /// structured ParsedVoice; the UI / save flow pulls each field directly.
-@query fn parse_voice(transcript: str) to ParsedVoice {
+query parse_voice(transcript: str) to ParsedVoice {
     let t = transcript.trim().to_lower()
 
     // Mood: "I feel like a 3" / "mood is 4"
@@ -277,14 +277,14 @@ fn test_csv_quote_inner_quotes() to Unit {
 
 /// Backward-compatible string facade over parse_voice. Kept so older UI /
 /// fixture consumers don't break; new code should call parse_voice directly.
-@query fn preview_voice_parse(transcript: str) to str {
+query preview_voice_parse(transcript: str) to str {
     let p = parse_voice(transcript)
     return "{\"kind\":\"" + p.kind + "\",\"payload\":" + p.payload_json + ",\"confidence\":" + str(p.confidence) + "}"
 }
 
 /// Per-kind weekly rollup over effective (non-superseded) events.
 /// Ported correction-chain collapse from src/ts/materializer.ts (§3.A).
-@query fn weekly_summary_json() to str {
+query weekly_summary_json() to str {
     match db.HealthEventLog.all() {
         Ok(rows) => {
             let mut total = 0
@@ -314,7 +314,7 @@ fn test_csv_quote_inner_quotes() to Unit {
 
 /// Effective HealthEventLog rows as JSON — superseded rows excluded, is_backdated included.
 /// Replaces the TS materializer client-side pass (§3.A); payload_json is JSON-escaped.
-@query fn timeline_events_json() to str {
+query timeline_events_json() to str {
     match db.HealthEventLog.all() {
         Ok(rows) => {
             let mut out = "["
@@ -338,7 +338,7 @@ fn test_csv_quote_inner_quotes() to Unit {
 /// Human-readable list of effective (non-superseded) events, one per line:
 /// "• <kind> — <payload_json>". Empty-state friendly. Renders in TimelinePage
 /// via the proven query-string → text(mh-list) pattern (cf. weekly_summary_json).
-@query fn timeline_lines() to str {
+query timeline_lines() to str {
     match db.HealthEventLog.all() {
         Ok(rows) => {
             let mut out = ""
@@ -358,7 +358,7 @@ fn test_csv_quote_inner_quotes() to Unit {
 
 /// Full CSV export — header + one row per effective (non-superseded) event.
 /// Ported from export_contract.ts `buildHealthCsv` (§3.B).
-@query fn export_health_csv() to str {
+query export_health_csv() to str {
     let header = "event_id,event_kind,schema_version,payload_json,event_at,recorded_at,recorded_at_monotonic,tz_iana,tz_offset_minutes,source,raw_transcript_id,correction_of,is_backdated"
     match db.HealthEventLog.all() {
         Ok(rows) => {
@@ -381,7 +381,7 @@ fn test_csv_quote_inner_quotes() to Unit {
 }
 
 /// JSON bundle metadata with content SHA-256 of the full CSV export (§3.B).
-@query fn export_health_json_bundle() to str {
+query export_health_json_bundle() to str {
     let csv_payload = export_health_csv()
     let hash = std.crypto.hash_secure(csv_payload)
     match db.HealthEventLog.all() {
@@ -399,7 +399,7 @@ fn test_csv_quote_inner_quotes() to Unit {
 }
 
 /// Clinician-shareable HTML report — full CSV + weekly summary (§3.C).
-@query fn export_clinical_html() to str {
+query export_clinical_html() to str {
     let summary = weekly_summary_json()
     let csv_payload = export_health_csv()
     let hash = std.crypto.hash_secure(csv_payload)
@@ -415,18 +415,18 @@ fn test_csv_quote_inner_quotes() to Unit {
     return body
 }
 
-@server fn health() to Result[str] {
+server health() to Result[str] {
     return Ok("ok")
 }
 
-@mutation fn save_mood(score: int, note: str) to Result[str] {
+mutation save_mood(score: int, note: str) to Result[str] {
     let payload = "{\"mood_score\":" + str(score) + ",\"note\":\"" + note.replace("\"", "'") + "\"}"
     return record_health_event(
         "mood_recorded", payload, str(std.time.now_ms()), "form", "", "", "UTC", 0
     )
 }
 
-@form Mood {
+form Mood {
     field score: int range(1..10) required label("How are you feeling? (1–10)")
     field note: str max_len(280) optional label("Anything to share?")
     on_submit: save_mood
@@ -434,7 +434,7 @@ fn test_csv_quote_inner_quotes() to Unit {
     error_message: "Couldn't save mood. Try again."
 }
 
-/// Routable page wrapping the `Mood` @form (forms can't be route targets
+/// Routable page wrapping the `Mood` form (forms can't be route targets
 /// directly — a route needs a component with a view root).
 component MoodPage() {
     view: column(raw_class="mh-root") {
@@ -643,7 +643,7 @@ component VoicePage() {
     }
 }
 
-@table type CrashReport {
+table CrashReport {
     id: int
     error: str
     stack: str
@@ -654,7 +654,7 @@ component VoicePage() {
 /// Parse a flat `{"error":..,"stack":..,"route":..}` crash payload and persist
 /// it. Returns 1 on a durable write, 0 if the payload was unparseable or the
 /// insert failed — callers treat any non-positive result as "not recorded".
-@mutation fn record_crash_report(json: str) to int {
+mutation record_crash_report(json: str) to int {
     match std.json.parse(json) {
         Ok(j) => {
             let err = j.get("error").and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
@@ -675,7 +675,7 @@ component VoicePage() {
     }
 }
 
-@table type PushToken {
+table PushToken {
     id: int
     token: str
     registered_at: str
@@ -684,7 +684,7 @@ component VoicePage() {
 /// Persist a device push-registration token. Returns 1 on a durable write,
 /// 0 if the insert failed. This is the on-device record of "this install can
 /// receive notifications"; the export/clinical surfaces don't touch it.
-@mutation fn store_push_token(token: str) to int {
+mutation store_push_token(token: str) to int {
     match db.PushToken.insert({
         id: 0,
         token: token,
@@ -699,7 +699,7 @@ component VoicePage() {
 /// from HealthEventLog so it never leaks into the clinical CSV/HTML export
 /// (§3.B/§3.C), while still being durable on-device data — "did the reminder
 /// land, and did the user act on it" is meaningful for a mental-health tool.
-@table type NotificationLog {
+table NotificationLog {
     id: int
     kind: str
     title: str
@@ -712,14 +712,14 @@ component VoicePage() {
 /// `on_notification` — a push was delivered to the device. Records a
 /// "received" engagement row from the `{title, body}` payload. Returns 1 on a
 /// durable write, 0 on parse/insert failure.
-@mutation fn handle_push_payload(json: str) to int {
+mutation handle_push_payload(json: str) to int {
     return _record_notification("received", json, "")
 }
 
 /// `on_action` — the user tapped a notification (action). Records a "tapped"
 /// row, preserving which action button fired via `action_id`. Returns 1 on a
 /// durable write, 0 on parse/insert failure.
-@mutation fn handle_push_tap(json: str) to int {
+mutation handle_push_tap(json: str) to int {
     match std.json.parse(json) {
         Ok(j) => {
             let action_id = j.get("action_id").and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")

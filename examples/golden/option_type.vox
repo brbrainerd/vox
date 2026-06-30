@@ -12,7 +12,7 @@
 // ---
 // @training_prompt: Show how to use Option[T] in Vox: Some, None, and match-based unwrapping.
 // ANCHOR: display
-@table type UserProfile {
+table UserProfile {
     id: int
     name: str
     bio: Option[str]
@@ -33,8 +33,7 @@ fn display_age(profile: UserProfile) to str {
     }
 }
 
-@query
-fn find_user(name: str) to Option[str] {
+query find_user(name: str) to Option[str] {
     // Simplified: return the first user whose name matches, or None.
     // db.UserProfile.all() returns all users; real filtering uses query params.
     let _ = db.UserProfile.all()

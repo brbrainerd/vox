@@ -24,8 +24,7 @@ fn emit_main_registers_hir_module_and_scheduled_runner() {
         @scheduled("5m")
         fn tick() to int { return 1 }
 
-        @server
-        fn hello() to str { return "hi" }
+        server hello() to str { return "hi" }
     "#;
     let module = parse(lex(src)).expect("parse");
     let hir = lower_module(&module);
@@ -75,8 +74,7 @@ fn emit_main_includes_durable_boot_even_without_scheduled() {
     // `@scheduled` functions — HIR registration is still useful for
     // workflows (and harmless otherwise).
     let src = r#"
-        @server
-        fn ping() to str { return "pong" }
+        server ping() to str { return "pong" }
     "#;
     let module = parse(lex(src)).expect("parse");
     let hir = lower_module(&module);
@@ -101,7 +99,7 @@ fn emit_main_includes_durable_boot_even_without_scheduled() {
 #[test]
 fn emit_main_includes_healthz_for_db_backed_modules() {
     let src = r#"
-        @table type Task {
+        table Task {
             title: str
         }
     "#;

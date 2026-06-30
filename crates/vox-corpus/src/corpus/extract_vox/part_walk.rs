@@ -191,7 +191,7 @@ mod tests {
     const SAMPLE_VOX: &str = r#"# agent.vox
 # Example agent definition with tools and memory
 
-@table type AgentMemory {
+table AgentMemory {
     session_id: str
     context: str
 }
@@ -223,7 +223,7 @@ fn SupportBot(query: str, session: str) to str {
         let blocks = extract_construct_blocks(SAMPLE_VOX);
         assert!(
             blocks.iter().any(|(_, name, _)| name == "AgentMemory"),
-            "should find @table type AgentMemory"
+            "should find table AgentMemory"
         );
         assert!(
             blocks.iter().any(|(_, name, _)| name == "SupportBot"),

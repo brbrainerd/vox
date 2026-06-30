@@ -14,7 +14,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. CRUD lifecycle — insert (returns the new _id), all, count, get/find, delete.
 // ─────────────────────────────────────────────────────────────────────────────
-@table type Widget {
+table Widget {
     label: str
     qty: int
 }
@@ -55,7 +55,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // 2. Numeric comparison predicates — gte / lte / gt / lt / neq / eq-shorthand.
 // ─────────────────────────────────────────────────────────────────────────────
-@table type Score {
+table Score {
     who: str
     points: int
 }
@@ -77,7 +77,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // 3. Boolean / set / text predicates — and / or / not / in / contains.
 // ─────────────────────────────────────────────────────────────────────────────
-@table type Member {
+table Member {
     handle: str
     tier: int
     vip: bool
@@ -103,7 +103,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // 4. Ordering, limit, and projection over an unfiltered scan.
 // ─────────────────────────────────────────────────────────────────────────────
-@table type Rank {
+table Rank {
     name: str
     elo: int
 }
@@ -128,15 +128,15 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // 5. Endpoint handlers — @query / @mutation are ordinary callables in interp.
 // ─────────────────────────────────────────────────────────────────────────────
-@table type Note {
+table Note {
     body: str
 }
 
-@query fn note_count() to int {
+query note_count() to int {
     return len(db.Note.all())
 }
 
-@mutation fn add_note(body: str) to int {
+mutation add_note(body: str) to int {
     return db.Note.insert({ body: body }).unwrap()
 }
 
@@ -152,7 +152,7 @@
 //    projecting/ordering/limiting even though the `where` object is not on the
 //    outermost call.
 // ─────────────────────────────────────────────────────────────────────────────
-@table type Account {
+table Account {
     owner: str
     balance: int
 }

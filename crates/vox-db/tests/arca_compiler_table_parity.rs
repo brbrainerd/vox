@@ -14,7 +14,7 @@ fn normalize_sql(sql: &str) -> String {
 #[test]
 fn arca_compiler_table_ddl_parity() {
     let src = r#"
-@table(pk: externalKey) type UserProfile {
+table(pk: externalKey) UserProfile {
     externalKey: str
     displayName: str
     active: bool

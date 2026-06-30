@@ -25,7 +25,7 @@
 //   actor Name { on H(...) -> T }  →  fn Name_H(state: T, ...) to T { }
 //   workflow name() -> Result[T]   →  fn name() to Result[T] { }
 //   activity name() -> Result[T]   →  fn name() to Result[T] { }
-//   http post "/path" to T         →  @mutation fn h() to T { }
+//   http post "/path" to T         →  mutation h() to T { }
 //   @component fn Name()           →  component Name() { view: ... }
 
 import fs

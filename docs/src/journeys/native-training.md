@@ -34,7 +34,7 @@ import vox.mens.training
 import vox.mens.qlora
 
 // We assume we have a table of high-quality agent queries and outputs.
-@table type AgentTelemetry {
+table AgentTelemetry {
     query: str
     optimal_response: str
 }

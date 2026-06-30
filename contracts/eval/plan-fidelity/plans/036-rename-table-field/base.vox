@@ -3,7 +3,7 @@
 // A Contact table with `name`. The plan asks the model to rename the
 // field to `email`.
 
-@table type Contact {
+table Contact {
     id: str,
     name: str
 }

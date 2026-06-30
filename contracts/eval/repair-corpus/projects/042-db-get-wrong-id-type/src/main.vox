@@ -3,7 +3,7 @@
 // the caller passes a bool. Expected repair: pass an int / Id[Note]
 // instead of the bool.
 
-@table type Note {
+table Note {
     id: int,
     body: str
 }

@@ -12,13 +12,11 @@
 // ---
 // @training_prompt: Define Vox MCP tools and read-only resources.
 // ANCHOR: display
-@tool "read_file: Reads a file from disk"
-fn read_file(path: str) to str {
+tool "read_file: Reads a file from disk" read_file(path: str) to str {
     return "file contents"
 }
 
-@tool "file_uri: Echo path as a logical file URI"
-fn file_uri(path: str) to str {
+tool "file_uri: Echo path as a logical file URI" file_uri(path: str) to str {
     return "file://" + path
 }
 

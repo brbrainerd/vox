@@ -23,29 +23,25 @@ fn greet(name: str) to str {
 "#;
 
 const CRUD_API: &str = r#"
-@table type Task {
+table Task {
     id: int
     title: str
     done: bool
 }
 
-@query
-fn list_tasks() to list[Task] {
+query list_tasks() to list[Task] {
     ret db.Task.find_all()
 }
 
-@mutation
-fn create_task(title: str) to Task {
+mutation create_task(title: str) to Task {
     ret db.Task.insert({ title: title, done: false })
 }
 
-@mutation
-fn complete_task(id: int) to Task {
+mutation complete_task(id: int) to Task {
     ret db.Task.update(id, { done: true })
 }
 
-@mutation
-fn delete_task(id: int) to Unit {
+mutation delete_task(id: int) to Unit {
     db.Task.delete(id)
 }
 "#;

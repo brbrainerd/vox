@@ -30,10 +30,10 @@ fn extract_codegen_activity_names(lib_src: &str) -> Vec<String> {
 }
 
 #[test]
-#[ignore = "@server bare shorthand is not in the parser; use @server fn instead — owner: integration-tests sunset: 2026-12-31"]
+#[ignore = "@server bare shorthand is not in the parser; use server instead — owner: integration-tests sunset: 2026-12-31"]
 fn parity_contract_codegen_rust_includes_auth_rate_limit_and_request_id() {
     let src = r#"
-@server fn chat(prompt: str) to str {
+server chat(prompt: str) to str {
     return prompt
 }
 "#;
@@ -50,10 +50,10 @@ fn parity_contract_codegen_rust_includes_auth_rate_limit_and_request_id() {
 }
 
 #[test]
-#[ignore = "@server bare shorthand is not in the parser; use @server fn instead — owner: integration-tests sunset: 2026-12-31"]
+#[ignore = "@server bare shorthand is not in the parser; use server instead — owner: integration-tests sunset: 2026-12-31"]
 fn parity_contract_api_client_supports_secure_headers_and_streaming() {
     let src = r#"
-@server fn summarize(input: str) to str {
+server summarize(input: str) to str {
     return input
 }
 "#;

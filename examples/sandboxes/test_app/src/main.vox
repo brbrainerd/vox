@@ -2,18 +2,18 @@
 #
 # Run with: vox build src/main.vox -o dist && vox run src/main.vox
 
-@table type Item {
+table Item {
     id: str
     name: str
     value: int
     created_at: str
 }
 
-@query fn list_items() to list[Item] {
+query list_items() to list[Item] {
     return []
 }
 
-@mutation fn add_item(name: str, value: int) to Result[str] {
+mutation add_item(name: str, value: int) to Result[str] {
     return Ok("Added: {name}")
 }
 

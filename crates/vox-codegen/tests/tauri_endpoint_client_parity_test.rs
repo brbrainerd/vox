@@ -10,7 +10,7 @@ use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::parse;
 
-const ENDPOINT_VOX: &str = r#"@query fn get_count() to int { return 0 }"#;
+const ENDPOINT_VOX: &str = r#"query get_count() to int { return 0 }"#;
 
 #[test]
 fn tauri_rust_commands_match_vox_client_invoke() {

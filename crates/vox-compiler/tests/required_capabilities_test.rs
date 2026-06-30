@@ -21,7 +21,7 @@ fn empty_module_capabilities_empty() {
 #[test]
 fn endpoint_uses_net_maps_to_net_http() {
     let src = r#"
-@query fn ping() uses net to int { return 1 }
+query ping() uses net to int { return 1 }
 "#;
     let hir = lower_src(src);
     let r = project_required_capabilities(&hir);
@@ -31,7 +31,7 @@ fn endpoint_uses_net_maps_to_net_http() {
 #[test]
 fn push_decl_adds_notifications() {
     let src = r#"
-@mutation fn store_token(token: str) to str { return token }
+mutation store_token(token: str) to str { return token }
 @push {
     on_register: store_token
 }
@@ -44,8 +44,8 @@ fn push_decl_adds_notifications() {
 #[test]
 fn deep_link_and_push_sorted() {
     let src = r#"
-@query fn handle_link(url: str) to str { return "/" }
-@mutation fn store_token(token: str) to str { return token }
+query handle_link(url: str) to str { return "/" }
+mutation store_token(token: str) to str { return token }
 @deep_link {
     scheme: "vox"
     on_link: handle_link

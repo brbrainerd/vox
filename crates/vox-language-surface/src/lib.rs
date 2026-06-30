@@ -349,7 +349,7 @@ pub const LEXER_DEPRECATED_DECORATORS: &[&str] = &[
     "@server",
     "@tool",
     "@resource",
-    // Tier-2 (@form demoted to the `form` keyword; warning-first).
+    // Tier-2 (form demoted to the `form` keyword; warning-first).
     "@form",
 ];
 

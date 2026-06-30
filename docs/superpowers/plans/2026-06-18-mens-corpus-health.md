@@ -510,16 +510,14 @@ $lines[35..55] -join "`n"
 
 Pattern to fix. Before (invalid Vox):
 ```vox
-@tool "Calculate the sum of two integers"
-fn add(a: int, b: int) to int {
+tool "Calculate the sum of two integers" add(a: int, b: int) to int {
     a + b
 }
 ```
 
 After (valid Vox -- description moves into a docstring comment):
 ```vox
-@tool
-fn add(a: int, b: int) to int {
+tool add(a: int, b: int) to int {
     /// Calculate the sum of two integers.
     a + b
 }

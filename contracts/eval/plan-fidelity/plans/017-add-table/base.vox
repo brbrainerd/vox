@@ -3,7 +3,7 @@
 // A single-table bookmark service. The plan asks the model to add a
 // sibling @table for tags.
 
-@table type Bookmark {
+table Bookmark {
     id: str,
     url: str
 }

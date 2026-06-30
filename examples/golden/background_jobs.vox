@@ -35,7 +35,7 @@ fn async_batch_job(batch_id: str) to Result[str] {
     }
 }
 
-@mutation fn handler() to str {
+mutation handler() to str {
     // Normally parses incoming JSON payload for batch_id
     let simulated_batch_id = "batch_789"
     // Fire and forget triggering of the durable workflow

@@ -21,12 +21,12 @@ const SIMPLE_SNIPPETS: &[&str] = &[
     // Minimal — no declarations
     "",
     // Single endpoint function
-    r#"@query fn get_count() to int { return 0 }"#,
+    r#"query get_count() to int { return 0 }"#,
     // Mutation endpoint
-    r#"@mutation fn update_count(n: int) to int { return n }"#,
+    r#"mutation update_count(n: int) to int { return n }"#,
     // Two functions
-    r#"@query fn ping() to int { return 1 }
-@mutation fn pong(x: int) to int { return x }"#,
+    r#"query ping() to int { return 1 }
+mutation pong(x: int) to int { return x }"#,
 ];
 
 fn generate_rust_output(src: &str) -> Result<String, String> {
