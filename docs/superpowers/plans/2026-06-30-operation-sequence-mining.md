@@ -231,16 +231,31 @@ mod tests {
 
     #[test]
     fn arg_key_shape_distinguishes_ops() {
-        // read{path} vs read{path,range} must NOT be treated as the same op.
+        // read{path}->write recurs 3× across 3 sessions (passes threshold).
+        // read{path,range}->write recurs only 2× — it must NOT merge with the
+        // {path} variant to reach 5×. Different arg-key shape ⇒ different op_key.
         let mut ops = Vec::new();
         for s in ["s1", "s2", "s3"] {
             ops.push(op(s, 0, "read", &["path"]));
             ops.push(op(s, 1, "write", &[]));
         }
-        // A different shape that should not merge with the above pair.
+        for s in ["s4", "s5"] {
+            ops.push(op(s, 0, "read", &["path", "range"]));
+            ops.push(op(s, 1, "write", &[]));
+        }
         let cands = mine_repeated_operations(&ops, &default_opts());
-        let names: Vec<_> = cands.iter().filter_map(|c| c.draft_frontmatter.as_ref()).map(|d| d.name.clone()).collect();
-        assert!(names.iter().any(|n| n == "read-write"), "got {names:?}");
+        // Both variants render tool-name "read-write"; only the {path} one (3×/3)
+        // passes. If op_keys wrongly merged, the survivor would report 5×.
+        let rw: Vec<_> = cands
+            .iter()
+            .filter(|c| c.draft_frontmatter.as_ref().map(|d| d.name.as_str()) == Some("read-write"))
+            .collect();
+        assert_eq!(rw.len(), 1, "arg-shapes must not merge; got {cands:?}");
+        assert!(
+            rw[0].draft_frontmatter.as_ref().unwrap().description.contains("3×"),
+            "expected 3× (not merged to 5×); got {:?}",
+            rw[0].draft_frontmatter
+        );
     }
 
     #[test]
@@ -416,6 +431,8 @@ pub fn mine_repeated_operations(ops: &[MinedOp], opts: &OpMiningOptions) -> Vec<
 }
 ```
 
+> VERIFIED: no `match`/`if let` on `CandidateKind` exists in the crate (only constructions + `Debug`-derived rendering), so adding `RepeatedOperations` is safe — no match arms to update.
+
 - [ ] **Step 5: Export from the library**
 
 In `crates/vox-skill-discovery/src/lib.rs`, add after the existing `pub mod` lines and re-exports:
@@ -425,16 +442,51 @@ pub mod op_miner;
 pub use op_miner::{MinedOp, OpMiningOptions, arg_keys, mine_repeated_operations};
 ```
 
-- [ ] **Step 6: Run the tests**
+- [ ] **Step 6: Surface `draft_frontmatter` in the terminal report**
 
-Run: `cargo test -p vox-skill-discovery op_miner`
-Expected: PASS (6 tests).
+VERIFIED gap: `render_terminal` (`crates/vox-skill-discovery/src/report.rs`) prints `kind`/`score`/`action`/`members` but NOT `draft_frontmatter` — so `vox skill suggest` (terminal mode) would hide the actual suggested skill name/description (the whole point). `render_json` already serializes the full struct. Extend `render_terminal`: after the header `push_str` and before the `members:` loop, add the draft block. Locate the existing loop body (it pushes the `[i] {:?} (score …) action: … members:` header) and insert:
 
-- [ ] **Step 7: Commit**
+```rust
+        if let Some(df) = &c.draft_frontmatter {
+            out.push_str(&format!("    suggested skill: {} — {}\n", df.name, df.description));
+        }
+```
+
+Add a test to `report.rs`'s `#[cfg(test)] mod tests` (it already imports `CandidateKind`):
+
+```rust
+    #[test]
+    fn terminal_report_shows_draft_skill() {
+        use crate::candidate::{Candidate, DraftFrontmatter};
+        let c = Candidate {
+            kind: CandidateKind::RepeatedOperations,
+            members: vec!["session:s1@0".into()],
+            score: 6.0,
+            suggested_action: "Save recurring procedure as a skill".into(),
+            draft_frontmatter: Some(DraftFrontmatter {
+                name: "a-b-c".into(),
+                description: "Recurring procedure: a → b → c (seen 3× across 2 sessions)".into(),
+                category: "workflow".into(),
+                tags: vec!["auto-discovered".into()],
+            }),
+        };
+        let out = render_terminal(std::slice::from_ref(&c));
+        assert!(out.contains("suggested skill: a-b-c"), "got: {out}");
+    }
+```
+
+> This is backward-compatible: code/installed candidates with `draft_frontmatter: None` print as before.
+
+- [ ] **Step 7: Run the tests**
+
+Run: `cargo test -p vox-skill-discovery`
+Expected: PASS (op_miner 6 + report incl. the new `terminal_report_shows_draft_skill`).
+
+- [ ] **Step 8: Commit**
 
 ```bash
-git add crates/vox-skill-discovery/src/candidate.rs crates/vox-skill-discovery/src/op_miner.rs crates/vox-skill-discovery/src/lib.rs
-git commit -m "feat(skill-discovery): mine_repeated_operations sequence miner"
+git add crates/vox-skill-discovery/src/candidate.rs crates/vox-skill-discovery/src/op_miner.rs crates/vox-skill-discovery/src/lib.rs crates/vox-skill-discovery/src/report.rs
+git commit -m "feat(skill-discovery): mine_repeated_operations sequence miner + draft in terminal report"
 ```
 
 ---
@@ -461,7 +513,7 @@ Then add it to the `ars` feature list (mirroring the existing `ars = ["dep:vox-s
 ars = ["dep:vox-skills", "dep:vox-openclaw-runtime", "dep:vox-skill-discovery"]
 ```
 
-> Confirm `vox-skill-discovery` is in the root `[workspace.dependencies]`; it is a workspace member, so add `vox-skill-discovery = { path = "crates/vox-skill-discovery" }` there if absent.
+> VERIFIED: `vox-skill-discovery` is already in the root `[workspace.dependencies]` (`Cargo.toml:182`) — no root change needed.
 
 - [ ] **Step 2: Add the `Suggest` subcommand**
 
@@ -497,6 +549,9 @@ use vox_skill_discovery::{
 };
 
 /// `vox skill suggest` — mine recurring operation procedures into advisory candidates.
+// VERIFIED: `vox_db::Codex` is a type alias for `VoxDb` (vox-db/src/lib.rs:332),
+// so `connect_default()` yields a `VoxDb` and `list_recent_operations` is callable
+// directly — same pattern the other ars handlers use (registry.rs / eval_promote.rs).
 pub async fn skill_suggest(limit: i64, format: &str) -> Result<()> {
     let db = match vox_db::Codex::connect_default().await {
         Ok(db) => db,
@@ -535,22 +590,18 @@ pub async fn skill_suggest(limit: i64, format: &str) -> Result<()> {
 }
 ```
 
-> VERIFY-BEFORE-USE: `list_recent_operations` is an `impl VoxDb` method, but the
-> CLI registry helper connects via `vox_db::Codex::connect_default()`. Confirm the
-> concrete type that exposes `list_recent_operations` (it is `vox_db::VoxDb`; the
-> existing `ars` registry uses `vox_db::Codex::connect_default()`). If `Codex` is a
-> distinct type from `VoxDb`, mirror however other `ars` handlers obtain a `VoxDb`
-> handle (grep `connect_default` in `crates/vox-cli/src/commands/extras/ars/`), and
-> call `list_recent_operations` on the `VoxDb`. Adjust the connect line to match;
-> the rest of the handler is unchanged.
+> VERIFIED: `Codex = VoxDb` (alias), so `connect_default()` returns a `VoxDb` and
+> `list_recent_operations` (added in Task 1 on `impl crate::VoxDb`) is callable
+> directly — no adjustment needed.
 
 - [ ] **Step 4: Register the handler**
 
 In `crates/vox-cli/src/commands/extras/ars/mod.rs`, add the module + re-export mirroring the sibling handlers (e.g. how `skills_crud` / `eval_promote` are declared):
 
+VERIFIED idiom: `ars/mod.rs` uses `mod <name>;` + `pub use <name>::{...};` (not `pub(crate)`). Add `mod skill_suggest;` to the module block and to the re-export block:
+
 ```rust
-mod skill_suggest;
-pub(crate) use skill_suggest::skill_suggest;
+pub use skill_suggest::skill_suggest;
 ```
 
 - [ ] **Step 5: Build**

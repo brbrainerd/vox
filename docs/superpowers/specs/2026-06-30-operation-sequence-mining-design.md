@@ -144,15 +144,19 @@ already-valid draft name so sub-project 4 can install it without rejection.
 
 ### 4. CLI surface
 
-Extend `crates/vox-skill-discovery/src/bin/vox_discover.rs` with `--source operations`:
-read via `vox-db` `list_recent_operations(limit)` (default limit e.g. 5000), map
-rows → `MinedOp` (dropping rows with no `session_id`), call
-`mine_repeated_operations`, render with the existing report path
-(`render_json` / `render_terminal`). `--limit` flag overrides the row cap.
+Surface as **`vox skill suggest`** in `vox-cli` (refines the original "extend
+`vox-discover`" idea — `vox-cli` already has `vox-db` + `tokio` + the `skill`
+subcommand, so the `vox-skill-discovery` library stays DB-free). The handler:
+read via `vox-db` `list_recent_operations(limit)` (default 5000), map rows →
+`MinedOp` (dropping rows with no `session_id`), call `mine_repeated_operations`,
+render via `render_json` / `render_terminal`. `--limit` / `--format` flags.
 
-> The `vox_discover` binary already depends on `vox-mcp-registry`/`vox-plugin-types`;
-> add `vox-db` to its binary's deps for the read. The library crate
-> `vox-skill-discovery` stays DB-free (pure miner) — only the binary links vox-db.
+> `render_terminal` today prints `kind`/`score`/`action`/`members` but NOT
+> `draft_frontmatter`. Since the draft name+description IS the suggestion, extend
+> `render_terminal` to show `draft_frontmatter` when present (backward-compatible:
+> `None` prints as before). `render_json` already serializes the full struct.
+> Adding the `RepeatedOperations` variant is safe — no `match` on `CandidateKind`
+> exists in the crate (rendering uses derived `Debug`).
 
 ## Error handling
 
