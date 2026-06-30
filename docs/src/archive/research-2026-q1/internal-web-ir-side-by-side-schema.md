@@ -100,7 +100,7 @@ http get "/api/ping" -> str {
     return "ok"
 }
 
-@server fn echo(x: str) -> str {
+server echo(x: str) -> str {
     return x
 }
 ```

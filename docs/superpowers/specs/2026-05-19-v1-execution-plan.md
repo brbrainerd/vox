@@ -155,7 +155,7 @@ The actor body uses a stdlib-like `broadcast(msg)` call to push to subscribers (
 
 The `@table` decorator already accepts no-arg form. Add optional `(pk: <ident>)` argument:
 ```vox
-@table(pk: ulid) type Order {
+table(pk: ulid) Order {
     ulid: str
     amount_cents: int
 }
