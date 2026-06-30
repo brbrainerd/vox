@@ -16521,6 +16521,7 @@ dependencies = [
  "vox-populi",
  "vox-project-scaffold",
  "vox-publisher",
+ "vox-redact",
  "vox-repository",
  "vox-research-events",
  "vox-research-shim",
@@ -17093,6 +17094,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-redact"
+version = "0.6.0"
+dependencies = [
+ "regex",
+ "serde_json",
+]
+
+[[package]]
 name = "vox-rename-registry"
 version = "0.6.0"
 dependencies = [
@@ -17522,13 +17531,13 @@ version = "0.6.0"
 dependencies = [
  "anyhow",
  "portable-pty",
- "regex",
  "serde",
  "serde_json",
  "tokio",
  "vox-compiler",
  "vox-journal",
  "vox-orchestrator",
+ "vox-redact",
 ]
 
 [[package]]

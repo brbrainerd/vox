@@ -286,6 +286,23 @@ pub async fn handle_tool_call(
 
     let duration_ms = start_time.elapsed().as_millis() as i64;
 
+    // Operation capture (sub-project 1): best-effort, redacted, fire-and-forget.
+    // Runs only for executed tools (guard rejections returned earlier).
+    crate::operation_capture::spawn_capture(
+        state.db.clone(),
+        state.orchestrator_config.operations_capture_enabled,
+        name_canonical.to_string(),
+        args.clone(),
+        match &result {
+            Ok(s) => s.clone(),
+            Err(e) => e.to_string(),
+        },
+        session_id.map(|s| s.to_string()),
+        agent_id.map(|s| s.to_string()),
+        duration_ms,
+        result.is_err(),
+    );
+
     // Track E — emit structured telemetry for every MCP tool call.
     {
         let tool_call_kind = tool_call_kind_for(name_canonical);
