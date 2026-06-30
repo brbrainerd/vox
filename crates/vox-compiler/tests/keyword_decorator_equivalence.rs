@@ -118,6 +118,27 @@ fn resource() {
 }
 
 #[test]
+fn form() {
+    // Tier-2: @form is a distinct Decl::Form block (not fn-shaped). The soft keyword
+    // reuses parse_form_decl, producing the identical node.
+    ast_eq(
+        "@form Signup { field email: str\n on_submit: register }",
+        "form Signup { field email: str\n on_submit: register }",
+    );
+}
+
+#[test]
+fn form_as_identifier_preserved() {
+    // `form` stays a usable identifier everywhere but a declaration head.
+    for src in [
+        "fn f(form: str) to int { return 0 }",
+        "type T { form: str }",
+    ] {
+        parse(lex(src)).unwrap_or_else(|e| panic!("must still parse: {src}\n{e:?}"));
+    }
+}
+
+#[test]
 fn soft_keyword_recognized_in_script_mode() {
     use vox_compiler::parser::parse_script;
     // Soft keywords must be decl-position in SCRIPT mode too (not just module mode) —

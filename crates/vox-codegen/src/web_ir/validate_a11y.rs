@@ -55,6 +55,17 @@ fn has_aria_name(attrs: &[(String, String)]) -> bool {
     has_attr(attrs, "aria-label") || has_attr(attrs, "aria-labelledby")
 }
 
+/// True if some `<label for="...">` in the arena targets this element's `id`.
+/// A bare `id` only *enables* a `<label for>`; it does not prove one exists.
+fn has_associated_label(module: &WebIrModule, id: Option<&str>) -> bool {
+    let Some(id) = id else { return false };
+    module.dom_nodes.iter().any(|n| {
+        matches!(n, DomNode::Element { tag, attrs, .. }
+            if tag.eq_ignore_ascii_case("label")
+                && attrs.iter().any(|(k, v)| k.eq_ignore_ascii_case("for") && v == id))
+    })
+}
+
 /// Recursively check whether a set of child DOM nodes contains any non-empty text content
 /// or expression nodes (which may produce text at runtime).
 fn has_non_empty_text_child(module: &WebIrModule, child_ids: &[DomNodeId]) -> bool {
@@ -147,13 +158,14 @@ pub fn validate_a11y(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
                     check_accessible_name(module, tag, attrs, children, out);
                 }
             }
-            "input" => {
-                let has_label =
-                    has_aria_name(attrs) || attrs.iter().any(|(k, _)| k.eq_ignore_ascii_case("id"));
+            "input" | "textarea" | "select" => {
+                let has_label = has_aria_name(attrs) || has_associated_label(module, get_a("id"));
                 if !has_label {
                     out.push(WebIrDiagnostic {
-                        code: "web_ir_validate.a11y.input_missing_label".to_string(),
-                        message: "`input` element requires an `aria-label`, `aria-labelledby`, or associated `<label>` (via `id`)".to_string(),
+                        code: format!("web_ir_validate.a11y.{tag}_missing_label"),
+                        message: format!(
+                            "`{tag}` element requires an `aria-label`, `aria-labelledby`, or associated `<label>` (via `id`)"
+                        ),
                         span: None,
                         category: Some("a11y".to_string()),
                     });
@@ -404,6 +416,33 @@ mod tests {
                 .any(|d| d.code == "web_ir_validate.a11y.img_missing_alt"),
             "expected img_missing_alt: {diags:?}"
         );
+    }
+
+    #[test]
+    fn unlabeled_form_controls_are_errors() {
+        for tag in ["input", "textarea", "select"] {
+            let m = module_with_nodes(vec![elem(0, tag, vec![], vec![])]);
+            let mut out = Vec::new();
+            validate_a11y(&m, &mut out);
+            assert!(
+                out.iter()
+                    .any(|d| d.code == format!("web_ir_validate.a11y.{tag}_missing_label")),
+                "expected {tag}_missing_label: {out:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn labeled_form_controls_are_ok() {
+        for tag in ["input", "textarea", "select"] {
+            let m = module_with_nodes(vec![elem(0, tag, vec![("aria-label", "Email")], vec![])]);
+            let mut out = Vec::new();
+            validate_a11y(&m, &mut out);
+            assert!(
+                !out.iter().any(|d| d.code.ends_with("_missing_label")),
+                "labeled {tag} should pass: {out:?}"
+            );
+        }
     }
 
     #[test]
