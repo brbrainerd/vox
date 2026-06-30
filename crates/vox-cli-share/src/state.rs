@@ -2,7 +2,7 @@
 //!
 //! Override for testing: `VOX_SHARE_STATE_PATH` env var.
 
-use crate::utils::share::error::{ShareError, ShareResult};
+use crate::error::{ShareError, ShareResult};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 

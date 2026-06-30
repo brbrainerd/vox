@@ -5,8 +5,8 @@
 //!           -R 80:localhost:<port> nokey@localhost.run`
 //! Parses the tunnel URL from stdout (line contains `https://` + `.lhr.life`).
 
-use crate::utils::share::backend::{BackendKind, TunnelBackend, TunnelHandle, UrlStability};
-use crate::utils::share::error::{ShareError, ShareResult};
+use crate::backend::{BackendKind, TunnelBackend, TunnelHandle, UrlStability};
+use crate::error::{ShareError, ShareResult};
 use async_trait::async_trait;
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, BufReader};

@@ -1,6 +1,6 @@
 //! Backend trait + kind enum.
 
-use crate::utils::share::error::ShareResult;
+use crate::error::ShareResult;
 use async_trait::async_trait;
 use std::str::FromStr;
 use std::time::Duration;
@@ -20,14 +20,14 @@ pub enum BackendKind {
 }
 
 impl FromStr for BackendKind {
-    type Err = crate::utils::share::error::ShareError;
+    type Err = crate::error::ShareError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "lan" => Ok(Self::Lan),
             "cloudflare" => Ok(Self::Cloudflare),
             "localhost-run" => Ok(Self::LocalhostRun),
             "tailscale" => Ok(Self::Tailscale),
-            other => Err(crate::utils::share::error::ShareError::InvalidBackend(
+            other => Err(crate::error::ShareError::InvalidBackend(
                 other.to_string(),
             )),
         }

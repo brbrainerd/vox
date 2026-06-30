@@ -5,7 +5,7 @@
 //!
 //! Override for testing: set `VOX_CLOUDFLARED_PATH` env var to an absolute path.
 
-use crate::utils::share::error::{ShareError, ShareResult};
+use crate::error::{ShareError, ShareResult};
 use std::path::{Path, PathBuf};
 
 /// Pinned cloudflared version downloaded by `vox share`.

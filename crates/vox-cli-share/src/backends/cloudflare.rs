@@ -9,9 +9,9 @@
 //! - New URL each run (per-session stability)
 //! - `cloudflared` Go binary, Apache-2.0, lazy-downloaded by `binary_cache`
 
-use crate::utils::share::backend::{BackendKind, TunnelBackend, TunnelHandle, UrlStability};
-use crate::utils::share::binary_cache::ensure_cloudflared;
-use crate::utils::share::error::{ShareError, ShareResult};
+use crate::backend::{BackendKind, TunnelBackend, TunnelHandle, UrlStability};
+use crate::binary_cache::ensure_cloudflared;
+use crate::error::{ShareError, ShareResult};
 use async_trait::async_trait;
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, BufReader};

@@ -15325,6 +15325,7 @@ dependencies = [
  "vox-capability-registry",
  "vox-cli-ci",
  "vox-cli-core",
+ "vox-cli-share",
  "vox-code-audit",
  "vox-codegen",
  "vox-compiler",
@@ -15433,6 +15434,32 @@ dependencies = [
  "vox-orchestrator-driver",
  "vox-repository",
  "vox-secrets",
+ "which 8.0.4",
+]
+
+[[package]]
+name = "vox-cli-share"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "base64 0.22.1",
+ "dirs",
+ "form_urlencoded",
+ "hex",
+ "http",
+ "hyper-util",
+ "rand 0.8.6",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "vox-config",
+ "vox-http-client",
  "which 8.0.4",
 ]
 

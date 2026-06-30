@@ -1,13 +1,13 @@
 //! Coordinator: wires app + proxy + tunnel-backend together.
 
-use crate::utils::share::auth::AuthMode;
-use crate::utils::share::backend::{BackendKind, TunnelBackend, TunnelHandle};
-use crate::utils::share::backends::cloudflare::CloudflareBackend;
-use crate::utils::share::backends::lan::LanBackend;
-use crate::utils::share::backends::localhost_run::LocalhostRunBackend;
-use crate::utils::share::backends::tailscale::TailscaleBackend;
-use crate::utils::share::error::{ShareError, ShareResult};
-use crate::utils::share::proxy::{ProxyConfig, build_app as build_proxy_app};
+use crate::auth::AuthMode;
+use crate::backend::{BackendKind, TunnelBackend, TunnelHandle};
+use crate::backends::cloudflare::CloudflareBackend;
+use crate::backends::lan::LanBackend;
+use crate::backends::localhost_run::LocalhostRunBackend;
+use crate::backends::tailscale::TailscaleBackend;
+use crate::error::{ShareError, ShareResult};
+use crate::proxy::{ProxyConfig, build_app as build_proxy_app};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -89,7 +89,7 @@ impl ShareSession {
         // S6: SSE detection — if Cloudflare and SSE routes found, switch to localhost.run.
         if matches!(cfg.backend, BackendKind::Cloudflare)
             && !cfg.allow_buffered_streaming
-            && crate::utils::share::sse_detect::has_sse_routes(cfg.upstream_port).await
+            && crate::sse_detect::has_sse_routes(cfg.upstream_port).await
         {
             println!(
                 "[vox share] App uses streaming (SSE); auto-selected --backend localhost-run for SSE compatibility"
@@ -105,8 +105,8 @@ impl ShareSession {
             let public_url = cfg.auth_mode.decorate_url(&tunnel_handle.public_url);
             let duration_done_rx = if let Some(d) = cfg.duration {
                 let (tx, rx) = tokio::sync::mpsc::channel(1);
-                tokio::spawn(crate::utils::share::lifecycle::run_countdown(d, tx));
-                tokio::spawn(crate::utils::share::lifecycle::run_countdown_printer(d));
+                tokio::spawn(crate::lifecycle::run_countdown(d, tx));
+                tokio::spawn(crate::lifecycle::run_countdown_printer(d));
                 Some(rx)
             } else {
                 None
@@ -143,7 +143,7 @@ impl ShareSession {
         // Optional auto-shutdown timer.
         let duration_done_rx = if let Some(d) = cfg.duration {
             let (tx, rx) = tokio::sync::mpsc::channel(1);
-            tokio::spawn(crate::utils::share::lifecycle::run_countdown(d, tx));
+            tokio::spawn(crate::lifecycle::run_countdown(d, tx));
             Some(rx)
         } else {
             None

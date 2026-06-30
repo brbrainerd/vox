@@ -2,7 +2,7 @@
 //!
 //! Pass-through only in S1 (no auth). S5 adds auth middleware.
 
-use crate::utils::share::auth::{AuthMode, auth_middleware};
+use crate::auth::{AuthMode, auth_middleware};
 use axum::Router;
 use axum::body::Body;
 use axum::extract::Request;

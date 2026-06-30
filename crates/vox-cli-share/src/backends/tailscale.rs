@@ -6,8 +6,8 @@
 //! Unlike Cloudflare and localhost.run, Tailscale produces a *stable* URL
 //! (`https://<machine>.<tailnet>.ts.net`) that persists across runs.
 
-use crate::utils::share::backend::{BackendKind, TunnelBackend, TunnelHandle, UrlStability};
-use crate::utils::share::error::{ShareError, ShareResult};
+use crate::backend::{BackendKind, TunnelBackend, TunnelHandle, UrlStability};
+use crate::error::{ShareError, ShareResult};
 use async_trait::async_trait;
 use std::time::Duration;
 

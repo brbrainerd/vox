@@ -4,8 +4,8 @@
 //! discover a routable LAN IP for the user-facing URL and produce a
 //! [`TunnelHandle`]. No child process is spawned.
 
-use crate::utils::share::backend::{BackendKind, TunnelBackend, TunnelHandle, UrlStability};
-use crate::utils::share::error::ShareResult;
+use crate::backend::{BackendKind, TunnelBackend, TunnelHandle, UrlStability};
+use crate::error::ShareResult;
 use async_trait::async_trait;
 use std::time::Duration;
 
