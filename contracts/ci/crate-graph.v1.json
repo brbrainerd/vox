@@ -53,9 +53,7 @@
       "vox-build-meta",
       "vox-capability-registry",
       "vox-cli-ci",
-      "vox-cli-contracts",
       "vox-cli-core",
-      "vox-cli-research",
       "vox-cli-share",
       "vox-codegen",
       "vox-compiler",
@@ -111,9 +109,6 @@
     "vox-cli-ci": [
       "vox-cli-core"
     ],
-    "vox-cli-contracts": [
-      "vox-config"
-    ],
     "vox-cli-core": [
       "vox-bounded-fs",
       "vox-config",
@@ -124,28 +119,6 @@
       "vox-orchestrator",
       "vox-orchestrator-driver",
       "vox-repository",
-      "vox-secrets"
-    ],
-    "vox-cli-research": [
-      "vox-config",
-      "vox-db",
-      "vox-foundation",
-      "vox-orchestrator",
-      "vox-publisher",
-      "vox-repository",
-      "vox-research-shim",
-      "vox-search",
-      "vox-secrets"
-    ],
-    "vox-cli-review": [
-      "vox-bounded-fs",
-      "vox-code-audit",
-      "vox-config",
-      "vox-corpus",
-      "vox-db",
-      "vox-forge",
-      "vox-git",
-      "vox-http-client",
       "vox-secrets"
     ],
     "vox-cli-share": [
