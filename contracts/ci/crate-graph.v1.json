@@ -133,6 +133,17 @@
       "vox-search",
       "vox-secrets"
     ],
+    "vox-cli-review": [
+      "vox-bounded-fs",
+      "vox-code-audit",
+      "vox-config",
+      "vox-corpus",
+      "vox-db",
+      "vox-forge",
+      "vox-git",
+      "vox-http-client",
+      "vox-secrets"
+    ],
     "vox-cli-share": [
       "vox-config",
       "vox-http-client"
