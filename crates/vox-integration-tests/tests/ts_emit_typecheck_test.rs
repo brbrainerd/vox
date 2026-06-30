@@ -325,7 +325,7 @@ fn admin_output_typechecks_when_gated() {
             },
             HirTableField {
                 name: "email".into(),
-                type_ann: HirType::Str,
+                type_ann: HirType::Named("string".into()),
                 span,
             },
         ],
