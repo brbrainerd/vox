@@ -287,7 +287,7 @@ pub async fn status() -> Result<()> {
     }
     println!();
 
-    let tasks_today = db::get_counter(&db, &user_id, "tasks_today")
+    let tasks_today = db::get_counter(db, user_id, "tasks_today")
         .await
         .unwrap_or(0);
     println!(
@@ -295,7 +295,7 @@ pub async fn status() -> Result<()> {
         tasks_today.to_string().bright_cyan()
     );
 
-    let achievements = db::list_unlocked_achievements(&db, &user_id)
+    let achievements = db::list_unlocked_achievements(db, user_id)
         .await
         .unwrap_or_default();
     if !achievements.is_empty() {

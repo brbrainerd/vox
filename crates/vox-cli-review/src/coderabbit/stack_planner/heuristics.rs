@@ -47,7 +47,7 @@ pub(crate) fn is_ignored(path: &str) -> bool {
     if ignored_exts.iter().any(|e| path_lower.ends_with(e)) {
         return true;
     }
-    let filename = path_norm.split('/').filter(|s| !s.is_empty()).last();
+    let filename = path_norm.split('/').rfind(|s| !s.is_empty());
     if let Some(filename) = filename
         && ignored_files.contains(&filename)
     {
