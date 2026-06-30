@@ -54,6 +54,7 @@
       "vox-capability-registry",
       "vox-cli-ci",
       "vox-cli-core",
+      "vox-cli-research",
       "vox-cli-share",
       "vox-codegen",
       "vox-compiler",
@@ -119,6 +120,17 @@
       "vox-orchestrator",
       "vox-orchestrator-driver",
       "vox-repository",
+      "vox-secrets"
+    ],
+    "vox-cli-research": [
+      "vox-config",
+      "vox-db",
+      "vox-foundation",
+      "vox-orchestrator",
+      "vox-publisher",
+      "vox-repository",
+      "vox-research-shim",
+      "vox-search",
       "vox-secrets"
     ],
     "vox-cli-share": [
