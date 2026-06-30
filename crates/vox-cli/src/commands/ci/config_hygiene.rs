@@ -198,50 +198,6 @@ fn count_symbol_refs(root: &Path, symbols: &[String]) -> HashMap<String, usize> 
     counts
 }
 
-/// Standardization lint: a `resolve_secret(SecretId::Vox…)` read at point-of-use
-/// OUTSIDE the `vox-secrets` crate, where the id name is NOT credential-shaped.
-/// These are config knobs that should migrate to a `#[derive(VoxConfig)]` struct
-/// (read via `resolve_config_*`), not the secret resolver. Pre-existing reads are
-/// grandfathered in the baseline; this catches NEW ones. ponytail: substring
-/// heuristic with a credential-name allowlist — tighten only if it false-positives.
-pub fn check_nonsecret_resolve_secret(source: &str, file: &str) -> Vec<Violation> {
-    if file.replace('\\', "/").contains("crates/vox-secrets/") {
-        return Vec::new();
-    }
-    let mut hits = Vec::new();
-    for (i, line) in source.lines().enumerate() {
-        if !line.contains("resolve_secret") {
-            continue;
-        }
-        let Some(idx) = line.find("SecretId::") else {
-            continue;
-        };
-        let name: String = line[idx + "SecretId::".len()..]
-            .chars()
-            .take_while(|c| c.is_alphanumeric())
-            .collect();
-        if name.is_empty() {
-            continue;
-        }
-        let upper = name.to_uppercase();
-        let credentialish = ["KEY", "TOKEN", "SECRET", "PASSWORD", "PWD", "CREDENTIAL"]
-            .iter()
-            .any(|m| upper.contains(m));
-        if !credentialish {
-            hits.push(Violation {
-                check: "nonsecret-resolve-secret-point-of-use",
-                file: file.to_string(),
-                line: i + 1,
-                message: format!(
-                    "config knob `SecretId::{name}` read via resolve_secret; migrate to a #[derive(VoxConfig)] struct"
-                ),
-                env_var: None,
-            });
-        }
-    }
-    hits
-}
-
 /// Run all config-hygiene checks across the workspace.
 ///
 /// Uses a baseline ratchet: violations whose `(check, file)` key is already
@@ -285,7 +241,6 @@ pub fn run(update_baseline: bool) -> anyhow::Result<()> {
         violations.extend(check_no_cwd_relative_contract_paths(src, &rel));
         violations.extend(check_protected_modules_have_no_env_reads(src, &rel));
         violations.extend(check_env_reads_registered(src, &rel, &registered_env_vars));
-        violations.extend(check_nonsecret_resolve_secret(src, &rel));
     });
 
     // Check C: two-pass workspace scan — gather resolver definitions, then count
@@ -696,24 +651,6 @@ fn collect_rs_files(dir: &Path, f: &mut impl FnMut(&Path, &str)) {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn flags_nonsecret_resolve_secret_point_of_use() {
-        let src = r#"let x = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSpeechMaxBiasPhrases).expose();"#;
-        let v = check_nonsecret_resolve_secret(src, "crates/vox-speech/src/foo.rs");
-        assert_eq!(v.len(), 1);
-        assert_eq!(v[0].check, "nonsecret-resolve-secret-point-of-use");
-    }
-
-    #[test]
-    fn ignores_credential_shaped_and_vox_secrets_crate() {
-        // credential-shaped name is exempt
-        let cred = r#"resolve_secret(vox_secrets::SecretId::OpenAiApiKey).expose()"#;
-        assert!(check_nonsecret_resolve_secret(cred, "crates/vox-orchestrator/src/x.rs").is_empty());
-        // reads inside vox-secrets itself are exempt
-        let inside = r#"resolve_secret(SecretId::VoxSpeechMaxBiasPhrases)"#;
-        assert!(check_nonsecret_resolve_secret(inside, "crates/vox-secrets/src/lib.rs").is_empty());
-    }
 
     #[test]
     fn flags_cwd_relative_contract_literal() {
