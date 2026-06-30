@@ -3,6 +3,59 @@
 
 use vox_config::VoxConfigDomain;
 
+// --- Coverage for the Option<T> and Parse (enum/FromStr) resolver branches, which
+// no scalar test or orchestrator field exercises. Forces those quote! paths to compile.
+#[derive(Clone, Debug, PartialEq, Default)]
+enum Mode {
+    #[default]
+    Economy,
+    Fast,
+}
+impl std::str::FromStr for Mode {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, ()> {
+        match s {
+            "Economy" => Ok(Mode::Economy),
+            "Fast" => Ok(Mode::Fast),
+            _ => Err(()),
+        }
+    }
+}
+
+#[derive(Clone, vox_config_derive::VoxConfig)]
+#[vox_config(prefix = "VOX_TD2", group = "Tuning")]
+struct TestDomain2 {
+    #[config(env = "VOX_TD2_NAME", default = "")]
+    name: Option<String>,
+    #[config(default = "Economy")]
+    mode: Mode,
+}
+impl Default for TestDomain2 {
+    fn default() -> Self {
+        Self { name: None, mode: Mode::Economy }
+    }
+}
+
+#[test]
+fn option_and_enum_resolvers_compile_and_work() {
+    let d = TestDomain2::default();
+    assert_eq!(d.name, None);
+    assert_eq!(d.mode, Mode::Economy);
+    assert_eq!(TestDomain2::config_keys().len(), 2);
+
+    unsafe {
+        std::env::set_var("VOX_TD2_NAME", "hello");
+        std::env::set_var("VOX_TD2_MODE", "Fast");
+    }
+    let c = TestDomain2::from_env_uncached();
+    assert_eq!(c.name, Some("hello".to_string()));
+    assert_eq!(c.mode, Mode::Fast);
+    unsafe {
+        std::env::remove_var("VOX_TD2_NAME");
+        std::env::remove_var("VOX_TD2_MODE");
+    }
+}
+
 #[derive(Clone, vox_config_derive::VoxConfig)]
 #[vox_config(prefix = "VOX_TESTDOMAIN", group = "Tuning")]
 struct TestDomain {

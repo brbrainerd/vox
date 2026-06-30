@@ -220,12 +220,18 @@ impl ConfigModel {
             let default = &f.default;
             let label = &f.label;
             let hint = &f.hint;
-            // {:?} (Debug) — universal across enums/Option/numeric/String. NOT {} (Display).
+            // Plain `String` fields render without Debug quotes (clean for the GUI);
+            // everything else uses {:?} (Debug — universal across enums/Option/numeric).
+            let current = if f.kind == Kind::Str && !f.is_option {
+                quote!(self.#id.clone())
+            } else {
+                quote!(format!("{:?}", self.#id))
+            };
             quote! {
                 ::vox_config::ConfigField {
                     key: #env,
                     kind: #kind,
-                    current: format!("{:?}", self.#id),
+                    current: #current,
                     default: #default.to_string(),
                     group: #group_lit,
                     label: #label,
