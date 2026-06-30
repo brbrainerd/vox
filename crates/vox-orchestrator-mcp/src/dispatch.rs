@@ -1346,9 +1346,7 @@ async fn handle_tool_call_inner(
         )),
         "vox_skill_run" => Ok(crate::skills::skill_run(state, serde_json::from_value(args)?).await),
         "vox_skill_discover" => Ok(crate::skills::skill_discover(state)),
-        "vox_skill_add" => {
-            Ok(crate::skills::skill_add(state, serde_json::from_value(args)?).await)
-        }
+        "vox_skill_add" => Ok(crate::skills::skill_add(state, serde_json::from_value(args)?).await),
         "vox_skill_remove" => {
             Ok(crate::skills::skill_remove(state, serde_json::from_value(args)?).await)
         }

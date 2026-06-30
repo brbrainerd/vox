@@ -248,7 +248,10 @@ pub fn install_to_user_root(
         // symlink at dest (TOCTOU); refuse it instead.
         match std::fs::symlink_metadata(&dest) {
             Ok(meta) if meta.file_type().is_symlink() => {
-                return Err(format!("refusing to overwrite symlink at {}", dest.display()));
+                return Err(format!(
+                    "refusing to overwrite symlink at {}",
+                    dest.display()
+                ));
             }
             Ok(_) => std::fs::remove_dir_all(&dest).map_err(|e| e.to_string())?,
             Err(_) => {} // does not exist yet
@@ -321,10 +324,22 @@ mod tests {
 
     #[test]
     fn source_root_label_classifies_by_path() {
-        assert_eq!(source_root_label(Path::new("/x/assets/skills/tdd")), "bundled");
-        assert_eq!(source_root_label(Path::new("/x/.cursor/skills/tdd")), "cursor");
-        assert_eq!(source_root_label(Path::new("/x/.claude/skills/tdd")), "claude");
-        assert_eq!(source_root_label(Path::new("/x/.agents/skills/tdd")), "agents");
+        assert_eq!(
+            source_root_label(Path::new("/x/assets/skills/tdd")),
+            "bundled"
+        );
+        assert_eq!(
+            source_root_label(Path::new("/x/.cursor/skills/tdd")),
+            "cursor"
+        );
+        assert_eq!(
+            source_root_label(Path::new("/x/.claude/skills/tdd")),
+            "claude"
+        );
+        assert_eq!(
+            source_root_label(Path::new("/x/.agents/skills/tdd")),
+            "agents"
+        );
         assert_eq!(source_root_label(Path::new("/x/.vox/skills/tdd")), "vox");
         assert_eq!(source_root_label(Path::new("/x/somewhere/tdd")), "unknown");
     }
@@ -386,9 +401,13 @@ mod tests {
         write_skill(&src.path().join("skills/beta"), "beta");
 
         let ws = tempfile::tempdir().unwrap();
-        let installed =
-            install_to_user_root(&src.path().to_string_lossy(), ws.path(), false, Some("beta"))
-                .unwrap();
+        let installed = install_to_user_root(
+            &src.path().to_string_lossy(),
+            ws.path(),
+            false,
+            Some("beta"),
+        )
+        .unwrap();
         assert_eq!(installed.len(), 1);
         assert_eq!(installed[0].name, "beta");
         assert!(!ws.path().join(".vox/skills/alpha").exists());
@@ -453,7 +472,10 @@ mod tests {
         let foreign = ws.path().join(".claude/skills/theirs");
         write_skill(&foreign, "theirs");
 
-        let roots = vec![ws.path().join(".vox/skills"), ws.path().join(".claude/skills")];
+        let roots = vec![
+            ws.path().join(".vox/skills"),
+            ws.path().join(".claude/skills"),
+        ];
 
         // foreign root -> refused, dir still present
         let err = remove_user_skill("theirs", &roots).unwrap_err();
@@ -482,7 +504,10 @@ mod tests {
         let roots = vec![ws.path().join(".vox/skills")];
 
         let removed = remove_user_skill("widget", &roots).unwrap();
-        assert_eq!(removed.id, "org.widget", "must resolve to canonical id, not the name");
+        assert_eq!(
+            removed.id, "org.widget",
+            "must resolve to canonical id, not the name"
+        );
         assert!(!dir.exists());
     }
 

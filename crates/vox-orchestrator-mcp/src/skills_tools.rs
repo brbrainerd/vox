@@ -383,9 +383,10 @@ pub async fn skill_remove(state: &ServerState, params: SkillRemoveParams) -> Str
         .unwrap_or_else(|| std::path::PathBuf::from("."));
     let roots = vox_config::paths::skill_search_roots(&ws_root);
     let id = params.id.clone();
-    let removed =
-        tokio::task::spawn_blocking(move || vox_plugin_host::user_install::remove_user_skill(&id, &roots))
-            .await;
+    let removed = tokio::task::spawn_blocking(move || {
+        vox_plugin_host::user_install::remove_user_skill(&id, &roots)
+    })
+    .await;
     match removed {
         Ok(Ok(removed)) => {
             // Uninstall by the RESOLVED canonical id (uninstall keys by id, not

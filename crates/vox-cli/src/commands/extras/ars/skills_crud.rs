@@ -56,8 +56,9 @@ pub async fn install(path: &PathBuf) -> Result<()> {
 
 pub async fn add(source: &str, global: bool, skill: Option<&str>) -> Result<()> {
     let ws_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    let installed = vox_plugin_host::user_install::install_to_user_root(source, &ws_root, global, skill)
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    let installed =
+        vox_plugin_host::user_install::install_to_user_root(source, &ws_root, global, skill)
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
     for s in &installed {
         println!("✓ Added '{}' → {}", s.name, s.dest.display());
     }
