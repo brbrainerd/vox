@@ -15145,6 +15145,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+ "vox-bounded-fs",
  "vox-config",
  "vox-db",
  "vox-foundation",
@@ -15159,6 +15160,7 @@ dependencies = [
  "vox-skills",
  "vox-telemetry",
  "which 8.0.4",
+ "windows-sys 0.59.0",
  "workspace-hack",
  "xxhash-rust",
 ]
@@ -15572,6 +15574,7 @@ dependencies = [
  "toml 0.8.23",
  "tracing",
  "vox-ast",
+ "vox-bounded-fs",
  "vox-codegen",
  "vox-codegen-ts",
  "vox-config",
