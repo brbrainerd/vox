@@ -15323,6 +15323,7 @@ dependencies = [
  "vox-build-meta",
  "vox-capability-registry",
  "vox-cli-ci",
+ "vox-cli-contracts",
  "vox-cli-core",
  "vox-cli-research",
  "vox-cli-review",
@@ -15400,14 +15401,39 @@ name = "vox-cli-ci"
 version = "0.6.0"
 dependencies = [
  "anyhow",
+ "chrono",
+ "clap",
  "glob",
+ "insta",
+ "owo-colors 4.3.0",
+ "proptest",
  "regex",
  "serde",
  "serde_json",
  "serde_yaml_ng",
+ "sysinfo",
  "tempfile",
+ "tokio",
+ "vox-bounded-fs",
  "vox-cli-core",
+ "vox-compiler",
+ "vox-config",
+ "vox-doc-pipeline",
+ "vox-git",
+ "vox-jsonschema-util",
  "walkdir",
+]
+
+[[package]]
+name = "vox-cli-contracts"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "vox-bounded-fs",
+ "vox-config",
+ "vox-jsonschema-util",
 ]
 
 [[package]]
@@ -16070,6 +16096,7 @@ name = "vox-graph-reader"
 version = "0.6.0"
 dependencies = [
  "blake3",
+ "ignore",
  "lcov-parser",
  "leiden-rs",
  "petgraph 0.8.3",

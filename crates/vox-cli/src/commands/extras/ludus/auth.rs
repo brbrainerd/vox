@@ -174,18 +174,10 @@ pub async fn auth_command(provider: &str) -> Result<()> {
 
     let gh_user: GitHubUser = user_res.json().await?;
 
-    // 4. Save to Clavis and DB
+    // 4. Save to Clavis. The GitHub login is stored as the github.com registry
+    // username; ctx/profile read it back via `vox_secrets::get_registry_username`
+    // (the old DB-backed `vox_identities` table was removed).
     vox_secrets::set_registry_token("github.com", &access_token, Some(gh_user.login.clone()))?;
-
-    ctx.db
-        .upsert_vox_identity(
-            &ctx.user_id,
-            "github",
-            &gh_user.id.to_string(),
-            Some(&gh_user.login),
-            Some("VoxGithubOauthToken"),
-        )
-        .await?;
 
     println!();
     println!("{}", "✅ Authentication successful!".bright_green().bold());

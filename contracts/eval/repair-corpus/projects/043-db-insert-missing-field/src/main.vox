@@ -5,7 +5,7 @@
 // the missing `id` and `done` fields, e.g.
 // `db.Todo.insert({ id: 0, title: title, done: false })`.
 
-@table type Todo {
+table Todo {
     id: int,
     title: str,
     done: bool

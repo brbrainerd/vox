@@ -6,12 +6,11 @@ on:
       - main
     paths:
       - "Dockerfile"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - "crates/**"
-      - "patches/**"
       - "vox-eval.compose.yml"
       - ".github/workflows/docker-eval.yml"
+  schedule:
+    # Daily 03:00 UTC to keep the image fresh without triggering on every Rust commit
+    - cron: "0 3 * * *"
   workflow_dispatch:
 
 concurrency:

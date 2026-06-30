@@ -133,6 +133,16 @@ pub fn read_registry_token(registry: &str) -> Option<(SecretString, SecretSource
     ))
 }
 
+/// Read the username (e.g. GitHub login) stored alongside a registry token in
+/// auth.json. Persisted by [`write_registry_token`] and present even when the
+/// token itself lives in the secure store (auth.json keeps the sentinel + username).
+#[must_use]
+pub fn read_registry_username(registry: &str) -> Option<String> {
+    let content = vox_bounded_fs::read_utf8_path_capped_opt(auth_path().as_path())?;
+    let creds = serde_json::from_str::<CliCredentials>(&content).ok()?;
+    creds.registries.get(registry)?.username.clone()
+}
+
 pub fn write_registry_token(
     registry: &str,
     token: &str,
@@ -321,6 +331,34 @@ mod tests {
             !removed_again || read_registry_token(reg).is_none(),
             "second remove leaves the token absent"
         );
+
+        unsafe {
+            std::env::remove_var("VOX_SECRETS_AUTH_PATH");
+        }
+    }
+
+    /// `read_registry_username` returns the login persisted alongside the token.
+    /// Backs `vox ludus` reading the linked GitHub login from Clavis (the
+    /// DB-backed `vox_identities` table was removed — 2026-06-30).
+    #[test]
+    fn read_registry_username_returns_persisted_login() {
+        let _g = ENV_LOCK.lock().expect("env lock");
+        let tmp_dir = tempfile::tempdir().expect("tempdir");
+        let auth_file = tmp_dir.path().join("auth.json");
+        unsafe {
+            std::env::set_var("VOX_SECRETS_AUTH_PATH", &auth_file);
+        }
+
+        let reg = "vox-test-username-registry";
+        write_registry_token(
+            reg,
+            "sk-test-username-0123456789",
+            Some("octocat".to_string()),
+        )
+        .expect("write");
+
+        assert_eq!(read_registry_username(reg).as_deref(), Some("octocat"));
+        assert_eq!(read_registry_username("vox-test-absent-registry"), None);
 
         unsafe {
             std::env::remove_var("VOX_SECRETS_AUTH_PATH");

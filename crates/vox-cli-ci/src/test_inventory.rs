@@ -292,7 +292,7 @@ pub fn scan_ignored_tests_per_file(root: &Path) -> Result<BTreeMap<String, u64>>
 }
 
 /// Internal: shared walk for ignored-test governance + per-file histogram.
-pub(super) fn scan_ignored_test_governance_findings_with_histogram(
+pub fn scan_ignored_test_governance_findings_with_histogram(
     root: &Path,
 ) -> Result<(
     u64,
@@ -745,15 +745,15 @@ pub fn build_inventory(root: &Path) -> Result<TestInventoryReport> {
                 .strip_prefix("crates/")
                 .and_then(|s| s.split('/').next())
                 .map(|s| s.to_string());
-            if let Some(cn) = crate_name {
-                if let Some(entry) = crates_map.get_mut(&cn) {
-                    entry.unit_tests += scan.unit_tests;
-                    entry.integration_tests += scan.integration_tests;
-                    entry.bench_tests += scan.bench_tests;
-                    entry.ignored_tests += scan.ignored_tests;
-                    if matches!(kind, RustFileKind::Integration) {
-                        entry.integration_rs_files += 1;
-                    }
+            if let Some(cn) = crate_name
+                && let Some(entry) = crates_map.get_mut(&cn)
+            {
+                entry.unit_tests += scan.unit_tests;
+                entry.integration_tests += scan.integration_tests;
+                entry.bench_tests += scan.bench_tests;
+                entry.ignored_tests += scan.ignored_tests;
+                if matches!(kind, RustFileKind::Integration) {
+                    entry.integration_rs_files += 1;
                 }
             }
         }

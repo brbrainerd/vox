@@ -99,16 +99,16 @@ fn resident_gib_at(model_params_b: f64, resident_per_b: f64) -> f64 {
     model_params_b * resident_per_b + FIXED_OVERHEAD_GIB
 }
 
-/// Sequence-independent resident footprint for dense Qwen2 / Qwen2.5-Coder during
-/// REAL full-graph QLoRA backprop with the resident BF16 weight cache.
-///
-/// The earlier 2.6 GiB/B figure was calibrated against a DEGENERATE graph (a gradient
-/// bug meant only the lm_head adapter trained, so the backward pass was tiny and 3B
-/// "fit" at ~15.8 GiB). With the fix, the backward retains the full BF16 base weights
-/// (~2 GiB/B) on top of the NF4 base + embedding + optimizer, so the true resident
-/// footprint is ≈5 GiB/B. MEASURED on a 16 GiB RTX 4080 Super: 1.5B trains STABLY
-/// (270+ steps, loss 9.6→1.5, no OOM); 3B cannot build/sustain (OOM) and needs gradient
-/// checkpointing. R=5.0 makes the ladder retreat 3B→1.5B on 16 GiB, as observed.
+// Sequence-independent resident footprint for dense Qwen2 / Qwen2.5-Coder during
+// REAL full-graph QLoRA backprop with the resident BF16 weight cache.
+//
+// The earlier 2.6 GiB/B figure was calibrated against a DEGENERATE graph (a gradient
+// bug meant only the lm_head adapter trained, so the backward pass was tiny and 3B
+// "fit" at ~15.8 GiB). With the fix, the backward retains the full BF16 base weights
+// (~2 GiB/B) on top of the NF4 base + embedding + optimizer, so the true resident
+// footprint is ≈5 GiB/B. MEASURED on a 16 GiB RTX 4080 Super: 1.5B trains STABLY
+// (270+ steps, loss 9.6→1.5, no OOM); 3B cannot build/sustain (OOM) and needs gradient
+// checkpointing. R=5.0 makes the ladder retreat 3B→1.5B on 16 GiB, as observed.
 
 /// Target effective batch (batch_size × grad_accum) for stable QLoRA convergence.
 /// Effective batch is kept roughly constant regardless of how the VRAM budget
@@ -525,12 +525,12 @@ pub fn params_b_from_model_hint(hint: &str) -> Option<f64> {
                     break;
                 }
             }
-            if seen_digit {
-                if let Ok(v) = lower[j..i].parse::<f64>() {
-                    if v > 0.0 && v < 2000.0 {
-                        return Some(v);
-                    }
-                }
+            if seen_digit
+                && let Ok(v) = lower[j..i].parse::<f64>()
+                && v > 0.0
+                && v < 2000.0
+            {
+                return Some(v);
             }
         }
         i += 1;

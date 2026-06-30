@@ -144,7 +144,7 @@ pub mod run;
 pub mod runtime;
 /// Vox Scientia research facade (`vox scientia` → `vox db` research tools).
 pub mod scientia;
-pub(crate) mod scientia_ledger_contract;
+pub(crate) use vox_cli_contracts::scientia_ledger_contract;
 /// Per-user nanopub identity resolver (get-or-create RSA + ORCID); DB + secrets I/O.
 pub mod scientia_nanopub;
 /// Thin CLI handlers wrapping the pure-library SCIENTIA Phase B / C / D / E
@@ -164,8 +164,6 @@ pub mod test;
 pub mod update;
 
 pub mod grammar;
-
-/// Unified research operations: infrastructure and evaluation.
 
 /// Manual plan bridging via PlanningOrchestrator
 pub mod plan;

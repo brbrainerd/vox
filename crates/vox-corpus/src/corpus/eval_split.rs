@@ -46,7 +46,7 @@ fn xorshift(state: &mut u64) -> u64 {
 }
 
 /// Deterministic Fisher-Yates shuffle of `indices` using an xorshift RNG.
-fn shuffle(indices: &mut Vec<String>, seed: u64) {
+fn shuffle(indices: &mut [String], seed: u64) {
     let mut state = if seed == 0 { 0xdeadbeef_cafebabe } else { seed };
     for i in (1..indices.len()).rev() {
         let j = xorshift(&mut state) as usize % (i + 1);
@@ -74,7 +74,7 @@ pub fn split_surface(
     // 1. Collect unique keys in stable order (BTreeSet for reproducibility)
     let unique_keys: Vec<String> = rows
         .iter()
-        .map(|r| tool_key(r))
+        .map(tool_key)
         .collect::<BTreeSet<_>>()
         .into_iter()
         .collect();

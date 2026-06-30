@@ -36,6 +36,10 @@ categories = ["development-tools", "compilers"]
 
 [workspace.lints.rust]
 unsafe_code = "warn"
+# `standalone` is vox-codegen-ts's own feature; the crate is also #[path]-embedded
+# into vox-codegen (where the feature isn't set), so declare it known to silence the
+# unexpected_cfgs warning in that embed context.
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("standalone"))'] }
 
 [workspace.lints.clippy]
 all = "warn"
@@ -158,6 +162,7 @@ vox-cli-ci                = { path = "crates/vox-cli-ci" }
 vox-cli-share            = { path = "crates/vox-cli-share" }
 vox-cli-research          = { path = "crates/vox-cli-research" }
 vox-cli-review            = { path = "crates/vox-cli-review" }
+vox-cli-contracts         = { path = "crates/vox-cli-contracts" }
 
 
 vox-project-scaffold      = { path = "crates/vox-project-scaffold" }

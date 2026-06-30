@@ -29,9 +29,7 @@ fn rule_id_for_code(code: &str) -> Option<&'static str> {
         Some("gui-design-rule/contrast")
     } else if code.starts_with("web_ir_validate.a11y.") {
         Some("gui-design-rule/a11y")
-    } else if code.starts_with("web_ir_validate.overlay.") {
-        Some("gui-design-rule/layer-occlusion")
-    } else if code.starts_with("vox/layer/") {
+    } else if code.starts_with("web_ir_validate.overlay.") || code.starts_with("vox/layer/") {
         Some("gui-design-rule/layer-occlusion")
     } else {
         None

@@ -7,14 +7,14 @@ use anyhow::{Context, Result};
 use serde::Serialize;
 use vox_bounded_fs::read_utf8_path_capped;
 
-use super::cmd_enums::GovernanceGateMode;
-use super::test_inventory::{
-    IgnoredTestGovernanceFinding, IgnoredTestGovernanceIssue, TestInventoryReport,
-    scan_ignored_test_governance_findings,
-};
 use super::test_runtime_report::{
     TestRuntimeReport, compare_runtime_reports, parse_runtime_report_json,
     retry_flaky_candidate_count,
+};
+use vox_cli_ci::cmd_enums::GovernanceGateMode;
+use vox_cli_ci::test_inventory::{
+    IgnoredTestGovernanceFinding, IgnoredTestGovernanceIssue, TestInventoryReport,
+    scan_ignored_test_governance_findings,
 };
 
 #[derive(Debug, Clone, Serialize)]

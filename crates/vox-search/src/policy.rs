@@ -415,8 +415,7 @@ impl SearchPolicy {
             vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchNoveltyMinScore).expose()
             && let Ok(x) = v.parse::<f64>()
             && x.is_finite()
-            && x >= 0.0
-            && x <= 1.0
+            && (0.0..=1.0).contains(&x)
         {
             p.novelty_min_score = x;
         }

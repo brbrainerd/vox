@@ -86,7 +86,7 @@ struct RuleEntryV1 {
 impl RuleEntryV1 {
     fn into_rule(self) -> Result<SemanticRule> {
         let root = self.root_files_only.unwrap_or(false);
-        let has_prefix = self.any_prefix.as_ref().map_or(false, |p| !p.is_empty());
+        let has_prefix = self.any_prefix.as_ref().is_some_and(|p| !p.is_empty());
         match (root, has_prefix) {
             (true, false) => Ok(SemanticRule {
                 order: self.order,

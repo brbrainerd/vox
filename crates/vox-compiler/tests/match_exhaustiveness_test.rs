@@ -57,11 +57,11 @@ fn db_query_chaining_typechecks() {
     // Result[List[Record]] instead of erroring ("method not found" / "not
     // supported yet"). The Rust codegen already emits the SQL.
     let src = "
-    @table type Task {
+    table Task {
         title: str
         done: bool
     }
-    @query fn active() to int {
+    query active() to int {
         let rows = db.Task.where({ done: { eq: false } }).order_by(\"title\").limit(10)
         return len(rows)
     }

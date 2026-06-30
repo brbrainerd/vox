@@ -21,7 +21,7 @@ fn emit(src: &str) -> String {
 #[test]
 fn deep_link_emits_runtime_adapter_hook() {
     let src = r#"
-@query fn handle_link(url: str) to str { return "/" }
+query handle_link(url: str) to str { return "/" }
 @deep_link {
     scheme: "voxmental"
     on_link: handle_link
@@ -47,8 +47,8 @@ fn deep_link_emits_runtime_adapter_hook() {
 #[test]
 fn back_button_and_deep_link_deduplicates_runtime_import() {
     let src = r#"
-@query fn handle_back() to bool { return true }
-@query fn handle_link(url: str) to str { return "/" }
+query handle_back() to bool { return true }
+query handle_link(url: str) to str { return "/" }
 @back_button { on_press: handle_back }
 @deep_link { scheme: "vox" on_link: handle_link }
 "#;

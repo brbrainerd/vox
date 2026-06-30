@@ -249,10 +249,10 @@ fn load_queries_file(path: &std::path::Path) -> anyhow::Result<Vec<String>> {
     let content = std::fs::read_to_string(path)?;
     let mut queries = Vec::new();
     for line in content.lines() {
-        if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
-            if let Some(q) = json.get("query").and_then(|v| v.as_str()) {
-                queries.push(q.to_string());
-            }
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(line)
+            && let Some(q) = json.get("query").and_then(|v| v.as_str())
+        {
+            queries.push(q.to_string());
         }
     }
     Ok(queries)

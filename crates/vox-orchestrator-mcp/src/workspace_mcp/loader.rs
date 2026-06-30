@@ -77,7 +77,7 @@ impl WorkspaceMcpLoader {
         repo: &Path,
         config: &WorkspaceMcpScanConfig,
     ) -> Result<WorkspaceMcpLoadResult, String> {
-        let static_names: HashSet<&str> = TOOL_REGISTRY.iter().map(|t| t.name.as_ref()).collect();
+        let static_names: HashSet<&str> = TOOL_REGISTRY.iter().map(|t| t.name).collect();
         let mut surface = WorkspaceMcpSurface::default();
         let mut errors = Vec::new();
         let mut seen_tools: HashSet<String> = HashSet::new();
@@ -250,8 +250,7 @@ mod tests {
         std::fs::write(dir.path().join("bad.vox"), "this is not vox {{{").unwrap();
         std::fs::write(
             dir.path().join("good.vox"),
-            r#"@tool "ping: ping"
-fn ping() to str { return "pong" }
+            r#"tool "ping: ping" ping() to str { return "pong" }
 "#,
         )
         .unwrap();

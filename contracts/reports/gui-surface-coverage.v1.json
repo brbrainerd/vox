@@ -819,6 +819,8 @@
     "git.log",
     "git.status",
     "graph",
+    "graph.callees",
+    "graph.callers",
     "graph.compare",
     "graph.ingest",
     "graph.path",

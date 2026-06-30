@@ -170,7 +170,7 @@ impl EffectiveDomainProfile {
             )
         })?;
 
-        let def = file.defaults.unwrap_or_else(|| DomainProfileDefaults {
+        let def = file.defaults.unwrap_or(DomainProfileDefaults {
             min_rating: None,
             ce_last_k: None,
             seq_len: None,

@@ -68,17 +68,8 @@ pub struct WorkspaceMcpLoadError {
 }
 
 /// Result of a workspace MCP scan (partial success when `errors` is non-empty).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct WorkspaceMcpLoadResult {
     pub surface: WorkspaceMcpSurface,
     pub errors: Vec<WorkspaceMcpLoadError>,
-}
-
-impl Default for WorkspaceMcpLoadResult {
-    fn default() -> Self {
-        Self {
-            surface: WorkspaceMcpSurface::default(),
-            errors: Vec::new(),
-        }
-    }
 }

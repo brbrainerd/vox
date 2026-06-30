@@ -1,9 +1,9 @@
 // Base source for plan-030-add-second-table.
 //
-// A single @table type User. The plan asks the model to add a sibling
-// @table type Note.
+// A single table User. The plan asks the model to add a sibling
+// table Note.
 
-@table type User {
+table User {
     id: str,
     name: str
 }

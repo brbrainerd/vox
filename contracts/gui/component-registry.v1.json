@@ -6,10 +6,24 @@
     {
       "name": "button",
       "tag": "button",
-      "props": ["variant", "size", "disabled"],
+      "props": [
+        "variant",
+        "size",
+        "disabled"
+      ],
       "variants": {
-        "variant": ["default", "outline", "ghost", "destructive"],
-        "size": ["default", "sm", "lg", "icon"]
+        "variant": [
+          "default",
+          "outline",
+          "ghost",
+          "destructive"
+        ],
+        "size": [
+          "default",
+          "sm",
+          "lg",
+          "icon"
+        ]
       },
       "a11y": {
         "role": "button",
@@ -19,7 +33,9 @@
     {
       "name": "panel",
       "tag": "div",
-      "props": ["surface"],
+      "props": [
+        "surface"
+      ],
       "variants": {},
       "a11y": {
         "role": "region",
@@ -29,7 +45,9 @@
     {
       "name": "card",
       "tag": "div",
-      "props": ["surface"],
+      "props": [
+        "surface"
+      ],
       "variants": {},
       "a11y": {
         "role": "region",
@@ -39,29 +57,55 @@
     {
       "name": "stack",
       "tag": "div",
-      "props": ["align"],
+      "props": [
+        "align"
+      ],
       "variants": {
-        "align": ["start", "center", "end"]
+        "align": [
+          "start",
+          "center",
+          "end"
+        ]
       },
       "a11y": {}
     },
     {
       "name": "column",
       "tag": "div",
-      "props": ["align"],
+      "props": [
+        "align"
+      ],
       "variants": {
-        "align": ["start", "center", "end"]
+        "align": [
+          "start",
+          "center",
+          "end"
+        ]
       },
       "a11y": {}
     },
     {
       "name": "row",
       "tag": "div",
-      "props": ["align", "scroll", "wrap"],
+      "props": [
+        "align",
+        "scroll",
+        "wrap"
+      ],
       "variants": {
-        "align": ["start", "center", "end"],
-        "scroll": ["horizontal", "x"],
-        "wrap": ["false", "true"]
+        "align": [
+          "start",
+          "center",
+          "end"
+        ],
+        "scroll": [
+          "horizontal",
+          "x"
+        ],
+        "wrap": [
+          "false",
+          "true"
+        ]
       },
       "a11y": {}
     },
@@ -75,30 +119,80 @@
     {
       "name": "text",
       "tag": "p",
-      "props": ["size", "weight"],
+      "props": [
+        "size",
+        "weight"
+      ],
       "variants": {
-        "size": ["xs", "sm", "base", "lg", "xl", "2xl", "3xl"],
-        "weight": ["normal", "medium", "semibold", "bold"]
+        "size": [
+          "xs",
+          "sm",
+          "base",
+          "lg",
+          "xl",
+          "2xl",
+          "3xl"
+        ],
+        "weight": [
+          "normal",
+          "medium",
+          "semibold",
+          "bold"
+        ]
       },
       "a11y": {}
     },
     {
       "name": "heading",
       "tag": "h2",
-      "props": ["level", "size", "weight"],
+      "props": [
+        "level",
+        "size",
+        "weight"
+      ],
       "variants": {
-        "level": ["1", "2", "3", "4", "5", "6"],
-        "size": ["xs", "sm", "base", "lg", "xl", "2xl", "3xl"],
-        "weight": ["normal", "medium", "semibold", "bold"]
+        "level": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6"
+        ],
+        "size": [
+          "xs",
+          "sm",
+          "base",
+          "lg",
+          "xl",
+          "2xl",
+          "3xl"
+        ],
+        "weight": [
+          "normal",
+          "medium",
+          "semibold",
+          "bold"
+        ]
       },
       "a11y": {}
     },
     {
       "name": "link",
       "tag": "a",
-      "props": ["size"],
+      "props": [
+        "size"
+      ],
       "variants": {
-        "size": ["xs", "sm", "base", "lg", "xl", "2xl", "3xl"]
+        "size": [
+          "xs",
+          "sm",
+          "base",
+          "lg",
+          "xl",
+          "2xl",
+          "3xl"
+        ]
       },
       "a11y": {}
     },
@@ -160,7 +254,10 @@
     {
       "name": "toast",
       "tag": "div",
-      "props": ["position", "z"],
+      "props": [
+        "position",
+        "z"
+      ],
       "variants": {},
       "a11y": {
         "role": "alert"
@@ -169,7 +266,10 @@
     {
       "name": "drawer",
       "tag": "div",
-      "props": ["position", "z"],
+      "props": [
+        "position",
+        "z"
+      ],
       "variants": {},
       "a11y": {
         "role": "dialog"
@@ -178,10 +278,48 @@
     {
       "name": "modal",
       "tag": "div",
-      "props": ["z"],
+      "props": [
+        "z"
+      ],
       "variants": {},
       "a11y": {
         "role": "dialog"
+      }
+    },
+    {
+      "name": "input",
+      "tag": "input",
+      "props": [
+        "bind",
+        "placeholder",
+        "kind"
+      ],
+      "variants": {},
+      "a11y": {
+        "requires_accessible_name": true
+      }
+    },
+    {
+      "name": "textarea",
+      "tag": "textarea",
+      "props": [
+        "bind",
+        "placeholder"
+      ],
+      "variants": {},
+      "a11y": {
+        "requires_accessible_name": true
+      }
+    },
+    {
+      "name": "select",
+      "tag": "select",
+      "props": [
+        "bind"
+      ],
+      "variants": {},
+      "a11y": {
+        "requires_accessible_name": true
       }
     }
   ]

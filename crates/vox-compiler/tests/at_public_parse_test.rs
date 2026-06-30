@@ -16,17 +16,17 @@ fn parse_ok(src: &str) {
 
 #[test]
 fn at_public_server_fn_parses() {
-    parse_ok("@public @server\nfn get_health() -> Str { \"ok\" }\n");
+    parse_ok("@public server get_health() -> Str { \"ok\" }\n");
 }
 
 #[test]
 fn at_public_query_fn_parses() {
-    parse_ok("@public @query\nfn list_products(limit: Int) -> Str { \"[]\" }\n");
+    parse_ok("@public query list_products(limit: Int) -> Str { \"[]\" }\n");
 }
 
 #[test]
 fn at_public_mutation_fn_parses() {
-    parse_ok("@public @mutation\nfn create_session(token: Str) -> Str { \"ok\" }\n");
+    parse_ok("@public mutation create_session(token: Str) -> Str { \"ok\" }\n");
 }
 
 #[test]
@@ -38,7 +38,7 @@ fn at_public_plain_fn_parses() {
 #[test]
 fn at_public_sets_is_pub_true() {
     use vox_compiler::ast::decl::Decl;
-    let toks = lex("@public @server\nfn get_health() -> Str { \"ok\" }\n");
+    let toks = lex("@public server get_health() -> Str { \"ok\" }\n");
     let module = parse(toks).expect("parse");
     let decl = module
         .declarations

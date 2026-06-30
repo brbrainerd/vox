@@ -1,9 +1,9 @@
 // A representative cross-section: component + state + route + form + endpoint +
 // state machine. Exercises the orchestration paths that smaller fixtures don't.
 
-@mutation fn add_item(name: str) to int { return 0 }
+mutation add_item(name: str) to int { return 0 }
 
-@form NewItem {
+form NewItem {
     field name: str required label("Item name")
     on_submit: add_item
 }

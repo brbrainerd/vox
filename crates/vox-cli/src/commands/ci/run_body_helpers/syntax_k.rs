@@ -178,7 +178,7 @@ pub(crate) fn run_source_token_budget(root: &Path, tolerance: f64, update: bool)
         let source = fs::read_to_string(&path)?;
         let measured = SourceTokenEntry {
             tokens: lex(&source).len(),
-            bytes: source.as_bytes().len(),
+            bytes: source.len(),
         };
         new_budgets.insert(fixture_id.clone(), measured);
 

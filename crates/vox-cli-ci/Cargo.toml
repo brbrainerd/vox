@@ -11,6 +11,17 @@ publish = false
 
 [dependencies]
 anyhow = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+chrono = { workspace = true }
+vox-bounded-fs = { workspace = true }
+vox-doc-pipeline = { workspace = true }
+vox-jsonschema-util = { workspace = true }
+vox-compiler = { workspace = true }
+vox-git = { workspace = true }
+vox-config = { workspace = true }
+owo-colors = { workspace = true }
+sysinfo = { workspace = true }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "process", "fs", "io-util", "time"] }
 glob = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }
@@ -20,6 +31,8 @@ walkdir = { workspace = true }
 vox-cli-core = { workspace = true }
 
 [dev-dependencies]
+insta = { workspace = true }
+proptest = { workspace = true }
 tempfile = { workspace = true }
 
 [lints]

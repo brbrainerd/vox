@@ -197,8 +197,7 @@ my-api/
 `main.vox` stub:
 
 ```vox
-@query
-fn hello() to str {
+query hello() to str {
     return "hello from vox backend"
 }
 ```

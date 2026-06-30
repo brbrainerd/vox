@@ -6,7 +6,9 @@
 //!   "links": [{"source": "x", "target": "y"}] }
 //! ```
 //! Edges may appear under `"links"` or `"edges"` — both are supported.
-//! The graph is treated as **undirected**: edges are indexed in both directions.
+//! Edges are indexed three ways: a symmetric `adjacency` (undirected, default `Direction::Both`),
+//! a `forward` index (source→target = caller→callee, `Direction::Out`), and a `reverse` index
+//! (callee→caller, `Direction::In`). Traversal selects the index via [`Direction`].
 
 #![allow(clippy::collapsible_if, clippy::unnecessary_map_or)]
 
@@ -25,6 +27,8 @@ pub mod reachability;
 pub mod rebuild;
 pub mod registry;
 pub mod snapshot;
+
+pub use bfs::Direction;
 
 use std::collections::HashMap;
 
@@ -69,6 +73,10 @@ pub struct GraphifyReader {
     nodes: HashMap<String, (String, Option<String>)>,
     // Undirected adjacency: node_id → Vec<neighbor_ids>
     adjacency: HashMap<String, Vec<String>>,
+    // Directed: caller → callees (forward = on-disk source→target order).
+    forward: HashMap<String, Vec<String>>,
+    // Directed: callee → callers (reverse).
+    reverse: HashMap<String, Vec<String>>,
 }
 
 impl GraphifyReader {
@@ -115,6 +123,8 @@ impl GraphifyReader {
             .and_then(|e| e.as_array());
 
         let mut adjacency: HashMap<String, Vec<String>> = HashMap::with_capacity(nodes.len());
+        let mut forward: HashMap<String, Vec<String>> = HashMap::with_capacity(nodes.len());
+        let mut reverse: HashMap<String, Vec<String>> = HashMap::with_capacity(nodes.len());
 
         if let Some(edges) = edges_arr {
             for edge in edges {
@@ -129,8 +139,12 @@ impl GraphifyReader {
                     .filter(|s| !s.is_empty())
                     .map(str::to_string);
                 if let (Some(s), Some(d)) = (src, dst) {
+                    // Symmetric (legacy).
                     adjacency.entry(s.clone()).or_default().push(d.clone());
-                    adjacency.entry(d).or_default().push(s);
+                    adjacency.entry(d.clone()).or_default().push(s.clone());
+                    // Directed: on-disk order is caller→callee.
+                    forward.entry(s.clone()).or_default().push(d.clone());
+                    reverse.entry(d).or_default().push(s);
                 }
             }
         }
@@ -139,8 +153,21 @@ impl GraphifyReader {
             neighbors.sort();
             neighbors.dedup();
         }
+        for neighbors in forward.values_mut() {
+            neighbors.sort();
+            neighbors.dedup();
+        }
+        for neighbors in reverse.values_mut() {
+            neighbors.sort();
+            neighbors.dedup();
+        }
 
-        Ok(GraphifyReader { nodes, adjacency })
+        Ok(GraphifyReader {
+            nodes,
+            adjacency,
+            forward,
+            reverse,
+        })
     }
 
     /// Total number of nodes in the graph.
@@ -160,18 +187,31 @@ impl GraphifyReader {
 
     /// BFS from one or more seed node IDs up to `max_depth` hops.
     ///
-    /// Seeds themselves are excluded from the output — only their reachable neighbors are
-    /// returned. Results are capped at `limit`. If the `VOX_GRAPHIFY_VIZ_NODE_LIMIT` env var
-    /// is set and lower than `limit`, that cap applies instead.
-    pub fn bfs_from_seeds(&self, seeds: &[&str], max_depth: u8, limit: usize) -> Vec<TraversalHit> {
-        bfs::bfs_from_seeds(&self.nodes, &self.adjacency, seeds, max_depth, limit)
+    /// `direction` selects callees ([`Direction::Out`]), callers ([`Direction::In`]),
+    /// or the legacy undirected neighborhood ([`Direction::Both`]).
+    pub fn bfs_from_seeds(
+        &self,
+        seeds: &[&str],
+        max_depth: u8,
+        limit: usize,
+        direction: Direction,
+    ) -> Vec<TraversalHit> {
+        let adj = match direction {
+            Direction::Out => &self.forward,
+            Direction::In => &self.reverse,
+            Direction::Both => &self.adjacency,
+        };
+        bfs::bfs_from_seeds(&self.nodes, adj, seeds, max_depth, limit)
     }
 
     /// Shortest path between two node IDs (BFS). Returns `None` if unreachable.
-    ///
-    /// Returns `Some(vec![node_id])` (single element) when `from == to`.
-    pub fn shortest_path(&self, from: &str, to: &str) -> Option<Vec<String>> {
-        bfs::shortest_path(&self.adjacency, from, to)
+    pub fn shortest_path(&self, from: &str, to: &str, direction: Direction) -> Option<Vec<String>> {
+        let adj = match direction {
+            Direction::Out => &self.forward,
+            Direction::In => &self.reverse,
+            Direction::Both => &self.adjacency,
+        };
+        bfs::shortest_path(adj, from, to)
     }
 
     /// Nodes sorted by degree (highest first), capped at `top_n`.
@@ -205,4 +245,68 @@ impl GraphifyReader {
 /// (rebuild) and `lexical_ingest_sha256` (ingest) so `lexical_lag` comparisons are valid.
 pub fn graph_digest(bytes: &[u8]) -> String {
     blake3::hash(bytes).to_hex().to_string()
+}
+
+#[cfg(test)]
+mod directed_tests {
+    use crate::{Direction, GraphifyReader};
+
+    fn fixture() -> GraphifyReader {
+        // A→B→C, plus a stray D→B. Storage order is caller→callee.
+        let value = serde_json::json!({
+            "nodes": [
+                {"id": "A", "label": "A"}, {"id": "B", "label": "B"},
+                {"id": "C", "label": "C"}, {"id": "D", "label": "D"}
+            ],
+            "links": [
+                {"source": "A", "target": "B"},
+                {"source": "B", "target": "C"},
+                {"source": "D", "target": "B"}
+            ]
+        });
+        GraphifyReader::from_value(value).expect("reader builds")
+    }
+
+    #[test]
+    fn callees_of_b_is_c_only() {
+        let ids: Vec<_> = fixture()
+            .bfs_from_seeds(&["B"], 1, 100, Direction::Out)
+            .iter()
+            .map(|h| h.node_id.clone())
+            .collect();
+        assert_eq!(ids, vec!["C".to_string()]);
+    }
+
+    #[test]
+    fn callers_of_b_are_a_and_d() {
+        let mut ids: Vec<_> = fixture()
+            .bfs_from_seeds(&["B"], 1, 100, Direction::In)
+            .iter()
+            .map(|h| h.node_id.clone())
+            .collect();
+        ids.sort();
+        assert_eq!(ids, vec!["A".to_string(), "D".to_string()]);
+    }
+
+    #[test]
+    fn directed_path_respects_direction() {
+        let r = fixture();
+        assert!(r.shortest_path("A", "C", Direction::Out).is_some());
+        assert!(r.shortest_path("C", "A", Direction::In).is_some());
+        assert!(
+            r.shortest_path("A", "C", Direction::In).is_none(),
+            "regression guard: callers-direction must not reach forward"
+        );
+    }
+
+    #[test]
+    fn both_preserves_legacy_undirected_neighborhood() {
+        let mut ids: Vec<_> = fixture()
+            .bfs_from_seeds(&["B"], 1, 100, Direction::Both)
+            .iter()
+            .map(|h| h.node_id.clone())
+            .collect();
+        ids.sort();
+        assert_eq!(ids, vec!["A".to_string(), "C".to_string(), "D".to_string()]);
+    }
 }

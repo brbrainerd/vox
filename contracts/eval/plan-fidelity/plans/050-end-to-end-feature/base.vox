@@ -5,7 +5,7 @@
 // `archived_at` field, add an `archive_todo` mutation endpoint, and
 // add a @test exercising the empty-id error path.
 
-@table type Todo {
+table Todo {
     id: str,
     title: str,
     done: bool

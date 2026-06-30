@@ -40,33 +40,29 @@ fn parse_registered_handlers(main_rs: &str) -> Vec<String> {
         .collect()
 }
 
-/// Collect the source files that the extractor understands, skipping vendored/VCS dirs.
-///
-/// Worktrees nested inside the repo (`.claude/worktrees/`, `.worktrees/`) are excluded:
-/// indexing them duplicates the same files under stale agent-branch paths and pollutes
-/// node degree / centrality (observed: 84% of nodes were stale worktree paths).
+/// Collect the source files the extractor understands, honoring `.gitignore` (the single
+/// exclusion SSOT) and skipping hidden dirs (`.git`, `.vox`, `.claude`, `.github`, `.worktrees`).
+/// `require_git(false)` makes `.gitignore` apply even in a checkout without `.git` (an external
+/// target repo). `target`/`node_modules` are not dotdirs, so a `filter_entry` prunes them by
+/// name as a belt-and-suspenders for sub-scopes whose `.gitignore` may not list them. Output is
+/// sorted (`sort_by_file_path`) for deterministic graph builds.
 pub(crate) fn walk_source_files(source_dir: &std::path::Path) -> Vec<std::path::PathBuf> {
-    walkdir::WalkDir::new(source_dir)
-        .into_iter()
+    ignore::WalkBuilder::new(source_dir)
+        .require_git(false)
+        .hidden(true)
+        // Repo `.gitignore` is the SINGLE source of truth: disable the host's global
+        // gitignore (~/.gitignore / core.excludesFile) and `.git/info/exclude` so the
+        // walk is reproducible across hosts and external-repo checkouts.
+        .git_global(false)
+        .git_exclude(false)
+        .sort_by_file_path(|a, b| a.cmp(b))
         .filter_entry(|e| {
             let n = e.file_name().to_string_lossy();
-            // Exclude `.claude/worktrees` specifically (nested agent worktrees) rather than
-            // all of `.claude`, so genuine tracked source under `.claude/` is still indexed.
-            let is_claude_worktrees = n == "worktrees"
-                && e.path()
-                    .parent()
-                    .and_then(|p| p.file_name())
-                    .map(|f| f == ".claude")
-                    .unwrap_or(false);
-            !is_claude_worktrees
-                && n != ".git"
-                && n != "target"
-                && n != ".vox"
-                && n != "node_modules"
-                && n != ".worktrees"
+            n != "target" && n != "node_modules"
         })
+        .build()
         .filter_map(|e| e.ok())
-        .filter(|e| e.path().is_file())
+        .filter(|e| e.file_type().is_some_and(|t| t.is_file()))
         .filter(|e| {
             matches!(
                 e.path().extension().and_then(|x| x.to_str()),
@@ -521,5 +517,44 @@ mod resolve_tests {
             .find(|e| e.target == "cmd:gone")
             .expect("dead-end edge must survive");
         assert_eq!(dangling.confidence, "dangling");
+    }
+}
+
+#[cfg(test)]
+mod walk_tests {
+    use super::walk_source_files;
+    use std::fs;
+
+    #[test]
+    fn excludes_gitignored_hidden_and_build_dirs_sorted() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        for d in ["src", "dist", ".hidden", "node_modules"] {
+            fs::create_dir_all(root.join(d)).unwrap();
+        }
+        // .gitignore lists ONLY dist/ — node_modules/ must be excluded by filter_entry,
+        // NOT by a gitignore rule (locks the external-repo belt-and-suspenders).
+        fs::write(root.join(".gitignore"), "dist/\n").unwrap();
+        fs::write(root.join("src/b.rs"), "fn b() {}").unwrap();
+        fs::write(root.join("src/a.rs"), "fn a() {}").unwrap();
+        fs::write(root.join("dist/bundle.js"), "1").unwrap();
+        fs::write(root.join(".hidden/c.rs"), "fn c() {}").unwrap();
+        fs::write(root.join("node_modules/dep.js"), "1").unwrap();
+
+        let got: Vec<String> = walk_source_files(root)
+            .iter()
+            .map(|p| {
+                p.strip_prefix(root)
+                    .unwrap()
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            })
+            .collect();
+
+        assert_eq!(
+            got,
+            vec!["src/a.rs".to_string(), "src/b.rs".to_string()],
+            "gitignored dist/, hidden .hidden/, and filter_entry node_modules/ all excluded; sorted"
+        );
     }
 }

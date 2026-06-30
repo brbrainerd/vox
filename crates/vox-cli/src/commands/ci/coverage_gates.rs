@@ -7,9 +7,9 @@ use anyhow::{Context, Result, anyhow};
 use serde::Deserialize;
 use serde_json::Value;
 
-use super::cmd_enums::CoverageGateMode;
 use super::repo_root;
 use vox_bounded_fs::read_utf8_path_capped;
+use vox_cli_ci::cmd_enums::CoverageGateMode;
 
 #[derive(Debug, Deserialize, Default)]
 struct CoverageGatesFile {

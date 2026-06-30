@@ -10,13 +10,13 @@ const CHATBOT_TEMPLATE: &str = r#"# Vox Chatbot — OpenRouter-powered chat app
 # Edit OPENROUTER_API_KEY in .env to enable live LLM responses.
 # Run with: vox build src/main.vox -o dist && vox run src/main.vox
 
-@table type Conversation {
+table Conversation {
     id: int
     user_id: str
     started_at: str
 }
 
-@table type MessageTrace {
+table MessageTrace {
     id: int
     conversation_id: str
     role: str
@@ -24,11 +24,11 @@ const CHATBOT_TEMPLATE: &str = r#"# Vox Chatbot — OpenRouter-powered chat app
     request_id: str
 }
 
-@query fn recent_messages(conversation_id: str) to list[MessageTrace] {
+query recent_messages(conversation_id: str) to list[MessageTrace] {
     return []
 }
 
-@mutation fn log_message(conversation_id: str, role: str, content: str, request_id: str) to Result[bool] {
+mutation log_message(conversation_id: str, role: str, content: str, request_id: str) to Result[bool] {
     return Ok(true)
 }
 
@@ -44,7 +44,7 @@ workflow chat_pipeline(prompt: str) to Result[str] {
     return call_provider(prompt)
 }
 
-@server fn chat(prompt: str, request_id: str) to Result[str] {
+server chat(prompt: str, request_id: str) to Result[str] {
     let response = chat_pipeline(prompt)
     let _ = log_message("conv-default", "user", prompt, request_id)
     let _ = log_message("conv-default", "assistant", "ok", request_id)
@@ -67,18 +67,18 @@ const DASHBOARD_TEMPLATE: &str = r#"# Vox Dashboard — data table with route pa
 #
 # Run with: vox build src/main.vox -o dist && vox run src/main.vox
 
-@table type Item {
+table Item {
     id: int
     name: str
     value: int
     created_at: str
 }
 
-@query fn list_items() to list[Item] {
+query list_items() to list[Item] {
     return []
 }
 
-@mutation fn add_item(name: str, value: int) to Result[str] {
+mutation add_item(name: str, value: int) to Result[str] {
     return Ok("Added: " + name)
 }
 
@@ -106,7 +106,7 @@ const API_TEMPLATE: &str = r#"# Vox API — server functions with health + metri
 #
 # Run with: vox build src/main.vox -o dist && vox run src/main.vox
 
-@table type Task {
+table Task {
     id: int
     title: str
     done: bool
@@ -121,15 +121,15 @@ fn tasks_created() to str {
     return "ok"
 }
 
-@server fn create_task(title: str) to Result[str] {
+server create_task(title: str) to Result[str] {
     return Ok("Created: " + title)
 }
 
-@server fn list_tasks() to Result[list[Task]] {
+server list_tasks() to Result[list[Task]] {
     return Ok([])
 }
 
-@server fn complete_task(id: str) to Result[bool] {
+server complete_task(id: str) to Result[bool] {
     return Ok(true)
 }
 "#;
@@ -138,18 +138,18 @@ const DEFAULT_FULL_STACK: &str = r#"# My Vox App — a full-stack starter
 #
 # Run with: vox build src/main.vox -o dist && vox run src/main.vox
 
-@table type Note {
+table Note {
     id: int
     title: str
     content: str
     created_at: str
 }
 
-@server fn add_note(title: str, content: str) to Result[str] {
+server add_note(title: str, content: str) to Result[str] {
     return Ok("Added: " + title)
 }
 
-@server fn list_notes() to Result[str] {
+server list_notes() to Result[str] {
     return Ok("[]")
 }
 
@@ -173,7 +173,7 @@ const MOBILE_PWA_TEMPLATE: &str = r#"# Vox Mobile — web-first UI + native pack
 
 import std.mobile
 
-@table type Photo {
+table Photo {
     id: int
     url: str
     synced: bool

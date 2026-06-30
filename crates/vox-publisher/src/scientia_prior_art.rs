@@ -529,14 +529,13 @@ pub async fn fetch_prior_art_federated(
 
     let mut hits = dedupe_hits(hits);
 
-    if let Some(repo_root) = options.repo_root.as_deref() {
-        if let Some((graphify_hits, trace)) =
+    if let Some(repo_root) = options.repo_root.as_deref()
+        && let Some((graphify_hits, trace)) =
             graphify_lexical_prior_art(repo_root, &search, heuristics)
-        {
-            hits.extend(graphify_hits);
-            traces.push(trace);
-            sources_done.push(PriorArtSource::Other);
-        }
+    {
+        hits.extend(graphify_hits);
+        traces.push(trace);
+        sources_done.push(PriorArtSource::Other);
     }
 
     if let Some(emb) = embedder {
@@ -614,7 +613,7 @@ fn graphify_lexical_prior_art(
             },
         ));
     }
-    scored.sort_by(|a, b| b.0.cmp(&a.0));
+    scored.sort_by_key(|x| std::cmp::Reverse(x.0));
     let hits: Vec<NormalizedPriorArtHit> = scored
         .into_iter()
         .take(take_n)

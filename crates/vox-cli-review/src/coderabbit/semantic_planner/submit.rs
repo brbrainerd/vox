@@ -483,18 +483,18 @@ async fn run_semantic_submit_core(
             .collect(),
     };
 
-    if cfg.resume && !cfg.force_chunks {
-        if let Some(prev) = cr_run_state::CoderabbitRunState::load(repo)? {
-            if prev.baseline_branch == baseline_branch {
-                for rec in &mut run_state.chunks {
-                    if let Some(o) = prev
-                        .chunks
-                        .iter()
-                        .find(|p| p.name == rec.name && p.status == "completed")
-                    {
-                        *rec = o.clone();
-                    }
-                }
+    if cfg.resume
+        && !cfg.force_chunks
+        && let Some(prev) = cr_run_state::CoderabbitRunState::load(repo)?
+        && prev.baseline_branch == baseline_branch
+    {
+        for rec in &mut run_state.chunks {
+            if let Some(o) = prev
+                .chunks
+                .iter()
+                .find(|p| p.name == rec.name && p.status == "completed")
+            {
+                *rec = o.clone();
             }
         }
     }

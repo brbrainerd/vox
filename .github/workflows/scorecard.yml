@@ -6,10 +6,7 @@ on:
   schedule:
     # Weekly, Monday 06:29 UTC
     - cron: "29 6 * * 1"
-  branch_protection_rule:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 permissions: read-all
 

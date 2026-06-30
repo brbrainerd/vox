@@ -3,7 +3,7 @@
 // A single bearer-authed query endpoint is defined. The plan asks the
 // model to add a sibling endpoint with matching decorators.
 
-@table type Todo {
+table Todo {
     id: str,
     title: str,
     done: bool

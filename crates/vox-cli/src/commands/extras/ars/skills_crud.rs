@@ -28,7 +28,7 @@ pub async fn list() -> Result<()> {
     Ok(())
 }
 
-pub async fn install(path: &PathBuf) -> Result<()> {
+pub async fn install(path: &std::path::Path) -> Result<()> {
     let registry = make_registry().await;
 
     let content = read_utf8_path_capped(path)

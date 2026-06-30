@@ -27,16 +27,16 @@ To speed up lookups on large datasets, use the `@index` syntax. Vox determines t
 
 ```vox
 // vox:skip
-@table type User {
+table User {
     email: str
     team_id: Id[Team]
 }
 
 // Unique index: prevents duplicate emails
-@index User.unique_email on (email) unique
+index User.unique_email on (email) unique
 
 // Composite index: speeds up filtered team lookups
-@index User.by_team on (team_id, email)
+index User.by_team on (team_id, email)
 ```
 
 > [!TIP]

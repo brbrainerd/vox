@@ -121,12 +121,12 @@ Here's a complete Vox program — a task tracker with a database table, a server
 
 ```vox
 // vox:skip
-@table type Task {      // defines database schema
+table Task {      // defines database schema
     title: str
     done:  bool
 }
 
-@server fn complete_task(id: Id[Task]) to Result[Unit] {
+server complete_task(id: Id[Task]) to Result[Unit] {
     db.Task.delete(id)
     ret Ok(Unit)        // signals success; the caller must handle failure too
 }
@@ -151,14 +151,14 @@ In most projects, a data type lives in three places at once: a database schema, 
 ```vox
 // vox:skip
 @require(len(self.title) > 0)    // the compiler rejects empty titles on insert
-@table type Task {
+table Task {
     title:    str
     done:     bool
     priority: int
     owner:    str
 }
 
-@index Task.by_owner on (owner)  // the database index, declared next to the type
+index Task.by_owner on (owner)  // the database index, declared next to the type
 ```
 
 `@table` generates the SQL table and handles schema migrations automatically. `@require` is baked into every write path — not just a runtime check, it can't be bypassed. `@index` creates a database index for fast lookups by owner.
@@ -173,7 +173,7 @@ fn recent_tasks() to list[Task] {
     ret db.Task.where({ done: false }).order_by("priority", "desc").limit(10)
 }
 
-@server fn get_task(id: Id[Task]) to Result[Task] {
+server get_task(id: Id[Task]) to Result[Task] {
     let row = db.Task.find(id)
     match row {
         Some(t) -> Ok(t)           // task found: return it

@@ -33,6 +33,10 @@ pub const PRIMITIVE_TAGS: &[&str] = &[
     "list-item",
     "route_outlet",
     "route-outlet",
+    // Form
+    "input",
+    "textarea",
+    "select",
     // Overlay
     "overlay",
     "toast",

@@ -104,7 +104,10 @@ jobs:
       - name: Install system deps (dbus, required by wry/keyring on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
       - name: Build vox-cli (warms sccache + downstream artifact)
-        run: cargo build -p vox-cli --locked --features completion-toestub
+        # Includes the off-by-default features whose code is otherwise never compiled
+        # in CI (extras-ludus/ars/coderabbit) so they can't silently drift against
+        # moved APIs — see the ludus/vox-db identity drift (2026-06-30).
+        run: cargo build -p vox-cli --locked --features completion-toestub,extras-ludus,ars,coderabbit
 
       # pull_request: map diff → affected crate closure via committed graph SSOT.
       # merge_group: authoritative full gate (no PR base ref; closes feature-unification gap).
@@ -1354,6 +1357,9 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+
+      - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable

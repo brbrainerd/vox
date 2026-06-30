@@ -8,7 +8,7 @@ pub async fn shop_list() -> Result<()> {
     let ctx = LudusContext::load().await?;
     let codex = &ctx.db;
     let user_id = &ctx.user_id;
-    let profile = ludus_db::get_profile(&codex, &user_id)
+    let profile = ludus_db::get_profile(codex, user_id)
         .await?
         .unwrap_or_else(|| LudusProfile::new_default(user_id));
 
@@ -54,7 +54,7 @@ pub async fn shop_buy(item_id: &str) -> Result<()> {
     let ctx = LudusContext::load().await?;
     let codex = &ctx.db;
     let user_id = &ctx.user_id;
-    let mut profile = ludus_db::get_profile(&codex, &user_id)
+    let mut profile = ludus_db::get_profile(codex, user_id)
         .await?
         .ok_or_else(|| anyhow::anyhow!("Profile not found"))?;
 
@@ -74,7 +74,7 @@ pub async fn shop_buy(item_id: &str) -> Result<()> {
     let result = shop::purchase(&mut profile, item, mode_mult, &mut abilities);
 
     if result.success {
-        ludus_db::upsert_profile(&codex, &profile).await?;
+        ludus_db::upsert_profile(codex, &profile).await?;
         println!("  ✅ {}", result.message.bright_green());
         println!(
             "  Remaining: {} 💎",

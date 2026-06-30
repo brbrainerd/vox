@@ -795,27 +795,26 @@ pub fn run_mix_with_options(
                 let mut cap_reached = false;
                 for _ in 0..repeats {
                     for row in &processed_chunk {
-                        if cfg.dedup {
-                            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(row) {
-                                let prompt =
-                                    parsed.get("prompt").and_then(|v| v.as_str()).unwrap_or("");
-                                let response = parsed
-                                    .get("response")
-                                    .or_else(|| parsed.get("output"))
-                                    .and_then(|v| v.as_str())
-                                    .unwrap_or("");
-                                let hash =
-                                    xxh3_64(prompt.as_bytes()) ^ xxh3_64(response.as_bytes());
-                                if !seen_hashes.insert(hash) {
-                                    continue; // Duplicate -- skip
-                                }
+                        if cfg.dedup
+                            && let Ok(parsed) = serde_json::from_str::<serde_json::Value>(row)
+                        {
+                            let prompt =
+                                parsed.get("prompt").and_then(|v| v.as_str()).unwrap_or("");
+                            let response = parsed
+                                .get("response")
+                                .or_else(|| parsed.get("output"))
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("");
+                            let hash = xxh3_64(prompt.as_bytes()) ^ xxh3_64(response.as_bytes());
+                            if !seen_hashes.insert(hash) {
+                                continue; // Duplicate -- skip
                             }
                         }
-                        if let Some(cap) = src.max_lines {
-                            if emitted_this_src >= cap {
-                                cap_reached = true;
-                                break;
-                            }
+                        if let Some(cap) = src.max_lines
+                            && emitted_this_src >= cap
+                        {
+                            cap_reached = true;
+                            break;
                         }
                         writeln!(out, "{row}")?;
                         total_out += 1;

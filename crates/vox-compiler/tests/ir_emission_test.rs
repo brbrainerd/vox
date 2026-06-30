@@ -7,8 +7,7 @@ fn test_ir_emission_with_hashing_and_inference() {
             a + b
         }
 
-        @server
-        fn greet(name: str) {
+        server greet(name: str) {
             "Hello " + name
         }
     "#;

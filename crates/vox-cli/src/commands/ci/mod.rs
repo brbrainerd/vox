@@ -5,10 +5,8 @@ mod attention_ledger_parity;
 mod attention_parity;
 mod build_bench;
 pub mod build_timings;
-mod canonical_docs;
 mod capability_snapshot;
 mod capability_sync;
-mod check_links;
 mod command_compliance;
 mod command_sync;
 mod compile_matrix;
@@ -17,7 +15,6 @@ pub mod config_aggregate;
 pub mod config_gui_codegen;
 pub mod config_hygiene;
 pub mod config_registry_parity;
-mod contracts_index;
 mod coolify_eval;
 mod crate_budget;
 mod crate_build_map_parity;
@@ -29,12 +26,10 @@ mod detect_rules_bench;
 mod determinism_audit;
 mod dev_loop_audit;
 mod docs_reality_audit;
-mod doctest_md;
 pub(super) mod doctor_build_cache;
 mod eval_matrix;
 mod exec_policy_contract;
 mod fan_in_budget;
-mod free_binary;
 mod generate_plugin_catalog_docs;
 mod grammar_ssot_parity;
 mod gui_catalog_parity;
@@ -43,14 +38,11 @@ mod gui_smoke;
 mod gui_surface_coverage;
 pub mod gui_surface_registry;
 mod gui_version_sync;
-mod install_hooks;
 mod job_timings;
-mod kill_stuck_tests;
 mod mcp_vox_surface_parity;
 mod mens_scorecard;
 mod model_routing_check;
 mod operations_catalog;
-mod parse_status;
 mod pipeline_parity;
 mod plugin_abi_parity;
 mod plugin_catalog_parity;
@@ -62,6 +54,7 @@ mod policy_allowlist_parity;
 mod policy_registry;
 mod pre_push;
 mod profile_parity;
+mod providers;
 mod release_build;
 pub(crate) mod retired_symbol_check;
 mod runner_scale;
@@ -72,13 +65,11 @@ mod scientia_novelty_ledger_contract;
 mod scientia_worthiness_contract;
 mod speech_runtime_suite;
 mod test_governance;
-pub mod test_inventory;
 pub mod test_runtime_report;
 mod tier_budget_check;
 pub mod watch_run;
 pub mod workspace_artifacts;
 
-mod cmd_enums;
 mod constants;
 mod coverage_gates;
 pub(crate) mod run_body;
@@ -88,7 +79,7 @@ use std::process::{Command, Stdio};
 
 use anyhow::Result;
 
-pub use cmd_enums::{
+pub use vox_cli_ci::cmd_enums::{
     CiCmd, CoolifyEvalCmd, CoverageGateMode, DocInventoryCmd, DocsRealityAuditCmd, EvalMatrixCmd,
     GovernanceGateMode, GrammarDriftEmit, MensScorecardCmd, OperationsSyncTarget, ScalingAuditCmd,
 };

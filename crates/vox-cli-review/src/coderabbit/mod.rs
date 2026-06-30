@@ -254,8 +254,8 @@ pub enum CodeRabbitAction {
     },
 }
 
-fn resolve_repo(path: &PathBuf) -> Result<std::path::PathBuf> {
-    if path.as_os_str().is_empty() || path.as_path() == Path::new(".") {
+fn resolve_repo(path: &Path) -> Result<std::path::PathBuf> {
+    if path.as_os_str().is_empty() || path == Path::new(".") {
         return std::env::current_dir().context("current_dir");
     }
     path.canonicalize()
@@ -288,10 +288,10 @@ pub async fn run(action: CodeRabbitAction) -> Result<()> {
             let repo = resolve_repo(&path)?;
             let vox = config::load_from_dir(&repo);
             let mut cfg = semantic_planner::SemanticSubmitConfig::default();
-            if let Some(ref t) = vox.tier {
-                if let Ok(parsed) = t.parse::<limits::CodeRabbitTier>() {
-                    cfg.tier = parsed;
-                }
+            if let Some(ref t) = vox.tier
+                && let Ok(parsed) = t.parse::<limits::CodeRabbitTier>()
+            {
+                cfg.tier = parsed;
             }
             if let Some(t) = tier {
                 cfg.tier = t
@@ -350,10 +350,10 @@ pub async fn run(action: CodeRabbitAction) -> Result<()> {
             let repo = resolve_repo(&path)?;
             let vox = config::load_from_dir(&repo);
             let mut cfg = semantic_planner::SemanticSubmitConfig::default();
-            if let Some(ref t) = vox.tier {
-                if let Ok(parsed) = t.parse::<limits::CodeRabbitTier>() {
-                    cfg.tier = parsed;
-                }
+            if let Some(ref t) = vox.tier
+                && let Ok(parsed) = t.parse::<limits::CodeRabbitTier>()
+            {
+                cfg.tier = parsed;
             }
             if let Some(t) = tier {
                 cfg.tier = t

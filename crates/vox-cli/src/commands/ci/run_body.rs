@@ -4,30 +4,30 @@ use anyhow::{Result, anyhow};
 use std::process::Command;
 
 use super::build_timings;
-use super::canonical_docs;
-use super::check_links;
-use super::cmd_enums::{
-    CiCmd, DocInventoryCmd, DocsRealityAuditCmd, EvalMatrixCmd, MensScorecardCmd,
-    OperationsSyncTarget,
-};
 use super::command_compliance;
 use super::command_sync;
 use super::completion_quality;
-use super::contracts_index;
 use super::coverage_gates;
 use super::determinism_audit;
-use super::doctest_md;
 use super::eval_matrix;
 use super::exec_policy_contract;
 use super::grammar_ssot_parity;
 use super::mens_scorecard;
-use super::parse_status;
 use super::release_build;
 use super::scaling_audit;
 use super::scientia_heuristics_parity;
 use super::scientia_novelty_ledger_contract;
 use super::scientia_worthiness_contract;
 use super::{cargo_bin, repo_root};
+use vox_cli_ci::canonical_docs;
+use vox_cli_ci::check_links;
+use vox_cli_ci::cmd_enums::{
+    CiCmd, DocInventoryCmd, DocsRealityAuditCmd, EvalMatrixCmd, MensScorecardCmd,
+    OperationsSyncTarget,
+};
+use vox_cli_ci::contracts_index;
+use vox_cli_ci::doctest_md;
+use vox_cli_ci::parse_status;
 
 /// Helpers live in `ci/run_body_helpers/`; `#[path]` keeps them out of `ci/run_body/` (submodule rule).
 #[path = "run_body_helpers/mod.rs"]
@@ -303,7 +303,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         }
         CiCmd::BomCheck => vox_cli_ci::line_endings::check_bom(&root),
         CiCmd::SpokeCheck => run_spoke_check(&root),
-        CiCmd::FreeBinary { target, apply } => super::free_binary::run(&root, target, apply),
+        CiCmd::FreeBinary { target, apply } => vox_cli_ci::free_binary::run(&root, target, apply),
         CiCmd::ParseStatus { write } => parse_status::run(&root, write),
         CiCmd::MeshGate {
             profile,
@@ -622,8 +622,8 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::NomenclatureGuard { json } => vox_cli_ci::nomenclature_guard::run(&root, json),
         CiCmd::RetiredSymbolCheck => retired_symbol_check::run(&root),
         CiCmd::SyncIgnoreFiles { verify } => vox_cli_ci::sync_ignore_files::run(&root, verify),
-        CiCmd::KillStuckTests { what_if } => super::kill_stuck_tests::run(&root, what_if),
-        CiCmd::InstallHooks => super::install_hooks::run(&root),
+        CiCmd::KillStuckTests { what_if } => vox_cli_ci::kill_stuck_tests::run(&root, what_if),
+        CiCmd::InstallHooks => vox_cli_ci::install_hooks::run(&root),
         CiCmd::ScriptHygiene { retired_check } => run_script_hygiene(&root, retired_check),
         CiCmd::DeterminismAudit => determinism_audit::run(&root),
         CiCmd::DepSprawl { cap } => vox_cli_ci::dep_sprawl::run(&root, cap),
@@ -633,9 +633,9 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             output,
             markdown,
             check,
-        } => super::test_inventory::run(
+        } => vox_cli_ci::test_inventory::run(
             &root,
-            super::test_inventory::TestInventoryOpts {
+            vox_cli_ci::test_inventory::TestInventoryOpts {
                 json_stdout: json,
                 output,
                 markdown,
@@ -749,18 +749,14 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
     // (the single non-deterministic seam) so the writer/merge stay pure.
     if let Some(id) = gate_id {
         if std::env::var("VOX_NO_POLICY_STATUS").is_err() {
+            use vox_cli_contracts::GateStatusWriter;
+            let providers = super::providers::VoxCliProviders;
             let duration_ms = started.elapsed().as_millis() as u64;
             let policy_result = gate_status_result(id, result.is_ok(), duration_ms);
-            let branch = crate::commands::policy::status_writer::current_branch(&root);
-            let commit = crate::commands::policy::status_writer::head_commit(&root);
+            let branch = providers.current_branch(&root);
+            let commit = providers.head_commit(&root);
             let ran_at = chrono::Utc::now().to_rfc3339();
-            let _ = crate::commands::policy::status_writer::write_results(
-                &root,
-                &branch,
-                &commit,
-                &ran_at,
-                vec![policy_result],
-            );
+            let _ = providers.write_results(&root, &branch, &commit, &ran_at, vec![policy_result]);
         }
     }
 

@@ -918,7 +918,7 @@ mod tests {
     #[test]
     fn emit_main_omits_workflow_dispatch_without_workflows() {
         let src = r#"
-@query fn health() to str {
+query health() to str {
     return "ok"
 }
 "#;

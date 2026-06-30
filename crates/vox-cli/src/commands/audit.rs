@@ -16,7 +16,6 @@
 
 use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand};
-use serde::Deserialize;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -54,28 +53,9 @@ pub enum AuditSubcommand {
 // Manifest types
 // ---------------------------------------------------------------------------
 
-/// Top-level structure of `contracts/ci/check-targets.v1.yaml`.
-#[derive(Debug, Deserialize)]
-pub struct CheckManifest {
-    pub schema_version: u32,
-    pub checks: Vec<CheckEntry>,
-}
-
-/// One quality-gate entry in the manifest.
-#[derive(Debug, Deserialize, Clone)]
-pub struct CheckEntry {
-    pub id: String,
-    pub description: String,
-    pub category: String,
-    pub blocking: bool,
-    pub runs_on: Vec<String>,
-    #[serde(default)]
-    pub rust_only: bool,
-    pub command: Vec<String>,
-    /// When `true` this check is skipped by `--quick`.
-    #[serde(default)]
-    pub quick_skip: bool,
-}
+/// Check-manifest types now live in `vox-cli-contracts` (shared with vox-cli-ci);
+/// re-exported here so existing `commands::audit::CheckManifest` paths keep working.
+pub use vox_cli_contracts::{CheckEntry, CheckManifest};
 
 // ---------------------------------------------------------------------------
 // CLI args

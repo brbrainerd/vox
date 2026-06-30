@@ -218,16 +218,16 @@ mod tests {
     #[test]
     fn project_app_contract_endpoint_lists_characterization() {
         let src = r#"
-@table type Task { title: str done: bool }
+table Task { title: str done: bool }
 
-@server fn sf_one(a: int) to str { return "x" }
-@server fn sf_two() to int { return 0 }
-@query fn q_one(n: int) to int { return n }
-@mutation fn m_one(title: str) to int {
+server sf_one(a: int) to str { return "x" }
+server sf_two() to int { return 0 }
+query q_one(n: int) to int { return n }
+mutation m_one(title: str) to int {
     db.Task.insert({ title: title, done: false })
     return 1
 }
-@mutation fn m_two(x: bool) to bool { return x }
+mutation m_two(x: bool) to bool { return x }
 "#;
         let hir = lower(src);
         let app = project_app_contract(&hir);
@@ -269,7 +269,7 @@ mod tests {
     #[test]
     fn project_app_contract_mutation_no_tables_no_tx() {
         let src = r#"
-@mutation fn m_only(x: int) to int { return x }
+mutation m_only(x: int) to int { return x }
 "#;
         let hir = lower(src);
         let app = project_app_contract(&hir);
@@ -288,10 +288,10 @@ mod tests {
     #[test]
     fn project_app_contract_interleaved_kinds_preserve_identity() {
         let src = r#"
-@server fn a(x: int) to str { return "a" }
-@mutation fn b(y: bool) to bool { return y }
-@query fn c(n: int) to int { return n }
-@server fn d() to int { return 0 }
+server a(x: int) to str { return "a" }
+mutation b(y: bool) to bool { return y }
+query c(n: int) to int { return n }
+server d() to int { return 0 }
 "#;
         let hir = lower(src);
         let app = project_app_contract(&hir);

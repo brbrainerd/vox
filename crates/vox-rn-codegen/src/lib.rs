@@ -95,7 +95,7 @@ pub fn generate_rn(hir: &HirModule, options: &CodegenOptions) -> Result<RnCodege
         files.push((filename, content));
     }
 
-    // @form declarations — RN-flavored forms (View / Text / TextInput / Pressable).
+    // form declarations — RN-flavored forms (View / Text / TextInput / Pressable).
     // Same validation logic as the web emit; only leaf rendering differs.
     if !hir.forms.is_empty() {
         let forms_body: String = hir.forms.iter().map(form::emit_form).collect();

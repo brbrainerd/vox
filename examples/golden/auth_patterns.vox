@@ -12,7 +12,7 @@
 // ---
 // @training_prompt: Implement authentication and authorization workflows, including route guards and permission assertions.
 // ANCHOR: display
-@table type Session {
+table Session {
     id: int
     token: str
     user_id: str
@@ -44,7 +44,7 @@ fn handle_session(user_id: str) to str {
     }
 }
 
-@mutation fn admin_reset() to str {
+mutation admin_reset() to str {
     // In a real framework this would securely extract the Auth header
     let token = "mock_header_token"
     let sess_res = verify_token(token)
