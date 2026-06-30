@@ -109,7 +109,13 @@
       "workspace-hack"
     ],
     "vox-cli-ci": [
-      "vox-cli-core"
+      "vox-bounded-fs",
+      "vox-cli-core",
+      "vox-compiler",
+      "vox-config",
+      "vox-doc-pipeline",
+      "vox-git",
+      "vox-jsonschema-util"
     ],
     "vox-cli-contracts": [
       "vox-bounded-fs",
