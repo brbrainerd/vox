@@ -3,7 +3,6 @@
 //! for unregistered env vars, and prune orphan rows whose env_var no longer
 //! appears in source.
 
-use std::path::PathBuf;
 use vox_cli_ci::config_hygiene::{WriteRegistryOpts, write_registry};
 
 /// Build a minimal temp workspace:
