@@ -30,7 +30,10 @@ pub(crate) const KNOWN_DIAGNOSIS_IDS: &[&str] = &[
 
 /// Encode a machine-parseable diagnosis tag into a check `detail` string.
 fn diag(id: &str, severity: &str, root_cause: &str, fix: &str, auto_healable: bool) -> String {
-    debug_assert!(KNOWN_DIAGNOSIS_IDS.contains(&id), "unregistered diagnosis id: {id}");
+    debug_assert!(
+        KNOWN_DIAGNOSIS_IDS.contains(&id),
+        "unregistered diagnosis id: {id}"
+    );
     format!("{root_cause} | FIX: {fix} | [diag id={id} sev={severity} heal={auto_healable}]")
 }
 
@@ -71,8 +74,9 @@ pub(crate) fn classify_docker_failure(stderr: &str) -> DockerFailure {
 
 /// Some(detail) when the DB was migrated past what this binary understands.
 pub(crate) fn schema_drift(binary_baseline: i64, db_current: i64) -> Option<String> {
-    (db_current > binary_baseline)
-        .then(|| format!("vox binary supports schema {binary_baseline} but the DB is at {db_current}"))
+    (db_current > binary_baseline).then(|| {
+        format!("vox binary supports schema {binary_baseline} but the DB is at {db_current}")
+    })
 }
 
 /// Some(reason) when sccache is pathological over a meaningful sample (>200 requests).
@@ -81,7 +85,9 @@ pub(crate) fn sccache_verdict(requests: u64, hits: u64, compile_failures: u64) -
         return None; // cold cache — don't cry wolf
     }
     if compile_failures > 0 {
-        return Some(format!("{compile_failures} compilation failures (crash signature)"));
+        return Some(format!(
+            "{compile_failures} compilation failures (crash signature)"
+        ));
     }
     let rate = hits as f64 / requests as f64;
     (rate < 0.05).then(|| format!("hit-rate {:.1}% — sccache is pure cost here", rate * 100.0))
@@ -123,19 +129,47 @@ async fn toolchain_check(
     let name = format!("toolchain: {bin} identity");
     match version_of(bin).await {
         // Absent ≠ shadowed: don't cry "shim" when the binary just isn't installed.
-        None => checks.push(Check::fail(&name, diag(absent_id, "error",
-            &format!("`{bin}` not found on PATH (or did not run)"),
-            "install the Rust toolchain: rustup-init -y --no-modify-path", false))),
+        None => checks.push(Check::fail(
+            &name,
+            diag(
+                absent_id,
+                "error",
+                &format!("`{bin}` not found on PATH (or did not run)"),
+                "install the Rust toolchain: rustup-init -y --no-modify-path",
+                false,
+            ),
+        )),
         Some(v) if is_real(&v) => checks.push(Check::pass(&name, v)),
-        Some(v) => checks.push(Check::fail(&name, diag(shadowed_id, "error",
-            &format!("`{bin} --version` printed `{v}` — {bin} is shadowed by a shim/forwarder"),
-            "rustup-init -y --no-modify-path --default-toolchain none --profile minimal", false))),
+        Some(v) => checks.push(Check::fail(
+            &name,
+            diag(
+                shadowed_id,
+                "error",
+                &format!("`{bin} --version` printed `{v}` — {bin} is shadowed by a shim/forwarder"),
+                "rustup-init -y --no-modify-path --default-toolchain none --profile minimal",
+                false,
+            ),
+        )),
     }
 }
 
 pub(crate) async fn toolchain_integrity(checks: &mut Vec<Check>) {
-    toolchain_check(checks, "rustc", is_real_rustc, "toolchain.rustc_shadowed", "toolchain.rustc_absent").await;
-    toolchain_check(checks, "rustup", is_real_rustup, "toolchain.rustup_shadowed", "toolchain.rustup_absent").await;
+    toolchain_check(
+        checks,
+        "rustc",
+        is_real_rustc,
+        "toolchain.rustc_shadowed",
+        "toolchain.rustc_absent",
+    )
+    .await;
+    toolchain_check(
+        checks,
+        "rustup",
+        is_real_rustup,
+        "toolchain.rustup_shadowed",
+        "toolchain.rustup_absent",
+    )
+    .await;
 }
 
 pub(crate) async fn docker_health(checks: &mut Vec<Check>) {
@@ -146,19 +180,43 @@ pub(crate) async fn docker_health(checks: &mut Vec<Check>) {
         Ok(o) => {
             let err = String::from_utf8_lossy(&o.stderr);
             let c = match classify_docker_failure(&err) {
-                DockerFailure::WslWedged => Check::fail("docker: WSL wedged", diag(
-                    "docker.wsl_wedged", "error",
-                    "Docker Desktop's WSL distro is wedged (permission denied / stopped) — autoscaler `docker info` fails",
-                    "wsl --terminate podman-machine-default  (then restart Docker Desktop)", true)),
-                _ => Check::fail("docker: unreachable", diag(
-                    "docker.daemon_down", "error", "Docker daemon not reachable",
-                    if cfg!(target_os = "linux") { "systemctl restart docker" } else { "start Docker Desktop" },
-                    cfg!(target_os = "linux"))),
+                DockerFailure::WslWedged => Check::fail(
+                    "docker: WSL wedged",
+                    diag(
+                        "docker.wsl_wedged",
+                        "error",
+                        "Docker Desktop's WSL distro is wedged (permission denied / stopped) — autoscaler `docker info` fails",
+                        "wsl --terminate podman-machine-default  (then restart Docker Desktop)",
+                        true,
+                    ),
+                ),
+                _ => Check::fail(
+                    "docker: unreachable",
+                    diag(
+                        "docker.daemon_down",
+                        "error",
+                        "Docker daemon not reachable",
+                        if cfg!(target_os = "linux") {
+                            "systemctl restart docker"
+                        } else {
+                            "start Docker Desktop"
+                        },
+                        cfg!(target_os = "linux"),
+                    ),
+                ),
             };
             checks.push(c);
         }
-        Err(_) => checks.push(Check::fail("docker: not installed", diag(
-            "docker.absent", "warn", "`docker` not on PATH", "install Docker Desktop / docker engine", false))),
+        Err(_) => checks.push(Check::fail(
+            "docker: not installed",
+            diag(
+                "docker.absent",
+                "warn",
+                "`docker` not on PATH",
+                "install Docker Desktop / docker engine",
+                false,
+            ),
+        )),
     }
 }
 
@@ -168,7 +226,10 @@ pub(crate) async fn schema_health(checks: &mut Vec<Check>) {
         return;
     };
     match vox_db::VoxDb::connect(cfg).await {
-        Ok(_) => checks.push(Check::pass("vox: schema version", format!("binary baseline {baseline}, DB on baseline"))),
+        Ok(_) => checks.push(Check::pass(
+            "vox: schema version",
+            format!("binary baseline {baseline}, DB on baseline"),
+        )),
         Err(vox_db::StoreError::LegacySchemaChain { max_version }) => {
             if let Some(detail) = schema_drift(baseline, max_version) {
                 checks.push(Check::fail("vox: schema drift", diag(
@@ -183,10 +244,19 @@ pub(crate) async fn schema_health(checks: &mut Vec<Check>) {
 
 pub(crate) async fn sccache_guard(checks: &mut Vec<Check>) {
     // Reuse the existing setup advisor (do not duplicate).
-    let on_path = quiet("sccache").arg("--version").output().await.map(|o| o.status.success()).unwrap_or(false);
+    let on_path = quiet("sccache")
+        .arg("--version")
+        .output()
+        .await
+        .map(|o| o.status.success())
+        .unwrap_or(false);
     let wrapper = std::env::var("RUSTC_WRAPPER").ok();
     let incremental = std::env::var("CARGO_INCREMENTAL").ok();
-    let advice = crate::commands::ci::doctor_build_cache::advise(on_path, wrapper.as_deref(), incremental.as_deref());
+    let advice = crate::commands::ci::doctor_build_cache::advise(
+        on_path,
+        wrapper.as_deref(),
+        incremental.as_deref(),
+    );
     if !advice.is_empty() {
         // Not wired is a valid, often-deliberate choice (we disabled sccache as
         // net-negative) — surface as informational, NOT a failure. Only the
@@ -195,47 +265,97 @@ pub(crate) async fn sccache_guard(checks: &mut Vec<Check>) {
         return;
     }
     // Runtime health (the new part): crash + hit-rate from --show-stats.
-    if let Ok(o) = quiet("sccache").args(["--show-stats", "--stats-format=json"]).output().await {
+    if let Ok(o) = quiet("sccache")
+        .args(["--show-stats", "--stats-format=json"])
+        .output()
+        .await
+    {
         if let Ok(v) = serde_json::from_slice::<serde_json::Value>(&o.stdout) {
             let stats = v.get("stats").unwrap_or(&v);
-            let req = stats.get("compile_requests").and_then(serde_json::Value::as_u64).unwrap_or(0);
+            let req = stats
+                .get("compile_requests")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0);
             // `cache_hits` is a number in some sccache versions, `{counts: N}` in others.
             let hits = stats
                 .get("cache_hits")
                 .and_then(serde_json::Value::as_u64)
-                .or_else(|| stats.get("cache_hits").and_then(|h| h.get("counts")).and_then(serde_json::Value::as_u64))
+                .or_else(|| {
+                    stats
+                        .get("cache_hits")
+                        .and_then(|h| h.get("counts"))
+                        .and_then(serde_json::Value::as_u64)
+                })
                 .unwrap_or(0);
-            let fails = stats.get("compile_fails").or_else(|| stats.get("compilation_failures"))
-                .and_then(serde_json::Value::as_u64).unwrap_or(0);
+            let fails = stats
+                .get("compile_fails")
+                .or_else(|| stats.get("compilation_failures"))
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0);
             checks.push(match sccache_verdict(req, hits, fails) {
-                Some(reason) => Check::fail("sccache: health", diag(
-                    "sccache.pathological", "warn", &reason,
-                    "vox doctor --heal  (stops server, clears cache, comments rustc-wrapper)", true)),
-                None => Check::pass("sccache: health", format!("{req} requests, {hits} hits, {fails} fails")),
+                Some(reason) => Check::fail(
+                    "sccache: health",
+                    diag(
+                        "sccache.pathological",
+                        "warn",
+                        &reason,
+                        "vox doctor --heal  (stops server, clears cache, comments rustc-wrapper)",
+                        true,
+                    ),
+                ),
+                None => Check::pass(
+                    "sccache: health",
+                    format!("{req} requests, {hits} hits, {fails} fails"),
+                ),
             });
         }
     }
 }
 
 pub(crate) async fn compile_probe(checks: &mut Vec<Check>) {
-    let secs: u64 = std::env::var("VOX_DOCTOR_COMPILE_TIMEOUT_SECS").ok()
-        .and_then(|s| s.parse().ok()).unwrap_or(30);
+    let secs: u64 = std::env::var("VOX_DOCTOR_COMPILE_TIMEOUT_SECS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(30);
     let dir = std::env::temp_dir().join("vox-doctor-probe");
     let _ = tokio::fs::create_dir_all(dir.join("src")).await;
     let _ = tokio::fs::write(dir.join("Cargo.toml"),
         "[package]\nname=\"probe\"\nversion=\"0.0.0\"\nedition=\"2021\"\n[[bin]]\nname=\"probe\"\npath=\"src/main.rs\"\n").await;
     let _ = tokio::fs::write(dir.join("src/main.rs"), "fn main(){}\n").await;
-    let fut = quiet("cargo").args(["build", "--quiet"]).current_dir(&dir).output();
+    let fut = quiet("cargo")
+        .args(["build", "--quiet"])
+        .current_dir(&dir)
+        .output();
     let c = match tokio::time::timeout(std::time::Duration::from_secs(secs), fut).await {
-        Ok(Ok(o)) if o.status.success() => Check::pass("toolchain: compile probe", "trivial crate compiled"),
-        Ok(Ok(o)) => Check::fail("toolchain: compile probe", diag(
-            "toolchain.compile_failed", "error",
-            &format!("toolchain cannot compile a trivial crate: {}", String::from_utf8_lossy(&o.stderr).lines().last().unwrap_or("compile failed")),
-            "vox doctor  # see the toolchain/sccache checks above for the specific cause", false)),
-        _ => Check::fail("toolchain: compile probe", diag(
-            "toolchain.compile_timeout", "error",
-            &format!("trivial compile hung (>{secs}s) — likely a shim/cache hang"),
-            "vox doctor --heal  (or raise VOX_DOCTOR_COMPILE_TIMEOUT_SECS)", false)),
+        Ok(Ok(o)) if o.status.success() => {
+            Check::pass("toolchain: compile probe", "trivial crate compiled")
+        }
+        Ok(Ok(o)) => Check::fail(
+            "toolchain: compile probe",
+            diag(
+                "toolchain.compile_failed",
+                "error",
+                &format!(
+                    "toolchain cannot compile a trivial crate: {}",
+                    String::from_utf8_lossy(&o.stderr)
+                        .lines()
+                        .last()
+                        .unwrap_or("compile failed")
+                ),
+                "vox doctor  # see the toolchain/sccache checks above for the specific cause",
+                false,
+            ),
+        ),
+        _ => Check::fail(
+            "toolchain: compile probe",
+            diag(
+                "toolchain.compile_timeout",
+                "error",
+                &format!("trivial compile hung (>{secs}s) — likely a shim/cache hang"),
+                "vox doctor --heal  (or raise VOX_DOCTOR_COMPILE_TIMEOUT_SECS)",
+                false,
+            ),
+        ),
     };
     checks.push(c);
 }
@@ -308,7 +428,10 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
         if !actions.is_empty() {
             checks.push(Check::pass(
                 "build-health: auto-heal",
-                format!("ran {} heal action(s); re-run `vox doctor` to confirm", actions.len()),
+                format!(
+                    "ran {} heal action(s); re-run `vox doctor` to confirm",
+                    actions.len()
+                ),
             ));
         }
     }
@@ -332,8 +455,14 @@ mod tests {
             execvpe(/mnt/wsl/docker-desktop/docker-desktop-user-distro) failed: Permission denied \
             wslErrorCode: DockerDesktop/Wsl/ExecError";
         assert_eq!(classify_docker_failure(stderr), DockerFailure::WslWedged);
-        assert_eq!(classify_docker_failure("Cannot connect to the Docker daemon at unix:///..."), DockerFailure::DaemonDown);
-        assert_eq!(classify_docker_failure("some other error"), DockerFailure::Other);
+        assert_eq!(
+            classify_docker_failure("Cannot connect to the Docker daemon at unix:///..."),
+            DockerFailure::DaemonDown
+        );
+        assert_eq!(
+            classify_docker_failure("some other error"),
+            DockerFailure::Other
+        );
     }
 
     #[test]
@@ -360,15 +489,30 @@ mod tests {
 
     #[test]
     fn heal_plan_maps_ids() {
-        assert_eq!(heal_action("sccache.pathological"), HealAction::DisableSccache);
-        assert_eq!(heal_action("docker.wsl_wedged"), HealAction::RestartWslDistro);
+        assert_eq!(
+            heal_action("sccache.pathological"),
+            HealAction::DisableSccache
+        );
+        assert_eq!(
+            heal_action("docker.wsl_wedged"),
+            HealAction::RestartWslDistro
+        );
         // shim-shadowed toolchain must never auto-run rustup-init
-        assert_eq!(heal_action("toolchain.rustc_shadowed"), HealAction::FlagOnly);
+        assert_eq!(
+            heal_action("toolchain.rustc_shadowed"),
+            HealAction::FlagOnly
+        );
     }
 
     #[test]
     fn parses_diag_id_from_tag() {
-        let d = diag("docker.wsl_wedged", "error", "wedged", "wsl --terminate x", true);
+        let d = diag(
+            "docker.wsl_wedged",
+            "error",
+            "wedged",
+            "wsl --terminate x",
+            true,
+        );
         assert_eq!(parse_diag_id(&d), Some("docker.wsl_wedged"));
         assert_eq!(parse_diag_id("no tag here"), None);
     }
