@@ -31,6 +31,15 @@
 
 ---
 
+## Task 0: Branch
+
+- [ ] **Step 1: Create a working branch** — the repo is currently on a detached `HEAD`, so commits would be unreachable.
+
+Run: `git switch -c sp1-directed-call-queries`
+Expected: `Switched to a new branch 'sp1-directed-call-queries'`.
+
+---
+
 ## Task 1: Directed indexes + `Direction` in the reader
 
 **Files:**
@@ -421,8 +430,12 @@ Near the other helpers in `graph_tools.rs`:
 /// symbol shows up in a future graph measurement.
 const CONSTRUCTOR_NOISE: &[&str] = &["Ok", "Err", "Some", "None"];
 
-fn is_noise_label(label: &str) -> bool {
-    CONSTRUCTOR_NOISE.contains(&label)
+/// True if a hit is a constructor/variant node. Checks both the bare tail of the node id
+/// (`a::b::Ok` → `Ok`) and the label, so it catches the noise whether it lands in the id or
+/// the label. ponytail: extend CONSTRUCTOR_NOISE only on a new measured dominant symbol.
+fn is_noise(node_id: &str, label: &str) -> bool {
+    let tail = node_id.rsplit("::").next().unwrap_or(node_id);
+    CONSTRUCTOR_NOISE.contains(&tail) || CONSTRUCTOR_NOISE.contains(&label)
 }
 ```
 
@@ -435,7 +448,9 @@ Rename the body of `graphify_query` to `graphify_query_core(state, params, force
 
 ```rust
     let hits: Vec<_> = if filter_noise {
-        hits.into_iter().filter(|h| !is_noise_label(&h.label)).collect()
+        hits.into_iter()
+            .filter(|h| !is_noise(&h.node_id, &h.label))
+            .collect()
     } else {
         hits
     };
@@ -501,7 +516,7 @@ Append to `graph_tools.rs` `#[cfg(test)] mod tests`:
 - [ ] **Step 4: Run tests**
 
 Run: `cargo test -p vox-orchestrator-mcp graphify`
-Expected: FAIL first (wrappers not dispatchable yet is fine — these call the handler fns directly, so they should PASS once Steps 1-2 compile). Confirm PASS.
+Expected: PASS. (The tests call `graphify_callees`/`graphify_callers` directly, so they do not need the dispatch/registry wiring from Task 4.)
 
 - [ ] **Step 5: Format and commit**
 
@@ -522,7 +537,7 @@ git commit -m "feat(mcp): callers/callees handlers with constructor-noise filter
 
 - [ ] **Step 1: Add two operation rows to the catalog SSOT**
 
-In `contracts/operations/catalog.v1.yaml`, immediately after the `graph.path` row (ends ~`:6314`, before the next `- id:`), add:
+In the top-level `operations:` array of `contracts/operations/catalog.v1.yaml` (NOT the `capability:` block at the top of the file — that block is only for fs/script runtime maps), immediately after the `graph.path` row (ends ~`:6314`, before `- id: graph.compare`), add:
 
 ```yaml
 - id: graph.callers
@@ -573,10 +588,12 @@ In `contracts/operations/catalog.v1.yaml`, immediately after the `graph.path` ro
 
 Note `http_read_role_eligible: false` is deliberate — it avoids the `http-read-role-governance.yaml` coupling (two gates require eligible tools there). Harnesses use local stdio `vox mcp`, so nothing is lost. If you instead set `true`, you MUST also add both names (sorted) to `read_role_tools:` in `contracts/mcp/http-read-role-governance.yaml`.
 
+Capabilities auto-project: `project_capability_registry_doc` derives a capability row from each operation row (`operations_catalog.rs:843`), so do NOT add anything to the `capability:` block. `vox_search_neighbors` has exactly one mention in the catalog (its operation row) — mirror that.
+
 - [ ] **Step 2: Regenerate the derived registries**
 
 Run: `vox ci operations-sync --target all --write`
-Expected: rewrites `tool-registry.canonical.yaml`, `capability-registry.yaml`, `command-registry.yaml`. Confirm a `git diff` shows the two new `vox_search_callers/callees` entries appended to `tool-registry.canonical.yaml` and matching capability rows. Do NOT hand-edit those files.
+Expected: regenerates the MCP, CLI, and capability registries from the catalog (`All` = mcp→cli→capability; the catalog itself is the source and is NOT regenerated). The generator sorts tools by name (`operations_catalog.rs:732`), so in `git diff` the two new entries appear in sorted position next to the other `vox_search_*` (not appended at the end) — this is expected. Do NOT hand-edit the generated files.
 
 - [ ] **Step 3: Add schema arm for the two wrappers**
 
