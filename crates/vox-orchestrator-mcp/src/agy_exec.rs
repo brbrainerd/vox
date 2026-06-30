@@ -213,7 +213,9 @@ mod tests {
             timeout_secs: 1,
         };
         match exec.run(&spec).await {
-            Ok(o) => assert!(o.timed_out || o.exit_code != 0 || o.exit_code == 0),
+            // agy actually ran (rare in CI where the binary is absent) — any completion
+            // is acceptable here; the meaningful guard is the Err arm below.
+            Ok(_o) => {}
             Err(e) => assert!(matches!(e, AgyExecError::NotFound | AgyExecError::Spawn(_))),
         }
     }

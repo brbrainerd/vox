@@ -5,6 +5,7 @@
 
 use crate::attention::AttentionBudget;
 use crate::budget::BudgetManager;
+#[cfg(not(test))] // used only in the non-test gate path (see #[cfg(not(test))] block below)
 use crate::process_util::quiet_tokio_command;
 use crate::types::AgentId;
 use crate::usage::{DEFAULT_RATE_LIMIT_RETRY_SECS, LlmUsageKey, UsageTracker};

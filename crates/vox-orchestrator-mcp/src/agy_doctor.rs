@@ -71,7 +71,7 @@ pub fn detect() -> AgyStatus {
 
 pub fn remediation(status: &AgyStatus) -> String {
     match status {
-        AgyStatus::Missing => format!(
+        AgyStatus::Missing =>
             "`agy` (Antigravity CLI) is not installed or not on PATH.\n\
              INSTALL (verify the URL at https://antigravity.google/docs/cli before running):\n\
              - Unix / Windows-Git-Bash: curl -fsSL https://antigravity.google/cli/install.sh | bash\n\
@@ -79,7 +79,7 @@ pub fn remediation(status: &AgyStatus) -> String {
              ADD TO PATH if `agy --version` still fails after install, then restart the shell.\n\
              THEN authenticate (interactive, one-time): run `agy` once and complete the Google Sign-In.\n\
              Re-run vox_agy_doctor to confirm Ready."
-        ),
+                .to_string(),
         AgyStatus::PresentUnauthed { path } => format!(
             "`agy` was found at {path} but is not confirmed ready (likely needs a one-time \
              interactive Google Sign-In / OAuth, or uses a different version flag).\n\

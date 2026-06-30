@@ -66,6 +66,8 @@ pub fn attach_guided_decoding(
 
 #[cfg(test)]
 mod tests {
+    // Rust 2024 made std::env::{set_var,remove_var} unsafe; single-threaded test binary.
+    #![allow(unsafe_code)]
     use super::*;
     use serde_json::json;
 

@@ -928,6 +928,8 @@ Use xpath: prefix in target for XPath. Choose the best next step for the instruc
 
 #[cfg(test)]
 mod tests {
+    // Rust 2024 made std::env::{set_var,remove_var} unsafe; single-threaded test.
+    #![allow(unsafe_code)]
     use super::*;
     use std::sync::Arc;
     use vox_orchestrator::{

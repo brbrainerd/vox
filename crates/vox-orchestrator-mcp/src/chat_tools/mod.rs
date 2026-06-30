@@ -170,7 +170,7 @@ pub(crate) async fn build_system_prompt_with_skill(
                 // Track E — skill_activation: hash the id with install-salt (never upload raw id).
                 let salt = vox_telemetry::config::install_salt();
                 let mut hasher = Sha256::new();
-                hasher.update(&salt);
+                hasher.update(salt);
                 hasher.update(m.id.as_bytes());
                 let hash = hasher
                     .finalize()
