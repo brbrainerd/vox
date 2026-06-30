@@ -998,9 +998,7 @@ pub fn call_builtin_method(
                         let res = match std::fs::read(&path) {
                             Ok(bytes) => match String::from_utf8(bytes) {
                                 Ok(s) => Ok(Box::new(VoxValue::Str(s))),
-                                Err(e) => {
-                                    Err(format!("read_bytes: {path}: invalid UTF-8: {e}"))
-                                }
+                                Err(e) => Err(format!("read_bytes: {path}: invalid UTF-8: {e}")),
                             },
                             Err(e) => Err(e.to_string()),
                         };

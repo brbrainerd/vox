@@ -473,7 +473,10 @@ http post "/api/chat" to Result {
     #[test]
     fn lex_normalizes_string_literal_contents() {
         let lit = first_string_lit(&lex("let s = \"a\r\nb\""));
-        assert!(!lit.contains('\r'), "string literal retained raw CR: {lit:?}");
+        assert!(
+            !lit.contains('\r'),
+            "string literal retained raw CR: {lit:?}"
+        );
         assert_eq!(lit, "a\nb");
     }
 
