@@ -350,8 +350,12 @@ mod tests {
         }
 
         let reg = "vox-test-username-registry";
-        write_registry_token(reg, "sk-test-username-0123456789", Some("octocat".to_string()))
-            .expect("write");
+        write_registry_token(
+            reg,
+            "sk-test-username-0123456789",
+            Some("octocat".to_string()),
+        )
+        .expect("write");
 
         assert_eq!(read_registry_username(reg).as_deref(), Some("octocat"));
         assert_eq!(read_registry_username("vox-test-absent-registry"), None);
