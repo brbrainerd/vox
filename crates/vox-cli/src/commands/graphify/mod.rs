@@ -116,6 +116,44 @@ pub(crate) enum RefreshAction {
     Skip,
 }
 
+/// Advisory rebuild lock in `corpus_dir/refresh.lock`. Returns `Ok(Some(result))` when the
+/// guarded closure ran, or `Ok(None)` when a *fresh* lock (mtime < 1h) is already held — so the
+/// caller skips instead of racing concurrent writes to `graph.json`. An older/unreadable mtime is
+/// treated as stale and reclaimed (self-heals after a `kill -9`/power loss). An RAII guard
+/// releases the lock on normal return, on `?` early-return, AND on panic-unwind, so a crashed
+/// rebuild does not wedge the corpus until the 1h reclaim. Advisory only: the check→write window
+/// has a benign TOCTOU race, mitigated by the scheduler's `MultipleInstances IgnoreNew`.
+pub(crate) fn with_graph_lock<T>(
+    corpus_dir: &std::path::Path,
+    f: impl FnOnce() -> anyhow::Result<T>,
+) -> anyhow::Result<Option<T>> {
+    let lock_path = corpus_dir.join("refresh.lock");
+    if let Ok(meta) = std::fs::metadata(&lock_path) {
+        let fresh = meta
+            .modified()
+            .ok()
+            .and_then(|m| m.elapsed().ok())
+            .map(|age| age < std::time::Duration::from_secs(3600))
+            .unwrap_or(false);
+        if fresh {
+            return Ok(None);
+        }
+    }
+    std::fs::create_dir_all(corpus_dir).ok();
+    std::fs::write(&lock_path, chrono::Utc::now().to_rfc3339())?;
+
+    // RAII: release on normal return, on `?` early-return, and on panic-unwind.
+    struct LockGuard(std::path::PathBuf);
+    impl Drop for LockGuard {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(&self.0);
+        }
+    }
+    let _guard = LockGuard(lock_path);
+
+    f().map(Some)
+}
+
 /// Deterministic cost/value gate: a structural change (missing/corrupt/drift/ttl) needs a
 /// native rebuild; a lexical-only lag needs a cheap re-ingest; otherwise do nothing.
 pub(crate) fn refresh_action(stale_reasons: &[String]) -> RefreshAction {
@@ -531,15 +569,24 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                     let _ = vox_graph_reader::snapshot::prune_snapshots(corpus_dir, 5);
                 }
             }
-            vox_graph_reader::rebuild::rebuild_graph(
-                repo_root,
-                &source_dir,
-                &output_file,
-                &cache_dir,
-                &meta,
-            )
-            .map_err(|e| anyhow::anyhow!("Rebuild failed: {}", e))?;
-            println!("Graphify rebuild successful!");
+            let corpus_dir = output_file
+                .parent()
+                .ok_or_else(|| anyhow::anyhow!("graph_path has no parent"))?
+                .to_path_buf();
+            let ran = with_graph_lock(&corpus_dir, || {
+                vox_graph_reader::rebuild::rebuild_graph(
+                    repo_root,
+                    &source_dir,
+                    &output_file,
+                    &cache_dir,
+                    &meta,
+                )
+                .map_err(|e| anyhow::anyhow!("Rebuild failed: {}", e))
+            })?;
+            match ran {
+                Some(()) => println!("Graphify rebuild successful!"),
+                None => println!("Rebuild skipped: another rebuild is in progress (lock held)."),
+            }
         }
         GraphifyCmd::Coverage { corpus, kind, out } => {
             let reg = load_all_corpora(repo_root).map_err(|e| anyhow::anyhow!(e.to_string()))?;
@@ -683,15 +730,24 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                             gui_source_dir,
                             surface_registry_yaml,
                         };
-                        vox_graph_reader::rebuild::rebuild_graph(
-                            repo_root,
-                            &source_dir,
-                            &output_file,
-                            &cache_dir,
-                            &meta,
-                        )
-                        .map_err(|e| anyhow::anyhow!("refresh rebuild {}: {e}", c.id))?;
-                        println!("  rebuilt {}", c.id);
+                        let corpus_dir = output_file
+                            .parent()
+                            .ok_or_else(|| anyhow::anyhow!("graph_path has no parent"))?
+                            .to_path_buf();
+                        let ran = with_graph_lock(&corpus_dir, || {
+                            vox_graph_reader::rebuild::rebuild_graph(
+                                repo_root,
+                                &source_dir,
+                                &output_file,
+                                &cache_dir,
+                                &meta,
+                            )
+                            .map_err(|e| anyhow::anyhow!("refresh rebuild {}: {e}", c.id))
+                        })?;
+                        match ran {
+                            Some(()) => println!("  rebuilt {}", c.id),
+                            None => println!("  skipped {} (rebuild lock held)", c.id),
+                        }
                     }
                     RefreshAction::Ingest => {
                         let nodes = load_projected_nodes(repo_root, &reg, &c.id)?;
@@ -974,5 +1030,55 @@ mod vg1_cache_path_tests {
             .join(corpus_id);
         let actual = primary_cache_dir(tmp.path(), corpus_id);
         assert_eq!(actual, expected);
+    }
+}
+
+#[cfg(test)]
+mod lock_tests {
+    use super::{RefreshAction, refresh_action, with_graph_lock};
+
+    #[test]
+    fn refresh_action_skips_worktree_drift_only() {
+        assert_eq!(
+            refresh_action(&["worktree_drift".into()]),
+            RefreshAction::Skip
+        );
+        assert_eq!(
+            refresh_action(&["git_drift".into()]),
+            RefreshAction::Rebuild
+        );
+        assert_eq!(
+            refresh_action(&["worktree_drift".into(), "git_drift".into()]),
+            RefreshAction::Rebuild
+        );
+        assert_eq!(
+            refresh_action(&["lexical_lag".into()]),
+            RefreshAction::Ingest
+        );
+    }
+
+    #[test]
+    fn lock_runs_and_releases_when_free() {
+        let tmp = tempfile::tempdir().unwrap();
+        let r = with_graph_lock(tmp.path(), || Ok(42)).unwrap();
+        assert_eq!(r, Some(42));
+        assert!(
+            !tmp.path().join("refresh.lock").exists(),
+            "lock released after run"
+        );
+    }
+
+    #[test]
+    fn lock_skips_when_fresh_lock_held() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("refresh.lock"), "held").unwrap(); // mtime = now
+        let mut ran = false;
+        let r = with_graph_lock(tmp.path(), || {
+            ran = true;
+            Ok(())
+        })
+        .unwrap();
+        assert!(r.is_none(), "must skip when a fresh lock is held");
+        assert!(!ran, "guarded closure must not run while locked");
     }
 }
