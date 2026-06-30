@@ -21,36 +21,9 @@
 | `…/doctor/checks_standard/build_health.rs` | **new** — toolchain integrity, Docker/WSL, schema-drift, sccache guard, compile probe |
 | `…/doctor/checks_standard/mod.rs` | register `build_health::run` |
 | `…/doctor/heal.rs` (or the existing auto-heal path) | heal actions |
-| `…/doctor/diagnoses.rs` | **new** — versioned `DiagnosisId` registry (I1) |
-| `crates/vox-db/src/schema/manifest.rs` | **add** `pub fn db_schema_version(&Path) -> Option<i64>` (M1 — does NOT exist) |
+| `crates/vox-db/src/schema.rs` | `pub fn db_schema_version(path) -> u32` helper (if not already public) |
 | `scripts/ci/voxcirunnerscale.task.xml` | `<Hidden>true</Hidden>` |
-| `crates/vox-cli/src/commands/ci/runner_scale.rs` + watchdog spawns | reuse existing `quiet_command` (M3 — already exists at `runner_scale.rs:226`) |
-| `crates/vox-cli/src/commands/ci/doctor_build_cache.rs` | **reuse** `advise()` for sccache setup (do not duplicate) |
-
----
-
-## Audit corrections (2026-06-29, codebase-verified)
-
-An adversarial audit (5 parallel auditors + verify) caught symbol errors and duplication. These are **authoritative** — where a task body below conflicts, this section wins:
-
-**MUST-FIX (compile-breakers / duplication):**
-- **M1 (REVISED during execution) — no new query needed; reuse the existing error.** vox-db is **`turso` (async libsql), not rusqlite**, and a drifted DB already fails `VoxDb::connect` with **`vox_db::StoreError::LegacySchemaChain { max_version: i64 }`** (`store/open.rs:121`). So the schema check = `DbConfig::resolve_canonical()` → `VoxDb::connect(cfg).await`, match that error, and compare `max_version` to `vox_db::schema::manifest::BASELINE_VERSION: i64 = 80`. Do **not** add a sync `db_schema_version`/rusqlite helper (the original M1 plan) — it would not compile.
-- **M3 — `quiet_command` already exists** (`runner_scale.rs:226`, used for `gh`/`docker`). Task 11 = audit the *remaining* `Command::new` sites and route them through it; extract it to `ci/quiet_command.rs` only if the watchdog path needs it. Do NOT write CREATE_NO_WINDOW from scratch.
-- **Reuse `doctor_build_cache::advise(sccache_on_path, rustc_wrapper, cargo_incremental) -> Vec<String>`** for the sccache *setup* layer. Task 6's `sccache_verdict` (crash + hit-rate from `--show-stats`) is genuinely new and complements it — call `advise()` for config advice, add the stats check on top.
-- **M2 — compile-probe timeout must be configurable.** Read `VOX_DOCTOR_COMPILE_TIMEOUT_SECS` (default 30); a hard 30 s false-positives on slow/minimal VMs. Cache the compiled probe at `~/.vox/doctor-probe` to skip recompiles.
-
-**IMPROVEMENTS:**
-- **I1 — versioned `DiagnosisId` registry** (new `diagnoses.rs`): an enum (`ToolchainRustcShadowed`, `DockerWslWedged`, `SccachePathological`, `VoxSchemaDrift`, …) each carrying `severity`/`root_cause`/`remediation_command`/`auto_healable`, plus a `schema_version`, exposed via `vox doctor --json` so agents consume a stable contract (mirror the `llm-config-key-manifest` precedent). Every `Diagnosis` must reference a registered variant (enforced by a test).
-- **I2 — split Tasks 5 & 6 into unit + integration**: the pure classifiers (`schema_drift(i64,i64)`, `sccache_verdict(u64,u64,u64)`) are real unit-TDD; the binary/DB reads are `#[ignore]` integration tests behind a `trait SccacheCaller` / injected `db_schema_version`. Don't claim a unit test for the side-effecting read.
-- **I3 — Task 1 redirect test**: also assert no ANSI bytes when a child process writes to a *pipe* (the real scheduled-task-to-file path), not just `ansi_enabled_for(false)`.
-- **I4 — parallelization** (see "Dependency graph" at the end).
-- **Persistence (no new table):** keep `Diagnosis` as in-memory `--json` only; if persistence is ever wanted, extend the existing build telemetry (`project_check.rs`'s `DoctorProjectCheckEvent` / `ops_build`), never a standalone `doctor_findings` table.
-
-**Reality note:** the freshness-gate exemption for `runner-*` was reverted on this branch (`run_body.rs:56` is unconditional `enforce_for_ci`), so the autoscaler-vs-freshness question is open again — out of scope here, but the schema-drift check (Task 5) surfaces the related "binary behind DB" symptom.
-
-**As-built (T2 superseded):** adding a `diagnosis` field to `Check` breaks ~60 direct `Check { name, pass, detail }` struct literals across the doctor AND `--json` needs the codex/extended build — so the contract is instead a **structured `detail` tag**, zero-churn and feature-agnostic: failing checks emit
-`<root_cause> | FIX: <cmd> | [diag id=<id> sev=<info|warn|error> heal=<true|false>]`.
-Agents grep `[diag id=…]`. Ids live in `build_health::KNOWN_DIAGNOSIS_IDS` (test-enforced). Implemented in one module `checks_standard/build_health.rs` (toolchain identity, docker/WSL classifier, schema-drift via `LegacySchemaChain`, sccache guard reusing `doctor_build_cache::advise`, compile probe), registered in `checks_standard/mod.rs::run_checks`.
+| `crates/vox-cli/src/commands/ci/runner_scale.rs` + watchdog spawns | route through `quiet_command` |
 
 ---
 
@@ -307,25 +280,17 @@ fn flags_schema_drift() {
 
 - [ ] **Step 2: Run it, confirm FAIL** (`schema_drift` undefined).
 
-- [ ] **Step 2a (prerequisite, M1): add `db_schema_version` to vox-db** — it does NOT exist. In `crates/vox-db/src/schema/manifest.rs`:
-```rust
-pub fn db_schema_version(db: &std::path::Path) -> Option<i64> {
-    let conn = rusqlite::Connection::open_with_flags(db, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).ok()?;
-    conn.query_row("SELECT MAX(version) FROM schema_version", [], |r| r.get::<_, Option<i64>>(0)).ok().flatten()
-}
-```
-
-- [ ] **Step 3: Implement** — surface the exact `store/open.rs:117` condition as a real check (types are `i64`; baseline = `BASELINE_VERSION: i64 = 80` from `schema/manifest.rs:15`; path = `default_db_path()`):
+- [ ] **Step 3: Implement** — surface the exact `store/open.rs:117` condition as a real check:
 ```rust
 /// Some(detail) when the DB was migrated past what this binary understands.
-pub(crate) fn schema_drift(binary_baseline: i64, db_current: i64) -> Option<String> {
+pub(crate) fn schema_drift(binary_baseline: u32, db_current: u32) -> Option<String> {
     (db_current > binary_baseline).then(|| format!(
         "vox binary supports schema {binary_baseline} but the DB is at {db_current}"))
 }
 
 pub(crate) fn schema_health(checks: &mut Vec<Check>) {
-    let baseline = vox_db::schema::manifest::BASELINE_VERSION;
-    let Some(db_current) = vox_db::schema::manifest::db_schema_version(&vox_db::paths::default_db_path()) else { return };
+    let baseline = vox_db::schema::BASELINE_VERSION;
+    let Some(db_current) = vox_db::schema::db_schema_version(&vox_db::paths::canonical_db_path()) else { return };
     match schema_drift(baseline, db_current) {
         None => checks.push(Check::pass("vox: schema version", format!("binary {baseline} == db {db_current}"))),
         Some(detail) => checks.push(Check::fail("vox: schema drift", detail)
@@ -543,16 +508,5 @@ fn no_windowed_spawn_in_runner_scale() {
 - **Type consistency:** `Check`/`Diagnosis`/`Severity` defined in T2 and used unchanged in T3–T9; `with_diagnosis(id, severity, root_cause, remediation_command, auto_healable)` signature identical throughout.
 - **No per-build overhead:** every check is in on-demand `vox doctor`; the compile probe is the only multi-second step and runs only on full `vox doctor`.
 
-## Dependency graph & parallelization (I4)
-
-For `superpowers:subagent-driven-development`, parallel reads / sequential writes by shared file:
-
-- **Wave A (foundation, must land first):** T1 (`tracing.rs`), T2 (`common.rs` `Check`+`Diagnosis`), I1 `diagnoses.rs` registry, and M1's `db_schema_version` in `vox-db`. T2 + the registry gate everything that emits a `Diagnosis`.
-- **Wave B (parallel — but all write the SAME `build_health.rs`, so serialize *these* writes):** T3 toolchain, T4 docker/WSL, T5 schema, T6 sccache (reusing `doctor_build_cache::advise`), T7 compile-probe. Their *unit classifiers* can be authored in parallel by separate agents (pure fns, no shared state); the file assembly is one sequential commit.
-- **Wave C:** T8 register (depends on B), T9 heal (depends on the diagnosis ids from B).
-- **Wave D (fully independent of A–C):** T10 task XML + T11 spawn audit — can run in parallel with everything.
-
-Shared-file contention is the only real serializer: `build_health.rs` (B), `common.rs` (T2), `mod.rs` (T8). Everything else parallelizes.
-
 ## Verification (end-to-end)
-`vox doctor --json | jq '.[].diagnosis'` shows structured findings keyed by registered `DiagnosisId`; on a healthy machine all checks pass; force a break (`RUSTC_WRAPPER=false vox doctor`) → red compile-probe with `toolchain.compile_failed`; the scheduled tick's redirected output has zero ANSI bytes (`grep -c $'\x1b['` → 0); one tick spawns no console window. **Audit gate:** no nonexistent symbols (`db_schema_version` added, `BASELINE_VERSION` used as `i64`, `default_db_path` not `canonical_db_path`, `quiet_command`/`doctor_build_cache` reused not reimplemented).
+`vox doctor --json | jq '.[].diagnosis'` shows structured findings; on a healthy machine all checks pass; force a break (`RUSTC_WRAPPER=false vox doctor`) → red compile-probe with `toolchain.compile_failed`; the scheduled tick's redirected output has zero ANSI bytes; one tick spawns no console window.

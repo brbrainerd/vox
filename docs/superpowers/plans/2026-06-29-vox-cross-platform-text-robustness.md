@@ -1,27 +1,30 @@
-# Vox Cross-Platform Text Robustness Implementation Plan
+# Vox Cross-Platform Text Robustness Implementation Plan (v2, audited)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make `.vox` files authored on any OS compile and run identically — no manual CRLF/BOM/UTF-8/console fixes — by adding one pure normalization helper wired at two seams, plus a Windows console UTF-8 init.
+**Goal:** Make `.vox` files compile and run identically on every OS — no manual CRLF/BOM/UTF-8/console fixes — across **both** execution backends (native codegen + interpreter), via one pure normalization rule routed through the runtime SSOT.
 
-**Architecture:** A single pure `normalize_text` (strip leading BOM + CRLF/CR→LF) lives in `vox-bounded-fs` and is reused at (1) the compiler's source-string entry and (2) the runtime text-read builtin. Reads normalize; writes preserve bytes exactly; `read_bytes` is the byte-exact escape hatch. The Windows console is forced to UTF-8 once on first `print`.
+**Architecture:** A pure `normalize_text` (BOM strip + CRLF/CR→LF) lives in `vox-bounded-fs`. The native read path is fixed in its single SSOT (`vox_actor_runtime::builtins::vox_fs_read` + a new `vox_fs_read_bytes`); the interpreter applies the same rule inline; a parity test locks them together. Source normalization happens in `lexer::lex()`. The Windows console code page is set once in `vox-cli` (per-console, inherited by the spawned native child).
 
-**Tech Stack:** Rust, `cargo test -p <crate>`. Windows console via a tiny `extern "system"` FFI (no new dependency). No global text config — opinionated defaults only.
+**Tech Stack:** Rust (edition 2024 — `unsafe extern` required; `unsafe_code = "warn"` workspace lint → annotate FFI with `#[allow(unsafe_code)]`). `windows-sys` is already a workspace dep. `cargo test -p <crate>`.
 
 **Spec:** `docs/superpowers/specs/2026-06-29-vox-cross-platform-text-robustness-design.md`
 
-**Refinement vs spec:** Seam 1 is applied in `run_frontend_str_with_options` (pipeline.rs:110), not the file-read line (pipeline.rs:99). This covers file reads *and* in-memory sources (stdin/MCP/tests/embedded) and is synchronously testable.
+**Verified codebase facts (from adversarial audit — do not re-litigate):**
+- Lexer already tolerates CRLF/BOM (newline regex `\n|\r\n`; bare `\r`/BOM skipped; indentation non-significant). Seam S fixes **string-literal values + spans**, not "won't compile".
+- `vox run` defaults to **native codegen**; `builtins.rs` is the `--interp` path. Both need fixing.
+- Native `fs.read` already calls `vox_actor_runtime::builtins::vox_fs_read` ([builtin_registry.rs:880](../../../crates/vox-compiler/src/builtin_registry.rs)). Native `read_bytes` inlines `::std::fs::read` → `Vec<u8>` while the signature is `(str)->Result[str,str]` ([builtin_registry.rs:923, 572](../../../crates/vox-compiler/src/builtin_registry.rs)) — a **pre-existing type-mismatch bug** this plan fixes.
+- `call_builtin_method(.., caps=None)` **allows** fs access; `VoxValue::Result` is `Result<Box<VoxValue>, Box<VoxValue>>`; no `Bytes` variant exists (all verified).
+- Dep direction `vox-compiler → vox-actor-runtime` is acyclic (runtime does not depend on compiler), but we avoid that heavy edge — both crates depend on the leaf `vox-bounded-fs` for the shared rule instead.
 
-**Windows-gating note:** Tasks 1–3 and 5 are OS-neutral and run on any platform. Task 4 (console) is `cfg(windows)`; its automated test only proves the call is idempotent and panic-free — the meaningful check is a manual emoji smoke test on Windows (called out in the task).
-
-**Cargo discipline (from project memory):** never `cargo fmt --all` (use `cargo fmt -p <crate>`); never pipe `cargo` to `head`/`grep` (redirect to a file if needed).
+**Cargo discipline (project memory):** never `cargo fmt --all` (use `cargo fmt -p <crate>`); never pipe `cargo` to `head`/`grep` (redirect to a file).
 
 ---
 
 ### Task 1: `normalize_text` pure helper in `vox-bounded-fs`
 
 **Files:**
-- Modify: `crates/vox-bounded-fs/src/lib.rs` (add `pub fn normalize_text` after `read_utf8_path_capped`, ~line 35; add tests in the existing `#[cfg(test)] mod tests` at line 58)
+- Modify: `crates/vox-bounded-fs/src/lib.rs` (add `pub fn normalize_text` after line 35; tests in the existing `mod tests` at line 58)
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -32,31 +35,30 @@ Add to `mod tests` in `crates/vox-bounded-fs/src/lib.rs`:
 fn normalize_strips_leading_bom() {
     assert_eq!(normalize_text("\u{feff}hello".to_string()), "hello");
 }
-
 #[test]
 fn normalize_crlf_to_lf() {
     assert_eq!(normalize_text("a\r\nb\r\n".to_string()), "a\nb\n");
 }
-
 #[test]
 fn normalize_lone_cr_to_lf() {
     assert_eq!(normalize_text("a\rb".to_string()), "a\nb");
 }
-
 #[test]
 fn normalize_bom_and_crlf_together() {
     assert_eq!(normalize_text("\u{feff}x\r\ny".to_string()), "x\ny");
 }
-
 #[test]
 fn normalize_clean_string_is_noop() {
     assert_eq!(normalize_text("a\nb\n".to_string()), "a\nb\n");
 }
-
 #[test]
 fn normalize_only_leading_bom_not_interior() {
-    // A BOM mid-string is a real ZWNBSP and must be preserved.
     assert_eq!(normalize_text("a\u{feff}b".to_string()), "a\u{feff}b");
+}
+#[test]
+fn normalize_is_idempotent() {
+    let once = normalize_text("\u{feff}a\r\nb\rc".to_string());
+    assert_eq!(normalize_text(once.clone()), once);
 }
 ```
 
@@ -70,10 +72,10 @@ Expected: FAIL — `cannot find function 'normalize_text'`.
 Add after `read_utf8_path_capped` (after line 35) in `crates/vox-bounded-fs/src/lib.rs`:
 
 ```rust
-/// Normalize source/text bytes for cross-platform consistency:
-/// strip a single leading UTF-8 BOM and convert CRLF/CR line endings to LF.
-/// Pure and allocation-light (returns input unchanged when already clean).
-/// Reused at the compiler source-string entry and the runtime text-read seam.
+/// Normalize source/text bytes for cross-platform consistency: strip one
+/// leading UTF-8 BOM and convert CRLF/CR line endings to LF. Pure, idempotent,
+/// and allocation-light (returns input unchanged when already clean). Shared by
+/// the compiler lexer and the runtime text-read functions.
 #[must_use]
 pub fn normalize_text(s: String) -> String {
     let s = match s.strip_prefix('\u{feff}') {
@@ -83,7 +85,6 @@ pub fn normalize_text(s: String) -> String {
     if !s.contains('\r') {
         return s;
     }
-    // Convert CRLF and lone CR to LF in one pass.
     let mut out = String::with_capacity(s.len());
     let mut chars = s.chars().peekable();
     while let Some(c) = chars.next() {
@@ -103,7 +104,7 @@ pub fn normalize_text(s: String) -> String {
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `cargo test -p vox-bounded-fs normalize`
-Expected: PASS (6 tests).
+Expected: PASS (7 tests).
 
 - [ ] **Step 5: Commit**
 
@@ -114,90 +115,150 @@ git commit -m "feat(bounded-fs): add normalize_text (BOM strip + CRLF/CR->LF)"
 
 ---
 
-### Task 2: Seam 1 — compiler tolerates BOM/CRLF source
+### Task 2: Native SSOT — `vox_fs_read` normalizes; add `vox_fs_read_bytes` (+ fix codegen bug)
 
 **Files:**
-- Modify: `crates/vox-cli/src/pipeline.rs:110` (`run_frontend_str_with_options` — normalize the incoming source before lexing)
-- Verify dep: `crates/vox-cli/Cargo.toml` already depends on `vox-bounded-fs` (it calls `read_utf8_path_capped`), so no new dependency.
+- Modify: `crates/vox-actor-runtime/Cargo.toml` (add `vox-bounded-fs` dep)
+- Modify: `crates/vox-actor-runtime/src/builtins/mod.rs` (`vox_fs_read` ~line 1724; add `vox_fs_read_bytes`)
+- Modify: `crates/vox-compiler/src/builtin_registry.rs:923-926` (repoint native `read_bytes` codegen)
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Add the dependency**
 
-Add a test module at the end of `crates/vox-cli/src/pipeline.rs`:
+In `crates/vox-actor-runtime/Cargo.toml` under `[dependencies]`:
+
+```toml
+vox-bounded-fs = { workspace = true }
+```
+
+(If the workspace doesn't define it, use `vox-bounded-fs = { path = "../vox-bounded-fs" }`.)
+
+- [ ] **Step 2: Write the failing tests**
+
+Add a test module to `crates/vox-actor-runtime/src/builtins/mod.rs` (end of file):
 
 ```rust
 #[cfg(test)]
-mod text_robustness_tests {
+mod fs_text_robustness_tests {
     use super::*;
-    use std::path::Path;
 
-    /// A BOM + CRLF source must compile identically to its clean LF twin.
-    /// Without Seam 1 the lexer breaks on `\r` (newlines are significant).
     #[test]
-    fn bom_crlf_source_compiles() {
-        let dirty = "\u{feff}let x = 1\r\nlet y = 2\r\n".to_string();
-        let res = run_frontend_str(&dirty, Path::new("t.vox"), false);
-        assert!(res.is_ok(), "BOM+CRLF source failed to compile: {res:?}");
+    fn vox_fs_read_normalizes_bom_and_crlf() {
+        let dir = std::env::temp_dir().join("vox_rt_read_norm");
+        std::fs::create_dir_all(&dir).unwrap();
+        let p = dir.join("a.txt");
+        std::fs::write(&p, b"\xEF\xBB\xBFa\r\nb\r\n").unwrap();
+        assert_eq!(vox_fs_read(p.to_str().unwrap()).unwrap(), "a\nb\n");
+    }
+
+    #[test]
+    fn vox_fs_read_bytes_is_byte_exact() {
+        let dir = std::env::temp_dir().join("vox_rt_read_raw");
+        std::fs::create_dir_all(&dir).unwrap();
+        let p = dir.join("b.txt");
+        std::fs::write(&p, b"\xEF\xBB\xBFa\r\nb\r\n").unwrap();
+        assert_eq!(vox_fs_read_bytes(p.to_str().unwrap()).unwrap(), "\u{feff}a\r\nb\r\n");
+    }
+
+    #[test]
+    fn vox_fs_read_bytes_errors_on_non_utf8() {
+        let dir = std::env::temp_dir().join("vox_rt_read_badutf8");
+        std::fs::create_dir_all(&dir).unwrap();
+        let p = dir.join("c.bin");
+        std::fs::write(&p, [0xFF, 0xFE, 0x00]).unwrap();
+        assert!(vox_fs_read_bytes(p.to_str().unwrap()).is_err());
     }
 }
 ```
 
-(If `run_frontend_str` requires valid Vox syntax different from the above, use the smallest valid program for this codebase — e.g. whatever a known-good fixture uses — but keep the `\u{feff}` prefix and `\r\n` endings.)
+- [ ] **Step 3: Run tests to verify they fail**
 
-- [ ] **Step 2: Run test to verify it fails**
+Run: `cargo test -p vox-actor-runtime fs_text_robustness`
+Expected: FAIL — `vox_fs_read` returns un-normalized bytes; `vox_fs_read_bytes` does not exist.
 
-Run: `cargo test -p vox-cli bom_crlf_source_compiles`
-Expected: FAIL — lexer error from the stray `\r` / BOM.
+- [ ] **Step 4: Normalize `vox_fs_read` and add `vox_fs_read_bytes`**
 
-- [ ] **Step 3: Normalize at the source-string entry**
-
-In `crates/vox-cli/src/pipeline.rs`, at the top of `run_frontend_str_with_options` (line 110), before the source is used:
+In `crates/vox-actor-runtime/src/builtins/mod.rs`, change `vox_fs_read` (~line 1724) from:
 
 ```rust
-pub fn run_frontend_str_with_options(
-    source: &str,
-    file: &Path,
-    json: bool,
-    options: &PipelineOptions,
-) -> Result<FrontendResult> {
-    // Seam 1: every source string (file read, stdin, MCP, embedded, tests)
-    // is BOM-free and LF-only before it reaches the lexer.
-    let normalized = vox_bounded_fs::normalize_text(source.to_owned());
-    let source = normalized.as_str();
-    // ...existing body continues, now using the normalized `source`...
+pub fn vox_fs_read(path: &str) -> Result<String, String> {
+    std::fs::read_to_string(path).map_err(|e| e.to_string())
+}
 ```
 
-Ensure the rest of the function body references this shadowed `source`.
+to:
 
-- [ ] **Step 4: Run test to verify it passes**
+```rust
+pub fn vox_fs_read(path: &str) -> Result<String, String> {
+    // Universal-newlines read: strip BOM, CRLF/CR -> LF. Byte-exact round-trips
+    // use `vox_fs_read_bytes`.
+    std::fs::read_to_string(path)
+        .map(vox_bounded_fs::normalize_text)
+        .map_err(|e| e.to_string())
+}
 
-Run: `cargo test -p vox-cli bom_crlf_source_compiles`
-Expected: PASS.
+/// Byte-exact text read (`std.fs.read_bytes`): preserves BOM/CR. Vox has no
+/// Bytes value, so a non-UTF-8 file surfaces as an error rather than corruption
+/// (do NOT use `from_utf8_lossy`).
+pub fn vox_fs_read_bytes(path: &str) -> Result<String, String> {
+    let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
+    String::from_utf8(bytes).map_err(|e| format!("read_bytes: {path}: invalid UTF-8: {e}"))
+}
+```
 
-- [ ] **Step 5: Run the broader pipeline suite for regressions**
+- [ ] **Step 5: Repoint native codegen for `read_bytes`**
 
-Run: `cargo test -p vox-cli`
-Expected: PASS (no regressions from the normalization).
+In `crates/vox-compiler/src/builtin_registry.rs`, replace lines 923-926:
 
-- [ ] **Step 6: Commit**
+```rust
+("fs", "read_bytes") if !args.is_empty() => Some(format!(
+    "::std::fs::read({}).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)",
+    args[0]
+)),
+```
+
+with (mirrors the `vox_fs_read` emit at line 880, fixing the `Vec<u8>` vs `String` mismatch):
+
+```rust
+("fs", "read_bytes") if !args.is_empty() => Some(format!(
+    "::vox_actor_runtime::builtins::vox_fs_read_bytes(({}).as_str())",
+    args[0]
+)),
+```
+
+- [ ] **Step 6: Run tests to verify they pass**
+
+Run: `cargo test -p vox-actor-runtime fs_text_robustness`
+Expected: PASS (3 tests).
+Run: `cargo build -p vox-compiler`
+Expected: builds (codegen string change is syntactically valid).
+
+- [ ] **Step 7: Commit**
 
 ```bash
-git add crates/vox-cli/src/pipeline.rs
-git commit -m "feat(pipeline): normalize BOM/CRLF at source entry (Seam 1)"
+git add crates/vox-actor-runtime/Cargo.toml crates/vox-actor-runtime/src/builtins/mod.rs crates/vox-compiler/src/builtin_registry.rs
+git commit -m "feat(runtime): vox_fs_read normalizes; add byte-exact vox_fs_read_bytes (+fix native codegen type mismatch)"
 ```
 
 ---
 
-### Task 3: Seam 2 + Seam 4 — runtime read normalizes; `read_bytes` is byte-exact
+### Task 3: Interpreter parity — `fs.read` normalize; `read_bytes` strict UTF-8
 
 **Files:**
-- Modify: `crates/vox-compiler/src/eval/builtins.rs:979` (`fs.read`/`read_file`/`read_to_string` — normalize result)
-- Modify: `crates/vox-compiler/src/eval/builtins.rs:992-994` (`fs.read_bytes` — stop using `from_utf8_lossy`)
-- Verify dep: `crates/vox-compiler/Cargo.toml` must depend on `vox-bounded-fs`. If absent, add `vox-bounded-fs = { path = "../vox-bounded-fs" }` under `[dependencies]`.
-- Test: new `#[cfg(test)]` module in the same file (mirror the existing `time_namespace_interp_tests` pattern at line 2655).
+- Modify: `crates/vox-compiler/Cargo.toml` (add `vox-bounded-fs` dep — shared with Task 4)
+- Modify: `crates/vox-compiler/src/eval/builtins.rs:979` (`fs.read`) and `:992-994` (`read_bytes`)
+- Test: new `#[cfg(test)]` module in the same file (mirrors `time_namespace_interp_tests` at line 2655; `caps=None` allows fs — verified)
 
-- [ ] **Step 1: Write the failing tests**
+- [ ] **Step 1: Add the dependency**
 
-Add a test module near the existing interp tests in `crates/vox-compiler/src/eval/builtins.rs`:
+In `crates/vox-compiler/Cargo.toml` under `[dependencies]`:
+
+```toml
+vox-bounded-fs = { workspace = true }
+```
+
+- [ ] **Step 2: Write the failing tests**
+
+Add to `crates/vox-compiler/src/eval/builtins.rs`:
 
 ```rust
 #[cfg(test)]
@@ -210,7 +271,6 @@ mod fs_text_robustness_tests {
             VoxValue::Str("fs".to_string()),
         )])
     }
-
     fn result_ok_str(v: Option<VoxValue>) -> String {
         match v {
             Some(VoxValue::Result(Ok(boxed))) => match *boxed {
@@ -221,49 +281,57 @@ mod fs_text_robustness_tests {
         }
     }
 
-    /// `fs.read` strips BOM and normalizes CRLF/CR -> LF (universal newlines).
     #[test]
-    fn fs_read_normalizes_bom_and_crlf() {
-        let dir = std::env::temp_dir().join("vox_fs_read_norm");
+    fn interp_fs_read_normalizes() {
+        let dir = std::env::temp_dir().join("vox_interp_read_norm");
         std::fs::create_dir_all(&dir).unwrap();
         let p = dir.join("a.txt");
         std::fs::write(&p, b"\xEF\xBB\xBFa\r\nb\r\n").unwrap();
         let got = result_ok_str(call_builtin_method(
-            &fs_namespace(),
-            "read",
-            vec![VoxValue::Str(p.to_string_lossy().to_string())],
-            None,
+            &fs_namespace(), "read",
+            vec![VoxValue::Str(p.to_string_lossy().to_string())], None,
         ));
         assert_eq!(got, "a\nb\n");
     }
 
-    /// `fs.read_bytes` preserves the exact bytes (BOM + CR intact) — the
-    /// byte-exact escape hatch for round-trip-faithful work.
     #[test]
-    fn fs_read_bytes_is_byte_exact() {
-        let dir = std::env::temp_dir().join("vox_fs_read_raw");
+    fn interp_fs_read_bytes_is_byte_exact() {
+        let dir = std::env::temp_dir().join("vox_interp_read_raw");
         std::fs::create_dir_all(&dir).unwrap();
         let p = dir.join("b.txt");
         std::fs::write(&p, b"\xEF\xBB\xBFa\r\nb\r\n").unwrap();
         let got = result_ok_str(call_builtin_method(
-            &fs_namespace(),
-            "read_bytes",
-            vec![VoxValue::Str(p.to_string_lossy().to_string())],
-            None,
+            &fs_namespace(), "read_bytes",
+            vec![VoxValue::Str(p.to_string_lossy().to_string())], None,
         ));
         assert_eq!(got, "\u{feff}a\r\nb\r\n");
+    }
+
+    #[test]
+    fn interp_fs_write_preserves_no_cr_inserted() {
+        let dir = std::env::temp_dir().join("vox_interp_write_preserve");
+        std::fs::create_dir_all(&dir).unwrap();
+        let p = dir.join("c.txt");
+        let _ = call_builtin_method(
+            &fs_namespace(), "write",
+            vec![
+                VoxValue::Str(p.to_string_lossy().to_string()),
+                VoxValue::Str("x\ny\n".to_string()),
+            ], None,
+        );
+        assert_eq!(std::fs::read(&p).unwrap(), b"x\ny\n");
     }
 }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [ ] **Step 3: Run tests to verify they fail**
 
 Run: `cargo test -p vox-compiler fs_text_robustness`
-Expected: FAIL — `fs.read` returns `"\u{feff}a\r\nb\r\n"` (not normalized); both assertions fail.
+Expected: FAIL — `interp_fs_read_normalizes` (returns `"\u{feff}a\r\nb\r\n"`). (`write` test already passes; `read_bytes` test passes today by luck since BOM/CR are valid UTF-8 — it locks the contract.)
 
-- [ ] **Step 3: Normalize `fs.read` and make `read_bytes` exact**
+- [ ] **Step 4: Normalize `fs.read`; make `read_bytes` strict**
 
-In `crates/vox-compiler/src/eval/builtins.rs`, change the `fs.read` impl (line 979) from:
+In `crates/vox-compiler/src/eval/builtins.rs`, change `fs.read` (line 979) from:
 
 ```rust
 let res = match std::fs::read_to_string(path) {
@@ -272,18 +340,16 @@ let res = match std::fs::read_to_string(path) {
 };
 ```
 
-to:
+to (same rule as native `vox_fs_read`):
 
 ```rust
-// Seam 2: universal-newlines read — strip BOM, CRLF/CR -> LF.
-// Byte-exact round-trips go through `read_bytes`.
 let res = match std::fs::read_to_string(path) {
     Ok(s) => Ok(Box::new(VoxValue::Str(vox_bounded_fs::normalize_text(s)))),
     Err(e) => Err(e.to_string()),
 };
 ```
 
-Change the `read_bytes` impl (lines 992-994) from:
+Change `read_bytes` (lines 992-994) from:
 
 ```rust
 let res = match std::fs::read(&path) {
@@ -297,10 +363,7 @@ let res = match std::fs::read(&path) {
 to:
 
 ```rust
-// Seam 4: byte-exact escape hatch. Preserve BOM/CR; do NOT use
-// from_utf8_lossy (it silently mangles). Vox has no Bytes value, so a
-// non-UTF-8 file surfaces as an explicit error rather than corruption.
-// (True arbitrary-binary support is a separate VoxValue::Bytes feature — out of scope.)
+// Byte-exact escape hatch: preserve BOM/CR; error on non-UTF-8 (no Bytes value).
 let res = match std::fs::read(&path) {
     Ok(bytes) => match String::from_utf8(bytes) {
         Ok(s) => Ok(Box::new(VoxValue::Str(s))),
@@ -310,40 +373,7 @@ let res = match std::fs::read(&path) {
 };
 ```
 
-If the dep was missing, add to `crates/vox-compiler/Cargo.toml` under `[dependencies]`:
-
-```toml
-vox-bounded-fs = { path = "../vox-bounded-fs" }
-```
-
-- [ ] **Step 4: Run tests to verify they pass**
-
-Run: `cargo test -p vox-compiler fs_text_robustness`
-Expected: PASS (2 tests).
-
-- [ ] **Step 5: Confirm write-preserve (no code change, guard test)**
-
-`fs.write` (line 1022) already passes content through unchanged — preserve-on-write is the existing behavior, so no edit. Add a guard test to the same module to lock it in:
-
-```rust
-#[test]
-fn fs_write_preserves_lf_no_cr_inserted() {
-    let dir = std::env::temp_dir().join("vox_fs_write_preserve");
-    std::fs::create_dir_all(&dir).unwrap();
-    let p = dir.join("c.txt");
-    let _ = call_builtin_method(
-        &fs_namespace(),
-        "write",
-        vec![
-            VoxValue::Str(p.to_string_lossy().to_string()),
-            VoxValue::Str("x\ny\n".to_string()),
-        ],
-        None,
-    );
-    let raw = std::fs::read(&p).unwrap();
-    assert_eq!(raw, b"x\ny\n", "write must not insert CR or alter newlines");
-}
-```
+- [ ] **Step 5: Run tests to verify they pass**
 
 Run: `cargo test -p vox-compiler fs_text_robustness`
 Expected: PASS (3 tests).
@@ -351,128 +381,232 @@ Expected: PASS (3 tests).
 - [ ] **Step 6: Commit**
 
 ```bash
-git add crates/vox-compiler/src/eval/builtins.rs crates/vox-compiler/Cargo.toml
-git commit -m "feat(runtime): normalize fs.read; byte-exact read_bytes (Seam 2+4)"
+git add crates/vox-compiler/Cargo.toml crates/vox-compiler/src/eval/builtins.rs
+git commit -m "feat(interp): fs.read normalize + byte-exact read_bytes (native parity)"
 ```
 
 ---
 
-### Task 4: Seam 3 — Windows console UTF-8 on first `print`
+### Task 4: Seam S — normalize source in `lexer::lex()` (string-literal/span determinism)
 
 **Files:**
-- Modify: `crates/vox-compiler/src/eval/builtins.rs` (add `init_console_utf8` helper near the top, ~after line 67; call it in `print` at line 2357)
+- Modify: `crates/vox-compiler/src/lexer/cursor.rs:20` (`lex` — normalize before tokenizing; leave `lex_preserving` raw)
 
-- [ ] **Step 1: Write the idempotency test**
+- [ ] **Step 1: Write the failing tests**
 
-Add to `crates/vox-compiler/src/eval/builtins.rs` (can go in the `fs_text_robustness_tests` module or its own):
+Add to the `cursor.rs` test module (or create `#[cfg(test)] mod text_norm_tests`):
 
 ```rust
 #[test]
-fn console_init_is_idempotent_and_safe() {
-    // Must not panic, and must be safe to call repeatedly (guarded by Once).
-    // On non-Windows this is a no-op. The real emoji-rendering check is a
-    // manual Windows smoke test (see Step 5), not automatable in CI.
-    init_console_utf8();
-    init_console_utf8();
+fn lex_normalizes_crlf_and_bom_equivalently() {
+    let dirty = "\u{feff}let x = 1\r\nlet y = 2\r\n";
+    let clean = "let x = 1\nlet y = 2\n";
+    let td: Vec<_> = lex(dirty).into_iter().map(|s| s.token).collect();
+    let tc: Vec<_> = lex(clean).into_iter().map(|s| s.token).collect();
+    assert_eq!(td, tc, "CRLF+BOM source must lex to the same tokens as LF");
+}
+
+#[test]
+fn lex_normalizes_string_literal_contents() {
+    // A multi-line string literal authored with CRLF must carry LF, not \r.
+    let toks = lex("let s = \"a\r\nb\"");
+    let has_cr = toks.iter().any(|s| format!("{:?}", s.token).contains('\r'));
+    assert!(!has_cr, "string-literal token must not retain \\r");
+}
+
+#[test]
+fn lex_preserving_keeps_raw_cr() {
+    // The formatter relies on byte preservation — lex_preserving must NOT strip \r.
+    let toks = lex_preserving("let s = \"a\r\nb\"");
+    let has_cr = toks.iter().any(|s| format!("{:?}", s.token).contains('\r'));
+    assert!(has_cr, "lex_preserving must retain raw \\r for the formatter");
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+(If `Token`'s `Debug` does not surface the literal's bytes, adapt the assertion to the project's token-value accessor — but keep the LF-vs-CR distinction between `lex` and `lex_preserving`.)
 
-Run: `cargo test -p vox-compiler console_init_is_idempotent`
-Expected: FAIL — `cannot find function 'init_console_utf8'`.
+- [ ] **Step 2: Run tests to verify they fail**
 
-- [ ] **Step 3: Implement the console init**
+Run: `cargo test -p vox-compiler -- lex_normalizes`
+Expected: `lex_normalizes_string_literal_contents` FAILS (token retains `\r`); the token-equivalence test may already pass (newlines tokenize either way) — the string-literal test is the real guard.
 
-Add near the top of `crates/vox-compiler/src/eval/builtins.rs` (after `vox_flush_exit_commands`, ~line 67):
+- [ ] **Step 3: Normalize inside `lex` only**
+
+In `crates/vox-compiler/src/lexer/cursor.rs`, at the top of `lex` (line 20):
 
 ```rust
-/// Force the Windows console output code page to UTF-8 so `print` renders
-/// Unicode/emoji instead of mojibake. Idempotent (guarded by `Once`); a no-op
-/// on non-Windows and a harmless no-op when stdout is redirected to a pipe/file
-/// (the bytes were already UTF-8). Called on first `print`.
-///
-// ponytail: SetConsoleOutputCP(CP_UTF8) covers redirect + the common console
-// case. Full supplementary-plane emoji glyph correctness needs WriteConsoleW
-// (both surrogate halves in one call) — deferred; upgrade path is to route
-// `print` through a console writer if a real glyph-rendering bug appears.
-pub fn init_console_utf8() {
-    use std::sync::Once;
-    static INIT: Once = Once::new();
-    INIT.call_once(|| {
-        #[cfg(windows)]
-        {
-            const CP_UTF8: u32 = 65001;
-            extern "system" {
-                fn SetConsoleOutputCP(wCodePageID: u32) -> i32;
-            }
-            // Safe: a single FFI call with a constant; failure (no console
-            // attached) is ignored on purpose.
-            unsafe {
-                let _ = SetConsoleOutputCP(CP_UTF8);
-            }
-        }
-    });
-}
+pub fn lex(source: &str) -> Vec<Spanned> {
+    // Seam S: BOM-free, LF-only source so string-literal values and spans are
+    // platform-independent. lex_preserving stays raw (formatter byte contract).
+    let normalized = vox_bounded_fs::normalize_text(source.to_owned());
+    let source = normalized.as_str();
+    // ...existing body, now using the normalized `source`...
 ```
 
-Then in `print` (line 2357), call it before writing:
+Leave `lex_preserving` (line 43) unchanged.
 
-```rust
-"print" => {
-    init_console_utf8();
-    let msg = args
-        .iter()
-        .map(vox_value_display)
-        .collect::<Vec<_>>()
-        .join(" ");
-    println!("{msg}");
-    Some(VoxValue::Null)
-}
-```
+- [ ] **Step 4: Run tests to verify they pass**
 
-- [ ] **Step 4: Run test to verify it passes**
+Run: `cargo test -p vox-compiler -- lex_normalizes lex_preserving`
+Expected: PASS (3 tests).
 
-Run: `cargo test -p vox-compiler console_init_is_idempotent`
-Expected: PASS.
+- [ ] **Step 5: Run the lexer + formatter suites for regressions**
 
-- [ ] **Step 5: Manual Windows smoke test (the real verification)**
-
-On a Windows machine, create `emoji.vox` containing a print of a non-ASCII string + emoji (e.g. `print("café 🚀")`) and run it via `vox run emoji.vox` in Windows Terminal.
-Expected: `café 🚀` renders correctly (not `cafÃ© ??`). Note: legacy `conhost` with a non-emoji font may still box-glyph the emoji — Windows Terminal is the supported target. Record the result in the PR description.
+Run: `cargo test -p vox-compiler lexer` then `cargo test -p vox-compiler fmt`
+Expected: PASS (normalization must not disturb existing lexer/formatter goldens; if a formatter golden changes, that's a real signal — investigate, do not blindly accept).
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add crates/vox-compiler/src/eval/builtins.rs
-git commit -m "feat(runtime): force Windows console UTF-8 on first print (Seam 3)"
+git add crates/vox-compiler/src/lexer/cursor.rs
+git commit -m "feat(lexer): normalize BOM/CRLF in lex() for platform-independent literals/spans"
 ```
 
 ---
 
-### Task 5: Born-correct hygiene — `.gitattributes` + `.editorconfig`
+### Task 5: Seam C — Windows console UTF-8, set once in `vox-cli`
 
 **Files:**
-- Create or verify: `.gitattributes` (repo root)
-- Create or verify: `.editorconfig` (repo root)
+- Modify: `crates/vox-actor-runtime/Cargo.toml` (windows-sys with Console feature, cfg(windows))
+- Modify: `crates/vox-actor-runtime/src/builtins/mod.rs` (add `vox_console_init_utf8`)
+- Modify: `crates/vox-cli/src/main.rs` (call it first in `main`)
+- (Secondary) Modify: vox-codegen script `main` preamble (emit the same call)
 
-- [ ] **Step 1: Check whether they already exist**
+- [ ] **Step 1: Add the dependency**
+
+In `crates/vox-actor-runtime/Cargo.toml`:
+
+```toml
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true, features = ["Win32_System_Console"] }
+```
+
+- [ ] **Step 2: Write the idempotency test**
+
+Add to the `fs_text_robustness_tests` module (or its own) in `crates/vox-actor-runtime/src/builtins/mod.rs`:
+
+```rust
+#[test]
+fn console_init_is_idempotent_and_safe() {
+    // No panic; safe to call repeatedly (Once-guarded). No-op off Windows.
+    // The real emoji-rendering check is the manual Windows smoke test (Step 5).
+    vox_console_init_utf8();
+    vox_console_init_utf8();
+}
+```
+
+- [ ] **Step 3: Run test to verify it fails**
+
+Run: `cargo test -p vox-actor-runtime console_init_is_idempotent`
+Expected: FAIL — `cannot find function 'vox_console_init_utf8'`.
+
+- [ ] **Step 4: Implement `vox_console_init_utf8`**
+
+Add to `crates/vox-actor-runtime/src/builtins/mod.rs`:
+
+```rust
+/// Force the Windows console output code page to UTF-8 so program output renders
+/// Unicode/emoji instead of mojibake. The code page is a property of the console
+/// (inherited by child processes), so one call from the `vox run` entry covers
+/// both the interpreter and the spawned native binary. Idempotent; no-op off
+/// Windows and a harmless no-op when stdout is redirected (bytes were UTF-8).
+//
+// ponytail: SetConsoleOutputCP covers redirect + the common console case. Full
+// supplementary-plane emoji glyph correctness needs WriteConsoleW (both
+// surrogate halves in one call) — deferred; upgrade path is a console writer.
+#[cfg_attr(windows, allow(unsafe_code))]
+pub fn vox_console_init_utf8() {
+    #[cfg(windows)]
+    {
+        use std::sync::Once;
+        static INIT: Once = Once::new();
+        INIT.call_once(|| {
+            const CP_UTF8: u32 = 65001;
+            // SAFETY: single FFI call with a constant code page; ignore failure
+            // (e.g. no console attached / output redirected).
+            unsafe {
+                let _ = windows_sys::Win32::System::Console::SetConsoleOutputCP(CP_UTF8);
+            }
+        });
+    }
+}
+```
+
+- [ ] **Step 5: Run test to verify it passes**
+
+Run: `cargo test -p vox-actor-runtime console_init_is_idempotent`
+Expected: PASS.
+
+- [ ] **Step 6: Call it once at `vox-cli` startup**
+
+Confirm vox-cli depends on vox-actor-runtime: `grep -n actor-runtime crates/vox-cli/Cargo.toml` (expected: present). Then in `crates/vox-cli/src/main.rs`, as the **first statement** of `main` (find with `grep -n "fn main" crates/vox-cli/src/main.rs`):
+
+```rust
+// Render Unicode/emoji correctly on the Windows console for both `--interp`
+// (this process) and the spawned native binary (shared console code page).
+::vox_actor_runtime::builtins::vox_console_init_utf8();
+```
+
+- [ ] **Step 7: Build + manual Windows smoke test (the real verification)**
+
+Run: `cargo build -p vox-cli`
+Then on Windows, in Windows Terminal: create `emoji.vox` with `print("café 🚀")` and run `vox run emoji.vox` (and also `vox run --interp emoji.vox`).
+Expected: `café 🚀` renders (not `cafÃ© ??`). Legacy `conhost` with a non-emoji font may still box-glyph the emoji — Windows Terminal is the supported target. Record the result in the PR description.
+
+- [ ] **Step 8 (secondary): standalone binaries**
+
+So that a `vox build` binary run *without* `vox-cli` is also correct, emit `::vox_actor_runtime::builtins::vox_console_init_utf8();` as the first statement of the generated `main()`. Find the script-main template: `grep -rn "fn main" crates/vox-codegen/src | grep -i script` (the preamble generator, per audit: `vox-codegen` `generate_script`). Add a focused codegen test asserting the emitted source contains `vox_console_init_utf8`. If the generator is non-obvious, leave a `ponytail:` TODO referencing this step rather than guessing — `vox run` is already covered by Step 6.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add crates/vox-actor-runtime/Cargo.toml crates/vox-actor-runtime/src/builtins/mod.rs crates/vox-cli/src/main.rs
+git commit -m "feat(cli): force Windows console UTF-8 once at startup (covers interp + native child)"
+```
+
+---
+
+### Task 6: Backend parity gate
+
+**Files:**
+- Use: existing parity harness (`crates/vox-integration-tests/tests/greaterfool_parity_gates_test.rs` and siblings)
+
+- [ ] **Step 1: Run the existing parity + pipeline suites**
+
+Run: `cargo test -p vox-integration-tests` (redirect to a file if output is large: `cargo test -p vox-integration-tests > parity.txt 2>&1`)
+Expected: PASS. The read/read_bytes changes touch both backends through the same rule; this gate confirms interp and native still agree. Any snapshot that legitimately changed (e.g. the previously-broken native `read_bytes` emit) should be reviewed and accepted with `cargo insta review` if the project uses insta.
+
+- [ ] **Step 2 (if a fixture is warranted): add a CRLF round-trip fixture**
+
+If the parity harness supports adding a `.vox` fixture, add one that reads a CRLF+BOM temp file and prints its length / first line, exercised under both backends, asserting identical output. Follow the harness's existing fixture pattern exactly — do not invent a new harness. If the harness can't easily host file-I/O fixtures, the unit tests in Tasks 2–3 (same rule on both backends) plus Step 1 are sufficient; note that here rather than fabricating a fixture.
+
+- [ ] **Step 3: Commit (if anything changed)**
+
+```bash
+git add -A
+git commit -m "test: backend parity gate for cross-platform text reads"
+```
+
+---
+
+### Task 7: Born-correct hygiene — `.gitattributes` + `.editorconfig`
+
+**Files:**
+- Create or verify: `.gitattributes`, `.editorconfig` (repo root)
+
+- [ ] **Step 1: Check what exists**
 
 Run: `git ls-files .gitattributes .editorconfig`
-Expected: lists any that exist. If both already enforce LF + UTF-8 for `.vox`, skip to Step 4 and note "already present".
+If both already enforce LF + UTF-8 for `.vox`, note "already present" and skip to Step 4.
 
-- [ ] **Step 2: Ensure `.gitattributes` enforces LF for `.vox`**
-
-Ensure `.gitattributes` contains (append if the file exists, create if not):
+- [ ] **Step 2: `.gitattributes`** — ensure it contains (append/create):
 
 ```gitattributes
 # Vox sources are LF-only, UTF-8, no BOM — checked in normalized.
 *.vox text eol=lf
 ```
 
-- [ ] **Step 3: Ensure `.editorconfig` sets UTF-8 + LF**
-
-Ensure `.editorconfig` contains (append a `[*.vox]` section if the file exists, create with a root block if not):
+- [ ] **Step 3: `.editorconfig`** — ensure (append a `[*.vox]` section, or create with a root block):
 
 ```editorconfig
 root = true
@@ -484,21 +618,22 @@ insert_final_newline = true
 trim_trailing_whitespace = true
 ```
 
-- [ ] **Step 4: Verify no churn and existing CI line-ending check still passes**
+- [ ] **Step 4: Verify no mass churn**
 
 Run: `git diff --stat`
-Expected: only `.gitattributes` / `.editorconfig` changed (no mass re-normalization — repo is already LF per the existing `vox-cli-ci` check).
+Expected: only `.gitattributes` / `.editorconfig` changed (repo is already LF per the `vox-cli-ci` check; no re-normalization storm).
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add .gitattributes .editorconfig
-git commit -m "chore: born-correct LF/UTF-8 hygiene for .vox (gitattributes + editorconfig)"
+git commit -m "chore: born-correct LF/UTF-8 hygiene for .vox"
 ```
 
 ---
 
 ## Notes for the implementer
 
-- **Existing CI checks stay as-is.** `crates/vox-cli-ci/src/line_endings.rs` (LF-only + no-BOM) keeps the repo tidy. It reads files via `read_utf8_path_capped` (raw, un-normalized) — do **not** route those checks through `normalize_text`, or they'd stop detecting violations. Normalization is applied only at the two seams in Tasks 2 and 3.
-- **Phase 2 (separate plan):** emitted/compiled binaries (codegen `main`) need the same `init_console_utf8` injected; the interpreter (`vox run`) is covered here. Also deferred per spec: legacy non-UTF-8 decoding (`encoding:` arg) and stdin normalization — build only when a concrete case appears.
+- **Do NOT route the CI checks through `normalize_text`.** `crates/vox-cli-ci/src/line_endings.rs` (LF-only + no-BOM) reads raw via `read_utf8_path_capped` and must keep seeing raw bytes, or it stops detecting violations. Normalization is applied only at the seams in Tasks 2–4.
+- **Order matters:** Task 1 (helper) → Task 2 (native, the default path) → Task 3 (interp parity) → Task 4 (source) → Task 5 (console) → Task 6 (parity gate) → Task 7 (hygiene). Each task is independently committable and leaves the tree green.
+- **Deferred (separate work, per spec §7):** a real `VoxValue::Bytes` type; legacy non-UTF-8 decoding (`encoding:` arg); stdin normalization; `WriteConsoleW` for supplementary-plane emoji glyphs.

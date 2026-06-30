@@ -140,27 +140,3 @@ existing `--json` consumers keep their fields).
   the distro name from the error, don't hardcode blindly).
 - **Auto-heal editing `~/.cargo/config.toml`**: only ever comments `rustc-wrapper` (never
   deletes user content); idempotent.
-
-## Audit corrections (2026-06-29, codebase-verified)
-
-An adversarial audit revised four design points (the plan carries the exact symbols):
-
-- **Reuse, don't reinvent.** `crates/vox-cli/src/commands/ci/doctor_build_cache.rs::advise(...)`
-  already gives sccache *setup* advice; the sccache layer calls it and adds only the new
-  runtime-health check (crash + hit-rate from `--show-stats`). `quiet_command` already exists
-  (`runner_scale.rs:226`) — Part 4 audits/reuses it, never reimplements `CREATE_NO_WINDOW`.
-- **Compile probe is configurable**, not a hard 30 s: `VOX_DOCTOR_COMPILE_TIMEOUT_SECS`
-  (default 30) to avoid false positives on slow/minimal VMs; cache the built probe at
-  `~/.vox/doctor-probe`. (Supersedes the "cache the temp dir, not `--quick`" risk note — no
-  `--quick` flag is introduced.)
-- **`Diagnosis` is a versioned, discoverable contract**, not an ad-hoc struct: a registered
-  `DiagnosisId` enum (`diagnoses.rs`) with a `schema_version`, surfaced via `vox doctor --json`,
-  so agents consume a stable machine contract. It stays in-memory `--json` only — **no new
-  `doctor_findings` table**; persistence, if ever needed, extends existing build telemetry
-  (`project_check.rs` / `ops_build`).
-- **Schema-drift remediation caveat:** "rebuild vox" only helps if the working tree actually
-  contains the newer migration; if the DB was bumped by a *different* branch's binary, the
-  honest diagnosis is "this DB is from a newer vox than your source" — the check states both.
-- **Freshness reality:** the `runner-*` freshness exemption was reverted (`run_body.rs:56` is
-  unconditional `enforce_for_ci`), so autoscaler-vs-freshness is unresolved and out of scope
-  here; this check only *surfaces* the related schema-drift symptom.
