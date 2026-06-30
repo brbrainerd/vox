@@ -412,7 +412,12 @@ pub(crate) async fn linker_health(checks: &mut Vec<Check>) {
     if !cfg!(target_os = "windows") {
         return;
     }
-    let ok = quiet("lld-link").arg("--version").output().await.map(|o| o.status.success()).unwrap_or(false);
+    let ok = quiet("lld-link")
+        .arg("--version")
+        .output()
+        .await
+        .map(|o| o.status.success())
+        .unwrap_or(false);
     checks.push(if ok {
         Check::pass("linker: lld-link", "present (fast Windows linker)")
     } else {
