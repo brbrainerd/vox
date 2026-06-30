@@ -4,9 +4,9 @@ schema_version: 1
 
 policy:
   # Integer stored in DB `schema_version` table after baseline migration succeeds.
-  repository_baseline_integer: 80
-  # Keccak-256 of baseline_sql() — updated for 80: feat(telemetry-F) model_prompt_profiles table.
-  repository_baseline_digest_hex: "0x3be43640a56995d253f488245dde9c12431ba18a9a5d01513ff9e2bb47d42434"
+  repository_baseline_integer: 81
+  # Keccak-256 of baseline_sql() — updated for 81: feat(capture) agent_operations table.
+  repository_baseline_digest_hex: "0x2d9c4e7bc1ee6d1d66960da327732ff58a54035b47dbdeca7407d1ae418bdced"
   # Keccak-256 over `vox_db::schema::baseline_sql()` (= ordered SCHEMA_FRAGMENTS + spec append DDL).
   digest_source: vox_db_schema_manifest_baseline_sql
   # Human-facing product name for the DB API layer.

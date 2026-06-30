@@ -55,6 +55,84 @@ impl crate::VoxDb {
             .await
     }
 
+    // ── Agent Operations (agent_operations) ──────────────────────────────────
+
+    /// Record one (already-redacted) tool-call operation. Best-effort capture
+    /// signal for the skill-suggestion pipeline. Returns the new row id.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn record_operation(
+        &self,
+        session_id: Option<&str>,
+        agent_id: Option<&str>,
+        tool_name: &str,
+        args_redacted: &str,
+        result_redacted: Option<&str>,
+        duration_ms: i64,
+        is_error: bool,
+    ) -> Result<i64, StoreError> {
+        let ts_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        // Own everything before the `move` closure (mirrors record_agent_event).
+        let session_id = session_id.map(str::to_string);
+        let agent_id = agent_id.map(str::to_string);
+        let tool_name = tool_name.to_string();
+        let args_redacted = args_redacted.to_string();
+        let result_redacted = result_redacted.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO agent_operations
+                       (ts_ms, session_id, agent_id, tool_name, args_redacted, result_redacted, duration_ms, is_error)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                    params![
+                        ts_ms,
+                        session_id.as_deref(),
+                        agent_id.as_deref(),
+                        tool_name.as_str(),
+                        args_redacted.as_str(),
+                        result_redacted.as_deref(),
+                        duration_ms,
+                        is_error as i64,
+                    ],
+                )
+                .await?;
+                Ok::<i64, StoreError>(conn.last_insert_rowid())
+            })
+            .await
+    }
+
+    /// Bound `agent_operations` growth: drop rows older than 30 days, then trim to
+    /// the newest 50k. Cheap; called opportunistically after writes.
+    pub async fn prune_operations(&self) -> Result<(), StoreError> {
+        let cutoff_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0)
+            - 30 * 24 * 60 * 60 * 1000;
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "DELETE FROM agent_operations WHERE ts_ms < ?1",
+                    params![cutoff_ms],
+                )
+                .await?;
+                conn.execute(
+                    "DELETE FROM agent_operations WHERE id NOT IN
+                       (SELECT id FROM agent_operations ORDER BY id DESC LIMIT 50000)",
+                    (),
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
     // ── Agent Sessions (agent_sessions) ──────────────────────────────────────
 
     /// Insert or activate an `agent_sessions` row.
@@ -681,6 +759,33 @@ pub struct LlmSpendSummary {
     pub day_usd: f64,
     /// Spend recorded for the queried session (0 when no session was given).
     pub session_usd: f64,
+}
+
+#[cfg(test)]
+mod operation_tests {
+    use crate::{DbConfig, VoxDb};
+
+    #[tokio::test]
+    async fn record_and_prune_operations_roundtrip() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+
+        let id = db
+            .record_operation(
+                Some("sess-1"),
+                None, // agent_id NULL
+                "vox_skill_list",
+                r#"{"q":"[REDACTED]"}"#,
+                Some("ok"),
+                12,
+                false,
+            )
+            .await
+            .expect("record");
+        assert!(id > 0);
+
+        // prune must not error on a small table and must keep the fresh row.
+        db.prune_operations().await.expect("prune");
+    }
 }
 
 #[cfg(test)]

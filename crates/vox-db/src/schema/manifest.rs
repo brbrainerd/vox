@@ -12,7 +12,8 @@ use std::sync::OnceLock;
 // 78: feat(activity): add activity_log table for timeline events
 // 79: (prior scientia additions)
 // 80: feat(telemetry-F): add model_prompt_profiles table (Track F learned prompt profiles)
-pub const BASELINE_VERSION: i64 = 80;
+// 81: feat(capture): add agent_operations table (operation capture sub-project 1)
+pub const BASELINE_VERSION: i64 = 81;
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]
