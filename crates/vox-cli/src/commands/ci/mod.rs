@@ -79,7 +79,6 @@ mod tier_budget_check;
 pub mod watch_run;
 pub mod workspace_artifacts;
 
-mod cmd_enums;
 mod constants;
 mod coverage_gates;
 pub(crate) mod run_body;
@@ -89,7 +88,7 @@ use std::process::{Command, Stdio};
 
 use anyhow::Result;
 
-pub use cmd_enums::{
+pub use vox_cli_ci::cmd_enums::{
     CiCmd, CoolifyEvalCmd, CoverageGateMode, DocInventoryCmd, DocsRealityAuditCmd, EvalMatrixCmd,
     GovernanceGateMode, GrammarDriftEmit, MensScorecardCmd, OperationsSyncTarget, ScalingAuditCmd,
 };

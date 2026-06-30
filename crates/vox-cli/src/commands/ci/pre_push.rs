@@ -1134,7 +1134,7 @@ fn step_clippy(root: &Path) -> Result<()> {
 }
 
 fn step_toestub_changed(root: &Path) -> Result<()> {
-    use super::cmd_enums::ToestubCiMode;
+    use vox_cli_ci::cmd_enums::ToestubCiMode;
     use super::run_body::run_body_helpers::run_toestub_scoped_roots;
 
     let dirs = changed_dirs_under_crates(root)

@@ -1,4 +1,4 @@
-use crate::commands::ci::cmd_enums::GuardOpts;
+use vox_cli_ci::cmd_enums::GuardOpts;
 use anyhow::{Context, Result};
 use glob;
 use serde::Deserialize;

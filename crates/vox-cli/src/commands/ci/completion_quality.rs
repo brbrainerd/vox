@@ -7,6 +7,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
+use vox_cli_ci::cmd_enums::CompletionGateMode;
 
 use anyhow::{Context, Result, anyhow};
 use serde::{Deserialize, Serialize};
@@ -536,12 +537,6 @@ pub fn run_audit_verify_ssot(repo_root: &Path) -> Result<()> {
     Ok(())
 }
 
-#[derive(Clone, Copy, Debug, clap::ValueEnum)]
-#[value(rename_all = "kebab-case")]
-pub enum CompletionGateMode {
-    Warn,
-    Enforce,
-}
 
 /// Apply Tier A (and optional Tier B baseline) gates to the last audit report.
 pub fn run_gates(repo_root: &Path, mode: CompletionGateMode) -> Result<()> {

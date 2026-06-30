@@ -9,7 +9,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use super::cargo_bin;
-use super::cmd_enums::ScalingAuditCmd;
+use vox_cli_ci::cmd_enums::ScalingAuditCmd;
 use vox_bounded_fs::read_utf8_path_capped;
 
 pub(super) const POLICY_REL: &str = "contracts/scaling/policy.yaml";

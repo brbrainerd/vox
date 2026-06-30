@@ -6,7 +6,7 @@ use std::process::Command;
 use super::build_timings;
 use super::canonical_docs;
 use super::check_links;
-use super::cmd_enums::{
+use vox_cli_ci::cmd_enums::{
     CiCmd, DocInventoryCmd, DocsRealityAuditCmd, EvalMatrixCmd, MensScorecardCmd,
     OperationsSyncTarget,
 };

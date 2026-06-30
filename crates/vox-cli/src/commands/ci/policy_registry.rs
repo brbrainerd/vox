@@ -826,7 +826,7 @@ mod default_domain_tests {
         // would write keys that `vox policy status` can never join (silent drift).
         // Sampled variants here; the full nullary/struct set is mapped in
         // `cmd_enums::gate_policy_id`. This guards the honest-key contract.
-        use crate::commands::ci::cmd_enums::CiCmd;
+        use vox_cli_ci::cmd_enums::CiCmd;
         let entries = ci_gate_entries(&repo_root()).expect("load operations catalog");
         let catalog: std::collections::BTreeSet<&str> =
             entries.iter().map(|e| e.id.as_str()).collect();

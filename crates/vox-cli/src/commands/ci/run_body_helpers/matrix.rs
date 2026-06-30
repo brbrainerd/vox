@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 use crate::commands::ci::cargo_bin;
-use crate::commands::ci::cmd_enums::ToestubCiMode;
+use vox_cli_ci::cmd_enums::ToestubCiMode;
 use crate::commands::ci::constants::FEATURE_SETS;
 use vox_bounded_fs::read_utf8_path_capped;
 

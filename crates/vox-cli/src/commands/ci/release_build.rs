@@ -3,7 +3,7 @@ use crate::utils::release_artifacts::{
     package_tar_gz, package_zip, sha256_file,
 };
 use anyhow::{Context, Result, anyhow};
-use clap::ValueEnum;
+use vox_cli_ci::cmd_enums::ReleasePackage;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -11,19 +11,6 @@ use std::process::Command;
 /// Supported release triples (SSOT: `vox-install-policy`; keep workflow/docs aligned via `vox ci command-compliance`).
 pub use crate::utils::install_policy::SUPPORTED_RELEASE_TARGETS;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
-pub enum ReleasePackage {
-    /// Core `vox` CLI only (lean install — no ML/scientia plugins).
-    Vox,
-    /// Standalone `vox-bootstrap` installer used by `scripts/install.{sh,ps1}`.
-    Bootstrap,
-    /// `vox` core + `vox-bootstrap` (legacy "Both" tier — pre-plugin packaging).
-    Both,
-    /// `vox-ml-cli` plugin: ML/oratio/speech/populi/train subcommands (heavy: Candle).
-    Mens,
-    /// Every artifact: vox + bootstrap + every plugin binary. The "full" tier.
-    All,
-}
 
 pub(crate) fn validate_release_target(target: &str) -> Result<()> {
     if SUPPORTED_RELEASE_TARGETS.contains(&target) {

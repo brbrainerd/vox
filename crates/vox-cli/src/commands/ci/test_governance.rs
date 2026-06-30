@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 use serde::Serialize;
 use vox_bounded_fs::read_utf8_path_capped;
 
-use super::cmd_enums::GovernanceGateMode;
+use vox_cli_ci::cmd_enums::GovernanceGateMode;
 use super::test_inventory::{
     IgnoredTestGovernanceFinding, IgnoredTestGovernanceIssue, TestInventoryReport,
     scan_ignored_test_governance_findings,

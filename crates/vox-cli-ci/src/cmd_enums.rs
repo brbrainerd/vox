@@ -3,8 +3,30 @@
 use clap::{Subcommand, ValueEnum};
 use std::path::PathBuf;
 
-use super::completion_quality::CompletionGateMode;
-use super::release_build;
+/// Release-build target tier (used by [`CiCmd::ReleaseBuild`]); the guard logic lives
+/// in vox-cli's `commands::ci::release_build`, which imports this back.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+pub enum ReleasePackage {
+    /// Core `vox` CLI only (lean install — no ML/scientia plugins).
+    Vox,
+    /// Standalone `vox-bootstrap` installer used by `scripts/install.{sh,ps1}`.
+    Bootstrap,
+    /// `vox` core + `vox-bootstrap` (legacy "Both" tier — pre-plugin packaging).
+    Both,
+    /// `vox-ml-cli` plugin: ML/oratio/speech/populi/train subcommands (heavy: Candle).
+    Mens,
+    /// Every artifact: vox + bootstrap + every plugin binary. The "full" tier.
+    All,
+}
+
+/// Enforcement mode for the completion-quality gate (used by [`CiCmd`]); the guard
+/// logic lives in vox-cli's `commands::ci::completion_quality`, which imports this back.
+#[derive(Clone, Copy, Debug, ValueEnum)]
+#[value(rename_all = "kebab-case")]
+pub enum CompletionGateMode {
+    Warn,
+    Enforce,
+}
 
 /// Subcommands for [`CiCmd::CoolifyEval`].
 #[derive(Subcommand, Debug, Clone)]
@@ -709,7 +731,7 @@ pub enum CiCmd {
         out_dir: PathBuf,
         /// Which binary packages to produce.
         #[arg(long, value_enum, default_value = "vox")]
-        package: release_build::ReleasePackage,
+        package: ReleasePackage,
     },
     /// Audit workspace artifacts for cleanup.
     #[command(name = "artifact-audit")]
@@ -1241,7 +1263,7 @@ pub enum ToestubCiMode {
 }
 
 impl ToestubCiMode {
-    pub(crate) fn as_cli_str(self) -> &'static str {
+    pub fn as_cli_str(self) -> &'static str {
         match self {
             ToestubCiMode::Legacy => "legacy",
             ToestubCiMode::Audit => "audit",
@@ -1284,7 +1306,7 @@ pub enum GovernanceGateMode {
 }
 
 impl GovernanceGateMode {
-    pub(crate) fn label(self) -> &'static str {
+    pub fn label(self) -> &'static str {
         match self {
             GovernanceGateMode::Warn => "warn",
             GovernanceGateMode::Enforce => "enforce",
