@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use tokio::sync::Notify;
 use tokio::time::{Duration, timeout};
+#[cfg(test)]
 use vox_config::timeouts::D_500MS;
 
 /// A simple waitable barrier to replace `sleep` in tests.

@@ -520,7 +520,7 @@ where
         op,
         HirBinOp::Lt | HirBinOp::Gt | HirBinOp::Lte | HirBinOp::Gte
     ) {
-        format!("({} {} {})", format!("({l})"), op_str, format!("({r})"))
+        format!("(({l}) {op_str} ({r}))")
     } else {
         format!("({l} {op_str} {r})")
     }

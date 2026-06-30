@@ -94,10 +94,9 @@ vox-bounded-fs = { path = "../vox-bounded-fs" }
 
     // Write lib.rs declaring all modules and each snippet_i.rs
     let mut lib_content = String::new();
-    for i in 0..n {
+    for (i, snippet_src) in snippets.iter().enumerate().take(n) {
         lib_content.push_str(&format!("pub mod snippet_{};\n", i));
 
-        let snippet_src = &snippets[i];
         if let Err(e) = std::fs::write(src_dir.join(format!("snippet_{}.rs", i)), snippet_src) {
             eprintln!("Failed to write snippet_{}.rs: {}", i, e);
             let _ = std::fs::remove_dir_all(&tmp_dir);
@@ -114,7 +113,7 @@ vox-bounded-fs = { path = "../vox-bounded-fs" }
     // Spawn command
     let mut cmd = std::process::Command::new("cargo");
     if clippy {
-        cmd.args(&[
+        cmd.args([
             "clippy",
             "-p",
             "_corpus_verify_tmp",
@@ -124,7 +123,7 @@ vox-bounded-fs = { path = "../vox-bounded-fs" }
             "warnings",
         ]);
     } else {
-        cmd.args(&["check", "-p", "_corpus_verify_tmp", "--message-format=json"]);
+        cmd.args(["check", "-p", "_corpus_verify_tmp", "--message-format=json"]);
     }
     cmd.current_dir(workspace_root);
 

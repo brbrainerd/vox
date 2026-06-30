@@ -415,8 +415,7 @@ impl SearchPolicy {
             vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchNoveltyMinScore).expose()
             && let Ok(x) = v.parse::<f64>()
             && x.is_finite()
-            && x >= 0.0
-            && x <= 1.0
+            && (0.0..=1.0).contains(&x)
         {
             p.novelty_min_score = x;
         }
@@ -572,6 +571,9 @@ fn parse_falsy_env(id: vox_secrets::SecretId) -> bool {
 
 #[cfg(test)]
 mod tests {
+    // Rust 2024 made std::env::{set_var,remove_var} unsafe; mutated single-threaded.
+    // field_reassign is a stylistic test-setup pattern here.
+    #![allow(unsafe_code, clippy::field_reassign_with_default)]
     use super::*;
 
     #[test]

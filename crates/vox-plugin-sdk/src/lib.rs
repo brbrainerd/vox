@@ -256,12 +256,10 @@ mod semcov_wave33_tests {
     fn abi_range_invariant_floor_le_ceiling() {
         // Catches: accidental reversal of constants (floor bumped past ceiling) which would
         // make every ABI version rejected without any compiler error
-        #[allow(clippy::assertions_on_constants)] // the point IS to guard the const invariant
-        assert!(
+        // Compile-time guard: build fails outright if the constants are reversed.
+        const _: () = assert!(
             VOX_PLUGIN_ABI_MIN_SUPPORTED <= VOX_PLUGIN_ABI_VERSION,
-            "MIN_SUPPORTED ({}) must not exceed VERSION ({})",
-            VOX_PLUGIN_ABI_MIN_SUPPORTED,
-            VOX_PLUGIN_ABI_VERSION
+            "MIN_SUPPORTED must not exceed VERSION"
         );
     }
 

@@ -3,7 +3,7 @@
 
 #[cfg(test)]
 mod semcov_wave21_tests {
-    #![allow(clippy::module_inception)]
+    #![allow(clippy::module_inception, clippy::field_reassign_with_default)]
     use crate::evaluation::{calculate_groundedness, calculate_recall_at_5};
     use crate::policy::{SearchPolicy, SearchPolicyFeedback};
     use crate::rrf::{rrf_dedup_key, rrf_merge_line_lists};

@@ -46,7 +46,7 @@ fn xorshift(state: &mut u64) -> u64 {
 }
 
 /// Deterministic Fisher-Yates shuffle of `indices` using an xorshift RNG.
-fn shuffle(indices: &mut Vec<String>, seed: u64) {
+fn shuffle(indices: &mut [String], seed: u64) {
     let mut state = if seed == 0 { 0xdeadbeef_cafebabe } else { seed };
     for i in (1..indices.len()).rev() {
         let j = xorshift(&mut state) as usize % (i + 1);
@@ -74,7 +74,7 @@ pub fn split_surface(
     // 1. Collect unique keys in stable order (BTreeSet for reproducibility)
     let unique_keys: Vec<String> = rows
         .iter()
-        .map(|r| tool_key(r))
+        .map(tool_key)
         .collect::<BTreeSet<_>>()
         .into_iter()
         .collect();
@@ -153,9 +153,9 @@ mod tests {
         let rows = generate_harness_rows(100);
         let (train, eval, _) = split_surface(42, 0.2, &rows);
         let train_keys: std::collections::HashSet<String> =
-            train.iter().map(|r| tool_key(r)).collect();
+            train.iter().map(tool_key).collect();
         let eval_keys: std::collections::HashSet<String> =
-            eval.iter().map(|r| tool_key(r)).collect();
+            eval.iter().map(tool_key).collect();
         let overlap: Vec<_> = train_keys.intersection(&eval_keys).collect();
         assert!(
             overlap.is_empty(),

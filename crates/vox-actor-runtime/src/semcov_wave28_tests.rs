@@ -436,10 +436,8 @@ mod semcov_wave28_tests {
     // channel is usable by actors spawned without an explicit capacity.
     #[test]
     fn mailbox_default_capacity_is_positive() {
-        assert!(
-            DEFAULT_MAILBOX_CAPACITY >= 1,
-            "DEFAULT_MAILBOX_CAPACITY must be positive, got {DEFAULT_MAILBOX_CAPACITY}"
-        );
+        // Compile-time guard: build fails outright if the capacity is non-positive.
+        const _: () = assert!(DEFAULT_MAILBOX_CAPACITY >= 1, "DEFAULT_MAILBOX_CAPACITY must be positive");
     }
 
     // Catches: ExitReason::Error must carry the string payload through Clone and PartialEq.

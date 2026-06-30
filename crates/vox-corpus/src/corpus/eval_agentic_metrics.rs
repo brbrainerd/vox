@@ -20,10 +20,8 @@ pub fn tool_name_exists(name: &str) -> bool {
     let static_registry = vox_mcp_registry::TOOL_REGISTRY
         .iter()
         .any(|entry| entry.name == name);
-    let skill_tools = vox_mcp_registry::SKILL_TOOLS.iter().any(|&t| t == name);
-    let orchestrator_tools = vox_mcp_registry::ORCHESTRATOR_TOOLS
-        .iter()
-        .any(|&t| t == name);
+    let skill_tools = vox_mcp_registry::SKILL_TOOLS.contains(&name);
+    let orchestrator_tools = vox_mcp_registry::ORCHESTRATOR_TOOLS.contains(&name);
     static_registry || skill_tools || orchestrator_tools
 }
 
