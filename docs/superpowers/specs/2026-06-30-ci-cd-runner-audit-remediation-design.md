@@ -29,10 +29,17 @@ found:
 - The **stall** is not caused by code bugs. The autoscaler being **disabled**
   (an ops state) plus **structural oversubscription** explains it. On
   `merge_group`, `full=true` is forced (`ci.yml:151-159`) and the gate fans out
-  ~11–12 self-hosted jobs, while `cross-platform-check.yml` (`merge_group:` at
-  `:13`, self-hosted Linux leg at `:38`, different concurrency group so neither
-  cancels the other) adds ~1 more — **~13 self-hosted jobs against 6 runners**,
-  serializing into 2+ waves even with a healthy autoscaler.
+  **~36 self-hosted jobs** — 12 singletons (`setup`, `guards-fast`, `lints`,
+  `compiler-gates`, `tests`, `audits`, + 6 smokes) **plus `all-features-matrix`'s
+  24 matrix legs** (`ci.yml:1591-1610`, each a self-hosted job) — *plus* three
+  workflows the first count missed that also fire self-hosted on `merge_group`:
+  `cross-platform-check.yml` (Linux leg `:38`, different concurrency group so
+  neither cancels the other), `gui-cross-build.yml` (`matrix-setup`, ungated),
+  `mobile-eas-build.yml` (`bundle`), `mutation-pr.yml` (`cargo-mutants`). Against
+  a **6-runner ceiling** that is ~**6 waves**, not 2 — the oversubscription is
+  worse than v1 stated. (Note: the `browser`-labelled jobs draw from a distinct
+  label subset, so ceiling math must bucket by required label set, not a flat
+  count.)
 - The **wall-clock** is dominated by one confirmed config bug (W1, sccache
   disabled on the gate) compounded by that 2× oversubscription (each wave is
   ~6 jobs, each recompiling the workspace).
@@ -51,8 +58,12 @@ minutes or a second host. We do not add capacity to paper over a misconfiguratio
 
 - **W1 (HIGH, one line) — sccache disabled on the gate.** `ci.yml:25-29` sets
   `RUSTC_WRAPPER: sccache` + `SCCACHE_DIR` but **not** `CARGO_INCREMENTAL: "0"`.
-  Verified absent at *every* effective level: workflow env, all 6 gate jobs,
-  `.cargo/config.toml` `[build]`/`[env]`, and all runner Dockerfiles. The lone
+  Verified absent at every effective level *for the gate's workflow-env / non-
+  container path*: workflow env, all 6 gate jobs, `.cargo/config.toml`
+  `[build]`/`[env]`, and all runner Dockerfiles. (The autoscaler *does* inject
+  `CARGO_INCREMENTAL=0` into spawned containers at `runner_scale.rs:432`, but
+  only when MinIO is reachable — so the 0%-hit applies to the workflow-env path
+  and to any tick where the S3 cache is down.) The lone
   repo occurrence (`ci.yml:320`) is on the non-required `toolchain-lint-wave`
   job and is paired with `RUSTC_WRAPPER: ""` + `unset RUSTC_WRAPPER` to
   *defeat* sccache — not a gate mitigation. Sibling workflows set it
@@ -103,11 +114,13 @@ minutes or a second host. We do not add capacity to paper over a misconfiguratio
   (`SCCACHE_DIR=/cache/sccache`) + host-persisted `target/` on the same
   persistent fleet make them warm (the file self-documents this at `ci.yml:286`;
   `toolchain-lint-wave` must explicitly `cargo clean` + unset sccache to force a
-  cold build). **Sharing one `CARGO_TARGET_DIR` across the concurrent fan-out is
-  a correctness hazard** — all runners mount the single named volume
-  `vox-ci-runner-cache` (`runner_scale.rs:39,:520`); cargo serializes/locks one
-  target dir and concurrent writers corrupt fingerprints. → Do **not** share a
-  target dir; rely on warm sccache (W1) instead.
+  cold build). **Do NOT introduce a shared `CARGO_TARGET_DIR`** (forward-looking
+  — no code sets one today; `shared_cache_env` at `runner_scale.rs:418-434` sets
+  `SCCACHE_*` + `CARGO_INCREMENTAL=0` but never `CARGO_TARGET_DIR`, and the
+  `/cache` volume is used only for the concurrency-safe sccache dir). If anyone
+  later points cargo's target dir at the single named volume
+  `vox-ci-runner-cache` (`runner_scale.rs:39,:520`), concurrent cargo writers
+  corrupt fingerprints (one advisory lock per dir). → rely on warm sccache (W1).
 - **W4 (partial) — llvm-cov feeds a hard gate, not just a ratchet.** `tests` runs
   `cargo llvm-cov nextest --workspace` on the required `merge_group` path
   (`ci.yml:996`, in `ci-summary.needs`). It feeds **both** a blocking
@@ -247,6 +260,42 @@ the C gate, once real queue-wait data exists). Then, in priority order:
 
 No code until the gate fires.
 
+## Machine enforcement (AI-first)
+
+Each fix should leave behind a **machine-checkable, AI-greppable guard** so the
+invariant cannot silently regress — not a one-time human grep. Reuse existing
+surfaces; do not invent harnesses.
+
+- **W1 sccache⇒incremental:** the cross-line rule ("a workflow that sets
+  `RUSTC_WRAPPER: sccache` at top-level env must pin `CARGO_INCREMENTAL: "0"`
+  there") exceeds a single-line regex, so keep it a **pure `vox ci` guard**
+  iterating *all* `.github/workflows/*.yml` (not just `ci.yml`), scoped to each
+  file's top-level env block (split before `\njobs:` so the deliberate
+  step-level `RUSTC_WRAPPER: ""` opt-out in `toolchain-lint-wave` is neither
+  required nor flagged), wired into `guards-fast` (pre-merge, on
+  `ci-summary.needs`).
+- **W6 no-apt-in-ci:** an exact fit for `vox-arch-check`'s declarative
+  `[[forbidden_pattern]]` (`docs/src/architecture/layers.toml`, engine
+  `forbidden_patterns.rs:scan_all`; `.github` is not in the prune set). Add a
+  rule `pattern = 'apt-get install[^\n]*(libgtk-3-dev|libwebkit2gtk|libsoup-3)'`,
+  `file_glob = ".github/workflows/*.yml"` — lands in the same commit as the
+  Dockerfile bake (the gate is `error`, so it must go green together).
+- **sccache-shim-real:** beyond the build-time/entrypoint check, add a
+  `sccache.shadowed_shim` **`vox doctor` diagnosis** (`build_health.rs`,
+  registered in `KNOWN_DIAGNOSIS_IDS`) so the "wrapper set but resolves to a
+  fake `.cmd` forwarder" pathology is greppable via a `[diag id=…]` tag on any
+  host, reusing the existing `sccache_guard` plumbing.
+- **merge_group fan-out ≤ ceiling (the biggest passive-YAML gap):** add a pure
+  `vox ci` guard `merge_group_self_hosted_fanout(workflow_yaml) -> usize` that
+  evaluates each self-hosted job's `if:` against a synthetic
+  `event_name=merge_group` context, **buckets by required label set**, and fails
+  if any bucket exceeds the runner ceiling. Read the ceiling from a **shared
+  SSOT const** (today only `runner_scale.rs:60 DEFAULT_MAX_RUNNERS`; surface it
+  so the guard and the autoscaler cannot drift). This is what stops the next
+  self-hosted job from silently re-breaching the ceiling — the exact regression
+  class this whole effort exists to prevent. (Check whether `fan_in_budget.rs`
+  already owns this concept before adding a module.)
+
 ## Risks (from adversarial review)
 
 - **PT2M→PT10M without a heartbeat → runaway spawn.** `LOCK_STALE_SECS=90`
@@ -279,9 +328,13 @@ No code until the gate fires.
   from the timing dataset; sccache hit rate + S3-reachability observable.
 - **Phase A:** `sccache --show-stats` shows a non-zero hit rate on the gate (W1);
   autoscaler re-enabled and not thrashing; B4 telemetry reports true backlog.
-- **Phase B:** merge_group self-hosted fan-out ≤ the 6-runner ceiling in one
-  wave; merge-gate wall-clock measurably below the Phase 0 baseline; zombie jobs
-  have a conservative terminal force-cancel path.
+- **Phase B:** the **required-needs lane** (`setup` + the 5 `ci-summary.needs`
+  jobs = 6 self-hosted) fits one wave; the non-required smokes (incl. the 24-leg
+  `all-features-matrix`) no longer fire on `merge_group`. (A flat "all merge_group
+  self-hosted jobs ≤ 6" is *not* the criterion — `all-features-matrix` alone is
+  24 legs post-merge, and `gui-cross-build`/`mobile-eas-build`/`mutation-pr` are
+  out of scope here.) Merge-gate wall-clock measurably below the Phase 0
+  baseline; zombie jobs have a conservative terminal force-cancel path.
 - **Phase C** remains design-only unless the post-A+B measurement gate fires.
 - **No coverage lost:** inline all-features, `compile-matrix`, both `cr-l*`
   lanes, and all three `ci-health-*` workflows remain intact.
