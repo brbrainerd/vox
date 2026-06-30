@@ -84,4 +84,27 @@ describe('SkillsPluginsView', () => {
     const removeButtons = screen.queryAllByRole('button', { name: /^remove$/i });
     expect(removeButtons.length).toBe(1);
   });
+
+  it('Remove requires a second confirm click before it deletes', async () => {
+    render(<SkillsPluginsView pushToast={vi.fn()} />);
+    fireEvent.click(screen.getByRole('tab', { name: /discovered/i }));
+    const removeBtn = await screen.findByRole('button', { name: /^remove$/i });
+
+    // First click arms confirmation and must NOT call vox_skill_remove.
+    fireEvent.click(removeBtn);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^confirm\?$/i })).toBeTruthy(),
+    );
+    expect(invokeMock.mock.calls.some(([, a]: any) => a?.tool === 'vox_skill_remove')).toBe(false);
+
+    // Second click (Confirm?) actually removes by id.
+    fireEvent.click(screen.getByRole('button', { name: /^confirm\?$/i }));
+    await waitFor(() =>
+      expect(
+        invokeMock.mock.calls.some(
+          ([, a]: any) => a?.tool === 'vox_skill_remove' && a?.args?.id === 'mine',
+        ),
+      ).toBe(true),
+    );
+  });
 });

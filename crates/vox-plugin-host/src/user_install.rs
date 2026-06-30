@@ -150,12 +150,20 @@ fn copy_tree(src: &Path, dst: &Path) -> std::io::Result<()> {
 fn clone_repo(url: &str) -> Result<tempfile::TempDir, String> {
     let tmp = tempfile::tempdir().map_err(|e| e.to_string())?;
     let mut cmd = std::process::Command::new("git");
-    cmd.args(["clone", "--depth", "1", url]).arg(tmp.path());
+    // `--` terminates option parsing so a `url` beginning with `-` cannot be read
+    // as a git flag (e.g. `--upload-pack=...`). Source is also pre-screened by
+    // `install_to_user_root` for `-`/`ext::`/`file::` transports.
+    cmd.args(["clone", "--depth", "1", "--"])
+        .arg(url)
+        .arg(tmp.path());
     // ponytail: git-native stall guard, not a wall-clock cap. Aborts if a
     // transfer drops below 1 KB/s for 30s (hostile/dead remote); a fast huge
     // repo still completes — the add is user-initiated and HITL-gated.
     cmd.env("GIT_HTTP_LOW_SPEED_LIMIT", "1000")
-        .env("GIT_HTTP_LOW_SPEED_TIME", "30");
+        .env("GIT_HTTP_LOW_SPEED_TIME", "30")
+        // Disable the ext::/file:: transports that can run arbitrary commands.
+        .env("GIT_PROTOCOL_FROM_USER", "0")
+        .env("GIT_ALLOW_PROTOCOL", "http:https:ssh:git");
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -185,6 +193,15 @@ pub fn install_to_user_root(
     // Keep any cloned temp dir alive for the duration of the copy.
     let _clone_guard;
     let base: PathBuf = if is_git_source(source) {
+        // Reject sources that git would treat as an option or a code-executing
+        // transport (defense-in-depth alongside clone's `--` and protocol allowlist).
+        if source.starts_with('-')
+            || source.starts_with("ext::")
+            || source.starts_with("file::")
+            || source.starts_with("fd::")
+        {
+            return Err(format!("refusing unsafe git source: {source}"));
+        }
         let tmp = clone_repo(source)?;
         let path = tmp.path().to_path_buf();
         _clone_guard = Some(tmp);
@@ -206,7 +223,7 @@ pub fn install_to_user_root(
     let target_root = user_skill_root(ws_root, global);
     std::fs::create_dir_all(&target_root).map_err(|e| e.to_string())?;
 
-    let mut installed = Vec::new();
+    let mut installed: Vec<InstalledUserSkill> = Vec::new();
     for dir in dirs {
         let body = std::fs::read_to_string(dir.join("SKILL.md")).map_err(|e| e.to_string())?;
         let bundle = parse_skill_md(&body).map_err(|e| format!("{}: {e}", dir.display()))?;
@@ -218,11 +235,23 @@ pub fn install_to_user_root(
         }
         // Reject path-escaping names BEFORE using `name` as a path component.
         validate_skill_name(&name)?;
+        // Two skills in one source with the same frontmatter name would silently
+        // clobber each other — refuse rather than install only the last.
+        if installed.iter().any(|s| s.name == name) {
+            return Err(format!(
+                "source contains two skills named '{name}'; refusing to overwrite"
+            ));
+        }
         let dest = target_root.join(&name);
         // Clean re-install: drop any prior copy so stale files don't linger.
-        // `dest` is `<.vox/skills>/<validated-name>`, so this never escapes.
-        if dest.exists() {
-            std::fs::remove_dir_all(&dest).map_err(|e| e.to_string())?;
+        // `dest` is `<.vox/skills>/<validated-name>`. Never delete *through* a
+        // symlink at dest (TOCTOU); refuse it instead.
+        match std::fs::symlink_metadata(&dest) {
+            Ok(meta) if meta.file_type().is_symlink() => {
+                return Err(format!("refusing to overwrite symlink at {}", dest.display()));
+            }
+            Ok(_) => std::fs::remove_dir_all(&dest).map_err(|e| e.to_string())?,
+            Err(_) => {} // does not exist yet
         }
         copy_tree(&dir, &dest).map_err(|e| e.to_string())?;
         installed.push(InstalledUserSkill { name, dest });
@@ -237,11 +266,20 @@ pub fn install_to_user_root(
     Ok(installed)
 }
 
+/// A removed skill: the deleted directory and the skill's canonical registry id
+/// (which may differ from the `id_or_name` the caller passed).
+#[derive(Debug, Clone)]
+pub struct RemovedSkill {
+    pub path: PathBuf,
+    pub id: String,
+}
+
 /// Remove a user-installed skill by id or name. `roots` are the discovery roots
 /// (from `vox_config::paths::skill_search_roots`). Refuses anything not under a
 /// `.vox/skills` root (bundled / other-tool dirs are read-only). Returns the
-/// deleted directory.
-pub fn remove_user_skill(id_or_name: &str, roots: &[PathBuf]) -> Result<PathBuf, String> {
+/// deleted directory AND the resolved canonical id, so the caller can uninstall
+/// the matching registry row (uninstall keys by id, not name).
+pub fn remove_user_skill(id_or_name: &str, roots: &[PathBuf]) -> Result<RemovedSkill, String> {
     let found = crate::external_skills::discover_external_skills(roots);
     let ext = found
         .iter()
@@ -253,7 +291,10 @@ pub fn remove_user_skill(id_or_name: &str, roots: &[PathBuf]) -> Result<PathBuf,
         ));
     }
     std::fs::remove_dir_all(&ext.path).map_err(|e| e.to_string())?;
-    Ok(ext.path.clone())
+    Ok(RemovedSkill {
+        path: ext.path.clone(),
+        id: ext.bundle.manifest.id.clone(),
+    })
 }
 
 #[cfg(test)]
@@ -421,7 +462,48 @@ mod tests {
 
         // owned root -> deleted
         let removed = remove_user_skill("mine", &roots).unwrap();
-        assert_eq!(removed, owned);
+        assert_eq!(removed.path, owned);
+        assert_eq!(removed.id, "mine"); // id derives from name here
         assert!(!owned.exists());
+    }
+
+    #[test]
+    fn remove_by_name_resolves_canonical_id() {
+        // When the skill's registry id differs from its name, removing BY NAME must
+        // still report the canonical id so the caller uninstalls the right row.
+        let ws = tempfile::tempdir().unwrap();
+        let dir = ws.path().join(".vox/skills/widget");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("SKILL.md"),
+            "---\nname: widget\ndescription: a widget skill\nmetadata:\n  vox-id: org.widget\n---\n\n# widget\n",
+        )
+        .unwrap();
+        let roots = vec![ws.path().join(".vox/skills")];
+
+        let removed = remove_user_skill("widget", &roots).unwrap();
+        assert_eq!(removed.id, "org.widget", "must resolve to canonical id, not the name");
+        assert!(!dir.exists());
+    }
+
+    #[test]
+    fn install_refuses_duplicate_skill_names_in_source() {
+        let src = tempfile::tempdir().unwrap();
+        // Two different dirs, same frontmatter name → must refuse, not clobber.
+        write_skill(&src.path().join("skills/a"), "dup");
+        write_skill(&src.path().join("skills/b"), "dup");
+        let ws = tempfile::tempdir().unwrap();
+        let err = install_to_user_root(&src.path().to_string_lossy(), ws.path(), false, None)
+            .unwrap_err();
+        assert!(err.contains("two skills named"), "got: {err}");
+    }
+
+    #[test]
+    fn install_refuses_unsafe_git_source() {
+        let ws = tempfile::tempdir().unwrap();
+        for bad in ["ext::sh -c id.git", "-u./x.git", "file::/etc/passwd.git"] {
+            let err = install_to_user_root(bad, ws.path(), false, None).unwrap_err();
+            assert!(err.contains("unsafe git source"), "{bad} -> {err}");
+        }
     }
 }

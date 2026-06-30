@@ -112,6 +112,7 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
   }, [pushToast]);
 
   const addSkill = useCallback(async () => {
+    if (busy) return; // ignore Enter/click while an add or remove is in flight
     const src = addSource.trim();
     if (!src) return;
     setBusy(src);
@@ -129,7 +130,7 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
     } finally {
       setBusy(null);
     }
-  }, [addSource, pushToast, refreshDiscovered]);
+  }, [addSource, busy, pushToast, refreshDiscovered]);
 
   const removeSkill = useCallback(
     async (id: string) => {

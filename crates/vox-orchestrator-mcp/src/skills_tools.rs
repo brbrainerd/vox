@@ -387,10 +387,13 @@ pub async fn skill_remove(state: &ServerState, params: SkillRemoveParams) -> Str
         tokio::task::spawn_blocking(move || vox_plugin_host::user_install::remove_user_skill(&id, &roots))
             .await;
     match removed {
-        Ok(Ok(path)) => {
-            let _ = state.skill_registry.uninstall(&params.id).await;
+        Ok(Ok(removed)) => {
+            // Uninstall by the RESOLVED canonical id (uninstall keys by id, not
+            // name); using params.id when a name was passed would leave a stale row.
+            let _ = state.skill_registry.uninstall(&removed.id).await;
             state.rebuild_skill_search_index();
-            ToolResult::ok(format!("Removed '{}' ({})", params.id, path.display())).to_json()
+            ToolResult::ok(format!("Removed '{}' ({})", removed.id, removed.path.display()))
+                .to_json()
         }
         Ok(Err(e)) => ToolResult::<String>::err_with_remediation(
             e,
