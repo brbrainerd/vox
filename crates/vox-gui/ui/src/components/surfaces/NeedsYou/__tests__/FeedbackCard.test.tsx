@@ -46,6 +46,13 @@ describe('FeedbackCard', () => {
     expect(onResolve).toHaveBeenCalledWith('F-9', { action: 'skip' });
   });
 
+  it('skill_proposal: Save as skill resolves with accept_skill action', () => {
+    const onResolve = vi.fn();
+    render(<FeedbackCard row={proposal} onResolve={onResolve} onOpenContext={() => {}} />);
+    fireEvent.click(screen.getByText('Save as skill'));
+    expect(onResolve).toHaveBeenCalledWith('F-9', { action: 'accept_skill' });
+  });
+
   it('clarification: option click resolves with answer action', () => {
     const onResolve = vi.fn();
     render(<FeedbackCard row={clar} onResolve={onResolve} onOpenContext={() => {}} />);

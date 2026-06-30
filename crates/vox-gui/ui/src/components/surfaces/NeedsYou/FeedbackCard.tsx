@@ -22,6 +22,14 @@ export function FeedbackCard({ row, onResolve, onOpenContext }: Props) {
         <div className="flex gap-1.5 flex-wrap">
           <button
             type="button"
+            aria-label="Save as skill"
+            className="text-[11px] font-semibold px-2.5 py-1 rounded border border-emerald-400/30 text-emerald-300 bg-emerald-400/10 hover:bg-emerald-400/20"
+            onClick={() => onResolve(row.feedbackId, { action: 'accept_skill' })}
+          >
+            Save as skill
+          </button>
+          <button
+            type="button"
             aria-label="Dismiss this skill proposal"
             className="text-[11px] font-semibold px-2.5 py-1 rounded border border-zinc-700 text-zinc-400 hover:bg-white/[0.02]"
             onClick={() => onResolve(row.feedbackId, { action: 'skip' })}
