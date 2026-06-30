@@ -170,6 +170,8 @@ pub fn resolve_egress(input: &EgressResolveInput) -> Result<EgressRequest, Strin
 
 #[cfg(test)]
 mod tests {
+    // Rust 2024 made std::env::{set_var,remove_var} unsafe; mutated single-threaded.
+    #![allow(unsafe_code)]
     use super::*;
 
     // Use `hf_router` for deterministic tests: it does not require a non-empty API key

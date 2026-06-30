@@ -175,7 +175,8 @@ impl WebhookEventSink for LoggingWebhookSink {
 
 #[cfg(test)]
 mod semcov_wave3_tests {
-    #![allow(unused_imports)]
+    // Rust 2024 made std::env::{set_var,remove_var} unsafe; mutated single-threaded.
+    #![allow(unused_imports, unsafe_code)]
     use super::*;
     use vox_plugin_api::extensions::http_listener::HttpListener;
 

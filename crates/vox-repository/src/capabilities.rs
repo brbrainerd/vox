@@ -268,7 +268,8 @@ mod tests {
 
 #[cfg(test)]
 mod semcov_wave2_tests {
-    #![allow(unused_imports)]
+    // Rust 2024 made std::env::{set_var,remove_var} unsafe; mutated single-threaded.
+    #![allow(unused_imports, unsafe_code)]
     use super::*;
 
     #[test]

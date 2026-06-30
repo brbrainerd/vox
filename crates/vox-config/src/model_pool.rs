@@ -117,6 +117,8 @@ pub fn list_enabled_providers() -> BTreeSet<String> {
 
 #[cfg(test)]
 mod tests {
+    // Rust 2024 made std::env::{set_var,remove_var} unsafe; mutated single-threaded.
+    #![allow(unsafe_code)]
     use super::*;
     use std::collections::BTreeSet;
     fn mv(id: &str, p: &str, c: f64, f: bool, t: &str, ctx: u64) -> PoolModelView {
