@@ -81,3 +81,32 @@ If after Phases 1–2 no configuration reaches the >80% gate on this machine's l
 
 ## Verification
 A reproducible `cargo clean -p vox-secrets && cargo build -p vox-secrets` with `RUSTC_WRAPPER=sccache` shows hit-rate >80% in `sccache --show-stats`; `vox doctor` reports `✓ sccache: health`.
+
+---
+
+## FINDINGS — executed 2026-06-30 (EXIT criterion reached)
+
+**Phase 0 measured, Hypothesis 1 (incremental) REFUTED, exit criterion invoked.**
+
+- With `RUSTC_WRAPPER=sccache` **and** explicit `CARGO_INCREMENTAL=0`, a same-worktree
+  `cargo clean -p vox-secrets` + rebuild of **identical source** hit **1/125 = 0.79%**
+  (build1 0%, build2 0.79%). Far below the 80% gate. The earlier config claim of
+  "71s→1s, 100% hit" did not reproduce. So the 0%-hit cause is **not** incremental
+  (H1 refuted) — the cache keys are unstable even at constant path same-worktree, for
+  a reason not worth chasing further (cargo per-build metadata hashing + ~46
+  non-cacheable build-script/proc-macro calls per build).
+- **Decision: sccache stays disabled** (matches the spec's exit criterion — no config
+  reaches the gate on this layout).
+- **The actual acceleration win** was a side effect: `CARGO_INCREMENTAL=0` existed ONLY
+  to enable sccache. With sccache gone it just **suppressed cargo's native incremental**.
+  Measured `vox-secrets` touch-rebuild: **3s @incremental=0 vs 1–2s @incremental=1**
+  (gap widens on large crates — incremental recompiles only changed functions).
+  **Applied:** commented out `CARGO_INCREMENTAL = "0"` in `~/.cargo/config.toml` →
+  cargo's default incremental restored. This is the "stop constantly rebuilding the
+  target" win, achieved without sccache.
+- The build-health doctor's `sccache_guard` already treats "not wired" as informational
+  (✓), so no regression; it would catch any future crash/0%-hit if sccache is re-enabled.
+
+**Not pursued (per the exit criterion's "Alternatives"):** GHA-backed sccache (CI only),
+shared-target + build-lock, faster linker — all out of scope; cargo native incremental
+is the pragmatic same-worktree win and is now in effect.
