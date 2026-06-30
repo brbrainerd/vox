@@ -5,6 +5,7 @@
 
 mod doubt;
 mod fallback;
+mod propose;
 mod handoff;
 mod lifecycle_ops;
 /// PAV phase-boundary interventions (approve_plan / skip_verify / force_verify).

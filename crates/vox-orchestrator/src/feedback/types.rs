@@ -9,6 +9,7 @@ pub struct FeedbackId(pub String);
 pub enum FeedbackKind {
     Clarification,
     Doubt,
+    SkillProposal,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
