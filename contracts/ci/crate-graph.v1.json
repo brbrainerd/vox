@@ -112,7 +112,9 @@
       "vox-cli-core"
     ],
     "vox-cli-contracts": [
-      "vox-config"
+      "vox-bounded-fs",
+      "vox-config",
+      "vox-jsonschema-util"
     ],
     "vox-cli-core": [
       "vox-bounded-fs",
