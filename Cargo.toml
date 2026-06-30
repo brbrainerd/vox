@@ -80,6 +80,7 @@ vox-codegen         = { path = "crates/vox-codegen", default-features = false }
 vox-codegen-ts      = { path = "crates/vox-codegen-ts" }
 vox-rn-codegen      = { path = "crates/vox-rn-codegen" }
 vox-config                = { path = "crates/vox-config" }
+vox-config-derive         = { path = "crates/vox-config-derive" }
 vox-graph-reader          = { path = "crates/vox-graph-reader" }
 vox-container             = { path = "crates/vox-container" }
 vox-container-types       = { path = "crates/vox-container-types" }

@@ -8,6 +8,7 @@ pub use vox_llm_config;
 
 pub mod bootstrap_inference;
 pub mod config;
+pub mod config_field;
 pub mod config_key;
 pub mod config_registry;
 pub mod config_watch;
@@ -36,6 +37,16 @@ pub use bootstrap_inference::{
     RESEARCH_FLASH_FALLBACK, REVIEW_PREMIUM_FALLBACK,
 };
 pub use config::{BuildTarget, GamifyMode, VoxConfig, WebRunMode};
+pub use config_field::ConfigField;
+pub use vox_config_derive::VoxConfig;
+
+/// Implemented by every `#[derive(VoxConfig)]` struct. The `vox-cli` aggregator
+/// collects `config_keys()` across domains; `catalog()` feeds the GUI.
+pub trait VoxConfigDomain: Sized {
+    fn merge_env(&mut self);
+    fn config_keys() -> &'static [crate::config_key::ConfigKey];
+    fn catalog(&self) -> Vec<ConfigField>;
+}
 pub use config_watch::{ConfigSnapshot, ConfigWatch};
 pub use graphify::{
     CORPORA_REL_PATH, CorpusStatus, GraphifyCorporaRegistry, GraphifyCorpus, GraphifyError,
