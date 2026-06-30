@@ -990,6 +990,7 @@
     "preference.list",
     "preference.set",
     "project.init",
+    "propose.skill",
     "publish.message",
     "questioning.pending",
     "questioning.submit.answer",

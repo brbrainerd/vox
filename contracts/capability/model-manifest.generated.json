@@ -1804,6 +1804,14 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_propose_skill",
+      "mcp_tool": "vox_propose_skill",
+      "implicit": false,
+      "title": "Propose Skill",
+      "description_model": "Surface a mined recurring operation procedure as a non-blocking \"save as skill?\" suggestion in the NeedsYou inbox.",
+      "curated": true
+    },
+    {
       "capability_id": "mcp.vox_publish_message",
       "mcp_tool": "vox_publish_message",
       "implicit": false,
