@@ -53,6 +53,7 @@
       "vox-build-meta",
       "vox-capability-registry",
       "vox-cli-ci",
+      "vox-cli-contracts",
       "vox-cli-core",
       "vox-cli-research",
       "vox-cli-share",
@@ -109,6 +110,9 @@
     ],
     "vox-cli-ci": [
       "vox-cli-core"
+    ],
+    "vox-cli-contracts": [
+      "vox-config"
     ],
     "vox-cli-core": [
       "vox-bounded-fs",
