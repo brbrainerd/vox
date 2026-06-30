@@ -2175,7 +2175,6 @@ mod inject_key_tests {
 
 #[cfg(test)]
 mod ts_emit_exhaustiveness_tests {
-    use super::*;
     use vox_compiler::feature_matrix::{ExprFeature, Feature, unsupported_diagnostic};
     use vox_compiler::target::Target;
     use vox_compiler::typeck::diagnostics::codes;

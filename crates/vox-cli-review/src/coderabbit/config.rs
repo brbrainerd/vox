@@ -96,7 +96,7 @@ pub fn load_from_dir(path: &Path) -> CodeRabbitConfig {
         .or_else(|| resolved_tier.map(|t| t.min_delay_between_prs_secs()));
     let max_files = cr
         .max_files_per_pr
-        .or_else(|| resolved_tier.map(|t| t.recommended_max_files_per_pr() as u32));
+        .or_else(|| resolved_tier.map(|t| t.recommended_max_files_per_pr()));
 
     CodeRabbitConfig {
         tier: cr.tier,

@@ -14,8 +14,8 @@ fn normalize_hf_token_env() {
         #[allow(unsafe_code)]
         // SAFETY: Called sequentially before spawning HF requests.
         unsafe {
-            std::env::set_var("HF_TOKEN", &token);
-            std::env::set_var("HUGGING_FACE_HUB_TOKEN", &token);
+            std::env::set_var("HF_TOKEN", token);
+            std::env::set_var("HUGGING_FACE_HUB_TOKEN", token);
         }
     }
 }

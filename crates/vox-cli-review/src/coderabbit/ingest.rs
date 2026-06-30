@@ -788,7 +788,7 @@ pub async fn run_ingest(
             &owner,
             &repo,
             pr_number,
-            commit_sha.as_deref(),
+            commit_sha,
             if reingest_window.is_some() {
                 "reingest"
             } else {

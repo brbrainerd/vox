@@ -59,7 +59,7 @@ async fn extract_uplift_replaces_thin_snippet_content() {
         .mount(&tavily)
         .await;
 
-    let mut rows = vec![vox_search::searxng::SearxngResult {
+    let mut rows = [vox_search::searxng::SearxngResult {
         url: "https://example.test/thin".to_string(),
         title: "Thin page".to_string(),
         content: "short".to_string(),

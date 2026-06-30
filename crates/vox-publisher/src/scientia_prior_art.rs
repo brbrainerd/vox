@@ -614,7 +614,7 @@ fn graphify_lexical_prior_art(
             },
         ));
     }
-    scored.sort_by(|a, b| b.0.cmp(&a.0));
+    scored.sort_by_key(|x| std::cmp::Reverse(x.0));
     let hits: Vec<NormalizedPriorArtHit> = scored
         .into_iter()
         .take(take_n)

@@ -170,7 +170,7 @@ impl EffectiveDomainProfile {
             )
         })?;
 
-        let def = file.defaults.unwrap_or_else(|| DomainProfileDefaults {
+        let def = file.defaults.unwrap_or(DomainProfileDefaults {
             min_rating: None,
             ce_last_k: None,
             seq_len: None,
@@ -306,7 +306,7 @@ base:
             .filter(|(_, p)| {
                 p.base
                     .as_ref()
-                    .map_or(false, |b| b.method == TrainMethod::Qlora)
+                    .is_some_and(|b| b.method == TrainMethod::Qlora)
             })
             .map(|(k, _)| k.as_str())
             .collect();
