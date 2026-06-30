@@ -1733,6 +1733,32 @@ pub fn vox_fs_read_bytes(path: &str) -> Result<String, String> {
     String::from_utf8(bytes).map_err(|e| format!("read_bytes: {path}: invalid UTF-8: {e}"))
 }
 
+/// Force the Windows console output code page to UTF-8 so program output renders
+/// Unicode/emoji instead of mojibake. The code page is a property of the console
+/// (inherited by child processes), so one call from the `vox run` entry covers
+/// both the interpreter and the spawned native binary. Idempotent; a no-op off
+/// Windows and a harmless no-op when stdout is redirected (bytes were UTF-8).
+//
+// ponytail: SetConsoleOutputCP covers redirect + the common console case. Full
+// supplementary-plane emoji glyph correctness needs WriteConsoleW (both
+// surrogate halves in one call) — deferred; upgrade path is a console writer.
+#[cfg_attr(windows, allow(unsafe_code))]
+pub fn vox_console_init_utf8() {
+    #[cfg(windows)]
+    {
+        use std::sync::Once;
+        static INIT: Once = Once::new();
+        INIT.call_once(|| {
+            const CP_UTF8: u32 = 65001;
+            // SAFETY: single FFI call with a constant code page; failure (no
+            // console attached / output redirected) is ignored on purpose.
+            unsafe {
+                let _ = windows_sys::Win32::System::Console::SetConsoleOutputCP(CP_UTF8);
+            }
+        });
+    }
+}
+
 pub fn vox_fs_write(path: &str, content: &str) -> Result<(), String> {
     std::fs::write(path, content).map_err(|e| e.to_string())
 }
@@ -1951,5 +1977,13 @@ mod fs_text_robustness_tests {
         let p = dir.join("c.bin");
         std::fs::write(&p, [0xFF, 0xFE, 0x00]).unwrap();
         assert!(vox_fs_read_bytes(p.to_str().unwrap()).is_err());
+    }
+
+    #[test]
+    fn console_init_is_idempotent_and_safe() {
+        // No panic; safe to call repeatedly (Once-guarded). No-op off Windows.
+        // The real emoji-rendering check is the manual Windows smoke test.
+        vox_console_init_utf8();
+        vox_console_init_utf8();
     }
 }

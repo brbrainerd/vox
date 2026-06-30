@@ -51,6 +51,10 @@ use std::process::Command;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Render Unicode/emoji correctly on the Windows console for both `--interp`
+    // (this process) and the spawned native binary (shared console code page).
+    ::vox_actor_runtime::builtins::vox_console_init_utf8();
+
     // Intercept ML commands and delegate to vox-ml-cli
     let args: Vec<String> = std::env::args().collect();
     if args.len() > 1 {
