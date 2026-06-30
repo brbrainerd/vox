@@ -61,7 +61,7 @@ Only high-traffic families are listed; extend this table when consolidating a di
 | [`docs/src/SUMMARY.md`](../../../docs-astro/README.md), [`docs/src/feed.xml`](../../../docs-astro/README.md) | Astro build (gitignored committed stubs per AGENTS.md) | Docs site |
 | [`.cursorignore`](../../../.cursorignore), [`.aiignore`](../../../.aiignore), … | `vox ci sync-ignore-files` from [`.voxignore`](../../../.voxignore) | IDE exclusion surfaces |
 | [`contracts/toestub/suppressions.v1.json`](../../../contracts/toestub/suppressions.v1.json) | Humans + audit tooling | `vox-code-audit`, CI |
-| `docker/**`, `infra/**` compose files | Humans / ops | `vox` research infra helper ([`infra.rs`](../../../crates/vox-cli/src/commands/research/infra.rs)), Coolify, deployment docs |
+| `docker/**`, `infra/**` compose files | Humans / ops | `vox` research infra helper ([`infra.rs`](../../../crates/vox-cli-research/src/infra.rs)), Coolify, deployment docs |
 
 ## Consolidation backlog (risk-tiered)
 
