@@ -92,7 +92,6 @@ pub fn mine_repeated_operations(ops: &[MinedOp], opts: &OpMiningOptions) -> Vec<
         count: usize,
         sessions: BTreeSet<String>,
         tools: Vec<String>,
-        anchors: Vec<String>,
     }
     let mut agg: HashMap<String, Agg> = HashMap::new();
 
@@ -110,14 +109,9 @@ pub fn mine_repeated_operations(ops: &[MinedOp], opts: &OpMiningOptions) -> Vec<
                     count: 0,
                     sessions: BTreeSet::new(),
                     tools: tools[start..start + len].to_vec(),
-                    anchors: Vec::new(),
                 });
                 e.count += 1;
                 e.sessions.insert((*sid).to_string());
-                if e.anchors.len() < 20 {
-                    e.anchors
-                        .push(format!("session:{}@{}", sid, list[start].ts_ms));
-                }
             }
         }
     }
@@ -130,10 +124,11 @@ pub fn mine_repeated_operations(ops: &[MinedOp], opts: &OpMiningOptions) -> Vec<
         .map(|a| {
             let arrow = a.tools.join(" → ");
             let name = ngram_name(&a.tools);
+            let tool_count = a.tools.len();
             Candidate {
                 kind: CandidateKind::RepeatedOperations,
-                members: a.anchors,
-                score: (a.count * a.tools.len()) as f32,
+                members: a.tools,
+                score: (a.count * tool_count) as f32,
                 suggested_action: "Save recurring procedure as a skill".to_string(),
                 draft_frontmatter: Some(DraftFrontmatter {
                     name,
@@ -220,6 +215,21 @@ mod tests {
                 .description
                 .contains("3×")
         );
+    }
+
+    #[test]
+    fn members_are_the_tool_sequence_not_anchors() {
+        let mut ops = Vec::new();
+        ops.extend(seq("s1", 0, &["a", "b", "c"]));
+        ops.extend(seq("s1", 10, &["a", "b", "c"]));
+        ops.extend(seq("s2", 0, &["a", "b", "c"]));
+        let cands = mine_repeated_operations(&ops, &default_opts());
+        let abc = cands
+            .iter()
+            .find(|c| c.draft_frontmatter.as_ref().map(|d| d.name.as_str()) == Some("a-b-c"))
+            .expect("expected a-b-c candidate");
+        assert_eq!(abc.members, vec!["a".to_string(), "b".to_string(), "c".to_string()]);
+        assert!(abc.members.iter().all(|m| !m.starts_with("session:")));
     }
 
     #[test]
