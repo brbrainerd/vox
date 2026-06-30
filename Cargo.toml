@@ -62,6 +62,7 @@ vox-ast                   = { path = "crates/vox-ast" }
 workspace-hack            = { path = "crates/workspace-hack" }
 # Internal crates
 vox-build-meta            = { path = "crates/vox-build-meta" }
+vox-redact                = { path = "crates/vox-redact" }
 vox-telemetry             = { path = "crates/vox-telemetry" }
 vox-telemetry-otlp        = { path = "crates/vox-telemetry-otlp" }
 vox-foundation            = { path = "crates/vox-foundation" }
