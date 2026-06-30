@@ -342,6 +342,25 @@ pub async fn graphify_search(state: &ServerState, params: GraphifySearchParams) 
 
 // ── Graphify Query (BFS expansion) ────────────────────────────────────────
 
+use vox_graph_reader::Direction;
+
+/// Parse the optional `direction` param. Unknown/missing → `Both` (legacy).
+fn parse_direction(raw: &Option<String>) -> Direction {
+    match raw.as_deref() {
+        Some("in") => Direction::In,
+        Some("out") => Direction::Out,
+        _ => Direction::Both,
+    }
+}
+
+fn direction_label(d: Direction) -> &'static str {
+    match d {
+        Direction::In => "in",
+        Direction::Out => "out",
+        Direction::Both => "both",
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct GraphifyQueryParams {
     pub corpus: Option<String>,
@@ -351,6 +370,9 @@ pub struct GraphifyQueryParams {
     pub max_depth: Option<u8>,
     /// Max hits returned (default 20).
     pub limit: Option<u32>,
+    /// "in" = callers, "out" = callees, "both" = undirected (default).
+    #[serde(default)]
+    pub direction: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -360,6 +382,9 @@ pub struct GraphifyPathParams {
     pub from: String,
     /// Destination node ID.
     pub to: String,
+    /// "in" = callers, "out" = callees, "both" = undirected (default).
+    #[serde(default)]
+    pub direction: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -421,7 +446,8 @@ pub async fn graphify_query(state: &ServerState, params: GraphifyQueryParams) ->
     let max_depth = params.max_depth.unwrap_or(2).min(5);
     let limit = params.limit.unwrap_or(20).max(1) as usize;
     let seeds: Vec<&str> = params.seeds.iter().map(String::as_str).collect();
-    let hits = reader.bfs_from_seeds(&seeds, max_depth, limit);
+    let direction = parse_direction(&params.direction);
+    let hits = reader.bfs_from_seeds(&seeds, max_depth, limit, direction);
     let payload_hits: Vec<serde_json::Value> = hits
         .iter()
         .map(|h| {
@@ -439,6 +465,7 @@ pub async fn graphify_query(state: &ServerState, params: GraphifyQueryParams) ->
     ToolResult::ok(serde_json::json!({
         "corpus_id": corpus_id,
         "seeds": params.seeds,
+        "direction": direction_label(direction),
         "corpus_health": corpus_health,
         "hits": payload_hits,
     }))
@@ -485,7 +512,8 @@ pub async fn graphify_path(state: &ServerState, params: GraphifyPathParams) -> S
             .to_json();
         }
     };
-    let path = reader.shortest_path(&params.from, &params.to);
+    let direction = parse_direction(&params.direction);
+    let path = reader.shortest_path(&params.from, &params.to, direction);
     let reachable = path.is_some();
     let head = resolve_head_sha(state).await;
     let corpus_health = corpus_health_block(repo_root, &reg, corpus, head.as_deref());
@@ -493,6 +521,7 @@ pub async fn graphify_path(state: &ServerState, params: GraphifyPathParams) -> S
         "corpus_id": corpus_id,
         "from": params.from,
         "to": params.to,
+        "direction": direction_label(direction),
         "path": path,
         "reachable": reachable,
         "corpus_health": corpus_health,
@@ -920,6 +949,7 @@ mod tests {
                 corpus: Some("repo-code-graph".into()),
                 from: "a".into(),
                 to: "b".into(),
+                direction: None,
             },
         )
         .await;
@@ -958,6 +988,7 @@ mod tests {
                 seeds: vec!["auth".into()],
                 max_depth: Some(1),
                 limit: Some(10),
+                direction: None,
             },
         )
         .await;
@@ -994,6 +1025,7 @@ mod tests {
                 corpus: Some("repo-code-graph".into()),
                 from: "a".into(),
                 to: "c".into(),
+                direction: None,
             },
         )
         .await;
@@ -1091,6 +1123,7 @@ mod tests {
                 seeds: vec!["auth".into()],
                 max_depth: Some(1),
                 limit: Some(10),
+                direction: None,
             },
         )
         .await;
@@ -1105,6 +1138,43 @@ mod tests {
                 .and_then(|v| v.as_array())
                 .is_some()
         );
+    }
+
+    #[tokio::test]
+    async fn graphify_query_echoes_direction() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_registry(tmp.path());
+        let dir = tmp
+            .path()
+            .join(vox_config::paths::REPO_GRAPHIFY_REPO_CODE_GRAPH_DIR);
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(
+            dir.join("graph.json"),
+            r#"{"nodes":[{"id":"a","label":"a"},{"id":"b","label":"b"}],"links":[{"source":"a","target":"b"}]}"#,
+        )
+        .unwrap();
+        let state = test_state_for_repo(tmp.path().to_path_buf());
+        let json = graphify_query(
+            &state,
+            GraphifyQueryParams {
+                corpus: Some("repo-code-graph".into()),
+                seeds: vec!["a".into()],
+                max_depth: Some(1),
+                limit: Some(10),
+                direction: Some("out".into()),
+            },
+        )
+        .await;
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            parsed["success"],
+            serde_json::json!(true),
+            "tool error: {json}"
+        );
+        assert_eq!(parsed["data"]["direction"], serde_json::json!("out"));
+        // "out" from `a` reaches `b`; reverse would be empty.
+        let hits = parsed["data"]["hits"].as_array().unwrap();
+        assert_eq!(hits[0]["node_id"], serde_json::json!("b"));
     }
 
     #[tokio::test]
