@@ -2507,6 +2507,14 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_skill_add",
+      "mcp_tool": "vox_skill_add",
+      "implicit": false,
+      "title": "Skill Add",
+      "description_model": "Add a skill from a git URL or local path into the user .vox/skills root.",
+      "curated": true
+    },
+    {
       "capability_id": "mcp.vox_skill_discover",
       "mcp_tool": "vox_skill_discover",
       "implicit": false,
@@ -2544,6 +2552,14 @@
       "implicit": false,
       "title": "Skill Parse",
       "description_model": "Parse a SKILL.md and preview its manifest before installing.",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_skill_remove",
+      "mcp_tool": "vox_skill_remove",
+      "implicit": false,
+      "title": "Skill Remove",
+      "description_model": "Remove a user-installed skill directory (ownership-scoped to .vox/skills).",
       "curated": true
     },
     {
