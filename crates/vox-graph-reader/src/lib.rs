@@ -6,7 +6,9 @@
 //!   "links": [{"source": "x", "target": "y"}] }
 //! ```
 //! Edges may appear under `"links"` or `"edges"` — both are supported.
-//! The graph is treated as **undirected**: edges are indexed in both directions.
+//! Edges are indexed three ways: a symmetric `adjacency` (undirected, default `Direction::Both`),
+//! a `forward` index (source→target = caller→callee, `Direction::Out`), and a `reverse` index
+//! (callee→caller, `Direction::In`). Traversal selects the index via [`Direction`].
 
 #![allow(clippy::collapsible_if, clippy::unnecessary_map_or)]
 

@@ -50,6 +50,11 @@ pub(crate) fn walk_source_files(source_dir: &std::path::Path) -> Vec<std::path::
     ignore::WalkBuilder::new(source_dir)
         .require_git(false)
         .hidden(true)
+        // Repo `.gitignore` is the SINGLE source of truth: disable the host's global
+        // gitignore (~/.gitignore / core.excludesFile) and `.git/info/exclude` so the
+        // walk is reproducible across hosts and external-repo checkouts.
+        .git_global(false)
+        .git_exclude(false)
         .sort_by_file_path(|a, b| a.cmp(b))
         .filter_entry(|e| {
             let n = e.file_name().to_string_lossy();
