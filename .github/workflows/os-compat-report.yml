@@ -3,13 +3,8 @@ on:
   schedule:
     - cron: '0 6 * * 1'   # every Monday at 06:00 UTC
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'crates/**/*.rs'
-      - 'scripts/**/*.vox'
-      - 'scripts/coverage-graph/os_compat*.py'
-      - 'scripts/coverage-graph/os_compat_rules.toml'
+  # push:main dropped (runner-remediation Task 9) — this observational report
+  # belongs on the weekly schedule, not contending for self-hosted slots per push.
 
 concurrency:
   group: os-compat-report

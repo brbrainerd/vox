@@ -35,9 +35,13 @@ jobs:
           - os: macos-latest
             target: aarch64-apple-darwin
             sccache_gha: "true"
-          - os: [self-hosted, linux, x64]
+          # Moved off the self-hosted fleet (runner-remediation Task 11) so this
+          # merge_group leg stops contending for the 6-runner pool. GHA sccache
+          # backend ON — the self-hosted /cache/sccache volume doesn't exist on
+          # ubuntu-latest and actions/cache doesn't cache SCCACHE_DIR.
+          - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            sccache_gha: "false"
+            sccache_gha: "true"
     runs-on: ${{ matrix.os }}
     env:
       RUSTC_WRAPPER: sccache
