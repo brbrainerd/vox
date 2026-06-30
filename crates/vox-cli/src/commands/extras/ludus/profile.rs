@@ -244,9 +244,10 @@ pub async fn status() -> Result<()> {
         println!();
     }
 
-    // Identity link display
-    if let Ok(identities) = db.get_vox_identities(user_id).await {
-        if let Some((_, _, Some(login))) = identities.iter().find(|(p, _, _)| p == "github") {
+    // Identity link display — the GitHub login lives in Clavis (github.com
+    // registry username), set during `vox ludus auth`.
+    if let Some(login) = vox_secrets::get_registry_username("github.com") {
+        if !login.is_empty() {
             println!("  🔗 Linked GitHub: {}", login.bright_blue());
         }
     }
