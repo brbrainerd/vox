@@ -1333,7 +1333,8 @@ jobs:
   visualizer-ingest-smoke:
     name: Visualizer ingest unit (pnpm + tsx)
     needs: setup
-    if: needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_web == 'true'
+    # Tiered off merge_group (Task 10) but PR affects_web coverage preserved.
+    if: github.event_name != 'merge_group' && (needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_web == 'true')
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 15
     steps:
@@ -1354,7 +1355,8 @@ jobs:
   web-vite-build-smoke:
     name: Web Vite build smoke (pnpm)
     needs: setup
-    if: needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_web == 'true'
+    # Tiered off merge_group (Task 10) but PR affects_web coverage preserved.
+    if: github.event_name != 'merge_group' && (needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_web == 'true')
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 15
     steps:
@@ -1380,7 +1382,8 @@ jobs:
   vox-vscode-extension:
     name: VS Code extension (compile + lint)
     needs: setup
-    if: needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_gui == 'true'
+    # Tiered off merge_group (Task 10) but PR affects_gui coverage preserved.
+    if: github.event_name != 'merge_group' && (needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_gui == 'true')
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 15
     steps:
@@ -1415,7 +1418,9 @@ jobs:
     name: Docker build smoke (default + mesh)
     # Tier: heavy (~30m). Run post-merge (push to main) + on PRs labelled
     # `full-ci`; skip routine PR pushes (not a required check).
-    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
+    # Tiered off merge_group (runner-remediation Task 10): not a ci-summary
+    # dependency, so it gates nothing — runs post-merge on main or via full-ci label.
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || contains(github.event.pull_request.labels.*.name, 'full-ci')
     runs-on: [self-hosted, linux, x64, docker]
     timeout-minutes: 30
     steps:
@@ -1431,7 +1436,9 @@ jobs:
   vox-browser-cdp-smoke:
     name: vox-plugin-browser CDP smoke (Chromium)
     # Tier: heavy (~15m). Post-merge + `full-ci` label only.
-    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
+    # Tiered off merge_group (runner-remediation Task 10): not a ci-summary
+    # dependency, so it gates nothing — runs post-merge on main or via full-ci label.
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || contains(github.event.pull_request.labels.*.name, 'full-ci')
     runs-on: [self-hosted, linux, x64, browser]
     timeout-minutes: 15
     steps:
@@ -1471,7 +1478,9 @@ jobs:
   gui-playwright-smoke:
     name: GUI Playwright golden route (full_stack_minimal)
     # Tier: heavy (~25m). Post-merge + `full-ci` label only.
-    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
+    # Tiered off merge_group (runner-remediation Task 10): not a ci-summary
+    # dependency, so it gates nothing — runs post-merge on main or via full-ci label.
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || contains(github.event.pull_request.labels.*.name, 'full-ci')
     runs-on: [self-hosted, linux, x64, browser]
     timeout-minutes: 25
     steps:
@@ -1586,7 +1595,9 @@ jobs:
     name: All-Features Check (${{ matrix.crate }})
     # Tier: heavy (~30 crates × 10-15m). Post-merge + `full-ci` label only —
     # the single biggest per-PR load. Not a required check.
-    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
+    # Tiered off merge_group (runner-remediation Task 10): not a ci-summary
+    # dependency, so it gates nothing — runs post-merge on main or via full-ci label.
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || contains(github.event.pull_request.labels.*.name, 'full-ci')
     runs-on: [self-hosted, linux, x64, docker]
     timeout-minutes: 15
     strategy:
