@@ -26,9 +26,8 @@ pub struct Field {
     pub label: String,
     pub hint: String,
     pub secret: bool,
-    pub skip: bool,
     /// A field is a config knob only if it carries a `#[config(...)]` attr (opt-in)
-    /// and is not `skip`. Un-annotated fields are ignored — safe for big structs.
+    /// and is not `#[config(skip)]`. Un-annotated fields are ignored — safe for big structs.
     pub include: bool,
 }
 
@@ -47,13 +46,12 @@ fn classify(ty: &Type) -> (Kind, bool) {
     if let Type::Path(p) = ty {
         let seg = p.path.segments.last().unwrap();
         let name = seg.ident.to_string();
-        if name == "Option" {
-            if let syn::PathArguments::AngleBracketed(a) = &seg.arguments
-                && let Some(syn::GenericArgument::Type(inner)) = a.args.first()
-            {
-                let (k, _) = classify(inner);
-                return (k, true);
-            }
+        if name == "Option"
+            && let syn::PathArguments::AngleBracketed(a) = &seg.arguments
+            && let Some(syn::GenericArgument::Type(inner)) = a.args.first()
+        {
+            let (k, _) = classify(inner);
+            return (k, true);
         }
         let k = match name.as_str() {
             "bool" => Kind::Bool,
@@ -158,7 +156,6 @@ impl ConfigModel {
                 label,
                 hint,
                 secret,
-                skip,
                 include: has_config_attr && !skip,
             });
         }
