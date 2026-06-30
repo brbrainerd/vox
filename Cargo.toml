@@ -158,6 +158,7 @@ vox-cli-ci                = { path = "crates/vox-cli-ci" }
 vox-cli-share            = { path = "crates/vox-cli-share" }
 vox-cli-research          = { path = "crates/vox-cli-research" }
 vox-cli-review            = { path = "crates/vox-cli-review" }
+vox-cli-contracts         = { path = "crates/vox-cli-contracts" }
 
 
 vox-project-scaffold      = { path = "crates/vox-project-scaffold" }

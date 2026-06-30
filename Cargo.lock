@@ -15323,6 +15323,7 @@ dependencies = [
  "vox-build-meta",
  "vox-capability-registry",
  "vox-cli-ci",
+ "vox-cli-contracts",
  "vox-cli-core",
  "vox-cli-research",
  "vox-cli-review",
@@ -15408,6 +15409,15 @@ dependencies = [
  "tempfile",
  "vox-cli-core",
  "walkdir",
+]
+
+[[package]]
+name = "vox-cli-contracts"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "vox-config",
 ]
 
 [[package]]

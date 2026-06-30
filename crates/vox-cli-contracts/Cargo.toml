@@ -1,0 +1,18 @@
+[package]
+name = "vox-cli-contracts"
+description = "Trait seam between vox-cli (provides impls) and vox-cli-ci (consumes them), plus shared check-manifest types. Sync, no tokio — keep the floor low."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+anyhow = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+vox-config = { workspace = true }
+
+[lints]
+workspace = true
