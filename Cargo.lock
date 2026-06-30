@@ -15417,7 +15417,10 @@ version = "0.6.0"
 dependencies = [
  "anyhow",
  "serde",
+ "serde_json",
+ "vox-bounded-fs",
  "vox-config",
+ "vox-jsonschema-util",
 ]
 
 [[package]]

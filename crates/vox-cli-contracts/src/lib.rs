@@ -9,6 +9,10 @@ use std::path::Path;
 
 use serde::Deserialize;
 
+/// Finding-candidate / novelty-bundle schema validation (`vox scientia` + the ci
+/// scientia-ledger gate). Lives here because it is shared by a non-ci command and ci.
+pub mod scientia_ledger_contract;
+
 // ---------------------------------------------------------------------------
 // Shared manifest types (moved from vox-cli `commands::audit`)
 // ---------------------------------------------------------------------------
