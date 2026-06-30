@@ -397,6 +397,10 @@ pub struct ProposeSkillParams {
     /// Optional originating session id.
     #[serde(default)]
     pub session_id: Option<String>,
+    /// Serialized mined `Candidate`, persisted on the feedback item for
+    /// accept-time authoring.
+    #[serde(default)]
+    pub candidate: Option<serde_json::Value>,
 }
 
 /// Cancel a queued or in-progress task.
@@ -1043,6 +1047,7 @@ pub enum McpFeedbackAction {
     Skip,
     Overrule,
     LetVerify,
+    AcceptSkill,
 }
 
 impl From<McpFeedbackAction> for vox_orchestrator::feedback::FeedbackAction {
@@ -1052,6 +1057,7 @@ impl From<McpFeedbackAction> for vox_orchestrator::feedback::FeedbackAction {
             McpFeedbackAction::Skip => Self::Skip,
             McpFeedbackAction::Overrule => Self::Overrule,
             McpFeedbackAction::LetVerify => Self::LetVerify,
+            McpFeedbackAction::AcceptSkill => Self::AcceptSkill,
         }
     }
 }

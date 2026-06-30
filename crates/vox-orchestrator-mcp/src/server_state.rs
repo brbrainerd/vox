@@ -699,6 +699,7 @@ mod tests {
             None,
             None,
             123,
+            None,
         );
         let req = state.orchestrator.feedback().get(&id);
         assert!(req.is_some());
