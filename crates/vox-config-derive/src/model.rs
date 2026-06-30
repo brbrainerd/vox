@@ -8,8 +8,8 @@ use syn::{Data, DeriveInput, Fields, Lit, LitStr, Type};
 #[derive(Clone, Copy, PartialEq)]
 pub enum Kind {
     Bool,
-    Int,     // signed
-    Uint,    // unsigned
+    Int,  // signed
+    Uint, // unsigned
     Float32,
     Float64,
     Str,
@@ -106,7 +106,10 @@ impl ConfigModel {
             return Err(syn::Error::new_spanned(ast, "VoxConfig requires a struct"));
         };
         let Fields::Named(named) = &data.fields else {
-            return Err(syn::Error::new_spanned(ast, "VoxConfig requires named fields"));
+            return Err(syn::Error::new_spanned(
+                ast,
+                "VoxConfig requires named fields",
+            ));
         };
 
         let mut fields = Vec::new();
@@ -292,8 +295,12 @@ fn resolver_call(f: &Field) -> TokenStream {
     }
     match f.kind {
         Kind::Bool => quote!(::vox_config::env_parse::resolve_config_bool(#env, self.#id)),
-        Kind::Uint => quote!(::vox_config::env_parse::resolve_config_u64(#env, self.#id as u64) as _),
-        Kind::Int => quote!(::vox_config::env_parse::resolve_config_i64(#env, self.#id as i64) as _),
+        Kind::Uint => {
+            quote!(::vox_config::env_parse::resolve_config_u64(#env, self.#id as u64) as _)
+        }
+        Kind::Int => {
+            quote!(::vox_config::env_parse::resolve_config_i64(#env, self.#id as i64) as _)
+        }
         Kind::Float32 => quote!(::vox_config::env_parse::resolve_config_f32(#env, self.#id)),
         Kind::Float64 => quote!(::vox_config::env_parse::resolve_config_f64(#env, self.#id)),
         Kind::Str => quote!(::vox_config::env_parse::resolve_config_str(#env, &self.#id)),
@@ -315,7 +322,9 @@ fn group_token(s: &str) -> syn::Result<TokenStream> {
         other => {
             return Err(syn::Error::new(
                 Span::call_site(),
-                format!("unknown config group {other:?}; add a variant to vox_config::config_key::Group"),
+                format!(
+                    "unknown config group {other:?}; add a variant to vox_config::config_key::Group"
+                ),
             ));
         }
     };

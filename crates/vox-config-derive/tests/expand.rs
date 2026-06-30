@@ -32,7 +32,10 @@ struct TestDomain2 {
 }
 impl Default for TestDomain2 {
     fn default() -> Self {
-        Self { name: None, mode: Mode::Economy }
+        Self {
+            name: None,
+            mode: Mode::Economy,
+        }
     }
 }
 
@@ -113,7 +116,10 @@ fn config_keys_cover_nonskip_fields_with_env_names() {
     assert!(!names.contains(&"VOX_TESTDOMAIN_BACKENDS")); // skipped
     assert!(keys.iter().all(|k| !k.secret));
     // group string mapped to the Tuning enum variant (not General).
-    assert!(keys.iter().all(|k| k.group == vox_config::config_key::Group::Tuning));
+    assert!(
+        keys.iter()
+            .all(|k| k.group == vox_config::config_key::Group::Tuning)
+    );
 }
 
 #[test]
@@ -125,7 +131,10 @@ fn catalog_reports_current_and_default() {
         backends: vec![],
     };
     let cat = c.catalog();
-    let mt = cat.iter().find(|f| f.key == "VOX_TESTDOMAIN_MAX_THINGS").unwrap();
+    let mt = cat
+        .iter()
+        .find(|f| f.key == "VOX_TESTDOMAIN_MAX_THINGS")
+        .unwrap();
     assert_eq!(mt.current, "7");
     assert_eq!(mt.default, "3");
 }

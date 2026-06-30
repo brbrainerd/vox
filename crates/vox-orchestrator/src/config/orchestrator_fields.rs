@@ -31,7 +31,11 @@ pub struct OrchestratorConfig {
     /// How to handle queue overflow (default: SpawnNewAgent).
     pub queue_overflow_strategy: OverflowStrategy,
     /// Lock timeout in milliseconds (default: 30000).
-    #[config(env = "VOX_ORCHESTRATOR_LOCK_TIMEOUT_MS", default = 30000, label = "Lock timeout (ms)")]
+    #[config(
+        env = "VOX_ORCHESTRATOR_LOCK_TIMEOUT_MS",
+        default = 30000,
+        label = "Lock timeout (ms)"
+    )]
     pub lock_timeout_ms: u64,
     /// Bulletin board broadcast channel capacity (default: 256).
     pub bulletin_capacity: usize,
@@ -41,7 +45,11 @@ pub struct OrchestratorConfig {
     #[serde(default)]
     pub test_decision_policy: crate::planning::TestDecisionPolicy,
     /// Whether to run TOESTUB validation after each completed task (default: true).
-    #[config(env = "VOX_ORCHESTRATOR_TOESTUB_GATE", default = true, label = "TOESTUB gate")]
+    #[config(
+        env = "VOX_ORCHESTRATOR_TOESTUB_GATE",
+        default = true,
+        label = "TOESTUB gate"
+    )]
     pub toestub_gate: bool,
     /// When true, task completion runs the behavioral gate (nested workspace `cargo test` / npm test).
     /// Disabled in [`OrchestratorConfig::for_testing`] so integration tests do not recurse into Cargo.
@@ -57,7 +65,11 @@ pub struct OrchestratorConfig {
     #[serde(default = "default_true")]
     pub completion_markdown_link_audit_enabled: bool,
     /// Maximum number of times a task can be re-routed due to validation failures (default: 3).
-    #[config(env = "VOX_ORCHESTRATOR_MAX_DEBUG_ITERATIONS", default = 3, label = "Max debug iterations")]
+    #[config(
+        env = "VOX_ORCHESTRATOR_MAX_DEBUG_ITERATIONS",
+        default = 3,
+        label = "Max debug iterations"
+    )]
     pub max_debug_iterations: u8,
     /// TOESTUB-specific max auto-debug retries (default: 3).
     #[serde(default = "default_max_toestub_debug_iterations")]
@@ -82,7 +94,11 @@ pub struct OrchestratorConfig {
     pub research_model_enabled: bool,
     /// Weight applied to Arca `agent_reliability` when blending into routing scores (default: 1.0).
     #[serde(default = "default_socrates_reputation_weight")]
-    #[config(env = "VOX_ORCHESTRATOR_SOCRATES_REPUTATION_WEIGHT", default = 1.0, label = "Socrates reputation weight")]
+    #[config(
+        env = "VOX_ORCHESTRATOR_SOCRATES_REPUTATION_WEIGHT",
+        default = 1.0,
+        label = "Socrates reputation weight"
+    )]
     pub socrates_reputation_weight: f64,
     /// When true and Codex `agent_reliability` for the agent meets
     /// [`Self::trust_gate_relax_min_reliability`], **Socrates enforce**, **completion grounding enforce**,
@@ -1566,7 +1582,10 @@ mod vox_config_derive_tests {
         let keys = OrchestratorConfig::config_keys();
         // The 5 opt-in #[config] fields (one per supported numeric/bool kind).
         assert_eq!(keys.len(), 5, "only #[config]-annotated fields are derived");
-        assert!(keys.iter().all(|k| k.group == vox_config::config_key::Group::Orchestrator));
+        assert!(
+            keys.iter()
+                .all(|k| k.group == vox_config::config_key::Group::Orchestrator)
+        );
         assert!(keys.iter().all(|k| !k.secret));
         let names: std::collections::HashSet<_> = keys.iter().map(|k| k.key).collect();
         assert!(names.contains("VOX_ORCHESTRATOR_MAX_AGENTS"));
