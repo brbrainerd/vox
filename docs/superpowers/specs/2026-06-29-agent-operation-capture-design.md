@@ -41,9 +41,12 @@ UI, no proposals — those are later sub-projects.
 
 ## Decisions (locked during brainstorming)
 
-- **Capture point:** wrap the single dispatch chokepoint `handle_tool_call`
-  (`vox-orchestrator-mcp/src/dispatch.rs`), so every tool is captured uniformly
-  with no per-tool instrumentation.
+- **Capture point:** the single dispatch chokepoint `handle_tool_call`
+  (`vox-orchestrator-mcp/src/dispatch.rs`) — specifically its EXISTING
+  post-dispatch block (after `duration_ms` is computed, ~line 287), where
+  `result`/`args`/`name_canonical`/ids are already in scope. No new wrapper; a
+  single `spawn_capture(...)` call. Guard-rejected calls return earlier and are
+  intentionally not captured (only executed tools).
 - **Redaction:** layered scrub — a secret-ish-key denylist plus the existing
   `redact_owned` pattern redactor — applied to args AND result before persist.
 - **Enablement:** on by default; a `config.toml` flag disables it.

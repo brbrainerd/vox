@@ -20,9 +20,10 @@
 |---|---|
 | Capture point | `handle_tool_call` (`vox-orchestrator-mcp/src/dispatch.rs:30`) has a post-dispatch block (~287–396) where `name_canonical`, `args`, `result`, `duration_ms`, `agent_id`, `session_id` are in scope, inside `if let Some(db) = &state.db {` (~352). Add capture there; do NOT wrap `handle_tool_call_inner` (would miss guard semantics/timing). |
 | ids at dispatch | `agent_id`/`session_id` come from `args.get("...")` → `Option<&str>`, often `None` → store NULL. `ServerState` has no current-session field. |
-| Store | `vox_db::VoxDb`; turso `params![]` (`use turso::params;`); writes via `self.breaker` + `self.conn.execute(...).await`; template = `record_agent_event` (`vox-db/src/store/ops_agents.rs:16`). Returns `Result<i64, StoreError>`. `ServerState.db: Option<Arc<vox_db::VoxDb>>`. |
-| Schema | Tables are `CREATE TABLE IF NOT EXISTS` lines inside `pub const SCHEMA_AGENTS: &str` (`vox-db/src/schema/domains/agents.rs`). Adding a table = append there + bump `BASELINE_VERSION` (`vox-db/src/schema/manifest.rs:15`, 80→81) + ledger comment. Digest auto-recomputes; version test auto-passes. No fragment registration needed. |
-| Config | `OrchestratorConfig` (`vox-orchestrator/src/config/orchestrator_fields.rs:16`), `#[serde(deny_unknown_fields, default)]`. Bool-default pattern: `#[serde(default = "default_true")] pub field: bool` (helpers in `config/defaults.rs`). Reachable as `state.orchestrator_config.<field>`. |
+| Store | `vox_db::VoxDb`; turso `params![]` (`use turso::params;`). VERIFIED idiom: `let breaker = self.breaker.clone(); let conn = self.conn.clone(); breaker.call(|| async move { conn.execute(...).await?; Ok::<_,StoreError>(conn.last_insert_rowid()) }).await`. Own data before the `move`; bind `Option<&str>` via `.as_deref()`; no-param queries use `()`. No writer branch needed. `StoreError` = `crate::store::types::StoreError`. `ServerState.db: Option<Arc<vox_db::VoxDb>>`. |
+| Test harness | `VoxDb::connect(DbConfig::Memory).await` (`use crate::{DbConfig, VoxDb};`), schema auto-migrated. `DbConfig::Memory` is `#[cfg(feature="local")]` → run vox-db tests with `--features local`. No `open_in_memory`/path-string/`test_db()` exists. |
+| Schema | Tables are `CREATE TABLE IF NOT EXISTS` lines inside `pub const SCHEMA_AGENTS: &str` (`vox-db/src/schema/domains/agents.rs`). Adding a table = append there + bump `BASELINE_VERSION` (`vox-db/src/schema/manifest.rs:15`, 80→81) + ledger comment + update `contracts/db/baseline-version-policy.yaml` (integer + digest), gated by `vox ci check-codex-ssot`. No fragment registration. NOTE: archive-dedup plan also targets 81 → land-second rebases to 82. |
+| Config | `OrchestratorConfig` (`vox-orchestrator/src/config/orchestrator_fields.rs:16`), `#[serde(deny_unknown_fields, default)]`. Bool-default: `#[serde(default = "default_true")] pub field: bool` (`default_true` already in scope via `use super::defaults::*;`). **`Default` is hand-rolled with NO `..` spread (`config/impl_default.rs`)** — a new field MUST be added there or it won't compile. Reachable as `state.orchestrator_config.<field>`. No config serialization golden breaks. |
 | Redactor | `vox-terminal-core/src/corpus/redact.rs` — `pub fn redact_owned(&str)->String`, deps = `regex` + std only. Callers: `corpus/writer.rs:9` (import) + 6 call sites; `corpus/mod.rs:10` (re-export). |
 
 ---
@@ -34,8 +35,10 @@
 - **Modify** `crates/vox-terminal-core/{Cargo.toml, src/corpus/redact.rs, src/corpus/writer.rs, src/corpus/mod.rs}` — depend on `vox-redact`, repoint callers, drop the moved code.
 - **Modify** `crates/vox-db/src/schema/domains/agents.rs` — append `agent_operations` table + indexes to `SCHEMA_AGENTS`.
 - **Modify** `crates/vox-db/src/schema/manifest.rs` — bump `BASELINE_VERSION` 80→81 + ledger line.
+- **Modify** `contracts/db/baseline-version-policy.yaml` — `repository_baseline_integer: 81` + new baseline digest (gated by `vox ci check-codex-ssot`).
 - **Modify** `crates/vox-db/src/store/ops_agents.rs` — add `record_operation` + `prune_operations`.
 - **Modify** `crates/vox-orchestrator/src/config/orchestrator_fields.rs` — add `operations_capture_enabled: bool` (default true).
+- **Modify** `crates/vox-orchestrator/src/config/impl_default.rs` — add the new field to the hand-rolled `Default` (no `..` spread exists).
 - **Create** `crates/vox-orchestrator-mcp/src/operation_capture.rs` — `spawn_capture(...)` fire-and-forget helper.
 - **Modify** `crates/vox-orchestrator-mcp/src/{lib.rs, dispatch.rs, Cargo.toml}` — register module, call `spawn_capture` in the post-dispatch block, add `vox-redact` dep.
 
@@ -55,24 +58,24 @@
 
 - [ ] **Step 1: Create the crate manifest**
 
-`crates/vox-redact/Cargo.toml`:
+`crates/vox-redact/Cargo.toml` (VERIFIED: workspace edition is `2024`; mirror `edition.workspace = true` as `vox-orchestrator-mcp` does):
 
 ```toml
 [package]
 name = "vox-redact"
 version = "0.6.0"
-edition = "2024"
+edition.workspace = true
 
 [dependencies]
 regex = { workspace = true }
 serde_json = { workspace = true }
 ```
 
-> Match `edition` to a sibling leaf crate if `2024` is rejected (copy the `[package]` block shape from `crates/vox-redact`'s nearest neighbor, e.g. another small crate). `regex`/`serde_json` are workspace deps already.
+`regex`/`serde_json` are already workspace deps.
 
 - [ ] **Step 2: Register in the workspace**
 
-In the root `Cargo.toml`, add `"crates/vox-redact"` to `[workspace] members`, and under `[workspace.dependencies]` add:
+VERIFIED: the root `Cargo.toml` `[workspace] members` is a glob (`members = ["crates/*", "crates/workspace-hack"]`), so `crates/vox-redact` is auto-included — do NOT add it to `members`. Add ONLY the workspace dependency entry under `[workspace.dependencies]`:
 
 ```toml
 vox-redact = { path = "crates/vox-redact" }
@@ -204,14 +207,21 @@ Expected: PASS (all redaction tests).
 
 In `crates/vox-terminal-core/Cargo.toml` `[dependencies]` add: `vox-redact = { workspace = true }`.
 
-Replace the body of `crates/vox-terminal-core/src/corpus/redact.rs` with a re-export (keeps the module path stable for any other reference):
+In `crates/vox-terminal-core/src/corpus/redact.rs`, delete the four regex helpers and the `redact_owned` fn, replacing them with a re-export — but KEEP the existing `#[cfg(test)] mod tests` block (its `use super::*;` now resolves `redact_owned` to the re-exported `vox_redact` one, giving a cross-crate behavior check for free):
 
 ```rust
 //! Redaction moved to the `vox-redact` crate; re-exported here for existing paths.
 pub use vox_redact::redact_owned;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    // ... keep the existing email_redacted / api_key_redacted / loopback_ip_redacted
+    // / clean_text_unchanged tests verbatim — they now exercise vox_redact::redact_owned.
+}
 ```
 
-`crates/vox-terminal-core/src/corpus/mod.rs:10` (`pub use redact::redact_owned;`) keeps working via the re-export — leave it. `corpus/writer.rs:9` (`use super::redact::redact_owned;`) also keeps working. No call-site edits needed.
+`corpus/mod.rs:10` (`pub use redact::redact_owned;`) and `corpus/writer.rs:9` (`use super::redact::redact_owned;`) both keep resolving through the re-export — no call-site edits. (These tests pass only if `vox-redact` uses the same `[REDACTED_EMAIL]`/`[REDACTED_KEY]`/`[REDACTED_IP]` strings, which Step 3 moved verbatim.)
 
 - [ ] **Step 6: Build + test terminal-core**
 
@@ -253,25 +263,28 @@ CREATE INDEX IF NOT EXISTS idx_agent_operations_session ON agent_operations(sess
 CREATE INDEX IF NOT EXISTS idx_agent_operations_tool ON agent_operations(tool_name);
 ```
 
-- [ ] **Step 2: Bump the schema baseline version**
+- [ ] **Step 2: Bump the schema baseline version + the gated SSOT contract**
 
-In `crates/vox-db/src/schema/manifest.rs`, change `pub const BASELINE_VERSION: i64 = 80;` to `81`, and add a ledger comment line above it mirroring the existing format:
+> PRE-CHECK (collision): run `git grep -n "BASELINE_VERSION: i64" -- crates/vox-db` — confirm it is still `80`. Another uncommitted plan (archive-dedup) also targets 81; if 81 is already taken on your base, use the next free integer and adjust every `81` below to match.
+
+In `crates/vox-db/src/schema/manifest.rs`, change `pub const BASELINE_VERSION: i64 = 80;` to `81`, adding a ledger comment line above it (mirror the existing `79:`/`80:` lines):
 
 ```rust
 // 81: feat(capture): add agent_operations table (operation capture sub-project 1)
 pub const BASELINE_VERSION: i64 = 81;
 ```
 
+Then update the gated SSOT contract `contracts/db/baseline-version-policy.yaml`: set `repository_baseline_integer: 81`. The baseline digest there must match the recomputed `schema_baseline_digest_hex` — run the gate (next step) to get the expected digest and paste it in. This contract is enforced by `vox ci check-codex-ssot`; skipping it fails CI.
+
 - [ ] **Step 3: Write the failing store test**
 
-In `crates/vox-db/src/store/ops_agents.rs`, locate the existing `#[cfg(test)] mod tests` (or the nearest test that builds a `VoxDb`) and copy its db-construction harness. Add:
+In `crates/vox-db/src/store/ops_agents.rs`, add to the existing `#[cfg(test)] mod spend_tests` (or a new `#[cfg(test)] mod tests`). VERIFIED harness: tests build the db with `VoxDb::connect(DbConfig::Memory).await` (imports `use crate::{DbConfig, VoxDb};`), schema auto-migrated by `connect`. `DbConfig::Memory` is gated behind the `local` feature, so this test runs under `--features local`.
 
 ```rust
 #[tokio::test]
 async fn record_and_prune_operations_roundtrip() {
-    // Build a test VoxDb exactly as the sibling tests in this file do
-    // (same in-memory/temp constructor + schema apply).
-    let db = /* <copy the harness used by the other #[tokio::test] in this file> */;
+    use crate::{DbConfig, VoxDb};
+    let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
 
     let id = db
         .record_operation(
@@ -294,12 +307,12 @@ async fn record_and_prune_operations_roundtrip() {
 
 - [ ] **Step 4: Run it to verify it fails**
 
-Run: `cargo test -p vox-db record_and_prune_operations_roundtrip`
+Run: `cargo test -p vox-db --features local record_and_prune_operations_roundtrip`
 Expected: FAIL — `no method named record_operation`.
 
 - [ ] **Step 5: Implement the store methods**
 
-In `crates/vox-db/src/store/ops_agents.rs` (same `impl crate::VoxDb` block as `record_agent_event`), add — mirroring the existing `breaker` + `conn.execute` + `params![]` idiom:
+In `crates/vox-db/src/store/ops_agents.rs` (same `impl crate::VoxDb` block as `record_agent_event`). VERIFIED idiom: clone `self.breaker` AND `self.conn` into locals, move owned data into a `|| async move {}` closure, `breaker.call(...).await`; bind `Option<&str>` via `.as_deref()` on an owned `Option<String>` (binds NULL for `None`); bare `Option<i64>`/`i64` bind directly; no-param queries use `()`. Omit the writer-actor branch (legitimate — `record_llm_outcome` has none). `use turso::params;` and `use crate::store::types::StoreError;` are already in this file.
 
 ```rust
 /// Record one (already-redacted) tool-call operation. Best-effort capture signal.
@@ -317,28 +330,35 @@ pub async fn record_operation(
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as i64)
         .unwrap_or(0);
+    // Own everything before the `move` closure (mirrors record_agent_event).
+    let session_id = session_id.map(str::to_string);
+    let agent_id = agent_id.map(str::to_string);
+    let tool_name = tool_name.to_string();
+    let args_redacted = args_redacted.to_string();
+    let result_redacted = result_redacted.map(str::to_string);
+    let breaker = self.breaker.clone();
     let conn = self.conn.clone();
-    self.breaker
-        .call(|| async {
+    breaker
+        .call(|| async move {
             conn.execute(
                 "INSERT INTO agent_operations
                    (ts_ms, session_id, agent_id, tool_name, args_redacted, result_redacted, duration_ms, is_error)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
                 params![
                     ts_ms,
-                    session_id,
-                    agent_id,
-                    tool_name,
-                    args_redacted,
-                    result_redacted,
+                    session_id.as_deref(),
+                    agent_id.as_deref(),
+                    tool_name.as_str(),
+                    args_redacted.as_str(),
+                    result_redacted.as_deref(),
                     duration_ms,
                     is_error as i64,
                 ],
             )
-            .await
+            .await?;
+            Ok::<i64, StoreError>(conn.last_insert_rowid())
         })
-        .await?;
-    Ok(conn.last_insert_rowid())
+        .await
 }
 
 /// Bound table growth: drop rows older than 30 days, then trim to the newest 50k.
@@ -348,33 +368,36 @@ pub async fn prune_operations(&self) -> Result<(), StoreError> {
         .map(|d| d.as_millis() as i64)
         .unwrap_or(0)
         - 30 * 24 * 60 * 60 * 1000;
+    let breaker = self.breaker.clone();
     let conn = self.conn.clone();
-    conn.execute(
-        "DELETE FROM agent_operations WHERE ts_ms < ?1",
-        params![cutoff_ms],
-    )
-    .await?;
-    conn.execute(
-        "DELETE FROM agent_operations WHERE id NOT IN
-           (SELECT id FROM agent_operations ORDER BY id DESC LIMIT 50000)",
-        (),
-    )
-    .await?;
-    Ok(())
+    breaker
+        .call(|| async move {
+            conn.execute(
+                "DELETE FROM agent_operations WHERE ts_ms < ?1",
+                params![cutoff_ms],
+            )
+            .await?;
+            conn.execute(
+                "DELETE FROM agent_operations WHERE id NOT IN
+                   (SELECT id FROM agent_operations ORDER BY id DESC LIMIT 50000)",
+                (),
+            )
+            .await?;
+            Ok::<(), StoreError>(())
+        })
+        .await
 }
 ```
 
-> Mirror `record_agent_event` EXACTLY for the `breaker`/`conn`/`params!` shape — if it uses `self.breaker.clone()` or a different call form, match it. Confirm turso `params![]` binds `Option<&str>` as SQL NULL (it does for `None`); if the local turso version rejects `Option`, bind `session_id.unwrap_or_default()` is NOT acceptable (loses NULL) — instead use two query variants or `params![... session_id.map(|s| s.to_string()) ...]`. Prefer the `Option` binding; only adapt if the compiler rejects it.
+- [ ] **Step 6: Run the store test + schema gate**
 
-- [ ] **Step 6: Run the store test**
-
-Run: `cargo test -p vox-db record_and_prune_operations_roundtrip && cargo test -p vox-db schema_version`
-Expected: PASS (round-trip works; the schema-version test passes against the bumped `BASELINE_VERSION`).
+Run: `cargo test -p vox-db --features local record_and_prune_operations_roundtrip && cargo test -p vox-db --features local baseline_digest_policy`
+Expected: round-trip PASS; `baseline_digest_policy` PASS — if it fails with a digest mismatch, it prints the expected digest; paste that into `contracts/db/baseline-version-policy.yaml` and re-run. Then `vox ci check-codex-ssot` must be clean.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add crates/vox-db/src/schema crates/vox-db/src/store/ops_agents.rs
+git add crates/vox-db/src/schema crates/vox-db/src/store/ops_agents.rs contracts/db/baseline-version-policy.yaml
 git commit -m "feat(db): agent_operations table + record_operation/prune_operations (schema v81)"
 ```
 
@@ -384,10 +407,11 @@ git commit -m "feat(db): agent_operations table + record_operation/prune_operati
 
 **Files:**
 - Modify: `crates/vox-orchestrator/src/config/orchestrator_fields.rs`
+- Modify: `crates/vox-orchestrator/src/config/impl_default.rs`
 
 - [ ] **Step 1: Add the field**
 
-In `crates/vox-orchestrator/src/config/orchestrator_fields.rs`, inside the `OrchestratorConfig` struct, add (mirroring the `agentos_aci_envelope_enabled` field's `default_true` pattern):
+In `crates/vox-orchestrator/src/config/orchestrator_fields.rs`, inside the `OrchestratorConfig` struct, add (mirroring `behavioral_gate_on_complete` at line ~40). VERIFIED: `default_true` is already in scope via `use super::defaults::*;` — no new import:
 
 ```rust
     /// Local, redacted capture of every MCP tool call into `agent_operations`
@@ -396,17 +420,25 @@ In `crates/vox-orchestrator/src/config/orchestrator_fields.rs`, inside the `Orch
     pub operations_capture_enabled: bool,
 ```
 
-Confirm `default_true` is in scope in this file (it is used by sibling fields; if not imported, add `use` mirroring the other `default_*` usages).
+- [ ] **Step 2: Update the hand-rolled `Default` impl (REQUIRED — it has no `..` spread)**
 
-- [ ] **Step 2: Build + verify default**
+VERIFIED: `crates/vox-orchestrator/src/config/impl_default.rs` lists every field explicitly with NO `..Default::default()` spread, so the struct will NOT compile until the new field is added. Add (mirror line ~25 `behavioral_gate_on_complete: default_true(),`):
 
-Run: `cargo test -p vox-orchestrator 2>&1 | grep -E "test result|error" | head`
-Expected: builds; existing config (de)serialization tests pass (the new field defaults to `true` when absent, satisfying `#[serde(default)]`).
+```rust
+            operations_capture_enabled: default_true(),
+```
 
-- [ ] **Step 3: Commit**
+(`for_testing()` in `impl_env.rs` ends with `..Default::default()`, so it needs no change.)
+
+- [ ] **Step 3: Build + verify default**
+
+Run: `cargo test -p vox-orchestrator 2>&1 | grep -E "test result|error\[" | head`
+Expected: builds; `config_serialization_roundtrip` and the catalog tests still pass (they are tolerant — `>= 50` field count, no exact serialization golden).
+
+- [ ] **Step 4: Commit**
 
 ```bash
-git add crates/vox-orchestrator/src/config/orchestrator_fields.rs
+git add crates/vox-orchestrator/src/config/orchestrator_fields.rs crates/vox-orchestrator/src/config/impl_default.rs
 git commit -m "feat(config): operations_capture_enabled flag (default on)"
 ```
 
@@ -521,27 +553,28 @@ Expected: PASS.
 
 - [ ] **Step 5: Emit capture from the post-dispatch block**
 
-In `crates/vox-orchestrator-mcp/src/dispatch.rs`, inside `handle_tool_call`, at the existing post-dispatch site where `result`, `duration_ms`, `name_canonical`, `args`, `agent_id`, `session_id` are in scope (near the existing `if let Some(db) = &state.db {` around line 352), add ONE call. Place it so it runs for executed tool calls (after `duration_ms` is computed). Use the values already in scope:
+VERIFIED in `crates/vox-orchestrator-mcp/src/dispatch.rs`: at the post-dispatch site, `let duration_ms = start_time.elapsed().as_millis() as i64;` is at line ~287; `result` is `Result<String, anyhow::Error>`; `name_canonical: &str`, `args: serde_json::Value` (still owned — the inner call got a clone), `agent_id`/`session_id` are `Option<&str>`; `state.db` is `Option<Arc<VoxDb>>`. The guard-rejection early returns happen BEFORE the inner dispatch (≤ line 187), so a call placed here runs ONLY for executed tools — exactly the intent.
+
+Insert this ONE call immediately AFTER line 287 (`let duration_ms = ...;`), before the telemetry block:
 
 ```rust
-        crate::operation_capture::spawn_capture(
-            state.db.clone(),
-            state.orchestrator_config.operations_capture_enabled,
-            name_canonical.to_string(),
-            args.clone(),
-            // `result` is `Result<String, _>` here — capture the Ok body, else the error text.
-            match &result {
-                Ok(s) => s.clone(),
-                Err(e) => e.to_string(),
-            },
-            session_id.map(|s| s.to_string()),
-            agent_id.map(|s| s.to_string()),
-            duration_ms,
-            result.is_err(),
-        );
+    crate::operation_capture::spawn_capture(
+        state.db.clone(),
+        state.orchestrator_config.operations_capture_enabled,
+        name_canonical.to_string(),
+        args.clone(),
+        match &result {
+            Ok(s) => s.clone(),
+            Err(e) => e.to_string(),
+        },
+        session_id.map(|s| s.to_string()),
+        agent_id.map(|s| s.to_string()),
+        duration_ms,
+        result.is_err(),
+    );
 ```
 
-> Adjust the `result`/`is_error` extraction to the ACTUAL local binding at that point: if `result` has already been unwrapped to a `String` envelope (the verified return shape encodes tool errors as `Ok(json)` with `success:false`), pass that string directly and derive `is_error` from `tool_json_envelope_is_error(&s)` (`server_state.rs:674`). Read the 5 lines around the existing telemetry insert and mirror exactly how it reads `result`/`duration_ms`/ids — do NOT introduce a second computation of any of them.
+`is_error = result.is_err()` reflects a transport-level error; tool-level failures encoded as `Ok(json{success:false})` are still captured (their body is in `args`/`result`), which is the right signal for mining. Do NOT recompute `duration_ms` or move `result`/`args` — `args.clone()` and `&result` borrow without disturbing the existing telemetry block below.
 
 - [ ] **Step 6: Build the crate**
 
@@ -561,18 +594,20 @@ git commit -m "feat(mcp): fire-and-forget agent operation capture in dispatch"
 
 - [ ] **Step 1: Touched crates build + test**
 
-Run: `cargo test -p vox-redact -p vox-db -p vox-orchestrator -p vox-orchestrator-mcp 2>&1 | grep -E "test result|error\[" | head -30`
-Expected: all `test result: ok`; no `error[...]`.
+Run: `cargo test -p vox-redact -p vox-orchestrator -p vox-orchestrator-mcp 2>&1 | grep -E "test result|error\[" | head -30`
+then `cargo test -p vox-db --features local 2>&1 | grep -E "test result|error\[" | head -30`
+Expected: all `test result: ok`; no `error[...]`. (vox-db tests need `--features local` for `DbConfig::Memory`.)
 
 - [ ] **Step 2: terminal-core still green (redact move)**
 
 Run: `cargo test -p vox-terminal-core 2>&1 | grep -E "test result|error" | head`
-Expected: green.
+Expected: green — the in-file `redact.rs` tests resolve `redact_owned` through the re-export to `vox_redact` (same `[REDACTED_*]` strings), so they still pass.
 
-- [ ] **Step 3: Schema integrity**
+- [ ] **Step 3: Schema integrity + SSOT gate**
 
-Run: `cargo test -p vox-db schema 2>&1 | grep -E "test result|FAILED" | head`
-Expected: schema-version / digest tests pass against `BASELINE_VERSION = 81`.
+Run: `cargo test -p vox-db --features local baseline_digest_policy 2>&1 | grep -E "test result|FAILED" | head`
+then `vox ci check-codex-ssot`
+Expected: digest test passes against `BASELINE_VERSION = 81`; the SSOT gate is clean (confirms `contracts/db/baseline-version-policy.yaml` was updated to match).
 
 - [ ] **Step 4: Clippy on touched crates**
 
