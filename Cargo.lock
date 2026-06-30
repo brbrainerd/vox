@@ -15270,7 +15270,6 @@ dependencies = [
  "axum",
  "axum-extra",
  "base64 0.22.1",
- "blake3",
  "cargo_metadata 0.23.1",
  "chrono",
  "clap",
@@ -15326,6 +15325,7 @@ dependencies = [
  "vox-cli-ci",
  "vox-cli-core",
  "vox-cli-research",
+ "vox-cli-review",
  "vox-cli-share",
  "vox-code-audit",
  "vox-codegen",
@@ -15343,7 +15343,6 @@ dependencies = [
  "vox-effort-audit",
  "vox-effort-route",
  "vox-eval",
- "vox-forge",
  "vox-foundation",
  "vox-gamify",
  "vox-git",
@@ -15458,6 +15457,34 @@ dependencies = [
  "vox-research-shim",
  "vox-search",
  "vox-secrets",
+]
+
+[[package]]
+name = "vox-cli-review"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "blake3",
+ "chrono",
+ "clap",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "tempfile",
+ "tokio",
+ "toml 0.8.23",
+ "tracing",
+ "vox-bounded-fs",
+ "vox-code-audit",
+ "vox-config",
+ "vox-corpus",
+ "vox-db",
+ "vox-forge",
+ "vox-git",
+ "vox-http-client",
+ "vox-secrets",
+ "walkdir",
 ]
 
 [[package]]
