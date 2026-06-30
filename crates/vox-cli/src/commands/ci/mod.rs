@@ -67,6 +67,8 @@ pub(crate) mod retired_symbol_check;
 mod runner_scale;
 mod safety_inventory;
 mod scaling_audit;
+#[cfg(test)]
+mod sccache_workflow_guard;
 mod scientia_heuristics_parity;
 mod scientia_novelty_ledger_contract;
 mod scientia_worthiness_contract;

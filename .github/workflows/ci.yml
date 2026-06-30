@@ -27,6 +27,11 @@ env:
   # Self-hosted runner image sets RUSTC_WRAPPER; repeat here for non-container jobs.
   RUSTC_WRAPPER: sccache
   SCCACHE_DIR: /cache/sccache
+  # W1: sccache caches nothing under incremental compilation (cargo's dev/test
+  # default). Without this the gate 0%-hits sccache. Siblings already pin it
+  # (cross-platform-check.yml, ci-fallback-hosted.yml). Guarded by the unit test
+  # `sccache_workflow_guard::all_sccache_workflows_pin_incremental`.
+  CARGO_INCREMENTAL: "0"
 
 jobs:
   # Setup: cache warmup + path-filter computation.  Path-filter outputs let
