@@ -1,8 +1,8 @@
-use vox_cli_ci::cmd_enums::GuardOpts;
 use anyhow::{Context, Result};
 use glob;
 use serde::Deserialize;
 use std::path::Path;
+use vox_cli_ci::cmd_enums::GuardOpts;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct GuardReport {

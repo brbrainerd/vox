@@ -8,9 +8,9 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 use crate::commands::ci::cargo_bin;
-use vox_cli_ci::cmd_enums::ToestubCiMode;
 use crate::commands::ci::constants::FEATURE_SETS;
 use vox_bounded_fs::read_utf8_path_capped;
+use vox_cli_ci::cmd_enums::ToestubCiMode;
 
 pub(crate) fn visit_rs_files(dir: &Path, f: &mut impl FnMut(&Path) -> Result<()>) -> Result<()> {
     for entry in fs::read_dir(dir).with_context(|| format!("read_dir {}", dir.display()))? {

@@ -537,7 +537,6 @@ pub fn run_audit_verify_ssot(repo_root: &Path) -> Result<()> {
     Ok(())
 }
 
-
 /// Apply Tier A (and optional Tier B baseline) gates to the last audit report.
 pub fn run_gates(repo_root: &Path, mode: CompletionGateMode) -> Result<()> {
     let audit_path = repo_root.join(COMPLETION_AUDIT_REPORT_REL);

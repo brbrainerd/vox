@@ -4,30 +4,30 @@ use anyhow::{Result, anyhow};
 use std::process::Command;
 
 use super::build_timings;
-use vox_cli_ci::canonical_docs;
-use vox_cli_ci::check_links;
-use vox_cli_ci::cmd_enums::{
-    CiCmd, DocInventoryCmd, DocsRealityAuditCmd, EvalMatrixCmd, MensScorecardCmd,
-    OperationsSyncTarget,
-};
 use super::command_compliance;
 use super::command_sync;
 use super::completion_quality;
-use vox_cli_ci::contracts_index;
 use super::coverage_gates;
 use super::determinism_audit;
-use vox_cli_ci::doctest_md;
 use super::eval_matrix;
 use super::exec_policy_contract;
 use super::grammar_ssot_parity;
 use super::mens_scorecard;
-use vox_cli_ci::parse_status;
 use super::release_build;
 use super::scaling_audit;
 use super::scientia_heuristics_parity;
 use super::scientia_novelty_ledger_contract;
 use super::scientia_worthiness_contract;
 use super::{cargo_bin, repo_root};
+use vox_cli_ci::canonical_docs;
+use vox_cli_ci::check_links;
+use vox_cli_ci::cmd_enums::{
+    CiCmd, DocInventoryCmd, DocsRealityAuditCmd, EvalMatrixCmd, MensScorecardCmd,
+    OperationsSyncTarget,
+};
+use vox_cli_ci::contracts_index;
+use vox_cli_ci::doctest_md;
+use vox_cli_ci::parse_status;
 
 /// Helpers live in `ci/run_body_helpers/`; `#[path]` keeps them out of `ci/run_body/` (submodule rule).
 #[path = "run_body_helpers/mod.rs"]

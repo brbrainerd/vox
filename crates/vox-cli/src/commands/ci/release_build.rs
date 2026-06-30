@@ -3,14 +3,13 @@ use crate::utils::release_artifacts::{
     package_tar_gz, package_zip, sha256_file,
 };
 use anyhow::{Context, Result, anyhow};
-use vox_cli_ci::cmd_enums::ReleasePackage;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use vox_cli_ci::cmd_enums::ReleasePackage;
 
 /// Supported release triples (SSOT: `vox-install-policy`; keep workflow/docs aligned via `vox ci command-compliance`).
 pub use crate::utils::install_policy::SUPPORTED_RELEASE_TARGETS;
-
 
 pub(crate) fn validate_release_target(target: &str) -> Result<()> {
     if SUPPORTED_RELEASE_TARGETS.contains(&target) {
