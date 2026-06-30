@@ -10,6 +10,7 @@ pub mod external_skills;
 pub mod host_impl;
 pub mod loader;
 pub mod registry;
+pub mod skill_author;
 pub mod skill_bundle;
 pub mod skill_manifest;
 pub mod skill_parser;
@@ -22,6 +23,8 @@ pub use errors::{AbiMismatchError, LoadError, PluginMissingError, SkillNotInstal
 pub use host_impl::DefaultVoxHost;
 pub use loader::{LoadedCodePlugin, Loader};
 pub use registry::{PluginEntry, Registry};
+pub use skill_author::author_skill_md;
+pub use user_install::{InstalledUserSkill, install_to_user_root};
 pub use skill_bundle::{SkillBundle, SkillBundleError, VoxSkillBundle};
 pub use skill_manifest::{SkillCategory, SkillManifest, SkillPermission};
 pub use skill_parser::{ParseSkillError, parse_skill_md};

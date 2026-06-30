@@ -77,7 +77,7 @@ pub fn license_hint(skill_dir: &Path) -> String {
 /// SKILL.md parser does not validate `name`, and install uses it as a path
 /// component (`target_root.join(name)`), so an unchecked `name: ../../x` from an
 /// untrusted source would escape the user root. Reject those here.
-fn validate_skill_name(name: &str) -> Result<(), String> {
+pub(crate) fn validate_skill_name(name: &str) -> Result<(), String> {
     let ok = !name.is_empty()
         && name.len() <= 64
         && name
