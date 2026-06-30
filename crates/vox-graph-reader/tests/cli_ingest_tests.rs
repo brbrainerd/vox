@@ -18,7 +18,7 @@ fn cli_nodes_have_group_scoped_ids_and_skip_top_level_groups() {
     );
     assert!(ids.contains(&"cli:db:query"));
     // Top-level group with no subcommand (len==1) is the group node, not a leaf.
-    assert!(!ids.iter().any(|i| *i == "cli:search:search"));
+    assert!(!ids.contains(&"cli:search:search"));
     assert!(
         nodes
             .iter()
