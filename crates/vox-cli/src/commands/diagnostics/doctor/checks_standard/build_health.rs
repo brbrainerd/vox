@@ -169,7 +169,10 @@ pub(crate) async fn sccache_guard(checks: &mut Vec<Check>) {
     let incremental = std::env::var("CARGO_INCREMENTAL").ok();
     let advice = crate::commands::ci::doctor_build_cache::advise(on_path, wrapper.as_deref(), incremental.as_deref());
     if !advice.is_empty() {
-        checks.push(Check::new("sccache: setup", false, advice.join("; ")));
+        // Not wired is a valid, often-deliberate choice (we disabled sccache as
+        // net-negative) — surface as informational, NOT a failure. Only the
+        // runtime pathology below (crash / ~0% hits) is a real problem.
+        checks.push(Check::pass("sccache: setup", advice.join("; ")));
         return;
     }
     // Runtime health (the new part): crash + hit-rate from --show-stats.
