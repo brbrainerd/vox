@@ -336,8 +336,10 @@ fn admin_output_typechecks_when_gated() {
         is_deprecated: false,
         span,
     };
-    let mut hir = HirModule::default();
-    hir.tables = vec![table];
+    let hir = HirModule {
+        tables: vec![table],
+        ..Default::default()
+    };
 
     // Isolated emit dir + a temp registry that opts the table in.
     let emit_dir = scratch.join("__admin_emit_test__");

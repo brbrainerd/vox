@@ -25,7 +25,7 @@ fn make_workspace(src: &str, registry_yaml: &str) -> tempfile::TempDir {
     dir
 }
 
-fn read_registry(root: &PathBuf) -> String {
+fn read_registry(root: &std::path::Path) -> String {
     std::fs::read_to_string(root.join("contracts/config/registry.v1.yaml")).unwrap()
 }
 
