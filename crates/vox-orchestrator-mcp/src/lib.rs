@@ -64,6 +64,8 @@ pub(crate) mod lock_guard;
 pub mod news_tools;
 /// OpenClaw native gateway and skill tools.
 pub mod openclaw_tools;
+/// Best-effort, redacted capture of every MCP tool call into `agent_operations`.
+pub mod operation_capture;
 /// Oratio speech-to-text (Candle Whisper).
 #[cfg(feature = "oratio-rerank")]
 pub mod oratio_tools;
@@ -71,8 +73,6 @@ pub mod oratio_tools;
 pub mod persistence_tools;
 /// Local mens registry status (`vox_populi_local_status`).
 pub mod populi_tools;
-/// Best-effort, redacted capture of every MCP tool call into `agent_operations`.
-pub mod operation_capture;
 /// Automatic post-mutation `.vox` verification feedback (verification-driven agent loop).
 pub mod post_verification;
 /// `vox init` parity scaffold (`vox_project_init`).

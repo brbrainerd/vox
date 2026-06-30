@@ -160,7 +160,8 @@ mod tests {
 
     #[test]
     fn redacts_secret_pattern_in_nonsecret_field() {
-        let out = redact_args(&json!({ "note": "use api_key= ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" }));
+        let out =
+            redact_args(&json!({ "note": "use api_key= ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" }));
         assert!(
             out["note"].as_str().unwrap().contains("[REDACTED_KEY]"),
             "got {out}"
@@ -177,7 +178,10 @@ mod tests {
         );
         assert!(redact_owned("token is AKIAIOSFODNN7EXAMPLE here").contains("[REDACTED_KEY]"));
         // A plain non-secret value is untouched.
-        assert_eq!(redact_owned("just some normal text"), "just some normal text");
+        assert_eq!(
+            redact_owned("just some normal text"),
+            "just some normal text"
+        );
     }
 
     #[test]
@@ -188,7 +192,12 @@ mod tests {
             "count": 3
         }));
         assert_eq!(out["outer"]["password"], json!("[REDACTED]"));
-        assert!(out["list"][0].as_str().unwrap().contains("[REDACTED_EMAIL]"));
+        assert!(
+            out["list"][0]
+                .as_str()
+                .unwrap()
+                .contains("[REDACTED_EMAIL]")
+        );
         assert_eq!(out["list"][1], json!("ok"));
         assert_eq!(out["count"], json!(3));
     }
