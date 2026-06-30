@@ -225,20 +225,16 @@ pub(crate) fn author_and_install_skill(
         .ok_or_else(|| "candidate has no draft frontmatter".to_string())?;
     let md = vox_plugin_host::author_skill_md(&df.name, &df.description, &cand.members);
 
-    // Author into a unique temp dir, then install via the hardened installer.
-    let safe: String = df
-        .name
-        .chars()
-        .filter(|c| c.is_ascii_alphanumeric() || *c == '-')
-        .collect();
-    let tmp = std::env::temp_dir().join(format!("vox-skill-author-{safe}"));
-    let skill_dir = tmp.join("skill");
+    // Author into a fresh, unique temp dir. `TempDir` is RAII: it self-cleans on
+    // drop, including every early-return error path below. The dir holds only our
+    // one SKILL.md, so the installer discovers exactly one skill.
+    let tmp = tempfile::tempdir().map_err(|e| e.to_string())?;
+    let skill_dir = tmp.path().join("skill");
     std::fs::create_dir_all(&skill_dir).map_err(|e| e.to_string())?;
     std::fs::write(skill_dir.join("SKILL.md"), md).map_err(|e| e.to_string())?;
 
-    let src = tmp.to_string_lossy();
+    let src = tmp.path().to_string_lossy();
     let installed = vox_plugin_host::install_to_user_root(&src, ws_root, false, None)?;
-    let _ = std::fs::remove_dir_all(&tmp); // best-effort cleanup
     Ok(installed.into_iter().map(|i| i.name).collect())
 }
 

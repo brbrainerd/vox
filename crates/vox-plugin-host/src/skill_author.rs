@@ -25,25 +25,48 @@ fn kebab(name: &str) -> String {
     }
 }
 
+/// Escape a string for use inside a TOML basic (double-quoted) string. Without
+/// this a benign backslash (`C:\Users`, `\w`) or newline yields invalid TOML and
+/// the authored `SKILL.md` fails to parse/install.
+fn toml_escape(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '\\' => out.push_str("\\\\"),
+            '"' => out.push_str("\\\""),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04X}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out
+}
+
 /// Build a TOML-frontmatter `SKILL.md`. `steps` render as a numbered list of
 /// inline-code tokens; an empty list yields a valid file with no steps.
 pub fn author_skill_md(name: &str, description: &str, steps: &[String]) -> String {
     let name = kebab(name);
-    let desc = description.replace('"', "'"); // keep the TOML string valid + single-line
+    let desc_fm = toml_escape(description); // valid inside the TOML frontmatter string
     let steps_md = if steps.is_empty() {
         "_No individual steps were captured._".to_string()
     } else {
         steps
             .iter()
             .enumerate()
-            .map(|(i, s)| format!("{}. `{}`", i + 1, s))
+            .map(|(i, s)| {
+                // Keep each step on one line and stop a stray backtick closing the span.
+                let s = s.replace('`', "'").replace(['\n', '\r'], " ");
+                format!("{}. `{}`", i + 1, s)
+            })
             .collect::<Vec<_>>()
             .join("\n")
     };
     format!(
         "---\n\
 name = \"{name}\"\n\
-description = \"{desc}\"\n\
+description = \"{desc_fm}\"\n\
 \n\
 [metadata]\n\
 \"vox-author\" = \"vox-skill-discovery\"\n\
@@ -53,7 +76,7 @@ description = \"{desc}\"\n\
 \n\
 # {name}\n\
 \n\
-{desc}\n\
+{description}\n\
 \n\
 ## Steps\n\
 \n\
@@ -79,6 +102,19 @@ mod tests {
         assert!(validate_skill_name(&parsed.manifest.name).is_ok());
         assert!(md.contains("1. `read`"));
         assert!(md.contains("3. `run`"));
+    }
+
+    #[test]
+    fn backslash_and_newline_description_still_parses() {
+        // Windows paths and regex escapes are benign, common input; they must
+        // not produce an unparseable TOML frontmatter.
+        let md = author_skill_md(
+            "win path",
+            "open C:\\Users\\me then\nmatch \\w+ regex",
+            &["read".into()],
+        );
+        let parsed = parse_skill_md(&md).expect("backslash/newline description must still parse");
+        assert_eq!(parsed.manifest.name, "win-path");
     }
 
     #[test]
