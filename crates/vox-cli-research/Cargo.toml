@@ -1,0 +1,31 @@
+[package]
+name = "vox-cli-research"
+description = "Research commands (run/eval/infra/mesh-intake) extracted from vox-cli."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+owo-colors = { workspace = true }
+reqwest = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["rt", "macros", "rt-multi-thread"] }
+uuid = { workspace = true, features = ["v4"] }
+vox-config = { workspace = true }
+vox-db = { workspace = true }
+vox-foundation = { workspace = true }
+vox-orchestrator = { workspace = true }
+vox-publisher = { workspace = true }
+vox-repository = { workspace = true }
+vox-research-shim = { workspace = true }
+vox-search = { workspace = true }
+vox-secrets = { workspace = true }
+
+[lints]
+workspace = true

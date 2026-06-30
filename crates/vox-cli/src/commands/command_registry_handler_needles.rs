@@ -48,7 +48,7 @@
 // commands::pm
 // commands::remove
 // commands::repo
-// commands::research::run_research_query
+// vox_cli_research::run_research_query
 // commands::review
 // commands::run
 // commands::runtime::run::script

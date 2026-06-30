@@ -587,7 +587,7 @@ pub enum Cli {
     Research {
         /// Subcommand.
         #[command(subcommand)]
-        cmd: commands::research::ResearchCmd,
+        cmd: vox_cli_research::ResearchCmd,
     },
 
     /// CodeRabbit batch PRs + ingest (`--features coderabbit`).

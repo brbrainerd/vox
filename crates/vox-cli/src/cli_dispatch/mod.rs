@@ -552,7 +552,7 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
         Cli::DriftCheck { args } => {
             crate::commands::drift_check::run(args).await?;
         }
-        Cli::Research { cmd } => crate::commands::research::run(cmd).await?,
+        Cli::Research { cmd } => vox_cli_research::run(cmd).await?,
         #[cfg(feature = "coderabbit")]
         Cli::Review { cmd } => {
             run_review_subcommand(cmd).await?;

@@ -15325,6 +15325,7 @@ dependencies = [
  "vox-capability-registry",
  "vox-cli-ci",
  "vox-cli-core",
+ "vox-cli-research",
  "vox-cli-share",
  "vox-code-audit",
  "vox-codegen",
@@ -15435,6 +15436,28 @@ dependencies = [
  "vox-repository",
  "vox-secrets",
  "which 8.0.4",
+]
+
+[[package]]
+name = "vox-cli-research"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "owo-colors 4.3.0",
+ "reqwest 0.12.28",
+ "serde_json",
+ "tokio",
+ "uuid",
+ "vox-config",
+ "vox-db",
+ "vox-foundation",
+ "vox-orchestrator",
+ "vox-publisher",
+ "vox-repository",
+ "vox-research-shim",
+ "vox-search",
+ "vox-secrets",
 ]
 
 [[package]]

@@ -152,6 +152,7 @@ tokio = { workspace = true, features = ["io-std"] }
 vox-cli-core = { workspace = true }
 vox-cli-ci = { workspace = true }
 vox-cli-share = { workspace = true }
+vox-cli-research = { workspace = true }
 base64 = { workspace = true }
 futures = { workspace = true }
 vox-package = { workspace = true }

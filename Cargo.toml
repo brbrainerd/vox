@@ -156,6 +156,7 @@ vox-publisher             = { path = "crates/vox-publisher", default-features = 
 vox-cli-core              = { path = "crates/vox-cli-core" }
 vox-cli-ci                = { path = "crates/vox-cli-ci" }
 vox-cli-share            = { path = "crates/vox-cli-share" }
+vox-cli-research          = { path = "crates/vox-cli-research" }
 
 
 vox-project-scaffold      = { path = "crates/vox-project-scaffold" }
