@@ -61,20 +61,25 @@ CARGO_LOG fingerprint capture (NEW) ──────────────�
 
 ### New component 1 — Rebuild-cause diagnostic
 
-`scripts/rebuild-why.vox` (VoxScript per repo automation policy; no new .ps1/.sh/.py)
-plus a fingerprint-log parser (Rust, in `vox-graph-reader` or a vox-cli-ci helper —
-final placement per `where-things-live.md` during planning).
+CLI-native: `vox graphify why-rebuilt` (no wrapper script — a VoxScript would only
+shell back into `vox`; the Rust side sets env vars cross-platform). Parser lives in
+`vox-graph-reader::rebuild_causes` (pure text→classification, no I/O), capture +
+reporting in the graphify command.
 
-Behavior: run two consecutive `cargo build` invocations with
-`CARGO_LOG=cargo::core::compiler::fingerprint=info`, capture stderr to files, parse the
-second build's fingerprint log, and classify every crate that recompiled into exactly
-one cause:
+Behavior: `--capture` runs two consecutive `cargo check --workspace --exclude vox-gui`
+invocations (**check, not build** — never tries to relink a possibly-running/locked
+`vox.exe` on Windows), the second with
+`CARGO_LOG=cargo::core::compiler::fingerprint=info`, captures its stderr to
+`graphify-out/rebuild_fingerprint.log`, parses it, and classifies every dirty crate
+into exactly one cause. `--log <path>` parses a previously captured log instead.
 
 | Class | Meaning |
 |---|---|
 | `feature_drift` | feature set differs from previous compilation |
 | `build_script_rerun` | build script re-ran (rerun-if-changed/env) |
 | `env_change` | tracked env var changed |
+| `dep_rebuilt` | recompiled only because a dependency was rebuilt (cascade) |
+| `config_change` | rustflags / profile / compile-kind / config settings changed |
 | `file_dirty` | source file newer than fingerprint (legitimate) |
 | `unknown` | unrecognized log shape — raw line preserved verbatim, never guessed |
 
@@ -117,7 +122,7 @@ Output artifact: `graphify-out/edge_weights.json`.
 
 | Piece | Input | Output | Done when |
 |---|---|---|---|
-| rebuild-why | two instrumented builds | `rebuild_causes.json` + summary | correctly classifies a seeded feature-drift and a seeded env-change on a test crate; idle rebuild classifies clean |
+| why-rebuilt | two instrumented `cargo check` runs | `rebuild_causes.json` + summary | correctly classifies a seeded feature-drift and a seeded env-change on a test crate; idle rebuild classifies clean |
 | what-if | existing crate map | ranked deltas | `--what-if-cut` matches hand-computed BFS on a toy graph; `--top-cuts` ranks a constructed graph correctly |
 | edge weights | `graph.json` × crate edges | `edge_weights.json`, zero-weight list | a known-thin and a known-heavy edge rank correctly; zero-weight list has no false positives on 3 spot-checks |
 
