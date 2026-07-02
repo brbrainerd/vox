@@ -38,8 +38,15 @@ fn has_concurrency(doc: &serde_yaml::Value) -> bool {
         .unwrap_or(false)
 }
 
+/// Scoped to markdown list-item lines (`- \`file.yml\` — reason`), not the
+/// whole doc — mirrors `runner_policy_check::parse_exceptions_doc` scoping to
+/// table rows, so a filename mentioned in unrelated prose (e.g. contrastive
+/// documentation) can never silently exempt a workflow.
 fn is_excepted(exceptions_text: &str, file_name: &str) -> bool {
-    exceptions_text.contains(&format!("`{file_name}`"))
+    let marker = format!("`{file_name}`");
+    exceptions_text
+        .lines()
+        .any(|line| line.trim_start().starts_with('-') && line.contains(&marker))
 }
 
 pub fn run(repo_root: &Path, strict: bool) -> Result<()> {
@@ -132,5 +139,15 @@ mod tests {
         let doc = "- `release-binaries.yml` — tag-push only.";
         assert!(is_excepted(doc, "release-binaries.yml"));
         assert!(!is_excepted(doc, "ci.yml"));
+    }
+
+    #[test]
+    fn exception_matching_ignores_prose_mentions() {
+        // A filename mentioned in non-list-item prose must NOT silently exempt it —
+        // only backticked mentions inside `- ` list items count.
+        let doc = "Unlike `ci.yml`, this workflow needs no concurrency group.\n\n\
+                   - `release-binaries.yml` — tag-push only.";
+        assert!(!is_excepted(doc, "ci.yml"));
+        assert!(is_excepted(doc, "release-binaries.yml"));
     }
 }

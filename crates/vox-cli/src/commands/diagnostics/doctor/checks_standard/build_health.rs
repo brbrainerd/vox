@@ -508,13 +508,34 @@ pub(crate) async fn hook_guard_check(checks: &mut Vec<Check>) {
         ));
         return;
     };
-    if let Some(mut stdin) = child.stdin.take() {
-        let _ = stdin
-            .write_all(br#"{"tool_input":{"command":"gh pr checks"}}"#)
-            .await;
-    }
-    let Ok(out) = child.wait_with_output().await else {
-        return;
+
+    // Bounded: this check exists precisely to catch a misbehaving installed
+    // binary, so it must never itself hang `vox doctor` (same discipline as
+    // `compile_probe`'s cargo-build timeout above).
+    let round_trip = async {
+        if let Some(mut stdin) = child.stdin.take() {
+            let _ = stdin
+                .write_all(br#"{"tool_input":{"command":"gh pr checks"}}"#)
+                .await;
+        }
+        child.wait_with_output().await
+    };
+    let out = match tokio::time::timeout(std::time::Duration::from_secs(10), round_trip).await {
+        Ok(Ok(o)) => o,
+        _ => {
+            checks.push(Check::fail(
+                "ci: hook-guard round-trip",
+                diag(
+                    "ci.hook_guard_stale_binary",
+                    "error",
+                    "installed vox did not respond within 10s to the hook-guard round-trip \
+                     (hung or crashed reading stdin)",
+                    "cargo install --path crates/vox-cli --locked",
+                    false,
+                ),
+            ));
+            return;
+        }
     };
     let exit_code = out.status.code().unwrap_or(-1);
     let stderr = String::from_utf8_lossy(&out.stderr);
