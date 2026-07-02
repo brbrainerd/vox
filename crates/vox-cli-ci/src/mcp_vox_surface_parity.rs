@@ -23,7 +23,7 @@ struct FixtureRow {
 }
 
 pub fn run() -> Result<()> {
-    let repo = super::repo_root();
+    let repo = crate::repo_root();
     let load = vox_orchestrator_mcp::workspace_mcp::WorkspaceMcpLoader::load_repo(
         &repo,
         &vox_orchestrator_mcp::workspace_mcp::load_scan_config(&repo),
@@ -92,13 +92,12 @@ pub fn run() -> Result<()> {
             }
             match vox_orchestrator_mcp::workspace_mcp::dispatch_workspace_resource(surface, uri) {
                 Ok(body) => {
-                    if let Some(expected) = &row.expected_body {
-                        if body != *expected {
+                    if let Some(expected) = &row.expected_body
+                        && body != *expected {
                             errors.push(format!(
                                 "fixture resource {uri} expected body {expected:?}, got {body:?}"
                             ));
                         }
-                    }
                 }
                 Err(e) => errors.push(format!("fixture resource {uri} read failed: {e}")),
             }

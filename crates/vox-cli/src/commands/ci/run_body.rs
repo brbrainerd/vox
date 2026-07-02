@@ -7,14 +7,14 @@ use super::build_timings;
 use super::command_compliance;
 use super::command_sync;
 use super::completion_quality;
-use super::coverage_gates;
-use super::determinism_audit;
+use vox_cli_ci::coverage_gates;
+use vox_cli_ci::determinism_audit;
 use super::eval_matrix;
 use super::exec_policy_contract;
-use super::grammar_ssot_parity;
+use vox_cli_ci::grammar_ssot_parity;
 use super::mens_scorecard;
 use super::release_build;
-use super::scaling_audit;
+use vox_cli_ci::scaling_audit;
 use vox_cli_ci::scientia_heuristics_parity;
 use super::scientia_novelty_ledger_contract;
 use vox_cli_ci::scientia_worthiness_contract;
@@ -124,9 +124,9 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             eval_manifest,
             plugins_dir,
             skip_runtime,
-        } => super::speech_runtime_suite::run(
+        } => vox_cli_ci::speech_runtime_suite::run(
             &root,
-            super::speech_runtime_suite::SpeechRuntimeSuiteOpts {
+            vox_cli_ci::speech_runtime_suite::SpeechRuntimeSuiteOpts {
                 run_id,
                 limit,
                 eval_manifest,
@@ -507,7 +507,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 Ok(())
             })()
         }
-        CiCmd::GuiSmoke => super::gui_smoke::run(&root),
+        CiCmd::GuiSmoke => vox_cli_ci::gui_smoke::run(&root),
         CiCmd::CoverageGates {
             summary_json,
             mode,
@@ -559,7 +559,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             compare,
             repeat,
             ingest,
-        } => super::build_bench::run_build_bench(&root, label, write, compare, repeat, ingest),
+        } => vox_cli_ci::build_bench::run_build_bench(&root, label, write, compare, repeat, ingest),
         CiCmd::CrateBudget { exit_zero } => vox_cli_ci::crate_budget::run_crate_budget(&root, exit_zero),
         CiCmd::CrateBuildMapParity => {
             vox_cli_ci::crate_build_map_parity::run_crate_build_map_parity(&root)
@@ -570,7 +570,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::DepCycles {
             deny_new,
             allowlist,
-        } => super::dep_cycles::run_dep_cycles(&root, deny_new, allowlist.as_deref()),
+        } => vox_cli_ci::dep_cycles::run_dep_cycles(&root, deny_new, allowlist.as_deref()),
         CiCmd::AffectedCrates {
             changed,
             graph,
@@ -618,7 +618,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             json,
             annotate,
             strict,
-        } => super::job_timings::run(run_id, threshold_mins, limit, json, annotate, strict),
+        } => vox_cli_ci::job_timings::run(run_id, threshold_mins, limit, json, annotate, strict),
         CiCmd::NomenclatureGuard { json } => vox_cli_ci::nomenclature_guard::run(&root, json),
         CiCmd::RetiredSymbolCheck => retired_symbol_check::run(&root),
         CiCmd::SyncIgnoreFiles { verify } => vox_cli_ci::sync_ignore_files::run(&root, verify),
@@ -726,15 +726,15 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::PluginCatalogSync { write } => vox_cli_ci::plugin_catalog_sync::run(&root, write),
         CiCmd::PluginSkillParity { write } => vox_cli_ci::plugin_skill_parity::run(write),
         CiCmd::AgentSkillsCompliance => vox_cli_ci::agentskills_compliance::run(),
-        CiCmd::McpVoxSurfaceParity => super::mcp_vox_surface_parity::run(),
-        CiCmd::CoolifyEval { cmd } => super::coolify_eval::run(cmd).await,
+        CiCmd::McpVoxSurfaceParity => vox_cli_ci::mcp_vox_surface_parity::run(),
+        CiCmd::CoolifyEval { cmd } => vox_cli_ci::coolify_eval::run(cmd).await,
         CiCmd::WatchRun {
             sha,
             timeout_secs,
             advisory,
             failures_only,
         } => {
-            super::watch_run::run(super::watch_run::WatchRunArgs {
+            vox_cli_ci::watch_run::run(vox_cli_ci::watch_run::WatchRunArgs {
                 sha,
                 timeout_secs,
                 advisory,

@@ -3,7 +3,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-use crate::commands::ci::cargo_bin;
+use crate::cargo_bin;
 
 pub fn run(root: &Path) -> Result<()> {
     println!("Running determinism audit on examples/golden...");

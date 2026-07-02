@@ -1,6 +1,18 @@
 //! Repository CI guard checks extracted from `vox-cli` (`vox ci *` implementation wedge).
 
 pub mod affected;
+pub mod determinism_audit;
+pub mod grammar_ssot_parity;
+pub mod gui_smoke;
+pub mod mcp_vox_surface_parity;
+pub mod coolify_eval;
+pub mod watch_run;
+pub mod build_bench;
+pub mod job_timings;
+pub mod dep_cycles;
+pub mod speech_runtime_suite;
+pub mod scaling_audit;
+pub mod coverage_gates;
 pub mod helpers;
 pub mod constants;
 pub use helpers::{cargo_bin, nvcc_available, nvcc_version_command, repo_root};

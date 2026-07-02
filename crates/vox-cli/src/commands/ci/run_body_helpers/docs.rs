@@ -541,7 +541,7 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     )?;
     ds!(
         "mcp_vox_surface_parity",
-        crate::commands::ci::mcp_vox_surface_parity::run()
+        vox_cli_ci::mcp_vox_surface_parity::run()
     )?;
     ds!("command_compliance", command_compliance::run(root))?;
     ds!(

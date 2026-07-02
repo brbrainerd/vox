@@ -151,7 +151,7 @@ pub fn new_advisory_cycles<'a>(
 }
 
 fn cargo_metadata(root: &Path) -> Result<Value> {
-    let out = Command::new(super::cargo_bin())
+    let out = Command::new(crate::cargo_bin())
         .current_dir(root)
         .args(["metadata", "--format-version", "1"])
         .output()
