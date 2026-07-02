@@ -4,13 +4,31 @@
 > a first guard batch are LANDED; this is the turnkey recipe for the remaining guards
 > and the final dispatcher move. Spec: docs/superpowers/specs/2026-06-30-vox-cli-contracts-ci-extraction.md.
 
-## Landed so far (origin/main)
-- `eaa59179d4` — Step 1: cmd_enums (CiCmd + 11 nested enums + ReleasePackage/CompletionGateMode
-  dependency-free enum defs) → vox-cli-ci; re-exported via `commands::ci::CiCmd`. clap goldens pass.
-- `f47419d6e6` — Step 3a batch 1: 9 leaf guards moved (check_links, doctest_md, canonical_docs,
-  contracts_index, free_binary, parse_status, kill_stuck_tests, install_hooks, test_inventory).
-- vox-cli-ci deps now include: clap, chrono, vox-bounded-fs, vox-doc-pipeline, vox-jsonschema-util,
-  vox-compiler, vox-git, vox-config, owo-colors, sysinfo, tokio (+ insta/proptest dev).
+## Landed so far (origin/main) — ALL 60 Tier-1 guards migrated
+- Step 1 `eaa59179d4`: cmd_enums (CiCmd + 11 nested enums + dependency-free ReleasePackage/
+  CompletionGateMode) → vox-cli-ci; re-exported via `commands::ci::CiCmd`. clap goldens pass.
+- Batches 3a–3h (`f47419d6e6`, `d485349882`, `38ad7fd70c`, `accb52b8d3`, `80b508bbe4`,
+  `9e2561d292`, `63a841a498`): 60 guards moved in 8 batches (leaf → helper-dependent → the
+  two spec-mislabeled Tier-1s completion_quality/data_storage_guard + mens_scorecard).
+- Helper extraction `3089b2e374`: repo_root/cargo_bin/nvcc + constants → vox-cli-ci (re-exported
+  to vox-cli), which unlocked the coupling=1 guards.
+- Feature passthrough `c3309e4544`: vox-cli-ci gained a `completion-toestub` feature (+ optional
+  vox-code-audit) forwarded from vox-cli.
+- vox-cli-ci deps now: clap, chrono, tokio, owo-colors, sysinfo, which, reqwest, strsim, toml,
+  toml_edit + vox-bounded-fs/doc-pipeline/jsonschema-util/compiler/git/config/repository/db/
+  http-client/secrets/graph-reader/rule-pack/orchestrator/orchestrator-mcp/grammar-export/
+  scaling-policy/plugin-{api,catalog,host,types}/publisher/cli-contracts (+ insta/proptest dev).
+
+## REMAINING (the final step): ~15 Tier-2 guards + the dispatcher move
+Still in `crates/vox-cli/src/commands/ci/` because they reach into vox-cli internals
+(`crate::command_registry_model`, `crate::frontend`, `crate::commands::runtime`, `crate::benchmark`,
+`crate::commands::scientia`) or reference the dispatcher: **build_timings, capability_sync,
+command_sync, eval_matrix, exec_policy_contract, gui_catalog_parity, gui_surface_coverage,
+gui_surface_registry, operations_catalog, pipeline_parity, policy_allowlist_parity, policy_registry,
+pre_push, release_build, runner_scale** (+ providers.rs, run_body.rs, workspace_artifacts, the
+profile_parity shim). These are the HeavyGuardHost set — do the dispatcher move + `HeavyGuardHost`
+(Steps 2/3-final/4 below) as ONE careful pass; it's the un-chunkable hub. Freshness (run_body.rs:56)
+STAYS in vox-cli before the delegating call.
 
 ## Key insight (why this is safe + incremental)
 The dispatcher (`run_body.rs`) STAYS in vox-cli for now; moving a guard just changes its caller from
