@@ -1,6 +1,5 @@
 //! `vox ci` — repository guard checks (SSOT, manifests, feature matrix) without shell/Python.
 
-pub mod build_timings;
 mod capability_sync;
 mod command_compliance;
 mod command_sync;

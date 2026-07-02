@@ -3,7 +3,7 @@
 use anyhow::{Result, anyhow};
 use std::process::Command;
 
-use super::build_timings;
+use vox_cli_ci::build_timings;
 use super::command_compliance;
 use super::command_sync;
 use vox_cli_ci::completion_quality;
@@ -343,7 +343,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             profile,
         } => {
             if deep {
-                build_timings::bench_build_run(persist.unwrap_or(true), name, Some(profile))
+                vox_cli_ci::build_timings::bench_build_run(persist.unwrap_or(true), name, Some(profile))
                     .await?;
                 Ok(())
             } else {
