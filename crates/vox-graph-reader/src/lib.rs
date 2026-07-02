@@ -25,6 +25,7 @@ pub mod reachability;
 pub mod rebuild;
 pub mod registry;
 pub mod snapshot;
+pub mod what_if;
 
 use std::collections::HashMap;
 
