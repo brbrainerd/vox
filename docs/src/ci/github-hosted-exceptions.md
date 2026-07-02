@@ -42,6 +42,8 @@ The repository defaults to **self-hosted** runners for CI (see [runner contract]
 | `ci-health-deadman.yml` | `ubuntu-latest` | CI fleet health deadman switch; must run on a GitHub-hosted runner so it stays live when the self-hosted fleet is down. |
 | `ci-health-watchdog.yml` | `ubuntu-latest` | CI health watchdog monitor; fleet-independent by design (Invariant 1). |
 | `ci-health-watchdog-test.yml` | `ubuntu-latest` | Watchdog integration test; isolated harness that needs no self-hosted resources. |
+| `gitleaks.yml` | `ubuntu-latest` | Secret scan via the `gitleaks-action` marketplace action; install in seconds, needs no self-hosted resources. |
+| `link_checker.yml` | `ubuntu-latest` | Docs link checker; network-dependent nightly job, fleet-independent by design. |
 
 > `compile-matrix.yml` no longer appears here: its Windows/macOS help-smoke jobs were cut (the Linux lane is self-hosted), so it uses no hosted runner. `cross-platform-check.yml` / `gui-cross-build.yml` keep their rows but now run Win/macOS legs only on `merge_group` + schedule (not per-PR).
 
