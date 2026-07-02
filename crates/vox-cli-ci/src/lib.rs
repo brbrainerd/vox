@@ -1,6 +1,9 @@
 //! Repository CI guard checks extracted from `vox-cli` (`vox ci *` implementation wedge).
 
 pub mod affected;
+pub mod helpers;
+pub mod constants;
+pub use helpers::{cargo_bin, nvcc_available, nvcc_version_command, repo_root};
 pub mod config_registry_parity;
 pub mod test_governance;
 pub mod docs_reality_audit;

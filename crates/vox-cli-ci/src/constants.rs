@@ -2,9 +2,9 @@
 
 /// Canonical GitHub `owner/name` slug for this project's repository. Single
 /// source of truth for the CI commands that hit the GitHub API.
-pub(crate) const REPO_SLUG: &str = "vox-foundation/vox";
+pub const REPO_SLUG: &str = "vox-foundation/vox";
 
-pub(crate) const DOCS_SSOT_FILES: &[&str] = &[
+pub const DOCS_SSOT_FILES: &[&str] = &[
     "docs/src/how-to/how-to-train-mens-4080.md",
     "docs/src/how-to/how-to-voxdb-canonical-store.md",
     "docs/src/ci/runner-contract.md",
@@ -17,7 +17,7 @@ pub(crate) const DOCS_SSOT_FILES: &[&str] = &[
     "docs/src/ci/cli-baseline-metrics.md",
 ];
 
-pub(crate) const CODEX_SSOT_FILES: &[&str] = &[
+pub const CODEX_SSOT_FILES: &[&str] = &[
     "contracts/index.yaml",
     "contracts/index.schema.json",
     "contracts/db/baseline-version-policy.yaml",
@@ -27,7 +27,7 @@ pub(crate) const CODEX_SSOT_FILES: &[&str] = &[
     "infra/coolify/docker-compose.yml",
 ];
 
-pub(crate) const OPENAPI_SUBSTRINGS: &[&str] = &[
+pub const OPENAPI_SUBSTRINGS: &[&str] = &[
     "openapi:",
     "/api/codex/research-session",
     "/api/codex/conversations/{conv_id}/versions",
@@ -35,14 +35,14 @@ pub(crate) const OPENAPI_SUBSTRINGS: &[&str] = &[
     "/api/codex/topics/{topic_id}/evolution-events",
 ];
 
-pub(crate) const MANIFEST_SNIPPETS: &[&str] = &[
+pub const MANIFEST_SNIPPETS: &[&str] = &[
     "BASELINE_VERSION",
     "SCHEMA_FRAGMENTS",
     "schema_baseline_digest_hex",
     "super::spec",
 ];
 
-pub(crate) const FEATURE_SETS: &[&str] = &[
+pub const FEATURE_SETS: &[&str] = &[
     "",
     "codex",
     "stub-check",

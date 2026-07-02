@@ -19,6 +19,7 @@ vox-jsonschema-util = { workspace = true }
 vox-compiler = { workspace = true }
 vox-git = { workspace = true }
 vox-config = { workspace = true }
+vox-repository = { workspace = true }
 vox-http-client = { workspace = true }
 vox-secrets = { workspace = true }
 vox-graph-reader = { workspace = true }

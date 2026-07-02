@@ -36,12 +36,8 @@ mod speech_runtime_suite;
 pub mod watch_run;
 pub mod workspace_artifacts;
 
-mod constants;
 mod coverage_gates;
 pub(crate) mod run_body;
-
-use std::path::PathBuf;
-use std::process::{Command, Stdio};
 
 use anyhow::Result;
 
@@ -49,50 +45,10 @@ pub use vox_cli_ci::cmd_enums::{
     CiCmd, CoolifyEvalCmd, CoverageGateMode, DocInventoryCmd, DocsRealityAuditCmd, EvalMatrixCmd,
     GovernanceGateMode, GrammarDriftEmit, MensScorecardCmd, OperationsSyncTarget, ScalingAuditCmd,
 };
-
-/// Resolve repository root: `VOX_REPO_ROOT`, else walk up from CWD for `AGENTS.md` + `Cargo.toml`.
-pub fn repo_root() -> PathBuf {
-    vox_repository::resolve_repo_root_for_ci()
-}
-
-pub(super) fn cargo_bin() -> PathBuf {
-    if let Ok(h) = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")) {
-        let win = PathBuf::from(&h).join(".cargo/bin/cargo.exe");
-        if win.is_file() {
-            return win;
-        }
-    }
-    PathBuf::from("cargo")
-}
-
-/// `nvcc --version` using `CUDA_PATH`/`CUDA_HOME` when set (agent shells often lack full `PATH`).
-fn nvcc_version_command() -> Command {
-    let try_cuda_bin = |base: &str| -> Option<PathBuf> {
-        let root = PathBuf::from(base);
-        let exe = if cfg!(windows) {
-            root.join("bin").join("nvcc.exe")
-        } else {
-            root.join("bin").join("nvcc")
-        };
-        exe.is_file().then_some(exe)
-    };
-    if let Ok(p) = std::env::var("CUDA_PATH").or_else(|_| std::env::var("CUDA_HOME")) {
-        if let Some(exe) = try_cuda_bin(&p) {
-            return Command::new(exe);
-        }
-    }
-    Command::new("nvcc")
-}
-
-pub(super) fn nvcc_available() -> bool {
-    nvcc_version_command()
-        .arg("--version")
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false)
-}
+// Shared ci helpers + constants moved to vox-cli-ci; re-exported so the guards still
+// living here keep using `super::repo_root` / `super::constants` etc.
+pub use vox_cli_ci::constants;
+pub use vox_cli_ci::{cargo_bin, nvcc_available, nvcc_version_command, repo_root};
 
 /// Run `vox ci` subcommand.
 pub async fn run(cmd: CiCmd) -> Result<()> {

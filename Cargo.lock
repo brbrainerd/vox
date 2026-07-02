@@ -15431,6 +15431,7 @@ dependencies = [
  "vox-plugin-host",
  "vox-plugin-types",
  "vox-publisher",
+ "vox-repository",
  "vox-rule-pack",
  "vox-secrets",
  "walkdir",
