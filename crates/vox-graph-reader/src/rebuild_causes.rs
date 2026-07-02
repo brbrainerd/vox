@@ -173,6 +173,21 @@ pub fn per_crate(causes: &[RebuildCause]) -> BTreeMap<String, CauseClass> {
     out
 }
 
+/// Fraction of CRATES (not raw lines) that never resolved to a specific
+/// cause. This is the right denominator for a "did the classifier fail"
+/// gate: every dirty target unavoidably emits one reason-less header line
+/// ("fingerprint dirty for X"), so the per-LINE unknown rate is structurally
+/// inflated even when every crate resolved correctly via its detail line.
+/// `summarize`'s line-level `unknown_rate` stays useful for the printed
+/// summary table; this is what a "should we trust this run" gate should use.
+pub fn per_crate_unknown_rate(per: &BTreeMap<String, CauseClass>) -> f64 {
+    if per.is_empty() {
+        return 0.0;
+    }
+    let unresolved = per.values().filter(|c| **c == CauseClass::Unknown).count();
+    unresolved as f64 / per.len() as f64
+}
+
 pub fn summarize(causes: &[RebuildCause]) -> Summary {
     let mut counts: BTreeMap<String, usize> = BTreeMap::new();
     for c in causes {
@@ -248,6 +263,47 @@ mod tests {
         let causes = parse_fingerprint_log(MIXED);
         let per = per_crate(&causes);
         assert_eq!(*per.get("vox-db").unwrap(), CauseClass::FeatureDrift);
+    }
+
+    #[test]
+    fn per_crate_unknown_rate_ignores_structural_header_noise() {
+        // 9 of the fixture's 10 crates resolve to a specific cause via their
+        // detail line even though EVERY crate also emits an unavoidable
+        // reason-less header line (raw per-line unknown_rate is far higher
+        // than this because of those headers — see the "45% on a real
+        // capture where every crate resolved" case this regressed against).
+        // Only vox-weird is genuinely unresolved (its one line is a reason
+        // cargo has never used). The per-crate rate must reflect that
+        // 1-in-10, not the line-level noise.
+        let causes = parse_fingerprint_log(MIXED);
+        let per = per_crate(&causes);
+        let unresolved: Vec<&String> = per
+            .iter()
+            .filter(|(_, c)| **c == CauseClass::Unknown)
+            .map(|(k, _)| k)
+            .collect();
+        assert_eq!(unresolved, vec!["vox-weird"]);
+        assert_eq!(per.len(), 10, "per={per:?}");
+        assert!((per_crate_unknown_rate(&per) - 1.0 / 10.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn per_crate_unknown_rate_counts_truly_unresolved_crates() {
+        let per = std::collections::BTreeMap::from([
+            ("a".to_string(), CauseClass::FeatureDrift),
+            ("b".to_string(), CauseClass::Unknown),
+            ("c".to_string(), CauseClass::Unknown),
+            ("d".to_string(), CauseClass::DepRebuilt),
+        ]);
+        assert_eq!(per_crate_unknown_rate(&per), 0.5);
+    }
+
+    #[test]
+    fn per_crate_unknown_rate_empty_is_zero() {
+        assert_eq!(
+            per_crate_unknown_rate(&std::collections::BTreeMap::new()),
+            0.0
+        );
     }
 
     #[test]
