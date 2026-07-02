@@ -866,8 +866,12 @@ mod gate_status_tests {
     #[test]
     fn freshness_exempts_runner_infra_but_guards_enforce() {
         // Infra reconcile/read commands must run even with a stale binary (keep the fleet alive).
-        assert!(!should_enforce_freshness(&CiCmd::RunnerScale { apply: false }));
-        assert!(!should_enforce_freshness(&CiCmd::RunnerScale { apply: true }));
+        assert!(!should_enforce_freshness(&CiCmd::RunnerScale {
+            apply: false
+        }));
+        assert!(!should_enforce_freshness(&CiCmd::RunnerScale {
+            apply: true
+        }));
         assert!(!should_enforce_freshness(&CiCmd::RunnerPreflight));
         assert!(!should_enforce_freshness(&CiCmd::RunnerStatus));
         // Real guard verdicts still require freshness.
