@@ -410,6 +410,84 @@ pub fn format_check_for_llm_json(source: &str, file: &Path) -> String {
     serde_json::to_string_pretty(&env).unwrap_or_default()
 }
 
+/// True when the user passed the root `--json` flag —
+/// [`crate::apply_global_opts`] / `run_vox_cli_from_parsed` set
+/// `VOX_CLI_GLOBAL_JSON=1` before command dispatch.
+#[must_use]
+pub fn global_json_enabled() -> bool {
+    std::env::var("VOX_CLI_GLOBAL_JSON").ok().as_deref() == Some("1")
+}
+
+/// Stable single-line JSON envelope for build-lane commands (`vox build`,
+/// `vox test`, `vox run --mode script`). Mirrors [`CheckForLlmEnvelope`]
+/// field naming; `command` discriminates the lane. Compact (one line) so
+/// multiple envelopes on one stdout stream parse as JSONL.
+#[derive(serde::Serialize)]
+pub struct BuildLaneEnvelope {
+    pub envelope_version: u32,
+    pub command: String,
+    pub file_path: String,
+    pub ok: bool,
+    pub error_count: usize,
+    pub warning_count: usize,
+    pub diagnostics: Vec<vox_compiler::typeck::diagnostics::VoxCompilerDiagnosticPayload>,
+    /// Child-process exit code (`vox test`'s `cargo test`); absent for
+    /// compile-only envelopes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exit_code: Option<i32>,
+}
+
+/// Envelope for a lane that just ran the frontend (diagnostics attached).
+#[must_use]
+pub fn format_build_lane_envelope_json(
+    command: &str,
+    file: &Path,
+    result: &FrontendResult,
+    exit_code: Option<i32>,
+) -> String {
+    use vox_compiler::typeck::diagnostics::VoxCompilerDiagnosticPayload;
+    let file_path = file.to_string_lossy().to_string();
+    let diagnostics: Vec<VoxCompilerDiagnosticPayload> = result
+        .diagnostics
+        .iter()
+        .map(|d| VoxCompilerDiagnosticPayload::from_diagnostic(d, &file_path, &result.source))
+        .collect();
+    let env = BuildLaneEnvelope {
+        envelope_version: 1,
+        command: command.to_string(),
+        file_path,
+        ok: !result.has_errors(),
+        error_count: result.error_count(),
+        warning_count: result.warning_count(),
+        diagnostics,
+        exit_code,
+    };
+    serde_json::to_string(&env).unwrap_or_default()
+}
+
+/// Envelope for lane results with no [`FrontendResult`] at hand (e.g.
+/// `vox test` after `cargo test` — the preceding build envelope already
+/// carried the diagnostics).
+#[must_use]
+pub fn format_command_result_envelope_json(
+    command: &str,
+    file: &Path,
+    ok: bool,
+    exit_code: Option<i32>,
+) -> String {
+    let env = BuildLaneEnvelope {
+        envelope_version: 1,
+        command: command.to_string(),
+        file_path: file.to_string_lossy().to_string(),
+        ok,
+        error_count: 0,
+        warning_count: 0,
+        diagnostics: Vec::new(),
+        exit_code,
+    };
+    serde_json::to_string(&env).unwrap_or_default()
+}
+
 /// True when caret-style human diagnostics are requested.
 ///
 /// Enabled by `VOX_DIAG_FORMAT=human` or `vox check --human-diagnostics`.
