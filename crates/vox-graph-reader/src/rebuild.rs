@@ -305,9 +305,9 @@ pub fn rebuild_graph(
         }
     }
 
-    // Resolve each bare call target to a qualified definition id. Preference: same-module
-    // definition; else the unique global definition. Ambiguous, unresolved, and self-edges
-    // are dropped (honesty rule: never invent an edge).
+    // Resolve each bare call target to a qualified definition id. Preference:
+    // same-module -> same-crate-unique -> global-unique. Ambiguous, unresolved,
+    // and self-edges are dropped (honesty rule: never invent an edge).
     let all_edges: Vec<ExtractedEdge> = resolve_edges(&all_nodes, &all_edges);
 
     // For every dangling boundary edge whose target node is absent, synthesize a
