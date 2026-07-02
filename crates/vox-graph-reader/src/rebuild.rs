@@ -55,6 +55,11 @@ pub(crate) fn walk_source_files(source_dir: &std::path::Path) -> Vec<std::path::
                 && n != "dist"
                 && n != "web-dist"
                 && n != ".claude"
+                // Stray leftover worktree/clone dirs, gitignored, never part
+                // of any real crate — measured 2026-07-02 to be 68.6% of a
+                // real corpus run (70,812 / 103,265 nodes).
+                && n != ".worktrees"
+                && n != ".clone"
         })
         .filter_map(|e| e.ok())
         .filter(|e| e.path().is_file())
@@ -497,6 +502,11 @@ mod walker_tests {
         mk(".claude/worktrees/w1/src/b.rs");
         mk("node_modules/pkg/i.js");
         mk("target/debug/gen.rs");
+        // Stray top-level worktree/clone dirs left over from past agent
+        // sessions: measured 2026-07-02 to be 68.6% of a real corpus run
+        // (70,812 / 103,265 nodes) — gitignored, never part of any crate.
+        mk(".worktrees/core-surface-taxonomy-p0/crates/vox-mesh-models/src/types.rs");
+        mk(".clone/worktrees/zealous-ardinghelli-b01e11/crates/vox-mesh-models/src/types.rs");
         let files = walk_source_files(tmp.path());
         let names: Vec<String> = files
             .iter()
