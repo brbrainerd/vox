@@ -139,8 +139,13 @@ pub async fn run_semantic_submit(repo: &Path, cfg: &SemanticSubmitConfig) -> Res
 
     let res = run_semantic_submit_core(repo, cfg, all_files, plan_snapshot, rank_score).await;
 
-    if let Some(guard) = guard {
-        guard.restore().await?;
+    // Restore must not mask the real outcome: a failed `git reset` here would
+    // otherwise replace `res` (a more informative Err, or a legit Ok). Warn and
+    // return the original result — the guard's WIP commit is recoverable by hand.
+    if let Some(guard) = guard
+        && let Err(e) = guard.restore().await
+    {
+        eprintln!("[warn] failed to restore workspace guard: {e:#}");
     }
     res
 }
