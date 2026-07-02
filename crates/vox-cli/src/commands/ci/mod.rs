@@ -8,6 +8,8 @@ mod exec_policy_contract;
 mod gui_catalog_parity;
 mod gui_surface_coverage;
 pub mod gui_surface_registry;
+#[cfg(test)]
+mod merge_group_fanout_guard;
 mod operations_catalog;
 mod pipeline_parity;
 mod policy_allowlist_parity;
