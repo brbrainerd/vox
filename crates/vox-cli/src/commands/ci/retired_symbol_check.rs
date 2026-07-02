@@ -17,6 +17,16 @@ struct RetiredSymbol {
     pattern: String,
     replacement: String,
     rationale: String,
+    /// Opt in to scanning `crates/**/*.rs` for this pattern on EVERY run,
+    /// regardless of `VOX_CI_RETIRED_SYMBOL_SCAN_CRATES` (which is off by
+    /// default in CI — a full-crate scan of every retired pattern currently
+    /// surfaces ~96 pre-existing hits, almost all benign self-reference in
+    /// the detectors/compat shims that implement or guard the retirement
+    /// itself, not live regressions). Reserve this for entries that guard a
+    /// security-critical regression (e.g. an auth/approval bypass) where the
+    /// pattern is narrow enough not to false-positive.
+    #[serde(default)]
+    scan_rust_source: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -430,12 +440,15 @@ pub fn run(root: &Path) -> Result<()> {
             )
         })
         .unwrap_or(false);
-    if scan_crates {
-        eprintln!(
-            "retired-symbol-check: scanning crates/**/*.rs (VOX_CI_RETIRED_SYMBOL_SCAN_CRATES is set)"
-        );
-        let crates_dir = root.join("crates");
-        if crates_dir.is_dir() {
+    let crates_dir = root.join("crates");
+    if crates_dir.is_dir() {
+        if scan_crates {
+            // Opt-in full scan: every retired pattern against every crate source
+            // file. Noisy on this repo today (~96 pre-existing hits, mostly
+            // detector/compat self-reference) — not run in CI by default.
+            eprintln!(
+                "retired-symbol-check: scanning crates/**/*.rs (VOX_CI_RETIRED_SYMBOL_SCAN_CRATES is set)"
+            );
             let mut rs_files = Vec::new();
             collect_crate_rs_files(&crates_dir, &mut rs_files);
             for path in rs_files {
@@ -452,6 +465,34 @@ pub fn run(root: &Path) -> Result<()> {
                         is_rust: true,
                     },
                 ));
+            }
+        } else {
+            // Always-on narrow scan: only patterns explicitly marked
+            // `scan_rust_source: true` guard against a Rust-source regression,
+            // so they run on every CI invocation without the opt-in noise.
+            let always_on: Vec<(&RetiredSymbol, Regex)> = regexes
+                .iter()
+                .filter(|(sym, _)| sym.scan_rust_source)
+                .map(|(sym, re)| (*sym, re.clone()))
+                .collect();
+            if !always_on.is_empty() {
+                let mut rs_files = Vec::new();
+                collect_crate_rs_files(&crates_dir, &mut rs_files);
+                for path in rs_files {
+                    let body = fs::read_to_string(&path)
+                        .with_context(|| format!("Failed to read {}", path.display()))?;
+                    failures.extend(scan_source_lines(
+                        &path,
+                        root,
+                        &body,
+                        &always_on,
+                        ScanCfg {
+                            is_md: false,
+                            skip_md_table_rows: false,
+                            is_rust: true,
+                        },
+                    ));
+                }
             }
         }
     }
