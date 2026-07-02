@@ -13,7 +13,7 @@ use crate::commands::ci::constants::{
 };
 use crate::commands::ci::exec_policy_contract;
 use crate::commands::ci::scientia_novelty_ledger_contract;
-use crate::commands::ci::scientia_worthiness_contract;
+use vox_cli_ci::scientia_worthiness_contract;
 use vox_bounded_fs::read_utf8_path_capped;
 use vox_cli_ci::canonical_docs;
 use vox_cli_ci::contracts_index;
@@ -546,7 +546,7 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     ds!("command_compliance", command_compliance::run(root))?;
     ds!(
         "gui_version_sync",
-        crate::commands::ci::gui_version_sync::run(root, false)
+        vox_cli_ci::gui_version_sync::run(root, false)
     )?;
     ds!(
         "gui_catalog_parity",
@@ -566,22 +566,22 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     )?;
     ds!(
         "plugin_surface",
-        crate::commands::ci::plugin_surface::run(root, false)
+        vox_cli_ci::plugin_surface::run(root, false)
     )?;
     ds!(
         "plugin_catalog_sync",
-        crate::commands::ci::plugin_catalog_sync::run(root, false)
+        vox_cli_ci::plugin_catalog_sync::run(root, false)
     )?;
     // Catalog-derived reference docs must stay fresh when catalog.toml changes; this check
     // otherwise lives only in docs-quality.yml, so catalog edits could pass ssot-drift while
     // leaving the generated docs stale (the exact drift PR #218 left on main).
     ds!(
         "generate_plugin_catalog_docs",
-        crate::commands::ci::generate_plugin_catalog_docs::run(None, None, true)
+        vox_cli_ci::generate_plugin_catalog_docs::run(None, None, true)
     )?;
     ds!(
         "plugin_skill_parity",
-        crate::commands::ci::plugin_skill_parity::run(false)
+        vox_cli_ci::plugin_skill_parity::run(false)
     )?;
     ds!("contracts_index", contracts_index::run(root))?;
     ds!(

@@ -66,7 +66,7 @@ pub fn unified_registered_set(root: &Path) -> BTreeSet<String> {
     let mut set = BTreeSet::new();
     // Source 1: YAML registry — parse via the same helper Check D uses.
     if let Ok(yaml) = std::fs::read_to_string(root.join("contracts/config/registry.v1.yaml")) {
-        set.extend(super::config_hygiene::load_registered_env_vars(&yaml));
+        set.extend(vox_cli_ci::config_hygiene::load_registered_env_vars(&yaml));
     }
     // Source 2: Clavis-managed secret env names.
     set.extend(
@@ -77,7 +77,7 @@ pub fn unified_registered_set(root: &Path) -> BTreeSet<String> {
     // Source 3: typed Rust CONFIG_KEYS registry.
     set.extend(vox_config::config_registry::registered_keys().map(|k| k.to_string()));
     // Source 4: keys from every #[derive(VoxConfig)] domain.
-    for k in super::config_aggregate::all_domain_config_keys() {
+    for k in vox_cli_ci::config_aggregate::all_domain_config_keys() {
         set.insert(k.key.to_string());
     }
     set

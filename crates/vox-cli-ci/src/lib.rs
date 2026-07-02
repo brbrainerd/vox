@@ -1,6 +1,19 @@
 //! Repository CI guard checks extracted from `vox-cli` (`vox ci *` implementation wedge).
 
 pub mod affected;
+pub mod scientia_worthiness_contract;
+pub mod scientia_heuristics_parity;
+pub mod gui_version_sync;
+pub mod gui_honesty;
+pub mod generate_plugin_catalog_docs;
+pub mod plugin_surface;
+pub mod plugin_skill_parity;
+pub mod plugin_catalog_sync;
+pub mod plugin_catalog_parity;
+pub mod plugin_abi_parity;
+pub mod config_hygiene;
+pub mod config_gui_codegen;
+pub mod config_aggregate;
 pub mod doctor_build_cache;
 pub mod crate_build_map_parity;
 pub mod db_schema_coverage;

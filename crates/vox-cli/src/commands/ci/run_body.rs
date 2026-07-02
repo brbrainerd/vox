@@ -15,9 +15,9 @@ use super::grammar_ssot_parity;
 use super::mens_scorecard;
 use super::release_build;
 use super::scaling_audit;
-use super::scientia_heuristics_parity;
+use vox_cli_ci::scientia_heuristics_parity;
 use super::scientia_novelty_ledger_contract;
-use super::scientia_worthiness_contract;
+use vox_cli_ci::scientia_worthiness_contract;
 use super::{cargo_bin, repo_root};
 use vox_cli_ci::canonical_docs;
 use vox_cli_ci::check_links;
@@ -74,11 +74,11 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             write,
         } => {
             if write {
-                super::config_hygiene::write_registry(super::config_hygiene::WriteRegistryOpts {
+                vox_cli_ci::config_hygiene::write_registry(vox_cli_ci::config_hygiene::WriteRegistryOpts {
                     root: root.clone(),
                 })
             } else {
-                super::config_hygiene::run(update_baseline)
+                vox_cli_ci::config_hygiene::run(update_baseline)
             }
         }
         CiCmd::ConfigRegistryParity { update_baseline } => {
@@ -86,18 +86,18 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         }
         CiCmd::ConfigGuiCodegen { check, fields } => {
             if fields {
-                super::config_gui_codegen::run_fields(check)
+                vox_cli_ci::config_gui_codegen::run_fields(check)
             } else {
-                super::config_gui_codegen::run(check)
+                vox_cli_ci::config_gui_codegen::run(check)
             }
         }
         CiCmd::CheckDocsSsot => check_docs_ssot(&root),
         CiCmd::CheckFrozen => vox_cli_ci::frozen_crates::check_frozen_crates(&root),
         CiCmd::GuiCatalogParity => super::gui_catalog_parity::run(&root),
-        CiCmd::GuiVersionSync { write } => super::gui_version_sync::run(&root, write),
+        CiCmd::GuiVersionSync { write } => vox_cli_ci::gui_version_sync::run(&root, write),
         CiCmd::GuiSurfaceCoverage { write } => super::gui_surface_coverage::run(&root, write),
         CiCmd::GuiSurfaceRegistry { write } => super::gui_surface_registry::run(&root, write),
-        CiCmd::GuiHonesty => super::gui_honesty::run(&root),
+        CiCmd::GuiHonesty => vox_cli_ci::gui_honesty::run(&root),
         CiCmd::ModelRoutingCheck => vox_cli_ci::model_routing_check::run(&root),
         CiCmd::CheckCodexSsot => check_codex_ssot(&root),
         CiCmd::ContractsIndex => contracts_index::run(&root),
@@ -713,18 +713,18 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             catalog_out,
             bundles_out,
             check,
-        } => super::generate_plugin_catalog_docs::run(catalog_out, bundles_out, check),
-        CiCmd::PluginCatalogParity => super::plugin_catalog_parity::run(),
+        } => vox_cli_ci::generate_plugin_catalog_docs::run(catalog_out, bundles_out, check),
+        CiCmd::PluginCatalogParity => vox_cli_ci::plugin_catalog_parity::run(),
         CiCmd::NoTauriInCore => vox_cli_ci::no_tauri_in_core::run(&root),
         CiCmd::NoPluginCdylibAsCompileDep => {
             vox_cli_ci::no_plugin_cdylib_as_compile_dep::run(&root)
         }
         CiCmd::PluginDepBoundary => vox_cli_ci::plugin_dep_boundary::run(&root),
-        CiCmd::PluginAbiParity { build } => super::plugin_abi_parity::run(build),
+        CiCmd::PluginAbiParity { build } => vox_cli_ci::plugin_abi_parity::run(build),
         CiCmd::ProfileParity => super::profile_parity::run(),
-        CiCmd::PluginSurfaceSync { write } => super::plugin_surface::run(&root, write),
-        CiCmd::PluginCatalogSync { write } => super::plugin_catalog_sync::run(&root, write),
-        CiCmd::PluginSkillParity { write } => super::plugin_skill_parity::run(write),
+        CiCmd::PluginSurfaceSync { write } => vox_cli_ci::plugin_surface::run(&root, write),
+        CiCmd::PluginCatalogSync { write } => vox_cli_ci::plugin_catalog_sync::run(&root, write),
+        CiCmd::PluginSkillParity { write } => vox_cli_ci::plugin_skill_parity::run(write),
         CiCmd::AgentSkillsCompliance => vox_cli_ci::agentskills_compliance::run(),
         CiCmd::McpVoxSurfaceParity => super::mcp_vox_surface_parity::run(),
         CiCmd::CoolifyEval { cmd } => super::coolify_eval::run(cmd).await,

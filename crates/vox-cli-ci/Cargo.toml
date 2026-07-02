@@ -24,6 +24,14 @@ vox-secrets = { workspace = true }
 vox-graph-reader = { workspace = true }
 vox-rule-pack = { workspace = true }
 which = { workspace = true }
+toml = { workspace = true }
+toml_edit = { workspace = true }
+vox-orchestrator = { workspace = true }
+vox-plugin-api = { workspace = true }
+vox-plugin-catalog = { workspace = true }
+vox-plugin-host = { workspace = true }
+vox-plugin-types = { workspace = true }
+vox-publisher = { workspace = true }
 owo-colors = { workspace = true }
 sysinfo = { workspace = true }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "process", "fs", "io-util", "time"] }
