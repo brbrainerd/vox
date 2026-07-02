@@ -139,6 +139,10 @@ pub fn parse_run_line(line: &str, now: i64) -> Option<QueueRun> {
 /// only while the fleet is alive (`stale_enabled`); a deep queue with zero
 /// runners is an outage, and cancelling it would kill the async safety net
 /// AND reset the health watchdog's queue_age signal.
+///
+/// O(n²) (nested `iter().any()`), accepted given the fetch cap of ~2000 runs
+/// (4 statuses × 5 pages × 100, see MAX_PAGES) — revisit with a HashMap-grouped
+/// pass if that cap ever grows materially.
 pub fn classify_runs(runs: &mut [QueueRun], ttl_secs: i64, stale_enabled: bool) {
     for i in 0..runs.len() {
         if runs[i].exempt {
@@ -487,7 +491,12 @@ pub fn run(args: QueueArgs) -> Result<()> {
             }
         }
     } else {
-        match live_snapshot(ttl, now, Vec::new()) {
+        // Preserve the prior sweep's cancelled ids — a read-only invocation must
+        // never clobber the force-cancel escalation state auto_clear_and_snapshot
+        // depends on (that would silently defeat two-tick escalation for any run
+        // still shielded by always()/post steps).
+        let prev_cancelled = read_snapshot().map(|s| s.cancelled_last_sweep).unwrap_or_default();
+        match live_snapshot(ttl, now, prev_cancelled) {
             Ok(s) => s,
             Err(e) if args.clear => return Err(e).context("--clear needs live gh data"),
             Err(e) => {
