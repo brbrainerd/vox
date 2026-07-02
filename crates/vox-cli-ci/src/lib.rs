@@ -1,5 +1,17 @@
 //! Repository CI guard checks extracted from `vox-cli` (`vox ci *` implementation wedge).
 
+/// Seam for the Tier-2 `vox ci` guards that stay in vox-cli because they reach into
+/// its internals (`command_catalog`, `command_registry_model`, `utils`, `fs_utils`,
+/// `commands::runtime`). The moved dispatcher (`run::run`) calls `dispatch_heavy(&cmd)`
+/// first; vox-cli implements it on `VoxCliProviders`. Extends `GateStatusWriter` so the
+/// dispatcher can also record per-gate status through the same host object.
+pub trait HeavyGuardHost: vox_cli_contracts::GateStatusWriter {
+    /// Handle `cmd` if it is a Tier-2 guard: `Some(result)`. `None` ⇒ the dispatcher
+    /// runs it as a Tier-1 (moved) guard.
+    fn dispatch_heavy(&self, cmd: &cmd_enums::CiCmd, root: &std::path::Path)
+        -> Option<anyhow::Result<()>>;
+}
+
 pub mod affected;
 pub mod build_timings;
 pub mod benchmark_telemetry;

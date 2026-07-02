@@ -91,3 +91,52 @@ impl TerminalPolicyValidator for VoxCliProviders {
         check_terminal::run_check_for_ci(payload, policy)
     }
 }
+
+impl vox_cli_ci::HeavyGuardHost for VoxCliProviders {
+    /// The Tier-2 guards that reach into vox-cli internals (command catalog/registry,
+    /// utils, fs_utils, runtime shell) and so stay here. Mirrors the arms the moved
+    /// dispatcher used to run inline. `None` ⇒ not a Tier-2 guard.
+    fn dispatch_heavy(
+        &self,
+        cmd: &vox_cli_ci::cmd_enums::CiCmd,
+        root: &Path,
+    ) -> Option<anyhow::Result<()>> {
+        use anyhow::anyhow;
+        use vox_cli_ci::cmd_enums::{CiCmd, OperationsSyncTarget};
+        Some(match cmd {
+            CiCmd::PolicyRegistry { write } => {
+                super::policy_registry::run_generate(root, *write).map_err(|e| anyhow!(e))
+            }
+            CiCmd::PolicyRegistryParity => {
+                super::policy_registry::run_parity(root).map_err(|e| anyhow!(e))
+            }
+            CiCmd::GuiCatalogParity => super::gui_catalog_parity::run(root),
+            CiCmd::GuiSurfaceCoverage { write } => super::gui_surface_coverage::run(root, *write),
+            CiCmd::GuiSurfaceRegistry { write } => super::gui_surface_registry::run(root, *write),
+            CiCmd::ExecPolicyContract => super::exec_policy_contract::run(root),
+            CiCmd::OperationsVerify => super::operations_catalog::verify(root),
+            CiCmd::OperationsSync { target, write } => {
+                let target = match target {
+                    OperationsSyncTarget::Catalog => "catalog",
+                    OperationsSyncTarget::Mcp => "mcp",
+                    OperationsSyncTarget::Cli => "cli",
+                    OperationsSyncTarget::Capability => "capability",
+                    OperationsSyncTarget::All => "all",
+                };
+                super::operations_catalog::sync(root, target, *write)
+            }
+            CiCmd::CapabilitySync { write } => super::capability_sync::run(root, *write),
+            CiCmd::CommandSync { write } => super::command_sync::run(root, *write),
+            CiCmd::ReleaseBuild {
+                target,
+                version,
+                out_dir,
+                package,
+            } => super::release_build::run(root, target, version.as_deref(), out_dir, *package),
+            CiCmd::RunnerScale { apply } => super::runner_scale::run_scale(*apply),
+            CiCmd::RunnerPreflight => super::runner_scale::run_preflight(),
+            CiCmd::RunnerStatus => super::runner_scale::run_status(),
+            _ => return None,
+        })
+    }
+}
