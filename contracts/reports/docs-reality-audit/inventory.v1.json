@@ -134,7 +134,7 @@
           "contracts/reports/docs-reality-audit/findings.v1.schema.json",
           "contracts/reports/docs-reality-audit/metrics.v1.schema.json"
         ],
-        "code_globs": ["crates/vox-cli/src/commands/ci/docs_reality_audit.rs"]
+        "code_globs": ["crates/vox-cli-ci/src/docs_reality_audit.rs"]
       }
     }
   ]
