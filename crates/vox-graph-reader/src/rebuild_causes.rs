@@ -59,6 +59,10 @@ pub struct Summary {
 /// - modern PackageIdSpec (cargo >=1.77): `package_id=path+file:///…/vox-db#0.1.0`
 ///   or `package_id=path+file:///…#vox-db@0.1.0`
 ///
+/// Cargo always normalizes these URIs to forward slashes, even on Windows, so
+/// `rsplit('/')` is sufficient — but split on either separator as a defensive
+/// fallback in case that normalization ever changes.
+///
 /// Falls back to the token after "fingerprint dirty|error for ".
 fn extract_package(line: &str) -> String {
     if let Some(i) = line.find("package_id=") {
@@ -71,7 +75,7 @@ fn extract_package(line: &str) -> String {
                 // "…#vox-db@0.1.0" -> explicit name.
                 Some((name, _)) => name.to_string(),
                 // "…/vox-db#0.1.0" -> dir name is the crate name.
-                None => base.rsplit('/').next().unwrap_or("?").to_string(),
+                None => base.rsplit(['/', '\\']).next().unwrap_or("?").to_string(),
             };
         }
         return tok.to_string();
@@ -87,7 +91,11 @@ fn extract_package(line: &str) -> String {
 
 /// Substring classification of a fingerprint log line. Ordering matters:
 /// specific causes (features/env/build-script/dep/config) are checked before
-/// the broad `file ... changed` pattern. Anything unmatched is Unknown.
+/// the broad `file ... changed` pattern — e.g. "the file `build.rs` has
+/// changed (rerun-if-changed)" matches both `rerun-if` and `file`+`changed`;
+/// checking build-script first is intentional, since the reason cargo cares
+/// is the rerun-if directive, not that build.rs is source-dirty like any
+/// other file. Anything unmatched is Unknown.
 fn classify(line: &str) -> CauseClass {
     let l = line.to_lowercase();
     if l.contains("features changed") || l.contains("declared features") {
@@ -143,7 +151,8 @@ pub fn parse_fingerprint_log(log: &str) -> Vec<RebuildCause> {
     out
 }
 
-/// Collapse to one class per crate, preferring any specific class over Unknown.
+/// Collapse to one class per crate: keep the first specific (non-Unknown)
+/// cause seen for that crate, in input order, over any Unknown entries.
 /// Limitation: a crate with two DISTINCT specific causes keeps the first seen;
 /// full line counts remain visible in `summarize`.
 pub fn per_crate(causes: &[RebuildCause]) -> BTreeMap<String, CauseClass> {
