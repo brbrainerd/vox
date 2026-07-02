@@ -1103,12 +1103,20 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                 &serde_json::to_string_pretty(&payload)?,
             )?;
             // Never guess: a high unknown rate means cargo's log shape moved.
-            if summary.total > 0 && summary.unknown_rate > 0.2 {
+            // Gated on the PER-CRATE rate, not summary.unknown_rate (line
+            // level): every dirty target unavoidably emits one reason-less
+            // header line, so the line-level rate is structurally inflated
+            // even when every crate resolved correctly via its detail line
+            // (measured 2026-07-02: a real capture where every crate
+            // resolved still showed 45% at the line level).
+            let crate_unknown_rate = vox_graph_reader::rebuild_causes::per_crate_unknown_rate(&per);
+            if !per.is_empty() && crate_unknown_rate > 0.2 {
                 anyhow::bail!(
-                    "unknown-cause rate {:.0}% exceeds 20% — cargo's fingerprint log format \
-                     likely changed; extend rebuild_causes::classify from the raw lines \
-                     preserved in {} and add them to the fixture",
-                    summary.unknown_rate * 100.0,
+                    "{:.0}% of crates never resolved to a specific cause (exceeds 20%) — \
+                     cargo's fingerprint log format likely changed; extend \
+                     rebuild_causes::classify from the raw lines preserved in {} and add \
+                     them to the fixture",
+                    crate_unknown_rate * 100.0,
                     out
                 );
             }
