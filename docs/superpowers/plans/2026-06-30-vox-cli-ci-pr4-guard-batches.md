@@ -4,13 +4,31 @@
 > a first guard batch are LANDED; this is the turnkey recipe for the remaining guards
 > and the final dispatcher move. Spec: docs/superpowers/specs/2026-06-30-vox-cli-contracts-ci-extraction.md.
 
-## Landed so far (origin/main)
-- `eaa59179d4` — Step 1: cmd_enums (CiCmd + 11 nested enums + ReleasePackage/CompletionGateMode
-  dependency-free enum defs) → vox-cli-ci; re-exported via `commands::ci::CiCmd`. clap goldens pass.
-- `f47419d6e6` — Step 3a batch 1: 9 leaf guards moved (check_links, doctest_md, canonical_docs,
-  contracts_index, free_binary, parse_status, kill_stuck_tests, install_hooks, test_inventory).
-- vox-cli-ci deps now include: clap, chrono, vox-bounded-fs, vox-doc-pipeline, vox-jsonschema-util,
-  vox-compiler, vox-git, vox-config, owo-colors, sysinfo, tokio (+ insta/proptest dev).
+## Landed so far (origin/main) — ALL 60 Tier-1 guards migrated
+- Step 1 `eaa59179d4`: cmd_enums (CiCmd + 11 nested enums + dependency-free ReleasePackage/
+  CompletionGateMode) → vox-cli-ci; re-exported via `commands::ci::CiCmd`. clap goldens pass.
+- Batches 3a–3h (`f47419d6e6`, `d485349882`, `38ad7fd70c`, `accb52b8d3`, `80b508bbe4`,
+  `9e2561d292`, `63a841a498`): 60 guards moved in 8 batches (leaf → helper-dependent → the
+  two spec-mislabeled Tier-1s completion_quality/data_storage_guard + mens_scorecard).
+- Helper extraction `3089b2e374`: repo_root/cargo_bin/nvcc + constants → vox-cli-ci (re-exported
+  to vox-cli), which unlocked the coupling=1 guards.
+- Feature passthrough `c3309e4544`: vox-cli-ci gained a `completion-toestub` feature (+ optional
+  vox-code-audit) forwarded from vox-cli.
+- vox-cli-ci deps now: clap, chrono, tokio, owo-colors, sysinfo, which, reqwest, strsim, toml,
+  toml_edit + vox-bounded-fs/doc-pipeline/jsonschema-util/compiler/git/config/repository/db/
+  http-client/secrets/graph-reader/rule-pack/orchestrator/orchestrator-mcp/grammar-export/
+  scaling-policy/plugin-{api,catalog,host,types}/publisher/cli-contracts (+ insta/proptest dev).
+
+## REMAINING (the final step): ~15 Tier-2 guards + the dispatcher move
+Still in `crates/vox-cli/src/commands/ci/` because they reach into vox-cli internals
+(`crate::command_registry_model`, `crate::frontend`, `crate::commands::runtime`, `crate::benchmark`,
+`crate::commands::scientia`) or reference the dispatcher: **build_timings, capability_sync,
+command_sync, eval_matrix, exec_policy_contract, gui_catalog_parity, gui_surface_coverage,
+gui_surface_registry, operations_catalog, pipeline_parity, policy_allowlist_parity, policy_registry,
+pre_push, release_build, runner_scale** (+ providers.rs, run_body.rs, workspace_artifacts, the
+profile_parity shim). These are the HeavyGuardHost set — do the dispatcher move + `HeavyGuardHost`
+(Steps 2/3-final/4 below) as ONE careful pass; it's the un-chunkable hub. Freshness (run_body.rs:56)
+STAYS in vox-cli before the delegating call.
 
 ## Key insight (why this is safe + incremental)
 The dispatcher (`run_body.rs`) STAYS in vox-cli for now; moving a guard just changes its caller from
@@ -52,7 +70,27 @@ Group by likely-shared deps to minimize Cargo churn; build after each:
 Re-run the `coupling=0` scan before each — some may have hidden Tier-2 leakage (route those via the host
 in the final step instead of moving).
 
-## Final steps (the headline — needs its own focused pass)
+## Final steps (the headline — needs its own focused pass) — FULLY DE-RISKED (2026-06-30)
+Coupling analysis done: the ONLY non-guard deep coupling in run_body + run_body_helpers is tiny —
+- `crate::artifact_policy::{gate_isolated_target,ci_nested_target}` (matrix.rs) = `pub use vox_cli_core::artifact_policy` → just rewrite to `vox_cli_core::artifact_policy` (vox-cli-ci already has vox-cli-core). NO move.
+- `crate::frontend::pnpm_executable()` (run_body.rs:219, Astro docs arm) → inline `if cfg!(windows) {"pnpm.cmd"} else {"pnpm"}` (frontend.rs stays for its 3 non-ci users).
+- `crate::benchmark_telemetry` → DONE, moved to vox-cli-ci (`285754bc5c`).
+- `crate::freshness::enforce_for_ci` (run_body.rs:56) → STAYS in vox-cli (moves to ci/mod.rs before delegating).
+- `crate::commands::policy` (gate-status) → already covered by the GateStatusWriter seam on VoxCliProviders.
+
+run_body.rs + run_body_helpers/ (16 files) MOVE AS ONE UNIT (helpers ref `super::run_manifest`/`super::gate_status`).
+Structure of `run()`: `let root=repo_root(); freshness; let gate_id=cmd.gate_policy_id(); let result: Result = match cmd {...700 lines...}; <gate-status wrap via VoxCliProviders>; result`.
+HeavyGuardHost design (put in **vox-cli-ci**, not contracts, so it can take `&CiCmd`):
+```rust
+pub trait HeavyGuardHost: vox_cli_contracts::GateStatusWriter {
+    fn dispatch_heavy(&self, cmd: &CiCmd, root: &Path) -> Option<anyhow::Result<()>>;
+}
+```
+Moved `run(cmd, host: &dyn HeavyGuardHost)`: host-first — `if let Some(r)=host.dispatch_heavy(&cmd,&root){r} else { match cmd {<Tier-1 arms> _=>unreachable!()} }`. **The delicate part = excising the ~24 Tier-2 match arms** (GuiCatalogParity/GuiSurfaceCoverage/GuiSurfaceRegistry/PolicyRegistry{2}/ExecPolicyContract/OperationsVerify+Sync/PrePush{multi-line PrePushOpts}/FmtCheck/EvalMatrix{2}/BuildTimings/PipelineParity/PolicyAllowlistParity/CapabilitySync/CommandSync/ReleaseBuild/RunnerScale+Preflight+Status/CommandCompliance) into `impl HeavyGuardHost for VoxCliProviders` + `_=>unreachable!()`.
+**GOTCHA: `run_body_helpers/docs.rs` calls a Tier-2 guard from HELPER code (not just run_body's match)** → that call also routes via host (pass `&dyn HeavyGuardHost` into the helper, or keep that specific guard's logic inline). This is the one spot the "match-split only" mental model misses.
+15 Tier-2 guards to impl in dispatch_heavy: build_timings, capability_sync, command_sync, command_compliance, eval_matrix, exec_policy_contract, gui_catalog_parity, gui_surface_coverage, gui_surface_registry, operations_catalog, pipeline_parity, policy_allowlist_parity, policy_registry, pre_push, release_build, runner_scale.
+
+### Original outline (superseded by the above but kept for the step ordering)
 - **Step 2** HeavyGuardHost trait in vox-cli-contracts (`&str`-keyed) + impl on VoxCliProviders for the
   13 Tier-2 guards (build_timings, eval_matrix, release_build, runner_scale, gui_catalog_parity,
   gui_surface_coverage, gui_surface_registry, policy_registry, operations_catalog, capability_sync,

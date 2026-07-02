@@ -15,7 +15,7 @@ use chrono::DateTime;
 use serde::Deserialize;
 use std::process::Command;
 
-use super::constants::REPO_SLUG;
+use crate::constants::REPO_SLUG;
 
 /// The budget: a CI job that *executes* longer than this is "too long" (10 min).
 /// SSOT for the threshold — mirrored as `THRESHOLD_SECS` in `ci-timings.yml`.

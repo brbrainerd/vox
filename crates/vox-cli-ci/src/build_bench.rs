@@ -194,7 +194,7 @@ fn run_scenario(root: &Path, s: &Scenario, repeat: u32) -> BenchRecord {
             let _ = f.set_modified(std::time::SystemTime::now());
         }
         let start = Instant::now();
-        let status = Command::new(super::cargo_bin())
+        let status = Command::new(crate::cargo_bin())
             .current_dir(root)
             .arg("check")
             .args(&s.args)

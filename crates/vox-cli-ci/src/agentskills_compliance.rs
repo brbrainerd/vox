@@ -210,8 +210,8 @@ pub fn run() -> Result<()> {
     // Also check bare SKILL.md skills in assets/skills/ (agentskills.io layout:
     // `<root>/<skill-dir>/SKILL.md`, name must match the directory name).
     let assets_skills = Path::new("assets/skills");
-    if assets_skills.is_dir() {
-        if let Ok(entries) = std::fs::read_dir(assets_skills) {
+    if assets_skills.is_dir()
+        && let Ok(entries) = std::fs::read_dir(assets_skills) {
             for entry in entries.filter_map(|e| e.ok()) {
                 let dir = entry.path();
                 if !dir.is_dir() {
@@ -283,7 +283,6 @@ pub fn run() -> Result<()> {
                 checked += 1;
             }
         }
-    }
 
     if errors.is_empty() {
         println!(

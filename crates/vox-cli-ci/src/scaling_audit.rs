@@ -8,9 +8,9 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::cargo_bin;
+use crate::cargo_bin;
 use vox_bounded_fs::read_utf8_path_capped;
-use vox_cli_ci::cmd_enums::ScalingAuditCmd;
+use crate::cmd_enums::ScalingAuditCmd;
 
 pub(super) const POLICY_REL: &str = "contracts/scaling/policy.yaml";
 pub(super) const POLICY_SCHEMA_REL: &str = "contracts/scaling/policy.schema.json";

@@ -54,15 +54,15 @@ struct CellResult {
 }
 
 /// Options for `vox ci speech-runtime-suite`.
-pub(crate) struct SpeechRuntimeSuiteOpts {
-    pub(crate) run_id: Option<String>,
-    pub(crate) limit: usize,
-    pub(crate) eval_manifest: PathBuf,
-    pub(crate) plugins_dir: Option<PathBuf>,
-    pub(crate) skip_runtime: bool,
+pub struct SpeechRuntimeSuiteOpts {
+    pub run_id: Option<String>,
+    pub limit: usize,
+    pub eval_manifest: PathBuf,
+    pub plugins_dir: Option<PathBuf>,
+    pub skip_runtime: bool,
 }
 
-pub(crate) fn run(repo_root: &Path, opts: SpeechRuntimeSuiteOpts) -> Result<()> {
+pub fn run(repo_root: &Path, opts: SpeechRuntimeSuiteOpts) -> Result<()> {
     let run_id = opts.run_id.clone().unwrap_or_else(|| {
         format!(
             "speech-runtime-suite-{}",
@@ -92,7 +92,7 @@ pub(crate) fn run(repo_root: &Path, opts: SpeechRuntimeSuiteOpts) -> Result<()> 
 
     let android_probe = probe_android();
     let xcrun_available = command_available("xcrun");
-    let nvcc_available = super::nvcc_available();
+    let nvcc_available = crate::nvcc_available();
 
     let mut results = Vec::new();
     for cell in cells {
@@ -500,8 +500,8 @@ fn find_adb() -> Option<PathBuf> {
             candidates.push(PathBuf::from(root).join("platform-tools").join(exe));
         }
     }
-    if cfg!(windows) {
-        if let Ok(local) = std::env::var("LOCALAPPDATA") {
+    if cfg!(windows)
+        && let Ok(local) = std::env::var("LOCALAPPDATA") {
             candidates.push(
                 PathBuf::from(local)
                     .join("Android")
@@ -510,7 +510,6 @@ fn find_adb() -> Option<PathBuf> {
                     .join(exe),
             );
         }
-    }
     candidates.into_iter().find(|p| {
         if p.components().count() == 1 {
             Command::new(p)

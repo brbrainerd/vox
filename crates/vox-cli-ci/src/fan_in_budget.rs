@@ -29,11 +29,10 @@ pub fn compute_fan_in(graph: &Value, snapshot: &FanInSnapshot) -> HashMap<String
         for (_crate_name, deps) in m {
             if let Some(arr) = deps.as_array() {
                 for dep in arr {
-                    if let Some(dep_str) = dep.as_str() {
-                        if let Some(c) = counts.get_mut(dep_str) {
+                    if let Some(dep_str) = dep.as_str()
+                        && let Some(c) = counts.get_mut(dep_str) {
                             *c += 1;
                         }
-                    }
                 }
             }
         }

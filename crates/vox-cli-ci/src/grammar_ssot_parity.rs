@@ -13,7 +13,7 @@ fn check_decorator_feature_lexer_parity() -> Result<()> {
 }
 
 pub async fn run() -> Result<()> {
-    let repo_root = super::repo_root();
+    let repo_root = crate::repo_root();
     let ssot_path = repo_root.join("tree-sitter-vox").join("GRAMMAR_SSOT.md");
 
     if !ssot_path.exists() {

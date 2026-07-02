@@ -7,8 +7,8 @@ use anyhow::{Context, Result};
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 
-use super::CoolifyEvalCmd;
-use super::repo_root;
+use crate::cmd_enums::CoolifyEvalCmd;
+use crate::repo_root;
 
 fn require_secret(id: vox_secrets::SecretId) -> Result<String> {
     let r = vox_secrets::resolve_secret(id);
@@ -213,11 +213,10 @@ Body head: {}",
         "docker_compose_raw": raw,
         "instant_deploy": deploy,
     });
-    if let Some(ref d) = domains {
-        if !d.is_empty() {
+    if let Some(ref d) = domains
+        && !d.is_empty() {
             patch["domains"] = Value::String(d.clone());
         }
-    }
 
     let patch_url = format!("{base}/api/v1/applications/{uuid}");
     let patched = client

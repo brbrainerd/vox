@@ -49,21 +49,32 @@ Make the graph **deterministic + clean** (hygiene) and **fresh without human act
 
 Replace the `walkdir` walk in `walk_source_files` with the `ignore` crate's `WalkBuilder`:
 
-- `.gitignore` respected by default → `.gitignore` becomes the **single source of truth** for
-  exclusions; the hand-maintained list is deleted. New worktree/build patterns are excluded
-  automatically as `.gitignore` evolves.
-- Hidden directories skipped by default → `.claude/` (and other dotdirs) drop out, killing the
-  worktree pollution.
+- `.gitignore` respected via `require_git(false)` → `.gitignore` becomes the **single source of
+  truth** for exclusions; the hand-maintained list is deleted. `require_git(false)` is
+  load-bearing: it makes `.gitignore` apply even in a checkout without `.git` (an external
+  target repo) — verified against ignore-0.4.25's own `gitignore_allowed_no_git` unit test.
+- Hidden directories skipped by default (`hidden(true)`) → `.claude/`, `.github/`, `.vox/`,
+  `.worktrees/` and other dotdirs drop out, killing the worktree pollution.
+- **`target`/`node_modules` are NOT dotdirs**, so `hidden(true)` does not skip them and they are
+  excluded only if `.gitignore` lists them. To keep the old hardcoded guarantee for sub-scopes /
+  external repos whose `.gitignore` may not cover them, a `filter_entry` prunes `target` and
+  `node_modules` by name (belt-and-suspenders).
 - Keep the existing extension filter (`rs/ts/tsx/js/jsx/py`) — only the directory-pruning
   source changes.
-- **Determinism:** build single-threaded and **sort** the resulting path list before returning,
-  so `graph.json` is stable across rebuilds on the same tree.
+- **Determinism:** use `sort_by_file_path` (honored by the serial `.build()`) so `graph.json` is
+  stable across rebuilds on the same tree.
 
 Behavior changes to record:
 - Gitignored + hidden dirs vanish from the graph; counts become deterministic.
-- Non-cache parts of `.vox/` may now be visited, but the extension filter ignores `.vox` files,
-  so there is no functional change today (and it is forward-compatible with SP-4 `.vox`
-  extraction). `**/.vox/cache/` stays excluded via `.gitignore`.
+- **Over-exclusion verified safe:** an audit (`git ls-files` + `git check-ignore` over 4,499
+  tracked source files) found the new walk drops exactly **6** files — all
+  `crates/vox-gui/ds/.design-sync/previews/*.tsx` design-system preview fixtures (0.133%), which
+  have no inbound imports and call only into the already-walked `@vox-axis/limes` package. No
+  tracked source exists under `.github`/`.config`/`.claude/skills`, and no force-added gitignored
+  source exists. No carve-out is needed.
+- Non-cache parts of `.vox/` are skipped because `.vox` is itself a dotdir (`hidden(true)`),
+  matching the old behavior; this is forward-compatible with SP-4 `.vox` extraction (which would
+  add `.vox` explicitly when ready).
 
 **Test:** a tempdir containing `.gitignore` with `dist/`, a `src/a.rs`, and a `dist/b.js`;
 assert `walk_source_files` returns exactly `[src/a.rs]`. A second case with a hidden `.work/`
@@ -73,13 +84,16 @@ dir asserts hidden dirs are skipped.
 
 `refresh --auto` becomes safe to run unattended on a timer:
 
-1. **Concurrency lock (Task 2).** Acquire an advisory lockfile in
-   `.vox/cache/graphify/` (e.g. `refresh.lock` holding the PID) before a rebuild; if already
-   held by a live PID, skip with a logged message. Prevents a scheduled run from stacking on a
-   manual rebuild or CI and corrupting `graph.json`/manifest via concurrent writes. Released on
-   completion; stale-lock tolerant (a lock whose PID is dead is reclaimed). Applied to BOTH the
-   `refresh --auto` rebuild arm and the manual `vox graphify rebuild` handler so the two cannot
-   race each other.
+1. **Concurrency lock (Task 2).** An advisory `refresh.lock` in the corpus dir under
+   `.vox/cache/graphify/`. A lock whose mtime is < 1h old is treated as held → the caller skips
+   (no PID-liveness syscall; cross-platform via `std::fs`). Older/unreadable mtime → stale →
+   reclaimed (self-heals after a `kill -9`/power loss where no in-process cleanup can run). An
+   **RAII Drop guard** releases the lock on normal return, on `?` early-return, AND on
+   panic-unwind, so a crashed rebuild does not wedge the corpus until the 1h reclaim. Applied to
+   BOTH the `refresh --auto` rebuild arm and the manual `vox graphify rebuild` handler so the two
+   cannot race each other. The lock is advisory: the check→write window has a benign TOCTOU race,
+   mitigated by the scheduler's `MultipleInstances IgnoreNew` (only a hand-run rebuild could race,
+   and both writes are deterministic).
 2. **No worktree-drift thrash — ALREADY CORRECT (verified, no change).** It might seem an hourly
    task would rebuild constantly because `scope_path:"."` makes `worktree_drift` fire on any
    uncommitted file. But `refresh_action` (`graphify/mod.rs:121-130`) already rebuilds only on
@@ -88,12 +102,20 @@ dir asserts hidden dirs are skipped.
    path does not thrash on uncommitted edits today. The plan adds a regression test locking this
    behavior (`["worktree_drift"]` → Skip); no logic change.
 3. **Trigger (Task 3, documented host step).** A one-time Windows Task Scheduler registration
-   runs `vox graphify refresh --auto` every 60 minutes, **hidden** and whether-or-not-logged-on
-   (running hidden is what suppresses console windows for the brief `git rev-parse` the refresh
-   shells; no code change). Per AGENTS.md (VoxScript-only automation; no new `.ps1/.sh/.py`) the
-   task invokes the `vox` binary directly — no wrapper script. The spec/docs provide the exact
-   `schtasks`/`Register-ScheduledTask` command; the user runs it once. This is host-only, like
-   the existing CI autoscaler task.
+   runs `vox graphify refresh --auto` every 60 minutes, **hidden** and whether-or-not-logged-on.
+   The trigger MUST set `-RepetitionDuration` (a large finite value, e.g. 3650 days — NOT
+   `[TimeSpan]::MaxValue`, which overflows the serializer on some builds); `-RepetitionInterval`
+   alone does not repeat reliably. Repo root resolves from the task's `-WorkingDirectory` (cwd
+   walk-up, `resolve.rs:14`; there is no `--repo` flag), with `VOX_REPO_ROOT` as the documented
+   override. Per AGENTS.md (VoxScript-only automation; no new `.ps1/.sh/.py`) the task invokes the
+   `vox` binary directly — no wrapper script. Host-only, matching the existing `VoxCIRunnerScale`
+   autoscaler precedent (also Windows Task Scheduler).
+4. **Cross-platform equivalents (documented, not built).** The registration command is
+   Windows-only, but per the repo's cross-platform SSOT and external-repo direction the spec/plan
+   document the Linux/macOS equivalents running the identical `vox graphify refresh --auto`:
+   systemd timer (`OnUnitActiveSec=1h`, `Persistent=true`), cron (`0 * * * *`), or launchd
+   (`StartInterval=3600`), each with the repo as working dir. The Task 2 lock is pure `std::fs`,
+   so the no-overlap guarantee carries to all of them with no per-OS work.
 
 ## Components & boundaries
 
@@ -118,8 +140,9 @@ dir asserts hidden dirs are skipped.
 
 ## Testing
 
-- **Hygiene:** the two tempdir walk tests above (gitignored dir excluded; hidden dir skipped;
-  output sorted).
+- **Hygiene:** a tempdir walk test (no `git init`) asserting `dist/` is excluded by `.gitignore`,
+  `.hidden/` by `hidden(true)`, and `node_modules/` by `filter_entry` **without** a gitignore
+  rule for it, with sorted output `[src/a.rs, src/b.rs]`.
 - **Lock:** unit test — acquire lock, assert a second acquire returns "held/skip"; assert a lock
   with a dead PID is reclaimable.
 - **Staleness mapping (regression guard, no logic change):** unit test on the existing

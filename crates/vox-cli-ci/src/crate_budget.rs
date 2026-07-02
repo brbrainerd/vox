@@ -44,8 +44,8 @@ pub fn blast_map_from_summary(summary: &serde_json::Value) -> HashMap<String, f6
 pub fn check_keystones(budget: &BudgetFile, blast_map: &HashMap<String, f64>) -> Vec<String> {
     let mut violations = Vec::new();
     for k in &budget.keystones {
-        if let Some(&actual) = blast_map.get(&k.crate_name) {
-            if actual > k.blast_s_ceiling {
+        if let Some(&actual) = blast_map.get(&k.crate_name)
+            && actual > k.blast_s_ceiling {
                 violations.push(format!(
                     "  {} blast_s={:.0}s > ceiling {:.0}s (overage: {:.0}s)",
                     k.crate_name,
@@ -54,7 +54,6 @@ pub fn check_keystones(budget: &BudgetFile, blast_map: &HashMap<String, f64>) ->
                     actual - k.blast_s_ceiling
                 ));
             }
-        }
         // Missing crate → warn but don't fail (may be renamed or not yet in map)
     }
     violations

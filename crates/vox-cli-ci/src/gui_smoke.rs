@@ -5,7 +5,7 @@ use std::process::Command;
 
 use anyhow::{Result, anyhow};
 
-use super::cargo_bin;
+use crate::cargo_bin;
 
 /// Stable ignored-only WebIR smoke: matches compiler-gates `web_ir_lower_emit_test` TanStack/router guard.
 const WEB_IR_LOWER_EMIT_SMOKE_FILTER: &str =

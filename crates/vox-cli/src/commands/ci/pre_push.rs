@@ -1090,7 +1090,7 @@ fn step_check_links(root: &Path) -> Result<()> {
 }
 
 fn step_retired_symbol_check(root: &Path) -> Result<()> {
-    super::retired_symbol_check::run(root)
+    vox_cli_ci::retired_symbol_check::run(root)
 }
 
 fn step_canonical_map_verify(root: &Path) -> Result<()> {

@@ -224,7 +224,7 @@ fn generated_manifest_payload(repo_root: &Path) -> Result<serde_json::Value> {
 
 pub fn run(repo_root: &Path) -> Result<()> {
     tracing::info!("Running gui-catalog-parity check...");
-    crate::commands::ci::gui_version_sync::run(repo_root, false)?;
+    vox_cli_ci::gui_version_sync::run(repo_root, false)?;
 
     let catalog = crate::command_catalog::build_catalog();
     if catalog.entries.is_empty() {

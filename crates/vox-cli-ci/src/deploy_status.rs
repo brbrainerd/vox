@@ -57,16 +57,15 @@ pub async fn run(write_to: Option<PathBuf>) -> Result<()> {
     // Try to fetch jobs to see which stage failed
     let jobs_url = deploy_run["jobs_url"].as_str().unwrap_or("");
     let mut failed_job = String::new();
-    if !jobs_url.is_empty() {
-        if let Ok(jobs_resp) = client
+    if !jobs_url.is_empty()
+        && let Ok(jobs_resp) = client
             .get(jobs_url)
             .header("Authorization", format!("Bearer {}", token))
             .header("User-Agent", "vox-cli")
             .send()
             .await
-        {
-            if let Ok(jobs_json) = jobs_resp.json::<Value>().await {
-                if let Some(jobs_arr) = jobs_json["jobs"].as_array() {
+            && let Ok(jobs_json) = jobs_resp.json::<Value>().await
+                && let Some(jobs_arr) = jobs_json["jobs"].as_array() {
                     for job in jobs_arr {
                         let j_conclusion = job["conclusion"].as_str().unwrap_or("");
                         if j_conclusion == "failure" {
@@ -75,9 +74,6 @@ pub async fn run(write_to: Option<PathBuf>) -> Result<()> {
                         }
                     }
                 }
-            }
-        }
-    }
 
     let emoji = if conclusion == "success" {
         "✅ SUCCESS"

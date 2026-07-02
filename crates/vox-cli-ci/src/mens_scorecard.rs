@@ -567,7 +567,7 @@ pub async fn run_execute(root: &Path, spec_path: &Path, out_dir: Option<&Path>) 
                 "https://voxlang.org/schemas/eval/mens-scorecard-event.schema.json".to_string(),
         }),
         completion_policy: Some(CompletionPolicyCrosswalk {
-            policy_contract_rel: super::completion_quality::COMPLETION_POLICY_REL.to_string(),
+            policy_contract_rel: crate::completion_quality::COMPLETION_POLICY_REL.to_string(),
             gate_integration_note: "Mens anti-stub metrics (placeholder/trivial_placeholder/construct_richness/anti_stub_pass) feed the same governance chain as vox ci completion-audit|gates and contracts/telemetry/completion-*.schema.json.".to_string(),
         }),
     };

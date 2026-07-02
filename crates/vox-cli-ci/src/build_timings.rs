@@ -309,8 +309,8 @@ pub async fn bench_build_run(
             }
             Some("compiler-message") => {
                 let msg = &val["message"];
-                if let Some(level) = msg["level"].as_str() {
-                    if level == "warning" || level == "error" {
+                if let Some(level) = msg["level"].as_str()
+                    && (level == "warning" || level == "error") {
                         let code = msg["code"]
                             .as_object()
                             .and_then(|c| c.get("code"))
@@ -344,7 +344,6 @@ pub async fn bench_build_run(
                             message,
                         });
                     }
-                }
             }
             _ => {}
         }
