@@ -3672,6 +3672,33 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: false
+- id: ci.queue
+  title: Ci Queue
+  description: CLI operation `vox ci queue`
+  description_human: Run-centric CI queue snapshot with active/superseded/stale classification, machine-readable advice + async failure signal, and capped clearing of cancellable backlog. SSOT queue interaction under the local-first CI contract.
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - queue
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
 - id: ci.ai-fixtures-coverage
   title: Ci Ai-fixtures-coverage
   description: CLI operation `vox ci ai-fixtures-coverage`
@@ -4180,6 +4207,33 @@ operations:
     path:
     - ci
     - turso-import-guard
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
+- id: ci.workflow-concurrency-guard
+  title: Ci Workflow-concurrency-guard
+  description: CLI operation `vox ci workflow-concurrency-guard`
+  description_human: Require a concurrency group on push/PR-triggered workflows (flood prevention for the local runner fleet); exceptions in docs/src/ci/concurrency-exceptions.md.
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - workflow-concurrency-guard
     status: active
     latin_ns: null
     handler_rust: null

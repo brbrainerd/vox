@@ -21,7 +21,7 @@ category: "Language Reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 285
+**schema_version:** `1` · **vox-cli operations:** 287
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -103,6 +103,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci policy-smoke` | active | — | — | platform | — |
 | `vox ci pre-push` | active | — | — | platform | — |
 | `vox ci query-all-guard` | active | — | — | platform | — |
+| `vox ci queue` | active | — | — | platform | — |
 | `vox ci release-build` | active | — | — | platform | — |
 | `vox ci repo-guards` | active | — | — | platform | — |
 | `vox ci retirement-audit` | active | — | — | platform | — |
@@ -124,6 +125,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci toestub-scoped` | active | — | — | platform | — |
 | `vox ci toestub-self-apply` | active | — | — | platform | — |
 | `vox ci turso-import-guard` | active | — | — | platform | — |
+| `vox ci workflow-concurrency-guard` | active | — | — | platform | — |
 | `vox ci workflow-scripts` | active | — | — | platform | — |
 | `vox codex` | active | — | codex | data | — |
 | `vox codex cutover` | active | — | codex | data | — |
