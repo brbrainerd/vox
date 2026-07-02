@@ -70,7 +70,27 @@ Group by likely-shared deps to minimize Cargo churn; build after each:
 Re-run the `coupling=0` scan before each — some may have hidden Tier-2 leakage (route those via the host
 in the final step instead of moving).
 
-## Final steps (the headline — needs its own focused pass)
+## Final steps (the headline — needs its own focused pass) — FULLY DE-RISKED (2026-06-30)
+Coupling analysis done: the ONLY non-guard deep coupling in run_body + run_body_helpers is tiny —
+- `crate::artifact_policy::{gate_isolated_target,ci_nested_target}` (matrix.rs) = `pub use vox_cli_core::artifact_policy` → just rewrite to `vox_cli_core::artifact_policy` (vox-cli-ci already has vox-cli-core). NO move.
+- `crate::frontend::pnpm_executable()` (run_body.rs:219, Astro docs arm) → inline `if cfg!(windows) {"pnpm.cmd"} else {"pnpm"}` (frontend.rs stays for its 3 non-ci users).
+- `crate::benchmark_telemetry` → DONE, moved to vox-cli-ci (`285754bc5c`).
+- `crate::freshness::enforce_for_ci` (run_body.rs:56) → STAYS in vox-cli (moves to ci/mod.rs before delegating).
+- `crate::commands::policy` (gate-status) → already covered by the GateStatusWriter seam on VoxCliProviders.
+
+run_body.rs + run_body_helpers/ (16 files) MOVE AS ONE UNIT (helpers ref `super::run_manifest`/`super::gate_status`).
+Structure of `run()`: `let root=repo_root(); freshness; let gate_id=cmd.gate_policy_id(); let result: Result = match cmd {...700 lines...}; <gate-status wrap via VoxCliProviders>; result`.
+HeavyGuardHost design (put in **vox-cli-ci**, not contracts, so it can take `&CiCmd`):
+```rust
+pub trait HeavyGuardHost: vox_cli_contracts::GateStatusWriter {
+    fn dispatch_heavy(&self, cmd: &CiCmd, root: &Path) -> Option<anyhow::Result<()>>;
+}
+```
+Moved `run(cmd, host: &dyn HeavyGuardHost)`: host-first — `if let Some(r)=host.dispatch_heavy(&cmd,&root){r} else { match cmd {<Tier-1 arms> _=>unreachable!()} }`. **The delicate part = excising the ~24 Tier-2 match arms** (GuiCatalogParity/GuiSurfaceCoverage/GuiSurfaceRegistry/PolicyRegistry{2}/ExecPolicyContract/OperationsVerify+Sync/PrePush{multi-line PrePushOpts}/FmtCheck/EvalMatrix{2}/BuildTimings/PipelineParity/PolicyAllowlistParity/CapabilitySync/CommandSync/ReleaseBuild/RunnerScale+Preflight+Status/CommandCompliance) into `impl HeavyGuardHost for VoxCliProviders` + `_=>unreachable!()`.
+**GOTCHA: `run_body_helpers/docs.rs` calls a Tier-2 guard from HELPER code (not just run_body's match)** → that call also routes via host (pass `&dyn HeavyGuardHost` into the helper, or keep that specific guard's logic inline). This is the one spot the "match-split only" mental model misses.
+15 Tier-2 guards to impl in dispatch_heavy: build_timings, capability_sync, command_sync, command_compliance, eval_matrix, exec_policy_contract, gui_catalog_parity, gui_surface_coverage, gui_surface_registry, operations_catalog, pipeline_parity, policy_allowlist_parity, policy_registry, pre_push, release_build, runner_scale.
+
+### Original outline (superseded by the above but kept for the step ordering)
 - **Step 2** HeavyGuardHost trait in vox-cli-contracts (`&str`-keyed) + impl on VoxCliProviders for the
   13 Tier-2 guards (build_timings, eval_matrix, release_build, runner_scale, gui_catalog_parity,
   gui_surface_coverage, gui_surface_registry, policy_registry, operations_catalog, capability_sync,
