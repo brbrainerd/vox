@@ -61,7 +61,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
     let started = std::time::Instant::now();
 
     let result: Result<()> = match cmd {
-        CiCmd::BuildCacheDoctor => super::doctor_build_cache::run(),
+        CiCmd::BuildCacheDoctor => vox_cli_ci::doctor_build_cache::run(),
         CiCmd::Manifest => run_manifest(&root),
         CiCmd::PolicyRegistry { write } => {
             super::policy_registry::run_generate(&root, write).map_err(|e| anyhow!(e))
@@ -166,7 +166,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::TierBudgetCheck { junit, profile } => {
             vox_cli_ci::tier_budget_check::run(&root, &junit, &profile)
         }
-        CiCmd::DevLoopAudit { json } => super::dev_loop_audit::run(&root, json),
+        CiCmd::DevLoopAudit { json } => vox_cli_ci::dev_loop_audit::run(&root, json),
         CiCmd::SsotAudit => run_ssot_audit(&root).await,
         CiCmd::DataSsotGuards => run_data_ssot_guards(&root),
         CiCmd::DataStorageGuard(opts) => {
@@ -183,7 +183,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             Ok(())
         }
         CiCmd::FeatureMatrix => run_feature_matrix(&root),
-        CiCmd::CompileMatrix => super::compile_matrix::run(&root),
+        CiCmd::CompileMatrix => vox_cli_ci::compile_matrix::run(&root),
         CiCmd::RetirementAudit => vox_cli_ci::retirement_audit::run(&root),
         CiCmd::NoDeiImport => check_no_vox_dei(&root),
         CiCmd::AttentionEventLedgerParity => vox_cli_ci::attention_ledger_parity::run(&root),
@@ -326,7 +326,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             fixtures_root,
             min_f1,
             json,
-        } => super::detect_rules_bench::run(&rules, &fixtures_root, min_f1, json),
+        } => vox_cli_ci::detect_rules_bench::run(&rules, &fixtures_root, min_f1, json),
         CiCmd::ToestubBudget => vox_cli_ci::toestub_budget::run(),
         CiCmd::JsonParseCheck { globs } => vox_cli_ci::parse_check::run_json(&globs),
         CiCmd::YamlParseCheck { globs } => vox_cli_ci::parse_check::run_yaml(&globs),
@@ -380,7 +380,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::SqlSurfaceGuard { all } => run_sql_surface_guard(&root, all),
         CiCmd::QueryAllGuard { all } => run_query_all_guard(&root, all),
         CiCmd::TursoImportGuard { all } => run_turso_import_guard(&root, all),
-        CiCmd::DbSchemaCoverage => super::db_schema_coverage::run(&root),
+        CiCmd::DbSchemaCoverage => vox_cli_ci::db_schema_coverage::run(&root),
         CiCmd::PolicyAllowlistParity => super::policy_allowlist_parity::run(&root),
         CiCmd::RowSerdeLint => vox_cli_ci::row_serde_lint::run(&root),
         CiCmd::StringIdLint => vox_cli_ci::string_id_lint::run(&root, false),
@@ -562,7 +562,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         } => super::build_bench::run_build_bench(&root, label, write, compare, repeat, ingest),
         CiCmd::CrateBudget { exit_zero } => vox_cli_ci::crate_budget::run_crate_budget(&root, exit_zero),
         CiCmd::CrateBuildMapParity => {
-            super::crate_build_map_parity::run_crate_build_map_parity(&root)
+            vox_cli_ci::crate_build_map_parity::run_crate_build_map_parity(&root)
         }
         CiCmd::FanInBudget { exit_zero } => {
             vox_cli_ci::fan_in_budget::run_fan_in_budget(&root, exit_zero)
@@ -661,9 +661,9 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             top,
             fail_over_ms,
             fail_retry_count,
-        } => super::test_runtime_report::run(
+        } => vox_cli_ci::test_runtime_report::run(
             &root,
-            super::test_runtime_report::TestRuntimeReportOpts {
+            vox_cli_ci::test_runtime_report::TestRuntimeReportOpts {
                 junit,
                 json,
                 markdown,

@@ -1,6 +1,13 @@
 //! Repository CI guard checks extracted from `vox-cli` (`vox ci *` implementation wedge).
 
 pub mod affected;
+pub mod doctor_build_cache;
+pub mod crate_build_map_parity;
+pub mod db_schema_coverage;
+pub mod test_runtime_report;
+pub mod detect_rules_bench;
+pub mod dev_loop_audit;
+pub mod compile_matrix;
 pub mod tier_budget_check;
 pub mod fan_in_budget;
 pub mod crate_budget;

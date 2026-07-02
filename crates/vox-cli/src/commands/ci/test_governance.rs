@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 use serde::Serialize;
 use vox_bounded_fs::read_utf8_path_capped;
 
-use super::test_runtime_report::{
+use vox_cli_ci::test_runtime_report::{
     TestRuntimeReport, compare_runtime_reports, parse_runtime_report_json,
     retry_flaky_candidate_count,
 };
@@ -141,7 +141,7 @@ pub(crate) fn run_flake_budget(
         (None, Some(p)) => {
             let xml =
                 read_utf8_path_capped(p).with_context(|| format!("read JUnit {}", p.display()))?;
-            super::test_runtime_report::build_report(&xml, top)?
+            vox_cli_ci::test_runtime_report::build_report(&xml, top)?
         }
         (Some(_), Some(_)) => anyhow::bail!("pass only one of --report-json or --junit"),
         (None, None) => {
@@ -194,7 +194,7 @@ struct RuntimeRegressJson {
     absolute_ms_threshold: u64,
     regression_count: usize,
     missing_in_current_top_count: usize,
-    regressions: super::test_runtime_report::RuntimeRegressReport,
+    regressions: vox_cli_ci::test_runtime_report::RuntimeRegressReport,
 }
 
 pub(crate) fn run_runtime_regress(

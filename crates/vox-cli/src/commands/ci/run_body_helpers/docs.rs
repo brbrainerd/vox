@@ -529,7 +529,7 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     )?;
     ds!(
         "db_schema_coverage",
-        crate::commands::ci::db_schema_coverage::run(root)
+        vox_cli_ci::db_schema_coverage::run(root)
     )?;
     ds!(
         "nomenclature_guard",

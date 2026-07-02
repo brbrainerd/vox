@@ -46,12 +46,11 @@ fn try_compile_help_via_binary(repo_root: &Path, exe: &Path) -> Option<std::proc
 /// - **Fallback:** `cargo run -p vox-cli -- compile --help` — matches `.github/workflows/compile-matrix.yml`.
 pub fn run(repo_root: &Path) -> Result<()> {
     for exe in compile_help_candidates(repo_root) {
-        if let Some(status) = try_compile_help_via_binary(repo_root, &exe) {
-            if status.success() {
+        if let Some(status) = try_compile_help_via_binary(repo_root, &exe)
+            && status.success() {
                 println!("✓ compile-matrix: `vox compile --help` OK");
                 return Ok(());
             }
-        }
     }
 
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_string());

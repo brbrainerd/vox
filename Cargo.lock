@@ -15420,10 +15420,13 @@ dependencies = [
  "vox-config",
  "vox-doc-pipeline",
  "vox-git",
+ "vox-graph-reader",
  "vox-http-client",
  "vox-jsonschema-util",
+ "vox-rule-pack",
  "vox-secrets",
  "walkdir",
+ "which 8.0.4",
 ]
 
 [[package]]
