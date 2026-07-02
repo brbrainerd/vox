@@ -48,12 +48,32 @@ use run_body_helpers::{
 
 use super::retired_symbol_check;
 
+/// Whether a `vox ci` subcommand must pass the stale-binary freshness guard.
+///
+/// `false` for infra reconcile/read commands (runner autoscaler/preflight/status):
+/// they carry no correctness verdict and must keep the CI fleet alive even when the
+/// installed binary lags a fast-moving source tree.
+fn should_enforce_freshness(cmd: &CiCmd) -> bool {
+    !matches!(
+        cmd,
+        CiCmd::RunnerScale { .. } | CiCmd::RunnerPreflight | CiCmd::RunnerStatus
+    )
+}
+
 /// Run `vox ci` subcommand.
 pub async fn run(cmd: CiCmd) -> Result<()> {
     let root = repo_root();
     // A stale `vox` binary runs outdated guard logic/allowlists, so its `vox ci`
     // verdict would not reflect the current source. Refuse rather than mislead.
-    crate::freshness::enforce_for_ci(&root)?;
+    //
+    // EXCEPTION: the runner autoscaler/preflight/status are infra reconcile + read
+    // commands, not guard verdicts — they spawn/inspect Docker CI runners and produce
+    // no correctness judgement. Gating them on freshness lets a fast-moving source tree
+    // (multiple agents racing ahead of the installed binary) starve the CI fleet to zero
+    // every tick. They must run regardless of binary staleness.
+    if should_enforce_freshness(&cmd) {
+        crate::freshness::enforce_for_ci(&root)?;
+    }
 
     // Per-gate status capture (Phase 1c). Only registry-backed gates are tracked;
     // others record nothing (honest grey). Disabled via VOX_NO_POLICY_STATUS=1.
@@ -784,7 +804,8 @@ fn gate_status_result(id: &str, ok: bool, duration_ms: u64) -> vox_config::Polic
 
 #[cfg(test)]
 mod gate_status_tests {
-    use super::gate_status_result;
+    use super::{gate_status_result, should_enforce_freshness};
+    use vox_cli_ci::cmd_enums::CiCmd;
     use vox_config::RunStatus;
 
     #[test]
@@ -840,5 +861,17 @@ mod gate_status_tests {
             RunStatus::Fail,
             "failing tracked gate must overwrite stale Pass with Fail"
         );
+    }
+
+    #[test]
+    fn freshness_exempts_runner_infra_but_guards_enforce() {
+        // Infra reconcile/read commands must run even with a stale binary (keep the fleet alive).
+        assert!(!should_enforce_freshness(&CiCmd::RunnerScale { apply: false }));
+        assert!(!should_enforce_freshness(&CiCmd::RunnerScale { apply: true }));
+        assert!(!should_enforce_freshness(&CiCmd::RunnerPreflight));
+        assert!(!should_enforce_freshness(&CiCmd::RunnerStatus));
+        // Real guard verdicts still require freshness.
+        assert!(should_enforce_freshness(&CiCmd::SsotDrift));
+        assert!(should_enforce_freshness(&CiCmd::RepoGuards));
     }
 }
