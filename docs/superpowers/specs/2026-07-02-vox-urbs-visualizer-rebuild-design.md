@@ -75,7 +75,7 @@ Decisions locked during brainstorming (2026-07-02):
 | **CASTRVM** (fort, outside the walls) | CI runner fleet | Tents = registered runners; red tents = busy; legion standard raised when a run is in progress |
 | **PORTVS** (harbor, on the sea) | Orchestrator queue | Ships waiting = queued tasks; ship docks/departs on dequeue/complete |
 | **AQVAE** (aqueduct entering the city) | MCP servers | One arch span per connected server; water-flow pulses = traffic; dry/cracked span = server down |
-| **Gates & roads** | Git | Dashed "via nova" roads under construction = local branches/worktrees (ahead/behind shown as construction progress); caravans arriving at the gate = open PRs |
+| **Gates & roads** | Git | Dashed "via nova" roads under construction = local branches, with real ahead/behind from `git for-each-ref %(upstream:track)` shown as construction progress; caravans arriving at the gate = open PRs. (Worktree enumeration deferred.) |
 
 ## 4. Rendering architecture
 
@@ -88,9 +88,12 @@ Keeps the specced hybrid (see engine spec), extended with LOD:
 3. **Zustand store** (`vox-gamify-store`) with direct `store.subscribe` + `ref.current.style`
    updates in a rAF loop — no React re-render per tick.
 4. **LOD threshold on zoom.** Below the threshold, each district renders as a single
-   aggregate landmark (~109 draw calls for the whole workspace). Above it, only districts
-   intersecting the viewport render individual file buildings (viewport culling — never
-   thousands of buildings per frame).
+   aggregate landmark (~109 draw calls for the whole workspace). Above it, every file
+   building is painted **once into the full-world offscreen buffer**; the per-frame cost
+   is a single camera-transformed blit, so pan/zoom never re-draws buildings. (Deliberate
+   deviation from per-frame viewport culling: the buffer amortizes better and is simpler.
+   The buffer is clamped via a render-scale factor to bound memory, and animations —
+   fires — draw in the blit pass, never into the buffer, so buffer repaints stay rare.)
 5. **Procedural-parametric Roman sprites.** Building art (columns, pediments, roofs,
    weeds, fire frames) is drawn parametrically from file metrics into a **runtime sprite
    atlas** once, then stamped onto the buffer. No checked-in image assets; crisp at every
@@ -104,9 +107,10 @@ Keeps the specced hybrid (see engine spec), extended with LOD:
 | Warnings | file diagnostics | Weeds/ivy on the plot |
 | Errors | file diagnostics | Animated fire sprite on the building |
 | Active agent task | agent task stream | Citizen at the building + wooden scaffolding |
-| Churn (recent edits) | edit events | Warm torchlight tint that cools over time |
-| FSRS overdue actions | discovery ledger | Neglected-district glow (per minimap spec) |
-| Cost | BudgetManager SSOT | AERARIVM treasury count; drain animates on `CostIncurred` |
+| Churn (recent edits) | edit events | Warm torchlight tint (**deferred** — requires an edit-recency store) |
+| FSRS overdue actions | discovery ledger (`gamify_due_actions`) | SENATVS panel due list (per-building glow **deferred** — `DueActionDto` lacks a file path) |
+| Cost | `get_llm_spend` via the `useLlmSpend` hook — same source as the Office cost widget | AERARIVM treasury count; drain animates on `CostIncurred` |
+| Build progress | `AgentEventKind::BuildStage` on `vox://agent-events` | FABRICA HUD chip naming the active stage (lex/parse/hir/typecheck/codegen) |
 
 ## 5. Camera (the bug fix)
 
@@ -127,7 +131,8 @@ A proper camera controller replaces the hardcoded offsets:
 
 - Agents and the developer render as citizens (Roman dress, existing mood system).
 - **A\* pathfinding over the road grid**; states: `Idle` → `Commuting` → `Working`
-  (hammer/scroll animation) → `Exhausted` (budget lockout, per the representation spec).
+  (hammer/scroll animation) → `Exhausted`. (The budget-lockout *trigger* for `Exhausted`
+  is deferred until a lockout signal exists in the GUI; the state machine ships.)
 - Moods from task phase via the existing `moodFromPhase` mapper.
 - Speech bubbles anchor to the citizen's projected position (the hardcoded
   `top-[180px] left-[380px]` bubble is deleted).
@@ -138,18 +143,26 @@ A proper camera controller replaces the hardcoded offsets:
 
 - Agent tasks/phases (`vox://agent-events`) → citizens, moods, scaffolding, auto-focus.
 - File diagnostics (`FileDiagChanged`) → weeds/fire/cracks.
-- `CostIncurred` + `budget_get` (**BudgetManager budget SSOT**, per the surfacing-spec
-  amendment) → AERARIVM. Same number as the Office budget widget — never an independent sum.
+- Cost: `get_llm_spend` (via the existing `useLlmSpend` hook — the same source as the
+  Office cost widget, so AERARIVM is never an independent sum); `CostIncurred` events
+  animate the drain. (`budget_get`/`vox://cost-changed` **do not exist** — they are
+  unexecuted items of the 2026-06-18 budget-SSOT spec; migrate to them when that lands.)
 - Quests + FSRS due (`gamify_due_actions`) → SENATVS quest board.
 - Orchestrator queue (existing `orchestrator.rs` commands) → PORTVS ships.
-- MCP server registry/status (existing `mcp.rs` command surface) → AQVAE spans.
+- MCP: **no command surface exists** (`mcp.rs` has only `invoke_mcp_tool`, and
+  `get_orchestrator_status` serializes a closed struct that can never carry an MCP field)
+  → AQVAE renders **unconditionally unlit** until a dedicated server-list command lands.
+- Build progress: `AgentEventKind::BuildStage` (already on the consumed
+  `vox://agent-events` channel) → FABRICA HUD chip.
+- Scientia/discovery activity (`vox://scientia-queue`, `vox://scientia-discovery-surfaced`)
+  is explicitly **out of scope** for this rebuild — it has its own surface.
 
 ### 7.2 New thin taps (the only new backend)
 
 | Command | Impl | Feeds |
 |---|---|---|
-| `harness_ci_fleet_status` | Shell to the existing `vox ci` status path; DTO of runner name/busy/queued counts | CASTRVM |
-| `vcs_town_status` | Local git reads (branches, worktrees, ahead/behind); open PRs via `gh` **when available**, gracefully absent offline | Roads, caravans |
+| `harness_ci_fleet_status` | `gh api repos/<slug>/actions/runners` + queued-runs count — the same source `vox-cli`'s `runner_scale.rs` reads | CASTRVM |
+| `vcs_town_status` | Local git: `git for-each-ref` with `%(upstream:track)` (branches + real ahead/behind); open PRs via `gh` **when available**, gracefully absent offline. Worktree enumeration deferred. | Roads, caravans |
 
 Both poll at slow cadence (15–30s), no filesystem watchers. Spawned processes must use the
 existing `CREATE_NO_WINDOW` quiet-command helper on Windows.
@@ -162,10 +175,12 @@ are all removed.
 
 ## 8. HUD & gamify wiring
 
-- `HudPanels` rewritten to render real data (it currently returns `null` — the dead stub
-  called out in the surfacing spec): AERARIVM (real cost), energy bar, sim speed control.
-- **Energy persist-back bug fixed** in `vox-gamify/src/profile.rs`: after regen,
-  `upsert_profile` so energy advances durably (fetch-twice round-trip test).
+- `HudPanels` already renders from props (the surfacing spec's "returns null" is stale);
+  the defect is the **mock props at the call site** (`treasuryValue={120}`, `energy={90}`)
+  — rewire to real spend and profile energy.
+- The energy persist-back bug is **already fixed**: `get_ludus_profile_impl` regens and
+  upserts in `crates/vox-gui/src/commands/gamify.rs`, guarded by the existing
+  `energy_regen_persists_to_db` round-trip test. Not rebuild scope.
 - Sim speed (Ⅰx / Ⅲx / pause) affects **animation speed only** — Vox Urbs is a view of
   real telemetry, not a simulation that can be fast-forwarded.
 - Building click → radial menu with **real actions only**: open file, focus agent, view
@@ -186,26 +201,31 @@ One component, two render modes (existing `EmbeddedSurfaceContext` mechanism):
 Per the project anti-stub rule (**only surface what is real**):
 
 - A landmark whose data tap fails renders **unlit** (visually distinct) with a tooltip
-  stating why (e.g., "gh not authenticated", "vox ci unreachable") — never fake numbers.
+  stating why (e.g., "gh unavailable/unauthenticated", "git unavailable") — never fake
+  numbers, and never a fabricated placeholder value in a real-sounding field.
 - Event channel dropout → "SIM PAVSED" banner, last state retained, auto-reconnect.
 - Empty workspace → empty plaza; no agents → idle city; no crash paths.
 - Energy upsert failure → log and return the in-memory value (don't fail the fetch).
 
 ## 11. Performance targets
 
-- 60fps pan/zoom on the full workspace (~109 crates, ~4–5k files) — enforced by LOD +
-  viewport culling + buffer blitting.
+- 60fps pan/zoom on the full workspace (~109 crates, ~4–5k files) — enforced by LOD
+  banding + the full-world offscreen buffer (repainted only on data/LOD change; fires
+  animate in the blit pass) + render-scale clamping of the buffer.
 - Layout assignment for 5,000 files < 5ms (extends the engine spec's 1,000-file target).
 - Buffer redraw only on data/LOD change; overlay updates via rAF-clamped direct DOM writes.
 
 ## 12. Testing
 
-- **Rust:** energy persist round-trip; `harness_ci_fleet_status` / `vcs_town_status` DTO
-  mapping against fixtures (no live network in tests).
-- **TS (vitest):** treemap determinism and stability under file add/remove; screen↔world
-  camera math round-trips at arbitrary zoom/DPR; LOD band selection; viewport culling
-  correctness; existing `moodFromPhase` / `integrityFromDiag` mappers; `HudPanels` renders
-  real props; honesty states (unlit landmark on tap failure).
+- **Rust:** `harness_ci_fleet_status` / `vcs_town_status` / `workspace_town_scan` parsing
+  and DTO mapping against fixtures (no live network in tests). (The energy persist
+  round-trip already exists: `energy_regen_persists_to_db`.)
+- **TS (vitest):** treemap determinism, stability under file add/remove, and
+  **completeness under skewed crate sizes** (no silently dropped files); screen↔world
+  camera math round-trips at arbitrary zoom/DPR; LOD band selection; redraw-key
+  discipline (camera and animation frames excluded); existing `moodFromPhase` /
+  `integrityFromDiag` mappers; `HudPanels` renders real props; honesty states (unlit
+  landmark on tap failure).
 - **Perf guards:** 5,000-file layout < 5ms; buffer redraw count assertions (no redraw on
   camera-only change).
 - **Manual:** edit a file → citizen commutes and scaffolding appears; introduce a compile
@@ -216,11 +236,11 @@ Per the project anti-stub rule (**only surface what is real**):
 1. Camera + canvas sizing module (pure math + ResizeObserver/DPR) — fixes cut-off/centering/pan/zoom.
 2. Treemap layout engine + stability tests (replaces spiral).
 3. Procedural Roman sprite atlas + building tiers + quality overlays.
-4. LOD bands + viewport culling + offscreen buffer rework.
+4. LOD bands + full-world offscreen buffer + render-scale clamp.
 5. Citizens: road graph, A\*, state machine, DOM overlay ticks.
-6. HUD: `HudPanels` real impl, energy persist fix (Rust), treasury from budget SSOT.
+6. HUD: real props at both call sites, treasury from `get_llm_spend`, FABRICA build chip.
 7. New taps: `harness_ci_fleet_status` + `vcs_town_status` (Rust) + CASTRVM/PORTVS/AQVAE/gates rendering.
-8. Quest board (SENATVS) + FSRS due glow + radial menu (real actions).
+8. Quest board (SENATVS = the existing quests + DueNudge surfaces) + radial menu (real actions).
 9. Surfacing: embedded vs immersive modes, delete mocks, wire `GamifyView`.
 
 Rust and TS tracks are file-disjoint and parallel-safe where marked in the plan.
