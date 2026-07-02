@@ -90,7 +90,7 @@ Primary sources:
 
 - [`crates/vox-ml-cli/src/commands/mens/eval_local.rs`](../../../crates/vox-ml-cli/src/commands/mens/eval_local.rs)
 - [`crates/vox-ml-cli/src/commands/mens/eval_gate/check_run.rs`](../../../crates/vox-ml-cli/src/commands/mens/eval_gate/check_run.rs)
-- [`crates/vox-cli/src/commands/ci/mens_scorecard.rs`](../../../crates/vox-cli/src/commands/ci/mens_scorecard.rs)
+- [`crates/vox-cli-ci/src/mens_scorecard.rs`](../../../crates/vox-cli-ci/src/mens_scorecard.rs)
 - [`crates/vox-cli/src/commands/generate.rs`](../../../crates/vox-cli/src/commands/generate.rs)
 - [`crates/vox-orchestrator-mcp/src/compiler_tools.rs`](../../../crates/vox-orchestrator-mcp/src/compiler_tools.rs)
 
@@ -139,7 +139,7 @@ This means the gate can be logically correct but practically underfed.
 Relevant files:
 
 - [`crates/vox-ml-cli/src/commands/mens/eval_local.rs`](../../../crates/vox-ml-cli/src/commands/mens/eval_local.rs)
-- [`crates/vox-cli/src/commands/ci/mens_scorecard.rs`](../../../crates/vox-cli/src/commands/ci/mens_scorecard.rs)
+- [`crates/vox-cli-ci/src/mens_scorecard.rs`](../../../crates/vox-cli-ci/src/mens_scorecard.rs)
 
 Observed drift:
 
