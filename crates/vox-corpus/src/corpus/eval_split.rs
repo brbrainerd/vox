@@ -152,10 +152,8 @@ mod tests {
     fn no_tool_appears_in_both_sets() {
         let rows = generate_harness_rows(100);
         let (train, eval, _) = split_surface(42, 0.2, &rows);
-        let train_keys: std::collections::HashSet<String> =
-            train.iter().map(tool_key).collect();
-        let eval_keys: std::collections::HashSet<String> =
-            eval.iter().map(tool_key).collect();
+        let train_keys: std::collections::HashSet<String> = train.iter().map(tool_key).collect();
+        let eval_keys: std::collections::HashSet<String> = eval.iter().map(tool_key).collect();
         let overlap: Vec<_> = train_keys.intersection(&eval_keys).collect();
         assert!(
             overlap.is_empty(),
