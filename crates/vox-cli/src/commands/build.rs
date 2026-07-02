@@ -45,28 +45,132 @@ pub async fn run(
     app_id: Option<String>,
 ) -> Result<()> {
     let json = crate::pipeline::global_json_enabled();
-    let frontend = crate::pipeline::run_frontend(file, json).await?;
+    let result = run_inner(
+        file,
+        out_dir,
+        mobile_target,
+        cli_build_target,
+        emit_scaffold,
+        emit_ir,
+        mode,
+        rust_app_shell,
+        app_name,
+        app_id,
+        json,
+    )
+    .await;
+    // Exactly one JSON line on stdout per invocation, success or failure. The
+    // frontend/typecheck stage hands back real diagnostics via `BuildFailure`
+    // when it's the one that failed; codegen-stage errors (Rust/RN/TS codegen,
+    // mobile validators, `@v0` contract violations, stale-import checks, …)
+    // have no `FrontendResult` to attach, so they fall back to the minimal
+    // `format_command_result_envelope_json` shape. Printing is deferred to
+    // this single call site so a frontend PASS never emits a premature
+    // `ok: true` envelope that a later codegen failure would have to contradict.
     if json {
-        // Single-line envelope on stdout (JSONL); mirrors `vox check --output-format json`
-        // diagnostic payloads. Emitted for success AND failure so agents always get one.
-        println!(
-            "{}",
-            crate::pipeline::format_build_lane_envelope_json("build", file, &frontend, None)
-        );
-    } else {
+        let envelope = match &result {
+            Ok(()) => {
+                crate::pipeline::format_command_result_envelope_json("build", file, true, None)
+            }
+            Err(e) => match e.downcast_ref::<BuildFailure>() {
+                Some(BuildFailure(frontend)) => {
+                    crate::pipeline::format_build_lane_envelope_json("build", file, frontend, None)
+                }
+                None => {
+                    crate::pipeline::format_command_result_envelope_json("build", file, false, None)
+                }
+            },
+        };
+        println!("{envelope}");
+    }
+    // Non-JSON diagnostics (including the `BuildFailure` case) already printed
+    // inside `run_inner`, immediately after the frontend pass — see there.
+    result.map_err(|e| {
+        // Unwrap the carrier so the human-readable message (used by `main`'s
+        // top-level `Error: {e}` print and by callers matching on message text)
+        // is the original build-failure summary, not the internal wrapper.
+        match e.downcast::<BuildFailure>() {
+            Ok(BuildFailure(frontend)) => anyhow::anyhow!(
+                "Build failed with {} error(s) and {} warning(s)",
+                frontend.error_count(),
+                frontend.warning_count()
+            ),
+            Err(e) => e,
+        }
+    })
+}
+
+/// Carries the [`crate::pipeline::FrontendResult`] out of a frontend/typecheck
+/// failure so the `--json` envelope can attach real diagnostics. Codegen-stage
+/// failures use a plain `anyhow::Error` instead (no `FrontendResult` to hand).
+struct BuildFailure(crate::pipeline::FrontendResult);
+
+impl std::fmt::Debug for BuildFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BuildFailure")
+            .field("error_count", &self.0.error_count())
+            .field("warning_count", &self.0.warning_count())
+            .finish()
+    }
+}
+
+impl std::fmt::Display for BuildFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Build failed with {} error(s) and {} warning(s)",
+            self.0.error_count(),
+            self.0.warning_count()
+        )
+    }
+}
+
+impl std::error::Error for BuildFailure {}
+
+#[allow(
+    clippy::too_many_arguments,
+    reason = "CLI surface mirrors BuildArgs; bundling into a params struct is a tracked refactor"
+)]
+async fn run_inner(
+    file: &Path,
+    out_dir: &Path,
+    mobile_target: Option<String>,
+    cli_build_target: Option<vox_config::BuildTarget>,
+    emit_scaffold: bool,
+    emit_ir: bool,
+    mode: BuildMode,
+    rust_app_shell: RustAppShell,
+    app_name: Option<String>,
+    app_id: Option<String>,
+    json: bool,
+) -> Result<()> {
+    let frontend = crate::pipeline::run_frontend(file, json).await?;
+    if !json {
+        // In non-JSON mode diagnostics (including warnings on an otherwise
+        // successful frontend pass) print immediately, matching prior behavior.
+        // Under `--json`, printing is deferred to the caller in `run` so exactly
+        // one envelope reaches stdout regardless of which stage ultimately fails.
         crate::pipeline::print_diagnostics(&frontend, file, false);
     }
     if frontend.has_errors() {
-        anyhow::bail!(
-            "Build failed with {} error(s) and {} warning(s)",
-            frontend.error_count(),
+        return Err(BuildFailure(frontend).into());
+    }
+    // `tracing`'s CLI subscriber (`vox_foundation::tracing::try_init_cli_default_info_fallback`)
+    // writes `info`-level spans to **stdout** by default — fine for human runs, but under
+    // `--json` it would land ahead of the single envelope line and break the "exactly one
+    // JSON line on stdout" contract this module promises. `debug!` is filtered out by the
+    // default `info` env-filter, so this stays silent unless `RUST_LOG=debug` is set.
+    if json {
+        tracing::debug!(
+            "Frontend passed with {} warning(s)",
+            frontend.warning_count()
+        );
+    } else {
+        tracing::info!(
+            "Frontend passed with {} warning(s)",
             frontend.warning_count()
         );
     }
-    tracing::info!(
-        "Frontend passed with {} warning(s)",
-        frontend.warning_count()
-    );
     let crate::pipeline::FrontendResult { module, hir, .. } = frontend;
 
     let mut resolved_target = vox_config::VoxConfig::load().build_target;
