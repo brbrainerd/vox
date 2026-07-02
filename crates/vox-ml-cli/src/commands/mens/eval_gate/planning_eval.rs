@@ -1,3 +1,4 @@
+#![allow(dead_code)] // eval-gate helpers, not yet wired
 //! B7.4 — Planning/dispatch eval (base-only, records v2 evidence).
 //!
 //! NOTE: No planning spoke exists in v1 of the fine-tuning pipeline.

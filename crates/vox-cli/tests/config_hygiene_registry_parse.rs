@@ -1,7 +1,7 @@
 //! Tests for the serde-based registry loader (Phase 1).
 use std::io::Write;
 use tempfile::NamedTempFile;
-use vox_cli::commands::ci::config_hygiene::parse_registry_file;
+use vox_cli_ci::config_hygiene::parse_registry_file;
 
 #[test]
 fn malformed_yaml_registry_returns_err_not_empty_set() {

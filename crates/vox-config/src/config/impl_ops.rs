@@ -1,3 +1,4 @@
+#![cfg_attr(test, allow(clippy::field_reassign_with_default))]
 //! Load / merge / persist logic for [`VoxConfig`](super::vox_config::VoxConfig).
 //!
 //! **Figment pilot (narrow):** precedence remains explicit (`defaults` → global TOML → repo `Vox.toml` → env)

@@ -1,3 +1,4 @@
+#![allow(dead_code)] // eval-gate helpers, not yet wired
 //! B7.0 — Leakage assertion: verifies no tool appears in both training and eval sets.
 //!
 //! Must run before any gate result is trusted.

@@ -1,3 +1,4 @@
+#![allow(clippy::enum_variant_names)]
 //! CR-F2c — emit-routing gate.
 //!
 //! Vox emits along a domain boundary: logic/backend → Rust (`codegen_rust`),

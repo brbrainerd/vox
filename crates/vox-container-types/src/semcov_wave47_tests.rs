@@ -10,10 +10,7 @@ mod semcov_wave47_tests {
     use crate::{
         BuildOpts, RunOpts,
         detect::RuntimePreference,
-        exec_grammar::{
-            self, ExecPolicy, PolicyViolation, RiskLevel, ViolationKind, parse, parse_pipeline,
-            risk,
-        },
+        exec_grammar::{self, ExecPolicy, RiskLevel, ViolationKind, parse, parse_pipeline, risk},
     };
     use std::path::PathBuf;
 

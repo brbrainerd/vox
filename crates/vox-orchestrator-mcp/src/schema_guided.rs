@@ -1,3 +1,4 @@
+#![cfg_attr(test, allow(unsafe_code))] // test-only std::env::set_var (unsafe on edition 2024)
 //! B4 — Schema-constrained decoding helpers for vLLM / outlines-backed inference servers.
 //!
 //! Wraps the `guided_json` / `guided_decoding_backend` vLLM request extension in a

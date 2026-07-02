@@ -316,7 +316,7 @@ mod tests {
             batch_validate(&serde_json::json!({"tasks":["a","b","c"],"max_concurrency":99}))
                 .unwrap();
         assert_eq!(tasks.len(), 3);
-        assert!(conc <= 8 && conc >= 1);
+        assert!((1..=8).contains(&conc));
     }
 
     #[test]

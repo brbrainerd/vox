@@ -3,21 +3,11 @@
 use anyhow::{Result, anyhow};
 use std::process::Command;
 
-use vox_cli_ci::build_timings;
 use super::command_compliance;
 use super::command_sync;
-use vox_cli_ci::completion_quality;
-use vox_cli_ci::coverage_gates;
-use vox_cli_ci::determinism_audit;
 use super::eval_matrix;
 use super::exec_policy_contract;
-use vox_cli_ci::grammar_ssot_parity;
-use vox_cli_ci::mens_scorecard;
 use super::release_build;
-use vox_cli_ci::scaling_audit;
-use vox_cli_ci::scientia_heuristics_parity;
-use vox_cli_ci::scientia_novelty_ledger_contract;
-use vox_cli_ci::scientia_worthiness_contract;
 use super::{cargo_bin, repo_root};
 use vox_cli_ci::canonical_docs;
 use vox_cli_ci::check_links;
@@ -25,9 +15,18 @@ use vox_cli_ci::cmd_enums::{
     CiCmd, DocInventoryCmd, DocsRealityAuditCmd, EvalMatrixCmd, MensScorecardCmd,
     OperationsSyncTarget,
 };
+use vox_cli_ci::completion_quality;
 use vox_cli_ci::contracts_index;
+use vox_cli_ci::coverage_gates;
+use vox_cli_ci::determinism_audit;
 use vox_cli_ci::doctest_md;
+use vox_cli_ci::grammar_ssot_parity;
+use vox_cli_ci::mens_scorecard;
 use vox_cli_ci::parse_status;
+use vox_cli_ci::scaling_audit;
+use vox_cli_ci::scientia_heuristics_parity;
+use vox_cli_ci::scientia_novelty_ledger_contract;
+use vox_cli_ci::scientia_worthiness_contract;
 
 /// Helpers live in `ci/run_body_helpers/`; `#[path]` keeps them out of `ci/run_body/` (submodule rule).
 #[path = "run_body_helpers/mod.rs"]
@@ -94,9 +93,9 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             write,
         } => {
             if write {
-                vox_cli_ci::config_hygiene::write_registry(vox_cli_ci::config_hygiene::WriteRegistryOpts {
-                    root: root.clone(),
-                })
+                vox_cli_ci::config_hygiene::write_registry(
+                    vox_cli_ci::config_hygiene::WriteRegistryOpts { root: root.clone() },
+                )
             } else {
                 vox_cli_ci::config_hygiene::run(update_baseline)
             }
@@ -363,8 +362,12 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             profile,
         } => {
             if deep {
-                vox_cli_ci::build_timings::bench_build_run(persist.unwrap_or(true), name, Some(profile))
-                    .await?;
+                vox_cli_ci::build_timings::bench_build_run(
+                    persist.unwrap_or(true),
+                    name,
+                    Some(profile),
+                )
+                .await?;
                 Ok(())
             } else {
                 run_build_timings(&root, json, crates)
@@ -580,7 +583,9 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             repeat,
             ingest,
         } => vox_cli_ci::build_bench::run_build_bench(&root, label, write, compare, repeat, ingest),
-        CiCmd::CrateBudget { exit_zero } => vox_cli_ci::crate_budget::run_crate_budget(&root, exit_zero),
+        CiCmd::CrateBudget { exit_zero } => {
+            vox_cli_ci::crate_budget::run_crate_budget(&root, exit_zero)
+        }
         CiCmd::CrateBuildMapParity => {
             vox_cli_ci::crate_build_map_parity::run_crate_build_map_parity(&root)
         }

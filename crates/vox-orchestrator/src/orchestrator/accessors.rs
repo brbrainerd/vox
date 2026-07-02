@@ -539,7 +539,6 @@ impl Orchestrator {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn interruption_calibration_accessor_reflects_live_config() {

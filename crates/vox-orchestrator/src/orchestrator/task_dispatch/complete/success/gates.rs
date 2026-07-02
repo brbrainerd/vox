@@ -344,7 +344,7 @@ pub fn check_doc_integrity_gate(
 #[cfg(test)]
 mod review_approval_gate_tests {
     use super::*;
-    use crate::types::{AgentTask, TaskId, TaskPriority, TaskStatus};
+    use crate::types::{AgentTask, TaskId, TaskPriority};
 
     fn make_task_with_tier(tier: crate::ApprovalTier) -> AgentTask {
         let mut t = AgentTask::new(

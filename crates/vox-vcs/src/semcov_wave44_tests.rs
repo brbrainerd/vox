@@ -8,7 +8,7 @@ mod semcov_wave44_tests {
     #![allow(clippy::module_inception)]
     use crate::backend::{VcsBackend, VcsBackendKind, VcsError, detect};
     use crate::cas_fallback::CasFallback;
-    use crate::types::{Change, ChangeId, Conflict, Diff, ResolveStrategy};
+    use crate::types::{ChangeId, Conflict, Diff, ResolveStrategy};
     use std::path::{Path, PathBuf};
 
     // ── ChangeId display / parsing ────────────────────────────────────────────

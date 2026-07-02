@@ -1,3 +1,4 @@
+#![cfg_attr(test, allow(unsafe_code))] // test-only std::env::set_var (unsafe on edition 2024)
 //! Trusted MCP caller role (human vs agent) for privileged operations.
 //!
 //! Derived from the launcher's `VOX_MCP_CALLER_ROLE` environment variable — not from

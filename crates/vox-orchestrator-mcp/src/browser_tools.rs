@@ -1,3 +1,4 @@
+#![cfg_attr(test, allow(unsafe_code))] // test-only std::env::set_var (unsafe on edition 2024)
 //! Chromium-backed browser MCP tools (`vox_browser_*`).
 //!
 //! Dispatches through vox-plugin-host / BrowserAutomation sabi trait.

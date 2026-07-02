@@ -1,3 +1,4 @@
+#![allow(clippy::field_reassign_with_default)]
 //! CI gate: compile Vox golden fixtures → TypeScript, then run `tsc --noEmit` to verify
 //! that the emitted TS is type-correct.
 //!

@@ -1,3 +1,4 @@
+#![allow(unsafe_code)] // test-only std::env::set_var (edition 2024)
 //! Integration tests for [`OrchestratorConfig::snapshot`].
 //!
 //! Tests run in their own process (integration tests), so static caches are not

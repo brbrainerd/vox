@@ -1,3 +1,4 @@
+#![cfg_attr(test, allow(unsafe_code))] // test-only std::env::set_var (edition 2024)
 //! `select()` — single-source-of-truth model selection.
 //!
 //! Council-ratified 2026-05-15 (model-pipeline SSOT consolidation). Every model

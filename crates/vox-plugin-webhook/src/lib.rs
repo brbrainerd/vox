@@ -1,3 +1,4 @@
+#![cfg_attr(test, allow(unsafe_code))] // test-only std::env::set_var (unsafe on edition 2024)
 //! # vox-plugin-webhook
 //!
 //! Plugin entry point for the Vox webhook HTTP listener gateway.

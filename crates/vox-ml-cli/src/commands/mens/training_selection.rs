@@ -58,14 +58,12 @@ pub fn resolve_training_selection(
         .as_ref()
         .and_then(|e| e.base.as_ref().map(|b| b.model.clone()))
     {
-        match vox_populi::mens::tensor::spoke_base_resolver::resolve_base_model(
+        vox_populi::mens::tensor::spoke_base_resolver::resolve_base_model(
             root,
             &tag,
             vram_mb_override,
-        ) {
-            Ok(id) => Some(id),
-            Err(_) => None,
-        }
+        )
+        .ok()
     } else {
         None
     };

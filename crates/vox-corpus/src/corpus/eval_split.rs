@@ -1,3 +1,4 @@
+#![allow(dead_code)] // split-manifest helpers, not yet wired
 //! Seeded train/eval split by tool identity (B1.4).
 //!
 //! Splits a harness corpus by unique tool-identity keys so no tool appears
@@ -152,10 +153,8 @@ mod tests {
     fn no_tool_appears_in_both_sets() {
         let rows = generate_harness_rows(100);
         let (train, eval, _) = split_surface(42, 0.2, &rows);
-        let train_keys: std::collections::HashSet<String> =
-            train.iter().map(|r| tool_key(r)).collect();
-        let eval_keys: std::collections::HashSet<String> =
-            eval.iter().map(|r| tool_key(r)).collect();
+        let train_keys: std::collections::HashSet<String> = train.iter().map(tool_key).collect();
+        let eval_keys: std::collections::HashSet<String> = eval.iter().map(tool_key).collect();
         let overlap: Vec<_> = train_keys.intersection(&eval_keys).collect();
         assert!(
             overlap.is_empty(),

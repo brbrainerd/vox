@@ -134,6 +134,6 @@ mod tests {
         assert_eq!(r.chunk_excerpts.len(), 3);
         assert_eq!(r.rrf_fused_excerpts, vec!["fused".to_string()]);
         assert_eq!(r.from_node_id.as_deref(), Some("node-a"));
-        assert_eq!(r.repo_truncated, false);
+        assert!(!r.repo_truncated);
     }
 }

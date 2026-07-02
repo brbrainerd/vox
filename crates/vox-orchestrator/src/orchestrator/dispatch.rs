@@ -154,7 +154,7 @@ mod tests {
 
     #[tokio::test]
     async fn override_event_triggers_reprioritize_callback() {
-        use crate::events::{AgentEvent, AgentEventKind};
+        use crate::events::AgentEventKind;
         let bus = Arc::new(EventBus::new(16));
         let rx = bus.subscribe();
         let reprioritized = Arc::new(Mutex::new(Vec::new()));
@@ -181,7 +181,7 @@ mod tests {
 
     #[tokio::test]
     async fn cancel_event_triggers_cancel_callback() {
-        use crate::events::{AgentEvent, AgentEventKind};
+        use crate::events::AgentEventKind;
         let bus = Arc::new(EventBus::new(16));
         let rx = bus.subscribe();
         let cancelled = Arc::new(Mutex::new(Vec::new()));

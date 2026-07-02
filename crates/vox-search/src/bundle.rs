@@ -1,3 +1,4 @@
+#![cfg_attr(test, allow(clippy::field_reassign_with_default))]
 //! Verification pass orchestration (shared between MCP and orchestrator).
 
 use serde_json::Value;
