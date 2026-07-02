@@ -42,15 +42,32 @@ fn should_skip_rust_line(line: &str) -> bool {
     false
 }
 
+/// True if `name` contains an embedded `-YYYY-MM-DD` ISO date token (year 2025
+/// or 2026) anywhere, not just as a leading filename prefix — e.g.
+/// `vox-axis-harness-reliability-spec-plan-2026-07-02.md`. Requires a genuine
+/// year/month/day triple (not a bare year) so this doesn't over-broaden to
+/// filenames that merely mention "2026" once.
+fn has_embedded_iso_date(name: &str) -> bool {
+    let stem = name.strip_suffix(".md").unwrap_or(name);
+    let parts: Vec<&str> = stem.split('-').collect();
+    parts.windows(3).any(|w| {
+        matches!(w[0], "2025" | "2026")
+            && w[1].len() == 2
+            && w[1].chars().all(|c| c.is_ascii_digit())
+            && w[2].len() == 2
+            && w[2].chars().all(|c| c.is_ascii_digit())
+    })
+}
+
 /// Docs that catalog codebase evolution (audits, findings, migration plans,
 /// dated snapshots, design specs) intentionally name retired symbols while
 /// explaining what replaced them. Treat these as documentation-of-history
 /// surfaces, not as user-facing guidance, and skip the policy check for them.
 ///
 /// This is a principled carve-out: anything under `docs/src/architecture/` that
-/// is date-stamped or matches a known history-doc suffix, plus the entire
-/// `history/` subtree and the `docs/superpowers/{specs,plans}/` design-doc
-/// subtrees, qualifies.
+/// is date-stamped (leading or embedded) or matches a known history-doc suffix,
+/// plus the entire `history/` subtree and the `docs/superpowers/{specs,plans}/`
+/// design-doc subtrees, qualifies.
 fn is_historical_or_audit_doc(rel_path: &Path) -> bool {
     let s = rel_path.to_string_lossy().replace('\\', "/");
     let name = rel_path.file_name().and_then(|n| n.to_str()).unwrap_or("");
@@ -65,8 +82,10 @@ fn is_historical_or_audit_doc(rel_path: &Path) -> bool {
         if s.starts_with("docs/src/architecture/history/") {
             return true;
         }
-        // Date-stamped architectural snapshots like `2026-05-08-workspace-reorg-*.md`.
-        if name.starts_with("2026-") || name.starts_with("2025-") {
+        // Date-stamped architectural snapshots like `2026-05-08-workspace-reorg-*.md`,
+        // or a full ISO date embedded mid-filename like
+        // `vox-axis-harness-reliability-spec-plan-2026-07-02.md`.
+        if name.starts_with("2026-") || name.starts_with("2025-") || has_embedded_iso_date(name) {
             return true;
         }
         // Known history-doc suffix patterns.
