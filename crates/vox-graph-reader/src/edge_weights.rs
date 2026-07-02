@@ -22,7 +22,8 @@ const SAMPLE_CAP: usize = 20;
 /// Deliberate-coupling dep targets that are never removal candidates.
 const NEVER_CANDIDATES: &[&str] = &["workspace-hack"];
 
-/// `"crates/<name>/src/lib.rs::sym"` -> `Some("<name>")`.
+/// `"crates/<name>/src/lib.rs::sym"` -> `Some("<name>")`; `None` for any id
+/// that doesn't live under `crates/` (e.g. `apps/x/...`, bare names).
 fn crate_of(node_id: &str) -> Option<&str> {
     let path = node_id.split("::").next().unwrap_or("");
     path.strip_prefix("crates/")?.split('/').next()
