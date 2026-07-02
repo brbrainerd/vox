@@ -304,9 +304,19 @@ Plus the machine-readable JSON appendix (AI-first contract #5).
 - No ingest of analysis artifacts into Turso (deferred until an agent needs
   recall-time access; the crate map itself already ingests).
 
-## Known dependency-graph caveat (verify during Phase 2)
+## Dependency-graph semantics (verified 2026-07-02)
 
-`crate-graph.v1.json` is produced by `vox ci affected-crates --regen`; whether it
-includes dev-/build-dependencies and optional features determines how to read blast_s
-(a dev-only edge doesn't cost production builds). Phase 2 step 1 confirms the
-semantics from `vox-cli-ci/src/affected.rs` and the proposal states them explicitly.
+`crate-graph.v1.json` is produced by `vox ci affected-crates --regen`
+(`vox-cli-ci/src/affected_cmd.rs::graph_from_metadata`): it reads
+`cargo metadata` `resolve.nodes[].deps` and keeps **all dependency kinds** — normal,
+build, AND dev — without distinction (it never inspects `dep_kinds`), filtered to
+workspace members. Consequences the analyses and proposal must state:
+
+- blast_s is **CI-shaped**: it models what rebuilds under `--all-targets` CI, where
+  dev-deps do trigger rebuilds. A dev-only edge does NOT cost production/check builds.
+- Cutting a dev-only edge is cheaper and lower-risk than a normal-dep cut; the
+  proposal's risk classes account for this by checking the consumer's `Cargo.toml`
+  section for each recommended cut.
+- Splitting the SSOT by dep kind is a possible future regenerator improvement but is
+  out of scope here (the file is a committed contract consumed by affected/parity CI
+  gates).
