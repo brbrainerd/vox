@@ -45,6 +45,14 @@ See AGENTS.md retired surfaces table and `vox-db` `DbConfig` resolution.
 |---------|-----------|
 | `vox-ars` crate | `vox-openclaw-runtime` |
 
+## GUI product surface
+
+| Canonical | Deprecated alias (compat) |
+|-----------|---------------------------|
+| `Vox Axis` (`AxisMark`) | `Vox Access` (transcription artifact — dictated meeting notes, never shipped in code) |
+
+Not tracked in `contracts/naming/renames.v1.json`: that registry is for code identifier renames, and no code identifier was ever renamed here.
+
 ## Scientifica research event types
 
 JSON Schema SSOT lives under [`contracts/scientia/*.schema.json`](../../../contracts/scientia/). Rust mirrors in `vox-research-events` must stay aligned (prefer codegen when touching schemas).
