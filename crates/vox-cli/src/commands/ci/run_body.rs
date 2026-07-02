@@ -6,17 +6,17 @@ use std::process::Command;
 use super::build_timings;
 use super::command_compliance;
 use super::command_sync;
-use super::completion_quality;
+use vox_cli_ci::completion_quality;
 use vox_cli_ci::coverage_gates;
 use vox_cli_ci::determinism_audit;
 use super::eval_matrix;
 use super::exec_policy_contract;
 use vox_cli_ci::grammar_ssot_parity;
-use super::mens_scorecard;
+use vox_cli_ci::mens_scorecard;
 use super::release_build;
 use vox_cli_ci::scaling_audit;
 use vox_cli_ci::scientia_heuristics_parity;
-use super::scientia_novelty_ledger_contract;
+use vox_cli_ci::scientia_novelty_ledger_contract;
 use vox_cli_ci::scientia_worthiness_contract;
 use super::{cargo_bin, repo_root};
 use vox_cli_ci::canonical_docs;
@@ -46,7 +46,7 @@ use run_body_helpers::{
     run_toestub_self_apply, run_turso_import_guard,
 };
 
-use super::retired_symbol_check;
+use vox_cli_ci::retired_symbol_check;
 
 /// Run `vox ci` subcommand.
 pub async fn run(cmd: CiCmd) -> Result<()> {
@@ -170,7 +170,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::SsotAudit => run_ssot_audit(&root).await,
         CiCmd::DataSsotGuards => run_data_ssot_guards(&root),
         CiCmd::DataStorageGuard(opts) => {
-            let report = crate::commands::ci::data_storage_guard::run(&opts)?;
+            let report = vox_cli_ci::data_storage_guard::run(&opts)?;
             if opts.json {
                 println!("{}", serde_json::to_string_pretty(&report)?);
             }

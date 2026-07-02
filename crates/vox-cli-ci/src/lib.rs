@@ -1,6 +1,11 @@
 //! Repository CI guard checks extracted from `vox-cli` (`vox ci *` implementation wedge).
 
 pub mod affected;
+pub mod scientia_novelty_ledger_contract;
+pub mod retired_symbol_check;
+pub mod mens_scorecard;
+pub mod data_storage_guard;
+pub mod completion_quality;
 pub mod determinism_audit;
 pub mod grammar_ssot_parity;
 pub mod gui_smoke;

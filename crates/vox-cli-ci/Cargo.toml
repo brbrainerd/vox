@@ -20,6 +20,7 @@ vox-compiler = { workspace = true }
 vox-git = { workspace = true }
 vox-config = { workspace = true }
 vox-repository = { workspace = true }
+vox-db = { workspace = true }
 vox-http-client = { workspace = true }
 vox-secrets = { workspace = true }
 vox-graph-reader = { workspace = true }
@@ -48,6 +49,7 @@ serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 walkdir = { workspace = true }
 vox-cli-core = { workspace = true }
+vox-cli-contracts = { workspace = true }
 
 [dev-dependencies]
 insta = { workspace = true }

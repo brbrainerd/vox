@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use glob;
 use serde::Deserialize;
 use std::path::Path;
-use vox_cli_ci::cmd_enums::GuardOpts;
+use crate::cmd_enums::GuardOpts;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct GuardReport {
@@ -113,14 +113,13 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
 
         if let Ok(entries) = std::fs::read_dir(&root) {
             for entry in entries.filter_map(|e| e.ok()) {
-                if let Some(name) = entry.file_name().to_str() {
-                    if name.starts_with("codex-cutover-") && name.ends_with(".sidecar.json") {
+                if let Some(name) = entry.file_name().to_str()
+                    && name.starts_with("codex-cutover-") && name.ends_with(".sidecar.json") {
                         report.violations.push(format!(
                             "repo-root-strays-absent: {} is forbidden by policy.",
                             name
                         ));
                     }
-                }
             }
         }
     }
@@ -146,29 +145,26 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
                     .arg(line)
                     .current_dir(&root)
                     .output()
-                    {
-                        if !output.stdout.is_empty() {
+                        && !output.stdout.is_empty() {
                             report.violations.push(format!(
                                 "ignore-tracked-parity: {} is in {} but is tracked by git.",
                                 line, ignore_file
                             ));
                         }
-                    }
                 }
             }
         }
     }
 
     // Scratch cleanliness
-    if run_all || opts.only.contains(&"scratch-clean".to_string()) {
-        if let Ok(output) = std::process::// vox-arch-check: allow git-exec
+    if (run_all || opts.only.contains(&"scratch-clean".to_string()))
+        && let Ok(output) = std::process::// vox-arch-check: allow git-exec
         Command::new("git")
         .arg("ls-files")
         .arg("scratch/")
         .current_dir(&root)
         .output()
-        {
-            if let Ok(stdout) = String::from_utf8(output.stdout) {
+            && let Ok(stdout) = String::from_utf8(output.stdout) {
                 let tracked_files: Vec<&str> = stdout
                     .lines()
                     .filter(|l| !l.ends_with(".gitkeep"))
@@ -180,8 +176,6 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
                     ));
                 }
             }
-        }
-    }
 
     // Codegen drift check (M-11)
     if run_all || opts.only.contains(&"schema-codegen-drift".to_string()) {
@@ -237,8 +231,8 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
                         }
                     }
 
-                    if let Some(v) = version {
-                        if let Ok(content) = std::fs::read_to_string(&entry) {
+                    if let Some(v) = version
+                        && let Ok(content) = std::fs::read_to_string(&entry) {
                             let has_header = content.contains(&format!("x-vox-version: {v}"))
                                 || content.contains(&format!("\"x-vox-version\": {v}"));
                             if !has_header {
@@ -249,7 +243,6 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
                                 ));
                             }
                         }
-                    }
                 }
             }
         }
@@ -259,8 +252,8 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
     if run_all || opts.only.contains(&"env-parity".to_string()) {
         let env_yaml_path = root.join("contracts/config/env-vars.v1.yaml");
         if env_yaml_path.exists() {
-            if let Ok(yaml_str) = std::fs::read_to_string(&env_yaml_path) {
-                if let Ok(yaml_val) = serde_yaml::from_str::<serde_yaml::Value>(&yaml_str) {
+            if let Ok(yaml_str) = std::fs::read_to_string(&env_yaml_path)
+                && let Ok(yaml_val) = serde_yaml::from_str::<serde_yaml::Value>(&yaml_str) {
                     let mut allowed_vars = std::collections::HashSet::new();
                     if let Some(vars) = yaml_val.get("variables").and_then(|v| v.as_sequence()) {
                         for v in vars {
@@ -283,8 +276,7 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
                         ])
                         .current_dir(&root)
                         .output()
-                    {
-                        if output.status.success() {
+                        && output.status.success() {
                             let matches = String::from_utf8_lossy(&output.stdout);
                             let mut found_vars = std::collections::HashSet::new();
                             for line in matches.lines() {
@@ -312,9 +304,7 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
                                 }
                             }
                         }
-                    }
                 }
-            }
         } else {
             report
                 .violations

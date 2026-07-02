@@ -4,7 +4,7 @@ use std::path::Path;
 
 use anyhow::Result;
 
-use crate::commands::scientia_ledger_contract::{
+use vox_cli_contracts::scientia_ledger_contract::{
     example_finding_candidate_path, example_novelty_bundle_path, validate_finding_candidate_file,
     validate_novelty_bundle_file,
 };

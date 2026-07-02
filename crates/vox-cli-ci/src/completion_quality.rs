@@ -7,7 +7,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
-use vox_cli_ci::cmd_enums::CompletionGateMode;
+use crate::cmd_enums::CompletionGateMode;
 
 use anyhow::{Context, Result, anyhow};
 use serde::{Deserialize, Serialize};

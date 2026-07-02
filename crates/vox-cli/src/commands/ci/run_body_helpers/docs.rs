@@ -7,12 +7,12 @@ use std::sync::LazyLock;
 use super::guards::run_sql_surface_guard;
 use crate::commands::ci::cargo_bin;
 use crate::commands::ci::command_compliance;
-use crate::commands::ci::completion_quality;
+use vox_cli_ci::completion_quality;
 use crate::commands::ci::constants::{
     CODEX_SSOT_FILES, DOCS_SSOT_FILES, MANIFEST_SNIPPETS, OPENAPI_SUBSTRINGS,
 };
 use crate::commands::ci::exec_policy_contract;
-use crate::commands::ci::scientia_novelty_ledger_contract;
+use vox_cli_ci::scientia_novelty_ledger_contract;
 use vox_cli_ci::scientia_worthiness_contract;
 use vox_bounded_fs::read_utf8_path_capped;
 use vox_cli_ci::canonical_docs;
