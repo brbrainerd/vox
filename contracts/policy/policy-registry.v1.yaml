@@ -1664,6 +1664,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.queue
+  domain: ci-gate
+  title: Ci Queue
+  group: CI Gates / queue
+  description: Run-centric CI queue snapshot with active/superseded/stale classification, machine-readable advice + async failure signal, and capped clearing of cancellable backlog. SSOT queue interaction under the local-first CI contract.
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.queue
+    detail: vox ci queue
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.release-build
   domain: ci-gate
   title: Ci Release-build
@@ -1997,6 +2013,22 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.turso-import-guard
     detail: vox ci turso-import-guard
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.workflow-concurrency-guard
+  domain: ci-gate
+  title: Ci Workflow-concurrency-guard
+  group: CI Gates / workflow
+  description: Require a concurrency group on push/PR-triggered workflows (flood prevention for the local runner fleet); exceptions in docs/src/ci/concurrency-exceptions.md.
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.workflow-concurrency-guard
+    detail: vox ci workflow-concurrency-guard
   default_enabled: true
   protected: false
   origin: builtin
