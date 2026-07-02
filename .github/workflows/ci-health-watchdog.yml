@@ -129,7 +129,7 @@ jobs:
       # --- Durable audit sink (the local ~/.vox/ci-runner-history.jsonl is unreachable from here). ---
       - name: Upload watchdog audit
         if: ${{ always() && hashFiles('watchdog-audit.jsonl') != '' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: watchdog-audit-${{ github.run_id }}
           path: watchdog-audit.jsonl
