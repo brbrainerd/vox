@@ -869,6 +869,9 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                     let (from, to) = spec
                         .split_once(':')
                         .ok_or_else(|| anyhow::anyhow!("expected FROM:TO, got '{spec}'"))?;
+                    if from.is_empty() || to.is_empty() {
+                        anyhow::bail!("expected FROM:TO with non-empty crate names, got '{spec}'");
+                    }
                     let d = vox_graph_reader::what_if::what_if_cut(&adj, &times, from, to)
                         .map_err(|e| anyhow::anyhow!(e))?;
                     println!(
@@ -913,10 +916,20 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                     let corpus = corpus_by_id(&reg, "repo-code-graph")
                         .map_err(|e| anyhow::anyhow!(e.to_string()))?;
                     let sg_path = repo_root.join(&corpus.graph_path);
+                    if !sg_path.is_file() {
+                        anyhow::bail!(
+                            "repo-code-graph corpus not built yet ({} missing). Run: \
+                             vox graphify rebuild --corpus repo-code-graph",
+                            sg_path.display()
+                        );
+                    }
                     let sg: serde_json::Value = serde_json::from_str(
                         &std::fs::read_to_string(&sg_path)
                             .with_context(|| format!("read symbol corpus {}", sg_path.display()))?,
                     )?;
+                    // Note: --edges emits a distinct shape (no "result" wrapper) because
+                    // this JSON is also the file written to disk at edge_weights.json —
+                    // it must be self-describing on its own, not just as a CLI response.
                     let mut out = vox_graph_reader::edge_weights::weigh_edges(&sg, &adj, &times);
                     out["provenance"] = serde_json::json!({
                         "generated_by": "vox graphify crate-map --edges",
