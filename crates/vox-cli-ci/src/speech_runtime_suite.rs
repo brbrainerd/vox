@@ -501,15 +501,16 @@ fn find_adb() -> Option<PathBuf> {
         }
     }
     if cfg!(windows)
-        && let Ok(local) = std::env::var("LOCALAPPDATA") {
-            candidates.push(
-                PathBuf::from(local)
-                    .join("Android")
-                    .join("Sdk")
-                    .join("platform-tools")
-                    .join(exe),
-            );
-        }
+        && let Ok(local) = std::env::var("LOCALAPPDATA")
+    {
+        candidates.push(
+            PathBuf::from(local)
+                .join("Android")
+                .join("Sdk")
+                .join("platform-tools")
+                .join(exe),
+        );
+    }
     candidates.into_iter().find(|p| {
         if p.components().count() == 1 {
             Command::new(p)

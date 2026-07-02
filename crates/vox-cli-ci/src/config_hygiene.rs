@@ -23,9 +23,10 @@ pub struct Violation {
 /// - All other checks: coarse `check|file` (pre-existing ratchet behaviour).
 pub fn baseline_key(v: &Violation) -> String {
     if v.check == "env-var-not-in-registry"
-        && let Some(ref var) = v.env_var {
-            return format!("{}|{}|{}", v.check, v.file.replace('\\', "/"), var);
-        }
+        && let Some(ref var) = v.env_var
+    {
+        return format!("{}|{}|{}", v.check, v.file.replace('\\', "/"), var);
+    }
     format!("{}|{}", v.check, v.file.replace('\\', "/"))
 }
 
@@ -403,9 +404,10 @@ fn crate_from_path(path: &str) -> String {
     // path form: crates/<crate-name>/src/...
     let norm = path.replace('\\', "/");
     if let Some(after_crates) = norm.strip_prefix("crates/")
-        && let Some(slash) = after_crates.find('/') {
-            return after_crates[..slash].to_string();
-        }
+        && let Some(slash) = after_crates.find('/')
+    {
+        return after_crates[..slash].to_string();
+    }
     "unknown".to_string()
 }
 

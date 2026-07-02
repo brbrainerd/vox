@@ -64,16 +64,17 @@ pub async fn run(write_to: Option<PathBuf>) -> Result<()> {
             .header("User-Agent", "vox-cli")
             .send()
             .await
-            && let Ok(jobs_json) = jobs_resp.json::<Value>().await
-                && let Some(jobs_arr) = jobs_json["jobs"].as_array() {
-                    for job in jobs_arr {
-                        let j_conclusion = job["conclusion"].as_str().unwrap_or("");
-                        if j_conclusion == "failure" {
-                            failed_job = job["name"].as_str().unwrap_or("").to_string();
-                            break;
-                        }
-                    }
-                }
+        && let Ok(jobs_json) = jobs_resp.json::<Value>().await
+        && let Some(jobs_arr) = jobs_json["jobs"].as_array()
+    {
+        for job in jobs_arr {
+            let j_conclusion = job["conclusion"].as_str().unwrap_or("");
+            if j_conclusion == "failure" {
+                failed_job = job["name"].as_str().unwrap_or("").to_string();
+                break;
+            }
+        }
+    }
 
     let emoji = if conclusion == "success" {
         "✅ SUCCESS"
