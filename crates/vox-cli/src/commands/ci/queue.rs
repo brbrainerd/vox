@@ -318,9 +318,18 @@ pub fn build_snapshot(
     let stale = runs.iter().filter(|r| r.class == RunClass::Stale).count() as u32;
     let active_queued = runs
         .iter()
-        .filter(|r| matches!(r.status.as_str(), "queued" | "pending") && r.class == RunClass::Active)
+        .filter(|r| {
+            matches!(r.status.as_str(), "queued" | "pending") && r.class == RunClass::Active
+        })
         .count() as u32;
-    let advice = advice_for(active_queued, fleet_max, superseded, stale, fleet_alive, degraded);
+    let advice = advice_for(
+        active_queued,
+        fleet_max,
+        superseded,
+        stale,
+        fleet_alive,
+        degraded,
+    );
     QueueSnapshot {
         generated_at: now,
         degraded,
@@ -428,7 +437,13 @@ fn render_table(snap: &QueueSnapshot, now: i64) -> String {
         };
         out.push_str(&format!(
             "{:<11} {:>7} {:<11} {:<12} {:<17} {:<25} {}\n",
-            r.id, r.age_secs / 60, class, r.status, r.event, r.branch, r.workflow
+            r.id,
+            r.age_secs / 60,
+            class,
+            r.status,
+            r.event,
+            r.branch,
+            r.workflow
         ));
     }
     if !snap.failures.is_empty() {
@@ -460,7 +475,11 @@ pub struct QueueArgs {
 
 /// Live snapshot: fetch runs + failures, classify (stale gated on fleet
 /// health), persist atomically.
-pub fn live_snapshot(ttl_mins: i64, now: i64, cancelled_last_sweep: Vec<u64>) -> Result<QueueSnapshot> {
+pub fn live_snapshot(
+    ttl_mins: i64,
+    now: i64,
+    cancelled_last_sweep: Vec<u64>,
+) -> Result<QueueSnapshot> {
     let mut runs = fetch_all_runs(now)?;
     let (alive, max) = fleet_counts();
     classify_runs(&mut runs, ttl_mins * 60, alive > 0);
@@ -495,7 +514,9 @@ pub fn run(args: QueueArgs) -> Result<()> {
         // never clobber the force-cancel escalation state auto_clear_and_snapshot
         // depends on (that would silently defeat two-tick escalation for any run
         // still shielded by always()/post steps).
-        let prev_cancelled = read_snapshot().map(|s| s.cancelled_last_sweep).unwrap_or_default();
+        let prev_cancelled = read_snapshot()
+            .map(|s| s.cancelled_last_sweep)
+            .unwrap_or_default();
         match live_snapshot(ttl, now, prev_cancelled) {
             Ok(s) => s,
             Err(e) if args.clear => return Err(e).context("--clear needs live gh data"),
@@ -594,7 +615,11 @@ fn clear_runs(snap: &QueueSnapshot, dry_run: bool) -> Result<()> {
 /// quoted string still blocks — acceptable; the deny message names the
 /// sanctioned alternatives.
 pub fn hook_guard_matches(cmd: &str) -> bool {
-    let c: String = cmd.to_lowercase().split_whitespace().collect::<Vec<_>>().join(" ");
+    let c: String = cmd
+        .to_lowercase()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
     let has = |s: &str| c.contains(s);
     has("gh pr checks")
         || has("gh run watch")
@@ -704,12 +729,25 @@ pub fn auto_clear_and_snapshot(dry_run: bool, now: i64) -> Result<(u32, u32)> {
 mod tests {
     use super::*;
 
-    fn line(id: u64, wf: &str, br: &str, repo: &str, ev: &str, started: i64, st: &str, attempt: u32) -> String {
+    fn line(
+        id: u64,
+        wf: &str,
+        br: &str,
+        repo: &str,
+        ev: &str,
+        started: i64,
+        st: &str,
+        attempt: u32,
+    ) -> String {
         format!("{id}\t{wf}\t{br}\t{repo}\t{ev}\t{started}\t{st}\t{attempt}")
     }
 
     fn run(id: u64, br: &str, ev: &str, st: &str, started: i64, now: i64) -> QueueRun {
-        parse_run_line(&line(id, "ci.yml", br, "vox-foundation/vox", ev, started, st, 1), now).unwrap()
+        parse_run_line(
+            &line(id, "ci.yml", br, "vox-foundation/vox", ev, started, st, 1),
+            now,
+        )
+        .unwrap()
     }
 
     fn failed(id: u64, br: &str, completed: i64) -> FailedRun {
@@ -767,12 +805,30 @@ mod tests {
             run(3, "feat/x", "pull_request", "queued", 3001, now),
             // fork collision: same branch name, different repo -> independent
             parse_run_line(
-                &line(4, "ci.yml", "patch-1", "forkA/vox", "pull_request", 1000, "queued", 1),
+                &line(
+                    4,
+                    "ci.yml",
+                    "patch-1",
+                    "forkA/vox",
+                    "pull_request",
+                    1000,
+                    "queued",
+                    1,
+                ),
                 now,
             )
             .unwrap(),
             parse_run_line(
-                &line(5, "ci.yml", "patch-1", "forkB/vox", "pull_request", 3000, "queued", 1),
+                &line(
+                    5,
+                    "ci.yml",
+                    "patch-1",
+                    "forkB/vox",
+                    "pull_request",
+                    3000,
+                    "queued",
+                    1,
+                ),
                 now,
             )
             .unwrap(),
@@ -847,7 +903,11 @@ mod tests {
             url: "https://g/123".into(),
         };
         let a = failure_advice(&f);
-        assert!(a.contains("123") && a.contains("--log-failed") && a.contains("do not push blind retries"));
+        assert!(
+            a.contains("123")
+                && a.contains("--log-failed")
+                && a.contains("do not push blind retries")
+        );
     }
 
     #[test]
@@ -930,12 +990,16 @@ mod tests {
         assert!(hook_guard_matches("gh pr checks 431")); // one-shot too (contract: snapshot is the channel)
         assert!(hook_guard_matches("gh  pr   checks")); // whitespace collapse
         assert!(hook_guard_matches("GH RUN WATCH 12345")); // case
-        assert!(hook_guard_matches("gh api repos/o/r/commits/abc/check-runs"));
+        assert!(hook_guard_matches(
+            "gh api repos/o/r/commits/abc/check-runs"
+        ));
         assert!(hook_guard_matches("gh api repos/o/r/check_runs --paginate"));
         assert!(hook_guard_matches("vox ci watch-run --sha abc"));
         assert!(hook_guard_matches("cargo run -p vox-cli -- ci watch-run"));
         // Loop heuristic: hand-rolled watchers from allowed one-shots.
-        assert!(hook_guard_matches("while true; do gh run list --branch x; sleep 15; done"));
+        assert!(hook_guard_matches(
+            "while true; do gh run list --branch x; sleep 15; done"
+        ));
         assert!(hook_guard_matches(
             "for i in $(seq 40); do gh pr view 4 --json statusCheckRollup; sleep 30; done"
         ));
@@ -947,8 +1011,12 @@ mod tests {
         // Allowed: one-shot reads, failure logs, our own commands.
         assert!(!hook_guard_matches("gh run list --status queued"));
         assert!(!hook_guard_matches("gh run view 12345 --log-failed"));
-        assert!(!hook_guard_matches("gh run view 12345 --log && pnpm vitest --watch")); // rev-1 FP, arm dropped
-        assert!(!hook_guard_matches("gh pr view 431 --json statusCheckRollup")); // one-shot
+        assert!(!hook_guard_matches(
+            "gh run view 12345 --log && pnpm vitest --watch"
+        )); // rev-1 FP, arm dropped
+        assert!(!hook_guard_matches(
+            "gh pr view 431 --json statusCheckRollup"
+        )); // one-shot
         assert!(!hook_guard_matches("gh pr view 431"));
         assert!(!hook_guard_matches("vox ci queue --json"));
         assert!(!hook_guard_matches("cargo test && sleep 5 && gh run list")); // sleep without loop keyword

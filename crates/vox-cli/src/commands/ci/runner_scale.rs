@@ -782,8 +782,8 @@ pub fn run_scale(apply: bool) -> Result<()> {
 
     // 0. Local-first CI: auto-clear superseded/stale runs and refresh the
     //    queue snapshot every tick (stale sweep self-disables at fleet 0).
-    let (cleared_superseded, cleared_stale) =
-        super::queue::auto_clear_and_snapshot(dry_run, now).unwrap_or_else(|e| {
+    let (cleared_superseded, cleared_stale) = super::queue::auto_clear_and_snapshot(dry_run, now)
+        .unwrap_or_else(|e| {
             eprintln!("runner-scale: queue auto-clear skipped (degraded): {e:#}");
             (0, 0)
         });

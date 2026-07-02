@@ -98,7 +98,9 @@ pub(crate) fn hook_guard_verdict(exit_code: i32, stderr: &str) -> Option<&'stati
              agent shell call into a block (clap usage error). Reinstall: \
              cargo install --path crates/vox-cli --locked",
         ),
-        (0, _) => Some("banned command was NOT blocked — hook-guard inert (old binary or disabled)"),
+        (0, _) => {
+            Some("banned command was NOT blocked — hook-guard inert (old binary or disabled)")
+        }
         _ => Some("unexpected hook-guard exit code"),
     }
 }
@@ -608,7 +610,9 @@ mod tests {
 
     #[test]
     fn hook_guard_verdicts() {
-        assert!(hook_guard_verdict(2, "Local-first CI: remote check-watching is disabled.").is_none());
+        assert!(
+            hook_guard_verdict(2, "Local-first CI: remote check-watching is disabled.").is_none()
+        );
         assert!(
             hook_guard_verdict(2, "error: unrecognized subcommand 'queue'")
                 .unwrap()

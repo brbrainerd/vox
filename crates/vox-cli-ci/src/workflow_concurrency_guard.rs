@@ -68,11 +68,13 @@ pub fn run(repo_root: &Path, strict: bool) -> Result<()> {
             .unwrap_or_default()
             .to_string_lossy()
             .to_string();
-        let text = std::fs::read_to_string(&path)
-            .with_context(|| format!("read {}", path.display()))?;
+        let text =
+            std::fs::read_to_string(&path).with_context(|| format!("read {}", path.display()))?;
         let doc: serde_yaml::Value =
             serde_yaml::from_str(&text).with_context(|| format!("parse {}", path.display()))?;
-        if needs_concurrency(&doc) && !has_concurrency(&doc) && !is_excepted(&exceptions_text, &name)
+        if needs_concurrency(&doc)
+            && !has_concurrency(&doc)
+            && !is_excepted(&exceptions_text, &name)
         {
             violations.push(name);
         }
