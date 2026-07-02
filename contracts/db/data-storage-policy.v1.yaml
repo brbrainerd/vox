@@ -31,9 +31,11 @@ tiers:
     temporary_exceptions:
       - vox-package
       - vox-gamify
-      # Transitional: vox-cli CI guard source embeds CREATE TABLE fixture text
-      # for `db_schema_coverage` self-validation.
-      - vox-cli
+      # Transitional: the vox-cli-ci CI guard source (db_schema_coverage.rs)
+      # embeds CREATE TABLE fixture + diagnostic text for its own
+      # self-validation; it defines no real schema. Moved from vox-cli during
+      # the vox-cli monolith split.
+      - vox-cli-ci
     # Additional libSQL files that M-26/M-67 fold away. Listed so the guard
     # ignores them until the migration lands; each line must be deleted in the
     # same PR that removes the corresponding file from disk.
