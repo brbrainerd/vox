@@ -579,7 +579,12 @@ fn capture_fingerprint_log(repo_root: &std::path::Path) -> anyhow::Result<String
         .output()
         .context("spawn instrumented cargo check")?;
     if !out.status.success() {
-        anyhow::bail!("instrumented cargo check failed — fix the build first");
+        // The warm-up run streams live via .status(); this run captures
+        // silently via .output() to feed the classifier — so on failure the
+        // diagnostics never reached the terminal. Print them now or the user
+        // has no idea what broke.
+        eprint!("{}", String::from_utf8_lossy(&out.stderr));
+        anyhow::bail!("instrumented cargo check failed (see output above) — fix the build first");
     }
     let log_text = String::from_utf8_lossy(&out.stderr).to_string();
     let log_path = repo_root.join("graphify-out/rebuild_fingerprint.log");
