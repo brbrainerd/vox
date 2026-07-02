@@ -34,9 +34,14 @@ pub fn spawn_orchestrator_status_stream(
         let (tx, mut rx) =
             tokio::sync::mpsc::channel::<serde_json::Value>(crate::config::ORCH_STATUS_CHANNEL_CAP);
 
+        let token = daemon.token().await;
         // Drive the subscription in its own task so we can drain `rx` concurrently.
         let producer = tokio::spawn(async move {
-            let _ = OrchDaemonClient::new(addr).subscribe(tx).await;
+            let client = match token {
+                Some(t) => OrchDaemonClient::with_token(addr, t),
+                None => OrchDaemonClient::new(addr),
+            };
+            let _ = client.subscribe(tx).await;
         });
 
         while let Some(raw) = rx.recv().await {
@@ -78,9 +83,14 @@ pub fn spawn_agent_event_stream(app_handle: tauri::AppHandle, daemon: Arc<Persis
             crate::config::AGENT_EVENTS_CHANNEL_CAP,
         );
 
+        let token = daemon.token().await;
         // Drive the subscription in its own task so we can drain `rx` concurrently.
         let producer = tokio::spawn(async move {
-            let _ = OrchDaemonClient::new(addr).subscribe_events(tx).await;
+            let client = match token {
+                Some(t) => OrchDaemonClient::with_token(addr, t),
+                None => OrchDaemonClient::new(addr),
+            };
+            let _ = client.subscribe_events(tx).await;
         });
 
         while let Some(value) = rx.recv().await {

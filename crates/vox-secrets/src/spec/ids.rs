@@ -284,6 +284,9 @@ pub enum SecretId {
     VoxOrchestratorMeshExecLeaseAutoRevoke,
     VoxWorkspaceRoot,
     VoxOrchestratorDaemonSocket,
+    /// Shared secret for authenticating `vox-orchestrator-d` TCP connections
+    /// (T0.2). Optional: the daemon auto-generates one at startup when unset.
+    VoxOrchestratorDaemonToken,
     VoxModel,
     VoxBudgetUsd,
     VoxDataDir,

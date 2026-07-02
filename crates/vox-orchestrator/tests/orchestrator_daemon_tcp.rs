@@ -235,6 +235,171 @@ async fn orchestrator_daemon_subscribe_events_inner() {
     server.abort();
 }
 
+/// T0.2: a daemon configured with an auth token must reject a client that
+/// presents no token (or the wrong token) before dispatching *any* method —
+/// proving the auth gate actually distinguishes authenticated from
+/// unauthenticated callers rather than being a no-op.
+#[tokio::test]
+async fn orchestrator_daemon_rejects_missing_or_wrong_token() {
+    tokio::time::timeout(DAEMON_TEST_TIMEOUT, async {
+        orchestrator_daemon_rejects_missing_or_wrong_token_inner().await;
+    })
+    .await
+    .expect("orchestrator_daemon_rejects_missing_or_wrong_token exceeded wall-clock budget");
+}
+
+async fn orchestrator_daemon_rejects_missing_or_wrong_token_inner() {
+    use std::sync::Arc as StdArc;
+    use vox_foundation::protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
+
+    let orch = Arc::new(Orchestrator::new(OrchestratorConfig::for_testing()));
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+    let addr = listener.local_addr().expect("local addr");
+    let expected_token: StdArc<str> = StdArc::from("t0.2-secret-token");
+    let server = tokio::spawn(orch_daemon::serve_listener_with_extra(
+        listener,
+        addr.to_string(),
+        "ut-repo".to_string(),
+        orch,
+        None,
+        Some(expected_token.clone()),
+    ));
+    let addr_str = addr.to_string();
+
+    // Wait for the daemon to accept connections at all (using the *correct*
+    // token so this readiness probe doesn't itself get auth-rejected forever).
+    wait_until_async(
+        "orchestrator daemon TCP accepting (authenticated `orch.ping`)",
+        vox_config::timeouts::D_15S,
+        vox_config::timeouts::D_5MS,
+        || {
+            let c =
+                orch_daemon::OrchDaemonClient::with_token(addr_str.clone(), expected_token.to_string());
+            async move { c.ping().await.is_ok() }
+        },
+    )
+    .await;
+
+    // A raw connection presenting NO token must be rejected with an error
+    // response, not a normal dispatch result — regardless of method, including
+    // orch.tool_call-shaped and plain orch.ping requests.
+    async fn send_raw(addr: &str, req: &DispatchRequest) -> DispatchResponse {
+        use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+        let mut stream = tokio::net::TcpStream::connect(addr).await.expect("connect");
+        let (read_half, mut write_half) = stream.split();
+        let mut line = serde_json::to_string(req).unwrap();
+        line.push('\n');
+        write_half.write_all(line.as_bytes()).await.unwrap();
+        write_half.flush().await.unwrap();
+        let mut reader = BufReader::new(read_half);
+        let mut resp_line = String::new();
+        reader.read_line(&mut resp_line).await.unwrap();
+        serde_json::from_str(resp_line.trim()).unwrap()
+    }
+
+    let no_token_req = DispatchRequest {
+        id: "no-token".to_string(),
+        method: vox_foundation::protocol::orch_daemon_method::PING.to_string(),
+        params: serde_json::json!({}),
+        auth_token: None,
+    };
+    let resp = send_raw(&addr_str, &no_token_req).await;
+    match resp.payload {
+        DispatchPayload::Error { message, .. } => {
+            assert!(
+                message.to_lowercase().contains("unauthorized")
+                    || message.to_lowercase().contains("token"),
+                "expected an auth-shaped error, got: {message}"
+            );
+        }
+        other => panic!("expected Error payload for missing token, got: {other:?}"),
+    }
+
+    let wrong_token_req = DispatchRequest {
+        id: "wrong-token".to_string(),
+        method: vox_foundation::protocol::orch_daemon_method::PING.to_string(),
+        params: serde_json::json!({}),
+        auth_token: Some("not-the-real-token".to_string()),
+    };
+    let resp = send_raw(&addr_str, &wrong_token_req).await;
+    assert!(
+        matches!(resp.payload, DispatchPayload::Error { .. }),
+        "expected Error payload for wrong token, got: {:?}",
+        resp.payload
+    );
+
+    // A raw connection presenting NO token against a SUBSCRIBE-family method
+    // must also be rejected — the auth gate must cover the streaming
+    // subscribe paths, not just the "normal" dispatch branch.
+    let subscribe_no_token = DispatchRequest {
+        id: "sub-no-token".to_string(),
+        method: vox_foundation::protocol::orch_daemon_method::SUBSCRIBE.to_string(),
+        params: serde_json::json!({}),
+        auth_token: None,
+    };
+    let resp = send_raw(&addr_str, &subscribe_no_token).await;
+    assert!(
+        matches!(resp.payload, DispatchPayload::Error { .. }),
+        "expected SUBSCRIBE without a token to be rejected before streaming, got: {:?}",
+        resp.payload
+    );
+
+    server.abort();
+}
+
+/// T0.2: the flip side — a client presenting the CORRECT token gets normal
+/// dispatch behavior against an auth-configured daemon.
+#[tokio::test]
+async fn orchestrator_daemon_accepts_correct_token() {
+    tokio::time::timeout(DAEMON_TEST_TIMEOUT, async {
+        orchestrator_daemon_accepts_correct_token_inner().await;
+    })
+    .await
+    .expect("orchestrator_daemon_accepts_correct_token exceeded wall-clock budget");
+}
+
+async fn orchestrator_daemon_accepts_correct_token_inner() {
+    use std::sync::Arc as StdArc;
+
+    let orch = Arc::new(Orchestrator::new(OrchestratorConfig::for_testing()));
+    orch.spawn_agent("auth-ok").expect("spawn");
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+    let addr = listener.local_addr().expect("local addr");
+    let expected_token: StdArc<str> = StdArc::from("t0.2-secret-token-2");
+    let server = tokio::spawn(orch_daemon::serve_listener_with_extra(
+        listener,
+        addr.to_string(),
+        "ut-repo".to_string(),
+        orch,
+        None,
+        Some(expected_token.clone()),
+    ));
+    let addr_str = addr.to_string();
+
+    let client = orch_daemon::OrchDaemonClient::with_token(addr_str, expected_token.to_string());
+    wait_until_async(
+        "orchestrator daemon TCP accepting (authenticated `orch.ping`)",
+        vox_config::timeouts::D_15S,
+        vox_config::timeouts::D_5MS,
+        || {
+            let c = client.clone();
+            async move { c.ping().await.is_ok() }
+        },
+    )
+    .await;
+
+    let ping = client.ping().await.expect("authenticated ping must succeed");
+    assert_eq!(ping["repository_id"], "ut-repo");
+
+    let status = client
+        .orchestrator_status()
+        .await
+        .expect("authenticated orchestrator_status must succeed");
+    assert!(status.get("agent_count").is_some());
+
+    server.abort();
+}
+
 #[tokio::test]
 async fn orchestrator_daemon_task_and_agent_write_methods() {
     tokio::time::timeout(DAEMON_TEST_TIMEOUT, async {

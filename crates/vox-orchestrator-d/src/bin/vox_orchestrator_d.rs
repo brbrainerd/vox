@@ -12,6 +12,74 @@ use vox_orchestrator::{
     clarification_db_inbox_poll, mesh_federation_poll, orch_daemon,
 };
 
+/// Well-known file the daemon writes its auth token to at startup (T0.2), read
+/// back by [`vox_orchestrator::orch_daemon::OrchDaemonClient::new`] to
+/// auto-resolve a token for callers that don't already know one.
+fn token_file_path() -> PathBuf {
+    vox_config::paths::user_home_dir()
+        .join(".vox")
+        .join("run")
+        .join("orchestrator-daemon.token")
+}
+
+/// Resolve this daemon's auth token: use `VOX_ORCHESTRATOR_DAEMON_TOKEN` if an
+/// operator (or an explicit spawner like the GUI's `PersistentDaemon`) set it,
+/// else generate a fresh random token. Either way, (over)write the well-known
+/// token file so `OrchDaemonClient::new` callers can auto-resolve it.
+///
+/// A fresh daemon process always gets a fresh token file: since
+/// `TcpListener::bind` fails if another daemon already holds the port, there
+/// is never more than one live daemon per bind address, so unconditionally
+/// overwriting the file at startup is safe (a fresh daemon means a fresh trust
+/// boundary).
+fn resolve_and_persist_daemon_token(explicit_env_token: Option<String>) -> anyhow::Result<String> {
+    let token = match explicit_env_token {
+        Some(t) if !t.is_empty() => t,
+        _ => uuid::Uuid::new_v4().to_string(),
+    };
+
+    let path = token_file_path();
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir)
+            .with_context(|| format!("creating daemon token dir {}", dir.display()))?;
+    }
+    std::fs::write(&path, &token)
+        .with_context(|| format!("writing daemon token file {}", path.display()))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let perms = std::fs::Permissions::from_mode(0o600);
+        std::fs::set_permissions(&path, perms)
+            .with_context(|| format!("setting owner-only perms on {}", path.display()))?;
+    }
+    // On Windows the file is written under the user's profile directory
+    // (`%USERPROFILE%\.vox\run\...`), which is not world-readable by
+    // convention; explicit Windows ACL hardening is a possible follow-up, not
+    // required now.
+
+    Ok(token)
+}
+
+/// Refuse a non-loopback TCP bind unless the operator explicitly set
+/// `VOX_ORCHESTRATOR_DAEMON_TOKEN` themselves (T0.2). The daemon always has
+/// *some* token (auto-generated when unset), but relying on the local-only
+/// token *file* to protect a *remote*-reachable socket defeats the purpose: a
+/// remote attacker can't read the local file, but a legitimate remote caller
+/// also has no way to discover an auto-generated token. Conservative rule:
+/// non-loopback binds require the operator to have explicitly configured
+/// auth.
+fn refuse_non_loopback_without_explicit_token(
+    bind: &str,
+    explicit_env_token_was_set: bool,
+) -> anyhow::Result<()> {
+    if !orch_daemon::is_loopback_bind_addr(bind) && !explicit_env_token_was_set {
+        anyhow::bail!(
+            "refusing to bind vox-orchestrator-d to non-loopback address '{bind}': set VOX_ORCHESTRATOR_DAEMON_TOKEN explicitly before binding to a non-loopback address (an auto-generated token is only meaningfully protective for loopback-local callers)"
+        );
+    }
+    Ok(())
+}
+
 fn load_config() -> OrchestratorConfig {
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let mut candidates = Vec::new();
@@ -57,6 +125,20 @@ async fn main() -> anyhow::Result<()> {
             )
         })?
         .to_string();
+
+    // Daemon auth token (T0.2): explicit env wins (lets a spawner like the
+    // GUI's PersistentDaemon inject a token it already knows, avoiding a race
+    // with reading the token file before this daemon has written it); else
+    // generate a fresh random token. Always (over)write the well-known token
+    // file so `OrchDaemonClient::new` callers can auto-resolve it.
+    let explicit_env_token = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorDaemonToken)
+        .expose()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string);
+    let explicit_env_token_was_set = explicit_env_token.is_some();
+    let daemon_token: Arc<str> =
+        resolve_and_persist_daemon_token(explicit_env_token)?.into();
 
     let cfg = load_config();
     let build = build_repo_scoped_orchestrator(cfg, None);
@@ -224,8 +306,10 @@ async fn main() -> anyhow::Result<()> {
     if bind.is_empty() {
         anyhow::bail!("VOX_ORCHESTRATOR_DAEMON_SOCKET is empty after normalization");
     }
+    refuse_non_loopback_without_explicit_token(&bind, explicit_env_token_was_set)?;
 
-    orch_daemon::run_tcp_server_with_extra(&bind, repository_id, orch, extra).await
+    orch_daemon::run_tcp_server_with_extra(&bind, repository_id, orch, extra, Some(daemon_token))
+        .await
 }
 
 #[cfg(test)]
@@ -237,5 +321,46 @@ mod tests {
         // Cheap smoke: the daemon binary can at least build a default config.
         let cfg = OrchestratorConfig::default();
         let _debug = format!("{cfg:?}");
+    }
+
+    #[test]
+    fn loopback_bind_never_refused() {
+        refuse_non_loopback_without_explicit_token("127.0.0.1:9745", false)
+            .expect("loopback bind must be allowed without an explicit token");
+        refuse_non_loopback_without_explicit_token("localhost:9745", false)
+            .expect("loopback bind must be allowed without an explicit token");
+    }
+
+    #[test]
+    fn non_loopback_bind_without_explicit_token_is_refused() {
+        let err = refuse_non_loopback_without_explicit_token("0.0.0.0:9745", false)
+            .expect_err("non-loopback bind without an explicit token must be refused");
+        assert!(
+            err.to_string().contains("VOX_ORCHESTRATOR_DAEMON_TOKEN"),
+            "refusal message should point at the fix: {err}"
+        );
+    }
+
+    #[test]
+    fn non_loopback_bind_with_explicit_token_is_allowed() {
+        refuse_non_loopback_without_explicit_token("0.0.0.0:9745", true)
+            .expect("non-loopback bind with an explicitly-set token must be allowed");
+    }
+
+    #[test]
+    fn resolve_and_persist_daemon_token_prefers_explicit_env_value() {
+        let token =
+            resolve_and_persist_daemon_token(Some("explicit-token-value".to_string())).unwrap();
+        assert_eq!(token, "explicit-token-value");
+    }
+
+    #[test]
+    fn resolve_and_persist_daemon_token_generates_when_unset() {
+        let token = resolve_and_persist_daemon_token(None).unwrap();
+        // A generated token is a UUID string, not empty and not the sentinel
+        // explicit value used by the sibling test.
+        assert!(!token.is_empty());
+        assert_ne!(token, "explicit-token-value");
+        assert!(uuid::Uuid::parse_str(&token).is_ok(), "expected a UUID-shaped generated token, got: {token}");
     }
 }

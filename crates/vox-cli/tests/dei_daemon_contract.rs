@@ -37,6 +37,7 @@ fn dispatch_request_serializes_expected_method_ids() {
             id: "1".into(),
             method: method.into(),
             params: json!({}),
+            auth_token: None,
         };
         let s = serde_json::to_string(&req).expect("serialize");
         assert!(

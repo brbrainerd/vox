@@ -21,6 +21,7 @@ tracing = { workspace = true }
 vox-foundation = { workspace = true }
 anyhow.workspace = true
 clap = { workspace = true, features = ["derive"] }
+uuid = { workspace = true }
 workspace-hack = { workspace = true }
 
 [[bin]]

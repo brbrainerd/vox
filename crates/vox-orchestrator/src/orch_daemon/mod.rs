@@ -28,6 +28,62 @@ pub fn normalize_tcp_bind_addr(raw: &str) -> String {
     s.strip_prefix("tcp://").unwrap_or(s).trim().to_string()
 }
 
+/// Is `addr` (a normalized `host:port` bind address) a loopback address?
+/// Recognizes `127.0.0.1`, `localhost`, and `::1` (with or without a trailing
+/// `:port`; `::1` may also appear bracketed as `[::1]:port`). Used to decide
+/// whether `vox-orchestrator-d` may bind without an explicitly operator-set
+/// `VOX_ORCHESTRATOR_DAEMON_TOKEN` (T0.2).
+#[must_use]
+pub fn is_loopback_bind_addr(addr: &str) -> bool {
+    let s = addr.trim();
+    // Bare unbracketed IPv6 loopback, with no `:port` suffix (ambiguous to
+    // split on ':' otherwise, since the host itself contains colons).
+    if s == "::1" {
+        return true;
+    }
+    // Bracketed IPv6 host (`[::1]:9745` or bare `[::1]`).
+    if let Some(rest) = s.strip_prefix('[') {
+        if let Some(end) = rest.find(']') {
+            let host = &rest[..end];
+            return host == "::1";
+        }
+        return false;
+    }
+    // Host portion is everything before the last `:port`, if present and the
+    // remainder after it parses as a port number; otherwise treat the whole
+    // string as the host (covers bare "localhost" / "127.0.0.1").
+    let host = match s.rsplit_once(':') {
+        Some((h, port)) if !h.is_empty() && port.chars().all(|c| c.is_ascii_digit()) => h,
+        _ => s,
+    };
+    matches!(host, "127.0.0.1" | "localhost" | "::1")
+}
+
+#[cfg(test)]
+mod loopback_bind_addr_tests {
+    use super::*;
+
+    #[test]
+    fn loopback_addresses_recognized() {
+        assert!(is_loopback_bind_addr("127.0.0.1:9745"));
+        assert!(is_loopback_bind_addr("127.0.0.1"));
+        assert!(is_loopback_bind_addr("localhost:9745"));
+        assert!(is_loopback_bind_addr("localhost"));
+        assert!(is_loopback_bind_addr("::1"));
+        assert!(is_loopback_bind_addr("[::1]:9745"));
+        assert!(is_loopback_bind_addr("[::1]"));
+    }
+
+    #[test]
+    fn non_loopback_addresses_rejected() {
+        assert!(!is_loopback_bind_addr("0.0.0.0:9745"));
+        assert!(!is_loopback_bind_addr("0.0.0.0"));
+        assert!(!is_loopback_bind_addr("192.168.1.5:9745"));
+        assert!(!is_loopback_bind_addr("example.com:9745"));
+        assert!(!is_loopback_bind_addr("[::]:9745"));
+    }
+}
+
 /// Stdio transport for `vox-orchestrator-d` (not a TCP bind address).
 #[must_use]
 pub fn is_stdio_transport(raw: &str) -> bool {
@@ -667,6 +723,7 @@ mod isolation_dispatch_tests {
             id: "1".to_string(),
             method: method.to_string(),
             params,
+            auth_token: None,
         }
     }
 
@@ -797,6 +854,7 @@ mod task_dispatch_tests {
             id: "1".to_string(),
             method: method.to_string(),
             params,
+            auth_token: None,
         }
     }
 
@@ -1001,6 +1059,7 @@ async fn handle_connection(
     repository_id: String,
     orch: Arc<Orchestrator>,
     extra: Option<Arc<dyn ExtraDispatch>>,
+    token: Option<Arc<str>>,
 ) -> anyhow::Result<()> {
     let (read_half, mut write_half) = socket.split();
     let mut reader = BufReader::new(read_half);
@@ -1023,6 +1082,19 @@ async fn handle_connection(
                 continue;
             }
         };
+        // Auth gate (T0.2): every method — including SUBSCRIBE/SUBSCRIBE_EVENTS
+        // and the `extra` dispatch — must pass this check before being handled.
+        // Only enforced when the daemon has a configured token; a wrong or
+        // missing token gets a clear error response and the connection is left
+        // open (matching the invalid-JSON-parse path) so a client can retry
+        // with a corrected token on the same connection.
+        if let Some(expected) = token.as_deref()
+            && req.auth_token.as_deref() != Some(expected)
+        {
+            let resp = response_err(&req.id, "unauthorized: missing or invalid daemon auth token");
+            write_frame(&mut write_half, &resp).await?;
+            continue;
+        }
         if req.method == orch_daemon_method::SUBSCRIBE {
             // Long-lived push stream; returns when the peer disconnects.
             stream_status_events(&req.id, &orch, &mut write_half).await?;
@@ -1051,17 +1123,20 @@ pub async fn serve_listener(
     repository_id: String,
     orch: Arc<Orchestrator>,
 ) -> anyhow::Result<()> {
-    serve_listener_with_extra(listener, bind_display, repository_id, orch, None).await
+    serve_listener_with_extra(listener, bind_display, repository_id, orch, None, None).await
 }
 
 /// [`serve_listener`] with an optional [`ExtraDispatch`] hook (the daemon binary
-/// wires one carrying its MCP `ServerState`).
+/// wires one carrying its MCP `ServerState`) and an optional daemon auth
+/// `token` (T0.2) — when `Some`, every connection must present a matching
+/// `DispatchRequest.auth_token` or is rejected before any dispatch.
 pub async fn serve_listener_with_extra(
     listener: TcpListener,
     bind_display: String,
     repository_id: String,
     orch: Arc<Orchestrator>,
     extra: Option<Arc<dyn ExtraDispatch>>,
+    token: Option<Arc<str>>,
 ) -> anyhow::Result<()> {
     tracing::info!(bind = %bind_display, "vox-orchestrator-d listening");
     loop {
@@ -1070,8 +1145,9 @@ pub async fn serve_listener_with_extra(
         let repo = repository_id.clone();
         let o = orch.clone();
         let ex = extra.clone();
+        let tok = token.clone();
         tokio::spawn(async move {
-            if let Err(e) = handle_connection(socket, repo, o, ex).await {
+            if let Err(e) = handle_connection(socket, repo, o, ex, tok).await {
                 tracing::debug!(error = %e, "orch daemon connection closed with error");
             }
         });
@@ -1084,18 +1160,28 @@ pub async fn run_tcp_server(
     repository_id: String,
     orch: Arc<Orchestrator>,
 ) -> anyhow::Result<()> {
-    run_tcp_server_with_extra(bind, repository_id, orch, None).await
+    run_tcp_server_with_extra(bind, repository_id, orch, None, None).await
 }
 
-/// [`run_tcp_server`] with an optional [`ExtraDispatch`] hook.
+/// [`run_tcp_server`] with an optional [`ExtraDispatch`] hook and an optional
+/// daemon auth `token` (T0.2).
 pub async fn run_tcp_server_with_extra(
     bind: &str,
     repository_id: String,
     orch: Arc<Orchestrator>,
     extra: Option<Arc<dyn ExtraDispatch>>,
+    token: Option<Arc<str>>,
 ) -> anyhow::Result<()> {
     let listener = TcpListener::bind(bind).await?;
-    serve_listener_with_extra(listener, bind.to_string(), repository_id, orch, extra).await
+    serve_listener_with_extra(
+        listener,
+        bind.to_string(),
+        repository_id,
+        orch,
+        extra,
+        token,
+    )
+    .await
 }
 
 /// Read newline-delimited [`DispatchRequest`] from stdin; write [`DispatchResponse`] lines to stdout.

@@ -26,7 +26,11 @@ pub async fn invoke_mcp_tool(
     daemon: tauri::State<'_, Arc<crate::commands::daemon::PersistentDaemon>>,
 ) -> Result<Value, String> {
     let addr = daemon.ensure().await?;
-    let value = OrchDaemonClient::new(addr)
+    let client = match daemon.token().await {
+        Some(token) => OrchDaemonClient::with_token(addr, token),
+        None => OrchDaemonClient::new(addr),
+    };
+    let value = client
         .call(
             orch_daemon_method::TOOL_CALL,
             serde_json::json!({ "name": tool, "args": args }),

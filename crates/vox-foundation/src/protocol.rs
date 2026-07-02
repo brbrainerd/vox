@@ -140,6 +140,14 @@ pub struct DispatchRequest {
     pub id: String,
     pub method: String,
     pub params: Value,
+    /// Shared-secret daemon auth token (T0.2). A TOP-LEVEL field, deliberately
+    /// separate from `params`: `params` is caller/tool-composed JSON, so the
+    /// auth token must never be settable by tool-call-composing code — only
+    /// the transport layer (`OrchDaemonClient`) sets this. `#[serde(default)]`
+    /// so existing serialized requests without the field still deserialize
+    /// (they simply fail the daemon's auth check rather than the parse).
+    #[serde(default)]
+    pub auth_token: Option<String>,
 }
 
 /// Incoming response envelope from Dei-style JSON-line daemons.

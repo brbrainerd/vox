@@ -40,6 +40,10 @@
     "params": {
       "type": "object",
       "description": "Method-specific payload; validated in daemon dispatch."
+    },
+    "auth_token": {
+      "type": ["string", "null"],
+      "description": "Optional shared-secret daemon auth token (T0.2). A top-level field set exclusively by the transport layer (`OrchDaemonClient`), never by params-composing tool-call code. When the daemon has a configured token, a request whose `auth_token` does not match is rejected before any dispatch."
     }
   }
 }

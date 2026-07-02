@@ -16546,6 +16546,7 @@ dependencies = [
  "dirs",
  "tokio",
  "tracing",
+ "uuid",
  "vox-config",
  "vox-db",
  "vox-foundation",

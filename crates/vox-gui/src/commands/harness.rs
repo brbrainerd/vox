@@ -35,7 +35,11 @@ pub async fn get_task_diff(
     if let Some(p) = path.filter(|s| !s.trim().is_empty()) {
         args.insert("path".to_string(), Value::String(p));
     }
-    let value = OrchDaemonClient::new(addr)
+    let client = match daemon.token().await {
+        Some(token) => OrchDaemonClient::with_token(addr, token),
+        None => OrchDaemonClient::new(addr),
+    };
+    let value = client
         .call(
             orch_daemon_method::TOOL_CALL,
             serde_json::json!({ "name": "vox_git_diff", "args": Value::Object(args) }),

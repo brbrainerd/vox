@@ -32,6 +32,10 @@
     "params": {
       "type": "object",
       "description": "Method-specific params payload."
+    },
+    "auth_token": {
+      "type": ["string", "null"],
+      "description": "Optional shared-secret daemon auth token (T0.2, vox-orchestrator-d only). A top-level field set exclusively by the transport layer, never by params-composing tool-call code. Absent in this DeI plan/control RPC surface (which has no daemon-auth requirement), but declared here so `#[serde(default)] auth_token: Option<String>` on the shared `DispatchRequest` wire type does not fail schema validation."
     }
   },
   "allOf": [

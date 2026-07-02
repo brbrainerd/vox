@@ -39,6 +39,7 @@ async fn daemon_tool_call_runs_readonly_tool_via_extra_dispatch() {
         "ut-repo".to_string(),
         orch,
         Some(extra),
+        None,
     ));
     wait_ready(&addr).await;
 
@@ -87,6 +88,7 @@ async fn daemon_research_run_enqueues_session_via_extra_dispatch() {
         "ut-repo".to_string(),
         orch,
         Some(extra),
+        None,
     ));
     wait_ready(&addr).await;
 

@@ -8,17 +8,60 @@ use vox_foundation::protocol::{DispatchPayload, DispatchRequest, DispatchRespons
 
 use super::normalize_tcp_bind_addr;
 
+/// Well-known file the daemon writes its auth token to at startup, and that
+/// [`OrchDaemonClient::new`] best-effort reads to auto-resolve a token (T0.2).
+/// Mirrors `<user_home_dir>/.vox/run/orchestrator-daemon.token`, written by
+/// `vox-orchestrator-d`'s `main()`.
+fn token_file_path() -> std::path::PathBuf {
+    vox_config::paths::user_home_dir()
+        .join(".vox")
+        .join("run")
+        .join("orchestrator-daemon.token")
+}
+
+/// Best-effort read of the well-known daemon token file. Missing or unreadable
+/// file (or empty contents) yields `None` rather than an error — callers treat
+/// an absent token as "let the daemon's auth check reject the connection".
+fn read_token_file() -> Option<String> {
+    let contents = std::fs::read_to_string(token_file_path()).ok()?;
+    let trimmed = contents.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
 /// Connect to `vox-orchestrator-d` and exchange one request/response pair per connection method call.
 #[derive(Debug, Clone)]
 pub struct OrchDaemonClient {
     addr: String,
+    token: Option<String>,
 }
 
 impl OrchDaemonClient {
+    /// Auto-resolves the daemon auth token by best-effort reading the
+    /// well-known token file (`<user_home_dir>/.vox/run/orchestrator-daemon.token`).
+    /// If the file is missing or unreadable, `token` stays `None` and the
+    /// daemon's auth check will reject the connection with a clear error
+    /// rather than this constructor panicking client-side.
     #[must_use]
     pub fn new(addr: impl Into<String>) -> Self {
         Self {
             addr: normalize_tcp_bind_addr(&addr.into()),
+            token: read_token_file(),
+        }
+    }
+
+    /// Construct with an explicitly known token (e.g. the GUI's
+    /// `PersistentDaemon`, which generates the token itself and injects it
+    /// into the spawned daemon's environment — avoiding a race with reading a
+    /// file the daemon may not have written yet).
+    #[must_use]
+    pub fn with_token(addr: impl Into<String>, token: impl Into<String>) -> Self {
+        Self {
+            addr: normalize_tcp_bind_addr(&addr.into()),
+            token: Some(token.into()),
         }
     }
 
@@ -35,6 +78,7 @@ impl OrchDaemonClient {
             id,
             method: method.to_string(),
             params,
+            auth_token: self.token.clone(),
         };
         let mut line = serde_json::to_string(&req)?;
         line.push('\n');
@@ -238,6 +282,7 @@ impl OrchDaemonClient {
             id: uuid::Uuid::new_v4().to_string(),
             method: method.to_string(),
             params: serde_json::json!({}),
+            auth_token: self.token.clone(),
         };
         let mut line = serde_json::to_string(&req)?;
         line.push('\n');

@@ -55,6 +55,7 @@ pub async fn call_dei_daemon(method: &str, params: Value) -> anyhow::Result<Valu
         ),
         method: method.to_string(),
         params,
+        auth_token: None,
     };
     let json = serde_json::to_string(&req)? + "\n";
     stdin.write_all(json.as_bytes()).await?;
