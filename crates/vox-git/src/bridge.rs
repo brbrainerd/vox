@@ -322,9 +322,38 @@ impl GitBridge {
         Ok(ObjectId::parse(sha.trim().to_string()))
     }
 
+    /// Resolve the path of the shared git config, following a linked-worktree
+    /// `.git` FILE (`gitdir: <path>`) to its common dir. In a linked worktree the
+    /// config lives under the main repository's `.git`, not the worktree's gitdir.
+    fn git_config_path(repo_path: &Path) -> std::path::PathBuf {
+        let dot_git = repo_path.join(".git");
+        if dot_git.is_file() {
+            let pointer = read_utf8_path_capped_or_empty(&dot_git);
+            if let Some(gitdir) = pointer.trim().strip_prefix("gitdir:") {
+                let gitdir = gitdir.trim();
+                let gitdir_path = {
+                    let p = std::path::Path::new(gitdir);
+                    if p.is_absolute() {
+                        p.to_path_buf()
+                    } else {
+                        repo_path.join(p)
+                    }
+                };
+                // `commondir` (relative to the gitdir) points at the main `.git`.
+                let commondir = read_utf8_path_capped_or_empty(&gitdir_path.join("commondir"));
+                let common = commondir.trim();
+                if !common.is_empty() {
+                    return gitdir_path.join(common).join("config");
+                }
+                return gitdir_path.join("config");
+            }
+        }
+        dot_git.join("config")
+    }
+
     /// Get the URL of the configured remote.
     pub fn remote_url(&self) -> Result<String> {
-        let config_path = self.config.repo_path.join(".git").join("config");
+        let config_path = Self::git_config_path(&self.config.repo_path);
         let content = read_utf8_path_capped_or_empty(&config_path);
 
         // Simple parse — find [remote "origin"] section and its url.
@@ -419,6 +448,31 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         make_fake_repo(dir.path());
         let bridge = GitBridge::open(dir.path()).unwrap();
+        assert_eq!(
+            bridge.remote_url().unwrap(),
+            "https://github.com/org/repo.git"
+        );
+    }
+
+    /// Regression: in a linked git worktree `.git` is a FILE (`gitdir: <path>`)
+    /// and the shared config lives under the main repo's `.git` via `commondir`.
+    #[test]
+    fn remote_url_resolves_linked_worktree_git_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let main = dir.path().join("main");
+        make_fake_repo(&main);
+        let gitdir = main.join(".git/worktrees/wt1");
+        fs::create_dir_all(&gitdir).unwrap();
+        fs::write(gitdir.join("commondir"), "../..\n").unwrap();
+        let wt = dir.path().join("wt1");
+        fs::create_dir_all(&wt).unwrap();
+        fs::write(
+            wt.join(".git"),
+            format!("gitdir: {}\n", gitdir.to_string_lossy()),
+        )
+        .unwrap();
+
+        let bridge = GitBridge::open(&wt).unwrap();
         assert_eq!(
             bridge.remote_url().unwrap(),
             "https://github.com/org/repo.git"
