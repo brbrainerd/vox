@@ -184,3 +184,200 @@ pub async fn collect_all_files(repo: &Path) -> Result<Vec<String>> {
     sorted.sort();
     Ok(sorted)
 }
+
+/// Files added/copied/modified/renamed since `since` (any git date expr, e.g.
+/// "2026-04-01" or "2 weeks ago"). Deletions excluded. Sorted, deduped.
+pub async fn collect_files_modified_since(repo: &Path, since: &str) -> Result<Vec<String>> {
+    let out = tokio::process::// vox-arch-check: allow git-exec
+        Command::new("git")
+    .args([
+        "-c",
+        "core.autocrlf=false",
+        "log",
+        &format!("--since={since}"),
+        "--name-only",
+        "--diff-filter=ACMR",
+        "--pretty=format:",
+    ])
+    .current_dir(repo)
+    .stdout(std::process::Stdio::piped())
+    .stderr(std::process::Stdio::null())
+    .output()
+    .await
+    .context("git log --since --name-only")?;
+    anyhow::ensure!(out.status.success(), "git log --since failed");
+    let mut seen = std::collections::BTreeSet::new();
+    for line in String::from_utf8_lossy(&out.stdout).lines() {
+        let p = line.trim();
+        if !p.is_empty() {
+            seen.insert(super::super::path_policy::normalize_repo_rel_path(p));
+        }
+    }
+    Ok(seen.into_iter().collect())
+}
+
+/// Resolve the destination path from a `git --numstat` path field, which renders
+/// renames as `old => new` or `pre/{old => new}/post`. Non-rename fields pass through.
+fn numstat_new_path(raw: &str) -> String {
+    if !raw.contains("=>") {
+        return raw.to_string();
+    }
+    if let (Some(lb), Some(rb)) = (raw.find('{'), raw.find('}')) {
+        if lb < rb {
+            let pre = &raw[..lb];
+            let inner = &raw[lb + 1..rb];
+            let post = &raw[rb + 1..];
+            let new = inner.split("=>").nth(1).unwrap_or(inner).trim();
+            return format!("{pre}{new}{post}").replace("//", "/");
+        }
+    }
+    raw.split("=>").nth(1).unwrap_or(raw).trim().to_string()
+}
+
+/// Sum of (insertions + deletions) per file since `since` (churn signal).
+pub async fn churn_since(
+    repo: &Path,
+    since: &str,
+) -> Result<std::collections::HashMap<String, u64>> {
+    let out = tokio::process::// vox-arch-check: allow git-exec
+        Command::new("git")
+    .args([
+        "-c",
+        "core.autocrlf=false",
+        "log",
+        &format!("--since={since}"),
+        "--numstat",
+        "--pretty=format:",
+    ])
+    .current_dir(repo)
+    .stdout(std::process::Stdio::piped())
+    .stderr(std::process::Stdio::null())
+    .output()
+    .await
+    .context("git log --since --numstat")?;
+    let mut m = std::collections::HashMap::new();
+    for line in String::from_utf8_lossy(&out.stdout).lines() {
+        let mut parts = line.splitn(3, '\t');
+        let a = parts.next().unwrap_or("");
+        let b = parts.next().unwrap_or("");
+        let p = parts.next().unwrap_or("");
+        if p.is_empty() {
+            continue;
+        }
+        let w = a.parse::<u64>().unwrap_or(0) + b.parse::<u64>().unwrap_or(0);
+        *m.entry(super::super::path_policy::normalize_repo_rel_path(
+            &numstat_new_path(p),
+        ))
+        .or_insert(0) += w;
+    }
+    Ok(m)
+}
+
+/// Count of commits touching each file since `since` (recency proxy).
+pub async fn recency_since(
+    repo: &Path,
+    since: &str,
+) -> Result<std::collections::HashMap<String, f64>> {
+    let out = tokio::process::// vox-arch-check: allow git-exec
+        Command::new("git")
+    .args([
+        "-c",
+        "core.autocrlf=false",
+        "log",
+        &format!("--since={since}"),
+        "--name-only",
+        "--pretty=format:",
+    ])
+    .current_dir(repo)
+    .stdout(std::process::Stdio::piped())
+    .stderr(std::process::Stdio::null())
+    .output()
+    .await
+    .context("git log --since --name-only")?;
+    let mut m = std::collections::HashMap::new();
+    for line in String::from_utf8_lossy(&out.stdout).lines() {
+        let p = line.trim();
+        if !p.is_empty() {
+            *m.entry(super::super::path_policy::normalize_repo_rel_path(p))
+                .or_insert(0.0) += 1.0;
+        }
+    }
+    Ok(m)
+}
+
+#[cfg(test)]
+mod since_tests {
+    use super::*;
+
+    fn git(dir: &Path, args: &[&str]) {
+        std::process::Command::new("git")
+            .current_dir(dir)
+            .args(args)
+            .output()
+            .unwrap();
+    }
+
+    /// `--since` filters by COMMITTER date, so the old commit must back-date both.
+    fn git_old_commit(dir: &Path, msg: &str) {
+        std::process::Command::new("git")
+            .current_dir(dir)
+            .args(["commit", "-qm", msg])
+            .env("GIT_AUTHOR_DATE", "2000-01-01T00:00:00")
+            .env("GIT_COMMITTER_DATE", "2000-01-01T00:00:00")
+            .output()
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn modified_since_lists_recent_not_old() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path();
+        git(p, &["init", "-q"]);
+        git(p, &["config", "user.email", "t@t"]);
+        git(p, &["config", "user.name", "t"]);
+        std::fs::write(p.join("old.rs"), "x").unwrap();
+        git(p, &["add", "-A"]);
+        git_old_commit(p, "old");
+        std::fs::write(p.join("new.rs"), "y\nz").unwrap();
+        git(p, &["add", "-A"]);
+        git(p, &["commit", "-qm", "new"]);
+
+        let files = collect_files_modified_since(p, "1 day ago").await.unwrap();
+        assert!(files.iter().any(|f| f.ends_with("new.rs")));
+        assert!(!files.iter().any(|f| f.ends_with("old.rs")));
+
+        let churn = churn_since(p, "1 day ago").await.unwrap();
+        assert_eq!(churn.get("new.rs").copied().unwrap_or(0), 2);
+        let rec = recency_since(p, "1 day ago").await.unwrap();
+        assert!(rec.get("new.rs").copied().unwrap_or(0.0) >= 1.0);
+    }
+
+    #[test]
+    fn numstat_new_path_resolves_renames() {
+        assert_eq!(numstat_new_path("src/a.rs"), "src/a.rs");
+        assert_eq!(numstat_new_path("old.rs => new.rs"), "new.rs");
+        assert_eq!(numstat_new_path("src/{old => new}.rs"), "src/new.rs");
+        assert_eq!(numstat_new_path("{a => b}/file.rs"), "b/file.rs");
+    }
+
+    #[tokio::test]
+    async fn churn_counts_renamed_file_under_new_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path();
+        git(p, &["init", "-q"]);
+        git(p, &["config", "user.email", "t@t"]);
+        git(p, &["config", "user.name", "t"]);
+        std::fs::write(p.join("old.rs"), "a\nb\n").unwrap();
+        git(p, &["add", "-A"]);
+        git_old_commit(p, "base");
+        git(p, &["mv", "old.rs", "new.rs"]);
+        std::fs::write(p.join("new.rs"), "a\nb\nc\n").unwrap();
+        git(p, &["add", "-A"]);
+        git(p, &["commit", "-qm", "rename+edit"]);
+
+        let churn = churn_since(p, "1 day ago").await.unwrap();
+        // The added line is attributed to the NEW path, not "old.rs => new.rs".
+        assert!(churn.get("new.rs").copied().unwrap_or(0) >= 1);
+        assert!(!churn.keys().any(|k| k.contains("=>")));
+    }
+}

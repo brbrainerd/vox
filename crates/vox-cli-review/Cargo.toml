@@ -26,10 +26,11 @@ walkdir = { workspace = true }
 vox-bounded-fs = { workspace = true }
 vox-code-audit = { workspace = true }
 vox-config = { workspace = true }
-vox-corpus = { workspace = true }
+vox-corpus = { workspace = true, features = ["database", "ast-extract"] }
 vox-db = { workspace = true }
-vox-forge = { workspace = true }
+vox-forge = { workspace = true, features = ["github"] }
 vox-git = { workspace = true }
+vox-graph-reader = { workspace = true }
 vox-http-client = { workspace = true }
 vox-secrets = { workspace = true }
 

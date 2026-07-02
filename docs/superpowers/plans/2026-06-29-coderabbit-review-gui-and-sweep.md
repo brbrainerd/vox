@@ -300,7 +300,10 @@ pub fn rank_files(
 
 /// File-aggregated node degree from the graphify cache. None on any failure or zero matches.
 pub fn load_file_centrality(repo: &Path) -> Option<HashMap<String, f64>> {
-    let path = repo.join(".vox/cache/graphify/repo-code-graph/graph.json");
+    // Never hard-code `.vox/` — resolve via vox_config::paths.
+    let path = repo
+        .join(vox_config::paths::REPO_GRAPHIFY_REPO_CODE_GRAPH_DIR)
+        .join("graph.json");
     let text = std::fs::read_to_string(path).ok()?;
     let value: serde_json::Value = serde_json::from_str(&text).ok()?;
     let reader = vox_graph_reader::GraphifyReader::from_value(value).ok()?;
@@ -400,8 +403,7 @@ parse 3 f64, default missing to 1.0). Default `rank_order` to
 - [ ] **Step 3: Apply ranking after collection in `run_semantic_submit`** (after the Task 2 branch, before `planner.plan(...)`)
 
 ```rust
-if cfg.top.is_some() || cfg.rank_weights.recency != 1.0 || cfg.rank_weights.churn != 1.0
-   || cfg.rank_weights.centrality != 1.0 || cfg.since.is_some() {
+if cfg.top.is_some() || !cfg.rank_weights.is_default() || cfg.since.is_some() {
     let win = cfg.since.as_deref().unwrap_or("3 months ago");
     let churn = collector::churn_since(repo, win).await?;
     let recency = collector::recency_since(repo, win).await?;
@@ -536,7 +538,7 @@ pub async fn coderabbit_run_async(app: AppHandle, since: String, cap: u32, rank_
             "--execute".into()]).await;
         let payload = match &res { Ok(_) => serde_json::json!({"status":"done"}),
                                    Err(e) => serde_json::json!({"status":"error","error":e}) };
-        let _ = tauri::Emitter::emit(&app, "coderabbit://progress", payload);
+        let _ = app.emit("coderabbit://progress", payload); // app_handle.emit pattern (orchestrator.rs etc.)
     });
     Ok(serde_json::json!({"status":"running"}))
 }
@@ -552,7 +554,9 @@ pub async fn coderabbit_report(app: AppHandle) -> Result<Value, String> {
 
 #[tauri::command]
 pub fn coderabbit_token_present() -> bool {
-    std::env::var("FORGE_TOKEN").or_else(|_| std::env::var("GITHUB_TOKEN")).is_ok()
+    // Never read env directly — route through the secrets layer.
+    vox_secrets::resolve_secret("FORGE_TOKEN").is_ok()
+        || vox_secrets::resolve_secret("GITHUB_TOKEN").is_ok()
 }
 ```
 
