@@ -44,8 +44,18 @@ pub async fn run(
     app_name: Option<String>,
     app_id: Option<String>,
 ) -> Result<()> {
-    let frontend = crate::pipeline::run_frontend(file, false).await?;
-    crate::pipeline::print_diagnostics(&frontend, file, false);
+    let json = crate::pipeline::global_json_enabled();
+    let frontend = crate::pipeline::run_frontend(file, json).await?;
+    if json {
+        // Single-line envelope on stdout (JSONL); mirrors `vox check --output-format json`
+        // diagnostic payloads. Emitted for success AND failure so agents always get one.
+        println!(
+            "{}",
+            crate::pipeline::format_build_lane_envelope_json("build", file, &frontend, None)
+        );
+    } else {
+        crate::pipeline::print_diagnostics(&frontend, file, false);
+    }
     if frontend.has_errors() {
         anyhow::bail!(
             "Build failed with {} error(s) and {} warning(s)",
@@ -83,7 +93,7 @@ pub async fn run(
             }
             fs::write(&path, content)
                 .with_context(|| format!("Failed to write output file: {}", path.display()))?;
-            println!("  wrote {}", path.display());
+            crate::vox_note!(json, "  wrote {}", path.display());
         }
 
         if emit_ir {
@@ -93,7 +103,7 @@ pub async fn run(
             let ir_path = out_dir.join("web-ir.v1.json");
             fs::write(&ir_path, ir_json)
                 .with_context(|| format!("Failed to write IR file: {}", ir_path.display()))?;
-            println!("  wrote {}", ir_path.display());
+            crate::vox_note!(json, "  wrote {}", ir_path.display());
         }
 
         let public_dir = generated_dir.join("public").join("ssg-shells");
@@ -110,10 +120,11 @@ pub async fn run(
                     rel_path
                 )
             })?;
-            println!("  wrote {}", out.display());
+            crate::vox_note!(json, "  wrote {}", out.display());
         }
 
-        println!(
+        crate::vox_note!(
+            json,
             "Build complete (server target): {} Rust file(s); TypeScript skipped",
             rust_output.files.len()
         );
@@ -179,7 +190,7 @@ pub async fn run(
                 "App.tsx",
             ];
             if scaffold_once.contains(&filename.as_str()) && path.is_file() {
-                println!("  kept existing {}", path.display());
+                crate::vox_note!(json, "  kept existing {}", path.display());
                 continue;
             }
             if let Some(parent) = path.parent() {
@@ -187,7 +198,7 @@ pub async fn run(
             }
             fs::write(&path, content)
                 .with_context(|| format!("Failed to write output file: {}", path.display()))?;
-            println!("  wrote {}", path.display());
+            crate::vox_note!(json, "  wrote {}", path.display());
         }
 
         if emit_ir {
@@ -197,10 +208,11 @@ pub async fn run(
             let ir_path = out_dir.join("web-ir.v1.json");
             fs::write(&ir_path, ir_json)
                 .with_context(|| format!("Failed to write IR file: {}", ir_path.display()))?;
-            println!("  wrote {}", ir_path.display());
+            crate::vox_note!(json, "  wrote {}", ir_path.display());
         }
 
-        println!(
+        crate::vox_note!(
+            json,
             "Build complete (mobile target): {} TS file(s); Rust backend skipped",
             rn_output.files.len()
         );
@@ -228,7 +240,7 @@ pub async fn run(
             let path = out_dir.join(filename);
             fs::write(&path, content)
                 .with_context(|| format!("Failed to write output file: {}", path.display()))?;
-            println!("  wrote {}", path.display());
+            crate::vox_note!(json, "  wrote {}", path.display());
         }
 
         let emitted_manifest = ts_output
@@ -248,7 +260,7 @@ pub async fn run(
                 if stale.is_file() {
                     fs::remove_file(&stale)
                         .with_context(|| format!("Failed to remove stale {}", stale.display()))?;
-                    println!("  removed stale {}", stale.display());
+                    crate::vox_note!(json, "  removed stale {}", stale.display());
                 }
             }
         }
@@ -260,13 +272,14 @@ pub async fn run(
             let ir_path = out_dir.join("web-ir.v1.json");
             fs::write(&ir_path, ir_json)
                 .with_context(|| format!("Failed to write IR file: {}", ir_path.display()))?;
-            println!("  wrote {}", ir_path.display());
+            crate::vox_note!(json, "  wrote {}", ir_path.display());
         }
 
         verify_app_tsx_route_imports(out_dir)
             .context("generated TS import graph (routes.manifest / App) — client target")?;
 
-        println!(
+        crate::vox_note!(
+            json,
             "Build complete (client target): {} TS file(s); Rust skipped",
             ts_output.files.len()
         );
@@ -303,7 +316,7 @@ pub async fn run(
         let path = out_dir.join(filename);
         fs::write(&path, content)
             .with_context(|| format!("Failed to write output file: {}", path.display()))?;
-        println!("  wrote {}", path.display());
+        crate::vox_note!(json, "  wrote {}", path.display());
     }
 
     let emitted_manifest = ts_output
@@ -327,7 +340,7 @@ pub async fn run(
             if stale.is_file() {
                 fs::remove_file(&stale)
                     .with_context(|| format!("Failed to remove stale {}", stale.display()))?;
-                println!("  removed stale {}", stale.display());
+                crate::vox_note!(json, "  removed stale {}", stale.display());
             }
         }
     }
@@ -362,9 +375,10 @@ pub async fn run(
 
             // Only generate if file doesn't exist to avoid overwriting edits
             if !target_path.exists() {
-                println!("Generating v0 component '{}'...", component_name);
+                crate::vox_note!(json, "Generating v0 component '{}'...", component_name);
 
-                println!(
+                crate::vox_note!(
+                    json,
                     "Downloading v0 component '{}' via npx v0 add...",
                     component_name
                 );
@@ -383,7 +397,11 @@ pub async fn run(
 
                 match status {
                     Ok(s) if s.success() => {
-                        println!("  generated v0 component: {}", target_path.display())
+                        crate::vox_note!(
+                            json,
+                            "  generated v0 component: {}",
+                            target_path.display()
+                        )
                     }
                     Ok(s) => eprintln!(
                         "  failed to download v0 component '{}': exited with {}",
@@ -395,7 +413,11 @@ pub async fn run(
                     ),
                 }
             } else {
-                println!("  skipping v0 component '{}' (file exists)", component_name);
+                crate::vox_note!(
+                    json,
+                    "  skipping v0 component '{}' (file exists)",
+                    component_name
+                );
             }
         }
     }
@@ -431,7 +453,7 @@ pub async fn run(
         }
         fs::write(&path, content)
             .with_context(|| format!("Failed to write output file: {}", path.display()))?;
-        println!("  wrote {}", path.display());
+        crate::vox_note!(json, "  wrote {}", path.display());
     }
 
     if emit_ir {
@@ -441,7 +463,7 @@ pub async fn run(
         let ir_path = out_dir.join("web-ir.v1.json");
         fs::write(&ir_path, ir_json)
             .with_context(|| format!("Failed to write IR file: {}", ir_path.display()))?;
-        println!("  wrote {}", ir_path.display());
+        crate::vox_note!(json, "  wrote {}", ir_path.display());
     }
 
     let public_dir = generated_dir.join("public").join("ssg-shells");
@@ -458,18 +480,20 @@ pub async fn run(
                 rel_path
             )
         })?;
-        println!("  wrote {}", out.display());
+        crate::vox_note!(json, "  wrote {}", out.display());
     }
 
     if let Some(t) = mobile_target {
         if t == "ios" || t == "android" {
-            println!(
+            crate::vox_note!(
+                json,
                 "Mobile target `{t}`: legacy Capacitor `cap sync` is retired — use `vox compile --target mobile-{t}` (Tauri 2) and `cargo tauri android` / `cargo tauri ios` from the generated workspace under the repo `target/generated/` tree (see docs/src/architecture/vox-application-packaging-ssot-2026.md)."
             );
         }
     }
 
-    println!(
+    crate::vox_note!(
+        json,
         "Build complete: {} TS file(s), {} Rust file(s) generated",
         ts_output.files.len(),
         rust_output.files.len()
