@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Home, Layers, GitBranch, Terminal, BarChart3, Settings, FileJson } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ReactFlowProvider } from '@xyflow/react';
@@ -90,7 +90,7 @@ function App() {
   );
 }
 
-const NavItem = ({ icon, active, onClick, label }: { icon: any, active: boolean, onClick: () => void, label: string }) => (
+const NavItem = ({ icon, active, onClick, label }: { icon: ReactNode, active: boolean, onClick: () => void, label: string }) => (
   <button 
     onClick={onClick}
     className={`group relative w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 ${
@@ -103,12 +103,16 @@ const NavItem = ({ icon, active, onClick, label }: { icon: any, active: boolean,
   </button>
 );
 
-const Avatar = ({ src, color }: any) => (
+const Avatar = ({ src, color }: { src: string; color: string }) => (
   <div className={`w-8 h-8 rounded-full bg-${color}-500/10 border-2 border-[#09090b] flex items-center justify-center text-[10px] font-bold text-${color}-500 uppercase tracking-tighter`}>{src}</div>
 )
 
-export default () => (
-  <ReactFlowProvider>
-    <App />
-  </ReactFlowProvider>
-);
+function AppWithProviders() {
+  return (
+    <ReactFlowProvider>
+      <App />
+    </ReactFlowProvider>
+  );
+}
+
+export default AppWithProviders;
