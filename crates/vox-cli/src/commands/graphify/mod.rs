@@ -123,6 +123,21 @@ pub enum GraphifyCmd {
         #[arg(long)]
         edges: bool,
     },
+    /// Classify why crates recompiled (cargo fingerprint-log analysis).
+    /// Observes CHECK units: link-time-only pain is invisible here.
+    WhyRebuilt {
+        /// Parse this previously captured fingerprint log file.
+        #[arg(long, conflicts_with = "capture")]
+        log: Option<String>,
+        /// Run `cargo check --workspace --exclude vox-gui` twice (second run
+        /// instrumented) and analyze the second run. Check, not build: never
+        /// relinks a running vox.exe.
+        #[arg(long)]
+        capture: bool,
+        /// Write classification JSON here.
+        #[arg(long, default_value = "graphify-out/rebuild_causes.json")]
+        out: String,
+    },
 }
 
 /// What an autonomous refresh should do for a corpus, given its stale reasons.
@@ -539,6 +554,38 @@ fn with_provenance(generated_by: &str, result: serde_json::Value) -> serde_json:
         "provenance": { "generated_by": generated_by, "git_sha": git_sha },
         "result": result,
     })
+}
+
+/// Run `cargo check` twice; the second run has fingerprint tracing enabled and
+/// its stderr is returned (and saved to graphify-out/rebuild_fingerprint.log).
+/// An idle second run SHOULD be a no-op: every dirty line it emits is a
+/// rebuild-hygiene finding.
+fn capture_fingerprint_log(repo_root: &std::path::Path) -> anyhow::Result<String> {
+    let check_args = ["check", "--workspace", "--exclude", "vox-gui"];
+    eprintln!("why-rebuilt: warm-up cargo check (this may take a while)...");
+    let warm = std::process::Command::new("cargo")
+        .current_dir(repo_root)
+        .args(check_args)
+        .status()
+        .context("spawn warm-up cargo check")?;
+    if !warm.success() {
+        anyhow::bail!("warm-up cargo check failed — fix the build first");
+    }
+    eprintln!("why-rebuilt: instrumented cargo check...");
+    let out = std::process::Command::new("cargo")
+        .current_dir(repo_root)
+        .args(check_args)
+        .env("CARGO_LOG", "cargo::core::compiler::fingerprint=info")
+        .output()
+        .context("spawn instrumented cargo check")?;
+    if !out.status.success() {
+        anyhow::bail!("instrumented cargo check failed — fix the build first");
+    }
+    let log_text = String::from_utf8_lossy(&out.stderr).to_string();
+    let log_path = repo_root.join("graphify-out/rebuild_fingerprint.log");
+    write_atomic(&log_path, &log_text)?;
+    eprintln!("why-rebuilt: raw log -> {}", log_path.display());
+    Ok(log_text)
 }
 
 fn render_status_line(s: &CorpusStatus) -> String {
@@ -1017,6 +1064,80 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                 run_graphify_ingest(repo_root, Some("crate-map".to_string()), false).await?;
                 println!("ingested crate-map (lexical_ingest_sha256 stamped)");
             }
+        }
+        GraphifyCmd::WhyRebuilt { log, capture, out } => {
+            let log_text = if capture {
+                capture_fingerprint_log(repo_root)?
+            } else {
+                let path = log.ok_or_else(|| anyhow::anyhow!("pass --log <file> or --capture"))?;
+                std::fs::read_to_string(repo_root.join(&path))
+                    .with_context(|| format!("read log {path}"))?
+            };
+            let causes = vox_graph_reader::rebuild_causes::parse_fingerprint_log(&log_text);
+            let summary = vox_graph_reader::rebuild_causes::summarize(&causes);
+            let per = vox_graph_reader::rebuild_causes::per_crate(&causes);
+
+            if causes.is_empty() {
+                eprintln!(
+                    "why-rebuilt: no fingerprint-dirty lines — nothing recompiled (clean) \
+                     or the log lacks CARGO_LOG fingerprint tracing."
+                );
+            }
+            let payload = with_provenance(
+                "vox graphify why-rebuilt",
+                serde_json::json!({
+                    "summary": summary, "per_crate": per, "causes": causes,
+                    "limitations": [
+                        "observes check units; link-time-only pain invisible",
+                        "per_crate keeps first specific cause; full counts in summary"
+                    ],
+                }),
+            );
+            write_atomic(
+                &repo_root.join(&out),
+                &serde_json::to_string_pretty(&payload)?,
+            )?;
+            // Never guess: a high unknown rate means cargo's log shape moved.
+            if summary.total > 0 && summary.unknown_rate > 0.2 {
+                anyhow::bail!(
+                    "unknown-cause rate {:.0}% exceeds 20% — cargo's fingerprint log format \
+                     likely changed; extend rebuild_causes::classify from the raw lines \
+                     preserved in {} and add them to the fixture",
+                    summary.unknown_rate * 100.0,
+                    out
+                );
+            }
+            eprintln!(
+                "why-rebuilt: {} dirty lines across {} crates -> {}",
+                summary.total,
+                per.len(),
+                out
+            );
+            for (class, count) in &summary.counts {
+                eprintln!("  {class:<20} {count}");
+            }
+            let hygiene: Vec<&String> = per
+                .iter()
+                .filter(|(_, c)| {
+                    !matches!(
+                        c,
+                        vox_graph_reader::rebuild_causes::CauseClass::FileDirty
+                            | vox_graph_reader::rebuild_causes::CauseClass::DepRebuilt
+                    )
+                })
+                .map(|(k, _)| k)
+                .collect();
+            if !hygiene.is_empty() {
+                eprintln!(
+                    "HYGIENE FINDINGS (recompiled without source changes): {}",
+                    hygiene
+                        .iter()
+                        .map(|s| s.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                );
+            }
+            println!("{}", serde_json::to_string_pretty(&payload)?);
         }
     }
     Ok(())
