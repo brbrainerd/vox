@@ -8,4 +8,5 @@
    0.100000000s  INFO prepare_target{force=false package_id=vox-weird v0.1.0 (path+file:///C:/Users/Owner/vox/crates/vox-weird) target="vox-weird"}: cargo::core::compiler::fingerprint:     dirty: some future cargo reason we have never seen
    0.110000000s  INFO prepare_target{force=false package_id=path+file:///C:/Users/Owner/vox/crates/vox-journal#0.1.0 target="vox-journal"}: cargo::core::compiler::fingerprint:     dirty: the list of features changed
    0.120000000s  INFO prepare_target{force=false package_id=path+file:///C:/Users/Owner/vox/crates/vox-config#vox-config@0.1.0 target="vox-config"}: cargo::core::compiler::fingerprint:     dirty: the env variable VOX_CONFIG_HOME changed
+   0.130000000s  INFO prepare_target{force=false package_id=vox-arch-check v0.6.0 (path+file:///C:/Users/Owner/vox/crates/vox-arch-check) target="vox_arch_check"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(StaleDepFingerprint { unit: UnitIndex(1600) })
 totally unrelated stderr line that must be ignored

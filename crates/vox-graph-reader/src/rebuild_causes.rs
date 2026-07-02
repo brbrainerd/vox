@@ -108,6 +108,11 @@ fn classify(line: &str) -> CauseClass {
         || l.contains("dependency info changed")
         || l.contains("unit dependency")
         || l.contains("number of dependencies")
+        // Modern cargo (>=1.77) phrasing: a dependency's own fingerprint went
+        // stale, i.e. it was rebuilt. Must be checked before the generic
+        // FsStatusOutdated fallback below, which would otherwise misclassify
+        // this as FileDirty.
+        || l.contains("staledepfingerprint")
     {
         CauseClass::DepRebuilt
     } else if l.contains("rustflags")
@@ -243,6 +248,17 @@ mod tests {
         let causes = parse_fingerprint_log(MIXED);
         let per = per_crate(&causes);
         assert_eq!(*per.get("vox-db").unwrap(), CauseClass::FeatureDrift);
+    }
+
+    #[test]
+    fn stale_dep_fingerprint_classifies_as_dep_rebuilt() {
+        // Real cargo 1.96 phrasing captured 2026-07-02 from a live
+        // `cargo check --workspace`: "FsStatusOutdated(StaleDepFingerprint {
+        // unit: UnitIndex(N) })" means a dependency's own fingerprint went
+        // stale — the modern spelling of "the dependency X was rebuilt".
+        let causes = parse_fingerprint_log(MIXED);
+        let per = per_crate(&causes);
+        assert_eq!(*per.get("vox-arch-check").unwrap(), CauseClass::DepRebuilt);
     }
 
     #[test]
