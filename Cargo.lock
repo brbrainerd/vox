@@ -15421,6 +15421,7 @@ dependencies = [
  "vox-bounded-fs",
  "vox-cli-contracts",
  "vox-cli-core",
+ "vox-code-audit",
  "vox-compiler",
  "vox-config",
  "vox-db",

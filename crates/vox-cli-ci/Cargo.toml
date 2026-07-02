@@ -9,6 +9,9 @@ repository.workspace = true
 rust-version.workspace = true
 publish = false
 
+[features]
+completion-toestub = ["dep:vox-code-audit"]
+
 [dependencies]
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
@@ -21,6 +24,7 @@ vox-git = { workspace = true }
 vox-config = { workspace = true }
 vox-repository = { workspace = true }
 vox-db = { workspace = true }
+vox-code-audit = { workspace = true, optional = true }
 vox-http-client = { workspace = true }
 vox-secrets = { workspace = true }
 vox-graph-reader = { workspace = true }

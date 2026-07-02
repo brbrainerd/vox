@@ -86,7 +86,7 @@ stub-check = [
     "dep:vox-gamify",
 ]
 # Merge `vox-code-audit` victory-claim / premature-done heuristics into `vox ci completion-audit` (CI enables this).
-completion-toestub = ["dep:vox-code-audit"]
+completion-toestub = ["dep:vox-code-audit", "vox-cli-ci/completion-toestub"]
 # No-op reserved flag: legacy `vox mens` agent/dei/chat/learn and `runtime/info/status` referred to `vox-dei` (still do not add `vox-dei` as a dependency; see `vox ci no-vox-dei-import`).
 # Dashboard UX is the VS Code extension (see `docs/src/reference/cli.md`).
 # Native Tauri 2 GUI (replaces dashboard SPA)
