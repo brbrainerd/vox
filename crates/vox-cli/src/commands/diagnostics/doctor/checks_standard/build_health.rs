@@ -25,6 +25,7 @@ pub(crate) const KNOWN_DIAGNOSIS_IDS: &[&str] = &[
     "docker.daemon_down",
     "docker.absent",
     "sccache.pathological",
+    "sccache.shadowed_shim",
     "vox.schema_drift",
     "linker.lld_missing",
 ];
@@ -47,6 +48,11 @@ pub(crate) fn is_real_rustc(version_line: &str) -> bool {
 /// A genuine rustup banner starts with `rustup ` (forwarders print `cargo …`).
 pub(crate) fn is_real_rustup(version_line: &str) -> bool {
     version_line.trim_start().starts_with("rustup ")
+}
+/// A genuine sccache banner starts with `sccache ` (a fake `.cmd` forwarder that
+/// silently defeats caching prints something else, e.g. a `cargo …` banner).
+pub(crate) fn is_real_sccache(version_line: &str) -> bool {
+    version_line.trim_start().starts_with("sccache ")
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -245,12 +251,33 @@ pub(crate) async fn schema_health(checks: &mut Vec<Check>) {
 
 pub(crate) async fn sccache_guard(checks: &mut Vec<Check>) {
     // Reuse the existing setup advisor (do not duplicate).
-    let on_path = quiet("sccache")
-        .arg("--version")
-        .output()
-        .await
+    let version_out = quiet("sccache").arg("--version").output().await.ok();
+    let on_path = version_out
+        .as_ref()
         .map(|o| o.status.success())
         .unwrap_or(false);
+    // Shadowed-shim guard: a fake forwarder (e.g. ~/.cargo/bin/sccache.cmd) exits 0
+    // but its banner is not `sccache …`. With RUSTC_WRAPPER pointing at it, every
+    // compile is *slowed* (wrapper overhead, zero caching) instead of accelerated.
+    if on_path {
+        let banner = version_out
+            .as_ref()
+            .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+            .unwrap_or_default();
+        if !is_real_sccache(&banner) {
+            checks.push(Check::fail(
+                "sccache: binary",
+                diag(
+                    "sccache.shadowed_shim",
+                    "error",
+                    "sccache on PATH is a shim/forwarder (banner is not `sccache …`); RUSTC_WRAPPER caches nothing and slows every build",
+                    "reinstall the real binary (cargo install --locked sccache) and ensure ~/.cargo/bin/sccache is not a .cmd forwarder",
+                    false,
+                ),
+            ));
+            return;
+        }
+    }
     let wrapper = std::env::var("RUSTC_WRAPPER").ok();
     let incremental = std::env::var("CARGO_INCREMENTAL").ok();
     let advice = crate::commands::ci::doctor_build_cache::advise(
@@ -472,6 +499,9 @@ mod tests {
         assert!(is_real_rustc("rustc 1.96.0 (ac68faa20 2026-05-25)"));
         assert!(!is_real_rustup("cargo 1.96.0"));
         assert!(is_real_rustup("rustup 1.29.0 (28d1352db 2026-03-05)"));
+        // A fake sccache forwarder prints a non-sccache banner.
+        assert!(is_real_sccache("sccache 0.8.2"));
+        assert!(!is_real_sccache("cargo 1.96.0 (30a34c682 2026-05-25)"));
     }
 
     #[test]

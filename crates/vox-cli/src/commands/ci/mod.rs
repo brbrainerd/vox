@@ -48,6 +48,8 @@ mod job_timings;
 mod kill_stuck_tests;
 mod mcp_vox_surface_parity;
 mod mens_scorecard;
+#[cfg(test)]
+mod merge_group_fanout_guard;
 mod model_routing_check;
 mod operations_catalog;
 mod parse_status;
