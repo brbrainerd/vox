@@ -9907,7 +9907,7 @@ operations:
     - run
     status: active
     latin_ns: null
-    handler_rust: commands::research::run_research_query
+    handler_rust: null
     feature_gate: null
     catalog_group: null
     ref_cli_required: true
