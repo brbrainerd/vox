@@ -23,11 +23,30 @@ pub(super) fn emit_llm_function_body(out: &mut String, func: &HirFn) {
     };
     out.push_str(&format!("    let model = {};\n", model_init));
     if let Some(s) = structured_output {
-        let schema_name = s.return_type.replace('\\', "\\\\").replace('"', "\\\"");
-        out.push_str(&format!(
-            "    let response_format = serde_json::json!({{\"type\":\"json_schema\",\"json_schema\":{{\"name\":\"{}\"}}}});\n",
-            schema_name
-        ));
+        match super::super::ai_schema_ctx::schema_for(&s.return_type) {
+            Some(schema) => {
+                let payload = serde_json::json!({
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": s.return_type,
+                        "strict": true,
+                        "schema": schema,
+                    }
+                });
+                let payload_src = serde_json::to_string(&payload)
+                    .expect("vox codegen: response_format payload serializes");
+                out.push_str(&format!(
+                    "    let response_format = serde_json::json!({payload_src});\n"
+                ));
+            }
+            None => {
+                let schema_name = s.return_type.replace('\\', "\\\\").replace('"', "\\\"");
+                out.push_str(&format!(
+                    "    let response_format = serde_json::json!({{\"type\":\"json_schema\",\"json_schema\":{{\"name\":\"{}\"}}}});\n",
+                    schema_name
+                ));
+            }
+        }
     }
 
     // Build the prompt from parameters
