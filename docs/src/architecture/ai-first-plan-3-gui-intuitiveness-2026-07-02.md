@@ -36,6 +36,10 @@ authored: "2026-07-02"
 
 ```ts
 import { SURFACE_REGISTRY } from '../generated/surfaceRegistry.generated';
+// Extend the file's existing navigation import — labelForNavKey is NOT yet
+// imported there (current line 2 imports only resolveNavigation,
+// parseViewFromLocation, breadcrumbsForView; labelForNavKey is exported at navigation.ts:106):
+// import { resolveNavigation, parseViewFromLocation, breadcrumbsForView, labelForNavKey } from './navigation';
 
 describe('needs-you attention inbox nav wiring', () => {
   it('resolves needs-you under the runs parent', () => {
@@ -179,7 +183,9 @@ export async function fetchTree(): Promise<SubAgentNode[]> {
 
 **Steps:**
 
-- [ ] Add failing tests. In `navigation.test.ts`: `expect(resolveNavigation('sub-agents')).toEqual({ parent: 'compute', child: 'sub-agents' });` and `expect(labelForNavKey('sub-agents')).toBe('Sub-Agents');`. In `SubAgentsView.test.tsx`: selecting a node must NOT render the overrule input — `expect(screen.queryByLabelText('overrule note')).toBeNull()` (reuse that file's existing store-seeding setup).
+- [ ] Add failing tests. In `navigation.test.ts`: `expect(resolveNavigation('sub-agents')).toEqual({ parent: 'compute', child: 'sub-agents' });` and `expect(labelForNavKey('sub-agents')).toBe('Sub-Agents');`. In `SubAgentsView.test.tsx`: selecting a node must NOT render the overrule input — `expect(screen.queryByLabelText('overrule note')).toBeNull()` (reuse that file's existing `vi.mock('./subAgentClient')` / `fetchTreeMock` setup at lines 5-12 — it does NOT seed a store; drop `getContext`/`setContext`/`control` from the mock factory since Task 3 deletes them).
+
+- [ ] Rewrite the file's single existing test ('loads the tree and selecting a node shows its context editor', lines 21-26): it asserts `getByLabelText('committed set for w1')`, which is rendered by the `SubAgentContextEditor` this task deletes and would stay red forever. Change it to assert that selecting a node shows the node title and activity stream only, plus `expect(screen.queryByLabelText('committed set for w1')).toBeNull()`.
 
 > **Coordination note (Plan 2):** if the IA reorg plan (ai-first-plan-2) has already landed, `sub-agents` belongs under `agents`, not `compute` — use `{ parent: 'agents', child: 'sub-agents' }` here and skip the registry edit (Plan 2 Task 2 already reparents it). The assertion above is for the pre-reorg topology only.
 
@@ -339,7 +345,7 @@ export function useAttentionInbox(): AttentionInbox {
 
 - [ ] Add/adjust a failing Sidebar test (in `Sidebar.test.tsx`, matching its render helpers): rename the badge prop and assert the aria copy — render with `needsYouCount={3}` and expect `screen.getByLabelText('Runs and Approvals, 3 items need you')`. Run `pnpm vitest run src/components/layout/Sidebar.test.tsx` — FAIL (prop is `approvalsPending`, aria says "pending").
 - [ ] `Sidebar.tsx`: rename prop `approvalsPending` → `needsYouCount` (interface line 79, destructure line 93, badge expr line 169, aria lines 171-176; new aria string: `` `Runs and Approvals, ${needsYouCount} items need you` ``). `AppShell.tsx`: rename the pass-through prop the same way (lines 27, 61, 98); keep feeding `TopHud pendingApprovals` from a new explicit `pendingApprovals` prop (line 120) so the HUD tile stays approvals-only and honest.
-- [ ] `App.tsx`: delete the approvals-badge effect (lines 426-444) with its `approvalsPending` state (line 234), and delete `refreshAttentionCounts` + its effect and the `needsYouCount`/`blockedTasksCount` states (lines 546-595). Add `const attention = useAttentionInbox();` near the other hooks. Feed: `AppShell needsYouCount={attention.totalCount} pendingApprovals={attention.approvals.length}`; `AttentionStrip waitingQuestions={attention.needsYou.length} blockedTasks={attention.blockedTasksCount}` (line 1161); add `attention` to `surfaceProps` (line 1095 block).
+- [ ] `App.tsx`: delete the approvals-badge effect (lines 426-444) with its `approvalsPending` state (line 234); delete `refreshAttentionCounts` (550-564), its effect (571-595), the `needsYouCount`/`blockedTasksCount` states (546-547), and the `HopperTaskDto` interface (538-544 — it moves into useAttentionInbox.ts). **KEEP** `focusedFeedbackId` (548) and `onOpenFeedbackContext` (566-569) — both are still consumed by surfaceProps (1103-1104) and the NeedsYou surface this plan extends. Add `const attention = useAttentionInbox();` near the other hooks. Feed: `AppShell needsYouCount={attention.totalCount} pendingApprovals={attention.approvals.length}`; `AttentionStrip waitingQuestions={attention.needsYou.length} blockedTasks={attention.blockedTasksCount}` (line 1161); add `attention` to `surfaceProps` (line 1095 block).
 - [ ] `surfaceComponents.tsx`: add `attention?: AttentionInbox;` to `SurfaceProps` (import the type from `../../hooks/useAttentionInbox`) and pass `attention={props.attention}` in `case 'needs-you'` (line 169-170). Leave `NeedsYouSurface`'s existing props working — Task 6 consumes it.
 - [ ] Run `pnpm vitest run src/components/layout src/App.test.tsx` and `pnpm typecheck` — expect PASS (fix any test renders that passed the old prop names).
 - [ ] Commit: `git commit -m "refactor(gui): single attention poll in App; unified Needs-You nav badge" -m "Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"`
@@ -639,7 +645,7 @@ it('goal alone is submittable without free text', () => {
 **Steps:**
 
 - [ ] From `crates/vox-gui/ui` run the full suite exactly as CI does: `pnpm test` (this is `vitest run`) — expect 0 failures. Then `pnpm typecheck` — expect clean.
-- [ ] Grep for regressions in what was consolidated: `grep -rn "vox_pending_approvals" crates/vox-gui/ui/src --include="*.tsx" --include="*.ts" | grep -v test` must show only `useAttentionInbox.ts`, `useAgentApprovals.ts` (Dashboard rows), `ApprovalsView.tsx`, and `InlineApprovals.tsx` — App.tsx must be gone from the list.
+- [ ] Grep for regressions in what was consolidated: `grep -rn "vox_pending_approvals" crates/vox-gui/ui/src --include="*.tsx" --include="*.ts" | grep -v test` must show only `useAttentionInbox.ts`, `useAgentApprovals.ts` (Dashboard rows; 1 comment + 1 call), `ApprovalsWidget.tsx` (doc comment only — it sources its count via useAgentApprovals; do NOT "fix" the honest comment), `ApprovalsView.tsx`, and `InlineApprovals.tsx` — App.tsx must be gone from the list.
 - [ ] Update `docs/agents/gui-honesty-triage.md`: append a dated "Burn-down status (2026-07-02)" section marking each WIRE/HIDE/TOAST-FIX row with its resolution — SkillsPlugins ×4 done (detail panel), ContextWindowMeter WIRED (superseded HIDE), StreamCard Doubt/Overrule WIRED (superseded HIDE), Keybinds WIRED (superseded HIDE), needs-you ADD-to-nav done (Task 1), sub-agents wired-tree + hidden dead controls (Tasks 2-3).
 - [ ] Commit: `git commit -m "docs: record honesty-triage burn-down; verify full vox-gui suite green" -m "Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"`
 

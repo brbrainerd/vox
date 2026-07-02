@@ -12,7 +12,7 @@ authored: "2026-07-02"
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Reorganize vox-gui navigation around the human's intent-first priorities — 1) express intent (Chat/Direct), 2) review agent work (new promoted **Review** group: approvals, needs-you, runs, policies), 3) operate agents, 4) comprehend (Knowledge) — executing the ratified blueprint (`docs/agents/gui-ia-blueprint.md`): retire the Search group, merge `claims`→`scientia` (label → Findings), consolidate `discovery-inbox`/`discovery-review`/`archive-panel`/`activity` into ONE Discovery surface with filter presets, fold `matrix` into the chat rail, move `gamify`→Settings and `mesh`/`sub-agents`→Agents, rename `oratio`→Voice / `mens`→Training / `populi`→Nodes, delete the phantom `review` surface and the 5 parent-shell registry duplicates, and keep every old `#view=` deep-link resolving via a legacy-alias map.
+**Goal:** Reorganize vox-gui navigation around the human's intent-first priorities — 1) express intent (Chat/Direct), 2) review agent work (new promoted **Review** group: approvals, needs-you, runs, policies), 3) operate agents, 4) comprehend (Knowledge) — executing the ratified blueprint (`docs/agents/gui-ia-blueprint.md`): retire the Search group, merge `claims`→`scientia` (label → Findings), consolidate `discovery-inbox`/`discovery-review`/`archive-panel`/`activity` into ONE Discovery surface with filter presets, fold `matrix` into the chat rail, move `gamify`→Settings and `mesh`/`sub-agents`→Agents, rename `oratio`→Voice / `mens`→Training / `populi`→Nodes, delete 12 registry entries (the phantom `review` surface, the 5 parent-shell duplicates, the Bundle-4 `search` shell, and the merge-absorbed rows), and keep every old `#view=` deep-link resolving via a legacy-alias map.
 
 **Architecture:** Three SSOT sites stay in lockstep: (1) `crates/vox-gui/ui/src/lib/navigation.ts` (`PARENT_CHILD_MAP`, `TOP_LEVEL_VIEWS`, `DEFAULT_CHILD_BY_PARENT`, `NAV_LABELS`, plus new `LEGACY_VIEW_ALIASES` and `CHILD_ORDER_BY_PARENT`); (2) `contracts/gui/surface-registry.v1.yaml` — the *source* of the generated `crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts` (regenerated via `vox ci gui-surface-registry --write`, NEVER hand-edited); (3) `crates/vox-gui/ui/src/components/layout/surfaceComponents.tsx` dispatch + `decoratorRegistry.ts`. Sub-tab rows in `ParentSurface.tsx` come from the registry's `parentSurface` field; sidebar labels come from `lexicon.ts` (not `NAV_LABELS` — those feed breadcrumbs only). Deep-link redirects ride a pure alias map resolved inside `resolveNavigation`, so `App.tsx` changes stay minimal.
 
@@ -510,6 +510,7 @@ git commit -m "feat(gui-ia): resolve legacy deep-links through alias map and see
 - `crates/vox-gui/ui/src/lib/lexicon.ts`
 - `crates/vox-gui/ui/src/lib/lexicon.test.ts`
 - `crates/vox-gui/ui/src/components/layout/Sidebar.tsx`
+- `crates/vox-gui/ui/src/components/layout/Sidebar.test.tsx` (asserts the OLD labels — must be updated or the suite stays red)
 
 - [ ] Update `crates/vox-gui/ui/src/lib/lexicon.test.ts` FIRST (failing): the proper-noun example currently uses `mens`, which gains a translation. Replace the test at lines 12–15 and extend:
 
@@ -582,6 +583,8 @@ pnpm -C crates/vox-gui/ui test src/lib/lexicon.test.ts
         : undefined;
     ```
 
+- [ ] Update `crates/vox-gui/ui/src/components/layout/Sidebar.test.tsx`, which hard-asserts the old labels (audit-verified): line 59 `getByRole('button', { name: /Runs.*3 pending/i })` → `{ name: /Review.*3 pending approvals/i }`, and line 64 `getByRole('button', { name: 'Runs and Approvals' })` → `{ name: 'Review' }`. (The lexicon `nav:runs` change alone already breaks line 64.)
+
 - [ ] Run tests:
 
 ```
@@ -606,11 +609,9 @@ git commit -m "feat(gui-ia): sidebar intent order, Review group label/icon, de-L
 - `crates/vox-gui/ui/src/components/layout/ParentSurface.test.tsx` (extend)
 - `crates/vox-gui/ui/src/components/layout/ParentSurface.tsx`
 
-- [ ] Add a failing ordering test to `ParentSurface.test.tsx`. The existing test mocks `SURFACE_REGISTRY`; extend the mock with workspace children in registry (alphabetical) order and assert intent order. Add alongside the existing describe block:
+- [ ] Add a failing ordering test to `ParentSurface.test.tsx`. Audit-verified facts: the file's existing `vi.mock` (lines 6–11) replaces `surfaceRegistry.generated` **wholesale** with only mercatus/activity rows, and `SubTabs.tsx:29-40` renders plain `<button>` elements with **no** `role="tab"`. So: extend the existing `vi.mock` factory with `browser`/`console`/`harness`/`repository` rows (`{ viewKey, navLabel, parentSurface: 'workspace', tier: 'live_backend' }`, listed alphabetically — registry order), do NOT import `SURFACE_REGISTRY` in the test, and query buttons:
 
 ```typescript
-import { SURFACE_REGISTRY } from '../../generated/surfaceRegistry.generated';
-
 describe('ParentSurface sub-tab ordering', () => {
   it('renders workspace tabs in intent order (console first), not registry order', () => {
     render(
@@ -618,13 +619,13 @@ describe('ParentSurface sub-tab ordering', () => {
         <ParentSurface parentKey="workspace" activeChild="console" onChildChange={vi.fn()} renderChild={() => <div />} />
       </LanguageProvider>,
     );
-    const tabs = screen.getAllByRole('tab').map(t => t.textContent);
+    const tabs = screen.getAllByRole('button').map(t => t.textContent);
     expect(tabs).toEqual(['Console', 'Repository', 'Browser', 'Harness']);
   });
 });
 ```
 
-(If the file's existing mock replaces `SURFACE_REGISTRY` wholesale, add `browser`/`console`/`harness`/`repository` rows with `parentSurface: 'workspace'`, `tier: 'live_backend'`, `navLabel` set, listed alphabetically, to that mock. If `SubTabs` does not use `role="tab"`, query by button text instead — match the file's existing query style.)
+(If other buttons render inside ParentSurface, scope the query to the tab strip's container per the file's existing query style.)
 
 - [ ] Run and confirm FAIL (alphabetical order comes back):
 
@@ -1102,7 +1103,7 @@ Expected: first three return nothing; the fourth may match only `mens`/`populi`/
 pnpm -C crates/vox-gui/ui test:e2e
 ```
 
-Fix any spec that asserts the old sidebar order, "Runs & Approvals" label, or navigates to `matrix`/`claims`/`discovery-*` views (update assertions to the new topology; deep-link specs should still pass thanks to the alias map).
+Fix any spec that asserts the old sidebar order, "Runs & Approvals" label, or navigates to `matrix`/`claims`/`discovery-*` views (update assertions to the new topology; deep-link specs should still pass thanks to the alias map). Known instance (audit-verified): `crates/vox-gui/ui/e2e/dashboard.spec.ts:84` clicks `getByRole('button', { name: 'Runs & Approvals' })` — update to `{ name: 'Review' }`.
 
 - [ ] Final commit for any audit fixes:
 
