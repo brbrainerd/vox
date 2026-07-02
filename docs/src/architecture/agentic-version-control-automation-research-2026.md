@@ -29,7 +29,7 @@ Vox already coordinates multiple coding agents against shared codebases. Today w
 - A read-only git MCP surface ([`crates/vox-orchestrator-mcp/src/git_tools.rs`](../../../crates/vox-orchestrator-mcp/src/git_tools.rs)).
 - A jj-inspired snapshot / oplog / conflict / workspace MCP surface ([`crates/vox-orchestrator-mcp/src/vcs_tools/`](../../../crates/vox-orchestrator-mcp/src/vcs_tools/)).
 - A *banned-command* policy ([`docs/agents/git-concurrency-policy.md`](./git-concurrency-policy.md)) prohibiting `git stash` / `reset --hard` / `clean -fd` / `restore .`.
-- CLI worktree plumbing for code-review chunk PRs ([`crates/vox-cli/src/commands/review/coderabbit/github/reviews/worktree.rs`](../../../crates/vox-cli/src/commands/review/coderabbit/github/reviews/worktree.rs)).
+- CLI worktree plumbing for code-review chunk PRs ([`crates/vox-cli-review/src/coderabbit/github/reviews/worktree.rs`](../../../crates/vox-cli-review/src/coderabbit/github/reviews/worktree.rs)).
 - A multi-agent replication design (linked above).
 
 What we **don't** have:
