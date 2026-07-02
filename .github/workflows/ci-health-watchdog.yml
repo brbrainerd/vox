@@ -44,7 +44,7 @@ jobs:
       DRY_RUN: ${{ inputs.dry_run || 'false' }}
       REPO: ${{ github.repository }}
     steps:
-      - uses: actions/checkout@v4   # needed for the local composite action below
+      - uses: actions/checkout@v7   # needed for the local composite action below
 
       # --- A1: detection — shared logic (also exercised by ci-health-watchdog-test.yml) ---
       - name: Assess CI health
