@@ -130,67 +130,61 @@ pub async fn handle_tool_call(
             | "vox_write_file"
             | "vox_delete_file"
     ) {
-        // Enforce explicit UserApproval requirement
-        let approved = args
-            .get("user_approval")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-        if !approved {
-            // B3 HITL: rather than rejecting outright, register an interactive
-            // approval and await the human decision (resolved in-process via the
-            // `vox_resolve_approval` tool). The `user_approval: true` fast path
-            // above stays for callers that pre-confirm.
-            let now_ms = std::time::SystemTime::now()
+        // B3 HITL: unconditionally register an interactive approval and await the
+        // human decision (resolved in-process via the `vox_resolve_approval` tool).
+        // There is NO arg-based fast path here — a tool-call argument must never be
+        // able to skip human approval for a dangerous operation, since the LLM
+        // agent itself composes the tool-call JSON. See T0.1 in
+        // docs/src/architecture/vox-axis-harness-reliability-spec-plan-2026-07-02.md.
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+        let summary = {
+            let a = args.to_string();
+            let a: String = a.chars().take(200).collect();
+            format!("{name_canonical} {a}")
+        };
+        let (approval_id, rx) =
+            state
+                .pending_approvals
+                .register(name_canonical.to_string(), summary.clone(), now_ms);
+        // Durable audit trail (best-effort): record the request, then its outcome.
+        if let Some(db) = state.db.as_ref() {
+            let _ = db
+                .hitl_approval_record(&approval_id, name_canonical, &summary, now_ms as i64)
+                .await;
+        }
+        const APPROVAL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
+        let outcome = match tokio::time::timeout(APPROVAL_TIMEOUT, rx).await {
+            Ok(Ok(o)) => o,
+            Ok(Err(_)) => vox_orchestrator::ApprovalOutcome::Rejected, // resolver dropped
+            Err(_) => {
+                state.pending_approvals.cancel(&approval_id);
+                vox_orchestrator::ApprovalOutcome::TimedOut
+            }
+        };
+        if let Some(db) = state.db.as_ref() {
+            let resolved_ms = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
-                .as_millis() as u64;
-            let summary = {
-                let a = args.to_string();
-                let a: String = a.chars().take(200).collect();
-                format!("{name_canonical} {a}")
-            };
-            let (approval_id, rx) = state.pending_approvals.register(
-                name_canonical.to_string(),
-                summary.clone(),
-                now_ms,
-            );
-            // Durable audit trail (best-effort): record the request, then its outcome.
-            if let Some(db) = state.db.as_ref() {
-                let _ = db
-                    .hitl_approval_record(&approval_id, name_canonical, &summary, now_ms as i64)
-                    .await;
-            }
-            const APPROVAL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
-            let outcome = match tokio::time::timeout(APPROVAL_TIMEOUT, rx).await {
-                Ok(Ok(o)) => o,
-                Ok(Err(_)) => vox_orchestrator::ApprovalOutcome::Rejected, // resolver dropped
-                Err(_) => {
-                    state.pending_approvals.cancel(&approval_id);
-                    vox_orchestrator::ApprovalOutcome::TimedOut
-                }
-            };
-            if let Some(db) = state.db.as_ref() {
-                let resolved_ms = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_millis() as i64;
-                let status = format!("{outcome:?}").to_lowercase();
-                let _ = db
-                    .hitl_approval_resolve(&approval_id, &status, resolved_ms)
-                    .await;
-            }
-            if !matches!(
-                outcome,
-                vox_orchestrator::ApprovalOutcome::Approved
-                    | vox_orchestrator::ApprovalOutcome::Modified
-            ) {
-                return Ok(crate::params::ToolResult::<()>::err(format!(
-                    "Operation '{name_canonical}' was not approved (outcome: {outcome:?})."
-                ))
-                .to_json_compact());
-            }
-            // Approved / Modified: fall through and execute the tool.
+                .as_millis() as i64;
+            let status = format!("{outcome:?}").to_lowercase();
+            let _ = db
+                .hitl_approval_resolve(&approval_id, &status, resolved_ms)
+                .await;
         }
+        if !matches!(
+            outcome,
+            vox_orchestrator::ApprovalOutcome::Approved
+                | vox_orchestrator::ApprovalOutcome::Modified
+        ) {
+            return Ok(crate::params::ToolResult::<()>::err(format!(
+                "Operation '{name_canonical}' was not approved (outcome: {outcome:?})."
+            ))
+            .to_json_compact());
+        }
+        // Approved / Modified: fall through and execute the tool.
     }
 
     // Build a TraceContext from the incoming call metadata so all async code reachable
