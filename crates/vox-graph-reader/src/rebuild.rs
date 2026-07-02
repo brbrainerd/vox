@@ -68,10 +68,11 @@ pub(crate) fn walk_source_files(source_dir: &std::path::Path) -> Vec<std::path::
         .collect()
 }
 
-/// Resolve each bare call target to a qualified definition id. Preference: same-module
-/// definition; else the unique global definition. Ambiguous, unresolved, and self-edges
-/// are dropped (honesty rule: never invent an edge). Pure refactor — behavior identical
-/// to the former inline closure in `rebuild_graph`.
+/// Resolve each bare call target to a qualified definition id. Preference:
+/// same-module definition; else the unique same-crate definition (a bare name
+/// defined once in the caller's own crate beats any cross-crate homonym);
+/// else the unique global definition. Ambiguous, unresolved, and self-edges
+/// are dropped (honesty rule: never invent an edge).
 fn resolve_edges(
     nodes: &[crate::ast::ExtractedNode],
     edges: &[crate::ast::ExtractedEdge],
@@ -79,6 +80,17 @@ fn resolve_edges(
     use std::collections::HashMap;
     fn module_of(id: &str) -> &str {
         id.rsplit_once("::").map(|(m, _)| m).unwrap_or("")
+    }
+    /// "crates/<name>/…::sym" -> "crates/<name>"; anything else -> "" (no scoping).
+    fn crate_scope(id: &str) -> &str {
+        let path = id.split("::").next().unwrap_or("");
+        let mut it = path.splitn(3, '/');
+        match (it.next(), it.next()) {
+            (Some("crates"), Some(name)) if !name.is_empty() => {
+                &path[.."crates/".len() + name.len()]
+            }
+            _ => "",
+        }
     }
     let mut defs_by_name: HashMap<String, Vec<String>> = HashMap::new();
     for n in nodes {
@@ -114,8 +126,21 @@ fn resolve_edges(
                 .iter()
                 .filter(|id| module_of(id) == src_mod)
                 .collect();
+            let src_crate = crate_scope(&e.source);
+            let same_crate: Vec<&String> = if src_crate.is_empty() {
+                Vec::new()
+            } else {
+                candidates
+                    .iter()
+                    .filter(|id| crate_scope(id) == src_crate)
+                    .collect()
+            };
             let target = if same.len() == 1 {
                 same[0].clone()
+            } else if same_crate.len() == 1 {
+                // A bare name defined once in the caller's own crate is far more
+                // likely the intended callee than any cross-crate homonym.
+                same_crate[0].clone()
             } else if candidates.len() == 1 {
                 candidates[0].clone()
             } else {
@@ -490,6 +515,74 @@ mod walker_tests {
 mod resolve_tests {
     use super::*;
     use crate::ast::{ExtractedEdge, ExtractedNode};
+
+    fn n(id: &str) -> ExtractedNode {
+        ExtractedNode {
+            id: id.to_string(),
+            label: id.rsplit("::").next().unwrap_or(id).to_string(),
+            kind: "fn".to_string(),
+        }
+    }
+
+    fn e(source: &str, target: &str) -> ExtractedEdge {
+        ExtractedEdge {
+            source: source.to_string(),
+            target: target.to_string(),
+            confidence: "resolved".to_string(),
+        }
+    }
+
+    #[test]
+    fn resolver_recovers_same_crate_ambiguous_target() {
+        // `run` is defined in the caller's crate AND another crate (ambiguous
+        // globally). Old behavior: dropped. New: resolves to the same-crate def.
+        let nodes = vec![
+            n("crates/aaa/src/x.rs::caller"),
+            n("crates/aaa/src/y.rs::run"),
+            n("crates/bbb/src/z.rs::run"),
+        ];
+        let edges = vec![e("crates/aaa/src/x.rs::caller", "run")];
+        let resolved = resolve_edges(&nodes, &edges);
+        assert_eq!(resolved.len(), 1);
+        assert_eq!(resolved[0].target, "crates/aaa/src/y.rs::run");
+    }
+
+    #[test]
+    fn resolver_same_module_still_wins_over_same_crate() {
+        let nodes = vec![
+            n("crates/aaa/src/x.rs::caller"),
+            n("crates/aaa/src/x.rs::run"),
+            n("crates/aaa/src/y.rs::run"),
+        ];
+        let edges = vec![e("crates/aaa/src/x.rs::caller", "run")];
+        let resolved = resolve_edges(&nodes, &edges);
+        assert_eq!(resolved.len(), 1);
+        assert_eq!(resolved[0].target, "crates/aaa/src/x.rs::run");
+    }
+
+    #[test]
+    fn resolver_drops_ambiguous_within_same_crate() {
+        let nodes = vec![
+            n("crates/aaa/src/x.rs::caller"),
+            n("crates/aaa/src/y.rs::run"),
+            n("crates/aaa/src/z.rs::run"),
+        ];
+        let edges = vec![e("crates/aaa/src/x.rs::caller", "run")];
+        assert!(resolve_edges(&nodes, &edges).is_empty());
+    }
+
+    #[test]
+    fn resolver_unique_global_cross_crate_still_resolves() {
+        let nodes = vec![
+            n("crates/aaa/src/x.rs::caller"),
+            n("crates/bbb/src/z.rs::unique_fn"),
+        ];
+        let edges = vec![e("crates/aaa/src/x.rs::caller", "unique_fn")];
+        let resolved = resolve_edges(&nodes, &edges);
+        assert_eq!(resolved.len(), 1);
+        assert_eq!(resolved[0].target, "crates/bbb/src/z.rs::unique_fn");
+    }
+
     #[test]
     fn same_module_unique_resolves_and_drops_ambiguous() {
         let nodes = vec![
