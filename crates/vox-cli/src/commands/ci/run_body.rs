@@ -297,6 +297,9 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         }
         CiCmd::FmtCheck => super::pre_push::check_fmt(&root),
         CiCmd::RunnerPolicyCheck { strict } => vox_cli_ci::runner_policy_check::run(&root, strict),
+        CiCmd::WorkflowConcurrencyGuard { strict } => {
+            vox_cli_ci::workflow_concurrency_guard::run(&root, strict)
+        }
         CiCmd::GuiVisualReview { no_ai } => vox_cli_ci::gui_visual_review::run(&root, no_ai),
         CiCmd::LineEndings { all, base, autofix } => {
             vox_cli_ci::line_endings::run(&root, all, base, autofix)

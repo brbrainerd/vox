@@ -341,6 +341,14 @@ pub enum CiCmd {
         #[arg(long)]
         strict: bool,
     },
+    /// Require a `concurrency:` block on push/PR-triggered workflows (flood prevention);
+    /// exceptions registered in docs/src/ci/concurrency-exceptions.md.
+    #[command(name = "workflow-concurrency-guard")]
+    WorkflowConcurrencyGuard {
+        /// Fail (exit 1) instead of advisory warn.
+        #[arg(long)]
+        strict: bool,
+    },
     /// Advisory GUI visual AI review (screenshots vs design principles). Always exits 0; never gates.
     #[command(name = "gui-visual-review")]
     GuiVisualReview {

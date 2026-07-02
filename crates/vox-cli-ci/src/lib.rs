@@ -22,3 +22,4 @@ pub mod runner_policy_check;
 pub mod string_id_lint;
 pub mod sync_ignore_files;
 pub mod toestub_budget;
+pub mod workflow_concurrency_guard;
