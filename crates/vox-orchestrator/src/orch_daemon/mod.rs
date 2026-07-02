@@ -59,6 +59,40 @@ pub fn is_loopback_bind_addr(addr: &str) -> bool {
     matches!(host, "127.0.0.1" | "localhost" | "::1")
 }
 
+/// Constant-time byte comparison to avoid a timing side channel on the daemon
+/// auth token (T0.2). Mirrors the existing helper of the same name/shape in
+/// `vox-orchestrator-mcp::http_gateway` and `vox-actor-runtime::auth` — kept
+/// as a small local copy here rather than a shared dependency, matching how
+/// those other crates each already define their own.
+fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+    let mut diff = (a.len() != b.len()) as u8;
+    for i in 0..a.len().max(b.len()) {
+        let ai = *a.get(i).unwrap_or(&0);
+        let bi = *b.get(i).unwrap_or(&0);
+        diff |= ai ^ bi;
+    }
+    diff == 0
+}
+
+#[cfg(test)]
+mod constant_time_eq_tests {
+    use super::*;
+
+    #[test]
+    fn equal_bytes_match() {
+        assert!(constant_time_eq(b"same-token", b"same-token"));
+        assert!(constant_time_eq(b"", b""));
+    }
+
+    #[test]
+    fn different_bytes_do_not_match() {
+        assert!(!constant_time_eq(b"correct-token", b"wrong-token-value"));
+        assert!(!constant_time_eq(b"short", b"shorter-or-longer"));
+        assert!(!constant_time_eq(b"a", b""));
+        assert!(!constant_time_eq(b"", b"a"));
+    }
+}
+
 #[cfg(test)]
 mod loopback_bind_addr_tests {
     use super::*;
@@ -1087,13 +1121,18 @@ async fn handle_connection(
         // Only enforced when the daemon has a configured token; a wrong or
         // missing token gets a clear error response and the connection is left
         // open (matching the invalid-JSON-parse path) so a client can retry
-        // with a corrected token on the same connection.
-        if let Some(expected) = token.as_deref()
-            && req.auth_token.as_deref() != Some(expected)
-        {
-            let resp = response_err(&req.id, "unauthorized: missing or invalid daemon auth token");
-            write_frame(&mut write_half, &resp).await?;
-            continue;
+        // with a corrected token on the same connection. The byte comparison
+        // itself is constant-time (mirroring the HTTP gateway's bearer-token
+        // check) to avoid a timing side channel on the secret; the `is_some()`
+        // branch above is not secret-dependent, so it does not need to be.
+        if let Some(expected) = token.as_deref() {
+            let provided = req.auth_token.as_deref().unwrap_or("");
+            if !constant_time_eq(provided.as_bytes(), expected.as_bytes()) {
+                let resp =
+                    response_err(&req.id, "unauthorized: missing or invalid daemon auth token");
+                write_frame(&mut write_half, &resp).await?;
+                continue;
+            }
         }
         if req.method == orch_daemon_method::SUBSCRIBE {
             // Long-lived push stream; returns when the peer disconnects.
