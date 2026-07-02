@@ -46,7 +46,15 @@ pub(crate) fn walk_source_files(source_dir: &std::path::Path) -> Vec<std::path::
         .into_iter()
         .filter_entry(|e| {
             let n = e.file_name().to_string_lossy();
-            n != ".git" && n != "target" && n != ".vox" && n != "node_modules"
+            n != ".git"
+                && n != "target"
+                && n != ".vox"
+                && n != "node_modules"
+                // Build outputs and agent work dirs pollute the corpus with
+                // minified-bundle "functions" (816 nodes measured 2026-07-02).
+                && n != "dist"
+                && n != "web-dist"
+                && n != ".claude"
         })
         .filter_map(|e| e.ok())
         .filter(|e| e.path().is_file())
@@ -444,6 +452,38 @@ pub fn rebuild_graph(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod walker_tests {
+    use super::*;
+
+    #[test]
+    fn walker_excludes_build_outputs_and_agent_dirs() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mk = |rel: &str| {
+            let p = tmp.path().join(rel);
+            std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+            std::fs::write(&p, "// x").unwrap();
+        };
+        mk("src/a.rs");
+        mk("dist/bundle.js");
+        mk("web-dist/assets/index-XYZ.js");
+        mk(".claude/worktrees/w1/src/b.rs");
+        mk("node_modules/pkg/i.js");
+        mk("target/debug/gen.rs");
+        let files = walk_source_files(tmp.path());
+        let names: Vec<String> = files
+            .iter()
+            .map(|p| {
+                p.strip_prefix(tmp.path())
+                    .unwrap()
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            })
+            .collect();
+        assert_eq!(names, vec!["src/a.rs".to_string()]);
+    }
 }
 
 #[cfg(test)]
