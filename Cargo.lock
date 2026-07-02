@@ -15418,6 +15418,7 @@ dependencies = [
  "tokio",
  "toml 0.8.23",
  "toml_edit 0.22.27",
+ "tracing",
  "vox-bounded-fs",
  "vox-cli-contracts",
  "vox-cli-core",
@@ -15442,6 +15443,7 @@ dependencies = [
  "vox-rule-pack",
  "vox-scaling-policy",
  "vox-secrets",
+ "vox-telemetry",
  "walkdir",
  "which 8.0.4",
 ]

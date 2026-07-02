@@ -10,7 +10,7 @@
 //!
 //! **`--deep` persistence:** Arca tables are written when VoxDB connects (same as before). The legacy
 //! `research_metrics` fallback (`benchmark_event` / `cargo_build_metrics`) runs **only** when
-//! **`VOX_BENCHMARK_TELEMETRY=1`** (see [`crate::benchmark_telemetry::record_opt_with_unit`]) so benchmark
+//! **`VOX_BENCHMARK_TELEMETRY=1`** (see [`vox_cli_ci::benchmark_telemetry::record_opt_with_unit`]) so benchmark
 //! rows stay opt-in. Trust SSOT: `docs/src/architecture/telemetry-trust-ssot.md`.
 
 use std::path::Path;
@@ -445,7 +445,7 @@ pub async fn bench_build_run(
                 .as_ref()
                 .and_then(|d| serde_json::to_value(d).ok())
                 .unwrap_or_else(|| serde_json::json!({}));
-            crate::benchmark_telemetry::record_opt_with_unit(
+            vox_cli_ci::benchmark_telemetry::record_opt_with_unit(
                 "cargo_build_metrics",
                 Some(total_ms as f64 / 1000.0),
                 Some("seconds"),
