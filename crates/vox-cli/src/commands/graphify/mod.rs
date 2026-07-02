@@ -105,6 +105,23 @@ pub enum GraphifyCmd {
         /// (stamps lexical_ingest_sha256).
         #[arg(long)]
         ingest: bool,
+        /// Simulate cutting one dependency edge; print blast_s deltas as JSON.
+        /// Analysis flags are mutually exclusive: stdout carries exactly ONE
+        /// JSON document per invocation (AI-first contract).
+        #[arg(long, value_name = "FROM:TO",
+              conflicts_with_all = ["what_if_split", "top_cuts", "edges"])]
+        what_if_cut: Option<String>,
+        /// Simulate splitting CRATE by moving DEPS to a new leaf crate (JSON).
+        #[arg(long, value_name = "CRATE=DEP1,DEP2",
+              conflicts_with_all = ["top_cuts", "edges"])]
+        what_if_split: Option<String>,
+        /// Rank the N best single-edge cuts by total blast_s saved (JSON).
+        /// workspace-hack targets are excluded (deliberate coupling).
+        #[arg(long, value_name = "N", conflicts_with = "edges")]
+        top_cuts: Option<usize>,
+        /// Emit symbol-weighted dependency edges to graphify-out/edge_weights.json.
+        #[arg(long)]
+        edges: bool,
     },
 }
 
@@ -445,6 +462,85 @@ pub(crate) fn ingest_graph_corpus(
     load_projected_nodes(repo_root, &reg, corpus_id)
 }
 
+/// `{crates:{name:[deps]}}` -> adjacency map (shared by the analysis flags).
+fn adj_from_crate_graph(
+    crate_graph: &serde_json::Value,
+) -> std::collections::HashMap<String, Vec<String>> {
+    let mut adj = std::collections::HashMap::new();
+    if let Some(m) = crate_graph.get("crates").and_then(|v| v.as_object()) {
+        for (c, ds) in m {
+            let deps = ds
+                .as_array()
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|x| x.as_str().map(String::from))
+                        .collect()
+                })
+                .unwrap_or_default();
+            adj.insert(c.clone(), deps);
+        }
+    }
+    adj
+}
+
+/// crate_audit.json rows -> crate name -> compile seconds (string or number).
+fn times_from_audit(audit: &serde_json::Value) -> std::collections::HashMap<String, f64> {
+    let mut out = std::collections::HashMap::new();
+    if let Some(arr) = audit.as_array() {
+        for r in arr {
+            if let (Some(name), Some(cs)) = (
+                r.get("crate").and_then(|v| v.as_str()),
+                r.get("compile_s").and_then(|v| {
+                    v.as_f64()
+                        .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
+                }),
+            ) {
+                out.insert(name.to_string(), cs);
+            }
+        }
+    }
+    out
+}
+
+/// Parse `--what-if-split` spec "crate=d1,d2" -> (crate, deps).
+fn parse_split_spec(spec: &str) -> anyhow::Result<(String, Vec<String>)> {
+    let (krate, deps) = spec
+        .split_once('=')
+        .ok_or_else(|| anyhow::anyhow!("expected CRATE=DEP1,DEP2, got '{spec}'"))?;
+    let deps: Vec<String> = deps
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(String::from)
+        .collect();
+    if krate.trim().is_empty() || deps.is_empty() {
+        anyhow::bail!("expected CRATE=DEP1,DEP2, got '{spec}'");
+    }
+    Ok((krate.trim().to_string(), deps))
+}
+
+/// Atomic write: temp file in the same dir, then rename over the target.
+fn write_atomic(path: &std::path::Path, contents: &str) -> anyhow::Result<()> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("create dir {}", parent.display()))?;
+    }
+    let tmp = path.with_extension("tmp");
+    std::fs::write(&tmp, contents).with_context(|| format!("write {}", tmp.display()))?;
+    std::fs::rename(&tmp, path).with_context(|| format!("rename to {}", path.display()))?;
+    Ok(())
+}
+
+/// AI-first artifact envelope: schema_version + provenance around a result.
+fn with_provenance(generated_by: &str, result: serde_json::Value) -> serde_json::Value {
+    let git_sha = resolve_head_sha().ok().flatten();
+    serde_json::json!({
+        "schema_version": 1,
+        "provenance": { "generated_by": generated_by, "git_sha": git_sha },
+        "result": result,
+    })
+}
+
 fn render_status_line(s: &CorpusStatus) -> String {
     let fresh = if s.is_fresh { "fresh" } else { "stale" };
     let nodes = s
@@ -724,6 +820,10 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
             no_refresh_graph,
             write_summary,
             ingest,
+            what_if_cut,
+            what_if_split,
+            top_cuts,
+            edges,
         } => {
             // 1. Freshen the committed dependency graph from cargo metadata unless suppressed.
             if !no_refresh_graph {
@@ -743,13 +843,98 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
             let audit: serde_json::Value = match std::fs::read_to_string(&audit_path) {
                 Ok(s) => serde_json::from_str(&s).unwrap_or_else(|_| serde_json::json!([])),
                 Err(_) => {
-                    println!(
+                    eprintln!(
                         "note: {} absent — building count-only map (run scripts/crate-build-audit.vox for compile times)",
                         audit_path.display()
                     );
                     serde_json::json!([])
                 }
             };
+
+            // Analysis flags: run the requested analysis and return early —
+            // read-only questions; they skip persisting the map/manifest.
+            // stdout = exactly one JSON document; warnings -> stderr.
+            let analysis_requested =
+                what_if_cut.is_some() || what_if_split.is_some() || top_cuts.is_some() || edges;
+            if analysis_requested {
+                let adj = adj_from_crate_graph(&crate_graph);
+                let times = times_from_audit(&audit);
+                if times.is_empty() {
+                    eprintln!(
+                        "WARNING: no compile times — deltas are dependents-only (blast_s=0). \
+                         Run scripts/crate-build-audit.vox first."
+                    );
+                }
+                if let Some(spec) = &what_if_cut {
+                    let (from, to) = spec
+                        .split_once(':')
+                        .ok_or_else(|| anyhow::anyhow!("expected FROM:TO, got '{spec}'"))?;
+                    let d = vox_graph_reader::what_if::what_if_cut(&adj, &times, from, to)
+                        .map_err(|e| anyhow::anyhow!(e))?;
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&with_provenance(
+                            &format!("vox graphify crate-map --what-if-cut {spec}"),
+                            serde_json::to_value(&d)?
+                        ))?
+                    );
+                }
+                if let Some(spec) = &what_if_split {
+                    let (krate, moved) = parse_split_spec(spec)?;
+                    let d = vox_graph_reader::what_if::what_if_split(&adj, &times, &krate, &moved)
+                        .map_err(|e| anyhow::anyhow!(e))?;
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&with_provenance(
+                            &format!("vox graphify crate-map --what-if-split {spec}"),
+                            serde_json::to_value(&d)?
+                        ))?
+                    );
+                }
+                if let Some(n) = top_cuts {
+                    let exclude: Vec<String> =
+                        vox_graph_reader::what_if::DEFAULT_EXCLUDED_CUT_TARGETS
+                            .iter()
+                            .map(|s| s.to_string())
+                            .collect();
+                    let cuts = vox_graph_reader::what_if::top_cuts(&adj, &times, n, &exclude);
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&with_provenance(
+                            &format!("vox graphify crate-map --top-cuts {n}"),
+                            serde_json::to_value(&cuts)?
+                        ))?
+                    );
+                }
+                if edges {
+                    // Symbol corpus: repo-code-graph, registry-resolved (native schema).
+                    let reg =
+                        load_all_corpora(repo_root).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+                    let corpus = corpus_by_id(&reg, "repo-code-graph")
+                        .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+                    let sg_path = repo_root.join(&corpus.graph_path);
+                    let sg: serde_json::Value = serde_json::from_str(
+                        &std::fs::read_to_string(&sg_path)
+                            .with_context(|| format!("read symbol corpus {}", sg_path.display()))?,
+                    )?;
+                    let mut out = vox_graph_reader::edge_weights::weigh_edges(&sg, &adj, &times);
+                    out["provenance"] = serde_json::json!({
+                        "generated_by": "vox graphify crate-map --edges",
+                        "git_sha": resolve_head_sha().ok().flatten(),
+                        "corpus_path": corpus.graph_path,
+                    });
+                    let out_path = repo_root.join("graphify-out/edge_weights.json");
+                    write_atomic(&out_path, &serde_json::to_string_pretty(&out)?)?;
+                    eprintln!(
+                        "edge weights -> {} ({} edges, {} candidates; corpus partial — candidates only)",
+                        out_path.display(),
+                        out["edges"].as_array().map(|a| a.len()).unwrap_or(0),
+                        out["meta"]["candidate_count"]
+                    );
+                    println!("{}", serde_json::to_string_pretty(&out)?);
+                }
+                return Ok(());
+            }
 
             // 3. Build + persist.
             let map = vox_graph_reader::crate_model::build_crate_map(&crate_graph, &audit);
@@ -829,6 +1014,34 @@ mod tests {
     use super::*;
     use std::fs;
     use std::path::Path;
+
+    #[test]
+    fn parse_split_spec_shapes() {
+        assert_eq!(
+            parse_split_spec("vox-cli=vox-db,vox-forge").unwrap(),
+            (
+                "vox-cli".to_string(),
+                vec!["vox-db".to_string(), "vox-forge".to_string()]
+            )
+        );
+        assert!(parse_split_spec("vox-cli").is_err());
+        assert!(parse_split_spec("=a").is_err());
+        assert!(parse_split_spec("a=").is_err());
+    }
+
+    #[test]
+    fn adj_and_times_extractors() {
+        let g = serde_json::json!({"crates": {"a": ["b"], "b": []}});
+        let adj = adj_from_crate_graph(&g);
+        assert_eq!(adj.get("a").unwrap(), &vec!["b".to_string()]);
+        let audit = serde_json::json!([
+            {"crate": "a", "compile_s": "1.5"},
+            {"crate": "b", "compile_s": 2.5}
+        ]);
+        let t = times_from_audit(&audit);
+        assert_eq!(t.get("a"), Some(&1.5));
+        assert_eq!(t.get("b"), Some(&2.5));
+    }
 
     fn write_registry(repo: &Path) {
         let dir = repo.join("contracts/retrieval");
