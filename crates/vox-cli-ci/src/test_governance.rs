@@ -7,12 +7,12 @@ use anyhow::{Context, Result};
 use serde::Serialize;
 use vox_bounded_fs::read_utf8_path_capped;
 
-use vox_cli_ci::test_runtime_report::{
+use crate::test_runtime_report::{
     TestRuntimeReport, compare_runtime_reports, parse_runtime_report_json,
     retry_flaky_candidate_count,
 };
-use vox_cli_ci::cmd_enums::GovernanceGateMode;
-use vox_cli_ci::test_inventory::{
+use crate::cmd_enums::GovernanceGateMode;
+use crate::test_inventory::{
     IgnoredTestGovernanceFinding, IgnoredTestGovernanceIssue, TestInventoryReport,
     scan_ignored_test_governance_findings,
 };
@@ -28,7 +28,7 @@ struct IgnoredTestAgeJson {
     findings: Vec<IgnoredTestGovernanceFinding>,
 }
 
-pub(crate) fn run_ignored_test_age(
+pub fn run_ignored_test_age(
     root: &Path,
     mode: GovernanceGateMode,
     inventory: Option<PathBuf>,
@@ -122,7 +122,7 @@ struct FlakeBudgetJson {
     exceeds_budget: bool,
 }
 
-pub(crate) fn run_flake_budget(
+pub fn run_flake_budget(
     root: &Path,
     mode: GovernanceGateMode,
     report_json: Option<PathBuf>,
@@ -141,7 +141,7 @@ pub(crate) fn run_flake_budget(
         (None, Some(p)) => {
             let xml =
                 read_utf8_path_capped(p).with_context(|| format!("read JUnit {}", p.display()))?;
-            vox_cli_ci::test_runtime_report::build_report(&xml, top)?
+            crate::test_runtime_report::build_report(&xml, top)?
         }
         (Some(_), Some(_)) => anyhow::bail!("pass only one of --report-json or --junit"),
         (None, None) => {
@@ -194,10 +194,10 @@ struct RuntimeRegressJson {
     absolute_ms_threshold: u64,
     regression_count: usize,
     missing_in_current_top_count: usize,
-    regressions: vox_cli_ci::test_runtime_report::RuntimeRegressReport,
+    regressions: crate::test_runtime_report::RuntimeRegressReport,
 }
 
-pub(crate) fn run_runtime_regress(
+pub fn run_runtime_regress(
     mode: GovernanceGateMode,
     current: PathBuf,
     baseline: PathBuf,

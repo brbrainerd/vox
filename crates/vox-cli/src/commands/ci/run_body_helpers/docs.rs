@@ -586,7 +586,7 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     ds!("contracts_index", contracts_index::run(root))?;
     ds!(
         "docs_reality_audit",
-        crate::commands::ci::docs_reality_audit::run_verify(root)
+        vox_cli_ci::docs_reality_audit::run_verify(root)
     )?;
     ds!("exec_policy_contract", exec_policy_contract::run(root))?;
     ds!(

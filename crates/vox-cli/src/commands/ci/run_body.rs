@@ -82,7 +82,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             }
         }
         CiCmd::ConfigRegistryParity { update_baseline } => {
-            super::config_registry_parity::run(update_baseline)
+            vox_cli_ci::config_registry_parity::run(update_baseline)
         }
         CiCmd::ConfigGuiCodegen { check, fields } => {
             if fields {
@@ -252,9 +252,9 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             }
         },
         CiCmd::DocsRealityAudit { cmd: sub } => match sub {
-            DocsRealityAuditCmd::Verify => super::docs_reality_audit::run_verify(&root),
+            DocsRealityAuditCmd::Verify => vox_cli_ci::docs_reality_audit::run_verify(&root),
             DocsRealityAuditCmd::Metrics { write } => {
-                super::docs_reality_audit::run_metrics(&root, write)
+                vox_cli_ci::docs_reality_audit::run_metrics(&root, write)
             }
         },
         CiCmd::EvalMatrix { cmd: sub } => match sub {
@@ -676,7 +676,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             mode,
             inventory,
             json,
-        } => super::test_governance::run_ignored_test_age(&root, mode, inventory, json),
+        } => vox_cli_ci::test_governance::run_ignored_test_age(&root, mode, inventory, json),
         CiCmd::FlakeBudget {
             mode,
             report_json,
@@ -684,7 +684,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             top,
             max_candidates,
             json,
-        } => super::test_governance::run_flake_budget(
+        } => vox_cli_ci::test_governance::run_flake_budget(
             &root,
             mode,
             report_json,
@@ -700,7 +700,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             percent,
             absolute_ms,
             json,
-        } => super::test_governance::run_runtime_regress(
+        } => vox_cli_ci::test_governance::run_runtime_regress(
             mode,
             current,
             baseline,
