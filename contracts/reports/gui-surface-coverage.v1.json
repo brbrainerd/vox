@@ -353,6 +353,7 @@
     "graph rebuild",
     "graph refresh",
     "graph status",
+    "graph why-rebuilt",
     "init",
     "llm",
     "llm prompt",

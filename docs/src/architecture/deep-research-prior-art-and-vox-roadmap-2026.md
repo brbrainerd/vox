@@ -138,7 +138,7 @@ Canonical retrieval policy and corpus matrix: [`search-retrieval-ssot-2026.md`](
 
 | Source | In repo today | Slot | Secrets / env |
 |--------|----------------|------|----------------|
-| **SearXNG** | Tier 2 in [`web_dispatcher.rs`](../../../crates/vox-search/src/web_dispatcher.rs); sidecar via `vox research up` ([`research/infra.rs`](../../../crates/vox-cli/src/commands/research/infra.rs)) | Primary self-hosted web tier | `VOX_SEARCH_SEARXNG_URL` etc. via [`SearchPolicy::from_env`](../../../crates/vox-search/src/policy.rs) |
+| **SearXNG** | Tier 2 in [`web_dispatcher.rs`](../../../crates/vox-search/src/web_dispatcher.rs); sidecar via `vox research up` ([`research/infra.rs`](../../../crates/vox-cli-research/src/infra.rs)) | Primary self-hosted web tier | `VOX_SEARCH_SEARXNG_URL` etc. via [`SearchPolicy::from_env`](../../../crates/vox-search/src/policy.rs) |
 | **DuckDuckGo** | Tier 3 fallback | Free fallback when SearXNG empty/fails | Policy toggle `duckduckgo_fallback_enabled` |
 | **Tavily** | Tier 4 when configured | Low-friction ranked snippets | [`TavilyApiKey`](../../../crates/vox-secrets/src/spec/ids.rs) + `VOX_SEARCH_TAVILY_*` — see Tavily SSOT |
 | **Wikipedia / Wikidata** | Not wired | Tier 1.5 high-trust factual blurbs | Future: register read-only HTTP (likely no secret); add env registry row in [`contracts/config/env-vars.v1.yaml`](../../../contracts/config/env-vars.v1.yaml) if introducing `VOX_SEARCH_WIKI_*` toggles |
@@ -171,7 +171,7 @@ Canonical retrieval policy and corpus matrix: [`search-retrieval-ssot-2026.md`](
 | MCP `vox_memory_search` | Shipped — [`handlers_memory.rs`](../../../crates/vox-orchestrator-mcp/src/memory_tools/handlers_memory.rs) |
 | MCP **`vox_research_run`** | **Shipped** (this workstream) |
 | CLI **`vox research run`** | **Shipped** (this workstream) |
-| CLI `vox research eval` | Shipped — [`eval.rs`](../../../crates/vox-cli/src/commands/research/eval.rs); golden queries extended |
+| CLI `vox research eval` | Shipped — [`eval.rs`](../../../crates/vox-cli-research/src/eval.rs); golden queries extended |
 
 ### 5.3 `run_search_with_verification` note
 
@@ -223,7 +223,7 @@ Canonical retrieval policy and corpus matrix: [`search-retrieval-ssot-2026.md`](
 | `cargo test -p vox-orchestrator` | Unit + integration smoke |
 | `cargo test -p vox-search` | Retrieval regression |
 | `vox research run "..." --json` | Manual end-to-end (needs network / keys) |
-| `vox research eval` | Harness writes metrics rows — extend golden queries in [`eval.rs`](../../../crates/vox-cli/src/commands/research/eval.rs) |
+| `vox research eval` | Harness writes metrics rows — extend golden queries in [`eval.rs`](../../../crates/vox-cli-research/src/eval.rs) |
 | `vox ci command-compliance` / `vox ci operations-verify` | Contract hygiene after catalog edits |
 
 ---
