@@ -108,15 +108,15 @@ fn token_present(headers: &HeaderMap, query: Option<&str>, expected: &str) -> bo
         }
     }
     // Check cookie.
-    if let Some(cookie_hdr) = headers.get(header::COOKIE) {
-        if let Ok(cookie_str) = cookie_hdr.to_str() {
-            for part in cookie_str.split(';') {
-                let part = part.trim();
-                if let Some(val) = part.strip_prefix("vox_share_token=") {
-                    if val == expected {
-                        return true;
-                    }
-                }
+    if let Some(cookie_hdr) = headers.get(header::COOKIE)
+        && let Ok(cookie_str) = cookie_hdr.to_str()
+    {
+        for part in cookie_str.split(';') {
+            let part = part.trim();
+            if let Some(val) = part.strip_prefix("vox_share_token=")
+                && val == expected
+            {
+                return true;
             }
         }
     }
