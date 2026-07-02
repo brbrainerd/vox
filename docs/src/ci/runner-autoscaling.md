@@ -10,6 +10,9 @@ training_rationale: "Documents the runner autoscaler design + rollout so the sin
 
 # Self-Hosted CI Runner Autoscaling
 
+Queue clearing, the agent-facing queue signal, and the async failure signal
+are documented in [local-first-ci](local-first-ci.md).
+
 ## Why
 
 The merge gate (required check `Check, Build, and Test (Rust)`, plus most of
