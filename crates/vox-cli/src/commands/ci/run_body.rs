@@ -611,6 +611,23 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         }
         CiCmd::RunnerPreflight => super::runner_scale::run_preflight(),
         CiCmd::RunnerStatus => super::runner_scale::run_status(),
+        CiCmd::Queue {
+            json,
+            brief,
+            from_snapshot,
+            clear,
+            dry_run,
+            ttl_mins,
+            hook_guard,
+        } => super::queue::run(super::queue::QueueArgs {
+            json,
+            brief,
+            from_snapshot,
+            clear,
+            dry_run,
+            ttl_mins,
+            hook_guard,
+        }),
         CiCmd::JobTimings {
             run_id,
             threshold_mins,
