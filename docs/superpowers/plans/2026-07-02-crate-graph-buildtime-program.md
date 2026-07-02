@@ -470,9 +470,13 @@ mod tests {
     }
 
     #[test]
-    fn undeclared_cross_crate_refs_counted_in_meta() {
+    fn declared_and_undeclared_ref_counters_in_meta() {
         let out = weigh_edges(&corpus(), &adj(), &HashMap::new());
-        assert_eq!(out["meta"]["refs_not_in_dep_graph"], 1); // ccc -> bbb
+        // f0->callee, f1->callee, f2->Other are declared cross-crate refs;
+        // ccc->bbb is cross-crate but undeclared. Both counters are needed so
+        // the Phase 2 low-confidence gate can compute the ratio.
+        assert_eq!(out["meta"]["refs_in_dep_graph"], 3);
+        assert_eq!(out["meta"]["refs_not_in_dep_graph"], 1);
     }
 
     #[test]
@@ -539,6 +543,7 @@ pub fn weigh_edges(
 
     // Distinct target symbol IDs per (from_crate, to_crate), resolved edges only.
     let mut used: HashMap<(String, String), BTreeSet<String>> = HashMap::new();
+    let mut refs_in_dep_graph = 0u64;
     let mut refs_not_in_dep_graph = 0u64;
     let links = corpus
         .get("links")
@@ -566,6 +571,7 @@ pub fn weigh_edges(
                 .map(|deps| deps.iter().any(|d| d == ct))
                 .unwrap_or(false);
             if declared {
+                refs_in_dep_graph += 1;
                 used.entry((cs.to_string(), ct.to_string()))
                     .or_default()
                     .insert(t.to_string());
@@ -629,6 +635,7 @@ pub fn weigh_edges(
         "meta": {
             "crates_with_symbols": node_count.len(),
             "low_visibility_min": LOW_VISIBILITY_MIN,
+            "refs_in_dep_graph": refs_in_dep_graph,
             "refs_not_in_dep_graph": refs_not_in_dep_graph,
             "candidate_count": candidates,
             "note": "corpus is partial (resolver drops ambiguous names); zero-weight = candidate only",
@@ -675,8 +682,12 @@ Create `crates/vox-graph-reader/tests/fixtures/fingerprint_mixed.log` (hand-auth
    0.080000000s  INFO prepare_target{force=false package_id=vox-term v0.1.0 (path+file:///C:/Users/Owner/vox/crates/vox-term) target="vox-term"}: cargo::core::compiler::fingerprint:     dirty: the rustflags changed
    0.090000000s  INFO prepare_target{force=false package_id=vox-ast v0.1.0 (path+file:///C:/Users/Owner/vox/crates/vox-ast) target="vox-ast"}: cargo::core::compiler::fingerprint:     dirty: the file `crates/vox-ast/src/lib.rs` has changed (1970-01-01 vs fingerprint)
    0.100000000s  INFO prepare_target{force=false package_id=vox-weird v0.1.0 (path+file:///C:/Users/Owner/vox/crates/vox-weird) target="vox-weird"}: cargo::core::compiler::fingerprint:     dirty: some future cargo reason we have never seen
+   0.110000000s  INFO prepare_target{force=false package_id=path+file:///C:/Users/Owner/vox/crates/vox-journal#0.1.0 target="vox-journal"}: cargo::core::compiler::fingerprint:     dirty: the list of features changed
+   0.120000000s  INFO prepare_target{force=false package_id=path+file:///C:/Users/Owner/vox/crates/vox-config#vox-config@0.1.0 target="vox-config"}: cargo::core::compiler::fingerprint:     dirty: the env variable VOX_CONFIG_HOME changed
 totally unrelated stderr line that must be ignored
 ```
+
+The last two dirty lines use the **modern PackageIdSpec** format (`path+file:///…#0.1.0` and `…#name@ver`) that cargo ≥1.77 (this repo: 1.96) emits in tracing spans — the parser must handle both this and the legacy `package_id=<name> <version>` shape, or every real capture yields URL-garbage crate names.
 
 - [ ] **Step 2: Write the failing tests**
 
@@ -747,6 +758,17 @@ mod tests {
         let per = per_crate(&causes);
         assert_eq!(*per.get("vox-db").unwrap(), CauseClass::FeatureDrift);
     }
+
+    #[test]
+    fn modern_package_id_spec_yields_crate_names_not_urls() {
+        // cargo >=1.77 span format: package_id=path+file:///…#0.1.0 (dir name
+        // is the crate) and …#name@ver (explicit name). Never a URL as krate.
+        let causes = parse_fingerprint_log(MIXED);
+        let per = per_crate(&causes);
+        assert_eq!(*per.get("vox-journal").unwrap(), CauseClass::FeatureDrift);
+        assert_eq!(*per.get("vox-config").unwrap(), CauseClass::EnvChange);
+        assert!(causes.iter().all(|c| !c.krate.contains("file:///")));
+    }
 }
 ```
 
@@ -806,14 +828,27 @@ pub struct Summary {
     pub unknown_rate: f64,
 }
 
-/// Extract the package name: prefer the tracing span field `package_id=<name> <ver>`,
-/// fall back to the token after "fingerprint dirty|error for ".
+/// Extract the package name from the tracing span field `package_id=…`.
+/// Handles BOTH formats cargo has emitted:
+/// - legacy: `package_id=vox-db v0.1.0 (path+file:///…)`
+/// - modern PackageIdSpec (cargo >=1.77): `package_id=path+file:///…/vox-db#0.1.0`
+///   or `package_id=path+file:///…#vox-db@0.1.0`
+/// Falls back to the token after "fingerprint dirty|error for ".
 fn extract_package(line: &str) -> String {
     if let Some(i) = line.find("package_id=") {
-        let rest = &line[i + "package_id=".len()..];
-        if let Some(tok) = rest.split_whitespace().next() {
-            return tok.to_string();
+        let tok = line[i + "package_id=".len()..]
+            .split_whitespace()
+            .next()
+            .unwrap_or("?");
+        if let Some((base, frag)) = tok.split_once('#') {
+            return match frag.split_once('@') {
+                // "…#vox-db@0.1.0" -> explicit name.
+                Some((name, _)) => name.to_string(),
+                // "…/vox-db#0.1.0" -> dir name is the crate name.
+                None => base.rsplit('/').next().unwrap_or("?").to_string(),
+            };
         }
+        return tok.to_string();
     }
     for marker in ["fingerprint dirty for ", "fingerprint error for "] {
         if let Some(i) = line.find(marker) {
@@ -920,7 +955,7 @@ pub fn summarize(causes: &[RebuildCause]) -> Summary {
 - [ ] **Step 5: Run tests**
 
 Run: `cargo test -p vox-graph-reader rebuild_causes 2>&1 | tail -5`
-Expected: `5 passed`
+Expected: `6 passed`
 
 - [ ] **Step 6: Lint + commit**
 
@@ -1173,14 +1208,18 @@ Add fields after `ingest`:
 
 ```rust
         /// Simulate cutting one dependency edge; print blast_s deltas as JSON.
-        #[arg(long, value_name = "FROM:TO")]
+        /// Analysis flags are mutually exclusive: stdout carries exactly ONE
+        /// JSON document per invocation (AI-first contract).
+        #[arg(long, value_name = "FROM:TO",
+              conflicts_with_all = ["what_if_split", "top_cuts", "edges"])]
         what_if_cut: Option<String>,
         /// Simulate splitting CRATE by moving DEPS to a new leaf crate (JSON).
-        #[arg(long, value_name = "CRATE=DEP1,DEP2")]
+        #[arg(long, value_name = "CRATE=DEP1,DEP2",
+              conflicts_with_all = ["top_cuts", "edges"])]
         what_if_split: Option<String>,
         /// Rank the N best single-edge cuts by total blast_s saved (JSON).
         /// workspace-hack targets are excluded (deliberate coupling).
-        #[arg(long, value_name = "N")]
+        #[arg(long, value_name = "N", conflicts_with = "edges")]
         top_cuts: Option<usize>,
         /// Emit symbol-weighted dependency edges to graphify-out/edge_weights.json.
         #[arg(long)]
@@ -1405,10 +1444,11 @@ cargo test -p vox-cli parse_split_spec adj_and_times 2>&1 | tail -5   # PASS
 cargo clippy -p vox-cli -- -D warnings 2>&1 | tail -5                  # clean
 cd C:/Users/Owner/vox
 cargo run -p vox-cli -- graphify crate-map --no-refresh-graph --top-cuts 5 > graphify-out/topcuts_smoke.json 2>/dev/null; python -c "import json;json.load(open('graphify-out/topcuts_smoke.json'))" && echo STDOUT_IS_PURE_JSON
-cargo run -p vox-cli -- graphify crate-map --no-refresh-graph --what-if-split vox-cli=vox-db 2>&1 | head -20
+cargo run -p vox-cli -- graphify crate-map --no-refresh-graph --what-if-cut vox-cli:vox-db 2>/dev/null | head -20
+cargo run -p vox-cli -- graphify crate-map --no-refresh-graph --top-cuts 5 --edges 2>&1 | tail -2   # must FAIL: flags conflict
 ```
 
-Expected: `STDOUT_IS_PURE_JSON`; the split smoke prints a provenance-wrapped delta (or a clear `does not depend on` error if vox-cli has no direct vox-db edge — check `contracts/ci/crate-graph.v1.json` for a real edge and retry; exercising the path is the point). Delete the temp file after.
+Expected: `STDOUT_IS_PURE_JSON`; the cut smoke prints a provenance-wrapped delta (`vox-cli -> vox-db` is a verified direct edge, 2026-07-02); the third command errors with a clap conflict message. Delete `topcuts_smoke.json` after.
 
 - [ ] **Step 5: Commit**
 
@@ -1655,7 +1695,9 @@ vox graphify crate-map --no-refresh-graph --edges > /dev/null   # writes edge_we
 ```
 
 (`--no-refresh-graph` is correct here because Step 1 already regenerated the graph.)
-Gate: `edge_weights.json` `meta.refs_not_in_dep_graph` — if it exceeds ~20% of total cross-crate refs, treat the whole weight table as low-confidence and say so in the proposal.
+Gate: in `edge_weights.json` meta, compute
+`refs_not_in_dep_graph / (refs_in_dep_graph + refs_not_in_dep_graph)` — above ~0.20,
+treat the whole weight table as low-confidence and say so in the proposal.
 
 - [ ] **Step 6: Targeted what-ifs**
 
@@ -1664,6 +1706,36 @@ For each of the top-5 blast crates in `CRATE_BUILD_AUDIT.md` (expect vox-db near
 - [ ] **Step 7: Zero-weight verification (checks only, reverted)**
 
 For up to 5 candidates (rows with `status` present — already excludes low-visibility and workspace-hack): remove the dep from the consumer's `Cargo.toml`, run `cargo check -p <consumer> --all-targets` (dev/test/bench targets included; add `--all-features` when the crate compiles with it), record PASS (truly unused) or FAIL (blind spot — note why: macro/derive/re-export/feature-gate), then `git checkout -- <Cargo.toml> Cargo.lock`. Results go in the evidence pack; no removals land in this program.
+
+- [ ] **Step 8: Write the evidence index (single agent entry point)**
+
+Hand-write `graphify-out/evidence_index.v1.json` — one manifest a future agent (or the
+Phase 3 writer) reads first instead of knowing six filenames:
+
+```json
+{
+  "schema_version": 1,
+  "git_sha": "<HEAD at capture>",
+  "captured": "<date>",
+  "artifacts": {
+    "rebuild_causes": "graphify-out/rebuild_causes.json",
+    "edge_weights": "graphify-out/edge_weights.json",
+    "top_cuts": "graphify-out/top_cuts.json",
+    "what_ifs": ["graphify-out/whatif_<name>.json", "..."],
+    "crate_audit": "graphify-out/crate_audit.json",
+    "raw_fingerprint_log": "graphify-out/rebuild_fingerprint.log"
+  },
+  "gates": {
+    "timings_coverage": "<pct>",
+    "corpus_coverage": "<pct>",
+    "refs_not_in_dep_graph_ratio": "<ratio>",
+    "dep_kinds": "normal+build+dev (CI-shaped blast)"
+  },
+  "zero_weight_verification": [
+    {"edge": "<from>:<to>", "result": "PASS|FAIL", "blind_spot": "<reason or null>"}
+  ]
+}
+```
 
 ---
 
@@ -1701,7 +1773,27 @@ Required structure:
 4. **Stated limitations** — split savings are upper bounds; corpus partial (resolver drops ambiguous names); timings single-machine; dependency-kind semantics as recorded in Task 9 Step 1.
 5. **Machine-readable appendix** — the ranked recommendations duplicated as a fenced `json` block (`schema_version: 1`, same fields as the table) so future agents consume the proposal without prose-parsing.
 
-Optional (requires explicit user opt-in for multi-agent orchestration): before finalizing, adversarially verify each top recommendation with independent skeptic subagents ("try to refute: cutting X→Y saves Zs and is safe") and record verdicts in the table.
+Optional (requires explicit user opt-in for multi-agent orchestration, e.g. "use a workflow"): before finalizing, adversarially verify each top recommendation with independent skeptics and record verdicts in the table. Ready-to-adapt workflow:
+
+```javascript
+export const meta = {
+  name: 'verify-crate-recs',
+  description: 'Adversarially verify each crate-restructuring recommendation',
+  phases: [{ title: 'Refute' }],
+}
+const VERDICT = { type: 'object', required: ['refuted', 'reason'],
+  properties: { refuted: { type: 'boolean' }, reason: { type: 'string' } } }
+// args = the machine-readable recommendations array from the proposal appendix.
+const verified = await parallel(args.map(rec => () =>
+  parallel(['correctness', 'hidden-usage (macros/derives/re-exports)', 'CI-vs-prod dep kind'].map(lens => () =>
+    agent(`Repo C:/Users/Owner/vox. Try to REFUTE via the ${lens} lens: "${rec.summary}". ` +
+          `Evidence: graphify-out/evidence_index.v1.json. Read code; default refuted=true if uncertain.`,
+      { phase: 'Refute', schema: VERDICT })))
+    .then(vs => ({ ...rec, survives: vs.filter(Boolean).filter(v => !v.refuted).length >= 2 }))))
+return verified.filter(Boolean)
+```
+
+Without opt-in, the main session verifies the top recommendations serially with the same three lenses.
 
 - [ ] **Step 3: Regenerate doc indexes if required, commit**
 
@@ -1728,3 +1820,10 @@ Every spec deliverable exists: `rebuild_causes.json`, `edge_weights.json`, `top_
 - **Phase 2 order fixed**: regen dependency graph first (rev 1 analyzed a possibly-stale committed snapshot); corpus force-rebuild (refresh --auto would skip picking up the new extractor); verification uses `--all-targets`.
 - Type consistency re-checked: `top_cuts(adj, self_s, n, exclude_targets)` matches between Tasks 1 and 6; `weigh_edges(corpus, adj, self_s)` between Tasks 2 and 6; `CauseClass`/`parse_fingerprint_log`/`summarize`/`per_crate` between Tasks 3 and 7; `write_atomic`/`with_provenance` defined in Task 6, used in Task 7.
 - Known accepted risk: fingerprint fixture lines are approximations; the substring parser routes drift to `unknown` (loud, capped at 20%), and Task 9 Step 4 feeds real lines back into the fixture via TDD.
+
+**Rev 3 (second adversarial pass) additionally fixed:**
+- `extract_package` handled only the legacy `package_id=<name> <ver>` span format; cargo 1.96 (this repo) emits modern PackageIdSpec (`path+file:///…#name@ver`), so every REAL capture would have produced URL-garbage crate names while the fixture passed — fixture now contains both modern shapes and a test pins "never a URL".
+- Analysis flags are now clap-mutually-exclusive: two flags would have printed two JSON documents on stdout, silently breaking the pure-stdout contract; a smoke asserts the conflict errors.
+- `edge_weights` meta gained `refs_in_dep_graph` — the rev-2 low-confidence gate prescribed a ratio that wasn't computable from the emitted counters.
+- Smokes use the verified direct edge `vox-cli -> vox-db` instead of "pick an edge and retry".
+- Phase 2 ends with `evidence_index.v1.json` (single agent entry point over the artifact set); Phase 3's optional adversarial verification now includes a ready-to-adapt Workflow script (opt-in) with three refutation lenses (correctness, hidden-usage, CI-vs-prod dep kind).

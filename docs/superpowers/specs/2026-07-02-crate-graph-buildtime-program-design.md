@@ -115,6 +115,11 @@ into exactly one cause. `--log <path>` parses a previously captured log instead.
 | `file_dirty` | source file newer than fingerprint (legitimate) |
 | `unknown` | unrecognized log shape — raw line preserved verbatim, never guessed |
 
+The parser handles both `package_id` span formats cargo has emitted: legacy
+`package_id=<name> <version>` and modern PackageIdSpec
+(`path+file:///…/name#0.1.0` / `…#name@ver`, cargo ≥1.77 — this repo runs 1.96), so
+real captures yield crate names, never URLs.
+
 Stated limitations (printed in output): the diagnostic observes **check units**, not
 build/link units — pain that only exists at link time (e.g. relinking the vox binary)
 is invisible here; and the per-crate collapse keeps the first specific cause, so a
@@ -156,9 +161,9 @@ False-positive controls (each measured against the real corpus):
   labeled "candidate — verify by removal": macros, trait impls, derives, re-exports,
   and resolver-dropped ambiguous calls are invisible. Verification = remove the dep
   and `cargo check -p <consumer> --all-targets` (dev/test/bench targets included).
-- Output `meta` reports corpus coverage stats and the count of cross-crate symbol refs
-  that have no declared dep edge (`refs_not_in_dep_graph`) — a high ratio flags
-  resolution noise and downgrades confidence in the whole table.
+- Output `meta` reports corpus coverage stats and BOTH cross-crate ref counters
+  (`refs_in_dep_graph`, `refs_not_in_dep_graph`) so the noise ratio is computable —
+  above ~0.20 undeclared, the whole table is labeled low-confidence.
 
 Low `symbols_used` × high `blast_s(B)` → top cut/shim candidates ("A uses 2 items of
 B; move them or extract a types crate").
@@ -188,7 +193,8 @@ Vox's tooling is agent-facing first. Every artifact this program emits obeys:
 
 1. **Pure-stdout JSON**: when an analysis flag is used, stdout carries exactly one JSON
    document; all notes/warnings go to stderr. `vox graphify crate-map --top-cuts 20 >
-   file.json` must always yield valid JSON.
+   file.json` must always yield valid JSON. Enforced structurally: the analysis flags
+   are mutually exclusive at the clap level, so two documents can never interleave.
 2. **`schema_version` + provenance** on every artifact:
    `{"schema_version": 1, "provenance": {"generated_by": "<argv>", "git_sha": "...",
    "corpus_digest": "..."}}` — an agent (or a future run) can tell exactly what
@@ -201,6 +207,10 @@ Vox's tooling is agent-facing first. Every artifact this program emits obeys:
 5. The Phase 3 proposal doc ends with a **machine-readable appendix**: the ranked
    recommendations duplicated as a fenced JSON block, so future agents consume the
    proposal without prose-parsing.
+6. **One entry point**: Phase 2 ends by writing
+   `graphify-out/evidence_index.v1.json` — a manifest of every artifact, the sanity
+   gate results, and the dep-kind semantics, so an agent starts from one file instead
+   of tribal knowledge of six filenames.
 
 ## Phases and deliverables
 
