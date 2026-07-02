@@ -196,4 +196,55 @@ mod tests {
             serde_json::json!({"anyOf": [{"type": "string"}, {"type": "null"}]})
         );
     }
+
+    #[test]
+    fn decimal_scalar_maps_to_string() {
+        let td = HirTypeDef {
+            id: DefId(4),
+            name: "PriceDto".into(),
+            variants: vec![],
+            fields: vec![("amount".into(), HirType::Decimal)],
+            is_pub: true,
+            span: Span::new(0, 0),
+        };
+        let _guard = enter_module_types(std::slice::from_ref(&td));
+        let schema = schema_for("PriceDto").expect("schema");
+        assert_eq!(
+            schema["properties"]["amount"],
+            serde_json::json!({"type": "string"})
+        );
+    }
+
+    #[test]
+    fn self_referential_type_terminates_at_depth_cap() {
+        // `Node` has a field of its own type name, so naive recursion would
+        // never terminate. `MAX_SCHEMA_DEPTH` must cut it off.
+        let node = HirTypeDef {
+            id: DefId(5),
+            name: "Node".into(),
+            variants: vec![],
+            fields: vec![
+                ("value".into(), HirType::Named("int".into())),
+                ("next".into(), HirType::Named("Node".into())),
+            ],
+            is_pub: true,
+            span: Span::new(0, 0),
+        };
+        let types = vec![node];
+        let _guard = enter_module_types(&types);
+
+        // Must return promptly (not hang) and produce a schema.
+        let schema = schema_for("Node").expect("schema");
+
+        // Walk down the `next` chain from the top-level object (built at
+        // depth 0). Each hop recurses into `schema_for_typedef` at depth+1;
+        // the hop that would recurse at `depth == MAX_SCHEMA_DEPTH` must hit
+        // the catch-all `{}` instead. That is the (MAX_SCHEMA_DEPTH + 1)-th hop.
+        let mut current = &schema;
+        for _ in 0..=MAX_SCHEMA_DEPTH {
+            assert_eq!(current["type"], serde_json::json!("object"));
+            current = &current["properties"]["next"];
+        }
+        assert_eq!(*current, serde_json::json!({}));
+    }
 }
