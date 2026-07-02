@@ -1,3 +1,4 @@
+#![allow(clippy::empty_line_after_doc_comments)]
 /// Wave-19 adversarial tests for vox-orchestrator-queue.
 ///
 /// Targets: resource.rs, locks/refresh.rs, sync_lock.rs, projection.rs,

@@ -1,7 +1,7 @@
 /// Phase 4 — Check D extended to ALL env var reads, not just VOX_* names.
 /// Covers bare non-VOX reads (DB_PASSWORD), wrapper helpers (env_flag),
 /// env::var_os, and the THIRD_PARTY_ALLOWLIST (HOME, PATH, etc.).
-use vox_cli::commands::ci::config_hygiene::{THIRD_PARTY_ALLOWLIST, check_env_reads_registered};
+use vox_cli_ci::config_hygiene::{THIRD_PARTY_ALLOWLIST, check_env_reads_registered};
 
 fn empty_registered() -> std::collections::HashSet<String> {
     std::collections::HashSet::new()

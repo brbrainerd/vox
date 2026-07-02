@@ -1,3 +1,4 @@
+#![allow(unsafe_code)] // test-only std::env::set_var (unsafe on edition 2024)
 //! Graphify corpus registry + freshness assessment (`vox-config::graphify`).
 
 use std::fs;

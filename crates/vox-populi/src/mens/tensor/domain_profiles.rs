@@ -306,7 +306,7 @@ base:
             .filter(|(_, p)| {
                 p.base
                     .as_ref()
-                    .map_or(false, |b| b.method == TrainMethod::Qlora)
+                    .is_some_and(|b| b.method == TrainMethod::Qlora)
             })
             .map(|(k, _)| k.as_str())
             .collect();

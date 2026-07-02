@@ -265,7 +265,7 @@ impl AgentQueue {
 #[cfg(test)]
 mod semcov_drain_tests {
     use super::*;
-    use crate::types::{AgentId, AgentTask, TaskId, TaskPriority, TaskStatus};
+    use crate::types::{AgentId, AgentTask, TaskId, TaskPriority};
 
     fn task(id: u64) -> AgentTask {
         AgentTask::new(TaskId(id), format!("t{id}"), TaskPriority::Normal, vec![])

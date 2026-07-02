@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Behavior tests for `#[derive(VoxConfig)]`. The test struct uses a *manual*
 //! Default (like OrchestratorConfig) so the divergence guard is meaningful.
 
@@ -88,7 +89,7 @@ fn default_matches_config_default_attrs() {
     // C-divergence guard: #[config(default=X)] MUST equal the field's Default value.
     let d = TestDomain::default();
     assert_eq!(d.max_things, 3);
-    assert_eq!(d.verbose, false);
+    assert!(!d.verbose);
     assert_eq!(d.log_level, "info");
 }
 

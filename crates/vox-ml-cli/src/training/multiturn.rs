@@ -1,3 +1,4 @@
+#![allow(clippy::manual_strip)]
 //! Multi-turn conversation templates.
 
 /// Returns true if the first actual declaration (ignoring comments/whitespace) is a function.

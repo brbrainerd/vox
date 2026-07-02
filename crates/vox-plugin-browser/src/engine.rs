@@ -842,7 +842,7 @@ mod semcov_wave9_tests {
         let html = format!("<html><body>{text}</body></html>");
         let stripped = strip_html_tags(&html);
         // With max_chars=10 (below floor of 256): full text returned because floor kicks in
-        let max_chars = 10_usize.max(256); // mirrors internal logic
+        let max_chars = 256; // mirrors internal logic
         let char_count = stripped.chars().count();
         if char_count <= max_chars {
             // returned as-is: no truncation

@@ -277,7 +277,7 @@ mod tests {
             .iter()
             .map(|t| t.name.as_str())
             .collect();
-        assert!(names.iter().any(|n| *n == "read_file"));
+        assert!(names.contains(&"read_file"));
         assert!(
             result
                 .surface

@@ -52,7 +52,7 @@ mod tests {
     #[test]
     fn redact_masks_known_secrets_keeps_clean_text() {
         assert_eq!(redact("just text").0, "just text");
-        assert_eq!(redact("just text").1, false);
+        assert!(!redact("just text").1);
 
         let (masked, flagged) = redact("token sk-ABC123DEF456GHI789");
         assert!(flagged);

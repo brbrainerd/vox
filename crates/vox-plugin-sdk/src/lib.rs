@@ -176,8 +176,7 @@ mod semcov_wave33_tests {
             RString::from("error-plugin")
         }
         fn shutdown(&self) -> RResult<(), RBoxError> {
-            RResult::RErr(RBoxError::new(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            RResult::RErr(RBoxError::new(std::io::Error::other(
                 "intentional shutdown failure",
             )))
         }
@@ -254,6 +253,7 @@ mod semcov_wave33_tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_constants)] // deliberate: guards against a future const reversal
     fn abi_range_invariant_floor_le_ceiling() {
         // Catches: accidental reversal of constants (floor bumped past ceiling) which would
         // make every ABI version rejected without any compiler error

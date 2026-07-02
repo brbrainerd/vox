@@ -4,9 +4,7 @@
 /// in the same file — i.e., fine-grained `check|file|env_var` keys are used for
 /// this check, not the coarse `check|file` keys used by other checks.
 use std::collections::BTreeSet;
-use vox_cli::commands::ci::config_hygiene::{
-    baseline_key, check_env_reads_registered, unbaselined,
-};
+use vox_cli_ci::config_hygiene::{baseline_key, check_env_reads_registered, unbaselined};
 
 #[test]
 fn per_var_baseline_new_unregistered_var_in_dirty_file_fails() {
@@ -50,7 +48,7 @@ fn per_var_baseline_new_unregistered_var_in_dirty_file_fails() {
 
 #[test]
 fn file_level_baseline_still_works_for_other_checks() {
-    use vox_cli::commands::ci::config_hygiene::{Violation, check_no_cwd_relative_contract_paths};
+    use vox_cli_ci::config_hygiene::{Violation, check_no_cwd_relative_contract_paths};
 
     // Two violations in the same file for a non-env-var check.
     let v1 = Violation {

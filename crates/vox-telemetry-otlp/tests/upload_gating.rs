@@ -1,3 +1,4 @@
+#![allow(unsafe_code)] // test-only std::env::set_var (unsafe on edition 2024)
 /// Guards the invariant: remote upload must be gated by is_remote_allowed().
 /// When the master switch is off or consent is Denied/Unset, upload returns 0.
 use tempfile::TempDir;

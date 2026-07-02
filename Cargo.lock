@@ -15532,6 +15532,7 @@ dependencies = [
  "vox-db",
  "vox-forge",
  "vox-git",
+ "vox-graph-reader",
  "vox-http-client",
  "vox-secrets",
  "walkdir",

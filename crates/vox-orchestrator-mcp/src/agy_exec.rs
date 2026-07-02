@@ -213,7 +213,7 @@ mod tests {
             timeout_secs: 1,
         };
         match exec.run(&spec).await {
-            Ok(o) => assert!(o.timed_out || o.exit_code != 0 || o.exit_code == 0),
+            Ok(_o) => { /* any exit outcome (timeout/success/failure) is acceptable here */ }
             Err(e) => assert!(matches!(e, AgyExecError::NotFound | AgyExecError::Spawn(_))),
         }
     }

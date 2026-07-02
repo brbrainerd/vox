@@ -1,3 +1,4 @@
+#![allow(clippy::assertions_on_constants)]
 //! Adversarial unit tests for vox-actor-runtime (wave 28).
 //! Targets: llm_result, prompt_canonical, routing_telemetry, retrieval, mailbox, pid.
 

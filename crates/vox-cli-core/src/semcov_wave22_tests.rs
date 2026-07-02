@@ -1,3 +1,4 @@
+#![allow(clippy::assertions_on_constants)]
 //! Adversarial unit tests for vox-cli-core — semcov wave 22.
 //!
 //! Targets: artifact_policy, command_contract, cli_args, diagnostics, constants,
@@ -268,7 +269,7 @@ mod semcov_wave22_tests {
 
     // ── cli_args serde round-trips ─────────────────────────────────────────────
 
-    use crate::cli_args::{BuildMode, BundleMode, CompileKind, UpgradeLane};
+    use crate::cli_args::{BuildMode, CompileKind, UpgradeLane};
 
     // Catches: serde kebab-case rename on CompileKind not round-tripping correctly
     // (e.g. NativeBinary serialises to "NativeBinary" instead of "native-binary").
@@ -304,7 +305,7 @@ mod semcov_wave22_tests {
 
     // ── diagnostics ───────────────────────────────────────────────────────────
 
-    use crate::diagnostics::{ColorChoice, should_color_stderr, should_color_stdout};
+    use crate::diagnostics::ColorChoice;
 
     // Catches: ColorChoice::Never not suppressing color even when COLOR_CHOICE is
     // Never — test that the *return value* reflects Never regardless of TTY state.

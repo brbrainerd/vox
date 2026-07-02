@@ -1,3 +1,4 @@
+#![allow(unsafe_code)] // test-only std::env::set_var (unsafe on edition 2024)
 //! Cross-module integration: defaults compose paths, rollout snapshot, and routing helpers.
 
 use vox_config::{

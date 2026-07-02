@@ -1,3 +1,4 @@
+#![cfg_attr(test, allow(unsafe_code))] // test-only std::env::set_var (edition 2024)
 use serde::{Deserialize, Serialize};
 
 use crate::compaction::CompactionConfig;
@@ -1594,7 +1595,7 @@ mod vox_config_derive_tests {
         let d = OrchestratorConfig::default();
         assert_eq!(d.max_agents, 8);
         assert_eq!(d.lock_timeout_ms, 30000);
-        assert_eq!(d.toestub_gate, true);
+        assert!(d.toestub_gate);
         assert_eq!(d.max_debug_iterations, 3);
         assert_eq!(d.socrates_reputation_weight, 1.0);
     }
