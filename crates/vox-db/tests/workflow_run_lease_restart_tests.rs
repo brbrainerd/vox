@@ -91,5 +91,8 @@ async fn live_lease_is_not_claimable_by_a_different_owner() {
         .try_claim_workflow_run_lease("run-2", "owner-A-alive", 60_000)
         .await
         .expect("renew");
-    assert!(renewed, "the current lease owner must be able to renew its own lease");
+    assert!(
+        renewed,
+        "the current lease owner must be able to renew its own lease"
+    );
 }

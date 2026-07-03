@@ -205,10 +205,8 @@ async fn completed_hopper_item_is_not_reexecuted_after_restart() {
 
     let history = hopper.history().await;
     assert!(
-        history
-            .iter()
-            .any(|i| i.item_id == item.item_id
-                && matches!(i.state, vox_orchestrator::hopper::ItemState::Done)),
+        history.iter().any(|i| i.item_id == item.item_id
+            && matches!(i.state, vox_orchestrator::hopper::ItemState::Done)),
         "hopper item must be Done before the simulated restart"
     );
 
@@ -221,7 +219,9 @@ async fn completed_hopper_item_is_not_reexecuted_after_restart() {
     let restarted_hopper = restarted.hopper();
     let inbox_after_restart = restarted_hopper.inbox().await;
     assert!(
-        !inbox_after_restart.iter().any(|i| i.item_id == item.item_id),
+        !inbox_after_restart
+            .iter()
+            .any(|i| i.item_id == item.item_id),
         "completed hopper item must not reappear in the inbox after restart"
     );
 

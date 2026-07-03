@@ -275,7 +275,9 @@ fn touch_pathbuf(_p: PathBuf) {}
 async fn attach_db_reseeds_operation_id_generator_like_init_db() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let db_path = tmp.path().join("vox_attach_db_reseed.sqlite");
-    let db = VoxDb::open(db_path.to_str().unwrap()).await.expect("open db");
+    let db = VoxDb::open(db_path.to_str().unwrap())
+        .await
+        .expect("open db");
     let db = std::sync::Arc::new(db);
 
     // "Session 1": a full init_db attach (as vox-orchestrator-d would do),

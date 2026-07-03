@@ -278,8 +278,7 @@ async fn stream_agent_events_from<W: AsyncWriteExt + Unpin>(
     if let Some(since) = from_offset {
         if let Some(db) = orch.db() {
             let repo = crate::lineage::repository_id();
-            match vox_orchestrator_queue::oplog::list_from_db_since(&db, repo.as_str(), since)
-                .await
+            match vox_orchestrator_queue::oplog::list_from_db_since(&db, repo.as_str(), since).await
             {
                 Ok(entries) => {
                     for entry in &entries {

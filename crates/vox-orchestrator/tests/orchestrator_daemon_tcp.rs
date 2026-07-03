@@ -623,9 +623,7 @@ async fn orchestrator_daemon_subscribe_events_replays_from_offset_inner() {
     let (tx, mut rx) = tokio::sync::mpsc::channel::<serde_json::Value>(64);
     let client_for_sub = client.clone();
     let sub = tokio::spawn(async move {
-        let _ = client_for_sub
-            .subscribe_events_from_offset(op1.0, tx)
-            .await;
+        let _ = client_for_sub.subscribe_events_from_offset(op1.0, tx).await;
     });
 
     // First two frames must be the replay of op2 and op3, oldest-first, each

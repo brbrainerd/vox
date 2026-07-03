@@ -102,7 +102,11 @@ fn no_durable_write_site_records_a_tier_b_kind() {
 
     let mut sources = Vec::new();
     for dir in &scan_dirs {
-        assert!(dir.is_dir(), "expected scan dir to exist: {}", dir.display());
+        assert!(
+            dir.is_dir(),
+            "expected scan dir to exist: {}",
+            dir.display()
+        );
         collect_rs_sources(dir, &mut sources);
     }
     assert!(

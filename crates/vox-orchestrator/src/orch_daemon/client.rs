@@ -285,8 +285,12 @@ impl OrchDaemonClient {
         &self,
         tx: tokio::sync::mpsc::Sender<serde_json::Value>,
     ) -> anyhow::Result<()> {
-        self.subscribe_with_method(orch_daemon_method::SUBSCRIBE_EVENTS, serde_json::json!({}), tx)
-            .await
+        self.subscribe_with_method(
+            orch_daemon_method::SUBSCRIBE_EVENTS,
+            serde_json::json!({}),
+            tx,
+        )
+        .await
     }
 
     /// [`orch_daemon_method::SUBSCRIBE_EVENTS`] with a replay-from-offset
