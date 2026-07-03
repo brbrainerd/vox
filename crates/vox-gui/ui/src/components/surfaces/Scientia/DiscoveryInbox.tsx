@@ -8,6 +8,7 @@ import {
   type DiscoveryInboxRow,
 } from './discoveryInboxApi';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
+import { seedDiscoveryPresetForLegacyKey } from '../../../lib/navigation';
 
 /** The intake tier we treat as "strong" — gets a highlighted badge + a toast on arrival. */
 const STRONG_TIER = 'strong_candidate';
@@ -167,7 +168,7 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
   );
 
   const openReview = useCallback((publicationId: string) => {
-    try { window.localStorage.setItem('vox_discovery_preset_seed', 'review'); } catch { /* ignore */ }
+    seedDiscoveryPresetForLegacyKey('discovery-review');
     window.dispatchEvent(
       new CustomEvent('vox://navigate-surface', {
         detail: { view: 'activity', publicationId },
