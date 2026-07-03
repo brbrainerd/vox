@@ -108,7 +108,7 @@ export const CHILD_ORDER_BY_PARENT: Record<string, string[]> = {
   runs: ['approvals', 'needs-you', 'runs', 'policies'],
   agents: ['dashboard', 'flow', 'tasks', 'mesh', 'sub-agents'],
   knowledge: ['memory', 'scientia', 'research', 'activity', 'publications', 'vox-search'],
-  workspace: ['console', 'repository', 'browser', 'harness'],
+  workspace: ['console', 'repository', 'browser', 'harness', 'coderabbit'],
   commands: ['catalog', 'skills'],
   compute: ['models', 'mens', 'populi', 'oratio'],
   settings: ['settings', 'coverage', 'gamify'],
