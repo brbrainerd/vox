@@ -89,13 +89,18 @@ pub(crate) fn parse_prs(json: &str) -> Result<Vec<VcsPrDto>, String> {
 /// Derive `owner/repo` from a git remote URL (https or ssh).
 pub(crate) fn slug_from_remote(url: &str) -> Option<String> {
     let trimmed = url.trim().trim_end_matches(".git");
-    if let Some(rest) = trimmed.strip_prefix("git@") {
-        return rest.split_once(':').map(|(_, s)| s.to_string());
-    }
-    let no_scheme = trimmed.split("://").nth(1)?;
-    let mut seg = no_scheme.splitn(2, '/');
-    let _host = seg.next()?;
-    Some(seg.next()?.to_string())
+    let path = if let Some(rest) = trimmed.strip_prefix("git@") {
+        rest.split_once(':').map(|(_, s)| s)?
+    } else {
+        let no_scheme = trimmed.split("://").nth(1)?;
+        let mut seg = no_scheme.splitn(2, '/');
+        let _host = seg.next()?;
+        seg.next()?
+    };
+    let mut parts = path.split('/').filter(|s| !s.is_empty());
+    let owner = parts.next()?;
+    let repo = parts.next()?;
+    Some(format!("{owner}/{repo}"))
 }
 
 fn run(program: &str, args: &[&str]) -> Result<String, String> {
@@ -104,7 +109,11 @@ fn run(program: &str, args: &[&str]) -> Result<String, String> {
         .output()
         .map_err(|e| format!("{program}: {e}"))?;
     if !out.status.success() {
-        return Err(format!("{program} exited {:?}", out.status.code()));
+        return Err(format!(
+            "{program} exited {:?}: {}",
+            out.status.code(),
+            String::from_utf8_lossy(&out.stderr).trim()
+        ));
     }
     String::from_utf8(out.stdout).map_err(|e| e.to_string())
 }
@@ -201,6 +210,18 @@ mod tests {
             Some("vox-foundation/vox")
         );
         assert_eq!(slug_from_remote("not a url"), None);
+        assert_eq!(
+            slug_from_remote("https://github.com/owner/repo/").as_deref(),
+            Some("owner/repo")
+        );
+        assert_eq!(
+            slug_from_remote("https://github.com/owner/repo/extra/segments").as_deref(),
+            Some("owner/repo")
+        );
+        assert_eq!(
+            slug_from_remote("git@github.com:owner/repo/").as_deref(),
+            Some("owner/repo")
+        );
     }
 
     #[test]
