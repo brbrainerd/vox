@@ -14,6 +14,8 @@ use std::sync::Arc;
 use vox_db::VoxDb;
 use vox_orchestrator_types::{AgentId, ChangeId, SnapshotId};
 
+use crate::projection::ProjectionRegistry;
+
 use super::{OpLog, OperationEntry, OperationId, OperationKind};
 
 const DEFAULT_COMPACTION_INTERVAL: u64 = 1_000_000;
@@ -27,6 +29,16 @@ pub struct PersistContext {
     /// 16-byte convergence-set ULID (hex-encoded for storage).
     pub set_id: [u8; 16],
     pub compaction_interval: u64,
+    /// Logical namespace `compact_now`/checkpoint hydration use to scope
+    /// `checkpoint_blobs` rows (T1.6). Defaults to `"default"` — callers with
+    /// multiple independent op-log streams sharing one `VoxDb` should set a
+    /// distinct value per stream so their checkpoints don't collide.
+    pub repository_id: String,
+    /// Registered projections to snapshot on compaction (T1.6). `None` means
+    /// `compact_now` records a `Checkpoint` marker with an empty payload and
+    /// prunes warm rows, but has nothing to restore state from — set this via
+    /// [`Self::with_projections`] to get a real, restorable checkpoint.
+    pub projections: Option<Arc<ProjectionRegistry>>,
 }
 
 impl std::fmt::Debug for PersistContext {
@@ -35,6 +47,8 @@ impl std::fmt::Debug for PersistContext {
             .field("daemon_id", &hex::encode(self.daemon_id))
             .field("set_id", &hex::encode(self.set_id))
             .field("compaction_interval", &self.compaction_interval)
+            .field("repository_id", &self.repository_id)
+            .field("has_projections", &self.projections.is_some())
             .finish()
     }
 }
@@ -46,7 +60,16 @@ impl PersistContext {
             daemon_id,
             set_id,
             compaction_interval: DEFAULT_COMPACTION_INTERVAL,
+            repository_id: "default".to_string(),
+            projections: None,
         }
+    }
+
+    /// Attach a [`ProjectionRegistry`] so `compact_now` produces real,
+    /// restorable checkpoint blobs instead of an empty-payload marker.
+    pub fn with_projections(mut self, registry: Arc<ProjectionRegistry>) -> Self {
+        self.projections = Some(registry);
+        self
     }
 }
 
@@ -91,6 +114,36 @@ impl OpLog {
                 daemon_id,
                 set_id,
                 compaction_interval: ctx.compaction_interval,
+                repository_id: ctx.repository_id.clone(),
+                projections: ctx.projections.clone(),
+            };
+            self.persist = Some(Arc::new(updated));
+        }
+    }
+
+    /// Return a clone of the bound [`PersistContext`], if any — used by
+    /// `checkpoint::compact_now`/`hydrate_from_checkpoint` callers (including
+    /// the T1.6 test suite) that need to call those functions directly with a
+    /// deterministic `up_to` rather than waiting for the compaction-interval
+    /// trigger inside `record_persisted`.
+    pub fn persist_context(&self) -> Option<Arc<PersistContext>> {
+        self.persist.clone()
+    }
+
+    /// Attach a [`ProjectionRegistry`] to this log's bound [`PersistContext`]
+    /// (T1.6). Must be called after [`Self::with_db`]/[`Self::with_db_seeded`];
+    /// a no-op if no persist context is bound yet. Every subsequent
+    /// `record_persisted` call applies the entry to `registry`, and
+    /// `compact_now` snapshots it into the checkpoint blob.
+    pub fn bind_projections(&mut self, registry: Arc<ProjectionRegistry>) {
+        if let Some(ctx) = self.persist.as_ref() {
+            let updated = PersistContext {
+                db: ctx.db.clone(),
+                daemon_id: ctx.daemon_id,
+                set_id: ctx.set_id,
+                compaction_interval: ctx.compaction_interval,
+                repository_id: ctx.repository_id.clone(),
+                projections: Some(registry),
             };
             self.persist = Some(Arc::new(updated));
         }
@@ -135,6 +188,10 @@ impl OpLog {
             .clone();
 
         write_entry(&ctx, &entry).await?;
+
+        if let Some(registry) = ctx.projections.as_ref() {
+            registry.apply(&entry).await;
+        }
 
         if id.0.is_multiple_of(ctx.compaction_interval) {
             super::checkpoint::compact_now(ctx, id).await?;
