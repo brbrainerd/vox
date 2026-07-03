@@ -16616,6 +16616,7 @@ dependencies = [
  "vox-actor-runtime",
  "vox-bounded-fs",
  "vox-capability-registry",
+ "vox-cli-core",
  "vox-code-audit",
  "vox-codegen",
  "vox-codegen-ts",

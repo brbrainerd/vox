@@ -10,6 +10,8 @@ pub mod services;
 /// `<TOOL_CALLS>` XML fallback for LLM providers without native function-call support.
 pub mod chat_fallback_tools;
 pub mod daemon_extra;
+/// T2.2: `vox mcp` stdio server's tool-call forwarding to `vox-orchestrator-d`.
+pub mod daemon_route;
 pub mod feedback_tools;
 /// T1.4: restore visibility for open approvals/feedback from the durable
 /// op-log on `ServerState` boot (MCP stdio + `vox-orchestrator-d`).

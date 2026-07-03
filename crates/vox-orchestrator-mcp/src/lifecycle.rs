@@ -1,23 +1,31 @@
-//! [`ServerState`] construction, Populi polling, orchestrator event sinks, and optional DB wiring.
-
-use std::sync::Arc;
+//! [`ServerState`] construction (protocol-level surface only) and stdio transport startup.
+//!
+//! T2.2: `run_stdio_server_blocking` no longer boots a full, private
+//! orchestrator stack. Tool *execution* is forwarded to the single shared
+//! `vox-orchestrator-d` daemon (see `crate::daemon_route`,
+//! `crate::server::VoxMcpServer::call_tool`), so this function only needs
+//! enough local [`ServerState`] to serve protocol-level concerns that don't
+//! touch live orchestrator state: tool-schema listing/advertisement,
+//! resources, and prompts (`crate::registry`, `crate::server`). The agent
+//! fleet, DB connection, `FlywheelMonitor`, and attention-calibration loop
+//! that used to run here are now exclusively the daemon's job — running them
+//! a second time in this process would be redundant/wasteful and would
+//! recreate the exact split-brain (a private orchestrator disjoint from the
+//! daemon's) that this task eliminates. See
+//! docs/src/architecture/vox-axis-harness-reliability-spec-plan-2026-07-02.md T2.2.
 
 use crate::server_state::ServerState;
-use vox_orchestrator::{Orchestrator, OrchestratorConfig};
-// No longer used in this module after refactor
+use vox_orchestrator::OrchestratorConfig;
 
 /// When truthy (default if unset), MCP spawns [`vox_orchestrator::runtime::AgentFleet`] so queued
 /// tasks receive `ProcessQueue` wakes from registered worker actors.
+///
+/// Retained for the daemon's own boot path (`vox-orchestrator-d` reads this
+/// too); no longer called from [`run_stdio_server_blocking`], which does not
+/// spawn its own agent fleet (see module doc comment).
 #[inline]
 pub fn mcp_agent_fleet_env_enabled() -> bool {
     vox_orchestrator::runtime::agent_fleet_env_enabled()
-}
-
-fn spawn_embedded_agent_fleet_if_enabled(orchestrator: Arc<Orchestrator>) {
-    vox_orchestrator::runtime::spawn_agent_fleet_if_enabled(orchestrator.clone());
-
-    // NOTE: ResolutionAgent (formerly vox_dei) functionality is now integrated
-    // into the main orchestrator dispatch and verification loops.
 }
 
 pub fn load_config() -> OrchestratorConfig {
@@ -31,39 +39,17 @@ pub async fn run_stdio_server_blocking() -> anyhow::Result<()> {
     let config = load_config();
     tracing::info!(?config, "orchestrator config loaded");
 
-    // Create shared state and server
-    let mut state = ServerState::new_full(config);
-    spawn_embedded_agent_fleet_if_enabled(state.orchestrator.clone());
-
-    // Degraded optional: MCP must keep serving stdio even if Codex is misconfigured
-    if let Some(db) =
-        vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Mcp, false).await
-    {
-        state = state.with_db_initialized(Arc::new(db)).await;
-        tracing::info!(
-            "workspace journey database connected and linked to state (orchestrator schema synced)"
-        );
-    }
+    // Local state backs protocol-level concerns only (tool-schema listing,
+    // resources, prompts, skill-derived tool augmentation) — see the module
+    // doc comment. No local agent fleet, DB connection, FlywheelMonitor, or
+    // attention-calibration loop: those are the daemon's job. Tool execution
+    // is forwarded to the daemon per-call (`crate::daemon_route`), so this
+    // process does not need to probe for or align with an external daemon
+    // itself the way the old full-stack path did.
+    let state = ServerState::new_full(config);
 
     #[cfg(feature = "populi-transport")]
     crate::populi_startup::publish_mesh_on_mcp_start(&state).await;
-
-    state
-        .probe_external_orchestrator_daemon_if_configured()
-        .await;
-
-    // Optional remote/mobile control plane (HTTP + WebSocket).
-    let _http_gateway = crate::http_gateway::spawn_http_gateway_if_enabled(state.clone())?;
-
-    // Flywheel automation: Monitor diversity and trigger training
-    let flywheel =
-        vox_orchestrator::services::flywheel::FlywheelMonitor::new(state.orchestrator.clone());
-    flywheel.spawn().await;
-
-    // Attention calibration: periodically adapt ask-thresholds from logged outcomes.
-    vox_orchestrator::services::attention_calibration::spawn_attention_calibration(
-        state.orchestrator.clone(),
-    );
 
     let server = crate::server::VoxMcpServer::new(state);
     tracing::info!("server state initialized, starting stdio transport...");
