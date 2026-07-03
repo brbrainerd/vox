@@ -183,6 +183,75 @@ async fn dangerous_tool_park_and_resolve_records_oplog_pair() {
     assert!(saw_resolved, "ApprovalResolved not found in oplog");
 }
 
+/// T1.5 RED test: when a tool call carries a numeric `task_id` but no explicit
+/// `trace_id`/`correlation_id`, the durable `ApprovalRequested` op-log entry's
+/// `run_id` field falls back to the stringified `task_id` (see
+/// `run_id_for_approval` in `crates/vox-orchestrator-mcp/src/dispatch.rs`).
+/// This is the correlation key `vox-db`'s `find_approval_id_for_run` joins on
+/// from `finish_gui_run` (crates/vox-gui/src/commands/runs.rs) to populate
+/// `agent_runs.approval_ref` — without this fallback, `run_id` would stay
+/// `None` for the overwhelming majority of real dangerous-tool calls (agent
+/// tool-call args essentially never set `trace_id`/`correlation_id` today).
+#[tokio::test]
+async fn approval_requested_run_id_falls_back_to_task_id() {
+    let state = Arc::new(ServerState::new_full(load_config()));
+
+    let s2 = state.clone();
+    let call = tokio::spawn(async move {
+        handle_tool_call(
+            &s2,
+            "vox_run_shell",
+            serde_json::json!({ "command": "echo hi", "task_id": 4242 }),
+        )
+        .await
+    });
+
+    let deadline = tokio::time::Instant::now() + D_15S;
+    loop {
+        if !state.pending_approvals.list().is_empty() {
+            break;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "dangerous tool never registered a pending approval"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    let pending = state.pending_approvals.list();
+    assert_eq!(pending.len(), 1);
+    let approval_id = pending[0].approval_id.clone();
+
+    assert!(
+        state
+            .pending_approvals
+            .resolve(&approval_id, ApprovalOutcome::Rejected)
+    );
+    let raw = call.await.expect("join").expect("dispatch ok");
+    assert!(tool_json_envelope_is_error(&raw));
+
+    let deadline = tokio::time::Instant::now() + D_15S;
+    let mut saw_run_id;
+    loop {
+        let entries = state.orchestrator.list_recent_operations(None, 256).await;
+        saw_run_id = entries.iter().any(|e| {
+            matches!(
+                &e.kind,
+                vox_orchestrator::oplog::OperationKind::ApprovalRequested { approval_id: aid, run_id, .. }
+                    if aid == &approval_id && run_id.as_deref() == Some("4242")
+            )
+        });
+        if saw_run_id {
+            break;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "ApprovalRequested.run_id never fell back to task_id \"4242\""
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    assert!(saw_run_id, "ApprovalRequested.run_id must equal stringified task_id when no trace_id/correlation_id is present");
+}
+
 /// Security regression guard: a caller cannot bypass the HITL gate by setting
 /// `user_approval: true` in the tool-call args themselves. Since the LLM agent
 /// composes its own tool-call JSON, an arg-based fast path is a self-serve

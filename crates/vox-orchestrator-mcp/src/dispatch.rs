@@ -74,6 +74,25 @@ pub async fn handle_tool_call_with_mode(
                 .filter(|s| !s.is_empty())
                 .map(ToString::to_string)
         });
+    // T1.5: best-effort correlation fallback for the dangerous-tool approval
+    // gate below. No dedicated `run_id`-shaped field is threaded from the GUI
+    // through `DispatchRequest`/`ServerState` today (verified: `invoke_mcp_tool`
+    // in crates/vox-gui/src/commands/mcp.rs only forwards `permission_mode` as a
+    // top-level field; `trace_id`/`correlation_id` are caller-composed `args`
+    // that agent tool-calls rarely set). The one identifier that reliably IS
+    // present on tool calls issued while executing an orchestrator task is the
+    // numeric `task_id` (see `ctx.task_id` below, and
+    // `vox_telemetry::TaskRootSummaryEvent::task_id`, which is the same value
+    // `submit_orchestrator_task` returns to the GUI). Using it as the
+    // `ApprovalRequested`/`ApprovalResolved` `run_id` when no explicit
+    // trace/correlation id was supplied lets `finish_gui_run` join a run's
+    // approval by `task_id` without adding new top-level plumbing — see
+    // docs/src/architecture/vox-axis-harness-reliability-spec-plan-2026-07-02.md T1.5.
+    let run_id_for_approval = trace_for_telemetry.clone().or_else(|| {
+        args.get("task_id")
+            .and_then(|v| v.as_u64())
+            .map(|t| t.to_string())
+    });
 
     // Check Budget limits for explicit Tool interception (Agent Self-Correction)
     let b_signal = {
@@ -219,7 +238,7 @@ pub async fn handle_tool_call_with_mode(
                     vox_orchestrator::oplog::OperationKind::ApprovalRequested {
                         approval_id: approval_id.clone(),
                         tool: name_canonical.to_string(),
-                        run_id: trace_for_telemetry.clone(),
+                        run_id: run_id_for_approval.clone(),
                     },
                     format!("Approval requested for {name_canonical}"),
                     None,
