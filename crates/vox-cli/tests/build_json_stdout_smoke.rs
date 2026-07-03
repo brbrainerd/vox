@@ -97,3 +97,28 @@ fn json_build_codegen_stage_failure_still_emits_single_envelope() {
     assert_eq!(v["command"], "build");
     assert_eq!(v["ok"], false, "envelope: {v}");
 }
+
+#[test]
+fn json_build_parse_error_still_emits_single_envelope() {
+    // A genuine PARSE (not typecheck) error takes a different code path in
+    // `pipeline.rs::run_frontend_str_with_options` than a typecheck failure —
+    // it used to self-print a pretty multi-line diagnostics array to stdout
+    // under `--json` *and* let `build::run`'s own envelope print on top,
+    // producing two contradicting outputs instead of one (see the fix in the
+    // commit that added this test). Guard against that regressing.
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let vox_file = tmp.path().join("bad_syntax.vox");
+    let out_dir = tmp.path().join("out");
+    fs::write(&vox_file, "fn main( {\n").expect("write vox fixture");
+
+    let out = run_json_build(&vox_file, &out_dir);
+    assert!(
+        !out.status.success(),
+        "expected the parse error to fail the build"
+    );
+
+    let v = single_stdout_json_line(&out);
+    assert_eq!(v["envelope_version"], 1);
+    assert_eq!(v["command"], "build");
+    assert_eq!(v["ok"], false, "envelope: {v}");
+}
