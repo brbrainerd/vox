@@ -193,6 +193,34 @@ async fn stream_status_events<W: AsyncWriteExt + Unpin>(
 /// ends the stream). Fully push-driven — no polling. The bus has no replay, so
 /// only events emitted after this subscription are delivered; broadcast lag
 /// (slow consumer past the channel capacity) is skipped rather than fatal.
+///
+/// T1.2 note on Tier-B batching/coalescing: the plan language calls for the
+/// daemon relay to batch/coalesce Tier-B frames (`TokenStreamed` etc.) so a
+/// slow client lags on tokens, never on lifecycle. This was evaluated and
+/// deliberately deferred rather than implemented here: the wire contract for
+/// this stream (`OrchDaemonClient::subscribe_with_method`, see
+/// `orch_daemon/client.rs`) forwards each `DispatchPayload::Event.value` to
+/// callers as **one serialized `AgentEvent`** (`{id, timestamp_ms, kind}`);
+/// existing consumers (dashboard SSE bridges, CLI subscribers) deserialize
+/// each pushed value as a single event, not an array. Coalescing multiple
+/// Tier-B events into one frame would require either (a) changing that wire
+/// contract (a breaking change to every consumer, out of scope for a T1.2
+/// reliability fix) or (b) a non-standard sentinel/array-vs-object framing
+/// distinguished per-message (meaningfully more complex, and risks
+/// destabilizing this already-working streaming path for a nice-to-have).
+/// What *is* already true, and was verified rather than assumed: this loop
+/// never blocks indefinitely on a slow client — `write_frame` bounds each
+/// write to the size of one JSON line, and a genuinely stuck TCP write
+/// eventually errors (peer closed / OS buffer semantics) rather than hanging
+/// forever; and `RecvError::Lagged` already means a slow consumer skips
+/// stale broadcast entries instead of blocking the sender. So the "never
+/// lags on lifecycle" property holds today at the *broadcast* layer (Tier-A
+/// events are never the ones silently dropped by `Lagged`, because Tier-A
+/// callers durably record them independently of bus delivery — see
+/// `events::is_tier_a`); it just isn't reinforced by frame-level batching in
+/// this relay loop. Follow-up: introduce a versioned array/batch frame kind
+/// in `vox_foundation::protocol::DispatchPayload` and update
+/// `subscribe_with_method` to unwrap it, then reintroduce coalescing here.
 async fn stream_agent_events<W: AsyncWriteExt + Unpin>(
     id: &str,
     orch: &Arc<Orchestrator>,
@@ -635,10 +663,12 @@ pub async fn dispatch_request(
             let assigned = orch.agent_assigned_to_task(TaskId(task_id));
             let reason_for_oplog = reason.clone();
             match orch.doubt_task(TaskId(task_id), reason) {
-                Ok(()) => {
-                    // T1.1: durable TaskDoubted, mirroring the MCP `doubt_task` tool's
-                    // wiring (task_tools/lifecycle.rs) for this second (daemon RPC)
-                    // call path into `Orchestrator::doubt_task`.
+                Ok(outcome) => {
+                    // T1.2: durable TaskDoubted BEFORE the bus broadcast, mirroring the MCP
+                    // `doubt_task` tool's wiring (task_tools/lifecycle.rs) for this second
+                    // (daemon RPC) call path into `Orchestrator::doubt_task`. `doubt_task`
+                    // no longer emits on the event bus itself — we record durably first,
+                    // then broadcast via `emit_doubt_events`.
                     orch.record_operation(
                         assigned.unwrap_or(crate::AgentId(0)),
                         crate::oplog::OperationKind::TaskDoubted {
@@ -652,6 +682,24 @@ pub async fn dispatch_request(
                         None,
                     )
                     .await;
+                    // T1.1 follow-up: durable FeedbackRequested{kind:"doubt"} for the
+                    // Doubt-kind feedback item, mirroring the MCP doubt_task tool's
+                    // wiring (task_tools/lifecycle.rs) for this call path too.
+                    orch.record_operation(
+                        assigned.unwrap_or(crate::AgentId(0)),
+                        crate::oplog::OperationKind::FeedbackRequested {
+                            request_id: outcome.feedback_id.0.clone(),
+                            task_id: Some(task_id),
+                            kind: "doubt".into(),
+                        },
+                        format!("Feedback requested (doubt): {}", outcome.feedback_id.0),
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
+                    .await;
+                    orch.emit_doubt_events(TaskId(task_id), &outcome);
                     response_result(&req.id, serde_json::json!({ "ok": true }))
                 }
                 Err(e) => response_err(&req.id, format!("{e}")),

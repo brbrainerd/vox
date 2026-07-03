@@ -48,4 +48,22 @@ async fn doubt_task_records_durable_oplog_entry() {
         saw_doubted,
         "TaskDoubted for task {task_id} must be queryable from the durable op-log; entries: {entries:?}"
     );
+
+    // T1.1 follow-up: the doubt-triggered FeedbackRequested{kind:"doubt"} must
+    // ALSO be durably recorded, not just TaskDoubted — the feedback-registration
+    // half of `doubt_task` is a separate write from the bus-emit half, and the
+    // `dispatch-events.v1.schema.json` contract's FeedbackRequested.kind enum
+    // explicitly includes "doubt" as a valid value.
+    let saw_feedback_requested = entries.iter().any(|e| {
+        matches!(
+            &e.kind,
+            vox_orchestrator::oplog::OperationKind::FeedbackRequested { task_id: tid, kind, .. }
+                if *tid == Some(task_id.0) && kind == "doubt"
+        )
+    });
+    assert!(
+        saw_feedback_requested,
+        "FeedbackRequested{{kind:\"doubt\"}} for task {task_id} must be queryable from the \
+         durable op-log; entries: {entries:?}"
+    );
 }

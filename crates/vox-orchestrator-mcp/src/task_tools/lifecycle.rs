@@ -170,10 +170,11 @@ pub async fn doubt_task(state: &ServerState, params: crate::params::DoubtTaskPar
         .map_err(|e| e.to_string());
 
     match res {
-        Ok(()) => {
-            // T1.1: durable TaskDoubted alongside the event-bus emit + FeedbackStore
-            // registration inside `Orchestrator::doubt_task` (which is sync, so the
-            // oplog write happens here at the async MCP call site instead).
+        Ok(outcome) => {
+            // T1.2: durable TaskDoubted BEFORE the bus broadcast. `Orchestrator::doubt_task`
+            // is sync (it holds a queue write-lock across the mutation) and no longer emits
+            // on the event bus itself; it returns a `DoubtOutcome` we durably record here,
+            // then broadcast via `emit_doubt_events` only after the oplog write completes.
             state
                 .orchestrator
                 .record_operation(
@@ -189,6 +190,31 @@ pub async fn doubt_task(state: &ServerState, params: crate::params::DoubtTaskPar
                     None,
                 )
                 .await;
+            // T1.1 follow-up: durable FeedbackRequested{kind:"doubt"} for the
+            // Doubt-kind feedback item `Orchestrator::doubt_task` registered in
+            // the Needs-You inbox — the sibling half of the TaskDoubted write
+            // above, so a reader of the op-log sees both halves of a doubt
+            // (bus-emit half + feedback-registration half), matching how
+            // `propose_skill`'s FeedbackRequested is recorded in feedback_tools.rs.
+            state
+                .orchestrator
+                .record_operation(
+                    assigned.unwrap_or(vox_orchestrator::AgentId(0)),
+                    vox_orchestrator::oplog::OperationKind::FeedbackRequested {
+                        request_id: outcome.feedback_id.0.clone(),
+                        task_id: Some(params.task_id),
+                        kind: "doubt".into(),
+                    },
+                    format!("Feedback requested (doubt): {}", outcome.feedback_id.0),
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+                .await;
+            state
+                .orchestrator
+                .emit_doubt_events(task_id, &outcome);
             // Gamification: suspecting is a habit-building interaction.
             if let (Some(db), Some(aid)) = (&state.db, assigned) {
                 let uid = vox_gamify::db::canonical_user_id();
