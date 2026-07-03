@@ -75,7 +75,7 @@ interface SidebarProps {
   pushToast: (t: any) => void;
   appVersion?: string;
   policyBadge?: PolicyBadge | null;
-  approvalsPending?: number;
+  needsYouCount?: number;
   lastOrchEventAt?: number | null;
   orchUsesPolling?: boolean;
   liveFreshMs?: number;
@@ -89,7 +89,7 @@ export function Sidebar({
   setMode,
   appVersion,
   policyBadge,
-  approvalsPending,
+  needsYouCount,
   lastOrchEventAt = null,
   orchUsesPolling = false,
   liveFreshMs = 10_000,
@@ -165,12 +165,12 @@ export function Sidebar({
             const isActive = activeParent === key;
             const badge =
               key === 'agents' ? agentsCount
-              : key === 'runs' && approvalsPending != null && approvalsPending > 0 ? approvalsPending
+              : key === 'runs' && needsYouCount != null && needsYouCount > 0 ? needsYouCount
               : undefined;
             const navAriaLabel =
               key === 'runs'
-                ? approvalsPending != null && approvalsPending > 0
-                  ? `Review, ${approvalsPending} pending approvals`
+                ? needsYouCount != null && needsYouCount > 0
+                  ? `Review, ${needsYouCount} items need you`
                   : 'Review'
                 : undefined;
             return (

@@ -6,10 +6,13 @@ import { feedbackList, feedbackResolve, listenFeedbackChanged, type FeedbackRow 
 import { useLabel } from '../../../hooks/useLanguage';
 import type { Toast } from '../../../types/tauri';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
+import type { AttentionInbox } from '../../../hooks/useAttentionInbox';
 
 interface Props {
   onOpenContext: (id: string) => void;
   pushToast: (toast: Toast) => void;
+  /** Plumbed through by App.tsx (Task 5). Not yet consumed here — see Task 6. */
+  attention?: AttentionInbox;
 }
 
 export function NeedsYouSurface({ onOpenContext, pushToast }: Props) {

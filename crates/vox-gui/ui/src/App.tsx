@@ -13,7 +13,7 @@ import { Toasts, ToastItem } from './components/ui/Toasts';
 import { Transcript } from './components/surfaces/Loquela/Transcript';
 import { DiffReview } from './components/surfaces/Loquela/DiffReview';
 import { InlineApprovals } from './components/surfaces/Loquela/InlineApprovals';
-import { parsePendingApprovals, type McpInvokeResult } from './lib/mcpToolResult';
+import { type McpInvokeResult } from './lib/mcpToolResult';
 import {
   assistantMessagesReadyToPersist,
   assistantPersistContent,
@@ -28,10 +28,11 @@ import { mapAgentEvent } from './lib/mapAgentEvent';
 import { contextRefsFromPayload } from './lib/loquelaContext';
 import { overallWorst, worstCount } from './components/surfaces/Policies/policyTree';
 import type { PolicyRow, PolicyStatus, BranchInfo, RunStatus } from './components/surfaces/Policies/types';
-import { voxTransport, listenAgentEvents, type AgentEventFrame, feedbackList, listenFeedbackChanged } from './transport';
+import { voxTransport, listenAgentEvents, type AgentEventFrame } from './transport';
+import { useAttentionInbox } from './hooks/useAttentionInbox';
 import { useKeybinds } from './hooks/useKeybinds';
 import { parseBindings, DEFAULT_BINDINGS, type Bindings } from './lib/keybinds';
-import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { type UnlistenFn } from '@tauri-apps/api/event';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { SHELL_PREFERENCE_KEYS } from './lib/shellPersistence';
 import { usePersistedSparkWindow } from './hooks/useSparkWindow';
@@ -65,7 +66,6 @@ import type {
 import { INITIAL_DATA, INITIAL_KPIS } from './data/initialState';
 import {
   POLICY_BADGE_POLL_MS,
-  APPROVALS_POLL_MS,
   STREAM_CAP,
   LIVE_EVENT_FRESH_MS,
 } from './config/constants';
@@ -232,7 +232,7 @@ export default function App() {
     intents: chatIntents,
     meshPeers: chatMeshPeers,
   } = useChatExecutionData(activeSessionId);
-  const [approvalsPending, setApprovalsPending] = useState(0);
+  const attention = useAttentionInbox();
   const [diffOpen, setDiffOpen] = useState(false);
   const [diffText, setDiffText] = useState('');
   const [diffLoading, setDiffLoading] = useState(false);
@@ -428,26 +428,6 @@ export default function App() {
     return () => { cancelled = true; clearInterval(id); };
   }, []);
 
-  // ── Approvals badge for Runs nav ───────────────────────────────────────────
-  useEffect(() => {
-    let cancelled = false;
-    const refresh = async () => {
-      try {
-        const res = await invoke<McpInvokeResult>('invoke_mcp_tool', {
-          tool: 'vox_pending_approvals',
-          args: {},
-        });
-        const pending = parsePendingApprovals(res);
-        if (!cancelled) setApprovalsPending(pending.length);
-      } catch {
-        if (!cancelled) setApprovalsPending(0);
-      }
-    };
-    refresh();
-    const id = setInterval(refresh, APPROVALS_POLL_MS);
-    return () => { cancelled = true; clearInterval(id); };
-  }, []);
-
   // ── Pushed live agent-event stream (B4: "vox://agent-events" Tauri event) ──
   // Each AgentEvent is prepended to the dashboard activity feed as a StreamItem.
   // We keep this independent from the status subscription above; the list is
@@ -541,64 +521,12 @@ export default function App() {
     syncViewToLocation(child);
   }, [setActiveView]);
 
-  interface HopperTaskDto {
-    item_id: string;
-    intent: string;
-    priority: number;
-    state: string;
-    task_id: number;
-  }
-
-  const [needsYouCount, setNeedsYouCount] = useState(0);
-  const [blockedTasksCount, setBlockedTasksCount] = useState(0);
   const [focusedFeedbackId, setFocusedFeedbackId] = useState<string | null>(null);
-
-  const refreshAttentionCounts = useCallback(async () => {
-    try {
-      const [feedback, tasks] = await Promise.all([
-        feedbackList().catch(() => ({ needsYou: [] })),
-        invoke<HopperTaskDto[]>('hopper_list').catch(() => []),
-      ]);
-      const needsYou = feedback?.needsYou ?? [];
-      const gateSet = new Set<number>(needsYou.flatMap(f => f.gates ?? []));
-      const blockedCount = tasks.filter(dto => gateSet.has(dto.task_id)).length;
-      setNeedsYouCount(needsYou.length);
-      setBlockedTasksCount(blockedCount);
-    } catch {
-      // Ignore
-    }
-  }, []);
 
   const onOpenFeedbackContext = useCallback((feedbackId: string) => {
     navigateTo('chat');
     setFocusedFeedbackId(feedbackId);
   }, [navigateTo]);
-
-  useEffect(() => {
-    refreshAttentionCounts();
-    let unlistenFeedback: (() => void) | null = null;
-    let unlistenTasks: (() => void) | null = null;
-    
-    listenFeedbackChanged(() => {
-      refreshAttentionCounts();
-    }).then((un) => {
-      unlistenFeedback = un;
-    });
-
-    listen<void>('vox://tasks-changed', () => {
-      refreshAttentionCounts();
-    }).then((un) => {
-      unlistenTasks = un;
-    });
-
-    const timer = setInterval(refreshAttentionCounts, 5000);
-
-    return () => {
-      if (unlistenFeedback) unlistenFeedback();
-      if (unlistenTasks) unlistenTasks();
-      clearInterval(timer);
-    };
-  }, [refreshAttentionCounts]);
 
   const manageGamifyInSettings = useCallback(() => {
     try {
@@ -1144,6 +1072,7 @@ export default function App() {
     gamifyEnabled: gamifySettings.enabled,
     hudTilesConfig,
     onHudTilesChange: setHudTilesConfig,
+    attention,
   };
 
   const mainSurface = renderSurfaceView(nav.parent, surfaceProps);
@@ -1165,7 +1094,7 @@ export default function App() {
 
   return (
     <>
-      <AttentionStrip budget={orchQuery.data?.attention_budget} waitingQuestions={needsYouCount} blockedTasks={blockedTasksCount} />
+      <AttentionStrip budget={orchQuery.data?.attention_budget} waitingQuestions={attention.needsYou.length} blockedTasks={attention.blockedTasksCount} />
       <AppShell
         activeView={activeView}
         onNavigate={(v) => navigateTo(v)}
@@ -1176,7 +1105,8 @@ export default function App() {
         pushToast={pushToast}
         appVersion={appVersion}
         policyBadge={policyBadge}
-        approvalsPending={approvalsPending}
+        needsYouCount={attention.totalCount}
+        pendingApprovals={attention.approvals.length}
         kpis={kpis}
         onCommand={() => setIsCommandOpen(true)}
         onOpenCommandPalette={() => setIsCommandOpen(true)}

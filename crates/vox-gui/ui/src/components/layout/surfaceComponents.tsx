@@ -33,6 +33,7 @@ import type { DashboardData, Agent, LudusAlert, StreamItem } from '../../types/d
 import type { CatalogEntry, Toast, AttentionBudgetSnapshot } from '../../types/tauri';
 import type { ChatMessage } from '../../lib/chatCorrelation';
 import type { HudTilesConfig } from '../../hooks/useHudTiles';
+import type { AttentionInbox } from '../../hooks/useAttentionInbox';
 
 export interface SurfaceProps {
   pushToast: (t: Toast) => void;
@@ -73,6 +74,7 @@ export interface SurfaceProps {
   attention_budget?: AttentionBudgetSnapshot | null;
   onOpenFeedbackContext?: (id: string) => void;
   focusedFeedbackId?: string | null;
+  attention?: AttentionInbox;
 }
 
 export function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
@@ -167,7 +169,13 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
     case 'activity':
       return <DiscoverySurface pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'needs-you':
-      return <NeedsYouSurface onOpenContext={props.onOpenFeedbackContext!} pushToast={props.pushToast} />;
+      return (
+        <NeedsYouSurface
+          onOpenContext={props.onOpenFeedbackContext!}
+          pushToast={props.pushToast}
+          attention={props.attention}
+        />
+      );
     case 'mission-control':
       return <MissionControlPanel pushToast={props.pushToast} />;
     case 'policies':
