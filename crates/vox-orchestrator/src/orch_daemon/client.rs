@@ -131,6 +131,30 @@ impl OrchDaemonClient {
             .await
     }
 
+    /// [`orch_daemon_method::SAFETY_BUDGET_SIGNALS`] — `{"agents": [{"id", "name", "signal"}]}`.
+    pub async fn safety_budget_signals(&self) -> anyhow::Result<serde_json::Value> {
+        self.call(orch_daemon_method::SAFETY_BUDGET_SIGNALS, serde_json::json!({}))
+            .await
+    }
+
+    /// [`orch_daemon_method::SAFETY_LEDGER`] — `{"receipts": [{"receipt_id", "agent_id", "tool_name"}]}`.
+    pub async fn safety_ledger(
+        &self,
+        agent_id: Option<u64>,
+    ) -> anyhow::Result<serde_json::Value> {
+        self.call(
+            orch_daemon_method::SAFETY_LEDGER,
+            serde_json::json!({ "agent_id": agent_id }),
+        )
+        .await
+    }
+
+    /// [`orch_daemon_method::SAFETY_LOCKS`] — `{"locks": [{"resource_id", "kind", "holder", "expires_ms"}]}`.
+    pub async fn safety_locks(&self) -> anyhow::Result<serde_json::Value> {
+        self.call(orch_daemon_method::SAFETY_LOCKS, serde_json::json!({}))
+            .await
+    }
+
     /// [`orch_daemon_method::TASK_STATUS`] — `{"status": "..."}` or error payload.
     pub async fn task_status(&self, task_id: u64) -> anyhow::Result<serde_json::Value> {
         self.call(

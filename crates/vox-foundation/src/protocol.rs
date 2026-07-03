@@ -112,6 +112,20 @@ pub mod orch_daemon_method {
     /// Params: `{"task_id": u64, "policy": "any"|"local_only"|{"exclude": ["node1",...]}}` → `{"ok": true}`.
     /// Updates the `mesh_policy` of a queued task. Served via `ExtraDispatch`.
     pub const SET_MESH_POLICY: &str = "orch.set_mesh_policy";
+    /// Params: `{}` → `{"agents": [{"id", "name", "signal": BudgetSignal}]}` —
+    /// per-agent budget/drift signal from the daemon's shared `BudgetManager`
+    /// (T2.3 follow-up: `vox safety status`). Mirrors
+    /// `BudgetManager::agent_budget_signal` for every agent in
+    /// `Orchestrator::status().agents`.
+    pub const SAFETY_BUDGET_SIGNALS: &str = "orch.safety_budget_signals";
+    /// Params: `{"agent_id": u64?}` → `{"receipts": [{"receipt_id", "agent_id", "tool_name"}]}`
+    /// — snapshot of the daemon's shared cryptographic tool receipt ledger,
+    /// optionally filtered to one agent (T2.3 follow-up: `vox safety ledger`).
+    pub const SAFETY_LEDGER: &str = "orch.safety_ledger";
+    /// Params: `{}` → `{"locks": [{"resource_id", "kind", "holder", "expires_ms"}]}`
+    /// — snapshot of the daemon's shared generic resource lock manager (T2.3
+    /// follow-up: `vox safety locks`).
+    pub const SAFETY_LOCKS: &str = "orch.safety_locks";
 }
 
 pub mod dei_method {

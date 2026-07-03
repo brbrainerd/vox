@@ -884,6 +884,57 @@ pub async fn dispatch_request(
         orch_daemon_method::VCS_ISOLATION_SET_STRATEGY => {
             handle_vcs_isolation_set_strategy(&req.id, &orch, &req.params)
         }
+        orch_daemon_method::SAFETY_BUDGET_SIGNALS => {
+            let budget_manager = orch.budget_manager_handle();
+            let bm = crate::sync_lock::rw_read(&*budget_manager);
+            let status = orch.status();
+            let agents: Vec<serde_json::Value> = status
+                .agents
+                .iter()
+                .map(|a| {
+                    let signal = bm.agent_budget_signal(a.id);
+                    serde_json::json!({
+                        "id": a.id.0,
+                        "name": a.name,
+                        "signal": signal,
+                    })
+                })
+                .collect();
+            response_result(&req.id, serde_json::json!({ "agents": agents }))
+        }
+        orch_daemon_method::SAFETY_LEDGER => {
+            let filter_agent = req.params.get("agent_id").and_then(|x| x.as_u64());
+            let ledger_handle = orch.tool_ledger_handle();
+            let ledger = ledger_handle.read().unwrap();
+            let snapshot = ledger.snapshot();
+            let receipts: Vec<serde_json::Value> = snapshot
+                .iter()
+                .filter(|(_, (aid, _))| filter_agent.is_none_or(|target| aid.0 == target))
+                .map(|(id, (aid, tool))| {
+                    serde_json::json!({
+                        "receipt_id": id,
+                        "agent_id": aid.0,
+                        "tool_name": tool,
+                    })
+                })
+                .collect();
+            response_result(&req.id, serde_json::json!({ "receipts": receipts }))
+        }
+        orch_daemon_method::SAFETY_LOCKS => {
+            let snapshot = orch.resource_locks().snapshot();
+            let locks: Vec<serde_json::Value> = snapshot
+                .iter()
+                .map(|lock| {
+                    serde_json::json!({
+                        "resource_id": lock.resource_id,
+                        "kind": lock.kind,
+                        "holder": lock.holder.0,
+                        "expires_ms": lock.expires_ms,
+                    })
+                })
+                .collect();
+            response_result(&req.id, serde_json::json!({ "locks": locks }))
+        }
         other => response_err(&req.id, format!("unknown method: {other}")),
     }
 }
