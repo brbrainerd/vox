@@ -164,3 +164,62 @@ async fn resolved_approval_does_not_reappear_after_restart() {
     );
     drop(dir);
 }
+
+/// RED test: a soft-HITL clarification request (`ask_clarification`, which
+/// durably records `FeedbackRequested` per T1.1/T1.2) that is never resolved
+/// before a simulated crash is visible again in `FeedbackStore::open_needs_you()`
+/// after restart, with the SAME request id.
+#[tokio::test]
+async fn open_feedback_request_survives_restart_as_visible() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let db_path = dir.path().join("t14-feedback-restart.db");
+    let db = Arc::new(
+        vox_db::VoxDb::connect(vox_db::DbConfig::Local {
+            path: db_path.to_string_lossy().to_string(),
+        })
+        .await
+        .expect("open db"),
+    );
+
+    let state = ServerState::new_full(vox_orchestrator_mcp::load_config())
+        .with_db_initialized(db.clone())
+        .await;
+
+    let raw = vox_orchestrator_mcp::feedback_tools::ask_clarification(
+        &state,
+        vox_orchestrator_mcp::params::AskClarificationParams {
+            prompt: "which schema should this use?".to_string(),
+            options: vec!["a".to_string(), "b".to_string()],
+            gates: vec![],
+            session_id: None,
+        },
+    )
+    .await;
+    // ask_clarification returns a JSON envelope; just confirm it registered
+    // something rather than parsing its exact shape (not this test's concern).
+    assert!(!raw.is_empty());
+
+    // Never resolved — simulated crash right here.
+    let before_restart = state.feedback().open_needs_you();
+    assert_eq!(
+        before_restart.len(),
+        1,
+        "expected exactly one open clarification before the simulated crash \
+         (attention policy may route to Withheld under some configs — if this \
+         assertion trips in CI, check open_needs_you() vs withheld())"
+    );
+    let request_id = before_restart[0].id.clone();
+
+    // "Restart": fresh ServerState re-attached to the same durable DB.
+    let restarted = ServerState::new_full(vox_orchestrator_mcp::load_config())
+        .with_db_initialized(db.clone())
+        .await;
+
+    let after_restart = restarted.feedback().open_needs_you();
+    assert!(
+        after_restart.iter().any(|f| f.id == request_id),
+        "clarification {request_id:?} was requested but never resolved before \
+         the simulated crash; it must be visible again after restart, got: {after_restart:?}"
+    );
+    drop(dir);
+}
