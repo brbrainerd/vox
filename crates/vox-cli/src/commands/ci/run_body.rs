@@ -592,6 +592,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::FanInBudget { exit_zero } => {
             vox_cli_ci::fan_in_budget::run_fan_in_budget(&root, exit_zero)
         }
+        CiCmd::CrateEdges { tighten } => vox_cli_ci::crate_edges::run(&root, tighten),
         CiCmd::DepCycles {
             deny_new,
             allowlist,
