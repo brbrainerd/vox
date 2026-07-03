@@ -5,7 +5,9 @@ fn config_path() -> PathBuf {
     if let Ok(p) = env::var("PRICE_WATCH_CONFIG") {
         return PathBuf::from(p);
     }
-    // ponytail: default path matches the storage-tier checkout location
+    // ponytail: default path matches the storage-tier checkout location, this
+    // machine only — set PRICE_WATCH_CONFIG elsewhere.
+    // vox-arch-check: allow abs-path
     PathBuf::from(r"C:\Users\Owner\storage-tier\price-watch\price-watch.config.json")
 }
 

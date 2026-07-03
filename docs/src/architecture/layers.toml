@@ -311,7 +311,7 @@ exempt_files     = [
     "crates/vox-orchestrator-mcp/src/git_exec.rs",
     "crates/vox-build-meta/src/lib.rs",
     "crates/vox-cli/src/commands/ci/data_storage_guard.rs",
-    "crates/vox-cli/src/commands/ci/install_hooks.rs",  # uses vox_git::read_only(); pattern match hits the comment only
+    "crates/vox-cli-ci/src/install_hooks.rs",  # uses vox_git::read_only(); pattern match hits the comment only (moved from vox-cli in the PR-4 CI split)
     "crates/vox-cli/src/commands/ci/line_endings.rs",
     "crates/vox-cli-ci/src/line_endings.rs",
     "crates/vox-cli-ci/src/commit_lint.rs",
@@ -327,9 +327,15 @@ exempt_files     = [
     "crates/vox-cli/src/commands/review/coderabbit/github/reviews/submit_branch.rs",
     "crates/vox-cli/src/commands/review/coderabbit/github/reviews/worktree.rs",
     "crates/vox-cli/src/commands/review/coderabbit/historical_planner.rs",
-    "crates/vox-cli/src/commands/review/coderabbit/semantic_planner/collector.rs",
+    "crates/vox-cli-review/src/coderabbit/semantic_planner/collector.rs",  # moved from vox-cli in the vox-cli-review split
     "crates/vox-cli/src/commands/review/coderabbit/semantic_planner/submit.rs",
     "crates/vox-cli/src/commands/review/coderabbit/stack_planner/submit.rs",
+    # Pre-existing, unaudited raw git-exec sites: never evaluated by this rule
+    # before because a missing-crates-in-layers.toml gap short-circuited the
+    # whole tool before it reached forbidden_pattern checks (fixed 2026-07-03).
+    # Pending migration to vox_git::GitExec, not a newly introduced violation.
+    "crates/vox-ml-cli/src/commands/mens/populi/train_arm.rs",  # `git rev-parse --short HEAD` for a training-run manifest stamp
+    "crates/vox-plugin-host/src/user_install.rs",  # shallow-clone a plugin source URL into a temp dir (HITL-gated, user-initiated)
     "crates/vox-doc-pipeline/src/pipeline/lint.rs",
 ]
 allow_annotation = "// vox-arch-check: allow git-exec"
