@@ -6,7 +6,7 @@
 //! Layer map (downward-only rule): `contracts/ci/crate-layers.v1.json`.
 //! Spec: docs/superpowers/specs/2026-07-03-crate-disentanglement-ratchet-design.md
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use cargo_metadata::DependencyKind;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -159,6 +159,160 @@ pub fn collect_live_edges(root: &Path) -> Result<BTreeSet<(String, String)>> {
     Ok(edges)
 }
 
+pub fn write_allow_file(path: &Path, file: &AllowFile) -> Result<()> {
+    std::fs::write(path, serde_json::to_string_pretty(file)? + "\n")
+        .with_context(|| format!("write {}", path.display()))
+}
+
+/// Regenerate the baseline from the live set. Removal-only: refuses if any live
+/// edge is absent from the prior baseline union exceptions. Keeps exceptions whose
+/// edge still exists; excepted pairs are NOT duplicated into edges.
+pub fn tighten(root: &Path, live: &BTreeSet<(String, String)>) -> Result<()> {
+    let path = root.join(ALLOW_REL);
+    let live_real: BTreeSet<(String, String)> = live
+        .iter()
+        .filter(|(f, t)| f != EXEMPT && t != EXEMPT)
+        .cloned()
+        .collect();
+    let prior: Option<AllowFile> = if path.exists() {
+        Some(
+            serde_json::from_str(
+                &std::fs::read_to_string(&path).with_context(|| format!("read {}", path.display()))?,
+            )
+            .context("parse crate-edges.allow.v1.json")?,
+        )
+    } else {
+        None
+    };
+    let mut exceptions: Vec<ExceptionEntry> = Vec::new();
+    if let Some(prior) = &prior {
+        let prior_allowed: BTreeSet<(String, String)> = prior
+            .edges
+            .iter()
+            .map(|e| (e[0].clone(), e[1].clone()))
+            .chain(prior.exceptions.iter().map(|x| (x.from.clone(), x.to.clone())))
+            .collect();
+        let additions: Vec<&(String, String)> =
+            live_real.iter().filter(|e| !prior_allowed.contains(e)).collect();
+        if !additions.is_empty() {
+            bail!(
+                "--tighten would ADD {} edge(s) (tighten is removal-only): {:?}\n\n{HEAL}",
+                additions.len(),
+                additions
+            );
+        }
+        exceptions = prior
+            .exceptions
+            .iter()
+            .filter(|x| live_real.contains(&(x.from.clone(), x.to.clone())))
+            .cloned()
+            .collect();
+    }
+    let excepted: BTreeSet<(String, String)> =
+        exceptions.iter().map(|x| (x.from.clone(), x.to.clone())).collect();
+    let file = AllowFile {
+        schema_version: 1,
+        edges: live_real
+            .iter()
+            .filter(|e| !excepted.contains(e))
+            .map(|(f, t)| [f.clone(), t.clone()])
+            .collect(),
+        exceptions,
+    };
+    write_allow_file(&path, &file)?;
+    println!(
+        "crate-edges: baseline tightened to {} edges (+{} exceptions) -> {}",
+        file.edges.len(),
+        file.exceptions.len(),
+        path.display()
+    );
+    Ok(())
+}
+
+/// Bootstrap heuristic only: layer = longest path to an in-tree leaf, capped at 4.
+/// Written once when the layers file is absent; hand-adjusted afterwards, never overwritten.
+pub fn suggest_layers(live: &BTreeSet<(String, String)>) -> LayersFile {
+    let mut adj: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    let mut nodes: BTreeSet<&str> = BTreeSet::new();
+    for (f, t) in live {
+        if f == EXEMPT || t == EXEMPT {
+            continue;
+        }
+        adj.entry(f.as_str()).or_default().push(t.as_str());
+        nodes.insert(f.as_str());
+        nodes.insert(t.as_str());
+    }
+    fn depth<'a>(
+        n: &'a str,
+        adj: &BTreeMap<&'a str, Vec<&'a str>>,
+        memo: &mut BTreeMap<&'a str, u8>,
+    ) -> u8 {
+        if let Some(&d) = memo.get(n) {
+            return d;
+        }
+        memo.insert(n, 0);
+        let d = adj
+            .get(n)
+            .map(|ds| ds.iter().map(|c| depth(c, adj, memo).saturating_add(1)).max().unwrap_or(0))
+            .unwrap_or(0)
+            .min(4);
+        memo.insert(n, d);
+        d
+    }
+    let mut memo = BTreeMap::new();
+    let layers = nodes.iter().map(|n| ((*n).to_string(), depth(n, &adj, &mut memo))).collect();
+    LayersFile { schema_version: 1, layers }
+}
+
+/// Guard entry point (`vox ci crate-edges [--tighten]`).
+pub fn run(root: &Path, tighten_mode: bool) -> Result<()> {
+    let live = collect_live_edges(root)?;
+    let layers_path = root.join(LAYERS_REL);
+    if tighten_mode {
+        if !layers_path.exists() {
+            let suggested = suggest_layers(&live);
+            std::fs::write(&layers_path, serde_json::to_string_pretty(&suggested)? + "\n")?;
+            println!(
+                "crate-edges: wrote SUGGESTED layer map (hand-adjust before merging!) -> {}",
+                layers_path.display()
+            );
+        }
+        return tighten(root, &live);
+    }
+    let allow_path = root.join(ALLOW_REL);
+    if !allow_path.exists() {
+        bail!("missing {ALLOW_REL} — bootstrap with `vox ci crate-edges --tighten`");
+    }
+    let allow: AllowFile = serde_json::from_str(&std::fs::read_to_string(&allow_path)?)
+        .context("parse crate-edges.allow.v1.json")?;
+    if !layers_path.exists() {
+        bail!("missing {LAYERS_REL} — bootstrap with `vox ci crate-edges --tighten`");
+    }
+    let layers: LayersFile = serde_json::from_str(&std::fs::read_to_string(&layers_path)?)
+        .context("parse crate-layers.v1.json")?;
+
+    let (violations, stale) = check(&live, &allow, &layers);
+    for (f, t) in &stale {
+        println!("warning: stale baseline edge {f} -> {t} (gone; run `vox ci crate-edges --tighten`)");
+    }
+    if violations.is_empty() {
+        println!("crate-edges: OK ({} live in-tree edges within baseline)", live.len());
+        return Ok(());
+    }
+    for v in &violations {
+        match v {
+            Violation::NewEdge { from, to } => eprintln!("NEW EDGE not in baseline: {from} -> {to}"),
+            Violation::UpwardEdge { from, from_layer, to, to_layer } => eprintln!(
+                "UPWARD EDGE (layer rule): {from} (L{from_layer}) -> {to} (L{to_layer}) — deps must point same-layer or down"
+            ),
+            Violation::MissingLayer { krate } => eprintln!(
+                "UNASSIGNED LAYER: {krate} missing from {LAYERS_REL} — assign one per where-things-live.md"
+            ),
+        }
+    }
+    bail!("crate-edges: {} violation(s)\n\n{HEAL}", violations.len());
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -304,5 +458,58 @@ mod tests {
         let live = collect_live_edges(&root).expect("cargo metadata");
         assert!(live.contains(&("vox-cli".to_string(), "vox-cli-ci".to_string())));
         assert!(live.len() > 400, "expected hundreds of in-tree edges, got {}", live.len());
+    }
+
+    #[test]
+    fn tighten_is_removal_only() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("contracts/ci")).unwrap();
+        write_allow_file(
+            &dir.path().join(ALLOW_REL),
+            &allow(&[("app", "lib")], &[]),
+        )
+        .unwrap();
+        let err = tighten(dir.path(), &edges(&[("app", "lib"), ("app", "extra")])).unwrap_err();
+        assert!(err.to_string().contains("removal-only"), "{err}");
+        tighten(dir.path(), &edges(&[])).unwrap();
+        let f: AllowFile = serde_json::from_str(
+            &std::fs::read_to_string(dir.path().join(ALLOW_REL)).unwrap(),
+        )
+        .unwrap();
+        assert!(f.edges.is_empty());
+    }
+
+    #[test]
+    fn tighten_bootstraps_when_missing_and_keeps_live_exceptions() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("contracts/ci")).unwrap();
+        tighten(dir.path(), &edges(&[("app", "lib")])).unwrap();
+        let f: AllowFile = serde_json::from_str(
+            &std::fs::read_to_string(dir.path().join(ALLOW_REL)).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(f.edges, vec![["app".to_string(), "lib".to_string()]]);
+        write_allow_file(
+            &dir.path().join(ALLOW_REL),
+            &allow(&[("app", "lib")], &[("app", "lib")]),
+        )
+        .unwrap();
+        tighten(dir.path(), &edges(&[("app", "lib")])).unwrap();
+        let f: AllowFile = serde_json::from_str(
+            &std::fs::read_to_string(dir.path().join(ALLOW_REL)).unwrap(),
+        )
+        .unwrap();
+        assert!(f.edges.is_empty(), "excepted pair must not also sit in edges");
+        assert_eq!(f.exceptions.len(), 1);
+    }
+
+    #[test]
+    fn suggest_layers_depth_capped() {
+        let l = suggest_layers(&edges(&[
+            ("a", "b"), ("b", "c"), ("c", "d"), ("d", "e"), ("e", "f"),
+        ]));
+        assert_eq!(l.layers["f"], 0);
+        assert_eq!(l.layers["e"], 1);
+        assert_eq!(l.layers["a"], 4);
     }
 }
