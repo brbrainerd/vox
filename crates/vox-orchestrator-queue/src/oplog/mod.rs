@@ -135,6 +135,42 @@ pub enum OperationKind {
         optimizer_state_hash: String,
         step: u64,
     },
+    // ── T1.1: dispatch lifecycle events (harness reliability spec, Phase 1) ──
+    // These make approval / feedback / doubt / hopper lifecycle transitions
+    // durable via the existing op-log rather than a new ledger. See
+    // docs/src/architecture/vox-axis-harness-reliability-spec-plan-2026-07-02.md
+    // section 3, T1.1. Cost fields are deliberately absent — vox-telemetry
+    // stays the cost SSOT; correlate via `trace_id`/`run_id` elsewhere.
+    /// A dangerous-tool call parked on a human-in-the-loop approval decision.
+    ApprovalRequested {
+        approval_id: String,
+        tool: String,
+        run_id: Option<String>,
+    },
+    /// A parked approval was resolved (approved/rejected/timed out/modified).
+    ApprovalResolved {
+        approval_id: String,
+        /// Stringified via the same convention as the MCP gate's
+        /// `format!("{outcome:?}").to_lowercase()`.
+        outcome: String,
+        resolver: Option<String>,
+    },
+    /// A soft-HITL feedback item (clarification / doubt / skill proposal) was registered.
+    FeedbackRequested {
+        request_id: String,
+        task_id: Option<u64>,
+        kind: String,
+    },
+    /// A feedback item was resolved (answer/skip/overrule/let_verify/accept_skill).
+    FeedbackResolved { request_id: String, action: String },
+    /// A task was flagged as suspect by a human, forcing a verification pass.
+    TaskDoubted { task_id: u64, reason: Option<String> },
+    /// A hopper intake item was admitted to the inbox.
+    HopperAdmit { item_id: String },
+    /// A hopper intake item was assigned to a dispatched task.
+    HopperAssign { item_id: String, task_id: u64 },
+    /// A hopper intake item's backing task completed; the item is Done.
+    HopperComplete { item_id: String },
 }
 
 /// A single entry in the operation log.
@@ -201,6 +237,13 @@ pub struct OpLog {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // T1.1 dispatch-lifecycle variant fixture/schema validation lives in the
+    // `dispatch_events_contract` integration test (crates/vox-orchestrator-queue/tests/
+    // dispatch_events_contract.rs), which validates the per-fixture-file corpus under
+    // contracts/orchestration/fixtures/dispatch-events/ against
+    // contracts/orchestration/dispatch-events.v1.schema.json using the workspace
+    // `jsonschema` crate.
 
     fn agent() -> AgentId {
         AgentId(1)

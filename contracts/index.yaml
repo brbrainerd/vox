@@ -617,6 +617,22 @@ contracts:
     enforced_by:
       - vox ci contracts-index
 
+  - id: dispatch-events-v1-schema
+    path: contracts/orchestration/dispatch-events.v1.schema.json
+    owner: orchestrator
+    kind: json-schema
+    description: JSON Schema for the T1.1 dispatch-lifecycle OperationKind variants (approval/feedback/doubt/hopper) in the vox-orchestrator-queue op-log. Encodes serde's externally-tagged wire shape.
+    enforced_by:
+      - cargo test -p vox-orchestrator-queue --test dispatch_events_contract
+
+  - id: dispatch-events-v1-fixtures
+    path: contracts/orchestration/fixtures/dispatch-events
+    owner: orchestrator
+    kind: json
+    description: One example JSON blob per T1.1 dispatch-lifecycle OperationKind variant (approval_requested.json, approval_resolved.json, feedback_requested.json, feedback_resolved.json, task_doubted.json, hopper_admit.json, hopper_assign.json, hopper_complete.json); validated against dispatch-events.v1.schema.json.
+    enforced_by:
+      - cargo test -p vox-orchestrator-queue --test dispatch_events_contract
+
   - id: dei-rpc-envelope-schema
     path: contracts/dei/rpc-methods.schema.json
     owner: dei
