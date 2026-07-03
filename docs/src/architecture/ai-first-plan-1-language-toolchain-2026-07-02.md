@@ -2,7 +2,7 @@
 title: "AI-Authorship Language/Toolchain Gaps Implementation Plan"
 description: "Closes G-L1 (@ai structured_output emits a real JSON-schema body derived from the return typedef, plus a max_iterations re-prompt loop), G-T1 (uniform --json build-lane envelope for vox build/test/run), and G-T7 (vox doctor --diag <id> single-check filter)."
 category: "Architecture SSOTs"
-status: "roadmap"
+status: "landed"
 last_updated: "2026-07-02"
 training_eligible: false
 authored: "2026-07-02"
