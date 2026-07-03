@@ -15161,6 +15161,7 @@ dependencies = [
  "vox-telemetry",
  "which 8.0.4",
  "windows-sys 0.59.0",
+ "wiremock",
  "workspace-hack",
  "xxhash-rust",
 ]
@@ -16033,6 +16034,7 @@ dependencies = [
  "toml 0.8.23",
  "tracing",
  "turso",
+ "vox-actor-runtime",
  "vox-bounded-fs",
  "vox-config",
  "vox-db",
@@ -16041,6 +16043,7 @@ dependencies = [
  "vox-mesh-types",
  "vox-openai",
  "vox-secrets",
+ "wiremock",
  "workspace-hack",
  "xxhash-rust",
 ]
@@ -16533,6 +16536,7 @@ dependencies = [
  "vox-vcs",
  "walkdir",
  "wat",
+ "wiremock",
  "workspace-hack",
  "xxhash-rust",
 ]

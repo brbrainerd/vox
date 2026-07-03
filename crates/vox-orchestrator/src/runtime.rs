@@ -134,6 +134,38 @@ impl AiTaskProcessor {
         route: vox_gamify::StreamRoute<'_>,
         cancel: &Arc<AtomicBool>,
     ) -> anyhow::Result<String> {
+        Self::run_phase_stream_with_bus(
+            &self.event_bus,
+            client,
+            agent_id,
+            task,
+            phase,
+            usage_model,
+            prior_notes,
+            route,
+            cancel,
+        )
+        .await
+    }
+
+    /// Core of [`Self::run_phase_stream`], taking the event bus explicitly rather
+    /// than through `&self` so it is testable without constructing a full
+    /// [`Orchestrator`]. This is the single call chain that feeds `TokenStreamed`
+    /// events from the consolidated `vox-gamify` streaming client (T4.1): every
+    /// token delta yielded by `client.generate_stream_routed` is emitted here, and
+    /// nowhere else in `vox-orchestrator` emits `TokenStreamed`.
+    #[allow(clippy::too_many_arguments)]
+    async fn run_phase_stream_with_bus(
+        event_bus: &crate::events::EventBus,
+        client: &vox_gamify::ai::FreeAiClient,
+        agent_id: crate::types::AgentId,
+        task: &crate::types::AgentTask,
+        phase: crate::types::TaskPhase,
+        usage_model: &str,
+        prior_notes: &str,
+        route: vox_gamify::StreamRoute<'_>,
+        cancel: &Arc<AtomicBool>,
+    ) -> anyhow::Result<String> {
         let mut history_block = String::new();
         if !task.transcript.is_empty() {
             history_block.push_str("### Prior Agent Turns (Context)\n");
@@ -176,8 +208,7 @@ impl AiTaskProcessor {
             match chunk_result {
                 Ok(text) => {
                     phase_text.push_str(&text);
-                    self.event_bus
-                        .emit(AgentEventKind::TokenStreamed { agent_id, text });
+                    event_bus.emit(AgentEventKind::TokenStreamed { agent_id, text });
                 }
                 Err(e) => tracing::error!("AI stream error [{}]: {}", phase.as_str(), e),
             }
@@ -1050,5 +1081,101 @@ mod tests {
         let cancel = Arc::new(AtomicBool::new(false));
         let result = proc_.process(crate::types::AgentId(1), task, cancel).await;
         assert_eq!(result.unwrap(), crate::types::TaskId(7));
+    }
+
+    /// RED test 3: `TokenStreamed` events emitted by `run_phase_stream_with_bus` — the
+    /// single call chain `AiTaskProcessor::process` uses to drive streaming — genuinely
+    /// originate from the T4.1-consolidated stack: `vox_gamify::FreeAiClient::generate_stream_routed`
+    /// routed at `StreamRoute::Registry { backend: OpenRouter, .. }`, which (per the
+    /// vox-gamify migration) now goes through `vox_actor_runtime::execute_activity` +
+    /// `vox_llm_egress::stream_once` rather than a bespoke HTTP client. Proven end-to-end:
+    /// a mock OpenRouter SSE response reaches the orchestrator's `EventBus` as one or more
+    /// `TokenStreamed { text, .. }` events whose concatenated text matches the mocked delta.
+    #[tokio::test]
+    async fn token_streamed_events_originate_from_consolidated_stream_stack() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        let sse = "data: {\"choices\":[{\"delta\":{\"content\":\"uni\"}}]}\n\
+                   data: {\"choices\":[{\"delta\":{\"content\":\"fied\"}}]}\n\
+                   data: [DONE]\n\n";
+        Mock::given(method("POST"))
+            .and(path("/v1/chat/completions"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .insert_header("content-type", "text/event-stream")
+                    .set_body_string(sse),
+            )
+            .mount(&server)
+            .await;
+
+        // Rust 2024 made std::env::{set_var,remove_var} unsafe; single-threaded mutation,
+        // scoped tightly around the call under test.
+        let prev = std::env::var("OPENROUTER_BASE_URL").ok();
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::set_var("OPENROUTER_BASE_URL", server.uri());
+        }
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+
+        let event_bus = crate::events::EventBus::new(64);
+        let mut rx = event_bus.subscribe();
+
+        let client = vox_gamify::FreeAiClient::new(vec![vox_gamify::FreeAiProvider::OpenRouter {
+            api_key: "test-api-key".to_string(),
+            models: Vec::new(),
+        }]);
+        let task = crate::types::AgentTask::new(
+            crate::types::TaskId(1),
+            "unify the streaming stack",
+            crate::types::TaskPriority::Normal,
+            vec![],
+        );
+        let cancel = Arc::new(AtomicBool::new(false));
+        let route = vox_gamify::StreamRoute::Registry {
+            backend: vox_gamify::LudusStreamBackend::OpenRouter,
+            model: "test/model",
+        };
+
+        let phase_text = AiTaskProcessor::run_phase_stream_with_bus(
+            &event_bus,
+            &client,
+            crate::types::AgentId(1),
+            &task,
+            crate::types::TaskPhase::Inspect,
+            "test/model",
+            "",
+            route,
+            &cancel,
+        )
+        .await
+        .expect("stream must complete");
+
+        #[allow(unsafe_code)]
+        unsafe {
+            match prev {
+                Some(v) => std::env::set_var("OPENROUTER_BASE_URL", v),
+                None => std::env::remove_var("OPENROUTER_BASE_URL"),
+            }
+        }
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+
+        assert_eq!(phase_text, "unified");
+
+        // Drain the TokenStreamed events actually broadcast on the EventBus and confirm
+        // they concatenate to the same text — proving the event path (not just the
+        // function's return value) carries the consolidated stack's deltas.
+        let mut streamed_text = String::new();
+        while let Ok(evt) = rx.try_recv() {
+            if let AgentEventKind::TokenStreamed { text, agent_id } = evt.kind {
+                assert_eq!(agent_id, crate::types::AgentId(1));
+                streamed_text.push_str(&text);
+            }
+        }
+        assert_eq!(
+            streamed_text, "unified",
+            "TokenStreamed events on the EventBus must carry the consolidated stack's deltas"
+        );
     }
 }

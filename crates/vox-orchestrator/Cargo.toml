@@ -145,6 +145,7 @@ jsonschema = { workspace = true, default-features = false }
 tower = { workspace = true, features = ["util"] }
 # WAT→WASM for the mesh bundle-execution test (synthesize a real WASI module).
 wat = "1.220"
+wiremock = { workspace = true }
 
 [[test]]
 name = "skill_runtime_inproc"
