@@ -251,8 +251,30 @@ pub(crate) async fn compile(
         script_mode: true,
         ..Default::default()
     };
+    // Always pass `json=false` into the frontend: on a PARSE (not typecheck)
+    // failure, `run_frontend_with_options`'s own error path self-prints under
+    // `json=true` (a pretty multi-line diagnostics array on stdout) before
+    // returning `Err` — bypassing the single-line envelope this function
+    // otherwise guarantees below. Keeping the frontend in human/stderr-only
+    // mode means a parse failure surfaces here as a plain `Err` with nothing
+    // yet on stdout, so the `Err` arm can emit the one envelope this command
+    // promises (there's no `FrontendResult` to attach real diagnostics to, so
+    // it uses the same minimal shape `vox build` uses for opaque failures).
     let result: crate::pipeline::FrontendResult =
-        crate::pipeline::run_frontend_with_options(file, json, &pipeline_opts).await?;
+        match crate::pipeline::run_frontend_with_options(file, false, &pipeline_opts).await {
+            Ok(r) => r,
+            Err(e) => {
+                if json {
+                    println!(
+                        "{}",
+                        crate::pipeline::format_command_result_envelope_json(
+                            "run", file, false, None,
+                        )
+                    );
+                }
+                return Err(e);
+            }
+        };
 
     if !result.module.has_entrypoint() {
         anyhow::bail!(

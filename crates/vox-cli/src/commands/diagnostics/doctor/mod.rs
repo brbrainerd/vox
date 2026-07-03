@@ -76,7 +76,7 @@ pub async fn run(
         }
     }
 
-    if !probe {
+    if !probe && !json {
         println!(
             "vox doctor — checking your environment{}",
             if auto_heal {

@@ -144,7 +144,16 @@ async fn run_inner(
     app_id: Option<String>,
     json: bool,
 ) -> Result<()> {
-    let frontend = crate::pipeline::run_frontend(file, json).await?;
+    // Always pass `json=false` into the frontend: on a PARSE (not typecheck)
+    // failure, `run_frontend`'s own error path self-prints under `json=true`
+    // (a pretty multi-line diagnostics array on stdout) before returning `Err`,
+    // which is not a `BuildFailure` — it would slip past `run`'s single-envelope
+    // dispatch and print a *second*, contradicting envelope on top. `run` owns
+    // all `--json` stdout output for this command, so the frontend must stay in
+    // its human/stderr-only mode regardless of `json`; a parse failure then
+    // surfaces here as a plain `Err` with nothing yet on stdout, and `run`'s
+    // `None` (opaque-error) branch emits the one envelope this command promises.
+    let frontend = crate::pipeline::run_frontend(file, false).await?;
     if !json {
         // In non-JSON mode diagnostics (including warnings on an otherwise
         // successful frontend pass) print immediately, matching prior behavior.
