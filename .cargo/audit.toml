@@ -6,4 +6,13 @@ ignore = [
   # rsa Marvin-attack timing sidechannel — no fixed release exists; transitive
   # dependency. Mirrors the deny.toml ignore.
   "RUSTSEC-2023-0071",
+  # Mirrors the deny.toml ignore (was missing here — pre-existing drift between
+  # the two files, found 2026-07-03).
+  "RUSTSEC-2024-0436",
+  # 2026-07-03: quick-xml DoS advisories (fixed in >=0.41.0). See the matching
+  # deny.toml ignore entry for the full per-instance breakdown (vox-publisher's
+  # own dep is bumped to 0.41; feed-rs/plist/self_update are each already at
+  # their upstream's latest release with no fix yet).
+  "RUSTSEC-2026-0194",
+  "RUSTSEC-2026-0195",
 ]
