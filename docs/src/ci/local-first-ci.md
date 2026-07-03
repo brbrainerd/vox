@@ -65,10 +65,11 @@ scale-event ledger.
 
 ## Flood prevention at the source
 
-Push/PR-triggered workflows must declare
-`concurrency: { group: workflow-ref, cancel-in-progress: true }` — enforced
-strictly in pre-push by `vox ci workflow-concurrency-guard`, with exceptions
-in [concurrency-exceptions](concurrency-exceptions.md). The hosted fallback's
+Push/PR-triggered workflows must declare a top-level `concurrency:` mapping
+containing `cancel-in-progress: true` (a bare group string or a non-cancelling
+group does not count) — enforced strictly in pre-push by
+`vox ci workflow-concurrency-guard`, with exceptions in
+[concurrency-exceptions](concurrency-exceptions.md). The hosted fallback's
 Windows smoke runs only on schedule/dispatch/`fleet-down`-labelled PRs.
 
 ## Stale-binary hardening (why one shell call can never lock out a whole session)

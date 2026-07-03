@@ -1,6 +1,9 @@
-//! `vox ci workflow-concurrency-guard` — require a top-level `concurrency:` block on
-//! every workflow triggered by `push` or `pull_request`, so superseded runs are
-//! cancelled at the source (flood prevention for the local runner fleet).
+//! `vox ci workflow-concurrency-guard` — require a top-level `concurrency:` mapping
+//! with `cancel-in-progress: true` on every workflow triggered by `push` or
+//! `pull_request`, so superseded runs are cancelled at the source (flood
+//! prevention for the local runner fleet). A bare group string, or a mapping
+//! without `cancel-in-progress: true`, serializes without cancelling and
+//! provides zero flood protection — that counts as a violation.
 //!
 //! Advisory by default; `--strict` fails. Exceptions: backticked filenames in
 //! `docs/src/ci/concurrency-exceptions.md` (pattern mirrors runner_policy_check.rs).
@@ -32,9 +35,15 @@ fn needs_concurrency(doc: &serde_yaml::Value) -> bool {
     }
 }
 
-fn has_concurrency(doc: &serde_yaml::Value) -> bool {
+/// True only when the top-level `concurrency:` is a mapping containing
+/// `cancel-in-progress: true`. A scalar group string or a mapping without
+/// that key merely serializes runs — no flood protection — so it fails.
+fn has_cancelling_concurrency(doc: &serde_yaml::Value) -> bool {
     doc.as_mapping()
-        .map(|m| m.contains_key(serde_yaml::Value::String("concurrency".into())))
+        .and_then(|m| m.get(serde_yaml::Value::String("concurrency".into())))
+        .and_then(|c| c.as_mapping())
+        .and_then(|c| c.get(serde_yaml::Value::String("cancel-in-progress".into())))
+        .and_then(|v| v.as_bool())
         .unwrap_or(false)
 }
 
@@ -73,7 +82,7 @@ pub fn run(repo_root: &Path, strict: bool) -> Result<()> {
         let doc: serde_yaml::Value =
             serde_yaml::from_str(&text).with_context(|| format!("parse {}", path.display()))?;
         if needs_concurrency(&doc)
-            && !has_concurrency(&doc)
+            && !has_cancelling_concurrency(&doc)
             && !is_excepted(&exceptions_text, &name)
         {
             violations.push(name);
@@ -85,9 +94,13 @@ pub fn run(repo_root: &Path, strict: bool) -> Result<()> {
     }
     let msg = format!(
         "workflow-concurrency-guard: {} workflow(s) with push/pull_request triggers lack a \
-         top-level `concurrency:` block and are not registered in {EXCEPTIONS_DOC}:\n  {}\n\
-         Fix: add `concurrency: {{ group: ${{{{ github.workflow }}}}-${{{{ github.ref }}}}, \
-         cancel-in-progress: true }}` or register an exception with a reason.",
+         top-level `concurrency:` mapping with `cancel-in-progress: true` and are not \
+         registered in {EXCEPTIONS_DOC}:\n  {}\n\
+         Fix: add\n\
+         concurrency:\n  \
+           group: ${{{{ github.workflow }}}}-${{{{ github.ref }}}}\n  \
+           cancel-in-progress: true\n\
+         or register an exception with a reason.",
         violations.len(),
         violations.join("\n  ")
     );
@@ -126,14 +139,30 @@ mod tests {
     }
 
     #[test]
-    fn concurrency_presence() {
+    fn cancelling_concurrency_detection() {
+        // Mapping with cancel-in-progress: true — the only passing shape.
         let with: serde_yaml::Value = serde_yaml::from_str(
             "on: push\nconcurrency:\n  group: g\n  cancel-in-progress: true\njobs: {}",
         )
         .unwrap();
-        assert!(has_concurrency(&with));
+        assert!(has_cancelling_concurrency(&with));
+        // No concurrency at all.
         let without: serde_yaml::Value = serde_yaml::from_str("on: push\njobs: {}").unwrap();
-        assert!(!has_concurrency(&without));
+        assert!(!has_cancelling_concurrency(&without));
+        // Mapping without cancel-in-progress: serializes but never cancels — fails.
+        let no_cancel: serde_yaml::Value =
+            serde_yaml::from_str("on: push\nconcurrency:\n  group: g\njobs: {}").unwrap();
+        assert!(!has_cancelling_concurrency(&no_cancel));
+        // Scalar group string: same — fails.
+        let scalar: serde_yaml::Value =
+            serde_yaml::from_str("on: push\nconcurrency: my-group\njobs: {}").unwrap();
+        assert!(!has_cancelling_concurrency(&scalar));
+        // Explicit cancel-in-progress: false — fails.
+        let explicit_false: serde_yaml::Value = serde_yaml::from_str(
+            "on: push\nconcurrency:\n  group: g\n  cancel-in-progress: false\njobs: {}",
+        )
+        .unwrap();
+        assert!(!has_cancelling_concurrency(&explicit_false));
     }
 
     #[test]
