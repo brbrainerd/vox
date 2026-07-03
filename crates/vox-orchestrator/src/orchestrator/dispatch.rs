@@ -90,19 +90,35 @@ pub async fn run_dispatcher_with_oplog(
                 let task = intake_to_task(&item);
                 if let Some(agent_id) = enqueue(task) {
                     // Real production caller of `HopperIntake::assign` (previously
-                    // unreachable outside tests — see hopper/store.rs).
-                    let _ = hopper.assign(&item.item_id, agent_id.to_string()).await;
-                    if let Some(log) = oplog.as_ref() {
-                        record_hopper_op(
-                            log,
-                            crate::oplog::OperationKind::HopperAssign {
-                                item_id: item.item_id.0.clone(),
-                                task_id: stable_hash(&item.item_id.0),
-                            },
-                            format!(
-                                "Hopper item {} assigned to agent {}",
-                                item.item_id.0, agent_id
-                            ),
+                    // unreachable outside tests — see hopper/store.rs). Only record
+                    // the `HopperAssign` oplog entry when the real assign actually
+                    // succeeded — mirrors the `HopperComplete` gating in
+                    // `task_dispatch/complete/success/mod.rs` (`hopper.complete(..)
+                    // .await.is_ok()`), so the oplog never claims a hopper state
+                    // transition that didn't really happen.
+                    if hopper
+                        .assign(&item.item_id, agent_id.to_string())
+                        .await
+                        .is_ok()
+                    {
+                        if let Some(log) = oplog.as_ref() {
+                            record_hopper_op(
+                                log,
+                                crate::oplog::OperationKind::HopperAssign {
+                                    item_id: item.item_id.0.clone(),
+                                    task_id: stable_hash(&item.item_id.0),
+                                },
+                                format!(
+                                    "Hopper item {} assigned to agent {}",
+                                    item.item_id.0, agent_id
+                                ),
+                            );
+                        }
+                    } else {
+                        tracing::warn!(
+                            item_id = %item.item_id.0,
+                            %agent_id,
+                            "hopper.assign failed; not recording HopperAssign oplog entry"
                         );
                     }
                 }
@@ -290,6 +306,151 @@ mod tests {
                     if item_id == &item.item_id.0 && *task_id == stable_hash(&item.item_id.0)
             )),
             "expected a HopperAssign oplog entry"
+        );
+    }
+
+    /// Test-only decorator that delegates everything to an inner `InMemoryHopper`
+    /// except `assign`, which always fails — used to prove the dispatcher does
+    /// NOT record `HopperAssign` when the real assign call errors (Issue 1).
+    struct AssignFailingHopper {
+        inner: InMemoryHopper,
+    }
+
+    #[async_trait::async_trait]
+    impl HopperIntake for AssignFailingHopper {
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+        async fn submit(
+            &self,
+            intent: String,
+            affinity_hints: Vec<String>,
+            priority_hint: PriorityHint,
+            source: IntakeSource,
+            session_id: Option<String>,
+        ) -> crate::hopper::types::IntakeItem {
+            self.inner
+                .submit(intent, affinity_hints, priority_hint, source, session_id)
+                .await
+        }
+        async fn inbox(&self) -> Vec<crate::hopper::types::IntakeItem> {
+            self.inner.inbox().await
+        }
+        async fn assigned(&self) -> Vec<crate::hopper::types::IntakeItem> {
+            self.inner.assigned().await
+        }
+        async fn history(&self) -> Vec<crate::hopper::types::IntakeItem> {
+            self.inner.history().await
+        }
+        async fn reprioritize(
+            &self,
+            item_id: &crate::events::HopperItemId,
+            new_priority: TaskPriority,
+            cap: crate::hopper::capability::DeveloperOverride,
+        ) -> Result<crate::hopper::types::IntakeItem, crate::hopper::store::HopperError> {
+            self.inner.reprioritize(item_id, new_priority, cap).await
+        }
+        async fn assign(
+            &self,
+            _item_id: &crate::events::HopperItemId,
+            _agent_id: String,
+        ) -> Result<crate::hopper::types::IntakeItem, crate::hopper::store::HopperError> {
+            Err(crate::hopper::store::HopperError::NotFound(
+                "synthetic assign failure (test)".into(),
+            ))
+        }
+        async fn complete(
+            &self,
+            item_id: &crate::events::HopperItemId,
+        ) -> Result<crate::hopper::types::IntakeItem, crate::hopper::store::HopperError> {
+            self.inner.complete(item_id).await
+        }
+        async fn cancel(
+            &self,
+            item_id: &crate::events::HopperItemId,
+        ) -> Result<crate::hopper::types::IntakeItem, crate::hopper::store::HopperError> {
+            self.inner.cancel(item_id).await
+        }
+        async fn replay_admitted(
+            &self,
+            op: crate::hopper::store::AdmittedReplay,
+        ) -> crate::hopper::types::IntakeItem {
+            self.inner.replay_admitted(op).await
+        }
+        async fn replay_overridden(
+            &self,
+            item_id: &crate::events::HopperItemId,
+            new_priority: TaskPriority,
+            override_at_unix_ms: u64,
+            override_by_node_id: String,
+        ) -> Result<crate::hopper::types::IntakeItem, crate::hopper::store::HopperError> {
+            self.inner
+                .replay_overridden(
+                    item_id,
+                    new_priority,
+                    override_at_unix_ms,
+                    override_by_node_id,
+                )
+                .await
+        }
+        async fn replay_transitioned(
+            &self,
+            item_id: &crate::events::HopperItemId,
+            new_state: crate::hopper::types::ItemState,
+        ) -> Result<crate::hopper::types::IntakeItem, crate::hopper::store::HopperError> {
+            self.inner.replay_transitioned(item_id, new_state).await
+        }
+    }
+
+    /// Issue 1 fix: when the real `hopper.assign()` call fails, the dispatcher
+    /// must NOT record a `HopperAssign` oplog entry (it would otherwise claim a
+    /// hopper state transition that never actually happened).
+    #[tokio::test]
+    async fn dispatcher_does_not_record_hopper_assign_when_assign_fails() {
+        let bus = Arc::new(EventBus::new(16));
+        let rx = bus.subscribe();
+        let inner = InMemoryHopper::new(bus.clone());
+        let hopper: Arc<dyn HopperIntake> = Arc::new(AssignFailingHopper { inner });
+        let oplog = Arc::new(std::sync::RwLock::new(crate::oplog::OpLog::new(100)));
+
+        let handle = tokio::spawn(run_dispatcher_with_oplog(
+            rx,
+            hopper.clone(),
+            move |_t| Some(crate::types::AgentId(7)),
+            Some(1),
+            Some(oplog.clone()),
+        ));
+
+        let item = hopper
+            .submit(
+                "t".into(),
+                vec![],
+                PriorityHint::Normal,
+                IntakeSource::Developer,
+                None,
+            )
+            .await;
+        handle.await.unwrap();
+
+        let entries = {
+            let log = oplog.read().unwrap();
+            log.list(None, 100).into_iter().cloned().collect::<Vec<_>>()
+        };
+        // HopperAdmit should still be recorded (assign failure only gates the
+        // HopperAssign write).
+        assert!(
+            entries.iter().any(|e| matches!(
+                &e.kind,
+                crate::oplog::OperationKind::HopperAdmit { item_id } if item_id == &item.item_id.0
+            )),
+            "expected a HopperAdmit oplog entry even though assign later failed"
+        );
+        assert!(
+            !entries.iter().any(|e| matches!(
+                &e.kind,
+                crate::oplog::OperationKind::HopperAssign { item_id, .. } if item_id == &item.item_id.0
+            )),
+            "must NOT record HopperAssign when the real hopper.assign() call failed; entries: {entries:?}"
         );
     }
 
