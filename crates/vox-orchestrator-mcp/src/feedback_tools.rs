@@ -100,17 +100,8 @@ pub async fn ask_clarification(state: &ServerState, params: AskClarificationPara
         Surface::Withheld => "withheld",
     };
 
-    state
-        .orchestrator
-        .event_bus()
-        .emit(vox_orchestrator::AgentEventKind::FeedbackRequested {
-            feedback_id: id.0.clone(),
-            kind: "clarification".into(),
-            gates: gates_task_ids.iter().map(|t| t.0).collect(),
-            surface: surface_str.to_string(),
-        });
-
-    // T1.1: durable FeedbackRequested alongside the event-bus emit above.
+    // T1.2: durable FeedbackRequested BEFORE the event-bus broadcast (Tier-A
+    // durable-before-broadcast contract; see `vox_orchestrator::events::is_tier_a`).
     state
         .orchestrator
         .record_operation(
@@ -127,6 +118,16 @@ pub async fn ask_clarification(state: &ServerState, params: AskClarificationPara
             None,
         )
         .await;
+
+    state
+        .orchestrator
+        .event_bus()
+        .emit(vox_orchestrator::AgentEventKind::FeedbackRequested {
+            feedback_id: id.0.clone(),
+            kind: "clarification".into(),
+            gates: gates_task_ids.iter().map(|t| t.0).collect(),
+            surface: surface_str.to_string(),
+        });
 
     ToolResult::ok(serde_json::json!({
         "feedback_id": id.0,
@@ -195,14 +196,7 @@ pub async fn resolve_feedback(state: &ServerState, params: ResolveFeedbackParams
         }
     }
 
-    state
-        .orchestrator
-        .event_bus()
-        .emit(vox_orchestrator::AgentEventKind::FeedbackResolved {
-            feedback_id: fid.0.clone(),
-        });
-
-    // T1.1: durable FeedbackResolved alongside the event-bus emit above. The
+    // T1.2: durable FeedbackResolved BEFORE the event-bus broadcast. The
     // action string mirrors `FeedbackAction`'s `#[serde(tag = "action",
     // rename_all = "snake_case")]` wire form (e.g. "answer", "overrule").
     let action_str = serde_json::to_value(&action)
@@ -224,6 +218,13 @@ pub async fn resolve_feedback(state: &ServerState, params: ResolveFeedbackParams
             None,
         )
         .await;
+
+    state
+        .orchestrator
+        .event_bus()
+        .emit(vox_orchestrator::AgentEventKind::FeedbackResolved {
+            feedback_id: fid.0.clone(),
+        });
 
     state.feedback().promote_withheld(|item| item.surface);
 
@@ -293,9 +294,9 @@ pub async fn propose_skill(
         params.candidate,
     ) {
         Some(fid) => {
-            // T1.1: durable FeedbackRequested for skill proposals. `propose_skill`
-            // itself stays sync (dedup check + event-bus emit only); the oplog
-            // write happens here where we're already async.
+            // T1.2: durable FeedbackRequested BEFORE the bus broadcast. `propose_skill`
+            // itself stays sync (dedup check only) and no longer emits on the event bus;
+            // we record durably here (already async), then broadcast explicitly.
             state
                 .orchestrator
                 .record_operation(
@@ -312,6 +313,9 @@ pub async fn propose_skill(
                     None,
                 )
                 .await;
+            state
+                .orchestrator
+                .emit_feedback_requested_skill_proposal(&fid);
             ToolResult::ok(serde_json::json!({ "feedback_id": fid.0 })).to_json()
         }
         None => ToolResult::ok(serde_json::json!({ "skipped": "duplicate proposal already open" }))

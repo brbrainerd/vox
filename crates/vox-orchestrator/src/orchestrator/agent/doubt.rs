@@ -1,13 +1,32 @@
+use crate::feedback::FeedbackId;
 use crate::orchestrator::OrchestratorError;
 use crate::types::{AgentId, AgentTask, TaskId, TaskStatus};
 
+/// State-mutation result of [`Orchestrator::doubt_task`], carrying everything
+/// needed to durably record the transition *before* broadcasting it (T1.2:
+/// two-tier append-before-broadcast). `doubt_task` itself stays sync (it holds
+/// a queue write-lock across the mutation) so it cannot `.await` the durable
+/// oplog write; callers are expected to call `record_operation` with this
+/// outcome's fields and only then call [`Orchestrator::emit_doubt_events`].
+#[derive(Debug, Clone)]
+pub struct DoubtOutcome {
+    pub agent_id: AgentId,
+    pub feedback_id: FeedbackId,
+    pub reason: Option<String>,
+}
+
 impl crate::orchestrator::Orchestrator {
     /// Flag a task as "Suspect" by the user, triggering a resolution loop.
+    ///
+    /// Does **not** broadcast `TaskDoubted`/`FeedbackRequested` on the event bus —
+    /// callers must durably record the transition first via `record_operation`,
+    /// then call [`Orchestrator::emit_doubt_events`] with the returned
+    /// [`DoubtOutcome`] (T1.2: Tier-A durable-before-broadcast).
     pub fn doubt_task(
         &self,
         task_id: TaskId,
         reason: Option<String>,
-    ) -> Result<(), OrchestratorError> {
+    ) -> Result<DoubtOutcome, OrchestratorError> {
         let agent_id = crate::sync_lock::rw_read(&self.task_assignments)
             .get(&task_id)
             .copied()
@@ -59,14 +78,6 @@ impl crate::orchestrator::Orchestrator {
             "Task doubted: enforcing rigid Second Pass compilation/validation compliance."
         );
 
-        // Emit event for hud and ludus
-        self.event_bus
-            .emit(crate::events::AgentEventKind::TaskDoubted {
-                task_id,
-                agent_id,
-                reason: reason.clone(),
-            });
-
         self.bulletin
             .publish(crate::types::AgentMessage::TaskDoubted {
                 task_id,
@@ -100,13 +111,6 @@ impl crate::orchestrator::Orchestrator {
             ts,
             None,
         );
-        self.event_bus
-            .emit(crate::events::AgentEventKind::FeedbackRequested {
-                feedback_id: fid.0,
-                kind: "doubt".into(),
-                gates: Vec::new(),
-                surface: "needs_you".into(),
-            });
 
         // The Implementation Plan requires that we re-enqueue it and let explicitly-enforced
         // terminal checks clear the Verification mode before it can be marked complete.
@@ -118,7 +122,32 @@ impl crate::orchestrator::Orchestrator {
             agent_id,
             reason
         );
-        Ok(())
+        Ok(DoubtOutcome {
+            agent_id,
+            feedback_id: fid,
+            reason,
+        })
+    }
+
+    /// Broadcast the `TaskDoubted` + `FeedbackRequested` bus events for a
+    /// [`DoubtOutcome`] previously returned by [`Orchestrator::doubt_task`].
+    /// Callers MUST call this only *after* durably recording the transition
+    /// (via `record_operation`) — see the T1.2 tier-A contract on
+    /// [`crate::events::is_tier_a`].
+    pub fn emit_doubt_events(&self, task_id: TaskId, outcome: &DoubtOutcome) {
+        self.event_bus
+            .emit(crate::events::AgentEventKind::TaskDoubted {
+                task_id,
+                agent_id: outcome.agent_id,
+                reason: outcome.reason.clone(),
+            });
+        self.event_bus
+            .emit(crate::events::AgentEventKind::FeedbackRequested {
+                feedback_id: outcome.feedback_id.0.clone(),
+                kind: "doubt".into(),
+                gates: Vec::new(),
+                surface: "needs_you".into(),
+            });
     }
 
     /// Dequeue a task in Doubted status for a specific agent.

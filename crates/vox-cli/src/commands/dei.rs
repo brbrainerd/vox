@@ -890,8 +890,12 @@ fn build_repo_scoped_orchestrator_cli(config: OrchestratorConfig) -> std::sync::
 async fn doubt(task_id: u64, reason: Option<String>) -> Result<()> {
     let config = load_config();
     let orch = build_repo_scoped_orchestrator_cli(config);
-    orch.doubt_task(TaskId(task_id), reason)
+    let outcome = orch
+        .doubt_task(TaskId(task_id), reason)
         .map_err(|e| anyhow::anyhow!(e))?;
+    // CLI path does not go through the MCP/daemon oplog wiring (pre-existing T1.1 gap,
+    // not introduced by T1.2); broadcast immediately so HUD/ludus subscribers still see it.
+    orch.emit_doubt_events(TaskId(task_id), &outcome);
     println!(
         "{} Task {} flagged as suspect.",
         "✓".green().bold(),
