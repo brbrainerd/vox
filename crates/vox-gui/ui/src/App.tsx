@@ -382,6 +382,7 @@ export default function App() {
         return;
       }
       if (view && LEGACY_VIEWS.includes(view)) {
+        seedDiscoveryPresetForLegacyKey(view);
         const { child } = resolveNavigation(view);
         setActiveView(child as View);
         syncViewToLocation(child);
