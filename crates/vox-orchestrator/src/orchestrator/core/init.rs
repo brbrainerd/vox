@@ -90,6 +90,14 @@ impl crate::orchestrator::Orchestrator {
             }
         }
 
+        // T1.4: reconstruct in-flight direct-submit tasks (submitted but never
+        // reached TaskComplete/TaskFail as of the last durable oplog record)
+        // that live ONLY in an agent's in-memory AgentQueue — the hopper-inbox
+        // loop above only rehydrates hopper-sourced work. Must run after the
+        // hopper loop so its HopperAssign exclusion reflects hopper state at
+        // boot. See `orchestrator/core/rehydrate.rs` for fidelity/dedup notes.
+        super::rehydrate::rehydrate_direct_submit_tasks(self, &db).await;
+
         match db.sqlite_capabilities_snapshot().await {
             Ok(p) => {
                 tracing::debug!(

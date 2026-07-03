@@ -302,6 +302,7 @@ impl crate::orchestrator::Orchestrator {
 mod accessors;
 mod init;
 mod lineage;
+mod rehydrate;
 mod telemetry;
 mod temporal;
 mod usage;
