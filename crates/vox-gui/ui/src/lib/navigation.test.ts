@@ -49,6 +49,10 @@ describe('group moves', () => {
   it('moves sub-agents under agents (wired via subagent_tree)', () => {
     expect(resolveNavigation('sub-agents').parent).toBe('agents');
   });
+  it('resolves sub-agents to its full parent/child pair and label', () => {
+    expect(resolveNavigation('sub-agents')).toEqual({ parent: 'agents', child: 'sub-agents' });
+    expect(labelForNavKey('sub-agents')).toBe('Sub-Agents');
+  });
   it('moves gamify from agents to settings', () => {
     expect(resolveNavigation('gamify')).toEqual({ parent: 'settings', child: 'gamify' });
   });

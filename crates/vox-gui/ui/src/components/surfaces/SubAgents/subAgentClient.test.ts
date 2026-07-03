@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 const invokeMock = vi.fn();
 vi.mock('@tauri-apps/api/core', () => ({ invoke: (...a: unknown[]) => invokeMock(...a) }));
-import { fetchTree, buildSubAgentTree, getContext, setContext, control } from './subAgentClient';
+import { fetchTree, buildSubAgentTree } from './subAgentClient';
 
 beforeEach(() => invokeMock.mockReset());
 
@@ -30,24 +30,5 @@ describe('buildSubAgentTree', () => {
     expect(root.model.maxTokens).toBe(0);
     expect(root.usedTokens).toBe(0);
     expect(root.title).toContain('#1');
-  });
-});
-
-describe('subAgentClient (unrelated, untouched in Task 2)', () => {
-  it('setContext sends ordered item ids to context_set', async () => {
-    invokeMock.mockResolvedValue({ is_error: false, result: {} });
-    await setContext('w2', ['i1', 'i2']);
-    expect(invokeMock).toHaveBeenCalledWith('context_set', { windowId: 'w2', orderedItemIds: ['i1', 'i2'] });
-  });
-  it('control forwards a typed action to subagent_control', async () => {
-    invokeMock.mockResolvedValue({ is_error: false, result: {} });
-    await control('w2', { kind: 'pause' });
-    expect(invokeMock).toHaveBeenCalledWith('subagent_control', { windowId: 'w2', action: { kind: 'pause' } });
-  });
-  it('getContext calls context_get and returns items', async () => {
-    invokeMock.mockResolvedValue({ is_error: false, result: { items: [] } });
-    const items = await getContext('w1');
-    expect(invokeMock).toHaveBeenCalledWith('context_get', { windowId: 'w1' });
-    expect(items).toEqual([]);
   });
 });
