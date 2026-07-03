@@ -93,11 +93,12 @@ pub fn run() -> Result<()> {
             match vox_orchestrator_mcp::workspace_mcp::dispatch_workspace_resource(surface, uri) {
                 Ok(body) => {
                     if let Some(expected) = &row.expected_body
-                        && body != *expected {
-                            errors.push(format!(
-                                "fixture resource {uri} expected body {expected:?}, got {body:?}"
-                            ));
-                        }
+                        && body != *expected
+                    {
+                        errors.push(format!(
+                            "fixture resource {uri} expected body {expected:?}, got {body:?}"
+                        ));
+                    }
                 }
                 Err(e) => errors.push(format!("fixture resource {uri} read failed: {e}")),
             }

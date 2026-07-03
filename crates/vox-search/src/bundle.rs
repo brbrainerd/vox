@@ -282,8 +282,10 @@ mod semcov_wave2_tests {
 
     #[test]
     fn diagnostics_value_captures_policy_version() {
-        let mut diag = SearchDiagnostics::default();
-        diag.policy_version = 42;
+        let diag = SearchDiagnostics {
+            policy_version: 42,
+            ..Default::default()
+        };
         let v = diagnostics_value(&diag);
         assert_eq!(v["policy_version"], serde_json::json!(42));
     }

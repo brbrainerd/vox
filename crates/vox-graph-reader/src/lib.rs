@@ -19,14 +19,17 @@ pub mod cluster;
 pub mod compare;
 pub mod coverage;
 pub mod crate_model;
+pub mod edge_weights;
 pub mod gc;
 pub mod lens;
 pub mod manifest;
 pub mod overlay;
 pub mod reachability;
 pub mod rebuild;
+pub mod rebuild_causes;
 pub mod registry;
 pub mod snapshot;
+pub mod what_if;
 
 pub use bfs::Direction;
 

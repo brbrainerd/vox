@@ -596,25 +596,7 @@ impl BrowserEngine {
     ) -> Result<String, String> {
         let page = self.page_ref(page_id).await?;
         let html = page.content().await.map_err(Self::map_page_err)?;
-        let stripped = strip_html_tags(&html);
-        let max_chars = max_chars.max(MIN_TEXT_SUMMARY_CHARS);
-        if stripped.chars().count() <= max_chars {
-            Ok(stripped)
-        } else {
-            // Truncate by char count, not byte index: `stripped` is readability
-            // text from arbitrary web pages and routinely contains multibyte
-            // UTF-8 (curly quotes, accents, CJK). A byte slice at `max_chars`
-            // would panic on a non-char-boundary.
-            // Budget the 1-char ellipsis into the cap so the result never
-            // exceeds max_chars.
-            Ok(format!(
-                "{}…",
-                stripped
-                    .chars()
-                    .take(max_chars.saturating_sub(1))
-                    .collect::<String>()
-            ))
-        }
+        Ok(truncate_summary(strip_html_tags(&html), max_chars))
     }
 
     pub async fn ax_tree(&self, page_id: &str) -> Result<serde_json::Value, String> {
@@ -649,6 +631,28 @@ async fn page_url(page: &chromiumoxide::Page) -> Result<String, String> {
         .map_err(|e| e.to_string())?
         .into_value::<String>()
         .map_err(|e| e.to_string())
+}
+
+/// Pure truncation behind `visible_text_summary` (extracted so the clamp +
+/// ellipsis budgeting are unit-testable without a live page): the requested cap
+/// is floored at [`MIN_TEXT_SUMMARY_CHARS`]; over-long text is truncated by CHAR
+/// count, not byte index — readability text from arbitrary pages routinely
+/// contains multibyte UTF-8 (curly quotes, accents, CJK) and a byte slice could
+/// panic on a non-char-boundary. The 1-char ellipsis is budgeted into the cap so
+/// the result never exceeds it.
+fn truncate_summary(stripped: String, max_chars: usize) -> String {
+    let max_chars = max_chars.max(MIN_TEXT_SUMMARY_CHARS);
+    if stripped.chars().count() <= max_chars {
+        stripped
+    } else {
+        format!(
+            "{}…",
+            stripped
+                .chars()
+                .take(max_chars.saturating_sub(1))
+                .collect::<String>()
+        )
+    }
 }
 
 fn strip_html_tags(html: &str) -> String {
@@ -836,19 +840,19 @@ mod semcov_wave9_tests {
     // when text is just over max_chars, panicking on multibyte sequences.
     #[test]
     fn visible_text_summary_truncation_under_minimum_floor() {
-        // The function clamps max_chars to at least 256 internally; confirm it doesn't
-        // panic and the output length is within bounds.
-        let text = "a".repeat(512);
-        let html = format!("<html><body>{text}</body></html>");
-        let stripped = strip_html_tags(&html);
-        // With max_chars=10 (below floor of 256): full text returned because floor kicks in
-        let max_chars = 256; // mirrors internal logic
-        let char_count = stripped.chars().count();
-        if char_count <= max_chars {
-            // returned as-is: no truncation
-            assert!(!stripped.contains('…'));
-        }
-        // No panic is the primary assertion here (already satisfied if we reach this line)
+        // Requested cap BELOW the floor: the 256-char floor applies, and over-long
+        // multibyte text is truncated by char count with the ellipsis budgeted
+        // into the cap (never exceeds it).
+        let long = "é".repeat(600); // multibyte on purpose
+        let out = truncate_summary(long, 10);
+        assert_eq!(out.chars().count(), MIN_TEXT_SUMMARY_CHARS);
+        assert!(out.ends_with('…'));
+
+        // Text under the floor with a below-floor request: returned as-is.
+        let short = "a".repeat(200);
+        let out = truncate_summary(short.clone(), 10);
+        assert_eq!(out, short);
+        assert!(!out.contains('…'));
     }
 }
 

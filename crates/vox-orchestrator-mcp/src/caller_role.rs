@@ -42,6 +42,8 @@ pub fn trusted_caller_role() -> CallerRole {
 
 #[cfg(test)]
 mod tests {
+    // Rust 2024 made std::env::{set_var,remove_var} unsafe; #[serial] tests.
+    #![allow(unsafe_code)]
     use super::{CallerRole, trusted_caller_role};
     use serial_test::serial;
 

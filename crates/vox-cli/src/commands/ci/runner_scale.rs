@@ -125,6 +125,23 @@ pub fn spawn_count(desired: u32, keep: u32) -> u32 {
     desired.saturating_sub(keep)
 }
 
+/// Runners offline-busy in BOTH the previous and current tick (i.e. ≥2
+/// consecutive ticks) — the only ones eligible for force-cancel. A single
+/// offline+busy sample is insufficient (a network blip flips a live runner
+/// offline), so the watchdog requires this intersection before cancelling a
+/// pinned run (CANCEL_GAP fix; avoids the PR #334 innocent-kill pattern).
+// Consumer pending: the ci-health-watchdog force-cancel step (plan Task 13,
+// step 3) will call this via `vox ci`; tested here ahead of that wiring.
+#[cfg_attr(not(test), allow(dead_code))]
+pub fn zombies_for_force_cancel(prev_ids: &[u64], curr_offline_busy: &[u64]) -> Vec<u64> {
+    let prev: std::collections::HashSet<u64> = prev_ids.iter().copied().collect();
+    curr_offline_busy
+        .iter()
+        .copied()
+        .filter(|id| prev.contains(id))
+        .collect()
+}
+
 /// Updated idle-since for a runner this tick: `None` if busy (resets the timer),
 /// else the existing idle-since (or `now` if it just went idle).
 pub fn next_idle_since(busy: bool, prev_idle_since: Option<i64>, now: i64) -> Option<i64> {
@@ -270,6 +287,26 @@ fn docker(args: &[&str]) -> Result<String> {
 /// label set can serve, across queued and in-progress runs. Early-exits once
 /// `max` matching jobs are found — demand beyond the cap changes nothing *for
 /// the spawn decision*. Pass `u32::MAX` to count the true backlog (status only).
+/// Sum queued-job demand across runs, stopping once `max` is reached. Each item
+/// is one run's jq blob (one queued job per line); `count_matching_queued_jobs`
+/// already counts all matching jobs within a blob, so this preserves the
+/// per-run count (a single run can hold N matching jobs). The spawn path passes
+/// the runner cap; the telemetry path passes `u32::MAX`.
+pub fn accumulate_demand<'a>(
+    run_blobs: impl Iterator<Item = &'a str>,
+    runner_labels: &str,
+    max: u32,
+) -> u32 {
+    let mut total = 0u32;
+    for blob in run_blobs {
+        total = total.saturating_add(count_matching_queued_jobs(blob, runner_labels));
+        if total >= max {
+            return max;
+        }
+    }
+    total
+}
+
 fn query_queued_job_demand(max: u32) -> Result<u32> {
     let mut total = 0u32;
     for status in ["queued", "in_progress"] {
@@ -281,18 +318,26 @@ fn query_queued_job_demand(max: u32) -> Result<u32> {
             "--jq",
             ".workflow_runs[].id",
         ])?;
+        // B4: collect each run's blob, propagating gh errors (the old
+        // `.unwrap_or_default()` silently counted a rate-limited run as 0,
+        // under-provisioning exactly under load). Bounded by DEMAND_RUNS_PER_STATUS.
+        let mut blobs = Vec::new();
         for id in ids.lines().map(str::trim).filter(|l| !l.is_empty()) {
-            let label_lines = gh_json(&[
+            blobs.push(gh_json(&[
                 "api",
                 &format!("repos/{REPO_SLUG}/actions/runs/{id}/jobs?per_page=100"),
                 "--jq",
                 ".jobs[]|select(.status==\"queued\")|(.labels|join(\",\"))",
-            ])
-            .unwrap_or_default();
-            total = total.saturating_add(count_matching_queued_jobs(&label_lines, RUNNER_LABELS));
-            if total >= max {
-                return Ok(max);
-            }
+            ])?);
+        }
+        let remaining = max.saturating_sub(total);
+        total = total.saturating_add(accumulate_demand(
+            blobs.iter().map(String::as_str),
+            RUNNER_LABELS,
+            remaining,
+        ));
+        if total >= max {
+            return Ok(max);
         }
     }
     Ok(total)
@@ -664,9 +709,10 @@ pub fn scale_event_json(
     cleaned_exited: u32,
     max: u32,
     warm: u32,
+    s3_cache_reachable: bool,
 ) -> String {
     format!(
-        r#"{{"ts":{ts},"dry_run":{dry_run},"queued_jobs":{queued_jobs},"keep":{keep},"desired":{desired},"spawned":{spawned},"reaped_scale_down":{reaped_scale_down},"reaped_idle":{reaped_idle},"pruned_phantom":{pruned_phantom},"cleaned_exited":{cleaned_exited},"max":{max},"warm":{warm}}}"#
+        r#"{{"ts":{ts},"dry_run":{dry_run},"queued_jobs":{queued_jobs},"keep":{keep},"desired":{desired},"spawned":{spawned},"reaped_scale_down":{reaped_scale_down},"reaped_idle":{reaped_idle},"pruned_phantom":{pruned_phantom},"cleaned_exited":{cleaned_exited},"max":{max},"warm":{warm},"s3_cache_reachable":{s3_cache_reachable}}}"#
     )
 }
 
@@ -870,6 +916,7 @@ pub fn run_scale(apply: bool) -> Result<()> {
         dead,
         max,
         warm,
+        s3_cache_reachable(), // one TCP probe/tick — cold-cache periods now visible in history
     ));
 
     println!(
@@ -1265,6 +1312,7 @@ mod tests {
             1,         // cleaned_exited
             6,         // max
             1,         // warm
+            false,     // s3_cache_reachable
         );
         // Every key must be present.
         for key in &[
@@ -1280,14 +1328,41 @@ mod tests {
             "\"cleaned_exited\"",
             "\"max\"",
             "\"warm\"",
+            "\"s3_cache_reachable\"",
         ] {
             assert!(s.contains(key), "missing key {key} in: {s}");
         }
+        assert!(s.contains("\"s3_cache_reachable\":false"));
         // Must be valid JSON.
         let v: serde_json::Value = serde_json::from_str(&s).expect("valid JSON");
         assert_eq!(v["ts"], 1_000_000i64);
         assert_eq!(v["dry_run"], false);
         assert_eq!(v["spawned"], 1);
+        assert_eq!(v["s3_cache_reachable"], false);
+    }
+
+    #[test]
+    fn accumulate_demand_sums_multi_job_runs_and_stops_at_max() {
+        // one run blob with 3 matching queued jobs (3 lines), plus two single-job runs
+        let three = "self-hosted,linux,x64\nself-hosted,linux,x64\nself-hosted,linux,x64";
+        let one = "self-hosted,linux,x64";
+        let blobs = [three, one, one];
+        // telemetry path: full backlog = 3 + 1 + 1 = 5
+        assert_eq!(
+            accumulate_demand(blobs.iter().copied(), "self-hosted,linux,x64", u32::MAX),
+            5
+        );
+        // spawn path: max = 4 => early-exit at 4 (3 from first run + 1 from second)
+        assert_eq!(
+            accumulate_demand(blobs.iter().copied(), "self-hosted,linux,x64", 4),
+            4
+        );
+    }
+
+    #[test]
+    fn force_cancel_only_two_tick_offline_busy() {
+        assert_eq!(zombies_for_force_cancel(&[1, 2], &[2, 3]), vec![2]); // 2 seen both ticks
+        assert_eq!(zombies_for_force_cancel(&[], &[2, 3]), Vec::<u64>::new()); // first sighting: grace
     }
 
     #[test]

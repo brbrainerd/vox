@@ -904,6 +904,7 @@ fn safety_eval_no_side_effects_dispatched() {
     // The eval path calls: read_file, search_code — both are read-only
     let read_only_tools = ["read_file", "search_code", "list_branches"];
     for tool in &read_only_tools {
+        // vox-arch-check: allow abs-path — mock tool-call test fixture, never executed
         let args = serde_json::json!({"path": "/tmp/test"});
         let result = executor.dispatch(tool, &args);
         assert!(
@@ -933,6 +934,7 @@ fn safety_eval_mock_panics_on_side_effecting_tool() {
     let executor = MockToolExecutor::new();
     let result = executor.dispatch(
         "write_file",
+        // vox-arch-check: allow abs-path — mock tool-call test fixture, never executed
         &serde_json::json!({"path": "/tmp/x", "content": "y"}),
     );
     assert!(

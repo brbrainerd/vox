@@ -1,8 +1,8 @@
+use crate::cmd_enums::GuardOpts;
 use anyhow::{Context, Result};
 use glob;
 use serde::Deserialize;
 use std::path::Path;
-use crate::cmd_enums::GuardOpts;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct GuardReport {
@@ -114,12 +114,14 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
         if let Ok(entries) = std::fs::read_dir(&root) {
             for entry in entries.filter_map(|e| e.ok()) {
                 if let Some(name) = entry.file_name().to_str()
-                    && name.starts_with("codex-cutover-") && name.ends_with(".sidecar.json") {
-                        report.violations.push(format!(
-                            "repo-root-strays-absent: {} is forbidden by policy.",
-                            name
-                        ));
-                    }
+                    && name.starts_with("codex-cutover-")
+                    && name.ends_with(".sidecar.json")
+                {
+                    report.violations.push(format!(
+                        "repo-root-strays-absent: {} is forbidden by policy.",
+                        name
+                    ));
+                }
             }
         }
     }
@@ -145,12 +147,13 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
                     .arg(line)
                     .current_dir(&root)
                     .output()
-                        && !output.stdout.is_empty() {
-                            report.violations.push(format!(
-                                "ignore-tracked-parity: {} is in {} but is tracked by git.",
-                                line, ignore_file
-                            ));
-                        }
+                        && !output.stdout.is_empty()
+                    {
+                        report.violations.push(format!(
+                            "ignore-tracked-parity: {} is in {} but is tracked by git.",
+                            line, ignore_file
+                        ));
+                    }
                 }
             }
         }
@@ -164,18 +167,19 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
         .arg("scratch/")
         .current_dir(&root)
         .output()
-            && let Ok(stdout) = String::from_utf8(output.stdout) {
-                let tracked_files: Vec<&str> = stdout
-                    .lines()
-                    .filter(|l| !l.ends_with(".gitkeep"))
-                    .collect();
-                if !tracked_files.is_empty() {
-                    report.violations.push(format!(
-                        "scratch-clean: scratch/ contains tracked files other than .gitkeep: {:?}",
-                        tracked_files
-                    ));
-                }
-            }
+        && let Ok(stdout) = String::from_utf8(output.stdout)
+    {
+        let tracked_files: Vec<&str> = stdout
+            .lines()
+            .filter(|l| !l.ends_with(".gitkeep"))
+            .collect();
+        if !tracked_files.is_empty() {
+            report.violations.push(format!(
+                "scratch-clean: scratch/ contains tracked files other than .gitkeep: {:?}",
+                tracked_files
+            ));
+        }
+    }
 
     // Codegen drift check (M-11)
     if run_all || opts.only.contains(&"schema-codegen-drift".to_string()) {
@@ -232,17 +236,18 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
                     }
 
                     if let Some(v) = version
-                        && let Ok(content) = std::fs::read_to_string(&entry) {
-                            let has_header = content.contains(&format!("x-vox-version: {v}"))
-                                || content.contains(&format!("\"x-vox-version\": {v}"));
-                            if !has_header {
-                                report.violations.push(format!(
+                        && let Ok(content) = std::fs::read_to_string(&entry)
+                    {
+                        let has_header = content.contains(&format!("x-vox-version: {v}"))
+                            || content.contains(&format!("\"x-vox-version\": {v}"));
+                        if !has_header {
+                            report.violations.push(format!(
                                     "version-header-parity: file {} is missing mandatory header 'x-vox-version: {}'",
                                     entry.strip_prefix(&root).unwrap_or(&entry).display(),
                                     v
                                 ));
-                            }
                         }
+                    }
                 }
             }
         }
@@ -253,58 +258,60 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
         let env_yaml_path = root.join("contracts/config/env-vars.v1.yaml");
         if env_yaml_path.exists() {
             if let Ok(yaml_str) = std::fs::read_to_string(&env_yaml_path)
-                && let Ok(yaml_val) = serde_yaml::from_str::<serde_yaml::Value>(&yaml_str) {
-                    let mut allowed_vars = std::collections::HashSet::new();
-                    if let Some(vars) = yaml_val.get("variables").and_then(|v| v.as_sequence()) {
-                        for v in vars {
-                            if let Some(name) = v.get("name").and_then(|n| n.as_str()) {
-                                allowed_vars.insert(name.to_string());
-                            }
+                && let Ok(yaml_val) = serde_yaml::from_str::<serde_yaml::Value>(&yaml_str)
+            {
+                let mut allowed_vars = std::collections::HashSet::new();
+                if let Some(vars) = yaml_val.get("variables").and_then(|v| v.as_sequence()) {
+                    for v in vars {
+                        if let Some(name) = v.get("name").and_then(|n| n.as_str()) {
+                            allowed_vars.insert(name.to_string());
+                        }
+                    }
+                }
+
+                if let Ok(output) = std::process::Command::new("rg")
+                    .args([
+                        "-o",
+                        "--no-heading",
+                        "--no-line-number",
+                        "(VOX|TURSO|XDG)_[A-Z0-9_]+",
+                        "crates/",
+                        "apps/",
+                        "scripts/",
+                        "docs/src/",
+                    ])
+                    .current_dir(&root)
+                    .output()
+                    && output.status.success()
+                {
+                    let matches = String::from_utf8_lossy(&output.stdout);
+                    let mut found_vars = std::collections::HashSet::new();
+                    for line in matches.lines() {
+                        let line = line.trim();
+                        if !line.is_empty() {
+                            // Extract just the matched part if rg returned "file:match" or similar
+                            let var_name = if let Some(idx) = line.rfind(':') {
+                                &line[idx + 1..]
+                            } else {
+                                line
+                            };
+                            found_vars.insert(var_name.to_string());
                         }
                     }
 
-                    if let Ok(output) = std::process::Command::new("rg")
-                        .args([
-                            "-o",
-                            "--no-heading",
-                            "--no-line-number",
-                            "(VOX|TURSO|XDG)_[A-Z0-9_]+",
-                            "crates/",
-                            "apps/",
-                            "scripts/",
-                            "docs/src/",
-                        ])
-                        .current_dir(&root)
-                        .output()
-                        && output.status.success() {
-                            let matches = String::from_utf8_lossy(&output.stdout);
-                            let mut found_vars = std::collections::HashSet::new();
-                            for line in matches.lines() {
-                                let line = line.trim();
-                                if !line.is_empty() {
-                                    // Extract just the matched part if rg returned "file:match" or similar
-                                    let var_name = if let Some(idx) = line.rfind(':') {
-                                        &line[idx + 1..]
-                                    } else {
-                                        line
-                                    };
-                                    found_vars.insert(var_name.to_string());
-                                }
-                            }
-
-                            for var in found_vars {
-                                if !env_var_token_requires_registry_entry(&var) {
-                                    continue;
-                                }
-                                if !allowed_vars.contains(&var) {
-                                    report.violations.push(format!(
+                    for var in found_vars {
+                        if !env_var_token_requires_registry_entry(&var) {
+                            continue;
+                        }
+                        if !allowed_vars.contains(&var) {
+                            report.violations.push(format!(
                                         "env-parity: undocumented environment variable '{}' found in source code. Must be added to contracts/config/env-vars.v1.yaml",
                                         var
                                     ));
-                                }
-                            }
                         }
+                    }
                 }
+            }
         } else {
             report
                 .violations

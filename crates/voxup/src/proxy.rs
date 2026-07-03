@@ -24,12 +24,11 @@ pub fn resolve_vox_bin(home: &std::path::Path) -> PathBuf {
     if let Ok(entries) = std::fs::read_dir(&tc_dir) {
         let mut versions = Vec::new();
         for entry in entries.flatten() {
-            if let Some(name) = entry.file_name().to_str() {
-                if let Some(ver_str) = name.strip_prefix("vox-") {
-                    if let Ok(ver) = semver::Version::parse(ver_str) {
-                        versions.push((ver, entry.path()));
-                    }
-                }
+            if let Some(name) = entry.file_name().to_str()
+                && let Some(ver_str) = name.strip_prefix("vox-")
+                && let Ok(ver) = semver::Version::parse(ver_str)
+            {
+                versions.push((ver, entry.path()));
             }
         }
         versions.sort_by(|a, b| b.0.cmp(&a.0));

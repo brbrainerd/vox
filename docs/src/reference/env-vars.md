@@ -367,7 +367,7 @@ See also { [`openclaw-discovery-sidecar-ssot.md`](openclaw-discovery-sidecar-sso
 | `VOX_SECRET_GUARD_GIT_REF` | Git revision range for **`vox ci secret-env-guard`** on clean checkouts (e.g. `origin/main...HEAD` on PRs, `${{ github.event.before }}...${{ github.sha }}` on push). Avoids an empty diff scope when `git diff` would otherwise scan nothing. See [`guards.rs`](../../../crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs). |
 | `VOX_BUILD_TIMINGS_BUDGET_WARN` | Soft budget warnings for **`vox ci build-timings`**. |
 | `SKIP_CUDA_FEATURE_CHECK` | Skip optional `nvcc` gates (documented hatch in [runner contract](../ci/runner-contract.md)). |
-| `VOX_BENCHMARK_TELEMETRY` | When `1` or `true`, CLI paths may append **`benchmark_event`** rows to Codex **`research_metrics`** (`bench:<repository_id>`). See [`benchmark_telemetry.rs`](../../../crates/vox-cli/src/benchmark_telemetry.rs) and [Telemetry and research_metrics contract](telemetry-metric-contract.md). Trust SSOT: [telemetry-trust-ssot](../architecture/telemetry-trust-ssot.md). |
+| `VOX_BENCHMARK_TELEMETRY` | When `1` or `true`, CLI paths may append **`benchmark_event`** rows to Codex **`research_metrics`** (`bench:<repository_id>`). See [`benchmark_telemetry.rs`](../../../crates/vox-cli-ci/src/benchmark_telemetry.rs) and [Telemetry and research_metrics contract](telemetry-metric-contract.md). Trust SSOT: [telemetry-trust-ssot](../architecture/telemetry-trust-ssot.md). |
 | `VOX_SYNTAX_K_TELEMETRY` | When `1` or `true`, enables **`syntax_k_event`** writes; if unset, falls back to **`VOX_BENCHMARK_TELEMETRY`**. Same implementation module as above. |
 | `VOX_DOGFOOD_TRACE_PATH` | Path to the local JSONL file for dogfooding/telemetry collection during development runs. |
 

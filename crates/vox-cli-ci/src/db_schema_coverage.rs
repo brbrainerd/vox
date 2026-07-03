@@ -103,9 +103,10 @@ pub fn run(root: &Path) -> Result<()> {
         };
         for (line_idx, line) in body.lines().enumerate() {
             if let Some(cut) = test_cutoff
-                && line_idx >= cut {
-                    break;
-                }
+                && line_idx >= cut
+            {
+                break;
+            }
             // Skip Rust comment lines (`//` or `///`). These often mention
             // CREATE TABLE in prose without being real DDL.
             let trimmed = line.trim_start();
@@ -117,10 +118,11 @@ pub fn run(root: &Path) -> Result<()> {
             if line.contains("CREATE") && line.contains('{') {
                 // Heuristic: only skip when `{` appears after `TABLE` keyword.
                 if let Some(table_pos) = line.find("TABLE")
-                    && line[table_pos..].contains('{') {
-                        // brace appears after TABLE → likely a placeholder.
-                        continue;
-                    }
+                    && line[table_pos..].contains('{')
+                {
+                    // brace appears after TABLE → likely a placeholder.
+                    continue;
+                }
             }
             if let Some(c) = create_re.captures(line) {
                 let captured = c.get(1).unwrap().as_str();

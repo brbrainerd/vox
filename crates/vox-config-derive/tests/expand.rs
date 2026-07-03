@@ -70,6 +70,7 @@ struct TestDomain {
     #[config(env = "VOX_LEGACY_NAME", default = "info")]
     log_level: String,
     #[config(skip)]
+    #[allow(dead_code)] // constructed in Default, exercised by the divergence guard only
     backends: Vec<String>,
 }
 

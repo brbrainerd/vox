@@ -41,7 +41,7 @@ This document closes those questions. It defines a runtime architecture that:
 The `vox-telemetry` audit performed for this design found five parallel persistence paths:
 
 1. `research_metrics` table — the canonical event log; 19 metric types defined in [`crates/vox-db/src/research_metrics_contract.rs`](../../../crates/vox-db/src/research_metrics_contract.rs). Eight wrapper modules in `vox-db` write through `append_research_metric`.
-2. `build_run` / `build_crate_sample` / `build_warning` tables — populated by `vox ci build-timings` ([`crates/vox-cli/src/commands/ci/build_timings.rs`](../../../crates/vox-cli/src/commands/ci/build_timings.rs)).
+2. `build_run` / `build_crate_sample` / `build_warning` tables — populated by `vox ci build-timings` ([`crates/vox-cli-ci/src/build_timings.rs`](../../../crates/vox-cli-ci/src/build_timings.rs)).
 3. `routing_decisions.reason_json` — orchestrator routing telemetry.
 4. LLM cost events — **ephemeral**, only on the orchestrator event bus ([`crates/vox-orchestrator-mcp/src/llm_bridge/infer.rs`](../../../crates/vox-orchestrator-mcp/src/llm_bridge/infer.rs)).
 5. Mens JSONL streams — separate files.

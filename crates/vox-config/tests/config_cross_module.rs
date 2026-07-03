@@ -1,5 +1,7 @@
 #![allow(unsafe_code)] // test-only std::env::set_var (unsafe on edition 2024)
 //! Cross-module integration: defaults compose paths, rollout snapshot, and routing helpers.
+// Rust 2024 made std::env::{set_var,remove_var} unsafe; mutated single-threaded.
+#![allow(unsafe_code)]
 
 use vox_config::{
     InferenceProfile, VoxConfig,

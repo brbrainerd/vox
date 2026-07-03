@@ -25,7 +25,9 @@ permissions:
 
 jobs:
   scan:
-    runs-on: [self-hosted, linux, x64]
+    # Moved off the scarce self-hosted fleet — gitleaks curls its own binary,
+    # no self-hosted dependency (runner-remediation Task 9).
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout
