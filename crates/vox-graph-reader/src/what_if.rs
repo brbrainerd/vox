@@ -9,7 +9,8 @@ use serde::Serialize;
 
 /// Cut targets excluded from `top_cuts` recommendations by default:
 /// deliberate-coupling crates where "cut this edge" is an anti-goal.
-pub const DEFAULT_EXCLUDED_CUT_TARGETS: &[&str] = &["workspace-hack"];
+/// Single source of truth shared with `edge_weights::NEVER_CANDIDATES`.
+pub use crate::crate_model::NEVER_REMOVAL_CANDIDATES as DEFAULT_EXCLUDED_CUT_TARGETS;
 
 /// One crate whose metrics change under a hypothetical edit.
 #[derive(Debug, Clone, PartialEq, Serialize)]

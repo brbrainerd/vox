@@ -965,6 +965,12 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
             let analysis_requested =
                 what_if_cut.is_some() || what_if_split.is_some() || top_cuts.is_some() || edges;
             if analysis_requested {
+                if write_summary.is_some() || ingest {
+                    eprintln!(
+                        "note: --write-summary/--ingest are ignored during an analysis-only run \
+                         (--what-if-cut/--what-if-split/--top-cuts/--edges)"
+                    );
+                }
                 let adj = adj_from_crate_graph(&crate_graph);
                 let times = times_from_audit(&audit);
                 if times.is_empty() {
@@ -1086,21 +1092,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
 
             // 4. Optionally emit the committed gate SSOT (small; parity-checked in CI).
             if let Some(summary_path) = write_summary {
-                use std::collections::HashMap;
-                let mut compile_times: HashMap<String, f64> = HashMap::new();
-                if let Some(arr) = audit.as_array() {
-                    for r in arr {
-                        if let (Some(name), Some(cs)) = (
-                            r.get("crate").and_then(|v| v.as_str()),
-                            r.get("compile_s").and_then(|v| {
-                                v.as_f64()
-                                    .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
-                            }),
-                        ) {
-                            compile_times.insert(name.to_string(), cs);
-                        }
-                    }
-                }
+                let compile_times = times_from_audit(&audit);
                 let summary = vox_graph_reader::crate_model::build_crate_summary(
                     &crate_graph,
                     &compile_times,
@@ -1127,6 +1119,14 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
             }
         }
         GraphifyCmd::WhyRebuilt { log, capture, out } => {
+            let generated_by = if capture {
+                "vox graphify why-rebuilt --capture".to_string()
+            } else {
+                format!(
+                    "vox graphify why-rebuilt --log {}",
+                    log.as_deref().unwrap_or("")
+                )
+            };
             let log_text = if capture {
                 capture_fingerprint_log(repo_root)?
             } else {
@@ -1145,7 +1145,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                 );
             }
             let payload = with_provenance(
-                "vox graphify why-rebuilt",
+                &generated_by,
                 serde_json::json!({
                     "summary": summary, "per_crate": per, "causes": causes,
                     "limitations": [

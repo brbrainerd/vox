@@ -110,20 +110,34 @@
     ],
     "vox-cli-ci": [
       "vox-bounded-fs",
+      "vox-cli-contracts",
       "vox-cli-core",
       "vox-compiler",
       "vox-config",
+      "vox-db",
       "vox-doc-pipeline",
       "vox-git",
-      "vox-jsonschema-util"
+      "vox-grammar-export",
+      "vox-graph-reader",
+      "vox-http-client",
+      "vox-jsonschema-util",
+      "vox-orchestrator",
+      "vox-orchestrator-mcp",
+      "vox-plugin-api",
+      "vox-plugin-catalog",
+      "vox-plugin-host",
+      "vox-plugin-types",
+      "vox-publisher",
+      "vox-repository",
+      "vox-rule-pack",
+      "vox-scaling-policy",
+      "vox-secrets",
+      "vox-telemetry"
     ],
     "vox-cli-contracts": [
       "vox-bounded-fs",
       "vox-config",
       "vox-jsonschema-util"
-    ],
-    "vox-cli-contracts": [
-      "vox-config"
     ],
     "vox-cli-core": [
       "vox-bounded-fs",
@@ -156,6 +170,7 @@
       "vox-db",
       "vox-forge",
       "vox-git",
+      "vox-graph-reader",
       "vox-http-client",
       "vox-secrets"
     ],

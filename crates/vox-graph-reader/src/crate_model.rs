@@ -3,6 +3,12 @@ use std::collections::{HashMap, HashSet};
 use crate::cluster::{ClusterEdge, ClusterNode, cluster_nodes};
 use serde_json::{Value, json};
 
+/// Crates that are deliberate, workspace-wide coupling (feature unification,
+/// build-script guards, etc.) and are never a valid cut/removal candidate —
+/// the single source of truth shared by `what_if::top_cuts` and
+/// `edge_weights::weigh_edges` so the two analyses can't drift apart.
+pub const NEVER_REMOVAL_CANDIDATES: &[&str] = &["workspace-hack"];
+
 /// Per-crate model metrics.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CrateMetrics {

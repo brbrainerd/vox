@@ -20,7 +20,7 @@ use serde_json::{Value, json};
 pub const LOW_VISIBILITY_MIN: usize = 10;
 const SAMPLE_CAP: usize = 20;
 /// Deliberate-coupling dep targets that are never removal candidates.
-const NEVER_CANDIDATES: &[&str] = &["workspace-hack"];
+use crate::crate_model::NEVER_REMOVAL_CANDIDATES as NEVER_CANDIDATES;
 
 /// `"crates/<name>/src/lib.rs::sym"` -> `Some("<name>")`; `None` for any id
 /// that doesn't live under `crates/` (e.g. `apps/x/...`, bare names).

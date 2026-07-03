@@ -3,7 +3,6 @@ title: "Crate Restructuring Proposal (2026-07)"
 description: "Ranked, evidence-backed dependency cuts and crate splits from the crate-graph build-time program; hygiene findings first. Every candidate that survived manual verification turned out to be a false positive — read the reliability findings before acting on anything here."
 category: "Architecture SSOTs"
 status: "research"
-last_updated: "2026-07-02"
 training_eligible: true
 training_rationale: "Documents a real methodology finding (symbol-graph blind spots to use-import and macro/derive usage causing false-positive unused-dependency signals) useful for future crate-dependency analysis, independent of whether any specific restructuring recommendation is later acted on."
 authored: "2026-07-02"
