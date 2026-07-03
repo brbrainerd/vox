@@ -5,17 +5,25 @@
 //! - `list_mc_approvals`    — pending HITL approvals (delegates to existing orch method)
 //! - `set_task_mesh_policy` — update `mesh_policy` on a queued task
 
+use std::sync::Arc;
+
 use serde::{Deserialize, Serialize};
-use vox_cli_core::daemon_ipc::dispatch::call_daemon;
 use vox_foundation::protocol::orch_daemon_method;
+use vox_orchestrator::orch_daemon::OrchDaemonClient;
+
+use crate::commands::daemon::PersistentDaemon;
 
 async fn call_orchestrator_daemon(
+    daemon: &PersistentDaemon,
     method: &str,
     params: serde_json::Value,
 ) -> Result<serde_json::Value, String> {
-    call_daemon("vox-orchestrator-d", method, params, false)
-        .await
-        .map_err(|e| e.to_string())
+    let addr = daemon.ensure().await?;
+    let client = match daemon.token().await {
+        Some(token) => OrchDaemonClient::with_token(addr, token),
+        None => OrchDaemonClient::new(addr),
+    };
+    client.call(method, params).await.map_err(|e| e.to_string())
 }
 
 // ---------------------------------------------------------------------------
@@ -37,9 +45,15 @@ pub struct SubagentTreeNode {
 /// Returns the current subagent delegation tree from the orchestrator.
 /// The daemon serves this via `orch.subagent_tree` (ExtraDispatch hook).
 #[tauri::command]
-pub async fn list_subagent_tree() -> Result<Vec<SubagentTreeNode>, String> {
-    let resp =
-        call_orchestrator_daemon(orch_daemon_method::SUBAGENT_TREE, serde_json::json!({})).await?;
+pub async fn list_subagent_tree(
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+) -> Result<Vec<SubagentTreeNode>, String> {
+    let resp = call_orchestrator_daemon(
+        &daemon,
+        orch_daemon_method::SUBAGENT_TREE,
+        serde_json::json!({}),
+    )
+    .await?;
     let nodes = resp
         .get("tree")
         .and_then(|v| serde_json::from_value(v.clone()).ok())
@@ -64,8 +78,11 @@ pub struct McApprovalRow {
 /// The GUI Approvals surface already calls this via MCP; this Tauri command
 /// provides a direct path for MissionControlPanel without an extra MCP hop.
 #[tauri::command]
-pub async fn list_mc_approvals() -> Result<Vec<McApprovalRow>, String> {
+pub async fn list_mc_approvals(
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+) -> Result<Vec<McApprovalRow>, String> {
     let resp = call_orchestrator_daemon(
+        &daemon,
         orch_daemon_method::LIST_PENDING_APPROVALS,
         serde_json::json!({}),
     )
@@ -97,8 +114,12 @@ pub struct MeshPolicyResult {
 /// Updates the `mesh_policy` of a queued task in the orchestrator.
 /// The daemon serves `orch.set_mesh_policy` via ExtraDispatch.
 #[tauri::command]
-pub async fn set_task_mesh_policy(input: SetMeshPolicyInput) -> Result<MeshPolicyResult, String> {
+pub async fn set_task_mesh_policy(
+    input: SetMeshPolicyInput,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+) -> Result<MeshPolicyResult, String> {
     let resp = call_orchestrator_daemon(
+        &daemon,
         orch_daemon_method::SET_MESH_POLICY,
         serde_json::json!({
             "task_id": input.task_id,

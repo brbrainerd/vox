@@ -10,14 +10,25 @@
 //! second in-process `Orchestrator` (which would see neither live conflicts nor
 //! prior overrides). This mirrors `control_plane.rs`.
 
-use serde_json::Value;
-use vox_cli_core::daemon_ipc::dispatch::call_daemon;
-use vox_foundation::protocol::orch_daemon_method;
+use std::sync::Arc;
 
-async fn call_orchestrator_daemon(method: &str, params: Value) -> Result<Value, String> {
-    call_daemon("vox-orchestrator-d", method, params, false)
-        .await
-        .map_err(|e| e.to_string())
+use serde_json::Value;
+use vox_foundation::protocol::orch_daemon_method;
+use vox_orchestrator::orch_daemon::OrchDaemonClient;
+
+use crate::commands::daemon::PersistentDaemon;
+
+async fn call_orchestrator_daemon(
+    daemon: &PersistentDaemon,
+    method: &str,
+    params: Value,
+) -> Result<Value, String> {
+    let addr = daemon.ensure().await?;
+    let client = match daemon.token().await {
+        Some(token) => OrchDaemonClient::with_token(addr, token),
+        None => OrchDaemonClient::new(addr),
+    };
+    client.call(method, params).await.map_err(|e| e.to_string())
 }
 
 /// Build the RPC params for a strategy mutation, distinguishing "field absent"
@@ -53,8 +64,11 @@ fn build_set_strategy_params(
 
 /// GET-equivalent: live isolation status (default + per-agent + active conflicts).
 #[tauri::command]
-pub async fn get_vcs_isolation() -> Result<Value, String> {
+pub async fn get_vcs_isolation(
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+) -> Result<Value, String> {
     call_orchestrator_daemon(
+        &daemon,
         orch_daemon_method::VCS_ISOLATION_STATUS,
         serde_json::json!({}),
     )
@@ -67,9 +81,10 @@ pub async fn set_vcs_isolation_strategy(
     default: Option<String>,
     agent_id: Option<u64>,
     strategy: Option<String>,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
 ) -> Result<Value, String> {
     let params = build_set_strategy_params(default, agent_id, strategy);
-    call_orchestrator_daemon(orch_daemon_method::VCS_ISOLATION_SET_STRATEGY, params).await
+    call_orchestrator_daemon(&daemon, orch_daemon_method::VCS_ISOLATION_SET_STRATEGY, params).await
 }
 
 #[cfg(test)]

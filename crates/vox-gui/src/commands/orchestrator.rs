@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use serde::Serialize;
 use tauri::Emitter;
-use vox_cli_core::daemon_ipc::dispatch::call_daemon;
 use vox_foundation::protocol::orch_daemon_method;
 use vox_orchestrator::orch_daemon::OrchDaemonClient;
 use vox_package_types::manifest::VoxManifest;
@@ -195,15 +194,21 @@ fn get_opt_f64(v: &serde_json::Value, key: &str) -> Option<f64> {
     v.get(key).and_then(|x| x.as_f64())
 }
 
-async fn daemon_status() -> Result<serde_json::Value, String> {
-    call_daemon(
-        "vox-orchestrator-d",
-        orch_daemon_method::STATUS,
-        serde_json::json!({}),
-        false,
-    )
-    .await
-    .map_err(|e| e.to_string())
+async fn call_orchestrator_daemon(
+    daemon: &PersistentDaemon,
+    method: &str,
+    params: serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    let addr = daemon.ensure().await?;
+    let client = match daemon.token().await {
+        Some(token) => OrchDaemonClient::with_token(addr, token),
+        None => OrchDaemonClient::new(addr),
+    };
+    client.call(method, params).await.map_err(|e| e.to_string())
+}
+
+async fn daemon_status(daemon: &PersistentDaemon) -> Result<serde_json::Value, String> {
+    call_orchestrator_daemon(daemon, orch_daemon_method::STATUS, serde_json::json!({})).await
 }
 
 fn to_gui_status(status: serde_json::Value) -> GuiOrchestratorStatus {
@@ -293,12 +298,11 @@ fn to_gui_status(status: serde_json::Value) -> GuiOrchestratorStatus {
     }
 }
 
-async fn enrich_mesh_from_tool(gui: &mut GuiOrchestratorStatus) {
-    let mesh = call_daemon(
-        "vox-orchestrator-d",
+async fn enrich_mesh_from_tool(gui: &mut GuiOrchestratorStatus, daemon: &PersistentDaemon) {
+    let mesh = call_orchestrator_daemon(
+        daemon,
         orch_daemon_method::TOOL_CALL,
         serde_json::json!({ "name": "vox_mesh_nodes", "args": {} }),
-        false,
     )
     .await;
     if let Ok(value) = mesh {
@@ -318,22 +322,26 @@ async fn enrich_mesh_from_tool(gui: &mut GuiOrchestratorStatus) {
 }
 
 #[tauri::command]
-pub async fn get_orchestrator_status() -> Result<serde_json::Value, String> {
-    let status = daemon_status().await?;
+pub async fn get_orchestrator_status(
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+) -> Result<serde_json::Value, String> {
+    let status = daemon_status(&daemon).await?;
     let mut gui = to_gui_status(status);
     if gui.peers.is_empty() {
-        enrich_mesh_from_tool(&mut gui).await;
+        enrich_mesh_from_tool(&mut gui, &daemon).await;
     }
     gui.alerts = crate::commands::gamify::fetch_gamify_alerts().await;
     serde_json::to_value(gui).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn get_orchestrator_status_bin() -> Result<tauri::ipc::Response, String> {
-    let status = daemon_status().await?;
+pub async fn get_orchestrator_status_bin(
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+) -> Result<tauri::ipc::Response, String> {
+    let status = daemon_status(&daemon).await?;
     let mut gui = to_gui_status(status);
     if gui.peers.is_empty() {
-        enrich_mesh_from_tool(&mut gui).await;
+        enrich_mesh_from_tool(&mut gui, &daemon).await;
     }
     gui.alerts = crate::commands::gamify::fetch_gamify_alerts().await;
     let bytes = rmp_serde::to_vec_named(&gui).map_err(|e| e.to_string())?;
@@ -344,6 +352,7 @@ pub async fn get_orchestrator_status_bin() -> Result<tauri::ipc::Response, Strin
 pub async fn set_orchestrator_config(
     app_handle: tauri::AppHandle,
     config: serde_json::Value,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
 ) -> Result<(), String> {
     // 1. Discover Vox.toml
     let current_dir = std::env::current_dir().map_err(|e| e.to_string())?;
@@ -451,12 +460,12 @@ pub async fn set_orchestrator_config(
 
     // 4. Try to signal vox-orchestrator-d to hot-reload if it is running
     // We do this in a fire-and-forget manner to not block or fail the UI update.
+    let daemon: Arc<PersistentDaemon> = daemon.inner().clone();
     tokio::spawn(async move {
-        let _ = vox_cli_core::daemon_ipc::dispatch::call_daemon(
-            "vox-orchestrator-d",
-            vox_foundation::protocol::orch_daemon_method::RELOAD_CONFIG,
+        let _ = call_orchestrator_daemon(
+            &daemon,
+            orch_daemon_method::RELOAD_CONFIG,
             serde_json::json!({}),
-            false,
         )
         .await;
     });
@@ -793,6 +802,7 @@ mod budget_tests {
             threshold_tokens: 102_400,
             usable_tokens: 118_000,
             strategy: "balanced".to_string(),
+            used_tokens: 0,
         };
         let json = serde_json::to_value(&payload).expect("serialize");
         assert_eq!(json["max_context_tokens"], 128_000);
