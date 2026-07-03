@@ -5,7 +5,7 @@ import { SidebarMode } from './components/layout/Sidebar';
 import { AttentionStrip } from './components/layout/AttentionStrip';
 import { type HudMode } from './components/layout/TopHud';
 import { renderSurfaceView } from './components/layout/surfaceComponents';
-import { resolveNavigation, parseViewFromLocation, syncViewToLocation } from './lib/navigation';
+import { resolveNavigation, parseViewFromLocation, syncViewToLocation, seedDiscoveryPresetForLegacyKey } from './lib/navigation';
 import { Omnibar } from './components/layout/Omnibar';
 import { redirectSearchViewToOmnibar } from './components/layout/omnibarRedirect';
 import { Loquela } from './components/surfaces/Loquela/Loquela';
@@ -375,13 +375,16 @@ export default function App() {
         return;
       }
       if (fromHash && LEGACY_VIEWS.includes(fromHash)) {
-        setActiveView(fromHash as View);
-        syncViewToLocation(fromHash);
+        seedDiscoveryPresetForLegacyKey(fromHash);
+        const { child } = resolveNavigation(fromHash);
+        setActiveView(child as View);
+        syncViewToLocation(child);
         return;
       }
       if (view && LEGACY_VIEWS.includes(view)) {
-        setActiveView(view as View);
-        syncViewToLocation(view);
+        const { child } = resolveNavigation(view);
+        setActiveView(child as View);
+        syncViewToLocation(child);
       }
     }).catch(() => {});
 
@@ -531,6 +534,7 @@ export default function App() {
 
   // ── Navigation (hash-synced) ─────────────────────────────────────────────
   const navigateTo = useCallback((viewKey: string) => {
+    seedDiscoveryPresetForLegacyKey(viewKey);
     const { child } = resolveNavigation(viewKey);
     setActiveView(child as View);
     syncViewToLocation(child);
@@ -639,6 +643,7 @@ export default function App() {
         return;
       }
       if (fromHash && LEGACY_VIEWS.includes(fromHash)) {
+        seedDiscoveryPresetForLegacyKey(fromHash);
         const { child } = resolveNavigation(fromHash);
         setActiveView(child as View);
       }
