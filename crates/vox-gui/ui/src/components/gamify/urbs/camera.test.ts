@@ -53,4 +53,39 @@ describe('camera math', () => {
     // …and horizontally centered (world is wider than tall for this aspect).
     expect(tl.sx + br.sx).toBeCloseTo(VP.w, 0);
   });
+
+  it('fitBounds does not produce NaN/Infinity on zero-width bounds', () => {
+    const degenerate: WorldBounds = { minX: 0, minY: 0, maxX: 0, maxY: 500 };
+    const cam = fitBounds(degenerate, VP.w, VP.h, 20);
+    expect(Number.isFinite(cam.zoom)).toBe(true);
+    expect(Number.isFinite(cam.x)).toBe(true);
+    expect(Number.isFinite(cam.y)).toBe(true);
+  });
+
+  it('fitBounds does not produce NaN/Infinity on zero-height bounds', () => {
+    const degenerate: WorldBounds = { minX: 0, minY: 0, maxX: 500, maxY: 0 };
+    const cam = fitBounds(degenerate, VP.w, VP.h, 20);
+    expect(Number.isFinite(cam.zoom)).toBe(true);
+    expect(Number.isFinite(cam.x)).toBe(true);
+    expect(Number.isFinite(cam.y)).toBe(true);
+  });
+
+  it('fitBounds does not produce NaN/Infinity on a single point', () => {
+    const point: WorldBounds = { minX: 10, minY: 10, maxX: 10, maxY: 10 };
+    const cam = fitBounds(point, VP.w, VP.h, 20);
+    expect(Number.isFinite(cam.zoom)).toBe(true);
+    expect(Number.isFinite(cam.x)).toBe(true);
+    expect(Number.isFinite(cam.y)).toBe(true);
+  });
+
+  it('zoomAt never lets zoom reach exactly 0 even with minZoom: 0', () => {
+    let cam: Camera = { x: 0, y: 0, zoom: 1 };
+    for (let i = 0; i < 50; i++) {
+      cam = zoomAt(cam, 100, 100, 0.5, 0, 4);
+    }
+    expect(cam.zoom).toBeGreaterThan(0);
+    const w = screenToWorld(cam, 100, 100);
+    expect(Number.isFinite(w.wx)).toBe(true);
+    expect(Number.isFinite(w.wy)).toBe(true);
+  });
 });

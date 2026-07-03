@@ -15,7 +15,8 @@ export function screenToWorld(cam: Camera, sx: number, sy: number): { wx: number
 export function zoomAt(
   cam: Camera, sx: number, sy: number, factor: number, minZoom: number, maxZoom: number,
 ): Camera {
-  const zoom = Math.min(maxZoom, Math.max(minZoom, cam.zoom * factor));
+  const floor = Math.max(minZoom, 1e-6);
+  const zoom = Math.min(maxZoom, Math.max(floor, cam.zoom * factor));
   const { wx, wy } = screenToWorld(cam, sx, sy);
   return { zoom, x: sx - wx * zoom, y: sy - wy * zoom };
 }
@@ -29,8 +30,8 @@ export function clampCamera(cam: Camera, b: WorldBounds, vw: number, vh: number)
 
 /** Camera that fits (and centers) the whole bounds in the viewport. */
 export function fitBounds(b: WorldBounds, vw: number, vh: number, pad: number): Camera {
-  const w = b.maxX - b.minX;
-  const h = b.maxY - b.minY;
+  const w = Math.max(1, b.maxX - b.minX);
+  const h = Math.max(1, b.maxY - b.minY);
   const zoom = Math.min((vw - 2 * pad) / w, (vh - 2 * pad) / h);
   return {
     zoom,
