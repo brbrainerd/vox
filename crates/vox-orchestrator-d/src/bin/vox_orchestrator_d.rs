@@ -131,14 +131,14 @@ async fn main() -> anyhow::Result<()> {
     // with reading the token file before this daemon has written it); else
     // generate a fresh random token. Always (over)write the well-known token
     // file so `OrchDaemonClient::new` callers can auto-resolve it.
-    let explicit_env_token = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorDaemonToken)
-        .expose()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(str::to_string);
+    let explicit_env_token =
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorDaemonToken)
+            .expose()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string);
     let explicit_env_token_was_set = explicit_env_token.is_some();
-    let daemon_token: Arc<str> =
-        resolve_and_persist_daemon_token(explicit_env_token)?.into();
+    let daemon_token: Arc<str> = resolve_and_persist_daemon_token(explicit_env_token)?.into();
 
     let cfg = load_config();
     let build = build_repo_scoped_orchestrator(cfg, None);
@@ -212,39 +212,12 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    runtime::spawn_agent_fleet_if_enabled(orch.clone());
-
-    // MCP parity: mesh federation snapshot, remote task pollers, event log, clarification inbox.
-    let populi_remote_snapshot = Arc::new(RwLock::new(RemotePopuliSnapshot::default()));
-    let populi_poll_join = Arc::new(Mutex::new(None));
-    mesh_federation_poll::spawn_populi_federation_poller(
-        &orch_config,
-        repository_id.clone(),
-        db_holder.clone(),
-        orch.clone(),
-        Arc::clone(&populi_remote_snapshot),
-        Arc::clone(&populi_poll_join),
-    );
-    a2a::spawn_populi_remote_result_poller(orch.clone(), Arc::new(Mutex::new(None)));
-    a2a::spawn_populi_remote_worker_poller(orch.clone(), Arc::new(Mutex::new(None)));
-
-    if let Some(db) = db_holder.as_ref() {
-        clarification_db_inbox_poll::spawn_clarification_db_inbox_poller(
-            db.clone(),
-            repository_id.clone(),
-            Arc::new(Mutex::new(None)),
-        );
-    }
-    vox_orchestrator::socrates::spawn_socrates_research_poller(orch.clone());
-
-    // Flywheel automation: Monitor diversity and trigger training
-    let flywheel = vox_orchestrator::services::flywheel::FlywheelMonitor::new(orch.clone());
-    flywheel.spawn().await;
-
-    // Attention calibration: periodically adapt ask-thresholds from logged outcomes.
-    vox_orchestrator::services::attention_calibration::spawn_attention_calibration(orch.clone());
-
-    // HTTP Gateway requires a ServerState
+    // HTTP Gateway (and the autonomous tool-dispatch bridge below) require a
+    // ServerState. Built here — before `spawn_agent_fleet_if_enabled_with_dispatcher`
+    // — so the AgentFleet's AiTaskProcessor can be wired with a real
+    // `ToolDispatcher` from the start (T1.5 follow-up: previously the fleet
+    // spawned before any ServerState existed, so there was no dispatcher to
+    // give it and autonomous `@tool` intents could only ever be logged).
     let session_cfg = vox_orchestrator::SessionConfig {
         repository_id: Some(repository_id.clone()),
         sessions_dir: build
@@ -286,6 +259,49 @@ async fn main() -> anyhow::Result<()> {
     if let Some(db) = db_holder.clone() {
         state = state.with_db_initialized(db).await;
     }
+
+    // T1.5 follow-up: wire the AgentFleet's AiTaskProcessor with a real
+    // ToolDispatcher backed by this same ServerState, so an autonomous
+    // agent's own `@tool` intent lines are actually dispatched through the
+    // real MCP approval gate (not just logged as a tracing breadcrumb).
+    runtime::spawn_agent_fleet_if_enabled_with_dispatcher(
+        orch.clone(),
+        Some(
+            vox_orchestrator_mcp::autonomous_tool_dispatch::McpToolDispatcher::new_arc(
+                state.clone(),
+            ),
+        ),
+    );
+
+    // MCP parity: mesh federation snapshot, remote task pollers, event log, clarification inbox.
+    let populi_remote_snapshot = Arc::new(RwLock::new(RemotePopuliSnapshot::default()));
+    let populi_poll_join = Arc::new(Mutex::new(None));
+    mesh_federation_poll::spawn_populi_federation_poller(
+        &orch_config,
+        repository_id.clone(),
+        db_holder.clone(),
+        orch.clone(),
+        Arc::clone(&populi_remote_snapshot),
+        Arc::clone(&populi_poll_join),
+    );
+    a2a::spawn_populi_remote_result_poller(orch.clone(), Arc::new(Mutex::new(None)));
+    a2a::spawn_populi_remote_worker_poller(orch.clone(), Arc::new(Mutex::new(None)));
+
+    if let Some(db) = db_holder.as_ref() {
+        clarification_db_inbox_poll::spawn_clarification_db_inbox_poller(
+            db.clone(),
+            repository_id.clone(),
+            Arc::new(Mutex::new(None)),
+        );
+    }
+    vox_orchestrator::socrates::spawn_socrates_research_poller(orch.clone());
+
+    // Flywheel automation: Monitor diversity and trigger training
+    let flywheel = vox_orchestrator::services::flywheel::FlywheelMonitor::new(orch.clone());
+    flywheel.spawn().await;
+
+    // Attention calibration: periodically adapt ask-thresholds from logged outcomes.
+    vox_orchestrator::services::attention_calibration::spawn_attention_calibration(orch.clone());
 
     // Serve orch.tool_call / orch.resolve_approval / orch.list_pending_approvals
     // against this same ServerState so the GUI runs tools + resolves HITL
@@ -361,6 +377,9 @@ mod tests {
         // explicit value used by the sibling test.
         assert!(!token.is_empty());
         assert_ne!(token, "explicit-token-value");
-        assert!(uuid::Uuid::parse_str(&token).is_ok(), "expected a UUID-shaped generated token, got: {token}");
+        assert!(
+            uuid::Uuid::parse_str(&token).is_ok(),
+            "expected a UUID-shaped generated token, got: {token}"
+        );
     }
 }

@@ -153,47 +153,35 @@ pub enum OperationKind {
     // stays the cost SSOT; correlate via `trace_id`/`run_id` elsewhere.
     /// A dangerous-tool call parked on a human-in-the-loop approval decision.
     ///
-    /// ## `run_id` population — current real-world behavior (T1.5 follow-up,
-    /// spec-compliance review, 2026-07-03)
+    /// ## `run_id` population — current real-world behavior (T1.5 follow-up
+    /// bridge landed, 2026-07-03)
     ///
     /// `run_id` is populated by `vox-orchestrator-mcp/src/dispatch.rs`'s
     /// `run_id_for_approval`: an explicit `trace_id`/`correlation_id` from the
     /// tool-call `args`, falling back to `args.get("task_id")` when present.
-    /// **Neither field is set by any dispatch path that actually executes
-    /// during autonomous orchestrator task execution today.** Verified
-    /// call-site audit (2026-07-03):
     ///
-    /// - The only callers of `orch_daemon_method::TOOL_CALL` (which reaches
-    ///   `handle_tool_call_with_mode` with caller-composed `args`) are GUI
-    ///   commands (`vox-gui/src/commands/{browser,harness,mcp,orchestrator}.rs`)
-    ///   — i.e. a human/GUI directly invoking a tool, not an agent executing a
-    ///   task autonomously.
-    /// - The orchestrator's own autonomous task loop
-    ///   (`vox-orchestrator/src/runtime.rs`'s `AiTaskProcessor::process`) only
-    ///   *detects* an `@tool` intent line in the LLM's narrated phase output
-    ///   and logs it as a tracing breadcrumb ("Lightweight tool intent
-    ///   tracing: explicit breadcrumbs for future bridge adapters") — it does
-    ///   **not** call `handle_tool_call`/`handle_tool_call_with_mode`, so no
-    ///   `task_id` (or any other correlator) ever reaches `dispatch.rs`'s
-    ///   approval gate from that loop. There is currently no code path in
-    ///   this repo where an LLM's own tool-call output, produced while the
-    ///   orchestrator is running a task, is dispatched into a dangerous-tool
-    ///   approval with `task_id` attached.
+    /// As of the T1.5 follow-up bridge (`vox_orchestrator::runtime::ToolDispatcher`
+    /// + `vox-orchestrator-mcp::autonomous_tool_dispatch::McpToolDispatcher`),
+    /// `args["task_id"]` **is** reliably set for autonomous-agent-triggered
+    /// approvals too: `AiTaskProcessor::process`
+    /// (`vox-orchestrator/src/runtime.rs`) parses a detected `@tool <name>
+    /// [json args]` intent line and calls `ToolDispatcher::dispatch` with the
+    /// real `TaskId` as an explicit parameter (not sourced from the model's
+    /// own narration); `McpToolDispatcher::dispatch` writes that verified
+    /// `task_id` into `args` immediately before calling
+    /// `handle_tool_call_with_mode`, overwriting anything the model might
+    /// have written there itself. `vox-orchestrator-d`'s binary wires this
+    /// dispatcher in when it spawns the `AgentFleet`
+    /// (`spawn_agent_fleet_if_enabled_with_dispatcher`), using the same
+    /// `ServerState` GUI-driven `orch.tool_call` calls run against — so
+    /// autonomous and GUI-invoked calls now share one approval gate and one
+    /// `run_id`-population path.
     ///
-    /// Net effect: for a *real* autonomous-agent-triggered approval today,
-    /// `run_id` is almost always `None`. The `run_id` join implemented for
-    /// T1.5 (`VoxDb::find_approval_id_for_run`,
-    /// `VoxDb::find_task_root_summary_totals`) is exercised correctly by
-    /// GUI-driven `invoke_mcp_tool` calls that happen to pass `task_id` in
-    /// `args`, and is unit-tested end-to-end, but does not yet correlate a
-    /// task's *own* dangerous tool calls to that task's approval record.
-    ///
-    /// Tracked follow-up: give `AiTaskProcessor` (or whatever autonomous
-    /// tool-dispatch mechanism eventually replaces the `@tool`-line
-    /// breadcrumb) a real bridge into `handle_tool_call_with_mode`, threading
-    /// `task.id` either as an explicit dispatch parameter (preferred — avoids
-    /// relying on caller-supplied `args`) or injected into `args["task_id"]`
-    /// at that call site to match `dispatch.rs`'s existing fallback.
+    /// Hosts that construct `AiTaskProcessor::new` directly (tests, or any
+    /// future embedder that never builds an MCP `ServerState` in-process)
+    /// still get the pre-existing breadcrumb-only behavior — `run_id` is
+    /// `None` for their autonomous approvals, same as before this bridge
+    /// existed.
     ApprovalRequested {
         approval_id: String,
         tool: String,

@@ -292,19 +292,26 @@ ApprovalResolved events; thread `run_id` into the MCP gate; populate per-run
 `task_root_summary` on `trace_id`/`parent_task_id` (**no journaled cost
 deltas**).
 - *Acceptance:* a run row shows its approval outcome and telemetry-derived cost.
-- *Known gap (spec-compliance review + follow-up, 2026-07-03):* the `run_id`
-  join relies on `task_id` (or an explicit `trace_id`/`correlation_id`) being
-  present in a dangerous tool's call `args`. Audited call sites confirm this
-  is populated for GUI-driven `invoke_mcp_tool`/`orch.tool_call` calls (human
-  clicks "run tool"), but **not** for an agent's own tool calls made while the
-  orchestrator autonomously executes a task — `AiTaskProcessor::process`
-  (`vox-orchestrator/src/runtime.rs`) only logs an `@tool` intent line as a
-  tracing breadcrumb and never calls `handle_tool_call`/
-  `handle_tool_call_with_mode`. See the doc comment on
-  `OperationKind::ApprovalRequested::run_id`
-  (`crates/vox-orchestrator-queue/src/oplog/mod.rs`) for the full audit and
-  the tracked follow-up (bridge `AiTaskProcessor`'s tool intents into a real
-  `handle_tool_call_with_mode` dispatch, threading `task.id` through).
+- *Known gap, closed by the T1.5 follow-up bridge (spec-compliance review
+  2026-07-03, bridge landed same day):* the `run_id` join relies on `task_id`
+  (or an explicit `trace_id`/`correlation_id`) being present in a dangerous
+  tool's call `args`. This was populated for GUI-driven
+  `invoke_mcp_tool`/`orch.tool_call` calls (human clicks "run tool") from the
+  start, but **not**, until this bridge, for an agent's own tool calls made
+  while the orchestrator autonomously executes a task —
+  `AiTaskProcessor::process` (`vox-orchestrator/src/runtime.rs`) previously
+  only logged an `@tool` intent line as a tracing breadcrumb and never called
+  `handle_tool_call`/`handle_tool_call_with_mode`. Closed via a new
+  `vox_orchestrator::runtime::ToolDispatcher` trait (mirrors the
+  `ExtraDispatch` cross-crate bridge pattern already used for the daemon)
+  implemented by `vox-orchestrator-mcp::autonomous_tool_dispatch::McpToolDispatcher`;
+  `vox-orchestrator-d`'s binary now constructs its MCP `ServerState` before
+  spawning the `AgentFleet` and wires the dispatcher through
+  `spawn_agent_fleet_if_enabled_with_dispatcher`, so `task.id` reaches
+  `dispatch.rs`'s approval gate as a verified explicit parameter (not
+  model-controlled `args`) for real autonomous dangerous-tool calls too. See
+  the doc comment on `OperationKind::ApprovalRequested::run_id`
+  (`crates/vox-orchestrator-queue/src/oplog/mod.rs`) for the current state.
 
 **T1.6 — Retention.** Finish the P3-T9 `compact_now` stub (snapshot projections →
 blake3 → blob → prune warm rows) + hydrate-from-Checkpoint startup.

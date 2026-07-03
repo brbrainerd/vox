@@ -7,6 +7,11 @@ extern crate vox_codegen;
 /// HTTP routes (moved from vox-orchestrator/services/routes).
 pub mod services;
 
+/// T1.5 follow-up: bridges `AiTaskProcessor`'s autonomous `@tool` intent
+/// lines into real MCP dispatch (`handle_tool_call_with_mode`), so autonomous
+/// dangerous-tool calls go through the same approval gate as GUI-invoked
+/// ones, with `task_id` threaded through as an explicit parameter.
+pub mod autonomous_tool_dispatch;
 /// `<TOOL_CALLS>` XML fallback for LLM providers without native function-call support.
 pub mod chat_fallback_tools;
 pub mod daemon_extra;

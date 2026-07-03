@@ -223,6 +223,22 @@ pub enum AgentEventKind {
         attempted_budget_ms: u64,
     },
 
+    /// An autonomous agent's own `@tool` intent line (emitted while
+    /// executing a task) was actually dispatched through the real MCP tool
+    /// gate (T1.5 follow-up — `AiTaskProcessor::process` +
+    /// `runtime::ToolDispatcher`), as opposed to only being logged as a
+    /// tracing breadcrumb.
+    ToolCallDispatched {
+        task_id: TaskId,
+        agent_id: AgentId,
+        tool_name: String,
+        /// `true` if the dispatch call itself returned `Ok` (the tool result
+        /// may still encode a `success: false` `ToolResult` payload inside
+        /// that `Ok` string — this only reflects whether dispatch completed
+        /// without an `Err`).
+        ok: bool,
+    },
+
     /// A file lock was acquired.
     LockAcquired {
         agent_id: AgentId,
@@ -863,7 +879,8 @@ pub fn is_tier_a(kind: &AgentEventKind) -> bool {
         | AgentEventKind::HopperItemCancelled { .. }
         | AgentEventKind::MeshNodeBudget { .. }
         | AgentEventKind::MeshActionCommitted { .. }
-        | AgentEventKind::PavPhaseChanged { .. } => false,
+        | AgentEventKind::PavPhaseChanged { .. }
+        | AgentEventKind::ToolCallDispatched { .. } => false,
     }
 }
 
@@ -904,7 +921,7 @@ pub const TIER_B_KIND_NAMES: &[&str] = &[
     "DoubtReported", "SemanticDriftDetected", "BuildStage", "ThroughputTick",
     "CostTick", "FileDiagChanged", "MeshTopologyChanged", "TaskReprioritized",
     "HopperItemOverridden", "HopperItemCancelled", "MeshNodeBudget",
-    "MeshActionCommitted", "PavPhaseChanged",
+    "MeshActionCommitted", "PavPhaseChanged", "ToolCallDispatched",
 ];
 
 /// Returns `true` if `kind` is a **Tier B** event (broadcast-only, never

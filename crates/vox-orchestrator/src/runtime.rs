@@ -32,6 +32,39 @@ fn short_id_from_str(s: &str) -> &str {
     }
 }
 
+/// Parses an `@tool <name> [json args]` intent line (as emitted per the
+/// `Action contract` in [`AiTaskProcessor::run_phase_stream_with_bus`]'s
+/// prompt) into a tool name and a `serde_json::Value` args object.
+///
+/// - `<name>` is the first whitespace-delimited token after `@tool `.
+/// - Everything after that, if present and it parses as a JSON object, is
+///   used as-is for `args`. Any other trailing content (missing, not JSON, or
+///   JSON that isn't an object) falls back to `{}` — the model is not
+///   required to emit valid JSON args, and a parse failure must never panic
+///   or block dispatch (the tool itself is responsible for rejecting
+///   missing/invalid params).
+///
+/// `line` is expected already `str::trim`-med and to start with `"@tool "`
+/// (callers filter for this); a defensive fallback still handles a bare
+/// `"@tool"` with no trailing name.
+fn parse_tool_intent_line(line: &str) -> (String, serde_json::Value) {
+    let rest = line.strip_prefix("@tool").unwrap_or(line).trim_start();
+    let rest = rest.trim();
+    let (name, arg_str) = match rest.split_once(char::is_whitespace) {
+        Some((n, a)) => (n.trim(), a.trim()),
+        None => (rest, ""),
+    };
+    let args = if arg_str.is_empty() {
+        serde_json::json!({})
+    } else {
+        match serde_json::from_str::<serde_json::Value>(arg_str) {
+            Ok(v @ serde_json::Value::Object(_)) => v,
+            _ => serde_json::json!({}),
+        }
+    };
+    (name.to_string(), args)
+}
+
 /// RAII guard that removes a task's interrupt flag from the orchestrator's
 /// `interrupt_flags` map when dropped — including on panic/unwind — so an
 /// aborted or panicking task never leaves a stale flag behind (which would
@@ -95,6 +128,54 @@ impl TaskProcessor for StubTaskProcessor {
     }
 }
 
+/// Out-of-band bridge for dispatching a tool call an *autonomous* agent
+/// requested (via an `@tool` intent line in its own phase output) into the
+/// real MCP dispatch gate (`handle_tool_call_with_mode` in
+/// `vox-orchestrator-mcp`). Defined here (not in `vox-orchestrator-mcp`) for
+/// the same reason as [`crate::orch_daemon::ExtraDispatch`]: `vox-orchestrator`
+/// cannot depend on `vox-orchestrator-mcp` (dependency runs the other way), so
+/// the heavy MCP layer supplies the impl and the library stays free of it.
+///
+/// T1.5 follow-up (harness reliability spec, 2026-07-02 /
+/// `docs/src/architecture/vox-axis-harness-reliability-spec-plan-2026-07-02.md`):
+/// before this trait existed, `AiTaskProcessor::process` only logged a
+/// detected `@tool` line as a tracing breadcrumb and never actually dispatched
+/// it — see the (now historical) audit in
+/// `crates/vox-orchestrator-queue/src/oplog/mod.rs`'s
+/// `OperationKind::ApprovalRequested` doc comment. Wiring a
+/// [`ToolDispatcher`] into [`AiTaskProcessor`] closes that gap.
+#[async_trait::async_trait]
+pub trait ToolDispatcher: Send + Sync {
+    /// Dispatch `tool_name` with `args` on behalf of `task_id`/`agent_id`,
+    /// through the same permission/approval gate every other tool-call caller
+    /// (GUI, HTTP gateway, stdio MCP) goes through.
+    ///
+    /// `task_id` is an **explicit parameter**, not a field the caller writes
+    /// into `args` — `args` is LLM-composed narration parsed out of the
+    /// model's own phase output, and T0.1 (same spec) specifically killed a
+    /// prior pattern where an `args`-controlled field could influence
+    /// approval-gate behavior. The impl is responsible for threading
+    /// `task_id` into the dispatch call by a path the LLM cannot spoof (e.g.
+    /// as a genuine function parameter to `handle_tool_call_with_mode`'s
+    /// caller, not by trusting an `args["task_id"]` the model might also try
+    /// to set — see the impl in `vox-orchestrator-mcp` for how the two are
+    /// kept separate).
+    ///
+    /// `permission_mode` mirrors `handle_tool_call_with_mode`'s parameter:
+    /// `None` is the safe default (dangerous tools always park for human
+    /// approval). Autonomous task execution has no authenticated operator
+    /// session to read a mode from, so implementations should pass `None`
+    /// unless a task explicitly carries a caller-supplied mode.
+    async fn dispatch(
+        &self,
+        task_id: TaskId,
+        agent_id: AgentId,
+        tool_name: &str,
+        args: serde_json::Value,
+        permission_mode: Option<&str>,
+    ) -> anyhow::Result<String>;
+}
+
 /// A real AI-powered task processor that streams tokens back to the event bus.
 pub struct AiTaskProcessor {
     client: vox_gamify::ai::FreeAiClient,
@@ -104,12 +185,18 @@ pub struct AiTaskProcessor {
     provider: String,
     /// Model identifier stored at construction time.
     model: String,
+    /// Optional bridge into real MCP tool dispatch (T1.5 follow-up). `None`
+    /// preserves the pre-existing breadcrumb-only behavior (e.g. in tests, or
+    /// hosts that never wire an MCP `ServerState` in-process).
+    tool_dispatcher: Option<Arc<dyn ToolDispatcher>>,
 }
 
 // TaskPhase moved to types/tasks.rs
 
 impl AiTaskProcessor {
-    /// Create a new AI processor that auto-discovers providers.
+    /// Create a new AI processor that auto-discovers providers. No tool
+    /// dispatcher is wired — detected `@tool` lines are logged as breadcrumbs
+    /// only. Use [`Self::with_tool_dispatcher`] to enable real dispatch.
     pub async fn new(event_bus: crate::events::EventBus, orchestrator: Arc<Orchestrator>) -> Self {
         let client = vox_gamify::ai::FreeAiClient::auto_discover().await;
         // Reflect the active provider in costs/logs
@@ -120,7 +207,21 @@ impl AiTaskProcessor {
             orchestrator,
             provider,
             model,
+            tool_dispatcher: None,
         }
+    }
+
+    /// Same as [`Self::new`], but wires `dispatcher` so detected `@tool`
+    /// intent lines are actually executed via [`ToolDispatcher::dispatch`]
+    /// instead of only being logged.
+    pub async fn with_tool_dispatcher(
+        event_bus: crate::events::EventBus,
+        orchestrator: Arc<Orchestrator>,
+        dispatcher: Arc<dyn ToolDispatcher>,
+    ) -> Self {
+        let mut this = Self::new(event_bus, orchestrator).await;
+        this.tool_dispatcher = Some(dispatcher);
+        this
     }
 
     async fn run_phase_stream(
@@ -187,7 +288,7 @@ impl AiTaskProcessor {
         }
 
         let prompt = format!(
-            "Task: {}\n\n{}{}\nPhase: {}\nCategory: {:?}\nRouting model hint: {}\n\nKnown notes:\n{}\n\nAction contract:\n- Think step-by-step for this phase only.\n- If proposing tool usage, emit one line starting with `@tool` and a concrete tool name.\n- Keep output concise and executable.",
+            "Task: {}\n\n{}{}\nPhase: {}\nCategory: {:?}\nRouting model hint: {}\n\nKnown notes:\n{}\n\nAction contract:\n- Think step-by-step for this phase only.\n- If proposing tool usage, emit one line starting with `@tool` followed by a concrete tool name and, optionally, a single-line JSON object of arguments, e.g. `@tool vox_read_file {{\"path\": \"src/main.rs\"}}`. This line is actually executed (not just narrated) — the tool's real result is fed back into your next phase's notes, so only emit it when you intend the call to happen now. Omit the JSON object (or leave it invalid) to call the tool with no arguments.\n- Keep output concise and executable.",
             task.description,
             history_block,
             skill_block,
@@ -507,7 +608,12 @@ impl TaskProcessor for AiTaskProcessor {
                 notes.push_str("\n\n");
             }
             notes.push_str(&format!("[{}]\n{}", phase.as_str(), phase_out));
-            // Lightweight tool intent tracing: explicit breadcrumbs for future bridge adapters.
+            // Tool intent detection: an `@tool <name> [json args]` line in the
+            // model's own phase output. Always logged as a breadcrumb; when a
+            // `ToolDispatcher` is wired (T1.5 follow-up), also actually
+            // dispatched through the real MCP gate so autonomous dangerous-tool
+            // calls go through the same approval path as GUI-invoked ones, and
+            // the tool's result is fed back into `notes` for the next phase.
             if let Some(tool_line) = phase_out
                 .lines()
                 .map(str::trim)
@@ -520,6 +626,40 @@ impl TaskProcessor for AiTaskProcessor {
                     tool_intent = %tool_line,
                     "bounded executor emitted tool intent"
                 );
+                if let Some(dispatcher) = self.tool_dispatcher.as_ref() {
+                    let (tool_name, tool_args) = parse_tool_intent_line(tool_line);
+                    let dispatch_result = dispatcher
+                        .dispatch(
+                            task.id,
+                            agent_id,
+                            tool_name.as_str(),
+                            tool_args,
+                            None, // T0.3: autonomous execution has no operator-selected mode; safe default is `Ask`.
+                        )
+                        .await;
+                    let ok = dispatch_result.is_ok();
+                    self.event_bus.emit(AgentEventKind::ToolCallDispatched {
+                        task_id: task.id,
+                        agent_id,
+                        tool_name: tool_name.clone(),
+                        ok,
+                    });
+                    let result_block = match dispatch_result {
+                        Ok(json) => format!("[tool_result: {tool_name}]\n{json}"),
+                        Err(e) => {
+                            tracing::warn!(
+                                agent_id = agent_id.0,
+                                task_id = task.id.0,
+                                tool = %tool_name,
+                                error = %e,
+                                "autonomous tool dispatch failed"
+                            );
+                            format!("[tool_result: {tool_name}]\nERROR: {e}")
+                        }
+                    };
+                    notes.push_str("\n\n");
+                    notes.push_str(&result_block);
+                }
             }
         }
         let full_text = notes;
@@ -1011,6 +1151,19 @@ pub fn agent_fleet_env_enabled() -> bool {
 }
 
 pub fn spawn_agent_fleet_if_enabled(orchestrator: Arc<Orchestrator>) {
+    spawn_agent_fleet_if_enabled_with_dispatcher(orchestrator, None);
+}
+
+/// Same as [`spawn_agent_fleet_if_enabled`], but wires `dispatcher` (if
+/// given) into the spawned [`AiTaskProcessor`] so autonomous `@tool` intent
+/// lines are actually dispatched (T1.5 follow-up) rather than only logged.
+/// `None` preserves the pre-existing breadcrumb-only behavior — pass `None`
+/// for hosts that never construct an MCP `ServerState` in-process (there is
+/// nothing to bridge into).
+pub fn spawn_agent_fleet_if_enabled_with_dispatcher(
+    orchestrator: Arc<Orchestrator>,
+    dispatcher: Option<Arc<dyn ToolDispatcher>>,
+) {
     if !agent_fleet_env_enabled() {
         tracing::info!(
             target: "vox_orchestrator::runtime",
@@ -1020,9 +1173,19 @@ pub fn spawn_agent_fleet_if_enabled(orchestrator: Arc<Orchestrator>) {
     }
     let scheduler = Arc::new(Scheduler::new());
     tokio::spawn(async move {
-        let processor = Arc::new(
-            AiTaskProcessor::new(orchestrator.event_bus.clone(), orchestrator.clone()).await,
-        );
+        let processor = Arc::new(match dispatcher {
+            Some(d) => {
+                AiTaskProcessor::with_tool_dispatcher(
+                    orchestrator.event_bus.clone(),
+                    orchestrator.clone(),
+                    d,
+                )
+                .await
+            }
+            None => {
+                AiTaskProcessor::new(orchestrator.event_bus.clone(), orchestrator.clone()).await
+            }
+        });
         let fleet = AgentFleet::new(scheduler, orchestrator, processor);
         tracing::info!(
             target: "vox_orchestrator::runtime",
@@ -1049,6 +1212,43 @@ mod tests {
         let s = "1234567890abcdef1234567890abcdef";
         let result = short_id_from_str(s);
         assert_eq!(result, "12345678");
+    }
+
+    #[test]
+    fn parse_tool_intent_line_name_only() {
+        let (name, args) = parse_tool_intent_line("@tool vox_git_status");
+        assert_eq!(name, "vox_git_status");
+        assert_eq!(args, serde_json::json!({}));
+    }
+
+    #[test]
+    fn parse_tool_intent_line_with_json_args() {
+        let (name, args) = parse_tool_intent_line(r#"@tool vox_read_file {"path": "src/main.rs"}"#);
+        assert_eq!(name, "vox_read_file");
+        assert_eq!(args, serde_json::json!({"path": "src/main.rs"}));
+    }
+
+    #[test]
+    fn parse_tool_intent_line_invalid_json_falls_back_to_empty_object() {
+        let (name, args) = parse_tool_intent_line("@tool vox_run_shell not valid json at all");
+        assert_eq!(name, "vox_run_shell");
+        assert_eq!(args, serde_json::json!({}));
+    }
+
+    #[test]
+    fn parse_tool_intent_line_non_object_json_falls_back_to_empty_object() {
+        // A bare JSON array/number/string is not a usable tool-args object.
+        let (name, args) = parse_tool_intent_line(r#"@tool vox_git_status [1, 2, 3]"#);
+        assert_eq!(name, "vox_git_status");
+        assert_eq!(args, serde_json::json!({}));
+    }
+
+    #[test]
+    fn parse_tool_intent_line_bare_at_tool_no_name() {
+        // Defensive: must not panic even on a malformed line without a name.
+        let (name, args) = parse_tool_intent_line("@tool");
+        assert_eq!(name, "");
+        assert_eq!(args, serde_json::json!({}));
     }
 
     #[tokio::test]
