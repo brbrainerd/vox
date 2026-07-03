@@ -29,6 +29,7 @@ pub async fn call(method: &str, params: Value, _auto_open: bool) -> anyhow::Resu
         method: method.into(),
         params,
         auth_token: None,
+        permission_mode: None,
     };
 
     let json = serde_json::to_string(&req)? + "\n";

@@ -758,6 +758,7 @@ mod isolation_dispatch_tests {
             method: method.to_string(),
             params,
             auth_token: None,
+            permission_mode: None,
         }
     }
 
@@ -889,6 +890,7 @@ mod task_dispatch_tests {
             method: method.to_string(),
             params,
             auth_token: None,
+            permission_mode: None,
         }
     }
 

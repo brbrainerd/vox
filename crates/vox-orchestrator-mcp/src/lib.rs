@@ -15,6 +15,13 @@ pub mod params;
 pub mod pending_approvals;
 pub mod server_state;
 
+/// T0.3: persisted per-repo "always allow this tool" allowlist (tier 3 of the
+/// dangerous-tool gate's precedence order).
+pub mod approval_allowlist;
+/// T0.3: registry-driven risk classification + `PermissionMode` auto-approve
+/// matrix (tier 2 of the dangerous-tool gate's precedence order).
+pub mod permission_modes;
+
 pub mod aci;
 /// Agent native gateway and skill tools.
 pub mod agent_tools;
@@ -164,7 +171,7 @@ pub mod speech_constraints;
 // Wired from sibling modules (`dispatch`, `registry`, …); anchor for unwired-module scans.
 pub use vox_mcp_registry::TOOL_REGISTRY;
 
-pub use dispatch::handle_tool_call;
+pub use dispatch::{handle_tool_call, handle_tool_call_with_mode};
 pub use registry::tool_registry;
 pub use tool_aliases::canonical_tool_name;
 /// VoxMens runtime integration — semantic tool retrieval (B3+).

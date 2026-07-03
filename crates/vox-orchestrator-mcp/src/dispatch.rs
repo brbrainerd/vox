@@ -27,10 +27,33 @@ use crate::{news_tools, scientia_tools};
 use crate::{oratio_tools, speech_pipeline_tools};
 
 /// Dispatch `name` to the matching submodule handler and record skill telemetry if DB is available.
+///
+/// Equivalent to calling [`handle_tool_call_with_mode`] with `permission_mode: None`
+/// (i.e. today's baseline `ask` / always-park behavior for dangerous tools).
+/// Kept as the primary entry point since most callers (stdio MCP server, HTTP
+/// gateway, tests) have no `PermissionMode` to thread through — only the
+/// daemon's authenticated `orch.tool_call` path (T0.2/T0.3) carries one.
 pub async fn handle_tool_call(
     state: &ServerState,
     name: &str,
     args: serde_json::Value,
+) -> Result<String, anyhow::Error> {
+    handle_tool_call_with_mode(state, name, args, None).await
+}
+
+/// Same as [`handle_tool_call`], but accepts an explicit `permission_mode`
+/// wire string (T0.3 — `DispatchRequest::permission_mode`, mirrored via
+/// `OrchDaemonClient`). `None` (or any unrecognized value) resolves to
+/// [`crate::permission_modes::PermissionMode::Ask`] — the fail-safe default
+/// that matches pre-T0.3 always-park behavior. `permission_mode` must NEVER
+/// be sourced from `args` (tool-call params the LLM agent composes) — only
+/// from this explicit parameter, which callers populate from the
+/// authenticated transport layer, never from caller-supplied JSON.
+pub async fn handle_tool_call_with_mode(
+    state: &ServerState,
+    name: &str,
+    args: serde_json::Value,
+    permission_mode: Option<&str>,
 ) -> Result<String, anyhow::Error> {
     let start_time = std::time::Instant::now();
     let name_canonical = tool_aliases::canonical_tool_name(name);
@@ -120,71 +143,93 @@ pub async fn handle_tool_call(
         }
     }
 
-    // Trust-Tier RBAC for dangerous operations
-    if matches!(
-        name_canonical,
-        "vox_run_shell"
-            | "vox_deploy"
-            | "vox_multi_replace"
-            | "vox_multi_replace_file"
-            | "vox_write_file"
-            | "vox_delete_file"
-    ) {
-        // B3 HITL: unconditionally register an interactive approval and await the
-        // human decision (resolved in-process via the `vox_resolve_approval` tool).
-        // There is NO arg-based fast path here — a tool-call argument must never be
-        // able to skip human approval for a dangerous operation, since the LLM
-        // agent itself composes the tool-call JSON. See T0.1 in
-        // docs/src/architecture/vox-axis-harness-reliability-spec-plan-2026-07-02.md.
-        let now_ms = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis() as u64;
-        let summary = {
-            let a = args.to_string();
-            let a: String = a.chars().take(200).collect();
-            format!("{name_canonical} {a}")
+    // Trust-Tier RBAC for dangerous operations. T0.3: gate membership is now
+    // registry-driven (crate::permission_modes::RISK_CLASSES, mirroring
+    // contracts/orchestration/permission-modes.v1.yaml) instead of a hardcoded
+    // tool-name allowlist. A tool absent from the registry is `unknown` and
+    // skips this gate entirely — same shape as the pre-T0.3 hardcoded list
+    // (this is an allowlist-of-dangerous-tools, not a denylist; see the
+    // tool_aliases hardening note in the contract file and in
+    // crate::permission_modes for the documented scope of that exposure).
+    if crate::permission_modes::is_gated_tool(name_canonical) {
+        // T0.3 precedence tiers 2 + 3: a caller-selected PermissionMode
+        // (never sourced from `args` — see `handle_tool_call_with_mode`'s
+        // doc comment) or a persisted per-repo allowlist entry may
+        // auto-approve this call, skipping the park-and-await below
+        // entirely. Falls through to the unconditional HITL park otherwise
+        // (today's baseline `ask`-mode behavior, byte-for-byte unchanged).
+        let mode = crate::permission_modes::PermissionMode::from_wire(permission_mode);
+        let mode_auto_approved =
+            crate::permission_modes::mode_auto_approves(mode, name_canonical);
+        let allowlisted = if mode_auto_approved {
+            false // short-circuit: no need to hit the DB if the mode already approved
+        } else {
+            crate::approval_allowlist::is_allowlisted(
+                state.repository.repository_id.as_str(),
+                name_canonical,
+            )
+            .await
         };
-        let (approval_id, rx) =
-            state
-                .pending_approvals
-                .register(name_canonical.to_string(), summary.clone(), now_ms);
-        // Durable audit trail (best-effort): record the request, then its outcome.
-        if let Some(db) = state.db.as_ref() {
-            let _ = db
-                .hitl_approval_record(&approval_id, name_canonical, &summary, now_ms as i64)
-                .await;
-        }
-        const APPROVAL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
-        let outcome = match tokio::time::timeout(APPROVAL_TIMEOUT, rx).await {
-            Ok(Ok(o)) => o,
-            Ok(Err(_)) => vox_orchestrator::ApprovalOutcome::Rejected, // resolver dropped
-            Err(_) => {
-                state.pending_approvals.cancel(&approval_id);
-                vox_orchestrator::ApprovalOutcome::TimedOut
-            }
-        };
-        if let Some(db) = state.db.as_ref() {
-            let resolved_ms = std::time::SystemTime::now()
+
+        if !mode_auto_approved && !allowlisted {
+            // B3 HITL: unconditionally register an interactive approval and await the
+            // human decision (resolved in-process via the `vox_resolve_approval` tool).
+            // There is NO arg-based fast path here — a tool-call argument must never be
+            // able to skip human approval for a dangerous operation, since the LLM
+            // agent itself composes the tool-call JSON. See T0.1 in
+            // docs/src/architecture/vox-axis-harness-reliability-spec-plan-2026-07-02.md.
+            let now_ms = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
-                .as_millis() as i64;
-            let status = format!("{outcome:?}").to_lowercase();
-            let _ = db
-                .hitl_approval_resolve(&approval_id, &status, resolved_ms)
-                .await;
+                .as_millis() as u64;
+            let summary = {
+                let a = args.to_string();
+                let a: String = a.chars().take(200).collect();
+                format!("{name_canonical} {a}")
+            };
+            let (approval_id, rx) =
+                state
+                    .pending_approvals
+                    .register(name_canonical.to_string(), summary.clone(), now_ms);
+            // Durable audit trail (best-effort): record the request, then its outcome.
+            if let Some(db) = state.db.as_ref() {
+                let _ = db
+                    .hitl_approval_record(&approval_id, name_canonical, &summary, now_ms as i64)
+                    .await;
+            }
+            const APPROVAL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
+            let outcome = match tokio::time::timeout(APPROVAL_TIMEOUT, rx).await {
+                Ok(Ok(o)) => o,
+                Ok(Err(_)) => vox_orchestrator::ApprovalOutcome::Rejected, // resolver dropped
+                Err(_) => {
+                    state.pending_approvals.cancel(&approval_id);
+                    vox_orchestrator::ApprovalOutcome::TimedOut
+                }
+            };
+            if let Some(db) = state.db.as_ref() {
+                let resolved_ms = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis() as i64;
+                let status = format!("{outcome:?}").to_lowercase();
+                let _ = db
+                    .hitl_approval_resolve(&approval_id, &status, resolved_ms)
+                    .await;
+            }
+            if !matches!(
+                outcome,
+                vox_orchestrator::ApprovalOutcome::Approved
+                    | vox_orchestrator::ApprovalOutcome::Modified
+            ) {
+                return Ok(crate::params::ToolResult::<()>::err(format!(
+                    "Operation '{name_canonical}' was not approved (outcome: {outcome:?})."
+                ))
+                .to_json_compact());
+            }
+            // Approved / Modified: fall through and execute the tool.
         }
-        if !matches!(
-            outcome,
-            vox_orchestrator::ApprovalOutcome::Approved
-                | vox_orchestrator::ApprovalOutcome::Modified
-        ) {
-            return Ok(crate::params::ToolResult::<()>::err(format!(
-                "Operation '{name_canonical}' was not approved (outcome: {outcome:?})."
-            ))
-            .to_json_compact());
-        }
-        // Approved / Modified: fall through and execute the tool.
+        // mode_auto_approved || allowlisted: skip the park entirely, fall
+        // through and execute the tool immediately.
     }
 
     // Build a TraceContext from the incoming call metadata so all async code reachable
@@ -463,6 +508,55 @@ async fn handle_tool_call_inner(
                 "resolved": resolved,
                 "approval_id": approval_id,
                 "outcome": format!("{outcome:?}"),
+            }))
+            .to_json_compact())
+        }
+        // T0.3 Part D: persist a "always allow this tool in this repo"
+        // allowlist entry (tier 3 of the dangerous-tool gate's precedence
+        // order — see contracts/orchestration/permission-modes.v1.yaml). The
+        // GUI's ApprovalsView calls this alongside resolving the current
+        // approval when the "always allow" checkbox is set. `repo_id`
+        // defaults to the current server's own repository when omitted, but
+        // callers should pass it explicitly to avoid ambiguity.
+        "vox_add_approval_allowlist_entry" => {
+            let tool = args.get("tool").and_then(|v| v.as_str()).unwrap_or("");
+            let repo_id = args
+                .get("repo_id")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .unwrap_or(state.repository.repository_id.as_str());
+            if tool.is_empty() {
+                return Ok(
+                    crate::params::ToolResult::<()>::err("`tool` (string) is required")
+                        .to_json_compact(),
+                );
+            }
+            match crate::approval_allowlist::add_entry(repo_id, tool).await {
+                Ok(()) => Ok(crate::params::ToolResult::ok(serde_json::json!({
+                    "added": true,
+                    "repo_id": repo_id,
+                    "tool": tool,
+                }))
+                .to_json_compact()),
+                Err(e) => Ok(crate::params::ToolResult::<()>::err(format!(
+                    "failed to persist allowlist entry: {e}"
+                ))
+                .to_json_compact()),
+            }
+        }
+        // T0.3 Part D: list allowlisted tools for a repo (GUI display of
+        // current allowlist state). `repo_id` defaults to this server's own
+        // repository when omitted.
+        "vox_list_approval_allowlist" => {
+            let repo_id = args
+                .get("repo_id")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .unwrap_or(state.repository.repository_id.as_str());
+            let tools = crate::approval_allowlist::list_for_repo(repo_id).await;
+            Ok(crate::params::ToolResult::ok(serde_json::json!({
+                "repo_id": repo_id,
+                "tools": tools,
             }))
             .to_json_compact())
         }

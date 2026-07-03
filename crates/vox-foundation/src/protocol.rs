@@ -148,6 +148,17 @@ pub struct DispatchRequest {
     /// (they simply fail the daemon's auth check rather than the parse).
     #[serde(default)]
     pub auth_token: Option<String>,
+    /// GUI-selected permission mode (T0.3: `"ask" | "accept_edits" |
+    /// "accept_all" | "plan"`), consulted by the dangerous-tool HITL gate in
+    /// `vox-orchestrator-mcp`'s dispatch (`orch.tool_call`). Same isolation
+    /// rationale as `auth_token`: a TOP-LEVEL field, separate from `params`,
+    /// set only by the transport layer (`OrchDaemonClient`) — never
+    /// reachable from tool-call `params` JSON the LLM agent composes, so a
+    /// model can never self-select an auto-approving mode. `#[serde(default)]`
+    /// so a missing/absent field resolves to `None`, which the gate treats
+    /// as the fail-safe `ask` mode (today's always-park behavior).
+    #[serde(default)]
+    pub permission_mode: Option<String>,
 }
 
 /// Incoming response envelope from Dei-style JSON-line daemons.

@@ -302,6 +302,7 @@ async fn orchestrator_daemon_rejects_missing_or_wrong_token_inner() {
         method: vox_foundation::protocol::orch_daemon_method::PING.to_string(),
         params: serde_json::json!({}),
         auth_token: None,
+        permission_mode: None,
     };
     let resp = send_raw(&addr_str, &no_token_req).await;
     match resp.payload {
@@ -320,6 +321,7 @@ async fn orchestrator_daemon_rejects_missing_or_wrong_token_inner() {
         method: vox_foundation::protocol::orch_daemon_method::PING.to_string(),
         params: serde_json::json!({}),
         auth_token: Some("not-the-real-token".to_string()),
+        permission_mode: None,
     };
     let resp = send_raw(&addr_str, &wrong_token_req).await;
     assert!(
@@ -336,6 +338,7 @@ async fn orchestrator_daemon_rejects_missing_or_wrong_token_inner() {
         method: vox_foundation::protocol::orch_daemon_method::SUBSCRIBE.to_string(),
         params: serde_json::json!({}),
         auth_token: None,
+        permission_mode: None,
     };
     let resp = send_raw(&addr_str, &subscribe_no_token).await;
     assert!(

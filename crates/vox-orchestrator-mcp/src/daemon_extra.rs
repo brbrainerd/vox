@@ -101,7 +101,15 @@ impl ExtraDispatch for McpExtraDispatch {
                     .get("args")
                     .cloned()
                     .unwrap_or_else(|| serde_json::json!({}));
-                match crate::handle_tool_call(&self.state, name, args).await {
+                // T0.3: `permission_mode` comes from the DispatchRequest's own
+                // top-level field (set only by the authenticated transport
+                // layer — see `DispatchRequest::permission_mode`'s doc
+                // comment), NEVER from `req.params` (tool-call args the
+                // caller/LLM composes).
+                let permission_mode = req.permission_mode.as_deref();
+                match crate::handle_tool_call_with_mode(&self.state, name, args, permission_mode)
+                    .await
+                {
                     Ok(json) => {
                         let value = serde_json::from_str::<serde_json::Value>(&json)
                             .unwrap_or_else(|_| serde_json::json!({ "raw": json }));

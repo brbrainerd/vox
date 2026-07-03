@@ -62,6 +62,7 @@ pub async fn call_daemon(
         method: method.into(),
         params,
         auth_token: None,
+        permission_mode: None,
     };
     let json = serde_json::to_string(&req)? + "\n";
     stdin.write_all(json.as_bytes()).await?;
@@ -166,6 +167,7 @@ pub async fn call_daemon_streaming(
         method: method.into(),
         params,
         auth_token: None,
+        permission_mode: None,
     };
     let json = serde_json::to_string(&req)? + "\n";
     stdin.write_all(json.as_bytes()).await?;
@@ -269,6 +271,7 @@ pub async fn subscribe_daemon(
         method: method.into(),
         params,
         auth_token: None,
+        permission_mode: None,
     };
     let json = serde_json::to_string(&req)? + "\n";
     stdin.write_all(json.as_bytes()).await?;

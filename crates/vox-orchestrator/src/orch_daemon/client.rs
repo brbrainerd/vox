@@ -37,6 +37,12 @@ fn read_token_file() -> Option<String> {
 pub struct OrchDaemonClient {
     addr: String,
     token: Option<String>,
+    /// GUI-selected `PermissionMode` wire string (T0.3), threaded onto every
+    /// [`DispatchRequest`] this client sends. `None` by default — the
+    /// dispatch-side gate treats an absent mode as the fail-safe `ask`
+    /// default (today's always-park behavior). Set via
+    /// [`Self::with_permission_mode`].
+    permission_mode: Option<String>,
 }
 
 impl OrchDaemonClient {
@@ -50,6 +56,7 @@ impl OrchDaemonClient {
         Self {
             addr: normalize_tcp_bind_addr(&addr.into()),
             token: read_token_file(),
+            permission_mode: None,
         }
     }
 
@@ -62,7 +69,20 @@ impl OrchDaemonClient {
         Self {
             addr: normalize_tcp_bind_addr(&addr.into()),
             token: Some(token.into()),
+            permission_mode: None,
         }
+    }
+
+    /// Set the `PermissionMode` wire string (T0.3 — `"ask" | "accept_edits"
+    /// | "accept_all" | "plan"`) to carry on every subsequent request from
+    /// this client. Mirrors [`Self::with_token`]'s builder shape. Callers
+    /// (the GUI's `invoke_mcp_tool`) set this from UI-selected state, never
+    /// from tool-call `params` — see `DispatchRequest::permission_mode`'s
+    /// doc comment for the isolation rationale.
+    #[must_use]
+    pub fn with_permission_mode(mut self, mode: impl Into<String>) -> Self {
+        self.permission_mode = Some(mode.into());
+        self
     }
 
     /// Send one line, read one line (blocking for this request).
@@ -79,6 +99,7 @@ impl OrchDaemonClient {
             method: method.to_string(),
             params,
             auth_token: self.token.clone(),
+            permission_mode: self.permission_mode.clone(),
         };
         let mut line = serde_json::to_string(&req)?;
         line.push('\n');
@@ -283,6 +304,7 @@ impl OrchDaemonClient {
             method: method.to_string(),
             params: serde_json::json!({}),
             auth_token: self.token.clone(),
+            permission_mode: self.permission_mode.clone(),
         };
         let mut line = serde_json::to_string(&req)?;
         line.push('\n');

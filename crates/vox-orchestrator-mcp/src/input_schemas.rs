@@ -705,6 +705,13 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_resolve_approval" => parse_obj(
             r#"{"type":"object","properties":{"approval_id":{"type":"string","minLength":1},"outcome":{"type":"string","enum":["approve","approved","modify","modified","reject","rejected"]},"decision":{"type":"string","description":"Alias for `outcome`"}},"required":["approval_id"],"anyOf":[{"required":["outcome"]},{"required":["decision"]}],"additionalProperties":false}"#,
         ),
+        // T0.3: persisted per-repo "always allow this tool" allowlist.
+        "vox_add_approval_allowlist_entry" => parse_obj(
+            r#"{"type":"object","properties":{"tool":{"type":"string","minLength":1,"description":"Canonical MCP tool name to always allow"},"repo_id":{"type":"string","description":"Repository id to scope the allowlist entry to; defaults to the current server's repository"}},"required":["tool"],"additionalProperties":false}"#,
+        ),
+        "vox_list_approval_allowlist" => parse_obj(
+            r#"{"type":"object","properties":{"repo_id":{"type":"string","description":"Repository id to list allowlisted tools for; defaults to the current server's repository"}},"additionalProperties":false}"#,
+        ),
 
         // ── Unified news (syndication safety + templates) ───────────────────
         "vox_news_test_syndicate" => parse_obj(
