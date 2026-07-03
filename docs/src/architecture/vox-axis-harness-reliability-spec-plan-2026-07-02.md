@@ -345,6 +345,95 @@ the `cmd_enums.rs`/`run_body.rs` pattern like `gui-honesty`) asserting: no
 `args.get("user_approval")` in dispatch paths; no `ServerState`/orchestrator
 construction outside the allowlist; no `call_daemon` in vox-gui.
 
+**T2.4 status (landed):** verified `spawn_http_gateway_if_enabled` already had
+exactly one call site (`vox-orchestrator-d`'s `main()`) — T2.2's own removal of
+the stdio-path spawn call left single-spawn already true; added the
+cross-visibility test below rather than a source fix. Full-codebase audit
+(item 3) found the constructor surface already clean except one disclosed,
+pre-existing gap (`vox stop`, see appendix). See
+[T2.4 exemption appendix](#t24-exemption-appendix-harness-trust-guard-allowlist)
+immediately below for the allowlist the new `harness-trust-guard` gate
+encodes.
+
+#### T2.4 exemption appendix: harness-trust-guard allowlist
+
+The following in-process `Orchestrator`/`ServerState` constructions in
+`crates/vox-gui/src`, `crates/vox-cli/src`, and `crates/vox-orchestrator-mcp/src`
+are legitimate and are **not** flagged by `vox ci harness-trust-guard`. Audited
+2026-07-02 against the actual tree (not the original plan's assumptions) via:
+
+```
+grep -rn "Orchestrator::new\|ServerState::new_full\|ServerState::new_for_daemon\|build_repo_scoped_orchestrator" \
+  crates/vox-gui/src crates/vox-cli/src crates/vox-orchestrator-mcp/src
+```
+
+1. **Test-only construction** — any hit inside a `#[cfg(test)]` module or
+   under a `crates/*/tests/` integration-test directory. Examples found in
+   this audit: `crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/tests.rs`
+   (7×`Orchestrator::new`), `crates/vox-orchestrator-mcp/src/registry.rs`'s
+   `merged_registry_tests` module (`ServerState::new_full`). Tests legitimately
+   need a real, disposable orchestrator instance; they never share state across
+   process/client boundaries the way a live client path would.
+
+2. **`vox-orchestrator-d`'s own daemon bootstrap** —
+   `crates/vox-orchestrator-d/src/bin/vox_orchestrator_d.rs`'s call to
+   `build_repo_scoped_orchestrator(cfg, None)` in `main()`. This IS the single
+   state owner; it is what every other client (GUI, CLI, `vox mcp`, HTTP
+   gateway) is supposed to converge onto, not a client-side violation. Its
+   defining implementation, `ServerState::new_full`'s body in
+   `crates/vox-orchestrator-mcp/src/server_state.rs:166` (which itself calls
+   `build_repo_scoped_orchestrator`), is likewise exempt — it is the
+   constructor's definition, not a client call site.
+
+3. **`vox mcp`'s protocol-level-only `ServerState::new_full`** —
+   `crates/vox-orchestrator-mcp/src/lifecycle.rs:49`
+   (`run_stdio_server_blocking`). Per T2.2, this state backs ONLY
+   tool-schema listing/resources/prompts; it does not spawn an agent fleet, DB
+   connection, `FlywheelMonitor`, or attention-calibration loop, and tool
+   *execution* is forwarded to the shared daemon via
+   `crate::daemon_route::call_tool_via_daemon`. A second live orchestrator
+   never actually runs here — it is a lightweight local shell for
+   protocol-level concerns that don't need live orchestrator state.
+
+4. **NOT exempt, and confirmed absent as of this audit:**
+   `EmbeddedOrchestratorDriver`, `build_repo_scoped_orchestrator_cli`, and
+   `build_repo_scoped_orchestrator_for_repository` have zero active
+   (non-comment) call sites in `crates/vox-cli/src` today. The only textual
+   hits are: (a) the known-dead `/* ... */` block in
+   `crates/vox-cli/src/commands/dei.rs` (~line 1006-1009, `run_dei_analyze`,
+   commented out, T2.3 predates this task and left it disabled), and (b) doc
+   comments in `attention.rs`/`safety.rs` narrating the T2.3 fix (naming the
+   retired call for context, not invoking it). The guard's comment-skipping
+   must not flag either.
+
+5. **Disclosed pre-existing gap (not fixed in T2.4, tracked as follow-up):**
+   `crates/vox-cli/src/commands/dei.rs`'s `stop()` (`vox stop`, ~line 490)
+   still builds a fresh, throwaway local `Orchestrator` via
+   `build_repo_scoped_orchestrator` and calls `emergency_stop` on it — this
+   does NOT reach the shared daemon's live agents. This was already
+   self-disclosed in the source (T2.3's own comment says "T2.4 candidate")
+   before this task began. Fixing it requires a new daemon RPC
+   (`orch_daemon_method` has no `EMERGENCY_STOP` equivalent yet), which is a
+   backend protocol change out of scope for a CI-gate task. `vox stop` prints
+   an explicit warning at runtime naming this gap. Tracked as a Phase-5-shaped
+   follow-up, not silently carried forward — `harness-trust-guard` does NOT
+   flag this call site (it is `build_repo_scoped_orchestrator`, which is
+   itself only interesting as a client construction when paired with
+   `ServerState`/tool-call plumbing; `dei.rs:490`'s bare `.orchestrator` for a
+   single synchronous `emergency_stop()` call is exempted by name below rather
+   than by pattern, since the guard cannot safely infer "reaches live daemon
+   state" vs. "one-shot local call" from source alone).
+
+6. **`setInterval` orchestrator-status polling in `crates/vox-gui/ui/src`** —
+   present today (`hooks/useOrchestratorStatus.ts`) but ONLY as a fallback
+   when the primary event-stream listener (`listenOrchStatus`) fails to
+   attach; this is exactly what T3.1 is scoped to remove (`PersistentDaemon`
+   supervision + reconnect + gap-replay, "no `setInterval` orchestrator
+   polling remains (guard-checked)"). `harness-trust-guard`'s polling check is
+   therefore registered as a **no-op with a tracked TODO** today (see the
+   guard's own doc comment) rather than a failing check — flipping it to
+   enforce is T3.1's acceptance criterion, not T2.4's.
+
 ### Phase 3 — Self-healing (~3 days; needs T1.3)
 
 **T3.1 — Supervise + reconnect.** `PersistentDaemon` drops the OnceCell-forever
