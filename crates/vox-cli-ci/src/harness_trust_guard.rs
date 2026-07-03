@@ -43,19 +43,119 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Result, anyhow};
 
-/// True when `path`'s filename is itself a `#[cfg(test)] mod tests;`-style
-/// separate-file test submodule — e.g.
-/// `llm_bridge/model_route_policy/tests.rs`, declared via `#[cfg(test)] mod
-/// tests;` in the parent `mod.rs`. Such files carry no `#[cfg(test)]`
-/// attribute of their own (the attribute lives on the `mod` declaration in
-/// the *parent* file), so the line-level `#[cfg(test)]`-cutoff scan in
-/// [`scan_constructor_violations`] cannot see it — this filename-based check
-/// closes that gap. Mirrors `retired_symbol_check::collect_crate_rs_files`'s
-/// directory-level `tests/` skip, extended to the separate-file-submodule
-/// case that directory skip doesn't cover.
-fn is_test_submodule_filename(path: &Path) -> bool {
+/// True when `path`'s filename *shape* matches a `#[cfg(test)] mod tests;`
+/// -style separate-file test submodule (e.g. `tests.rs`, `foo_tests.rs`).
+/// This is a **necessary but not sufficient** signal on its own — it only
+/// narrows which files are even candidates for the (expensive-ish) parent
+/// declaration lookup in [`is_declared_cfg_test_submodule`]. Do NOT use this
+/// alone to decide exemption: a production file can be named `helper_tests.rs`
+/// without being a genuine `#[cfg(test)]`-gated submodule (that was exactly
+/// the T2.4 review's proven false-negative — see the module doc / commit
+/// history for the injected-violation regression tests below).
+fn is_test_submodule_filename_shape(path: &Path) -> bool {
     let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
     matches!(stem, "tests" | "test") || stem.ends_with("_tests") || stem.ends_with("_test")
+}
+
+/// True when `path` (a candidate separate-file test submodule per
+/// [`is_test_submodule_filename_shape`]) is *actually* declared as a
+/// `#[cfg(test)]`-gated module by its parent file — i.e. the parent contains
+/// a `#[cfg(test)]` attribute immediately followed (allowing intervening
+/// `#[allow(...)]` / `#[path = "..."]` attributes) by `mod <stem>;` where
+/// `<stem>` is this file's module name (or the `#[path = "..."]` target
+/// matches this file's name).
+///
+/// This is the content-aware replacement for the old pure-filename check: a
+/// file named `helper_tests.rs` is only exempted from the constructor /
+/// `call_daemon` / retired-client scans if some real parent module file
+/// genuinely declares it behind `#[cfg(test)]`. A same-named file dropped
+/// into a directory whose parent never declares it this way (e.g. a probe
+/// file, or any future accidental production file that happens to be named
+/// `*_tests.rs`) is NOT exempted and falls through to the normal scan.
+///
+/// The parent file searched is `<dir>/mod.rs` (submodule of a directory
+/// module) or `<parent_dir>.rs` (submodule of a same-named file module, e.g.
+/// `foo/tests.rs` declared in `foo.rs` sitting next to the `foo/` dir) —
+/// both conventions are used in this repo (see the grep of `mod tests;`
+/// sites across `crates/**/*.rs` performed while writing this check).
+fn is_declared_cfg_test_submodule(path: &Path) -> bool {
+    let stem = match path.file_stem().and_then(|s| s.to_str()) {
+        Some(s) => s,
+        None => return false,
+    };
+    let Some(dir) = path.parent() else {
+        return false;
+    };
+    let dir_name = dir.file_name().and_then(|s| s.to_str()).unwrap_or("");
+
+    let mut candidates = vec![dir.join("mod.rs")];
+    if let Some(parent_of_dir) = dir.parent() {
+        candidates.push(parent_of_dir.join(format!("{dir_name}.rs")));
+    }
+
+    for candidate in candidates {
+        if candidate == path {
+            continue;
+        }
+        let Ok(body) = fs::read_to_string(&candidate) else {
+            continue;
+        };
+        if declares_cfg_test_mod(&body, stem, path.file_name().and_then(|s| s.to_str())) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Scans `body` (a parent module file's source) for a `#[cfg(test)]`
+/// attribute followed — allowing up to a few intervening attribute lines
+/// (`#[allow(...)]`, `#[path = "..."]`) — by `mod <mod_name>;`. Also honors
+/// an explicit `#[path = "<file_name>"]` override between the two, matching
+/// against the raw file name rather than the module name.
+fn declares_cfg_test_mod(body: &str, mod_name: &str, file_name: Option<&str>) -> bool {
+    let lines: Vec<&str> = body.lines().collect();
+    for (i, line) in lines.iter().enumerate() {
+        if line.trim() != "#[cfg(test)]" {
+            continue;
+        }
+        // Look ahead a handful of lines for the `mod <name>;` this attribute
+        // gates, allowing intervening attributes (`#[allow(...)]`,
+        // `#[path = "..."]`) but not arbitrary other code — if we hit a
+        // non-attribute, non-blank, non-comment line first, this
+        // `#[cfg(test)]` gates something else (e.g. a fn or inline mod).
+        let mut path_override: Option<String> = None;
+        for candidate_line in lines.iter().skip(i + 1).take(6) {
+            let t = candidate_line.trim();
+            if t.is_empty() {
+                continue;
+            }
+            if let Some(rest) = t.strip_prefix("#[path") {
+                // #[path = "some_file.rs"]
+                if let (Some(start), Some(end)) = (rest.find('"'), rest.rfind('"')) {
+                    if end > start {
+                        path_override = Some(rest[start + 1..end].to_string());
+                    }
+                }
+                continue;
+            }
+            if t.starts_with('#') {
+                continue;
+            }
+            let target = format!("mod {mod_name};");
+            let target_pub = format!("pub mod {mod_name};");
+            let target_pub_crate = format!("pub(crate) mod {mod_name};");
+            if t == target || t == target_pub || t == target_pub_crate {
+                if let Some(want) = &path_override {
+                    if Some(want.as_str()) != file_name {
+                        break;
+                    }
+                }
+                return true;
+            }
+            break;
+        }
+    }
+    false
 }
 
 /// Rust source files under `root_rel` (relative to repo root), skipping
@@ -68,10 +168,7 @@ fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
     });
     for entry in walker.filter_map(Result::ok) {
         let p = entry.path();
-        if entry.file_type().is_file()
-            && p.extension().and_then(|e| e.to_str()) == Some("rs")
-            && !is_test_submodule_filename(p)
-        {
+        if entry.file_type().is_file() && p.extension().and_then(|e| e.to_str()) == Some("rs") {
             out.push(p.to_path_buf());
         }
     }
@@ -102,6 +199,24 @@ fn collect_ts_files(dir: &Path, out: &mut Vec<PathBuf>) {
 fn is_comment_line(line: &str) -> bool {
     let t = line.trim_start();
     t.is_empty() || t.starts_with("//") || t.starts_with('*') || t.starts_with("/*")
+}
+
+/// True when `path` should be exempted **whole-file** from the constructor /
+/// `call_daemon` / retired-client-construction scans because it is a
+/// genuine, parent-declared `#[cfg(test)]` separate-file test submodule
+/// (e.g. `llm_bridge/model_route_policy/tests.rs`) — content-aware
+/// replacement for the old pure-filename `is_test_submodule_filename` check.
+///
+/// Deliberately two-gated: the filename-shape check
+/// ([`is_test_submodule_filename_shape`]) is cheap and narrows candidates;
+/// the parent-declaration check ([`is_declared_cfg_test_submodule`]) is what
+/// actually proves the file is test-only. A file merely *named* like a test
+/// file (e.g. an injected probe `helper_tests.rs` with no real
+/// `#[cfg(test)] mod helper_tests;` declaration anywhere) fails the second
+/// gate and is NOT exempted — this is precisely the T2.4 review's proven
+/// false-negative, now closed.
+fn is_exempt_test_submodule(path: &Path) -> bool {
+    is_test_submodule_filename_shape(path) && is_declared_cfg_test_submodule(path)
 }
 
 /// Result of [`scan_constructor_violations`].
@@ -142,15 +257,16 @@ const FILE_ALLOWLIST: &[&str] = &[
 ///
 /// Rust-source scan for `#[cfg(test)]` modules: once a line matches
 /// `#[cfg(test)]` we treat every subsequent line in the file as test-only.
-/// This is intentionally coarse (a whole-file cutoff rather than brace
-/// matching) — every current exemption case (`registry.rs`'s
-/// `merged_registry_tests`, `model_route_policy/tests.rs`) has its test
-/// module positioned so this is correct, and coarseness fails safe (it can
-/// only ever under-flag a genuine violation placed textually after a real
-/// `#[cfg(test)]` block in the same file, which is not a pattern used
-/// anywhere in this codebase today). Separate-file test submodules
-/// (`tests.rs` declared via `#[cfg(test)] mod tests;` in the parent) are
-/// excluded upstream by [`collect_rs_files`] via [`is_test_submodule_filename`].
+/// This is intentionally coarse (a whole-file-suffix cutoff rather than
+/// brace matching) — every current exemption case (`registry.rs`'s
+/// `merged_registry_tests`) has its test module positioned so this is
+/// correct, and coarseness fails safe (it can only ever under-flag a genuine
+/// violation placed textually after a real `#[cfg(test)]` block in the same
+/// file, which is not a pattern used anywhere in this codebase today).
+/// Separate-file test submodules (`tests.rs` declared via `#[cfg(test)] mod
+/// tests;` in the parent, which therefore carry no `#[cfg(test)]` attribute
+/// of their own) are excluded whole-file via [`is_exempt_test_submodule`] —
+/// content-aware (parent-declaration-verified), not filename-only.
 fn scan_constructor_violations(files: &[PathBuf], repo_root: &Path) -> ConstructorScanResult {
     let mut violations = Vec::new();
     for path in files {
@@ -160,6 +276,9 @@ fn scan_constructor_violations(files: &[PathBuf], repo_root: &Path) -> Construct
             .to_string_lossy()
             .replace('\\', "/");
         if FILE_ALLOWLIST.iter().any(|sfx| rel.ends_with(sfx)) {
+            continue;
+        }
+        if is_exempt_test_submodule(path) {
             continue;
         }
         let Ok(body) = fs::read_to_string(path) else {
@@ -208,6 +327,9 @@ fn is_call_daemon_call_site(line: &str) -> bool {
 fn scan_call_daemon(files: &[PathBuf], repo_root: &Path) -> Vec<String> {
     let mut violations = Vec::new();
     for path in files {
+        if is_exempt_test_submodule(path) {
+            continue;
+        }
         let Ok(body) = fs::read_to_string(path) else {
             continue;
         };
@@ -239,6 +361,9 @@ const RETIRED_CLIENT_PATTERNS: &[&str] = &[
 fn scan_retired_client_constructions(files: &[PathBuf], repo_root: &Path) -> Vec<String> {
     let mut violations = Vec::new();
     for path in files {
+        if is_exempt_test_submodule(path) {
+            continue;
+        }
         let Ok(body) = fs::read_to_string(path) else {
             continue;
         };
@@ -433,6 +558,147 @@ mod tests {
         run(&root).expect("harness-trust-guard must pass again once the probe is removed");
     }
 
+    /// Small helper shared by the three T2.4-follow-up regression tests
+    /// below: write `body` to a probe file named like a test submodule
+    /// (`*_tests.rs`) under `crates/vox-gui/src`, run the guard both via the
+    /// specific lower-level `scan_fn` (for a precise, per-violation-text
+    /// assertion) and via the full end-to-end [`run`] (for integration
+    /// coverage), then clean up and assert the guard is clean again. This
+    /// reproduces the review's exact false-negative shape: production code
+    /// with no `#[cfg(test)]` anywhere, sitting in a file whose *name* looks
+    /// like a test file but which no parent module ever actually declares
+    /// behind `#[cfg(test)]`.
+    fn assert_probe_with_test_shaped_name_is_caught(
+        probe_dir_rel: &str,
+        probe_filename: &str,
+        body: &str,
+        expect_needle: &str,
+        scan_fn: impl Fn(&[PathBuf], &Path) -> Vec<String>,
+    ) {
+        let _guard = REAL_TREE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let root = real_repo_root();
+        let probe_path = root.join(probe_dir_rel).join(probe_filename);
+
+        struct CleanupProbe(PathBuf);
+        impl Drop for CleanupProbe {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_file(&self.0);
+            }
+        }
+
+        assert!(
+            !probe_path.exists(),
+            "probe file must not already exist: {}",
+            probe_path.display()
+        );
+        std::fs::write(&probe_path, body).expect("write probe file");
+        let _cleanup = CleanupProbe(probe_path.clone());
+
+        // Sanity: this probe file is NOT declared by any parent module as a
+        // `#[cfg(test)]` submodule, so it must not be exempted whole-file.
+        assert!(
+            !is_declared_cfg_test_submodule(&probe_path),
+            "test bug: probe file must not be a genuinely-declared cfg(test) submodule"
+        );
+
+        // Precise check: the specific scan function must emit a violation
+        // whose text names the pattern it caught.
+        let scan_violations = scan_fn(&[probe_path.clone()], &root);
+        assert_eq!(
+            scan_violations.len(),
+            1,
+            "expected exactly one violation for probe `{probe_filename}`, got: {scan_violations:?}"
+        );
+        assert!(
+            scan_violations[0].contains(expect_needle),
+            "violation should mention `{expect_needle}`, got: {}",
+            scan_violations[0]
+        );
+
+        // End-to-end check: the full `run()` (which is what `vox ci
+        // harness-trust-guard` actually invokes) must also fail with the
+        // probe present.
+        let result = run(&root);
+        assert!(
+            result.is_err(),
+            "harness-trust-guard must FAIL for production code with no #[cfg(test)] in a \
+             test-shaped-name file `{probe_filename}` — a pure filename-based skip would \
+             wrongly let this through (T2.4 follow-up regression)"
+        );
+
+        drop(_cleanup);
+        assert!(!probe_path.exists(), "probe file must be removed after cleanup");
+        run(&root).expect("harness-trust-guard must pass again once the probe is removed");
+    }
+
+    /// T2.4 review stress test #1: a file named like a test submodule
+    /// (`helper_tests.rs`) containing plain production code —
+    /// `Orchestrator::new(Default::default())` with zero `#[cfg(test)]`
+    /// anywhere — must be caught, not silently skipped because of its name.
+    #[test]
+    fn harness_trust_guard_catches_constructor_violation_in_test_shaped_filename() {
+        assert_probe_with_test_shaped_name_is_caught(
+            "crates/vox-gui/src",
+            "__t24_probe_helper_tests.rs",
+            "// T2.4 follow-up regression probe -- production code, not test-gated.\n\
+             pub fn probe() {\n    let _orch = Orchestrator::new(Default::default());\n}\n",
+            "disallowed constructor",
+            |files, root| scan_constructor_violations(files, root).violations,
+        );
+    }
+
+    /// T2.4 review stress test #2: a `call_daemon(...)` call site in a
+    /// similarly test-shaped-named file must be caught.
+    #[test]
+    fn harness_trust_guard_catches_call_daemon_in_test_shaped_filename() {
+        assert_probe_with_test_shaped_name_is_caught(
+            "crates/vox-gui/src",
+            "__t24_probe_status_tests.rs",
+            "// T2.4 follow-up regression probe -- production code, not test-gated.\n\
+             pub async fn probe(cmd: &str) {\n    let _ = call_daemon(cmd).await;\n}\n",
+            "call_daemon",
+            scan_call_daemon,
+        );
+    }
+
+    /// T2.4 review stress test #3: a retired
+    /// `build_repo_scoped_orchestrator_cli(...)` construction in a
+    /// similarly test-shaped-named file must be caught.
+    #[test]
+    fn harness_trust_guard_catches_retired_client_construction_in_test_shaped_filename() {
+        assert_probe_with_test_shaped_name_is_caught(
+            "crates/vox-cli/src",
+            "__t24_probe_legacy_test.rs",
+            "// T2.4 follow-up regression probe -- production code, not test-gated.\n\
+             pub fn probe(config: Config) {\n    let _orch = build_repo_scoped_orchestrator_cli(config);\n}\n",
+            "retired client construction",
+            scan_retired_client_constructions,
+        );
+    }
+
+    /// Confirms the *legitimate* exemption path still works: the real
+    /// `model_route_policy/tests.rs` file (a genuine `#[cfg(test)] mod
+    /// tests;`-declared separate-file test submodule with no `#[cfg(test)]`
+    /// attribute of its own, and which does contain `Orchestrator::new(...)`
+    /// calls in its test bodies) must be recognized as exempt — the
+    /// content-aware check must not overcorrect into a false positive here.
+    #[test]
+    fn is_declared_cfg_test_submodule_recognizes_real_separate_file_submodule() {
+        let root = real_repo_root();
+        let path = root
+            .join("crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/tests.rs");
+        assert!(
+            path.exists(),
+            "expected real fixture file to exist: {}",
+            path.display()
+        );
+        assert!(
+            is_declared_cfg_test_submodule(&path),
+            "model_route_policy/tests.rs must be recognized as a genuine cfg(test) submodule"
+        );
+        assert!(is_exempt_test_submodule(&path));
+    }
+
     #[test]
     fn is_comment_line_detects_line_and_block_comments() {
         assert!(is_comment_line("// vox-dei"));
@@ -519,6 +785,62 @@ mod tests {
         .unwrap();
         let violations = scan_retired_client_constructions(&[f.clone()], &dir);
         assert_eq!(violations.len(), 1);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn declares_cfg_test_mod_matches_direct_declaration() {
+        let body = "use std::fmt;\n\n#[cfg(test)]\nmod tests;\n\nfn real_code() {}\n";
+        assert!(declares_cfg_test_mod(body, "tests", Some("tests.rs")));
+        assert!(!declares_cfg_test_mod(body, "other", Some("other.rs")));
+    }
+
+    #[test]
+    fn declares_cfg_test_mod_matches_through_intervening_attributes() {
+        let body = "#[cfg(test)]\n#[allow(unsafe_code)] // tests use set_var under a lock\nmod tests;\n";
+        assert!(declares_cfg_test_mod(body, "tests", Some("tests.rs")));
+    }
+
+    #[test]
+    fn declares_cfg_test_mod_honors_path_override() {
+        let body = "#[cfg(test)]\n#[path = \"snap_tests.rs\"]\nmod tests;\n";
+        assert!(declares_cfg_test_mod(body, "tests", Some("snap_tests.rs")));
+        assert!(!declares_cfg_test_mod(body, "tests", Some("tests.rs")));
+    }
+
+    #[test]
+    fn declares_cfg_test_mod_rejects_unrelated_cfg_test_attribute() {
+        // A #[cfg(test)] that gates something other than `mod <name>;`
+        // (e.g. a function) must not be mistaken for a submodule declaration.
+        let body = "#[cfg(test)]\nfn helper_for_tests() {}\n";
+        assert!(!declares_cfg_test_mod(body, "helper_for_tests", None));
+    }
+
+    #[test]
+    fn is_declared_cfg_test_submodule_rejects_undeclared_probe_file() {
+        let dir = std::env::temp_dir().join(format!(
+            "harness-trust-guard-test-undeclared-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        // No mod.rs / <dirname>.rs parent declares this file at all.
+        let f = dir.join("helper_tests.rs");
+        std::fs::write(&f, "fn probe() {}\n").unwrap();
+        assert!(!is_declared_cfg_test_submodule(&f));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn is_declared_cfg_test_submodule_accepts_real_mod_rs_declaration() {
+        let dir = std::env::temp_dir().join(format!(
+            "harness-trust-guard-test-declared-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("mod.rs"), "#[cfg(test)]\nmod tests;\n").unwrap();
+        let f = dir.join("tests.rs");
+        std::fs::write(&f, "fn probe() {}\n").unwrap();
+        assert!(is_declared_cfg_test_submodule(&f));
         std::fs::remove_dir_all(&dir).ok();
     }
 }
