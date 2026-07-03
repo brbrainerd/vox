@@ -7,6 +7,10 @@ vi.mock('../../generated/surfaceRegistry.generated', () => ({
   SURFACE_REGISTRY: [
     { viewKey: 'mercatus', navLabel: 'Mercatus', parentSurface: 'operate', tier: 'live_backend' },
     { viewKey: 'activity', navLabel: 'Activity', parentSurface: 'operate', tier: 'live_backend' },
+    { viewKey: 'browser', navLabel: 'Browser', parentSurface: 'workspace', tier: 'live_backend' },
+    { viewKey: 'console', navLabel: 'Console', parentSurface: 'workspace', tier: 'live_backend' },
+    { viewKey: 'harness', navLabel: 'Harness', parentSurface: 'workspace', tier: 'live_backend' },
+    { viewKey: 'repository', navLabel: 'Repository', parentSurface: 'workspace', tier: 'live_backend' },
   ],
 }));
 
@@ -30,5 +34,18 @@ describe('ParentSurface sub-tab labels', () => {
     window.localStorage.setItem('vox.lang', 'la');
     renderIt();
     expect(screen.getByText('Mercatus')).toBeInTheDocument();
+  });
+});
+
+describe('ParentSurface sub-tab ordering', () => {
+  beforeEach(() => window.localStorage.clear());
+  it('renders workspace tabs in intent order (console first), not registry order', () => {
+    render(
+      <LanguageProvider>
+        <ParentSurface parentKey="workspace" activeChild="console" onChildChange={vi.fn()} renderChild={() => <div />} />
+      </LanguageProvider>,
+    );
+    const tabs = screen.getAllByRole('button').map(t => t.textContent);
+    expect(tabs).toEqual(['Console', 'Repository', 'Browser', 'Harness']);
   });
 });
