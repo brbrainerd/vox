@@ -1,37 +1,38 @@
+// crates/vox-gui/ui/src/components/gamify/HudPanels.tsx  (full replacement)
 import React from 'react';
 import { Glass } from '../ui/Glass';
 
 interface HudPanelsProps {
-  treasuryValue: number;
+  /** Real LLM spend USD (from get_llm_spend); null = unknown → render "—". */
+  treasuryUsd: number | null;
   energy: number;
+  maxEnergy: number;
+  /** Animation speed multiplier: 0 = paused. View-only; not a simulation. */
   speed: number;
   onSetSpeed: (speed: number) => void;
 }
 
 export const HudPanels: React.FC<HudPanelsProps> = ({
-  treasuryValue,
-  energy,
-  speed,
-  onSetSpeed,
+  treasuryUsd, energy, maxEnergy, speed, onSetSpeed,
 }) => {
   return (
     <Glass size="sm" className="flex items-center gap-4 bg-zinc-950/80 pointer-events-auto border border-zinc-800 text-zinc-100 select-none">
       <div className="flex items-center gap-2 border-r border-zinc-800 pr-3">
-        <span className="text-zinc-500 text-xs font-semibold uppercase tracking-wider animate-pulse">Treasury</span>
+        <span className="text-zinc-500 text-xs font-semibold uppercase tracking-wider">Aerarivm</span>
         <span data-testid="hud-value" className="text-amber-400 font-bold font-mono">
-          {treasuryValue}
+          {treasuryUsd === null ? '—' : `$${treasuryUsd.toFixed(2)}`}
         </span>
       </div>
       <div className="flex items-center gap-2 border-r border-zinc-800 pr-3">
         <span className="text-zinc-500 text-xs font-semibold uppercase tracking-wider">Energy</span>
         <span data-testid="hud-energy" className="text-emerald-400 font-bold font-mono">
-          {energy}
+          {energy}/{maxEnergy}
         </span>
       </div>
       <div className="flex items-center gap-2">
         <span className="text-zinc-500 text-xs font-semibold uppercase tracking-wider">Speed</span>
         <div className="flex items-center gap-1">
-          {[1, 2, 4].map((s) => (
+          {[0, 1, 3].map((s) => (
             <button
               key={s}
               type="button"
