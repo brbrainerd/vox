@@ -28,7 +28,7 @@ export function ParentSurface({
       .map(e => ({ viewKey: e.viewKey as string, label: labelFor(e.viewKey as string, lang) }));
     const order = orderedChildren(parentKey, raw.map(t => t.viewKey));
     const rank = new Map(order.map((k, i) => [k, i]));
-    return [...raw].sort((a, b) => (rank.get(a.viewKey) ?? 0) - (rank.get(b.viewKey) ?? 0));
+    return [...raw].sort((a, b) => (rank.get(a.viewKey) ?? order.length) - (rank.get(b.viewKey) ?? order.length));
   }, [parentKey, lang]);
 
   const child =
