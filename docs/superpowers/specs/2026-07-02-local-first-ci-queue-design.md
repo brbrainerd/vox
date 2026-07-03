@@ -321,7 +321,10 @@ conceptually by §2's tag-push exemption; both new docs pages join
 
 ## 5. Component 4 — hooks: the mechanical guarantee
 
-New **checked-in** `.claude/settings.json`:
+New **checked-in** `.claude/settings.json` (as shipped — the PreToolUse
+command is the fail-open wrapper adopted in commit `1b2126f866`, not the bare
+`vox ci queue --hook-guard` this spec originally proposed; see mitigation 4
+below):
 
 ```json
 {
@@ -329,7 +332,12 @@ New **checked-in** `.claude/settings.json`:
     "PreToolUse": [
       {
         "matcher": "Bash|PowerShell",
-        "hooks": [{ "type": "command", "command": "vox ci queue --hook-guard" }]
+        "hooks": [
+          {
+            "type": "command",
+            "command": "out=$(vox ci queue --hook-guard 2>&1); code=$?; if [ \"$code\" -eq 2 ] && printf '%s' \"$out\" | grep -q 'Local-first CI'; then printf '%s\\n' \"$out\" >&2; exit 2; fi; exit 0"
+          }
+        ]
       }
     ],
     "SessionStart": [
@@ -404,13 +412,20 @@ binary). Mitigations, all required:
 3. **Documented recovery** in the docs page: "if every shell call is blocked
    with a clap usage error, your `vox` binary predates the guard — reinstall
    it, or temporarily remove the PreToolUse hook via /hooks."
-4. On POSIX hosts, an inline wrapper that maps exit-2-without-the-deny-marker
-   to exit 0 is possible; it is deliberately **not** used here because hook
-   commands must also run on Windows shells. Accepted residual risk, stated
-   honestly.
+4. **The fail-open wrapper** (amended 2026-07-02, commit `1b2126f866`): the
+   shipped hook wraps the call and only propagates exit 2 when stderr carries
+   the `Local-first CI` deny marker; every other outcome — stale binary,
+   missing binary, crash, unknown exit code — maps to exit 0. Rev 2 of this
+   spec deliberately rejected this wrapper on the theory that hook commands
+   must also run on Windows shells; that concern was empirically refuted —
+   Claude Code executes hook commands via a POSIX shell (Git Bash) even on
+   this native-Windows host. The wrapper was adopted after a live stale-binary
+   lockout on 2026-07-02 blocked every Bash/PowerShell call in a session.
+   See `docs/src/ci/local-first-ci.md` § "Stale-binary hardening".
 
 `vox` missing from PATH entirely is safe: command-not-found is a non-2 exit →
-non-blocking (fail-open with a transcript notice).
+non-blocking (fail-open with a transcript notice). With the shipped wrapper
+(mitigation 4) this holds for *every* non-deny outcome, not just non-2 exits.
 
 ### SessionStart
 

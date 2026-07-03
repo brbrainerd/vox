@@ -10,7 +10,7 @@
 
 **House rules:** never `cargo fmt --all` (use `cargo fmt -p <crate>`); never pipe cargo output to `head`/`grep`; workspace clippy must `--exclude vox-gui`; `.vox` files are Vox source; no new `.ps1`/`.sh`/`.py`.
 
-**Task order is load-bearing:** the binary must be installed (Task 6 Step 1) before `.claude/settings.json` lands (Task 6 Step 4), or every agent shell call gets blocked by a stale-clap exit-2 collision.
+**Task order is load-bearing:** the binary must be installed (Task 6 Step 1) before `.claude/settings.json` lands (Task 6 Step 4), or every agent shell call gets blocked by a stale-clap exit-2 collision. *(Post-execution note, 2026-07-03: this lockout mode did occur live and the shipped hook was hardened into a fail-open wrapper — see the amendment in Task 6 Step 4.)*
 
 ---
 
@@ -1148,7 +1148,9 @@ git commit -m "feat(ci): autoscaler tick auto-clears queue + force-cancel escala
 
 **Order inside this task is the whole point** (spec §5 hazard: a stale
 `vox.exe` exits 2 on the unknown subcommand — clap's usage-error code is the
-hook block code — denying every agent shell call).
+hook block code — denying every agent shell call). *(Post-execution note,
+2026-07-03: this hazard fired live on 2026-07-02; the shipped hook is now the
+fail-open wrapper — see the amendment in Step 4 below.)*
 
 **Files:**
 - Modify: `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/build_health.rs`
@@ -1249,6 +1251,23 @@ git commit -m "feat(doctor): hook-guard round-trip diag — catches the stale-bi
 The matcher must be `Bash|PowerShell` — this harness exposes a PowerShell
 tool whose input schema also uses `command`; a Bash-only matcher leaves the
 most-used exec path on this machine unguarded (audit finding B1).
+
+> **POST-EXECUTION AMENDMENT (2026-07-03):** the shipped PreToolUse command is
+> not the bare invocation above but the fail-open wrapper (commit
+> `1b2126f866`):
+>
+> ```sh
+> out=$(vox ci queue --hook-guard 2>&1); code=$?; if [ "$code" -eq 2 ] && printf '%s' "$out" | grep -q 'Local-first CI'; then printf '%s\n' "$out" >&2; exit 2; fi; exit 0
+> ```
+>
+> It was adopted after a live stale-binary lockout on 2026-07-02 (a stale
+> `vox.exe` exiting 2 on the unknown `queue` subcommand blocked every
+> Bash/PowerShell call in a session). Only exit-2-with-the-`Local-first CI`
+> deny-marker blocks; every other outcome fails open. The spec's original
+> Windows-shell objection to this wrapper was empirically refuted — Claude
+> Code runs hook commands via a POSIX shell (Git Bash) even on this
+> native-Windows host. See `docs/src/ci/local-first-ci.md`
+> § "Stale-binary hardening".
 
 - [ ] **Step 5: Verify hook behavior in a fresh session, then commit**
 
@@ -1686,6 +1705,15 @@ bypassing the Actions queue, and hosted-job migration
 (`vox ci runner-policy-check --strict` flip) — see the design spec
 `docs/superpowers/specs/2026-07-02-local-first-ci-queue-design.md`.
 ```
+
+> **POST-EXECUTION AMENDMENT (2026-07-03):** the "If every shell call is
+> suddenly blocked" section above is superseded in the live docs page. After
+> the 2026-07-02 stale-binary lockout, the hook command in
+> `.claude/settings.json` was changed to the fail-open wrapper (commit
+> `1b2126f866`), so a stale/missing/crashed `vox` can no longer block shell
+> calls — only an exit 2 carrying the `Local-first CI` deny marker blocks.
+> The shipped page documents this under "Stale-binary hardening" in
+> `docs/src/ci/local-first-ci.md`; see also the amendment in Task 6 Step 4.
 
 - [ ] **Step 3: Cross-link + verify docs gates**
 
