@@ -15,6 +15,7 @@ import { ChatSessionRail } from './ChatSessionRail';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
 import { SecretaryToast } from './SecretaryToast';
 import { listenSecretaryProposed, type SecretaryProposedPayload, feedbackList } from '../../../transport';
+import { Matrix } from '../Matrix/Matrix';
 
 
 
@@ -70,6 +71,7 @@ export function ChatSurface({
   const [containerWidth, setContainerWidth] = useState(0);
   const [sessionOverlayOpen, setSessionOverlayOpen] = useState(false);
   const [executionOverlayOpen, setExecutionOverlayOpen] = useState(false);
+  const [routingOpen, setRoutingOpen] = useState(false);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -191,6 +193,7 @@ export function ChatSurface({
       openrouterSpendUsd={openrouterSpendUsd}
       onNavigate={onNavigate}
       sessionId={activeSessionId}
+      onOpenRouting={() => setRoutingOpen(true)}
     />
   ) : null;
 
@@ -275,6 +278,26 @@ export function ChatSurface({
               onNavigate?.('tasks');
             }}
           />
+        </div>
+      )}
+
+      {routingOpen && (
+        <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Routing">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setRoutingOpen(false)} />
+          <div className="absolute right-0 top-0 h-full w-[760px] max-w-full overflow-y-auto border-l border-border-subtle bg-bg-base shadow-2xl">
+            <div className="flex items-center justify-between px-5 pt-4">
+              <h2 className="font-display text-[13px] uppercase tracking-[0.2em] text-text-secondary">Routing</h2>
+              <button
+                type="button"
+                aria-label="Close routing panel"
+                onClick={() => setRoutingOpen(false)}
+                className="rounded-md border border-border-subtle px-2 py-1 font-mono text-xs text-text-muted hover:bg-overlay-hover hover:text-text-primary"
+              >
+                ✕
+              </button>
+            </div>
+            <Matrix pushToast={pushToast} />
+          </div>
         </div>
       )}
     </div>

@@ -2,7 +2,6 @@ import React from 'react';
 import { Dashboard } from '../surfaces/Dashboard/Dashboard';
 import { AgentFlow } from '../surfaces/Flow/AgentFlow';
 import { Catalog } from '../surfaces/Catalog/Catalog';
-import { Matrix } from '../surfaces/Matrix/Matrix';
 import { MemoryView } from '../surfaces/Memory/MemoryView';
 import { ModelsView } from '../surfaces/Models/ModelsView';
 import { RunsView } from '../surfaces/Runs/RunsView';
@@ -111,8 +110,6 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
       );
     case 'catalog':
       return <Catalog skills={props.data.skills} />;
-    case 'matrix':
-      return <Matrix pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'memory':
       return <MemoryView pushToast={props.pushToast} onAttachContext={props.onAttachContext} />;
     case 'vox-search':
