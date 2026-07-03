@@ -12,6 +12,60 @@ use super::super::super::{MAX_TASK_TRACES, Orchestrator, OrchestratorError, Task
 use super::AGENT_NOTIFY_TIMEOUT;
 use super::attention_fields::{populate_task_attention_fields, submission_approval_block_reason};
 
+/// T5.3: releases pre-dispatch budget reservations made by
+/// [`crate::budget::BudgetManager::try_reserve_agent_tokens`] /
+/// `try_reserve_tenant_tokens` if `process_task_submission_logic` returns early
+/// (via `?` or an explicit `return Err(..)`) after reserving but before the
+/// task is durably committed. Reservations must not outlive a failed
+/// submission, or the agent/tenant's budget would be permanently short by the
+/// estimate even though no work was ever dispatched.
+///
+/// The two reservations have different success-path handling, reflecting the
+/// different storage models they close a race on:
+/// - **Agent** tokens are folded directly into `BudgetManager`'s real
+///   `tokens_used` counter at reservation time (see
+///   `try_reserve_agent_tokens`), so on success the reservation IS the record
+///   of usage — it is not released, only ever released on failure.
+/// - **Tenant** tokens use a separate `pending_tenant_tokens` ledger because
+///   the tenant gate's "current usage" is a DB `SUM` over completed cost
+///   records that cannot itself be locked. That ledger only needs to survive
+///   long enough to close the concurrent-submission race; once this
+///   submission call returns (success or failure) it is released
+///   unconditionally by [`Self::finish`] — on success the task is durably
+///   enqueued and its real usage will accumulate into `cost_records` on its
+///   own, on failure nothing was ever dispatched.
+#[derive(Default)]
+struct BudgetReservationGuard {
+    budget_manager: Option<std::sync::Arc<std::sync::RwLock<crate::budget::BudgetManager>>>,
+    agent: Option<(crate::types::AgentId, usize)>,
+    tenant: Option<(String, i64)>,
+}
+
+impl BudgetReservationGuard {
+    /// Call on the success path: disarms the agent-token release (that
+    /// reservation is kept as the real usage record) and lets `Drop` release
+    /// the transient tenant reservation (see struct docs).
+    fn finish(mut self) {
+        self.agent = None;
+        // `self.tenant` (if any) is left set so `Drop` releases it below.
+    }
+}
+
+impl Drop for BudgetReservationGuard {
+    fn drop(&mut self) {
+        let Some(bm_lock) = self.budget_manager.take() else {
+            return;
+        };
+        let bm = crate::sync_lock::rw_read(&*bm_lock);
+        if let Some((agent_id, tokens)) = self.agent.take() {
+            bm.release_agent_tokens(agent_id, tokens);
+        }
+        if let Some((tenant_id, tokens)) = self.tenant.take() {
+            bm.release_tenant_tokens(&tenant_id, tokens);
+        }
+    }
+}
+
 impl Orchestrator {
     // ORCH-01 SPLIT TARGET:
     //   new() / with_groups() / init_db() → orchestrator/core.rs
@@ -205,6 +259,18 @@ impl Orchestrator {
         // gate evaluation, persistence). Per CodeRabbit review on PR #61: an agent
         // already in a doom loop or already over budget should be rejected before
         // it can incur additional Socrates / autonomous-research cost.
+        //
+        // T5.3: both gates below use `BudgetManager::try_reserve_*` to make the
+        // check-and-reserve atomic (single write-lock critical section), closing
+        // the TOCTOU race where two concurrent submissions could both pass the
+        // same stale snapshot. `budget_reservation_guard` releases any reservation
+        // made here if a later step in this function returns early — see its
+        // `Drop` impl below.
+        let mut budget_reservation_guard = BudgetReservationGuard {
+            budget_manager: Some(self.budget_manager.clone()),
+            agent: None,
+            tenant: None,
+        };
 
         // Tenant budget enforcement (D7).
         if let Some(ref tenant_id) = task.tenant_id {
@@ -219,13 +285,23 @@ impl Orchestrator {
                 // For now, assume "free" tier. A future lookup table in VoxDb will resolve this.
                 let tier = "free";
 
-                let gate = crate::sync_lock::rw_read(&*self.tenant_budget_gate);
-                if let Err(msg) =
-                    gate.check_tenant_monthly_budget(tier, monthly_usage, estimated_tokens as i64)
-                {
+                let reserve_result = {
+                    let bm = crate::sync_lock::rw_read(&*self.budget_manager);
+                    let gate = crate::sync_lock::rw_read(&*self.tenant_budget_gate);
+                    bm.try_reserve_tenant_tokens(
+                        tenant_id,
+                        tier,
+                        monthly_usage,
+                        estimated_tokens as i64,
+                        &gate,
+                    )
+                };
+                if let Err(msg) = reserve_result {
                     tracing::error!(tenant_id = %tenant_id, %msg, "blocking submission: tenant budget exceeded");
                     return Err(OrchestratorError::BudgetExceeded(msg));
                 }
+                budget_reservation_guard.tenant =
+                    Some((tenant_id.clone(), estimated_tokens as i64));
             }
         }
 
@@ -239,15 +315,16 @@ impl Orchestrator {
         }
 
         // Pre-dispatch token estimation (M7).
-        // Note: this read-only check is racy under concurrent submission for the
-        // same agent (two callers can both pass against the same snapshot). A
-        // future atomic check-and-reserve API on `BudgetManager` will close the
-        // race; tracked as PR #61 review followup.
+        // T5.3: atomic check-and-reserve — see `try_reserve_agent_tokens` doc
+        // comment for how this closes the concurrent-submission race.
         {
             let estimated_tokens =
                 task.description.len() / 4 + file_manifest.len().saturating_mul(200);
-            let bm = crate::sync_lock::rw_read(&*self.budget_manager);
-            if bm.would_exceed_token_budget(agent_id, estimated_tokens) {
+            let reserved = {
+                let bm = crate::sync_lock::rw_read(&*self.budget_manager);
+                bm.try_reserve_agent_tokens(agent_id, estimated_tokens)
+            };
+            if !reserved {
                 tracing::warn!(
                     agent_id = ?agent_id,
                     estimated_tokens,
@@ -260,6 +337,7 @@ impl Orchestrator {
                     ),
                 ));
             }
+            budget_reservation_guard.agent = Some((agent_id, estimated_tokens));
         }
 
         // Phase 2: Socratic execution limits (Risk-based policies)
@@ -1091,6 +1169,11 @@ impl Orchestrator {
                 }
             }
         }
+
+        // Submission committed successfully. See `BudgetReservationGuard::finish`
+        // for why the agent-token reservation is kept while the tenant one is
+        // released here.
+        budget_reservation_guard.finish();
 
         Ok(())
     }
