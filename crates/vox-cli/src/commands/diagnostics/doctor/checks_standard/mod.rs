@@ -18,6 +18,22 @@ mod web_frontend;
 
 use super::common::Check;
 
+pub(crate) use build_health::parse_diag_id;
+
+/// Stable diag-id registry, for `--diag` unknown-id error messages.
+pub(crate) fn known_diag_ids() -> &'static [&'static str] {
+    build_health::KNOWN_DIAGNOSIS_IDS
+}
+
+/// Run only the check-set covering `id`. Returns `false` for unregistered ids.
+pub(crate) async fn run_diag_check(id: &str, checks: &mut Vec<Check>) -> bool {
+    let Some(kind) = build_health::check_kind_for_diag(id) else {
+        return false;
+    };
+    build_health::run_check_for_diag(kind, checks).await;
+    true
+}
+
 pub async fn run_checks(
     auto_heal: bool,
     test_health: bool,

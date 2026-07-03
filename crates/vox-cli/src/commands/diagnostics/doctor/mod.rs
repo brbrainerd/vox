@@ -23,7 +23,29 @@ pub async fn run(
     tier: &str,
     diag: Option<&str>,
 ) -> Result<()> {
-    let _ = diag; // wired in the --diag dispatch (next task)
+    if let Some(id) = diag {
+        if probe || build_perf || scope || test_health || auto_heal || compile_target.is_some() {
+            anyhow::bail!(
+                "`--diag` runs a single build-health check and cannot be combined with \
+                 --probe, --build-perf, --scope, --test-health, --auto-heal, or --compile-target"
+            );
+        }
+        let mut checks: Vec<common::Check> = Vec::new();
+        if !checks_standard::run_diag_check(id, &mut checks).await {
+            anyhow::bail!(
+                "unknown diag id `{id}` — known ids:\n  {}",
+                checks_standard::known_diag_ids().join("\n  ")
+            );
+        }
+        output::print_results(&checks, false, json);
+        let fired = checks
+            .iter()
+            .any(|c| !c.pass && checks_standard::parse_diag_id(&c.detail) == Some(id));
+        if fired {
+            anyhow::bail!("doctor: diagnosis `{id}` fired — apply the FIX above and re-run");
+        }
+        return Ok(());
+    }
 
     #[cfg(not(feature = "codex"))]
     if build_perf || scope || json {
@@ -156,5 +178,29 @@ mod tests {
         )
         .await;
         assert!(r.is_ok(), "expected build_perf path to complete: {r:?}");
+    }
+
+    #[tokio::test]
+    async fn diag_flag_rejects_unknown_id() {
+        let err = run(
+            None,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            "full",
+            Some("bogus.id"),
+        )
+        .await
+        .expect_err("unknown diag id should error");
+        let s = err.to_string();
+        assert!(s.contains("unknown diag id"), "unexpected message: {s}");
+        assert!(
+            s.contains("sccache.pathological"),
+            "error should list the known-id registry: {s}"
+        );
     }
 }
