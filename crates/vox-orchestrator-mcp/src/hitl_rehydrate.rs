@@ -66,7 +66,10 @@ pub async fn rehydrate_open_hitl_from_oplog(state: &crate::server_state::ServerS
     // request_id -> (kind_string, task_id, created_at_ms)
     let mut feedback_open: HashMap<String, (String, Option<u64>, u64)> = HashMap::new();
 
-    for entry in &entries {
+    // Both `list_recent_operations` and `list_from_db` return newest-first;
+    // fold oldest-first so a Requested/Resolved pair is applied in the order
+    // it actually happened (insert-then-remove), not backwards.
+    for entry in entries.iter().rev() {
         match &entry.kind {
             OperationKind::ApprovalRequested {
                 approval_id, tool, ..
