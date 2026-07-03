@@ -1853,6 +1853,16 @@ mod registry_dispatch_tests {
         "vox_browser_extract",
         "vox_browser_extract_json",
         "vox_browser_act",
+        // T0.3: always_requires_approval — parks unconditionally under every
+        // PermissionMode (including accept_all) and is never satisfied by
+        // the persisted allowlist (see permission_modes::RISK_CLASSES /
+        // dispatch.rs's dangerous-tool gate). Probing it with `handle_tool_call`
+        // (mode = None -> Ask) here would register a pending approval that
+        // nothing in this test ever resolves, burning the full 300s
+        // APPROVAL_TIMEOUT before falling through as TimedOut — under
+        // nextest's slow-timeout profile this test gets killed and retried
+        // long before that, wasting several minutes of CI time per run.
+        "vox_add_approval_allowlist_entry",
     ];
 
     #[tokio::test]
