@@ -30,13 +30,18 @@
 //!    `build_repo_scoped_orchestrator_cli`, or
 //!    `build_repo_scoped_orchestrator_for_repository` usages in
 //!    `crates/vox-cli/src`.
-//! 5. `setInterval`-based orchestrator-status polling in
-//!    `crates/vox-gui/ui/src`: deliberately a NO-OP today (T3.1, a later
-//!    task, removes the fallback poller entirely — see
-//!    `docs/.../vox-axis-harness-reliability-spec-plan-2026-07-02.md` T3.1).
-//!    Flipping this check to enforcing is T3.1's acceptance criterion, not
-//!    T2.4's; adding a currently-failing check here would break CI before
-//!    that work lands. Tracked via the `TODO(T3.1)` marker below.
+//! 5. `setInterval`-based orchestrator-status polling:
+//!    - `crates/vox-gui/ui/src/hooks/useOrchestratorStatus.ts` specifically:
+//!      **enforcing** (T3.1 landed the backend `PersistentDaemon`
+//!      reconnect-loop self-heal, so this file's fallback poller was removed
+//!      — see
+//!      `docs/.../vox-axis-harness-reliability-spec-plan-2026-07-02.md` T3.1).
+//!      A regression reintroducing `setInterval` in this file fails the guard.
+//!    - Every other file under `crates/vox-gui/ui/src`: diagnostic-only, as
+//!      before — T3.1's scope was the orchestrator-status polling fallback
+//!      specifically, not a blanket `setInterval` ban (most other hits are
+//!      unrelated legitimate poll loops: freshness ticks, badge refreshes,
+//!      etc.).
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -398,11 +403,11 @@ fn scan_retired_client_constructions(files: &[PathBuf], repo_root: &Path) -> Vec
     violations
 }
 
-/// TODO(T3.1): flip this to an enforcing check once T3.1 removes the
-/// `setInterval` orchestrator-status polling fallback from
-/// `crates/vox-gui/ui/src/hooks/useOrchestratorStatus.ts` (see the T2.4
-/// exemption appendix item 6). Returns diagnostic-only info today; never
-/// fails the guard.
+/// Diagnostic (non-blocking) sweep: any `setInterval` usage under
+/// `crates/vox-gui/ui/src`, for visibility. Most hits are unrelated
+/// legitimate poll loops (freshness ticks, badge refreshes, etc.) — this
+/// never fails the guard. See [`scan_orchestrator_status_polling_removed`]
+/// for the one file T3.1 made enforcing.
 fn scan_setinterval_polling_diagnostic_only(files: &[PathBuf], repo_root: &Path) -> Vec<String> {
     let mut hits = Vec::new();
     for path in files {
@@ -417,6 +422,40 @@ fn scan_setinterval_polling_diagnostic_only(files: &[PathBuf], repo_root: &Path)
     hits
 }
 
+/// T3.1's acceptance criterion, **enforcing**: the orchestrator-status
+/// polling fallback (`setInterval`-driven re-fetch when the live Tauri
+/// event stream was unavailable) must be gone from
+/// `crates/vox-gui/ui/src/hooks/useOrchestratorStatus.ts`. The backend
+/// `PersistentDaemon` reconnect loop (`spawn_orchestrator_status_stream` in
+/// `crates/vox-gui/src/commands/orchestrator.rs`) now self-heals a
+/// mid-session daemon death, so the frontend no longer needs a timer-driven
+/// poll to paper over a stream that silently went quiet — this check
+/// prevents that fallback from being silently reintroduced (a real
+/// `setInterval(...)` call, not just the substring appearing in a comment or
+/// string literal).
+fn scan_orchestrator_status_polling_removed(repo_root: &Path) -> Result<()> {
+    let path = repo_root.join("crates/vox-gui/ui/src/hooks/useOrchestratorStatus.ts");
+    let Ok(body) = fs::read_to_string(&path) else {
+        // File missing/moved is not this check's concern — some other CI
+        // step will catch a broken import; don't fail the guard on it.
+        return Ok(());
+    };
+    let has_call_site = body
+        .lines()
+        .any(|line| line.contains("setInterval(") && !line.trim_start().starts_with("//"));
+    if has_call_site {
+        return Err(anyhow!(
+            "harness-trust-guard: setInterval(...) call found in \
+             crates/vox-gui/ui/src/hooks/useOrchestratorStatus.ts — T3.1 removed the \
+             orchestrator-status polling fallback because the backend PersistentDaemon \
+             reconnect loop now self-heals a mid-session daemon death; re-adding a \
+             client-side poll here is a regression, not a fix. See \
+             docs/src/architecture/vox-axis-harness-reliability-spec-plan-2026-07-02.md T3.1."
+        ));
+    }
+    Ok(())
+}
+
 /// Checks 2-5 of the module doc (constructor allowlist, `call_daemon`,
 /// retired-client-construction, and the diagnostic-only `setInterval` note).
 /// Check 1 (`args.get("user_approval")`) is run by the caller — see the
@@ -429,9 +468,15 @@ pub fn run(repo_root: &Path) -> Result<()> {
     let mut cli_rs = Vec::new();
     collect_rs_files(&repo_root.join("crates/vox-cli/src"), &mut cli_rs);
     let mut mcp_rs = Vec::new();
-    collect_rs_files(&repo_root.join("crates/vox-orchestrator-mcp/src"), &mut mcp_rs);
+    collect_rs_files(
+        &repo_root.join("crates/vox-orchestrator-mcp/src"),
+        &mut mcp_rs,
+    );
     let mut orch_d_rs = Vec::new();
-    collect_rs_files(&repo_root.join("crates/vox-orchestrator-d/src"), &mut orch_d_rs);
+    collect_rs_files(
+        &repo_root.join("crates/vox-orchestrator-d/src"),
+        &mut orch_d_rs,
+    );
 
     let mut constructor_targets = Vec::new();
     constructor_targets.extend(gui_rs.iter().cloned());
@@ -448,18 +493,25 @@ pub fn run(repo_root: &Path) -> Result<()> {
     // 4b. Retired client constructions in vox-cli/src.
     failures.extend(scan_retired_client_constructions(&cli_rs, repo_root));
 
-    // 5. setInterval polling — diagnostic only, never fails (T3.1 will flip this).
+    // 5a. setInterval polling — diagnostic only across the rest of vox-gui/ui/src.
     let mut gui_ts = Vec::new();
     collect_ts_files(&repo_root.join("crates/vox-gui/ui/src"), &mut gui_ts);
     let polling_hits = scan_setinterval_polling_diagnostic_only(&gui_ts, repo_root);
     if !polling_hits.is_empty() {
         eprintln!(
-            "harness-trust-guard: NOTE (non-blocking, TODO T3.1): setInterval found in {} \
-             file(s) under crates/vox-gui/ui/src (expected until T3.1 removes the \
-             orchestrator-status polling fallback): {}",
+            "harness-trust-guard: NOTE (non-blocking): setInterval found in {} file(s) under \
+             crates/vox-gui/ui/src (expected — most are unrelated legitimate poll loops; only \
+             useOrchestratorStatus.ts's orchestrator-status polling fallback is enforced, see \
+             check 5b): {}",
             polling_hits.len(),
             polling_hits.join(", ")
         );
+    }
+
+    // 5b. useOrchestratorStatus.ts's orchestrator-status polling fallback —
+    // enforcing (T3.1's acceptance criterion).
+    if let Err(e) = scan_orchestrator_status_polling_removed(repo_root) {
+        failures.push(e.to_string());
     }
 
     if !failures.is_empty() {
@@ -554,7 +606,10 @@ mod tests {
         );
 
         drop(_cleanup);
-        assert!(!probe_path.exists(), "probe file must be removed after cleanup");
+        assert!(
+            !probe_path.exists(),
+            "probe file must be removed after cleanup"
+        );
         run(&root).expect("harness-trust-guard must pass again once the probe is removed");
     }
 
@@ -627,7 +682,10 @@ mod tests {
         );
 
         drop(_cleanup);
-        assert!(!probe_path.exists(), "probe file must be removed after cleanup");
+        assert!(
+            !probe_path.exists(),
+            "probe file must be removed after cleanup"
+        );
         run(&root).expect("harness-trust-guard must pass again once the probe is removed");
     }
 
@@ -685,8 +743,8 @@ mod tests {
     #[test]
     fn is_declared_cfg_test_submodule_recognizes_real_separate_file_submodule() {
         let root = real_repo_root();
-        let path = root
-            .join("crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/tests.rs");
+        let path =
+            root.join("crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/tests.rs");
         assert!(
             path.exists(),
             "expected real fixture file to exist: {}",
@@ -716,16 +774,18 @@ mod tests {
         assert!(!is_call_daemon_call_site(
             "/// See the old `call_daemon` helper for history."
         ));
-        assert!(is_call_daemon_call_site("    let x = call_daemon(cmd).await?;"));
-        assert!(is_call_daemon_call_site("async fn call_daemon(cmd: &str) {"));
+        assert!(is_call_daemon_call_site(
+            "    let x = call_daemon(cmd).await?;"
+        ));
+        assert!(is_call_daemon_call_site(
+            "async fn call_daemon(cmd: &str) {"
+        ));
     }
 
     #[test]
     fn scan_constructor_violations_flags_bare_hit() {
-        let dir = std::env::temp_dir().join(format!(
-            "harness-trust-guard-test-{}",
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("harness-trust-guard-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let f = dir.join("probe.rs");
         std::fs::write(&f, "let orch = Orchestrator::new(config);\n").unwrap();
@@ -797,7 +857,8 @@ mod tests {
 
     #[test]
     fn declares_cfg_test_mod_matches_through_intervening_attributes() {
-        let body = "#[cfg(test)]\n#[allow(unsafe_code)] // tests use set_var under a lock\nmod tests;\n";
+        let body =
+            "#[cfg(test)]\n#[allow(unsafe_code)] // tests use set_var under a lock\nmod tests;\n";
         assert!(declares_cfg_test_mod(body, "tests", Some("tests.rs")));
     }
 
@@ -841,6 +902,55 @@ mod tests {
         let f = dir.join("tests.rs");
         std::fs::write(&f, "fn probe() {}\n").unwrap();
         assert!(is_declared_cfg_test_submodule(&f));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// T3.1 RED test: [`scan_orchestrator_status_polling_removed`] is the
+    /// guard's enforcing check for this task's acceptance criterion — the
+    /// `setInterval`-driven orchestrator-status polling fallback must be gone
+    /// from `useOrchestratorStatus.ts`. Uses a synthetic repo-root fixture
+    /// (rather than mutating the real tree) so this test never depends on —
+    /// or risks corrupting — the actual `crates/vox-gui/ui/src` file.
+    #[test]
+    fn scan_orchestrator_status_polling_removed_catches_reintroduced_setinterval() {
+        let dir = std::env::temp_dir().join(format!(
+            "harness-trust-guard-orch-status-poll-{}",
+            std::process::id()
+        ));
+        let hooks_dir = dir.join("crates/vox-gui/ui/src/hooks");
+        std::fs::create_dir_all(&hooks_dir).unwrap();
+        let file = hooks_dir.join("useOrchestratorStatus.ts");
+
+        // Clean file (a comment mentioning the word, no actual call site):
+        // must NOT fail.
+        std::fs::write(
+            &file,
+            "// no timer-driven polling fallback here anymore (T3.1)\nexport const x = 1;\n",
+        )
+        .unwrap();
+        assert!(
+            scan_orchestrator_status_polling_removed(&dir).is_ok(),
+            "a bare comment mentioning polling must not trip the enforcing check"
+        );
+
+        // Regression: an actual setInterval(...) call site — must fail with
+        // a message identifying the file and why it's a regression.
+        std::fs::write(
+            &file,
+            "export function useOrchestratorStatus() {\n  setInterval(() => {}, 2000);\n}\n",
+        )
+        .unwrap();
+        let result = scan_orchestrator_status_polling_removed(&dir);
+        assert!(
+            result.is_err(),
+            "a real setInterval(...) call site in useOrchestratorStatus.ts must fail the guard"
+        );
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("useOrchestratorStatus.ts"),
+            "violation message should name the offending file, got: {msg}"
+        );
+
         std::fs::remove_dir_all(&dir).ok();
     }
 }
