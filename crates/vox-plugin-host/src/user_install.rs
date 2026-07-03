@@ -27,10 +27,10 @@ pub fn is_git_source(source: &str) -> bool {
 /// The user-owned skill root: `<ws>/.vox/skills` or, when `global`, `~/.vox/skills`.
 /// Uses `dirs` (already a `vox-plugin-host` dependency, same as `vox_config::paths`).
 pub fn user_skill_root(ws_root: &Path, global: bool) -> PathBuf {
-    if global {
-        if let Some(home) = dirs::home_dir() {
-            return home.join(".vox").join("skills");
-        }
+    if global
+        && let Some(home) = dirs::home_dir()
+    {
+        return home.join(".vox").join("skills");
     }
     ws_root.join(".vox").join("skills")
 }
@@ -228,10 +228,10 @@ pub fn install_to_user_root(
         let body = std::fs::read_to_string(dir.join("SKILL.md")).map_err(|e| e.to_string())?;
         let bundle = parse_skill_md(&body).map_err(|e| format!("{}: {e}", dir.display()))?;
         let name = bundle.manifest.name.clone();
-        if let Some(filter) = skill_filter {
-            if filter != name {
-                continue;
-            }
+        if let Some(filter) = skill_filter
+            && filter != name
+        {
+            continue;
         }
         // Reject path-escaping names BEFORE using `name` as a path component.
         validate_skill_name(&name)?;
