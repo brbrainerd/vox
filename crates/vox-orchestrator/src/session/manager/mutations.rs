@@ -231,6 +231,71 @@ impl SessionManager {
         Ok(removed)
     }
 
+    /// Assemble the message list for an `llm_chat`/`llm_stream` call from a
+    /// session's live turns, running an automatic compaction pass first when
+    /// the session is over `engine`'s threshold.
+    ///
+    /// This is the T4.2 wiring point: message assembly for the LLM call
+    /// **always** goes through this method (or an equivalent that calls
+    /// [`super::super::state::Session::compact_auto`]) rather than reading
+    /// `session.turns` directly, so a conversation driven over the context
+    /// limit is compacted — with dropped turns archived losslessly — before
+    /// the oversized history ever reaches the wire.
+    ///
+    /// Returns the assembled messages plus the [`crate::compaction::CompactionResult`]
+    /// when a compaction pass actually ran (`None` when the session was under
+    /// threshold and no compaction was needed).
+    #[cfg(feature = "runtime")]
+    pub fn assemble_llm_messages(
+        &mut self,
+        session_id: &str,
+        engine: &crate::compaction::CompactionEngine,
+    ) -> Result<
+        (
+            Vec<vox_actor_runtime::llm::LlmChatMessage>,
+            Option<crate::compaction::CompactionResult>,
+        ),
+        SessionError,
+    > {
+        let session = self
+            .sessions
+            .get_mut(session_id)
+            .ok_or_else(|| SessionError::NotFound(session_id.to_string()))?;
+
+        let compaction_result = session.compact_auto(engine);
+
+        if let Some(result) = &compaction_result {
+            let at = now_secs();
+            let event = SessionEvent::Compacted {
+                summary: format!(
+                    "auto-compacted {} turn(s) ({} -> {} tokens)",
+                    result.dropped_count, result.tokens_before, result.tokens_after
+                ),
+                turns_removed: result.dropped_count,
+                at,
+            };
+            if let Some(db) = &self.db {
+                let db = db.clone();
+                let sid = session_id.to_string();
+                let payload = serde_json::to_string(&event).map_err(SessionError::Serialize)?;
+                run_session_db_io(async move {
+                    db.append_session_event(&sid, "compacted", &payload).await
+                })?;
+            }
+        }
+
+        let messages = session
+            .turns
+            .iter()
+            .map(|t| vox_actor_runtime::llm::LlmChatMessage {
+                role: t.role.clone(),
+                content: t.content.clone(),
+            })
+            .collect();
+
+        Ok((messages, compaction_result))
+    }
+
     /// Record an expensive op for the session and persist the event.
     pub fn record_expensive_op(&mut self, session_id: &str) -> Result<(), SessionError> {
         let at = now_secs();
