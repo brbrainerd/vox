@@ -27,9 +27,7 @@ pub fn is_git_source(source: &str) -> bool {
 /// The user-owned skill root: `<ws>/.vox/skills` or, when `global`, `~/.vox/skills`.
 /// Uses `dirs` (already a `vox-plugin-host` dependency, same as `vox_config::paths`).
 pub fn user_skill_root(ws_root: &Path, global: bool) -> PathBuf {
-    if global
-        && let Some(home) = dirs::home_dir()
-    {
+    if global && let Some(home) = dirs::home_dir() {
         return home.join(".vox").join("skills");
     }
     ws_root.join(".vox").join("skills")
