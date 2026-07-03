@@ -6,7 +6,8 @@
 //! Layer map (downward-only rule): `contracts/ci/crate-layers.v1.json`.
 //! Spec: docs/superpowers/specs/2026-07-03-crate-disentanglement-ratchet-design.md
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
+use cargo_metadata::DependencyKind;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -132,6 +133,30 @@ pub fn check(
         .into_iter()
         .collect();
     (violations, stale)
+}
+
+/// Live in-tree edge set from `cargo metadata`: workspace members only,
+/// normal + build dependency kinds (dev-deps excluded in v1 — they don't ship
+/// in the binary closure; `vox ci dep-cycles` covers dev-dep back-edges).
+pub fn collect_live_edges(root: &Path) -> Result<BTreeSet<(String, String)>> {
+    let metadata = cargo_metadata::MetadataCommand::new()
+        .manifest_path(root.join("Cargo.toml"))
+        .exec()
+        .context("run `cargo metadata`")?;
+    let members: BTreeSet<&str> =
+        metadata.workspace_packages().iter().map(|p| p.name.as_str()).collect();
+    let mut edges = BTreeSet::new();
+    for pkg in metadata.workspace_packages() {
+        for dep in &pkg.dependencies {
+            if !matches!(dep.kind, DependencyKind::Normal | DependencyKind::Build) {
+                continue;
+            }
+            if members.contains(dep.name.as_str()) {
+                edges.insert((pkg.name.as_str().to_string(), dep.name.clone()));
+            }
+        }
+    }
+    Ok(edges)
 }
 
 #[cfg(test)]
@@ -268,5 +293,16 @@ mod tests {
             &layers(&[]),
         );
         assert!(v.is_empty());
+    }
+
+    /// Integration: real workspace. vox-cli depends on vox-cli-ci (already true on
+    /// main after the PR-4 CI extraction); if this fails the collector or the
+    /// workspace layout changed.
+    #[test]
+    fn live_graph_contains_known_edge() {
+        let root = crate::repo_root();
+        let live = collect_live_edges(&root).expect("cargo metadata");
+        assert!(live.contains(&("vox-cli".to_string(), "vox-cli-ci".to_string())));
+        assert!(live.len() > 400, "expected hundreds of in-tree edges, got {}", live.len());
     }
 }
