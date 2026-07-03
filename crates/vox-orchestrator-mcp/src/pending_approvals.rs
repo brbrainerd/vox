@@ -8,10 +8,15 @@
 //! on `ServerState`, so the awaiting tool call and the resolve/list tools all
 //! share it (in-process; the GUI drives both through B5's `invoke_mcp_tool`).
 //!
-//! Scope: in-memory only (lost on restart — a pending call then errors out).
-//! Cross-process resolve for autonomous daemon agents (registry on
-//! `Orchestrator` + an `orch.resolve_approval` RPC) and DB persistence are
-//! deliberate follow-ups.
+//! Scope: in-memory only (lost on restart — a pending call then errors out;
+//! T1.4's [`reregister_after_restart`](PendingApprovals::reregister_after_restart)
+//! restores *visibility* of pre-restart entries but not their live waiter).
+//! Cross-process access for autonomous daemon agents and the GUI is served by
+//! the daemon's `orch.list_pending_approvals` / `orch.resolve_approval` RPCs
+//! (see `daemon_extra.rs`'s `ExtraDispatch` impl, which reads/writes this same
+//! registry off `ServerState`) — implemented, not a follow-up. DB persistence
+//! of resolved approvals (for audit/history beyond the in-memory list) remains
+//! a deliberate follow-up.
 
 use std::collections::HashMap;
 use std::sync::Mutex;

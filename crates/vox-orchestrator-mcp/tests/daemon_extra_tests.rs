@@ -228,3 +228,128 @@ async fn permission_mode_on_the_wire_changes_the_gate_decision() {
 
     server.abort();
 }
+
+/// T5.6: `orch.list_pending_approvals` / `orch.resolve_approval` are real,
+/// callable daemon RPCs — not the "deliberate follow-up" the old
+/// `pending_approvals.rs` module doc claimed. Drives both through the actual
+/// `ExtraDispatch` wire path (same one the GUI's `invoke_mcp_tool` and
+/// autonomous daemon agents use), not just the inner `PendingApprovals`
+/// helper directly: a mutating tool call with no `permission_mode` parks and
+/// registers a real pending approval, `orch.list_pending_approvals` must
+/// surface it, `orch.resolve_approval` must transition it, and a follow-up
+/// `orch.list_pending_approvals` must reflect the resolution.
+#[tokio::test]
+async fn daemon_list_and_resolve_pending_approvals_via_extra_dispatch() {
+    let state = ServerState::new_full(load_config());
+    let orch = state.orchestrator.clone();
+    let extra: Arc<dyn ExtraDispatch> = Arc::new(McpExtraDispatch::new(state.clone()));
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap().to_string();
+    let server = tokio::spawn(orch_daemon::serve_listener_with_extra(
+        listener,
+        addr.clone(),
+        "ut-repo".to_string(),
+        orch,
+        Some(extra),
+        None,
+    ));
+    wait_ready(&addr).await;
+
+    // No permission_mode on the wire: vox_write_file parks and registers a
+    // real pending approval on the daemon's ServerState.
+    let plain_client = orch_daemon::OrchDaemonClient::new(addr.clone());
+    let call = tokio::spawn(async move {
+        plain_client
+            .call(
+                vox_foundation::protocol::orch_daemon_method::TOOL_CALL,
+                serde_json::json!({
+                    "name": "vox_write_file",
+                    "args": { "path": "t5-6-rpc-test.txt", "content": "x" }
+                }),
+            )
+            .await
+    });
+
+    // `orch.list_pending_approvals` (RPC, not the inner helper) must surface
+    // the parked approval.
+    let list_client = orch_daemon::OrchDaemonClient::new(addr.clone());
+    let deadline = tokio::time::Instant::now() + D_15S;
+    let approval_id = loop {
+        let value = list_client
+            .call(
+                vox_foundation::protocol::orch_daemon_method::LIST_PENDING_APPROVALS,
+                serde_json::json!({}),
+            )
+            .await
+            .expect("orch.list_pending_approvals dispatched");
+        let approvals = value
+            .get("approvals")
+            .and_then(serde_json::Value::as_array)
+            .expect("approvals array");
+        if let Some(entry) = approvals
+            .iter()
+            .find(|a| a.get("tool").and_then(serde_json::Value::as_str) == Some("vox_write_file"))
+        {
+            break entry
+                .get("approval_id")
+                .and_then(serde_json::Value::as_str)
+                .expect("approval_id present")
+                .to_string();
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "vox_write_file never appeared in orch.list_pending_approvals"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    };
+
+    // `orch.resolve_approval` (RPC) must resolve it and report success.
+    let resolve_client = orch_daemon::OrchDaemonClient::new(addr.clone());
+    let resolve_value = resolve_client
+        .call(
+            vox_foundation::protocol::orch_daemon_method::RESOLVE_APPROVAL,
+            serde_json::json!({ "approval_id": approval_id, "outcome": "reject" }),
+        )
+        .await
+        .expect("orch.resolve_approval dispatched");
+    assert_eq!(
+        resolve_value.get("resolved"),
+        Some(&serde_json::Value::Bool(true)),
+        "orch.resolve_approval should report resolved=true, got: {resolve_value}"
+    );
+    assert_eq!(
+        resolve_value
+            .get("approval_id")
+            .and_then(serde_json::Value::as_str),
+        Some(approval_id.as_str())
+    );
+
+    // A subsequent orch.list_pending_approvals must no longer contain it —
+    // the resolution actually transitioned the registry, not just returned a
+    // success flag.
+    let after_value = list_client
+        .call(
+            vox_foundation::protocol::orch_daemon_method::LIST_PENDING_APPROVALS,
+            serde_json::json!({}),
+        )
+        .await
+        .expect("orch.list_pending_approvals dispatched (after resolve)");
+    let after_approvals = after_value
+        .get("approvals")
+        .and_then(serde_json::Value::as_array)
+        .expect("approvals array");
+    assert!(
+        !after_approvals
+            .iter()
+            .any(|a| a.get("approval_id").and_then(serde_json::Value::as_str)
+                == Some(approval_id.as_str())),
+        "resolved approval must be gone from a subsequent list call, got: {after_value}"
+    );
+
+    // The parked tool call unparks (rejected outcome), completing the RPC
+    // round trip end to end.
+    let _ = call.await.expect("join");
+
+    server.abort();
+}
