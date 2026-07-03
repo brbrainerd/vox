@@ -37,10 +37,17 @@ pub async fn run(
                 checks_standard::known_diag_ids().join("\n  ")
             );
         }
-        output::print_results(&checks, false, json);
         let fired = checks
             .iter()
             .any(|c| !c.pass && checks_standard::parse_diag_id(&c.detail) == Some(id));
+        if json {
+            // Single-line envelope sharing the build-lane `--json` contract keys
+            // (envelope_version/command/ok) so agents parse one shape family across
+            // the CLI; `ok` is true when the requested diagnosis did not fire.
+            output::print_diag_envelope_json(id, !fired, &checks);
+        } else {
+            output::print_results(&checks, false, json);
+        }
         if fired {
             anyhow::bail!("doctor: diagnosis `{id}` fired — apply the FIX above and re-run");
         }
