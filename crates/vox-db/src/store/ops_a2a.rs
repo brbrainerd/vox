@@ -349,10 +349,7 @@ impl crate::VoxDb {
     /// unrelated mesh-replication `convergence_op_log` table (see
     /// [`Self::max_convergence_op_id`], which tracks a different sequence
     /// entirely).
-    pub async fn max_agent_oplog_id(
-        &self,
-        repository_id: &str,
-    ) -> Result<Option<u64>, StoreError> {
+    pub async fn max_agent_oplog_id(&self, repository_id: &str) -> Result<Option<u64>, StoreError> {
         let repository_id = repository_id.to_string();
         let mut rows = self
             .conn
@@ -423,6 +420,111 @@ impl crate::VoxDb {
                 )
                 .await?;
                 Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    // ── Checkpoints (checkpoint_blobs) — T1.6 cold-tier compaction ────────────
+
+    /// Insert a checkpoint blob (concatenated `Projection::snapshot()` bytes for
+    /// ops in `(op_id_lo..=op_id_hi]`) and return the new row's `id`, which is
+    /// what `OperationKind::Checkpoint.payload_blob_id` stores.
+    pub async fn insert_checkpoint_blob(
+        &self,
+        repository_id: &str,
+        op_id_lo: u64,
+        op_id_hi: u64,
+        blake3_hex: &str,
+        payload: Vec<u8>,
+        created_at_ms: i64,
+    ) -> Result<u64, StoreError> {
+        let repository_id = repository_id.to_string();
+        let blake3_hex = blake3_hex.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO checkpoint_blobs \
+                     (repository_id, op_id_lo, op_id_hi, blake3, payload, created_at_ms) \
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                    params![
+                        repository_id.as_str(),
+                        op_id_lo as i64,
+                        op_id_hi as i64,
+                        blake3_hex.as_str(),
+                        payload.as_slice(),
+                        created_at_ms,
+                    ],
+                )
+                .await?;
+                let mut rows = conn.query("SELECT last_insert_rowid()", ()).await?;
+                let id: i64 = rows
+                    .next()
+                    .await?
+                    .ok_or_else(|| StoreError::Db("last_insert_rowid returned no row".into()))?
+                    .get(0)
+                    .map_err(|e| StoreError::Db(e.to_string()))?;
+                Ok::<u64, StoreError>(id as u64)
+            })
+            .await
+    }
+
+    /// Fetch the checkpoint blob row with the highest `op_id_hi` for `repository_id`,
+    /// or `None` if no checkpoint has been recorded yet. Used at boot to find the
+    /// most recent cold-tier snapshot to restore before replaying the tail.
+    pub async fn latest_checkpoint_blob(
+        &self,
+        repository_id: &str,
+    ) -> Result<Option<(u64, u64, u64, String, Vec<u8>)>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT id, op_id_lo, op_id_hi, blake3, payload \
+                   FROM checkpoint_blobs WHERE repository_id=?1 \
+                   ORDER BY op_id_hi DESC LIMIT 1",
+                params![repository_id],
+            )
+            .await?;
+        let Some(row) = rows.next().await? else {
+            return Ok(None);
+        };
+        let id: i64 = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+        let op_id_lo: i64 = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+        let op_id_hi: i64 = row.get(2).map_err(|e| StoreError::Db(e.to_string()))?;
+        let blake3_hex: String = row.get(3).map_err(|e| StoreError::Db(e.to_string()))?;
+        let payload: Vec<u8> = row.get(4).map_err(|e| StoreError::Db(e.to_string()))?;
+        Ok(Some((
+            id as u64,
+            op_id_lo as u64,
+            op_id_hi as u64,
+            blake3_hex,
+            payload,
+        )))
+    }
+
+    /// Delete `agent_oplog` rows for `repository_id` whose numeric `operation_id`
+    /// suffix is `<= op_id_lo` (T1.6 warm-tier pruning after a checkpoint covers
+    /// them). Returns the number of rows deleted.
+    pub async fn prune_agent_oplog_up_to(
+        &self,
+        repository_id: &str,
+        op_id_lo: u64,
+    ) -> Result<u64, StoreError> {
+        let repository_id = repository_id.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let affected = conn
+                    .execute(
+                        "DELETE FROM agent_oplog \
+                           WHERE repository_id=?1 \
+                             AND CAST(SUBSTR(operation_id, 4) AS INTEGER) <= ?2",
+                        params![repository_id.as_str(), op_id_lo as i64],
+                    )
+                    .await?;
+                Ok::<u64, StoreError>(affected)
             })
             .await
     }
