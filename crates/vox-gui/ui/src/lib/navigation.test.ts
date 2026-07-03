@@ -100,9 +100,8 @@ describe('child ordering', () => {
 });
 
 describe('needs-you attention inbox nav wiring', () => {
-  it('resolves needs-you under the runs parent', () => {
-    expect(resolveNavigation('needs-you')).toEqual({ parent: 'runs', child: 'needs-you' });
-  });
+  // resolveNavigation('needs-you') -> { parent: 'runs', child: 'needs-you' } is already
+  // covered by the 'wires needs-you into nav under runs' test above; not duplicated here.
   it('labels needs-you for breadcrumbs', () => {
     expect(labelForNavKey('needs-you')).toBe('Needs You');
   });
