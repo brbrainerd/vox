@@ -7,9 +7,9 @@ use anyhow::{Context, Result, anyhow};
 use serde::Deserialize;
 use serde_json::Value;
 
+use crate::cmd_enums::CoverageGateMode;
 use crate::repo_root;
 use vox_bounded_fs::read_utf8_path_capped;
-use crate::cmd_enums::CoverageGateMode;
 
 #[derive(Debug, Deserialize, Default)]
 struct CoverageGatesFile {
@@ -19,11 +19,7 @@ struct CoverageGatesFile {
 }
 
 /// `vox ci coverage-gates …`
-pub fn run(
-    summary_json: PathBuf,
-    mode: CoverageGateMode,
-    config_path: PathBuf,
-) -> Result<()> {
+pub fn run(summary_json: PathBuf, mode: CoverageGateMode, config_path: PathBuf) -> Result<()> {
     let root = repo_root();
     let raw = read_utf8_path_capped(&summary_json)
         .with_context(|| format!("read {}", summary_json.display()))?;

@@ -28,14 +28,14 @@ pub fn run(root: &Path) -> Result<()> {
         let content = fs::read_to_string(&path)?;
         if content.contains("evaluate_interruption")
             && !content.contains("record_attention_event")
-                && !content.contains("AttentionEventType::")
-                && !path.to_string_lossy().contains("interruption_policy.rs")
-                && !path.to_string_lossy().contains("lib.rs")
-                && !path.to_string_lossy().contains("mod.rs")
-                && !path.to_string_lossy().contains("attention_policy.rs")
-            {
-                evaluate_files.push(path.to_path_buf());
-            }
+            && !content.contains("AttentionEventType::")
+            && !path.to_string_lossy().contains("interruption_policy.rs")
+            && !path.to_string_lossy().contains("lib.rs")
+            && !path.to_string_lossy().contains("mod.rs")
+            && !path.to_string_lossy().contains("attention_policy.rs")
+        {
+            evaluate_files.push(path.to_path_buf());
+        }
     }
 
     if !evaluate_files.is_empty() {

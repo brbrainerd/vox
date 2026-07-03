@@ -310,40 +310,41 @@ pub async fn bench_build_run(
             Some("compiler-message") => {
                 let msg = &val["message"];
                 if let Some(level) = msg["level"].as_str()
-                    && (level == "warning" || level == "error") {
-                        let code = msg["code"]
-                            .as_object()
-                            .and_then(|c| c.get("code"))
-                            .and_then(|c| c.as_str())
-                            .map(str::to_string);
-                        let message = msg["message"].as_str().unwrap_or("").to_string();
+                    && (level == "warning" || level == "error")
+                {
+                    let code = msg["code"]
+                        .as_object()
+                        .and_then(|c| c.get("code"))
+                        .and_then(|c| c.as_str())
+                        .map(str::to_string);
+                    let message = msg["message"].as_str().unwrap_or("").to_string();
 
-                        // Fix 13: robust crate extraction using target name if path guess fails
-                        let mut crate_name = val["target"]["name"].as_str().map(|s| s.to_string());
+                    // Fix 13: robust crate extraction using target name if path guess fails
+                    let mut crate_name = val["target"]["name"].as_str().map(|s| s.to_string());
 
-                        if crate_name.is_none() {
-                            crate_name = msg["spans"]
-                                .as_array()
-                                .and_then(|s| s.first())
-                                .and_then(|s| s["file_name"].as_str())
-                                .map(|f| {
-                                    let p = Path::new(f);
-                                    p.components()
-                                        .find_map(|c| {
-                                            c.as_os_str().to_str().filter(|s| s.starts_with("vox-"))
-                                        })
-                                        .unwrap_or("unknown")
-                                        .to_string()
-                                });
-                        }
-
-                        raw_warnings.push(WarningRecord {
-                            crate_name: crate_name.unwrap_or_else(|| "unknown".into()),
-                            level: level.to_string(),
-                            code,
-                            message,
-                        });
+                    if crate_name.is_none() {
+                        crate_name = msg["spans"]
+                            .as_array()
+                            .and_then(|s| s.first())
+                            .and_then(|s| s["file_name"].as_str())
+                            .map(|f| {
+                                let p = Path::new(f);
+                                p.components()
+                                    .find_map(|c| {
+                                        c.as_os_str().to_str().filter(|s| s.starts_with("vox-"))
+                                    })
+                                    .unwrap_or("unknown")
+                                    .to_string()
+                            });
                     }
+
+                    raw_warnings.push(WarningRecord {
+                        crate_name: crate_name.unwrap_or_else(|| "unknown".into()),
+                        level: level.to_string(),
+                        code,
+                        message,
+                    });
+                }
             }
             _ => {}
         }

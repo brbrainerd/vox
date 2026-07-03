@@ -214,9 +214,10 @@ Body head: {}",
         "instant_deploy": deploy,
     });
     if let Some(ref d) = domains
-        && !d.is_empty() {
-            patch["domains"] = Value::String(d.clone());
-        }
+        && !d.is_empty()
+    {
+        patch["domains"] = Value::String(d.clone());
+    }
 
     let patch_url = format!("{base}/api/v1/applications/{uuid}");
     let patched = client

@@ -32,9 +32,10 @@ pub fn nvcc_version_command() -> Command {
         exe.is_file().then_some(exe)
     };
     if let Ok(p) = std::env::var("CUDA_PATH").or_else(|_| std::env::var("CUDA_HOME"))
-        && let Some(exe) = try_cuda_bin(&p) {
-            return Command::new(exe);
-        }
+        && let Some(exe) = try_cuda_bin(&p)
+    {
+        return Command::new(exe);
+    }
     Command::new("nvcc")
 }
 

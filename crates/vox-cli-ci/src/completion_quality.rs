@@ -4,10 +4,10 @@
 //! fingerprints). Policy: `contracts/operations/completion-policy.v1.yaml`; retention:
 //! `contracts/db/retention-policy.yaml`; classification SSOT: `docs/src/architecture/telemetry-retention-sensitivity-ssot.md`.
 
+use crate::cmd_enums::CompletionGateMode;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
-use crate::cmd_enums::CompletionGateMode;
 
 use anyhow::{Context, Result, anyhow};
 use serde::{Deserialize, Serialize};

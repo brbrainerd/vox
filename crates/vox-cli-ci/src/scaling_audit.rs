@@ -9,8 +9,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::cargo_bin;
-use vox_bounded_fs::read_utf8_path_capped;
 use crate::cmd_enums::ScalingAuditCmd;
+use vox_bounded_fs::read_utf8_path_capped;
 
 pub(super) const POLICY_REL: &str = "contracts/scaling/policy.yaml";
 pub(super) const POLICY_SCHEMA_REL: &str = "contracts/scaling/policy.schema.json";
