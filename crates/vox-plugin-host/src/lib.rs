@@ -203,14 +203,26 @@ pub fn cached_code_plugin(
 
 #[cfg(test)]
 mod semcov_wave3_tests {
-    // Rust 2024 made std::env::{set_var,remove_var} unsafe; mutated single-threaded.
+    // Rust 2024 made std::env::{set_var,remove_var} unsafe; the env-mutating
+    // tests below serialize on ENV_MUTEX so the parallel harness can't interleave
+    // their process-wide VOX_PLUGINS_DIR writes.
     #![allow(unused_imports, unsafe_code)]
     use super::*;
+    use std::sync::{Mutex, OnceLock};
+
+    static ENV_MUTEX: OnceLock<Mutex<()>> = OnceLock::new();
+    fn env_lock() -> std::sync::MutexGuard<'static, ()> {
+        ENV_MUTEX
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
 
     // ── resolve_plugins_root ──────────────────────────────────────────────────
 
     #[test]
     fn resolve_plugins_root_env_override() {
+        let _guard = env_lock();
         // vox-arch-check: allow abs-path
         unsafe { std::env::set_var("VOX_PLUGINS_DIR", "/tmp/my-plugins") };
         let result = resolve_plugins_root();
@@ -221,6 +233,7 @@ mod semcov_wave3_tests {
 
     #[test]
     fn resolve_plugins_root_fallback_is_non_empty() {
+        let _guard = env_lock();
         // Ensure env var is cleared so we exercise the fallback branch.
         unsafe { std::env::remove_var("VOX_PLUGINS_DIR") };
         let result = resolve_plugins_root();
@@ -270,6 +283,7 @@ mod semcov_wave3_tests {
 
     #[test]
     fn workspace_local_plugin_source_env_override_missing_dir_returns_none() {
+        let _guard = env_lock();
         // Point VOX_WORKSPACE_ROOT at a directory that has no crates/ sub-tree.
         let tmp = tempfile::tempdir().unwrap();
         unsafe { std::env::set_var("VOX_WORKSPACE_ROOT", tmp.path().to_str().unwrap()) };
@@ -283,6 +297,7 @@ mod semcov_wave3_tests {
 
     #[test]
     fn workspace_local_plugin_source_env_override_hit() {
+        let _guard = env_lock();
         let tmp = tempfile::tempdir().unwrap();
         // Create a fake crates/vox-plugin-myplugin/Plugin.toml
         let crate_dir = tmp.path().join("crates").join("vox-plugin-myplugin");
