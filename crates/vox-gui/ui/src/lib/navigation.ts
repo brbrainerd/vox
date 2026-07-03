@@ -1,47 +1,89 @@
 /**
  * Resolve a view key to its top-level nav parent and optional child tab.
+ * Intent-first grouping: Direct(chat) → Review(runs) → Agents → Knowledge →
+ * Workspace → Commands → Compute → Settings.
  */
 export const PARENT_CHILD_MAP: Record<string, { parent: string; child?: string }> = {
+  // Review — approvals first: the human's review queue.
+  approvals: { parent: 'runs', child: 'approvals' },
+  'needs-you': { parent: 'runs', child: 'needs-you' },
+  runs: { parent: 'runs', child: 'runs' },
+  policies: { parent: 'runs', child: 'policies' },
+  // Agents — watch/steer the swarm.
   dashboard: { parent: 'agents', child: 'dashboard' },
   flow: { parent: 'agents', child: 'flow' },
-  matrix: { parent: 'agents', child: 'matrix' },
   tasks: { parent: 'agents', child: 'tasks' },
-  approvals: { parent: 'runs', child: 'approvals' },
-  policies: { parent: 'runs', child: 'policies' },
+  mesh: { parent: 'agents', child: 'mesh' },
+  'sub-agents': { parent: 'agents', child: 'sub-agents' },
+  // Knowledge — find/recall/review what the system knows.
+  memory: { parent: 'knowledge', child: 'memory' },
+  scientia: { parent: 'knowledge', child: 'scientia' },
+  research: { parent: 'knowledge', child: 'research' },
+  activity: { parent: 'knowledge', child: 'activity' },
+  publications: { parent: 'knowledge', child: 'publications' },
+  'vox-search': { parent: 'knowledge', child: 'vox-search' },
+  // Workspace — act on the dev environment.
+  console: { parent: 'workspace', child: 'console' },
   repository: { parent: 'workspace', child: 'repository' },
   browser: { parent: 'workspace', child: 'browser' },
   harness: { parent: 'workspace', child: 'harness' },
-  console: { parent: 'workspace', child: 'console' },
   coderabbit: { parent: 'workspace', child: 'coderabbit' },
+  // Commands.
   catalog: { parent: 'commands', child: 'catalog' },
   skills: { parent: 'commands', child: 'skills' },
-  memory: { parent: 'search', child: 'memory' },
-  research: { parent: 'knowledge', child: 'research' },
-  scientia: { parent: 'knowledge', child: 'scientia' },
-  'vox-search': { parent: 'knowledge', child: 'vox-search' },
-  'discovery-review': { parent: 'knowledge', child: 'discovery-review' },
-  claims: { parent: 'knowledge', child: 'claims' },
-  publications: { parent: 'knowledge', child: 'publications' },
+  // Compute.
   models: { parent: 'compute', child: 'models' },
   mens: { parent: 'compute', child: 'mens' },
   populi: { parent: 'compute', child: 'populi' },
   oratio: { parent: 'compute', child: 'oratio' },
-  mesh: { parent: 'compute', child: 'mesh' },
+  // Settings.
   coverage: { parent: 'settings', child: 'coverage' },
-  gamify: { parent: 'agents', child: 'gamify' },
-  'discovery-inbox': { parent: 'knowledge', child: 'discovery-inbox' },
-  'archive-panel': { parent: 'knowledge', child: 'archive-panel' },
+  gamify: { parent: 'settings', child: 'gamify' },
 };
+
+/**
+ * Migration ledger (gui-ia-blueprint §5): retired view keys resolve to their
+ * surviving absorber so old #view= deep-links and bookmarks never dead-end.
+ * Silent alias for one release, then hard-remove.
+ */
+export const LEGACY_VIEW_ALIASES: Record<string, string> = {
+  search: 'memory',
+  claims: 'scientia',
+  review: 'scientia',
+  matrix: 'chat',
+  'discovery-inbox': 'activity',
+  'discovery-review': 'activity',
+  'archive-panel': 'activity',
+};
+
+/** Discovery preset carried by retired discovery deep-links (read by DiscoverySurface). */
+export const DISCOVERY_PRESET_BY_LEGACY_KEY: Record<string, 'inbox' | 'review' | 'archive'> = {
+  'discovery-inbox': 'inbox',
+  'discovery-review': 'review',
+  'archive-panel': 'archive',
+};
+
+export const DISCOVERY_PRESET_SEED_KEY = 'vox_discovery_preset_seed';
+
+/** Seed the Discovery preset when a retired discovery key is navigated to. */
+export function seedDiscoveryPresetForLegacyKey(viewKey: string): void {
+  const preset = DISCOVERY_PRESET_BY_LEGACY_KEY[viewKey];
+  if (!preset) return;
+  try {
+    window.localStorage.setItem(DISCOVERY_PRESET_SEED_KEY, preset);
+  } catch {
+    /* localStorage unavailable — surface still switches, preset defaults */
+  }
+}
 
 /** Stable default child when navigating to a top-level parent (breadcrumb / sidebar). */
 export const DEFAULT_CHILD_BY_PARENT: Record<string, string> = {
   chat: 'chat',
-  agents: 'dashboard',
   runs: 'approvals',
+  agents: 'dashboard',
+  knowledge: 'memory',
   workspace: 'console',
   commands: 'catalog',
-  search: 'memory',
-  knowledge: 'scientia',
   compute: 'models',
   mercatus: 'mercatus',
   settings: 'settings',
@@ -49,12 +91,11 @@ export const DEFAULT_CHILD_BY_PARENT: Record<string, string> = {
 
 export const TOP_LEVEL_VIEWS = [
   'chat',
-  'agents',
   'runs',
+  'agents',
+  'knowledge',
   'workspace',
   'commands',
-  'search',
-  'knowledge',
   'compute',
   'mercatus',
   'settings',
@@ -62,23 +103,43 @@ export const TOP_LEVEL_VIEWS = [
 
 export type TopLevelView = typeof TOP_LEVEL_VIEWS[number];
 
+/** Sub-tab display order per parent (registry rows are alphabetical; UI order is intent order). */
+export const CHILD_ORDER_BY_PARENT: Record<string, string[]> = {
+  runs: ['approvals', 'needs-you', 'runs', 'policies'],
+  agents: ['dashboard', 'flow', 'tasks', 'mesh', 'sub-agents'],
+  knowledge: ['memory', 'scientia', 'research', 'activity', 'publications', 'vox-search'],
+  workspace: ['console', 'repository', 'browser', 'harness'],
+  commands: ['catalog', 'skills'],
+  compute: ['models', 'mens', 'populi', 'oratio'],
+  settings: ['settings', 'coverage', 'gamify'],
+};
+
+/** Sort child view keys by the parent's intent order; unknown keys keep relative order at the end. */
+export function orderedChildren(parent: string, children: string[]): string[] {
+  const order = CHILD_ORDER_BY_PARENT[parent];
+  if (!order) return children;
+  const rank = new Map(order.map((k, i) => [k, i]));
+  return [...children].sort(
+    (a, b) => (rank.get(a) ?? order.length) - (rank.get(b) ?? order.length),
+  );
+}
+
 /** Human-readable labels for breadcrumb segments. */
 export const NAV_LABELS: Record<string, string> = {
   chat: 'Chat',
+  runs: 'Review',
   agents: 'Agents',
-  runs: 'Runs & Approvals',
+  knowledge: 'Knowledge',
   workspace: 'Workspace',
   commands: 'Commands',
-  search: 'Search',
-  knowledge: 'Knowledge',
   compute: 'Compute',
   mercatus: 'Mercatus',
   settings: 'Settings',
   dashboard: 'Dashboard',
   flow: 'Flow',
-  matrix: 'Matrix',
   tasks: 'Tasks',
   approvals: 'Approvals',
+  'needs-you': 'Needs You',
   policies: 'Policies',
   repository: 'Repository',
   browser: 'Browser',
@@ -89,20 +150,18 @@ export const NAV_LABELS: Record<string, string> = {
   skills: 'Skills',
   memory: 'Memory',
   research: 'Research',
-  scientia: 'Scientia',
+  scientia: 'Findings',
+  activity: 'Discovery',
   'vox-search': 'Search Index',
-  'discovery-review': 'Discovery Review',
-  claims: 'Claims',
   publications: 'Publications',
   models: 'Models',
-  mens: 'MENS',
-  populi: 'Populi',
-  oratio: 'Oratio',
+  mens: 'Training',
+  populi: 'Nodes',
+  oratio: 'Voice',
   mesh: 'Mesh',
+  'sub-agents': 'Sub-Agents',
   coverage: 'Coverage',
   gamify: 'Gamify',
-  'discovery-inbox': 'Discovery Inbox',
-  'archive-panel': 'Archive',
 };
 
 export function labelForNavKey(key: string): string {
@@ -151,16 +210,17 @@ export function syncViewToLocation(viewKey: string): void {
 }
 
 export function resolveNavigation(viewKey: string): { parent: string; child: string } {
-  const mapped = PARENT_CHILD_MAP[viewKey];
+  const key = LEGACY_VIEW_ALIASES[viewKey] ?? viewKey;
+  const mapped = PARENT_CHILD_MAP[key];
   if (mapped) {
-    return { parent: mapped.parent, child: mapped.child ?? viewKey };
+    return { parent: mapped.parent, child: mapped.child ?? key };
   }
-  if (TOP_LEVEL_VIEWS.includes(viewKey as TopLevelView)) {
-    const defaultChild = DEFAULT_CHILD_BY_PARENT[viewKey] ?? viewKey;
+  if (TOP_LEVEL_VIEWS.includes(key as TopLevelView)) {
+    const defaultChild = DEFAULT_CHILD_BY_PARENT[key] ?? key;
     return {
-      parent: viewKey,
+      parent: key,
       child: defaultChild,
     };
   }
-  return { parent: viewKey, child: viewKey };
+  return { parent: key, child: key };
 }
