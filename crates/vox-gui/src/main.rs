@@ -213,6 +213,7 @@ async fn main() {
             commands::gamify::list_gamify_quests,
             commands::gamify::gamify_due_actions,
             commands::gamify::gamify_kpi_summary,
+            commands::workspace_town::workspace_town_scan,
             commands::research::start_research_async,
             commands::scientia::list_research_sessions,
             commands::scientia::get_research_session_detail,

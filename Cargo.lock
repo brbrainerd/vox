@@ -16145,6 +16145,7 @@ dependencies = [
  "chrono",
  "cpal",
  "hound",
+ "ignore",
  "portable-pty",
  "rmp-serde",
  "serde",

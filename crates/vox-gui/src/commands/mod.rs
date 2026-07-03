@@ -42,3 +42,4 @@ pub mod signing;
 pub mod terminal_core;
 pub mod user_config;
 pub mod vcs_isolation;
+pub mod workspace_town;
