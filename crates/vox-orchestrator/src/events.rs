@@ -867,6 +867,46 @@ pub fn is_tier_a(kind: &AgentEventKind) -> bool {
     }
 }
 
+/// Bare variant names of every Tier-B `AgentEventKind` (the `false` arms of
+/// [`is_tier_a`]), for consumers that need the set as strings rather than
+/// pattern-matchable values (e.g. `tests/tier_b_never_durable_guard.rs`'s
+/// source-grep, which checks for these names appearing as `OperationKind::`
+/// constructor arguments at durable-write call sites — `OperationKind` is a
+/// different, `#[non_exhaustive]` enum in another crate with no structural
+/// link to `AgentEventKind`, so this can't be derived via a shared trait/derive
+/// without adding an `EnumIter`-style dependency).
+///
+/// **Keep in sync with [`is_tier_a`]'s match arms by hand** — there is no
+/// compiler enforcement linking this list to the match. If you add a new
+/// `AgentEventKind` variant, update `is_tier_a`'s match (compiler-enforced,
+/// since it's exhaustive) *and*, if the variant is Tier B, add its name here.
+#[rustfmt::skip]
+pub const TIER_B_KIND_NAMES: &[&str] = &[
+    "AgentSpawned", "AgentRetired", "AgentHeartbeat", "ActivityChanged",
+    "OperatingModeChanged", "TaskStarted", "TaskPhaseChanged", "TaskDelegated",
+    "TaskResolved", "ToolTimedOut", "LockAcquired", "LockReleased", "AgentIdle",
+    "AgentBusy", "MessageSent", "CostIncurred", "EmergencyStop",
+    "ContinuationTriggered", "PlanHandoff", "ScopeViolation",
+    "CompactionTriggered", "MemoryFlushed", "SessionCreated", "SessionReset",
+    "SnapshotCaptured", "ConflictDetected", "OperationUndone", "OperationRedone",
+    "AgentHandoffRejected", "AgentHandoffAccepted", "UrgentRebalanceTriggered",
+    "TokenStreamed", "InjectionDetected", "PromptConflictDetected",
+    "PlanningRouted", "PlanSessionCreated", "PlanVersionCreated",
+    "ReplanTriggered", "WorkflowHandoffRequested", "WorkflowHandoffCompleted",
+    "WorkflowStarted", "WorkflowCompleted", "WorkflowFailed", "ActivityStarted",
+    "ActivityCompleted", "ActivityRetried", "ConflictResolved",
+    "WorkspaceCreated", "EndpointReliabilityObservation", "OrchestratorIdle",
+    "TaskExpired", "MensObserverObservation", "AutoHealApplied",
+    "AutoHealSuggested", "AttentionBudgetAlert", "BudgetAlert",
+    "AttentionBudgetReset", "TrustOverride", "AttentionConfigReloaded",
+    "ContextTruncated", "LlmCallCompleted", "ObservationRecorded",
+    "OrientCompleted", "ResearchExecuted", "ResearchSynthesisExecuted",
+    "DoubtReported", "SemanticDriftDetected", "BuildStage", "ThroughputTick",
+    "CostTick", "FileDiagChanged", "MeshTopologyChanged", "TaskReprioritized",
+    "HopperItemOverridden", "HopperItemCancelled", "MeshNodeBudget",
+    "MeshActionCommitted", "PavPhaseChanged",
+];
+
 /// Returns `true` if `kind` is a **Tier B** event (broadcast-only, never
 /// durably journaled). The exact complement of [`is_tier_a`].
 #[must_use]

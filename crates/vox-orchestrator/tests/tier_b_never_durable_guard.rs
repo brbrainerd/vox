@@ -17,16 +17,11 @@
 use std::path::Path;
 
 /// Kind names that must never appear as an `OperationKind::` variant argument
-/// at a durable-write call site. Mirrors the Tier-B examples called out in the
-/// T1.2 spec (`TokenStreamed`, heartbeats, throughput/cost ticks).
-const FORBIDDEN_DURABLE_KIND_NAMES: &[&str] = &[
-    "TokenStreamed",
-    "AgentHeartbeat",
-    "ThroughputTick",
-    "CostTick",
-    "LockAcquired",
-    "LockReleased",
-];
+/// at a durable-write call site. Consumes `events::TIER_B_KIND_NAMES` directly
+/// (the FULL, authoritative Tier-B set derived from `is_tier_a`'s exhaustive
+/// match) rather than a second, hand-maintained short list — so this guard
+/// and the compile-checked classification cannot silently drift apart.
+const FORBIDDEN_DURABLE_KIND_NAMES: &[&str] = vox_orchestrator::events::TIER_B_KIND_NAMES;
 
 /// Recursively collect `.rs` file contents under `dir`.
 fn collect_rs_sources(dir: &Path, out: &mut Vec<(std::path::PathBuf, String)>) {
