@@ -5,7 +5,6 @@
 /// projections/{affinity,capabilities,kudos,locks}.rs
 ///
 /// Every test carries: `// Catches: <specific bug>`
-
 #[cfg(test)]
 mod semcov_wave19_tests {
     #![allow(clippy::module_inception)]

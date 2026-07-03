@@ -30,7 +30,8 @@ pub fn get_mesh_rank() -> usize {
 
 #[cfg(test)]
 mod semcov_wave1e_tests {
-    #![allow(unused_imports)]
+    // Rust 2024 made std::env::{set_var,remove_var} unsafe; serialized via serial_test.
+    #![allow(unused_imports, unsafe_code)]
     use super::*;
     use serial_test::serial;
 

@@ -1,10 +1,11 @@
 name: Mobile E2E (iOS)
 
 on:
-  push:
-    branches: [main]
+  # push:main dropped (runner-remediation Task 9) — iOS E2E runs nightly, like
+  # the Android lane is merge/label-gated; no need on every main push.
   schedule:
     - cron: '0 3 * * *' # Run nightly
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

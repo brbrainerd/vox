@@ -6,7 +6,7 @@
 
 #[cfg(test)]
 mod semcov_wave22_tests {
-    #![allow(clippy::module_inception)]
+    #![allow(clippy::module_inception, clippy::assertions_on_constants)]
     // ── artifact_policy ────────────────────────────────────────────────────────
 
     use crate::artifact_policy::{

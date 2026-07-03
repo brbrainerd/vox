@@ -11,6 +11,10 @@ publish = false
 
 [features]
 default = []
+# Declared (never enabled here) so the `#[cfg(feature = "standalone")]` guards in
+# the `#[path]`-embedded vox-codegen-ts/src/mod.rs are known cfgs, not unexpected.
+# Embedded build always takes the `not(feature = "standalone")` branch.
+standalone = []
 
 [dependencies]
 hex = { workspace = true }

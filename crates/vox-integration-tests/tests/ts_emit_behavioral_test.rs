@@ -124,7 +124,7 @@ fn compile_to_ts(src: &str, label: &str) -> Vec<(String, String)> {
 }
 
 /// Resolve the scratch project's local `tsc` binary (preferred over PATH `npx`).
-fn tsc_command(scratch: &PathBuf) -> Command {
+fn tsc_command(scratch: &std::path::Path) -> Command {
     let local_tsc_cmd = scratch.join("node_modules").join(".bin").join("tsc.cmd");
     let local_tsc = scratch.join("node_modules").join(".bin").join("tsc");
     if cfg!(target_os = "windows") && local_tsc_cmd.exists() {

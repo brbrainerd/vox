@@ -1575,6 +1575,8 @@ impl OrchestratorConfig {
 
 #[cfg(test)]
 mod vox_config_derive_tests {
+    // Rust 2024 made std::env::{set_var,remove_var} unsafe; single-threaded test.
+    #![allow(unsafe_code)]
     use super::*;
     use vox_config::VoxConfigDomain;
 

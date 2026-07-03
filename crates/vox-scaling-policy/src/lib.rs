@@ -278,8 +278,10 @@ mod semcov_wave42_tests {
     // empty, silently permitting every model tier instead of blocking all.
     #[test]
     fn layer4_empty_allowed_tiers_blocks_every_model() {
-        let mut cfg = CostDefenseConfig::default();
-        cfg.model_pinning_enabled = true;
+        let mut cfg = CostDefenseConfig {
+            model_pinning_enabled: true,
+            ..Default::default()
+        };
         cfg.allowed_model_tiers.clear();
         let cb = breaker_with(cfg);
         let r = cb.check_before_task(60, "t1", "tenant-a", "local", 0.01);
@@ -294,8 +296,10 @@ mod semcov_wave42_tests {
     // false, but the code checking the flag using `!` or inverted logic.
     #[test]
     fn layer4_disabled_pinning_allows_unknown_tier() {
-        let mut cfg = CostDefenseConfig::default();
-        cfg.model_pinning_enabled = false;
+        let cfg = CostDefenseConfig {
+            model_pinning_enabled: false,
+            ..Default::default()
+        };
         let cb = breaker_with(cfg);
         let r = cb.check_before_task(60, "t1", "tenant-a", "super-secret-model", 0.01);
         assert!(
@@ -309,9 +313,11 @@ mod semcov_wave42_tests {
     // comparison using `>=` instead of `>`, triggering the warning one cent early.
     #[test]
     fn layer5_monthly_pacing_not_triggered_below_threshold() {
-        let mut cfg = CostDefenseConfig::default();
-        cfg.monthly_budget_usd = 100.0;
-        cfg.monthly_pacing_warn_pct = 0.80; // warn at 80 USD
+        let cfg = CostDefenseConfig {
+            monthly_budget_usd: 100.0,
+            monthly_pacing_warn_pct: 0.80, // warn at 80 USD
+            ..Default::default()
+        };
         let mut cb = breaker_with(cfg);
         // Spend exactly at threshold — projected = 79.99 + 0.0 = 79.99 < 80.0
         cb.state.monthly_spent_usd = 79.99;
@@ -327,9 +333,11 @@ mod semcov_wave42_tests {
     // has_hard_block(), preventing tasks from being dispatched on monthly warnings.
     #[test]
     fn layer5_pacing_warning_is_soft_and_does_not_hard_block() {
-        let mut cfg = CostDefenseConfig::default();
-        cfg.monthly_budget_usd = 100.0;
-        cfg.monthly_pacing_warn_pct = 0.80;
+        let cfg = CostDefenseConfig {
+            monthly_budget_usd: 100.0,
+            monthly_pacing_warn_pct: 0.80,
+            ..Default::default()
+        };
         let mut cb = breaker_with(cfg);
         cb.state.monthly_spent_usd = 95.0;
         let r = cb.check_before_task(60, "t1", "tenant-a", "local", 0.01);
@@ -402,8 +410,10 @@ mod semcov_wave42_tests {
     // daily counters that allow over-budget tasks through on the same day.
     #[test]
     fn reset_monthly_also_resets_daily_state() {
-        let mut state = CostDefenseState::default();
-        state.daily_spent_usd = 20.0;
+        let mut state = CostDefenseState {
+            daily_spent_usd: 20.0,
+            ..Default::default()
+        };
         state.tenant_spent_usd.insert("t".into(), 20.0);
         state.task_retry_counts.insert("task-a".into(), 2);
         state.reset_monthly();
@@ -429,10 +439,12 @@ mod semcov_wave42_tests {
     // fire simultaneously (e.g., short-circuiting on the first rejection).
     #[test]
     fn multiple_layers_fire_simultaneously_all_reported() {
-        let mut cfg = CostDefenseConfig::default();
-        cfg.per_task_timeout_secs = 10;
-        cfg.daily_budget_usd = 1.0;
-        cfg.model_pinning_enabled = true;
+        let cfg = CostDefenseConfig {
+            per_task_timeout_secs: 10,
+            daily_budget_usd: 1.0,
+            model_pinning_enabled: true,
+            ..Default::default()
+        };
         let mut cb = breaker_with(cfg);
         cb.state.daily_spent_usd = 0.99;
 

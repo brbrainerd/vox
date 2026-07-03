@@ -13,6 +13,7 @@
 
 #[cfg(test)]
 mod semcov_struct_pipeline_tests {
+    #![allow(clippy::module_inception)]
     use crate::ast::decl::Decl;
     use crate::hir::lower::lower_module;
     use crate::hir::nodes::{HirExpr, HirStmt};

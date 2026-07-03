@@ -1,12 +1,8 @@
 name: Docs Link Checker
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '**/*.md'
-      - '.lycheeignore'
-      - '.github/workflows/link_checker.yml'
+  # push:main dropped (runner-remediation Task 9) — link checking is a network
+  # job that belongs on the nightly schedule, not on every main push.
   schedule:
     - cron: '0 6 * * *'
   workflow_dispatch:
@@ -20,7 +16,9 @@ env:
 
 jobs:
   check-links:
-    runs-on: [self-hosted, linux, x64]
+    # Moved off self-hosted (runner-remediation Task 9) — lychee is a pure
+    # network job; local exclude-paths become harmless no-ops on a clean clone.
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - name: Link Checker

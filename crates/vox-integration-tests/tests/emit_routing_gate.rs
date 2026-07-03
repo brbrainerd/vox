@@ -17,6 +17,7 @@ use vox_compiler::hir::HirModule;
 
 /// Which emit arm a top-level `HirModule` construct routes to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(clippy::enum_variant_names)] // RustArm/TsArm read better than Rust/Ts here
 enum Arm {
     /// Logic / backend → `codegen_rust`.
     RustArm,

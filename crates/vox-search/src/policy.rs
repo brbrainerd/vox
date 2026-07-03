@@ -572,6 +572,9 @@ fn parse_falsy_env(id: vox_secrets::SecretId) -> bool {
 
 #[cfg(test)]
 mod tests {
+    // Rust 2024 made std::env::{set_var,remove_var} unsafe; mutated single-threaded.
+    // field_reassign is a stylistic test-setup pattern here.
+    #![allow(unsafe_code, clippy::field_reassign_with_default)]
     use super::*;
 
     #[test]
