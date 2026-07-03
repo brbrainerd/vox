@@ -61,6 +61,7 @@ export async function fetchTree(): Promise<SubAgentNode[]> {
   }
   return buildSubAgentTree(edges);
 }
+
 /** Subscribe to live agent-events; rejects outside Tauri (caller degrades). */
 export const SUBAGENT_ACTIVITY_EVENT = 'vox://agent-events';
 export function listenActivity(onEvent: (e: { id: number; timestamp_ms: number; kind: { type: string; [k: string]: unknown } }) => void): Promise<UnlistenFn> {
