@@ -94,9 +94,10 @@ pub(crate) fn hook_guard_verdict(exit_code: i32, stderr: &str) -> Option<&'stati
     match (exit_code, stderr.contains("Local-first CI")) {
         (2, true) => None, // healthy: banned command blocked with the real deny
         (2, false) => Some(
-            "exit 2 without deny marker — a stale vox binary on PATH is turning every \
-             agent shell call into a block (clap usage error). Reinstall: \
-             cargo install --path crates/vox-cli --locked",
+            "exit 2 without deny marker — a stale vox binary on PATH (clap usage error). \
+             The settings.json wrapper fails open on this, so the hook-guard is currently \
+             INERT (banned commands pass). Reinstall: \
+             cargo install --path crates/vox-cli --locked --debug",
         ),
         (0, _) => {
             Some("banned command was NOT blocked — hook-guard inert (old binary or disabled)")
@@ -493,6 +494,12 @@ pub(crate) async fn hook_guard_check(checks: &mut Vec<Check>) {
 
     let child = quiet("vox")
         .args(["ci", "queue", "--hook-guard"])
+        // Don't inherit a session-level opt-out: it would make the probe child
+        // exit 0 and misdiagnose the guard as inert.
+        .env_remove("VOX_HOOK_GUARD_DISABLE")
+        // If the 10s timeout below fires, the future owning this child is
+        // dropped — without this the hung vox process would be orphaned.
+        .kill_on_drop(true)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

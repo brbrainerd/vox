@@ -682,6 +682,15 @@ impl ScaleLock {
         }
         Ok(Some(ScaleLock { path }))
     }
+
+    /// Refresh the lock's heartbeat timestamp. Call after long-running phases
+    /// (e.g. the gh-heavy queue auto-clear) so a slow tick isn't stolen as
+    /// stale mid-run by a concurrent apply.
+    pub fn refresh(&self, now: i64) {
+        if let Ok(mut f) = std::fs::File::create(&self.path) {
+            let _ = writeln!(f, "{now}");
+        }
+    }
 }
 
 impl Drop for ScaleLock {
@@ -787,6 +796,12 @@ pub fn run_scale(apply: bool) -> Result<()> {
             eprintln!("runner-scale: queue auto-clear skipped (degraded): {e:#}");
             (0, 0)
         });
+
+    // The auto-clear sweep can make many sequential `gh` calls; refresh the
+    // lock heartbeat so it isn't considered stale by a concurrent apply.
+    if let Some(lock) = _lock.as_ref() {
+        lock.refresh(now_secs());
+    }
 
     let max = max_runners();
     let reap_secs = idle_reap_secs();

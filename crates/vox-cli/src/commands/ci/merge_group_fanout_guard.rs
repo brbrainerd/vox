@@ -20,6 +20,9 @@ fn fires_on_merge_group(if_expr: Option<&str>) -> bool {
     let Some(e) = if_expr else {
         return true; // no `if:` → always runs
     };
+    if e.contains("== 'merge_group'") {
+        return true; // positive opt-in (possibly compound, e.g. push || merge_group)
+    }
     if e.contains("!= 'merge_group'") {
         return false; // explicit exclusion added when tiering a job off the gate
     }
@@ -90,6 +93,12 @@ mod tests {
         assert!(!fires_on_merge_group(Some(
             "(github.event_name == 'push' && github.ref == 'refs/heads/main') || contains(github.event.pull_request.labels.*.name, 'full-ci')"
         ))); // post-merge (Group B)
+        assert!(fires_on_merge_group(Some(
+            "(github.event_name == 'merge_group' && github.event.merge_group.base_ref == 'refs/heads/main') || contains(github.event.pull_request.labels.*.name, 'full-ci')"
+        ))); // merge-queue opt-in (positive mention wins over the label clause)
+        assert!(fires_on_merge_group(Some(
+            "github.event_name == 'push' || github.event_name == 'merge_group'"
+        ))); // compound push||merge_group still fires on merge_group
     }
 
     #[test]
@@ -109,8 +118,25 @@ jobs:\n  a:\n    runs-on: [self-hosted, linux, x64]\n  b:\n    runs-on: [self-ho
             "/../../.github/workflows/ci.yml"
         );
         let yaml = std::fs::read_to_string(path).expect("read ci.yml");
+        assert!(
+            serde_yaml::from_str::<serde_yaml::Value>(&yaml).is_ok(),
+            "ci.yml failed to parse as YAML — the guard would pass vacuously"
+        );
         let buckets = merge_group_self_hosted_fanout(&yaml);
-        let general = buckets.get("linux,self-hosted,x64").copied().unwrap_or(0);
+        let general = buckets
+            .get("linux,self-hosted,x64")
+            .copied()
+            .unwrap_or_else(|| {
+                panic!(
+                    "expected `linux,self-hosted,x64` bucket missing — label set renamed? \
+                     Buckets: {buckets:?}"
+                )
+            });
+        assert!(
+            general > 0,
+            "merge_group `linux,self-hosted,x64` fan-out is zero — the guard is measuring nothing. \
+             Buckets: {buckets:?}"
+        );
         assert!(
             general <= DEFAULT_MAX_RUNNERS as usize,
             "merge_group `linux,self-hosted,x64` fan-out {general} exceeds runner ceiling {} — \
