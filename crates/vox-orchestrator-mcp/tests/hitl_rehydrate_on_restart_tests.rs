@@ -24,9 +24,11 @@ async fn pending_approval_survives_restart_as_visible_and_resolvable() {
     let dir = tempfile::tempdir().expect("tempdir");
     let db_path = dir.path().join("t14-approvals-restart.db");
     let db = Arc::new(
-        vox_db::VoxDb::connect(vox_db::DbConfig::Local { path: db_path.to_string_lossy().to_string() })
-            .await
-            .expect("open db"),
+        vox_db::VoxDb::connect(vox_db::DbConfig::Local {
+            path: db_path.to_string_lossy().to_string(),
+        })
+        .await
+        .expect("open db"),
     );
 
     let state = ServerState::new_full(vox_orchestrator_mcp::load_config())
@@ -98,9 +100,11 @@ async fn resolved_approval_does_not_reappear_after_restart() {
     let dir = tempfile::tempdir().expect("tempdir");
     let db_path = dir.path().join("t14-approvals-resolved-restart.db");
     let db = Arc::new(
-        vox_db::VoxDb::connect(vox_db::DbConfig::Local { path: db_path.to_string_lossy().to_string() })
-            .await
-            .expect("open db"),
+        vox_db::VoxDb::connect(vox_db::DbConfig::Local {
+            path: db_path.to_string_lossy().to_string(),
+        })
+        .await
+        .expect("open db"),
     );
 
     let state = ServerState::new_full(vox_orchestrator_mcp::load_config())
@@ -147,7 +151,10 @@ async fn resolved_approval_does_not_reappear_after_restart() {
         }) {
             break;
         }
-        assert!(tokio::time::Instant::now() < deadline, "ApprovalResolved never landed durably");
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "ApprovalResolved never landed durably"
+        );
         tokio::time::sleep(std::time::Duration::from_millis(20)).await;
     }
 
@@ -437,5 +444,228 @@ async fn open_feedback_request_survives_restart_as_visible() {
         "clarification {request_id:?} was requested but never resolved before \
          the simulated crash; it must be visible again after restart, got: {after_restart:?}"
     );
+    drop(dir);
+}
+
+/// T1.4 follow-up: a `hitl_approvals` (DB audit table) row stuck at
+/// `status = 'pending'` with NO matching oplog `ApprovalRequested` at all
+/// (simulating a row that predates recorded oplog history, or whose durable
+/// oplog write never landed) has no discoverable resolution and no
+/// oplog-derived "still open" signal either — it must be reconciled to
+/// `orphaned` on the next boot via the real `with_db_initialized` ->
+/// `rehydrate_open_hitl_from_oplog` path, not left stuck `pending` forever.
+#[tokio::test]
+async fn stale_pending_audit_row_with_no_oplog_trace_is_marked_orphaned_on_boot() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let db_path = dir.path().join("t14-followup-orphaned.db");
+    let db = Arc::new(
+        vox_db::VoxDb::connect(vox_db::DbConfig::Local {
+            path: db_path.to_string_lossy().to_string(),
+        })
+        .await
+        .expect("open db"),
+    );
+
+    // Write directly to the audit table only — no oplog ApprovalRequested/
+    // ApprovalResolved at all — simulating a row the oplog-derived scan will
+    // never consider "open" and can never backfill a resolution for.
+    db.hitl_approval_record(
+        "t14-followup-orphan-1",
+        "vox_run_shell",
+        "echo orphan",
+        1_000,
+    )
+    .await
+    .expect("record pending row");
+
+    let before = db
+        .hitl_approval_get("t14-followup-orphan-1")
+        .await
+        .expect("get")
+        .expect("present");
+    assert_eq!(before.status, "pending");
+
+    // Boot: this is the real rehydration hook, not a unit-tested helper in
+    // isolation — the same hook `vox mcp` stdio and `vox-orchestrator-d` run.
+    let _restarted = ServerState::new_full(vox_orchestrator_mcp::load_config())
+        .with_db_initialized(db.clone())
+        .await;
+
+    let after = db
+        .hitl_approval_get("t14-followup-orphan-1")
+        .await
+        .expect("get")
+        .expect("still present");
+    assert_eq!(
+        after.status, "orphaned",
+        "a hitl_approvals row stuck 'pending' with no discoverable oplog \
+         resolution and no oplog-derived open entry must be reconciled to \
+         'orphaned' on boot, got status={:?}",
+        after.status
+    );
+    assert!(
+        after.resolved_at_ms.is_some(),
+        "an orphaned row must record when it was reconciled"
+    );
+    drop(dir);
+}
+
+/// T1.4 follow-up: a `hitl_approvals` row stuck at `status = 'pending'`
+/// whose approval WAS actually resolved via the durable oplog (the
+/// `hitl_approval_resolve` audit-table write raced or failed independently
+/// of the oplog `ApprovalResolved` write) must be backfilled from the oplog
+/// entry on the next boot — not guessed at, and not left `pending`.
+#[tokio::test]
+async fn stale_pending_audit_row_with_oplog_resolution_is_backfilled_on_boot() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let db_path = dir.path().join("t14-followup-backfill.db");
+    let db = Arc::new(
+        vox_db::VoxDb::connect(vox_db::DbConfig::Local {
+            path: db_path.to_string_lossy().to_string(),
+        })
+        .await
+        .expect("open db"),
+    );
+
+    let state = ServerState::new_full(vox_orchestrator_mcp::load_config())
+        .with_db_initialized(db.clone())
+        .await;
+
+    let approval_id = "t14-followup-backfill-1".to_string();
+
+    // Durable oplog: both Requested and Resolved land normally.
+    state
+        .orchestrator
+        .record_operation(
+            vox_orchestrator_types::AgentId(0),
+            vox_orchestrator::oplog::OperationKind::ApprovalRequested {
+                approval_id: approval_id.clone(),
+                tool: "vox_run_shell".to_string(),
+                run_id: None,
+            },
+            "approval requested",
+            None,
+            None,
+            None,
+            None,
+        )
+        .await;
+    // Audit table: record the request (mirrors dispatch.rs's `hitl_approval_record`
+    // call) but DO NOT call `hitl_approval_resolve` — simulating that
+    // best-effort audit-table write failing/racing independently of the
+    // durable oplog write below.
+    db.hitl_approval_record(&approval_id, "vox_run_shell", "echo backfill", 1_000)
+        .await
+        .expect("record pending row");
+
+    state
+        .orchestrator
+        .record_operation(
+            vox_orchestrator_types::AgentId(0),
+            vox_orchestrator::oplog::OperationKind::ApprovalResolved {
+                approval_id: approval_id.clone(),
+                outcome: "approved".to_string(),
+                resolver: Some("test".to_string()),
+            },
+            "approval resolved",
+            None,
+            None,
+            None,
+            None,
+        )
+        .await;
+
+    // Confirm the audit row is still stuck 'pending' pre-boot (the gap this
+    // test targets).
+    let before = db
+        .hitl_approval_get(&approval_id)
+        .await
+        .expect("get")
+        .expect("present");
+    assert_eq!(before.status, "pending");
+
+    // "Restart": fresh ServerState re-attached to the same durable DB — the
+    // real rehydration path.
+    let _restarted = ServerState::new_full(vox_orchestrator_mcp::load_config())
+        .with_db_initialized(db.clone())
+        .await;
+
+    let after = db
+        .hitl_approval_get(&approval_id)
+        .await
+        .expect("get")
+        .expect("still present");
+    assert_eq!(
+        after.status, "approved",
+        "a hitl_approvals row stuck 'pending' whose approval WAS resolved per \
+         the durable oplog must be backfilled to that real outcome on boot, \
+         got status={:?}",
+        after.status
+    );
+    assert!(
+        after.resolved_at_ms.is_some(),
+        "a backfilled row must carry the oplog entry's resolved_at_ms"
+    );
+    drop(dir);
+}
+
+/// T1.4 follow-up overcorrection guard: a `hitl_approvals` row that is
+/// genuinely still open (oplog `ApprovalRequested` with no matching
+/// `ApprovalResolved`) must NOT be touched by the reconciliation pass — it
+/// stays `pending` and is also visible again via `PendingApprovals`, same as
+/// the existing T1.4 restart-visibility behavior.
+#[tokio::test]
+async fn genuinely_open_pending_audit_row_is_not_reconciled_on_boot() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let db_path = dir.path().join("t14-followup-still-open.db");
+    let db = Arc::new(
+        vox_db::VoxDb::connect(vox_db::DbConfig::Local {
+            path: db_path.to_string_lossy().to_string(),
+        })
+        .await
+        .expect("open db"),
+    );
+
+    let state = ServerState::new_full(vox_orchestrator_mcp::load_config())
+        .with_db_initialized(db.clone())
+        .await;
+
+    let approval_id = "t14-followup-still-open-1".to_string();
+    state
+        .orchestrator
+        .record_operation(
+            vox_orchestrator_types::AgentId(0),
+            vox_orchestrator::oplog::OperationKind::ApprovalRequested {
+                approval_id: approval_id.clone(),
+                tool: "vox_run_shell".to_string(),
+                run_id: None,
+            },
+            "approval requested, never resolved",
+            None,
+            None,
+            None,
+            None,
+        )
+        .await;
+    db.hitl_approval_record(&approval_id, "vox_run_shell", "echo still-open", 1_000)
+        .await
+        .expect("record pending row");
+
+    let _restarted = ServerState::new_full(vox_orchestrator_mcp::load_config())
+        .with_db_initialized(db.clone())
+        .await;
+
+    let after = db
+        .hitl_approval_get(&approval_id)
+        .await
+        .expect("get")
+        .expect("still present");
+    assert_eq!(
+        after.status, "pending",
+        "a genuinely still-open approval's audit row must remain 'pending', \
+         not be reconciled away, got status={:?}",
+        after.status
+    );
+    assert!(after.resolved_at_ms.is_none());
     drop(dir);
 }
