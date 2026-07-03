@@ -28,15 +28,45 @@
 //! live-state size' unless the pure-projection approach is clearly not much
 //! larger" — it is clearly larger here, so this module takes the direct path.
 //!
-//! Approval/feedback/doubt/hopper lifecycle state (T1.1's other new durable
-//! event kinds) has no equivalent "reconstruct into live in-memory state on
-//! boot" consumer today — nothing in `vox-orchestrator` folds
-//! `ApprovalRequested`/`FeedbackRequested`/etc. into an in-memory structure
-//! the way `rehydrate.rs` does for tasks, so there is no analogous state to
-//! checkpoint for them yet; when a rehydration consumer for that state is
-//! built, extend [`OpenTaskState`](super::rehydrate::OpenTaskState) (or fold
-//! a sibling struct into the same checkpoint payload) rather than
-//! introducing a second checkpoint mechanism.
+//! ## HITL approval/feedback/doubt state: excluded from pruning, not folded
+//! into the checkpoint payload (T1.6 follow-up, Bug 2, 2026-07-03)
+//!
+//! Earlier revision of this doc claimed approval/feedback/doubt lifecycle
+//! state "has no equivalent reconstruct-into-live-state consumer today" and
+//! so "there is no analogous state to checkpoint for them yet." That framing
+//! was wrong: `hitl_rehydrate_on_restart`
+//! (`vox-orchestrator-mcp/src/hitl_rehydrate.rs`) *is* exactly such a
+//! consumer — a full-history scan over `agent_oplog` for unresolved
+//! `ApprovalRequested`/`FeedbackRequested` entries, run at boot to restore
+//! visibility into `PendingApprovals`/`FeedbackStore`. Because that scan has
+//! no checkpoint awareness of its own, `compact_now`'s pruning (originally
+//! unconditional on `operation_id <= up_to`) could silently, permanently
+//! delete an unresolved approval/feedback/doubt row before it was ever
+//! resolved — a human approval parked before a restart could vanish with no
+//! trace anywhere and no error, a real regression in exactly the area (HITL
+//! approval integrity) this codebase treats as security-critical.
+//!
+//! The fix taken here is approach (a) from the follow-up review, not (b):
+//! `compact_now` does **not** fold HITL state into the `OpenTaskState`
+//! checkpoint payload the way it does for tasks. Instead, immediately before
+//! pruning, [`open_hitl_operation_ids`] rescans everything currently present
+//! in `agent_oplog` up to `up_to` for `*Requested` entries with no matching
+//! `*Resolved` (or, for `TaskDoubted`, no matching `TaskComplete`/`TaskFail`)
+//! counterpart, and those specific rows are excluded from the prune via
+//! [`vox_db::VoxDb::prune_agent_oplog_up_to_excluding`]. Approach (a) was
+//! chosen over folding HITL state into the checkpoint (approach (b), which
+//! would need `hitl_rehydrate_on_restart` to become checkpoint-aware too) because
+//! it's the smaller change that fully closes the data-loss hole without
+//! touching `hitl_rehydrate_on_restart`'s existing full-scan contract: an
+//! unresolved row simply stays a real `agent_oplog` row past the checkpoint
+//! boundary (at the cost of `agent_oplog` not shrinking as tightly as it
+//! could while approvals sit open) rather than becoming a second serialized
+//! representation of the same fact that the two code paths could drift apart
+//! on. If open-HITL volume ever grows large enough for this rescan to become
+//! a real cost, revisit folding it into the checkpoint payload the way
+//! [`OpenTaskState`](super::rehydrate::OpenTaskState) already does for tasks
+//! — but do not reintroduce unconditional pruning without either exclusion
+//! mechanism in place.
 
 use super::rehydrate::OpenTaskState;
 
@@ -162,11 +192,90 @@ pub async fn compact_now(
     )
     .await;
 
-    db.prune_agent_oplog_up_to(&repository_id, up_to)
+    // T1.6 follow-up (Bug 2, HIGH — HITL integrity regression): never delete
+    // an `agent_oplog` row that is part of an *unresolved*
+    // `ApprovalRequested`/`FeedbackRequested`/`TaskDoubted` entry, even if its
+    // `operation_id <= up_to`. `hitl_rehydrate_on_restart`
+    // (`vox-orchestrator-mcp/src/hitl_rehydrate.rs`) scans the full durable
+    // op-log for exactly these unresolved pairs on boot — pruning them out
+    // from under it would silently, permanently destroy a parked human
+    // approval or open feedback item with no trace anywhere and no error. See
+    // `open_hitl_operation_ids` below for the scan.
+    let open_hitl_op_ids = open_hitl_operation_ids(&db, &repository_id, up_to).await?;
+
+    db.prune_agent_oplog_up_to_excluding(&repository_id, up_to, &open_hitl_op_ids)
         .await
         .map_err(|e| e.to_string())?;
 
     Ok(())
+}
+
+/// Scan every `agent_oplog` row currently present with `operation_id <=
+/// up_to` and return the `operation_id`s of `ApprovalRequested`/
+/// `FeedbackRequested`/`TaskDoubted` entries that have no matching
+/// `*Resolved`/resolving entry in that same range — i.e. still "open" as of
+/// this compaction. These are the rows `compact_now` must exclude from
+/// pruning (T1.6 follow-up, Bug 2).
+///
+/// A full-history scan bounded by `up_to`, not a tail-only scan since the
+/// last checkpoint: an approval requested in an *earlier* checkpoint interval
+/// and still unresolved only still exists in `agent_oplog` today because that
+/// earlier compaction already excluded it from its own prune — a tail-only
+/// view would miss it entirely and let this compaction delete it, which is
+/// exactly the bug this exists to prevent.
+///
+/// `TaskDoubted` has no dedicated `*Resolved` variant in
+/// [`crate::oplog::OperationKind`]; per the task brief, a doubt is treated as
+/// resolved once a `TaskComplete`/`TaskFail` for the same `task_id` appears
+/// (the verification pass the doubt forced has run its course).
+async fn open_hitl_operation_ids(
+    db: &vox_db::VoxDb,
+    repository_id: &str,
+    up_to: u64,
+) -> Result<Vec<u64>, String> {
+    use crate::oplog::OperationKind;
+
+    let entries = vox_orchestrator_queue::oplog::list_from_db_up_to(db, repository_id, up_to)
+        .await?
+        .into_iter()
+        .filter(|e| e.id.0 <= up_to)
+        .collect::<Vec<_>>();
+
+    // id -> operation_id of the *Requested row, removed once a matching
+    // resolution is observed later in the (oldest-first) scan.
+    let mut open_approvals: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+    let mut open_feedback: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+    let mut open_doubts: std::collections::HashMap<u64, u64> = std::collections::HashMap::new();
+
+    for entry in &entries {
+        match &entry.kind {
+            OperationKind::ApprovalRequested { approval_id, .. } => {
+                open_approvals.insert(approval_id.clone(), entry.id.0);
+            }
+            OperationKind::ApprovalResolved { approval_id, .. } => {
+                open_approvals.remove(approval_id);
+            }
+            OperationKind::FeedbackRequested { request_id, .. } => {
+                open_feedback.insert(request_id.clone(), entry.id.0);
+            }
+            OperationKind::FeedbackResolved { request_id, .. } => {
+                open_feedback.remove(request_id);
+            }
+            OperationKind::TaskDoubted { task_id, .. } => {
+                open_doubts.insert(*task_id, entry.id.0);
+            }
+            OperationKind::TaskComplete { task_id } | OperationKind::TaskFail { task_id, .. } => {
+                open_doubts.remove(task_id);
+            }
+            _ => {}
+        }
+    }
+
+    Ok(open_approvals
+        .into_values()
+        .chain(open_feedback.into_values())
+        .chain(open_doubts.into_values())
+        .collect())
 }
 
 fn fold_into(state: OpenTaskState, entries: &[crate::oplog::OperationEntry]) -> OpenTaskState {

@@ -506,27 +506,117 @@ impl crate::VoxDb {
     /// Delete `agent_oplog` rows for `repository_id` whose numeric `operation_id`
     /// suffix is `<= op_id_lo` (T1.6 warm-tier pruning after a checkpoint covers
     /// them). Returns the number of rows deleted.
+    ///
+    /// Prefer [`Self::prune_agent_oplog_up_to_excluding`] from any caller that
+    /// must preserve specific rows within the pruned range (e.g. unresolved
+    /// HITL approval/feedback/doubt entries — T1.6 follow-up Bug 2). This
+    /// unconditional variant is kept for callers (and existing tests) that
+    /// intentionally want a hard prune with no exclusions.
     pub async fn prune_agent_oplog_up_to(
         &self,
         repository_id: &str,
         op_id_lo: u64,
     ) -> Result<u64, StoreError> {
+        self.prune_agent_oplog_up_to_excluding(repository_id, op_id_lo, &[])
+            .await
+    }
+
+    /// [`Self::prune_agent_oplog_up_to`], but never deletes a row whose
+    /// numeric `operation_id` suffix appears in `exclude_op_ids` — used to
+    /// keep unresolved `ApprovalRequested`/`FeedbackRequested`/`TaskDoubted`
+    /// rows alive across a checkpoint compaction even when they fall at or
+    /// below `op_id_lo` (T1.6 follow-up, Bug 2: pruning was previously
+    /// unconditional on `operation_id <= up_to`, with no awareness of
+    /// whether a HITL `*Requested` entry in that range had a matching
+    /// `*Resolved` entry — an unresolved approval parked before a restart
+    /// could be silently, permanently deleted by the next compaction, with no
+    /// trace anywhere and no error). Returns the number of rows actually
+    /// deleted (excluded rows are not counted).
+    pub async fn prune_agent_oplog_up_to_excluding(
+        &self,
+        repository_id: &str,
+        op_id_lo: u64,
+        exclude_op_ids: &[u64],
+    ) -> Result<u64, StoreError> {
         let repository_id = repository_id.to_string();
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
+        if exclude_op_ids.is_empty() {
+            return breaker
+                .call(|| async move {
+                    let affected = conn
+                        .execute(
+                            "DELETE FROM agent_oplog \
+                               WHERE repository_id=?1 \
+                                 AND CAST(SUBSTR(operation_id, 4) AS INTEGER) <= ?2",
+                            params![repository_id.as_str(), op_id_lo as i64],
+                        )
+                        .await?;
+                    Ok::<u64, StoreError>(affected)
+                })
+                .await;
+        }
+
+        // Build a NOT IN (...) clause. `exclude_op_ids` comes from a bounded
+        // scan of one checkpoint interval's worth of open HITL entries, so
+        // this list is never large enough to threaten SQLite's parameter-count
+        // limit in practice.
+        let placeholders = (0..exclude_op_ids.len())
+            .map(|i| format!("?{}", i + 3))
+            .collect::<Vec<_>>()
+            .join(",");
+        let sql = format!(
+            "DELETE FROM agent_oplog \
+               WHERE repository_id=?1 \
+                 AND CAST(SUBSTR(operation_id, 4) AS INTEGER) <= ?2 \
+                 AND CAST(SUBSTR(operation_id, 4) AS INTEGER) NOT IN ({placeholders})"
+        );
+        let exclude_op_ids = exclude_op_ids.to_vec();
         breaker
             .call(|| async move {
-                let affected = conn
-                    .execute(
-                        "DELETE FROM agent_oplog \
-                           WHERE repository_id=?1 \
-                             AND CAST(SUBSTR(operation_id, 4) AS INTEGER) <= ?2",
-                        params![repository_id.as_str(), op_id_lo as i64],
-                    )
-                    .await?;
+                let mut bound: Vec<turso::Value> =
+                    vec![repository_id.as_str().into(), (op_id_lo as i64).into()];
+                bound.extend(exclude_op_ids.iter().map(|id| turso::Value::from(*id as i64)));
+                let affected = conn.execute(&sql, bound).await?;
                 Ok::<u64, StoreError>(affected)
             })
             .await
+    }
+
+    /// List `agent_oplog` rows for `repository_id` whose numeric
+    /// `operation_id` suffix is `<= up_to`, oldest-first. Used by T1.6's
+    /// `compact_now` to scan the range about to be pruned for unresolved HITL
+    /// entries (Bug 2 follow-up) before deleting anything — a full-history
+    /// scan bounded by `up_to` rather than `list_oplog_entries_since`'s
+    /// tail-only view, since an approval requested in an earlier checkpoint
+    /// interval and still unresolved would otherwise be invisible to a
+    /// tail-only scan (it already survived the earlier compaction specifically
+    /// *because* it was excluded from that prune).
+    pub async fn list_oplog_entries_up_to(
+        &self,
+        repository_id: &str,
+        up_to: u64,
+    ) -> Result<Vec<Vec<Option<String>>>, StoreError> {
+        let mut cursor = self
+            .conn
+            .query(
+                "SELECT operation_id, agent_id, kind, description, predecessor_hash, model_id,
+                          CAST(change_id AS TEXT), CAST(timestamp_ms AS TEXT), CAST(undone AS TEXT)
+                   FROM agent_oplog
+                   WHERE repository_id=?1
+                     AND CAST(SUBSTR(operation_id, 4) AS INTEGER) <= ?2
+                   ORDER BY CAST(SUBSTR(operation_id, 4) AS INTEGER) ASC",
+                params![repository_id, up_to as i64],
+            )
+            .await?;
+        let mut out = Vec::new();
+        while let Some(row) = cursor.next().await? {
+            let cols: Vec<Option<String>> = (0..9)
+                .map(|i| row.get::<Option<String>>(i).unwrap_or(None))
+                .collect();
+            out.push(cols);
+        }
+        Ok(out)
     }
 
     // ── Actor State (actor_state) ─────────────────────────────────────────────

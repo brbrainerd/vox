@@ -165,6 +165,222 @@ async fn resolved_approval_does_not_reappear_after_restart() {
     drop(dir);
 }
 
+/// T1.6 follow-up regression (Bug 2, HIGH — HITL integrity regression):
+/// `compact_now` used to prune `agent_oplog` rows purely by `operation_id <=
+/// up_to`, with no awareness of whether an `ApprovalRequested` entry in that
+/// range had a matching `ApprovalResolved`. Since checkpoint state only
+/// captures task lifecycle (`OpenTaskState`), an unresolved approval whose
+/// `Requested` row fell at or before `up_to` at compaction time was
+/// permanently deleted with no trace — `hitl_rehydrate_on_restart`'s
+/// full-history scan has no checkpoint awareness and simply wouldn't see
+/// what had been pruned.
+///
+/// This records an `ApprovalRequested` with no matching `ApprovalResolved`,
+/// pads with enough subsequent ops that `up_to` naturally includes the
+/// unresolved approval's row, calls `compact_now`, then verifies the
+/// unresolved approval is STILL findable via the normal
+/// `with_db_initialized` -> `rehydrate_open_hitl_from_oplog` restart path
+/// (not silently gone).
+#[tokio::test]
+async fn unresolved_approval_survives_compaction_and_is_rehydrated() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let db_path = dir.path().join("t16-bug2-unresolved-approval.db");
+    let db = Arc::new(
+        vox_db::VoxDb::connect(vox_db::DbConfig::Local {
+            path: db_path.to_string_lossy().to_string(),
+        })
+        .await
+        .expect("open db"),
+    );
+
+    let state = ServerState::new_full(vox_orchestrator_mcp::load_config())
+        .with_db_initialized(db.clone())
+        .await;
+
+    let approval_id = "t16-bug2-approval-unresolved".to_string();
+    state
+        .orchestrator
+        .record_operation(
+            vox_orchestrator_types::AgentId(0),
+            vox_orchestrator::oplog::OperationKind::ApprovalRequested {
+                approval_id: approval_id.clone(),
+                tool: "vox_run_shell".to_string(),
+                run_id: None,
+            },
+            "approval requested, never resolved (simulated crash)",
+            None,
+            None,
+            None,
+            None,
+        )
+        .await;
+
+    // Pad with enough subsequent durable ops that `up_to` naturally covers
+    // the unresolved approval's row (not just happens to sit right at the
+    // boundary).
+    for i in 0..20 {
+        state
+            .orchestrator
+            .record_operation(
+                vox_orchestrator_types::AgentId(0),
+                vox_orchestrator::oplog::OperationKind::Custom {
+                    label: format!("t16-bug2-pad-{i}"),
+                },
+                format!("padding op {i}"),
+                None,
+                None,
+                None,
+                None,
+            )
+            .await;
+    }
+
+    let repo = vox_orchestrator::lineage::repository_id();
+    let up_to = db
+        .max_agent_oplog_id(&repo)
+        .await
+        .expect("max_agent_oplog_id")
+        .expect("should have durable rows by now");
+
+    vox_orchestrator::orchestrator::core::checkpoint::compact_now(&state.orchestrator, up_to)
+        .await
+        .expect("compact_now should succeed");
+
+    // The unresolved approval's row must still be present in agent_oplog —
+    // not silently deleted by the compaction that just ran.
+    let rows_after = db
+        .list_oplog_entries(None, &repo, 10_000)
+        .await
+        .expect("list_oplog_entries");
+    let approval_row_still_present = rows_after.iter().any(|r| {
+        r.get(2)
+            .and_then(|v| v.as_deref())
+            .map(|k| k.contains(&approval_id))
+            .unwrap_or(false)
+    });
+    assert!(
+        approval_row_still_present,
+        "unresolved ApprovalRequested row for {approval_id} must survive compaction \
+         even though its operation_id <= up_to"
+    );
+
+    // "Restart": a fresh ServerState re-attached to the same durable DB must
+    // still be able to rehydrate the unresolved approval via the normal
+    // full-history scan path.
+    let restarted = ServerState::new_full(vox_orchestrator_mcp::load_config())
+        .with_db_initialized(db.clone())
+        .await;
+    let after_restart = restarted.pending_approvals.list();
+    assert!(
+        after_restart.iter().any(|p| p.approval_id == approval_id),
+        "approval {approval_id} was unresolved at compaction time; it must still be \
+         visible after a restart following compaction, got: {after_restart:?}"
+    );
+    drop(dir);
+}
+
+/// T1.6 follow-up positive test (Bug 2 overcorrection guard): a RESOLVED
+/// approval whose row falls within the pruned range must still be pruned
+/// normally — proving the Bug 2 fix excludes only genuinely open HITL rows,
+/// not disabling pruning entirely.
+#[tokio::test]
+async fn resolved_approval_is_still_pruned_by_compaction() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let db_path = dir.path().join("t16-bug2-resolved-approval-pruned.db");
+    let db = Arc::new(
+        vox_db::VoxDb::connect(vox_db::DbConfig::Local {
+            path: db_path.to_string_lossy().to_string(),
+        })
+        .await
+        .expect("open db"),
+    );
+
+    let state = ServerState::new_full(vox_orchestrator_mcp::load_config())
+        .with_db_initialized(db.clone())
+        .await;
+
+    let approval_id = "t16-bug2-approval-resolved".to_string();
+    state
+        .orchestrator
+        .record_operation(
+            vox_orchestrator_types::AgentId(0),
+            vox_orchestrator::oplog::OperationKind::ApprovalRequested {
+                approval_id: approval_id.clone(),
+                tool: "vox_run_shell".to_string(),
+                run_id: None,
+            },
+            "approval requested",
+            None,
+            None,
+            None,
+            None,
+        )
+        .await;
+    state
+        .orchestrator
+        .record_operation(
+            vox_orchestrator_types::AgentId(0),
+            vox_orchestrator::oplog::OperationKind::ApprovalResolved {
+                approval_id: approval_id.clone(),
+                outcome: "approved".to_string(),
+                resolver: Some("test".to_string()),
+            },
+            "approval resolved",
+            None,
+            None,
+            None,
+            None,
+        )
+        .await;
+
+    for i in 0..20 {
+        state
+            .orchestrator
+            .record_operation(
+                vox_orchestrator_types::AgentId(0),
+                vox_orchestrator::oplog::OperationKind::Custom {
+                    label: format!("t16-bug2-pad-resolved-{i}"),
+                },
+                format!("padding op {i}"),
+                None,
+                None,
+                None,
+                None,
+            )
+            .await;
+    }
+
+    let repo = vox_orchestrator::lineage::repository_id();
+    let up_to = db
+        .max_agent_oplog_id(&repo)
+        .await
+        .expect("max_agent_oplog_id")
+        .expect("should have durable rows by now");
+
+    vox_orchestrator::orchestrator::core::checkpoint::compact_now(&state.orchestrator, up_to)
+        .await
+        .expect("compact_now should succeed");
+
+    let rows_after = db
+        .list_oplog_entries(None, &repo, 10_000)
+        .await
+        .expect("list_oplog_entries");
+    let resolved_rows_still_present = rows_after
+        .iter()
+        .filter(|r| {
+            r.get(2)
+                .and_then(|v| v.as_deref())
+                .map(|k| k.contains(&approval_id))
+                .unwrap_or(false)
+        })
+        .count();
+    assert_eq!(
+        resolved_rows_still_present, 0,
+        "a fully-resolved approval's rows must be pruned normally, not preserved \
+         as if it were still open (overcorrection guard)"
+    );
+}
+
 /// RED test: a soft-HITL clarification request (`ask_clarification`, which
 /// durably records `FeedbackRequested` per T1.1/T1.2) that is never resolved
 /// before a simulated crash is visible again in `FeedbackStore::open_needs_you()`

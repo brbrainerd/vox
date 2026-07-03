@@ -44,6 +44,29 @@ pub async fn list_from_db_since(
     rows_to_entries(rows)
 }
 
+/// [`list_from_db`], but bounded by an inclusive upper `operation_id`
+/// (`op_id <= up_to`), oldest-first, unbounded by `limit` — a full-history
+/// view of everything currently present in `agent_oplog` at or below `up_to`,
+/// as opposed to [`list_from_db_since`]'s tail-only view starting after some
+/// offset. Used by T1.6's `compact_now` (Bug 2 follow-up) to scan for
+/// unresolved HITL `*Requested` entries before pruning: an approval requested
+/// in an *earlier* checkpoint interval and still unresolved would be invisible
+/// to a tail-only scan (it only still exists in the table because the earlier
+/// compaction already excluded it from that prune), so the scan must cover
+/// everything still present up to `up_to`, not just what changed since the
+/// last checkpoint.
+pub async fn list_from_db_up_to(
+    store: &vox_db::VoxDb,
+    repository_id: &str,
+    up_to: u64,
+) -> Result<Vec<OperationEntry>, String> {
+    let rows = store
+        .list_oplog_entries_up_to(repository_id, up_to)
+        .await
+        .map_err(|e| e.to_string())?;
+    rows_to_entries(rows)
+}
+
 fn rows_to_entries(rows: Vec<Vec<Option<String>>>) -> Result<Vec<OperationEntry>, String> {
     let mut entries = Vec::new();
     for row in rows {
