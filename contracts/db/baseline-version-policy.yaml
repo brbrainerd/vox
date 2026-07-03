@@ -5,8 +5,8 @@ schema_version: 1
 policy:
   # Integer stored in DB `schema_version` table after baseline migration succeeds.
   repository_baseline_integer: 81
-  # Keccak-256 of baseline_sql() — updated for 81: feat(capture) agent_operations table.
-  repository_baseline_digest_hex: "0x2d9c4e7bc1ee6d1d66960da327732ff58a54035b47dbdeca7407d1ae418bdced"
+  # Keccak-256 of baseline_sql() — updated for 81: T1.6 checkpoint_blobs table (coordination.sql).
+  repository_baseline_digest_hex: "0xaa25054fb28c219e9cfa03830d1a9c89c4fe43a6357202ce17d56e9938711661"
   # Keccak-256 over `vox_db::schema::baseline_sql()` (= ordered SCHEMA_FRAGMENTS + spec append DDL).
   digest_source: vox_db_schema_manifest_baseline_sql
   # Human-facing product name for the DB API layer.
