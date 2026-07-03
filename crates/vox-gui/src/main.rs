@@ -75,6 +75,12 @@ async fn main() {
             // B4: start the live agent-event stream, re-emitting each AgentEvent
             // as the "vox://agent-events" Tauri event.
             commands::orchestrator::spawn_agent_event_stream(app.handle().clone(), daemon.clone());
+            // T3.1: background supervision task — periodically pings the
+            // cached orchestrator daemon and clears/re-resolves it if it has
+            // gone unreachable, so liveness is actively monitored rather than
+            // only checked reactively the next time a stream/command touches
+            // the daemon.
+            daemon.clone().spawn_supervisor();
             // F2: start the live Scientia-queue watcher, emitting a
             // "vox://scientia-queue" ping when the DB-backed queue changes.
             commands::scientia::spawn_scientia_queue_stream(app.handle().clone());
