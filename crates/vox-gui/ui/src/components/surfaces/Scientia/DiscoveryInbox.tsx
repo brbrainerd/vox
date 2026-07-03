@@ -167,9 +167,10 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
   );
 
   const openReview = useCallback((publicationId: string) => {
+    try { window.localStorage.setItem('vox_discovery_preset_seed', 'review'); } catch { /* ignore */ }
     window.dispatchEvent(
       new CustomEvent('vox://navigate-surface', {
-        detail: { view: 'discovery-review', publicationId },
+        detail: { view: 'activity', publicationId },
       }),
     );
   }, []);

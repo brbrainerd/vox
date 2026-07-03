@@ -15,7 +15,7 @@ import { HarnessRedirect } from '../surfaces/Harness/HarnessRedirect';
 import { BrowserView } from '../surfaces/Browser/BrowserView';
 import { ApprovalsView } from '../surfaces/Approvals/ApprovalsView';
 import { CodeRabbitView } from '../surfaces/CodeRabbit/CodeRabbitView';
-import { ActivitySurface } from '../surfaces/Activity/ActivitySurface';
+import { DiscoverySurface } from '../surfaces/Discovery/DiscoverySurface';
 import { MissionControlPanel } from '../surfaces/MissionControl/MissionControlPanel';
 import { SkillsPluginsView } from '../surfaces/SkillsPlugins/SkillsPluginsView';
 import { PoliciesView } from '../surfaces/Policies/PoliciesView';
@@ -168,7 +168,7 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
     case 'coderabbit':
       return <CodeRabbitView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'activity':
-      return <ActivitySurface pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
+      return <DiscoverySurface pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'needs-you':
       return <NeedsYouSurface onOpenContext={props.onOpenFeedbackContext!} pushToast={props.pushToast} />;
     case 'mission-control':
