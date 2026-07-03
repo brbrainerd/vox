@@ -85,3 +85,38 @@ pub fn prioritize_context(
 
     result
 }
+
+#[cfg(all(test, feature = "token-counting"))]
+mod tests {
+    use super::count_tokens;
+
+    /// T4.2 follow-up (Gap 2): when `token-counting` is compiled in, `count_tokens`
+    /// must use real cl100k_base BPE tokenization, not the
+    /// `split_whitespace().count() * 4 / 3` heuristic fallback. The two diverge
+    /// on inputs with no whitespace (a single long word tokenizes into several
+    /// BPE tokens; the whitespace heuristic reports exactly 1 word -> 1 token).
+    /// This is a build-time proof that the daemon binary (and any other
+    /// consumer that enables this feature) actually exercises the tiktoken-rs
+    /// path described in `crates/vox-orchestrator/Cargo.toml`, not the
+    /// fallback.
+    #[test]
+    fn count_tokens_uses_real_bpe_not_whitespace_heuristic() {
+        let no_whitespace = "supercalifragilisticexpialidocious".repeat(10);
+        let whitespace_heuristic = no_whitespace.split_whitespace().count() * 4 / 3;
+        let real = count_tokens(&no_whitespace);
+        assert_ne!(
+            real, whitespace_heuristic,
+            "count_tokens must diverge from the whitespace-count fallback when \
+             token-counting is enabled — got the same value ({real}), which means \
+             the heuristic fallback is running instead of tiktoken-rs"
+        );
+        // A single "word" with no whitespace: the heuristic degenerates to 1
+        // (word count 1 * 4 / 3 == 1), while real BPE tokenization of ~350
+        // characters of gibberish must produce far more tokens than that.
+        assert!(
+            real > 10,
+            "real tiktoken tokenization of a long no-whitespace string should \
+             produce far more than 10 tokens; got {real}"
+        );
+    }
+}

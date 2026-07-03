@@ -245,6 +245,41 @@ impl SessionManager {
     /// Returns the assembled messages plus the [`crate::compaction::CompactionResult`]
     /// when a compaction pass actually ran (`None` when the session was under
     /// threshold and no compaction was needed).
+    ///
+    /// ## T4.2 follow-up review (2026-07-03): no production caller today
+    ///
+    /// An adversarial re-review confirmed this method has exactly one caller
+    /// in the workspace: [`context_compaction_wiring_test`](../../../tests/context_compaction_wiring_test.rs)
+    /// (the T4.2 acceptance test). This was audited, not assumed:
+    ///
+    /// - The two real production `llm_chat` call sites in `vox-orchestrator`
+    ///   (`orchestrator/task_dispatch/submit/goal.rs`'s CRAG relevance
+    ///   evaluator + LLM plan synthesizer, and the identical plan synthesizer
+    ///   in `orchestrator/task_dispatch/submit/dei_plan_materialize.rs`) are
+    ///   genuinely single-shot, stateless prompt/response calls (one query +
+    ///   one retrieved document -> one relevance word; one goal ->
+    ///   synthesized plan nodes). Neither accumulates conversation turns, and
+    ///   `Orchestrator` does not hold a `SessionManager` at all — its
+    ///   `session_id: Option<String>` params are Codex/plan-persistence
+    ///   correlation IDs, unrelated to `SessionManager`'s own session-id
+    ///   space. Wiring these through `assemble_llm_messages` would be a
+    ///   no-op at best (no accumulated turns to compact) and a false
+    ///   semantic link at worst (conflating two unrelated "session_id"
+    ///   concepts). Out of scope by design, not by oversight.
+    /// - `SessionManager` itself is held by `vox-orchestrator-mcp`'s
+    ///   `ServerState` (a real, turn-accumulating session store used by
+    ///   GUI/CLI-facing chat surfaces), but that crate has **zero**
+    ///   `llm_chat`/`llm_stream` call sites — it's an MCP tool-dispatch
+    ///   layer, not an LLM chat driver. The genuine multi-turn conversation
+    ///   loop that should call `assemble_llm_messages` before its `llm_chat`
+    ///   call does not exist yet in this codebase.
+    ///
+    /// Net: the mechanism is real, tested end-to-end (including a real
+    /// `llm_chat` call over the compacted message list), and its data
+    /// structure/losslessness properties are sound. What's still open is a
+    /// production integration point, which requires a real multi-turn chat
+    /// surface to exist first — building one is out of scope for a T4.2
+    /// follow-up. Tracked for a future task once such a surface lands.
     #[cfg(feature = "runtime")]
     pub fn assemble_llm_messages(
         &mut self,

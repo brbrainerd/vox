@@ -474,6 +474,23 @@ the boundary, not bytes-per-token). GUI surfacing follows the existing
 (Context-Window Editor + `ContextWindowMeter`) — no new UI under this plan.
 - *Acceptance:* a driven-over-the-limit conversation completes with a compaction
   event; dropped turns are retrievable.
+- *2026-07-03 follow-up review:* landed as `968d5990b6` with a sound, tested
+  `CompactionEngine`/`assemble_llm_messages` mechanism, but two acceptance
+  gaps were found and closed: (1) `token-counting` (real per-model
+  tokenization) was never actually enabled for the daemon binary despite a
+  comment claiming otherwise — fixed by explicit feature-forwarding from
+  `vox-orchestrator-d`'s `Cargo.toml` through both its `vox-orchestrator` and
+  `vox-orchestrator-mcp` dependency edges (verified via
+  `cargo tree -p vox-orchestrator-d -e features`). (2) `assemble_llm_messages`
+  has no production caller: audited both real `llm_chat` sites in
+  `vox-orchestrator` (`goal.rs` CRAG evaluator + plan synthesizer,
+  `dei_plan_materialize.rs` plan synthesizer) and confirmed they are
+  genuinely single-shot/stateless, and that `SessionManager` (held by
+  `vox-orchestrator-mcp`'s `ServerState`) has no `llm_chat`/`llm_stream`
+  caller at all — there is no multi-turn chat surface in this codebase yet to
+  wire it into. Left unwired by design; documented at
+  `SessionManager::assemble_llm_messages` and tracked as a follow-up for when
+  a real multi-turn LLM chat surface exists.
 
 **T4.3 — Per-tool timeouts from metadata.** Wrap dispatch (`dispatch.rs:237-244`)
 in a timeout sourced per-tool from the registry/action-manifest

@@ -24,6 +24,9 @@ news-publish = [
 toestub-gate = ["vox-orchestrator/toestub-gate"]
 json-schema = ["vox-orchestrator/json-schema"]
 populi-transport = ["vox-orchestrator/populi-transport", "vox-populi/transport"]
+# Per-model token estimation (tiktoken-rs) for context-window compaction.
+# Mirrors vox-orchestrator/token-counting; shipping binaries opt in.
+token-counting = ["vox-orchestrator/token-counting"]
 oratio-rerank = ["dep:vox-speech"]
 gui-visual-review = []
 # Chromium CDP browser automation (`vox_browser_*`, ~1.1k LoC). OFF by default so
