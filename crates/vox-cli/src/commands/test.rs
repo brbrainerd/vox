@@ -25,7 +25,15 @@ async fn run_once(args: &crate::cli_args::TestArgs) -> Result<()> {
         );
     }
 
-    println!("Building for tests: {}...", file.display());
+    let json = crate::pipeline::global_json_enabled();
+
+    crate::vox_note!(json, "Building for tests: {}...", file.display());
+    // `build::run` already emits exactly one `"command":"build"` envelope on
+    // stdout under `--json` (success or failure — see build.rs). If it fails
+    // here, that envelope has already been printed and fully describes the
+    // failure, so we must propagate the error WITHOUT printing a second,
+    // redundant `"command":"test"` envelope — the test-run stage was never
+    // reached.
     build::run(
         file,
         &out_dir,
@@ -41,7 +49,7 @@ async fn run_once(args: &crate::cli_args::TestArgs) -> Result<()> {
     .await?;
 
     let generated_dir = Path::new("target").join("generated");
-    println!("Running tests in {}...", generated_dir.display());
+    crate::vox_note!(json, "Running tests in {}...", generated_dir.display());
 
     let mut cmd = Command::new("cargo");
     cmd.arg("test").current_dir(&generated_dir);
@@ -64,6 +72,22 @@ async fn run_once(args: &crate::cli_args::TestArgs) -> Result<()> {
     }
 
     let status = cmd.status().context("Failed to execute cargo test")?;
+
+    if json {
+        // The preceding build stage already emitted its own `"command":"build"`
+        // envelope only on failure (see above); reaching this point means the
+        // build succeeded and produced no envelope yet, so this is the single
+        // envelope for the run — reporting the actual test outcome.
+        println!(
+            "{}",
+            crate::pipeline::format_command_result_envelope_json(
+                "test",
+                file,
+                status.success(),
+                status.code(),
+            )
+        );
+    }
 
     if !status.success() {
         anyhow::bail!("Tests failed with exit code: {:?}", status.code());

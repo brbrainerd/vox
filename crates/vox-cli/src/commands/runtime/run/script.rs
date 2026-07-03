@@ -246,12 +246,13 @@ pub(crate) async fn compile(
     file: &Path,
     opts: &ScriptOpts,
 ) -> Result<(PathBuf, Box<dyn RunBackend>)> {
+    let json = crate::pipeline::global_json_enabled();
     let pipeline_opts = vox_compiler::pipeline::PipelineOptions {
         script_mode: true,
         ..Default::default()
     };
     let result: crate::pipeline::FrontendResult =
-        crate::pipeline::run_frontend_with_options(file, false, &pipeline_opts).await?;
+        crate::pipeline::run_frontend_with_options(file, json, &pipeline_opts).await?;
 
     if !result.module.has_entrypoint() {
         anyhow::bail!(
@@ -261,7 +262,18 @@ pub(crate) async fn compile(
     }
 
     if result.has_errors() {
-        crate::pipeline::print_diagnostics(&result, file, false);
+        // Compile/frontend failure: this is the ONLY place `compile` emits a
+        // JSON envelope. On success, execution proceeds to the script's own
+        // stdout — which must never be wrapped in an envelope, since that
+        // would corrupt the script's real program output.
+        if json {
+            println!(
+                "{}",
+                crate::pipeline::format_build_lane_envelope_json("run", file, &result, None)
+            );
+        } else {
+            crate::pipeline::print_diagnostics(&result, file, false);
+        }
         anyhow::bail!("Type checking failed");
     }
 
