@@ -955,6 +955,10 @@ jobs:
         if: needs.setup.outputs.full == 'true'
         run: ./target/debug/vox --quiet ci fan-in-budget
 
+      - name: Crate edge ratchet + layer rule
+        if: needs.setup.outputs.full == 'true'
+        run: ./target/debug/vox --quiet ci crate-edges
+
       - name: Plugin-candidacy classifier (advisory — non-gating)
         if: needs.setup.outputs.full == 'true'
         run: ./target/debug/vox --quiet run --mode interp scripts/plugin-candidacy.vox
