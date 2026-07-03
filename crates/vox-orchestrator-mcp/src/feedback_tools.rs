@@ -187,11 +187,36 @@ pub async fn resolve_feedback(state: &ServerState, params: ResolveFeedbackParams
         if let (vox_orchestrator::feedback::FeedbackAction::Overrule, Some(tid)) =
             (&action, req.doubted_task_id)
         {
-            if let Err(e) = state
+            match state
                 .orchestrator
                 .overrule_task(tid, Some("Overruled by user via Needs You".to_string()))
             {
-                tracing::error!("Failed to overrule task {}: {:?}", tid.0, e);
+                Ok(outcome) => {
+                    // T1.2 follow-up: durable TaskComplete BEFORE the bus broadcast.
+                    // `Orchestrator::overrule_task` is sync (it holds a queue write-lock
+                    // across the mutation) and no longer emits on the event bus itself;
+                    // it returns an `OverruleOutcome` we durably record here, then
+                    // broadcast via `emit_overrule_events` only after the oplog write
+                    // completes.
+                    state
+                        .orchestrator
+                        .record_operation(
+                            outcome.agent_id,
+                            vox_orchestrator::oplog::OperationKind::TaskComplete {
+                                task_id: tid.0,
+                            },
+                            format!("Task {} overruled", tid.0),
+                            None,
+                            None,
+                            None,
+                            None,
+                        )
+                        .await;
+                    state.orchestrator.emit_overrule_events(&outcome);
+                }
+                Err(e) => {
+                    tracing::error!("Failed to overrule task {}: {:?}", tid.0, e);
+                }
             }
         }
     }

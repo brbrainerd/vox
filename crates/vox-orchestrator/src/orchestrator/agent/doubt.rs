@@ -15,6 +15,20 @@ pub struct DoubtOutcome {
     pub reason: Option<String>,
 }
 
+/// State-mutation result of [`Orchestrator::overrule_task`], carrying everything
+/// needed to durably record the transition *before* broadcasting it (T1.2:
+/// two-tier append-before-broadcast). `overrule_task` itself stays sync (it holds
+/// a queue write-lock across the mutation) so it cannot `.await` the durable
+/// oplog write; callers are expected to call `record_operation` with this
+/// outcome's fields and only then call [`Orchestrator::emit_overrule_events`].
+#[derive(Debug, Clone)]
+pub struct OverruleOutcome {
+    pub task_id: TaskId,
+    pub agent_id: AgentId,
+    pub session_id: Option<String>,
+    pub audit_report: Option<String>,
+}
+
 impl crate::orchestrator::Orchestrator {
     /// Flag a task as "Suspect" by the user, triggering a resolution loop.
     ///
@@ -159,11 +173,16 @@ impl crate::orchestrator::Orchestrator {
     }
 
     /// Overrule a human doubt or agent failure, force-validating the result.
+    ///
+    /// Does **not** broadcast `TaskCompleted` on the event bus — callers must
+    /// durably record the transition first via `record_operation`, then call
+    /// [`Orchestrator::emit_overrule_events`] with the returned
+    /// [`OverruleOutcome`] (T1.2: Tier-A durable-before-broadcast).
     pub fn overrule_task(
         &self,
         task_id: TaskId,
         reason: Option<String>,
-    ) -> Result<(), OrchestratorError> {
+    ) -> Result<OverruleOutcome, OrchestratorError> {
         let agent_id = crate::sync_lock::rw_read(&self.task_assignments)
             .get(&task_id)
             .copied()
@@ -211,17 +230,35 @@ impl crate::orchestrator::Orchestrator {
             "Task overruled by human: moving to Completed status."
         );
 
-        // Since it's completed, we don't re-enqueue. We record it as a completion attestation event.
-        self.event_bus
-            .emit(crate::events::AgentEventKind::TaskCompleted {
-                task_id,
-                agent_id,
-                session_id: task.session_id.clone(),
-                audit_report: task.audit_report.clone(),
-            });
+        // Since it's completed, we don't re-enqueue. Callers durably record this as a
+        // completion attestation (via `record_operation`) before broadcasting it with
+        // `emit_overrule_events` — see the T1.2 tier-A contract on
+        // [`crate::events::is_tier_a`].
+        let session_id = task.session_id.clone();
+        let audit_report = task.audit_report.clone();
 
         crate::sync_lock::rw_write(&self.task_assignments).remove(&task_id);
 
-        Ok(())
+        Ok(OverruleOutcome {
+            task_id,
+            agent_id,
+            session_id,
+            audit_report,
+        })
+    }
+
+    /// Broadcast the `TaskCompleted` bus event for an [`OverruleOutcome`]
+    /// previously returned by [`Orchestrator::overrule_task`]. Callers MUST
+    /// call this only *after* durably recording the transition (via
+    /// `record_operation`) — see the T1.2 tier-A contract on
+    /// [`crate::events::is_tier_a`].
+    pub fn emit_overrule_events(&self, outcome: &OverruleOutcome) {
+        self.event_bus
+            .emit(crate::events::AgentEventKind::TaskCompleted {
+                task_id: outcome.task_id,
+                agent_id: outcome.agent_id,
+                session_id: outcome.session_id.clone(),
+                audit_report: outcome.audit_report.clone(),
+            });
     }
 }

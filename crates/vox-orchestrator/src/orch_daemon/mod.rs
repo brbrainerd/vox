@@ -715,7 +715,23 @@ pub async fn dispatch_request(
                 .and_then(|x| x.as_str())
                 .map(ToString::to_string);
             match orch.overrule_task(TaskId(task_id), reason) {
-                Ok(()) => response_result(&req.id, serde_json::json!({ "ok": true })),
+                Ok(outcome) => {
+                    // T1.2 follow-up: durable TaskComplete BEFORE the bus broadcast,
+                    // mirroring the MCP resolve-feedback overrule wiring in
+                    // feedback_tools.rs for this call path too.
+                    orch.record_operation(
+                        outcome.agent_id,
+                        crate::oplog::OperationKind::TaskComplete { task_id },
+                        format!("Task {} overruled", task_id),
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
+                    .await;
+                    orch.emit_overrule_events(&outcome);
+                    response_result(&req.id, serde_json::json!({ "ok": true }))
+                }
                 Err(e) => response_err(&req.id, format!("{e}")),
             }
         }

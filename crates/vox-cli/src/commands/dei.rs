@@ -907,8 +907,22 @@ async fn doubt(task_id: u64, reason: Option<String>) -> Result<()> {
 async fn overrule(task_id: u64, reason: String) -> Result<()> {
     let config = load_config();
     let orch = build_repo_scoped_orchestrator_cli(config);
-    orch.overrule_task(TaskId(task_id), Some(reason))
+    let outcome = orch
+        .overrule_task(TaskId(task_id), Some(reason))
         .map_err(|e| anyhow::anyhow!(e))?;
+    // T1.2 follow-up: durable TaskComplete BEFORE the bus broadcast, mirroring
+    // the MCP/daemon overrule wiring (feedback_tools.rs, orch_daemon/mod.rs).
+    orch.record_operation(
+        outcome.agent_id,
+        vox_orchestrator::oplog::OperationKind::TaskComplete { task_id },
+        format!("Task {} overruled", task_id),
+        None,
+        None,
+        None,
+        None,
+    )
+    .await;
+    orch.emit_overrule_events(&outcome);
     println!(
         "{} Task {} overruled and marked as completed.",
         "✓".green().bold(),
