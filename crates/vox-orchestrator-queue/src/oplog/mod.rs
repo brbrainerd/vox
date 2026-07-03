@@ -8,7 +8,7 @@ pub mod sign;
 mod store;
 
 pub use persist::PersistError;
-pub use query::{list_from_db, list_from_db_since};
+pub use query::{list_from_db, list_from_db_since, list_from_db_up_to};
 pub use store::{append_to_db, append_to_db_with_breaker, mark_undone_in_db};
 
 use std::collections::VecDeque;
@@ -281,7 +281,7 @@ pub struct OperationEntry {
 /// Append-only operation log with undo/redo support.
 #[derive(Debug)]
 pub struct OpLog {
-    pub(crate) id_gen: OperationIdGenerator,
+    pub(crate) id_gen: std::sync::Arc<OperationIdGenerator>,
     pub(crate) db_snap_id_gen: AtomicU64,
     pub(crate) entries: VecDeque<OperationEntry>,
     pub(crate) max_entries: usize,

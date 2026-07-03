@@ -84,9 +84,21 @@ pub async fn compact_now(ctx: Arc<PersistContext>, up_to: OperationId) -> Result
     let daemon_id_hex = hex::encode(ctx.daemon_id);
     let payload_blake3_hex = hex::encode(blake3::hash(kind_json.as_bytes()).as_bytes());
 
-    // The Checkpoint marker itself gets the next op_id (up_to + 1) so it never
-    // collides with — or gets pruned alongside — the range it summarizes.
-    let checkpoint_op_id = up_to.0 + 1;
+    // The Checkpoint marker itself gets the next id minted through the
+    // *same* `OperationIdGenerator` every other durable write on this OpLog
+    // uses (`ctx.id_gen`, shared via `Arc` from `OpLog::with_db`) — never a
+    // freestanding `up_to.0 + 1`. Minting out-of-band never advanced the
+    // generator's atomic counter, so the very next `record_persisted` call
+    // minted the *same* id; `insert_convergence_op_log`'s `INSERT OR IGNORE`
+    // then silently swallowed the collision, dropping that op with no error
+    // (T1.6 follow-up, Bug 1 — deterministic on every compaction, not a rare
+    // race, mirroring the fix already applied to the sibling production path
+    // in `vox-orchestrator/src/orchestrator/core/checkpoint.rs`).
+    let checkpoint_op_id = ctx.id_gen.next().0;
+    debug_assert!(
+        checkpoint_op_id > up_to.0,
+        "checkpoint marker id must not collide with the range it summarizes"
+    );
     ctx.db
         .insert_convergence_op_log(
             checkpoint_op_id as i64,

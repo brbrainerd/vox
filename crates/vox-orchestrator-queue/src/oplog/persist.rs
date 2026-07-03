@@ -16,7 +16,7 @@ use vox_orchestrator_types::{AgentId, ChangeId, SnapshotId};
 
 use crate::projection::ProjectionRegistry;
 
-use super::{OpLog, OperationEntry, OperationId, OperationKind};
+use super::{OpLog, OperationEntry, OperationId, OperationIdGenerator, OperationKind};
 
 const DEFAULT_COMPACTION_INTERVAL: u64 = 1_000_000;
 
@@ -39,6 +39,16 @@ pub struct PersistContext {
     /// prunes warm rows, but has nothing to restore state from — set this via
     /// [`Self::with_projections`] to get a real, restorable checkpoint.
     pub projections: Option<Arc<ProjectionRegistry>>,
+    /// The *same* [`OperationIdGenerator`] instance backing the owning
+    /// [`OpLog`] (shared via `Arc`, wired in [`OpLog::with_db`]/
+    /// [`OpLog::reseed_id_gen_from_highest`]). `checkpoint::compact_now` mints
+    /// its `Checkpoint` marker's id through this — never via freestanding
+    /// arithmetic like `up_to.0 + 1` — so the marker's id always advances the
+    /// same atomic counter every other `record`/`record_persisted` call uses.
+    /// Minting out-of-band let the very next `record_persisted` call reuse the
+    /// same id, and `insert_convergence_op_log`'s `INSERT OR IGNORE` silently
+    /// swallowed the resulting collision (T1.6 follow-up, Bug 1).
+    pub id_gen: Arc<OperationIdGenerator>,
 }
 
 impl std::fmt::Debug for PersistContext {
@@ -55,6 +65,20 @@ impl std::fmt::Debug for PersistContext {
 
 impl PersistContext {
     pub fn new(db: VoxDb, daemon_id: [u8; 16], set_id: [u8; 16]) -> Self {
+        Self::with_id_gen(db, daemon_id, set_id, Arc::new(OperationIdGenerator::new()))
+    }
+
+    /// Like [`Self::new`], but shares an existing [`OperationIdGenerator`]
+    /// (e.g. the owning [`OpLog`]'s) instead of minting a fresh one. Callers
+    /// that construct a `PersistContext` outside of [`OpLog::with_db`] should
+    /// use this to keep the checkpoint marker's id allocation on the same
+    /// counter as every other durable write.
+    pub fn with_id_gen(
+        db: VoxDb,
+        daemon_id: [u8; 16],
+        set_id: [u8; 16],
+        id_gen: Arc<OperationIdGenerator>,
+    ) -> Self {
         Self {
             db,
             daemon_id,
@@ -62,6 +86,7 @@ impl PersistContext {
             compaction_interval: DEFAULT_COMPACTION_INTERVAL,
             repository_id: "default".to_string(),
             projections: None,
+            id_gen,
         }
     }
 
@@ -83,7 +108,12 @@ impl OpLog {
     /// [`Self::reseed_id_gen_from_highest`] themselves.
     pub fn with_db(db: VoxDb, hot_capacity: usize) -> Self {
         let mut log = OpLog::new(hot_capacity);
-        log.persist = Some(Arc::new(PersistContext::new(db, [0u8; 16], [0u8; 16])));
+        log.persist = Some(Arc::new(PersistContext::with_id_gen(
+            db,
+            [0u8; 16],
+            [0u8; 16],
+            log.id_gen.clone(),
+        )));
         log
     }
 
@@ -116,6 +146,7 @@ impl OpLog {
                 compaction_interval: ctx.compaction_interval,
                 repository_id: ctx.repository_id.clone(),
                 projections: ctx.projections.clone(),
+                id_gen: ctx.id_gen.clone(),
             };
             self.persist = Some(Arc::new(updated));
         }
@@ -144,6 +175,7 @@ impl OpLog {
                 compaction_interval: ctx.compaction_interval,
                 repository_id: ctx.repository_id.clone(),
                 projections: Some(registry),
+                id_gen: ctx.id_gen.clone(),
             };
             self.persist = Some(Arc::new(updated));
         }
