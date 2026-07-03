@@ -192,6 +192,7 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
           onOpenAgentInFlow={props.onOpenAgentInFlow}
           composer={props.chatComposer}
           focusedFeedbackId={props.focusedFeedbackId}
+          gamifyEnabled={props.gamifyEnabled}
         />
       );
     default:

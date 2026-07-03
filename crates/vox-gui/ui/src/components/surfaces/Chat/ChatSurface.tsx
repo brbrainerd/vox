@@ -42,6 +42,7 @@ interface ChatSurfaceProps {
   /** Primary Loquela composer — embedded when global shell dock is hidden on Chat. */
   composer?: React.ReactNode;
   focusedFeedbackId?: string | null;
+  gamifyEnabled?: boolean;
 }
 
 export function ChatSurface({
@@ -60,6 +61,7 @@ export function ChatSurface({
   onOpenAgentInFlow,
   composer,
   focusedFeedbackId,
+  gamifyEnabled,
 }: ChatSurfaceProps) {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [secretaryToast, setSecretaryToast] = useState<SecretaryProposedPayload | null>(null);
@@ -72,6 +74,15 @@ export function ChatSurface({
   const [sessionOverlayOpen, setSessionOverlayOpen] = useState(false);
   const [executionOverlayOpen, setExecutionOverlayOpen] = useState(false);
   const [routingOpen, setRoutingOpen] = useState(false);
+
+  useEffect(() => {
+    if (!routingOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setRoutingOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [routingOpen]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -296,7 +307,7 @@ export function ChatSurface({
                 ✕
               </button>
             </div>
-            <Matrix pushToast={pushToast} />
+            <Matrix pushToast={pushToast} gamifyEnabled={gamifyEnabled} />
           </div>
         </div>
       )}
