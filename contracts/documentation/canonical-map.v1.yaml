@@ -203,7 +203,7 @@ domains:
     generated_docs: []
     aliases: []
     owning_crate_globs:
-      - crates/vox-cli/src/commands/ci/docs_reality_audit.rs
+      - crates/vox-cli-ci/src/docs_reality_audit.rs
 
   - id: diagnostic-id-policy
     title: Diagnostic identifier stability policy

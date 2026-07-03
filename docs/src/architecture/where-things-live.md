@@ -211,7 +211,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | Self-hosted CI runner image | `Dockerfile.ci-runner` (repo root); published via `.github/workflows/publish-ci-runner.yml` to GHCR |
 | Extend `vox ci pre-push` modes / timing JSON | `crates/vox-cli/src/commands/ci/pre_push.rs` — add `Step` to `build_steps` or extend `PrePushOpts` |
 | `vox ci dev-loop-audit` (AI/local compile-loop diagnostics) | `crates/vox-cli/src/commands/ci/dev_loop_audit.rs` |
-| `vox ci docs-reality-audit` (doc/code audit artifacts + metrics) | `crates/vox-cli/src/commands/ci/docs_reality_audit.rs` + `contracts/reports/docs-reality-audit/` |
+| `vox ci docs-reality-audit` (doc/code audit artifacts + metrics) | `crates/vox-cli-ci/src/docs_reality_audit.rs` + `contracts/reports/docs-reality-audit/` |
 | `vox ci parse-status` (golden parse matrix → `examples/PARSE_STATUS.md`) | `crates/vox-cli/src/commands/ci/parse_status.rs` |
 | Find the canonical path for GUI surfaces (interop app, experimental visualizer, fixtures, VS Code host) | [`contracts/frontend/surface-ownership.v1.yaml`](../../../contracts/frontend/surface-ownership.v1.yaml) — `apps/interop/marquee_app`, `apps/experimental/visualizer`, `tests/fixtures/frontend/test_app_bundle`, `apps/editor/vox-vscode` |
 | Vox Console discovery engine — exposure ledger / spaced repetition (FSRS) / suggestion ranking | [`crates/vox-gamify/src/discovery/`](../../../crates/vox-gamify/src/discovery/) (`fsrs.rs`, `rank.rs`, `ledger.rs`); backed by the `discovery_state` table (registered in [`vox-db` manifest](../../../crates/vox-db/src/schema/manifest.rs)). |
