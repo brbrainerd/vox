@@ -26,7 +26,14 @@ impl BudgetManager {
         if let Some(db) = self.db() {
             let key = format!("agent_budget.{}", agent_id.0);
             if let Ok(val) = serde_json::to_string(&allocation) {
-                let _ = db.set_user_preference("local_user", &key, &val).await;
+                if let Err(e) = db.set_user_preference("local_user", &key, &val).await {
+                    // In-memory allocation above already succeeded; the DB write is a
+                    // durability-only side effect. Swallowing the Result here means the
+                    // allocation looks persisted but is silently lost on restart.
+                    // Refs: docs/src/architecture/semantic-gap-audit-2026.md F2-F6;
+                    // vox-axis-harness-reliability-spec-plan-2026-07-02.md T5.1.
+                    log_persistence_failure("budget.set_and_persist_allocation", e);
+                }
             }
         }
     }

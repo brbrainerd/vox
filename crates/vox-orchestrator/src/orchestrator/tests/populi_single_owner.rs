@@ -741,6 +741,137 @@ async fn cancel_populi_remote_delegated_relays_remote_cancel_message() {
     server.abort();
 }
 
+/// T5.4 (harness reliability spec, Phase 5): `cancel_task`'s Populi
+/// remote-relay used to fire-and-forget the cancel HTTP call and log any
+/// failure at `debug!` (invisible by default), so a relay failure was
+/// effectively silent. Point `populi_control_url` at a closed port so the
+/// relay call fails immediately, then assert the failure is now observable
+/// via `tracing::warn!`.
+#[cfg(feature = "populi-transport")]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tracing_test::traced_test]
+async fn cancel_populi_remote_delegated_warns_on_relay_failure() {
+    // Bind and immediately drop a listener to get a port nothing is
+    // listening on, so the relay HTTP call fails deterministically and fast.
+    let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
+        .await
+        .expect("bind seed");
+    let bound = listener.local_addr().expect("local addr");
+    drop(listener);
+    let base = format!("http://{bound}");
+
+    let mut cfg = OrchestratorConfig::for_testing();
+    cfg.populi_remote_execute_experimental = true;
+    cfg.populi_control_url = Some(base);
+    cfg.populi_remote_execute_receiver_agent = Some("2".to_string());
+    cfg.populi_remote_execute_sender_agent = Some("1".to_string());
+    cfg.populi_http_timeout_ms = 500;
+    let orch = Orchestrator::new(cfg);
+    orch.spawn_agent("solo").expect("spawn");
+    let aid = orch.agent_ids()[0];
+
+    let mut task = AgentTask::new(
+        TaskId(9903),
+        "cancel-remote-unreachable",
+        TaskPriority::Normal,
+        vec![],
+    );
+    task.populi_remote_delegate = Some(PopuliRemoteDelegate {
+        idempotency_key: "k9903".into(),
+        lease_id: None,
+        claimer_node_id: None,
+    });
+    {
+        let ql = orch.agent_queue(aid).expect("queue");
+        let mut q = ql.write().unwrap();
+        q.hold_for_populi_remote(task).expect("hold");
+    }
+    orch.task_assignments
+        .write()
+        .unwrap()
+        .insert(TaskId(9903), aid);
+    orch.cancel_task(TaskId(9903)).expect("cancel");
+
+    // The relay runs in a spawned tokio task, which does not inherit the
+    // `#[traced_test]` scope span entered on this task, so read the raw
+    // global log buffer directly rather than the scope-filtered
+    // `logs_contain` helper. Give the spawned task a chance to run and fail
+    // against the unreachable address.
+    let mut saw_warn = false;
+    for _ in 0..40 {
+        let logs = String::from_utf8(
+            tracing_test::internal::global_buf()
+                .lock()
+                .expect("log buf mutex")
+                .clone(),
+        )
+        .expect("utf8 logs");
+        if logs.contains("populi remote_task_cancel relay failed") && logs.contains("WARN") {
+            saw_warn = true;
+            break;
+        }
+        tokio::time::sleep(vox_config::timeouts::D_25MS).await;
+    }
+    assert!(
+        saw_warn,
+        "relay failure must be logged at warn level, not silently discarded"
+    );
+}
+
+/// T5.4 (harness reliability spec, Phase 5): when `populi_control_url` /
+/// `populi_remote_execute_receiver_agent` aren't configured (or the
+/// experimental flag is off), `cancel_task` used to silently skip the
+/// remote-cancel relay entirely — a caller had no way to know the remote
+/// node was never notified. Assert the skip is now logged at warn level.
+#[cfg(feature = "populi-transport")]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tracing_test::traced_test]
+async fn cancel_populi_remote_delegated_warns_when_relay_not_configured() {
+    // `OrchestratorConfig::for_testing()` leaves `populi_control_url` unset
+    // and `populi_remote_execute_experimental` false, i.e. the "no
+    // runtime/config" precondition-not-met case.
+    let orch = Orchestrator::new(OrchestratorConfig::for_testing());
+    orch.spawn_agent("solo").expect("spawn");
+    let aid = orch.agent_ids()[0];
+
+    let mut task = AgentTask::new(
+        TaskId(9904),
+        "cancel-remote-unconfigured",
+        TaskPriority::Normal,
+        vec![],
+    );
+    task.populi_remote_delegate = Some(PopuliRemoteDelegate {
+        idempotency_key: "k9904".into(),
+        lease_id: None,
+        claimer_node_id: None,
+    });
+    {
+        let ql = orch.agent_queue(aid).expect("queue");
+        let mut q = ql.write().unwrap();
+        q.hold_for_populi_remote(task).expect("hold");
+    }
+    orch.task_assignments
+        .write()
+        .unwrap()
+        .insert(TaskId(9904), aid);
+    orch.cancel_task(TaskId(9904)).expect("cancel");
+
+    assert!(
+        logs_contain("populi remote_task_cancel skipped")
+            && logs_contain("populi_remote_execute_experimental disabled"),
+        "no-config/no-runtime skip must be logged at warn level, not silent"
+    );
+    assert!(
+        !orch
+            .task_assignments
+            .read()
+            .unwrap()
+            .contains_key(&TaskId(9904)),
+        "cancellation bookkeeping should still complete locally even though \
+         the remote node was never notified"
+    );
+}
+
 #[cfg(feature = "populi-transport")]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn lease_renew_loss_requeues_locally_and_relays_cancel() {
@@ -1262,6 +1393,8 @@ async fn vram_admission_rejects_oversized_task_and_falls_back_to_local_queue() {
         maintenance: None,
         maintenance_until_unix_ms: None,
         provider: None,
+        gpu_vram_total_mb: None,
+        gpu_model_name: None,
         gpu_total_count: None,
         gpu_healthy_count: None,
         gpu_allocatable_count: None,
@@ -1397,6 +1530,8 @@ async fn vram_admission_allows_task_when_node_meets_requirement() {
         maintenance: None,
         maintenance_until_unix_ms: None,
         provider: None,
+        gpu_vram_total_mb: None,
+        gpu_model_name: None,
         gpu_total_count: None,
         gpu_healthy_count: None,
         gpu_allocatable_count: None,
