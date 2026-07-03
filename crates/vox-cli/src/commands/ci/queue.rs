@@ -359,10 +359,17 @@ pub fn write_snapshot(snap: &QueueSnapshot) -> Result<()> {
     if let Some(parent) = p.parent() {
         std::fs::create_dir_all(parent).ok();
     }
-    let tmp = p.with_extension("json.tmp");
+    // Per-process temp name: concurrent writers (agent sessions + the tick;
+    // dry-run holds no ScaleLock) must never interleave write/rename on a
+    // shared temp file — that can rename a partially-written file into place.
+    let tmp = p.with_extension(format!("json.{}.tmp", std::process::id()));
     std::fs::write(&tmp, serde_json::to_vec_pretty(snap)?)
         .with_context(|| format!("write {}", tmp.display()))?;
-    std::fs::rename(&tmp, &p).with_context(|| format!("rename into {}", p.display()))
+    if let Err(e) = std::fs::rename(&tmp, &p) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(e).with_context(|| format!("rename into {}", p.display()));
+    }
+    Ok(())
 }
 
 pub fn read_snapshot() -> Option<QueueSnapshot> {
@@ -412,7 +419,12 @@ pub fn render_brief(snap: &QueueSnapshot, branch: Option<&str>, now: i64) -> Str
         lines.push(failed_line(&f.branch.clone(), f, now));
     }
     if let Some(f) = snap.failures.iter().find(|f| f.branch == "main") {
-        lines.push(failed_line("main", f, now));
+        // Skip when the branch line above already IS this run (current branch
+        // is main, or the same failure matched both lookups).
+        let duplicate = branch == Some("main") || branch_fail.is_some_and(|b| b.id == f.id);
+        if !duplicate {
+            lines.push(failed_line("main", f, now));
+        }
     }
     lines.push(format!(
         "advice: {}",
@@ -600,8 +612,23 @@ fn clear_runs(snap: &QueueSnapshot, dry_run: bool) -> Result<()> {
             plan.len()
         );
         let now = now_secs();
-        if let Ok(s) = live_snapshot(DEFAULT_TTL_MINS, now, cancelled_ids) {
-            println!("post-clear: {}", s.advice);
+        match live_snapshot(DEFAULT_TTL_MINS, now, cancelled_ids.clone()) {
+            Ok(s) => println!("post-clear: {}", s.advice),
+            Err(e) => {
+                // gh hiccup right after successful cancels: the fresh ids must
+                // still reach the snapshot or force-cancel escalation is lost.
+                eprintln!("post-clear refetch failed (preserving cancelled ids): {e:#}");
+                if let Some(mut s) = read_snapshot() {
+                    for id in cancelled_ids {
+                        if !s.cancelled_last_sweep.contains(&id) {
+                            s.cancelled_last_sweep.push(id);
+                        }
+                    }
+                    if let Err(e) = write_snapshot(&s) {
+                        eprintln!("queue clear: snapshot update failed: {e:#}");
+                    }
+                }
+            }
         }
     }
     Ok(())
@@ -625,8 +652,17 @@ pub fn hook_guard_matches(cmd: &str) -> bool {
         || has("gh run watch")
         || (has("gh api") && (has("check-runs") || has("check_runs")))
         || has("ci watch-run")
-        // Hand-rolled watch loop from allowed primitives.
-        || ((has("while ") || has("until ") || has("for "))
+        // Hand-rolled watch loop from allowed primitives (sh + PowerShell forms:
+        // `while($true){..}`, `foreach($i in ..){..}`, `do { .. } while(..)`).
+        || ((has("while ")
+            || has("until ")
+            || has("for ")
+            || has("while(")
+            || has("for(")
+            || has("foreach(")
+            || has("foreach ")
+            || has("do {")
+            || has("do{"))
             && has("sleep")
             && (has("gh pr") || has("gh run") || has("gh api")))
         // Alias evasion.
@@ -674,6 +710,44 @@ fn hook_guard_main() -> Result<()> {
     Ok(())
 }
 
+/// Which ids the written snapshot's `cancelled_last_sweep` should carry.
+/// Dry-run cancels nothing and holds no ScaleLock, so it must carry the
+/// PREVIOUS sweep's ids forward — writing the (empty) fresh vec would clobber
+/// the force-cancel escalation state an interleaved apply tick depends on.
+pub fn sweep_cancelled_state(
+    dry_run: bool,
+    prev_cancelled: Vec<u64>,
+    cancelled_ids: Vec<u64>,
+) -> Vec<u64> {
+    if dry_run {
+        prev_cancelled
+    } else {
+        cancelled_ids
+    }
+}
+
+/// Prev-sweep cancelled ids still in_progress (shielded by always()/post
+/// steps) and not already cancelled this sweep — force-cancel targets
+/// regardless of class or clear_plan membership: a cancelled-but-shielded run
+/// whose superseding run completed reclassifies Active and drops out of the
+/// plan, but must still be escalated. Not counted against
+/// MAX_CANCELS_PER_SWEEP (bounded by the previous sweep's cap anyway).
+pub fn escalation_targets(
+    prev_cancelled: &[u64],
+    runs: &[QueueRun],
+    already_cancelled: &[u64],
+) -> Vec<u64> {
+    prev_cancelled
+        .iter()
+        .copied()
+        .filter(|id| !already_cancelled.contains(id))
+        .filter(|id| {
+            runs.iter()
+                .any(|r| r.id == *id && r.status == "in_progress")
+        })
+        .collect()
+}
+
 /// Autoscaler-tick entry: clear cancellable runs (apply mode), escalate to
 /// force-cancel any run still in_progress that the PREVIOUS sweep cancelled
 /// (shielded by always()/post steps — same two-tick pattern as
@@ -716,9 +790,19 @@ pub fn auto_clear_and_snapshot(dry_run: bool, now: i64) -> Result<(u32, u32)> {
                 RunClass::Active => {}
             }
         }
+        // Escalate prev-cancelled runs that dropped out of the plan (e.g.
+        // reclassified Active after their superseding run completed) but are
+        // still running. Keep the id in the sweep state either way so a
+        // failed force-cancel retries next tick.
+        for id in escalation_targets(&prev_cancelled, &snap.runs, &cancelled_ids) {
+            if let Err(e) = cancel_run(id, true) {
+                eprintln!("force-cancel escalation for {id} failed (continuing): {e:#}");
+            }
+            cancelled_ids.push(id);
+        }
     }
     let final_snap = QueueSnapshot {
-        cancelled_last_sweep: cancelled_ids,
+        cancelled_last_sweep: sweep_cancelled_state(dry_run, prev_cancelled, cancelled_ids),
         ..snap
     };
     write_snapshot(&final_snap)?;
@@ -1021,5 +1105,87 @@ mod tests {
         assert!(!hook_guard_matches("vox ci queue --json"));
         assert!(!hook_guard_matches("cargo test && sleep 5 && gh run list")); // sleep without loop keyword
         assert!(!hook_guard_matches("git push"));
+    }
+
+    #[test]
+    fn hook_guard_powershell_loop_forms() {
+        // PowerShell loop keywords have no trailing space before `(`.
+        assert!(hook_guard_matches("while($true){ gh run list; sleep 15 }"));
+        assert!(hook_guard_matches(
+            "foreach($i in 1..99){ gh pr view 4; Start-Sleep 30 }"
+        ));
+        assert!(hook_guard_matches(
+            "foreach ($i in 1..99) { gh api repos/o/r/actions/runs; sleep 9 }"
+        ));
+        assert!(hook_guard_matches(
+            "for($i=0;$i -lt 40;$i++){ gh run list; sleep 30 }"
+        ));
+        assert!(hook_guard_matches(
+            "do { gh run list; sleep 15 } while($true)"
+        ));
+        assert!(hook_guard_matches(
+            "do{ gh run list; sleep 15 }until($done)"
+        ));
+        // Still ANDed: loop keyword without gh, or without sleep, is allowed.
+        assert!(!hook_guard_matches("while($true){ cargo test; sleep 15 }"));
+        assert!(!hook_guard_matches("foreach($f in ls){ gh run view $f }"));
+    }
+
+    #[test]
+    fn render_brief_on_main_dedupes_failure_line() {
+        let now = 10_000;
+        let snap = build_snapshot(
+            vec![],
+            vec![failed(11, "main", now - 60)],
+            2,
+            4,
+            false,
+            now,
+            vec![],
+        );
+        // Current branch IS main: exactly one FAILED line, not two.
+        let brief = render_brief(&snap, Some("main"), now);
+        assert_eq!(
+            brief
+                .lines()
+                .filter(|l| l.contains("FAILED on main"))
+                .count(),
+            1
+        );
+        assert!(brief.contains("do not push blind retries")); // failure advice still leads
+        // Other branch: the main line still shows.
+        let brief2 = render_brief(&snap, Some("feat/x"), now);
+        assert_eq!(
+            brief2
+                .lines()
+                .filter(|l| l.contains("FAILED on main"))
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn sweep_cancelled_state_dry_run_carries_prev_forward() {
+        // Dry-run: previous escalation state survives (invariant: read-only
+        // invocations never clobber force-cancel state).
+        assert_eq!(sweep_cancelled_state(true, vec![1, 2], vec![]), vec![1, 2]);
+        // Apply: this sweep's ids replace the previous ones.
+        assert_eq!(sweep_cancelled_state(false, vec![1, 2], vec![3]), vec![3]);
+        assert!(sweep_cancelled_state(false, vec![1, 2], vec![]).is_empty());
+    }
+
+    #[test]
+    fn escalation_targets_covers_prev_cancelled_active_runs() {
+        let now = 10_000;
+        let runs = vec![
+            run(1, "feat/a", "push", "in_progress", 1000, now), // prev-cancelled, shielded, Active
+            run(2, "feat/b", "push", "queued", 1000, now),      // prev-cancelled but not running
+            run(3, "feat/c", "push", "in_progress", 1000, now), // prev-cancelled, already re-cancelled
+            run(4, "feat/d", "push", "in_progress", 1000, now), // not prev-cancelled
+        ];
+        // Id 5 was prev-cancelled but completed (absent from fetched runs).
+        assert_eq!(escalation_targets(&[1, 2, 3, 5], &runs, &[3]), vec![1]);
+        assert!(escalation_targets(&[], &runs, &[]).is_empty());
+        assert!(escalation_targets(&[5], &runs, &[]).is_empty());
     }
 }
