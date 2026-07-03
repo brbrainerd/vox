@@ -300,6 +300,7 @@ impl crate::orchestrator::Orchestrator {
 }
 
 mod accessors;
+pub mod checkpoint;
 mod init;
 mod lineage;
 mod rehydrate;
