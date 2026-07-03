@@ -274,7 +274,7 @@ impl OrchDaemonClient {
         &self,
         tx: tokio::sync::mpsc::Sender<serde_json::Value>,
     ) -> anyhow::Result<()> {
-        self.subscribe_with_method(orch_daemon_method::SUBSCRIBE, tx)
+        self.subscribe_with_method(orch_daemon_method::SUBSCRIBE, serde_json::json!({}), tx)
             .await
     }
 
@@ -285,16 +285,44 @@ impl OrchDaemonClient {
         &self,
         tx: tokio::sync::mpsc::Sender<serde_json::Value>,
     ) -> anyhow::Result<()> {
-        self.subscribe_with_method(orch_daemon_method::SUBSCRIBE_EVENTS, tx)
+        self.subscribe_with_method(orch_daemon_method::SUBSCRIBE_EVENTS, serde_json::json!({}), tx)
             .await
     }
 
+    /// [`orch_daemon_method::SUBSCRIBE_EVENTS`] with a replay-from-offset
+    /// cursor (T1.3): the daemon first pushes every durable Tier-A op with
+    /// `op_id > from_offset` as a replay-envelope frame
+    /// (`{ replay: true, op_id, agent_id, timestamp_ms, description, kind }`
+    /// — distinct in shape from a live `AgentEvent` frame, see
+    /// `orch_daemon::replay_frame_value`'s doc comment for why it isn't
+    /// disguised as one), then transitions to the same live tail as
+    /// [`Self::subscribe_events`]. A separate method (rather than an
+    /// additional parameter on `subscribe_events`) so the existing zero-arg
+    /// call sites (`vox-gui`'s `spawn_agent_event_stream`) are untouched.
+    pub async fn subscribe_events_from_offset(
+        &self,
+        from_offset: u64,
+        tx: tokio::sync::mpsc::Sender<serde_json::Value>,
+    ) -> anyhow::Result<()> {
+        self.subscribe_with_method(
+            orch_daemon_method::SUBSCRIBE_EVENTS,
+            serde_json::json!({ "from_offset": from_offset }),
+            tx,
+        )
+        .await
+    }
+
     /// Shared body for the `Event`-frame subscription methods: connect, send one
-    /// request for `method`, and forward each pushed `Event` value into `tx`
-    /// until the daemon closes the stream or the receiver drops.
+    /// request for `method` (with `params`), and forward each pushed `Event`
+    /// value into `tx` until the daemon closes the stream or the receiver drops.
+    /// An `Error` payload (T1.3: e.g. the Lagged-reconnect signal) ends the
+    /// stream with an error rather than being silently swallowed, so a caller
+    /// using `subscribe_events_from_offset` can detect "you lagged, reconnect"
+    /// and re-subscribe with an updated offset.
     async fn subscribe_with_method(
         &self,
         method: &str,
+        params: serde_json::Value,
         tx: tokio::sync::mpsc::Sender<serde_json::Value>,
     ) -> anyhow::Result<()> {
         let mut stream = TcpStream::connect(&self.addr).await?;
@@ -302,7 +330,7 @@ impl OrchDaemonClient {
         let req = DispatchRequest {
             id: uuid::Uuid::new_v4().to_string(),
             method: method.to_string(),
-            params: serde_json::json!({}),
+            params,
             auth_token: self.token.clone(),
             permission_mode: self.permission_mode.clone(),
         };

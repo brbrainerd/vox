@@ -166,6 +166,14 @@ async fn write_frame<W: AsyncWriteExt + Unpin>(
 /// the peer disconnects (a write error ends the stream). The daemon initiates
 /// every frame; the subscriber never polls. An initial snapshot is sent
 /// immediately, then a new frame is emitted on each change.
+///
+/// T1.3 note: `orch.subscribe` carries whole-status *snapshots*, not discrete
+/// durably-ided operations — there is no `OperationId`-keyed history to replay
+/// here the way `stream_agent_events` replays durable Tier-A ops. A
+/// `from_offset` param would have nothing meaningful to do, so this function
+/// intentionally does not accept one; a reconnecting client just gets the
+/// current snapshot immediately (which is already always-fresh, unlike a
+/// discrete event log).
 async fn stream_status_events<W: AsyncWriteExt + Unpin>(
     id: &str,
     orch: &Arc<Orchestrator>,
@@ -221,11 +229,87 @@ async fn stream_status_events<W: AsyncWriteExt + Unpin>(
 /// this relay loop. Follow-up: introduce a versioned array/batch frame kind
 /// in `vox_foundation::protocol::DispatchPayload` and update
 /// `subscribe_with_method` to unwrap it, then reintroduce coalescing here.
-async fn stream_agent_events<W: AsyncWriteExt + Unpin>(
+/// One durable Tier-A op re-shaped as a replay frame value (T1.3). Deliberately
+/// **not** disguised as an `AgentEvent` — reconstructing the original
+/// `AgentEventKind` from a durable `OperationKind` would need a fragile
+/// reverse-mapping (the two enums are not 1:1; several `AgentEventKind`
+/// variants carry fields `OperationKind` never recorded). Instead this is an
+/// honest, distinctly-shaped envelope a caller can tell apart from a live
+/// `AgentEvent` frame (`replay: true`, `op_id` instead of live `id`). Existing
+/// consumers (dashboard/GUI bridges) only forward `Value` verbatim today — see
+/// `crates/vox-gui/src/commands/orchestrator.rs`'s `spawn_agent_event_stream`
+/// — so this new shape does not break them; a caller that cares distinguishes
+/// replay frames from live ones by checking for the `replay` key.
+fn replay_frame_value(entry: &vox_orchestrator_queue::oplog::OperationEntry) -> serde_json::Value {
+    serde_json::json!({
+        "replay": true,
+        "op_id": entry.id.0,
+        "agent_id": entry.agent_id.0,
+        "timestamp_ms": entry.timestamp_ms,
+        "description": entry.description,
+        "kind": serde_json::to_value(&entry.kind).unwrap_or(serde_json::Value::Null),
+    })
+}
+
+/// [`stream_agent_events`], optionally preceded by a **replay phase** (T1.3)
+/// when `from_offset` is `Some`: every durable Tier-A op with `op_id >
+/// from_offset` for this daemon's repository is pushed (oldest-first, each as
+/// a [`replay_frame_value`] envelope) *before* the live-tail loop begins.
+/// `from_offset` absent reproduces today's behavior exactly (live-tail only,
+/// no replay, no back-compat break for existing callers).
+///
+/// Known limitation (documented per plan rather than built out): there is a
+/// narrow window between "replay query executed" and "live subscription
+/// established" in which a new Tier-A op could land and be missed by both —
+/// the replay already ran, and the live `rx.recv()` subscription is created
+/// strictly after it. Closing this gap fully would mean subscribing to the
+/// live bus (buffering) *before* running the replay query, then de-duplicating
+/// against whatever replay returns by `op_id`. That is a bigger redesign than
+/// this task's scope; the accepted fallback is a best-effort narrow gap. A
+/// client that needs gapless delivery can mitigate by reconnecting with
+/// `from_offset` set to the last op_id/event id it saw, same as the
+/// Lagged-reconnect story below.
+async fn stream_agent_events_from<W: AsyncWriteExt + Unpin>(
     id: &str,
     orch: &Arc<Orchestrator>,
     out: &mut W,
+    from_offset: Option<u64>,
 ) -> anyhow::Result<()> {
+    if let Some(since) = from_offset {
+        if let Some(db) = orch.db() {
+            let repo = crate::lineage::repository_id();
+            match vox_orchestrator_queue::oplog::list_from_db_since(&db, repo.as_str(), since)
+                .await
+            {
+                Ok(entries) => {
+                    for entry in &entries {
+                        let frame = DispatchResponse {
+                            id: id.to_string(),
+                            payload: DispatchPayload::Event {
+                                value: replay_frame_value(entry),
+                            },
+                        };
+                        write_frame(out, &frame).await?;
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        error = %e,
+                        from_offset = since,
+                        "orch.subscribe_events: replay query failed; proceeding to live-tail \
+                         without replay (client may be missing durable history)"
+                    );
+                }
+            }
+        } else {
+            tracing::warn!(
+                from_offset = since,
+                "orch.subscribe_events: from_offset requested but no DB attached; \
+                 no durable history to replay, proceeding straight to live-tail"
+            );
+        }
+    }
+
     let mut rx = orch.event_bus().subscribe();
     loop {
         match rx.recv().await {
@@ -238,9 +322,41 @@ async fn stream_agent_events<W: AsyncWriteExt + Unpin>(
                 // Errors once the peer closes the connection, ending the stream.
                 write_frame(out, &frame).await?;
             }
-            // Slow consumer fell behind the broadcast capacity — skip the gap
-            // and keep streaming rather than dropping the subscriber.
-            Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+            // Slow consumer fell behind the broadcast capacity. Always log the
+            // skip count (T1.3) — previously silent. Behavior then forks on
+            // whether this subscriber is offset-aware:
+            //   * offset-aware (`from_offset.is_some()`): end the stream with a
+            //     structured error naming a reconnect offset, rather than
+            //     silently continuing to lose events under an API the client
+            //     has already opted into being able to recover via.
+            //   * legacy (no `from_offset`): keep the existing `continue`
+            //     behavior unchanged — an existing non-offset-aware caller has
+            //     no way to ask for a resumable reconnect, so ending the
+            //     stream here would just be a regression (stream dies with no
+            //     recovery path) rather than an improvement.
+            Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
+                tracing::warn!(
+                    skipped,
+                    offset_aware = from_offset.is_some(),
+                    "orch.subscribe_events: broadcast receiver lagged, skipped {skipped} events"
+                );
+                if from_offset.is_some() {
+                    let frame = DispatchResponse {
+                        id: id.to_string(),
+                        payload: DispatchPayload::Error {
+                            message: format!(
+                                "lagged: skipped {skipped} live events; reconnect with a \
+                                 from_offset at or after the last op_id/event id you \
+                                 successfully received"
+                            ),
+                            code: 2,
+                        },
+                    };
+                    let _ = write_frame(out, &frame).await;
+                    return Ok(());
+                }
+                continue;
+            }
             // Sender (orchestrator) dropped — nothing more will arrive.
             Err(tokio::sync::broadcast::error::RecvError::Closed) => return Ok(()),
         }
@@ -1228,7 +1344,8 @@ async fn handle_connection(
             break;
         }
         if req.method == orch_daemon_method::SUBSCRIBE_EVENTS {
-            stream_agent_events(&req.id, &orch, &mut write_half).await?;
+            let from_offset = parse_from_offset(&req.params);
+            stream_agent_events_from(&req.id, &orch, &mut write_half, from_offset).await?;
             break;
         }
         if let Some(ex) = extra.as_ref() {
@@ -1241,6 +1358,15 @@ async fn handle_connection(
         write_frame(&mut write_half, &resp).await?;
     }
     Ok(())
+}
+
+/// Parse the optional `params.from_offset` (T1.3 replay cursor) from a
+/// `SUBSCRIBE_EVENTS` request. Absent/non-numeric yields `None`, reproducing
+/// today's live-tail-only behavior — this is intentionally lenient (no error
+/// response for a malformed value) since a subscribe request has no normal
+/// error-response path once streaming begins.
+fn parse_from_offset(params: &serde_json::Value) -> Option<u64> {
+    params.get("from_offset").and_then(|v| v.as_u64())
 }
 
 /// Accept connections until `listener` is dropped (runs forever on success).
@@ -1353,7 +1479,8 @@ pub async fn run_stdio_server_with_extra(
             break;
         }
         if req.method == orch_daemon_method::SUBSCRIBE_EVENTS {
-            stream_agent_events(&req.id, &orch, &mut stdout).await?;
+            let from_offset = parse_from_offset(&req.params);
+            stream_agent_events_from(&req.id, &orch, &mut stdout, from_offset).await?;
             break;
         }
         if let Some(ex) = extra.as_ref() {

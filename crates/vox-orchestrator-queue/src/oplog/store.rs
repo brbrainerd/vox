@@ -101,6 +101,16 @@ impl OpLog {
         self.db_snap_id_gen.fetch_add(1, Ordering::Relaxed)
     }
 
+    /// Reseed the [`OperationId`] generator so the *next* produced id is
+    /// `highest_existing + 1` (T1.3 restart-durability). No-op-safe to call
+    /// with a lower value than the generator's current position — it only
+    /// ever moves the counter forward via `resuming_after`'s `AtomicU64::new`
+    /// (a fresh generator is swapped in), so callers should invoke this once,
+    /// early, before any `record`/`record_persisted` calls on this `OpLog`.
+    pub fn reseed_id_gen_from_highest(&mut self, highest_existing: u64) {
+        self.id_gen = super::OperationIdGenerator::resuming_after(highest_existing);
+    }
+
     /// Record a new operation.
     #[allow(clippy::too_many_arguments)]
     pub fn record(

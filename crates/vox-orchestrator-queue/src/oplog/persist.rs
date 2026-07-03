@@ -51,11 +51,36 @@ impl PersistContext {
 }
 
 impl OpLog {
-    /// Create a log bound to `vox-db` for write-through persistence.
+    /// Create a log bound to `vox-db` for write-through persistence. Does
+    /// **not** query the DB — the [`OperationId`] generator still starts at 1.
+    /// Prefer [`Self::with_db_seeded`] in any path that must survive a
+    /// process restart with a monotonic id sequence (T1.3); this sync
+    /// constructor is kept for callers that cannot await (rare) and for
+    /// call sites that immediately follow up with
+    /// [`Self::reseed_id_gen_from_highest`] themselves.
     pub fn with_db(db: VoxDb, hot_capacity: usize) -> Self {
         let mut log = OpLog::new(hot_capacity);
         log.persist = Some(Arc::new(PersistContext::new(db, [0u8; 16], [0u8; 16])));
         log
+    }
+
+    /// [`Self::with_db`], then seed the [`OperationId`] generator from the
+    /// highest `op_id` already persisted in `convergence_op_log` (T1.3
+    /// restart-durability). A fresh DB with no rows yet leaves the generator
+    /// starting at 1, matching today's behavior; a DB carrying prior history
+    /// (the process restarted) resumes strictly after the highest existing id
+    /// so a client using `OperationId` as a replay offset never sees the
+    /// sequence go backwards or collide across a restart.
+    pub async fn with_db_seeded(db: VoxDb, hot_capacity: usize) -> Result<Self, PersistError> {
+        let highest = db
+            .max_convergence_op_id()
+            .await
+            .map_err(|e| PersistError::Db(e.to_string()))?;
+        let mut log = Self::with_db(db, hot_capacity);
+        if let Some(highest) = highest {
+            log.reseed_id_gen_from_highest(highest);
+        }
+        Ok(log)
     }
 
     /// Bind daemon + set identity (must be called before first `record_persisted`).

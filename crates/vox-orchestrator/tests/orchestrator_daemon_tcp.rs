@@ -524,3 +524,252 @@ async fn orchestrator_daemon_task_and_agent_write_methods_inner() {
 
     server.abort();
 }
+
+/// T1.3 RED: a client subscribing to `orch.subscribe_events` with
+/// `from_offset = N` must receive every durable Tier-A op with `op_id > N`
+/// (replay-envelope frames, each carrying `replay: true` and `op_id`) BEFORE
+/// any live event, then transition to live tailing exactly like a
+/// `subscribe_events` call without an offset.
+#[tokio::test]
+async fn orchestrator_daemon_subscribe_events_replays_from_offset() {
+    tokio::time::timeout(DAEMON_TEST_TIMEOUT, async {
+        orchestrator_daemon_subscribe_events_replays_from_offset_inner().await;
+    })
+    .await
+    .expect("orchestrator_daemon_subscribe_events_replays_from_offset exceeded wall-clock budget");
+}
+
+async fn orchestrator_daemon_subscribe_events_replays_from_offset_inner() {
+    use vox_db::{DbConfig, VoxDb};
+    use vox_orchestrator::events::AgentEventKind;
+    use vox_orchestrator::oplog::OperationKind;
+
+    let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+    let db = std::sync::Arc::new(db);
+
+    let orch = Arc::new(Orchestrator::new(OrchestratorConfig::for_testing()));
+    orch.init_db(db.clone()).await.expect("init_db");
+    let aid = orch.spawn_agent("replay-agent").expect("spawn");
+
+    // Record three durable Tier-A ops directly (mirrors how MCP/daemon call
+    // sites durably record before broadcasting — see vcs_ops.rs's
+    // record_operation). The first op's id becomes `from_offset`; the client
+    // should NOT see it replayed (offset is exclusive), only the two after it.
+    let op1 = orch
+        .record_operation(
+            aid,
+            OperationKind::TaskDoubted {
+                task_id: 1,
+                reason: Some("pre-offset".into()),
+            },
+            "pre-offset op (must not be replayed)",
+            None,
+            None,
+            None,
+            None,
+        )
+        .await;
+    let op2 = orch
+        .record_operation(
+            aid,
+            OperationKind::TaskDoubted {
+                task_id: 2,
+                reason: Some("post-offset-1".into()),
+            },
+            "post-offset op 1",
+            None,
+            None,
+            None,
+            None,
+        )
+        .await;
+    let op3 = orch
+        .record_operation(
+            aid,
+            OperationKind::TaskDoubted {
+                task_id: 3,
+                reason: Some("post-offset-2".into()),
+            },
+            "post-offset op 2",
+            None,
+            None,
+            None,
+            None,
+        )
+        .await;
+    assert!(op2.0 > op1.0 && op3.0 > op2.0, "op ids must be increasing");
+
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+    let addr = listener.local_addr().expect("local addr");
+    let server = tokio::spawn(orch_daemon::serve_listener(
+        listener,
+        addr.to_string(),
+        "ut-repo".to_string(),
+        orch.clone(),
+    ));
+    let addr_str = addr.to_string();
+    wait_until_async(
+        "orchestrator daemon TCP accepting (`orch.ping`)",
+        vox_config::timeouts::D_15S,
+        vox_config::timeouts::D_5MS,
+        || {
+            let c = orch_daemon::OrchDaemonClient::new(addr_str.clone());
+            async move { c.ping().await.is_ok() }
+        },
+    )
+    .await;
+
+    let client = orch_daemon::OrchDaemonClient::new(addr_str);
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<serde_json::Value>(64);
+    let client_for_sub = client.clone();
+    let sub = tokio::spawn(async move {
+        let _ = client_for_sub
+            .subscribe_events_from_offset(op1.0, tx)
+            .await;
+    });
+
+    // First two frames must be the replay of op2 and op3, oldest-first, each
+    // tagged `replay: true`, and NOT op1 (which is at/before the offset).
+    let first = tokio::time::timeout(vox_config::timeouts::D_15S, rx.recv())
+        .await
+        .expect("first replay frame within budget")
+        .expect("channel produced a frame");
+    assert_eq!(first["replay"], true, "first frame must be a replay frame");
+    assert_eq!(first["op_id"].as_u64(), Some(op2.0));
+
+    let second = tokio::time::timeout(vox_config::timeouts::D_15S, rx.recv())
+        .await
+        .expect("second replay frame within budget")
+        .expect("channel produced a frame");
+    assert_eq!(
+        second["replay"], true,
+        "second frame must be a replay frame"
+    );
+    assert_eq!(second["op_id"].as_u64(), Some(op3.0));
+
+    // Now emit a live Tier-B event; it must arrive AFTER the replay frames,
+    // proving the transition from replay to live-tail.
+    let orch_emit = orch.clone();
+    let emitter = tokio::spawn(async move {
+        loop {
+            orch_emit.event_bus().emit(AgentEventKind::TokenStreamed {
+                agent_id: aid,
+                text: "post-replay-live".to_string(),
+            });
+            tokio::time::sleep(D_20MS).await;
+        }
+    });
+
+    let third = tokio::time::timeout(vox_config::timeouts::D_15S, rx.recv())
+        .await
+        .expect("live frame within budget")
+        .expect("channel produced a frame");
+    assert!(
+        third.get("replay").is_none(),
+        "third frame must be a LIVE frame (no replay tag), got: {third}"
+    );
+    assert_eq!(third["kind"]["type"], "token_streamed");
+
+    emitter.abort();
+    drop(rx);
+    sub.abort();
+    server.abort();
+}
+
+/// T1.3 regression: a client subscribing to `orch.subscribe_events` WITHOUT
+/// `from_offset` must behave exactly as before — live-tail only, no replay,
+/// even when durable Tier-A history exists in the DB.
+#[tokio::test]
+async fn orchestrator_daemon_subscribe_events_without_offset_is_live_tail_only() {
+    tokio::time::timeout(DAEMON_TEST_TIMEOUT, async {
+        orchestrator_daemon_subscribe_events_without_offset_inner().await;
+    })
+    .await
+    .expect(
+        "orchestrator_daemon_subscribe_events_without_offset_is_live_tail_only exceeded wall-clock budget",
+    );
+}
+
+async fn orchestrator_daemon_subscribe_events_without_offset_inner() {
+    use vox_db::{DbConfig, VoxDb};
+    use vox_orchestrator::events::AgentEventKind;
+    use vox_orchestrator::oplog::OperationKind;
+
+    let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+    let db = std::sync::Arc::new(db);
+
+    let orch = Arc::new(Orchestrator::new(OrchestratorConfig::for_testing()));
+    orch.init_db(db.clone()).await.expect("init_db");
+    let aid = orch.spawn_agent("no-offset-agent").expect("spawn");
+
+    // Durable history exists before the subscriber connects...
+    let _ = orch
+        .record_operation(
+            aid,
+            OperationKind::TaskDoubted {
+                task_id: 99,
+                reason: Some("should never be replayed".into()),
+            },
+            "pre-existing durable op",
+            None,
+            None,
+            None,
+            None,
+        )
+        .await;
+
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+    let addr = listener.local_addr().expect("local addr");
+    let server = tokio::spawn(orch_daemon::serve_listener(
+        listener,
+        addr.to_string(),
+        "ut-repo".to_string(),
+        orch.clone(),
+    ));
+    let addr_str = addr.to_string();
+    wait_until_async(
+        "orchestrator daemon TCP accepting (`orch.ping`)",
+        vox_config::timeouts::D_15S,
+        vox_config::timeouts::D_5MS,
+        || {
+            let c = orch_daemon::OrchDaemonClient::new(addr_str.clone());
+            async move { c.ping().await.is_ok() }
+        },
+    )
+    .await;
+
+    // ...but a plain `subscribe_events` (no offset) must ONLY ever see the
+    // live event emitted below, never the pre-existing durable op.
+    let client = orch_daemon::OrchDaemonClient::new(addr_str);
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<serde_json::Value>(64);
+    let client_for_sub = client.clone();
+    let sub = tokio::spawn(async move {
+        let _ = client_for_sub.subscribe_events(tx).await;
+    });
+
+    let orch_emit = orch.clone();
+    let emitter = tokio::spawn(async move {
+        loop {
+            orch_emit.event_bus().emit(AgentEventKind::TokenStreamed {
+                agent_id: aid,
+                text: "live-only".to_string(),
+            });
+            tokio::time::sleep(D_20MS).await;
+        }
+    });
+
+    let first = tokio::time::timeout(vox_config::timeouts::D_15S, rx.recv())
+        .await
+        .expect("live frame within budget")
+        .expect("channel produced a frame");
+    assert!(
+        first.get("replay").is_none(),
+        "first (and only expected) frame must be LIVE, not a replay frame, got: {first}"
+    );
+    assert_eq!(first["kind"]["type"], "token_streamed");
+
+    emitter.abort();
+    drop(rx);
+    sub.abort();
+    server.abort();
+}

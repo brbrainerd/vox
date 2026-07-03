@@ -12,6 +12,29 @@ impl crate::orchestrator::Orchestrator {
 
         crate::sync_lock::rw_write(&*self.db).replace(db.clone());
 
+        // T1.3: reseed the in-process OperationId generator from durable
+        // history so it resumes strictly after the highest op_id already
+        // persisted in `convergence_op_log`, instead of resetting to
+        // OP-000001 on every daemon restart. This is the prerequisite for
+        // using OperationId as a real replay-from-offset cursor in
+        // `orch.subscribe`/`orch.subscribe_events` — without it a restarted
+        // daemon could hand out ids that collide with (or shadow) history a
+        // client has already replayed.
+        match db.max_convergence_op_id().await {
+            Ok(Some(highest)) => {
+                crate::sync_lock::rw_write(&*self.oplog).reseed_id_gen_from_highest(highest);
+            }
+            Ok(None) => {} // fresh DB, no rows yet — generator already starts at 1
+            Err(e) => {
+                tracing::warn!(
+                    error = %e,
+                    "failed to query max convergence_op_log id during init_db; \
+                     OperationId generator NOT reseeded (may restart at 1, risking \
+                     replay-offset collisions after a crash)"
+                );
+            }
+        }
+
         let db_clone = db.clone();
         tokio::spawn(crate::activity::sink::run_sink(
             self.event_bus.subscribe(),

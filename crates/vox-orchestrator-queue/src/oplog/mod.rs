@@ -8,7 +8,7 @@ pub mod sign;
 mod store;
 
 pub use persist::PersistError;
-pub use query::list_from_db;
+pub use query::{list_from_db, list_from_db_since};
 pub use store::{append_to_db, append_to_db_with_breaker, mark_undone_in_db};
 
 use std::collections::VecDeque;
@@ -43,6 +43,16 @@ impl OperationIdGenerator {
     /// Create a new generator starting at 1.
     pub fn new() -> Self {
         Self(AtomicU64::new(1))
+    }
+
+    /// Create a generator whose *next* produced id is `highest_existing + 1`
+    /// (T1.3 restart-durability). Pass the highest `op_id` already persisted
+    /// in `convergence_op_log` (queried via
+    /// `VoxDb::max_convergence_op_id`) so the sequence stays monotonic across
+    /// a daemon restart instead of resetting to `OP-000001` and colliding
+    /// with — or shadowing — history a client may have already replayed.
+    pub fn resuming_after(highest_existing: u64) -> Self {
+        Self(AtomicU64::new(highest_existing + 1))
     }
 
     /// Produce the next unique [`OperationId`].

@@ -633,6 +633,14 @@ contracts:
     enforced_by:
       - cargo test -p vox-orchestrator-queue --test dispatch_events_contract
 
+  - id: orch-daemon-rpc-methods-schema
+    path: contracts/orchestration/orch-daemon-rpc-methods.schema.json
+    owner: orchestrator
+    kind: json-schema
+    description: JSON Schema for the `vox-orchestrator-d` newline-delimited DispatchRequest envelope (`id`, `method`, `params`, `auth_token`, `permission_mode`). The `method` enum must stay identical to `vox_foundation::protocol::orch_daemon_method`'s constants — enforced by a parity test (T1.3), not hand-maintained.
+    enforced_by:
+      - cargo test -p vox-foundation --test orch_daemon_method_schema_parity
+
   - id: dei-rpc-envelope-schema
     path: contracts/dei/rpc-methods.schema.json
     owner: dei

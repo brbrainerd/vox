@@ -12,12 +12,39 @@ pub async fn list_from_db(
     repository_id: &str,
     limit: u32,
 ) -> Result<Vec<OperationEntry>, String> {
-    let aid_str = agent_id.map(|id| id.0.to_string());
     let rows = store
-        .list_oplog_entries(aid_str.as_deref(), repository_id, limit)
+        .list_oplog_entries(
+            agent_id.map(|id| id.0.to_string()).as_deref(),
+            repository_id,
+            limit,
+        )
         .await
         .map_err(|e| e.to_string())?;
+    rows_to_entries(rows)
+}
 
+/// [`list_from_db`], but replay-from-offset shaped (T1.3): every entry whose
+/// `op_id` is strictly greater than `since_op_id`, oldest-first, unbounded by
+/// `limit` (a caller reconnecting after a long outage may legitimately need
+/// more than any fixed page size). Used by `orch.subscribe`/
+/// `orch.subscribe_events`'s replay phase to catch a client up on durable
+/// Tier-A history before it starts tailing the live broadcast bus. A sibling
+/// function rather than an extension of `list_from_db`'s signature because the
+/// two have different result ordering (`list_from_db` is newest-first/limited,
+/// this is oldest-first/unbounded) and different callers.
+pub async fn list_from_db_since(
+    store: &vox_db::VoxDb,
+    repository_id: &str,
+    since_op_id: u64,
+) -> Result<Vec<OperationEntry>, String> {
+    let rows = store
+        .list_oplog_entries_since(repository_id, since_op_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    rows_to_entries(rows)
+}
+
+fn rows_to_entries(rows: Vec<Vec<Option<String>>>) -> Result<Vec<OperationEntry>, String> {
     let mut entries = Vec::new();
     for row in rows {
         let op_id_str = row[0].clone().unwrap_or_default();

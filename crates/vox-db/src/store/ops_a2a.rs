@@ -340,6 +340,41 @@ impl crate::VoxDb {
         Ok(out)
     }
 
+    /// List oplog entries for a repository whose numeric `operation_id`
+    /// suffix (`OP-000123` → `123`) is strictly greater than `since_op_id`,
+    /// oldest-first, unbounded (T1.3 replay-from-offset). `operation_id` is
+    /// stored as the zero-padded `OP-NNNNNN` text form (see
+    /// `OperationId::fmt::Display`), so the numeric comparison is done via
+    /// `CAST(SUBSTR(operation_id, 4) AS INTEGER)` rather than a lexicographic
+    /// string compare (which would misorder past 6 digits or with a
+    /// non-`OP-` prefixed id).
+    pub async fn list_oplog_entries_since(
+        &self,
+        repository_id: &str,
+        since_op_id: u64,
+    ) -> Result<Vec<Vec<Option<String>>>, StoreError> {
+        let mut cursor = self
+            .conn
+            .query(
+                "SELECT operation_id, agent_id, kind, description, predecessor_hash, model_id,
+                          CAST(change_id AS TEXT), CAST(timestamp_ms AS TEXT), CAST(undone AS TEXT)
+                   FROM agent_oplog
+                   WHERE repository_id=?1
+                     AND CAST(SUBSTR(operation_id, 4) AS INTEGER) > ?2
+                   ORDER BY CAST(SUBSTR(operation_id, 4) AS INTEGER) ASC",
+                params![repository_id, since_op_id as i64],
+            )
+            .await?;
+        let mut out = Vec::new();
+        while let Some(row) = cursor.next().await? {
+            let cols: Vec<Option<String>> = (0..9)
+                .map(|i| row.get::<Option<String>>(i).unwrap_or(None))
+                .collect();
+            out.push(cols);
+        }
+        Ok(out)
+    }
+
     /// Mark an oplog entry as undone (or re-done).
     pub async fn set_oplog_undone(
         &self,
