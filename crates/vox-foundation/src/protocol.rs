@@ -126,6 +126,11 @@ pub mod orch_daemon_method {
     /// — snapshot of the daemon's shared generic resource lock manager (T2.3
     /// follow-up: `vox safety locks`).
     pub const SAFETY_LOCKS: &str = "orch.safety_locks";
+    /// Params: `{}` → `{"snapshot": AttentionBudget, "config": {"attention_enabled",
+    /// "attention_budget_ms", "attention_alert_threshold"}}` — the daemon's shared
+    /// real-time cognitive attention budget/threshold summary (T2.3 follow-up:
+    /// `vox attention snapshot`). Mirrors `BudgetManager::attention_snapshot`.
+    pub const ATTENTION_SNAPSHOT: &str = "orch.attention_snapshot";
 }
 
 pub mod dei_method {

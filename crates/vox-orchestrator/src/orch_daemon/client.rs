@@ -155,6 +155,12 @@ impl OrchDaemonClient {
             .await
     }
 
+    /// [`orch_daemon_method::ATTENTION_SNAPSHOT`] — `{"snapshot": AttentionBudget, "config": {...}}`.
+    pub async fn attention_snapshot(&self) -> anyhow::Result<serde_json::Value> {
+        self.call(orch_daemon_method::ATTENTION_SNAPSHOT, serde_json::json!({}))
+            .await
+    }
+
     /// [`orch_daemon_method::TASK_STATUS`] — `{"status": "..."}` or error payload.
     pub async fn task_status(&self, task_id: u64) -> anyhow::Result<serde_json::Value> {
         self.call(

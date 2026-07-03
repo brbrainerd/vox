@@ -935,6 +935,26 @@ pub async fn dispatch_request(
                 .collect();
             response_result(&req.id, serde_json::json!({ "locks": locks }))
         }
+        orch_daemon_method::ATTENTION_SNAPSHOT => {
+            let budget_manager = orch.budget_manager_handle();
+            let bm = crate::sync_lock::rw_read(&*budget_manager);
+            let snap = bm.attention_snapshot();
+
+            let config_handle = orch.config_handle();
+            let config = crate::sync_lock::rw_read(&*config_handle);
+
+            response_result(
+                &req.id,
+                serde_json::json!({
+                    "snapshot": snap,
+                    "config": {
+                        "attention_enabled": config.attention_enabled,
+                        "attention_budget_ms": config.attention_budget_ms,
+                        "attention_alert_threshold": config.attention_alert_threshold,
+                    },
+                }),
+            )
+        }
         other => response_err(&req.id, format!("unknown method: {other}")),
     }
 }
