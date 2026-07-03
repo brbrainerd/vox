@@ -1,6 +1,6 @@
 //! Workspace `Vox.toml` fragments used by `vox compile` (`[workspace]`, `[bundle]`, asset hints).
 //!
-//! Distinct from [`super::VoxConfig`] (toolchain / inference prefs): this parses **project**
+//! Distinct from [`struct@super::VoxConfig`] (toolchain / inference prefs): this parses **project**
 //! manifest tables while ignoring unknown top-level keys (`[package]`, `[deploy]`, …).
 
 use serde::Deserialize;

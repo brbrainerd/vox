@@ -181,7 +181,7 @@ pub const WEB_REACTIVE_KEYWORDS: &[&str] = &[
 
 /// Keywords that have dedicated single-word lexer tokens (speech / strict introspection).
 /// The concatenation of [`CONTROL_FLOW_KEYWORDS`], [`DECLARATION_KEYWORDS`], and
-/// [`WEB_REACTIVE_KEYWORDS`] — guarded by [`tests::categories_partition_lexer_keywords`].
+/// [`WEB_REACTIVE_KEYWORDS`] — guarded by `tests::categories_partition_lexer_keywords`.
 pub const LEXER_KEYWORDS: &[&str] = &[
     "fn",
     "let",

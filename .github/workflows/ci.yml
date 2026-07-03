@@ -406,6 +406,10 @@ jobs:
           fail=0
           if [ "$FULL" = "true" ]; then
             for m in crates/*/Cargo.toml; do
+              # vox-cargo-shim is excluded from the cargo workspace (see root Cargo.toml
+              # `[workspace] exclude`), so its `*.workspace = true` fields can't resolve
+              # via a standalone --manifest-path invocation.
+              [ "$m" = "crates/vox-cargo-shim/Cargo.toml" ] && continue
               cargo fmt --manifest-path "$m" -- --check || fail=1
             done
           elif [ -z "$CRATES" ]; then
@@ -413,6 +417,7 @@ jobs:
             exit 0
           else
             for c in $CRATES; do
+              [ "$c" = "vox-cargo-shim" ] && continue
               m="crates/${c}/Cargo.toml"
               if [ -f "$m" ]; then
                 cargo fmt --manifest-path "$m" -- --check || fail=1
