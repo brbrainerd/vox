@@ -98,6 +98,15 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::GuiSurfaceCoverage { write } => super::gui_surface_coverage::run(&root, write),
         CiCmd::GuiSurfaceRegistry { write } => super::gui_surface_registry::run(&root, write),
         CiCmd::GuiHonesty => super::gui_honesty::run(&root),
+        CiCmd::HarnessTrustGuard => {
+            // Check 1 (args.get("user_approval")) lives in the always-on
+            // retired-symbol scan (T0.1); run it first so a single `vox ci
+            // harness-trust-guard` invocation covers the full T2.4
+            // checklist without vox-cli-ci duplicating that pattern (see
+            // crates/vox-cli-ci/src/harness_trust_guard.rs's module doc).
+            retired_symbol_check::run(&root)?;
+            vox_cli_ci::harness_trust_guard::run(&root)
+        }
         CiCmd::ModelRoutingCheck => super::model_routing_check::run(&root),
         CiCmd::CheckCodexSsot => check_codex_ssot(&root),
         CiCmd::ContractsIndex => contracts_index::run(&root),

@@ -85,6 +85,9 @@ pub enum CiCmd {
     /// Gate: GUI honesty — typed toasts + no placeholder/dead elements in surfaces.
     #[command(name = "gui-honesty")]
     GuiHonesty,
+    /// Gate: harness-trust-guard — single-daemon regression guard (T2.4).
+    #[command(name = "harness-trust-guard")]
+    HarnessTrustGuard,
     /// Validate the YAML contract schema against the system's expected defaults.
     #[command(name = "model-routing-check")]
     ModelRoutingCheck,
