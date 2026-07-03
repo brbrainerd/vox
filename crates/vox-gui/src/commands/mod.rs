@@ -17,6 +17,7 @@ pub mod execute;
 pub mod gamify;
 pub mod graphify;
 pub mod harness;
+pub mod harness_town;
 pub mod identity;
 pub mod llm_settings;
 pub mod mcp;
