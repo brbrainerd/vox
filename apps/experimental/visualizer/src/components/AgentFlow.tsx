@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react';
+import { useMemo, useCallback } from 'react';
 import { 
   ReactFlow, 
   Background, 
@@ -9,13 +9,27 @@ import {
   addEdge,
   MarkerType,
   Handle,
-  Position
+  Position,
+  type Edge,
+  type Connection
 } from '@xyflow/react';
 import { Activity, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 import '@xyflow/react/dist/style.css';
 
+// Shape of a single agent task fed into the flow graph.
+interface Task {
+  id: string | number;
+  status: string;
+  description: string;
+  priority: string;
+  depends_on?: (string | number)[];
+}
+
+// Node data is the task plus a synthesized agent id.
+type TaskNodeData = Task & { agent_id: string };
+
 // Custom Node for Agent Tasks
-const TaskNode = ({ data }: any) => {
+const TaskNode = ({ data }: { data: TaskNodeData }) => {
   const statusColor = data.status === 'Completed' ? 'emerald' : 
                      data.status === 'InProgress' ? 'blue' : 
                      data.status.startsWith('Failed') ? 'rose' : 
@@ -48,7 +62,7 @@ const nodeTypes = {
   task: TaskNode,
 };
 
-export const AgentFlow = ({ tasks = [] }: { tasks: any[] }) => {
+export const AgentFlow = ({ tasks = [] }: { tasks: Task[] }) => {
   const initialNodes = useMemo(() => tasks.map((t, idx) => ({
     id: t.id.toString(),
     type: 'task',
@@ -57,10 +71,10 @@ export const AgentFlow = ({ tasks = [] }: { tasks: any[] }) => {
   })), [tasks]);
 
   const initialEdges = useMemo(() => {
-    const edges: any[] = [];
+    const edges: Edge[] = [];
     tasks.forEach(t => {
       if (t.depends_on) {
-        t.depends_on.forEach((dep: any) => {
+        t.depends_on.forEach((dep: string | number) => {
           edges.push({
             id: `e-${dep}-${t.id}`,
             source: dep.toString(),
@@ -76,10 +90,10 @@ export const AgentFlow = ({ tasks = [] }: { tasks: any[] }) => {
     return edges;
   }, [tasks]);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [nodes, , onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  const onConnect = useCallback((params: any) => setEdges((eds) => addEdge(params, eds)), []);
+  const onConnect = useCallback((params: Connection) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
 
   return (
     <div className="h-full w-full bg-[#09090b] relative">

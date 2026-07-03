@@ -4,6 +4,17 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::TraversalHit;
 
+/// Which adjacency to traverse. `Both` is the legacy undirected behavior.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Direction {
+    /// Follow caller→callee edges (callees of the seed).
+    Out,
+    /// Follow callee→caller edges (callers of the seed).
+    In,
+    /// Undirected: both directions (default; legacy behavior).
+    Both,
+}
+
 /// BFS expansion from seed nodes. Seeds are excluded from results.
 pub(crate) fn bfs_from_seeds(
     nodes: &HashMap<String, (String, Option<String>)>,
@@ -110,7 +121,7 @@ pub(crate) fn shortest_path(
 
 #[cfg(test)]
 mod tests {
-    use crate::GraphifyReader;
+    use crate::{Direction, GraphifyReader};
 
     /// Finding I3: multi-source BFS must report depth from the NEAREST seed.
     /// X is 1 hop from seed B (B-X) but 2 hops from seed A (A-M-X). With seeds
@@ -132,7 +143,7 @@ mod tests {
         });
 
         let reader = GraphifyReader::from_value(value).expect("reader builds");
-        let hits = reader.bfs_from_seeds(&["A", "B"], 5, 100);
+        let hits = reader.bfs_from_seeds(&["A", "B"], 5, 100, Direction::Both);
 
         let x = hits
             .iter()

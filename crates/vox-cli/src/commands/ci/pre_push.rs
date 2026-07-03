@@ -1086,15 +1086,15 @@ fn step_runner_policy_check(root: &Path) -> Result<()> {
 
 fn step_check_links(root: &Path) -> Result<()> {
     // In-process — avoids Windows nested `current_exe()` spawning a stale sibling `vox.exe`.
-    super::check_links::run(root, None)
+    vox_cli_ci::check_links::run(root, None)
 }
 
 fn step_retired_symbol_check(root: &Path) -> Result<()> {
-    super::retired_symbol_check::run(root)
+    vox_cli_ci::retired_symbol_check::run(root)
 }
 
 fn step_canonical_map_verify(root: &Path) -> Result<()> {
-    super::canonical_docs::run(root)
+    vox_cli_ci::canonical_docs::run(root)
 }
 
 fn step_doc_inventory(root: &Path) -> Result<()> {
@@ -1134,8 +1134,8 @@ fn step_clippy(root: &Path) -> Result<()> {
 }
 
 fn step_toestub_changed(root: &Path) -> Result<()> {
-    use super::cmd_enums::ToestubCiMode;
     use super::run_body::run_body_helpers::run_toestub_scoped_roots;
+    use vox_cli_ci::cmd_enums::ToestubCiMode;
 
     let dirs = changed_dirs_under_crates(root)
         .context("compute changed crate paths for scoped TOESTUB")?;
@@ -1177,7 +1177,7 @@ fn step_doc_frontmatter_scoped(root: &Path, rel_paths: &[String]) -> Result<()> 
 }
 
 fn step_doctest_md_full(root: &Path) -> Result<()> {
-    super::doctest_md::run(vec![root.join("docs/src")], true)
+    vox_cli_ci::doctest_md::run(vec![root.join("docs/src")], true)
 }
 
 fn step_doctest_scoped(root: &Path, rel_paths: &[String]) -> Result<()> {
@@ -1189,7 +1189,7 @@ fn step_doctest_scoped(root: &Path, rel_paths: &[String]) -> Result<()> {
         .iter()
         .map(|rel| root.join("docs/src").join(rel))
         .collect();
-    super::doctest_md::run(paths, true)
+    vox_cli_ci::doctest_md::run(paths, true)
 }
 
 fn step_drift_check(root: &Path) -> Result<()> {

@@ -17,30 +17,28 @@ fn assert_parse_fails(source: &str) {
     );
 }
 
-/// Warning-first rollout: a retired Tier-1 decorator must still parse but emit a
-/// `Warning`-severity `Tombstoned` diagnostic carrying the machine-readable
-/// `Replacement{from,to,code}` payload that the future hard-error flip + codemod
-/// consume. Asserted at the parser-internal layer because warnings are discarded on
-/// a successful public `parse()`.
+/// Hard-error flip: a retired Tier-1 decorator is now an `Error`-severity `Tombstoned`
+/// diagnostic carrying the machine-readable `Replacement{from,to,code}` payload that the
+/// codemod consumes. (Pre-flip this was a `Warning`; the warning-first rollout is over.)
 #[test]
-fn retired_table_decorator_emits_warning_payload() {
+fn retired_table_decorator_emits_error_payload() {
     use crate::parser::error::{ParseErrorClass, ParseSeverity};
     let mut p = Parser::new(lex("@table type User { name: str }"));
     let _ = p.parse_module();
-    // Warning-first: it must STILL parse (no hard error) ...
+    // Hard error: the retired `@table` head now fails the parse ...
     assert!(
-        !p.errors.iter().any(|e| e.severity == ParseSeverity::Error),
-        "@table must still parse during warning-first; got: {:?}",
+        p.errors.iter().any(|e| e.severity == ParseSeverity::Error),
+        "@table must be a hard error post-flip; got: {:?}",
         p.errors
     );
-    // ... and carry the full machine-readable replacement payload (incl. stable code).
+    // ... and carries the full machine-readable replacement payload (incl. stable code).
     assert!(
-        p.errors.iter().any(|e| e.severity == ParseSeverity::Warning
+        p.errors.iter().any(|e| e.severity == ParseSeverity::Error
             && e.class == ParseErrorClass::Tombstoned
             && e.replacement.as_ref().is_some_and(|r| r.from == "@table"
                 && r.to == "table"
                 && r.code == "vox/decorator/table-retired")),
-        "warning-first must emit a Tombstoned warning with the @table→table replacement; got: {:?}",
+        "flip must emit a Tombstoned error with the @table→table replacement; got: {:?}",
         p.errors
     );
 }
@@ -629,7 +627,7 @@ fn test_parse_with_expression() {
 
 #[test]
 fn test_parse_table() {
-    let m = parse_str("@table type Task { title: str\n done: bool\n priority: int }");
+    let m = parse_str("table Task { title: str\n done: bool\n priority: int }");
     if let Decl::Table(t) = &m.declarations[0] {
         assert_eq!(t.name, "Task");
         assert_eq!(t.fields.len(), 3);
@@ -644,7 +642,7 @@ fn test_parse_table() {
 #[test]
 fn test_parse_table_extern_source_pk() {
     let m = parse_str(
-        "@table(extern, source: \"legacy_users\", pk: user_id) type User { user_id: int\n name: str }",
+        "table(extern, source: \"legacy_users\", pk: user_id) User { user_id: int\n name: str }",
     );
     if let Decl::Table(t) = &m.declarations[0] {
         assert_eq!(t.name, "User");
@@ -659,16 +657,16 @@ fn test_parse_table_extern_source_pk() {
 #[test]
 fn test_parse_table_duplicate_params_error() {
     assert_parse_fails(
-        "@table(pk: a, pk: b) type T { a: int
+        "table(pk: a, pk: b) T { a: int
  b: int }",
     );
-    assert_parse_fails("@table(extern, extern) type T { id: int }");
-    assert_parse_fails("@table(extern, source: \"x\", source: \"y\", pk: id) type T { id: int }");
+    assert_parse_fails("table(extern, extern) T { id: int }");
+    assert_parse_fails("table(extern, source: \"x\", source: \"y\", pk: id) T { id: int }");
 }
 
 #[test]
 fn test_parse_index() {
-    let m = parse_str("@index Task.by_done on (done, priority)");
+    let m = parse_str("index Task.by_done on (done, priority)");
     if let Decl::Index(idx) = &m.declarations[0] {
         assert_eq!(idx.table_name, "Task");
         assert_eq!(idx.index_name, "by_done");
@@ -709,7 +707,7 @@ fn test_parse_v0_component_from_image() {
 /// produced the same `Decl::Endpoint(EndpointKind::Server)` AST.
 #[test]
 fn test_parse_server_decorator_fn_brace_shape() {
-    let m = parse_str("@server fn echo(x: str) to str {\n    return x\n}");
+    let m = parse_str("server echo(x: str) to str {\n    return x\n}");
     if let Decl::Endpoint(e) = &m.declarations[0] {
         assert_eq!(e.func.name, "echo");
         assert_eq!(e.func.params.len(), 1);

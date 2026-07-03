@@ -5,13 +5,11 @@
 const FIXTURE: &str = r#"
 import react.use_state
 
-@query
-fn parse_voice(s: str) -> str {
+query parse_voice(s: str) -> str {
     s
 }
 
-@mutation
-fn record_event(name: str, payload: str) -> str {
+mutation record_event(name: str, payload: str) -> str {
     name
 }
 

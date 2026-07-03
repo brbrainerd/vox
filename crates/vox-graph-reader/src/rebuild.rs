@@ -40,29 +40,36 @@ fn parse_registered_handlers(main_rs: &str) -> Vec<String> {
         .collect()
 }
 
-/// Collect the source files that the extractor understands, skipping vendored/VCS dirs.
+/// Collect the source files the extractor understands, honoring `.gitignore` (the single
+/// exclusion SSOT) and skipping hidden dirs (`.git`, `.vox`, `.claude`, `.github`, `.worktrees`,
+/// `.clone`) via `.hidden(true)`. `require_git(false)` makes `.gitignore` apply even in a
+/// checkout without `.git` (an external target repo). `target`/`node_modules`/`web-dist` are not
+/// dotdirs and `web-dist` is not gitignored, so a `filter_entry` prunes them by name as a
+/// belt-and-suspenders for sub-scopes whose `.gitignore` may not list them (`web-dist`: 816
+/// minified-bundle nodes measured 2026-07-02). Output is sorted (`sort_by_file_path`) for
+/// deterministic graph builds.
 pub(crate) fn walk_source_files(source_dir: &std::path::Path) -> Vec<std::path::PathBuf> {
-    walkdir::WalkDir::new(source_dir)
-        .into_iter()
+    ignore::WalkBuilder::new(source_dir)
+        .require_git(false)
+        .hidden(true)
+        // Repo `.gitignore` is the SINGLE source of truth: disable the host's global
+        // gitignore (~/.gitignore / core.excludesFile) and `.git/info/exclude` so the
+        // walk is reproducible across hosts and external-repo checkouts.
+        .git_global(false)
+        .git_exclude(false)
+        .sort_by_file_path(|a, b| a.cmp(b))
         .filter_entry(|e| {
             let n = e.file_name().to_string_lossy();
-            n != ".git"
-                && n != "target"
-                && n != ".vox"
+            n != "target"
                 && n != "node_modules"
-                // Build outputs and agent work dirs pollute the corpus with
+                // Not covered by .gitignore or .hidden(true): a bare-name
+                // build-output dir that pollutes the corpus with
                 // minified-bundle "functions" (816 nodes measured 2026-07-02).
-                && n != "dist"
                 && n != "web-dist"
-                && n != ".claude"
-                // Stray leftover worktree/clone dirs, gitignored, never part
-                // of any real crate — measured 2026-07-02 to be 68.6% of a
-                // real corpus run (70,812 / 103,265 nodes).
-                && n != ".worktrees"
-                && n != ".clone"
         })
+        .build()
         .filter_map(|e| e.ok())
-        .filter(|e| e.path().is_file())
+        .filter(|e| e.file_type().is_some_and(|t| t.is_file()))
         .filter(|e| {
             matches!(
                 e.path().extension().and_then(|x| x.to_str()),
@@ -485,43 +492,6 @@ pub fn rebuild_graph(
 }
 
 #[cfg(test)]
-mod walker_tests {
-    use super::*;
-
-    #[test]
-    fn walker_excludes_build_outputs_and_agent_dirs() {
-        let tmp = tempfile::tempdir().unwrap();
-        let mk = |rel: &str| {
-            let p = tmp.path().join(rel);
-            std::fs::create_dir_all(p.parent().unwrap()).unwrap();
-            std::fs::write(&p, "// x").unwrap();
-        };
-        mk("src/a.rs");
-        mk("dist/bundle.js");
-        mk("web-dist/assets/index-XYZ.js");
-        mk(".claude/worktrees/w1/src/b.rs");
-        mk("node_modules/pkg/i.js");
-        mk("target/debug/gen.rs");
-        // Stray top-level worktree/clone dirs left over from past agent
-        // sessions: measured 2026-07-02 to be 68.6% of a real corpus run
-        // (70,812 / 103,265 nodes) — gitignored, never part of any crate.
-        mk(".worktrees/core-surface-taxonomy-p0/crates/vox-mesh-models/src/types.rs");
-        mk(".clone/worktrees/zealous-ardinghelli-b01e11/crates/vox-mesh-models/src/types.rs");
-        let files = walk_source_files(tmp.path());
-        let names: Vec<String> = files
-            .iter()
-            .map(|p| {
-                p.strip_prefix(tmp.path())
-                    .unwrap()
-                    .to_string_lossy()
-                    .replace('\\', "/")
-            })
-            .collect();
-        assert_eq!(names, vec!["src/a.rs".to_string()]);
-    }
-}
-
-#[cfg(test)]
 mod resolve_tests {
     use super::*;
     use crate::ast::{ExtractedEdge, ExtractedNode};
@@ -647,5 +617,69 @@ mod resolve_tests {
             .find(|e| e.target == "cmd:gone")
             .expect("dead-end edge must survive");
         assert_eq!(dangling.confidence, "dangling");
+    }
+}
+
+#[cfg(test)]
+mod walk_tests {
+    use super::walk_source_files;
+    use std::fs;
+
+    #[test]
+    fn excludes_gitignored_hidden_and_build_dirs_sorted() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        for d in ["src", "dist", ".hidden", "node_modules"] {
+            fs::create_dir_all(root.join(d)).unwrap();
+        }
+        // .gitignore lists ONLY dist/ — node_modules/ must be excluded by filter_entry,
+        // NOT by a gitignore rule (locks the external-repo belt-and-suspenders).
+        fs::write(root.join(".gitignore"), "dist/\n").unwrap();
+        fs::write(root.join("src/b.rs"), "fn b() {}").unwrap();
+        fs::write(root.join("src/a.rs"), "fn a() {}").unwrap();
+        fs::write(root.join("dist/bundle.js"), "1").unwrap();
+        fs::write(root.join(".hidden/c.rs"), "fn c() {}").unwrap();
+        fs::write(root.join("node_modules/dep.js"), "1").unwrap();
+
+        let got: Vec<String> = walk_source_files(root)
+            .iter()
+            .map(|p| {
+                p.strip_prefix(root)
+                    .unwrap()
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            })
+            .collect();
+
+        assert_eq!(
+            got,
+            vec!["src/a.rs".to_string(), "src/b.rs".to_string()],
+            "gitignored dist/, hidden .hidden/, and filter_entry node_modules/ all excluded; sorted"
+        );
+    }
+
+    #[test]
+    fn excludes_web_dist_not_covered_by_gitignore_or_hidden() {
+        // web-dist/ is neither gitignored nor a dotdir, so it needs its own
+        // filter_entry check — 816 minified-bundle "functions" measured
+        // 2026-07-02 from apps/vox-mental-tracker/web-dist/assets/*.js.
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        fs::create_dir_all(root.join("src")).unwrap();
+        fs::create_dir_all(root.join("web-dist/assets")).unwrap();
+        fs::write(root.join("src/a.rs"), "fn a() {}").unwrap();
+        fs::write(root.join("web-dist/assets/index-XYZ.js"), "1").unwrap();
+
+        let got: Vec<String> = walk_source_files(root)
+            .iter()
+            .map(|p| {
+                p.strip_prefix(root)
+                    .unwrap()
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            })
+            .collect();
+
+        assert_eq!(got, vec!["src/a.rs".to_string()]);
     }
 }

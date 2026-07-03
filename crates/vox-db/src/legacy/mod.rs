@@ -12,7 +12,7 @@ use turso::Connection;
 
 /// Canonical legacy import/export planning surface.
 #[cfg(feature = "legacy-import")]
-#[allow(deprecated)] // intentional re-export of the deprecated legacy surface
+#[allow(deprecated)]
 pub use crate::codex_legacy as codex;
 /// Canonical optional extra importer surface.
 #[cfg(feature = "legacy-import")]

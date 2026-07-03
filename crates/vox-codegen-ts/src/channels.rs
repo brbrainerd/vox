@@ -42,7 +42,7 @@ fn workspace_root() -> PathBuf {
 /// Returns `Err(Diagnostic)` with code [`codes::CODEGEN_TS_UNSUPPORTED`] when the
 /// text is not valid YAML or does not match the [`ChannelContract`] schema.
 /// Previously this was only reachable via the panicking [`load_channel_contract`] path.
-#[allow(clippy::result_large_err)] // Diagnostic is the crate-wide error type; boxing would cascade
+#[allow(clippy::result_large_err)]
 pub fn parse_channel_contract(text: &str) -> Result<ChannelContract, Diagnostic> {
     serde_yaml::from_str(text).map_err(|e| {
         Diagnostic::warning(
@@ -57,7 +57,7 @@ pub fn parse_channel_contract(text: &str) -> Result<ChannelContract, Diagnostic>
 /// Load and parse the channel contract from an explicit path.
 ///
 /// Returns `Err(Diagnostic)` when the file cannot be read or is not valid YAML.
-#[allow(clippy::result_large_err)] // Diagnostic is the crate-wide error type; boxing would cascade
+#[allow(clippy::result_large_err)]
 pub fn load_channel_contract_from_path(path: &Path) -> Result<ChannelContract, Diagnostic> {
     let text = std::fs::read_to_string(path).map_err(|e| {
         Diagnostic::warning(

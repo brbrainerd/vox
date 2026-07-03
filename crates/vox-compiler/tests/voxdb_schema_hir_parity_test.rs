@@ -6,12 +6,12 @@ use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::parse;
 
 const VOXDB_FIXTURE: &str = r#"
-@table type User {
+table User {
   name: str
   score: int
 }
 
-@index User.user_name on (name)
+index User.user_name on (name)
 "#;
 
 #[test]

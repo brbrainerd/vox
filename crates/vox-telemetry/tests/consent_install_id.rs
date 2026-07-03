@@ -1,7 +1,4 @@
-// Rust 2024 made `std::env::{set_var,remove_var}` `unsafe`; this integration
-// test mutates env single-threaded (see the run-with-one-thread note below).
-#![allow(unsafe_code)]
-
+#![allow(unsafe_code)] // `std::env::set_var` is unsafe on Rust 2024; these tests are single-threaded.
 use std::path::PathBuf;
 use tempfile::TempDir;
 use vox_telemetry::config::{

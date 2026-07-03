@@ -13,21 +13,19 @@
 // Note: Advanced query chaining (where/using/live/scope/order_by/limit/select) is planned
 // for a future release. Current supported ops: all(), get(id), insert({...}).
 
-@table type SessionEvent {
+table SessionEvent {
     sessionid: str
     source: str
     latencyms: int
     ok: bool
 }
 
-@query
-fn hot_session_count() to int {
+query hot_session_count() to int {
     // Retrieve all session events; filtering is done application-side
     let rows = db.SessionEvent.all()
     return len(rows)
 }
 
-@query
-fn session_count() to int {
+query session_count() to int {
     return len(db.SessionEvent.all())
 }

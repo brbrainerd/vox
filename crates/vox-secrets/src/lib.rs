@@ -444,6 +444,12 @@ pub fn get_registry_token(registry: &str) -> Option<String> {
         .map(|(s, _)| secrecy::ExposeSecret::expose_secret(&s).to_string())
 }
 
+/// Read the username (e.g. GitHub login) stored alongside a registry token.
+#[must_use]
+pub fn get_registry_username(registry: &str) -> Option<String> {
+    sources::auth_json::read_registry_username(registry)
+}
+
 /// Remove a registry token from both the secure store and `auth.json`.
 /// Returns `true` if an entry existed. Never returns the token material.
 pub fn remove_registry_token(registry: &str) -> Result<bool, SecretError> {

@@ -3,7 +3,7 @@
 // A single Article table. The plan asks the model to add an
 // ArticleTag join-style table.
 
-@table type Article {
+table Article {
     id: str,
     title: str
 }

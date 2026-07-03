@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import type { ReactNode } from 'react';
 import { Search, Brackets, Database, Layers, ChevronRight, ChevronDown, FileCode, Terminal } from 'lucide-react';
 
 const MOCK_AST = {
@@ -90,7 +90,15 @@ export const AstView = () => {
   );
 };
 
-const AstNode = ({ label, icon, expanded, active, children }: any) => (
+interface AstNodeProps {
+  label: string;
+  icon: ReactNode;
+  expanded?: boolean;
+  active?: boolean;
+  children?: ReactNode;
+}
+
+const AstNode = ({ label, icon, expanded, active, children }: AstNodeProps) => (
   <div className="flex flex-col">
     <div className={`flex items-center gap-3 py-2 px-3 rounded-xl cursor-default transition-all ${
       active ? 'bg-blue-600/10 text-blue-500 border border-blue-500/20' : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-300'
@@ -111,13 +119,22 @@ const AstNode = ({ label, icon, expanded, active, children }: any) => (
   </div>
 )
 
-const StatMini = ({ label, value }: any) => (
+interface StatMiniProps {
+  label: string;
+  value: string;
+}
+
+const StatMini = ({ label, value }: StatMiniProps) => (
   <div className="flex items-center gap-2">
     <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">{label}</span>
     <span className="text-sm font-bold text-zinc-300 font-mono">{value}</span>
   </div>
 )
 
-const Tag = ({ label }: any) => (
+interface TagProps {
+  label: string;
+}
+
+const Tag = ({ label }: TagProps) => (
   <span className="px-3 py-1 rounded-full bg-white/[0.03] border border-white/10 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{label}</span>
 )

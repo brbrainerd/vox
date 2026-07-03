@@ -11,11 +11,9 @@ name: "CodeQL"
 
 on:
   # Off per-PR: CodeQL's Rust extractor is a ~60-min analysis and OOMs on large PR
-  # diff-ranges. Coverage retained via merge_group (pre-merge), push:main, and the
+  # diff-ranges. Coverage retained via merge_group (pre-merge) and the
   # weekly schedule — the per-PR critical path keeps its fast signal instead.
   merge_group:
-  push:
-    branches: [main]
   schedule:
     # Weekly, Monday 04:30 UTC.
     - cron: "30 4 * * 1"

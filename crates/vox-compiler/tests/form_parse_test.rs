@@ -4,7 +4,7 @@ use vox_compiler::{lexer::cursor::lex, parser::parse};
 #[test]
 fn form_with_basic_fields_parses() {
     let src = r#"
-@form Mood {
+form Mood {
     field score: int range(1..10) required label("Mood")
     field note: str max_len(280) optional
     on_submit: save_mood
@@ -32,7 +32,7 @@ fn form_with_basic_fields_parses() {
 #[test]
 fn form_with_hidden_default_field_parses() {
     let src = r#"
-@form X {
+form X {
     field at: int default(0) hidden
     on_submit: save
 }

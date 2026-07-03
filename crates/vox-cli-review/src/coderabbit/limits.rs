@@ -1,22 +1,23 @@
 //! CodeRabbit tier limits and rate constants.
 //!
 //! Source: [CodeRabbit FAQ – Usage Limits](https://docs.coderabbit.ai/faq/) (per developer).
-//! Last verified: 2026-04-06.
+//! Last verified: 2026-06-29. Pro caps at 150 files/PR (owner-observed; vendor pages
+//! are self-contradictory) and 5 reviews/hour (FAQ). Full reviews on all tiers.
 //! Re-verify quarterly or when billing tiers/features change.
 
 /// CodeRabbit subscription tier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum CodeRabbitTier {
-    /// Free plan: 150 files, 3 reviews/hour (summary only).
+    /// Free plan: 150 files, 3 reviews/hour.
     Free,
     /// 14-day trial: 150 files, 4 reviews/hour.
     Trial,
     /// Open-source plan: 150 files, 2 reviews/hour.
     #[default]
     Oss,
-    /// Pro plan: 300 files, 8 reviews/hour.
+    /// Pro plan: 150 files, 5 reviews/hour.
     Pro,
-    /// Enterprise: 300 files, 12 reviews/hour.
+    /// Enterprise: 150 files, 12 reviews/hour (reviews/hour unverified).
     Enterprise,
 }
 
@@ -25,7 +26,7 @@ impl CodeRabbitTier {
     pub fn files_per_review(self) -> u32 {
         match self {
             CodeRabbitTier::Free | CodeRabbitTier::Trial | CodeRabbitTier::Oss => 150,
-            CodeRabbitTier::Pro | CodeRabbitTier::Enterprise => 300,
+            CodeRabbitTier::Pro | CodeRabbitTier::Enterprise => 150,
         }
     }
 
@@ -35,7 +36,7 @@ impl CodeRabbitTier {
             CodeRabbitTier::Free => 3,
             CodeRabbitTier::Trial => 4,
             CodeRabbitTier::Oss => 2,
-            CodeRabbitTier::Pro => 8,
+            CodeRabbitTier::Pro => 5,
             CodeRabbitTier::Enterprise => 12,
         }
     }
@@ -49,7 +50,7 @@ impl CodeRabbitTier {
     pub fn recommended_max_files_per_pr(self) -> u32 {
         match self {
             CodeRabbitTier::Free | CodeRabbitTier::Trial | CodeRabbitTier::Oss => 140,
-            CodeRabbitTier::Pro | CodeRabbitTier::Enterprise => 250,
+            CodeRabbitTier::Pro | CodeRabbitTier::Enterprise => 140,
         }
     }
 
@@ -117,17 +118,17 @@ mod tests {
     #[test]
     fn tier_files_per_review() {
         assert_eq!(CodeRabbitTier::Free.files_per_review(), 150);
-        assert_eq!(CodeRabbitTier::Pro.files_per_review(), 300);
+        assert_eq!(CodeRabbitTier::Pro.files_per_review(), 150);
     }
 
     #[test]
     fn tier_min_delay_secs() {
-        assert_eq!(CodeRabbitTier::Pro.min_delay_between_prs_secs(), 450);
+        assert_eq!(CodeRabbitTier::Pro.min_delay_between_prs_secs(), 720);
     }
 
     #[test]
     fn clamp_max_respects_tier_cap() {
-        assert_eq!(clamp_max_files_per_pr(CodeRabbitTier::Pro, 500), 300);
+        assert_eq!(clamp_max_files_per_pr(CodeRabbitTier::Pro, 500), 150);
         assert_eq!(clamp_max_files_per_pr(CodeRabbitTier::Oss, 500), 150);
         assert_eq!(clamp_max_files_per_pr(CodeRabbitTier::Pro, 0), 1);
     }
@@ -135,8 +136,8 @@ mod tests {
     #[test]
     fn clamp_batch_caps_both_bounded() {
         let (max, hard) = clamp_batch_caps(CodeRabbitTier::Pro, 400, 500);
-        assert_eq!(hard, 300);
-        assert_eq!(max, 300);
+        assert_eq!(hard, 150);
+        assert_eq!(max, 150);
         let (max2, hard2) = clamp_batch_caps(CodeRabbitTier::Oss, 200, 200);
         assert_eq!(hard2, 150);
         assert_eq!(max2, 150);

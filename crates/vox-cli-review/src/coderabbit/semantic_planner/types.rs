@@ -252,6 +252,14 @@ pub struct SemanticSubmitConfig {
     pub semantic_workspace_crates: bool,
     /// When set, fail planning if unassigned / included exceeds this ratio.
     pub max_unassigned_ratio: Option<f64>,
+    /// Restrict candidates to files modified since this git date expr (e.g. "2026-04-01").
+    pub since: Option<String>,
+    /// Keep only the top-N most important files after ranking.
+    pub top: Option<usize>,
+    /// Importance signal weights (recency, churn, centrality).
+    pub rank_weights: super::super::ranker::RankWeights,
+    /// Re-order planned chunks so the highest-importance PRs come first.
+    pub rank_order: bool,
 }
 
 impl Default for SemanticSubmitConfig {
@@ -276,6 +284,10 @@ impl Default for SemanticSubmitConfig {
             groups_config: None,
             semantic_workspace_crates: true,
             max_unassigned_ratio: None,
+            since: None,
+            top: None,
+            rank_weights: super::super::ranker::RankWeights::default(),
+            rank_order: false,
         }
     }
 }

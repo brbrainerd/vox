@@ -46,6 +46,7 @@ pub const LSP_KEYWORD_SNIPPETS: &[(&str, &str)] = &[
         "resource",
         "resource \"${1:uri}\" \"${2:desc}\" $3() to $4 { \n\t$0 \n}",
     ),
+    ("form", "form $1 { \n\tfield $2: $3\n\ton_submit: $0\n}"),
     // ── Parser-only identifiers (lexed as Ident) ──
     ("struct", "struct $1 { \n\t$0 \n}"),
     ("enum", "enum $1 { \n\t$0 \n}"),
@@ -175,7 +176,7 @@ pub const DECLARATION_KEYWORDS: &[&str] = &[
 /// at declaration-head position only.
 pub const WEB_REACTIVE_KEYWORDS: &[&str] = &[
     "and", "or", "not", "is", "true", "false", "get", "post", "put", "delete", "table", "index",
-    "query", "mutation", "server", "tool", "resource",
+    "query", "mutation", "server", "tool", "resource", "form",
 ];
 
 /// Keywords that have dedicated single-word lexer tokens (speech / strict introspection).
@@ -235,6 +236,7 @@ pub const LEXER_KEYWORDS: &[&str] = &[
     "server",
     "tool",
     "resource",
+    "form",
 ];
 
 /// `@decorator` spellings from the lexer (stable order).
@@ -347,6 +349,8 @@ pub const LEXER_DEPRECATED_DECORATORS: &[&str] = &[
     "@server",
     "@tool",
     "@resource",
+    // Tier-2 (form demoted to the `form` keyword; warning-first).
+    "@form",
 ];
 
 /// Builtin names for LSP / MCP “surface” introspection (aligned with common runtime helpers).

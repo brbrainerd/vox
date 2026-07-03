@@ -6312,6 +6312,50 @@ operations:
     http_read_role_eligible: true
     tier: core
   cli: null
+- id: graph.callers
+  title: Vox Search Callers
+  description: Functions that call the given symbol(s) — reverse call edges, constructor noise filtered (read-only).
+  description_human: null
+  product_lane: platform
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_search_callers
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: graph.callees
+  title: Vox Search Callees
+  description: Functions called by the given symbol(s) — forward call edges, constructor noise filtered (read-only).
+  description_human: null
+  product_lane: platform
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_search_callees
+    http_read_role_eligible: false
+    tier: core
+  cli: null
 - id: graph.compare
   title: Vox Search Compare
   description: Diff two Vox Search structural-index manifests for node/edge/community delta (read-only).

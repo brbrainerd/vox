@@ -1,3 +1,4 @@
+#![cfg_attr(test, allow(unsafe_code))] // test-only std::env::set_var (unsafe on edition 2024)
 //! Vox plugin host: discovery, loading, registry.
 //!
 //! See: docs/src/architecture/plugin-system-redesign-2026.md

@@ -1325,6 +1325,7 @@ where
 
 #[cfg(test)]
 mod rust_emit_exhaustiveness_tests {
+
     use vox_compiler::feature_matrix::{ExprFeature, Feature, unsupported_diagnostic};
     use vox_compiler::target::Target;
 

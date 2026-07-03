@@ -13,33 +13,29 @@
 // @training_prompt: Show database operations in Vox: all(), insert(), get(), and aggregations via len().
 // Note: db.Table.filter() is not yet implemented; filtering is done application-side via len() guards.
 // ANCHOR: display
-@table type Product {
+table Product {
     name: str
     category: str
     price: int
     in_stock: bool
 }
 
-@query
-fn product_count() to int {
+query product_count() to int {
     return len(db.Product.all())
 }
 
-@query
-fn all_products() to int {
+query all_products() to int {
     // Returns total count — application-side filtering for category/stock applies
     let all = db.Product.all()
     return len(all)
 }
 
-@mutation
-fn restock(name: str, price: int) to Result[str] {
+mutation restock(name: str, price: int) to Result[str] {
     db.Product.insert({ name: name, category: "general", price: price, in_stock: true })?
     return Ok("restocked")
 }
 
-@mutation
-fn add_product(name: str, category: str, price: int) to Result[str] {
+mutation add_product(name: str, category: str, price: int) to Result[str] {
     db.Product.insert({ name: name, category: category, price: price, in_stock: true })?
     return Ok("added")
 }

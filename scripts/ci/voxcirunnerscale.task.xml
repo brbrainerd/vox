@@ -56,8 +56,13 @@
   </Settings>
   <Actions Context="Author">
     <Exec>
+      <!-- Call the built-in scaler directly. Dropping the `vox run <script>` wrapper
+           avoids VoxScript JIT-compilation (which recompiles at binary-change
+           boundaries and can hit a transient workspace build break, exit 267009).
+           `vox ci runner-scale` is freshness-exempt (see run_body.rs) and errors
+           clearly if Docker is down. -->
       <Command>vox</Command>
-      <Arguments>run scripts/ci-runners-up.vox</Arguments>
+      <Arguments>ci runner-scale --apply</Arguments>
       <WorkingDirectory>C:\Users\Owner\vox</WorkingDirectory>
     </Exec>
   </Actions>

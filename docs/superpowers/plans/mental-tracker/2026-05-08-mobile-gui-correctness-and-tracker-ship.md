@@ -1601,7 +1601,7 @@ A `@form` declaration captures field schemas, generates inputs, two-way binding,
 **Spec:** Syntax:
 
 ```vox
-@form MoodCheckIn {
+form MoodCheckIn {
     field score: int range(1..10) required label("How are you feeling?")
     field note: str max_len(280) optional label("Anything to share?")
     field at: timestamp default(now()) hidden
@@ -2322,7 +2322,7 @@ In `apps/vox-mental-tracker/src/main.vox`, after the existing `record_health_eve
     )
 }
 
-@form Mood {
+form Mood {
     field score: int range(1..10) required label("How are you feeling? (1–10)")
     field note: str max_len(280) optional label("Anything to share?")
     on_submit: save_mood

@@ -145,7 +145,7 @@ fn warm_cache_vox_run_under_500ms() {
         warm,
     );
 
-    vox_cli::benchmark_telemetry::record_opt_blocking(
+    vox_cli_core::benchmark_telemetry::record_opt_blocking(
         "vox_run_warm_ms",
         Some(warm.as_secs_f64() * 1000.0),
         None,

@@ -1,3 +1,4 @@
+#![cfg_attr(test, allow(unsafe_code))] // test-only std::env::set_var (unsafe on edition 2024)
 //! Environment-backed mesh training toggles (replaces `vox-populi` `populi_train` stubs).
 
 /// Configuration for a distributed GPU MENS training worker.

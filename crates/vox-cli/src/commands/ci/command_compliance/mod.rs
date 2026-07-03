@@ -40,7 +40,7 @@ use validators::{
 };
 
 use super::command_sync;
-use super::completion_quality;
+use vox_cli_ci::completion_quality;
 
 /// Run all command-compliance checks from a repository root (directory containing `AGENTS.md`).
 pub fn run(repo_root: &Path) -> Result<()> {

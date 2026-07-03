@@ -3,7 +3,7 @@
 // A minimal Order table. The plan asks the model to add a
 // `customer: str` field.
 
-@table type Order {
+table Order {
     id: str,
     total_cents: int
 }

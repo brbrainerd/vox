@@ -139,7 +139,7 @@ pub fn run_executions(repo_root: &Path, milestone_filter: Option<&str>) -> Resul
             println!("  class: {class}");
             run_benchmark_class(repo_root, class)?;
             if class.starts_with("vox_compiler_syntax_k_") {
-                crate::benchmark_telemetry::record_syntax_k_opt_blocking(
+                vox_cli_ci::benchmark_telemetry::record_syntax_k_opt_blocking(
                     class,
                     "eval-matrix",
                     None,

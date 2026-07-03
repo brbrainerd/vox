@@ -1,3 +1,4 @@
+#![allow(unsafe_code)] // test-only std::env::set_var (edition 2024)
 //! Guard: online prior-art fetch must fail fast when embedder is required but missing.
 // Rust 2024 made std::env::{set_var,remove_var} unsafe; mutated single-threaded.
 #![allow(unsafe_code)]

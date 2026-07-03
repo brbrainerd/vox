@@ -184,6 +184,7 @@ mod tests {
 
 #[cfg(test)]
 mod semcov_wave42_tests {
+    #![allow(clippy::field_reassign_with_default)] // per-field mutation reads clearer in these adversarial tests
     use super::*;
     use cost_defense::{
         CostCircuitBreaker, CostDefenseConfig, CostDefenseRejection, CostDefenseState,

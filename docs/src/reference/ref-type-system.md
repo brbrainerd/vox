@@ -44,7 +44,7 @@ A named collection of fields.
 
 ```vox
 // vox:skip
-@table type Task {
+table Task {
     id:       Id[Task]
     title:    str
     done:     bool
@@ -84,7 +84,7 @@ Used for operations that can fail.
 
 ```vox
 // vox:skip
-@server fn update_task(id: Id[Task], title: str) to Result[Unit, str] {
+server update_task(id: Id[Task], title: str) to Result[Unit, str] {
     if title.len() == 0 {
         return Err("Title cannot be empty")
     }

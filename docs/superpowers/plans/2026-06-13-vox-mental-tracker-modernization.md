@@ -138,7 +138,7 @@ In `main.vox`, after `timeline_events_json()` (ends ~line 336), add a query that
 ```vox
 /// Human-readable list of effective (non-superseded) events, newest rows last,
 /// one per line: "• <kind> — <payload_json>". Empty-state friendly.
-@query fn timeline_lines() to str {
+query timeline_lines() to str {
     match db.HealthEventLog.all() {
         Ok(rows) => {
             let mut out = ""

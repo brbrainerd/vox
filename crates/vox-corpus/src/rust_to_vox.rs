@@ -66,7 +66,7 @@ pub fn extract_translations(source: &str) -> Vec<TranslationPair> {
             results.push(TranslationPair {
                 instruction: format!("Translate the Rust struct `{name}` to a Vox `@table` type."),
                 input_rust: cap[0].to_string(),
-                output_vox: format!("@table type {name} {{\n{vox_fields}}}"),
+                output_vox: format!("table {name} {{\n{vox_fields}}}"),
                 confidence: 0.9,
             });
         }

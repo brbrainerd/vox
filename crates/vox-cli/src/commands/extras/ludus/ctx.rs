@@ -40,16 +40,14 @@ impl LudusContext {
         let db = db_util::get_db().await?;
         let local_user_id = vox_gamify::db::canonical_user_id();
 
-        // 1. Resolve effective user ID (prefer GitHub identity for global sync)
-        let effective_user_id = if let Ok(identities) = db.get_vox_identities(&local_user_id).await
-        {
-            if let Some((_, gh_id, _)) = identities.iter().find(|(p, _, _)| p == "github") {
-                format!("gh:{}", gh_id)
-            } else {
-                local_user_id.clone()
-            }
-        } else {
-            local_user_id.clone()
+        // 1. Resolve effective user ID (prefer GitHub identity for global sync).
+        // The OAuth flow stores the GitHub login in Clavis as the github.com
+        // registry username. ponytail: keyed off login, not the numeric id (the
+        // id isn't persisted); a GitHub rename would orphan the global profile —
+        // acceptable for gamification sync.
+        let effective_user_id = match vox_secrets::get_registry_username("github.com") {
+            Some(login) if !login.is_empty() => format!("gh:{login}"),
+            _ => local_user_id.clone(),
         };
 
         // 2. Load profile with migration support

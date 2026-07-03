@@ -1,3 +1,4 @@
+#![allow(clippy::field_reassign_with_default)]
 //! CI gate: compile Vox golden fixtures → TypeScript, then run `tsc --noEmit` to verify
 //! that the emitted TS is type-correct.
 //!
@@ -325,7 +326,7 @@ fn admin_output_typechecks_when_gated() {
             },
             HirTableField {
                 name: "email".into(),
-                type_ann: HirType::Named("email".into()),
+                type_ann: HirType::Named("string".into()),
                 span,
             },
         ],

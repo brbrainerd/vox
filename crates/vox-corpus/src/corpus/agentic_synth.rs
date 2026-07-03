@@ -103,29 +103,27 @@ pub fn generate_agentic_synth_file(output_path: &Path) -> anyhow::Result<usize> 
         .map(|p| p.ancestors().nth(2).unwrap_or(&p).to_path_buf())
     {
         let skill_yaml = workspace_root.join("contracts/skills/installed-skills.v1.yaml");
-        if skill_yaml.exists() {
-            if let Ok(raw) = std::fs::read_to_string(&skill_yaml) {
-                if let Ok(val) = serde_yaml::from_str::<serde_json::Value>(&raw) {
-                    if let Some(skills) = val.get("skills").and_then(|v| v.as_array()) {
-                        for skill in skills {
-                            let id = skill
-                                .get("id")
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("unknown");
-                            let desc = skill
-                                .get("description")
-                                .and_then(|v| v.as_str())
-                                .unwrap_or(id);
-                            let rec = tool_record(
-                                &format!("Invoke the {} skill: {}", id, desc),
-                                &format!("vox_skill_invoke_{}", id.replace('-', "_")),
-                                json!({ "skill_id": id }),
-                            );
-                            writeln!(file, "{}", serde_json::to_string(&rec)?)?;
-                            count += 1;
-                        }
-                    }
-                }
+        if skill_yaml.exists()
+            && let Ok(raw) = std::fs::read_to_string(&skill_yaml)
+            && let Ok(val) = serde_yaml::from_str::<serde_json::Value>(&raw)
+            && let Some(skills) = val.get("skills").and_then(|v| v.as_array())
+        {
+            for skill in skills {
+                let id = skill
+                    .get("id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("unknown");
+                let desc = skill
+                    .get("description")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(id);
+                let rec = tool_record(
+                    &format!("Invoke the {} skill: {}", id, desc),
+                    &format!("vox_skill_invoke_{}", id.replace('-', "_")),
+                    json!({ "skill_id": id }),
+                );
+                writeln!(file, "{}", serde_json::to_string(&rec)?)?;
+                count += 1;
             }
         }
     }

@@ -1,13 +1,18 @@
 ---
 source: crates/vox-integration-tests/tests/codegen_rust_test.rs
-assertion_line: 83
 expression: output
 ---
 use serde::{Serialize, Deserialize};
 
 pub fn as_string<T: serde::Serialize>(v: &T) -> String {
     let val = serde_json::to_value(v).expect("vox codegen: serde_json::to_value failed");
-    if let Some(s) = val.as_str() { s.to_string() } else { val.to_string() }
+    if let Some(s) = val.as_str() { return s.to_string(); }
+    if val.is_f64() {
+        if let Some(f) = val.as_f64() {
+            if f.is_finite() && f.fract() == 0.0 { return format!("{}", f as i64); }
+        }
+    }
+    val.to_string()
 }
 
 fn f() -> i64 {

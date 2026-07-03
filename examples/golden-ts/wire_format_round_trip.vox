@@ -19,11 +19,8 @@ type Price {
     currency: str
 }
 
-@query
-fn get_price(item_id: str) to Price { return { amount: 0.0, currency: "USD" } }
+query get_price(item_id: str) to Price { return { amount: 0.0, currency: "USD" } }
 
-@query
-fn list_prices(category: str, limit: Option[int]) to List[dec] { return [] }
+query list_prices(category: str, limit: Option[int]) to List[dec] { return [] }
 
-@mutation
-fn record_payment(item_id: str, amount: dec, note: Option[str]) to bool { return true }
+mutation record_payment(item_id: str, amount: dec, note: Option[str]) to bool { return true }

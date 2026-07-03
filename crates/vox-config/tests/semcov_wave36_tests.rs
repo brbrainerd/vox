@@ -1,3 +1,4 @@
+#![allow(unsafe_code)] // test-only std::env::set_var (unsafe on edition 2024)
 //! Adversarial tests for vox-config: env parsing, path resolution, rollout flags,
 //! routing policy, project manifest parsing, and secrets cutover migration helpers.
 //!

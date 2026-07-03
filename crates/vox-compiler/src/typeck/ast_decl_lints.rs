@@ -472,7 +472,7 @@ pub fn lint_ast_declarations(module: &Module, _source: &str) -> Vec<Diagnostic> 
         match decl {
             Decl::Index(idx) if env.lookup(&idx.table_name).is_none() => {
                 diags.push(Diagnostic {
-                    message: format!("@index references unknown table '{}'", idx.table_name),
+                    message: format!("index references unknown table '{}'", idx.table_name),
                     span: idx.span,
                     severity: TypeckSeverity::Error,
                     expected_type: None,

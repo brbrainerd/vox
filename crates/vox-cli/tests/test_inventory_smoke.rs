@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use vox_cli::commands::ci::test_inventory::build_inventory;
+use vox_cli_ci::test_inventory::build_inventory;
 
 #[test]
 fn workspace_inventory_nonzero_crates() {

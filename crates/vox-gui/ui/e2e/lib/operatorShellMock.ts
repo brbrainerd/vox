@@ -186,6 +186,24 @@ export function installOperatorShellMock(opts: OperatorShellMockOptions = {}): v
           return { ok: true };
         case 'discovery_record':
           return null;
+        case 'coderabbit_token_present':
+          return true;
+        case 'coderabbit_report':
+          return {
+            run_state: { chunks: [{ name: 'crate_vox_db', pr_number: 7, status: 'completed' }] },
+            db_status: { findings: 3 },
+          };
+        case 'coderabbit_plan':
+          return {
+            baseline_branch: 'cr-baseline',
+            total_files: 3,
+            chunks: [
+              { order: 1, name: 'crate_vox_db', files: ['a.rs', 'b.rs'] },
+              { order: 2, name: '06_docs_src', files: ['x.md'] },
+            ],
+          };
+        case 'coderabbit_run_async':
+          return { status: 'running' };
         default:
           return null;
       }

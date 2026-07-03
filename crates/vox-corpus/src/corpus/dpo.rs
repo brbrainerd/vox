@@ -238,13 +238,11 @@ fn strip_return_type(src: &str) -> String {
                 || t.starts_with("pub(crate) fn ")
                 || t.starts_with("const fn ")
                 || t.starts_with("unsafe fn ");
-            if is_sig {
-                if let Some(brace) = line.find('{') {
-                    let head = &line[..brace];
-                    if let Some(arrow) = head.rfind("->") {
-                        let before = head[..arrow].trim_end();
-                        return format!("{} {}", before, &line[brace..]);
-                    }
+            if is_sig && let Some(brace) = line.find('{') {
+                let head = &line[..brace];
+                if let Some(arrow) = head.rfind("->") {
+                    let before = head[..arrow].trim_end();
+                    return format!("{} {}", before, &line[brace..]);
                 }
             }
             line.to_string()

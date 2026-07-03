@@ -3,31 +3,30 @@
 use anyhow::{Result, anyhow};
 use std::process::Command;
 
-use super::build_timings;
-use super::canonical_docs;
-use super::check_links;
-use super::cmd_enums::{
+use super::command_compliance;
+use super::command_sync;
+use super::eval_matrix;
+use super::exec_policy_contract;
+use super::release_build;
+use super::{cargo_bin, repo_root};
+use vox_cli_ci::canonical_docs;
+use vox_cli_ci::check_links;
+use vox_cli_ci::cmd_enums::{
     CiCmd, DocInventoryCmd, DocsRealityAuditCmd, EvalMatrixCmd, MensScorecardCmd,
     OperationsSyncTarget,
 };
-use super::command_compliance;
-use super::command_sync;
-use super::completion_quality;
-use super::contracts_index;
-use super::coverage_gates;
-use super::determinism_audit;
-use super::doctest_md;
-use super::eval_matrix;
-use super::exec_policy_contract;
-use super::grammar_ssot_parity;
-use super::mens_scorecard;
-use super::parse_status;
-use super::release_build;
-use super::scaling_audit;
-use super::scientia_heuristics_parity;
-use super::scientia_novelty_ledger_contract;
-use super::scientia_worthiness_contract;
-use super::{cargo_bin, repo_root};
+use vox_cli_ci::completion_quality;
+use vox_cli_ci::contracts_index;
+use vox_cli_ci::coverage_gates;
+use vox_cli_ci::determinism_audit;
+use vox_cli_ci::doctest_md;
+use vox_cli_ci::grammar_ssot_parity;
+use vox_cli_ci::mens_scorecard;
+use vox_cli_ci::parse_status;
+use vox_cli_ci::scaling_audit;
+use vox_cli_ci::scientia_heuristics_parity;
+use vox_cli_ci::scientia_novelty_ledger_contract;
+use vox_cli_ci::scientia_worthiness_contract;
 
 /// Helpers live in `ci/run_body_helpers/`; `#[path]` keeps them out of `ci/run_body/` (submodule rule).
 #[path = "run_body_helpers/mod.rs"]
@@ -46,14 +45,34 @@ use run_body_helpers::{
     run_toestub_self_apply, run_turso_import_guard,
 };
 
-use super::retired_symbol_check;
+use vox_cli_ci::retired_symbol_check;
+
+/// Whether a `vox ci` subcommand must pass the stale-binary freshness guard.
+///
+/// `false` for infra reconcile/read commands (runner autoscaler/preflight/status):
+/// they carry no correctness verdict and must keep the CI fleet alive even when the
+/// installed binary lags a fast-moving source tree.
+fn should_enforce_freshness(cmd: &CiCmd) -> bool {
+    !matches!(
+        cmd,
+        CiCmd::RunnerScale { .. } | CiCmd::RunnerPreflight | CiCmd::RunnerStatus
+    )
+}
 
 /// Run `vox ci` subcommand.
 pub async fn run(cmd: CiCmd) -> Result<()> {
     let root = repo_root();
     // A stale `vox` binary runs outdated guard logic/allowlists, so its `vox ci`
     // verdict would not reflect the current source. Refuse rather than mislead.
-    crate::freshness::enforce_for_ci(&root)?;
+    //
+    // EXCEPTION: the runner autoscaler/preflight/status are infra reconcile + read
+    // commands, not guard verdicts — they spawn/inspect Docker CI runners and produce
+    // no correctness judgement. Gating them on freshness lets a fast-moving source tree
+    // (multiple agents racing ahead of the installed binary) starve the CI fleet to zero
+    // every tick. They must run regardless of binary staleness.
+    if should_enforce_freshness(&cmd) {
+        crate::freshness::enforce_for_ci(&root)?;
+    }
 
     // Per-gate status capture (Phase 1c). Only registry-backed gates are tracked;
     // others record nothing (honest grey). Disabled via VOX_NO_POLICY_STATUS=1.
@@ -61,7 +80,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
     let started = std::time::Instant::now();
 
     let result: Result<()> = match cmd {
-        CiCmd::BuildCacheDoctor => super::doctor_build_cache::run(),
+        CiCmd::BuildCacheDoctor => vox_cli_ci::doctor_build_cache::run(),
         CiCmd::Manifest => run_manifest(&root),
         CiCmd::PolicyRegistry { write } => {
             super::policy_registry::run_generate(&root, write).map_err(|e| anyhow!(e))
@@ -74,31 +93,31 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             write,
         } => {
             if write {
-                super::config_hygiene::write_registry(super::config_hygiene::WriteRegistryOpts {
-                    root: root.clone(),
-                })
+                vox_cli_ci::config_hygiene::write_registry(
+                    vox_cli_ci::config_hygiene::WriteRegistryOpts { root: root.clone() },
+                )
             } else {
-                super::config_hygiene::run(update_baseline)
+                vox_cli_ci::config_hygiene::run(update_baseline)
             }
         }
         CiCmd::ConfigRegistryParity { update_baseline } => {
-            super::config_registry_parity::run(update_baseline)
+            vox_cli_ci::config_registry_parity::run(update_baseline)
         }
         CiCmd::ConfigGuiCodegen { check, fields } => {
             if fields {
-                super::config_gui_codegen::run_fields(check)
+                vox_cli_ci::config_gui_codegen::run_fields(check)
             } else {
-                super::config_gui_codegen::run(check)
+                vox_cli_ci::config_gui_codegen::run(check)
             }
         }
         CiCmd::CheckDocsSsot => check_docs_ssot(&root),
         CiCmd::CheckFrozen => vox_cli_ci::frozen_crates::check_frozen_crates(&root),
         CiCmd::GuiCatalogParity => super::gui_catalog_parity::run(&root),
-        CiCmd::GuiVersionSync { write } => super::gui_version_sync::run(&root, write),
+        CiCmd::GuiVersionSync { write } => vox_cli_ci::gui_version_sync::run(&root, write),
         CiCmd::GuiSurfaceCoverage { write } => super::gui_surface_coverage::run(&root, write),
         CiCmd::GuiSurfaceRegistry { write } => super::gui_surface_registry::run(&root, write),
-        CiCmd::GuiHonesty => super::gui_honesty::run(&root),
-        CiCmd::ModelRoutingCheck => super::model_routing_check::run(&root),
+        CiCmd::GuiHonesty => vox_cli_ci::gui_honesty::run(&root),
+        CiCmd::ModelRoutingCheck => vox_cli_ci::model_routing_check::run(&root),
         CiCmd::CheckCodexSsot => check_codex_ssot(&root),
         CiCmd::ContractsIndex => contracts_index::run(&root),
         CiCmd::AiFixturesCoverage => vox_cli_ci::ai_fixtures_coverage::run(&root),
@@ -124,9 +143,9 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             eval_manifest,
             plugins_dir,
             skip_runtime,
-        } => super::speech_runtime_suite::run(
+        } => vox_cli_ci::speech_runtime_suite::run(
             &root,
-            super::speech_runtime_suite::SpeechRuntimeSuiteOpts {
+            vox_cli_ci::speech_runtime_suite::SpeechRuntimeSuiteOpts {
                 run_id,
                 limit,
                 eval_manifest,
@@ -164,13 +183,13 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             },
         ),
         CiCmd::TierBudgetCheck { junit, profile } => {
-            super::tier_budget_check::run(&root, &junit, &profile)
+            vox_cli_ci::tier_budget_check::run(&root, &junit, &profile)
         }
-        CiCmd::DevLoopAudit { json } => super::dev_loop_audit::run(&root, json),
+        CiCmd::DevLoopAudit { json } => vox_cli_ci::dev_loop_audit::run(&root, json),
         CiCmd::SsotAudit => run_ssot_audit(&root).await,
         CiCmd::DataSsotGuards => run_data_ssot_guards(&root),
         CiCmd::DataStorageGuard(opts) => {
-            let report = crate::commands::ci::data_storage_guard::run(&opts)?;
+            let report = vox_cli_ci::data_storage_guard::run(&opts)?;
             if opts.json {
                 println!("{}", serde_json::to_string_pretty(&report)?);
             }
@@ -183,10 +202,10 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             Ok(())
         }
         CiCmd::FeatureMatrix => run_feature_matrix(&root),
-        CiCmd::CompileMatrix => super::compile_matrix::run(&root),
+        CiCmd::CompileMatrix => vox_cli_ci::compile_matrix::run(&root),
         CiCmd::RetirementAudit => vox_cli_ci::retirement_audit::run(&root),
         CiCmd::NoDeiImport => check_no_vox_dei(&root),
-        CiCmd::AttentionEventLedgerParity => super::attention_ledger_parity::run(&root),
+        CiCmd::AttentionEventLedgerParity => vox_cli_ci::attention_ledger_parity::run(&root),
         CiCmd::CheckSummaryDrift => {
             let cargo = cargo_bin();
             let st = Command::new(&cargo)
@@ -252,9 +271,9 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             }
         },
         CiCmd::DocsRealityAudit { cmd: sub } => match sub {
-            DocsRealityAuditCmd::Verify => super::docs_reality_audit::run_verify(&root),
+            DocsRealityAuditCmd::Verify => vox_cli_ci::docs_reality_audit::run_verify(&root),
             DocsRealityAuditCmd::Metrics { write } => {
-                super::docs_reality_audit::run_metrics(&root, write)
+                vox_cli_ci::docs_reality_audit::run_metrics(&root, write)
             }
         },
         CiCmd::EvalMatrix { cmd: sub } => match sub {
@@ -303,7 +322,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         }
         CiCmd::BomCheck => vox_cli_ci::line_endings::check_bom(&root),
         CiCmd::SpokeCheck => run_spoke_check(&root),
-        CiCmd::FreeBinary { target, apply } => super::free_binary::run(&root, target, apply),
+        CiCmd::FreeBinary { target, apply } => vox_cli_ci::free_binary::run(&root, target, apply),
         CiCmd::ParseStatus { write } => parse_status::run(&root, write),
         CiCmd::MeshGate {
             profile,
@@ -326,7 +345,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             fixtures_root,
             min_f1,
             json,
-        } => super::detect_rules_bench::run(&rules, &fixtures_root, min_f1, json),
+        } => vox_cli_ci::detect_rules_bench::run(&rules, &fixtures_root, min_f1, json),
         CiCmd::ToestubBudget => vox_cli_ci::toestub_budget::run(),
         CiCmd::JsonParseCheck { globs } => vox_cli_ci::parse_check::run_json(&globs),
         CiCmd::YamlParseCheck { globs } => vox_cli_ci::parse_check::run_yaml(&globs),
@@ -343,8 +362,12 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             profile,
         } => {
             if deep {
-                build_timings::bench_build_run(persist.unwrap_or(true), name, Some(profile))
-                    .await?;
+                vox_cli_ci::build_timings::bench_build_run(
+                    persist.unwrap_or(true),
+                    name,
+                    Some(profile),
+                )
+                .await?;
                 Ok(())
             } else {
                 run_build_timings(&root, json, crates)
@@ -380,7 +403,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::SqlSurfaceGuard { all } => run_sql_surface_guard(&root, all),
         CiCmd::QueryAllGuard { all } => run_query_all_guard(&root, all),
         CiCmd::TursoImportGuard { all } => run_turso_import_guard(&root, all),
-        CiCmd::DbSchemaCoverage => super::db_schema_coverage::run(&root),
+        CiCmd::DbSchemaCoverage => vox_cli_ci::db_schema_coverage::run(&root),
         CiCmd::PolicyAllowlistParity => super::policy_allowlist_parity::run(&root),
         CiCmd::RowSerdeLint => vox_cli_ci::row_serde_lint::run(&root),
         CiCmd::StringIdLint => vox_cli_ci::string_id_lint::run(&root, false),
@@ -389,8 +412,8 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::SecretsCutoverGates => run_secrets_cutover_gates(&root),
         CiCmd::SecretsCutoverAudit { all } => run_secrets_cutover_audit(&root, all),
         CiCmd::CapabilitySync { write } => super::capability_sync::run(&root, write),
-        CiCmd::CapabilitySnapshot => super::capability_snapshot::run(&root),
-        CiCmd::AttentionConfigParity => super::attention_parity::run(&root),
+        CiCmd::CapabilitySnapshot => vox_cli_ci::capability_snapshot::run(&root),
+        CiCmd::AttentionConfigParity => vox_cli_ci::attention_parity::run(&root),
         CiCmd::CommandCompliance => command_compliance::run(&root),
         CiCmd::CompletionAudit { scan_extra } => completion_quality::run_audit(&root, &scan_extra),
         CiCmd::CompletionGates { mode } => completion_quality::run_gates(&root, mode),
@@ -507,7 +530,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 Ok(())
             })()
         }
-        CiCmd::GuiSmoke => super::gui_smoke::run(&root),
+        CiCmd::GuiSmoke => vox_cli_ci::gui_smoke::run(&root),
         CiCmd::CoverageGates {
             summary_json,
             mode,
@@ -517,7 +540,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::PmProvenance {
             strict,
             root: provenance_root,
-        } => super::pm_provenance::run(&root, &provenance_root, strict),
+        } => vox_cli_ci::pm_provenance::run(&root, &provenance_root, strict),
         CiCmd::CheckLinks { target } => check_links::run(&root, target.as_deref()),
         CiCmd::CanonicalMapVerify => canonical_docs::run(&root),
         CiCmd::ReleaseBuild {
@@ -559,18 +582,20 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             compare,
             repeat,
             ingest,
-        } => super::build_bench::run_build_bench(&root, label, write, compare, repeat, ingest),
-        CiCmd::CrateBudget { exit_zero } => super::crate_budget::run_crate_budget(&root, exit_zero),
+        } => vox_cli_ci::build_bench::run_build_bench(&root, label, write, compare, repeat, ingest),
+        CiCmd::CrateBudget { exit_zero } => {
+            vox_cli_ci::crate_budget::run_crate_budget(&root, exit_zero)
+        }
         CiCmd::CrateBuildMapParity => {
-            super::crate_build_map_parity::run_crate_build_map_parity(&root)
+            vox_cli_ci::crate_build_map_parity::run_crate_build_map_parity(&root)
         }
         CiCmd::FanInBudget { exit_zero } => {
-            super::fan_in_budget::run_fan_in_budget(&root, exit_zero)
+            vox_cli_ci::fan_in_budget::run_fan_in_budget(&root, exit_zero)
         }
         CiCmd::DepCycles {
             deny_new,
             allowlist,
-        } => super::dep_cycles::run_dep_cycles(&root, deny_new, allowlist.as_deref()),
+        } => vox_cli_ci::dep_cycles::run_dep_cycles(&root, deny_new, allowlist.as_deref()),
         CiCmd::AffectedCrates {
             changed,
             graph,
@@ -618,12 +643,12 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             json,
             annotate,
             strict,
-        } => super::job_timings::run(run_id, threshold_mins, limit, json, annotate, strict),
+        } => vox_cli_ci::job_timings::run(run_id, threshold_mins, limit, json, annotate, strict),
         CiCmd::NomenclatureGuard { json } => vox_cli_ci::nomenclature_guard::run(&root, json),
         CiCmd::RetiredSymbolCheck => retired_symbol_check::run(&root),
         CiCmd::SyncIgnoreFiles { verify } => vox_cli_ci::sync_ignore_files::run(&root, verify),
-        CiCmd::KillStuckTests { what_if } => super::kill_stuck_tests::run(&root, what_if),
-        CiCmd::InstallHooks => super::install_hooks::run(&root),
+        CiCmd::KillStuckTests { what_if } => vox_cli_ci::kill_stuck_tests::run(&root, what_if),
+        CiCmd::InstallHooks => vox_cli_ci::install_hooks::run(&root),
         CiCmd::ScriptHygiene { retired_check } => run_script_hygiene(&root, retired_check),
         CiCmd::DeterminismAudit => determinism_audit::run(&root),
         CiCmd::DepSprawl { cap } => vox_cli_ci::dep_sprawl::run(&root, cap),
@@ -633,9 +658,9 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             output,
             markdown,
             check,
-        } => super::test_inventory::run(
+        } => vox_cli_ci::test_inventory::run(
             &root,
-            super::test_inventory::TestInventoryOpts {
+            vox_cli_ci::test_inventory::TestInventoryOpts {
                 json_stdout: json,
                 output,
                 markdown,
@@ -646,9 +671,9 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             json,
             output,
             check,
-        } => super::safety_inventory::run(
+        } => vox_cli_ci::safety_inventory::run(
             &root,
-            super::safety_inventory::SafetyInventoryOpts {
+            vox_cli_ci::safety_inventory::SafetyInventoryOpts {
                 json_stdout: json,
                 output,
                 check,
@@ -661,9 +686,9 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             top,
             fail_over_ms,
             fail_retry_count,
-        } => super::test_runtime_report::run(
+        } => vox_cli_ci::test_runtime_report::run(
             &root,
-            super::test_runtime_report::TestRuntimeReportOpts {
+            vox_cli_ci::test_runtime_report::TestRuntimeReportOpts {
                 junit,
                 json,
                 markdown,
@@ -676,7 +701,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             mode,
             inventory,
             json,
-        } => super::test_governance::run_ignored_test_age(&root, mode, inventory, json),
+        } => vox_cli_ci::test_governance::run_ignored_test_age(&root, mode, inventory, json),
         CiCmd::FlakeBudget {
             mode,
             report_json,
@@ -684,7 +709,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             top,
             max_candidates,
             json,
-        } => super::test_governance::run_flake_budget(
+        } => vox_cli_ci::test_governance::run_flake_budget(
             &root,
             mode,
             report_json,
@@ -700,7 +725,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             percent,
             absolute_ms,
             json,
-        } => super::test_governance::run_runtime_regress(
+        } => vox_cli_ci::test_governance::run_runtime_regress(
             mode,
             current,
             baseline,
@@ -708,33 +733,33 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             absolute_ms,
             json,
         ),
-        CiCmd::DeployStatus { write_to } => super::deploy_status::run(write_to).await,
+        CiCmd::DeployStatus { write_to } => vox_cli_ci::deploy_status::run(write_to).await,
         CiCmd::GeneratePluginCatalogDocs {
             catalog_out,
             bundles_out,
             check,
-        } => super::generate_plugin_catalog_docs::run(catalog_out, bundles_out, check),
-        CiCmd::PluginCatalogParity => super::plugin_catalog_parity::run(),
+        } => vox_cli_ci::generate_plugin_catalog_docs::run(catalog_out, bundles_out, check),
+        CiCmd::PluginCatalogParity => vox_cli_ci::plugin_catalog_parity::run(),
         CiCmd::NoTauriInCore => vox_cli_ci::no_tauri_in_core::run(&root),
         CiCmd::NoPluginCdylibAsCompileDep => {
             vox_cli_ci::no_plugin_cdylib_as_compile_dep::run(&root)
         }
         CiCmd::PluginDepBoundary => vox_cli_ci::plugin_dep_boundary::run(&root),
-        CiCmd::PluginAbiParity { build } => super::plugin_abi_parity::run(build),
+        CiCmd::PluginAbiParity { build } => vox_cli_ci::plugin_abi_parity::run(build),
         CiCmd::ProfileParity => super::profile_parity::run(),
-        CiCmd::PluginSurfaceSync { write } => super::plugin_surface::run(&root, write),
-        CiCmd::PluginCatalogSync { write } => super::plugin_catalog_sync::run(&root, write),
-        CiCmd::PluginSkillParity { write } => super::plugin_skill_parity::run(write),
-        CiCmd::AgentSkillsCompliance => super::agentskills_compliance::run(),
-        CiCmd::McpVoxSurfaceParity => super::mcp_vox_surface_parity::run(),
-        CiCmd::CoolifyEval { cmd } => super::coolify_eval::run(cmd).await,
+        CiCmd::PluginSurfaceSync { write } => vox_cli_ci::plugin_surface::run(&root, write),
+        CiCmd::PluginCatalogSync { write } => vox_cli_ci::plugin_catalog_sync::run(&root, write),
+        CiCmd::PluginSkillParity { write } => vox_cli_ci::plugin_skill_parity::run(write),
+        CiCmd::AgentSkillsCompliance => vox_cli_ci::agentskills_compliance::run(),
+        CiCmd::McpVoxSurfaceParity => vox_cli_ci::mcp_vox_surface_parity::run(),
+        CiCmd::CoolifyEval { cmd } => vox_cli_ci::coolify_eval::run(cmd).await,
         CiCmd::WatchRun {
             sha,
             timeout_secs,
             advisory,
             failures_only,
         } => {
-            super::watch_run::run(super::watch_run::WatchRunArgs {
+            vox_cli_ci::watch_run::run(vox_cli_ci::watch_run::WatchRunArgs {
                 sha,
                 timeout_secs,
                 advisory,
@@ -749,18 +774,14 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
     // (the single non-deterministic seam) so the writer/merge stay pure.
     if let Some(id) = gate_id {
         if std::env::var("VOX_NO_POLICY_STATUS").is_err() {
+            use vox_cli_contracts::GateStatusWriter;
+            let providers = super::providers::VoxCliProviders;
             let duration_ms = started.elapsed().as_millis() as u64;
             let policy_result = gate_status_result(id, result.is_ok(), duration_ms);
-            let branch = crate::commands::policy::status_writer::current_branch(&root);
-            let commit = crate::commands::policy::status_writer::head_commit(&root);
+            let branch = providers.current_branch(&root);
+            let commit = providers.head_commit(&root);
             let ran_at = chrono::Utc::now().to_rfc3339();
-            let _ = crate::commands::policy::status_writer::write_results(
-                &root,
-                &branch,
-                &commit,
-                &ran_at,
-                vec![policy_result],
-            );
+            let _ = providers.write_results(&root, &branch, &commit, &ran_at, vec![policy_result]);
         }
     }
 
@@ -788,7 +809,8 @@ fn gate_status_result(id: &str, ok: bool, duration_ms: u64) -> vox_config::Polic
 
 #[cfg(test)]
 mod gate_status_tests {
-    use super::gate_status_result;
+    use super::{gate_status_result, should_enforce_freshness};
+    use vox_cli_ci::cmd_enums::CiCmd;
     use vox_config::RunStatus;
 
     #[test]
@@ -844,5 +866,21 @@ mod gate_status_tests {
             RunStatus::Fail,
             "failing tracked gate must overwrite stale Pass with Fail"
         );
+    }
+
+    #[test]
+    fn freshness_exempts_runner_infra_but_guards_enforce() {
+        // Infra reconcile/read commands must run even with a stale binary (keep the fleet alive).
+        assert!(!should_enforce_freshness(&CiCmd::RunnerScale {
+            apply: false
+        }));
+        assert!(!should_enforce_freshness(&CiCmd::RunnerScale {
+            apply: true
+        }));
+        assert!(!should_enforce_freshness(&CiCmd::RunnerPreflight));
+        assert!(!should_enforce_freshness(&CiCmd::RunnerStatus));
+        // Real guard verdicts still require freshness.
+        assert!(should_enforce_freshness(&CiCmd::SsotDrift));
+        assert!(should_enforce_freshness(&CiCmd::RepoGuards));
     }
 }

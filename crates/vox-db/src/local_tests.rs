@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 //! Integration tests for `VoxDb` when `local` feature is enabled (`connect(DbConfig::Local/::Memory)` paths).
 // Intentionally exercises the deprecated codex_legacy surface (these tests guard it until removal).
 #![allow(deprecated)]

@@ -3,7 +3,7 @@
 // The Todo table is missing a `done` column. The plan asks the model
 // to add it.
 
-@table type Todo {
+table Todo {
     id: str,
     title: str
 }

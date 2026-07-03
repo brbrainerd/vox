@@ -12,16 +12,16 @@
 // ---
 // @training_prompt: Combine @table Post, a list @query, an @mutation, and a small routes tree for a tutorial-style blog slice.
 
-@table type Post {
+table Post {
     title: str
 }
 
-@query fn list_posts() to int {
+query list_posts() to int {
     // Returns count of posts; db.Post.all() returns list internally
     return len(db.Post.all())
 }
 
-@mutation fn publish_post(title: str) to Result[str] {
+mutation publish_post(title: str) to Result[str] {
     db.Post.insert({ title: title })?
     return Ok("published")
 }

@@ -1,3 +1,4 @@
+#![allow(clippy::module_inception)]
 //! Structural pipeline-gap regression tests — guard the *named headline bug* of the
 //! semantic-coverage initiative, not a leaf utility.
 //!

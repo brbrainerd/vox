@@ -98,7 +98,7 @@ mod tests {
     #[test]
     fn idempotent_table_decl() {
         assert_idempotent(
-            "@table type Note {
+            "table Note {
     title: str
     content: str
     created_at: str
@@ -109,7 +109,7 @@ mod tests {
     #[test]
     fn idempotent_server_fn() {
         assert_idempotent(
-            "@server fn greet(name: str) to str {
+            "server greet(name: str) to str {
     return \"hello\"
 }\n",
         );
@@ -118,7 +118,7 @@ mod tests {
     #[test]
     fn idempotent_query_fn() {
         assert_idempotent(
-            "@query fn list_items() to list[Item] {
+            "query list_items() to list[Item] {
     return []
 }\n",
         );
@@ -127,7 +127,7 @@ mod tests {
     #[test]
     fn idempotent_mutation_fn() {
         assert_idempotent(
-            "@mutation fn add_item(name: str) to Result[str] {
+            "mutation add_item(name: str) to Result[str] {
     return Ok(name)
 }\n",
         );
@@ -188,13 +188,13 @@ mod tests {
     #[test]
     fn table_uses_brace_syntax() {
         let out = format(
-            "@table type User {
+            "table User {
     name: str
     age: int
 }\n",
         );
         assert!(
-            out.contains("@table type User {"),
+            out.contains("table User {"),
             "expected brace block, got: {out}"
         );
         assert!(out.contains('{'), "must use brace syntax, got: {out}");

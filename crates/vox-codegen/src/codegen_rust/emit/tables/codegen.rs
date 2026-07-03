@@ -272,7 +272,7 @@ fn emit_select_projection_helpers(
     out
 }
 
-/// Generate a Rust struct for a @table type w/ methods (tests and tooling).
+/// Generate a Rust struct for a table w/ methods (tests and tooling).
 ///
 /// `projections` lists extra `SELECT _id, …` column sets referenced by `.select(...)` in the module.
 pub fn emit_table_struct(table: &HirTable, projections: &[Vec<String>]) -> String {

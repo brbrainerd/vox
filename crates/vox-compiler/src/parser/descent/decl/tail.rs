@@ -7,10 +7,10 @@ use crate::lexer::token::Token;
 use crate::parser::error::{ParseError, ParseErrorClass};
 
 impl Parser {
-    /// Parse `@index Table.index_name on (col1, col2, ...)`
+    /// Parse `index Table.index_name on (col1, col2, ...)`
     pub(crate) fn parse_index(&mut self) -> Result<Decl, ()> {
         let start = self.span();
-        self.advance(); // eat @index
+        self.advance(); // eat index
         let table_name = self.parse_ident_name()?;
         self.expect(&Token::Dot)?;
         let index_name = self.parse_ident_name()?;

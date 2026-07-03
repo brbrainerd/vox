@@ -1,8 +1,10 @@
+#![allow(clippy::ptr_arg)]
 //! Tests for `vox ci config-hygiene --write` (Phase 5): auto-register stub rows
 //! for unregistered env vars, and prune orphan rows whose env_var no longer
 //! appears in source.
 
-use vox_cli::commands::ci::config_hygiene::{WriteRegistryOpts, write_registry};
+use std::path::PathBuf;
+use vox_cli_ci::config_hygiene::{WriteRegistryOpts, write_registry};
 
 /// Build a minimal temp workspace:
 ///   <tmp>/crates/mypkg/src/lib.rs  — contains env reads
@@ -24,7 +26,7 @@ fn make_workspace(src: &str, registry_yaml: &str) -> tempfile::TempDir {
     dir
 }
 
-fn read_registry(root: &std::path::Path) -> String {
+fn read_registry(root: &PathBuf) -> String {
     std::fs::read_to_string(root.join("contracts/config/registry.v1.yaml")).unwrap()
 }
 

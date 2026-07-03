@@ -280,11 +280,8 @@ pub(crate) async fn sccache_guard(checks: &mut Vec<Check>) {
     }
     let wrapper = std::env::var("RUSTC_WRAPPER").ok();
     let incremental = std::env::var("CARGO_INCREMENTAL").ok();
-    let advice = crate::commands::ci::doctor_build_cache::advise(
-        on_path,
-        wrapper.as_deref(),
-        incremental.as_deref(),
-    );
+    let advice =
+        vox_cli_ci::doctor_build_cache::advise(on_path, wrapper.as_deref(), incremental.as_deref());
     if !advice.is_empty() {
         // Not wired is a valid, often-deliberate choice (we disabled sccache as
         // net-negative) — surface as informational, NOT a failure. Only the

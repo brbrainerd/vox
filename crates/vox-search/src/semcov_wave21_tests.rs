@@ -1,3 +1,4 @@
+#![allow(clippy::field_reassign_with_default)]
 //! Adversarial unit tests — semcov wave 21.
 //! Coverage targets: rrf, policy, tavily_budget, evaluation, unified, memory_hybrid internals.
 

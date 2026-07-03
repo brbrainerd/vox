@@ -25,18 +25,15 @@ Bare-form endpoint decorators introduced in Phase B (audit doc §11.2, 2026-05-2
 - **Effect**: Generates a Rust Axum handler and a TypeScript client.
 - **Usage**:
 ```vox
-@server
-fn greet(name: str) to str {
+server greet(name: str) to str {
     return name
 }
 
-@query
-fn ping() to str {
+query ping() to str {
     return "ok"
 }
 
-@mutation
-fn reset() to bool {
+mutation reset() to bool {
     return true
 }
 ```
@@ -122,7 +119,7 @@ fn process_order(order_id: String) -> String {
 - **Usage**:
 ```vox
 // vox:skip
-@table type MyRecord {
+table MyRecord {
     id: str
 }
 ```

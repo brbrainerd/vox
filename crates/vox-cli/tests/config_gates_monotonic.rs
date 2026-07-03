@@ -41,11 +41,11 @@ fn unified_set_is_superset_of_yaml_and_typed_registries() {
     let yaml_text = fs::read_to_string(root.join("contracts/config/registry.v1.yaml"))
         .expect("contracts/config/registry.v1.yaml must exist");
     let yaml_vars: BTreeSet<String> =
-        vox_cli::commands::ci::config_hygiene::load_registered_env_vars(&yaml_text)
+        vox_cli_ci::config_hygiene::load_registered_env_vars(&yaml_text)
             .into_iter()
             .collect();
 
-    let unified = vox_cli::commands::ci::config_registry_parity::unified_registered_set(&root);
+    let unified = vox_cli_ci::config_registry_parity::unified_registered_set(&root);
 
     let missing_yaml: Vec<_> = yaml_vars.difference(&unified).cloned().collect();
     assert!(

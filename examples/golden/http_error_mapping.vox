@@ -11,7 +11,7 @@
 // difficulty: beginner
 // ---
 // ANCHOR: http_result_region
-@query fn handler() to Result[str] {
+query handler() to Result[str] {
     let mode = "ok"
     if mode is "err" {
         return Error("mapped_failure")

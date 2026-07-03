@@ -2,12 +2,18 @@
 //! (`VoxCliProviders`) and vox-cli-ci consumes them, so the CI subsystem can move out
 //! without depending back on vox-cli. Also home to the shared check-manifest types.
 //!
-//! Keep this crate's dependency floor low — sync only, **no tokio** (verified via
-//! `cargo tree -p vox-cli-contracts -i tokio` returning empty).
+//! Keep this crate's *code* sync — it uses no async runtime directly, so it stays a
+//! cheap leaf to compile. (The `cargo tree -i tokio` graph is not empty because the
+//! workspace-hack feature-unification crate pulls tokio into every member's tree; that
+//! is a graph artifact, not a real dependency of this crate's own compilation.)
 
 use std::path::Path;
 
 use serde::Deserialize;
+
+/// Finding-candidate / novelty-bundle schema validation (`vox scientia` + the ci
+/// scientia-ledger gate). Lives here because it is shared by a non-ci command and ci.
+pub mod scientia_ledger_contract;
 
 // ---------------------------------------------------------------------------
 // Shared manifest types (moved from vox-cli `commands::audit`)

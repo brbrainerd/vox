@@ -9,8 +9,45 @@ repository.workspace = true
 rust-version.workspace = true
 publish = false
 
+[features]
+completion-toestub = ["dep:vox-code-audit"]
+
 [dependencies]
 anyhow = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+chrono = { workspace = true }
+vox-bounded-fs = { workspace = true }
+vox-doc-pipeline = { workspace = true }
+vox-jsonschema-util = { workspace = true }
+vox-compiler = { workspace = true }
+vox-git = { workspace = true }
+vox-config = { workspace = true }
+vox-repository = { workspace = true }
+vox-db = { workspace = true }
+vox-telemetry = { workspace = true }
+tracing = { workspace = true }
+vox-code-audit = { workspace = true, optional = true }
+vox-http-client = { workspace = true }
+vox-secrets = { workspace = true }
+vox-graph-reader = { workspace = true }
+vox-rule-pack = { workspace = true }
+which = { workspace = true }
+reqwest = { workspace = true }
+strsim = { workspace = true }
+vox-grammar-export = { workspace = true }
+vox-orchestrator-mcp = { workspace = true }
+vox-scaling-policy = { workspace = true }
+toml = { workspace = true }
+toml_edit = { workspace = true }
+vox-orchestrator = { workspace = true }
+vox-plugin-api = { workspace = true }
+vox-plugin-catalog = { workspace = true }
+vox-plugin-host = { workspace = true }
+vox-plugin-types = { workspace = true }
+vox-publisher = { workspace = true }
+owo-colors = { workspace = true }
+sysinfo = { workspace = true }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "process", "fs", "io-util", "time"] }
 glob = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }
@@ -18,8 +55,11 @@ serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 walkdir = { workspace = true }
 vox-cli-core = { workspace = true }
+vox-cli-contracts = { workspace = true }
 
 [dev-dependencies]
+insta = { workspace = true }
+proptest = { workspace = true }
 tempfile = { workspace = true }
 
 [lints]

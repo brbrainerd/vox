@@ -10,13 +10,13 @@ type ProcessingStage =
     | ModelCall
     | Completed
 
-@table type Conversation {
+table Conversation {
     user_id: str
     title: str
     created_at: str
 }
 
-@table type ProcessingRun {
+table ProcessingRun {
     request_id: str
     conversation_id: str
     stage: str
@@ -24,7 +24,7 @@ type ProcessingStage =
     started_at: str
 }
 
-@table type ModelMetric {
+table ModelMetric {
     request_id: str
     model: str
     latency_ms: int
@@ -78,7 +78,7 @@ fn process_chat(prompt: str, request_id: str, conversation_id: str) to Result[st
     response
 }
 
-@server fn chat(prompt: str, request_id: str, conversation_id: str) to Result[str] {
+server chat(prompt: str, request_id: str, conversation_id: str) to Result[str] {
     let _ = start_run(request_id, conversation_id)
     return process_chat(prompt, request_id, conversation_id)
 }

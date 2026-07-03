@@ -35,7 +35,7 @@ So **`.where()` itself does not typecheck** — not just `.order_by/.limit`. Rem
 Make the idiomatic chained query typecheck and round-trip to working SQL under both `--mode script` (codegen) and `--mode interp`:
 
 ```vox
-@query fn active_tasks(limit: int) to list[Task] {
+query active_tasks(limit: int) to list[Task] {
     return db.Task.where({ done: { eq: false } }).order_by("title").limit(10)
 }
 ```

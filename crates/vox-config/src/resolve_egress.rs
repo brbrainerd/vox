@@ -1,3 +1,4 @@
+#![cfg_attr(test, allow(unsafe_code))] // test-only std::env::set_var (unsafe on edition 2024)
 //! The single resolver for LLM provider egress: maps a provider+model to a fully-resolved
 //! [`vox_llm_egress::EgressRequest`] using the registry accessors + Clavis. Lives here (not
 //! in the egress crate) so resolution is single-source; takes primitives (not `LlmConfig`) to

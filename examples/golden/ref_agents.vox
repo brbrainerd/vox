@@ -18,7 +18,7 @@ fn assistant_greet(name: str) to str {
 // ANCHOR_END: basic_agent
 
 // ANCHOR: stateful_agent
-@table type MemoryBank {
+table MemoryBank {
     id: int
     entries: List[str]
 }
