@@ -163,8 +163,7 @@ pub async fn handle_tool_call_with_mode(
         // any tool with `always_requires_approval: true` (e.g.
         // vox_add_approval_allowlist_entry — see the T0.3 follow-up review
         // finding), so no separate check is needed here for tier 2.
-        let mode_auto_approved =
-            crate::permission_modes::mode_auto_approves(mode, name_canonical);
+        let mode_auto_approved = crate::permission_modes::mode_auto_approves(mode, name_canonical);
         let allowlisted = if mode_auto_approved {
             false // short-circuit: no need to hit the DB if the mode already approved
         } else if !crate::permission_modes::allowlist_eligible(name_canonical) {
@@ -195,10 +194,11 @@ pub async fn handle_tool_call_with_mode(
                 let a: String = a.chars().take(200).collect();
                 format!("{name_canonical} {a}")
             };
-            let (approval_id, rx) =
-                state
-                    .pending_approvals
-                    .register(name_canonical.to_string(), summary.clone(), now_ms);
+            let (approval_id, rx) = state.pending_approvals.register(
+                name_canonical.to_string(),
+                summary.clone(),
+                now_ms,
+            );
             // Durable audit trail (best-effort): record the request, then its outcome.
             if let Some(db) = state.db.as_ref() {
                 let _ = db

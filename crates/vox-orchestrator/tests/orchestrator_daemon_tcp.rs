@@ -273,8 +273,10 @@ async fn orchestrator_daemon_rejects_missing_or_wrong_token_inner() {
         vox_config::timeouts::D_15S,
         vox_config::timeouts::D_5MS,
         || {
-            let c =
-                orch_daemon::OrchDaemonClient::with_token(addr_str.clone(), expected_token.to_string());
+            let c = orch_daemon::OrchDaemonClient::with_token(
+                addr_str.clone(),
+                expected_token.to_string(),
+            );
             async move { c.ping().await.is_ok() }
         },
     )
@@ -391,7 +393,10 @@ async fn orchestrator_daemon_accepts_correct_token_inner() {
     )
     .await;
 
-    let ping = client.ping().await.expect("authenticated ping must succeed");
+    let ping = client
+        .ping()
+        .await
+        .expect("authenticated ping must succeed");
     assert_eq!(ping["repository_id"], "ut-repo");
 
     let status = client

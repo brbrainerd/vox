@@ -164,7 +164,10 @@ pub enum OperationKind {
     /// A feedback item was resolved (answer/skip/overrule/let_verify/accept_skill).
     FeedbackResolved { request_id: String, action: String },
     /// A task was flagged as suspect by a human, forcing a verification pass.
-    TaskDoubted { task_id: u64, reason: Option<String> },
+    TaskDoubted {
+        task_id: u64,
+        reason: Option<String>,
+    },
     /// A hopper intake item was admitted to the inbox.
     HopperAdmit { item_id: String },
     /// A hopper intake item was assigned to a dispatched task.

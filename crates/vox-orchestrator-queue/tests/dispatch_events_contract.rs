@@ -53,7 +53,10 @@ fn fixtures_validate_against_schema() {
         }
         checked += 1;
     }
-    assert_eq!(checked, 8, "expected one fixture per T1.1 OperationKind variant");
+    assert_eq!(
+        checked, 8,
+        "expected one fixture per T1.1 OperationKind variant"
+    );
 }
 
 /// RED: every new T1.1 `OperationKind` variant, serialized exactly as `OpLog::record`

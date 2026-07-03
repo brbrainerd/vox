@@ -519,11 +519,9 @@ impl Orchestrator {
         // hopper) simply have no matching assigned item, which is expected.
         {
             let hopper = self.hopper();
-            let matching_item = hopper
-                .assigned()
-                .await
-                .into_iter()
-                .find(|item| crate::orchestrator::dispatch::stable_hash(&item.item_id.0) == task_id.0);
+            let matching_item = hopper.assigned().await.into_iter().find(|item| {
+                crate::orchestrator::dispatch::stable_hash(&item.item_id.0) == task_id.0
+            });
             if let Some(item) = matching_item {
                 if hopper.complete(&item.item_id).await.is_ok() {
                     self.record_operation(
@@ -531,7 +529,10 @@ impl Orchestrator {
                         crate::oplog::OperationKind::HopperComplete {
                             item_id: item.item_id.0.clone(),
                         },
-                        format!("Hopper item {} completed (task {})", item.item_id.0, task_id),
+                        format!(
+                            "Hopper item {} completed (task {})",
+                            item.item_id.0, task_id
+                        ),
                         None,
                         None,
                         None,

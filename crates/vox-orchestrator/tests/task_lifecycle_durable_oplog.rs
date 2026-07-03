@@ -122,9 +122,12 @@ async fn task_complete_and_fail_are_durably_persisted_to_db() {
         .write()
         .unwrap()
         .dequeue();
-    orch.fail_task(fail_task_id, "synthetic failure for T1.1 durability test".into())
-        .await
-        .expect("fail should succeed");
+    orch.fail_task(
+        fail_task_id,
+        "synthetic failure for T1.1 durability test".into(),
+    )
+    .await
+    .expect("fail should succeed");
 
     assert!(
         db_has_operation_kind(&db, &repo, |k| k.contains("TaskFail")

@@ -52,22 +52,27 @@ impl crate::orchestrator::Orchestrator {
 
         let enqueue_agents = Arc::clone(&agents);
         let enqueue_assignments = Arc::clone(&task_assignments);
-        let enqueue_closure = move |task: crate::types::AgentTask| -> Option<crate::types::AgentId> {
-            let agents_lock = enqueue_agents.read().unwrap();
-            if let Some((&agent_id, queue_arc)) =
-                agents_lock.iter().min_by_key(|(_, q)| q.read().unwrap().len())
-            {
-                let task_id = task.id;
-                let mut queue = queue_arc.write().unwrap();
-                queue.enqueue(task);
-                drop(queue);
-                enqueue_assignments.write().unwrap().insert(task_id, agent_id);
-                Some(agent_id)
-            } else {
-                tracing::warn!("No active agents available to enqueue task: {:?}", task.id);
-                None
-            }
-        };
+        let enqueue_closure =
+            move |task: crate::types::AgentTask| -> Option<crate::types::AgentId> {
+                let agents_lock = enqueue_agents.read().unwrap();
+                if let Some((&agent_id, queue_arc)) = agents_lock
+                    .iter()
+                    .min_by_key(|(_, q)| q.read().unwrap().len())
+                {
+                    let task_id = task.id;
+                    let mut queue = queue_arc.write().unwrap();
+                    queue.enqueue(task);
+                    drop(queue);
+                    enqueue_assignments
+                        .write()
+                        .unwrap()
+                        .insert(task_id, agent_id);
+                    Some(agent_id)
+                } else {
+                    tracing::warn!("No active agents available to enqueue task: {:?}", task.id);
+                    None
+                }
+            };
 
         let reprio_agents = Arc::clone(&agents);
         let reprio_closure =

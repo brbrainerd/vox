@@ -5,7 +5,9 @@ use vox_orchestrator::ApprovalOutcome;
 const D_15S: std::time::Duration = std::time::Duration::from_secs(15);
 use vox_orchestrator_mcp::pending_approvals::PendingApprovals;
 use vox_orchestrator_mcp::server::tool_json_envelope_is_error;
-use vox_orchestrator_mcp::{ServerState, handle_tool_call, handle_tool_call_with_mode, load_config};
+use vox_orchestrator_mcp::{
+    ServerState, handle_tool_call, handle_tool_call_with_mode, load_config,
+};
 
 #[tokio::test]
 async fn register_then_resolve_wakes_the_awaiter() {
@@ -466,7 +468,11 @@ fn risk_classes_yaml_matches_rust_table() {
             };
             (
                 r.tool.to_string(),
-                (class_str.to_string(), r.reversible, r.always_requires_approval),
+                (
+                    class_str.to_string(),
+                    r.reversible,
+                    r.always_requires_approval,
+                ),
             )
         })
         .collect();

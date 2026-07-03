@@ -1150,8 +1150,10 @@ async fn handle_connection(
         if let Some(expected) = token.as_deref() {
             let provided = req.auth_token.as_deref().unwrap_or("");
             if !constant_time_eq(provided.as_bytes(), expected.as_bytes()) {
-                let resp =
-                    response_err(&req.id, "unauthorized: missing or invalid daemon auth token");
+                let resp = response_err(
+                    &req.id,
+                    "unauthorized: missing or invalid daemon auth token",
+                );
                 write_frame(&mut write_half, &resp).await?;
                 continue;
             }
