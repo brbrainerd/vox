@@ -233,11 +233,20 @@ impl VoxDb {
             return None;
         }
         let session_id = format!("task:{task_id}");
+        // `list_research_metrics_by_session` matches `session_id` via a SQL
+        // `LIKE '{session_id}%'` PREFIX, not an exact match. Without a
+        // post-filter, looking up task "9" would also match rows for
+        // "task:99", "task:9x", etc., silently attributing another task's
+        // cost/token totals to this one. Fetch a small batch and keep only
+        // the exact match, mirroring the exact-match-after-broad-query
+        // pattern in the sibling `find_approval_id_for_run`.
         let rows = self
-            .list_research_metrics_by_session(&session_id, Some("task.root_summary"), 1)
+            .list_research_metrics_by_session(&session_id, Some("task.root_summary"), 20)
             .await
             .ok()?;
-        let (_, _, _, metadata_json) = rows.into_iter().next()?;
+        let (_, _, _, metadata_json) = rows
+            .into_iter()
+            .find(|(sid, _mtype, _mv, _meta)| sid == &session_id)?;
         let metadata_json = metadata_json?;
         let event: serde_json::Value = serde_json::from_str(&metadata_json).ok()?;
         let cost = event.get("total_cost_usd").and_then(|v| v.as_f64())?;

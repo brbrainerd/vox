@@ -166,3 +166,59 @@ async fn find_task_root_summary_totals_joins_by_task_id() {
             .is_none()
     );
 }
+
+/// Regression test (T1.5 follow-up, spec-compliance review): the underlying
+/// `list_research_metrics_by_session` query matches `session_id` via SQL
+/// `LIKE '{prefix}%'`, not an exact match. Before the fix,
+/// `find_task_root_summary_totals("9")` (session_id "task:9") would match
+/// the *prefix* "task:9" against a row actually stored under "task:99" and
+/// incorrectly return task 99's cost/token totals for task 9. With only a
+/// "task:99" row present and no "task:9" row, the lookup for task "9" must
+/// return `None`, not task 99's data.
+#[tokio::test]
+async fn find_task_root_summary_totals_does_not_prefix_match_across_tasks() {
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("vox.db").to_str().unwrap().to_string();
+    let db = VoxDb::connect(DbConfig::Local { path }).await.unwrap();
+
+    let metadata_json = serde_json::json!({
+        "task_id": 99,
+        "trace_id": "t-2",
+        "repository_id": null,
+        "outcome": "completed",
+        "wall_time_ms": 1000,
+        "total_input_tokens": 9999,
+        "total_output_tokens": 9999,
+        "total_cost_usd": 9.99,
+        "child_call_count": 0,
+        "max_span_depth": 0,
+        "subagent_fanout": 0,
+    })
+    .to_string();
+
+    // Only "task:99" exists in the DB — no "task:9" row.
+    db.append_research_metric(
+        "task:99",
+        "task.root_summary",
+        Some(9.99),
+        Some(&metadata_json),
+    )
+    .await
+    .unwrap();
+
+    // Looking up task "9" must NOT prefix-match "task:99"'s data.
+    assert!(
+        db.find_task_root_summary_totals("9").await.is_none(),
+        "find_task_root_summary_totals(\"9\") incorrectly returned task 99's totals \
+         via prefix match instead of None"
+    );
+
+    // Sanity: the exact task_id "99" still resolves correctly.
+    let (cost, tin, tout) = db
+        .find_task_root_summary_totals("99")
+        .await
+        .expect("exact match for task 99 still works");
+    assert!((cost - 9.99).abs() < 1e-9);
+    assert_eq!(tin, 9999);
+    assert_eq!(tout, 9999);
+}
