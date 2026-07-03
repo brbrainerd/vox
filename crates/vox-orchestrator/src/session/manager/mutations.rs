@@ -252,20 +252,24 @@ impl SessionManager {
     /// in the workspace: [`context_compaction_wiring_test`](../../../tests/context_compaction_wiring_test.rs)
     /// (the T4.2 acceptance test). This was audited, not assumed:
     ///
-    /// - The two real production `llm_chat` call sites in `vox-orchestrator`
-    ///   (`orchestrator/task_dispatch/submit/goal.rs`'s CRAG relevance
-    ///   evaluator + LLM plan synthesizer, and the identical plan synthesizer
-    ///   in `orchestrator/task_dispatch/submit/dei_plan_materialize.rs`) are
-    ///   genuinely single-shot, stateless prompt/response calls (one query +
-    ///   one retrieved document -> one relevance word; one goal ->
-    ///   synthesized plan nodes). Neither accumulates conversation turns, and
-    ///   `Orchestrator` does not hold a `SessionManager` at all — its
-    ///   `session_id: Option<String>` params are Codex/plan-persistence
-    ///   correlation IDs, unrelated to `SessionManager`'s own session-id
-    ///   space. Wiring these through `assemble_llm_messages` would be a
-    ///   no-op at best (no accumulated turns to compact) and a false
-    ///   semantic link at worst (conflating two unrelated "session_id"
-    ///   concepts). Out of scope by design, not by oversight.
+    /// - Every real production `llm_chat`/`llm_stream` call site in the
+    ///   workspace was audited (`orchestrator/task_dispatch/submit/goal.rs`'s
+    ///   CRAG relevance evaluator + LLM plan synthesizer, the identical plan
+    ///   synthesizer in `orchestrator/task_dispatch/submit/dei_plan_materialize.rs`,
+    ///   `vox-scientia/src/evidence_assist.rs`, and
+    ///   `vox-cli/src/commands/model/eval.rs`) and every one is genuinely
+    ///   single-shot, stateless prompt/response calls (one query + one
+    ///   retrieved document -> one relevance word; one goal -> synthesized
+    ///   plan nodes; `eval.rs` loops over fixtures but builds a fresh
+    ///   one-message vec per iteration, never an accumulating conversation).
+    ///   None accumulates conversation turns, and `Orchestrator` does not
+    ///   hold a `SessionManager` at all — its `session_id: Option<String>`
+    ///   params are Codex/plan-persistence correlation IDs, unrelated to
+    ///   `SessionManager`'s own session-id space. Wiring these through
+    ///   `assemble_llm_messages` would be a no-op at best (no accumulated
+    ///   turns to compact) and a false semantic link at worst (conflating
+    ///   two unrelated "session_id" concepts). Out of scope by design, not
+    ///   by oversight.
     /// - `SessionManager` itself is held by `vox-orchestrator-mcp`'s
     ///   `ServerState` (a real, turn-accumulating session store used by
     ///   GUI/CLI-facing chat surfaces), but that crate has **zero**
