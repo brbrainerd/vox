@@ -38,8 +38,18 @@ export function buildSubAgentTree(edges: SubagentTreeEdge[]): SubAgentNode[] {
   const roots: SubAgentNode[] = [];
   for (const n of byId.values()) {
     const parent = n.parentWindowId ? byId.get(n.parentWindowId) : undefined;
-    if (parent) parent.children.push(n);
-    else roots.push(n);
+    if (parent) {
+      parent.children.push(n);
+    } else {
+      if (n.parentWindowId) {
+        // Dangling reference, not a true root: the edge list named a parent
+        // agent that isn't itself present. Surfacing it as a root keeps the
+        // agent visible rather than silently dropping it, but this usually
+        // means a still-in-flight fetch or an id-space mismatch worth a look.
+        console.warn(`SubAgents: agent ${n.windowId} references unknown parent ${n.parentWindowId}; showing as a root`);
+      }
+      roots.push(n);
+    }
   }
   const stamp = (list: SubAgentNode[], depth: number) => {
     for (const n of list) { n.depth = depth; stamp(n.children, depth + 1); }
@@ -50,7 +60,13 @@ export function buildSubAgentTree(edges: SubagentTreeEdge[]): SubAgentNode[] {
 
 export async function fetchTree(): Promise<SubAgentNode[]> {
   const edges = await invoke<SubagentTreeEdge[]>('list_subagent_tree');
-  return buildSubAgentTree(Array.isArray(edges) ? edges : []);
+  if (!Array.isArray(edges)) {
+    // A resolved non-array payload likely means a frontend/backend version
+    // skew rather than "no data yet" — worth a signal, not a silent [].
+    console.warn('SubAgents: list_subagent_tree resolved a non-array payload', edges);
+    return [];
+  }
+  return buildSubAgentTree(edges);
 }
 export async function getContext(windowId: string): Promise<ProjectionItem[]> {
   return (await call<{ items: ProjectionItem[] }>('context_get', { windowId })).items;
