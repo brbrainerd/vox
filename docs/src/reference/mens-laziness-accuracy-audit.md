@@ -23,7 +23,7 @@ This is a research audit, not a remediation plan. The next pass should convert t
 
 Primary implementation surfaces reviewed:
 
-- [`crates/vox-cli/src/commands/ci/mens_scorecard.rs`](../../../crates/vox-cli/src/commands/ci/mens_scorecard.rs)
+- [`crates/vox-cli-ci/src/mens_scorecard.rs`](../../../crates/vox-cli-ci/src/mens_scorecard.rs)
 - [`crates/vox-cli/src/commands/generate.rs`](../../../crates/vox-cli/src/commands/generate.rs)
 - [`crates/vox-orchestrator-mcp/src/compiler_tools.rs`](../../../crates/vox-orchestrator-mcp/src/compiler_tools.rs)
 - [`crates/vox-orchestrator-mcp/src/speech_constraints.rs`](../../../crates/vox-orchestrator-mcp/src/speech_constraints.rs)
