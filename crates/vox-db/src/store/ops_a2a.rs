@@ -340,6 +340,36 @@ impl crate::VoxDb {
         Ok(out)
     }
 
+    /// Highest numeric `operation_id` suffix (`OP-000123` → `123`) currently
+    /// persisted in `agent_oplog` for `repository_id`, or `None` if the table
+    /// has no rows for that repo yet. This is the table `orch.subscribe`/
+    /// `orch.subscribe_events`'s replay-from-offset actually reads via
+    /// [`Self::list_oplog_entries_since`] — reseeding an `OperationId`
+    /// generator (T1.3 restart-durability) must query *this* table, not the
+    /// unrelated mesh-replication `convergence_op_log` table (see
+    /// [`Self::max_convergence_op_id`], which tracks a different sequence
+    /// entirely).
+    pub async fn max_agent_oplog_id(
+        &self,
+        repository_id: &str,
+    ) -> Result<Option<u64>, StoreError> {
+        let repository_id = repository_id.to_string();
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT MAX(CAST(SUBSTR(operation_id, 4) AS INTEGER)) \
+                   FROM agent_oplog WHERE repository_id=?1",
+                params![repository_id.as_str()],
+            )
+            .await?;
+        if let Some(row) = rows.next().await? {
+            let max_id: Option<i64> = row.get(0).ok().flatten();
+            Ok(max_id.map(|v| v as u64))
+        } else {
+            Ok(None)
+        }
+    }
+
     /// List oplog entries for a repository whose numeric `operation_id`
     /// suffix (`OP-000123` → `123`) is strictly greater than `since_op_id`,
     /// oldest-first, unbounded (T1.3 replay-from-offset). `operation_id` is

@@ -12,28 +12,7 @@ impl crate::orchestrator::Orchestrator {
 
         crate::sync_lock::rw_write(&*self.db).replace(db.clone());
 
-        // T1.3: reseed the in-process OperationId generator from durable
-        // history so it resumes strictly after the highest op_id already
-        // persisted in `convergence_op_log`, instead of resetting to
-        // OP-000001 on every daemon restart. This is the prerequisite for
-        // using OperationId as a real replay-from-offset cursor in
-        // `orch.subscribe`/`orch.subscribe_events` — without it a restarted
-        // daemon could hand out ids that collide with (or shadow) history a
-        // client has already replayed.
-        match db.max_convergence_op_id().await {
-            Ok(Some(highest)) => {
-                crate::sync_lock::rw_write(&*self.oplog).reseed_id_gen_from_highest(highest);
-            }
-            Ok(None) => {} // fresh DB, no rows yet — generator already starts at 1
-            Err(e) => {
-                tracing::warn!(
-                    error = %e,
-                    "failed to query max convergence_op_log id during init_db; \
-                     OperationId generator NOT reseeded (may restart at 1, risking \
-                     replay-offset collisions after a crash)"
-                );
-            }
-        }
+        self.reseed_oplog_id_gen(&db).await;
 
         let db_clone = db.clone();
         tokio::spawn(crate::activity::sink::run_sink(
@@ -128,7 +107,55 @@ impl crate::orchestrator::Orchestrator {
     }
 
     /// Attach a database handle late (e.g. after async MCP connection).
-    pub fn attach_db(&self, db: std::sync::Arc<vox_db::VoxDb>) {
-        crate::sync_lock::rw_write(&*self.db).replace(db);
+    ///
+    /// Used by the `vox mcp` stdio server (`ServerState::with_db_initialized`
+    /// in vox-orchestrator-mcp), which — unlike `vox-orchestrator-d` — never
+    /// calls the heavier [`Self::init_db`] (schema sync, hopper rehydration,
+    /// journal resuscitation, etc.). It must still reseed the durable
+    /// `OperationId` generator (T1.3), otherwise every `vox mcp` restart
+    /// resets replay-offset ids back to 1 even though this process durably
+    /// records Tier-A operations via `record_operation`.
+    pub async fn attach_db(&self, db: std::sync::Arc<vox_db::VoxDb>) {
+        crate::sync_lock::rw_write(&*self.db).replace(db.clone());
+        self.reseed_oplog_id_gen(&db).await;
+    }
+
+    /// T1.3: reseed the in-process `OperationId` generator from durable
+    /// history so it resumes strictly after the highest op_id already
+    /// persisted in `agent_oplog`, instead of resetting to OP-000001
+    /// whenever a process attaches a DB (daemon restart, or a fresh
+    /// `vox mcp` stdio server attaching to an existing workspace DB). This
+    /// is the prerequisite for using `OperationId` as a real
+    /// replay-from-offset cursor in `orch.subscribe`/`orch.subscribe_events`
+    /// — without it a restarted process could hand out ids that collide
+    /// with (or shadow) history a client has already replayed.
+    ///
+    /// Queries [`vox_db::VoxDb::max_agent_oplog_id`] — the `agent_oplog`
+    /// table, scoped to this process's `repository_id` — because that is
+    /// the exact table [`crate::oplog::list_from_db_since`] reads for the
+    /// replay phase (via `list_oplog_entries_since`). The unrelated
+    /// `convergence_op_log` table (mesh-replication state, a different id
+    /// sequence entirely) is deliberately not used here even though an
+    /// earlier revision of this method queried it by mistake.
+    ///
+    /// Shared by [`Self::init_db`] and [`Self::attach_db`] so both real
+    /// production DB-attach entry points (`vox-orchestrator-d` and
+    /// `vox mcp`) get identical restart-durability guarantees.
+    async fn reseed_oplog_id_gen(&self, db: &std::sync::Arc<vox_db::VoxDb>) {
+        let repo = crate::lineage::repository_id();
+        match db.max_agent_oplog_id(&repo).await {
+            Ok(Some(highest)) => {
+                crate::sync_lock::rw_write(&*self.oplog).reseed_id_gen_from_highest(highest);
+            }
+            Ok(None) => {} // fresh DB, no rows yet — generator already starts at 1
+            Err(e) => {
+                tracing::warn!(
+                    error = %e,
+                    "failed to query max agent_oplog id while attaching DB; \
+                     OperationId generator NOT reseeded (may restart at 1, risking \
+                     replay-offset collisions after a crash)"
+                );
+            }
+        }
     }
 }

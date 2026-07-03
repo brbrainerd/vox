@@ -256,6 +256,92 @@ async fn hopper_admit_assign_complete_lifecycle_is_wired_and_durable() {
 #[allow(dead_code)]
 fn touch_pathbuf(_p: PathBuf) {}
 
+/// T1.3 follow-up: `Orchestrator::attach_db` — the DB-attach path used by the
+/// `vox mcp` stdio server (`ServerState::with_db_initialized`, the *other*
+/// real production entry point besides `vox-orchestrator-d`'s `init_db`) —
+/// must also reseed the durable `OperationId` generator from
+/// `convergence_op_log`. Before this fix, `attach_db` set the DB handle but
+/// never called the T1.3 reseed logic, so every `vox mcp` restart reset
+/// `OperationId` back to 1 even though this process durably records Tier-A
+/// operations via `record_operation`.
+///
+/// Simulates a `vox mcp` restart: one `Orchestrator` records ops against a
+/// DB via `init_db` (as if a prior `vox mcp` session had run and exited), a
+/// *second, fresh* `Orchestrator` then attaches the same DB purely via
+/// `attach_db` (the exact call `ServerState::with_db_initialized` makes) and
+/// records a new op. Its `OperationId` must be strictly greater than every
+/// id assigned before the "restart".
+#[tokio::test]
+async fn attach_db_reseeds_operation_id_generator_like_init_db() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let db_path = tmp.path().join("vox_attach_db_reseed.sqlite");
+    let db = VoxDb::open(db_path.to_str().unwrap()).await.expect("open db");
+    let db = std::sync::Arc::new(db);
+
+    // "Session 1": a full init_db attach (as vox-orchestrator-d would do),
+    // recording a handful of Tier-A ops.
+    let orch1 = Orchestrator::new(test_config());
+    orch1.init_db(db.clone()).await.expect("init_db");
+
+    for i in 0..3 {
+        orch1
+            .submit_task(
+                format!("pre-restart task {i}"),
+                vec![FileAffinity::write(format!("src/pre_restart_{i}.rs"))],
+                None,
+                None,
+                None,
+            )
+            .await
+            .expect("submit should succeed");
+    }
+    let last_id_before_restart = {
+        let entries = orch1.list_recent_operations(None, 256).await;
+        entries.iter().map(|e| e.id.0).max().unwrap_or(0)
+    };
+    assert!(
+        last_id_before_restart > 0,
+        "test setup: at least one operation must have been recorded pre-restart"
+    );
+
+    // Drop orch1 entirely — nothing but vox-db survives, exactly like a
+    // `vox mcp` process exiting.
+    drop(orch1);
+
+    // "Session 2": a brand-new Orchestrator attaches the SAME db purely via
+    // attach_db — the exact call ServerState::with_db_initialized makes for
+    // the `vox mcp` stdio server. No init_db call here.
+    let orch2 = Orchestrator::new(test_config());
+    orch2.attach_db(db.clone()).await;
+
+    let task_id = orch2
+        .submit_task(
+            "post-restart task via attach_db",
+            vec![FileAffinity::write("src/post_restart.rs")],
+            None,
+            None,
+            None,
+        )
+        .await
+        .expect("submit should succeed");
+
+    let entries_after = orch2.list_recent_operations(None, 256).await;
+    let post_restart_id = entries_after
+        .iter()
+        .filter(|e| matches!(&e.kind, vox_orchestrator::oplog::OperationKind::TaskSubmit { task_id: tid } if *tid == task_id.0))
+        .map(|e| e.id.0)
+        .max()
+        .expect("post-restart TaskSubmit entry must exist");
+
+    assert!(
+        post_restart_id > last_id_before_restart,
+        "post-restart OperationId {post_restart_id} (via attach_db) must be strictly \
+         greater than pre-restart OperationId {last_id_before_restart} — attach_db must \
+         reseed the OperationId generator from convergence_op_log just like init_db does, \
+         otherwise every `vox mcp` restart resets replay-offset ids back to 1"
+    );
+}
+
 /// T1.2 RED test: the general durable-before-broadcast PRINCIPLE, proven with
 /// zero live event-bus subscribers. `submit_task` internally calls
 /// `record_operation(TaskSubmit)` (a synchronous-then-awaited durable write)
