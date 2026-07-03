@@ -243,8 +243,10 @@ async fn open_hitl_operation_ids(
 
     // id -> operation_id of the *Requested row, removed once a matching
     // resolution is observed later in the (oldest-first) scan.
-    let mut open_approvals: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
-    let mut open_feedback: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+    let mut open_approvals: std::collections::HashMap<String, u64> =
+        std::collections::HashMap::new();
+    let mut open_feedback: std::collections::HashMap<String, u64> =
+        std::collections::HashMap::new();
     let mut open_doubts: std::collections::HashMap<u64, u64> = std::collections::HashMap::new();
 
     for entry in &entries {

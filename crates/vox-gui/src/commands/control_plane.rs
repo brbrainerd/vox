@@ -50,10 +50,7 @@ async fn call_orchestrator_daemon(
         Some(token) => OrchDaemonClient::with_token(addr, token),
         None => OrchDaemonClient::new(addr),
     };
-    client
-        .call(method, params)
-        .await
-        .map_err(|e| e.to_string())
+    client.call(method, params).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]

@@ -133,15 +133,15 @@ impl OrchDaemonClient {
 
     /// [`orch_daemon_method::SAFETY_BUDGET_SIGNALS`] — `{"agents": [{"id", "name", "signal"}]}`.
     pub async fn safety_budget_signals(&self) -> anyhow::Result<serde_json::Value> {
-        self.call(orch_daemon_method::SAFETY_BUDGET_SIGNALS, serde_json::json!({}))
-            .await
+        self.call(
+            orch_daemon_method::SAFETY_BUDGET_SIGNALS,
+            serde_json::json!({}),
+        )
+        .await
     }
 
     /// [`orch_daemon_method::SAFETY_LEDGER`] — `{"receipts": [{"receipt_id", "agent_id", "tool_name"}]}`.
-    pub async fn safety_ledger(
-        &self,
-        agent_id: Option<u64>,
-    ) -> anyhow::Result<serde_json::Value> {
+    pub async fn safety_ledger(&self, agent_id: Option<u64>) -> anyhow::Result<serde_json::Value> {
         self.call(
             orch_daemon_method::SAFETY_LEDGER,
             serde_json::json!({ "agent_id": agent_id }),
@@ -157,8 +157,11 @@ impl OrchDaemonClient {
 
     /// [`orch_daemon_method::ATTENTION_SNAPSHOT`] — `{"snapshot": AttentionBudget, "config": {...}}`.
     pub async fn attention_snapshot(&self) -> anyhow::Result<serde_json::Value> {
-        self.call(orch_daemon_method::ATTENTION_SNAPSHOT, serde_json::json!({}))
-            .await
+        self.call(
+            orch_daemon_method::ATTENTION_SNAPSHOT,
+            serde_json::json!({}),
+        )
+        .await
     }
 
     /// [`orch_daemon_method::TASK_STATUS`] — `{"status": "..."}` or error payload.

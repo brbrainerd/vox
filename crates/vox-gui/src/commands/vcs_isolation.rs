@@ -84,7 +84,12 @@ pub async fn set_vcs_isolation_strategy(
     daemon: tauri::State<'_, Arc<PersistentDaemon>>,
 ) -> Result<Value, String> {
     let params = build_set_strategy_params(default, agent_id, strategy);
-    call_orchestrator_daemon(&daemon, orch_daemon_method::VCS_ISOLATION_SET_STRATEGY, params).await
+    call_orchestrator_daemon(
+        &daemon,
+        orch_daemon_method::VCS_ISOLATION_SET_STRATEGY,
+        params,
+    )
+    .await
 }
 
 #[cfg(test)]
