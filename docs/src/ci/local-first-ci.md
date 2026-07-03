@@ -71,13 +71,33 @@ strictly in pre-push by `vox ci workflow-concurrency-guard`, with exceptions
 in [concurrency-exceptions](concurrency-exceptions.md). The hosted fallback's
 Windows smoke runs only on schedule/dispatch/`fleet-down`-labelled PRs.
 
-## If every shell call is suddenly blocked
+## Stale-binary hardening (why one shell call can never lock out a whole session)
 
-A stale `vox` binary on PATH exits 2 (clap usage error) on the unknown
-`queue` subcommand — the same exit code the hook uses to block. Fix:
-`cargo install --path crates/vox-cli --locked` (rename/stop a locked
-`vox.exe` first), or temporarily remove the PreToolUse hook. `vox doctor`
-detects this state (`ci.hook_guard_stale_binary`).
+A stale, missing, or crashed `vox` on PATH would otherwise exit 2 on the
+unknown `queue` subcommand (or any other error) — the same code the hook
+uses to block. The hook `command` in `.claude/settings.json` is not the bare
+`vox ci queue --hook-guard` invocation; it wraps it:
+
+```sh
+out=$(vox ci queue --hook-guard 2>&1); code=$?
+if [ "$code" -eq 2 ] && printf '%s' "$out" | grep -q 'Local-first CI'; then
+  printf '%s\n' "$out" >&2; exit 2
+fi
+exit 0
+```
+
+Only an exit-2-**and**-deny-marker combination blocks. Every other outcome
+(missing binary, wrong/stale binary, crash, a future unrelated exit code)
+falls through to `exit 0` — fail-open on infrastructure, fail-closed only on
+a genuine, confirmed deny. This was hardened after a stale binary briefly
+blocked every Bash/PowerShell call in a live session (2026-07-02); `vox
+doctor`'s `ci.hook_guard_stale_binary` diag still exists as an advisory
+signal, but the hook no longer depends on catching it in time.
+
+If the installed `vox` genuinely needs refreshing: `cargo install --path
+crates/vox-cli --locked --debug` is fast (~30s, no LTO) and reliable;
+plain `--locked` (release, LTO) has been observed to crash the linker
+transiently on this host — retry or fall back to `--debug` if it does.
 
 ## Deferred roadmap
 
