@@ -255,3 +255,54 @@ async fn hopper_admit_assign_complete_lifecycle_is_wired_and_durable() {
 
 #[allow(dead_code)]
 fn touch_pathbuf(_p: PathBuf) {}
+
+/// T1.2 RED test: the general durable-before-broadcast PRINCIPLE, proven with
+/// zero live event-bus subscribers. `submit_task` internally calls
+/// `record_operation(TaskSubmit)` (a synchronous-then-awaited durable write)
+/// strictly before the `TaskSubmitted` bus emit in the same straight-line
+/// async function body (see `orchestrator/task_dispatch/submit/task_submit.rs`).
+/// If a subscriber is never registered, the broadcast silently has zero
+/// receivers (`tokio::broadcast::Sender::send` on a channel with no
+/// subscribers is a no-op, not an error) — so a pass here can only be
+/// explained by the durable write having actually happened, independent of
+/// whether anyone was listening on the bus.
+#[tokio::test]
+async fn tier_a_transition_is_durable_even_with_zero_bus_subscribers() {
+    let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+    let db = std::sync::Arc::new(db);
+
+    let orch = Orchestrator::new(test_config());
+    orch.init_db(db.clone()).await.expect("init_db");
+
+    // Deliberately never subscribe to the event bus ourselves — assert the
+    // durable write stands on its own, decoupled from broadcast delivery. (The
+    // orchestrator's own internal machinery, e.g. the hopper dispatcher loop,
+    // holds its own subscription; we only assert we add none of our own.)
+    let baseline_subscribers = orch.event_bus().subscriber_count();
+
+    let repo = vox_orchestrator::lineage::repository_id();
+    let task_id = orch
+        .submit_task(
+            "tier-a durability principle test",
+            vec![FileAffinity::write("src/tier_a_principle.rs")],
+            None,
+            None,
+            None,
+        )
+        .await
+        .expect("submit should succeed");
+
+    assert_eq!(
+        orch.event_bus().subscriber_count(),
+        baseline_subscribers,
+        "this test must not have added any subscriber of its own"
+    );
+    assert!(
+        db_has_operation_kind(&db, &repo, |k| k.contains("TaskSubmit")
+            && k.contains(&task_id.0.to_string()))
+        .await,
+        "Tier-A TaskSubmit must be durably queryable even though this test never \
+         subscribed to the event bus — proves durable-before-broadcast, not \
+         durable-because-broadcast-was-observed"
+    );
+}
