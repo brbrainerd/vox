@@ -106,6 +106,11 @@ pub enum Violation {
 }
 
 /// Pure rule engine: violations + stale-baseline warnings. No IO.
+///
+/// IMPORTANT: an exception suppresses the `NewEdge`/`UpwardEdge` verdicts for its
+/// own pair, but layer-presence checking is UNCONDITIONAL — an excepted edge must
+/// never let a crate skip classification (a new crate sneaking in via an exception
+/// with no layer entry is exactly the kind of gap this rule exists to prevent).
 pub fn check(
     live: &BTreeSet<(String, String)>,
     allow: &AllowFile,
@@ -129,15 +134,15 @@ pub fn check(
             continue;
         }
         let pair = (from.clone(), to.clone());
-        if !baseline.contains(&pair) && !excepted.contains(&pair) {
+        let is_excepted = excepted.contains(&pair);
+        if !baseline.contains(&pair) && !is_excepted {
             violations.push(Violation::NewEdge { from: from.clone(), to: to.clone() });
         }
-        if excepted.contains(&pair) {
-            continue; // grandfathered: exempt from the layer rule too
-        }
+        // Layer-presence + upward-edge checks always run, regardless of exception
+        // status; only the UpwardEdge verdict itself is suppressed when excepted.
         match (layers.layers.get(from), layers.layers.get(to)) {
             (Some(&fl), Some(&tl)) => {
-                if fl < tl {
+                if fl < tl && !is_excepted {
                     violations.push(Violation::UpwardEdge {
                         from: from.clone(),
                         from_layer: fl,
@@ -159,7 +164,16 @@ pub fn check(
     for krate in missing {
         violations.push(Violation::MissingLayer { krate });
     }
-    let stale: Vec<(String, String)> = baseline.into_iter().filter(|e| !live.contains(e)).collect();
+    // Stale covers BOTH the frozen baseline and the exceptions ledger — a dead
+    // exception (its edge no longer exists) must also prompt cleanup via --tighten.
+    let stale: Vec<(String, String)> = baseline
+        .iter()
+        .chain(excepted.iter())
+        .filter(|e| !live.contains(*e))
+        .cloned()
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
     (violations, stale)
 }
 
@@ -215,8 +229,9 @@ mod tests {
     }
 
     #[test]
-    fn exception_admits_edge_and_skips_layer_rule() {
-        // upward edge (lib L0 -> app L4) but grandfathered via ledger
+    fn exception_admits_edge_and_suppresses_upward_verdict() {
+        // upward edge (lib L0 -> app L4) but grandfathered via ledger; both crates
+        // ARE classified, so no MissingLayer either.
         let (v, _) = check(
             &edges(&[("lib", "app")]),
             &allow(&[], &[("lib", "app")]),
@@ -226,10 +241,36 @@ mod tests {
     }
 
     #[test]
+    fn exception_does_not_mask_missing_layer() {
+        // The pair is excepted (so NewEdge/UpwardEdge are suppressed), but "new"
+        // has no layer entry at all — that must still surface, or a crate could
+        // sneak in via an exception and never get classified.
+        let (v, _) = check(
+            &edges(&[("app", "new")]),
+            &allow(&[], &[("app", "new")]),
+            &layers(&[("app", 4)]),
+        );
+        assert_eq!(v, vec![Violation::MissingLayer { krate: "new".into() }]);
+    }
+
+    #[test]
     fn removed_edge_reports_stale_not_fail() {
         let (v, stale) = check(
             &edges(&[]),
             &allow(&[("app", "lib")], &[]),
+            &layers(&[]),
+        );
+        assert!(v.is_empty());
+        assert_eq!(stale, vec![("app".to_string(), "lib".to_string())]);
+    }
+
+    #[test]
+    fn dead_exception_reports_stale_too() {
+        // The exception's edge no longer exists in the live graph -> must also
+        // prompt cleanup via --tighten, not just dead `edges` entries.
+        let (v, stale) = check(
+            &edges(&[]),
+            &allow(&[], &[("app", "lib")]),
             &layers(&[]),
         );
         assert!(v.is_empty());
@@ -286,7 +327,7 @@ mod tests {
 Add `pub mod crate_edges;` to `crates/vox-cli-ci/src/lib.rs` (in the existing `pub mod` block, after `pub mod coverage_gates;`).
 
 Run: `CARGO test -p vox-cli-ci crate_edges`
-Expected: **8 passed**.
+Expected: **10 passed**.
 
 - [ ] **Step 3: Commit**
 
@@ -359,7 +400,7 @@ Append to the `tests` module:
 ```
 
 Run: `CARGO test -p vox-cli-ci crate_edges`
-Expected: **9 passed** (the integration test takes a few seconds — cargo metadata).
+Expected: **11 passed** (the integration test takes a few seconds — cargo metadata).
 
 - [ ] **Step 3: Commit**
 
@@ -607,7 +648,7 @@ pub fn run(root: &Path, tighten_mode: bool) -> Result<()> {
 - [ ] **Step 3: Run all module tests**
 
 Run: `CARGO test -p vox-cli-ci crate_edges`
-Expected: **12 passed**.
+Expected: **14 passed**.
 
 - [ ] **Step 4: Clippy + commit**
 
@@ -772,7 +813,7 @@ git commit -m "docs(AGENTS): dependency-discipline rules (edge ratchet, human-ga
 - [ ] **Step 2: Full local verification**
 
 ```bash
-CARGO test -p vox-cli-ci crate_edges          # 12 passed
+CARGO test -p vox-cli-ci crate_edges          # 14 passed
 CARGO clippy -p vox-cli-ci --lib               # 0 warnings
 CARGO run -p vox-cli --bin vox -- ci crate-edges   # crate-edges: OK
 ```
