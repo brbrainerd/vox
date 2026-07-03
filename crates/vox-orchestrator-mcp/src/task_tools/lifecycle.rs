@@ -163,6 +163,7 @@ pub async fn reorder_task(state: &ServerState, params: crate::params::ReorderTas
 pub async fn doubt_task(state: &ServerState, params: crate::params::DoubtTaskParams) -> String {
     let task_id = TaskId(params.task_id);
     let assigned = state.orchestrator.agent_assigned_to_task(task_id);
+    let reason_for_oplog = params.reason.clone();
     let res = state
         .orchestrator
         .doubt_task(task_id, params.reason)
@@ -170,6 +171,24 @@ pub async fn doubt_task(state: &ServerState, params: crate::params::DoubtTaskPar
 
     match res {
         Ok(()) => {
+            // T1.1: durable TaskDoubted alongside the event-bus emit + FeedbackStore
+            // registration inside `Orchestrator::doubt_task` (which is sync, so the
+            // oplog write happens here at the async MCP call site instead).
+            state
+                .orchestrator
+                .record_operation(
+                    assigned.unwrap_or(vox_orchestrator::AgentId(0)),
+                    vox_orchestrator::oplog::OperationKind::TaskDoubted {
+                        task_id: params.task_id,
+                        reason: reason_for_oplog,
+                    },
+                    format!("Task {} doubted", params.task_id),
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+                .await;
             // Gamification: suspecting is a habit-building interaction.
             if let (Some(db), Some(aid)) = (&state.db, assigned) {
                 let uid = vox_gamify::db::canonical_user_id();

@@ -96,6 +96,91 @@ async fn dangerous_tool_parks_until_resolved() {
     assert!(state.pending_approvals.list().is_empty());
 }
 
+/// T1.1: a dangerous-tool call that parks and resolves must leave a matching
+/// `ApprovalRequested`/`ApprovalResolved` pair in the durable op-log — not just
+/// the `hitl_approvals` DB table. This is queryable even with zero event-bus
+/// subscribers, since op-log recording happens on the dispatch path itself
+/// (see `crates/vox-orchestrator-mcp/src/dispatch.rs`), not via an event handler.
+#[tokio::test]
+async fn dangerous_tool_park_and_resolve_records_oplog_pair() {
+    let state = Arc::new(ServerState::new_full(load_config()));
+
+    let s2 = state.clone();
+    let call = tokio::spawn(async move {
+        handle_tool_call(
+            &s2,
+            "vox_run_shell",
+            serde_json::json!({ "command": "echo hi" }),
+        )
+        .await
+    });
+
+    let deadline = tokio::time::Instant::now() + D_15S;
+    loop {
+        if !state.pending_approvals.list().is_empty() {
+            break;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "dangerous tool never registered a pending approval"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+
+    let pending = state.pending_approvals.list();
+    assert_eq!(pending.len(), 1);
+    let approval_id = pending[0].approval_id.clone();
+
+    // Reject (not Approved): `vox_run_shell` isn't routed as a static match arm
+    // in this test harness's dispatch table (see the sibling `accept_edits_...`
+    // test's comment above), so approving it would fail post-gate with "Unknown
+    // tool" — irrelevant noise for what this test actually checks: that the
+    // gate's own oplog writes happen regardless of the tool's outcome.
+    assert!(
+        state
+            .pending_approvals
+            .resolve(&approval_id, ApprovalOutcome::Rejected)
+    );
+    let raw = call.await.expect("join").expect("dispatch ok");
+    assert!(
+        tool_json_envelope_is_error(&raw),
+        "rejected approval must yield an error envelope, got: {raw}"
+    );
+
+    // Give the (in-process, non-spawned) op-log write a moment to land — the
+    // dispatch path awaits `record_operation` directly before returning, so
+    // this should already be true, but poll briefly for robustness.
+    let deadline = tokio::time::Instant::now() + D_15S;
+    let (mut saw_requested, mut saw_resolved);
+    loop {
+        let entries = state.orchestrator.list_recent_operations(None, 256).await;
+        saw_requested = entries.iter().any(|e| {
+            matches!(
+                &e.kind,
+                vox_orchestrator::oplog::OperationKind::ApprovalRequested { approval_id: aid, tool, .. }
+                    if aid == &approval_id && tool == "vox_run_shell"
+            )
+        });
+        saw_resolved = entries.iter().any(|e| {
+            matches!(
+                &e.kind,
+                vox_orchestrator::oplog::OperationKind::ApprovalResolved { approval_id: aid, outcome, .. }
+                    if aid == &approval_id && outcome == "rejected"
+            )
+        });
+        if saw_requested && saw_resolved {
+            break;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "oplog missing ApprovalRequested/ApprovalResolved pair for {approval_id}: requested={saw_requested} resolved={saw_resolved}"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    assert!(saw_requested, "ApprovalRequested not found in oplog");
+    assert!(saw_resolved, "ApprovalResolved not found in oplog");
+}
+
 /// Security regression guard: a caller cannot bypass the HITL gate by setting
 /// `user_approval: true` in the tool-call args themselves. Since the LLM agent
 /// composes its own tool-call JSON, an arg-based fast path is a self-serve

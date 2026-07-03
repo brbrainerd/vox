@@ -205,6 +205,29 @@ pub async fn handle_tool_call_with_mode(
                     .hitl_approval_record(&approval_id, name_canonical, &summary, now_ms as i64)
                     .await;
             }
+            // T1.1: op-log is the dispatch-lifecycle SSOT (durable independently of
+            // hitl_approvals, which stays as a derived/joined table — see the
+            // reconciliation table in vox-axis-harness-reliability-spec-plan-2026-07-02.md
+            // section 2). `record_operation` acquires the std RwLock write guard
+            // synchronously, releases it before its own internal `.await`, and is
+            // therefore safe to call directly here (same pattern as vcs_ops.rs's
+            // existing `record` caller).
+            state
+                .orchestrator
+                .record_operation(
+                    vox_orchestrator::AgentId(0),
+                    vox_orchestrator::oplog::OperationKind::ApprovalRequested {
+                        approval_id: approval_id.clone(),
+                        tool: name_canonical.to_string(),
+                        run_id: trace_for_telemetry.clone(),
+                    },
+                    format!("Approval requested for {name_canonical}"),
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+                .await;
             const APPROVAL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
             let outcome = match tokio::time::timeout(APPROVAL_TIMEOUT, rx).await {
                 Ok(Ok(o)) => o,
@@ -214,16 +237,33 @@ pub async fn handle_tool_call_with_mode(
                     vox_orchestrator::ApprovalOutcome::TimedOut
                 }
             };
+            let resolved_status = format!("{outcome:?}").to_lowercase();
             if let Some(db) = state.db.as_ref() {
                 let resolved_ms = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap_or_default()
                     .as_millis() as i64;
-                let status = format!("{outcome:?}").to_lowercase();
                 let _ = db
-                    .hitl_approval_resolve(&approval_id, &status, resolved_ms)
+                    .hitl_approval_resolve(&approval_id, &resolved_status, resolved_ms)
                     .await;
             }
+            // T1.1: durable ApprovalResolved alongside the hitl_approvals write above.
+            state
+                .orchestrator
+                .record_operation(
+                    vox_orchestrator::AgentId(0),
+                    vox_orchestrator::oplog::OperationKind::ApprovalResolved {
+                        approval_id: approval_id.clone(),
+                        outcome: resolved_status,
+                        resolver: None,
+                    },
+                    format!("Approval resolved for {name_canonical}"),
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+                .await;
             if !matches!(
                 outcome,
                 vox_orchestrator::ApprovalOutcome::Approved

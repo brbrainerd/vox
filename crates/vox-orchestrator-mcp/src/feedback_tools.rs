@@ -110,6 +110,24 @@ pub async fn ask_clarification(state: &ServerState, params: AskClarificationPara
             surface: surface_str.to_string(),
         });
 
+    // T1.1: durable FeedbackRequested alongside the event-bus emit above.
+    state
+        .orchestrator
+        .record_operation(
+            agent_id,
+            vox_orchestrator::oplog::OperationKind::FeedbackRequested {
+                request_id: id.0.clone(),
+                task_id: gates_task_ids.first().map(|t| t.0),
+                kind: "clarification".into(),
+            },
+            format!("Clarification requested: {}", id.0),
+            None,
+            None,
+            None,
+            None,
+        )
+        .await;
+
     ToolResult::ok(serde_json::json!({
         "feedback_id": id.0,
         "surface": surface_str
@@ -184,6 +202,29 @@ pub async fn resolve_feedback(state: &ServerState, params: ResolveFeedbackParams
             feedback_id: fid.0.clone(),
         });
 
+    // T1.1: durable FeedbackResolved alongside the event-bus emit above. The
+    // action string mirrors `FeedbackAction`'s `#[serde(tag = "action",
+    // rename_all = "snake_case")]` wire form (e.g. "answer", "overrule").
+    let action_str = serde_json::to_value(&action)
+        .ok()
+        .and_then(|v| v.get("action").and_then(|a| a.as_str()).map(str::to_string))
+        .unwrap_or_else(|| "unknown".to_string());
+    state
+        .orchestrator
+        .record_operation(
+            agent_id,
+            vox_orchestrator::oplog::OperationKind::FeedbackResolved {
+                request_id: fid.0.clone(),
+                action: action_str,
+            },
+            format!("Feedback resolved: {}", fid.0),
+            None,
+            None,
+            None,
+            None,
+        )
+        .await;
+
     state.feedback().promote_withheld(|item| item.surface);
 
     if req.kind == FeedbackKind::SkillProposal
@@ -251,7 +292,28 @@ pub async fn propose_skill(
         params.session_id,
         params.candidate,
     ) {
-        Some(fid) => ToolResult::ok(serde_json::json!({ "feedback_id": fid.0 })).to_json(),
+        Some(fid) => {
+            // T1.1: durable FeedbackRequested for skill proposals. `propose_skill`
+            // itself stays sync (dedup check + event-bus emit only); the oplog
+            // write happens here where we're already async.
+            state
+                .orchestrator
+                .record_operation(
+                    vox_orchestrator::AgentId(0),
+                    vox_orchestrator::oplog::OperationKind::FeedbackRequested {
+                        request_id: fid.0.clone(),
+                        task_id: None,
+                        kind: "skill_proposal".into(),
+                    },
+                    format!("Skill proposal requested: {}", fid.0),
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+                .await;
+            ToolResult::ok(serde_json::json!({ "feedback_id": fid.0 })).to_json()
+        }
         None => ToolResult::ok(serde_json::json!({ "skipped": "duplicate proposal already open" }))
             .to_json(),
     }

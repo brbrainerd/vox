@@ -632,8 +632,28 @@ pub async fn dispatch_request(
                 .get("reason")
                 .and_then(|x| x.as_str())
                 .map(ToString::to_string);
+            let assigned = orch.agent_assigned_to_task(TaskId(task_id));
+            let reason_for_oplog = reason.clone();
             match orch.doubt_task(TaskId(task_id), reason) {
-                Ok(()) => response_result(&req.id, serde_json::json!({ "ok": true })),
+                Ok(()) => {
+                    // T1.1: durable TaskDoubted, mirroring the MCP `doubt_task` tool's
+                    // wiring (task_tools/lifecycle.rs) for this second (daemon RPC)
+                    // call path into `Orchestrator::doubt_task`.
+                    orch.record_operation(
+                        assigned.unwrap_or(crate::AgentId(0)),
+                        crate::oplog::OperationKind::TaskDoubted {
+                            task_id,
+                            reason: reason_for_oplog,
+                        },
+                        format!("Task {task_id} doubted"),
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
+                    .await;
+                    response_result(&req.id, serde_json::json!({ "ok": true }))
+                }
                 Err(e) => response_err(&req.id, format!("{e}")),
             }
         }
