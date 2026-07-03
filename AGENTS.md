@@ -350,6 +350,27 @@ Use `vox ci pre-push` to run any tier locally. Install the hook once with `cargo
 
 **Budget enforcement:** `--enforce-budgets` compares total elapsed against `contracts/budgets/test-tier-budgets.v1.yaml` (warn at 1.2×, fail at 1.5× measured baseline). No-op if the budgets file is absent. CI also runs `vox ci tier-budget-check --junit target/nextest/ci/junit.xml --profile full` after each nextest run.
 
+## Dependency Discipline (Required, SSOT)
+
+Workspace crate-dependency edges are CI-gated by `vox ci crate-edges` (exact edge-set
+ratchet + downward-only layer rule; contracts: `contracts/ci/crate-edges.allow.v1.json`,
+`contracts/ci/crate-layers.v1.json`).
+
+1. **Before adding a dep on another workspace crate:** prefer a narrower `-types`/`-core`
+   crate; or apply the defactor policy (rule 3). If the edge is genuinely needed,
+   PROPOSE an `exceptions` ledger entry in your PR description and stop.
+2. **`exceptions` entries are USER-AUTHORIZED-ONLY.** Never write one yourself, and
+   never regenerate a baseline (`crate-edges.allow.v1.json`, `fan-in-snapshot.v1.json`)
+   to admit an edge you introduced. Tightening (`vox ci crate-edges --tighten`) is
+   always allowed.
+3. **Defactor policy:** a helper under ~50 lines may be duplicated into the consumer
+   with a `// vox:defactored-from <crate> <date>` comment instead of taking a crate
+   edge. Larger shared surfaces get split into `-types`/`-core` crates. Never fork
+   100+ line chunks.
+4. **New crates** must be assigned a layer in `contracts/ci/crate-layers.v1.json` at
+   creation (L0 leaf foundation ... L4 apps/shells; see
+   `docs/src/architecture/where-things-live.md`). Dependencies point same-layer or down.
+
 ## Perennial Bug Patterns (catch early)
 
 > Derived from scanning 528 `fix()` commits — these classes recur. Each line is the cheapest place to catch the class before it lands again.
