@@ -1307,6 +1307,17 @@ contracts:
     enforced_by:
       - vox ci contracts-index
 
+  - id: orchestration-permission-modes-v1
+    path: contracts/orchestration/permission-modes.v1.yaml
+    owner: platform-ci
+    kind: yaml
+    description: >-
+      T0.3 dangerous-tool risk classification + PermissionMode auto-approve
+      matrix for the vox-orchestrator-mcp HITL approval gate; mirrored by
+      crates/vox-orchestrator-mcp/src/permission_modes.rs (parity-tested).
+    enforced_by:
+      - vox ci contracts-index
+
   - id: orchestration-circuit-breaker-v1
     path: contracts/orchestration/circuit-breaker.v1.yaml
     owner: platform-ci

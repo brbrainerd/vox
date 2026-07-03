@@ -13815,6 +13815,46 @@ operations:
     http_read_role_eligible: false
     tier: core
   cli: null
+- id: approvals.allowlist_add
+  title: Add Approval Allowlist Entry
+  description: Persist a per-repository "always allow this tool" entry so it auto-approves without parking for HITL approval (T0.3).
+  description_human: null
+  product_lane: workflow
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: session
+  reversible: true
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_add_approval_allowlist_entry
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: approvals.allowlist_list
+  title: List Approval Allowlist
+  description: List MCP tools currently allowlisted for auto-approval in a repository (T0.3).
+  description_human: null
+  product_lane: workflow
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_list_approval_allowlist
+    http_read_role_eligible: false
+    tier: core
+  cli: null
 - id: kb.create
   title: Create Knowledge Base
   description: Create a new knowledge base.
