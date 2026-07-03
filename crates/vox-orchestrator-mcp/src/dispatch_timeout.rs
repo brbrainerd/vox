@@ -51,12 +51,32 @@ pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(120);
 /// retry with backoff and slack.
 pub const AGY_TIMEOUT: Duration = Duration::from_secs(20 * 60);
 
-/// Tool names given an explicit non-default execution timeout. Only agy
-/// delegation tools are listed today; everything else falls back to
-/// [`DEFAULT_TIMEOUT`] via [`timeout_for`].
+/// T4.3 follow-up: explicit exception timeout for the "cargo-shelling"
+/// compiler tools (`vox_test_all`, `vox_check_workspace`, `vox_build_crate`,
+/// `vox_lint_crate`, `vox_coverage_report` — see `compiler_tools.rs`). These
+/// shell out to `cargo test|check|build|clippy --workspace`/per-crate
+/// equivalents against this repo's ~150-crate workspace, with no internal
+/// timeout of their own. Ad hoc measurement in this session showed even a
+/// *subset* of the workspace taking 98-112s on a warm cache; a cold-cache
+/// full-workspace `cargo test`/`cargo build` would plausibly exceed the 120s
+/// [`DEFAULT_TIMEOUT`] and get killed by the outer dispatch timeout, turning
+/// a legitimately slow-but-succeeding build/test run into a false timeout
+/// error. 15 minutes gives roughly 8x headroom over the observed
+/// warm-cache-subset baseline to comfortably absorb a cold cache plus the
+/// full workspace, while still bounding a genuinely hung `cargo` invocation
+/// well below the 20-minute agy exception.
+pub const COMPILER_WORKSPACE_TIMEOUT: Duration = Duration::from_secs(15 * 60);
+
+/// Tool names given an explicit non-default execution timeout. Everything
+/// else falls back to [`DEFAULT_TIMEOUT`] via [`timeout_for`].
 const EXPLICIT_TIMEOUTS: &[(&str, Duration)] = &[
     ("vox_agy_delegate", AGY_TIMEOUT),
     ("vox_agy_delegate_batch", AGY_TIMEOUT),
+    ("vox_test_all", COMPILER_WORKSPACE_TIMEOUT),
+    ("vox_check_workspace", COMPILER_WORKSPACE_TIMEOUT),
+    ("vox_build_crate", COMPILER_WORKSPACE_TIMEOUT),
+    ("vox_lint_crate", COMPILER_WORKSPACE_TIMEOUT),
+    ("vox_coverage_report", COMPILER_WORKSPACE_TIMEOUT),
     // T4.3 RED-test doubles (see dispatch.rs's `#[cfg(test)]` match arms).
     // `vox_test_hang_forever` gets a short timeout so the RED test proving
     // the outer guard actually fires doesn't need to wait out the real
@@ -116,5 +136,36 @@ mod tests {
     #[test]
     fn default_timeout_is_smaller_than_agy_exception() {
         assert!(DEFAULT_TIMEOUT < AGY_TIMEOUT);
+    }
+
+    #[test]
+    fn cargo_shelling_compiler_tools_get_the_longer_workspace_timeout() {
+        // Proves these 5 tools genuinely resolve to COMPILER_WORKSPACE_TIMEOUT
+        // rather than silently falling through to DEFAULT_TIMEOUT (e.g. via a
+        // typo'd tool name in EXPLICIT_TIMEOUTS).
+        for tool in [
+            "vox_test_all",
+            "vox_check_workspace",
+            "vox_build_crate",
+            "vox_lint_crate",
+            "vox_coverage_report",
+        ] {
+            assert_eq!(
+                timeout_for(tool),
+                COMPILER_WORKSPACE_TIMEOUT,
+                "{tool} should get COMPILER_WORKSPACE_TIMEOUT, not the default"
+            );
+            assert_ne!(
+                timeout_for(tool),
+                DEFAULT_TIMEOUT,
+                "{tool} must not fall through to DEFAULT_TIMEOUT"
+            );
+        }
+    }
+
+    #[test]
+    fn compiler_workspace_timeout_is_between_default_and_agy_exception() {
+        assert!(DEFAULT_TIMEOUT < COMPILER_WORKSPACE_TIMEOUT);
+        assert!(COMPILER_WORKSPACE_TIMEOUT < AGY_TIMEOUT);
     }
 }
