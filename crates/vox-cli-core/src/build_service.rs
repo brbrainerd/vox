@@ -493,6 +493,65 @@ impl Drop for MonitoredCargoChild {
     }
 }
 
+/// Spawn cargo and return monitored tokio child (async, for dev/watch). Logs completion on exit (Wave 3).
+pub async fn run_cargo_spawn_async(req: &CargoRequest) -> Result<MonitoredCargoChild> {
+    set_correlation_id(uuid::Uuid::new_v4().to_string());
+    let workspace_root = req.cwd.canonicalize().unwrap_or_else(|_| req.cwd.clone());
+    let target_dir = req
+        .target_dir
+        .as_ref()
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|| "default".to_string());
+    let build_dir = req
+        .build_dir
+        .as_ref()
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|| target_dir.clone());
+    let manifest = req.cwd.join("Cargo.toml");
+
+    log_spawn_start(
+        &req.command,
+        &manifest.display().to_string(),
+        &target_dir,
+        &build_dir,
+        &workspace_root.display().to_string(),
+    );
+
+    let mut cmd = tokio::process::Command::new(cargo_binary());
+    cmd.arg(&req.command).args(&req.args).current_dir(&req.cwd);
+    if let Some(ref td) = req.target_dir {
+        if !crate::artifact_policy::is_allowed_artifact_path(td, &workspace_root) {
+            tracing::warn!("Blocked invalid CARGO_TARGET_DIR: {}", td.display());
+            anyhow::bail!(
+                "Disallowed target directory: {}. Target sprawl outside policy is forbidden.",
+                td.display()
+            );
+        }
+        cmd.env("CARGO_TARGET_DIR", td);
+    }
+    if let Some(ref bd) = req.build_dir {
+        cmd.env("CARGO_BUILD_BUILD_DIR", bd);
+    }
+    for (k, v) in &req.env {
+        cmd.env(k, v);
+    }
+    cmd.stdin(std::process::Stdio::null());
+    cmd.stdout(std::process::Stdio::inherit());
+    cmd.stderr(std::process::Stdio::inherit());
+
+    let child = cmd.spawn().context("Failed to spawn cargo")?;
+    let t0 = std::time::Instant::now();
+    Ok(MonitoredCargoChild {
+        child: Some(child),
+        command: req.command.clone(),
+        manifest: manifest.display().to_string(),
+        target_dir,
+        build_dir,
+        workspace_root: workspace_root.display().to_string(),
+        t0,
+    })
+}
+
 #[cfg(test)]
 mod semcov_wave3_tests {
     #![allow(unused_imports)]
@@ -590,63 +649,4 @@ mod semcov_wave3_tests {
             "unexpected error message: {msg}"
         );
     }
-}
-
-/// Spawn cargo and return monitored tokio child (async, for dev/watch). Logs completion on exit (Wave 3).
-pub async fn run_cargo_spawn_async(req: &CargoRequest) -> Result<MonitoredCargoChild> {
-    set_correlation_id(uuid::Uuid::new_v4().to_string());
-    let workspace_root = req.cwd.canonicalize().unwrap_or_else(|_| req.cwd.clone());
-    let target_dir = req
-        .target_dir
-        .as_ref()
-        .map(|p| p.display().to_string())
-        .unwrap_or_else(|| "default".to_string());
-    let build_dir = req
-        .build_dir
-        .as_ref()
-        .map(|p| p.display().to_string())
-        .unwrap_or_else(|| target_dir.clone());
-    let manifest = req.cwd.join("Cargo.toml");
-
-    log_spawn_start(
-        &req.command,
-        &manifest.display().to_string(),
-        &target_dir,
-        &build_dir,
-        &workspace_root.display().to_string(),
-    );
-
-    let mut cmd = tokio::process::Command::new(cargo_binary());
-    cmd.arg(&req.command).args(&req.args).current_dir(&req.cwd);
-    if let Some(ref td) = req.target_dir {
-        if !crate::artifact_policy::is_allowed_artifact_path(td, &workspace_root) {
-            tracing::warn!("Blocked invalid CARGO_TARGET_DIR: {}", td.display());
-            anyhow::bail!(
-                "Disallowed target directory: {}. Target sprawl outside policy is forbidden.",
-                td.display()
-            );
-        }
-        cmd.env("CARGO_TARGET_DIR", td);
-    }
-    if let Some(ref bd) = req.build_dir {
-        cmd.env("CARGO_BUILD_BUILD_DIR", bd);
-    }
-    for (k, v) in &req.env {
-        cmd.env(k, v);
-    }
-    cmd.stdin(std::process::Stdio::null());
-    cmd.stdout(std::process::Stdio::inherit());
-    cmd.stderr(std::process::Stdio::inherit());
-
-    let child = cmd.spawn().context("Failed to spawn cargo")?;
-    let t0 = std::time::Instant::now();
-    Ok(MonitoredCargoChild {
-        child: Some(child),
-        command: req.command.clone(),
-        manifest: manifest.display().to_string(),
-        target_dir,
-        build_dir,
-        workspace_root: workspace_root.display().to_string(),
-        t0,
-    })
 }

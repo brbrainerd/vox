@@ -30,22 +30,6 @@ pub fn available_inference_providers() -> Vec<ProviderType> {
         .collect()
 }
 
-#[cfg(test)]
-mod avail_tests {
-    use super::*;
-
-    #[test]
-    fn local_providers_always_available_and_listed() {
-        let avail = available_inference_providers();
-        // Local inference needs no Clavis key, so it must always be present.
-        assert!(avail.contains(&ProviderType::Ollama));
-        assert!(avail.contains(&ProviderType::PopuliMesh));
-        assert!(avail.contains(&ProviderType::VoxLocal));
-        // The function must be total (returns the providers it checked, not empty).
-        assert!(avail.len() >= 3);
-    }
-}
-
 /// Checks if the primary required secret for a given provider type is currently available.
 #[must_use]
 pub fn provider_secret_is_available(ptype: &ProviderType) -> bool {
@@ -68,4 +52,20 @@ pub fn provider_secret_is_available(ptype: &ProviderType) -> bool {
     };
 
     vox_secrets::resolve_secret(secret_id).expose().is_some()
+}
+
+#[cfg(test)]
+mod avail_tests {
+    use super::*;
+
+    #[test]
+    fn local_providers_always_available_and_listed() {
+        let avail = available_inference_providers();
+        // Local inference needs no Clavis key, so it must always be present.
+        assert!(avail.contains(&ProviderType::Ollama));
+        assert!(avail.contains(&ProviderType::PopuliMesh));
+        assert!(avail.contains(&ProviderType::VoxLocal));
+        // The function must be total (returns the providers it checked, not empty).
+        assert!(avail.len() >= 3);
+    }
 }

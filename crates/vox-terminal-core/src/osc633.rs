@@ -22,12 +22,14 @@ pub fn decode_command(enc: &str) -> String {
     let mut out = String::with_capacity(enc.len());
     let mut i = 0;
     while i < bytes.len() {
-        if bytes[i] == b'\\' && bytes.get(i + 1) == Some(&b'x') && i + 3 < bytes.len() {
-            if let Ok(n) = u8::from_str_radix(&enc[i + 2..i + 4], 16) {
-                out.push(n as char);
-                i += 4;
-                continue;
-            }
+        if bytes[i] == b'\\'
+            && bytes.get(i + 1) == Some(&b'x')
+            && i + 3 < bytes.len()
+            && let Ok(n) = u8::from_str_radix(&enc[i + 2..i + 4], 16)
+        {
+            out.push(n as char);
+            i += 4;
+            continue;
         }
         out.push(bytes[i] as char);
         i += 1;
