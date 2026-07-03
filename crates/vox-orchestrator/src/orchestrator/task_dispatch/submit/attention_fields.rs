@@ -58,12 +58,16 @@ pub(super) fn populate_task_attention_fields(
             })
             .sum::<usize>()
     };
-    let approve_rate = if trust.total_outcomes > 0 {
-        trust.successful_outcomes as f64 / trust.total_outcomes as f64
-    } else {
-        0.5
-    };
-    let repeated = trust.successful_outcomes.min(50);
+    // T5.5: use the rolling window (last `DEFAULT_TRUST_WINDOW_MS`), not the lifetime
+    // `successful_outcomes`/`total_outcomes` accumulators, so an agent's approve-rate and
+    // repeated-approve count age out old behavior instead of weighing it equally forever.
+    let now_ms = crate::types::now_unix_ms();
+    let approve_rate = trust
+        .windowed_approve_rate(now_ms, crate::attention::DEFAULT_TRUST_WINDOW_MS)
+        .unwrap_or(0.5);
+    let repeated = trust
+        .windowed_repeated_approve_count(now_ms, crate::attention::DEFAULT_TRUST_WINDOW_MS)
+        .min(50);
     let action = ActionDescriptor {
         estimated_complexity: task.estimated_complexity,
         tokens_output: 0,

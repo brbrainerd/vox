@@ -195,6 +195,11 @@ impl<'a> AttentionTracker<'a> {
                 // Variance not yet persisted in DB — hydrate from EB prior on load.
                 variance: doc["variance"].as_f64().unwrap_or(0.10),
                 is_override: doc["is_override"].as_bool().unwrap_or(false),
+                // Rolling outcome window is not yet persisted (T5.5 tracks in-memory
+                // only, same as the rest of BudgetManager's trust_scores map); a
+                // rehydrated agent starts with an empty window rather than replaying
+                // history, which is conservative (fewer auto-approve graduations, not more).
+                outcome_window: Default::default(),
             }))
         } else {
             Ok(None)
@@ -227,6 +232,7 @@ impl<'a> AttentionTracker<'a> {
                 last_updated_ms: doc["last_updated_ms"].as_u64().unwrap_or(0),
                 variance: doc["variance"].as_f64().unwrap_or(0.10),
                 is_override: doc["is_override"].as_bool().unwrap_or(false),
+                outcome_window: Default::default(),
             };
             result.insert(aid, ts);
         }
