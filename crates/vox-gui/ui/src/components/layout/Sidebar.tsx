@@ -5,7 +5,7 @@ import { Icon } from '../ui/Icons';
 import { AxisMark } from '../ui/AxisMark';
 import { DashboardData } from '../../types/dashboard';
 import { SURFACE_REGISTRY } from '../../generated/surfaceRegistry.generated';
-import { TOP_LEVEL_VIEWS, resolveNavigation } from '../../lib/navigation';
+import { TOP_LEVEL_VIEWS, DEFAULT_CHILD_BY_PARENT, resolveNavigation } from '../../lib/navigation';
 import { STATUS_BADGE_CLASS, STATUS_RAIL_BADGE_CLASS } from '../../styles/tokens';
 import { useFreshness } from '../../hooks/useFreshness';
 import { useLang } from '../../hooks/useLanguage';
@@ -52,12 +52,11 @@ const SIDEBAR_ORDER: SidebarMode[] = ["rail", "default", "wide"];
 // through crates/vox-cli/src/commands/ci/gui_surface_registry.rs so the registry carries la natively.
 const TOP_NAV_ICON: Record<string, string> = {
   chat: 'message',
+  runs: 'shield',
   agents: 'users',
-  runs: 'scale',
+  knowledge: 'book',
   workspace: 'folder',
   commands: 'terminal',
-  search: 'search',
-  knowledge: 'book',
   compute: 'cpu',
   mercatus: 'scale',
   settings: 'settings',
@@ -171,8 +170,8 @@ export function Sidebar({
             const navAriaLabel =
               key === 'runs'
                 ? approvalsPending != null && approvalsPending > 0
-                  ? `Runs and Approvals, ${approvalsPending} pending`
-                  : 'Runs and Approvals'
+                  ? `Review, ${approvalsPending} pending approvals`
+                  : 'Review'
                 : undefined;
             return (
               <NavItem
@@ -180,7 +179,7 @@ export function Sidebar({
                 innerRef={isActive ? activeRef : undefined}
                 collapsed={collapsed}
                 active={isActive}
-                onClick={() => setView(key)}
+                onClick={() => setView(DEFAULT_CHILD_BY_PARENT[key] ?? key)}
                 icon={<IconCmp className="size-4" />}
                 label={label}
                 badge={badge}

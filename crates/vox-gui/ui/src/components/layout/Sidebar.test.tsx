@@ -56,12 +56,12 @@ describe('Sidebar badges', () => {
 
   it('includes pending count in Runs nav aria-label', () => {
     renderSidebar({ approvalsPending: 3 });
-    expect(screen.getByRole('button', { name: /Runs.*3 pending/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /Review.*3 pending approvals/i })).toBeDefined();
   });
 
   it('uses default Runs aria-label when nothing is pending', () => {
     renderSidebar({ approvalsPending: 0 });
-    expect(screen.getByRole('button', { name: 'Runs and Approvals' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Review' })).toBeDefined();
   });
 
   it('includes failing count in Settings nav aria-label', () => {
