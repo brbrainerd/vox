@@ -52,11 +52,13 @@
     "pm",
     "policy",
     "populi",
+    "recensio",
     "remove",
     "repair",
     "repl",
     "repo",
     "research",
+    "review",
     "rollback",
     "run",
     "safety",
@@ -80,7 +82,10 @@
     "wasm",
     "workflow"
   ],
-  "surface_count": 114,
-  "unclassified_backfilled": [],
+  "surface_count": 116,
+  "unclassified_backfilled": [
+    "recensio",
+    "review"
+  ],
   "wiring_violations": []
 }

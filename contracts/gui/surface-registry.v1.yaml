@@ -666,6 +666,14 @@ surfaces:
   parent_surface: compute
   notes: null
 - view_key: null
+  cli_group: recensio
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
+  notes: null
+- view_key: null
   cli_group: remove
   representation_tier: none
   nav_label: null
@@ -713,6 +721,14 @@ surfaces:
   nav_group: knowledge
   parent_surface: knowledge
   notes: deep-research surface
+- view_key: null
+  cli_group: review
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
+  notes: null
 - view_key: null
   cli_group: rollback
   representation_tier: none
