@@ -3,6 +3,7 @@ name = "vox-mesh-policy"
 description = "Parses and pretty-prints donations.vox mesh policy files; defines WorkerDonationPolicy."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 vox-mesh-types = { workspace = true }

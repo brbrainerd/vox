@@ -2,6 +2,7 @@
 name = "vox-similarity"
 version.workspace = true
 edition = "2024"
+license.workspace = true
 description = "Pure simhash/minhash/LSH near-duplicate similarity core for Vox discovery and marketplace dedup."
 
 [dependencies]
