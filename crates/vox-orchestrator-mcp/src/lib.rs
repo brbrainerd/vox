@@ -11,6 +11,9 @@ pub mod services;
 pub mod chat_fallback_tools;
 pub mod daemon_extra;
 pub mod feedback_tools;
+/// T1.4: restore visibility for open approvals/feedback from the durable
+/// op-log on `ServerState` boot (MCP stdio + `vox-orchestrator-d`).
+pub mod hitl_rehydrate;
 pub mod params;
 pub mod pending_approvals;
 pub mod server_state;
