@@ -17,7 +17,7 @@ describe('fetchHarnessSnapshot', () => {
         case 'vcs_town_status':
           return { branches: [{ name: 'main', is_head: true, track: '[ahead 1]' }], prs: [{ number: 1, title: 't', head_ref: 'h' }], prs_available: true };
         case 'hopper_list':
-          return [{ id: 'a', state: 'Inbox' }, { id: 'b', state: 'Assigned' }, { id: 'c', state: 'Inbox' }];
+          return [{ id: 'a', state: 'inbox' }, { id: 'b', state: 'assigned' }, { id: 'c', state: 'inbox' }];
         default:
           throw new Error(`unexpected ${cmd}`);
       }

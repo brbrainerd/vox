@@ -5,7 +5,8 @@ import type { HarnessSnapshot } from './worldRenderer';
 async function tryInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T | null> {
   try {
     return await invoke<T>(cmd, args);
-  } catch {
+  } catch (err) {
+    console.error(`[urbs] ${cmd} unavailable:`, err);
     return null;
   }
 }
@@ -35,7 +36,7 @@ export async function fetchHarnessSnapshot(): Promise<HarnessSnapshot> {
       : null,
     // hopper_list returns inbox PLUS assigned (in-flight); only non-assigned
     // items are honestly "queued" for the PORTVS ship count.
-    queueLen: hopper ? hopper.filter((t) => !/assigned/i.test(t.state)).length : null,
+    queueLen: hopper ? hopper.filter((t) => t.state !== 'assigned').length : null,
     // No MCP server-list command exists, and get_orchestrator_status
     // serializes a closed struct that can never carry one — AQVAE stays
     // unconditionally unlit until a dedicated command lands (spec §7.1).
