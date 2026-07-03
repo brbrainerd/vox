@@ -217,11 +217,6 @@ pub async fn dispatch(cmd: VisusCmd) -> miette::Result<()> {
                     ],
                 };
 
-                let mut config = vox_orchestrator::OrchestratorConfig::default();
-                config.merge_env_overrides();
-                let orch =
-                    vox_orchestrator::build_repo_scoped_orchestrator(config, None).orchestrator;
-
                 // Create a Visus task with the category hint [[visus]]
                 let description = format!(
                     "Audit the GUI for structural and visual bugs at {}. Layer 1 outcome: {}. [[visus]]",
@@ -232,24 +227,33 @@ pub async fn dispatch(cmd: VisusCmd) -> miette::Result<()> {
                     ..Default::default()
                 };
 
-                let task_id = orch
-                    .submit_task_with_agent(
-                        description,
-                        vec![],
-                        None,
-                        None,
-                        None,
-                        Some(hints),
-                        None,
-                        None,
-                    )
+                // T2.3: routed through the shared vox-orchestrator-d daemon
+                // (spawning it if absent) instead of a private, throwaway
+                // in-process Orchestrator — so this VLM task is visible to
+                // the GUI's Approvals/DEI views like any other submitted task.
+                let daemon = vox_cli_core::daemon_ipc::orchestrator_daemon_ensure::OrchestratorDaemonEnsure::default();
+                let client = daemon
+                    .client()
+                    .await
+                    .map_err(|e| miette::miette!("could not reach or spawn vox-orchestrator-d: {e}"))?;
+                let submit_params = serde_json::json!({
+                    "description": description,
+                    "file_manifest": Vec::<String>::new(),
+                    "enqueue_hints": hints,
+                });
+                let result = client
+                    .submit_task(submit_params)
                     .await
                     .map_err(|e| miette::miette!("Failed to submit VLM task: {}", e))?;
+                let task_id = result
+                    .get("task_id")
+                    .and_then(|x| x.as_u64())
+                    .ok_or_else(|| miette::miette!("daemon did not return a task_id: {result}"))?;
 
                 println!(
                     "{} VLM Task submitted successfully! Task ID: {}",
                     "✓".green(),
-                    task_id.bold()
+                    task_id.to_string().bold()
                 );
                 println!("{} Waiting for visual intelligence report...", "ℹ".blue());
             }
