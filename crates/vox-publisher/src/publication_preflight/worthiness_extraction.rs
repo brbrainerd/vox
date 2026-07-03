@@ -55,10 +55,10 @@ pub fn artifact_replayability_measured_from_status_events(
         if let Ok(report) = serde_json::from_str::<vox_scientia::replay::ReplayReport>(trimmed) {
             return Some(clamp01(report.measured_score));
         }
-        if let Ok(v) = serde_json::from_str::<serde_json::Value>(trimmed) {
-            if let Some(score) = v.get("measured_score").and_then(|s| s.as_f64()) {
-                return Some(clamp01(score));
-            }
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(trimmed)
+            && let Some(score) = v.get("measured_score").and_then(|s| s.as_f64())
+        {
+            return Some(clamp01(score));
         }
     }
     None

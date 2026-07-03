@@ -34,19 +34,19 @@ pub fn validate(file: &DomainProfilesFile, workspace_root: &Path) -> Vec<SpokeVi
                 )));
             }
         }
-        if let Some(mc) = &p.mix_config {
-            if !workspace_root.join(mc).is_file() {
-                v.push(SpokeViolation(format!(
-                    "spoke '{name}': mix_config '{mc}' not found"
-                )));
-            }
+        if let Some(mc) = &p.mix_config
+            && !workspace_root.join(mc).is_file()
+        {
+            v.push(SpokeViolation(format!(
+                "spoke '{name}': mix_config '{mc}' not found"
+            )));
         }
-        if let Some(eg) = &p.eval_gate {
-            if !workspace_root.join(eg).is_file() {
-                v.push(SpokeViolation(format!(
-                    "spoke '{name}': eval_gate '{eg}' not found"
-                )));
-            }
+        if let Some(eg) = &p.eval_gate
+            && !workspace_root.join(eg).is_file()
+        {
+            v.push(SpokeViolation(format!(
+                "spoke '{name}': eval_gate '{eg}' not found"
+            )));
         }
         // Rule 5: base.model resolvability check
         if !base.model.contains('/') {
