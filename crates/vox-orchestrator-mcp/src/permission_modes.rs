@@ -31,13 +31,24 @@ pub enum SafetyClass {
     Unknown,
 }
 
-/// One row of the risk-classification table: a gated tool's safety class and
-/// whether its effects are reversible (e.g. via VCS).
+/// One row of the risk-classification table: a gated tool's safety class,
+/// whether its effects are reversible (e.g. via VCS), and whether it is
+/// exempt from every mode's auto-approve (see `always_requires_approval`).
 #[derive(Debug, Clone, Copy)]
 pub struct RiskClass {
     pub tool: &'static str,
     pub class: SafetyClass,
     pub reversible: bool,
+    /// When `true`, this tool NEVER auto-approves under any
+    /// [`PermissionMode`] (including `accept_all`) or the persisted
+    /// allowlist — it always parks for a human decision, regardless of
+    /// `class`/`reversible`. Reserved for tools whose effect is granting
+    /// *future* auto-approval rather than performing a single bounded
+    /// mutation (e.g. `vox_add_approval_allowlist_entry` — see the T0.3
+    /// follow-up review finding: gating this tool by its own risk class
+    /// alone would let a model self-serve pre-authorize itself for
+    /// anything, the same bypass shape T0.1 closed for `user_approval`).
+    pub always_requires_approval: bool,
 }
 
 /// Rust mirror of `contracts/orchestration/permission-modes.v1.yaml`'s
@@ -47,31 +58,50 @@ pub const RISK_CLASSES: &[RiskClass] = &[
         tool: "vox_write_file",
         class: SafetyClass::Mutating,
         reversible: true,
+        always_requires_approval: false,
     },
     RiskClass {
         tool: "vox_multi_replace",
         class: SafetyClass::Mutating,
         reversible: true,
+        always_requires_approval: false,
     },
     RiskClass {
         tool: "vox_multi_replace_file",
         class: SafetyClass::Mutating,
         reversible: true,
+        always_requires_approval: false,
     },
     RiskClass {
         tool: "vox_delete_file",
         class: SafetyClass::Destructive,
         reversible: false,
+        always_requires_approval: false,
     },
     RiskClass {
         tool: "vox_run_shell",
         class: SafetyClass::Destructive,
         reversible: false,
+        always_requires_approval: false,
     },
     RiskClass {
         tool: "vox_deploy",
         class: SafetyClass::Destructive,
         reversible: false,
+        always_requires_approval: false,
+    },
+    RiskClass {
+        tool: "vox_add_approval_allowlist_entry",
+        class: SafetyClass::Mutating,
+        reversible: false,
+        // Its effect is "grant future auto-approval for (repo_id, tool)" —
+        // an ongoing security effect, not a single bounded mutation like a
+        // file write. Must always park: gating it by class/reversible alone
+        // would let a model call it directly to pre-authorize itself for
+        // anything (including destructive tools), bypassing human approval
+        // for every future call to that (repo_id, tool) pair without ever
+        // parking once. See module docs on `always_requires_approval`.
+        always_requires_approval: true,
     },
 ];
 
@@ -149,11 +179,29 @@ impl PermissionMode {
 
 /// Tier-2 decision: would `mode` auto-approve `tool` on its own (ignoring
 /// the tier-3 allowlist)? `false` for any tool not in [`RISK_CLASSES`]
-/// (`unknown` is never auto-approved).
+/// (`unknown` is never auto-approved), and `false` unconditionally for any
+/// tool with `always_requires_approval: true` regardless of `mode` —
+/// including `accept_all`.
 #[must_use]
 pub fn mode_auto_approves(mode: PermissionMode, tool: &str) -> bool {
     match classify(tool) {
+        Some(rc) if rc.always_requires_approval => false,
         Some(rc) => mode.auto_approves(rc.class, rc.reversible),
+        None => false,
+    }
+}
+
+/// Tier-3 eligibility: is `tool` even eligible to be satisfied by a
+/// persisted allowlist entry? `false` for any tool with
+/// `always_requires_approval: true` — such a tool must always park,
+/// regardless of what the allowlist says (an allowlist entry could itself
+/// only have been added by first approving a
+/// `vox_add_approval_allowlist_entry` call, but this guard keeps the
+/// invariant explicit and independent of how the entry got there).
+#[must_use]
+pub fn allowlist_eligible(tool: &str) -> bool {
+    match classify(tool) {
+        Some(rc) => !rc.always_requires_approval,
         None => false,
     }
 }
@@ -201,10 +249,42 @@ mod tests {
     }
 
     #[test]
-    fn accept_all_approves_mutating_and_destructive() {
+    fn accept_all_approves_mutating_and_destructive_except_always_requires_approval() {
         for rc in RISK_CLASSES {
-            assert!(mode_auto_approves(PermissionMode::AcceptAll, rc.tool));
+            if rc.always_requires_approval {
+                assert!(
+                    !mode_auto_approves(PermissionMode::AcceptAll, rc.tool),
+                    "{} has always_requires_approval=true and must never auto-approve, even under accept_all",
+                    rc.tool
+                );
+            } else {
+                assert!(mode_auto_approves(PermissionMode::AcceptAll, rc.tool));
+            }
         }
+    }
+
+    #[test]
+    fn always_requires_approval_tool_never_auto_approves_under_any_mode() {
+        for mode in [
+            PermissionMode::Ask,
+            PermissionMode::AcceptEdits,
+            PermissionMode::AcceptAll,
+            PermissionMode::Plan,
+        ] {
+            assert!(!mode_auto_approves(
+                mode,
+                "vox_add_approval_allowlist_entry"
+            ));
+        }
+    }
+
+    #[test]
+    fn always_requires_approval_tool_is_not_allowlist_eligible() {
+        assert!(!allowlist_eligible("vox_add_approval_allowlist_entry"));
+        // A normal mutating/reversible tool IS allowlist-eligible.
+        assert!(allowlist_eligible("vox_write_file"));
+        // An unclassified tool is not eligible either (never gated to begin with).
+        assert!(!allowlist_eligible("vox_totally_unclassified_tool"));
     }
 
     #[test]

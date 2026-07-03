@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { EmptyState } from '../../ui/EmptyState';
 import { StatusPill } from '../../ui/StatusPill';
@@ -16,6 +15,7 @@ import {
   unwrapMcpEnvelope,
 } from '../../../lib/mcpToolResult';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
+import { voxTransport, getPermissionMode, setPermissionMode as setTransportPermissionMode } from '../../../transport';
 
 interface PendingApproval {
   approval_id: string;
@@ -31,11 +31,17 @@ interface ApprovalsViewProps {
 
 /**
  * T0.3: mirrors `vox_orchestrator_mcp::permission_modes::PermissionMode`'s
- * wire strings (`contracts/orchestration/permission-modes.v1.yaml`). Sent as
- * `invoke_mcp_tool`'s `permission_mode` param, which the Rust side puts on
- * `DispatchRequest`'s own top-level field — never folded into a tool's
- * `args` — so the dispatch gate reads it from an authenticated channel, not
- * from tool-call JSON.
+ * wire strings (`contracts/orchestration/permission-modes.v1.yaml`).
+ *
+ * The toggle below is the UI for `../../../transport.ts`'s shared
+ * `getPermissionMode`/`setPermissionMode` module state — that shared state
+ * (not local component state) is what `voxTransport.invokeMcpTool` /
+ * `voxTransport.callTool` actually read on every subsequent tool call, so
+ * selecting a mode here measurably changes daemon-side auto-approve
+ * behavior for calls made from anywhere in the app, not just this view.
+ * `DispatchRequest`'s own top-level field carries it — never folded into a
+ * tool's `args` — so the dispatch gate reads it from an authenticated
+ * channel, not from tool-call JSON.
  */
 type PermissionMode = 'ask' | 'accept_edits' | 'accept_all' | 'plan';
 
@@ -48,16 +54,30 @@ const PERMISSION_MODE_OPTIONS: { id: PermissionMode; label: string; hint: string
 
 const PERMISSION_MODE_STORAGE_KEY = 'vox.approvals.permission_mode';
 
-function loadStoredPermissionMode(): PermissionMode {
+function isKnownMode(value: unknown): value is PermissionMode {
+  return value === 'ask' || value === 'accept_edits' || value === 'accept_all' || value === 'plan';
+}
+
+/**
+ * Resolve the mode to show/apply on mount: prefer whatever's already live
+ * in the shared transport state (e.g. set earlier this session), then fall
+ * back to localStorage, then the safe `ask` default. Also pushes the
+ * resolved value back into the shared transport state so it's active
+ * immediately, even before the user touches the toggle.
+ */
+function resolveAndApplyInitialPermissionMode(): PermissionMode {
+  const live = getPermissionMode();
+  if (isKnownMode(live)) return live;
+
+  let stored: unknown = null;
   try {
-    const stored = window.localStorage?.getItem(PERMISSION_MODE_STORAGE_KEY);
-    if (stored === 'ask' || stored === 'accept_edits' || stored === 'accept_all' || stored === 'plan') {
-      return stored;
-    }
+    stored = window.localStorage?.getItem(PERMISSION_MODE_STORAGE_KEY);
   } catch {
     // localStorage unavailable (e.g. embedded surface) — fall back to the safe default.
   }
-  return 'ask';
+  const resolved = isKnownMode(stored) ? stored : 'ask';
+  setTransportPermissionMode(resolved);
+  return resolved;
 }
 
 function formatRequestedAt(ms: number): string {
@@ -77,11 +97,16 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
   const [approvals, setApprovals] = useState<PendingApproval[]>([]);
   const [loading, setLoading] = useState(true);
   const [resolving, setResolving] = useState<string | null>(null);
-  const [permissionMode, setPermissionMode] = useState<PermissionMode>(loadStoredPermissionMode);
+  const [permissionMode, setPermissionModeState] = useState<PermissionMode>(
+    resolveAndApplyInitialPermissionMode
+  );
   const [alwaysAllow, setAlwaysAllow] = useState<Record<string, boolean>>({});
 
   const setMode = useCallback((mode: PermissionMode) => {
-    setPermissionMode(mode);
+    setPermissionModeState(mode);
+    // Write through to the shared transport state — this is what actually
+    // reaches `invoke_mcp_tool` calls made from anywhere in the app.
+    setTransportPermissionMode(mode);
     try {
       window.localStorage?.setItem(PERMISSION_MODE_STORAGE_KEY, mode);
     } catch {
@@ -91,11 +116,8 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
 
   const refresh = useCallback(async () => {
     try {
-      const res = await invoke<McpInvokeResult>('invoke_mcp_tool', {
-        tool: 'vox_pending_approvals',
-        args: {},
-      });
-      setApprovals(parsePendingApprovals(res));
+      const res = await voxTransport.invokeMcpTool('vox_pending_approvals', {});
+      setApprovals(parsePendingApprovals({ tool: 'vox_pending_approvals', is_error: !!res.is_error, result: res.result }));
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Approvals load failed', body: String(err), cause: 'backend-error' });
     } finally {
@@ -121,10 +143,13 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
         // approval decision itself; failures are toasted but non-fatal.
         if (outcome === 'approved' && alwaysAllow[approvalId]) {
           try {
-            const allowRes = await invoke<McpInvokeResult>('invoke_mcp_tool', {
-              tool: 'vox_add_approval_allowlist_entry',
-              args: { tool },
-            });
+            // Note: vox_add_approval_allowlist_entry is itself
+            // `always_requires_approval: true` server-side (T0.3 follow-up
+            // fix) — this call parks for a human decision regardless of the
+            // currently selected mode, exactly like any other dangerous
+            // tool. It shows up as a NEW pending approval that `refresh()`
+            // below will surface.
+            const allowRes = await voxTransport.invokeMcpTool('vox_add_approval_allowlist_entry', { tool });
             if (allowRes.is_error) {
               pushToast({ tone: 'warn', title: 'Allowlist not saved', body: tool, cause: 'backend-error' });
             }
@@ -133,10 +158,7 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
           }
         }
 
-        const res = await invoke<McpInvokeResult>('invoke_mcp_tool', {
-          tool: 'vox_resolve_approval',
-          args: { approval_id: approvalId, outcome },
-        });
+        const res = await voxTransport.invokeMcpTool('vox_resolve_approval', { approval_id: approvalId, outcome });
         const data = unwrapMcpEnvelope(res.result) as { resolved?: boolean } | null;
         if (res.is_error || data?.resolved === false) {
           pushToast({ tone: 'warn', title: 'Resolve failed', body: `Could not ${outcome.replace('ed', '')} ${approvalId}`, cause: 'backend-error' });

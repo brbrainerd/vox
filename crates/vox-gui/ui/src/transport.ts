@@ -231,6 +231,35 @@ export interface RegistryFile {
 /** Resolved set of operations keyed by underscore-joined path for O(1) lookup. */
 type RegistryIndex = Map<string, RegistryOperation>;
 
+/**
+ * T0.3: GUI-selected `PermissionMode` wire string
+ * (`"ask" | "accept_edits" | "accept_all" | "plan"`), threaded onto every
+ * `invoke_mcp_tool` call this transport makes. Module-level (not per-call)
+ * so any surface driving a tool call — not just the approvals view that
+ * owns the toggle — picks up the currently selected mode without every
+ * call site needing to know about it. `null` (the default) means "no mode
+ * selected"; the Rust side treats an absent mode as the fail-safe `ask`
+ * default (today's always-park behavior for dangerous tools).
+ *
+ * Mirrors `vox_orchestrator_mcp::permission_modes::PermissionMode`
+ * (`contracts/orchestration/permission-modes.v1.yaml`).
+ */
+let currentPermissionMode: string | null = null;
+
+/** Read the currently selected `PermissionMode` wire string, or `null`. */
+export function getPermissionMode(): string | null {
+  return currentPermissionMode;
+}
+
+/**
+ * Set the `PermissionMode` wire string threaded onto subsequent
+ * `invoke_mcp_tool` calls. Pass `null` (or `'ask'`) to return to the
+ * fail-safe default.
+ */
+export function setPermissionMode(mode: string | null): void {
+  currentPermissionMode = mode;
+}
+
 class VoxTransport {
   private registryCache: RegistryFile | null = null;
   private registryIndex: RegistryIndex | null = null;
@@ -400,7 +429,11 @@ class VoxTransport {
     );
     if (action?.handler_kind === 'mcp') {
       const tool = action.mcp_name ?? canonical;
-      const result = await invoke<any>('invoke_mcp_tool', { tool, args });
+      const result = await invoke<any>('invoke_mcp_tool', {
+        tool,
+        args,
+        permissionMode: currentPermissionMode,
+      });
       const isError =
         result != null &&
         typeof result === 'object' &&
@@ -439,7 +472,11 @@ class VoxTransport {
     tool: string,
     args: Record<string, unknown> = {},
   ): Promise<{ is_error?: boolean; result?: unknown }> {
-    return invoke('invoke_mcp_tool', { tool, args });
+    return invoke('invoke_mcp_tool', {
+      tool,
+      args,
+      permissionMode: currentPermissionMode,
+    });
   }
 
   openLocator(locator: OpenLocator): Promise<OpenOutcome> {

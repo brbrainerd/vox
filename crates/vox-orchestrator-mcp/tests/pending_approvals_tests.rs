@@ -341,6 +341,7 @@ fn risk_classes_yaml_matches_rust_table() {
         tool: String,
         class: String,
         reversible: bool,
+        always_requires_approval: bool,
     }
     #[derive(serde::Deserialize)]
     struct YamlDoc {
@@ -363,13 +364,13 @@ fn risk_classes_yaml_matches_rust_table() {
 
     use vox_orchestrator_mcp::permission_modes::{RISK_CLASSES, SafetyClass};
 
-    let yaml_set: std::collections::BTreeMap<String, (String, bool)> = doc
+    let yaml_set: std::collections::BTreeMap<String, (String, bool, bool)> = doc
         .risk_classes
         .into_iter()
-        .map(|r| (r.tool, (r.class, r.reversible)))
+        .map(|r| (r.tool, (r.class, r.reversible, r.always_requires_approval)))
         .collect();
 
-    let rust_set: std::collections::BTreeMap<String, (String, bool)> = RISK_CLASSES
+    let rust_set: std::collections::BTreeMap<String, (String, bool, bool)> = RISK_CLASSES
         .iter()
         .map(|r| {
             let class_str = match r.class {
@@ -378,13 +379,78 @@ fn risk_classes_yaml_matches_rust_table() {
                 SafetyClass::Destructive => "destructive",
                 SafetyClass::Unknown => "unknown",
             };
-            (r.tool.to_string(), (class_str.to_string(), r.reversible))
+            (
+                r.tool.to_string(),
+                (class_str.to_string(), r.reversible, r.always_requires_approval),
+            )
         })
         .collect();
 
     assert_eq!(
         yaml_set, rust_set,
         "permission-modes.v1.yaml risk_classes and RISK_CLASSES have drifted apart"
+    );
+}
+
+/// RED test (follow-up review finding, HIGH SEVERITY): `vox_add_approval_allowlist_entry`
+/// itself must never auto-approve under ANY mode (including `accept_all`) —
+/// its effect is granting FUTURE auto-approval for an arbitrary
+/// (repo_id, tool) pair, so gating it by class/reversible alone would let a
+/// model call it directly to pre-authorize itself for anything (including
+/// vox_run_shell/vox_deploy) without ever parking once. This test proves it
+/// parks under `accept_all` (the most permissive mode) and that resolving
+/// the approval is required before the entry takes effect.
+#[tokio::test]
+#[serial_test::serial]
+async fn add_allowlist_entry_tool_itself_always_parks_even_under_accept_all() {
+    let _env = IsolatedDbEnv::new();
+    let state = Arc::new(ServerState::new_full(load_config()));
+    let repo_id = format!("t03-selfserve-repo-{}", uuid::Uuid::new_v4());
+
+    let s2 = state.clone();
+    let repo_id_owned = repo_id.clone();
+    let call = tokio::spawn(async move {
+        handle_tool_call_with_mode(
+            &s2,
+            "vox_add_approval_allowlist_entry",
+            serde_json::json!({ "tool": "vox_run_shell", "repo_id": repo_id_owned }),
+            Some("accept_all"),
+        )
+        .await
+    });
+
+    let deadline = tokio::time::Instant::now() + D_15S;
+    loop {
+        if !state.pending_approvals.list().is_empty() {
+            break;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "vox_add_approval_allowlist_entry under accept_all never parked — self-serve allowlist bypass!"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    let pending = state.pending_approvals.list();
+    assert_eq!(pending.len(), 1);
+    assert_eq!(pending[0].tool, "vox_add_approval_allowlist_entry");
+
+    // While parked, the allowlist entry must NOT have been persisted yet.
+    assert!(
+        !vox_orchestrator_mcp::approval_allowlist::is_allowlisted(&repo_id, "vox_run_shell").await,
+        "allowlist entry must not take effect before the approval is resolved"
+    );
+
+    // Reject it: the entry must never be persisted.
+    assert!(
+        state
+            .pending_approvals
+            .resolve(&pending[0].approval_id, ApprovalOutcome::Rejected)
+    );
+    let raw = call.await.expect("join").expect("dispatch ok");
+    assert!(tool_json_envelope_is_error(&raw));
+    assert!(
+        !vox_orchestrator_mcp::approval_allowlist::is_allowlisted(&repo_id, "vox_run_shell").await,
+        "rejected vox_add_approval_allowlist_entry must not have persisted an entry"
     );
 }
 

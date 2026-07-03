@@ -159,10 +159,18 @@ pub async fn handle_tool_call_with_mode(
         // entirely. Falls through to the unconditional HITL park otherwise
         // (today's baseline `ask`-mode behavior, byte-for-byte unchanged).
         let mode = crate::permission_modes::PermissionMode::from_wire(permission_mode);
+        // `mode_auto_approves` already returns `false` unconditionally for
+        // any tool with `always_requires_approval: true` (e.g.
+        // vox_add_approval_allowlist_entry — see the T0.3 follow-up review
+        // finding), so no separate check is needed here for tier 2.
         let mode_auto_approved =
             crate::permission_modes::mode_auto_approves(mode, name_canonical);
         let allowlisted = if mode_auto_approved {
             false // short-circuit: no need to hit the DB if the mode already approved
+        } else if !crate::permission_modes::allowlist_eligible(name_canonical) {
+            // Tier 3 is not even consulted for an `always_requires_approval`
+            // tool — it must always park regardless of what's persisted.
+            false
         } else {
             crate::approval_allowlist::is_allowlisted(
                 state.repository.repository_id.as_str(),

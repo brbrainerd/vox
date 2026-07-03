@@ -7,8 +7,8 @@
 # (a hand-written Rust const table). A parity test
 # (`crates/vox-orchestrator-mcp/tests/pending_approvals_tests.rs::
 # risk_classes_yaml_matches_rust_table`) walks this file and asserts the Rust
-# table has the identical set of tool -> (class, reversible) mappings, so the
-# two cannot silently drift.
+# table has the identical set of tool -> (class, reversible,
+# always_requires_approval) mappings, so the two cannot silently drift.
 #
 # `safety_class` vocabulary is the SAME enum as
 # `contracts/gui/action-manifest.v1.yaml` (`read_only, mutating, destructive,
@@ -35,6 +35,7 @@ risk_classes:
   - tool: vox_write_file
     class: mutating
     reversible: true
+    always_requires_approval: false
     rationale: >
       Overwrites file content, but the write lands in a VCS-tracked
       workspace — the prior content can be recovered via `git diff` / VCS
@@ -44,6 +45,7 @@ risk_classes:
   - tool: vox_multi_replace
     class: mutating
     reversible: true
+    always_requires_approval: false
     rationale: >
       In-place multi-region text replace. Same reversibility rationale as
       vox_write_file — changes are visible in the workspace VCS diff and can
@@ -52,11 +54,13 @@ risk_classes:
   - tool: vox_multi_replace_file
     class: mutating
     reversible: true
+    always_requires_approval: false
     rationale: Same as vox_multi_replace, addressed by explicit file path.
 
   - tool: vox_delete_file
     class: destructive
     reversible: false
+    always_requires_approval: false
     rationale: >
       Removes a file from the working tree. Even though most repos are
       VCS-tracked and a delete CAN be recovered via `git checkout`, recovery
@@ -67,6 +71,7 @@ risk_classes:
   - tool: vox_run_shell
     class: destructive
     reversible: false
+    always_requires_approval: false
     rationale: >
       Arbitrary shell command execution. Blast radius is unbounded (network
       calls, process spawns, file deletion, secrets exfiltration) and effects
@@ -76,9 +81,27 @@ risk_classes:
   - tool: vox_deploy
     class: destructive
     reversible: false
+    always_requires_approval: false
     rationale: >
       Ships changes to a live target outside the local workspace (this
       process's undo/VCS story does not apply once a deploy has shipped).
+
+  - tool: vox_add_approval_allowlist_entry
+    class: mutating
+    reversible: false
+    always_requires_approval: true
+    rationale: >
+      Added post-review (T0.3 follow-up finding): this tool's effect is
+      granting FUTURE auto-approval for an arbitrary (repo_id, tool) pair —
+      an ongoing security effect, not a single bounded mutation like a file
+      write. If gated only by class/reversible it would be eligible for
+      accept_edits/accept_all auto-approve or the persisted allowlist,
+      letting a model call it directly to pre-authorize itself for anything
+      (including vox_run_shell/vox_deploy) without ever parking once — the
+      same self-serve-bypass shape T0.1 closed for the `user_approval` tool
+      arg. `always_requires_approval: true` means this tool NEVER
+      auto-approves under any mode (including accept_all) or the allowlist;
+      it always parks for a human decision.
 
 # Any tool absent from `risk_classes` is treated as `unknown` and is NEVER
 # auto-approved by permission_mode or the allowlist — this preserves today's
@@ -117,7 +140,10 @@ modes:
     description: >
       Auto-approves both mutating and destructive tools, regardless of
       reversibility. The most permissive mode; intended for a human who has
-      explicitly opted in to unattended operation for this session.
+      explicitly opted in to unattended operation for this session. EXCEPT
+      any tool with `always_requires_approval: true` (currently
+      vox_add_approval_allowlist_entry) — those never auto-approve under
+      ANY mode, including this one.
     auto_approve:
       - class: mutating
         reversible: true
@@ -168,7 +194,9 @@ precedence:
       Per-(repository_id, tool_name) durable "always allow" entries. Checked
       only after permission_mode says "still park" for this call — an
       allowlist entry can auto-approve a tool under `ask` mode, but does not
-      override a hypothetical future explicit_deny (tier 1).
+      override a hypothetical future explicit_deny (tier 1). Not consulted
+      at all for a tool with `always_requires_approval: true` — such a tool
+      always parks regardless of what's persisted.
 
   - tier: risk_confidence_matrix_hitl_actions
     status: pre_existing_independent_mechanism
