@@ -10,6 +10,7 @@ import {
   orderedChildren,
   labelForNavKey,
 } from './navigation';
+import { SURFACE_REGISTRY } from '../generated/surfaceRegistry.generated';
 
 describe('intent-first top-level order', () => {
   it('orders groups: Direct, Review, Agents, Knowledge, Workspace, Commands, Compute, Mercatus, Settings', () => {
@@ -95,6 +96,19 @@ describe('child ordering', () => {
   });
   it('passes unknown parents through untouched', () => {
     expect(orderedChildren('mercatus', ['a', 'b'])).toEqual(['a', 'b']);
+  });
+});
+
+describe('needs-you attention inbox nav wiring', () => {
+  it('resolves needs-you under the runs parent', () => {
+    expect(resolveNavigation('needs-you')).toEqual({ parent: 'runs', child: 'needs-you' });
+  });
+  it('labels needs-you for breadcrumbs', () => {
+    expect(labelForNavKey('needs-you')).toBe('Needs You');
+  });
+  it('registry parents needs-you under runs so ParentSurface shows the tab', () => {
+    const entry = SURFACE_REGISTRY.find(e => e.viewKey === 'needs-you');
+    expect(entry?.parentSurface).toBe('runs');
   });
 });
 
