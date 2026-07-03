@@ -36,7 +36,7 @@ export function redrawKey(s: WorldState, band: 0 | 1): string {
     h.queueLen ?? 'x',
     h.mcp ? h.mcp.map((m) => +m.ok).join('') : 'x',
   ].join(',');
-  return `${band}#${s.layout.grid.w}#${diag}#${tasks}#${hk}`;
+  return `${band}#${s.layout.grid.w}x${s.layout.grid.h}#${diag}#${tasks}#${hk}`;
 }
 
 /** Cap the buffer's long edge — a 7.5k-file world projects to ~11k×5.6k world
