@@ -340,12 +340,45 @@ pub async fn handle_tool_call_with_mode(
     let aci_envelope = state.orchestrator_config.agentos_aci_envelope_enabled;
     let checkpoint_hints = state.orchestrator_config.agentos_checkpoint_hints_enabled;
 
+    // T4.3: outer execution timeout around the actual tool dispatch, sourced
+    // per-tool from `dispatch_timeout::timeout_for` (agy delegation tools get
+    // a much larger exception; everything else gets the global default). This
+    // is independent of and does NOT replace the 300s HITL approval-wait
+    // above — that bounds waiting for a human decision before execution ever
+    // starts; this bounds the execution itself, for every tool, gated or not.
+    // `vox_db::TimedExecution` (the `te` used below) only measures duration
+    // for telemetry and never bounded it, so a hung tool implementation
+    // previously blocked this handler (and the MCP connection) indefinitely.
+    let call_timeout = crate::dispatch_timeout::timeout_for(name_canonical);
     let result = te
         .run(|| {
             let args = args.clone();
-            vox_telemetry::TRACE_CTX.scope(trace_ctx, async move {
-                handle_tool_call_inner(state, name_canonical, args).await
-            })
+            async move {
+                match tokio::time::timeout(
+                    call_timeout,
+                    vox_telemetry::TRACE_CTX.scope(trace_ctx, async move {
+                        handle_tool_call_inner(state, name_canonical, args).await
+                    }),
+                )
+                .await
+                {
+                    Ok(inner) => inner,
+                    Err(_elapsed) => {
+                        tracing::warn!(
+                            tool = name_canonical,
+                            timeout_secs = call_timeout.as_secs(),
+                            "tool execution exceeded its dispatch timeout"
+                        );
+                        Ok(crate::params::ToolResult::<()>::err(format!(
+                            "Tool '{name_canonical}' exceeded its execution timeout ({}s) and was aborted. \
+                             This is a dispatch-level guard independent of any approval wait; the tool call \
+                             itself took too long to complete.",
+                            call_timeout.as_secs()
+                        ))
+                        .to_json_compact())
+                    }
+                }
+            }
         })
         .await;
 
@@ -535,6 +568,29 @@ async fn handle_tool_call_inner(
                 Err(e) => Ok(ToolResult::<()>::err(e).to_json()),
             };
         }
+    }
+
+    // T4.3 RED-test doubles: never compiled into a non-test build. Lets the
+    // dispatch-timeout tests exercise the real `handle_tool_call` /
+    // `handle_tool_call_with_mode` path (approval gate, TimedExecution,
+    // telemetry, the new outer `tokio::time::timeout`) end-to-end without
+    // depending on any real tool's I/O or subprocess behavior.
+    #[cfg(test)]
+    match name {
+        "vox_test_hang_forever" => {
+            let sleep_ms = args
+                .get("sleep_ms")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(u64::MAX);
+            tokio::time::sleep(std::time::Duration::from_millis(sleep_ms)).await;
+            return Ok(ToolResult::ok("woke up (should not happen under test timeout)").to_json());
+        }
+        "vox_test_agy_like_long_running" => {
+            let sleep_ms = args.get("sleep_ms").and_then(|v| v.as_u64()).unwrap_or(0);
+            tokio::time::sleep(std::time::Duration::from_millis(sleep_ms)).await;
+            return Ok(ToolResult::ok("agy-like delegation completed").to_json());
+        }
+        _ => {}
     }
 
     match name {
@@ -1968,5 +2024,106 @@ mod registry_dispatch_tests {
                 );
             }
         }
+    }
+}
+
+// ── T4.3: per-tool-call dispatch timeout tests ──────────────────────────────
+#[cfg(test)]
+mod dispatch_timeout_tests {
+    use super::handle_tool_call;
+    use crate::server_state::ServerState;
+    use serde_json::json;
+
+    /// RED test 1: a deliberately-hanging tool returns a timeout error
+    /// envelope after its configured (short, test-only) duration, and the
+    /// handler remains responsive for a subsequent normal call — proving the
+    /// outer `tokio::time::timeout` in `handle_tool_call_with_mode` actually
+    /// aborts execution rather than leaving the connection hanging, and that
+    /// it doesn't leave any shared state (locks, `ServerState`) poisoned.
+    #[tokio::test]
+    async fn hanging_tool_times_out_and_handler_stays_responsive() {
+        let state = ServerState::new_test().await;
+
+        let started = std::time::Instant::now();
+        let res = handle_tool_call(&state, "vox_test_hang_forever", json!({}))
+            .await
+            .expect("dispatch itself must not error; timeout is surfaced as a ToolResult envelope");
+        let elapsed = started.elapsed();
+
+        assert!(
+            crate::server_state::tool_json_envelope_is_error(&res),
+            "expected a `success: false` timeout envelope, got: {res}"
+        );
+        assert!(
+            res.contains("exceeded its execution timeout"),
+            "expected the timeout error message, got: {res}"
+        );
+        // The configured test timeout is 200ms; give generous CI slack but
+        // assert it did NOT wait anywhere near the (effectively infinite)
+        // sleep duration the test tool would otherwise run for.
+        assert!(
+            elapsed < std::time::Duration::from_secs(10),
+            "timeout took far too long to fire: {elapsed:?}"
+        );
+
+        // Handler must still be responsive afterward — prove no poisoned
+        // lock / broken state by making an ordinary, fast call right after.
+        let follow_up = handle_tool_call(&state, "vox_skill_list", json!({}))
+            .await
+            .expect("handler must remain responsive after a prior call timed out");
+        assert!(
+            !crate::server_state::tool_json_envelope_is_error(&follow_up),
+            "follow-up call unexpectedly failed: {follow_up}"
+        );
+    }
+
+    /// RED test 2: an agy-delegation test-double that sleeps LONGER than the
+    /// global default timeout but SHORTER than its own configured long
+    /// timeout completes successfully — proving the agy exception is a real,
+    /// effective per-tool override and not just documented.
+    #[tokio::test]
+    async fn agy_like_tool_survives_past_the_global_default_timeout() {
+        let state = ServerState::new_test().await;
+
+        // Global default (dispatch_timeout::DEFAULT_TIMEOUT) is 120s in
+        // production; `vox_test_agy_like_long_running`'s own configured
+        // timeout is 2000ms (test-only). Sleep for longer than a plausible
+        // "wrong, defaulted" timeout would allow but well inside its actual
+        // 2000ms budget.
+        let sleep_ms = 600u64;
+        assert!(
+            sleep_ms
+                < crate::dispatch_timeout::timeout_for("vox_test_agy_like_long_running").as_millis()
+                    as u64,
+            "test sleep must stay under the tool's own configured timeout"
+        );
+
+        let res = handle_tool_call(
+            &state,
+            "vox_test_agy_like_long_running",
+            json!({ "sleep_ms": sleep_ms }),
+        )
+        .await
+        .expect("dispatch must not error");
+
+        assert!(
+            !crate::server_state::tool_json_envelope_is_error(&res),
+            "agy-like long-running tool should have completed within its own exception timeout, got: {res}"
+        );
+        assert!(res.contains("agy-like delegation completed"));
+    }
+
+    /// RED test 3 (regression guard): a normal, fast tool completing well
+    /// within its timeout is unaffected by the new outer guard.
+    #[tokio::test]
+    async fn fast_normal_tool_is_unaffected_by_the_outer_timeout() {
+        let state = ServerState::new_test().await;
+        let res = handle_tool_call(&state, "vox_skill_list", json!({}))
+            .await
+            .expect("dispatch must not error");
+        assert!(
+            !crate::server_state::tool_json_envelope_is_error(&res),
+            "fast tool unexpectedly failed: {res}"
+        );
     }
 }

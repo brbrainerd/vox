@@ -54,6 +54,9 @@ pub mod compiler_tools;
 /// Codex schema digest + sample row tools for `.vox` modules.
 pub mod db_tools;
 pub mod dispatch;
+/// T4.3: per-tool-call execution timeout table (outer `tokio::time::timeout`
+/// wrapping actual tool dispatch — independent of the HITL approval-wait).
+pub mod dispatch_timeout;
 /// Execution time tracking tools.
 pub mod exec_time_tools;
 /// Central `git` executor with banned-command denylist and `vox.vcs.exec` telemetry.
