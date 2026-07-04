@@ -502,6 +502,12 @@ exempt_files     = [
     # as that technique works only by coincidence of proximity and is misleading.
     "crates/vox-code-audit/src/detectors/magic_value.rs",
     "crates/vox-code-audit/src/detectors/scaling.rs",
+    # Whole-file test module (included only via `#[cfg(test)] mod tests;` in
+    # eval_gate/mod.rs) — the `exempt_tests` inline-block detector only covers
+    # in-file `#[cfg(test)] mod { .. }` blocks, not a separate file pulled in
+    # under a `#[cfg(test)]` mod declaration in the parent. `/tmp/...` literals
+    # here are mock tool-call fixture args, never shipped.
+    "crates/vox-ml-cli/src/commands/mens/eval_gate/tests.rs",
 ]
 allow_annotation = "// vox-arch-check: allow abs-path"
 reason           = "Hardcoded absolute paths break across OSes; use std::env::temp_dir()/dirs/Path::join."

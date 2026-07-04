@@ -5,8 +5,14 @@ fn config_path() -> PathBuf {
     if let Ok(p) = env::var("PRICE_WATCH_CONFIG") {
         return PathBuf::from(p);
     }
-    // ponytail: default path matches the storage-tier checkout location
-    PathBuf::from(r"C:\Users\Owner\storage-tier\price-watch\price-watch.config.json")
+    // Default: <user config dir>/storage-tier/price-watch/price-watch.config.json.
+    // Falls back to the current directory if the OS config dir cannot be resolved
+    // (dirs::config_dir() only returns None on exotic platforms).
+    dirs::config_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("storage-tier")
+        .join("price-watch")
+        .join("price-watch.config.json")
 }
 
 #[command]
