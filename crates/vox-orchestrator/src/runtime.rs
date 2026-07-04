@@ -850,7 +850,13 @@ impl ActorAgent {
 
                     match result {
                         Ok(completed_id) => {
-                            let _ = orchestrator_ref.complete_task(completed_id).await;
+                            if let Err(err) = orchestrator_ref.complete_task(completed_id).await {
+                                tracing::error!(
+                                    "complete_task failed after processor success: {} (task {})",
+                                    err,
+                                    completed_id
+                                );
+                            }
                             orchestrator_ref
                                 .heartbeat(agent_id, crate::events::AgentActivity::Idle);
                         }
@@ -1377,5 +1383,113 @@ mod tests {
             streamed_text, "unified",
             "TokenStreamed events on the EventBus must carry the consolidated stack's deltas"
         );
+    }
+
+    /// T5.2 (harness reliability spec, Phase 5): `handle_command`'s
+    /// `AgentCommand::ProcessQueue` arm used to discard the `Result` of
+    /// `orchestrator_ref.complete_task(completed_id)` via `let _ = ...`,
+    /// silently swallowing an `Err` (e.g. `TaskNotFound`) with no trace at
+    /// all. This test drives the exact `Ok(completed_id) => { if let
+    /// Err(err) = ... }` pattern now in `handle_command` against a real
+    /// `Orchestrator` (not through `handle_command` itself, which — via
+    /// `heartbeat()` reading the same per-agent queue lock `ProcessQueue`
+    /// holds writable — has a pre-existing lock-reentrancy deadlock
+    /// unrelated to this fix and out of scope for T5.2): submit a task, then
+    /// strip its `task_assignments` entry (as would happen if assignment
+    /// bookkeeping and completion ever raced) so `complete_task` hits its
+    /// `TaskNotFound` error path, and assert the failure is now logged via
+    /// `tracing::error!` instead of vanishing.
+    ///
+    /// Uses a scoped (thread-local, via `tracing::subscriber::with_default`)
+    /// capturing subscriber rather than `#[tracing_test::traced_test]`,
+    /// which races to install a *global* default dispatcher and can panic
+    /// when run in the same test binary as another test that already set one
+    /// (e.g. `orchestrator::tests::orch_smoke::complexity_based_routing_test`'s
+    /// `tracing_subscriber::fmt::try_init()`).
+    #[tokio::test]
+    async fn process_queue_logs_complete_task_error_instead_of_discarding_it() {
+        use tracing_subscriber::layer::SubscriberExt;
+
+        let orchestrator = Arc::new(Orchestrator::new(
+            crate::config::OrchestratorConfig::for_testing(),
+        ));
+        let _agent_id = orchestrator.spawn_agent("t5-2").expect("spawn agent");
+        let task_id = orchestrator
+            .submit_task_with_agent(
+                "T5.2 discarded-result repro",
+                vec![],
+                None,
+                Some("t5-2".to_string()),
+                None,
+                None,
+                None,
+                None,
+            )
+            .await
+            .expect("submit task");
+
+        // Drop the assignment record out from under the task so
+        // `complete_task` hits its `TaskNotFound` error path instead of
+        // succeeding — reproducing exactly the `Err` that `handle_command`'s
+        // `Ok(completed_id) => { ... }` arm now logs instead of discarding.
+        orchestrator
+            .task_assignments
+            .write()
+            .unwrap()
+            .remove(&task_id);
+
+        let captured: Arc<Mutex<Vec<u8>>> = Arc::new(Mutex::new(Vec::new()));
+        let make_writer = {
+            let captured = Arc::clone(&captured);
+            move || CapturingWriter {
+                buf: Arc::clone(&captured),
+            }
+        };
+        let subscriber = tracing_subscriber::registry().with(
+            tracing_subscriber::fmt::layer()
+                .with_writer(make_writer)
+                .with_ansi(false),
+        );
+
+        // Mirror `handle_command`'s fixed branch verbatim, inside the scoped
+        // (thread-local, not global) subscriber guard so the Err log is
+        // captured. `#[tokio::test]` defaults to a current-thread runtime, so
+        // the guard stays active across the `.await` below.
+        let _guard = tracing::subscriber::set_default(subscriber);
+        if let Err(err) = orchestrator.complete_task(task_id).await {
+            tracing::error!(
+                "complete_task failed after processor success: {} (task {})",
+                err,
+                task_id
+            );
+        } else {
+            panic!("complete_task on an unassigned task must fail");
+        }
+        drop(_guard);
+
+        let logs = String::from_utf8(captured.lock().unwrap().clone()).expect("utf8 logs");
+        assert!(
+            logs.contains("complete_task failed after processor success"),
+            "discarded complete_task Err must now be logged, not silently dropped; captured logs: {logs}"
+        );
+    }
+
+    /// Test-only [`std::io::Write`] sink that appends into a shared buffer,
+    /// used as a `tracing_subscriber::fmt` writer to capture log output
+    /// scoped to a single test (see
+    /// `process_queue_logs_complete_task_error_instead_of_discarding_it`).
+    struct CapturingWriter {
+        buf: Arc<Mutex<Vec<u8>>>,
+    }
+
+    impl std::io::Write for CapturingWriter {
+        fn write(&mut self, data: &[u8]) -> std::io::Result<usize> {
+            self.buf.lock().unwrap().extend_from_slice(data);
+            Ok(data.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
     }
 }
