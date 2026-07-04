@@ -12,13 +12,13 @@
 
 // ANCHOR: start
 // ANCHOR: data_model
-@table type Note {
+table Note {
     title: str
     content: str
 }
 // ANCHOR_END: data_model
 
-@server fn health() to Result[str] {
+server health() to Result[str] {
     return Ok("ok")
 }
 
@@ -33,12 +33,12 @@ component App() {
 
 // ANCHOR: concepts
 // ANCHOR: logic
-@query fn get_notes() to int {
+query get_notes() to int {
     // Returns note count; db.Note.all() returns a list
     return len(db.Note.all())
 }
 
-@mutation fn create_note(title: str, content: str) to Result[str] {
+mutation create_note(title: str, content: str) to Result[str] {
     db.Note.insert({ title: title, content: content })?
     return Ok("created")
 }

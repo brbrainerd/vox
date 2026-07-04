@@ -73,6 +73,7 @@ fn extract_targz(data: &[u8], dest_dir: &Path) -> Result<()> {
     Ok(())
 }
 
+#[cfg_attr(not(windows), allow(unused_variables))]
 fn extract_zip(data: &[u8], dest_dir: &Path) -> Result<()> {
     #[cfg(windows)]
     {

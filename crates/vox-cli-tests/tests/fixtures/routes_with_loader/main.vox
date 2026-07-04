@@ -1,4 +1,4 @@
-@query fn load_home() to int { return 0 }
+query load_home() to int { return 0 }
 
 @loading fn HomePending() to Element {
     return text() { "Loading..." }

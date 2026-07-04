@@ -1389,8 +1389,8 @@ Replacement shape:
 
 ```vox
 // vox:skip
-@query     fn list_items() to list[Item]              { … }
-@mutation  fn add_item(name: str) to Result[Item]     { … }
+query list_items() to list[Item]              { … }
+mutation add_item(name: str) to Result[Item]     { … }
 ```
 
 The information content is identical; the K-complexity drops by ~65 %

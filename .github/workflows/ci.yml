@@ -7,11 +7,11 @@ on:
   # protection. Running the full gate again on push:main after a successful
   # merge_group run is pure duplication — it wastes two runner-slots per merge,
   # creates a second in-progress run that competes with the next PR's gate run,
-  # and the cancel-thrash from rapid pushes can starve the queue. All merge-time
-  # observability jobs (docker-vox-image-smoke, gui-playwright-smoke, etc.) that
-  # genuinely need coverage on main are gated on
-  # `github.event_name == 'merge_group' && github.event.merge_group.base_ref ==
-  # 'refs/heads/main'` (the merge queue for main) or the `full-ci` PR label.
+  # and the cancel-thrash from rapid pushes can starve the queue. Heavy
+  # observability jobs (docker-vox-image-smoke, gui-playwright-smoke, etc.) are
+  # tiered off merge_group entirely (runner-remediation Task 10 — the merge
+  # queue's runner ceiling can't absorb them) and instead run post-merge on
+  # `push:main` or via the `full-ci` PR label.
   merge_group:
 
 concurrency:
@@ -109,7 +109,10 @@ jobs:
       - name: Install system deps (dbus, required by wry/keyring on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
       - name: Build vox-cli (warms sccache + downstream artifact)
-        run: cargo build -p vox-cli --locked --features completion-toestub
+        # Includes the off-by-default features whose code is otherwise never compiled
+        # in CI (extras-ludus/ars/coderabbit) so they can't silently drift against
+        # moved APIs — see the ludus/vox-db identity drift (2026-06-30).
+        run: cargo build -p vox-cli --locked --features completion-toestub,extras-ludus,ars,coderabbit
 
       # pull_request: map diff → affected crate closure via committed graph SSOT.
       # merge_group: authoritative full gate (no PR base ref; closes feature-unification gap).
@@ -1362,6 +1365,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
@@ -1418,9 +1424,9 @@ jobs:
     name: Docker build smoke (default + mesh)
     # Tier: heavy (~30m). Runs in the merge queue for main + on PRs labelled
     # `full-ci`; skip routine PR pushes (not a required check).
-    # Not a ci-summary dependency, so it gates nothing — runs in the merge
-    # queue for main, or on PRs labelled full-ci.
-    if: (github.event_name == 'merge_group' && github.event.merge_group.base_ref == 'refs/heads/main') || contains(github.event.pull_request.labels.*.name, 'full-ci')
+    # Tiered off merge_group (runner-remediation Task 10): not a ci-summary
+    # dependency, so it gates nothing — runs post-merge on main or via full-ci label.
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || contains(github.event.pull_request.labels.*.name, 'full-ci')
     runs-on: [self-hosted, linux, x64, docker]
     timeout-minutes: 30
     steps:
@@ -1435,10 +1441,10 @@ jobs:
   # Canonical crate is `vox-plugin-browser` (historical `vox-browser` crate removed).
   vox-browser-cdp-smoke:
     name: vox-plugin-browser CDP smoke (Chromium)
-    # Tier: heavy (~15m). Merge queue for main + `full-ci` label only.
-    # Not a ci-summary dependency, so it gates nothing — runs in the merge
-    # queue for main, or on PRs labelled full-ci.
-    if: (github.event_name == 'merge_group' && github.event.merge_group.base_ref == 'refs/heads/main') || contains(github.event.pull_request.labels.*.name, 'full-ci')
+    # Tier: heavy (~15m). Post-merge + `full-ci` label only.
+    # Tiered off merge_group (runner-remediation Task 10): not a ci-summary
+    # dependency, so it gates nothing — runs post-merge on main or via full-ci label.
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || contains(github.event.pull_request.labels.*.name, 'full-ci')
     runs-on: [self-hosted, linux, x64, browser]
     timeout-minutes: 15
     steps:
@@ -1477,10 +1483,10 @@ jobs:
 
   gui-playwright-smoke:
     name: GUI Playwright golden route (full_stack_minimal)
-    # Tier: heavy (~25m). Merge queue for main + `full-ci` label only.
-    # Not a ci-summary dependency, so it gates nothing — runs in the merge
-    # queue for main, or on PRs labelled full-ci.
-    if: (github.event_name == 'merge_group' && github.event.merge_group.base_ref == 'refs/heads/main') || contains(github.event.pull_request.labels.*.name, 'full-ci')
+    # Tier: heavy (~25m). Post-merge + `full-ci` label only.
+    # Tiered off merge_group (runner-remediation Task 10): not a ci-summary
+    # dependency, so it gates nothing — runs post-merge on main or via full-ci label.
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || contains(github.event.pull_request.labels.*.name, 'full-ci')
     runs-on: [self-hosted, linux, x64, browser]
     timeout-minutes: 25
     steps:
@@ -1593,11 +1599,11 @@ jobs:
 
   all-features-matrix:
     name: All-Features Check (${{ matrix.crate }})
-    # Tier: heavy (~30 crates × 10-15m). Merge queue for main + `full-ci` label
-    # only — the single biggest per-PR load. Not a required check.
-    # Not a ci-summary dependency, so it gates nothing — runs in the merge
-    # queue for main, or on PRs labelled full-ci.
-    if: (github.event_name == 'merge_group' && github.event.merge_group.base_ref == 'refs/heads/main') || contains(github.event.pull_request.labels.*.name, 'full-ci')
+    # Tier: heavy (~30 crates × 10-15m). Post-merge + `full-ci` label only —
+    # the single biggest per-PR load. Not a required check.
+    # Tiered off merge_group (runner-remediation Task 10): not a ci-summary
+    # dependency, so it gates nothing — runs post-merge on main or via full-ci label.
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || contains(github.event.pull_request.labels.*.name, 'full-ci')
     runs-on: [self-hosted, linux, x64, docker]
     timeout-minutes: 15
     strategy:

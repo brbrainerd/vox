@@ -41,7 +41,7 @@ A single **opt-in** `@admin` annotation on a type/table emits a **complete admin
 ```vox
 // vox:skip — illustrative surface syntax, not yet in the grammar
 @admin(title: "Users", searchable: [name, email], readonly: [created_at])
-@table User {
+table User {
   id: uuid
   name: string
   email: email          // branded scalar → typed input + validation

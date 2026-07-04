@@ -11,8 +11,7 @@
 // difficulty: intermediate
 // ---
 // ANCHOR: mcp_tool
-@tool "Calculate the sum of two integers"
-fn sum(a: int, b: int) to int {
+tool "Calculate the sum of two integers" sum(a: int, b: int) to int {
     return a + b
 }
 // ANCHOR_END: mcp_tool

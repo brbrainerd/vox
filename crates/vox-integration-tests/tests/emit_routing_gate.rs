@@ -1,3 +1,4 @@
+#![allow(clippy::enum_variant_names)]
 //! CR-F2c — emit-routing gate.
 //!
 //! Vox emits along a domain boundary: logic/backend → Rust (`codegen_rust`),
@@ -41,7 +42,7 @@ fn classify(field: &str) -> Option<Arm> {
         "tests" => RustArm,          // @test runs as Rust
         "examples" => RustArm,       // @example reference fns run as Rust
         "foralls" => RustArm,        // @forall properties run as Rust
-        "endpoint_fns" => Both,      // @server fn = Rust impl + TS client stub
+        "endpoint_fns" => Both,      // server = Rust impl + TS client stub
         "tables" => RustArm,         // data layer
         "indexes" => RustArm,        // data layer
         "collections" => RustArm,    // doc store data layer
@@ -59,7 +60,7 @@ fn classify(field: &str) -> Option<Arm> {
         "state_machines" => TsArm,   // UI state machines emit to TSX
         "fragments" => TsArm,        // parametric UI fragments → React components
         "reactive_modules" => TsArm, // .vox.ui modules → React context/hooks
-        "forms" => TsArm,            // @form lowers to UI forms
+        "forms" => TsArm,            // form lowers to UI forms
         "back_button" => TsArm,      // native shell / mobile UI primitive
         "deep_link" => TsArm,        // native shell / mobile UI primitive
         "push" => TsArm,             // push-notification UI wiring
@@ -141,6 +142,6 @@ fn known_logic_and_gui_fields_route_to_expected_arms() {
     assert_eq!(
         classify("endpoint_fns"),
         Some(Both),
-        "@server fn = Rust impl + TS client stub"
+        "server = Rust impl + TS client stub"
     );
 }

@@ -1,6 +1,6 @@
 //! Integration tests for vox-graphify-reader (BFS, path, compare).
 
-use vox_graph_reader::{GraphifyReader, GraphifyReaderError};
+use vox_graph_reader::{Direction, GraphifyReader, GraphifyReaderError};
 
 fn three_node_graph() -> serde_json::Value {
     serde_json::json!({
@@ -26,7 +26,7 @@ fn reader_loads_node_and_edge_counts() {
 #[test]
 fn bfs_depth_1_returns_direct_neighbors_only() {
     let g = GraphifyReader::from_value(three_node_graph()).unwrap();
-    let hits = g.bfs_from_seeds(&["a"], 1, 100);
+    let hits = g.bfs_from_seeds(&["a"], 1, 100, Direction::Both);
     let ids: Vec<&str> = hits.iter().map(|h| h.node_id.as_str()).collect();
     assert!(ids.contains(&"b"), "b must be a depth-1 neighbor of a");
     assert!(
@@ -38,7 +38,7 @@ fn bfs_depth_1_returns_direct_neighbors_only() {
 #[test]
 fn bfs_depth_2_reaches_indirect_neighbors() {
     let g = GraphifyReader::from_value(three_node_graph()).unwrap();
-    let hits = g.bfs_from_seeds(&["a"], 2, 100);
+    let hits = g.bfs_from_seeds(&["a"], 2, 100, Direction::Both);
     let ids: Vec<&str> = hits.iter().map(|h| h.node_id.as_str()).collect();
     assert!(ids.contains(&"b"));
     assert!(ids.contains(&"c"));
@@ -47,7 +47,7 @@ fn bfs_depth_2_reaches_indirect_neighbors() {
 #[test]
 fn bfs_hit_has_correct_depth_field() {
     let g = GraphifyReader::from_value(three_node_graph()).unwrap();
-    let hits = g.bfs_from_seeds(&["a"], 2, 100);
+    let hits = g.bfs_from_seeds(&["a"], 2, 100, Direction::Both);
     let b_hit = hits
         .iter()
         .find(|h| h.node_id == "b")
@@ -63,20 +63,23 @@ fn bfs_hit_has_correct_depth_field() {
 #[test]
 fn bfs_respects_limit() {
     let g = GraphifyReader::from_value(three_node_graph()).unwrap();
-    let hits = g.bfs_from_seeds(&["a"], 5, 1);
+    let hits = g.bfs_from_seeds(&["a"], 5, 1, Direction::Both);
     assert_eq!(hits.len(), 1, "limit=1 must cap results");
 }
 
 #[test]
 fn bfs_unknown_seed_returns_empty() {
     let g = GraphifyReader::from_value(three_node_graph()).unwrap();
-    assert!(g.bfs_from_seeds(&["nonexistent"], 2, 100).is_empty());
+    assert!(
+        g.bfs_from_seeds(&["nonexistent"], 2, 100, Direction::Both)
+            .is_empty()
+    );
 }
 
 #[test]
 fn bfs_path_field_traces_from_seed_to_hit() {
     let g = GraphifyReader::from_value(three_node_graph()).unwrap();
-    let hits = g.bfs_from_seeds(&["a"], 2, 100);
+    let hits = g.bfs_from_seeds(&["a"], 2, 100, Direction::Both);
     let c_hit = hits
         .iter()
         .find(|h| h.node_id == "c")
@@ -87,20 +90,26 @@ fn bfs_path_field_traces_from_seed_to_hit() {
 #[test]
 fn shortest_path_two_hops() {
     let g = GraphifyReader::from_value(three_node_graph()).unwrap();
-    assert_eq!(g.shortest_path("a", "c").unwrap(), vec!["a", "b", "c"]);
+    assert_eq!(
+        g.shortest_path("a", "c", Direction::Both).unwrap(),
+        vec!["a", "b", "c"]
+    );
 }
 
 #[test]
 fn shortest_path_same_node_is_single_element() {
     let g = GraphifyReader::from_value(three_node_graph()).unwrap();
-    assert_eq!(g.shortest_path("a", "a").unwrap(), vec!["a"]);
+    assert_eq!(
+        g.shortest_path("a", "a", Direction::Both).unwrap(),
+        vec!["a"]
+    );
 }
 
 #[test]
 fn shortest_path_unreachable_returns_none() {
     let graph = serde_json::json!({"nodes": [{"id": "x"}, {"id": "y"}], "links": []});
     let g = GraphifyReader::from_value(graph).unwrap();
-    assert!(g.shortest_path("x", "y").is_none());
+    assert!(g.shortest_path("x", "y", Direction::Both).is_none());
 }
 
 #[test]

@@ -3,12 +3,12 @@
 # reliability policies with `with { ... }` instead of manual retry loops.
 # Updated: activity/workflow tombstoned (TASK-2.6) — now uses plain `fn`.
 
-@table type Conversation {
+table Conversation {
     user_id: str
     started_at: str
 }
 
-@table type MessageTrace {
+table MessageTrace {
     conversation_id: str
     role: str
     content: str

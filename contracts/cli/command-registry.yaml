@@ -941,18 +941,6 @@ operations:
 - surface: vox-cli
   path:
   - ci
-  - queue
-  status: active
-  latin_ns: null
-  product_lane: platform
-  feature_gate: null
-  catalog_group: null
-  ref_cli_required: true
-  reachability_required: false
-  handler_rust: null
-- surface: vox-cli
-  path:
-  - ci
   - release-build
   status: active
   latin_ns: null
@@ -1196,18 +1184,6 @@ operations:
   path:
   - ci
   - turso-import-guard
-  status: active
-  latin_ns: null
-  product_lane: platform
-  feature_gate: null
-  catalog_group: null
-  ref_cli_required: true
-  reachability_required: false
-  handler_rust: null
-- surface: vox-cli
-  path:
-  - ci
-  - workflow-concurrency-guard
   status: active
   latin_ns: null
   product_lane: platform
@@ -2727,7 +2703,7 @@ operations:
   catalog_group: null
   ref_cli_required: true
   reachability_required: null
-  handler_rust: null
+  handler_rust: vox_cli_research::run_research_query
 - surface: vox-cli
   path:
   - review

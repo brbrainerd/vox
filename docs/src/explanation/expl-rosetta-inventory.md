@@ -231,7 +231,7 @@ In Vox, the struct *is* the schema.
 
 ```vox
 // vox:skip
-@table type InventoryStack {
+table InventoryStack {
     kind: str
     qty: int
     max_stack: int

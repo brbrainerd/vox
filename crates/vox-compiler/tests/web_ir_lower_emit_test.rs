@@ -190,7 +190,7 @@ fn web_ir_validate_duplicate_route_contract_id() {
 #[test]
 fn codegen_nested_route_manifest_includes_children_loader_pending_and_boundary_exports() {
     let source = r#"
-@query fn load_child() to int { return 1 }
+query load_child() to int { return 1 }
 
 component Home() {
     state n: int = 0
@@ -270,10 +270,10 @@ component Home() {
 routes {
     "/" to Home
 }
-@server fn api_x() to int {
+server api_x() to int {
     return 1
 }
-@query fn q_list() to int { return 0 }
+query q_list() to int { return 0 }
 "#;
     let module = parse(lex(source)).expect("parse");
     let hir = lower_module(&module);
@@ -609,19 +609,19 @@ style {
 #[test]
 fn web_ir_lowering_summary_counts_http_and_rpc() {
     let src = r#"
-@server fn api_ping() to int { return 1 }
+server api_ping() to int { return 1 }
 
-@server fn do_work() to int { return 0 }
+server do_work() to int { return 0 }
 
-@query fn read_q() to int { return 0 }
+query read_q() to int { return 0 }
 
-@mutation fn write_m(x: int) to int { return x }
+mutation write_m(x: int) to int { return x }
 "#;
     let module = parse(lex(src)).expect("parse rpc fixture");
     let hir = lower_module(&module);
     let (web, summary) = lower_hir_to_web_ir_with_summary(&hir);
     // `http_loader_contracts` no longer has a producer (loaders are route-level
-    // now, not derived from `@server fn api_*`); the field is retirement-pending.
+    // now, not derived from `server api_*`); the field is retirement-pending.
     assert_eq!(summary.http_loader_contracts, 0);
     // Both `@server` fns count as server contracts now that the `api_*`
     // prefix no longer diverts one into the retired http-loader bucket.

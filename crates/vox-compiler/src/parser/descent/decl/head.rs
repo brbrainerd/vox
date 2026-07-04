@@ -297,7 +297,7 @@ impl Parser {
         self.parse_endpoint_kw(EndpointKind::Server)
     }
 
-    /// Parse `@query fn ...` — first-class GET-style endpoint, no kind param.
+    /// Parse `query ...` — first-class GET-style endpoint, no kind param.
     /// Equivalent to `@endpoint(kind: query) fn ...` but lower K-complexity
     /// (audit doc §11.2). Introduced 2026-05-23.
     pub(crate) fn parse_query(&mut self) -> Result<Decl, ()> {
@@ -310,7 +310,7 @@ impl Parser {
         }))
     }
 
-    /// Parse `@mutation fn ...` — first-class POST/PUT/DELETE-style endpoint.
+    /// Parse `mutation ...` — first-class POST/PUT/DELETE-style endpoint.
     pub(crate) fn parse_mutation(&mut self) -> Result<Decl, ()> {
         self.advance(); // eat @mutation
         self.skip_newlines();
@@ -321,7 +321,7 @@ impl Parser {
         }))
     }
 
-    /// Parse `@server fn ...` — first-class server-only endpoint (no client emit).
+    /// Parse `server ...` — first-class server-only endpoint (no client emit).
     pub(crate) fn parse_server_endpoint(&mut self) -> Result<Decl, ()> {
         self.advance(); // eat @server
         self.skip_newlines();

@@ -5,6 +5,7 @@ pub mod browser;
 pub mod build_info;
 pub mod catalog;
 pub mod chat;
+pub mod coderabbit;
 pub mod console_a2a;
 pub mod control_plane;
 pub mod daemon;

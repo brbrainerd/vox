@@ -72,7 +72,7 @@ type Shape =
 
 ```vox
 // vox:skip
-@table type Task {
+table Task {
     title: str
     done: bool
     owner: str
@@ -171,11 +171,11 @@ Use `workflow` to group state machine processes that survive process restarts. U
 
 ```vox
 // vox:skip
-@query fn get_notes() to List[Note] {
+query get_notes() to List[Note] {
     return db.Note.all()
 }
 
-@mutation fn create_note(title: str, content: str) to Result[Id[Note]] {
+mutation create_note(title: str, content: str) to Result[Id[Note]] {
     let id = db.Note.insert({ title: title, content: content })?
     return Ok(id)
 }

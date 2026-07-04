@@ -226,7 +226,7 @@ pub(crate) fn run_build_timings(root: &Path, json: bool, crates: bool) -> Result
         total_ms = total_ms,
         "recording ci_build_timings benchmark_event"
     );
-    crate::benchmark_telemetry::record_opt_with_unit_blocking(
+    vox_cli_ci::benchmark_telemetry::record_opt_with_unit_blocking(
         "ci_build_timings",
         Some(total_seconds),
         Some("seconds"),

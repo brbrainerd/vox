@@ -18,6 +18,7 @@ pub mod ingest;
 pub mod limits;
 pub mod path_policy;
 pub mod planner;
+pub mod ranker;
 pub mod run_state;
 pub mod semantic_planner;
 pub mod stack_planner;
@@ -82,6 +83,18 @@ pub enum CodeRabbitAction {
         /// Split oversized groups by sorted path chunks (legacy); default is path-prefix packing.
         #[arg(long, default_value_t = false)]
         legacy_chunk_split: bool,
+        /// Restrict candidates to files modified since this git date expr (e.g. "2026-04-01", "2 weeks ago").
+        #[arg(long)]
+        since: Option<String>,
+        /// After ranking, keep only the top-N most important files.
+        #[arg(long)]
+        top: Option<usize>,
+        /// Importance weights "recency,churn,centrality" (default "1,1,1").
+        #[arg(long)]
+        rank_weights: Option<String>,
+        /// Re-order planned chunks so highest-importance PRs come first (default: on when ranking active).
+        #[arg(long)]
+        rank_order: Option<bool>,
     },
     /// Generate stacked PRs comparing a historical commit to the current local state safely.
     #[command(name = "historical-submit")]
@@ -241,7 +254,7 @@ pub enum CodeRabbitAction {
     },
 }
 
-fn resolve_repo(path: &std::path::Path) -> Result<std::path::PathBuf> {
+fn resolve_repo(path: &Path) -> Result<std::path::PathBuf> {
     if path.as_os_str().is_empty() || path == Path::new(".") {
         return std::env::current_dir().context("current_dir");
     }
@@ -267,6 +280,10 @@ pub async fn run(action: CodeRabbitAction) -> Result<()> {
             extra_exclude_prefix,
             write_ignored_paths,
             legacy_chunk_split,
+            since,
+            top,
+            rank_weights,
+            rank_order,
         } => {
             let repo = resolve_repo(&path)?;
             let vox = config::load_from_dir(&repo);
@@ -307,6 +324,18 @@ pub async fn run(action: CodeRabbitAction) -> Result<()> {
             cfg.groups_config = vox.groups_config.as_ref().map(PathBuf::from);
             cfg.semantic_workspace_crates = vox.semantic_workspace_crates;
             cfg.max_unassigned_ratio = vox.max_unassigned_ratio;
+            if top == Some(0) {
+                anyhow::bail!("--top must be >= 1 (0 would select no files and open no PRs)");
+            }
+            cfg.since = since;
+            cfg.top = top;
+            if let Some(w) = rank_weights.as_deref() {
+                cfg.rank_weights = ranker::RankWeights::parse(w);
+            }
+            // Default rank_order on when any ranking input is active.
+            let ranking_active =
+                cfg.top.is_some() || cfg.since.is_some() || !cfg.rank_weights.is_default();
+            cfg.rank_order = rank_order.unwrap_or(ranking_active);
             semantic_planner::run_semantic_submit(&repo, &cfg).await?;
         }
         CodeRabbitAction::HistoricalSubmit {

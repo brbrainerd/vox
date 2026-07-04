@@ -1,3 +1,4 @@
+#![allow(clippy::manual_strip)]
 //! Multi-turn conversation templates.
 
 /// Returns true if the first actual declaration (ignoring comments/whitespace) is a function.
@@ -243,7 +244,7 @@ mod tests {
 
     #[test]
     fn test_already_decorated_constructs_do_not_get_decorators() {
-        let base_code = "@query fn my_query() to str {\n    return \"hello\";\n}";
+        let base_code = "query my_query() to str {\n    return \"hello\";\n}";
         let pairs = generate_multiturn_pairs(
             "fn",
             "my_query",
@@ -269,7 +270,7 @@ mod tests {
 
     #[test]
     fn test_multiturn_fails_on_code_starting_with_table_or_comments() {
-        let base_code = "// Authentication patterns\n// ---\n@table type Session {\n    id: int\n}\n\nfn my_helper() {\n}";
+        let base_code = "// Authentication patterns\n// ---\ntable Session {\n    id: int\n}\n\nfn my_helper() {\n}";
         let pairs = generate_multiturn_pairs(
             "function",
             "my_helper",

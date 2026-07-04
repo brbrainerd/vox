@@ -32,7 +32,7 @@ fn run_main_result(source: &str) -> Result<VoxValue, vox_compiler::eval::EvalErr
 fn insert_then_all_and_count() {
     let res = run_main(
         "
-        @table type User { name: str, age: int }
+        table User { name: str, age: int }
         fn main() to int {
             db.User.insert({ name: \"alice\", age: 30 })
             db.User.insert({ name: \"bob\", age: 17 })
@@ -48,7 +48,7 @@ fn insert_then_all_and_count() {
 fn insert_returns_monotonic_ids() {
     let res = run_main(
         "
-        @table type Item { name: str }
+        table Item { name: str }
         fn main() to int {
             let a = db.Item.insert({ name: \"x\" })
             let b = db.Item.insert({ name: \"y\" })
@@ -64,7 +64,7 @@ fn insert_returns_monotonic_ids() {
 fn where_gte_filters_rows() {
     let res = run_main(
         "
-        @table type User { name: str, age: int }
+        table User { name: str, age: int }
         fn main() to int {
             db.User.insert({ name: \"a\", age: 30 })
             db.User.insert({ name: \"b\", age: 17 })
@@ -80,7 +80,7 @@ fn where_gte_filters_rows() {
 fn filter_equality_on_bool() {
     let res = run_main(
         "
-        @table type User { name: str, active: bool }
+        table User { name: str, active: bool }
         fn main() to int {
             db.User.insert({ name: \"a\", active: true })
             db.User.insert({ name: \"b\", active: false })
@@ -96,7 +96,7 @@ fn filter_equality_on_bool() {
 fn get_by_id_returns_some_then_delete() {
     let res = run_main(
         "
-        @table type Item { name: str }
+        table Item { name: str }
         fn main() to int {
             db.Item.insert({ name: \"a\" })
             db.Item.insert({ name: \"b\" })
@@ -121,7 +121,7 @@ fn get_by_id_returns_some_then_delete() {
 fn all_order_by_then_limit() {
     let res = run_main(
         "
-        @table type User { name: str, age: int }
+        table User { name: str, age: int }
         fn main() to int {
             db.User.insert({ name: \"old\", age: 90 })
             db.User.insert({ name: \"young\", age: 5 })
@@ -141,7 +141,7 @@ fn fused_predicate_chain_filters_then_projects() {
     // predicate values landed).
     let res = run_main(
         "
-        @table type User { name: str, age: int }
+        table User { name: str, age: int }
         fn main() to int {
             db.User.insert({ name: \"a\", age: 5 })
             db.User.insert({ name: \"b\", age: 90 })
@@ -163,7 +163,7 @@ fn fused_where_order_by_limit_compose() {
     // where + order_by + limit fused into one chain, all carried on the plan.
     let res = run_main(
         "
-        @table type User { name: str, age: int }
+        table User { name: str, age: int }
         fn main() to str {
             db.User.insert({ name: \"young\", age: 5 })
             db.User.insert({ name: \"old\", age: 90 })
@@ -185,7 +185,7 @@ fn fused_where_order_by_limit_compose() {
 fn unsafe_raw_query_clause_reports_interp_diagnostic() {
     let err = run_main_result(
         "
-        @table type User { name: str }
+        table User { name: str }
         fn main() to Unit {
             db.User.insert({ name: \"a\" })
             db.User.query(\"WHERE name = 'a'\")

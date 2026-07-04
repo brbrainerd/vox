@@ -656,6 +656,12 @@ async fn handle_tool_call_inner(
         "vox_search_path" => {
             Ok(crate::graph_tools::graphify_path(state, serde_json::from_value(args)?).await)
         }
+        "vox_search_callers" => {
+            Ok(crate::graph_tools::graphify_callers(state, serde_json::from_value(args)?).await)
+        }
+        "vox_search_callees" => {
+            Ok(crate::graph_tools::graphify_callees(state, serde_json::from_value(args)?).await)
+        }
         "vox_search_compare" => {
             Ok(crate::graph_tools::graphify_compare(state, serde_json::from_value(args)?).await)
         }

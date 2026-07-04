@@ -545,7 +545,7 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
                         .map(|a| emit_hir_expr(&a.value, ctx))
                         .unwrap_or_else(|| "\"\"".to_string());
                     return format!(
-                        "((path: string) => {{ throw new Error(\"Speech.transcribe is backend-only (Vox Oratio / Candle Whisper). Use a @server fn or POST /api/audio/transcribe; see examples/oratio/codexAudioTranscribe.ts.\"); }})({path_js} as string)"
+                        "((path: string) => {{ throw new Error(\"Speech.transcribe is backend-only (Vox Oratio / Candle Whisper). Use a server or POST /api/audio/transcribe; see examples/oratio/codexAudioTranscribe.ts.\"); }})({path_js} as string)"
                     );
                 }
             }
@@ -2175,6 +2175,7 @@ mod inject_key_tests {
 
 #[cfg(test)]
 mod ts_emit_exhaustiveness_tests {
+
     use vox_compiler::feature_matrix::{ExprFeature, Feature, unsupported_diagnostic};
     use vox_compiler::target::Target;
     use vox_compiler::typeck::diagnostics::codes;

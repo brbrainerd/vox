@@ -253,6 +253,7 @@ mod semcov_wave33_tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_constants)] // deliberate: guards against a future const reversal
     fn abi_range_invariant_floor_le_ceiling() {
         // Catches: accidental reversal of constants (floor bumped past ceiling) which would
         // make every ABI version rejected without any compiler error

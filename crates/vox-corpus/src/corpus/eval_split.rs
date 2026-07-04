@@ -1,3 +1,4 @@
+#![allow(dead_code)] // split-manifest helpers, not yet wired
 //! Seeded train/eval split by tool identity (B1.4).
 //!
 //! Splits a harness corpus by unique tool-identity keys so no tool appears

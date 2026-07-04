@@ -1,3 +1,4 @@
+#![allow(clippy::ptr_arg)]
 //! CR-F2b: web BEHAVIORAL gate. Compile a Vox `golden-ts` fixture → TypeScript,
 //! then actually RENDER the emitted React component under a DOM-free server
 //! renderer (`react-dom/server`'s `renderToStaticMarkup`) and assert it mounts

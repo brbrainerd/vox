@@ -1,8 +1,19 @@
-import React from 'react';
-import { Layers, Terminal, Activity, CheckCircle2, AlertCircle, Clock, Zap, Target, Cpu, MessageSquare } from 'lucide-react';
+import { Layers, Terminal, Activity, CheckCircle2, Zap, Target, Cpu, MessageSquare } from 'lucide-react';
 import { motion } from 'framer-motion';
+import type { ReactNode } from 'react';
 
-export const Dashboard = ({ ops = [], stats = {} }: any) => {
+interface DashboardStats {
+  activeAgents?: string;
+  queueDepth?: string;
+  latency?: string;
+  budget?: string;
+}
+
+interface DashboardProps {
+  stats?: DashboardStats;
+}
+
+export const Dashboard = ({ stats = {} }: DashboardProps) => {
   return (
     <div className="p-10 grid grid-cols-12 gap-8 overflow-y-auto h-full bg-[#09090b]">
       <div className="col-span-12 mb-2">
@@ -83,7 +94,16 @@ export const Dashboard = ({ ops = [], stats = {} }: any) => {
   );
 };
 
-const OpRow = ({ label, agent, status, time, active }: any) => (
+interface OpRowProps {
+  label: string;
+  agent: string;
+  status: string;
+  time: string;
+  /** Marks the currently-executing row (accepted for callers; styling not yet wired). */
+  active?: boolean;
+}
+
+const OpRow = ({ label, agent, status, time }: OpRowProps) => (
   <motion.div 
     initial={false}
     animate={{ opacity: 1 }}
@@ -116,7 +136,16 @@ const OpRow = ({ label, agent, status, time, active }: any) => (
   </motion.div>
 )
 
-const StatCard = ({ title, value, delta, color, icon }: any) => (
+interface StatCardProps {
+  title: string;
+  value: string;
+  delta?: string;
+  icon: ReactNode;
+  /** Accent color key (accepted for callers; styling not yet wired). */
+  color?: string;
+}
+
+const StatCard = ({ title, value, delta, icon }: StatCardProps) => (
   <motion.div 
     whileHover={{ y: -4, scale: 1.02 }}
     className="bg-[#101012] border border-[#27272a] rounded-[2rem] p-8 hover:border-blue-500/30 transition-all cursor-default group relative overflow-hidden"
@@ -138,7 +167,12 @@ const StatCard = ({ title, value, delta, color, icon }: any) => (
   </motion.div>
 );
 
-const ActionBtn = ({ icon, label }: any) => (
+interface ActionBtnProps {
+  icon: ReactNode;
+  label: string;
+}
+
+const ActionBtn = ({ icon, label }: ActionBtnProps) => (
   <button className="flex-1 glass border border-white/5 rounded-2xl py-5 px-4 flex flex-col items-center gap-3 group hover:border-blue-500/40 hover:bg-blue-500/[0.02] transition-all">
      <div className="text-zinc-500 group-hover:text-blue-500 transition-colors">{icon}</div>
      <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest group-hover:text-zinc-300">{label}</span>

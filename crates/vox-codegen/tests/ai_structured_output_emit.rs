@@ -191,3 +191,108 @@ fn emit_fn_branches_search_fixture_with_aci_envelope() {
         "expected search telemetry emit, got:\n{emitted}"
     );
 }
+
+#[test]
+fn emit_fn_wraps_structured_output_call_in_reprompt_loop() {
+    let src = r#"
+        type StubDto {
+            ok: bool
+        }
+
+        @ai(structured_output = StubDto, max_iterations = 2)
+        @uses(net)
+        fn with_retry(ctx: str) to StubDto {
+            return StubDto { ok: true }
+        }
+    "#;
+    let ast = parse(lex(src)).expect("parse");
+    let hir = lower_module(&ast);
+    let f = hir
+        .functions
+        .iter()
+        .find(|f| f.name == "with_retry")
+        .expect("with_retry");
+    let emitted = emit_fn(f, Some(&hir.inferred_types), &[]);
+    assert!(
+        emitted.contains("for _attempt in 0..2u32"),
+        "expected max_iterations-bounded retry loop, got:\n{emitted}"
+    );
+    assert!(
+        emitted.contains("__structured_ok"),
+        "expected structured-output validity flag, got:\n{emitted}"
+    );
+    assert!(
+        emitted.contains("prompt.push_str(\"\\nYour previous reply was not a valid JSON object."),
+        "expected re-prompt on invalid JSON, got:\n{emitted}"
+    );
+}
+
+#[test]
+fn emit_fn_stays_single_shot_without_structured_output() {
+    let src = r#"
+        @ai(model = "openrouter/auto")
+        @uses(net)
+        fn plain(ctx: str) to str {
+            return ctx
+        }
+    "#;
+    let ast = parse(lex(src)).expect("parse");
+    let hir = lower_module(&ast);
+    let f = hir
+        .functions
+        .iter()
+        .find(|f| f.name == "plain")
+        .expect("plain");
+    let emitted = emit_fn(f, Some(&hir.inferred_types), &[]);
+    assert!(
+        !emitted.contains("__structured_ok"),
+        "no retry loop without structured_output, got:\n{emitted}"
+    );
+}
+
+#[test]
+fn emit_lib_embeds_full_json_schema_for_structured_output() {
+    let src = r#"
+        type StubDto {
+            ok: bool
+            score: int
+        }
+
+        @ai(structured_output = StubDto)
+        @uses(net)
+        fn with_schema(ctx: str) to StubDto {
+            return StubDto { ok: true, score: 1 }
+        }
+    "#;
+    let ast = parse(lex(src)).expect("parse");
+    let hir = lower_module(&ast);
+    let lib = vox_codegen::codegen_rust::emit::emit_lib(&hir);
+    assert!(
+        lib.contains("\"strict\":true"),
+        "expected strict json_schema payload, got:\n{lib}"
+    );
+    assert!(
+        lib.contains("\"name\":\"StubDto\""),
+        "expected schema name, got:\n{lib}"
+    );
+    assert!(
+        lib.contains("\"ok\":{\"type\":\"boolean\"}"),
+        "expected bool field schema, got:\n{lib}"
+    );
+    assert!(
+        lib.contains("\"score\":{\"type\":\"integer\"}"),
+        "expected int field schema, got:\n{lib}"
+    );
+    assert!(
+        lib.contains("\"required\":[\"ok\",\"score\"]"),
+        "expected required list in declaration order, got:\n{lib}"
+    );
+    assert!(
+        lib.contains("\"additionalProperties\":false"),
+        "expected closed object schema, got:\n{lib}"
+    );
+    assert!(
+        lib.contains("config.response_format = Some(response_format);"),
+        "expected response_format wired into LlmConfig, got:\n{lib}"
+    );
+}

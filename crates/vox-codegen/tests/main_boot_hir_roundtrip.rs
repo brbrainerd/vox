@@ -18,8 +18,7 @@ fn embedded_hir_roundtrips_through_json() {
         @scheduled("1m")
         fn tick() to int { return 1 }
 
-        @server
-        fn hello() to str { return "hi" }
+        server hello() to str { return "hi" }
     "#;
     let module = parse(lex(src)).expect("parse");
     let hir = lower_module(&module);

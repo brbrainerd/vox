@@ -28,8 +28,7 @@ fn emit_main_boot_with_scheduled_actor_server() {
             on inc() to int { return 1 }
         }
 
-        @server
-        fn hello() to str { return "hi" }
+        server hello() to str { return "hi" }
     "#;
     let module = parse(lex(src)).expect("parse");
     let hir = lower_module(&module);

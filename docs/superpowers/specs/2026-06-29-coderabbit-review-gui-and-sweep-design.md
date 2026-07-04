@@ -84,8 +84,9 @@ priority over `--full-repo`/changed-files at `submit.rs:29-37`).
 - centrality: file-aggregated node degree from the **existing `vox-graph-reader`
   crate** — `GraphifyReader::from_value(graph.json)` then sum `god_nodes(n)` degrees
   per file; node ids are `file::symbol`, split on `::`, normalize a leading
-  `.claude/worktrees/<seg>/` prefix. Graph read from
-  `.vox/cache/graphify/repo-code-graph/graph.json`. **Loaded only when
+  `.claude/worktrees/<seg>/` prefix. Graph path resolved via
+  `vox_config::paths::REPO_GRAPHIFY_REPO_CODE_GRAPH_DIR` (never a hard-coded `.vox/`
+  literal). **Loaded only when
   `w_central > 0`.** Any missing-file/parse case → the centrality term is omitted.
   **VERIFIED 2026-06-29** against the real 342MB cache: centrality covers only **39% of
   tracked files** (cache is 84% stale worktree paths). Uncovered files are therefore
@@ -121,7 +122,8 @@ Mirror existing patterns exactly:
   `start_research_async` + `commands/control_plane.rs`.
 - `coderabbit_report() -> {run_state, db_status}`: reads `.coderabbit/run-state.json`
   (slice/PR statuses) + `db-status --json` (findings totals).
-- `coderabbit_token_present() -> bool`: `FORGE_TOKEN`/`GITHUB_TOKEN` presence.
+- `coderabbit_token_present() -> bool`: `FORGE_TOKEN`/`GITHUB_TOKEN` presence via
+  `vox_secrets::resolve_secret(...)` (never direct `std::env::var` — secrets policy).
 
 Register in `crates/vox-gui/src/main.rs` `generate_handler!`. Frontend uses raw
 `invoke(...)` (no tauri-specta) + `listen("coderabbit://progress")`. Route added via

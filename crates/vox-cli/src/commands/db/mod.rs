@@ -108,8 +108,8 @@ mod tests {
     #[test]
     fn collect_query_fn_plans_extracts_hir_db_query_plan_rows() {
         let src = r#"
-@table type User { name: str active: bool }
-@query fn q1() to int {
+table User { name: str active: bool }
+query q1() to int {
     return len(db.User.filter({ active: true }).limit(5))
 }
 "#;
@@ -128,9 +128,9 @@ mod tests {
     #[test]
     fn collect_query_fn_plans_honors_query_name_filter() {
         let src = r#"
-@table type User { name: str active: bool }
-@query fn qa() to int { return len(db.User.all()) }
-@query fn qb() to int { return len(db.User.filter({ active: true })) }
+table User { name: str active: bool }
+query qa() to int { return len(db.User.all()) }
+query qb() to int { return len(db.User.filter({ active: true })) }
 "#;
         let tokens = vox_compiler::lexer::lex(src);
         let module = vox_compiler::parser::parse(tokens).expect("parse");

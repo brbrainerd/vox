@@ -1,3 +1,4 @@
+#![cfg_attr(test, allow(unsafe_code))] // test-only std::env::set_var (unsafe on edition 2024)
 //! Versioned search policy loaded from defaults with `VOX_SEARCH_*` environment overrides.
 //!
 //! SearXNG `engines` / `language` defaults are embedded from

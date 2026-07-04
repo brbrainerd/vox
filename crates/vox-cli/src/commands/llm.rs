@@ -23,7 +23,7 @@ pub async fn run(cmd: LlmCmd) -> anyhow::Result<()> {
 
             if task_lower == "web-route" || task_lower == "route" || task_lower == "@query" {
                 println!("{}", "--- Route Decorator Syntax ---".bright_yellow());
-                println!("@query\nfn get_user(id: u64) -> User {{\n    // ...\n}}");
+                println!("query get_user(id: u64) -> User {{\n    // ...\n}}");
                 println!();
                 println!("{}", "--- Golden Example ---".bright_yellow());
                 println!(
@@ -39,7 +39,7 @@ pub async fn run(cmd: LlmCmd) -> anyhow::Result<()> {
             {
                 println!("{}", "--- Mutation Decorator Syntax ---".bright_yellow());
                 println!(
-                    "@mutation\nfn update_user(id: u64, name: String) -> Result<(), Error> {{\n    // ...\n}}"
+                    "mutation update_user(id: u64, name: String) -> Result<(), Error> {{\n    // ...\n}}"
                 );
                 println!();
                 println!("{}", "--- Golden Example ---".bright_yellow());

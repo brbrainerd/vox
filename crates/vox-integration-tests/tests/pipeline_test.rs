@@ -115,11 +115,11 @@ component Chat() {
     }
 }
 
-@server fn claude_send(msg: str) to ChatResult {
+server claude_send(msg: str) to ChatResult {
     Ok("ok")
 }
 
-@mutation fn api_chat(prompt: str) to ChatResult {
+mutation api_chat(prompt: str) to ChatResult {
     return Ok("ok")
 }
 "#;

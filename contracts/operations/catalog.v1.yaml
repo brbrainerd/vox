@@ -3672,33 +3672,6 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: false
-- id: ci.queue
-  title: Ci Queue
-  description: CLI operation `vox ci queue`
-  description_human: Run-centric CI queue snapshot with active/superseded/stale classification, machine-readable advice + async failure signal, and capped clearing of cancellable backlog. SSOT queue interaction under the local-first CI contract.
-  product_lane: platform
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp: null
-  cli:
-    path:
-    - ci
-    - queue
-    status: active
-    latin_ns: null
-    handler_rust: null
-    feature_gate: null
-    catalog_group: null
-    ref_cli_required: true
-    reachability_required: false
 - id: ci.ai-fixtures-coverage
   title: Ci Ai-fixtures-coverage
   description: CLI operation `vox ci ai-fixtures-coverage`
@@ -4207,33 +4180,6 @@ operations:
     path:
     - ci
     - turso-import-guard
-    status: active
-    latin_ns: null
-    handler_rust: null
-    feature_gate: null
-    catalog_group: null
-    ref_cli_required: true
-    reachability_required: false
-- id: ci.workflow-concurrency-guard
-  title: Ci Workflow-concurrency-guard
-  description: CLI operation `vox ci workflow-concurrency-guard`
-  description_human: Require a concurrency group on push/PR-triggered workflows (flood prevention for the local runner fleet); exceptions in docs/src/ci/concurrency-exceptions.md.
-  product_lane: platform
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp: null
-  cli:
-    path:
-    - ci
-    - workflow-concurrency-guard
     status: active
     latin_ns: null
     handler_rust: null
@@ -6364,6 +6310,50 @@ operations:
   mcp:
     name: vox_search_path
     http_read_role_eligible: true
+    tier: core
+  cli: null
+- id: graph.callers
+  title: Vox Search Callers
+  description: Functions that call the given symbol(s) — reverse call edges, constructor noise filtered (read-only).
+  description_human: null
+  product_lane: platform
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_search_callers
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: graph.callees
+  title: Vox Search Callees
+  description: Functions called by the given symbol(s) — forward call edges, constructor noise filtered (read-only).
+  description_human: null
+  product_lane: platform
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_search_callees
+    http_read_role_eligible: false
     tier: core
   cli: null
 - id: graph.compare
@@ -9907,7 +9897,7 @@ operations:
     - run
     status: active
     latin_ns: null
-    handler_rust: null
+    handler_rust: vox_cli_research::run_research_query
     feature_gate: null
     catalog_group: null
     ref_cli_required: true

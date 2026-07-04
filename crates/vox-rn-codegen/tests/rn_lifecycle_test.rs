@@ -21,7 +21,7 @@ fn rn_component(src: &str, component: &str) -> String {
 }
 
 const SRC: &str = r#"
-@query fn load_count() to int { return 0 }
+query load_count() to int { return 0 }
 
 component Dashboard() {
     state total: int = 0
@@ -62,7 +62,7 @@ fn rn_on_mount_awaits_async_endpoint_in_iife() {
 }
 
 const FIRE_FORGET_SRC: &str = r#"
-@mutation fn record_event(kind: str) to Result[str] { return Ok("x") }
+mutation record_event(kind: str) to Result[str] { return Ok("x") }
 
 component Logger() {
     state n: int = 0

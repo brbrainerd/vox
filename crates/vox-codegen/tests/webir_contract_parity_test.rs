@@ -44,14 +44,11 @@ fn endpoint_names_from_contract(src: &str) -> BTreeSet<String> {
 }
 
 const MIXED_ENDPOINT_SRC: &str = r#"
-@server
-fn get_user(id: Int) -> Str { "user" }
+server get_user(id: Int) -> Str { "user" }
 
-@query
-fn search_users(q: Str) -> Str { "results" }
+query search_users(q: Str) -> Str { "results" }
 
-@mutation
-fn create_user(name: Str) -> Str { "created" }
+mutation create_user(name: Str) -> Str { "created" }
 "#;
 
 #[test]
@@ -75,7 +72,7 @@ fn web_ir_lowers_endpoint_only_module() {
 
 #[test]
 fn webir_and_contract_endpoint_names_match_for_server_fn() {
-    let src = "@server\nfn ping(x: Int) -> Int { x }";
+    let src = "server ping(x: Int) -> Int { x }";
     assert_eq!(
         endpoint_names_from_web_ir(src),
         endpoint_names_from_contract(src),
@@ -85,7 +82,7 @@ fn webir_and_contract_endpoint_names_match_for_server_fn() {
 
 #[test]
 fn webir_and_contract_endpoint_names_match_for_query() {
-    let src = "@query\nfn list_items(limit: Int) -> Str { \"ok\" }";
+    let src = "query list_items(limit: Int) -> Str { \"ok\" }";
     assert_eq!(
         endpoint_names_from_web_ir(src),
         endpoint_names_from_contract(src),
@@ -95,7 +92,7 @@ fn webir_and_contract_endpoint_names_match_for_query() {
 
 #[test]
 fn webir_and_contract_endpoint_names_match_for_mutation() {
-    let src = "@mutation\nfn delete_item(id: Int) -> Str { \"ok\" }";
+    let src = "mutation delete_item(id: Int) -> Str { \"ok\" }";
     assert_eq!(
         endpoint_names_from_web_ir(src),
         endpoint_names_from_contract(src),

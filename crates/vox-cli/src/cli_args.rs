@@ -422,6 +422,11 @@ pub struct DoctorArgs {
     /// Defaults to "full" (surfaces the widest dependency set).
     #[arg(long, value_name = "TIER", default_value = "full")]
     pub tier: String,
+    /// Run and report ONLY the build-health check that can produce this
+    /// `[diag id=…]` (e.g. `sccache.pathological`, `docker.wsl_wedged`).
+    /// Exits non-zero when that diagnosis fires. Unknown ids list the registry.
+    #[arg(long, value_name = "ID")]
+    pub diag: Option<String>,
 }
 
 /// `vox stub-check` / `vox mens stub-check`

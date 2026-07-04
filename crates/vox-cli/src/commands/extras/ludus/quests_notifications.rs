@@ -83,7 +83,7 @@ pub async fn quest_generate() -> Result<()> {
         .count();
 
     let dynamic = vox_gamify::quest_engine::generate_dynamic_quests(
-        &user_id,
+        user_id,
         &workspace_root,
         active_count,
         5,
@@ -246,9 +246,8 @@ pub async fn hint_show(context: Option<&str>) -> Result<()> {
         Some("test") | Some("tests") => vox_gamify::teaching::MistakeKind::TestFailure,
         Some("battle") => {
             println!(
-                "  💡 {} {}",
-                "Pro Tip:".bright_yellow().bold(),
-                "Companions with higher 'Code Quality' deal more damage in battles."
+                "  💡 {} Companions with higher 'Code Quality' deal more damage in battles.",
+                "Pro Tip:".bright_yellow().bold()
             );
             return Ok(());
         }

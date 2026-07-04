@@ -5,18 +5,18 @@ use std::process::{Command, Stdio};
 use std::sync::LazyLock;
 
 use super::guards::run_sql_surface_guard;
-use crate::commands::ci::canonical_docs;
 use crate::commands::ci::cargo_bin;
 use crate::commands::ci::command_compliance;
-use crate::commands::ci::completion_quality;
 use crate::commands::ci::constants::{
     CODEX_SSOT_FILES, DOCS_SSOT_FILES, MANIFEST_SNIPPETS, OPENAPI_SUBSTRINGS,
 };
-use crate::commands::ci::contracts_index;
 use crate::commands::ci::exec_policy_contract;
-use crate::commands::ci::scientia_novelty_ledger_contract;
-use crate::commands::ci::scientia_worthiness_contract;
 use vox_bounded_fs::read_utf8_path_capped;
+use vox_cli_ci::canonical_docs;
+use vox_cli_ci::completion_quality;
+use vox_cli_ci::contracts_index;
+use vox_cli_ci::scientia_novelty_ledger_contract;
+use vox_cli_ci::scientia_worthiness_contract;
 
 pub(crate) fn run_manifest(root: &Path) -> Result<()> {
     let status = Command::new(cargo_bin())
@@ -529,7 +529,7 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     )?;
     ds!(
         "db_schema_coverage",
-        crate::commands::ci::db_schema_coverage::run(root)
+        vox_cli_ci::db_schema_coverage::run(root)
     )?;
     ds!(
         "nomenclature_guard",
@@ -541,12 +541,12 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     )?;
     ds!(
         "mcp_vox_surface_parity",
-        crate::commands::ci::mcp_vox_surface_parity::run()
+        vox_cli_ci::mcp_vox_surface_parity::run()
     )?;
     ds!("command_compliance", command_compliance::run(root))?;
     ds!(
         "gui_version_sync",
-        crate::commands::ci::gui_version_sync::run(root, false)
+        vox_cli_ci::gui_version_sync::run(root, false)
     )?;
     ds!(
         "gui_catalog_parity",
@@ -566,27 +566,27 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     )?;
     ds!(
         "plugin_surface",
-        crate::commands::ci::plugin_surface::run(root, false)
+        vox_cli_ci::plugin_surface::run(root, false)
     )?;
     ds!(
         "plugin_catalog_sync",
-        crate::commands::ci::plugin_catalog_sync::run(root, false)
+        vox_cli_ci::plugin_catalog_sync::run(root, false)
     )?;
     // Catalog-derived reference docs must stay fresh when catalog.toml changes; this check
     // otherwise lives only in docs-quality.yml, so catalog edits could pass ssot-drift while
     // leaving the generated docs stale (the exact drift PR #218 left on main).
     ds!(
         "generate_plugin_catalog_docs",
-        crate::commands::ci::generate_plugin_catalog_docs::run(None, None, true)
+        vox_cli_ci::generate_plugin_catalog_docs::run(None, None, true)
     )?;
     ds!(
         "plugin_skill_parity",
-        crate::commands::ci::plugin_skill_parity::run(false)
+        vox_cli_ci::plugin_skill_parity::run(false)
     )?;
     ds!("contracts_index", contracts_index::run(root))?;
     ds!(
         "docs_reality_audit",
-        crate::commands::ci::docs_reality_audit::run_verify(root)
+        vox_cli_ci::docs_reality_audit::run_verify(root)
     )?;
     ds!("exec_policy_contract", exec_policy_contract::run(root))?;
     ds!(

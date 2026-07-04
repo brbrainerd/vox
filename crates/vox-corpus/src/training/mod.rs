@@ -60,9 +60,9 @@ fn builtin_system_prompt() -> String {
 - `workflow name() -> Result[T]:` / `activity name() -> Result[T]:` — durable execution
 - `component Name(p: T) { state x = 0; view: <div>{x}</div> }` — Reactive UI (Path C)
 - `state`, `derived`, `effect`, `mount`, `cleanup` — reactive primitives
-- `@table type Name:`, `@query`, `@mutation`, `@action` — data plane
+- `table Name:`, `@query`, `@mutation`, `@action` — data plane
 - `@mcp.tool(...) fn ...` / `@mcp.resource(...) fn ...` — MCP surfaces
-- `@server fn Name(...` — server-side / RPC-style handlers (see `@server` in compiler)
+- `server Name(...` — server-side / RPC-style handlers (see `@server` in compiler)
 - `http get "/path" | ...` / `http post` / `http put` / `http delete` — HTTP route declarations
 - `type Name = | Variant(field: T)` — tagged unions
 - `import x.y` — imports

@@ -81,7 +81,7 @@ impl<'a> Checker<'a> {
                     Ty::Error
                 }
             }
-            // `@table type Foo { f: T }` registers a Table binding. A function
+            // `table Foo { f: T }` registers a Table binding. A function
             // parameter `p: Foo` resolves to `Ty::Named("Foo")` during registration
             // (tables are registered after functions in Pass 1). In Pass 2 body
             // checking, the Table binding is live — look up its fields directly.

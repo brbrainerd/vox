@@ -12,7 +12,10 @@ publish = false
 [dependencies]
 anyhow = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 vox-config = { workspace = true }
+vox-bounded-fs = { workspace = true }
+vox-jsonschema-util = { workspace = true }
 
 [lints]
 workspace = true

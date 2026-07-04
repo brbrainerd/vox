@@ -18,12 +18,12 @@
 
 // ── Schema ────────────────────────────────────────────────────────────────────
 
-@table type User {
+table User {
     username: str
     session_token: str
 }
 
-@table type Message {
+table Message {
     room_id: str
     sender: str
     body: str
@@ -93,7 +93,7 @@ fn list_messages(room_id: str) to list[Message] {
 // ── Public (unauthenticated) endpoints ────────────────────────────────────────
 
 // Health probe — no auth required.
-@query fn health() to str {
+query health() to str {
     return "ok"
 }
 

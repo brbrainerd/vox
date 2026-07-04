@@ -1,6 +1,6 @@
 //! `@form` declaration → React form component emit (Task C3).
 //!
-//! Each `@form Name { … }` decl emits a self-contained React component into
+//! Each `form Name { … }` decl emits a self-contained React component into
 //! `forms.tsx` with:
 //! - `React.useState` for every visible field
 //! - client-side validation (required, max_len, min_len)

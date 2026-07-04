@@ -1,13 +1,9 @@
 name: Vox Visus Audit
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'crates/vox-browser/**'
-      - 'crates/vox-compiler/**'
-      - 'crates/vox-cli/**'
-      - 'docs/src/**'
+  schedule:
+    # Weekly, Monday 05:00 UTC — browser/compiler paths are too broad to gate on push
+    - cron: "0 5 * * 1"
   workflow_dispatch:
 
 concurrency:

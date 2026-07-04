@@ -2311,6 +2311,42 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_search_callees",
+      "mcp_tool": "vox_search_callees",
+      "implicit": false,
+      "title": "Vox Search Callees",
+      "description_model": "Functions called by the given symbol(s) — forward call edges, constructor noise filtered (read-only).",
+      "intent_tags": [
+        "retrieval",
+        "graph"
+      ],
+      "side_effect_class": "none",
+      "scope_kind": "repository",
+      "reversible": true,
+      "requires_repo": true,
+      "preferred_for_models": true,
+      "human_takeover_friendly": true,
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_search_callers",
+      "mcp_tool": "vox_search_callers",
+      "implicit": false,
+      "title": "Vox Search Callers",
+      "description_model": "Functions that call the given symbol(s) — reverse call edges, constructor noise filtered (read-only).",
+      "intent_tags": [
+        "retrieval",
+        "graph"
+      ],
+      "side_effect_class": "none",
+      "scope_kind": "repository",
+      "reversible": true,
+      "requires_repo": true,
+      "preferred_for_models": true,
+      "human_takeover_friendly": true,
+      "curated": true
+    },
+    {
       "capability_id": "mcp.vox_search_compare",
       "mcp_tool": "vox_search_compare",
       "implicit": false,
@@ -3714,17 +3750,6 @@
       "curated": true
     },
     {
-      "capability_id": "cli.ci.queue",
-      "cli_path": [
-        "ci",
-        "queue"
-      ],
-      "implicit": false,
-      "title": "Ci Queue",
-      "description_model": "Run-centric CI queue snapshot with active/superseded/stale classification, machine-readable advice + async failure signal, and capped clearing of cancellable backlog. SSOT queue interaction under the local-first CI contract.",
-      "curated": true
-    },
-    {
       "capability_id": "cli.ci.release-build",
       "cli_path": [
         "ci",
@@ -3955,17 +3980,6 @@
       "implicit": false,
       "title": "Ci Turso-import-guard",
       "description_model": "CLI operation `vox ci turso-import-guard`",
-      "curated": true
-    },
-    {
-      "capability_id": "cli.ci.workflow-concurrency-guard",
-      "cli_path": [
-        "ci",
-        "workflow-concurrency-guard"
-      ],
-      "implicit": false,
-      "title": "Ci Workflow-concurrency-guard",
-      "description_model": "Require a concurrency group on push/PR-triggered workflows (flood prevention for the local runner fleet); exceptions in docs/src/ci/concurrency-exceptions.md.",
       "curated": true
     },
     {

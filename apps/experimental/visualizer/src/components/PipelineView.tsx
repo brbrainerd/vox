@@ -1,5 +1,4 @@
-import React from 'react';
-import { Layers, Database, Code, Brackets, CheckCircle, AlertCircle, Info } from 'lucide-react';
+import { Layers, Database, Code, Brackets, CheckCircle } from 'lucide-react';
 
 const STAGES = [
   { id: 'lexer', name: 'Lexer', icon: <Layers size={18} />, desc: 'Logos-based tokenization' },
@@ -9,7 +8,11 @@ const STAGES = [
   { id: 'codegen', name: 'CodeGen', icon: <Code size={18} />, desc: 'Rust backend + TS (`routes.manifest.ts`, `vox-client.ts`, components)' }
 ];
 
-export const PipelineView = ({ status = {} }: any) => {
+interface PipelineViewProps {
+  status?: Record<string, string>;
+}
+
+export const PipelineView = ({ status = {} }: PipelineViewProps) => {
   return (
     <div className="h-full grid grid-cols-5 divide-x divide-white/5 bg-[#09090b]">
        {STAGES.map((stage, idx) => {
@@ -53,7 +56,7 @@ export const PipelineView = ({ status = {} }: any) => {
                      <span className="text-emerald-400/80">Calibration matrix validated.</span>
                    </div>
                    <div className="mt-4 animate-pulse">
-                     <span className="text-blue-500">> STAGE {idx + 1} ACTIVE</span>
+                     <span className="text-blue-500">{'>'} STAGE {idx + 1} ACTIVE</span>
                    </div>
                 </div>
              </div>

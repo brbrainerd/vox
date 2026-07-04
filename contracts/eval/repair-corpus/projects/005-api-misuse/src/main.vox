@@ -3,7 +3,7 @@
 // the caller passes a str. Expected repair: parse the str into an
 // int / Id[Todo] before calling .get.
 
-@table type Todo {
+table Todo {
     title: str,
     done: bool
 }

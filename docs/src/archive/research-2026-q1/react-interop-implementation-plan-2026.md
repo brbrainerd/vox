@@ -420,7 +420,7 @@ component Home() { state n: int = 0 view: <span>"home"</span> }
 component PostList() { state n: int = 0 view: <span>"posts"</span> }
 component NotFoundPage() { state n: int = 0 view: <span>"404"</span> }
 component ErrorFallback() { state n: int = 0 view: <span>"err"</span> }
-@query fn getPosts() -> int { ret 0 }
+query getPosts() -> int { ret 0 }
 
 routes {
   "/" to Home {

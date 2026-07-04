@@ -1410,24 +1410,6 @@ curated:
   - ci
   - query-all-guard
   parameters: null
-- id: cli.ci.queue
-  title: Ci Queue
-  description_human: Run-centric CI queue snapshot with active/superseded/stale classification, machine-readable advice + async failure signal, and capped clearing of cancellable backlog. SSOT queue interaction under the local-first CI contract.
-  description_model: null
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: null
-  cli_path:
-  - ci
-  - queue
-  parameters: null
 - id: cli.ci.release-build
   title: Ci Release-build
   description_human: null
@@ -1807,24 +1789,6 @@ curated:
   cli_path:
   - ci
   - turso-import-guard
-  parameters: null
-- id: cli.ci.workflow-concurrency-guard
-  title: Ci Workflow-concurrency-guard
-  description_human: Require a concurrency group on push/PR-triggered workflows (flood prevention for the local runner fleet); exceptions in docs/src/ci/concurrency-exceptions.md.
-  description_model: null
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: null
-  cli_path:
-  - ci
-  - workflow-concurrency-guard
   parameters: null
 - id: cli.ci.workflow-scripts
   title: Ci Workflow-scripts
@@ -9499,6 +9463,42 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_scientia_worthiness_evaluate
+  cli_path: null
+  parameters: null
+- id: mcp.vox_search_callees
+  title: Vox Search Callees
+  description_human: null
+  description_model: Functions called by the given symbol(s) — forward call edges, constructor noise filtered (read-only).
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: vox_search_callees
+  cli_path: null
+  parameters: null
+- id: mcp.vox_search_callers
+  title: Vox Search Callers
+  description_human: null
+  description_model: Functions that call the given symbol(s) — reverse call edges, constructor noise filtered (read-only).
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: none
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: vox_search_callers
   cli_path: null
   parameters: null
 - id: mcp.vox_search_compare

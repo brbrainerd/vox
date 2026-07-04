@@ -1,3 +1,4 @@
+#![cfg_attr(test, allow(unsafe_code))] // test-only std::env::set_var (edition 2024)
 use serde::{Deserialize, Serialize};
 
 use crate::compaction::CompactionConfig;
