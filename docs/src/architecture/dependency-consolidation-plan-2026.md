@@ -144,7 +144,7 @@ Before designing anything new, the relevant existing pieces:
 | `vox-install-policy` | [`crates/vox-install-policy/`](../../../crates/vox-install-policy/) | SSOT constants for install/update surfaces (source path, release targets, GitHub coordinates). |
 | `vox-bootstrap` | separate binary in workspace | Offline install / first-run companion. References [`vox-checksum-manifest`](../../../crates/vox-checksum-manifest/) for asset SHA verification. |
 | `vox setup` | (planned/partial — referenced from `tail.rs:300`) | Currently just a registration step. Right place to grow into the unified installer. |
-| `vox ci install-hooks` | [`crates/vox-cli/src/commands/ci/install_hooks.rs`](../../../crates/vox-cli/src/commands/ci/install_hooks.rs) | One-shot git hook installer (already pure-Rust). |
+| `vox ci install-hooks` | [`crates/vox-cli-ci/src/install_hooks.rs`](../../../crates/vox-cli-ci/src/install_hooks.rs) | One-shot git hook installer (already pure-Rust). |
 | `vox shell check` | [`crates/vox-cli/src/commands/runtime/shell/`](../../../crates/vox-cli/src/commands/runtime/shell/) | PowerShell AST + exec-policy check. |
 
 **The gap is the orchestration layer** — there is no `vox doctor --install`

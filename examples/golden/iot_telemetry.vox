@@ -11,14 +11,14 @@
 // ---
 // @training_prompt: Draft an IoT device telemetry service demonstrating event sourcing using tables.
 // ANCHOR: display
-@table type DeviceLog {
+table DeviceLog {
     device_id: str
     temperature: float
     status_code: int
     timestamp: str
 }
 
-@table type DeviceRegistry {
+table DeviceRegistry {
     device_id: str
     active: bool
 }
@@ -33,14 +33,12 @@ fn TelemetryGateway_Ingest(id: str, temp: float, code: int) to Result[str] {
     return Ok("logged")
 }
 
-@query
-fn get_log_count(id: str) to int {
+query get_log_count(id: str) to int {
     let logs = db.DeviceLog.all()
     return len(logs)
 }
 
-@query
-fn get_average_temperature(id: str) to float {
+query get_average_temperature(id: str) to float {
     match db.DeviceLog.all() {
         Ok(logs) => {
             let mut total = 0.0

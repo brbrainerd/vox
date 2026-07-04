@@ -15402,14 +15402,51 @@ name = "vox-cli-ci"
 version = "0.6.0"
 dependencies = [
  "anyhow",
+ "chrono",
+ "clap",
  "glob",
+ "insta",
+ "owo-colors 4.3.0",
+ "proptest",
  "regex",
+ "reqwest 0.12.28",
  "serde",
  "serde_json",
  "serde_yaml_ng",
+ "strsim",
+ "sysinfo",
  "tempfile",
+ "tokio",
+ "toml 0.8.23",
+ "toml_edit 0.22.27",
+ "tracing",
+ "vox-bounded-fs",
+ "vox-cli-contracts",
  "vox-cli-core",
+ "vox-code-audit",
+ "vox-compiler",
+ "vox-config",
+ "vox-db",
+ "vox-doc-pipeline",
+ "vox-git",
+ "vox-grammar-export",
+ "vox-graph-reader",
+ "vox-http-client",
+ "vox-jsonschema-util",
+ "vox-orchestrator",
+ "vox-orchestrator-mcp",
+ "vox-plugin-api",
+ "vox-plugin-catalog",
+ "vox-plugin-host",
+ "vox-plugin-types",
+ "vox-publisher",
+ "vox-repository",
+ "vox-rule-pack",
+ "vox-scaling-policy",
+ "vox-secrets",
+ "vox-telemetry",
  "walkdir",
+ "which 8.0.4",
 ]
 
 [[package]]
@@ -15418,7 +15455,10 @@ version = "0.6.0"
 dependencies = [
  "anyhow",
  "serde",
+ "serde_json",
+ "vox-bounded-fs",
  "vox-config",
+ "vox-jsonschema-util",
 ]
 
 [[package]]
@@ -15493,6 +15533,7 @@ dependencies = [
  "vox-db",
  "vox-forge",
  "vox-git",
+ "vox-graph-reader",
  "vox-http-client",
  "vox-secrets",
  "walkdir",
@@ -16083,6 +16124,7 @@ name = "vox-graph-reader"
 version = "0.6.0"
 dependencies = [
  "blake3",
+ "ignore",
  "lcov-parser",
  "leiden-rs",
  "petgraph 0.8.3",

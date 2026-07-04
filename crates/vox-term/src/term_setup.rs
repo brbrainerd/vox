@@ -6,24 +6,6 @@
 
 use std::io;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn assert_send<T: Send>() {}
-
-    #[test]
-    fn term_setup_is_send() {
-        assert_send::<TermSetup>();
-    }
-
-    #[test]
-    #[ignore = "requires interactive terminal session"]
-    fn term_setup_new_and_drop_does_not_panic() {
-        let _ = TermSetup::new();
-    }
-}
-
 use crossterm::{
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
@@ -51,5 +33,23 @@ impl Drop for TermSetup {
         // Best-effort restore — ignore errors (we may be panicking).
         let _ = execute!(io::stdout(), LeaveAlternateScreen);
         let _ = disable_raw_mode();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_send<T: Send>() {}
+
+    #[test]
+    fn term_setup_is_send() {
+        assert_send::<TermSetup>();
+    }
+
+    #[test]
+    #[ignore = "requires interactive terminal session"]
+    fn term_setup_new_and_drop_does_not_panic() {
+        let _ = TermSetup::new();
     }
 }

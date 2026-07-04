@@ -44,7 +44,7 @@ jobs:
       DRY_RUN: ${{ inputs.dry_run || 'false' }}
       REPO: ${{ github.repository }}
     steps:
-      - uses: actions/checkout@v4   # needed for the local composite action below
+      - uses: actions/checkout@v7   # needed for the local composite action below
 
       # --- A1: detection — shared logic (also exercised by ci-health-watchdog-test.yml) ---
       - name: Assess CI health
@@ -129,7 +129,7 @@ jobs:
       # --- Durable audit sink (the local ~/.vox/ci-runner-history.jsonl is unreachable from here). ---
       - name: Upload watchdog audit
         if: ${{ always() && hashFiles('watchdog-audit.jsonl') != '' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: watchdog-audit-${{ github.run_id }}
           path: watchdog-audit.jsonl

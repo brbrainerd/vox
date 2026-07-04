@@ -2,8 +2,8 @@ use anyhow::Result;
 use std::fs;
 use std::path::Path;
 
-use crate::commands::ci::cmd_enums::GrammarDriftEmit;
 use vox_bounded_fs::read_utf8_path_capped;
+use vox_cli_ci::cmd_enums::GrammarDriftEmit;
 
 use super::hash::sha256_hex_lower;
 

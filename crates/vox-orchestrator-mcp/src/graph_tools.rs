@@ -342,6 +342,39 @@ pub async fn graphify_search(state: &ServerState, params: GraphifySearchParams) 
 
 // ── Graphify Query (BFS expansion) ────────────────────────────────────────
 
+use vox_graph_reader::Direction;
+
+/// Parse the optional `direction` param. Unknown/missing → `Both` (legacy).
+fn parse_direction(raw: &Option<String>) -> Direction {
+    match raw.as_deref() {
+        Some("in") => Direction::In,
+        Some("out") => Direction::Out,
+        _ => Direction::Both,
+    }
+}
+
+fn direction_label(d: Direction) -> &'static str {
+    match d {
+        Direction::In => "in",
+        Direction::Out => "out",
+        Direction::Both => "both",
+    }
+}
+
+/// Enum-variant / conversion constructors that dominate in-degree (measured ~13.8% of edges;
+/// `Ok` alone has 11,470 callers). They are syntactic calls, not the call semantics a
+/// callers/callees query wants. ponytail: minimal set — extend only if a new dominant noise
+/// symbol shows up in a future graph measurement.
+const CONSTRUCTOR_NOISE: &[&str] = &["Ok", "Err", "Some", "None"];
+
+/// True if a hit is a constructor/variant node. Checks both the bare tail of the node id
+/// (`a::b::Ok` → `Ok`) and the label, so it catches the noise whether it lands in the id or
+/// the label. ponytail: extend CONSTRUCTOR_NOISE only on a new measured dominant symbol.
+fn is_noise(node_id: &str, label: &str) -> bool {
+    let tail = node_id.rsplit("::").next().unwrap_or(node_id);
+    CONSTRUCTOR_NOISE.contains(&tail) || CONSTRUCTOR_NOISE.contains(&label)
+}
+
 #[derive(Debug, Deserialize)]
 pub struct GraphifyQueryParams {
     pub corpus: Option<String>,
@@ -351,6 +384,9 @@ pub struct GraphifyQueryParams {
     pub max_depth: Option<u8>,
     /// Max hits returned (default 20).
     pub limit: Option<u32>,
+    /// "in" = callers, "out" = callees, "both" = undirected (default).
+    #[serde(default)]
+    pub direction: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -360,6 +396,9 @@ pub struct GraphifyPathParams {
     pub from: String,
     /// Destination node ID.
     pub to: String,
+    /// "in" = callers, "out" = callees, "both" = undirected (default).
+    #[serde(default)]
+    pub direction: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -378,8 +417,13 @@ fn load_graph_json(
     serde_json::from_str(&raw).map_err(|e| format!("parse {}: {e}", p.display()))
 }
 
-/// `vox_graphify_query`: BFS neighbor expansion from seed node IDs.
-pub async fn graphify_query(state: &ServerState, params: GraphifyQueryParams) -> String {
+/// Core BFS neighbor expansion; `forced` pins direction, `filter_noise` drops constructor hits.
+async fn graphify_query_core(
+    state: &ServerState,
+    params: GraphifyQueryParams,
+    forced: Option<Direction>,
+    filter_noise: bool,
+) -> String {
     let repo_root = &state.repository.root;
     let reg = match load_graphify_corpora(repo_root) {
         Ok(r) => r,
@@ -421,7 +465,15 @@ pub async fn graphify_query(state: &ServerState, params: GraphifyQueryParams) ->
     let max_depth = params.max_depth.unwrap_or(2).min(5);
     let limit = params.limit.unwrap_or(20).max(1) as usize;
     let seeds: Vec<&str> = params.seeds.iter().map(String::as_str).collect();
-    let hits = reader.bfs_from_seeds(&seeds, max_depth, limit);
+    let direction = forced.unwrap_or_else(|| parse_direction(&params.direction));
+    let hits = reader.bfs_from_seeds(&seeds, max_depth, limit, direction);
+    let hits: Vec<_> = if filter_noise {
+        hits.into_iter()
+            .filter(|h| !is_noise(&h.node_id, &h.label))
+            .collect()
+    } else {
+        hits
+    };
     let payload_hits: Vec<serde_json::Value> = hits
         .iter()
         .map(|h| {
@@ -439,10 +491,26 @@ pub async fn graphify_query(state: &ServerState, params: GraphifyQueryParams) ->
     ToolResult::ok(serde_json::json!({
         "corpus_id": corpus_id,
         "seeds": params.seeds,
+        "direction": direction_label(direction),
         "corpus_health": corpus_health,
         "hits": payload_hits,
     }))
     .to_json()
+}
+
+/// `vox_graphify_query`: BFS neighbor expansion from seed node IDs.
+pub async fn graphify_query(state: &ServerState, params: GraphifyQueryParams) -> String {
+    graphify_query_core(state, params, None, false).await
+}
+
+/// `vox_search_callers`: functions that CALL the seed(s) (direction pinned In; noise filtered).
+pub async fn graphify_callers(state: &ServerState, params: GraphifyQueryParams) -> String {
+    graphify_query_core(state, params, Some(Direction::In), true).await
+}
+
+/// `vox_search_callees`: functions the seed(s) CALL (direction pinned Out; noise filtered).
+pub async fn graphify_callees(state: &ServerState, params: GraphifyQueryParams) -> String {
+    graphify_query_core(state, params, Some(Direction::Out), true).await
 }
 
 /// `vox_graphify_path`: shortest path between two node IDs.
@@ -485,7 +553,8 @@ pub async fn graphify_path(state: &ServerState, params: GraphifyPathParams) -> S
             .to_json();
         }
     };
-    let path = reader.shortest_path(&params.from, &params.to);
+    let direction = parse_direction(&params.direction);
+    let path = reader.shortest_path(&params.from, &params.to, direction);
     let reachable = path.is_some();
     let head = resolve_head_sha(state).await;
     let corpus_health = corpus_health_block(repo_root, &reg, corpus, head.as_deref());
@@ -493,6 +562,7 @@ pub async fn graphify_path(state: &ServerState, params: GraphifyPathParams) -> S
         "corpus_id": corpus_id,
         "from": params.from,
         "to": params.to,
+        "direction": direction_label(direction),
         "path": path,
         "reachable": reachable,
         "corpus_health": corpus_health,
@@ -920,6 +990,7 @@ mod tests {
                 corpus: Some("repo-code-graph".into()),
                 from: "a".into(),
                 to: "b".into(),
+                direction: None,
             },
         )
         .await;
@@ -958,6 +1029,7 @@ mod tests {
                 seeds: vec!["auth".into()],
                 max_depth: Some(1),
                 limit: Some(10),
+                direction: None,
             },
         )
         .await;
@@ -994,6 +1066,7 @@ mod tests {
                 corpus: Some("repo-code-graph".into()),
                 from: "a".into(),
                 to: "c".into(),
+                direction: None,
             },
         )
         .await;
@@ -1091,6 +1164,7 @@ mod tests {
                 seeds: vec!["auth".into()],
                 max_depth: Some(1),
                 limit: Some(10),
+                direction: None,
             },
         )
         .await;
@@ -1105,6 +1179,81 @@ mod tests {
                 .and_then(|v| v.as_array())
                 .is_some()
         );
+    }
+
+    #[tokio::test]
+    async fn callees_filters_constructor_noise() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_registry(tmp.path());
+        let dir = tmp
+            .path()
+            .join(vox_config::paths::REPO_GRAPHIFY_REPO_CODE_GRAPH_DIR);
+        fs::create_dir_all(&dir).unwrap();
+        // f calls real `g` and constructor `Ok`.
+        fs::write(
+            dir.join("graph.json"),
+            r#"{"nodes":[{"id":"f","label":"f"},{"id":"g","label":"g"},{"id":"Ok","label":"Ok"}],"links":[{"source":"f","target":"g"},{"source":"f","target":"Ok"}]}"#,
+        )
+        .unwrap();
+        let state = test_state_for_repo(tmp.path().to_path_buf());
+        let params = GraphifyQueryParams {
+            corpus: Some("repo-code-graph".into()),
+            seeds: vec!["f".into()],
+            max_depth: Some(1),
+            limit: Some(10),
+            direction: None,
+        };
+        let json = graphify_callees(&state, params).await;
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["data"]["direction"], serde_json::json!("out"));
+        let labels: Vec<_> = parsed["data"]["hits"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|h| h["node_id"].as_str().unwrap().to_string())
+            .collect();
+        assert!(labels.contains(&"g".to_string()), "real callee kept");
+        assert!(
+            !labels.contains(&"Ok".to_string()),
+            "constructor noise dropped"
+        );
+    }
+
+    #[tokio::test]
+    async fn graphify_query_echoes_direction() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_registry(tmp.path());
+        let dir = tmp
+            .path()
+            .join(vox_config::paths::REPO_GRAPHIFY_REPO_CODE_GRAPH_DIR);
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(
+            dir.join("graph.json"),
+            r#"{"nodes":[{"id":"a","label":"a"},{"id":"b","label":"b"}],"links":[{"source":"a","target":"b"}]}"#,
+        )
+        .unwrap();
+        let state = test_state_for_repo(tmp.path().to_path_buf());
+        let json = graphify_query(
+            &state,
+            GraphifyQueryParams {
+                corpus: Some("repo-code-graph".into()),
+                seeds: vec!["a".into()],
+                max_depth: Some(1),
+                limit: Some(10),
+                direction: Some("out".into()),
+            },
+        )
+        .await;
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            parsed["success"],
+            serde_json::json!(true),
+            "tool error: {json}"
+        );
+        assert_eq!(parsed["data"]["direction"], serde_json::json!("out"));
+        // "out" from `a` reaches `b`; reverse would be empty.
+        let hits = parsed["data"]["hits"].as_array().unwrap();
+        assert_eq!(hits[0]["node_id"], serde_json::json!("b"));
     }
 
     #[tokio::test]

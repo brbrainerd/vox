@@ -13,11 +13,17 @@ pub(crate) fn ansi_enabled_for(is_terminal: bool) -> bool {
 }
 
 /// CLI preset: honor `RUST_LOG` when valid; otherwise default filter **`info`**.
+///
+/// Writes to **stderr** — `vox`'s stdout is reserved for command output (including
+/// the machine-parseable `--json` envelopes emitted by `vox build`/`check`/`test`),
+/// so a stray `tracing::info!`/`warn!` anywhere in the dependency graph must never
+/// land on stdout and break that contract.
 pub fn try_init_cli_default_info_fallback() {
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
     let _ = tracing_subscriber::fmt()
         .with_env_filter(filter)
-        .with_ansi(ansi_enabled_for(std::io::stdout().is_terminal()))
+        .with_writer(std::io::stderr)
+        .with_ansi(ansi_enabled_for(std::io::stderr().is_terminal()))
         .try_init();
 }
 

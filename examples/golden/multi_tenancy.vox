@@ -13,27 +13,24 @@
 // @training_prompt: Draft a multi-tenant data architecture establishing data isolation via tenant_id.
 // Note: db.Table.filter() is not yet implemented — use db.Table.all() with len() guards.
 // ANCHOR: display
-@table type TenantResource {
+table TenantResource {
     tenant_id: str
     resource_name: str
     data: str
 }
 
-@query
-fn resource_count() to int {
+query resource_count() to int {
     // Returns total count across all tenants
     return len(db.TenantResource.all())
 }
 
-@query
-fn has_any_resources(tenant: str) to bool {
+query has_any_resources(tenant: str) to bool {
     // Application-side check: non-zero count indicates resources exist
     let all = db.TenantResource.all()
     return len(all) > 0
 }
 
-@mutation
-fn provision_resource(tenant: str, resource: str, initial_data: str) to Result[str] {
+mutation provision_resource(tenant: str, resource: str, initial_data: str) to Result[str] {
     if len(tenant) is 0 {
         return Error("Tenant ID cannot be empty")
     }

@@ -12,16 +12,16 @@
 // ---
 
 // ANCHOR: data
-@table type Task {
+table Task {
     title: str
     done: bool
 }
 
-@table type Docs {
+table Docs {
     context: str
 }
 
-@server fn complete_task(id: Id[Task]) to Result[str] {
+server complete_task(id: Id[Task]) to Result[str] {
     // Mark complete by re-inserting with done=true (update not yet implemented)
     db.Task.insert({ title: "completed", done: true })?
     return Ok("completed")
@@ -37,8 +37,7 @@ component TaskList(tasks: List[Task]) {
 // ANCHOR_END: ui
 
 // ANCHOR: mcp
-@tool "search_docs: Search documentation for a query"
-fn search_docs(query: str) to int {
+tool "search_docs: Search documentation for a query" search_docs(query: str) to int {
     // Returns count of matching docs; raw SQL not supported; use typed db operations
     let docs = db.Docs.all()
     return len(docs)

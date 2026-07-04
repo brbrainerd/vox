@@ -86,44 +86,12 @@ pub fn code_audit_entries() -> Vec<PolicyEntry> {
 
 /// Enumerate `contracts/ci/check-targets.v1.yaml` into `audit-check` entries.
 pub fn audit_check_entries(repo_root: &Path) -> Result<Vec<PolicyEntry>, String> {
-    use crate::commands::audit::CheckManifest;
-    let path = repo_root.join("contracts/ci/check-targets.v1.yaml");
-    let text =
-        std::fs::read_to_string(&path).map_err(|e| format!("read {}: {e}", path.display()))?;
-    let manifest: CheckManifest =
-        serde_yaml::from_str(&text).map_err(|e| format!("parse {}: {e}", path.display()))?;
-    let mut out: Vec<PolicyEntry> = manifest
-        .checks
-        .iter()
-        .map(|c| {
-            let blocking = c.blocking;
-            PolicyEntry {
-                id: format!("audit-check/{}", c.id),
-                domain: PolicyDomain::AuditCheck,
-                title: c.id.clone(),
-                group: format!("Audit checks / {}", c.category),
-                description: c.description.clone(),
-                severity: Some(if blocking {
-                    PolicySeverity::Error
-                } else {
-                    PolicySeverity::Warn
-                }),
-                blocking,
-                runs_on: c.runs_on.clone(),
-                source: PolicySource {
-                    kind: PolicySourceKind::Command,
-                    reference: format!("contracts/ci/check-targets.v1.yaml#{}", c.id),
-                    detail: Some(c.command.join(" ")),
-                },
-                docs: None,
-                default_enabled: true,
-                protected: false,
-                origin: "builtin".to_string(),
-            }
-        })
-        .collect();
-    out.sort_by(|a, b| a.id.cmp(&b.id));
-    Ok(out)
+    use vox_cli_contracts::CheckProvider;
+    // Logic lives in the CheckProvider impl (vox-cli-contracts seam); this thin
+    // wrapper keeps the `Result<_, String>` shape its callers expect.
+    super::providers::VoxCliProviders
+        .load_check_targets(repo_root)
+        .map_err(|e| e.to_string())
 }
 
 /// Enumerate the `ci.*` operations from `contracts/operations/catalog.v1.yaml`
@@ -858,7 +826,7 @@ mod default_domain_tests {
         // would write keys that `vox policy status` can never join (silent drift).
         // Sampled variants here; the full nullary/struct set is mapped in
         // `cmd_enums::gate_policy_id`. This guards the honest-key contract.
-        use crate::commands::ci::cmd_enums::CiCmd;
+        use vox_cli_ci::cmd_enums::CiCmd;
         let entries = ci_gate_entries(&repo_root()).expect("load operations catalog");
         let catalog: std::collections::BTreeSet<&str> =
             entries.iter().map(|e| e.id.as_str()).collect();

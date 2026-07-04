@@ -840,6 +840,12 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_HOOK_GUARD_DISABLE"
+    owner_crate: "vox-cli"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "Maintainer escape hatch: when set, `vox ci queue --hook-guard` always exits 0 (the PreToolUse hook fails open)."
   - name: "VOX_HOOK_IDENT_PREFIX"
     owner_crate: "vox-compiler"
     kind: "string"

@@ -1,4 +1,4 @@
-@table type User {
+table User {
     id: int
     name: str
     email: str

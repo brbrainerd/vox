@@ -7,7 +7,6 @@
 #![allow(clippy::drop_non_drop)]
 #![allow(deprecated, unexpected_cfgs)]
 
-pub mod benchmark_telemetry;
 #[cfg(feature = "script-execution")]
 mod build_lock;
 pub use vox_cli_core::build_service;

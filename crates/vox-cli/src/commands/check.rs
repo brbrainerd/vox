@@ -24,8 +24,9 @@ use crate::cli_args::CheckArgs;
 /// "Unexpected token at top level". That divergence is itself a diagnostic-
 /// parity defect (see [`docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md`](../../../../../docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md) §5.4).
 fn is_script_like(source: &str) -> bool {
-    // Conservative: if it looks like an app surface (has decorators that
-    // belong in module-position only), don't treat as script.
+    // Conservative: if it looks like an app surface (has decorators, or the
+    // post-hard-error-flip bare keywords they were flipped to, that belong
+    // in module-position only), don't treat as script.
     let app_markers = [
         "@page",
         "@query",
@@ -34,8 +35,25 @@ fn is_script_like(source: &str) -> bool {
         "@component",
         "@table",
         "@workflow",
+        "@form",
+        "@push",
     ];
-    !app_markers.iter().any(|m| source.contains(m))
+    let has_at_marker = app_markers.iter().any(|m| source.contains(m));
+    let decl_keywords = [
+        "table ",
+        "query ",
+        "mutation ",
+        "server ",
+        "component ",
+        "routes ",
+        "routes{",
+    ];
+    let has_decl_keyword = source.lines().any(|line| {
+        decl_keywords
+            .iter()
+            .any(|k| line.trim_start().starts_with(k))
+    });
+    !(has_at_marker || has_decl_keyword)
 }
 
 /// Lex, parse, and type-check `file`; fail the process if any error-level diagnostic is reported.
@@ -44,9 +62,8 @@ fn is_script_like(source: &str) -> bool {
 /// diagnostics are printed as JSON to stdout (parse failures already use JSON when `json` is true).
 pub async fn run(args: &CheckArgs) -> Result<()> {
     let file = &args.file;
-    let json = args.output_format == "json"
-        || args.for_llm
-        || std::env::var("VOX_CLI_GLOBAL_JSON").ok().as_deref() == Some("1");
+    let json =
+        args.output_format == "json" || args.for_llm || crate::pipeline::global_json_enabled();
 
     if args.for_llm {
         let source = vox_bounded_fs::read_utf8_path_capped(file)?;

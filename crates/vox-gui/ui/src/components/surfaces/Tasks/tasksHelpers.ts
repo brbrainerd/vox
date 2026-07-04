@@ -1,3 +1,11 @@
+export interface HopperTaskDto {
+  item_id: string;
+  intent: string;
+  priority: number;
+  state: string;
+  task_id: number;
+}
+
 export interface TaskRow {
   id: number | string;
   description: string;
@@ -56,6 +64,35 @@ export function findWriteOverlaps(rows: TaskRow[]): Map<string | number, (string
     }
   }
   return out;
+}
+
+/**
+ * Map raw hopper task DTOs into display rows, marking any task gated by a
+ * pending needs-you feedback item as 'blocked'. Shared by TasksView's
+ * self-fetch path and its shared-attention-inbox path so both derive rows
+ * identically regardless of where the underlying data came from.
+ */
+export function mapHopperTasksToRows(tasks: HopperTaskDto[], gatedTaskIds: Set<number>): TaskRow[] {
+  return tasks.map(dto => ({
+    id: dto.item_id,
+    description: dto.intent,
+    priority: dto.priority === 2 ? 'urgent' : dto.priority === 0 ? 'background' : 'normal',
+    lifecycle: gatedTaskIds.has(dto.task_id)
+      ? 'blocked'
+      : dto.state === 'assigned'
+      ? 'in_progress'
+      : dto.state === 'inbox'
+      ? 'queued'
+      : dto.state === 'done'
+      ? 'completed'
+      : 'unknown',
+    agent_id: null,
+    session_id: null,
+    estimated_complexity: 1,
+    depends_on: [],
+    write_files: [],
+    remote_node: null,
+  }));
 }
 
 export function filterBySession(rows: TaskRow[], sessionId: string | null): TaskRow[] {

@@ -1,3 +1,4 @@
+#![cfg_attr(test, allow(unsafe_code))] // test-only std::env::set_var (unsafe on edition 2024)
 //! Operator-curated allowed-model pool. Pure data + predicate; persistence is via the
 //! `model_pool` field on `VoxConfig` (single writer to ~/.vox/config.toml).
 use serde::{Deserialize, Serialize};

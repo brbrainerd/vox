@@ -11,8 +11,11 @@ use vox_forge::github::GitHubProvider;
 use vox_git::GitBridge;
 
 use super::super::run_state as cr_run_state;
-use super::super::{config, github, path_policy};
-use super::collector::{collect_all_files, collect_changed_files};
+use super::super::{config, github, path_policy, ranker};
+use super::collector::{
+    churn_since, collect_all_files, collect_changed_files, collect_files_modified_since,
+    recency_since,
+};
 use super::manifest::write_semantic_manifest;
 use super::rules::{resolve_semantic_rule_set, unassigned_prefix_histogram};
 use super::types::{SemanticPlanner, SemanticSubmitConfig};
@@ -26,7 +29,24 @@ pub async fn run_semantic_submit(repo: &Path, cfg: &SemanticSubmitConfig) -> Res
         "diff-based (changes since HEAD)"
     };
     eprintln!("[semantic-submit] Collecting files ({mode_label})…");
-    let mut all_files = if cfg.full_repo {
+    let mut all_files = if let Some(since) = cfg.since.as_deref() {
+        // Union committed-since-date with current working-tree edits, so an
+        // `--since … --execute` sweep never omits staged/unstaged/untracked local work.
+        let mut seen = std::collections::BTreeSet::new();
+        for f in collect_files_modified_since(repo, since)
+            .await
+            .context("collect files modified since date")?
+        {
+            seen.insert(f);
+        }
+        for f in collect_changed_files(repo)
+            .await
+            .context("collect changed files")?
+        {
+            seen.insert(f);
+        }
+        seen.into_iter().collect()
+    } else if cfg.full_repo {
         collect_all_files(repo)
             .await
             .context("collect all tracked files")?
@@ -64,15 +84,69 @@ pub async fn run_semantic_submit(repo: &Path, cfg: &SemanticSubmitConfig) -> Res
         );
     }
 
+    // ── 1b. Importance ranking (recency + churn + graph centrality) ─────────
+    let ranking_active = cfg.rank_order
+        || cfg.top.is_some()
+        || cfg.since.is_some()
+        || !cfg.rank_weights.is_default();
+    let rank_score: Option<std::collections::HashMap<String, f64>> = if ranking_active {
+        // Recency/churn window: the `--since` value when scoping by date, else a
+        // 3-month default so ranking still has signal for full-repo / changed-files runs.
+        let win = cfg.since.as_deref().unwrap_or("3 months ago");
+        let churn = churn_since(repo, win).await.context("compute churn")?;
+        let recency = recency_since(repo, win).await.context("compute recency")?;
+        let central = if cfg.rank_weights.centrality > 0.0 {
+            ranker::load_file_centrality(repo)
+        } else {
+            None
+        };
+        ranker::log_centrality_coverage(&all_files, central.as_ref());
+        let score = ranker::score_map(
+            &all_files,
+            &recency,
+            &churn,
+            central.as_ref(),
+            cfg.rank_weights,
+        );
+        ranker::sort_files_by_score(&mut all_files, &score);
+        if let Some(n) = cfg.top {
+            all_files.truncate(n);
+        }
+        eprintln!(
+            "[semantic-submit] Ranked {} candidate files (top={:?}, weights r/c/g={}/{}/{}).",
+            all_files.len(),
+            cfg.top,
+            cfg.rank_weights.recency,
+            cfg.rank_weights.churn,
+            cfg.rank_weights.centrality
+        );
+        Some(score)
+    } else {
+        None
+    };
+
     let mut plan_snapshot = all_files.clone();
     plan_snapshot.sort();
 
-    // Secure the workspace before messing with branches and run_state
-    let guard = super::super::git::WorkspaceGuard::new(repo).await?;
+    // Secure the workspace before messing with branches and run_state. Plan-only
+    // runs mutate nothing, so the guard (which WIP-commits a dirty tree) must not
+    // engage there — a GUI "Preview" click must never touch git state.
+    let guard = if cfg.execute {
+        Some(super::super::git::WorkspaceGuard::new(repo).await?)
+    } else {
+        None
+    };
 
-    let res = run_semantic_submit_core(repo, cfg, all_files, plan_snapshot).await;
+    let res = run_semantic_submit_core(repo, cfg, all_files, plan_snapshot, rank_score).await;
 
-    guard.restore().await?;
+    // Restore must not mask the real outcome: a failed `git reset` here would
+    // otherwise replace `res` (a more informative Err, or a legit Ok). Warn and
+    // return the original result — the guard's WIP commit is recoverable by hand.
+    if let Some(guard) = guard
+        && let Err(e) = guard.restore().await
+    {
+        eprintln!("[warn] failed to restore workspace guard: {e:#}");
+    }
     res
 }
 
@@ -123,11 +197,51 @@ fn maybe_write_ignored_paths_json(
     Ok(())
 }
 
+/// Exclusive on-disk lock so a second `--execute` PROCESS cannot run concurrently
+/// (complements the GUI's in-process guard). Removed on drop, including error unwind.
+struct RunLock(std::path::PathBuf);
+
+impl RunLock {
+    fn acquire(repo: &Path) -> Result<Self> {
+        let dir = repo.join(".coderabbit");
+        std::fs::create_dir_all(&dir).ok();
+        let path = dir.join("run.lock");
+        match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+        {
+            Ok(mut f) => {
+                use std::io::Write;
+                let _ = writeln!(
+                    f,
+                    "pid={} at={}",
+                    std::process::id(),
+                    chrono::Utc::now().to_rfc3339()
+                );
+                Ok(RunLock(path))
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => anyhow::bail!(
+                "another `--execute` sweep is running ({} exists); remove it if stale",
+                path.display()
+            ),
+            Err(e) => Err(e).context("create .coderabbit/run.lock"),
+        }
+    }
+}
+
+impl Drop for RunLock {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.0);
+    }
+}
+
 async fn run_semantic_submit_core(
     repo: &Path,
     cfg: &SemanticSubmitConfig,
     all_files: Vec<String>,
     plan_snapshot: Vec<String>,
+    rank_score: Option<std::collections::HashMap<String, f64>>,
 ) -> Result<()> {
     // ── 2. Build semantic plan ──────────────────────────────────────────────
     let baseline_branch = if cfg.resume && !cfg.force_chunks {
@@ -177,6 +291,12 @@ async fn run_semantic_submit_core(
     let planner = SemanticPlanner::new(max_per, rule_set, cfg.legacy_chunk_split)
         .with_allow_markdown_prefixes(cfg.allow_markdown_prefixes.clone());
     let mut sem_manifest = planner.plan(all_files, &baseline_branch);
+    if cfg.rank_order
+        && let Some(score) = rank_score.as_ref()
+    {
+        ranker::reorder_chunks_by_score(&mut sem_manifest.chunks, score);
+        eprintln!("[semantic-submit] Re-ordered chunks by importance (highest-value PRs first).");
+    }
     let ignored_reasons = summarize_ignored_reasons(&plan_snapshot, &planner);
 
     let u_name = planner.unassigned_name();
@@ -275,6 +395,9 @@ async fn run_semantic_submit_core(
         return Ok(());
     }
 
+    // Hold an exclusive on-disk lock for the whole execute phase (cross-process guard).
+    let _run_lock = RunLock::acquire(repo).context("acquire run lock")?;
+
     // ── 4. Resolve default branch + publish baseline at origin tip ───────────
     let bridge = GitBridge::open(repo).context("open git repo")?;
     let remote_url = bridge.remote_url().context("get remote URL")?;
@@ -371,18 +494,18 @@ async fn run_semantic_submit_core(
             .collect(),
     };
 
-    if cfg.resume && !cfg.force_chunks {
-        if let Some(prev) = cr_run_state::CoderabbitRunState::load(repo)? {
-            if prev.baseline_branch == baseline_branch {
-                for rec in &mut run_state.chunks {
-                    if let Some(o) = prev
-                        .chunks
-                        .iter()
-                        .find(|p| p.name == rec.name && p.status == "completed")
-                    {
-                        *rec = o.clone();
-                    }
-                }
+    if cfg.resume
+        && !cfg.force_chunks
+        && let Some(prev) = cr_run_state::CoderabbitRunState::load(repo)?
+        && prev.baseline_branch == baseline_branch
+    {
+        for rec in &mut run_state.chunks {
+            if let Some(o) = prev
+                .chunks
+                .iter()
+                .find(|p| p.name == rec.name && p.status == "completed")
+            {
+                *rec = o.clone();
             }
         }
     }

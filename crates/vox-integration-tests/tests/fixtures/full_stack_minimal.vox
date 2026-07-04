@@ -9,6 +9,6 @@ routes {
     "/" to Home
 }
 
-@server fn echo(x: str) to str {
+server echo(x: str) to str {
     return x
 }

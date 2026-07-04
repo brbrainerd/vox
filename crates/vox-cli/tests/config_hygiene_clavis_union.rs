@@ -8,7 +8,7 @@
 #[test]
 fn clavis_secret_names_are_recognized_without_yaml_row() {
     // Empty YAML — no manual rows at all.
-    let recognized = vox_cli::commands::ci::config_hygiene::build_recognized_env_vars("");
+    let recognized = vox_cli_ci::config_hygiene::build_recognized_env_vars("");
 
     // GEMINI_API_KEY and OPENROUTER_API_KEY are in managed_secret_env_names()
     assert!(
@@ -30,7 +30,7 @@ fn clavis_secret_names_are_recognized_without_yaml_row() {
 #[test]
 fn clavis_union_does_not_remove_existing_yaml_rows() {
     let yaml = "env_var: VOX_WASM_SKILL_FUEL\nenv_var: VOX_MENS_DEFAULT_MODEL";
-    let recognized = vox_cli::commands::ci::config_hygiene::build_recognized_env_vars(yaml);
+    let recognized = vox_cli_ci::config_hygiene::build_recognized_env_vars(yaml);
 
     // Manually-registered VOX_* names must still be present.
     assert!(recognized.contains("VOX_WASM_SKILL_FUEL"));

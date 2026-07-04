@@ -303,7 +303,9 @@ pub fn install_salt() -> [u8; 16] {
     let path = vox_config_dir().join("install-salt");
     if let Ok(s) = std::fs::read_to_string(&path) {
         let s = s.trim();
-        if s.len() == 32 && let Ok(bytes) = hex_decode_16(s) {
+        if s.len() == 32
+            && let Ok(bytes) = hex_decode_16(s)
+        {
             return bytes;
         }
     }

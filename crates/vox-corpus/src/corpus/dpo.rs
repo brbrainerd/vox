@@ -238,19 +238,46 @@ fn strip_return_type(src: &str) -> String {
                 || t.starts_with("pub(crate) fn ")
                 || t.starts_with("const fn ")
                 || t.starts_with("unsafe fn ");
-            if is_sig {
-                if let Some(brace) = line.find('{') {
-                    let head = &line[..brace];
-                    if let Some(arrow) = head.rfind("->") {
-                        let before = head[..arrow].trim_end();
-                        return format!("{} {}", before, &line[brace..]);
-                    }
+            if is_sig && let Some(brace) = line.find('{') {
+                let head = &line[..brace];
+                if let Some(arrow) = head.rfind("->") {
+                    let before = head[..arrow].trim_end();
+                    return format!("{} {}", before, &line[brace..]);
                 }
             }
             line.to_string()
         })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+/// Export DPO preference pairs from VoxDB (corrections vs original failures).
+#[cfg(feature = "database")]
+pub async fn export_dogfood_dpo(db: &VoxDb, limit: i64, output: &PathBuf) -> anyhow::Result<usize> {
+    use std::fs::File;
+    use std::io::Write;
+
+    let pairs = db.get_training_data(limit).await?;
+    let mut out_file = File::create(output)?;
+    let mut count = 0;
+
+    for pair in pairs {
+        if let Some(preferred) = pair.correction.as_ref().filter(|c: &&String| !c.is_empty()) {
+            let preferred_str: &str = preferred.as_str();
+            let dpo = DpoPair {
+                prompt: pair.prompt,
+                chosen: preferred_str.to_string(),
+                rejected: pair.response,
+                category: "agents_dogfood_dpo".to_string(),
+                source: Some("vox_db".to_string()),
+            };
+            let json = serde_json::to_string(&dpo)?;
+            writeln!(out_file, "{}", json)?;
+            count += 1;
+        }
+    }
+
+    Ok(count)
 }
 
 #[cfg(test)]
@@ -392,33 +419,4 @@ mod review_dpo_tests {
         assert!(!result.contains("-> i32"));
         assert!(result.contains("pub async fn compute"));
     }
-}
-
-/// Export DPO preference pairs from VoxDB (corrections vs original failures).
-#[cfg(feature = "database")]
-pub async fn export_dogfood_dpo(db: &VoxDb, limit: i64, output: &PathBuf) -> anyhow::Result<usize> {
-    use std::fs::File;
-    use std::io::Write;
-
-    let pairs = db.get_training_data(limit).await?;
-    let mut out_file = File::create(output)?;
-    let mut count = 0;
-
-    for pair in pairs {
-        if let Some(preferred) = pair.correction.as_ref().filter(|c: &&String| !c.is_empty()) {
-            let preferred_str: &str = preferred.as_str();
-            let dpo = DpoPair {
-                prompt: pair.prompt,
-                chosen: preferred_str.to_string(),
-                rejected: pair.response,
-                category: "agents_dogfood_dpo".to_string(),
-                source: Some("vox_db".to_string()),
-            };
-            let json = serde_json::to_string(&dpo)?;
-            writeln!(out_file, "{}", json)?;
-            count += 1;
-        }
-    }
-
-    Ok(count)
 }

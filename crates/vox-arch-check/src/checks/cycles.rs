@@ -71,10 +71,10 @@ pub fn find_cycles(edges: &[(String, String)]) -> Vec<Vec<String>> {
                 }
             } else {
                 call_stack.pop();
-                if let Some(&(parent, _)) = call_stack.last() {
-                    if lowlink[v] < lowlink[parent] {
-                        lowlink[parent] = lowlink[v];
-                    }
+                if let Some(&(parent, _)) = call_stack.last()
+                    && lowlink[v] < lowlink[parent]
+                {
+                    lowlink[parent] = lowlink[v];
                 }
                 // SCC root?
                 if lowlink[v] == index[v].unwrap() {

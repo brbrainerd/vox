@@ -2,7 +2,7 @@ use std::process::Command;
 
 fn write_minimal_schema(temp: &tempfile::TempDir) -> std::path::PathBuf {
     let schema = temp.path().join("main.vox");
-    std::fs::write(&schema, "@table type Task { title: str }\n").expect("write schema");
+    std::fs::write(&schema, "table Task { title: str }\n").expect("write schema");
     schema
 }
 

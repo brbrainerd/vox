@@ -11,6 +11,10 @@ on:
       - '.github/workflows/ci-health-watchdog*.yml'
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -21,7 +25,7 @@ jobs:
       REPO: vox-foundation/vox
       GH_TOKEN: stub
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Stub gh with a 5-zombie / 0-online fixture
         run: |

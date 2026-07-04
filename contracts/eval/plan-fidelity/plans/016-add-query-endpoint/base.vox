@@ -3,7 +3,7 @@
 // A @table is defined plus a mutation that creates rows. The plan
 // asks the model to add a query endpoint reading from the table.
 
-@table type Note {
+table Note {
     id: str,
     body: str
 }

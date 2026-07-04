@@ -730,10 +730,10 @@ pub async fn run(action: CorpusAction) -> Result<()> {
                 },
             }))?;
 
-            if let Some(p) = output.parent() {
-                if !p.as_os_str().is_empty() {
-                    tokio::fs::create_dir_all(p).await?;
-                }
+            if let Some(p) = output.parent()
+                && !p.as_os_str().is_empty()
+            {
+                tokio::fs::create_dir_all(p).await?;
             }
             tokio::fs::write(&output, &json).await?;
 

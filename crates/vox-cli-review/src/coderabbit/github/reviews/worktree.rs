@@ -9,7 +9,6 @@ use vox_forge::{GitForgeProvider, NewChangeRequest};
 
 use super::super::super::path_policy;
 use super::super::api::{forge_token, owner_repo_from_path};
-use super::super::comments::trigger_coderabbit;
 
 pub fn worktree_dir(repo: &Path, review_branch: &str) -> PathBuf {
     let safe = review_branch.replace(['/', '\\'], "__");
@@ -281,7 +280,10 @@ pub async fn create_chunk_pr_via_worktree(
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    let _ = trigger_coderabbit(&token, &owner, &repo_name, cr.number, full_review).await;
+    // No extra `@coderabbitai` trigger comment here: `.coderabbit.yaml`
+    // (`reviews.auto_review.enabled: true`) already reviews every PR on open, and a
+    // second trigger per PR would double quota burn (Pro = 5 reviews/hour total).
+    // The `@coderabbitai …` line in the PR BODY is informational only.
     eprintln!(
         "PR #{} opened: {} (base={})",
         cr.number, cr.web_url, baseline_branch

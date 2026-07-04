@@ -24,7 +24,8 @@ export interface AppShellProps {
   pushToast: (t: Toast) => void;
   appVersion: string;
   policyBadge: PolicyBadge;
-  approvalsPending: number;
+  needsYouCount: number;
+  pendingApprovals: number;
   kpis: KpiState;
   onCommand: () => void;
   onOpenCommandPalette?: () => void;
@@ -58,7 +59,8 @@ export function AppShell({
   pushToast,
   appVersion,
   policyBadge,
-  approvalsPending,
+  needsYouCount,
+  pendingApprovals,
   kpis,
   onCommand,
   onOpenCommandPalette,
@@ -95,7 +97,7 @@ export function AppShell({
         pushToast={pushToast}
         appVersion={appVersion}
         policyBadge={policyBadge}
-        approvalsPending={approvalsPending}
+        needsYouCount={needsYouCount}
         lastOrchEventAt={lastOrchEventAt}
         orchUsesPolling={orchUsesPolling}
         liveFreshMs={liveFreshMs}
@@ -117,7 +119,7 @@ export function AppShell({
             visibleTiles={visibleTiles}
             activeModel={activeModel}
             openrouterSpendUsd={openrouterSpendUsd}
-            pendingApprovals={approvalsPending}
+            pendingApprovals={pendingApprovals}
           />
           <BreadcrumbBar viewKey={activeView} onNavigate={onNavigate} gamifyEnabled={gamifyEnabled} />
           <StatusBar

@@ -9,7 +9,7 @@ use vox_compiler::target::Target;
 
 pub async fn run(root: &Path) -> Result<()> {
     println!("pipeline-parity: grammar SSOT…");
-    super::grammar_ssot_parity::run().await?;
+    vox_cli_ci::grammar_ssot_parity::run().await?;
 
     println!("pipeline-parity: canonical golden ladder…");
     run_cargo_test(

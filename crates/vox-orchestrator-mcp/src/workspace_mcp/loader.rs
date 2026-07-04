@@ -250,8 +250,7 @@ mod tests {
         std::fs::write(dir.path().join("bad.vox"), "this is not vox {{{").unwrap();
         std::fs::write(
             dir.path().join("good.vox"),
-            r#"@tool "ping: ping"
-fn ping() to str { return "pong" }
+            r#"tool "ping: ping" ping() to str { return "pong" }
 "#,
         )
         .unwrap();

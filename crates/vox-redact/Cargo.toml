@@ -1,6 +1,7 @@
 [package]
 name = "vox-redact"
-version = "0.6.0"
+description = "Regex-based redaction of secrets and PII from log lines and JSON values."
+version.workspace = true
 edition.workspace = true
 
 [dependencies]

@@ -59,6 +59,6 @@ entries:
     consumption_required: true
     consumer_paths:
       - crates/vox-publisher/src/research_mesh.rs
-      - crates/vox-cli/src/commands/research/mesh_intake.rs
+      - crates/vox-cli-research/src/mesh_intake.rs
     test_targets:
       - cargo test -p vox-publisher research_mesh

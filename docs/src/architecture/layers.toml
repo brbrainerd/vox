@@ -293,7 +293,7 @@ reason = "Optional `mens-dei` workflow path shells out through `vox_cli::command
 [[known_inversions]]
 from   = "vox-config"
 to     = "vox-git"
-reason = "vox-config::graphify (corpus-staleness check) calls only vox_git::read_only, the dependency-free raw-`git status --porcelain` shim in read_cmd.rs — it never touches the gix-backed GitBridge machinery that makes vox-git L3. read_only has no deps beyond std + thiserror, so it is itself L0/L1-shaped; it is just physically colocated with the heavier gix bridge. Prefer extracting read_cmd.rs into a small L1 crate (e.g. vox-git-read) shared by vox-config and vox-git's other L3+ callers over tightening vox-config's layer."
+reason = "vox-config::graphify (corpus-staleness check) calls only vox_git::read_only, the dependency-free raw-`git status --porcelain` shim in read_cmd.rs — it never touches the gix-backed GitBridge machinery that makes vox-git L3. read_only has no deps beyond std + thiserror, so it is itself L0/L1-shaped; it is just physically colocated with the heavier gix bridge. Pre-existing on main; never evaluated by this rule before 2026-07-03 because a missing-crates-in-layers.toml gap short-circuited the whole tool. Prefer extracting read_cmd.rs into a small L1 crate (e.g. vox-git-read) shared by vox-config and vox-git's other L3+ callers over tightening vox-config's layer."
 
 # ── Rule 11 (P3-T7): Forbidden code patterns ─────────────────────────────────
 # Forbid raw git invocations outside the concurrency-policy wrapper.
@@ -323,7 +323,7 @@ exempt_files     = [
     "crates/vox-orchestrator-mcp/src/git_exec.rs",
     "crates/vox-build-meta/src/lib.rs",
     "crates/vox-cli/src/commands/ci/data_storage_guard.rs",
-    "crates/vox-cli/src/commands/ci/install_hooks.rs",  # uses vox_git::read_only(); pattern match hits the comment only
+    "crates/vox-cli-ci/src/install_hooks.rs",  # uses vox_git::read_only(); pattern match hits the comment only (moved from vox-cli in the PR-4 CI split)
     "crates/vox-cli/src/commands/ci/line_endings.rs",
     "crates/vox-cli-ci/src/line_endings.rs",
     "crates/vox-cli-ci/src/commit_lint.rs",
@@ -339,9 +339,15 @@ exempt_files     = [
     "crates/vox-cli/src/commands/review/coderabbit/github/reviews/submit_branch.rs",
     "crates/vox-cli/src/commands/review/coderabbit/github/reviews/worktree.rs",
     "crates/vox-cli/src/commands/review/coderabbit/historical_planner.rs",
-    "crates/vox-cli/src/commands/review/coderabbit/semantic_planner/collector.rs",
+    "crates/vox-cli-review/src/coderabbit/semantic_planner/collector.rs",  # moved from vox-cli in the vox-cli-review split
     "crates/vox-cli/src/commands/review/coderabbit/semantic_planner/submit.rs",
     "crates/vox-cli/src/commands/review/coderabbit/stack_planner/submit.rs",
+    # Pre-existing, unaudited raw git-exec sites: never evaluated by this rule
+    # before because a missing-crates-in-layers.toml gap short-circuited the
+    # whole tool before it reached forbidden_pattern checks (fixed 2026-07-03).
+    # Pending migration to vox_git::GitExec, not a newly introduced violation.
+    "crates/vox-ml-cli/src/commands/mens/populi/train_arm.rs",  # `git rev-parse --short HEAD` for a training-run manifest stamp
+    "crates/vox-plugin-host/src/user_install.rs",  # shallow-clone a plugin source URL into a temp dir (HITL-gated, user-initiated)
     "crates/vox-doc-pipeline/src/pipeline/lint.rs",
 ]
 allow_annotation = "// vox-arch-check: allow git-exec"

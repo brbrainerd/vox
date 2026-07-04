@@ -88,7 +88,7 @@ fn f() to int {
 #[test]
 fn codegen_table_emits_struct() {
     let src = r#"
-@table type Task {
+table Task {
     title: str
     done: bool
     priority: int
@@ -103,7 +103,7 @@ fn codegen_table_emits_ddl() {
     use vox_codegen::codegen_rust::emit::emit_table_ddl;
 
     let src = r#"
-@table type Task {
+table Task {
     title: str
     done: bool
     priority: int
@@ -123,13 +123,13 @@ fn codegen_index_emits_ddl() {
     use vox_codegen::codegen_rust::emit::emit_index_ddl;
 
     let src = r#"
-@table type Task {
+table Task {
     title: str
     done: bool
     priority: int
 }
 
-@index Task.by_done_priority on (done, priority)
+index Task.by_done_priority on (done, priority)
 "#;
     let tokens = lex(src);
     let module = parse(tokens).expect("Should parse");

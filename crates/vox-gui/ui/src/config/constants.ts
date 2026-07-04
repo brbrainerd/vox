@@ -9,6 +9,9 @@ export const POLICY_BADGE_POLL_MS = 60_000;
 /** Approvals surface poll interval (ms). */
 export const APPROVALS_POLL_MS = 2000;
 
+/** Attention inbox poll interval (ms) — single interval for the unified Needs-You inbox. */
+export const ATTENTION_POLL_MS = 5000;
+
 /** Runs surface poll interval (ms). */
 export const RUNS_POLL_MS = 10_000;
 

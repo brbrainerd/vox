@@ -66,6 +66,8 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-hf-layout`](../../../crates/vox-hf-layout/) | SSOT: Hugging Face `config.json` layout parsing for MENS (`vox-populi::mens::tensor::hf_load`) and `vox-plugin-mens-candle-cuda`. |
 | [`vox-identity`](../../../crates/vox-identity/) | Identity primitives: signing keys, trust ledger entries. |
 | [`vox-jsonschema-util`](../../../crates/vox-jsonschema-util/) | Shared JSON Schema compile + validate helpers for CLI, contracts, and tooling. |
+| [`vox-redact`](../../../crates/vox-redact/) | Regex-based redaction of secrets and PII from log lines and JSON values. |
+| [`vox-language-surface`](../../../crates/vox-language-surface/) | SSOT for keyword/decorator surface strings (LSP completions, grammar docs); zero deps to avoid a vox-compiler ↔ vox-grammar-export cycle. `vox_compiler::language_surface` re-exports it. |
 | [`vox-llm-config`](../../../crates/vox-llm-config/) | SSOT for LLM/AI setting-key metadata. Pure-data, zero workspace dependencies. |
 | [`vox-openai`](../../../crates/vox-openai/) | OpenAI integrations: wire-format types (`chat_completion.rs`) + SSE streaming (`sse.rs`) in one L1 crate. |
 | [`vox-package-types`](../../../crates/vox-package-types/) | Pure-data L1 leaf for vox-package: manifest, lockfile, package_kind, resolver types. |
@@ -91,6 +93,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 |---|---|
 | [`vox-capability-registry`](../../../crates/vox-capability-registry/) | Transport-independent capability registry (YAML SSOT) + Mens chat tool descriptors. |
 | [`vox-config`](../../../crates/vox-config/) | Centralized configuration and env/default resolution for Vox tooling; `project_manifest` parses `[workspace]` / `[bundle]` slices from `Vox.toml` for `vox compile`. |
+| [`vox-config-derive`](../../../crates/vox-config-derive/) | Proc-macro companion for `#[derive(VoxConfig)]`; zero runtime deps. |
 | [`vox-constrained-gen`](../../../crates/vox-constrained-gen/) | Grammar-constrained inference engine — Earley/PDA backends, deadlock watchdog, stream-of-revision. |
 | [`vox-doc-inventory`](../../../crates/vox-doc-inventory/) | Generate and verify docs/agents/doc-inventory.json (schema v3) without Python. |
 | [`vox-eval`](../../../crates/vox-eval/) | Evaluation **metrics** — deterministic scoring of model outputs / Vox samples (format/safety/quality/parse) + MENS `CompileVerdict`. **Not** the interpreter; `--interp` lives in [`vox-compiler/src/eval/`](../../../crates/vox-compiler/src/eval/). |
@@ -181,6 +184,10 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-cli`](../../../crates/vox-cli/) | Vox command-line interface: compile, run, bundle, and workspace diagnostics. |
 | [`vox-langtool`](../../../crates/vox-langtool/) | DB-free CLI for the Vox language: check, fmt, run, build (no database runtime required). |
 | [`vox-cli-ci`](../../../crates/vox-cli-ci/) | CI guard checks extracted from vox-cli (runner-policy-check, line-endings, and related). |
+| [`vox-cli-contracts`](../../../crates/vox-cli-contracts/) | Trait seam between vox-cli and vox-cli-ci (`CheckProvider`, `GateStatusWriter`, `TerminalPolicyValidator`, `HeavyGuardHost`); zero tokio. |
+| [`vox-cli-research`](../../../crates/vox-cli-research/) | `commands/research/` extracted from vox-cli (infra + eval, mesh intake); consumed exclusively by vox-cli. |
+| [`vox-cli-review`](../../../crates/vox-cli-review/) | CodeRabbit batch-PR review flow (`vox review coderabbit`) extracted from vox-cli; consumed exclusively by vox-cli. |
+| [`vox-cli-share`](../../../crates/vox-cli-share/) | `utils/share` (marketplace share/publish) extracted from vox-cli; consumed exclusively by vox-cli. |
 | [`vox-cli-tests`](../../../crates/vox-cli-tests/) | End-to-end `vox build`/`vox new` CLI integration harness (test-only L5; assert_cmd subprocess + tsc/cargo check). |
 | [`vox-integration-tests`](../../../crates/vox-integration-tests/) | Cross-crate integration test harness (test-only L5). |
 | [`vox-orchestrator-d`](../../../crates/vox-orchestrator-d/) | Vox orchestrator daemon binary. Extracted from vox-orchestrator in 2026-05-08 reorg Phase 4. |
@@ -211,7 +218,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | Self-hosted CI runner image | `Dockerfile.ci-runner` (repo root); published via `.github/workflows/publish-ci-runner.yml` to GHCR |
 | Extend `vox ci pre-push` modes / timing JSON | `crates/vox-cli/src/commands/ci/pre_push.rs` — add `Step` to `build_steps` or extend `PrePushOpts` |
 | `vox ci dev-loop-audit` (AI/local compile-loop diagnostics) | `crates/vox-cli/src/commands/ci/dev_loop_audit.rs` |
-| `vox ci docs-reality-audit` (doc/code audit artifacts + metrics) | `crates/vox-cli/src/commands/ci/docs_reality_audit.rs` + `contracts/reports/docs-reality-audit/` |
+| `vox ci docs-reality-audit` (doc/code audit artifacts + metrics) | `crates/vox-cli-ci/src/docs_reality_audit.rs` + `contracts/reports/docs-reality-audit/` |
 | `vox ci parse-status` (golden parse matrix → `examples/PARSE_STATUS.md`) | `crates/vox-cli/src/commands/ci/parse_status.rs` |
 | Find the canonical path for GUI surfaces (interop app, experimental visualizer, fixtures, VS Code host) | [`contracts/frontend/surface-ownership.v1.yaml`](../../../contracts/frontend/surface-ownership.v1.yaml) — `apps/interop/marquee_app`, `apps/experimental/visualizer`, `tests/fixtures/frontend/test_app_bundle`, `apps/editor/vox-vscode` |
 | Vox Console discovery engine — exposure ledger / spaced repetition (FSRS) / suggestion ranking | [`crates/vox-gamify/src/discovery/`](../../../crates/vox-gamify/src/discovery/) (`fsrs.rs`, `rank.rs`, `ledger.rs`); backed by the `discovery_state` table (registered in [`vox-db` manifest](../../../crates/vox-db/src/schema/manifest.rs)). |

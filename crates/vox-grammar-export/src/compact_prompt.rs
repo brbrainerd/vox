@@ -75,14 +75,14 @@ pub fn emit_compact_llm_prompt() -> String {
 
     // ── Server / Query / Mutation ────────────────────────────────────────
     p.push_str("== Server Functions ==\n");
-    p.push_str("@server fn name(params) to RetType { ... }\n");
-    p.push_str("@query fn name(params) to RetType { ... }\n");
-    p.push_str("@mutation fn name(params) to RetType { ... }\n\n");
+    p.push_str("server name(params) to RetType { ... }\n");
+    p.push_str("query name(params) to RetType { ... }\n");
+    p.push_str("mutation name(params) to RetType { ... }\n\n");
 
     // ── Tables & Indexes ────────────────────────────────────────────────
     p.push_str("== Data ==\n");
-    p.push_str("@table type Name { field: Type, ... }\n");
-    p.push_str("@index Table.idx on (col1, col2)\n\n");
+    p.push_str("table Name { field: Type, ... }\n");
+    p.push_str("index Table.idx on (col1, col2)\n\n");
 
     // ── Components ──────────────────────────────────────────────────────
     p.push_str("== Components ==\n");

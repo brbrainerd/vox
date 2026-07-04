@@ -65,9 +65,20 @@ pub trait TerminalPolicyValidator {
 The `DiskCorpus`/`SMOKE_PAYLOADS`/`REJECT_PAYLOADS` orchestration (exec_policy_contract.rs:19-110)
 **moves into vox-cli-ci** and calls the trait; only the `check_terminal` primitives stay in vox-cli.
 
-### No trait for scientia_ledger — **move the whole module**
-`scientia_novelty_ledger_contract.rs` + `scientia_ledger_contract.rs` (deps: `vox-bounded-fs`,
-`serde_json` only) move into vox-cli-ci. The proposed `ScientialLedgerValidator` trait is unnecessary.
+### No trait for scientia_ledger — **move the modules (corrected placement)**
+- `scientia_novelty_ledger_contract.rs` (ci-only; dispatched via `CiCmd::ScientiaNoveltyLedgerContracts`
+  in run_body.rs:120) → moves to **vox-cli-ci**.
+- **CORRECTION (verified 2026-06-30):** `scientia_ledger_contract.rs` is NOT ci-only — it is also
+  called by the non-ci `vox scientia` command (`commands/scientia.rs:21,31`). Moving it to vox-cli-ci
+  would invert the dep (vox-cli's scientia.rs → vox-cli-ci). It must go to **vox-cli-contracts**
+  instead (deps `vox-bounded-fs` + `vox-jsonschema-util` + `serde_json`, low-floor sync), consumed by
+  both vox-cli and vox-cli-ci. Still a plain module move, just to contracts not ci.
+
+> **Status (2026-06-30): PR-1, PR-2, PR-3 LANDED on main** (`4474e04d25`, `1dd265f647`). The crate,
+> the 3 traits, `CheckManifest`/`CheckEntry`, `VoxCliProviders`, and the CheckProvider +
+> GateStatusWriter in-place wirings are done and tests-green. PR-4 (cmd_enums + dispatcher +
+> ~38-guard + scientia move) is the remaining piece — confirmed un-chunkable (run_body's `CiCmd`
+> match is the coupling hub), needs a dedicated effort against the clap goldens + freshness gate.
 
 ### What does NOT get a trait (the analysis over-counted)
 - `scientia_heuristics_parity` / `scientia_worthiness_contract` call `vox_publisher::*` (a real

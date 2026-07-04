@@ -40,17 +40,17 @@ fn fmt_check_on_already_formatted_exits_ok() {
     let path = fixture("hello.vox");
     let source = std::fs::read_to_string(&path).unwrap();
     // If formatter fails to parse, the test also passes (not our bug).
-    if let Ok(formatted) = vox_compiler::fmt::try_format(&source) {
-        if source == formatted {
-            let result = vox_langtool::commands::fmt::run(&path, true);
-            assert!(
-                result.is_ok(),
-                "fmt --check should pass on formatted file: {:?}",
-                result
-            );
-        }
-        // If they differ, fmt --check would fail — that's correct but means the
-        // fixture needs updating; skip rather than fail.
+    // If they differ, fmt --check would fail — that's correct but means the
+    // fixture needs updating; skip rather than fail.
+    if let Ok(formatted) = vox_compiler::fmt::try_format(&source)
+        && source == formatted
+    {
+        let result = vox_langtool::commands::fmt::run(&path, true);
+        assert!(
+            result.is_ok(),
+            "fmt --check should pass on formatted file: {:?}",
+            result
+        );
     }
 }
 
@@ -84,14 +84,14 @@ fn fmt_check_on_unformatted_fails() {
         .unwrap();
 
     // Only assert failure if the formatter can actually parse this snippet.
-    if let Ok(formatted) = vox_compiler::fmt::try_format(unformatted) {
-        if formatted != unformatted {
-            let result = vox_langtool::commands::fmt::run(&path, true);
-            assert!(
-                result.is_err(),
-                "fmt --check should fail when file needs formatting"
-            );
-        }
+    if let Ok(formatted) = vox_compiler::fmt::try_format(unformatted)
+        && formatted != unformatted
+    {
+        let result = vox_langtool::commands::fmt::run(&path, true);
+        assert!(
+            result.is_err(),
+            "fmt --check should fail when file needs formatting"
+        );
     }
 }
 

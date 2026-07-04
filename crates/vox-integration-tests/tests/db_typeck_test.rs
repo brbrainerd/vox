@@ -22,7 +22,7 @@ fn errors(src: &str) -> Vec<vox_compiler::typeck::Diagnostic> {
 fn test_db_operations_typecheck() {
     // Replaced tombstoned `http post` with a plain `fn` (TASK-2.5).
     let src = r#"
-@table type Message {
+table Message {
     text: str
     timestamp: int
 }

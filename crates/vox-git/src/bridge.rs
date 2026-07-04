@@ -213,7 +213,9 @@ impl GitBridge {
 
     /// Get the current HEAD commit ID.
     pub fn head_commit_id(&self) -> Result<Option<ObjectId>> {
-        let head_file = self.config.repo_path.join(".git").join("HEAD");
+        // HEAD is per-worktree (lives in the gitdir); `refs/heads/*` is shared
+        // (lives in the common dir). In a linked worktree these differ.
+        let head_file = Self::git_dir_path(&self.config.repo_path).join("HEAD");
         if !head_file.exists() {
             return Ok(None);
         }
@@ -221,11 +223,8 @@ impl GitBridge {
         let content = content.trim();
 
         if let Some(branch) = content.strip_prefix("ref: ") {
-            // Symbolic ref — resolve it.
-            let ref_path = self
-                .config
-                .repo_path
-                .join(".git")
+            // Symbolic ref — resolve it against the shared common dir.
+            let ref_path = Self::common_dir_path(&self.config.repo_path)
                 .join(branch.replace('/', std::path::MAIN_SEPARATOR_STR));
             if !ref_path.exists() {
                 return Ok(None); // unborn branch
@@ -240,10 +239,8 @@ impl GitBridge {
 
     /// List local branch names.
     pub fn local_branches(&self) -> Result<Vec<RefName>> {
-        let heads_dir = self
-            .config
-            .repo_path
-            .join(".git")
+        // `refs/heads` is shared across worktrees — read from the common dir.
+        let heads_dir = Self::common_dir_path(&self.config.repo_path)
             .join("refs")
             .join("heads");
         if !heads_dir.exists() {
@@ -309,7 +306,8 @@ impl GitBridge {
 
     /// Read a ref to its target commit ID.
     pub fn read_ref(&self, ref_name: &RefName) -> Result<Option<ObjectId>> {
-        let ref_path = self.config.repo_path.join(".git").join(
+        // `refs/heads/*` and `refs/remotes/*` are shared — read from the common dir.
+        let ref_path = Self::common_dir_path(&self.config.repo_path).join(
             ref_name
                 .as_str()
                 .replace('/', std::path::MAIN_SEPARATOR_STR),
@@ -322,9 +320,47 @@ impl GitBridge {
         Ok(ObjectId::parse(sha.trim().to_string()))
     }
 
+    /// The per-worktree git directory. For a normal checkout this is `<repo>/.git`.
+    /// For a LINKED WORKTREE, `.git` is a FILE (`gitdir: <path>`) pointing at
+    /// `<main>/.git/worktrees/<name>`, which holds per-worktree state (HEAD, index).
+    fn git_dir_path(repo_path: &Path) -> std::path::PathBuf {
+        let dot_git = repo_path.join(".git");
+        if dot_git.is_file() {
+            let pointer = read_utf8_path_capped_or_empty(&dot_git);
+            if let Some(gitdir) = pointer.trim().strip_prefix("gitdir:") {
+                let gitdir = gitdir.trim();
+                let p = std::path::Path::new(gitdir);
+                return if p.is_absolute() {
+                    p.to_path_buf()
+                } else {
+                    repo_path.join(p)
+                };
+            }
+        }
+        dot_git
+    }
+
+    /// The shared common git directory. Equals [`git_dir_path`] for a normal
+    /// checkout; for a linked worktree it is resolved via the gitdir's `commondir`
+    /// file and holds shared state (config, `refs/heads`, `refs/remotes`).
+    fn common_dir_path(repo_path: &Path) -> std::path::PathBuf {
+        let gitdir = Self::git_dir_path(repo_path);
+        let commondir = read_utf8_path_capped_or_empty(&gitdir.join("commondir"));
+        let common = commondir.trim();
+        if common.is_empty() {
+            return gitdir;
+        }
+        let p = std::path::Path::new(common);
+        if p.is_absolute() {
+            p.to_path_buf()
+        } else {
+            gitdir.join(p)
+        }
+    }
+
     /// Get the URL of the configured remote.
     pub fn remote_url(&self) -> Result<String> {
-        let config_path = self.config.repo_path.join(".git").join("config");
+        let config_path = Self::common_dir_path(&self.config.repo_path).join("config");
         let content = read_utf8_path_capped_or_empty(&config_path);
 
         // Simple parse — find [remote "origin"] section and its url.
@@ -422,6 +458,47 @@ mod tests {
         assert_eq!(
             bridge.remote_url().unwrap(),
             "https://github.com/org/repo.git"
+        );
+    }
+
+    /// Regression: in a linked git worktree `.git` is a FILE (`gitdir: <path>`)
+    /// and the shared config lives under the main repo's `.git` via `commondir`.
+    #[test]
+    fn remote_url_resolves_linked_worktree_git_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let main = dir.path().join("main");
+        make_fake_repo(&main);
+        let gitdir = main.join(".git/worktrees/wt1");
+        fs::create_dir_all(&gitdir).unwrap();
+        fs::write(gitdir.join("commondir"), "../..\n").unwrap();
+        let wt = dir.path().join("wt1");
+        fs::create_dir_all(&wt).unwrap();
+        fs::write(
+            wt.join(".git"),
+            format!("gitdir: {}\n", gitdir.to_string_lossy()),
+        )
+        .unwrap();
+
+        // Per-worktree HEAD lives in the gitdir, not the worktree's `.git` file.
+        fs::write(gitdir.join("HEAD"), "ref: refs/heads/main\n").unwrap();
+
+        let bridge = GitBridge::open(&wt).unwrap();
+        // Shared config (remote URL) resolves via commondir.
+        assert_eq!(
+            bridge.remote_url().unwrap(),
+            "https://github.com/org/repo.git"
+        );
+        // Per-worktree HEAD → shared refs/heads/main resolves to the real commit,
+        // not a silent unborn-branch `None`.
+        assert_eq!(
+            bridge.head_commit_id().unwrap().map(|o| o.0),
+            Some("a94a8fe5ccb19ba61c4c0873d391e987982fbbd3".to_string())
+        );
+        // Shared refs/heads enumerates from the common dir, not an empty Vec.
+        let branches = bridge.local_branches().unwrap();
+        assert!(
+            branches.iter().any(|b| b.as_str() == "refs/heads/main"),
+            "linked worktree must see shared branches; got {branches:?}"
         );
     }
 

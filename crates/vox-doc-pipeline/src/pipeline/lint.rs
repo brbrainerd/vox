@@ -625,7 +625,7 @@ mod tests {
         let mut errs = Vec::new();
         let md_path = Path::new("fixture.md");
         let repo = Path::new(".");
-        let content = "---\ntitle: Doc\ncategory: reference\n---\n\n## Section\n\n---\n\n```vox\n@table type Task {\n    title: str\n}\n```\n";
+        let content = "---\ntitle: Doc\ncategory: reference\n---\n\n## Section\n\n---\n\n```vox\ntable Task {\n    title: str\n}\n```\n";
         lint_file(md_path, content, repo, &mut errs);
         assert!(
             !errs

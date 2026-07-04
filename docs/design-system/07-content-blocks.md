@@ -148,7 +148,7 @@ Each snippet uses only syntax in the [verified list](README.md#verified-vox-synt
 ### Snippet A — Single declaration becomes everything
 
 ```vox
-@table type Task {
+table Task {
     title: str
     done:  bool
     owner: str
@@ -164,8 +164,7 @@ What this generates (use in `outputs` for `<CodeOutputSplit>`):
 ### Snippet B — Errors as values
 
 ```vox
-@mutation
-fn add_task(title: str, owner: str) to Result[Id[Task]] {
+mutation add_task(title: str, owner: str) to Result[Id[Task]] {
     if title is "" {
         return Error("title required")
     }

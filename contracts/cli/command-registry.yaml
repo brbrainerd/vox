@@ -2703,7 +2703,7 @@ operations:
   catalog_group: null
   ref_cli_required: true
   reachability_required: null
-  handler_rust: commands::research::run_research_query
+  handler_rust: vox_cli_research::run_research_query
 - surface: vox-cli
   path:
   - review

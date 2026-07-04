@@ -354,7 +354,7 @@ pub fn infer(m: &HirModule, source: &str) -> Vec<Diagnostic> {
                         )
                         .with_code(codes::PLACEMENT_BOUNDARY)
                         .with_suggestion(format!(
-                            "wrap `{callee}` in `@query fn` (or `@server`/`@mutation`) and call the generated client"
+                            "wrap `{callee}` in `query` (or `server`/`mutation`) and call the generated client"
                         )),
                     );
                 }
@@ -455,7 +455,7 @@ mod tests {
         let m = hir_of(
             "fn fmt() { 0 }\n\
              fn load() uses db { 0 }\n\
-             @query fn list() { 0 }\n\
+             query list() { 0 }\n\
              component Panel() { state x: Int = 0 }",
         );
         let map = PlacementMap::seed(&m);
@@ -527,7 +527,7 @@ mod tests {
 
     #[test]
     fn gui_calling_endpoint_is_allowed() {
-        let m = hir_of("@reactive fn View() { list_tasks() }\n@query fn list_tasks() { 0 }");
+        let m = hir_of("@reactive fn View() { list_tasks() }\nquery list_tasks() { 0 }");
         let diags = infer(&m, "");
         assert!(
             diags

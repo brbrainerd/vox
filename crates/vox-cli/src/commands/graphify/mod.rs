@@ -105,6 +105,38 @@ pub enum GraphifyCmd {
         /// (stamps lexical_ingest_sha256).
         #[arg(long)]
         ingest: bool,
+        /// Simulate cutting one dependency edge; print blast_s deltas as JSON.
+        /// Analysis flags are mutually exclusive: stdout carries exactly ONE
+        /// JSON document per invocation (AI-first contract).
+        #[arg(long, value_name = "FROM:TO",
+              conflicts_with_all = ["what_if_split", "top_cuts", "edges"])]
+        what_if_cut: Option<String>,
+        /// Simulate splitting CRATE by moving DEPS to a new leaf crate (JSON).
+        #[arg(long, value_name = "CRATE=DEP1,DEP2",
+              conflicts_with_all = ["top_cuts", "edges"])]
+        what_if_split: Option<String>,
+        /// Rank the N best single-edge cuts by total blast_s saved (JSON).
+        /// workspace-hack targets are excluded (deliberate coupling).
+        #[arg(long, value_name = "N", conflicts_with = "edges")]
+        top_cuts: Option<usize>,
+        /// Emit symbol-weighted dependency edges to graphify-out/edge_weights.json.
+        #[arg(long)]
+        edges: bool,
+    },
+    /// Classify why crates recompiled (cargo fingerprint-log analysis).
+    /// Observes CHECK units: link-time-only pain is invisible here.
+    WhyRebuilt {
+        /// Parse this previously captured fingerprint log file.
+        #[arg(long, conflicts_with = "capture")]
+        log: Option<String>,
+        /// Run `cargo check --workspace --exclude vox-gui` twice (second run
+        /// instrumented) and analyze the second run. Check, not build: never
+        /// relinks a running vox.exe.
+        #[arg(long)]
+        capture: bool,
+        /// Write classification JSON here.
+        #[arg(long, default_value = "graphify-out/rebuild_causes.json")]
+        out: String,
     },
 }
 
@@ -114,6 +146,44 @@ pub(crate) enum RefreshAction {
     Rebuild,
     Ingest,
     Skip,
+}
+
+/// Advisory rebuild lock in `corpus_dir/refresh.lock`. Returns `Ok(Some(result))` when the
+/// guarded closure ran, or `Ok(None)` when a *fresh* lock (mtime < 1h) is already held — so the
+/// caller skips instead of racing concurrent writes to `graph.json`. An older/unreadable mtime is
+/// treated as stale and reclaimed (self-heals after a `kill -9`/power loss). An RAII guard
+/// releases the lock on normal return, on `?` early-return, AND on panic-unwind, so a crashed
+/// rebuild does not wedge the corpus until the 1h reclaim. Advisory only: the check→write window
+/// has a benign TOCTOU race, mitigated by the scheduler's `MultipleInstances IgnoreNew`.
+pub(crate) fn with_graph_lock<T>(
+    corpus_dir: &std::path::Path,
+    f: impl FnOnce() -> anyhow::Result<T>,
+) -> anyhow::Result<Option<T>> {
+    let lock_path = corpus_dir.join("refresh.lock");
+    if let Ok(meta) = std::fs::metadata(&lock_path) {
+        let fresh = meta
+            .modified()
+            .ok()
+            .and_then(|m| m.elapsed().ok())
+            .map(|age| age < std::time::Duration::from_secs(3600))
+            .unwrap_or(false);
+        if fresh {
+            return Ok(None);
+        }
+    }
+    std::fs::create_dir_all(corpus_dir).ok();
+    std::fs::write(&lock_path, chrono::Utc::now().to_rfc3339())?;
+
+    // RAII: release on normal return, on `?` early-return, and on panic-unwind.
+    struct LockGuard(std::path::PathBuf);
+    impl Drop for LockGuard {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(&self.0);
+        }
+    }
+    let _guard = LockGuard(lock_path);
+
+    f().map(Some)
 }
 
 /// Deterministic cost/value gate: a structural change (missing/corrupt/drift/ttl) needs a
@@ -445,6 +515,122 @@ pub(crate) fn ingest_graph_corpus(
     load_projected_nodes(repo_root, &reg, corpus_id)
 }
 
+/// `{crates:{name:[deps]}}` -> adjacency map (shared by the analysis flags).
+fn adj_from_crate_graph(
+    crate_graph: &serde_json::Value,
+) -> std::collections::HashMap<String, Vec<String>> {
+    let mut adj = std::collections::HashMap::new();
+    if let Some(m) = crate_graph.get("crates").and_then(|v| v.as_object()) {
+        for (c, ds) in m {
+            let deps = ds
+                .as_array()
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|x| x.as_str().map(String::from))
+                        .collect()
+                })
+                .unwrap_or_default();
+            adj.insert(c.clone(), deps);
+        }
+    }
+    adj
+}
+
+/// crate_audit.json rows -> crate name -> compile seconds (string or number).
+fn times_from_audit(audit: &serde_json::Value) -> std::collections::HashMap<String, f64> {
+    let mut out = std::collections::HashMap::new();
+    if let Some(arr) = audit.as_array() {
+        for r in arr {
+            if let (Some(name), Some(cs)) = (
+                r.get("crate").and_then(|v| v.as_str()),
+                r.get("compile_s").and_then(|v| {
+                    v.as_f64()
+                        .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
+                }),
+            ) {
+                out.insert(name.to_string(), cs);
+            }
+        }
+    }
+    out
+}
+
+/// Parse `--what-if-split` spec "crate=d1,d2" -> (crate, deps).
+fn parse_split_spec(spec: &str) -> anyhow::Result<(String, Vec<String>)> {
+    let (krate, deps) = spec
+        .split_once('=')
+        .ok_or_else(|| anyhow::anyhow!("expected CRATE=DEP1,DEP2, got '{spec}'"))?;
+    let deps: Vec<String> = deps
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(String::from)
+        .collect();
+    if krate.trim().is_empty() || deps.is_empty() {
+        anyhow::bail!("expected CRATE=DEP1,DEP2, got '{spec}'");
+    }
+    Ok((krate.trim().to_string(), deps))
+}
+
+/// Atomic write: temp file in the same dir, then rename over the target.
+fn write_atomic(path: &std::path::Path, contents: &str) -> anyhow::Result<()> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("create dir {}", parent.display()))?;
+    }
+    let tmp = path.with_extension("tmp");
+    std::fs::write(&tmp, contents).with_context(|| format!("write {}", tmp.display()))?;
+    std::fs::rename(&tmp, path).with_context(|| format!("rename to {}", path.display()))?;
+    Ok(())
+}
+
+/// AI-first artifact envelope: schema_version + provenance around a result.
+fn with_provenance(generated_by: &str, result: serde_json::Value) -> serde_json::Value {
+    let git_sha = resolve_head_sha().ok().flatten();
+    serde_json::json!({
+        "schema_version": 1,
+        "provenance": { "generated_by": generated_by, "git_sha": git_sha },
+        "result": result,
+    })
+}
+
+/// Run `cargo check` twice; the second run has fingerprint tracing enabled and
+/// its stderr is returned (and saved to graphify-out/rebuild_fingerprint.log).
+/// An idle second run SHOULD be a no-op: every dirty line it emits is a
+/// rebuild-hygiene finding.
+fn capture_fingerprint_log(repo_root: &std::path::Path) -> anyhow::Result<String> {
+    let check_args = ["check", "--workspace", "--exclude", "vox-gui"];
+    eprintln!("why-rebuilt: warm-up cargo check (this may take a while)...");
+    let warm = std::process::Command::new("cargo")
+        .current_dir(repo_root)
+        .args(check_args)
+        .status()
+        .context("spawn warm-up cargo check")?;
+    if !warm.success() {
+        anyhow::bail!("warm-up cargo check failed — fix the build first");
+    }
+    eprintln!("why-rebuilt: instrumented cargo check...");
+    let out = std::process::Command::new("cargo")
+        .current_dir(repo_root)
+        .args(check_args)
+        .env("CARGO_LOG", "cargo::core::compiler::fingerprint=info")
+        .output()
+        .context("spawn instrumented cargo check")?;
+    if !out.status.success() {
+        // The warm-up run streams live via .status(); this run captures
+        // silently via .output() to feed the classifier — so on failure the
+        // diagnostics never reached the terminal. Print them now or the user
+        // has no idea what broke.
+        eprint!("{}", String::from_utf8_lossy(&out.stderr));
+        anyhow::bail!("instrumented cargo check failed (see output above) — fix the build first");
+    }
+    let log_text = String::from_utf8_lossy(&out.stderr).to_string();
+    let log_path = repo_root.join("graphify-out/rebuild_fingerprint.log");
+    write_atomic(&log_path, &log_text)?;
+    eprintln!("why-rebuilt: raw log -> {}", log_path.display());
+    Ok(log_text)
+}
+
 fn render_status_line(s: &CorpusStatus) -> String {
     let fresh = if s.is_fresh { "fresh" } else { "stale" };
     let nodes = s
@@ -531,15 +717,24 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                     let _ = vox_graph_reader::snapshot::prune_snapshots(corpus_dir, 5);
                 }
             }
-            vox_graph_reader::rebuild::rebuild_graph(
-                repo_root,
-                &source_dir,
-                &output_file,
-                &cache_dir,
-                &meta,
-            )
-            .map_err(|e| anyhow::anyhow!("Rebuild failed: {}", e))?;
-            println!("Graphify rebuild successful!");
+            let corpus_dir = output_file
+                .parent()
+                .ok_or_else(|| anyhow::anyhow!("graph_path has no parent"))?
+                .to_path_buf();
+            let ran = with_graph_lock(&corpus_dir, || {
+                vox_graph_reader::rebuild::rebuild_graph(
+                    repo_root,
+                    &source_dir,
+                    &output_file,
+                    &cache_dir,
+                    &meta,
+                )
+                .map_err(|e| anyhow::anyhow!("Rebuild failed: {}", e))
+            })?;
+            match ran {
+                Some(()) => println!("Graphify rebuild successful!"),
+                None => println!("Rebuild skipped: another rebuild is in progress (lock held)."),
+            }
         }
         GraphifyCmd::Coverage { corpus, kind, out } => {
             let reg = load_all_corpora(repo_root).map_err(|e| anyhow::anyhow!(e.to_string()))?;
@@ -683,15 +878,24 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                             gui_source_dir,
                             surface_registry_yaml,
                         };
-                        vox_graph_reader::rebuild::rebuild_graph(
-                            repo_root,
-                            &source_dir,
-                            &output_file,
-                            &cache_dir,
-                            &meta,
-                        )
-                        .map_err(|e| anyhow::anyhow!("refresh rebuild {}: {e}", c.id))?;
-                        println!("  rebuilt {}", c.id);
+                        let corpus_dir = output_file
+                            .parent()
+                            .ok_or_else(|| anyhow::anyhow!("graph_path has no parent"))?
+                            .to_path_buf();
+                        let ran = with_graph_lock(&corpus_dir, || {
+                            vox_graph_reader::rebuild::rebuild_graph(
+                                repo_root,
+                                &source_dir,
+                                &output_file,
+                                &cache_dir,
+                                &meta,
+                            )
+                            .map_err(|e| anyhow::anyhow!("refresh rebuild {}: {e}", c.id))
+                        })?;
+                        match ran {
+                            Some(()) => println!("  rebuilt {}", c.id),
+                            None => println!("  skipped {} (rebuild lock held)", c.id),
+                        }
                     }
                     RefreshAction::Ingest => {
                         let nodes = load_projected_nodes(repo_root, &reg, &c.id)?;
@@ -724,6 +928,10 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
             no_refresh_graph,
             write_summary,
             ingest,
+            what_if_cut,
+            what_if_split,
+            top_cuts,
+            edges,
         } => {
             // 1. Freshen the committed dependency graph from cargo metadata unless suppressed.
             if !no_refresh_graph {
@@ -743,13 +951,117 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
             let audit: serde_json::Value = match std::fs::read_to_string(&audit_path) {
                 Ok(s) => serde_json::from_str(&s).unwrap_or_else(|_| serde_json::json!([])),
                 Err(_) => {
-                    println!(
+                    eprintln!(
                         "note: {} absent — building count-only map (run scripts/crate-build-audit.vox for compile times)",
                         audit_path.display()
                     );
                     serde_json::json!([])
                 }
             };
+
+            // Analysis flags: run the requested analysis and return early —
+            // read-only questions; they skip persisting the map/manifest.
+            // stdout = exactly one JSON document; warnings -> stderr.
+            let analysis_requested =
+                what_if_cut.is_some() || what_if_split.is_some() || top_cuts.is_some() || edges;
+            if analysis_requested {
+                if write_summary.is_some() || ingest {
+                    eprintln!(
+                        "note: --write-summary/--ingest are ignored during an analysis-only run \
+                         (--what-if-cut/--what-if-split/--top-cuts/--edges)"
+                    );
+                }
+                let adj = adj_from_crate_graph(&crate_graph);
+                let times = times_from_audit(&audit);
+                if times.is_empty() {
+                    eprintln!(
+                        "WARNING: no compile times — deltas are dependents-only (blast_s=0). \
+                         Run scripts/crate-build-audit.vox first."
+                    );
+                }
+                if let Some(spec) = &what_if_cut {
+                    let (from, to) = spec
+                        .split_once(':')
+                        .ok_or_else(|| anyhow::anyhow!("expected FROM:TO, got '{spec}'"))?;
+                    if from.is_empty() || to.is_empty() {
+                        anyhow::bail!("expected FROM:TO with non-empty crate names, got '{spec}'");
+                    }
+                    let d = vox_graph_reader::what_if::what_if_cut(&adj, &times, from, to)
+                        .map_err(|e| anyhow::anyhow!(e))?;
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&with_provenance(
+                            &format!("vox graphify crate-map --what-if-cut {spec}"),
+                            serde_json::to_value(&d)?
+                        ))?
+                    );
+                }
+                if let Some(spec) = &what_if_split {
+                    let (krate, moved) = parse_split_spec(spec)?;
+                    let d = vox_graph_reader::what_if::what_if_split(&adj, &times, &krate, &moved)
+                        .map_err(|e| anyhow::anyhow!(e))?;
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&with_provenance(
+                            &format!("vox graphify crate-map --what-if-split {spec}"),
+                            serde_json::to_value(&d)?
+                        ))?
+                    );
+                }
+                if let Some(n) = top_cuts {
+                    let exclude: Vec<String> =
+                        vox_graph_reader::what_if::DEFAULT_EXCLUDED_CUT_TARGETS
+                            .iter()
+                            .map(|s| s.to_string())
+                            .collect();
+                    let cuts = vox_graph_reader::what_if::top_cuts(&adj, &times, n, &exclude);
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&with_provenance(
+                            &format!("vox graphify crate-map --top-cuts {n}"),
+                            serde_json::to_value(&cuts)?
+                        ))?
+                    );
+                }
+                if edges {
+                    // Symbol corpus: repo-code-graph, registry-resolved (native schema).
+                    let reg =
+                        load_all_corpora(repo_root).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+                    let corpus = corpus_by_id(&reg, "repo-code-graph")
+                        .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+                    let sg_path = repo_root.join(&corpus.graph_path);
+                    if !sg_path.is_file() {
+                        anyhow::bail!(
+                            "repo-code-graph corpus not built yet ({} missing). Run: \
+                             vox graphify rebuild --corpus repo-code-graph",
+                            sg_path.display()
+                        );
+                    }
+                    let sg: serde_json::Value = serde_json::from_str(
+                        &std::fs::read_to_string(&sg_path)
+                            .with_context(|| format!("read symbol corpus {}", sg_path.display()))?,
+                    )?;
+                    // Note: --edges emits a distinct shape (no "result" wrapper) because
+                    // this JSON is also the file written to disk at edge_weights.json —
+                    // it must be self-describing on its own, not just as a CLI response.
+                    let mut out = vox_graph_reader::edge_weights::weigh_edges(&sg, &adj, &times);
+                    out["provenance"] = serde_json::json!({
+                        "generated_by": "vox graphify crate-map --edges",
+                        "git_sha": resolve_head_sha().ok().flatten(),
+                        "corpus_path": corpus.graph_path,
+                    });
+                    let out_path = repo_root.join("graphify-out/edge_weights.json");
+                    write_atomic(&out_path, &serde_json::to_string_pretty(&out)?)?;
+                    eprintln!(
+                        "edge weights -> {} ({} edges, {} candidates; corpus partial — candidates only)",
+                        out_path.display(),
+                        out["edges"].as_array().map(|a| a.len()).unwrap_or(0),
+                        out["meta"]["candidate_count"]
+                    );
+                    println!("{}", serde_json::to_string_pretty(&out)?);
+                }
+                return Ok(());
+            }
 
             // 3. Build + persist.
             let map = vox_graph_reader::crate_model::build_crate_map(&crate_graph, &audit);
@@ -780,21 +1092,7 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
 
             // 4. Optionally emit the committed gate SSOT (small; parity-checked in CI).
             if let Some(summary_path) = write_summary {
-                use std::collections::HashMap;
-                let mut compile_times: HashMap<String, f64> = HashMap::new();
-                if let Some(arr) = audit.as_array() {
-                    for r in arr {
-                        if let (Some(name), Some(cs)) = (
-                            r.get("crate").and_then(|v| v.as_str()),
-                            r.get("compile_s").and_then(|v| {
-                                v.as_f64()
-                                    .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
-                            }),
-                        ) {
-                            compile_times.insert(name.to_string(), cs);
-                        }
-                    }
-                }
+                let compile_times = times_from_audit(&audit);
                 let summary = vox_graph_reader::crate_model::build_crate_summary(
                     &crate_graph,
                     &compile_times,
@@ -820,6 +1118,96 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                 println!("ingested crate-map (lexical_ingest_sha256 stamped)");
             }
         }
+        GraphifyCmd::WhyRebuilt { log, capture, out } => {
+            let generated_by = if capture {
+                "vox graphify why-rebuilt --capture".to_string()
+            } else {
+                format!(
+                    "vox graphify why-rebuilt --log {}",
+                    log.as_deref().unwrap_or("")
+                )
+            };
+            let log_text = if capture {
+                capture_fingerprint_log(repo_root)?
+            } else {
+                let path = log.ok_or_else(|| anyhow::anyhow!("pass --log <file> or --capture"))?;
+                std::fs::read_to_string(repo_root.join(&path))
+                    .with_context(|| format!("read log {path}"))?
+            };
+            let causes = vox_graph_reader::rebuild_causes::parse_fingerprint_log(&log_text);
+            let summary = vox_graph_reader::rebuild_causes::summarize(&causes);
+            let per = vox_graph_reader::rebuild_causes::per_crate(&causes);
+
+            if causes.is_empty() {
+                eprintln!(
+                    "why-rebuilt: no fingerprint-dirty lines — nothing recompiled (clean) \
+                     or the log lacks CARGO_LOG fingerprint tracing."
+                );
+            }
+            let payload = with_provenance(
+                &generated_by,
+                serde_json::json!({
+                    "summary": summary, "per_crate": per, "causes": causes,
+                    "limitations": [
+                        "observes check units; link-time-only pain invisible",
+                        "per_crate keeps first specific cause; full counts in summary"
+                    ],
+                }),
+            );
+            write_atomic(
+                &repo_root.join(&out),
+                &serde_json::to_string_pretty(&payload)?,
+            )?;
+            // Never guess: a high unknown rate means cargo's log shape moved.
+            // Gated on the PER-CRATE rate, not summary.unknown_rate (line
+            // level): every dirty target unavoidably emits one reason-less
+            // header line, so the line-level rate is structurally inflated
+            // even when every crate resolved correctly via its detail line
+            // (measured 2026-07-02: a real capture where every crate
+            // resolved still showed 45% at the line level).
+            let crate_unknown_rate = vox_graph_reader::rebuild_causes::per_crate_unknown_rate(&per);
+            if !per.is_empty() && crate_unknown_rate > 0.2 {
+                anyhow::bail!(
+                    "{:.0}% of crates never resolved to a specific cause (exceeds 20%) — \
+                     cargo's fingerprint log format likely changed; extend \
+                     rebuild_causes::classify from the raw lines preserved in {} and add \
+                     them to the fixture",
+                    crate_unknown_rate * 100.0,
+                    out
+                );
+            }
+            eprintln!(
+                "why-rebuilt: {} dirty lines across {} crates -> {}",
+                summary.total,
+                per.len(),
+                out
+            );
+            for (class, count) in &summary.counts {
+                eprintln!("  {class:<20} {count}");
+            }
+            let hygiene: Vec<&String> = per
+                .iter()
+                .filter(|(_, c)| {
+                    !matches!(
+                        c,
+                        vox_graph_reader::rebuild_causes::CauseClass::FileDirty
+                            | vox_graph_reader::rebuild_causes::CauseClass::DepRebuilt
+                    )
+                })
+                .map(|(k, _)| k)
+                .collect();
+            if !hygiene.is_empty() {
+                eprintln!(
+                    "HYGIENE FINDINGS (recompiled without source changes): {}",
+                    hygiene
+                        .iter()
+                        .map(|s| s.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                );
+            }
+            println!("{}", serde_json::to_string_pretty(&payload)?);
+        }
     }
     Ok(())
 }
@@ -829,6 +1217,34 @@ mod tests {
     use super::*;
     use std::fs;
     use std::path::Path;
+
+    #[test]
+    fn parse_split_spec_shapes() {
+        assert_eq!(
+            parse_split_spec("vox-cli=vox-db,vox-forge").unwrap(),
+            (
+                "vox-cli".to_string(),
+                vec!["vox-db".to_string(), "vox-forge".to_string()]
+            )
+        );
+        assert!(parse_split_spec("vox-cli").is_err());
+        assert!(parse_split_spec("=a").is_err());
+        assert!(parse_split_spec("a=").is_err());
+    }
+
+    #[test]
+    fn adj_and_times_extractors() {
+        let g = serde_json::json!({"crates": {"a": ["b"], "b": []}});
+        let adj = adj_from_crate_graph(&g);
+        assert_eq!(adj.get("a").unwrap(), &vec!["b".to_string()]);
+        let audit = serde_json::json!([
+            {"crate": "a", "compile_s": "1.5"},
+            {"crate": "b", "compile_s": 2.5}
+        ]);
+        let t = times_from_audit(&audit);
+        assert_eq!(t.get("a"), Some(&1.5));
+        assert_eq!(t.get("b"), Some(&2.5));
+    }
 
     fn write_registry(repo: &Path) {
         let dir = repo.join("contracts/retrieval");
@@ -974,5 +1390,55 @@ mod vg1_cache_path_tests {
             .join(corpus_id);
         let actual = primary_cache_dir(tmp.path(), corpus_id);
         assert_eq!(actual, expected);
+    }
+}
+
+#[cfg(test)]
+mod lock_tests {
+    use super::{RefreshAction, refresh_action, with_graph_lock};
+
+    #[test]
+    fn refresh_action_skips_worktree_drift_only() {
+        assert_eq!(
+            refresh_action(&["worktree_drift".into()]),
+            RefreshAction::Skip
+        );
+        assert_eq!(
+            refresh_action(&["git_drift".into()]),
+            RefreshAction::Rebuild
+        );
+        assert_eq!(
+            refresh_action(&["worktree_drift".into(), "git_drift".into()]),
+            RefreshAction::Rebuild
+        );
+        assert_eq!(
+            refresh_action(&["lexical_lag".into()]),
+            RefreshAction::Ingest
+        );
+    }
+
+    #[test]
+    fn lock_runs_and_releases_when_free() {
+        let tmp = tempfile::tempdir().unwrap();
+        let r = with_graph_lock(tmp.path(), || Ok(42)).unwrap();
+        assert_eq!(r, Some(42));
+        assert!(
+            !tmp.path().join("refresh.lock").exists(),
+            "lock released after run"
+        );
+    }
+
+    #[test]
+    fn lock_skips_when_fresh_lock_held() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("refresh.lock"), "held").unwrap(); // mtime = now
+        let mut ran = false;
+        let r = with_graph_lock(tmp.path(), || {
+            ran = true;
+            Ok(())
+        })
+        .unwrap();
+        assert!(r.is_none(), "must skip when a fresh lock is held");
+        assert!(!ran, "guarded closure must not run while locked");
     }
 }

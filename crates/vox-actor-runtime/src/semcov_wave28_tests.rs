@@ -1,3 +1,4 @@
+#![allow(clippy::assertions_on_constants)]
 //! Adversarial unit tests for vox-actor-runtime (wave 28).
 //! Targets: llm_result, prompt_canonical, routing_telemetry, retrieval, mailbox, pid.
 
@@ -437,7 +438,10 @@ mod semcov_wave28_tests {
     #[test]
     fn mailbox_default_capacity_is_positive() {
         // Compile-time guard: build fails outright if the capacity is non-positive.
-        const _: () = assert!(DEFAULT_MAILBOX_CAPACITY >= 1, "DEFAULT_MAILBOX_CAPACITY must be positive");
+        const _: () = assert!(
+            DEFAULT_MAILBOX_CAPACITY >= 1,
+            "DEFAULT_MAILBOX_CAPACITY must be positive"
+        );
     }
 
     // Catches: ExitReason::Error must carry the string payload through Clone and PartialEq.

@@ -114,16 +114,16 @@ pub async fn uplift_low_quality_snippets(
         Ok(extracted) => {
             info!(count = extracted.len(), "tavily extract uplift succeeded");
             for hit in extracted {
-                if let Some(row) = results.iter_mut().find(|r| r.url == hit.url) {
-                    if !hit.content.trim().is_empty() {
-                        row.content = hit.content;
-                        row.engine = Some(
-                            row.engine
-                                .clone()
-                                .map(|e| format!("{e}+tavily_extract"))
-                                .unwrap_or_else(|| "tavily_extract".to_string()),
-                        );
-                    }
+                if let Some(row) = results.iter_mut().find(|r| r.url == hit.url)
+                    && !hit.content.trim().is_empty()
+                {
+                    row.content = hit.content;
+                    row.engine = Some(
+                        row.engine
+                            .clone()
+                            .map(|e| format!("{e}+tavily_extract"))
+                            .unwrap_or_else(|| "tavily_extract".to_string()),
+                    );
                 }
             }
         }

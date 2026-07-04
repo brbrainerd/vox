@@ -10,8 +10,17 @@ describe('lexicon', () => {
     expect(pick(LEXICON.mercatus, 'la')).toBe('Mercatus');
   });
   it('proper noun has no la and stays en in Latin mode', () => {
-    expect(LEXICON.mens.la).toBeUndefined();
-    expect(pick(LEXICON.mens, 'la')).toBe('Mens');
+    expect(LEXICON['set-orchestrator'].la).toBeUndefined();
+    expect(pick(LEXICON['set-orchestrator'], 'la')).toBe('Orchestrator');
+  });
+  it('de-Latinizes compute surface labels (Bundle 1 + Amendment A)', () => {
+    expect(pick(LEXICON.oratio, 'en')).toBe('Voice');
+    expect(pick(LEXICON.mens, 'en')).toBe('Training');
+    expect(pick(LEXICON.populi, 'en')).toBe('Nodes');
+  });
+  it('labels the promoted Review group and the Discovery surface', () => {
+    expect(pick(LEXICON['nav:runs'], 'en')).toBe('Review');
+    expect(pick(LEXICON.activity, 'en')).toBe('Discovery');
   });
   it('labelFor returns the id for unknown entries', () => {
     expect(labelFor('nope', 'la')).toBe('nope');

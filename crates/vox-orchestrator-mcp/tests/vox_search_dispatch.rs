@@ -16,6 +16,8 @@ fn dispatch_routes_vox_search_keys_not_graphify() {
         "\"vox_search_structural\"",
         "\"vox_search_neighbors\"",
         "\"vox_search_path\"",
+        "\"vox_search_callers\"",
+        "\"vox_search_callees\"",
         "\"vox_search_compare\"",
         "\"vox_search_rebuild\"",
     ] {

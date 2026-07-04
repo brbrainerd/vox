@@ -86,7 +86,7 @@ fn e5_chatbot_template_parses_cleanly() {
     let chatbot_src = r#"import react.use_state
 import react.use_effect
 
-@table type Message {
+table Message {
     role: str
     content: str
 }
@@ -115,7 +115,7 @@ fn e5_dashboard_template_parses_cleanly() {
     let dashboard_src = r#"import react.use_state
 import react.use_effect
 
-@table type Metric {
+table Metric {
     name: str
     value: int
     timestamp: str
@@ -144,7 +144,7 @@ routes {
 fn e5_api_template_parses_cleanly() {
     let api_src = r#"import std.json
 
-@table type Item {
+table Item {
     name: str
     value: str
 }

@@ -92,7 +92,7 @@ fn op_s062_server_contract_fixture_multi_route_has_get_stats() {
     let hir = vox_compiler::hir::lower_module(&module);
     assert!(
         hir.endpoint_fns.iter().any(|s| s.name == "get_stats"),
-        "expected @server fn get_stats in fixture"
+        "expected server get_stats in fixture"
     );
     // Express route generation is decommissioned; test only endpoint presence.
 }

@@ -810,7 +810,7 @@ mod tests {
     #[test]
     fn hir_lowering_db_filter_becomes_filter_record_ir() {
         let src = r#"
-@table type User { name: str active: bool }
+table User { name: str active: bool }
 fn f() to int {
     return len(db.User.filter({ active: true }))
 }
@@ -839,7 +839,7 @@ fn f() to int {
     #[test]
     fn hir_lowering_db_filter_count_chain_becomes_count_with_filter_args() {
         let src = r#"
-@table type User { name: str active: bool }
+table User { name: str active: bool }
 fn f() to int {
     return db.User.filter({ active: true }).count()
 }
@@ -867,7 +867,7 @@ fn f() to int {
     #[test]
     fn hir_lowering_db_filter_order_limit_chain_keeps_modifiers() {
         let src = r#"
-@table type User { name: str active: bool }
+table User { name: str active: bool }
 fn f() to Unit {
     db.User.filter({ active: true }).order_by("name", "desc").limit(5)
 }
@@ -892,7 +892,7 @@ fn f() to Unit {
     #[test]
     fn hir_lowering_preserves_table_primary_key_and_db_plan_pk() {
         let src = r#"
-@table(pk: email) type User { email: str active: bool }
+table(pk: email) User { email: str active: bool }
 fn f() to Unit {
     db.User.get("a@example.com")
 }
@@ -916,7 +916,7 @@ fn f() to Unit {
     #[test]
     fn hir_lowering_db_all_select_sets_projection() {
         let src = r#"
-@table type User { name: str active: bool }
+table User { name: str active: bool }
 fn f() to int {
     return len(db.User.all().select("name", "active"))
 }
@@ -951,7 +951,7 @@ fn f() to int {
     #[test]
     fn hir_lowering_db_where_object_builds_predicate_plan() {
         let src = r#"
-@table type User { name: str age: int active: bool }
+table User { name: str age: int active: bool }
 fn f() to int {
     return len(db.User.where({ age: { gte: 18 }, active: { eq: true } }))
 }
@@ -979,7 +979,7 @@ fn f() to int {
     #[test]
     fn hir_lowering_db_plan_capabilities_parse_chain_modifiers() {
         let src = r#"
-@table type User { name: str active: bool }
+table User { name: str active: bool }
 fn f() to Unit {
     db.User.filter({ active: true }).using("hybrid").live("users.active").scope("populi").sync().limit(5)
 }
@@ -1014,9 +1014,9 @@ fn f() to Unit {
     #[test]
     fn hir_lowering_maps_endpoint_query_and_mutation_decls() {
         let src = r#"
-@table type User { name: str active: bool }
-@query fn q1() to int { return 0 }
-@mutation fn m1() to Unit {
+table User { name: str active: bool }
+query q1() to int { return 0 }
+mutation m1() to Unit {
     db.User.insert({ name: "a", active: true })
 }
 "#;

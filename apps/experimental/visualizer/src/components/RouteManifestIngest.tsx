@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { FileJson, Plug } from 'lucide-react';
 import { extractRoutePathsFromManifest, extractVoxClientEndpoints } from '../ingest/artifacts';
 

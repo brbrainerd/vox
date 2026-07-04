@@ -32,7 +32,7 @@ In Vox, you don't write SQL strings or use a loose ORM. You define your schema w
 
 ```vox
 // vox:skip
-@table type User {
+table User {
     email: str
     points: int
 }

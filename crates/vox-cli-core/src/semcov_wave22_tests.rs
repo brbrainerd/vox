@@ -1,3 +1,4 @@
+#![allow(clippy::assertions_on_constants)]
 //! Adversarial unit tests for vox-cli-core — semcov wave 22.
 //!
 //! Targets: artifact_policy, command_contract, cli_args, diagnostics, constants,

@@ -10,7 +10,7 @@ pub async fn arena_show() -> Result<()> {
     let codex = &ctx.db;
     let user_id = &ctx.user_id;
 
-    let event = ludus_db::get_active_arena_event(&codex).await?;
+    let event = ludus_db::get_active_arena_event(codex).await?;
 
     println!("{}", "╔══════════════════════════════════╗".bright_cyan());
     println!("{}", "║       🏟️  THE ARENA EVENT       ║".bright_cyan());
@@ -33,7 +33,7 @@ pub async fn arena_show() -> Result<()> {
         );
         println!();
 
-        let (my_xp, my_lumens) = ludus_db::get_arena_contribution(&codex, &ev.id, &user_id).await?;
+        let (my_xp, my_lumens) = ludus_db::get_arena_contribution(codex, &ev.id, user_id).await?;
         println!(
             "  Your Contribution:  ⭐ {} XP  ✦ {} Lumens",
             my_xp.to_string().bright_cyan(),
@@ -53,8 +53,8 @@ pub async fn arena_join() -> Result<()> {
     let codex = &ctx.db;
     let user_id = &ctx.user_id;
 
-    if let Some(ev) = ludus_db::get_active_arena_event(&codex).await? {
-        ludus_db::join_arena_event(&codex, &ev.id, &user_id).await?;
+    if let Some(ev) = ludus_db::get_active_arena_event(codex).await? {
+        ludus_db::join_arena_event(codex, &ev.id, user_id).await?;
         println!(
             "{}",
             format!("🏟️  Arena Event Joined! Ready for quest: {}", ev.name)
@@ -66,7 +66,7 @@ pub async fn arena_join() -> Result<()> {
             "type": "arena_joined",
             "arena_id": ev.id,
         });
-        let res = vox_gamify::event_router::route_event(&codex, &user_id, &event_json).await?;
+        let res = vox_gamify::event_router::route_event(codex, user_id, &event_json).await?;
         crate::commands::extras::ludus::print_route_result(&res);
     } else {
         println!("  ❌ No active arena events to join.");

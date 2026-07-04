@@ -453,14 +453,13 @@ pub fn merge_field_provenance_from_metadata(
         return report;
     };
     for entry in arr {
-        if let Ok(prov) = serde_json::from_value::<FieldProvenanceEntry>(entry.clone()) {
-            if !report
+        if let Ok(prov) = serde_json::from_value::<FieldProvenanceEntry>(entry.clone())
+            && !report
                 .field_provenance
                 .iter()
                 .any(|p| p.field == prov.field && p.origin == prov.origin)
-            {
-                report.field_provenance.push(prov);
-            }
+        {
+            report.field_provenance.push(prov);
         }
     }
     report
