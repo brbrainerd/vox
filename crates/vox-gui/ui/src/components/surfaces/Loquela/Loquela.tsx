@@ -20,6 +20,14 @@ import {
 import { DriveConsole } from './DriveConsole';
 import { defaultControl, type ControlState } from '../../../lib/driveConsole';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
+import { IntentPanel } from './IntentPanel';
+import {
+  EMPTY_INTENT,
+  hasIntent,
+  composeDescription,
+  effortToPriority,
+  type IntentFields,
+} from '../../../lib/intentSpec';
 
 // LQ_MODES kept for slash command hint lookup (/plan, /verify, /act).
 // The Segment UI has been replaced by DriveConsole. Remove in Track D when
@@ -149,6 +157,8 @@ export function Loquela({
   const [histIdx,   setHistIdx]   = useState(-1);
   const [expanded,  setExpanded]  = useState(false);
   const [runtimeTiers, setRuntimeTiers] = useState(LQ_TIERS);
+  const [intent, setIntent] = useState<IntentFields>(EMPTY_INTENT);
+  const [intentOpen, setIntentOpen] = useState(false);
 
   const taRef = useRef<HTMLTextAreaElement>(null);
 
@@ -401,10 +411,13 @@ export function Loquela({
     taRef.current?.focus();
   };
 
+  const canSend = !!text.trim() || !!intent.goal.trim();
+
   const send = () => {
-    if (!text.trim()) return;
+    if (!canSend) return;
     const payload = {
-      description: text.trim(),
+      description: composeDescription(text, intent),
+      priority: effortToPriority(intent.effort),
       active_skill: activeSkill?.id,
       mode,
       tier,
@@ -417,6 +430,7 @@ export function Loquela({
     setHistory(h => [text.trim(), ...h].slice(0, COMPOSER_HISTORY_CAP));
     setHistIdx(-1);
     setText("");
+    setIntent(EMPTY_INTENT);
   };
 
   const onKey = (e: React.KeyboardEvent) => {
@@ -565,9 +579,9 @@ export function Loquela({
             <button
               type="button"
               onClick={send}
-              disabled={!text.trim()}
+              disabled={!canSend}
               aria-label="Run (Enter)"
-              className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border px-3 font-display text-[11px] uppercase tracking-[0.18em] transition ${text.trim() ? "border-brass/40 bg-brass/15 text-brass hover:bg-brass/25 shadow-[0_0_24px_-8px_rgb(var(--brass)_/_0.6)]" : "border-white/5 bg-white/[0.02] text-zinc-600 cursor-not-allowed"}`}
+              className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border px-3 font-display text-[11px] uppercase tracking-[0.18em] transition ${canSend ? "border-brass/40 bg-brass/15 text-brass hover:bg-brass/25 shadow-[0_0_24px_-8px_rgb(var(--brass)_/_0.6)]" : "border-white/5 bg-white/[0.02] text-zinc-600 cursor-not-allowed"}`}
             >
               <Icon.send className="size-3.5" />
               {dryRun ? "Dry-run" : "Run"}
@@ -575,6 +589,10 @@ export function Loquela({
             </button>
           )}
         </div>
+
+        {intentOpen && (
+          <IntentPanel intent={intent} onChange={(p) => setIntent((i) => ({ ...i, ...p }))} />
+        )}
 
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-white/5 pt-2 text-[10px]">
           <DriveConsole
@@ -596,6 +614,16 @@ export function Loquela({
               {queueDepth} queued
             </button>
           )}
+
+          <button type="button" aria-label="Structured intent" aria-expanded={intentOpen}
+            onClick={() => setIntentOpen((o) => !o)}
+            className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 transition ${
+              hasIntent(intent) || intentOpen
+                ? 'border-brass/40 bg-brass/10 text-brass'
+                : 'border-border-subtle bg-overlay-subtle text-text-secondary hover:border-white/20'
+            }`}>
+            <Icon.list className="size-3" aria-hidden="true" /> Intent{hasIntent(intent) ? ' ·' : ''}
+          </button>
 
           <div className="relative">
             <button type="button" aria-expanded={tierOpen} aria-label="Choose model tier" onClick={() => { setTierOpen(o => !o); setSkillOpen(false); }} className="inline-flex items-center gap-1 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 text-text-secondary hover:border-white/20">

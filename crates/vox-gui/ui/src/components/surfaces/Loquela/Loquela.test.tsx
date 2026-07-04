@@ -87,4 +87,39 @@ describe('Loquela', () => {
     fireEvent.keyDown(ta, { key: 'Enter' });
     expect(onSubmit).toHaveBeenCalled();
   });
+
+  it('intent panel is collapsed by default and toggles open', () => {
+    renderLoquela();
+    expect(screen.queryByLabelText('Goal')).toBeNull();
+    const toggle = screen.getByRole('button', { name: /structured intent/i });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(toggle);
+    expect(screen.getByLabelText('Goal')).toBeDefined();
+  });
+
+  it('serializes intent fields into the submitted description and priority', () => {
+    const onSubmit = vi.fn();
+    renderLoquela({ onSubmit });
+    fireEvent.click(screen.getByRole('button', { name: /structured intent/i }));
+    fireEvent.change(screen.getByLabelText('Goal'), { target: { value: 'ship dark mode' } });
+    fireEvent.change(screen.getByLabelText('Acceptance criteria'), { target: { value: 'toggle persists' } });
+    fireEvent.change(screen.getByLabelText('Effort'), { target: { value: 'urgent' } });
+    const ta = screen.getByLabelText('Task composer');
+    fireEvent.change(ta, { target: { value: 'add a theme switch' } });
+    fireEvent.keyDown(ta, { key: 'Enter' });
+    const payload = onSubmit.mock.calls[0][0];
+    expect(payload.description).toContain('add a theme switch');
+    expect(payload.description).toContain('## Goal\nship dark mode');
+    expect(payload.description).toContain('## Acceptance criteria\ntoggle persists');
+    expect(payload.priority).toBe('urgent');
+  });
+
+  it('goal alone is submittable without free text', () => {
+    const onSubmit = vi.fn();
+    renderLoquela({ onSubmit });
+    fireEvent.click(screen.getByRole('button', { name: /structured intent/i }));
+    fireEvent.change(screen.getByLabelText('Goal'), { target: { value: 'ship dark mode' } });
+    fireEvent.click(screen.getByRole('button', { name: /run/i }));
+    expect(onSubmit.mock.calls[0][0].description).toBe('ship dark mode');
+  });
 });
