@@ -125,7 +125,7 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
     case 'runs':
       return <RunsView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'tasks':
-      return <TasksView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
+      return <TasksView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} attention={props.attention} />;
     case 'settings':
       return (
         <SettingsView

@@ -9,6 +9,9 @@ export interface AttentionInbox {
   needsYou: FeedbackRow[];
   withheld: FeedbackRow[];
   blockedTasksCount: number;
+  /** Raw hopper task rows, for consumers (e.g. TasksView) that need the full
+   *  per-task list rather than just the derived blocked count. */
+  hopperTasks: HopperTaskDto[];
   /** Items awaiting a human decision: pending approvals + needs-you feedback. */
   totalCount: number;
   refresh(): Promise<void>;
@@ -21,6 +24,7 @@ export function useAttentionInbox(): AttentionInbox {
   const [needsYou, setNeedsYou] = useState<FeedbackRow[]>([]);
   const [withheld, setWithheld] = useState<FeedbackRow[]>([]);
   const [blockedTasksCount, setBlockedTasksCount] = useState(0);
+  const [hopperTasks, setHopperTasks] = useState<HopperTaskDto[]>([]);
 
   const refresh = useCallback(async () => {
     const emptyFeedback = { needsYou: [] as FeedbackRow[], withheld: [] as FeedbackRow[] };
@@ -36,6 +40,7 @@ export function useAttentionInbox(): AttentionInbox {
     setWithheld(safeFeedback.withheld ?? []);
     const gates = new Set<number>((safeFeedback.needsYou ?? []).flatMap((f) => f.gates ?? []));
     setBlockedTasksCount(safeTasks.filter((t) => gates.has(t.task_id)).length);
+    setHopperTasks(safeTasks);
   }, []);
 
   useEffect(() => {
@@ -63,5 +68,5 @@ export function useAttentionInbox(): AttentionInbox {
     await refresh();
   }, [refresh]);
 
-  return { approvals, needsYou, withheld, blockedTasksCount, totalCount: approvals.length + needsYou.length, refresh, resolveApproval, resolveFeedback };
+  return { approvals, needsYou, withheld, blockedTasksCount, hopperTasks, totalCount: approvals.length + needsYou.length, refresh, resolveApproval, resolveFeedback };
 }

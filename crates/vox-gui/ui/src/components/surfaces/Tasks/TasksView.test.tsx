@@ -37,15 +37,16 @@ vi.mock('@tauri-apps/api/event', () => ({
 vi.mock('../../../transport', () => ({
   feedbackList: vi.fn().mockResolvedValue({ needsYou: [], withheld: [] }),
   listenFeedbackChanged: vi.fn().mockResolvedValue(() => {}),
+  hopperList: vi.fn().mockResolvedValue([]),
 }));
 
-import { feedbackList } from '../../../transport';
+import { feedbackList, hopperList } from '../../../transport';
 import { TasksView } from './TasksView';
 
 describe('TasksView', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(invoke).mockResolvedValue(MOCK_TASKS);
+    vi.mocked(hopperList).mockResolvedValue(MOCK_TASKS as any);
   });
 
   it('renders the Tasks heading', async () => {
@@ -62,7 +63,7 @@ describe('TasksView', () => {
   });
 
   it('shows empty-state messages when lists are empty', async () => {
-    vi.mocked(invoke).mockResolvedValueOnce([]);
+    vi.mocked(hopperList).mockResolvedValueOnce([]);
     render(<TasksView />);
     expect(screen.getByPlaceholderText('Add a task…')).toBeDefined();
     await waitFor(() => {
@@ -142,7 +143,7 @@ describe('TasksView', () => {
       ],
       withheld: [],
     });
-    vi.mocked(invoke).mockResolvedValue([
+    vi.mocked(hopperList).mockResolvedValue([
       {
         item_id: 'task-blocked',
         intent: 'A blocked task',
@@ -150,8 +151,66 @@ describe('TasksView', () => {
         state: 'inbox',
         task_id: 999,
       },
-    ]);
+    ] as any);
     render(<TasksView />);
+    await waitFor(() => {
+      expect(screen.getAllByText(/Blocked/i).length).toBeGreaterThan(0);
+      expect(screen.getByText(/waiting on Needs You/i)).toBeDefined();
+    });
+  });
+
+  it('sources rows from the shared attention inbox and does not fetch/poll on its own', async () => {
+    const attention = {
+      approvals: [],
+      needsYou: [],
+      withheld: [],
+      blockedTasksCount: 0,
+      totalCount: 0,
+      hopperTasks: [
+        { item_id: 'task-1', intent: 'Task 1', priority: 1, state: 'assigned', task_id: 1 },
+        { item_id: 'task-2', intent: 'Task 2', priority: 2, state: 'inbox', task_id: 2 },
+      ],
+      refresh: vi.fn(),
+      resolveApproval: vi.fn(),
+      resolveFeedback: vi.fn(),
+    };
+    render(<TasksView attention={attention as any} />);
+    await waitFor(() => {
+      expect(screen.getByText('Task 1')).toBeDefined();
+      expect(screen.getByText('Task 2')).toBeDefined();
+    });
+    expect(invoke).not.toHaveBeenCalled();
+    expect(hopperList).not.toHaveBeenCalled();
+    expect(feedbackList).not.toHaveBeenCalled();
+    expect(mockListen).not.toHaveBeenCalled();
+  });
+
+  it('derives blocked lifecycle from attention.needsYou gates, not its own fetch, when attention is provided', async () => {
+    const attention = {
+      approvals: [],
+      withheld: [],
+      blockedTasksCount: 1,
+      totalCount: 1,
+      needsYou: [
+        {
+          feedbackId: 'F-1',
+          kind: 'clarification',
+          prompt: 'Which database?',
+          options: ['sqlite', 'postgres'],
+          gates: [999],
+          doubtedTaskId: null,
+          surface: 'needs_you',
+          infoGainBits: 0.8,
+        },
+      ],
+      hopperTasks: [
+        { item_id: 'task-blocked', intent: 'A blocked task', priority: 1, state: 'inbox', task_id: 999 },
+      ],
+      refresh: vi.fn(),
+      resolveApproval: vi.fn(),
+      resolveFeedback: vi.fn(),
+    };
+    render(<TasksView attention={attention as any} />);
     await waitFor(() => {
       expect(screen.getAllByText(/Blocked/i).length).toBeGreaterThan(0);
       expect(screen.getByText(/waiting on Needs You/i)).toBeDefined();
