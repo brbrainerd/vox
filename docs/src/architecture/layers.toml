@@ -219,7 +219,6 @@ vox-skills              = { layer = 3, staleness_exempt = true }
 vox-cli-core            = { layer = 3 }
 
 vox-orchestrator-mcp    = { layer = 3, max_loc = 40_000 }        # Phase 4 extraction
-vox-mcp-llm-bridge      = { layer = 3, orphan_exempt = true }                          # MCP LLM inference bridge (extracted from vox-orchestrator-mcp)
 vox-orchestrator-queue  = { layer = 3 }                          # Phase 5 extraction
 vox-orchestrator-driver = { layer = 3 }                          # CLI/MCP embedded orchestrator driver (2026 debt burndown)
 vox-search              = { layer = 3 }
@@ -264,7 +263,7 @@ vox-cli-share          = { layer = 5, kind = "library" }   # `vox share` public-
 vox-integration-tests = { layer = 5, kind = "test-only" }
 vox-orchestrator-d    = { layer = 5, kind = "binary" }
 vox-cargo-shim        = { layer = 5, kind = "binary", staleness_exempt = true }  # fair-FIFO cargo shim (build broker)
-vox-build-queue       = { layer = 1, staleness_exempt = true }                   # queue/metrics lib for the build broker
+vox-build-queue       = { layer = 1, staleness_exempt = true, orphan_exempt = true }  # queue/metrics lib for the build broker; sole consumer is vox-cargo-shim, which is excluded from the cargo workspace ([workspace.exclude], since its bin must be literally named `cargo`) so the dep edge never appears in `cargo metadata`
 vox-graph-reader      = { layer = 1, staleness_exempt = true }                   # read-only Vox Graph graph.json traversal
 vox-audit             = { layer = 5, kind = "binary" }                   # umbrella CR-L gate runner; contracts/ci/vox-audit-contract.v1.yaml
 voxup                 = { layer = 5, kind = "binary" }
@@ -291,6 +290,11 @@ from   = "vox-ml-cli"
 to     = "vox-cli"
 reason = "Optional `mens-dei` workflow path shells out through `vox_cli::commands::build`, `build_service`, and `fs_utils` when `workflow-runtime` is disabled. Prefer extracting a shared L3 driver crate over tightening `vox-cli` deps."
 
+[[known_inversions]]
+from   = "vox-config"
+to     = "vox-git"
+reason = "vox-config::graphify (corpus-staleness check) calls only vox_git::read_only, the dependency-free raw-`git status --porcelain` shim in read_cmd.rs — it never touches the gix-backed GitBridge machinery that makes vox-git L3. read_only has no deps beyond std + thiserror, so it is itself L0/L1-shaped; it is just physically colocated with the heavier gix bridge. Prefer extracting read_cmd.rs into a small L1 crate (e.g. vox-git-read) shared by vox-config and vox-git's other L3+ callers over tightening vox-config's layer."
+
 # ── Rule 11 (P3-T7): Forbidden code patterns ─────────────────────────────────
 # Forbid raw git invocations outside the concurrency-policy wrapper.
 # See docs/src/architecture/git-concurrency-policy.md.
@@ -309,6 +313,13 @@ exempt_files     = [
     "crates/vox-git/src/read_cmd.rs",
     # Isolated per-test tempdir fixtures; no shared-repo concurrency risk.
     "crates/vox-effort-audit/tests/support/mod.rs",
+    # Skill install: shallow-clones a user-supplied git URL into a fresh
+    # tempfile::tempdir() (never a shared/working repo), with protocol
+    # allowlisting, a stall guard, and CREATE_NO_WINDOW already applied.
+    # vox-plugin-host is deliberately dependency-free (see module doc on
+    # user_install.rs) — routing through GitExec would add an L3 dep edge
+    # for a one-shot operation with no shared-repo concurrency risk.
+    "crates/vox-plugin-host/src/user_install.rs",
     "crates/vox-orchestrator-mcp/src/git_exec.rs",
     "crates/vox-build-meta/src/lib.rs",
     "crates/vox-cli/src/commands/ci/data_storage_guard.rs",
