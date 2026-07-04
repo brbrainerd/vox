@@ -464,6 +464,18 @@ jobs:
       - name: Retired symbol documentation guard
         run: ./target/debug/vox --quiet ci retired-symbol-check
 
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Install vox-gui/ui deps (for gui-honesty's tsc/vitest checks)
+        run: |
+          cd crates/vox-gui/ui
+          pnpm install --prefer-offline
+
       - name: GUI honesty gate
         run: cargo run -p vox-cli -- ci gui-honesty
 
