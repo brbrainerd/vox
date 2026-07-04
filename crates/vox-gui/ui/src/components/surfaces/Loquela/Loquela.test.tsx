@@ -122,4 +122,14 @@ describe('Loquela', () => {
     fireEvent.click(screen.getByRole('button', { name: /run/i }));
     expect(onSubmit.mock.calls[0][0].description).toBe('ship dark mode');
   });
+
+  it('collapses the intent panel after a structured submit', () => {
+    const onSubmit = vi.fn();
+    renderLoquela({ onSubmit });
+    fireEvent.click(screen.getByRole('button', { name: /structured intent/i }));
+    fireEvent.change(screen.getByLabelText('Goal'), { target: { value: 'ship dark mode' } });
+    fireEvent.click(screen.getByRole('button', { name: /run/i }));
+    expect(screen.queryByLabelText('Goal')).toBeNull();
+    expect(screen.getByRole('button', { name: /structured intent/i }).getAttribute('aria-expanded')).toBe('false');
+  });
 });

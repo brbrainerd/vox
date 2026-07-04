@@ -431,6 +431,7 @@ export function Loquela({
     setHistIdx(-1);
     setText("");
     setIntent(EMPTY_INTENT);
+    setIntentOpen(false);
   };
 
   const onKey = (e: React.KeyboardEvent) => {
