@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -215,5 +215,28 @@ describe('TasksView', () => {
       expect(screen.getAllByText(/Blocked/i).length).toBeGreaterThan(0);
       expect(screen.getByText(/waiting on Needs You/i)).toBeDefined();
     });
+  });
+
+  it('mutations (e.g. cancel) refresh via the shared attention inbox, not the local self-fetch', async () => {
+    const attention = {
+      approvals: [],
+      needsYou: [],
+      withheld: [],
+      blockedTasksCount: 0,
+      totalCount: 0,
+      hopperTasks: [
+        { item_id: 'task-1', intent: 'Task 1', priority: 1, state: 'assigned', task_id: 1 },
+      ],
+      refresh: vi.fn().mockResolvedValue(undefined),
+      resolveApproval: vi.fn(),
+      resolveFeedback: vi.fn(),
+    };
+    vi.mocked(invoke).mockResolvedValue(undefined);
+    render(<TasksView attention={attention as any} />);
+    await waitFor(() => expect(screen.getByText('Task 1')).toBeDefined());
+    fireEvent.click(screen.getByTitle('Cancel task'));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('hopper_cancel', { itemId: 'task-1' }));
+    await waitFor(() => expect(attention.refresh).toHaveBeenCalled());
+    expect(hopperList).not.toHaveBeenCalled();
   });
 });
