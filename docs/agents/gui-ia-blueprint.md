@@ -1,7 +1,7 @@
 ---
-title: "GUI IA Reorg Blueprint (pre-ratification)"
+title: "GUI IA Reorg Blueprint (RATIFIED)"
 category: "Architecture SSOTs"
-status: "PRE-RATIFICATION — HUMAN GATE REQUIRED (Phase J)"
+status: "RATIFIED (2026-06-26, Phase J gate passed)"
 generated: "2026-06-26"
 source_dimensions:
   - graphify-out/gui-ia/structural-coverage.json
@@ -17,7 +17,7 @@ registry_ssot: crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts
 component_dispatch: crates/vox-gui/ui/src/components/layout/surfaceComponents.tsx
 ---
 
-# GUI IA Reorg Blueprint — pre-ratification
+# GUI IA Reorg Blueprint — RATIFIED
 
 This is the synthesizer output of Plan 2 (Phase I). **No GUI code is changed.** Every row carries a
 RECOMMENDED default decision so the human ratifier edits exceptions only. Plan 3 (the actual reorg) is

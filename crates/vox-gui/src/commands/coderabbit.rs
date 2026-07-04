@@ -54,12 +54,15 @@ async fn run_vox(app: &AppHandle, args: Vec<String>) -> Result<String, String> {
 }
 
 /// Build the `semantic-submit` arg vector shared by plan (preview) and run (execute).
+/// `full_repo` sweeps every tracked file (`--full-repo`); `--since` takes precedence
+/// in the CLI, so the two are mutually exclusive here.
 fn submit_args(
     repo: &str,
     since: &str,
     cap: u32,
     rank_weights: &str,
     top: Option<u32>,
+    full_repo: bool,
     execute: bool,
 ) -> Vec<String> {
     let mut a = vec![
@@ -67,13 +70,17 @@ fn submit_args(
         "coderabbit".into(),
         "semantic-submit".into(),
         repo.into(),
-        "--since".into(),
-        since.into(),
         "--max-files-per-pr".into(),
         cap.to_string(),
         "--rank-weights".into(),
         rank_weights.into(),
     ];
+    if full_repo {
+        a.push("--full-repo".into());
+    } else {
+        a.push("--since".into());
+        a.push(since.into());
+    }
     if let Some(n) = top {
         a.push("--top".into());
         a.push(n.to_string());
@@ -84,6 +91,14 @@ fn submit_args(
     a
 }
 
+/// Scope guard shared by plan and run: full-repo needs no date; date mode needs one.
+fn validate_scope(since: &str, full_repo: bool) -> Result<(), String> {
+    if !full_repo && since.trim().is_empty() {
+        return Err("Pick a 'modified since' date or enable full-repo.".into());
+    }
+    Ok(())
+}
+
 /// Preview: plan-only (no `--execute`); returns the written slice manifest.
 #[tauri::command]
 pub async fn coderabbit_plan(
@@ -91,10 +106,11 @@ pub async fn coderabbit_plan(
     since: String,
     cap: u32,
     rank_weights: String,
+    top: Option<u32>,
+    full_repo: Option<bool>,
 ) -> Result<Value, String> {
-    if since.trim().is_empty() {
-        return Err("Pick a 'modified since' date first.".into());
-    }
+    let full_repo = full_repo.unwrap_or(false);
+    validate_scope(&since, full_repo)?;
     let root = repo_root();
     run_vox(
         &app,
@@ -103,7 +119,8 @@ pub async fn coderabbit_plan(
             &since,
             cap,
             &rank_weights,
-            None,
+            top,
+            full_repo,
             false,
         ),
     )
@@ -121,10 +138,10 @@ pub async fn coderabbit_run_async(
     cap: u32,
     rank_weights: String,
     top: Option<u32>,
+    full_repo: Option<bool>,
 ) -> Result<Value, String> {
-    if since.trim().is_empty() {
-        return Err("Pick a 'modified since' date first.".into());
-    }
+    let full_repo = full_repo.unwrap_or(false);
+    validate_scope(&since, full_repo)?;
     // Reject a second concurrent sweep: two `--execute` runs would open duplicate PRs
     // and interleave writes to `.coderabbit/run-state.json`.
     if SWEEP_RUNNING
@@ -143,6 +160,7 @@ pub async fn coderabbit_run_async(
                 cap,
                 &rank_weights,
                 top,
+                full_repo,
                 true,
             ),
         )

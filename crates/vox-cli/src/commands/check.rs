@@ -62,9 +62,8 @@ fn is_script_like(source: &str) -> bool {
 /// diagnostics are printed as JSON to stdout (parse failures already use JSON when `json` is true).
 pub async fn run(args: &CheckArgs) -> Result<()> {
     let file = &args.file;
-    let json = args.output_format == "json"
-        || args.for_llm
-        || std::env::var("VOX_CLI_GLOBAL_JSON").ok().as_deref() == Some("1");
+    let json =
+        args.output_format == "json" || args.for_llm || crate::pipeline::global_json_enabled();
 
     if args.for_llm {
         let source = vox_bounded_fs::read_utf8_path_capped(file)?;

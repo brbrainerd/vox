@@ -1,11 +1,6 @@
 import React from 'react';
 import { CommandCardsView, SurfaceCard } from './CommandCardsView';
-import { ScientiaDashboard } from './Scientia/ScientiaDashboard';
-import { ClaimsView } from './Scientia/ClaimsView';
-import { DiscoveryReviewView } from './Scientia/DiscoveryReviewView';
-import { DiscoveryReview } from './Scientia/DiscoveryReview';
-import { DiscoveryInbox } from './Scientia/DiscoveryInbox';
-import { ArchivePanel } from './Scientia/ArchivePanel';
+import { ScientiaSurface } from './Scientia/ScientiaSurface';
 import { CoverageView } from './Coverage/CoverageView';
 import { ResearchView } from './Research/ResearchView';
 import { PublicationsView } from './Publications/PublicationsView';
@@ -42,12 +37,7 @@ function commandSurface(
  * change. Each command below is an arg-free, read-only CLI command.
  */
 export const surfaceDecorators: Record<string, React.ComponentType<SurfaceDecoratorProps>> = {
-  scientia: ScientiaDashboard,
-  'discovery-review': DiscoveryReview,
-  'discovery-inbox': DiscoveryInbox,
-  'archive-panel': ArchivePanel,
-  claims: ClaimsView,
-  review: DiscoveryReviewView,
+  scientia: ScientiaSurface,
   coverage: CoverageView,
   mens: commandSurface('Vox Mens', 'ML training & local models', [
     { key: 'status', title: 'Training Status', description: 'Latest run telemetry', path: ['mens', 'status'] },

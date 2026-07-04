@@ -18,6 +18,10 @@ pub fn emit_script_lib(module: &HirModule) -> String {
 }
 
 pub fn emit_lib(module: &HirModule) -> String {
+    // Register typedefs so `@ai(structured_output = T)` emission can embed T's
+    // full JSON Schema (guard restores prior state on drop; covers the whole
+    // emit including MCP tools/resources and the script lane via emit_script_lib).
+    let _ai_schema_guard = super::ai_schema_ctx::enter_module_types(&module.types);
     let mut out = String::new();
     out.push_str("use serde::{Serialize, Deserialize};\n");
 

@@ -80,8 +80,8 @@ test.describe('Vox Dashboard', () => {
       await expect(page.getByText('Quick Harness lives in the composer')).toBeVisible();
       await page.getByRole('button', { name: 'Focus composer' }).click();
 
-      // Runs view under Runs & Approvals parent nav.
-      await page.getByRole('button', { name: 'Runs & Approvals' }).click();
+      // Runs view under Review parent nav.
+      await page.getByRole('button', { name: 'Review' }).click();
       await expect(page.getByText('gui-run-1').first()).toBeVisible();
     }
   });

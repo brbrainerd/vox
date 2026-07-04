@@ -754,6 +754,8 @@ profiles:
 
 #[cfg(test)]
 mod b6_champion_challenger_tests {
+    // Rust 2024 made std::env::{set_var,remove_var} unsafe; mutated single-threaded.
+    #![allow(unsafe_code)]
     use super::*;
 
     fn make_router_with_champion(domain: &str, path: &str) -> DomainRouter {
@@ -1036,6 +1038,6 @@ mod b6_champion_challenger_tests {
         let router = DomainRouter::new();
         let (_, tel) = router.route_by_signal("lane:unknown_xyz");
         assert!(tel.is_fallback);
-        assert!(tel.adapter_name.is_empty() || tel.adapter_name.is_empty());
+        assert!(tel.adapter_name.is_empty());
     }
 }

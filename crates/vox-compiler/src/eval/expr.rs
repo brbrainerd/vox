@@ -1079,7 +1079,6 @@ fn apply_closure_method(
 
 #[cfg(test)]
 mod interp_exhaustiveness_tests {
-
     use crate::feature_matrix::{ExprFeature, Feature, unsupported_diagnostic};
     use crate::target::Target;
     use crate::typeck::diagnostics::codes;
