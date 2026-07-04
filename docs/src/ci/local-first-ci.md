@@ -2,7 +2,6 @@
 title: "Local-first CI: queue signal, failure signal, and agent contract"
 description: "The vox ci queue SSOT signal, superseded/stale auto-clearing, the async failure signal, and the hooks that keep agents on the local runner fleet."
 category: "CI & Quality"
-last_updated: "2026-07-02"
 training_eligible: true
 
 schema_type: "TechArticle"

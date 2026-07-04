@@ -376,8 +376,10 @@ The local runner fleet is the CI plane. For agents:
   non-tag; stale-clearing self-disables when the fleet is down.
 - **No new hosted jobs / unguarded workflows:** GitHub-hosted `runs-on` needs a
   row in `docs/src/ci/github-hosted-exceptions.md` (`vox ci runner-policy-check`);
-  push/PR workflows need a `concurrency:` block or a row in
-  `docs/src/ci/concurrency-exceptions.md` (`vox ci workflow-concurrency-guard`).
+  push/PR workflows need a top-level `concurrency:` block containing
+  `cancel-in-progress: true` — a bare group string or a non-cancelling group
+  does not count — or a row in `docs/src/ci/concurrency-exceptions.md`
+  (`vox ci workflow-concurrency-guard`).
 
 Details: `docs/src/ci/local-first-ci.md`.
 

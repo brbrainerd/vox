@@ -2,7 +2,6 @@
 title: "Workflow concurrency exceptions"
 description: "Registered exceptions for workflows that intentionally omit cancel-in-progress: true (cancelling mid-run would be wrong)."
 category: "CI & Quality"
-last_updated: "2026-07-02"
 training_eligible: true
 
 schema_type: "TechArticle"

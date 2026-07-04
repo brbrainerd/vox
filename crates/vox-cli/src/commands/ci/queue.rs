@@ -347,9 +347,7 @@ pub fn build_snapshot(
 }
 
 fn snapshot_path() -> PathBuf {
-    crate::fs_utils::user_home_dir()
-        .join(".vox")
-        .join("ci-queue-snapshot.json")
+    vox_config::paths::dot_vox_user_dir().join("ci-queue-snapshot.json")
 }
 
 /// Atomic write (temp + rename): parallel agent sessions and the autoscaler
@@ -612,7 +610,17 @@ fn clear_runs(snap: &QueueSnapshot, dry_run: bool) -> Result<()> {
             plan.len()
         );
         let now = now_secs();
-        match live_snapshot(DEFAULT_TTL_MINS, now, cancelled_ids.clone()) {
+        // Merge with the snapshot's existing cancelled_last_sweep rather than
+        // replacing it wholesale — an interleaved autoscaler tick's escalation
+        // ids must survive a manual `--clear` sweep that cancels a different
+        // (or empty) set of runs.
+        let mut merged_cancelled = snap.cancelled_last_sweep.clone();
+        for id in &cancelled_ids {
+            if !merged_cancelled.contains(id) {
+                merged_cancelled.push(*id);
+            }
+        }
+        match live_snapshot(DEFAULT_TTL_MINS, now, merged_cancelled) {
             Ok(s) => println!("post-clear: {}", s.advice),
             Err(e) => {
                 // gh hiccup right after successful cancels: the fresh ids must
@@ -780,7 +788,8 @@ pub fn auto_clear_and_snapshot(dry_run: bool, now: i64) -> Result<(u32, u32)> {
         for r in &plan {
             // Escalate if the previous sweep already cancelled this id.
             let force = r.status == "in_progress" && prev_cancelled.contains(&r.id);
-            if cancel_run(r.id, force).is_err() {
+            if let Err(e) = cancel_run(r.id, force) {
+                eprintln!("runner-scale: cancel {} failed (continuing): {e:#}", r.id);
                 continue; // 409: completed meanwhile — next tick self-corrects
             }
             cancelled_ids.push(r.id);
@@ -1129,6 +1138,26 @@ mod tests {
         // Still ANDed: loop keyword without gh, or without sleep, is allowed.
         assert!(!hook_guard_matches("while($true){ cargo test; sleep 15 }"));
         assert!(!hook_guard_matches("foreach($f in ls){ gh run view $f }"));
+    }
+
+    /// The `.claude/settings.json` PreToolUse wrapper greps for a fixed
+    /// substring of [`HOOK_GUARD_DENY`] to decide whether an exit-2 is a real
+    /// deny vs. a stale-binary clap error. If that wording ever changes here
+    /// without updating the wrapper, the hook silently fails open forever —
+    /// this test fails first instead.
+    #[test]
+    fn settings_json_wrapper_matches_deny_marker() {
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../.claude/settings.json");
+        let settings = std::fs::read_to_string(path).expect("read .claude/settings.json");
+        assert!(
+            settings.contains("Local-first CI"),
+            "settings.json wrapper must grep a substring of HOOK_GUARD_DENY \
+             (currently \"Local-first CI\"); update both together"
+        );
+        assert!(
+            HOOK_GUARD_DENY.contains("Local-first CI"),
+            "HOOK_GUARD_DENY must contain the exact marker the wrapper greps for"
+        );
     }
 
     #[test]

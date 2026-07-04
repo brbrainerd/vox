@@ -193,7 +193,11 @@ pub fn run_cargo(req: &CargoRequest) -> Result<Output> {
         cmd.env("CARGO_BUILD_BUILD_DIR", bd);
     }
     for (k, v) in &req.env {
-        cmd.env(k, v);
+        // Never let caller-supplied env reintroduce the policy-checked paths
+        // set above (the artifact_policy check would otherwise be bypassable).
+        if k != "CARGO_TARGET_DIR" && k != "CARGO_BUILD_BUILD_DIR" {
+            cmd.env(k, v);
+        }
     }
 
     let output = cmd.output().context("Failed to run cargo")?;
@@ -262,7 +266,11 @@ pub fn run_cargo_inherit(req: &CargoRequest) -> Result<std::process::ExitStatus>
         cmd.env("CARGO_BUILD_BUILD_DIR", bd);
     }
     for (k, v) in &req.env {
-        cmd.env(k, v);
+        // Never let caller-supplied env reintroduce the policy-checked paths
+        // set above (the artifact_policy check would otherwise be bypassable).
+        if k != "CARGO_TARGET_DIR" && k != "CARGO_BUILD_BUILD_DIR" {
+            cmd.env(k, v);
+        }
     }
     cmd.stdin(std::process::Stdio::null());
     cmd.stdout(std::process::Stdio::inherit());
@@ -386,7 +394,11 @@ pub fn run_cargo_spawn(req: &CargoRequest) -> Result<MonitoredCargoChildSync> {
         cmd.env("CARGO_BUILD_BUILD_DIR", bd);
     }
     for (k, v) in &req.env {
-        cmd.env(k, v);
+        // Never let caller-supplied env reintroduce the policy-checked paths
+        // set above (the artifact_policy check would otherwise be bypassable).
+        if k != "CARGO_TARGET_DIR" && k != "CARGO_BUILD_BUILD_DIR" {
+            cmd.env(k, v);
+        }
     }
     cmd.stdin(std::process::Stdio::null());
     cmd.stdout(std::process::Stdio::inherit());
@@ -533,7 +545,11 @@ pub async fn run_cargo_spawn_async(req: &CargoRequest) -> Result<MonitoredCargoC
         cmd.env("CARGO_BUILD_BUILD_DIR", bd);
     }
     for (k, v) in &req.env {
-        cmd.env(k, v);
+        // Never let caller-supplied env reintroduce the policy-checked paths
+        // set above (the artifact_policy check would otherwise be bypassable).
+        if k != "CARGO_TARGET_DIR" && k != "CARGO_BUILD_BUILD_DIR" {
+            cmd.env(k, v);
+        }
     }
     cmd.stdin(std::process::Stdio::null());
     cmd.stdout(std::process::Stdio::inherit());

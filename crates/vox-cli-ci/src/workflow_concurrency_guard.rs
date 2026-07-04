@@ -14,7 +14,9 @@ use anyhow::{Context, Result, anyhow};
 
 const EXCEPTIONS_DOC: &str = "docs/src/ci/concurrency-exceptions.md";
 
-/// True when the workflow's triggers include `push` or `pull_request`.
+/// True when the workflow's triggers include `push`, `pull_request`, or
+/// `pull_request_target` (runs with base-branch permissions/secrets — equally
+/// susceptible to flood/pile-up).
 /// serde_yaml (YAML 1.1) parses the bare `on:` key as `Bool(true)`.
 fn needs_concurrency(doc: &serde_yaml::Value) -> bool {
     let Some(map) = doc.as_mapping() else {
@@ -26,7 +28,7 @@ fn needs_concurrency(doc: &serde_yaml::Value) -> bool {
     let Some(triggers) = triggers else {
         return false;
     };
-    let hit = |s: &str| s == "push" || s == "pull_request";
+    let hit = |s: &str| s == "push" || s == "pull_request" || s == "pull_request_target";
     match triggers {
         serde_yaml::Value::String(s) => hit(s),
         serde_yaml::Value::Sequence(seq) => seq.iter().any(|v| v.as_str().is_some_and(hit)),

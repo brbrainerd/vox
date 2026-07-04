@@ -789,6 +789,13 @@ pub fn run_scale(apply: bool) -> Result<()> {
         None
     };
 
+    // The auto-clear sweep below can make many sequential `gh` calls; refresh
+    // the lock heartbeat immediately before AND after so a slow sweep can
+    // never let it go stale mid-run and be stolen by a concurrent apply.
+    if let Some(lock) = _lock.as_ref() {
+        lock.refresh(now_secs());
+    }
+
     // 0. Local-first CI: auto-clear superseded/stale runs and refresh the
     //    queue snapshot every tick (stale sweep self-disables at fleet 0).
     let (cleared_superseded, cleared_stale) = super::queue::auto_clear_and_snapshot(dry_run, now)
@@ -797,8 +804,6 @@ pub fn run_scale(apply: bool) -> Result<()> {
             (0, 0)
         });
 
-    // The auto-clear sweep can make many sequential `gh` calls; refresh the
-    // lock heartbeat so it isn't considered stale by a concurrent apply.
     if let Some(lock) = _lock.as_ref() {
         lock.refresh(now_secs());
     }
@@ -1375,6 +1380,8 @@ mod tests {
         assert_eq!(v["dry_run"], false);
         assert_eq!(v["spawned"], 1);
         assert_eq!(v["s3_cache_reachable"], false);
+        assert_eq!(v["cleared_superseded"], 2);
+        assert_eq!(v["cleared_stale"], 1);
     }
 
     #[test]

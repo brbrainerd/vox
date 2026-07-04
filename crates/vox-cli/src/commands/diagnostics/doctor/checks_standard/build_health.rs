@@ -553,7 +553,7 @@ pub(crate) async fn hook_guard_check(checks: &mut Vec<Check>) {
                 "ci.hook_guard_stale_binary",
                 "error",
                 "`vox` not found on PATH — the PreToolUse hook cannot run",
-                "cargo install --path crates/vox-cli --locked",
+                "cargo install --path crates/vox-cli --locked --debug",
                 false,
             ),
         ));
@@ -581,7 +581,7 @@ pub(crate) async fn hook_guard_check(checks: &mut Vec<Check>) {
                     "error",
                     "installed vox did not respond within 10s to the hook-guard round-trip \
                      (hung or crashed reading stdin)",
-                    "cargo install --path crates/vox-cli --locked",
+                    "cargo install --path crates/vox-cli --locked --debug",
                     false,
                 ),
             ));
@@ -601,7 +601,7 @@ pub(crate) async fn hook_guard_check(checks: &mut Vec<Check>) {
                 "ci.hook_guard_stale_binary",
                 "error",
                 detail,
-                "cargo install --path crates/vox-cli --locked",
+                "cargo install --path crates/vox-cli --locked --debug",
                 false,
             ),
         )),
