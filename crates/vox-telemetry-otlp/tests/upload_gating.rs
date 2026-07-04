@@ -1,6 +1,8 @@
-#![allow(unsafe_code)] // test-only std::env::set_var (unsafe on edition 2024)
-/// Guards the invariant: remote upload must be gated by is_remote_allowed().
-/// When the master switch is off or consent is Denied/Unset, upload returns 0.
+//! Guards the invariant: remote upload must be gated by is_remote_allowed().
+//! When the master switch is off or consent is Denied/Unset, upload returns 0.
+// Rust 2024 made std::env::{set_var,remove_var} unsafe; mutated single-threaded.
+#![allow(unsafe_code)]
+
 use tempfile::TempDir;
 use vox_telemetry::config::{ConsentState, set_remote_consent};
 

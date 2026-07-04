@@ -58,10 +58,10 @@ impl RankWeights {
 /// `"<file>::<symbol>"` → `"<file>"`, stripping a leading `.claude/worktrees/<seg>/`.
 pub(crate) fn file_of_node(id: &str) -> String {
     let file = id.split("::").next().unwrap_or(id);
-    if let Some(rest) = file.strip_prefix(".claude/worktrees/") {
-        if let Some((_, tail)) = rest.split_once('/') {
-            return tail.to_string();
-        }
+    if let Some(rest) = file.strip_prefix(".claude/worktrees/")
+        && let Some((_, tail)) = rest.split_once('/')
+    {
+        return tail.to_string();
     }
     file.to_string()
 }

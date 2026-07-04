@@ -3,7 +3,6 @@
 //! for unregistered env vars, and prune orphan rows whose env_var no longer
 //! appears in source.
 
-use std::path::PathBuf;
 use vox_cli_ci::config_hygiene::{WriteRegistryOpts, write_registry};
 
 /// Build a minimal temp workspace:
@@ -26,7 +25,7 @@ fn make_workspace(src: &str, registry_yaml: &str) -> tempfile::TempDir {
     dir
 }
 
-fn read_registry(root: &PathBuf) -> String {
+fn read_registry(root: &std::path::Path) -> String {
     std::fs::read_to_string(root.join("contracts/config/registry.v1.yaml")).unwrap()
 }
 
