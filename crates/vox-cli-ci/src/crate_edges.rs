@@ -343,6 +343,21 @@ mod tests {
         }
     }
 
+    /// A minimal single-package Cargo workspace (no dependencies, so `cargo
+    /// metadata` never touches the network) — enough for `collect_live_edges`
+    /// to succeed inside `run()` without needing the real repo.
+    fn fake_workspace() -> tempfile::TempDir {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("Cargo.toml"),
+            "[package]\nname = \"fake-root\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+        )
+        .unwrap();
+        std::fs::create_dir_all(dir.path().join("src")).unwrap();
+        std::fs::write(dir.path().join("src/lib.rs"), "").unwrap();
+        dir
+    }
+
     #[test]
     fn new_edge_fails() {
         let (v, _) = check(
@@ -511,5 +526,33 @@ mod tests {
         assert_eq!(l.layers["f"], 0);
         assert_eq!(l.layers["e"], 1);
         assert_eq!(l.layers["a"], 4);
+    }
+
+    #[test]
+    fn run_verify_mode_bails_when_allow_file_missing() {
+        let dir = fake_workspace();
+        let err = run(dir.path(), false).unwrap_err();
+        assert!(err.to_string().contains(ALLOW_REL), "{err}");
+        assert!(err.to_string().contains("--tighten"), "{err}");
+    }
+
+    #[test]
+    fn run_verify_mode_bails_when_layers_file_missing() {
+        let dir = fake_workspace();
+        std::fs::create_dir_all(dir.path().join("contracts/ci")).unwrap();
+        write_allow_file(&dir.path().join(ALLOW_REL), &allow(&[], &[])).unwrap();
+        let err = run(dir.path(), false).unwrap_err();
+        assert!(err.to_string().contains(LAYERS_REL), "{err}");
+        assert!(err.to_string().contains("--tighten"), "{err}");
+    }
+
+    #[test]
+    fn run_tighten_mode_bootstraps_layers_when_missing() {
+        let dir = fake_workspace();
+        std::fs::create_dir_all(dir.path().join("contracts/ci")).unwrap();
+        assert!(!dir.path().join(LAYERS_REL).exists());
+        run(dir.path(), true).unwrap();
+        assert!(dir.path().join(LAYERS_REL).exists(), "tighten mode must bootstrap the layer map");
+        assert!(dir.path().join(ALLOW_REL).exists(), "tighten mode must also write the allow baseline");
     }
 }
