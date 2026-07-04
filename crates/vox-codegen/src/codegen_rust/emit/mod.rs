@@ -11,6 +11,7 @@ use vox_compiler::rust_interop_support::{classify_rust_crate, is_template_manage
 use super::RustAppShell;
 
 mod ai_fixture;
+mod ai_schema_ctx;
 mod client;
 mod durability_lower;
 mod http;

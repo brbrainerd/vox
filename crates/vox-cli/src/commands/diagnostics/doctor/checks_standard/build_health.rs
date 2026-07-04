@@ -404,6 +404,48 @@ pub(crate) fn heal_action(diagnosis_id: &str) -> HealAction {
     }
 }
 
+/// Which check-runner covers a diagnosis id. Pure; the tests enforce that every
+/// entry of [`KNOWN_DIAGNOSIS_IDS`] maps here (add here when adding an id).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum DiagCheckKind {
+    Toolchain,
+    CompileProbe,
+    Docker,
+    Sccache,
+    Schema,
+    Linker,
+}
+
+/// Pure mapping from a diagnosis id to the check-kind that can produce it.
+pub(crate) fn check_kind_for_diag(id: &str) -> Option<DiagCheckKind> {
+    match id {
+        "toolchain.rustc_shadowed"
+        | "toolchain.rustup_shadowed"
+        | "toolchain.rustc_absent"
+        | "toolchain.rustup_absent" => Some(DiagCheckKind::Toolchain),
+        "toolchain.compile_failed" | "toolchain.compile_timeout" => {
+            Some(DiagCheckKind::CompileProbe)
+        }
+        "docker.wsl_wedged" | "docker.daemon_down" | "docker.absent" => Some(DiagCheckKind::Docker),
+        "sccache.pathological" | "sccache.shadowed_shim" => Some(DiagCheckKind::Sccache),
+        "vox.schema_drift" => Some(DiagCheckKind::Schema),
+        "linker.lld_missing" => Some(DiagCheckKind::Linker),
+        _ => None,
+    }
+}
+
+/// Run only the check-set that can produce `kind`'s diagnoses.
+pub(crate) async fn run_check_for_diag(kind: DiagCheckKind, checks: &mut Vec<Check>) {
+    match kind {
+        DiagCheckKind::Toolchain => toolchain_integrity(checks).await,
+        DiagCheckKind::CompileProbe => compile_probe(checks).await,
+        DiagCheckKind::Docker => docker_health(checks).await,
+        DiagCheckKind::Sccache => sccache_guard(checks).await,
+        DiagCheckKind::Schema => schema_health(checks).await,
+        DiagCheckKind::Linker => linker_health(checks).await,
+    }
+}
+
 /// Extract the `id` from a structured detail tag `… [diag id=<id> sev=… heal=…]`.
 pub(crate) fn parse_diag_id(detail: &str) -> Option<&str> {
     let start = detail.find("[diag id=")? + "[diag id=".len();
@@ -567,5 +609,16 @@ mod tests {
         );
         assert_eq!(parse_diag_id(&d), Some("docker.wsl_wedged"));
         assert_eq!(parse_diag_id("no tag here"), None);
+    }
+
+    #[test]
+    fn every_known_diag_id_maps_to_a_check() {
+        for id in KNOWN_DIAGNOSIS_IDS {
+            assert!(
+                check_kind_for_diag(id).is_some(),
+                "diag id `{id}` has no --diag check mapping"
+            );
+        }
+        assert_eq!(check_kind_for_diag("nope.unknown"), None);
     }
 }

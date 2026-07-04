@@ -151,8 +151,13 @@ text must never drift apart, so the AGENTS.md section is quoted from one source
 ### 3.5 Existing-guard disposition
 
 `fan-in-budget` stays as-is (harmless, subsumed); retire it in a later cleanup once
-`crate-edges` has been green for a while. `dep-backedges.allow.json` semantics fold
-into the layer rule during implementation (migrate entries, delete file).
+`crate-edges` has been green for a while.
+
+**Correction (verified 2026-07-03): `dep-backedges.allow.json` does NOT fold into
+crate-edges.** It's an orthogonal concept — an advisory allowlist of dev/build-dep
+*cycles* consumed by the pre-existing `vox ci dep-cycles` guard. `crate-edges`
+covers Normal+Build deps only, which Cargo forbids from cycling — there's nothing
+to migrate. Both guards stay, each owning its own file, no retirement task needed.
 arch-check cycles stays (dev-dep cycles are out of `crate-edges` v1 scope).
 
 ## 4. Phase 2 — worst-first decoupling (one plan per target, separate cycle)

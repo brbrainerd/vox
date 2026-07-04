@@ -31,4 +31,12 @@ describe('SubAgentTree', () => {
     render(<SubAgentTree />);
     expect(screen.getByTestId('budget-w2').getAttribute('data-fate')).toBe('warn');
   });
+  it('never renders a fabricated 0/0 budget when maxTokens is unknown', () => {
+    useSubAgentStore.getState().setTree([{
+      windowId: 'w3', parentWindowId: null, title: 'orchestrator edge', skill: null,
+      model: { id: 'orchestrator', maxTokens: 0, toolCapable: false }, status: 'running', usedTokens: 0, depth: 0, children: [],
+    }]);
+    render(<SubAgentTree />);
+    expect(screen.queryByText('0/0')).toBeNull();
+  });
 });

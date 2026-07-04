@@ -1,6 +1,5 @@
 export interface ModelProfileLite { id: string; maxTokens: number; toolCapable: boolean; }
 export type SubAgentStatus = 'running' | 'idle' | 'paused' | 'blocked' | 'done' | 'failed';
-export type ItemFate = 'included' | 'summarized' | 'dropped' | 'on_demand';
 
 export interface SubAgentNode {
   windowId: string;
@@ -13,23 +12,6 @@ export interface SubAgentNode {
   depth: number;
   children: SubAgentNode[];
 }
-
-export interface ProjectionItem {
-  itemId: string;
-  role: string;
-  itemKind: string;
-  preview: string;
-  byteLen: number;
-  tokenEstimate: number;
-  pinned: boolean;
-  fate: ItemFate;
-}
-
-export type ControlAction =
-  | { kind: 'pause' } | { kind: 'resume' } | { kind: 'kill' }
-  | { kind: 'overrule'; note: string }
-  | { kind: 'set_budget'; maxTokens: number }
-  | { kind: 'set_model'; modelId: string };
 
 export interface FlatRow { windowId: string; depth: number; node: SubAgentNode; hasChildren: boolean; }
 

@@ -20,6 +20,7 @@ pub(crate) async fn run_doctor_command(args: &cli_args::DoctorArgs) -> anyhow::R
         args.probe,
         args.fix_cuda_path,
         &args.tier,
+        args.diag.as_deref(),
     )
     .await
 }

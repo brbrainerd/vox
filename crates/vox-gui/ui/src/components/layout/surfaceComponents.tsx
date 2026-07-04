@@ -2,7 +2,6 @@ import React from 'react';
 import { Dashboard } from '../surfaces/Dashboard/Dashboard';
 import { AgentFlow } from '../surfaces/Flow/AgentFlow';
 import { Catalog } from '../surfaces/Catalog/Catalog';
-import { Matrix } from '../surfaces/Matrix/Matrix';
 import { MemoryView } from '../surfaces/Memory/MemoryView';
 import { ModelsView } from '../surfaces/Models/ModelsView';
 import { RunsView } from '../surfaces/Runs/RunsView';
@@ -15,7 +14,7 @@ import { HarnessRedirect } from '../surfaces/Harness/HarnessRedirect';
 import { BrowserView } from '../surfaces/Browser/BrowserView';
 import { ApprovalsView } from '../surfaces/Approvals/ApprovalsView';
 import { CodeRabbitView } from '../surfaces/CodeRabbit/CodeRabbitView';
-import { ActivitySurface } from '../surfaces/Activity/ActivitySurface';
+import { DiscoverySurface } from '../surfaces/Discovery/DiscoverySurface';
 import { MissionControlPanel } from '../surfaces/MissionControl/MissionControlPanel';
 import { SkillsPluginsView } from '../surfaces/SkillsPlugins/SkillsPluginsView';
 import { PoliciesView } from '../surfaces/Policies/PoliciesView';
@@ -34,6 +33,7 @@ import type { DashboardData, Agent, LudusAlert, StreamItem } from '../../types/d
 import type { CatalogEntry, Toast, AttentionBudgetSnapshot } from '../../types/tauri';
 import type { ChatMessage } from '../../lib/chatCorrelation';
 import type { HudTilesConfig } from '../../hooks/useHudTiles';
+import type { AttentionInbox } from '../../hooks/useAttentionInbox';
 
 export interface SurfaceProps {
   pushToast: (t: Toast) => void;
@@ -74,6 +74,7 @@ export interface SurfaceProps {
   attention_budget?: AttentionBudgetSnapshot | null;
   onOpenFeedbackContext?: (id: string) => void;
   focusedFeedbackId?: string | null;
+  attention?: AttentionInbox;
 }
 
 export function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
@@ -111,8 +112,6 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
       );
     case 'catalog':
       return <Catalog skills={props.data.skills} />;
-    case 'matrix':
-      return <Matrix pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'memory':
       return <MemoryView pushToast={props.pushToast} onAttachContext={props.onAttachContext} />;
     case 'vox-search':
@@ -168,9 +167,15 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
     case 'coderabbit':
       return <CodeRabbitView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'activity':
-      return <ActivitySurface pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
+      return <DiscoverySurface pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'needs-you':
-      return <NeedsYouSurface onOpenContext={props.onOpenFeedbackContext!} pushToast={props.pushToast} />;
+      return (
+        <NeedsYouSurface
+          onOpenContext={props.onOpenFeedbackContext!}
+          pushToast={props.pushToast}
+          attention={props.attention}
+        />
+      );
     case 'mission-control':
       return <MissionControlPanel pushToast={props.pushToast} />;
     case 'policies':
@@ -195,6 +200,7 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
           onOpenAgentInFlow={props.onOpenAgentInFlow}
           composer={props.chatComposer}
           focusedFeedbackId={props.focusedFeedbackId}
+          gamifyEnabled={props.gamifyEnabled}
         />
       );
     default:
