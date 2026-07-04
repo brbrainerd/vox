@@ -134,7 +134,7 @@ fn classify(line: &str) -> CauseClass {
 
 /// One entry per fingerprint log line that reports dirtiness. A crate usually
 /// emits a header line ("fingerprint dirty for X", Unknown) plus a
-/// "    dirty: <reason>" detail line; both are kept — `per_crate` collapses.
+/// "    dirty: `<reason>`" detail line; both are kept — `per_crate` collapses.
 pub fn parse_fingerprint_log(log: &str) -> Vec<RebuildCause> {
     let mut out = Vec::new();
     for line in log.lines() {
