@@ -23,7 +23,10 @@ prefix_rules:
     name: "03_dotfiles_config"
     any_prefix:
       - ".cargo/"
+      - ".claude/"
       - ".config/"
+      - ".devcontainer/"
+      - ".vscode/"
       - ".gitignore"
       - ".aiignore"
       - ".cursorignore"
@@ -56,10 +59,14 @@ prefix_rules:
   - order: 50
     name: "10_vscode_ext"
     any_prefix: ["apps/editor/vox-vscode/"]
+  - order: 52
+    name: "10b_apps"
+    any_prefix: ["apps/"]
   - order: 55
     name: "11_scripts_xtask"
     any_prefix:
       - "scripts/"
+      - "ci/"
       - "xtask/"
       - "fuzz/"
       - "infra/"
@@ -72,6 +79,12 @@ prefix_rules:
   - order: 65
     name: "13_tests"
     any_prefix: ["tests/"]
+  - order: 67
+    name: "14_clients_server"
+    any_prefix: ["clients/", "server/", "docker/"]
+  - order: 68
+    name: "15_docs_astro"
+    any_prefix: ["docs-astro/"]
 
 suffix_rules:
   - order: 105
