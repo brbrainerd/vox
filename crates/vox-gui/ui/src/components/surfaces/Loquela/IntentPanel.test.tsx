@@ -18,6 +18,10 @@ describe('IntentPanel', () => {
     render(<IntentPanel intent={EMPTY_INTENT} onChange={onChange} />);
     fireEvent.change(screen.getByLabelText('Goal'), { target: { value: 'ship dark mode' } });
     expect(onChange).toHaveBeenCalledWith({ goal: 'ship dark mode' });
+    fireEvent.change(screen.getByLabelText('Constraints'), { target: { value: "don't touch auth" } });
+    expect(onChange).toHaveBeenCalledWith({ constraints: "don't touch auth" });
+    fireEvent.change(screen.getByLabelText('Acceptance criteria'), { target: { value: 'toggle persists' } });
+    expect(onChange).toHaveBeenCalledWith({ acceptance: 'toggle persists' });
     fireEvent.change(screen.getByLabelText('Effort'), { target: { value: 'urgent' } });
     expect(onChange).toHaveBeenCalledWith({ effort: 'urgent' });
   });
