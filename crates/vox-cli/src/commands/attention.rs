@@ -73,8 +73,14 @@ async fn snapshot_cmd(workspace_root: &std::path::Path) -> Result<()> {
         .await
         .map_err(|e| miette::miette!("orch.attention_snapshot failed: {e}"))?;
 
-    let snap = resp.get("snapshot").cloned().unwrap_or(serde_json::Value::Null);
-    let max_attention_ms = snap.get("max_attention_ms").and_then(|x| x.as_u64()).unwrap_or(0);
+    let snap = resp
+        .get("snapshot")
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
+    let max_attention_ms = snap
+        .get("max_attention_ms")
+        .and_then(|x| x.as_u64())
+        .unwrap_or(0);
     let spent_ms = snap.get("spent_ms").and_then(|x| x.as_u64()).unwrap_or(0);
     let spent_ratio = if max_attention_ms == 0 {
         1.0
@@ -85,8 +91,14 @@ async fn snapshot_cmd(workspace_root: &std::path::Path) -> Result<()> {
         .get("interrupt_freq_per_hour")
         .and_then(|x| x.as_f64())
         .unwrap_or(0.0);
-    let total_requests = snap.get("total_requests").and_then(|x| x.as_u64()).unwrap_or(0);
-    let auto_approved = snap.get("auto_approved").and_then(|x| x.as_u64()).unwrap_or(0);
+    let total_requests = snap
+        .get("total_requests")
+        .and_then(|x| x.as_u64())
+        .unwrap_or(0);
+    let auto_approved = snap
+        .get("auto_approved")
+        .and_then(|x| x.as_u64())
+        .unwrap_or(0);
     let inbox_suppressed_count = snap
         .get("inbox_suppressed_count")
         .and_then(|x| x.as_u64())
@@ -108,9 +120,18 @@ async fn snapshot_cmd(workspace_root: &std::path::Path) -> Result<()> {
     println!("  Requests/Auto:    {} / {}", total_requests, auto_approved);
     println!("  Suppressed Inbox: {}", inbox_suppressed_count);
 
-    let config = resp.get("config").cloned().unwrap_or(serde_json::Value::Null);
-    let attention_enabled = config.get("attention_enabled").and_then(|x| x.as_bool()).unwrap_or(true);
-    let attention_budget_ms = config.get("attention_budget_ms").and_then(|x| x.as_u64()).unwrap_or(0);
+    let config = resp
+        .get("config")
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
+    let attention_enabled = config
+        .get("attention_enabled")
+        .and_then(|x| x.as_bool())
+        .unwrap_or(true);
+    let attention_budget_ms = config
+        .get("attention_budget_ms")
+        .and_then(|x| x.as_u64())
+        .unwrap_or(0);
     let attention_alert_threshold = config
         .get("attention_alert_threshold")
         .and_then(|x| x.as_f64())
@@ -120,7 +141,10 @@ async fn snapshot_cmd(workspace_root: &std::path::Path) -> Result<()> {
     println!("Policy Config (effective):");
     println!("  attention_enabled = {}", attention_enabled);
     println!("  attention_budget_ms = {}", attention_budget_ms);
-    println!("  attention_alert_threshold = {}", attention_alert_threshold);
+    println!(
+        "  attention_alert_threshold = {}",
+        attention_alert_threshold
+    );
 
     Ok(())
 }

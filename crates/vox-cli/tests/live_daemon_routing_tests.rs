@@ -108,9 +108,11 @@ async fn live_run_fails_fast_when_no_daemon_reachable() {
     }
     point_at_dead_port().await;
 
-    let result = tokio::time::timeout(Duration::from_secs(20), vox_cli::commands::live::run()).await;
-    let outcome = result
-        .expect("vox_cli::commands::live::run() must return, not hang, when no daemon is reachable");
+    let result =
+        tokio::time::timeout(Duration::from_secs(20), vox_cli::commands::live::run()).await;
+    let outcome = result.expect(
+        "vox_cli::commands::live::run() must return, not hang, when no daemon is reachable",
+    );
     assert!(
         outcome.is_err(),
         "live::run() must surface a clear error with no daemon reachable/spawnable, got: {outcome:?}"

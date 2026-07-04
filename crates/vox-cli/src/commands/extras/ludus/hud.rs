@@ -13,8 +13,8 @@ use tokio::time::sleep;
 use vox_cli_core::daemon_ipc::orchestrator_daemon_ensure::OrchestratorDaemonEnsure;
 use vox_gamify::companion::{Companion, Interaction, render_multi_agent_status};
 use vox_gamify::db::canonical_user_id;
-use vox_orchestrator::events::AgentEventKind;
 use vox_orchestrator::AgentEvent;
+use vox_orchestrator::events::AgentEventKind;
 
 pub async fn run() -> Result<()> {
     let daemon = OrchestratorDaemonEnsure::default();

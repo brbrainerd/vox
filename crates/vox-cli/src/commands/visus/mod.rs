@@ -232,10 +232,9 @@ pub async fn dispatch(cmd: VisusCmd) -> miette::Result<()> {
                 // in-process Orchestrator — so this VLM task is visible to
                 // the GUI's Approvals/DEI views like any other submitted task.
                 let daemon = vox_cli_core::daemon_ipc::orchestrator_daemon_ensure::OrchestratorDaemonEnsure::default();
-                let client = daemon
-                    .client()
-                    .await
-                    .map_err(|e| miette::miette!("could not reach or spawn vox-orchestrator-d: {e}"))?;
+                let client = daemon.client().await.map_err(|e| {
+                    miette::miette!("could not reach or spawn vox-orchestrator-d: {e}")
+                })?;
                 let submit_params = serde_json::json!({
                     "description": description,
                     "file_manifest": Vec::<String>::new(),

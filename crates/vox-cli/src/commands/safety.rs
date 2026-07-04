@@ -60,23 +60,38 @@ async fn status_cmd() -> Result<()> {
         .safety_budget_signals()
         .await
         .map_err(|e| miette::miette!("orch.safety_budget_signals failed: {e}"))?;
-    let agents = signals.get("agents").and_then(|a| a.as_array()).cloned().unwrap_or_default();
+    let agents = signals
+        .get("agents")
+        .and_then(|a| a.as_array())
+        .cloned()
+        .unwrap_or_default();
 
     println!("{}", "Agent Budgets & Drift:".bold().underline());
     for agent in &agents {
         let id = agent.get("id").and_then(|x| x.as_u64()).unwrap_or(0);
         let name = agent.get("name").and_then(|x| x.as_str()).unwrap_or("?");
-        let signal = agent.get("signal").cloned().unwrap_or(serde_json::Value::Null);
+        let signal = agent
+            .get("signal")
+            .cloned()
+            .unwrap_or(serde_json::Value::Null);
         let signal_str = format_budget_signal(&signal);
 
-        println!("  Agent {} ({}): {}", id.to_string().bold(), name, signal_str);
+        println!(
+            "  Agent {} ({}): {}",
+            id.to_string().bold(),
+            name,
+            signal_str
+        );
     }
 
     let status = client
         .orchestrator_status()
         .await
         .map_err(|e| miette::miette!("orch.status failed: {e}"))?;
-    let locked_files = status.get("locked_files").and_then(|x| x.as_u64()).unwrap_or(0);
+    let locked_files = status
+        .get("locked_files")
+        .and_then(|x| x.as_u64())
+        .unwrap_or(0);
 
     println!();
     println!("{}", "Active Locks:".bold().underline());
@@ -85,15 +100,26 @@ async fn status_cmd() -> Result<()> {
         .safety_ledger(None)
         .await
         .map_err(|e| miette::miette!("orch.safety_ledger failed: {e}"))?;
-    let receipt_count = ledger.get("receipts").and_then(|r| r.as_array()).map(|a| a.len()).unwrap_or(0);
+    let receipt_count = ledger
+        .get("receipts")
+        .and_then(|r| r.as_array())
+        .map(|a| a.len())
+        .unwrap_or(0);
     println!("  Tool Receipts:  {}", receipt_count);
 
     let locks = client
         .safety_locks()
         .await
         .map_err(|e| miette::miette!("orch.safety_locks failed: {e}"))?;
-    let lock_count = locks.get("locks").and_then(|l| l.as_array()).map(|a| a.len()).unwrap_or(0);
-    println!("  Resource Locks: {} (locked_files: {})", lock_count, locked_files);
+    let lock_count = locks
+        .get("locks")
+        .and_then(|l| l.as_array())
+        .map(|a| a.len())
+        .unwrap_or(0);
+    println!(
+        "  Resource Locks: {} (locked_files: {})",
+        lock_count, locked_files
+    );
 
     Ok(())
 }
@@ -123,7 +149,10 @@ fn format_budget_signal(signal: &serde_json::Value) -> String {
         return format!("HALTED: {}", reason);
     }
     if let Some(v) = obj.get("DoomLoopSuspect") {
-        let calls = v.get("consecutive_calls").and_then(|x| x.as_u64()).unwrap_or(0);
+        let calls = v
+            .get("consecutive_calls")
+            .and_then(|x| x.as_u64())
+            .unwrap_or(0);
         return format!("DOOM LOOP SUSPECT ({} calls)", calls);
     }
     "Unknown".to_string()
@@ -136,16 +165,29 @@ async fn ledger_cmd(agent_id_opt: Option<u64>) -> Result<()> {
         .safety_ledger(agent_id_opt)
         .await
         .map_err(|e| miette::miette!("orch.safety_ledger failed: {e}"))?;
-    let receipts = ledger.get("receipts").and_then(|r| r.as_array()).cloned().unwrap_or_default();
+    let receipts = ledger
+        .get("receipts")
+        .and_then(|r| r.as_array())
+        .cloned()
+        .unwrap_or_default();
 
     println!("{}", "Tool Receipt Ledger".bold().underline());
     if receipts.is_empty() {
         println!("  (No receipts issued in this session)");
     } else {
         for receipt in &receipts {
-            let id = receipt.get("receipt_id").and_then(|x| x.as_str()).unwrap_or("?");
-            let aid = receipt.get("agent_id").and_then(|x| x.as_u64()).unwrap_or(0);
-            let tool = receipt.get("tool_name").and_then(|x| x.as_str()).unwrap_or("?");
+            let id = receipt
+                .get("receipt_id")
+                .and_then(|x| x.as_str())
+                .unwrap_or("?");
+            let aid = receipt
+                .get("agent_id")
+                .and_then(|x| x.as_u64())
+                .unwrap_or(0);
+            let tool = receipt
+                .get("tool_name")
+                .and_then(|x| x.as_str())
+                .unwrap_or("?");
             println!("  [{}] Agent {} -> {}", id.dimmed(), aid, tool.cyan());
         }
     }
@@ -159,14 +201,21 @@ async fn locks_cmd() -> Result<()> {
         .safety_locks()
         .await
         .map_err(|e| miette::miette!("orch.safety_locks failed: {e}"))?;
-    let snapshot = locks.get("locks").and_then(|l| l.as_array()).cloned().unwrap_or_default();
+    let snapshot = locks
+        .get("locks")
+        .and_then(|l| l.as_array())
+        .cloned()
+        .unwrap_or_default();
 
     println!("{}", "Active Resource Locks".bold().underline());
     if snapshot.is_empty() {
         println!("  (No active resource locks)");
     } else {
         for lock in &snapshot {
-            let resource_id = lock.get("resource_id").and_then(|x| x.as_str()).unwrap_or("?");
+            let resource_id = lock
+                .get("resource_id")
+                .and_then(|x| x.as_str())
+                .unwrap_or("?");
             let holder = lock.get("holder").and_then(|x| x.as_u64()).unwrap_or(0);
             println!("  {:30} held by Agent {}", resource_id.cyan(), holder);
         }

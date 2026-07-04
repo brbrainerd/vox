@@ -53,10 +53,7 @@ fn method_constants_from_protocol_rs() -> BTreeSet<String> {
         if let Some(eq_pos) = trimmed.find('=') {
             if trimmed.starts_with("pub const") {
                 let rhs = trimmed[eq_pos + 1..].trim().trim_end_matches(';').trim();
-                if let Some(value) = rhs
-                    .strip_prefix('"')
-                    .and_then(|s| s.strip_suffix('"'))
-                {
+                if let Some(value) = rhs.strip_prefix('"').and_then(|s| s.strip_suffix('"')) {
                     out.insert(value.to_string());
                 }
             }

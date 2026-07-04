@@ -74,7 +74,10 @@ async fn tool_call(
         )
         .await?;
     match envelope.get("success").and_then(|s| s.as_bool()) {
-        Some(true) => Ok(envelope.get("data").cloned().unwrap_or(serde_json::Value::Null)),
+        Some(true) => Ok(envelope
+            .get("data")
+            .cloned()
+            .unwrap_or(serde_json::Value::Null)),
         Some(false) => {
             let msg = envelope
                 .get("error")
@@ -292,7 +295,11 @@ pub async fn queue(agent_id: u64) -> Result<()> {
     let v = client
         .call(orch_daemon_method::LIST_TASKS, serde_json::json!({}))
         .await?;
-    let tasks = v.get("tasks").and_then(|t| t.as_array()).cloned().unwrap_or_default();
+    let tasks = v
+        .get("tasks")
+        .and_then(|t| t.as_array())
+        .cloned()
+        .unwrap_or_default();
     let mine: Vec<&serde_json::Value> = tasks
         .iter()
         .filter(|t| t.get("agent_id").and_then(|a| a.as_u64()) == Some(agent_id))
@@ -311,8 +318,14 @@ pub async fn queue(agent_id: u64) -> Result<()> {
     for t in mine {
         let id = t.get("id").and_then(|x| x.as_u64()).unwrap_or(0);
         let desc = t.get("description").and_then(|x| x.as_str()).unwrap_or("");
-        let priority = t.get("priority").and_then(|x| x.as_str()).unwrap_or("Normal");
-        let lifecycle = t.get("lifecycle").and_then(|x| x.as_str()).unwrap_or("Queued");
+        let priority = t
+            .get("priority")
+            .and_then(|x| x.as_str())
+            .unwrap_or("Normal");
+        let lifecycle = t
+            .get("lifecycle")
+            .and_then(|x| x.as_str())
+            .unwrap_or("Queued");
         let marker = if lifecycle == "InProgress" { "/" } else { " " };
         println!("- [{marker}] **[{id}]** {desc} ({priority})");
     }
@@ -534,7 +547,11 @@ async fn undo_redo_via_daemon(
 
     for _ in 0..count {
         let list = tool_call(&client, "vox_oplog", serde_json::json!({ "limit": 50 })).await?;
-        let ops = list.get("operations").and_then(|o| o.as_array()).cloned().unwrap_or_default();
+        let ops = list
+            .get("operations")
+            .and_then(|o| o.as_array())
+            .cloned()
+            .unwrap_or_default();
         // History is newest-first per json_vcs_facade::oplog_list_json's ordering.
         let Some(op) = ops
             .iter()
@@ -543,14 +560,24 @@ async fn undo_redo_via_daemon(
             println!("  {} No more operations to {}", "ℹ".blue().bold(), verb);
             break;
         };
-        let id = op.get("id").and_then(|x| x.as_str()).unwrap_or("").to_string();
+        let id = op
+            .get("id")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_string();
         let desc = op
             .get("description")
             .and_then(|x| x.as_str())
             .unwrap_or("")
             .to_string();
 
-        match tool_call(&client, apply_tool, serde_json::json!({ "operation_id": id })).await {
+        match tool_call(
+            &client,
+            apply_tool,
+            serde_json::json!({ "operation_id": id }),
+        )
+        .await
+        {
             Ok(_) => {
                 successful += 1;
                 let past_tense = if verb == "undo" { "Undid" } else { "Redid" };
@@ -563,7 +590,13 @@ async fn undo_redo_via_daemon(
                 );
             }
             Err(e) => {
-                println!("  {} Failed to {} operation {}: {}", "✗".red().bold(), verb, id, e);
+                println!(
+                    "  {} Failed to {} operation {}: {}",
+                    "✗".red().bold(),
+                    verb,
+                    id,
+                    e
+                );
                 break;
             }
         }
@@ -813,12 +846,20 @@ async fn run_dei_workspace(cmd: DeiWorkspaceCmd) -> Result<()> {
     let client = daemon_client().await?;
     let v = match cmd {
         DeiWorkspaceCmd::Create { agent_id } => {
-            tool_call(&client, "vox_workspace_create", serde_json::json!({ "agent_id": agent_id }))
-                .await?
+            tool_call(
+                &client,
+                "vox_workspace_create",
+                serde_json::json!({ "agent_id": agent_id }),
+            )
+            .await?
         }
         DeiWorkspaceCmd::Status { agent_id } => {
-            tool_call(&client, "vox_workspace_status", serde_json::json!({ "agent_id": agent_id }))
-                .await?
+            tool_call(
+                &client,
+                "vox_workspace_status",
+                serde_json::json!({ "agent_id": agent_id }),
+            )
+            .await?
         }
         DeiWorkspaceCmd::Merge { agent_id } => {
             // vox_workspace_merge's ToolResult is itself an error (not a
@@ -826,8 +867,12 @@ async fn run_dei_workspace(cmd: DeiWorkspaceCmd) -> Result<()> {
             // workspace — tool_call already turns that into an Err, so the
             // explicit "merged == false" bail! from the old local-orchestrator
             // path is redundant here; propagate via `?` instead.
-            tool_call(&client, "vox_workspace_merge", serde_json::json!({ "agent_id": agent_id }))
-                .await?
+            tool_call(
+                &client,
+                "vox_workspace_merge",
+                serde_json::json!({ "agent_id": agent_id }),
+            )
+            .await?
         }
     };
     print_dei_json(&v)?;
@@ -899,9 +944,13 @@ async fn run_dei_takeover_status(agent_id: u64, human: bool) -> Result<()> {
     let client = daemon_client().await?;
     let repo = vox_orchestrator::discover_repository_from_cwd(None);
 
-    let workspace = tool_call(&client, "vox_workspace_status", serde_json::json!({ "agent_id": agent_id }))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({ "has_workspace": false, "error": e.to_string() }));
+    let workspace = tool_call(
+        &client,
+        "vox_workspace_status",
+        serde_json::json!({ "agent_id": agent_id }),
+    )
+    .await
+    .unwrap_or_else(|e| serde_json::json!({ "has_workspace": false, "error": e.to_string() }));
     let snapshots = tool_call(
         &client,
         "vox_snapshot_list",

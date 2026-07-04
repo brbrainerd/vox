@@ -104,7 +104,11 @@ impl Drop for IsolatedHomeEnv {
 async fn spawn_test_daemon(
     home: &IsolatedHomeEnv,
     token: &str,
-) -> (String, orch_daemon::OrchDaemonClient, tokio::task::JoinHandle<anyhow::Result<()>>) {
+) -> (
+    String,
+    orch_daemon::OrchDaemonClient,
+    tokio::task::JoinHandle<anyhow::Result<()>>,
+) {
     home.write_token(token);
 
     let state = ServerState::new_full(load_config());
@@ -173,7 +177,11 @@ async fn dei_submit_task_is_visible_from_a_separate_daemon_client() {
         )
         .await
         .expect("orch.list_tasks dispatched");
-    let tasks = list.get("tasks").and_then(|t| t.as_array()).cloned().unwrap_or_default();
+    let tasks = list
+        .get("tasks")
+        .and_then(|t| t.as_array())
+        .cloned()
+        .unwrap_or_default();
     assert!(
         tasks.iter().any(|t| {
             t.get("description")
@@ -201,9 +209,14 @@ async fn dei_doubt_is_visible_from_a_separate_daemon_client() {
 
     // Submit a task via the same client this test is validating, then doubt
     // it — both must land in the same shared daemon state.
-    vox_cli::commands::dei::submit("Doubt-target task [[unique-marker-dei-doubt]]", &[], None, None)
-        .await
-        .expect("dei::submit should succeed against the shared daemon");
+    vox_cli::commands::dei::submit(
+        "Doubt-target task [[unique-marker-dei-doubt]]",
+        &[],
+        None,
+        None,
+    )
+    .await
+    .expect("dei::submit should succeed against the shared daemon");
 
     let list = gui_client
         .call(
@@ -212,7 +225,11 @@ async fn dei_doubt_is_visible_from_a_separate_daemon_client() {
         )
         .await
         .expect("orch.list_tasks dispatched");
-    let tasks = list.get("tasks").and_then(|t| t.as_array()).cloned().unwrap_or_default();
+    let tasks = list
+        .get("tasks")
+        .and_then(|t| t.as_array())
+        .cloned()
+        .unwrap_or_default();
     let task_id = tasks
         .iter()
         .find(|t| {
@@ -245,7 +262,11 @@ async fn dei_doubt_is_visible_from_a_separate_daemon_client() {
     let status_after = list_after
         .get("tasks")
         .and_then(|t| t.as_array())
-        .and_then(|tasks| tasks.iter().find(|t| t.get("id").and_then(|i| i.as_u64()) == Some(task_id)))
+        .and_then(|tasks| {
+            tasks
+                .iter()
+                .find(|t| t.get("id").and_then(|i| i.as_u64()) == Some(task_id))
+        })
         .and_then(|t| t.get("status"))
         .cloned()
         .unwrap_or(serde_json::Value::Null);

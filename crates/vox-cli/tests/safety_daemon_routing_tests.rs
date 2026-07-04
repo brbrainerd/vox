@@ -102,7 +102,11 @@ impl Drop for IsolatedHomeEnv {
 async fn spawn_test_daemon(
     home: &IsolatedHomeEnv,
     token: &str,
-) -> (String, orch_daemon::OrchDaemonClient, tokio::task::JoinHandle<anyhow::Result<()>>) {
+) -> (
+    String,
+    orch_daemon::OrchDaemonClient,
+    tokio::task::JoinHandle<anyhow::Result<()>>,
+) {
     home.write_token(token);
 
     let state = ServerState::new_full(load_config());
@@ -186,9 +190,15 @@ async fn safety_status_reflects_agent_spawned_via_separate_daemon_client() {
         .safety_budget_signals()
         .await
         .expect("orch.safety_budget_signals dispatched");
-    let agents = signals.get("agents").and_then(|a| a.as_array()).cloned().unwrap_or_default();
+    let agents = signals
+        .get("agents")
+        .and_then(|a| a.as_array())
+        .cloned()
+        .unwrap_or_default();
     assert!(
-        agents.iter().any(|a| a.get("id").and_then(|x| x.as_u64()) == Some(agent_id)),
+        agents
+            .iter()
+            .any(|a| a.get("id").and_then(|x| x.as_u64()) == Some(agent_id)),
         "agent {agent_id} spawned via a separate daemon client must be visible via \
          orch.safety_budget_signals (the same shared-daemon RPC vox safety status now \
          calls), got: {agents:?}"
