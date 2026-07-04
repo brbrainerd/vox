@@ -18,7 +18,14 @@ describe('intentSpec', () => {
   });
   it('maps effort onto the backend TaskPriority strings', () => {
     expect(effortToPriority('urgent')).toBe('urgent');
+    expect(effortToPriority('normal')).toBe('normal');
     expect(effortToPriority('background')).toBe('background');
     expect(effortToPriority('')).toBeNull();
+  });
+  it('a constraints-only intent with no head text starts at the section heading, not a blank line', () => {
+    // Callers are expected to gate submission on non-empty text/goal (hasIntent()),
+    // but this pins the standalone behavior of the module itself.
+    const d = composeDescription('', intent({ constraints: 'no breaking changes' }));
+    expect(d).toBe('## Constraints\nno breaking changes');
   });
 });

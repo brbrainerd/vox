@@ -24,10 +24,18 @@ function section(heading: string, value: string): string {
  *  line when free text is empty (goal-only submits stay valid). */
 export function composeDescription(text: string, i: IntentFields): string {
   const head = text.trim() || i.goal.trim();
+  // Only emit a separate "## Goal" section when both text and goal are set —
+  // if text was empty, goal already became `head` above and must not repeat.
   const goalSection = text.trim() && i.goal.trim() ? section('Goal', i.goal) : '';
-  return `${head}${goalSection}${section('Constraints', i.constraints)}${section('Acceptance criteria', i.acceptance)}`;
+  const body = `${goalSection}${section('Constraints', i.constraints)}${section('Acceptance criteria', i.acceptance)}`;
+  // Guard against a blank head (no text, no goal, only constraints/acceptance
+  // set): callers are expected to gate submission on hasIntent()/non-empty
+  // text, but this keeps the module correct standalone rather than relying
+  // on that convention — a bare head would otherwise leave leading blank
+  // lines before the first section heading.
+  return head ? `${head}${body}` : body.replace(/^\n\n/, '');
 }
 
-export function effortToPriority(effort: Effort): string | null {
+export function effortToPriority(effort: Effort): 'urgent' | 'normal' | 'background' | null {
   return effort === '' ? null : effort;
 }
