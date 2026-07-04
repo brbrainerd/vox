@@ -23,11 +23,30 @@ pub(super) fn emit_llm_function_body(out: &mut String, func: &HirFn) {
     };
     out.push_str(&format!("    let model = {};\n", model_init));
     if let Some(s) = structured_output {
-        let schema_name = s.return_type.replace('\\', "\\\\").replace('"', "\\\"");
-        out.push_str(&format!(
-            "    let response_format = serde_json::json!({{\"type\":\"json_schema\",\"json_schema\":{{\"name\":\"{}\"}}}});\n",
-            schema_name
-        ));
+        match super::super::ai_schema_ctx::schema_for(&s.return_type) {
+            Some(schema) => {
+                let payload = serde_json::json!({
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": s.return_type,
+                        "strict": true,
+                        "schema": schema,
+                    }
+                });
+                let payload_src = serde_json::to_string(&payload)
+                    .expect("vox codegen: response_format payload serializes");
+                out.push_str(&format!(
+                    "    let response_format = serde_json::json!({payload_src});\n"
+                ));
+            }
+            None => {
+                let schema_name = s.return_type.replace('\\', "\\\\").replace('"', "\\\"");
+                out.push_str(&format!(
+                    "    let response_format = serde_json::json!({{\"type\":\"json_schema\",\"json_schema\":{{\"name\":\"{}\"}}}});\n",
+                    schema_name
+                ));
+            }
+        }
     }
 
     // Build the prompt from parameters
@@ -299,6 +318,17 @@ fn emit_direct_llm_body(
     if structured_output.is_some() {
         out.push_str("    config.response_format = Some(response_format);\n");
     }
+    match structured_output {
+        Some(s) => emit_llm_call_with_reprompt(out, s.max_iterations.max(1)),
+        None => emit_llm_call_single_shot(out),
+    }
+    if let Some(intent) = intent_routed {
+        emit_intent_telemetry(out, intent);
+    }
+}
+
+/// Single LLM call binding `content` (pre-structured_output behavior, verbatim).
+fn emit_llm_call_single_shot(out: &mut String) {
     out.push_str(
         "    let res = vox_actor_runtime::llm::llm_chat(&options, vec![vox_actor_runtime::llm::LlmChatMessage {\n",
     );
@@ -317,9 +347,47 @@ fn emit_direct_llm_body(
         "        vox_actor_runtime::ActivityResult::Cancelled => panic!(\"LLM activity cancelled\"),\n",
     );
     out.push_str("    };\n");
-    if let Some(intent) = intent_routed {
-        emit_intent_telemetry(out, intent);
-    }
+}
+
+/// `@ai(max_iterations = N)`: retry the call, re-prompting whenever the reply
+/// is not parseable JSON (same fence-cleaning as the downstream typed parse).
+fn emit_llm_call_with_reprompt(out: &mut String, max_iterations: u32) {
+    out.push_str("    let mut content = String::new();\n");
+    out.push_str("    let mut __structured_ok = false;\n");
+    out.push_str(&format!("    for _attempt in 0..{max_iterations}u32 {{\n"));
+    out.push_str(
+        "        let res = vox_actor_runtime::llm::llm_chat(&options, vec![vox_actor_runtime::llm::LlmChatMessage {\n",
+    );
+    out.push_str("            role: \"user\".to_string(),\n");
+    out.push_str("            content: prompt.clone(),\n");
+    out.push_str("        }], config.clone()).await;\n");
+    out.push_str("        let candidate = match res {\n");
+    out.push_str("            vox_actor_runtime::ActivityResult::Ok(Ok(resp)) => resp.content,\n");
+    out.push_str(
+        "            vox_actor_runtime::ActivityResult::Ok(Err(e)) => panic!(\"LLM request failed: {}\", e),\n",
+    );
+    out.push_str(
+        "            vox_actor_runtime::ActivityResult::Failed(e) => panic!(\"LLM activity failed: {:?}\", e),\n",
+    );
+    out.push_str(
+        "            vox_actor_runtime::ActivityResult::Cancelled => panic!(\"LLM activity cancelled\"),\n",
+    );
+    out.push_str("        };\n");
+    out.push_str(
+        "        let cleaned = candidate.trim_matches('`').trim_start_matches(\"json\").trim().to_string();\n",
+    );
+    out.push_str("        content = candidate;\n");
+    out.push_str("        if serde_json::from_str::<serde_json::Value>(&cleaned).is_ok() {\n");
+    out.push_str("            __structured_ok = true;\n");
+    out.push_str("            break;\n");
+    out.push_str("        }\n");
+    out.push_str(
+        "        prompt.push_str(\"\\nYour previous reply was not a valid JSON object. Reply with ONLY a JSON object matching the return-type schema.\\n\");\n",
+    );
+    out.push_str("    }\n");
+    out.push_str(&format!(
+        "    if !__structured_ok {{ panic!(\"LLM structured output was not valid JSON after {max_iterations} attempt(s)\"); }}\n"
+    ));
 }
 
 fn emit_intent_config(

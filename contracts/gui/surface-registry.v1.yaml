@@ -4,19 +4,11 @@ surfaces:
 - view_key: activity
   cli_group: null
   representation_tier: live_backend
-  nav_label: Activity
-  nav_icon: list
-  nav_group: operate
-  parent_surface: null
-  notes: Agent activity log and resource accounting
-- view_key: agents
-  cli_group: null
-  representation_tier: live_backend
-  nav_label: Agents
-  nav_icon: dashboard
-  nav_group: operate
-  parent_surface: null
-  notes: Agent operations hub
+  nav_label: Discovery
+  nav_icon: eye
+  nav_group: knowledge
+  parent_surface: knowledge
+  notes: consolidated Discovery surface (timeline + inbox/review/archive presets); absorbs discovery-inbox, discovery-review, archive-panel
 - view_key: approvals
   cli_group: null
   representation_tier: live_backend
@@ -25,14 +17,6 @@ surfaces:
   nav_group: operate
   parent_surface: runs
   notes: null
-- view_key: archive-panel
-  cli_group: null
-  representation_tier: live_backend
-  nav_label: Archive Panel
-  nav_icon: beaker
-  nav_group: knowledge
-  parent_surface: null
-  notes: metadata completeness, deterministic autofill, and Zenodo/SWH deposit status
 - view_key: browser
   cli_group: null
   representation_tier: live_backend
@@ -49,14 +33,6 @@ surfaces:
   nav_group: operate
   parent_surface: null
   notes: Primary chat surface
-- view_key: claims
-  cli_group: null
-  representation_tier: curated_decorator
-  nav_label: Claims
-  nav_icon: doubt
-  nav_group: knowledge
-  parent_surface: knowledge
-  notes: claim ledger (scientia claims)
 - view_key: coderabbit
   cli_group: null
   representation_tier: live_backend
@@ -65,22 +41,6 @@ surfaces:
   nav_group: develop
   parent_surface: workspace
   notes: date-scoped importance sweep + slice review
-- view_key: commands
-  cli_group: null
-  representation_tier: live_backend
-  nav_label: Commands
-  nav_icon: command
-  nav_group: develop
-  parent_surface: null
-  notes: CLI command surface
-- view_key: compute
-  cli_group: null
-  representation_tier: live_backend
-  nav_label: Compute
-  nav_icon: cpu
-  nav_group: compute
-  parent_surface: null
-  notes: Models and mesh
 - view_key: console
   cli_group: null
   representation_tier: live_backend
@@ -105,22 +65,6 @@ surfaces:
   nav_group: operate
   parent_surface: agents
   notes: orchestrator status
-- view_key: discovery-inbox
-  cli_group: null
-  representation_tier: live_backend
-  nav_label: Discovery Inbox
-  nav_icon: eye
-  nav_group: knowledge
-  parent_surface: null
-  notes: unacknowledged surfaced research candidates
-- view_key: discovery-review
-  cli_group: null
-  representation_tier: live_backend
-  nav_label: Discovery Review
-  nav_icon: check
-  nav_group: knowledge
-  parent_surface: knowledge
-  notes: human-gated claim review before nanopublication
 - view_key: flow
   cli_group: null
   representation_tier: live_backend
@@ -137,22 +81,6 @@ surfaces:
   nav_group: develop
   parent_surface: workspace
   notes: null
-- view_key: knowledge
-  cli_group: null
-  representation_tier: live_backend
-  nav_label: Knowledge
-  nav_icon: brain
-  nav_group: knowledge
-  parent_surface: null
-  notes: Research and publications
-- view_key: matrix
-  cli_group: null
-  representation_tier: live_backend
-  nav_label: Routing
-  nav_icon: scale
-  nav_group: operate
-  parent_surface: agents
-  notes: policy/intention matrix
 - view_key: mercatus
   cli_group: null
   representation_tier: live_backend
@@ -166,8 +94,8 @@ surfaces:
   representation_tier: live_backend
   nav_label: Mesh
   nav_icon: link
-  nav_group: compute
-  parent_surface: compute
+  nav_group: operate
+  parent_surface: agents
   notes: null
 - view_key: needs-you
   cli_group: null
@@ -175,7 +103,7 @@ surfaces:
   nav_label: Needs You
   nav_icon: alert
   nav_group: operate
-  parent_surface: null
+  parent_surface: runs
   notes: Unified soft-HITL feedback inbox (clarifications + doubts)
 - view_key: policies
   cli_group: null
@@ -193,14 +121,6 @@ surfaces:
   nav_group: knowledge
   parent_surface: knowledge
   notes: scientia publication lifecycle board
-- view_key: review
-  cli_group: null
-  representation_tier: curated_decorator
-  nav_label: Review
-  nav_icon: doubt
-  nav_group: knowledge
-  parent_surface: null
-  notes: human-gated claim review + nanopub build (scientia publication-claim-review / publication-nanopub-build)
 - view_key: runs
   cli_group: null
   representation_tier: live_backend
@@ -209,22 +129,14 @@ surfaces:
   nav_group: operate
   parent_surface: runs
   notes: null
-- view_key: search
-  cli_group: null
-  representation_tier: live_backend
-  nav_label: Search
-  nav_icon: search
-  nav_group: knowledge
-  parent_surface: null
-  notes: redirects to the global Omnibar (top bar, Cmd-K) — deep links to the search view open the Omnibar (VG-2)
 - view_key: sub-agents
   cli_group: null
   representation_tier: live_backend
   nav_label: Sub-Agents
   nav_icon: list-tree
-  nav_group: compute
-  parent_surface: compute
-  notes: null
+  nav_group: operate
+  parent_surface: agents
+  notes: wired to subagent_tree/subagent_control (blueprint ADD-conditional satisfied)
 - view_key: tasks
   cli_group: null
   representation_tier: live_backend
@@ -233,14 +145,6 @@ surfaces:
   nav_group: operate
   parent_surface: agents
   notes: live orchestrator task queue (CRUD + reprioritize)
-- view_key: workspace
-  cli_group: null
-  representation_tier: live_backend
-  nav_label: Workspace
-  nav_icon: file
-  nav_group: develop
-  parent_surface: null
-  notes: Repo browser and harness
 - view_key: null
   cli_group: add
   representation_tier: none
@@ -558,8 +462,8 @@ surfaces:
   representation_tier: curated_decorator
   nav_label: Gamify
   nav_icon: spark
-  nav_group: operate
-  parent_surface: null
+  nav_group: system
+  parent_surface: settings
   notes: achievements-drawer; Ludus profile via StatusBar trophy; Settings SSOT for enable/mode; deep-linkable via
 - view_key: null
   cli_group: mcp
@@ -575,12 +479,12 @@ surfaces:
   nav_label: Memory
   nav_icon: memory
   nav_group: knowledge
-  parent_surface: search
+  parent_surface: knowledge
   notes: null
 - view_key: mens
   cli_group: mens
   representation_tier: curated_decorator
-  nav_label: Mens
+  nav_label: Training
   nav_icon: brain
   nav_group: compute
   parent_surface: compute
@@ -612,7 +516,7 @@ surfaces:
 - view_key: oratio
   cli_group: oratio
   representation_tier: curated_decorator
-  nav_label: Oratio
+  nav_label: Voice
   nav_icon: mic
   nav_group: compute
   parent_surface: compute
@@ -660,10 +564,18 @@ surfaces:
 - view_key: populi
   cli_group: populi
   representation_tier: curated_decorator
-  nav_label: Populi
+  nav_label: Nodes
   nav_icon: users
   nav_group: compute
   parent_surface: compute
+  notes: null
+- view_key: null
+  cli_group: recensio
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: remove
@@ -714,6 +626,14 @@ surfaces:
   parent_surface: knowledge
   notes: deep-research surface
 - view_key: null
+  cli_group: review
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
+  notes: null
+- view_key: null
   cli_group: rollback
   representation_tier: none
   nav_label: null
@@ -748,7 +668,7 @@ surfaces:
 - view_key: scientia
   cli_group: scientia
   representation_tier: curated_decorator
-  nav_label: Scientia
+  nav_label: Findings
   nav_icon: beaker
   nav_group: knowledge
   parent_surface: knowledge

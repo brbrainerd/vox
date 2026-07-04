@@ -39,9 +39,11 @@ export function SubAgentTree() {
             <span>{r.node.title}</span>
             {r.node.skill && <span className="pill">{r.node.skill}</span>}
             <span style={{ opacity: 0.6 }}>{r.node.model.id}</span>
-            <span data-testid={`budget-${r.windowId}`} data-fate={fate}>
-              {r.node.usedTokens}/{r.node.model.maxTokens}
-            </span>
+            {r.node.model.maxTokens > 0 && (
+              <span data-testid={`budget-${r.windowId}`} data-fate={fate}>
+                {r.node.usedTokens}/{r.node.model.maxTokens}
+              </span>
+            )}
             <span data-status={r.node.status} />
           </div>
         );

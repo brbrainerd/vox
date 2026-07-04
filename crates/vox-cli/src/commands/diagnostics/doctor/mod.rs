@@ -21,7 +21,39 @@ pub async fn run(
     probe: bool,
     fix_cuda_path: bool,
     tier: &str,
+    diag: Option<&str>,
 ) -> Result<()> {
+    if let Some(id) = diag {
+        if probe || build_perf || scope || test_health || auto_heal || compile_target.is_some() {
+            anyhow::bail!(
+                "`--diag` runs a single build-health check and cannot be combined with \
+                 --probe, --build-perf, --scope, --test-health, --auto-heal, or --compile-target"
+            );
+        }
+        let mut checks: Vec<common::Check> = Vec::new();
+        if !checks_standard::run_diag_check(id, &mut checks).await {
+            anyhow::bail!(
+                "unknown diag id `{id}` — known ids:\n  {}",
+                checks_standard::known_diag_ids().join("\n  ")
+            );
+        }
+        let fired = checks
+            .iter()
+            .any(|c| !c.pass && checks_standard::parse_diag_id(&c.detail) == Some(id));
+        if json {
+            // Single-line envelope sharing the build-lane `--json` contract keys
+            // (envelope_version/command/ok) so agents parse one shape family across
+            // the CLI; `ok` is true when the requested diagnosis did not fire.
+            output::print_diag_envelope_json(id, !fired, &checks);
+        } else {
+            output::print_results(&checks, false, json);
+        }
+        if fired {
+            anyhow::bail!("doctor: diagnosis `{id}` fired — apply the FIX above and re-run");
+        }
+        return Ok(());
+    }
+
     #[cfg(not(feature = "codex"))]
     if build_perf || scope || json {
         anyhow::bail!(
@@ -44,7 +76,7 @@ pub async fn run(
         }
     }
 
-    if !probe {
+    if !probe && !json {
         println!(
             "vox doctor — checking your environment{}",
             if auto_heal {
@@ -133,9 +165,11 @@ mod tests {
     #[tokio::test]
     #[cfg(not(feature = "codex"))]
     async fn extended_doctor_flags_require_codex_build() {
-        let err = run(None, false, false, true, false, false, false, false, "full")
-            .await
-            .expect_err("build_perf without codex doctor should error");
+        let err = run(
+            None, false, false, true, false, false, false, false, "full", None,
+        )
+        .await
+        .expect_err("build_perf without codex doctor should error");
         let s = err.to_string();
         assert!(
             s.contains("codex") && s.contains("doctor"),
@@ -146,7 +180,34 @@ mod tests {
     #[tokio::test]
     #[cfg(feature = "codex")]
     async fn build_perf_runs_when_codex_enabled() {
-        let r = run(None, false, false, true, false, false, false, false, "full").await;
+        let r = run(
+            None, false, false, true, false, false, false, false, "full", None,
+        )
+        .await;
         assert!(r.is_ok(), "expected build_perf path to complete: {r:?}");
+    }
+
+    #[tokio::test]
+    async fn diag_flag_rejects_unknown_id() {
+        let err = run(
+            None,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            "full",
+            Some("bogus.id"),
+        )
+        .await
+        .expect_err("unknown diag id should error");
+        let s = err.to_string();
+        assert!(s.contains("unknown diag id"), "unexpected message: {s}");
+        assert!(
+            s.contains("sccache.pathological"),
+            "error should list the known-id registry: {s}"
+        );
     }
 }

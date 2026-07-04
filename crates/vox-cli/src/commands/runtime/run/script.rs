@@ -246,12 +246,35 @@ pub(crate) async fn compile(
     file: &Path,
     opts: &ScriptOpts,
 ) -> Result<(PathBuf, Box<dyn RunBackend>)> {
+    let json = crate::pipeline::global_json_enabled();
     let pipeline_opts = vox_compiler::pipeline::PipelineOptions {
         script_mode: true,
         ..Default::default()
     };
+    // Always pass `json=false` into the frontend: on a PARSE (not typecheck)
+    // failure, `run_frontend_with_options`'s own error path self-prints under
+    // `json=true` (a pretty multi-line diagnostics array on stdout) before
+    // returning `Err` — bypassing the single-line envelope this function
+    // otherwise guarantees below. Keeping the frontend in human/stderr-only
+    // mode means a parse failure surfaces here as a plain `Err` with nothing
+    // yet on stdout, so the `Err` arm can emit the one envelope this command
+    // promises (there's no `FrontendResult` to attach real diagnostics to, so
+    // it uses the same minimal shape `vox build` uses for opaque failures).
     let result: crate::pipeline::FrontendResult =
-        crate::pipeline::run_frontend_with_options(file, false, &pipeline_opts).await?;
+        match crate::pipeline::run_frontend_with_options(file, false, &pipeline_opts).await {
+            Ok(r) => r,
+            Err(e) => {
+                if json {
+                    println!(
+                        "{}",
+                        crate::pipeline::format_command_result_envelope_json(
+                            "run", file, false, None,
+                        )
+                    );
+                }
+                return Err(e);
+            }
+        };
 
     if !result.module.has_entrypoint() {
         anyhow::bail!(
@@ -261,7 +284,18 @@ pub(crate) async fn compile(
     }
 
     if result.has_errors() {
-        crate::pipeline::print_diagnostics(&result, file, false);
+        // Compile/frontend failure: this is the ONLY place `compile` emits a
+        // JSON envelope. On success, execution proceeds to the script's own
+        // stdout — which must never be wrapped in an envelope, since that
+        // would corrupt the script's real program output.
+        if json {
+            println!(
+                "{}",
+                crate::pipeline::format_build_lane_envelope_json("run", file, &result, None)
+            );
+        } else {
+            crate::pipeline::print_diagnostics(&result, file, false);
+        }
         anyhow::bail!("Type checking failed");
     }
 

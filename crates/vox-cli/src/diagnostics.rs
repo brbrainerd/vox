@@ -198,6 +198,18 @@ pub fn print_info(message: &str) {
     println!("{message}");
 }
 
+// ── JSON-mode progress notes ─────────────────────────────────────────────────
+
+/// Print a human progress note: stdout normally, **stderr** when `json` is
+/// true — under global `--json`, stdout is reserved for machine envelopes
+/// (single-line JSON, JSONL-parseable), matching the module contract above.
+#[macro_export]
+macro_rules! vox_note {
+    ($json:expr, $($arg:tt)*) => {
+        if $json { eprintln!($($arg)*) } else { println!($($arg)*) }
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
