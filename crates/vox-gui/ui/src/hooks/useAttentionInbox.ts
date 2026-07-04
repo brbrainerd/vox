@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { voxTransport, feedbackList, feedbackResolve, listenFeedbackChanged, hopperList, type FeedbackRow, type HopperTaskDto } from '../transport';
-import { parsePendingApprovals, type McpInvokeResult, type PendingApprovalRow } from '../lib/mcpToolResult';
+import { parsePendingApprovals, unwrapMcpEnvelope, type McpInvokeResult, type PendingApprovalRow } from '../lib/mcpToolResult';
 import { ATTENTION_POLL_MS } from '../config/constants';
 
 export interface AttentionInbox {
@@ -49,7 +49,11 @@ export function useAttentionInbox(): AttentionInbox {
   }, [refresh]);
 
   const resolveApproval = useCallback(async (approvalId: string, outcome: 'approved' | 'rejected') => {
-    await voxTransport.invokeMcpTool('vox_resolve_approval', { approval_id: approvalId, outcome });
+    const res = await voxTransport.invokeMcpTool('vox_resolve_approval', { approval_id: approvalId, outcome });
+    const data = unwrapMcpEnvelope(res.result) as { resolved?: boolean } | null;
+    if (res.is_error || data?.resolved === false) {
+      throw new Error(`resolve failed for ${approvalId}`);
+    }
     setApprovals((prev) => prev.filter((a) => a.approval_id !== approvalId));
     await refresh();
   }, [refresh]);

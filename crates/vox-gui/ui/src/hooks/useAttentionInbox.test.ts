@@ -55,4 +55,15 @@ describe('useAttentionInbox', () => {
     expect(result.current.needsYou).toHaveLength(1);
     expect(result.current.blockedTasksCount).toBe(0);
   });
+
+  it('resolveApproval throws (does not drop the row) when the MCP tool reports is_error', async () => {
+    vi.mocked(voxTransport.invokeMcpTool).mockImplementation((tool: string) =>
+      tool === 'vox_resolve_approval'
+        ? Promise.resolve({ tool, is_error: true, result: null })
+        : Promise.resolve({ tool, is_error: false, result: { approvals: [{ approval_id: 'A-1', tool: 'bash', summary: 's', requested_at_ms: 0 }] } }));
+    const { result } = renderHook(() => useAttentionInbox());
+    await waitFor(() => expect(result.current.approvals).toHaveLength(1));
+    await expect(act(() => result.current.resolveApproval('A-1', 'approved'))).rejects.toThrow();
+    expect(result.current.approvals).toHaveLength(1);
+  });
 });
