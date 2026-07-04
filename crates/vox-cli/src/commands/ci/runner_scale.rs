@@ -94,7 +94,7 @@ fn env_i64(key: &str, default: i64) -> i64 {
         .unwrap_or(default)
 }
 
-fn max_runners() -> u32 {
+pub(crate) fn max_runners() -> u32 {
     env_u32("VOX_RUNNER_MAX", DEFAULT_MAX_RUNNERS)
 }
 
@@ -228,7 +228,7 @@ pub fn phantom_offline_registrations<'a>(
 // IO: GitHub + Docker
 // ---------------------------------------------------------------------------
 
-fn now_secs() -> i64 {
+pub(crate) fn now_secs() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
@@ -240,7 +240,7 @@ fn now_secs() -> i64 {
 /// The autoscaler runs every tick on a schedule and shells out to `gh`/`docker`
 /// many times per launch/reap cycle; without `CREATE_NO_WINDOW` each child pops a
 /// blank console window on the desktop. No-op on non-Windows.
-fn quiet_command(program: &str) -> Command {
+pub(crate) fn quiet_command(program: &str) -> Command {
     // vox-arch-check: allow git-exec
     #[allow(unused_mut)] // Windows-only mutation via creation_flags
     let mut cmd = Command::new(program);
@@ -253,7 +253,7 @@ fn quiet_command(program: &str) -> Command {
     cmd
 }
 
-fn gh_json(args: &[&str]) -> Result<String> {
+pub(crate) fn gh_json(args: &[&str]) -> Result<String> {
     let out = quiet_command("gh")
         .args(args)
         .output()
@@ -424,6 +424,11 @@ fn managed_containers(status: &str) -> Vec<String> {
             .collect()
     })
     .unwrap_or_default()
+}
+
+/// Count of managed runner containers currently running (queue snapshot summary).
+pub(crate) fn managed_running_count() -> Result<u32> {
+    Ok(managed_containers("running").len() as u32)
 }
 
 /// Reap a managed runner: deregister from GitHub, then remove the container.
@@ -677,6 +682,15 @@ impl ScaleLock {
         }
         Ok(Some(ScaleLock { path }))
     }
+
+    /// Refresh the lock's heartbeat timestamp. Call after long-running phases
+    /// (e.g. the gh-heavy queue auto-clear) so a slow tick isn't stolen as
+    /// stale mid-run by a concurrent apply.
+    pub fn refresh(&self, now: i64) {
+        if let Ok(mut f) = std::fs::File::create(&self.path) {
+            let _ = writeln!(f, "{now}");
+        }
+    }
 }
 
 impl Drop for ScaleLock {
@@ -710,9 +724,11 @@ pub fn scale_event_json(
     max: u32,
     warm: u32,
     s3_cache_reachable: bool,
+    cleared_superseded: u32,
+    cleared_stale: u32,
 ) -> String {
     format!(
-        r#"{{"ts":{ts},"dry_run":{dry_run},"queued_jobs":{queued_jobs},"keep":{keep},"desired":{desired},"spawned":{spawned},"reaped_scale_down":{reaped_scale_down},"reaped_idle":{reaped_idle},"pruned_phantom":{pruned_phantom},"cleaned_exited":{cleaned_exited},"max":{max},"warm":{warm},"s3_cache_reachable":{s3_cache_reachable}}}"#
+        r#"{{"ts":{ts},"dry_run":{dry_run},"queued_jobs":{queued_jobs},"keep":{keep},"desired":{desired},"spawned":{spawned},"reaped_scale_down":{reaped_scale_down},"reaped_idle":{reaped_idle},"pruned_phantom":{pruned_phantom},"cleaned_exited":{cleaned_exited},"max":{max},"warm":{warm},"s3_cache_reachable":{s3_cache_reachable},"cleared_superseded":{cleared_superseded},"cleared_stale":{cleared_stale}}}"#
     )
 }
 
@@ -772,6 +788,25 @@ pub fn run_scale(apply: bool) -> Result<()> {
     } else {
         None
     };
+
+    // The auto-clear sweep below can make many sequential `gh` calls; refresh
+    // the lock heartbeat immediately before AND after so a slow sweep can
+    // never let it go stale mid-run and be stolen by a concurrent apply.
+    if let Some(lock) = _lock.as_ref() {
+        lock.refresh(now_secs());
+    }
+
+    // 0. Local-first CI: auto-clear superseded/stale runs and refresh the
+    //    queue snapshot every tick (stale sweep self-disables at fleet 0).
+    let (cleared_superseded, cleared_stale) = super::queue::auto_clear_and_snapshot(dry_run, now)
+        .unwrap_or_else(|e| {
+            eprintln!("runner-scale: queue auto-clear skipped (degraded): {e:#}");
+            (0, 0)
+        });
+
+    if let Some(lock) = _lock.as_ref() {
+        lock.refresh(now_secs());
+    }
 
     let max = max_runners();
     let reap_secs = idle_reap_secs();
@@ -917,6 +952,8 @@ pub fn run_scale(apply: bool) -> Result<()> {
         max,
         warm,
         s3_cache_reachable(), // one TCP probe/tick — cold-cache periods now visible in history
+        cleared_superseded,
+        cleared_stale,
     ));
 
     println!(
@@ -1313,6 +1350,8 @@ mod tests {
             6,         // max
             1,         // warm
             false,     // s3_cache_reachable
+            2,         // cleared_superseded
+            1,         // cleared_stale
         );
         // Every key must be present.
         for key in &[
@@ -1329,6 +1368,8 @@ mod tests {
             "\"max\"",
             "\"warm\"",
             "\"s3_cache_reachable\"",
+            "\"cleared_superseded\"",
+            "\"cleared_stale\"",
         ] {
             assert!(s.contains(key), "missing key {key} in: {s}");
         }
@@ -1339,6 +1380,8 @@ mod tests {
         assert_eq!(v["dry_run"], false);
         assert_eq!(v["spawned"], 1);
         assert_eq!(v["s3_cache_reachable"], false);
+        assert_eq!(v["cleared_superseded"], 2);
+        assert_eq!(v["cleared_stale"], 1);
     }
 
     #[test]

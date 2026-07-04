@@ -338,7 +338,7 @@ Use `vox ci pre-push` to run any tier locally. Install the hook once with `cargo
 
 | Tier | Command | What runs | Target wall-clock |
 |---|---|---|---:|
-| **fast** (default / hook) | `vox ci pre-push` | fmt, line-endings, ssot-drift, scoped doc lint + doctest, drift-check | ≤60s |
+| **fast** (default / hook) | `vox ci pre-push` | fmt, line-endings, ssot-drift, runner-policy-check, workflow-concurrency-guard, scoped doc lint + doctest, drift-check | ≤60s |
 | **complete** | `vox ci pre-push --complete` | fast + full doc lint, doc-inventory, clippy, scoped TOESTUB | ≤180s |
 | **full** | `vox ci pre-push --full` | complete + nextest workspace (slow excluded) | ≤120s |
 | **full+cov** | `vox ci pre-push --full --with-coverage` | full but llvm-cov nextest; emits lcov + HTML | ≤260s |
@@ -370,6 +370,39 @@ ratchet + downward-only layer rule; contracts: `contracts/ci/crate-edges.allow.v
 4. **New crates** must be assigned a layer in `contracts/ci/crate-layers.v1.json` at
    creation (L0 leaf foundation ... L4 apps/shells; see
    `docs/src/architecture/where-things-live.md`). Dependencies point same-layer or down.
+
+## Local-First CI Verification Contract (Required, SSOT)
+
+The local runner fleet is the CI plane. For agents:
+
+- **Local gates green = the verdict for what they cover.** Run
+  `vox ci pre-push --complete` (or `--full` when code/tests changed). Green =
+  push and move on — never wait on remote checks. (The default fast tier omits
+  clippy and all tests; do not treat fast-tier green as the verdict for code
+  changes.)
+- **Fleet CI is authoritative for the rest** (rustdoc, deny/audit, compiler
+  gates, integration/docker/browser/GUI smokes, coverage/architecture budgets,
+  all-features/mutation/cross-platform/mobile lanes). Its verdicts arrive
+  asynchronously via the queue snapshot's `failures` field — surfaced at
+  SessionStart and by `vox ci queue`. A red there is new information to fix
+  locally, never a reason to re-push and watch.
+- **Remote check-watching is blocked** for agent sessions (PreToolUse hook →
+  `vox ci queue --hook-guard`): `gh pr checks`, `gh run watch`,
+  check-runs polling, `vox ci watch-run`, and hand-rolled gh+sleep loops.
+  Reading one failure's logs stays allowed: `gh run list --branch <b>` then
+  `gh run view <id> --log-failed`.
+- **Queue interactions:** `vox ci queue --json` to read (the `advice` field
+  says what to do); `vox ci queue --clear` to cancel superseded + stale runs.
+  Cancellable = push/pull_request events only, first attempt, non-main,
+  non-tag; stale-clearing self-disables when the fleet is down.
+- **No new hosted jobs / unguarded workflows:** GitHub-hosted `runs-on` needs a
+  row in `docs/src/ci/github-hosted-exceptions.md` (`vox ci runner-policy-check`);
+  push/PR workflows need a top-level `concurrency:` block containing
+  `cancel-in-progress: true` — a bare group string or a non-cancelling group
+  does not count — or a row in `docs/src/ci/concurrency-exceptions.md`
+  (`vox ci workflow-concurrency-guard`).
+
+Details: `docs/src/ci/local-first-ci.md`.
 
 ## Perennial Bug Patterns (catch early)
 

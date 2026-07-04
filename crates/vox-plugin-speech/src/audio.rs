@@ -187,6 +187,14 @@ impl SpeechToText for OratioPlugin {
     }
 }
 
+pub(crate) fn make_plugin(
+    _host: VoxHost_TO<'static, RBox<()>>,
+) -> RResult<VoxPluginRef, RBoxError> {
+    let plugin = OratioPlugin;
+    let to = VoxPlugin_TO::from_value(plugin, TD_Opaque);
+    RResult::ROk(to)
+}
+
 #[cfg(test)]
 mod semcov_wave9_tests {
     #![allow(unused_imports, dead_code)]
@@ -305,12 +313,4 @@ mod semcov_wave9_tests {
             "list_devices_json must return a JSON array, got: {parsed}"
         );
     }
-}
-
-pub(crate) fn make_plugin(
-    _host: VoxHost_TO<'static, RBox<()>>,
-) -> RResult<VoxPluginRef, RBoxError> {
-    let plugin = OratioPlugin;
-    let to = VoxPlugin_TO::from_value(plugin, TD_Opaque);
-    RResult::ROk(to)
 }

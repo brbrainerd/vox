@@ -1,4 +1,3 @@
-#![cfg_attr(test, allow(unsafe_code))] // test-only std::env::set_var (unsafe on edition 2024)
 use anyhow::Result;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

@@ -519,6 +519,11 @@ fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
             run: Box::new(step_runner_policy_check),
         },
         OwnedStep {
+            label: "vox ci workflow-concurrency-guard".into(),
+            scope: None,
+            run: Box::new(step_workflow_concurrency_guard),
+        },
+        OwnedStep {
             label: "vox ci check-links".into(),
             scope: None,
             run: Box::new(step_check_links),
@@ -1082,6 +1087,12 @@ fn step_runner_policy_check(root: &Path) -> Result<()> {
     // In-process (same as ssot-drift wedge) — avoids Windows nested `current_exe()` spawning a
     // stale `vox.exe` when embed build metadata lags the working tree.
     vox_cli_ci::runner_policy_check::run(root, false)
+}
+
+fn step_workflow_concurrency_guard(root: &Path) -> Result<()> {
+    // In-process (same as runner-policy-check) — avoids Windows nested `current_exe()`
+    // spawning a stale `vox.exe`. Strict: the tree is already clean + exceptions exist.
+    vox_cli_ci::workflow_concurrency_guard::run(root, true)
 }
 
 fn step_check_links(root: &Path) -> Result<()> {

@@ -7,11 +7,11 @@ on:
   # protection. Running the full gate again on push:main after a successful
   # merge_group run is pure duplication — it wastes two runner-slots per merge,
   # creates a second in-progress run that competes with the next PR's gate run,
-  # and the cancel-thrash from rapid pushes can starve the queue. All post-merge
-  # observability jobs (docker-vox-image-smoke, gui-playwright-smoke, etc.) that
-  # genuinely need to run on main are tiered behind the `full-ci` label or the
-  # `github.event_name != 'pull_request'` guard and continue to fire via
-  # merge_group (which is not a pull_request event).
+  # and the cancel-thrash from rapid pushes can starve the queue. Heavy
+  # observability jobs (docker-vox-image-smoke, gui-playwright-smoke, etc.) are
+  # tiered off merge_group entirely (runner-remediation Task 10 — the merge
+  # queue's runner ceiling can't absorb them) and instead run post-merge on
+  # `push:main` or via the `full-ci` PR label.
   merge_group:
 
 concurrency:
@@ -1441,7 +1441,7 @@ jobs:
 
   docker-vox-image-smoke:
     name: Docker build smoke (default + mesh)
-    # Tier: heavy (~30m). Run post-merge (push to main) + on PRs labelled
+    # Tier: heavy (~30m). Runs in the merge queue for main + on PRs labelled
     # `full-ci`; skip routine PR pushes (not a required check).
     # Tiered off merge_group (runner-remediation Task 10): not a ci-summary
     # dependency, so it gates nothing — runs post-merge on main or via full-ci label.

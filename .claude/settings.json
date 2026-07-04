@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "out=$(vox ci queue --hook-guard 2>&1); code=$?; if [ \"$code\" -eq 2 ] && printf '%s' \"$out\" | grep -q 'Local-first CI'; then printf '%s\\n' \"$out\" >&2; exit 2; fi; exit 0"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "vox ci queue --brief --from-snapshot"
+          }
+        ]
+      }
+    ]
+  }
+}
