@@ -17,6 +17,8 @@ mod profile_parity;
 mod providers;
 mod release_build;
 mod runner_scale;
+#[cfg(test)]
+mod sccache_workflow_guard;
 pub mod workspace_artifacts;
 
 pub(crate) mod run_body;
