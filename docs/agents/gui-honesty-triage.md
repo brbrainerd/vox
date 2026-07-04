@@ -281,3 +281,33 @@ Generated: 2026-06-25. Awaiting Gate G2 human approval.
 | Tasks | TasksView.tsx:148 | overflow | Priority column fixed width=110 — may clip 'Background' option on some locales/font sizes | low |
 | Tasks | TasksView.tsx:161 | overflow | Task ID column fixed width=80 — no flex room | low |
 | Tasks | TasksView.tsx:235 | hierarchy | Only row-level action is destructive (Cancel) — no primary action, unclear hierarchy | med |
+
+---
+
+## Burn-down status (2026-07-02)
+
+Resolution status for the WIRE / HIDE / TOAST-FIX rows above, as of the close of the "AI-first Plan 3: GUI intuitiveness" work (10 tasks, this branch). Confirmed by direct source inspection at time of writing, not just commit-message trust.
+
+| Row(s) | Original decision | Resolution | Evidence |
+|---|---|---|---|
+| SkillsPlugins ×4 (`SkillsPluginsView.tsx:222,223,236,398` — Skill Info, Plugin Info ×2, View button) | WIRE + TOAST-FIX | **DONE** — all 4 now open a real `SkillDetailPanel` instead of a raw-JSON toast | `feat(gui-skills): structured SkillDetailPanel (replaces raw-JSON toast)` (96ea3f5080); `src/components/surfaces/SkillsPlugins/SkillDetailPanel.tsx` + `SkillDetailPanel.test.tsx` present and passing |
+| Chat / `ChatExecutionRail.tsx:221` — ContextWindowMeter | HIDE (dead, `usedTokens` hardcoded 0) | **SUPERSEDED — WIRED** | `usedTokens={budget.used_tokens}` at `ChatExecutionRail.tsx:227` — real value, not hardcoded 0; `ContextWindowMeter.test.tsx` covers it |
+| Dashboard / `StreamCard.tsx:39,44` — Doubt / Overrule buttons | HIDE (dead, no backend) | **SUPERSEDED — WIRED** | `StreamCard` takes `onDoubt?`/`onOverrule?` props wired to real handlers, no longer inert opacity-0-on-hover dead buttons |
+| Settings / `SettingsView.tsx:1430` — Keybinds section | HIDE (dead, display-only) | **SUPERSEDED — WIRED** | Data-driven keybind dispatcher landed: `feat(gui-keybinds): action registry + chord/binding helpers` (da6cdf9c4d), `feat(gui-keybinds): data-driven useKeybinds dispatcher hook` (ee6429b455), `feat(gui-keybinds): App uses data-driven dispatcher` (02f53b1dbe); `useKeybinds.test.ts` passing |
+
+These four rows were already resolved before AI-first Plan 3 began; this entry is a confirmation, not new work from this plan.
+
+### Resolved by AI-first Plan 3 (this branch, Tasks 1–10)
+
+| Item | Status | Notes |
+|---|---|---|
+| `needs-you` reachable from primary nav | **Confirmed done** | Task 1 of this plan was a no-op verification: a prior GUI-IA Reorg plan had already added `needs-you` to `src/lib/navigation.ts` (`runs: [..., 'needs-you', ...]`, label "Needs You"). No code change was needed in this plan; recorded here for the ledger's completeness. |
+| `sub-agents` surface | **Wired-tree + dead-control hiding done (Tasks 2–3)** | `sub-agents` confirmed in nav SSOT (`agents: [..., 'sub-agents']`, label "Sub-Agents"). Task 2 fixed the tree data flow (dangling parent-ref logging, non-array payload guard — `7d99367bd2`) and Task 3 hid dead sub-agent controls that had no backend (`09f37b0a20`). |
+| Consolidated attention/approvals polling | **New consolidation landed, no regression** | `useAttentionInbox.ts` is now the single poll for approvals + doubts + blocked tasks (`3955ab40d5`, `f561cab3c2`); `App.tsx`'s own direct `vox_pending_approvals` poll was removed as part of this consolidation (`c06466c912`). Verified via regression grep (Step 2, below) — `App.tsx` no longer appears among callers of `vox_pending_approvals`. |
+| Structured intent panel in composer (Loquela) | **New feature landed** | `IntentPanel` (goal/constraints/effort/acceptance) wired into `Loquela.tsx`'s `send()`/submit path, composing `description` + `priority` from structured fields (`412c7cc198`, `bcce4b6e08`, `648a2d57f1`, `c6dc3b281f`). Covered by `IntentPanel.test.tsx` and `Loquela.test.tsx`. Not a triage-table row (feature addition, not a dead-control fix), noted here since it closes out this plan's scope.
+
+### Full-suite verification (Task 10, this date)
+
+- `pnpm test` (vitest run) from `crates/vox-gui/ui`: **886 passed / 887 total**, 1 known pre-existing unrelated failure in `src/guards/ipcBoundaries.test.ts` (`CodeRabbitView.tsx` importing `invoke` directly outside the IPC hub layer — unrelated to this plan's scope, tracked separately). Same baseline as after Task 9's last commit; no drift.
+- `pnpm typecheck`: clean, zero errors.
+- Regression grep `grep -rn "vox_pending_approvals" crates/vox-gui/ui/src --include="*.tsx" --include="*.ts" | grep -v test`: matched expected file set exactly — `ApprovalsWidget.tsx` (doc comment only), `ApprovalsView.tsx` (real call), `InlineApprovals.tsx` (real call), `useAgentApprovals.ts` (doc comment + real call), `useAttentionInbox.ts` (real call). `App.tsx` absent, confirming no regression of the Task 5 consolidation.
