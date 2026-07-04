@@ -822,6 +822,16 @@ pub enum CiCmd {
         #[arg(long)]
         exit_zero: bool,
     },
+    /// Exact edge-set ratchet + layer rule for workspace crate dependencies.
+    /// Live graph from `cargo metadata` vs `contracts/ci/crate-edges.allow.v1.json`
+    /// (+ `crate-layers.v1.json`). New edges require a user-authorized ledger entry.
+    #[command(name = "crate-edges")]
+    CrateEdges {
+        /// Regenerate the baseline from the live graph (removal-only) and drop
+        /// stale exceptions. Bootstraps both contract files when missing.
+        #[arg(long)]
+        tighten: bool,
+    },
     /// Detect dependency cycles (HARD on normal-dep cycles) and inventory dev-dep back-edges.
     /// With --deny-new, fails when a new advisory cycle appears not in the committed allowlist.
     #[command(name = "dep-cycles")]

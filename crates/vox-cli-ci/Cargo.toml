@@ -16,6 +16,7 @@ completion-toestub = ["dep:vox-code-audit"]
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 chrono = { workspace = true }
+cargo_metadata = { workspace = true }
 vox-bounded-fs = { workspace = true }
 vox-doc-pipeline = { workspace = true }
 vox-jsonschema-util = { workspace = true }
