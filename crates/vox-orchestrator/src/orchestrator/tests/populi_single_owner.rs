@@ -741,16 +741,114 @@ async fn cancel_populi_remote_delegated_relays_remote_cancel_message() {
     server.abort();
 }
 
+/// Test-only [`std::io::Write`] sink that appends into a shared buffer, used
+/// as a `tracing_subscriber::fmt` writer to capture log output scoped to a
+/// single test. Mirrors `orchestrator::runtime`'s `CapturingWriter`.
+///
+/// T5.4 follow-up: replaced `#[tracing_test::traced_test]` in this module's
+/// two Populi-cancel-relay tests with this per-test-local capturing
+/// subscriber. `#[traced_test]` installs a process-*global* `Once`-guarded
+/// tracing subscriber; this crate's test binary already has a pre-existing
+/// `#[traced_test]` test elsewhere (T5.2's fix in `runtime.rs`), so a second
+/// and third `#[traced_test]` test in the same binary raced to
+/// `set_global_default` and panicked (`SetGlobalDefaultError` / poisoned
+/// `Once`) whenever the full suite ran together — passing only when the two
+/// new tests were filtered to run in isolation. `tracing::dispatcher::set_default`
+/// scopes the subscriber to the calling thread (or, when captured explicitly
+/// and re-applied inside a spawned task's body, to that task), so multiple
+/// such tests never conflict with each other or with `#[traced_test]`.
+#[cfg(feature = "populi-transport")]
+#[derive(Clone)]
+struct CapturingWriter {
+    buf: std::sync::Arc<std::sync::Mutex<Vec<u8>>>,
+}
+
+#[cfg(feature = "populi-transport")]
+impl std::io::Write for CapturingWriter {
+    fn write(&mut self, data: &[u8]) -> std::io::Result<usize> {
+        self.buf.lock().unwrap().extend_from_slice(data);
+        Ok(data.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
 /// T5.4 (harness reliability spec, Phase 5): `cancel_task`'s Populi
 /// remote-relay used to fire-and-forget the cancel HTTP call and log any
 /// failure at `debug!` (invisible by default), so a relay failure was
 /// effectively silent. Point `populi_control_url` at a closed port so the
 /// relay call fails immediately, then assert the failure is now observable
 /// via `tracing::warn!`.
+///
+/// The relay itself runs inside a detached `handle.spawn(...)` in
+/// `cancel_task`, which may execute on a different worker thread than the
+/// one that called `cancel_task` — a thread-local dispatcher set via
+/// `tracing::dispatcher::set_default` on the calling thread is not
+/// guaranteed to be in scope there. To make the capturing subscriber visible
+/// to that spawned task regardless of which thread runs it, this test
+/// installs the dispatcher as the *thread-local* default on every worker
+/// thread in a small dedicated multi-thread runtime built with
+/// `on_thread_start`, so the subscriber is active on whichever thread ends
+/// up polling the spawned relay future.
 #[cfg(feature = "populi-transport")]
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[tracing_test::traced_test]
-async fn cancel_populi_remote_delegated_warns_on_relay_failure() {
+#[test]
+fn cancel_populi_remote_delegated_warns_on_relay_failure() {
+    use tracing_subscriber::layer::SubscriberExt;
+
+    let captured: std::sync::Arc<std::sync::Mutex<Vec<u8>>> =
+        std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let make_dispatch = {
+        let captured = std::sync::Arc::clone(&captured);
+        move || {
+            let make_writer = {
+                let captured = std::sync::Arc::clone(&captured);
+                move || CapturingWriter {
+                    buf: std::sync::Arc::clone(&captured),
+                }
+            };
+            tracing::Dispatch::new(
+                tracing_subscriber::registry().with(
+                    tracing_subscriber::fmt::layer()
+                        .with_writer(make_writer)
+                        .with_ansi(false),
+                ),
+            )
+        }
+    };
+
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .on_thread_start({
+            let make_dispatch = make_dispatch.clone();
+            move || {
+                // Leak the guard so the thread-local default stays installed
+                // for the lifetime of this worker thread; the runtime (and
+                // its threads) are scoped to this single test.
+                let guard = tracing::dispatcher::set_default(&make_dispatch());
+                std::mem::forget(guard);
+            }
+        })
+        .build()
+        .expect("build dedicated runtime");
+
+    // The main test thread also needs the dispatcher installed, since
+    // `cancel_task` itself (and its synchronous `tracing::warn!`/`info!`
+    // calls) runs on whichever thread calls `block_on` below, not
+    // necessarily a runtime worker thread.
+    let _guard = tracing::dispatcher::set_default(&make_dispatch());
+
+    rt.block_on(cancel_populi_remote_delegated_warns_on_relay_failure_inner(
+        captured,
+    ));
+}
+
+#[cfg(feature = "populi-transport")]
+async fn cancel_populi_remote_delegated_warns_on_relay_failure_inner(
+    captured: std::sync::Arc<std::sync::Mutex<Vec<u8>>>,
+) {
     // Bind and immediately drop a listener to get a port nothing is
     // listening on, so the relay HTTP call fails deterministically and fast.
     let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
@@ -792,20 +890,15 @@ async fn cancel_populi_remote_delegated_warns_on_relay_failure() {
         .insert(TaskId(9903), aid);
     orch.cancel_task(TaskId(9903)).expect("cancel");
 
-    // The relay runs in a spawned tokio task, which does not inherit the
-    // `#[traced_test]` scope span entered on this task, so read the raw
-    // global log buffer directly rather than the scope-filtered
-    // `logs_contain` helper. Give the spawned task a chance to run and fail
+    // The relay runs in a spawned tokio task on the dedicated runtime built
+    // in the `#[test]` wrapper above, whose worker threads all have the
+    // capturing dispatcher installed as their thread-local default via
+    // `on_thread_start`. Give the spawned task a chance to run and fail
     // against the unreachable address.
     let mut saw_warn = false;
     for _ in 0..40 {
-        let logs = String::from_utf8(
-            tracing_test::internal::global_buf()
-                .lock()
-                .expect("log buf mutex")
-                .clone(),
-        )
-        .expect("utf8 logs");
+        let logs =
+            String::from_utf8(captured.lock().expect("log buf mutex").clone()).expect("utf8 logs");
         if logs.contains("populi remote_task_cancel relay failed") && logs.contains("WARN") {
             saw_warn = true;
             break;
@@ -823,10 +916,17 @@ async fn cancel_populi_remote_delegated_warns_on_relay_failure() {
 /// experimental flag is off), `cancel_task` used to silently skip the
 /// remote-cancel relay entirely — a caller had no way to know the remote
 /// node was never notified. Assert the skip is now logged at warn level.
+///
+/// Unlike the relay-failure test above, the "skipped" path this test
+/// exercises is entirely synchronous (no `handle.spawn`), so a single
+/// `tracing::dispatcher::set_default` scoped to the calling thread for the
+/// duration of the `cancel_task` call is sufficient — no dedicated runtime
+/// needed.
 #[cfg(feature = "populi-transport")]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[tracing_test::traced_test]
 async fn cancel_populi_remote_delegated_warns_when_relay_not_configured() {
+    use tracing_subscriber::layer::SubscriberExt;
+
     // `OrchestratorConfig::for_testing()` leaves `populi_control_url` unset
     // and `populi_remote_execute_experimental` false, i.e. the "no
     // runtime/config" precondition-not-met case.
@@ -854,12 +954,29 @@ async fn cancel_populi_remote_delegated_warns_when_relay_not_configured() {
         .write()
         .unwrap()
         .insert(TaskId(9904), aid);
-    orch.cancel_task(TaskId(9904)).expect("cancel");
 
+    let captured: std::sync::Arc<std::sync::Mutex<Vec<u8>>> =
+        std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let make_writer = {
+        let captured = std::sync::Arc::clone(&captured);
+        move || CapturingWriter {
+            buf: std::sync::Arc::clone(&captured),
+        }
+    };
+    let subscriber = tracing_subscriber::registry().with(
+        tracing_subscriber::fmt::layer()
+            .with_writer(make_writer)
+            .with_ansi(false),
+    );
+    let _guard = tracing::subscriber::set_default(subscriber);
+    orch.cancel_task(TaskId(9904)).expect("cancel");
+    drop(_guard);
+
+    let logs = String::from_utf8(captured.lock().unwrap().clone()).expect("utf8 logs");
     assert!(
-        logs_contain("populi remote_task_cancel skipped")
-            && logs_contain("populi_remote_execute_experimental disabled"),
-        "no-config/no-runtime skip must be logged at warn level, not silent"
+        logs.contains("populi remote_task_cancel skipped")
+            && logs.contains("populi_remote_execute_experimental disabled"),
+        "no-config/no-runtime skip must be logged at warn level, not silent; captured logs: {logs}"
     );
     assert!(
         !orch
