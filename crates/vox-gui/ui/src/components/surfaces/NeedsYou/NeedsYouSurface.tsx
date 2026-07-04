@@ -181,7 +181,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention }: Props) 
               <span>Withheld by policy ({effectiveWithheld.length})</span>
               <span className="transition-transform group-open:rotate-180">▼</span>
             </summary>
-            <div className="p-2 border-t border-zinc-800/40 space-y-2">
+            <div className="p-2 border-t border-border-subtle space-y-2">
               {effectiveWithheld.map((item) => (
                 <FeedbackCard
                   key={item.feedbackId}
