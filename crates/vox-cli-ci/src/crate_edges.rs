@@ -6,7 +6,7 @@
 //! Layer map (downward-only rule): `contracts/ci/crate-layers.v1.json`.
 //! Spec: docs/superpowers/specs/2026-07-03-crate-disentanglement-ratchet-design.md
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use cargo_metadata::DependencyKind;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -58,9 +58,19 @@ pub struct LayersFile {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Violation {
-    NewEdge { from: String, to: String },
-    UpwardEdge { from: String, from_layer: u8, to: String, to_layer: u8 },
-    MissingLayer { krate: String },
+    NewEdge {
+        from: String,
+        to: String,
+    },
+    UpwardEdge {
+        from: String,
+        from_layer: u8,
+        to: String,
+        to_layer: u8,
+    },
+    MissingLayer {
+        krate: String,
+    },
 }
 
 /// Pure rule engine: violations + stale-baseline warnings. No IO.
@@ -94,7 +104,10 @@ pub fn check(
         let pair = (from.clone(), to.clone());
         let is_excepted = excepted.contains(&pair);
         if !baseline.contains(&pair) && !is_excepted {
-            violations.push(Violation::NewEdge { from: from.clone(), to: to.clone() });
+            violations.push(Violation::NewEdge {
+                from: from.clone(),
+                to: to.clone(),
+            });
         }
         // Layer-presence + upward-edge checks always run, regardless of exception
         // status; only the UpwardEdge verdict itself is suppressed when excepted.
@@ -143,8 +156,11 @@ pub fn collect_live_edges(root: &Path) -> Result<BTreeSet<(String, String)>> {
         .manifest_path(root.join("Cargo.toml"))
         .exec()
         .context("run `cargo metadata`")?;
-    let members: BTreeSet<&str> =
-        metadata.workspace_packages().iter().map(|p| p.name.as_str()).collect();
+    let members: BTreeSet<&str> = metadata
+        .workspace_packages()
+        .iter()
+        .map(|p| p.name.as_str())
+        .collect();
     let mut edges = BTreeSet::new();
     for pkg in metadata.workspace_packages() {
         for dep in &pkg.dependencies {
@@ -177,7 +193,8 @@ pub fn tighten(root: &Path, live: &BTreeSet<(String, String)>) -> Result<()> {
     let prior: Option<AllowFile> = if path.exists() {
         Some(
             serde_json::from_str(
-                &std::fs::read_to_string(&path).with_context(|| format!("read {}", path.display()))?,
+                &std::fs::read_to_string(&path)
+                    .with_context(|| format!("read {}", path.display()))?,
             )
             .context("parse crate-edges.allow.v1.json")?,
         )
@@ -190,10 +207,17 @@ pub fn tighten(root: &Path, live: &BTreeSet<(String, String)>) -> Result<()> {
             .edges
             .iter()
             .map(|e| (e[0].clone(), e[1].clone()))
-            .chain(prior.exceptions.iter().map(|x| (x.from.clone(), x.to.clone())))
+            .chain(
+                prior
+                    .exceptions
+                    .iter()
+                    .map(|x| (x.from.clone(), x.to.clone())),
+            )
             .collect();
-        let additions: Vec<&(String, String)> =
-            live_real.iter().filter(|e| !prior_allowed.contains(e)).collect();
+        let additions: Vec<&(String, String)> = live_real
+            .iter()
+            .filter(|e| !prior_allowed.contains(e))
+            .collect();
         if !additions.is_empty() {
             bail!(
                 "--tighten would ADD {} edge(s) (tighten is removal-only): {:?}\n\n{HEAL}",
@@ -208,8 +232,10 @@ pub fn tighten(root: &Path, live: &BTreeSet<(String, String)>) -> Result<()> {
             .cloned()
             .collect();
     }
-    let excepted: BTreeSet<(String, String)> =
-        exceptions.iter().map(|x| (x.from.clone(), x.to.clone())).collect();
+    let excepted: BTreeSet<(String, String)> = exceptions
+        .iter()
+        .map(|x| (x.from.clone(), x.to.clone()))
+        .collect();
     let file = AllowFile {
         schema_version: 1,
         edges: live_real
@@ -253,15 +279,26 @@ pub fn suggest_layers(live: &BTreeSet<(String, String)>) -> LayersFile {
         memo.insert(n, 0);
         let d = adj
             .get(n)
-            .map(|ds| ds.iter().map(|c| depth(c, adj, memo).saturating_add(1)).max().unwrap_or(0))
+            .map(|ds| {
+                ds.iter()
+                    .map(|c| depth(c, adj, memo).saturating_add(1))
+                    .max()
+                    .unwrap_or(0)
+            })
             .unwrap_or(0)
             .min(4);
         memo.insert(n, d);
         d
     }
     let mut memo = BTreeMap::new();
-    let layers = nodes.iter().map(|n| ((*n).to_string(), depth(n, &adj, &mut memo))).collect();
-    LayersFile { schema_version: 1, layers }
+    let layers = nodes
+        .iter()
+        .map(|n| ((*n).to_string(), depth(n, &adj, &mut memo)))
+        .collect();
+    LayersFile {
+        schema_version: 1,
+        layers,
+    }
 }
 
 /// Guard entry point (`vox ci crate-edges [--tighten]`).
@@ -271,7 +308,10 @@ pub fn run(root: &Path, tighten_mode: bool) -> Result<()> {
     if tighten_mode {
         if !layers_path.exists() {
             let suggested = suggest_layers(&live);
-            std::fs::write(&layers_path, serde_json::to_string_pretty(&suggested)? + "\n")?;
+            std::fs::write(
+                &layers_path,
+                serde_json::to_string_pretty(&suggested)? + "\n",
+            )?;
             println!(
                 "crate-edges: wrote SUGGESTED layer map (hand-adjust before merging!) -> {}",
                 layers_path.display()
@@ -293,16 +333,28 @@ pub fn run(root: &Path, tighten_mode: bool) -> Result<()> {
 
     let (violations, stale) = check(&live, &allow, &layers);
     for (f, t) in &stale {
-        println!("warning: stale baseline edge {f} -> {t} (gone; run `vox ci crate-edges --tighten`)");
+        println!(
+            "warning: stale baseline edge {f} -> {t} (gone; run `vox ci crate-edges --tighten`)"
+        );
     }
     if violations.is_empty() {
-        println!("crate-edges: OK ({} live in-tree edges within baseline)", live.len());
+        println!(
+            "crate-edges: OK ({} live in-tree edges within baseline)",
+            live.len()
+        );
         return Ok(());
     }
     for v in &violations {
         match v {
-            Violation::NewEdge { from, to } => eprintln!("NEW EDGE not in baseline: {from} -> {to}"),
-            Violation::UpwardEdge { from, from_layer, to, to_layer } => eprintln!(
+            Violation::NewEdge { from, to } => {
+                eprintln!("NEW EDGE not in baseline: {from} -> {to}")
+            }
+            Violation::UpwardEdge {
+                from,
+                from_layer,
+                to,
+                to_layer,
+            } => eprintln!(
                 "UPWARD EDGE (layer rule): {from} (L{from_layer}) -> {to} (L{to_layer}) — deps must point same-layer or down"
             ),
             Violation::MissingLayer { krate } => eprintln!(
@@ -318,12 +370,18 @@ mod tests {
     use super::*;
 
     fn edges(pairs: &[(&str, &str)]) -> BTreeSet<(String, String)> {
-        pairs.iter().map(|(f, t)| (f.to_string(), t.to_string())).collect()
+        pairs
+            .iter()
+            .map(|(f, t)| (f.to_string(), t.to_string()))
+            .collect()
     }
     fn allow(baseline: &[(&str, &str)], exceptions: &[(&str, &str)]) -> AllowFile {
         AllowFile {
             schema_version: 1,
-            edges: baseline.iter().map(|(f, t)| [f.to_string(), t.to_string()]).collect(),
+            edges: baseline
+                .iter()
+                .map(|(f, t)| [f.to_string(), t.to_string()])
+                .collect(),
             exceptions: exceptions
                 .iter()
                 .map(|(f, t)| ExceptionEntry {
@@ -365,7 +423,13 @@ mod tests {
             &allow(&[], &[]),
             &layers(&[("app", 4), ("lib", 0)]),
         );
-        assert_eq!(v, vec![Violation::NewEdge { from: "app".into(), to: "lib".into() }]);
+        assert_eq!(
+            v,
+            vec![Violation::NewEdge {
+                from: "app".into(),
+                to: "lib".into()
+            }]
+        );
     }
 
     #[test]
@@ -396,27 +460,24 @@ mod tests {
             &allow(&[], &[("app", "new")]),
             &layers(&[("app", 4)]),
         );
-        assert_eq!(v, vec![Violation::MissingLayer { krate: "new".into() }]);
+        assert_eq!(
+            v,
+            vec![Violation::MissingLayer {
+                krate: "new".into()
+            }]
+        );
     }
 
     #[test]
     fn removed_edge_reports_stale_not_fail() {
-        let (v, stale) = check(
-            &edges(&[]),
-            &allow(&[("app", "lib")], &[]),
-            &layers(&[]),
-        );
+        let (v, stale) = check(&edges(&[]), &allow(&[("app", "lib")], &[]), &layers(&[]));
         assert!(v.is_empty());
         assert_eq!(stale, vec![("app".to_string(), "lib".to_string())]);
     }
 
     #[test]
     fn dead_exception_reports_stale_too() {
-        let (v, stale) = check(
-            &edges(&[]),
-            &allow(&[], &[("app", "lib")]),
-            &layers(&[]),
-        );
+        let (v, stale) = check(&edges(&[]), &allow(&[], &[("app", "lib")]), &layers(&[]));
         assert!(v.is_empty());
         assert_eq!(stale, vec![("app".to_string(), "lib".to_string())]);
     }
@@ -430,7 +491,12 @@ mod tests {
         );
         assert_eq!(
             v,
-            vec![Violation::UpwardEdge { from: "lib".into(), from_layer: 0, to: "app".into(), to_layer: 4 }]
+            vec![Violation::UpwardEdge {
+                from: "lib".into(),
+                from_layer: 0,
+                to: "app".into(),
+                to_layer: 4
+            }]
         );
     }
 
@@ -451,7 +517,12 @@ mod tests {
             &allow(&[("app", "lib")], &[]),
             &layers(&[("app", 4)]),
         );
-        assert_eq!(v, vec![Violation::MissingLayer { krate: "lib".into() }]);
+        assert_eq!(
+            v,
+            vec![Violation::MissingLayer {
+                krate: "lib".into()
+            }]
+        );
     }
 
     #[test]
@@ -472,25 +543,24 @@ mod tests {
         let root = crate::repo_root();
         let live = collect_live_edges(&root).expect("cargo metadata");
         assert!(live.contains(&("vox-cli".to_string(), "vox-cli-ci".to_string())));
-        assert!(live.len() > 400, "expected hundreds of in-tree edges, got {}", live.len());
+        assert!(
+            live.len() > 400,
+            "expected hundreds of in-tree edges, got {}",
+            live.len()
+        );
     }
 
     #[test]
     fn tighten_is_removal_only() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::create_dir_all(dir.path().join("contracts/ci")).unwrap();
-        write_allow_file(
-            &dir.path().join(ALLOW_REL),
-            &allow(&[("app", "lib")], &[]),
-        )
-        .unwrap();
+        write_allow_file(&dir.path().join(ALLOW_REL), &allow(&[("app", "lib")], &[])).unwrap();
         let err = tighten(dir.path(), &edges(&[("app", "lib"), ("app", "extra")])).unwrap_err();
         assert!(err.to_string().contains("removal-only"), "{err}");
         tighten(dir.path(), &edges(&[])).unwrap();
-        let f: AllowFile = serde_json::from_str(
-            &std::fs::read_to_string(dir.path().join(ALLOW_REL)).unwrap(),
-        )
-        .unwrap();
+        let f: AllowFile =
+            serde_json::from_str(&std::fs::read_to_string(dir.path().join(ALLOW_REL)).unwrap())
+                .unwrap();
         assert!(f.edges.is_empty());
     }
 
@@ -499,10 +569,9 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         std::fs::create_dir_all(dir.path().join("contracts/ci")).unwrap();
         tighten(dir.path(), &edges(&[("app", "lib")])).unwrap();
-        let f: AllowFile = serde_json::from_str(
-            &std::fs::read_to_string(dir.path().join(ALLOW_REL)).unwrap(),
-        )
-        .unwrap();
+        let f: AllowFile =
+            serde_json::from_str(&std::fs::read_to_string(dir.path().join(ALLOW_REL)).unwrap())
+                .unwrap();
         assert_eq!(f.edges, vec![["app".to_string(), "lib".to_string()]]);
         write_allow_file(
             &dir.path().join(ALLOW_REL),
@@ -510,18 +579,24 @@ mod tests {
         )
         .unwrap();
         tighten(dir.path(), &edges(&[("app", "lib")])).unwrap();
-        let f: AllowFile = serde_json::from_str(
-            &std::fs::read_to_string(dir.path().join(ALLOW_REL)).unwrap(),
-        )
-        .unwrap();
-        assert!(f.edges.is_empty(), "excepted pair must not also sit in edges");
+        let f: AllowFile =
+            serde_json::from_str(&std::fs::read_to_string(dir.path().join(ALLOW_REL)).unwrap())
+                .unwrap();
+        assert!(
+            f.edges.is_empty(),
+            "excepted pair must not also sit in edges"
+        );
         assert_eq!(f.exceptions.len(), 1);
     }
 
     #[test]
     fn suggest_layers_depth_capped() {
         let l = suggest_layers(&edges(&[
-            ("a", "b"), ("b", "c"), ("c", "d"), ("d", "e"), ("e", "f"),
+            ("a", "b"),
+            ("b", "c"),
+            ("c", "d"),
+            ("d", "e"),
+            ("e", "f"),
         ]));
         assert_eq!(l.layers["f"], 0);
         assert_eq!(l.layers["e"], 1);
@@ -552,7 +627,13 @@ mod tests {
         std::fs::create_dir_all(dir.path().join("contracts/ci")).unwrap();
         assert!(!dir.path().join(LAYERS_REL).exists());
         run(dir.path(), true).unwrap();
-        assert!(dir.path().join(LAYERS_REL).exists(), "tighten mode must bootstrap the layer map");
-        assert!(dir.path().join(ALLOW_REL).exists(), "tighten mode must also write the allow baseline");
+        assert!(
+            dir.path().join(LAYERS_REL).exists(),
+            "tighten mode must bootstrap the layer map"
+        );
+        assert!(
+            dir.path().join(ALLOW_REL).exists(),
+            "tighten mode must also write the allow baseline"
+        );
     }
 }
