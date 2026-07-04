@@ -85,7 +85,9 @@ async fn overrule_task_records_durable_oplog_entry() {
         .orchestrator
         .submit_task(
             "overrule oplog test task",
-            vec![vox_orchestrator::FileAffinity::write("src/overrule_oplog.rs")],
+            vec![vox_orchestrator::FileAffinity::write(
+                "src/overrule_oplog.rs",
+            )],
             None,
             None,
             None,

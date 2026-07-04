@@ -212,9 +212,7 @@ pub async fn doubt_task(state: &ServerState, params: crate::params::DoubtTaskPar
                     None,
                 )
                 .await;
-            state
-                .orchestrator
-                .emit_doubt_events(task_id, &outcome);
+            state.orchestrator.emit_doubt_events(task_id, &outcome);
             // Gamification: suspecting is a habit-building interaction.
             if let (Some(db), Some(aid)) = (&state.db, assigned) {
                 let uid = vox_gamify::db::canonical_user_id();

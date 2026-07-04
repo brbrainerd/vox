@@ -920,8 +920,8 @@ mod tests {
         use axum::extract::ConnectInfo;
         use axum::http::{Request, StatusCode};
         use tower::ServiceExt;
-        use vox_orchestrator::orch_daemon::ExtraDispatch;
         use vox_foundation::protocol::{DispatchPayload, DispatchRequest};
+        use vox_orchestrator::orch_daemon::ExtraDispatch;
 
         fn req(method: &str, params: serde_json::Value) -> DispatchRequest {
             DispatchRequest {

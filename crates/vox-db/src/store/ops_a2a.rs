@@ -576,7 +576,11 @@ impl crate::VoxDb {
             .call(|| async move {
                 let mut bound: Vec<turso::Value> =
                     vec![repository_id.as_str().into(), (op_id_lo as i64).into()];
-                bound.extend(exclude_op_ids.iter().map(|id| turso::Value::from(*id as i64)));
+                bound.extend(
+                    exclude_op_ids
+                        .iter()
+                        .map(|id| turso::Value::from(*id as i64)),
+                );
                 let affected = conn.execute(&sql, bound).await?;
                 Ok::<u64, StoreError>(affected)
             })

@@ -214,7 +214,10 @@ async fn stdio_routed_tool_call_approval_is_visible_and_resolvable_from_a_separa
         )
         .await
         .expect("orch.resolve_approval dispatched");
-    assert_eq!(resolve_result.get("resolved"), Some(&serde_json::Value::Bool(true)));
+    assert_eq!(
+        resolve_result.get("resolved"),
+        Some(&serde_json::Value::Bool(true))
+    );
 
     // The originally stdio-routed call must have woken up and completed.
     let outcome = call
@@ -296,12 +299,8 @@ async fn tool_call_with_no_daemon_reachable_surfaces_a_clear_error() {
     }
 
     let daemon_ensure = OrchestratorDaemonEnsure::default();
-    let result = call_tool_via_daemon(
-        &daemon_ensure,
-        "vox_git_status",
-        serde_json::json!({}),
-    )
-    .await;
+    let result =
+        call_tool_via_daemon(&daemon_ensure, "vox_git_status", serde_json::json!({})).await;
 
     assert!(
         result.is_err(),

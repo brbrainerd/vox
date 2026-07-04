@@ -249,7 +249,10 @@ async fn approval_requested_run_id_falls_back_to_task_id() {
         );
         tokio::time::sleep(std::time::Duration::from_millis(20)).await;
     }
-    assert!(saw_run_id, "ApprovalRequested.run_id must equal stringified task_id when no trace_id/correlation_id is present");
+    assert!(
+        saw_run_id,
+        "ApprovalRequested.run_id must equal stringified task_id when no trace_id/correlation_id is present"
+    );
 }
 
 /// Security regression guard: a caller cannot bypass the HITL gate by setting

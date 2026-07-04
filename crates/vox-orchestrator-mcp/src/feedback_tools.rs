@@ -202,9 +202,7 @@ pub async fn resolve_feedback(state: &ServerState, params: ResolveFeedbackParams
                         .orchestrator
                         .record_operation(
                             outcome.agent_id,
-                            vox_orchestrator::oplog::OperationKind::TaskComplete {
-                                task_id: tid.0,
-                            },
+                            vox_orchestrator::oplog::OperationKind::TaskComplete { task_id: tid.0 },
                             format!("Task {} overruled", tid.0),
                             None,
                             None,

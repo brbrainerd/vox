@@ -142,7 +142,9 @@ fn get_vox_prompt(repo_root: &std::path::Path, name: &str) -> Result<GetPromptRe
 /// (or any other daemon client) sees — see `crate::daemon_route`.
 pub struct VoxMcpServer {
     state: ServerState,
-    daemon: std::sync::Arc<vox_cli_core::daemon_ipc::orchestrator_daemon_ensure::OrchestratorDaemonEnsure>,
+    daemon: std::sync::Arc<
+        vox_cli_core::daemon_ipc::orchestrator_daemon_ensure::OrchestratorDaemonEnsure,
+    >,
 }
 
 impl VoxMcpServer {
