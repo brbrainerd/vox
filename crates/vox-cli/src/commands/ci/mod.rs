@@ -17,6 +17,7 @@ mod policy_registry;
 mod pre_push;
 mod profile_parity;
 mod providers;
+mod queue;
 mod release_build;
 mod runner_scale;
 #[cfg(test)]

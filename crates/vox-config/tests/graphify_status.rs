@@ -1,7 +1,6 @@
 #![allow(unsafe_code)] // test-only std::env::set_var (unsafe on edition 2024)
 //! Graphify corpus registry + freshness assessment (`vox-config::graphify`).
 // Rust 2024 made std::env::{set_var,remove_var} unsafe; mutated single-threaded.
-#![allow(unsafe_code)]
 
 use std::fs;
 use std::path::Path;

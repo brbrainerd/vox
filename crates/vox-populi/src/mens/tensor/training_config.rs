@@ -184,6 +184,64 @@ pub struct LoraTrainingConfig {
     pub gradient_checkpointing: bool,
 }
 
+impl Default for LoraTrainingConfig {
+    fn default() -> Self {
+        Self {
+            base_model: None,
+            base_model_family: None,
+            upstream_model_id: None,
+            license_class: None,
+            attribution_required: false,
+            base_model_paths: None,
+            tokenizer_path: None,
+            train_file: None,
+            rank: 16,
+            alpha: 32.0,
+            seq_len: 256,
+            batch_size: 4,
+            grad_accum: 4,
+            resume_from: None,
+            epochs: 3,
+            learning_rate: 2e-4,
+            warmup_steps: 100,
+            seed: 42,
+            min_rating: 3,
+            run_id: None,
+            git_sha: None,
+            device_profile: None,
+            max_vram_fraction: None,
+            adapter_tag: None,
+            context_filter: None,
+            validation_split_ratio: Some(0.05),
+            tokenizer_mode: MensTokenizerMode::Hf,
+            qlora_double_quant: true,
+            finetune_contract_digest: None,
+            qlora_require_full_proxy_stack: false,
+            qlora_max_skip_rate: None,
+            qlora_lm_head_only: false,
+            qlora_proxy_max_layers: None,
+            qlora_ce_last_k: 64,
+            checkpoint_every: Some(500),
+            force_restart: false,
+            deployment_target: TrainingDeploymentTarget::default(),
+            curriculum: false,
+            curriculum_schedule: None,
+            optimizer_experiment_mode: OptimizerExperimentMode::Off,
+            trajectory_weighting_enabled: false,
+            trajectory_tool_trace_boost: 1.1,
+            trajectory_failure_category_boost: 1.15,
+            trajectory_quality_floor: None,
+            trajectory_quality_boost: 1.05,
+            require_gpu: false,
+            allow_cpu_fallback: true,
+            chatml: ChatmlConfig::default(),
+            reward_hook: None,
+            launch_argv: Vec::new(),
+            gradient_checkpointing: false,
+        }
+    }
+}
+
 #[cfg(test)]
 mod semcov_wave26_tests {
     use super::*;
@@ -424,63 +482,5 @@ mod semcov_wave26_tests {
         assert!(cs.epoch_2_max_difficulty.is_none());
         assert!(cs.epoch_3_max_difficulty.is_none());
         assert!(cs.curriculum_phases.is_none());
-    }
-}
-
-impl Default for LoraTrainingConfig {
-    fn default() -> Self {
-        Self {
-            base_model: None,
-            base_model_family: None,
-            upstream_model_id: None,
-            license_class: None,
-            attribution_required: false,
-            base_model_paths: None,
-            tokenizer_path: None,
-            train_file: None,
-            rank: 16,
-            alpha: 32.0,
-            seq_len: 256,
-            batch_size: 4,
-            grad_accum: 4,
-            resume_from: None,
-            epochs: 3,
-            learning_rate: 2e-4,
-            warmup_steps: 100,
-            seed: 42,
-            min_rating: 3,
-            run_id: None,
-            git_sha: None,
-            device_profile: None,
-            max_vram_fraction: None,
-            adapter_tag: None,
-            context_filter: None,
-            validation_split_ratio: Some(0.05),
-            tokenizer_mode: MensTokenizerMode::Hf,
-            qlora_double_quant: true,
-            finetune_contract_digest: None,
-            qlora_require_full_proxy_stack: false,
-            qlora_max_skip_rate: None,
-            qlora_lm_head_only: false,
-            qlora_proxy_max_layers: None,
-            qlora_ce_last_k: 64,
-            checkpoint_every: Some(500),
-            force_restart: false,
-            deployment_target: TrainingDeploymentTarget::default(),
-            curriculum: false,
-            curriculum_schedule: None,
-            optimizer_experiment_mode: OptimizerExperimentMode::Off,
-            trajectory_weighting_enabled: false,
-            trajectory_tool_trace_boost: 1.1,
-            trajectory_failure_category_boost: 1.15,
-            trajectory_quality_floor: None,
-            trajectory_quality_boost: 1.05,
-            require_gpu: false,
-            allow_cpu_fallback: true,
-            chatml: ChatmlConfig::default(),
-            reward_hook: None,
-            launch_argv: Vec::new(),
-            gradient_checkpointing: false,
-        }
     }
 }

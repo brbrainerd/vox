@@ -316,6 +316,9 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         }
         CiCmd::FmtCheck => super::pre_push::check_fmt(&root),
         CiCmd::RunnerPolicyCheck { strict } => vox_cli_ci::runner_policy_check::run(&root, strict),
+        CiCmd::WorkflowConcurrencyGuard { strict } => {
+            vox_cli_ci::workflow_concurrency_guard::run(&root, strict)
+        }
         CiCmd::GuiVisualReview { no_ai } => vox_cli_ci::gui_visual_review::run(&root, no_ai),
         CiCmd::LineEndings { all, base, autofix } => {
             vox_cli_ci::line_endings::run(&root, all, base, autofix)
@@ -636,6 +639,23 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         }
         CiCmd::RunnerPreflight => super::runner_scale::run_preflight(),
         CiCmd::RunnerStatus => super::runner_scale::run_status(),
+        CiCmd::Queue {
+            json,
+            brief,
+            from_snapshot,
+            clear,
+            dry_run,
+            ttl_mins,
+            hook_guard,
+        } => super::queue::run(super::queue::QueueArgs {
+            json,
+            brief,
+            from_snapshot,
+            clear,
+            dry_run,
+            ttl_mins,
+            hook_guard,
+        }),
         CiCmd::JobTimings {
             run_id,
             threshold_mins,

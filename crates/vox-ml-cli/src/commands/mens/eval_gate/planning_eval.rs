@@ -5,7 +5,6 @@
 //! This module records metric evidence for a potential v2 planning spoke
 //! decision. The structs and evaluator are compile-time verified and
 //! tested, but are NOT wired into the v1 gate path.
-#![allow(dead_code)]
 
 /// Result of evaluating an actual tool sequence against an expected sequence.
 ///
