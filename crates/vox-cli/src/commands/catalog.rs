@@ -67,16 +67,12 @@ fn current_repo_root() -> Result<std::path::PathBuf> {
     Ok(vox_repository::discover_repository_or_fallback(&cwd).root)
 }
 
-fn json_output_enabled() -> bool {
-    std::env::var("VOX_CLI_GLOBAL_JSON").ok().as_deref() == Some("1")
-}
-
 pub async fn run(cmd: CatalogCmd) -> Result<()> {
     let repo_root = current_repo_root()?;
     match cmd {
         CatalogCmd::List => {
             let catalog = vox_repository::resolve_repo_catalog(&repo_root)?;
-            if json_output_enabled() {
+            if crate::pipeline::global_json_enabled() {
                 println!("{}", serde_json::to_string(&catalog)?);
             } else {
                 println!("{}", serde_json::to_string_pretty(&catalog)?);

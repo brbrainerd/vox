@@ -13,7 +13,11 @@ All notable changes to the Vox project are documented here.
 
 ## [Unreleased]
 
-(Empty — v0.6.0 just tagged.  Next-release content lands here.)
+### Added
+
+- **`@ai(structured_output = T)` now emits a real JSON-schema-constrained LLM call** — the generated `LlmConfig.response_format` carries `{"type":"json_schema","json_schema":{"name":…,"strict":true,"schema":{…}}}` derived from `T`'s typedef (scalars, `list[…]`, `Option[…]`, nested structs; closed objects with `required`), and `max_iterations = N` now emits a bounded re-prompt loop that retries when the reply is not valid JSON.
+- **Uniform `--json` across the build lane** — `vox --json build`, `vox --json test`, and `vox --json run` (script lane) emit stable single-line `BuildLaneEnvelope` JSON (`envelope_version`, `command`, `ok`, `error_count`, `warning_count`, `diagnostics` using the same `VoxCompilerDiagnosticPayload` as `vox check`, optional `exit_code`) on stdout; human progress notes move to stderr so stdout stays JSONL-parseable. `vox build` guarantees exactly one envelope line per invocation regardless of which stage fails.
+- **`vox doctor --diag <id>`** — run and report only the build-health check that can produce a given `[diag id=…]` (e.g. `sccache.pathological`); exits non-zero when the diagnosis fires, and unknown ids list the registered-id registry.
 
 ## [0.6.0] - 2026-05-26
 

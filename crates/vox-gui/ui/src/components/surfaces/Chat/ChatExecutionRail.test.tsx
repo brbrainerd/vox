@@ -129,11 +129,12 @@ describe('ChatExecutionRail', () => {
     expect(onNavigate).toHaveBeenCalledWith('runs');
 
     await user.click(screen.getByTestId('execution-rail-mesh'));
-    expect(onNavigate).toHaveBeenCalledWith('compute');
+    expect(onNavigate).toHaveBeenCalledWith('mesh');
   });
 
-  it('renders intent map section with up to three intent lines linking to matrix', async () => {
+  it('renders intent map section with up to three intent lines and opens the Routing drawer', async () => {
     const onNavigate = vi.fn();
+    const onOpenRouting = vi.fn();
     const user = userEvent.setup();
     render(
       <LanguageProvider>
@@ -142,6 +143,7 @@ describe('ChatExecutionRail', () => {
           kpis={sampleKpis}
           intents={['claude-sonnet-4 · exploit', 'Alt: gpt-4o', 'Alt: gemini-pro', 'extra']}
           onNavigate={onNavigate}
+          onOpenRouting={onOpenRouting}
         />
       </LanguageProvider>,
     );
@@ -154,7 +156,8 @@ describe('ChatExecutionRail', () => {
     expect(screen.queryByText('extra')).toBeNull();
 
     await user.click(screen.getByRole('button', { name: /claude-sonnet-4 · exploit/i }));
-    expect(onNavigate).toHaveBeenCalledWith('matrix');
+    expect(onOpenRouting).toHaveBeenCalledTimes(1);
+    expect(onNavigate).not.toHaveBeenCalledWith('matrix');
   });
 
   it('omits intent map when intents prop is empty', () => {

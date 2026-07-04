@@ -8,6 +8,8 @@ mod exec_policy_contract;
 mod gui_catalog_parity;
 mod gui_surface_coverage;
 pub mod gui_surface_registry;
+#[cfg(test)]
+mod merge_group_fanout_guard;
 mod operations_catalog;
 mod pipeline_parity;
 mod policy_allowlist_parity;
@@ -17,6 +19,8 @@ mod profile_parity;
 mod providers;
 mod release_build;
 mod runner_scale;
+#[cfg(test)]
+mod sccache_workflow_guard;
 pub mod workspace_artifacts;
 
 pub(crate) mod run_body;

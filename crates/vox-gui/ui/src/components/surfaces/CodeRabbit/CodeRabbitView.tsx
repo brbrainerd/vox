@@ -50,9 +50,12 @@ export function toSliceRows(manifest: Manifest | null, report: Report | null) {
 
 export function CodeRabbitView(_props: CodeRabbitViewProps): React.ReactElement {
   const [since, setSince] = useState('2026-04-01');
-  const [cap, setCap] = useState(140);
+  const [fullRepo, setFullRepo] = useState(false);
+  const [cap, setCap] = useState(150);
   const [weights, setWeights] = useState('1,1,1');
-  const [top, setTop] = useState(300);
+  // Empty = review everything selected (no truncation). A number keeps only the
+  // top-N most important files — never default this on for a full-repo sweep.
+  const [top, setTop] = useState('');
   const [manifest, setManifest] = useState<Manifest | null>(null);
   const [report, setReport] = useState<Report | null>(null);
   const [tokenOk, setTokenOk] = useState<boolean | null>(null);
@@ -87,28 +90,31 @@ export function CodeRabbitView(_props: CodeRabbitViewProps): React.ReactElement 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Same top-N for plan and run so the preview matches what actually executes.
+  const topN = top.trim() ? Math.max(1, Math.trunc(Number(top))) : null;
+
   const plan = useCallback(async () => {
     setBusy(true);
     try {
-      const m = await invoke<Manifest>('coderabbit_plan', { since, cap, rankWeights: weights });
+      const m = await invoke<Manifest>('coderabbit_plan', { since, cap, rankWeights: weights, top: topN, fullRepo });
       setManifest(m);
     } catch (err) {
       _props.pushToast({ kind: 'error', message: `Plan failed: ${err}` });
     } finally {
       setBusy(false);
     }
-  }, [since, cap, weights, _props]);
+  }, [since, cap, weights, topN, fullRepo, _props]);
 
   const run = useCallback(async () => {
     setRunning(true);
     try {
-      await invoke('coderabbit_run_async', { since, cap, rankWeights: weights, top });
+      await invoke('coderabbit_run_async', { since, cap, rankWeights: weights, top: topN, fullRepo });
       _props.pushToast({ kind: 'info', message: 'CodeRabbit sweep started' });
     } catch (err) {
       setRunning(false);
       _props.pushToast({ kind: 'error', message: `Run failed: ${err}` });
     }
-  }, [since, cap, weights, top, _props]);
+  }, [since, cap, weights, topN, fullRepo, _props]);
 
   const rows = toSliceRows(manifest, report);
   const totalFiles = rows.reduce((a, r) => a + r.files, 0);
@@ -127,29 +133,36 @@ export function CodeRabbitView(_props: CodeRabbitViewProps): React.ReactElement 
 
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'end', marginBottom: '1rem' }}>
         <label style={{ fontSize: 13 }}>
+          <div style={{ color: 'var(--text-secondary, #5F5E5A)', marginBottom: 4 }}>Scope</div>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <input type="checkbox" checked={fullRepo} onChange={(e) => setFullRepo(e.target.checked)} />
+            Full repo
+          </label>
+        </label>
+        <label style={{ fontSize: 13 }}>
           <div style={{ color: 'var(--text-secondary, #5F5E5A)', marginBottom: 4 }}>Modified since</div>
-          <input type="date" value={since} onChange={(e) => setSince(e.target.value)} />
+          <input type="date" value={since} disabled={fullRepo} onChange={(e) => setSince(e.target.value)} />
         </label>
         <label style={{ fontSize: 13 }}>
           <div style={{ color: 'var(--text-secondary, #5F5E5A)', marginBottom: 4 }}>Max files / PR</div>
           <input type="number" min={1} max={150} value={cap} onChange={(e) => { const n = Number(e.target.value); setCap(Number.isFinite(n) ? Math.max(1, Math.min(150, Math.trunc(n))) : 1); }} style={{ width: 90 }} />
         </label>
         <label style={{ fontSize: 13 }}>
-          <div style={{ color: 'var(--text-secondary, #5F5E5A)', marginBottom: 4 }}>Top N</div>
-          <input type="number" min={1} value={top} onChange={(e) => { const n = Number(e.target.value); setTop(Number.isFinite(n) ? Math.max(1, Math.trunc(n)) : 1); }} style={{ width: 90 }} />
+          <div style={{ color: 'var(--text-secondary, #5F5E5A)', marginBottom: 4 }}>Top N (blank = all)</div>
+          <input type="number" min={1} value={top} placeholder="all" onChange={(e) => setTop(e.target.value)} style={{ width: 90 }} />
         </label>
         <label style={{ fontSize: 13 }}>
           <div style={{ color: 'var(--text-secondary, #5F5E5A)', marginBottom: 4 }}>Rank weights (r,c,g)</div>
           <input type="text" value={weights} onChange={(e) => setWeights(e.target.value)} style={{ width: 110 }} />
         </label>
-        <button onClick={plan} disabled={busy || !since}>{busy ? 'Planning…' : 'Plan sweep'}</button>
+        <button onClick={plan} disabled={busy || (!fullRepo && !since)}>{busy ? 'Planning…' : 'Plan sweep'}</button>
         <button onClick={run} disabled={running || !rows.length}>{running ? 'Running…' : 'Run'}</button>
       </div>
 
       <div style={{ fontSize: 13, color: 'var(--text-secondary, #5F5E5A)', marginBottom: 8 }}>
         {rows.length
           ? `Planned ${rows.length} PRs · ${totalFiles} files · est ~${Math.ceil(rows.length / 5)}h at 5/hr`
-          : 'No plan yet — set a date and click “Plan sweep”.'}
+          : 'No plan yet — pick a date (or Full repo) and click “Plan sweep”.'}
       </div>
 
       {rows.length > 0 && (

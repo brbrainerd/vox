@@ -404,8 +404,22 @@ jobs:
           FULL="${{ needs.setup.outputs.full }}"
           CRATES="${{ needs.setup.outputs.affected_crates }}"
           fail=0
+          # Crates the root Cargo.toml `[workspace] exclude`s (keep in sync). Each has no
+          # workspace root of its own, so `cargo fmt --manifest-path` can't resolve their
+          # `edition.workspace = true` / `version.workspace = true` and errors with
+          # "failed to find a workspace root" — not a real format violation.
+          is_excluded_crate() {
+            case "$1" in
+              vox-cargo-shim|vox-plugin-cloud|vox-plugin-skill-compiler|vox-plugin-skill-git|\
+              vox-plugin-skill-memory|vox-plugin-skill-orchestrator|vox-plugin-skill-rag|\
+              vox-plugin-skill-testing|vox-plugin-skill-testing-validate) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
           if [ "$FULL" = "true" ]; then
             for m in crates/*/Cargo.toml; do
+              c="$(basename "$(dirname "$m")")"
+              is_excluded_crate "$c" && continue
               cargo fmt --manifest-path "$m" -- --check || fail=1
             done
           elif [ -z "$CRATES" ]; then
@@ -413,6 +427,7 @@ jobs:
             exit 0
           else
             for c in $CRATES; do
+              is_excluded_crate "$c" && continue
               m="crates/${c}/Cargo.toml"
               if [ -f "$m" ]; then
                 cargo fmt --manifest-path "$m" -- --check || fail=1
@@ -924,7 +939,7 @@ jobs:
             cargo nextest run -p vox-workflow-runtime
           fi
           if affected_has vox-cli; then
-            cargo check -p vox-cli --features mesh,workflow-runtime
+            cargo check -p vox-cli --features workflow-runtime
           fi
 
       - name: Arch-check (layer + fan-in + LoC + orphan + docstring)

@@ -29,6 +29,8 @@ export interface ChatExecutionRailProps {
   onNavigate: (viewKey: string) => void;
   /** Active chat session id — passed to get_context_budget so the meter shows real token usage. */
   sessionId?: string | null;
+  /** Opens the inline Routing panel (folded Matrix surface — gui-ia-blueprint: matrix → chat rail). */
+  onOpenRouting?: () => void;
 }
 
 function formatOpenRouterSpend(usd: number): string {
@@ -76,6 +78,7 @@ export function ChatExecutionRail({
   openrouterSpendUsd,
   onNavigate,
   sessionId,
+  onOpenRouting,
 }: ChatExecutionRailProps) {
   const [collapsed, setCollapsed] = useLocalStorage<boolean>(EXECUTION_RAIL_COLLAPSED_KEY, false);
   const [budget, setBudget] = useState<ContextBudgetPayload | null>(null);
@@ -166,7 +169,7 @@ export function ChatExecutionRail({
                 key={intent}
                 type="button"
                 aria-label={intent}
-                onClick={() => onNavigate('matrix')}
+                onClick={() => onOpenRouting?.()}
                 className="rounded px-2 py-1 text-left text-[11px] text-text-secondary transition hover:bg-overlay-subtle hover:text-brass"
               >
                 {intent}
@@ -199,7 +202,7 @@ export function ChatExecutionRail({
             testId="execution-rail-mesh"
             label="Mesh"
             value={peerLabel}
-            onClick={() => onNavigate('compute')}
+            onClick={() => onNavigate('mesh')}
           />
           {activeModel != null && activeModel !== '' && (
             <Segment

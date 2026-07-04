@@ -705,5 +705,17 @@ export function listenFeedbackChanged(onChange: () => void): Promise<UnlistenFn>
   });
 }
 
+export interface HopperTaskDto {
+  item_id: string;
+  intent: string;
+  priority: number;
+  state: string;
+  task_id: number;
+}
+
+/** List hopper task items (see `TasksView` / attention-inbox consumers). */
+export function hopperList(): Promise<HopperTaskDto[]> {
+  return invoke<HopperTaskDto[]>('hopper_list');
+}
 
 
