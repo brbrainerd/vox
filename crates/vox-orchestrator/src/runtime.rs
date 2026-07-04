@@ -798,26 +798,40 @@ impl ActorAgent {
     ) {
         match cmd {
             AgentCommand::ProcessQueue => {
-                let task_to_run = {
-                    let dequeued = if let Some(queue_lock) = orchestrator_ref.agent_queue(agent_id)
-                    {
+                let dequeued = if let Some(queue_lock) = orchestrator_ref.agent_queue(agent_id) {
+                    // Scope the write guard tightly: `dequeue`/`is_paused` need
+                    // the write lock, but `heartbeat` below takes a *read* lock
+                    // on this exact same per-agent `Arc<RwLock<AgentQueue>>`
+                    // (see `Orchestrator::heartbeat` in
+                    // `orchestrator/agent/lifecycle_ops.rs`, which resolves
+                    // `agents.get(&agent_id)` to the identical Arc returned by
+                    // `agent_queue`). `std::sync::RwLock` is not reentrant, so
+                    // calling `heartbeat` while still holding this write guard
+                    // deadlocks permanently. The guard must be dropped before
+                    // `heartbeat` runs.
+                    let (paused, t) = {
                         let mut queue = crate::sync_lock::rw_write(&queue_lock);
                         if !queue.is_paused() {
-                            let t = queue.dequeue();
-                            if t.is_some() {
-                                orchestrator_ref
-                                    .heartbeat(agent_id, crate::events::AgentActivity::Thinking);
-                            } else {
-                                orchestrator_ref
-                                    .heartbeat(agent_id, crate::events::AgentActivity::Idle);
-                            }
-                            t
+                            (false, queue.dequeue())
                         } else {
-                            None
+                            (true, None)
                         }
-                    } else {
-                        None
                     };
+                    if !paused {
+                        if t.is_some() {
+                            orchestrator_ref
+                                .heartbeat(agent_id, crate::events::AgentActivity::Thinking);
+                        } else {
+                            orchestrator_ref
+                                .heartbeat(agent_id, crate::events::AgentActivity::Idle);
+                        }
+                    }
+                    t
+                } else {
+                    None
+                };
+
+                let task_to_run = {
                     if let Some(ref task) = dequeued {
                         orchestrator_ref
                             .event_bus()
@@ -1471,6 +1485,64 @@ mod tests {
         assert!(
             logs.contains("complete_task failed after processor success"),
             "discarded complete_task Err must now be logged, not silently dropped; captured logs: {logs}"
+        );
+    }
+
+    /// Regression test for the deadlock documented on
+    /// `process_queue_logs_complete_task_error_instead_of_discarding_it`:
+    /// `handle_command`'s `AgentCommand::ProcessQueue` arm used to call
+    /// `Orchestrator::heartbeat` (which takes a *read* lock on the agent's
+    /// `Arc<RwLock<AgentQueue>>`) while still holding a *write* guard on that
+    /// same lock. `std::sync::RwLock` is not reentrant, so any real
+    /// `ProcessQueue` dispatch — the exact path task submission uses via
+    /// `submit_task_with_agent` (see
+    /// `orchestrator/task_dispatch/submit/task_submit.rs`) — would hang the
+    /// agent process forever.
+    ///
+    /// Drives `handle_command` itself (not a hand-rolled mirror) with a real
+    /// queued task so both the write-lock dequeue and the `heartbeat` read
+    /// lock are exercised in the same call, wrapped in a short
+    /// `tokio::time::timeout` so a reintroduced deadlock fails this test
+    /// loudly instead of hanging CI.
+    #[tokio::test]
+    async fn process_queue_does_not_deadlock_on_heartbeat() {
+        let orchestrator = Arc::new(Orchestrator::new(
+            crate::config::OrchestratorConfig::for_testing(),
+        ));
+        let agent_id = orchestrator.spawn_agent("t-deadlock").expect("spawn agent");
+        orchestrator
+            .submit_task_with_agent(
+                "ProcessQueue/heartbeat deadlock repro",
+                vec![],
+                None,
+                Some("t-deadlock".to_string()),
+                None,
+                None,
+                None,
+                None,
+            )
+            .await
+            .expect("submit task");
+
+        let processor: Arc<dyn TaskProcessor> = Arc::new(StubTaskProcessor);
+
+        let outcome = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            ActorAgent::handle_command(
+                AgentCommand::ProcessQueue,
+                agent_id,
+                &orchestrator,
+                &processor,
+            )
+            .await;
+        })
+        .await;
+
+        assert!(
+            outcome.is_ok(),
+            "AgentCommand::ProcessQueue timed out — the write guard on the \
+             agent's queue lock is likely still held when `heartbeat` tries \
+             to read-lock the same Arc<RwLock<AgentQueue>>, reintroducing \
+             the ProcessQueue/heartbeat lock-reentrancy deadlock"
         );
     }
 
